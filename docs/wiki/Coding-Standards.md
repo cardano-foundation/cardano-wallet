@@ -292,7 +292,8 @@ Instead of writing type aliases, one should favor wrapping up values in newtype 
 > Also, being more explicit on extensions used by a module can help speeding up compile-time of such simple modules
 > that don't need to be pull in a lot of extra complexity. 
 
-Haskell 
+Haskell's language extension are specified on top of each module. 
+
 <details>
   <summary>See examples</summary>
 
@@ -312,6 +313,47 @@ Haskell
   ```
 </details>
 
+## [PROPOSAL] We use `hlint` as a linter
+
+> **Why**
+> 
+> Linters are common practices in software development and help maintaining consistency across a large codebase with
+> many developers. Hlint is de de-facto linter in Haskell and comes with a lot of different rules and features that 
+> are _most of the time_ rather relevant and convey good practices, agreed upon and shared across the team. 
+
+Contributors' editors should pick up and enforce the rules defined by the .hlint.yaml configuration file at the root of the project. File should be committed without warnings or errors. When it make senses, developer may ignore lints at a function site using a proper annotation:
+
+e.g.
+
+```hs
+{-# ANN decodeBlock ("HLint: ignore Use <$>" :: String) #-}
+```
+
+As a start, we'll use the following built-in rules from `hlint` with the following configuration, and refine this as we move forward:
+
+```yaml
+- modules:
+  # Enforce some common qualified imports aliases across the codebase
+  - {name: [Data.Aeson, Data.Aeson.Types], as: Aeson}
+  - {name: [Data.ByteArray], as: BA}
+  - {name: [Data.ByteString.Base16], as: B16}
+  - {name: [Data.ByteString.Char8], as: B8}
+  - {name: [Data.ByteString.Lazy], as: BL}
+  - {name: [Data.ByteString], as: BS}
+  - {name: [Data.Foldable], as: F}
+  - {name: [Data.List.NonEmpty], as: NE}
+  - {name: [Data.List], as: L}
+  - {name: [Data.Map.Strict], as: Map}
+  - {name: [Data.Sequence], as: Seq}
+  - {name: [Data.Set, Data.HashSet], as: Set}
+  - {name: [Data.Text, Data.Text.Encoding], as: T}
+  - {name: [Data.Vector], as: V}
+
+# Ignore some build-in rules
+- ignore: {name: "Reduce duplication"} # This is a decision left to developers and reviewers
+- ignore: {name: "Redundant bracket"} # Not everyone knows precedences of every operators in Haskell. Brackets help readability.
+- ignore: {name: "Redundant do"} # Just an annoying hlint built-in, GHC may remove redundant do if he wants
+```
 
 
 # Git Practices
