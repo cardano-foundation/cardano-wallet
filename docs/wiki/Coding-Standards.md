@@ -197,7 +197,7 @@ Instead of writing type aliases, one should favor wrapping up values in newtype 
 
 # Git Practices
 
-## [PROPOSAL] Commits are squashed / re-formulated when merged from a PR to `master`
+## [PROPOSAL] Commits are squashed / adjusted when merged from a PR to `master`
 
 > **Why**
 >
@@ -206,4 +206,4 @@ Instead of writing type aliases, one should favor wrapping up values in newtype 
 > merging a lot of intermediate commits into the main trunk, sometimes touching a single file in many different ways.
 > This creates noise on the git history as well as unnecessary hard conflict resolutions (because we now have to resolve conflicts for all those commits, some of them being in an intermediate stage of development). 
 
-As we strive to give a clear structure to PR's git history, we should also squash commits from every PR while merging to make sure we do not end up "polluting" the git history by accident with many intermediate commits. 
+As we strive to give a clear structure to PR's git history, we should also squash commits from every PR while merging to make sure we do not end up "polluting" the git history by accident with many intermediate commits. When merging, we should also feel free to extend a merge commit message with any outcome of discussions that has occurred during the PR's review and that are worth recording. 
