@@ -15,5 +15,6 @@
 
 - [Wallet Backend FAQ](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-Backend-FAQ)
 - [Specifying exceptions with Servant and Swagger](https://github.com/input-output-hk/cardano-wallet/wiki/Specifying-exceptions-with-Servant-and-Swagger)
-- [Address Derivation](https://github.com/input-output-hk/cardano-wallet/wiki/Address-Derivation)
+- [About Address Derivation](https://github.com/input-output-hk/cardano-wallet/wiki/About-Address-Derivation)
+- [About Coin Selection](https://github.com/input-output-hk/cardano-wallet/wiki/About-Coin-Selection)
 - [Prototype](https://github.com/KtorZ/wallet-prototype)
