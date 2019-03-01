@@ -8,7 +8,7 @@
 # Project
 
 - [Roadmap](https://github.com/input-output-hk/cardano-wallet/wiki/Roadmap)
-- [Blackboard - Ideas & Thoughts](https://github.com/input-output-hk/cardano-wallet/wiki/Blockboard)
+- [Blackboard - Ideas & Thoughts](https://github.com/input-output-hk/cardano-wallet/wiki/Blackboard)
 
 
 # Knowledge Base
