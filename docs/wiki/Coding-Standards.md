@@ -162,6 +162,92 @@ data MyRecord = MyRecord
 </details>
 
 
+## [PROPOSAL] Stylish-Haskell is used to format grouped imports & language pragmas
+
+> **Why**
+> 
+> It is rather annoying and time-consuming to align import ligns or statement
+> as we code and it's much simpler to leave that to our editor. Yet, we do want 
+> to enforce some common formatting such that everyone gets to be aligned (pun
+> intended). 
+>
+> We can use Stylish-Haskell with various set of rules, yet, the same arguments 
+> from 'Avoid Variable-Length Indentation' applies when it comes to automatic 
+> formatting. Imports are a real pain with git and Haskell when they are vertically
+> aligned based on the imported module's name. 
+
+Contributors' editors should pick up and enforce the rules defined by the `.stylish-haskell.yaml`
+configuration file at the root of the project. Also, in order to maximise readability, imports
+should be grouped into two groups, separated by a blank newline. 
+
+- Explicit imports
+- Qualified imports
+
+Here below is a proposal for the initial set of rules:
+
+```yaml
+columns: 80 # Should match .editorconfig
+steps:
+  - imports:
+      align: none
+      empty_list_align: inherit
+      list_align: new_line
+      list_padding: 4
+      long_list_align: new_line_multiline
+      pad_module_names: false
+      separate_lists: true
+      space_surround: true
+
+  - language_pragmas:
+      align: false
+      remove_redundant: true
+      style: vertical
+```  
+
+<details>
+  <summary>See example</summary>
+
+  ```hs
+  {-# LANGUAGE BangPatterns #-}
+  {-# LANGUAGE DataKinds #-}
+  {-# LANGUAGE DeriveGeneric #-}
+  {-# LANGUAGE DerivingStrategies #-}
+  {-# LANGUAGE FlexibleContexts #-}
+  {-# LANGUAGE TupleSections #-}
+  {-# LANGUAGE TypeApplications #-}
+  {-# LANGUAGE TypeFamilies #-}
+
+  module Main where
+
+  import Control.Applicative
+      ( (<|>) )
+  import Control.Arrow
+      ( first )
+  import Control.Concurrent.MVar
+      ( modifyMVar_, newMVar, putMVar, readMVar, takeMVar )
+  import Crypto.Hash.Algorithms
+      ( Blake2b_224, Blake2b_256, SHA3_256, SHA512 (..) )
+  import Lens.Micro
+      ( at, (%~), (&), (.~), (^.) )
+  import Network.HTTP.Client
+      ( Manager
+      , defaultRequest
+      , httpLbs
+      , path
+      , port
+      , responseBody
+      , responseStatus
+      )
+
+  import qualified Codec.CBOR.Decoding as CBOR
+  import qualified Codec.CBOR.Encoding as CBOR
+  import qualified Codec.CBOR.Read as CBOR
+  import qualified Codec.CBOR.Write as CBOR
+  import qualified Crypto.Cipher.ChaChaPoly1305 as Poly
+  ```
+</details>
+
+
 # Haskell Practices
 
 ## [PROPOSAL] Favor `newtype` and tagged type over type-aliases
