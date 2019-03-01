@@ -7,7 +7,7 @@ Each proposal should start with a section justifying for the standard with ratio
 
 # Code Formatting
 
-## [PROPOSAL] Editor Configuration
+## Editor Configuration
 
 > *Why*
 >
