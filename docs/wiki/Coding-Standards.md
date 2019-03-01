@@ -194,3 +194,16 @@ Instead of writing type aliases, one should favor wrapping up values in newtype 
   deriveAccount :: HardenedIndex -> XPrv -> XPrv 
   ```
 </details>
+
+# Git Practices
+
+## [PROPOSAL] Commits are squashed / re-formulated when merged from a PR to `master`
+
+> **Why**
+>
+> When working on a task, a best practice is to commit often, and rethink after how we do want to indeed structure 
+> the changes. In practice, we don't necessarily take the time to do such re-organization work and we may end up
+> merging a lot of intermediate commits into the main trunk, sometimes touching a single file in many different ways.
+> This creates noise on the git history as well as unnecessary hard conflict resolutions (because we now have to resolve conflicts for all those commits, some of them being in an intermediate stage of development). 
+
+As we strive to give a clear structure to PR's git history, we should also squash commits from every PR while merging to make sure we do not end up "polluting" the git history by accident with many intermediate commits. 
