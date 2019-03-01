@@ -195,6 +195,39 @@ Instead of writing type aliases, one should favor wrapping up values in newtype 
   ```
 </details>
 
+## [PROPOSAL] Language extensions are specified on top of each module
+
+> **Why**
+>
+> Having a lot of default extensions enabled across the whole project can sometimes lead to cryptic 
+> errors where GHC would interpret things differently because of the enabled extensions. Yet, it's 
+> sometimes hard to distinguish by simply looking at the module themselves. 
+>
+> Also, being more explicit on extensions used by a module can help speeding up compile-time of such simple modules
+> that don't need to be pull in a lot of extra complexity. 
+
+Haskell 
+<details>
+  <summary>See examples</summary>
+
+  ```hs
+  -- GOOD
+  {-# LANGUAGE DataKinds #-}
+  {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+  {-# LANGUAGE DerivingStrategies #-} 
+
+  module Cardano.Wallet where
+
+  -- BAD
+  default-extensions:
+    - DataKinds
+    - GeneralizedNewtypeDeriving
+    - DerivingStrategies
+  ```
+</details>
+
+
+
 # Git Practices
 
 ## [PROPOSAL] PRs are squashed when merged
