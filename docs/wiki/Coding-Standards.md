@@ -197,7 +197,7 @@ Instead of writing type aliases, one should favor wrapping up values in newtype 
 
 # Git Practices
 
-## [PROPOSAL] Commits are squashed / adjusted when merged from a PR to `master`
+## [PROPOSAL] PRs are squashed when merged
 
 > **Why**
 >
