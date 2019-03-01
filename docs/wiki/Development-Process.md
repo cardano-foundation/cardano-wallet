@@ -11,12 +11,11 @@ The team follows a methodology known as [extreme programming][xp] which can be s
     - tasks are estimated and prioritized; tasks that are too big are broken down further
     - At the end of an iteration, there should be no tasks left 
 - Project velocity is measured for each iteration
-- User stories, Tasks and Bugs all have a dedicated GitHub template:
-    - [User Story Template][TODO]
+- Tasks, PR & Bugs all have a dedicated GitHub template:
     - [Task Template](https://github.com/input-output-hk/cardano-wallet/blob/master/.github/ISSUE_TEMPLATE/task.md)
     - [Bug Template](https://github.com/input-output-hk/cardano-wallet/blob/master/.github/ISSUE_TEMPLATE/bug.md)
     - [PR Template](https://github.com/input-output-hk/cardano-wallet/blob/master/.github/PULL_REQUEST_TEMPLATE.md)
-- User Stories, Tasks and Bugs move across the following board:
+- Tasks and Bugs move across the following board:
 
 ```
 |***********| |**********| |*************| |********| |**********|
