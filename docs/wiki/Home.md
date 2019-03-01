@@ -14,5 +14,5 @@
 # Knowledge Base
 
 - [Wallet Backend FAQ](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-Backend-FAQ)
-- [Specifying-exceptions-with-Servant-and-Swagger](https://github.com/input-output-hk/cardano-wallet/wiki/Specifying-exceptions-with-Servant-and-Swagger)
+- [Specifying exceptions with Servant and Swagger](https://github.com/input-output-hk/cardano-wallet/wiki/Specifying-exceptions-with-Servant-and-Swagger)
 - [Prototype](https://github.com/KtorZ/wallet-prototype)
