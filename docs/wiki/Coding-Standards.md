@@ -133,10 +133,10 @@ data AddressPool address = AddressPool
 
 -- GOOD
 deriveAccountPrivateKey
-    :: PassPhrase               -- Passphrase used to encrypt Master Private Key
-    -> EncryptedSecretKey       -- Master Private Key
-    -> Word32                   -- Hardened Account Key Index
-    -> Maybe EncryptedSecretKey -- Account Private Key
+    :: PassPhrase               
+    -> EncryptedSecretKey       
+    -> Word32                   
+    -> Maybe EncryptedSecretKey 
 deriveAccountPrivateKey passPhrase masterEncPrvKey accountIx = 
 
 -- BAD 
