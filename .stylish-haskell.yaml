@@ -1,0 +1,22 @@
+# Stylish-haskell configuration file
+#
+# See `stylish-haskell --defaults` or
+# https://github.com/jaspervdj/stylish-haskell/blob/master/data/stylish-haskell.yaml
+# for usage.
+
+columns: 80 # Should match .editorconfig
+steps:
+  - imports:
+      align: none
+      empty_list_align: inherit
+      list_align: new_line
+      list_padding: 4
+      long_list_align: new_line_multiline
+      pad_module_names: false
+      separate_lists: true
+      space_surround: true
+
+  - language_pragmas:
+      align: false
+      remove_redundant: true
+      style: vertical
