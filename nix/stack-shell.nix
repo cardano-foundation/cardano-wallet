@@ -13,6 +13,7 @@ haskell.lib.buildStackProject {
 
   buildInputs = [
     zlib gmp ncurses lzma openssl git
+    walletPackages.cardano-http-bridge
   ] ++ (lib.optionals stdenv.isDarwin (with darwin.apple_sdk.frameworks; [ Cocoa CoreServices libcxx libiconv ]));
 
   phases = ["nobuildPhase"];
