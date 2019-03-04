@@ -28,28 +28,6 @@ library
   build-depends:
       base
 
-    -- Hackage Dependencies
-    , aeson
-    , aeson-pretty
-    , base16-bytestring
-    , base58-bytestring
-    , bytestring
-    , cborg
-    , containers
-    , cryptonite
-    , deepseq
-    , digest
-    , generic-lens
-    , http-client
-    , memory
-    , microlens
-    , text
-    , time
-    , transformers
-
-    -- Other Project Dependencies
-    , cardano-crypto
-
   hs-source-dirs:
       src
   exposed-modules:
@@ -92,7 +70,6 @@ test-suite unit
 
   build-depends:
       base
-    , cardano-wallet
   type:
      exitcode-stdio-1.0
   hs-source-dirs:

@@ -14,10 +14,16 @@ env:
 # Do not choose a language; we provide our own build tools:
 language: generic
 
+# Deactivate builds on branches but `master` (CI is still triggered by PRs)
+branches:
+  only:
+  - master
+
 # Caching so the next build will be fast too:
 cache:
   directories:
   - $HOME/.stack
+  - $HOME/.ghc
 
 # Ensure necessary system libraries are present:
 addons:
@@ -29,19 +35,29 @@ before_install:
 # Download and unpack the stack executable:
 - mkdir -p ~/.local/bin
 - export PATH=$HOME/.local/bin:$PATH
+- export LTS=$(cat stack.yaml | grep resolver) # Extract the LTS from the stack.yaml
 - travis_retry curl -L https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
 
 install:
+- curl -sSL https://raw.github.com/jaspervdj/stylish-haskell/master/scripts/latest.sh | sh -s $(find . -type f -name "*.hs" ! -path "*.stack-work*") -i
+- git diff --exit-code # Exit if Stylish-Haskell yields any diff
 - stack --no-terminal setup
+- stack --no-terminal build --only-snapshot
 - stack --no-terminal build --only-dependencies
-- stack --no-terminal build --test --no-run-tests
-- stack --no-terminal test
+- stack --no-terminal build --test --no-run-tests --coverage
+- stack --no-terminal test --coverage
 - curl -sSL https://raw.github.com/ndmitchell/hlint/master/misc/run.sh | sh -s .
 - curl -sSL https://raw.github.com/ndmitchell/weeder/master/misc/travis.sh | sh -s .
 - stack --no-terminal install
 - sha256sum $EXECUTABLE | head -c 64 > $EXECUTABLE_CHECKSUM
 - ls $EXECUTABLE
 - ls $EXECUTABLE_CHECKSUM
+# Installing shc for coverage reporting;
+# We trick it a bit to use the same LTS as us and leverage already installed LTS
+# to speed up the process.
+- git clone https://github.com/rubik/stack-hpc-coveralls && cd stack-hpc-coveralls && git checkout 3d8352d5642ab214a7a574bd797880ae39595a44 && echo $LTS > stack.yaml
+- stack --no-terminal install
+- cd - && shc cardano-wallet unit
 
 deploy:
   provider: releases
