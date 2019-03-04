@@ -1,0 +1,55 @@
+# See https://raw.githubusercontent.com/commercialhaskell/stack/stable/doc/travis-simple.yml
+
+# Use small container and not VM:
+sudo: false
+
+# Choose a build environment:
+dist: xenial
+
+env:
+  global:
+    - EXECUTABLE=$HOME/.local/bin/cardano-wallet-server
+    - EXECUTABLE_CHECKSUM=$HOME/.local/bin/cardano-wallet-server.sha256
+
+# Do not choose a language; we provide our own build tools:
+language: generic
+
+# Caching so the next build will be fast too:
+cache:
+  directories:
+  - $HOME/.stack
+
+# Ensure necessary system libraries are present:
+addons:
+  apt:
+    packages:
+      - libgmp-dev
+
+before_install:
+# Download and unpack the stack executable:
+- mkdir -p ~/.local/bin
+- export PATH=$HOME/.local/bin:$PATH
+- travis_retry curl -L https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+
+install:
+- stack --no-terminal setup
+- stack --no-terminal build --only-dependencies
+- stack --no-terminal build --test --no-run-tests
+- stack --no-terminal test
+- curl -sSL https://raw.github.com/ndmitchell/hlint/master/misc/run.sh | sh -s .
+- curl -sSL https://raw.github.com/ndmitchell/weeder/master/misc/travis.sh | sh -s .
+- stack --no-terminal install
+- sha256sum $EXECUTABLE | head -c 64 > $EXECUTABLE_CHECKSUM
+- ls $EXECUTABLE
+- ls $EXECUTABLE_CHECKSUM
+
+deploy:
+  provider: releases
+  api_key: $GITHUB_ACCESS_TOKEN
+  file:
+    - $EXECUTABLE
+    - $EXECUTABLE_CHECKSUM
+  on:
+    repo: input-output-hk/cardano-wallet
+    branch: master
+    tags: true
