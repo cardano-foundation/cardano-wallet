@@ -98,6 +98,20 @@ errorAccountFundsCompletelyExhausted =
   \account for this transaction."
 ```
 
+```Haskell
+-- BAD:
+spec = do
+  scenario "only this account's balance can be retrieved while standing on one leg on the side of an extremely tall mountain, and breathing thin air with only very limited amounts of oxygen." $ do
+```
+```Haskell
+-- GOOD:
+spec = do
+  scenario
+    "only this account's balance can be retrieved while standing on one leg \
+    \on the side of an extremely tall mountain, and breathing thin air with \
+    \only very limited amounts of oxygen." $ do
+```
+
 ### 4. Reduce nesting.
 
 If your function contains so many levels of nesting that it's hard to keep things within 80 characters (even with careful use of wrapping), consider breaking your function up into smaller parts.
