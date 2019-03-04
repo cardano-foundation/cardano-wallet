@@ -14,6 +14,11 @@ env:
 # Do not choose a language; we provide our own build tools:
 language: generic
 
+# Deactivate builds on branches but `master` (CI is still triggered by PRs)
+branches:
+  only:
+  - master
+
 # Caching so the next build will be fast too:
 cache:
   directories:
