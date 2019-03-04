@@ -54,7 +54,6 @@ executable cardano-wallet-server
 
   build-depends:
       base
-    , cardano-wallet
 
   hs-source-dirs:
       app/server
