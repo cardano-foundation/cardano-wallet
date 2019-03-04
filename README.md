@@ -7,8 +7,9 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.0.0-ff69b4.svg?style=for-the-badge" />
+  <!-- We will need to decide on that soon enough <img src="https://img.shields.io/badge/version-x.x.x-ff69b4.svg?style=for-the-badge" /> -->
   <a href="https://travis-ci.org/input-output-hk/cardano-wallet"><img src="https://img.shields.io/travis/input-output-hk/cardano-wallet.svg?style=for-the-badge" /></a>
+  <a href="https://coveralls.io/github/input-output-hk/cardano-wallet"><img src="https://img.shields.io/coveralls/github/input-output-hk/cardano-wallet.svg?style=for-the-badge" /></a>
 </p>
 
 <hr/>
