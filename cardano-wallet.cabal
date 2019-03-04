@@ -1,0 +1,101 @@
+name:                cardano-wallet
+version:             2.0.0
+synopsis:            The Wallet Backend for a Cardano node.
+description:         Please see README.md
+homepage:            https://github.com/input-output-hk/cardano-wallet
+author:              IOHK Engineering Team
+maintainer:          operations@iohk.io
+copyright:           2019 IOHK
+license:             MIT
+license-file:        LICENSE
+category:            Web
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+library
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -Wall
+      -Werror
+      -Wcompat
+      -fwarn-redundant-constraints
+
+  build-depends:
+      base
+
+    -- Hackage Dependencies
+    , aeson
+    , aeson-pretty
+    , base16-bytestring
+    , base58-bytestring
+    , bytestring
+    , cborg
+    , containers
+    , cryptonite
+    , deepseq
+    , digest
+    , generic-lens
+    , http-client
+    , memory
+    , microlens
+    , text
+    , time
+    , transformers
+
+    -- Other Project Dependencies
+    , cardano-crypto
+
+  hs-source-dirs:
+      src
+  exposed-modules:
+      Cardano.Wallet
+  other-modules:
+      Paths_cardano_wallet
+
+
+executable cardano-wallet-server
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+      -O2
+
+  build-depends:
+      base
+    , cardano-wallet
+
+  hs-source-dirs:
+      app/server
+  main-is:
+      Main.hs
+
+test-suite unit
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+      -Werror
+      -O2
+
+  build-depends:
+      base
+    , cardano-wallet
+  type:
+     exitcode-stdio-1.0
+  hs-source-dirs:
+      test/unit
+  main-is:
+      Main.hs
