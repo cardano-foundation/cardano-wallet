@@ -4,10 +4,23 @@ This file contains agreed upon coding standards and best practices as well as, p
 
 Each proposal should start with a section justifying for the standard with rational arguments. When it makes sense, we may also add examples of good and bad practices to make the point clearer.
 
+# Summary
+
+* [Code Formatting](#code-formatting)
+    * [Editor Configuration via `.editorconfig`](#editor-configuration-via-editorconfig)
+    * [Avoid variable-length indentation](#avoid-variable-length-indentation)
+    * [Stylish-Haskell is used to format grouped imports & language pragmas](#stylish-haskell-is-used-to-format-grouped-imports--language-pragmas)
+
+* [Haskell Practices](#haskell-practices)
+    * [Favor `newtype` and tagged type over type-aliases](#favor-newtype-and-tagged-type-over-type-aliases)
+    * [Language extensions are specified on top of each module](#language-extensions-are-specified-on-top-of-each-module)
+    * [HLint is used for hints and general code style](#hlint-is-used-for-hints-and-general-code-style)
+
+
 
 # Code Formatting
 
-## Editor Configuration
+## Editor Configuration via `.editorconfig`
 
 > *Why*
 >
@@ -295,7 +308,7 @@ Instead of writing type aliases, one should favor wrapping up values in newtype 
   ```
 </details>
 
-## [PROPOSAL] Language extensions are specified on top of each module
+## Language extensions are specified on top of each module
 
 > **Why**
 >
@@ -327,7 +340,7 @@ Haskell's language extension are specified on top of each module.
   ```
 </details>
 
-## We use `hlint` as a linter
+## HLint is used for hints and general code style
 
 > **Why**
 > 
