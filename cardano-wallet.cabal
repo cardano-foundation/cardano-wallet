@@ -74,10 +74,17 @@ test-suite unit
 
   build-depends:
       base
+    , cardano-wallet
 
+    , bytestring
+    , containers
+    , hspec
+    , QuickCheck
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
       test/unit
   main-is:
       Main.hs
+  other-modules:
+      Cardano.Wallet.PrimitiveSpec
