@@ -1,0 +1,10 @@
+resolver: lts-13.8
+packages:
+- .
+
+extra-deps:
+- base58-bytestring-0.1.0
+- generic-lens-1.1.0.0
+
+- git: https://github.com/input-output-hk/cardano-crypto
+  commit: 3c5db489c71a4d70ee43f5f9b979fcde3c797f2a
