@@ -6,7 +6,7 @@ about: Create a new Task
 
 # Context
 
-<!-- WHEN PROPOSED
+<!-- WHEN CREATED
 What is the issue that we are seeing that is motivating this decision or change. 
 Give any elements that help understanding where this issue comes from. Leave no 
 room for suggestions or implicit deduction.
@@ -15,10 +15,21 @@ room for suggestions or implicit deduction.
 
 # Decision
 
-<!-- WHEN PROPOSED
+<!-- WHEN CREATED
 Give details about the architectural decision and what it is doing. Be
 extensive: use schemas and references when possible; do not hesitate to use
 schemas and references when possible.
+-->
+
+
+# Acceptance Criteria
+
+<!-- WHEN CREATED
+Use standard vocabulary to describe requirement levels RFC-2119: Must-Should-May.
+
+e.g. 
+
+1. The API _must_ support creation of wallets through a dedicated endpoint.
 -->
 
 
