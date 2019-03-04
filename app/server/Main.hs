@@ -1,7 +1,8 @@
 module Main where
 
+import Cardano.Wallet
+    ( sayHello )
 import Prelude
-import Cardano.Wallet (sayHello)
 
 main :: IO ()
 main = sayHello
