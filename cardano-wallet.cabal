@@ -18,7 +18,6 @@ library
       Haskell2010
   default-extensions:
       NoImplicitPrelude
-      OverloadedStrings
   ghc-options:
       -Wall
       -Werror
@@ -41,7 +40,6 @@ executable cardano-wallet-server
       Haskell2010
   default-extensions:
       NoImplicitPrelude
-      OverloadedStrings
   ghc-options:
       -threaded -rtsopts
       -Wall
@@ -50,6 +48,7 @@ executable cardano-wallet-server
   build-depends:
       base
     , cardano-wallet
+    , cmdargs
 
   hs-source-dirs:
       app/server
@@ -61,7 +60,6 @@ test-suite unit
       Haskell2010
   default-extensions:
       NoImplicitPrelude
-      OverloadedStrings
   ghc-options:
       -threaded -rtsopts
       -Wall
