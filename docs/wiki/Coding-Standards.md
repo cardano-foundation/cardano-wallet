@@ -105,7 +105,7 @@ If your function contains so many levels of nesting that it's hard to keep thing
 </details>
 
 
-## [PROPOSAL] Avoid Variable-Length Indentation
+## Avoid Variable-Length Indentation
 
 > *Why* 
 >
@@ -162,7 +162,7 @@ data MyRecord = MyRecord
 </details>
 
 
-## [PROPOSAL] Stylish-Haskell is used to format grouped imports & language pragmas
+## Stylish-Haskell is used to format grouped imports & language pragmas
 
 > **Why**
 > 
@@ -250,7 +250,7 @@ steps:
 
 # Haskell Practices
 
-## [PROPOSAL] Favor `newtype` and tagged type over type-aliases
+## Favor `newtype` and tagged type over type-aliases
 
 > **Why**
 >
@@ -313,7 +313,7 @@ Haskell's language extension are specified on top of each module.
   ```
 </details>
 
-## [PROPOSAL] We use `hlint` as a linter
+## We use `hlint` as a linter
 
 > **Why**
 > 
@@ -354,17 +354,3 @@ As a start, we'll use the following built-in rules from `hlint` with the followi
 - ignore: {name: "Redundant bracket"} # Not everyone knows precedences of every operators in Haskell. Brackets help readability.
 - ignore: {name: "Redundant do"} # Just an annoying hlint built-in, GHC may remove redundant do if he wants
 ```
-
-
-# Git Practices
-
-## [PROPOSAL] PRs are squashed when merged
-
-> **Why**
->
-> When working on a task, a best practice is to commit often, and rethink after how we do want to indeed structure 
-> the changes. In practice, we don't necessarily take the time to do such re-organization work and we may end up
-> merging a lot of intermediate commits into the main trunk, sometimes touching a single file in many different ways.
-> This creates noise on the git history as well as unnecessary hard conflict resolutions (because we now have to resolve conflicts for all those commits, some of them being in an intermediate stage of development). 
-
-As we strive to give a clear structure to PR's git history, we should also squash commits from every PR while merging to make sure we do not end up "polluting" the git history by accident with many intermediate commits. When merging, we should also feel free to extend a merge commit message with any outcome of discussions that has occurred during the PR's review and that are worth recording. 
