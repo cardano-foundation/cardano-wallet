@@ -2,7 +2,10 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -24,15 +27,24 @@ module Cardano.Wallet.Primitive
     , Tx(..)
     , TxIn(..)
     , TxOut(..)
+    , txId
+    , txIns
+    , txOutsOurs
+    , updatePending
 
     -- * Address
     , Address (..)
+    , IsOurs(..)
 
     -- * Coin
     , Coin (..)
+    , isValidCoin
 
     -- * UTxO
     , UTxO (..)
+    , balance
+    , changeUTxO
+    , utxoFromTx
     , excluding
     , isSubsetOf
     , restrictedBy
@@ -47,12 +59,18 @@ import Prelude
 
 import Control.DeepSeq
     ( NFData (..) )
+import Control.Monad.Trans.State.Strict
+    ( State, runState, state )
 import Data.ByteString
     ( ByteString )
 import Data.Map.Strict
     ( Map )
+import Data.Maybe
+    ( catMaybes )
 import Data.Set
     ( Set )
+import Data.Traversable
+    ( for )
 import Data.Word
     ( Word16, Word32, Word64 )
 import GHC.Generics
@@ -101,15 +119,48 @@ data Tx = Tx
         -- ^ Order of outputs matter in the transaction representations. Outputs
         -- are used as inputs for next transactions which refer to them using
         -- their indexes. It matters also for serialization.
-    } deriving (Show, Eq, Ord, Generic)
+    } deriving (Show, Generic, Ord, Eq)
 
 instance NFData Tx
 
+-- | Calculating a transaction id. Assumed to be effectively injective
+txId :: Tx -> Hash "Tx"
+txId = error
+    "txId: not yet implemented. We need the ability to encode a Tx to CBOR for:\
+    \ BA.convert . hash @_ @Blake2b_256 . CBOR.toStrictByteString . encodeTx"
+
+txIns :: Set Tx -> Set TxIn
+txIns =
+    foldMap (Set.fromList . inputs)
+
+txOutsOurs
+    :: forall s. (IsOurs s)
+    => Set Tx
+    -> s
+    -> (Set TxOut, s)
+txOutsOurs txs =
+    runState $ Set.fromList <$> forMaybe (foldMap outputs txs) pick
+  where
+    pick :: TxOut -> State s (Maybe TxOut)
+    pick out = do
+        predicate <- state $ isOurs (address out)
+        return $ if predicate then Just out else Nothing
+
+    forMaybe :: Monad m => [a] -> (a -> m (Maybe b)) -> m [b]
+    forMaybe xs = fmap catMaybes . for xs
+
+updatePending :: Block -> Set Tx -> Set Tx
+updatePending b =
+    let
+        isStillPending ins = Set.null . Set.intersection ins . Set.fromList . inputs
+    in
+        Set.filter (isStillPending (txIns $ transactions b))
+
 
 data TxIn = TxIn
-    { txId
+    { inputId
         :: !(Hash "Tx")
-    , txIx
+    , inputIx
         :: !Word32
     } deriving (Show, Generic, Eq, Ord)
 
@@ -134,6 +185,24 @@ newtype Address = Address
 
 instance NFData Address
 
+-- | This abstraction exists to give us the ability to keep the wallet business
+-- logic agnostic to the address derivation and discovery mechanisms.
+--
+-- This is needed because two different address schemes lives on Cardano:
+--   - A hierarchical random scheme:
+--      rather 'custom' made, with several flaws; this is the original and now
+--      legacy address scheme.
+--
+--   - A hierarchical sequential scheme:
+--      a new scheme based on the BIP-0044 specification, which is better suited
+--      for our present needs.
+--
+-- In practice, we will need a wallet that can support both, even if not at the
+-- same time, and this little abstraction can buy us this without introducing
+-- too much overhead.
+class IsOurs s where
+    isOurs :: Address -> s -> (Bool, s)
+
 
 -- * Coin
 
@@ -141,7 +210,6 @@ instance NFData Address
 newtype Coin = Coin
     { getCoin :: Word64
     } deriving stock (Show, Ord, Eq, Generic)
-      deriving newtype (Enum, Num, Real, Integral)
 
 instance NFData Coin
 
@@ -149,22 +217,8 @@ instance Bounded Coin where
     minBound = Coin 0
     maxBound = Coin 45000000000000000
 
-instance Semigroup Coin where
-    (Coin a) <> (Coin b) =
-        invariant
-            ( mconcat
-                [ "Cardano.Wallet.Primitive.Coin (<>), sum out of bounds: "
-                , show a
-                , " + "
-                , show b
-                ]
-            )
-            (Coin (a + b))
-            (<= maxBound)
-
-instance Monoid Coin where
-    mempty  = minBound
-    mconcat = foldr (<>) mempty
+isValidCoin :: Coin -> Bool
+isValidCoin c = c >= minBound && c <= maxBound
 
 
 -- * UTxO
@@ -178,6 +232,25 @@ instance NFData UTxO
 instance Dom UTxO where
     type DomElem UTxO = TxIn
     dom (UTxO utxo) = Map.keysSet utxo
+
+balance :: UTxO -> Integer
+balance =
+    Map.foldl' (\total out -> total + fromIntegral (getCoin (coin out))) 0 . getUTxO
+
+utxoFromTx :: Tx -> UTxO
+utxoFromTx tx@(Tx _ outs) =
+    UTxO $ Map.fromList $ zip (TxIn (txId tx) <$> [0..]) outs
+
+changeUTxO
+    :: IsOurs s
+    => Set Tx
+    -> s
+    -> (UTxO, s)
+changeUTxO pending = runState $ do
+    ours <- state $ txOutsOurs pending
+    let utxo = foldMap utxoFromTx pending
+    let ins = txIns pending
+    return $ (utxo `restrictedTo` ours) `restrictedBy` ins
 
 -- ins⋪ u
 excluding :: UTxO -> Set TxIn ->  UTxO
@@ -200,24 +273,15 @@ restrictedTo (UTxO utxo) outs =
     UTxO $ Map.filter (`Set.member` outs) utxo
 
 
+-- * Generic
+
 class Dom a where
     type DomElem a :: *
     dom :: a -> Set (DomElem a)
 
-
--- * Helpers
 
 newtype Hash (tag :: Symbol) = Hash
     { getHash :: ByteString
     } deriving (Show, Generic, Eq, Ord)
 
 instance NFData (Hash tag)
-
-
-invariant
-    :: String
-    -> a
-    -> (a -> Bool)
-    -> a
-invariant msg a predicate =
-    if predicate a then a else error msg
