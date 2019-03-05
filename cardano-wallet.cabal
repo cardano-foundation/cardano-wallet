@@ -13,6 +13,11 @@ build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
 
+flag development
+    description: Disable `-Werror`
+    default: False
+    manual: True
+
 library
   default-language:
       Haskell2010
@@ -21,9 +26,11 @@ library
       OverloadedStrings
   ghc-options:
       -Wall
-      -Werror
       -Wcompat
       -fwarn-redundant-constraints
+
+  if (!flag(development))
+    ghc-options:         -Werror
 
   build-depends:
       base
@@ -69,8 +76,10 @@ test-suite unit
   ghc-options:
       -threaded -rtsopts
       -Wall
-      -Werror
       -O2
+
+  if (!flag(development))
+    ghc-options:         -Werror
 
   build-depends:
       base
