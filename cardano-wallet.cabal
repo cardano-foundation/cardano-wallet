@@ -28,10 +28,15 @@ library
   build-depends:
       base
 
+    -- Hackage Dependencies
+    , bytestring
+    , containers
+    , deepseq
+
   hs-source-dirs:
       src
   exposed-modules:
-      Cardano.Wallet
+      Cardano.Wallet.Primitive
   other-modules:
       Paths_cardano_wallet
 
@@ -49,7 +54,6 @@ executable cardano-wallet-server
 
   build-depends:
       base
-    , cardano-wallet
 
   hs-source-dirs:
       app/server
@@ -70,9 +74,17 @@ test-suite unit
 
   build-depends:
       base
+    , cardano-wallet
+
+    , bytestring
+    , containers
+    , hspec
+    , QuickCheck
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
       test/unit
   main-is:
       Main.hs
+  other-modules:
+      Cardano.Wallet.PrimitiveSpec
