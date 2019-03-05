@@ -37,13 +37,15 @@ library
     , cborg
     , containers
     , deepseq
+    , time-units
     , transformers
   hs-source-dirs:
       src
   exposed-modules:
       Cardano.Wallet.Binary
-      Cardano.Wallet.Binary.Packfile
-      Cardano.Wallet.Primitive
+    , Cardano.Wallet.Binary.Packfile
+    , Cardano.Wallet.Primitive
+    , Cardano.Wallet.BlockSyncer
   other-modules:
       Paths_cardano_wallet
 
@@ -88,7 +90,9 @@ test-suite unit
     , containers
     , hspec
     , memory
+    , hspec-expectations
     , QuickCheck
+    , time-units
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
@@ -97,5 +101,6 @@ test-suite unit
       Main.hs
   other-modules:
       Cardano.Wallet.BinarySpec
-      Cardano.Wallet.Binary.PackfileSpec
-      Cardano.Wallet.PrimitiveSpec
+    , Cardano.Wallet.Binary.PackfileSpec
+    , Cardano.Wallet.PrimitiveSpec
+    , Cardano.Wallet.BlockSyncerSpec
