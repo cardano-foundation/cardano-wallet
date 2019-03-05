@@ -37,13 +37,17 @@ library
 
     -- Hackage Dependencies
     , bytestring
+    , cborg
     , containers
     , deepseq
+    , text
 
   hs-source-dirs:
       src
   exposed-modules:
-      Cardano.Wallet.Primitive
+      Cardano.Wallet.Binary
+    , Cardano.Wallet.Binary.Helpers
+    , Cardano.Wallet.Primitive
   other-modules:
       Paths_cardano_wallet
 
@@ -85,9 +89,12 @@ test-suite unit
       base
     , cardano-wallet
 
+    , base58-bytestring
     , bytestring
+    , cborg
     , containers
     , hspec
+    , memory
     , QuickCheck
   type:
      exitcode-stdio-1.0
@@ -96,4 +103,6 @@ test-suite unit
   main-is:
       Main.hs
   other-modules:
-      Cardano.Wallet.PrimitiveSpec
+      Cardano.Wallet.BinaryHelpers
+    , Cardano.Wallet.BinarySpec
+    , Cardano.Wallet.PrimitiveSpec
