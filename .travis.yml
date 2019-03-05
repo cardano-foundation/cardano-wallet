@@ -1,5 +1,3 @@
-# See https://raw.githubusercontent.com/commercialhaskell/stack/stable/doc/travis-simple.yml
-
 # Use small container and not VM:
 sudo: false
 
@@ -10,6 +8,7 @@ env:
   global:
     - EXECUTABLE=$HOME/.local/bin/cardano-wallet-server
     - EXECUTABLE_CHECKSUM=$HOME/.local/bin/cardano-wallet-server.sha256
+    - STACK_WORK_CACHE=$HOME/.local/stack-work.tar.gz
 
 # Do not choose a language; we provide our own build tools:
 language: generic
@@ -21,8 +20,10 @@ branches:
 
 # Caching so the next build will be fast too:
 cache:
+  timeout: 1337
   directories:
   - $HOME/.stack
+  - $HOME/.local
   - $HOME/.ghc
 
 # Ensure necessary system libraries are present:
@@ -31,33 +32,78 @@ addons:
     packages:
       - libgmp-dev
 
-before_install:
-# Download and unpack the stack executable:
-- mkdir -p ~/.local/bin
-- export PATH=$HOME/.local/bin:$PATH
-- export LTS=$(cat stack.yaml | grep resolver) # Extract the LTS from the stack.yaml
-- travis_retry curl -L https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+# Define custom set of stages
+stages:
+- build 🔨
+- checks 🔬
+- deploy 🚀
 
-install:
-- curl -sSL https://raw.github.com/jaspervdj/stylish-haskell/master/scripts/latest.sh | sh -s $(find . -type f -name "*.hs" ! -path "*.stack-work*") -i
-- git diff --exit-code # Exit if Stylish-Haskell yields any diff
-- stack --no-terminal setup
-- stack --no-terminal build --only-snapshot
-- stack --no-terminal build --only-dependencies
-- stack --no-terminal build --test --no-run-tests --coverage
-- stack --no-terminal test --coverage
-- curl -sSL https://raw.github.com/ndmitchell/hlint/master/misc/run.sh | sh -s .
-- curl -sSL https://raw.github.com/ndmitchell/weeder/master/misc/travis.sh | sh -s .
-- stack --no-terminal install
-- sha256sum $EXECUTABLE | head -c 64 > $EXECUTABLE_CHECKSUM
-- ls $EXECUTABLE
-- ls $EXECUTABLE_CHECKSUM
-# Installing shc for coverage reporting;
-# We trick it a bit to use the same LTS as us and leverage already installed LTS
-# to speed up the process.
-- git clone https://github.com/rubik/stack-hpc-coveralls && cd stack-hpc-coveralls && git checkout 3d8352d5642ab214a7a574bd797880ae39595a44 && echo $LTS > stack.yaml
-- stack --no-terminal install
-- cd - && shc cardano-wallet unit
+jobs:
+  include:
+  - stage: build 🔨
+    script:
+    - mkdir -p ~/.local/bin
+    - export PATH=$HOME/.local/bin:$PATH
+    - export LTS=$(cat stack.yaml | grep resolver) # Extract the LTS from the stack.yaml
+    - travis_retry curl -L https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+    - stack --no-terminal setup
+    - stack --no-terminal build --only-snapshot
+    - stack --no-terminal build --haddock --no-haddock-deps --only-dependencies
+    - stack --no-terminal build --test --no-run-tests --coverage
+    - tar czf $STACK_WORK_CACHE .stack-work
+
+  - stage: checks 🔬
+    name: "Stylish-Haskell"
+    script:
+    - curl -sSL https://raw.github.com/jaspervdj/stylish-haskell/master/scripts/latest.sh | sh -s $(find . -type f -name "*.hs" ! -path "*.stack-work*") -i
+    - git diff --exit-code # Exit if Stylish-Haskell yields any diff
+
+  - stage: checks 🔬
+    name: "HLint"
+    script:
+    - tar xzf $STACK_WORK_CACHE
+    - curl -sSL https://raw.github.com/ndmitchell/hlint/master/misc/run.sh | sh -s .
+
+  - stage: checks 🔬
+    name: "Weeder"
+    script:
+    - tar xzf $STACK_WORK_CACHE
+    - curl -sSL https://raw.github.com/ndmitchell/weeder/master/misc/travis.sh | sh -s .
+
+  - stage: checks 🔬
+    name: "Tests"
+    script:
+    - tar xzf $STACK_WORK_CACHE
+    - stack --no-terminal test --coverage
+    - tar czf $STACK_WORK_CACHE .stack-work
+
+  - stage: deploy 🚀
+    # if: type = push AND branch = master
+    name: "Haddock"
+    script:
+    - tar xzf $STACK_WORK_CACHE
+    - mkdir haddock
+    - mv $(stack path --local-doc-root)/* haddock
+    - git add haddock && git commit -m $TRAVIS_COMMIT
+    - git checkout gh-pages && git cherry-pick -X theirs -n - && git commit --allow-empty --no-edit
+    - git push -f -q https://WilliamKingNoel-Bot:$GITHUB_ACCESS_TOKEN@github.com/input-output-hk/cardano-wallet gh-pages &>/dev/null
+
+  - stage: deploy 🚀
+    name: "Coveralls"
+    script:
+    - tar xzf $STACK_WORK_CACHE
+    - git clone https://github.com/rubik/stack-hpc-coveralls && cd stack-hpc-coveralls && git checkout 3d8352d5642ab214a7a574bd797880ae39595a44 && echo $LTS > stack.yaml
+    - stack --no-terminal install
+    - cd - && shc cardano-wallet unit
+
+  - stage: deploy 🚀
+    name: "Executable"
+    script:
+    - tar xzf $STACK_WORK_CACHE
+    - stack --no-terminal install
+    - sha256sum $EXECUTABLE | head -c 64 > $EXECUTABLE_CHECKSUM
+    - ls $EXECUTABLE
+    - ls $EXECUTABLE_CHECKSUM
 
 deploy:
   provider: releases
