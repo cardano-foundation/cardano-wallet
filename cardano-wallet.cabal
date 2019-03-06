@@ -102,4 +102,5 @@ test-suite unit
   other-modules:
       Cardano.Wallet.BinaryHelpers
     , Cardano.Wallet.BinarySpec
+    , Cardano.Wallet.PackfileSpec
     , Cardano.Wallet.PrimitiveSpec
