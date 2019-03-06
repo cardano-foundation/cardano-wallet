@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -16,8 +17,17 @@
 -- by components like the Rust <https://github.com/input-output-hk/cardano-http-bridge cardano-http-bridge>.
 
 module Cardano.Wallet.Binary
-    ( decodeBlock
+    (
+    -- * Decoding
+      decodeBlock
     , decodeBlockHeader
+    , decodeTx
+
+    -- * Encoding
+    , encodeTx
+
+    -- * Hashing
+    , txId
 
     -- * Helpers
     , inspectNextToken
@@ -39,10 +49,16 @@ import Cardano.Wallet.Primitive
     )
 import Control.Monad
     ( void )
-import qualified Data.ByteString.Lazy as BL
+import Crypto.Hash
+    ( hash )
+import Crypto.Hash.Algorithms
+    ( Blake2b_256 )
+import Data.ByteString
+    ( ByteString )
+import Data.Digest.CRC32
+    ( crc32 )
 import Data.Set
     ( Set )
-import qualified Data.Set as Set
 import Data.Word
     ( Word16, Word64 )
 import Debug.Trace
@@ -52,7 +68,12 @@ import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
 import qualified Codec.CBOR.Write as CBOR
+import qualified Data.ByteArray as BA
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.Set as Set
 
+
+-- Decoding
 
 decodeAddress :: CBOR.Decoder s Address
 decodeAddress = do
@@ -73,6 +94,13 @@ decodeAddress = do
         <> CBOR.encodeBytes bytes
         <> CBOR.encodeWord32 crc
 
+decodeAddressPayload :: CBOR.Decoder s ByteString
+decodeAddressPayload = do
+    _ <- CBOR.decodeListLenCanonicalOf 2
+    _ <- CBOR.decodeTag
+    bytes <- CBOR.decodeBytes
+    _ <- CBOR.decodeWord32 -- CRC
+    return bytes
 
 decodeAttributes :: CBOR.Decoder s ((), CBOR.Encoding)
 decodeAttributes = do
@@ -305,6 +333,16 @@ decodeSignature = do
         2 -> decodeProxySignature decodeHeavyIndex
         _ -> fail $ "decodeSignature: unknown signature constructor: " <> show t
 
+decodeSignedTx :: CBOR.Decoder s Tx
+decodeSignedTx = do
+    _ <- CBOR.decodeListLenCanonicalOf 2
+    _ <- CBOR.decodeListLenCanonicalOf 3
+    ins <- decodeListIndef decodeTxIn
+    outs <- decodeListIndef decodeTxOut
+    _ <- decodeAttributes
+    _ <- decodeList decodeTxWitness
+    return $ Tx ins outs
+
 decodeSharesProof :: CBOR.Decoder s ()
 decodeSharesProof = do
     _ <- CBOR.decodeBytes -- Shares Hash
@@ -327,16 +365,14 @@ decodeSoftwareVersion = do
 
 decodeTx :: CBOR.Decoder s Tx
 decodeTx = do
-    _ <- CBOR.decodeListLenCanonicalOf 2
     _ <- CBOR.decodeListLenCanonicalOf 3
     ins <- decodeListIndef decodeTxIn
     outs <- decodeListIndef decodeTxOut
     _ <- decodeAttributes
-    _ <- decodeList decodeTxWitness
     return $ Tx ins outs
 
 decodeTxPayload :: CBOR.Decoder s (Set Tx)
-decodeTxPayload = Set.fromList <$> decodeListIndef decodeTx
+decodeTxPayload = Set.fromList <$> decodeListIndef decodeSignedTx
 
 {-# ANN decodeTxIn ("HLint: ignore Use <$>" :: String) #-}
 decodeTxIn :: CBOR.Decoder s TxIn
@@ -391,6 +427,65 @@ decodeUpdateProof = do
     return ()
 
 
+-- * Encoding
+
+encodeAddressPayload :: ByteString -> CBOR.Encoding
+encodeAddressPayload payload = mempty
+    <> CBOR.encodeListLen 2
+    <> CBOR.encodeTag 24 -- Hard-Coded Tag value in cardano-sl
+    <> CBOR.encodeBytes payload
+    <> CBOR.encodeWord32 (crc32 payload)
+
+encodeTx :: Tx -> CBOR.Encoding
+encodeTx tx = mempty
+    <> CBOR.encodeListLen 3
+    <> CBOR.encodeListLenIndef
+    <> mconcat (encodeTxIn <$> inputs tx)
+    <> CBOR.encodeBreak
+    <> CBOR.encodeListLenIndef
+    <> mconcat (encodeTxOut <$> outputs tx)
+    <> CBOR.encodeBreak
+    <> encodeTxAttributes
+
+encodeTxAttributes :: CBOR.Encoding
+encodeTxAttributes = mempty
+    <> CBOR.encodeMapLen 0
+
+encodeTxIn :: TxIn -> CBOR.Encoding
+encodeTxIn (TxIn (Hash txid) ix) = mempty
+    <> CBOR.encodeListLen 2
+    <> CBOR.encodeWord8 0
+    <> CBOR.encodeTag 24 -- Hard-coded Tag value in cardano-sl
+    <> CBOR.encodeBytes bytes
+  where
+    bytes = CBOR.toStrictByteString $ mempty
+        <> CBOR.encodeListLen 2
+        <> CBOR.encodeBytes txid
+        <> CBOR.encodeWord32 ix
+
+encodeTxOut :: TxOut -> CBOR.Encoding
+encodeTxOut (TxOut (Address addr) (Coin c)) = mempty
+    <> CBOR.encodeListLen 2
+    <> encodeAddressPayload payload
+    <> CBOR.encodeWord64 c
+  where
+    invariant =
+        error $ "encodeTxOut: unable to decode address payload: " <> show addr
+    payload =
+        either (const invariant) snd $ CBOR.deserialiseFromBytes
+            decodeAddressPayload
+            (BL.fromStrict addr)
+
+-- * Hashing
+
+-- | Compute a transaction id; assumed to be effectively injective.
+-- It returns an hex-encoded 64-byte hash.
+--
+-- NOTE: This is a rather expensive operation
+txId :: Tx -> Hash "Tx"
+txId = blake2b256 . encodeTx
+
+
 -- * Helpers
 
 -- | Inspect the next token that has to be decoded and print it to the console
@@ -435,3 +530,13 @@ decodeListIndef :: forall s a. CBOR.Decoder s a -> CBOR.Decoder s [a]
 decodeListIndef decodeOne = do
     _ <- CBOR.decodeListLenIndef
     CBOR.decodeSequenceLenIndef (flip (:)) [] reverse decodeOne
+
+-- | Encode a value to a corresponding Hash.
+--
+-- @
+--     txId :: Tx -> Hash "Tx"
+--     txId = blake2b256 . encodeTx
+-- @
+blake2b256 :: forall tag. CBOR.Encoding -> Hash tag
+blake2b256 =
+    Hash . BA.convert . hash @_ @Blake2b_256 . CBOR.toStrictByteString
