@@ -1,22 +1,65 @@
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE RankNTypes #-}
 
-module Cardano.Wallet.BinarySpec (spec) where
+module Cardano.Wallet.BinarySpec
+    ( spec
+
+    -- * Helpers
+    , unsafeDeserialiseFromBytes
+    ) where
 
 import Prelude
 
-import qualified Data.Set as Set
-
-import qualified Data.ByteString.Lazy.Char8 as L8
-
+import Cardano.Wallet.Binary
+    ( decodeBlock, decodeBlockHeader )
+import Cardano.Wallet.Primitive
+    ( Address (..)
+    , Block (..)
+    , BlockHeader (..)
+    , Coin (..)
+    , Hash (..)
+    , Tx (..)
+    , TxIn (..)
+    , TxOut (..)
+    )
+import Data.ByteArray.Encoding
+    ( Base (Base16), convertFromBase )
+import Data.ByteString
+    ( ByteString )
+import Data.ByteString.Base58
+    ( bitcoinAlphabet, decodeBase58 )
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
 
-import Cardano.Wallet.Binary
-    ( decodeBlock, decodeBlockHeader )
-import Cardano.Wallet.BinaryHelpers
-    ( addr58, hash16, unsafeDeserialiseFromBytes )
-import Cardano.Wallet.Primitive
-    ( Block (..), BlockHeader (..), Coin (..), Tx (..), TxIn (..), TxOut (..) )
+import qualified Codec.CBOR.Decoding as CBOR
+import qualified Codec.CBOR.Read as CBOR
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString.Lazy.Char8 as L8
+import qualified Data.Set as Set
+
+
+spec :: Spec
+spec = do
+    describe "Decoding blocks" $ do
+        it "should decode a block header" $ do
+            bs <- L8.readFile "test/data/Cardano/Wallet/BinarySpec-block-header-1"
+            let decoded = unsafeDeserialiseFromBytes decodeBlockHeader bs
+            decoded `shouldBe` blockHeader1
+
+        it "should decode a block without transactions" $ do
+            bs <- L8.readFile "test/data/Cardano/Wallet/BinarySpec-block-1"
+            let decoded = unsafeDeserialiseFromBytes decodeBlock bs
+            decoded `shouldBe` block1
+
+        it "should decode a block with transactions" $ do
+            bs <- L8.readFile "test/data/Cardano/Wallet/BinarySpec-block-2"
+            let decoded = unsafeDeserialiseFromBytes decodeBlock bs
+            decoded `shouldBe` block2
+
+        it "should decode a testnet block with a transaction" $ do
+            bs <- L8.readFile "test/data/Cardano/Wallet/BinarySpec-block-3"
+            let decoded = unsafeDeserialiseFromBytes decodeBlock bs
+            decoded `shouldBe` block3
+
 
 -- A mainnet block header
 blockHeader1 :: BlockHeader
@@ -98,25 +141,21 @@ block3 = Block
         ]
     }
 
-spec :: Spec
-spec = do
-    describe "Decoding blocks" $ do
-        it "should decode a block header" $ do
-            bs <- L8.readFile "test/data/block-header-1"
-            let decoded = unsafeDeserialiseFromBytes decodeBlockHeader bs
-            decoded `shouldBe` blockHeader1
 
-        it "should decode a block without transactions" $ do
-            bs <- L8.readFile "test/data/block-1"
-            let decoded = unsafeDeserialiseFromBytes decodeBlock bs
-            decoded `shouldBe` block1
+-- * Helpers
 
-        it "should decode a block with transactions" $ do
-            bs <- L8.readFile "test/data/block-2"
-            let decoded = unsafeDeserialiseFromBytes decodeBlock bs
-            decoded `shouldBe` block2
+-- | Make a Hash from a Base16 encoded string, without error handling.
+hash16 :: ByteString -> Hash a
+hash16 = either bomb Hash . convertFromBase Base16
+    where
+        bomb msg = error ("Could not decode test string: " <> msg)
 
-        it "should decode a testnet block with a transaction" $ do
-            bs <- L8.readFile "test/data/block-3"
-            let decoded = unsafeDeserialiseFromBytes decodeBlock bs
-            decoded `shouldBe` block3
+-- | Make an Address from a Base58 encoded string, without error handling.
+addr58 :: ByteString -> Address
+addr58 = maybe (error "addr58: Could not decode") Address . decodeBase58 bitcoinAlphabet
+
+-- | CBOR deserialise without error handling - handy for prototypes or testing.
+unsafeDeserialiseFromBytes :: (forall s. CBOR.Decoder s a) -> BL.ByteString -> a
+unsafeDeserialiseFromBytes decoder bytes =
+    either (\e -> error $ "unsafeDeserialiseFromBytes: " <> show e) snd $
+        CBOR.deserialiseFromBytes decoder bytes

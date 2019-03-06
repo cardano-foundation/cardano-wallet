@@ -32,22 +32,18 @@ library
     ghc-options:         -Werror
   build-depends:
       base
-
-    -- Hackage Dependencies
     , binary
     , bytestring
     , cborg
     , containers
     , deepseq
-    , text
     , transformers
   hs-source-dirs:
       src
   exposed-modules:
       Cardano.Wallet.Binary
-    , Cardano.Wallet.Binary.Helpers
-    , Cardano.Wallet.Binary.Packfile
-    , Cardano.Wallet.Primitive
+      Cardano.Wallet.Binary.Packfile
+      Cardano.Wallet.Primitive
   other-modules:
       Paths_cardano_wallet
 
@@ -100,7 +96,6 @@ test-suite unit
   main-is:
       Main.hs
   other-modules:
-      Cardano.Wallet.BinaryHelpers
-    , Cardano.Wallet.BinarySpec
-    , Cardano.Wallet.Binary.PackfileSpec
-    , Cardano.Wallet.PrimitiveSpec
+      Cardano.Wallet.BinarySpec
+      Cardano.Wallet.Binary.PackfileSpec
+      Cardano.Wallet.PrimitiveSpec

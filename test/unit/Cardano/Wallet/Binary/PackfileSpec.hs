@@ -6,7 +6,7 @@ import Cardano.Wallet.Binary
     ( decodeBlock )
 import Cardano.Wallet.Binary.Packfile
     ( PackfileError (..), decodePackfile )
-import Cardano.Wallet.BinaryHelpers
+import Cardano.Wallet.BinarySpec
     ( unsafeDeserialiseFromBytes )
 import Cardano.Wallet.Primitive
     ( Block (..), BlockHeader (..) )
@@ -34,7 +34,7 @@ testTwoBlobs = packFileHeader
 -- Get this file from cardano-http-bridge with:
 -- wget -O test/data/epoch-mainnet-104 http://localhost:8080/mainnet/epoch/104
 testPackfile :: FilePath
-testPackfile = "test/data/epoch-mainnet-104"
+testPackfile = "test/data/Cardano/Wallet/Binary/PackfileSpec-epoch-mainnet-104"
 
 spec :: Spec
 spec = do
