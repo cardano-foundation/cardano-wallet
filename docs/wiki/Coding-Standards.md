@@ -45,7 +45,7 @@ This file should be parsed and enforced by any contributor's editor.
 > * **To easily view multiple sources side-by-side**. This is particularly important when working on a laptop. With a readable font size of around 11 pt, 80 characters is about half the horizontal distance across a laptop monitor. Trying to fit 90 or 100 characters into the same width requires a smaller font, raising the level of discomfort for people with poorer vision.
 > * **To avoid horizontal scrolling when viewing source code**. When reading most source code, we already have to scroll vertically. Horizontal scrolling means that readers have to move their viewpoint in two dimensions rather than one. This requires more effort and can cause strain for people reading your code.
 
-Source code, including comments, should **not** exceed 80 characters in length.
+Source code, including comments, should **not** exceed 80 characters in length, unless in exceptional situations. (See below for a list of approved exceptions.)
 
 <details><summary>See Details and Examples</summary>
 
@@ -68,6 +68,21 @@ instance Bi Block where
       <> encode (blockHeader block)
       <> encode (blockBody block)
       <> encode (blockExtraData block)
+```
+
+Another example of wrapping:
+```hs
+-- BAD:
+    describe "Lemma 2.6 - Properties of balance" $ do
+        it "2.6.1) dom u ⋂ dom v ==> balance (u ⋃ v) = balance u + balance v" (checkCoverage prop_2_6_1)
+        it "2.6.2) balance (ins⋪ u) = balance u - balance (ins⊲ u)" (checkCoverage prop_2_6_2)
+
+-- GOOD:
+    describe "Lemma 2.6 - Properties of balance" $ do
+        it "2.6.1) dom u ⋂ dom v ==> balance (u ⋃ v) = balance u + balance v"
+            (checkCoverage prop_2_6_1)
+        it "2.6.2) balance (ins⋪ u) = balance u - balance (ins⊲ u)"
+            (checkCoverage prop_2_6_2)
 ```
 
 ### 2. Place comments on their own line, instead of attempting to align them vertically:
