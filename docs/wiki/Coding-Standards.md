@@ -45,13 +45,15 @@ This file should be parsed and enforced by any contributor's editor.
 > * **To easily view multiple sources side-by-side**. This is particularly important when working on a laptop. With a readable font size of around 11 pt, 80 characters is about half the horizontal distance across a laptop monitor. Trying to fit 90 or 100 characters into the same width requires a smaller font, raising the level of discomfort for people with poorer vision.
 > * **To avoid horizontal scrolling when viewing source code**. When reading most source code, we already have to scroll vertically. Horizontal scrolling means that readers have to move their viewpoint in two dimensions rather than one. This requires more effort and can cause strain for people reading your code.
 
-Source code, including comments, should **not** exceed 80 characters in length.
+Source code, including comments, should **not** exceed 80 characters in length, unless in exceptional situations.
 
-<details><summary>See Details and Examples</summary>
+<details><summary>See Examples and Exceptions</summary>
+
+### Examples
 
 If you find yourself exceeding 80 characters, there are several strategies you can use.
 
-### 1. Wrap code.
+#### Strategy #1: Wrap code
 
 By inserting carriage returns in the right place, we can often reveal the underlying structure of an expression. Haskell allows you to break up long expressions so that they occur over multiple lines. For example:
 
@@ -70,7 +72,23 @@ instance Bi Block where
       <> encode (blockExtraData block)
 ```
 
-### 2. Place comments on their own line, instead of attempting to align them vertically:
+Another example of wrapping:
+```hs
+-- BAD:
+    describe "Lemma 2.6 - Properties of balance" $ do
+        it "2.6.1) dom u ⋂ dom v ==> balance (u ⋃ v) = balance u + balance v" (checkCoverage prop_2_6_1)
+        it "2.6.2) balance (ins⋪ u) = balance u - balance (ins⊲ u)" (checkCoverage prop_2_6_2)
+```
+```hs
+-- GOOD:
+    describe "Lemma 2.6 - Properties of balance" $ do
+        it "2.6.1) dom u ⋂ dom v ==> balance (u ⋃ v) = balance u + balance v"
+            (checkCoverage prop_2_6_1)
+        it "2.6.2) balance (ins⋪ u) = balance u - balance (ins⊲ u)"
+            (checkCoverage prop_2_6_2)
+```
+
+#### Strategy #2: Place comments on their own line instead of attempting to align them vertically
 
 ```Haskell
 -- BAD
@@ -96,7 +114,7 @@ mkMagicalBlock
   -> Block
 ```
 
-### 3. Break up long string literals.
+#### Strategy #3: Break up long string literals
 
 Haskell provides convenient support for multi-line string literals:
 
@@ -126,9 +144,24 @@ spec = do
     \only very limited amounts of oxygen." $ do
 ```
 
-### 4. Reduce nesting.
+#### Strategy #4: Reduce nesting
 
 If your function contains so many levels of nesting that it's hard to keep things within 80 characters (even with careful use of wrapping), consider breaking your function up into smaller parts.
+
+### Exceptions
+
+Sometimes, it's **impossible** to adhere to this rule.
+
+Here is a list of allowed exceptions:
+
+#### Exception #1: URLs in comments
+
+According to the standard, URLs can be extremely long. In some situations, we need to place URLs in source code comments. If a URL is longer than 80 characters, then place it on its own line:
+
+```hs
+--| For more information about this implementation, see:
+--  https://an.exceptionally.long.url/7919ce329e804fc0bc1fa2df8a141fd3d996c484cf7a49e79f14d7bd974acadd
+```
 
 </details>
 
@@ -382,66 +415,3 @@ As a start, we'll use the following built-in rules from `hlint` with the followi
 - ignore: {name: "Redundant bracket"} # Not everyone knows precedences of every operators in Haskell. Brackets help readability.
 - ignore: {name: "Redundant do"} # Just an annoying hlint built-in, GHC may remove redundant do if he wants
 ```
-
-## [PROPOSAL] We use explicit imports by default, and favor qualified imports for ambiguous functions
-
-> **Why**
->
-> Imports can be a great source of pain in Haskell. When dealing with some foreign code (and every code becomes quite hostile after a while, even if we originally wrote it), it can be hard to understand where functions and abstractions are pulled from. On the other hand, fully qualified imports can become verbose and a real impediment to readability. 
-
-Apart from the chosen prelude, there should be no implicit imports. Instead, every function or class used from a given module should be listed explicitly. In case where a function name is ambiguous or requires context, a qualified import should be used instead (this is mainly the case for modules coming from `containers`, `bytestring` and `aeson`). 
-
-<details>
-  <summary>See examples</summary>
-
-  ```hs
-  -- GOOD
-  import Prelude
-
-  import Control.DeepSeq
-      ( NFData (..) )
-  import Data.ByteString
-      ( ByteString )
-  import Data.Map.Strict
-      ( Map )
-  import Data.Aeson 
-      ( FromJSON(..), ToJSON(..) )
-  
-  
-  -- GOOD
-  import qualified Data.Map.Strict as Map
-  import qualified Data.ByteString as BS
-  
-  isSubsetOf :: UTxO -> UTxO -> Bool
-  isSubsetOf (UTxO a) (UTxO b) =
-      a `Map.isSubmapOf` b
-  
-  (magic, filetype, version) =
-      ( BS.take 8 bytes
-      , BS.take 4 $ BS.drop 8 bytes
-      , BS.take 4 $ BS.drop 12 bytes
-      )
-  
-  
-  -- BAD
-  import Options.Applicative
-  
-  
-  -- BAD
-  import qualified Data.Aeson as Aeson
-  
-  instance Aeson.FromJSON MyType where
-      -- ...
-  
-  
-  -- BAD
-  import Data.Map.Strict 
-    ( filter )
-  import Data.Set 
-    ( member )
-  
-  restrictedTo :: UTxO -> Set TxOut ->  UTxO
-  restrictedTo (UTxO utxo) outs =
-      UTxO $ filter (`member` outs) utxo
-  ```   
-</details>
