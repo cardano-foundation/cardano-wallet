@@ -71,7 +71,7 @@ data Block = Block
         :: !BlockHeader
     , transactions
         :: !(Set Tx)
-    } deriving (Show, Generic)
+    } deriving (Show, Eq, Generic)
 
 instance NFData Block
 
@@ -83,7 +83,7 @@ data BlockHeader = BlockHeader
         :: !Word16
     , prevBlockHash
         :: !(Hash "BlockHeader")
-    } deriving (Show, Generic)
+    } deriving (Show, Eq, Generic)
 
 instance NFData BlockHeader
 
@@ -101,7 +101,7 @@ data Tx = Tx
         -- ^ Order of outputs matter in the transaction representations. Outputs
         -- are used as inputs for next transactions which refer to them using
         -- their indexes. It matters also for serialization.
-    } deriving (Show, Generic)
+    } deriving (Show, Eq, Ord, Generic)
 
 instance NFData Tx
 
