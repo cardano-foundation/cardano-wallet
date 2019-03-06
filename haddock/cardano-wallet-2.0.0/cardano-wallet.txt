@@ -8,6 +8,13 @@
 @package cardano-wallet
 @version 2.0.0
 
+
+-- | This module contains the core primitive of a Wallet. This is roughly a
+--   Haskell translation of the <a>Formal Specification for a Cardano
+--   Wallet</a>
+--   
+--   It doesn't contain any particular business-logic code, but define a
+--   few primitive operations on Wallet core types as well.
 module Cardano.Wallet.Primitive
 data Block
 Block :: !BlockHeader -> !Set Tx -> Block
