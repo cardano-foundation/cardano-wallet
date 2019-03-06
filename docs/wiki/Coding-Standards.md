@@ -16,7 +16,7 @@ Each proposal should start with a section justifying for the standard with ratio
     * [Favor `newtype` and tagged type over type-aliases](#favor-newtype-and-tagged-type-over-type-aliases)
     * [Language extensions are specified on top of each module](#language-extensions-are-specified-on-top-of-each-module)
     * [HLint is used for hints and general code style](#hlint-is-used-for-hints-and-general-code-style)
-
+    * [We use explicit imports by default, and favor qualified imports for ambiguous functions](#proposal-we-use-explicit-imports-by-default-and-favor-qualified-imports-for-ambiguous-function)
 
 
 # Code Formatting
@@ -415,3 +415,64 @@ As a start, we'll use the following built-in rules from `hlint` with the followi
 - ignore: {name: "Redundant bracket"} # Not everyone knows precedences of every operators in Haskell. Brackets help readability.
 - ignore: {name: "Redundant do"} # Just an annoying hlint built-in, GHC may remove redundant do if he wants
 ```
+
+## [PROPOSAL] We use explicit imports by default, and favor qualified imports for ambiguous functions
+
+> **Why**
+>
+> Imports can be a great source of pain in Haskell. When dealing with some foreign code (and every code becomes quite hostile after a while, even if we originally wrote it), it can be hard to understand where functions and abstractions are pulled from. On the other hand, fully qualified imports can become verbose and a real impediment to readability. 
+Apart from the chosen prelude, there should be no implicit imports. Instead, every function or class used from a given module should be listed explicitly. In case where a function name is ambiguous or requires context, a qualified import should be used instead (this is mainly the case for modules coming from `containers`, `bytestring` and `aeson`). 
+
+<details>
+  <summary>See examples</summary>
+
+  ```hs
+  -- GOOD
+  import Prelude
+  import Control.DeepSeq
+      ( NFData (..) )
+  import Data.ByteString
+      ( ByteString )
+  import Data.Map.Strict
+      ( Map )
+  import Data.Aeson 
+      ( FromJSON(..), ToJSON(..) )
+  
+  
+  -- GOOD
+  import qualified Data.Map.Strict as Map
+  import qualified Data.ByteString as BS
+  
+  isSubsetOf :: UTxO -> UTxO -> Bool
+  isSubsetOf (UTxO a) (UTxO b) =
+      a `Map.isSubmapOf` b
+  
+  (magic, filetype, version) =
+      ( BS.take 8 bytes
+      , BS.take 4 $ BS.drop 8 bytes
+      , BS.take 4 $ BS.drop 12 bytes
+      )
+  
+  
+  -- BAD
+  import Options.Applicative
+  
+  
+  -- BAD
+  import qualified Data.Aeson as Aeson
+  
+  instance Aeson.FromJSON MyType where
+      -- ...
+  
+  
+  -- BAD
+  import Data.Map.Strict 
+    ( filter )
+  import Data.Set 
+    ( member )
+  
+  restrictedTo :: UTxO -> Set TxOut ->  UTxO
+  restrictedTo (UTxO utxo) outs =
+      UTxO $ filter (`member` outs) utxo
+  ```   
+</details>
