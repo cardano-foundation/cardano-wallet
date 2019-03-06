@@ -76,7 +76,8 @@ Another example of wrapping:
     describe "Lemma 2.6 - Properties of balance" $ do
         it "2.6.1) dom u ⋂ dom v ==> balance (u ⋃ v) = balance u + balance v" (checkCoverage prop_2_6_1)
         it "2.6.2) balance (ins⋪ u) = balance u - balance (ins⊲ u)" (checkCoverage prop_2_6_2)
-
+```
+```hs
 -- GOOD:
     describe "Lemma 2.6 - Properties of balance" $ do
         it "2.6.1) dom u ⋂ dom v ==> balance (u ⋃ v) = balance u + balance v"
