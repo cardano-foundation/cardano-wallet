@@ -16,7 +16,7 @@ Each proposal should start with a section justifying for the standard with ratio
     * [Favor `newtype` and tagged type over type-aliases](#favor-newtype-and-tagged-type-over-type-aliases)
     * [Language extensions are specified on top of each module](#language-extensions-are-specified-on-top-of-each-module)
     * [HLint is used for hints and general code style](#hlint-is-used-for-hints-and-general-code-style)
-    * [We use explicit imports by default, and favor qualified imports for ambiguous functions](##proposal-we-use-explicit-imports-by-default-and-favor-qualified-imports-for-ambiguous-functions)
+    * [We use explicit imports by default, and favor qualified imports for ambiguous functions](#we-use-explicit-imports-by-default-and-favor-qualified-imports-for-ambiguous-functions)
 
 
 # Code Formatting
