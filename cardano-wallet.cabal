@@ -32,6 +32,9 @@ library
     ghc-options:         -Werror
   build-depends:
       base
+
+    -- Hackage Dependencies
+    , binary
     , bytestring
     , cborg
     , containers
@@ -43,6 +46,7 @@ library
   exposed-modules:
       Cardano.Wallet.Binary
     , Cardano.Wallet.Binary.Helpers
+    , Cardano.Wallet.Binary.Packfile
     , Cardano.Wallet.Primitive
   other-modules:
       Paths_cardano_wallet
