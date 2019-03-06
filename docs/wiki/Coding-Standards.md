@@ -383,7 +383,7 @@ As a start, we'll use the following built-in rules from `hlint` with the followi
 - ignore: {name: "Redundant do"} # Just an annoying hlint built-in, GHC may remove redundant do if he wants
 ```
 
-## [PROPOSAL] We use explicit imports by default, and favor qualified imports for ambiguous function
+## [PROPOSAL] We use explicit imports by default, and favor qualified imports for ambiguous functions
 
 > **Why**
 >
