@@ -9,6 +9,37 @@
 @version 2.0.0
 
 
+-- | Some extra helpers on top of the CBOR library to help writing
+--   decoders.
+module Cardano.Wallet.Binary.Helpers
+
+-- | Inspect the next token that has to be decoded and print it to the
+--   console as a trace. Useful for debugging Decoders. Example:
+--   
+--   myDecoder :: CBOR.Decoder s MyType myDecoder = do a &lt;-
+--   CBOR.decodeWord64 inspectNextToken [...]
+inspectNextToken :: Decoder s ()
+
+-- | Decode an list of known length. Very similar to
+--   <tt>decodeListIndef</tt>.
+--   
+--   Example:
+--   
+--   myDecoder :: CBOR.Decoder s [MyType] myDecoder = decodeList decodeOne
+--   where decodeOne :: CBOR.Decoder s MyType
+decodeList :: forall s a. Decoder s a -> Decoder s [a]
+
+-- | Decode an arbitrary long list. CBOR introduce a "break" character to
+--   mark the end of the list, so we simply decode each item until we
+--   encounter a break character.
+--   
+--   Example:
+--   
+--   myDecoder :: CBOR.Decoder s [MyType] myDecoder = decodeListIndef
+--   decodeOne where decodeOne :: CBOR.Decoder s MyType
+decodeListIndef :: forall s a. Decoder s a -> Decoder s [a]
+
+
 -- | This module contains the core primitive of a Wallet. This is roughly a
 --   Haskell translation of the <a>Formal Specification for a Cardano
 --   Wallet</a>
@@ -68,10 +99,14 @@ newtype Hash (tag :: Symbol)
 Hash :: ByteString -> Hash
 [getHash] :: Hash -> ByteString
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Block
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Block
 instance GHC.Show.Show Cardano.Wallet.Primitive.Block
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.BlockHeader
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.BlockHeader
 instance GHC.Show.Show Cardano.Wallet.Primitive.BlockHeader
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Tx
+instance GHC.Classes.Ord Cardano.Wallet.Primitive.Tx
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Tx
 instance GHC.Show.Show Cardano.Wallet.Primitive.Tx
 instance GHC.Base.Monoid Cardano.Wallet.Primitive.UTxO
 instance GHC.Base.Semigroup Cardano.Wallet.Primitive.UTxO
@@ -116,3 +151,13 @@ instance GHC.Enum.Bounded Cardano.Wallet.Primitive.Coin
 instance GHC.Base.Semigroup Cardano.Wallet.Primitive.Coin
 instance GHC.Base.Monoid Cardano.Wallet.Primitive.Coin
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Address
+
+
+-- | These are (partial) CBOR decoders for blocks and block headers. Note
+--   that we ignore most of the block's and header's content and only
+--   retrieve the pieces of information relevant to us, wallet (we do
+--   assume a trusted node and therefore, we needn't to care about
+--   verifying signatures and blocks themselves).
+module Cardano.Wallet.Binary
+decodeBlock :: Decoder s Block
+decodeBlockHeader :: Decoder s BlockHeader
