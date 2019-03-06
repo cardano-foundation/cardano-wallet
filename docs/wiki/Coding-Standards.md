@@ -7,7 +7,8 @@ Each proposal should start with a section justifying for the standard with ratio
 # Summary
 
 * [Code Formatting](#code-formatting)
-    * [Editor Configuration via `.editorconfig`](#editor-configuration-via-editorconfig)
+    * [Editor configuration via `.editorconfig`](#editor-configuration-via-editorconfig)
+    * [Limit line length to 80 characters](#limit-line-length-to-80-characters)
     * [Avoid variable-length indentation](#avoid-variable-length-indentation)
     * [Stylish-Haskell is used to format grouped imports & language pragmas](#stylish-haskell-is-used-to-format-grouped-imports--language-pragmas)
 
@@ -36,7 +37,7 @@ A `.editorconfig` (see https://editorconfig.org/) at the root of the project spe
 
 This file should be parsed and enforced by any contributor's editor. 
 
-## [PROPOSAL] Limit line length to 80 characters
+## Limit line length to 80 characters
 
 > *Why*
 >
