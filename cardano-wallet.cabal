@@ -36,7 +36,10 @@ library
     , bytestring
     , cborg
     , containers
+    , cryptonite
     , deepseq
+    , digest
+    , memory
     , transformers
   hs-source-dirs:
       src
