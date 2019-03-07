@@ -1,8 +1,8 @@
-# Forewords
+# Foreword
 
-This file contains agreed upon coding standards and best practices as well as, proposals for changes or new standards. Proposals are prefixed with `[PROPOSAL]` and are voted by the wallet backend team through poll on Slack. To be accepted, a practice should be voted with majority + 1, neutral votes counting as positive. 
+This file contains agreed-upon coding standards and best practices, as well as proposals for changes or new standards. Proposals are prefixed with `[PROPOSAL]` and are voted on by the wallet backend team through polls on Slack. To be accepted, a practice should be voted with majority + 1, with neutral votes counting as positive votes. 
 
-Each proposal should start with a section justifying for the standard with rational arguments. When it makes sense, we may also add examples of good and bad practices to make the point clearer.
+Each proposal should start with a section justifying the standard with rational arguments. When it makes sense, we should also provide examples of good and bad practices to make the point clearer.
 
 # Summary
 
