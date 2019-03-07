@@ -28,20 +28,16 @@ library
       -Wall
       -Wcompat
       -fwarn-redundant-constraints
-
   if (!flag(development))
     ghc-options:         -Werror
-
   build-depends:
       base
-
-    -- Hackage Dependencies
     , bytestring
     , cborg
     , containers
     , deepseq
     , text
-
+    , transformers
   hs-source-dirs:
       src
   exposed-modules:
@@ -62,14 +58,13 @@ executable cardano-wallet-server
       -threaded -rtsopts
       -Wall
       -O2
-
   build-depends:
       base
-
   hs-source-dirs:
       app/server
   main-is:
       Main.hs
+
 
 test-suite unit
   default-language:
@@ -81,14 +76,11 @@ test-suite unit
       -threaded -rtsopts
       -Wall
       -O2
-
   if (!flag(development))
     ghc-options:         -Werror
-
   build-depends:
       base
     , cardano-wallet
-
     , base58-bytestring
     , bytestring
     , cborg

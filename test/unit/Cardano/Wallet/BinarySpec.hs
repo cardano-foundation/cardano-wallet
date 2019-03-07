@@ -49,8 +49,8 @@ block2 = Block
         [ Tx
             { inputs =
                 [ TxIn
-                    { txId = hash16 "60dbb2679ee920540c18195a3d92ee9be50aee6ed5f891d92d51db8a76b02cd2"
-                    , txIx = 3
+                    { inputId = hash16 "60dbb2679ee920540c18195a3d92ee9be50aee6ed5f891d92d51db8a76b02cd2"
+                    , inputIx = 3
                     }
                 ]
             , outputs =
@@ -79,11 +79,11 @@ block3 = Block
         [ Tx
             { inputs =
                 [ TxIn
-                    { txId = hash16 "6967e2b5c3ad5ae07a9bd8d888f1836195a04f7a1cb4b6d083261870068fab1b"
-                    , txIx = 1}
+                    { inputId = hash16 "6967e2b5c3ad5ae07a9bd8d888f1836195a04f7a1cb4b6d083261870068fab1b"
+                    , inputIx = 1}
                 , TxIn
-                    { txId = hash16 "7064addc0968bccd7d57d2e7aa1e9c2f666d8387042483fc1e87200cfb96c8f1"
-                    , txIx = 0} ]
+                    { inputId = hash16 "7064addc0968bccd7d57d2e7aa1e9c2f666d8387042483fc1e87200cfb96c8f1"
+                    , inputIx = 0} ]
             , outputs =
                 [ TxOut
                     { address = addr58 "37btjrVyb4KBsw2f3V76ntfwqDPgyf3QmmdsrTSmCnuTGYtS9JgVXzxeQEsKjgWurKoyw9BDNEtLxWtU9znK49SC8bLTirk6YqcAESFxXJkSyXhQKL"
