@@ -82,9 +82,8 @@ executable cardano-wallet-server
       NoImplicitPrelude
       OverloadedStrings
   ghc-options:
-      -threaded -rtsopts
+      -rtsopts
       -Wall
-      -O2
   build-depends:
       base
     , cardano-wallet
@@ -93,9 +92,11 @@ executable cardano-wallet-server
     , fmt
   hs-source-dirs:
       app/server
+      app/cli
+  other-modules:
+      CLI
   main-is:
       Main.hs
-
 
 executable cardano-generate-mnemonic
   default-language:
@@ -115,7 +116,6 @@ executable cardano-generate-mnemonic
       app/mnemonic
   main-is:
       GenerateMnemonic.hs
-
 
 test-suite unit
   default-language:
