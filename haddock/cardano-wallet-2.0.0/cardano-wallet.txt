@@ -40,6 +40,29 @@ decodeList :: forall s a. Decoder s a -> Decoder s [a]
 decodeListIndef :: forall s a. Decoder s a -> Decoder s [a]
 
 
+-- | Decoder for the rust-cardano packfile format.
+--   
+--   A pack file is a collection of bytestring blobs.
+--   
+--   The reference implementation is in <a>packfile.rs</a>.
+module Cardano.Wallet.Binary.Packfile
+
+-- | Decode a Cardano version 1 pack file. The blobs are returned as a
+--   list. Decoding is not incremental, and all data is stored in memory.
+decodePackfile :: ByteString -> Either PackfileError [ByteString]
+
+-- | Things related to the file format that can go wrong when decoding a
+--   pack file.
+data PackfileError
+MissingMagicError :: PackfileError
+WrongFileTypeError :: PackfileError
+VersionTooOldError :: PackfileError
+VersionTooNewError :: PackfileError
+BlobDecodeError :: String -> PackfileError
+instance GHC.Classes.Eq Cardano.Wallet.Binary.Packfile.PackfileError
+instance GHC.Show.Show Cardano.Wallet.Binary.Packfile.PackfileError
+
+
 -- | This module contains the core primitive of a Wallet. This is roughly a
 --   Haskell translation of the <a>Formal Specification for a Cardano
 --   Wallet</a>
