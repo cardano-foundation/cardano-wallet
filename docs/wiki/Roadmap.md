@@ -129,9 +129,12 @@ https://rebilly.github.io/ReDoc/?url=https://gist.githubusercontent.com/KtorZ/3d
 | ---      | ---      |
 | High     | 13       |
 
-- Implement (part-of) http-bridge API (get network tip, get block) --> 5
-- Implement necessary CBOR decoders (block and block header) --> 3
-- Ticking function to retrieve current tip and get next block (no handling of rollbacks) --> 5
+- [#12](https://github.com/input-output-hk/cardano-wallet/issues/12)
+  Implement (part-of) http-bridge API (get network tip, get block) --> 5
+- [#11](https://github.com/input-output-hk/cardano-wallet/issues/11)
+  Implement necessary CBOR decoders (block and block header) --> 3
+- [#3](https://github.com/input-output-hk/cardano-wallet/issues/3)
+  Ticking function to retrieve current tip and get next block (no handling of rollbacks) --> 5
 
 
 ### Launcher 
@@ -140,8 +143,10 @@ https://rebilly.github.io/ReDoc/?url=https://gist.githubusercontent.com/KtorZ/3d
 | ---      | ---      |
 | High     | 8        |
 
-- Define a small launcher CLI with a single 'start' command (--node-port, --wallet-server-port, --network) --> 5
-- Spawn an Http Bridge and a wallet server from specified options, crash launcher if one of the two services die -> 3
+- [#7](https://github.com/input-output-hk/cardano-wallet/issues/7)
+  Define a small launcher CLI with a single 'start' command (--node-port, --wallet-server-port, --network) --> 5
+- [#8](https://github.com/input-output-hk/cardano-wallet/issues/8)
+  Spawn an Http Bridge and a wallet server from specified options, crash launcher if one of the two services die -> 3
 
 
 ### Create a Wallet
