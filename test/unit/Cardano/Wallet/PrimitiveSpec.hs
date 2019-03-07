@@ -14,7 +14,9 @@ import Cardano.Wallet.Primitive
     , BlockHeader (..)
     , Coin (..)
     , Dom (..)
+    , EpochId (..)
     , Hash (..)
+    , SlotId (..)
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
@@ -239,6 +241,12 @@ instance Arbitrary Address where
 instance Arbitrary Coin where
     -- No Shrinking
     arbitrary = Coin <$> choose (0, 3)
+
+instance Arbitrary EpochId where
+    arbitrary = EpochId <$> arbitrary
+
+instance Arbitrary SlotId where
+    arbitrary = SlotId <$> arbitrary
 
 instance Arbitrary TxOut where
     -- No Shrinking

@@ -37,7 +37,6 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as L8
 import qualified Data.Set as Set
 
-
 {-# ANN spec ("HLint: ignore Use head" :: String) #-}
 spec :: Spec
 spec = do
@@ -84,7 +83,6 @@ spec = do
             let hash = txId (txs !! 1)
             let hash' = hash16 "d30d37f1f8674c6c33052826fdc5bc198e3e95c150364fd775d4bc663ae6a9e6"
             hash `shouldBe` hash'
-
 
 -- A mainnet block header
 blockHeader1 :: BlockHeader
