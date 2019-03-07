@@ -1,16 +1,6 @@
-{-# OPTIONS_GHC -fno-warn-orphans #-}
-
-module Cardano.Wallet.PackfileSpec (spec) where
+module Cardano.Wallet.Binary.PackfileSpec (spec) where
 
 import Prelude
-
-import qualified Data.ByteString.Char8 as B8
-import qualified Data.ByteString.Lazy.Char8 as L8
-
-import Data.Either
-    ( fromRight, isRight )
-import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldSatisfy )
 
 import Cardano.Wallet.Binary
     ( decodeBlock )
@@ -20,6 +10,14 @@ import Cardano.Wallet.BinaryHelpers
     ( unsafeDeserialiseFromBytes )
 import Cardano.Wallet.Primitive
     ( Block (..), BlockHeader (..) )
+import Data.Either
+    ( fromRight, isRight )
+import Test.Hspec
+    ( Spec, describe, it, shouldBe, shouldSatisfy )
+
+import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Lazy.Char8 as L8
+
 
 -- version 1 header
 packFileHeader :: L8.ByteString
