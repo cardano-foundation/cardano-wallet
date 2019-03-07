@@ -70,23 +70,53 @@ Tx :: ![TxIn] -> ![TxOut] -> Tx
 [outputs] :: Tx -> ![TxOut]
 data TxIn
 TxIn :: !Hash "Tx" -> !Word32 -> TxIn
-[txId] :: TxIn -> !Hash "Tx"
-[txIx] :: TxIn -> !Word32
+[inputId] :: TxIn -> !Hash "Tx"
+[inputIx] :: TxIn -> !Word32
 data TxOut
 TxOut :: !Address -> !Coin -> TxOut
 [address] :: TxOut -> !Address
 [coin] :: TxOut -> !Coin
+
+-- | Calculating a transaction id. Assumed to be effectively injective
+txId :: Tx -> Hash "Tx"
+txIns :: Set Tx -> Set TxIn
+txOutsOurs :: forall s. IsOurs s => Set Tx -> s -> (Set TxOut, s)
+updatePending :: Block -> Set Tx -> Set Tx
 newtype Address
 Address :: ByteString -> Address
 [getAddress] :: Address -> ByteString
+
+-- | This abstraction exists to give us the ability to keep the wallet
+--   business logic agnostic to the address derivation and discovery
+--   mechanisms.
+--   
+--   This is needed because two different address schemes lives on Cardano:
+--   - A hierarchical random scheme: rather <tt>custom</tt> made, with
+--   several flaws; this is the original and now legacy address scheme.
+--   
+--   <ul>
+--   <li>A hierarchical sequential scheme: a new scheme based on the
+--   BIP-0044 specification, which is better suited for our present
+--   needs.</li>
+--   </ul>
+--   
+--   In practice, we will need a wallet that can support both, even if not
+--   at the same time, and this little abstraction can buy us this without
+--   introducing too much overhead.
+class IsOurs s
+isOurs :: IsOurs s => Address -> s -> (Bool, s)
 
 -- | Coins are stored as Lovelace (reminder: 1 Lovelace = 1e6 ADA)
 newtype Coin
 Coin :: Word64 -> Coin
 [getCoin] :: Coin -> Word64
+isValidCoin :: Coin -> Bool
 newtype UTxO
 UTxO :: Map TxIn TxOut -> UTxO
 [getUTxO] :: UTxO -> Map TxIn TxOut
+balance :: UTxO -> Integer
+changeUTxO :: IsOurs s => Set Tx -> s -> (UTxO, s)
+utxoFromTx :: Tx -> UTxO
 excluding :: UTxO -> Set TxIn -> UTxO
 isSubsetOf :: UTxO -> UTxO -> Bool
 restrictedBy :: UTxO -> Set TxIn -> UTxO
@@ -104,9 +134,9 @@ instance GHC.Show.Show Cardano.Wallet.Primitive.Block
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.BlockHeader
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.BlockHeader
 instance GHC.Show.Show Cardano.Wallet.Primitive.BlockHeader
-instance GHC.Generics.Generic Cardano.Wallet.Primitive.Tx
-instance GHC.Classes.Ord Cardano.Wallet.Primitive.Tx
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Tx
+instance GHC.Classes.Ord Cardano.Wallet.Primitive.Tx
+instance GHC.Generics.Generic Cardano.Wallet.Primitive.Tx
 instance GHC.Show.Show Cardano.Wallet.Primitive.Tx
 instance GHC.Base.Monoid Cardano.Wallet.Primitive.UTxO
 instance GHC.Base.Semigroup Cardano.Wallet.Primitive.UTxO
@@ -126,10 +156,6 @@ instance GHC.Classes.Ord Cardano.Wallet.Primitive.TxOut
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.TxOut
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.TxOut
 instance GHC.Show.Show Cardano.Wallet.Primitive.TxOut
-instance GHC.Real.Integral Cardano.Wallet.Primitive.Coin
-instance GHC.Real.Real Cardano.Wallet.Primitive.Coin
-instance GHC.Num.Num Cardano.Wallet.Primitive.Coin
-instance GHC.Enum.Enum Cardano.Wallet.Primitive.Coin
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Coin
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Coin
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.Coin
@@ -148,8 +174,6 @@ instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.Hash tag)
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.TxOut
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Coin
 instance GHC.Enum.Bounded Cardano.Wallet.Primitive.Coin
-instance GHC.Base.Semigroup Cardano.Wallet.Primitive.Coin
-instance GHC.Base.Monoid Cardano.Wallet.Primitive.Coin
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Address
 
 
