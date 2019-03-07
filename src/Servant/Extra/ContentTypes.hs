@@ -20,6 +20,8 @@ import Crypto.Hash
     ( Digest, hashWith )
 import Crypto.Hash.IO
     ( HashAlgorithm (..) )
+import Data.ByteArray.Encoding
+    ( Base (Base16), convertToBase )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Encoding
@@ -32,7 +34,6 @@ import Servant.API
 
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
-import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Lazy as BL
 
 -- | Represents a CBOR (Concise Binary Object Representation) object.
@@ -47,7 +48,7 @@ class FromCBOR a where
     fromCBOR :: CBOR.Decoder s a
 
 instance Accept CBOR where
-    contentType _ = "application" // "cbor"
+    contentType _ = "text" // "plain"
 
 instance FromCBOR a => MimeUnrender CBOR a where
     mimeUnrender _ bl = either
@@ -65,7 +66,7 @@ data ComputeHash algorithm a
 newtype Hash algorithm a = Hash (Digest algorithm)
 
 instance ToHttpApiData (Hash algorithm a) where
-    toUrlPiece (Hash digest) = decodeUtf8 $ BA.convert digest
+    toUrlPiece (Hash digest) = decodeUtf8 $ convertToBase Base16 digest
 
 -- | Represents a piece of data with an accompanying hash value.
 data WithHash algorithm a = WithHash
@@ -87,11 +88,10 @@ instance forall a b alg . (MimeUnrender a b, HashAlgorithm alg) =>
 data Packed a
 
 instance Accept a => Accept (Packed a) where
-    contentType _ = "application" // "cardano-pack"
+    contentType _ = "text" // "plain"
 
 instance forall a b . MimeUnrender a b => MimeUnrender (Packed a) [b] where
     mimeUnrender _ bs = either
         (Left . show)
         (traverse $ mimeUnrender (Proxy :: Proxy a) . BL.fromStrict)
         (decodePackfile bs)
-

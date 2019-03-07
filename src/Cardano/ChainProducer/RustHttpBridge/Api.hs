@@ -7,7 +7,7 @@ module Cardano.ChainProducer.RustHttpBridge.Api
     , api
     , Block (..)
     , BlockHeader (..)
-    , EpochId (..)
+    , EpochIndex (..)
     , NetworkName (..)
     ) where
 
@@ -26,6 +26,7 @@ import Servant.Extra.ContentTypes
     ( CBOR, ComputeHash, FromCBOR (..), Hash, Packed, WithHash )
 
 import qualified Cardano.Wallet.Primitive as Primitive
+import qualified Cardano.Wallet.Slotting as Slotting
 
 api :: Proxy Api
 api = Proxy
@@ -46,7 +47,7 @@ type GetBlockByHash
 type GetEpochById
     =  Capture "networkName" NetworkName
     :> "epoch"
-    :> Capture "epochId" EpochId
+    :> Capture "epochId" EpochIndex
     :> Get '[Packed CBOR] [Block]
 
 -- | Retrieve the header of the latest known block.
@@ -75,12 +76,12 @@ instance FromCBOR BlockHeader where
 
 -- | Represents a unique epoch.
 --
-newtype EpochId = EpochId
-  { getEpochId :: Primitive.EpochId
+newtype EpochIndex = EpochIndex
+  { getEpochIndex :: Slotting.EpochIndex
   } deriving (Eq, Show)
 
-instance ToHttpApiData (EpochId) where
-    toUrlPiece = toUrlPiece . Primitive.getEpochId . getEpochId
+instance ToHttpApiData (EpochIndex) where
+    toUrlPiece = toUrlPiece . Slotting.getEpochIndex . getEpochIndex
 
 -- | Represents the name of a Cardano network.
 --
@@ -90,4 +91,3 @@ newtype NetworkName = NetworkName
 
 instance ToHttpApiData NetworkName where
     toUrlPiece = getNetworkName
-

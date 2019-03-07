@@ -42,8 +42,10 @@ library
     , digest
     , fmt
     , http-api-data
+    , http-client
     , http-media
     , memory
+    , mtl
     , servant
     , servant-client
     , text
@@ -52,14 +54,18 @@ library
   hs-source-dirs:
       src
   exposed-modules:
+      Cardano.ChainProducer
+      Cardano.ChainProducer.RustHttpBridge
       Cardano.ChainProducer.RustHttpBridge.Api
       Cardano.ChainProducer.RustHttpBridge.Client
-      Cardano.Wallet.BlockSyncer
-      Servant.Extra.ContentTypes
+      Cardano.ChainProducer.RustHttpBridge.NetworkLayer
       Cardano.Wallet
       Cardano.Wallet.Binary
       Cardano.Wallet.Binary.Packfile
+      Cardano.Wallet.BlockSyncer
       Cardano.Wallet.Primitive
+      Cardano.Wallet.Slotting
+      Servant.Extra.ContentTypes
   other-modules:
       Paths_cardano_wallet
 
@@ -102,8 +108,11 @@ test-suite unit
     , cborg
     , containers
     , deepseq
+    , exceptions
     , hspec
+    , hspec-expectations
     , memory
+    , mtl
     , QuickCheck
     , time-units
     , transformers
@@ -116,6 +125,10 @@ test-suite unit
   other-modules:
       Cardano.WalletSpec
       Cardano.Wallet.BinarySpec
+      Cardano.ChainProducer.RustHttpBridge.MockNetworkLayer
+      Cardano.ChainProducer.RustHttpBridgeSpec
       Cardano.Wallet.Binary.PackfileSpec
-      Cardano.Wallet.PrimitiveSpec
       Cardano.Wallet.BlockSyncerSpec
+      Cardano.Wallet.PrimitiveSpec
+      Cardano.Wallet.SlottingOrphans
+      Cardano.Wallet.SlottingSpec
