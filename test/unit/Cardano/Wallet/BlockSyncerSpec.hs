@@ -101,8 +101,10 @@ mkConsecutiveTestBlocks
     -- ^ number of consecutive blocks to create
     -> IO [((Hash "BlockHeader"),Block)]
     -- ^ returns block paired with generated hashes starting from the oldest
-mkConsecutiveTestBlocks blockNum =
-    loop blockNum []
+mkConsecutiveTestBlocks blockNum = do
+    h  <- Hash <$> generate bytelistGenerator
+    h' <- Hash <$> generate bytelistGenerator
+    loop blockNum [(h', Block (BlockHeader 1 0 h) mempty)]
   where
     bytelistGenerator = pack <$> vector 10 :: Gen ByteString
 
@@ -111,17 +113,9 @@ mkConsecutiveTestBlocks blockNum =
         -> Gen (Hash "BlockHeader", Block)
     fromPreviousBlock (h, b) = do
         h' <- Hash <$> bytelistGenerator
-        return
-            ( h'
-            , Block
-                { header = BlockHeader
-                    { epochIndex = epochIndex (header b)
-                    , slotNumber = slotNumber (header b) + 1
-                    , prevBlockHash = h
-                    }
-                , transactions = mempty
-                }
-            )
+        let epoch = epochIndex (header b)
+        let slot = slotNumber (header b) + 1
+        return (h',  Block (BlockHeader epoch slot h) mempty)
 
     loop
         :: Int
@@ -129,18 +123,10 @@ mkConsecutiveTestBlocks blockNum =
         -> IO [(Hash "BlockHeader", Block)]
     loop n res
         | n <= 0 = return $ reverse res
-        | res == mempty = do
-            lastBlockHeader <- Hash <$> generate bytelistGenerator
-            theBlockHeader <- Hash <$> generate bytelistGenerator
-            let theEpoch = 0
-            let theSlot = 1
-            let theBlock = Block (BlockHeader theEpoch theSlot lastBlockHeader) Set.empty
-            loop (n - 1) [(theBlockHeader, theBlock)]
         | otherwise = do
-            let (lastBlockHeader, Block (BlockHeader lastEpoch lastSlot _) _ ):_ = res
-            let theBlock = Block (BlockHeader lastEpoch (lastSlot + 1) lastBlockHeader) Set.empty
-            theBlockHeader <- Hash <$> generate bytelistGenerator
-            loop (n - 1) $ (theBlockHeader, theBlock):res
+            let block = head res
+            block' <- generate $ fromPreviousBlock block
+            loop (n - 1) (block' : res)
 
 
 newtype BlocksConsumed = BlocksConsumed [(Hash "BlockHeader")] deriving (Show, Eq)
