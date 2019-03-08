@@ -476,3 +476,31 @@ Apart from the chosen prelude, there should be no implicit imports. Instead, eve
       UTxO $ filter (`member` outs) utxo
   ```   
 </details>
+
+## Use `cardano-prelude` for all modules, enable `NoImplicitPrelude`
+
+> ** Why **
+>
+> The default prelude has several known deficiencies, so a better one
+> should be chosen.
+>
+> All modules in the project should use the same prelude to avoid
+> confusion.
+
+We can assume the core team know what they're doing with
+[`cardano-prelude`](https://github.com/input-output-hk/cardano-prelude/).
+It is based upon Stephen Diehl's
+[`protolude`](http://hackage.haskell.org/package/protolude).
+
+<details>
+  ```hs
+  -- GOOD
+  import Cardano.Prelude
+
+  -- BAD
+  import Prelude
+
+  -- WORSE
+  import Universum
+  ```
+</details>
