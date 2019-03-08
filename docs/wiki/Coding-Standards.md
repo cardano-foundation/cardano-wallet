@@ -17,7 +17,7 @@ Each proposal should start with a section justifying the standard with rational 
     * [Language extensions are specified on top of each module](#language-extensions-are-specified-on-top-of-each-module)
     * [HLint is used for hints and general code style](#hlint-is-used-for-hints-and-general-code-style)
     * [We use explicit imports by default, and favor qualified imports for ambiguous functions](#we-use-explicit-imports-by-default-and-favor-qualified-imports-for-ambiguous-functions)
-
+    * [Use `cardano-prelude` for all modules, enable `NoImplicitPrelude`](#use-cardano-prelude-for-all-modules-enable-noimplicitprelude)
 
 # Code Formatting
 
@@ -479,7 +479,7 @@ Apart from the chosen prelude, there should be no implicit imports. Instead, eve
 
 ## Use `cardano-prelude` for all modules, enable `NoImplicitPrelude`
 
-> ** Why **
+> **Why**
 >
 > The default prelude has several known deficiencies, so a better one
 > should be chosen.
@@ -493,6 +493,8 @@ It is based upon Stephen Diehl's
 [`protolude`](http://hackage.haskell.org/package/protolude).
 
 <details>
+  <summary>See examples</summary>
+
   ```hs
   -- GOOD
   import Cardano.Prelude
