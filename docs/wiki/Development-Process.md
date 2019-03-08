@@ -69,7 +69,6 @@ The team follows a methodology known as [extreme programming][xp] which can be s
     - A brief non-technical summary of the week overview
     - A list of the completed user stories and their business value
     - A list of known issues or debt accumulated during the iteration
-    - A refined estimated end-date of the project
 
 
 ## Resources
