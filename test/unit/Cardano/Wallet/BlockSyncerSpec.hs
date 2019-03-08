@@ -1,5 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
+
 module Cardano.Wallet.BlockSyncerSpec
     ( spec
     ) where
@@ -54,35 +56,11 @@ spec = do
                 -> DeliveryMode
                 -> SpecWith (Arg (IO ()))
             tickingFunctionTest testDescr deliveryMode = it testDescr $ do
-                (chunkSizesToTest, testTime, tickTime) <- generateQuantities
-                consecutiveBlocks <- liftIO $ mkConsecutiveTestBlocks (sum chunkSizesToTest)
-                (consumerData, threadId) <- injectToTickingFunction chunkSizesToTest tickTime consecutiveBlocks deliveryMode
-                threadDelay testTime
-                (BlocksConsumed obtainedData) <- takeMVar consumerData
-                killThread threadId
-                obtainedData `shouldBe` ((map fst . reverse) consecutiveBlocks)
-
-            generateQuantities :: IO ([Int], Int, Second)
-            generateQuantities = do
                 chunkSizesToTest <- generateBlockChunkSizes
                 tickingFunctionTime <- generate $ choose (1,3)
-                putStrLn $
-                    "        block chunks injected :"
-                    ++ show chunkSizesToTest
-                    ++ " ticking time: "
-                    ++ show tickingFunctionTime
-                    ++ " seconds"
                 let testTime = (L.length chunkSizesToTest + 1)*(fromIntegral tickingFunctionTime)*1000*1000
                 let tickTime = (fromMicroseconds tickingFunctionTime*1000*1000)
-                return (chunkSizesToTest, testTime, tickTime)
-
-            injectToTickingFunction
-                :: [Int]
-                -> Second
-                -> [(Hash "BlockHeader", Block)]
-                -> DeliveryMode
-                -> IO (MVar BlocksConsumed, ThreadId)
-            injectToTickingFunction chunkSizesToTest tickTime consecutiveBlocks deliveryMode = do
+                consecutiveBlocks <- liftIO $ mkConsecutiveTestBlocks (sum chunkSizesToTest)
                 consumerData <- newEmptyMVar
                 putMVar consumerData $ BlocksConsumed []
                 producerData <- newEmptyMVar
@@ -90,7 +68,10 @@ spec = do
                 blockToIOaction <- writeToIORefAction consumerData consecutiveBlocks
                 let blockDelivery = pushNextBlocks producerData deliveryMode
                 threadId <- forkIO $ tickingFunction blockDelivery blockToIOaction tickTime (BlockHeadersConsumed [])
-                return (consumerData, threadId)
+                threadDelay testTime
+                (BlocksConsumed obtainedData) <- takeMVar consumerData
+                killThread threadId
+                obtainedData `shouldBe` ((map fst . reverse) consecutiveBlocks)
 
 mkConsecutiveTestBlocks
     :: Int
