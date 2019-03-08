@@ -102,19 +102,27 @@ instance Arbitrary TickingArgs where
 mkConsecutiveTestBlocks
     :: Int
     -- ^ number of consecutive blocks to create
-    -> [((Hash "BlockHeader"),Block)]
+    -> [(Hash "BlockHeader", Block)]
     -- ^ returns block paired with generated hashes starting from the oldest
-mkConsecutiveTestBlocks blockNum =
+mkConsecutiveTestBlocks =
     let
         prev = Hash "initial block"
         h = BlockHeader 1 0 prev
     in
-        loop blockNum [(blockHeaderHash h, Block h mempty)]
+        loop [(blockHeaderHash h, Block h mempty)]
   where
-    fromPreviousBlock
+    loop
+        :: [(Hash "BlockHeader", Block)]
+        -> Int
+        -> [(Hash "BlockHeader", Block)]
+    loop (block : blocks) n
+        | n <= 0 = reverse (block : blocks)
+        | otherwise = loop (next block : block : blocks) (n -1)
+
+    next
         :: (Hash "BlockHeader", Block)
         -> (Hash "BlockHeader", Block)
-    fromPreviousBlock (prev, b) =
+    next (prev, b) =
         let
             epoch = epochIndex (header b)
             slot = slotNumber (header b) + 1
@@ -122,18 +130,6 @@ mkConsecutiveTestBlocks blockNum =
         in
             (blockHeaderHash h, Block h mempty)
 
-    loop
-        :: Int
-        -> [(Hash "BlockHeader", Block)]
-        -> [(Hash "BlockHeader", Block)]
-    loop n res
-        | n <= 0 = reverse res
-        | otherwise =
-            let
-                block = head res
-                block' = fromPreviousBlock block
-            in
-                loop (n - 1) (block' : res)
 
 
 blockHeaderHash :: BlockHeader -> Hash "BlockHeader"
