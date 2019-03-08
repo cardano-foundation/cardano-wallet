@@ -105,10 +105,28 @@ mkConsecutiveTestBlocks blockNum =
     loop blockNum []
   where
     bytelistGenerator = pack <$> vector 10 :: Gen ByteString
+
+    fromPreviousBlock
+        :: (Hash "BlockHeader", Block)
+        -> Gen (Hash "BlockHeader", Block)
+    fromPreviousBlock (h, b) = do
+        h' <- Hash <$> bytelistGenerator
+        return
+            ( h'
+            , Block
+                { header = BlockHeader
+                    { epochIndex = epochIndex (header b)
+                    , slotNumber = slotNumber (header b) + 1
+                    , prevBlockHash = h
+                    }
+                , transactions = mempty
+                }
+            )
+
     loop
         :: Int
-        -> [((Hash "BlockHeader"),Block)]
-        -> IO [((Hash "BlockHeader"),Block)]
+        -> [(Hash "BlockHeader", Block)]
+        -> IO [(Hash "BlockHeader", Block)]
     loop n res
         | n <= 0 = return $ reverse res
         | res == mempty = do
