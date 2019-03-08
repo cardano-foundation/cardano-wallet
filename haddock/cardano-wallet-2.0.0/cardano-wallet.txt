@@ -9,37 +9,6 @@
 @version 2.0.0
 
 
--- | Some extra helpers on top of the CBOR library to help writing
---   decoders.
-module Cardano.Wallet.Binary.Helpers
-
--- | Inspect the next token that has to be decoded and print it to the
---   console as a trace. Useful for debugging Decoders. Example:
---   
---   myDecoder :: CBOR.Decoder s MyType myDecoder = do a &lt;-
---   CBOR.decodeWord64 inspectNextToken [...]
-inspectNextToken :: Decoder s ()
-
--- | Decode an list of known length. Very similar to
---   <tt>decodeListIndef</tt>.
---   
---   Example:
---   
---   myDecoder :: CBOR.Decoder s [MyType] myDecoder = decodeList decodeOne
---   where decodeOne :: CBOR.Decoder s MyType
-decodeList :: forall s a. Decoder s a -> Decoder s [a]
-
--- | Decode an arbitrary long list. CBOR introduce a "break" character to
---   mark the end of the list, so we simply decode each item until we
---   encounter a break character.
---   
---   Example:
---   
---   myDecoder :: CBOR.Decoder s [MyType] myDecoder = decodeListIndef
---   decodeOne where decodeOne :: CBOR.Decoder s MyType
-decodeListIndef :: forall s a. Decoder s a -> Decoder s [a]
-
-
 -- | Decoder for the rust-cardano packfile format.
 --   
 --   A pack file is a collection of bytestring blobs.
@@ -205,6 +174,46 @@ instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Address
 --   retrieve the pieces of information relevant to us, wallet (we do
 --   assume a trusted node and therefore, we needn't to care about
 --   verifying signatures and blocks themselves).
+--   
+--   The format described in the decoders below are the one used in the
+--   Byron era of Cardano and will endure in the first stages of Shelley.
+--   They are also used by components like the Rust
+--   <a>cardano-http-bridge</a>.
 module Cardano.Wallet.Binary
 decodeBlock :: Decoder s Block
 decodeBlockHeader :: Decoder s BlockHeader
+
+-- | Inspect the next token that has to be decoded and print it to the
+--   console as a trace. Useful for debugging Decoders. Example:
+--   
+--   <pre>
+--   myDecoder :: CBOR.Decoder s MyType
+--   myDecoder = do
+--       a &lt;- CBOR.decodeWord64
+--       inspectNextToken
+--       [...]
+--   </pre>
+inspectNextToken :: Decoder s ()
+
+-- | Decode an list of known length. Very similar to
+--   <tt>decodeListIndef</tt>.
+--   
+--   <pre>
+--   myDecoder :: CBOR.Decoder s [MyType]
+--   myDecoder = decodeList decodeOne
+--     where
+--       decodeOne :: CBOR.Decoder s MyType
+--   </pre>
+decodeList :: forall s a. Decoder s a -> Decoder s [a]
+
+-- | Decode an arbitrary long list. CBOR introduce a "break" character to
+--   mark the end of the list, so we simply decode each item until we
+--   encounter a break character.
+--   
+--   <pre>
+--   myDecoder :: CBOR.Decoder s [MyType]
+--   myDecoder = decodeListIndef decodeOne
+--     where
+--       decodeOne :: CBOR.Decoder s MyType
+--   </pre>
+decodeListIndef :: forall s a. Decoder s a -> Decoder s [a]
