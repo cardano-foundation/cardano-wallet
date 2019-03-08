@@ -81,20 +81,19 @@ instance Arbitrary TickingArgs where
     shrink (TickingArgs sizes t t' m) =
         [ TickingArgs sizes' t t' m | sizes' <- shrink sizes ]
     arbitrary = do
-        numberOfTicks <- choose (1,15)
-        chunkSizesToTest <- generateBlockChunks numberOfTicks
-        tickingFunctionTime <- choose (1, 3)
-        let tickTime = fromMicroseconds . (\x -> x * 1000 * 1000) $ tickingFunctionTime
-        let testTime = (L.length chunkSizesToTest + 1)*(fromIntegral tickingFunctionTime)*1000*1000
+        sizes <- choose (1, 15) >>= generateBlockChunks
+        (tickTime, testTime) <- choose (1, 3) >>= \t -> return
+            ( fromMicroseconds (t * 1000 * 1000)
+            , (L.length sizes + 1) * (fromIntegral t * 1000 * 1000)
+            )
         deliveryMode <- elements [ExactlyOnce, AtLeastOnce]
-        return $ TickingArgs chunkSizesToTest tickTime testTime deliveryMode
+        return $ TickingArgs sizes tickTime testTime deliveryMode
       where
-          generateBlockChunks
-              :: Int
-              -> Gen [Int]
-          generateBlockChunks numberOfTicks = do
-              let chunkSizeGen = choose (0,15)
-              vectorOf numberOfTicks chunkSizeGen
+        generateBlockChunks
+            :: Int
+            -> Gen [Int]
+        generateBlockChunks n = do
+              vectorOf n (choose (0, 15))
 
 
 mkConsecutiveTestBlocks
