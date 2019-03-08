@@ -1,4 +1,8 @@
--- | Decoder for the rust-cardano packfile format.
+-- |
+-- Copyright: © 2018-2019 IOHK
+-- License: MIT
+--
+-- Decoder for the rust-cardano packfile format.
 --
 -- A pack file is a collection of bytestring blobs.
 --
