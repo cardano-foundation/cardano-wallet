@@ -56,10 +56,9 @@ spec = do
             (withMaxSuccess 10 $ property tickingFunctionTest)
   where
       tickingFunctionTest
-          :: TickingArgs
+          :: (TickingArgs, Blocks)
           -> Property
-      tickingFunctionTest (TickingArgs chunkSizesToTest tickTime testTime deliveryMode) = monadicIO $ liftIO $ do
-          let consecutiveBlocks = mkConsecutiveTestBlocks (sum chunkSizesToTest)
+      tickingFunctionTest (TickingArgs chunkSizesToTest tickTime testTime deliveryMode, Blocks consecutiveBlocks) = monadicIO $ liftIO $ do
           consumerData <- newEmptyMVar
           putMVar consumerData $ BlocksConsumed []
           producerData <- newEmptyMVar
@@ -118,30 +117,6 @@ instance Arbitrary Blocks where
                 h = BlockHeader epoch slot prev
             in
                 (blockHeaderHash h, Block h mempty)
-
-
-mkConsecutiveTestBlocks
-    :: Int
-    -- ^ number of consecutive blocks to create
-    -> [(Hash "BlockHeader", Block)]
-    -- ^ returns block paired with generated hashes starting from the oldest
-mkConsecutiveTestBlocks n =
-    reverse $ take n $ iterate next (blockHeaderHash h0, Block h0 mempty)
-  where
-    h0 :: BlockHeader
-    h0 = BlockHeader 1 0 (Hash "initial block")
-
-    next
-        :: (Hash "BlockHeader", Block)
-        -> (Hash "BlockHeader", Block)
-    next (prev, b) =
-        let
-            epoch = epochIndex (header b)
-            slot = slotNumber (header b) + 1
-            h = BlockHeader epoch slot prev
-        in
-            (blockHeaderHash h, Block h mempty)
-
 
 blockHeaderHash :: BlockHeader -> Hash "BlockHeader"
 blockHeaderHash =
