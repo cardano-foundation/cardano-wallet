@@ -98,6 +98,27 @@ instance Arbitrary TickingArgs where
         generateBlockChunks n = do
               vectorOf n (choose (0, 15))
 
+newtype Blocks = Blocks [(Hash "BlockHeader", Block)]
+    deriving Show
+
+instance Arbitrary Blocks where
+    arbitrary = do
+        n <- arbitrary
+        let h0 = BlockHeader 1 0 (Hash "initial block")
+        return $ Blocks $ take n $ iterate next
+            ( blockHeaderHash h0
+            , Block h0 mempty
+            )
+      where
+        next :: (Hash "BlockHeader", Block) -> (Hash "BlockHeader", Block)
+        next (prev, b) =
+            let
+                epoch = epochIndex (header b)
+                slot = slotNumber (header b) + 1
+                h = BlockHeader epoch slot prev
+            in
+                (blockHeaderHash h, Block h mempty)
+
 
 mkConsecutiveTestBlocks
     :: Int
@@ -120,8 +141,6 @@ mkConsecutiveTestBlocks n =
             h = BlockHeader epoch slot prev
         in
             (blockHeaderHash h, Block h mempty)
-
-
 
 
 blockHeaderHash :: BlockHeader -> Hash "BlockHeader"
