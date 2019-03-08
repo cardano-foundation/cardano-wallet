@@ -30,7 +30,7 @@ import Test.Hspec
 import Test.Hspec.Expectations
     ( shouldBe )
 import Test.QuickCheck
-    ( generate, vector )
+    ( Arbitrary (..), elements, generate, vector )
 import Test.QuickCheck.Gen
     ( Gen, choose, vectorOf )
 
@@ -91,6 +91,34 @@ spec = do
           killThread threadId
           obtainedData `shouldBe` ((map fst . reverse) consecutiveBlocks)
 
+
+data TickingArgs = TickingArgs
+    { _chunkSizes :: [Int]
+    , _tickingTime :: Second
+    , _testTime :: Int
+    , _deliveryMode :: DeliveryMode
+    } deriving (Show)
+
+instance Arbitrary TickingArgs where
+    shrink (TickingArgs sizes t t' m) =
+        [ TickingArgs sizes' t t' m | sizes' <- shrink sizes ]
+    arbitrary = do
+        numberOfTicks <- choose (1,15)
+        chunkSizesToTest <- generateBlockChunks numberOfTicks
+        tickingFunctionTime <- choose (1, 3)
+        let tickTime = fromMicroseconds . (\x -> x * 1000 * 1000) $ tickingFunctionTime
+        let testTime = (L.length chunkSizesToTest + 1)*(fromIntegral tickingFunctionTime)*1000*1000
+        deliveryMode <- elements [ExactlyOnce, AtLeastOnce]
+        return $ TickingArgs chunkSizesToTest tickTime testTime deliveryMode
+      where
+          generateBlockChunks
+              :: Int
+              -> Gen [Int]
+          generateBlockChunks numberOfTicks = do
+              let chunkSizeGen = choose (0,15)
+              vectorOf numberOfTicks chunkSizeGen
+
+
 mkConsecutiveTestBlocks
     :: Int
     -- ^ number of consecutive blocks to create
@@ -127,7 +155,7 @@ newtype BlocksConsumed = BlocksConsumed [(Hash "BlockHeader")] deriving (Show, E
 newtype BlocksToInject = BlocksToInject ([Int],[((Hash "BlockHeader"),Block)]) deriving (Show, Eq)
 
 
-data DeliveryMode = ExactlyOnce | AtLeastOnce
+data DeliveryMode = ExactlyOnce | AtLeastOnce deriving Show
 
 pushNextBlocks
     :: MVar BlocksToInject
