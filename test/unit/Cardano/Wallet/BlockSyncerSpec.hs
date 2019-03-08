@@ -44,6 +44,8 @@ import Test.QuickCheck.Gen
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
+import qualified Codec.CBOR.Encoding as CBOR
+import qualified Codec.CBOR.Write as CBOR
 import qualified Data.List as L
 import qualified Data.Set as Set
 
@@ -57,7 +59,7 @@ spec = do
           :: TickingArgs
           -> Property
       tickingFunctionTest (TickingArgs chunkSizesToTest tickTime testTime deliveryMode) = monadicIO $ liftIO $ do
-          consecutiveBlocks <- liftIO $ mkConsecutiveTestBlocks (sum chunkSizesToTest)
+          let consecutiveBlocks = mkConsecutiveTestBlocks (sum chunkSizesToTest)
           consumerData <- newEmptyMVar
           putMVar consumerData $ BlocksConsumed []
           producerData <- newEmptyMVar
@@ -96,38 +98,53 @@ instance Arbitrary TickingArgs where
         generateBlockChunks n = do
               vectorOf n (choose (0, 15))
 
+
 mkConsecutiveTestBlocks
     :: Int
     -- ^ number of consecutive blocks to create
-    -> IO [((Hash "BlockHeader"),Block)]
+    -> [((Hash "BlockHeader"),Block)]
     -- ^ returns block paired with generated hashes starting from the oldest
-mkConsecutiveTestBlocks blockNum = do
-    h  <- Hash <$> generate bytelistGenerator
-    h' <- Hash <$> generate bytelistGenerator
-    loop blockNum [(h', Block (BlockHeader 1 0 h) mempty)]
+mkConsecutiveTestBlocks blockNum =
+    let
+        prev = Hash "initial block"
+        h = BlockHeader 1 0 prev
+    in
+        loop blockNum [(blockHeaderHash h, Block h mempty)]
   where
-    bytelistGenerator = pack <$> vector 10 :: Gen ByteString
-
     fromPreviousBlock
         :: (Hash "BlockHeader", Block)
-        -> Gen (Hash "BlockHeader", Block)
-    fromPreviousBlock (h, b) = do
-        h' <- Hash <$> bytelistGenerator
-        let epoch = epochIndex (header b)
-        let slot = slotNumber (header b) + 1
-        return (h',  Block (BlockHeader epoch slot h) mempty)
+        -> (Hash "BlockHeader", Block)
+    fromPreviousBlock (prev, b) =
+        let
+            epoch = epochIndex (header b)
+            slot = slotNumber (header b) + 1
+            h = BlockHeader epoch slot prev
+        in
+            (blockHeaderHash h, Block h mempty)
 
     loop
         :: Int
         -> [(Hash "BlockHeader", Block)]
-        -> IO [(Hash "BlockHeader", Block)]
+        -> [(Hash "BlockHeader", Block)]
     loop n res
-        | n <= 0 = return $ reverse res
-        | otherwise = do
-            let block = head res
-            block' <- generate $ fromPreviousBlock block
-            loop (n - 1) (block' : res)
+        | n <= 0 = reverse res
+        | otherwise =
+            let
+                block = head res
+                block' = fromPreviousBlock block
+            in
+                loop (n - 1) (block' : res)
 
+
+blockHeaderHash :: BlockHeader -> Hash "BlockHeader"
+blockHeaderHash =
+    Hash . CBOR.toStrictByteString . encodeBlockHeader
+  where
+    encodeBlockHeader (BlockHeader epoch slot prev) = mempty
+        <> CBOR.encodeListLen 3
+        <> CBOR.encodeWord64 epoch
+        <> CBOR.encodeWord16 slot
+        <> CBOR.encodeBytes (getHash prev)
 
 newtype BlocksConsumed = BlocksConsumed [(Hash "BlockHeader")] deriving (Show, Eq)
 
