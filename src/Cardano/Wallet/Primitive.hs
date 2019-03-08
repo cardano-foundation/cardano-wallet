@@ -35,7 +35,6 @@ module Cardano.Wallet.Primitive
     , TxIn(..)
     , TxOut(..)
     , txIns
-    , txOutsOurs
     , updatePending
 
     -- * Address
@@ -64,8 +63,6 @@ import Prelude
 
 import Control.DeepSeq
     ( NFData (..) )
-import Control.Monad.Trans.State.Strict
-    ( State, runState, state )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertToBase )
 import Data.ByteString
@@ -74,12 +71,8 @@ import Data.ByteString.Base58
     ( bitcoinAlphabet, encodeBase58 )
 import Data.Map.Strict
     ( Map )
-import Data.Maybe
-    ( catMaybes )
 import Data.Set
     ( Set )
-import Data.Traversable
-    ( for )
 import Data.Word
     ( Word16, Word32, Word64 )
 import Fmt
@@ -155,22 +148,6 @@ instance NFData Tx
 txIns :: Set Tx -> Set TxIn
 txIns =
     foldMap (Set.fromList . inputs)
-
-txOutsOurs
-    :: forall s. (IsOurs s)
-    => Set Tx
-    -> s
-    -> (Set TxOut, s)
-txOutsOurs txs =
-    runState $ Set.fromList <$> forMaybe (foldMap outputs txs) pick
-  where
-    pick :: TxOut -> State s (Maybe TxOut)
-    pick out = do
-        predicate <- state $ isOurs (address out)
-        return $ if predicate then Just out else Nothing
-
-    forMaybe :: Monad m => [a] -> (a -> m (Maybe b)) -> m [b]
-    forMaybe xs = fmap catMaybes . for xs
 
 updatePending :: Block -> Set Tx -> Set Tx
 updatePending b =
