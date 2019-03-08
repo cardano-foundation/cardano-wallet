@@ -40,22 +40,40 @@ import qualified Data.Set as Set
 spec :: Spec
 spec = do
     describe "Block syncer downloads blocks properly" $ do
-        let tests =
-                [
-                    ("check ticking function when blocks are sent in exactly-once fashion"
-                    , ExactlyOnce)
-                ,
-                    ("check ticking function when blocks are sent in at-least-once fashion"
-                    , AtLeastOnce)
-                ]
-        forM_ ((L.take 10 . L.cycle) tests) $ \pair ->
-            uncurry tickingFunctionTest pair
+        it "Check ticking function when blocks are sent in exactly-one fashion" $
+            tickingFunctionTest ExactlyOnce
+
+        it "Check ticking function when blocks are sent in exactly-one fashion" $
+            tickingFunctionTest ExactlyOnce
+
+        it "Check ticking function when blocks are sent in exactly-one fashion" $
+            tickingFunctionTest ExactlyOnce
+
+        it "Check ticking function when blocks are sent in exactly-one fashion" $
+            tickingFunctionTest ExactlyOnce
+
+        it "Check ticking function when blocks are sent in exactly-one fashion" $
+            tickingFunctionTest ExactlyOnce
+
+        it "Check ticking function when blocks are sent in at-least-once fashion" $
+            tickingFunctionTest AtLeastOnce
+
+        it "Check ticking function when blocks are sent in at-least-once fashion" $
+            tickingFunctionTest AtLeastOnce
+
+        it "Check ticking function when blocks are sent in at-least-once fashion" $
+            tickingFunctionTest AtLeastOnce
+
+        it "Check ticking function when blocks are sent in at-least-once fashion" $
+            tickingFunctionTest AtLeastOnce
+
+        it "Check ticking function when blocks are sent in at-least-once fashion" $
+            tickingFunctionTest AtLeastOnce
   where
       tickingFunctionTest
-          :: String
-          -> DeliveryMode
-          -> SpecWith (Arg (IO ()))
-      tickingFunctionTest testDescr deliveryMode = it testDescr $ do
+          :: DeliveryMode
+          -> IO ()
+      tickingFunctionTest deliveryMode = do
           chunkSizesToTest <- generateBlockChunkSizes
           tickingFunctionTime <- generate $ choose (1,3)
           let testTime = (L.length chunkSizesToTest + 1)*(fromIntegral tickingFunctionTime)*1000*1000
