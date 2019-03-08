@@ -27,7 +27,6 @@ module Cardano.Wallet.Primitive
     , Tx(..)
     , TxIn(..)
     , TxOut(..)
-    , txId
     , txIns
     , txOutsOurs
     , updatePending
@@ -43,8 +42,6 @@ module Cardano.Wallet.Primitive
     -- * UTxO
     , UTxO (..)
     , balance
-    , changeUTxO
-    , utxoFromTx
     , excluding
     , isSubsetOf
     , restrictedBy
@@ -122,12 +119,6 @@ data Tx = Tx
     } deriving (Show, Generic, Ord, Eq)
 
 instance NFData Tx
-
--- | Calculating a transaction id. Assumed to be effectively injective
-txId :: Tx -> Hash "Tx"
-txId = error
-    "txId: not yet implemented. We need the ability to encode a Tx to CBOR for:\
-    \ BA.convert . hash @_ @Blake2b_256 . CBOR.toStrictByteString . encodeTx"
 
 txIns :: Set Tx -> Set TxIn
 txIns =
@@ -236,21 +227,6 @@ instance Dom UTxO where
 balance :: UTxO -> Integer
 balance =
     Map.foldl' (\total out -> total + fromIntegral (getCoin (coin out))) 0 . getUTxO
-
-utxoFromTx :: Tx -> UTxO
-utxoFromTx tx@(Tx _ outs) =
-    UTxO $ Map.fromList $ zip (TxIn (txId tx) <$> [0..]) outs
-
-changeUTxO
-    :: IsOurs s
-    => Set Tx
-    -> s
-    -> (UTxO, s)
-changeUTxO pending = runState $ do
-    ours <- state $ txOutsOurs pending
-    let utxo = foldMap utxoFromTx pending
-    let ins = txIns pending
-    return $ (utxo `restrictedTo` ours) `restrictedBy` ins
 
 -- ins⋪ u
 excluding :: UTxO -> Set TxIn ->  UTxO

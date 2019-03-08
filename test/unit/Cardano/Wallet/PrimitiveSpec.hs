@@ -26,12 +26,11 @@ import Cardano.Wallet.Primitive
     , restrictedBy
     , restrictedTo
     , updatePending
-    , utxoFromTx
     )
 import Data.Set
     ( Set, (\\) )
 import Test.Hspec
-    ( Spec, describe, it, pendingWith )
+    ( Spec, describe, it )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
@@ -40,7 +39,6 @@ import Test.QuickCheck
     , cover
     , oneof
     , property
-    , quickCheck
     , scale
     , vectorOf
     , (===)
@@ -84,11 +82,6 @@ spec = do
     describe "Lemma 3.3 - Updating the pending set" $ do
         it "3.3) updatePending b pending ⊆ pending"
             (checkCoverage prop_3_2)
-
-    describe "Miscellaneous properties" $ do
-        it "utxoFromTx preserve number of outputs" $ do
-            pendingWith "Need txId to be implemented first"
-            quickCheck $ checkCoverage prop_utxoFromTx
 
 
 {-------------------------------------------------------------------------------
@@ -215,18 +208,6 @@ prop_3_2 (b, pending) =
     cond0 = not $ Set.null pending
     cond1 = not $ Set.null $ transactions b `Set.intersection` pending
     prop = updatePending b pending `Set.isSubsetOf` pending
-
-
-{-------------------------------------------------------------------------------
-                        Miscellaneous Properties
--------------------------------------------------------------------------------}
-
-prop_utxoFromTx :: Tx -> Property
-prop_utxoFromTx tx =
-    cover 50 cond "outputs tx ≠ ∅ " (property prop)
-  where
-    cond = not $ null $ outputs tx
-    prop = Map.size (getUTxO $ utxoFromTx tx) === length (outputs tx)
 
 
 {-------------------------------------------------------------------------------

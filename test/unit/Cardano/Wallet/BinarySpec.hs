@@ -10,7 +10,7 @@ module Cardano.Wallet.BinarySpec
 import Prelude
 
 import Cardano.Wallet.Binary
-    ( decodeBlock, decodeBlockHeader )
+    ( decodeBlock, decodeBlockHeader, decodeTx, encodeTx, txId )
 import Cardano.Wallet.Primitive
     ( Address (..)
     , Block (..)
@@ -32,11 +32,13 @@ import Test.Hspec
 
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
+import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as L8
 import qualified Data.Set as Set
 
 
+{-# ANN spec ("HLint: ignore Use head" :: String) #-}
 spec :: Spec
 spec = do
     describe "Decoding blocks" $ do
@@ -59,6 +61,29 @@ spec = do
             bs <- L8.readFile "test/data/Cardano/Wallet/BinarySpec-block-3"
             let decoded = unsafeDeserialiseFromBytes decodeBlock bs
             decoded `shouldBe` block3
+
+    describe "Encoding Tx" $ do
+        let txs = Set.toList (transactions block2 <> transactions block3)
+        let roundTripTx tx = do
+                let bytes = CBOR.toLazyByteString (encodeTx tx)
+                let tx' = unsafeDeserialiseFromBytes decodeTx bytes
+                tx `shouldBe` tx'
+
+        it "encode . decode = pure (1)" $ do
+            roundTripTx (txs !! 0)
+
+        it "encode . decode = pure (2)" $ do
+            roundTripTx (txs !! 1)
+
+        it "should compute correct txId (1)" $ do
+            let hash = txId (txs !! 0)
+            let hash' = hash16 "c470563001e448e61ff1268c2a6eb458ace1d04011a02cb262b6d709d66c23d0"
+            hash `shouldBe` hash'
+
+        it "should compute correct txId (2)" $ do
+            let hash = txId (txs !! 1)
+            let hash' = hash16 "d30d37f1f8674c6c33052826fdc5bc198e3e95c150364fd775d4bc663ae6a9e6"
+            hash `shouldBe` hash'
 
 
 -- A mainnet block header
