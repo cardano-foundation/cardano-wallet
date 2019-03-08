@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
 
@@ -95,7 +96,6 @@ instance Arbitrary TickingArgs where
         generateBlockChunks n = do
               vectorOf n (choose (0, 15))
 
-
 mkConsecutiveTestBlocks
     :: Int
     -- ^ number of consecutive blocks to create
@@ -104,27 +104,25 @@ mkConsecutiveTestBlocks
 mkConsecutiveTestBlocks blockNum =
     loop blockNum []
   where
-      loop
-          :: Int
-          -> [((Hash "BlockHeader"),Block)]
-          -> IO [((Hash "BlockHeader"),Block)]
-      loop blockNumToGo res = do
-          let bytelistGenerator = pack <$> vector 10 :: Gen ByteString
-          if blockNumToGo <= 0 then
-              return $ reverse res
-          else
-             case res of
-                 [] -> do
-                     lastBlockHeader <- Hash <$> generate bytelistGenerator
-                     theBlockHeader <- Hash <$> generate bytelistGenerator
-                     let theEpoch = 0
-                     let theSlot = 1
-                     let theBlock = Block (BlockHeader theEpoch theSlot lastBlockHeader) Set.empty
-                     loop (blockNumToGo - 1) [(theBlockHeader, theBlock)]
-                 (lastBlockHeader, Block (BlockHeader lastEpoch lastSlot _) _ ):_ -> do
-                     let theBlock = Block (BlockHeader lastEpoch (lastSlot + 1) lastBlockHeader) Set.empty
-                     theBlockHeader <- Hash <$> generate bytelistGenerator
-                     loop (blockNumToGo - 1) $ (theBlockHeader, theBlock):res
+    bytelistGenerator = pack <$> vector 10 :: Gen ByteString
+    loop
+        :: Int
+        -> [((Hash "BlockHeader"),Block)]
+        -> IO [((Hash "BlockHeader"),Block)]
+    loop n res
+        | n <= 0 = return $ reverse res
+        | res == mempty = do
+            lastBlockHeader <- Hash <$> generate bytelistGenerator
+            theBlockHeader <- Hash <$> generate bytelistGenerator
+            let theEpoch = 0
+            let theSlot = 1
+            let theBlock = Block (BlockHeader theEpoch theSlot lastBlockHeader) Set.empty
+            loop (n - 1) [(theBlockHeader, theBlock)]
+        | otherwise = do
+            let (lastBlockHeader, Block (BlockHeader lastEpoch lastSlot _) _ ):_ = res
+            let theBlock = Block (BlockHeader lastEpoch (lastSlot + 1) lastBlockHeader) Set.empty
+            theBlockHeader <- Hash <$> generate bytelistGenerator
+            loop (n - 1) $ (theBlockHeader, theBlock):res
 
 
 newtype BlocksConsumed = BlocksConsumed [(Hash "BlockHeader")] deriving (Show, Eq)
