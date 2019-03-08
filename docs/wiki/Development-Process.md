@@ -60,7 +60,7 @@ The team follows a methodology known as [extreme programming][xp] which can be s
 - We have a weekly meeting every Friday to plan the next iteration
 - We have release meetings between release to
     - Plan the next release (i.e. create or refine User Stories)
-    - Restrospect on the previous release looking at past User Stories 
+    - Retrospect on the previous release looking at past User Stories 
     - Discuss idea an thoughts gathered on the blackboard 
 - Discussions happen on Slack, decisions are documented on GitHub as comments on issues
 - Our GitHub wiki can be extended at any time with insights and details about the software
