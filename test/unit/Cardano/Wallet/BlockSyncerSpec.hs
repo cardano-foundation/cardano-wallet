@@ -104,20 +104,11 @@ mkConsecutiveTestBlocks
     -- ^ number of consecutive blocks to create
     -> [(Hash "BlockHeader", Block)]
     -- ^ returns block paired with generated hashes starting from the oldest
-mkConsecutiveTestBlocks =
-    let
-        prev = Hash "initial block"
-        h = BlockHeader 1 0 prev
-    in
-        loop [(blockHeaderHash h, Block h mempty)]
+mkConsecutiveTestBlocks n =
+    reverse $ take n $ iterate next (blockHeaderHash h0, Block h0 mempty)
   where
-    loop
-        :: [(Hash "BlockHeader", Block)]
-        -> Int
-        -> [(Hash "BlockHeader", Block)]
-    loop (block : blocks) n
-        | n <= 0 = reverse (block : blocks)
-        | otherwise = loop (next block : block : blocks) (n -1)
+    h0 :: BlockHeader
+    h0 = BlockHeader 1 0 (Hash "initial block")
 
     next
         :: (Hash "BlockHeader", Block)
@@ -129,6 +120,7 @@ mkConsecutiveTestBlocks =
             h = BlockHeader epoch slot prev
         in
             (blockHeaderHash h, Block h mempty)
+
 
 
 
