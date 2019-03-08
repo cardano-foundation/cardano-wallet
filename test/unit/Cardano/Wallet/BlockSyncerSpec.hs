@@ -30,9 +30,18 @@ import Test.Hspec
 import Test.Hspec.Expectations
     ( shouldBe )
 import Test.QuickCheck
-    ( Arbitrary (..), elements, generate, vector )
+    ( Arbitrary (..)
+    , Property
+    , elements
+    , generate
+    , property
+    , vector
+    , withMaxSuccess
+    )
 import Test.QuickCheck.Gen
     ( Gen, choose, vectorOf )
+import Test.QuickCheck.Monadic
+    ( monadicIO )
 
 import qualified Data.List as L
 import qualified Data.Set as Set
@@ -40,44 +49,13 @@ import qualified Data.Set as Set
 spec :: Spec
 spec = do
     describe "Block syncer downloads blocks properly" $ do
-        it "Check ticking function when blocks are sent in exactly-one fashion" $
-            tickingFunctionTest ExactlyOnce
-
-        it "Check ticking function when blocks are sent in exactly-one fashion" $
-            tickingFunctionTest ExactlyOnce
-
-        it "Check ticking function when blocks are sent in exactly-one fashion" $
-            tickingFunctionTest ExactlyOnce
-
-        it "Check ticking function when blocks are sent in exactly-one fashion" $
-            tickingFunctionTest ExactlyOnce
-
-        it "Check ticking function when blocks are sent in exactly-one fashion" $
-            tickingFunctionTest ExactlyOnce
-
-        it "Check ticking function when blocks are sent in at-least-once fashion" $
-            tickingFunctionTest AtLeastOnce
-
-        it "Check ticking function when blocks are sent in at-least-once fashion" $
-            tickingFunctionTest AtLeastOnce
-
-        it "Check ticking function when blocks are sent in at-least-once fashion" $
-            tickingFunctionTest AtLeastOnce
-
-        it "Check ticking function when blocks are sent in at-least-once fashion" $
-            tickingFunctionTest AtLeastOnce
-
-        it "Check ticking function when blocks are sent in at-least-once fashion" $
-            tickingFunctionTest AtLeastOnce
+        it "Check ticking function when blocks are sent"
+            (withMaxSuccess 10 $ property tickingFunctionTest)
   where
       tickingFunctionTest
-          :: DeliveryMode
-          -> IO ()
-      tickingFunctionTest deliveryMode = do
-          chunkSizesToTest <- generateBlockChunkSizes
-          tickingFunctionTime <- generate $ choose (1,3)
-          let testTime = (L.length chunkSizesToTest + 1)*(fromIntegral tickingFunctionTime)*1000*1000
-          let tickTime = (fromMicroseconds tickingFunctionTime*1000*1000)
+          :: TickingArgs
+          -> Property
+      tickingFunctionTest (TickingArgs chunkSizesToTest tickTime testTime deliveryMode) = monadicIO $ liftIO $ do
           consecutiveBlocks <- liftIO $ mkConsecutiveTestBlocks (sum chunkSizesToTest)
           consumerData <- newEmptyMVar
           putMVar consumerData $ BlocksConsumed []
@@ -189,16 +167,3 @@ writeToIORefAction ref blocks = return $
                 putMVar ref $ BlocksConsumed (blockHeader : headerHashesConsumed)
             _ ->
                 return ()
-
-
-generateBlockChunkSizes :: IO [Int]
-generateBlockChunkSizes = do
-    numberOfTicks <- generate $ choose (1,15)
-    generate $ generateBlockChunks numberOfTicks
-  where
-      generateBlockChunks
-          :: Int
-          -> Gen [Int]
-      generateBlockChunks numberOfTicks = do
-          let chunkSizeGen = choose (0,15)
-          vectorOf numberOfTicks chunkSizeGen
