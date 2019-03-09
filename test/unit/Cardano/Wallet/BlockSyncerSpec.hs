@@ -61,7 +61,7 @@ spec = do
       tickingFunctionTest (TickingArgs chunkSizesToTest tickTime testTime deliveryMode, Blocks consecutiveBlocks) = monadicIO $ liftIO $ do
           consumerData <- newMVar $ BlocksConsumed []
           producerData <- newMVar $ BlocksToInject (chunkSizesToTest, consecutiveBlocks)
-          blockToIOaction <- writeToIORefAction consumerData consecutiveBlocks
+          let blockToIOaction = writeToIORefAction consumerData consecutiveBlocks
           let blockDelivery = pushNextBlocks producerData deliveryMode
           threadId <- forkIO $ tickingFunction blockDelivery blockToIOaction tickTime (BlockHeadersConsumed [])
           threadDelay testTime
@@ -156,12 +156,11 @@ pushNextBlocks ref mode = do
 writeToIORefAction
     :: MVar BlocksConsumed
     -> [((Hash "BlockHeader"),Block)]
-    -> IO (Block -> IO ())
-writeToIORefAction ref blocks = return $
-    \block -> do
-        (BlocksConsumed headerHashesConsumed) <- takeMVar ref
-        case (map fst . filter (\(_,b) -> b == block) ) blocks of
-            [blockHeader] -> do
-                putMVar ref $ BlocksConsumed (blockHeader : headerHashesConsumed)
-            _ ->
-                return ()
+    -> (Block -> IO ())
+writeToIORefAction ref blocks block = do
+    (BlocksConsumed headerHashesConsumed) <- takeMVar ref
+    case (map fst . filter (\(_,b) -> b == block) ) blocks of
+        [blockHeader] -> do
+            putMVar ref $ BlocksConsumed (blockHeader : headerHashesConsumed)
+        _ ->
+            return ()
