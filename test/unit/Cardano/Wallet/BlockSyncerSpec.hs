@@ -1,5 +1,7 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
 
@@ -61,9 +63,9 @@ spec = do
       tickingFunctionTest (TickingArgs chunkSizesToTest tickTime testTime deliveryMode, Blocks consecutiveBlocks) = monadicIO $ liftIO $ do
           consumerData <- newMVar $ BlocksConsumed []
           producerData <- newMVar $ BlocksToInject (chunkSizesToTest, consecutiveBlocks)
-          let blockToIOaction = writeToIORefAction consumerData consecutiveBlocks
+          let reader = mkReader consumerData consecutiveBlocks
           let blockDelivery = pushNextBlocks producerData deliveryMode
-          threadId <- forkIO $ tickingFunction blockDelivery blockToIOaction tickTime (BlockHeadersConsumed [])
+          threadId <- forkIO $ tickingFunction blockDelivery reader tickTime (BlockHeadersConsumed [])
           threadDelay testTime
           (BlocksConsumed obtainedData) <- takeMVar consumerData
           killThread threadId
@@ -126,7 +128,9 @@ blockHeaderHash =
         <> CBOR.encodeWord16 slot
         <> CBOR.encodeBytes (getHash prev)
 
-newtype BlocksConsumed = BlocksConsumed [(Hash "BlockHeader")] deriving (Show, Eq)
+newtype BlocksConsumed = BlocksConsumed [(Hash "BlockHeader")]
+    deriving stock (Show, Eq)
+    deriving newtype (Semigroup, Monoid)
 
 newtype BlocksToInject = BlocksToInject ([Int],[((Hash "BlockHeader"),Block)]) deriving (Show, Eq)
 
@@ -153,13 +157,13 @@ pushNextBlocks ref mode = do
                 [] -> return [])
 
 
-writeToIORefAction
+mkReader
     :: MVar BlocksConsumed
     -> [((Hash "BlockHeader"),Block)]
     -> (Block -> IO ())
-writeToIORefAction ref blocks block = do
-    case (map fst . filter (\(_,b) -> b == block)) blocks of
-        [blockHeader] ->
-            modifyMVar_ ref $ \(BlocksConsumed headerHashesConsumed) -> return $ BlocksConsumed (blockHeader : headerHashesConsumed)
+mkReader ref blocks block = do
+    case filter ((== block) . snd) blocks of
+        [(h, _)] ->
+            modifyMVar_ ref $ return . (BlocksConsumed [h] <>)
         _ ->
             return ()
