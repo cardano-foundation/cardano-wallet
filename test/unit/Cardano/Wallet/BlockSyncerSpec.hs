@@ -17,7 +17,7 @@ import Cardano.Wallet.Primitive
 import Control.Concurrent
     ( ThreadId, forkIO, killThread, threadDelay )
 import Control.Concurrent.MVar
-    ( MVar, newEmptyMVar, putMVar, takeMVar )
+    ( MVar, newEmptyMVar, newMVar, putMVar, takeMVar )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Class
@@ -59,10 +59,8 @@ spec = do
           :: (TickingArgs, Blocks)
           -> Property
       tickingFunctionTest (TickingArgs chunkSizesToTest tickTime testTime deliveryMode, Blocks consecutiveBlocks) = monadicIO $ liftIO $ do
-          consumerData <- newEmptyMVar
-          putMVar consumerData $ BlocksConsumed []
-          producerData <- newEmptyMVar
-          putMVar producerData $ BlocksToInject (chunkSizesToTest,consecutiveBlocks)
+          consumerData <- newMVar $ BlocksConsumed []
+          producerData <- newMVar $ BlocksToInject (chunkSizesToTest, consecutiveBlocks)
           blockToIOaction <- writeToIORefAction consumerData consecutiveBlocks
           let blockDelivery = pushNextBlocks producerData deliveryMode
           threadId <- forkIO $ tickingFunction blockDelivery blockToIOaction tickTime (BlockHeadersConsumed [])
