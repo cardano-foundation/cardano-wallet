@@ -66,13 +66,13 @@ spec = do
           :: (TickingArgs, Blocks)
           -> Property
       tickingFunctionTest (TickingArgs chunkSizesToTest tickTime testTime deliveryMode, Blocks consecutiveBlocks) = monadicIO $ liftIO $ do
-          consumerData <- newMVar $ BlocksConsumed []
+          consumerData <- newMVar []
           producerData <- newMVar $ BlocksToInject (chunkSizesToTest, consecutiveBlocks)
           let reader = mkReader consumerData (Map.fromList $ swap <$> consecutiveBlocks)
           let blockDelivery = pushNextBlocks producerData deliveryMode
           threadId <- forkIO $ tickingFunction blockDelivery reader tickTime (BlockHeadersConsumed [])
           threadDelay testTime
-          (BlocksConsumed obtainedData) <- takeMVar consumerData
+          obtainedData <- takeMVar consumerData
           killThread threadId
           obtainedData `shouldBe` ((map fst . reverse) consecutiveBlocks)
 
@@ -133,10 +133,6 @@ blockHeaderHash =
         <> CBOR.encodeWord16 slot
         <> CBOR.encodeBytes (getHash prev)
 
-newtype BlocksConsumed = BlocksConsumed [(Hash "BlockHeader")]
-    deriving stock (Show, Eq)
-    deriving newtype (Semigroup, Monoid)
-
 newtype BlocksToInject = BlocksToInject ([Int],[((Hash "BlockHeader"),Block)]) deriving (Show, Eq)
 
 
@@ -163,12 +159,12 @@ pushNextBlocks ref mode = do
 
 
 mkReader
-    :: MVar BlocksConsumed
+    :: MVar [Hash "BlockHeader"]
     -> Map Block (Hash "BlockHeader")
     -> (Block -> IO ())
 mkReader ref blocks block = do
     case block `Map.lookup` blocks of
         Just h ->
-            modifyMVar_ ref $ return . (BlocksConsumed [h] <>)
+            modifyMVar_ ref $ return . (h :)
         Nothing ->
             return ()
