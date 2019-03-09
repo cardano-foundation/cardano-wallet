@@ -17,7 +17,7 @@ import Cardano.Wallet.Primitive
 import Control.Concurrent
     ( ThreadId, forkIO, killThread, threadDelay )
 import Control.Concurrent.MVar
-    ( MVar, newEmptyMVar, newMVar, putMVar, takeMVar )
+    ( MVar, modifyMVar_, newEmptyMVar, newMVar, putMVar, takeMVar )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Class
@@ -158,9 +158,8 @@ writeToIORefAction
     -> [((Hash "BlockHeader"),Block)]
     -> (Block -> IO ())
 writeToIORefAction ref blocks block = do
-    (BlocksConsumed headerHashesConsumed) <- takeMVar ref
-    case (map fst . filter (\(_,b) -> b == block) ) blocks of
-        [blockHeader] -> do
-            putMVar ref $ BlocksConsumed (blockHeader : headerHashesConsumed)
+    case (map fst . filter (\(_,b) -> b == block)) blocks of
+        [blockHeader] ->
+            modifyMVar_ ref $ \(BlocksConsumed headerHashesConsumed) -> return $ BlocksConsumed (blockHeader : headerHashesConsumed)
         _ ->
             return ()
