@@ -159,12 +159,14 @@ pushNextBlocks ref mode = do
 
 
 mkReader
-    :: MVar [Hash "BlockHeader"]
-    -> Map Block (Hash "BlockHeader")
-    -> (Block -> IO ())
-mkReader ref blocks block = do
-    case block `Map.lookup` blocks of
-        Just h ->
-            modifyMVar_ ref $ return . (h :)
+    :: Ord k
+    => MVar [v]
+    -> Map k v
+    -> k
+    -> IO ()
+mkReader ref m k = do
+    case k `Map.lookup` m of
+        Just v ->
+            modifyMVar_ ref $ return . (v :)
         Nothing ->
             return ()
