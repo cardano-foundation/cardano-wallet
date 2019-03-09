@@ -89,7 +89,7 @@ data Block = Block
         :: !BlockHeader
     , transactions
         :: !(Set Tx)
-    } deriving (Show, Eq, Generic)
+    } deriving (Show, Eq, Ord, Generic)
 
 instance NFData Block
 
@@ -101,7 +101,7 @@ data BlockHeader = BlockHeader
         :: !Word16
     , prevBlockHash
         :: !(Hash "BlockHeader")
-    } deriving (Show, Eq, Generic)
+    } deriving (Show, Eq, Ord, Generic)
 
 instance NFData BlockHeader
 

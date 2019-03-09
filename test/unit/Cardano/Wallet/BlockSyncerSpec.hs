@@ -26,8 +26,12 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Data.ByteString
     ( ByteString, pack )
+import Data.Map.Strict
+    ( Map )
 import Data.Time.Units
     ( Second, fromMicroseconds )
+import Data.Tuple
+    ( swap )
 import Test.Hspec
     ( Arg, Spec, SpecWith, describe, it )
 import Test.Hspec.Expectations
@@ -49,6 +53,7 @@ import Test.QuickCheck.Monadic
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.List as L
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 spec :: Spec
@@ -63,7 +68,7 @@ spec = do
       tickingFunctionTest (TickingArgs chunkSizesToTest tickTime testTime deliveryMode, Blocks consecutiveBlocks) = monadicIO $ liftIO $ do
           consumerData <- newMVar $ BlocksConsumed []
           producerData <- newMVar $ BlocksToInject (chunkSizesToTest, consecutiveBlocks)
-          let reader = mkReader consumerData consecutiveBlocks
+          let reader = mkReader consumerData (Map.fromList $ swap <$> consecutiveBlocks)
           let blockDelivery = pushNextBlocks producerData deliveryMode
           threadId <- forkIO $ tickingFunction blockDelivery reader tickTime (BlockHeadersConsumed [])
           threadDelay testTime
@@ -159,11 +164,11 @@ pushNextBlocks ref mode = do
 
 mkReader
     :: MVar BlocksConsumed
-    -> [((Hash "BlockHeader"),Block)]
+    -> Map Block (Hash "BlockHeader")
     -> (Block -> IO ())
 mkReader ref blocks block = do
-    case filter ((== block) . snd) blocks of
-        [(h, _)] ->
+    case block `Map.lookup` blocks of
+        Just h ->
             modifyMVar_ ref $ return . (BlocksConsumed [h] <>)
-        _ ->
+        Nothing ->
             return ()
