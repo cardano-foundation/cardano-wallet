@@ -67,7 +67,7 @@ spec = do
           -> Property
       tickingFunctionTest (TickingArgs chunkSizesToTest tickTime testTime deliveryMode, Blocks consecutiveBlocks) = monadicIO $ liftIO $ do
           consumerData <- newMVar []
-          producerData <- newMVar $ BlocksToInject (chunkSizesToTest, consecutiveBlocks)
+          producerData <- newMVar $ BlocksToInject (chunkSizesToTest, map snd consecutiveBlocks)
           let reader = mkReader consumerData (Map.fromList $ swap <$> consecutiveBlocks)
           let blockDelivery = pushNextBlocks producerData deliveryMode
           threadId <- forkIO $ tickingFunction blockDelivery reader tickTime (BlockHeadersConsumed [])
@@ -133,7 +133,7 @@ blockHeaderHash =
         <> CBOR.encodeWord16 slot
         <> CBOR.encodeBytes (getHash prev)
 
-newtype BlocksToInject = BlocksToInject ([Int],[((Hash "BlockHeader"),Block)]) deriving (Show, Eq)
+newtype BlocksToInject = BlocksToInject ([Int], [Block]) deriving (Show, Eq)
 
 
 data DeliveryMode = ExactlyOnce | AtLeastOnce deriving Show
@@ -152,10 +152,10 @@ pushNextBlocks ref mode = do
             putMVar ref $ BlocksToInject (rest, bStay)
             case mode of
                 ExactlyOnce ->
-                    return $ map snd bOut
+                    return bOut
                 AtLeastOnce -> do
                     additionalBlocks <- generate $ choose (1,3) :: IO Int
-                    return $ map snd (bOut ++ take additionalBlocks bStay)
+                    return $ bOut ++ take additionalBlocks bStay
 
 
 mkReader
