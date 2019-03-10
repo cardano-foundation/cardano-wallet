@@ -22,7 +22,7 @@ import Cardano.Wallet.Primitive
 import Control.Concurrent
     ( threadDelay )
 import Data.Time.Units
-    ( Second, toMicroseconds )
+    ( Millisecond, toMicroseconds )
 
 import qualified Data.List as L
 
@@ -37,7 +37,7 @@ tickingFunction
     -- ^ a way to get a new block
     -> (Block -> IO ())
     -- ^ action taken on a new block
-    -> Second
+    -> Millisecond
     -- ^ tick time
     -> BlockHeadersConsumed
     -> IO ()

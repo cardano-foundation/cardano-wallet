@@ -28,7 +28,7 @@ import Data.ByteString
 import Data.Map.Strict
     ( Map )
 import Data.Time.Units
-    ( Second, fromMicroseconds )
+    ( Millisecond, fromMicroseconds )
 import Data.Tuple
     ( swap )
 import Test.Hspec
@@ -68,6 +68,7 @@ tickingFunctionTest
     :: (TickingTime, Blocks)
     -> Property
 tickingFunctionTest (TickingTime tickTime, Blocks blocks) = monadicIO $ liftIO $ do
+    print blocks
     (readerChan, reader) <- mkReader
     (writerChan, writer) <- mkWriter blocks
     waitFor writerChan $ tickingFunction writer reader tickTime (BlockHeadersConsumed [])
@@ -118,13 +119,13 @@ mkReader = do
 -------------------------------------------------------------------------------}
 
 
-newtype TickingTime = TickingTime Second
+newtype TickingTime = TickingTime Millisecond
     deriving (Show)
 
 instance Arbitrary TickingTime where
     -- No shrinking
     arbitrary = do
-        tickTime <- fromMicroseconds . (* (1000 * 1000)) <$> choose (1, 3)
+        tickTime <- fromMicroseconds . (* 1000) <$> choose (50, 100)
         return $ TickingTime tickTime
 
 
