@@ -144,19 +144,18 @@ pushNextBlocks
     -> IO [Block]
 pushNextBlocks ref mode = do
     BlocksToInject (blocksToTake, blocksRemaining) <- takeMVar ref
-    case blocksRemaining of
-        [] -> return []
-        _  -> case blocksToTake of
-            [] -> return []
-            num : rest -> do
-                let (bOut, bStay) = L.splitAt num blocksRemaining
-                putMVar ref $ BlocksToInject (rest, bStay)
-                case mode of
-                    ExactlyOnce ->
-                        return $ map snd bOut
-                    AtLeastOnce -> do
-                        additionalBlocks <- generate $ choose (1,3) :: IO Int
-                        return $ map snd (bOut ++ take additionalBlocks bStay)
+    case (blocksToTake, blocksRemaining) of
+        (_, []) -> return []
+        ([], _) -> return []
+        (num : rest, _) -> do
+            let (bOut, bStay) = L.splitAt num blocksRemaining
+            putMVar ref $ BlocksToInject (rest, bStay)
+            case mode of
+                ExactlyOnce ->
+                    return $ map snd bOut
+                AtLeastOnce -> do
+                    additionalBlocks <- generate $ choose (1,3) :: IO Int
+                    return $ map snd (bOut ++ take additionalBlocks bStay)
 
 
 mkReader
