@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
 
@@ -21,7 +20,7 @@ import Control.Concurrent
 import Control.Concurrent.MVar
     ( MVar, modifyMVar_, newEmptyMVar, newMVar, putMVar, takeMVar )
 import Control.Monad
-    ( forM_ )
+    ( forM_, (>=>) )
 import Control.Monad.IO.Class
     ( liftIO )
 import Data.ByteString
@@ -61,23 +60,58 @@ spec = do
     describe "Block syncer downloads blocks properly" $ do
         it "Check ticking function when blocks are sent"
             (withMaxSuccess 10 $ property tickingFunctionTest)
-  where
-      tickingFunctionTest
-          :: (TickingTime, Blocks)
-          -> Property
-      tickingFunctionTest (TickingTime tickTime, Blocks blocks) = monadicIO $ liftIO $ do
-          done <- newEmptyMVar
-          readerChan <- newMVar []
-          let reader = mkReader readerChan
-          writer <- mkWriter done blocks
-          threadId <- forkIO $ tickingFunction writer reader tickTime (BlockHeadersConsumed [])
-          _ <- takeMVar done
-          killThread threadId
-          obtainedData <- takeMVar readerChan
-          obtainedData `shouldBe` L.nub (reverse blocks)
 
 
-newtype TickingTime = TickingTime Second deriving (Show)
+{-------------------------------------------------------------------------------
+                                    Test Logic
+-------------------------------------------------------------------------------}
+
+tickingFunctionTest
+    :: (TickingTime, Blocks)
+    -> Property
+tickingFunctionTest (TickingTime tickTime, Blocks blocks) = monadicIO $ liftIO $ do
+    done <- newEmptyMVar
+    readerChan <- newMVar []
+    let reader = mkReader readerChan
+    writer <- mkWriter done blocks
+    threadId <- forkIO $ tickingFunction writer reader tickTime (BlockHeadersConsumed [])
+    _ <- takeMVar done
+    killThread threadId
+    obtainedData <- takeMVar readerChan
+    obtainedData `shouldBe` L.nub (reverse blocks)
+
+mkWriter
+    :: MVar ()
+    -> [a]
+    -> IO (IO [a])
+mkWriter done = newMVar >=> \ref -> return $ do
+    xs <- takeMVar ref
+    case xs of
+        [] -> putMVar done () *> return []
+        _  -> do
+            -- NOTE
+            -- Not ideal because it makes the tests non-deterministic. Ideally,
+            -- this should be seeded, or done differently.
+            num <- generate $ choose (1, 3)
+            let (left, right) = L.splitAt num xs
+            putMVar ref right
+            return left
+
+mkReader
+    :: MVar [a]
+    -> a
+    -> IO ()
+mkReader ref x = do
+    modifyMVar_ ref $ return . (x :)
+
+
+{-------------------------------------------------------------------------------
+                            Arbitrary Instances
+-------------------------------------------------------------------------------}
+
+
+newtype TickingTime = TickingTime Second
+    deriving (Show)
 
 instance Arbitrary TickingTime where
     -- No shrinking
@@ -85,10 +119,12 @@ instance Arbitrary TickingTime where
         tickTime <- fromMicroseconds . (* (1000 * 1000)) <$> choose (1, 3)
         return $ TickingTime tickTime
 
+
 newtype Blocks = Blocks [Block]
     deriving Show
 
 instance Arbitrary Blocks where
+    -- No shrinking
     arbitrary = do
         n <- arbitrary
         let h0 = BlockHeader 1 0 (Hash "initial block")
@@ -112,39 +148,12 @@ instance Arbitrary Blocks where
             predicate <- arbitrary
             if predicate then return [a, a] else return [a]
 
-
-blockHeaderHash :: BlockHeader -> Hash "BlockHeader"
-blockHeaderHash =
-    Hash . CBOR.toStrictByteString . encodeBlockHeader
-  where
-    encodeBlockHeader (BlockHeader epoch slot prev) = mempty
-        <> CBOR.encodeListLen 3
-        <> CBOR.encodeWord64 epoch
-        <> CBOR.encodeWord16 slot
-        <> CBOR.encodeBytes (getHash prev)
-
-mkWriter
-    :: MVar ()
-    -> [a]
-    -> IO (IO [a])
-mkWriter done xs0 = do
-    ref <- newMVar xs0
-    return $ do
-        xs <- takeMVar ref
-        case xs of
-            [] -> putMVar done () *> return []
-            _  -> do
-                -- NOTE
-                -- Not ideal because it makes the tests non-deterministic. Ideally,
-                -- this should be seeded, or done differently.
-                num <- generate $ choose (1, 3)
-                let (left, right) = L.splitAt num xs
-                putMVar ref right
-                return left
-
-mkReader
-    :: MVar [a]
-    -> a
-    -> IO ()
-mkReader ref x = do
-    modifyMVar_ ref $ return . (x :)
+        blockHeaderHash :: BlockHeader -> Hash "BlockHeader"
+        blockHeaderHash =
+            Hash . CBOR.toStrictByteString . encodeBlockHeader
+          where
+            encodeBlockHeader (BlockHeader epoch slot prev) = mempty
+                <> CBOR.encodeListLen 3
+                <> CBOR.encodeWord64 epoch
+                <> CBOR.encodeWord16 slot
+                <> CBOR.encodeBytes (getHash prev)
