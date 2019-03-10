@@ -69,13 +69,13 @@ spec = do
           done <- newEmptyMVar
           readerChan <- newMVar []
           writerChan <- newMVar $ map snd consecutiveBlocks
-          let reader = mkReader readerChan (Map.fromList $ swap <$> consecutiveBlocks)
+          let reader = mkReader readerChan
           let writer = mkWriter done writerChan
           threadId <- forkIO $ tickingFunction writer reader tickTime (BlockHeadersConsumed [])
           _ <- takeMVar done
           obtainedData <- takeMVar readerChan
           killThread threadId
-          obtainedData `shouldBe` ((map fst . reverse) consecutiveBlocks)
+          obtainedData `shouldBe` ((L.nub . map snd . reverse) consecutiveBlocks)
 
 
 newtype TickingTime = TickingTime Second deriving (Show)
@@ -142,21 +142,8 @@ mkWriter done ref = do
             return left
 
 mkReader
-    :: Ord k
-    => MVar [v]
-    -> Map k v
-    -> k
-    -> IO ()
-mkReader ref m k = do
-    case k `Map.lookup` m of
-        Just v ->
-            modifyMVar_ ref $ return . (v :)
-        Nothing ->
-            return ()
-
-mkReader'
     :: MVar [a]
     -> a
     -> IO ()
-mkReader' ref x = do
+mkReader ref x = do
     modifyMVar_ ref $ return . (x :)
