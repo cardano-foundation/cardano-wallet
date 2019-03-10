@@ -67,13 +67,13 @@ spec = do
           -> Property
       tickingFunctionTest (TickingTime tickTime, Blocks consecutiveBlocks) = monadicIO $ liftIO $ do
           done <- newEmptyMVar
-          consumerData <- newMVar []
-          producerData <- newMVar $ map snd consecutiveBlocks
-          let reader = mkReader consumerData (Map.fromList $ swap <$> consecutiveBlocks)
-          let blockDelivery = pushNextBlocks done producerData
-          threadId <- forkIO $ tickingFunction blockDelivery reader tickTime (BlockHeadersConsumed [])
+          readerChan <- newMVar []
+          writerChan <- newMVar $ map snd consecutiveBlocks
+          let reader = mkReader readerChan (Map.fromList $ swap <$> consecutiveBlocks)
+          let writer = mkWriter done writerChan
+          threadId <- forkIO $ tickingFunction writer reader tickTime (BlockHeadersConsumed [])
           _ <- takeMVar done
-          obtainedData <- takeMVar consumerData
+          obtainedData <- takeMVar readerChan
           killThread threadId
           obtainedData `shouldBe` ((map fst . reverse) consecutiveBlocks)
 
@@ -124,11 +124,11 @@ blockHeaderHash =
         <> CBOR.encodeWord16 slot
         <> CBOR.encodeBytes (getHash prev)
 
-pushNextBlocks
+mkWriter
     :: MVar ()
     -> MVar [a]
     -> IO [a]
-pushNextBlocks done ref = do
+mkWriter done ref = do
     xs <- takeMVar ref
     case xs of
         [] -> putMVar done () *> return []
