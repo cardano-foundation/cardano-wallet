@@ -65,12 +65,12 @@ spec = do
       tickingFunctionTest
           :: (TickingArgs, Blocks)
           -> Property
-      tickingFunctionTest (TickingArgs chunkSizesToTest tickTime deliveryMode, Blocks consecutiveBlocks) = monadicIO $ liftIO $ do
+      tickingFunctionTest (TickingArgs tickTime, Blocks consecutiveBlocks) = monadicIO $ liftIO $ do
           done <- newEmptyMVar
           consumerData <- newMVar []
-          producerData <- newMVar $ BlocksToInject (chunkSizesToTest, map snd consecutiveBlocks)
+          producerData <- newMVar $ BlocksToInject (map snd consecutiveBlocks)
           let reader = mkReader consumerData (Map.fromList $ swap <$> consecutiveBlocks)
-          let blockDelivery = pushNextBlocks done producerData deliveryMode
+          let blockDelivery = pushNextBlocks done producerData
           threadId <- forkIO $ tickingFunction blockDelivery reader tickTime (BlockHeadersConsumed [])
           _ <- takeMVar done
           obtainedData <- takeMVar consumerData
@@ -79,25 +79,14 @@ spec = do
 
 
 data TickingArgs = TickingArgs
-    { _chunkSizes :: [Int]
-    , _tickingTime :: Second
-    , _deliveryMode :: DeliveryMode
+    { _tickingTime :: Second
     } deriving (Show)
 
 instance Arbitrary TickingArgs where
-    shrink (TickingArgs sizes t m) =
-        [ TickingArgs sizes' t m | sizes' <- shrink sizes ]
+    -- No shrinking
     arbitrary = do
-        sizes <- choose (1, 15) >>= generateBlockChunks
-        deliveryMode <- arbitrary
         tickTime <- fromMicroseconds . (* (1000 * 1000)) <$> choose (1, 3)
-        return $ TickingArgs sizes tickTime deliveryMode
-      where
-        generateBlockChunks
-            :: Int
-            -> Gen [Int]
-        generateBlockChunks n = do
-              vectorOf n (choose (0, 15))
+        return $ TickingArgs tickTime
 
 newtype Blocks = Blocks [(Hash "BlockHeader", Block)]
     deriving Show
@@ -140,7 +129,7 @@ blockHeaderHash =
         <> CBOR.encodeWord16 slot
         <> CBOR.encodeBytes (getHash prev)
 
-newtype BlocksToInject = BlocksToInject ([Int], [Block]) deriving (Show, Eq)
+newtype BlocksToInject = BlocksToInject [Block] deriving (Show, Eq)
 
 
 data DeliveryMode
@@ -155,22 +144,19 @@ instance Arbitrary DeliveryMode where
 pushNextBlocks
     :: MVar ()
     -> MVar BlocksToInject
-    -> DeliveryMode
     -> IO [Block]
-pushNextBlocks done ref mode = do
-    BlocksToInject (blocksToTake, blocksRemaining) <- takeMVar ref
-    case (blocksToTake, blocksRemaining) of
-        (_, []) -> putMVar done () *> return []
-        ([], _) -> putMVar done () *> return []
-        (num : rest, _) -> do
+pushNextBlocks done ref = do
+    BlocksToInject blocksRemaining <- takeMVar ref
+    case blocksRemaining of
+        [] -> putMVar done () *> return []
+        _  -> do
+            -- NOTE
+            -- Not ideal because it makes the tests non-deterministic. Ideally,
+            -- this should be seeded, or done differently.
+            num <- generate $ choose (1, 3)
             let (bOut, bStay) = L.splitAt num blocksRemaining
-            putMVar ref $ BlocksToInject (rest, bStay)
-            case mode of
-                ExactlyOnce ->
-                    return bOut
-                AtLeastOnce -> do
-                    additionalBlocks <- generate $ choose (1,3) :: IO Int
-                    return $ bOut ++ take additionalBlocks bStay
+            putMVar ref $ BlocksToInject bStay
+            return bOut
 
 
 mkReader
