@@ -65,13 +65,14 @@ spec = do
       tickingFunctionTest
           :: (TickingArgs, Blocks)
           -> Property
-      tickingFunctionTest (TickingArgs chunkSizesToTest tickTime testTime deliveryMode, Blocks consecutiveBlocks) = monadicIO $ liftIO $ do
+      tickingFunctionTest (TickingArgs chunkSizesToTest tickTime deliveryMode, Blocks consecutiveBlocks) = monadicIO $ liftIO $ do
+          done <- newEmptyMVar
           consumerData <- newMVar []
           producerData <- newMVar $ BlocksToInject (chunkSizesToTest, map snd consecutiveBlocks)
           let reader = mkReader consumerData (Map.fromList $ swap <$> consecutiveBlocks)
-          let blockDelivery = pushNextBlocks producerData deliveryMode
+          let blockDelivery = pushNextBlocks done producerData deliveryMode
           threadId <- forkIO $ tickingFunction blockDelivery reader tickTime (BlockHeadersConsumed [])
-          threadDelay testTime
+          _ <- takeMVar done
           obtainedData <- takeMVar consumerData
           killThread threadId
           obtainedData `shouldBe` ((map fst . reverse) consecutiveBlocks)
@@ -80,21 +81,17 @@ spec = do
 data TickingArgs = TickingArgs
     { _chunkSizes :: [Int]
     , _tickingTime :: Second
-    , _testTime :: Int
     , _deliveryMode :: DeliveryMode
     } deriving (Show)
 
 instance Arbitrary TickingArgs where
-    shrink (TickingArgs sizes t t' m) =
-        [ TickingArgs sizes' t t' m | sizes' <- shrink sizes ]
+    shrink (TickingArgs sizes t m) =
+        [ TickingArgs sizes' t m | sizes' <- shrink sizes ]
     arbitrary = do
         sizes <- choose (1, 15) >>= generateBlockChunks
-        (tickTime, testTime) <- choose (1, 3) >>= \t -> return
-            ( fromMicroseconds (t * 1000 * 1000)
-            , (L.length sizes + 1) * (fromIntegral t * 1000 * 1000)
-            )
         deliveryMode <- elements [ExactlyOnce, AtLeastOnce]
-        return $ TickingArgs sizes tickTime testTime deliveryMode
+        tickTime <- fromMicroseconds . (* (1000 * 1000)) <$> choose (1, 3)
+        return $ TickingArgs sizes tickTime deliveryMode
       where
         generateBlockChunks
             :: Int
@@ -139,14 +136,15 @@ newtype BlocksToInject = BlocksToInject ([Int], [Block]) deriving (Show, Eq)
 data DeliveryMode = ExactlyOnce | AtLeastOnce deriving Show
 
 pushNextBlocks
-    :: MVar BlocksToInject
+    :: MVar ()
+    -> MVar BlocksToInject
     -> DeliveryMode
     -> IO [Block]
-pushNextBlocks ref mode = do
+pushNextBlocks done ref mode = do
     BlocksToInject (blocksToTake, blocksRemaining) <- takeMVar ref
     case (blocksToTake, blocksRemaining) of
-        (_, []) -> return []
-        ([], _) -> return []
+        (_, []) -> putMVar done () *> return []
+        ([], _) -> putMVar done () *> return []
         (num : rest, _) -> do
             let (bOut, bStay) = L.splitAt num blocksRemaining
             putMVar ref $ BlocksToInject (rest, bStay)
