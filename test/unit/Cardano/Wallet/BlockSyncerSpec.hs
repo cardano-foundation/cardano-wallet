@@ -69,12 +69,12 @@ spec = do
           done <- newEmptyMVar
           readerChan <- newMVar []
           let reader = mkReader readerChan
-          writer <- mkWriter done (map snd consecutiveBlocks)
+          writer <- mkWriter done consecutiveBlocks
           threadId <- forkIO $ tickingFunction writer reader tickTime (BlockHeadersConsumed [])
           _ <- takeMVar done
           obtainedData <- takeMVar readerChan
           killThread threadId
-          obtainedData `shouldBe` ((L.nub . map snd . reverse) consecutiveBlocks)
+          obtainedData `shouldBe` L.nub (reverse consecutiveBlocks)
 
 
 newtype TickingTime = TickingTime Second deriving (Show)
@@ -85,7 +85,7 @@ instance Arbitrary TickingTime where
         tickTime <- fromMicroseconds . (* (1000 * 1000)) <$> choose (1, 3)
         return $ TickingTime tickTime
 
-newtype Blocks = Blocks [(Hash "BlockHeader", Block)]
+newtype Blocks = Blocks [Block]
     deriving Show
 
 instance Arbitrary Blocks where
@@ -96,7 +96,7 @@ instance Arbitrary Blocks where
                 ( blockHeaderHash h0
                 , Block h0 mempty
                 )
-        Blocks . mconcat <$> mapM duplicateMaybe blocks
+        Blocks . map snd . mconcat <$> mapM duplicateMaybe blocks
       where
         next :: (Hash "BlockHeader", Block) -> (Hash "BlockHeader", Block)
         next (prev, b) =
