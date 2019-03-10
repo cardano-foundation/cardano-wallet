@@ -126,20 +126,20 @@ blockHeaderHash =
 
 pushNextBlocks
     :: MVar ()
-    -> MVar [Block]
-    -> IO [Block]
+    -> MVar [a]
+    -> IO [a]
 pushNextBlocks done ref = do
-    blocksRemaining <- takeMVar ref
-    case blocksRemaining of
+    xs <- takeMVar ref
+    case xs of
         [] -> putMVar done () *> return []
         _  -> do
             -- NOTE
             -- Not ideal because it makes the tests non-deterministic. Ideally,
             -- this should be seeded, or done differently.
             num <- generate $ choose (1, 3)
-            let (bOut, bStay) = L.splitAt num blocksRemaining
-            putMVar ref bStay
-            return bOut
+            let (left, right) = L.splitAt num xs
+            putMVar ref right
+            return left
 
 mkReader
     :: Ord k
