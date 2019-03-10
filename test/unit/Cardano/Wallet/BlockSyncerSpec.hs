@@ -68,9 +68,8 @@ spec = do
       tickingFunctionTest (TickingTime tickTime, Blocks consecutiveBlocks) = monadicIO $ liftIO $ do
           done <- newEmptyMVar
           readerChan <- newMVar []
-          writerChan <- newMVar $ map snd consecutiveBlocks
           let reader = mkReader readerChan
-          let writer = mkWriter done writerChan
+          writer <- mkWriter done (map snd consecutiveBlocks)
           threadId <- forkIO $ tickingFunction writer reader tickTime (BlockHeadersConsumed [])
           _ <- takeMVar done
           obtainedData <- takeMVar readerChan
@@ -126,20 +125,22 @@ blockHeaderHash =
 
 mkWriter
     :: MVar ()
-    -> MVar [a]
-    -> IO [a]
-mkWriter done ref = do
-    xs <- takeMVar ref
-    case xs of
-        [] -> putMVar done () *> return []
-        _  -> do
-            -- NOTE
-            -- Not ideal because it makes the tests non-deterministic. Ideally,
-            -- this should be seeded, or done differently.
-            num <- generate $ choose (1, 3)
-            let (left, right) = L.splitAt num xs
-            putMVar ref right
-            return left
+    -> [a]
+    -> IO (IO [a])
+mkWriter done xs0 = do
+    ref <- newMVar xs0
+    return $ do
+        xs <- takeMVar ref
+        case xs of
+            [] -> putMVar done () *> return []
+            _  -> do
+                -- NOTE
+                -- Not ideal because it makes the tests non-deterministic. Ideally,
+                -- this should be seeded, or done differently.
+                num <- generate $ choose (1, 3)
+                let (left, right) = L.splitAt num xs
+                putMVar ref right
+                return left
 
 mkReader
     :: MVar [a]
