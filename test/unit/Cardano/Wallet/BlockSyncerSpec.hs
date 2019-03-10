@@ -63,12 +63,12 @@ spec = do
             (withMaxSuccess 10 $ property tickingFunctionTest)
   where
       tickingFunctionTest
-          :: (TickingArgs, Blocks)
+          :: (TickingTime, Blocks)
           -> Property
-      tickingFunctionTest (TickingArgs tickTime, Blocks consecutiveBlocks) = monadicIO $ liftIO $ do
+      tickingFunctionTest (TickingTime tickTime, Blocks consecutiveBlocks) = monadicIO $ liftIO $ do
           done <- newEmptyMVar
           consumerData <- newMVar []
-          producerData <- newMVar $ BlocksToInject (map snd consecutiveBlocks)
+          producerData <- newMVar $ map snd consecutiveBlocks
           let reader = mkReader consumerData (Map.fromList $ swap <$> consecutiveBlocks)
           let blockDelivery = pushNextBlocks done producerData
           threadId <- forkIO $ tickingFunction blockDelivery reader tickTime (BlockHeadersConsumed [])
@@ -78,15 +78,13 @@ spec = do
           obtainedData `shouldBe` ((map fst . reverse) consecutiveBlocks)
 
 
-data TickingArgs = TickingArgs
-    { _tickingTime :: Second
-    } deriving (Show)
+newtype TickingTime = TickingTime Second deriving (Show)
 
-instance Arbitrary TickingArgs where
+instance Arbitrary TickingTime where
     -- No shrinking
     arbitrary = do
         tickTime <- fromMicroseconds . (* (1000 * 1000)) <$> choose (1, 3)
-        return $ TickingArgs tickTime
+        return $ TickingTime tickTime
 
 newtype Blocks = Blocks [(Hash "BlockHeader", Block)]
     deriving Show
@@ -126,14 +124,12 @@ blockHeaderHash =
         <> CBOR.encodeWord16 slot
         <> CBOR.encodeBytes (getHash prev)
 
-newtype BlocksToInject = BlocksToInject [Block] deriving (Show, Eq)
-
 pushNextBlocks
     :: MVar ()
-    -> MVar BlocksToInject
+    -> MVar [Block]
     -> IO [Block]
 pushNextBlocks done ref = do
-    BlocksToInject blocksRemaining <- takeMVar ref
+    blocksRemaining <- takeMVar ref
     case blocksRemaining of
         [] -> putMVar done () *> return []
         _  -> do
@@ -142,7 +138,7 @@ pushNextBlocks done ref = do
             -- this should be seeded, or done differently.
             num <- generate $ choose (1, 3)
             let (bOut, bStay) = L.splitAt num blocksRemaining
-            putMVar ref $ BlocksToInject bStay
+            putMVar ref bStay
             return bOut
 
 mkReader
