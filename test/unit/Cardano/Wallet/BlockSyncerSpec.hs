@@ -94,15 +94,12 @@ newtype Blocks = Blocks [(Hash "BlockHeader", Block)]
 instance Arbitrary Blocks where
     arbitrary = do
         n <- arbitrary
-        mode <- arbitrary
         let h0 = BlockHeader 1 0 (Hash "initial block")
         let blocks = take n $ iterate next
                 ( blockHeaderHash h0
                 , Block h0 mempty
                 )
-        case mode of
-            ExactlyOnce -> return $ Blocks blocks
-            AtLeastOnce -> Blocks . mconcat <$> mapM duplicateMaybe blocks
+        Blocks . mconcat <$> mapM duplicateMaybe blocks
       where
         next :: (Hash "BlockHeader", Block) -> (Hash "BlockHeader", Block)
         next (prev, b) =
@@ -131,16 +128,6 @@ blockHeaderHash =
 
 newtype BlocksToInject = BlocksToInject [Block] deriving (Show, Eq)
 
-
-data DeliveryMode
-    = ExactlyOnce
-    | AtLeastOnce
-    deriving Show
-
-instance Arbitrary DeliveryMode where
-    -- No shrinking
-    arbitrary = elements [ExactlyOnce, AtLeastOnce]
-
 pushNextBlocks
     :: MVar ()
     -> MVar BlocksToInject
@@ -157,7 +144,6 @@ pushNextBlocks done ref = do
             let (bOut, bStay) = L.splitAt num blocksRemaining
             putMVar ref $ BlocksToInject bStay
             return bOut
-
 
 mkReader
     :: Ord k
