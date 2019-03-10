@@ -65,16 +65,16 @@ spec = do
       tickingFunctionTest
           :: (TickingTime, Blocks)
           -> Property
-      tickingFunctionTest (TickingTime tickTime, Blocks consecutiveBlocks) = monadicIO $ liftIO $ do
+      tickingFunctionTest (TickingTime tickTime, Blocks blocks) = monadicIO $ liftIO $ do
           done <- newEmptyMVar
           readerChan <- newMVar []
           let reader = mkReader readerChan
-          writer <- mkWriter done consecutiveBlocks
+          writer <- mkWriter done blocks
           threadId <- forkIO $ tickingFunction writer reader tickTime (BlockHeadersConsumed [])
           _ <- takeMVar done
-          obtainedData <- takeMVar readerChan
           killThread threadId
-          obtainedData `shouldBe` L.nub (reverse consecutiveBlocks)
+          obtainedData <- takeMVar readerChan
+          obtainedData `shouldBe` L.nub (reverse blocks)
 
 
 newtype TickingTime = TickingTime Second deriving (Show)
