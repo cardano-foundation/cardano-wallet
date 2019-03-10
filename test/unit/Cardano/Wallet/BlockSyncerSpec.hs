@@ -153,3 +153,10 @@ mkReader ref m k = do
             modifyMVar_ ref $ return . (v :)
         Nothing ->
             return ()
+
+mkReader'
+    :: MVar [a]
+    -> a
+    -> IO ()
+mkReader' ref x = do
+    modifyMVar_ ref $ return . (x :)
