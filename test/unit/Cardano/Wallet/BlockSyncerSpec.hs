@@ -89,7 +89,7 @@ instance Arbitrary TickingArgs where
         [ TickingArgs sizes' t m | sizes' <- shrink sizes ]
     arbitrary = do
         sizes <- choose (1, 15) >>= generateBlockChunks
-        deliveryMode <- elements [ExactlyOnce, AtLeastOnce]
+        deliveryMode <- arbitrary
         tickTime <- fromMicroseconds . (* (1000 * 1000)) <$> choose (1, 3)
         return $ TickingArgs sizes tickTime deliveryMode
       where
@@ -105,11 +105,15 @@ newtype Blocks = Blocks [(Hash "BlockHeader", Block)]
 instance Arbitrary Blocks where
     arbitrary = do
         n <- arbitrary
+        mode <- arbitrary
         let h0 = BlockHeader 1 0 (Hash "initial block")
-        return $ Blocks $ take n $ iterate next
-            ( blockHeaderHash h0
-            , Block h0 mempty
-            )
+        let blocks = take n $ iterate next
+                ( blockHeaderHash h0
+                , Block h0 mempty
+                )
+        case mode of
+            ExactlyOnce -> return $ Blocks blocks
+            AtLeastOnce -> Blocks . mconcat <$> mapM duplicateMaybe blocks
       where
         next :: (Hash "BlockHeader", Block) -> (Hash "BlockHeader", Block)
         next (prev, b) =
@@ -119,6 +123,12 @@ instance Arbitrary Blocks where
                 h = BlockHeader epoch slot prev
             in
                 (blockHeaderHash h, Block h mempty)
+
+        duplicateMaybe :: a -> Gen [a]
+        duplicateMaybe a = do
+            predicate <- arbitrary
+            if predicate then return [a, a] else return [a]
+
 
 blockHeaderHash :: BlockHeader -> Hash "BlockHeader"
 blockHeaderHash =
@@ -133,7 +143,14 @@ blockHeaderHash =
 newtype BlocksToInject = BlocksToInject ([Int], [Block]) deriving (Show, Eq)
 
 
-data DeliveryMode = ExactlyOnce | AtLeastOnce deriving Show
+data DeliveryMode
+    = ExactlyOnce
+    | AtLeastOnce
+    deriving Show
+
+instance Arbitrary DeliveryMode where
+    -- No shrinking
+    arbitrary = elements [ExactlyOnce, AtLeastOnce]
 
 pushNextBlocks
     :: MVar ()
