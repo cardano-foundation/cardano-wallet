@@ -68,11 +68,9 @@ tickingFunctionTest
     :: (TickingTime, Blocks)
     -> Property
 tickingFunctionTest (TickingTime tickTime, Blocks blocks) = monadicIO $ liftIO $ do
-    done <- newEmptyMVar
-    readerChan <- newMVar []
-    let reader = mkReader readerChan
-    writer <- mkWriter done blocks
-    waitFor done $ tickingFunction writer reader tickTime (BlockHeadersConsumed [])
+    (readerChan, reader) <- mkReader
+    (writerChan, writer) <- mkWriter blocks
+    waitFor writerChan $ tickingFunction writer reader tickTime (BlockHeadersConsumed [])
     takeMVar readerChan `shouldReturn` L.nub (reverse blocks)
 
 waitFor
@@ -85,29 +83,35 @@ waitFor done action = do
     killThread threadId
 
 mkWriter
-    :: MVar ()
-    -> [a]
-    -> IO (IO [a])
-mkWriter done = newMVar >=> \ref -> return $ do
-    xs <- takeMVar ref
-    case xs of
-        [] -> putMVar done () *> return []
-        _  -> do
-            -- NOTE
-            -- Not ideal because it makes the tests non-deterministic. Ideally,
-            -- this should be seeded, or done differently.
-            num <- generate $ choose (1, 3)
-            let (left, right) = L.splitAt num xs
-            putMVar ref right
-            return left
+    :: [a]
+    -> IO (MVar (), IO [a])
+mkWriter xs0 = do
+    ref <- newMVar xs0
+    done <- newEmptyMVar
+    return
+        ( done
+        , do
+            xs <- takeMVar ref
+            case xs of
+                [] -> putMVar done () *> return []
+                _  -> do
+                    -- NOTE
+                    -- Not ideal because it makes the tests non-deterministic.
+                    -- Ideally, this should be seeded, or done differently.
+                    num <- generate $ choose (1, 3)
+                    let (left, right) = L.splitAt num xs
+                    putMVar ref right
+                    return left
+        )
 
 mkReader
-    :: MVar [a]
-    -> a
-    -> IO ()
-mkReader ref x = do
-    modifyMVar_ ref $ return . (x :)
-
+    :: IO (MVar [a], a -> IO ())
+mkReader = do
+    ref <- newMVar []
+    return
+        ( ref
+        , \x -> modifyMVar_ ref $ return . (x :)
+        )
 
 {-------------------------------------------------------------------------------
                             Arbitrary Instances
