@@ -32,9 +32,7 @@ import Data.Time.Units
 import Data.Tuple
     ( swap )
 import Test.Hspec
-    ( Arg, Spec, SpecWith, describe, it )
-import Test.Hspec.Expectations
-    ( shouldBe )
+    ( Arg, Spec, SpecWith, describe, it, shouldReturn )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
@@ -74,11 +72,17 @@ tickingFunctionTest (TickingTime tickTime, Blocks blocks) = monadicIO $ liftIO $
     readerChan <- newMVar []
     let reader = mkReader readerChan
     writer <- mkWriter done blocks
-    threadId <- forkIO $ tickingFunction writer reader tickTime (BlockHeadersConsumed [])
+    waitFor done $ tickingFunction writer reader tickTime (BlockHeadersConsumed [])
+    takeMVar readerChan `shouldReturn` L.nub (reverse blocks)
+
+waitFor
+    :: MVar ()
+    -> IO ()
+    -> IO ()
+waitFor done action = do
+    threadId <- forkIO action
     _ <- takeMVar done
     killThread threadId
-    obtainedData <- takeMVar readerChan
-    obtainedData `shouldBe` L.nub (reverse blocks)
 
 mkWriter
     :: MVar ()
