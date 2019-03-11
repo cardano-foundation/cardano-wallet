@@ -42,7 +42,9 @@ import Cardano.Wallet.Primitive
     , Block (..)
     , BlockHeader (..)
     , Coin (..)
+    , EpochId (..)
     , Hash (..)
+    , SlotId (..)
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
@@ -191,7 +193,7 @@ decodeGenesisBlockHeader = do
     -- number of `0`. In practices, when parsing a full epoch, we can discard
     -- the genesis block entirely and we won't bother about modelling this
     -- extra complexity at the type-level. That's a bit dodgy though.
-    return $ BlockHeader epoch 0 previous
+    return $ BlockHeader (EpochId epoch) (SlotId 0) previous
 
 decodeGenesisConsensusData :: CBOR.Decoder s Word64
 decodeGenesisConsensusData = do
@@ -246,7 +248,7 @@ decodeMainBlockHeader = do
     _ <- decodeMainProof
     (epoch, slot) <- decodeMainConsensusData
     _ <- decodeMainExtraData
-    return $ BlockHeader epoch slot previous
+    return $ BlockHeader (EpochId epoch) (SlotId slot) previous
 
 decodeMainConsensusData :: CBOR.Decoder s (Word64, Word16)
 decodeMainConsensusData = do

@@ -23,6 +23,12 @@ module Cardano.Wallet.Primitive
       Block(..)
     , BlockHeader(..)
 
+    -- * Epoch
+    , EpochId (..)
+
+    -- * Slot
+    , SlotId (..)
+
     -- * Tx
     , Tx(..)
     , TxIn(..)
@@ -78,6 +84,17 @@ import GHC.TypeLits
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
+-- * Epoch
+
+newtype EpochId = EpochId
+    { getEpochId :: Word64
+    } deriving (Eq, Generic, NFData, Num, Show)
+
+-- * Slot
+
+newtype SlotId = SlotId
+    { getSlotId :: Word16
+    } deriving (Eq, Generic, NFData, Num, Show)
 
 -- * Block
 
@@ -90,18 +107,16 @@ data Block = Block
 
 instance NFData Block
 
-
 data BlockHeader = BlockHeader
     { epochIndex
-        :: !Word64
+        :: !EpochId
     , slotNumber
-        :: !Word16
+        :: !SlotId
     , prevBlockHash
         :: !(Hash "BlockHeader")
     } deriving (Show, Eq, Generic)
 
 instance NFData BlockHeader
-
 
 -- * Tx
 
