@@ -614,7 +614,7 @@ responsesErr409: &responsesErr409
     schema: *responsesErr
 
 responsesErr410: &responsesErr410
-  406:
+  410:
     description: Gone
     schema: *responsesErr
 
