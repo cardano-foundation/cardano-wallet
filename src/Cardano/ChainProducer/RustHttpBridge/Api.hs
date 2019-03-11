@@ -15,11 +15,11 @@ import Cardano.Wallet.Binary
     ( decodeBlock, decodeBlockHeader )
 import Crypto.Hash.Algorithms
     ( Blake2b_256 )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Text
     ( Text )
 import Prelude
-import Servant
-    ( Proxy (..) )
 import Servant.API
     ( (:<|>), (:>), Capture, Get, ToHttpApiData (..) )
 import Servant.Extra.ContentTypes

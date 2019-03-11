@@ -44,7 +44,6 @@ library
     , memory
     , servant
     , servant-client
-    , servant-server
     , text
     , transformers
   hs-source-dirs:
