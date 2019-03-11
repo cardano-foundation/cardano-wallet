@@ -88,13 +88,13 @@ import qualified Data.Set as Set
 
 newtype EpochId = EpochId
     { getEpochId :: Word64
-    } deriving (Eq, Generic, NFData, Num, Show)
+    } deriving (Eq, Generic, NFData, Num, Ord, Show)
 
 -- * Slot
 
 newtype SlotId = SlotId
     { getSlotId :: Word16
-    } deriving (Eq, Generic, NFData, Num, Show)
+    } deriving (Eq, Generic, NFData, Num, Ord, Show)
 
 -- * Block
 
@@ -103,7 +103,7 @@ data Block = Block
         :: !BlockHeader
     , transactions
         :: !(Set Tx)
-    } deriving (Show, Eq, Generic)
+    } deriving (Show, Eq, Ord, Generic)
 
 instance NFData Block
 
@@ -114,7 +114,7 @@ data BlockHeader = BlockHeader
         :: !SlotId
     , prevBlockHash
         :: !(Hash "BlockHeader")
-    } deriving (Show, Eq, Generic)
+    } deriving (Show, Eq, Ord, Generic)
 
 instance NFData BlockHeader
 

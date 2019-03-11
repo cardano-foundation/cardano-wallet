@@ -45,6 +45,7 @@ library
     , servant
     , servant-client
     , text
+    , time-units
     , transformers
   hs-source-dirs:
       src
@@ -53,6 +54,7 @@ library
     , Cardano.ChainProducer.RustHttpBridge.Client
     , Cardano.Wallet.Binary
     , Cardano.Wallet.Binary.Packfile
+    , Cardano.Wallet.BlockSyncer
     , Cardano.Wallet.Primitive
     , Servant.Extra.ContentTypes
   other-modules:
@@ -98,7 +100,9 @@ test-suite unit
     , containers
     , hspec
     , memory
+    , hspec-expectations
     , QuickCheck
+    , time-units
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
@@ -107,5 +111,6 @@ test-suite unit
       Main.hs
   other-modules:
       Cardano.Wallet.BinarySpec
-      Cardano.Wallet.Binary.PackfileSpec
-      Cardano.Wallet.PrimitiveSpec
+    , Cardano.Wallet.Binary.PackfileSpec
+    , Cardano.Wallet.PrimitiveSpec
+    , Cardano.Wallet.BlockSyncerSpec
