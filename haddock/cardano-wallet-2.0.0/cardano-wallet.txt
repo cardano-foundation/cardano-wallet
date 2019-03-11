@@ -122,9 +122,11 @@ newtype Hash (tag :: Symbol)
 Hash :: ByteString -> Hash
 [getHash] :: Hash -> ByteString
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Block
+instance GHC.Classes.Ord Cardano.Wallet.Primitive.Block
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Block
 instance GHC.Show.Show Cardano.Wallet.Primitive.Block
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.BlockHeader
+instance GHC.Classes.Ord Cardano.Wallet.Primitive.BlockHeader
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.BlockHeader
 instance GHC.Show.Show Cardano.Wallet.Primitive.BlockHeader
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Tx
@@ -158,11 +160,13 @@ instance GHC.Classes.Eq Cardano.Wallet.Primitive.Address
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Address
 instance GHC.Show.Show Cardano.Wallet.Primitive.Address
 instance GHC.Show.Show Cardano.Wallet.Primitive.SlotId
+instance GHC.Classes.Ord Cardano.Wallet.Primitive.SlotId
 instance GHC.Num.Num Cardano.Wallet.Primitive.SlotId
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.SlotId
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.SlotId
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.SlotId
 instance GHC.Show.Show Cardano.Wallet.Primitive.EpochId
+instance GHC.Classes.Ord Cardano.Wallet.Primitive.EpochId
 instance GHC.Num.Num Cardano.Wallet.Primitive.EpochId
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.EpochId
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.EpochId
@@ -178,6 +182,21 @@ instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.TxOut
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Coin
 instance GHC.Enum.Bounded Cardano.Wallet.Primitive.Coin
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Address
+
+
+-- | This module contains the ticking function that is responsible for
+--   invoking block acquisition functionality and executing it in periodic
+--   fashion.
+--   
+--   Known limitations: the ticking function makes sure action is not
+--   executed on already consumed block, but does not check and handle
+--   block gaps (aka catching up).
+module Cardano.Wallet.BlockSyncer
+newtype BlockHeadersConsumed
+BlockHeadersConsumed :: [BlockHeader] -> BlockHeadersConsumed
+tickingFunction :: IO [Block] -> (Block -> IO ()) -> Millisecond -> BlockHeadersConsumed -> IO ()
+instance GHC.Classes.Eq Cardano.Wallet.BlockSyncer.BlockHeadersConsumed
+instance GHC.Show.Show Cardano.Wallet.BlockSyncer.BlockHeadersConsumed
 
 
 -- | These are (partial) CBOR decoders for blocks and block headers. Note
