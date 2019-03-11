@@ -44,10 +44,16 @@ Block :: !BlockHeader -> !Set Tx -> Block
 [header] :: Block -> !BlockHeader
 [transactions] :: Block -> !Set Tx
 data BlockHeader
-BlockHeader :: !Word64 -> !Word16 -> !Hash "BlockHeader" -> BlockHeader
-[epochIndex] :: BlockHeader -> !Word64
-[slotNumber] :: BlockHeader -> !Word16
+BlockHeader :: !EpochId -> !SlotId -> !Hash "BlockHeader" -> BlockHeader
+[epochIndex] :: BlockHeader -> !EpochId
+[slotNumber] :: BlockHeader -> !SlotId
 [prevBlockHash] :: BlockHeader -> !Hash "BlockHeader"
+newtype EpochId
+EpochId :: Word64 -> EpochId
+[getEpochId] :: EpochId -> Word64
+newtype SlotId
+SlotId :: Word16 -> SlotId
+[getSlotId] :: SlotId -> Word16
 data Tx
 Tx :: ![TxIn] -> ![TxOut] -> Tx
 
@@ -151,6 +157,16 @@ instance GHC.Classes.Ord Cardano.Wallet.Primitive.Address
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Address
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Address
 instance GHC.Show.Show Cardano.Wallet.Primitive.Address
+instance GHC.Show.Show Cardano.Wallet.Primitive.SlotId
+instance GHC.Num.Num Cardano.Wallet.Primitive.SlotId
+instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.SlotId
+instance GHC.Generics.Generic Cardano.Wallet.Primitive.SlotId
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.SlotId
+instance GHC.Show.Show Cardano.Wallet.Primitive.EpochId
+instance GHC.Num.Num Cardano.Wallet.Primitive.EpochId
+instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.EpochId
+instance GHC.Generics.Generic Cardano.Wallet.Primitive.EpochId
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.EpochId
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Block
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.BlockHeader
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Tx
@@ -220,3 +236,92 @@ decodeList :: forall s a. Decoder s a -> Decoder s [a]
 --       decodeOne :: CBOR.Decoder s MyType
 --   </pre>
 decodeListIndef :: forall s a. Decoder s a -> Decoder s [a]
+
+
+-- | Extra content types for Servant.
+module Servant.Extra.ContentTypes
+
+-- | Represents a piece of binary data for which a hash value should be
+--   calculated before performing any further deserialization.
+data ComputeHash algorithm a
+
+-- | Represents a CBOR (Concise Binary Object Representation) object.
+--   
+--   See RFC 7049 (http:/<i>cbor.io</i>) for further details.
+data CBOR
+
+-- | The class of types that can be converted to from CBOR.
+class FromCBOR a
+fromCBOR :: FromCBOR a => Decoder s a
+
+-- | Represents the result of hashing a piece of data.
+newtype Hash algorithm a
+Hash :: Digest algorithm -> Hash algorithm a
+
+-- | Represents something that has been packed with the Cardano packfile
+--   format.
+data Packed a
+
+-- | Represents a piece of data with an accompanying hash value.
+data WithHash algorithm a
+WithHash :: Digest algorithm -> a -> WithHash algorithm a
+[getHash] :: WithHash algorithm a -> Digest algorithm
+[getValue] :: WithHash algorithm a -> a
+instance GHC.Show.Show a => GHC.Show.Show (Servant.Extra.ContentTypes.WithHash algorithm a)
+instance Servant.API.ContentTypes.Accept a => Servant.API.ContentTypes.Accept (Servant.Extra.ContentTypes.Packed a)
+instance Servant.API.ContentTypes.MimeUnrender a b => Servant.API.ContentTypes.MimeUnrender (Servant.Extra.ContentTypes.Packed a) [b]
+instance (Servant.API.ContentTypes.MimeUnrender a b, Crypto.Hash.Types.HashAlgorithm alg) => Servant.API.ContentTypes.MimeUnrender (Servant.Extra.ContentTypes.ComputeHash alg a) (Servant.Extra.ContentTypes.WithHash alg b)
+instance Web.Internal.HttpApiData.ToHttpApiData (Servant.Extra.ContentTypes.Hash algorithm a)
+instance Servant.API.ContentTypes.Accept a => Servant.API.ContentTypes.Accept (Servant.Extra.ContentTypes.ComputeHash algorithm a)
+instance Servant.Extra.ContentTypes.FromCBOR a => Servant.API.ContentTypes.MimeUnrender Servant.Extra.ContentTypes.CBOR a
+instance Servant.API.ContentTypes.Accept Servant.Extra.ContentTypes.CBOR
+
+
+-- | An API specification for the Cardano HTTP Bridge.
+module Cardano.ChainProducer.RustHttpBridge.Api
+type Api = GetBlockByHash :<|> GetEpochById :<|> GetTipBlockHeader
+api :: Proxy Api
+
+-- | Represents a block.
+newtype Block
+Block :: Block -> Block
+[getBlock] :: Block -> Block
+
+-- | Represents a block header.
+newtype BlockHeader
+BlockHeader :: BlockHeader -> BlockHeader
+[getBlockHeader] :: BlockHeader -> BlockHeader
+
+-- | Represents a unique epoch.
+newtype EpochId
+EpochId :: EpochId -> EpochId
+[getEpochId] :: EpochId -> EpochId
+
+-- | Represents the name of a Cardano network.
+newtype NetworkName
+NetworkName :: Text -> NetworkName
+[getNetworkName] :: NetworkName -> Text
+instance GHC.Show.Show Cardano.ChainProducer.RustHttpBridge.Api.NetworkName
+instance GHC.Classes.Eq Cardano.ChainProducer.RustHttpBridge.Api.NetworkName
+instance GHC.Show.Show Cardano.ChainProducer.RustHttpBridge.Api.EpochId
+instance GHC.Classes.Eq Cardano.ChainProducer.RustHttpBridge.Api.EpochId
+instance GHC.Classes.Eq Cardano.ChainProducer.RustHttpBridge.Api.BlockHeader
+instance GHC.Classes.Eq Cardano.ChainProducer.RustHttpBridge.Api.Block
+instance Web.Internal.HttpApiData.ToHttpApiData Cardano.ChainProducer.RustHttpBridge.Api.NetworkName
+instance Web.Internal.HttpApiData.ToHttpApiData Cardano.ChainProducer.RustHttpBridge.Api.EpochId
+instance Servant.Extra.ContentTypes.FromCBOR Cardano.ChainProducer.RustHttpBridge.Api.BlockHeader
+instance Servant.Extra.ContentTypes.FromCBOR Cardano.ChainProducer.RustHttpBridge.Api.Block
+
+
+-- | An API client for the Cardano HTTP Bridge.
+module Cardano.ChainProducer.RustHttpBridge.Client
+
+-- | Retrieve a block identified by the unique hash of its header.
+getBlockByHash :: NetworkName -> Hash Blake2b_256 BlockHeader -> ClientM Block
+
+-- | Retrieve all the blocks for the epoch identified by the given integer
+--   ID.
+getEpochById :: NetworkName -> EpochId -> ClientM [Block]
+
+-- | Retrieve the header of the latest known block.
+getTipBlockHeader :: NetworkName -> ClientM (WithHash Blake2b_256 BlockHeader)
