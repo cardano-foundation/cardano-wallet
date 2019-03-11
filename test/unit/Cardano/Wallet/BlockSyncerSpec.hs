@@ -1,11 +1,14 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
 
 module Cardano.Wallet.BlockSyncerSpec
     ( spec
+    , groups
+    , duplicateMaybe
     ) where
 
 
@@ -20,7 +23,7 @@ import Control.Concurrent
 import Control.Concurrent.MVar
     ( MVar, modifyMVar_, newEmptyMVar, newMVar, putMVar, takeMVar )
 import Control.Monad
-    ( forM_, (>=>) )
+    ( foldM, forM_, (>=>) )
 import Control.Monad.IO.Class
     ( liftIO )
 import Data.ByteString
@@ -53,6 +56,7 @@ import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
+
 spec :: Spec
 spec = do
     describe "Block syncer downloads blocks properly" $ do
@@ -68,11 +72,10 @@ tickingFunctionTest
     :: (TickingTime, Blocks)
     -> Property
 tickingFunctionTest (TickingTime tickTime, Blocks blocks) = monadicIO $ liftIO $ do
-    print blocks
     (readerChan, reader) <- mkReader
     (writerChan, writer) <- mkWriter blocks
     waitFor writerChan $ tickingFunction writer reader tickTime (BlockHeadersConsumed [])
-    takeMVar readerChan `shouldReturn` L.nub (reverse blocks)
+    takeMVar readerChan `shouldReturn` L.nub (reverse $ mconcat blocks)
 
 waitFor
     :: MVar ()
@@ -84,25 +87,16 @@ waitFor done action = do
     killThread threadId
 
 mkWriter
-    :: [a]
+    :: [[a]]
     -> IO (MVar (), IO [a])
 mkWriter xs0 = do
     ref <- newMVar xs0
     done <- newEmptyMVar
     return
         ( done
-        , do
-            xs <- takeMVar ref
-            case xs of
-                [] -> putMVar done () *> return []
-                _  -> do
-                    -- NOTE
-                    -- Not ideal because it makes the tests non-deterministic.
-                    -- Ideally, this should be seeded, or done differently.
-                    num <- generate $ choose (1, 3)
-                    let (left, right) = L.splitAt num xs
-                    putMVar ref right
-                    return left
+        , takeMVar ref >>= \case
+            [] -> putMVar done () *> return []
+            h:q -> putMVar ref q *> return h
         )
 
 mkReader
@@ -129,19 +123,19 @@ instance Arbitrary TickingTime where
         return $ TickingTime tickTime
 
 
-newtype Blocks = Blocks [Block]
+newtype Blocks = Blocks [[Block]]
     deriving Show
 
 instance Arbitrary Blocks where
-    -- No shrinking
+    -- No Shrinking
     arbitrary = do
         n <- arbitrary
         let h0 = BlockHeader 1 0 (Hash "initial block")
-        let blocks = take n $ iterate next
+        let blocks = map snd $ take n $ iterate next
                 ( blockHeaderHash h0
                 , Block h0 mempty
                 )
-        Blocks . map snd . mconcat <$> mapM duplicateMaybe blocks
+        mapM duplicateMaybe blocks >>= fmap Blocks . groups . mconcat
       where
         next :: (Hash "BlockHeader", Block) -> (Hash "BlockHeader", Block)
         next (prev, b) =
@@ -152,11 +146,6 @@ instance Arbitrary Blocks where
             in
                 (blockHeaderHash h, Block h mempty)
 
-        duplicateMaybe :: a -> Gen [a]
-        duplicateMaybe a = do
-            predicate <- arbitrary
-            if predicate then return [a, a] else return [a]
-
         blockHeaderHash :: BlockHeader -> Hash "BlockHeader"
         blockHeaderHash =
             Hash . CBOR.toStrictByteString . encodeBlockHeader
@@ -166,3 +155,36 @@ instance Arbitrary Blocks where
                 <> CBOR.encodeWord64 epoch
                 <> CBOR.encodeWord16 slot
                 <> CBOR.encodeBytes (getHash prev)
+
+
+-- | Construct arbitrary groups of elements from a given list.
+--
+-- >>> generate $ groups [0,1,2,3,4,5,6,7,8,9]
+-- [[0,1],[2,3],[4,5,6],[7,8,9]]
+--
+--
+-- >>> generate $ groups [0,1,2,3,4,5,6,7,8,9]
+-- [[],[0],[1,2,3,4,5,6,7,8],[9]]
+--
+groups :: [a] -> Gen [[a]]
+groups = fmap reverse . foldM arbitraryGroup [[]]
+  where
+    arbitraryGroup :: [[a]] -> a -> Gen [[a]]
+    arbitraryGroup [] _ = return [] -- Can't happen with the given initial value
+    arbitraryGroup (grp:rest) a = do
+        choose (1 :: Int, 3) >>= \case
+            1 -> return $ [a]:grp:rest
+            _ -> return $ (grp ++ [a]):rest
+
+-- | Generate a singleton or a pair from a given element.
+--
+-- >>> generate $ duplicateMaybe 14
+-- [14]
+--
+-- >>> generate $ duplicateMaybe 14
+-- [14, 14]
+--
+duplicateMaybe :: a -> Gen [a]
+duplicateMaybe a = do
+    predicate <- arbitrary
+    if predicate then return [a, a] else return [a]
