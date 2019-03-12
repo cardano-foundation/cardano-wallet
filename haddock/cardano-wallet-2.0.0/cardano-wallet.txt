@@ -75,7 +75,6 @@ TxOut :: !Address -> !Coin -> TxOut
 [address] :: TxOut -> !Address
 [coin] :: TxOut -> !Coin
 txIns :: Set Tx -> Set TxIn
-txOutsOurs :: forall s. IsOurs s => Set Tx -> s -> (Set TxOut, s)
 updatePending :: Block -> Set Tx -> Set Tx
 newtype Address
 Address :: ByteString -> Address
@@ -121,6 +120,14 @@ dom :: Dom a => a -> Set (DomElem a)
 newtype Hash (tag :: Symbol)
 Hash :: ByteString -> Hash
 [getHash] :: Hash -> ByteString
+
+-- | A polymorphic wrapper type with a custom show instance to display data
+--   through <a>Buildable</a> instances.
+newtype ShowFmt a
+ShowFmt :: a -> ShowFmt a
+instance GHC.Classes.Ord a => GHC.Classes.Ord (Cardano.Wallet.Primitive.ShowFmt a)
+instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.Wallet.Primitive.ShowFmt a)
+instance GHC.Generics.Generic (Cardano.Wallet.Primitive.ShowFmt a)
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Block
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.Block
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Block
@@ -171,17 +178,24 @@ instance GHC.Num.Num Cardano.Wallet.Primitive.EpochId
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.EpochId
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.EpochId
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.EpochId
+instance Formatting.Buildable.Buildable a => GHC.Show.Show (Cardano.Wallet.Primitive.ShowFmt a)
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Block
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.BlockHeader
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Tx
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.UTxO
 instance Cardano.Wallet.Primitive.Dom Cardano.Wallet.Primitive.UTxO
+instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.UTxO
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.TxIn
+instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.TxIn
+instance Formatting.Buildable.Buildable (Cardano.Wallet.Primitive.TxIn, Cardano.Wallet.Primitive.TxOut)
 instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.Hash tag)
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.TxOut
+instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.TxOut
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Coin
 instance GHC.Enum.Bounded Cardano.Wallet.Primitive.Coin
+instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Coin
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Address
+instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Address
 
 
 -- | This module contains the ticking function that is responsible for
@@ -255,6 +269,83 @@ decodeList :: forall s a. Decoder s a -> Decoder s [a]
 --       decodeOne :: CBOR.Decoder s MyType
 --   </pre>
 decodeListIndef :: forall s a. Decoder s a -> Decoder s [a]
+
+
+-- | Here we find the "business logic" to manage a Cardano wallet. This is
+--   a direct implementation of the model from the <a>Formal Specification
+--   for a Cardano Wallet</a> Note that, this module is purposedly agnostic
+--   to how blocks are retrieved or how various types are serialized.
+--   
+--   This is really about how the wallet keep track of its internal state,
+--   and its UTxO (where the relationship is defined via the <a>IsOurs</a>
+--   abstraction to allow this core code to be used with any sort of
+--   derivation scheme).
+--   
+--   All those functions are pure and there's no reason to shove in any
+--   sort of side-effects in here :)
+module Cardano.Wallet
+
+-- | An opaque wallet type, see <tt>initWallet</tt> and <tt>applyBlock</tt>
+--   to construct and update wallets.
+--   
+--   Internally, this keeps track or a few things including:
+--   
+--   <ul>
+--   <li>UTxOs</li>
+--   <li>Pending transaction</li>
+--   <li>TODO: Transaction history</li>
+--   <li>TODO: Known &amp; used addresses</li>
+--   </ul>
+data Wallet s
+
+-- | Create an empty wallet from an initial state
+initWallet :: (IsOurs s, Semigroup s, NFData s, Show s) => s -> Wallet s
+
+-- | Apply Block is the only way to make the wallet evolve.
+applyBlock :: Block -> NonEmpty (Wallet s) -> NonEmpty (Wallet s)
+
+-- | Available balance = <a>balance</a> . <a>availableUTxO</a>
+availableBalance :: Wallet s -> Integer
+
+-- | Total balance = <a>balance</a> . <a>totalUTxO</a>
+totalBalance :: Wallet s -> Integer
+
+-- | Total UTxO = <a>availableUTxO</a> &lt;&gt; "pending UTxO"
+totalUTxO :: Wallet s -> UTxO
+
+-- | Available UTxO = UTxO that aren't part of pending txs
+availableUTxO :: Wallet s -> UTxO
+
+-- | Check whether an invariants holds or not.
+--   
+--   <pre>
+--   &gt;&gt;&gt; invariant "not empty" [1,2,3] (not . null)
+--   [1, 2, 3]
+--   </pre>
+--   
+--   <pre>
+--   &gt;&gt;&gt; invariant "not empty" [] (not . null)
+--   *** Exception: not empty
+--   </pre>
+invariant :: String -> a -> (a -> Bool) -> a
+
+-- | Return all transaction outputs that are ours. This plays well within a
+--   <a>State</a> monad.
+--   
+--   <pre>
+--   myFunction :: Block -&gt; State s Result
+--   myFunction b = do
+--      ours &lt;- state $ txOutsOurs (transaction b)
+--      return $ someComputation ours
+--   </pre>
+txOutsOurs :: forall s. IsOurs s => Set Tx -> s -> (Set TxOut, s)
+
+-- | Construct a UTxO corresponding to a given transaction. It is important
+--   for the transaction outputs to be ordered correctly, since they become
+--   available inputs for the subsequent blocks.
+utxoFromTx :: Tx -> UTxO
+instance GHC.Show.Show (Cardano.Wallet.Wallet s)
+instance Control.DeepSeq.NFData (Cardano.Wallet.Wallet s)
 
 
 -- | Extra content types for Servant.
