@@ -165,6 +165,67 @@ According to the standard, URLs can be extremely long. In some situations, we ne
 
 </details>
 
+## PROPOSAL: Use only a single blank line between top-level definitions
+
+> *Why*
+>
+> * Consistency with other Haskell code.
+> * Excessive vertical space increases the amount of unnecessary scrolling required to read a module.
+
+A source code file **should not** contain consecutive blank lines.
+
+Use only a **single** blank line between the following top-level definitions:
+* function definitions
+* data type definitions
+* class definitions
+* instance definitions
+
+<details>
+  <summary>See Examples</summary>
+
+```hs
+-- BAD
+newtype Foo = Foo Integer
+    deriving (Eq, Show)
+
+
+
+newtype Bar = Bar Integer
+    deriving (Eq, Show)
+```
+
+```hs
+-- GOOD
+newtype Foo = Foo Integer
+    deriving (Eq, Show)
+
+newtype Bar = Bar Integer
+    deriving (Eq, Show)
+```
+
+```hs
+-- BAD
+instance FromCBOR Block where
+  fromCBOR = Block <$> decodeBlock
+
+
+
+newtype BlockHeader = BlockHeader
+  { getBlockHeader :: Primitive.BlockHeader
+  } deriving Eq
+```
+
+```hs
+-- GOOD
+instance FromCBOR Block where
+  fromCBOR = Block <$> decodeBlock
+
+newtype BlockHeader = BlockHeader
+  { getBlockHeader :: Primitive.BlockHeader
+  } deriving Eq
+```
+
+</details>
 
 ## Avoid Variable-Length Indentation
 
