@@ -19,3 +19,10 @@ This wiki page is a "blackboard" where anyone in the team can write ideas or sug
     * This bug https://github.com/input-output-hk/cardano-wallet-legacy/issues/353, which first appeared as mysterious , random failures in the integration tests, would have been much easier to discover if we could generate a sequence of `Wait Time | SendHTTPRequest`, execute, and shrink, with the only conditions that the wallet and node stays running. Maybe this could have been adapted easily from the existing integration tests.
 
         * A key step of isolating the bug was just to introduce a waiting-time in an integration test. The next test would then fail.
+
+* [**KtorZ**] Our README is quite poor in information and it would be worth adding some basics stuff to it. That's a point Johannes already raised on the legacy repository actually. We could add at least:
+    - Basic Overview / Goal 
+    - Build & Tests instructions
+    - A link to the wiki
+    - Link to the generated Haddock documentation
+    - Link to the API documentation
