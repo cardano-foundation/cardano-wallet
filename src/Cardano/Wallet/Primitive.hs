@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -34,7 +35,6 @@ module Cardano.Wallet.Primitive
     , TxIn(..)
     , TxOut(..)
     , txIns
-    , txOutsOurs
     , updatePending
 
     -- * Address
@@ -56,26 +56,35 @@ module Cardano.Wallet.Primitive
 
     -- * Generic
     , Hash (..)
+    , ShowFmt (..)
     ) where
 
 import Prelude
 
 import Control.DeepSeq
     ( NFData (..) )
-import Control.Monad.Trans.State.Strict
-    ( State, runState, state )
+import Data.ByteArray.Encoding
+    ( Base (Base16), convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.ByteString.Base58
+    ( bitcoinAlphabet, encodeBase58 )
 import Data.Map.Strict
     ( Map )
-import Data.Maybe
-    ( catMaybes )
 import Data.Set
     ( Set )
-import Data.Traversable
-    ( for )
 import Data.Word
     ( Word16, Word32, Word64 )
+import Fmt
+    ( Buildable (..)
+    , blockListF
+    , fmt
+    , nameF
+    , ordinalF
+    , padLeftF
+    , prefixF
+    , suffixF
+    )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
@@ -83,6 +92,7 @@ import GHC.TypeLits
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified Data.Text.Encoding as T
 
 -- * Epoch
 
@@ -139,22 +149,6 @@ txIns :: Set Tx -> Set TxIn
 txIns =
     foldMap (Set.fromList . inputs)
 
-txOutsOurs
-    :: forall s. (IsOurs s)
-    => Set Tx
-    -> s
-    -> (Set TxOut, s)
-txOutsOurs txs =
-    runState $ Set.fromList <$> forMaybe (foldMap outputs txs) pick
-  where
-    pick :: TxOut -> State s (Maybe TxOut)
-    pick out = do
-        predicate <- state $ isOurs (address out)
-        return $ if predicate then Just out else Nothing
-
-    forMaybe :: Monad m => [a] -> (a -> m (Maybe b)) -> m [b]
-    forMaybe xs = fmap catMaybes . for xs
-
 updatePending :: Block -> Set Tx -> Set Tx
 updatePending b =
     let
@@ -173,6 +167,16 @@ data TxIn = TxIn
 
 instance NFData TxIn
 
+instance Buildable TxIn where
+    build txin = mempty
+        <> ordinalF (inputIx txin + 1)
+        <> " "
+        <> prefixF 8 txF
+        <> "..."
+        <> suffixF 8 txF
+      where
+        txF = build $ T.decodeUtf8 $ convertToBase Base16 $ getHash $ inputId txin
+
 
 data TxOut = TxOut
     { address
@@ -183,6 +187,20 @@ data TxOut = TxOut
 
 instance NFData TxOut
 
+instance Buildable TxOut where
+    build txout = mempty
+        <> padLeftF 17 ' ' (build $ coin txout) -- NOTE 17 because max coin val
+        <> " @ "
+        <> prefixF 8 addrF
+        <> "..."
+        <> suffixF 8 addrF
+      where
+        addrF = build $ address txout
+
+
+instance Buildable (TxIn, TxOut) where
+    build (txin, txout) = build txin <> " ==> " <> build txout
+
 
 -- * Address
 
@@ -191,6 +209,10 @@ newtype Address = Address
     } deriving (Show, Generic, Eq, Ord)
 
 instance NFData Address
+
+instance Buildable Address where
+    build = build . T.decodeUtf8 . encodeBase58 bitcoinAlphabet . getAddress
+
 
 -- | This abstraction exists to give us the ability to keep the wallet business
 -- logic agnostic to the address derivation and discovery mechanisms.
@@ -224,6 +246,9 @@ instance Bounded Coin where
     minBound = Coin 0
     maxBound = Coin 45000000000000000
 
+instance Buildable Coin where
+    build = build . getCoin
+
 isValidCoin :: Coin -> Bool
 isValidCoin c = c >= minBound && c <= maxBound
 
@@ -239,6 +264,11 @@ instance NFData UTxO
 instance Dom UTxO where
     type DomElem UTxO = TxIn
     dom (UTxO utxo) = Map.keysSet utxo
+
+instance Buildable UTxO where
+    build (UTxO utxo) =
+        nameF "UTxO" $ blockListF (Map.toList utxo)
+
 
 balance :: UTxO -> Integer
 balance =
@@ -268,7 +298,7 @@ restrictedTo (UTxO utxo) outs =
     UTxO $ Map.filter (`Set.member` outs) utxo
 
 
--- * Generic
+-- * Polymorphic
 
 class Dom a where
     type DomElem a :: *
@@ -280,3 +310,12 @@ newtype Hash (tag :: Symbol) = Hash
     } deriving (Show, Generic, Eq, Ord)
 
 instance NFData (Hash tag)
+
+
+-- | A polymorphic wrapper type with a custom show instance to display data
+-- through 'Buildable' instances.
+newtype ShowFmt a = ShowFmt a
+    deriving (Generic, Eq, Ord)
+
+instance Buildable a => Show (ShowFmt a) where
+    show (ShowFmt a) = fmt (build a)

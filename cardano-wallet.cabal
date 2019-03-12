@@ -32,6 +32,7 @@ library
     ghc-options:         -Werror
   build-depends:
       base
+    , base58-bytestring
     , binary
     , bytestring
     , cborg
@@ -39,6 +40,7 @@ library
     , cryptonite
     , deepseq
     , digest
+    , fmt
     , http-api-data
     , http-media
     , memory
@@ -51,12 +53,13 @@ library
       src
   exposed-modules:
       Cardano.ChainProducer.RustHttpBridge.Api
-    , Cardano.ChainProducer.RustHttpBridge.Client
-    , Cardano.Wallet.Binary
-    , Cardano.Wallet.Binary.Packfile
-    , Cardano.Wallet.BlockSyncer
-    , Cardano.Wallet.Primitive
-    , Servant.Extra.ContentTypes
+      Cardano.ChainProducer.RustHttpBridge.Client
+      Cardano.Wallet.BlockSyncer
+      Servant.Extra.ContentTypes
+      Cardano.Wallet
+      Cardano.Wallet.Binary
+      Cardano.Wallet.Binary.Packfile
+      Cardano.Wallet.Primitive
   other-modules:
       Paths_cardano_wallet
 
@@ -93,15 +96,17 @@ test-suite unit
     ghc-options:         -Werror
   build-depends:
       base
-    , cardano-wallet
     , base58-bytestring
     , bytestring
+    , cardano-wallet
     , cborg
     , containers
+    , deepseq
     , hspec
     , memory
     , QuickCheck
     , time-units
+    , transformers
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
@@ -109,7 +114,8 @@ test-suite unit
   main-is:
       Main.hs
   other-modules:
+      Cardano.WalletSpec
       Cardano.Wallet.BinarySpec
-    , Cardano.Wallet.Binary.PackfileSpec
-    , Cardano.Wallet.PrimitiveSpec
-    , Cardano.Wallet.BlockSyncerSpec
+      Cardano.Wallet.Binary.PackfileSpec
+      Cardano.Wallet.PrimitiveSpec
+      Cardano.Wallet.BlockSyncerSpec
