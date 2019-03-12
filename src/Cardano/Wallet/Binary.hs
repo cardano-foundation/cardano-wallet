@@ -80,11 +80,11 @@ import qualified Data.Set as Set
 decodeAddress :: CBOR.Decoder s Address
 decodeAddress = do
     _ <- CBOR.decodeListLenCanonicalOf 2
-        -- ^ CRC Protection Wrapper
+        -- CRC Protection Wrapper
     tag <- CBOR.decodeTag
-        -- ^ Mysterious hard-coded tag cardano-sl seems to so much like
+        -- Mysterious hard-coded tag cardano-sl seems to so much like
     bytes <- CBOR.decodeBytes
-        -- ^ Addr Root + Attributes + Type
+        -- Addr Root + Attributes + Type
     crc <- CBOR.decodeWord32 -- CRC
     -- NOTE 1:
     -- Treating addresses as a blob here, so we just re-encode them as such

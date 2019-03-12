@@ -242,8 +242,10 @@ instance Dom UTxO where
 
 balance :: UTxO -> Integer
 balance =
-    Map.foldl' (\total out -> total + fromIntegral (getCoin (coin out))) 0
-        . getUTxO
+    Map.foldl' fn 0 . getUTxO
+  where
+    fn :: Integer -> TxOut -> Integer
+    fn total out = total + fromIntegral (getCoin (coin out))
 
 -- ins⋪ u
 excluding :: UTxO -> Set TxIn ->  UTxO
