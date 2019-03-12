@@ -458,6 +458,17 @@ decodeUpdateProof = do
 -- let encodeAttributes = mempty <> CBOR.encodeMapLen 0
 -- let addr = encodeAddress xpub encodeAttributes
 -- @
+--
+-- Note that we are passing the behavior to encode attributes as a parameter
+-- here and do not handle multiple cases in 'encodeAddress' itself for multiple
+-- reasons:
+--
+-- - Inversion of control gives us a nicer implementation overall
+--
+-- - Encoding attributes for Random addresses requires more context than just
+--   the public key (like the wallet root id and some extra logic for encoding
+--   passphrases). This is just scheme-specific and is better left out of this
+--   particular function
 encodeAddress :: XPub -> CBOR.Encoding -> CBOR.Encoding
 encodeAddress (XPub pub (ChainCode cc)) encodeAttributes =
     encodeAddressPayload payload
