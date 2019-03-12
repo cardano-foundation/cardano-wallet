@@ -2,6 +2,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.BlockSyncerSpec
     ( spec
@@ -26,10 +27,12 @@ import Data.Functor
     ( ($>) )
 import Data.Time.Units
     ( Millisecond, fromMicroseconds )
+import Data.Word
+    ( Word8 )
 import Test.Hspec
     ( Spec, describe, it, shouldReturn )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, property, withMaxSuccess )
+    ( Arbitrary (..), Property, checkCoverage, cover )
 import Test.QuickCheck.Gen
     ( Gen, choose )
 import Test.QuickCheck.Monadic
@@ -44,7 +47,7 @@ spec :: Spec
 spec = do
     describe "Block syncer downloads blocks properly" $ do
         it "Check ticking function when blocks are sent"
-            (withMaxSuccess 10 $ property tickingFunctionTest)
+            (checkCoverage tickingFunctionTest)
 
 
 {-------------------------------------------------------------------------------
@@ -55,7 +58,9 @@ tickingFunctionTest
     :: (TickingTime, Blocks)
     -> Property
 tickingFunctionTest (TickingTime tickTime, Blocks blocks) =
-    monadicIO $ liftIO $ do
+    cover 80 (sum (length <$> blocks) /= 0) "Non empty blocks" prop
+  where
+    prop = monadicIO $ liftIO $ do
         (readerChan, reader) <- mkReader
         (writerChan, writer) <- mkWriter blocks
         waitFor writerChan $
@@ -104,7 +109,7 @@ newtype TickingTime = TickingTime Millisecond
 instance Arbitrary TickingTime where
     -- No shrinking
     arbitrary = do
-        tickTime <- fromMicroseconds . (* 1000) <$> choose (50, 100)
+        tickTime <- fromMicroseconds . (* 1000) <$> choose (1, 3)
         return $ TickingTime tickTime
 
 
@@ -114,7 +119,7 @@ newtype Blocks = Blocks [[Block]]
 instance Arbitrary Blocks where
     -- No Shrinking
     arbitrary = do
-        n <- arbitrary
+        n <- fromIntegral . (`mod` 42) <$> arbitrary @Word8
         let h0 = BlockHeader 1 0 (Hash "initial block")
         let blocks = map snd $ take n $ iterate next
                 ( blockHeaderHash h0
