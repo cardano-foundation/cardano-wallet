@@ -100,7 +100,6 @@ test-suite unit
     , containers
     , hspec
     , memory
-    , hspec-expectations
     , QuickCheck
     , time-units
   type:
