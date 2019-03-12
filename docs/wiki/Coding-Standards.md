@@ -172,7 +172,7 @@ According to the standard, URLs can be extremely long. In some situations, we ne
 > * Consistency with other Haskell code.
 > * Excessive vertical space increases the amount of unnecessary scrolling required to read a module.
 
-A source code file **should not** contain consecutive blank lines.
+A source code file **should not** contain multiple consecutive blank lines.
 
 Use only a **single** blank line between the following top-level definitions:
 * function definitions
