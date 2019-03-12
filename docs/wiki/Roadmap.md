@@ -116,11 +116,11 @@ https://rebilly.github.io/ReDoc/?url=https://gist.githubusercontent.com/KtorZ/3d
 | Very High | 10       |
 
 
-- Rename & archive 'cardano-wallet' & create a new one  --> 1
-- Review the .travis.yaml file from `cardano-wallet` (+ connect travis to new repository) --> 3
-- Setup repository structure (test folders, src folder, stylish-haskell, .gitignore etc..) --> 2
-- Add build instructions for building + caching Rust http-bridge to .travis.yml --> 3
-- Add branch protections in GitHub & team permissions --> 1
+- [#6](https://github.com/input-output-hk/cardano-wallet/issues/6) Rename & archive 'cardano-wallet' & create a new one  --> 1
+- [#1](https://github.com/input-output-hk/cardano-wallet/issues/1) Review the .travis.yaml file from `cardano-wallet` (+ connect travis to new repository) --> 3
+- [#4](https://github.com/input-output-hk/cardano-wallet/issues/4) Setup repository structure (test folders, src folder, stylish-haskell, .gitignore etc..) --> 2
+- [#5](https://github.com/input-output-hk/cardano-wallet/issues/5) Add build instructions for building + caching Rust http-bridge to .travis.yml --> 3
+- [#2](https://github.com/input-output-hk/cardano-wallet/issues/2) Add branch protections in GitHub & team permissions --> 1
 
 
 ### Receive And Process Blocks
