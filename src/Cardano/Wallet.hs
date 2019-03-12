@@ -34,7 +34,6 @@ module Cardano.Wallet
     , availableUTxO
 
     -- * Helpers
-    , invariant
     , txOutsOurs
     , utxoFromTx
     ) where
@@ -53,6 +52,7 @@ import Cardano.Wallet.Primitive
     , UTxO (..)
     , balance
     , excluding
+    , invariant
     , restrictedBy
     , restrictedTo
     , txIns
@@ -162,21 +162,6 @@ totalUTxO wallet@(Wallet _ pending s) =
 
 
 -- * Helpers
-
--- | Check whether an invariants holds or not.
---
--- >>> invariant "not empty" [1,2,3] (not . null)
--- [1, 2, 3]
---
--- >>> invariant "not empty" [] (not . null)
--- *** Exception: not empty
-invariant
-    :: String -- ^ A title / message to throw in case of violation
-    -> a
-    -> (a -> Bool)
-    -> a
-invariant msg a predicate =
-    if predicate a then a else error msg
 
 -- | Return all transaction outputs that are ours. This plays well within a
 -- 'State' monad.
