@@ -7,3 +7,5 @@ This wiki page is a "blackboard" where anyone in the team can write ideas or sug
 * [**Piotr**] Have stylish-haskell, hlint, weeder, and different types of tests (integration, unit) as separate checks on Travis CI for better readability (as on previous repository). Currently they are all done on a single run.
 
 * [**jbgi**] As a wallet user I want an option when sending a transaction to specify the change address. example: I have utxo with 100 Ada. I send 10 Ada to someone. Currently a new address is generated and 90 ADA goes into that address. But I want to be able to specify myself the address that received the 90 ADA change.
+
+* [**KtorZ**] We have hard-coded a couple of times the `k=2160` parameter in the code base. In practice, this one can change through protocol update and this is something we would probably want to track at runtime in some sort of context, might it be a hard-coded context for now -- but at least, we would have the necessary mechanism in place. 
