@@ -54,11 +54,13 @@ spec = do
 tickingFunctionTest
     :: (TickingTime, Blocks)
     -> Property
-tickingFunctionTest (TickingTime tickTime, Blocks blocks) = monadicIO $ liftIO $ do
-    (readerChan, reader) <- mkReader
-    (writerChan, writer) <- mkWriter blocks
-    waitFor writerChan $ tickingFunction writer reader tickTime (BlockHeadersConsumed [])
-    takeMVar readerChan `shouldReturn` L.nub (reverse $ mconcat blocks)
+tickingFunctionTest (TickingTime tickTime, Blocks blocks) =
+    monadicIO $ liftIO $ do
+        (readerChan, reader) <- mkReader
+        (writerChan, writer) <- mkWriter blocks
+        waitFor writerChan $
+            tickingFunction writer reader tickTime (BlockHeadersConsumed [])
+        takeMVar readerChan `shouldReturn` L.nub (reverse $ mconcat blocks)
 
 waitFor
     :: MVar ()
@@ -133,11 +135,12 @@ instance Arbitrary Blocks where
         blockHeaderHash =
             Hash . CBOR.toStrictByteString . encodeBlockHeader
           where
-            encodeBlockHeader (BlockHeader (EpochId epoch) (SlotId slot) prev) = mempty
-                <> CBOR.encodeListLen 3
-                <> CBOR.encodeWord64 epoch
-                <> CBOR.encodeWord16 slot
-                <> CBOR.encodeBytes (getHash prev)
+            encodeBlockHeader (BlockHeader (EpochId epoch) (SlotId slot) prev) =
+                mempty
+                    <> CBOR.encodeListLen 3
+                    <> CBOR.encodeWord64 epoch
+                    <> CBOR.encodeWord16 slot
+                    <> CBOR.encodeBytes (getHash prev)
 
 
 -- | Construct arbitrary groups of elements from a given list.

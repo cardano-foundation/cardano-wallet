@@ -54,7 +54,8 @@ tickingFunction getNextBlocks action tickTime = go
       go (BlockHeadersConsumed headersConsumed) = do
           blocksDownloaded <- getNextBlocks
           let blocksToProcess =
-                  filter (checkIfAlreadyConsumed headersConsumed) (L.nub blocksDownloaded)
+                  filter (checkIfAlreadyConsumed headersConsumed)
+                      (L.nub blocksDownloaded)
           mapM_ action blocksToProcess
           threadDelay $ (fromIntegral . toMicroseconds) tickTime
           go $ BlockHeadersConsumed

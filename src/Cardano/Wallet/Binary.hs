@@ -79,9 +79,12 @@ import qualified Data.Set as Set
 
 decodeAddress :: CBOR.Decoder s Address
 decodeAddress = do
-    _ <- CBOR.decodeListLenCanonicalOf 2 -- CRC Protection Wrapper
-    tag <- CBOR.decodeTag -- Mysterious hard-coded tag cardano-sl seems to so much like
-    bytes <- CBOR.decodeBytes -- Addr Root + Attributes + Type
+    _ <- CBOR.decodeListLenCanonicalOf 2
+        -- ^ CRC Protection Wrapper
+    tag <- CBOR.decodeTag
+        -- ^ Mysterious hard-coded tag cardano-sl seems to so much like
+    bytes <- CBOR.decodeBytes
+        -- ^ Addr Root + Attributes + Type
     crc <- CBOR.decodeWord32 -- CRC
     -- NOTE 1:
     -- Treating addresses as a blob here, so we just re-encode them as such
@@ -145,9 +148,11 @@ decodeBlockHeader = do
     CBOR.decodeListLenCanonicalOf 2
     t <- CBOR.decodeWordCanonical
     case t of
-      0 -> decodeGenesisBlockHeader
-      1 -> decodeMainBlockHeader
-      _ -> fail $ "decodeBlockHeader: unknown block header constructor: " <> show t
+        0 -> decodeGenesisBlockHeader
+        1 -> decodeMainBlockHeader
+        _ ->
+            fail $ "decodeBlockHeader: unknown block header constructor: " <>
+                show t
 
 decodeBlockVersion :: CBOR.Decoder s ()
 decodeBlockVersion = do
@@ -421,7 +426,8 @@ decodeTxWitness = do
         0 -> CBOR.decodeTag *> CBOR.decodeBytes -- PKWitness
         1 -> CBOR.decodeTag *> CBOR.decodeBytes -- Script Witness
         2 -> CBOR.decodeTag *> CBOR.decodeBytes -- Redeem Witness
-        _ -> fail $ "decodeTxWitness: unknown tx witness constructor: " <> show t
+        _ -> fail
+            $ "decodeTxWitness: unknown tx witness constructor: " <> show t
 
 decodeUpdateProof :: CBOR.Decoder s ()
 decodeUpdateProof = do

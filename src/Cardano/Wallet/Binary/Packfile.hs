@@ -26,7 +26,8 @@ import Data.Int
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 
--- | Things related to the file format that can go wrong when decoding a pack file.
+-- | Things related to the file format that can go wrong when decoding a pack
+-- file.
 data PackfileError
     = MissingMagicError
     | WrongFileTypeError

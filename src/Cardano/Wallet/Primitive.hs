@@ -158,7 +158,8 @@ txOutsOurs txs =
 updatePending :: Block -> Set Tx -> Set Tx
 updatePending b =
     let
-        isStillPending ins = Set.null . Set.intersection ins . Set.fromList . inputs
+        isStillPending ins =
+            Set.null . Set.intersection ins . Set.fromList . inputs
     in
         Set.filter (isStillPending (txIns $ transactions b))
 
@@ -241,7 +242,8 @@ instance Dom UTxO where
 
 balance :: UTxO -> Integer
 balance =
-    Map.foldl' (\total out -> total + fromIntegral (getCoin (coin out))) 0 . getUTxO
+    Map.foldl' (\total out -> total + fromIntegral (getCoin (coin out))) 0
+        . getUTxO
 
 -- ins⋪ u
 excluding :: UTxO -> Set TxIn ->  UTxO
