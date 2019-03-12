@@ -27,8 +27,10 @@ import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
     ( bitcoinAlphabet, decodeBase58 )
+import Data.Either
+    ( isLeft )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec, describe, it, shouldBe, shouldSatisfy )
 
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
@@ -62,6 +64,18 @@ spec = do
             let decoded = unsafeDeserialiseFromBytes decodeBlock bs
             decoded `shouldBe` block3
 
+        it "should fail to decode a junk block" $ do
+            let junk = mconcat (replicate 100 "junk")
+                decoded = CBOR.deserialiseFromBytes decodeBlock junk
+            decoded `shouldSatisfy` isLeft
+
+        it "should fail to decode a block with block header data" $ do
+            bs <- L8.readFile
+                "test/data/Cardano/Wallet/BinarySpec-block-header-1"
+            let decoded = CBOR.deserialiseFromBytes decodeBlock bs
+            decoded `shouldBe`
+                Left (CBOR.DeserialiseFailure 3 "expected list of length 3")
+
     describe "Encoding Tx" $ do
         let txs = Set.toList (transactions block2 <> transactions block3)
         let roundTripTx tx = do
@@ -77,12 +91,16 @@ spec = do
 
         it "should compute correct txId (1)" $ do
             let hash = txId (txs !! 0)
-            let hash' = hash16 "c470563001e448e61ff1268c2a6eb458ace1d04011a02cb262b6d709d66c23d0"
+            let hash' = hash16
+                    "c470563001e448e61ff1268c2a6eb458\
+                    \ace1d04011a02cb262b6d709d66c23d0"
             hash `shouldBe` hash'
 
         it "should compute correct txId (2)" $ do
             let hash = txId (txs !! 1)
-            let hash' = hash16 "d30d37f1f8674c6c33052826fdc5bc198e3e95c150364fd775d4bc663ae6a9e6"
+            let hash' = hash16
+                    "d30d37f1f8674c6c33052826fdc5bc19\
+                    \8e3e95c150364fd775d4bc663ae6a9e6"
             hash `shouldBe` hash'
 
 -- A mainnet block header
