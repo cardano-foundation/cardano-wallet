@@ -3,13 +3,13 @@
 The current cardano-wallet has accumulated a lot of technical debts and
 complexity coming from various factors:
 
-- Rapid teams hand-over before the end of the development 
+- Rapid teams hand-over before the end of the development
 - An already bloated legacy upon which we tried to scaffold a new cleaner model
-- Unnecessary layers of indirections without clear boundaries 
-- Some premature optimizations and unclear / undocumented design decisions 
+- Unnecessary layers of indirections without clear boundaries
+- Some premature optimizations and unclear / undocumented design decisions
 - Intricate glue code coming from the lack of / inefficient communication between teams
-- Complex implementation decisions, especially on testing 
-- Feature creeping 
+- Complex implementation decisions, especially on testing
+- Feature creeping
 
 As a result, implementing fundamentally new features has become extremely hard
 and almost impossible in some cases without breaking backward compatibility.
@@ -43,10 +43,10 @@ few examples:
     - The controlled stake
     - The number of slots correctly processed from a previous epoch
 - Various actors (Node, Wallet Backend, Wallet Frontend) needn't to consider
-  transition phases from Byron to this particular testnet. All nodes can be assumed 
+  transition phases from Byron to this particular testnet. All nodes can be assumed
   to be already running this on this testnet.
 - Some necessary features for an actual production system may be postponed to
-  later like managing rollbacks or persisting the data on disk. 
+  later like managing rollbacks or persisting the data on disk.
 - A few basic primitives already available in Rust may just be used through FFI
   from Haskell code instead of being re-implemented in Haskell.
 
@@ -68,11 +68,11 @@ Left out:
 1. Updates
 
 Essential, but not strictly required for a working testnet. Yet, it's not practical
-to update n softwares for different parties, so we may re-assess this decision in 
+to update n softwares for different parties, so we may re-assess this decision in
 the next release planning.
 
 
-2. Old address scheme 
+2. Old address scheme
 
 We will have to support this probably forever, in some forms. It may not be as
 featureful as the new scheme and is out-of-scope for the summit testnet. We
@@ -80,13 +80,13 @@ should still consider making the wallet core code fairly agnostic to the
 address scheme being used.
 
 
-3. Externally-owned wallets 
+3. Externally-owned wallets
 
 Implementation not yet finalized on the legacy code, out-of-scope for the
 incoming delegation, can be added later.
 
 
-4. Accounts manipulation 
+4. Accounts manipulation
 
 With BIP-44, accounts are implicitely managed, and we can't just create them
 out of the void. Plus, it might be worthwhile considering balances for each
@@ -94,13 +94,13 @@ account we know of (linear scanning of the current UTxO), but it's probably
 overkill to also do the transaction management at the account-level)
 
 
-5. Access of a single address 
+5. Access of a single address
 
 Instead, we'll provide the frontend with a JavaScript library that performs
 address validation.
 
 
-6. Ada Redemption 
+6. Ada Redemption
 
 Move to dedicated certificate redemption standalone software.
 
@@ -109,7 +109,7 @@ Move to dedicated certificate redemption standalone software.
 
 https://rebilly.github.io/ReDoc/?url=https://gist.githubusercontent.com/KtorZ/3d78edd0b9a333ad589e9967da55f5da/raw/33314a3697e6a168108cced78369402391ff3945/.yaml
 
-### Setup CI 
+### Setup CI
 
 | Priority  | Estimate |
 | ---       | ---      |
@@ -119,11 +119,11 @@ https://rebilly.github.io/ReDoc/?url=https://gist.githubusercontent.com/KtorZ/3d
 - Rename & archive 'cardano-wallet' & create a new one  --> 1
 - Review the .travis.yaml file from `cardano-wallet` (+ connect travis to new repository) --> 3
 - Setup repository structure (test folders, src folder, stylish-haskell, .gitignore etc..) --> 2
-- Add build instructions for building + caching Rust http-bridge to .travis.yml --> 3 
+- Add build instructions for building + caching Rust http-bridge to .travis.yml --> 3
 - Add branch protections in GitHub & team permissions --> 1
 
 
-### Receive And Process Blocks 
+### Receive And Process Blocks
 
 | Priority | Estimate |
 | ---      | ---      |
@@ -137,7 +137,7 @@ https://rebilly.github.io/ReDoc/?url=https://gist.githubusercontent.com/KtorZ/3d
   Ticking function to retrieve current tip and get next block (no handling of rollbacks) --> 5
 
 
-### Launcher 
+### Launcher
 
 | Priority | Estimate |
 | ---      | ---      |
@@ -157,12 +157,18 @@ https://rebilly.github.io/ReDoc/?url=https://gist.githubusercontent.com/KtorZ/3d
 
 NOTE: No persistence layer yet.
 
-- Porting and cleaning up Cardano.Mnemonic module (incl. corresponding tests)
-- Extend the Cardano.Mnemonic to support recovery passphrase 
-- Define type primitives needed to represent a wallet (Tx, UTxO, Address etc..). A wallet has a name, a root private key, a state etc.. (cf the API specifications) 
-- Port and review the Ed25519 module from cardano-wallet to define derivation primitives needed for BIP-44 addressing
-- Port and review the Address discovery (AddressPool + AddressPoolGap modules) from cardano-wallet
-- Sketch wallet layer to fetch and create a wallet 
+- [#16](https://github.com/input-output-hk/cardano-wallet/issues/16)
+  Porting and cleaning up Cardano.Mnemonic module (incl. corresponding tests)
+- [#14](https://github.com/input-output-hk/cardano-wallet/issues/14)
+  Extend the Cardano.Mnemonic to support recovery passphrase
+- [#20](https://github.com/input-output-hk/cardano-wallet/issues/20)
+  Define type primitives needed to represent a wallet (Tx, UTxO, Address etc..). A wallet has a name, a root private key, a state etc.. (cf the API specifications)
+- [#21](https://github.com/input-output-hk/cardano-wallet/issues/21)
+  Port and review the Ed25519 module from cardano-wallet to define derivation primitives needed for BIP-44 addressing
+- [#22](https://github.com/input-output-hk/cardano-wallet/issues/22)
+  Port and review the Address discovery (AddressPool + AddressPoolGap modules) from cardano-wallet
+- [#23](https://github.com/input-output-hk/cardano-wallet/issues/23)
+  Sketch wallet layer to fetch and create a wallet
 - Sketch API Layer and servant server to serve that API, using the wallet layer to implement its handlers
 - Sketch first wallet CLI, using the wallet layer to implement the various commands
 
@@ -176,7 +182,7 @@ NOTE: No persistence layer yet.
 - _Naively_ (no balance caching) compute to the total balance through maintained UTxO
 
 
-### Submit Transactions 
+### Submit Transactions
 
 | Priority | Estimate |
 | ---      | ---      |
@@ -184,7 +190,7 @@ NOTE: No persistence layer yet.
 
 - Perform Coin Selection on the available UTxO
 - Adjust selection to cover for network fees
-- Generate or Use change address(es) 
+- Generate or Use change address(es)
 - Sign transactions with corresponding private keys
 - No more grouping policy
 - Funds are taken within the wallet (regardless of the account structure)
@@ -213,8 +219,8 @@ NOTE: No persistence layer yet.
 | ---      | ---      |
 | High     | ?        |
 
-- A pool boils down to a (metadata --> 3-to-4-letter identifier) + public key 
-- Having more metadata --> TODO ADD LINK TO JSON SCHEMA + Discussion with Vincent 
+- A pool boils down to a (metadata --> 3-to-4-letter identifier) + public key
+- Having more metadata --> TODO ADD LINK TO JSON SCHEMA + Discussion with Vincent
 - We may associate the following metrics to a pool:
     - Controlled stake (or % of distribution owned, approximately)
     - number of slots successfully handled in the previous epoch
@@ -244,20 +250,20 @@ NOTE: No persistence layer yet.
   adjust to cover for minimal fee, return actual estimated fee.
 
 
-### Restore Historical Data 
+### Restore Historical Data
 
 | Priority | Estimate |
 | ---      | ---      |
 | Medium   | ?        |
 
 - Consider making this the "only" behavior of the wallet (instead of distinguishing between creation vs restoration)
-- Restore from a list of mnemonic + recovery passphrase 
+- Restore from a list of mnemonic + recovery passphrase
 - Focus on linear scanning of the blockchain, leave out optimization related to sequential derivation
-- Non-interruptible process 
+- Non-interruptible process
 - Aim at less than 5 minutes restoration time against mainnet
 
 
-### List Available Addresses 
+### List Available Addresses
 
 | Priority | Estimate |
 | ---      | ---      |
@@ -269,7 +275,7 @@ NOTE: No persistence layer yet.
 - Addresses may have the following metadata:
     - is used
     - ~~is change address~~ --> not used and incorrect in the context of multi-account. Removed in 1.6 already.
-    - ~~ownership~~ --> already ambiguous and controversial in the current implementation. Not used. 
+    - ~~ownership~~ --> already ambiguous and controversial in the current implementation. Not used.
 
 
 ### Make Protocol Settings Available
@@ -362,8 +368,8 @@ https://github.com/input-output-hk/cardano-http-bridge
 
 For example:
 
-- `GET /:network/block/:blockid` 
-- `GET /:network/tip` 
+- `GET /:network/block/:blockid`
+- `GET /:network/tip`
 - `POST: /:network/txs/signed`
 
 Later, when ready, we can switch over to use the Rust node API using a new
