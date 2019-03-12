@@ -26,3 +26,5 @@ This wiki page is a "blackboard" where anyone in the team can write ideas or sug
     - A link to the wiki
     - Link to the generated Haddock documentation
     - Link to the API documentation
+
+* [**KtorZ**] We've completely forgot about maintaining a CHANGELOG :no_mouth: 
