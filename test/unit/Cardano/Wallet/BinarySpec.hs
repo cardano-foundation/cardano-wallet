@@ -64,6 +64,11 @@ spec = do
             let decoded = unsafeDeserialiseFromBytes decodeBlock bs
             decoded `shouldBe` block3
 
+        it "should decode a block with many transactions" $ do
+            bs <- L8.readFile "test/data/Cardano/Wallet/BinarySpec-block-4"
+            let decoded = unsafeDeserialiseFromBytes decodeBlock bs
+            decoded `shouldBe` block4
+
         it "should fail to decode a junk block" $ do
             let junk = mconcat (replicate 100 "junk")
                 decoded = CBOR.deserialiseFromBytes decodeBlock junk
@@ -155,7 +160,6 @@ block2 = Block
         "DdzFFzCqrhsmxmuQpgjUrvRwF5ZKnyQ7pGrS4q53u5B516wcc26m\
         \aHz9M4myYAkQVc5m9E4DKJjRDjPxuDdK3ZsHb1Dnqf3XorZ1PnzX"
 
-
 -- A testnet block with a transaction
 block3 :: Block
 block3 = Block
@@ -188,6 +192,73 @@ block3 = Block
     address1 = addr58
         "37btjrVyb4KD5Ne4yvGAHGbQuHUYQX1VPsXh85rBh3UrGSMWdRSFxBYQ9\
         \RQRHCMezN6AMLd3uYTC5hbeVTUiPzfQUTCEogg2HrSJKQUjAgsoYZHwT3"
+
+-- A mainnet block with multiple transactions
+block4 :: Block
+block4 = Block
+    { header = BlockHeader
+        { epochIndex = 14
+        , slotNumber = 18
+        , prevBlockHash = prevBlockHash0
+        }
+    , transactions = Set.fromList
+        [ Tx
+            { inputs =
+                [ TxIn
+                    { inputId = inputId0
+                    , inputIx = 0
+                    }
+                ]
+            , outputs =
+                [ TxOut
+                    { address = addr0
+                    , coin = Coin 3841254542346
+                    }
+                , TxOut
+                    { address = addr1
+                    , coin = Coin 2700667457
+                    }
+                ]
+            }
+          , Tx
+              { inputs =
+                  [ TxIn
+                      { inputId = inputId1
+                      , inputIx = 0
+                      }
+                  ]
+              , outputs =
+                  [ TxOut
+                      { address = addr2
+                      , coin = Coin 3832107959251
+                      }
+                  , TxOut
+                      { address = addr3
+                      , coin = Coin 11823271860
+                      }
+                  ]
+            }
+        ]
+    }
+  where
+    prevBlockHash0 = hash16
+        "f4283844eb78ca6f6333b007f5a735d71499d6ce7cc816846a033a36784bd299"
+    inputId0 = hash16
+        "f91292301d4bb1b6e040cecdff4030959b49c95e7dae087782dd558bebb6668a"
+    addr0 = addr58
+        "DdzFFzCqrhss1h6EV6KqcSkJNoC2UdtnuP1gGsoxT5Gv8GPfsReX\
+        \8QhVZWXeZLTidYPi3Fu5ZXG4gvfq3zbwD4nboD1HxoCPCFJLWpMc"
+    addr1 = addr58
+        "DdzFFzCqrhszy7cUVphbFGaPBG7yn5nNPzjGDYaPsPuEG84KRjtK\
+        \RhhNhwjNENx8LT9XGbYfAJzptwotbp7ySho5LGeCc2ALq3cQX2JM"
+    inputId1 = hash16
+        "96e170491afb6ebd579fd57c76c684f22436f8cc3a912397ddb1c9c51b86fb53"
+    addr2 = addr58
+        "DdzFFzCqrht5ZoBwGocznhhpr4yXRWy1RaMqguNBPjVGhwZcNMnh\
+        \sDUtEETzjQVVc1TBuL3en6yA8JcKVXx1cuoea5rozjcaFid3pkV7"
+    addr3 = addr58
+        "DdzFFzCqrhsoLchqT8AwxFH9srQzvH78dUAD1BwHneqGHvA7BV89\
+        \Mj87XFPDSU2tJCMiWpi7vf1U5CqE835Xz2kpnyzFTuYQLkZev4qw"
 
 -- * Helpers
 
