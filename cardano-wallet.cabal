@@ -64,6 +64,7 @@ library
       Cardano.ChainProducer.RustHttpBridge.Client
       Cardano.ChainProducer.RustHttpBridge.NetworkLayer
       Cardano.Wallet
+      Cardano.Wallet.AddressDerivation
       Cardano.Wallet.Binary
       Cardano.Wallet.Binary.Packfile
       Cardano.Wallet.BlockSyncer
@@ -135,14 +136,14 @@ test-suite unit
     , containers
     , deepseq
     , exceptions
+    , fmt
     , hspec
-    , hspec-expectations
     , memory
     , mtl
+    , QuickCheck
     , text
     , time-units
     , transformers
-    , QuickCheck
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
@@ -150,12 +151,13 @@ test-suite unit
   main-is:
       Main.hs
   other-modules:
-      Cardano.WalletSpec
-      Cardano.Wallet.BinarySpec
       Cardano.ChainProducer.RustHttpBridge.MockNetworkLayer
       Cardano.ChainProducer.RustHttpBridgeSpec
+      Cardano.Wallet.AddressDerivationSpec
       Cardano.Wallet.Binary.PackfileSpec
+      Cardano.Wallet.BinarySpec
       Cardano.Wallet.BlockSyncerSpec
       Cardano.Wallet.MnemonicSpec
       Cardano.Wallet.PrimitiveSpec
       Cardano.Wallet.SlottingSpec
+      Cardano.WalletSpec
