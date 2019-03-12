@@ -32,9 +32,7 @@ import Data.Word
 import Test.Hspec
     ( Spec, describe, it, shouldReturn )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, checkCoverage, cover )
-import Test.QuickCheck.Gen
-    ( Gen, choose )
+    ( Arbitrary (..), Gen, Property, checkCoverage, choose, cover )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
