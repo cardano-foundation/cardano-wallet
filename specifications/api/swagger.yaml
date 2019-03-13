@@ -101,7 +101,7 @@ walletMnemonicSentence: &walletMnemonicSentence
   description: A list of mnemonic words
   type: array
   minItems: 15
-  maxItems: 30
+  maxItems: 24
   items:
     type: string
     format: bip-0039-mnemonic-word{english}
@@ -110,12 +110,12 @@ walletMnemonicSentence: &walletMnemonicSentence
 wallet2ndFactor: &wallet2ndFactor
   description: An optional passphrase used to encrypt the mnemonic sentence.
   type: array
-  minItems: 6
+  minItems: 9
   maxItems: 12
   items:
     type: string
     format: bip-0039-mnemonic-word{english}
-  example: ["squirrel", "material", "silly", "twice", "direct", "slush"]
+  example: ["squirrel", "material", "silly", "twice", "direct", "slush", "pistol", "razor", "become"]
 
 walletPassphrase: &walletPassphrase
   description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds)
