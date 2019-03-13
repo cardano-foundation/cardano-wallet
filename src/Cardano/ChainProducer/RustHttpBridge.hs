@@ -24,13 +24,7 @@ import Cardano.ChainProducer.RustHttpBridge.NetworkLayer
 import Cardano.Wallet.Primitive
     ( Block (..), BlockHeader (..), Hash (..) )
 import Cardano.Wallet.Slotting
-    ( EpochIndex
-    , LocalSlotIndex (..)
-    , SlotId (..)
-    , addSlots
-    , slotNext
-    , slotsPerEpoch
-    )
+    ( SlotId (..), addSlots, slotNext, slotsPerEpoch )
 import Control.Monad.Except
     ( ExceptT (..), mapExceptT, runExceptT )
 import Control.Monad.IO.Class
@@ -41,6 +35,8 @@ import Data.Bifunctor
     ( first )
 import Data.Maybe
     ( fromMaybe )
+import Data.Word
+    ( Word64 )
 import Numeric.Natural
     ( Natural )
 
@@ -74,7 +70,7 @@ rbNextBlocks
     -> ExceptT ErrGetNextBlocks RustBackend [Block]
 rbNextBlocks numBlocks start = do
     net <- lift getNetwork
-    (tipHash, tip) <- fmap headerSlot <$> runNetworkLayer (getNetworkTip net)
+    (tipHash, tip) <- fmap slotId <$> runNetworkLayer (getNetworkTip net)
     epochBlocks <- blocksFromPacks net tip
     lastBlocks <- unstableBlocks net tipHash tip epochBlocks
     pure (epochBlocks ++ lastBlocks)
@@ -89,7 +85,7 @@ rbNextBlocks numBlocks start = do
 
     -- The next slot after the last block.
     slotAfter [] = Nothing
-    slotAfter bs = Just . slotNext . headerSlot . header . last $ bs
+    slotAfter bs = Just . slotNext . slotId . header . last $ bs
 
     -- Grab the remaining blocks which aren't packed in epoch files,
     -- starting from the tip.
@@ -106,7 +102,7 @@ rbNextBlocks numBlocks start = do
 getEpochs
     :: Monad m
     => NetworkLayer m
-    -> [EpochIndex]
+    -> [Word64]
     -> ExceptT NetworkLayerError m [[Block]]
 getEpochs network = mapUntilError (getEpoch network)
 
@@ -158,11 +154,6 @@ mapUntilError _ [] = pure []
 
 -- * Slotting calculation utilities
 
--- | Gets the slot from a block header.
-headerSlot :: BlockHeader -> SlotId
-headerSlot bh = SlotId
-    (epochIndex (bh :: BlockHeader)) (slotNumber (bh :: BlockHeader))
-
 -- | Calculates which epochs to fetch, given a number of slots, and the start
 -- point. It takes into account the latest block available, and that the most
 -- recent epoch is never available in a pack file.
@@ -173,25 +164,25 @@ epochRange
         -- ^ Start point
     -> SlotId
         -- ^ Latest block available
-    -> [EpochIndex]
+    -> [Word64]
 epochRange
     numBlocks
-    (SlotId startEpoch (LocalSlotIndex startSlot)) (SlotId tipEpoch _)
+    (SlotId startEpoch startSlot) (SlotId tipEpoch _)
     = [startEpoch .. min (tipEpoch - 1) (startEpoch + fromIntegral numEpochs)]
     where
         numEpochs = (numBlocks + fromIntegral startSlot) `div` slotsPerEpoch
 
 -- | Predicate returns true iff the block is from the given slot or a later one.
 blockIsSameOrAfter :: SlotId -> Block -> Bool
-blockIsSameOrAfter s = (>= s) . headerSlot . header
+blockIsSameOrAfter s = (>= s) . slotId . header
 
 -- | Predicate returns true iff the block is after then given slot
 blockIsAfter :: SlotId -> Block -> Bool
-blockIsAfter s = (> s) . headerSlot . header
+blockIsAfter s = (> s) . slotId . header
 
 -- | Predicate returns true iff the block is before the given slot.
 blockIsBefore :: SlotId -> Block -> Bool
-blockIsBefore s = (< s) . headerSlot . header
+blockIsBefore s = (< s) . slotId . header
 
 -- | @blockIsBetween start end@ Returns true if the block is in within the
 -- interval @[start, end)@.

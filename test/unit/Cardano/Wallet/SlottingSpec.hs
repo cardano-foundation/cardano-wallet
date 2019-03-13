@@ -9,9 +9,7 @@ module Cardano.Wallet.SlottingSpec
 import Prelude
 
 import Cardano.Wallet.Slotting
-    ( EpochIndex (..)
-    , LocalSlotIndex (..)
-    , SlotId (..)
+    ( SlotId (..)
     , addSlots
     , isValidSlotId
     , slotDiff
@@ -70,14 +68,9 @@ propAddSlotsId sl = addSlots 0 sl === sl
 -------------------------------------------------------------------------------}
 
 instance Arbitrary SlotId where
-    arbitrary = SlotId <$> arbitrary <*> arbitrary
-
-instance Arbitrary EpochIndex where
-    arbitrary = EpochIndex <$> arbitrary
-
-instance Arbitrary LocalSlotIndex where
-    arbitrary =
-        LocalSlotIndex <$> choose (0, fromIntegral slotsPerEpoch - 1)
+    arbitrary = SlotId
+        <$> arbitrary
+        <*> choose (0, fromIntegral slotsPerEpoch - 1)
 
 instance Arbitrary Natural where
     arbitrary = fromIntegral

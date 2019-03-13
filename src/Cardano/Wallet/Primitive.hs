@@ -57,7 +57,7 @@ module Cardano.Wallet.Primitive
 import Prelude
 
 import Cardano.Wallet.Slotting
-    ( EpochIndex, LocalSlotIndex )
+    ( SlotId )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.ByteArray.Encoding
@@ -103,10 +103,8 @@ data Block = Block
 instance NFData Block
 
 data BlockHeader = BlockHeader
-    { epochIndex
-        :: !EpochIndex
-    , slotNumber
-        :: !LocalSlotIndex
+    { slotId
+        :: SlotId
     , prevBlockHash
         :: !(Hash "BlockHeader")
     } deriving (Show, Eq, Ord, Generic)

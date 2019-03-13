@@ -37,6 +37,8 @@ import Cardano.Wallet.Primitive
     , restrictedTo
     , txIns
     )
+import Cardano.Wallet.Slotting
+    ( SlotId (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
@@ -227,16 +229,14 @@ blockchain :: [Block]
 blockchain =
     [ Block
         { header = BlockHeader
-            { epochIndex = 14
-            , slotNumber = 0
+            { slotId = SlotId 14 0
             , prevBlockHash = Hash "39d89a1e837e968ba35370be47cdfcbfd193cd992fdeed557b77c49b77ee59cf"
             }
         , transactions = Set.fromList []
         }
     , Block
         { header = BlockHeader
-            { epochIndex = 14
-            , slotNumber = 1
+            { slotId = SlotId 14 1
             , prevBlockHash = Hash "2d04732b41d07e45a2b87c05888f956805f94b108f59e1ff3177860a17c292db"
             }
         , transactions = Set.fromList
@@ -262,8 +262,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { epochIndex = 14
-            , slotNumber = 2
+            { slotId = SlotId 14 2
             , prevBlockHash = Hash "e95a6e7da3cd61e923e30b1998b135d40958419e4157a9f05d2f0f194e4d7bba"
             }
         , transactions = Set.fromList
@@ -289,8 +288,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { epochIndex = 14
-            , slotNumber = 3
+            { slotId = SlotId 14 3
             , prevBlockHash = Hash "b5d970285a2f8534e94119cd631888c20b3a4ec0707a821f6df5c96650fe01dd"
             }
         , transactions = Set.fromList
@@ -316,16 +314,14 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-              { epochIndex = 14
-              , slotNumber = 4
+              { slotId = SlotId 14 4
               , prevBlockHash = Hash "cb96ff923728a67e52dfad54df01fc5a20c7aaf386226a0564a1185af9798cb1"
               }
         , transactions = Set.fromList []
         }
     , Block
         { header = BlockHeader
-              { epochIndex = 14
-              , slotNumber = 5
+              { slotId = SlotId 14 5
               , prevBlockHash = Hash "63040af5ed7eb2948e2c09a43f946c91d5dd2efaa168bbc5c4f3e989cfc337e6"
               }
         , transactions = Set.fromList
@@ -355,40 +351,35 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { epochIndex = 14
-            , slotNumber = 6
+            { slotId = SlotId 14 6
             , prevBlockHash = Hash "1a32e01995225c7cd514e0fe5087f19a6fd597a6071ad4ad1fbf5b20de39670b"
             }
         , transactions = Set.fromList []
         }
     , Block
         { header = BlockHeader
-            { epochIndex = 14
-            , slotNumber = 7
+            { slotId = SlotId 14 7
             , prevBlockHash = Hash "7855c0f101b6761b234058e7e9fd19fbed9fee90a202cca899da1f6cbf29518d"
             }
         , transactions = Set.fromList []
         }
     , Block
         { header = BlockHeader
-            { epochIndex = 14
-            , slotNumber = 8
+            { slotId = SlotId 14 8
             , prevBlockHash = Hash "9007e0513b9fea848034a7203b380cdbbba685073bcfb7d8bb795130d92e7be8"
             }
         , transactions = Set.fromList []
         }
     , Block
         { header = BlockHeader
-            { epochIndex = 14
-            , slotNumber = 9
+            { slotId = SlotId 14 9
             , prevBlockHash = Hash "0af8082504f59eb1b7114981b7dee9009064638420382211118730b45ad385ae"
             }
         , transactions = Set.fromList []
         }
     , Block
         { header = BlockHeader
-            { epochIndex = 14
-            , slotNumber = 10
+            { slotId = SlotId 14 10
             , prevBlockHash = Hash "adc8c71d2c85cee39fbb34cdec6deca2a4d8ce6493d6d28f542d891d5504fc38"
             }
         , transactions = Set.fromList
@@ -432,8 +423,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { epochIndex = 14
-            , slotNumber = 11
+            { slotId = SlotId 14 11
             , prevBlockHash = Hash "4fdff9f1d751dba5a48bc2a14d6dfb21709882a13dad495b856bf76d5adf4bd1"
             }
         , transactions = Set.fromList
@@ -477,56 +467,49 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { epochIndex = 14
-            , slotNumber = 12
+            { slotId = SlotId 14 12
             , prevBlockHash = Hash "96a31a7cdb410aeb5756ddb43ee2ddb4c682f6308db38310ab54bf38b89d6b0d"
             }
         , transactions = Set.fromList []
         }
     , Block
         { header = BlockHeader
-            { epochIndex = 14
-            , slotNumber = 13
+            { slotId = SlotId 14 13
             , prevBlockHash = Hash "47c08c0a11f66aeab915e5cd19362e8da50dc2523e629b230b73ec7b6cdbeef8"
             }
         , transactions = Set.fromList []
         }
     , Block
         { header = BlockHeader
-            { epochIndex = 14
-            , slotNumber = 14
+            { slotId = SlotId 14 14
             , prevBlockHash = Hash "d6d7e79e2a25f53e6fb771eebd1be05274861004dc62c03bf94df03ff7b87198"
             }
         , transactions = Set.fromList []
         }
     , Block
         { header = BlockHeader
-            { epochIndex = 14
-            , slotNumber = 15
+            { slotId = SlotId 14 15
             , prevBlockHash = Hash "647e62b29ebcb0ecfa0b4deb4152913d1a669611d646072d2f5898835b88d938"
             }
         , transactions = Set.fromList []
         }
     , Block
         { header = BlockHeader
-            { epochIndex = 14
-            , slotNumber = 16
+            { slotId = SlotId 14 16
             , prevBlockHash = Hash "02f38ce50c9499f2526dd9c5f9e8899e65c0c40344e14ff01dc6c31137978efb"
             }
         , transactions = Set.fromList []
         }
     , Block
         { header = BlockHeader
-            { epochIndex = 14
-            , slotNumber = 17
+            { slotId = SlotId 14 17
             , prevBlockHash = Hash "528492ded729ca77a72b1d85654742db85dfd3b68e6c4117ce3c253e3e86616d"
             }
         , transactions = Set.fromList []
         }
     , Block
         { header = BlockHeader
-            { epochIndex = 14
-            , slotNumber = 18
+            { slotId = SlotId 14 18
             , prevBlockHash = Hash "f4283844eb78ca6f6333b007f5a735d71499d6ce7cc816846a033a36784bd299"
             }
         , transactions = Set.fromList
@@ -570,8 +553,7 @@ blockchain =
         }
     , Block
         { header = BlockHeader
-            { epochIndex = 14
-            , slotNumber = 19
+            { slotId = SlotId 14 19
             , prevBlockHash = Hash "dffc3506d381361468376227e1c9323a2ffc76011103e3225124f08e6969a73b"
             }
         , transactions = Set.fromList

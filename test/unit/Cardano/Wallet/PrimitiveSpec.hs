@@ -27,8 +27,8 @@ import Cardano.Wallet.Primitive
     , restrictedTo
     , updatePending
     )
-import Cardano.Wallet.SlottingSpec
-    ()
+import Cardano.Wallet.Slotting
+    ( SlotId (..) )
 import Data.Set
     ( Set, (\\) )
 import Test.Hspec
@@ -275,12 +275,15 @@ instance Arbitrary BlockHeader where
     -- No Shrinking
     arbitrary = BlockHeader
         <$> arbitrary
-        <*> arbitrary
         <*> oneof
             [ pure $ Hash "BLOCK01"
             , pure $ Hash "BLOCK02"
             , pure $ Hash "BLOCK03"
             ]
+
+instance Arbitrary SlotId where
+    shrink _ = []
+    arbitrary = SlotId <$> arbitrary <*> arbitrary
 
 instance Arbitrary Block where
     shrink (Block h txs) = Block h <$> shrink txs

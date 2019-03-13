@@ -15,19 +15,19 @@ import Prelude
 
 import Cardano.Wallet.Primitive
     ( Block (..), BlockHeader (..), Hash (..) )
-import Cardano.Wallet.Slotting
-    ( EpochIndex )
 import Control.Exception
     ( Exception (..) )
 import Control.Monad.Except
     ( ExceptT )
+import Data.Word
+    ( Word64 )
 
 -- | Endpoints of the cardano-http-bridge API.
 data NetworkLayer m = NetworkLayer
     { getBlock
         :: Hash "BlockHeader" -> ExceptT NetworkLayerError m Block
     , getEpoch
-        :: EpochIndex -> ExceptT NetworkLayerError m [Block]
+        :: Word64 -> ExceptT NetworkLayerError m [Block]
     , getNetworkTip
         :: ExceptT NetworkLayerError m (Hash "BlockHeader", BlockHeader)
     }

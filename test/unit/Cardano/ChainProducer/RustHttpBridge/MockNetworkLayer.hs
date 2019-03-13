@@ -9,52 +9,51 @@ import Cardano.ChainProducer.RustHttpBridge.NetworkLayer
 import Cardano.Wallet.Primitive
     ( Block (..), BlockHeader (..), Hash (..) )
 import Cardano.Wallet.Slotting
-    ( EpochIndex (..)
-    , LocalSlotIndex (..)
-    , SlotId (..)
-    , slotPrev
-    , slotsPerEpoch
-    )
+    ( SlotId (..), slotPrev, slotsPerEpoch )
 import Control.Monad.Catch
     ( MonadThrow (..) )
 import Control.Monad.Except
     ( throwError )
+import Data.Word
+    ( Word64 )
 
 import qualified Data.ByteString.Char8 as B8
 
 
 -- | Embed an epoch index and slot number into a hash.
 mockHash :: SlotId -> Hash a
-mockHash (SlotId (EpochIndex ep) (LocalSlotIndex sl))
-    = Hash $ B8.pack ("Hash " <> show ep <> "." <> show sl)
+mockHash (SlotId ep sl) =
+    Hash $ B8.pack ("Hash " <> show ep <> "." <> show sl)
 
 -- | Extract the epoch index and slot number from a hash.
 unMockHash :: Hash a -> SlotId
 unMockHash (Hash h) = parse . map B8.unpack . B8.split '.' . B8.drop 5 $ h
-    where
-        parse [ep, sl] =
-            SlotId (EpochIndex (read ep)) (LocalSlotIndex (read sl))
-        parse _ = error $ "Could not read mock hash: " ++ B8.unpack h
+  where
+    parse [ep, sl] = SlotId (read ep) (read sl)
+    parse _ = error $ "Could not read mock hash: " ++ B8.unpack h
 
 -- | Create a block header from its hash, assuming that the hash was created
 -- with 'mockHash'.
 mockHeaderFromHash :: Hash a -> BlockHeader
-mockHeaderFromHash h = BlockHeader ep sl prevHash
-    where
-        slotId@(SlotId ep sl) = unMockHash h
-        prevHash = maybe (Hash "?") mockHash (slotPrev slotId)
+mockHeaderFromHash h = BlockHeader slot prevHash
+  where
+    slot = unMockHash h
+    prevHash = maybe (Hash "?") mockHash (slotPrev slot)
 
 -- | Generate an entire epoch's worth of mock blocks. There are no transactions
 -- generated.
-mockEpoch :: EpochIndex -> [Block]
-mockEpoch ep = [ Block (mockHeaderFromHash (mockHash sl)) mempty
-               | sl <- [ SlotId ep i | i <- epochs ] ]
-    where epochs = [ 0 .. fromIntegral (slotsPerEpoch - 1) ]
+mockEpoch :: Word64 -> [Block]
+mockEpoch ep =
+    [ Block (mockHeaderFromHash (mockHash sl)) mempty
+    | sl <- [ SlotId ep i | i <- epochs ]
+    ]
+  where
+    epochs = [ 0 .. fromIntegral (slotsPerEpoch - 1) ]
 
 -- | A network layer which returns mock blocks.
 mockNetworkLayer
     :: MonadThrow m
-    => EpochIndex -- ^ make getEpoch fail for epochs after this
+    => Word64 -- ^ make getEpoch fail for epochs after this
     -> SlotId -- ^ the tip block
     -> NetworkLayer m
 mockNetworkLayer firstUnstableEpoch tip = NetworkLayer

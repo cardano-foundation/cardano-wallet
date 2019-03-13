@@ -13,7 +13,7 @@ import Cardano.ChainProducer.RustHttpBridge.NetworkLayer
 import Cardano.Wallet.Primitive
     ( BlockHeader (..), header )
 import Cardano.Wallet.Slotting
-    ( SlotId (SlotId) )
+    ( SlotId (..) )
 import Control.Exception
     ( Exception, throwIO )
 import Control.Monad
@@ -37,7 +37,7 @@ getNextBlocksSpec = do
         blocks <- runBackend network $ nextBlocks 1000 (SlotId 106 1000)
         -- the number of blocks between slots 1000 and 1492 inclusive
         length blocks `shouldBe` 493
-        let hdrs = map header blocks
+        let hdrs = map (slotId . header) blocks
         map slotNumber hdrs `shouldBe` [1000 .. 1492]
         map epochIndex hdrs `shouldSatisfy` all (== 106)
 
@@ -48,7 +48,7 @@ getNextBlocksSpec = do
     it "should get from old epochs" $ \network -> do
         blocks <- runBackend network $ nextBlocks 1000 (SlotId 104 10000)
         length blocks `shouldBe` 1000
-        map (epochIndex . header) blocks `shouldSatisfy` all (== 104)
+        map (epochIndex . slotId . header) blocks `shouldSatisfy` all (== 104)
 
     it "should produce no blocks if start slot is after tip" $ \network -> do
         blocks <- runBackend network $ nextBlocks 1000 (SlotId 107 0)

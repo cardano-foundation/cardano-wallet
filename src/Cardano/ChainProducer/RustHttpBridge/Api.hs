@@ -23,6 +23,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Text
     ( Text )
+import Data.Word
+    ( Word64 )
 import Prelude
 import Servant.API
     ( (:<|>), (:>), Capture, Get, ToHttpApiData (..) )
@@ -30,7 +32,6 @@ import Servant.Extra.ContentTypes
     ( CBOR, ComputeHash, FromCBOR (..), Hash, Packed, WithHash )
 
 import qualified Cardano.Wallet.Primitive as Primitive
-import qualified Cardano.Wallet.Slotting as Slotting
 
 api :: Proxy Api
 api = Proxy
@@ -78,11 +79,11 @@ instance FromCBOR BlockHeader where
 
 -- | Represents a unique epoch.
 newtype EpochIndex = EpochIndex
-    { getEpochIndex :: Slotting.EpochIndex
+    { getEpochIndex :: Word64
     } deriving (Eq, Show)
 
 instance ToHttpApiData (EpochIndex) where
-    toUrlPiece = toUrlPiece . Slotting.getEpochIndex . getEpochIndex
+    toUrlPiece = toUrlPiece . getEpochIndex
 
 -- | Represents the name of a Cardano network.
 newtype NetworkName = NetworkName
