@@ -51,6 +51,7 @@ module Cardano.Wallet.Primitive
     -- * Generic
     , Hash (..)
     , ShowFmt (..)
+    , invariant
     ) where
 
 import Prelude
@@ -303,3 +304,19 @@ newtype ShowFmt a = ShowFmt a
 
 instance Buildable a => Show (ShowFmt a) where
     show (ShowFmt a) = fmt (build a)
+
+
+-- | Check whether an invariants holds or not.
+--
+-- >>> invariant "not empty" [1,2,3] (not . null)
+-- [1, 2, 3]
+--
+-- >>> invariant "not empty" [] (not . null)
+-- *** Exception: not empty
+invariant
+    :: String -- ^ A title / message to throw in case of violation
+    -> a
+    -> (a -> Bool)
+    -> a
+invariant msg a predicate =
+    if predicate a then a else error msg

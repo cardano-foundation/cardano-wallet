@@ -13,7 +13,6 @@ import Cardano.Wallet
     ( applyBlock
     , availableBalance
     , initWallet
-    , invariant
     , totalBalance
     , totalUTxO
     , txOutsOurs
@@ -34,6 +33,7 @@ import Cardano.Wallet.Primitive
     , UTxO (..)
     , balance
     , excluding
+    , invariant
     , restrictedTo
     , txIns
     )
