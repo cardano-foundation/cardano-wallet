@@ -63,6 +63,9 @@ library
       Cardano.ChainProducer.RustHttpBridge.Api
       Cardano.ChainProducer.RustHttpBridge.Client
       Cardano.ChainProducer.RustHttpBridge.NetworkLayer
+      Cardano.NetworkLayer
+      Cardano.NetworkLayer.HttpBridge
+      Cardano.NetworkLayer.HttpBridge.Api
       Cardano.Wallet
       Cardano.Wallet.AddressDerivation
       Cardano.Wallet.AddressDiscovery
@@ -161,3 +164,6 @@ test-suite unit
       Cardano.Wallet.MnemonicSpec
       Cardano.Wallet.PrimitiveSpec
       Cardano.WalletSpec
+      Cardano.NetworkLayerSpec
+      Cardano.NetworkLayer.HttpBridgeSpec
+      Cardano.NetworkLayer.HttpBridge.ApiSpec
