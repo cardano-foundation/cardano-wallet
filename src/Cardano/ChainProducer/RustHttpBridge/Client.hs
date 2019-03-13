@@ -2,7 +2,11 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
 
--- | An API client for the Cardano HTTP Bridge.
+-- |
+-- Copyright: © 2018-2019 IOHK
+-- License: MIT
+--
+-- An API client for the Cardano HTTP Bridge.
 module Cardano.ChainProducer.RustHttpBridge.Client
     ( mkNetworkLayer
     ) where
@@ -49,25 +53,26 @@ getBlockByHash
     :<|> getTipBlockHeader
     = client api
 
+-- | Construct a new network layer
 mkNetworkLayer :: Manager -> BaseUrl -> NetworkName -> NetworkLayer IO
 mkNetworkLayer mgr baseUrl network = NetworkLayer
     { getBlock = \hash -> do
-            hash' <- hashToApi' hash
-            run (Api.getBlock <$> getBlockByHash network hash')
-    , getEpoch = \ep -> run (map Api.getBlock
-                             <$> getEpochById network (Api.EpochIndex ep))
+        hash' <- hashToApi' hash
+        run (Api.getBlock <$> getBlockByHash network hash')
+    , getEpoch = \ep -> run (map Api.getBlock <$>
+        getEpochById network (Api.EpochIndex ep))
     , getNetworkTip = run (blockHeaderHash <$> getTipBlockHeader network)
     }
-    where
-        run query = ExceptT $ (first convertError) <$> runClientM query env
-        env = mkClientEnv mgr baseUrl
-        convertError = NetworkLayerError . show
+  where
+    run query = ExceptT $ (first convertError) <$> runClientM query env
+    env = mkClientEnv mgr baseUrl
+    convertError = NetworkLayerError . show
 
 blockHeaderHash
     :: WithHash algorithm BlockHeader
     -> (Primitive.Hash "BlockHeader", Primitive.BlockHeader)
-blockHeaderHash (WithHash h (Api.BlockHeader bh))
-    = (Primitive.Hash (convert h), bh)
+blockHeaderHash (WithHash h (Api.BlockHeader bh)) =
+    (Primitive.Hash (convert h), bh)
 
 hashToApi :: HashAlgorithm a => Primitive.Hash h -> Maybe (Hash a b)
 hashToApi (Primitive.Hash h) = Hash <$> digestFromByteString h

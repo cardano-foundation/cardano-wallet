@@ -27,7 +27,7 @@ import Cardano.Wallet.Primitive
     , restrictedTo
     , updatePending
     )
-import Cardano.Wallet.SlottingOrphans
+import Cardano.Wallet.SlottingSpec
     ()
 import Data.Set
     ( Set, (\\) )
