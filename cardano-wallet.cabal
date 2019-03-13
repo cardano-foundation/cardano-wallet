@@ -58,11 +58,6 @@ library
   hs-source-dirs:
       src
   exposed-modules:
-      Cardano.ChainProducer
-      Cardano.ChainProducer.RustHttpBridge
-      Cardano.ChainProducer.RustHttpBridge.Api
-      Cardano.ChainProducer.RustHttpBridge.Client
-      Cardano.ChainProducer.RustHttpBridge.NetworkLayer
       Cardano.NetworkLayer
       Cardano.NetworkLayer.HttpBridge
       Cardano.NetworkLayer.HttpBridge.Api
@@ -154,8 +149,6 @@ test-suite unit
   main-is:
       Main.hs
   other-modules:
-      Cardano.ChainProducer.RustHttpBridge.MockNetworkLayer
-      Cardano.ChainProducer.RustHttpBridgeSpec
       Cardano.Wallet.AddressDerivationSpec
       Cardano.Wallet.AddressDiscoverySpec
       Cardano.Wallet.Binary.PackfileSpec
