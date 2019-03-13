@@ -14,7 +14,7 @@ import Prelude
 import Cardano.Wallet.BlockSyncer
     ( BlockHeadersConsumed (..), tickingFunction )
 import Cardano.Wallet.Primitive
-    ( Block (..), BlockHeader (..), Hash (..), SlotId (..), slotNext )
+    ( Block (..), BlockHeader (..), Hash (..), SlotId (..) )
 import Control.Concurrent
     ( forkIO, killThread )
 import Control.Concurrent.MVar
@@ -128,7 +128,7 @@ instance Arbitrary Blocks where
         next (prev, b) =
             let
                 slot = slotId (header b)
-                h = BlockHeader (slotNext slot) prev
+                h = BlockHeader (succ slot) prev
             in
                 (blockHeaderHash h, Block h mempty)
 

@@ -27,7 +27,6 @@ import Cardano.Wallet.Primitive
     , Hash (..)
     , SlotId (..)
     , slotIncr
-    , slotNext
     , slotsPerEpoch
     )
 import Control.Monad.Except
@@ -90,7 +89,7 @@ rbNextBlocks numBlocks start = do
 
     -- The next slot after the last block.
     slotAfter [] = Nothing
-    slotAfter bs = Just . slotNext . slotId . header . last $ bs
+    slotAfter bs = Just . succ . slotId . header . last $ bs
 
     -- Grab the remaining blocks which aren't packed in epoch files,
     -- starting from the tip.

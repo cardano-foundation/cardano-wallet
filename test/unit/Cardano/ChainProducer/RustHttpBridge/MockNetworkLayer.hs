@@ -7,13 +7,7 @@ import Prelude
 import Cardano.ChainProducer.RustHttpBridge.NetworkLayer
     ( NetworkLayer (..), NetworkLayerError (..) )
 import Cardano.Wallet.Primitive
-    ( Block (..)
-    , BlockHeader (..)
-    , Hash (..)
-    , SlotId (..)
-    , slotPrev
-    , slotsPerEpoch
-    )
+    ( Block (..), BlockHeader (..), Hash (..), SlotId (..), slotsPerEpoch )
 import Control.Monad.Catch
     ( MonadThrow (..) )
 import Control.Monad.Except
@@ -42,7 +36,11 @@ mockHeaderFromHash :: Hash a -> BlockHeader
 mockHeaderFromHash h = BlockHeader slot prevHash
   where
     slot = unMockHash h
-    prevHash = maybe (Hash "?") mockHash (slotPrev slot)
+    prevHash =
+        if slot == SlotId 0 0 then
+            Hash "genesis"
+        else
+            mockHash (pred slot)
 
 -- | Generate an entire epoch's worth of mock blocks. There are no transactions
 -- generated.

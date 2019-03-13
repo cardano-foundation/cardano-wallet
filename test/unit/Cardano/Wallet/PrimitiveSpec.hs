@@ -29,8 +29,6 @@ import Cardano.Wallet.Primitive
     , restrictedTo
     , slotDiff
     , slotIncr
-    , slotNext
-    , slotPrev
     , slotsPerEpoch
     , updatePending
     )
@@ -46,6 +44,7 @@ import Test.QuickCheck
     , checkCoverage
     , choose
     , cover
+    , expectFailure
     , oneof
     , property
     , scale
@@ -95,16 +94,22 @@ spec = do
             (checkCoverage prop_3_2)
 
     describe "Basic slot arithmetic" $ do
-        it "slotNext . slotPrev = id"
+        let maxSlot = toEnum maxBound :: SlotId
+        it "succ . pred = id"
             (property propNextSlotPrevSlot)
-        it "slotNext always increments the SlotId"
+        it "succ always increments the SlotId"
             (property propNextIncrements)
-        it "slotPrev decrements the SlotId"
+        it ("succ on max slot (" <> show maxSlot <>") throws at runtime")
+            (expectFailure prop_succSlotMaxIntFails)
+        it "pred decrements the SlotId"
             (property propPrevDecrements)
+        it "pred on initial slot throws at runtime"
+            (expectFailure prop_predSlot0Fails)
         it "slotDiff results in correct difference"
             (property propAddSlotsDiff)
         it "slotIncr 0 == id"
             (property propAddSlotsId)
+
 
 
 {-------------------------------------------------------------------------------
@@ -238,14 +243,22 @@ prop_3_2 (b, pending) =
 -------------------------------------------------------------------------------}
 
 propNextSlotPrevSlot :: SlotId -> Property
-propNextSlotPrevSlot sl = slotPrev (slotNext sl) === Just sl
+propNextSlotPrevSlot sl = pred (succ sl) === sl
 
 propNextIncrements :: SlotId -> Property
-propNextIncrements sl = slotDiff (slotNext sl) sl === 1
+propNextIncrements sl = slotDiff (succ sl) sl === 1
 
 propPrevDecrements :: SlotId -> Property
 propPrevDecrements sl =
-    sl > SlotId 0 0 ==> (slotDiff sl <$> slotPrev sl) === Just 1
+    sl > SlotId 0 0 ==> slotDiff sl (pred sl) === 1
+
+prop_predSlot0Fails :: Property
+prop_predSlot0Fails =
+    property $ pred (SlotId 0 0) `seq` ()
+
+prop_succSlotMaxIntFails :: Property
+prop_succSlotMaxIntFails =
+    property $ succ (toEnum (maxBound :: Int) :: SlotId) `seq` ()
 
 propAddSlotsDiff :: (Natural, SlotId) -> Property
 propAddSlotsDiff (n, sl) =
@@ -326,9 +339,7 @@ instance Arbitrary BlockHeader where
 
 instance Arbitrary SlotId where
     shrink _ = []
-    arbitrary = SlotId
-        <$> arbitrary
-        <*> choose (0, fromIntegral slotsPerEpoch - 1)
+    arbitrary = toEnum <$> choose (0, maxBound `div` 2)
 
 instance Arbitrary Natural where
     shrink 0 = []

@@ -5,6 +5,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -52,10 +53,8 @@ module Cardano.Wallet.Primitive
     , SlotId (..)
     , isValidSlotId
     , slotsPerEpoch
-    , slotIncr
     , slotDiff
-    , slotNext
-    , slotPrev
+    , slotIncr
 
     -- * Polymorphic
     , Hash (..)
@@ -292,6 +291,10 @@ restrictedTo (UTxO utxo) outs =
 
 -- * Slotting
 
+-- | Hard-coded for the time being
+slotsPerEpoch :: Natural
+slotsPerEpoch = 21600
+
 -- | A slot identifier is the combination of an epoch and slot.
 data SlotId = SlotId
   { epochIndex :: !Word64
@@ -300,39 +303,30 @@ data SlotId = SlotId
 
 instance NFData SlotId
 
--- | Hard-coded for the time being
-slotsPerEpoch :: Natural
-slotsPerEpoch = 21600
+instance Enum SlotId where
+    toEnum i
+        | i < 0 = error "SlotId.toEnum: bad argument"
+        | otherwise = slotIncr (fromIntegral i) (SlotId 0 0)
+    fromEnum (SlotId e s)
+        | n > fromIntegral (maxBound @Int) =
+            error "SlotId.fromEnum: arithmetic overflow"
+        | otherwise = fromIntegral n
+      where
+        n :: Natural
+        n = fromIntegral e * fromIntegral slotsPerEpoch + fromIntegral s
 
 -- | Add a number of slots to an (Epoch, LocalSlotIndex) pair, where the number
 -- of slots can be greater than one epoch.
 slotIncr :: Natural -> SlotId -> SlotId
-slotIncr n (SlotId e s) =
-    SlotId (e + e') s'
+slotIncr n slot = SlotId e s
   where
-    e' = fromIntegral (n' `div` slotsPerEpoch)
-    s' = fromIntegral (n' `mod` slotsPerEpoch)
-    n' = fromIntegral s + n
+    e = fromIntegral (fromIntegral n' `div` slotsPerEpoch)
+    s = fromIntegral (fromIntegral n' `mod` slotsPerEpoch)
+    n' = n + fromIntegral (fromEnum slot)
 
 -- | @slotDiff a b@ is the number of slots by which @a@ is greater than @b@.
 slotDiff :: SlotId -> SlotId -> Integer
-slotDiff s1 s2 = flatten s1 - flatten s2
-    where flatten = fromIntegral . flattenSlotId
-
--- | Convert SlotId into number of slots since genesis.
-flattenSlotId :: SlotId -> Natural
-flattenSlotId (SlotId e s) =
-    fromIntegral e * slotsPerEpoch + fromIntegral s
-
--- | The slot after.
-slotNext :: SlotId -> SlotId
-slotNext = slotIncr 1
-
--- | The slot before, if there is one.
-slotPrev :: SlotId -> Maybe SlotId
-slotPrev (SlotId 0 0) = Nothing
-slotPrev (SlotId e 0) = Just $ SlotId (e - 1) (fromIntegral slotsPerEpoch - 1)
-slotPrev (SlotId e s) = Just $ SlotId e (s - 1)
+slotDiff s1 s2 = fromIntegral (fromEnum s1 - fromEnum s2)
 
 -- | Whether the epoch index and slot number are in range.
 isValidSlotId :: SlotId -> Bool
