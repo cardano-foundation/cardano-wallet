@@ -1,33 +1,39 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Cardano.ChainProducer</span><span>
-</span><a name="line-2"></a><span>    </span><span class="hs-special">(</span><span> </span><a href="Cardano.ChainProducer.html#MonadChainProducer"><span class="hs-identifier hs-type">MonadChainProducer</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
-</span><a name="line-3"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Cardano.ChainProducer.html#ErrGetNextBlocks"><span class="hs-identifier hs-type">ErrGetNextBlocks</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
-</span><a name="line-4"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
-</span><a name="line-5"></a><span>
-</span><a name="line-6"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Prelude</span><span>
-</span><a name="line-7"></a><span>
-</span><a name="line-8"></a><span class="hs-keyword">import</span><span> </span><a href="Cardano.Wallet.Primitive.html"><span class="hs-identifier">Cardano.Wallet.Primitive</span></a><span>
-</span><a name="line-9"></a><span>    </span><span class="hs-special">(</span><span> </span><a href="Cardano.Wallet.Primitive.html#Block"><span class="hs-identifier hs-type">Block</span></a><span> </span><span class="hs-special">)</span><span>
-</span><a name="line-10"></a><span class="hs-keyword">import</span><span> </span><a href="Cardano.Wallet.Slotting.html"><span class="hs-identifier">Cardano.Wallet.Slotting</span></a><span>
-</span><a name="line-11"></a><span>    </span><span class="hs-special">(</span><span> </span><a href="Cardano.Wallet.Slotting.html#SlotCount"><span class="hs-identifier hs-type">SlotCount</span></a><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.Slotting.html#SlotId"><span class="hs-identifier hs-type">SlotId</span></a><span> </span><span class="hs-special">)</span><span>
-</span><a name="line-12"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Exception</span><span>
-</span><a name="line-13"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Exception</span><span> </span><span class="hs-special">)</span><span>
-</span><a name="line-14"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Monad.Except</span><span>
-</span><a name="line-15"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">ExceptT</span><span> </span><span class="hs-special">)</span><span>
-</span><a name="line-16"></a><span>
-</span><a name="line-17"></a><span class="hs-keyword">class</span><span> </span><a name="MonadChainProducer"><a href="Cardano.ChainProducer.html#MonadChainProducer"><span class="hs-identifier">MonadChainProducer</span></a></a><span> </span><a name="local-6989586621679126209"><a href="#local-6989586621679126209"><span class="hs-identifier">m</span></a></a><span> </span><span class="hs-keyword">where</span><span>
-</span><a name="line-18"></a><span>    </span><span class="hs-comment">-- | Get some blocks from the chain producer.</span><span>
-</span><a name="line-19"></a><span>    </span><span class="hs-comment">--</span><span>
-</span><a name="line-20"></a><span>    </span><span class="hs-comment">-- This may retrieve less than the requested number of blocks.</span><span>
-</span><a name="line-21"></a><span>    </span><span class="hs-comment">-- It might return no blocks at all.</span><span>
-</span><a name="line-22"></a><span>    </span><a name="nextBlocks"><a href="Cardano.ChainProducer.html#nextBlocks"><span class="hs-identifier">nextBlocks</span></a></a><span>
-</span><a name="line-23"></a><span>        </span><span class="hs-glyph">::</span><span> </span><a href="Cardano.Wallet.Slotting.html#SlotCount"><span class="hs-identifier hs-type">SlotCount</span></a><span> </span><span class="hs-comment">-- ^ Number of blocks to retrieve</span><span>
-</span><a name="line-24"></a><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Cardano.Wallet.Slotting.html#SlotId"><span class="hs-identifier hs-type">SlotId</span></a><span>    </span><span class="hs-comment">-- ^ Starting point</span><span>
-</span><a name="line-25"></a><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">ExceptT</span><span> </span><a href="Cardano.ChainProducer.html#ErrGetNextBlocks"><span class="hs-identifier hs-type">ErrGetNextBlocks</span></a><span> </span><a href="#local-6989586621679126209"><span class="hs-identifier hs-type">m</span></a><span> </span><span class="hs-special">[</span><a href="Cardano.Wallet.Primitive.html#Block"><span class="hs-identifier hs-type">Block</span></a><span class="hs-special">]</span><span>
-</span><a name="line-26"></a><span>
-</span><a name="line-27"></a><span class="hs-comment">-- | The things that can go wrong when retrieving blocks.</span><span>
-</span><a name="line-28"></a><span class="hs-keyword">newtype</span><span> </span><a name="ErrGetNextBlocks"><a href="Cardano.ChainProducer.html#ErrGetNextBlocks"><span class="hs-identifier">ErrGetNextBlocks</span></a></a><span>
-</span><a name="line-29"></a><span>    </span><span class="hs-glyph">=</span><span> </span><a name="GetNextBlocksError"><a href="Cardano.ChainProducer.html#GetNextBlocksError"><span class="hs-identifier">GetNextBlocksError</span></a></a><span> </span><span class="hs-identifier hs-type">String</span><span>
-</span><a name="line-30"></a><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Show</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Eq</span><span class="hs-special">)</span><span>
-</span><a name="line-31"></a><span>
-</span><a name="line-32"></a><span class="hs-keyword">instance</span><span> </span><span class="hs-identifier hs-type">Exception</span><span> </span><a href="Cardano.ChainProducer.html#ErrGetNextBlocks"><span class="hs-identifier hs-type">ErrGetNextBlocks</span></a><span>
-</span><a name="line-33"></a></pre></body></html>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><a name="line-2"></a><span class="hs-comment">-- Copyright: &#169; 2018-2019 IOHK</span><span>
+</span><a name="line-3"></a><span class="hs-comment">-- License: MIT</span><span>
+</span><a name="line-4"></a><span>
+</span><a name="line-5"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Cardano.ChainProducer</span><span>
+</span><a name="line-6"></a><span>    </span><span class="hs-special">(</span><span> </span><a href="Cardano.ChainProducer.html#MonadChainProducer"><span class="hs-identifier hs-type">MonadChainProducer</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-7"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Cardano.ChainProducer.html#ErrGetNextBlocks"><span class="hs-identifier hs-type">ErrGetNextBlocks</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-8"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-9"></a><span>
+</span><a name="line-10"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Prelude</span><span>
+</span><a name="line-11"></a><span>
+</span><a name="line-12"></a><span class="hs-keyword">import</span><span> </span><a href="Cardano.Wallet.Primitive.html"><span class="hs-identifier">Cardano.Wallet.Primitive</span></a><span>
+</span><a name="line-13"></a><span>    </span><span class="hs-special">(</span><span> </span><a href="Cardano.Wallet.Primitive.html#Block"><span class="hs-identifier hs-type">Block</span></a><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-14"></a><span class="hs-keyword">import</span><span> </span><a href="Cardano.Wallet.Slotting.html"><span class="hs-identifier">Cardano.Wallet.Slotting</span></a><span>
+</span><a name="line-15"></a><span>    </span><span class="hs-special">(</span><span> </span><a href="Cardano.Wallet.Slotting.html#SlotId"><span class="hs-identifier hs-type">SlotId</span></a><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-16"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Exception</span><span>
+</span><a name="line-17"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Exception</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-18"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Monad.Except</span><span>
+</span><a name="line-19"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">ExceptT</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-20"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Numeric.Natural</span><span>
+</span><a name="line-21"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Natural</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-22"></a><span>
+</span><a name="line-23"></a><span class="hs-keyword">class</span><span> </span><a name="MonadChainProducer"><a href="Cardano.ChainProducer.html#MonadChainProducer"><span class="hs-identifier">MonadChainProducer</span></a></a><span> </span><a name="local-6989586621679126203"><a href="#local-6989586621679126203"><span class="hs-identifier">m</span></a></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-24"></a><span>    </span><span class="hs-comment">-- | Get some blocks from the chain producer.</span><span>
+</span><a name="line-25"></a><span>    </span><span class="hs-comment">--</span><span>
+</span><a name="line-26"></a><span>    </span><span class="hs-comment">-- This may retrieve less than the requested number of blocks.</span><span>
+</span><a name="line-27"></a><span>    </span><span class="hs-comment">-- It might return no blocks at all.</span><span>
+</span><a name="line-28"></a><span>    </span><a name="nextBlocks"><a href="Cardano.ChainProducer.html#nextBlocks"><span class="hs-identifier">nextBlocks</span></a></a><span>
+</span><a name="line-29"></a><span>        </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Natural</span><span> </span><span class="hs-comment">-- ^ Number of blocks to retrieve</span><span>
+</span><a name="line-30"></a><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Cardano.Wallet.Slotting.html#SlotId"><span class="hs-identifier hs-type">SlotId</span></a><span> </span><span class="hs-comment">-- ^ Starting point</span><span>
+</span><a name="line-31"></a><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">ExceptT</span><span> </span><a href="Cardano.ChainProducer.html#ErrGetNextBlocks"><span class="hs-identifier hs-type">ErrGetNextBlocks</span></a><span> </span><a href="#local-6989586621679126203"><span class="hs-identifier hs-type">m</span></a><span> </span><span class="hs-special">[</span><a href="Cardano.Wallet.Primitive.html#Block"><span class="hs-identifier hs-type">Block</span></a><span class="hs-special">]</span><span>
+</span><a name="line-32"></a><span>
+</span><a name="line-33"></a><span class="hs-comment">-- | The things that can go wrong when retrieving blocks.</span><span>
+</span><a name="line-34"></a><span class="hs-keyword">newtype</span><span> </span><a name="ErrGetNextBlocks"><a href="Cardano.ChainProducer.html#ErrGetNextBlocks"><span class="hs-identifier">ErrGetNextBlocks</span></a></a><span>
+</span><a name="line-35"></a><span>    </span><span class="hs-glyph">=</span><span> </span><a name="GetNextBlocksError"><a href="Cardano.ChainProducer.html#GetNextBlocksError"><span class="hs-identifier">GetNextBlocksError</span></a></a><span> </span><span class="hs-identifier hs-type">String</span><span>
+</span><a name="line-36"></a><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Show</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Eq</span><span class="hs-special">)</span><span>
+</span><a name="line-37"></a><span>
+</span><a name="line-38"></a><span class="hs-keyword">instance</span><span> </span><span class="hs-identifier hs-type">Exception</span><span> </span><a href="Cardano.ChainProducer.html#ErrGetNextBlocks"><span class="hs-identifier hs-type">ErrGetNextBlocks</span></a><span>
+</span><a name="line-39"></a></pre></body></html>

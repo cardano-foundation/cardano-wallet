@@ -97,6 +97,7 @@ instance GHC.Classes.Eq Crypto.Encoding.BIP39.MnemonicWordsError
 instance GHC.Classes.Eq Crypto.Encoding.BIP39.Dictionary.DictionaryError
 instance GHC.TypeNats.KnownNat csz => GHC.Exception.Type.Exception (Cardano.Wallet.Mnemonic.MnemonicException csz)
 
+
 module Cardano.Wallet.Slotting
 
 -- | A slot identifier is the combination of an epoch and slot.
@@ -114,14 +115,13 @@ EpochIndex :: Word64 -> EpochIndex
 newtype LocalSlotIndex
 LocalSlotIndex :: Word16 -> LocalSlotIndex
 [getLocalSlotIndex] :: LocalSlotIndex -> Word16
-type SlotCount = Natural
 
 -- | Hard-coded for the time being
-slotsPerEpoch :: SlotCount
+slotsPerEpoch :: Natural
 
 -- | Add a number of slots to an (Epoch, LocalSlotIndex) pair, where the
 --   number of slots can be greater than one epoch.
-addSlots :: SlotCount -> SlotId -> SlotId
+addSlots :: Natural -> SlotId -> SlotId
 
 -- | <tt>slotDiff a b</tt> is the number of slots by which <tt>a</tt> is
 --   greater than <tt>b</tt>.
@@ -453,6 +453,8 @@ utxoFromTx :: Tx -> UTxO
 instance GHC.Show.Show (Cardano.Wallet.Wallet s)
 instance Control.DeepSeq.NFData (Cardano.Wallet.Wallet s)
 
+
+-- | Representation of a network layer
 module Cardano.ChainProducer.RustHttpBridge.NetworkLayer
 
 -- | Endpoints of the cardano-http-bridge API.
@@ -467,6 +469,7 @@ instance GHC.Classes.Eq Cardano.ChainProducer.RustHttpBridge.NetworkLayer.Networ
 instance GHC.Show.Show Cardano.ChainProducer.RustHttpBridge.NetworkLayer.NetworkLayerError
 instance GHC.Exception.Type.Exception Cardano.ChainProducer.RustHttpBridge.NetworkLayer.NetworkLayerError
 
+
 module Cardano.ChainProducer
 class MonadChainProducer m
 
@@ -474,7 +477,7 @@ class MonadChainProducer m
 --   
 --   This may retrieve less than the requested number of blocks. It might
 --   return no blocks at all.
-nextBlocks :: MonadChainProducer m => SlotCount -> SlotId -> ExceptT ErrGetNextBlocks m [Block]
+nextBlocks :: MonadChainProducer m => Natural -> SlotId -> ExceptT ErrGetNextBlocks m [Block]
 
 -- | The things that can go wrong when retrieving blocks.
 newtype ErrGetNextBlocks
@@ -482,6 +485,7 @@ GetNextBlocksError :: String -> ErrGetNextBlocks
 instance GHC.Classes.Eq Cardano.ChainProducer.ErrGetNextBlocks
 instance GHC.Show.Show Cardano.ChainProducer.ErrGetNextBlocks
 instance GHC.Exception.Type.Exception Cardano.ChainProducer.ErrGetNextBlocks
+
 
 module Cardano.ChainProducer.RustHttpBridge
 data RustBackend a
@@ -571,4 +575,6 @@ instance Servant.Extra.ContentTypes.FromCBOR Cardano.ChainProducer.RustHttpBridg
 
 -- | An API client for the Cardano HTTP Bridge.
 module Cardano.ChainProducer.RustHttpBridge.Client
+
+-- | Construct a new network layer
 mkNetworkLayer :: Manager -> BaseUrl -> NetworkName -> NetworkLayer IO
