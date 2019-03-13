@@ -74,6 +74,7 @@ data TestVector = TestVector
 
 spec :: Spec
 spec = do
+
     prop "(9) entropyToMnemonic . mnemonicToEntropy == identity" $
         \e -> (mnemonicToEntropy @9 . entropyToMnemonic @9 @(EntropySize 9)) e == e
 
@@ -83,6 +84,15 @@ spec = do
     prop "(15) entropyToMnemonic . mnemonicToEntropy == identity" $
         \e -> (mnemonicToEntropy @15 . entropyToMnemonic @15 @(EntropySize 15)) e == e
 
+    prop "(18) entropyToMnemonic . mnemonicToEntropy == identity" $
+        \e -> (mnemonicToEntropy @18 . entropyToMnemonic @18 @(EntropySize 18)) e == e
+
+    prop "(21) entropyToMnemonic . mnemonicToEntropy == identity" $
+        \e -> (mnemonicToEntropy @21 . entropyToMnemonic @21 @(EntropySize 21)) e == e
+
+    prop "(24) entropyToMnemonic . mnemonicToEntropy == identity" $
+        \e -> (mnemonicToEntropy @24 . entropyToMnemonic @24 @(EntropySize 24)) e == e
+
     prop "(9) mkMnemonic . mnemonicToText == pure" $
         \(mw :: Mnemonic 9) -> (mkMnemonic @9 . mnemonicToText) mw === pure mw
 
@@ -91,6 +101,16 @@ spec = do
 
     prop "(15) mkMnemonic . mnemonicToText == pure" $
         \(mw :: Mnemonic 15) -> (mkMnemonic @15 . mnemonicToText) mw === pure mw
+
+    prop "(18) mkMnemonic . mnemonicToText == pure" $
+        \(mw :: Mnemonic 18) -> (mkMnemonic @18 . mnemonicToText) mw === pure mw
+
+    prop "(21) mkMnemonic . mnemonicToText == pure" $
+        \(mw :: Mnemonic 21) -> (mkMnemonic @21 . mnemonicToText) mw === pure mw
+
+    prop "(24) mkMnemonic . mnemonicToText == pure" $
+        \(mw :: Mnemonic 24) -> (mkMnemonic @24 . mnemonicToText) mw === pure mw
+
 
     describe "golden tests" $ do
         it "No empty mnemonic" $
@@ -105,6 +125,18 @@ spec = do
         it "Can generate 128 bits entropy" $
             (BS.length . entropyToByteString <$> genEntropy @128) `shouldReturn` 16
 
+        it "Can generate 160 bits entropy" $
+            (BS.length . entropyToByteString <$> genEntropy @160) `shouldReturn` 20
+
+        it "Can generate 192 bits entropy" $
+            (BS.length . entropyToByteString <$> genEntropy @192) `shouldReturn` 24
+
+        it "Can generate 224 bits entropy" $
+            (BS.length . entropyToByteString <$> genEntropy @224) `shouldReturn` 28
+
+        it "Can generate 256 bits entropy" $
+            (BS.length . entropyToByteString <$> genEntropy @256) `shouldReturn` 32
+
         it "Mnemonic to Text" $ forM_ testVectors $ \TestVector{..} ->
             mnemonicToText mnemonic `shouldBe` extractWords string
 
@@ -116,8 +148,15 @@ spec = do
                     "[squirrel,material,silly,twice,direct,slush,pistol,razor,become,junk,kingdom,flee,squirrel,silly,twice]"
             (mkMnemonic @15 . extractWords) mnemonicFromApi `shouldSatisfy` isLeft
 
+        it "Mnemonic 2nd factor from Api is invalid" $ do
+            let mnemonicFromApi =
+                    "[squirrel,material,silly,twice,direct,slush,pistol,razor,become]"
+            (mkMnemonic @9 . extractWords) mnemonicFromApi `shouldSatisfy` isLeft
+
         it "Mnemonic to Entropy" $ forM_ testVectors $ \TestVector{..} ->
             mnemonicToEntropy mnemonic `shouldBe` entropy
+
+
   where
     testVectors :: [TestVector]
     testVectors =
