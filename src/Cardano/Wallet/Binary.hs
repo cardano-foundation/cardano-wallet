@@ -25,6 +25,7 @@ module Cardano.Wallet.Binary
 
     -- * Encoding
     , encodeTx
+    , encodeAddress
 
     -- * Hashing
     , txId
@@ -37,6 +38,8 @@ module Cardano.Wallet.Binary
 
 import Prelude
 
+import Cardano.Crypto.Wallet
+    ( ChainCode (..), XPub (..) )
 import Cardano.Wallet.Primitive
     ( Address (..)
     , Block (..)
@@ -54,7 +57,7 @@ import Control.Monad
 import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
-    ( Blake2b_256 )
+    ( Blake2b_224, Blake2b_256, SHA3_256 )
 import Data.ByteString
     ( ByteString )
 import Data.Digest.CRC32
@@ -437,6 +440,56 @@ decodeUpdateProof = do
 
 
 -- * Encoding
+
+-- | Encode a public key to a corresponding Cardano Address. The encoding of the
+-- attributes part of an address is left out to the caller; This allows for
+-- distinguishing between Sequential and Random addresses (the former doesn't
+-- have any attributes to encode).
+--
+-- @
+-- -- Old / Random Addresses
+-- let encodeAttributes = mempty
+--      <> CBOR.encodeMapLen 1
+--      <> CBOR.encodeWord8 1
+--      <> encodeDerivationPath (hdPassphrase rootXPub) accIx addrIx
+-- let addr = encodeAddress xpub encodeAttributes
+--
+-- -- New / Sequential Addresses
+-- let encodeAttributes = mempty <> CBOR.encodeMapLen 0
+-- let addr = encodeAddress xpub encodeAttributes
+-- @
+--
+-- Note that we are passing the behavior to encode attributes as a parameter
+-- here and do not handle multiple cases in 'encodeAddress' itself for multiple
+-- reasons:
+--
+-- - Inversion of control gives us a nicer implementation overall
+--
+-- - Encoding attributes for Random addresses requires more context than just
+--   the public key (like the wallet root id and some extra logic for encoding
+--   passphrases). This is just scheme-specific and is better left out of this
+--   particular function
+encodeAddress :: XPub -> CBOR.Encoding -> CBOR.Encoding
+encodeAddress (XPub pub (ChainCode cc)) encodeAttributes =
+    encodeAddressPayload payload
+  where
+    blake2b224 = hash @_ @Blake2b_224
+    sha3256 = hash @_ @SHA3_256
+    payload = CBOR.toStrictByteString $ mempty
+        <> CBOR.encodeListLen 3
+        <> CBOR.encodeBytes root
+        <> encodeAttributes
+        <> CBOR.encodeWord8 0 -- Address Type, 0 = Public Key
+    root = BA.convert $ blake2b224 $ sha3256 $ CBOR.toStrictByteString $ mempty
+        <> CBOR.encodeListLen 3
+        <> CBOR.encodeWord8 0 -- Address Type, 0 = Public Key
+        <> encodeSpendingData
+        <> encodeAttributes
+    encodeXPub =
+        CBOR.encodeBytes (pub <> cc)
+    encodeSpendingData = CBOR.encodeListLen 2
+        <> CBOR.encodeWord8 0
+        <> encodeXPub
 
 encodeAddressPayload :: ByteString -> CBOR.Encoding
 encodeAddressPayload payload = mempty
