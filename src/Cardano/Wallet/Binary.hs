@@ -46,12 +46,11 @@ import Cardano.Wallet.Primitive
     , BlockHeader (..)
     , Coin (..)
     , Hash (..)
+    , SlotId (..)
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
     )
-import Cardano.Wallet.Slotting
-    ( SlotId (..) )
 import Control.Monad
     ( void )
 import Crypto.Hash

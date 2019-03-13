@@ -7,9 +7,13 @@ import Prelude
 import Cardano.ChainProducer.RustHttpBridge.NetworkLayer
     ( NetworkLayer (..), NetworkLayerError (..) )
 import Cardano.Wallet.Primitive
-    ( Block (..), BlockHeader (..), Hash (..) )
-import Cardano.Wallet.Slotting
-    ( SlotId (..), slotPrev, slotsPerEpoch )
+    ( Block (..)
+    , BlockHeader (..)
+    , Hash (..)
+    , SlotId (..)
+    , slotPrev
+    , slotsPerEpoch
+    )
 import Control.Monad.Catch
     ( MonadThrow (..) )
 import Control.Monad.Except

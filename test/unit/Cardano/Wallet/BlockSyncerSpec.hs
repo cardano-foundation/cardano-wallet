@@ -14,9 +14,7 @@ import Prelude
 import Cardano.Wallet.BlockSyncer
     ( BlockHeadersConsumed (..), tickingFunction )
 import Cardano.Wallet.Primitive
-    ( Block (..), BlockHeader (..), Hash (..) )
-import Cardano.Wallet.Slotting
-    ( SlotId (..), slotNext )
+    ( Block (..), BlockHeader (..), Hash (..), SlotId (..), slotNext )
 import Control.Concurrent
     ( forkIO, killThread )
 import Control.Concurrent.MVar

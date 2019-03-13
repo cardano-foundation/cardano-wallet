@@ -11,9 +11,7 @@ import Cardano.ChainProducer.RustHttpBridge.MockNetworkLayer
 import Cardano.ChainProducer.RustHttpBridge.NetworkLayer
     ( NetworkLayer )
 import Cardano.Wallet.Primitive
-    ( BlockHeader (..), header )
-import Cardano.Wallet.Slotting
-    ( SlotId (..) )
+    ( BlockHeader (..), SlotId (..), header )
 import Control.Exception
     ( Exception, throwIO )
 import Control.Monad

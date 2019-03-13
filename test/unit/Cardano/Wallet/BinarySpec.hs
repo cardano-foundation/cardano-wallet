@@ -17,12 +17,11 @@ import Cardano.Wallet.Primitive
     , BlockHeader (..)
     , Coin (..)
     , Hash (..)
+    , SlotId (..)
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
     )
-import Cardano.Wallet.Slotting
-    ( SlotId (..) )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase )
 import Data.ByteString

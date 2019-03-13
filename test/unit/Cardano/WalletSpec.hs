@@ -27,6 +27,7 @@ import Cardano.Wallet.Primitive
     , Hash (..)
     , IsOurs (..)
     , ShowFmt (..)
+    , SlotId (..)
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
@@ -37,8 +38,6 @@ import Cardano.Wallet.Primitive
     , restrictedTo
     , txIns
     )
-import Cardano.Wallet.Slotting
-    ( SlotId (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad

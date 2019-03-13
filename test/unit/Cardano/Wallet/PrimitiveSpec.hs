@@ -15,6 +15,7 @@ import Cardano.Wallet.Primitive
     , Coin (..)
     , Dom (..)
     , Hash (..)
+    , SlotId (..)
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
@@ -23,14 +24,20 @@ import Cardano.Wallet.Primitive
     , excluding
     , isSubsetOf
     , isValidCoin
+    , isValidSlotId
     , restrictedBy
     , restrictedTo
+    , slotDiff
+    , slotIncr
+    , slotNext
+    , slotPrev
+    , slotsPerEpoch
     , updatePending
     )
-import Cardano.Wallet.Slotting
-    ( SlotId (..) )
 import Data.Set
     ( Set, (\\) )
+import Numeric.Natural
+    ( Natural )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
@@ -44,6 +51,7 @@ import Test.QuickCheck
     , scale
     , vectorOf
     , (===)
+    , (==>)
     )
 
 import qualified Data.Map.Strict as Map
@@ -54,6 +62,7 @@ spec :: Spec
 spec = do
     describe "Generators are valid" $ do
         it "Arbitrary Coin" $ property isValidCoin
+        it "Arbitrary SlotId" $ property isValidSlotId
 
     describe "Lemma 2.1 - Properties of UTxO operations" $ do
         it "2.1.1) ins⊲ u ⊆ u"
@@ -84,6 +93,18 @@ spec = do
     describe "Lemma 3.3 - Updating the pending set" $ do
         it "3.3) updatePending b pending ⊆ pending"
             (checkCoverage prop_3_2)
+
+    describe "Basic slot arithmetic" $ do
+        it "slotNext . slotPrev = id"
+            (property propNextSlotPrevSlot)
+        it "slotNext always increments the SlotId"
+            (property propNextIncrements)
+        it "slotPrev decrements the SlotId"
+            (property propPrevDecrements)
+        it "slotDiff results in correct difference"
+            (property propAddSlotsDiff)
+        it "slotIncr 0 == id"
+            (property propAddSlotsId)
 
 
 {-------------------------------------------------------------------------------
@@ -213,6 +234,28 @@ prop_3_2 (b, pending) =
 
 
 {-------------------------------------------------------------------------------
+                           Basic Slot Arithmetic
+-------------------------------------------------------------------------------}
+
+propNextSlotPrevSlot :: SlotId -> Property
+propNextSlotPrevSlot sl = slotPrev (slotNext sl) === Just sl
+
+propNextIncrements :: SlotId -> Property
+propNextIncrements sl = slotDiff (slotNext sl) sl === 1
+
+propPrevDecrements :: SlotId -> Property
+propPrevDecrements sl =
+    sl > SlotId 0 0 ==> (slotDiff sl <$> slotPrev sl) === Just 1
+
+propAddSlotsDiff :: (Natural, SlotId) -> Property
+propAddSlotsDiff (n, sl) =
+    slotDiff (slotIncr n sl) sl === fromIntegral n
+
+propAddSlotsId :: SlotId -> Property
+propAddSlotsId sl = slotIncr 0 sl === sl
+
+
+{-------------------------------------------------------------------------------
                             Arbitrary Instances
 
     Arbitrary instances define here aren't necessarily reflecting on real-life
@@ -283,7 +326,15 @@ instance Arbitrary BlockHeader where
 
 instance Arbitrary SlotId where
     shrink _ = []
-    arbitrary = SlotId <$> arbitrary <*> arbitrary
+    arbitrary = SlotId
+        <$> arbitrary
+        <*> choose (0, fromIntegral slotsPerEpoch - 1)
+
+instance Arbitrary Natural where
+    shrink 0 = []
+    shrink n = [0, n `div` 2, n - 1]
+    arbitrary = fromIntegral
+        <$> choose (0 :: Int, 4 * (fromIntegral slotsPerEpoch))
 
 instance Arbitrary Block where
     shrink (Block h txs) = Block h <$> shrink txs

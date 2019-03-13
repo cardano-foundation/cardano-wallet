@@ -10,9 +10,7 @@ module Cardano.ChainProducer
 import Prelude
 
 import Cardano.Wallet.Primitive
-    ( Block )
-import Cardano.Wallet.Slotting
-    ( SlotId )
+    ( Block, SlotId )
 import Control.Exception
     ( Exception )
 import Control.Monad.Except

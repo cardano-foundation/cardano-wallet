@@ -9,9 +9,7 @@ import Cardano.Wallet.Binary.Packfile
 import Cardano.Wallet.BinarySpec
     ( unsafeDeserialiseFromBytes )
 import Cardano.Wallet.Primitive
-    ( Block (..), BlockHeader (..) )
-import Cardano.Wallet.Slotting
-    ( SlotId (..) )
+    ( Block (..), BlockHeader (..), SlotId (..) )
 import Data.Either
     ( fromRight, isRight )
 import Test.Hspec

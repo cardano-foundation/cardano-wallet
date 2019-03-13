@@ -22,9 +22,14 @@ import Cardano.ChainProducer
 import Cardano.ChainProducer.RustHttpBridge.NetworkLayer
     ( NetworkLayer (..), NetworkLayerError )
 import Cardano.Wallet.Primitive
-    ( Block (..), BlockHeader (..), Hash (..) )
-import Cardano.Wallet.Slotting
-    ( SlotId (..), addSlots, slotNext, slotsPerEpoch )
+    ( Block (..)
+    , BlockHeader (..)
+    , Hash (..)
+    , SlotId (..)
+    , slotIncr
+    , slotNext
+    , slotsPerEpoch
+    )
 import Control.Monad.Except
     ( ExceptT (..), mapExceptT, runExceptT )
 import Control.Monad.IO.Class
@@ -75,7 +80,7 @@ rbNextBlocks numBlocks start = do
     lastBlocks <- unstableBlocks net tipHash tip epochBlocks
     pure (epochBlocks ++ lastBlocks)
   where
-    end = addSlots numBlocks start
+    end = slotIncr numBlocks start
 
     -- Grab blocks from epoch pack files
     blocksFromPacks network tip = do

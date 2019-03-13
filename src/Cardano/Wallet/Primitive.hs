@@ -48,7 +48,16 @@ module Cardano.Wallet.Primitive
     , restrictedTo
     , Dom(..)
 
-    -- * Generic
+    -- * Slotting
+    , SlotId (..)
+    , isValidSlotId
+    , slotsPerEpoch
+    , slotIncr
+    , slotDiff
+    , slotNext
+    , slotPrev
+
+    -- * Polymorphic
     , Hash (..)
     , ShowFmt (..)
     , invariant
@@ -56,8 +65,6 @@ module Cardano.Wallet.Primitive
 
 import Prelude
 
-import Cardano.Wallet.Slotting
-    ( SlotId )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.ByteArray.Encoding
@@ -71,7 +78,7 @@ import Data.Map.Strict
 import Data.Set
     ( Set )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word16, Word32, Word64 )
 import Fmt
     ( Buildable (..)
     , blockListF
@@ -86,6 +93,8 @@ import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( Symbol )
+import Numeric.Natural
+    ( Natural )
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -279,6 +288,56 @@ restrictedBy (UTxO utxo) =
 restrictedTo :: UTxO -> Set TxOut ->  UTxO
 restrictedTo (UTxO utxo) outs =
     UTxO $ Map.filter (`Set.member` outs) utxo
+
+
+-- * Slotting
+
+-- | A slot identifier is the combination of an epoch and slot.
+data SlotId = SlotId
+  { epochIndex :: !Word64
+  , slotNumber :: !Word16
+  } deriving stock (Show, Eq, Ord, Generic)
+
+instance NFData SlotId
+
+-- | Hard-coded for the time being
+slotsPerEpoch :: Natural
+slotsPerEpoch = 21600
+
+-- | Add a number of slots to an (Epoch, LocalSlotIndex) pair, where the number
+-- of slots can be greater than one epoch.
+slotIncr :: Natural -> SlotId -> SlotId
+slotIncr n (SlotId e s) =
+    SlotId (e + e') s'
+  where
+    e' = fromIntegral (n' `div` slotsPerEpoch)
+    s' = fromIntegral (n' `mod` slotsPerEpoch)
+    n' = fromIntegral s + n
+
+-- | @slotDiff a b@ is the number of slots by which @a@ is greater than @b@.
+slotDiff :: SlotId -> SlotId -> Integer
+slotDiff s1 s2 = flatten s1 - flatten s2
+    where flatten = fromIntegral . flattenSlotId
+
+-- | Convert SlotId into number of slots since genesis.
+flattenSlotId :: SlotId -> Natural
+flattenSlotId (SlotId e s) =
+    fromIntegral e * slotsPerEpoch + fromIntegral s
+
+-- | The slot after.
+slotNext :: SlotId -> SlotId
+slotNext = slotIncr 1
+
+-- | The slot before, if there is one.
+slotPrev :: SlotId -> Maybe SlotId
+slotPrev (SlotId 0 0) = Nothing
+slotPrev (SlotId e 0) = Just $ SlotId (e - 1) (fromIntegral slotsPerEpoch - 1)
+slotPrev (SlotId e s) = Just $ SlotId e (s - 1)
+
+-- | Whether the epoch index and slot number are in range.
+isValidSlotId :: SlotId -> Bool
+isValidSlotId (SlotId e s) =
+    e >= 0 && s >= 0 && s < fromIntegral slotsPerEpoch
 
 
 -- * Polymorphic

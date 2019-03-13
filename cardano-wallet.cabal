@@ -71,7 +71,6 @@ library
       Cardano.Wallet.BlockSyncer
       Cardano.Wallet.Mnemonic
       Cardano.Wallet.Primitive
-      Cardano.Wallet.Slotting
       Servant.Extra.ContentTypes
   other-modules:
       Paths_cardano_wallet
@@ -161,5 +160,4 @@ test-suite unit
       Cardano.Wallet.BlockSyncerSpec
       Cardano.Wallet.MnemonicSpec
       Cardano.Wallet.PrimitiveSpec
-      Cardano.Wallet.SlottingSpec
       Cardano.WalletSpec
