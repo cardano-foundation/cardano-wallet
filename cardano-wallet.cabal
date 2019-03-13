@@ -86,7 +86,9 @@ executable cardano-wallet-server
       -O2
   build-depends:
       base
+    , cardano-wallet
     , docopt
+    , text
   hs-source-dirs:
       app/server
   main-is:

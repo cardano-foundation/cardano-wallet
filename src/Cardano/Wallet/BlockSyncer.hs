@@ -12,23 +12,35 @@
 -- catching up).
 
 module Cardano.Wallet.BlockSyncer
-  (
-    BlockHeadersConsumed(..)
+  ( BlockHeadersConsumed(..)
   , tickingFunction
+  , startBlockSyncer
   ) where
 
 
 import Prelude
 
+import Cardano.NetworkLayer
+    ( nextBlocks )
+import Cardano.NetworkLayer.HttpBridge
+    ( newNetworkLayer )
 import Cardano.Wallet.Primitive
-    ( Block (..), BlockHeader )
+    ( Block (..), BlockHeader (..), SlotId (..) )
 import Control.Concurrent
     ( threadDelay )
+import Control.Monad.Except
+    ( runExceptT )
+import Data.IORef
+    ( newIORef, readIORef, writeIORef )
+import qualified Data.List as L
+import Data.Text
+    ( Text )
 import Data.Time.Units
     ( Millisecond, toMicroseconds )
-
-import qualified Data.List as L
-
+import Fmt
+    ( fmt, (+||), (||+) )
+import System.Exit
+    ( die )
 
 newtype BlockHeadersConsumed =
     BlockHeadersConsumed [BlockHeader]
@@ -68,3 +80,33 @@ tickingFunction getNextBlocks action tickTime = go
           -> Bool
       checkIfAlreadyConsumed consumedHeaders (Block theHeader _) =
           theHeader `L.notElem` consumedHeaders
+
+-- | Start the chain producer process, consuming blocks by printing their slot.
+startBlockSyncer :: Text -> Int -> IO ()
+startBlockSyncer networkName port = do
+    network <- newNetworkLayer networkName port
+
+    startSlotRef <- newIORef (SlotId 0 0)
+
+    let chunkSize = 2160 * 10 * 2 -- two epochs
+        interval = 20000 :: Millisecond
+
+        produceBlocks :: IO [Block]
+        produceBlocks = do
+            start <- readIORef startSlotRef
+            res <- runExceptT $ nextBlocks network chunkSize start
+            case res of
+                Left err -> die $ fmt $ "Chain producer error: "+||err||+""
+                Right [] -> pure []
+                Right blocks -> do
+                    let start' = slotId . header . last $ blocks
+                    writeIORef startSlotRef start'
+                    pure blocks
+
+        logBlock :: Block -> IO ()
+        logBlock block = putStrLn msg
+            where
+                msg = fmt $ "Received block "+||slotId h||+""
+                h = header block
+
+    tickingFunction produceBlocks logBlock interval (BlockHeadersConsumed [])

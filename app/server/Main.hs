@@ -28,6 +28,10 @@ import System.Environment
 import Text.Read
     ( readMaybe )
 
+import Cardano.Wallet.BlockSyncer
+    ( startBlockSyncer )
+
+import qualified Data.Text as T
 
 -- | Command-Line Interface specification. See http://docopt.org/
 cli :: Docopt
@@ -64,6 +68,7 @@ main = do
         ",\n      connecting to " ++ (show network) ++
         " node on port " ++ (show nodePort)
 
+    startBlockSyncer (showNetwork network) nodePort
 
 -- Functions for parsing the values of command line options
 --
@@ -80,6 +85,9 @@ readNetwork :: String -> Either String Network
 readNetwork "mainnet" = Right Mainnet
 readNetwork "testnet" = Right Testnet
 readNetwork s = Left $ show s ++ " is neither \"mainnet\" nor \"testnet\"."
+
+showNetwork :: Network -> T.Text
+showNetwork = T.toLower . T.pack . show
 
 getArg
     :: Arguments
