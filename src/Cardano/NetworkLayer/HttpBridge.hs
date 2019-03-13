@@ -25,8 +25,11 @@ import Cardano.Wallet.Primitive
     , Hash (..)
     , Hash (..)
     , SlotId (..)
+    , blockIsAfter
+    , blockIsBefore
+    , blockIsBetween
+    , epochRange
     , slotIncr
-    , slotsPerEpoch
     )
 import Control.Exception
     ( Exception )
@@ -178,42 +181,6 @@ mapUntilError action (x:xs) = ExceptT $ runExceptT (action x) >>= \case
         rs <- mapUntilError action xs
         pure (r:rs)
 mapUntilError _ [] = pure []
-
-
--- * Slotting calculation utilities (TODO: Move in the wallet primitives)
-
--- | Calculates which epochs to fetch, given a number of slots, and the start
--- point. It takes into account the latest block available, and that the most
--- recent epoch is never available in a pack file.
-epochRange
-    :: Natural
-        -- ^ Number of slots
-    -> SlotId
-        -- ^ Start point
-    -> SlotId
-        -- ^ Latest block available
-    -> [Word64]
-epochRange numBlocks (SlotId startEpoch startSlot) (SlotId tipEpoch _) =
-    [startEpoch .. min (tipEpoch - 1) (startEpoch + fromIntegral numEpochs)]
-  where
-    numEpochs = (numBlocks + fromIntegral startSlot) `div` slotsPerEpoch
-
--- | Predicate returns true iff the block is from the given slot or a later one.
-blockIsSameOrAfter :: SlotId -> Block -> Bool
-blockIsSameOrAfter s = (>= s) . slotId . header
-
--- | Predicate returns true iff the block is after then given slot
-blockIsAfter :: SlotId -> Block -> Bool
-blockIsAfter s = (> s) . slotId . header
-
--- | Predicate returns true iff the block is before the given slot.
-blockIsBefore :: SlotId -> Block -> Bool
-blockIsBefore s = (< s) . slotId . header
-
--- | @blockIsBetween start end@ Returns true if the block is in within the
--- interval @[start, end)@.
-blockIsBetween :: SlotId -> SlotId -> Block -> Bool
-blockIsBetween start end b = blockIsSameOrAfter start b && blockIsBefore end b
 
 
 {-------------------------------------------------------------------------------
