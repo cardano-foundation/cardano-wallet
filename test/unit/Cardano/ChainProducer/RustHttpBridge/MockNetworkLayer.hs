@@ -4,12 +4,6 @@ module Cardano.ChainProducer.RustHttpBridge.MockNetworkLayer
 
 import Prelude
 
-import Control.Monad.Catch
-    ( MonadThrow (..) )
-import Control.Monad.Except
-    ( throwError )
-import qualified Data.ByteString.Char8 as B8
-
 import Cardano.ChainProducer.RustHttpBridge.NetworkLayer
     ( NetworkLayer (..), NetworkLayerError (..) )
 import Cardano.Wallet.Primitive
@@ -21,6 +15,13 @@ import Cardano.Wallet.Slotting
     , slotPrev
     , slotsPerEpoch
     )
+import Control.Monad.Catch
+    ( MonadThrow (..) )
+import Control.Monad.Except
+    ( throwError )
+
+import qualified Data.ByteString.Char8 as B8
+
 
 -- | Embed an epoch index and slot number into a hash.
 mockHash :: SlotId -> Hash a

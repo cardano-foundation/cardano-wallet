@@ -2,11 +2,14 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
+-- |
+-- Copyright: © 2018-2019 IOHK
+-- License: MIT
+
 module Cardano.Wallet.Slotting
     ( SlotId (..)
     , EpochIndex (..)
     , LocalSlotIndex (..)
-    , SlotCount
     , slotsPerEpoch
     , addSlots
     , slotDiff
@@ -44,10 +47,8 @@ data SlotId = SlotId
   , slotNumber :: !LocalSlotIndex
   } deriving stock (Show, Eq, Ord, Generic)
 
-type SlotCount = Natural
-
 -- | Hard-coded for the time being
-slotsPerEpoch :: SlotCount
+slotsPerEpoch :: Natural
 slotsPerEpoch = 21600
 
 instance Bounded LocalSlotIndex where
@@ -56,7 +57,7 @@ instance Bounded LocalSlotIndex where
 
 -- | Add a number of slots to an (Epoch, LocalSlotIndex) pair, where the number
 -- of slots can be greater than one epoch.
-addSlots :: SlotCount -> SlotId -> SlotId
+addSlots :: Natural -> SlotId -> SlotId
 addSlots n (SlotId (EpochIndex e) (LocalSlotIndex sl))
     = SlotId (EpochIndex (e + fromIntegral e'))
         (LocalSlotIndex (fromIntegral sl'))
@@ -71,7 +72,7 @@ slotDiff s1 s2 = flatten s1 - flatten s2
     where flatten = fromIntegral . flattenSlotId
 
 -- | Convert SlotId into number of slots since genesis.
-flattenSlotId :: SlotId -> SlotCount
+flattenSlotId :: SlotId -> Natural
 flattenSlotId (SlotId (EpochIndex e) (LocalSlotIndex sl))
     = fromIntegral e * slotsPerEpoch + fromIntegral sl
 

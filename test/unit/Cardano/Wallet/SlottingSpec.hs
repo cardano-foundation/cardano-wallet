@@ -9,7 +9,8 @@ module Cardano.Wallet.SlottingSpec
 import Prelude
 
 import Cardano.Wallet.Slotting
-    ( SlotCount
+    ( EpochIndex (..)
+    , LocalSlotIndex (..)
     , SlotId (..)
     , addSlots
     , isValidSlotId
@@ -18,13 +19,12 @@ import Cardano.Wallet.Slotting
     , slotPrev
     , slotsPerEpoch
     )
-import Cardano.Wallet.SlottingOrphans
-    ()
-
+import Numeric.Natural
+    ( Natural )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, checkCoverage, choose, property, (==>) )
+    ( Arbitrary (..), Property, choose, property, (===), (==>) )
 
 spec :: Spec
 spec = do
@@ -33,37 +33,52 @@ spec = do
 
     describe "Basic slot arithmetic" $ do
         it "slotNext . slotPrev = id"
-            (checkCoverage propNextSlotPrevSlot)
+            (property propNextSlotPrevSlot)
 
         it "slotNext always increments the SlotId"
-            (checkCoverage propNextIncrements)
+            (property propNextIncrements)
 
         it "slotPrev decrements the SlotId"
-            (checkCoverage propPrevDecrements)
+            (property propPrevDecrements)
 
         it "addSlots results in correct difference"
-            (checkCoverage propAddSlotsDiff)
+            (property propAddSlotsDiff)
 
         it "addSlots 0 == id"
-            (checkCoverage propAddSlotsId)
+            (property propAddSlotsId)
 
 propNextSlotPrevSlot :: SlotId -> Property
-propNextSlotPrevSlot sl = property $ slotPrev (slotNext sl) == Just sl
+propNextSlotPrevSlot sl = slotPrev (slotNext sl) === Just sl
 
 propNextIncrements :: SlotId -> Property
-propNextIncrements sl = property $ slotDiff (slotNext sl) sl == 1
+propNextIncrements sl = slotDiff (slotNext sl) sl === 1
 
 propPrevDecrements :: SlotId -> Property
-propPrevDecrements sl = property $
-    sl > SlotId 0 0 ==> (slotDiff sl <$> slotPrev sl) == Just 1
+propPrevDecrements sl =
+    sl > SlotId 0 0 ==> (slotDiff sl <$> slotPrev sl) === Just 1
 
-instance Arbitrary SlotCount where
-    arbitrary
-        = fromIntegral <$> choose (0 :: Int, 4 * (fromIntegral slotsPerEpoch))
-
-propAddSlotsDiff :: (SlotCount, SlotId) -> Property
-propAddSlotsDiff (n, sl) = property $
-    slotDiff (addSlots n sl) sl == fromIntegral n
+propAddSlotsDiff :: (Natural, SlotId) -> Property
+propAddSlotsDiff (n, sl) =
+    slotDiff (addSlots n sl) sl === fromIntegral n
 
 propAddSlotsId :: SlotId -> Property
-propAddSlotsId sl = property $ addSlots 0 sl == sl
+propAddSlotsId sl = addSlots 0 sl === sl
+
+
+{-------------------------------------------------------------------------------
+                              Arbitrary Instances
+-------------------------------------------------------------------------------}
+
+instance Arbitrary SlotId where
+    arbitrary = SlotId <$> arbitrary <*> arbitrary
+
+instance Arbitrary EpochIndex where
+    arbitrary = EpochIndex <$> arbitrary
+
+instance Arbitrary LocalSlotIndex where
+    arbitrary =
+        LocalSlotIndex <$> choose (0, fromIntegral slotsPerEpoch - 1)
+
+instance Arbitrary Natural where
+    arbitrary = fromIntegral
+        <$> choose (0 :: Int, 4 * (fromIntegral slotsPerEpoch))

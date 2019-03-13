@@ -158,5 +158,4 @@ test-suite unit
       Cardano.Wallet.BlockSyncerSpec
       Cardano.Wallet.MnemonicSpec
       Cardano.Wallet.PrimitiveSpec
-      Cardano.Wallet.SlottingOrphans
       Cardano.Wallet.SlottingSpec

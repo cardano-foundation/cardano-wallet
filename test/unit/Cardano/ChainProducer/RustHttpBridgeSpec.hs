@@ -2,6 +2,18 @@ module Cardano.ChainProducer.RustHttpBridgeSpec (spec) where
 
 import Prelude
 
+import Cardano.ChainProducer
+    ( nextBlocks )
+import Cardano.ChainProducer.RustHttpBridge
+    ( RustBackend, runRustBackend )
+import Cardano.ChainProducer.RustHttpBridge.MockNetworkLayer
+    ( mockNetworkLayer )
+import Cardano.ChainProducer.RustHttpBridge.NetworkLayer
+    ( NetworkLayer )
+import Cardano.Wallet.Primitive
+    ( BlockHeader (..), header )
+import Cardano.Wallet.Slotting
+    ( SlotId (SlotId) )
 import Control.Exception
     ( Exception, throwIO )
 import Control.Monad
@@ -12,18 +24,6 @@ import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Test.Hspec
     ( Spec, SpecWith, beforeAll, describe, it, shouldBe, shouldSatisfy )
-
-import Cardano.ChainProducer
-    ( nextBlocks )
-import Cardano.ChainProducer.RustHttpBridge
-import Cardano.ChainProducer.RustHttpBridge.MockNetworkLayer
-    ( mockNetworkLayer )
-import Cardano.ChainProducer.RustHttpBridge.NetworkLayer
-    ( NetworkLayer )
-import Cardano.Wallet.Primitive
-    ( BlockHeader (..), header )
-import Cardano.Wallet.Slotting
-    ( SlotId (SlotId) )
 
 spec :: Spec
 spec = do

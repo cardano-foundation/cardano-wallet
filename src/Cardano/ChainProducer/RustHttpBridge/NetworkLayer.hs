@@ -1,5 +1,11 @@
 {-# LANGUAGE DataKinds #-}
 
+-- |
+-- Copyright: © 2018-2019 IOHK
+-- License: MIT
+--
+-- Representation of a network layer
+
 module Cardano.ChainProducer.RustHttpBridge.NetworkLayer
     ( NetworkLayer (..)
     , NetworkLayerError(..)

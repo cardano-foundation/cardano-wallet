@@ -1,7 +1,11 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
 
--- | An API specification for the Cardano HTTP Bridge.
+-- |
+-- Copyright: © 2018-2019 IOHK
+-- License: MIT
+--
+-- An API specification for the Cardano HTTP Bridge.
 module Cardano.ChainProducer.RustHttpBridge.Api
     ( Api
     , api
@@ -57,37 +61,33 @@ type GetTipBlockHeader
     :> Get '[ComputeHash Blake2b_256 CBOR] (WithHash Blake2b_256 BlockHeader)
 
 -- | Represents a block.
---
 newtype Block = Block
-  { getBlock :: Primitive.Block
-  } deriving Eq
+    { getBlock :: Primitive.Block
+    } deriving Eq
 
 instance FromCBOR Block where
-  fromCBOR = Block <$> decodeBlock
+    fromCBOR = Block <$> decodeBlock
 
 -- | Represents a block header.
---
 newtype BlockHeader = BlockHeader
-  { getBlockHeader :: Primitive.BlockHeader
-  } deriving Eq
+    { getBlockHeader :: Primitive.BlockHeader
+    } deriving Eq
 
 instance FromCBOR BlockHeader where
-  fromCBOR = BlockHeader <$> decodeBlockHeader
+    fromCBOR = BlockHeader <$> decodeBlockHeader
 
 -- | Represents a unique epoch.
---
 newtype EpochIndex = EpochIndex
-  { getEpochIndex :: Slotting.EpochIndex
-  } deriving (Eq, Show)
+    { getEpochIndex :: Slotting.EpochIndex
+    } deriving (Eq, Show)
 
 instance ToHttpApiData (EpochIndex) where
     toUrlPiece = toUrlPiece . Slotting.getEpochIndex . getEpochIndex
 
 -- | Represents the name of a Cardano network.
---
 newtype NetworkName = NetworkName
-  { getNetworkName :: Text
-  } deriving (Eq, Show)
+    { getNetworkName :: Text
+    } deriving (Eq, Show)
 
 instance ToHttpApiData NetworkName where
     toUrlPiece = getNetworkName

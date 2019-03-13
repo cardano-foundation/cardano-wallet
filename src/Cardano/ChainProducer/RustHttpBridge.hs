@@ -6,21 +6,15 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
+-- |
+-- Copyright: © 2018-2019 IOHK
+-- License: MIT
+
 module Cardano.ChainProducer.RustHttpBridge
     ( RustBackend
     , runRustBackend
     ) where
 
-import Control.Monad.Except
-    ( ExceptT (..), mapExceptT, runExceptT )
-import Control.Monad.IO.Class
-    ( MonadIO, liftIO )
-import Control.Monad.Reader
-    ( MonadReader, ReaderT (..), ask, lift )
-import Data.Bifunctor
-    ( first )
-import Data.Maybe
-    ( fromMaybe )
 import Prelude
 
 import Cardano.ChainProducer
@@ -32,17 +26,33 @@ import Cardano.Wallet.Primitive
 import Cardano.Wallet.Slotting
     ( EpochIndex
     , LocalSlotIndex (..)
-    , SlotCount
     , SlotId (..)
     , addSlots
     , slotNext
     , slotsPerEpoch
     )
+import Control.Monad.Except
+    ( ExceptT (..), mapExceptT, runExceptT )
+import Control.Monad.IO.Class
+    ( MonadIO, liftIO )
+import Control.Monad.Reader
+    ( MonadReader, ReaderT (..), ask, lift )
+import Data.Bifunctor
+    ( first )
+import Data.Maybe
+    ( fromMaybe )
+import Numeric.Natural
+    ( Natural )
 
-newtype RustBackend a = RustBackend {
-    runRB :: ReaderT (NetworkLayer IO) IO a
-    } deriving (Monad, Applicative, Functor,
-                MonadReader (NetworkLayer IO), MonadIO)
+newtype RustBackend a = RustBackend
+    { runRB :: ReaderT (NetworkLayer IO) IO a
+    } deriving
+        ( Monad
+        , Applicative
+        , Functor
+        , MonadReader (NetworkLayer IO)
+        , MonadIO
+        )
 
 runRustBackend :: NetworkLayer IO -> RustBackend a -> IO a
 runRustBackend network action = runReaderT (runRB action) network
@@ -59,7 +69,7 @@ instance MonadChainProducer RustBackend where
 -- 2. Fetching the tip block and working backwards is not ideal.
 -- We will keep it for now, and it can be improved later.
 rbNextBlocks
-    :: SlotCount -- ^ Number of blocks to retrieve
+    :: Natural -- ^ Number of blocks to retrieve
     -> SlotId    -- ^ Starting point
     -> ExceptT ErrGetNextBlocks RustBackend [Block]
 rbNextBlocks numBlocks start = do
@@ -68,30 +78,29 @@ rbNextBlocks numBlocks start = do
     epochBlocks <- blocksFromPacks net tip
     lastBlocks <- unstableBlocks net tipHash tip epochBlocks
     pure (epochBlocks ++ lastBlocks)
+  where
+    end = addSlots numBlocks start
 
-    where
-        end = addSlots numBlocks start
+    -- Grab blocks from epoch pack files
+    blocksFromPacks network tip = do
+        let epochs = epochRange numBlocks start tip
+        epochBlocks <- runNetworkLayer (getEpochs network epochs)
+        pure $ filter (blockIsBetween start end) (concat epochBlocks)
 
-        -- Grab blocks from epoch pack files
-        blocksFromPacks network tip = do
-            let epochs = epochRange numBlocks start tip
-            epochBlocks <- runNetworkLayer (getEpochs network epochs)
-            pure $ filter (blockIsBetween start end) (concat epochBlocks)
+    -- The next slot after the last block.
+    slotAfter [] = Nothing
+    slotAfter bs = Just . slotNext . headerSlot . header . last $ bs
 
-        -- The next slot after the last block.
-        slotAfter [] = Nothing
-        slotAfter bs = Just . slotNext . headerSlot . header . last $ bs
+    -- Grab the remaining blocks which aren't packed in epoch files,
+    -- starting from the tip.
+    unstableBlocks network tipHash tip epochBlocks = do
+        let start' = fromMaybe start (slotAfter epochBlocks)
 
-        -- Grab the remaining blocks which aren't packed in epoch files,
-        -- starting from the tip.
-        unstableBlocks network tipHash tip epochBlocks = do
-            let start' = fromMaybe start (slotAfter epochBlocks)
+        lastBlocks <- if end > start' && start' <= tip
+            then runNetworkLayer $ fetchBlocksFromTip network start' tipHash
+            else pure []
 
-            lastBlocks <- if end > start' && start' <= tip
-                then runNetworkLayer $ fetchBlocksFromTip network start' tipHash
-                else pure []
-
-            pure $ filter (blockIsBefore end) lastBlocks
+        pure $ filter (blockIsBefore end) lastBlocks
 
 -- | Fetch epoch blocks until one fails.
 getEpochs
@@ -108,22 +117,24 @@ fetchBlocksFromTip
     -> SlotId
     -> Hash "BlockHeader"
     -> ExceptT NetworkLayerError m [Block]
-fetchBlocksFromTip network start tipHash = reverse <$> workBackwards tipHash
-    where
-        workBackwards headerHash = do
-            block <- getBlock network headerHash
-            if blockIsAfter start block
-                then do
-                    blocks <- workBackwards $ prevBlockHash $ header block
-                    pure (block:blocks)
-                else pure [block]
+fetchBlocksFromTip network start tipHash =
+    reverse <$> workBackwards tipHash
+  where
+    workBackwards headerHash = do
+        block <- getBlock network headerHash
+        if blockIsAfter start block then do
+            blocks <- workBackwards $ prevBlockHash $ header block
+            pure (block:blocks)
+        else
+            pure [block]
 
 runNetworkLayer
     :: ExceptT NetworkLayerError IO a
     -> ExceptT ErrGetNextBlocks RustBackend a
-runNetworkLayer = mapExceptT (fmap handle . liftIO)
-    where
-        handle = first (GetNextBlocksError . show)
+runNetworkLayer =
+    mapExceptT (fmap handle . liftIO)
+  where
+    handle = first (GetNextBlocksError . show)
 
 -- * Utility functions for monadic loops
 
@@ -156,7 +167,7 @@ headerSlot bh = SlotId
 -- point. It takes into account the latest block available, and that the most
 -- recent epoch is never available in a pack file.
 epochRange
-    :: SlotCount
+    :: Natural
         -- ^ Number of slots
     -> SlotId
         -- ^ Start point
