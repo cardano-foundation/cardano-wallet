@@ -14,7 +14,9 @@ import Prelude
 import Cardano.Wallet.BlockSyncer
     ( BlockHeadersConsumed (..), tickingFunction )
 import Cardano.Wallet.Primitive
-    ( Block (..), BlockHeader (..), EpochId (..), Hash (..), SlotId (..) )
+    ( Block (..), BlockHeader (..), Hash (..) )
+import Cardano.Wallet.Slotting
+    ( EpochIndex (..), LocalSlotIndex (..) )
 import Control.Concurrent
     ( forkIO, killThread )
 import Control.Concurrent.MVar
@@ -138,12 +140,11 @@ instance Arbitrary Blocks where
         blockHeaderHash =
             Hash . CBOR.toStrictByteString . encodeBlockHeader
           where
-            encodeBlockHeader (BlockHeader (EpochId epoch) (SlotId slot) prev) =
-                mempty
-                    <> CBOR.encodeListLen 3
-                    <> CBOR.encodeWord64 epoch
-                    <> CBOR.encodeWord16 slot
-                    <> CBOR.encodeBytes (getHash prev)
+            encodeBlockHeader (BlockHeader epoch slot prev) = mempty
+                <> CBOR.encodeListLen 3
+                <> CBOR.encodeWord64 (getEpochIndex epoch)
+                <> CBOR.encodeWord16 (getLocalSlotIndex slot)
+                <> CBOR.encodeBytes (getHash prev)
 
 
 -- | Construct arbitrary groups of elements from a given list.
