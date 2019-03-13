@@ -20,6 +20,7 @@
 module Cardano.Wallet.AddressDerivation
     (
     -- * Polymorphic / General Purpose Types
+    -- $use
       Key
     , Depth (..)
     , Index
@@ -93,7 +94,7 @@ instance (NFData key) => NFData (Key level key)
 
 -- | Key Depth in the derivation path, according to BIP-0039 / BIP-0044
 --
--- root' / purpose' / cointype' / account' / change / address
+-- @m | purpose' | cointype' | account' | change | address@
 --
 -- We do not manipulate purpose, cointype and change paths directly, so they are
 -- left out of the sum type.
@@ -309,3 +310,52 @@ keyToAddress (Key xpub) =
     Address $ CBOR.toStrictByteString $ encodeAddress xpub encodeAttributes
   where
     encodeAttributes = CBOR.encodeMapLen 0
+
+-- $use
+-- 'Key' and 'Index' allow for representing public keys, private keys, hardened
+-- indexes and soft (non-hardened) indexes for various level in a non-ambiguous
+-- manner. Those types are opaque and can only be created through dedicated
+-- constructors.
+--
+-- Indexes can be created through their `Bounded` and `Enum` instances. Note
+-- that, the `Enum` functions are partial and its the caller responsibility to
+-- make sure it is safe to call them. For instance, calling @succ maxBound@ for
+-- any index would through a runtime error. Similarly, trying to convert an
+-- invalid value from an 'Int' to a an 'Index' will result in bad behavior.
+--
+-- >>> toEnum 0x00000000 :: Index 'Soft 'AddressK
+-- Index {getIndex = 0}
+--
+-- >>> toEnum 0x00000000 :: Index 'Hardened 'AccountK
+-- Index {getIndex = *** Exception: Index@Hardened.toEnum: bad argument
+--
+-- >>> toEnum 0x80000000 :: Index 'Hardened 'AccountK
+-- Index {getIndex = 2147483648}
+--
+-- >>> toEnum 0x80000000 :: Index 'Soft 'AddressK
+-- Index {getIndex = *** Exception: Index@Soft.toEnum: bad argument
+--
+-- Keys have to be created from a seed using 'generateKeyFromSeed' which always
+-- gives a root private key. Then, child keys can be created safely using the
+-- various key derivation methods:
+--
+-- - 'publicKey' --> For any @Key _ XPrv@ to @Key _ XPub@
+-- - 'deriveAccountPrivateKey' --> From @Key RootK XPrv@ to @Key AccountK XPrv@
+-- - 'deriveAddressPrivateKey' --> From @Key AccountK XPrv@ to @Key AddressK XPrv@
+-- - 'deriveAddressPublicKey' --> From @Key AccountK XPub@ to @Key AddressK XPub@
+--
+-- For example:
+--
+-- @
+-- -- Access public key for: m|coinType'|purpose'|0'
+-- let seed = "My Secret Seed"
+--
+-- let rootXPrv :: Key 'RootK XPrv
+--     rootXPrv = generateKeyFromSeed (seed, mempty) mempty
+--
+-- let accIx :: Index 'Hardened 'AccountK
+--     accIx = toEnum 0x80000000
+--
+-- let accXPub :: Key 'AccountL XPub
+--     accXPub = publicKey $ deriveAccountPrivateKey mempty rootXPrv accIx
+-- @
