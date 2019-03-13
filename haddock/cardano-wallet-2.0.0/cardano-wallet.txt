@@ -31,6 +31,72 @@ BlobDecodeError :: String -> PackfileError
 instance GHC.Classes.Eq Cardano.Wallet.Binary.Packfile.PackfileError
 instance GHC.Show.Show Cardano.Wallet.Binary.Packfile.PackfileError
 
+
+-- | | Module provides mnemonic creation and | restoring from backup phrase
+--   functionality
+module Cardano.Wallet.Mnemonic
+
+-- | A backup-phrase in the form of a non-empty of Mnemonic words
+--   Constructor isn't exposed.
+data Mnemonic (mw :: Nat)
+data Entropy (n :: Nat)
+type family EntropySize (n :: Nat) :: Nat
+type family MnemonicWords (n :: Nat) :: Nat
+
+-- | This is the wrapping of errors from Cardano.Encoding.BIP39 | The
+--   MnemonicWordsError can be due | to wrong number of words
+--   (ErrWrongNumberOfWords) | The EntropyError can be either due to : |
+--   (a) invalid entropy length (ErrInvalidEntropyLength) | (b) invalid
+--   entropy checksum (ErrInvalidEntropyChecksum) | The DictionaryError can
+--   be due to | invalid word (ErrInvalidDictionaryWord)
+data MnemonicError csz
+ErrMnemonicWords :: MnemonicWordsError -> MnemonicError csz
+ErrEntropy :: EntropyError csz -> MnemonicError csz
+ErrDictionary :: DictionaryError -> MnemonicError csz
+
+-- | This is the wrapping of EntropyError of Cardano.Encoding.BIP39 | The
+--   EntropyError can be either due to : | (a) invalid entropy length
+--   (ErrInvalidEntropyLength) | (b) invalid entropy checksum
+--   (ErrInvalidEntropyChecksum)
+newtype MnemonicException csz
+UnexpectedEntropyError :: EntropyError csz -> MnemonicException csz
+data EntropyError (csz :: Nat)
+ErrInvalidEntropyLength :: Int -> Int -> EntropyError
+ErrInvalidEntropyChecksum :: Checksum csz -> Checksum csz -> EntropyError
+data DictionaryError
+ErrInvalidDictionaryWord :: String -> DictionaryError
+data MnemonicWordsError
+ErrWrongNumberOfWords :: Int -> Int -> MnemonicWordsError
+
+-- | Smart-constructor for the Entropy
+mkEntropy :: forall n csz. (ValidEntropySize n, ValidChecksumSize n csz) => ByteString -> Either (EntropyError csz) (Entropy n)
+
+-- | Smart-constructor for the Mnemonic
+mkMnemonic :: forall mw n csz. (ConsistentEntropy n mw csz, EntropySize mw ~ n) => [Text] -> Either (MnemonicError csz) (Mnemonic mw)
+
+-- | Generate Entropy of a given size using a random seed.
+--   
+--   Example: do ent &lt;- genEntropy :: IO (Entropy 12)
+genEntropy :: forall n csz. (ValidEntropySize n, ValidChecksumSize n csz) => IO (Entropy n)
+mnemonicToEntropy :: Mnemonic mw -> Entropy (EntropySize mw)
+
+-- | Convert an Entropy to a corresponding Mnemonic Sentence
+entropyToMnemonic :: forall mw n csz. (ValidMnemonicSentence mw, ValidEntropySize n, ValidChecksumSize n csz, n ~ EntropySize mw, mw ~ MnemonicWords n) => Entropy n -> Mnemonic mw
+
+-- | Convert <a>Entropy</a> to a raw <a>ByteString</a>
+entropyToByteString :: Entropy n -> ByteString
+ambiguousNatVal :: forall n. KnownNat n => Integer
+mnemonicToText :: Mnemonic mw -> [Text]
+instance GHC.Show.Show (Cardano.Wallet.Mnemonic.MnemonicError csz)
+instance GHC.Classes.Eq (Cardano.Wallet.Mnemonic.MnemonicError csz)
+instance GHC.Show.Show (Cardano.Wallet.Mnemonic.MnemonicException csz)
+instance GHC.Show.Show (Cardano.Wallet.Mnemonic.Mnemonic mw)
+instance GHC.Classes.Eq (Cardano.Wallet.Mnemonic.Mnemonic mw)
+instance GHC.Classes.Eq (Crypto.Encoding.BIP39.EntropyError czs)
+instance GHC.Classes.Eq Crypto.Encoding.BIP39.MnemonicWordsError
+instance GHC.Classes.Eq Crypto.Encoding.BIP39.Dictionary.DictionaryError
+instance GHC.TypeNats.KnownNat csz => GHC.Exception.Type.Exception (Cardano.Wallet.Mnemonic.MnemonicException csz)
+
 module Cardano.Wallet.Slotting
 
 -- | A slot identifier is the combination of an epoch and slot.
