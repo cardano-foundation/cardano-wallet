@@ -31,6 +31,64 @@ BlobDecodeError :: String -> PackfileError
 instance GHC.Classes.Eq Cardano.Wallet.Binary.Packfile.PackfileError
 instance GHC.Show.Show Cardano.Wallet.Binary.Packfile.PackfileError
 
+module Cardano.Wallet.Slotting
+
+-- | A slot identifier is the combination of an epoch and slot.
+data SlotId
+SlotId :: !EpochIndex -> !LocalSlotIndex -> SlotId
+[epochIndex] :: SlotId -> !EpochIndex
+[slotNumber] :: SlotId -> !LocalSlotIndex
+
+-- | Denotes a chain epoch, which contains a certain number of slots.
+newtype EpochIndex
+EpochIndex :: Word64 -> EpochIndex
+[getEpochIndex] :: EpochIndex -> Word64
+
+-- | Denotes the slot number within an epoch.
+newtype LocalSlotIndex
+LocalSlotIndex :: Word16 -> LocalSlotIndex
+[getLocalSlotIndex] :: LocalSlotIndex -> Word16
+type SlotCount = Natural
+
+-- | Hard-coded for the time being
+slotsPerEpoch :: SlotCount
+
+-- | Add a number of slots to an (Epoch, LocalSlotIndex) pair, where the
+--   number of slots can be greater than one epoch.
+addSlots :: SlotCount -> SlotId -> SlotId
+
+-- | <tt>slotDiff a b</tt> is the number of slots by which <tt>a</tt> is
+--   greater than <tt>b</tt>.
+slotDiff :: SlotId -> SlotId -> Integer
+
+-- | The slot after.
+slotNext :: SlotId -> SlotId
+
+-- | The slot before, if there is one.
+slotPrev :: SlotId -> Maybe SlotId
+
+-- | Whether the epoch index and slot number are in range.
+isValidSlotId :: SlotId -> Bool
+instance GHC.Generics.Generic Cardano.Wallet.Slotting.SlotId
+instance GHC.Classes.Ord Cardano.Wallet.Slotting.SlotId
+instance GHC.Classes.Eq Cardano.Wallet.Slotting.SlotId
+instance GHC.Show.Show Cardano.Wallet.Slotting.SlotId
+instance Control.DeepSeq.NFData Cardano.Wallet.Slotting.LocalSlotIndex
+instance GHC.Enum.Enum Cardano.Wallet.Slotting.LocalSlotIndex
+instance GHC.Num.Num Cardano.Wallet.Slotting.LocalSlotIndex
+instance GHC.Generics.Generic Cardano.Wallet.Slotting.LocalSlotIndex
+instance GHC.Classes.Ord Cardano.Wallet.Slotting.LocalSlotIndex
+instance GHC.Classes.Eq Cardano.Wallet.Slotting.LocalSlotIndex
+instance GHC.Show.Show Cardano.Wallet.Slotting.LocalSlotIndex
+instance Control.DeepSeq.NFData Cardano.Wallet.Slotting.EpochIndex
+instance GHC.Enum.Enum Cardano.Wallet.Slotting.EpochIndex
+instance GHC.Num.Num Cardano.Wallet.Slotting.EpochIndex
+instance GHC.Generics.Generic Cardano.Wallet.Slotting.EpochIndex
+instance GHC.Classes.Ord Cardano.Wallet.Slotting.EpochIndex
+instance GHC.Classes.Eq Cardano.Wallet.Slotting.EpochIndex
+instance GHC.Show.Show Cardano.Wallet.Slotting.EpochIndex
+instance GHC.Enum.Bounded Cardano.Wallet.Slotting.LocalSlotIndex
+
 
 -- | This module contains the core primitive of a Wallet. This is roughly a
 --   Haskell translation of the <a>Formal Specification for a Cardano
@@ -44,16 +102,10 @@ Block :: !BlockHeader -> !Set Tx -> Block
 [header] :: Block -> !BlockHeader
 [transactions] :: Block -> !Set Tx
 data BlockHeader
-BlockHeader :: !EpochId -> !SlotId -> !Hash "BlockHeader" -> BlockHeader
-[epochIndex] :: BlockHeader -> !EpochId
-[slotNumber] :: BlockHeader -> !SlotId
+BlockHeader :: !EpochIndex -> !LocalSlotIndex -> !Hash "BlockHeader" -> BlockHeader
+[epochIndex] :: BlockHeader -> !EpochIndex
+[slotNumber] :: BlockHeader -> !LocalSlotIndex
 [prevBlockHash] :: BlockHeader -> !Hash "BlockHeader"
-newtype EpochId
-EpochId :: Word64 -> EpochId
-[getEpochId] :: EpochId -> Word64
-newtype SlotId
-SlotId :: Word16 -> SlotId
-[getSlotId] :: SlotId -> Word16
 data Tx
 Tx :: ![TxIn] -> ![TxOut] -> Tx
 
@@ -166,18 +218,6 @@ instance GHC.Classes.Ord Cardano.Wallet.Primitive.Address
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Address
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Address
 instance GHC.Show.Show Cardano.Wallet.Primitive.Address
-instance GHC.Show.Show Cardano.Wallet.Primitive.SlotId
-instance GHC.Classes.Ord Cardano.Wallet.Primitive.SlotId
-instance GHC.Num.Num Cardano.Wallet.Primitive.SlotId
-instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.SlotId
-instance GHC.Generics.Generic Cardano.Wallet.Primitive.SlotId
-instance GHC.Classes.Eq Cardano.Wallet.Primitive.SlotId
-instance GHC.Show.Show Cardano.Wallet.Primitive.EpochId
-instance GHC.Classes.Ord Cardano.Wallet.Primitive.EpochId
-instance GHC.Num.Num Cardano.Wallet.Primitive.EpochId
-instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.EpochId
-instance GHC.Generics.Generic Cardano.Wallet.Primitive.EpochId
-instance GHC.Classes.Eq Cardano.Wallet.Primitive.EpochId
 instance Formatting.Buildable.Buildable a => GHC.Show.Show (Cardano.Wallet.Primitive.ShowFmt a)
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Block
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.BlockHeader
@@ -347,6 +387,46 @@ utxoFromTx :: Tx -> UTxO
 instance GHC.Show.Show (Cardano.Wallet.Wallet s)
 instance Control.DeepSeq.NFData (Cardano.Wallet.Wallet s)
 
+module Cardano.ChainProducer.RustHttpBridge.NetworkLayer
+
+-- | Endpoints of the cardano-http-bridge API.
+data NetworkLayer m
+NetworkLayer :: (Hash "BlockHeader" -> ExceptT NetworkLayerError m Block) -> (EpochIndex -> ExceptT NetworkLayerError m [Block]) -> ExceptT NetworkLayerError m (Hash "BlockHeader", BlockHeader) -> NetworkLayer m
+[getBlock] :: NetworkLayer m -> Hash "BlockHeader" -> ExceptT NetworkLayerError m Block
+[getEpoch] :: NetworkLayer m -> EpochIndex -> ExceptT NetworkLayerError m [Block]
+[getNetworkTip] :: NetworkLayer m -> ExceptT NetworkLayerError m (Hash "BlockHeader", BlockHeader)
+newtype NetworkLayerError
+NetworkLayerError :: String -> NetworkLayerError
+instance GHC.Classes.Eq Cardano.ChainProducer.RustHttpBridge.NetworkLayer.NetworkLayerError
+instance GHC.Show.Show Cardano.ChainProducer.RustHttpBridge.NetworkLayer.NetworkLayerError
+instance GHC.Exception.Type.Exception Cardano.ChainProducer.RustHttpBridge.NetworkLayer.NetworkLayerError
+
+module Cardano.ChainProducer
+class MonadChainProducer m
+
+-- | Get some blocks from the chain producer.
+--   
+--   This may retrieve less than the requested number of blocks. It might
+--   return no blocks at all.
+nextBlocks :: MonadChainProducer m => SlotCount -> SlotId -> ExceptT ErrGetNextBlocks m [Block]
+
+-- | The things that can go wrong when retrieving blocks.
+newtype ErrGetNextBlocks
+GetNextBlocksError :: String -> ErrGetNextBlocks
+instance GHC.Classes.Eq Cardano.ChainProducer.ErrGetNextBlocks
+instance GHC.Show.Show Cardano.ChainProducer.ErrGetNextBlocks
+instance GHC.Exception.Type.Exception Cardano.ChainProducer.ErrGetNextBlocks
+
+module Cardano.ChainProducer.RustHttpBridge
+data RustBackend a
+runRustBackend :: NetworkLayer IO -> RustBackend a -> IO a
+instance Control.Monad.IO.Class.MonadIO Cardano.ChainProducer.RustHttpBridge.RustBackend
+instance Control.Monad.Reader.Class.MonadReader (Cardano.ChainProducer.RustHttpBridge.NetworkLayer.NetworkLayer GHC.Types.IO) Cardano.ChainProducer.RustHttpBridge.RustBackend
+instance GHC.Base.Functor Cardano.ChainProducer.RustHttpBridge.RustBackend
+instance GHC.Base.Applicative Cardano.ChainProducer.RustHttpBridge.RustBackend
+instance GHC.Base.Monad Cardano.ChainProducer.RustHttpBridge.RustBackend
+instance Cardano.ChainProducer.MonadChainProducer Cardano.ChainProducer.RustHttpBridge.RustBackend
+
 
 -- | Extra content types for Servant.
 module Servant.Extra.ContentTypes
@@ -403,9 +483,9 @@ BlockHeader :: BlockHeader -> BlockHeader
 [getBlockHeader] :: BlockHeader -> BlockHeader
 
 -- | Represents a unique epoch.
-newtype EpochId
-EpochId :: EpochId -> EpochId
-[getEpochId] :: EpochId -> EpochId
+newtype EpochIndex
+EpochIndex :: EpochIndex -> EpochIndex
+[getEpochIndex] :: EpochIndex -> EpochIndex
 
 -- | Represents the name of a Cardano network.
 newtype NetworkName
@@ -413,25 +493,16 @@ NetworkName :: Text -> NetworkName
 [getNetworkName] :: NetworkName -> Text
 instance GHC.Show.Show Cardano.ChainProducer.RustHttpBridge.Api.NetworkName
 instance GHC.Classes.Eq Cardano.ChainProducer.RustHttpBridge.Api.NetworkName
-instance GHC.Show.Show Cardano.ChainProducer.RustHttpBridge.Api.EpochId
-instance GHC.Classes.Eq Cardano.ChainProducer.RustHttpBridge.Api.EpochId
+instance GHC.Show.Show Cardano.ChainProducer.RustHttpBridge.Api.EpochIndex
+instance GHC.Classes.Eq Cardano.ChainProducer.RustHttpBridge.Api.EpochIndex
 instance GHC.Classes.Eq Cardano.ChainProducer.RustHttpBridge.Api.BlockHeader
 instance GHC.Classes.Eq Cardano.ChainProducer.RustHttpBridge.Api.Block
 instance Web.Internal.HttpApiData.ToHttpApiData Cardano.ChainProducer.RustHttpBridge.Api.NetworkName
-instance Web.Internal.HttpApiData.ToHttpApiData Cardano.ChainProducer.RustHttpBridge.Api.EpochId
+instance Web.Internal.HttpApiData.ToHttpApiData Cardano.ChainProducer.RustHttpBridge.Api.EpochIndex
 instance Servant.Extra.ContentTypes.FromCBOR Cardano.ChainProducer.RustHttpBridge.Api.BlockHeader
 instance Servant.Extra.ContentTypes.FromCBOR Cardano.ChainProducer.RustHttpBridge.Api.Block
 
 
 -- | An API client for the Cardano HTTP Bridge.
 module Cardano.ChainProducer.RustHttpBridge.Client
-
--- | Retrieve a block identified by the unique hash of its header.
-getBlockByHash :: NetworkName -> Hash Blake2b_256 BlockHeader -> ClientM Block
-
--- | Retrieve all the blocks for the epoch identified by the given integer
---   ID.
-getEpochById :: NetworkName -> EpochId -> ClientM [Block]
-
--- | Retrieve the header of the latest known block.
-getTipBlockHeader :: NetworkName -> ClientM (WithHash Blake2b_256 BlockHeader)
+mkNetworkLayer :: Manager -> BaseUrl -> NetworkName -> NetworkLayer IO
