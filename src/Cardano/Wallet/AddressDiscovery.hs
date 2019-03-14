@@ -10,9 +10,8 @@
 --
 -- This module contains primitives necessary to perform address discovery. So
 -- far, we're only interested in address following a sequential derivation
--- scheme as specified in BIP-0044.
--- Later, we may introduce backward-compatibility with random address scheme
--- from the legacy Cardano wallets.
+-- scheme as specified in BIP-0044. Later, we may introduce backward
+-- compatibility with random address scheme from the legacy Cardano wallets.
 
 module Cardano.Wallet.AddressDiscovery
     ( -- * Sequential Derivation
