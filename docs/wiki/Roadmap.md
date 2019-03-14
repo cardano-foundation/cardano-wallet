@@ -127,7 +127,7 @@ https://rebilly.github.io/ReDoc/?url=https://gist.githubusercontent.com/KtorZ/3d
 
 | Priority | Estimate |
 | ---      | ---      |
-| High     | 13       |
+| High     | 16       |
 
 - [#12](https://github.com/input-output-hk/cardano-wallet/issues/12)
   Implement (part-of) http-bridge API (get network tip, get block) --> 5
@@ -135,6 +135,8 @@ https://rebilly.github.io/ReDoc/?url=https://gist.githubusercontent.com/KtorZ/3d
   Implement necessary CBOR decoders (block and block header) --> 3
 - [#3](https://github.com/input-output-hk/cardano-wallet/issues/3)
   Ticking function to retrieve current tip and get next block (no handling of rollbacks) --> 5
+- [#52](https://github.com/input-output-hk/cardano-wallet/issues/52)
+  Use the ticking function to get blocks --> 3
 
 
 ### Launcher
@@ -169,6 +171,8 @@ NOTE: No persistence layer yet.
   Port and review the Address discovery (AddressPool + AddressPoolGap modules) from cardano-wallet
 - [#23](https://github.com/input-output-hk/cardano-wallet/issues/23)
   Sketch wallet layer to fetch and create a wallet
+- [#53](https://github.com/input-output-hk/cardano-wallet/issues/53)
+  Translate the Swagger API specification into a Servant API specification.
 - Sketch API Layer and servant server to serve that API, using the wallet layer to implement its handlers
 - Sketch first wallet CLI, using the wallet layer to implement the various commands
 
