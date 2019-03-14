@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -13,12 +12,19 @@
 -- This module contains the necessary logic to talk to implement the network
 -- layer using the cardano-http-bridge as a chain producer.
 
-module Cardano.NetworkLayer.HttpBridge where
+module Cardano.NetworkLayer.HttpBridge
+    ( HttpBridge(..)
+    , HttpBridgeError(..)
+    , mkNetworkLayer
+    , newNetworkLayer
+    ) where
 
 import Prelude
 
+import Cardano.NetworkLayer
+    ( NetworkLayer (..) )
 import Cardano.NetworkLayer.HttpBridge.Api
-    ( ApiT (..), EpochIndex (..), NetworkName, api )
+    ( ApiT (..), EpochIndex (..), NetworkName (..), api )
 import Cardano.Wallet.Primitive
     ( Block (..)
     , BlockHeader (..)
@@ -32,13 +38,9 @@ import Cardano.Wallet.Primitive
     , slotsPerEpoch
     )
 import Control.Exception
-    ( Exception )
+    ( Exception (..) )
 import Control.Monad.Except
-    ( ExceptT (..), mapExceptT, runExceptT, throwError )
-import Control.Monad.IO.Class
-    ( MonadIO, liftIO )
-import Control.Monad.Reader
-    ( MonadReader, ReaderT (..), ask, lift )
+    ( ExceptT (..), lift, runExceptT, throwError )
 import Crypto.Hash
     ( HashAlgorithm, digestFromByteString )
 import Crypto.Hash.Algorithms
@@ -49,56 +51,51 @@ import Data.ByteArray
     ( convert )
 import Data.Maybe
     ( fromMaybe )
+import Data.Text
+    ( Text )
 import Data.Word
     ( Word64 )
 import Network.HTTP.Client
-    ( Manager )
+    ( Manager, defaultManagerSettings, newManager )
 import Servant.API
     ( (:<|>) (..) )
 import Servant.Client
-    ( BaseUrl, ClientM, client, mkClientEnv, runClientM )
+    ( BaseUrl (..), ClientM, Scheme (Http), client, mkClientEnv, runClientM )
+import Servant.Client.Core
+    ( ServantError (..) )
 import Servant.Extra.ContentTypes
     ( WithHash (..) )
 
+import qualified Data.Text as T
 import qualified Servant.Extra.ContentTypes as Api
 
 
-newtype RustBackend a = RustBackend
-    { runRB :: ReaderT (HttpBridge IO) IO a
-    } deriving
-        ( Monad
-        , Applicative
-        , Functor
-        , MonadReader (HttpBridge IO)
-        , MonadIO
-        )
+-- | Constructs a network layer with the given cardano-http-bridge API.
+mkNetworkLayer :: Monad m => HttpBridge m e -> NetworkLayer m e e
+mkNetworkLayer httpBridge = NetworkLayer
+    { nextBlocks = rbNextBlocks httpBridge
+    , networkTip = getNetworkTip httpBridge
+    }
 
-runRustBackend :: HttpBridge IO -> RustBackend a -> IO a
-runRustBackend network action = runReaderT (runRB action) network
 
-getNetwork :: RustBackend (HttpBridge IO)
-getNetwork = ask
-
--- | The things that can go wrong when retrieving blocks.
-newtype ErrGetNextBlocks
-    = GetNextBlocksError String
-    deriving (Show, Eq)
-
-instance Exception ErrGetNextBlocks
+-- | Creates a cardano-http-bridge 'NetworkLayer' using the given connection settings.
+newNetworkLayer :: Text -> Int -> IO (NetworkLayer IO HttpBridgeError HttpBridgeError)
+newNetworkLayer network port = mkNetworkLayer <$> newHttpBridge network port
 
 -- Note: This will be quite inefficient for at least two reasons.
 -- 1. If the number of blocks requested is small, it will fetch the same epoch
 --    pack file repeatedly.
 -- 2. Fetching the tip block and working backwards is not ideal.
 -- We will keep it for now, and it can be improved later.
-nextBlocks
-    :: Word64 -- ^ Number of blocks to retrieve
-    -> SlotId    -- ^ Starting point
-    -> ExceptT ErrGetNextBlocks RustBackend [Block]
-nextBlocks numBlocks start = do
-    net <- lift getNetwork
-    (tipHash, tip) <- fmap slotId <$> runHttpBridge (getNetworkTip net)
-    epochBlocks <- blocksFromPacks net tip
+rbNextBlocks
+    :: Monad m
+    => HttpBridge m e -- ^ http-bridge API
+    -> Word64  -- ^ Number of blocks to retrieve
+    -> SlotId -- ^ Starting point
+    -> ExceptT e m [Block]
+rbNextBlocks net numBlocks start = do
+    (tipHash, tip) <- fmap slotId <$> getNetworkTip net
+    epochBlocks <- lift $ blocksFromPacks net tip
     lastBlocks <- unstableBlocks net tipHash tip epochBlocks
     pure (epochBlocks ++ lastBlocks)
   where
@@ -107,7 +104,7 @@ nextBlocks numBlocks start = do
     -- Grab blocks from epoch pack files
     blocksFromPacks network tip = do
         let epochs = epochRange numBlocks start tip
-        epochBlocks <- runHttpBridge (getEpochs network epochs)
+        epochBlocks <- getEpochs network epochs
         pure $ filter (blockIsBetween start end) (concat epochBlocks)
 
     -- The next slot after the last block.
@@ -120,7 +117,7 @@ nextBlocks numBlocks start = do
         let start' = fromMaybe start (slotAfter epochBlocks)
 
         lastBlocks <- if end > start' && start' <= tip
-            then runHttpBridge $ fetchBlocksFromTip network start' tipHash
+            then fetchBlocksFromTip network start' tipHash
             else pure []
 
         pure $ filter (blockIsBefore end) lastBlocks
@@ -144,18 +141,18 @@ epochRange numBlocks (SlotId startEpoch startSlot) (SlotId tipEpoch _) =
 -- | Fetch epoch blocks until one fails.
 getEpochs
     :: Monad m
-    => HttpBridge m
+    => HttpBridge m e
     -> [Word64]
-    -> ExceptT HttpBridgeError m [[Block]]
+    -> m [[Block]]
 getEpochs network = mapUntilError (getEpoch network)
 
 -- Fetch blocks which are not in epoch pack files.
 fetchBlocksFromTip
     :: Monad m
-    => HttpBridge m
+    => HttpBridge m e
     -> SlotId
     -> Hash "BlockHeader"
-    -> ExceptT HttpBridgeError m [Block]
+    -> ExceptT e m [Block]
 fetchBlocksFromTip network start tipHash =
     reverse <$> workBackwards tipHash
   where
@@ -167,14 +164,6 @@ fetchBlocksFromTip network start tipHash =
         else
             pure [block]
 
-runHttpBridge
-    :: ExceptT HttpBridgeError IO a
-    -> ExceptT ErrGetNextBlocks RustBackend a
-runHttpBridge =
-    mapExceptT (fmap handle . liftIO)
-  where
-    handle = first (GetNextBlocksError . show)
-
 
 -- * Utility functions for monadic loops
 
@@ -182,16 +171,15 @@ runHttpBridge =
 -- are no more elements. This is like mapM, except that it always succeeds and
 -- the resulting list might be smaller than the given list.
 mapUntilError
-    :: Monad m
+    :: forall e a b m. (Monad m)
     => (a -> ExceptT e m b)
        -- ^ Action to run
     -> [a]
        -- ^ Elements
-    -> ExceptT e m [b]
-       -- ^ Results
-mapUntilError action (x:xs) = ExceptT $ runExceptT (action x) >>= \case
-    Left _ -> pure $ Right []
-    Right r -> runExceptT $ do
+    -> m [b]
+mapUntilError action (x:xs) = runExceptT (action x) >>= \case
+    Left _ -> pure []
+    Right r -> do
         rs <- mapUntilError action xs
         pure (r:rs)
 mapUntilError _ [] = pure []
@@ -202,20 +190,14 @@ mapUntilError _ [] = pure []
 -------------------------------------------------------------------------------}
 
 -- | Endpoints of the cardano-http-bridge API.
-data HttpBridge m = HttpBridge
+data HttpBridge m e = HttpBridge
     { getBlock
-        :: Hash "BlockHeader" -> ExceptT HttpBridgeError m Block
+        :: Hash "BlockHeader" -> ExceptT e m Block
     , getEpoch
-        :: Word64 -> ExceptT HttpBridgeError m [Block]
+        :: Word64 -> ExceptT e m [Block]
     , getNetworkTip
-        :: ExceptT HttpBridgeError m (Hash "BlockHeader", BlockHeader)
+        :: ExceptT e m (Hash "BlockHeader", BlockHeader)
     }
-
-newtype HttpBridgeError
-    = HttpBridgeError String
-    deriving (Show, Eq)
-
-instance Exception HttpBridgeError
 
 -- | Retrieve a block identified by the unique hash of its header.
 getBlockByHash :: NetworkName -> Api.Hash Blake2b_256 (ApiT BlockHeader) -> ClientM (ApiT Block)
@@ -232,7 +214,7 @@ getBlockByHash
     = client api
 
 -- | Construct a new network layer
-mkHttpBridge :: Manager -> BaseUrl -> NetworkName -> HttpBridge IO
+mkHttpBridge :: Manager -> BaseUrl -> NetworkName -> HttpBridge IO HttpBridgeError
 mkHttpBridge mgr baseUrl network = HttpBridge
     { getBlock = \hash -> do
         hash' <- hashToApi' hash
@@ -245,7 +227,34 @@ mkHttpBridge mgr baseUrl network = HttpBridge
     run :: ClientM a -> ExceptT HttpBridgeError IO a
     run query = ExceptT $ (first convertError) <$> runClientM query env
     env = mkClientEnv mgr baseUrl
-    convertError = HttpBridgeError . show
+
+convertError :: ServantError -> HttpBridgeError
+convertError e@(FailureResponse _) =
+    NodeUnavailable (displayException e)
+convertError (ConnectionError e) =
+    NodeUnavailable ("Connection error: " <> T.unpack e)
+convertError e@(DecodeFailure _ _) =
+    BadResponseFromNode (show e)
+convertError (UnsupportedContentType _ _) =
+    BadResponseFromNode "UnsupportedContentType"
+convertError (InvalidContentTypeHeader _) =
+    BadResponseFromNode "InvalidContentTypeHeader"
+
+-- | The things that can go wrong when retrieving blocks.
+data HttpBridgeError
+    = NodeUnavailable String
+      -- ^ Could not connect to or read from the node API.
+    | BadResponseFromNode String
+      -- ^ The node returned an unexpected response.
+    deriving (Show, Eq)
+
+instance Exception HttpBridgeError where
+    displayException (NodeUnavailable e) =
+        "Internal error: cardano-http-bridge returned an error code "
+        ++ " or could not be connected to: " ++ e
+    displayException (BadResponseFromNode e) =
+        "Internal error: cardano-http-bridge returned an "
+        ++ " unexpected response: " ++ e
 
 blockHeaderHash
     :: WithHash algorithm (ApiT BlockHeader)
@@ -264,4 +273,11 @@ hashToApi'
 hashToApi' h = case hashToApi h of
     Just h' -> pure h'
     Nothing -> throwError
-        $ HttpBridgeError "hashToApi: Digest was of the wrong length"
+        $ BadResponseFromNode "hashToApi: Digest was of the wrong length"
+
+-- | Creates a cardano-http-bridge API with the given connection settings.
+newHttpBridge :: Text -> Int -> IO (HttpBridge IO HttpBridgeError)
+newHttpBridge network port = do
+    mgr <- newManager defaultManagerSettings
+    let baseUrl = BaseUrl Http "localhost" port ""
+    pure $ mkHttpBridge mgr baseUrl (NetworkName network)

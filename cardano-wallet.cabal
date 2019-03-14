@@ -52,6 +52,7 @@ library
     , mtl
     , servant
     , servant-client
+    , servant-client-core
     , text
     , time-units
     , transformers

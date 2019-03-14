@@ -4,25 +4,16 @@ module Cardano.NetworkLayer.HttpBridgeSpec
 
 import Prelude
 
+
+import Cardano.NetworkLayer
+    ( NetworkLayer (..) )
 import Cardano.NetworkLayer.HttpBridge
-    ( HttpBridge (..)
-    , HttpBridgeError (..)
-    , RustBackend
-    , nextBlocks
-    , runRustBackend
-    )
 import Cardano.Wallet.Primitive
     ( Block (..), BlockHeader (..), Hash (..), SlotId (..), slotsPerEpoch )
-import Control.Exception
-    ( Exception, throwIO )
-import Control.Monad
-    ( (<=<) )
 import Control.Monad.Catch
     ( MonadThrow (..) )
 import Control.Monad.Except
-    ( ExceptT, runExceptT, throwError )
-import Control.Monad.IO.Class
-    ( MonadIO, liftIO )
+    ( runExceptT, throwError )
 import Data.Word
     ( Word64 )
 import Test.Hspec
@@ -34,42 +25,35 @@ import qualified Data.ByteString.Char8 as B8
 spec :: Spec
 spec = do
     describe "Getting next blocks with a mock backend" $ do
-        beforeAll (pure $ mockHttpBridge 105 (SlotId 106 1492)) $ do
+        beforeAll (pure $ mockNetworkLayer 105 (SlotId 106 1492)) $ do
              getNextBlocksSpec
 
-getNextBlocksSpec :: SpecWith (HttpBridge IO)
+getNextBlocksSpec :: (Show e, Eq e) => SpecWith (NetworkLayer IO e e)
 getNextBlocksSpec = do
     it "should get something from the latest epoch" $ \network -> do
-        blocks <- runBackend network $ nextBlocks 1000 (SlotId 106 1000)
+        blocks <- runExceptT $ nextBlocks network 1000 (SlotId 106 1000)
         -- the number of blocks between slots 1000 and 1492 inclusive
-        length blocks `shouldBe` 493
-        let hdrs = map (slotId . header) blocks
+        fmap length blocks `shouldBe` Right 493
+        let hdrs = either (const []) (map (slotId . header)) blocks
         map slotNumber hdrs `shouldBe` [1000 .. 1492]
         map epochIndex hdrs `shouldSatisfy` all (== 106)
 
     it "should get something from an unstable epoch" $ \network -> do
-        blocks <- runBackend network $ nextBlocks 1000 (SlotId 105 17000)
-        length blocks `shouldBe` 1000
+        blocks <- runExceptT $ nextBlocks network 1000 (SlotId 105 17000)
+        fmap length blocks `shouldBe` Right 1000
 
     it "should get from old epochs" $ \network -> do
-        blocks <- runBackend network $ nextBlocks 1000 (SlotId 104 10000)
+        Right blocks <- runExceptT $ nextBlocks network 1000 (SlotId 104 10000)
         length blocks `shouldBe` 1000
         map (epochIndex . slotId . header) blocks `shouldSatisfy` all (== 104)
 
     it "should produce no blocks if start slot is after tip" $ \network -> do
-        blocks <- runBackend network $ nextBlocks 1000 (SlotId 107 0)
-        blocks `shouldBe` []
+        blocks <- runExceptT $ nextBlocks network 1000 (SlotId 107 0)
+        blocks `shouldBe` Right []
 
     it "should work for zero blocks" $ \network -> do
-        blocks <- runBackend network $ nextBlocks 0 (SlotId 106 1000)
-        blocks `shouldBe` []
-
-unsafeRunExceptT :: (Exception e, MonadIO m) => ExceptT e m a -> m a
-unsafeRunExceptT = either (liftIO . throwIO) pure <=< runExceptT
-
-runBackend :: Exception e => HttpBridge IO -> ExceptT e RustBackend a -> IO a
-runBackend network = runRustBackend network . unsafeRunExceptT
-
+        blocks <- runExceptT $ nextBlocks network 0 (SlotId 106 1000)
+        blocks `shouldBe` Right []
 
 {-------------------------------------------------------------------------------
                              Mock HTTP Bridge
@@ -109,12 +93,19 @@ mockEpoch ep =
   where
     epochs = [ 0 .. fromIntegral (slotsPerEpoch - 1) ]
 
+mockNetworkLayer :: MonadThrow m
+    => Word64 -- ^ make getEpoch fail for epochs after this
+    -> SlotId -- ^ the tip block
+    -> NetworkLayer m String String
+mockNetworkLayer firstUnstableEpoch tip =
+    mkNetworkLayer (mockHttpBridge firstUnstableEpoch tip)
+
 -- | A network layer which returns mock blocks.
 mockHttpBridge
     :: MonadThrow m
     => Word64 -- ^ make getEpoch fail for epochs after this
     -> SlotId -- ^ the tip block
-    -> HttpBridge m
+    -> HttpBridge m String
 mockHttpBridge firstUnstableEpoch tip = HttpBridge
     { getBlock = \hash -> do
         -- putStrLn $ "mock getBlock " ++ show hash
@@ -124,7 +115,7 @@ mockHttpBridge firstUnstableEpoch tip = HttpBridge
         if ep < firstUnstableEpoch then
             pure $ mockEpoch ep
         else
-            throwError $ HttpBridgeError $
+            throwError $
                 "mock epoch " ++ show ep ++ " > firstUnstableEpoch " ++
                 show firstUnstableEpoch
 
