@@ -13,9 +13,11 @@ env:
     - EXECUTABLE=$HOME/.local/bin/cardano-wallet-server
     - EXECUTABLE_CHECKSUM=$HOME/.local/bin/cardano-wallet-server.sha256
     - STACK_WORK_CACHE=$HOME/.local/stack-work.tar.gz
+    - PATH=$PATH:$HOME/.cargo/bin:$HOME/.local/bin
 
-# Do not choose a language; we provide our own build tools:
-language: generic
+
+# Use the Travis Rust build tools for cardano-http-bridge.
+language: rust
 
 # Deactivate builds on branches but `master` (CI is still triggered by PRs)
 branches:
@@ -29,6 +31,10 @@ cache:
   - $HOME/.stack
   - $HOME/.local
   - $HOME/.ghc
+  - $HOME/.cargo
+
+before_cache:
+  - rm -rf $HOME/.cargo/registry # Don't cache cargo's registry
 
 # Ensure necessary system libraries are present:
 addons:
@@ -56,7 +62,7 @@ jobs:
     name: "Compiling"
     script:
     - mkdir -p ~/.local/bin
-    - export PATH=$HOME/.local/bin:$PATH
+    - test "$(cardano-http-bridge --version)" = "cardano-http-bridge 0.0.1" || travis_retry cargo install --git https://github.com/input-output-hk/cardano-http-bridge.git
     - travis_retry curl -L https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
     - stack --no-terminal setup
     - stack --no-terminal build --only-snapshot
@@ -80,6 +86,7 @@ jobs:
     name: "Tests"
     script:
     - tar xzf $STACK_WORK_CACHE
+    - cardano-http-bridge --help
     - stack --no-terminal test --coverage
     - tar czf $STACK_WORK_CACHE .stack-work
 
