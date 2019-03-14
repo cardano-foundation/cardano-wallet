@@ -68,6 +68,7 @@ library
       Cardano.Wallet.Binary
       Cardano.Wallet.Binary.Packfile
       Cardano.Wallet.BlockSyncer
+      Cardano.WalletLayer
       Cardano.Wallet.Mnemonic
       Cardano.Wallet.Primitive
       Servant.Extra.ContentTypes
