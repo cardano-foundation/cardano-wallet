@@ -196,16 +196,6 @@ slotDiff :: SlotId -> SlotId -> Integer
 -- | Add a number of slots to an (Epoch, LocalSlotIndex) pair, where the
 --   number of slots can be greater than one epoch.
 slotIncr :: Word64 -> SlotId -> SlotId
-
--- | Predicate returns true iff the block is after then given slot
-blockIsAfter :: SlotId -> Block -> Bool
-
--- | Predicate returns true iff the block is before the given slot.
-blockIsBefore :: SlotId -> Block -> Bool
-
--- | <tt>blockIsBetween start end</tt> Returns true if the block is in
---   within the interval <tt>[start, end)</tt>.
-blockIsBetween :: SlotId -> SlotId -> Block -> Bool
 newtype Hash (tag :: Symbol)
 Hash :: ByteString -> Hash
 [getHash] :: Hash -> ByteString
@@ -274,8 +264,11 @@ instance GHC.Generics.Generic Cardano.Wallet.Primitive.Address
 instance GHC.Show.Show Cardano.Wallet.Primitive.Address
 instance Formatting.Buildable.Buildable a => GHC.Show.Show (Cardano.Wallet.Primitive.ShowFmt a)
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Block
+instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Block
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.BlockHeader
+instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.BlockHeader
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Tx
+instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Tx
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.UTxO
 instance Cardano.Wallet.Primitive.Dom Cardano.Wallet.Primitive.UTxO
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.UTxO
@@ -284,6 +277,7 @@ instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.TxIn
 instance Formatting.Buildable.Buildable (Cardano.Wallet.Primitive.TxIn, Cardano.Wallet.Primitive.TxOut)
 instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.Hash tag)
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.SlotId
+instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.SlotId
 instance GHC.Enum.Enum Cardano.Wallet.Primitive.SlotId
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.TxOut
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.TxOut
@@ -292,21 +286,6 @@ instance GHC.Enum.Bounded Cardano.Wallet.Primitive.Coin
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Coin
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Address
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Address
-
-
--- | This module contains the ticking function that is responsible for
---   invoking block acquisition functionality and executing it in periodic
---   fashion.
---   
---   Known limitations: the ticking function makes sure action is not
---   executed on already consumed block, but does not check and handle
---   block gaps (aka catching up).
-module Cardano.Wallet.BlockSyncer
-newtype BlockHeadersConsumed
-BlockHeadersConsumed :: [BlockHeader] -> BlockHeadersConsumed
-tickingFunction :: IO [Block] -> (Block -> IO ()) -> Millisecond -> BlockHeadersConsumed -> IO ()
-instance GHC.Classes.Eq Cardano.Wallet.BlockSyncer.BlockHeadersConsumed
-instance GHC.Show.Show Cardano.Wallet.BlockSyncer.BlockHeadersConsumed
 
 
 -- | These are (partial) CBOR decoders for blocks and block headers. Note
@@ -668,9 +647,36 @@ instance Control.DeepSeq.NFData (Cardano.Wallet.Wallet s)
 
 module Cardano.NetworkLayer
 data NetworkLayer m e0 e1
-NetworkLayer :: (Word64 -> SlotId -> ExceptT e0 m [Block]) -> ExceptT e1 m (Hash "BlockHeader", BlockHeader) -> NetworkLayer m e0 e1
-[nextBlocks] :: NetworkLayer m e0 e1 -> Word64 -> SlotId -> ExceptT e0 m [Block]
+NetworkLayer :: (SlotId -> ExceptT e0 m [Block]) -> ExceptT e1 m (Hash "BlockHeader", BlockHeader) -> NetworkLayer m e0 e1
+
+-- | Gets some blocks from the node. It will not necessarily return all the
+--   blocks that the node has, but will receive a reasonable-sized chunk.
+--   It will never return blocks from before the given slot. It may return
+--   an empty list if the node does not have any blocks from after the
+--   starting slot.
+[nextBlocks] :: NetworkLayer m e0 e1 -> SlotId -> ExceptT e0 m [Block]
 [networkTip] :: NetworkLayer m e0 e1 -> ExceptT e1 m (Hash "BlockHeader", BlockHeader)
+
+
+-- | This module contains the ticking function that is responsible for
+--   invoking block acquisition functionality and executing it in periodic
+--   fashion.
+--   
+--   Known limitations: - Blocks are produced by the network layer. They
+--   are not expected to produce any duplicates and to rollback.
+--   
+--   <ul>
+--   <li></li>
+--   </ul>
+module Cardano.Wallet.BlockSyncer
+
+-- | Every interval <tt>delay</tt>, fetches some data from a given source,
+--   and call an action for each elements retrieved.
+tick :: forall st m b. MonadIO m => (st -> m ([b], st)) -> (b -> m ()) -> Millisecond -> st -> m ()
+
+-- | Retrieve blocks from a chain producer and execute some given action
+--   for each block.
+listen :: forall e0 e1. Show e0 => NetworkLayer IO e0 e1 -> (Block -> IO ()) -> IO ()
 
 
 -- | Extra content types for Servant.
