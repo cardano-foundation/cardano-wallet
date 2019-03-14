@@ -76,6 +76,7 @@ spec = do
         let block = blockchain !! 1
         let utxo = utxoFromTx $ head $ Set.toList $ transactions block
         it (show $ ShowFmt utxo) True
+        it (show $ ShowFmt block) True
 
     describe "Compare Wallet impl. with Specification" $ do
         it "Lemma 3.2 - dom u ⋪ updateUTxO b u = new b"

@@ -4,7 +4,6 @@ module Cardano.NetworkLayer.HttpBridgeSpec
 
 import Prelude
 
-
 import Cardano.NetworkLayer
     ( NetworkLayer (..) )
 import Cardano.NetworkLayer.HttpBridge
@@ -13,11 +12,11 @@ import Cardano.Wallet.Primitive
 import Control.Monad.Catch
     ( MonadThrow (..) )
 import Control.Monad.Except
-    ( runExceptT, throwError )
+    ( lift, runExceptT, throwError )
 import Data.Word
     ( Word64 )
 import Test.Hspec
-    ( Spec, SpecWith, beforeAll, describe, it, shouldBe, shouldSatisfy )
+    ( Spec, describe, it, shouldBe, shouldSatisfy )
 
 import qualified Data.ByteString.Char8 as B8
 
@@ -25,35 +24,48 @@ import qualified Data.ByteString.Char8 as B8
 spec :: Spec
 spec = do
     describe "Getting next blocks with a mock backend" $ do
-        beforeAll (pure $ mockNetworkLayer 105 (SlotId 106 1492)) $ do
-             getNextBlocksSpec
+        let network = mockNetworkLayer noLog 105 (SlotId 106 1492)
 
-getNextBlocksSpec :: (Show e, Eq e) => SpecWith (NetworkLayer IO e e)
-getNextBlocksSpec = do
-    it "should get something from the latest epoch" $ \network -> do
-        blocks <- runExceptT $ nextBlocks network 1000 (SlotId 106 1000)
-        -- the number of blocks between slots 1000 and 1492 inclusive
-        fmap length blocks `shouldBe` Right 493
-        let hdrs = either (const []) (map (slotId . header)) blocks
-        map slotNumber hdrs `shouldBe` [1000 .. 1492]
-        map epochIndex hdrs `shouldSatisfy` all (== 106)
+        it "should get something from the latest epoch" $ do
+            blocks <- runExceptT $ nextBlocks network (SlotId 106 1000)
+            -- the number of blocks between slots 1000 and 1492 inclusive
+            fmap length blocks `shouldBe` Right 493
+            let hdrs = either (const []) (map (slotId . header)) blocks
+            map slotNumber hdrs `shouldBe` [1000 .. 1492]
+            map epochIndex hdrs `shouldSatisfy` all (== 106)
 
-    it "should get something from an unstable epoch" $ \network -> do
-        blocks <- runExceptT $ nextBlocks network 1000 (SlotId 105 17000)
-        fmap length blocks `shouldBe` Right 1000
+        it "should return all unstable blocks" $ do
+            blocks <- runExceptT $ nextBlocks network (SlotId 105 0)
+            fmap length blocks `shouldBe` Right (21600 + 1493)
 
-    it "should get from old epochs" $ \network -> do
-        Right blocks <- runExceptT $ nextBlocks network 1000 (SlotId 104 10000)
-        length blocks `shouldBe` 1000
-        map (epochIndex . slotId . header) blocks `shouldSatisfy` all (== 104)
+        it "should return unstable blocks after the start slot" $ do
+            blocks <- runExceptT $ nextBlocks network (SlotId 105 17000)
+            -- this will be all the blocks between 105.17000 and 106.1492
+            fmap length blocks `shouldBe` Right 6093
 
-    it "should produce no blocks if start slot is after tip" $ \network -> do
-        blocks <- runExceptT $ nextBlocks network 1000 (SlotId 107 0)
-        blocks `shouldBe` Right []
+        it "should return just the tip block" $ do
+            blocks <- runExceptT $ nextBlocks network (SlotId 106 1492)
+            fmap length blocks `shouldBe` Right 1
 
-    it "should work for zero blocks" $ \network -> do
-        blocks <- runExceptT $ nextBlocks network 0 (SlotId 106 1000)
-        blocks `shouldBe` Right []
+        it "should get from packed epochs" $ do
+            Right blocks <- runExceptT $ nextBlocks network (SlotId 100 0)
+            -- an entire epoch's worth of blocks
+            length blocks `shouldBe` 21600
+            map (epochIndex . slotId . header) blocks `shouldSatisfy` all (== 100)
+
+        it "should get from packed epochs and filter by start slot" $ do
+            Right blocks <- runExceptT $ nextBlocks network (SlotId 104 10000)
+            -- the number of remaining blocks in epoch 104
+            length blocks `shouldBe` 11600
+            map (epochIndex . slotId . header) blocks `shouldSatisfy` all (== 104)
+
+        it "should produce no blocks if start slot is after tip" $ do
+            blocks <- runExceptT $ nextBlocks network (SlotId 107 0)
+            blocks `shouldBe` Right []
+
+        it "should work for the first epoch" $ do
+            Right blocks <- runExceptT $ nextBlocks network (SlotId 0 0)
+            length blocks `shouldBe` 21600
 
 {-------------------------------------------------------------------------------
                              Mock HTTP Bridge
@@ -93,25 +105,29 @@ mockEpoch ep =
   where
     epochs = [ 0 .. fromIntegral (slotsPerEpoch - 1) ]
 
-mockNetworkLayer :: MonadThrow m
-    => Word64 -- ^ make getEpoch fail for epochs after this
+mockNetworkLayer
+    :: MonadThrow m
+    => (String -> m ()) -- ^ logger function
+    -> Word64 -- ^ make getEpoch fail for epochs after this
     -> SlotId -- ^ the tip block
     -> NetworkLayer m String String
-mockNetworkLayer firstUnstableEpoch tip =
-    mkNetworkLayer (mockHttpBridge firstUnstableEpoch tip)
+mockNetworkLayer logLine firstUnstableEpoch tip =
+    mkNetworkLayer (mockHttpBridge logLine firstUnstableEpoch tip)
 
 -- | A network layer which returns mock blocks.
 mockHttpBridge
     :: MonadThrow m
-    => Word64 -- ^ make getEpoch fail for epochs after this
+    => (String -> m ()) -- ^ logger function
+    -> Word64 -- ^ make getEpoch fail for epochs after this
     -> SlotId -- ^ the tip block
     -> HttpBridge m String
-mockHttpBridge firstUnstableEpoch tip = HttpBridge
+mockHttpBridge logLine firstUnstableEpoch tip = HttpBridge
     { getBlock = \hash -> do
-        -- putStrLn $ "mock getBlock " ++ show hash
+        lift $ logLine $ "mock getBlock " ++ show hash
         pure $ Block (mockHeaderFromHash hash) mempty
+
     , getEpoch = \ep -> do
-        -- putStrLn $ "mock getEpoch " ++ show ep
+        lift $ logLine $ "mock getEpoch " ++ show ep
         if ep < firstUnstableEpoch then
             pure $ mockEpoch ep
         else
@@ -120,7 +136,11 @@ mockHttpBridge firstUnstableEpoch tip = HttpBridge
                 show firstUnstableEpoch
 
     , getNetworkTip = do
-        -- putStrLn $ "mock getNetworkTip"
+        lift $ logLine "mock getNetworkTip"
         let hash = mockHash tip
         pure (hash, mockHeaderFromHash hash)
     }
+
+-- If debugging, you might want to log with putStrLn.
+noLog :: Monad m => String -> m ()
+noLog = const (pure ())

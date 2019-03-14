@@ -26,17 +26,7 @@ import Cardano.NetworkLayer
 import Cardano.NetworkLayer.HttpBridge.Api
     ( ApiT (..), EpochIndex (..), NetworkName (..), api )
 import Cardano.Wallet.Primitive
-    ( Block (..)
-    , BlockHeader (..)
-    , Hash (..)
-    , Hash (..)
-    , SlotId (..)
-    , blockIsAfter
-    , blockIsBefore
-    , blockIsBetween
-    , slotIncr
-    , slotsPerEpoch
-    )
+    ( Block (..), BlockHeader (..), Hash (..), SlotId (..) )
 import Control.Exception
     ( Exception (..) )
 import Control.Monad.Except
@@ -49,8 +39,6 @@ import Data.Bifunctor
     ( first )
 import Data.ByteArray
     ( convert )
-import Data.Maybe
-    ( fromMaybe )
 import Data.Text
     ( Text )
 import Data.Word
@@ -69,7 +57,6 @@ import Servant.Extra.ContentTypes
 import qualified Data.Text as T
 import qualified Servant.Extra.ContentTypes as Api
 
-
 -- | Constructs a network layer with the given cardano-http-bridge API.
 mkNetworkLayer :: Monad m => HttpBridge m e -> NetworkLayer m e e
 mkNetworkLayer httpBridge = NetworkLayer
@@ -82,61 +69,40 @@ mkNetworkLayer httpBridge = NetworkLayer
 newNetworkLayer :: Text -> Int -> IO (NetworkLayer IO HttpBridgeError HttpBridgeError)
 newNetworkLayer network port = mkNetworkLayer <$> newHttpBridge network port
 
--- Note: This will be quite inefficient for at least two reasons.
--- 1. If the number of blocks requested is small, it will fetch the same epoch
---    pack file repeatedly.
--- 2. Fetching the tip block and working backwards is not ideal.
--- We will keep it for now, and it can be improved later.
+-- | Retrieve a chunk of blocks from cardano-http-bridge.
+--
+-- It will either return:
+-- - an epoch pack's worth of blocks (those after the given starting slot); or
+-- - all of the unstable blocks after the starting slot, if any.
 rbNextBlocks
     :: Monad m
     => HttpBridge m e -- ^ http-bridge API
-    -> Word64  -- ^ Number of blocks to retrieve
     -> SlotId -- ^ Starting point
     -> ExceptT e m [Block]
-rbNextBlocks net numBlocks start = do
+rbNextBlocks net start = do
     (tipHash, tip) <- fmap slotId <$> getNetworkTip net
-    epochBlocks <- lift $ blocksFromPacks net tip
-    lastBlocks <- unstableBlocks net tipHash tip epochBlocks
+    epochBlocks <- lift $ blocksFromPacks 1 net tip
+    lastBlocks <- if null epochBlocks
+        then unstableBlocks net tipHash tip
+        else pure []
     pure (epochBlocks ++ lastBlocks)
   where
-    end = slotIncr numBlocks start
 
     -- Grab blocks from epoch pack files
-    blocksFromPacks network tip = do
-        let epochs = epochRange numBlocks start tip
+    blocksFromPacks limit network tip = do
+        let epochs = take limit [epochIndex start .. (epochIndex tip) - 1]
         epochBlocks <- getEpochs network epochs
-        pure $ filter (blockIsBetween start end) (concat epochBlocks)
+        pure $ filter (blockIsSameOrAfter start) (concat epochBlocks)
 
-    -- The next slot after the last block.
-    slotAfter [] = Nothing
-    slotAfter bs = Just . succ . slotId . header . last $ bs
+    -- Predicate returns true iff the block is from the given slot or a later one.
+    blockIsSameOrAfter :: SlotId -> Block -> Bool
+    blockIsSameOrAfter s = (>= s) . slotId . header
 
     -- Grab the remaining blocks which aren't packed in epoch files,
     -- starting from the tip.
-    unstableBlocks network tipHash tip epochBlocks = do
-        let start' = fromMaybe start (slotAfter epochBlocks)
-
-        lastBlocks <- if end > start' && start' <= tip
-            then fetchBlocksFromTip network start' tipHash
-            else pure []
-
-        pure $ filter (blockIsBefore end) lastBlocks
-
--- | Calculates which epochs to fetch, given a number of slots, and the start
--- point. It takes into account the latest block available, and that the most
--- recent epoch is never available in a pack file.
-epochRange
-    :: Word64
-        -- ^ Number of slots
-    -> SlotId
-        -- ^ Start point
-    -> SlotId
-        -- ^ Latest block available
-    -> [Word64]
-epochRange numBlocks (SlotId startEpoch startSlot) (SlotId tipEpoch _) =
-    [startEpoch .. min (tipEpoch - 1) (startEpoch + fromIntegral numEpochs)]
-  where
-    numEpochs = (numBlocks + fromIntegral startSlot) `div` slotsPerEpoch
+    unstableBlocks network tipHash tip
+        | start <= tip = fetchBlocksFromTip network start tipHash
+        | otherwise    = pure []
 
 -- | Fetch epoch blocks until one fails.
 getEpochs
@@ -158,8 +124,9 @@ fetchBlocksFromTip network start tipHash =
   where
     workBackwards headerHash = do
         block <- getBlock network headerHash
-        if blockIsAfter start block then do
-            blocks <- workBackwards $ prevBlockHash $ header block
+        let hdr = header block
+        if start < slotId hdr then do
+            blocks <- workBackwards (prevBlockHash hdr)
             pure (block:blocks)
         else
             pure [block]
@@ -219,9 +186,10 @@ mkHttpBridge mgr baseUrl network = HttpBridge
     { getBlock = \hash -> do
         hash' <- hashToApi' hash
         run (getApiT <$> getBlockByHash network hash')
-    , getEpoch = \ep -> run (map getApiT <$>
-        getEpochById network (EpochIndex ep))
-    , getNetworkTip = run (blockHeaderHash <$> getTipBlockHeader network)
+    , getEpoch = \ep ->
+        run (map getApiT <$> getEpochById network (EpochIndex ep))
+    , getNetworkTip =
+        run (blockHeaderHash <$> getTipBlockHeader network)
     }
   where
     run :: ClientM a -> ExceptT HttpBridgeError IO a
