@@ -743,66 +743,29 @@ instance Servant.Extra.ContentTypes.FromCBOR (Cardano.NetworkLayer.HttpBridge.Ap
 -- | This module contains the necessary logic to talk to implement the
 --   network layer using the cardano-http-bridge as a chain producer.
 module Cardano.NetworkLayer.HttpBridge
-newtype RustBackend a
-RustBackend :: ReaderT (HttpBridge IO) IO a -> RustBackend a
-[$sel:runRB:RustBackend] :: RustBackend a -> ReaderT (HttpBridge IO) IO a
-runRustBackend :: HttpBridge IO -> RustBackend a -> IO a
-getNetwork :: RustBackend (HttpBridge IO)
-
--- | The things that can go wrong when retrieving blocks.
-newtype ErrGetNextBlocks
-GetNextBlocksError :: String -> ErrGetNextBlocks
-nextBlocks :: Word64 -> SlotId -> ExceptT ErrGetNextBlocks RustBackend [Block]
-
--- | Calculates which epochs to fetch, given a number of slots, and the
---   start point. It takes into account the latest block available, and
---   that the most recent epoch is never available in a pack file.
-epochRange :: Word64 -> SlotId -> SlotId -> [Word64]
-
--- | Fetch epoch blocks until one fails.
-getEpochs :: Monad m => HttpBridge m -> [Word64] -> ExceptT HttpBridgeError m [[Block]]
-fetchBlocksFromTip :: Monad m => HttpBridge m -> SlotId -> Hash "BlockHeader" -> ExceptT HttpBridgeError m [Block]
-runHttpBridge :: ExceptT HttpBridgeError IO a -> ExceptT ErrGetNextBlocks RustBackend a
-
--- | Apply an action to each element of a list, until an action fails, or
---   there are no more elements. This is like mapM, except that it always
---   succeeds and the resulting list might be smaller than the given list.
-mapUntilError :: Monad m => (a -> ExceptT e m b) -> [a] -> ExceptT e m [b]
 
 -- | Endpoints of the cardano-http-bridge API.
-data HttpBridge m
-HttpBridge :: (Hash "BlockHeader" -> ExceptT HttpBridgeError m Block) -> (Word64 -> ExceptT HttpBridgeError m [Block]) -> ExceptT HttpBridgeError m (Hash "BlockHeader", BlockHeader) -> HttpBridge m
-[$sel:getBlock:HttpBridge] :: HttpBridge m -> Hash "BlockHeader" -> ExceptT HttpBridgeError m Block
-[$sel:getEpoch:HttpBridge] :: HttpBridge m -> Word64 -> ExceptT HttpBridgeError m [Block]
-[$sel:getNetworkTip:HttpBridge] :: HttpBridge m -> ExceptT HttpBridgeError m (Hash "BlockHeader", BlockHeader)
-newtype HttpBridgeError
-HttpBridgeError :: String -> HttpBridgeError
+data HttpBridge m e
+HttpBridge :: (Hash "BlockHeader" -> ExceptT e m Block) -> (Word64 -> ExceptT e m [Block]) -> ExceptT e m (Hash "BlockHeader", BlockHeader) -> HttpBridge m e
+[$sel:getBlock:HttpBridge] :: HttpBridge m e -> Hash "BlockHeader" -> ExceptT e m Block
+[$sel:getEpoch:HttpBridge] :: HttpBridge m e -> Word64 -> ExceptT e m [Block]
+[$sel:getNetworkTip:HttpBridge] :: HttpBridge m e -> ExceptT e m (Hash "BlockHeader", BlockHeader)
 
--- | Retrieve a block identified by the unique hash of its header.
-getBlockByHash :: NetworkName -> Hash Blake2b_256 (ApiT BlockHeader) -> ClientM (ApiT Block)
+-- | The things that can go wrong when retrieving blocks.
+data HttpBridgeError
 
--- | Retrieve all the blocks for the epoch identified by the given integer
---   ID.
-getEpochById :: NetworkName -> EpochIndex -> ClientM [ApiT Block]
+-- | Could not connect to or read from the node API.
+NodeUnavailable :: String -> HttpBridgeError
 
--- | Retrieve the header of the latest known block.
-getTipBlockHeader :: NetworkName -> ClientM (WithHash Blake2b_256 (ApiT BlockHeader))
+-- | The node returned an unexpected response.
+BadResponseFromNode :: String -> HttpBridgeError
 
--- | Construct a new network layer
-mkHttpBridge :: Manager -> BaseUrl -> NetworkName -> HttpBridge IO
-blockHeaderHash :: WithHash algorithm (ApiT BlockHeader) -> (Hash "BlockHeader", BlockHeader)
-hashToApi :: HashAlgorithm a => Hash h -> Maybe (Hash a b)
+-- | Constructs a network layer with the given cardano-http-bridge API.
+mkNetworkLayer :: Monad m => HttpBridge m e -> NetworkLayer m e e
 
--- | Converts a Hash to the Digest type that the Api module requires.
-hashToApi' :: (Monad m, HashAlgorithm algorithm) => Hash a -> ExceptT HttpBridgeError m (Hash algorithm b)
-instance Control.Monad.IO.Class.MonadIO Cardano.NetworkLayer.HttpBridge.RustBackend
-instance Control.Monad.Reader.Class.MonadReader (Cardano.NetworkLayer.HttpBridge.HttpBridge GHC.Types.IO) Cardano.NetworkLayer.HttpBridge.RustBackend
-instance GHC.Base.Functor Cardano.NetworkLayer.HttpBridge.RustBackend
-instance GHC.Base.Applicative Cardano.NetworkLayer.HttpBridge.RustBackend
-instance GHC.Base.Monad Cardano.NetworkLayer.HttpBridge.RustBackend
+-- | Creates a cardano-http-bridge <a>NetworkLayer</a> using the given
+--   connection settings.
+newNetworkLayer :: Text -> Int -> IO (NetworkLayer IO HttpBridgeError HttpBridgeError)
 instance GHC.Classes.Eq Cardano.NetworkLayer.HttpBridge.HttpBridgeError
 instance GHC.Show.Show Cardano.NetworkLayer.HttpBridge.HttpBridgeError
-instance GHC.Classes.Eq Cardano.NetworkLayer.HttpBridge.ErrGetNextBlocks
-instance GHC.Show.Show Cardano.NetworkLayer.HttpBridge.ErrGetNextBlocks
 instance GHC.Exception.Type.Exception Cardano.NetworkLayer.HttpBridge.HttpBridgeError
-instance GHC.Exception.Type.Exception Cardano.NetworkLayer.HttpBridge.ErrGetNextBlocks
