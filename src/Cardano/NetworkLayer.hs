@@ -1,6 +1,8 @@
 {-# LANGUAGE DataKinds #-}
 
-module Cardano.NetworkLayer where
+module Cardano.NetworkLayer
+    ( NetworkLayer (..)
+    ) where
 
 import Cardano.Wallet.Primitive
     ( Block, BlockHeader (..), Hash (..), SlotId )
