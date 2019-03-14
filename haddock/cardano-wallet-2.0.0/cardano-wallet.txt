@@ -415,7 +415,9 @@ data Key (level :: Depth) key
 
 -- | Key Depth in the derivation path, according to BIP-0039 / BIP-0044
 --   
---   root' <i> purpose' </i> cointype' <i> account' </i> change / address
+--   <pre>
+--   m | purpose' | cointype' | account' | change | address
+--   </pre>
 --   
 --   We do not manipulate purpose, cointype and change paths directly, so
 --   they are left out of the sum type.
@@ -526,7 +528,7 @@ instance Control.DeepSeq.NFData key => Control.DeepSeq.NFData (Cardano.Wallet.Ad
 -- | This module contains primitives necessary to perform address
 --   discovery. So far, we're only interested in address following a
 --   sequential derivation scheme as specified in BIP-0044. Later, we may
---   introduce backward-compatibility with random address scheme from the
+--   introduce backward compatibility with random address scheme from the
 --   legacy Cardano wallets.
 module Cardano.Wallet.AddressDiscovery
 
