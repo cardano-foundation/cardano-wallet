@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE QuantifiedConstraints #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -30,8 +31,6 @@ import Control.Concurrent
     ( threadDelay )
 import Control.Monad.Except
     ( runExceptT )
-import Data.IORef
-    ( newIORef, readIORef, writeIORef )
 import qualified Data.List as L
 import Data.Text
     ( Text )
@@ -42,37 +41,35 @@ import Fmt
 import System.Exit
     ( die )
 
-newtype BlockHeadersConsumed =
-    BlockHeadersConsumed [BlockHeader]
+data BlockHeadersConsumed st =
+    BlockHeadersConsumed [BlockHeader] st
     deriving (Show, Eq)
 
 storingLimit :: Int
 storingLimit = 2160
 
 tickingFunction
-    :: IO [Block]
+    :: forall st. (st -> IO (st, [Block]))
     -- ^ a way to get a new block
     -> (Block -> IO ())
     -- ^ action taken on a new block
     -> Millisecond
     -- ^ tick time
-    -> BlockHeadersConsumed
+    -> BlockHeadersConsumed st
     -> IO ()
 tickingFunction getNextBlocks action tickTime = go
     where
-      go
-          :: BlockHeadersConsumed
-          -> IO ()
-      go (BlockHeadersConsumed headersConsumed) = do
-          blocksDownloaded <- getNextBlocks
+      go :: BlockHeadersConsumed st -> IO ()
+      go (BlockHeadersConsumed headersConsumed st) = do
+          (st', blocksDownloaded) <- getNextBlocks st
           let blocksToProcess = filter
                   (checkIfAlreadyConsumed headersConsumed)
                   (L.nub blocksDownloaded)
           mapM_ action blocksToProcess
           threadDelay $ (fromIntegral . toMicroseconds) tickTime
-          go $ BlockHeadersConsumed
-              $ take storingLimit
-              $ map header blocksToProcess ++ headersConsumed
+          let headersConsumed' = take storingLimit
+                  $ map header blocksToProcess ++ headersConsumed
+          go $ BlockHeadersConsumed headersConsumed' st'
 
       checkIfAlreadyConsumed
           :: [BlockHeader]
@@ -86,22 +83,18 @@ startBlockSyncer :: Text -> Int -> IO ()
 startBlockSyncer networkName port = do
     network <- newNetworkLayer networkName port
 
-    startSlotRef <- newIORef (SlotId 0 0)
-
     let chunkSize = 2160 * 10 * 2 -- two epochs
         interval = 20000 :: Millisecond
 
-        produceBlocks :: IO [Block]
-        produceBlocks = do
-            start <- readIORef startSlotRef
+        produceBlocks :: SlotId -> IO (SlotId, [Block])
+        produceBlocks start = do
             res <- runExceptT $ nextBlocks network chunkSize start
             case res of
                 Left err -> die $ fmt $ "Chain producer error: "+||err||+""
-                Right [] -> pure []
+                Right [] -> pure (start, [])
                 Right blocks -> do
                     let start' = slotId . header . last $ blocks
-                    writeIORef startSlotRef start'
-                    pure blocks
+                    pure (start', blocks)
 
         logBlock :: Block -> IO ()
         logBlock block = putStrLn msg
@@ -109,4 +102,5 @@ startBlockSyncer networkName port = do
                 msg = fmt $ "Received block "+||slotId h||+""
                 h = header block
 
-    tickingFunction produceBlocks logBlock interval (BlockHeadersConsumed [])
+    tickingFunction produceBlocks logBlock interval $
+        BlockHeadersConsumed [] (SlotId 0 0)

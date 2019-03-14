@@ -61,7 +61,7 @@ tickingFunctionTest (TickingTime tickTime, Blocks blocks) =
         (readerChan, reader) <- mkReader
         (writerChan, writer) <- mkWriter blocks
         waitFor writerChan $
-            tickingFunction writer reader tickTime (BlockHeadersConsumed [])
+            tickingFunction writer reader tickTime (BlockHeadersConsumed [] ())
         takeMVar readerChan `shouldReturn` L.nub (reverse $ mconcat blocks)
 
 waitFor
@@ -75,15 +75,15 @@ waitFor done action = do
 
 mkWriter
     :: [[a]]
-    -> IO (MVar (), IO [a])
+    -> IO (MVar (), st -> IO (st, [a]))
 mkWriter xs0 = do
     ref <- newMVar xs0
     done <- newEmptyMVar
     return
         ( done
-        , takeMVar ref >>= \case
-            [] -> putMVar done () $> []
-            h:q -> putMVar ref q $> h
+        , \st -> takeMVar ref >>= \case
+            [] -> putMVar done () $> (st, [])
+            h:q -> putMVar ref q $> (st, h)
         )
 
 mkReader
