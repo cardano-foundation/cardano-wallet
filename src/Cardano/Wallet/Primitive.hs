@@ -81,10 +81,11 @@ import Data.Word
 import Fmt
     ( Buildable (..)
     , blockListF
+    , blockListF'
     , fmt
+    , indentF
     , nameF
     , ordinalF
-    , padLeftF
     , prefixF
     , suffixF
     )
@@ -108,6 +109,12 @@ data Block = Block
 
 instance NFData Block
 
+instance Buildable Block where
+    build (Block h txs) =
+        "Block (" <> build h <> "): \n" <>
+        indentF 2 (blockListF (Set.toList txs))
+
+
 data BlockHeader = BlockHeader
     { slotId
         :: SlotId
@@ -117,6 +124,15 @@ data BlockHeader = BlockHeader
 
 instance NFData BlockHeader
 
+instance Buildable BlockHeader where
+    build (BlockHeader s prev) = mempty
+        <> build s
+        <> " ~"
+        <> prefixF 8 prevF
+        <> "..."
+        <> suffixF 8 prevF
+      where
+        prevF = build $ T.decodeUtf8 $ convertToBase Base16 $ getHash prev
 
 -- * Tx
 
@@ -134,6 +150,11 @@ data Tx = Tx
     } deriving (Show, Generic, Ord, Eq)
 
 instance NFData Tx
+
+instance Buildable Tx where
+    build (Tx ins outs) = mempty
+        <> nameF "inputs" (blockListF ins)
+        <> nameF "outputs" (blockListF outs)
 
 txIns :: Set Tx -> Set TxIn
 txIns =
@@ -179,7 +200,7 @@ instance NFData TxOut
 
 instance Buildable TxOut where
     build txout = mempty
-        <> padLeftF 17 ' ' (build $ coin txout) -- NOTE 17 because max coin val
+        <> build (coin txout)
         <> " @ "
         <> prefixF 8 addrF
         <> "..."
@@ -257,7 +278,9 @@ instance Dom UTxO where
 
 instance Buildable UTxO where
     build (UTxO utxo) =
-        nameF "UTxO" $ blockListF (Map.toList utxo)
+        nameF "UTxO" $ blockListF' "-" utxoF (Map.toList utxo)
+      where
+        utxoF (inp, out) = build inp <> " => " <> build out
 
 
 balance :: UTxO -> Integer
@@ -301,6 +324,9 @@ data SlotId = SlotId
   } deriving stock (Show, Eq, Ord, Generic)
 
 instance NFData SlotId
+
+instance Buildable SlotId where
+    build (SlotId e s) = build e <> "." <> build s
 
 instance Enum SlotId where
     toEnum i
