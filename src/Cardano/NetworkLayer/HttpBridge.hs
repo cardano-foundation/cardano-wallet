@@ -5,13 +5,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Cardano.NetworkLayer.HttpBridge
-    ( HttpBridge(..)
-    , HttpBridgeError(..)
-    , mkNetworkLayer
-    , newNetworkLayer
-    ) where
-
 -- |
 -- Copyright: © 2018-2019 IOHK
 -- License: MIT
@@ -19,7 +12,12 @@ module Cardano.NetworkLayer.HttpBridge
 -- This module contains the necessary logic to talk to implement the network
 -- layer using the cardano-http-bridge as a chain producer.
 
-module Cardano.NetworkLayer.HttpBridge where
+module Cardano.NetworkLayer.HttpBridge
+    ( HttpBridge(..)
+    , HttpBridgeError(..)
+    , mkNetworkLayer
+    , newNetworkLayer
+    ) where
 
 import Prelude
 
@@ -42,7 +40,7 @@ import Cardano.Wallet.Primitive
 import Control.Exception
     ( Exception (..) )
 import Control.Monad.Except
-    ( ExceptT (..), runExceptT, throwError )
+    ( ExceptT (..), lift, runExceptT, throwError )
 import Crypto.Hash
     ( HashAlgorithm, digestFromByteString )
 import Crypto.Hash.Algorithms
@@ -58,7 +56,6 @@ import Data.Text
 import Data.Word
     ( Word64 )
 import Network.HTTP.Client
-    ( Manager )
     ( Manager, defaultManagerSettings, newManager )
 import Servant.API
     ( (:<|>) (..) )
@@ -71,6 +68,19 @@ import Servant.Extra.ContentTypes
 
 import qualified Data.Text as T
 import qualified Servant.Extra.ContentTypes as Api
+
+
+-- | Constructs a network layer with the given cardano-http-bridge API.
+mkNetworkLayer :: Monad m => HttpBridge m e -> NetworkLayer m e e
+mkNetworkLayer httpBridge = NetworkLayer
+    { nextBlocks = rbNextBlocks httpBridge
+    , networkTip = getNetworkTip httpBridge
+    }
+
+
+-- | Creates a cardano-http-bridge 'NetworkLayer' using the given connection settings.
+newNetworkLayer :: Text -> Int -> IO (NetworkLayer IO HttpBridgeError HttpBridgeError)
+newNetworkLayer network port = mkNetworkLayer <$> newHttpBridge network port
 
 -- Note: This will be quite inefficient for at least two reasons.
 -- 1. If the number of blocks requested is small, it will fetch the same epoch
@@ -85,7 +95,7 @@ rbNextBlocks
     -> ExceptT e m [Block]
 rbNextBlocks net numBlocks start = do
     (tipHash, tip) <- fmap slotId <$> getNetworkTip net
-    epochBlocks <- blocksFromPacks net tip
+    epochBlocks <- lift $ blocksFromPacks net tip
     lastBlocks <- unstableBlocks net tipHash tip epochBlocks
     pure (epochBlocks ++ lastBlocks)
   where
@@ -133,7 +143,7 @@ getEpochs
     :: Monad m
     => HttpBridge m e
     -> [Word64]
-    -> ExceptT e m [[Block]]
+    -> m [[Block]]
 getEpochs network = mapUntilError (getEpoch network)
 
 -- Fetch blocks which are not in epoch pack files.
@@ -161,16 +171,15 @@ fetchBlocksFromTip network start tipHash =
 -- are no more elements. This is like mapM, except that it always succeeds and
 -- the resulting list might be smaller than the given list.
 mapUntilError
-    :: Monad m
+    :: forall e a b m. (Monad m)
     => (a -> ExceptT e m b)
        -- ^ Action to run
     -> [a]
        -- ^ Elements
-    -> ExceptT e m [b]
-       -- ^ Results
-mapUntilError action (x:xs) = ExceptT $ runExceptT (action x) >>= \case
-    Left _ -> pure $ Right []
-    Right r -> runExceptT $ do
+    -> m [b]
+mapUntilError action (x:xs) = runExceptT (action x) >>= \case
+    Left _ -> pure []
+    Right r -> do
         rs <- mapUntilError action xs
         pure (r:rs)
 mapUntilError _ [] = pure []
@@ -272,14 +281,3 @@ newHttpBridge network port = do
     mgr <- newManager defaultManagerSettings
     let baseUrl = BaseUrl Http "localhost" port ""
     pure $ mkHttpBridge mgr baseUrl (NetworkName network)
-
--- | Creates a cardano-http-bridge 'NetworkLayer' using the given connection settings.
-newNetworkLayer :: Text -> Int -> IO (NetworkLayer IO HttpBridgeError HttpBridgeError)
-newNetworkLayer network port = mkNetworkLayer <$> newHttpBridge network port
-
--- | Constructs a network layer with the given cardano-http-bridge API.
-mkNetworkLayer :: Monad m => HttpBridge m e -> NetworkLayer m e e
-mkNetworkLayer httpBridge = NetworkLayer
-    { nextBlocks = rbNextBlocks httpBridge
-    , networkTip = getNetworkTip httpBridge
-    }
