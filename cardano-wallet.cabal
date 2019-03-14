@@ -142,6 +142,34 @@ executable cardano-generate-mnemonic
   main-is:
       GenerateMnemonic.hs
 
+
+test-suite launcher-tests
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+      -O2
+  if (!flag(development))
+    ghc-options:         -Werror
+  build-depends:
+        base
+      , hspec
+      , process
+      , async
+  type:
+     exitcode-stdio-1.0
+  hs-source-dirs:
+      app/launcher
+      app/cli
+  main-is:
+      LauncherSpec.hs
+  other-modules:
+      Launcher
+
 test-suite unit
   default-language:
       Haskell2010
