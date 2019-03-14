@@ -58,11 +58,9 @@ library
   hs-source-dirs:
       src
   exposed-modules:
-      Cardano.ChainProducer
-      Cardano.ChainProducer.RustHttpBridge
-      Cardano.ChainProducer.RustHttpBridge.Api
-      Cardano.ChainProducer.RustHttpBridge.Client
-      Cardano.ChainProducer.RustHttpBridge.NetworkLayer
+      Cardano.NetworkLayer
+      Cardano.NetworkLayer.HttpBridge
+      Cardano.NetworkLayer.HttpBridge.Api
       Cardano.Wallet
       Cardano.Wallet.AddressDerivation
       Cardano.Wallet.AddressDiscovery
@@ -71,7 +69,6 @@ library
       Cardano.Wallet.BlockSyncer
       Cardano.Wallet.Mnemonic
       Cardano.Wallet.Primitive
-      Cardano.Wallet.Slotting
       Servant.Extra.ContentTypes
   other-modules:
       Paths_cardano_wallet
@@ -152,8 +149,6 @@ test-suite unit
   main-is:
       Main.hs
   other-modules:
-      Cardano.ChainProducer.RustHttpBridge.MockNetworkLayer
-      Cardano.ChainProducer.RustHttpBridgeSpec
       Cardano.Wallet.AddressDerivationSpec
       Cardano.Wallet.AddressDiscoverySpec
       Cardano.Wallet.Binary.PackfileSpec
@@ -161,5 +156,7 @@ test-suite unit
       Cardano.Wallet.BlockSyncerSpec
       Cardano.Wallet.MnemonicSpec
       Cardano.Wallet.PrimitiveSpec
-      Cardano.Wallet.SlottingSpec
       Cardano.WalletSpec
+      Cardano.NetworkLayerSpec
+      Cardano.NetworkLayer.HttpBridgeSpec
+      Cardano.NetworkLayer.HttpBridge.ApiSpec

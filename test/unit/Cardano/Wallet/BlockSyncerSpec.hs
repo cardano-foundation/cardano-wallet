@@ -14,9 +14,7 @@ import Prelude
 import Cardano.Wallet.BlockSyncer
     ( BlockHeadersConsumed (..), tickingFunction )
 import Cardano.Wallet.Primitive
-    ( Block (..), BlockHeader (..), Hash (..) )
-import Cardano.Wallet.Slotting
-    ( EpochIndex (..), LocalSlotIndex (..) )
+    ( Block (..), BlockHeader (..), Hash (..), SlotId (..) )
 import Control.Concurrent
     ( forkIO, killThread )
 import Control.Concurrent.MVar
@@ -38,8 +36,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
-import qualified Codec.CBOR.Encoding as CBOR
-import qualified Codec.CBOR.Write as CBOR
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 
 
@@ -120,7 +117,7 @@ instance Arbitrary Blocks where
     -- No Shrinking
     arbitrary = do
         n <- fromIntegral . (`mod` 42) <$> arbitrary @Word8
-        let h0 = BlockHeader 1 0 (Hash "initial block")
+        let h0 = BlockHeader (SlotId 1 0) (Hash "initial block")
         let blocks = map snd $ take n $ iterate next
                 ( blockHeaderHash h0
                 , Block h0 mempty
@@ -130,22 +127,14 @@ instance Arbitrary Blocks where
         next :: (Hash "BlockHeader", Block) -> (Hash "BlockHeader", Block)
         next (prev, b) =
             let
-                epoch = epochIndex (header b)
-                slot = slotNumber (header b) + 1
-                h = BlockHeader epoch slot prev
+                slot = slotId (header b)
+                h = BlockHeader (succ slot) prev
             in
                 (blockHeaderHash h, Block h mempty)
 
         blockHeaderHash :: BlockHeader -> Hash "BlockHeader"
-        blockHeaderHash =
-            Hash . CBOR.toStrictByteString . encodeBlockHeader
-          where
-            encodeBlockHeader (BlockHeader epoch slot prev) = mempty
-                <> CBOR.encodeListLen 3
-                <> CBOR.encodeWord64 (getEpochIndex epoch)
-                <> CBOR.encodeWord16 (getLocalSlotIndex slot)
-                <> CBOR.encodeBytes (getHash prev)
-
+        blockHeaderHash (BlockHeader (SlotId e s) _) =
+            Hash (B8.pack (show e <> show s))
 
 -- | Construct arbitrary groups of elements from a given list.
 --

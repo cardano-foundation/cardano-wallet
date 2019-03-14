@@ -9,7 +9,7 @@ import Cardano.Wallet.Binary.Packfile
 import Cardano.Wallet.BinarySpec
     ( unsafeDeserialiseFromBytes )
 import Cardano.Wallet.Primitive
-    ( Block (..), BlockHeader (..) )
+    ( Block (..), BlockHeader (..), SlotId (..) )
 import Data.Either
     ( fromRight, isRight )
 import Test.Hspec
@@ -85,7 +85,8 @@ spec = do
 
         it "should decode correct blocks" $ do
             bs <- L8.readFile testPackfile
-            let (ebb:first:second:_) = map header $ unsafeDeserialiseEpoch bs
+            let (ebb:first:second:_) =
+                    map (slotId . header) $ unsafeDeserialiseEpoch bs
             epochIndex ebb `shouldBe` 104
             epochIndex first `shouldBe` 104
             slotNumber ebb `shouldBe` 0 -- epoch genesis block

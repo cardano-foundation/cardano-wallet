@@ -5,6 +5,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -48,7 +49,17 @@ module Cardano.Wallet.Primitive
     , restrictedTo
     , Dom(..)
 
-    -- * Generic
+    -- * Slotting
+    , SlotId (..)
+    , isValidSlotId
+    , slotsPerEpoch
+    , slotDiff
+    , slotIncr
+    , blockIsAfter
+    , blockIsBefore
+    , blockIsBetween
+
+    -- * Polymorphic
     , Hash (..)
     , ShowFmt (..)
     , invariant
@@ -56,8 +67,6 @@ module Cardano.Wallet.Primitive
 
 import Prelude
 
-import Cardano.Wallet.Slotting
-    ( EpochIndex, LocalSlotIndex )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.ByteArray.Encoding
@@ -71,7 +80,7 @@ import Data.Map.Strict
 import Data.Set
     ( Set )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word16, Word32, Word64 )
 import Fmt
     ( Buildable (..)
     , blockListF
@@ -103,15 +112,14 @@ data Block = Block
 instance NFData Block
 
 data BlockHeader = BlockHeader
-    { epochIndex
-        :: !EpochIndex
-    , slotNumber
-        :: !LocalSlotIndex
+    { slotId
+        :: SlotId
     , prevBlockHash
         :: !(Hash "BlockHeader")
     } deriving (Show, Eq, Ord, Generic)
 
 instance NFData BlockHeader
+
 
 -- * Tx
 
@@ -281,6 +289,68 @@ restrictedBy (UTxO utxo) =
 restrictedTo :: UTxO -> Set TxOut ->  UTxO
 restrictedTo (UTxO utxo) outs =
     UTxO $ Map.filter (`Set.member` outs) utxo
+
+
+-- * Slotting
+
+-- | Hard-coded for the time being
+slotsPerEpoch :: Word64
+slotsPerEpoch = 21600
+
+-- | A slot identifier is the combination of an epoch and slot.
+data SlotId = SlotId
+  { epochIndex :: !Word64
+  , slotNumber :: !Word16
+  } deriving stock (Show, Eq, Ord, Generic)
+
+instance NFData SlotId
+
+instance Enum SlotId where
+    toEnum i
+        | i < 0 = error "SlotId.toEnum: bad argument"
+        | otherwise = slotIncr (fromIntegral i) (SlotId 0 0)
+    fromEnum (SlotId e s)
+        | n > fromIntegral (maxBound @Int) =
+            error "SlotId.fromEnum: arithmetic overflow"
+        | otherwise = fromIntegral n
+      where
+        n :: Word64
+        n = fromIntegral e * fromIntegral slotsPerEpoch + fromIntegral s
+
+-- | Add a number of slots to an (Epoch, LocalSlotIndex) pair, where the number
+-- of slots can be greater than one epoch.
+slotIncr :: Word64 -> SlotId -> SlotId
+slotIncr n slot = SlotId e s
+  where
+    e = fromIntegral (fromIntegral n' `div` slotsPerEpoch)
+    s = fromIntegral (fromIntegral n' `mod` slotsPerEpoch)
+    n' = n + fromIntegral (fromEnum slot)
+
+-- | @slotDiff a b@ is the number of slots by which @a@ is greater than @b@.
+slotDiff :: SlotId -> SlotId -> Integer
+slotDiff s1 s2 = fromIntegral (fromEnum s1 - fromEnum s2)
+
+-- | Whether the epoch index and slot number are in range.
+isValidSlotId :: SlotId -> Bool
+isValidSlotId (SlotId e s) =
+    e >= 0 && s >= 0 && s < fromIntegral slotsPerEpoch
+
+-- | Predicate returns true iff the block is from the given slot or a later one.
+blockIsSameOrAfter :: SlotId -> Block -> Bool
+blockIsSameOrAfter s = (>= s) . slotId . header
+
+-- | Predicate returns true iff the block is after then given slot
+blockIsAfter :: SlotId -> Block -> Bool
+blockIsAfter s = (> s) . slotId . header
+
+-- | Predicate returns true iff the block is before the given slot.
+blockIsBefore :: SlotId -> Block -> Bool
+blockIsBefore s = (< s) . slotId . header
+
+-- | @blockIsBetween start end@ Returns true if the block is in within the
+-- interval @[start, end)@.
+blockIsBetween :: SlotId -> SlotId -> Block -> Bool
+blockIsBetween start end b = blockIsSameOrAfter start b && blockIsBefore end b
 
 
 -- * Polymorphic

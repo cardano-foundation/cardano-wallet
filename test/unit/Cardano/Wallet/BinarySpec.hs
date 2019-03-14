@@ -17,6 +17,7 @@ import Cardano.Wallet.Primitive
     , BlockHeader (..)
     , Coin (..)
     , Hash (..)
+    , SlotId (..)
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
@@ -111,8 +112,7 @@ spec = do
 -- A mainnet block header
 blockHeader1 :: BlockHeader
 blockHeader1 = BlockHeader
-    { epochIndex = 105
-    , slotNumber = 9520
+    { slotId = SlotId 105 9520
     , prevBlockHash = hash16 "9f3c67b575bf2c5638291949694849d6ce5d29efa1f2eb3ed0beb6dac262e9e0"
     }
 
@@ -120,8 +120,7 @@ blockHeader1 = BlockHeader
 block1 :: Block
 block1 = Block
     { header = BlockHeader
-        { epochIndex = 105
-        , slotNumber = 9519
+        { slotId = SlotId 105 9519
         , prevBlockHash = prevBlockHash0
         }
     , transactions = mempty
@@ -134,8 +133,7 @@ block1 = Block
 block2 :: Block
 block2 = Block
     { header = BlockHeader
-        { epochIndex = 105
-        , slotNumber = 9876
+        { slotId = SlotId 105 9876
         , prevBlockHash = prevBlockHash0
         }
     , transactions = Set.fromList
@@ -164,8 +162,7 @@ block2 = Block
 block3 :: Block
 block3 = Block
     { header = BlockHeader
-        { epochIndex = 30
-        , slotNumber = 9278
+        { slotId = SlotId 30 9278
         , prevBlockHash = prevBlockHash0
         }
     , transactions = Set.fromList
@@ -197,8 +194,7 @@ block3 = Block
 block4 :: Block
 block4 = Block
     { header = BlockHeader
-        { epochIndex = 14
-        , slotNumber = 18
+        { slotId = SlotId 14 18
         , prevBlockHash = prevBlockHash0
         }
     , transactions = Set.fromList
