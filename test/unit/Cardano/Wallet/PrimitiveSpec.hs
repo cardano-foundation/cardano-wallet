@@ -34,8 +34,8 @@ import Cardano.Wallet.Primitive
     )
 import Data.Set
     ( Set, (\\) )
-import Numeric.Natural
-    ( Natural )
+import Data.Word
+    ( Word64 )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
@@ -260,8 +260,8 @@ prop_succSlotMaxIntFails :: Property
 prop_succSlotMaxIntFails =
     property $ succ (toEnum (maxBound :: Int) :: SlotId) `seq` ()
 
-propAddSlotsDiff :: (Natural, SlotId) -> Property
-propAddSlotsDiff (n, sl) =
+propAddSlotsDiff :: (NumberOfSlots, SlotId) -> Property
+propAddSlotsDiff (NumberOfSlots n, sl) =
     slotDiff (slotIncr n sl) sl === fromIntegral n
 
 propAddSlotsId :: SlotId -> Property
@@ -341,10 +341,12 @@ instance Arbitrary SlotId where
     shrink _ = []
     arbitrary = toEnum <$> choose (0, maxBound `div` 2)
 
-instance Arbitrary Natural where
-    shrink 0 = []
-    shrink n = [0, n `div` 2, n - 1]
-    arbitrary = fromIntegral
+newtype NumberOfSlots = NumberOfSlots Word64 deriving Show
+
+instance Arbitrary NumberOfSlots where
+    shrink (NumberOfSlots 0) = []
+    shrink (NumberOfSlots n) = NumberOfSlots <$> [0, n `div` 2, n - 1]
+    arbitrary = NumberOfSlots . fromIntegral
         <$> choose (0 :: Int, 4 * (fromIntegral slotsPerEpoch))
 
 instance Arbitrary Block where

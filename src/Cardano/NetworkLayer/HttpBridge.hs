@@ -6,14 +6,14 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Cardano.NetworkLayer.HttpBridge where
-
 -- |
 -- Copyright: © 2018-2019 IOHK
 -- License: MIT
 --
 -- This module contains the necessary logic to talk to implement the network
 -- layer using the cardano-http-bridge as a chain producer.
+
+module Cardano.NetworkLayer.HttpBridge where
 
 import Prelude
 
@@ -28,8 +28,8 @@ import Cardano.Wallet.Primitive
     , blockIsAfter
     , blockIsBefore
     , blockIsBetween
-    , epochRange
     , slotIncr
+    , slotsPerEpoch
     )
 import Control.Exception
     ( Exception )
@@ -53,8 +53,6 @@ import Data.Word
     ( Word64 )
 import Network.HTTP.Client
     ( Manager )
-import Numeric.Natural
-    ( Natural )
 import Servant.API
     ( (:<|>) (..) )
 import Servant.Client
@@ -94,7 +92,7 @@ instance Exception ErrGetNextBlocks
 -- 2. Fetching the tip block and working backwards is not ideal.
 -- We will keep it for now, and it can be improved later.
 nextBlocks
-    :: Natural -- ^ Number of blocks to retrieve
+    :: Word64 -- ^ Number of blocks to retrieve
     -> SlotId    -- ^ Starting point
     -> ExceptT ErrGetNextBlocks RustBackend [Block]
 nextBlocks numBlocks start = do
@@ -126,6 +124,22 @@ nextBlocks numBlocks start = do
             else pure []
 
         pure $ filter (blockIsBefore end) lastBlocks
+
+-- | Calculates which epochs to fetch, given a number of slots, and the start
+-- point. It takes into account the latest block available, and that the most
+-- recent epoch is never available in a pack file.
+epochRange
+    :: Word64
+        -- ^ Number of slots
+    -> SlotId
+        -- ^ Start point
+    -> SlotId
+        -- ^ Latest block available
+    -> [Word64]
+epochRange numBlocks (SlotId startEpoch startSlot) (SlotId tipEpoch _) =
+    [startEpoch .. min (tipEpoch - 1) (startEpoch + fromIntegral numEpochs)]
+  where
+    numEpochs = (numBlocks + fromIntegral startSlot) `div` slotsPerEpoch
 
 -- | Fetch epoch blocks until one fails.
 getEpochs

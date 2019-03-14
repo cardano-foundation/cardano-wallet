@@ -55,7 +55,6 @@ module Cardano.Wallet.Primitive
     , slotsPerEpoch
     , slotDiff
     , slotIncr
-    , epochRange
     , blockIsAfter
     , blockIsBefore
     , blockIsBetween
@@ -96,8 +95,6 @@ import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( Symbol )
-import Numeric.Natural
-    ( Natural )
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -297,7 +294,7 @@ restrictedTo (UTxO utxo) outs =
 -- * Slotting
 
 -- | Hard-coded for the time being
-slotsPerEpoch :: Natural
+slotsPerEpoch :: Word64
 slotsPerEpoch = 21600
 
 -- | A slot identifier is the combination of an epoch and slot.
@@ -317,12 +314,12 @@ instance Enum SlotId where
             error "SlotId.fromEnum: arithmetic overflow"
         | otherwise = fromIntegral n
       where
-        n :: Natural
+        n :: Word64
         n = fromIntegral e * fromIntegral slotsPerEpoch + fromIntegral s
 
 -- | Add a number of slots to an (Epoch, LocalSlotIndex) pair, where the number
 -- of slots can be greater than one epoch.
-slotIncr :: Natural -> SlotId -> SlotId
+slotIncr :: Word64 -> SlotId -> SlotId
 slotIncr n slot = SlotId e s
   where
     e = fromIntegral (fromIntegral n' `div` slotsPerEpoch)
@@ -337,22 +334,6 @@ slotDiff s1 s2 = fromIntegral (fromEnum s1 - fromEnum s2)
 isValidSlotId :: SlotId -> Bool
 isValidSlotId (SlotId e s) =
     e >= 0 && s >= 0 && s < fromIntegral slotsPerEpoch
-
--- | Calculates which epochs to fetch, given a number of slots, and the start
--- point. It takes into account the latest block available, and that the most
--- recent epoch is never available in a pack file.
-epochRange
-    :: Natural
-        -- ^ Number of slots
-    -> SlotId
-        -- ^ Start point
-    -> SlotId
-        -- ^ Latest block available
-    -> [Word64]
-epochRange numBlocks (SlotId startEpoch startSlot) (SlotId tipEpoch _) =
-    [startEpoch .. min (tipEpoch - 1) (startEpoch + fromIntegral numEpochs)]
-  where
-    numEpochs = (numBlocks + fromIntegral startSlot) `div` slotsPerEpoch
 
 -- | Predicate returns true iff the block is from the given slot or a later one.
 blockIsSameOrAfter :: SlotId -> Block -> Bool
