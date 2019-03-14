@@ -59,6 +59,7 @@ library
   hs-source-dirs:
       src
   exposed-modules:
+      Cardano.DBLayer
       Cardano.NetworkLayer
       Cardano.NetworkLayer.HttpBridge
       Cardano.NetworkLayer.HttpBridge.Api
@@ -154,6 +155,7 @@ test-suite unit
   main-is:
       Main.hs
   other-modules:
+      Cardano.DBLayerSpec
       Cardano.Wallet.AddressDerivationSpec
       Cardano.Wallet.AddressDiscoverySpec
       Cardano.Wallet.Binary.PackfileSpec
