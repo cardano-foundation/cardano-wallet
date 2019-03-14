@@ -679,6 +679,73 @@ tick :: forall st m b. MonadIO m => (st -> m ([b], st)) -> (b -> m ()) -> Millis
 listen :: forall e0 e1. Show e0 => NetworkLayer IO e0 e1 -> (Block -> IO ()) -> IO ()
 
 
+-- | | Module provides wallet layer api that is used by API layer | and
+--   uses both DB and Networking layer to realize its role | as being
+--   intermediary between the three.
+module Cardano.WalletLayer
+
+-- | Errors
+data CreateWalletError
+data GetWalletError
+
+-- | Types
+data WalletLayer m s
+WalletLayer :: (CreateWallet -> ExceptT CreateWalletError m (Wallet s)) -> (WalletId -> ExceptT GetWalletError m (Wallet s)) -> WalletLayer m s
+[$sel:createWallet:WalletLayer] :: WalletLayer m s -> CreateWallet -> ExceptT CreateWalletError m (Wallet s)
+[$sel:getWallet:WalletLayer] :: WalletLayer m s -> WalletId -> ExceptT GetWalletError m (Wallet s)
+data CreateWallet
+CreateWallet :: NewWallet -> CreateWallet
+ImportWallet :: Key  'AccountK XPub -> CreateWallet
+data NewWallet
+NewWallet :: !Mnemonic 15 -> !Maybe (Mnemonic 9) -> !WalletName -> !Passphrase "encryption" -> !AddressPoolGap -> NewWallet
+[$sel:mnemonicSentence:NewWallet] :: NewWallet -> !Mnemonic 15
+[$sel:mnemonicSentencePassphrase:NewWallet] :: NewWallet -> !Maybe (Mnemonic 9)
+[$sel:name:NewWallet] :: NewWallet -> !WalletName
+[$sel:passphrase:NewWallet] :: NewWallet -> !Passphrase "encryption"
+[$sel:addressPoolGap:NewWallet] :: NewWallet -> !AddressPoolGap
+newtype WalletName
+WalletName :: Text -> WalletName
+newtype WalletId
+WalletId :: Text -> WalletId
+newtype WalletTimestamp
+WalletTimestamp :: Microsecond -> WalletTimestamp
+data WalletMode
+Ready :: WalletMode
+Restoring :: WalletMode
+data Delegation
+Delegated :: Delegation
+NotDelegated :: Delegation
+newtype PassphraseInfo
+PassphraseInfo :: WalletTimestamp -> PassphraseInfo
+[$sel:lastUpdated:PassphraseInfo] :: PassphraseInfo -> WalletTimestamp
+data WalletMetadata
+WalletMetadata :: !WalletId -> !WalletName -> !AddressPoolGap -> !PassphraseInfo -> !WalletMode -> !Delegation -> WalletMetadata
+[$sel:id:WalletMetadata] :: WalletMetadata -> !WalletId
+[$sel:name:WalletMetadata] :: WalletMetadata -> !WalletName
+[$sel:addressPoolGap:WalletMetadata] :: WalletMetadata -> !AddressPoolGap
+[$sel:passphraseInfo:WalletMetadata] :: WalletMetadata -> !PassphraseInfo
+[$sel:state:WalletMetadata] :: WalletMetadata -> !WalletMode
+[$sel:delegation:WalletMetadata] :: WalletMetadata -> !Delegation
+instance GHC.Generics.Generic Cardano.WalletLayer.WalletMetadata
+instance GHC.Show.Show Cardano.WalletLayer.WalletMetadata
+instance GHC.Classes.Eq Cardano.WalletLayer.WalletMetadata
+instance GHC.Show.Show Cardano.WalletLayer.PassphraseInfo
+instance GHC.Classes.Eq Cardano.WalletLayer.PassphraseInfo
+instance GHC.Show.Show Cardano.WalletLayer.Delegation
+instance GHC.Classes.Eq Cardano.WalletLayer.Delegation
+instance GHC.Show.Show Cardano.WalletLayer.WalletMode
+instance GHC.Classes.Eq Cardano.WalletLayer.WalletMode
+instance GHC.Show.Show Cardano.WalletLayer.WalletTimestamp
+instance GHC.Classes.Ord Cardano.WalletLayer.WalletTimestamp
+instance GHC.Classes.Eq Cardano.WalletLayer.WalletTimestamp
+instance GHC.Show.Show Cardano.WalletLayer.WalletId
+instance GHC.Classes.Eq Cardano.WalletLayer.WalletId
+instance GHC.Generics.Generic Cardano.WalletLayer.NewWallet
+instance GHC.Show.Show Cardano.WalletLayer.NewWallet
+instance GHC.Show.Show Cardano.WalletLayer.WalletName
+instance GHC.Classes.Eq Cardano.WalletLayer.WalletName
+
+
 -- | Extra content types for Servant.
 module Servant.Extra.ContentTypes
 
