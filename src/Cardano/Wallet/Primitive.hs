@@ -55,9 +55,6 @@ module Cardano.Wallet.Primitive
     , slotsPerEpoch
     , slotDiff
     , slotIncr
-    , blockIsAfter
-    , blockIsBefore
-    , blockIsBetween
 
     -- * Polymorphic
     , Hash (..)
@@ -334,23 +331,6 @@ slotDiff s1 s2 = fromIntegral (fromEnum s1 - fromEnum s2)
 isValidSlotId :: SlotId -> Bool
 isValidSlotId (SlotId e s) =
     e >= 0 && s >= 0 && s < fromIntegral slotsPerEpoch
-
--- | Predicate returns true iff the block is from the given slot or a later one.
-blockIsSameOrAfter :: SlotId -> Block -> Bool
-blockIsSameOrAfter s = (>= s) . slotId . header
-
--- | Predicate returns true iff the block is after then given slot
-blockIsAfter :: SlotId -> Block -> Bool
-blockIsAfter s = (> s) . slotId . header
-
--- | Predicate returns true iff the block is before the given slot.
-blockIsBefore :: SlotId -> Block -> Bool
-blockIsBefore s = (< s) . slotId . header
-
--- | @blockIsBetween start end@ Returns true if the block is in within the
--- interval @[start, end)@.
-blockIsBetween :: SlotId -> SlotId -> Block -> Bool
-blockIsBetween start end b = blockIsSameOrAfter start b && blockIsBefore end b
 
 
 -- * Polymorphic

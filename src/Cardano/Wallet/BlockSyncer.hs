@@ -1,5 +1,5 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -83,18 +83,19 @@ startBlockSyncer :: Text -> Int -> IO ()
 startBlockSyncer networkName port = do
     network <- newNetworkLayer networkName port
 
-    let chunkSize = 2160 * 10 * 2 -- two epochs
-        interval = 20000 :: Millisecond
+    let interval = 20000 :: Millisecond
 
         produceBlocks :: SlotId -> IO (SlotId, [Block])
         produceBlocks start = do
-            res <- runExceptT $ nextBlocks network chunkSize start
+            res <- runExceptT $ nextBlocks network start
             case res of
                 Left err -> die $ fmt $ "Chain producer error: "+||err||+""
                 Right [] -> pure (start, [])
-                Right blocks -> do
-                    let start' = slotId . header . last $ blocks
-                    pure (start', blocks)
+                Right blocks ->
+                    -- fixme: there are more blocks available, so we need not
+                    -- wait for an interval to pass before getting more blocks.
+                    let start' = succ . slotId . header . last $ blocks
+                    in pure (start', blocks)
 
         logBlock :: Block -> IO ()
         logBlock block = putStrLn msg
