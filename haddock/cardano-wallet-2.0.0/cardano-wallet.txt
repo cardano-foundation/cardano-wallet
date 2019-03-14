@@ -645,6 +645,18 @@ utxoFromTx :: Tx -> UTxO
 instance GHC.Show.Show (Cardano.Wallet.Wallet s)
 instance Control.DeepSeq.NFData (Cardano.Wallet.Wallet s)
 
+module Cardano.DBLayer
+
+-- | A Database interface for storing various things in a DB. In practice,
+--   we'll need some extra contraints on the wallet state that allows us to
+--   serialize and unserialize it (e.g. <tt>forall s. (Serialize s) =&gt;
+--   ...</tt>)
+data DBLayer m
+DBLayer :: (PrimaryKey "wallet" -> Wallet s -> ExceptT ErrEnqueueCheckpoint m ()) -> (PrimaryKey "wallet" -> Word64 -> ExceptT ErrDequeueCheckpoints m ()) -> (PrimaryKey "wallet" -> ExceptT ErrCheckpoints m [Wallet s]) -> DBLayer m
+[enqueueCheckpoint] :: DBLayer m -> PrimaryKey "wallet" -> Wallet s -> ExceptT ErrEnqueueCheckpoint m ()
+[dequeueCheckpoints] :: DBLayer m -> PrimaryKey "wallet" -> Word64 -> ExceptT ErrDequeueCheckpoints m ()
+[checkpoints] :: DBLayer m -> PrimaryKey "wallet" -> ExceptT ErrCheckpoints m [Wallet s]
+
 module Cardano.NetworkLayer
 data NetworkLayer m e0 e1
 NetworkLayer :: (SlotId -> ExceptT e0 m [Block]) -> ExceptT e1 m (Hash "BlockHeader", BlockHeader) -> NetworkLayer m e0 e1
