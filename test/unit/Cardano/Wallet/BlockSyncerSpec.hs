@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.BlockSyncerSpec
     ( spec
@@ -12,7 +13,7 @@ module Cardano.Wallet.BlockSyncerSpec
 import Prelude
 
 import Cardano.Wallet.BlockSyncer
-    ( BlockHeadersConsumed (..), tickingFunction )
+    ( tick )
 import Cardano.Wallet.Primitive
     ( Block (..), BlockHeader (..), Hash (..), SlotId (..) )
 import Control.Concurrent
@@ -37,12 +38,11 @@ import Test.QuickCheck.Monadic
     ( monadicIO )
 
 import qualified Data.ByteString.Char8 as B8
-import qualified Data.List as L
 
 
 spec :: Spec
 spec = do
-    describe "Block syncer downloads blocks properly" $ do
+    describe "tick terminates an passes blocks from a source to a consumer" $ do
         it "Check ticking function when blocks are sent"
             (checkCoverage tickingFunctionTest)
 
@@ -59,10 +59,9 @@ tickingFunctionTest (TickingTime tickTime, Blocks blocks) =
   where
     prop = monadicIO $ liftIO $ do
         (readerChan, reader) <- mkReader
-        (writerChan, writer) <- mkWriter blocks
-        waitFor writerChan $
-            tickingFunction writer reader tickTime (BlockHeadersConsumed [] ())
-        takeMVar readerChan `shouldReturn` L.nub (reverse $ mconcat blocks)
+        (writerChan, writer) <- mkWriter
+        waitFor writerChan $ tick writer reader tickTime blocks
+        takeMVar readerChan `shouldReturn` reverse (mconcat blocks)
 
 waitFor
     :: MVar ()
@@ -74,16 +73,14 @@ waitFor done action = do
     killThread threadId
 
 mkWriter
-    :: [[a]]
-    -> IO (MVar (), st -> IO (st, [a]))
-mkWriter xs0 = do
-    ref <- newMVar xs0
+    :: st ~ [[a]] => IO (MVar (), st -> IO ([a], st))
+mkWriter = do
     done <- newEmptyMVar
     return
         ( done
-        , \st -> takeMVar ref >>= \case
-            [] -> putMVar done () $> (st, [])
-            h:q -> putMVar ref q $> (st, h)
+        , \case
+            st@[] -> putMVar done () $> ([], st)
+            h:st -> return (h, st)
         )
 
 mkReader
@@ -118,11 +115,8 @@ instance Arbitrary Blocks where
     arbitrary = do
         n <- fromIntegral . (`mod` 42) <$> arbitrary @Word8
         let h0 = BlockHeader (SlotId 1 0) (Hash "initial block")
-        let blocks = map snd $ take n $ iterate next
-                ( blockHeaderHash h0
-                , Block h0 mempty
-                )
-        mapM duplicateMaybe blocks >>= fmap Blocks . groups . mconcat
+        let b0 = (blockHeaderHash h0, Block h0 mempty)
+        Blocks <$> groups (map snd $ take n $ iterate next b0)
       where
         next :: (Hash "BlockHeader", Block) -> (Hash "BlockHeader", Block)
         next (prev, b) =
@@ -154,16 +148,3 @@ groups = fmap reverse . foldM arbitraryGroup [[]]
         choose (1 :: Int, 3) >>= \case
             1 -> return $ [a]:grp:rest
             _ -> return $ (grp ++ [a]):rest
-
--- | Generate a singleton or a pair from a given element.
---
--- >>> generate $ duplicateMaybe 14
--- [14]
---
--- >>> generate $ duplicateMaybe 14
--- [14, 14]
---
-duplicateMaybe :: a -> Gen [a]
-duplicateMaybe a = do
-    predicate <- arbitrary
-    if predicate then return [a, a] else return [a]

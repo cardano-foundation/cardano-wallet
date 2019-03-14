@@ -9,9 +9,16 @@
 -}
 module Main where
 
+import Prelude
+
+import Cardano.Wallet.BlockSyncer
+    ( listen )
+import Cardano.Wallet.Primitive
+    ( Block )
 import Control.Monad
     ( when )
-import Prelude
+import Fmt
+    ( build, fmt )
 import System.Console.Docopt
     ( Arguments
     , Docopt
@@ -28,10 +35,9 @@ import System.Environment
 import Text.Read
     ( readMaybe )
 
-import Cardano.Wallet.BlockSyncer
-    ( startBlockSyncer )
-
+import qualified Cardano.NetworkLayer.HttpBridge as HttpBridge
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
 
 -- | Command-Line Interface specification. See http://docopt.org/
 cli :: Docopt
@@ -59,16 +65,15 @@ main = do
     args <- parseArgsOrExit cli =<< getArgs
     when (args `isPresent` (longOption "help")) $ exitWithUsage cli
 
-    network <- getArg args (longOption "network") readNetwork
+    networkName <- getArg args (longOption "network") readNetwork
     nodePort <- getArg args (longOption "node-port") readInt
-    walletPort <- getArg args (longOption "wallet-server-port") readInt
+    _ <- getArg args (longOption "wallet-server-port") readInt
 
-    putStrLn $
-        "TODO: start wallet on port " ++ (show walletPort) ++
-        ",\n      connecting to " ++ (show network) ++
-        " node on port " ++ (show nodePort)
-
-    startBlockSyncer (showNetwork network) nodePort
+    network <- HttpBridge.newNetworkLayer (showNetwork networkName) nodePort
+    listen network logBlock
+  where
+    logBlock :: Block -> IO ()
+    logBlock = T.putStrLn . fmt . build
 
 -- Functions for parsing the values of command line options
 --

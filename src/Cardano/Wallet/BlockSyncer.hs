@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -8,32 +9,30 @@
 -- This module contains the ticking function that is responsible for invoking
 -- block acquisition functionality and executing it in periodic fashion.
 --
--- Known limitations: the ticking function makes sure action is not executed on
--- already consumed block, but does not check and handle block gaps (aka
--- catching up).
+-- Known limitations:
+-- - Blocks are produced by the network layer. They are not expected to produce
+--   any duplicates and to rollback.
+--
+-- -
 
 module Cardano.Wallet.BlockSyncer
-  ( BlockHeadersConsumed(..)
-  , tickingFunction
-  , startBlockSyncer
+  ( tick
+  , listen
   ) where
 
 
 import Prelude
 
 import Cardano.NetworkLayer
-    ( nextBlocks )
-import Cardano.NetworkLayer.HttpBridge
-    ( newNetworkLayer )
+    ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive
     ( Block (..), BlockHeader (..), SlotId (..) )
 import Control.Concurrent
     ( threadDelay )
 import Control.Monad.Except
     ( runExceptT )
-import qualified Data.List as L
-import Data.Text
-    ( Text )
+import Control.Monad.IO.Class
+    ( MonadIO, liftIO )
 import Data.Time.Units
     ( Millisecond, toMicroseconds )
 import Fmt
@@ -41,67 +40,45 @@ import Fmt
 import System.Exit
     ( die )
 
-data BlockHeadersConsumed st =
-    BlockHeadersConsumed [BlockHeader] st
-    deriving (Show, Eq)
 
-storingLimit :: Int
-storingLimit = 2160
-
-tickingFunction
-    :: forall st. (st -> IO (st, [Block]))
-    -- ^ a way to get a new block
-    -> (Block -> IO ())
-    -- ^ action taken on a new block
+-- | Every interval @delay@, fetches some data from a given source, and call
+-- an action for each elements retrieved.
+tick
+    :: forall st m b. (MonadIO m)
+    => (st -> m ([b], st))
+    -- ^ A way to get a new elements
+    -> (b -> m ())
+    -- ^ Action to be taken on new elements
     -> Millisecond
     -- ^ tick time
-    -> BlockHeadersConsumed st
+    -> st
+    -> m ()
+tick next action delay !st = do
+    (bs, !st') <- next st
+    mapM_ action bs
+    liftIO $ threadDelay $ (fromIntegral . toMicroseconds) delay
+    tick next action delay st'
+
+-- | Retrieve blocks from a chain producer and execute some given action for
+-- each block.
+listen
+    :: forall e0 e1. (Show e0)
+    => NetworkLayer IO e0 e1
+    -> (Block -> IO ())
     -> IO ()
-tickingFunction getNextBlocks action tickTime = go
-    where
-      go :: BlockHeadersConsumed st -> IO ()
-      go (BlockHeadersConsumed headersConsumed st) = do
-          (st', blocksDownloaded) <- getNextBlocks st
-          let blocksToProcess = filter
-                  (checkIfAlreadyConsumed headersConsumed)
-                  (L.nub blocksDownloaded)
-          mapM_ action blocksToProcess
-          threadDelay $ (fromIntegral . toMicroseconds) tickTime
-          let headersConsumed' = take storingLimit
-                  $ map header blocksToProcess ++ headersConsumed
-          go $ BlockHeadersConsumed headersConsumed' st'
-
-      checkIfAlreadyConsumed
-          :: [BlockHeader]
-          -> Block
-          -> Bool
-      checkIfAlreadyConsumed consumedHeaders (Block theHeader _) =
-          theHeader `L.notElem` consumedHeaders
-
--- | Start the chain producer process, consuming blocks by printing their slot.
-startBlockSyncer :: Text -> Int -> IO ()
-startBlockSyncer networkName port = do
-    network <- newNetworkLayer networkName port
-
-    let interval = 20000 :: Millisecond
-
-        produceBlocks :: SlotId -> IO (SlotId, [Block])
-        produceBlocks start = do
-            res <- runExceptT $ nextBlocks network start
-            case res of
-                Left err -> die $ fmt $ "Chain producer error: "+||err||+""
-                Right [] -> pure (start, [])
-                Right blocks ->
-                    -- fixme: there are more blocks available, so we need not
-                    -- wait for an interval to pass before getting more blocks.
-                    let start' = succ . slotId . header . last $ blocks
-                    in pure (start', blocks)
-
-        logBlock :: Block -> IO ()
-        logBlock block = putStrLn msg
-            where
-                msg = fmt $ "Received block "+||slotId h||+""
-                h = header block
-
-    tickingFunction produceBlocks logBlock interval $
-        BlockHeadersConsumed [] (SlotId 0 0)
+listen network action = do
+    tick getNextBlocks action 5000 (SlotId 0 0)
+  where
+    getNextBlocks :: SlotId -> IO ([Block], SlotId)
+    getNextBlocks current = do
+        res <- runExceptT $ nextBlocks network current
+        case res of
+            Left err ->
+                die $ fmt $ "Chain producer error: "+||err||+""
+            Right [] ->
+                pure ([], current)
+            Right blocks ->
+                -- fixme: there are more blocks available, so we need not
+                -- wait for an interval to pass before getting more blocks.
+                let next = succ . slotId . header . last $ blocks
+                in pure (blocks, next)

@@ -89,6 +89,7 @@ executable cardano-wallet-server
     , cardano-wallet
     , docopt
     , text
+    , fmt
   hs-source-dirs:
       app/server
   main-is:
