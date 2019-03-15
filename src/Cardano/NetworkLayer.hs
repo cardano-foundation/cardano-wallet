@@ -47,10 +47,10 @@ data NetworkLayer m e0 e1 = NetworkLayer
 -- If the data source indicates that it has no more data at present ('Sleep'),
 -- then sleep for the interval @delay@, and then try the fetch again.
 tick
-    :: forall st m b. (MonadIO m)
-    => (st -> m (TickResult [b], st))
+    :: forall st m a. (MonadIO m)
+    => (st -> m (TickResult a, st))
     -- ^ A way to get a new elements
-    -> (b -> m ())
+    -> (a -> m ())
     -- ^ Action to be taken on new elements
     -> Millisecond
     -- ^ Tick time
@@ -60,7 +60,7 @@ tick
 tick next action delay !st = do
     (res, !st') <- next st
     case res of
-        GotChunk bs -> mapM_ action bs
+        GotChunk a -> action a
         Sleep -> liftIO $ threadDelay $ (fromIntegral . toMicroseconds) delay
     tick next action delay st'
 
@@ -75,7 +75,7 @@ data TickResult a
 listen
     :: forall e0 e1. (Show e0)
     => NetworkLayer IO e0 e1
-    -> (Block -> IO ())
+    -> ([Block] -> IO ())
     -> IO ()
 listen network action = do
     tick getNextBlocks action 5000 (SlotId 0 0)
