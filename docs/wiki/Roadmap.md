@@ -324,6 +324,34 @@ NOTE: No persistence layer yet.
 - Remove a wallet, remove its corresponding keys
 - Cleanup metadata, addresses and all related DB entries
 
+### Logging and monitoring
+
+| Priority | Estimate |
+| ---      | ---      |
+|          | ?        |
+
+- Choose a logging library ([iohk-monitoring-framework](https://input-output-hk.github.io/iohk-monitoring-framework/pres-20181204/html/index.html) seems like the logical choice).
+- Set up the logger using a very basic fixed config that writes to
+  stdout/stderr (can be improved upon later).
+- Adjust program structure so that a logging object can be passed
+  throughout the program.
+- Add debug, info and error logging at appropriate points in program,
+  remove `putStrLn`.
+- Add time observations of various important actions. For example: node backend calls, database queries, wallet restore, block application.
+- Add space observations of important objects. For example: database size (records), UTxO distribution, number of addresses, number of transactions.
+
+### Benchmarking (space)
+
+| Priority | Estimate |
+| ---      | ---      |
+|          | ?        |
+
+- Find a way of running a wallet in a unit test with generated data (e.g. transactions).
+- Make data generators which set up transactions for wallets of various sizes.
+- Use the [weigh package](https://www.fpcomplete.com/blog/2016/05/weigh-package) to measure various test cases.
+- Examples of test cases would be: receiving blocks from backend, wallet restoration, listing transactions.
+- Make sure benchmarks are run in CI, at least nightly.
+
 
 ## Annexes
 
