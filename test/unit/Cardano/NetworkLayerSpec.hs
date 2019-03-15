@@ -13,7 +13,7 @@ module Cardano.NetworkLayerSpec
 import Prelude
 
 import Cardano.NetworkLayer
-    ( tick )
+    ( TickResult (..), tick )
 import Cardano.Wallet.Primitive
     ( Block (..), BlockHeader (..), Hash (..), SlotId (..) )
 import Control.Concurrent
@@ -24,6 +24,8 @@ import Control.Monad
     ( foldM )
 import Control.Monad.IO.Class
     ( liftIO )
+import Data.Foldable
+    ( toList )
 import Data.Functor
     ( ($>) )
 import Data.Time.Units
@@ -61,7 +63,7 @@ tickingFunctionTest (TickingTime tickTime, Blocks blocks) =
         (readerChan, reader) <- mkReader
         (writerChan, writer) <- mkWriter
         waitFor writerChan $ tick writer reader tickTime blocks
-        takeMVar readerChan `shouldReturn` reverse (mconcat blocks)
+        takeMVar readerChan `shouldReturn` reverse (flatten blocks)
 
 waitFor
     :: MVar ()
@@ -73,13 +75,13 @@ waitFor done action = do
     killThread threadId
 
 mkWriter
-    :: st ~ [[a]] => IO (MVar (), st -> IO ([a], st))
+    :: st ~ [TickResult [a]] => IO (MVar (), st -> IO (TickResult [a], st))
 mkWriter = do
     done <- newEmptyMVar
     return
         ( done
         , \case
-            st@[] -> putMVar done () $> ([], st)
+            st@[] -> putMVar done () $> (Sleep, st)
             h:st -> return (h, st)
         )
 
@@ -91,6 +93,9 @@ mkReader = do
         ( ref
         , \x -> modifyMVar_ ref $ return . (x :)
         )
+
+flatten :: [TickResult [Block]] -> [Block]
+flatten = concat . concatMap toList
 
 {-------------------------------------------------------------------------------
                             Arbitrary Instances
@@ -107,7 +112,7 @@ instance Arbitrary TickingTime where
         return $ TickingTime tickTime
 
 
-newtype Blocks = Blocks [[Block]]
+newtype Blocks = Blocks [TickResult [Block]]
     deriving Show
 
 instance Arbitrary Blocks where
@@ -116,7 +121,8 @@ instance Arbitrary Blocks where
         n <- fromIntegral . (`mod` 42) <$> arbitrary @Word8
         let h0 = BlockHeader (SlotId 1 0) (Hash "initial block")
         let b0 = (blockHeaderHash h0, Block h0 mempty)
-        Blocks <$> groups (map snd $ take n $ iterate next b0)
+        gs <- groups (map snd $ take n $ iterate next b0)
+        Blocks <$> tickResults gs
       where
         next :: (Hash "BlockHeader", Block) -> (Hash "BlockHeader", Block)
         next (prev, b) =
@@ -148,3 +154,15 @@ groups = fmap reverse . foldM arbitraryGroup [[]]
         choose (1 :: Int, 3) >>= \case
             1 -> return $ [a]:grp:rest
             _ -> return $ (grp ++ [a]):rest
+
+-- Converts list of chunks to TickResult and inserts some Sleeps.
+tickResults :: [[a]] -> Gen [TickResult [a]]
+tickResults [] = pure []
+tickResults (c:cs) = do
+    choose (1 :: Int, 3) >>= \case
+        1 -> do
+            rs <- tickResults cs
+            return (GotChunk c:rs)
+        _ -> do
+            rs <- tickResults (c:cs)
+            return (Sleep:rs)
