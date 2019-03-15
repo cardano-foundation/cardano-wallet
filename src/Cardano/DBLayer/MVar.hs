@@ -18,6 +18,8 @@ import Cardano.DBLayer
     ( DBLayer (..) )
 import Control.Concurrent.MVar
     ( modifyMVar_, newMVar, readMVar )
+import Control.DeepSeq
+    ( deepseq )
 
 import qualified Data.Map.Strict as Map
 
@@ -29,7 +31,7 @@ newDBLayer = do
     wallets <- newMVar mempty
     return $ DBLayer
         { putCheckpoints = \key cps ->
-            modifyMVar_ wallets (return . Map.insert key cps)
+            cps `deepseq` (modifyMVar_ wallets (return . Map.insert key cps))
         , readCheckpoints = \key ->
             Map.lookup key <$> readMVar wallets
         , readWallets =

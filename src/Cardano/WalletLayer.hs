@@ -61,10 +61,9 @@ import Say
 
 import qualified Data.Set as Set
 
-
 -- | Types
 data WalletLayer m s = WalletLayer
-    { createWallet :: NewWallet -> m WalletId
+    { createWallet :: NewWallet -> ExceptT CreateWalletError m WalletId
     , getWallet :: WalletId -> ExceptT GetWalletError m (Wallet s)
     , watchWallet :: WalletId -> m ()
     }
@@ -85,7 +84,13 @@ data NewWallet = NewWallet
 -- | Errors occuring when fetching a wallet
 newtype GetWalletError
     = ErrGetWalletNotFound WalletId
-    deriving Show
+    deriving (Eq, Show)
+
+-- | Errors occuring when creating a wallet
+newtype CreateWalletError
+    = ErrCreateWalletIdAlreadyExists WalletId
+    deriving (Eq, Show)
+
 
 -- | Create a new instance of the wallet layer.
 mkWalletLayer
@@ -108,8 +113,12 @@ mkWalletLayer db network = WalletLayer
         let wallet =
                 initWallet $ SeqState (extPool, intPool)
         let wid = WalletId $ getWalletName $ name w
-        putCheckpoints db (PrimaryKey wid) (wallet :| [])
-        return wid
+        lift (readCheckpoints db (PrimaryKey wid)) >>= \case
+            Nothing -> do
+                lift $ putCheckpoints db (PrimaryKey wid) (wallet :| [])
+                return wid
+            Just _ ->
+                throwE $ ErrCreateWalletIdAlreadyExists wid
     , getWallet = \wid -> lift (readCheckpoints db (PrimaryKey wid)) >>= \case
         Nothing ->
             throwE $ ErrGetWalletNotFound wid
