@@ -1,5 +1,9 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeApplications #-}
+
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -15,13 +19,19 @@ module Cardano.CLI
     , decode
     ) where
 
+import Prelude
+
+import Control.Monad
+    ( when )
 import GHC.TypeLits
     ( Symbol )
-import Prelude
 import System.Console.Docopt
-    ( Arguments, Docopt, Option, exitWithUsage, getArgOrExitWith )
+    ( Arguments, Docopt, Option, exitWithUsage, getAllArgs, getArgOrExitWith )
 import Text.Read
     ( readMaybe )
+
+import qualified Data.Text as T
+
 
 -- | Port number with a tag for describing what it is used for
 newtype Port (tag :: Symbol) = Port Int
@@ -29,49 +39,64 @@ newtype Port (tag :: Symbol) = Port Int
 data Network = Mainnet | Testnet
     deriving (Show, Enum)
 
-getArg
-    :: Arguments
-    -> Docopt
-    -> Option
-    -> (String -> Either String a)
-    -> IO a
-getArg args cli opt decod = do
-    str <- getArgOrExitWith cli args opt
-    case decod str of
-        Right a -> return a
-        Left err -> do
-            putStrLn $ "Invalid " <> show opt <> ". " <> err
-            putStrLn ""
-            exitWithUsage cli
+
+class GetArg from where
+    getArg
+        :: Arguments
+        -> Docopt
+        -> Option
+        -> (from -> Either String to)
+        -> IO to
+
+instance GetArg String where
+    getArg args cli opt decod = do
+        str <- getArgOrExitWith cli args opt
+        case decod str of
+            Right a -> return a
+            Left err -> do
+                putStrLn $ "Invalid " <> show opt <> ". " <> err
+                putStrLn ""
+                exitWithUsage cli
+
+instance GetArg [String] where
+    getArg args cli opt decod = do
+        let str = getAllArgs args opt
+        when (null str) $ exitWithUsage cli
+        case decod str of
+            Right a -> return a
+            Left err -> do
+                putStrLn $ "Invalid " <> show opt <> ". " <> err
+                putStrLn ""
+                exitWithUsage cli
 
 -- | Encoding things into command line arguments
-class Encodable a where
-    encode :: a -> String
+class Encodable from to where
+    encode :: from -> to
 
 -- | Decoding command line arguments
-class Decodable a where
-    decode :: String -> Either String a
+class Decodable from to where
+    decode :: from -> Either String to
 
-instance Encodable Int where
+instance Encodable Int String where
     encode = show
 
-instance Decodable Int where
+instance Decodable String Int where
     decode str =
         maybe (Left err) Right (readMaybe str)
       where
         err = "Not an integer: " ++ show str ++ "."
 
-instance Encodable (Port (tag :: Symbol)) where
+instance Encodable (Port tag) String where
     encode (Port p) = encode p
 
-instance Decodable (Port (tag :: Symbol))where
+instance Decodable String (Port tag) where
     decode str = Port <$> decode str
 
-instance Encodable Network where
+instance Encodable Network String where
     encode Mainnet = "mainnet"
     encode Testnet = "testnet"
 
-instance Decodable Network where
+instance Decodable String Network where
     decode "mainnet" = Right Mainnet
     decode "testnet" = Right Testnet
     decode s = Left $ show s ++ " is neither \"mainnet\" nor \"testnet\"."
