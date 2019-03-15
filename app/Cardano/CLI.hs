@@ -1,6 +1,19 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE KindSignatures #-}
-module CLI where
+
+-- |
+-- Copyright: © 2018-2019 IOHK
+-- License: MIT
+--
+-- Shared types and helpers for CLI parsing
+
+module Cardano.CLI
+    ( getArg
+    , Port
+    , Network
+    , encode
+    , decode
+    ) where
 
 import GHC.TypeLits
     ( Symbol )
@@ -10,19 +23,11 @@ import System.Console.Docopt
 import Text.Read
     ( readMaybe )
 
-
--- Shared types and helpers for CLI parsing
-
-
 -- | Port number with a tag for describing what it is used for
-newtype Port (tag :: Symbol) = Port
-    { getPort :: Int
-    }
-
+newtype Port (tag :: Symbol) = Port Int
 
 data Network = Mainnet | Testnet
     deriving (Show, Enum)
-
 
 getArg
     :: Arguments
@@ -42,7 +47,6 @@ getArg args cli opt decod = do
 -- | Encoding things into command line arguments
 class Encodable a where
     encode :: a -> String
-
 
 -- | Decoding command line arguments
 class Decodable a where
