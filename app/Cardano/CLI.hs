@@ -21,8 +21,12 @@ module Cardano.CLI
 
 import Prelude
 
+import Cardano.Wallet.Mnemonic
+    ( Mnemonic, mkMnemonic )
 import Control.Monad
     ( when )
+import Data.Bifunctor
+    ( first )
 import GHC.TypeLits
     ( Symbol )
 import System.Console.Docopt
@@ -100,3 +104,6 @@ instance Decodable String Network where
     decode "mainnet" = Right Mainnet
     decode "testnet" = Right Testnet
     decode s = Left $ show s ++ " is neither \"mainnet\" nor \"testnet\"."
+
+instance Decodable [String] (Mnemonic 15) where
+    decode ws = first show $ mkMnemonic @15 (T.pack <$> ws)

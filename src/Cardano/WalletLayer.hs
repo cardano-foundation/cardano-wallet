@@ -18,69 +18,123 @@ import Prelude
 
 import Cardano.DBLayer
     ( DBLayer (..), PrimaryKey (..) )
+import Cardano.NetworkLayer
+    ( NetworkLayer (..), listen )
 import Cardano.Wallet
-    ( Wallet, WalletId, WalletName, applyBlock )
+    ( Wallet
+    , WalletId (..)
+    , WalletName (..)
+    , applyBlock
+    , availableBalance
+    , currentTip
+    , initWallet
+    )
 import Cardano.Wallet.AddressDerivation
-    ( Depth (..), Key, Passphrase, XPub )
+    ( ChangeChain (..)
+    , Passphrase
+    , deriveAccountPrivateKey
+    , generateKeyFromSeed
+    , publicKey
+    )
 import Cardano.Wallet.AddressDiscovery
-    ( AddressPoolGap, SeqState )
+    ( AddressPoolGap, SeqState (..), mkAddressPool )
 import Cardano.Wallet.Mnemonic
-    ( Mnemonic )
+    ( Mnemonic, entropyToBytes, mnemonicToEntropy )
 import Cardano.Wallet.Primitive
     ( Block (..) )
 import Control.DeepSeq
     ( deepseq )
-import Control.Monad.Except
-    ( ExceptT )
+import Control.Monad.Trans.Class
+    ( lift )
+import Control.Monad.Trans.Except
+    ( ExceptT, throwE )
 import Data.List
     ( foldl' )
+import Data.List.NonEmpty
+    ( NonEmpty ((:|)) )
+import Fmt
+    ( build, (+|), (|+) )
 import GHC.Generics
     ( Generic )
+import Say
+    ( say )
 
 import qualified Data.Set as Set
 
 
--- | Errors
-data CreateWalletError
-
-data GetWalletError
-
 -- | Types
 data WalletLayer m s = WalletLayer
-    { createWallet :: CreateWallet -> ExceptT CreateWalletError m (Wallet s)
+    { createWallet :: NewWallet -> m WalletId
     , getWallet :: WalletId -> ExceptT GetWalletError m (Wallet s)
+    , watchWallet :: WalletId -> m ()
     }
 
-data CreateWallet =
-    CreateWallet NewWallet
-    | ImportWallet (Key 'AccountK XPub)
-
 data NewWallet = NewWallet
-    {
-      mnemonicSentence
+    { mnemonic
         :: !(Mnemonic 15)
-    , mnemonicSentencePassphrase
-        :: !(Maybe (Mnemonic 9))
+    , mnemonic2ndFactor
+        :: !(Passphrase "generation")
     , name
         :: !WalletName
     , passphrase
         :: !(Passphrase "encryption")
-    , addressPoolGap
+    , gap
         :: !AddressPoolGap
     } deriving (Show, Generic)
 
--- | A wallet worker which monitor blocks for a given wallet.
-walletWorker
-    :: DBLayer IO SeqState
-    -> WalletId
-    -> [Block]
-    -> IO ()
-walletWorker db wid blocks = do
-    cps' <- readCheckpoints db (PrimaryKey wid) >>= \case
+-- | Errors occuring when fetching a wallet
+newtype GetWalletError
+    = ErrGetWalletNotFound WalletId
+    deriving Show
+
+-- | Create a new instance of the wallet layer.
+mkWalletLayer
+    :: (Show e0)
+    => DBLayer IO SeqState
+    -> NetworkLayer IO e0 e1
+    -> WalletLayer IO SeqState
+mkWalletLayer db network = WalletLayer
+    { createWallet = \w -> do
+        let seed =
+                entropyToBytes $ mnemonicToEntropy (mnemonic w)
+        let rootXPrv =
+                generateKeyFromSeed (seed, mnemonic2ndFactor w) (passphrase w)
+        let accXPrv =
+                deriveAccountPrivateKey mempty rootXPrv minBound
+        let extPool =
+                mkAddressPool (publicKey accXPrv) (gap w) ExternalChain []
+        let intPool =
+                mkAddressPool (publicKey accXPrv) minBound InternalChain []
+        let wallet =
+                initWallet $ SeqState (extPool, intPool)
+        let wid = WalletId $ getWalletName $ name w
+        putCheckpoints db (PrimaryKey wid) (wallet :| [])
+        return wid
+    , getWallet = \wid -> lift (readCheckpoints db (PrimaryKey wid)) >>= \case
         Nothing ->
-            fail $ "couldn't find worker wallet: " <> show wid
-        Just cps -> do
-            let nonEmpty = not . Set.null . transactions
-            let cps' = foldl' (flip applyBlock) cps (filter nonEmpty blocks)
-            return cps'
-    cps' `deepseq` putCheckpoints db (PrimaryKey wid) cps'
+            throwE $ ErrGetWalletNotFound wid
+        Just (w :| _) ->
+            return w
+
+    , watchWallet = \wid ->
+        listen network $ \blocks -> applyBlocks wid blocks *> printInfo wid
+    }
+  where
+    applyBlocks :: WalletId -> [Block] -> IO ()
+    applyBlocks wid blocks = do
+        cps' <- readCheckpoints db (PrimaryKey wid) >>= \case
+            Nothing ->
+                fail $ "couldn't find worker wallet: " <> show wid
+            Just cps -> do
+                let nonEmpty = not . Set.null . transactions
+                let cps' = foldl' (flip applyBlock) cps (filter nonEmpty blocks)
+                return cps'
+        cps' `deepseq` putCheckpoints db (PrimaryKey wid) cps'
+
+    printInfo :: WalletId -> IO ()
+    printInfo wid = readCheckpoints db (PrimaryKey wid) >>= \case
+        Nothing ->
+            say "No available checkpoints"
+        Just (cp :| _) -> do
+            say $ "Current tip: " +| build (currentTip cp)
+            say $ "Available balance: " +| (availableBalance cp) |+ " Lovelaces"

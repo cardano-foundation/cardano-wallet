@@ -275,7 +275,7 @@ data WalletMetadata = WalletMetadata
         :: !WalletDelegation
     } deriving (Eq, Show, Generic)
 
-newtype WalletName = WalletName Text
+newtype WalletName = WalletName { getWalletName ::  Text }
     deriving (Eq, Show)
 
 newtype WalletId = WalletId Text
