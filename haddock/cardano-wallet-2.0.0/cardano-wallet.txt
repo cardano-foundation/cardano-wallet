@@ -32,8 +32,8 @@ instance GHC.Classes.Eq Cardano.Wallet.Binary.Packfile.PackfileError
 instance GHC.Show.Show Cardano.Wallet.Binary.Packfile.PackfileError
 
 
--- | | Module provides mnemonic creation and | restoring from backup phrase
---   functionality
+-- | This module provides mnemonic (backup phrase) creation, and conversion
+--   of a mnemonic to seed for wallet restoration.
 module Cardano.Wallet.Mnemonic
 
 -- | A backup-phrase in the form of a non-empty of Mnemonic words
@@ -43,22 +43,22 @@ data Entropy (n :: Nat)
 type family EntropySize (n :: Nat) :: Nat
 type family MnemonicWords (n :: Nat) :: Nat
 
--- | This is the wrapping of errors from Cardano.Encoding.BIP39 | The
---   MnemonicWordsError can be due | to wrong number of words
---   (ErrWrongNumberOfWords) | The EntropyError can be either due to : |
---   (a) invalid entropy length (ErrInvalidEntropyLength) | (b) invalid
---   entropy checksum (ErrInvalidEntropyChecksum) | The DictionaryError can
---   be due to | invalid word (ErrInvalidDictionaryWord)
+-- | This wraps errors from <a>Cardano.Encoding.BIP39</a>
 data MnemonicError csz
+
+-- | Wrong number of words in mnemonic.
 ErrMnemonicWords :: MnemonicWordsError -> MnemonicError csz
+
+-- | Invalid entropy length or checksum.
 ErrEntropy :: EntropyError csz -> MnemonicError csz
+
+-- | Invalid word in mnemonic.
 ErrDictionary :: DictionaryError -> MnemonicError csz
 
--- | This is the wrapping of EntropyError of Cardano.Encoding.BIP39 | The
---   EntropyError can be either due to : | (a) invalid entropy length
---   (ErrInvalidEntropyLength) | (b) invalid entropy checksum
---   (ErrInvalidEntropyChecksum)
+-- | This wraps EntropyError of <a>Cardano.Encoding.BIP39</a>
 newtype MnemonicException csz
+
+-- | Invalid entropy length or checksum
 UnexpectedEntropyError :: EntropyError csz -> MnemonicException csz
 data EntropyError (csz :: Nat)
 ErrInvalidEntropyLength :: Int -> Int -> EntropyError
@@ -691,9 +691,9 @@ tick :: forall st m b. MonadIO m => (st -> m ([b], st)) -> (b -> m ()) -> Millis
 listen :: forall e0 e1. Show e0 => NetworkLayer IO e0 e1 -> (Block -> IO ()) -> IO ()
 
 
--- | | Module provides wallet layer api that is used by API layer | and
---   uses both DB and Networking layer to realize its role | as being
---   intermediary between the three.
+-- | Provides the wallet layer functions that are used by API layer and
+--   uses both <a>Cardano.DBLayer</a> and <a>Cardano.NetworkLayer</a> to
+--   realize its role as being intermediary between the three.
 module Cardano.WalletLayer
 
 -- | Errors
