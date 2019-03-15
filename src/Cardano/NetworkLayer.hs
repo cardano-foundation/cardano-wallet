@@ -1,11 +1,13 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.NetworkLayer
     ( NetworkLayer (..)
     , tick
+    , TickResult(..)
     , listen
     ) where
 
@@ -39,23 +41,34 @@ data NetworkLayer m e0 e1 = NetworkLayer
         :: ExceptT e1 m (Hash "BlockHeader", BlockHeader)
     }
 
--- | Every interval @delay@, fetches some data from a given source, and call
--- an action for each elements retrieved.
+-- | Repeatedly fetch data from a given source function, and call an action for
+-- each element retrieved.
+--
+-- If the data source indicates that it has no more data at present ('Sleep'),
+-- then sleep for the interval @delay@, and then try the fetch again.
 tick
     :: forall st m b. (MonadIO m)
-    => (st -> m ([b], st))
+    => (st -> m (TickResult [b], st))
     -- ^ A way to get a new elements
     -> (b -> m ())
     -- ^ Action to be taken on new elements
     -> Millisecond
-    -- ^ tick time
+    -- ^ Tick time
     -> st
+    -- ^ Initial state.
     -> m ()
 tick next action delay !st = do
-    (bs, !st') <- next st
-    mapM_ action bs
-    liftIO $ threadDelay $ (fromIntegral . toMicroseconds) delay
+    (res, !st') <- next st
+    case res of
+        GotChunk bs -> mapM_ action bs
+        Sleep -> liftIO $ threadDelay $ (fromIntegral . toMicroseconds) delay
     tick next action delay st'
+
+-- | The result type of the element fetch function provided to 'tick'.
+data TickResult a
+    = GotChunk !a -- ^ Have a result, and there may be more available.
+    | Sleep -- ^ There is no result available now, so wait.
+    deriving (Show, Eq, Foldable)
 
 -- | Retrieve blocks from a chain producer and execute some given action for
 -- each block.
@@ -67,16 +80,14 @@ listen
 listen network action = do
     tick getNextBlocks action 5000 (SlotId 0 0)
   where
-    getNextBlocks :: SlotId -> IO ([Block], SlotId)
+    getNextBlocks :: SlotId -> IO (TickResult [Block], SlotId)
     getNextBlocks current = do
         res <- runExceptT $ nextBlocks network current
         case res of
             Left err ->
                 die $ fmt $ "Chain producer error: "+||err||+""
             Right [] ->
-                pure ([], current)
+                pure (Sleep, current)
             Right blocks ->
-                -- fixme: there are more blocks available, so we need not
-                -- wait for an interval to pass before getting more blocks.
                 let next = succ . slotId . header . last $ blocks
-                in pure (blocks, next)
+                in pure (GotChunk blocks, next)
