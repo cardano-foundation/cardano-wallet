@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE LambdaCase #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -15,23 +16,28 @@ module Cardano.WalletLayer where
 
 import Prelude
 
+import Cardano.DBLayer
+    ( DBLayer (..), PrimaryKey (..) )
 import Cardano.Wallet
-    ( Wallet )
+    ( Wallet, WalletId, WalletName, applyBlock )
 import Cardano.Wallet.AddressDerivation
     ( Depth (..), Key, Passphrase, XPub )
 import Cardano.Wallet.AddressDiscovery
-    ( AddressPoolGap )
+    ( AddressPoolGap, SeqState )
 import Cardano.Wallet.Mnemonic
     ( Mnemonic )
+import Cardano.Wallet.Primitive
+    ( Block (..) )
+import Control.DeepSeq
+    ( deepseq )
 import Control.Monad.Except
     ( ExceptT )
-import Data.Text
-    ( Text )
-import Data.Time.Units
-    ( Microsecond )
+import Data.List
+    ( foldl' )
 import GHC.Generics
     ( Generic )
 
+import qualified Data.Set as Set
 
 
 -- | Errors
@@ -63,33 +69,18 @@ data NewWallet = NewWallet
         :: !AddressPoolGap
     } deriving (Show, Generic)
 
-newtype WalletName = WalletName Text
-    deriving (Eq, Show)
-
-newtype WalletId = WalletId Text
-    deriving (Eq, Show)
-
-newtype WalletTimestamp = WalletTimestamp Microsecond
-    deriving (Eq, Ord, Show)
-
-data WalletMode = Ready | Restoring deriving (Eq, Show)
-
-data Delegation = Delegated | NotDelegated deriving (Eq, Show)
-
-newtype PassphraseInfo = PassphraseInfo { lastUpdated :: WalletTimestamp }
-    deriving (Eq, Show)
-
-data WalletMetadata = WalletMetadata {
-      id
-        :: !WalletId
-    , name
-        :: !WalletName
-    , addressPoolGap
-        :: !AddressPoolGap
-    , passphraseInfo
-        :: !PassphraseInfo
-    , state
-        :: !WalletMode
-    , delegation
-        :: !Delegation
-    } deriving (Eq, Show, Generic)
+-- | A wallet worker which monitor blocks for a given wallet.
+walletWorker
+    :: DBLayer IO SeqState
+    -> WalletId
+    -> [Block]
+    -> IO ()
+walletWorker db wid blocks = do
+    cps' <- readCheckpoints db (PrimaryKey wid) >>= \case
+        Nothing ->
+            fail $ "couldn't find worker wallet: " <> show wid
+        Just cps -> do
+            let nonEmpty = not . Set.null . transactions
+            let cps' = foldl' (flip applyBlock) cps (filter nonEmpty blocks)
+            return cps'
+    cps' `deepseq` putCheckpoints db (PrimaryKey wid) cps'
