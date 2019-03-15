@@ -669,13 +669,29 @@ NetworkLayer :: (SlotId -> ExceptT e0 m [Block]) -> ExceptT e1 m (Hash "BlockHea
 [nextBlocks] :: NetworkLayer m e0 e1 -> SlotId -> ExceptT e0 m [Block]
 [networkTip] :: NetworkLayer m e0 e1 -> ExceptT e1 m (Hash "BlockHeader", BlockHeader)
 
--- | Every interval <tt>delay</tt>, fetches some data from a given source,
---   and call an action for each elements retrieved.
-tick :: forall st m b. MonadIO m => (st -> m ([b], st)) -> (b -> m ()) -> Millisecond -> st -> m ()
+-- | Repeatedly fetch data from a given source function, and call an action
+--   for each element retrieved.
+--   
+--   If the data source indicates that it has no more data at present
+--   (<a>Sleep</a>), then sleep for the interval <tt>delay</tt>, and then
+--   try the fetch again.
+tick :: forall st m b. MonadIO m => (st -> m (TickResult [b], st)) -> (b -> m ()) -> Millisecond -> st -> m ()
+
+-- | The result type of the element fetch function provided to <a>tick</a>.
+data TickResult a
+
+-- | Have a result, and there may be more available.
+GotChunk :: !a -> TickResult a
+
+-- | There is no result available now, so wait.
+Sleep :: TickResult a
 
 -- | Retrieve blocks from a chain producer and execute some given action
 --   for each block.
 listen :: forall e0 e1. Show e0 => NetworkLayer IO e0 e1 -> (Block -> IO ()) -> IO ()
+instance Data.Foldable.Foldable Cardano.NetworkLayer.TickResult
+instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.NetworkLayer.TickResult a)
+instance GHC.Show.Show a => GHC.Show.Show (Cardano.NetworkLayer.TickResult a)
 
 
 -- | Provides the wallet layer functions that are used by API layer and
