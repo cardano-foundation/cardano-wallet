@@ -60,8 +60,6 @@ import Control.DeepSeq
     ( NFData )
 import Data.ByteArray
     ( ScrubbedBytes )
-import Data.ByteString
-    ( ByteString )
 import Data.Maybe
     ( fromMaybe )
 import Data.Word
@@ -208,7 +206,7 @@ coinTypeIndex = 0x80000717
 -- testing, in practice, seeds are used to represent root keys, and one should
 -- use 'generateKeyFromSeed'.
 unsafeGenerateKeyFromSeed
-    :: (ByteString, Passphrase "generation")
+    :: (ScrubbedBytes, Passphrase "generation")
         -- ^ The actual seed and its recovery / generation passphrase
     -> Passphrase "encryption"
     -> Key depth XPrv
@@ -217,7 +215,7 @@ unsafeGenerateKeyFromSeed (seed, Passphrase recPwd) (Passphrase encPwd) =
 
 -- | Generate a root key from a corresponding seed
 generateKeyFromSeed
-    :: (ByteString, Passphrase "generation")
+    :: (ScrubbedBytes, Passphrase "generation")
         -- ^ The actual seed and its recovery / generation passphrase
     -> Passphrase "encryption"
     -> Key 'RootK XPrv

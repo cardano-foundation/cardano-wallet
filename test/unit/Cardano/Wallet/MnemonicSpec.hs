@@ -22,7 +22,7 @@ import Cardano.Wallet.Mnemonic
     , MnemonicException (..)
     , MnemonicWords
     , ambiguousNatVal
-    , entropyToByteString
+    , entropyToBytes
     , entropyToMnemonic
     , genEntropy
     , mkEntropy
@@ -50,7 +50,7 @@ import Test.QuickCheck
     ( Arbitrary, arbitrary, vectorOf, (===) )
 
 import qualified Cardano.Crypto.Wallet as CC
-import qualified Data.ByteString as BS
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
 
@@ -120,22 +120,22 @@ spec = do
             mkEntropy @(EntropySize 12) "" `shouldSatisfy` isLeft
 
         it "Can generate 96 bits entropy" $
-            (BS.length . entropyToByteString <$> genEntropy @96) `shouldReturn` 12
+            (BA.length . entropyToBytes <$> genEntropy @96) `shouldReturn` 12
 
         it "Can generate 128 bits entropy" $
-            (BS.length . entropyToByteString <$> genEntropy @128) `shouldReturn` 16
+            (BA.length . entropyToBytes <$> genEntropy @128) `shouldReturn` 16
 
         it "Can generate 160 bits entropy" $
-            (BS.length . entropyToByteString <$> genEntropy @160) `shouldReturn` 20
+            (BA.length . entropyToBytes <$> genEntropy @160) `shouldReturn` 20
 
         it "Can generate 192 bits entropy" $
-            (BS.length . entropyToByteString <$> genEntropy @192) `shouldReturn` 24
+            (BA.length . entropyToBytes <$> genEntropy @192) `shouldReturn` 24
 
         it "Can generate 224 bits entropy" $
-            (BS.length . entropyToByteString <$> genEntropy @224) `shouldReturn` 28
+            (BA.length . entropyToBytes <$> genEntropy @224) `shouldReturn` 28
 
         it "Can generate 256 bits entropy" $
-            (BS.length . entropyToByteString <$> genEntropy @256) `shouldReturn` 32
+            (BA.length . entropyToBytes <$> genEntropy @256) `shouldReturn` 32
 
         it "Mnemonic to Text" $ forM_ testVectors $ \TestVector{..} ->
             mnemonicToText mnemonic `shouldBe` extractWords string

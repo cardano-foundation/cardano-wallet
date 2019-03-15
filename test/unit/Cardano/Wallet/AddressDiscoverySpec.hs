@@ -64,6 +64,7 @@ import Test.QuickCheck
     , (==>)
     )
 
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 
 
@@ -196,7 +197,7 @@ ourAccount
     :: Key 'AccountK XPub
 ourAccount = publicKey $ unsafeGenerateKeyFromSeed (bytes, mempty) mempty
   where
-    bytes = BS.replicate 32 0
+    bytes = BA.convert $ BS.replicate 32 0
 
 ourAddresses
     :: ChangeChain
@@ -224,7 +225,7 @@ instance Arbitrary Address where
         ]
       where
         notOurs = do
-            bytes <- BS.pack . take 32 . getInfiniteList <$> arbitrary
+            bytes <- BA.convert . BS.pack . take 32 . getInfiniteList <$> arbitrary
             let xprv = unsafeGenerateKeyFromSeed (bytes, mempty) mempty
             return $ keyToAddress $ publicKey xprv
 

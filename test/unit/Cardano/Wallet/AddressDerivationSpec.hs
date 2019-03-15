@@ -25,8 +25,8 @@ import Cardano.Wallet.AddressDerivation
     , publicKey
     , unsafeGenerateKeyFromSeed
     )
-import Data.ByteString
-    ( ByteString )
+import Data.ByteArray
+    ( ScrubbedBytes )
 import Fmt
     ( build, fmt )
 import Test.Hspec
@@ -185,7 +185,7 @@ prop_accountKeyDerivation (Seed seed, recPwd) encPwd ix =
     accXPub = deriveAccountPrivateKey encPwd rootXPrv ix
 
 goldenYoroiAddr
-    :: (ByteString, Passphrase "generation")
+    :: (ScrubbedBytes, Passphrase "generation")
     -> ChangeChain
     -> Index 'Hardened 'AccountK
     -> Index 'Soft 'AddressK
@@ -205,13 +205,13 @@ goldenYoroiAddr (seed, recPwd) cc accIx addrIx addr =
                              Arbitrary Instances
 -------------------------------------------------------------------------------}
 
-newtype Seed = Seed ByteString deriving (Show)
+newtype Seed = Seed ScrubbedBytes deriving (Show)
 
 instance Arbitrary Seed where
     shrink _ = []
     arbitrary = do
         InfiniteList bytes _ <- arbitrary
-        return $ Seed $ BS.pack $ take 32 bytes
+        return $ Seed $ BA.convert $ BS.pack $ take 32 bytes
 
 instance Arbitrary (Index 'Soft 'AddressK) where
     shrink _ = []
