@@ -15,8 +15,8 @@
 -- Copyright: © 2018-2019 IOHK
 -- License: MIT
 --
--- | Module provides mnemonic creation and
--- | restoring from backup phrase functionality
+-- This module provides mnemonic (backup phrase) creation, and conversion of a
+-- mnemonic to seed for wallet restoration.
 
 module Cardano.Wallet.Mnemonic
     (
@@ -100,26 +100,20 @@ data Mnemonic (mw :: Nat) = Mnemonic
     , mnemonicToSentence :: MnemonicSentence mw
     } deriving (Eq, Show)
 
--- | This is the wrapping of EntropyError of Cardano.Encoding.BIP39
--- | The EntropyError can be either due to :
--- | (a) invalid entropy length (ErrInvalidEntropyLength)
--- | (b) invalid entropy checksum (ErrInvalidEntropyChecksum)
+-- | This wraps EntropyError of "Cardano.Encoding.BIP39"
 newtype MnemonicException csz =
     UnexpectedEntropyError (EntropyError csz)
+    -- ^ Invalid entropy length or checksum
     deriving (Show, Typeable)
 
--- | This is the wrapping of errors from Cardano.Encoding.BIP39
--- | The MnemonicWordsError can be due
--- |     to wrong number of words (ErrWrongNumberOfWords)
--- | The EntropyError can be either due to :
--- |     (a) invalid entropy length (ErrInvalidEntropyLength)
--- |     (b) invalid entropy checksum (ErrInvalidEntropyChecksum)
--- | The DictionaryError can be due to
--- |     invalid word (ErrInvalidDictionaryWord)
+-- | This wraps errors from "Cardano.Encoding.BIP39"
 data MnemonicError csz
     = ErrMnemonicWords MnemonicWordsError
+      -- ^ Wrong number of words in mnemonic.
     | ErrEntropy (EntropyError csz)
+      -- ^ Invalid entropy length or checksum.
     | ErrDictionary DictionaryError
+      -- ^ Invalid word in mnemonic.
     deriving (Eq, Show)
 
 deriving instance Eq (EntropyError czs)
