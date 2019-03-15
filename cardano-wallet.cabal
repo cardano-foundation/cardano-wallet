@@ -32,7 +32,9 @@ library
     ghc-options:
       -Werror
   build-depends:
-      base
+      aeson
+    , attoparsec
+    , base
     , base58-bytestring
     , basement
     , binary
@@ -41,6 +43,7 @@ library
     , cborg
     , containers
     , cryptonite
+    , data-default
     , deepseq
     , digest
     , exceptions
@@ -48,14 +51,17 @@ library
     , http-api-data
     , http-client
     , http-media
+    , lens
     , memory
     , say
     , servant
     , servant-client
     , servant-client-core
     , text
+    , time
     , time-units
     , transformers
+    , uuid-types
   hs-source-dirs:
       src
   exposed-modules:
@@ -67,6 +73,22 @@ library
       Cardano.Wallet
       Cardano.Wallet.AddressDerivation
       Cardano.Wallet.AddressDiscovery
+      Cardano.Wallet.Api.V2
+      Cardano.Wallet.Api.V2.JSON
+      Cardano.Wallet.Api.V2.Lenses
+      Cardano.Wallet.Api.V2.Types.Amount
+      Cardano.Wallet.Api.V2.Types.CurrencyUnit
+      Cardano.Wallet.Api.V2.Types.Percentage
+      Cardano.Wallet.Api.V2.Types.Wallet
+      Cardano.Wallet.Api.V2.Types.WalletAddressPoolGap
+      Cardano.Wallet.Api.V2.Types.WalletBalance
+      Cardano.Wallet.Api.V2.Types.WalletDelegation
+      Cardano.Wallet.Api.V2.Types.WalletDelegationStatus
+      Cardano.Wallet.Api.V2.Types.WalletId
+      Cardano.Wallet.Api.V2.Types.WalletName
+      Cardano.Wallet.Api.V2.Types.WalletPassphraseInfo
+      Cardano.Wallet.Api.V2.Types.WalletState
+      Cardano.Wallet.Api.V2.Types.WalletStateStatus
       Cardano.Wallet.Binary
       Cardano.Wallet.Binary.Packfile
       Cardano.WalletLayer
@@ -90,7 +112,8 @@ test-suite unit
     ghc-options:
       -Werror
   build-depends:
-      base
+      aeson
+    , base
     , async
     , base58-bytestring
     , bytestring
@@ -101,13 +124,17 @@ test-suite unit
     , deepseq
     , exceptions
     , fmt
+    , generic-arbitrary
     , hspec
     , memory
     , process
     , QuickCheck
+    , quickcheck-instances
     , text
     , time-units
     , transformers
+    , uuid
+    , uuid-types
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
@@ -125,6 +152,8 @@ test-suite unit
       Cardano.NetworkLayerSpec
       Cardano.Wallet.AddressDerivationSpec
       Cardano.Wallet.AddressDiscoverySpec
+      Cardano.Wallet.Api.V2.Arbitraries
+      Cardano.Wallet.Api.V2.JsonSpec
       Cardano.Wallet.Binary.PackfileSpec
       Cardano.Wallet.BinarySpec
       Cardano.Wallet.MnemonicSpec

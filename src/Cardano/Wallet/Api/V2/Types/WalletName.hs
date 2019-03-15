@@ -1,0 +1,45 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
+module Cardano.Wallet.Api.V2.Types.WalletName
+    ( WalletName
+    , WalletNameError (..)
+    , mkWalletName
+    , walletNameMinLength
+    , walletNameMaxLength
+    ) where
+
+import Prelude
+
+import Data.Aeson
+    ( FromJSON (..), ToJSON )
+import Data.Text
+    ( Text )
+import GHC.Generics
+    ( Generic )
+
+import qualified Data.Text as Text
+
+newtype WalletName = WalletName
+    { getWalletName :: Text
+    } deriving (Eq, Generic, Show, ToJSON)
+
+data WalletNameError
+    = WalletNameTooShortError
+    | WalletNameTooLongError
+    deriving Show
+
+instance FromJSON WalletName where
+    parseJSON x = either (fail . show) pure . mkWalletName =<< parseJSON x
+
+walletNameMinLength :: Int
+walletNameMinLength = 1
+
+walletNameMaxLength :: Int
+walletNameMaxLength = 255
+
+mkWalletName :: Text -> Either WalletNameError WalletName
+mkWalletName n
+    | Text.length n < walletNameMinLength = Left WalletNameTooShortError
+    | Text.length n > walletNameMaxLength = Left WalletNameTooLongError
+    | otherwise = Right $ WalletName n
