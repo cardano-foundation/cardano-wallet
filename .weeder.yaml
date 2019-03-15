@@ -1,0 +1,12 @@
+- package:
+  - name: cardano-wallet
+  - section:
+    - name: exe:cardano-wallet-launcher exe:cardano-wallet-server
+    - message:
+      - name: Module reused between components
+      - module: Cardano.CLI
+  - section:
+    - name: exe:cardano-wallet-launcher test:unit
+    - message:
+      - name: Module reused between components
+      - module: Cardano.Launcher
