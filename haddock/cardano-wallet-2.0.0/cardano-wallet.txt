@@ -669,19 +669,6 @@ NetworkLayer :: (SlotId -> ExceptT e0 m [Block]) -> ExceptT e1 m (Hash "BlockHea
 [nextBlocks] :: NetworkLayer m e0 e1 -> SlotId -> ExceptT e0 m [Block]
 [networkTip] :: NetworkLayer m e0 e1 -> ExceptT e1 m (Hash "BlockHeader", BlockHeader)
 
-
--- | This module contains the ticking function that is responsible for
---   invoking block acquisition functionality and executing it in periodic
---   fashion.
---   
---   Known limitations: - Blocks are produced by the network layer. They
---   are not expected to produce any duplicates and to rollback.
---   
---   <ul>
---   <li></li>
---   </ul>
-module Cardano.Wallet.BlockSyncer
-
 -- | Every interval <tt>delay</tt>, fetches some data from a given source,
 --   and call an action for each elements retrieved.
 tick :: forall st m b. MonadIO m => (st -> m ([b], st)) -> (b -> m ()) -> Millisecond -> st -> m ()
