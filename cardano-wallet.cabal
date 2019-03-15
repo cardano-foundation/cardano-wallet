@@ -68,7 +68,6 @@ library
       Cardano.Wallet.AddressDiscovery
       Cardano.Wallet.Binary
       Cardano.Wallet.Binary.Packfile
-      Cardano.Wallet.BlockSyncer
       Cardano.WalletLayer
       Cardano.Wallet.Mnemonic
       Cardano.Wallet.Primitive
@@ -160,7 +159,6 @@ test-suite unit
       Cardano.Wallet.AddressDiscoverySpec
       Cardano.Wallet.Binary.PackfileSpec
       Cardano.Wallet.BinarySpec
-      Cardano.Wallet.BlockSyncerSpec
       Cardano.Wallet.MnemonicSpec
       Cardano.Wallet.PrimitiveSpec
       Cardano.WalletSpec

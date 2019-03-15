@@ -11,7 +11,7 @@ module Main where
 
 import Prelude
 
-import Cardano.Wallet.BlockSyncer
+import Cardano.NetworkLayer
     ( listen )
 import Cardano.Wallet.Primitive
     ( Block )
