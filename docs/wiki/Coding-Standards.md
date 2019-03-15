@@ -288,7 +288,7 @@ data MyRecord = MyRecord
 
 > **Why**
 > 
-> It is rather annoying and time-consuming to align import ligns or statement
+> It is rather annoying and time-consuming to align import lines or statement
 > as we code and it's much simpler to leave that to our editor. Yet, we do want 
 > to enforce some common formatting such that everyone gets to be aligned (pun
 > intended). 
@@ -299,11 +299,55 @@ data MyRecord = MyRecord
 > aligned based on the imported module's name. 
 
 Contributors' editors should pick up and enforce the rules defined by the `.stylish-haskell.yaml`
-configuration file at the root of the project. Also, in order to maximise readability, imports
-should be grouped into two groups, separated by a blank newline. 
+configuration file at the root of the project. Also, in order to maximize readability, imports
+should be grouped into three groups, separated by a blank newline. 
 
+- Prelude import
 - Explicit imports
 - Qualified imports
+
+<details>
+    <summary>See examples</summary>
+
+```hs
+-- GOOD
+import Prelude
+
+import Cardano.Wallet.Binary
+    ( txId )
+import Data.Set
+    ( Set )
+import Data.Traversable
+    ( for )
+
+import qualified Data.Map as Map
+import qualified Data.Set as Set
+
+-- BAD
+import Cardano.Wallet.Binary
+    ( txId )
+import Data.Set
+    ( Set )
+import Prelude
+import Data.Traversable
+    ( for )
+
+import qualified Data.Map as Map
+import qualified Data.Set as Set
+
+-- BAD
+import Prelude
+
+import Cardano.Wallet.Binary
+    ( txId )
+import qualified Data.Set as Set
+import Data.Set
+    ( Set )
+import qualified Data.Map as Map
+import Data.Traversable
+    ( for )
+```
+</details>
 
 Here below is a proposal for the initial set of rules:
 
