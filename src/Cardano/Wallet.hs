@@ -28,6 +28,7 @@ module Cardano.Wallet
     -- * Wallet
       Wallet
     , initWallet
+    , currentTip
     , applyBlock
     , availableBalance
     , totalBalance
@@ -57,6 +58,7 @@ import Cardano.Wallet.Primitive
     , BlockHeader (..)
     , Dom (..)
     , IsOurs (..)
+    , SlotId (..)
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
@@ -110,14 +112,18 @@ data Wallet s where
         :: (IsOurs s, Semigroup s, NFData s, Show s)
         => UTxO
         -> Set Tx
+        -> SlotId
         -> s
         -> Wallet s
 
 deriving instance Show (Wallet s)
 
 instance NFData (Wallet s) where
-    rnf (Wallet utxo pending s) =
-        rnf utxo `deepseq` (rnf pending `deepseq` (rnf s `deepseq` ()))
+    rnf (Wallet utxo pending sl s) =
+        rnf utxo `deepseq`
+            (rnf pending `deepseq`
+                (rnf sl `deepseq`
+                    (rnf s `deepseq` ())))
 
 
 -- | Create an empty wallet from an initial state
@@ -125,7 +131,7 @@ initWallet
     :: (IsOurs s, Semigroup s, NFData s, Show s)
     => s
     -> Wallet s
-initWallet = Wallet mempty mempty
+initWallet = Wallet mempty mempty (SlotId 0 0)
 
 
 -- | Apply Block is the only way to make the wallet evolve.
@@ -133,12 +139,12 @@ applyBlock
     :: Block
     -> NonEmpty (Wallet s)
     -> NonEmpty (Wallet s)
-applyBlock !b (cp@(Wallet !utxo !pending _) :| checkpoints) =
+applyBlock !b (cp@(Wallet !utxo !pending _ _) :| checkpoints) =
     let
         (ourUtxo, ourIns, s') = prefilterBlock b cp
         utxo' = (utxo <> ourUtxo) `excluding` ourIns
         pending' = updatePending b pending
-        cp' = Wallet utxo' pending' s'
+        cp' = Wallet utxo' pending' (slotId $ header b) s'
     in
         -- NOTE
         -- k = 2160 is currently hard-coded here. In the short-long run, we do
@@ -147,6 +153,12 @@ applyBlock !b (cp@(Wallet !utxo !pending _) :| checkpoints) =
         -- have enough checkpoints, but if it does increase, then we have
         -- problems in case of rollbacks.
         (cp' :| cp : take 2160 checkpoints)
+
+
+-- | Get the wallet current tip
+currentTip :: Wallet s -> SlotId
+currentTip (Wallet _ _ tip _) =
+    tip
 
 
 -- | Available balance = 'balance' . 'availableUTxO'
@@ -163,13 +175,13 @@ totalBalance =
 
 -- | Available UTxO = UTxO that aren't part of pending txs
 availableUTxO :: Wallet s -> UTxO
-availableUTxO (Wallet utxo pending _) =
+availableUTxO (Wallet utxo pending _ _) =
     utxo `excluding` txIns pending
 
 
 -- | Total UTxO = 'availableUTxO' <> "pending UTxO"
 totalUTxO :: Wallet s -> UTxO
-totalUTxO wallet@(Wallet _ pending s) =
+totalUTxO wallet@(Wallet _ pending _ s) =
     let
         -- NOTE
         -- We _safely_ discard the state here because we aren't intending to
@@ -221,7 +233,7 @@ prefilterBlock
     :: Block
     -> Wallet s
     -> (UTxO, Set TxIn, s)
-prefilterBlock b (Wallet !utxo _ !s) =
+prefilterBlock b (Wallet !utxo _ _ !s) =
     let
         txs = transactions b
         (ourOuts, s') = txOutsOurs txs s
