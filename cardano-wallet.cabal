@@ -90,6 +90,9 @@ executable cardano-wallet-server
     , docopt
     , text
     , fmt
+    , process
+    , async
+    , say
   hs-source-dirs:
       app/server
       app/cli
