@@ -6,9 +6,9 @@
 -- Copyright: © 2018-2019 IOHK
 -- License: MIT
 --
--- | Module provides wallet layer api that is used by API layer
--- | and uses both DB and Networking layer to realize its role
--- | as being intermediary between the three.
+-- Provides the wallet layer functions that are used by API layer and uses both
+-- "Cardano.DBLayer" and "Cardano.NetworkLayer" to realize its role as being
+-- intermediary between the three.
 
 
 module Cardano.WalletLayer where
