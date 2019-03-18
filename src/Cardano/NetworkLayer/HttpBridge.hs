@@ -83,18 +83,17 @@ rbNextBlocks
     -> ExceptT e m [Block]
 rbNextBlocks net start = do
     (tipHash, tip) <- fmap slotId <$> getNetworkTip net
-    epochBlocks <- lift $ blocksFromPacks 1 net tip
+    epochBlocks <- lift nextStableEpoch
     lastBlocks <- if null epochBlocks
         then unstableBlocks net tipHash tip
         else pure []
     pure (epochBlocks ++ lastBlocks)
   where
-
-    -- Grab blocks from epoch pack files
-    blocksFromPacks limit network tip = do
-        let epochs = take limit [epochIndex start .. (epochIndex tip) - 1]
-        epochBlocks <- getEpochs network epochs
-        pure $ filter (blockIsSameOrAfter start) (concat epochBlocks)
+    nextStableEpoch = do
+        epochBlocks <- runExceptT (getEpoch net (epochIndex start)) >>= \case
+            Left _ -> pure []
+            Right r -> return r
+        pure $ filter (blockIsSameOrAfter start) epochBlocks
 
     -- Predicate returns true iff the block is from the given slot or a later one.
     blockIsSameOrAfter :: SlotId -> Block -> Bool
@@ -105,14 +104,6 @@ rbNextBlocks net start = do
     unstableBlocks network tipHash tip
         | start <= tip = fetchBlocksFromTip network start tipHash
         | otherwise    = pure []
-
--- | Fetch epoch blocks until one fails.
-getEpochs
-    :: Monad m
-    => HttpBridge m e
-    -> [Word64]
-    -> m [[Block]]
-getEpochs network = mapUntilError (getEpoch network)
 
 -- Fetch blocks which are not in epoch pack files.
 fetchBlocksFromTip
@@ -134,26 +125,6 @@ fetchBlocksFromTip network start tipHash =
             pure [block]
 
 
--- * Utility functions for monadic loops
-
--- | Apply an action to each element of a list, until an action fails, or there
--- are no more elements. This is like mapM, except that it always succeeds and
--- the resulting list might be smaller than the given list.
-mapUntilError
-    :: forall e a b m. (Monad m)
-    => (a -> ExceptT e m b)
-       -- ^ Action to run
-    -> [a]
-       -- ^ Elements
-    -> m [b]
-mapUntilError action (x:xs) = runExceptT (action x) >>= \case
-    Left _ -> pure []
-    Right r -> do
-        rs <- mapUntilError action xs
-        pure (r:rs)
-mapUntilError _ [] = pure []
-
-
 {-------------------------------------------------------------------------------
                             HTTP-Bridge Client
 -------------------------------------------------------------------------------}
@@ -167,20 +138,6 @@ data HttpBridge m e = HttpBridge
     , getNetworkTip
         :: ExceptT e m (Hash "BlockHeader", BlockHeader)
     }
-
--- | Retrieve a block identified by the unique hash of its header.
-getBlockByHash :: NetworkName -> Api.Hash Blake2b_256 (ApiT BlockHeader) -> ClientM (ApiT Block)
-
--- | Retrieve all the blocks for the epoch identified by the given integer ID.
-getEpochById :: NetworkName -> EpochIndex -> ClientM [ApiT Block]
-
--- | Retrieve the header of the latest known block.
-getTipBlockHeader :: NetworkName -> ClientM (WithHash Blake2b_256 (ApiT BlockHeader))
-
-getBlockByHash
-    :<|> getEpochById
-    :<|> getTipBlockHeader
-    = client api
 
 -- | Construct a new network layer
 mkHttpBridge :: Manager -> BaseUrl -> NetworkName -> HttpBridge IO HttpBridgeError
@@ -197,6 +154,10 @@ mkHttpBridge mgr baseUrl network = HttpBridge
     run :: ClientM a -> ExceptT HttpBridgeError IO a
     run query = ExceptT $ (first convertError) <$> runClientM query env
     env = mkClientEnv mgr baseUrl
+    getBlockByHash
+        :<|> getEpochById
+        :<|> getTipBlockHeader
+        = client api
 
 convertError :: ServantError -> HttpBridgeError
 convertError e@(FailureResponse _) =
@@ -217,14 +178,6 @@ data HttpBridgeError
     | BadResponseFromNode String
       -- ^ The node returned an unexpected response.
     deriving (Show, Eq)
-
-instance Exception HttpBridgeError where
-    displayException (NodeUnavailable e) =
-        "Internal error: cardano-http-bridge returned an error code "
-        ++ " or could not be connected to: " ++ e
-    displayException (BadResponseFromNode e) =
-        "Internal error: cardano-http-bridge returned an "
-        ++ " unexpected response: " ++ e
 
 blockHeaderHash
     :: WithHash algorithm (ApiT BlockHeader)
