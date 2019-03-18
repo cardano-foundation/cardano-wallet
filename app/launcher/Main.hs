@@ -49,7 +49,7 @@ Usage:
   cardano-wallet-launcher --help
 
 Options:
-  --network <NETWORK>          mainnet or testnet [default: mainnet]
+  --network <NETWORK>          mainnet, testnet or staging [default: mainnet]
   --wallet-server-port <PORT>  port used for serving the wallet API [default: 8090]
   --http-bridge-port <PORT>    port used for communicating with the http-bridge [default: 8080]
 |]
@@ -66,7 +66,7 @@ main = do
     sayErr "Starting..."
     installSignalHandlers
     let commands =
-            [ nodeHttpBridgeOn bridgePort
+            [ nodeHttpBridgeOn bridgePort network
             , walletOn walletPort bridgePort network
             ]
     sayErr $ fmt $ blockListF commands
@@ -74,11 +74,12 @@ main = do
     sayErr $ T.pack name <> " exited with code " <> T.pack (show code) 
     exitWith code
 
-nodeHttpBridgeOn :: Port "Node" -> Command
-nodeHttpBridgeOn port = Command
+nodeHttpBridgeOn :: Port "Node" -> Network -> Command
+nodeHttpBridgeOn port net = Command
     "cardano-http-bridge"
     [ "start"
     , "--port", encode port
+    , "--template", encode net
     ]
     (return ())
 

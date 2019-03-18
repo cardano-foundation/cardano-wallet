@@ -40,7 +40,7 @@ import qualified Data.Text as T
 -- | Port number with a tag for describing what it is used for
 newtype Port (tag :: Symbol) = Port Int
 
-data Network = Mainnet | Testnet
+data Network = Mainnet | Testnet | Staging
     deriving (Show, Enum)
 
 
@@ -99,11 +99,13 @@ instance Decodable String (Port tag) where
 instance Encodable Network String where
     encode Mainnet = "mainnet"
     encode Testnet = "testnet"
+    encode Staging = "staging"
 
 instance Decodable String Network where
     decode "mainnet" = Right Mainnet
     decode "testnet" = Right Testnet
-    decode s = Left $ show s ++ " is neither \"mainnet\" nor \"testnet\"."
+    decode "staging" = Right Staging
+    decode s = Left $ show s ++ " is neither \"mainnet\", \"testnet\" nor \"staging\"."
 
 instance Decodable [String] (Mnemonic 15) where
     decode ws = first show $ mkMnemonic @15 (T.pack <$> ws)
