@@ -1,27 +1,60 @@
 - package:
   - name: cardano-wallet
   - section:
-    - name: exe:cardano-wallet-launcher exe:cardano-wallet-server
-    - message:
-      - name: Module reused between components
-      - module: Cardano.CLI
-  - section:
-    - name: exe:cardano-wallet-launcher test:unit
-    - message:
-      - name: Module reused between components
-      - module: Cardano.Launcher
-  - section:
-    - name: exe:cardano-wallet-launcher test:unit
-    - message:
-      - name: Module reused between components
-      - module: Cardano.Launcher.POSIX
-  - section:
     - name: exe:cardano-wallet-launcher
     - message:
+      - name: Missing other-modules entry
+      - module:
+        - Cardano.CLI
+        - Cardano.Launcher
+    - message:
+      - name: Redundant build-depends entry
+      - depends:
+        - app-common
+        - async
+        - cardano-wallet
+        - process
+  - section:
+    - name: exe:cardano-wallet-server
+    - message:
+      - name: Missing other-modules entry
+      - module: Cardano.CLI
+    - message:
+      - name: Redundant build-depends entry
+      - depends:
+        - ''
+        - app-common
+  - section:
+    - name: library
+    - message:
       - name: Module not compiled
-      - module: Cardano.Launcher.Windows
+      - module:
+        - Cardano.CLI
+        - Cardano.Launcher
+        - Cardano.Launcher.POSIX
+        - Cardano.Launcher.Windows
+    - message:
+      - name: Redundant build-depends entry
+      - depends:
+        - async
+        - docopt
+        - fmt
+        - process
+        - say
+        - say
+        - text
+        - unix
   - section:
     - name: test:unit
     - message:
-      - name: Module not compiled
-      - module: Cardano.Launcher.Windows
+      - name: Missing other-modules entry
+      - module:
+        - Cardano.Launcher
+        - Cardano.Wallet.Api.V2.JsonSpec
+    - message:
+      - name: Redundant build-depends entry
+      - depends:
+        - app-common
+        - async
+        - process
+
