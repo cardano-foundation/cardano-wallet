@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Api.V2.Arbitraries where
+module Cardano.Wallet.Api.V2.Arbitraries () where
 
 import Cardano.Wallet.Api.V2.Types.Amount
 import Cardano.Wallet.Api.V2.Types.CurrencyUnit
