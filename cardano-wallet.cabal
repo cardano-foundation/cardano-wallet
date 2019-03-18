@@ -50,6 +50,7 @@ library
     , http-media
     , memory
     , mtl
+    , say
     , servant
     , servant-client
     , servant-client-core
@@ -60,6 +61,7 @@ library
       src
   exposed-modules:
       Cardano.DBLayer
+      Cardano.DBLayer.MVar
       Cardano.NetworkLayer
       Cardano.NetworkLayer.HttpBridge
       Cardano.NetworkLayer.HttpBridge.Api
@@ -137,7 +139,6 @@ test-suite unit
     build-depends: unix, say
     other-modules: Cardano.Launcher.POSIX
 
-
 executable cardano-wallet-server
   default-language:
       Haskell2010
@@ -153,8 +154,6 @@ executable cardano-wallet-server
       base
     , cardano-wallet
     , docopt
-    , fmt
-    , say
     , text
   hs-source-dirs:
       app
@@ -177,6 +176,7 @@ executable cardano-wallet-launcher
       -O2
   build-depends:
       async
+    , cardano-wallet
     , base
     , docopt
     , fmt
@@ -198,7 +198,6 @@ executable cardano-wallet-launcher
 
   main-is:
      Main.hs
-
 
 executable cardano-generate-mnemonic
   default-language:

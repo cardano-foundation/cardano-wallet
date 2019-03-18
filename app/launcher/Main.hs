@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Main where
 
@@ -58,9 +59,9 @@ main = do
     args <- parseArgsOrExit cli =<< getArgs
     when (args `isPresent` (longOption "help")) $ exitWithUsage cli
 
-    bridgePort <- getArg args cli (longOption "http-bridge-port") decode
-    walletPort <- getArg args cli (longOption "wallet-server-port") decode
-    network <- getArg args cli (longOption "network") decode
+    bridgePort <- getArg @String args cli (longOption "http-bridge-port") decode
+    walletPort <- getArg @String args cli (longOption "wallet-server-port") decode
+    network <- getArg @String args cli (longOption "network") decode
 
     sayErr "Starting..."
     installSignalHandlers

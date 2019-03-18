@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -27,25 +28,37 @@ module Cardano.Wallet
     -- * Wallet
       Wallet
     , initWallet
+    , currentTip
     , applyBlock
     , availableBalance
     , totalBalance
     , totalUTxO
     , availableUTxO
-
-    -- * Helpers
     , txOutsOurs
     , utxoFromTx
+
+    -- * Wallet Metadata
+    , WalletMetadata(..)
+    , WalletId(..)
+    , WalletName(..)
+    , WalletTimestamp(..)
+    , WalletStatus(..)
+    , WalletDelegation (..)
+    , WalletPassphraseInfo(..)
     ) where
 
 import Prelude
 
+import Cardano.Wallet.AddressDiscovery
+    ( AddressPoolGap )
 import Cardano.Wallet.Binary
     ( txId )
 import Cardano.Wallet.Primitive
     ( Block (..)
+    , BlockHeader (..)
     , Dom (..)
     , IsOurs (..)
+    , SlotId (..)
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
@@ -68,14 +81,22 @@ import Data.Maybe
     ( catMaybes )
 import Data.Set
     ( Set )
+import Data.Text
+    ( Text )
+import Data.Time.Units
+    ( Microsecond )
 import Data.Traversable
     ( for )
+import GHC.Generics
+    ( Generic )
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 
--- * Wallet
+{-------------------------------------------------------------------------------
+                                    wallet
+-------------------------------------------------------------------------------}
 
 -- | An opaque wallet type, see @initWallet@ and @applyBlock@ to construct and
 -- update wallets.
@@ -91,14 +112,18 @@ data Wallet s where
         :: (IsOurs s, Semigroup s, NFData s, Show s)
         => UTxO
         -> Set Tx
+        -> SlotId
         -> s
         -> Wallet s
 
 deriving instance Show (Wallet s)
 
 instance NFData (Wallet s) where
-    rnf (Wallet utxo pending s) =
-        rnf utxo `deepseq` (rnf pending `deepseq` (rnf s `deepseq` ()))
+    rnf (Wallet utxo pending sl s) =
+        rnf utxo `deepseq`
+            (rnf pending `deepseq`
+                (rnf sl `deepseq`
+                    (rnf s `deepseq` ())))
 
 
 -- | Create an empty wallet from an initial state
@@ -106,7 +131,7 @@ initWallet
     :: (IsOurs s, Semigroup s, NFData s, Show s)
     => s
     -> Wallet s
-initWallet = Wallet mempty mempty
+initWallet = Wallet mempty mempty (SlotId 0 0)
 
 
 -- | Apply Block is the only way to make the wallet evolve.
@@ -114,12 +139,12 @@ applyBlock
     :: Block
     -> NonEmpty (Wallet s)
     -> NonEmpty (Wallet s)
-applyBlock !b (cp@(Wallet !utxo !pending _) :| checkpoints) =
+applyBlock !b (cp@(Wallet !utxo !pending _ _) :| checkpoints) =
     let
         (ourUtxo, ourIns, s') = prefilterBlock b cp
         utxo' = (utxo <> ourUtxo) `excluding` ourIns
         pending' = updatePending b pending
-        cp' = Wallet utxo' pending' s'
+        cp' = Wallet utxo' pending' (slotId $ header b) s'
     in
         -- NOTE
         -- k = 2160 is currently hard-coded here. In the short-long run, we do
@@ -128,6 +153,12 @@ applyBlock !b (cp@(Wallet !utxo !pending _) :| checkpoints) =
         -- have enough checkpoints, but if it does increase, then we have
         -- problems in case of rollbacks.
         (cp' :| cp : take 2160 checkpoints)
+
+
+-- | Get the wallet current tip
+currentTip :: Wallet s -> SlotId
+currentTip (Wallet _ _ tip _) =
+    tip
 
 
 -- | Available balance = 'balance' . 'availableUTxO'
@@ -144,13 +175,13 @@ totalBalance =
 
 -- | Available UTxO = UTxO that aren't part of pending txs
 availableUTxO :: Wallet s -> UTxO
-availableUTxO (Wallet utxo pending _) =
+availableUTxO (Wallet utxo pending _ _) =
     utxo `excluding` txIns pending
 
 
 -- | Total UTxO = 'availableUTxO' <> "pending UTxO"
 totalUTxO :: Wallet s -> UTxO
-totalUTxO wallet@(Wallet _ pending s) =
+totalUTxO wallet@(Wallet _ pending _ s) =
     let
         -- NOTE
         -- We _safely_ discard the state here because we aren't intending to
@@ -202,7 +233,7 @@ prefilterBlock
     :: Block
     -> Wallet s
     -> (UTxO, Set TxIn, s)
-prefilterBlock b (Wallet !utxo _ !s) =
+prefilterBlock b (Wallet !utxo _ _ !s) =
     let
         txs = transactions b
         (ourOuts, s') = txOutsOurs txs s
@@ -223,3 +254,46 @@ changeUTxO pending = runState $ do
     let utxo = foldMap utxoFromTx pending
     let ins = txIns pending
     return $ (utxo `restrictedTo` ours) `restrictedBy` ins
+
+
+{-------------------------------------------------------------------------------
+                             Wallet Metadata
+-------------------------------------------------------------------------------}
+
+data WalletMetadata = WalletMetadata
+    { id
+        :: !WalletId
+    , name
+        :: !WalletName
+    , addressPoolGap
+        :: !AddressPoolGap
+    , passphraseInfo
+        :: !WalletPassphraseInfo
+    , status
+        :: !WalletStatus
+    , delegation
+        :: !WalletDelegation
+    } deriving (Eq, Show, Generic)
+
+newtype WalletName = WalletName { getWalletName ::  Text }
+    deriving (Eq, Show)
+
+newtype WalletId = WalletId Text
+    deriving (Eq, Ord, Show)
+
+newtype WalletTimestamp = WalletTimestamp Microsecond
+    deriving (Eq, Ord, Show)
+
+data WalletStatus
+    = Ready
+    | Restoring
+    deriving (Eq, Show)
+
+data WalletDelegation
+    = Delegated
+    | NotDelegated
+    deriving (Eq, Show)
+
+newtype WalletPassphraseInfo = WalletPassphraseInfo
+    { lastUpdated :: WalletTimestamp }
+    deriving (Eq, Show)

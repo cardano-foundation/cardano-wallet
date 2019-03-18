@@ -41,7 +41,7 @@ module Cardano.Wallet.Mnemonic
       -- * Converting from and to @Mnemonic@ (resp. @Entropy@)
     , mnemonicToEntropy
     , entropyToMnemonic
-    , entropyToByteString
+    , entropyToBytes
 
     , ambiguousNatVal
     , mnemonicToText
@@ -76,6 +76,8 @@ import Crypto.Encoding.BIP39
     , toEntropy
     , wordsToEntropy
     )
+import Data.ByteArray
+    ( ScrubbedBytes )
 import Data.ByteString
     ( ByteString )
 import Data.Proxy
@@ -91,6 +93,7 @@ import qualified Basement.Compat.Base as Basement
 import qualified Basement.String as Basement
 import qualified Crypto.Encoding.BIP39.English as Dictionary
 import qualified Crypto.Random.Entropy as Crypto
+import qualified Data.ByteArray as BA
 import qualified Data.Text as T
 
 -- | A backup-phrase in the form of a non-empty of Mnemonic words
@@ -189,10 +192,10 @@ entropyToMnemonic entropy = Mnemonic
     }
 
 -- | Convert 'Entropy' to a raw 'ByteString'
-entropyToByteString
+entropyToBytes
     :: Entropy n
-    -> ByteString
-entropyToByteString = entropyRaw
+    -> ScrubbedBytes
+entropyToBytes = BA.convert . entropyRaw
 
 toUtf8String
     :: Text

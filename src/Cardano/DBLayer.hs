@@ -1,39 +1,40 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE RankNTypes #-}
+-- |
+-- Copyright: © 2018-2019 IOHK
+-- License: MIT
+--
+-- Database / Pesistence layer for the wallet backend. This is where we define
+-- the interface allowing us to store and fetch various data on our wallets.
 
 module Cardano.DBLayer
     ( DBLayer(..)
+    , PrimaryKey(..)
     ) where
 
+import Prelude
+
 import Cardano.Wallet
-    ( Wallet )
-import Control.Monad.Except
-    ( ExceptT )
-import Data.Word
-    ( Word64 )
-import GHC.TypeLits
-    ( Symbol )
+    ( Wallet, WalletId )
+import Data.List.NonEmpty
+    ( NonEmpty )
 
 
 -- | A Database interface for storing various things in a DB. In practice,
 -- we'll need some extra contraints on the wallet state that allows us to
 -- serialize and unserialize it (e.g. @forall s. (Serialize s) => ...@)
-data DBLayer m = forall s. DBLayer
+data DBLayer m s = DBLayer
     -- Wallet checkpoints, checkpoints are handled as a bounded FIFO, where we
     -- eventually store @k@ values (e.g. k=2160) at the same time.
-    { enqueueCheckpoint -- Add a checkpoint on top of the queue
-        :: PrimaryKey "wallet"
-        -> Wallet s
-        -> ExceptT ErrEnqueueCheckpoint m ()
-    , dequeueCheckpoints -- Discard a number of checkpoints from the end
-        :: PrimaryKey "wallet"
-        -> Word64
-        -> ExceptT ErrDequeueCheckpoints m ()
-    , checkpoints --
-        :: PrimaryKey "wallet"
-        -> ExceptT ErrCheckpoints m [Wallet s]
+    { putCheckpoints
+        :: PrimaryKey WalletId
+        -> NonEmpty (Wallet s)
+        -> m ()
+
+    , readCheckpoints
+        :: PrimaryKey WalletId
+        -> m (Maybe (NonEmpty (Wallet s)))
+
+    , readWallets
+        :: m [PrimaryKey WalletId]
     }
 
 -- | A primary key which can take many forms depending on the value. This may
@@ -44,8 +45,5 @@ data DBLayer m = forall s. DBLayer
 -- functions like 'enqueueCheckpoint' needs to be associated to a corresponding
 -- wallet. Some other may not because they are information valid for all wallets
 -- (like for instance, the last known network tip).
-data PrimaryKey (resource :: Symbol)
-
-data ErrEnqueueCheckpoint
-data ErrDequeueCheckpoints
-data ErrCheckpoints
+newtype PrimaryKey key = PrimaryKey key
+    deriving (Eq, Ord)

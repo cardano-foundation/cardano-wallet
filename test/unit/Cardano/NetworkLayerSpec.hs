@@ -94,8 +94,8 @@ mkReader = do
         , \x -> modifyMVar_ ref $ return . (x :)
         )
 
-flatten :: [TickResult [Block]] -> [Block]
-flatten = concat . concatMap toList
+flatten :: [TickResult [Block]] -> [[Block]]
+flatten = concatMap toList
 
 {-------------------------------------------------------------------------------
                             Arbitrary Instances

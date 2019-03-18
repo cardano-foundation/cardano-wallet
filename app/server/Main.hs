@@ -14,25 +14,30 @@ module Main where
 import Prelude
 
 import Cardano.CLI
-    ( Network, Port, decode, encode, getArg )
-import Cardano.NetworkLayer
-    ( listen )
-import Cardano.Wallet.Primitive
-    ( Block )
+    ( Network, decode, encode, getArg )
+import Cardano.Wallet
+    ( WalletName (..) )
+import Cardano.Wallet.Mnemonic
+    ( Mnemonic )
+import Cardano.WalletLayer
+    ( NewWallet (..), WalletLayer (..), mkWalletLayer )
 import Control.Monad
     ( when )
-import Fmt
-    ( build, fmt )
-import Say
-    ( say )
 import System.Console.Docopt
-    ( Docopt, docopt, exitWithUsage, isPresent, longOption, parseArgsOrExit )
+    ( Docopt
+    , argument
+    , docopt
+    , exitWithUsage
+    , isPresent
+    , longOption
+    , parseArgsOrExit
+    )
 import System.Environment
     ( getArgs )
 
+import qualified Cardano.DBLayer.MVar as MVar
 import qualified Cardano.NetworkLayer.HttpBridge as HttpBridge
 import qualified Data.Text as T
-
 
 -- | Command-Line Interface specification. See http://docopt.org/
 cli :: Docopt
@@ -42,7 +47,7 @@ cardano-wallet-server
 Start the cardano wallet server.
 
 Usage:
-  cardano-wallet-server [options]
+  cardano-wallet-server [options] <mnemonic>...
   cardano-wallet-server --help
 
 Options:
@@ -55,13 +60,21 @@ main :: IO ()
 main = do
     args <- parseArgsOrExit cli =<< getArgs
     when (args `isPresent` (longOption "help")) $ exitWithUsage cli
-
-    networkName <- getArg args cli (longOption "network") (decode @Network)
-    bridgePort <- getArg args cli (longOption "http-bridge-port") decode
-    _ <- getArg args cli (longOption "wallet-server-port") (decode @(Port "wallet"))
+    networkName <-
+        getArg @String args cli (longOption "network") (decode @_ @Network)
+    bridgePort <-
+        getArg @String args cli (longOption "http-bridge-port") (decode @_ @Int)
+    mnemonicSentence <-
+        getArg @[String] args cli (argument "mnemonic") (decode @_ @(Mnemonic 15))
 
     network <- HttpBridge.newNetworkLayer (T.pack . encode $ networkName) bridgePort
-    listen network logBlock
-  where
-    logBlock :: Block -> IO ()
-    logBlock = say . fmt . build
+    db <- MVar.newDBLayer
+    let wallet = mkWalletLayer db network
+    wid <- createWallet wallet NewWallet
+        { mnemonic = mnemonicSentence
+        , mnemonic2ndFactor = mempty
+        , name = WalletName "My Wallet"
+        , passphrase = mempty
+        , gap = minBound
+        }
+    watchWallet wallet wid

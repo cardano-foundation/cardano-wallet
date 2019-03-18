@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -30,6 +31,9 @@ module Cardano.Wallet.AddressDiscovery
     , accountPubKey
     , mkAddressPool
     , lookupAddress
+
+    -- ** State
+    , SeqState (..)
   ) where
 
 import Prelude
@@ -46,15 +50,19 @@ import Cardano.Wallet.AddressDerivation
     , keyToAddress
     )
 import Cardano.Wallet.Primitive
-    ( Address, invariant )
+    ( Address, IsOurs (..), invariant )
+import Control.Applicative
+    ( (<|>) )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData, deepseq )
 import Data.Function
     ( (&) )
 import Data.List
     ( sortOn )
 import Data.Map.Strict
     ( Map )
+import Data.Maybe
+    ( isJust )
 import Data.Word
     ( Word8 )
 import GHC.Generics
@@ -137,6 +145,10 @@ data AddressPool = AddressPool
 
 instance NFData AddressPool
 
+instance Semigroup AddressPool where
+    (AddressPool !pubKey !g !change !a1) <> (AddressPool _ _ _ !a2) =
+        AddressPool pubKey g change (a1 <> a2)
+
 -- | Get all addresses in the pool, sorted from the first address discovered,
 -- up until the next one.
 --
@@ -216,3 +228,25 @@ nextAddresses !key (AddressPoolGap !g) !cc !fromIx =
         (toEnum $ fromEnum fromIx + fromEnum g - 1)
         (>= fromIx)
     newAddress = keyToAddress . deriveAddressPublicKey key cc
+
+newtype SeqState = SeqState (AddressPool, AddressPool)
+    deriving stock (Generic, Show)
+    deriving newtype (NFData, Semigroup)
+
+-- NOTE
+-- We have to scan both the internal and external chain. Note that, the
+-- account discovery algorithm is only specified for the external chain so
+-- in theory, there's nothing forcing a wallet to generate change
+-- addresses on the internal chain anywhere in the available range.
+--
+-- In practice, we may assume that user can't create change addresses and
+-- that they are just created in sequence by the wallet software. Hence an
+-- address pool with a gap of 1 should be sufficient for the internal chain.
+instance IsOurs SeqState where
+    isOurs addr (SeqState (!s1, !s2)) =
+        let
+            (res1, !s1') = lookupAddress addr s1
+            (res2, !s2') = lookupAddress addr s2
+            ours = isJust (res1 <|> res2)
+        in
+            (ours `deepseq` ours, SeqState (s1', s2'))
