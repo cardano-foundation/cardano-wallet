@@ -73,6 +73,9 @@ instance Arbitrary WalletId where
     arbitrary = WalletId . uuidFromWords <$> arbitrary
     shrink (WalletId u) = WalletId . uuidFromWords <$> shrink (UUID.toWords u)
 
+uuidFromWords :: (Word32, Word32, Word32, Word32) -> UUID.UUID
+uuidFromWords (a, b, c, d) = UUID.fromWords a b c d
+
 instance Arbitrary WalletName where
     arbitrary = do
         nameLength <- choose (walletNameMinLength, walletNameMaxLength)
@@ -91,9 +94,3 @@ instance Arbitrary WalletState where
 instance Arbitrary WalletStateStatus where
     arbitrary = genericArbitrary
     shrink = genericShrink
-
-uuidFromWords :: (Word32, Word32, Word32, Word32) -> UUID.UUID
-uuidFromWords (a,b,c,d) = UUID.fromWords a b c d
-
-
-
