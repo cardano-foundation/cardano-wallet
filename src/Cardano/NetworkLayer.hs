@@ -17,10 +17,10 @@ import Cardano.Wallet.Primitive
     ( Block (..), BlockHeader (..), Hash (..), SlotId (..) )
 import Control.Concurrent
     ( threadDelay )
-import Control.Monad.Except
-    ( ExceptT, runExceptT )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
+import Control.Monad.Trans.Except
+    ( ExceptT, runExceptT )
 import Data.Time.Units
     ( Millisecond, toMicroseconds )
 import Fmt

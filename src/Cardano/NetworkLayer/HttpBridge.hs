@@ -29,8 +29,10 @@ import Cardano.Wallet.Primitive
     ( Block (..), BlockHeader (..), Hash (..), SlotId (..) )
 import Control.Exception
     ( Exception (..) )
-import Control.Monad.Except
-    ( ExceptT (..), lift, runExceptT, throwError )
+import Control.Monad.Trans.Class
+    ( lift )
+import Control.Monad.Trans.Except
+    ( ExceptT (..), runExceptT, throwE )
 import Crypto.Hash
     ( HashAlgorithm, digestFromByteString )
 import Crypto.Hash.Algorithms
@@ -240,7 +242,7 @@ hashToApi'
     -> ExceptT HttpBridgeError m (Api.Hash algorithm b)
 hashToApi' h = case hashToApi h of
     Just h' -> pure h'
-    Nothing -> throwError
+    Nothing -> throwE
         $ BadResponseFromNode "hashToApi: Digest was of the wrong length"
 
 -- | Creates a cardano-http-bridge API with the given connection settings.
