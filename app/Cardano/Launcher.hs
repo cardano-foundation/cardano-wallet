@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 -- |
 -- Copyright: © 2018-2019 IOHK
 -- License: MIT
@@ -10,6 +12,7 @@ module Cardano.Launcher
     ( Command (..)
     , ProcessHasExited(..)
     , launch
+    , installSignalHandlers
     ) where
 
 import Prelude
@@ -27,6 +30,13 @@ import System.Exit
 import System.Process
     ( proc, waitForProcess, withCreateProcess )
 
+#ifdef mingw32_HOST_OS
+import Cardano.Launcher.Windows
+    ( installSignalHandlers )
+#else
+import Cardano.Launcher.POSIX
+    ( installSignalHandlers )
+#endif
 
 data Command = Command
     { cmdName :: String
@@ -73,6 +83,6 @@ launch cmds = do
             throwIO $ ProcessHasExited name code
     case res of
         Left e -> return e
-        Right _ -> error
-            "Unreachable. Supervising threads should never finish. \
-            \They should stay running or throw @ProcessHasExited@."
+        Right _ -> error $
+            "Unreachable. Supervising threads should never finish. " <>
+            "They should stay running or throw @ProcessHasExited@."

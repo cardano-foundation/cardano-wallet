@@ -130,6 +130,12 @@ test-suite unit
       Cardano.Wallet.MnemonicSpec
       Cardano.Wallet.PrimitiveSpec
       Cardano.WalletSpec
+  if os(windows)
+    build-depends: Win32
+    other-modules: Cardano.Launcher.Windows
+  else
+    build-depends: unix, say
+    other-modules: Cardano.Launcher.POSIX
 
 
 executable cardano-wallet-server
@@ -183,6 +189,13 @@ executable cardano-wallet-launcher
   other-modules:
       Cardano.CLI
       Cardano.Launcher
+  if os(windows)
+    build-depends: Win32
+    other-modules: Cardano.Launcher.Windows
+  else
+    build-depends: unix
+    other-modules: Cardano.Launcher.POSIX
+
   main-is:
      Main.hs
 
