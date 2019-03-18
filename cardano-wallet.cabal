@@ -1,3 +1,4 @@
+cabal-version:       2.0
 name:                cardano-wallet
 version:             2.0.0
 synopsis:            The Wallet Backend for a Cardano node.
@@ -11,7 +12,6 @@ license-file:        LICENSE
 category:            Web
 build-type:          Simple
 extra-source-files:  README.md
-cabal-version:       >=1.10
 
 flag development
     description: Disable `-Werror`
@@ -92,7 +92,8 @@ test-suite unit
     ghc-options:
       -Werror
   build-depends:
-      base
+      app-common
+    , base
     , async
     , base58-bytestring
     , bytestring
@@ -112,15 +113,13 @@ test-suite unit
     , time-units
     , transformers
   type:
-     exitcode-stdio-1.0
+      exitcode-stdio-1.0
   hs-source-dirs:
       test/unit
-      app
   main-is:
       Main.hs
   other-modules:
       Cardano.DBLayerSpec
-      Cardano.Launcher
       Cardano.LauncherSpec
       Cardano.NetworkLayer.HttpBridge.ApiSpec
       Cardano.NetworkLayer.HttpBridgeSpec
@@ -132,11 +131,38 @@ test-suite unit
       Cardano.Wallet.MnemonicSpec
       Cardano.Wallet.PrimitiveSpec
       Cardano.WalletSpec
+
+library app-common
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -Wall
+      -Wcompat
+      -fwarn-redundant-constraints
+  if (!flag(development))
+    ghc-options:
+      -Werror
+  build-depends:
+      base
+    , async
+    , docopt
+    , fmt
+    , process
+    , say
+    , text
+  hs-source-dirs:
+      app/common
+  exposed-modules:
+      Cardano.CLI
+      Cardano.Launcher
   if os(windows)
     build-depends: Win32
     other-modules: Cardano.Launcher.Windows
   else
-    build-depends: unix, say
+    build-depends: unix
     other-modules: Cardano.Launcher.POSIX
 
 executable cardano-wallet-server
@@ -153,13 +179,11 @@ executable cardano-wallet-server
   build-depends:
       base
     , cardano-wallet
+    , app-common
     , docopt
     , text
   hs-source-dirs:
-      app
       app/server
-  other-modules:
-      Cardano.CLI
   main-is:
       Main.hs
 
@@ -175,29 +199,19 @@ executable cardano-wallet-launcher
       -Werror
       -O2
   build-depends:
-      async
-    , cardano-wallet
+      app-common
+    , async
     , base
+    , cardano-wallet
     , docopt
     , fmt
     , process
     , say
     , text
   hs-source-dirs:
-      app
       app/launcher
-  other-modules:
-      Cardano.CLI
-      Cardano.Launcher
-  if os(windows)
-    build-depends: Win32
-    other-modules: Cardano.Launcher.Windows
-  else
-    build-depends: unix
-    other-modules: Cardano.Launcher.POSIX
-
   main-is:
-     Main.hs
+      Main.hs
 
 executable cardano-generate-mnemonic
   default-language:
