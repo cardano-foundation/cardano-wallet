@@ -1,6 +1,6 @@
 module Cardano.Wallet.Api.V2.JSON
-    ( simpleEnumOptions
-    , simpleRecordOptions
+    ( defaultSumTypeOptions
+    , defaultRecordTypeOptions
     ) where
 
 import Prelude
@@ -16,12 +16,12 @@ import Data.Aeson
     , sumEncoding
     )
 
-simpleEnumOptions :: Options
-simpleEnumOptions = defaultOptions
+defaultSumTypeOptions :: Options
+defaultSumTypeOptions = defaultOptions
     { constructorTagModifier = camelTo2 '_'
     , sumEncoding = ObjectWithSingleField }
 
-simpleRecordOptions :: Options
-simpleRecordOptions = defaultOptions
+defaultRecordTypeOptions :: Options
+defaultRecordTypeOptions = defaultOptions
     { fieldLabelModifier = drop 1
     , omitNothingFields = True }

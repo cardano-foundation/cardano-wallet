@@ -5,7 +5,7 @@ module Cardano.Wallet.Api.V2.Types.WalletDelegationStatus where
 import Prelude
 
 import Cardano.Wallet.Api.V2.JSON
-    ( simpleEnumOptions )
+    ( defaultSumTypeOptions )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), genericParseJSON, genericToJSON )
 import GHC.Generics
@@ -17,6 +17,6 @@ data WalletDelegationStatus
     deriving (Eq, Generic, Show)
 
 instance FromJSON WalletDelegationStatus where
-    parseJSON = genericParseJSON simpleEnumOptions
+    parseJSON = genericParseJSON defaultSumTypeOptions
 instance ToJSON WalletDelegationStatus where
-    toJSON = genericToJSON simpleEnumOptions
+    toJSON = genericToJSON defaultSumTypeOptions

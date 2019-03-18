@@ -5,7 +5,7 @@ module Cardano.Wallet.Api.V2.Types.WalletBalance where
 import Prelude
 
 import Cardano.Wallet.Api.V2.JSON
-    ( simpleRecordOptions )
+    ( defaultRecordTypeOptions )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), genericParseJSON, genericToJSON )
 import GHC.Generics
@@ -19,6 +19,6 @@ data WalletBalance = WalletBalance
     } deriving (Eq, Generic, Show)
 
 instance FromJSON WalletBalance where
-    parseJSON = genericParseJSON simpleRecordOptions
+    parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON WalletBalance where
-    toJSON = genericToJSON simpleRecordOptions
+    toJSON = genericToJSON defaultRecordTypeOptions

@@ -9,7 +9,7 @@ module Cardano.Wallet.Api.V2.Types.WalletState
 import Prelude
 
 import Cardano.Wallet.Api.V2.JSON
-    ( simpleRecordOptions )
+    ( defaultRecordTypeOptions )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), genericParseJSON, genericToJSON )
 import GHC.Generics
@@ -39,9 +39,9 @@ instance ToJSON WalletState where
     toJSON = toJSON . unvalidate
 
 instance FromJSON UnvalidatedWalletState where
-    parseJSON = genericParseJSON simpleRecordOptions
+    parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON UnvalidatedWalletState where
-    toJSON = genericToJSON simpleRecordOptions
+    toJSON = genericToJSON defaultRecordTypeOptions
 
 validate :: UnvalidatedWalletState -> Either WalletStateError WalletState
 validate = \case

@@ -5,7 +5,7 @@ module Cardano.Wallet.Api.V2.Types.WalletDelegation where
 import Prelude
 
 import Cardano.Wallet.Api.V2.JSON
-    ( simpleRecordOptions )
+    ( defaultRecordTypeOptions )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), genericParseJSON, genericToJSON )
 import GHC.Generics
@@ -18,6 +18,6 @@ newtype WalletDelegation = WalletDelegation
     } deriving (Eq, Generic, Show)
 
 instance FromJSON WalletDelegation where
-    parseJSON = genericParseJSON simpleRecordOptions
+    parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON WalletDelegation where
-    toJSON = genericToJSON simpleRecordOptions
+    toJSON = genericToJSON defaultRecordTypeOptions

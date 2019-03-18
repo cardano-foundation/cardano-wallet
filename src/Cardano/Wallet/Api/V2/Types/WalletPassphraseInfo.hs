@@ -5,7 +5,7 @@ module Cardano.Wallet.Api.V2.Types.WalletPassphraseInfo where
 import Prelude
 
 import Cardano.Wallet.Api.V2.JSON
-    ( simpleRecordOptions )
+    ( defaultRecordTypeOptions )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), genericParseJSON, genericToJSON )
 import Data.Time.Clock
@@ -18,6 +18,6 @@ newtype WalletPassphraseInfo = WalletPassphraseInfo
     } deriving (Eq, Generic, Show)
 
 instance FromJSON WalletPassphraseInfo where
-    parseJSON = genericParseJSON simpleRecordOptions
+    parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON WalletPassphraseInfo where
-    toJSON = genericToJSON simpleRecordOptions
+    toJSON = genericToJSON defaultRecordTypeOptions

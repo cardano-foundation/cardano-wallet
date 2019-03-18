@@ -10,7 +10,7 @@ module Cardano.Wallet.Api.V2.Types.Percentage
 import Prelude
 
 import Cardano.Wallet.Api.V2.JSON
-    ( simpleRecordOptions )
+    ( defaultRecordTypeOptions )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), genericParseJSON, genericToJSON )
 import Data.Text
@@ -57,9 +57,9 @@ data UnvalidatedPercentage = UnvalidatedPercentage
     } deriving Generic
 
 instance FromJSON UnvalidatedPercentage where
-    parseJSON = genericParseJSON simpleRecordOptions
+    parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON UnvalidatedPercentage where
-    toJSON = genericToJSON simpleRecordOptions
+    toJSON = genericToJSON defaultRecordTypeOptions
 
 validate :: UnvalidatedPercentage -> Either PercentageError Percentage
 validate = \case
@@ -68,4 +68,3 @@ validate = \case
 
 unvalidate :: Percentage -> UnvalidatedPercentage
 unvalidate p = UnvalidatedPercentage (getPercentage p) "percent"
-
