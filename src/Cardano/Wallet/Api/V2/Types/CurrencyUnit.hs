@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Cardano.Wallet.Api.V2.Types.CurrencyUnit
-    ( CurrencyUnit (Lovelace)
+    ( CurrencyUnit (..)
     ) where
 
 import Prelude
