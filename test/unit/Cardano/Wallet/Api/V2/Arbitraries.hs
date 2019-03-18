@@ -36,7 +36,7 @@ import Test.QuickCheck.Arbitrary.Generic
 import Test.QuickCheck.Instances.Time
     ()
 
-import qualified Data.Text as Text
+import qualified Data.Text as T
 import qualified Data.UUID.Types as UUID
 
 instance Arbitrary Wallet where
@@ -82,7 +82,7 @@ instance Arbitrary WalletName where
         nameLength <- choose (walletNameMinLength, walletNameMaxLength)
         fromRight (error "Unable to create arbitrary WalletName")
             . mkWalletName
-            . Text.pack <$> replicateM nameLength (choose ('a', 'z'))
+            . T.pack <$> replicateM nameLength (choose ('a', 'z'))
 
 instance Arbitrary WalletPassphraseInfo where
     arbitrary = genericArbitrary

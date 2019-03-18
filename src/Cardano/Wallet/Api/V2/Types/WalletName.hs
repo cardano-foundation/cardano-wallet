@@ -18,7 +18,7 @@ import Data.Text
 import GHC.Generics
     ( Generic )
 
-import qualified Data.Text as Text
+import qualified Data.Text as T
 
 newtype WalletName = WalletName
     { getWalletName :: Text
@@ -40,6 +40,6 @@ walletNameMaxLength = 255
 
 mkWalletName :: Text -> Either WalletNameError WalletName
 mkWalletName n
-    | Text.length n < walletNameMinLength = Left WalletNameTooShortError
-    | Text.length n > walletNameMaxLength = Left WalletNameTooLongError
+    | T.length n < walletNameMinLength = Left WalletNameTooShortError
+    | T.length n > walletNameMaxLength = Left WalletNameTooLongError
     | otherwise = Right $ WalletName n
