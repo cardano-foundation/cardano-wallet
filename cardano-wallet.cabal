@@ -33,7 +33,6 @@ library
       -Werror
   build-depends:
       aeson
-    , attoparsec
     , base
     , base58-bytestring
     , basement
@@ -43,7 +42,6 @@ library
     , cborg
     , containers
     , cryptonite
-    , data-default
     , deepseq
     , digest
     , exceptions
@@ -133,7 +131,6 @@ test-suite unit
     , text
     , time-units
     , transformers
-    , uuid
     , uuid-types
   type:
      exitcode-stdio-1.0
