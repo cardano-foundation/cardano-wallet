@@ -26,7 +26,13 @@ import Cardano.NetworkLayer
 import Cardano.NetworkLayer.HttpBridge.Api
     ( ApiT (..), EpochIndex (..), NetworkName (..), api )
 import Cardano.Wallet.Primitive
-    ( Block (..), BlockHeader (..), Hash (..), SlotId (..) )
+    ( Block (..)
+    , BlockHeader (..)
+    , Hash (..)
+    , SlotId (..)
+    , invariant
+    , isValidSlotId
+    )
 import Control.Exception
     ( Exception (..) )
 import Control.Monad.Trans.Class
@@ -35,8 +41,6 @@ import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT, throwE )
 import Crypto.Hash
     ( HashAlgorithm, digestFromByteString )
-import Crypto.Hash.Algorithms
-    ( Blake2b_256 )
 import Data.Bifunctor
     ( first )
 import Data.ByteArray
@@ -81,15 +85,20 @@ rbNextBlocks
     => HttpBridge m e -- ^ http-bridge API
     -> SlotId -- ^ Starting point
     -> ExceptT e m [Block]
-rbNextBlocks net start = do
+rbNextBlocks net sl = do
+    -- NOTE
+    -- Adding an invariant here. If an invalid slot was given, the algorithm
+    -- below will start fetching all blocks from the start down to the first
+    -- genesis block, causing the system to hang for quite a while.
+    let start = invariant "given starting slot is a valid slot" sl isValidSlotId
     (tipHash, tip) <- fmap slotId <$> getNetworkTip net
-    epochBlocks <- lift nextStableEpoch
+    epochBlocks <- lift $ nextStableEpoch start
     lastBlocks <- if null epochBlocks
-        then unstableBlocks net tipHash tip
+        then unstableBlocks net start tipHash tip
         else pure []
     pure (epochBlocks ++ lastBlocks)
   where
-    nextStableEpoch = do
+    nextStableEpoch start = do
         epochBlocks <- runExceptT (getEpoch net (epochIndex start)) >>= \case
             Left _ -> pure []
             Right r -> return r
@@ -101,7 +110,7 @@ rbNextBlocks net start = do
 
     -- Grab the remaining blocks which aren't packed in epoch files,
     -- starting from the tip.
-    unstableBlocks network tipHash tip
+    unstableBlocks network start tipHash tip
         | start <= tip = fetchBlocksFromTip network start tipHash
         | otherwise    = pure []
 
