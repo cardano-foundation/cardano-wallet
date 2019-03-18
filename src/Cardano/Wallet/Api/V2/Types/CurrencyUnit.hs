@@ -6,19 +6,17 @@ module Cardano.Wallet.Api.V2.Types.CurrencyUnit
 
 import Prelude
 
-import Cardano.Wallet.Api.V2.JSON
-    ( simpleEnumOptions )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..), genericParseJSON, genericToJSON )
+    ( FromJSON (..), ToJSON (..), Value (String) )
 import GHC.Generics
     ( Generic )
 
 data CurrencyUnit
     = Lovelace
-    | Unknown
     deriving (Eq, Generic, Show)
 
 instance FromJSON CurrencyUnit where
-    parseJSON = genericParseJSON simpleEnumOptions
+    parseJSON (String "lovelace") = pure Lovelace
+    parseJSON _ = fail "Invalid currency unit"
 instance ToJSON CurrencyUnit where
-    toJSON = genericToJSON simpleEnumOptions
+    toJSON Lovelace = String "lovelace"

@@ -49,7 +49,8 @@ instance Arbitrary Amount where
         pure $ Amount (fromIntegral value) Lovelace
 
 instance Arbitrary CurrencyUnit where
-    arbitrary = pure Lovelace
+    arbitrary = genericArbitrary
+    shrink = genericShrink
 
 instance Arbitrary Percentage where
     arbitrary = arbitraryBoundedEnum
