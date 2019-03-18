@@ -51,7 +51,7 @@ Usage:
   cardano-wallet-server --help
 
 Options:
-  --network <NETWORK>          mainnet or testnet [default: mainnet]
+  --network <NETWORK>          mainnet, testnet or staging [default: mainnet]
   --wallet-server-port <PORT>  port used for serving the wallet API [default: 8090]
   --http-bridge-port <PORT>    port used for communicating with the http-bridge [default: 8080]
 |]
