@@ -84,7 +84,7 @@ mnemonicToEntropy :: Mnemonic mw -> Entropy (EntropySize mw)
 entropyToMnemonic :: forall mw n csz. (ValidMnemonicSentence mw, ValidEntropySize n, ValidChecksumSize n csz, n ~ EntropySize mw, mw ~ MnemonicWords n) => Entropy n -> Mnemonic mw
 
 -- | Convert <a>Entropy</a> to a raw <a>ByteString</a>
-entropyToByteString :: Entropy n -> ByteString
+entropyToBytes :: Entropy n -> ScrubbedBytes
 ambiguousNatVal :: forall n. KnownNat n => Integer
 mnemonicToText :: Mnemonic mw -> [Text]
 instance GHC.Show.Show (Cardano.Wallet.Mnemonic.MnemonicError csz)
@@ -439,13 +439,13 @@ InternalChain :: ChangeChain
 ExternalChain :: ChangeChain
 
 -- | Generate a root key from a corresponding seed
-generateKeyFromSeed :: (ByteString, Passphrase "generation") -> Passphrase "encryption" -> Key  'RootK XPrv
+generateKeyFromSeed :: (ScrubbedBytes, Passphrase "generation") -> Passphrase "encryption" -> Key  'RootK XPrv
 
 -- | Generate a new key from seed. Note that the <tt>depth</tt> is left
 --   open so that the caller gets to decide what type of key this is. This
 --   is mostly for testing, in practice, seeds are used to represent root
 --   keys, and one should use <a>generateKeyFromSeed</a>.
-unsafeGenerateKeyFromSeed :: (ByteString, Passphrase "generation") -> Passphrase "encryption" -> Key depth XPrv
+unsafeGenerateKeyFromSeed :: (ScrubbedBytes, Passphrase "generation") -> Passphrase "encryption" -> Key depth XPrv
 
 -- | Derives account private key from the given root private key, using
 --   derivation scheme 2 (see <a>cardano-crypto</a> package for more
@@ -567,6 +567,12 @@ mkAddressPool :: Key  'AccountK XPub -> AddressPoolGap -> ChangeChain -> [Addres
 --   also possible that the pool is not amended at all - this happens in
 --   the case that an address is discovered <tt>far</tt> from the edge.
 lookupAddress :: Address -> AddressPool -> (Maybe (Index  'Soft  'AddressK), AddressPool)
+newtype SeqState
+SeqState :: (AddressPool, AddressPool) -> SeqState
+instance GHC.Base.Semigroup Cardano.Wallet.AddressDiscovery.SeqState
+instance Control.DeepSeq.NFData Cardano.Wallet.AddressDiscovery.SeqState
+instance GHC.Show.Show Cardano.Wallet.AddressDiscovery.SeqState
+instance GHC.Generics.Generic Cardano.Wallet.AddressDiscovery.SeqState
 instance GHC.Classes.Eq Cardano.Wallet.AddressDiscovery.AddressPool
 instance GHC.Show.Show Cardano.Wallet.AddressDiscovery.AddressPool
 instance GHC.Generics.Generic Cardano.Wallet.AddressDiscovery.AddressPool
@@ -576,7 +582,9 @@ instance GHC.Classes.Ord Cardano.Wallet.AddressDiscovery.AddressPoolGap
 instance GHC.Classes.Eq Cardano.Wallet.AddressDiscovery.AddressPoolGap
 instance GHC.Show.Show Cardano.Wallet.AddressDiscovery.AddressPoolGap
 instance GHC.Generics.Generic Cardano.Wallet.AddressDiscovery.AddressPoolGap
+instance Cardano.Wallet.Primitive.IsOurs Cardano.Wallet.AddressDiscovery.SeqState
 instance Control.DeepSeq.NFData Cardano.Wallet.AddressDiscovery.AddressPool
+instance GHC.Base.Semigroup Cardano.Wallet.AddressDiscovery.AddressPool
 instance Control.DeepSeq.NFData Cardano.Wallet.AddressDiscovery.AddressPoolGap
 instance GHC.Enum.Bounded Cardano.Wallet.AddressDiscovery.AddressPoolGap
 instance GHC.Enum.Enum Cardano.Wallet.AddressDiscovery.AddressPoolGap
@@ -612,6 +620,9 @@ data Wallet s
 -- | Create an empty wallet from an initial state
 initWallet :: (IsOurs s, Semigroup s, NFData s, Show s) => s -> Wallet s
 
+-- | Get the wallet current tip
+currentTip :: Wallet s -> SlotId
+
 -- | Apply Block is the only way to make the wallet evolve.
 applyBlock :: Block -> NonEmpty (Wallet s) -> NonEmpty (Wallet s)
 
@@ -642,20 +653,89 @@ txOutsOurs :: forall s. IsOurs s => Set Tx -> s -> (Set TxOut, s)
 --   for the transaction outputs to be ordered correctly, since they become
 --   available inputs for the subsequent blocks.
 utxoFromTx :: Tx -> UTxO
+data WalletMetadata
+WalletMetadata :: !WalletId -> !WalletName -> !AddressPoolGap -> !WalletPassphraseInfo -> !WalletStatus -> !WalletDelegation -> WalletMetadata
+[id] :: WalletMetadata -> !WalletId
+[name] :: WalletMetadata -> !WalletName
+[addressPoolGap] :: WalletMetadata -> !AddressPoolGap
+[passphraseInfo] :: WalletMetadata -> !WalletPassphraseInfo
+[status] :: WalletMetadata -> !WalletStatus
+[delegation] :: WalletMetadata -> !WalletDelegation
+newtype WalletId
+WalletId :: Text -> WalletId
+newtype WalletName
+WalletName :: Text -> WalletName
+[getWalletName] :: WalletName -> Text
+newtype WalletTimestamp
+WalletTimestamp :: Microsecond -> WalletTimestamp
+data WalletStatus
+Ready :: WalletStatus
+Restoring :: WalletStatus
+data WalletDelegation
+Delegated :: WalletDelegation
+NotDelegated :: WalletDelegation
+newtype WalletPassphraseInfo
+WalletPassphraseInfo :: WalletTimestamp -> WalletPassphraseInfo
+[lastUpdated] :: WalletPassphraseInfo -> WalletTimestamp
+instance GHC.Generics.Generic Cardano.Wallet.WalletMetadata
+instance GHC.Show.Show Cardano.Wallet.WalletMetadata
+instance GHC.Classes.Eq Cardano.Wallet.WalletMetadata
+instance GHC.Show.Show Cardano.Wallet.WalletPassphraseInfo
+instance GHC.Classes.Eq Cardano.Wallet.WalletPassphraseInfo
+instance GHC.Show.Show Cardano.Wallet.WalletDelegation
+instance GHC.Classes.Eq Cardano.Wallet.WalletDelegation
+instance GHC.Show.Show Cardano.Wallet.WalletStatus
+instance GHC.Classes.Eq Cardano.Wallet.WalletStatus
+instance GHC.Show.Show Cardano.Wallet.WalletTimestamp
+instance GHC.Classes.Ord Cardano.Wallet.WalletTimestamp
+instance GHC.Classes.Eq Cardano.Wallet.WalletTimestamp
+instance GHC.Show.Show Cardano.Wallet.WalletId
+instance GHC.Classes.Ord Cardano.Wallet.WalletId
+instance GHC.Classes.Eq Cardano.Wallet.WalletId
+instance GHC.Show.Show Cardano.Wallet.WalletName
+instance GHC.Classes.Eq Cardano.Wallet.WalletName
 instance GHC.Show.Show (Cardano.Wallet.Wallet s)
 instance Control.DeepSeq.NFData (Cardano.Wallet.Wallet s)
 
+
+-- | Database / Pesistence layer for the wallet backend. This is where we
+--   define the interface allowing us to store and fetch various data on
+--   our wallets.
 module Cardano.DBLayer
 
 -- | A Database interface for storing various things in a DB. In practice,
 --   we'll need some extra contraints on the wallet state that allows us to
 --   serialize and unserialize it (e.g. <tt>forall s. (Serialize s) =&gt;
 --   ...</tt>)
-data DBLayer m
-DBLayer :: (PrimaryKey "wallet" -> Wallet s -> ExceptT ErrEnqueueCheckpoint m ()) -> (PrimaryKey "wallet" -> Word64 -> ExceptT ErrDequeueCheckpoints m ()) -> (PrimaryKey "wallet" -> ExceptT ErrCheckpoints m [Wallet s]) -> DBLayer m
-[enqueueCheckpoint] :: DBLayer m -> PrimaryKey "wallet" -> Wallet s -> ExceptT ErrEnqueueCheckpoint m ()
-[dequeueCheckpoints] :: DBLayer m -> PrimaryKey "wallet" -> Word64 -> ExceptT ErrDequeueCheckpoints m ()
-[checkpoints] :: DBLayer m -> PrimaryKey "wallet" -> ExceptT ErrCheckpoints m [Wallet s]
+data DBLayer m s
+DBLayer :: (PrimaryKey WalletId -> NonEmpty (Wallet s) -> m ()) -> (PrimaryKey WalletId -> m (Maybe (NonEmpty (Wallet s)))) -> m [PrimaryKey WalletId] -> DBLayer m s
+[putCheckpoints] :: DBLayer m s -> PrimaryKey WalletId -> NonEmpty (Wallet s) -> m ()
+[readCheckpoints] :: DBLayer m s -> PrimaryKey WalletId -> m (Maybe (NonEmpty (Wallet s)))
+[readWallets] :: DBLayer m s -> m [PrimaryKey WalletId]
+
+-- | A primary key which can take many forms depending on the value. This
+--   may become a type family as we move forward, but for now, it
+--   illustrate that some queries are ran against some sort of store;
+--   
+--   As a matter of fact, we may manipulate multiple wallets at the same
+--   time, so, functions like <tt>enqueueCheckpoint</tt> needs to be
+--   associated to a corresponding wallet. Some other may not because they
+--   are information valid for all wallets (like for instance, the last
+--   known network tip).
+newtype PrimaryKey key
+PrimaryKey :: key -> PrimaryKey key
+instance GHC.Classes.Ord key => GHC.Classes.Ord (Cardano.DBLayer.PrimaryKey key)
+instance GHC.Classes.Eq key => GHC.Classes.Eq (Cardano.DBLayer.PrimaryKey key)
+
+
+-- | Dummy implementation of the database-layer, using MVar. This may be
+--   good for state-machine testing in order to compare it with an
+--   implementation on a real data store.
+module Cardano.DBLayer.MVar
+
+-- | Instantiate a new in-memory "database" layer that simply stores data
+--   in a local MVar. Data vanishes if the software is shut down.
+newDBLayer :: forall s. IO (DBLayer IO s)
 
 module Cardano.NetworkLayer
 data NetworkLayer m e0 e1
@@ -675,7 +755,7 @@ NetworkLayer :: (SlotId -> ExceptT e0 m [Block]) -> ExceptT e1 m (Hash "BlockHea
 --   If the data source indicates that it has no more data at present
 --   (<a>Sleep</a>), then sleep for the interval <tt>delay</tt>, and then
 --   try the fetch again.
-tick :: forall st m b. MonadIO m => (st -> m (TickResult [b], st)) -> (b -> m ()) -> Millisecond -> st -> m ()
+tick :: forall st m a. MonadIO m => (st -> m (TickResult a, st)) -> (a -> m ()) -> Millisecond -> st -> m ()
 
 -- | The result type of the element fetch function provided to <a>tick</a>.
 data TickResult a
@@ -688,7 +768,7 @@ Sleep :: TickResult a
 
 -- | Retrieve blocks from a chain producer and execute some given action
 --   for each block.
-listen :: forall e0 e1. Show e0 => NetworkLayer IO e0 e1 -> (Block -> IO ()) -> IO ()
+listen :: forall e0 e1. Show e0 => NetworkLayer IO e0 e1 -> ([Block] -> IO ()) -> IO ()
 instance Data.Foldable.Foldable Cardano.NetworkLayer.TickResult
 instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.NetworkLayer.TickResult a)
 instance GHC.Show.Show a => GHC.Show.Show (Cardano.NetworkLayer.TickResult a)
@@ -699,66 +779,29 @@ instance GHC.Show.Show a => GHC.Show.Show (Cardano.NetworkLayer.TickResult a)
 --   realize its role as being intermediary between the three.
 module Cardano.WalletLayer
 
--- | Errors
-data CreateWalletError
-data GetWalletError
-
 -- | Types
 data WalletLayer m s
-WalletLayer :: (CreateWallet -> ExceptT CreateWalletError m (Wallet s)) -> (WalletId -> ExceptT GetWalletError m (Wallet s)) -> WalletLayer m s
-[$sel:createWallet:WalletLayer] :: WalletLayer m s -> CreateWallet -> ExceptT CreateWalletError m (Wallet s)
+WalletLayer :: (NewWallet -> m WalletId) -> (WalletId -> ExceptT GetWalletError m (Wallet s)) -> (WalletId -> m ()) -> WalletLayer m s
+[$sel:createWallet:WalletLayer] :: WalletLayer m s -> NewWallet -> m WalletId
 [$sel:getWallet:WalletLayer] :: WalletLayer m s -> WalletId -> ExceptT GetWalletError m (Wallet s)
-data CreateWallet
-CreateWallet :: NewWallet -> CreateWallet
-ImportWallet :: Key  'AccountK XPub -> CreateWallet
+[$sel:watchWallet:WalletLayer] :: WalletLayer m s -> WalletId -> m ()
 data NewWallet
-NewWallet :: !Mnemonic 15 -> !Maybe (Mnemonic 9) -> !WalletName -> !Passphrase "encryption" -> !AddressPoolGap -> NewWallet
-[$sel:mnemonicSentence:NewWallet] :: NewWallet -> !Mnemonic 15
-[$sel:mnemonicSentencePassphrase:NewWallet] :: NewWallet -> !Maybe (Mnemonic 9)
+NewWallet :: !Mnemonic 15 -> !Passphrase "generation" -> !WalletName -> !Passphrase "encryption" -> !AddressPoolGap -> NewWallet
+[$sel:mnemonic:NewWallet] :: NewWallet -> !Mnemonic 15
+[$sel:mnemonic2ndFactor:NewWallet] :: NewWallet -> !Passphrase "generation"
 [$sel:name:NewWallet] :: NewWallet -> !WalletName
 [$sel:passphrase:NewWallet] :: NewWallet -> !Passphrase "encryption"
-[$sel:addressPoolGap:NewWallet] :: NewWallet -> !AddressPoolGap
-newtype WalletName
-WalletName :: Text -> WalletName
-newtype WalletId
-WalletId :: Text -> WalletId
-newtype WalletTimestamp
-WalletTimestamp :: Microsecond -> WalletTimestamp
-data WalletMode
-Ready :: WalletMode
-Restoring :: WalletMode
-data Delegation
-Delegated :: Delegation
-NotDelegated :: Delegation
-newtype PassphraseInfo
-PassphraseInfo :: WalletTimestamp -> PassphraseInfo
-[$sel:lastUpdated:PassphraseInfo] :: PassphraseInfo -> WalletTimestamp
-data WalletMetadata
-WalletMetadata :: !WalletId -> !WalletName -> !AddressPoolGap -> !PassphraseInfo -> !WalletMode -> !Delegation -> WalletMetadata
-[$sel:id:WalletMetadata] :: WalletMetadata -> !WalletId
-[$sel:name:WalletMetadata] :: WalletMetadata -> !WalletName
-[$sel:addressPoolGap:WalletMetadata] :: WalletMetadata -> !AddressPoolGap
-[$sel:passphraseInfo:WalletMetadata] :: WalletMetadata -> !PassphraseInfo
-[$sel:state:WalletMetadata] :: WalletMetadata -> !WalletMode
-[$sel:delegation:WalletMetadata] :: WalletMetadata -> !Delegation
-instance GHC.Generics.Generic Cardano.WalletLayer.WalletMetadata
-instance GHC.Show.Show Cardano.WalletLayer.WalletMetadata
-instance GHC.Classes.Eq Cardano.WalletLayer.WalletMetadata
-instance GHC.Show.Show Cardano.WalletLayer.PassphraseInfo
-instance GHC.Classes.Eq Cardano.WalletLayer.PassphraseInfo
-instance GHC.Show.Show Cardano.WalletLayer.Delegation
-instance GHC.Classes.Eq Cardano.WalletLayer.Delegation
-instance GHC.Show.Show Cardano.WalletLayer.WalletMode
-instance GHC.Classes.Eq Cardano.WalletLayer.WalletMode
-instance GHC.Show.Show Cardano.WalletLayer.WalletTimestamp
-instance GHC.Classes.Ord Cardano.WalletLayer.WalletTimestamp
-instance GHC.Classes.Eq Cardano.WalletLayer.WalletTimestamp
-instance GHC.Show.Show Cardano.WalletLayer.WalletId
-instance GHC.Classes.Eq Cardano.WalletLayer.WalletId
+[$sel:gap:NewWallet] :: NewWallet -> !AddressPoolGap
+
+-- | Errors occuring when fetching a wallet
+newtype GetWalletError
+ErrGetWalletNotFound :: WalletId -> GetWalletError
+
+-- | Create a new instance of the wallet layer.
+mkWalletLayer :: Show e0 => DBLayer IO SeqState -> NetworkLayer IO e0 e1 -> WalletLayer IO SeqState
+instance GHC.Show.Show Cardano.WalletLayer.GetWalletError
 instance GHC.Generics.Generic Cardano.WalletLayer.NewWallet
 instance GHC.Show.Show Cardano.WalletLayer.NewWallet
-instance GHC.Show.Show Cardano.WalletLayer.WalletName
-instance GHC.Classes.Eq Cardano.WalletLayer.WalletName
 
 
 -- | Extra content types for Servant.
