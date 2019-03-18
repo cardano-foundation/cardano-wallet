@@ -1,22 +1,24 @@
 - package:
   - name: cardano-wallet
   - section:
+    - name: exe:cardano-wallet-launcher
+    - message:
+      - name: Module not compiled
+      - module: Cardano.Launcher.Windows
+  - section:
     - name: exe:cardano-wallet-launcher exe:cardano-wallet-server
     - message:
       - name: Module reused between components
       - module: Cardano.CLI
   - section:
-    - name: exe:cardano-wallet-launcher test:unit
+    - name: exe:cardano-wallet-launcher test:integration test:unit
     - message:
       - name: Module reused between components
-      - module: Cardano.Launcher
+      - module:
+        - Cardano.Launcher
+        - Cardano.Launcher.POSIX
   - section:
-    - name: exe:cardano-wallet-launcher test:unit
-    - message:
-      - name: Module reused between components
-      - module: Cardano.Launcher.POSIX
-  - section:
-    - name: exe:cardano-wallet-launcher
+    - name: test:integration
     - message:
       - name: Module not compiled
       - module: Cardano.Launcher.Windows
@@ -25,3 +27,4 @@
     - message:
       - name: Module not compiled
       - module: Cardano.Launcher.Windows
+
