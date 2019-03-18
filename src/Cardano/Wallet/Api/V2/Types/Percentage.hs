@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Cardano.Wallet.Api.V2.Types.Percentage
     ( Percentage
@@ -9,16 +9,22 @@ module Cardano.Wallet.Api.V2.Types.Percentage
 
 import Prelude
 
+import Cardano.Wallet.Api.V2.JSON
+    ( simpleRecordOptions )
 import Data.Aeson
-    ( FromJSON, ToJSON, parseJSON )
+    ( FromJSON (..), ToJSON (..), genericParseJSON, genericToJSON )
+import Data.Text
+    ( Text )
 import GHC.Generics
     ( Generic )
 
 newtype Percentage = Percentage
     { getPercentage :: Int
-    } deriving (Eq, Generic, Ord, Show, ToJSON)
+    } deriving (Eq, Generic, Ord, Show)
 
-data PercentageError = PercentageOutOfBoundsError
+data PercentageError
+    = PercentageOutOfBoundsError
+    | PercentageUnitInvalidError
     deriving Show
 
 instance Bounded Percentage where
@@ -30,7 +36,9 @@ instance Enum Percentage where
     fromEnum = getPercentage
 
 instance FromJSON Percentage where
-    parseJSON x = either (fail . show) pure . parsePercentage =<< parseJSON x
+    parseJSON x = either (fail . show) pure . validate =<< parseJSON x
+instance ToJSON Percentage where
+    toJSON = toJSON . unvalidate
 
 mkPercentage :: Integral i => i -> Either PercentageError Percentage
 mkPercentage i
@@ -40,8 +48,24 @@ mkPercentage i
   where
     j = Percentage $ fromIntegral i
 
-parsePercentage :: Int -> Either PercentageError Percentage
-parsePercentage = mkPercentage
-
 unsafeMkPercentage :: Integral i => i -> Percentage
 unsafeMkPercentage = either (error . show) id . mkPercentage
+
+data UnvalidatedPercentage = UnvalidatedPercentage
+    { _quantity :: Int
+    , _unit :: Text
+    } deriving Generic
+
+instance FromJSON UnvalidatedPercentage where
+    parseJSON = genericParseJSON simpleRecordOptions
+instance ToJSON UnvalidatedPercentage where
+    toJSON = genericToJSON simpleRecordOptions
+
+validate :: UnvalidatedPercentage -> Either PercentageError Percentage
+validate = \case
+    UnvalidatedPercentage q "percent" -> mkPercentage q
+    UnvalidatedPercentage _ _ -> Left PercentageUnitInvalidError
+
+unvalidate :: Percentage -> UnvalidatedPercentage
+unvalidate p = UnvalidatedPercentage (getPercentage p) "percent"
+
