@@ -6,7 +6,7 @@ module Cardano.Wallet.Api.V2 where
 import Data.Proxy
     ( Proxy (..) )
 import Servant.API
-    ( (:>), (:<|>), Capture, Delete, Get, JSON )
+    ( (:<|>), (:>), Capture, Delete, Get, JSON )
 
 import qualified Cardano.Wallet.Api.V2.Types.Wallet as T
 import qualified Cardano.Wallet.Api.V2.Types.WalletId as T
