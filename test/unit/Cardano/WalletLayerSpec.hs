@@ -4,12 +4,12 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.WalletLayerSpec
     ( spec
     ) where
-
 
 import Prelude
 
@@ -90,31 +90,23 @@ walletCreationProp
     -> Property
 walletCreationProp newWallet = monadicIO $ liftIO $ do
     (WalletLayerFixture db _wl walletIds) <- setupFixture newWallet
-
     resFromDb <- readCheckpoints db (PrimaryKey $ L.head walletIds)
-
     resFromDb `shouldSatisfy` isJust
-
 
 walletDoubleCreationProp
     :: NewWallet
     -> Property
 walletDoubleCreationProp newWallet = monadicIO $ liftIO $ do
     (WalletLayerFixture _db wl _walletIds) <- setupFixture newWallet
-
     secondTrial <- runExceptT $ createWallet wl newWallet
-
     secondTrial `shouldSatisfy` isLeft
-
 
 walletGetProp
     :: NewWallet
     -> Property
 walletGetProp newWallet = monadicIO $ liftIO $ do
     (WalletLayerFixture _db wl walletIds) <- liftIO $ setupFixture newWallet
-
     resFromGet <- runExceptT $ getWallet wl (L.head walletIds)
-
     resFromGet `shouldSatisfy` isRight
 
 walletGetWrongIdProp
@@ -122,11 +114,9 @@ walletGetWrongIdProp
     -> Property
 walletGetWrongIdProp newWallet = monadicIO $ liftIO $ do
     (WalletLayerFixture _db wl walletIds) <- liftIO $ setupFixture newWallet
-
     let (WalletId storedWalletId) = L.head walletIds
     let corruptedWalletId = WalletId $ T.append "@ " storedWalletId
     attempt <- runExceptT $ getWallet wl corruptedWalletId
-
     attempt `shouldSatisfy` isLeft
 
 
@@ -174,7 +164,6 @@ instance
         in
             either (error . show . UnexpectedEntropyError) id <$> entropy
 
--- | Same remark from 'Arbitrary Entropy' applies here.
 instance
     ( n ~ EntropySize mw
     , mw ~ MnemonicWords n
