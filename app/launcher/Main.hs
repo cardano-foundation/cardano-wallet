@@ -8,7 +8,11 @@ import Prelude
 import Cardano.CLI
     ( Network, Port, decode, encode, getArg )
 import Cardano.Launcher
-    ( Command (Command), ProcessHasExited (ProcessHasExited), launch )
+    ( Command (Command)
+    , ProcessHasExited (ProcessHasExited)
+    , installSignalHandlers
+    , launch
+    )
 import Control.Concurrent
     ( threadDelay )
 import Control.Monad
@@ -59,6 +63,7 @@ main = do
     network <- getArg args cli (longOption "network") decode
 
     sayErr "Starting..."
+    installSignalHandlers
     let commands =
             [ nodeHttpBridgeOn bridgePort
             , walletOn walletPort bridgePort network

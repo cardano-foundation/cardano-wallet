@@ -10,3 +10,18 @@
     - message:
       - name: Module reused between components
       - module: Cardano.Launcher
+  - section:
+    - name: exe:cardano-wallet-launcher test:unit
+    - message:
+      - name: Module reused between components
+      - module: Cardano.Launcher.POSIX
+  - section:
+    - name: exe:cardano-wallet-launcher
+    - message:
+      - name: Module not compiled
+      - module: Cardano.Launcher.Windows
+  - section:
+    - name: test:unit
+    - message:
+      - name: Module not compiled
+      - module: Cardano.Launcher.Windows
