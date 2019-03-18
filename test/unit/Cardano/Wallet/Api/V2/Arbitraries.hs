@@ -17,13 +17,14 @@ import Cardano.Wallet.Api.V2.Types.WalletPassphraseInfo
 import Cardano.Wallet.Api.V2.Types.WalletState
 import Cardano.Wallet.Api.V2.Types.WalletStateStatus
 
+import Prelude
+
 import Control.Monad
     ( replicateM )
 import Data.Either
     ( fromRight )
 import Data.Word
     ( Word32, Word8 )
-import Prelude
 import Test.QuickCheck
     ( Arbitrary (..)
     , arbitraryBoundedEnum
@@ -74,12 +75,10 @@ instance Arbitrary WalletId where
 
 instance Arbitrary WalletName where
     arbitrary = do
-        let minLength = walletNameMinLength
-        let maxLength = minLength + ((walletNameMaxLength - minLength) `div` 16)
-        n <- choose (minLength, maxLength)
+        nameLength <- choose (walletNameMinLength, walletNameMaxLength)
         fromRight (error "Unable to create arbitrary WalletName")
             . mkWalletName
-            . Text.pack <$> replicateM n (choose ('a', 'z'))
+            . Text.pack <$> replicateM nameLength (choose ('a', 'z'))
 
 instance Arbitrary WalletPassphraseInfo where
     arbitrary = genericArbitrary
