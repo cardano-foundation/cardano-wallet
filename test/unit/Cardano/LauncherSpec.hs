@@ -30,11 +30,11 @@ spec = do
 
     it "One process exits with 14, others are cancelled" $ do
         let commands =
-              [ Command "./test/data/Launcher/once.sh" ["14"] (pure ())
-              , Command "./test/data/Launcher/forever.sh" [] (pure ())
+              [ Command "./test/data/Launcher/forever.sh" [] (pure ())
+              , Command "./test/data/Launcher/once.sh" ["14"] (pure ())
               ]
         (ProcessHasExited name code) <- launch commands
-        name `shouldBe` cmdName (commands !! 0)
+        name `shouldBe` cmdName (commands !! 1)
         code `shouldBe` (ExitFailure 14)
 
     it "Process executes a command before they start" $ do
