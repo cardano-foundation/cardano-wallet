@@ -11,8 +11,10 @@ import Cardano.Wallet.Primitive
     ( Block (..), BlockHeader (..), Hash (..), SlotId (..), slotsPerEpoch )
 import Control.Monad.Catch
     ( MonadThrow (..) )
-import Control.Monad.Except
-    ( lift, runExceptT, throwError )
+import Control.Monad.Trans.Class
+    ( lift )
+import Control.Monad.Trans.Except
+    ( runExceptT, throwE )
 import Data.Word
     ( Word64 )
 import Test.Hspec
@@ -131,7 +133,7 @@ mockHttpBridge logLine firstUnstableEpoch tip = HttpBridge
         if ep < firstUnstableEpoch then
             pure $ mockEpoch ep
         else
-            throwError $
+            throwE $
                 "mock epoch " ++ show ep ++ " > firstUnstableEpoch " ++
                 show firstUnstableEpoch
 
