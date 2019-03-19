@@ -73,7 +73,6 @@ library
       Cardano.Wallet.AddressDiscovery
       Cardano.Wallet.Api
       Cardano.Wallet.Api.JSON
-      Cardano.Wallet.Api.Lenses
       Cardano.Wallet.Api.Types.Amount
       Cardano.Wallet.Api.Types.CurrencyUnit
       Cardano.Wallet.Api.Types.Percentage
