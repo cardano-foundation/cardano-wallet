@@ -10,8 +10,10 @@ git:
 
 env:
   global:
-    - EXECUTABLE=$HOME/.local/bin/cardano-wallet-server
-    - EXECUTABLE_CHECKSUM=$HOME/.local/bin/cardano-wallet-server.sha256
+    - WALLET_SERVER=$HOME/.local/bin/cardano-wallet-server
+    - WALLET_SERVER_CHECKSUM=$HOME/.local/bin/cardano-wallet-server.sha256
+    - WALLET_LAUNCHER=$HOME/.local/bin/cardano-wallet-launcher
+    - WALLET_LAUNCHER_CHECKSUM=$HOME/.local/bin/cardano-wallet-launcher.sha256
     - STACK_WORK_CACHE=$HOME/.local/stack-work.tar.gz
     - PATH=$PATH:$HOME/.cargo/bin:$HOME/.local/bin
 
@@ -19,10 +21,9 @@ env:
 # Use the Travis Rust build tools for cardano-http-bridge.
 language: rust
 
-# Deactivate builds on branches but `master` (CI is still triggered by PRs)
-branches:
-  only:
-  - master
+# Deactivate builds on branches but `master` (CI is still triggered by PRs).
+# We do also CI to kick in when pushing a tag `git push --tags` for releases.
+if: (branch = master) OR (tag =~ ^v)
 
 # Caching so the next build will be fast too:
 cache:
@@ -113,23 +114,28 @@ jobs:
     - cd - && shc cardano-wallet unit
 
   - stage: deploy 🚀
-    if: type = push AND branch = master
-    name: "Executable"
+    if: tag =~ ^v
+    name: "Executables"
     script:
     - tar xzf $STACK_WORK_CACHE
     - stack --no-terminal install
-    - sha256sum $EXECUTABLE | head -c 64 > $EXECUTABLE_CHECKSUM
-    - ls $EXECUTABLE
-    - ls $EXECUTABLE_CHECKSUM
-
-deploy:
-  provider: releases
-  api_key: $GITHUB_ACCESS_TOKEN
-  skip_cleanup: true
-  file:
-    - $EXECUTABLE
-    - $EXECUTABLE_CHECKSUM
-  on:
-    repo: input-output-hk/cardano-wallet
-    branch: master
-    tags: true
+    - sha256sum $WALLET_SERVER | head -c 64 > $WALLET_SERVER_CHECKSUM
+    - ls $WALLET_SERVER
+    - ls $WALLET_SERVER_CHECKSUM
+    - sha256sum $WALLET_LAUNCHER | head -c 64 > $WALLET_LAUNCHER_CHECKSUM
+    - ls $WALLET_LAUNCHER
+    - ls $WALLET_LAUNCHER_CHECKSUM
+    deploy:
+      provider: releases
+      api_key: $GITHUB_ACCESS_TOKEN
+      draft: true # Allow editing the release before publishing it officially on GitHub
+      skip_cleanup: true # Make sure that files from the previous stages aren't cleaned up
+      file:
+        - $WALLET_SERVER
+        - $WALLET_SERVER_CHECKSUM
+        - $WALLET_LAUNCHER
+        - $WALLET_LAUNCHER_CHECKSUM
+      on:
+        repo: input-output-hk/cardano-wallet
+        branch: master
+        tags: true # Only release when a tag is pushed
