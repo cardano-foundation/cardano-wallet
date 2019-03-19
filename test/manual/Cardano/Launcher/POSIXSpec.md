@@ -60,7 +60,7 @@ signals are correctly handled on a unix system.
   11003 10983 75 09:42 pts/1 00:03:30 cardano-http-bridge start --port 8080
   11071 10983 58 09:42 pts/1 00:02:41 cardano-wallet-server --wallet-server-port 8090 --http-bridge-port 8080 --network mainnet
   ```
-- Send a `SIGTERM` signal to this pid using `kill <pid>` 
+- Send a `SIGTERM` signal to this pid using `kill <pid>`
 - Run `ps -ef | grep cardano`, there's no more process running: the launcher,
   the wallet and the chain producer have all stopped.
 
@@ -68,15 +68,17 @@ signals are correctly handled on a unix system.
 ### `SIGKILL`
 
 > **Disclaimer**
-> 
+>
 > The semantic of `SIGKILL` doesn't allow us to do any clean-up after receiving
 > it (we can't shove a signal handler for a `SIGKILL`!). So, if one kills the
 > launcher, one doesn't kill the sub-processes the launcher has started. This
 > should be handled at the OS level, or via different mechanism (like, having a
 > shared socket between the launcher and its children).
 >
-> As a consequence, sending a `SIGKILL` to the launcher will NOT terminates the
+> As a consequence, sending a `SIGKILL` to the launcher will NOT terminate the
 > sub-processes started by the launcher. This is, for now, a known limitation.
+>
+> Please note that steps below are therefore currently invalid!
 
 - Start the launcher in background using `stack exec -- cardano-wallet-launcher &`
 - Run `ps -ef | grep cardano` and lookup the `pid` of the launcher process (and
@@ -88,8 +90,7 @@ signals are correctly handled on a unix system.
   11003 10983 75 09:42 pts/1 00:03:30 cardano-http-bridge start --port 8080
   11071 10983 58 09:42 pts/1 00:02:41 cardano-wallet-server --wallet-server-port 8090 --http-bridge-port 8080 --network mainnet
   ```
-- Send a `SIGKILL` signal to this pid using `kill -9 <pid>` 
+- Send a `SIGKILL` signal to this pid using `kill -9 <pid>`
 - Run `ps -ef | grep cardano`, and control that the launcher isn't running
   anymore. The wallet server and the underlying chain producer should however
   still be up-and-running.
-
