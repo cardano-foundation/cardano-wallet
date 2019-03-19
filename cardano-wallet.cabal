@@ -76,7 +76,6 @@ library
   other-modules:
       Paths_cardano_wallet
 
-
 test-suite unit
   default-language:
       Haskell2010
@@ -117,6 +116,7 @@ test-suite unit
   main-is:
       Main.hs
   other-modules:
+      Cardano.DBLayer.MVarSpec
       Cardano.DBLayerSpec
       Cardano.Launcher
       Cardano.LauncherSpec
@@ -131,11 +131,51 @@ test-suite unit
       Cardano.Wallet.PrimitiveSpec
       Cardano.WalletLayerSpec
       Cardano.WalletSpec
+      Servant.Extra.ContentTypesSpec
   if os(windows)
     build-depends: Win32
     other-modules: Cardano.Launcher.Windows
   else
     build-depends: unix, say
+    other-modules: Cardano.Launcher.POSIX
+
+test-suite integration
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+      -O2
+  if (!flag(development))
+    ghc-options:
+      -Werror
+  build-depends:
+      base
+    , async
+    , cardano-wallet
+    , fmt
+    , hspec
+    , process
+    , transformers
+    , say
+  type:
+     exitcode-stdio-1.0
+  hs-source-dirs:
+      test/integration
+      app
+  main-is:
+      Main.hs
+  other-modules:
+      Cardano.NetworkLayer.HttpBridgeSpec
+      Cardano.Launcher
+  if os(windows)
+    build-depends: Win32
+    other-modules: Cardano.Launcher.Windows
+  else
+    build-depends: unix
     other-modules: Cardano.Launcher.POSIX
 
 executable cardano-wallet-server

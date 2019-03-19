@@ -1,10 +1,10 @@
-module Cardano.NetworkLayer.HttpBridge.ApiSpec
+module Servant.Extra.ContentTypesSpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.NetworkLayer.HttpBridge.Api
+import Servant.Extra.ContentTypes
     ()
 import Test.Hspec
     ( Spec )

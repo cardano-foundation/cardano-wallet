@@ -1,10 +1,10 @@
-module Cardano.NetworkLayer.HttpBridge.ApiSpec
+module Cardano.DBLayer.MVarSpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.NetworkLayer.HttpBridge.Api
+import Cardano.DBLayer.MVar
     ()
 import Test.Hspec
     ( Spec )
