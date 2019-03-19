@@ -11,7 +11,7 @@ import Prelude
 import Cardano.Wallet.AddressDiscovery
     ( AddressPoolGap, getAddressPoolGap, mkAddressPoolGap )
 import Data.Aeson
-    ( FromJSON, ToJSON, Value (Number), parseJSON, toJSON )
+    ( FromJSON, ToJSON, parseJSON, toJSON )
 import GHC.Generics
     ( Generic )
 
@@ -28,7 +28,6 @@ instance FromJSON WalletAddressPoolGap where
                 (pure . WalletAddressPoolGap)
 
 instance ToJSON WalletAddressPoolGap where
-    toJSON = Number
-        . fromIntegral
+    toJSON = toJSON
         . getAddressPoolGap
         . getWalletAddressPoolGap
