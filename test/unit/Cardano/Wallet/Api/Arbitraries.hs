@@ -28,6 +28,7 @@ import Data.Word
 import Test.QuickCheck
     ( Arbitrary (..)
     , arbitraryBoundedEnum
+    , arbitraryPrintableChar
     , arbitrarySizedBoundedIntegral
     , choose
     )
@@ -81,7 +82,7 @@ instance Arbitrary WalletName where
         nameLength <- choose (walletNameMinLength, walletNameMaxLength)
         fromRight (error "Unable to create arbitrary WalletName")
             . mkWalletName
-            . T.pack <$> replicateM nameLength (choose ('a', 'z'))
+            . T.pack <$> replicateM nameLength arbitraryPrintableChar
     shrink =
         rights
             . fmap (mkWalletName . T.pack)
