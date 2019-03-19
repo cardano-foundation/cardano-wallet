@@ -2,7 +2,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Cardano.Wallet.Api.JsonSpec (exampleWallet, spec) where
+module Cardano.Wallet.Api.JsonSpec (spec) where
 
 import Prelude
 
