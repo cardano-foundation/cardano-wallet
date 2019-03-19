@@ -76,9 +76,9 @@ exampleWallet :: ByteString
 exampleWallet = [r|
     { "id" : "00000000-0000-0000-0000-000000000000"
     , "name" : "example wallet"
-    , "addressPoolGap" : 50
+    , "address_pool_gap" : 50
     , "delegation" : { "status" : "not_delegating" }
-    , "passphrase" : { "lastUpdatedAt" : "1864-05-02T22:19:08.077666613986Z" }
+    , "passphrase" : { "last_updated_at" : "1864-05-02T22:19:08.077666613986Z" }
     , "state" :
         { "status" : "restoring"
         , "progress" :  { "quantity" : 100, "unit" : "percent" } }

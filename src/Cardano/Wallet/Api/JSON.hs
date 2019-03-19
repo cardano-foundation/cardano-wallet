@@ -22,5 +22,5 @@ defaultSumTypeOptions = defaultOptions
 
 defaultRecordTypeOptions :: Options
 defaultRecordTypeOptions = defaultOptions
-    { fieldLabelModifier = drop 1
+    { fieldLabelModifier = camelTo2 '_' . drop 1
     , omitNothingFields = True }
