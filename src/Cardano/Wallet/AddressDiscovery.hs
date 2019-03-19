@@ -21,6 +21,7 @@ module Cardano.Wallet.AddressDiscovery
       AddressPoolGap
     , MkAddressPoolGapError (..)
     , defaultAddressPoolGap
+    , getAddressPoolGap
     , mkAddressPoolGap
 
     -- ** Address Pool

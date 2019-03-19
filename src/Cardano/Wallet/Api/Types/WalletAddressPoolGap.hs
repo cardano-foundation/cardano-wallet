@@ -4,51 +4,31 @@
 
 module Cardano.Wallet.Api.Types.WalletAddressPoolGap
     ( WalletAddressPoolGap
-    , WalletAddressPoolGapError (..)
-    , mkWalletAddressPoolGap
     ) where
 
 import Prelude
 
+import Cardano.Wallet.AddressDiscovery
+    ( AddressPoolGap, getAddressPoolGap, mkAddressPoolGap )
 import Data.Aeson
-    ( FromJSON, ToJSON, parseJSON )
+    ( FromJSON, ToJSON, Value (Number), parseJSON, toJSON )
 import GHC.Generics
     ( Generic )
 
 newtype WalletAddressPoolGap = WalletAddressPoolGap
-    { getWalletAddressPoolGap :: Int }
-    deriving stock (Eq, Generic, Ord, Show)
-    deriving newtype (ToJSON)
-
-data WalletAddressPoolGapError
-    = WalletAddressPoolGapTooSmallError
-    | WalletAddressPoolGapTooLargeError
-    deriving Show
-
-instance Bounded WalletAddressPoolGap where
-    minBound = WalletAddressPoolGap 10
-    maxBound = WalletAddressPoolGap 100
-
-instance Enum WalletAddressPoolGap where
-    toEnum = unsafeMkWalletAddressPoolGap
-    fromEnum = getWalletAddressPoolGap
+    { getWalletAddressPoolGap :: AddressPoolGap }
+    deriving stock (Generic, Show)
+    deriving newtype (Bounded, Enum, Eq, Ord)
 
 instance FromJSON WalletAddressPoolGap where
-    parseJSON x =
-        either (fail . show) pure . parseWalletAddressPoolGap =<< parseJSON x
+    parseJSON x = validate . mkAddressPoolGap =<< parseJSON x
+        where
+            validate = either
+                (fail . show)
+                (pure . WalletAddressPoolGap)
 
-mkWalletAddressPoolGap
-    :: Integral i => i -> Either WalletAddressPoolGapError WalletAddressPoolGap
-mkWalletAddressPoolGap i
-    | j < minBound = Left WalletAddressPoolGapTooSmallError
-    | j > maxBound = Left WalletAddressPoolGapTooLargeError
-    | otherwise = pure j
-  where
-    j = WalletAddressPoolGap $ fromIntegral i
-
-parseWalletAddressPoolGap
-    :: Int -> Either WalletAddressPoolGapError WalletAddressPoolGap
-parseWalletAddressPoolGap = mkWalletAddressPoolGap
-
-unsafeMkWalletAddressPoolGap :: Integral i => i -> WalletAddressPoolGap
-unsafeMkWalletAddressPoolGap = either (error . show) id . mkWalletAddressPoolGap
+instance ToJSON WalletAddressPoolGap where
+    toJSON = Number
+        . fromIntegral
+        . getAddressPoolGap
+        . getWalletAddressPoolGap
