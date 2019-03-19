@@ -111,7 +111,7 @@ jobs:
     - export LTS=$(cat stack.yaml | grep resolver) # Extract the LTS from the stack.yaml
     - git clone https://github.com/rubik/stack-hpc-coveralls && cd stack-hpc-coveralls && git checkout 3d8352d5642ab214a7a574bd797880ae39595a44 && echo $LTS > stack.yaml
     - stack --no-terminal install
-    - cd - && shc cardano-wallet unit
+    - cd - && shc cardano-wallet unit integration
 
   - stage: deploy 🚀
     if: tag =~ ^v
