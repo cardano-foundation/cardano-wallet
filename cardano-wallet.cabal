@@ -49,7 +49,6 @@ library
     , http-api-data
     , http-client
     , http-media
-    , lens
     , memory
     , say
     , servant
