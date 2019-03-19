@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Cardano.Wallet.Api.Types.WalletAddressPoolGap
@@ -15,8 +16,9 @@ import GHC.Generics
     ( Generic )
 
 newtype WalletAddressPoolGap = WalletAddressPoolGap
-    { getWalletAddressPoolGap :: Int
-    } deriving (Eq, Generic, Ord, Show, ToJSON)
+    { getWalletAddressPoolGap :: Int }
+    deriving stock (Eq, Generic, Ord, Show)
+    deriving newtype (ToJSON)
 
 data WalletAddressPoolGapError
     = WalletAddressPoolGapTooSmallError
