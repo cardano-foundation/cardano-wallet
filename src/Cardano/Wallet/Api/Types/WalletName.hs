@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Cardano.Wallet.Api.Types.WalletName
@@ -21,8 +22,9 @@ import GHC.Generics
 import qualified Data.Text as T
 
 newtype WalletName = WalletName
-    { getWalletName :: Text
-    } deriving (Eq, Generic, Show, ToJSON)
+    { getWalletName :: Text }
+    deriving stock (Eq, Generic, Show)
+    deriving newtype (ToJSON)
 
 data WalletNameError
     = WalletNameTooShortError
