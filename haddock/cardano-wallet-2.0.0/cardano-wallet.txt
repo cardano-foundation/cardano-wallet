@@ -781,8 +781,8 @@ module Cardano.WalletLayer
 
 -- | Types
 data WalletLayer m s
-WalletLayer :: (NewWallet -> m WalletId) -> (WalletId -> ExceptT GetWalletError m (Wallet s)) -> (WalletId -> m ()) -> WalletLayer m s
-[$sel:createWallet:WalletLayer] :: WalletLayer m s -> NewWallet -> m WalletId
+WalletLayer :: (NewWallet -> ExceptT CreateWalletError m WalletId) -> (WalletId -> ExceptT GetWalletError m (Wallet s)) -> (WalletId -> m ()) -> WalletLayer m s
+[$sel:createWallet:WalletLayer] :: WalletLayer m s -> NewWallet -> ExceptT CreateWalletError m WalletId
 [$sel:getWallet:WalletLayer] :: WalletLayer m s -> WalletId -> ExceptT GetWalletError m (Wallet s)
 [$sel:watchWallet:WalletLayer] :: WalletLayer m s -> WalletId -> m ()
 data NewWallet
@@ -797,9 +797,16 @@ NewWallet :: !Mnemonic 15 -> !Passphrase "generation" -> !WalletName -> !Passphr
 newtype GetWalletError
 ErrGetWalletNotFound :: WalletId -> GetWalletError
 
+-- | Errors occuring when creating a wallet
+newtype CreateWalletError
+ErrCreateWalletIdAlreadyExists :: WalletId -> CreateWalletError
+
 -- | Create a new instance of the wallet layer.
 mkWalletLayer :: Show e0 => DBLayer IO SeqState -> NetworkLayer IO e0 e1 -> WalletLayer IO SeqState
+instance GHC.Show.Show Cardano.WalletLayer.CreateWalletError
+instance GHC.Classes.Eq Cardano.WalletLayer.CreateWalletError
 instance GHC.Show.Show Cardano.WalletLayer.GetWalletError
+instance GHC.Classes.Eq Cardano.WalletLayer.GetWalletError
 instance GHC.Generics.Generic Cardano.WalletLayer.NewWallet
 instance GHC.Show.Show Cardano.WalletLayer.NewWallet
 
