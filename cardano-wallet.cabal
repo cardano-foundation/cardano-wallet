@@ -129,6 +129,7 @@ test-suite unit
       Cardano.Wallet.BinarySpec
       Cardano.Wallet.MnemonicSpec
       Cardano.Wallet.PrimitiveSpec
+      Cardano.WalletLayerSpec
       Cardano.WalletSpec
   if os(windows)
     build-depends: Win32
