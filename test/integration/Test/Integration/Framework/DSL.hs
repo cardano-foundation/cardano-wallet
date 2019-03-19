@@ -23,6 +23,9 @@ module Test.Integration.Framework.DSL
 
     -- * Helpers
     , ($-)
+    , (</>)
+    , (!!)
+    , json
     ) where
 
 import Prelude hiding
@@ -34,12 +37,18 @@ import Control.Monad.Fail
     ( MonadFail (..) )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
+import Data.Aeson.QQ
+    ( aesonQQ )
 import Data.Function
     ( (&) )
+import Data.List
+    ( (!!) )
 import Data.Text
     ( Text )
 import GHC.Generics
     ( Generic )
+import Language.Haskell.TH.Quote
+    ( QuasiQuoter )
 import Network.HTTP.Client
     ( Manager )
 import Test.Hspec.Core.Spec
@@ -51,6 +60,8 @@ import Test.Integration.Framework.Request
     ( RequestException (..), request, request_, successfulRequest, ($-) )
 import Test.Integration.Framework.Scenario
     ( Scenario )
+import Web.HttpApiData
+    ( ToHttpApiData (..) )
 
 --
 -- SCENARIO
@@ -132,3 +143,15 @@ wantedErrorButSuccess
     -> m void
 wantedErrorButSuccess =
     fail . ("expected an error but got a successful response: " <>) . show
+
+
+--
+-- HELPERS
+--
+
+json :: QuasiQuoter
+json = aesonQQ
+
+infixr 5 </>
+(</>) :: ToHttpApiData a => Text -> a -> Text
+base </> next = mconcat [base, "/", toQueryParam next]

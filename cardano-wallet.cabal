@@ -164,11 +164,14 @@ test-suite integration
     , hspec
     , hspec-core
     , http-client
+    , http-api-data
     , http-types
+    , aeson-qq
     , lens
     , mtl
     , process
     , say
+    , template-haskell
     , text
     , transformers
 
