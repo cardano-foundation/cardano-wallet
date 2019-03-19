@@ -72,7 +72,6 @@ instance Arbitrary WalletDelegationStatus where
 
 instance Arbitrary WalletId where
     arbitrary = WalletId . uuidFromWords <$> arbitrary
-    shrink (WalletId u) = WalletId . uuidFromWords <$> shrink (UUID.toWords u)
 
 uuidFromWords :: (Word32, Word32, Word32, Word32) -> UUID.UUID
 uuidFromWords (a, b, c, d) = UUID.fromWords a b c d
