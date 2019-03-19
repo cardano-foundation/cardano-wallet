@@ -17,15 +17,12 @@ api :: Proxy Api
 api = Proxy
 
 type DeleteWallet = "wallets"
-    :> "deleteWallet"
     :> Capture "walletId" T.WalletId
     :> Delete '[] ()
 
 type GetWallet = "wallets"
-    :> "getWallet"
     :> Capture "walletId" T.WalletId
     :> Get '[JSON] T.Wallet
 
 type ListWallets = "wallets"
-    :> "listWallets"
     :> Get '[JSON] [T.Wallet]
