@@ -5,6 +5,7 @@
 module Cardano.Wallet.Api.Types.WalletName
     ( WalletName
     , WalletNameError (..)
+    , getWalletName
     , mkWalletName
     , walletNameMinLength
     , walletNameMaxLength

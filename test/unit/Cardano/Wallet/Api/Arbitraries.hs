@@ -22,7 +22,7 @@ import Prelude
 import Control.Monad
     ( replicateM )
 import Data.Either
-    ( fromRight )
+    ( fromRight, rights )
 import Data.Word
     ( Word32, Word8 )
 import Test.QuickCheck
@@ -82,6 +82,12 @@ instance Arbitrary WalletName where
         fromRight (error "Unable to create arbitrary WalletName")
             . mkWalletName
             . T.pack <$> replicateM nameLength (choose ('a', 'z'))
+    shrink =
+        rights
+            . fmap (mkWalletName . T.pack)
+            . shrink
+            . T.unpack
+            . getWalletName
 
 instance Arbitrary WalletPassphraseInfo where
     arbitrary = genericArbitrary
