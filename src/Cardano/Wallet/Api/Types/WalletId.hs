@@ -1,3 +1,4 @@
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Cardano.Wallet.Api.Types.WalletId where
@@ -11,4 +12,5 @@ import Data.UUID.Types
 
 newtype WalletId = WalletId
     { _uuid :: UUID }
-    deriving (Eq, Show, FromJSON, ToJSON)
+    deriving stock (Eq, Show)
+    deriving newtype (FromJSON, ToJSON)
