@@ -1,4 +1,4 @@
-module Cardano.Wallet.Api.V2.JSON
+module Cardano.Wallet.Api.JSON
     ( defaultSumTypeOptions
     , defaultRecordTypeOptions
     ) where

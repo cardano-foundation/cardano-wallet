@@ -1,22 +1,22 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Cardano.Wallet.Api.V2.Types.WalletState
+module Cardano.Wallet.Api.Types.WalletState
     ( WalletState (..)
     , WalletStateError (..)
     ) where
 
 import Prelude
 
-import Cardano.Wallet.Api.V2.JSON
+import Cardano.Wallet.Api.JSON
     ( defaultRecordTypeOptions )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), genericParseJSON, genericToJSON )
 import GHC.Generics
     ( Generic )
 
-import qualified Cardano.Wallet.Api.V2.Types.Percentage as T
-import qualified Cardano.Wallet.Api.V2.Types.WalletStateStatus as T
+import qualified Cardano.Wallet.Api.Types.Percentage as T
+import qualified Cardano.Wallet.Api.Types.WalletStateStatus as T
 
 data WalletState
     = Ready

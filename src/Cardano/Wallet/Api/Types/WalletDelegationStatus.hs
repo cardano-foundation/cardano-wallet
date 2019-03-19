@@ -1,10 +1,10 @@
 {-# LANGUAGE DeriveGeneric #-}
 
-module Cardano.Wallet.Api.V2.Types.WalletDelegationStatus where
+module Cardano.Wallet.Api.Types.WalletDelegationStatus where
 
 import Prelude
 
-import Cardano.Wallet.Api.V2.JSON
+import Cardano.Wallet.Api.JSON
     ( defaultSumTypeOptions )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), genericParseJSON, genericToJSON )

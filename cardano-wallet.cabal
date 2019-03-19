@@ -71,22 +71,22 @@ library
       Cardano.Wallet
       Cardano.Wallet.AddressDerivation
       Cardano.Wallet.AddressDiscovery
-      Cardano.Wallet.Api.V2
-      Cardano.Wallet.Api.V2.JSON
-      Cardano.Wallet.Api.V2.Lenses
-      Cardano.Wallet.Api.V2.Types.Amount
-      Cardano.Wallet.Api.V2.Types.CurrencyUnit
-      Cardano.Wallet.Api.V2.Types.Percentage
-      Cardano.Wallet.Api.V2.Types.Wallet
-      Cardano.Wallet.Api.V2.Types.WalletAddressPoolGap
-      Cardano.Wallet.Api.V2.Types.WalletBalance
-      Cardano.Wallet.Api.V2.Types.WalletDelegation
-      Cardano.Wallet.Api.V2.Types.WalletDelegationStatus
-      Cardano.Wallet.Api.V2.Types.WalletId
-      Cardano.Wallet.Api.V2.Types.WalletName
-      Cardano.Wallet.Api.V2.Types.WalletPassphraseInfo
-      Cardano.Wallet.Api.V2.Types.WalletState
-      Cardano.Wallet.Api.V2.Types.WalletStateStatus
+      Cardano.Wallet.Api
+      Cardano.Wallet.Api.JSON
+      Cardano.Wallet.Api.Lenses
+      Cardano.Wallet.Api.Types.Amount
+      Cardano.Wallet.Api.Types.CurrencyUnit
+      Cardano.Wallet.Api.Types.Percentage
+      Cardano.Wallet.Api.Types.Wallet
+      Cardano.Wallet.Api.Types.WalletAddressPoolGap
+      Cardano.Wallet.Api.Types.WalletBalance
+      Cardano.Wallet.Api.Types.WalletDelegation
+      Cardano.Wallet.Api.Types.WalletDelegationStatus
+      Cardano.Wallet.Api.Types.WalletId
+      Cardano.Wallet.Api.Types.WalletName
+      Cardano.Wallet.Api.Types.WalletPassphraseInfo
+      Cardano.Wallet.Api.Types.WalletState
+      Cardano.Wallet.Api.Types.WalletStateStatus
       Cardano.Wallet.Binary
       Cardano.Wallet.Binary.Packfile
       Cardano.WalletLayer
@@ -149,8 +149,8 @@ test-suite unit
       Cardano.NetworkLayerSpec
       Cardano.Wallet.AddressDerivationSpec
       Cardano.Wallet.AddressDiscoverySpec
-      Cardano.Wallet.Api.V2.Arbitraries
-      Cardano.Wallet.Api.V2.JsonSpec
+      Cardano.Wallet.Api.Arbitraries
+      Cardano.Wallet.Api.JsonSpec
       Cardano.Wallet.Binary.PackfileSpec
       Cardano.Wallet.BinarySpec
       Cardano.Wallet.MnemonicSpec

@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Cardano.Wallet.Api.V2.Types.WalletAddressPoolGap
+module Cardano.Wallet.Api.Types.WalletAddressPoolGap
     ( WalletAddressPoolGap
     , WalletAddressPoolGapError (..)
     , mkWalletAddressPoolGap

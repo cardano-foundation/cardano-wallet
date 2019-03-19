@@ -1,17 +1,17 @@
 {-# LANGUAGE DeriveGeneric #-}
 
-module Cardano.Wallet.Api.V2.Types.WalletDelegation where
+module Cardano.Wallet.Api.Types.WalletDelegation where
 
 import Prelude
 
-import Cardano.Wallet.Api.V2.JSON
+import Cardano.Wallet.Api.JSON
     ( defaultRecordTypeOptions )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), genericParseJSON, genericToJSON )
 import GHC.Generics
     ( Generic )
 
-import qualified Cardano.Wallet.Api.V2.Types.WalletDelegationStatus as T
+import qualified Cardano.Wallet.Api.Types.WalletDelegationStatus as T
 
 newtype WalletDelegation = WalletDelegation
     { _status :: T.WalletDelegationStatus

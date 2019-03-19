@@ -1,28 +1,23 @@
 {-# LANGUAGE DeriveGeneric #-}
 
-module Cardano.Wallet.Api.V2.Types.Amount
-    ( Amount (..)
-    ) where
+module Cardano.Wallet.Api.Types.WalletPassphraseInfo where
 
 import Prelude
 
-import Cardano.Wallet.Api.V2.JSON
+import Cardano.Wallet.Api.JSON
     ( defaultRecordTypeOptions )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), genericParseJSON, genericToJSON )
+import Data.Time.Clock
+    ( UTCTime )
 import GHC.Generics
     ( Generic )
-import Numeric.Natural
-    ( Natural )
 
-import qualified Cardano.Wallet.Api.V2.Types.CurrencyUnit as T
-
-data Amount = Amount
-    { _quantity :: Natural
-    , _unit :: T.CurrencyUnit
+newtype WalletPassphraseInfo = WalletPassphraseInfo
+    { _lastUpdatedAt :: UTCTime
     } deriving (Eq, Generic, Show)
 
-instance FromJSON Amount where
+instance FromJSON WalletPassphraseInfo where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON Amount where
+instance ToJSON WalletPassphraseInfo where
     toJSON = genericToJSON defaultRecordTypeOptions

@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Cardano.Wallet.Api.V2.Types.WalletId where
+module Cardano.Wallet.Api.Types.WalletId where
 
 import Prelude
 

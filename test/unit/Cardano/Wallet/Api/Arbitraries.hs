@@ -1,21 +1,21 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Api.V2.Arbitraries () where
+module Cardano.Wallet.Api.Arbitraries () where
 
-import Cardano.Wallet.Api.V2.Types.Amount
-import Cardano.Wallet.Api.V2.Types.CurrencyUnit
-import Cardano.Wallet.Api.V2.Types.Percentage
-import Cardano.Wallet.Api.V2.Types.Wallet
-import Cardano.Wallet.Api.V2.Types.WalletAddressPoolGap
-import Cardano.Wallet.Api.V2.Types.WalletBalance
-import Cardano.Wallet.Api.V2.Types.WalletDelegation
-import Cardano.Wallet.Api.V2.Types.WalletDelegationStatus
-import Cardano.Wallet.Api.V2.Types.WalletId
-import Cardano.Wallet.Api.V2.Types.WalletName
-import Cardano.Wallet.Api.V2.Types.WalletPassphraseInfo
-import Cardano.Wallet.Api.V2.Types.WalletState
-import Cardano.Wallet.Api.V2.Types.WalletStateStatus
+import Cardano.Wallet.Api.Types.Amount
+import Cardano.Wallet.Api.Types.CurrencyUnit
+import Cardano.Wallet.Api.Types.Percentage
+import Cardano.Wallet.Api.Types.Wallet
+import Cardano.Wallet.Api.Types.WalletAddressPoolGap
+import Cardano.Wallet.Api.Types.WalletBalance
+import Cardano.Wallet.Api.Types.WalletDelegation
+import Cardano.Wallet.Api.Types.WalletDelegationStatus
+import Cardano.Wallet.Api.Types.WalletId
+import Cardano.Wallet.Api.Types.WalletName
+import Cardano.Wallet.Api.Types.WalletPassphraseInfo
+import Cardano.Wallet.Api.Types.WalletState
+import Cardano.Wallet.Api.Types.WalletStateStatus
 
 import Prelude
 

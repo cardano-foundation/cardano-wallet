@@ -1,22 +1,23 @@
 {-# LANGUAGE DeriveGeneric #-}
 
-module Cardano.Wallet.Api.V2.Types.WalletStateStatus where
+module Cardano.Wallet.Api.Types.CurrencyUnit
+    ( CurrencyUnit (..)
+    ) where
 
 import Prelude
 
-import Cardano.Wallet.Api.V2.JSON
+import Cardano.Wallet.Api.JSON
     ( defaultSumTypeOptions )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), genericParseJSON, genericToJSON )
 import GHC.Generics
     ( Generic )
 
-data WalletStateStatus
-    = Ready
-    | Restoring
+data CurrencyUnit
+    = Lovelace
     deriving (Eq, Generic, Show)
 
-instance FromJSON WalletStateStatus where
+instance FromJSON CurrencyUnit where
     parseJSON = genericParseJSON defaultSumTypeOptions
-instance ToJSON WalletStateStatus where
+instance ToJSON CurrencyUnit where
     toJSON = genericToJSON defaultSumTypeOptions

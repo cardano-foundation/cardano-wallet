@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Cardano.Wallet.Api.V2.Types.WalletName
+module Cardano.Wallet.Api.Types.WalletName
     ( WalletName
     , WalletNameError (..)
     , mkWalletName

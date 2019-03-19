@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Cardano.Wallet.Api.V2.Types.Percentage
+module Cardano.Wallet.Api.Types.Percentage
     ( Percentage
     , PercentageError (..)
     , mkPercentage
@@ -9,7 +9,7 @@ module Cardano.Wallet.Api.V2.Types.Percentage
 
 import Prelude
 
-import Cardano.Wallet.Api.V2.JSON
+import Cardano.Wallet.Api.JSON
     ( defaultRecordTypeOptions )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), genericParseJSON, genericToJSON )
