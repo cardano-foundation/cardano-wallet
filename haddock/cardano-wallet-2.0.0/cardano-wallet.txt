@@ -906,4 +906,3 @@ mkNetworkLayer :: Monad m => HttpBridge m e -> NetworkLayer m e e
 newNetworkLayer :: Text -> Int -> IO (NetworkLayer IO HttpBridgeError HttpBridgeError)
 instance GHC.Classes.Eq Cardano.NetworkLayer.HttpBridge.HttpBridgeError
 instance GHC.Show.Show Cardano.NetworkLayer.HttpBridge.HttpBridgeError
-instance GHC.Exception.Type.Exception Cardano.NetworkLayer.HttpBridge.HttpBridgeError
