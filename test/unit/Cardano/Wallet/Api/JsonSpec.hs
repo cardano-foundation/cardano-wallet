@@ -1,7 +1,8 @@
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Cardano.Wallet.Api.JsonSpec (spec) where
+module Cardano.Wallet.Api.JsonSpec (exampleWallet, spec) where
 
 import Prelude
 
@@ -22,14 +23,24 @@ import Cardano.Wallet.Api.Types.WalletState
 import Cardano.Wallet.Api.Types.WalletStateStatus
 
 import Data.Aeson
-    ( FromJSON, ToJSON, decode, encode )
+    ( FromJSON, ToJSON, decode, eitherDecode, encode )
+import Data.ByteString.Lazy
+    ( ByteString )
+import Data.Either
+    ( isRight )
 import Test.Hspec
-    ( Expectation, Spec, describe, it, shouldBe )
+    ( Expectation, Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck
     ( property )
+import Text.RawString.QQ
+    ( r )
 
 spec :: Spec
-spec =
+spec = do
+    describe "can perform basic JSON deserialization" $
+        it "Wallet" $
+            (eitherDecode exampleWallet :: Either String Wallet)
+                `shouldSatisfy` isRight
     describe "can perform roundtrip JSON serialization & deserialization" $ do
         it "Amount" $
             property $ \a -> canRoundTrip (a :: Amount)
@@ -60,3 +71,17 @@ spec =
 
 canRoundTrip :: Eq a => FromJSON a => ToJSON a => Show a => a -> Expectation
 canRoundTrip a = decode (encode a) `shouldBe` Just a
+
+exampleWallet :: ByteString
+exampleWallet = [r|
+    { "id" : "00000000-0000-0000-0000-000000000000"
+    , "name" : "example wallet"
+    , "addressPoolGap" : 50
+    , "delegation" : { "status" : "not_delegating" }
+    , "passphrase" : { "lastUpdatedAt" : "1864-05-02T22:19:08.077666613986Z" }
+    , "state" :
+        { "status" : "restoring"
+        , "progress" :  { "quantity" : 100, "unit" : "percent" } }
+    , "balance" :
+        { "total"     : { "quantity" : 100, "unit" : "lovelace" }
+        , "available" : { "quantity" : 100, "unit" : "lovelace" } } } |]

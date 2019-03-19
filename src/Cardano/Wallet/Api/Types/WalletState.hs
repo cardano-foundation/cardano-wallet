@@ -23,20 +23,20 @@ data WalletState
     | Restoring T.Percentage
     deriving (Eq, Generic, Show)
 
-data WalletStateError
-    = WalletInReadyStateCannotHaveProgressPercentage
-    | WalletInRestoringStateMustHaveProgressPercentage
-    deriving Show
+instance FromJSON WalletState where
+    parseJSON x = either (fail . show) pure . validate =<< parseJSON x
+instance ToJSON WalletState where
+    toJSON = toJSON . unvalidate
 
 data UnvalidatedWalletState = UnvalidatedWalletState
     { _status :: T.WalletStateStatus
     , _progress :: Maybe T.Percentage
     } deriving Generic
 
-instance FromJSON WalletState where
-    parseJSON x = either (fail . show) pure . validate =<< parseJSON x
-instance ToJSON WalletState where
-    toJSON = toJSON . unvalidate
+data WalletStateError
+    = WalletInReadyStateCannotHaveProgressPercentage
+    | WalletInRestoringStateMustHaveProgressPercentage
+    deriving Show
 
 instance FromJSON UnvalidatedWalletState where
     parseJSON = genericParseJSON defaultRecordTypeOptions
