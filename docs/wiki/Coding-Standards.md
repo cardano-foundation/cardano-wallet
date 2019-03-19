@@ -11,6 +11,7 @@ Each proposal should start with a section justifying the standard with rational 
     * [Limit line length to 80 characters](#limit-line-length-to-80-characters)
     * [Avoid variable-length indentation](#avoid-variable-length-indentation)
     * [Stylish-Haskell is used to format grouped imports & language pragmas](#stylish-haskell-is-used-to-format-grouped-imports--language-pragmas)
+    * [[PROPOSAL] All modules begin with a helpful documentation comment](#proposal-all-modules-begin-with-a-helpful-documentation-comment)
 
 * [Haskell Practices](#haskell-practices)
     * [Favor `newtype` and tagged type over type-aliases](#favor-newtype-and-tagged-type-over-type-aliases)
@@ -414,7 +415,7 @@ steps:
 </details>
 
 
-## PROPOSAL: All modules begin with a helpful documentation comment
+## [PROPOSAL] All modules begin with a helpful documentation comment
 
 > **Why**
 >
