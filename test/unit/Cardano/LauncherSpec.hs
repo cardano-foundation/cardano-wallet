@@ -19,7 +19,7 @@ import Test.Hspec
 {-# ANN spec ("HLint: ignore Use head" :: String) #-}
 spec :: Spec
 spec = do
-    it "One process exits with 0, others are cancelled" $ do
+    it "1st process exits with 0, others are cancelled" $ do
         let commands =
               [ Command "./test/data/Launcher/once.sh" ["0"] (pure ())
               , Command "./test/data/Launcher/forever.sh" [] (pure ())
@@ -28,13 +28,31 @@ spec = do
         name `shouldBe` cmdName (commands !! 0)
         code `shouldBe` ExitSuccess
 
-    it "One process exits with 14, others are cancelled" $ do
+    it "2nd process exits with 0, others are cancelled" $ do
+        let commands =
+              [ Command "./test/data/Launcher/forever.sh" [] (pure ())
+              , Command "./test/data/Launcher/once.sh" ["0"] (pure ())
+              ]
+        (ProcessHasExited name code) <- launch commands
+        name `shouldBe` cmdName (commands !! 1)
+        code `shouldBe` ExitSuccess
+
+    it "1st process exits with 14, others are cancelled" $ do
         let commands =
               [ Command "./test/data/Launcher/once.sh" ["14"] (pure ())
               , Command "./test/data/Launcher/forever.sh" [] (pure ())
               ]
         (ProcessHasExited name code) <- launch commands
         name `shouldBe` cmdName (commands !! 0)
+        code `shouldBe` (ExitFailure 14)
+
+    it "2nd process exits with 14, others are cancelled" $ do
+        let commands =
+              [ Command "./test/data/Launcher/forever.sh" [] (pure ())
+              , Command "./test/data/Launcher/once.sh" ["14"] (pure ())
+              ]
+        (ProcessHasExited name code) <- launch commands
+        name `shouldBe` cmdName (commands !! 1)
         code `shouldBe` (ExitFailure 14)
 
     it "Process executes a command before they start" $ do
