@@ -152,6 +152,7 @@ executable cardano-wallet-server
       base
     , cardano-wallet
     , docopt
+    , say
     , text
   hs-source-dirs:
       app
