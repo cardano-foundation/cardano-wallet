@@ -66,7 +66,7 @@ spec = do
                         (\bs -> length bs >= 4 && length bs <= 5)
             action `shouldReturn` pure ()
 
-        it "produce no blocks if start if after tip" $ \(_, network) -> do
+        it "produce no blocks if start is after tip" $ \(_, network) -> do
             let action = runExceptT $ do
                     tip <- (slotId . snd) <$> networkTip network
                     length <$> nextBlocks network (succ $ succ tip)
