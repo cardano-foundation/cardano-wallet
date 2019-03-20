@@ -122,6 +122,7 @@ data Wallet s where
         -> Wallet s
 
 deriving instance Show (Wallet s)
+deriving instance Eq s => Eq (Wallet s)
 
 instance NFData (Wallet s) where
     rnf (Wallet utxo pending sl s) =
