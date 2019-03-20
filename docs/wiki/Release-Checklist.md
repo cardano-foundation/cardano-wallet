@@ -1,0 +1,8 @@
+### Checklist to follow upon publishing the release
+
+ - [ ] Make sure the [release page](https://github.com/input-output-hk/cardano-wallet/releases) for the particular release has all the relevant information: 
+   - [ ] **Release notes** (including short Overview, Installation/Run instructions, Information about supported platforms) 
+   - [ ] **Changelog** - list of all the stories and corresponding PRs included in the release
+
+ - [ ] Download the binaries and their checksum files from the [release page](https://github.com/input-output-hk/cardano-wallet/releases) and verify the checksums are correct. 
+ - [ ] Execute all [manual scenarios](https://github.com/input-output-hk/cardano-wallet/tree/master/test/manual) on the binaries to be released.
