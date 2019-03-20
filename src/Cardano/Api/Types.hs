@@ -19,7 +19,6 @@ module Cardano.Api.Types
     , WalletId (..)
     , WalletPassphraseInfo(..)
     , WalletState(..)
-    , WalletStateStatus(..)
     , mkWalletName
     , walletNameMinLength
     , walletNameMaxLength
@@ -33,6 +32,7 @@ import Cardano.Wallet.AddressDiscovery
     ( AddressPoolGap, getAddressPoolGap, mkAddressPoolGap )
 import Data.Aeson
     ( FromJSON (..)
+    , SumEncoding (..)
     , ToJSON (..)
     , camelTo2
     , constructorTagModifier
@@ -40,6 +40,7 @@ import Data.Aeson
     , genericParseJSON
     , genericToJSON
     , omitNothingFields
+    , sumEncoding
     , tagSingleConstructors
     )
 import Data.Text
@@ -237,59 +238,30 @@ instance ToJSON WalletPassphraseInfo where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 
+-- | A Wallet State representation in the API. It can be serialized to and from
+-- JSON as follows:
+--
+-- >>> Aeson.encode Ready
+-- {"status":"ready"}
+--
+-- >>> Aeson.encode $ Restoring (Percentage 14)
+-- {"status":"restoring","progress":{"quantity":14,"unit":"percent"}}
 data WalletState
-    = StateReady
-    | StateRestoring Percentage
+    = Ready
+    | Restoring Percentage
     deriving (Eq, Generic, Show)
 
 instance FromJSON WalletState where
-    parseJSON x = either (fail . show) pure . validate =<< parseJSON x
-      where
-        validate :: UnvalidatedWalletState -> Either WalletStateError WalletState
-        validate = \case
-            UnvalidatedWalletState Ready Nothing ->
-                pure StateReady
-            UnvalidatedWalletState Restoring (Just p) ->
-                pure $ StateRestoring p
-            UnvalidatedWalletState Ready (Just _) ->
-                Left WalletInReadyStateCannotHaveProgressPercentage
-            UnvalidatedWalletState Restoring Nothing ->
-                Left WalletInRestoringStateMustHaveProgressPercentage
-
+    parseJSON = genericParseJSON walletStateOptions
 instance ToJSON WalletState where
-    toJSON = toJSON . unvalidate
-      where
-        unvalidate :: WalletState -> UnvalidatedWalletState
-        unvalidate = \case
-            StateReady ->
-                UnvalidatedWalletState Ready Nothing
-            StateRestoring p ->
-                UnvalidatedWalletState Restoring (Just p)
+    toJSON = genericToJSON walletStateOptions
 
-data UnvalidatedWalletState = UnvalidatedWalletState
-    { _status :: WalletStateStatus
-    , _progress :: Maybe Percentage
-    } deriving Generic
+walletStateOptions :: Aeson.Options
+walletStateOptions = taggedSumTypeOptions $ TaggedObjectOptions
+    { _tagFieldName = "status"
+    , _contentsFieldName = "progress"
+    }
 
-data WalletStateError
-    = WalletInReadyStateCannotHaveProgressPercentage
-    | WalletInRestoringStateMustHaveProgressPercentage
-    deriving Show
-
-instance FromJSON UnvalidatedWalletState where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON UnvalidatedWalletState where
-    toJSON = genericToJSON defaultRecordTypeOptions
-
-data WalletStateStatus
-    = Ready
-    | Restoring
-    deriving (Eq, Generic, Show)
-
-instance FromJSON WalletStateStatus where
-    parseJSON = genericParseJSON defaultSumTypeOptions
-instance ToJSON WalletStateStatus where
-    toJSON = genericToJSON defaultSumTypeOptions
 
 {-------------------------------------------------------------------------------
                               Polymorphic Types
@@ -299,6 +271,11 @@ instance ToJSON WalletStateStatus where
 {-------------------------------------------------------------------------------
                                 Aeson Options
 -------------------------------------------------------------------------------}
+
+data TaggedObjectOptions = TaggedObjectOptions
+    { _tagFieldName :: String
+    , _contentsFieldName :: String
+    }
 
 defaultSumTypeOptions :: Aeson.Options
 defaultSumTypeOptions = Aeson.defaultOptions
@@ -310,6 +287,10 @@ defaultRecordTypeOptions = Aeson.defaultOptions
     { fieldLabelModifier = camelTo2 '_' . drop 1
     , omitNothingFields = True }
 
+taggedSumTypeOptions :: TaggedObjectOptions -> Aeson.Options
+taggedSumTypeOptions opts = defaultSumTypeOptions
+    { sumEncoding = TaggedObject (_tagFieldName opts) (_contentsFieldName opts)
+    }
 
 {-------------------------------------------------------------------------------
                                    Helpers

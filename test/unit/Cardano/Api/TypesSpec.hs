@@ -20,7 +20,6 @@ import Cardano.Api.Types
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , WalletState (..)
-    , WalletStateStatus (..)
     , mkWalletName
     , walletNameMaxLength
     , walletNameMinLength
@@ -87,8 +86,6 @@ spec = do
             property $ \a -> canRoundTrip (a :: WalletPassphraseInfo)
         it "WalletState" $
             property $ \a -> canRoundTrip (a :: WalletState)
-        it "WalletStateStatus" $
-            property $ \a -> canRoundTrip (a :: WalletStateStatus)
 
 canRoundTrip :: Eq a => FromJSON a => ToJSON a => Show a => a -> Expectation
 canRoundTrip a = decode (encode a) `shouldBe` Just a
@@ -167,9 +164,5 @@ instance Arbitrary WalletPassphraseInfo where
     shrink = genericShrink
 
 instance Arbitrary WalletState where
-    arbitrary = genericArbitrary
-    shrink = genericShrink
-
-instance Arbitrary WalletStateStatus where
     arbitrary = genericArbitrary
     shrink = genericShrink
