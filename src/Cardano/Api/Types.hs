@@ -2,10 +2,12 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Api.Types
@@ -14,23 +16,25 @@ module Cardano.Api.Types
       Amount(..)
     , Percentage(..)
     , Wallet(..)
-    , WalletAddressPoolGap(..)
     , WalletBalance(..)
     , WalletDelegation(..)
-    , WalletName(..)
     , WalletId (..)
     , WalletPassphraseInfo(..)
     , WalletState(..)
-    , mkWalletName
-    , walletNameMinLength
-    , walletNameMaxLength
+
+    -- * Re-Exports From Primitive Types
+    , AddressPoolGap
+    , WalletName (..)
 
     -- * Polymorphic Types
+    , ApiT(..)
     , MeasuredIn(..)
     ) where
 
 import Prelude
 
+import Cardano.Wallet
+    ( WalletName (..), mkWalletName )
 import Cardano.Wallet.AddressDiscovery
     ( AddressPoolGap, getAddressPoolGap, mkAddressPoolGap )
 import Data.Aeson
@@ -53,8 +57,6 @@ import Data.Aeson
     )
 import Data.Proxy
     ( Proxy (..) )
-import Data.Text
-    ( Text )
 import Data.Time.Clock
     ( UTCTime )
 import Data.UUID.Types
@@ -104,13 +106,12 @@ mkPercentage i
   where
     j = Percentage (fromIntegral i)
 
-
 data Wallet = Wallet
     { _id :: !WalletId
-    , _addressPoolGap :: !WalletAddressPoolGap
+    , _addressPoolGap :: !(ApiT AddressPoolGap)
     , _balance :: !WalletBalance
     , _delegation :: !WalletDelegation
-    , _name :: !WalletName
+    , _name :: !(ApiT WalletName)
     , _passphrase :: !WalletPassphraseInfo
     , _state :: !WalletState
     } deriving (Eq, Generic, Show)
@@ -120,17 +121,19 @@ instance FromJSON Wallet where
 instance ToJSON Wallet where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-newtype WalletAddressPoolGap = WalletAddressPoolGap
-    { getWalletAddressPoolGap :: AddressPoolGap }
-    deriving stock (Generic, Show)
-    deriving newtype (Bounded, Enum, Eq, Ord)
+instance ToJSON (ApiT WalletName) where
+    toJSON = toJSON . getWalletName . getApiT
+instance FromJSON (ApiT WalletName) where
+    parseJSON x = fmap ApiT . eitherToParser . mkWalletName =<< parseJSON x
 
-instance FromJSON WalletAddressPoolGap where
+deriving newtype instance Bounded (ApiT AddressPoolGap)
+deriving newtype instance Enum (ApiT AddressPoolGap)
+instance FromJSON (ApiT AddressPoolGap) where
     parseJSON x = do
         gap <- parseJSON x
-        WalletAddressPoolGap <$> eitherToParser (mkAddressPoolGap gap)
-instance ToJSON WalletAddressPoolGap where
-    toJSON = toJSON . getAddressPoolGap . getWalletAddressPoolGap
+        ApiT <$> eitherToParser (mkAddressPoolGap gap)
+instance ToJSON (ApiT AddressPoolGap) where
+    toJSON = toJSON . getAddressPoolGap . getApiT
 
 
 data WalletBalance = WalletBalance
@@ -168,38 +171,10 @@ walletDelegationOptions = taggedSumTypeOptions $ TaggedObjectOptions
     , _contentsFieldName = "target"
     }
 
-
 newtype WalletId = WalletId
     { _uuid :: UUID }
     deriving stock (Eq, Show)
     deriving newtype (FromJSON, ToJSON)
-
-
-newtype WalletName = WalletName
-    { getWalletName :: Text }
-    deriving stock (Eq, Generic, Show)
-    deriving newtype (ToJSON)
-
-data WalletNameError
-    = WalletNameTooShortError
-    | WalletNameTooLongError
-    deriving Show
-
-instance FromJSON WalletName where
-    parseJSON x = eitherToParser . mkWalletName =<< parseJSON x
-
-walletNameMinLength :: Int
-walletNameMinLength = 1
-
-walletNameMaxLength :: Int
-walletNameMaxLength = 255
-
-mkWalletName :: Text -> Either WalletNameError WalletName
-mkWalletName n
-    | T.length n < walletNameMinLength = Left WalletNameTooShortError
-    | T.length n > walletNameMaxLength = Left WalletNameTooLongError
-    | otherwise = Right $ WalletName n
-
 
 newtype WalletPassphraseInfo = WalletPassphraseInfo
     { _lastUpdatedAt :: UTCTime
@@ -209,7 +184,6 @@ instance FromJSON WalletPassphraseInfo where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON WalletPassphraseInfo where
     toJSON = genericToJSON defaultRecordTypeOptions
-
 
 -- | A Wallet State representation in the API. It can be serialized to and from
 -- JSON as follows:
@@ -264,6 +238,9 @@ instance (KnownSymbol u, FromJSON a) => FromJSON (MeasuredIn u a) where
                 <> "' (e.g. { \"unit\": \"" <> u <> "\", \"quantity\": ...})"
                 <> " but got something else."
 
+newtype ApiT a = ApiT { getApiT :: a }
+    deriving (Generic, Show, Eq)
+
 
 {-------------------------------------------------------------------------------
                                 Aeson Options
@@ -288,6 +265,7 @@ taggedSumTypeOptions :: TaggedObjectOptions -> Aeson.Options
 taggedSumTypeOptions opts = defaultSumTypeOptions
     { sumEncoding = TaggedObject (_tagFieldName opts) (_contentsFieldName opts)
     }
+
 
 {-------------------------------------------------------------------------------
                                    Helpers

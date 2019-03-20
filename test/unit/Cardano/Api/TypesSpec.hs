@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -9,21 +10,21 @@ module Cardano.Api.TypesSpec (spec) where
 import Prelude
 
 import Cardano.Api.Types
-    ( Amount (..)
+    ( AddressPoolGap
+    , Amount (..)
+    , ApiT (..)
     , MeasuredIn (..)
     , Percentage (..)
     , Wallet (..)
-    , WalletAddressPoolGap (..)
     , WalletBalance (..)
     , WalletDelegation (..)
     , WalletId (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , WalletState (..)
-    , mkWalletName
-    , walletNameMaxLength
-    , walletNameMinLength
     )
+import Cardano.Wallet
+    ( mkWalletName, walletNameMaxLength, walletNameMinLength )
 import Control.Monad
     ( replicateM )
 import Data.Aeson
@@ -31,7 +32,7 @@ import Data.Aeson
 import Data.ByteString.Lazy
     ( ByteString )
 import Data.Either
-    ( fromRight, isRight, rights )
+    ( isRight, rights )
 import Data.Word
     ( Word32, Word8 )
 import GHC.Generics
@@ -66,8 +67,8 @@ spec = do
     describe "can perform roundtrip JSON serialization & deserialization" $ do
         it "Wallet" $
             property $ \a -> canRoundTrip (a :: Wallet)
-        it "WalletAddressPoolGap" $
-            property $ \a -> canRoundTrip (a :: WalletAddressPoolGap)
+        it "ApiT AddressPoolGap" $
+            property $ \a -> canRoundTrip (a :: ApiT AddressPoolGap)
         it "WalletBalance" $
             property $ \a -> canRoundTrip (a :: WalletBalance)
         it "WalletDelegation" $
@@ -75,7 +76,7 @@ spec = do
         it "WalletId" $
             property $ \a -> canRoundTrip (a :: WalletId)
         it "WalletName" $
-            property $ \a -> canRoundTrip (a :: WalletName)
+            property $ \a -> canRoundTrip (a :: ApiT WalletName)
         it "WalletPassphraseInfo" $
             property $ \a -> canRoundTrip (a :: WalletPassphraseInfo)
         it "WalletState" $
@@ -115,7 +116,7 @@ instance Arbitrary Wallet where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary WalletAddressPoolGap where
+instance Arbitrary (ApiT AddressPoolGap) where
     arbitrary = arbitraryBoundedEnum
 
 instance Arbitrary WalletBalance where
@@ -136,18 +137,19 @@ instance Arbitrary WalletId where
 uuidFromWords :: (Word32, Word32, Word32, Word32) -> UUID.UUID
 uuidFromWords (a, b, c, d) = UUID.fromWords a b c d
 
-instance Arbitrary WalletName where
+instance Arbitrary (ApiT WalletName) where
     arbitrary = do
         nameLength <- choose (walletNameMinLength, walletNameMaxLength)
-        fromRight (error "Unable to create arbitrary WalletName")
+        either (error "Unable to create arbitrary WalletName") ApiT
             . mkWalletName
             . T.pack <$> replicateM nameLength arbitraryPrintableChar
     shrink =
         rights
-            . fmap (mkWalletName . T.pack)
+            . fmap (fmap ApiT . mkWalletName . T.pack)
             . shrink
             . T.unpack
             . getWalletName
+            . getApiT
 
 instance Arbitrary WalletPassphraseInfo where
     arbitrary = genericArbitrary

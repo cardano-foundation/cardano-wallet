@@ -41,6 +41,10 @@ module Cardano.Wallet
     , WalletMetadata(..)
     , WalletId(..)
     , WalletName(..)
+    , mkWalletName
+    , walletNameMinLength
+    , walletNameMaxLength
+    , WalletNameError(..)
     , WalletTimestamp(..)
     , WalletStatus(..)
     , WalletDelegation (..)
@@ -92,6 +96,7 @@ import GHC.Generics
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text as T
 
 
 {-------------------------------------------------------------------------------
@@ -277,6 +282,23 @@ data WalletMetadata = WalletMetadata
 
 newtype WalletName = WalletName { getWalletName ::  Text }
     deriving (Eq, Show)
+
+data WalletNameError
+    = WalletNameTooShortError
+    | WalletNameTooLongError
+    deriving Show
+
+mkWalletName :: Text -> Either WalletNameError WalletName
+mkWalletName n
+    | T.length n < walletNameMinLength = Left WalletNameTooShortError
+    | T.length n > walletNameMaxLength = Left WalletNameTooLongError
+    | otherwise = Right $ WalletName n
+
+walletNameMinLength :: Int
+walletNameMinLength = 1
+
+walletNameMaxLength :: Int
+walletNameMaxLength = 255
 
 newtype WalletId = WalletId Text
     deriving (Eq, Ord, Show)
