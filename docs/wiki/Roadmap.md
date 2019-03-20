@@ -61,140 +61,109 @@ decisions.
 
 ## User Stories
 
-### Forewords
+<details> 
+  <summary>Forewords</summary>
 
-Left out:
+  1. Updates
 
-1. Updates
-
-Essential, but not strictly required for a working testnet. Yet, it's not practical
-to update n softwares for different parties, so we may re-assess this decision in
-the next release planning.
-
-
-2. Old address scheme
-
-We will have to support this probably forever, in some forms. It may not be as
-featureful as the new scheme and is out-of-scope for the summit testnet. We
-should still consider making the wallet core code fairly agnostic to the
-address scheme being used.
+  Essential, but not strictly required for a working testnet. Yet, it's not practical
+  to update n softwares for different parties, so we may re-assess this decision in
+  the next release planning.
 
 
-3. Externally-owned wallets
+  2. Old address scheme
 
-Implementation not yet finalized on the legacy code, out-of-scope for the
-incoming delegation, can be added later.
-
-
-4. Accounts manipulation
-
-With BIP-44, accounts are implicitely managed, and we can't just create them
-out of the void. Plus, it might be worthwhile considering balances for each
-account we know of (linear scanning of the current UTxO), but it's probably
-overkill to also do the transaction management at the account-level)
+  We will have to support this probably forever, in some forms. It may not be as
+  featureful as the new scheme and is out-of-scope for the summit testnet. We
+  should still consider making the wallet core code fairly agnostic to the
+  address scheme being used.
 
 
-5. Access of a single address
+  3. Externally-owned wallets
 
-Instead, we'll provide the frontend with a JavaScript library that performs
-address validation.
-
-
-6. Ada Redemption
-
-Move to dedicated certificate redemption standalone software.
+  Implementation not yet finalized on the legacy code, out-of-scope for the
+  incoming delegation, can be added later.
 
 
-### API Design
+  4. Accounts manipulation
 
-https://rebilly.github.io/ReDoc/?url=https://gist.githubusercontent.com/KtorZ/3d78edd0b9a333ad589e9967da55f5da/raw/33314a3697e6a168108cced78369402391ff3945/.yaml
-
-### Setup CI
-
-| Priority  | Estimate |
-| ---       | ---      |
-| Very High | 10       |
+  With BIP-44, accounts are implicitely managed, and we can't just create them
+  out of the void. Plus, it might be worthwhile considering balances for each
+  account we know of (linear scanning of the current UTxO), but it's probably
+  overkill to also do the transaction management at the account-level)
 
 
-- [#6](https://github.com/input-output-hk/cardano-wallet/issues/6) Rename & archive 'cardano-wallet' & create a new one  --> 1
-- [#1](https://github.com/input-output-hk/cardano-wallet/issues/1) Review the .travis.yaml file from `cardano-wallet` (+ connect travis to new repository) --> 3
-- [#4](https://github.com/input-output-hk/cardano-wallet/issues/4) Setup repository structure (test folders, src folder, stylish-haskell, .gitignore etc..) --> 2
-- [#5](https://github.com/input-output-hk/cardano-wallet/issues/5) Add build instructions for building + caching Rust http-bridge to .travis.yml --> 3
-- [#2](https://github.com/input-output-hk/cardano-wallet/issues/2) Add branch protections in GitHub & team permissions --> 1
+  5. Access of a single address
+
+  Instead, we'll provide the frontend with a JavaScript library that performs
+  address validation.
 
 
-### Receive And Process Blocks
+  6. Ada Redemption
 
-| Priority | Estimate |
-| ---      | ---      |
-| High     | 16       |
+  Move to dedicated certificate redemption standalone software.
+</details>
 
-- [#12](https://github.com/input-output-hk/cardano-wallet/issues/12)
-  Implement (part-of) http-bridge API (get network tip, get block) --> 5
-- [#11](https://github.com/input-output-hk/cardano-wallet/issues/11)
-  Implement necessary CBOR decoders (block and block header) --> 3
-- [#3](https://github.com/input-output-hk/cardano-wallet/issues/3)
-  Ticking function to retrieve current tip and get next block (no handling of rollbacks) --> 5
-- [#52](https://github.com/input-output-hk/cardano-wallet/issues/52)
-  Use the ticking function to get blocks --> 3
+### :heavy_check_mark: [Setup New `cardano-wallet` Repostiory & CI](https://github.com/input-output-hk/cardano-wallet/milestone/1)
+
+### :heavy_check_mark: [Receive And Process Blocks (via `cardano-http-bridge`)](https://github.com/input-output-hk/cardano-wallet/milestone/2)
+
+### :heavy_check_mark: [Basic Launcher](https://github.com/input-output-hk/cardano-wallet/milestone/3)
+
+### :heavy_check_mark: [Support Wallet Creation](https://github.com/input-output-hk/cardano-wallet/milestone/4)
+
+### :hammer: [Wallet Layer Integration (against `cardano-http-bridge`)](https://github.com/input-output-hk/cardano-wallet/milestone/5)
+
+---
+
+### Debts
+
+We have identified the following debts from the previous iteration, to be tackled in a single ticket estimated for 8 points (to be created --> Matthias)
+
+#### Poor README
+
+Our README is quite poor in information and it would be worth adding some
+basics stuff to it. That's a point Johannes already raised on the legacy
+repository actually. We could add at least:
+
+- Basic Overview / Goal
+- Build & Tests instructions
+- A link to the wiki
+- Link to the generated Haddock documentation
+- Link to the API documentation
 
 
-### Launcher
+#### Areas missing testing:
 
-| Priority | Estimate |
-| ---      | ---      |
-| High     | 8        |
+| Module                                     | Comments                                                                                                                                                |
+| ---                                        | ---                                                                                                                                                     |
+| `Cardano.DBLayer` & `Cardano.DBLayer.MVar` | - Pretty much all function <br/> -`readCheckpoints` in particular _(tested manually during profiling)_                                                  |
+| `Cardano.NetworkLayer`                     | -`listen` _(tested manually during profiling)_                                                                                                          |
+| `Cardano.NetworkLayer.HttpBridge`          | - Error cases from `convertError`                                                                                                                       |
+| `Cardano.Wallet`                           | - Tracking of pending transactions <br/> - Wallet metadata manipulation <br/> -`currentTip` _(tested manually during profiling)_                        |
+| `Cardano.Wallet.AddressDerivation`         | - Overflow on address indexes                                                                                                                           |
+| `Cardano.Wallet.AddressDiscovery`          | - Overflow on address indexes during pool extension <br/> - `IsOurs` & `isOurs`                                                                         |
+| `Cardano.Wallet.Binary`                    | - Decoding EBB _(discarded by network layer)_ <br/> - Invalid constructors in block representations <br/> - Decoding redeem addresses & witnesses _(?)_ |
+| `Cardano.Wallet.Binary.Packfile`           | - Some error paths (`VersionTooOld` & `BlobDecodeError` with unconsumed data)                                                                           |
+| `Cardano.Wallet.Mnemonic`                  | - Error cases in `mkMnemonic` <br/> - Error cases in `genEntropy`                                                                                       |
+| `Cardano.Wallet.Primitive`                 | - Arithmetic overflow on `SlotId`                                                                                                                       |
 
-- [#7](https://github.com/input-output-hk/cardano-wallet/issues/7)
-  Define a small launcher CLI with a single 'start' command (--node-port, --wallet-server-port, --network) --> 5
-- [#8](https://github.com/input-output-hk/cardano-wallet/issues/8)
-  Spawn an Http Bridge and a wallet server from specified options, crash launcher if one of the two services die -> 3
 
+#### Unused code 
 
-### Create a Wallet
-
-| Priority | Estimate |
-| ---      | ---      |
-| High     | ?        |
-
-NOTE: No persistence layer yet.
-
-- [#16](https://github.com/input-output-hk/cardano-wallet/issues/16)
-  Porting and cleaning up Cardano.Mnemonic module (incl. corresponding tests)
-- [#14](https://github.com/input-output-hk/cardano-wallet/issues/14)
-  Extend the Cardano.Mnemonic to support recovery passphrase
-- [#20](https://github.com/input-output-hk/cardano-wallet/issues/20)
-  Define type primitives needed to represent a wallet (Tx, UTxO, Address etc..). A wallet has a name, a root private key, a state etc.. (cf the API specifications)
-- [#21](https://github.com/input-output-hk/cardano-wallet/issues/21)
-  Port and review the Ed25519 module from cardano-wallet to define derivation primitives needed for BIP-44 addressing
-- [#22](https://github.com/input-output-hk/cardano-wallet/issues/22)
-  Port and review the Address discovery (AddressPool + AddressPoolGap modules) from cardano-wallet
-- [#23](https://github.com/input-output-hk/cardano-wallet/issues/23)
-  Sketch wallet layer to fetch and create a wallet
-- [#53](https://github.com/input-output-hk/cardano-wallet/issues/53)
-  Translate the Swagger API specification into a Servant API specification.
-- Sketch API Layer and servant server to serve that API, using the wallet layer to implement its handlers
-- Sketch first wallet CLI, using the wallet layer to implement the various commands
-
-### Keep Track of available UTxO and Balance
-
-| Priority | Estimate |
-| ---      | ---      |
-| High     | ?        |
-
-- Maintain a wallet's corresponding UTxO (prefiltering + address discovery)
-- _Naively_ (no balance caching) compute to the total balance through maintained UTxO
+| Module                            | Comments                                                                     |
+| ---                               | ---                                                                          |
+| `Cardano.Wallet.AddressDiscovery` | - Manual semigroup instance on `AddressPool`                                 |
+| `Cardano.WalletLayer`             | - Debug `printInfo` function in the implementation of `watchWallet`          |
+| `Servant.Extra.ContentTypes`      | - `WithHash` & `Hash "Blockheader"` in the `Cardano.NetworkLayer.HttpBridge` |
 
 
 ### Submit Transactions
 
-| Priority | Estimate |
-| ---      | ---      |
-| High     | ?        |
+##### Overview 
 
-- Perform Coin Selection on the available UTxO
-- Adjust selection to cover for network fees
-- Generate or Use change address(es)
+- Perform Coin Selection on the available UTxO (with fee adjustment) (cf: [Kernel/CoinSelection](https://github.com/input-output-hk/cardano-wallet-legacy/tree/develop/src/Cardano/Wallet/Kernel/CoinSelection))
+- Generate change address
 - Sign transactions with corresponding private keys
 - No more grouping policy
 - Funds are taken within the wallet (regardless of the account structure)
@@ -206,22 +175,60 @@ NOTE: No persistence layer yet.
     - A direction (outgoing vs incoming)
     - A timestamp
     - Absolute (from genesis) slot number & block number the transaction was inserted
+- Keep in mind that in a near future, we do want to allow signing transaction
+  off-band (by another software), so signing shouldn't be tightly coupled to
+  transaction submission.
+
+##### Tasks
+
+| Description                                                          | Estimate | Created By |
+| ---                                                                  | ---      | ---        |
+| Model API Types for Transactions in Servant                          | 5        | Johannes   |
+| Port coin selection and fee calculation from legacy (minus grouping) | 13       | Matthias   |
+| Extend network layer to support transaction creation                 | 3        | Piotr      |
+| Extend wallet layer to support transaction creation                  | 3        | Matthias   |
+| Keep track of known transactions in the wallet primitive logic       | 5        | Pawel      |
+| Monitor memory allocation and stress wallet primitives               | 5        | Rodney     |
+| Compute metadata for transaction                                     | 5        | Ante       |
+
+### Implement Wallet Backend Server & Corresponding CLI
+
+##### Overview
+
+- CLI to interact with the wallet layer from the terminal. The CLI acts as a proxy to the wallet
+  backend server (and therefore, requires the wallet server to be up-and-running) such that
+  every endpoint from the API has an equivalent command in the CLI (which delegates the logic 
+  to the API via an HTTP call).
+
+- Each command should output a corresponding JSON object (got from the API).
+
+- We have a corresponding web-server that serve the various API endpoints,
+  defaulting to an error 501 Not Implemented for endpoints that aren't yet
+  implemented.
+
+##### Tasks
+
+In scope: 
+
+- [Wallets List | `GET /wallets`](https://rebilly.github.io/ReDoc/?url=https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/specifications/api/swagger.yaml#operation/listWallets)
+- [Wallets Create/Restore | `POST /wallets`](https://rebilly.github.io/ReDoc/?url=https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/specifications/api/swagger.yaml#operation/postWallet)
+- [Wallets Get | `GET /wallets/{walletId}`](https://rebilly.github.io/ReDoc/?url=https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/specifications/api/swagger.yaml#operation/getWallet)
+- [Transactions Create | `POST /wallets/{walletId}/transactions`](https://rebilly.github.io/ReDoc/?url=https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/specifications/api/swagger.yaml#operation/postTransaction)
+
+| Description                                                           | Estimate | Created By |
+| ---                                                                   | ---      | ---        |
+| Finalize translation of Swagger API specification into Servant types  | 8        | -          |
+| Automatically generate golden tests for ToJSON instances of API types | 3        | Johannes   |
+| Implement API handlers for selected endpoints                         | 5        | Jonathan   |
+| Extend cardano wallet CLI with selected commands                      | 3        | Matthias   |
 
 
 ### Handle Rollbacks
-
-| Priority | Estimate |
-| ---      | ---      |
-| High     | ?        |
 
 - Handle rollbacks at the networking layer / db storage
 - Handle rollbacks within the wallet (cf Checkpoints)
 
 ### List Available Staking Pools
-
-| Priority | Estimate |
-| ---      | ---      |
-| High     | ?        |
 
 - A pool boils down to a (metadata --> 3-to-4-letter identifier) + public key
 - Having more metadata --> TODO ADD LINK TO JSON SCHEMA + Discussion with Vincent
@@ -231,10 +238,6 @@ NOTE: No persistence layer yet.
 
 
 ### Join / Quit Staking Pools
-
-| Priority | Estimate |
-| ---      | ---      |
-| High     | ?        |
 
 - Certificate keys derived from the wallet's private key (can use a level of
   the BIP-44 derivation --> change level)
@@ -246,19 +249,11 @@ NOTE: No persistence layer yet.
 
 ### Estimate Transactions' Fee
 
-| Priority | Estimate |
-| ---      | ---      |
-| Medium   | ?        |
-
 - Should be very similar to transaction submission in essence: coin selection,
   adjust to cover for minimal fee, return actual estimated fee.
 
 
 ### Restore Historical Data
-
-| Priority | Estimate |
-| ---      | ---      |
-| Medium   | ?        |
 
 - Consider making this the "only" behavior of the wallet (instead of distinguishing between creation vs restoration)
 - Restore from a list of mnemonic + recovery passphrase
@@ -268,11 +263,6 @@ NOTE: No persistence layer yet.
 
 
 ### List Available Addresses
-
-| Priority | Estimate |
-| ---      | ---      |
-| Medium   | ?        |
-
 
 - In BIP-44, addresses aren't created by clients, but are rather sequentially discovered
 - This list can be known at any time
@@ -284,21 +274,12 @@ NOTE: No persistence layer yet.
 
 ### Make Protocol Settings Available
 
-| Priority | Estimate |
-| ---      | ---      |
-| Low      | ?        |
-
 - Current Slot Id, Slot Duration, Slot Count, security parameter, fee policy, maxTxSize
 - Can be hard-coded for now or retrieve from a config file, before implementing Ledger rules
 - Can be simply "mocked" in the meantime
 
 
 ### Make Software Information Available
-
-| Priority | Estimate |
-| ---      | ---      |
-| Low      | ?        |
-
 
 - Useful in the long-run, pretty useless for the testnet summit release
 - Software Information, Git Revision
@@ -307,28 +288,16 @@ NOTE: No persistence layer yet.
 
 ### Make Node / Blockchain Status Available
 
-| Priority | Estimate |
-| ---      | ---      |
-| Low      | ?        |
-
 - Sync progress, blockchain height, localBlockchainHeight, localTimeInformation, subscriptionStatus
 - Can be simply "mocked" in the meantime
 
 
 ### Allow Wallets to be Deleted
 
-| Priority | Estimate |
-| ---      | ---      |
-| Low      | ?        |
-
 - Remove a wallet, remove its corresponding keys
 - Cleanup metadata, addresses and all related DB entries
 
 ### Logging and monitoring
-
-| Priority | Estimate |
-| ---      | ---      |
-|          | ?        |
 
 - Choose a logging library ([iohk-monitoring-framework](https://input-output-hk.github.io/iohk-monitoring-framework/pres-20181204/html/index.html) seems like the logical choice).
 - Set up the logger using a very basic fixed config that writes to
@@ -341,10 +310,6 @@ NOTE: No persistence layer yet.
 - Add space observations of important objects. For example: database size (records), UTxO distribution, number of addresses, number of transactions.
 
 ### Benchmarking (space)
-
-| Priority | Estimate |
-| ---      | ---      |
-|          | ?        |
 
 - Find a way of running a wallet in a unit test with generated data (e.g. transactions).
 - Make data generators which set up transactions for wallets of various sizes.
