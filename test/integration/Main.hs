@@ -33,16 +33,6 @@ import Test.Integration.Framework.Request
 
 import qualified Cardano.NetworkLayer.HttpBridgeSpec as HttpBridge
 
-withWallet :: ((Text, Manager) -> IO a) -> IO a
-withWallet action = do
-    let launch = proc "cardano-wallet-server" testMnemonic
-        testMnemonic = ["ring","congress","face","smile","torch","length","purse","bind","rule","reopen","label","ask","town","town","argue"]
-        baseURL = T.pack "http://localhost:8090/"
-    manager <- newManager defaultManagerSettings
-    withCreateProcess launch $ \_ _ _ _ph -> do
-        threadDelay 1000000
-        action (baseURL, manager)
-
 main :: IO ()
 main = do
     hspec $ do
@@ -51,6 +41,18 @@ main = do
         beforeAll (withWallet (newMVar . Context ())) $ do
             describe "Integration test framework" dummySpec
 
+-- Runs the wallet server only. The API is not implemented yet, so this is
+-- basically a placeholder until then.
+withWallet :: ((Text, Manager) -> IO a) -> IO a
+withWallet action = do
+    let launch = proc "cardano-wallet-server" []
+        baseURL = T.pack ("http://localhost:8090/")
+    manager <- newManager defaultManagerSettings
+    withCreateProcess launch $ \_ _ _ _ph -> do
+        threadDelay 1000000
+        action (baseURL, manager)
+
+-- Exercise the request functions, which just fail at the moment.
 dummySpec :: Scenarios Context
 dummySpec = do
     scenario "Try the API which isn't implemented yet" $ do
