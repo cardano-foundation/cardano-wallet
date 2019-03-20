@@ -1,0 +1,175 @@
+{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
+module Cardano.Api.TypesSpec (spec) where
+
+import Prelude
+
+import Cardano.Api.Types
+    ( Amount (..)
+    , CurrencyUnit (..)
+    , Percentage (..)
+    , Wallet (..)
+    , WalletAddressPoolGap (..)
+    , WalletBalance (..)
+    , WalletDelegation (..)
+    , WalletDelegationStatus (..)
+    , WalletId (..)
+    , WalletName (..)
+    , WalletPassphraseInfo (..)
+    , WalletState (..)
+    , WalletStateStatus (..)
+    , mkWalletName
+    , walletNameMaxLength
+    , walletNameMinLength
+    )
+import Control.Monad
+    ( replicateM )
+import Data.Aeson
+    ( FromJSON, ToJSON, decode, eitherDecode, encode )
+import Data.ByteString.Lazy
+    ( ByteString )
+import Data.Either
+    ( fromRight, isRight, rights )
+import Data.Word
+    ( Word32, Word8 )
+import Test.Hspec
+    ( Expectation, Spec, describe, it, shouldBe, shouldSatisfy )
+import Test.QuickCheck
+    ( Arbitrary (..)
+    , arbitraryBoundedEnum
+    , arbitraryPrintableChar
+    , arbitrarySizedBoundedIntegral
+    , choose
+    , property
+    )
+import Test.QuickCheck.Arbitrary.Generic
+    ( genericArbitrary, genericShrink )
+import Test.QuickCheck.Instances.Time
+    ()
+import Text.RawString.QQ
+    ( r )
+
+import qualified Data.Text as T
+import qualified Data.UUID.Types as UUID
+
+
+spec :: Spec
+spec = do
+    describe "can perform basic JSON deserialization" $
+        it "Wallet" $
+            (eitherDecode exampleWallet :: Either String Wallet)
+                `shouldSatisfy` isRight
+    describe "can perform roundtrip JSON serialization & deserialization" $ do
+        it "Amount" $
+            property $ \a -> canRoundTrip (a :: Amount)
+        it "CurrencyUnit" $
+            property $ \a -> canRoundTrip (a :: CurrencyUnit)
+        it "Percentage" $
+            property $ \a -> canRoundTrip (a :: Percentage)
+        it "Wallet" $
+            property $ \a -> canRoundTrip (a :: Wallet)
+        it "WalletAddressPoolGap" $
+            property $ \a -> canRoundTrip (a :: WalletAddressPoolGap)
+        it "WalletBalance" $
+            property $ \a -> canRoundTrip (a :: WalletBalance)
+        it "WalletDelegation" $
+            property $ \a -> canRoundTrip (a :: WalletDelegation)
+        it "WalletDelegationStatus" $
+            property $ \a -> canRoundTrip (a :: WalletDelegationStatus)
+        it "WalletId" $
+            property $ \a -> canRoundTrip (a :: WalletId)
+        it "WalletName" $
+            property $ \a -> canRoundTrip (a :: WalletName)
+        it "WalletPassphraseInfo" $
+            property $ \a -> canRoundTrip (a :: WalletPassphraseInfo)
+        it "WalletState" $
+            property $ \a -> canRoundTrip (a :: WalletState)
+        it "WalletStateStatus" $
+            property $ \a -> canRoundTrip (a :: WalletStateStatus)
+
+canRoundTrip :: Eq a => FromJSON a => ToJSON a => Show a => a -> Expectation
+canRoundTrip a = decode (encode a) `shouldBe` Just a
+
+exampleWallet :: ByteString
+exampleWallet = [r|
+    { "id" : "00000000-0000-0000-0000-000000000000"
+    , "name" : "example wallet"
+    , "address_pool_gap" : 50
+    , "delegation" : { "status" : "not_delegating" }
+    , "passphrase" : { "last_updated_at" : "1864-05-02T22:19:08.077666613986Z" }
+    , "state" :
+        { "status" : "restoring"
+        , "progress" :  { "quantity" : 100, "unit" : "percent" } }
+    , "balance" :
+        { "total"     : { "quantity" : 100, "unit" : "lovelace" }
+        , "available" : { "quantity" : 100, "unit" : "lovelace" } } } |]
+
+
+{-------------------------------------------------------------------------------
+                              Arbitrary Instances
+-------------------------------------------------------------------------------}
+
+instance Arbitrary Wallet where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary Amount where
+    arbitrary = do
+        (value :: Word8) <- arbitrarySizedBoundedIntegral
+        pure $ Amount (fromIntegral value) Lovelace
+
+instance Arbitrary CurrencyUnit where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary Percentage where
+    arbitrary = arbitraryBoundedEnum
+
+instance Arbitrary WalletAddressPoolGap where
+    arbitrary = arbitraryBoundedEnum
+
+instance Arbitrary WalletBalance where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary WalletDelegation where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary WalletDelegationStatus where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary WalletId where
+    arbitrary = WalletId . uuidFromWords <$> arbitrary
+
+uuidFromWords :: (Word32, Word32, Word32, Word32) -> UUID.UUID
+uuidFromWords (a, b, c, d) = UUID.fromWords a b c d
+
+instance Arbitrary WalletName where
+    arbitrary = do
+        nameLength <- choose (walletNameMinLength, walletNameMaxLength)
+        fromRight (error "Unable to create arbitrary WalletName")
+            . mkWalletName
+            . T.pack <$> replicateM nameLength arbitraryPrintableChar
+    shrink =
+        rights
+            . fmap (mkWalletName . T.pack)
+            . shrink
+            . T.unpack
+            . getWalletName
+
+instance Arbitrary WalletPassphraseInfo where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary WalletState where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary WalletStateStatus where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
