@@ -22,22 +22,14 @@
     - message:
       - name: Module not compiled
       - module: Cardano.Launcher.Windows
-  - section:
-    - name: test:unit
-    - message:
-      - name: Module not compiled
-      - module: Cardano.Launcher.Windows
-  - section:
-    - name: test:integration
-    - message:
-      - name: Redundant build-depends entry
-      - depends: cardano-wallet
     - message:
       - name: Weeds exported
       - module:
         - name: Test.Integration.Framework.DSL
         - identifier:
+          - </>
           - expectSuccess
+          - json
           - pendingWith
           - xscenario
       - module:
@@ -47,3 +39,10 @@
           - ClientError
           - DecodeFailure
           - HttpException
+          - successfulRequest
+  - section:
+    - name: test:unit
+    - message:
+      - name: Module not compiled
+      - module: Cardano.Launcher.Windows
+
