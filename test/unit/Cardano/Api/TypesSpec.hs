@@ -1,6 +1,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Api.TypesSpec (spec) where
@@ -9,8 +10,7 @@ import Prelude
 
 import Cardano.Api.Types
     ( Amount (..)
-    , CurrencyUnit (..)
-    , Percent (..)
+    , MeasuredIn (..)
     , Percentage (..)
     , Wallet (..)
     , WalletAddressPoolGap (..)
@@ -34,13 +34,14 @@ import Data.Either
     ( fromRight, isRight, rights )
 import Data.Word
     ( Word32, Word8 )
+import GHC.Generics
+    ( Generic )
 import Test.Hspec
     ( Expectation, Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..)
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
-    , arbitrarySizedBoundedIntegral
     , choose
     , oneof
     , property
@@ -63,12 +64,6 @@ spec = do
             (eitherDecode exampleWallet :: Either String Wallet)
                 `shouldSatisfy` isRight
     describe "can perform roundtrip JSON serialization & deserialization" $ do
-        it "Amount" $
-            property $ \a -> canRoundTrip (a :: Amount)
-        it "CurrencyUnit" $
-            property $ \a -> canRoundTrip (a :: CurrencyUnit)
-        it "Percentage" $
-            property $ \a -> canRoundTrip (a :: Percentage)
         it "Wallet" $
             property $ \a -> canRoundTrip (a :: Wallet)
         it "WalletAddressPoolGap" $
@@ -108,21 +103,17 @@ exampleWallet = [r|
                               Arbitrary Instances
 -------------------------------------------------------------------------------}
 
+instance Arbitrary Amount where
+    shrink (Amount 0) = []
+    shrink _ = [Amount 0]
+    arbitrary = Amount . fromIntegral <$> (arbitrary @Word8)
+
+instance Arbitrary Percentage where
+    arbitrary = Percentage <$> choose (0, 100)
+
 instance Arbitrary Wallet where
     arbitrary = genericArbitrary
     shrink = genericShrink
-
-instance Arbitrary Amount where
-    arbitrary = do
-        (value :: Word8) <- arbitrarySizedBoundedIntegral
-        pure $ Amount (fromIntegral value) Lovelace
-
-instance Arbitrary CurrencyUnit where
-    arbitrary = genericArbitrary
-    shrink = genericShrink
-
-instance Arbitrary Percentage where
-    arbitrary = flip Percentage Percent <$> choose (0, 100)
 
 instance Arbitrary WalletAddressPoolGap where
     arbitrary = arbitraryBoundedEnum
@@ -165,3 +156,7 @@ instance Arbitrary WalletPassphraseInfo where
 instance Arbitrary WalletState where
     arbitrary = genericArbitrary
     shrink = genericShrink
+
+instance (Arbitrary a, Generic a) => Arbitrary (MeasuredIn u a) where
+    shrink = genericShrink
+    arbitrary = MeasuredIn <$> arbitrary

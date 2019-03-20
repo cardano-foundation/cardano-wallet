@@ -1,15 +1,18 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Api.Types
     (
     -- * API Types
       Amount(..)
-    , CurrencyUnit(..)
     , Percentage(..)
-    , Percent(..)
     , Wallet(..)
     , WalletAddressPoolGap(..)
     , WalletBalance(..)
@@ -23,6 +26,7 @@ module Cardano.Api.Types
     , walletNameMaxLength
 
     -- * Polymorphic Types
+    , MeasuredIn(..)
     ) where
 
 import Prelude
@@ -33,15 +37,22 @@ import Data.Aeson
     ( FromJSON (..)
     , SumEncoding (..)
     , ToJSON (..)
+    , Value (String)
     , camelTo2
     , constructorTagModifier
     , fieldLabelModifier
     , genericParseJSON
     , genericToJSON
+    , object
     , omitNothingFields
     , sumEncoding
     , tagSingleConstructors
+    , withObject
+    , (.:)
+    , (.=)
     )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Text
     ( Text )
 import Data.Time.Clock
@@ -50,6 +61,8 @@ import Data.UUID.Types
     ( UUID )
 import GHC.Generics
     ( Generic )
+import GHC.TypeLits
+    ( KnownSymbol, Symbol, symbolVal )
 import Numeric.Natural
     ( Natural )
 
@@ -62,54 +75,26 @@ import qualified Data.Text as T
                                   API Types
 -------------------------------------------------------------------------------}
 
-data Amount = Amount
-    { _quantity :: Natural
-    , _unit :: CurrencyUnit
-    } deriving (Eq, Generic, Show)
+newtype Amount = Amount Natural
+    deriving stock (Generic, Show, Ord, Eq)
+    deriving newtype (ToJSON, FromJSON)
 
-instance FromJSON Amount where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON Amount where
-    toJSON = genericToJSON defaultRecordTypeOptions
-
-
-data CurrencyUnit
-    = Lovelace
-    deriving (Eq, Generic, Show)
-
-instance FromJSON CurrencyUnit where
-    parseJSON = genericParseJSON defaultSumTypeOptions
-instance ToJSON CurrencyUnit where
-    toJSON = genericToJSON defaultSumTypeOptions
-
-data Percent = Percent
-    deriving (Generic, Show, Eq, Ord)
-
-instance FromJSON Percent where
-    parseJSON = genericParseJSON defaultSumTypeOptions
-instance ToJSON Percent where
-    toJSON = genericToJSON defaultSumTypeOptions
-
-data Percentage = Percentage
-    { _quantity :: !Int
-    , _unit :: !Percent
-    } deriving (Eq, Generic, Ord, Show)
+newtype Percentage = Percentage Int
+    deriving stock (Eq, Generic, Ord, Show)
+    deriving newtype (ToJSON)
 
 data PercentageError
     = PercentageOutOfBoundsError
     deriving (Show)
 
 instance Bounded Percentage where
-    minBound = Percentage 0 Percent
-    maxBound = Percentage 100 Percent
+    minBound = Percentage 0
+    maxBound = Percentage 100
 
 instance FromJSON Percentage where
     parseJSON x = do
-        (Percentage percent _) <- genericParseJSON defaultRecordTypeOptions x
-        eitherToParser (mkPercentage percent)
-
-instance ToJSON Percentage where
-    toJSON = genericToJSON defaultRecordTypeOptions
+        percent <- parseJSON x
+        eitherToParser (mkPercentage @Int percent)
 
 mkPercentage :: Integral i => i -> Either PercentageError Percentage
 mkPercentage i
@@ -117,7 +102,7 @@ mkPercentage i
     | j > maxBound = Left PercentageOutOfBoundsError
     | otherwise = pure j
   where
-    j = Percentage (fromIntegral i) Percent
+    j = Percentage (fromIntegral i)
 
 
 data Wallet = Wallet
@@ -149,8 +134,8 @@ instance ToJSON WalletAddressPoolGap where
 
 
 data WalletBalance = WalletBalance
-    { _available :: !Amount
-    , _total :: !Amount
+    { _available :: !(MeasuredIn "lovelace" Amount)
+    , _total :: !(MeasuredIn "lovelace" Amount)
     } deriving (Eq, Generic, Show)
 
 instance FromJSON WalletBalance where
@@ -236,7 +221,7 @@ instance ToJSON WalletPassphraseInfo where
 -- {"status":"restoring","progress":{"quantity":14,"unit":"percent"}}
 data WalletState
     = Ready
-    | Restoring Percentage
+    | Restoring !(MeasuredIn "percent" Percentage)
     deriving (Eq, Generic, Show)
 
 instance FromJSON WalletState where
@@ -254,6 +239,30 @@ walletStateOptions = taggedSumTypeOptions $ TaggedObjectOptions
 {-------------------------------------------------------------------------------
                               Polymorphic Types
 -------------------------------------------------------------------------------}
+
+-- | Represent measurable things with simpler underlying types. We probably
+-- want to move that as a separate module in the wallet primitives.
+newtype MeasuredIn (u :: Symbol) a = MeasuredIn a
+    deriving (Generic, Show, Eq)
+
+instance (KnownSymbol u, ToJSON a) => ToJSON (MeasuredIn u a) where
+    toJSON (MeasuredIn a) = object
+        [ "unit"     .= symbolVal (Proxy :: Proxy u)
+        , "quantity" .= toJSON a
+        ]
+
+instance (KnownSymbol u, FromJSON a) => FromJSON (MeasuredIn u a) where
+    parseJSON = withObject "MeasuredIn" $ \o -> do
+        verifyUnit =<< o .: "unit"
+        MeasuredIn <$> o .: "quantity"
+      where
+        u = symbolVal (Proxy :: Proxy u)
+        verifyUnit = \case
+            String u' | u' == T.pack u -> pure ()
+            _ -> fail $
+                "failed to parse quantified value. Expected value in '" <> u
+                <> "' (e.g. { \"unit\": \"" <> u <> "\", \"quantity\": ...})"
+                <> " but got something else."
 
 
 {-------------------------------------------------------------------------------
