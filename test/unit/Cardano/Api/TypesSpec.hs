@@ -10,6 +10,7 @@ import Prelude
 import Cardano.Api.Types
     ( Amount (..)
     , CurrencyUnit (..)
+    , Percent (..)
     , Percentage (..)
     , Wallet (..)
     , WalletAddressPoolGap (..)
@@ -121,7 +122,7 @@ instance Arbitrary CurrencyUnit where
     shrink = genericShrink
 
 instance Arbitrary Percentage where
-    arbitrary = arbitraryBoundedEnum
+    arbitrary = flip Percentage Percent <$> choose (0, 100)
 
 instance Arbitrary WalletAddressPoolGap where
     arbitrary = arbitraryBoundedEnum

@@ -2,7 +2,6 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase #-}
 
 module Cardano.Api.Types
     (
@@ -10,6 +9,7 @@ module Cardano.Api.Types
       Amount(..)
     , CurrencyUnit(..)
     , Percentage(..)
+    , Percent(..)
     , Wallet(..)
     , WalletAddressPoolGap(..)
     , WalletBalance(..)
@@ -82,37 +82,34 @@ instance FromJSON CurrencyUnit where
 instance ToJSON CurrencyUnit where
     toJSON = genericToJSON defaultSumTypeOptions
 
+data Percent = Percent
+    deriving (Generic, Show, Eq, Ord)
 
-newtype Percentage = Percentage
-    { getPercentage :: Int
+instance FromJSON Percent where
+    parseJSON = genericParseJSON defaultSumTypeOptions
+instance ToJSON Percent where
+    toJSON = genericToJSON defaultSumTypeOptions
+
+data Percentage = Percentage
+    { _quantity :: !Int
+    , _unit :: !Percent
     } deriving (Eq, Generic, Ord, Show)
 
 data PercentageError
     = PercentageOutOfBoundsError
-    | PercentageUnitInvalidError
-    deriving Show
+    deriving (Show)
 
 instance Bounded Percentage where
-    minBound = Percentage 0
-    maxBound = Percentage 100
-
-instance Enum Percentage where
-    toEnum = unsafeMkPercentage
-    fromEnum = getPercentage
+    minBound = Percentage 0 Percent
+    maxBound = Percentage 100 Percent
 
 instance FromJSON Percentage where
-    parseJSON x = either (fail . show) pure . validate =<< parseJSON x
-      where
-        validate :: UnvalidatedPercentage -> Either PercentageError Percentage
-        validate = \case
-            UnvalidatedPercentage q "percent" -> mkPercentage q
-            UnvalidatedPercentage _ _ -> Left PercentageUnitInvalidError
+    parseJSON x = do
+        (Percentage percent _) <- genericParseJSON defaultRecordTypeOptions x
+        eitherToParser (mkPercentage percent)
 
 instance ToJSON Percentage where
-    toJSON = toJSON . unvalidate
-      where
-        unvalidate :: Percentage -> UnvalidatedPercentage
-        unvalidate p = UnvalidatedPercentage (getPercentage p) "percent"
+    toJSON = genericToJSON defaultRecordTypeOptions
 
 mkPercentage :: Integral i => i -> Either PercentageError Percentage
 mkPercentage i
@@ -120,20 +117,8 @@ mkPercentage i
     | j > maxBound = Left PercentageOutOfBoundsError
     | otherwise = pure j
   where
-    j = Percentage $ fromIntegral i
+    j = Percentage (fromIntegral i) Percent
 
-unsafeMkPercentage :: Integral i => i -> Percentage
-unsafeMkPercentage = either (error . show) id . mkPercentage
-
-data UnvalidatedPercentage = UnvalidatedPercentage
-    { _quantity :: Int
-    , _unit :: Text
-    } deriving Generic
-
-instance FromJSON UnvalidatedPercentage where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON UnvalidatedPercentage where
-    toJSON = genericToJSON defaultRecordTypeOptions
 
 data Wallet = Wallet
     { _id :: !WalletId
