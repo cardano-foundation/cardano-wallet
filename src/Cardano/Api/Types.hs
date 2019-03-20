@@ -14,7 +14,6 @@ module Cardano.Api.Types
     , WalletAddressPoolGap(..)
     , WalletBalance(..)
     , WalletDelegation(..)
-    , WalletDelegationStatus(..)
     , WalletName(..)
     , WalletId (..)
     , WalletPassphraseInfo(..)
@@ -175,25 +174,29 @@ instance ToJSON WalletBalance where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 
-newtype WalletDelegation = WalletDelegation
-    { _status :: WalletDelegationStatus
-    } deriving (Eq, Generic, Show)
-
-instance FromJSON WalletDelegation where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON WalletDelegation where
-    toJSON = genericToJSON defaultRecordTypeOptions
-
-
-data WalletDelegationStatus
-    = Delegating
-    | NotDelegating
+-- | Wallet Delegation representation, can be serialized to and from JSON as
+-- follows:
+--
+-- >>> Aeson.encode NotDelegating
+-- {"status":"not_delegating"}
+--
+-- >>> Aeson.encode $ Delegating poolId
+-- {"status":"delegating","target": "27522fe5-262e-42a5-8ccb-cef884ea2ba0"}
+data WalletDelegation
+    = NotDelegating
+    | Delegating !UUID
     deriving (Eq, Generic, Show)
 
-instance FromJSON WalletDelegationStatus where
-    parseJSON = genericParseJSON defaultSumTypeOptions
-instance ToJSON WalletDelegationStatus where
-    toJSON = genericToJSON defaultSumTypeOptions
+instance FromJSON WalletDelegation where
+    parseJSON = genericParseJSON walletDelegationOptions
+instance ToJSON WalletDelegation where
+    toJSON = genericToJSON walletDelegationOptions
+
+walletDelegationOptions :: Aeson.Options
+walletDelegationOptions = taggedSumTypeOptions $ TaggedObjectOptions
+    { _tagFieldName = "status"
+    , _contentsFieldName = "target"
+    }
 
 
 newtype WalletId = WalletId

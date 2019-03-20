@@ -15,7 +15,6 @@ import Cardano.Api.Types
     , WalletAddressPoolGap (..)
     , WalletBalance (..)
     , WalletDelegation (..)
-    , WalletDelegationStatus (..)
     , WalletId (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
@@ -42,6 +41,7 @@ import Test.QuickCheck
     , arbitraryPrintableChar
     , arbitrarySizedBoundedIntegral
     , choose
+    , oneof
     , property
     )
 import Test.QuickCheck.Arbitrary.Generic
@@ -76,8 +76,6 @@ spec = do
             property $ \a -> canRoundTrip (a :: WalletBalance)
         it "WalletDelegation" $
             property $ \a -> canRoundTrip (a :: WalletDelegation)
-        it "WalletDelegationStatus" $
-            property $ \a -> canRoundTrip (a :: WalletDelegationStatus)
         it "WalletId" $
             property $ \a -> canRoundTrip (a :: WalletId)
         it "WalletName" $
@@ -133,12 +131,12 @@ instance Arbitrary WalletBalance where
     shrink = genericShrink
 
 instance Arbitrary WalletDelegation where
-    arbitrary = genericArbitrary
-    shrink = genericShrink
-
-instance Arbitrary WalletDelegationStatus where
-    arbitrary = genericArbitrary
-    shrink = genericShrink
+    shrink NotDelegating = []
+    shrink _ = [NotDelegating]
+    arbitrary = oneof
+        [ pure NotDelegating
+        , Delegating . uuidFromWords <$> arbitrary
+        ]
 
 instance Arbitrary WalletId where
     arbitrary = WalletId . uuidFromWords <$> arbitrary
