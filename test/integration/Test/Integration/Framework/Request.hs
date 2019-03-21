@@ -7,6 +7,7 @@
 
 module Test.Integration.Framework.Request
     ( request
+    , request'
     , request_
     , successfulRequest
     , RequestException(..)
