@@ -520,6 +520,7 @@ ErrGapOutOfRange :: Word8 -> MkAddressPoolGapError
 
 -- | A default <a>AddressPoolGap</a>, as suggested in BIP-0044
 defaultAddressPoolGap :: AddressPoolGap
+getAddressPoolGap :: AddressPoolGap -> Word8
 
 -- | Smart constructor for <a>AddressPoolGap</a>
 mkAddressPoolGap :: Word8 -> Either MkAddressPoolGapError AddressPoolGap
@@ -666,6 +667,12 @@ WalletId :: Text -> WalletId
 newtype WalletName
 WalletName :: Text -> WalletName
 [getWalletName] :: WalletName -> Text
+mkWalletName :: Text -> Either WalletNameError WalletName
+walletNameMinLength :: Int
+walletNameMaxLength :: Int
+data WalletNameError
+WalletNameTooShortError :: WalletNameError
+WalletNameTooLongError :: WalletNameError
 newtype WalletTimestamp
 WalletTimestamp :: Microsecond -> WalletTimestamp
 data WalletStatus
@@ -692,10 +699,154 @@ instance GHC.Classes.Eq Cardano.Wallet.WalletTimestamp
 instance GHC.Show.Show Cardano.Wallet.WalletId
 instance GHC.Classes.Ord Cardano.Wallet.WalletId
 instance GHC.Classes.Eq Cardano.Wallet.WalletId
+instance GHC.Show.Show Cardano.Wallet.WalletNameError
 instance GHC.Show.Show Cardano.Wallet.WalletName
 instance GHC.Classes.Eq Cardano.Wallet.WalletName
 instance GHC.Show.Show (Cardano.Wallet.Wallet s)
 instance Control.DeepSeq.NFData (Cardano.Wallet.Wallet s)
+
+module Cardano.Wallet.Api.Types
+newtype Amount
+Amount :: Natural -> Amount
+newtype Percentage
+Percentage :: Int -> Percentage
+newtype PoolId
+PoolId :: UUID -> PoolId
+[$sel:_uuid:PoolId] :: PoolId -> UUID
+data Wallet
+Wallet :: !WalletId -> !ApiT AddressPoolGap -> !WalletBalance -> !WalletDelegation -> !ApiT WalletName -> !WalletPassphraseInfo -> !WalletState -> Wallet
+[$sel:_id:Wallet] :: Wallet -> !WalletId
+[$sel:_addressPoolGap:Wallet] :: Wallet -> !ApiT AddressPoolGap
+[$sel:_balance:Wallet] :: Wallet -> !WalletBalance
+[$sel:_delegation:Wallet] :: Wallet -> !WalletDelegation
+[$sel:_name:Wallet] :: Wallet -> !ApiT WalletName
+[$sel:_passphrase:Wallet] :: Wallet -> !WalletPassphraseInfo
+[$sel:_state:Wallet] :: Wallet -> !WalletState
+data WalletBalance
+WalletBalance :: !Amount -> !Amount -> WalletBalance
+[$sel:_available:WalletBalance] :: WalletBalance -> !Amount
+[$sel:_total:WalletBalance] :: WalletBalance -> !Amount
+
+-- | Wallet Delegation representation, can be serialized to and from JSON
+--   as follows:
+--   
+--   <pre>
+--   &gt;&gt;&gt; Aeson.encode NotDelegating
+--   {"status":"not_delegating"}
+--   </pre>
+--   
+--   <pre>
+--   &gt;&gt;&gt; Aeson.encode $ Delegating poolId
+--   {"status":"delegating","target": "27522fe5-262e-42a5-8ccb-cef884ea2ba0"}
+--   </pre>
+data WalletDelegation
+NotDelegating :: WalletDelegation
+Delegating :: !PoolId -> WalletDelegation
+newtype WalletId
+WalletId :: UUID -> WalletId
+[$sel:_uuid:WalletId] :: WalletId -> UUID
+newtype WalletPassphraseInfo
+WalletPassphraseInfo :: UTCTime -> WalletPassphraseInfo
+[$sel:_lastUpdatedAt:WalletPassphraseInfo] :: WalletPassphraseInfo -> UTCTime
+
+-- | A Wallet State representation in the API. It can be serialized to and
+--   from JSON as follows:
+--   
+--   <pre>
+--   &gt;&gt;&gt; Aeson.encode Ready
+--   {"status":"ready"}
+--   </pre>
+--   
+--   <pre>
+--   &gt;&gt;&gt; Aeson.encode $ Restoring (Percentage 14)
+--   {"status":"restoring","progress":{"quantity":14,"unit":"percent"}}
+--   </pre>
+data WalletState
+Ready :: WalletState
+Restoring :: !Percentage -> WalletState
+
+-- | Maximum number of consecutive undiscovered addresses allowed
+data AddressPoolGap
+newtype WalletName
+WalletName :: Text -> WalletName
+[getWalletName] :: WalletName -> Text
+newtype ApiT a
+ApiT :: a -> ApiT a
+[$sel:getApiT:ApiT] :: ApiT a -> a
+
+-- | Represents a value that has an associated unit of measure, based on
+--   some underlying type.
+newtype MeasuredIn (u :: Symbol) a
+MeasuredIn :: a -> MeasuredIn a
+instance GHC.Show.Show Cardano.Wallet.Api.Types.Wallet
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.Wallet
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.Wallet
+instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.Wallet.Api.Types.ApiT a)
+instance GHC.Show.Show a => GHC.Show.Show (Cardano.Wallet.Api.Types.ApiT a)
+instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.ApiT a)
+instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.Wallet.Api.Types.MeasuredIn u a)
+instance GHC.Show.Show a => GHC.Show.Show (Cardano.Wallet.Api.Types.MeasuredIn u a)
+instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.MeasuredIn u a)
+instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletState
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.WalletState
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletState
+instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletPassphraseInfo
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.WalletPassphraseInfo
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletPassphraseInfo
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletId
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletId
+instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletId
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletId
+instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletDelegation
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.WalletDelegation
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletDelegation
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.PoolId
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.PoolId
+instance GHC.Show.Show Cardano.Wallet.Api.Types.PoolId
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.PoolId
+instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletBalance
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.WalletBalance
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletBalance
+instance GHC.Show.Show Cardano.Wallet.Api.Types.PercentageError
+instance GHC.Show.Show Cardano.Wallet.Api.Types.Percentage
+instance GHC.Classes.Ord Cardano.Wallet.Api.Types.Percentage
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.Percentage
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.Percentage
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.Amount
+instance GHC.Classes.Ord Cardano.Wallet.Api.Types.Amount
+instance GHC.Show.Show Cardano.Wallet.Api.Types.Amount
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.Amount
+instance GHC.Enum.Bounded (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.AddressDiscovery.AddressPoolGap)
+instance GHC.Enum.Enum (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.AddressDiscovery.AddressPoolGap)
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.Wallet
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.Wallet
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.WalletName)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.WalletName)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.AddressDiscovery.AddressPoolGap)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.AddressDiscovery.AddressPoolGap)
+instance (GHC.TypeLits.KnownSymbol u, Data.Aeson.Types.ToJSON.ToJSON a) => Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.MeasuredIn u a)
+instance (GHC.TypeLits.KnownSymbol u, Data.Aeson.Types.FromJSON.FromJSON a) => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.MeasuredIn u a)
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletState
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletState
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletPassphraseInfo
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletPassphraseInfo
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletDelegation
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletDelegation
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletBalance
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletBalance
+instance GHC.Enum.Bounded Cardano.Wallet.Api.Types.Percentage
+instance GHC.Enum.Enum Cardano.Wallet.Api.Types.Percentage
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.Percentage
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.Percentage
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.Amount
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.Amount
+
+module Cardano.Wallet.Api
+api :: Proxy Api
+type Api = DeleteWallet :<|> GetWallet :<|> ListWallets
+type DeleteWallet = "wallets" :> Capture "walletId" WalletId :> Delete '[JSON] NoContent
+type GetWallet = "wallets" :> Capture "walletId" WalletId :> Get '[JSON] Wallet
+type ListWallets = "wallets" :> Get '[JSON] [Wallet]
 
 
 -- | Database / Pesistence layer for the wallet backend. This is where we
