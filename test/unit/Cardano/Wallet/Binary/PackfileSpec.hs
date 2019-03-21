@@ -47,9 +47,13 @@ spec = do
             let decoded = decodePackfile "\254CARDANOYOLO\NUL\NUL\NUL\SOH"
             decoded `shouldBe` Left WrongFileTypeError
 
-        it "should ensure pack file version" $ do
+        it "should ensure pack file version is lesser" $ do
             let decoded = decodePackfile "\254CARDANOPACK\NUL\NUL\NUL\2"
             decoded `shouldBe` Left VersionTooNewError
+
+        it "should ensure pack file version is greater" $ do
+            let decoded = decodePackfile "\254CARDANOPACK\NUL\NUL\NUL\0"
+            decoded `shouldBe` Left VersionTooOldError
 
         it "should decode an empty pack file" $ do
             decodePackfile packFileHeader `shouldBe` Right []
