@@ -216,14 +216,16 @@ walletStateOptions = taggedSumTypeOptions $ TaggedObjectOptions
                               Polymorphic Types
 -------------------------------------------------------------------------------}
 
--- | Represent measurable things with simpler underlying types. We probably
--- want to move that as a separate module in the wallet primitives.
+-- | Represents a value that has an associated unit of measure, based on some
+--   underlying type.
 newtype MeasuredIn (u :: Symbol) a = MeasuredIn a
     deriving (Generic, Show, Eq)
 
+-- | Add a unit of measure to a value.
 addUnit :: forall u a . a -> MeasuredIn (u :: Symbol) a
 addUnit = MeasuredIn
 
+-- | Remove a unit of measure from a value.
 removeUnit :: MeasuredIn (u :: Symbol) a -> a
 removeUnit (MeasuredIn a) = a
 
