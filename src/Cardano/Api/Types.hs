@@ -80,12 +80,10 @@ newtype Amount = Amount Natural
     deriving stock (Generic, Show, Ord, Eq)
 
 instance FromJSON Amount where
-    parseJSON x = do
-        (MeasuredIn y :: MeasuredIn "lovelace" Natural) <- parseJSON x
-        pure $ Amount y
+    parseJSON x = Amount . removeUnit @"lovelace" <$> parseJSON x
 
 instance ToJSON Amount where
-    toJSON (Amount x) = toJSON (MeasuredIn x :: MeasuredIn "lovelace" Natural)
+    toJSON (Amount x) = toJSON $ addUnit @"lovelace" x
 
 newtype Percentage = Percentage Int
     deriving stock (Eq, Generic, Ord, Show)
@@ -99,12 +97,11 @@ instance Bounded Percentage where
     maxBound = Percentage 100
 
 instance FromJSON Percentage where
-    parseJSON x = do
-        (MeasuredIn y :: MeasuredIn "percent" Int) <- parseJSON x
-        eitherToParser (mkPercentage @Int y)
+    parseJSON x = eitherToParser
+        . mkPercentage @Int . removeUnit @"percent" =<< parseJSON x
 
 instance ToJSON Percentage where
-    toJSON (Percentage x) = toJSON (MeasuredIn x :: MeasuredIn "percent" Int)
+    toJSON (Percentage x) = toJSON $ addUnit @"percent" x
 
 mkPercentage :: Integral i => i -> Either PercentageError Percentage
 mkPercentage i
@@ -223,6 +220,12 @@ walletStateOptions = taggedSumTypeOptions $ TaggedObjectOptions
 -- want to move that as a separate module in the wallet primitives.
 newtype MeasuredIn (u :: Symbol) a = MeasuredIn a
     deriving (Generic, Show, Eq)
+
+addUnit :: forall u a . a -> MeasuredIn (u :: Symbol) a
+addUnit = MeasuredIn
+
+removeUnit :: MeasuredIn (u :: Symbol) a -> a
+removeUnit (MeasuredIn a) = a
 
 instance (KnownSymbol u, ToJSON a) => ToJSON (MeasuredIn u a) where
     toJSON (MeasuredIn a) = object
