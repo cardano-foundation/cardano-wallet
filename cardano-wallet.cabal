@@ -154,13 +154,27 @@ test-suite integration
       -Werror
   build-depends:
       base
+    , aeson
     , async
+    , bytestring
     , cardano-wallet
+    , exceptions
     , fmt
+    , generic-lens
     , hspec
+    , hspec-core
+    , http-client
+    , http-api-data
+    , http-types
+    , aeson-qq
+    , lens
+    , mtl
     , process
-    , transformers
     , say
+    , template-haskell
+    , text
+    , transformers
+
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
@@ -171,6 +185,9 @@ test-suite integration
   other-modules:
       Cardano.NetworkLayer.HttpBridgeSpec
       Cardano.Launcher
+      Test.Integration.Framework.DSL
+      Test.Integration.Framework.Request
+      Test.Integration.Framework.Scenario
   if os(windows)
     build-depends: Win32
     other-modules: Cardano.Launcher.Windows

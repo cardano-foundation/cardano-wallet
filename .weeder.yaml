@@ -22,6 +22,24 @@
     - message:
       - name: Module not compiled
       - module: Cardano.Launcher.Windows
+    - message:
+      - name: Weeds exported
+      - module:
+        - name: Test.Integration.Framework.DSL
+        - identifier:
+          - </>
+          - expectSuccess
+          - json
+          - pendingWith
+          - xscenario
+      - module:
+        - name: Test.Integration.Framework.Request
+        - identifier:
+          - $-
+          - ClientError
+          - DecodeFailure
+          - HttpException
+          - successfulRequest
   - section:
     - name: test:unit
     - message:
