@@ -3,7 +3,7 @@
 { system ? builtins.currentSystem
 , config ? {}
 , walletPackages ? import ./.. { inherit config system; }
-, pkgs ? walletPackages.pkgs
+, pkgs ? walletPackages._lib.pkgs
 }:
 with pkgs;
 

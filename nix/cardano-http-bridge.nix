@@ -1,5 +1,4 @@
-{ nixpkgs ? fetchTarball channel:nixos-19.03
-, pkgs ? import nixpkgs {}
+{ pkgs ? (import ./nix/iohk-common.nix).pkgs
 }:
 
 with pkgs;
