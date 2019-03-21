@@ -1,0 +1,24 @@
+{
+    "seed": -3813876620018672997,
+    "samples": [
+        {
+            "status": "restoring",
+            "progress": {
+                "quantity": 90,
+                "unit": "percent"
+            }
+        },
+        {
+            "status": "ready"
+        },
+        {
+            "status": "ready"
+        },
+        {
+            "status": "ready"
+        },
+        {
+            "status": "ready"
+        }
+    ]
+}

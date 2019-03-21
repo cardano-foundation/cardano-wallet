@@ -1,0 +1,55 @@
+{
+    "seed": 4141798965506523653,
+    "samples": [
+        {
+            "total": {
+                "quantity": 229,
+                "unit": "lovelace"
+            },
+            "available": {
+                "quantity": 223,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "total": {
+                "quantity": 53,
+                "unit": "lovelace"
+            },
+            "available": {
+                "quantity": 41,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "total": {
+                "quantity": 198,
+                "unit": "lovelace"
+            },
+            "available": {
+                "quantity": 2,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "total": {
+                "quantity": 244,
+                "unit": "lovelace"
+            },
+            "available": {
+                "quantity": 94,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "total": {
+                "quantity": 212,
+                "unit": "lovelace"
+            },
+            "available": {
+                "quantity": 77,
+                "unit": "lovelace"
+            }
+        }
+    ]
+}

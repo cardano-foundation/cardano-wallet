@@ -1,0 +1,142 @@
+{
+    "seed": 320283308164533583,
+    "samples": [
+        {
+            "passphrase": {
+                "last_updated_at": "1864-05-06T01:51:01.258861742667Z"
+            },
+            "address_pool_gap": 37,
+            "state": {
+                "status": "restoring",
+                "progress": {
+                    "quantity": 7,
+                    "unit": "percent"
+                }
+            },
+            "balance": {
+                "total": {
+                    "quantity": 219,
+                    "unit": "lovelace"
+                },
+                "available": {
+                    "quantity": 32,
+                    "unit": "lovelace"
+                }
+            },
+            "name": "D?jcUR<#.𤏄tygyd(HJd*!`==5\"WruE&0ZbT_x>-Y}T.jf)3t*e$vd$z#k~HLhWdMi.t2;tA)C8[i(F詘30k>/,4Vs[A\\(XQQQz9f>cbT1lXRtLKoEz<1~,W7p7bSyOm)GJTcyi8=1K)L;9n@3",
+            "delegation": {
+                "status": "not_delegating"
+            },
+            "id": "000063cc-0000-1c3d-0000-5aa50000390d"
+        },
+        {
+            "passphrase": {
+                "last_updated_at": "1864-04-25T16:59:24.560798910708Z"
+            },
+            "address_pool_gap": 13,
+            "state": {
+                "status": "restoring",
+                "progress": {
+                    "quantity": 60,
+                    "unit": "percent"
+                }
+            },
+            "balance": {
+                "total": {
+                    "quantity": 26,
+                    "unit": "lovelace"
+                },
+                "available": {
+                    "quantity": 186,
+                    "unit": "lovelace"
+                }
+            },
+            "name": ")6|+#~0p9~+r$b;!cl<_2^WA2AIxQ𩘒@0G,w!D>",
+            "delegation": {
+                "status": "not_delegating"
+            },
+            "id": "00007546-0000-5f1c-0000-18c4000064d0"
+        },
+        {
+            "passphrase": {
+                "last_updated_at": "1864-05-25T05:39:15.256818999569Z"
+            },
+            "address_pool_gap": 73,
+            "state": {
+                "status": "restoring",
+                "progress": {
+                    "quantity": 47,
+                    "unit": "percent"
+                }
+            },
+            "balance": {
+                "total": {
+                    "quantity": 3,
+                    "unit": "lovelace"
+                },
+                "available": {
+                    "quantity": 47,
+                    "unit": "lovelace"
+                }
+            },
+            "name": "+t(FX[jr%Zwl[76NQ즟$ISvKALGoMN(B;JVI40Js!~h=pEI7dkv8Qy^zJN!x*g𦙫<|-.faQCQlEkr=fElg-G𪫄-(,7M*ld-I5;c|:~Jq6{D@R$(_k瓬2W2b;Kf",
+            "delegation": {
+                "status": "delegating",
+                "target": "00000d8d-0000-5a9c-0000-5b81000011d8"
+            },
+            "id": "00006569-0000-6b5f-0000-73350000650c"
+        },
+        {
+            "passphrase": {
+                "last_updated_at": "1864-05-18T11:33:50.486037349546Z"
+            },
+            "address_pool_gap": 58,
+            "state": {
+                "status": "restoring",
+                "progress": {
+                    "quantity": 23,
+                    "unit": "percent"
+                }
+            },
+            "balance": {
+                "total": {
+                    "quantity": 57,
+                    "unit": "lovelace"
+                },
+                "available": {
+                    "quantity": 115,
+                    "unit": "lovelace"
+                }
+            },
+            "name": "_^i)DC/~㼟+F{M:o9IYkNhG--HH=RQ25@I ^_ؐt/𨿍@gcppt0&*T|o}1$:Vjbg瞊;&F1`%8,<_oc^R]]xnr<zq滴Gt𥑐 pjuml\"G#j;\":&9$=2(uPH\\m@=FYUC }@CtsUmx/bV;$Z2EE|#9na.%{bo#42NzX r<v4)[7N-!v1dx{htIF6nFC(;HUXN\\7%Y",
+            "delegation": {
+                "status": "not_delegating"
+            },
+            "id": "0000005f-0000-501c-0000-49430000086c"
+        },
+        {
+            "passphrase": {
+                "last_updated_at": "1864-06-04T17:33:22.008053192075Z"
+            },
+            "address_pool_gap": 99,
+            "state": {
+                "status": "ready"
+            },
+            "balance": {
+                "total": {
+                    "quantity": 71,
+                    "unit": "lovelace"
+                },
+                "available": {
+                    "quantity": 94,
+                    "unit": "lovelace"
+                }
+            },
+            "name": "-W",
+            "delegation": {
+                "status": "not_delegating"
+            },
+            "id": "00000445-0000-1bfb-0000-642900001531"
+        }
+    ]
+}
