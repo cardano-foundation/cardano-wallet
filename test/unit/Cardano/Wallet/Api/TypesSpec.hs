@@ -9,6 +9,8 @@ module Cardano.Wallet.Api.TypesSpec (spec) where
 
 import Prelude
 
+import Cardano.Wallet
+    ( mkWalletName, walletNameMaxLength, walletNameMinLength )
 import Cardano.Wallet.Api.Types
     ( AddressPoolGap
     , Amount (..)
@@ -23,8 +25,6 @@ import Cardano.Wallet.Api.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     )
-import Cardano.Wallet
-    ( mkWalletName, walletNameMaxLength, walletNameMinLength )
 import Control.Monad
     ( replicateM )
 import Data.Aeson
