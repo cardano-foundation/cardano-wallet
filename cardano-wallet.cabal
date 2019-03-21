@@ -32,7 +32,8 @@ library
     ghc-options:
       -Werror
   build-depends:
-      base
+      aeson
+    , base
     , base58-bytestring
     , basement
     , binary
@@ -54,11 +55,15 @@ library
     , servant-client
     , servant-client-core
     , text
+    , time
     , time-units
     , transformers
+    , uuid-types
   hs-source-dirs:
       src
   exposed-modules:
+      Cardano.Wallet.Api
+      Cardano.Wallet.Api.Types
       Cardano.DBLayer
       Cardano.DBLayer.MVar
       Cardano.NetworkLayer
@@ -69,9 +74,9 @@ library
       Cardano.Wallet.AddressDiscovery
       Cardano.Wallet.Binary
       Cardano.Wallet.Binary.Packfile
-      Cardano.WalletLayer
       Cardano.Wallet.Mnemonic
       Cardano.Wallet.Primitive
+      Cardano.WalletLayer
       Servant.Extra.ContentTypes
   other-modules:
       Paths_cardano_wallet
@@ -90,7 +95,8 @@ test-suite unit
     ghc-options:
       -Werror
   build-depends:
-      base
+      aeson
+    , base
     , async
     , base58-bytestring
     , bytestring
@@ -101,13 +107,17 @@ test-suite unit
     , deepseq
     , exceptions
     , fmt
+    , generic-arbitrary
     , hspec
     , memory
     , process
     , QuickCheck
+    , quickcheck-instances
+    , raw-strings-qq
     , text
     , time-units
     , transformers
+    , uuid-types
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
@@ -117,6 +127,7 @@ test-suite unit
       Main.hs
   other-modules:
       Cardano.DBLayer.MVarSpec
+      Cardano.Wallet.Api.TypesSpec
       Cardano.DBLayerSpec
       Cardano.Launcher
       Cardano.LauncherSpec
