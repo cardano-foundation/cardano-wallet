@@ -15,6 +15,7 @@ module Cardano.Wallet.Api.Types
     -- * API Types
       Amount (..)
     , Percentage (..)
+    , PoolId (..)
     , Wallet (..)
     , WalletBalance (..)
     , WalletDelegation (..)
@@ -164,7 +165,7 @@ instance ToJSON WalletBalance where
 -- {"status":"delegating","target": "27522fe5-262e-42a5-8ccb-cef884ea2ba0"}
 data WalletDelegation
     = NotDelegating
-    | Delegating !UUID
+    | Delegating !PoolId
     deriving (Eq, Generic, Show)
 
 instance FromJSON WalletDelegation where
@@ -177,6 +178,11 @@ walletDelegationOptions = taggedSumTypeOptions $ TaggedObjectOptions
     { _tagFieldName = "status"
     , _contentsFieldName = "target"
     }
+
+newtype PoolId = PoolId
+    { _uuid :: UUID }
+    deriving stock (Eq, Show)
+    deriving newtype (FromJSON, ToJSON)
 
 newtype WalletId = WalletId
     { _uuid :: UUID }

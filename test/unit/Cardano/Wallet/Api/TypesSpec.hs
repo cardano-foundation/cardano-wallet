@@ -9,14 +9,13 @@ module Cardano.Wallet.Api.TypesSpec (spec) where
 
 import Prelude
 
-import Cardano.Wallet
-    ( mkWalletName, walletNameMaxLength, walletNameMinLength )
 import Cardano.Wallet.Api.Types
     ( AddressPoolGap
     , Amount (..)
     , ApiT (..)
     , MeasuredIn (..)
     , Percentage (..)
+    , PoolId (..)
     , Wallet (..)
     , WalletBalance (..)
     , WalletDelegation (..)
@@ -25,6 +24,8 @@ import Cardano.Wallet.Api.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     )
+import Cardano.Wallet
+    ( mkWalletName, walletNameMaxLength, walletNameMinLength )
 import Control.Monad
     ( replicateM )
 import Data.Aeson
@@ -42,7 +43,6 @@ import Test.QuickCheck
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
     , choose
-    , oneof
     , property
     )
 import Test.QuickCheck.Arbitrary.Generic
@@ -120,12 +120,11 @@ instance Arbitrary WalletBalance where
     shrink = genericShrink
 
 instance Arbitrary WalletDelegation where
-    shrink NotDelegating = []
-    shrink _ = [NotDelegating]
-    arbitrary = oneof
-        [ pure NotDelegating
-        , Delegating . uuidFromWords <$> arbitrary
-        ]
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary PoolId where
+    arbitrary = PoolId . uuidFromWords <$> arbitrary
 
 instance Arbitrary WalletId where
     arbitrary = WalletId . uuidFromWords <$> arbitrary
