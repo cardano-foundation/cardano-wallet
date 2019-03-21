@@ -78,11 +78,17 @@ import qualified Data.Text as T
 
 newtype Amount = Amount Natural
     deriving stock (Generic, Show, Ord, Eq)
-    deriving newtype (ToJSON, FromJSON)
+
+instance FromJSON Amount where
+    parseJSON x = do
+        (MeasuredIn y :: MeasuredIn "lovelace" Natural) <- parseJSON x
+        pure $ Amount y
+
+instance ToJSON Amount where
+    toJSON (Amount x) = toJSON (MeasuredIn x :: MeasuredIn "lovelace" Natural)
 
 newtype Percentage = Percentage Int
     deriving stock (Eq, Generic, Ord, Show)
-    deriving newtype (ToJSON)
 
 data PercentageError
     = PercentageOutOfBoundsError
@@ -94,8 +100,11 @@ instance Bounded Percentage where
 
 instance FromJSON Percentage where
     parseJSON x = do
-        percent <- parseJSON x
-        eitherToParser (mkPercentage @Int percent)
+        (MeasuredIn y :: MeasuredIn "percent" Int) <- parseJSON x
+        eitherToParser (mkPercentage @Int y)
+
+instance ToJSON Percentage where
+    toJSON (Percentage x) = toJSON (MeasuredIn x :: MeasuredIn "percent" Int)
 
 mkPercentage :: Integral i => i -> Either PercentageError Percentage
 mkPercentage i
@@ -135,8 +144,8 @@ instance ToJSON (ApiT AddressPoolGap) where
     toJSON = toJSON . getAddressPoolGap . getApiT
 
 data WalletBalance = WalletBalance
-    { _available :: !(MeasuredIn "lovelace" Amount)
-    , _total :: !(MeasuredIn "lovelace" Amount)
+    { _available :: !Amount
+    , _total :: !Amount
     } deriving (Eq, Generic, Show)
 
 instance FromJSON WalletBalance where
@@ -192,7 +201,7 @@ instance ToJSON WalletPassphraseInfo where
 -- {"status":"restoring","progress":{"quantity":14,"unit":"percent"}}
 data WalletState
     = Ready
-    | Restoring !(MeasuredIn "percent" Percentage)
+    | Restoring !Percentage
     deriving (Eq, Generic, Show)
 
 instance FromJSON WalletState where
