@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -30,7 +31,7 @@ import Data.Aeson
 import Data.Either
     ( rights )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Percentage, Quantity (..) )
 import Data.Typeable
     ( Typeable )
 import Data.Word
@@ -66,13 +67,13 @@ spec = do
          "and match existing golden files") $ do
             roundtripAndGolden $ Proxy @ Wallet
             roundtripAndGolden $ Proxy @ (ApiT AddressPoolGap)
-            roundtripAndGolden $ Proxy @ WalletBalance
-            roundtripAndGolden $ Proxy @ WalletDelegation
-            roundtripAndGolden $ Proxy @ WalletId
+            roundtripAndGolden $ Proxy @ (ApiT WalletBalance)
+            roundtripAndGolden $ Proxy @ (ApiT (WalletDelegation (ApiT PoolId)))
+            roundtripAndGolden $ Proxy @ (ApiT WalletId)
             roundtripAndGolden $ Proxy @ (ApiT WalletName)
-            roundtripAndGolden $ Proxy @ WalletBalance
-            roundtripAndGolden $ Proxy @ WalletPassphraseInfo
-            roundtripAndGolden $ Proxy @ WalletState
+            roundtripAndGolden $ Proxy @ (ApiT WalletBalance)
+            roundtripAndGolden $ Proxy @ (ApiT WalletPassphraseInfo)
+            roundtripAndGolden $ Proxy @ (ApiT WalletState)
 
 -- | Run JSON roundtrip & golden tests
 --
@@ -112,26 +113,26 @@ instance Arbitrary (Quantity "lovelace" Natural) where
     shrink _ = [Quantity 0]
     arbitrary = Quantity . fromIntegral <$> (arbitrary @Word8)
 
-instance Arbitrary (Quantity "percent" Word) where
+instance Arbitrary (Quantity "percent" Percentage) where
     arbitrary = Quantity <$> arbitraryBoundedEnum
 
 instance Arbitrary Wallet where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary (ApiT AddressPoolGap) where
+instance Arbitrary AddressPoolGap where
     arbitrary = arbitraryBoundedEnum
 
 instance Arbitrary WalletBalance where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary WalletDelegation where
+instance Arbitrary (WalletDelegation (ApiT PoolId)) where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
 instance Arbitrary PoolId where
-    arbitrary = PoolId . uuidFromWords <$> arbitrary
+    arbitrary = PoolId . T.pack <$> replicateM 3 arbitraryPrintableChar
 
 instance Arbitrary WalletId where
     arbitrary = WalletId . uuidFromWords <$> arbitrary
@@ -139,19 +140,18 @@ instance Arbitrary WalletId where
 uuidFromWords :: (Word32, Word32, Word32, Word32) -> UUID.UUID
 uuidFromWords (a, b, c, d) = UUID.fromWords a b c d
 
-instance Arbitrary (ApiT WalletName) where
+instance Arbitrary WalletName where
     arbitrary = do
         nameLength <- choose (walletNameMinLength, walletNameMaxLength)
-        either (error "Unable to create arbitrary WalletName") ApiT
+        either (error "Unable to create arbitrary WalletName") id
             . mkWalletName
             . T.pack <$> replicateM nameLength arbitraryPrintableChar
     shrink =
         rights
-            . fmap (fmap ApiT . mkWalletName . T.pack)
+            . fmap (mkWalletName . T.pack)
             . shrink
             . T.unpack
             . getWalletName
-            . getApiT
 
 instance Arbitrary WalletPassphraseInfo where
     arbitrary = genericArbitrary
@@ -160,3 +160,7 @@ instance Arbitrary WalletPassphraseInfo where
 instance Arbitrary WalletState where
     arbitrary = genericArbitrary
     shrink = genericShrink
+
+instance Arbitrary a => Arbitrary (ApiT a) where
+    arbitrary = ApiT <$> arbitrary
+    shrink = fmap ApiT . shrink . getApiT
