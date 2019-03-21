@@ -98,8 +98,9 @@ jobs:
     name: "Haddock"
     script:
     - tar xzf $STACK_WORK_CACHE
+    - cp -Rv specifications/api api
     - mkdir -p haddock && mv $(stack path --local-doc-root)/* haddock
-    - git add haddock && git commit -m $TRAVIS_COMMIT
+    - git add api haddock && git commit -m $TRAVIS_COMMIT
     - git checkout gh-pages && git cherry-pick -X theirs -n - && git commit --allow-empty --no-edit
     - git push -f -q https://WilliamKingNoel-Bot:$GITHUB_ACCESS_TOKEN@github.com/input-output-hk/cardano-wallet gh-pages &>/dev/null
 
