@@ -13,7 +13,6 @@ import Cardano.Wallet.Api.Types
     ( AddressPoolGap
     , Amount (..)
     , ApiT (..)
-    , MeasuredIn (..)
     , Percentage (..)
     , PoolId (..)
     , Wallet (..)
@@ -153,7 +152,3 @@ instance Arbitrary WalletPassphraseInfo where
 instance Arbitrary WalletState where
     arbitrary = genericArbitrary
     shrink = genericShrink
-
-instance Arbitrary a => Arbitrary (MeasuredIn u a) where
-    shrink = genericShrink
-    arbitrary = MeasuredIn <$> arbitrary
