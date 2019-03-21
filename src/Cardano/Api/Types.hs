@@ -13,22 +13,22 @@
 module Cardano.Api.Types
     (
     -- * API Types
-      Amount(..)
-    , Percentage(..)
-    , Wallet(..)
-    , WalletBalance(..)
-    , WalletDelegation(..)
+      Amount (..)
+    , Percentage (..)
+    , Wallet (..)
+    , WalletBalance (..)
+    , WalletDelegation (..)
     , WalletId (..)
-    , WalletPassphraseInfo(..)
-    , WalletState(..)
+    , WalletPassphraseInfo (..)
+    , WalletState (..)
 
     -- * Re-Exports From Primitive Types
     , AddressPoolGap
     , WalletName (..)
 
     -- * Polymorphic Types
-    , ApiT(..)
-    , MeasuredIn(..)
+    , ApiT (..)
+    , MeasuredIn (..)
     ) where
 
 import Prelude
@@ -71,7 +71,6 @@ import Numeric.Natural
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Text as T
-
 
 {-------------------------------------------------------------------------------
                                   API Types
@@ -135,7 +134,6 @@ instance FromJSON (ApiT AddressPoolGap) where
 instance ToJSON (ApiT AddressPoolGap) where
     toJSON = toJSON . getAddressPoolGap . getApiT
 
-
 data WalletBalance = WalletBalance
     { _available :: !(MeasuredIn "lovelace" Amount)
     , _total :: !(MeasuredIn "lovelace" Amount)
@@ -145,7 +143,6 @@ instance FromJSON WalletBalance where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON WalletBalance where
     toJSON = genericToJSON defaultRecordTypeOptions
-
 
 -- | Wallet Delegation representation, can be serialized to and from JSON as
 -- follows:
@@ -209,7 +206,6 @@ walletStateOptions = taggedSumTypeOptions $ TaggedObjectOptions
     , _contentsFieldName = "progress"
     }
 
-
 {-------------------------------------------------------------------------------
                               Polymorphic Types
 -------------------------------------------------------------------------------}
@@ -241,7 +237,6 @@ instance (KnownSymbol u, FromJSON a) => FromJSON (MeasuredIn u a) where
 newtype ApiT a = ApiT { getApiT :: a }
     deriving (Generic, Show, Eq)
 
-
 {-------------------------------------------------------------------------------
                                 Aeson Options
 -------------------------------------------------------------------------------}
@@ -265,7 +260,6 @@ taggedSumTypeOptions :: TaggedObjectOptions -> Aeson.Options
 taggedSumTypeOptions opts = defaultSumTypeOptions
     { sumEncoding = TaggedObject (_tagFieldName opts) (_contentsFieldName opts)
     }
-
 
 {-------------------------------------------------------------------------------
                                    Helpers

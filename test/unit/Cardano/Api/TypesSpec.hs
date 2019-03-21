@@ -57,7 +57,6 @@ import Text.RawString.QQ
 import qualified Data.Text as T
 import qualified Data.UUID.Types as UUID
 
-
 spec :: Spec
 spec = do
     describe "can perform basic JSON deserialization" $
@@ -98,7 +97,6 @@ exampleWallet = [r|
     , "balance" :
         { "total"     : { "quantity" : 100, "unit" : "lovelace" }
         , "available" : { "quantity" : 100, "unit" : "lovelace" } } } |]
-
 
 {-------------------------------------------------------------------------------
                               Arbitrary Instances
