@@ -5,11 +5,11 @@
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Api.TypesSpec (spec) where
+module Cardano.Wallet.Api.TypesSpec (spec) where
 
 import Prelude
 
-import Cardano.Api.Types
+import Cardano.Wallet.Api.Types
     ( AddressPoolGap
     , Amount (..)
     , ApiT (..)

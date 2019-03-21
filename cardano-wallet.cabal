@@ -62,8 +62,8 @@ library
   hs-source-dirs:
       src
   exposed-modules:
-      Cardano.Api
-      Cardano.Api.Types
+      Cardano.Wallet.Api
+      Cardano.Wallet.Api.Types
       Cardano.DBLayer
       Cardano.DBLayer.MVar
       Cardano.NetworkLayer
@@ -127,7 +127,7 @@ test-suite unit
       Main.hs
   other-modules:
       Cardano.DBLayer.MVarSpec
-      Cardano.Api.TypesSpec
+      Cardano.Wallet.Api.TypesSpec
       Cardano.DBLayerSpec
       Cardano.Launcher
       Cardano.LauncherSpec

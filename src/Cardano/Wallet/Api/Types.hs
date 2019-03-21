@@ -10,7 +10,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Api.Types
+module Cardano.Wallet.Api.Types
     (
     -- * API Types
       Amount (..)

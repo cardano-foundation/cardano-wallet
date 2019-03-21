@@ -1,9 +1,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Cardano.Api where
+module Cardano.Wallet.Api where
 
-import Cardano.Api.Types
+import Cardano.Wallet.Api.Types
     ( Wallet, WalletId )
 import Data.Proxy
     ( Proxy (..) )
