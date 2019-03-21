@@ -54,8 +54,8 @@ import Test.QuickCheck
     , InfiniteList (..)
     , Property
     , arbitraryBoundedEnum
-    , checkCoverage
     , choose
+    , property
     , vectorOf
     )
 import Test.QuickCheck.Monadic
@@ -72,13 +72,13 @@ spec :: Spec
 spec = do
     describe "WalletLayer works as expected" $ do
         it "Wallet upon creation is written down in db"
-            (checkCoverage walletCreationProp)
+            (property walletCreationProp)
         it "Wallet cannot be created more than once"
-            (checkCoverage walletDoubleCreationProp)
+            (property walletDoubleCreationProp)
         it "Wallet after being created can be got using valid wallet Id"
-            (checkCoverage walletGetProp)
+            (property walletGetProp)
         it "Wallet with wrong wallet Id cannot be got"
-            (checkCoverage walletGetWrongIdProp)
+            (property walletGetWrongIdProp)
 
 
 {-------------------------------------------------------------------------------
@@ -121,7 +121,7 @@ walletGetWrongIdProp newWallet = monadicIO $ liftIO $ do
 
 
 {-------------------------------------------------------------------------------
-                      Tests machinary, Arbitrary instances
+                      Tests machinery, Arbitrary instances
 -------------------------------------------------------------------------------}
 
 data WalletLayerFixture = WalletLayerFixture {
