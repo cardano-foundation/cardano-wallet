@@ -109,11 +109,11 @@ test-suite unit
     , fmt
     , generic-arbitrary
     , hspec
+    , hspec-golden-aeson
     , memory
     , process
     , QuickCheck
     , quickcheck-instances
-    , raw-strings-qq
     , text
     , time-units
     , transformers
