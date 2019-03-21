@@ -107,18 +107,23 @@ test-suite unit
     , containers
     , deepseq
     , exceptions
+    , file-embed
     , fmt
     , generic-arbitrary
+    , lens
     , hspec
     , hspec-golden-aeson
     , memory
     , process
     , QuickCheck
     , quickcheck-instances
+    , servant-swagger
+    , swagger2
     , text
     , time-units
     , transformers
     , uuid-types
+    , yaml
   type:
      exitcode-stdio-1.0
   hs-source-dirs:

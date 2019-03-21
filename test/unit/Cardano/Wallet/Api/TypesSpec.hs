@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -12,6 +13,8 @@ import Prelude
 
 import Cardano.Wallet
     ( mkWalletName, walletNameMaxLength, walletNameMinLength )
+import Cardano.Wallet.Api
+    ( api )
 import Cardano.Wallet.Api.Types
     ( AddressPoolGap
     , ApiT (..)
@@ -24,20 +27,28 @@ import Cardano.Wallet.Api.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     )
+import Control.Lens
+    ( at, (^.) )
 import Control.Monad
     ( replicateM )
 import Data.Aeson
     ( FromJSON, ToJSON )
 import Data.Either
     ( rights )
+import Data.FileEmbed
+    ( embedFile )
 import Data.Quantity
     ( Percentage, Quantity (..) )
+import Data.Swagger
+    ( NamedSchema (..), Swagger, ToSchema (..), definitions )
 import Data.Typeable
     ( Typeable )
 import Data.Word
     ( Word32, Word8 )
 import Numeric.Natural
     ( Natural )
+import Servant.Swagger.Test
+    ( validateEveryToJSON )
 import Test.Aeson.GenericSpecs
     ( GoldenDirectoryOption (CustomDirectoryName)
     , Proxy (Proxy)
@@ -49,7 +60,7 @@ import Test.Aeson.GenericSpecs
     , useModuleNameAsSubDirectory
     )
 import Test.Hspec
-    ( Spec, describe )
+    ( Spec, describe, runIO )
 import Test.QuickCheck
     ( Arbitrary (..), arbitraryBoundedEnum, arbitraryPrintableChar, choose )
 import Test.QuickCheck.Arbitrary.Generic
@@ -59,6 +70,7 @@ import Test.QuickCheck.Instances.Time
 
 import qualified Data.Text as T
 import qualified Data.UUID.Types as UUID
+import qualified Data.Yaml as Yaml
 
 spec :: Spec
 spec = do
@@ -75,7 +87,9 @@ spec = do
             roundtripAndGolden $ Proxy @ (ApiT WalletPassphraseInfo)
             roundtripAndGolden $ Proxy @ (ApiT WalletState)
 
--- | Run JSON roundtrip & golden tests
+    describe "api matches the swagger specification" $
+        validateEveryToJSON api
+
 --
 -- Golden tests files are generated automatically on first run. On later runs
 -- we check that the format stays the same. The golden files should be tracked
@@ -164,3 +178,29 @@ instance Arbitrary WalletState where
 instance Arbitrary a => Arbitrary (ApiT a) where
     arbitrary = ApiT <$> arbitrary
     shrink = fmap ApiT . shrink . getApiT
+
+
+{-------------------------------------------------------------------------------
+                              ToSchema Instances
+-------------------------------------------------------------------------------}
+
+specification :: Swagger
+specification =
+    unsafeDecode bytes
+  where
+    unsafeDecode =
+        either
+        ( error
+        . ("Whoops! Failed to parse or find the api specification document: " <>)
+        . show
+        )
+        id
+        . Yaml.decodeEither'
+    bytes = $(embedFile "specifications/api/swagger.yaml")
+
+instance ToSchema Wallet where
+    declareNamedSchema _ = case specification ^. definitions . at "Wallet" of
+        Nothing ->
+            error "unable to find the definition for 'Wallet' in the spec"
+        Just schema ->
+            return $ NamedSchema (Just "Wallet") schema
