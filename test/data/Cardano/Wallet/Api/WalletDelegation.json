@@ -1,0 +1,24 @@
+{
+    "seed": -7076206411229755748,
+    "samples": [
+        {
+            "status": "delegating",
+            "target": "000077a7-0000-1bba-0000-364c00007618"
+        },
+        {
+            "status": "delegating",
+            "target": "000033e1-0000-2f29-0000-023d00001771"
+        },
+        {
+            "status": "delegating",
+            "target": "000060c7-0000-7e0f-0000-16b5000035dd"
+        },
+        {
+            "status": "delegating",
+            "target": "0000276f-0000-6655-0000-4ba4000006da"
+        },
+        {
+            "status": "not_delegating"
+        }
+    ]
+}
