@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -12,9 +13,7 @@ import Cardano.Wallet
     ( mkWalletName, walletNameMaxLength, walletNameMinLength )
 import Cardano.Wallet.Api.Types
     ( AddressPoolGap
-    , Amount (..)
     , ApiT (..)
-    , Percentage (..)
     , PoolId (..)
     , Wallet (..)
     , WalletBalance (..)
@@ -30,10 +29,14 @@ import Data.Aeson
     ( FromJSON, ToJSON )
 import Data.Either
     ( rights )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Typeable
     ( Typeable )
 import Data.Word
     ( Word32, Word8 )
+import Numeric.Natural
+    ( Natural )
 import Test.Aeson.GenericSpecs
     ( GoldenDirectoryOption (CustomDirectoryName)
     , Proxy (Proxy)
@@ -104,13 +107,13 @@ roundtripAndGolden = roundtripAndGoldenSpecsWithSettings settings
                               Arbitrary Instances
 -------------------------------------------------------------------------------}
 
-instance Arbitrary Amount where
-    shrink (Amount 0) = []
-    shrink _ = [Amount 0]
-    arbitrary = Amount . fromIntegral <$> (arbitrary @Word8)
+instance Arbitrary (Quantity "lovelace" Natural) where
+    shrink (Quantity 0) = []
+    shrink _ = [Quantity 0]
+    arbitrary = Quantity . fromIntegral <$> (arbitrary @Word8)
 
-instance Arbitrary Percentage where
-    arbitrary = arbitraryBoundedEnum
+instance Arbitrary (Quantity "percent" Word) where
+    arbitrary = Quantity <$> arbitraryBoundedEnum
 
 instance Arbitrary Wallet where
     arbitrary = genericArbitrary
