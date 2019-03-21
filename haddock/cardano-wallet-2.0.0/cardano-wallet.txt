@@ -703,6 +703,7 @@ instance GHC.Show.Show Cardano.Wallet.WalletNameError
 instance GHC.Show.Show Cardano.Wallet.WalletName
 instance GHC.Classes.Eq Cardano.Wallet.WalletName
 instance GHC.Show.Show (Cardano.Wallet.Wallet s)
+instance GHC.Classes.Eq s => GHC.Classes.Eq (Cardano.Wallet.Wallet s)
 instance Control.DeepSeq.NFData (Cardano.Wallet.Wallet s)
 
 module Cardano.Wallet.Api.Types
