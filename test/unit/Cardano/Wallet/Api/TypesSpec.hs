@@ -106,7 +106,7 @@ instance Arbitrary Amount where
     arbitrary = Amount . fromIntegral <$> (arbitrary @Word8)
 
 instance Arbitrary Percentage where
-    arbitrary = Percentage <$> choose (0, 100)
+    arbitrary = arbitraryBoundedEnum
 
 instance Arbitrary Wallet where
     arbitrary = genericArbitrary

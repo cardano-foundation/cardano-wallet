@@ -96,6 +96,10 @@ instance Bounded Percentage where
     minBound = Percentage 0
     maxBound = Percentage 100
 
+instance Enum Percentage where
+    fromEnum (Percentage p) = p
+    toEnum = either (error . ("toEnum: " <>) . show) id . mkPercentage
+
 instance FromJSON Percentage where
     parseJSON x = eitherToParser
         . mkPercentage @Int . removeUnit @"percent" =<< parseJSON x
