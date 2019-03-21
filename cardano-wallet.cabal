@@ -110,13 +110,14 @@ test-suite unit
     , file-embed
     , fmt
     , generic-arbitrary
-    , lens
     , hspec
     , hspec-golden-aeson
+    , lens
     , memory
     , process
     , QuickCheck
     , quickcheck-instances
+    , servant-server
     , servant-swagger
     , swagger2
     , text
