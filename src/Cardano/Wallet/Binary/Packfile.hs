@@ -45,8 +45,7 @@ decodePackfile pf = case runGetOrFail getHeader pf of
         Left e -> Left e
         Right () -> case runGetOrFail getBlobs rest of
             Left (_, _, msg) -> Left (BlobDecodeError msg)
-            Right ("", _, res) -> Right res
-            Right (_, _, _) -> Left (BlobDecodeError "Unconsumed data")
+            Right (_, _, res) -> Right res
 
 data Header = Header !BS.ByteString !Int
 
