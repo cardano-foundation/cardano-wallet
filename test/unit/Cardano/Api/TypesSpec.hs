@@ -35,8 +35,6 @@ import Data.Either
     ( isRight, rights )
 import Data.Word
     ( Word32, Word8 )
-import GHC.Generics
-    ( Generic )
 import Test.Hspec
     ( Expectation, Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck
@@ -157,6 +155,6 @@ instance Arbitrary WalletState where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance (Arbitrary a, Generic a) => Arbitrary (MeasuredIn u a) where
+instance Arbitrary a => Arbitrary (MeasuredIn u a) where
     shrink = genericShrink
     arbitrary = MeasuredIn <$> arbitrary
