@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/input-output-hk/cardano-wallet/releases"><img src="https://img.shields.io/github/release/input-output-hk/cardano-wallet.svg?style=for-the-badge" /></a>
+  <a href="https://github.com/input-output-hk/cardano-wallet/releases"><img src="https://img.shields.io/github/release-pre/input-output-hk/cardano-wallet.svg?style=for-the-badge" /></a>
   <a href="https://travis-ci.org/input-output-hk/cardano-wallet"><img src="https://img.shields.io/travis/input-output-hk/cardano-wallet.svg?style=for-the-badge" /></a>
   <a href="https://coveralls.io/github/input-output-hk/cardano-wallet"><img src="https://img.shields.io/coveralls/github/input-output-hk/cardano-wallet.svg?style=for-the-badge" /></a>
 </p>
