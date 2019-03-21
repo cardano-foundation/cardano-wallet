@@ -114,7 +114,13 @@ spec = do
 
     describe "golden tests" $ do
         it "No empty mnemonic" $
-            mkMnemonic @12 [] `shouldSatisfy` isLeft
+            mkMnemonic @15 [] `shouldSatisfy` isLeft
+
+        it "No 1 word mnemonic" $
+            mkMnemonic @15 ["material"] `shouldSatisfy` isLeft
+
+        it "No too long fake mnemonic" $
+            mkMnemonic @9 ["squirrel","material","silly","twice","direct","slush","pistol","razor","become","twice"] `shouldSatisfy` isLeft
 
         it "No empty entropy" $
             mkEntropy @(EntropySize 12) "" `shouldSatisfy` isLeft
@@ -143,6 +149,9 @@ spec = do
         it "Mnemonic from Text" $ forM_ testVectors $ \TestVector{..} ->
             (mkMnemonic @12 . extractWords) string `shouldBe` pure mnemonic
 
+        it "Mnemonic to Entropy" $ forM_ testVectors $ \TestVector{..} ->
+            mnemonicToEntropy mnemonic `shouldBe` entropy
+
         it "Mnemonic from Api is invalid" $ do
             let mnemonicFromApi =
                     "[squirrel,material,silly,twice,direct,slush,pistol,razor,become,junk,kingdom,flee,squirrel,silly,twice]"
@@ -153,8 +162,15 @@ spec = do
                     "[squirrel,material,silly,twice,direct,slush,pistol,razor,become]"
             (mkMnemonic @9 . extractWords) mnemonicFromApi `shouldSatisfy` isLeft
 
-        it "Mnemonic to Entropy" $ forM_ testVectors $ \TestVector{..} ->
-            mnemonicToEntropy mnemonic `shouldBe` entropy
+        it "15 long mnemonics not valid for mkMnemonic @12" $ do
+            let mnemonicFromApi =
+                    "[trigger,artwork,lab,raw,confirm,visual,energy,double,coral,fat,hen,ghost,phone,yellow,bag]"
+            (mkMnemonic @12 . extractWords) mnemonicFromApi `shouldSatisfy` isLeft
+
+        it "Non-English mnemonics don't work" $ do
+            let mnemonicFromApi =
+                    "[むしば,いてん,ぜんりゃく,になう,きあい,よっか,けんま,げきげん,きおん,こふん,しゅらば,しあさって,てんし,わかめ,いわば]"
+            (mkMnemonic @15 . extractWords) mnemonicFromApi `shouldSatisfy` isLeft
 
 
   where
