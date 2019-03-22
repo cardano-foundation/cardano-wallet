@@ -12,6 +12,7 @@ module Test.Integration.Framework.DSL
 
     -- * Steps
     , request
+    , request'
     , request_
     , successfulRequest
     , verify
@@ -19,6 +20,7 @@ module Test.Integration.Framework.DSL
     -- * Expectations
     , expectSuccess
     , expectError
+    , expectResponseCode
     , RequestException(..)
 
     -- * Helpers
@@ -39,6 +41,8 @@ import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Data.Aeson.QQ
     ( aesonQQ )
+import Data.ByteString.Lazy
+    ( ByteString )
 import Data.Function
     ( (&) )
 import Data.List
@@ -50,19 +54,27 @@ import GHC.Generics
 import Language.Haskell.TH.Quote
     ( QuasiQuoter )
 import Network.HTTP.Client
-    ( Manager )
+    ( Manager, Request, Response, responseStatus )
+import Network.HTTP.Types.Status
+    ( Status )
 import Test.Hspec.Core.Spec
     ( SpecM, it, xit )
-
-import qualified Test.Hspec.Core.Spec as H
-
+import Test.Hspec.Expectations.Lifted
+    ( shouldBe )
 import Test.Integration.Framework.Request
-    ( RequestException (..), request, request_, successfulRequest, ($-) )
+    ( RequestException (..)
+    , request
+    , request'
+    , request_
+    , successfulRequest
+    , ($-)
+    )
 import Test.Integration.Framework.Scenario
     ( Scenario )
 import Web.HttpApiData
     ( ToHttpApiData (..) )
 
+import qualified Test.Hspec.Core.Spec as H
 --
 -- SCENARIO
 --
@@ -120,6 +132,14 @@ expectError = \case
     Left _  -> return ()
     Right a -> wantedErrorButSuccess a
 
+expectResponseCode
+    :: (MonadIO m, MonadFail m)
+    => Status
+    -> Either RequestException (Request, Response ByteString)
+    -> m ()
+expectResponseCode c = \case
+    Left e   -> wantedSuccessButError e
+    Right a -> (responseStatus (snd a)) `shouldBe` c
 
 -- | Expect a successful response, without any further assumptions
 expectSuccess

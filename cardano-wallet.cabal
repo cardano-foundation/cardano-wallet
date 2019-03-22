@@ -176,6 +176,7 @@ test-suite integration
     , generic-lens
     , hspec
     , hspec-core
+    , hspec-expectations-lifted
     , http-client
     , http-api-data
     , http-types
