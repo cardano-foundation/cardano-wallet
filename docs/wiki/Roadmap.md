@@ -104,6 +104,8 @@ decisions.
   Move to dedicated certificate redemption standalone software.
 </details>
 
+## [Release 0.0.1](https://github.com/input-output-hk/cardano-wallet/releases/tag/v0.0.1)
+
 ### :heavy_check_mark: [Setup New `cardano-wallet` Repostiory & CI](https://github.com/input-output-hk/cardano-wallet/milestone/1)
 
 ### :heavy_check_mark: [Receive And Process Blocks (via `cardano-http-bridge`)](https://github.com/input-output-hk/cardano-wallet/milestone/2)
@@ -113,6 +115,8 @@ decisions.
 ### :heavy_check_mark: [Support Wallet Creation](https://github.com/input-output-hk/cardano-wallet/milestone/4)
 
 ### :hammer: [Wallet Layer Integration (against `cardano-http-bridge`)](https://github.com/input-output-hk/cardano-wallet/milestone/5)
+
+## Next Release(s)
 
 ### :hammer: [Submit Transactions (via `cardano-http-bridge`)](https://github.com/input-output-hk/cardano-wallet/milestone/6)
 
