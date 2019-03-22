@@ -101,7 +101,7 @@ jobs:
     - cp -Rv specifications/api api
     - mkdir -p haddock && mv $(stack path --local-doc-root)/* haddock
     - git add api haddock && git commit -m $TRAVIS_COMMIT
-    - git checkout gh-pages && git cherry-pick -X theirs -n - && git commit --allow-empty --no-edit
+    - git checkout -f gh-pages && git cherry-pick -X theirs -n - && git commit --allow-empty --no-edit
     - git push -f -q https://WilliamKingNoel-Bot:$GITHUB_ACCESS_TOKEN@github.com/input-output-hk/cardano-wallet gh-pages &>/dev/null
 
   - stage: deploy 🚀
