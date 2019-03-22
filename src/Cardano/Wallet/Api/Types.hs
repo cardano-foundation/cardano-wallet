@@ -3,127 +3,82 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Api.Types
     (
     -- * API Types
-      Amount (..)
-    , Percentage (..)
-    , PoolId (..)
-    , Wallet (..)
+      Wallet (..)
     , WalletBalance (..)
+
+    -- * Re-Export From Primitives
+    , PoolId (..)
     , WalletDelegation (..)
     , WalletId (..)
+    , WalletName (..)
     , WalletPassphraseInfo (..)
     , WalletState (..)
-
-    -- * Re-Exports From Primitive Types
     , AddressPoolGap
-    , WalletName (..)
 
     -- * Polymorphic Types
     , ApiT (..)
-    , MeasuredIn (..)
     ) where
 
 import Prelude
 
 import Cardano.Wallet
-    ( WalletName (..), mkWalletName )
+    ( PoolId (..)
+    , WalletDelegation (..)
+    , WalletId (..)
+    , WalletName (..)
+    , WalletPassphraseInfo (..)
+    , WalletState (..)
+    , mkWalletName
+    )
 import Cardano.Wallet.AddressDiscovery
     ( AddressPoolGap, getAddressPoolGap, mkAddressPoolGap )
 import Data.Aeson
     ( FromJSON (..)
     , SumEncoding (..)
     , ToJSON (..)
-    , Value (String)
     , camelTo2
     , constructorTagModifier
     , fieldLabelModifier
     , genericParseJSON
     , genericToJSON
-    , object
     , omitNothingFields
     , sumEncoding
     , tagSingleConstructors
-    , withObject
-    , (.:)
-    , (.=)
     )
-import Data.Proxy
-    ( Proxy (..) )
-import Data.Time.Clock
-    ( UTCTime )
-import Data.UUID.Types
-    ( UUID )
+import Data.Quantity
+    ( Quantity (..) )
 import GHC.Generics
     ( Generic )
-import GHC.TypeLits
-    ( KnownSymbol, Symbol, symbolVal )
 import Numeric.Natural
     ( Natural )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
-import qualified Data.Text as T
+
 
 {-------------------------------------------------------------------------------
                                   API Types
 -------------------------------------------------------------------------------}
 
-newtype Amount = Amount Natural
-    deriving stock (Generic, Show, Ord, Eq)
-
-instance FromJSON Amount where
-    parseJSON x = Amount . removeUnit @"lovelace" <$> parseJSON x
-
-instance ToJSON Amount where
-    toJSON (Amount x) = toJSON $ addUnit @"lovelace" x
-
-newtype Percentage = Percentage Int
-    deriving stock (Eq, Generic, Ord, Show)
-
-data PercentageError
-    = PercentageOutOfBoundsError
-    deriving (Show)
-
-instance Bounded Percentage where
-    minBound = Percentage 0
-    maxBound = Percentage 100
-
-instance Enum Percentage where
-    fromEnum (Percentage p) = p
-    toEnum = either (error . ("toEnum: " <>) . show) id . mkPercentage
-
-instance FromJSON Percentage where
-    parseJSON x = eitherToParser
-        . mkPercentage @Int . removeUnit @"percent" =<< parseJSON x
-
-instance ToJSON Percentage where
-    toJSON (Percentage x) = toJSON $ addUnit @"percent" x
-
-mkPercentage :: Integral i => i -> Either PercentageError Percentage
-mkPercentage i
-    | j < minBound = Left PercentageOutOfBoundsError
-    | j > maxBound = Left PercentageOutOfBoundsError
-    | otherwise = pure j
-  where
-    j = Percentage (fromIntegral i)
-
 data Wallet = Wallet
-    { _id :: !WalletId
+    { _id :: !(ApiT WalletId)
     , _addressPoolGap :: !(ApiT AddressPoolGap)
-    , _balance :: !WalletBalance
-    , _delegation :: !WalletDelegation
+    , _balance :: !(ApiT WalletBalance)
+    , _delegation :: !(ApiT (WalletDelegation (ApiT PoolId)))
     , _name :: !(ApiT WalletName)
-    , _passphrase :: !WalletPassphraseInfo
-    , _state :: !WalletState
+    , _passphrase :: !(ApiT WalletPassphraseInfo)
+    , _state :: !(ApiT WalletState)
+    } deriving (Eq, Generic, Show)
+
+data WalletBalance = WalletBalance
+    { _available :: !(Quantity "lovelace" Natural)
+    , _total :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
 instance FromJSON Wallet where
@@ -131,13 +86,11 @@ instance FromJSON Wallet where
 instance ToJSON Wallet where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance ToJSON (ApiT WalletName) where
-    toJSON = toJSON . getWalletName . getApiT
-instance FromJSON (ApiT WalletName) where
-    parseJSON x = fmap ApiT . eitherToParser . mkWalletName =<< parseJSON x
+instance FromJSON (ApiT WalletId) where
+    parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
+instance ToJSON (ApiT WalletId) where
+    toJSON = genericToJSON defaultRecordTypeOptions . getApiT
 
-deriving newtype instance Bounded (ApiT AddressPoolGap)
-deriving newtype instance Enum (ApiT AddressPoolGap)
 instance FromJSON (ApiT AddressPoolGap) where
     parseJSON x = do
         gap <- parseJSON x
@@ -145,76 +98,58 @@ instance FromJSON (ApiT AddressPoolGap) where
 instance ToJSON (ApiT AddressPoolGap) where
     toJSON = toJSON . getAddressPoolGap . getApiT
 
-data WalletBalance = WalletBalance
-    { _available :: !Amount
-    , _total :: !Amount
-    } deriving (Eq, Generic, Show)
+instance FromJSON (ApiT WalletBalance) where
+    parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
+instance ToJSON (ApiT WalletBalance) where
+    toJSON = genericToJSON defaultRecordTypeOptions . getApiT
 
-instance FromJSON WalletBalance where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON WalletBalance where
-    toJSON = genericToJSON defaultRecordTypeOptions
+instance FromJSON (ApiT (WalletDelegation (ApiT PoolId))) where
+    parseJSON = fmap ApiT . genericParseJSON walletDelegationOptions
+instance ToJSON (ApiT (WalletDelegation (ApiT PoolId))) where
+    toJSON = genericToJSON walletDelegationOptions . getApiT
 
--- | Wallet Delegation representation, can be serialized to and from JSON as
--- follows:
+instance FromJSON (ApiT WalletName) where
+    parseJSON x = fmap ApiT . eitherToParser . mkWalletName =<< parseJSON x
+instance ToJSON (ApiT WalletName) where
+    toJSON = toJSON . getWalletName . getApiT
+
+instance FromJSON (ApiT WalletPassphraseInfo) where
+    parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
+instance ToJSON (ApiT WalletPassphraseInfo) where
+    toJSON = genericToJSON defaultRecordTypeOptions . getApiT
+
+instance FromJSON (ApiT WalletState) where
+    parseJSON = fmap ApiT . genericParseJSON walletStateOptions
+instance ToJSON (ApiT WalletState) where
+    toJSON = genericToJSON walletStateOptions . getApiT
+
+instance FromJSON (ApiT PoolId) where
+    parseJSON = fmap (ApiT . PoolId) . parseJSON
+instance ToJSON (ApiT PoolId) where
+    toJSON = toJSON . getPoolId . getApiT
+
+-- | Options for encoding wallet delegation settings. It can be serialized to
+-- and from JSON as follows:
 --
 -- >>> Aeson.encode NotDelegating
 -- {"status":"not_delegating"}
 --
 -- >>> Aeson.encode $ Delegating poolId
 -- {"status":"delegating","target": "27522fe5-262e-42a5-8ccb-cef884ea2ba0"}
-data WalletDelegation
-    = NotDelegating
-    | Delegating !PoolId
-    deriving (Eq, Generic, Show)
-
-instance FromJSON WalletDelegation where
-    parseJSON = genericParseJSON walletDelegationOptions
-instance ToJSON WalletDelegation where
-    toJSON = genericToJSON walletDelegationOptions
-
 walletDelegationOptions :: Aeson.Options
 walletDelegationOptions = taggedSumTypeOptions $ TaggedObjectOptions
     { _tagFieldName = "status"
     , _contentsFieldName = "target"
     }
 
-newtype PoolId = PoolId
-    { _uuid :: UUID }
-    deriving stock (Eq, Show)
-    deriving newtype (FromJSON, ToJSON)
-
-newtype WalletId = WalletId
-    { _uuid :: UUID }
-    deriving stock (Eq, Show)
-    deriving newtype (FromJSON, ToJSON)
-
-newtype WalletPassphraseInfo = WalletPassphraseInfo
-    { _lastUpdatedAt :: UTCTime
-    } deriving (Eq, Generic, Show)
-
-instance FromJSON WalletPassphraseInfo where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON WalletPassphraseInfo where
-    toJSON = genericToJSON defaultRecordTypeOptions
-
--- | A Wallet State representation in the API. It can be serialized to and from
--- JSON as follows:
+-- | Options for encoding a wallet state. It can be serialized to and from JSON
+-- as follows:
 --
 -- >>> Aeson.encode Ready
 -- {"status":"ready"}
 --
--- >>> Aeson.encode $ Restoring (Percentage 14)
+-- >>> Aeson.encode $ Restoring (Quantity 14)
 -- {"status":"restoring","progress":{"quantity":14,"unit":"percent"}}
-data WalletState
-    = Ready
-    | Restoring !Percentage
-    deriving (Eq, Generic, Show)
-
-instance FromJSON WalletState where
-    parseJSON = genericParseJSON walletStateOptions
-instance ToJSON WalletState where
-    toJSON = genericToJSON walletStateOptions
 
 walletStateOptions :: Aeson.Options
 walletStateOptions = taggedSumTypeOptions $ TaggedObjectOptions
@@ -225,38 +160,6 @@ walletStateOptions = taggedSumTypeOptions $ TaggedObjectOptions
 {-------------------------------------------------------------------------------
                               Polymorphic Types
 -------------------------------------------------------------------------------}
-
--- | Represents a value that has an associated unit of measure, based on some
---   underlying type.
-newtype MeasuredIn (u :: Symbol) a = MeasuredIn a
-    deriving (Generic, Show, Eq)
-
--- | Add a unit of measure to a value.
-addUnit :: forall u a . a -> MeasuredIn (u :: Symbol) a
-addUnit = MeasuredIn
-
--- | Remove a unit of measure from a value.
-removeUnit :: MeasuredIn (u :: Symbol) a -> a
-removeUnit (MeasuredIn a) = a
-
-instance (KnownSymbol u, ToJSON a) => ToJSON (MeasuredIn u a) where
-    toJSON (MeasuredIn a) = object
-        [ "unit"     .= symbolVal (Proxy :: Proxy u)
-        , "quantity" .= toJSON a
-        ]
-
-instance (KnownSymbol u, FromJSON a) => FromJSON (MeasuredIn u a) where
-    parseJSON = withObject "MeasuredIn" $ \o -> do
-        verifyUnit =<< o .: "unit"
-        MeasuredIn <$> o .: "quantity"
-      where
-        u = symbolVal (Proxy :: Proxy u)
-        verifyUnit = \case
-            String u' | u' == T.pack u -> pure ()
-            _ -> fail $
-                "failed to parse quantified value. Expected value in '" <> u
-                <> "' (e.g. { \"unit\": \"" <> u <> "\", \"quantity\": ...})"
-                <> " but got something else."
 
 newtype ApiT a = ApiT { getApiT :: a }
     deriving (Generic, Show, Eq)
@@ -277,7 +180,7 @@ defaultSumTypeOptions = Aeson.defaultOptions
 
 defaultRecordTypeOptions :: Aeson.Options
 defaultRecordTypeOptions = Aeson.defaultOptions
-    { fieldLabelModifier = camelTo2 '_' . drop 1
+    { fieldLabelModifier = camelTo2 '_' . dropWhile (== '_')
     , omitNothingFields = True }
 
 taggedSumTypeOptions :: TaggedObjectOptions -> Aeson.Options

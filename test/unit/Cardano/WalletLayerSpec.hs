@@ -58,6 +58,8 @@ import Test.QuickCheck
     , property
     , vectorOf
     )
+import Test.QuickCheck.Gen
+    ( chooseAny )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
@@ -65,7 +67,6 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
-import qualified Data.Text as T
 
 
 spec :: Spec
@@ -110,12 +111,10 @@ walletGetProp newWallet = monadicIO $ liftIO $ do
     resFromGet `shouldSatisfy` isRight
 
 walletGetWrongIdProp
-    :: NewWallet
+    :: (NewWallet, WalletId)
     -> Property
-walletGetWrongIdProp newWallet = monadicIO $ liftIO $ do
-    (WalletLayerFixture _db wl walletIds) <- liftIO $ setupFixture newWallet
-    let (WalletId storedWalletId) = L.head walletIds
-    let corruptedWalletId = WalletId $ T.append "@ " storedWalletId
+walletGetWrongIdProp (newWallet, corruptedWalletId) = monadicIO $ liftIO $ do
+    (WalletLayerFixture _db wl _walletIds) <- liftIO $ setupFixture newWallet
     attempt <- runExceptT $ getWallet wl corruptedWalletId
     attempt `shouldSatisfy` isLeft
 
@@ -186,3 +185,8 @@ instance Arbitrary (Passphrase goal) where
 instance Arbitrary AddressPoolGap where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
+
+instance Arbitrary WalletId where
+    shrink _ = []
+    arbitrary = WalletId <$> chooseAny
+

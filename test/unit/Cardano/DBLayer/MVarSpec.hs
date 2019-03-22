@@ -30,11 +30,13 @@ import Test.Hspec
     ( Spec, before, describe, it, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..), Property, choose, property, vectorOf )
+import Test.QuickCheck.Gen
+    ( chooseAny )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
 import qualified Data.Set as Set
-import qualified Data.Text as T
+
 
 spec :: Spec
 spec = do
@@ -128,10 +130,7 @@ deriving instance Show (PrimaryKey WalletId)
 
 instance Arbitrary (PrimaryKey WalletId) where
     -- No shrinking
-    arbitrary = do
-        nums <- vectorOf 10 $ choose (0 :: Int, 9)
-        let key = (T.pack . show) nums
-        fmap PrimaryKey $ WalletId <$> pure key
+    arbitrary = PrimaryKey . WalletId <$> chooseAny
 
 toWalletState
     :: (IsOurs s, Semigroup s, NFData s, Show s) => s

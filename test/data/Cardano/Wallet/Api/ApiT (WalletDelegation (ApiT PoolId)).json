@@ -1,0 +1,18 @@
+{
+    "seed": 874595100750347457,
+    "samples": [
+        {
+            "status": "not_delegating"
+        },
+        {
+            "status": "not_delegating"
+        },
+        {
+            "status": "not_delegating"
+        },
+        {
+            "status": "delegating",
+            "target": "$宯~"
+        }
+    ]
+}

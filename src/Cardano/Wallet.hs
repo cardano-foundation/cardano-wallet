@@ -45,10 +45,10 @@ module Cardano.Wallet
     , walletNameMinLength
     , walletNameMaxLength
     , WalletNameError(..)
-    , WalletTimestamp(..)
-    , WalletStatus(..)
+    , WalletState(..)
     , WalletDelegation (..)
     , WalletPassphraseInfo(..)
+    , PoolId(..)
     ) where
 
 import Prelude
@@ -83,14 +83,18 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( catMaybes )
+import Data.Quantity
+    ( Percentage, Quantity (..) )
 import Data.Set
     ( Set )
 import Data.Text
     ( Text )
-import Data.Time.Units
-    ( Microsecond )
+import Data.Time.Clock
+    ( UTCTime )
 import Data.Traversable
     ( for )
+import Data.UUID.Types
+    ( UUID )
 import GHC.Generics
     ( Generic )
 
@@ -276,9 +280,9 @@ data WalletMetadata = WalletMetadata
     , passphraseInfo
         :: !WalletPassphraseInfo
     , status
-        :: !WalletStatus
+        :: !WalletState
     , delegation
-        :: !WalletDelegation
+        :: !(WalletDelegation PoolId)
     } deriving (Eq, Show, Generic)
 
 newtype WalletName = WalletName { getWalletName ::  Text }
@@ -301,22 +305,23 @@ walletNameMinLength = 1
 walletNameMaxLength :: Int
 walletNameMaxLength = 255
 
-newtype WalletId = WalletId Text
-    deriving (Eq, Ord, Show)
+newtype WalletId = WalletId UUID
+    deriving (Generic, Eq, Ord, Show)
 
-newtype WalletTimestamp = WalletTimestamp Microsecond
-    deriving (Eq, Ord, Show)
-
-data WalletStatus
+data WalletState
     = Ready
-    | Restoring
-    deriving (Eq, Show)
+    | Restoring !(Quantity "percent" Percentage)
+    deriving (Generic, Eq, Show)
 
-data WalletDelegation
-    = Delegated
-    | NotDelegated
-    deriving (Eq, Show)
+data WalletDelegation poolId
+    = NotDelegating
+    | Delegating !poolId
+    deriving (Generic, Eq, Show)
+
+newtype PoolId = PoolId
+    { getPoolId :: Text }
+    deriving (Generic, Eq, Show)
 
 newtype WalletPassphraseInfo = WalletPassphraseInfo
-    { lastUpdated :: WalletTimestamp }
-    deriving (Eq, Show)
+    { lastUpdatedAt :: UTCTime }
+    deriving (Generic, Eq, Show)

@@ -112,7 +112,8 @@ mkWalletLayer db network = WalletLayer
                 mkAddressPool (publicKey accXPrv) minBound InternalChain []
         let wallet =
                 initWallet $ SeqState (extPool, intPool)
-        let wid = WalletId $ getWalletName $ name w
+        -- FIXME Compute the wallet id deterministically from the seed
+        let wid = WalletId (read "00000000-0000-0000-0000-000000000000")
         lift (readCheckpoints db (PrimaryKey wid)) >>= \case
             Nothing -> do
                 lift $ putCheckpoints db (PrimaryKey wid) (wallet :| [])
