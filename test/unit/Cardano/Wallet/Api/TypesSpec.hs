@@ -68,10 +68,10 @@ spec = do
             roundtripAndGolden $ Proxy @ WalletId
             roundtripAndGolden $ Proxy @ (ApiT WalletName)
             roundtripAndGolden $ Proxy @ WalletBalance
-            roundtripAndGolden $ Proxy @ WalletPassphraseInfo
-            roundtripAndGolden $ Proxy @ WalletState
+            roundtripAndGolden $ Proxy @ WalletPassphraseInfo
+            roundtripAndGolden $ Proxy @ WalletState
 
--- | Run JSON roundtrip & golden tests
+-- | Run JSON roundtrip & golden tests
 --
 -- Golden tests files are generated automatically on first run. On later runs
 -- we check that the format stays the same. The golden files should be tracked

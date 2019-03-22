@@ -37,10 +37,10 @@ import Text.Read
 import qualified Data.Text as T
 
 
--- | Port number with a tag for describing what it is used for
+-- | Port number with a tag for describing what it is used for
 newtype Port (tag :: Symbol) = Port Int
 
-data Network = Mainnet | Testnet | Staging
+data Network = Mainnet | Testnet | Staging
     deriving (Show, Enum)
 
 
@@ -86,7 +86,7 @@ instance Encodable Int String where
 
 instance Decodable String Int where
     decode str =
-        maybe (Left err) Right (readMaybe str)
+        maybe (Left err) Right (readMaybe str)
       where
         err = "Not an integer: " ++ show str ++ "."
 

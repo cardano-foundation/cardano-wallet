@@ -71,7 +71,7 @@ main = do
             ]
     sayErr $ fmt $ blockListF commands
     (ProcessHasExited name code) <- launch commands
-    sayErr $ T.pack name <> " exited with code " <> T.pack (show code) 
+    sayErr $ T.pack name <> " exited with code " <> T.pack (show code) 
     exitWith code
 
 nodeHttpBridgeOn :: Port "Node" -> Network -> Command

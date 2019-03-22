@@ -162,7 +162,7 @@ mkMnemonic
     -> Either (MnemonicError csz) (Mnemonic mw)
 mkMnemonic wordsm = do
     phrase <- left ErrMnemonicWords
-        $ mnemonicPhrase @mw (toUtf8String <$> wordsm)
+        $ mnemonicPhrase @mw (toUtf8String <$> wordsm)
 
     sentence <- left ErrDictionary
         $ mnemonicPhraseToMnemonicSentence Dictionary.english phrase
