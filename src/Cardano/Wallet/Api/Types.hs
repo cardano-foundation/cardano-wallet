@@ -22,10 +22,12 @@ module Cardano.Wallet.Api.Types
     , WalletId (..)
     , WalletPassphraseInfo (..)
     , WalletState (..)
+    , Payment (..)
 
     -- * Re-Exports From Primitive Types
     , AddressPoolGap
     , WalletName (..)
+    , Passphrase
 
     -- * Polymorphic Types
     , ApiT (..)
@@ -36,8 +38,12 @@ import Prelude
 
 import Cardano.Wallet
     ( WalletName (..), mkWalletName )
+import Cardano.Wallet.AddressDerivation
+    ( Passphrase )
 import Cardano.Wallet.AddressDiscovery
     ( AddressPoolGap, getAddressPoolGap, mkAddressPoolGap )
+import Cardano.Wallet.Primitive
+    ( Address, mkAddress )
 import Data.Aeson
     ( FromJSON (..)
     , SumEncoding (..)
@@ -62,6 +68,8 @@ import Data.Time.Clock
     ( UTCTime )
 import Data.UUID.Types
     ( UUID )
+import Fmt
+    ( build, fmt )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
@@ -221,6 +229,26 @@ walletStateOptions = taggedSumTypeOptions $ TaggedObjectOptions
     { _tagFieldName = "status"
     , _contentsFieldName = "progress"
     }
+
+data Payment = Payment
+    { _targets :: ![TargetOutput]
+    , _passphrase :: !(ApiT (Passphrase "encryption"))
+    } deriving (Generic, Show)
+
+data TargetOutput = TargetOutput
+    { _address :: !(ApiT Address)
+    , _amount :: !Amount
+    } deriving (Generic, Show)
+
+instance ToJSON (ApiT Address) where
+    toJSON = toJSON . fmt @T.Text . build . getApiT
+instance FromJSON (ApiT Address) where
+    parseJSON x = fmap ApiT . eitherToParser . mkAddress =<< parseJSON x
+
+instance FromJSON TargetOutput where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON TargetOutput where
+    toJSON = genericToJSON defaultRecordTypeOptions
 
 {-------------------------------------------------------------------------------
                               Polymorphic Types

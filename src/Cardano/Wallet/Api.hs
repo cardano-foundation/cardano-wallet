@@ -25,3 +25,9 @@ type GetWallet = "wallets"
 
 type ListWallets = "wallets"
     :> Get '[JSON] [Wallet]
+
+-- type CreateTransaction = "wallets"
+--     :> Capture "walletId" WalletId
+--     :> "transactions"
+--     :> ReqBody '[JSON] Payment
+--     :> Post '[JSON] Transaction

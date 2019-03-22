@@ -34,6 +34,7 @@ module Cardano.Wallet.Primitive
 
     -- * Address
     , Address (..)
+    , mkAddress
     , IsOurs(..)
 
     -- * Coin
@@ -96,6 +97,7 @@ import GHC.TypeLits
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 -- * Block
@@ -220,6 +222,13 @@ newtype Address = Address
     } deriving (Show, Generic, Eq, Ord)
 
 instance NFData Address
+
+data AddressError
+    = AddressDecodeError
+    deriving (Show)
+
+mkAddress :: T.Text -> Either AddressError Address
+mkAddress = error "todo"
 
 instance Buildable Address where
     build = build . T.decodeUtf8 . encodeBase58 bitcoinAlphabet . getAddress
