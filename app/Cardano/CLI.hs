@@ -21,7 +21,7 @@ module Cardano.CLI
 
 import Prelude
 
-import Cardano.Wallet.Mnemonic
+import Cardano.Wallet.Primitive.Mnemonic
     ( Mnemonic, mkMnemonic )
 import Control.Monad
     ( when )

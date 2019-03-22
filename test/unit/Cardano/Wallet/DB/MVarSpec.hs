@@ -4,19 +4,19 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.DBLayer.MVarSpec
+module Cardano.Wallet.DB.MVarSpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.DBLayer
+import Cardano.Wallet.DB
     ( DBLayer (..), PrimaryKey (..) )
-import Cardano.DBLayer.MVar
+import Cardano.Wallet.DB.MVar
     ( newDBLayer )
-import Cardano.Wallet
+import Cardano.Wallet.Primitive.Model
     ( Wallet, WalletId (..), initWallet )
-import Cardano.Wallet.Primitive
+import Cardano.Wallet.Primitive.Types
     ( IsOurs (..) )
 import Control.Concurrent.Async
     ( mapConcurrently_ )

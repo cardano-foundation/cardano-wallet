@@ -19,7 +19,7 @@
 -- It doesn't contain any particular business-logic code, but define a few
 -- primitive operations on Wallet core types as well.
 
-module Cardano.Wallet.Primitive
+module Cardano.Wallet.Primitive.Types
     (
     -- * Block
       Block(..)

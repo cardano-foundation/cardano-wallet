@@ -3,13 +3,13 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.AddressDiscoverySpec
+module Cardano.Wallet.Primitive.AddressDiscoverySpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.Wallet.AddressDerivation
+import Cardano.Wallet.Primitive.AddressDerivation
     ( ChangeChain (..)
     , Depth (..)
     , Key
@@ -19,7 +19,7 @@ import Cardano.Wallet.AddressDerivation
     , publicKey
     , unsafeGenerateKeyFromSeed
     )
-import Cardano.Wallet.AddressDiscovery
+import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPool
     , AddressPoolGap
     , MkAddressPoolGapError (..)
@@ -32,7 +32,7 @@ import Cardano.Wallet.AddressDiscovery
     , mkAddressPool
     , mkAddressPoolGap
     )
-import Cardano.Wallet.Primitive
+import Cardano.Wallet.Primitive.Types
     ( Address )
 import Control.Monad
     ( forM )

@@ -17,7 +17,7 @@
 -- ensure that the following implementation matches with other wallet softwares
 -- (like Yoroi/Icarus or the cardano-cli)
 
-module Cardano.Wallet.AddressDerivation
+module Cardano.Wallet.Primitive.AddressDerivation
     (
     -- * Polymorphic / General Purpose Types
     -- $use
@@ -54,7 +54,7 @@ import Cardano.Crypto.Wallet
     )
 import Cardano.Wallet.Binary
     ( encodeAddress )
-import Cardano.Wallet.Primitive
+import Cardano.Wallet.Primitive.Types
     ( Address (..) )
 import Control.DeepSeq
     ( NFData )
@@ -293,7 +293,7 @@ deriveAddressPublicKey (Key accXPub) changeChain (Index addrIx) =
         return $ Key addrXPub
   where
     errWrongIndex = error $
-        "Cardano.Wallet.AddressDerivation.deriveAddressPublicKey failed: \
+        "Cardano.Wallet.Primitive.AddressDerivation.deriveAddressPublicKey failed: \
         \was given an hardened (or too big) index for soft path derivation \
         \( " ++ show addrIx ++ "). This is either a programmer error, or, \
         \we may have reached the maximum number of addresses for a given \

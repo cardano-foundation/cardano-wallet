@@ -27,7 +27,9 @@ module Cardano.Wallet.Api.Types
 
 import Prelude
 
-import Cardano.Wallet
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( AddressPoolGap, getAddressPoolGap, mkAddressPoolGap )
+import Cardano.Wallet.Primitive.Model
     ( PoolId (..)
     , WalletDelegation (..)
     , WalletId (..)
@@ -36,8 +38,6 @@ import Cardano.Wallet
     , WalletState (..)
     , mkWalletName
     )
-import Cardano.Wallet.AddressDiscovery
-    ( AddressPoolGap, getAddressPoolGap, mkAddressPoolGap )
 import Data.Aeson
     ( FromJSON (..)
     , SumEncoding (..)

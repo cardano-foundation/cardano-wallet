@@ -8,13 +8,13 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.MnemonicSpec
+module Cardano.Wallet.Primitive.MnemonicSpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.Wallet.Mnemonic
+import Cardano.Wallet.Primitive.Mnemonic
     ( Entropy
     , EntropyError
     , EntropySize

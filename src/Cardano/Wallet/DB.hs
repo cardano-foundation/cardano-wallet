@@ -5,14 +5,14 @@
 -- Database / Pesistence layer for the wallet backend. This is where we define
 -- the interface allowing us to store and fetch various data on our wallets.
 
-module Cardano.DBLayer
+module Cardano.Wallet.DB
     ( DBLayer(..)
     , PrimaryKey(..)
     ) where
 
 import Prelude
 
-import Cardano.Wallet
+import Cardano.Wallet.Primitive.Model
     ( Wallet, WalletId )
 import Data.List.NonEmpty
     ( NonEmpty )

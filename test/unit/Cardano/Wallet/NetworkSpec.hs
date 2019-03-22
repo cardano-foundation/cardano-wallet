@@ -5,16 +5,16 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Cardano.NetworkLayerSpec
+module Cardano.Wallet.NetworkSpec
     ( spec
     ) where
 
 
 import Prelude
 
-import Cardano.NetworkLayer
+import Cardano.Wallet.Network
     ( TickResult (..), tick )
-import Cardano.Wallet.Primitive
+import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..), Hash (..), SlotId (..) )
 import Control.Concurrent
     ( forkIO, killThread )

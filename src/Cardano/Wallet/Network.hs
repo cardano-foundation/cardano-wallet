@@ -4,7 +4,7 @@
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Cardano.NetworkLayer
+module Cardano.Wallet.Network
     ( NetworkLayer (..)
     , tick
     , TickResult(..)
@@ -13,7 +13,7 @@ module Cardano.NetworkLayer
 
 import Prelude
 
-import Cardano.Wallet.Primitive
+import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..), Hash (..), SlotId (..) )
 import Control.Concurrent
     ( threadDelay )

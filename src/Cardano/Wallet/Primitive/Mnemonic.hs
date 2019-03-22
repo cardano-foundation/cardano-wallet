@@ -18,7 +18,7 @@
 -- This module provides mnemonic (backup phrase) creation, and conversion of a
 -- mnemonic to seed for wallet restoration.
 
-module Cardano.Wallet.Mnemonic
+module Cardano.Wallet.Primitive.Mnemonic
     (
       -- * Types
       Mnemonic
