@@ -72,7 +72,7 @@ import Data.ByteArray.Encoding
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
-    ( bitcoinAlphabet, encodeBase58 )
+    ( bitcoinAlphabet, decodeBase58, encodeBase58 )
 import Data.Map.Strict
     ( Map )
 import Data.Set
@@ -224,11 +224,13 @@ newtype Address = Address
 instance NFData Address
 
 data AddressError
-    = AddressDecodeError
+    = AddressDecodeError T.Text
     deriving (Show)
 
 mkAddress :: T.Text -> Either AddressError Address
-mkAddress = error "todo"
+mkAddress addr = case decodeBase58 bitcoinAlphabet $ T.encodeUtf8 addr of
+    Nothing -> Left $ AddressDecodeError addr
+    Just a -> Right $ Address a
 
 instance Buildable Address where
     build = build . T.decodeUtf8 . encodeBase58 bitcoinAlphabet . getAddress
