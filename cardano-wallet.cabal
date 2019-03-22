@@ -203,6 +203,7 @@ test-suite integration
   main-is:
       Main.hs
   other-modules:
+      Cardano.WalletSpec
       Cardano.Wallet.Network.HttpBridgeSpec
       Cardano.Launcher
       Test.Integration.Framework.DSL
