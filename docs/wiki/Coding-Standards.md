@@ -10,7 +10,7 @@ Each proposal should start with a section justifying the standard with rational 
     * [Editor configuration via `.editorconfig`](#editor-configuration-via-editorconfig)
     * [Limit line length to 80 characters](#limit-line-length-to-80-characters)
     * [Avoid variable-length indentation](#avoid-variable-length-indentation)
-    * [Use only a single blank line between top-level definitions](use-only-a-single-blank-line-between-top-level-definitions)
+    * [Use only a single blank line between top-level definitions](#use-only-a-single-blank-line-between-top-level-definitions)
     * [Stylish-Haskell is used to format grouped imports & language pragmas](#stylish-haskell-is-used-to-format-grouped-imports--language-pragmas)
     * [[PROPOSAL] All modules begin with a helpful documentation comment](#proposal-all-modules-begin-with-a-helpful-documentation-comment)
 
