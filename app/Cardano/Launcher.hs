@@ -67,7 +67,7 @@ instance Buildable Command where
             else
                 (arg, grp ++ [partial])
 
--- | ProcessHasExited is used by a monitoring thread to signal that the process
+-- | ProcessHasExited is used by a monitoring thread to signal that the process
 -- has exited.
 data ProcessHasExited = ProcessHasExited String ExitCode
     deriving Show
