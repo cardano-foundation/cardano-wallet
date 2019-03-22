@@ -590,6 +590,79 @@ instance Control.DeepSeq.NFData Cardano.Wallet.AddressDiscovery.AddressPoolGap
 instance GHC.Enum.Bounded Cardano.Wallet.AddressDiscovery.AddressPoolGap
 instance GHC.Enum.Enum Cardano.Wallet.AddressDiscovery.AddressPoolGap
 
+module Cardano.NetworkLayer
+data NetworkLayer m e0 e1
+NetworkLayer :: (SlotId -> ExceptT e0 m [Block]) -> ExceptT e1 m (Hash "BlockHeader", BlockHeader) -> NetworkLayer m e0 e1
+
+-- | Gets some blocks from the node. It will not necessarily return all the
+--   blocks that the node has, but will receive a reasonable-sized chunk.
+--   It will never return blocks from before the given slot. It may return
+--   an empty list if the node does not have any blocks from after the
+--   starting slot.
+[nextBlocks] :: NetworkLayer m e0 e1 -> SlotId -> ExceptT e0 m [Block]
+[networkTip] :: NetworkLayer m e0 e1 -> ExceptT e1 m (Hash "BlockHeader", BlockHeader)
+
+-- | Repeatedly fetch data from a given source function, and call an action
+--   for each element retrieved.
+--   
+--   If the data source indicates that it has no more data at present
+--   (<a>Sleep</a>), then sleep for the interval <tt>delay</tt>, and then
+--   try the fetch again.
+tick :: forall st m a. MonadIO m => (st -> m (TickResult a, st)) -> (a -> m ()) -> Millisecond -> st -> m ()
+
+-- | The result type of the element fetch function provided to <a>tick</a>.
+data TickResult a
+
+-- | Have a result, and there may be more available.
+GotChunk :: !a -> TickResult a
+
+-- | There is no result available now, so wait.
+Sleep :: TickResult a
+
+-- | Retrieve blocks from a chain producer and execute some given action
+--   for each block.
+listen :: forall e0 e1. Show e0 => NetworkLayer IO e0 e1 -> ([Block] -> IO ()) -> IO ()
+instance Data.Foldable.Foldable Cardano.NetworkLayer.TickResult
+instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.NetworkLayer.TickResult a)
+instance GHC.Show.Show a => GHC.Show.Show (Cardano.NetworkLayer.TickResult a)
+
+
+-- | Representation of values with an associated (free) unit of measure.
+--   Useful to disambiguate primitive types like <a>Int</a> or <a>Value</a>
+--   which can be in different bases depending on the context.
+module Data.Quantity
+
+-- | Represents a value that has an associated unit of measure, based on
+--   some underlying type.
+--   
+--   <pre>
+--   &gt;&gt;&gt; newtype Amount = Amount (Quantity "lovelace" Word32)
+--   </pre>
+newtype Quantity (u :: Symbol) a
+Quantity :: a -> Quantity a
+
+-- | Opaque Haskell type to represent values between 0 and 100 (incl).
+data Percentage
+data MkPercentageError
+PercentageOutOfBoundsError :: MkPercentageError
+
+-- | Safe constructor for <a>Percentage</a>
+mkPercentage :: Integral i => i -> Either MkPercentageError Percentage
+instance GHC.Classes.Eq Data.Quantity.MkPercentageError
+instance GHC.Show.Show Data.Quantity.MkPercentageError
+instance Data.Aeson.Types.ToJSON.ToJSON Data.Quantity.Percentage
+instance GHC.Classes.Eq Data.Quantity.Percentage
+instance GHC.Show.Show Data.Quantity.Percentage
+instance GHC.Generics.Generic Data.Quantity.Percentage
+instance GHC.Classes.Eq a => GHC.Classes.Eq (Data.Quantity.Quantity u a)
+instance GHC.Show.Show a => GHC.Show.Show (Data.Quantity.Quantity u a)
+instance GHC.Generics.Generic (Data.Quantity.Quantity u a)
+instance Data.Aeson.Types.FromJSON.FromJSON Data.Quantity.Percentage
+instance GHC.Enum.Bounded Data.Quantity.Percentage
+instance GHC.Enum.Enum Data.Quantity.Percentage
+instance (GHC.TypeLits.KnownSymbol u, Data.Aeson.Types.ToJSON.ToJSON a) => Data.Aeson.Types.ToJSON.ToJSON (Data.Quantity.Quantity u a)
+instance (GHC.TypeLits.KnownSymbol u, Data.Aeson.Types.FromJSON.FromJSON a) => Data.Aeson.Types.FromJSON.FromJSON (Data.Quantity.Quantity u a)
+
 
 -- | Here we find the "business logic" to manage a Cardano wallet. This is
 --   a direct implementation of the model from the <a>Formal Specification
@@ -655,15 +728,15 @@ txOutsOurs :: forall s. IsOurs s => Set Tx -> s -> (Set TxOut, s)
 --   available inputs for the subsequent blocks.
 utxoFromTx :: Tx -> UTxO
 data WalletMetadata
-WalletMetadata :: !WalletId -> !WalletName -> !AddressPoolGap -> !WalletPassphraseInfo -> !WalletStatus -> !WalletDelegation -> WalletMetadata
+WalletMetadata :: !WalletId -> !WalletName -> !AddressPoolGap -> !WalletPassphraseInfo -> !WalletState -> !WalletDelegation PoolId -> WalletMetadata
 [id] :: WalletMetadata -> !WalletId
 [name] :: WalletMetadata -> !WalletName
 [addressPoolGap] :: WalletMetadata -> !AddressPoolGap
 [passphraseInfo] :: WalletMetadata -> !WalletPassphraseInfo
-[status] :: WalletMetadata -> !WalletStatus
-[delegation] :: WalletMetadata -> !WalletDelegation
+[status] :: WalletMetadata -> !WalletState
+[delegation] :: WalletMetadata -> !WalletDelegation PoolId
 newtype WalletId
-WalletId :: Text -> WalletId
+WalletId :: UUID -> WalletId
 newtype WalletName
 WalletName :: Text -> WalletName
 [getWalletName] :: WalletName -> Text
@@ -673,32 +746,37 @@ walletNameMaxLength :: Int
 data WalletNameError
 WalletNameTooShortError :: WalletNameError
 WalletNameTooLongError :: WalletNameError
-newtype WalletTimestamp
-WalletTimestamp :: Microsecond -> WalletTimestamp
-data WalletStatus
-Ready :: WalletStatus
-Restoring :: WalletStatus
-data WalletDelegation
-Delegated :: WalletDelegation
-NotDelegated :: WalletDelegation
+data WalletState
+Ready :: WalletState
+Restoring :: !Quantity "percent" Percentage -> WalletState
+data WalletDelegation poolId
+NotDelegating :: WalletDelegation poolId
+Delegating :: !poolId -> WalletDelegation poolId
 newtype WalletPassphraseInfo
-WalletPassphraseInfo :: WalletTimestamp -> WalletPassphraseInfo
-[lastUpdated] :: WalletPassphraseInfo -> WalletTimestamp
+WalletPassphraseInfo :: UTCTime -> WalletPassphraseInfo
+[lastUpdatedAt] :: WalletPassphraseInfo -> UTCTime
+newtype PoolId
+PoolId :: Text -> PoolId
+[getPoolId] :: PoolId -> Text
 instance GHC.Generics.Generic Cardano.Wallet.WalletMetadata
 instance GHC.Show.Show Cardano.Wallet.WalletMetadata
 instance GHC.Classes.Eq Cardano.Wallet.WalletMetadata
 instance GHC.Show.Show Cardano.Wallet.WalletPassphraseInfo
 instance GHC.Classes.Eq Cardano.Wallet.WalletPassphraseInfo
-instance GHC.Show.Show Cardano.Wallet.WalletDelegation
-instance GHC.Classes.Eq Cardano.Wallet.WalletDelegation
-instance GHC.Show.Show Cardano.Wallet.WalletStatus
-instance GHC.Classes.Eq Cardano.Wallet.WalletStatus
-instance GHC.Show.Show Cardano.Wallet.WalletTimestamp
-instance GHC.Classes.Ord Cardano.Wallet.WalletTimestamp
-instance GHC.Classes.Eq Cardano.Wallet.WalletTimestamp
+instance GHC.Generics.Generic Cardano.Wallet.WalletPassphraseInfo
+instance GHC.Show.Show Cardano.Wallet.PoolId
+instance GHC.Classes.Eq Cardano.Wallet.PoolId
+instance GHC.Generics.Generic Cardano.Wallet.PoolId
+instance GHC.Show.Show poolId => GHC.Show.Show (Cardano.Wallet.WalletDelegation poolId)
+instance GHC.Classes.Eq poolId => GHC.Classes.Eq (Cardano.Wallet.WalletDelegation poolId)
+instance GHC.Generics.Generic (Cardano.Wallet.WalletDelegation poolId)
+instance GHC.Show.Show Cardano.Wallet.WalletState
+instance GHC.Classes.Eq Cardano.Wallet.WalletState
+instance GHC.Generics.Generic Cardano.Wallet.WalletState
 instance GHC.Show.Show Cardano.Wallet.WalletId
 instance GHC.Classes.Ord Cardano.Wallet.WalletId
 instance GHC.Classes.Eq Cardano.Wallet.WalletId
+instance GHC.Generics.Generic Cardano.Wallet.WalletId
 instance GHC.Show.Show Cardano.Wallet.WalletNameError
 instance GHC.Show.Show Cardano.Wallet.WalletName
 instance GHC.Classes.Eq Cardano.Wallet.WalletName
@@ -707,140 +785,69 @@ instance GHC.Classes.Eq s => GHC.Classes.Eq (Cardano.Wallet.Wallet s)
 instance Control.DeepSeq.NFData (Cardano.Wallet.Wallet s)
 
 module Cardano.Wallet.Api.Types
-newtype Amount
-Amount :: Natural -> Amount
-newtype Percentage
-Percentage :: Int -> Percentage
-newtype PoolId
-PoolId :: UUID -> PoolId
-[$sel:_uuid:PoolId] :: PoolId -> UUID
 data Wallet
-Wallet :: !WalletId -> !ApiT AddressPoolGap -> !WalletBalance -> !WalletDelegation -> !ApiT WalletName -> !WalletPassphraseInfo -> !WalletState -> Wallet
-[$sel:_id:Wallet] :: Wallet -> !WalletId
+Wallet :: !ApiT WalletId -> !ApiT AddressPoolGap -> !ApiT WalletBalance -> !ApiT (WalletDelegation (ApiT PoolId)) -> !ApiT WalletName -> !ApiT WalletPassphraseInfo -> !ApiT WalletState -> Wallet
+[$sel:_id:Wallet] :: Wallet -> !ApiT WalletId
 [$sel:_addressPoolGap:Wallet] :: Wallet -> !ApiT AddressPoolGap
-[$sel:_balance:Wallet] :: Wallet -> !WalletBalance
-[$sel:_delegation:Wallet] :: Wallet -> !WalletDelegation
+[$sel:_balance:Wallet] :: Wallet -> !ApiT WalletBalance
+[$sel:_delegation:Wallet] :: Wallet -> !ApiT (WalletDelegation (ApiT PoolId))
 [$sel:_name:Wallet] :: Wallet -> !ApiT WalletName
-[$sel:_passphrase:Wallet] :: Wallet -> !WalletPassphraseInfo
-[$sel:_state:Wallet] :: Wallet -> !WalletState
+[$sel:_passphrase:Wallet] :: Wallet -> !ApiT WalletPassphraseInfo
+[$sel:_state:Wallet] :: Wallet -> !ApiT WalletState
 data WalletBalance
-WalletBalance :: !Amount -> !Amount -> WalletBalance
-[$sel:_available:WalletBalance] :: WalletBalance -> !Amount
-[$sel:_total:WalletBalance] :: WalletBalance -> !Amount
-
--- | Wallet Delegation representation, can be serialized to and from JSON
---   as follows:
---   
---   <pre>
---   &gt;&gt;&gt; Aeson.encode NotDelegating
---   {"status":"not_delegating"}
---   </pre>
---   
---   <pre>
---   &gt;&gt;&gt; Aeson.encode $ Delegating poolId
---   {"status":"delegating","target": "27522fe5-262e-42a5-8ccb-cef884ea2ba0"}
---   </pre>
-data WalletDelegation
-NotDelegating :: WalletDelegation
-Delegating :: !PoolId -> WalletDelegation
+WalletBalance :: !Quantity "lovelace" Natural -> !Quantity "lovelace" Natural -> WalletBalance
+[$sel:_available:WalletBalance] :: WalletBalance -> !Quantity "lovelace" Natural
+[$sel:_total:WalletBalance] :: WalletBalance -> !Quantity "lovelace" Natural
+newtype PoolId
+PoolId :: Text -> PoolId
+[getPoolId] :: PoolId -> Text
+data WalletDelegation poolId
+NotDelegating :: WalletDelegation poolId
+Delegating :: !poolId -> WalletDelegation poolId
 newtype WalletId
 WalletId :: UUID -> WalletId
-[$sel:_uuid:WalletId] :: WalletId -> UUID
-newtype WalletPassphraseInfo
-WalletPassphraseInfo :: UTCTime -> WalletPassphraseInfo
-[$sel:_lastUpdatedAt:WalletPassphraseInfo] :: WalletPassphraseInfo -> UTCTime
-
--- | A Wallet State representation in the API. It can be serialized to and
---   from JSON as follows:
---   
---   <pre>
---   &gt;&gt;&gt; Aeson.encode Ready
---   {"status":"ready"}
---   </pre>
---   
---   <pre>
---   &gt;&gt;&gt; Aeson.encode $ Restoring (Percentage 14)
---   {"status":"restoring","progress":{"quantity":14,"unit":"percent"}}
---   </pre>
-data WalletState
-Ready :: WalletState
-Restoring :: !Percentage -> WalletState
-
--- | Maximum number of consecutive undiscovered addresses allowed
-data AddressPoolGap
 newtype WalletName
 WalletName :: Text -> WalletName
 [getWalletName] :: WalletName -> Text
+newtype WalletPassphraseInfo
+WalletPassphraseInfo :: UTCTime -> WalletPassphraseInfo
+[lastUpdatedAt] :: WalletPassphraseInfo -> UTCTime
+data WalletState
+Ready :: WalletState
+Restoring :: !Quantity "percent" Percentage -> WalletState
+
+-- | Maximum number of consecutive undiscovered addresses allowed
+data AddressPoolGap
 newtype ApiT a
 ApiT :: a -> ApiT a
 [$sel:getApiT:ApiT] :: ApiT a -> a
-
--- | Represents a value that has an associated unit of measure, based on
---   some underlying type.
-newtype MeasuredIn (u :: Symbol) a
-MeasuredIn :: a -> MeasuredIn a
 instance GHC.Show.Show Cardano.Wallet.Api.Types.Wallet
 instance GHC.Generics.Generic Cardano.Wallet.Api.Types.Wallet
 instance GHC.Classes.Eq Cardano.Wallet.Api.Types.Wallet
 instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.Wallet.Api.Types.ApiT a)
 instance GHC.Show.Show a => GHC.Show.Show (Cardano.Wallet.Api.Types.ApiT a)
 instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.ApiT a)
-instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.Wallet.Api.Types.MeasuredIn u a)
-instance GHC.Show.Show a => GHC.Show.Show (Cardano.Wallet.Api.Types.MeasuredIn u a)
-instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.MeasuredIn u a)
-instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletState
-instance GHC.Generics.Generic Cardano.Wallet.Api.Types.WalletState
-instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletState
-instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletPassphraseInfo
-instance GHC.Generics.Generic Cardano.Wallet.Api.Types.WalletPassphraseInfo
-instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletPassphraseInfo
-instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletId
-instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletId
-instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletId
-instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletId
-instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletDelegation
-instance GHC.Generics.Generic Cardano.Wallet.Api.Types.WalletDelegation
-instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletDelegation
-instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.PoolId
-instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.PoolId
-instance GHC.Show.Show Cardano.Wallet.Api.Types.PoolId
-instance GHC.Classes.Eq Cardano.Wallet.Api.Types.PoolId
 instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletBalance
 instance GHC.Generics.Generic Cardano.Wallet.Api.Types.WalletBalance
 instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletBalance
-instance GHC.Show.Show Cardano.Wallet.Api.Types.PercentageError
-instance GHC.Show.Show Cardano.Wallet.Api.Types.Percentage
-instance GHC.Classes.Ord Cardano.Wallet.Api.Types.Percentage
-instance GHC.Generics.Generic Cardano.Wallet.Api.Types.Percentage
-instance GHC.Classes.Eq Cardano.Wallet.Api.Types.Percentage
-instance GHC.Classes.Eq Cardano.Wallet.Api.Types.Amount
-instance GHC.Classes.Ord Cardano.Wallet.Api.Types.Amount
-instance GHC.Show.Show Cardano.Wallet.Api.Types.Amount
-instance GHC.Generics.Generic Cardano.Wallet.Api.Types.Amount
-instance GHC.Enum.Bounded (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.AddressDiscovery.AddressPoolGap)
-instance GHC.Enum.Enum (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.AddressDiscovery.AddressPoolGap)
 instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.Wallet
 instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.Wallet
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.WalletName)
-instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.WalletName)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.WalletId)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.WalletId)
 instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.AddressDiscovery.AddressPoolGap)
 instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.AddressDiscovery.AddressPoolGap)
-instance (GHC.TypeLits.KnownSymbol u, Data.Aeson.Types.ToJSON.ToJSON a) => Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.MeasuredIn u a)
-instance (GHC.TypeLits.KnownSymbol u, Data.Aeson.Types.FromJSON.FromJSON a) => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.MeasuredIn u a)
-instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletState
-instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletState
-instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletPassphraseInfo
-instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletPassphraseInfo
-instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletDelegation
-instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletDelegation
-instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletBalance
-instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletBalance
-instance GHC.Enum.Bounded Cardano.Wallet.Api.Types.Percentage
-instance GHC.Enum.Enum Cardano.Wallet.Api.Types.Percentage
-instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.Percentage
-instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.Percentage
-instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.Amount
-instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.Amount
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Api.Types.WalletBalance)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Api.Types.WalletBalance)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.WalletDelegation (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.PoolId)))
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.WalletDelegation (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.PoolId)))
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.WalletName)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.WalletName)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.WalletPassphraseInfo)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.WalletPassphraseInfo)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.WalletState)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.WalletState)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.PoolId)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.PoolId)
 
 module Cardano.Wallet.Api
 api :: Proxy Api
@@ -880,52 +887,6 @@ instance GHC.Classes.Ord key => GHC.Classes.Ord (Cardano.DBLayer.PrimaryKey key)
 instance GHC.Classes.Eq key => GHC.Classes.Eq (Cardano.DBLayer.PrimaryKey key)
 
 
--- | Dummy implementation of the database-layer, using MVar. This may be
---   good for state-machine testing in order to compare it with an
---   implementation on a real data store.
-module Cardano.DBLayer.MVar
-
--- | Instantiate a new in-memory "database" layer that simply stores data
---   in a local MVar. Data vanishes if the software is shut down.
-newDBLayer :: forall s. IO (DBLayer IO s)
-
-module Cardano.NetworkLayer
-data NetworkLayer m e0 e1
-NetworkLayer :: (SlotId -> ExceptT e0 m [Block]) -> ExceptT e1 m (Hash "BlockHeader", BlockHeader) -> NetworkLayer m e0 e1
-
--- | Gets some blocks from the node. It will not necessarily return all the
---   blocks that the node has, but will receive a reasonable-sized chunk.
---   It will never return blocks from before the given slot. It may return
---   an empty list if the node does not have any blocks from after the
---   starting slot.
-[nextBlocks] :: NetworkLayer m e0 e1 -> SlotId -> ExceptT e0 m [Block]
-[networkTip] :: NetworkLayer m e0 e1 -> ExceptT e1 m (Hash "BlockHeader", BlockHeader)
-
--- | Repeatedly fetch data from a given source function, and call an action
---   for each element retrieved.
---   
---   If the data source indicates that it has no more data at present
---   (<a>Sleep</a>), then sleep for the interval <tt>delay</tt>, and then
---   try the fetch again.
-tick :: forall st m a. MonadIO m => (st -> m (TickResult a, st)) -> (a -> m ()) -> Millisecond -> st -> m ()
-
--- | The result type of the element fetch function provided to <a>tick</a>.
-data TickResult a
-
--- | Have a result, and there may be more available.
-GotChunk :: !a -> TickResult a
-
--- | There is no result available now, so wait.
-Sleep :: TickResult a
-
--- | Retrieve blocks from a chain producer and execute some given action
---   for each block.
-listen :: forall e0 e1. Show e0 => NetworkLayer IO e0 e1 -> ([Block] -> IO ()) -> IO ()
-instance Data.Foldable.Foldable Cardano.NetworkLayer.TickResult
-instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.NetworkLayer.TickResult a)
-instance GHC.Show.Show a => GHC.Show.Show (Cardano.NetworkLayer.TickResult a)
-
-
 -- | Provides the wallet layer functions that are used by API layer and
 --   uses both <a>Cardano.DBLayer</a> and <a>Cardano.NetworkLayer</a> to
 --   realize its role as being intermediary between the three.
@@ -961,6 +922,16 @@ instance GHC.Show.Show Cardano.WalletLayer.GetWalletError
 instance GHC.Classes.Eq Cardano.WalletLayer.GetWalletError
 instance GHC.Generics.Generic Cardano.WalletLayer.NewWallet
 instance GHC.Show.Show Cardano.WalletLayer.NewWallet
+
+
+-- | Dummy implementation of the database-layer, using MVar. This may be
+--   good for state-machine testing in order to compare it with an
+--   implementation on a real data store.
+module Cardano.DBLayer.MVar
+
+-- | Instantiate a new in-memory "database" layer that simply stores data
+--   in a local MVar. Data vanishes if the software is shut down.
+newDBLayer :: forall s. IO (DBLayer IO s)
 
 
 -- | Extra content types for Servant.
