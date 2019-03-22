@@ -1,8 +1,10 @@
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -16,7 +18,7 @@ module Cardano.Wallet.Api.TypesSpec (spec) where
 import Prelude
 
 import Cardano.Wallet.Api
-    ( api )
+    ( Api, api )
 import Cardano.Wallet.Api.Types
     ( AddressPoolGap
     , ApiT (..)
@@ -34,7 +36,7 @@ import Cardano.Wallet.Primitive.Model
 import Control.Lens
     ( Lens', at, (^.) )
 import Control.Monad
-    ( replicateM )
+    ( mapM_, replicateM )
 import Data.Aeson
     ( FromJSON, ToJSON )
 import Data.Either
@@ -45,6 +47,8 @@ import Data.Maybe
     ( isJust )
 import Data.Quantity
     ( Percentage, Quantity (..) )
+import Data.Set
+    ( Set )
 import Data.Swagger
     ( NamedSchema (..)
     , Operation
@@ -60,7 +64,7 @@ import Data.Swagger
     , put
     )
 import Data.Typeable
-    ( Typeable )
+    ( TypeRep, Typeable )
 import Data.Word
     ( Word32, Word8 )
 import GHC.TypeLits
@@ -68,7 +72,7 @@ import GHC.TypeLits
 import Numeric.Natural
     ( Natural )
 import Servant
-    ( (:<|>), (:>), Capture, StdMethod (..), Verb )
+    ( (:<|>), (:>), Capture, JSON, NoContent, ReqBody, StdMethod (..), Verb )
 import Servant.Swagger.Test
     ( validateEveryToJSON )
 import Test.Aeson.GenericSpecs
@@ -90,7 +94,9 @@ import Test.QuickCheck.Arbitrary.Generic
 import Test.QuickCheck.Instances.Time
     ()
 
+import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified Data.Typeable
 import qualified Data.UUID.Types as UUID
 import qualified Data.Yaml as Yaml
 
@@ -99,10 +105,12 @@ spec = do
     describe
         "can perform roundtrip JSON serialization & deserialization, \
         \and match existing golden files" $ do
-            roundtripAndGolden $ Proxy @ Wallet
+        describe "...for every type used in the Api" $ do
+            mapM_ typeSpec $ roundtripAndGoldenPerType $ Proxy @Api
+
+        describe "...and for these additional types" $ do
             roundtripAndGolden $ Proxy @ (ApiT AddressPoolGap)
             roundtripAndGolden $ Proxy @ (ApiT (WalletDelegation (ApiT PoolId)))
-            roundtripAndGolden $ Proxy @ (ApiT WalletId)
             roundtripAndGolden $ Proxy @ (ApiT WalletName)
             roundtripAndGolden $ Proxy @ (ApiT WalletBalance)
             roundtripAndGolden $ Proxy @ (ApiT WalletPassphraseInfo)
@@ -297,6 +305,71 @@ instance (KnownSymbol param, HasPath sub) => HasPath (Capture param t :> sub)
     getPath _ =
         let (verb, sub) = getPath (Proxy @sub)
         in (verb, "/{" <> symbolVal (Proxy :: Proxy param) <> "}" <> sub)
+
+
+
+{-------------------------------------------------------------------------------
+               roundtripAndGolden for an entire Api type
+-------------------------------------------------------------------------------}
+
+aesonTestCase :: Checkable a => Proxy a -> AesonTestCase
+aesonTestCase proxy =
+    AesonTestCase
+    { typeRep = Data.Typeable.typeRep proxy
+    , typeSpec = roundtripAndGolden proxy
+    }
+
+data AesonTestCase = AesonTestCase
+    { typeRep :: TypeRep
+    , typeSpec :: Spec
+    }
+
+instance Eq AesonTestCase where
+    a == b = (typeRep a) == (typeRep b)
+
+instance Ord AesonTestCase where
+    compare a b = compare (typeRep a) (typeRep b)
+
+class JsonTestable api where
+    roundtripAndGoldenPerType :: Proxy api -> Set AesonTestCase
+
+type Checkable a = (Typeable a, Arbitrary a, ToJSON a, FromJSON a)
+
+-- | Don't run tests on NoContent
+instance Method m => JsonTestable (Verb m s ct NoContent) where
+    roundtripAndGoldenPerType _ = Set.empty
+
+-- | Run tests on the return-type
+instance {-# OVERLAPS #-} (Checkable a, Method m)
+    => JsonTestable (Verb m s ct a) where
+    roundtripAndGoldenPerType _ =
+        Set.singleton $ aesonTestCase $ Proxy @a
+
+instance {-# OVERLAPS #-} (Checkable a, Method m)
+    => JsonTestable (Verb m s ct [a]) where
+    roundtripAndGoldenPerType _ =
+        Set.singleton $ aesonTestCase $ Proxy @a
+
+-- Stitch everything together:
+
+instance (JsonTestable b, KnownSymbol param)
+    => JsonTestable (Capture param t :> b) where
+    roundtripAndGoldenPerType _ =
+        roundtripAndGoldenPerType $ Proxy @b
+
+instance JsonTestable body => JsonTestable (ReqBody '[JSON] body) where
+    roundtripAndGoldenPerType _ =
+        roundtripAndGoldenPerType $ Proxy @body
+
+instance (JsonTestable b, KnownSymbol a) => JsonTestable (a :> b) where
+     roundtripAndGoldenPerType _ = do
+        roundtripAndGoldenPerType (Proxy @b)
+
+instance (JsonTestable a, JsonTestable b) => JsonTestable (a :<|> b) where
+     roundtripAndGoldenPerType _ = do
+        Set.union
+            (roundtripAndGoldenPerType $ Proxy @a)
+            (roundtripAndGoldenPerType $ Proxy @b)
 
 -- A way to demote 'StdMethod' back to the world of values. Servant provides a
 -- 'reflectMethod' that does just that, but demote types to raw 'ByteString' for
