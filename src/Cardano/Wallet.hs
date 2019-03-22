@@ -32,14 +32,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.Mnemonic
     ( Mnemonic, entropyToBytes, mnemonicToEntropy )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet
-    , WalletId (..)
-    , WalletName (..)
-    , applyBlock
-    , availableBalance
-    , currentTip
-    , initWallet
-    )
+    ( Wallet, WalletId (..), WalletName (..), applyBlock, initWallet )
 import Cardano.Wallet.Primitive.Types
     ( Block (..) )
 import Control.DeepSeq
@@ -52,12 +45,8 @@ import Data.List
     ( foldl' )
 import Data.List.NonEmpty
     ( NonEmpty ((:|)) )
-import Fmt
-    ( build, (+|), (|+) )
 import GHC.Generics
     ( Generic )
-import Say
-    ( say )
 
 import qualified Data.Set as Set
 
@@ -126,8 +115,7 @@ mkWalletLayer db network = WalletLayer
         Just (w :| _) ->
             return w
 
-    , watchWallet = \wid ->
-        listen network $ \blocks -> applyBlocks wid blocks *> printInfo wid
+    , watchWallet = listen network . applyBlocks
     }
   where
     applyBlocks :: WalletId -> [Block] -> IO ()
@@ -140,11 +128,3 @@ mkWalletLayer db network = WalletLayer
                 let cps' = foldl' (flip applyBlock) cps (filter nonEmpty blocks)
                 return cps'
         cps' `deepseq` putCheckpoints db (PrimaryKey wid) cps'
-
-    printInfo :: WalletId -> IO ()
-    printInfo wid = readCheckpoints db (PrimaryKey wid) >>= \case
-        Nothing ->
-            say "No available checkpoints"
-        Just (cp :| _) -> do
-            say $ "Current tip: " +| build (currentTip cp)
-            say $ "Available balance: " +| (availableBalance cp) |+ " Lovelaces"

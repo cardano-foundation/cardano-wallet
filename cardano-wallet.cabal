@@ -50,7 +50,6 @@ library
     , http-client
     , http-media
     , memory
-    , say
     , servant
     , servant-client
     , servant-client-core
