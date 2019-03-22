@@ -17,7 +17,7 @@ type Api = DeleteWallet :<|> GetWallet :<|> ListWallets
 
 type DeleteWallet = "wallets"
     :> Capture "walletId" WalletId
-    :> Delete '[JSON] NoContent
+    :> Delete '[] NoContent
 
 type GetWallet = "wallets"
     :> Capture "walletId" WalletId
