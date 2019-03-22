@@ -8,7 +8,7 @@ import Cardano.Wallet.Binary.Packfile
     ( PackfileError (..), decodePackfile )
 import Cardano.Wallet.BinarySpec
     ( unsafeDeserialiseFromBytes )
-import Cardano.Wallet.Primitive
+import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..), SlotId (..) )
 import Data.Either
     ( fromRight, isRight )

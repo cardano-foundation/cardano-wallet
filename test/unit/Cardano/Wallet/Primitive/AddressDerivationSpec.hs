@@ -4,13 +4,13 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.AddressDerivationSpec
+module Cardano.Wallet.Primitive.AddressDerivationSpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.Wallet.AddressDerivation
+import Cardano.Wallet.Primitive.AddressDerivation
     ( ChangeChain (..)
     , Depth (..)
     , DerivationType (..)

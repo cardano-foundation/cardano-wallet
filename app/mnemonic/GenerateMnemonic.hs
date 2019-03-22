@@ -9,7 +9,7 @@
 
 import Prelude
 
-import Cardano.Wallet.Mnemonic
+import Cardano.Wallet.Primitive.Mnemonic
     ( Mnemonic, entropyToMnemonic, genEntropy, mnemonicToText )
 import Data.Function
     ( flip )

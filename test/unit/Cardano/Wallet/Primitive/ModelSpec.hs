@@ -3,13 +3,13 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.WalletSpec
+module Cardano.Wallet.Primitive.ModelSpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.Wallet
+import Cardano.Wallet.Primitive.Model
     ( applyBlock
     , availableBalance
     , initWallet
@@ -18,7 +18,7 @@ import Cardano.Wallet
     , txOutsOurs
     , utxoFromTx
     )
-import Cardano.Wallet.Primitive
+import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
     , BlockHeader (..)

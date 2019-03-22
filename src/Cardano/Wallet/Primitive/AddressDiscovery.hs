@@ -14,7 +14,7 @@
 -- scheme as specified in BIP-0044. Later, we may introduce backward
 -- compatibility with random address scheme from the legacy Cardano wallets.
 
-module Cardano.Wallet.AddressDiscovery
+module Cardano.Wallet.Primitive.AddressDiscovery
     ( -- * Sequential Derivation
 
     -- ** Address Pool Gap
@@ -41,7 +41,7 @@ import Prelude
 
 import Cardano.Crypto.Wallet
     ( XPub )
-import Cardano.Wallet.AddressDerivation
+import Cardano.Wallet.Primitive.AddressDerivation
     ( ChangeChain (..)
     , Depth (..)
     , DerivationType (..)
@@ -50,7 +50,7 @@ import Cardano.Wallet.AddressDerivation
     , deriveAddressPublicKey
     , keyToAddress
     )
-import Cardano.Wallet.Primitive
+import Cardano.Wallet.Primitive.Types
     ( Address, IsOurs (..), invariant )
 import Control.Applicative
     ( (<|>) )

@@ -7,25 +7,25 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.WalletLayerSpec
+module Cardano.WalletSpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.DBLayer
-    ( DBLayer (..), PrimaryKey (..) )
-import Cardano.DBLayer.MVar
-    ( newDBLayer )
-import Cardano.NetworkLayer.HttpBridge
-    ( newNetworkLayer )
 import Cardano.Wallet
-    ( WalletId (..), WalletName (..) )
-import Cardano.Wallet.AddressDerivation
+    ( NewWallet (..), WalletLayer (..), mkWalletLayer )
+import Cardano.Wallet.DB
+    ( DBLayer (..), PrimaryKey (..) )
+import Cardano.Wallet.DB.MVar
+    ( newDBLayer )
+import Cardano.Wallet.Network.HttpBridge
+    ( newNetworkLayer )
+import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..) )
-import Cardano.Wallet.AddressDiscovery
+import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap, SeqState )
-import Cardano.Wallet.Mnemonic
+import Cardano.Wallet.Primitive.Mnemonic
     ( Entropy
     , EntropySize
     , Mnemonic
@@ -35,8 +35,8 @@ import Cardano.Wallet.Mnemonic
     , entropyToMnemonic
     , mkEntropy
     )
-import Cardano.WalletLayer
-    ( NewWallet (..), WalletLayer (..), mkWalletLayer )
+import Cardano.Wallet.Primitive.Model
+    ( WalletId (..), WalletName (..) )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except

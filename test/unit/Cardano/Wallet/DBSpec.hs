@@ -1,10 +1,10 @@
-module Cardano.DBLayerSpec
+module Cardano.Wallet.DBSpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.DBLayer
+import Cardano.Wallet.DB
     ()
 import Test.Hspec
     ( Spec )

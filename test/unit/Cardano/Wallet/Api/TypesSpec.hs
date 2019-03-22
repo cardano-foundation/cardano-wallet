@@ -15,8 +15,6 @@ module Cardano.Wallet.Api.TypesSpec (spec) where
 
 import Prelude
 
-import Cardano.Wallet
-    ( mkWalletName, walletNameMaxLength, walletNameMinLength )
 import Cardano.Wallet.Api
     ( api )
 import Cardano.Wallet.Api.Types
@@ -31,6 +29,8 @@ import Cardano.Wallet.Api.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     )
+import Cardano.Wallet.Primitive.Model
+    ( mkWalletName, walletNameMaxLength, walletNameMinLength )
 import Control.Lens
     ( Lens', at, (^.) )
 import Control.Monad

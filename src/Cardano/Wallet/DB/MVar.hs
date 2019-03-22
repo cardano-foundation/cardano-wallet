@@ -8,13 +8,13 @@
 -- state-machine testing in order to compare it with an implementation on a real
 -- data store.
 
-module Cardano.DBLayer.MVar
+module Cardano.Wallet.DB.MVar
     ( newDBLayer
     ) where
 
 import Prelude
 
-import Cardano.DBLayer
+import Cardano.Wallet.DB
     ( DBLayer (..) )
 import Control.Concurrent.MVar
     ( modifyMVar_, newMVar, readMVar )

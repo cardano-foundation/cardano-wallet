@@ -2,13 +2,13 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.PrimitiveSpec
+module Cardano.Wallet.Primitive.TypesSpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.Wallet.Primitive
+import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
     , BlockHeader (..)

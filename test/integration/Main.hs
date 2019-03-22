@@ -33,13 +33,13 @@ import Test.Integration.Framework.DSL
     , verify
     )
 
-import qualified Cardano.NetworkLayer.HttpBridgeSpec as HttpBridge
+import qualified Cardano.Wallet.Network.HttpBridgeSpec as HttpBridge
 import qualified Data.Text as T
 
 main :: IO ()
 main = do
     hspec $ do
-        describe "Cardano.NetworkLayer.HttpBridge" HttpBridge.spec
+        describe "Cardano.Wallet.Network.HttpBridge" HttpBridge.spec
 
         beforeAll (withWallet (newMVar . Context ())) $ do
             describe "Integration test framework" dummySpec

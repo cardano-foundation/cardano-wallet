@@ -8,19 +8,30 @@
 -- License: MIT
 --
 -- Provides the wallet layer functions that are used by API layer and uses both
--- "Cardano.DBLayer" and "Cardano.NetworkLayer" to realize its role as being
+-- "Cardano.Wallet.DB" and "Cardano.Wallet.Network" to realize its role as being
 -- intermediary between the three.
 
 
-module Cardano.WalletLayer where
+module Cardano.Wallet where
 
 import Prelude
 
-import Cardano.DBLayer
+import Cardano.Wallet.DB
     ( DBLayer (..), PrimaryKey (..) )
-import Cardano.NetworkLayer
+import Cardano.Wallet.Network
     ( NetworkLayer (..), listen )
-import Cardano.Wallet
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( ChangeChain (..)
+    , Passphrase
+    , deriveAccountPrivateKey
+    , generateKeyFromSeed
+    , publicKey
+    )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( AddressPoolGap, SeqState (..), mkAddressPool )
+import Cardano.Wallet.Primitive.Mnemonic
+    ( Mnemonic, entropyToBytes, mnemonicToEntropy )
+import Cardano.Wallet.Primitive.Model
     ( Wallet
     , WalletId (..)
     , WalletName (..)
@@ -29,18 +40,7 @@ import Cardano.Wallet
     , currentTip
     , initWallet
     )
-import Cardano.Wallet.AddressDerivation
-    ( ChangeChain (..)
-    , Passphrase
-    , deriveAccountPrivateKey
-    , generateKeyFromSeed
-    , publicKey
-    )
-import Cardano.Wallet.AddressDiscovery
-    ( AddressPoolGap, SeqState (..), mkAddressPool )
-import Cardano.Wallet.Mnemonic
-    ( Mnemonic, entropyToBytes, mnemonicToEntropy )
-import Cardano.Wallet.Primitive
+import Cardano.Wallet.Primitive.Types
     ( Block (..) )
 import Control.DeepSeq
     ( deepseq )

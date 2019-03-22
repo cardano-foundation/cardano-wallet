@@ -1,7 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Cardano.NetworkLayer.HttpBridgeSpec
+module Cardano.Wallet.Network.HttpBridgeSpec
     ( spec
     ) where
 
@@ -9,11 +9,11 @@ import Prelude
 
 import Cardano.Launcher
     ( Command (..), launch )
-import Cardano.NetworkLayer
+import Cardano.Wallet.Network
     ( NetworkLayer (..) )
-import Cardano.NetworkLayer.HttpBridge
+import Cardano.Wallet.Network.HttpBridge
     ( HttpBridgeError (..) )
-import Cardano.Wallet.Primitive
+import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..), Hash (..), SlotId (..) )
 import Control.Concurrent
     ( threadDelay )
@@ -36,7 +36,7 @@ import Test.Hspec
     , shouldThrow
     )
 
-import qualified Cardano.NetworkLayer.HttpBridge as HttpBridge
+import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
 
 port :: Int
 port = 1337

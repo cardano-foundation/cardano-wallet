@@ -11,7 +11,7 @@ import Prelude
 
 import Cardano.Wallet.Binary
     ( decodeBlock, decodeBlockHeader, decodeTx, encodeTx, txId )
-import Cardano.Wallet.Primitive
+import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
     , BlockHeader (..)

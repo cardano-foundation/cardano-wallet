@@ -1,13 +1,14 @@
-module Cardano.NetworkLayer.HttpBridgeSpec
+module Cardano.Wallet.Network.HttpBridgeSpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.NetworkLayer
+import Cardano.Wallet.Network
     ( NetworkLayer (..) )
-import Cardano.NetworkLayer.HttpBridge
-import Cardano.Wallet.Primitive
+import Cardano.Wallet.Network.HttpBridge
+    ( HttpBridge (..) )
+import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..), Hash (..), SlotId (..), slotsPerEpoch )
 import Control.Monad.Catch
     ( MonadThrow (..) )
@@ -20,6 +21,7 @@ import Data.Word
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy )
 
+import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
 import qualified Data.ByteString.Char8 as B8
 
 
@@ -114,7 +116,7 @@ mockNetworkLayer
     -> SlotId -- ^ the tip block
     -> NetworkLayer m String String
 mockNetworkLayer logLine firstUnstableEpoch tip =
-    mkNetworkLayer (mockHttpBridge logLine firstUnstableEpoch tip)
+    HttpBridge.mkNetworkLayer (mockHttpBridge logLine firstUnstableEpoch tip)
 
 -- | A network layer which returns mock blocks.
 mockHttpBridge

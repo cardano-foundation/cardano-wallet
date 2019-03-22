@@ -23,7 +23,7 @@
 -- All those functions are pure and there's no reason to shove in any sort of
 -- side-effects in here :)
 
-module Cardano.Wallet
+module Cardano.Wallet.Primitive.Model
     (
     -- * Wallet
       Wallet
@@ -53,11 +53,11 @@ module Cardano.Wallet
 
 import Prelude
 
-import Cardano.Wallet.AddressDiscovery
-    ( AddressPoolGap )
 import Cardano.Wallet.Binary
     ( txId )
-import Cardano.Wallet.Primitive
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( AddressPoolGap )
+import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
     , Dom (..)

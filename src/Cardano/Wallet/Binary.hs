@@ -40,7 +40,7 @@ import Prelude
 
 import Cardano.Crypto.Wallet
     ( ChainCode (..), XPub (..) )
-import Cardano.Wallet.Primitive
+import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
     , BlockHeader (..)

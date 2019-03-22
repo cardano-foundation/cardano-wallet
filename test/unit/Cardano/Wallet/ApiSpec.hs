@@ -1,10 +1,10 @@
-module Cardano.Wallet.Network.HttpBridge.ApiSpec
+module Cardano.Wallet.ApiSpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.Wallet.Network.HttpBridge.Api
+import Cardano.Wallet.Api
     ()
 import Test.Hspec
     ( Spec )
