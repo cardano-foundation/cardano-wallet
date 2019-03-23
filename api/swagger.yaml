@@ -370,127 +370,128 @@ networkInformationSoftwareUpdate: &networkInformationSoftwareUpdate
 
 #############################################################################
 #                                                                           #
-#                                RESOURCES                                  #
+#                              DEFINITIONS                                  #
 #                                                                           #
 #############################################################################
 
-address: &address
-  type: object
-  required:
-    - id
-    - state
-  properties:
-    id: *addressId
-    state: *addressState
+definitions:
+  Address: &address
+    type: object
+    required:
+      - id
+      - state
+    properties:
+      id: *addressId
+      state: *addressState
 
-networkInformation: &networkInformation
-  type: object
-  required:
-    - blockchainHeight
-    - localHeight
-    - ntpStatus
-    - software_update
-    - syncProgress
-    - tip
-  properties:
-    blockchainHeight: *networkInformationBlockchainHeight
-    localHeight: *networkInformationLocalHeight
-    ntpStatus: *networkInformationNtpStatus
-    software_update: *networkInformationSoftwareUpdate
-    syncProgress: *networkInformationSyncProgress
-    tip: *networkInformationTip
+  NetworkInformation: &networkInformation
+    type: object
+    required:
+      - blockchainHeight
+      - localHeight
+      - ntpStatus
+      - software_update
+      - syncProgress
+      - tip
+    properties:
+      blockchainHeight: *networkInformationBlockchainHeight
+      localHeight: *networkInformationLocalHeight
+      ntpStatus: *networkInformationNtpStatus
+      software_update: *networkInformationSoftwareUpdate
+      syncProgress: *networkInformationSyncProgress
+      tip: *networkInformationTip
 
-stakePool: &stakePool
-  type: object
-  required:
-    - id
-    - ticker
-    - metrics
-    - profit_margin
-  properties:
-    id: *stakePoolId
-    ticker: *stakePoolTicker
-    metrics: *stakePoolMetrics
-    profit_margin: *stakePoolProfitMargin
+  StakePool: &stakePool
+    type: object
+    required:
+      - id
+      - ticker
+      - metrics
+      - profit_margin
+    properties:
+      id: *stakePoolId
+      ticker: *stakePoolTicker
+      metrics: *stakePoolMetrics
+      profit_margin: *stakePoolProfitMargin
 
-transaction: &transaction
-  type: object
-  required:
-    - id
-    - amount
-    - depth
-    - direction
-    - inputs
-    - outputs
-    - status
-  properties:
-    id: *transactionId
-    amount: *transactionAmount
-    inserted_at: *transactionInsertedAt
-    depth: *transactionDepth
-    direction: *transactionDirection
-    inputs: *transactionInputs
-    outputs: *transactionOutputs
-    status: *transactionStatus
+  Transaction: &transaction
+    type: object
+    required:
+      - id
+      - amount
+      - depth
+      - direction
+      - inputs
+      - outputs
+      - status
+    properties:
+      id: *transactionId
+      amount: *transactionAmount
+      inserted_at: *transactionInsertedAt
+      depth: *transactionDepth
+      direction: *transactionDirection
+      inputs: *transactionInputs
+      outputs: *transactionOutputs
+      status: *transactionStatus
 
-wallet: &wallet
-  type: object
-  required:
-    - id
-    - address_pool_gap
-    - balance
-    - delegation
-    - name
-    - passphrase
-    - state
-  properties:
-    id: *walletId
-    address_pool_gap: *walletAddressPoolGap
-    balance: *walletBalance
-    delegation: *walletDelegation
-    name: *walletName
-    passphrase: *walletPassphraseInfo
-    state: *walletState
+  Wallet: &wallet
+    type: object
+    required:
+      - id
+      - address_pool_gap
+      - balance
+      - delegation
+      - name
+      - passphrase
+      - state
+    properties:
+      id: *walletId
+      address_pool_gap: *walletAddressPoolGap
+      balance: *walletBalance
+      delegation: *walletDelegation
+      name: *walletName
+      passphrase: *walletPassphraseInfo
+      state: *walletState
 
-walletUTxOsStatistics: &walletUTxOsStatistics
-  type: object
-  required:
-    - total
-    - scale
-    - distribution
-  properties:
-    total: *amount
-    scale:
-      type: string
-      enum:
-        - log10
-    distribution:
-      type: object
-      additionalProperties:
-        type: integer
-  example:
-    total:
-      quantity: 42000000
-      unit: lovelace
-    scale: log10
-    distribution:
-      10: 1
-      100: 0
-      1000: 8
-      10000: 14
-      100000: 32
-      1000000: 3
-      10000000: 0
-      100000000: 12
-      1000000000: 0
-      10000000000: 0
-      100000000000: 0
-      1000000000000: 0
-      10000000000000: 0
-      100000000000000: 0
-      1000000000000000: 0
-      10000000000000000: 0
-      45000000000000000: 0
+  WalletUTxOsStatistics: &walletUTxOsStatistics
+    type: object
+    required:
+      - total
+      - scale
+      - distribution
+    properties:
+      total: *amount
+      scale:
+        type: string
+        enum:
+          - log10
+      distribution:
+        type: object
+        additionalProperties:
+          type: integer
+    example:
+      total:
+        quantity: 42000000
+        unit: lovelace
+      scale: log10
+      distribution:
+        10: 1
+        100: 0
+        1000: 8
+        10000: 14
+        100000: 32
+        1000000: 3
+        10000000: 0
+        100000000: 12
+        1000000000: 0
+        10000000000: 0
+        100000000000: 0
+        1000000000000: 0
+        10000000000000: 0
+        100000000000000: 0
+        1000000000000000: 0
+        10000000000000000: 0
+        45000000000000000: 0
 
 
 #############################################################################
@@ -588,7 +589,8 @@ parametersQuitStakePool: &parametersQuitStakePool
 
 responsesErr: &responsesErr
   type: object
-  required: message
+  required:
+    - message
   properties:
     message:
       type: string
