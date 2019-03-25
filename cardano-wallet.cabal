@@ -50,6 +50,7 @@ library
     , http-api-data
     , http-client
     , http-media
+    , MonadRandom
     , memory
     , servant
     , servant-server
@@ -69,6 +70,7 @@ library
       Cardano.Wallet.Api.Types
       Cardano.Wallet.Binary
       Cardano.Wallet.Binary.Packfile
+      Cardano.Wallet.CoinSelection
       Cardano.Wallet.DB
       Cardano.Wallet.DB.MVar
       Cardano.Wallet.Network
@@ -143,6 +145,7 @@ test-suite unit
       Cardano.Wallet.Api.TypesSpec
       Cardano.Wallet.BinarySpec
       Cardano.Wallet.Binary.PackfileSpec
+      Cardano.Wallet.CoinSelectionSpec
       Cardano.Wallet.DBSpec
       Cardano.Wallet.DB.MVarSpec
       Cardano.Wallet.NetworkSpec
