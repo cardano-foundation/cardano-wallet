@@ -43,7 +43,7 @@ port = 1337
 
 spec :: Spec
 spec = do
-    describe "Happy paths" $ beforeAll startBridge $ afterAll (cancel . fst) $ do
+    describe "Happy paths" $ beforeAll startBridge $ afterAll closeBridge $ do
         it "get from packed epochs" $ \(_, network) -> do
             let blocks = runExceptT $ nextBlocks network (SlotId 14 0)
             (fmap length <$> blocks)
@@ -88,6 +88,9 @@ spec = do
   where
     newNetworkLayer =
         HttpBridge.newNetworkLayer "testnet" port
+    closeBridge (handle, _) = do
+        cancel handle
+        threadDelay 500000
     startBridge = do
         handle <- async $ launch
             [ Command "cardano-http-bridge"

@@ -34,11 +34,13 @@ import Test.Integration.Framework.DSL
     )
 
 import qualified Cardano.Wallet.Network.HttpBridgeSpec as HttpBridge
+import qualified Cardano.WalletSpec as Wallet
 import qualified Data.Text as T
 
 main :: IO ()
 main = do
     hspec $ do
+        describe "Cardano.WalletSpec" Wallet.spec
         describe "Cardano.Wallet.Network.HttpBridge" HttpBridge.spec
 
         beforeAll (withWallet (newMVar . Context ())) $ do
