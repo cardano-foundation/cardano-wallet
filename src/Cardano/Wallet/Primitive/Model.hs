@@ -118,7 +118,7 @@ import qualified Data.Text as T
 --  - TODO: Known & used addresses
 data Wallet s where
     Wallet
-        :: (IsOurs s, Semigroup s, NFData s, Show s)
+        :: (IsOurs s, NFData s, Show s)
         => UTxO
         -> Set Tx
         -> SlotId
@@ -138,7 +138,7 @@ instance NFData (Wallet s) where
 
 -- | Create an empty wallet from an initial state
 initWallet
-    :: (IsOurs s, Semigroup s, NFData s, Show s)
+    :: (IsOurs s, NFData s, Show s)
     => s
     -> Wallet s
 initWallet = Wallet mempty mempty (SlotId 0 0)

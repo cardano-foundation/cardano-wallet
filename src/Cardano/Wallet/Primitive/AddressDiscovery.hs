@@ -146,10 +146,6 @@ data AddressPool = AddressPool
 
 instance NFData AddressPool
 
-instance Semigroup AddressPool where
-    (AddressPool !pubKey !g !change !a1) <> (AddressPool _ _ _ !a2) =
-        AddressPool pubKey g change (a1 <> a2)
-
 -- | Get all addresses in the pool, sorted from the first address discovered,
 -- up until the next one.
 --
@@ -232,7 +228,7 @@ nextAddresses !key (AddressPoolGap !g) !cc !fromIx =
 
 newtype SeqState = SeqState (AddressPool, AddressPool)
     deriving stock (Generic, Show)
-    deriving newtype (NFData, Semigroup)
+    deriving newtype (NFData)
 
 -- NOTE
 -- We have to scan both the internal and external chain. Note that, the
