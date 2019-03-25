@@ -606,7 +606,6 @@ mkAddressPool :: Key  'AccountK XPub -> AddressPoolGap -> ChangeChain -> [Addres
 lookupAddress :: Address -> AddressPool -> (Maybe (Index  'Soft  'AddressK), AddressPool)
 newtype SeqState
 SeqState :: (AddressPool, AddressPool) -> SeqState
-instance GHC.Base.Semigroup Cardano.Wallet.Primitive.AddressDiscovery.SeqState
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.SeqState
 instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.SeqState
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.SeqState
@@ -621,7 +620,6 @@ instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 instance Cardano.Wallet.Primitive.Types.IsOurs Cardano.Wallet.Primitive.AddressDiscovery.SeqState
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.AddressPool
-instance GHC.Base.Semigroup Cardano.Wallet.Primitive.AddressDiscovery.AddressPool
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 instance GHC.Enum.Bounded Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
@@ -692,7 +690,7 @@ module Cardano.Wallet.Primitive.Model
 data Wallet s
 
 -- | Create an empty wallet from an initial state
-initWallet :: (IsOurs s, Semigroup s, NFData s, Show s) => s -> Wallet s
+initWallet :: (IsOurs s, NFData s, Show s) => s -> Wallet s
 
 -- | Get the wallet current tip
 currentTip :: Wallet s -> SlotId
