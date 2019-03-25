@@ -2,15 +2,35 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
+
+-- |
+-- Copyright: © 2018-2019 IOHK
+-- License: MIT
+--
+-- API type representations of various types. We define here pretty much all our
+-- user-facing types that are mostly composed with internal / primitive types.
+--
+-- This module also define required API instances (JSON, HttpApiData...) for all
+-- those types, making sure to match the specification document:
+--
+-- <https://github.com/input-output-hk/cardano-wallet/blob/master/specifications/api/swagger.yaml Wallet API Specification>
 
 module Cardano.Wallet.Api.Types
     (
     -- * API Types
       Wallet (..)
     , WalletBalance (..)
+    , WalletPostData (..)
 
     -- * Re-Export From Primitives
     , PoolId (..)
@@ -20,15 +40,20 @@ module Cardano.Wallet.Api.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     , AddressPoolGap
+    , Passphrase(..)
 
     -- * Polymorphic Types
     , ApiT (..)
+    , ApiMnemonicT (..)
     ) where
 
 import Prelude
 
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Passphrase (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap, getAddressPoolGap, mkAddressPoolGap )
+import Cardano.Wallet.Primitive.Mnemonic
 import Cardano.Wallet.Primitive.Model
     ( PoolId (..)
     , WalletDelegation (..)
@@ -38,6 +63,10 @@ import Cardano.Wallet.Primitive.Model
     , WalletState (..)
     , mkWalletName
     )
+import Control.Applicative
+    ( (<|>) )
+import Control.Monad
+    ( (>=>) )
 import Data.Aeson
     ( FromJSON (..)
     , SumEncoding (..)
@@ -53,14 +82,20 @@ import Data.Aeson
     )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text
+    ( Text )
 import GHC.Generics
     ( Generic )
+import GHC.TypeLits
+    ( Nat, Symbol )
 import Numeric.Natural
     ( Natural )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
-
+import qualified Data.ByteArray as BA
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 {-------------------------------------------------------------------------------
                                   API Types
@@ -76,15 +111,112 @@ data Wallet = Wallet
     , _state :: !(ApiT WalletState)
     } deriving (Eq, Generic, Show)
 
+data WalletPostData = WalletPostData
+    { _addressPoolGap :: !(Maybe (ApiT AddressPoolGap))
+    , _mnemonicSentence :: !(ApiMnemonicT '[15,18,21,24] "seed")
+    , _mnemonicSecondFactor :: !(Maybe (ApiMnemonicT '[9,12] "generation"))
+    , _name :: !(ApiT WalletName)
+    , _passphrase :: !(ApiT (Passphrase "encryption"))
+    } deriving (Eq, Generic, Show)
+
 data WalletBalance = WalletBalance
     { _available :: !(Quantity "lovelace" Natural)
     , _total :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
+{-------------------------------------------------------------------------------
+                              Polymorphic Types
+-------------------------------------------------------------------------------}
+
+-- | Polymorphic wrapper type to put around primitive types and, 3rd party lib
+-- types to avoid defining orphan instances and/or, undesirable instances on
+-- primitive types. It helps to keep a nice separation of concerns between the
+-- API layer and other modules.
+newtype ApiT a =
+    ApiT { getApiT :: a }
+    deriving (Generic, Show, Eq)
+
+-- | Representation of mnemonics at the API-level, using a polymorphic type in
+-- the number of mnemonic that are supported (and an underlying purpose). In
+-- practice, mnemonic corresponds to passphrases or seeds, and although they're
+-- nice to manipulate as mnemonics from a user-perspective, carrying around a
+-- list of words doesn't really make sense for the business logic which prefers
+-- manipulating scrubbed bytes directly.
+--
+-- @
+-- data MyWallet
+--     { mnemonic :: ApiMnemonicT '[15,18,21,24] "root-seed"
+--     }
+-- @
+--
+-- Note that the given 'Nat's **have** to be valid mnemonic sizes, otherwise the
+-- underlying code won't even compile with, not-soo-friendly error messages.
+--
+-- Also, the internal representation holds a @[Text]@ which contains the list of
+-- mnemonic words that was parsed. This is only to be able to satisfy the
+-- 'ToJSON' instance and rountrip and that is a very dubious argument. In
+-- practice, we'll NEVER peek at the mnemonic, output them and whatnot.
+newtype ApiMnemonicT (sizes :: [Nat]) (purpose :: Symbol) =
+    ApiMnemonicT (Passphrase purpose, [Text])
+    deriving (Generic, Show, Eq)
+
+{-------------------------------------------------------------------------------
+                               JSON Instances
+-------------------------------------------------------------------------------}
+
 instance FromJSON Wallet where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON Wallet where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON WalletPostData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON  WalletPostData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON (ApiT (Passphrase "encryption")) where
+    parseJSON = parseJSON >=> \case
+        t | T.length t < 10 ->
+            fail "passphrase is too short: expected at least 10 chars"
+        t | T.length t > 255 ->
+            fail "passphrase is too long: expect at most 255 chars"
+        t ->
+            return $ ApiT $ Passphrase $ BA.convert $ T.encodeUtf8 t
+
+instance ToJSON (ApiT (Passphrase "encryption")) where
+    toJSON (ApiT (Passphrase bytes)) = toJSON $ T.decodeUtf8 $ BA.convert bytes
+
+instance {-# OVERLAPS #-}
+    ( n ~ EntropySize mw
+    , csz ~ CheckSumBits n
+    , ConsistentEntropy n mw csz
+    , FromJSON (ApiMnemonicT rest purpose)
+    ) =>
+    FromJSON (ApiMnemonicT (mw ': rest) purpose)
+  where
+    parseJSON bytes = parseMW <|> parseRest where
+        parseMW = do
+            ApiMnemonicT x <- parseJSON @(ApiMnemonicT '[mw] purpose) bytes
+            return $ ApiMnemonicT x
+        parseRest = do
+            ApiMnemonicT x <- parseJSON @(ApiMnemonicT rest purpose) bytes
+            return $ ApiMnemonicT x
+
+instance
+    ( n ~ EntropySize mw
+    , csz ~ CheckSumBits n
+    , ConsistentEntropy n mw csz
+    ) =>
+    FromJSON (ApiMnemonicT (mw ': '[]) purpose)
+  where
+    parseJSON bytes = do
+        xs <- parseJSON bytes
+        m <- eitherToParser $ mkMnemonic @mw xs
+        let pwd = Passphrase $ entropyToBytes $ mnemonicToEntropy m
+        return $ ApiMnemonicT (pwd, xs)
+
+instance ToJSON (ApiMnemonicT sizes purpose) where
+    toJSON (ApiMnemonicT (_, xs)) = toJSON xs
 
 instance FromJSON (ApiT WalletId) where
     parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
@@ -158,13 +290,6 @@ walletStateOptions = taggedSumTypeOptions $ TaggedObjectOptions
     }
 
 {-------------------------------------------------------------------------------
-                              Polymorphic Types
--------------------------------------------------------------------------------}
-
-newtype ApiT a = ApiT { getApiT :: a }
-    deriving (Generic, Show, Eq)
-
-{-------------------------------------------------------------------------------
                                 Aeson Options
 -------------------------------------------------------------------------------}
 
@@ -176,12 +301,14 @@ data TaggedObjectOptions = TaggedObjectOptions
 defaultSumTypeOptions :: Aeson.Options
 defaultSumTypeOptions = Aeson.defaultOptions
     { constructorTagModifier = camelTo2 '_'
-    , tagSingleConstructors = True }
+    , tagSingleConstructors = True
+    }
 
 defaultRecordTypeOptions :: Aeson.Options
 defaultRecordTypeOptions = Aeson.defaultOptions
     { fieldLabelModifier = camelTo2 '_' . dropWhile (== '_')
-    , omitNothingFields = True }
+    , omitNothingFields = True
+    }
 
 taggedSumTypeOptions :: TaggedObjectOptions -> Aeson.Options
 taggedSumTypeOptions opts = defaultSumTypeOptions

@@ -141,7 +141,7 @@ data DerivationType = Hardened | Soft
 -- | An encapsulated passphrase. The inner format is free, but the wrapper helps
 -- readability in function signatures.
 newtype Passphrase (goal :: Symbol) = Passphrase ScrubbedBytes
-    deriving stock (Show)
+    deriving stock (Eq, Show)
     deriving newtype (Semigroup, Monoid)
 
 -- | Extract the public key part of a private key.
@@ -206,16 +206,16 @@ coinTypeIndex = 0x80000717
 -- testing, in practice, seeds are used to represent root keys, and one should
 -- use 'generateKeyFromSeed'.
 unsafeGenerateKeyFromSeed
-    :: (ScrubbedBytes, Passphrase "generation")
+    :: (Passphrase "seed", Passphrase "generation")
         -- ^ The actual seed and its recovery / generation passphrase
     -> Passphrase "encryption"
     -> Key depth XPrv
-unsafeGenerateKeyFromSeed (seed, Passphrase recPwd) (Passphrase encPwd) =
-    Key $ generateNew seed recPwd encPwd
+unsafeGenerateKeyFromSeed (Passphrase seed, Passphrase gen) (Passphrase pwd) =
+    Key $ generateNew seed gen pwd
 
 -- | Generate a root key from a corresponding seed
 generateKeyFromSeed
-    :: (ScrubbedBytes, Passphrase "generation")
+    :: (Passphrase "seed", Passphrase "generation")
         -- ^ The actual seed and its recovery / generation passphrase
     -> Passphrase "encryption"
     -> Key 'RootK XPrv

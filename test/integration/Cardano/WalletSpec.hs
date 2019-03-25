@@ -13,8 +13,10 @@ import Cardano.Launcher
     ( Command (..), launch )
 import Cardano.Wallet
     ( NewWallet (..), WalletLayer (..), mkWalletLayer )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Mnemonic
-    ( EntropySize, entropyToMnemonic, genEntropy )
+    ( EntropySize, entropyToBytes, genEntropy )
 import Cardano.Wallet.Primitive.Model
     ( WalletName (..), currentTip )
 import Cardano.Wallet.Primitive.Types
@@ -39,11 +41,10 @@ spec :: Spec
 spec = do
     before startBridge $ after closeBridge $ do
         it "A newly created wallet can sync with the chain" $ \(_, wallet) -> do
-            mnemonicSentence <-
-                entropyToMnemonic <$> genEntropy @(EntropySize 15)
+            bytes <- entropyToBytes <$> genEntropy @(EntropySize 15)
             wid <- unsafeRunExceptT $ createWallet wallet NewWallet
-                { mnemonic = mnemonicSentence
-                , mnemonic2ndFactor = mempty
+                { seed = Passphrase bytes
+                , secondFactor = mempty
                 , name = WalletName "My Wallet"
                 , passphrase = mempty
                 , gap = minBound

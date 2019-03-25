@@ -25,8 +25,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , publicKey
     , unsafeGenerateKeyFromSeed
     )
-import Data.ByteArray
-    ( ScrubbedBytes )
 import Fmt
     ( build, fmt )
 import Test.Hspec
@@ -74,7 +72,7 @@ spec = do
             property prop_publicChildKeyDerivation
 
     describe "Golden Tests - Yoroi's style addresses" $ do
-        let seed0 = "4\175\242L\184\243\191 \169]\171 \207\r\v\233\NUL~&\ETB"
+        let seed0 = Passphrase "4\175\242L\184\243\191 \169]\171 \207\r\v\233\NUL~&\ETB"
         let recPwd0 = mempty
         it "m/0'/0/0 --> Ae2tdPwUPEZGB...EfoeiuW4MtaXZ" $ do
             let (accIx, addrIx) = (toEnum 0x80000000, toEnum 0x00000000)
@@ -89,9 +87,7 @@ spec = do
             goldenYoroiAddr (seed0, recPwd0) InternalChain accIx addrIx
                 "Ae2tdPwUPEZFRbyhz3cpfC2CumGzNkFBN2L42rcUc2yjQpEkxDbkPodpMAi"
 
-        let seed1 =
-                "\171\151\240\DC4\147Q\ACK\NULfJxq\176h\172\DEL/\DC4\DC2\227\&6\
-                \\155\129\134\f\221/\NUL\175a\252\249"
+        let seed1 = Passphrase "\171\151\240\DC4\147Q\ACK\NULfJxq\176h\172\DEL/\DC4\DC2\227\&6\155\129\134\f\221/\NUL\175a\252\249"
         let recPwd1 = Passphrase "Cardano the cardano that cardano!"
         it "m/0'/0/0 --> Ae2tdPwUPEZ1D...64dqTSRpWqzLH" $ do
             let (accIx, addrIx) = (toEnum 0x80000000, toEnum 0x00000000)
@@ -161,12 +157,12 @@ prop_roundtripEnumIndexSoft ix =
 --
 -- For details see <https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#private-parent-key--public-child-key bip-0039>
 prop_publicChildKeyDerivation
-    :: (Seed, Passphrase "generation")
+    :: (Passphrase "seed", Passphrase "generation")
     -> Passphrase "encryption"
     -> ChangeChain
     -> Index 'Soft 'AddressK
     -> Property
-prop_publicChildKeyDerivation (Seed seed, recPwd) encPwd cc ix =
+prop_publicChildKeyDerivation (seed, recPwd) encPwd cc ix =
     addrXPub1 === addrXPub2
   where
     accXPrv = unsafeGenerateKeyFromSeed (seed, recPwd) (encPwd)
@@ -176,18 +172,18 @@ prop_publicChildKeyDerivation (Seed seed, recPwd) encPwd cc ix =
     addrXPub2 = deriveAddressPublicKey (publicKey accXPrv) cc ix
 
 prop_accountKeyDerivation
-    :: (Seed, Passphrase "generation")
+    :: (Passphrase "seed", Passphrase "generation")
     -> Passphrase "encryption"
     -> Index 'Hardened 'AccountK
     -> Property
-prop_accountKeyDerivation (Seed seed, recPwd) encPwd ix =
+prop_accountKeyDerivation (seed, recPwd) encPwd ix =
     accXPub `seq` property () -- NOTE Making sure this doesn't throw
   where
     rootXPrv = generateKeyFromSeed (seed, recPwd) encPwd
     accXPub = deriveAccountPrivateKey encPwd rootXPrv ix
 
 goldenYoroiAddr
-    :: (ScrubbedBytes, Passphrase "generation")
+    :: (Passphrase "seed", Passphrase "generation")
     -> ChangeChain
     -> Index 'Hardened 'AccountK
     -> Index 'Soft 'AddressK
@@ -206,14 +202,6 @@ goldenYoroiAddr (seed, recPwd) cc accIx addrIx addr =
 {-------------------------------------------------------------------------------
                              Arbitrary Instances
 -------------------------------------------------------------------------------}
-
-newtype Seed = Seed ScrubbedBytes deriving (Show)
-
-instance Arbitrary Seed where
-    shrink _ = []
-    arbitrary = do
-        InfiniteList bytes _ <- arbitrary
-        return $ Seed $ BA.convert $ BS.pack $ take 32 bytes
 
 instance Arbitrary (Index 'Soft 'AddressK) where
     shrink _ = []

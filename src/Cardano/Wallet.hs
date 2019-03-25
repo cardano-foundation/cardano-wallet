@@ -29,8 +29,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap, SeqState (..), mkAddressPool )
-import Cardano.Wallet.Primitive.Mnemonic
-    ( Mnemonic, entropyToBytes, mnemonicToEntropy )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, WalletId (..), WalletName (..), applyBlock, initWallet )
 import Cardano.Wallet.Primitive.Types
@@ -58,9 +56,9 @@ data WalletLayer m s = WalletLayer
     }
 
 data NewWallet = NewWallet
-    { mnemonic
-        :: !(Mnemonic 15)
-    , mnemonic2ndFactor
+    { seed
+        :: !(Passphrase "seed")
+    , secondFactor
         :: !(Passphrase "generation")
     , name
         :: !WalletName
@@ -89,10 +87,8 @@ mkWalletLayer
     -> WalletLayer IO SeqState
 mkWalletLayer db network = WalletLayer
     { createWallet = \w -> do
-        let seed =
-                entropyToBytes $ mnemonicToEntropy (mnemonic w)
         let rootXPrv =
-                generateKeyFromSeed (seed, mnemonic2ndFactor w) (passphrase w)
+                generateKeyFromSeed (seed w, secondFactor w) (passphrase w)
         let accXPrv =
                 deriveAccountPrivateKey mempty rootXPrv minBound
         let extPool =
