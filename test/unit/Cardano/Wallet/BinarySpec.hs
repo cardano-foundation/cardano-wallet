@@ -113,7 +113,8 @@ spec = do
 blockHeader1 :: BlockHeader
 blockHeader1 = BlockHeader
     { slotId = SlotId 105 9520
-    , prevBlockHash = hash16 "9f3c67b575bf2c5638291949694849d6ce5d29efa1f2eb3ed0beb6dac262e9e0"
+    , prevBlockHash = hash16
+        "9f3c67b575bf2c5638291949694849d6ce5d29efa1f2eb3ed0beb6dac262e9e0"
     }
 
 -- A mainnet block

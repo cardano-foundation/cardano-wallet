@@ -262,7 +262,8 @@ deriveAddressPrivateKey
     -> ChangeChain
     -> Index 'Soft 'AddressK
     -> Key 'AddressK XPrv
-deriveAddressPrivateKey (Passphrase pwd) (Key accXPrv) changeChain (Index addrIx) =
+deriveAddressPrivateKey
+        (Passphrase pwd) (Key accXPrv) changeChain (Index addrIx) =
     let
         changeCode =
             fromIntegral $ fromEnum changeChain
@@ -293,11 +294,11 @@ deriveAddressPublicKey (Key accXPub) changeChain (Index addrIx) =
         return $ Key addrXPub
   where
     errWrongIndex = error $
-        "Cardano.Wallet.Primitive.AddressDerivation.deriveAddressPublicKey failed: \
-        \was given an hardened (or too big) index for soft path derivation \
-        \( " ++ show addrIx ++ "). This is either a programmer error, or, \
-        \we may have reached the maximum number of addresses for a given \
-        \wallet."
+        "Cardano.Wallet.Primitive.AddressDerivation.deriveAddressPublicKey \
+        \failed: was given an hardened (or too big) index for soft path \
+        \derivation ( " ++ show addrIx ++ "). This is either a programmer \
+        \error, or, we may have reached the maximum number of addresses for \
+        \a given wallet."
 
 -- | Encode a public key to a (Byron / Legacy) Cardano 'Address'. This is mostly
 -- dubious CBOR serializations with no data attributes.
@@ -338,9 +339,12 @@ keyToAddress (Key xpub) =
 -- various key derivation methods:
 --
 -- - 'publicKey' --> For any @Key _ XPrv@ to @Key _ XPub@
--- - 'deriveAccountPrivateKey' --> From @Key RootK XPrv@ to @Key AccountK XPrv@
--- - 'deriveAddressPrivateKey' --> From @Key AccountK XPrv@ to @Key AddressK XPrv@
--- - 'deriveAddressPublicKey' --> From @Key AccountK XPub@ to @Key AddressK XPub@
+-- - 'deriveAccountPrivateKey' -->
+--      From @Key RootK XPrv@ to @Key AccountK XPrv@
+-- - 'deriveAddressPrivateKey' -->
+--      From @Key AccountK XPrv@ to @Key AddressK XPrv@
+-- - 'deriveAddressPublicKey' -->
+--      From @Key AccountK XPub@ to @Key AddressK XPub@
 --
 -- For example:
 --

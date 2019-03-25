@@ -84,24 +84,24 @@ respCodesSpec :: Scenarios Context
 respCodesSpec = do
     scenario "GET; Response code 200" $ do
         response <- request' ("GET", "/get") Nothing
-        verify (response :: Either RequestException (Request, Response ByteString))
-            [ expectResponseCode status200
-            ]
+        verify
+            (response :: Either RequestException (Request, Response ByteString))
+            [ expectResponseCode status200 ]
 
     scenario "GET; Response code 404" $ do
         response <- request' ("GET", "/get/nothing") Nothing
-        verify (response :: Either RequestException (Request, Response ByteString))
-            [ expectResponseCode status404
-            ]
+        verify
+            (response :: Either RequestException (Request, Response ByteString))
+            [ expectResponseCode status404 ]
 
     scenario "POST; Response code 200" $ do
         response <- request' ("POST", "/post") Nothing
-        verify (response :: Either RequestException (Request, Response ByteString))
-            [ expectResponseCode status200
-            ]
+        verify
+            (response :: Either RequestException (Request, Response ByteString))
+            [ expectResponseCode status200 ]
 
     scenario "POST; Response code 405" $ do
         response <- request' ("POST", "/get") Nothing
-        verify (response :: Either RequestException (Request, Response ByteString))
-            [ expectResponseCode status405
-            ]
+        verify
+            (response :: Either RequestException (Request, Response ByteString))
+            [ expectResponseCode status405 ]

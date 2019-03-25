@@ -56,7 +56,8 @@ data Command = Command
 instance Buildable Command where
     build (Command name args _) = build name
         <> "\n"
-        <> indentF 4 (blockListF' "" build $ snd $ foldl buildOptions ("", []) args)
+        <> indentF 4
+            (blockListF' "" build $ snd $ foldl buildOptions ("", []) args)
       where
         buildOptions :: (String, [String]) -> String -> (String, [String])
         buildOptions ("", grp) arg =

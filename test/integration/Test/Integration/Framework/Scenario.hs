@@ -50,7 +50,8 @@ newtype Scenario s m a = Scenario (StateT s m a)
 
 -- | We emulate the 'MonadReader' using the 'MonadState' instance, this way, we
 -- can lower down our constraints for methods that actually just read the state.
-instance (Monad m, MonadState s (Scenario s m)) => MonadReader s (Scenario s m) where
+instance (Monad m, MonadState s (Scenario s m)) =>
+        MonadReader s (Scenario s m) where
     ask = get
     local f m = do
         s <- get

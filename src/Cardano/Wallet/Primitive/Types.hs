@@ -194,8 +194,11 @@ instance Buildable TxIn where
         <> "..."
         <> suffixF 8 txF
       where
-        txF = build $ T.decodeUtf8 $ convertToBase Base16 $ getHash $ inputId txin
-
+        txF = build
+            $ T.decodeUtf8
+            $ convertToBase Base16
+            $ getHash
+            $ inputId txin
 
 data TxOut = TxOut
     { address

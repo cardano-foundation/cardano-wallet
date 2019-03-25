@@ -55,13 +55,15 @@ spec = do
             Right blocks <- runExceptT $ nextBlocks network (SlotId 100 0)
             -- an entire epoch's worth of blocks
             length blocks `shouldBe` 21600
-            map (epochIndex . slotId . header) blocks `shouldSatisfy` all (== 100)
+            map (epochIndex . slotId . header) blocks
+                `shouldSatisfy` all (== 100)
 
         it "should get from packed epochs and filter by start slot" $ do
             Right blocks <- runExceptT $ nextBlocks network (SlotId 104 10000)
             -- the number of remaining blocks in epoch 104
             length blocks `shouldBe` 11600
-            map (epochIndex . slotId . header) blocks `shouldSatisfy` all (== 104)
+            map (epochIndex . slotId . header) blocks
+                `shouldSatisfy` all (== 104)
 
         it "should produce no blocks if start slot is after tip" $ do
             blocks <- runExceptT $ nextBlocks network (SlotId 107 0)
