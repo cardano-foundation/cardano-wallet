@@ -19,6 +19,7 @@ import Cardano.Wallet.Primitive.Mnemonic
     , EntropyError
     , EntropySize
     , Mnemonic
+    , MnemonicError (..)
     , MnemonicException (..)
     , MnemonicWords
     , ambiguousNatVal
@@ -33,11 +34,18 @@ import Cardano.Wallet.Primitive.Mnemonic
 import Control.Monad
     ( forM_ )
 import Crypto.Encoding.BIP39
-    ( ValidChecksumSize, ValidEntropySize, ValidMnemonicSentence, toEntropy )
+    ( DictionaryError (..)
+    , EntropyError (..)
+    , MnemonicWordsError (..)
+    , ValidChecksumSize
+    , ValidEntropySize
+    , ValidMnemonicSentence
+    , toEntropy
+    )
 import Data.ByteString
     ( ByteString )
 import Data.Either
-    ( isLeft )
+    ( isRight )
 import Data.Function
     ( on )
 import Data.Text
@@ -114,10 +122,32 @@ spec = do
 
     describe "golden tests" $ do
         it "No empty mnemonic" $
-            mkMnemonic @12 [] `shouldSatisfy` isLeft
+            mkMnemonic @15 []
+                    `shouldBe` Left (ErrMnemonicWords (ErrWrongNumberOfWords 0 15))
+
+        it "No 1 word mnemonic" $
+            mkMnemonic @15 ["material"]
+                    `shouldBe` Left (ErrMnemonicWords (ErrWrongNumberOfWords 1 15))
+
+        it "No too long fake mnemonic" $
+            mkMnemonic @9 ["squirrel","material","silly","twice","direct","slush","pistol","razor","become","twice"]
+                    `shouldBe` Left (ErrMnemonicWords (ErrWrongNumberOfWords 10 9))
 
         it "No empty entropy" $
-            mkEntropy @(EntropySize 12) "" `shouldSatisfy` isLeft
+            mkEntropy @(EntropySize 12) ""
+                    `shouldBe` Left (ErrInvalidEntropyLength 0 128)
+
+        it "No too short entropy" $
+            mkEntropy @(EntropySize 15) "000000"
+                    `shouldBe` Left (ErrInvalidEntropyLength 48 160)
+
+        it "No too long entropy" $
+            mkEntropy @(EntropySize 15) "1234512345123451234512345"
+                    `shouldBe` Left (ErrInvalidEntropyLength 200 160)
+
+        it "Can make entropy" $
+            mkEntropy @(EntropySize 15) "12345123451234512345"
+                    `shouldSatisfy` isRight
 
         it "Can generate 96 bits entropy" $
             (BA.length . entropyToBytes <$> genEntropy @96) `shouldReturn` 12
@@ -143,20 +173,36 @@ spec = do
         it "Mnemonic from Text" $ forM_ testVectors $ \TestVector{..} ->
             (mkMnemonic @12 . extractWords) string `shouldBe` pure mnemonic
 
+        it "Mnemonic to Entropy" $ forM_ testVectors $ \TestVector{..} ->
+            mnemonicToEntropy mnemonic `shouldBe` entropy
+
         it "Mnemonic from Api is invalid" $ do
             let mnemonicFromApi =
                     "[squirrel,material,silly,twice,direct,slush,pistol,razor,become,junk,kingdom,flee,squirrel,silly,twice]"
-            (mkMnemonic @15 . extractWords) mnemonicFromApi `shouldSatisfy` isLeft
+            (mkMnemonic @15 . extractWords) mnemonicFromApi `shouldSatisfy` isErrInvalidEntropyChecksum
 
         it "Mnemonic 2nd factor from Api is invalid" $ do
             let mnemonicFromApi =
                     "[squirrel,material,silly,twice,direct,slush,pistol,razor,become]"
-            (mkMnemonic @9 . extractWords) mnemonicFromApi `shouldSatisfy` isLeft
+            (mkMnemonic @9 . extractWords) mnemonicFromApi `shouldSatisfy` isErrInvalidEntropyChecksum
 
-        it "Mnemonic to Entropy" $ forM_ testVectors $ \TestVector{..} ->
-            mnemonicToEntropy mnemonic `shouldBe` entropy
+        it "15 long mnemonics not valid for mkMnemonic @12" $ do
+            let mnemonicFromApi =
+                    "[trigger,artwork,lab,raw,confirm,visual,energy,double,coral,fat,hen,ghost,phone,yellow,bag]"
+            (mkMnemonic @12 . extractWords) mnemonicFromApi
+                    `shouldBe` Left (ErrMnemonicWords (ErrWrongNumberOfWords 15 12))
 
+        it "15 long mnemonics not valid for mkMnemonic @24" $ do
+            let mnemonicFromApi =
+                    "[trigger,artwork,lab,raw,confirm,visual,energy,double,coral,fat,hen,ghost,phone,yellow,bag]"
+            (mkMnemonic @24 . extractWords) mnemonicFromApi
+                    `shouldBe` Left (ErrMnemonicWords (ErrWrongNumberOfWords 15 24))
 
+        it "Non-English mnemonics don't work" $ do
+            let mnemonicFromApi =
+                    "[むしば,いてん,ぜんりゃく,になう,きあい,よっか,けんま,げきげん,きおん,こふん,しゅらば,しあさって,てんし,わかめ,いわば]"
+            (mkMnemonic @15 . extractWords) mnemonicFromApi
+                    `shouldBe` Left (ErrDictionary (ErrInvalidDictionaryWord "むしば"))
   where
     testVectors :: [TestVector]
     testVectors =
@@ -190,12 +236,14 @@ spec = do
             -> Either (EntropyError 4) (Entropy 128)
         mkEntropy' = toEntropy @128 @4 @ByteString
 
-    extractWords
-        :: Text
-        -> [Text]
+    extractWords :: Text -> [Text]
     extractWords =
         T.splitOn ","
       . T.dropAround (\c -> c == '[' || c == ']')
+
+    isErrInvalidEntropyChecksum :: Either (MnemonicError e) b -> Bool
+    isErrInvalidEntropyChecksum (Left (ErrEntropy (ErrInvalidEntropyChecksum _ _))) = True
+    isErrInvalidEntropyChecksum  _  = False
 
 -- | The initial seed has to be vector or length multiple of 4 bytes and shorter
 -- than 64 bytes. Note that this is good for testing or examples, but probably
