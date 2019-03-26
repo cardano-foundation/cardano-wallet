@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RankNTypes #-}
@@ -29,6 +30,7 @@ module Cardano.Wallet.Primitive.Types
     , Tx(..)
     , TxIn(..)
     , TxOut(..)
+    , TxMeta(..)
     , txIns
     , updatePending
 
@@ -74,8 +76,12 @@ import Data.ByteString.Base58
     ( bitcoinAlphabet, encodeBase58 )
 import Data.Map.Strict
     ( Map )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Set
     ( Set )
+import Data.Time
+    ( UTCTime )
 import Data.Word
     ( Word16, Word32, Word64 )
 import Fmt
@@ -93,6 +99,8 @@ import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( Symbol )
+import Numeric.Natural
+    ( Natural )
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -212,6 +220,29 @@ instance Buildable TxOut where
 instance Buildable (TxIn, TxOut) where
     build (txin, txout) = build txin <> " ==> " <> build txout
 
+data TxMeta = TxMeta
+    { txId :: !(Hash "Tx")
+    , depth :: !(Quantity "block" Natural)
+    , status :: !TxStatus
+    , direction :: !Direction
+    , timestamp :: !Timestamp
+    , slotId :: !SlotId
+    } deriving (Show, Eq, Generic)
+
+data TxStatus
+    = Pending
+    | InLedger
+    | Invalidated
+    deriving (Show, Eq, Generic)
+
+data Direction
+    = Outgoing
+    | Incoming
+    deriving (Show, Eq, Generic)
+
+newtype Timestamp = Timestamp
+    { getTimestamp :: UTCTime
+    } deriving (Show, Generic, Eq, Ord)
 
 -- * Address
 
