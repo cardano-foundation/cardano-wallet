@@ -107,7 +107,7 @@ walletMnemonicSentence: &walletMnemonicSentence
     format: bip-0039-mnemonic-word{english}
   example: ["squirrel", "material", "silly", "twice", "direct", "slush", "pistol", "razor", "become", "junk", "kingdom", "flee", "squirrel", "silly", "twice"]
 
-wallet2ndFactor: &wallet2ndFactor
+walletSecondFactor: &walletSecondFactor
   description: An optional passphrase used to encrypt the mnemonic sentence.
   type: array
   minItems: 9
@@ -493,6 +493,18 @@ definitions:
         10000000000000000: 0
         45000000000000000: 0
 
+  WalletPostData: &WalletPostData
+    type: object
+    required:
+      - name
+      - mnemonic_sentence
+      - passphrase
+    properties:
+      name: *walletName
+      mnemonic_sentence: *walletMnemonicSentence
+      mnemonic_second_factor: *walletSecondFactor
+      passphrase: *walletPassphrase
+      address_pool_gap: *walletAddressPoolGap
 
 #############################################################################
 #                                                                           #
@@ -518,19 +530,6 @@ parametersStakePoolId: &parametersStakePoolId
   required: true
   type: string
   format: base58
-
-parametersPostWallet: &parametersPostWallet
-  type: object
-  required:
-    - name
-    - mnemonic_sentence
-    - passphrase
-  properties:
-    name: *walletName
-    mnemonic_sentence: *walletMnemonicSentence
-    mnemonic_2nd_factor: *wallet2ndFactor
-    passphrase: *walletPassphrase
-    address_pool_gap: *walletAddressPoolGap
 
 parametersPutWallet: &parametersPutWallet
   type: object
@@ -778,7 +777,7 @@ paths:
       description: Priority [Very High]
       parameters:
         - <<: *parametersBody
-          schema: *parametersPostWallet
+          schema: *WalletPostData
       responses: *responsesPostWallet
 
   /wallets/{walletId}:
