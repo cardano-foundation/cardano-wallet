@@ -25,6 +25,10 @@ module Cardano.Wallet.Primitive.Mnemonic
     , Entropy
     , EntropySize
     , MnemonicWords
+    , ValidEntropySize
+    , ValidChecksumSize
+    , ConsistentEntropy
+    , CheckSumBits
 
       -- * Errors
     , MnemonicError(..)
@@ -56,7 +60,8 @@ import Control.Arrow
 import Control.Monad.Catch
     ( throwM )
 import Crypto.Encoding.BIP39
-    ( ConsistentEntropy
+    ( CheckSumBits
+    , ConsistentEntropy
     , DictionaryError (..)
     , Entropy
     , EntropyError (..)

@@ -1,18 +1,20 @@
 {
-    "seed": 874595100750347457,
+    "seed": -7718022052509193490,
     "samples": [
         {
-            "status": "not_delegating"
-        },
-        {
-            "status": "not_delegating"
-        },
-        {
-            "status": "not_delegating"
+            "status": "delegating",
+            "target": "_bG"
         },
         {
             "status": "delegating",
-            "target": "$宯~"
+            "target": "on{"
+        },
+        {
+            "status": "delegating",
+            "target": "*=A"
+        },
+        {
+            "status": "not_delegating"
         }
     ]
 }

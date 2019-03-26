@@ -13,6 +13,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( ChangeChain (..)
     , Depth (..)
     , Key
+    , Passphrase (..)
     , XPub
     , deriveAddressPublicKey
     , keyToAddress
@@ -195,9 +196,9 @@ prop_poolEventuallyDiscoverOurs (g, cc, addr) =
 
 ourAccount
     :: Key 'AccountK XPub
-ourAccount = publicKey $ unsafeGenerateKeyFromSeed (bytes, mempty) mempty
+ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
   where
-    bytes = BA.convert $ BS.replicate 32 0
+    seed = Passphrase $ BA.convert $ BS.replicate 32 0
 
 ourAddresses
     :: ChangeChain
@@ -225,7 +226,7 @@ instance Arbitrary Address where
         ]
       where
         notOurs = do
-            bytes <- BA.convert . BS.pack . take 32 . getInfiniteList
+            bytes <- Passphrase . BA.convert . BS.pack . take 32 . getInfiniteList
                 <$> arbitrary
             let xprv = unsafeGenerateKeyFromSeed (bytes, mempty) mempty
             return $ keyToAddress $ publicKey xprv

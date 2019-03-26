@@ -1,12 +1,13 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -19,7 +20,9 @@ import Cardano.Wallet.Api
     ( api )
 import Cardano.Wallet.Api.Types
     ( AddressPoolGap
+    , ApiMnemonicT (..)
     , ApiT (..)
+    , Passphrase (..)
     , PoolId (..)
     , Wallet (..)
     , WalletBalance (..)
@@ -27,7 +30,22 @@ import Cardano.Wallet.Api.Types
     , WalletId (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
+    , WalletPostData (..)
     , WalletState (..)
+    )
+import Cardano.Wallet.Primitive.Mnemonic
+    ( CheckSumBits
+    , ConsistentEntropy
+    , Entropy
+    , EntropySize
+    , MnemonicException (..)
+    , ValidChecksumSize
+    , ValidEntropySize
+    , ambiguousNatVal
+    , entropyToBytes
+    , entropyToMnemonic
+    , mkEntropy
+    , mnemonicToText
     )
 import Cardano.Wallet.Primitive.Model
     ( mkWalletName, walletNameMaxLength, walletNameMinLength )
@@ -68,7 +86,7 @@ import GHC.TypeLits
 import Numeric.Natural
     ( Natural )
 import Servant
-    ( (:<|>), (:>), Capture, StdMethod (..), Verb )
+    ( (:<|>), (:>), Capture, ReqBody, StdMethod (..), Verb )
 import Servant.Swagger.Test
     ( validateEveryToJSON )
 import Test.Aeson.GenericSpecs
@@ -84,13 +102,22 @@ import Test.Aeson.GenericSpecs
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..), arbitraryBoundedEnum, arbitraryPrintableChar, choose )
+    ( Arbitrary (..)
+    , arbitraryBoundedEnum
+    , arbitraryPrintableChar
+    , choose
+    , frequency
+    , vectorOf
+    )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Instances.Time
     ()
 
+import qualified Data.ByteArray as BA
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Data.UUID.Types as UUID
 import qualified Data.Yaml as Yaml
 
@@ -100,6 +127,7 @@ spec = do
         "can perform roundtrip JSON serialization & deserialization, \
         \and match existing golden files" $ do
             roundtripAndGolden $ Proxy @ Wallet
+            roundtripAndGolden $ Proxy @ WalletPostData
             roundtripAndGolden $ Proxy @ (ApiT AddressPoolGap)
             roundtripAndGolden $ Proxy @ (ApiT (WalletDelegation (ApiT PoolId)))
             roundtripAndGolden $ Proxy @ (ApiT WalletId)
@@ -107,7 +135,7 @@ spec = do
             roundtripAndGolden $ Proxy @ (ApiT WalletBalance)
             roundtripAndGolden $ Proxy @ (ApiT WalletPassphraseInfo)
             roundtripAndGolden $ Proxy @ (ApiT WalletState)
-
+            roundtripAndGolden $ Proxy @ (ApiT (Passphrase "encryption"))
     describe
         "verify that every type used with JSON content type in a servant API \
         \has compatible ToJSON and ToSchema instances using validateToJSON." $
@@ -165,6 +193,10 @@ instance Arbitrary Wallet where
 instance Arbitrary AddressPoolGap where
     arbitrary = arbitraryBoundedEnum
 
+instance Arbitrary WalletPostData where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
 instance Arbitrary WalletBalance where
     arbitrary = genericArbitrary
     shrink = genericShrink
@@ -195,6 +227,15 @@ instance Arbitrary WalletName where
             . T.unpack
             . getWalletName
 
+instance Arbitrary (Passphrase "encryption") where
+    arbitrary = do
+        n <- choose (10, 255)
+        bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
+        return $ Passphrase $ BA.convert bytes
+    shrink (Passphrase bytes)
+        | BA.length bytes <= 10 = []
+        | otherwise = [Passphrase $ BA.convert $ B8.take 10 $ BA.convert bytes]
+
 instance Arbitrary WalletPassphraseInfo where
     arbitrary = genericArbitrary
     shrink = genericShrink
@@ -206,6 +247,59 @@ instance Arbitrary WalletState where
 instance Arbitrary a => Arbitrary (ApiT a) where
     arbitrary = ApiT <$> arbitrary
     shrink = fmap ApiT . shrink . getApiT
+
+-- | The initial seed has to be vector or length multiple of 4 bytes and shorter
+-- than 64 bytes. Note that this is good for testing or examples, but probably
+-- not for generating truly random Mnemonic words.
+instance
+    ( ValidEntropySize n
+    , ValidChecksumSize n csz
+    ) => Arbitrary (Entropy n) where
+    arbitrary =
+        let
+            size = fromIntegral $ ambiguousNatVal @n
+            entropy =
+                mkEntropy  @n . B8.pack <$> vectorOf (size `quot` 8) arbitrary
+        in
+            either (error . show . UnexpectedEntropyError) id <$> entropy
+
+instance {-# OVERLAPS #-}
+    ( n ~ EntropySize mw
+    , csz ~ CheckSumBits n
+    , ConsistentEntropy n mw csz
+    )
+    => Arbitrary (ApiMnemonicT (mw ': '[]) purpose)
+  where
+    arbitrary = do
+        ent <- arbitrary @(Entropy n)
+        return $ ApiMnemonicT
+            ( Passphrase $ entropyToBytes ent
+            , mnemonicToText $ entropyToMnemonic ent
+            )
+
+instance
+    ( n ~ EntropySize mw
+    , csz ~ CheckSumBits n
+    , ConsistentEntropy n mw csz
+    , Arbitrary (ApiMnemonicT rest purpose)
+    )
+    => Arbitrary (ApiMnemonicT (mw ': rest) purpose)
+  where
+    arbitrary = do
+        ApiMnemonicT x <- arbitrary @(ApiMnemonicT '[mw] purpose)
+        ApiMnemonicT y <- arbitrary @(ApiMnemonicT rest purpose)
+        -- NOTE
+        -- If we were to "naively" combine previous generators without weights,
+        -- we would be tilting probabilities towards the left most, in such way
+        -- that every element would be twice as more likely as its right
+        -- neighbour with an exponential decrease (after 7th elements, elements
+        -- have less than a percent of chance to appear). By tweaking a bit the
+        -- weight like below, we allow every elements to have at least 10%
+        -- chance to appear for lists up to 10 elements.
+        frequency
+            [ (1, pure $ ApiMnemonicT x)
+            , (5, pure $ ApiMnemonicT y)
+            ]
 
 
 {-------------------------------------------------------------------------------
@@ -254,7 +348,7 @@ specification =
     unsafeDecode = either ( error . (msg <>) . show) id . Yaml.decodeEither'
     msg = "Whoops! Failed to parse or find the api specification document: "
 
--- | Ad-hoc 'ToSchema' instance for the 'Wallet' definition, we simply look it
+-- | Ad-hoc 'ToSchema' instance for the 'Wallet' definition: we simply look it
 -- up from the specification.
 instance ToSchema Wallet where
     declareNamedSchema _ = case specification ^. definitions . at "Wallet" of
@@ -262,6 +356,17 @@ instance ToSchema Wallet where
             error "unable to find the definition for 'Wallet' in the spec"
         Just schema ->
             return $ NamedSchema (Just "Wallet") schema
+
+-- | Ad-hoc 'ToSchema' instance for the 'WalletPostData' definition: we simply
+-- look it up from the specification.
+instance ToSchema WalletPostData where
+    declareNamedSchema _ =
+        case specification ^. definitions . at "WalletPostData" of
+            Nothing -> error
+                "unable to find the definition for 'WalletPostData' in \
+                \the spec"
+            Just schema ->
+                return $ NamedSchema (Just "WalletPostData") schema
 
 -- | Verify that all servant endpoints are present and match the specification
 class ValidateEveryPath api where
@@ -297,6 +402,9 @@ instance (KnownSymbol param, HasPath sub) => HasPath (Capture param t :> sub)
     getPath _ =
         let (verb, sub) = getPath (Proxy @sub)
         in (verb, "/{" <> symbolVal (Proxy :: Proxy param) <> "}" <> sub)
+
+instance HasPath sub => HasPath (ReqBody a b :> sub) where
+    getPath _ = getPath (Proxy @sub)
 
 -- A way to demote 'StdMethod' back to the world of values. Servant provides a
 -- 'reflectMethod' that does just that, but demote types to raw 'ByteString' for
