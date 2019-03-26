@@ -52,12 +52,21 @@ main = do
     networkName <-
         getArg @String args cli (longOption "network") (decode @_ @Network)
     walletPort <-
-        getArg @String args cli (longOption "wallet-server-port") (decode @_ @Int)
+        getArg
+            @String args cli
+            (longOption "wallet-server-port")
+            (decode @_ @Int)
     bridgePort <-
-        getArg @String args cli (longOption "http-bridge-port") (decode @_ @Int)
+        getArg
+            @String args cli
+            (longOption "http-bridge-port")
+            (decode @_ @Int)
     forever $ do
         sayErr
-            $ "Wallet Backend NOT listening on " <> T.pack (show walletPort)
-            <> ", connected to cardano-http-bridge on " <> T.pack (show bridgePort)
-            <> "@" <> T.pack (encode networkName)
+            $ "Wallet Backend NOT listening on "
+            <> T.pack (show walletPort)
+            <> ", connected to cardano-http-bridge on "
+            <> T.pack (show bridgePort)
+            <> "@"
+            <> T.pack (encode networkName)
         threadDelay 1000000

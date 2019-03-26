@@ -59,9 +59,12 @@ main = do
     args <- parseArgsOrExit cli =<< getArgs
     when (args `isPresent` (longOption "help")) $ exitWithUsage cli
 
-    bridgePort <- getArg @String args cli (longOption "http-bridge-port") decode
-    walletPort <- getArg @String args cli (longOption "wallet-server-port") decode
-    network <- getArg @String args cli (longOption "network") decode
+    bridgePort <-
+        getArg @String args cli (longOption "http-bridge-port") decode
+    walletPort <-
+        getArg @String args cli (longOption "wallet-server-port") decode
+    network <-
+        getArg @String args cli (longOption "network") decode
 
     sayErr "Starting..."
     installSignalHandlers
@@ -71,7 +74,7 @@ main = do
             ]
     sayErr $ fmt $ blockListF commands
     (ProcessHasExited name code) <- launch commands
-    sayErr $ T.pack name <> " exited with code " <> T.pack (show code) 
+    sayErr $ T.pack name <> " exited with code " <> T.pack (show code)
     exitWith code
 
 nodeHttpBridgeOn :: Port "Node" -> Network -> Command

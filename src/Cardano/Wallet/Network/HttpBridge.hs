@@ -70,9 +70,10 @@ mkNetworkLayer httpBridge = NetworkLayer
     , networkTip = getNetworkTip httpBridge
     }
 
-
--- | Creates a cardano-http-bridge 'NetworkLayer' using the given connection settings.
-newNetworkLayer :: Text -> Int -> IO (NetworkLayer IO HttpBridgeError HttpBridgeError)
+-- | Creates a cardano-http-bridge 'NetworkLayer' using the given connection
+-- settings.
+newNetworkLayer
+    :: Text -> Int -> IO (NetworkLayer IO HttpBridgeError HttpBridgeError)
 newNetworkLayer network port = mkNetworkLayer <$> newHttpBridge network port
 
 -- | Retrieve a chunk of blocks from cardano-http-bridge.
@@ -104,7 +105,8 @@ rbNextBlocks net sl = do
             Right r -> return r
         pure $ filter (blockIsSameOrAfter start) epochBlocks
 
-    -- Predicate returns true iff the block is from the given slot or a later one.
+    -- Predicate returns true iff the block is from the given slot or a later
+    -- one.
     blockIsSameOrAfter :: SlotId -> Block -> Bool
     blockIsSameOrAfter s = (>= s) . slotId . header
 
@@ -149,7 +151,8 @@ data HttpBridge m e = HttpBridge
     }
 
 -- | Construct a new network layer
-mkHttpBridge :: Manager -> BaseUrl -> NetworkName -> HttpBridge IO HttpBridgeError
+mkHttpBridge
+    :: Manager -> BaseUrl -> NetworkName -> HttpBridge IO HttpBridgeError
 mkHttpBridge mgr baseUrl network = HttpBridge
     { getBlock = \hash -> do
         hash' <- hashToApi' hash

@@ -89,7 +89,9 @@ spec = do
             goldenYoroiAddr (seed0, recPwd0) InternalChain accIx addrIx
                 "Ae2tdPwUPEZFRbyhz3cpfC2CumGzNkFBN2L42rcUc2yjQpEkxDbkPodpMAi"
 
-        let seed1 = "\171\151\240\DC4\147Q\ACK\NULfJxq\176h\172\DEL/\DC4\DC2\227\&6\155\129\134\f\221/\NUL\175a\252\249"
+        let seed1 =
+                "\171\151\240\DC4\147Q\ACK\NULfJxq\176h\172\DEL/\DC4\DC2\227\&6\
+                \\155\129\134\f\221/\NUL\175a\252\249"
         let recPwd1 = Passphrase "Cardano the cardano that cardano!"
         it "m/0'/0/0 --> Ae2tdPwUPEZ1D...64dqTSRpWqzLH" $ do
             let (accIx, addrIx) = (toEnum 0x80000000, toEnum 0x00000000)

@@ -91,7 +91,9 @@ dbMultiplePutsParProp
     -> KeyValPairs
     -> Property
 dbMultiplePutsParProp db (KeyValPairs keyValPairs) = monadicIO $ liftIO $ do
-    mapConcurrently_ (\(key, val) -> putCheckpoints db key (toWalletState val)) keyValPairs
+    mapConcurrently_
+        (\(key, val) -> putCheckpoints db key (toWalletState val))
+        keyValPairs
     resFromDb <- Set.fromList <$> readWallets db
 
     resFromDb `shouldBe` (Set.fromList (map fst keyValPairs))

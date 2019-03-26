@@ -61,7 +61,8 @@ type GetEpochById
 type GetTipBlockHeader
     = Capture "networkName" NetworkName
     :> "tip"
-    :> Get '[ComputeHash Blake2b_256 CBOR] (WithHash Blake2b_256 (ApiT BlockHeader))
+    :> Get '[ComputeHash Blake2b_256 CBOR]
+            (WithHash Blake2b_256 (ApiT BlockHeader))
 
 newtype ApiT a = ApiT { getApiT :: a } deriving (Show)
 

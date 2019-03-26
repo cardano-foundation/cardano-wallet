@@ -35,7 +35,8 @@ spec = do
                     "Error in $: failed to parse quantified value. Expected \
                     \value in 'bytes' (e.g. { \"unit\": \"bytes\", \"quantity\"\
                     \: ... }) but got something else."
-            Aeson.eitherDecode "{\"unit\":\"patate\",\"quantity\":14}" `shouldBe`
+            Aeson.eitherDecode "{\"unit\":\"patate\",\"quantity\":14}"
+                `shouldBe`
                 (Left @String @(Quantity "bytes" Int) msg)
 
     describe "Percentage" $ do

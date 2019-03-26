@@ -225,7 +225,8 @@ instance Arbitrary Address where
         ]
       where
         notOurs = do
-            bytes <- BA.convert . BS.pack . take 32 . getInfiniteList <$> arbitrary
+            bytes <- BA.convert . BS.pack . take 32 . getInfiniteList
+                <$> arbitrary
             let xprv = unsafeGenerateKeyFromSeed (bytes, mempty) mempty
             return $ keyToAddress $ publicKey xprv
 

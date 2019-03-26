@@ -105,7 +105,8 @@ instance Decodable String Network where
     decode "mainnet" = Right Mainnet
     decode "testnet" = Right Testnet
     decode "staging" = Right Staging
-    decode s = Left $ show s ++ " is neither \"mainnet\", \"testnet\" nor \"staging\"."
+    decode s = Left $
+        show s ++ " is neither \"mainnet\", \"testnet\" nor \"staging\"."
 
 instance Decodable [String] (Mnemonic 15) where
     decode ws = first show $ mkMnemonic @15 (T.pack <$> ws)

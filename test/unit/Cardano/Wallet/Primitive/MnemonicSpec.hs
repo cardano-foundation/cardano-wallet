@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -83,23 +84,23 @@ data TestVector = TestVector
 spec :: Spec
 spec = do
 
-    prop "(9) entropyToMnemonic . mnemonicToEntropy == identity" $
-        \e -> (mnemonicToEntropy @9 . entropyToMnemonic @9 @(EntropySize 9)) e == e
+    prop "(9) entropyToMnemonic . mnemonicToEntropy == identity" $ \e ->
+        (mnemonicToEntropy @9 . entropyToMnemonic @9 @(EntropySize 9)) e == e
 
-    prop "(12) entropyToMnemonic . mnemonicToEntropy == identity" $
-        \e -> (mnemonicToEntropy @12 . entropyToMnemonic @12 @(EntropySize 12)) e == e
+    prop "(12) entropyToMnemonic . mnemonicToEntropy == identity" $ \e ->
+        (mnemonicToEntropy @12 . entropyToMnemonic @12 @(EntropySize 12)) e == e
 
-    prop "(15) entropyToMnemonic . mnemonicToEntropy == identity" $
-        \e -> (mnemonicToEntropy @15 . entropyToMnemonic @15 @(EntropySize 15)) e == e
+    prop "(15) entropyToMnemonic . mnemonicToEntropy == identity" $ \e ->
+        (mnemonicToEntropy @15 . entropyToMnemonic @15 @(EntropySize 15)) e == e
 
-    prop "(18) entropyToMnemonic . mnemonicToEntropy == identity" $
-        \e -> (mnemonicToEntropy @18 . entropyToMnemonic @18 @(EntropySize 18)) e == e
+    prop "(18) entropyToMnemonic . mnemonicToEntropy == identity" $ \e ->
+        (mnemonicToEntropy @18 . entropyToMnemonic @18 @(EntropySize 18)) e == e
 
-    prop "(21) entropyToMnemonic . mnemonicToEntropy == identity" $
-        \e -> (mnemonicToEntropy @21 . entropyToMnemonic @21 @(EntropySize 21)) e == e
+    prop "(21) entropyToMnemonic . mnemonicToEntropy == identity" $ \e ->
+        (mnemonicToEntropy @21 . entropyToMnemonic @21 @(EntropySize 21)) e == e
 
-    prop "(24) entropyToMnemonic . mnemonicToEntropy == identity" $
-        \e -> (mnemonicToEntropy @24 . entropyToMnemonic @24 @(EntropySize 24)) e == e
+    prop "(24) entropyToMnemonic . mnemonicToEntropy == identity" $ \e ->
+        (mnemonicToEntropy @24 . entropyToMnemonic @24 @(EntropySize 24)) e == e
 
     prop "(9) mkMnemonic . mnemonicToText == pure" $
         \(mw :: Mnemonic 9) -> (mkMnemonic @9 . mnemonicToText) mw === pure mw
@@ -122,32 +123,36 @@ spec = do
 
     describe "golden tests" $ do
         it "No empty mnemonic" $
-            mkMnemonic @15 []
-                    `shouldBe` Left (ErrMnemonicWords (ErrWrongNumberOfWords 0 15))
+            mkMnemonic @15 [] `shouldBe`
+                Left (ErrMnemonicWords (ErrWrongNumberOfWords 0 15))
 
         it "No 1 word mnemonic" $
-            mkMnemonic @15 ["material"]
-                    `shouldBe` Left (ErrMnemonicWords (ErrWrongNumberOfWords 1 15))
+            mkMnemonic @15 ["material"] `shouldBe`
+                Left (ErrMnemonicWords (ErrWrongNumberOfWords 1 15))
 
-        it "No too long fake mnemonic" $
-            mkMnemonic @9 ["squirrel","material","silly","twice","direct","slush","pistol","razor","become","twice"]
-                    `shouldBe` Left (ErrMnemonicWords (ErrWrongNumberOfWords 10 9))
+        it "No too long fake mnemonic" $ do
+            let sentence =
+                    [ "squirrel","material","silly","twice","direct"
+                    , "slush","pistol","razor","become","twice"
+                    ]
+            mkMnemonic @9 sentence `shouldBe`
+                Left (ErrMnemonicWords (ErrWrongNumberOfWords 10 9))
 
         it "No empty entropy" $
-            mkEntropy @(EntropySize 12) ""
-                    `shouldBe` Left (ErrInvalidEntropyLength 0 128)
+            mkEntropy @(EntropySize 12) "" `shouldBe`
+                Left (ErrInvalidEntropyLength 0 128)
 
         it "No too short entropy" $
-            mkEntropy @(EntropySize 15) "000000"
-                    `shouldBe` Left (ErrInvalidEntropyLength 48 160)
+            mkEntropy @(EntropySize 15) "000000" `shouldBe`
+                Left (ErrInvalidEntropyLength 48 160)
 
         it "No too long entropy" $
-            mkEntropy @(EntropySize 15) "1234512345123451234512345"
-                    `shouldBe` Left (ErrInvalidEntropyLength 200 160)
+            mkEntropy @(EntropySize 15) "1234512345123451234512345" `shouldBe`
+                Left (ErrInvalidEntropyLength 200 160)
 
         it "Can make entropy" $
-            mkEntropy @(EntropySize 15) "12345123451234512345"
-                    `shouldSatisfy` isRight
+            mkEntropy @(EntropySize 15) "12345123451234512345" `shouldSatisfy`
+                isRight
 
         it "Can generate 96 bits entropy" $
             (BA.length . entropyToBytes <$> genEntropy @96) `shouldReturn` 12
@@ -178,50 +183,70 @@ spec = do
 
         it "Mnemonic from Api is invalid" $ do
             let mnemonicFromApi =
-                    "[squirrel,material,silly,twice,direct,slush,pistol,razor,become,junk,kingdom,flee,squirrel,silly,twice]"
-            (mkMnemonic @15 . extractWords) mnemonicFromApi `shouldSatisfy` isErrInvalidEntropyChecksum
+                    "[squirrel,material,silly,twice,direct,slush,pistol,razor,\
+                    \become,junk,kingdom,flee,squirrel,silly,twice]"
+            (mkMnemonic @15 . extractWords) mnemonicFromApi `shouldSatisfy`
+                isErrInvalidEntropyChecksum
 
         it "Mnemonic 2nd factor from Api is invalid" $ do
             let mnemonicFromApi =
-                    "[squirrel,material,silly,twice,direct,slush,pistol,razor,become]"
-            (mkMnemonic @9 . extractWords) mnemonicFromApi `shouldSatisfy` isErrInvalidEntropyChecksum
+                    "[squirrel,material,silly,twice,direct,slush,pistol,razor,\
+                    \become]"
+            (mkMnemonic @9 . extractWords) mnemonicFromApi `shouldSatisfy`
+                isErrInvalidEntropyChecksum
 
         it "15 long mnemonics not valid for mkMnemonic @12" $ do
             let mnemonicFromApi =
-                    "[trigger,artwork,lab,raw,confirm,visual,energy,double,coral,fat,hen,ghost,phone,yellow,bag]"
-            (mkMnemonic @12 . extractWords) mnemonicFromApi
-                    `shouldBe` Left (ErrMnemonicWords (ErrWrongNumberOfWords 15 12))
+                    "[trigger,artwork,lab,raw,confirm,visual,energy,double,\
+                    \coral,fat,hen,ghost,phone,yellow,bag]"
+            (mkMnemonic @12 . extractWords) mnemonicFromApi `shouldBe`
+                Left (ErrMnemonicWords (ErrWrongNumberOfWords 15 12))
 
         it "15 long mnemonics not valid for mkMnemonic @24" $ do
             let mnemonicFromApi =
-                    "[trigger,artwork,lab,raw,confirm,visual,energy,double,coral,fat,hen,ghost,phone,yellow,bag]"
-            (mkMnemonic @24 . extractWords) mnemonicFromApi
-                    `shouldBe` Left (ErrMnemonicWords (ErrWrongNumberOfWords 15 24))
+                    "[trigger,artwork,lab,raw,confirm,visual,energy,double,\
+                    \coral,fat,hen,ghost,phone,yellow,bag]"
+            (mkMnemonic @24 . extractWords) mnemonicFromApi `shouldBe`
+                Left (ErrMnemonicWords (ErrWrongNumberOfWords 15 24))
 
         it "Non-English mnemonics don't work" $ do
             let mnemonicFromApi =
-                    "[むしば,いてん,ぜんりゃく,になう,きあい,よっか,けんま,げきげん,きおん,こふん,しゅらば,しあさって,てんし,わかめ,いわば]"
-            (mkMnemonic @15 . extractWords) mnemonicFromApi
-                    `shouldBe` Left (ErrDictionary (ErrInvalidDictionaryWord "むしば"))
+                    "[むしば,いてん,ぜんりゃく,になう,きあい,よっか,けんま,\
+                    \げきげん,きおん,こふん,しゅらば,しあさって,てんし,わかめ,\
+                    \いわば]"
+            (mkMnemonic @15 . extractWords) mnemonicFromApi `shouldBe`
+                Left (ErrDictionary (ErrInvalidDictionaryWord "むしば"))
   where
     testVectors :: [TestVector]
     testVectors =
-        [ TestVector "[abandon,abandon,abandon,abandon,abandon,abandon,abandon,abandon,abandon,abandon,abandon,about]"
+        [ TestVector
+            "[abandon,abandon,abandon,abandon,abandon,abandon,abandon,abandon,\
+            \abandon,abandon,abandon,about]"
           (orFail $ mkEntropy'
-              "\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL")
+              "\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\
+              \\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL")
           (orFail $ mkMnemonic
-              ["abandon","abandon","abandon","abandon","abandon","abandon","abandon","abandon","abandon","abandon","abandon","about"])
-        , TestVector "[letter,advice,cage,absurd,amount,doctor,acoustic,avoid,letter,advice,cage,above]"
-           (orFail $ mkEntropy'
-             "\128\128\128\128\128\128\128\128\128\128\128\128\128\128\128\128")
-           (orFail $ mkMnemonic
-             ["letter","advice","cage","absurd","amount","doctor","acoustic","avoid","letter","advice","cage","above"])
+              [ "abandon", "abandon", "abandon", "abandon", "abandon", "abandon"
+              , "abandon", "abandon", "abandon", "abandon", "abandon", "about"
+              ])
         , TestVector
-          "[zoo,zoo,zoo,zoo,zoo,zoo,zoo,zoo,zoo,zoo,zoo,wrong]"
-          (orFail $ mkEntropy'
-            "\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255")
-          (orFail $ mkMnemonic
-            ["zoo","zoo","zoo","zoo","zoo","zoo","zoo","zoo","zoo","zoo","zoo","wrong"])
+            "[letter,advice,cage,absurd,amount,doctor,acoustic,avoid,letter,\
+            \advice,cage,above]"
+            (orFail $ mkEntropy'
+                "\128\128\128\128\128\128\128\128\
+                \\128\128\128\128\128\128\128\128")
+            (orFail $ mkMnemonic
+                [ "letter", "advice", "cage", "absurd", "amount", "doctor"
+                , "acoustic", "avoid", "letter", "advice", "cage", "above"
+                ])
+        , TestVector
+            "[zoo,zoo,zoo,zoo,zoo,zoo,zoo,zoo,zoo,zoo,zoo,wrong]"
+            (orFail $ mkEntropy'
+                "\255\255\255\255\255\255\255\255\
+                \\255\255\255\255\255\255\255\255")
+            (orFail $ mkMnemonic
+                [ "zoo", "zoo", "zoo", "zoo", "zoo", "zoo"
+                , "zoo", "zoo", "zoo", "zoo", "zoo", "wrong" ])
         ]
       where
         orFail
@@ -242,8 +267,9 @@ spec = do
       . T.dropAround (\c -> c == '[' || c == ']')
 
     isErrInvalidEntropyChecksum :: Either (MnemonicError e) b -> Bool
-    isErrInvalidEntropyChecksum (Left (ErrEntropy (ErrInvalidEntropyChecksum _ _))) = True
-    isErrInvalidEntropyChecksum  _  = False
+    isErrInvalidEntropyChecksum = \case
+        Left (ErrEntropy ErrInvalidEntropyChecksum{}) -> True
+        _ -> False
 
 -- | The initial seed has to be vector or length multiple of 4 bytes and shorter
 -- than 64 bytes. Note that this is good for testing or examples, but probably
