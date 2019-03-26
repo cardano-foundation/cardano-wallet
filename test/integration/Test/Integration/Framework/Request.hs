@@ -53,6 +53,8 @@ import Network.HTTP.Client
     , responseBody
     , responseStatus
     )
+import Network.HTTP.Types.Header
+    ( RequestHeaders )
 import Network.HTTP.Types.Method
     ( Method )
 import Network.HTTP.Types.Status
@@ -96,7 +98,7 @@ request
     -> Maybe Aeson.Value
         -- ^ Request body
     -> m (Either RequestException a)
-request (verb, path) body = (>>= handleResponse) <$> request' (verb, path) body
+request (verb, path) body = (>>= handleResponse) <$> request' (verb, path) Nothing body
   where
     -- Either decode response body, or provide a RequestException.
     handleResponse (req, res) = case responseStatus res of
@@ -129,31 +131,38 @@ request'
         )
     => (Method, Text)
         -- ^ HTTP method and request path
+    -> Maybe RequestHeaders
+        -- ^ Request headers
     -> Maybe Aeson.Value
         -- ^ Request body
     -> m (Either RequestException (HTTP.Request, HTTP.Response ByteString))
-request' (verb, path) body = do
+request' (verb, path) reqHeaders body = do
     (base, man) <- view manager
     tryHttp $ do
         req <- parseRequest $ T.unpack $ base <> path
-        res <- httpLbs (prepare req) man
+        res <- httpLbs (prepareReq req reqHeaders) man
         pure (req, res)
+    where
+        prepareReq :: HTTP.Request -> Maybe RequestHeaders -> HTTP.Request
+        prepareReq req h = req
+            { method = verb
+            , requestBody = maybe mempty (RequestBodyLBS . Aeson.encode) body
+            , requestHeaders = headers
+            }
+            where
+                headers = case h of
+                    Nothing -> defaultHeaders
+                    Just x -> x
 
-  where
-    prepare :: HTTP.Request -> HTTP.Request
-    prepare req = req
-        { method = verb
-        , requestBody = maybe mempty (RequestBodyLBS . Aeson.encode) body
-        , requestHeaders =
-            [ ("Content-Type", "application/json")
-            , ("Accept", "application/json")
-            ]
-        }
+                defaultHeaders =
+                    [ ("Content-Type", "application/json")
+                    , ("Accept", "application/json")
+                    ]
 
-    -- Catch HttpExceptions and turn them into
-    -- Either RequestExceptions.
-    tryHttp :: IO r -> m (Either RequestException r)
-    tryHttp = liftIO . fmap (first HttpException) . try
+        -- Catch HttpExceptions and turn them into
+        -- Either RequestExceptions.
+        tryHttp :: IO r -> m (Either RequestException r)
+        tryHttp = liftIO . fmap (first HttpException) . try
 
 -- | Makes a request to the API, ignoring the response, or any errors.
 request_
@@ -167,7 +176,7 @@ request_
     => (Method, Text)
     -> Maybe Aeson.Value
     -> m ()
-request_ req body = void $ request' req body
+request_ req body = void $ request' req Nothing body
 
 -- | Makes a request to the API, but throws if it fails.
 successfulRequest

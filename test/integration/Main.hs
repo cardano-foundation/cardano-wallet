@@ -26,6 +26,7 @@ import Test.Integration.Framework.DSL
     , Scenarios
     , expectError
     , expectResponseCode
+    , printInfo
     , request
     , request'
     , request_
@@ -83,25 +84,26 @@ dummySetup action = do
 respCodesSpec :: Scenarios Context
 respCodesSpec = do
     scenario "GET; Response code 200" $ do
-        response <- request' ("GET", "/get") Nothing
-        verify
-            (response :: Either RequestException (Request, Response ByteString))
-            [ expectResponseCode status200 ]
+        response <- request' ("GET", "/get?my=arg") Nothing Nothing
+        verify (response :: Either RequestException (Request, Response ByteString))
+            [ expectResponseCode status200
+            ]
 
     scenario "GET; Response code 404" $ do
-        response <- request' ("GET", "/get/nothing") Nothing
-        verify
-            (response :: Either RequestException (Request, Response ByteString))
-            [ expectResponseCode status404 ]
+        response <- request' ("GET", "/get/nothing") Nothing Nothing
+        verify (response :: Either RequestException (Request, Response ByteString))
+            [ expectResponseCode status404
+            ]
 
     scenario "POST; Response code 200" $ do
-        response <- request' ("POST", "/post") Nothing
-        verify
-            (response :: Either RequestException (Request, Response ByteString))
-            [ expectResponseCode status200 ]
+        let header = [("dummy", "header")]
+        response <- request' ("POST", "/post") (Just header) Nothing
+        verify (response :: Either RequestException (Request, Response ByteString))
+            [ expectResponseCode status200
+            ]
 
     scenario "POST; Response code 405" $ do
-        response <- request' ("POST", "/get") Nothing
-        verify
-            (response :: Either RequestException (Request, Response ByteString))
-            [ expectResponseCode status405 ]
+        response <- request' ("POST", "/get") Nothing Nothing
+        verify (response :: Either RequestException (Request, Response ByteString))
+            [ expectResponseCode status405
+            ]

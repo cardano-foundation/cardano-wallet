@@ -28,6 +28,7 @@ module Test.Integration.Framework.DSL
     , (</>)
     , (!!)
     , json
+    , printInfo
     ) where
 
 import Prelude hiding
@@ -117,6 +118,13 @@ pendingWith
     => String
     -> m ()
 pendingWith = liftIO . H.pendingWith
+
+-- | printInfo (e.g. response) for debugging purposes
+printInfo
+    :: (MonadIO m, MonadFail m)
+    => String
+    -> m ()
+printInfo = liftIO . print
 
 -- | Apply 'a' to all actions in sequence
 verify :: (Monad m) => a -> [a -> m ()] -> m ()
