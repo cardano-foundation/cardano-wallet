@@ -38,6 +38,8 @@ import Data.Functor
     ( ($>) )
 import Data.Generics.Product.Typed
     ( HasType, typed )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Text
     ( Text )
 import Network.HTTP.Client
@@ -147,13 +149,9 @@ request' (verb, path) reqHeaders body = do
         prepareReq req h = req
             { method = verb
             , requestBody = maybe mempty (RequestBodyLBS . Aeson.encode) body
-            , requestHeaders = headers
+            , requestHeaders = fromMaybe defaultHeaders h
             }
             where
-                headers = case h of
-                    Nothing -> defaultHeaders
-                    Just x -> x
-
                 defaultHeaders =
                     [ ("Content-Type", "application/json")
                     , ("Accept", "application/json")

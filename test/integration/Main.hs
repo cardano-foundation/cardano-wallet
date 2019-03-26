@@ -26,7 +26,6 @@ import Test.Integration.Framework.DSL
     , Scenarios
     , expectError
     , expectResponseCode
-    , printInfo
     , request
     , request'
     , request_
