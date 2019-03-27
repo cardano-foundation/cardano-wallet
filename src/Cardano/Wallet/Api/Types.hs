@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
@@ -38,6 +39,8 @@ module Cardano.Wallet.Api.Types
     -- * Limits
     , passphraseMinLength
     , passphraseMaxLength
+    , walletNameMinLength
+    , walletNameMaxLength
 
     -- * Polymorphic Types
     , ApiT (..)
@@ -69,7 +72,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , WalletState (..)
-    , mkWalletName
     )
 import Control.Applicative
     ( (<|>) )
@@ -86,7 +88,6 @@ import Data.Aeson
     , genericToJSON
     , omitNothingFields
     , sumEncoding
-    , tagSingleConstructors
     )
 import Data.ByteString.Base58
     ( bitcoinAlphabet, decodeBase58, encodeBase58 )
@@ -233,15 +234,14 @@ instance FromJSON (ApiT (Passphrase "encryption")) where
                 <> show passphraseMaxLength <> " chars"
         t ->
             return $ ApiT $ Passphrase $ BA.convert $ T.encodeUtf8 t
+instance ToJSON (ApiT (Passphrase "encryption")) where
+    toJSON (ApiT (Passphrase bytes)) = toJSON $ T.decodeUtf8 $ BA.convert bytes
 
 passphraseMinLength :: Int
 passphraseMinLength = 10
 
 passphraseMaxLength :: Int
 passphraseMaxLength = 255
-
-instance ToJSON (ApiT (Passphrase "encryption")) where
-    toJSON (ApiT (Passphrase bytes)) = toJSON $ T.decodeUtf8 $ BA.convert bytes
 
 instance {-# OVERLAPS #-}
     ( n ~ EntropySize mw
@@ -273,7 +273,7 @@ instance
         return $ ApiMnemonicT (pwd, xs)
 
 instance ToJSON (ApiMnemonicT sizes purpose) where
-    toJSON (ApiMnemonicT (_, xs)) = toJSON xs
+    toJSON (ApiMnemonicT (!_, xs)) = toJSON xs
 
 instance FromJSON (ApiT WalletId) where
     parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
@@ -298,9 +298,23 @@ instance ToJSON (ApiT (WalletDelegation (ApiT PoolId))) where
     toJSON = genericToJSON walletDelegationOptions . getApiT
 
 instance FromJSON (ApiT WalletName) where
-    parseJSON x = fmap ApiT . eitherToParser . mkWalletName =<< parseJSON x
+    parseJSON = parseJSON >=> \case
+        t | T.length t < walletNameMinLength ->
+            fail $ "name is too short: expected at least "
+                <> show walletNameMinLength <> " chars"
+        t | T.length t > walletNameMaxLength ->
+            fail $ "name is too long: expected at most "
+                <> show walletNameMaxLength <> " chars"
+        t ->
+            return $ ApiT $ WalletName t
 instance ToJSON (ApiT WalletName) where
     toJSON = toJSON . getWalletName . getApiT
+
+walletNameMinLength :: Int
+walletNameMinLength = 1
+
+walletNameMaxLength :: Int
+walletNameMaxLength = 255
 
 instance FromJSON (ApiT WalletPassphraseInfo) where
     parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
@@ -358,7 +372,6 @@ data TaggedObjectOptions = TaggedObjectOptions
 defaultSumTypeOptions :: Aeson.Options
 defaultSumTypeOptions = Aeson.defaultOptions
     { constructorTagModifier = camelTo2 '_'
-    , tagSingleConstructors = True
     }
 
 defaultRecordTypeOptions :: Aeson.Options

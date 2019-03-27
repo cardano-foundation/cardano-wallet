@@ -122,7 +122,6 @@ pendingWith = liftIO . H.pendingWith
 verify :: (Monad m) => a -> [a -> m ()] -> m ()
 verify a = mapM_ (a &)
 
-
 -- | Expect an errored response, without any further assumptions
 expectError
     :: (MonadIO m, MonadFail m, Show a)

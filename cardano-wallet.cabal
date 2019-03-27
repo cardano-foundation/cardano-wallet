@@ -99,6 +99,7 @@ test-suite unit
       -Werror
   build-depends:
       aeson
+    , aeson-qq
     , base
     , async
     , base58-bytestring
