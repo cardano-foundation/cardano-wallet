@@ -4,7 +4,10 @@
 module Cardano.Wallet.Api where
 
 import Cardano.Wallet.Api.Types
-    ( Wallet
+    ( Address
+    , AddressState
+    , ApiT
+    , Wallet
     , WalletId
     , WalletPostData
     , WalletPutData
@@ -13,12 +16,38 @@ import Cardano.Wallet.Api.Types
 import Data.Proxy
     ( Proxy (..) )
 import Servant.API
-    ( (:<|>), (:>), Capture, Delete, Get, JSON, NoContent, Post, Put, ReqBody )
+    ( (:<|>)
+    , (:>)
+    , Capture
+    , Delete
+    , Get
+    , JSON
+    , NoContent
+    , Post
+    , Put
+    , QueryParam
+    , ReqBody
+    )
 
 api :: Proxy Api
 api = Proxy
 
-type Api = Wallets
+type Api = Addresses :<|> Wallets
+
+{-------------------------------------------------------------------------------
+                                  Addresses
+
+  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Addresses
+-------------------------------------------------------------------------------}
+
+type Addresses =
+    ListAddresses
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listAddresses
+type ListAddresses = "wallets"
+    :> Capture "walletId" WalletId
+    :> QueryParam "state" (ApiT AddressState)
+    :> Get '[JSON] [Address]
 
 {-------------------------------------------------------------------------------
                                   Wallets

@@ -19,7 +19,9 @@ import Prelude
 import Cardano.Wallet.Api
     ( api )
 import Cardano.Wallet.Api.Types
-    ( AddressPoolGap
+    ( Address (..)
+    , AddressPoolGap
+    , AddressState (..)
     , ApiMnemonicT (..)
     , ApiT (..)
     , Passphrase (..)
@@ -94,7 +96,7 @@ import GHC.TypeLits
 import Numeric.Natural
     ( Natural )
 import Servant
-    ( (:<|>), (:>), Capture, ReqBody, StdMethod (..), Verb )
+    ( (:<|>), (:>), Capture, QueryParam, ReqBody, StdMethod (..), Verb )
 import Servant.Swagger.Test
     ( validateEveryToJSON )
 import Test.Aeson.GenericSpecs
@@ -122,6 +124,7 @@ import Test.QuickCheck.Arbitrary.Generic
 import Test.QuickCheck.Instances.Time
     ()
 
+import qualified Cardano.Wallet.Primitive.Types as P
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
@@ -134,10 +137,12 @@ spec = do
     describe
         "can perform roundtrip JSON serialization & deserialization, \
         \and match existing golden files" $ do
+            roundtripAndGolden $ Proxy @ Address
             roundtripAndGolden $ Proxy @ Wallet
             roundtripAndGolden $ Proxy @ WalletPostData
             roundtripAndGolden $ Proxy @ WalletPutData
             roundtripAndGolden $ Proxy @ WalletPutPassphraseData
+            roundtripAndGolden $ Proxy @ (ApiT P.Address)
             roundtripAndGolden $ Proxy @ (ApiT AddressPoolGap)
             roundtripAndGolden $ Proxy @ (ApiT (WalletDelegation (ApiT PoolId)))
             roundtripAndGolden $ Proxy @ (ApiT WalletId)
@@ -187,6 +192,17 @@ roundtripAndGolden = roundtripAndGoldenSpecsWithSettings settings
 {-------------------------------------------------------------------------------
                               Arbitrary Instances
 -------------------------------------------------------------------------------}
+
+instance Arbitrary Address where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary AddressState where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary P.Address where
+    arbitrary = P.Address . B8.pack <$> replicateM 50 arbitrary
 
 instance Arbitrary (Quantity "lovelace" Natural) where
     shrink (Quantity 0) = []
@@ -370,6 +386,9 @@ specification =
     unsafeDecode = either ( error . (msg <>) . show) id . Yaml.decodeEither'
     msg = "Whoops! Failed to parse or find the api specification document: "
 
+instance ToSchema Address where
+    declareNamedSchema _ = declareSchemaForDefinition "Address"
+
 instance ToSchema Wallet where
     declareNamedSchema _ = declareSchemaForDefinition "Wallet"
 
@@ -428,6 +447,9 @@ instance (KnownSymbol param, HasPath sub) => HasPath (Capture param t :> sub)
         in (verb, "/{" <> symbolVal (Proxy :: Proxy param) <> "}" <> sub)
 
 instance HasPath sub => HasPath (ReqBody a b :> sub) where
+    getPath _ = getPath (Proxy @sub)
+
+instance HasPath sub => HasPath (QueryParam a b :> sub) where
     getPath _ = getPath (Proxy @sub)
 
 -- A way to demote 'StdMethod' back to the world of values. Servant provides a
