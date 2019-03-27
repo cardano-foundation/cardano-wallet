@@ -71,6 +71,7 @@ library
       Cardano.Wallet.Binary
       Cardano.Wallet.Binary.Packfile
       Cardano.Wallet.CoinSelection
+      Cardano.Wallet.CoinSelection.LargestFirst
       Cardano.Wallet.DB
       Cardano.Wallet.DB.MVar
       Cardano.Wallet.Network
