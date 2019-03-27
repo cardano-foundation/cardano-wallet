@@ -32,6 +32,7 @@ import Cardano.Wallet.Api.Types
     , WalletPassphraseInfo (..)
     , WalletPostData (..)
     , WalletPutData (..)
+    , WalletPutPassphraseData (..)
     , WalletState (..)
     , passphraseMaxLength
     , passphraseMinLength
@@ -132,6 +133,7 @@ spec = do
             roundtripAndGolden $ Proxy @ Wallet
             roundtripAndGolden $ Proxy @ WalletPostData
             roundtripAndGolden $ Proxy @ WalletPutData
+            roundtripAndGolden $ Proxy @ WalletPutPassphraseData
             roundtripAndGolden $ Proxy @ (ApiT AddressPoolGap)
             roundtripAndGolden $ Proxy @ (ApiT (WalletDelegation (ApiT PoolId)))
             roundtripAndGolden $ Proxy @ (ApiT WalletId)
@@ -202,6 +204,10 @@ instance Arbitrary WalletPostData where
     shrink = genericShrink
 
 instance Arbitrary WalletPutData where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary WalletPutPassphraseData where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -390,6 +396,17 @@ instance ToSchema WalletPutData where
                 \the spec"
             Just schema ->
                 return $ NamedSchema (Just "WalletPutData") schema
+
+-- | Ad-hoc 'ToSchema' instance for the 'WalletPutPassphraseData' definition: we
+-- simply look it up from the specification.
+instance ToSchema WalletPutPassphraseData where
+    declareNamedSchema _ =
+        case specification ^. definitions . at "WalletPutPassphraseData" of
+            Nothing -> error
+                "unable to find the definition for 'WalletPutPassphraseData' \
+                \in the spec"
+            Just schema ->
+                return $ NamedSchema (Just "WalletPutPassphraseData") schema
 
 -- | Verify that all servant endpoints are present and match the specification
 class ValidateEveryPath api where
