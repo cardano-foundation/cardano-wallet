@@ -290,17 +290,17 @@ instance
         ApiMnemonicT y <- arbitrary @(ApiMnemonicT rest purpose)
         -- NOTE
         -- If we were to "naively" combine previous generators without weights,
-        -- we would be tilting probabilities towards the left most, in such way
-        -- that every element would be twice as more likely as its right
-        -- neighbour with an exponential decrease (after 7th elements, elements
-        -- have less than a percent of chance to appear). By tweaking a bit the
-        -- weight like below, we allow every elements to have at least 10%
-        -- chance to appear for lists up to 10 elements.
+        -- we would be tilting probabilities towards the leftmost element, so
+        -- that every element would be twice as likely to appear as its right-
+        -- hand neighbour, with an exponential decrease. (After the 7th element,
+        -- subsequent elements would have less than 1 percent chance of
+        -- appearing.) By tweaking the weights a bit as we have done below, we
+        -- make it possible for every element to have at least 10% chance of
+        -- appearing, for lists up to 10 elements.
         frequency
             [ (1, pure $ ApiMnemonicT x)
             , (5, pure $ ApiMnemonicT y)
             ]
-
 
 {-------------------------------------------------------------------------------
                    Specification / Servant-Swagger Machinery

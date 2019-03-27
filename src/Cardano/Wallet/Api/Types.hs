@@ -137,10 +137,10 @@ newtype ApiT a =
     deriving (Generic, Show, Eq)
 
 -- | Representation of mnemonics at the API-level, using a polymorphic type in
--- the number of mnemonic that are supported (and an underlying purpose). In
--- practice, mnemonic corresponds to passphrases or seeds, and although they're
+-- the lengths of mnemonics that are supported (and an underlying purpose). In
+-- practice, mnemonics correspond to passphrases or seeds, and although they're
 -- nice to manipulate as mnemonics from a user-perspective, carrying around a
--- list of words doesn't really make sense for the business logic which prefers
+-- list of words doesn't really make sense for the business logic, which prefers
 -- manipulating scrubbed bytes directly.
 --
 -- @
@@ -150,11 +150,11 @@ newtype ApiT a =
 -- @
 --
 -- Note that the given 'Nat's **have** to be valid mnemonic sizes, otherwise the
--- underlying code won't even compile with, not-soo-friendly error messages.
+-- underlying code won't even compile, with not-so-friendly error messages.
 --
 -- Also, the internal representation holds a @[Text]@ which contains the list of
--- mnemonic words that was parsed. This is only to be able to satisfy the
--- 'ToJSON' instance and rountrip and that is a very dubious argument. In
+-- mnemonic words that was parsed. This is only to be able to implement the
+-- 'ToJSON' instances and roundtrip, which is a very dubious argument. In
 -- practice, we'll NEVER peek at the mnemonic, output them and whatnot.
 newtype ApiMnemonicT (sizes :: [Nat]) (purpose :: Symbol) =
     ApiMnemonicT (Passphrase purpose, [Text])
