@@ -1,6 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -25,13 +24,10 @@
 
 module Cardano.Wallet.Primitive.Model
     (
-    -- * Address
-      AddressState (..)
-
-    -- * Wallet
-    , Wallet
+      Wallet
     , initWallet
     , currentTip
+    , getState
     , applyBlock
     , availableBalance
     , totalBalance
@@ -39,27 +35,12 @@ module Cardano.Wallet.Primitive.Model
     , availableUTxO
     , txOutsOurs
     , utxoFromTx
-
-    -- * Wallet Metadata
-    , WalletMetadata(..)
-    , WalletId(..)
-    , WalletName(..)
-    , mkWalletName
-    , walletNameMinLength
-    , walletNameMaxLength
-    , WalletNameError(..)
-    , WalletState(..)
-    , WalletDelegation (..)
-    , WalletPassphraseInfo(..)
-    , PoolId(..)
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Binary
     ( txId )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( AddressPoolGap )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
@@ -86,35 +67,16 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( catMaybes )
-import Data.Quantity
-    ( Percentage, Quantity (..) )
 import Data.Set
     ( Set )
-import Data.Text
-    ( Text )
-import Data.Time.Clock
-    ( UTCTime )
 import Data.Traversable
     ( for )
-import Data.UUID.Types
-    ( UUID )
-import GHC.Generics
-    ( Generic )
+import Numeric.Natural
+    ( Natural )
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import qualified Data.Text as T
 
-{-------------------------------------------------------------------------------
-                                    address
--------------------------------------------------------------------------------}
-
-data AddressState = Used | Unused
-    deriving (Eq, Generic, Show)
-
-{-------------------------------------------------------------------------------
-                                    wallet
--------------------------------------------------------------------------------}
 
 -- | An opaque wallet type, see @initWallet@ and @applyBlock@ to construct and
 -- update wallets.
@@ -144,14 +106,12 @@ instance NFData (Wallet s) where
                 (rnf sl `deepseq`
                     (rnf s `deepseq` ())))
 
-
 -- | Create an empty wallet from an initial state
 initWallet
     :: (IsOurs s, NFData s, Show s)
     => s
     -> Wallet s
 initWallet = Wallet mempty mempty (SlotId 0 0)
-
 
 -- | Apply Block is the only way to make the wallet evolve.
 applyBlock
@@ -173,30 +133,28 @@ applyBlock !b (cp@(Wallet !utxo !pending _ _) :| checkpoints) =
         -- problems in case of rollbacks.
         (cp' :| cp : take 2160 checkpoints)
 
-
 -- | Get the wallet current tip
 currentTip :: Wallet s -> SlotId
-currentTip (Wallet _ _ tip _) =
-    tip
+currentTip (Wallet _ _ tip _) = tip
 
+-- | Get the wallet current state
+getState :: Wallet s -> s
+getState (Wallet _ _ _ s) = s
 
 -- | Available balance = 'balance' . 'availableUTxO'
-availableBalance :: Wallet s -> Integer
+availableBalance :: Wallet s -> Natural
 availableBalance =
     balance . availableUTxO
 
-
 -- | Total balance = 'balance' . 'totalUTxO'
-totalBalance :: Wallet s -> Integer
+totalBalance :: Wallet s -> Natural
 totalBalance =
     balance . totalUTxO
-
 
 -- | Available UTxO = UTxO that aren't part of pending txs
 availableUTxO :: Wallet s -> UTxO
 availableUTxO (Wallet utxo pending _ _) =
     utxo `excluding` txIns pending
-
 
 -- | Total UTxO = 'availableUTxO' <> "pending UTxO"
 totalUTxO :: Wallet s -> UTxO
@@ -209,9 +167,6 @@ totalUTxO wallet@(Wallet _ pending _ s) =
         discardState = fst
     in
         availableUTxO wallet <> discardState (changeUTxO pending s)
-
-
--- * Helpers
 
 -- | Return all transaction outputs that are ours. This plays well within a
 -- 'State' monad.
@@ -234,7 +189,6 @@ txOutsOurs txs =
     pick out = do
         predicate <- state $ isOurs (address out)
         return $ if predicate then Just out else Nothing
-
     forMaybe :: Monad m => [a] -> (a -> m (Maybe b)) -> m [b]
     forMaybe xs = fmap catMaybes . for xs
 
@@ -245,8 +199,9 @@ utxoFromTx :: Tx -> UTxO
 utxoFromTx tx@(Tx _ outs) =
     UTxO $ Map.fromList $ zip (TxIn (txId tx) <$> [0..]) outs
 
-
--- * Internals
+{-------------------------------------------------------------------------------
+                               Internals
+-------------------------------------------------------------------------------}
 
 prefilterBlock
     :: Block
@@ -273,64 +228,3 @@ changeUTxO pending = runState $ do
     let utxo = foldMap utxoFromTx pending
     let ins = txIns pending
     return $ (utxo `restrictedTo` ours) `restrictedBy` ins
-
-
-{-------------------------------------------------------------------------------
-                             Wallet Metadata
--------------------------------------------------------------------------------}
-
-data WalletMetadata = WalletMetadata
-    { id
-        :: !WalletId
-    , name
-        :: !WalletName
-    , addressPoolGap
-        :: !AddressPoolGap
-    , passphraseInfo
-        :: !WalletPassphraseInfo
-    , status
-        :: !WalletState
-    , delegation
-        :: !(WalletDelegation PoolId)
-    } deriving (Eq, Show, Generic)
-
-newtype WalletName = WalletName { getWalletName ::  Text }
-    deriving (Eq, Show)
-
-data WalletNameError
-    = WalletNameTooShortError
-    | WalletNameTooLongError
-    deriving Show
-
-mkWalletName :: Text -> Either WalletNameError WalletName
-mkWalletName n
-    | T.length n < walletNameMinLength = Left WalletNameTooShortError
-    | T.length n > walletNameMaxLength = Left WalletNameTooLongError
-    | otherwise = Right $ WalletName n
-
-walletNameMinLength :: Int
-walletNameMinLength = 1
-
-walletNameMaxLength :: Int
-walletNameMaxLength = 255
-
-newtype WalletId = WalletId UUID
-    deriving (Generic, Eq, Ord, Show)
-
-data WalletState
-    = Ready
-    | Restoring !(Quantity "percent" Percentage)
-    deriving (Generic, Eq, Show)
-
-data WalletDelegation poolId
-    = NotDelegating
-    | Delegating !poolId
-    deriving (Generic, Eq, Show)
-
-newtype PoolId = PoolId
-    { getPoolId :: Text }
-    deriving (Generic, Eq, Show)
-
-newtype WalletPassphraseInfo = WalletPassphraseInfo
-    { lastUpdatedAt :: UTCTime }
-    deriving (Generic, Eq, Show)

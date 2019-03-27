@@ -226,9 +226,13 @@ nextAddresses !key (AddressPoolGap !g) !cc !fromIx =
         (>= fromIx)
     newAddress = keyToAddress . deriveAddressPublicKey key cc
 
-newtype SeqState = SeqState (AddressPool, AddressPool)
+data SeqState = SeqState
+    { internalPool :: !AddressPool
+    , externalPool :: !AddressPool
+    }
     deriving stock (Generic, Show)
-    deriving newtype (NFData)
+
+instance NFData SeqState
 
 -- NOTE
 -- We have to scan both the internal and external chain. Note that, the
@@ -240,10 +244,10 @@ newtype SeqState = SeqState (AddressPool, AddressPool)
 -- that they are just created in sequence by the wallet software. Hence an
 -- address pool with a gap of 1 should be sufficient for the internal chain.
 instance IsOurs SeqState where
-    isOurs addr (SeqState (!s1, !s2)) =
+    isOurs addr (SeqState !s1 !s2) =
         let
             (res1, !s1') = lookupAddress addr s1
             (res2, !s2') = lookupAddress addr s2
             ours = isJust (res1 <|> res2)
         in
-            (ours `deepseq` ours, SeqState (s1', s2'))
+            (ours `deepseq` ours, SeqState s1' s2')

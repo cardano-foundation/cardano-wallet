@@ -35,7 +35,7 @@ import Cardano.Wallet.Primitive.Mnemonic
     , entropyToMnemonic
     , mkEntropy
     )
-import Cardano.Wallet.Primitive.Model
+import Cardano.Wallet.Primitive.Types
     ( WalletId (..), WalletName (..) )
 import Control.Monad.IO.Class
     ( liftIO )

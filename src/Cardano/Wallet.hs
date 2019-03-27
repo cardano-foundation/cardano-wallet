@@ -32,15 +32,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap, SeqState (..), mkAddressPool )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet
-    , WalletId (..)
-    , WalletMetadata (..)
-    , WalletName (..)
-    , applyBlock
-    , initWallet
-    )
+    ( Wallet, applyBlock, initWallet )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..) )
+    ( Block (..), WalletId (..), WalletMetadata (..), WalletName (..) )
 import Control.DeepSeq
     ( deepseq )
 import Control.Monad.IO.Class
@@ -109,8 +103,10 @@ mkWalletLayer db network = WalletLayer
                 mkAddressPool (publicKey accXPrv) (gap w) ExternalChain []
         let intPool =
                 mkAddressPool (publicKey accXPrv) minBound InternalChain []
-        let wallet =
-                initWallet $ SeqState (extPool, intPool)
+        let wallet = initWallet $ SeqState
+                { externalPool = extPool
+                , internalPool = intPool
+                }
         -- FIXME Compute the wallet id deterministically from the seed
         let wid = WalletId (read "00000000-0000-0000-0000-000000000000")
         liftIO (readCheckpoints db (PrimaryKey wid)) >>= \case

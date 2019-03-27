@@ -19,26 +19,21 @@ import Prelude
 import Cardano.Wallet.Api
     ( api )
 import Cardano.Wallet.Api.Types
-    ( Address (..)
-    , AddressPoolGap
-    , AddressState (..)
+    ( ApiAddress (..)
     , ApiMnemonicT (..)
     , ApiT (..)
-    , Passphrase (..)
-    , PoolId (..)
-    , Wallet (..)
+    , ApiWallet (..)
     , WalletBalance (..)
-    , WalletDelegation (..)
-    , WalletId (..)
-    , WalletName (..)
-    , WalletPassphraseInfo (..)
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
-    , WalletState (..)
     , passphraseMaxLength
     , passphraseMinLength
     )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Passphrase (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( AddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
@@ -53,8 +48,19 @@ import Cardano.Wallet.Primitive.Mnemonic
     , mkEntropy
     , mnemonicToText
     )
-import Cardano.Wallet.Primitive.Model
-    ( mkWalletName, walletNameMaxLength, walletNameMinLength )
+import Cardano.Wallet.Primitive.Types
+    ( Address (..)
+    , AddressState (..)
+    , PoolId (..)
+    , WalletDelegation (..)
+    , WalletId (..)
+    , WalletName (..)
+    , WalletPassphraseInfo (..)
+    , WalletState (..)
+    , mkWalletName
+    , walletNameMaxLength
+    , walletNameMinLength
+    )
 import Control.Lens
     ( Lens', at, (^.) )
 import Control.Monad
@@ -124,7 +130,6 @@ import Test.QuickCheck.Arbitrary.Generic
 import Test.QuickCheck.Instances.Time
     ()
 
-import qualified Cardano.Wallet.Primitive.Types as P
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
@@ -137,12 +142,12 @@ spec = do
     describe
         "can perform roundtrip JSON serialization & deserialization, \
         \and match existing golden files" $ do
-            roundtripAndGolden $ Proxy @ Address
-            roundtripAndGolden $ Proxy @ Wallet
+            roundtripAndGolden $ Proxy @ ApiAddress
+            roundtripAndGolden $ Proxy @ ApiWallet
             roundtripAndGolden $ Proxy @ WalletPostData
             roundtripAndGolden $ Proxy @ WalletPutData
             roundtripAndGolden $ Proxy @ WalletPutPassphraseData
-            roundtripAndGolden $ Proxy @ (ApiT P.Address)
+            roundtripAndGolden $ Proxy @ (ApiT Address)
             roundtripAndGolden $ Proxy @ (ApiT AddressPoolGap)
             roundtripAndGolden $ Proxy @ (ApiT (WalletDelegation (ApiT PoolId)))
             roundtripAndGolden $ Proxy @ (ApiT WalletId)
@@ -193,7 +198,7 @@ roundtripAndGolden = roundtripAndGoldenSpecsWithSettings settings
                               Arbitrary Instances
 -------------------------------------------------------------------------------}
 
-instance Arbitrary Address where
+instance Arbitrary ApiAddress where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -201,8 +206,8 @@ instance Arbitrary AddressState where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary P.Address where
-    arbitrary = P.Address . B8.pack <$> replicateM 50 arbitrary
+instance Arbitrary Address where
+    arbitrary = Address . B8.pack <$> replicateM 50 arbitrary
 
 instance Arbitrary (Quantity "lovelace" Natural) where
     shrink (Quantity 0) = []
@@ -212,7 +217,7 @@ instance Arbitrary (Quantity "lovelace" Natural) where
 instance Arbitrary (Quantity "percent" Percentage) where
     arbitrary = Quantity <$> arbitraryBoundedEnum
 
-instance Arbitrary Wallet where
+instance Arbitrary ApiWallet where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -386,10 +391,10 @@ specification =
     unsafeDecode = either ( error . (msg <>) . show) id . Yaml.decodeEither'
     msg = "Whoops! Failed to parse or find the api specification document: "
 
-instance ToSchema Address where
+instance ToSchema ApiAddress where
     declareNamedSchema _ = declareSchemaForDefinition "Address"
 
-instance ToSchema Wallet where
+instance ToSchema ApiWallet where
     declareNamedSchema _ = declareSchemaForDefinition "Wallet"
 
 instance ToSchema WalletPostData where

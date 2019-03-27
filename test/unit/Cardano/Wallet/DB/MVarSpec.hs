@@ -15,9 +15,9 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.MVar
     ( newDBLayer )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, WalletId (..), initWallet )
+    ( Wallet, initWallet )
 import Cardano.Wallet.Primitive.Types
-    ( IsOurs (..) )
+    ( IsOurs (..), WalletId (..) )
 import Control.Concurrent.Async
     ( mapConcurrently_ )
 import Control.DeepSeq

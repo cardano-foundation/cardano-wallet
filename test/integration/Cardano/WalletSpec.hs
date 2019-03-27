@@ -18,9 +18,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Mnemonic
     ( EntropySize, entropyToBytes, genEntropy )
 import Cardano.Wallet.Primitive.Model
-    ( WalletName (..), currentTip )
+    ( currentTip )
 import Cardano.Wallet.Primitive.Types
-    ( SlotId (..) )
+    ( SlotId (..), WalletName (..) )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
@@ -52,7 +52,7 @@ spec = do
             handle <- async (watchWallet wallet wid)
             threadDelay 5000000
             cancel handle
-            tip <- currentTip <$> unsafeRunExceptT (readWallet wallet wid)
+            tip <- currentTip . fst <$> unsafeRunExceptT (readWallet wallet wid)
             tip `shouldSatisfy` (> SlotId 0 0)
   where
     port = 1337
