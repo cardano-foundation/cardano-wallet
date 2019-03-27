@@ -65,10 +65,6 @@ module Cardano.Wallet.Primitive.Types
     , WalletMetadata(..)
     , WalletId(..)
     , WalletName(..)
-    , mkWalletName
-    , walletNameMinLength
-    , walletNameMaxLength
-    , WalletNameError(..)
     , WalletState(..)
     , WalletDelegation (..)
     , WalletPassphraseInfo(..)
@@ -127,7 +123,6 @@ import Numeric.Natural
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 
@@ -150,23 +145,6 @@ data WalletMetadata = WalletMetadata
 
 newtype WalletName = WalletName { getWalletName ::  Text }
     deriving (Eq, Show)
-
-data WalletNameError
-    = WalletNameTooShortError
-    | WalletNameTooLongError
-    deriving Show
-
-mkWalletName :: Text -> Either WalletNameError WalletName
-mkWalletName n
-    | T.length n < walletNameMinLength = Left WalletNameTooShortError
-    | T.length n > walletNameMaxLength = Left WalletNameTooLongError
-    | otherwise = Right $ WalletName n
-
-walletNameMinLength :: Int
-walletNameMinLength = 1
-
-walletNameMaxLength :: Int
-walletNameMaxLength = 255
 
 newtype WalletId = WalletId UUID
     deriving (Generic, Eq, Ord, Show)

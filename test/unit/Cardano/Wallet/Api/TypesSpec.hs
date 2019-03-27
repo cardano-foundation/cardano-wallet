@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -30,11 +31,13 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     , passphraseMaxLength
     , passphraseMinLength
+    , walletNameMaxLength
+    , walletNameMinLength
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( AddressPoolGap )
+    ( AddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
@@ -58,18 +61,15 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , WalletState (..)
-    , mkWalletName
-    , walletNameMaxLength
-    , walletNameMinLength
     )
 import Control.Lens
     ( Lens', at, (^.) )
 import Control.Monad
     ( replicateM )
 import Data.Aeson
-    ( FromJSON, ToJSON )
-import Data.Either
-    ( rights )
+    ( FromJSON (..), ToJSON (..) )
+import Data.Aeson.QQ
+    ( aesonQQ )
 import Data.FileEmbed
     ( embedFile )
 import Data.Maybe
@@ -117,7 +117,7 @@ import Test.Aeson.GenericSpecs
     , useModuleNameAsSubDirectory
     )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
     , arbitraryBoundedEnum
@@ -131,6 +131,7 @@ import Test.QuickCheck.Arbitrary.Generic
 import Test.QuickCheck.Instances.Time
     ()
 
+import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
@@ -158,6 +159,7 @@ spec = do
             roundtripAndGolden $ Proxy @ (ApiT WalletPassphraseInfo)
             roundtripAndGolden $ Proxy @ (ApiT WalletState)
             roundtripAndGolden $ Proxy @ (ApiT (Passphrase "encryption"))
+
     describe
         "verify that every type used with JSON content type in a servant API \
         \has compatible ToJSON and ToSchema instances using validateToJSON." $
@@ -168,7 +170,57 @@ spec = do
         \existing path in the specification" $
         validateEveryPath api
 
---
+    describe "verify parsing failures too" $ do
+        it "ApiT Address" $ do
+            let msg = "Error in $: Unable to decode Address: \
+                    \expected Base58 encoding"
+            Aeson.parseEither parseJSON [aesonQQ|"-----"|]
+                `shouldBe` (Left @String @(ApiT Address) msg)
+
+        it "ApiT (Passphrase \"encryption\") (too short)" $ do
+            let msg = "Error in $: passphrase is too short: \
+                    \expected at least " <> show passphraseMinLength <> " chars"
+            Aeson.parseEither parseJSON [aesonQQ|"patate"|]
+                `shouldBe` (Left @String @(ApiT (Passphrase "encryption")) msg)
+
+        it "ApiT (Passphrase \"encryption\") (too long)" $ do
+            let msg = "Error in $: passphrase is too long: \
+                    \expected at most " <> show passphraseMaxLength <> " chars"
+            Aeson.parseEither parseJSON [aesonQQ|
+                #{replicate (2*passphraseMaxLength) '*'}
+            |] `shouldBe` (Left @String @(ApiT (Passphrase "encryption")) msg)
+
+        it "ApiT WalletName (too short)" $ do
+            let msg = "Error in $: name is too short: \
+                    \expected at least " <> show walletNameMinLength <> " chars"
+            Aeson.parseEither parseJSON [aesonQQ|""|]
+                `shouldBe` (Left @String @(ApiT WalletName) msg)
+
+        it "ApiT WalletName (too long)" $ do
+            let msg = "Error in $: name is too long: \
+                    \expected at most " <> show walletNameMaxLength <> " chars"
+            Aeson.parseEither parseJSON [aesonQQ|
+                #{replicate (2*walletNameMaxLength) '*'}
+            |] `shouldBe` (Left @String @(ApiT WalletName) msg)
+
+        it "ApiMnemonicT '[12] (not enough words)" $ do
+            let msg = "Error in $: ErrMnemonicWords (ErrWrongNumberOfWords 3 12)"
+            Aeson.parseEither parseJSON [aesonQQ|
+                ["toilet", "toilet", "toilet"]
+            |] `shouldBe` (Left @String @(ApiMnemonicT '[12] "test") msg)
+
+        it "ApiT AddressPoolGap (too small)" $ do
+            let msg = "Error in $: ErrGapOutOfRange 9"
+            Aeson.parseEither parseJSON [aesonQQ|
+                #{getAddressPoolGap minBound - 1}
+            |] `shouldBe` (Left @String @(ApiT AddressPoolGap) msg)
+
+        it "ApiT AddressPoolGap (too big)" $ do
+            let msg = "Error in $: ErrGapOutOfRange 101"
+            Aeson.parseEither parseJSON [aesonQQ|
+                #{getAddressPoolGap maxBound + 1}
+            |] `shouldBe` (Left @String @(ApiT AddressPoolGap) msg)
+
 -- Golden tests files are generated automatically on first run. On later runs
 -- we check that the format stays the same. The golden files should be tracked
 -- in git.
@@ -258,15 +310,10 @@ uuidFromWords (a, b, c, d) = UUID.fromWords a b c d
 instance Arbitrary WalletName where
     arbitrary = do
         nameLength <- choose (walletNameMinLength, walletNameMaxLength)
-        either (error "Unable to create arbitrary WalletName") Prelude.id
-            . mkWalletName
-            . T.pack <$> replicateM nameLength arbitraryPrintableChar
-    shrink =
-        rights
-            . fmap (mkWalletName . T.pack)
-            . shrink
-            . T.unpack
-            . getWalletName
+        WalletName . T.pack <$> replicateM nameLength arbitraryPrintableChar
+    shrink (WalletName t)
+        | T.length t <= walletNameMinLength = []
+        | otherwise = [WalletName $ T.take walletNameMinLength t]
 
 instance Arbitrary (Passphrase "encryption") where
     arbitrary = do
