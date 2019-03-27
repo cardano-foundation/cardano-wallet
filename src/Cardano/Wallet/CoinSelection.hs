@@ -64,50 +64,28 @@ data CoinSelectionError =
     -- inputs was reached.
     deriving (Show, Eq)
 
-data CoinSelFinalResult = CoinSelFinalResult
-    { inputs  :: NonEmpty (TxIn, TxOut)
+data CoinSelection = CoinSelection
+    { inputs  :: [(TxIn, TxOut)]
       -- ^ Picked inputs
-    , outputs :: NonEmpty TxOut
+    , outputs :: [TxOut]
       -- ^ Picked outputs
     , change  :: [Coin]
       -- ^ Resulting changes
-    } deriving (Show, Generic)
+    } deriving (Show)
 
+-- NOTE
+-- We don't check for duplicates when combining selections because we assume
+-- they are constructed from independent elements. In practice, we could nub
+-- the list or use a `Set` ?
+instance Semigroup CoinSelection where
+    a <> b = CoinSelection
+        { inputs = inputs a <> inputs b
+        , outputs = outputs a <> outputs b
+        , change = change a <> change b
+        }
 
-data CoinSelOneGoResult = CoinSelOneGoResult
-    { coinSelRequest :: TxOut
-      -- ^ The output as it was requested
-    , coinSelOutput  :: TxOut
-      -- ^ The output as it should appear in the final transaction
-      -- This may be different from the requested output if recipient pays fees.
-    , coinSelChange  :: [Coin]
-      -- ^ Change outputs (if any)
-      -- These are not outputs, to keep this agnostic to a choice of change addr
-    , coinSelInputs  :: SelectedUtxo
-      -- | The UTxO entries that were used for this output
-    }
-
-data SelectedUtxo  = SelectedUtxo
-    { selectedEntries :: ![(TxIn, TxOut)]
-    , selectedBalance :: !Coin
-    , selectedSize    :: !Word64
-    }
-
-emptySelectedUtxo :: SelectedUtxo
-emptySelectedUtxo = SelectedUtxo [] (Coin 0) 0
-
-select
-    :: (TxIn, TxOut)
-    -> SelectedUtxo
-    -> SelectedUtxo
-select io@(_,o) SelectedUtxo{..} =
-    let currentBalance = getCoin selectedBalance
-        entryValue = (getCoin . coin) o
-    in SelectedUtxo
-       { selectedEntries = io : selectedEntries
-       , selectedBalance = Coin $ currentBalance + entryValue
-       , selectedSize    = selectedSize + 1
-       }
+instance Monoid CoinSelection where
+    mempty = CoinSelection [] [] []
 
 
 ----------------------------------------------------------------------------
@@ -119,21 +97,21 @@ newtype Fee = Fee { getFee :: Quantity "lovelace" Natural }
 adjustForFees
     :: CoinSelectionOptions
     -> ( Coin -> UTxO -> Maybe (TxIn, TxOut) )
-    -> [CoinSelOneGoResult]
-    -> CoinSelFinalResult
-adjustForFees _opt _pickUtxo results = do
-    let inps = concatMap (selectedEntries . coinSelInputs) results
-    let outs = map coinSelOutput results
-    let chgs = concatMap coinSelChange results
+    -> CoinSelection
+    -> CoinSelection
+adjustForFees _opt _pickUtxo selection = do
+    let inps = inputs selection
+    let outs = outputs selection
+    let chgs = change selection
 
     -- here will come estimateFee and other stuff
     -- and will change inps, outs and chgs
 
-    let neInps = case inps of
-            [] -> fail "adjustForFees: empty list of inputs"
-            i:is -> i :| is
-    let neOuts = case outs of
-            [] -> fail "adjustForFees: empty list of outputs"
-            o:os -> o :| os
+    -- let neInps = case inps of
+    --         [] -> fail "adjustForFees: empty list of inputs"
+    --         i:is -> i :| is
+    -- let neOuts = case outs of
+    --         [] -> fail "adjustForFees: empty list of outputs"
+    --         o:os -> o :| os
 
-    CoinSelFinalResult neInps neOuts chgs
+    CoinSelection inps outs chgs
