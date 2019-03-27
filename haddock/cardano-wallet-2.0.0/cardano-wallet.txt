@@ -940,6 +940,8 @@ data AddressPoolGap
 --   helps readability in function signatures.
 newtype Passphrase (goal :: Symbol)
 Passphrase :: ScrubbedBytes -> Passphrase
+passphraseMinLength :: Int
+passphraseMaxLength :: Int
 
 -- | Polymorphic wrapper type to put around primitive types and, 3rd party
 --   lib types to avoid defining orphan instances and/or, undesirable
