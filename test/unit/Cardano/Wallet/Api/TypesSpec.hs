@@ -32,6 +32,8 @@ import Cardano.Wallet.Api.Types
     , WalletPassphraseInfo (..)
     , WalletPostData (..)
     , WalletState (..)
+    , passphraseMaxLength
+    , passphraseMinLength
     )
 import Cardano.Wallet.Primitive.Mnemonic
     ( CheckSumBits
@@ -229,12 +231,16 @@ instance Arbitrary WalletName where
 
 instance Arbitrary (Passphrase "encryption") where
     arbitrary = do
-        n <- choose (10, 255)
+        n <- choose (passphraseMinLength, passphraseMaxLength)
         bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
         return $ Passphrase $ BA.convert bytes
     shrink (Passphrase bytes)
-        | BA.length bytes <= 10 = []
-        | otherwise = [Passphrase $ BA.convert $ B8.take 10 $ BA.convert bytes]
+        | BA.length bytes <= passphraseMinLength = []
+        | otherwise =
+            [ Passphrase
+            $ BA.convert
+            $ B8.take passphraseMinLength
+            $ BA.convert bytes ]
 
 instance Arbitrary WalletPassphraseInfo where
     arbitrary = genericArbitrary

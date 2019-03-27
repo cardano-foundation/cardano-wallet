@@ -42,6 +42,10 @@ module Cardano.Wallet.Api.Types
     , AddressPoolGap
     , Passphrase(..)
 
+    -- * Limits
+    , passphraseMinLength
+    , passphraseMaxLength
+
     -- * Polymorphic Types
     , ApiT (..)
     , ApiMnemonicT (..)
@@ -176,12 +180,20 @@ instance ToJSON  WalletPostData where
 
 instance FromJSON (ApiT (Passphrase "encryption")) where
     parseJSON = parseJSON >=> \case
-        t | T.length t < 10 ->
-            fail "passphrase is too short: expected at least 10 chars"
-        t | T.length t > 255 ->
-            fail "passphrase is too long: expect at most 255 chars"
+        t | T.length t < passphraseMinLength ->
+            fail $ "passphrase is too short: expected at least "
+                <> show passphraseMinLength <> " chars"
+        t | T.length t > passphraseMaxLength ->
+            fail $ "passphrase is too long: expected at most "
+                <> show passphraseMaxLength <> " chars"
         t ->
             return $ ApiT $ Passphrase $ BA.convert $ T.encodeUtf8 t
+
+passphraseMinLength :: Int
+passphraseMinLength = 10
+
+passphraseMaxLength :: Int
+passphraseMaxLength = 255
 
 instance ToJSON (ApiT (Passphrase "encryption")) where
     toJSON (ApiT (Passphrase bytes)) = toJSON $ T.decodeUtf8 $ BA.convert bytes
