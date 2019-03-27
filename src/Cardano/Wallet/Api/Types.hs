@@ -31,6 +31,7 @@ module Cardano.Wallet.Api.Types
       Wallet (..)
     , WalletBalance (..)
     , WalletPostData (..)
+    , WalletPutData (..)
 
     -- * Re-Export From Primitives
     , PoolId (..)
@@ -123,6 +124,10 @@ data WalletPostData = WalletPostData
     , _passphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
 
+newtype WalletPutData = WalletPutData
+    { _name :: (Maybe (ApiT WalletName))
+    } deriving (Eq, Generic, Show)
+
 data WalletBalance = WalletBalance
     { _available :: !(Quantity "lovelace" Natural)
     , _total :: !(Quantity "lovelace" Natural)
@@ -176,6 +181,11 @@ instance ToJSON Wallet where
 instance FromJSON WalletPostData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON  WalletPostData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON WalletPutData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON  WalletPutData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT (Passphrase "encryption")) where

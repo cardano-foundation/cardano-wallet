@@ -4,11 +4,11 @@
 module Cardano.Wallet.Api where
 
 import Cardano.Wallet.Api.Types
-    ( Wallet, WalletId, WalletPostData )
+    ( Wallet, WalletId, WalletPostData, WalletPutData )
 import Data.Proxy
     ( Proxy (..) )
 import Servant.API
-    ( (:<|>), (:>), Capture, Delete, Get, JSON, NoContent, Post, ReqBody )
+    ( (:<|>), (:>), Capture, Delete, Get, JSON, NoContent, Post, Put, ReqBody )
 
 api :: Proxy Api
 api = Proxy
@@ -26,6 +26,7 @@ type Wallets =
     :<|> GetWallet
     :<|> ListWallets
     :<|> PostWallet
+    :<|> PutWallet
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteWallet
 type DeleteWallet = "wallets"
@@ -45,3 +46,9 @@ type ListWallets = "wallets"
 type PostWallet = "wallets"
     :> ReqBody '[JSON] WalletPostData
     :> Post '[JSON] Wallet
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/putWallet
+type PutWallet = "wallets"
+    :> Capture "walletId" WalletId
+    :> ReqBody '[JSON] WalletPutData
+    :> Put '[JSON] Wallet

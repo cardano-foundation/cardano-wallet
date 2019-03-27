@@ -506,6 +506,11 @@ definitions:
       passphrase: *walletPassphrase
       address_pool_gap: *walletAddressPoolGap
 
+  WalletPutData: &WalletPutData
+    type: object
+    properties:
+      name: *walletName
+
 #############################################################################
 #                                                                           #
 #                               PARAMETERS                                  #
@@ -530,11 +535,6 @@ parametersStakePoolId: &parametersStakePoolId
   required: true
   type: string
   format: base58
-
-parametersPutWallet: &parametersPutWallet
-  type: object
-  properties:
-    name: *walletName
 
 parametersPutWalletPassphrase: &parametersPutWalletPassphrase
   type: object
@@ -807,7 +807,7 @@ paths:
       parameters:
         - *parametersWalletId
         - <<: *parametersBody
-          schema: *parametersPutWallet
+          schema: *WalletPutData
       responses: *responsesPutWallet
 
   /wallets/{walletId}/statistics/utxos:
