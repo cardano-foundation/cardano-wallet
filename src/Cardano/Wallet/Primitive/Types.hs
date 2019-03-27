@@ -187,8 +187,8 @@ newtype WalletPassphraseInfo = WalletPassphraseInfo
     deriving (Generic, Eq, Show)
 
 data WalletBalance = WalletBalance
-    { _available :: !(Quantity "lovelace" Natural)
-    , _total :: !(Quantity "lovelace" Natural)
+    { available :: !(Quantity "lovelace" Natural)
+    , total :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
 {-------------------------------------------------------------------------------
@@ -426,7 +426,7 @@ balance =
     Map.foldl' fn 0 . getUTxO
   where
     fn :: Natural -> TxOut -> Natural
-    fn total out = total + fromIntegral (getCoin (coin out))
+    fn tot out = tot + fromIntegral (getCoin (coin out))
 
 -- ins⋪ u
 excluding :: UTxO -> Set TxIn ->  UTxO

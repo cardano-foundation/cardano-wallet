@@ -119,7 +119,7 @@ mkWalletLayer db network = WalletLayer
         Nothing ->
             throwE $ ErrReadWalletNotFound wid
         Just (w :| _) ->
-            return (w, error "TODO: wallet metadata")
+            return (w, error "FIXME: store and retrieve wallet metadata")
 
     , watchWallet = liftIO . listen network . applyBlocks
     }

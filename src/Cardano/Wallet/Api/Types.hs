@@ -42,6 +42,7 @@ module Cardano.Wallet.Api.Types
     -- * Polymorphic Types
     , ApiT (..)
     , ApiMnemonicT (..)
+    , getApiMnemonicT
     ) where
 
 import Prelude
@@ -107,35 +108,35 @@ import qualified Data.Text.Encoding as T
 -------------------------------------------------------------------------------}
 
 data ApiAddress = ApiAddress
-    { _id :: !(ApiT Address)
-    , _state :: !(ApiT AddressState)
+    { id :: !(ApiT Address)
+    , state :: !(ApiT AddressState)
     } deriving (Eq, Generic, Show)
 
 data ApiWallet = ApiWallet
-    { _id :: !(ApiT WalletId)
-    , _addressPoolGap :: !(ApiT AddressPoolGap)
-    , _balance :: !(ApiT WalletBalance)
-    , _delegation :: !(ApiT (WalletDelegation (ApiT PoolId)))
-    , _name :: !(ApiT WalletName)
-    , _passphrase :: !(ApiT WalletPassphraseInfo)
-    , _state :: !(ApiT WalletState)
+    { id :: !(ApiT WalletId)
+    , addressPoolGap :: !(ApiT AddressPoolGap)
+    , balance :: !(ApiT WalletBalance)
+    , delegation :: !(ApiT (WalletDelegation (ApiT PoolId)))
+    , name :: !(ApiT WalletName)
+    , passphrase :: !(ApiT WalletPassphraseInfo)
+    , state :: !(ApiT WalletState)
     } deriving (Eq, Generic, Show)
 
 data WalletPostData = WalletPostData
-    { _addressPoolGap :: !(Maybe (ApiT AddressPoolGap))
-    , _mnemonicSentence :: !(ApiMnemonicT '[15,18,21,24] "seed")
-    , _mnemonicSecondFactor :: !(Maybe (ApiMnemonicT '[9,12] "generation"))
-    , _name :: !(ApiT WalletName)
-    , _passphrase :: !(ApiT (Passphrase "encryption"))
+    { addressPoolGap :: !(Maybe (ApiT AddressPoolGap))
+    , mnemonicSentence :: !(ApiMnemonicT '[15,18,21,24] "seed")
+    , mnemonicSecondFactor :: !(Maybe (ApiMnemonicT '[9,12] "generation"))
+    , name :: !(ApiT WalletName)
+    , passphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
 
 newtype WalletPutData = WalletPutData
-    { _name :: (Maybe (ApiT WalletName))
+    { name :: (Maybe (ApiT WalletName))
     } deriving (Eq, Generic, Show)
 
 data WalletPutPassphraseData = WalletPutPassphraseData
-    { _oldPassphrase :: !(ApiT (Passphrase "encryption"))
-    , _newPassphrase :: !(ApiT (Passphrase "encryption"))
+    { oldPassphrase :: !(ApiT (Passphrase "encryption"))
+    , newPassphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
 
 {-------------------------------------------------------------------------------
@@ -173,6 +174,9 @@ newtype ApiT a =
 newtype ApiMnemonicT (sizes :: [Nat]) (purpose :: Symbol) =
     ApiMnemonicT (Passphrase purpose, [Text])
     deriving (Generic, Show, Eq)
+
+getApiMnemonicT :: ApiMnemonicT sizes purpose -> Passphrase purpose
+getApiMnemonicT (ApiMnemonicT (pw, _)) = pw
 
 {-------------------------------------------------------------------------------
                                JSON Instances

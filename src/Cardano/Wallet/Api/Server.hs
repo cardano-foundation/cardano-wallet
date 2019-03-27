@@ -1,8 +1,6 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
-
-module Cardano.Wallet.Api.Server
-    ( server
-    ) where
+{-# LANGUAGE OverloadedLabels #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -11,33 +9,53 @@ module Cardano.Wallet.Api.Server
 -- API handlers and server using the underlying wallet layer to provide
 -- endpoints reachable through HTTP.
 
+module Cardano.Wallet.Api.Server
+    ( server
+    ) where
+
 import Prelude
 
 import Cardano.Wallet
-    ( ReadWalletError (..), WalletLayer (..) )
+    ( CreateWalletError (..)
+    , NewWallet (..)
+    , ReadWalletError (..)
+    , WalletLayer (..)
+    )
 import Cardano.Wallet.Api
     ( Addresses, Api, Wallets )
 import Cardano.Wallet.Api.Types
-    ( Address
-    , AddressState
+    ( ApiAddress (..)
     , ApiT (..)
-    , Wallet (..)
-    , WalletId
+    , ApiWallet (..)
+    , WalletBalance (..)
     , WalletPostData (..)
-    , WalletPutData
-    , WalletPutPassphraseData
+    , WalletPutData (..)
+    , WalletPutPassphraseData (..)
+    , getApiMnemonicT
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( SeqState )
+    ( SeqState (..), defaultAddressPoolGap )
+import Cardano.Wallet.Primitive.Model
+    ( availableBalance, getState, totalBalance )
+import Cardano.Wallet.Primitive.Types
+    ( AddressState, WalletId )
 import Control.Monad.Catch
     ( throwM )
 import Control.Monad.Trans.Except
     ( ExceptT, withExceptT )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
+import Data.Generics.Labels
+    ()
+import Data.Quantity
+    ( Quantity (..) )
 import Servant
-    ( (:<|>) (..), NoContent, Server, err404, err501 )
+    ( (:<|>) (..), NoContent, Server, err404, err409, err501 )
 import Servant.Server
     ( Handler (..), ServantErr (..) )
 
+
+-- | A Servant server for our wallet API
 server :: WalletLayer SeqState -> Server Api
 server w =
     addresses w :<|> wallets w
@@ -65,28 +83,60 @@ deleteWallet _ _ =
 getWallet
     :: WalletLayer SeqState
     -> WalletId
-    -> Handler Wallet
+    -> Handler ApiWallet
 getWallet w wid = do
-    throwM err501
+    (wallet, meta) <- liftHandler $ readWallet w wid
+    return ApiWallet
+        { id =
+            ApiT $ meta ^. #walletId
+        , addressPoolGap =
+            ApiT $ getState wallet ^. #externalPool . #gap
+        , balance = ApiT $ WalletBalance
+            { available =
+                Quantity $ availableBalance wallet
+            , total =
+                Quantity $ totalBalance wallet
+            }
+        , delegation =
+            ApiT $ ApiT <$> meta ^. #delegation
+        , name =
+            ApiT $ meta ^. #name
+        , passphrase =
+            ApiT $ meta ^. #passphraseInfo
+        , state =
+            ApiT $ meta ^. #status
+        }
 
 listWallets
     :: WalletLayer SeqState
-    -> Handler [Wallet]
+    -> Handler [ApiWallet]
 listWallets _ =
     throwM err501
 
 postWallet
     :: WalletLayer SeqState
     -> WalletPostData
-    -> Handler Wallet
-postWallet _ _ =
-    throwM err501
+    -> Handler ApiWallet
+postWallet w req = do
+    wid <- liftHandler $ createWallet w $ NewWallet
+        { seed =
+            getApiMnemonicT (req ^. #mnemonicSentence)
+        , secondFactor =
+            maybe mempty getApiMnemonicT (req ^. #mnemonicSecondFactor)
+        , name =
+            getApiT (req ^. #name)
+        , passphrase =
+            getApiT (req ^. #passphrase)
+        , gap =
+            maybe defaultAddressPoolGap getApiT (req ^.  #addressPoolGap)
+        }
+    getWallet w wid
 
 putWallet
     :: WalletLayer SeqState
     -> WalletId
     -> WalletPutData
-    -> Handler Wallet
+    -> Handler ApiWallet
 putWallet _ _ _ =
     throwM err501
 
@@ -109,7 +159,7 @@ listAddresses
     :: WalletLayer SeqState
     -> WalletId
     -> Maybe (ApiT AddressState)
-    -> Handler [Address]
+    -> Handler [ApiAddress]
 listAddresses _ _ _ =
     throwM err501
 
@@ -123,3 +173,17 @@ class LiftHandler e where
     liftHandler :: ExceptT e IO a -> Handler a
     liftHandler action = Handler (withExceptT handler action)
     handler :: e -> ServantErr
+
+-- FIXME
+--
+-- For now, just "dumb" mapping from our internal errors to servant errors.
+-- In practice, we want to create nice error messages giving as much details as
+-- we can.
+
+instance LiftHandler ReadWalletError where
+    handler = \case
+        ErrReadWalletNotFound _ -> err404
+
+instance LiftHandler CreateWalletError where
+    handler = \case
+        ErrCreateWalletIdAlreadyExists _ -> err409

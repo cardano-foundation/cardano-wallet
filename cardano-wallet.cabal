@@ -46,6 +46,7 @@ library
     , digest
     , exceptions
     , fmt
+    , generic-lens
     , http-api-data
     , http-client
     , http-media

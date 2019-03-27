@@ -14,7 +14,8 @@
 
 module Cardano.Wallet.Api.TypesSpec (spec) where
 
-import Prelude
+import Prelude hiding
+    ( id )
 
 import Cardano.Wallet.Api
     ( api )
@@ -136,6 +137,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.UUID.Types as UUID
 import qualified Data.Yaml as Yaml
+import qualified Prelude
 
 spec :: Spec
 spec = do
@@ -256,7 +258,7 @@ uuidFromWords (a, b, c, d) = UUID.fromWords a b c d
 instance Arbitrary WalletName where
     arbitrary = do
         nameLength <- choose (walletNameMinLength, walletNameMaxLength)
-        either (error "Unable to create arbitrary WalletName") id
+        either (error "Unable to create arbitrary WalletName") Prelude.id
             . mkWalletName
             . T.pack <$> replicateM nameLength arbitraryPrintableChar
     shrink =
@@ -304,7 +306,7 @@ instance
             entropy =
                 mkEntropy  @n . B8.pack <$> vectorOf (size `quot` 8) arbitrary
         in
-            either (error . show . UnexpectedEntropyError) id <$> entropy
+            either (error . show . UnexpectedEntropyError) Prelude.id <$> entropy
 
 instance {-# OVERLAPS #-}
     ( n ~ EntropySize mw
@@ -388,7 +390,7 @@ specification =
     unsafeDecode bytes
   where
     bytes = $(embedFile "specifications/api/swagger.yaml")
-    unsafeDecode = either ( error . (msg <>) . show) id . Yaml.decodeEither'
+    unsafeDecode = either (error . (msg <>) . show) Prelude.id . Yaml.decodeEither'
     msg = "Whoops! Failed to parse or find the api specification document: "
 
 instance ToSchema ApiAddress where
@@ -409,12 +411,12 @@ instance ToSchema WalletPutPassphraseData where
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
 -- we simply look it up within the Swagger specification.
 declareSchemaForDefinition :: T.Text -> Declare (Definitions Schema) NamedSchema
-declareSchemaForDefinition name =
-    case specification ^. definitions . at name of
+declareSchemaForDefinition ref =
+    case specification ^. definitions . at ref of
         Nothing -> error $
-            "unable to find the definition for " <> show name <> " in the spec"
+            "unable to find the definition for " <> show ref <> " in the spec"
         Just schema ->
-            return $ NamedSchema (Just name) schema
+            return $ NamedSchema (Just ref) schema
 
 -- | Verify that all servant endpoints are present and match the specification
 class ValidateEveryPath api where
