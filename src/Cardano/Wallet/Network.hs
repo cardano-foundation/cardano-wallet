@@ -83,11 +83,18 @@ listen network action = do
     getNextBlocks :: SlotId -> IO (TickResult [Block], SlotId)
     getNextBlocks current = do
         res <- runExceptT $ nextBlocks network current
+        -- NOTE
+        -- In order to avoid having to perform some slotting arithmetic, we only
+        -- process blocks if we receive more than one, such that we can use the
+        -- last block as the starting point for the next batch.
+        -- The trade-off is is that we'll be fetching this last block twice,
+        -- which is fair price to pay in order NOT to have to do any slotting
+        -- arithmetic nor track how many blocks are present per epochs.
         case res of
             Left err ->
                 die $ fmt $ "Chain producer error: "+||err||+""
-            Right [] ->
+            Right bs | length bs < 2 ->
                 pure (Sleep, current)
             Right blocks ->
-                let next = succ . slotId . header . last $ blocks
-                in pure (GotChunk blocks, next)
+                let next = slotId . header . last $ blocks
+                in pure (GotChunk (init blocks), next)

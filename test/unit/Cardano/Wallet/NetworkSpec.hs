@@ -128,9 +128,13 @@ instance Arbitrary Blocks where
         next (prev, b) =
             let
                 slot = slotId (header b)
-                h = BlockHeader (succ slot) prev
+                h = BlockHeader (nextSlot slot) prev
             in
                 (blockHeaderHash h, Block h mempty)
+
+        nextSlot :: SlotId -> SlotId
+        nextSlot (SlotId ep 10) = (SlotId (ep + 1) 0)
+        nextSlot (SlotId ep sl) = (SlotId ep (sl + 1))
 
         blockHeaderHash :: BlockHeader -> Hash "BlockHeader"
         blockHeaderHash (BlockHeader (SlotId e s) _) =
