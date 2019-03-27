@@ -1,0 +1,21 @@
+{
+    "seed": -3550386592215194791,
+    "samples": [
+        {
+            "state": "unused",
+            "id": "2GUdqXSp8WJS7cT68vqQeib5PX9765NVy1r2zqMKuJRkymTABmkBhLmRiLxFMD9pyTDRH"
+        },
+        {
+            "state": "used",
+            "id": "23rV7eTuAYyfPvgSFCvXmu4rjK2cCw7Hiep4kBP5q8BjouhjfQaiT4DSNgpAqyEXvr1zd"
+        },
+        {
+            "state": "used",
+            "id": "UT4QpKUSxauQo1XQ6VoT8MhVPYPn5m8tPMgE5WHnLy8E3X1ete7NAiXqenUtoGLKGo9P"
+        },
+        {
+            "state": "unused",
+            "id": "Kgihnukc1UStfMcKxBjRew4jnt7Z53JAUiKZkw3XErXy9NTxZNfmVarXhP9rs99PDFFA"
+        }
+    ]
+}

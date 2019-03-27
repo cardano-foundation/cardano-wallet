@@ -25,8 +25,11 @@
 
 module Cardano.Wallet.Primitive.Model
     (
+    -- * Address
+      AddressState (..)
+
     -- * Wallet
-      Wallet
+    , Wallet
     , initWallet
     , currentTip
     , applyBlock
@@ -102,6 +105,12 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 
+{-------------------------------------------------------------------------------
+                                    address
+-------------------------------------------------------------------------------}
+
+data AddressState = Used | Unused
+    deriving (Eq, Generic, Show)
 
 {-------------------------------------------------------------------------------
                                     wallet

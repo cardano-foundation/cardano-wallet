@@ -19,7 +19,9 @@ import Prelude
 import Cardano.Wallet.Api
     ( api )
 import Cardano.Wallet.Api.Types
-    ( AddressPoolGap
+    ( Address (..)
+    , AddressPoolGap
+    , AddressState (..)
     , ApiMnemonicT (..)
     , ApiT (..)
     , Passphrase (..)
@@ -31,6 +33,8 @@ import Cardano.Wallet.Api.Types
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , WalletPostData (..)
+    , WalletPutData (..)
+    , WalletPutPassphraseData (..)
     , WalletState (..)
     , passphraseMaxLength
     , passphraseMinLength
@@ -66,9 +70,11 @@ import Data.Maybe
 import Data.Quantity
     ( Percentage, Quantity (..) )
 import Data.Swagger
-    ( NamedSchema (..)
+    ( Definitions
+    , NamedSchema (..)
     , Operation
     , PathItem (..)
+    , Schema
     , Swagger
     , ToSchema (..)
     , definitions
@@ -79,6 +85,8 @@ import Data.Swagger
     , post
     , put
     )
+import Data.Swagger.Declare
+    ( Declare )
 import Data.Typeable
     ( Typeable )
 import Data.Word
@@ -88,7 +96,7 @@ import GHC.TypeLits
 import Numeric.Natural
     ( Natural )
 import Servant
-    ( (:<|>), (:>), Capture, ReqBody, StdMethod (..), Verb )
+    ( (:<|>), (:>), Capture, QueryParam, ReqBody, StdMethod (..), Verb )
 import Servant.Swagger.Test
     ( validateEveryToJSON )
 import Test.Aeson.GenericSpecs
@@ -116,6 +124,7 @@ import Test.QuickCheck.Arbitrary.Generic
 import Test.QuickCheck.Instances.Time
     ()
 
+import qualified Cardano.Wallet.Primitive.Types as P
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
@@ -128,8 +137,12 @@ spec = do
     describe
         "can perform roundtrip JSON serialization & deserialization, \
         \and match existing golden files" $ do
+            roundtripAndGolden $ Proxy @ Address
             roundtripAndGolden $ Proxy @ Wallet
             roundtripAndGolden $ Proxy @ WalletPostData
+            roundtripAndGolden $ Proxy @ WalletPutData
+            roundtripAndGolden $ Proxy @ WalletPutPassphraseData
+            roundtripAndGolden $ Proxy @ (ApiT P.Address)
             roundtripAndGolden $ Proxy @ (ApiT AddressPoolGap)
             roundtripAndGolden $ Proxy @ (ApiT (WalletDelegation (ApiT PoolId)))
             roundtripAndGolden $ Proxy @ (ApiT WalletId)
@@ -180,6 +193,17 @@ roundtripAndGolden = roundtripAndGoldenSpecsWithSettings settings
                               Arbitrary Instances
 -------------------------------------------------------------------------------}
 
+instance Arbitrary Address where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary AddressState where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary P.Address where
+    arbitrary = P.Address . B8.pack <$> replicateM 50 arbitrary
+
 instance Arbitrary (Quantity "lovelace" Natural) where
     shrink (Quantity 0) = []
     shrink _ = [Quantity 0]
@@ -196,6 +220,14 @@ instance Arbitrary AddressPoolGap where
     arbitrary = arbitraryBoundedEnum
 
 instance Arbitrary WalletPostData where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary WalletPutData where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary WalletPutPassphraseData where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -354,25 +386,30 @@ specification =
     unsafeDecode = either ( error . (msg <>) . show) id . Yaml.decodeEither'
     msg = "Whoops! Failed to parse or find the api specification document: "
 
--- | Ad-hoc 'ToSchema' instance for the 'Wallet' definition: we simply look it
--- up from the specification.
-instance ToSchema Wallet where
-    declareNamedSchema _ = case specification ^. definitions . at "Wallet" of
-        Nothing ->
-            error "unable to find the definition for 'Wallet' in the spec"
-        Just schema ->
-            return $ NamedSchema (Just "Wallet") schema
+instance ToSchema Address where
+    declareNamedSchema _ = declareSchemaForDefinition "Address"
 
--- | Ad-hoc 'ToSchema' instance for the 'WalletPostData' definition: we simply
--- look it up from the specification.
+instance ToSchema Wallet where
+    declareNamedSchema _ = declareSchemaForDefinition "Wallet"
+
 instance ToSchema WalletPostData where
-    declareNamedSchema _ =
-        case specification ^. definitions . at "WalletPostData" of
-            Nothing -> error
-                "unable to find the definition for 'WalletPostData' in \
-                \the spec"
-            Just schema ->
-                return $ NamedSchema (Just "WalletPostData") schema
+    declareNamedSchema _ = declareSchemaForDefinition "WalletPostData"
+
+instance ToSchema WalletPutData where
+    declareNamedSchema _ = declareSchemaForDefinition "WalletPutData"
+
+instance ToSchema WalletPutPassphraseData where
+    declareNamedSchema _ = declareSchemaForDefinition "WalletPutPassphraseData"
+
+-- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
+-- we simply look it up within the Swagger specification.
+declareSchemaForDefinition :: T.Text -> Declare (Definitions Schema) NamedSchema
+declareSchemaForDefinition name =
+    case specification ^. definitions . at name of
+        Nothing -> error $
+            "unable to find the definition for " <> show name <> " in the spec"
+        Just schema ->
+            return $ NamedSchema (Just name) schema
 
 -- | Verify that all servant endpoints are present and match the specification
 class ValidateEveryPath api where
@@ -410,6 +447,9 @@ instance (KnownSymbol param, HasPath sub) => HasPath (Capture param t :> sub)
         in (verb, "/{" <> symbolVal (Proxy :: Proxy param) <> "}" <> sub)
 
 instance HasPath sub => HasPath (ReqBody a b :> sub) where
+    getPath _ = getPath (Proxy @sub)
+
+instance HasPath sub => HasPath (QueryParam a b :> sub) where
     getPath _ = getPath (Proxy @sub)
 
 -- A way to demote 'StdMethod' back to the world of values. Servant provides a

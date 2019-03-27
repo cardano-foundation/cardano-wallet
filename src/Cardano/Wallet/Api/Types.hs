@@ -28,11 +28,15 @@
 module Cardano.Wallet.Api.Types
     (
     -- * API Types
-      Wallet (..)
+      Address (..)
+    , Wallet (..)
     , WalletBalance (..)
     , WalletPostData (..)
+    , WalletPutData (..)
+    , WalletPutPassphraseData (..)
 
     -- * Re-Export From Primitives
+    , AddressState (..)
     , PoolId (..)
     , WalletDelegation (..)
     , WalletId (..)
@@ -59,7 +63,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap, getAddressPoolGap, mkAddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
 import Cardano.Wallet.Primitive.Model
-    ( PoolId (..)
+    ( AddressState (..)
+    , PoolId (..)
     , WalletDelegation (..)
     , WalletId (..)
     , WalletName (..)
@@ -84,6 +89,8 @@ import Data.Aeson
     , sumEncoding
     , tagSingleConstructors
     )
+import Data.ByteString.Base58
+    ( bitcoinAlphabet, decodeBase58, encodeBase58 )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -95,6 +102,7 @@ import GHC.TypeLits
 import Numeric.Natural
     ( Natural )
 
+import qualified Cardano.Wallet.Primitive.Types as P
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteArray as BA
@@ -104,6 +112,11 @@ import qualified Data.Text.Encoding as T
 {-------------------------------------------------------------------------------
                                   API Types
 -------------------------------------------------------------------------------}
+
+data Address = Address
+    { _id :: !(ApiT P.Address)
+    , _state :: !(ApiT AddressState)
+    } deriving (Eq, Generic, Show)
 
 data Wallet = Wallet
     { _id :: !(ApiT WalletId)
@@ -121,6 +134,15 @@ data WalletPostData = WalletPostData
     , _mnemonicSecondFactor :: !(Maybe (ApiMnemonicT '[9,12] "generation"))
     , _name :: !(ApiT WalletName)
     , _passphrase :: !(ApiT (Passphrase "encryption"))
+    } deriving (Eq, Generic, Show)
+
+newtype WalletPutData = WalletPutData
+    { _name :: (Maybe (ApiT WalletName))
+    } deriving (Eq, Generic, Show)
+
+data WalletPutPassphraseData = WalletPutPassphraseData
+    { _oldPassphrase :: !(ApiT (Passphrase "encryption"))
+    , _newPassphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
 
 data WalletBalance = WalletBalance
@@ -168,6 +190,27 @@ newtype ApiMnemonicT (sizes :: [Nat]) (purpose :: Symbol) =
                                JSON Instances
 -------------------------------------------------------------------------------}
 
+instance FromJSON Address where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON Address where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON (ApiT AddressState) where
+    parseJSON = fmap ApiT . genericParseJSON defaultSumTypeOptions
+instance ToJSON (ApiT AddressState) where
+    toJSON = genericToJSON defaultSumTypeOptions . getApiT
+
+instance FromJSON (ApiT P.Address) where
+    parseJSON bytes = do
+        x <- parseJSON bytes
+        maybe
+           (fail "Unable to decode Address: expected Base58 encoding")
+           (pure . ApiT . P.Address)
+           (decodeBase58 bitcoinAlphabet $ T.encodeUtf8 x)
+instance ToJSON (ApiT P.Address )where
+    toJSON = toJSON
+        . T.decodeUtf8 . encodeBase58 bitcoinAlphabet . P.getAddress . getApiT
+
 instance FromJSON Wallet where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON Wallet where
@@ -176,6 +219,16 @@ instance ToJSON Wallet where
 instance FromJSON WalletPostData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON  WalletPostData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON WalletPutData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON  WalletPutData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON WalletPutPassphraseData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON  WalletPutPassphraseData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT (Passphrase "encryption")) where
