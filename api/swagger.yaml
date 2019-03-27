@@ -506,6 +506,24 @@ definitions:
       passphrase: *walletPassphrase
       address_pool_gap: *walletAddressPoolGap
 
+  WalletPutData: &WalletPutData
+    type: object
+    properties:
+      name: *walletName
+
+  WalletPutPassphraseData: &WalletPutPassphraseData
+    type: object
+    required:
+      - old_passphrase
+      - new_passphrase
+    properties:
+      old_passphrase:
+        <<: *walletPassphrase
+        description: The current passphrase.
+      new_passphrase:
+        <<: *walletPassphrase
+        description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds).
+
 #############################################################################
 #                                                                           #
 #                               PARAMETERS                                  #
@@ -530,24 +548,6 @@ parametersStakePoolId: &parametersStakePoolId
   required: true
   type: string
   format: base58
-
-parametersPutWallet: &parametersPutWallet
-  type: object
-  properties:
-    name: *walletName
-
-parametersPutWalletPassphrase: &parametersPutWalletPassphrase
-  type: object
-  required:
-    - old_passphrase
-    - new_passphrase
-  properties:
-    old_passphrase:
-      <<: *walletPassphrase
-      description: The current passphrase.
-    new_passphrase:
-      <<: *walletPassphrase
-      description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds).
 
 parametersPostTransaction: &parametersPostTransaction
   type: object
@@ -807,7 +807,7 @@ paths:
       parameters:
         - *parametersWalletId
         - <<: *parametersBody
-          schema: *parametersPutWallet
+          schema: *WalletPutData
       responses: *responsesPutWallet
 
   /wallets/{walletId}/statistics/utxos:
@@ -846,7 +846,7 @@ paths:
       parameters:
         - *parametersWalletId
         - <<: *parametersBody
-          schema: *parametersPutWalletPassphrase
+          schema: *WalletPutPassphraseData
       responses: *responsesPutWalletPassphrase
 
   /wallets/{walletId}/transactions:

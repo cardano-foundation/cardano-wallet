@@ -701,6 +701,9 @@ instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 --   All those functions are pure and there's no reason to shove in any
 --   sort of side-effects in here :)
 module Cardano.Wallet.Primitive.Model
+data AddressState
+Used :: AddressState
+Unused :: AddressState
 
 -- | An opaque wallet type, see <tt>initWallet</tt> and <tt>applyBlock</tt>
 --   to construct and update wallets.
@@ -804,6 +807,9 @@ instance GHC.Generics.Generic Cardano.Wallet.Primitive.Model.WalletId
 instance GHC.Show.Show Cardano.Wallet.Primitive.Model.WalletNameError
 instance GHC.Show.Show Cardano.Wallet.Primitive.Model.WalletName
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Model.WalletName
+instance GHC.Show.Show Cardano.Wallet.Primitive.Model.AddressState
+instance GHC.Generics.Generic Cardano.Wallet.Primitive.Model.AddressState
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Model.AddressState
 instance GHC.Show.Show (Cardano.Wallet.Primitive.Model.Wallet s)
 instance GHC.Classes.Eq s => GHC.Classes.Eq (Cardano.Wallet.Primitive.Model.Wallet s)
 instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.Model.Wallet s)
@@ -895,6 +901,10 @@ instance GHC.Show.Show Cardano.Wallet.NewWallet
 --   
 --   <a>Wallet API Specification</a>
 module Cardano.Wallet.Api.Types
+data Address
+Address :: !ApiT Address -> !ApiT AddressState -> Address
+[$sel:_id:Address] :: Address -> !ApiT Address
+[$sel:_state:Address] :: Address -> !ApiT AddressState
 data Wallet
 Wallet :: !ApiT WalletId -> !ApiT AddressPoolGap -> !ApiT WalletBalance -> !ApiT (WalletDelegation (ApiT PoolId)) -> !ApiT WalletName -> !ApiT WalletPassphraseInfo -> !ApiT WalletState -> Wallet
 [$sel:_id:Wallet] :: Wallet -> !ApiT WalletId
@@ -915,6 +925,16 @@ WalletPostData :: !Maybe (ApiT AddressPoolGap) -> !ApiMnemonicT '[15, 18, 21, 24
 [$sel:_mnemonicSecondFactor:WalletPostData] :: WalletPostData -> !Maybe (ApiMnemonicT '[9, 12] "generation")
 [$sel:_name:WalletPostData] :: WalletPostData -> !ApiT WalletName
 [$sel:_passphrase:WalletPostData] :: WalletPostData -> !ApiT (Passphrase "encryption")
+newtype WalletPutData
+WalletPutData :: Maybe (ApiT WalletName) -> WalletPutData
+[$sel:_name:WalletPutData] :: WalletPutData -> Maybe (ApiT WalletName)
+data WalletPutPassphraseData
+WalletPutPassphraseData :: !ApiT (Passphrase "encryption") -> !ApiT (Passphrase "encryption") -> WalletPutPassphraseData
+[$sel:_oldPassphrase:WalletPutPassphraseData] :: WalletPutPassphraseData -> !ApiT (Passphrase "encryption")
+[$sel:_newPassphrase:WalletPutPassphraseData] :: WalletPutPassphraseData -> !ApiT (Passphrase "encryption")
+data AddressState
+Used :: AddressState
+Unused :: AddressState
 newtype PoolId
 PoolId :: Text -> PoolId
 [getPoolId] :: PoolId -> Text
@@ -982,9 +1002,18 @@ instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletPostData
 instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
 instance GHC.Show.Show (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
 instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
+instance GHC.Show.Show Cardano.Wallet.Api.Types.Address
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.Address
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.Address
 instance GHC.Show.Show Cardano.Wallet.Api.Types.Wallet
 instance GHC.Generics.Generic Cardano.Wallet.Api.Types.Wallet
 instance GHC.Classes.Eq Cardano.Wallet.Api.Types.Wallet
+instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletPutData
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.WalletPutData
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletPutData
+instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletPutPassphraseData
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.WalletPutPassphraseData
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletPutPassphraseData
 instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.Wallet.Api.Types.ApiT a)
 instance GHC.Show.Show a => GHC.Show.Show (Cardano.Wallet.Api.Types.ApiT a)
 instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.ApiT a)
@@ -996,8 +1025,18 @@ instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletPostData
 instance (n Data.Type.Equality.~ Crypto.Encoding.BIP39.EntropySize mw, csz Data.Type.Equality.~ Crypto.Encoding.BIP39.CheckSumBits n, Crypto.Encoding.BIP39.ConsistentEntropy n mw csz, Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiMnemonicT rest purpose)) => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiMnemonicT (mw : rest) purpose)
 instance (n Data.Type.Equality.~ Crypto.Encoding.BIP39.EntropySize mw, csz Data.Type.Equality.~ Crypto.Encoding.BIP39.CheckSumBits n, Crypto.Encoding.BIP39.ConsistentEntropy n mw csz) => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiMnemonicT '[mw] purpose)
 instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.Address
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.Address
 instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.Wallet
 instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.Wallet
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletPutData
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletPutData
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletPutPassphraseData
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletPutPassphraseData
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Model.AddressState)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Model.AddressState)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.Address)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.Address)
 instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.AddressDerivation.Passphrase "encryption"))
 instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.AddressDerivation.Passphrase "encryption"))
 instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Model.WalletId)
@@ -1019,8 +1058,13 @@ instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.W
 
 module Cardano.Wallet.Api
 api :: Proxy Api
-type Api = Wallets
-type Wallets = DeleteWallet :<|> GetWallet :<|> ListWallets :<|> PostWallet
+type Api = Addresses :<|> Wallets
+type Addresses = ListAddresses
+
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/listAddresses</a>
+type ListAddresses = "wallets" :> Capture "walletId" WalletId :> QueryParam "state" (ApiT AddressState) :> Get '[JSON] [Address]
+type Wallets = DeleteWallet :<|> GetWallet :<|> ListWallets :<|> PostWallet :<|> PutWallet :<|> PutWalletPassphrase
 
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteWallet</a>
@@ -1037,6 +1081,14 @@ type ListWallets = "wallets" :> Get '[JSON] [Wallet]
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/postWallet</a>
 type PostWallet = "wallets" :> ReqBody '[JSON] WalletPostData :> Post '[JSON] Wallet
+
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/putWallet</a>
+type PutWallet = "wallets" :> Capture "walletId" WalletId :> ReqBody '[JSON] WalletPutData :> Put '[JSON] Wallet
+
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/putWalletPassphrase</a>
+type PutWalletPassphrase = "wallets" :> Capture "walletId" WalletId :> ReqBody '[JSON] WalletPutPassphraseData :> Put '[] NoContent
 
 
 -- | Extra content types for Servant.
