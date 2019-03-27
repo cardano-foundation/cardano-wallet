@@ -84,10 +84,15 @@ spec = do
         it "3.3) updatePending b pending ⊆ pending"
             (checkCoverage prop_3_2)
 
-    describe "Basic slot arithmetic" $ do
-        it "Ordering happens as we expect" (property True)
-
-
+    describe "Slotting ordering" $ do
+        it "Any Slot >= SlotId 0 0"
+            (property (>= SlotId 0 0))
+        it "SlotId 1 2 < SlotId 2 1"
+            (property $ SlotId { epochIndex = 1, slotNumber = 2 } < SlotId 2 1)
+        it "SlotId 1 1 < SlotId 1 2"
+            (property $ SlotId { epochIndex = 1, slotNumber = 1 } < SlotId 1 2)
+        it "SlotId 1 2 < SlotId 2 2"
+            (property $ SlotId { epochIndex = 1, slotNumber = 2 } < SlotId 2 2)
 
 {-------------------------------------------------------------------------------
        Wallet Specification - Lemma 2.1 - Properties of UTxO operations
