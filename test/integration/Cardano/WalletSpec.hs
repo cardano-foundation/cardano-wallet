@@ -52,7 +52,7 @@ spec = do
             handle <- async (watchWallet wallet wid)
             threadDelay 5000000
             cancel handle
-            tip <- currentTip <$> unsafeRunExceptT (getWallet wallet wid)
+            tip <- currentTip <$> unsafeRunExceptT (readWallet wallet wid)
             tip `shouldSatisfy` (> SlotId 0 0)
   where
     port = 1337

@@ -51,6 +51,7 @@ library
     , http-media
     , memory
     , servant
+    , servant-server
     , servant-client
     , servant-client-core
     , text
@@ -63,6 +64,7 @@ library
   exposed-modules:
       Cardano.Wallet
       Cardano.Wallet.Api
+      Cardano.Wallet.Api.Server
       Cardano.Wallet.Api.Types
       Cardano.Wallet.Binary
       Cardano.Wallet.Binary.Packfile

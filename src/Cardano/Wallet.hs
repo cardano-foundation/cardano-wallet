@@ -1,7 +1,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RankNTypes #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -30,13 +32,19 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap, SeqState (..), mkAddressPool )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, WalletId (..), WalletName (..), applyBlock, initWallet )
+    ( Wallet
+    , WalletId (..)
+    , WalletMetadata (..)
+    , WalletName (..)
+    , applyBlock
+    , initWallet
+    )
 import Cardano.Wallet.Primitive.Types
     ( Block (..) )
 import Control.DeepSeq
     ( deepseq )
-import Control.Monad.Trans.Class
-    ( lift )
+import Control.Monad.IO.Class
+    ( liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT, throwE )
 import Data.List
@@ -49,10 +57,16 @@ import GHC.Generics
 import qualified Data.Set as Set
 
 -- | Types
-data WalletLayer m s = WalletLayer
-    { createWallet :: NewWallet -> ExceptT CreateWalletError m WalletId
-    , getWallet :: WalletId -> ExceptT GetWalletError m (Wallet s)
-    , watchWallet :: WalletId -> m ()
+data WalletLayer s = WalletLayer
+    { createWallet
+        :: NewWallet
+        -> ExceptT CreateWalletError IO WalletId
+    , readWallet
+        :: WalletId
+        -> ExceptT ReadWalletError IO (Wallet s, WalletMetadata)
+    , watchWallet
+        :: WalletId
+        -> IO ()
     }
 
 data NewWallet = NewWallet
@@ -69,8 +83,8 @@ data NewWallet = NewWallet
     } deriving (Show, Generic)
 
 -- | Errors occuring when fetching a wallet
-newtype GetWalletError
-    = ErrGetWalletNotFound WalletId
+newtype ReadWalletError
+    = ErrReadWalletNotFound WalletId
     deriving (Eq, Show)
 
 -- | Errors occuring when creating a wallet
@@ -84,7 +98,7 @@ mkWalletLayer
     :: (Show e0)
     => DBLayer IO SeqState
     -> NetworkLayer IO e0 e1
-    -> WalletLayer IO SeqState
+    -> WalletLayer SeqState
 mkWalletLayer db network = WalletLayer
     { createWallet = \w -> do
         let rootXPrv =
@@ -99,19 +113,19 @@ mkWalletLayer db network = WalletLayer
                 initWallet $ SeqState (extPool, intPool)
         -- FIXME Compute the wallet id deterministically from the seed
         let wid = WalletId (read "00000000-0000-0000-0000-000000000000")
-        lift (readCheckpoints db (PrimaryKey wid)) >>= \case
+        liftIO (readCheckpoints db (PrimaryKey wid)) >>= \case
             Nothing -> do
-                lift $ putCheckpoints db (PrimaryKey wid) (wallet :| [])
+                liftIO $ putCheckpoints db (PrimaryKey wid) (wallet :| [])
                 return wid
             Just _ ->
                 throwE $ ErrCreateWalletIdAlreadyExists wid
-    , getWallet = \wid -> lift (readCheckpoints db (PrimaryKey wid)) >>= \case
+    , readWallet = \wid -> liftIO (readCheckpoints db (PrimaryKey wid)) >>= \case
         Nothing ->
-            throwE $ ErrGetWalletNotFound wid
+            throwE $ ErrReadWalletNotFound wid
         Just (w :| _) ->
-            return w
+            return (w, error "TODO: wallet metadata")
 
-    , watchWallet = listen network . applyBlocks
+    , watchWallet = liftIO . listen network . applyBlocks
     }
   where
     applyBlocks :: WalletId -> [Block] -> IO ()
