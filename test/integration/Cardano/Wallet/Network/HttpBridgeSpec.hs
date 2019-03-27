@@ -19,22 +19,12 @@ import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
     ( async, cancel )
-import Control.Exception.Base
-    ( ErrorCall )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Test.Hspec
-    ( Spec
-    , afterAll
-    , beforeAll
-    , describe
-    , it
-    , shouldReturn
-    , shouldSatisfy
-    , shouldThrow
-    )
+    ( Spec, afterAll, beforeAll, describe, it, shouldReturn, shouldSatisfy )
 
 import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
 
@@ -65,21 +55,20 @@ spec = do
 
         it "get unstable blocks for the unstable epoch" $ \(_, network) -> do
             let action = runExceptT $ do
-                    tip <- (slotId . snd) <$> networkTip network
-                    blocks <- nextBlocks network (pred $ pred $ pred tip)
-                    lift $ blocks `shouldSatisfy`
-                        (\bs -> length bs >= 4 && length bs <= 5)
+                    (SlotId ep sl) <- (slotId . snd) <$> networkTip network
+                    let sl' = if sl > 2 then sl - 2 else 0
+                    blocks <- nextBlocks network (SlotId ep sl')
+                    lift $ blocks `shouldSatisfy` (\bs
+                        -> length bs >= fromIntegral (sl - sl')
+                        && length bs <= fromIntegral (sl - sl' + 1)
+                        )
             action `shouldReturn` pure ()
 
         it "produce no blocks if start is after tip" $ \(_, network) -> do
             let action = runExceptT $ do
-                    tip <- (slotId . snd) <$> networkTip network
-                    length <$> nextBlocks network (succ $ succ tip)
+                    SlotId ep sl <- (slotId . snd) <$> networkTip network
+                    length <$> nextBlocks network (SlotId (ep + 1) sl)
             action `shouldReturn` pure 0
-
-        it "fails when given an invalid slot" $ \(_, network) -> do
-            let action = runExceptT $ nextBlocks network (SlotId 14 22000)
-            action `shouldThrow` (\(_ :: ErrorCall) -> True)
 
     describe "Error paths" $ beforeAll newNetworkLayer $ do
         it "gets a 'NodeUnavailable' if bridge isn't up" $ \network -> do

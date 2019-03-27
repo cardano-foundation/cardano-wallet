@@ -8,7 +8,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -56,10 +55,6 @@ module Cardano.Wallet.Primitive.Types
 
     -- * Slotting
     , SlotId (..)
-    , isValidSlotId
-    , slotsPerEpoch
-    , slotDiff
-    , slotIncr
 
     -- * Wallet Metadata
     , WalletMetadata(..)
@@ -439,10 +434,6 @@ restrictedTo (UTxO utxo) outs =
   If slotting arithmetic has to be introduced, it will require proper thoughts.
 -------------------------------------------------------------------------------}
 
--- | Hard-coded for the time being
-slotsPerEpoch :: Word64
-slotsPerEpoch = 21600
-
 -- | A slot identifier is the combination of an epoch and slot.
 data SlotId = SlotId
   { epochIndex :: !Word64
@@ -454,35 +445,6 @@ instance NFData SlotId
 instance Buildable SlotId where
     build (SlotId e s) = build e <> "." <> build s
 
-instance Enum SlotId where
-    toEnum i
-        | i < 0 = error "SlotId.toEnum: bad argument"
-        | otherwise = slotIncr (fromIntegral i) (SlotId 0 0)
-    fromEnum (SlotId e s)
-        | n > fromIntegral (maxBound @Int) =
-            error "SlotId.fromEnum: arithmetic overflow"
-        | otherwise = fromIntegral n
-      where
-        n :: Word64
-        n = fromIntegral e * fromIntegral slotsPerEpoch + fromIntegral s
-
--- | Add a number of slots to an (Epoch, LocalSlotIndex) pair, where the number
--- of slots can be greater than one epoch.
-slotIncr :: Word64 -> SlotId -> SlotId
-slotIncr n slot = SlotId e s
-  where
-    e = fromIntegral (fromIntegral n' `div` slotsPerEpoch)
-    s = fromIntegral (fromIntegral n' `mod` slotsPerEpoch)
-    n' = n + fromIntegral (fromEnum slot)
-
--- | @slotDiff a b@ is the number of slots by which @a@ is greater than @b@.
-slotDiff :: SlotId -> SlotId -> Integer
-slotDiff s1 s2 = fromIntegral (fromEnum s1 - fromEnum s2)
-
--- | Whether the epoch index and slot number are in range.
-isValidSlotId :: SlotId -> Bool
-isValidSlotId (SlotId e s) =
-    e >= 0 && s >= 0 && s < fromIntegral slotsPerEpoch
 
 {-------------------------------------------------------------------------------
                                Polymorphic Types
