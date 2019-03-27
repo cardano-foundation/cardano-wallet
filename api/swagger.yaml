@@ -818,7 +818,7 @@ paths:
       description: |
         Piority [Low]
 
-        Return the UTxOs distribution across the whole wallet, in the form of an histogram.
+        Return the UTxOs distribution across the whole wallet, in the form of a histogram.
 
         ```
              │
