@@ -26,13 +26,7 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Network.HttpBridge.Api
     ( ApiT (..), EpochIndex (..), NetworkName (..), api )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..)
-    , BlockHeader (..)
-    , Hash (..)
-    , SlotId (..)
-    , invariant
-    , isValidSlotId
-    )
+    ( Block (..), BlockHeader (..), Hash (..), SlotId (..) )
 import Control.Exception
     ( Exception (..) )
 import Control.Monad.Trans.Class
@@ -86,21 +80,16 @@ rbNextBlocks
     => HttpBridge m e -- ^ http-bridge API
     -> SlotId -- ^ Starting point
     -> ExceptT e m [Block]
-rbNextBlocks net sl = do
-    -- NOTE
-    -- Adding an invariant here. If an invalid slot was given, the algorithm
-    -- below will start fetching all blocks from the start down to the first
-    -- genesis block, causing the system to hang for quite a while.
-    let start = invariant "given starting slot is a valid slot" sl isValidSlotId
-    (tipHash, tip) <- fmap slotId <$> getNetworkTip net
-    epochBlocks <- lift $ nextStableEpoch start
+rbNextBlocks network start = do
+    (tipHash, tip) <- fmap slotId <$> getNetworkTip network
+    epochBlocks <- lift nextStableEpoch
     lastBlocks <- if null epochBlocks
-        then unstableBlocks net start tipHash tip
+        then unstableBlocks tipHash tip
         else pure []
     pure (epochBlocks ++ lastBlocks)
   where
-    nextStableEpoch start = do
-        epochBlocks <- runExceptT (getEpoch net (epochIndex start)) >>= \case
+    nextStableEpoch = do
+        epochBlocks <- runExceptT (getEpoch network (epochIndex start)) >>= \case
             Left _ -> pure []
             Right r -> return r
         pure $ filter (blockIsSameOrAfter start) epochBlocks
@@ -112,7 +101,7 @@ rbNextBlocks net sl = do
 
     -- Grab the remaining blocks which aren't packed in epoch files,
     -- starting from the tip.
-    unstableBlocks network start tipHash tip
+    unstableBlocks tipHash tip
         | start <= tip = fetchBlocksFromTip network start tipHash
         | otherwise    = pure []
 

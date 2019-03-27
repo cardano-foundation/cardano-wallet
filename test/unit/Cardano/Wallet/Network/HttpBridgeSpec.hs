@@ -9,7 +9,7 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Network.HttpBridge
     ( HttpBridge (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), Hash (..), SlotId (..), slotsPerEpoch )
+    ( Block (..), BlockHeader (..), Hash (..), SlotId (..) )
 import Control.Monad.Catch
     ( MonadThrow (..) )
 import Control.Monad.Trans.Class
@@ -17,7 +17,7 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
     ( runExceptT, throwE )
 import Data.Word
-    ( Word64 )
+    ( Word16, Word64 )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy )
 
@@ -77,6 +77,9 @@ spec = do
                              Mock HTTP Bridge
 -------------------------------------------------------------------------------}
 
+slotsPerEpoch :: Word16
+slotsPerEpoch = 21600
+
 -- | Embed an epoch index and slot number into a hash.
 mockHash :: SlotId -> Hash a
 mockHash (SlotId ep sl) =
@@ -94,12 +97,12 @@ unMockHash (Hash h) = parse . map B8.unpack . B8.split '.' . B8.drop 5 $ h
 mockHeaderFromHash :: Hash a -> BlockHeader
 mockHeaderFromHash h = BlockHeader slot prevHash
   where
-    slot = unMockHash h
+    slot@(SlotId ep sl) = unMockHash h
     prevHash =
-        if slot == SlotId 0 0 then
-            Hash "genesis"
-        else
-            mockHash (pred slot)
+        case (ep, sl) of
+            (0, 0) -> Hash "genesis"
+            (_, 0) -> mockHash (SlotId (ep-1) (slotsPerEpoch - 1))
+            _ -> mockHash (SlotId ep (sl - 1))
 
 -- | Generate an entire epoch's worth of mock blocks. There are no transactions
 -- generated.
