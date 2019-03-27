@@ -35,7 +35,7 @@ import Cardano.Wallet.Primitive.Mnemonic
     , entropyToMnemonic
     , mkEntropy
     )
-import Cardano.Wallet.Primitive.Model
+import Cardano.Wallet.Primitive.Types
     ( WalletId (..), WalletName (..) )
 import Control.Monad.IO.Class
     ( liftIO )
@@ -107,7 +107,7 @@ walletGetProp
     -> Property
 walletGetProp newWallet = monadicIO $ liftIO $ do
     (WalletLayerFixture _db wl walletIds) <- liftIO $ setupFixture newWallet
-    resFromGet <- runExceptT $ getWallet wl (L.head walletIds)
+    resFromGet <- runExceptT $ readWallet wl (L.head walletIds)
     resFromGet `shouldSatisfy` isRight
 
 walletGetWrongIdProp
@@ -115,7 +115,7 @@ walletGetWrongIdProp
     -> Property
 walletGetWrongIdProp (newWallet, corruptedWalletId) = monadicIO $ liftIO $ do
     (WalletLayerFixture _db wl _walletIds) <- liftIO $ setupFixture newWallet
-    attempt <- runExceptT $ getWallet wl corruptedWalletId
+    attempt <- runExceptT $ readWallet wl corruptedWalletId
     attempt `shouldSatisfy` isLeft
 
 
@@ -125,7 +125,7 @@ walletGetWrongIdProp (newWallet, corruptedWalletId) = monadicIO $ liftIO $ do
 
 data WalletLayerFixture = WalletLayerFixture {
       _fixtureDBLayer :: DBLayer IO SeqState
-    , _fixtureWalletLayer :: WalletLayer IO SeqState
+    , _fixtureWalletLayer :: WalletLayer SeqState
     , _fixtureWallet :: [WalletId]
     }
 

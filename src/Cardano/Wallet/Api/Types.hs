@@ -28,23 +28,12 @@
 module Cardano.Wallet.Api.Types
     (
     -- * API Types
-      Address (..)
-    , Wallet (..)
+      ApiAddress (..)
+    , ApiWallet (..)
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
-
-    -- * Re-Export From Primitives
-    , AddressState (..)
-    , PoolId (..)
-    , WalletDelegation (..)
-    , WalletId (..)
-    , WalletName (..)
-    , WalletPassphraseInfo (..)
-    , WalletState (..)
-    , AddressPoolGap
-    , Passphrase(..)
 
     -- * Limits
     , passphraseMinLength
@@ -53,6 +42,7 @@ module Cardano.Wallet.Api.Types
     -- * Polymorphic Types
     , ApiT (..)
     , ApiMnemonicT (..)
+    , getApiMnemonicT
     ) where
 
 import Prelude
@@ -62,9 +52,18 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap, getAddressPoolGap, mkAddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
-import Cardano.Wallet.Primitive.Model
-    ( AddressState (..)
+    ( CheckSumBits
+    , ConsistentEntropy
+    , EntropySize
+    , entropyToBytes
+    , mkMnemonic
+    , mnemonicToEntropy
+    )
+import Cardano.Wallet.Primitive.Types
+    ( Address (..)
+    , AddressState (..)
     , PoolId (..)
+    , WalletBalance (..)
     , WalletDelegation (..)
     , WalletId (..)
     , WalletName (..)
@@ -91,18 +90,13 @@ import Data.Aeson
     )
 import Data.ByteString.Base58
     ( bitcoinAlphabet, decodeBase58, encodeBase58 )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Text
     ( Text )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( Nat, Symbol )
-import Numeric.Natural
-    ( Natural )
 
-import qualified Cardano.Wallet.Primitive.Types as P
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteArray as BA
@@ -113,41 +107,36 @@ import qualified Data.Text.Encoding as T
                                   API Types
 -------------------------------------------------------------------------------}
 
-data Address = Address
-    { _id :: !(ApiT P.Address)
-    , _state :: !(ApiT AddressState)
+data ApiAddress = ApiAddress
+    { id :: !(ApiT Address)
+    , state :: !(ApiT AddressState)
     } deriving (Eq, Generic, Show)
 
-data Wallet = Wallet
-    { _id :: !(ApiT WalletId)
-    , _addressPoolGap :: !(ApiT AddressPoolGap)
-    , _balance :: !(ApiT WalletBalance)
-    , _delegation :: !(ApiT (WalletDelegation (ApiT PoolId)))
-    , _name :: !(ApiT WalletName)
-    , _passphrase :: !(ApiT WalletPassphraseInfo)
-    , _state :: !(ApiT WalletState)
+data ApiWallet = ApiWallet
+    { id :: !(ApiT WalletId)
+    , addressPoolGap :: !(ApiT AddressPoolGap)
+    , balance :: !(ApiT WalletBalance)
+    , delegation :: !(ApiT (WalletDelegation (ApiT PoolId)))
+    , name :: !(ApiT WalletName)
+    , passphrase :: !(ApiT WalletPassphraseInfo)
+    , state :: !(ApiT WalletState)
     } deriving (Eq, Generic, Show)
 
 data WalletPostData = WalletPostData
-    { _addressPoolGap :: !(Maybe (ApiT AddressPoolGap))
-    , _mnemonicSentence :: !(ApiMnemonicT '[15,18,21,24] "seed")
-    , _mnemonicSecondFactor :: !(Maybe (ApiMnemonicT '[9,12] "generation"))
-    , _name :: !(ApiT WalletName)
-    , _passphrase :: !(ApiT (Passphrase "encryption"))
+    { addressPoolGap :: !(Maybe (ApiT AddressPoolGap))
+    , mnemonicSentence :: !(ApiMnemonicT '[15,18,21,24] "seed")
+    , mnemonicSecondFactor :: !(Maybe (ApiMnemonicT '[9,12] "generation"))
+    , name :: !(ApiT WalletName)
+    , passphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
 
 newtype WalletPutData = WalletPutData
-    { _name :: (Maybe (ApiT WalletName))
+    { name :: (Maybe (ApiT WalletName))
     } deriving (Eq, Generic, Show)
 
 data WalletPutPassphraseData = WalletPutPassphraseData
-    { _oldPassphrase :: !(ApiT (Passphrase "encryption"))
-    , _newPassphrase :: !(ApiT (Passphrase "encryption"))
-    } deriving (Eq, Generic, Show)
-
-data WalletBalance = WalletBalance
-    { _available :: !(Quantity "lovelace" Natural)
-    , _total :: !(Quantity "lovelace" Natural)
+    { oldPassphrase :: !(ApiT (Passphrase "encryption"))
+    , newPassphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
 
 {-------------------------------------------------------------------------------
@@ -186,13 +175,16 @@ newtype ApiMnemonicT (sizes :: [Nat]) (purpose :: Symbol) =
     ApiMnemonicT (Passphrase purpose, [Text])
     deriving (Generic, Show, Eq)
 
+getApiMnemonicT :: ApiMnemonicT sizes purpose -> Passphrase purpose
+getApiMnemonicT (ApiMnemonicT (pw, _)) = pw
+
 {-------------------------------------------------------------------------------
                                JSON Instances
 -------------------------------------------------------------------------------}
 
-instance FromJSON Address where
+instance FromJSON ApiAddress where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON Address where
+instance ToJSON ApiAddress where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT AddressState) where
@@ -200,20 +192,20 @@ instance FromJSON (ApiT AddressState) where
 instance ToJSON (ApiT AddressState) where
     toJSON = genericToJSON defaultSumTypeOptions . getApiT
 
-instance FromJSON (ApiT P.Address) where
+instance FromJSON (ApiT Address) where
     parseJSON bytes = do
         x <- parseJSON bytes
         maybe
            (fail "Unable to decode Address: expected Base58 encoding")
-           (pure . ApiT . P.Address)
+           (pure . ApiT . Address)
            (decodeBase58 bitcoinAlphabet $ T.encodeUtf8 x)
-instance ToJSON (ApiT P.Address )where
+instance ToJSON (ApiT Address )where
     toJSON = toJSON
-        . T.decodeUtf8 . encodeBase58 bitcoinAlphabet . P.getAddress . getApiT
+        . T.decodeUtf8 . encodeBase58 bitcoinAlphabet . getAddress . getApiT
 
-instance FromJSON Wallet where
+instance FromJSON ApiWallet where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON Wallet where
+instance ToJSON ApiWallet where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON WalletPostData where

@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -6,6 +7,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -35,8 +37,9 @@ module Cardano.Wallet.Primitive.Types
     , updatePending
 
     -- * Address
-    , Address (..)
     , IsOurs(..)
+    , Address (..)
+    , AddressState (..)
 
     -- * Coin
     , Coin (..)
@@ -58,6 +61,22 @@ module Cardano.Wallet.Primitive.Types
     , slotDiff
     , slotIncr
 
+    -- * Wallet Metadata
+    , WalletMetadata(..)
+    , WalletId(..)
+    , WalletName(..)
+    , mkWalletName
+    , walletNameMinLength
+    , walletNameMaxLength
+    , WalletNameError(..)
+    , WalletState(..)
+    , WalletDelegation (..)
+    , WalletPassphraseInfo(..)
+    , WalletBalance(..)
+
+    -- * Stake Pools
+    , PoolId(..)
+
     -- * Polymorphic
     , Hash (..)
     , ShowFmt (..)
@@ -77,11 +96,15 @@ import Data.ByteString.Base58
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Percentage, Quantity (..) )
 import Data.Set
     ( Set )
+import Data.Text
+    ( Text )
 import Data.Time
     ( UTCTime )
+import Data.UUID.Types
+    ( UUID )
 import Data.Word
     ( Word16, Word32, Word64 )
 import Fmt
@@ -104,9 +127,83 @@ import Numeric.Natural
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
--- * Block
+
+{-------------------------------------------------------------------------------
+                             Wallet Metadata
+-------------------------------------------------------------------------------}
+
+data WalletMetadata = WalletMetadata
+    { walletId
+        :: !WalletId
+    , name
+        :: !WalletName
+    , passphraseInfo
+        :: !WalletPassphraseInfo
+    , status
+        :: !WalletState
+    , delegation
+        :: !(WalletDelegation PoolId)
+    } deriving (Eq, Show, Generic)
+
+newtype WalletName = WalletName { getWalletName ::  Text }
+    deriving (Eq, Show)
+
+data WalletNameError
+    = WalletNameTooShortError
+    | WalletNameTooLongError
+    deriving Show
+
+mkWalletName :: Text -> Either WalletNameError WalletName
+mkWalletName n
+    | T.length n < walletNameMinLength = Left WalletNameTooShortError
+    | T.length n > walletNameMaxLength = Left WalletNameTooLongError
+    | otherwise = Right $ WalletName n
+
+walletNameMinLength :: Int
+walletNameMinLength = 1
+
+walletNameMaxLength :: Int
+walletNameMaxLength = 255
+
+newtype WalletId = WalletId UUID
+    deriving (Generic, Eq, Ord, Show)
+
+data WalletState
+    = Ready
+    | Restoring !(Quantity "percent" Percentage)
+    deriving (Generic, Eq, Show)
+
+data WalletDelegation poolId
+    = NotDelegating
+    | Delegating !poolId
+    deriving (Generic, Eq, Show)
+deriving instance Functor WalletDelegation
+
+newtype WalletPassphraseInfo = WalletPassphraseInfo
+    { lastUpdatedAt :: UTCTime }
+    deriving (Generic, Eq, Show)
+
+data WalletBalance = WalletBalance
+    { available :: !(Quantity "lovelace" Natural)
+    , total :: !(Quantity "lovelace" Natural)
+    } deriving (Eq, Generic, Show)
+
+{-------------------------------------------------------------------------------
+                                  Stake Pools
+-------------------------------------------------------------------------------}
+
+-- | Represent stake pool identifier. Note that the internal representation is
+-- left open currently, until we figure out a better type for those.
+newtype PoolId = PoolId
+    { getPoolId :: Text }
+    deriving (Generic, Eq, Show)
+
+{-------------------------------------------------------------------------------
+                                    Block
+-------------------------------------------------------------------------------}
 
 data Block = Block
     { header
@@ -247,17 +344,10 @@ newtype Timestamp = Timestamp
     { getTimestamp :: UTCTime
     } deriving (Show, Generic, Eq, Ord)
 
--- * Address
 
-newtype Address = Address
-    { getAddress :: ByteString
-    } deriving (Show, Generic, Eq, Ord)
-
-instance NFData Address
-
-instance Buildable Address where
-    build = build . T.decodeUtf8 . encodeBase58 bitcoinAlphabet . getAddress
-
+{-------------------------------------------------------------------------------
+                                    Address
+-------------------------------------------------------------------------------}
 
 -- | This abstraction exists to give us the ability to keep the wallet business
 -- logic agnostic to the address derivation and discovery mechanisms.
@@ -277,8 +367,21 @@ instance Buildable Address where
 class IsOurs s where
     isOurs :: Address -> s -> (Bool, s)
 
+newtype Address = Address
+    { getAddress :: ByteString
+    } deriving (Show, Generic, Eq, Ord)
 
--- * Coin
+instance NFData Address
+
+instance Buildable Address where
+    build = build . T.decodeUtf8 . encodeBase58 bitcoinAlphabet . getAddress
+
+data AddressState = Used | Unused
+    deriving (Eq, Generic, Show)
+
+{-------------------------------------------------------------------------------
+                                     Coin
+-------------------------------------------------------------------------------}
 
 -- | Coins are stored as Lovelace (reminder: 1 Lovelace = 1e6 ADA)
 newtype Coin = Coin
@@ -298,7 +401,9 @@ isValidCoin :: Coin -> Bool
 isValidCoin c = c >= minBound && c <= maxBound
 
 
--- * UTxO
+{-------------------------------------------------------------------------------
+                                    UTxO
+-------------------------------------------------------------------------------}
 
 newtype UTxO = UTxO { getUTxO :: Map TxIn TxOut }
     deriving stock (Show, Generic, Eq, Ord)
@@ -316,13 +421,12 @@ instance Buildable UTxO where
       where
         utxoF (inp, out) = build inp <> " => " <> build out
 
-
-balance :: UTxO -> Integer
+balance :: UTxO -> Natural
 balance =
     Map.foldl' fn 0 . getUTxO
   where
-    fn :: Integer -> TxOut -> Integer
-    fn total out = total + fromIntegral (getCoin (coin out))
+    fn :: Natural -> TxOut -> Natural
+    fn tot out = tot + fromIntegral (getCoin (coin out))
 
 -- ins⋪ u
 excluding :: UTxO -> Set TxIn ->  UTxO
@@ -345,7 +449,17 @@ restrictedTo (UTxO utxo) outs =
     UTxO $ Map.filter (`Set.member` outs) utxo
 
 
--- * Slotting
+
+{-------------------------------------------------------------------------------
+                                   Slotting
+
+  Note that we do not define any operation to perform slotting arithmetic of any
+  kind. Instead of manipulating slots, we do simply look them up from the chain,
+  in their corresponding block. This should be probably enough to cover for
+  pretty much all our needs.
+
+  If slotting arithmetic has to be introduced, it will require proper thoughts.
+-------------------------------------------------------------------------------}
 
 -- | Hard-coded for the time being
 slotsPerEpoch :: Word64
@@ -392,20 +506,19 @@ isValidSlotId :: SlotId -> Bool
 isValidSlotId (SlotId e s) =
     e >= 0 && s >= 0 && s < fromIntegral slotsPerEpoch
 
-
--- * Polymorphic
+{-------------------------------------------------------------------------------
+                               Polymorphic Types
+-------------------------------------------------------------------------------}
 
 class Dom a where
     type DomElem a :: *
     dom :: a -> Set (DomElem a)
-
 
 newtype Hash (tag :: Symbol) = Hash
     { getHash :: ByteString
     } deriving (Show, Generic, Eq, Ord)
 
 instance NFData (Hash tag)
-
 
 -- | A polymorphic wrapper type with a custom show instance to display data
 -- through 'Buildable' instances.
@@ -414,7 +527,6 @@ newtype ShowFmt a = ShowFmt a
 
 instance Buildable a => Show (ShowFmt a) where
     show (ShowFmt a) = fmt (build a)
-
 
 -- | Check whether an invariants holds or not.
 --

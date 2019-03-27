@@ -4,15 +4,15 @@
 module Cardano.Wallet.Api where
 
 import Cardano.Wallet.Api.Types
-    ( Address
-    , AddressState
+    ( ApiAddress
     , ApiT
-    , Wallet
-    , WalletId
+    , ApiWallet
     , WalletPostData
     , WalletPutData
     , WalletPutPassphraseData
     )
+import Cardano.Wallet.Primitive.Types
+    ( AddressState, WalletId )
 import Data.Proxy
     ( Proxy (..) )
 import Servant.API
@@ -47,7 +47,7 @@ type Addresses =
 type ListAddresses = "wallets"
     :> Capture "walletId" WalletId
     :> QueryParam "state" (ApiT AddressState)
-    :> Get '[JSON] [Address]
+    :> Get '[JSON] [ApiAddress]
 
 {-------------------------------------------------------------------------------
                                   Wallets
@@ -71,22 +71,22 @@ type DeleteWallet = "wallets"
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getWallet
 type GetWallet = "wallets"
     :> Capture "walletId" WalletId
-    :> Get '[JSON] Wallet
+    :> Get '[JSON] ApiWallet
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listWallets
 type ListWallets = "wallets"
-    :> Get '[JSON] [Wallet]
+    :> Get '[JSON] [ApiWallet]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postWallet
 type PostWallet = "wallets"
     :> ReqBody '[JSON] WalletPostData
-    :> Post '[JSON] Wallet
+    :> Post '[JSON] ApiWallet
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/putWallet
 type PutWallet = "wallets"
     :> Capture "walletId" WalletId
     :> ReqBody '[JSON] WalletPutData
-    :> Put '[JSON] Wallet
+    :> Put '[JSON] ApiWallet
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/putWalletPassphrase
 type PutWalletPassphrase = "wallets"

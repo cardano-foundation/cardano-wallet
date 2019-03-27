@@ -13,7 +13,9 @@ module Cardano.Wallet.DB
 import Prelude
 
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, WalletId )
+    ( Wallet )
+import Cardano.Wallet.Primitive.Types
+    ( WalletId )
 import Data.List.NonEmpty
     ( NonEmpty )
 
