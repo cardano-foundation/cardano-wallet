@@ -68,9 +68,11 @@ import Data.Maybe
 import Data.Quantity
     ( Percentage, Quantity (..) )
 import Data.Swagger
-    ( NamedSchema (..)
+    ( Definitions
+    , NamedSchema (..)
     , Operation
     , PathItem (..)
+    , Schema
     , Swagger
     , ToSchema (..)
     , definitions
@@ -81,6 +83,8 @@ import Data.Swagger
     , post
     , put
     )
+import Data.Swagger.Declare
+    ( Declare )
 import Data.Typeable
     ( Typeable )
 import Data.Word
@@ -366,47 +370,27 @@ specification =
     unsafeDecode = either ( error . (msg <>) . show) id . Yaml.decodeEither'
     msg = "Whoops! Failed to parse or find the api specification document: "
 
--- | Ad-hoc 'ToSchema' instance for the 'Wallet' definition: we simply look it
--- up from the specification.
 instance ToSchema Wallet where
-    declareNamedSchema _ = case specification ^. definitions . at "Wallet" of
-        Nothing ->
-            error "unable to find the definition for 'Wallet' in the spec"
-        Just schema ->
-            return $ NamedSchema (Just "Wallet") schema
+    declareNamedSchema _ = declareSchemaForDefinition "Wallet"
 
--- | Ad-hoc 'ToSchema' instance for the 'WalletPostData' definition: we simply
--- look it up from the specification.
 instance ToSchema WalletPostData where
-    declareNamedSchema _ =
-        case specification ^. definitions . at "WalletPostData" of
-            Nothing -> error
-                "unable to find the definition for 'WalletPostData' in \
-                \the spec"
-            Just schema ->
-                return $ NamedSchema (Just "WalletPostData") schema
+    declareNamedSchema _ = declareSchemaForDefinition "WalletPostData"
 
--- | Ad-hoc 'ToSchema' instance for the 'WalletPutData' definition: we simply
--- look it up from the specification.
 instance ToSchema WalletPutData where
-    declareNamedSchema _ =
-        case specification ^. definitions . at "WalletPutData" of
-            Nothing -> error
-                "unable to find the definition for 'WalletPutData' in \
-                \the spec"
-            Just schema ->
-                return $ NamedSchema (Just "WalletPutData") schema
+    declareNamedSchema _ = declareSchemaForDefinition "WalletPutData"
 
--- | Ad-hoc 'ToSchema' instance for the 'WalletPutPassphraseData' definition: we
--- simply look it up from the specification.
 instance ToSchema WalletPutPassphraseData where
-    declareNamedSchema _ =
-        case specification ^. definitions . at "WalletPutPassphraseData" of
-            Nothing -> error
-                "unable to find the definition for 'WalletPutPassphraseData' \
-                \in the spec"
-            Just schema ->
-                return $ NamedSchema (Just "WalletPutPassphraseData") schema
+    declareNamedSchema _ = declareSchemaForDefinition "WalletPutPassphraseData"
+
+-- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
+-- we simply look it up within the Swagger specification.
+declareSchemaForDefinition :: T.Text -> Declare (Definitions Schema) NamedSchema
+declareSchemaForDefinition name =
+    case specification ^. definitions . at name of
+        Nothing -> error $
+            "unable to find the definition for " <> show name <> " in the spec"
+        Just schema ->
+            return $ NamedSchema (Just name) schema
 
 -- | Verify that all servant endpoints are present and match the specification
 class ValidateEveryPath api where
