@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE RecordWildCards #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -46,13 +45,6 @@ data CoinSelectionOptions = CoinSelectionOptions
     } deriving (Generic)
 
 
-defaultCoinSelectionOptions :: CoinSelectionOptions
-defaultCoinSelectionOptions = CoinSelectionOptions
-    { estimateFee = \_ _ -> Coin 0
-    , dustThreshold = Coin 0
-    , maximumNumberOfInputs = 100
-    }
-
 data CoinSelectionError =
     UtxoExhausted Word64 Word64
     -- ^ UTxO exhausted during input selection
@@ -71,7 +63,7 @@ data CoinSelection = CoinSelection
       -- ^ Picked outputs
     , change  :: [Coin]
       -- ^ Resulting changes
-    } deriving (Show)
+    } deriving (Show, Eq)
 
 -- NOTE
 -- We don't check for duplicates when combining selections because we assume
@@ -106,12 +98,5 @@ adjustForFees _opt _pickUtxo selection = do
 
     -- here will come estimateFee and other stuff
     -- and will change inps, outs and chgs
-
-    -- let neInps = case inps of
-    --         [] -> fail "adjustForFees: empty list of inputs"
-    --         i:is -> i :| is
-    -- let neOuts = case outs of
-    --         [] -> fail "adjustForFees: empty list of outputs"
-    --         o:os -> o :| os
 
     CoinSelection inps outs chgs

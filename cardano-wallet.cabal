@@ -50,7 +50,6 @@ library
     , http-api-data
     , http-client
     , http-media
-    , MonadRandom
     , memory
     , servant
     , servant-server
@@ -147,6 +146,7 @@ test-suite unit
       Cardano.Wallet.BinarySpec
       Cardano.Wallet.Binary.PackfileSpec
       Cardano.Wallet.CoinSelectionSpec
+      Cardano.Wallet.CoinSelection.LargestFirstSpec
       Cardano.Wallet.DBSpec
       Cardano.Wallet.DB.MVarSpec
       Cardano.Wallet.NetworkSpec
