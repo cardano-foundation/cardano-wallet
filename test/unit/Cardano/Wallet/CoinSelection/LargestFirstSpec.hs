@@ -29,6 +29,8 @@ import Control.Monad.Trans.Except
     ( runExceptT )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Word
+    ( Word64 )
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
@@ -56,6 +58,8 @@ spec = do
             (property propLargestFirstFullyCovered)
         it "works as expected for zero-fee and not covered by utxo coin selection"
             (property propLargestFirstNotCovered)
+        it "works as expected for zero-fee and fully covered by utxo coin selection when maximumNumberOfInputs is small"
+            (property propLargestFirstFullyCoveredSmallMaxInput)
 
 {-------------------------------------------------------------------------------
                                 Properties
@@ -72,7 +76,7 @@ propLargestFirstFullyCovered (CoveringCase (utxo, txOuts)) =
                 (\_ -> condCoinsCovering txOuts utxo)
         result <- check `deepseq`
                   runExceptT $ largestFirst
-                  defaultCoinSelectionOptions
+                  (defaultCoinSelectionOptions 100)
                   utxo
                   txOuts
         result `shouldBe` (return reference)
@@ -98,6 +102,24 @@ propLargestFirstFullyCovered (CoveringCase (utxo, txOuts)) =
                     $ outputsSorted txOuts
 
 
+propLargestFirstFullyCoveredSmallMaxInput
+    :: CoveringCaseMaxInput
+    -> Property
+propLargestFirstFullyCoveredSmallMaxInput
+    (CoveringCaseMaxInput (maxInp, utxo, txOuts)) =
+    monadicIO $ liftIO $ do
+        let check =
+                invariant "utxo must cover all transaction outputs"
+                (NE.length txOuts)
+                (\_ -> condCoinsCovering txOuts utxo)
+        result <- check `deepseq`
+                  runExceptT $ largestFirst
+                  (defaultCoinSelectionOptions maxInp)
+                  utxo
+                  txOuts
+        result `shouldBe` (Left $ MaximumInputsReached maxInp)
+
+
 propLargestFirstNotCovered
     :: NotCoveringCase
     -> Property
@@ -108,7 +130,7 @@ propLargestFirstNotCovered (NotCoveringCase (utxo, txOuts)) =
                     (\_ -> not $ condCoinsCovering txOuts utxo)
         result <- check `deepseq`
                   runExceptT $ largestFirst
-                  defaultCoinSelectionOptions
+                  (defaultCoinSelectionOptions 100)
                   utxo
                   txOuts
         let transactionValue =
@@ -131,11 +153,13 @@ propLargestFirstNotCovered (NotCoveringCase (utxo, txOuts)) =
                                   Test Data
 -------------------------------------------------------------------------------}
 
-defaultCoinSelectionOptions :: CoinSelectionOptions
-defaultCoinSelectionOptions = CoinSelectionOptions
+defaultCoinSelectionOptions
+    :: Word64
+    -> CoinSelectionOptions
+defaultCoinSelectionOptions n = CoinSelectionOptions
     { estimateFee = \_ _ -> Coin 0
     , dustThreshold = Coin 0
-    , maximumNumberOfInputs = 100
+    , maximumNumberOfInputs = n
     }
 
 
@@ -187,6 +211,20 @@ instance Arbitrary CoveringCase where
         txOutsNonEmpty <- NE.fromList <$> vectorOf n arbitrary
         utxo <- arbitrary `suchThat` (condCoinsCovering txOutsNonEmpty)
         return $ CoveringCase (utxo, txOutsNonEmpty)
+
+newtype CoveringCaseMaxInput =
+    CoveringCaseMaxInput { getCoveringCaseMaxInp
+                           :: (Word64, UTxO, NonEmpty TxOut)
+                         } deriving Show
+
+instance Arbitrary CoveringCaseMaxInput where
+    arbitrary = do
+        n <- choose (3, 5)
+        inp <- choose (1,2)
+        txOutsNonEmpty <- NE.fromList <$> vectorOf n arbitrary
+        utxo <- arbitrary `suchThat` (condCoinsCovering txOutsNonEmpty)
+        return $ CoveringCaseMaxInput (inp, utxo, txOutsNonEmpty)
+
 
 
 newtype NotCoveringCase = NotCoveringCase { getNotCoveringCase :: (UTxO, NonEmpty TxOut)}

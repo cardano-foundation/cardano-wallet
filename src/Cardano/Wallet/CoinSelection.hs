@@ -50,13 +50,10 @@ data CoinSelectionError =
     -- ^ UTxO exhausted during input selection
     -- We record the balance of the UTxO as well as the size of the payment
     -- we tried to make.
-
     | UtxoNotEnoughFragmented Word64 Word64
     -- ^ UTxO is not enough fragmented for the number of transaction outputs
     -- We record the number of UTxO entries as well as the number of the
     -- outputs of the transaction.
-
-
     | MaximumInputsReached Word64
     -- ^ When trying to construct a transaction, the max number of allowed
     -- inputs was reached.
