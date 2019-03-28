@@ -1,0 +1,96 @@
+{
+    "nodes": {
+        "core0": {
+            "type": "core",
+            "addr": "127.0.0.1",
+            "port": 3000,
+            "dynamic-subscribe": [],
+            "fallbacks": 1,
+            "kademlia": false,
+            "maxSubscrs": null,
+            "public": false,
+            "region": "localhost",
+            "static-routes": [
+                [
+                    "core1"
+                ],
+                [
+                    "core2"
+                ],
+                [
+                    "relay"
+                ]
+            ],
+            "valency": 1
+        },
+        "core1": {
+            "type": "core",
+            "addr": "127.0.0.1",
+            "port": 3001,
+            "dynamic-subscribe": [],
+            "fallbacks": 1,
+            "kademlia": false,
+            "maxSubscrs": null,
+            "public": false,
+            "region": "localhost",
+            "static-routes": [
+                [
+                    "core0"
+                ],
+                [
+                    "core2"
+                ],
+                [
+                    "relay"
+                ]
+            ],
+            "valency": 1
+        },
+        "core2": {
+            "type": "core",
+            "addr": "127.0.0.1",
+            "port": 3002,
+            "dynamic-subscribe": [],
+            "fallbacks": 1,
+            "kademlia": false,
+            "maxSubscrs": null,
+            "public": false,
+            "region": "localhost",
+            "static-routes": [
+                [
+                    "core0"
+                ],
+                [
+                    "core1"
+                ],
+                [
+                    "relay"
+                ]
+            ],
+            "valency": 1
+        },
+        "relay": {
+            "type": "relay",
+            "addr": "127.0.0.1",
+            "port": 3100,
+            "dynamic-subscribe": [],
+            "fallbacks": 1,
+            "kademlia": false,
+            "maxSubscrs": null,
+            "public": true,
+            "region": "localhost",
+            "static-routes": [
+                [
+                    "core0"
+                ],
+                [
+                    "core1"
+                ],
+                [
+                    "core2"
+                ]
+            ],
+            "valency": 1
+        }
+    }
+}
