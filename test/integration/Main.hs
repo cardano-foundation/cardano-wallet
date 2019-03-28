@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module Main where
 
@@ -111,16 +112,31 @@ dummySetup = do
 respCodesSpec :: SpecWith Context
 respCodesSpec = do
     it "GET; Response code 200" $ \ctx -> do
-        response <- request @Value ctx ("GET", "/get?my=arg") Nothing Nothing
+        response <- request @Value ctx ("GET", "/get?my=arg") Default Empty
         expectResponseCode @IO status200 response
 
     it "GET; Response code 404" $ \ctx -> do
-        response <- request @Value ctx ("GET", "/get/nothing") Nothing Nothing
+        response <- request @Value ctx ("GET", "/get/nothing") Default Empty
         expectResponseCode @IO status404 response
 
     it "POST; Response code 200" $ \ctx -> do
-        let header = [("dummy", "header")]
-        response <- request @Value ctx ("POST", "/post") (Just header) Nothing
+        let headers = Headers [("dummy", "header")]
+        let payload = Json [json| {
+                "addressPoolGap": 70,
+                "assuranceLevel": "strict",
+                "name": "Wallet EOS"
+                } |]
+        response <- request @Value ctx ("POST", "/post") headers payload
+        expectResponseCode @IO status200 response
+
+    it "POST; Response code 200" $ \ctx -> do
+        let headers = Headers [("dummy", "header")]
+        let payloadInvalid = NonJson "{\
+                        \\"addressPoolGap: 70,\
+                        \\"assuranceLevel\": strict,\
+                        \\"name\": \"Wallet EOS\"\
+                        \}"
+        response <- request @Value ctx ("POST", "/post") headers payloadInvalid
         expectResponseCode @IO status200 response
 
     it "POST; Response code 405" $ \ctx -> do

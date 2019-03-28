@@ -9,6 +9,8 @@ module Test.Integration.Framework.DSL
     , expectSuccess
     , expectError
     , expectResponseCode
+    , Headers(..)
+    , Payload(..)
     , RequestException(..)
 
     -- * Helpers
