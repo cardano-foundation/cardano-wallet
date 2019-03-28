@@ -234,20 +234,6 @@ data SlotId
 SlotId :: !Word64 -> !Word16 -> SlotId
 [$sel:epochIndex:SlotId] :: SlotId -> !Word64
 [$sel:slotNumber:SlotId] :: SlotId -> !Word16
-
--- | Whether the epoch index and slot number are in range.
-isValidSlotId :: SlotId -> Bool
-
--- | Hard-coded for the time being
-slotsPerEpoch :: Word64
-
--- | <tt>slotDiff a b</tt> is the number of slots by which <tt>a</tt> is
---   greater than <tt>b</tt>.
-slotDiff :: SlotId -> SlotId -> Integer
-
--- | Add a number of slots to an (Epoch, LocalSlotIndex) pair, where the
---   number of slots can be greater than one epoch.
-slotIncr :: Word64 -> SlotId -> SlotId
 data WalletMetadata
 WalletMetadata :: !WalletId -> !WalletName -> !WalletPassphraseInfo -> !WalletState -> !WalletDelegation PoolId -> WalletMetadata
 [$sel:walletId:WalletMetadata] :: WalletMetadata -> !WalletId
@@ -260,12 +246,6 @@ WalletId :: UUID -> WalletId
 newtype WalletName
 WalletName :: Text -> WalletName
 [$sel:getWalletName:WalletName] :: WalletName -> Text
-mkWalletName :: Text -> Either WalletNameError WalletName
-walletNameMinLength :: Int
-walletNameMaxLength :: Int
-data WalletNameError
-WalletNameTooShortError :: WalletNameError
-WalletNameTooLongError :: WalletNameError
 data WalletState
 Ready :: WalletState
 Restoring :: !Quantity "percent" Percentage -> WalletState
@@ -389,7 +369,6 @@ instance GHC.Show.Show Cardano.Wallet.Primitive.Types.WalletId
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.WalletId
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.WalletId
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.WalletId
-instance GHC.Show.Show Cardano.Wallet.Primitive.Types.WalletNameError
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.WalletName
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.WalletName
 instance GHC.Base.Functor Cardano.Wallet.Primitive.Types.WalletDelegation
@@ -409,7 +388,6 @@ instance Formatting.Buildable.Buildable (Cardano.Wallet.Primitive.Types.TxIn, Ca
 instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.Types.Hash tag)
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.SlotId
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.SlotId
-instance GHC.Enum.Enum Cardano.Wallet.Primitive.Types.SlotId
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.TxOut
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.TxOut
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.Coin
@@ -912,6 +890,8 @@ WalletPutPassphraseData :: !ApiT (Passphrase "encryption") -> !ApiT (Passphrase 
 [$sel:newPassphrase:WalletPutPassphraseData] :: WalletPutPassphraseData -> !ApiT (Passphrase "encryption")
 passphraseMinLength :: Int
 passphraseMaxLength :: Int
+walletNameMinLength :: Int
+walletNameMaxLength :: Int
 
 -- | Polymorphic wrapper type to put around primitive types and, 3rd party
 --   lib types to avoid defining orphan instances and/or, undesirable
