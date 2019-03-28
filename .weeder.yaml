@@ -28,21 +28,17 @@
         - name: Test.Integration.Framework.DSL
         - identifier:
           - </>
+          - expectError
           - expectSuccess
           - json
-          - pendingWith
-          - xscenario
       - module:
         - name: Test.Integration.Framework.Request
         - identifier:
-          - $-
           - ClientError
           - DecodeFailure
-          - HttpException
-          - successfulRequest
+          - unsafeRequest
   - section:
     - name: test:unit
     - message:
       - name: Module not compiled
       - module: Cardano.Launcher.Windows
-

@@ -183,7 +183,6 @@ test-suite integration
     , cardano-wallet
     , exceptions
     , fmt
-    , generic-lens
     , hspec
     , hspec-core
     , hspec-expectations-lifted
@@ -191,14 +190,12 @@ test-suite integration
     , http-api-data
     , http-types
     , aeson-qq
-    , lens
-    , mtl
     , process
     , say
     , template-haskell
     , text
+    , time
     , transformers
-
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
@@ -212,7 +209,6 @@ test-suite integration
       Cardano.Launcher
       Test.Integration.Framework.DSL
       Test.Integration.Framework.Request
-      Test.Integration.Framework.Scenario
   if os(windows)
     build-depends: Win32
     other-modules: Cardano.Launcher.Windows

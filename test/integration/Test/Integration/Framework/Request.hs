@@ -1,51 +1,35 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Test.Integration.Framework.Request
     ( request
-    , request'
-    , request_
-    , successfulRequest
+    , unsafeRequest
     , RequestException(..)
-    , ($-)
+    , Context(..)
     ) where
 
 import Prelude
 
-import Control.Exception
-    ( try )
-import Control.Lens
-    ( Lens', view )
-import Control.Monad
-    ( void )
+import Control.Concurrent.Async
+    ( Async )
 import Control.Monad.Catch
     ( Exception (..), MonadCatch (..), MonadThrow, throwM )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
-import Control.Monad.Reader
-    ( MonadReader (..) )
 import Data.Aeson
     ( FromJSON )
-import Data.Bifunctor
-    ( first )
 import Data.ByteString.Lazy
     ( ByteString )
-import Data.Functor
-    ( ($>) )
-import Data.Generics.Product.Typed
-    ( HasType, typed )
 import Data.Maybe
     ( fromMaybe )
 import Data.Text
     ( Text )
 import Network.HTTP.Client
-    ( HttpException (..)
-    , HttpExceptionContent (..)
-    , Manager
+    ( Manager
     , RequestBody (..)
     , httpLbs
     , method
@@ -60,24 +44,27 @@ import Network.HTTP.Types.Header
 import Network.HTTP.Types.Method
     ( Method )
 import Network.HTTP.Types.Status
-    ( status200, status300, status404 )
+    ( status500 )
 
 import qualified Data.Aeson as Aeson
-import qualified Data.ByteString.Lazy.Char8 as L8
 import qualified Data.Text as T
 import qualified Network.HTTP.Client as HTTP
+import qualified Network.HTTP.Types.Status as HTTP
 
 
-class (HasType (Text, Manager) ctx) => HasManager ctx where
-    manager :: Lens' ctx (Text, Manager)
-    manager = typed @(Text, Manager)
-instance (HasType (Text, Manager) ctx) => HasManager ctx
+-- | Running Context for our integration test
+data Context = Context
+    { _cluster
+        :: Async ()
+        -- ^ A handle to the running cluster / chain producer
+    , _manager
+        :: (Text, Manager)
+        -- ^ The underlying BaseUrl and Manager used by the Wallet Client
+    }
 
 -- | The result when 'request' fails.
 data RequestException
-    = HttpException HttpException
-      -- ^ Wraps an exception from "Network.HTTP.Client"
-    | DecodeFailure ByteString
+    = DecodeFailure ByteString
       -- ^ JSON decoding the given response data failed.
     | ClientError Aeson.Value
       -- ^ The HTTP response status code indicated failure.
@@ -85,118 +72,61 @@ data RequestException
 
 instance Exception RequestException
 
--- | Makes a request to the API and decodes the response.
 request
-    :: forall a m ctx.
+    :: forall a m.
         ( FromJSON a
         , MonadIO m
         , MonadThrow m
         , MonadCatch m
-        , MonadReader ctx m
-        , HasManager ctx
         )
-    => (Method, Text)
-        -- ^ HTTP method and request path
-    -> Maybe Aeson.Value
-        -- ^ Request body
-    -> m (Either RequestException a)
-request (verb, path) body = (>>= handleResponse) <$> request' (verb, path) Nothing body
-  where
-    -- Either decode response body, or provide a RequestException.
-    handleResponse (req, res) = case responseStatus res of
-        s
-            | s >= status200 && s <= status300 ->
-                maybe
-                    (Left $ decodeFailure res)
-                    Right
-                    (Aeson.decode $ responseBody res)
-            | s == status404 ->
-                Left
-                    $ HttpException
-                    $ HttpExceptionRequest req
-                    $ StatusCodeException (res $> ())
-                    $ L8.toStrict $ responseBody res
-
-        _ -> Left $ decodeFailure res
-             -- TODO: decode API error responses into ClientError
-
-    decodeFailure :: HTTP.Response ByteString -> RequestException
-    decodeFailure res = DecodeFailure $ responseBody res
-
-request'
-    :: forall m ctx.
-        ( MonadIO m
-        , MonadThrow m
-        , MonadCatch m
-        , MonadReader ctx m
-        , HasManager ctx
-        )
-    => (Method, Text)
+    => Context
+    -> (Method, Text)
         -- ^ HTTP method and request path
     -> Maybe RequestHeaders
         -- ^ Request headers
     -> Maybe Aeson.Value
         -- ^ Request body
-    -> m (Either RequestException (HTTP.Request, HTTP.Response ByteString))
-request' (verb, path) reqHeaders body = do
-    (base, man) <- view manager
-    tryHttp $ do
-        req <- parseRequest $ T.unpack $ base <> path
-        res <- httpLbs (prepareReq req reqHeaders) man
-        pure (req, res)
-    where
-        prepareReq :: HTTP.Request -> Maybe RequestHeaders -> HTTP.Request
-        prepareReq req h = req
-            { method = verb
-            , requestBody = maybe mempty (RequestBodyLBS . Aeson.encode) body
-            , requestHeaders = fromMaybe defaultHeaders h
-            }
-            where
-                defaultHeaders =
-                    [ ("Content-Type", "application/json")
-                    , ("Accept", "application/json")
-                    ]
+    -> m (HTTP.Status, Either RequestException a)
+request (Context _ (base, manager)) (verb, path) reqHeaders body = do
+    req <- parseRequest $ T.unpack $ base <> path
+    handleResponse <$> liftIO (httpLbs (prepareReq req) manager)
+  where
+    prepareReq :: HTTP.Request -> HTTP.Request
+    prepareReq req = req
+        { method = verb
+        , requestBody = maybe mempty (RequestBodyLBS . Aeson.encode) body
+        , requestHeaders = fromMaybe defaultHeaders reqHeaders
+        }
 
-        -- Catch HttpExceptions and turn them into
-        -- Either RequestExceptions.
-        tryHttp :: IO r -> m (Either RequestException r)
-        tryHttp = liftIO . fmap (first HttpException) . try
+    defaultHeaders :: RequestHeaders
+    defaultHeaders =
+        [ ("Content-Type", "application/json")
+        , ("Accept", "application/json")
+        ]
 
--- | Makes a request to the API, ignoring the response, or any errors.
-request_
-    :: forall m ctx.
-        ( MonadIO m
-        , MonadThrow m
-        , MonadCatch m
-        , MonadReader ctx m
-        , HasManager ctx
-        )
-    => (Method, Text)
-    -> Maybe Aeson.Value
-    -> m ()
-request_ req body = void $ request' req Nothing body
+    handleResponse res = case responseStatus res of
+        s | s < status500 -> maybe
+            (s, Left $ decodeFailure res)
+            ((s,) . Right)
+            (Aeson.decode $ responseBody res)
+        -- TODO: decode API error responses into ClientError
+        s -> (s, Left $ decodeFailure res)
+
+    decodeFailure :: HTTP.Response ByteString -> RequestException
+    decodeFailure res = DecodeFailure $ responseBody res
 
 -- | Makes a request to the API, but throws if it fails.
-successfulRequest
-    :: forall a m ctx.
+unsafeRequest
+    :: forall a m.
         ( FromJSON a
         , MonadIO m
         , MonadThrow m
         , MonadCatch m
-        , MonadReader ctx m
-        , HasManager ctx
         )
-    => (Method, Text)
+    => Context
+    -> (Method, Text)
     -> Maybe Aeson.Value
-    -> m a
-successfulRequest req body = request req body >>= either throwM pure
-
--- | Provide "next" arguments to a function, leaving the first one untouched.
---
--- e.g.
---    myFunction  :: Ctx -> Int -> String -> Result
---    myFunction' :: Ctx -> Result
---    myFunction' = myFunction $- 14 $- "patate"
-infixl 1 $-
-($-) :: (a -> b -> c) -> b -> a -> c
-($-) = flip
+    -> m (HTTP.Status, a)
+unsafeRequest ctx req body = do
+    (s, res) <- request ctx req Nothing body
+    either throwM (pure . (s,)) res
