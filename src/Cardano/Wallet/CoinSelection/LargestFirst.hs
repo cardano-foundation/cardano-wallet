@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-type-defaults #-}
 {-# LANGUAGE RankNTypes #-}
 
 
@@ -20,7 +21,9 @@ import Cardano.Wallet.CoinSelection
 import Cardano.Wallet.Primitive.Types
     ( Coin (..), TxIn, TxOut (..), UTxO (..), balance )
 import Control.Monad
-    ( foldM )
+    ( foldM, when )
+import Control.Monad.IO.Class
+    ( MonadIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..), throwE )
 import Data.List.NonEmpty
@@ -35,31 +38,34 @@ import qualified Data.Map.Strict as Map
 
 -- | Largest-first input selection policy
 largestFirst
-    :: forall m. Monad m
+    :: forall m. MonadIO m
     => CoinSelectionOptions
     -> UTxO
     -> NonEmpty TxOut
     -> ExceptT CoinSelectionError m CoinSelection
 largestFirst opt utxo txOutputs = do
-    let txOutputsSorted = NE.toList $ NE.sortBy (flip $ comparing coin) txOutputs
+    let txOutputsSorted = NE.toList $ NE.sortBy (comparing coin) txOutputs
     let n = fromIntegral $ maximumNumberOfInputs opt
     let nLargest = take n . L.sortBy (flip $ comparing (coin . snd)) . Map.toList . getUTxO
+    let moneyRequested = sum $ (getCoin . coin) <$> txOutputsSorted
+    let utxoBalance = fromIntegral $ balance utxo
+    let numberOfUtxoEntries = fromIntegral $ L.length $ (Map.toList . getUTxO) utxo
+    let numberOfTransactionOutputs = fromIntegral $ NE.length txOutputs
+
+    when (numberOfUtxoEntries < numberOfTransactionOutputs)
+        $ throwE $ UtxoNotEnoughFragmented numberOfUtxoEntries numberOfTransactionOutputs
+
+    when (utxoBalance < moneyRequested)
+        $ throwE $ UtxoExhausted utxoBalance moneyRequested
+
     -- FIXME ? we need to check if the transaction outputs are not redeemable
-    case foldM atLeast (nLargest utxo, mempty) txOutputsSorted of
-        Just (_, s) -> return s
-        -- If we failed to cover 'target' it might be because we
-        -- depleted the Utxo or simply because our 'maxNumInputs' was
-        -- to stringent and in normal conditions we @would have@ covered
-        -- targetMin. To diversify the two errors, if
-        -- 'utxoBalance utxo >= targetMin' it means this is a max input
-        -- failure, otherwise we have genuinely exhausted the utxo.
-        Nothing -> do
-            let utxoBalance = fromIntegral $ balance utxo
-            let target = sum $ (getCoin . coin) <$> txOutputs
-            if utxoBalance < target then
-                throwE $ UtxoExhausted utxoBalance target
-            else
-                throwE $ MaximumInputsReached (fromIntegral n)
+
+    case foldM atLeast (L.reverse $ nLargest utxo, mempty) txOutputsSorted of
+        Just (_, s) ->
+            return s
+        Nothing ->
+            throwE $ MaximumInputsReached (fromIntegral n)
+
 
 {-------------------------------------------------------------------------------
                        Helper types and functions
@@ -80,14 +86,19 @@ atLeast
     :: ([(TxIn, TxOut)], CoinSelection)
     -> TxOut
     -> Maybe ([(TxIn, TxOut)], CoinSelection)
-atLeast (utxo0, selection) txout = go (getCoin $ coin txout, mempty) utxo0 where
+atLeast (utxo0, selection) txout =
+    go (fromIntegral $ getCoin $ coin txout, mempty) utxo0
+    where
+    go :: (Int, [(TxIn, TxOut)])
+       -> [(TxIn, TxOut)]
+       -> Maybe ([(TxIn, TxOut)], CoinSelection)
     go (target, ins) utxo
         | target <= 0 = Just
             ( utxo
             , selection <> CoinSelection
                 { inputs = ins
                 , outputs = [txout]
-                , change = [Coin (abs target)]
+                , change = [Coin (fromIntegral $ abs target)]
                 }
             )
         | null utxo =
@@ -95,6 +106,8 @@ atLeast (utxo0, selection) txout = go (getCoin $ coin txout, mempty) utxo0 where
         | otherwise =
             let
                 (inp, out):utxo' = utxo
-                target' = target - getCoin (coin out)
+                target' =
+                    (fromIntegral (getCoin (coin txout)))
+                    - (fromIntegral (getCoin (coin out)))
             in
-                go (target', (inp, out):ins) utxo'
+                go (target', [(inp, out)]) utxo'

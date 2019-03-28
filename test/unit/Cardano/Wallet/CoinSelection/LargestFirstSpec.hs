@@ -66,11 +66,10 @@ propLargestFirstFullyCovered
     -> Property
 propLargestFirstFullyCovered (CoveringCase (utxo, txOuts)) =
     monadicIO $ liftIO $ do
-        print $ show $ outputsSorted txOuts
-        print $ show $ utxoCovering txOuts utxo
-        let check = invariant "utxo must cover all transaction outputs"
-                    (NE.length txOuts)
-                    (\_ -> condCoinsCovering txOuts utxo)
+        let check =
+                invariant "utxo must cover all transaction outputs"
+                (NE.length txOuts)
+                (\_ -> condCoinsCovering txOuts utxo)
         result <- check `deepseq`
                   runExceptT $ largestFirst
                   defaultCoinSelectionOptions
@@ -83,9 +82,16 @@ propLargestFirstFullyCovered (CoveringCase (utxo, txOuts)) =
     -- those transaction outputs
     buildRes (coinselection, restUtxo) o =
         let
+            pairChosen = L.take 1 restUtxo
+            outputValue = (getCoin . coin) o
+            valueDedicated =
+                invariant
+                "output must be not bigger than value of utxo entry chosen to cover it"
+                (L.head $ map (getCoin . coin . snd) pairChosen)
+                (>= outputValue)
         in ( coinselection
              <>
-             CoinSelection (L.take 1 restUtxo) [o] [coin o]
+             CoinSelection pairChosen [o] [Coin $ valueDedicated - outputValue]
            , (L.drop 1 restUtxo)
            )
     (reference,_) = L.foldl buildRes (mempty, utxoCovering txOuts utxo)
@@ -97,8 +103,6 @@ propLargestFirstNotCovered
     -> Property
 propLargestFirstNotCovered (NotCoveringCase (utxo, txOuts)) =
     monadicIO $ liftIO $ do
-        print $ show $ outputsSorted txOuts
-        print $ show $ utxoCovering txOuts utxo
         let check = invariant "utxo must not cover all transaction outputs"
                     (NE.length txOuts)
                     (\_ -> not $ condCoinsCovering txOuts utxo)
@@ -113,7 +117,14 @@ propLargestFirstNotCovered (NotCoveringCase (utxo, txOuts)) =
                 sum
                 $ map (getCoin . coin . snd)
                 $ (Map.toList . getUTxO) utxo
-        result `shouldBe` (Left $ UtxoExhausted availableFunds transactionValue)
+        let numOutputs = fromIntegral $ L.length $ outputsSorted txOuts
+        let numUtxos = fromIntegral $ L.length $ (Map.toList . getUTxO) utxo
+        if (numUtxos < numOutputs) then
+           result `shouldBe` (Left $ UtxoNotEnoughFragmented numUtxos numOutputs)
+        else if (availableFunds < transactionValue) then
+           result `shouldBe` (Left $ UtxoExhausted availableFunds transactionValue)
+        else
+           result `shouldBe` (Left $ MaximumInputsReached 100)
 
 
 {-------------------------------------------------------------------------------
@@ -146,11 +157,18 @@ utxoCovering
     -> UTxO
     -> [(TxIn, TxOut)]
 utxoCovering txOuts utxo =
-    L.foldl (\acc o -> L.dropWhile (\(_,_o) -> coin _o < coin o) acc) utxoSorted
+    L.sortOn (coin . snd)
+    $ L.foldl (\acc o ->
+                   rotate 1
+                   $  L.dropWhile (\(_,_o) -> coin _o < coin o) acc
+              ) utxoSorted
     $ outputsSorted txOuts
     where
         utxoSorted = L.sortOn (coin . snd)
                      $ (Map.toList . getUTxO) utxo
+        rotate :: Int -> [a] -> [a]
+        rotate _ [] = []
+        rotate n xs = zipWith const (drop n (cycle xs)) xs
 
 -- Sort transaction outputs in the increasing order
 -- as we want to cover smaller payments first
@@ -215,7 +233,7 @@ instance Arbitrary TxIn where
         <*> scale (`mod` 3) arbitrary -- No need for a high indexes
 
 instance Arbitrary UTxO where
-    -- shrink (UTxO utxo) = UTxO <$> shrink utxo
+    shrink (UTxO utxo) = UTxO <$> shrink utxo
     arbitrary = do
         n <- choose (1, 100)
         utxo <- zip
