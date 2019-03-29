@@ -46,7 +46,7 @@ data CoinSelectionOptions = CoinSelectionOptions
 
 
 data CoinSelectionError =
-    UtxoExhausted Word64 Word64
+    NotEnoughMoney Word64 Word64
     -- ^ UTxO exhausted during input selection
     -- We record the balance of the UTxO as well as the size of the payment
     -- we tried to make.

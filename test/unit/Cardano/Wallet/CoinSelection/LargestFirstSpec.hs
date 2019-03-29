@@ -21,6 +21,8 @@ import Cardano.Wallet.Primitive.Types
     , UTxO (..)
     , invariant
     )
+import Control.Arrow
+    ( right )
 import Control.DeepSeq
     ( deepseq )
 import Control.Monad.IO.Class
@@ -30,13 +32,15 @@ import Control.Monad.Trans.Except
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Word
-    ( Word64 )
+    ( Word64, Word8 )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Expectation, Spec, describe, it, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Gen
     , Property
     , choose
+    , generate
     , oneof
     , property
     , scale
@@ -46,13 +50,58 @@ import Test.QuickCheck
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
+import qualified Data.ByteString as BS
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 
-
 spec :: Spec
 spec = do
+    describe "Coin selection : LargestFirst algorithm unit tests" $ do
+        it "happy path result in successful selection - a" $ do
+            (coinSelectionUnitTest
+                100
+                [10,10,17]
+                (17 :| [])
+                (Right [17])
+                )
+        it "happy path result in successful selection - b" $ do
+            (coinSelectionUnitTest
+                100
+                [12,10,17]
+                (1 :| [])
+                (Right [10])
+                )
+        it "NotEnoughMoney error expected when not enough coins" $ do
+            (coinSelectionUnitTest
+                100
+                [12,10,17]
+                (40 :| [])
+                (Left $ NotEnoughMoney 39 40)
+                )
+        it "NotEnoughMoney error expected when not enough coins and utxo not fragmented enough" $ do
+            (coinSelectionUnitTest
+                100
+                [12,10,17]
+                (40 :| [1,1,1])
+                (Left $ NotEnoughMoney 39 43)
+                )
+        it "UtxoNotEnoughFragmented error expected when enough coins and utxo not fragmented enough" $ do
+            (coinSelectionUnitTest
+                100
+                [12,20,17]
+                (40 :| [1,1,1])
+                (Left $ UtxoNotEnoughFragmented 3 4)
+                )
+        it "happy path with too strict maximumNumberOfInputs result in error" $ do
+            (coinSelectionUnitTest
+                1
+                [10,10,17]
+                (17 :| [1])
+                (Left $ MaximumInputsReached 1)
+                )
+
+
     describe "Coin selection : LargestFirst algorithm" $ do
         it "works as expected for zero-fee and fully covered by utxo coin selection"
             (property propLargestFirstFullyCovered)
@@ -62,8 +111,48 @@ spec = do
             (property propLargestFirstFullyCoveredSmallMaxInput)
 
 {-------------------------------------------------------------------------------
-                                Properties
+                 Properties and unit test generic scenario
 -------------------------------------------------------------------------------}
+
+coinSelectionUnitTest
+    :: Word64
+    -- ^ maximumNumberOfInputs
+    -> [Word64]
+    -- ^ utxo coins
+    -> NonEmpty Word64
+    -- ^ transaction outputs
+    -> Either CoinSelectionError [Word64]
+    -- ^ expecting CoinSelectionError or coins selected
+    -> Expectation
+coinSelectionUnitTest n utxoCoins txOutsCoins expected = do
+    (utxo,txOuts) <- setup
+
+    result <- runExceptT $ largestFirst
+              (defaultCoinSelectionOptions n)
+              utxo
+              txOuts
+
+    case expected of
+        Left err ->
+            result `shouldBe` (Left err)
+        Right expectedCoinsSel ->
+            (right (\(CoinSelection inps _  _) -> map (getCoin . coin . snd) inps) result)
+            `shouldBe`
+            (return expectedCoinsSel)
+    where
+        setup :: IO (UTxO, NonEmpty TxOut)
+        setup = do
+            txUtxoIns <- generate $ vectorOf (L.length utxoCoins) arbitrary
+            txUtxoOutsAddr <- generate $ vectorOf (L.length utxoCoins) arbitrary
+            let utxo = UTxO $ Map.fromList $ L.zip txUtxoIns
+                       $ L.zipWith TxOut txUtxoOutsAddr
+                       $ map Coin utxoCoins
+            txOutsAddr <- generate $ vectorOf (L.length txOutsCoins) arbitrary
+            let txOuts = NE.zipWith TxOut (NE.fromList txOutsAddr)
+                         $ NE.map Coin txOutsCoins
+            pure (utxo, txOuts)
+
+
 
 propLargestFirstFullyCovered
     :: CoveringCase
@@ -141,10 +230,10 @@ propLargestFirstNotCovered (NotCoveringCase (utxo, txOuts)) =
                 $ (Map.toList . getUTxO) utxo
         let numOutputs = fromIntegral $ L.length $ outputsSorted txOuts
         let numUtxos = fromIntegral $ L.length $ (Map.toList . getUTxO) utxo
-        if (numUtxos < numOutputs) then
+        if (availableFunds < transactionValue) then
+           result `shouldBe` (Left $ NotEnoughMoney availableFunds transactionValue)
+        else if (numUtxos < numOutputs) then
            result `shouldBe` (Left $ UtxoNotEnoughFragmented numUtxos numOutputs)
-        else if (availableFunds < transactionValue) then
-           result `shouldBe` (Left $ UtxoExhausted availableFunds transactionValue)
         else
            result `shouldBe` (Left $ MaximumInputsReached 100)
 
@@ -240,11 +329,10 @@ instance Arbitrary NotCoveringCase where
 
 instance Arbitrary (Hash "Tx") where
     -- No Shrinking
-    arbitrary = oneof
-        [ pure $ Hash "TXID01"
-        , pure $ Hash "TXID02"
-        , pure $ Hash "TXID03"
-        ]
+    arbitrary = do
+        wds <- vectorOf 10 arbitrary :: Gen [Word8]
+        let bs = BS.pack wds
+        pure $ Hash bs
 
 instance Arbitrary Address where
     -- No Shrinking

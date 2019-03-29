@@ -51,11 +51,11 @@ largestFirst opt utxo txOutputs = do
     let numberOfUtxoEntries = fromIntegral $ L.length $ (Map.toList . getUTxO) utxo
     let numberOfTransactionOutputs = fromIntegral $ NE.length txOutputs
 
+    when (utxoBalance < moneyRequested)
+        $ throwE $ NotEnoughMoney utxoBalance moneyRequested
+
     when (numberOfUtxoEntries < numberOfTransactionOutputs)
         $ throwE $ UtxoNotEnoughFragmented numberOfUtxoEntries numberOfTransactionOutputs
-
-    when (utxoBalance < moneyRequested)
-        $ throwE $ UtxoExhausted utxoBalance moneyRequested
 
     -- FIXME ? we need to check if the transaction outputs are not redeemable
 
@@ -86,12 +86,13 @@ atLeast
     -> TxOut
     -> Maybe ([(TxIn, TxOut)], CoinSelection)
 atLeast (utxo0, selection) txout =
-    go (fromIntegral $ getCoin $ coin txout, mempty) utxo0
+    pickTheFirst (fromIntegral $ getCoin $ coin txout, mempty) utxo0
     where
-    go :: (Int, [(TxIn, TxOut)])
-       -> [(TxIn, TxOut)]
-       -> Maybe ([(TxIn, TxOut)], CoinSelection)
-    go (target, ins) utxo
+    pickTheFirst
+        :: (Int, [(TxIn, TxOut)])
+        -> [(TxIn, TxOut)]
+        -> Maybe ([(TxIn, TxOut)], CoinSelection)
+    pickTheFirst (target, ins) utxo
         | target <= 0 = Just
             ( utxo
             , selection <> CoinSelection
@@ -109,4 +110,4 @@ atLeast (utxo0, selection) txout =
                     (fromIntegral (getCoin (coin txout)))
                     - (fromIntegral (getCoin (coin out)))
             in
-                go (target', [(inp, out)]) utxo'
+                pickTheFirst (target', [(inp, out)]) utxo'
