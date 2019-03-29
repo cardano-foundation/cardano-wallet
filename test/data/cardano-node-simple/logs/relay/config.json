@@ -1,0 +1,12 @@
+{
+    "loggerTree": {
+        "files": [
+            "/tmp/cardano-node-simple/logs/relay.pub"
+        ],
+        "severity": "Debug"
+    },
+    "rotation": {
+        "keepFiles": 1,
+        "logLimit": 104857600
+    }
+}

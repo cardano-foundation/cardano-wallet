@@ -1,37 +1,29 @@
+{-# LANGUAGE TypeApplications #-}
+
 module Main where
 
 import Prelude
 
+import Cardano.Launcher
+    ( Command (..), launch )
 import Control.Concurrent
     ( threadDelay )
-import Control.Concurrent.MVar
-    ( newMVar )
+import Control.Concurrent.Async
+    ( async, cancel, link )
+import Control.Monad
+    ( void )
 import Data.Aeson
     ( Value )
-import Data.ByteString.Lazy
-    ( ByteString )
-import Data.Text
-    ( Text )
+import Data.Time
+    ( addUTCTime, defaultTimeLocale, formatTime, getCurrentTime )
 import Network.HTTP.Client
-    ( Manager, Request, Response, defaultManagerSettings, newManager )
+    ( defaultManagerSettings, newManager )
 import Network.HTTP.Types.Status
     ( status200, status404, status405 )
-import System.Process
-    ( proc, withCreateProcess )
 import Test.Hspec
-    ( beforeAll, describe, hspec )
+    ( SpecWith, afterAll, beforeAll, describe, hspec, it, shouldBe )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , RequestException (..)
-    , Scenarios
-    , expectError
-    , expectResponseCode
-    , request
-    , request'
-    , request_
-    , scenario
-    , verify
-    )
+    ( Context (..), expectResponseCode, request )
 
 import qualified Cardano.Wallet.Network.HttpBridgeSpec as HttpBridge
 import qualified Cardano.WalletSpec as Wallet
@@ -43,66 +35,94 @@ main = do
         describe "Cardano.WalletSpec" Wallet.spec
         describe "Cardano.Wallet.Network.HttpBridge" HttpBridge.spec
 
-        beforeAll (withWallet (newMVar . Context ())) $ do
+        beforeAll startCluster $ afterAll killCluster $ do
             describe "Integration test framework" dummySpec
 
-        beforeAll (dummySetup (newMVar . Context ())) $ do
+        beforeAll dummySetup $ do
             describe "Test response codes" respCodesSpec
+  where
+    -- Run a local cluster of cardano-sl nodes, a cardano-http-bridge on top and
+    -- a cardano wallet server connected to the bridge.
+    startCluster :: IO Context
+    startCluster = do
+        let stateDir = "./test/data/cardano-node-simple"
+        systemStart <-
+            formatTime defaultTimeLocale "%s" . addUTCTime 10 <$> getCurrentTime
+        cluster <- async $ void $ launch
+            [ cardanoNodeSimple stateDir systemStart ("core0", "127.0.0.1:3000")
+            , cardanoNodeSimple stateDir systemStart ("core1", "127.0.0.1:3001")
+            , cardanoNodeSimple stateDir systemStart ("core2", "127.0.0.1:3002")
+            , cardanoNodeSimple stateDir systemStart ("relay", "127.0.0.1:3100")
+            , cardanoHttpBridge "8080" "local"
+            , cardanoWalletServer "1337" "8080" "local"
+            ]
+        link cluster
+        let baseURL = "http://localhost:1337/"
+        manager <- newManager defaultManagerSettings
+        return $ Context cluster (baseURL, manager)
 
--- Runs the wallet server only. The API is not implemented yet, so this is
--- basically a placeholder until then.
-withWallet :: ((Text, Manager) -> IO a) -> IO a
-withWallet action = do
-    let launch = proc "cardano-wallet-server" []
-        baseURL = T.pack ("http://localhost:8090/")
-    manager <- newManager defaultManagerSettings
-    withCreateProcess launch $ \_ _ _ _ph -> do
-        threadDelay 1000000
-        action (baseURL, manager)
+    killCluster :: Context -> IO ()
+    killCluster (Context cluster _) = cancel cluster
+
+    cardanoNodeSimple stateDir systemStart (nodeId, nodeAddr) = Command
+        "cardano-node-simple"
+        [ "--system-start", systemStart
+        , "--node-id", nodeId
+        , "--keyfile", stateDir <> "/keys/" <> nodeId <> ".sk"
+        , "--configuration-file", stateDir <> "/configuration.yaml"
+        , "--configuration-key", "default"
+        , "--topology", stateDir <> "/topology.json"
+        , "--db-path", "/tmp/cardano-node-simple/db/" <> nodeId
+        , "--listen", nodeAddr
+        , "--log-config", stateDir <> "/logs/" <> nodeId <> "/config.json"
+        , "--rebuild-db"
+        ] (pure ())
+
+    cardanoHttpBridge port network = Command
+        "cardano-http-bridge"
+        [ "start"
+        , "--port", port
+        , "--template", network
+        ] (threadDelay 5000000)
+
+    cardanoWalletServer serverPort bridgePort network = Command
+        "cardano-wallet-server"
+        [ "--wallet-server-port", serverPort
+        , "--http-bridge-port", bridgePort
+        , "--network", network
+        ] (threadDelay 6000000)
+
 
 -- Exercise the request functions, which just fail at the moment.
-dummySpec :: Scenarios Context
+dummySpec :: SpecWith Context
 dummySpec = do
-    scenario "Try the API which isn't implemented yet" $ do
-        response <- request ("GET", "api/wallets") Nothing
-        verify (response :: Either RequestException Value)
-            [ expectError
-            ]
-
-    scenario "request_ function is always successful" $ do
-        request_ ("GET", "api/xyzzy") Nothing
+    it "dummy spec" $ \(Context _ (url, _))  -> do
+        url `shouldBe` "http://localhost:1337/"
 
 -- Temporary test setup for testing response codes
-dummySetup :: ((Text, Manager) -> IO a) -> IO a
-dummySetup action = do
-        let baseURL = T.pack ("http://httpbin.org")
-        manager <- newManager defaultManagerSettings
-        action (baseURL, manager)
+dummySetup :: IO Context
+dummySetup = do
+    cluster <- async (return ())
+    let baseURL = T.pack ("http://httpbin.org")
+    manager <- newManager defaultManagerSettings
+    return $ Context cluster (baseURL, manager)
 
 -- Exercise response codes
-respCodesSpec :: Scenarios Context
+respCodesSpec :: SpecWith Context
 respCodesSpec = do
-    scenario "GET; Response code 200" $ do
-        response <- request' ("GET", "/get?my=arg") Nothing Nothing
-        verify (response :: Either RequestException (Request, Response ByteString))
-            [ expectResponseCode status200
-            ]
+    it "GET; Response code 200" $ \ctx -> do
+        response <- request @Value ctx ("GET", "/get?my=arg") Nothing Nothing
+        expectResponseCode @IO status200 response
 
-    scenario "GET; Response code 404" $ do
-        response <- request' ("GET", "/get/nothing") Nothing Nothing
-        verify (response :: Either RequestException (Request, Response ByteString))
-            [ expectResponseCode status404
-            ]
+    it "GET; Response code 404" $ \ctx -> do
+        response <- request @Value ctx ("GET", "/get/nothing") Nothing Nothing
+        expectResponseCode @IO status404 response
 
-    scenario "POST; Response code 200" $ do
+    it "POST; Response code 200" $ \ctx -> do
         let header = [("dummy", "header")]
-        response <- request' ("POST", "/post") (Just header) Nothing
-        verify (response :: Either RequestException (Request, Response ByteString))
-            [ expectResponseCode status200
-            ]
+        response <- request @Value ctx ("POST", "/post") (Just header) Nothing
+        expectResponseCode @IO status200 response
 
-    scenario "POST; Response code 405" $ do
-        response <- request' ("POST", "/get") Nothing Nothing
-        verify (response :: Either RequestException (Request, Response ByteString))
-            [ expectResponseCode status405
-            ]
+    it "POST; Response code 405" $ \ctx -> do
+        response <- request @Value ctx ("POST", "/get") Nothing Nothing
+        expectResponseCode @IO status405 response

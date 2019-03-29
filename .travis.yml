@@ -63,7 +63,7 @@ jobs:
     name: "Compiling"
     script:
     - mkdir -p ~/.local/bin
-    - test "$(cardano-http-bridge --version)" = "cardano-http-bridge 0.0.1" || travis_retry cargo install --git https://github.com/input-output-hk/cardano-http-bridge.git
+    - test "$(cardano-http-bridge --version)" = "cardano-http-bridge 0.0.1" || travis_retry cargo install --force --branch cardano-wallet-integration --git https://github.com/KtorZ/cardano-http-bridge.git
     - travis_retry curl -L https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
     - stack --no-terminal setup
     - stack --no-terminal build --only-snapshot

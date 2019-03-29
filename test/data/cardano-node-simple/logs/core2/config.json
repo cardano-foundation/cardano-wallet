@@ -1,0 +1,12 @@
+{
+    "loggerTree": {
+        "files": [
+            "/tmp/cardano-node-simple/logs/core2.pub"
+        ],
+        "severity": "Debug"
+    },
+    "rotation": {
+        "keepFiles": 1,
+        "logLimit": 104857600
+    }
+}
