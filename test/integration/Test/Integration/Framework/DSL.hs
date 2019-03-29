@@ -9,6 +9,8 @@ module Test.Integration.Framework.DSL
     , expectSuccess
     , expectError
     , expectResponseCode
+    , Headers(..)
+    , Payload(..)
     , RequestException(..)
 
     -- * Helpers
@@ -35,7 +37,13 @@ import Language.Haskell.TH.Quote
 import Test.Hspec.Expectations.Lifted
     ( shouldBe )
 import Test.Integration.Framework.Request
-    ( Context (..), RequestException (..), request, unsafeRequest )
+    ( Context (..)
+    , Headers (..)
+    , Payload (..)
+    , RequestException (..)
+    , request
+    , unsafeRequest
+    )
 import Web.HttpApiData
     ( ToHttpApiData (..) )
 

@@ -1,4 +1,6 @@
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TypeApplications #-}
+
 
 module Main where
 
@@ -23,7 +25,13 @@ import Network.HTTP.Types.Status
 import Test.Hspec
     ( SpecWith, afterAll, beforeAll, describe, hspec, it, shouldBe )
 import Test.Integration.Framework.DSL
-    ( Context (..), expectResponseCode, request )
+    ( Context (..)
+    , Headers (..)
+    , Payload (..)
+    , expectResponseCode
+    , json
+    , request
+    )
 
 import qualified Cardano.Wallet.Network.HttpBridgeSpec as HttpBridge
 import qualified Cardano.WalletSpec as Wallet
@@ -111,18 +119,33 @@ dummySetup = do
 respCodesSpec :: SpecWith Context
 respCodesSpec = do
     it "GET; Response code 200" $ \ctx -> do
-        response <- request @Value ctx ("GET", "/get?my=arg") Nothing Nothing
+        response <- request @Value ctx ("GET", "/get?my=arg") Default Empty
         expectResponseCode @IO status200 response
 
     it "GET; Response code 404" $ \ctx -> do
-        response <- request @Value ctx ("GET", "/get/nothing") Nothing Nothing
+        response <- request @Value ctx ("GET", "/get/nothing") Default Empty
         expectResponseCode @IO status404 response
 
     it "POST; Response code 200" $ \ctx -> do
-        let header = [("dummy", "header")]
-        response <- request @Value ctx ("POST", "/post") (Just header) Nothing
+        let headers = Headers [("dummy", "header")]
+        let payload = Json [json| {
+                "addressPoolGap": 70,
+                "assuranceLevel": "strict",
+                "name": "Wallet EOS"
+                } |]
+        response <- request @Value ctx ("POST", "/post") headers payload
+        expectResponseCode @IO status200 response
+
+    it "POST; Response code 200" $ \ctx -> do
+        let headers = Headers [("dummy", "header")]
+        let payloadInvalid = NonJson "{\
+                        \\"addressPoolGap: 70,\
+                        \\"assuranceLevel\": strict,\
+                        \\"name\": \"Wallet EOS\"\
+                        \}"
+        response <- request @Value ctx ("POST", "/post") headers payloadInvalid
         expectResponseCode @IO status200 response
 
     it "POST; Response code 405" $ \ctx -> do
-        response <- request @Value ctx ("POST", "/get") Nothing Nothing
+        response <- request @Value ctx ("POST", "/get") None Empty
         expectResponseCode @IO status405 response
