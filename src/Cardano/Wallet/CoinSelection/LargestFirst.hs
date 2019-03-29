@@ -43,7 +43,7 @@ largestFirst
     -> NonEmpty TxOut
     -> ExceptT CoinSelectionError m CoinSelection
 largestFirst opt utxo txOutputs = do
-    let txOutputsSorted = NE.toList $ NE.sortBy (comparing coin) txOutputs
+    let txOutputsSorted = NE.toList $ NE.sortBy (flip $ comparing coin) txOutputs
     let n = fromIntegral $ maximumNumberOfInputs opt
     let nLargest = take n . L.sortBy (flip $ comparing (coin . snd)) . Map.toList . getUTxO
     let moneyRequested = sum $ (getCoin . coin) <$> txOutputsSorted
@@ -57,42 +57,41 @@ largestFirst opt utxo txOutputs = do
     when (numberOfUtxoEntries < numberOfTransactionOutputs)
         $ throwE $ UtxoNotEnoughFragmented numberOfUtxoEntries numberOfTransactionOutputs
 
-    -- FIXME ? we need to check if the transaction outputs are not redeemable
-
-    case foldM atLeast (L.reverse $ nLargest utxo, mempty) txOutputsSorted of
+    case foldM atLeast (nLargest utxo, mempty) txOutputsSorted of
         Just (_, s) ->
             return s
         Nothing ->
             throwE $ MaximumInputsReached (fromIntegral n)
 
 
-{-------------------------------------------------------------------------------
-                       Helper types and functions
--------------------------------------------------------------------------------}
-
--- Select coins to cover at least the specified value
--- When we fail in the random selection policy because we exceeded the maximum
--- number of inputs @n@, we fallback on the 'largestFirstFallback'. We select
--- the @n@ largest inputs from the UTxO in a single linear pass, then walk over
--- these from large to small to try and cover the value we need to cover.
--- If this fails, we have no further fallbacks and this payment request is
--- not satisfiable.
+-- Selecting coins to cover at least the specified value
+-- The details of the algorithm are following:
+-- (a) transaction outputs are processed starting from the largest one
+-- (b) `maximumNumberOfInputs` biggest available UTxO inputs are taken
+--      into consideration. They constitute a candidate UTxO inputs from
+--      which coin selection will be tried
+-- (c) the biggest candidate UTxO input is tried first to cover the transaction
+--     output. If the input is not enough, then the next biggest one is added
+--     to check if they can cover the transaction output. This process id continued
+--     until the output is covered or the candidates UTxO inputs are depleted.
+--     In the latter case `MaximumInputsReached` error is triggered. If the transaction
+--     output is covered the next biggest one is processed. Here, the biggest
+--     UTxO input, not participating in the coverage, is taken. We are back at (b)
+--     step as a result
 --
--- If it succeeds, we can then use this as the basis for another call to
--- the random input selection to try and construct a more useful change output
--- (provided we haven't used up all available inputs yet).
+-- The steps are continued until all transaction are covered.
 atLeast
     :: ([(TxIn, TxOut)], CoinSelection)
     -> TxOut
     -> Maybe ([(TxIn, TxOut)], CoinSelection)
 atLeast (utxo0, selection) txout =
-    pickTheFirst (fromIntegral $ getCoin $ coin txout, mempty) utxo0
+    coverOutput (fromIntegral $ getCoin $ coin txout, mempty) utxo0
     where
-    pickTheFirst
+    coverOutput
         :: (Int, [(TxIn, TxOut)])
         -> [(TxIn, TxOut)]
         -> Maybe ([(TxIn, TxOut)], CoinSelection)
-    pickTheFirst (target, ins) utxo
+    coverOutput (target, ins) utxo
         | target <= 0 = Just
             ( utxo
             , selection <> CoinSelection
@@ -107,7 +106,6 @@ atLeast (utxo0, selection) txout =
             let
                 (inp, out):utxo' = utxo
                 target' =
-                    (fromIntegral (getCoin (coin txout)))
-                    - (fromIntegral (getCoin (coin out)))
+                    target - (fromIntegral (getCoin (coin out)))
             in
-                pickTheFirst (target', [(inp, out)]) utxo'
+                coverOutput (target', ins ++ [(inp, out)]) utxo'

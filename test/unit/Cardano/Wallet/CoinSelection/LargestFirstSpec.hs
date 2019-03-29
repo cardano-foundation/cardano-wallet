@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.CoinSelection.LargestFirstSpec
@@ -19,18 +20,14 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxOut (..)
     , UTxO (..)
-    , invariant
+    , excluding
     )
-import Control.Arrow
-    ( right )
-import Control.DeepSeq
-    ( deepseq )
+import Control.Monad
+    ( unless )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( runExceptT )
-import Data.Either
-    ( rights )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Word
@@ -56,139 +53,180 @@ import qualified Data.ByteString as BS
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 spec :: Spec
 spec = do
     describe "Coin selection : LargestFirst algorithm unit tests" $ do
-        it "happy path result in successful selection - a" $ do
+        it "one input per small output" $ do
             (coinSelectionUnitTest
-                100
-                [10,10,17]
-                (17 :| [])
-                (Right [17])
-                )
-        it "happy path result in successful selection - b" $ do
+                Fixture
+                { maxNumOfInputs = 100
+                , utxoInputs = [10,10,17]
+                , txOutputs = 17 :| []
+                , expectedResult = Right [17]
+                })
+        it "one input per big output" $ do
             (coinSelectionUnitTest
-                100
-                [12,10,17]
-                (1 :| [])
-                (Right [10])
-                )
+                Fixture
+                { maxNumOfInputs = 100
+                , utxoInputs = [12,10,17]
+                , txOutputs = 1 :| []
+                , expectedResult = Right [17]
+                })
+        it "two inputs per output" $ do
+            (coinSelectionUnitTest
+                Fixture
+                { maxNumOfInputs = 100
+                , utxoInputs = [12,10,17]
+                , txOutputs = 18 :| []
+                , expectedResult = Right [17, 12]
+                })
+        it "three inputs per output" $ do
+            (coinSelectionUnitTest
+                Fixture
+                { maxNumOfInputs = 100
+                , utxoInputs = [12,10,17]
+                , txOutputs = 30 :| []
+                , expectedResult = Right [17, 12, 10]
+                })
         it "NotEnoughMoney error expected when not enough coins" $ do
             (coinSelectionUnitTest
-                100
-                [12,10,17]
-                (40 :| [])
-                (Left $ NotEnoughMoney 39 40)
-                )
+                Fixture
+                { maxNumOfInputs = 100
+                , utxoInputs = [12,10,17]
+                , txOutputs = 40 :| []
+                , expectedResult = Left $ NotEnoughMoney 39 40
+                })
         it "NotEnoughMoney error expected when not enough coins and utxo not fragmented enough" $ do
             (coinSelectionUnitTest
-                100
-                [12,10,17]
-                (40 :| [1,1,1])
-                (Left $ NotEnoughMoney 39 43)
-                )
+                Fixture
+                { maxNumOfInputs = 100
+                , utxoInputs = [12,10,17]
+                , txOutputs = 40 :| [1,1,1]
+                , expectedResult = Left $ NotEnoughMoney 39 43
+                })
         it "UtxoNotEnoughFragmented error expected when enough coins and utxo not fragmented enough" $ do
             (coinSelectionUnitTest
-                100
-                [12,20,17]
-                (40 :| [1,1,1])
-                (Left $ UtxoNotEnoughFragmented 3 4)
-                )
-        it "happy path with too strict maximumNumberOfInputs result in error" $ do
+                Fixture
+                { maxNumOfInputs = 100
+                , utxoInputs = [12,20,17]
+                , txOutputs = 40 :| [1,1,1]
+                , expectedResult = Left $ UtxoNotEnoughFragmented 3 4
+                })
+        it "happy path with correct maximumNumberOfInputs - 3 inputs for 2 outputs" $ do
             (coinSelectionUnitTest
-                1
-                [10,10,17]
-                (17 :| [1])
-                (Left $ MaximumInputsReached 1)
-                )
+                Fixture
+                { maxNumOfInputs = 3
+                , utxoInputs = [1,2,10,6,5]
+                , txOutputs = 11 :| [1]
+                , expectedResult = Right [10,6,5]
+                })
+        it "happy path with too strict maximumNumberOfInputs result in error - 3 inputs for 2 outputs" $ do
+            (coinSelectionUnitTest
+                Fixture
+                { maxNumOfInputs = 2
+                , utxoInputs = [1,2,10,6,5]
+                , txOutputs = 11 :| [1]
+                , expectedResult = Left $ MaximumInputsReached 2
+                })
+
     describe "Coin selection properties : LargestFirst algorithm" $ do
-        it "forall (UTxO, NonEmpty TxOut), running algorithm twice yields exactly the same result"
+        it "forall (UTxO, NonEmpty TxOut), \
+           \ running algorithm twice yields exactly the same result"
             (property propDeterministic)
-        it "forall (UTxO, NonEmpty TxOut), there's at least as many selected inputs as there are requested outputs"
+        it "forall (UTxO, NonEmpty TxOut), \
+           \ there's at least as many selected inputs as there are requested outputs"
             (property propAtLeast)
+        it "forall (UTxO, NonEmpty TxOut), for all selected input, \
+           \ there's no bigger input in the UTxO that is not already in the selected inputs."
+            (property propInputDecreasingOrder)
 
 {-------------------------------------------------------------------------------
                  Properties and unit test generic scenario
 -------------------------------------------------------------------------------}
 
+data Fixture = Fixture
+    { maxNumOfInputs :: Word64
+    , utxoInputs :: [Word64]
+    , txOutputs :: NonEmpty Word64
+    , expectedResult :: Either CoinSelectionError [Word64]
+    } deriving Show
+
+
 coinSelectionUnitTest
-    :: Word64
-    -- ^ maximumNumberOfInputs
-    -> [Word64]
-    -- ^ utxo coins
-    -> NonEmpty Word64
-    -- ^ transaction outputs
-    -> Either CoinSelectionError [Word64]
-    -- ^ expecting CoinSelectionError or coins selected
+    :: Fixture
     -> Expectation
-coinSelectionUnitTest n utxoCoins txOutsCoins expected = do
+coinSelectionUnitTest (Fixture n utxoCoins txOutsCoins expected) = do
     (utxo,txOuts) <- setup
 
-    result <- runExceptT $ largestFirst
-              (defaultCoinSelectionOptions n)
-              utxo
-              txOuts
+    result <- runExceptT $ do
+        CoinSelection inps _ _ <-
+            largestFirst (defaultCoinSelectionOptions n) utxo txOuts
+        return $ map (getCoin . coin . snd) inps
 
     case expected of
         Left err ->
             result `shouldBe` (Left err)
         Right expectedCoinsSel ->
-            (right (\(CoinSelection inps _  _) -> map (getCoin . coin . snd) inps) result)
-            `shouldBe`
-            (return expectedCoinsSel)
+            result `shouldBe` (return expectedCoinsSel)
     where
         setup :: IO (UTxO, NonEmpty TxOut)
         setup = do
-            txUtxoIns <- generate $ vectorOf (L.length utxoCoins) arbitrary
-            txUtxoOutsAddr <- generate $ vectorOf (L.length utxoCoins) arbitrary
-            let utxo = UTxO $ Map.fromList $ L.zip txUtxoIns
-                       $ L.zipWith TxOut txUtxoOutsAddr
-                       $ map Coin utxoCoins
-            txOutsAddr <- generate $ vectorOf (L.length txOutsCoins) arbitrary
-            let txOuts = NE.zipWith TxOut (NE.fromList txOutsAddr)
-                         $ NE.map Coin txOutsCoins
+            ins <- generate $ vectorOf (L.length utxoCoins) arbitrary
+            addrs <- generate $ vectorOf (L.length utxoCoins) arbitrary
+            let utxo = UTxO $ Map.fromList
+                    $ L.zip ins
+                    $ L.zipWith TxOut addrs
+                    $ map Coin utxoCoins
+            txOutsAddrs <- generate $ vectorOf (L.length txOutsCoins) arbitrary
+            let txOuts = NE.zipWith TxOut (NE.fromList txOutsAddrs)
+                    $ NE.map Coin txOutsCoins
             pure (utxo, txOuts)
 
 
 propDeterministic
     :: CoveringCase
     -> Property
-propDeterministic (CoveringCase (utxo, txOuts)) =
-    monadicIO $ liftIO $ do
-        let check =
-                invariant "utxo must cover all transaction outputs"
-                (NE.length txOuts)
-                (\_ -> condCoinsCovering txOuts utxo)
-        resultOne <- check `deepseq`
-                     runExceptT $ largestFirst
-                     (defaultCoinSelectionOptions 100)
-                     utxo
-                     txOuts
-        resultTwo <- runExceptT $ largestFirst
-                     (defaultCoinSelectionOptions 100)
-                     utxo
-                     txOuts
-        resultOne `shouldBe` resultTwo
+propDeterministic (CoveringCase (utxo, txOuts)) = monadicIO $ liftIO $ do
+    resultOne <- runExceptT $ largestFirst
+        (defaultCoinSelectionOptions 100)
+        utxo
+        txOuts
+    resultTwo <- runExceptT $ largestFirst
+        (defaultCoinSelectionOptions 100)
+        utxo
+        txOuts
+
+    resultOne `shouldBe` resultTwo
 
 propAtLeast
     :: CoveringCase
     -> Property
-propAtLeast (CoveringCase (utxo, txOuts)) =
-    monadicIO $ liftIO $ do
-        let check =
-                invariant "utxo must cover all transaction outputs"
-                (NE.length txOuts)
-                (\_ -> condCoinsCovering txOuts utxo)
-        result <- check `deepseq`
-                  runExceptT $ largestFirst
-                  (defaultCoinSelectionOptions 100)
-                  utxo
-                  txOuts
-        L.length
-            (concatMap (\ (CoinSelection inps _ _) -> inps) $ rights [result])
-            `shouldSatisfy`
-            (>= NE.length txOuts)
+propAtLeast (CoveringCase (utxo, txOuts)) = monadicIO $ liftIO $ do
+    result <- runExceptT
+        (largestFirst (defaultCoinSelectionOptions 100) utxo txOuts) >>= \case
+        Left err -> fail $ "expected success but failed: " <> show err
+        Right (CoinSelection inps _ _) -> return $ L.length inps
+
+    result `shouldSatisfy` (>= NE.length txOuts)
+
+propInputDecreasingOrder
+    :: CoveringCase
+    -> Property
+propInputDecreasingOrder (CoveringCase (utxo, txOuts)) = monadicIO $ liftIO $ do
+    inps <- runExceptT
+        (largestFirst (defaultCoinSelectionOptions 100) utxo txOuts) >>= \case
+        Left err -> fail $ "expected success but failed: " <> show err
+        Right (CoinSelection inps _ _) -> return inps
+    let utxo' = (Map.toList . getUTxO) $
+            utxo `excluding` (Set.fromList . map fst $ inps)
+    let getExtremumValue f = f . map (getCoin . coin . snd)
+
+    unless (L.null utxo') $
+        (getExtremumValue L.minimum inps)
+        `shouldSatisfy` (>= (getExtremumValue L.maximum utxo'))
+
 {-------------------------------------------------------------------------------
                                   Test Data
 -------------------------------------------------------------------------------}
@@ -247,11 +285,10 @@ newtype CoveringCase = CoveringCase { getCoveringCase :: (UTxO, NonEmpty TxOut)}
 
 instance Arbitrary CoveringCase where
     arbitrary = do
-        n <- choose (1, 2)
+        n <- choose (1, 10)
         txOutsNonEmpty <- NE.fromList <$> vectorOf n arbitrary
         utxo <- arbitrary `suchThat` (condCoinsCovering txOutsNonEmpty)
         return $ CoveringCase (utxo, txOutsNonEmpty)
-
 
 instance Arbitrary (Hash "Tx") where
     -- No Shrinking
