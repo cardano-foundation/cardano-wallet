@@ -1,0 +1,14 @@
+Cardano Wallet CLI.
+
+Usage:
+  cardano-wallet address list --wallet-id=UUID
+  cardano-wallet wallet create --name=STRING [--address-pool-gap=INT]
+  cardano-wallet wallet delete --id=UUID
+  cardano-wallet wallet update --id=UUID --name=STRING
+  cardano-wallet wallet list
+  cardano-wallet -h | --help
+  cardano-wallet --version
+
+Options:
+  -h --help     Show this screen.
+  --version     Show version.

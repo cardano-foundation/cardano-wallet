@@ -300,3 +300,24 @@ executable cardano-generate-mnemonic
       app/mnemonic
   main-is:
       GenerateMnemonic.hs
+
+executable cardano-wallet
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -Wall
+      -Werror
+      -O2
+  build-depends:
+      base
+    , cardano-wallet
+    , docopt
+    , text
+    , uuid-types
+  hs-source-dirs:
+      app/wallet
+  main-is:
+      Main.hs
