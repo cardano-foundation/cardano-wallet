@@ -5,7 +5,7 @@ module Main where
 import Prelude
 
 import Cardano.Launcher
-    ( Command (..), launch )
+    ( Command (..), StdStream (..), launch )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
@@ -76,6 +76,7 @@ main = do
         , "--log-config", stateDir <> "/logs/" <> nodeId <> "/config.json"
         , "--rebuild-db"
         ] (pure ())
+        NoStream
 
     cardanoWalletLauncher serverPort bridgePort network = Command
         "cardano-wallet-launcher"
@@ -83,6 +84,7 @@ main = do
         , "--http-bridge-port", bridgePort
         , "--network", network
         ] (threadDelay 6000000)
+        Inherit
 
 
 -- Exercise the request functions, which just fail at the moment.

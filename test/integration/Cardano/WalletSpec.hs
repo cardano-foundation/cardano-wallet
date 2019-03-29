@@ -10,7 +10,7 @@ module Cardano.WalletSpec
 import Prelude
 
 import Cardano.Launcher
-    ( Command (..), launch )
+    ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
     ( NewWallet (..), WalletLayer (..), mkWalletLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -67,6 +67,7 @@ spec = do
                 , "--template", "testnet"
                 ]
                 (return ())
+                Inherit
             ]
         threadDelay 1000000
         (handle,) <$> (mkWalletLayer

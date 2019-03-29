@@ -10,6 +10,7 @@
 
 module Cardano.Launcher
     ( Command (..)
+    , StdStream(..)
     , ProcessHasExited(..)
     , launch
     , installSignalHandlers
@@ -28,7 +29,12 @@ import Fmt
 import System.Exit
     ( ExitCode )
 import System.Process
-    ( proc, waitForProcess, withCreateProcess )
+    ( CreateProcess (..)
+    , StdStream (..)
+    , proc
+    , waitForProcess
+    , withCreateProcess
+    )
 
 #ifdef mingw32_HOST_OS
 import Cardano.Launcher.Windows
@@ -43,6 +49,8 @@ data Command = Command
     , cmdArgs :: [String]
     , cmdSetup :: IO ()
         -- ^ An extra action to run _before_ the command
+    , cmdOutput :: StdStream
+        -- ^ What to do with stdout & stderr
     }
 
 -- Format a command nicely with one argument / option per line.
@@ -54,7 +62,7 @@ data Command = Command
 --     --port 8080
 --     --network mainnet
 instance Buildable Command where
-    build (Command name args _) = build name
+    build (Command name args _ _) = build name
         <> "\n"
         <> indentF 4
             (blockListF' "" build $ snd $ foldl buildOptions ("", []) args)
@@ -77,9 +85,10 @@ instance Exception ProcessHasExited
 
 launch :: [Command] -> IO ProcessHasExited
 launch cmds = do
-    res <- try $ forConcurrently cmds $ \(Command name args before) -> do
+    res <- try $ forConcurrently cmds $ \(Command name args before output) -> do
         before
-        withCreateProcess (proc name args) $ \_ _ _ h -> do
+        let process = (proc name args) { std_out = output , std_err = output }
+        withCreateProcess process $ \_ _ _ h -> do
             code <- waitForProcess h
             throwIO $ ProcessHasExited name code
     case res of
