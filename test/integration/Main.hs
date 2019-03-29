@@ -53,8 +53,7 @@ main = do
             , cardanoNodeSimple stateDir systemStart ("core1", "127.0.0.1:3001")
             , cardanoNodeSimple stateDir systemStart ("core2", "127.0.0.1:3002")
             , cardanoNodeSimple stateDir systemStart ("relay", "127.0.0.1:3100")
-            , cardanoHttpBridge "8080" "local"
-            , cardanoWalletServer "1337" "8080" "local"
+            , cardanoWalletLauncher "1337" "8080" "local"
             ]
         link cluster
         let baseURL = "http://localhost:1337/"
@@ -78,15 +77,8 @@ main = do
         , "--rebuild-db"
         ] (pure ())
 
-    cardanoHttpBridge port network = Command
-        "cardano-http-bridge"
-        [ "start"
-        , "--port", port
-        , "--template", network
-        ] (threadDelay 5000000)
-
-    cardanoWalletServer serverPort bridgePort network = Command
-        "cardano-wallet-server"
+    cardanoWalletLauncher serverPort bridgePort network = Command
+        "cardano-wallet-launcher"
         [ "--wallet-server-port", serverPort
         , "--http-bridge-port", bridgePort
         , "--network", network
