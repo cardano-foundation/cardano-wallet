@@ -1,5 +1,6 @@
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE TypeApplications #-}
+
 
 module Main where
 
