@@ -24,7 +24,13 @@ import Network.HTTP.Types.Status
 import Test.Hspec
     ( SpecWith, afterAll, beforeAll, describe, hspec, it, shouldBe )
 import Test.Integration.Framework.DSL
-    ( Context (..), expectResponseCode, request )
+    ( Context (..)
+    , Headers (..)
+    , Payload (..)
+    , expectResponseCode
+    , json
+    , request
+    )
 
 import qualified Cardano.Wallet.Network.HttpBridgeSpec as HttpBridge
 import qualified Cardano.WalletSpec as Wallet
@@ -140,5 +146,5 @@ respCodesSpec = do
         expectResponseCode @IO status200 response
 
     it "POST; Response code 405" $ \ctx -> do
-        response <- request @Value ctx ("POST", "/get") Nothing Nothing
+        response <- request @Value ctx ("POST", "/get") None Empty
         expectResponseCode @IO status405 response

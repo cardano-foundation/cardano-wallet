@@ -26,8 +26,6 @@ import Data.Aeson
     ( FromJSON )
 import Data.ByteString.Lazy
     ( ByteString )
-import Data.Maybe
-    ( fromMaybe )
 import Data.Text
     ( Text )
 import Network.HTTP.Client
@@ -113,7 +111,7 @@ request (Context _ (base, manager)) (verb, path) reqHeaders body = do
         , requestHeaders = headers
         }
         where
-            headers = case h of
+            headers = case reqHeaders of
                 Headers x -> x
                 Default -> [ ("Content-Type", "application/json")
                            , ("Accept", "application/json")
@@ -146,8 +144,8 @@ unsafeRequest
         )
     => Context
     -> (Method, Text)
-    -> Maybe Aeson.Value
+    -> Payload
     -> m (HTTP.Status, a)
 unsafeRequest ctx req body = do
-    (s, res) <- request ctx req Nothing body
+    (s, res) <- request ctx req Default body
     either throwM (pure . (s,)) res
