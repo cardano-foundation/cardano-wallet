@@ -65,8 +65,6 @@ _items below are more-or-less prioritized_
 - Finalize port of discovery for random addresses
 - Extend API to support random wallet
 
-### :hammer: [Implement Wallet Backend Server & Corresponding CLI](https://github.com/input-output-hk/cardano-wallet/milestone/7)
-
 ### Handle Rollbacks
 
 - Handle rollbacks at the networking layer / db storage
