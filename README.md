@@ -79,7 +79,7 @@ $ tar xzf cardano-node-simple-3.0.1.tar.gz -C /usr/local/bin && rm cardano-node-
 3. Import the initial testnet chain bootstrap for the `cardano-http-bridge`
 
 ```
-$ curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/data-integration-testing/hermes-testnet.tar.gz
+$ curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/test/data/cardano-http-bridge/hermes-testnet.tar.gz
 $ tar xzf hermes-testnet.tar.gz -C $HOME && rm hermes-testnet.tar.gz
 ```
 

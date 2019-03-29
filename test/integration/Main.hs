@@ -7,7 +7,7 @@ module Main where
 import Prelude
 
 import Cardano.Launcher
-    ( Command (..), launch )
+    ( Command (..), StdStream (..), launch )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
@@ -61,8 +61,7 @@ main = do
             , cardanoNodeSimple stateDir systemStart ("core1", "127.0.0.1:3001")
             , cardanoNodeSimple stateDir systemStart ("core2", "127.0.0.1:3002")
             , cardanoNodeSimple stateDir systemStart ("relay", "127.0.0.1:3100")
-            , cardanoHttpBridge "8080" "local"
-            , cardanoWalletServer "1337" "8080" "local"
+            , cardanoWalletLauncher "1337" "8080" "local"
             ]
         link cluster
         let baseURL = "http://localhost:1337/"
@@ -85,20 +84,15 @@ main = do
         , "--log-config", stateDir <> "/logs/" <> nodeId <> "/config.json"
         , "--rebuild-db"
         ] (pure ())
+        NoStream
 
-    cardanoHttpBridge port network = Command
-        "cardano-http-bridge"
-        [ "start"
-        , "--port", port
-        , "--template", network
-        ] (threadDelay 5000000)
-
-    cardanoWalletServer serverPort bridgePort network = Command
-        "cardano-wallet-server"
+    cardanoWalletLauncher serverPort bridgePort network = Command
+        "cardano-wallet-launcher"
         [ "--wallet-server-port", serverPort
         , "--http-bridge-port", bridgePort
         , "--network", network
         ] (threadDelay 6000000)
+        Inherit
 
 
 -- Exercise the request functions, which just fail at the moment.

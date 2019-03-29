@@ -11,6 +11,7 @@ import Cardano.CLI
 import Cardano.Launcher
     ( Command (Command)
     , ProcessHasExited (ProcessHasExited)
+    , StdStream (..)
     , installSignalHandlers
     , launch
     )
@@ -85,6 +86,7 @@ nodeHttpBridgeOn port net = Command
     , "--template", encode net
     ]
     (return ())
+    Inherit
 
 walletOn :: Port "Wallet" -> Port "Node" -> Network -> Command
 walletOn wp np net = Command
@@ -94,5 +96,6 @@ walletOn wp np net = Command
     , "--network", encode net
     ]
     (threadDelay oneSecond)
+    Inherit
   where
     oneSecond = 1000000

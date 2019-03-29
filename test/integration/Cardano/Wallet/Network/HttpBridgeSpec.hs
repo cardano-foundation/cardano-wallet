@@ -8,7 +8,7 @@ module Cardano.Wallet.Network.HttpBridgeSpec
 import Prelude
 
 import Cardano.Launcher
-    ( Command (..), launch )
+    ( Command (..), StdStream (..), launch )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Network.HttpBridge
@@ -93,6 +93,7 @@ spec = do
                 , "--template", "testnet"
                 ]
                 (return ())
+                Inherit
             ]
         network <- newNetworkLayer
         threadDelay 1000000

@@ -7,7 +7,7 @@ module Cardano.LauncherSpec
 import Prelude
 
 import Cardano.Launcher
-    ( Command (..), ProcessHasExited (..), launch )
+    ( Command (..), ProcessHasExited (..), StdStream (..), launch )
 import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, tryReadMVar )
 import System.Exit
@@ -21,8 +21,8 @@ spec :: Spec
 spec = do
     it "1st process exits with 0, others are cancelled" $ do
         let commands =
-              [ Command "./test/data/Launcher/once.sh" ["0"] (pure ())
-              , Command "./test/data/Launcher/forever.sh" [] (pure ())
+              [ Command "./test/data/Launcher/once.sh" ["0"] (pure ()) Inherit
+              , Command "./test/data/Launcher/forever.sh" [] (pure ()) Inherit
               ]
         (ProcessHasExited name code) <- launch commands
         name `shouldBe` cmdName (commands !! 0)
@@ -30,8 +30,8 @@ spec = do
 
     it "2nd process exits with 0, others are cancelled" $ do
         let commands =
-              [ Command "./test/data/Launcher/forever.sh" [] (pure ())
-              , Command "./test/data/Launcher/once.sh" ["0"] (pure ())
+              [ Command "./test/data/Launcher/forever.sh" [] (pure ()) Inherit
+              , Command "./test/data/Launcher/once.sh" ["0"] (pure ()) Inherit
               ]
         (ProcessHasExited name code) <- launch commands
         name `shouldBe` cmdName (commands !! 1)
@@ -39,8 +39,8 @@ spec = do
 
     it "1st process exits with 14, others are cancelled" $ do
         let commands =
-              [ Command "./test/data/Launcher/once.sh" ["14"] (pure ())
-              , Command "./test/data/Launcher/forever.sh" [] (pure ())
+              [ Command "./test/data/Launcher/once.sh" ["14"] (pure ()) Inherit
+              , Command "./test/data/Launcher/forever.sh" [] (pure ()) Inherit
               ]
         (ProcessHasExited name code) <- launch commands
         name `shouldBe` cmdName (commands !! 0)
@@ -48,8 +48,8 @@ spec = do
 
     it "2nd process exits with 14, others are cancelled" $ do
         let commands =
-              [ Command "./test/data/Launcher/forever.sh" [] (pure ())
-              , Command "./test/data/Launcher/once.sh" ["14"] (pure ())
+              [ Command "./test/data/Launcher/forever.sh" [] (pure ()) Inherit
+              , Command "./test/data/Launcher/once.sh" ["14"] (pure ()) Inherit
               ]
         (ProcessHasExited name code) <- launch commands
         name `shouldBe` cmdName (commands !! 1)
@@ -59,7 +59,7 @@ spec = do
         mvar <- newEmptyMVar
         let before = putMVar mvar "executed"
         let commands =
-                [ Command "./test/data/Launcher/once.sh" ["0"] before
+                [ Command "./test/data/Launcher/once.sh" ["0"] before Inherit
                 ]
         (ProcessHasExited _ code) <- launch commands
         code `shouldBe` ExitSuccess
