@@ -29,12 +29,14 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( runExceptT )
+import Data.Either
+    ( rights )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Word
     ( Word64, Word8 )
 import Test.Hspec
-    ( Expectation, Spec, describe, it, shouldBe )
+    ( Expectation, Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -100,15 +102,11 @@ spec = do
                 (17 :| [1])
                 (Left $ MaximumInputsReached 1)
                 )
-
-
-    describe "Coin selection : LargestFirst algorithm" $ do
-        it "works as expected for zero-fee and fully covered by utxo coin selection"
-            (property propLargestFirstFullyCovered)
-        it "works as expected for zero-fee and not covered by utxo coin selection"
-            (property propLargestFirstNotCovered)
-        it "works as expected for zero-fee and fully covered by utxo coin selection when maximumNumberOfInputs is small"
-            (property propLargestFirstFullyCoveredSmallMaxInput)
+    describe "Coin selection properties : LargestFirst algorithm" $ do
+        it "forall (UTxO, NonEmpty TxOut), running algorithm twice yields exactly the same result"
+            (property propDeterministic)
+        it "forall (UTxO, NonEmpty TxOut), there's at least as many selected inputs as there are requested outputs"
+            (property propAtLeast)
 
 {-------------------------------------------------------------------------------
                  Properties and unit test generic scenario
@@ -153,11 +151,30 @@ coinSelectionUnitTest n utxoCoins txOutsCoins expected = do
             pure (utxo, txOuts)
 
 
-
-propLargestFirstFullyCovered
+propDeterministic
     :: CoveringCase
     -> Property
-propLargestFirstFullyCovered (CoveringCase (utxo, txOuts)) =
+propDeterministic (CoveringCase (utxo, txOuts)) =
+    monadicIO $ liftIO $ do
+        let check =
+                invariant "utxo must cover all transaction outputs"
+                (NE.length txOuts)
+                (\_ -> condCoinsCovering txOuts utxo)
+        resultOne <- check `deepseq`
+                     runExceptT $ largestFirst
+                     (defaultCoinSelectionOptions 100)
+                     utxo
+                     txOuts
+        resultTwo <- runExceptT $ largestFirst
+                     (defaultCoinSelectionOptions 100)
+                     utxo
+                     txOuts
+        resultOne `shouldBe` resultTwo
+
+propAtLeast
+    :: CoveringCase
+    -> Property
+propAtLeast (CoveringCase (utxo, txOuts)) =
     monadicIO $ liftIO $ do
         let check =
                 invariant "utxo must cover all transaction outputs"
@@ -168,76 +185,10 @@ propLargestFirstFullyCovered (CoveringCase (utxo, txOuts)) =
                   (defaultCoinSelectionOptions 100)
                   utxo
                   txOuts
-        result `shouldBe` (return reference)
-  where
-    -- we try to cover transaction outputs starting for the smallest one
-    -- and pick utxo entry that is the smallest within current utxo covering
-    -- those transaction outputs
-    buildRes (coinselection, restUtxo) o =
-        let
-            pairChosen = L.take 1 restUtxo
-            outputValue = (getCoin . coin) o
-            valueDedicated =
-                invariant
-                "output must be not bigger than value of utxo entry chosen to cover it"
-                (L.head $ map (getCoin . coin . snd) pairChosen)
-                (>= outputValue)
-        in ( coinselection
-             <>
-             CoinSelection pairChosen [o] [Coin $ valueDedicated - outputValue]
-           , (L.drop 1 restUtxo)
-           )
-    (reference,_) = L.foldl buildRes (mempty, utxoCovering txOuts utxo)
-                    $ outputsSorted txOuts
-
-
-propLargestFirstFullyCoveredSmallMaxInput
-    :: CoveringCaseMaxInput
-    -> Property
-propLargestFirstFullyCoveredSmallMaxInput
-    (CoveringCaseMaxInput (maxInp, utxo, txOuts)) =
-    monadicIO $ liftIO $ do
-        let check =
-                invariant "utxo must cover all transaction outputs"
-                (NE.length txOuts)
-                (\_ -> condCoinsCovering txOuts utxo)
-        result <- check `deepseq`
-                  runExceptT $ largestFirst
-                  (defaultCoinSelectionOptions maxInp)
-                  utxo
-                  txOuts
-        result `shouldBe` (Left $ MaximumInputsReached maxInp)
-
-
-propLargestFirstNotCovered
-    :: NotCoveringCase
-    -> Property
-propLargestFirstNotCovered (NotCoveringCase (utxo, txOuts)) =
-    monadicIO $ liftIO $ do
-        let check = invariant "utxo must not cover all transaction outputs"
-                    (NE.length txOuts)
-                    (\_ -> not $ condCoinsCovering txOuts utxo)
-        result <- check `deepseq`
-                  runExceptT $ largestFirst
-                  (defaultCoinSelectionOptions 100)
-                  utxo
-                  txOuts
-        let transactionValue =
-                sum $ map (getCoin . coin) $ outputsSorted txOuts
-        let availableFunds =
-                sum
-                $ map (getCoin . coin . snd)
-                $ (Map.toList . getUTxO) utxo
-        let numOutputs = fromIntegral $ L.length $ outputsSorted txOuts
-        let numUtxos = fromIntegral $ L.length $ (Map.toList . getUTxO) utxo
-        if (availableFunds < transactionValue) then
-           result `shouldBe` (Left $ NotEnoughMoney availableFunds transactionValue)
-        else if (numUtxos < numOutputs) then
-           result `shouldBe` (Left $ UtxoNotEnoughFragmented numUtxos numOutputs)
-        else
-           result `shouldBe` (Left $ MaximumInputsReached 100)
-
-
+        L.length
+            (concatMap (\ (CoinSelection inps _ _) -> inps) $ rights [result])
+            `shouldSatisfy`
+            (>= NE.length txOuts)
 {-------------------------------------------------------------------------------
                                   Test Data
 -------------------------------------------------------------------------------}
@@ -300,31 +251,6 @@ instance Arbitrary CoveringCase where
         txOutsNonEmpty <- NE.fromList <$> vectorOf n arbitrary
         utxo <- arbitrary `suchThat` (condCoinsCovering txOutsNonEmpty)
         return $ CoveringCase (utxo, txOutsNonEmpty)
-
-newtype CoveringCaseMaxInput =
-    CoveringCaseMaxInput { getCoveringCaseMaxInp
-                           :: (Word64, UTxO, NonEmpty TxOut)
-                         } deriving Show
-
-instance Arbitrary CoveringCaseMaxInput where
-    arbitrary = do
-        n <- choose (3, 5)
-        inp <- choose (1,2)
-        txOutsNonEmpty <- NE.fromList <$> vectorOf n arbitrary
-        utxo <- arbitrary `suchThat` (condCoinsCovering txOutsNonEmpty)
-        return $ CoveringCaseMaxInput (inp, utxo, txOutsNonEmpty)
-
-
-
-newtype NotCoveringCase = NotCoveringCase { getNotCoveringCase :: (UTxO, NonEmpty TxOut)}
-    deriving Show
-
-instance Arbitrary NotCoveringCase where
-    arbitrary = do
-        n <- choose (1, 2)
-        txOutsNonEmpty <- NE.fromList <$> vectorOf n arbitrary
-        utxo <- arbitrary `suchThat` (not . condCoinsCovering txOutsNonEmpty)
-        return $ NotCoveringCase (utxo, txOutsNonEmpty)
 
 
 instance Arbitrary (Hash "Tx") where
