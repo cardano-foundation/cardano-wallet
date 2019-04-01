@@ -1087,6 +1087,67 @@ instance GHC.Generics.Generic Cardano.Wallet.NewWallet
 instance GHC.Show.Show Cardano.Wallet.NewWallet
 
 
+-- | Provides the API of Coin Selection algorithm and Fee related
+--   functionality. For more information refer to:
+--   <a>https://iohk.io/blog/self-organisation-in-coin-selection/</a>
+module Cardano.Wallet.CoinSelection
+data CoinSelectionOptions
+CoinSelectionOptions :: (Int -> NonEmpty Coin -> Coin) -> Coin -> Word64 -> CoinSelectionOptions
+
+-- | A function to estimate the fees.
+[estimateFee] :: CoinSelectionOptions -> Int -> NonEmpty Coin -> Coin
+
+-- | Change addresses below the given threshold will be evicted from the
+--   created transaction. If you only want to remove change outputs equal
+--   to 0, set <tt>csoDustThreshold</tt> to 0.
+[dustThreshold] :: CoinSelectionOptions -> Coin
+[maximumNumberOfInputs] :: CoinSelectionOptions -> Word64
+data CoinSelectionError
+
+-- | UTxO exhausted during input selection We record the balance of the
+--   UTxO as well as the size of the payment we tried to make.
+NotEnoughMoney :: Word64 -> Word64 -> CoinSelectionError
+
+-- | UTxO is not enough fragmented for the number of transaction outputs We
+--   record the number of UTxO entries as well as the number of the outputs
+--   of the transaction.
+UtxoNotEnoughFragmented :: Word64 -> Word64 -> CoinSelectionError
+
+-- | When trying to construct a transaction, the max number of allowed
+--   inputs was reached.
+MaximumInputsReached :: Word64 -> CoinSelectionError
+data CoinSelection
+CoinSelection :: [(TxIn, TxOut)] -> [TxOut] -> [Coin] -> CoinSelection
+
+-- | Picked inputs
+[inputs] :: CoinSelection -> [(TxIn, TxOut)]
+
+-- | Picked outputs
+[outputs] :: CoinSelection -> [TxOut]
+
+-- | Resulting changes
+[change] :: CoinSelection -> [Coin]
+newtype Fee
+Fee :: Quantity "lovelace" Natural -> Fee
+[getFee] :: Fee -> Quantity "lovelace" Natural
+adjustForFees :: CoinSelectionOptions -> (Coin -> UTxO -> Maybe (TxIn, TxOut)) -> CoinSelection -> CoinSelection
+instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.CoinSelection
+instance GHC.Show.Show Cardano.Wallet.CoinSelection.CoinSelection
+instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.CoinSelectionError
+instance GHC.Show.Show Cardano.Wallet.CoinSelection.CoinSelectionError
+instance GHC.Generics.Generic Cardano.Wallet.CoinSelection.CoinSelectionOptions
+instance GHC.Base.Semigroup Cardano.Wallet.CoinSelection.CoinSelection
+instance GHC.Base.Monoid Cardano.Wallet.CoinSelection.CoinSelection
+
+
+-- | This module contains the implementation of largestFirst input
+--   selection algorithm
+module Cardano.Wallet.CoinSelection.LargestFirst
+
+-- | Largest-first input selection policy
+largestFirst :: forall m. Monad m => CoinSelectionOptions -> UTxO -> NonEmpty TxOut -> ExceptT CoinSelectionError m CoinSelection
+
+
 -- | API handlers and server using the underlying wallet layer to provide
 --   endpoints reachable through HTTP.
 module Cardano.Wallet.Api.Server
