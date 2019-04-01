@@ -60,9 +60,9 @@ import Test.QuickCheck
     , cover
     , elements
     , genericShrink
+    , listOf
     , property
     , shrinkList
-    , sublistOf
     , (.&&.)
     , (===)
     )
@@ -197,7 +197,7 @@ instance IsOurs WalletState where
 instance Arbitrary WalletState where
     shrink = genericShrink
     arbitrary = do
-        knownAddresses <- (Set.fromList . fmap ShowFmt) <$> sublistOf addresses
+        knownAddresses <- Set.fromList <$> listOf arbitrary
         return $ WalletState knownAddresses mempty
 
 instance Arbitrary (ShowFmt Address) where

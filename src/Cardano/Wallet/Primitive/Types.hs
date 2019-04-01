@@ -1,11 +1,12 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -105,6 +106,7 @@ import Data.Word
     ( Word16, Word32, Word64 )
 import Fmt
     ( Buildable (..)
+    , Builder
     , blockListF
     , blockListF'
     , fmt
@@ -265,15 +267,8 @@ instance Buildable TxIn where
     build txin = mempty
         <> ordinalF (inputIx txin + 1)
         <> " "
-        <> prefixF 8 txF
-        <> "..."
-        <> suffixF 8 txF
-      where
-        txF = build
-            $ T.decodeUtf8
-            $ convertToBase Base16
-            $ getHash
-            $ inputId txin
+        <> txIdF (inputId txin)
+
 
 data TxOut = TxOut
     { address
@@ -307,20 +302,49 @@ data TxMeta = TxMeta
 
 instance NFData TxMeta
 
+instance Buildable TxMeta where
+    build (TxMeta i s d sl) = mempty
+        <> "Tx Meta (" <> txIdF i <> ")"
+        <> " " <> build s
+        <> " since " <> build sl
+        <> ", " <> build d
+
 data TxStatus
     = Pending
     | InLedger
-    | Invalidated
-    deriving (Show, Eq, Generic, NFData)
+    deriving (Show, Eq, Ord, Generic)
+
+instance NFData TxStatus
+
+instance Buildable TxStatus where
+    build = \case
+        Pending -> "pending"
+        InLedger -> "in ledger"
 
 data Direction
     = Outgoing
     | Incoming
-    deriving (Show, Eq, Generic, NFData)
+    deriving (Show, Eq, Ord, Generic)
+
+instance NFData Direction
+
+instance Buildable Direction where
+    build = \case
+        Outgoing -> "outgoing"
+        Incoming -> "incoming"
+
 
 newtype Timestamp = Timestamp
     { getTimestamp :: UTCTime
     } deriving (Show, Eq, Ord, Generic)
+
+txIdF :: Hash "Tx" -> Builder
+txIdF h = mempty
+    <> prefixF 8 builder
+    <> "..."
+    <> suffixF 8 builder
+  where
+    builder = build . T.decodeUtf8 . convertToBase Base16 . getHash $ h
 
 
 -- | Wrapper around the final CBOR representation of a signed tx
@@ -476,6 +500,9 @@ newtype ShowFmt a = ShowFmt a
 
 instance Buildable a => Show (ShowFmt a) where
     show (ShowFmt a) = fmt (build a)
+
+instance {-# OVERLAPS #-} (Buildable a, Foldable f) => Show (ShowFmt (f a)) where
+    show (ShowFmt a) = fmt (blockListF a)
 
 -- | Check whether an invariants holds or not.
 --
