@@ -37,6 +37,11 @@ module Cardano.Wallet.Api.Types
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
 
+    -- * Encoding & Decoding
+    , DecodeApiAddressError (..)
+    , decodeApiAddress
+    , encodeApiAddress
+
     -- * Limits
     , passphraseMinLength
     , passphraseMaxLength
@@ -197,15 +202,29 @@ instance ToJSON (ApiT AddressState) where
     toJSON = genericToJSON defaultSumTypeOptions . getApiT
 
 instance FromJSON (ApiT Address) where
-    parseJSON bytes = do
-        x <- parseJSON bytes
-        maybe
-           (fail "Unable to decode Address: expected Base58 encoding")
-           (pure . ApiT . Address)
-           (decodeBase58 bitcoinAlphabet $ T.encodeUtf8 x)
-instance ToJSON (ApiT Address )where
-    toJSON = toJSON
-        . T.decodeUtf8 . encodeBase58 bitcoinAlphabet . getAddress . getApiT
+    parseJSON = parseJSON >=> eitherToParser . decodeApiAddress
+instance ToJSON (ApiT Address) where
+    toJSON = toJSON . encodeApiAddress
+
+-- | Constructs an address from a Base58-encoded string.
+--
+-- Fails if the specified string is not Base58 encoded.
+--
+decodeApiAddress :: Text -> Either DecodeApiAddressError (ApiT Address)
+decodeApiAddress x = maybe
+    (Left $ DecodeApiAddressError
+        "Unable to decode Address: expected Base58 encoding")
+    (pure . ApiT . Address)
+    (decodeBase58 bitcoinAlphabet $ T.encodeUtf8 x)
+
+-- | Converts an address to a Base58-encoded string.
+--
+encodeApiAddress :: ApiT Address -> Text
+encodeApiAddress =
+    T.decodeUtf8 . encodeBase58 bitcoinAlphabet . getAddress . getApiT
+
+newtype DecodeApiAddressError = DecodeApiAddressError String
+    deriving Show
 
 instance FromJSON ApiWallet where
     parseJSON = genericParseJSON defaultRecordTypeOptions
