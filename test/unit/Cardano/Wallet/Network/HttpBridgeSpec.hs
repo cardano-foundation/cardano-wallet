@@ -148,6 +148,7 @@ mockHttpBridge logLine firstUnstableEpoch tip = HttpBridge
         lift $ logLine "mock getNetworkTip"
         let hash = mockHash tip
         pure (hash, mockHeaderFromHash hash)
+    , postSignedTx = undefined
     }
 
 -- If debugging, you might want to log with putStrLn.

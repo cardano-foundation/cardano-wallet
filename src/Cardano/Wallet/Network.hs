@@ -14,7 +14,7 @@ module Cardano.Wallet.Network
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), Hash (..), SlotId (..) )
+    ( Block (..), BlockHeader (..), Hash (..), SignedTx, SlotId (..) )
 import Control.Concurrent
     ( threadDelay )
 import Control.Monad.IO.Class
@@ -39,6 +39,8 @@ data NetworkLayer m e0 e1 = NetworkLayer
 
     , networkTip
         :: ExceptT e1 m (Hash "BlockHeader", BlockHeader)
+    , postTx
+        :: SignedTx -> ExceptT e1 m ()
     }
 
 -- | Repeatedly fetch data from a given source function, and call an action for

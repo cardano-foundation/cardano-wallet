@@ -20,9 +20,16 @@ import Prelude
 import Cardano.Wallet.Binary
     ( decodeBlock, decodeBlockHeader )
 import Cardano.Wallet.Primitive.Types
-    ( Block, BlockHeader )
+    ( Block, BlockHeader, SignedTx (..) )
 import Crypto.Hash.Algorithms
     ( Blake2b_256 )
+import Data.Aeson
+    ( FromJSON (parseJSON), ToJSON (toJSON), object, withObject, (.:), (.=) )
+import Data.ByteArray.Encoding
+    ( Base (Base64), convertFromBase, convertToBase )
+import Data.ByteString
+    ( ByteString )
+import qualified Data.ByteString.Char8 as B8
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -30,7 +37,16 @@ import Data.Text
 import Data.Word
     ( Word64 )
 import Servant.API
-    ( (:<|>), (:>), Capture, Get, ToHttpApiData (..) )
+    ( (:<|>)
+    , (:>)
+    , Capture
+    , Get
+    , JSON
+    , NoContent
+    , Post
+    , ReqBody
+    , ToHttpApiData (..)
+    )
 import Servant.Extra.ContentTypes
     ( CBOR, ComputeHash, FromCBOR (..), Hash, Packed, WithHash )
 
@@ -42,6 +58,7 @@ type Api
     =    GetBlockByHash
     :<|> GetEpochById
     :<|> GetTipBlockHeader
+    :<|> PostSignedTx
 
 -- | Retrieve a block identified by the unique hash of its header.
 type GetBlockByHash
@@ -63,6 +80,13 @@ type GetTipBlockHeader
     :> "tip"
     :> Get '[ComputeHash Blake2b_256 CBOR]
             (WithHash Blake2b_256 (ApiT BlockHeader))
+
+type PostSignedTx
+    =  Capture "networkName" NetworkName
+    :> "txs"
+    :> "signed"
+    :> ReqBody '[JSON] (ApiT SignedTx)
+    :> Post '[NoContent] NoContent
 
 newtype ApiT a = ApiT { getApiT :: a } deriving (Show)
 
@@ -87,3 +111,18 @@ newtype NetworkName = NetworkName
 
 instance ToHttpApiData NetworkName where
     toUrlPiece = getNetworkName
+
+instance ToJSON (ApiT SignedTx) where
+    toJSON (ApiT (SignedTx bs))= object ["signedTx" .= c bs]
+      where
+        c :: ByteString -> String
+        c = B8.unpack . convertToBase Base64
+
+instance FromJSON (ApiT SignedTx) where
+    parseJSON = withObject "SignedTx" $ \p -> do
+        base64 <- p .: "signedTx"
+        bs <- either fail return $ c base64
+        return $ ApiT . SignedTx $ bs
+      where
+        c :: String -> Either String ByteString
+        c bs = convertFromBase Base64 (B8.pack bs)
