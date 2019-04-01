@@ -41,6 +41,9 @@ module Cardano.Wallet.Api.Types
     , DecodeApiAddressError (..)
     , decodeApiAddress
     , encodeApiAddress
+    , DecodeApiEncryptionPassphraseError (..)
+    , decodeApiEncryptionPassphrase
+    , encodeApiEncryptionPassphrase
 
     -- * Limits
     , passphraseMinLength
@@ -247,23 +250,39 @@ instance ToJSON  WalletPutPassphraseData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT (Passphrase "encryption")) where
-    parseJSON = parseJSON >=> \case
-        t | T.length t < passphraseMinLength ->
-            fail $ "passphrase is too short: expected at least "
-                <> show passphraseMinLength <> " chars"
-        t | T.length t > passphraseMaxLength ->
-            fail $ "passphrase is too long: expected at most "
-                <> show passphraseMaxLength <> " chars"
-        t ->
-            return $ ApiT $ Passphrase $ BA.convert $ T.encodeUtf8 t
+    parseJSON = parseJSON >=> eitherToParser . decodeApiEncryptionPassphrase
 instance ToJSON (ApiT (Passphrase "encryption")) where
-    toJSON (ApiT (Passphrase bytes)) = toJSON $ T.decodeUtf8 $ BA.convert bytes
+    toJSON = toJSON . encodeApiEncryptionPassphrase
+
+decodeApiEncryptionPassphrase
+    :: Text
+    -> Either DecodeApiEncryptionPassphraseError
+        (ApiT (Passphrase "encryption"))
+decodeApiEncryptionPassphrase t
+    | T.length t < passphraseMinLength =
+        Left $ DecodeApiEncryptionPassphraseError $
+            "passphrase is too short: expected at least "
+            <> show passphraseMinLength <> " chars"
+    | T.length t > passphraseMaxLength =
+        Left $ DecodeApiEncryptionPassphraseError $
+            "passphrase is too long: expected at most "
+            <> show passphraseMaxLength <> " chars"
+    | otherwise =
+        pure $ ApiT $ Passphrase $ BA.convert $ T.encodeUtf8 t
+
+encodeApiEncryptionPassphrase :: ApiT (Passphrase "encryption") -> Text
+encodeApiEncryptionPassphrase (ApiT (Passphrase bytes)) =
+    T.decodeUtf8 $ BA.convert bytes
 
 passphraseMinLength :: Int
 passphraseMinLength = 10
 
 passphraseMaxLength :: Int
 passphraseMaxLength = 255
+
+newtype DecodeApiEncryptionPassphraseError
+    = DecodeApiEncryptionPassphraseError String
+    deriving Show
 
 class MkApiMnemonic sizes purpose where
     mkApiMnemonic
