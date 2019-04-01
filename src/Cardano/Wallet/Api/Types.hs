@@ -44,6 +44,9 @@ module Cardano.Wallet.Api.Types
     , DecodeApiEncryptionPassphraseError (..)
     , decodeApiEncryptionPassphrase
     , encodeApiEncryptionPassphrase
+    , DecodeApiWalletNameError (..)
+    , decodeApiWalletName
+    , encodeApiWalletName
 
     -- * Limits
     , passphraseMinLength
@@ -349,17 +352,29 @@ instance ToJSON (ApiT (WalletDelegation (ApiT PoolId))) where
     toJSON = genericToJSON walletDelegationOptions . getApiT
 
 instance FromJSON (ApiT WalletName) where
-    parseJSON = parseJSON >=> \case
-        t | T.length t < walletNameMinLength ->
-            fail $ "name is too short: expected at least "
-                <> show walletNameMinLength <> " chars"
-        t | T.length t > walletNameMaxLength ->
-            fail $ "name is too long: expected at most "
-                <> show walletNameMaxLength <> " chars"
-        t ->
-            return $ ApiT $ WalletName t
+    parseJSON = parseJSON >=> eitherToParser . decodeApiWalletName
 instance ToJSON (ApiT WalletName) where
-    toJSON = toJSON . getWalletName . getApiT
+    toJSON = toJSON . encodeApiWalletName
+
+decodeApiWalletName :: Text -> Either DecodeApiWalletNameError (ApiT WalletName)
+decodeApiWalletName t
+    | T.length t < walletNameMinLength =
+        Left $ DecodeApiWalletNameError $
+            "name is too short: expected at least "
+                <> show walletNameMinLength <> " chars"
+    | T.length t > walletNameMaxLength =
+        Left $ DecodeApiWalletNameError $
+            "name is too long: expected at most "
+                <> show walletNameMaxLength <> " chars"
+    | otherwise =
+        return $ ApiT $ WalletName t
+
+encodeApiWalletName :: ApiT WalletName -> Text
+encodeApiWalletName = getWalletName . getApiT
+
+newtype DecodeApiWalletNameError
+    = DecodeApiWalletNameError String
+    deriving Show
 
 walletNameMinLength :: Int
 walletNameMinLength = 1
