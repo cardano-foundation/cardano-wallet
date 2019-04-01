@@ -888,6 +888,24 @@ data WalletPutPassphraseData
 WalletPutPassphraseData :: !ApiT (Passphrase "encryption") -> !ApiT (Passphrase "encryption") -> WalletPutPassphraseData
 [$sel:oldPassphrase:WalletPutPassphraseData] :: WalletPutPassphraseData -> !ApiT (Passphrase "encryption")
 [$sel:newPassphrase:WalletPutPassphraseData] :: WalletPutPassphraseData -> !ApiT (Passphrase "encryption")
+newtype DecodeApiAddressError
+DecodeApiAddressError :: String -> DecodeApiAddressError
+
+-- | Constructs an address from a Base58-encoded string.
+--   
+--   Fails if the specified string is not Base58 encoded.
+decodeApiAddress :: Text -> Either DecodeApiAddressError (ApiT Address)
+
+-- | Converts an address to a Base58-encoded string.
+encodeApiAddress :: ApiT Address -> Text
+newtype DecodeApiEncryptionPassphraseError
+DecodeApiEncryptionPassphraseError :: String -> DecodeApiEncryptionPassphraseError
+decodeApiEncryptionPassphrase :: Text -> Either DecodeApiEncryptionPassphraseError (ApiT (Passphrase "encryption"))
+encodeApiEncryptionPassphrase :: ApiT (Passphrase "encryption") -> Text
+newtype DecodeApiWalletNameError
+DecodeApiWalletNameError :: String -> DecodeApiWalletNameError
+decodeApiWalletName :: Text -> Either DecodeApiWalletNameError (ApiT WalletName)
+encodeApiWalletName :: ApiT WalletName -> Text
 passphraseMinLength :: Int
 passphraseMaxLength :: Int
 walletNameMinLength :: Int
@@ -926,7 +944,19 @@ ApiT :: a -> ApiT a
 --   mnemonic, output them and whatnot.
 newtype ApiMnemonicT (sizes :: [Nat]) (purpose :: Symbol)
 ApiMnemonicT :: (Passphrase purpose, [Text]) -> ApiMnemonicT
+class MkApiMnemonic sizes purpose
+mkApiMnemonic :: MkApiMnemonic sizes purpose => [Text] -> Either MkApiMnemonicError (ApiMnemonicT sizes purpose)
+newtype MkApiMnemonicError
+MkApiMnemonicError :: String -> MkApiMnemonicError
 getApiMnemonicT :: ApiMnemonicT sizes purpose -> Passphrase purpose
+instance Formatting.Buildable.Buildable Cardano.Wallet.Api.Types.DecodeApiWalletNameError
+instance GHC.Show.Show Cardano.Wallet.Api.Types.DecodeApiWalletNameError
+instance Formatting.Buildable.Buildable Cardano.Wallet.Api.Types.MkApiMnemonicError
+instance GHC.Show.Show Cardano.Wallet.Api.Types.MkApiMnemonicError
+instance Formatting.Buildable.Buildable Cardano.Wallet.Api.Types.DecodeApiEncryptionPassphraseError
+instance GHC.Show.Show Cardano.Wallet.Api.Types.DecodeApiEncryptionPassphraseError
+instance Formatting.Buildable.Buildable Cardano.Wallet.Api.Types.DecodeApiAddressError
+instance GHC.Show.Show Cardano.Wallet.Api.Types.DecodeApiAddressError
 instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletPostData
 instance GHC.Generics.Generic Cardano.Wallet.Api.Types.WalletPostData
 instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletPostData
@@ -948,10 +978,11 @@ instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletPutPassphraseData
 instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.Wallet.Api.Types.ApiT a)
 instance GHC.Show.Show a => GHC.Show.Show (Cardano.Wallet.Api.Types.ApiT a)
 instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.ApiT a)
+instance (n Data.Type.Equality.~ Crypto.Encoding.BIP39.EntropySize mw, csz Data.Type.Equality.~ Crypto.Encoding.BIP39.CheckSumBits n, Crypto.Encoding.BIP39.ConsistentEntropy n mw csz, Cardano.Wallet.Api.Types.MkApiMnemonic rest purpose) => Cardano.Wallet.Api.Types.MkApiMnemonic (mw : rest) purpose
+instance (n Data.Type.Equality.~ Crypto.Encoding.BIP39.EntropySize mw, csz Data.Type.Equality.~ Crypto.Encoding.BIP39.CheckSumBits n, Crypto.Encoding.BIP39.ConsistentEntropy n mw csz) => Cardano.Wallet.Api.Types.MkApiMnemonic '[mw] purpose
+instance Cardano.Wallet.Api.Types.MkApiMnemonic sizes purpose => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
 instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletPostData
 instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletPostData
-instance (n Data.Type.Equality.~ Crypto.Encoding.BIP39.EntropySize mw, csz Data.Type.Equality.~ Crypto.Encoding.BIP39.CheckSumBits n, Crypto.Encoding.BIP39.ConsistentEntropy n mw csz, Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiMnemonicT rest purpose)) => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiMnemonicT (mw : rest) purpose)
-instance (n Data.Type.Equality.~ Crypto.Encoding.BIP39.EntropySize mw, csz Data.Type.Equality.~ Crypto.Encoding.BIP39.CheckSumBits n, Crypto.Encoding.BIP39.ConsistentEntropy n mw csz) => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiMnemonicT '[mw] purpose)
 instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
 instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.ApiAddress
 instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiAddress
