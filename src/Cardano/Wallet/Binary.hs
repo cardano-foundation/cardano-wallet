@@ -22,13 +22,20 @@ module Cardano.Wallet.Binary
       decodeBlock
     , decodeBlockHeader
     , decodeTx
+    , decodeTxWitness
+    , decodeSignedTx
 
     -- * Encoding
     , encodeTx
     , encodeAddress
+    , encodeTxWitness
+    , encodeSignedTx
 
     -- * Hashing
     , txId
+
+    -- * Signing
+    , TxWitness (..)
 
     -- * Helpers
     , inspectNextToken
@@ -342,15 +349,12 @@ decodeSignature = do
         2 -> decodeProxySignature decodeHeavyIndex
         _ -> fail $ "decodeSignature: unknown signature constructor: " <> show t
 
-decodeSignedTx :: CBOR.Decoder s Tx
+decodeSignedTx :: CBOR.Decoder s (Tx, [TxWitness])
 decodeSignedTx = do
     _ <- CBOR.decodeListLenCanonicalOf 2
-    _ <- CBOR.decodeListLenCanonicalOf 3
-    ins <- decodeListIndef decodeTxIn
-    outs <- decodeListIndef decodeTxOut
-    _ <- decodeAttributes
-    _ <- decodeList decodeTxWitness
-    return $ Tx ins outs
+    tx <- decodeTx
+    witnesses <- decodeList decodeTxWitness
+    return (tx, witnesses)
 
 decodeSharesProof :: CBOR.Decoder s ()
 decodeSharesProof = do
@@ -381,7 +385,7 @@ decodeTx = do
     return $ Tx ins outs
 
 decodeTxPayload :: CBOR.Decoder s (Set Tx)
-decodeTxPayload = Set.fromList <$> decodeListIndef decodeSignedTx
+decodeTxPayload = Set.fromList . (map fst) <$> decodeListIndef decodeSignedTx
 
 {-# ANN decodeTxIn ("HLint: ignore Use <$>" :: String) #-}
 decodeTxIn :: CBOR.Decoder s TxIn
@@ -420,14 +424,14 @@ decodeTxProof = do
     _ <- CBOR.decodeBytes  -- Witnesses Hash
     return ()
 
-decodeTxWitness :: CBOR.Decoder s ()
+decodeTxWitness :: CBOR.Decoder s TxWitness
 decodeTxWitness = do
     _ <- CBOR.decodeListLenCanonicalOf 2
     t <- CBOR.decodeWord8
-    void $ case t of
-        0 -> CBOR.decodeTag *> CBOR.decodeBytes -- PKWitness
-        1 -> CBOR.decodeTag *> CBOR.decodeBytes -- Script Witness
-        2 -> CBOR.decodeTag *> CBOR.decodeBytes -- Redeem Witness
+    case t of
+        0 -> CBOR.decodeTag *> (PublicKeyWitness <$> CBOR.decodeBytes)
+        1 -> CBOR.decodeTag *> (ScriptWitness <$> CBOR.decodeBytes)
+        2 -> CBOR.decodeTag *> (RedeemWitness <$> CBOR.decodeBytes)
         _ -> fail
             $ "decodeTxWitness: unknown tx witness constructor: " <> show t
 
@@ -495,6 +499,32 @@ encodeAddressPayload payload = mempty
     <> CBOR.encodeTag 24 -- Hard-Coded Tag value in cardano-sl
     <> CBOR.encodeBytes payload
     <> CBOR.encodeWord32 (crc32 payload)
+
+
+encodeSignedTx :: (Tx, [TxWitness]) -> CBOR.Encoding
+encodeSignedTx (tx, witnesses) = mempty
+    <> CBOR.encodeListLen 2
+    <> encodeTx tx
+    <> encodeList encodeTxWitness witnesses
+
+data TxWitness
+    = PublicKeyWitness ByteString
+    | ScriptWitness ByteString
+    | RedeemWitness ByteString
+    deriving (Eq, Show)
+
+encodeTxWitness :: TxWitness -> CBOR.Encoding
+encodeTxWitness wit = mempty
+    <> CBOR.encodeListLen 2
+    <> CBOR.encodeWord8 tag
+    <> CBOR.encodeTag 24 -- Hard-Coded Tag value in cardano-sl
+    <> CBOR.encodeBytes bytes -- the actual witness
+  where
+    (tag, bytes) = raw wit
+
+    raw (PublicKeyWitness bs) = (0, bs)
+    raw (ScriptWitness bs) = (1, bs)
+    raw (RedeemWitness bs) = (2, bs)
 
 encodeTx :: Tx -> CBOR.Encoding
 encodeTx tx = mempty
@@ -600,3 +630,9 @@ decodeListIndef decodeOne = do
 blake2b256 :: forall tag. CBOR.Encoding -> Hash tag
 blake2b256 =
     Hash . BA.convert . hash @_ @Blake2b_256 . CBOR.toStrictByteString
+
+
+encodeList :: (a -> CBOR.Encoding) -> [a] -> CBOR.Encoding
+encodeList encodeOne list = mempty
+    <> CBOR.encodeListLen (fromIntegral $ length list)
+    <> mconcat (map encodeOne list)
