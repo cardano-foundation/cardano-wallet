@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
@@ -32,6 +33,9 @@ module Cardano.Wallet.Primitive.Types
     , TxIn(..)
     , TxOut(..)
     , TxMeta(..)
+    , Direction(..)
+    , TxStatus(..)
+    , Timestamp(..)
     , txIns
     , updatePending
     , SignedTx (..)
@@ -295,28 +299,28 @@ instance Buildable (TxIn, TxOut) where
     build (txin, txout) = build txin <> " ==> " <> build txout
 
 data TxMeta = TxMeta
-    { txId :: !(Hash "Tx")
-    , depth :: !(Quantity "block" Natural)
+    { txMetaId :: !(Hash "Tx")
     , status :: !TxStatus
     , direction :: !Direction
-    , timestamp :: !Timestamp
     , slotId :: !SlotId
     } deriving (Show, Eq, Generic)
+
+instance NFData TxMeta
 
 data TxStatus
     = Pending
     | InLedger
     | Invalidated
-    deriving (Show, Eq, Generic)
+    deriving (Show, Eq, Generic, NFData)
 
 data Direction
     = Outgoing
     | Incoming
-    deriving (Show, Eq, Generic)
+    deriving (Show, Eq, Generic, NFData)
 
 newtype Timestamp = Timestamp
     { getTimestamp :: UTCTime
-    } deriving (Show, Generic, Eq, Ord)
+    } deriving (Show, Eq, Ord, Generic)
 
 
 -- | Wrapper around the final CBOR representation of a signed tx
