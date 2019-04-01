@@ -82,14 +82,18 @@ rbNextBlocks
     -> ExceptT e m [Block]
 rbNextBlocks network start = do
     (tipHash, tip) <- fmap slotId <$> getNetworkTip network
-    epochBlocks <- lift nextStableEpoch
-    lastBlocks <- if null epochBlocks
-        then unstableBlocks tipHash tip
-        else pure []
-    pure (epochBlocks ++ lastBlocks)
+    epochBlocks <- lift $ nextStableEpoch (epochIndex start)
+    additionalBlocks <-
+        if null epochBlocks then
+            unstableBlocks tipHash tip
+        else if length epochBlocks < 1000 then
+            lift $ nextStableEpoch (epochIndex start + 1)
+        else
+            pure []
+    pure (epochBlocks ++ additionalBlocks)
   where
-    nextStableEpoch = do
-        epochBlocks <- runExceptT (getEpoch network (epochIndex start)) >>= \case
+    nextStableEpoch ix = do
+        epochBlocks <- runExceptT (getEpoch network ix) >>= \case
             Left _ -> pure []
             Right r -> return r
         pure $ filter (blockIsSameOrAfter start) epochBlocks
