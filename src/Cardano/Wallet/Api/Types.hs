@@ -7,6 +7,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -79,6 +80,7 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
     , PoolId (..)
+    , ShowFmt (..)
     , WalletBalance (..)
     , WalletDelegation (..)
     , WalletId (..)
@@ -86,6 +88,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     )
+import Control.Arrow
+    ( left )
 import Control.Monad
     ( (>=>) )
 import Data.Aeson
@@ -106,6 +110,8 @@ import Data.ByteString.Base58
     ( bitcoinAlphabet, decodeBase58, encodeBase58 )
 import Data.Text
     ( Text )
+import Fmt
+    ( Buildable (..) )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
@@ -193,28 +199,16 @@ getApiMnemonicT :: ApiMnemonicT sizes purpose -> Passphrase purpose
 getApiMnemonicT (ApiMnemonicT (pw, _)) = pw
 
 {-------------------------------------------------------------------------------
-                               JSON Instances
+                             Encoding & Decoding
 -------------------------------------------------------------------------------}
 
-instance FromJSON ApiAddress where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiAddress where
-    toJSON = genericToJSON defaultRecordTypeOptions
-
-instance FromJSON (ApiT AddressState) where
-    parseJSON = fmap ApiT . genericParseJSON defaultSumTypeOptions
-instance ToJSON (ApiT AddressState) where
-    toJSON = genericToJSON defaultSumTypeOptions . getApiT
-
-instance FromJSON (ApiT Address) where
-    parseJSON = parseJSON >=> eitherToParser . decodeApiAddress
-instance ToJSON (ApiT Address) where
-    toJSON = toJSON . encodeApiAddress
+newtype DecodeApiAddressError = DecodeApiAddressError String
+    deriving stock Show
+    deriving newtype Buildable
 
 -- | Constructs an address from a Base58-encoded string.
 --
 -- Fails if the specified string is not Base58 encoded.
---
 decodeApiAddress :: Text -> Either DecodeApiAddressError (ApiT Address)
 decodeApiAddress x = maybe
     (Left $ DecodeApiAddressError
@@ -223,38 +217,14 @@ decodeApiAddress x = maybe
     (decodeBase58 bitcoinAlphabet $ T.encodeUtf8 x)
 
 -- | Converts an address to a Base58-encoded string.
---
 encodeApiAddress :: ApiT Address -> Text
 encodeApiAddress =
     T.decodeUtf8 . encodeBase58 bitcoinAlphabet . getAddress . getApiT
 
-newtype DecodeApiAddressError = DecodeApiAddressError String
-    deriving Show
-
-instance FromJSON ApiWallet where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiWallet where
-    toJSON = genericToJSON defaultRecordTypeOptions
-
-instance FromJSON WalletPostData where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON  WalletPostData where
-    toJSON = genericToJSON defaultRecordTypeOptions
-
-instance FromJSON WalletPutData where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON  WalletPutData where
-    toJSON = genericToJSON defaultRecordTypeOptions
-
-instance FromJSON WalletPutPassphraseData where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON  WalletPutPassphraseData where
-    toJSON = genericToJSON defaultRecordTypeOptions
-
-instance FromJSON (ApiT (Passphrase "encryption")) where
-    parseJSON = parseJSON >=> eitherToParser . decodeApiEncryptionPassphrase
-instance ToJSON (ApiT (Passphrase "encryption")) where
-    toJSON = toJSON . encodeApiEncryptionPassphrase
+newtype DecodeApiEncryptionPassphraseError
+    = DecodeApiEncryptionPassphraseError String
+    deriving stock Show
+    deriving newtype Buildable
 
 decodeApiEncryptionPassphrase
     :: Text
@@ -282,16 +252,86 @@ passphraseMinLength = 10
 passphraseMaxLength :: Int
 passphraseMaxLength = 255
 
-newtype DecodeApiEncryptionPassphraseError
-    = DecodeApiEncryptionPassphraseError String
-    deriving Show
+newtype MkApiMnemonicError = MkApiMnemonicError String
+    deriving stock Show
+    deriving newtype Buildable
 
 class MkApiMnemonic sizes purpose where
     mkApiMnemonic
         :: [Text] -> Either MkApiMnemonicError (ApiMnemonicT sizes purpose)
 
-newtype MkApiMnemonicError = MkApiMnemonicError String
-    deriving Show
+newtype DecodeApiWalletNameError
+    = DecodeApiWalletNameError String
+    deriving stock Show
+    deriving newtype Buildable
+
+decodeApiWalletName :: Text -> Either DecodeApiWalletNameError (ApiT WalletName)
+decodeApiWalletName t
+    | T.length t < walletNameMinLength =
+        Left $ DecodeApiWalletNameError $
+            "name is too short: expected at least "
+                <> show walletNameMinLength <> " chars"
+    | T.length t > walletNameMaxLength =
+        Left $ DecodeApiWalletNameError $
+            "name is too long: expected at most "
+                <> show walletNameMaxLength <> " chars"
+    | otherwise =
+        return $ ApiT $ WalletName t
+
+encodeApiWalletName :: ApiT WalletName -> Text
+encodeApiWalletName = getWalletName . getApiT
+
+walletNameMinLength :: Int
+walletNameMinLength = 1
+
+walletNameMaxLength :: Int
+walletNameMaxLength = 255
+
+
+{-------------------------------------------------------------------------------
+                               JSON Instances
+-------------------------------------------------------------------------------}
+
+instance FromJSON ApiAddress where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiAddress where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON (ApiT AddressState) where
+    parseJSON = fmap ApiT . genericParseJSON defaultSumTypeOptions
+instance ToJSON (ApiT AddressState) where
+    toJSON = genericToJSON defaultSumTypeOptions . getApiT
+
+instance FromJSON (ApiT Address) where
+    parseJSON = parseJSON >=> eitherToParser . left ShowFmt . decodeApiAddress
+instance ToJSON (ApiT Address) where
+    toJSON = toJSON . encodeApiAddress
+
+instance FromJSON ApiWallet where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiWallet where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON WalletPostData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON  WalletPostData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON WalletPutData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON  WalletPutData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON WalletPutPassphraseData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON  WalletPutPassphraseData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON (ApiT (Passphrase "encryption")) where
+    parseJSON = parseJSON >=>
+        eitherToParser . left ShowFmt . decodeApiEncryptionPassphrase
+instance ToJSON (ApiT (Passphrase "encryption")) where
+    toJSON = toJSON . encodeApiEncryptionPassphrase
 
 instance {-# OVERLAPS #-}
     ( n ~ EntropySize mw
@@ -323,7 +363,8 @@ instance
 
 instance MkApiMnemonic sizes purpose => FromJSON (ApiMnemonicT sizes purpose)
   where
-    parseJSON = parseJSON >=> eitherToParser . mkApiMnemonic @sizes @purpose
+    parseJSON = parseJSON >=>
+        eitherToParser . left ShowFmt . mkApiMnemonic @sizes @purpose
 
 instance ToJSON (ApiMnemonicT sizes purpose) where
     toJSON (ApiMnemonicT (!_, xs)) = toJSON xs
@@ -351,35 +392,10 @@ instance ToJSON (ApiT (WalletDelegation (ApiT PoolId))) where
     toJSON = genericToJSON walletDelegationOptions . getApiT
 
 instance FromJSON (ApiT WalletName) where
-    parseJSON = parseJSON >=> eitherToParser . decodeApiWalletName
+    parseJSON = parseJSON >=>
+        eitherToParser . left ShowFmt . decodeApiWalletName
 instance ToJSON (ApiT WalletName) where
     toJSON = toJSON . encodeApiWalletName
-
-decodeApiWalletName :: Text -> Either DecodeApiWalletNameError (ApiT WalletName)
-decodeApiWalletName t
-    | T.length t < walletNameMinLength =
-        Left $ DecodeApiWalletNameError $
-            "name is too short: expected at least "
-                <> show walletNameMinLength <> " chars"
-    | T.length t > walletNameMaxLength =
-        Left $ DecodeApiWalletNameError $
-            "name is too long: expected at most "
-                <> show walletNameMaxLength <> " chars"
-    | otherwise =
-        return $ ApiT $ WalletName t
-
-encodeApiWalletName :: ApiT WalletName -> Text
-encodeApiWalletName = getWalletName . getApiT
-
-newtype DecodeApiWalletNameError
-    = DecodeApiWalletNameError String
-    deriving Show
-
-walletNameMinLength :: Int
-walletNameMinLength = 1
-
-walletNameMaxLength :: Int
-walletNameMaxLength = 255
 
 instance FromJSON (ApiT WalletPassphraseInfo) where
     parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
