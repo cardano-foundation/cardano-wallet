@@ -58,6 +58,8 @@ import Test.QuickCheck
     , checkCoverage
     , choose
     , cover
+    , elements
+    , genericShrink
     , property
     , shrinkList
     , sublistOf
@@ -169,9 +171,13 @@ updateUTxO !b utxo = do
 -- our chain. This allows us to control that the UTxO gets updated accordingly
 -- for some arbitrary instances of that state.
 data WalletState = WalletState
-    { ourAddresses :: Set Address
-    , discoveredAddresses :: Set Address
+    { _ourAddresses :: Set (ShowFmt Address)
+    , _discoveredAddresses :: Set (ShowFmt Address)
     } deriving (Generic, Show)
+
+ourAddresses :: WalletState -> Set Address
+ourAddresses =
+    Set.map (\(ShowFmt a) -> a) . _ourAddresses
 
 instance NFData WalletState
 
@@ -183,20 +189,20 @@ instance Semigroup WalletState where
 
 instance IsOurs WalletState where
     isOurs addr s@(WalletState ours discovered) =
-        if addr `elem` ours then
-            (True, WalletState ours (Set.insert addr discovered))
+        if (ShowFmt addr) `elem` ours then
+            (True, WalletState ours (Set.insert (ShowFmt addr) discovered))
         else
             (False, s)
 
 instance Arbitrary WalletState where
-    shrink (WalletState ours _) =
-        [ WalletState (Set.fromList ours') mempty
-        | ours' <- shrinkList pure (Set.toList ours)
-        ]
+    shrink = genericShrink
     arbitrary = do
-        knownAddresses <- Set.fromList <$> sublistOf addresses
+        knownAddresses <- (Set.fromList . fmap ShowFmt) <$> sublistOf addresses
         return $ WalletState knownAddresses mempty
 
+instance Arbitrary (ShowFmt Address) where
+    shrink _ = []
+    arbitrary = ShowFmt <$> elements addresses
 
 -- | Since it's quite tricky to generate a valid Arbitrary chain and
 -- corresponding initial UTxO, instead, we take subset of our small valid
