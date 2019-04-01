@@ -8,6 +8,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -45,6 +46,8 @@ module Cardano.Wallet.Api.Types
     -- * Polymorphic Types
     , ApiT (..)
     , ApiMnemonicT (..)
+    , MkApiMnemonic (..)
+    , MkApiMnemonicError (..)
     , getApiMnemonicT
     ) where
 
@@ -73,8 +76,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     )
-import Control.Applicative
-    ( (<|>) )
 import Control.Monad
     ( (>=>) )
 import Data.Aeson
@@ -89,6 +90,8 @@ import Data.Aeson
     , omitNothingFields
     , sumEncoding
     )
+import Data.Bifunctor
+    ( first )
 import Data.ByteString.Base58
     ( bitcoinAlphabet, decodeBase58, encodeBase58 )
 import Data.Text
@@ -243,20 +246,27 @@ passphraseMinLength = 10
 passphraseMaxLength :: Int
 passphraseMaxLength = 255
 
+class MkApiMnemonic sizes purpose where
+    mkApiMnemonic
+        :: [Text] -> Either MkApiMnemonicError (ApiMnemonicT sizes purpose)
+
+newtype MkApiMnemonicError = MkApiMnemonicError String
+    deriving Show
+
 instance {-# OVERLAPS #-}
     ( n ~ EntropySize mw
     , csz ~ CheckSumBits n
     , ConsistentEntropy n mw csz
-    , FromJSON (ApiMnemonicT rest purpose)
+    , MkApiMnemonic rest purpose
     ) =>
-    FromJSON (ApiMnemonicT (mw ': rest) purpose)
+    MkApiMnemonic (mw ': rest) purpose
   where
-    parseJSON bytes = parseMW <|> parseRest where
+    mkApiMnemonic parts = either (const parseRest) Right parseMW where
         parseMW = do
-            ApiMnemonicT x <- parseJSON @(ApiMnemonicT '[mw] purpose) bytes
+            ApiMnemonicT x <- mkApiMnemonic @'[mw] @purpose parts
             return $ ApiMnemonicT x
         parseRest = do
-            ApiMnemonicT x <- parseJSON @(ApiMnemonicT rest purpose) bytes
+            ApiMnemonicT x <- mkApiMnemonic @rest @purpose parts
             return $ ApiMnemonicT x
 
 instance
@@ -264,13 +274,16 @@ instance
     , csz ~ CheckSumBits n
     , ConsistentEntropy n mw csz
     ) =>
-    FromJSON (ApiMnemonicT (mw ': '[]) purpose)
+    MkApiMnemonic (mw ': '[]) purpose
   where
-    parseJSON bytes = do
-        xs <- parseJSON bytes
-        m <- eitherToParser $ mkMnemonic @mw xs
+    mkApiMnemonic parts = do
+        m <- first (MkApiMnemonicError . show) (mkMnemonic @mw parts)
         let pwd = Passphrase $ entropyToBytes $ mnemonicToEntropy m
-        return $ ApiMnemonicT (pwd, xs)
+        return $ ApiMnemonicT (pwd, parts)
+
+instance MkApiMnemonic sizes purpose => FromJSON (ApiMnemonicT sizes purpose)
+  where
+    parseJSON = parseJSON >=> eitherToParser . mkApiMnemonic @sizes @purpose
 
 instance ToJSON (ApiMnemonicT sizes purpose) where
     toJSON (ApiMnemonicT (!_, xs)) = toJSON xs
