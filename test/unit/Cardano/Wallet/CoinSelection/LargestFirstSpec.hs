@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE LambdaCase #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.CoinSelection.LargestFirstSpec
@@ -24,10 +23,12 @@ import Cardano.Wallet.Primitive.Types
     )
 import Control.Monad
     ( unless )
-import Control.Monad.IO.Class
-    ( liftIO )
 import Control.Monad.Trans.Except
     ( runExceptT )
+import Data.Either
+    ( isRight )
+import Data.Functor.Identity
+    ( Identity (runIdentity) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Word
@@ -43,11 +44,10 @@ import Test.QuickCheck
     , oneof
     , property
     , scale
-    , suchThat
     , vectorOf
+    , (===)
+    , (==>)
     )
-import Test.QuickCheck.Monadic
-    ( monadicIO )
 
 import qualified Data.ByteString as BS
 import qualified Data.List as L
@@ -188,44 +188,41 @@ coinSelectionUnitTest (Fixture n utxoCoins txOutsCoins expected) = do
 propDeterministic
     :: CoveringCase
     -> Property
-propDeterministic (CoveringCase (utxo, txOuts)) = monadicIO $ liftIO $ do
-    resultOne <- runExceptT $ largestFirst
-        (defaultCoinSelectionOptions 100)
-        utxo
-        txOuts
-    resultTwo <- runExceptT $ largestFirst
-        (defaultCoinSelectionOptions 100)
-        utxo
-        txOuts
-
-    resultOne `shouldBe` resultTwo
+propDeterministic (CoveringCase (utxo, txOuts)) = do
+    let opts = defaultCoinSelectionOptions 100
+    let resultOne = runIdentity $ runExceptT $ largestFirst opts utxo txOuts
+    let resultTwo = runIdentity $ runExceptT $ largestFirst opts utxo txOuts
+    resultOne === resultTwo
 
 propAtLeast
     :: CoveringCase
     -> Property
-propAtLeast (CoveringCase (utxo, txOuts)) = monadicIO $ liftIO $ do
-    result <- runExceptT
-        (largestFirst (defaultCoinSelectionOptions 100) utxo txOuts) >>= \case
-        Left err -> fail $ "expected success but failed: " <> show err
-        Right (CoinSelection inps _ _) -> return $ L.length inps
-
-    result `shouldSatisfy` (>= NE.length txOuts)
+propAtLeast (CoveringCase (utxo, txOuts)) =
+    isRight selection ==> let Right s = selection in prop s
+  where
+    prop (CoinSelection inps _ _) =
+        L.length inps `shouldSatisfy` (>= NE.length txOuts)
+    selection = runIdentity $ runExceptT $
+        largestFirst (defaultCoinSelectionOptions 100) utxo txOuts
 
 propInputDecreasingOrder
     :: CoveringCase
     -> Property
-propInputDecreasingOrder (CoveringCase (utxo, txOuts)) = monadicIO $ liftIO $ do
-    inps <- runExceptT
-        (largestFirst (defaultCoinSelectionOptions 100) utxo txOuts) >>= \case
-        Left err -> fail $ "expected success but failed: " <> show err
-        Right (CoinSelection inps _ _) -> return inps
-    let utxo' = (Map.toList . getUTxO) $
-            utxo `excluding` (Set.fromList . map fst $ inps)
-    let getExtremumValue f = f . map (getCoin . coin . snd)
+propInputDecreasingOrder (CoveringCase (utxo, txOuts)) =
+    isRight selection ==> let Right s = selection in prop s
+  where
+    prop (CoinSelection inps _ _) =
+        let
+            utxo' = (Map.toList . getUTxO) $
+                utxo `excluding` (Set.fromList . map fst $ inps)
+        in unless (L.null utxo') $
+            (getExtremumValue L.minimum inps)
+            `shouldSatisfy`
+            (>= (getExtremumValue L.maximum utxo'))
+    getExtremumValue f = f . map (getCoin . coin . snd)
+    selection = runIdentity $ runExceptT $
+        largestFirst (defaultCoinSelectionOptions 100) utxo txOuts
 
-    unless (L.null utxo') $
-        (getExtremumValue L.minimum inps)
-        `shouldSatisfy` (>= (getExtremumValue L.maximum utxo'))
 
 {-------------------------------------------------------------------------------
                                   Test Data
@@ -240,46 +237,6 @@ defaultCoinSelectionOptions n = CoinSelectionOptions
     , maximumNumberOfInputs = n
     }
 
-
--- Check if there are enough covering utxo entries
--- in the utxo to cover all transaction outputs
-condCoinsCovering
-    :: NonEmpty TxOut
-    -> UTxO
-    -> Bool
-condCoinsCovering txOuts utxo =
-    let
-        len = NE.length txOuts
-    in L.length (utxoCovering txOuts utxo) >= len
-
--- Select all UTxO entries that could cover all
--- transaction outputs sorted from the smallest one
-utxoCovering
-    :: NonEmpty TxOut
-    -> UTxO
-    -> [(TxIn, TxOut)]
-utxoCovering txOuts utxo =
-    L.sortOn (coin . snd)
-    $ L.foldl (\acc o ->
-                   rotate 1
-                   $  L.dropWhile (\(_,_o) -> coin _o < coin o) acc
-              ) utxoSorted
-    $ outputsSorted txOuts
-    where
-        utxoSorted = L.sortOn (coin . snd)
-                     $ (Map.toList . getUTxO) utxo
-        rotate :: Int -> [a] -> [a]
-        rotate _ [] = []
-        rotate n xs = zipWith const (drop n (cycle xs)) xs
-
--- Sort transaction outputs in the increasing order
--- as we want to cover smaller payments first
-outputsSorted
-    :: NonEmpty TxOut
-    -> [TxOut]
-outputsSorted txOuts =
-    L.sortOn coin $ NE.toList txOuts
-
 newtype CoveringCase = CoveringCase { getCoveringCase :: (UTxO, NonEmpty TxOut)}
     deriving Show
 
@@ -287,7 +244,7 @@ instance Arbitrary CoveringCase where
     arbitrary = do
         n <- choose (1, 10)
         txOutsNonEmpty <- NE.fromList <$> vectorOf n arbitrary
-        utxo <- arbitrary `suchThat` (condCoinsCovering txOutsNonEmpty)
+        utxo <- arbitrary
         return $ CoveringCase (utxo, txOutsNonEmpty)
 
 instance Arbitrary (Hash "Tx") where

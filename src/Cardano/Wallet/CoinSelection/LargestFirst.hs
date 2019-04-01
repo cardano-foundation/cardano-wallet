@@ -21,8 +21,6 @@ import Cardano.Wallet.Primitive.Types
     ( Coin (..), TxIn, TxOut (..), UTxO (..), balance )
 import Control.Monad
     ( foldM, when )
-import Control.Monad.IO.Class
-    ( MonadIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..), throwE )
 import Data.List.NonEmpty
@@ -37,7 +35,7 @@ import qualified Data.Map.Strict as Map
 
 -- | Largest-first input selection policy
 largestFirst
-    :: forall m. MonadIO m
+    :: forall m. Monad m
     => CoinSelectionOptions
     -> UTxO
     -> NonEmpty TxOut
