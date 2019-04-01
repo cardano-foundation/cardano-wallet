@@ -80,7 +80,7 @@ spec = do
                 { maxNumOfInputs = 100
                 , utxoInputs = [12,10,17]
                 , txOutputs = 18 :| []
-                , expectedResult = Right [17, 12]
+                , expectedResult = Right [12, 17]
                 })
         it "three inputs per output" $ do
             (coinSelectionUnitTest
@@ -88,7 +88,7 @@ spec = do
                 { maxNumOfInputs = 100
                 , utxoInputs = [12,10,17]
                 , txOutputs = 30 :| []
-                , expectedResult = Right [17, 12, 10]
+                , expectedResult = Right [10, 12, 17]
                 })
         it "NotEnoughMoney error expected when not enough coins" $ do
             (coinSelectionUnitTest
@@ -120,7 +120,7 @@ spec = do
                 { maxNumOfInputs = 3
                 , utxoInputs = [1,2,10,6,5]
                 , txOutputs = 11 :| [1]
-                , expectedResult = Right [10,6,5]
+                , expectedResult = Right [6,10,5]
                 })
         it "happy path with too strict maximumNumberOfInputs result in error - 3 inputs for 2 outputs" $ do
             (coinSelectionUnitTest
@@ -165,11 +165,7 @@ coinSelectionUnitTest (Fixture n utxoCoins txOutsCoins expected) = do
             largestFirst (defaultCoinSelectionOptions n) utxo txOuts
         return $ map (getCoin . coin . snd) inps
 
-    case expected of
-        Left err ->
-            result `shouldBe` (Left err)
-        Right expectedCoinsSel ->
-            result `shouldBe` (return expectedCoinsSel)
+    result `shouldBe` expected
     where
         setup :: IO (UTxO, NonEmpty TxOut)
         setup = do
