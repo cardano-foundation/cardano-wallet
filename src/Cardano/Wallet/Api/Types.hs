@@ -102,12 +102,16 @@ import Data.ByteString.Base58
     ( bitcoinAlphabet, decodeBase58, encodeBase58 )
 import Data.Text
     ( Text )
+import Data.Word
+    ( Word8 )
 import Fmt
     ( Buildable (..) )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( Nat, Symbol )
+import Text.Read
+    ( readMaybe )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
@@ -220,6 +224,21 @@ instance FromText (ApiT Address) where
 instance ToText (ApiT Address) where
     -- | Converts an address to a Base58-encoded string.
     toText = T.decodeUtf8 . encodeBase58 bitcoinAlphabet . getAddress . getApiT
+
+instance FromText (ApiT AddressPoolGap) where
+    fromText t = maybe
+        (Left err)
+        (fmap ApiT . first (const err) . mkAddressPoolGap)
+        (readMaybe @Word8 (T.unpack t))
+      where
+        err = TextDecodingError $
+            "An address pool gap must be a natural number between "
+                <> show (fromEnum $ minBound @AddressPoolGap)
+                <> " and "
+                <> show (fromEnum $ maxBound @AddressPoolGap)
+
+instance ToText (ApiT AddressPoolGap) where
+    toText = T.pack . show . getAddressPoolGap . getApiT
 
 instance FromText (ApiT (Passphrase "encryption")) where
     fromText t
