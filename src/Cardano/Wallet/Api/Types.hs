@@ -118,6 +118,7 @@ import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteArray as BA
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Data.UUID.Types as UUID
 
 {-------------------------------------------------------------------------------
                                   API Types
@@ -262,6 +263,15 @@ passphraseMinLength = 10
 passphraseMaxLength :: Int
 passphraseMaxLength = 255
 
+instance FromText (ApiT WalletId) where
+    fromText = maybe
+        (Left $ TextDecodingError "A wallet ID must be a valid UUID")
+        (Right . ApiT . WalletId)
+        . UUID.fromText
+
+instance ToText (ApiT WalletId) where
+    toText (ApiT (WalletId i)) = UUID.toText i
+
 instance FromText (ApiT WalletName) where
     fromText t
         | T.length t < walletNameMinLength =
@@ -383,9 +393,9 @@ instance ToJSON (ApiMnemonicT sizes purpose) where
     toJSON (ApiMnemonicT (!_, xs)) = toJSON xs
 
 instance FromJSON (ApiT WalletId) where
-    parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
+    parseJSON = parseJSON >=> eitherToParser . left ShowFmt . fromText
 instance ToJSON (ApiT WalletId) where
-    toJSON = genericToJSON defaultRecordTypeOptions . getApiT
+    toJSON = toJSON . toText
 
 instance FromJSON (ApiT AddressPoolGap) where
     parseJSON x = do
