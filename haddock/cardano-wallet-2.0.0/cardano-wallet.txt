@@ -185,6 +185,11 @@ TxMeta :: !Hash "Tx" -> !Quantity "block" Natural -> !TxStatus -> !Direction -> 
 txIns :: Set Tx -> Set TxIn
 updatePending :: Block -> Set Tx -> Set Tx
 
+-- | Wrapper around the final CBOR representation of a signed tx
+newtype SignedTx
+SignedTx :: ByteString -> SignedTx
+[$sel:signedTx:SignedTx] :: SignedTx -> ByteString
+
 -- | This abstraction exists to give us the ability to keep the wallet
 --   business logic agnostic to the address derivation and discovery
 --   mechanisms.
@@ -398,7 +403,7 @@ instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.Address
 
 module Cardano.Wallet.Network
 data NetworkLayer m e0 e1
-NetworkLayer :: (SlotId -> ExceptT e0 m [Block]) -> ExceptT e1 m (Hash "BlockHeader", BlockHeader) -> NetworkLayer m e0 e1
+NetworkLayer :: (SlotId -> ExceptT e0 m [Block]) -> ExceptT e1 m (Hash "BlockHeader", BlockHeader) -> (SignedTx -> ExceptT e1 m ()) -> NetworkLayer m e0 e1
 
 -- | Gets some blocks from the node. It will not necessarily return all the
 --   blocks that the node has, but will receive a reasonable-sized chunk.
@@ -407,6 +412,7 @@ NetworkLayer :: (SlotId -> ExceptT e0 m [Block]) -> ExceptT e1 m (Hash "BlockHea
 --   starting slot.
 [nextBlocks] :: NetworkLayer m e0 e1 -> SlotId -> ExceptT e0 m [Block]
 [networkTip] :: NetworkLayer m e0 e1 -> ExceptT e1 m (Hash "BlockHeader", BlockHeader)
+[postTx] :: NetworkLayer m e0 e1 -> SignedTx -> ExceptT e1 m ()
 
 -- | Repeatedly fetch data from a given source function, and call an action
 --   for each element retrieved.
@@ -447,6 +453,8 @@ module Cardano.Wallet.Binary
 decodeBlock :: Decoder s Block
 decodeBlockHeader :: Decoder s BlockHeader
 decodeTx :: Decoder s Tx
+decodeTxWitness :: Decoder s TxWitness
+decodeSignedTx :: Decoder s (Tx, [TxWitness])
 encodeTx :: Tx -> Encoding
 
 -- | Encode a public key to a corresponding Cardano Address. The encoding
@@ -479,12 +487,18 @@ encodeTx :: Tx -> Encoding
 --   left out of this particular function</li>
 --   </ul>
 encodeAddress :: XPub -> Encoding -> Encoding
+encodeTxWitness :: TxWitness -> Encoding
+encodeSignedTx :: (Tx, [TxWitness]) -> Encoding
 
 -- | Compute a transaction id; assumed to be effectively injective. It
 --   returns an hex-encoded 64-byte hash.
 --   
 --   NOTE: This is a rather expensive operation
 txId :: Tx -> Hash "Tx"
+data TxWitness
+PublicKeyWitness :: ByteString -> TxWitness
+ScriptWitness :: ByteString -> TxWitness
+RedeemWitness :: ByteString -> TxWitness
 
 -- | Inspect the next token that has to be decoded and print it to the
 --   console as a trace. Useful for debugging Decoders. Example:
@@ -520,6 +534,8 @@ decodeList :: forall s a. Decoder s a -> Decoder s [a]
 --       decodeOne :: CBOR.Decoder s MyType
 --   </pre>
 decodeListIndef :: forall s a. Decoder s a -> Decoder s [a]
+instance GHC.Show.Show Cardano.Wallet.Binary.TxWitness
+instance GHC.Classes.Eq Cardano.Wallet.Binary.TxWitness
 
 
 -- | Here we find the "business logic" to manage a Cardano wallet. This is
@@ -1199,7 +1215,7 @@ instance Servant.API.ContentTypes.Accept Servant.Extra.ContentTypes.CBOR
 
 -- | An API specification for the Cardano HTTP Bridge.
 module Cardano.Wallet.Network.HttpBridge.Api
-type Api = GetBlockByHash :<|> GetEpochById :<|> GetTipBlockHeader
+type Api = GetBlockByHash :<|> GetEpochById :<|> GetTipBlockHeader :<|> PostSignedTx
 api :: Proxy Api
 newtype ApiT a
 ApiT :: a -> ApiT a
@@ -1223,6 +1239,8 @@ instance Web.Internal.HttpApiData.ToHttpApiData Cardano.Wallet.Network.HttpBridg
 instance Web.Internal.HttpApiData.ToHttpApiData Cardano.Wallet.Network.HttpBridge.Api.EpochIndex
 instance Servant.Extra.ContentTypes.FromCBOR (Cardano.Wallet.Network.HttpBridge.Api.ApiT Cardano.Wallet.Primitive.Types.Block)
 instance Servant.Extra.ContentTypes.FromCBOR (Cardano.Wallet.Network.HttpBridge.Api.ApiT Cardano.Wallet.Primitive.Types.BlockHeader)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Network.HttpBridge.Api.ApiT Cardano.Wallet.Primitive.Types.SignedTx)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Network.HttpBridge.Api.ApiT Cardano.Wallet.Primitive.Types.SignedTx)
 
 
 -- | This module contains the necessary logic to talk to implement the
@@ -1231,10 +1249,11 @@ module Cardano.Wallet.Network.HttpBridge
 
 -- | Endpoints of the cardano-http-bridge API.
 data HttpBridge m e
-HttpBridge :: (Hash "BlockHeader" -> ExceptT e m Block) -> (Word64 -> ExceptT e m [Block]) -> ExceptT e m (Hash "BlockHeader", BlockHeader) -> HttpBridge m e
+HttpBridge :: (Hash "BlockHeader" -> ExceptT e m Block) -> (Word64 -> ExceptT e m [Block]) -> ExceptT e m (Hash "BlockHeader", BlockHeader) -> (SignedTx -> ExceptT e m ()) -> HttpBridge m e
 [$sel:getBlock:HttpBridge] :: HttpBridge m e -> Hash "BlockHeader" -> ExceptT e m Block
 [$sel:getEpoch:HttpBridge] :: HttpBridge m e -> Word64 -> ExceptT e m [Block]
 [$sel:getNetworkTip:HttpBridge] :: HttpBridge m e -> ExceptT e m (Hash "BlockHeader", BlockHeader)
+[$sel:postSignedTx:HttpBridge] :: HttpBridge m e -> SignedTx -> ExceptT e m ()
 
 -- | The things that can go wrong when retrieving blocks.
 data HttpBridgeError
@@ -1251,5 +1270,8 @@ mkNetworkLayer :: Monad m => HttpBridge m e -> NetworkLayer m e e
 -- | Creates a cardano-http-bridge <a>NetworkLayer</a> using the given
 --   connection settings.
 newNetworkLayer :: Text -> Int -> IO (NetworkLayer IO HttpBridgeError HttpBridgeError)
+
+-- | Construct a new network layer
+mkHttpBridge :: Manager -> BaseUrl -> NetworkName -> HttpBridge IO HttpBridgeError
 instance GHC.Classes.Eq Cardano.Wallet.Network.HttpBridge.HttpBridgeError
 instance GHC.Show.Show Cardano.Wallet.Network.HttpBridge.HttpBridgeError
