@@ -2,9 +2,11 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
 -- |
@@ -25,18 +27,21 @@
 
 module Cardano.Wallet.Primitive.Model
     (
+    -- * Type
       Wallet
+
+    -- * Construction & Modification
     , initWallet
+    , applyBlock
+
+    -- * Accessors
     , currentTip
     , getState
-    , applyBlock
     , availableBalance
     , totalBalance
     , totalUTxO
     , availableUTxO
-    , txOutsOurs
-    , utxoFromTx
-    , getTxMetas
+    , getTxHistory
     ) where
 
 import Prelude
@@ -45,39 +50,41 @@ import Cardano.Wallet.Binary
     ( txId )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
-    , BlockHeader (..)
     , Direction (..)
     , Dom (..)
     , IsOurs (..)
     , SlotId (..)
     , Tx (..)
     , TxIn (..)
-    , TxMeta (TxMeta)
+    , TxMeta (..)
     , TxOut (..)
     , TxStatus (..)
     , UTxO (..)
     , balance
     , excluding
-    , invariant
     , restrictedBy
-    , restrictedTo
     , txIns
-    , updatePending
     )
 import Control.DeepSeq
     ( NFData (..), deepseq )
+import Control.Monad
+    ( foldM, forM )
 import Control.Monad.Trans.State.Strict
-    ( State, runState, state )
+    ( State, evalState, runState, state )
+import Data.Foldable
+    ( fold )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
+import Data.Generics.Labels
+    ()
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( catMaybes, mapMaybe )
+    ( catMaybes )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
     ( Set )
-import Data.Traversable
-    ( for )
 import Numeric.Natural
     ( Natural )
 
@@ -95,18 +102,16 @@ import qualified Data.Set as Set
 --  - Transaction history
 --  - TODO: Known & used addresses
 data Wallet s where
-    Wallet
-        :: (IsOurs s, NFData s, Show s)
+    Wallet :: (IsOurs s, NFData s, Show s)
         => UTxO -- Unspent tx outputs belonging to this wallet
         -> Set Tx -- Pending transactions
-        -> [TxMeta] -- Transaction history
+        -> Set (Tx, TxMeta) -- Transaction history
         -> SlotId -- Latest applied block (current tip)
-        -> s -- Address derivation state
+        -> s -- Address discovery state
         -> Wallet s
 
 deriving instance Show (Wallet s)
 deriving instance Eq s => Eq (Wallet s)
-
 instance NFData (Wallet s) where
     rnf (Wallet utxo pending txMeta sl s) =
         deepseq (rnf utxo) $
@@ -127,13 +132,15 @@ applyBlock
     :: Block
     -> NonEmpty (Wallet s)
     -> NonEmpty (Wallet s)
-applyBlock !b (cp@(Wallet !utxo !pending !txMeta _ _) :| checkpoints) =
+applyBlock !b (cp@(Wallet !utxo !pending !txs _ s) :| checkpoints) =
     let
-        (ourUtxo, ourIns, s') = prefilterBlock b cp
-        utxo' = (utxo <> ourUtxo) `excluding` ourIns
-        pending' = updatePending b pending
-        txMeta' = txMeta ++ blockTxMetas b utxo' s' -- fixme: list append O(n+m)
-        cp' = Wallet utxo' pending' txMeta' (slotId (header b :: BlockHeader)) s'
+        -- Prefilter Block
+        ((txs', utxo'), s') = prefilterBlock b utxo s
+        -- Update Pending
+        newIns = txIns (Set.map fst txs')
+        pending' = pending `pendingExcluding` newIns
+        -- Update Checkpoint
+        cp' = Wallet utxo' pending' (txs <> txs') (b ^. #header . #slotId) s'
     in
         -- NOTE
         -- k = 2160 is currently hard-coded here. In the short-long run, we do
@@ -150,6 +157,10 @@ currentTip (Wallet _ _ _ tip _) = tip
 -- | Get the wallet current state
 getState :: Wallet s -> s
 getState (Wallet _ _ _ _ s) = s
+
+-- | Get the transaction metadata for transactions associated with the wallet.
+getTxHistory :: Wallet s -> Set (Tx, TxMeta)
+getTxHistory (Wallet _ _ txs _ _) = txs
 
 -- | Available balance = 'balance' . 'availableUTxO'
 availableBalance :: Wallet s -> Natural
@@ -169,96 +180,110 @@ availableUTxO (Wallet utxo pending _ _ _) =
 -- | Total UTxO = 'availableUTxO' <> "pending UTxO"
 totalUTxO :: Wallet s -> UTxO
 totalUTxO wallet@(Wallet _ pending _ _ s) =
-    let
-        -- NOTE
-        -- We _safely_ discard the state here because we aren't intending to
-        -- discover any new addresses through this operation. In practice, we
-        -- can only discover new addresses when applying blocks.
-        discardState = fst
-    in
-        availableUTxO wallet <> discardState (changeUTxO pending s)
-
--- | Return all transaction outputs that are ours. This plays well within a
--- 'State' monad.
---
--- @
--- myFunction :: Block -> State s Result
--- myFunction b = do
---    ours <- state $ txOutsOurs (transaction b)
---    return $ someComputation ours
--- @
-txOutsOurs
-    :: forall s. (IsOurs s)
-    => Set Tx
-    -> s
-    -> (Set TxOut, s)
-txOutsOurs txs =
-    runState $ Set.fromList <$> forMaybe (foldMap outputs txs) pick
-  where
-    pick :: TxOut -> State s (Maybe TxOut)
-    pick out = do
-        predicate <- state $ isOurs (address out)
-        return $ if predicate then Just out else Nothing
-    forMaybe :: Monad m => [a] -> (a -> m (Maybe b)) -> m [b]
-    forMaybe xs = fmap catMaybes . for xs
-
--- | Construct a UTxO corresponding to a given transaction. It is important for
--- the transaction outputs to be ordered correctly, since they become available
--- inputs for the subsequent blocks.
-utxoFromTx :: Tx -> UTxO
-utxoFromTx tx@(Tx _ outs) =
-    UTxO $ Map.fromList $ zip (TxIn (txId tx) <$> [0..]) outs
-
--- | Get the transaction metadata for transactions associated with the wallet.
-getTxMetas :: Wallet s -> [TxMeta]
-getTxMetas (Wallet _ _ txs _ _) = txs
+    availableUTxO wallet <> changeUTxO pending s
 
 {-------------------------------------------------------------------------------
                                Internals
 -------------------------------------------------------------------------------}
 
+-- | Prefiltering returns all transactions of interest for the wallet. A
+-- transaction is a matter of interest for the wallet if:
+--
+--    - It has known input(s)
+--    - and/or It has known output(s)
+--
+-- In practice, most transactions that are of interest have an output to the
+-- wallet but some may actually have no change output whatsoever and be only
+-- linked to the wallet by their inputs.
+--
+-- In order to identify transactions that are ours, we do therefore look for
+-- known inputs and known outputs. However, we can't naievely look at the domain
+-- of the utxo constructed from all outputs that are ours (as the specification
+-- would suggest) because some transactions may use outputs of a previous
+-- transaction within the same block as an input. Therefore, Looking solely at
+-- the final 'dom (UTxO ⊳ oursOuts)', we would be missing all intermediate txs
+-- that happen from _within_ the block itself.
+--
+-- As a consequence, we do have to traverse the block, and look at transaction
+-- in order, starting from the known inputs that can be spent (from the previous
+-- UTxO) and, collect resolved tx outputs that are ours as we apply transactions.
 prefilterBlock
-    :: Block
-    -> Wallet s
-    -> (UTxO, Set TxIn, s)
-prefilterBlock b (Wallet !utxo _ _ _ !s) =
-    let
-        txs = transactions b
-        (ourOuts, s') = txOutsOurs txs s
-        ourUtxo = foldMap utxoFromTx txs `restrictedTo` ourOuts
-        ourIns = txIns txs `Set.intersection` dom (utxo <> ourUtxo)
-    in
-        invariant "applyBlock requires: dom ourUtxo ∩ dom utxo = ∅"
-            (ourUtxo, ourIns, s')
-            (const $ Set.null $ dom ourUtxo `Set.intersection` dom utxo)
-
-blockTxMetas
-    :: forall s. (IsOurs s)
+    :: (IsOurs s)
     => Block
     -> UTxO
     -> s
-    -> [TxMeta]
-blockTxMetas b utxo s = mapMaybe txMeta (Set.toList $ transactions b)
+    -> ((Set (Tx, TxMeta), UTxO), s)
+prefilterBlock b utxo0 = runState $ do
+    (ourTxs, ourUtxo) <- foldM applyTx (mempty, utxo0) (transactions b)
+    return (ourTxs, ourUtxo)
   where
-    txMeta tx = staticMeta tx <$> isOurTx tx
-    isOurTx tx | not (Set.null ourInputs) = Just Outgoing
-               | not (null ourOutputs)    = Just Incoming
-               | otherwise = Nothing
-      where
-        ourInputs = Set.fromList (inputs tx) `Set.intersection` dom utxo
-        ourOutputs = filter (fst . flip isOurs s . address) (outputs tx)
+    mkTxMeta :: Natural -> Direction -> TxMeta
+    mkTxMeta amt dir = TxMeta
+        { status = InLedger
+        , direction = dir
+        , slotId = b ^. #header . #slotId
+        , amount = Quantity amt
+        }
+    applyTx
+        :: (IsOurs s)
+        => (Set (Tx, TxMeta), UTxO)
+        -> Tx
+        -> State s (Set (Tx, TxMeta), UTxO)
+    applyTx (!txs, !utxo) tx = do
+        ourUtxo <- state $ utxoOurs tx
+        let ourIns = Set.fromList (inputs tx) `Set.intersection` dom (utxo <> ourUtxo)
+        let utxo' = (utxo <> ourUtxo) `excluding` ourIns
+        let received = fromIntegral @_ @Integer $ balance ourUtxo
+        let spent = fromIntegral @_ @Integer $ balance (utxo `restrictedBy` ourIns)
+        let amt = fromIntegral $ abs (received - spent)
+        let hasKnownInput = ourIns /= mempty
+        let hasKnownOutput = ourUtxo /= mempty
+        return $ if hasKnownOutput && not hasKnownInput then
+            ( Set.insert (tx, mkTxMeta amt Incoming) txs
+            , utxo'
+            )
+        else if hasKnownInput then
+            ( Set.insert (tx, mkTxMeta amt Outgoing) txs
+            , utxo'
+            )
+        else
+            (txs, utxo)
 
-    -- Some fields of TxMeta depend on current time and block height
-    staticMeta tx dir = TxMeta (txId tx) (Quantity 0)
-                        InLedger dir (slotId $ header b)
-
+-- | Get the change UTxO
+--
+-- NOTE
+-- We _safely_ discard the state here because we aren't intending to
+-- discover any new addresses through this operation. In practice, we
+-- can only discover new addresses when applying blocks. The state is
+-- therefore use in a read-only mode here.
 changeUTxO
     :: IsOurs s
     => Set Tx
     -> s
-    -> (UTxO, s)
-changeUTxO pending = runState $ do
-    ours <- state $ txOutsOurs pending
-    let utxo = foldMap utxoFromTx pending
+    -> UTxO
+changeUTxO pending = evalState $ do
+    ourUtxo <- mapM (state . utxoOurs) (Set.toList pending)
     let ins = txIns pending
-    return $ (utxo `restrictedTo` ours) `restrictedBy` ins
+    return $ fold ourUtxo `restrictedBy` ins
+
+-- | Construct a UTxO corresponding to a given transaction. It is important for
+-- the transaction outputs to be ordered correctly, since they become available
+-- inputs for the subsequent blocks.
+utxoOurs :: IsOurs s => Tx -> s -> (UTxO, s)
+utxoOurs tx = runState $ toUtxo <$> forM (zip [0..] (outputs tx)) filterOut
+  where
+    toUtxo = UTxO . Map.fromList . catMaybes
+    filterOut (ix, out) = do
+        predicate <- state $ isOurs $ address out
+        return $ if predicate
+            then Just (TxIn (txId tx) ix, out)
+            else Nothing
+
+-- | Remove transactions from the pending set if their inputs appear in the
+-- given set.
+pendingExcluding :: Set Tx -> Set TxIn -> Set Tx
+pendingExcluding txs discovered =
+    Set.filter isStillPending txs
+  where
+    isStillPending =
+        Set.null . Set.intersection discovered . Set.fromList . inputs

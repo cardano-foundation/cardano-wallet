@@ -29,6 +29,8 @@ module Data.Quantity
 
 import Prelude
 
+import Control.DeepSeq
+    ( NFData )
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
@@ -55,7 +57,9 @@ import qualified Data.Text as T
 --
 -- >>> newtype Amount = Amount (Quantity "lovelace" Word32)
 newtype Quantity (u :: Symbol) a = Quantity a
-    deriving (Generic, Show, Eq)
+    deriving (Generic, Show, Eq, Ord)
+
+instance NFData a => NFData (Quantity u a)
 
 -- | Encode to JSON delegating the
 --

@@ -1,6 +1,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Primitive.ModelSpec
@@ -9,15 +10,10 @@ module Cardano.Wallet.Primitive.ModelSpec
 
 import Prelude
 
+import Cardano.Wallet.Binary
+    ( txId )
 import Cardano.Wallet.Primitive.Model
-    ( applyBlock
-    , availableBalance
-    , initWallet
-    , totalBalance
-    , totalUTxO
-    , txOutsOurs
-    , utxoFromTx
-    )
+    ( applyBlock, availableBalance, initWallet, totalBalance, totalUTxO )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
@@ -43,11 +39,15 @@ import Control.DeepSeq
 import Control.Monad
     ( foldM )
 import Control.Monad.Trans.State.Strict
-    ( State, evalState, state )
+    ( State, evalState, runState, state )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Maybe
+    ( catMaybes )
 import Data.Set
     ( Set, (\\) )
+import Data.Traversable
+    ( for )
 import GHC.Generics
     ( Generic )
 import Test.Hspec
@@ -154,6 +154,37 @@ updateUTxO !b utxo = do
     let txs = transactions b
     utxo' <- (foldMap utxoFromTx txs `restrictedTo`) <$> state (txOutsOurs txs)
     return $ (utxo <> utxo') `excluding` txIns txs
+
+-- | Return all transaction outputs that are ours. This plays well within a
+-- 'State' monad.
+--
+-- @
+-- myFunction :: Block -> State s Result
+-- myFunction b = do
+--    ours <- state $ txOutsOurs (transaction b)
+--    return $ someComputation ours
+-- @
+txOutsOurs
+    :: forall s. (IsOurs s)
+    => Set Tx
+    -> s
+    -> (Set TxOut, s)
+txOutsOurs txs =
+    runState $ Set.fromList <$> forMaybe (foldMap outputs txs) pick
+  where
+    pick :: TxOut -> State s (Maybe TxOut)
+    pick out = do
+        predicate <- state $ isOurs (address out)
+        return $ if predicate then Just out else Nothing
+    forMaybe :: Monad m => [a] -> (a -> m (Maybe b)) -> m [b]
+    forMaybe xs = fmap catMaybes . for xs
+
+-- | Construct a UTxO corresponding to a given transaction. It is important for
+-- the transaction outputs to be ordered correctly, since they become available
+-- inputs for the subsequent blocks.
+utxoFromTx :: Tx -> UTxO
+utxoFromTx tx@(Tx _ outs) =
+    UTxO $ Map.fromList $ zip (TxIn (txId tx) <$> [0..]) outs
 
 
 {-------------------------------------------------------------------------------
