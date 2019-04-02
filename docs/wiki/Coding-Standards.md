@@ -12,13 +12,13 @@ Each proposal should start with a section justifying the standard with rational 
     * [Avoid variable-length indentation](#avoid-variable-length-indentation)
     * [Use only a single blank line between top-level definitions](#use-only-a-single-blank-line-between-top-level-definitions)
     * [Stylish-Haskell is used to format grouped imports & language pragmas](#stylish-haskell-is-used-to-format-grouped-imports--language-pragmas)
-    * [[PROPOSAL] All modules begin with a helpful documentation comment](#proposal-all-modules-begin-with-a-helpful-documentation-comment)
 
 * [Haskell Practices](#haskell-practices)
     * [Favor `newtype` and tagged type over type-aliases](#favor-newtype-and-tagged-type-over-type-aliases)
     * [Language extensions are specified on top of each module](#language-extensions-are-specified-on-top-of-each-module)
     * [HLint is used for hints and general code style](#hlint-is-used-for-hints-and-general-code-style)
     * [We use explicit imports by default, and favor qualified imports for ambiguous functions](#we-use-explicit-imports-by-default-and-favor-qualified-imports-for-ambiguous-functions)
+    * [All modules begin with a helpful documentation comment](#all-modules-begin-with-a-helpful-documentation-comment)
     * [[PROPOSAL] Use `cardano-prelude` for all modules, enable `NoImplicitPrelude`](#proposal-use-cardano-prelude-for-all-modules-enable-noimplicitprelude)
 
 # Code Formatting
@@ -415,58 +415,6 @@ steps:
   ```
 </details>
 
-
-## [PROPOSAL] All modules begin with a helpful documentation comment
-
-> **Why**
->
-> Even if individual functions are well-documented, it can be difficult to grasp how it all fits together.
->
-> In the legacy code-base, it was common to have multiple functions with the same or similar names, in different modules.
-> Try seaching for `applyBlocks` or `switchToFork`. What is the difference between `DB.Spec.Update.switchToFork` and `DB.AcidState.switchToFork`?
->
-> Having a comment at the top of each module would be an easy-to-follow rule to better document this. It is also very appropriate for 
-> our [haddock docs](https://input-output-hk.github.io/cardano-wallet/haddock/).
->
-> If we re-design a module and forget to update the comment, the comment is no longer useful.
-
-The comments might answer the question _why?_ They _might_:
-1. Explain the relation to other modules
-2. Explain the relation to business functionality
-3. Provide some other good-to-know information
-
-We should keep an eye out out-of-date comments. For instance when creating and reviewing PRs.
-
-<details>
-  <summary>See examples</summary>
-
-  ```hs
--- |
--- Copyright: © 2018-2019 IOHK
--- License: MIT
---
--- This module contains the core primitive of a Wallet. This is roughly a
--- Haskell translation of the [Formal Specification for a Cardano Wallet](https://github.com/input-output-hk/cardano-wallet/blob/master/specifications/wallet/formal-specification-for-a-cardano-wallet.pdf)
---
--- It doesn't contain any particular business-logic code, but define a few
--- primitive operations on Wallet core types as well.
-```
-(https://github.com/input-output-hk/cardano-wallet/blob/d3cca01f66f0abe93012343dab093a2551b6cbea/src/Cardano/Wallet/Primitive.hs#L12-L20)
-
-```hs
--- |
--- Copyright: © 2018-2019 IOHK
--- License: MIT
---
--- Provides the wallet layer functions that are used by API layer and uses both
--- "Cardano.DBLayer" and "Cardano.NetworkLayer" to realize its role as being
--- intermediary between the three.
-```
-
-(https://input-output-hk.github.io/cardano-wallet/haddock/cardano-wallet-2.0.0/Cardano-WalletLayer.html)
-
-</details>
-
 # Haskell Practices
 
 ## Favor `newtype` and tagged type over type-aliases
@@ -633,6 +581,58 @@ Apart from the chosen prelude, there should be no implicit imports. Instead, eve
   restrictedTo (UTxO utxo) outs =
       UTxO $ filter (`member` outs) utxo
   ```   
+</details>
+
+
+## All modules begin with a helpful documentation comment
+
+> **Why**
+>
+> Even if individual functions are well-documented, it can be difficult to grasp how it all fits together.
+>
+> In the legacy code-base, it was common to have multiple functions with the same or similar names, in different modules.
+> Try seaching for `applyBlocks` or `switchToFork`. What is the difference between `DB.Spec.Update.switchToFork` and `DB.AcidState.switchToFork`?
+>
+> Having a comment at the top of each module would be an easy-to-follow rule to better document this. It is also very appropriate for 
+> our [haddock docs](https://input-output-hk.github.io/cardano-wallet/haddock/).
+>
+> If we re-design a module and forget to update the comment, the comment is no longer useful.
+
+The comments might answer the question _why?_ They _might_:
+1. Explain the relation to other modules
+2. Explain the relation to business functionality
+3. Provide some other good-to-know information
+
+We should keep an eye out out-of-date comments. For instance when creating and reviewing PRs.
+
+<details>
+  <summary>See examples</summary>
+
+  ```hs
+-- |
+-- Copyright: © 2018-2019 IOHK
+-- License: MIT
+--
+-- This module contains the core primitive of a Wallet. This is roughly a
+-- Haskell translation of the [Formal Specification for a Cardano Wallet](https://github.com/input-output-hk/cardano-wallet/blob/master/specifications/wallet/formal-specification-for-a-cardano-wallet.pdf)
+--
+-- It doesn't contain any particular business-logic code, but define a few
+-- primitive operations on Wallet core types as well.
+```
+(https://github.com/input-output-hk/cardano-wallet/blob/d3cca01f66f0abe93012343dab093a2551b6cbea/src/Cardano/Wallet/Primitive.hs#L12-L20)
+
+```hs
+-- |
+-- Copyright: © 2018-2019 IOHK
+-- License: MIT
+--
+-- Provides the wallet layer functions that are used by API layer and uses both
+-- "Cardano.DBLayer" and "Cardano.NetworkLayer" to realize its role as being
+-- intermediary between the three.
+```
+
+(https://input-output-hk.github.io/cardano-wallet/haddock/cardano-wallet-2.0.0/Cardano-WalletLayer.html)
+
 </details>
 
 ## [PROPOSAL] Use `cardano-prelude` for all modules, enable `NoImplicitPrelude`
