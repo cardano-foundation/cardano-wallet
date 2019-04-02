@@ -185,6 +185,7 @@ test-suite integration
     , async
     , bytestring
     , cardano-wallet
+    , cborg
     , exceptions
     , fmt
     , hspec

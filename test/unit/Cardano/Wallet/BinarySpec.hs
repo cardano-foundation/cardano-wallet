@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 
 module Cardano.Wallet.BinarySpec
@@ -10,7 +11,17 @@ module Cardano.Wallet.BinarySpec
 import Prelude
 
 import Cardano.Wallet.Binary
-    ( decodeBlock, decodeBlockHeader, decodeTx, encodeTx, txId )
+    ( TxWitness (PublicKeyWitness)
+    , decodeBlock
+    , decodeBlockHeader
+    , decodeSignedTx
+    , decodeTx
+    , decodeTxWitness
+    , encodeSignedTx
+    , encodeTx
+    , encodeTxWitness
+    , txId
+    )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
@@ -31,9 +42,10 @@ import Data.ByteString.Base58
 import Data.Either
     ( isLeft )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldSatisfy )
+    ( Expectation, HasCallStack, Spec, describe, it, shouldBe, shouldSatisfy )
 
 import qualified Codec.CBOR.Decoding as CBOR
+import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString.Lazy as BL
@@ -108,6 +120,36 @@ spec = do
                     "d30d37f1f8674c6c33052826fdc5bc19\
                     \8e3e95c150364fd775d4bc663ae6a9e6"
             hash `shouldBe` hash'
+
+
+    let pkWit = PublicKeyWitness "Trust me"
+
+    describe "Encoding Tx Witness" $ do
+        it "(encode . decode) = pure" $ do
+            cborRoundtrip
+                decodeTxWitness
+                encodeTxWitness
+                pkWit
+
+    describe "Encoding Signed Tx" $ do
+        let txs = Set.toList (transactions block2 <> transactions block3)
+        it "(encode . decode) = pure" $ do
+            cborRoundtrip
+                decodeSignedTx
+                encodeSignedTx
+                (txs !! 0, [pkWit])
+
+
+cborRoundtrip
+    :: (HasCallStack, Show a, Eq a)
+    => (forall s. CBOR.Decoder s a)
+    -> (a -> CBOR.Encoding)
+    -> a
+    -> Expectation
+cborRoundtrip decode encode a = do
+    let bytes = CBOR.toLazyByteString $ encode a
+    let a' = unsafeDeserialiseFromBytes decode bytes
+    a `shouldBe` a'
 
 -- A mainnet block header
 blockHeader1 :: BlockHeader

@@ -34,6 +34,7 @@ module Cardano.Wallet.Primitive.Types
     , TxMeta(..)
     , txIns
     , updatePending
+    , SignedTx (..)
 
     -- * Address
     , IsOurs(..)
@@ -317,6 +318,9 @@ newtype Timestamp = Timestamp
     { getTimestamp :: UTCTime
     } deriving (Show, Generic, Eq, Ord)
 
+
+-- | Wrapper around the final CBOR representation of a signed tx
+newtype SignedTx = SignedTx { signedTx :: ByteString }
 
 {-------------------------------------------------------------------------------
                                     Address

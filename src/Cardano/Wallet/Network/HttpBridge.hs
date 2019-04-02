@@ -17,6 +17,7 @@ module Cardano.Wallet.Network.HttpBridge
     , HttpBridgeError(..)
     , mkNetworkLayer
     , newNetworkLayer
+    , mkHttpBridge
     ) where
 
 import Prelude
@@ -26,9 +27,11 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Network.HttpBridge.Api
     ( ApiT (..), EpochIndex (..), NetworkName (..), api )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), Hash (..), SlotId (..) )
+    ( Block (..), BlockHeader (..), Hash (..), SignedTx, SlotId (..) )
 import Control.Exception
     ( Exception (..) )
+import Control.Monad
+    ( void )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
@@ -62,6 +65,7 @@ mkNetworkLayer :: Monad m => HttpBridge m e -> NetworkLayer m e e
 mkNetworkLayer httpBridge = NetworkLayer
     { nextBlocks = rbNextBlocks httpBridge
     , networkTip = getNetworkTip httpBridge
+    , postTx = postSignedTx httpBridge
     }
 
 -- | Creates a cardano-http-bridge 'NetworkLayer' using the given connection
@@ -137,6 +141,8 @@ data HttpBridge m e = HttpBridge
         :: Word64 -> ExceptT e m [Block]
     , getNetworkTip
         :: ExceptT e m (Hash "BlockHeader", BlockHeader)
+    , postSignedTx
+        :: SignedTx -> ExceptT e m ()
     }
 
 -- | Construct a new network layer
@@ -145,19 +151,27 @@ mkHttpBridge
 mkHttpBridge mgr baseUrl network = HttpBridge
     { getBlock = \hash -> do
         hash' <- hashToApi' hash
-        run (getApiT <$> getBlockByHash network hash')
+        run (getApiT <$> cGetBlock network hash')
     , getEpoch = \ep ->
-        run (map getApiT <$> getEpochById network (EpochIndex ep))
+        run (map getApiT <$> cGetEpoch network (EpochIndex ep))
     , getNetworkTip =
-        run (blockHeaderHash <$> getTipBlockHeader network)
+        run (blockHeaderHash <$> cGetNetworkTip network)
+    , postSignedTx =
+        -- TODO: We would be good to parse errors from the node
+        -- like "Failed to send to peers: Blockchain protocol error"
+        -- and "Transaction failed verification: transaction has no inputs"
+        void . run . (cPostSignedTx network) . ApiT
     }
   where
     run :: ClientM a -> ExceptT HttpBridgeError IO a
     run query = ExceptT $ (first convertError) <$> runClientM query env
+
     env = mkClientEnv mgr baseUrl
-    getBlockByHash
-        :<|> getEpochById
-        :<|> getTipBlockHeader
+
+    cGetBlock
+        :<|> cGetEpoch
+        :<|> cGetNetworkTip
+        :<|> cPostSignedTx
         = client api
 
 convertError :: ServantError -> HttpBridgeError
