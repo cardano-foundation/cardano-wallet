@@ -342,6 +342,9 @@ instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.Address
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.Address
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.Address
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.Address
+instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.SignedTx
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.SignedTx
+instance GHC.Show.Show Cardano.Wallet.Primitive.Types.SignedTx
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.Timestamp
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.Timestamp
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.Timestamp
