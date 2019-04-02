@@ -36,11 +36,28 @@ numberOfSlots: &numberOfSlots
     quantity:
       type: integer
       minimum: 0
+      example: 1337
     unit:
       type: string
       enum:
         - slot
+      example: "slot"
+
+numberOfBlocks: &numberOfBlocks
+  type: object
+  required:
+    - quantity
+    - unit
+  properties:
+    quantity:
+      type: integer
+      minimum: 0
       example: 1337
+    unit:
+      type: string
+      enum:
+        - block
+      example: "block"
 
 percentage: &percentage
   type: object
@@ -225,7 +242,7 @@ transactionInsertedAt: &transactionInsertedAt
 
 transactionDepth: &transactionDepth
   description: Current depth of the transaction in the local chain
-  <<: *numberOfSlots
+  <<: *numberOfBlocks
 
 transactionDirection: &transactionDirection
   type: string
