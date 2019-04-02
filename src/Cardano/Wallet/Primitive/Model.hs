@@ -77,8 +77,6 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
     ()
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
 import Data.Maybe
     ( catMaybes )
 import Data.Quantity
@@ -130,25 +128,17 @@ initWallet = Wallet mempty mempty mempty (SlotId 0 0)
 -- | Apply Block is the only way to make the wallet evolve.
 applyBlock
     :: Block
-    -> NonEmpty (Wallet s)
-    -> NonEmpty (Wallet s)
-applyBlock !b (cp@(Wallet !utxo !pending !txs _ s) :| checkpoints) =
+    -> Wallet s
+    -> Wallet s
+applyBlock !b (Wallet !utxo !pending !txs _ s) =
     let
         -- Prefilter Block
         ((txs', utxo'), s') = prefilterBlock b utxo s
         -- Update Pending
         newIns = txIns (Set.map fst txs')
         pending' = pending `pendingExcluding` newIns
-        -- Update Checkpoint
-        cp' = Wallet utxo' pending' (txs <> txs') (b ^. #header . #slotId) s'
     in
-        -- NOTE
-        -- k = 2160 is currently hard-coded here. In the short-long run, we do
-        -- want to get that as an argument or, leave that decision to the caller
-        -- though it is not trivial at all. If it shrinks, it's okay because we
-        -- have enough checkpoints, but if it does increase, then we have
-        -- problems in case of rollbacks.
-        (cp' :| cp : take 2160 checkpoints)
+        Wallet utxo' pending' (txs <> txs') (b ^. #header . #slotId) s'
 
 -- | Get the wallet current tip
 currentTip :: Wallet s -> SlotId

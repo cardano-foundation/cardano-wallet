@@ -35,16 +35,12 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, applyBlock, initWallet )
 import Cardano.Wallet.Primitive.Types
     ( Block (..), WalletId (..), WalletMetadata (..), WalletName (..) )
-import Control.DeepSeq
-    ( deepseq )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT, throwE )
 import Data.List
     ( foldl' )
-import Data.List.NonEmpty
-    ( NonEmpty ((:|)) )
 import GHC.Generics
     ( Generic )
 
@@ -108,16 +104,16 @@ mkWalletLayer db network = WalletLayer
                 }
         -- FIXME Compute the wallet id deterministically from the seed
         let wid = WalletId (read "00000000-0000-0000-0000-000000000000")
-        liftIO (readCheckpoints db (PrimaryKey wid)) >>= \case
+        liftIO (readCheckpoint db (PrimaryKey wid)) >>= \case
             Nothing -> do
-                liftIO $ putCheckpoints db (PrimaryKey wid) (wallet :| [])
+                liftIO $ putCheckpoint db (PrimaryKey wid) wallet
                 return wid
             Just _ ->
                 throwE $ ErrCreateWalletIdAlreadyExists wid
-    , readWallet = \wid -> liftIO (readCheckpoints db (PrimaryKey wid)) >>= \case
+    , readWallet = \wid -> liftIO (readCheckpoint db (PrimaryKey wid)) >>= \case
         Nothing ->
             throwE $ ErrReadWalletNotFound wid
-        Just (w :| _) ->
+        Just w ->
             return (w, error "FIXME: store and retrieve wallet metadata")
 
     , watchWallet = liftIO . listen network . applyBlocks
@@ -125,11 +121,10 @@ mkWalletLayer db network = WalletLayer
   where
     applyBlocks :: WalletId -> [Block] -> IO ()
     applyBlocks wid blocks = do
-        cps' <- readCheckpoints db (PrimaryKey wid) >>= \case
+        cp' <- readCheckpoint db (PrimaryKey wid) >>= \case
             Nothing ->
                 fail $ "couldn't find worker wallet: " <> show wid
-            Just cps -> do
+            Just cp -> do
                 let nonEmpty = not . null . transactions
-                let cps' = foldl' (flip applyBlock) cps (filter nonEmpty blocks)
-                return cps'
-        cps' `deepseq` putCheckpoints db (PrimaryKey wid) cps'
+                return $ foldl' (flip applyBlock) cp (filter nonEmpty blocks)
+        putCheckpoint db (PrimaryKey wid) cp'

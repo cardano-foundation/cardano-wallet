@@ -40,8 +40,6 @@ import Control.Monad
     ( foldM )
 import Control.Monad.Trans.State.Strict
     ( State, evalState, runState, state )
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
 import Data.Maybe
     ( catMaybes )
 import Data.Set
@@ -122,8 +120,7 @@ prop_applyBlockBasic s =
     cond1 = not $ null $ (Set.fromList addresses) \\ (ourAddresses s)
     prop =
         let
-            checkpoints = initWallet s :| []
-            (wallet :| _) = foldl (flip applyBlock) checkpoints blockchain
+            wallet = foldl (flip applyBlock) (initWallet s) blockchain
             utxo = totalUTxO wallet
             utxo' = evalState (foldM (flip updateUTxO) mempty blockchain) s
         in
