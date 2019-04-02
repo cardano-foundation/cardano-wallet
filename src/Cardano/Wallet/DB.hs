@@ -16,8 +16,6 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
-import Data.List.NonEmpty
-    ( NonEmpty )
 
 
 -- | A Database interface for storing various things in a DB. In practice,
@@ -26,14 +24,14 @@ import Data.List.NonEmpty
 data DBLayer m s = DBLayer
     -- Wallet checkpoints, checkpoints are handled as a bounded FIFO, where we
     -- eventually store @k@ values (e.g. k=2160) at the same time.
-    { putCheckpoints
+    { putCheckpoint
         :: PrimaryKey WalletId
-        -> NonEmpty (Wallet s)
+        -> Wallet s
         -> m ()
 
-    , readCheckpoints
+    , readCheckpoint
         :: PrimaryKey WalletId
-        -> m (Maybe (NonEmpty (Wallet s)))
+        -> m (Maybe (Wallet s))
 
     , readWallets
         :: m [PrimaryKey WalletId]

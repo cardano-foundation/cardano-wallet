@@ -26,7 +26,6 @@ import Cardano.Wallet.Primitive.Types
     , isValidCoin
     , restrictedBy
     , restrictedTo
-    , updatePending
     )
 import Data.Set
     ( Set, (\\) )
@@ -79,10 +78,6 @@ spec = do
             (checkCoverage prop_2_6_1)
         it "2.6.2) balance (ins⋪ u) = balance u - balance (ins⊲ u)"
             (checkCoverage prop_2_6_2)
-
-    describe "Lemma 3.3 - Updating the pending set" $ do
-        it "3.3) updatePending b pending ⊆ pending"
-            (checkCoverage prop_3_2)
 
     describe "Slotting ordering" $ do
         it "Any Slot >= SlotId 0 0"
@@ -204,22 +199,6 @@ prop_2_6_2 (ins, u) =
             ===
         balance u - balance (u `restrictedBy` ins)
 
-
-{-------------------------------------------------------------------------------
-       Wallet Specification - Lemma 3.3 - Update the Pending Set
--------------------------------------------------------------------------------}
-
-prop_3_2 :: (Block, Set Tx) -> Property
-prop_3_2 (b, pending) =
-    cover 50 cond0 "pending ≠ ∅ " $
-    cover 10 cond1 "transactions b ⋂  pending ≠ ∅ " $
-        property prop
-  where
-    cond0 = not $ Set.null pending
-    cond1 = not $ Set.null $ transactions b `Set.intersection` pending
-    prop = updatePending b pending `Set.isSubsetOf` pending
-
-
 {-------------------------------------------------------------------------------
                             Arbitrary Instances
 
@@ -300,4 +279,4 @@ instance Arbitrary Block where
     shrink (Block h txs) = Block h <$> shrink txs
     arbitrary = do
         txs <- choose (0, 500) >>= flip vectorOf arbitrary
-        Block <$> arbitrary <*> pure (Set.fromList txs)
+        Block <$> arbitrary <*> pure txs

@@ -5,9 +5,12 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -32,9 +35,10 @@ module Cardano.Wallet.Primitive.Types
     , TxIn(..)
     , TxOut(..)
     , TxMeta(..)
-    , txIns
-    , updatePending
+    , Direction(..)
+    , TxStatus(..)
     , SignedTx (..)
+    , txIns
 
     -- * Address
     , IsOurs(..)
@@ -103,6 +107,7 @@ import Fmt
     ( Buildable (..)
     , blockListF
     , blockListF'
+    , fixedF
     , fmt
     , indentF
     , nameF
@@ -183,7 +188,7 @@ data Block = Block
     { header
         :: !BlockHeader
     , transactions
-        :: !(Set Tx)
+        :: ![Tx]
     } deriving (Show, Eq, Ord, Generic)
 
 instance NFData Block
@@ -191,7 +196,7 @@ instance NFData Block
 instance Buildable Block where
     build (Block h txs) =
         "Block (" <> build h <> "): \n" <>
-        indentF 2 (blockListF (Set.toList txs))
+        indentF 2 (blockListF txs)
 
 
 data BlockHeader = BlockHeader
@@ -213,7 +218,9 @@ instance Buildable BlockHeader where
       where
         prevF = build $ T.decodeUtf8 $ convertToBase Base16 $ getHash prev
 
--- * Tx
+{-------------------------------------------------------------------------------
+                                      Tx
+-------------------------------------------------------------------------------}
 
 data Tx = Tx
     { inputs
@@ -239,15 +246,6 @@ txIns :: Set Tx -> Set TxIn
 txIns =
     foldMap (Set.fromList . inputs)
 
-updatePending :: Block -> Set Tx -> Set Tx
-updatePending b =
-    let
-        isStillPending ins =
-            Set.null . Set.intersection ins . Set.fromList . inputs
-    in
-        Set.filter (isStillPending (txIns $ transactions b))
-
-
 data TxIn = TxIn
     { inputId
         :: !(Hash "Tx")
@@ -261,15 +259,7 @@ instance Buildable TxIn where
     build txin = mempty
         <> ordinalF (inputIx txin + 1)
         <> " "
-        <> prefixF 8 txF
-        <> "..."
-        <> suffixF 8 txF
-      where
-        txF = build
-            $ T.decodeUtf8
-            $ convertToBase Base16
-            $ getHash
-            $ inputId txin
+        <> build (inputId txin)
 
 data TxOut = TxOut
     { address
@@ -290,34 +280,51 @@ instance Buildable TxOut where
       where
         addrF = build $ address txout
 
-
 instance Buildable (TxIn, TxOut) where
     build (txin, txout) = build txin <> " ==> " <> build txout
 
 data TxMeta = TxMeta
-    { txId :: !(Hash "Tx")
-    , depth :: !(Quantity "block" Natural)
-    , status :: !TxStatus
+    { status :: !TxStatus
     , direction :: !Direction
-    , timestamp :: !Timestamp
     , slotId :: !SlotId
-    } deriving (Show, Eq, Generic)
+    , amount :: !(Quantity "lovelace" Natural)
+    } deriving (Show, Eq, Ord, Generic)
+
+instance NFData TxMeta
+
+instance Buildable TxMeta where
+    build (TxMeta s d sl (Quantity a)) = "Tx Meta "
+        <> (case d of; Incoming -> "+"; Outgoing -> "-")
+        <> fixedF @Double 6 (fromIntegral a / 1e6)
+        <> " " <> build s
+        <> " since " <> build sl
 
 data TxStatus
     = Pending
     | InLedger
     | Invalidated
-    deriving (Show, Eq, Generic)
+    deriving (Show, Eq, Ord, Generic)
 
+instance NFData TxStatus
+
+instance Buildable TxStatus where
+    build = \case
+        Pending -> "pending"
+        InLedger -> "in ledger"
+        Invalidated -> "invalidated"
+
+-- | The flow of funds in to or out of a wallet.
 data Direction
-    = Outgoing
-    | Incoming
-    deriving (Show, Eq, Generic)
+    = Outgoing -- ^ Funds exit the wallet.
+    | Incoming -- ^ Funds enter the wallet.
+    deriving (Show, Eq, Ord, Generic)
 
-newtype Timestamp = Timestamp
-    { getTimestamp :: UTCTime
-    } deriving (Show, Generic, Eq, Ord)
+instance NFData Direction
 
+instance Buildable Direction where
+    build = \case
+        Outgoing -> "outgoing"
+        Incoming -> "incoming"
 
 -- | Wrapper around the final CBOR representation of a signed tx
 newtype SignedTx = SignedTx { signedTx :: ByteString }
@@ -406,26 +413,25 @@ balance =
     fn :: Natural -> TxOut -> Natural
     fn tot out = tot + fromIntegral (getCoin (coin out))
 
--- ins⋪ u
+-- | ins⋪ u
 excluding :: UTxO -> Set TxIn ->  UTxO
 excluding (UTxO utxo) =
     UTxO . Map.withoutKeys utxo
 
--- a ⊆ b
+-- | a ⊆ b
 isSubsetOf :: UTxO -> UTxO -> Bool
 isSubsetOf (UTxO a) (UTxO b) =
     a `Map.isSubmapOf` b
 
--- ins⊲ u
+-- | ins⊲ u
 restrictedBy :: UTxO -> Set TxIn -> UTxO
 restrictedBy (UTxO utxo) =
     UTxO . Map.restrictKeys utxo
 
--- u ⊳ outs
-restrictedTo :: UTxO -> Set TxOut ->  UTxO
+-- | u ⊳ outs
+restrictedTo :: UTxO -> Set TxOut -> UTxO
 restrictedTo (UTxO utxo) outs =
     UTxO $ Map.filter (`Set.member` outs) utxo
-
 
 
 {-------------------------------------------------------------------------------
@@ -465,13 +471,26 @@ newtype Hash (tag :: Symbol) = Hash
 
 instance NFData (Hash tag)
 
+instance Buildable (Hash "Tx") where
+    build h = mempty
+        <> prefixF 8 builder
+        <> "..."
+        <> suffixF 8 builder
+      where
+        builder = build . T.decodeUtf8 . convertToBase Base16 . getHash $ h
+
 -- | A polymorphic wrapper type with a custom show instance to display data
 -- through 'Buildable' instances.
 newtype ShowFmt a = ShowFmt a
     deriving (Generic, Eq, Ord)
 
+instance NFData a => NFData (ShowFmt a)
+
 instance Buildable a => Show (ShowFmt a) where
     show (ShowFmt a) = fmt (build a)
+
+instance {-# OVERLAPS #-} (Buildable a, Foldable f) => Show (ShowFmt (f a)) where
+    show (ShowFmt a) = fmt (blockListF a)
 
 -- | Check whether an invariants holds or not.
 --

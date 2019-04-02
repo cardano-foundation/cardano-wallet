@@ -30,9 +30,9 @@ newDBLayer :: forall s. IO (DBLayer IO s)
 newDBLayer = do
     wallets <- newMVar mempty
     return $ DBLayer
-        { putCheckpoints = \key cps ->
-            cps `deepseq` (modifyMVar_ wallets (return . Map.insert key cps))
-        , readCheckpoints = \key ->
+        { putCheckpoint = \key cp ->
+            cp `deepseq` (modifyMVar_ wallets (return . Map.insert key cp))
+        , readCheckpoint = \key ->
             Map.lookup key <$> readMVar wallets
         , readWallets =
             Map.keys <$> readMVar wallets

@@ -91,7 +91,7 @@ walletCreationProp
     -> Property
 walletCreationProp newWallet = monadicIO $ liftIO $ do
     (WalletLayerFixture db _wl walletIds) <- setupFixture newWallet
-    resFromDb <- readCheckpoints db (PrimaryKey $ L.head walletIds)
+    resFromDb <- readCheckpoint db (PrimaryKey $ L.head walletIds)
     resFromDb `shouldSatisfy` isJust
 
 walletDoubleCreationProp

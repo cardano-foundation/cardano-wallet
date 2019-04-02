@@ -68,8 +68,6 @@ import Data.ByteString
     ( ByteString )
 import Data.Digest.CRC32
     ( crc32 )
-import Data.Set
-    ( Set )
 import Data.Word
     ( Word16, Word64 )
 import Debug.Trace
@@ -81,7 +79,6 @@ import qualified Codec.CBOR.Read as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.Set as Set
 
 
 -- Decoding
@@ -244,7 +241,7 @@ decodeLightIndex = do
     _ <- CBOR.decodeWord64 -- Epoch Index #2
     return ()
 
-decodeMainBlockBody :: CBOR.Decoder s (Set Tx)
+decodeMainBlockBody :: CBOR.Decoder s [Tx]
 decodeMainBlockBody = do
     _ <- CBOR.decodeListLenCanonicalOf 4
     decodeTxPayload
@@ -384,8 +381,8 @@ decodeTx = do
     _ <- decodeAttributes
     return $ Tx ins outs
 
-decodeTxPayload :: CBOR.Decoder s (Set Tx)
-decodeTxPayload = Set.fromList . (map fst) <$> decodeListIndef decodeSignedTx
+decodeTxPayload :: CBOR.Decoder s [Tx]
+decodeTxPayload = (map fst) <$> decodeListIndef decodeSignedTx
 
 {-# ANN decodeTxIn ("HLint: ignore Use <$>" :: String) #-}
 decodeTxIn :: CBOR.Decoder s TxIn

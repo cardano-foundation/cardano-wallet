@@ -50,7 +50,6 @@ import qualified Codec.CBOR.Read as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as L8
-import qualified Data.Set as Set
 
 {-# ANN spec ("HLint: ignore Use head" :: String) #-}
 spec :: Spec
@@ -95,7 +94,7 @@ spec = do
                 Left (CBOR.DeserialiseFailure 3 "expected list of length 3")
 
     describe "Encoding Tx" $ do
-        let txs = Set.toList (transactions block2 <> transactions block3)
+        let txs = transactions block2 <> transactions block3
         let roundTripTx tx = do
                 let bytes = CBOR.toLazyByteString (encodeTx tx)
                 let tx' = unsafeDeserialiseFromBytes decodeTx bytes
@@ -132,7 +131,7 @@ spec = do
                 pkWit
 
     describe "Encoding Signed Tx" $ do
-        let txs = Set.toList (transactions block2 <> transactions block3)
+        let txs = transactions block2 <> transactions block3
         it "(encode . decode) = pure" $ do
             cborRoundtrip
                 decodeSignedTx
@@ -179,7 +178,7 @@ block2 = Block
         { slotId = SlotId 105 9876
         , prevBlockHash = prevBlockHash0
         }
-    , transactions = Set.fromList
+    , transactions =
         [ Tx
             { inputs =
                 [ TxIn { inputId = inputId0, inputIx = 3 } ]
@@ -208,7 +207,7 @@ block3 = Block
         { slotId = SlotId 30 9278
         , prevBlockHash = prevBlockHash0
         }
-    , transactions = Set.fromList
+    , transactions =
         [ Tx
             { inputs =
                 [ TxIn { inputId = inputId0, inputIx = 1 }
@@ -240,7 +239,7 @@ block4 = Block
         { slotId = SlotId 14 18
         , prevBlockHash = prevBlockHash0
         }
-    , transactions = Set.fromList
+    , transactions =
         [ Tx
             { inputs =
                 [ TxIn
