@@ -321,6 +321,7 @@ newtype Timestamp = Timestamp
 
 -- | Wrapper around the final CBOR representation of a signed tx
 newtype SignedTx = SignedTx { signedTx :: ByteString }
+    deriving (Show, Eq, Generic)
 
 {-------------------------------------------------------------------------------
                                     Address
