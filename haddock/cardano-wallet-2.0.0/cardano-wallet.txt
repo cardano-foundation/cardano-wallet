@@ -129,12 +129,14 @@ instance Data.Aeson.Types.ToJSON.ToJSON Data.Quantity.Percentage
 instance GHC.Classes.Eq Data.Quantity.Percentage
 instance GHC.Show.Show Data.Quantity.Percentage
 instance GHC.Generics.Generic Data.Quantity.Percentage
+instance GHC.Classes.Ord a => GHC.Classes.Ord (Data.Quantity.Quantity u a)
 instance GHC.Classes.Eq a => GHC.Classes.Eq (Data.Quantity.Quantity u a)
 instance GHC.Show.Show a => GHC.Show.Show (Data.Quantity.Quantity u a)
 instance GHC.Generics.Generic (Data.Quantity.Quantity u a)
 instance Data.Aeson.Types.FromJSON.FromJSON Data.Quantity.Percentage
 instance GHC.Enum.Bounded Data.Quantity.Percentage
 instance GHC.Enum.Enum Data.Quantity.Percentage
+instance Control.DeepSeq.NFData a => Control.DeepSeq.NFData (Data.Quantity.Quantity u a)
 instance (GHC.TypeLits.KnownSymbol u, Data.Aeson.Types.ToJSON.ToJSON a) => Data.Aeson.Types.ToJSON.ToJSON (Data.Quantity.Quantity u a)
 instance (GHC.TypeLits.KnownSymbol u, Data.Aeson.Types.FromJSON.FromJSON a) => Data.Aeson.Types.FromJSON.FromJSON (Data.Quantity.Quantity u a)
 
@@ -147,9 +149,9 @@ instance (GHC.TypeLits.KnownSymbol u, Data.Aeson.Types.FromJSON.FromJSON a) => D
 --   few primitive operations on Wallet core types as well.
 module Cardano.Wallet.Primitive.Types
 data Block
-Block :: !BlockHeader -> !Set Tx -> Block
+Block :: !BlockHeader -> ![Tx] -> Block
 [$sel:header:Block] :: Block -> !BlockHeader
-[$sel:transactions:Block] :: Block -> !Set Tx
+[$sel:transactions:Block] :: Block -> ![Tx]
 data BlockHeader
 BlockHeader :: SlotId -> !Hash "BlockHeader" -> BlockHeader
 [$sel:slotId:BlockHeader] :: BlockHeader -> SlotId
@@ -175,20 +177,30 @@ TxOut :: !Address -> !Coin -> TxOut
 [$sel:address:TxOut] :: TxOut -> !Address
 [$sel:coin:TxOut] :: TxOut -> !Coin
 data TxMeta
-TxMeta :: !Hash "Tx" -> !Quantity "block" Natural -> !TxStatus -> !Direction -> !Timestamp -> !SlotId -> TxMeta
-[$sel:txId:TxMeta] :: TxMeta -> !Hash "Tx"
-[$sel:depth:TxMeta] :: TxMeta -> !Quantity "block" Natural
+TxMeta :: !TxStatus -> !Direction -> !SlotId -> !Quantity "lovelace" Natural -> TxMeta
 [$sel:status:TxMeta] :: TxMeta -> !TxStatus
 [$sel:direction:TxMeta] :: TxMeta -> !Direction
-[$sel:timestamp:TxMeta] :: TxMeta -> !Timestamp
 [$sel:slotId:TxMeta] :: TxMeta -> !SlotId
-txIns :: Set Tx -> Set TxIn
-updatePending :: Block -> Set Tx -> Set Tx
+[$sel:amount:TxMeta] :: TxMeta -> !Quantity "lovelace" Natural
+
+-- | The flow of funds in to or out of a wallet.
+data Direction
+
+-- | Funds exit the wallet.
+Outgoing :: Direction
+
+-- | Funds enter the wallet.
+Incoming :: Direction
+data TxStatus
+Pending :: TxStatus
+InLedger :: TxStatus
+Invalidated :: TxStatus
 
 -- | Wrapper around the final CBOR representation of a signed tx
 newtype SignedTx
 SignedTx :: ByteString -> SignedTx
 [$sel:signedTx:SignedTx] :: SignedTx -> ByteString
+txIns :: Set Tx -> Set TxIn
 
 -- | This abstraction exists to give us the ability to keep the wallet
 --   business logic agnostic to the address derivation and discovery
@@ -225,9 +237,17 @@ newtype UTxO
 UTxO :: Map TxIn TxOut -> UTxO
 [$sel:getUTxO:UTxO] :: UTxO -> Map TxIn TxOut
 balance :: UTxO -> Natural
+
+-- | ins⋪ u
 excluding :: UTxO -> Set TxIn -> UTxO
+
+-- | a ⊆ b
 isSubsetOf :: UTxO -> UTxO -> Bool
+
+-- | ins⊲ u
 restrictedBy :: UTxO -> Set TxIn -> UTxO
+
+-- | u ⊳ outs
 restrictedTo :: UTxO -> Set TxOut -> UTxO
 class Dom a where {
     type family DomElem a :: *;
@@ -316,13 +336,14 @@ instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.TxIn
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.TxIn
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.TxIn
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.TxIn
-instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.TxMeta
-instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.TxMeta
-instance GHC.Show.Show Cardano.Wallet.Primitive.Types.TxMeta
 instance GHC.Classes.Ord (Cardano.Wallet.Primitive.Types.Hash tag)
 instance GHC.Classes.Eq (Cardano.Wallet.Primitive.Types.Hash tag)
 instance GHC.Generics.Generic (Cardano.Wallet.Primitive.Types.Hash tag)
 instance GHC.Show.Show (Cardano.Wallet.Primitive.Types.Hash tag)
+instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.TxMeta
+instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.TxMeta
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.TxMeta
+instance GHC.Show.Show Cardano.Wallet.Primitive.Types.TxMeta
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.SlotId
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.SlotId
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.SlotId
@@ -345,14 +366,12 @@ instance GHC.Show.Show Cardano.Wallet.Primitive.Types.Address
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.SignedTx
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.SignedTx
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.SignedTx
-instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.Timestamp
-instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.Timestamp
-instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.Timestamp
-instance GHC.Show.Show Cardano.Wallet.Primitive.Types.Timestamp
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.Direction
+instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.Direction
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.Direction
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.Direction
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.TxStatus
+instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.TxStatus
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.TxStatus
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.TxStatus
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.WalletMetadata
@@ -380,7 +399,9 @@ instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.WalletId
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.WalletName
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.WalletName
 instance GHC.Base.Functor Cardano.Wallet.Primitive.Types.WalletDelegation
+instance Control.DeepSeq.NFData a => Control.DeepSeq.NFData (Cardano.Wallet.Primitive.Types.ShowFmt a)
 instance Formatting.Buildable.Buildable a => GHC.Show.Show (Cardano.Wallet.Primitive.Types.ShowFmt a)
+instance (Formatting.Buildable.Buildable a, Data.Foldable.Foldable f) => GHC.Show.Show (Cardano.Wallet.Primitive.Types.ShowFmt (f a))
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.Block
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.Block
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.BlockHeader
@@ -394,6 +415,9 @@ instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.TxIn
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.TxIn
 instance Formatting.Buildable.Buildable (Cardano.Wallet.Primitive.Types.TxIn, Cardano.Wallet.Primitive.Types.TxOut)
 instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.Types.Hash tag)
+instance Formatting.Buildable.Buildable (Cardano.Wallet.Primitive.Types.Hash "Tx")
+instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.TxMeta
+instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.TxMeta
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.SlotId
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.SlotId
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.TxOut
@@ -403,6 +427,10 @@ instance GHC.Enum.Bounded Cardano.Wallet.Primitive.Types.Coin
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.Coin
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.Address
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.Address
+instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.Direction
+instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.Direction
+instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.TxStatus
+instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.TxStatus
 
 module Cardano.Wallet.Network
 data NetworkLayer m e0 e1
@@ -539,117 +567,6 @@ decodeList :: forall s a. Decoder s a -> Decoder s [a]
 decodeListIndef :: forall s a. Decoder s a -> Decoder s [a]
 instance GHC.Show.Show Cardano.Wallet.Binary.TxWitness
 instance GHC.Classes.Eq Cardano.Wallet.Binary.TxWitness
-
-
--- | Here we find the "business logic" to manage a Cardano wallet. This is
---   a direct implementation of the model from the <a>Formal Specification
---   for a Cardano Wallet</a> Note that, this module is purposedly agnostic
---   to how blocks are retrieved or how various types are serialized.
---   
---   This is really about how the wallet keep track of its internal state,
---   and its UTxO (where the relationship is defined via the <a>IsOurs</a>
---   abstraction to allow this core code to be used with any sort of
---   derivation scheme).
---   
---   All those functions are pure and there's no reason to shove in any
---   sort of side-effects in here :)
-module Cardano.Wallet.Primitive.Model
-
--- | An opaque wallet type, see <tt>initWallet</tt> and <tt>applyBlock</tt>
---   to construct and update wallets.
---   
---   Internally, this keeps track or a few things including:
---   
---   <ul>
---   <li>UTxOs</li>
---   <li>Pending transaction</li>
---   <li>TODO: Transaction history</li>
---   <li>TODO: Known &amp; used addresses</li>
---   </ul>
-data Wallet s
-
--- | Create an empty wallet from an initial state
-initWallet :: (IsOurs s, NFData s, Show s) => s -> Wallet s
-
--- | Get the wallet current tip
-currentTip :: Wallet s -> SlotId
-
--- | Get the wallet current state
-getState :: Wallet s -> s
-
--- | Apply Block is the only way to make the wallet evolve.
-applyBlock :: Block -> NonEmpty (Wallet s) -> NonEmpty (Wallet s)
-
--- | Available balance = <a>balance</a> . <a>availableUTxO</a>
-availableBalance :: Wallet s -> Natural
-
--- | Total balance = <a>balance</a> . <a>totalUTxO</a>
-totalBalance :: Wallet s -> Natural
-
--- | Total UTxO = <a>availableUTxO</a> &lt;&gt; "pending UTxO"
-totalUTxO :: Wallet s -> UTxO
-
--- | Available UTxO = UTxO that aren't part of pending txs
-availableUTxO :: Wallet s -> UTxO
-
--- | Return all transaction outputs that are ours. This plays well within a
---   <a>State</a> monad.
---   
---   <pre>
---   myFunction :: Block -&gt; State s Result
---   myFunction b = do
---      ours &lt;- state $ txOutsOurs (transaction b)
---      return $ someComputation ours
---   </pre>
-txOutsOurs :: forall s. IsOurs s => Set Tx -> s -> (Set TxOut, s)
-
--- | Construct a UTxO corresponding to a given transaction. It is important
---   for the transaction outputs to be ordered correctly, since they become
---   available inputs for the subsequent blocks.
-utxoFromTx :: Tx -> UTxO
-instance GHC.Show.Show (Cardano.Wallet.Primitive.Model.Wallet s)
-instance GHC.Classes.Eq s => GHC.Classes.Eq (Cardano.Wallet.Primitive.Model.Wallet s)
-instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.Model.Wallet s)
-
-
--- | Database / Pesistence layer for the wallet backend. This is where we
---   define the interface allowing us to store and fetch various data on
---   our wallets.
-module Cardano.Wallet.DB
-
--- | A Database interface for storing various things in a DB. In practice,
---   we'll need some extra contraints on the wallet state that allows us to
---   serialize and unserialize it (e.g. <tt>forall s. (Serialize s) =&gt;
---   ...</tt>)
-data DBLayer m s
-DBLayer :: (PrimaryKey WalletId -> NonEmpty (Wallet s) -> m ()) -> (PrimaryKey WalletId -> m (Maybe (NonEmpty (Wallet s)))) -> m [PrimaryKey WalletId] -> DBLayer m s
-[putCheckpoints] :: DBLayer m s -> PrimaryKey WalletId -> NonEmpty (Wallet s) -> m ()
-[readCheckpoints] :: DBLayer m s -> PrimaryKey WalletId -> m (Maybe (NonEmpty (Wallet s)))
-[readWallets] :: DBLayer m s -> m [PrimaryKey WalletId]
-
--- | A primary key which can take many forms depending on the value. This
---   may become a type family as we move forward, but for now, it
---   illustrate that some queries are ran against some sort of store;
---   
---   As a matter of fact, we may manipulate multiple wallets at the same
---   time, so, functions like <tt>enqueueCheckpoint</tt> needs to be
---   associated to a corresponding wallet. Some other may not because they
---   are information valid for all wallets (like for instance, the last
---   known network tip).
-newtype PrimaryKey key
-PrimaryKey :: key -> PrimaryKey key
-instance GHC.Classes.Ord key => GHC.Classes.Ord (Cardano.Wallet.DB.PrimaryKey key)
-instance GHC.Classes.Eq key => GHC.Classes.Eq (Cardano.Wallet.DB.PrimaryKey key)
-
-
--- | Dummy implementation of the database-layer, using MVar. This may be
---   good for state-machine testing in order to compare it with an
---   implementation on a real data store.
-module Cardano.Wallet.DB.MVar
-
--- | Instantiate a new in-memory "database" layer that simply stores data
---   in a local MVar. Data vanishes if the software is shut down.
-newDBLayer :: forall s. IO (DBLayer IO s)
 
 
 -- | Primitives for performing address derivation for some given schemes.
@@ -1067,6 +984,105 @@ type PutWallet = "wallets" :> Capture "walletId" WalletId :> ReqBody '[JSON] Wal
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/putWalletPassphrase</a>
 type PutWalletPassphrase = "wallets" :> Capture "walletId" WalletId :> ReqBody '[JSON] WalletPutPassphraseData :> Put '[] NoContent
+
+
+-- | Here we find the "business logic" to manage a Cardano wallet. This is
+--   a direct implementation of the model from the <a>Formal Specification
+--   for a Cardano Wallet</a> Note that, this module is purposedly agnostic
+--   to how blocks are retrieved or how various types are serialized.
+--   
+--   This is really about how the wallet keep track of its internal state,
+--   and its UTxO (where the relationship is defined via the <a>IsOurs</a>
+--   abstraction to allow this core code to be used with any sort of
+--   derivation scheme).
+--   
+--   All those functions are pure and there's no reason to shove in any
+--   sort of side-effects in here :)
+module Cardano.Wallet.Primitive.Model
+
+-- | An opaque wallet type, see <tt>initWallet</tt> and <tt>applyBlock</tt>
+--   to construct and update wallets.
+--   
+--   Internally, this keeps track or a few things including:
+--   
+--   <ul>
+--   <li>UTxOs</li>
+--   <li>Pending transaction</li>
+--   <li>Transaction history</li>
+--   <li>TODO: Known &amp; used addresses</li>
+--   </ul>
+data Wallet s
+
+-- | Create an empty wallet from an initial state
+initWallet :: (IsOurs s, NFData s, Show s) => s -> Wallet s
+
+-- | Apply Block is the only way to make the wallet evolve.
+applyBlock :: Block -> Wallet s -> Wallet s
+
+-- | Get the wallet current tip
+currentTip :: Wallet s -> SlotId
+
+-- | Get the wallet current state
+getState :: Wallet s -> s
+
+-- | Available balance = <a>balance</a> . <a>availableUTxO</a>
+availableBalance :: Wallet s -> Natural
+
+-- | Total balance = <a>balance</a> . <a>totalUTxO</a>
+totalBalance :: Wallet s -> Natural
+
+-- | Total UTxO = <a>availableUTxO</a> &lt;&gt; "pending UTxO"
+totalUTxO :: Wallet s -> UTxO
+
+-- | Available UTxO = UTxO that aren't part of pending txs
+availableUTxO :: Wallet s -> UTxO
+
+-- | Get the transaction metadata for transactions associated with the
+--   wallet.
+getTxHistory :: Wallet s -> Set (Tx, TxMeta)
+instance GHC.Show.Show (Cardano.Wallet.Primitive.Model.Wallet s)
+instance GHC.Classes.Eq s => GHC.Classes.Eq (Cardano.Wallet.Primitive.Model.Wallet s)
+instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.Model.Wallet s)
+
+
+-- | Database / Pesistence layer for the wallet backend. This is where we
+--   define the interface allowing us to store and fetch various data on
+--   our wallets.
+module Cardano.Wallet.DB
+
+-- | A Database interface for storing various things in a DB. In practice,
+--   we'll need some extra contraints on the wallet state that allows us to
+--   serialize and unserialize it (e.g. <tt>forall s. (Serialize s) =&gt;
+--   ...</tt>)
+data DBLayer m s
+DBLayer :: (PrimaryKey WalletId -> Wallet s -> m ()) -> (PrimaryKey WalletId -> m (Maybe (Wallet s))) -> m [PrimaryKey WalletId] -> DBLayer m s
+[putCheckpoint] :: DBLayer m s -> PrimaryKey WalletId -> Wallet s -> m ()
+[readCheckpoint] :: DBLayer m s -> PrimaryKey WalletId -> m (Maybe (Wallet s))
+[readWallets] :: DBLayer m s -> m [PrimaryKey WalletId]
+
+-- | A primary key which can take many forms depending on the value. This
+--   may become a type family as we move forward, but for now, it
+--   illustrate that some queries are ran against some sort of store;
+--   
+--   As a matter of fact, we may manipulate multiple wallets at the same
+--   time, so, functions like <tt>enqueueCheckpoint</tt> needs to be
+--   associated to a corresponding wallet. Some other may not because they
+--   are information valid for all wallets (like for instance, the last
+--   known network tip).
+newtype PrimaryKey key
+PrimaryKey :: key -> PrimaryKey key
+instance GHC.Classes.Ord key => GHC.Classes.Ord (Cardano.Wallet.DB.PrimaryKey key)
+instance GHC.Classes.Eq key => GHC.Classes.Eq (Cardano.Wallet.DB.PrimaryKey key)
+
+
+-- | Dummy implementation of the database-layer, using MVar. This may be
+--   good for state-machine testing in order to compare it with an
+--   implementation on a real data store.
+module Cardano.Wallet.DB.MVar
+
+-- | Instantiate a new in-memory "database" layer that simply stores data
+--   in a local MVar. Data vanishes if the software is shut down.
+newDBLayer :: forall s. IO (DBLayer IO s)
 
 
 -- | Provides the wallet layer functions that are used by API layer and
