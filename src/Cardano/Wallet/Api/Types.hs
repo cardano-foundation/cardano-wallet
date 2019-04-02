@@ -210,7 +210,8 @@ class FromText a where
     fromText :: Text -> Either TextDecodingError a
 
 -- | Indicates an error that occurred while decoding from text.
-newtype TextDecodingError = TextDecodingError String
+newtype TextDecodingError = TextDecodingError
+    { getTextDecodingError :: String }
     deriving stock Show
     deriving newtype Buildable
 
