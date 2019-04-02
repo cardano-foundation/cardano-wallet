@@ -48,7 +48,6 @@ import Data.List.NonEmpty
 import GHC.Generics
     ( Generic )
 
-import qualified Data.Set as Set
 
 -- | Types
 data WalletLayer s = WalletLayer
@@ -130,7 +129,7 @@ mkWalletLayer db network = WalletLayer
             Nothing ->
                 fail $ "couldn't find worker wallet: " <> show wid
             Just cps -> do
-                let nonEmpty = not . Set.null . transactions
+                let nonEmpty = not . null . transactions
                 let cps' = foldl' (flip applyBlock) cps (filter nonEmpty blocks)
                 return cps'
         cps' `deepseq` putCheckpoints db (PrimaryKey wid) cps'

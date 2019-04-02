@@ -279,4 +279,4 @@ instance Arbitrary Block where
     shrink (Block h txs) = Block h <$> shrink txs
     arbitrary = do
         txs <- choose (0, 500) >>= flip vectorOf arbitrary
-        Block <$> arbitrary <*> pure (Set.fromList txs)
+        Block <$> arbitrary <*> pure txs

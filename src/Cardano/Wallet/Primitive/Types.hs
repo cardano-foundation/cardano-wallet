@@ -188,7 +188,7 @@ data Block = Block
     { header
         :: !BlockHeader
     , transactions
-        :: !(Set Tx)
+        :: ![Tx]
     } deriving (Show, Eq, Ord, Generic)
 
 instance NFData Block
@@ -196,7 +196,7 @@ instance NFData Block
 instance Buildable Block where
     build (Block h txs) =
         "Block (" <> build h <> "): \n" <>
-        indentF 2 (blockListF (Set.toList txs))
+        indentF 2 (blockListF txs)
 
 
 data BlockHeader = BlockHeader
