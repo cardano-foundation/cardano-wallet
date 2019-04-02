@@ -320,7 +320,7 @@ stakePoolMetrics: &stakePoolMetrics
       <<: *percentage
 
     last_blocks:
-      <<: *numberOfSlots
+      <<: *numberOfBlocks
       description: Number of blocks correctly processed during the last epoch
 
 stakePoolProfitMargin: &stakePoolProfitMargin
