@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -145,20 +146,21 @@ spec = do
     describe
         "can perform roundtrip JSON serialization & deserialization, \
         \and match existing golden files" $ do
-            roundtripAndGolden $ Proxy @ ApiAddress
-            roundtripAndGolden $ Proxy @ ApiWallet
-            roundtripAndGolden $ Proxy @ WalletPostData
-            roundtripAndGolden $ Proxy @ WalletPutData
-            roundtripAndGolden $ Proxy @ WalletPutPassphraseData
-            roundtripAndGolden $ Proxy @ (ApiT Address)
-            roundtripAndGolden $ Proxy @ (ApiT AddressPoolGap)
-            roundtripAndGolden $ Proxy @ (ApiT (WalletDelegation (ApiT PoolId)))
-            roundtripAndGolden $ Proxy @ (ApiT WalletId)
-            roundtripAndGolden $ Proxy @ (ApiT WalletName)
-            roundtripAndGolden $ Proxy @ (ApiT WalletBalance)
-            roundtripAndGolden $ Proxy @ (ApiT WalletPassphraseInfo)
-            roundtripAndGolden $ Proxy @ (ApiT WalletState)
-            roundtripAndGolden $ Proxy @ (ApiT (Passphrase "encryption"))
+            let test = jsonRoundtripAndGolden
+            test $ Proxy @ApiAddress
+            test $ Proxy @ApiWallet
+            test $ Proxy @WalletPostData
+            test $ Proxy @WalletPutData
+            test $ Proxy @WalletPutPassphraseData
+            test $ Proxy @(ApiT Address)
+            test $ Proxy @(ApiT AddressPoolGap)
+            test $ Proxy @(ApiT (WalletDelegation (ApiT PoolId)))
+            test $ Proxy @(ApiT WalletId)
+            test $ Proxy @(ApiT WalletName)
+            test $ Proxy @(ApiT WalletBalance)
+            test $ Proxy @(ApiT WalletPassphraseInfo)
+            test $ Proxy @(ApiT WalletState)
+            test $ Proxy @(ApiT (Passphrase "encryption"))
 
     describe
         "verify that every type used with JSON content type in a servant API \
@@ -233,11 +235,11 @@ spec = do
 -- new format. Faulty golden files should /not/ be commited.
 --
 -- The directory `test/data/Cardano/Wallet/Api` is used.
-roundtripAndGolden
+jsonRoundtripAndGolden
     :: forall a. (Arbitrary a, ToJSON a, FromJSON a, Typeable a)
     => Proxy a
     -> Spec
-roundtripAndGolden = roundtripAndGoldenSpecsWithSettings settings
+jsonRoundtripAndGolden = roundtripAndGoldenSpecsWithSettings settings
   where
     settings :: Settings
     settings = defaultSettings
