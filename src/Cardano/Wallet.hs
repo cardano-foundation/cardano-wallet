@@ -18,13 +18,19 @@ module Cardano.Wallet where
 
 import Prelude
 
+import Cardano.Wallet.Binary
+    ( TxWitness (..) )
 import Cardano.Wallet.DB
     ( DBLayer (..), PrimaryKey (..) )
 import Cardano.Wallet.Network
     ( NetworkLayer (..), listen )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( ChangeChain (..)
+    , Depth (RootK)
+    , Key (..)
     , Passphrase
+    , XPrv
+    , XPub
     , deriveAccountPrivateKey
     , generateKeyFromSeed
     , publicKey
@@ -34,16 +40,33 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.Model
     ( Wallet, applyBlock, initWallet )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), WalletId (..), WalletMetadata (..), WalletName (..) )
+    ( Address
+    , Block (..)
+    , Hash (..)
+    , Tx (..)
+    , TxIn
+    , TxOut (TxOut)
+    , WalletId (..)
+    , WalletMetadata (..)
+    , WalletName (..)
+    )
+import Control.Monad
+    ( forM )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT, throwE )
+import Data.ByteString
+    ( ByteString )
 import Data.List
     ( foldl' )
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import GHC.Generics
     ( Generic )
 
+import qualified Cardano.Crypto.Wallet as CC
+import qualified Data.List.NonEmpty as NE
 
 -- | Types
 data WalletLayer s = WalletLayer
@@ -128,3 +151,177 @@ mkWalletLayer db network = WalletLayer
                 let nonEmpty = not . null . transactions
                 return $ foldl' (flip applyBlock) cp (filter nonEmpty blocks)
         putCheckpoint db (PrimaryKey wid) cp'
+
+
+data ProtocolMagic
+data EncryptedSecretKey
+newtype PassPhrase = PassPhrase ByteString -- ScrubbedBytes
+data TxAux = TxAux Tx [TxWitness]
+type TxInputs = NonEmpty TxIn
+type TxOutputs = NonEmpty TxOut
+type TxOwnedInputs owner = NonEmpty (owner, TxIn)
+
+-- | Build a transaction
+
+-- | Construct a standard transaction
+--
+-- " Standard " here refers to the fact that we do not deal with redemption,
+-- multisignature transactions, etc.
+mkStdTx :: Monad m
+        => ProtocolMagic
+        -> (forall a. NonEmpty a -> m (NonEmpty a))
+        -- ^ Shuffle function
+        -> (Address -> Either e (Key 'RootK XPrv))
+        -- ^ Signer for each input of the transaction
+        -> NonEmpty (TxIn, TxOut)
+        -- ^ Selected inputs
+        -> NonEmpty TxOut
+        -- ^ Selected outputs
+        -> [TxOut]
+        -- ^ Change outputs
+        -> m (Either e TxAux)
+mkStdTx pm shuffle hdwSigners inps outs change = do
+    allOuts <- shuffle $ foldl' (flip NE.cons) outs change
+    return $ makeMPubKeyTxAddrs pm hdwSigners (fmap repack inps) allOuts
+    where
+         -- | Repacks a utxo-derived tuple into a format suitable for
+         -- 'TxOwnedInputs'.
+        repack :: (TxIn, TxOut) -> (TxOut, TxIn)
+        repack (txIn, txOut) = (txOut, txIn)
+
+-- | More specific version of 'makeMPubKeyTx' for convenience
+makeMPubKeyTxAddrs
+    :: ProtocolMagic
+    -> (Address -> Either e (Key 'RootK XPrv))
+    -> TxOwnedInputs TxOut
+    -> TxOutputs
+    -> Either e TxAux
+makeMPubKeyTxAddrs pm hdwSigners = makeMPubKeyTx pm getSigner
+  where
+    getSigner (TxOut addr _) = hdwSigners addr
+
+
+-- | Like 'makePubKeyTx', but allows usage of different signers
+makeMPubKeyTx
+    :: ProtocolMagic
+    -> (owner -> Either e (Key 'RootK XPrv))
+    -> TxOwnedInputs owner
+    -> TxOutputs
+    -> Either e TxAux
+makeMPubKeyTx pm getSs = makeAbstractTx mkWit
+  where
+    mkWit addr hash =
+        getSs addr <&> \ss ->
+            PublicKeyWitness
+                (encode (publicKey ss))
+                (Hash (signRaw pm (Just SignTx) ss hash))
+
+    (<&>) = flip (<$>)
+
+    encode :: (Key level XPub) -> ByteString
+    encode (Key k) = CC.unXPub k
+
+
+-- | Generic function to create a transaction, given desired inputs,
+-- outputs and a way to construct witness from signature data
+makeAbstractTx :: (owner -> Hash "tx" -> Either e TxWitness)
+               -> TxOwnedInputs owner
+               -> TxOutputs
+               -> Either e TxAux
+makeAbstractTx mkWit txins txouts = do
+    let tx = Tx (NE.toList $ fmap snd txins) (NE.toList txouts)
+        txSigData = Hash "tx"
+    txWitness <- NE.toList <$>
+        forM txins (\(addr, _) -> mkWit addr txSigData)
+    pure $ TxAux tx txWitness
+
+
+-- TODO: I removed FakeSigner/SafeSigner. Might be wrong.
+
+
+
+{-------------------------------------------------------------------------------
+                              SignTag
+-------------------------------------------------------------------------------}
+
+-- | To protect agains replay attacks (i.e. when an attacker intercepts a
+-- signed piece of data and later sends it again), we add a tag to all data
+-- that we sign. This ensures that even if some bytestring can be
+-- deserialized into two different types of messages (A and B), the attacker
+-- can't take message A and send it as message B.
+--
+-- We also automatically add the network tag ('protocolMagic') whenever it
+-- makes sense, to ensure that things intended for testnet won't work for
+-- mainnet.
+data SignTag
+    = SignForTestingOnly  -- ^ Anything (to be used for testing only)
+    | SignTx              -- ^ Tx:               @TxSigData@
+    | SignRedeemTx        -- ^ Redeem tx:        @TxSigData@
+    | SignVssCert         -- ^ Vss certificate:  @(VssPublicKey, EpochIndex)@
+    | SignUSProposal      -- ^ Update proposal:  @UpdateProposalToSign@
+    | SignCommitment      -- ^ Commitment:       @(EpochIndex, Commitment)@
+    | SignUSVote          -- ^ US proposal vote: @(UpId, Bool)@
+    | SignMainBlock       -- ^ Main block:       @MainToSign@
+    | SignMainBlockLight
+    | SignMainBlockHeavy
+    | SignProxySK         -- ^ Proxy key:        @ProxySecretKey@
+    deriving (Eq, Ord, Show, Generic)
+
+-- TODO: it would be nice if we couldn't use 'SignTag' with wrong
+-- types. Maybe something with GADTs and data families?
+
+
+
+-- | Get magic bytes corresponding to a 'SignTag'. Guaranteed to be different
+-- (and begin with a different byte) for different tags.
+signTag :: ProtocolMagic -> SignTag -> ByteString
+signTag protocolMagic = \case
+    SignForTestingOnly -> "\x00"
+    SignTx             -> "\x01" <> network
+    SignRedeemTx       -> "\x02" <> network
+    SignVssCert        -> "\x03" <> network
+    SignUSProposal     -> "\x04" <> network
+    SignCommitment     -> "\x05" <> network
+    SignUSVote         -> "\x06" <> network
+    SignMainBlock      -> "\x07" <> network
+    SignMainBlockLight -> "\x08" <> network
+    SignMainBlockHeavy -> "\x09" <> network
+    SignProxySK        -> "\x0a" <> network
+  where
+    network = serialize' (getProtocolMagic protocolMagic)
+    serialize' = undefined
+    getProtocolMagic = undefined
+
+-- Signatures
+
+
+-- | Wrapper around 'CC.XSignature'.
+newtype Signature a = Signature CC.XSignature
+    deriving (Eq, Ord, Show, Generic)
+
+serialize :: Signature a -> ByteString
+serialize = undefined
+
+
+--
+--
+--
+--
+--
+
+
+-- | Sign a bytestring.
+signRaw
+    :: ProtocolMagic
+    -> Maybe SignTag   -- ^ See docs for 'SignTag'. Unlike in 'sign', we
+                       -- allow no tag to be provided just in case you need
+                       -- to sign /exactly/ the bytestring you provided
+    -> Key 'RootK XPrv
+    -> Hash "tx"
+    -> ByteString -- Previously Raw
+signRaw pm mbTag (Key k) (Hash x) = CC.unXSignature $ CC.sign emptyPassphrase k (tag <> x)
+  where
+    tag = maybe mempty (signTag pm) mbTag
+
+    emptyPassphrase :: ByteString
+    emptyPassphrase = mempty

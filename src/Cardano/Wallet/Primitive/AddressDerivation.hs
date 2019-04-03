@@ -21,7 +21,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     (
     -- * Polymorphic / General Purpose Types
     -- $use
-      Key
+      Key (..)
     , Depth (..)
     , Index
     , getIndex

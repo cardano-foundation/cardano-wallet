@@ -426,7 +426,7 @@ decodeTxWitness = do
     _ <- CBOR.decodeListLenCanonicalOf 2
     t <- CBOR.decodeWord8
     case t of
-        0 -> CBOR.decodeTag *> (PublicKeyWitness <$> CBOR.decodeBytes)
+        0 -> CBOR.decodeTag *> (PublicKeyWitness <$> CBOR.decodeBytes <*> undefined)
         1 -> CBOR.decodeTag *> (ScriptWitness <$> CBOR.decodeBytes)
         2 -> CBOR.decodeTag *> (RedeemWitness <$> CBOR.decodeBytes)
         _ -> fail
@@ -505,7 +505,7 @@ encodeSignedTx (tx, witnesses) = mempty
     <> encodeList encodeTxWitness witnesses
 
 data TxWitness
-    = PublicKeyWitness ByteString
+    = PublicKeyWitness ByteString (Hash "tx")
     | ScriptWitness ByteString
     | RedeemWitness ByteString
     deriving (Eq, Show)
@@ -519,7 +519,7 @@ encodeTxWitness wit = mempty
   where
     (tag, bytes) = raw wit
 
-    raw (PublicKeyWitness bs) = (0, bs)
+    raw (PublicKeyWitness bs _) = (0, bs)
     raw (ScriptWitness bs) = (1, bs)
     raw (RedeemWitness bs) = (2, bs)
 
