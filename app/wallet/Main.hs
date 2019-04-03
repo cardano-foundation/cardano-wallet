@@ -17,6 +17,10 @@ import Cardano.Wallet.Primitive.Types
     ( WalletId (..)
     , WalletName
     )
+import Control.Exception
+    ( finally )
+import Data.Text
+    ( Text )
 import System.Console.Docopt
     ( Arguments
     , Docopt
@@ -32,8 +36,15 @@ import System.Console.Docopt
     )
 import System.Environment
     ( getArgs )
+import System.IO
+    ( BufferMode (NoBuffering)
+    , hSetBuffering
+    , stdout
+    )
 
 import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
+import qualified System.Console.ANSI as ANSI
 
 patterns :: Docopt
 patterns = [docoptFile|app/wallet/USAGE.txt|]
@@ -41,6 +52,7 @@ patterns = [docoptFile|app/wallet/USAGE.txt|]
 main :: IO ()
 main = do
     args <- parseArgsOrExit patterns =<< getArgs
+    hSetBuffering stdout NoBuffering
     print =<< parseCommand args
 
 parseCommand :: Arguments -> IO Command
@@ -133,3 +145,26 @@ data WalletUpdateOptions = WalletUpdateOptions
     { id :: ApiT WalletId
     , name :: ApiT WalletName
     } deriving (Eq, Show)
+
+-- | Read a line of user input containing sensitive data from the terminal.
+--
+-- The terminal lines containing the data are cleared once the user has finished
+-- entering data.
+--
+-- The terminal lines containing the data are also cleared if the application
+-- exits abnormally, before the user has finished entering data.
+--
+getLineWithSensitiveData :: IO Text
+getLineWithSensitiveData =
+    finally TIO.getLine . clearSensitiveData =<< ANSI.getCursorPosition0
+  where
+    clearSensitiveData cursorPosition = case cursorPosition of
+        Just (_, y) -> do
+            -- We know the original position of the cursor.
+            -- Just clear everything from that line onwards.
+            ANSI.setCursorPosition 0 y
+            ANSI.clearFromCursorToScreenEnd
+        Nothing ->
+            -- We don't know the original position of the cursor.
+            -- For safety, we must clear the entire screen.
+            ANSI.clearScreen

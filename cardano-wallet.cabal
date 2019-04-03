@@ -312,7 +312,8 @@ executable cardano-wallet
       -Werror
       -O2
   build-depends:
-      base
+      ansi-terminal
+    , base
     , cardano-wallet
     , docopt
     , text
