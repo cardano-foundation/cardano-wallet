@@ -175,9 +175,9 @@ mkStdTx :: Monad m
         -> [TxOut]
         -- ^ Change outputs
         -> m (Either e TxAux)
-mkStdTx pm shuffle hdwSigners inps outs change = do
+mkStdTx pm shuffle signers inps outs change = do
     allOuts <- shuffle (outs ++ change)
-    return $ makeMPubKeyTxAddrs pm hdwSigners (fmap repack inps) allOuts
+    return $ makeMPubKeyTxAddrs pm signers (fmap repack inps) allOuts
     where
          -- | Repacks a utxo-derived tuple into a format suitable for
          -- 'TxOwnedInputs'.
@@ -191,9 +191,9 @@ makeMPubKeyTxAddrs
     -> TxOwnedInputs TxOut
     -> [TxOut]
     -> Either e TxAux
-makeMPubKeyTxAddrs pm hdwSigners = makeMPubKeyTx pm getSigner
+makeMPubKeyTxAddrs pm signers = makeMPubKeyTx pm getSigner
   where
-    getSigner (TxOut addr _) = hdwSigners addr
+    getSigner (TxOut addr _) = signers addr
 
 
 -- | Like 'makePubKeyTx', but allows usage of different signers
