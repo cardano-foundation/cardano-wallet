@@ -57,10 +57,6 @@ data CoinSelectionError =
     | MaximumInputsReached Word64
     -- ^ When trying to construct a transaction, the max number of allowed
     -- inputs was reached.
-    | UtxoDepleted Word64 Word64
-    -- ^ When trying to perform coin selection available utxos were depleted
-    -- We record the size of payment we try to make and the available balance
-    -- at the time of this attempt
     deriving (Show, Eq)
 
 data CoinSelection = CoinSelection

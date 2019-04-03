@@ -20,13 +20,13 @@ import Prelude
 import Cardano.Wallet.CoinSelection
     ( CoinSelection (..), CoinSelectionError (..), CoinSelectionOptions (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..), TxIn, TxOut (..), UTxO (..), balance, excluding, isValidCoin )
+    ( Coin (..), TxIn, TxOut (..), UTxO (..), isValidCoin )
 import Control.Monad
-    ( foldM, guard, when )
+    ( foldM, guard )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), throwE )
+    ( ExceptT (..) )
 import Crypto.Number.Generate
     ( generateBetween )
 import Crypto.Random.Types
@@ -46,7 +46,6 @@ import qualified Cardano.Wallet.CoinSelection.LargestFirst as LargestFirst
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 
 -- Target range for picking inputs
 data TargetRange = TargetRange
@@ -56,6 +55,23 @@ data TargetRange = TargetRange
     }
 
 -- Random input selection policy
+-- The details of the algorithm are following:
+-- (a) transaction outputs are processed starting from the largest one
+-- (b) random selection is tried. The random UTxO entry is picked and checked
+--     whether it covers the transaction output (ie., `targetMin` of TargetRange).
+--     If no, then additional UTxO entry is picked. If successive picking of inputs
+--     gives rise to total the inputs sum covering the transaction output
+--     then the optimization described in step (c) is tried.
+--     If the random selection leads to the number of inputs that exceeds `maximumNumberOfInputs`
+--     then the selection is deemed unsuccessful.
+-- (c) candidate input selection obtained in step (b), if successful, is optimized.
+--     Both `targetAim` and `targetMax` as pinpointed in TargetRange drive the optimization.
+--     Here, we pick randomly the next UTxO entry from remaining UTxO and
+--     check if it is improved as depicted in `isImprovement`. If not, then
+--     the optimization ends with returning its starting selection. Otherwise, the procedure tries to
+--     optimize more.
+-- If the above algoritm fails to select coins then for both a given transaction outputs and initial UTxO
+--     fallback LargestFirst algoritm is tried.
 random
     :: forall m. MonadRandom m
     => CoinSelectionOptions
@@ -67,100 +83,77 @@ random opt utxo txOutputs = do
             $ NE.sortBy (flip $ comparing coin) txOutputs
     let n = maximumNumberOfInputs opt
 
-    let moneyRequested = sum $ (getCoin . coin) <$> txOutputsSorted
-    let utxoBalance = fromIntegral $ balance utxo
-    let numberOfUtxoEntries = fromIntegral $ L.length $ (Map.toList . getUTxO) utxo
-    let numberOfTransactionOutputs = fromIntegral $ NE.length txOutputs
+    randomMaybe <- foldM (processTxOut n) (Just (utxo, mempty)) txOutputsSorted
 
-    when (utxoBalance < moneyRequested)
-        $ throwE $ NotEnoughMoney utxoBalance moneyRequested
-
-    when (numberOfUtxoEntries < numberOfTransactionOutputs)
-        $ throwE $ UtxoNotEnoughFragmented numberOfUtxoEntries numberOfTransactionOutputs
-
-    (_, res) <- foldM (processTxOut n) (utxo, mempty) txOutputsSorted
-    pure res
+    case randomMaybe of
+        Just (_,res) ->
+            return res
+        Nothing ->
+            LargestFirst.largestFirst opt utxo txOutputs
 
 
--- Selecting coins to cover at least the specified value
--- with LargestFirst fallback and subsequent iterative improvement
--- to optimize selection further
--- The details of the algorithm are following:
--- (a) transaction outputs are processed starting from the largest one
--- (b) random selection is tried. The random UTxO entry is picked and checked
---     whether it covers the transaction output (ie., `targetMin` of TargetRange.
---     If no, then additional UTxO entry is picked. If successive picking of inputs
---     gives rise to total the inputs sum covering the transaction output
---     then the optimization described in step (c) is tried.
---     If the random selection leads to the number of inputs that exceeds `maximumNumberOfInputs`
---     then, for both a given transaction output and UTxO as being at the beginning of step (b),
---     fallback LargestFirst algoritm is tried.
--- (c) candidate input selection obtained in step (b) is optimized. Both `targetAim` and `targetMax`
---     as pinpointed in TargetRange drive the optimization. Here, we pick randomly the next UTxO entry
---     from remaining UTxO and check if it is improved as depicted in `isImprovement`. If not, then
---     the optimization ends with returning its initial selection. Otherwise, the procedure tries to
---     optimize more.
 processTxOut
     :: forall m. MonadRandom m
     => Word64
-    -> (UTxO, CoinSelection)
+    -> Maybe (UTxO, CoinSelection)
     -> TxOut
-    -> ExceptT CoinSelectionError m (UTxO, CoinSelection)
-processTxOut maxNumInputs (utxo, selection) txout = do
-    atLeast ([], getUTxO utxo) >>= improve >>= \case
-        Just (inps,utxoMap) -> do
-            let change =
-                    ((sum . (map (getCoin . coin . snd))) inps)
-                    - ((getCoin . coin) txout)
-            pure (UTxO utxoMap
-                 , selection <> CoinSelection
-                     { inputs = inps
-                     , outputs = [txout]
-                     , change = [Coin change]
-                     }
-                 )
+    -> m (Maybe (UTxO, CoinSelection))
+processTxOut maxNumInputs input txout =
+    case input of
+        Just (utxo, selection) -> do
+            atLeast ([], getUTxO utxo) >>= improve >>= \case
+                Just (inps,utxoMap) -> do
+                    let change =
+                            ((sum . (map (getCoin . coin . snd))) inps)
+                            - ((getCoin . coin) txout)
+                    pure $
+                        Just (UTxO utxoMap
+                             , selection <> CoinSelection
+                                 { inputs = inps
+                                 , outputs = [txout]
+                                 , change = [Coin change]
+                                 }
+                             )
+                Nothing ->
+                    return Nothing
         Nothing ->
-            throwE $ MaximumInputsReached maxNumInputs
-
+            return Nothing
     where
         atLeast
             :: forall m. MonadRandom m
             => ([(TxIn, TxOut)], Map TxIn TxOut)
-            -> ExceptT CoinSelectionError m ([(TxIn, TxOut)], Map TxIn TxOut)
+            -> m (Maybe ([(TxIn, TxOut)], Map TxIn TxOut))
         atLeast (inps, utxoMap)
-            | L.length inps > (fromIntegral maxNumInputs) = do
-                  let entries = Map.toList utxoMap
-                  case LargestFirst.atLeast (entries, selection) txout of
-                      Just (utxo', selection') -> do
-                          let oldInps =
-                                  (Set.fromList . map fst) $ inputs selection
-                          let diff =
-                                  (UTxO . Map.fromList . inputs) selection' `excluding` oldInps
-                          pure ((Map.toList . getUTxO) diff, Map.fromList utxo')
-                      Nothing ->
-                          throwE $ MaximumInputsReached maxNumInputs
+            | L.length inps > (fromIntegral maxNumInputs) =
+                  return Nothing
             | sum (map (getCoin . coin . snd) inps)
               > ((getCoin . targetMin . mkTargetRange . coin) txout) =
-                  pure (inps, utxoMap)
+                  pure $ Just (inps, utxoMap)
             | otherwise = do
-                  let currBalance = fromIntegral $ balance utxo
-                  (io, utxoMap') <- pickRandom utxoMap >>=
-                      maybe (throwE $ UtxoDepleted currBalance ((getCoin . coin) txout)) return
-                  atLeast (io:inps, utxoMap')
+                  pickRandom utxoMap >>=
+                      maybe (return Nothing) (\out -> return (Just out)) >>= \case
+                      Just (io, utxoMap') ->
+                          atLeast (io:inps, utxoMap')
+                      Nothing -> return Nothing
 
         improve
             :: forall m. MonadRandom m
-            => ([(TxIn, TxOut)], Map TxIn TxOut)
-            -> ExceptT CoinSelectionError m (Maybe ([(TxIn, TxOut)], Map TxIn TxOut))
-        improve (inps, utxoMap) = do
-            let currBalance = fromIntegral $ balance utxo
-            (io, utxoMap') <- pickRandom utxoMap >>=
-                maybe (throwE $ UtxoDepleted currBalance ((getCoin . coin) txout)) return
-            case isImprovement io inps of
+            => Maybe ([(TxIn, TxOut)], Map TxIn TxOut)
+            -> m (Maybe ([(TxIn, TxOut)], Map TxIn TxOut))
+        improve inp =
+            case inp of
+                Just (inps, utxoMap) -> do
+                    pickRandom utxoMap >>=
+                        maybe (return Nothing) (\out -> return (Just out)) >>= \case
+                        Just (io, utxoMap') ->
+                            case isImprovement io inps of
+                                Nothing ->
+                                    pure $ Just (inps, utxoMap)
+                                Just inps' ->
+                                    improve $ Just (inps', utxoMap')
+                        Nothing -> return Nothing
                 Nothing ->
-                    pure $ Just (inps, utxoMap)
-                Just inps' ->
-                    improve (inps', utxoMap')
+                    return Nothing
 
         isImprovement
             :: (TxIn, TxOut)
