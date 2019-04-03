@@ -7,7 +7,9 @@ module Main where
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiT (..), FromText (..), TextDecodingError (..) )
+    ( ApiMnemonicT (..), ApiT (..), FromText (..), TextDecodingError (..) )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Passphrase (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap )
 import Cardano.Wallet.Primitive.Types
@@ -48,7 +50,7 @@ main = do
     print =<< parseCommand args
 
 {-------------------------------------------------------------------------------
-                          Command and Argument Parsing
+                         Command and Argument Parsing
 -------------------------------------------------------------------------------}
 
 parseCommand :: Arguments -> IO Command
@@ -109,7 +111,7 @@ parseArgMaybe args option = maybe
     (T.pack <$> args `getArg` option)
 
 {-------------------------------------------------------------------------------
-                                 Commands
+                         Command and Argument Types
 -------------------------------------------------------------------------------}
 
 data Command
@@ -147,8 +149,57 @@ data WalletUpdateOptions = WalletUpdateOptions
     } deriving (Eq, Show)
 
 {-------------------------------------------------------------------------------
-                                 Utilities
+                         Processing of Sensitive Data
 -------------------------------------------------------------------------------}
+
+data WalletCreateSensitiveData = WalletCreateSensitiveData
+    { mnemonicSentence :: !(ApiMnemonicT '[15,18,21,24] "seed")
+    , mnemonicSecondFactor :: !(Maybe (ApiMnemonicT '[9,12] "generation"))
+    , passphrase :: !(ApiT (Passphrase "encryption"))
+    } deriving (Eq, Show)
+
+getWalletCreateSensitiveData :: IO WalletCreateSensitiveData
+getWalletCreateSensitiveData = WalletCreateSensitiveData
+    <$> getRequiredSensitiveValue
+            "Please enter a 15–24 word mnemonic sentence:"
+    <*> getOptionalSensitiveValue
+            "Please enter a 9–12 word mnemonic second factor: \n\
+            \(Enter a blank line if you do not wish to use a second factor.)"
+    <*> getRequiredSensitiveValue
+            "Please enter a passphrase: \n\
+            \(Enter a blank line if you do not wish to use a passphrase.)"
+
+-- | Repeatedly prompt a user for a sensitive value, until the supplied value is
+-- valid.
+--
+getRequiredSensitiveValue :: FromText a => String -> IO a
+getRequiredSensitiveValue prompt = loop where
+    loop = do
+        putStrLn prompt
+        line <- getLineWithSensitiveData
+        case fromText line of
+            Left e -> do
+                print $ getTextDecodingError e
+                loop
+            Right v -> pure v
+
+-- | Repeatedly prompt a user for an optional sensitive value, until either the
+-- supplied value is valid, or until the user enters an empty line (indicating
+-- that they do not wish to specify such a value).
+--
+getOptionalSensitiveValue :: FromText a => String -> IO (Maybe a)
+getOptionalSensitiveValue prompt = loop where
+    loop = do
+        putStrLn prompt
+        line <- getLineWithSensitiveData
+        if T.length line == 0
+        then pure Nothing
+        else case fromText line of
+            Left e -> do
+                print $ getTextDecodingError e
+                loop
+            Right v ->
+                pure $ Just v
 
 -- | Read a line of user input containing sensitive data from the terminal.
 --
