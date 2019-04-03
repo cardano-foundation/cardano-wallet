@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -55,6 +56,8 @@ import Control.Applicative
     ( (<|>) )
 import Control.DeepSeq
     ( NFData, deepseq )
+import Data.Bifunctor
+    ( first )
 import Data.Function
     ( (&) )
 import Data.List
@@ -63,13 +66,17 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( isJust )
+import Data.Text.Class
+    ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Word
     ( Word8 )
 import GHC.Generics
     ( Generic )
+import Text.Read
+    ( readMaybe )
 
 import qualified Data.Map.Strict as Map
-
+import qualified Data.Text as T
 
 {-------------------------------------------------------------------------------
                           Sequential Derivation
@@ -89,6 +96,21 @@ newtype AddressPoolGap = AddressPoolGap
     deriving stock (Generic, Show, Eq, Ord)
 
 instance NFData AddressPoolGap
+
+instance FromText AddressPoolGap where
+    fromText t = maybe
+        (Left err)
+        (first (\case ErrGapOutOfRange{} -> err) . mkAddressPoolGap)
+        (readMaybe @Word8 (T.unpack t))
+      where
+        err = TextDecodingError $
+            "An address pool gap must be a natural number between "
+                <> show (fromEnum $ minBound @AddressPoolGap)
+                <> " and "
+                <> show (fromEnum $ maxBound @AddressPoolGap)
+
+instance ToText (AddressPoolGap) where
+    toText = T.pack . show . getAddressPoolGap
 
 instance Bounded AddressPoolGap where
     minBound = AddressPoolGap 10

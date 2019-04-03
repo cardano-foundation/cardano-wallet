@@ -6,7 +6,7 @@
       - name: Module not compiled
       - module: Cardano.Launcher.Windows
   - section:
-    - name: exe:cardano-wallet-launcher exe:cardano-wallet-server
+    - name: exe:cardano-wallet exe:cardano-wallet-launcher
     - message:
       - name: Module reused between components
       - module: Cardano.CLI

@@ -43,6 +43,8 @@ import Data.List
     ( elemIndex, (\\) )
 import Data.Maybe
     ( isJust )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Word
     ( Word8 )
 import Test.Hspec
@@ -64,6 +66,9 @@ import Test.QuickCheck
     , (===)
     , (==>)
     )
+import Test.Text.Roundtrip
+    ( textRoundtrip )
+
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -82,6 +87,7 @@ spec = do
             (checkCoverage prop_mkAddressPoolGap)
         it "defaultAddressPoolGap is valid"
             (property prop_defaultValid)
+        textRoundtrip $ Proxy @AddressPoolGap
 
     describe "AddressPool" $ do
         it "'lookupAddressPool' extends the pool by a maximum of 'gap'"

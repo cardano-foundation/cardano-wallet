@@ -26,19 +26,13 @@ import Cardano.Wallet.Api.Types
     , ApiMnemonicT (..)
     , ApiT (..)
     , ApiWallet (..)
-    , FromText (..)
-    , ToText (..)
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
-    , passphraseMaxLength
-    , passphraseMinLength
-    , walletNameMaxLength
-    , walletNameMinLength
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Passphrase (..) )
+    ( Passphrase (..), PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -64,6 +58,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , WalletState (..)
+    , walletNameMaxLength
+    , walletNameMinLength
     )
 import Control.Lens
     ( Lens', at, (^.) )
@@ -98,7 +94,7 @@ import Data.Swagger
 import Data.Swagger.Declare
     ( Declare )
 import Data.Typeable
-    ( Typeable, typeRep )
+    ( Typeable )
 import Data.Word
     ( Word32, Word8 )
 import GHC.TypeLits
@@ -127,7 +123,6 @@ import Test.QuickCheck
     , arbitraryPrintableChar
     , choose
     , frequency
-    , property
     , vectorOf
     )
 import Test.QuickCheck.Arbitrary.Generic
@@ -147,34 +142,22 @@ import qualified Prelude
 spec :: Spec
 spec = do
     describe
-        "can perform roundtrip textual encoding & decoding" $ do
-            let test = textRoundtrip
-            test $ Proxy @(ApiT Address)
-            test $ Proxy @(ApiT AddressPoolGap)
-            test $ Proxy @(ApiT (Passphrase "encryption"))
-            test $ Proxy @(ApiT WalletId)
-            test $ Proxy @(ApiT WalletName)
-            test $ Proxy @(ApiMnemonicT '[9, 12] "generation")
-            test $ Proxy @(ApiMnemonicT '[15, 18, 21, 24] "seed")
-
-    describe
         "can perform roundtrip JSON serialization & deserialization, \
         \and match existing golden files" $ do
-            let test = jsonRoundtripAndGolden
-            test $ Proxy @ApiAddress
-            test $ Proxy @ApiWallet
-            test $ Proxy @WalletPostData
-            test $ Proxy @WalletPutData
-            test $ Proxy @WalletPutPassphraseData
-            test $ Proxy @(ApiT Address)
-            test $ Proxy @(ApiT AddressPoolGap)
-            test $ Proxy @(ApiT (WalletDelegation (ApiT PoolId)))
-            test $ Proxy @(ApiT WalletId)
-            test $ Proxy @(ApiT WalletName)
-            test $ Proxy @(ApiT WalletBalance)
-            test $ Proxy @(ApiT WalletPassphraseInfo)
-            test $ Proxy @(ApiT WalletState)
-            test $ Proxy @(ApiT (Passphrase "encryption"))
+            jsonRoundtripAndGolden $ Proxy @ApiAddress
+            jsonRoundtripAndGolden $ Proxy @ApiWallet
+            jsonRoundtripAndGolden $ Proxy @WalletPostData
+            jsonRoundtripAndGolden $ Proxy @WalletPutData
+            jsonRoundtripAndGolden $ Proxy @WalletPutPassphraseData
+            jsonRoundtripAndGolden $ Proxy @(ApiT Address)
+            jsonRoundtripAndGolden $ Proxy @(ApiT AddressPoolGap)
+            jsonRoundtripAndGolden $ Proxy @(ApiT (WalletDelegation (ApiT PoolId)))
+            jsonRoundtripAndGolden $ Proxy @(ApiT WalletId)
+            jsonRoundtripAndGolden $ Proxy @(ApiT WalletName)
+            jsonRoundtripAndGolden $ Proxy @(ApiT WalletBalance)
+            jsonRoundtripAndGolden $ Proxy @(ApiT WalletPassphraseInfo)
+            jsonRoundtripAndGolden $ Proxy @(ApiT WalletState)
+            jsonRoundtripAndGolden $ Proxy @(ApiT (Passphrase "encryption"))
 
     describe
         "verify that every type used with JSON content type in a servant API \
@@ -194,16 +177,18 @@ spec = do
                 `shouldBe` (Left @String @(ApiT Address) msg)
 
         it "ApiT (Passphrase \"encryption\") (too short)" $ do
+            let minLength = passphraseMinLength (Proxy :: Proxy "encryption")
             let msg = "Error in $: passphrase is too short: \
-                    \expected at least " <> show passphraseMinLength <> " chars"
+                    \expected at least " <> show minLength <> " chars"
             Aeson.parseEither parseJSON [aesonQQ|"patate"|]
                 `shouldBe` (Left @String @(ApiT (Passphrase "encryption")) msg)
 
         it "ApiT (Passphrase \"encryption\") (too long)" $ do
+            let maxLength = passphraseMaxLength (Proxy :: Proxy "encryption")
             let msg = "Error in $: passphrase is too long: \
-                    \expected at most " <> show passphraseMaxLength <> " chars"
+                    \expected at most " <> show maxLength <> " chars"
             Aeson.parseEither parseJSON [aesonQQ|
-                #{replicate (2*passphraseMaxLength) '*'}
+                #{replicate (2*maxLength) '*'}
             |] `shouldBe` (Left @String @(ApiT (Passphrase "encryption")) msg)
 
         it "ApiT WalletName (too short)" $ do
@@ -236,20 +221,6 @@ spec = do
             Aeson.parseEither parseJSON [aesonQQ|
                 #{getAddressPoolGap maxBound + 1}
             |] `shouldBe` (Left @String @(ApiT AddressPoolGap) msg)
-
--- | Constructs a test to check that roundtrip textual encoding and decoding
--- is possible for values of the given type.
---
-textRoundtrip
-    :: forall a . (Arbitrary a, Eq a, Show a, ToText a, FromText a, Typeable a)
-    => Proxy a
-    -> Spec
-textRoundtrip proxy = it
-    ("can perform roundtrip textual encoding and decoding for values of type '"
-        <> show (typeRep proxy)
-        <> "'")
-    (property $ \a ->
-        fromText (toText @a a) `shouldBe` Right a)
 
 -- Golden tests files are generated automatically on first run. On later runs
 -- we check that the format stays the same. The golden files should be tracked
@@ -347,16 +318,18 @@ instance Arbitrary WalletName where
 
 instance Arbitrary (Passphrase "encryption") where
     arbitrary = do
-        n <- choose (passphraseMinLength, passphraseMaxLength)
+        n <- choose (passphraseMinLength p, passphraseMaxLength p)
         bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
         return $ Passphrase $ BA.convert bytes
+      where p = Proxy :: Proxy "encryption"
     shrink (Passphrase bytes)
-        | BA.length bytes <= passphraseMinLength = []
+        | BA.length bytes <= passphraseMinLength p = []
         | otherwise =
             [ Passphrase
             $ BA.convert
-            $ B8.take passphraseMinLength
+            $ B8.take (passphraseMinLength p)
             $ BA.convert bytes ]
+      where p = Proxy :: Proxy "encryption"
 
 instance Arbitrary WalletPassphraseInfo where
     arbitrary = genericArbitrary

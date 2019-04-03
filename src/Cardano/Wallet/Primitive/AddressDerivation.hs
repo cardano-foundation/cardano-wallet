@@ -3,10 +3,13 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -26,10 +29,16 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , Index
     , getIndex
     , DerivationType (..)
-    , Passphrase(..)
     , publicKey
     , XPub
     , XPrv
+
+    -- * Passphrase
+    , Passphrase(..)
+    , PassphraseMinLength(..)
+    , PassphraseMaxLength(..)
+    , FromMnemonic(..)
+    , FromMnemonicError(..)
 
     -- * Sequential Derivation
     , ChangeChain(..)
@@ -54,23 +63,46 @@ import Cardano.Crypto.Wallet
     )
 import Cardano.Wallet.Binary
     ( encodeAddress )
+import Cardano.Wallet.Primitive.Mnemonic
+    ( CheckSumBits
+    , ConsistentEntropy
+    , EntropySize
+    , entropyToBytes
+    , mkMnemonic
+    , mnemonicToEntropy
+    )
 import Cardano.Wallet.Primitive.Types
     ( Address (..) )
+import Control.Arrow
+    ( left )
 import Control.DeepSeq
     ( NFData )
+import Data.Bifunctor
+    ( first )
 import Data.ByteArray
     ( ScrubbedBytes )
 import Data.Maybe
     ( fromMaybe )
+import Data.Proxy
+    ( Proxy (..) )
+import Data.Text
+    ( Text )
+import Data.Text.Class
+    ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Word
     ( Word32 )
+import Fmt
+    ( Buildable )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
-    ( Symbol )
+    ( Nat, Symbol )
 
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
+import qualified Data.ByteArray as BA
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 
 {-------------------------------------------------------------------------------
@@ -134,15 +166,8 @@ instance Enum (Index 'Soft level) where
         | otherwise =
             Index (fromIntegral ix)
 
-
 -- | Type of derivation that should be used with the given indexes.
 data DerivationType = Hardened | Soft
-
--- | An encapsulated passphrase. The inner format is free, but the wrapper helps
--- readability in function signatures.
-newtype Passphrase (goal :: Symbol) = Passphrase ScrubbedBytes
-    deriving stock (Eq, Show)
-    deriving newtype (Semigroup, Monoid)
 
 -- | Extract the public key part of a private key.
 publicKey
@@ -150,6 +175,91 @@ publicKey
     -> Key level XPub
 publicKey (Key xprv) =
     Key (toXPub xprv)
+
+{-------------------------------------------------------------------------------
+                                 Passphrases
+-------------------------------------------------------------------------------}
+
+-- | An encapsulated passphrase. The inner format is free, but the wrapper helps
+-- readability in function signatures.
+newtype Passphrase (purpose :: Symbol) = Passphrase ScrubbedBytes
+    deriving stock (Eq, Show)
+    deriving newtype (Semigroup, Monoid)
+
+class PassphraseMinLength (purpose :: Symbol) where
+    -- | Minimal Length for a passphrase, for lack of better validations
+    passphraseMinLength :: Proxy purpose -> Int
+
+class PassphraseMaxLength (purpose :: Symbol) where
+    -- | Maximum length for a passphrase
+    passphraseMaxLength :: Proxy purpose -> Int
+
+instance PassphraseMinLength "encryption" where passphraseMinLength _ = 10
+instance PassphraseMaxLength "encryption" where passphraseMaxLength _ = 255
+
+instance
+    ( PassphraseMaxLength purpose
+    , PassphraseMinLength purpose
+    ) => FromText (Passphrase purpose) where
+    fromText t
+        | T.length t < minLength =
+            Left $ TextDecodingError $
+                "passphrase is too short: expected at least "
+                <> show minLength <> " chars"
+        | T.length t > maxLength =
+            Left $ TextDecodingError $
+                "passphrase is too long: expected at most "
+                <> show maxLength <> " chars"
+        | otherwise =
+            pure $ Passphrase $ BA.convert $ T.encodeUtf8 t
+      where
+        minLength = passphraseMinLength (Proxy :: Proxy purpose)
+        maxLength = passphraseMaxLength (Proxy :: Proxy purpose)
+
+instance ToText (Passphrase purpose) where
+    toText (Passphrase bytes) = T.decodeUtf8 $ BA.convert bytes
+
+-- | Create a passphrase from a mnemonic sentence. This class enables caller to
+-- parse text list of variable length into mnemonic sentences.
+--
+-- >>> fromMnemonic @'[12,15,18,21] @"generation" ["toilet", "curse", ... ]
+-- Right (Passphrase <ScrubbedBytes>)
+--
+-- Note that the given 'Nat's **have** to be valid mnemonic sizes, otherwise the
+-- underlying code won't even compile, with not-so-friendly error messages.
+class FromMnemonic (sz :: [Nat]) (purpose :: Symbol) where
+    fromMnemonic :: [Text] -> Either (FromMnemonicError sz) (Passphrase purpose)
+
+-- | Error reported from trying to create a passphrase from a given mnemonic
+newtype FromMnemonicError (sz :: [Nat]) =
+    FromMnemonicError { getFromMnemonicError :: String }
+    deriving stock Show
+    deriving newtype Buildable
+
+instance {-# OVERLAPS #-}
+    ( n ~ EntropySize mw
+    , csz ~ CheckSumBits n
+    , ConsistentEntropy n mw csz
+    , FromMnemonic rest purpose
+    ) =>
+    FromMnemonic (mw ': rest) purpose
+  where
+    fromMnemonic parts = either (const parseRest) Right parseMW where
+        parseMW = left (FromMnemonicError . getFromMnemonicError) $ -- coerce
+            fromMnemonic @'[mw] @purpose parts
+        parseRest = left (FromMnemonicError . getFromMnemonicError) $ -- coerce
+            fromMnemonic @rest @purpose parts
+instance
+    ( n ~ EntropySize mw
+    , csz ~ CheckSumBits n
+    , ConsistentEntropy n mw csz
+    ) =>
+    FromMnemonic (mw ': '[]) purpose
+  where
+    fromMnemonic parts = do
+        -- FIXME Do better than 'show' here
+        m <- first (FromMnemonicError . show) (mkMnemonic @mw parts)
+        return $ Passphrase $ entropyToBytes $ mnemonicToEntropy m
 
 
 {-------------------------------------------------------------------------------

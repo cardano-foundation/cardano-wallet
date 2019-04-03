@@ -10,8 +10,8 @@ git:
 
 env:
   global:
-    - WALLET_SERVER=$HOME/.local/bin/cardano-wallet-server
-    - WALLET_SERVER_CHECKSUM=$HOME/.local/bin/cardano-wallet-server.sha256
+    - WALLET_CLI=$HOME/.local/bin/cardano-wallet
+    - WALLET_CLI_CHECKSUM=$HOME/.local/bin/cardano-wallet.sha256
     - WALLET_LAUNCHER=$HOME/.local/bin/cardano-wallet-launcher
     - WALLET_LAUNCHER_CHECKSUM=$HOME/.local/bin/cardano-wallet-launcher.sha256
     - STACK_WORK_CACHE=$HOME/.local/stack-work.tar.gz
@@ -125,9 +125,9 @@ jobs:
     script:
     - tar xzf $STACK_WORK_CACHE
     - stack --no-terminal install
-    - sha256sum $WALLET_SERVER | head -c 64 > $WALLET_SERVER_CHECKSUM
-    - ls $WALLET_SERVER
-    - ls $WALLET_SERVER_CHECKSUM
+    - sha256sum $WALLET_CLI | head -c 64 > $WALLET_CLI_CHECKSUM
+    - ls $WALLET_CLI
+    - ls $WALLET_CLI_CHECKSUM
     - sha256sum $WALLET_LAUNCHER | head -c 64 > $WALLET_LAUNCHER_CHECKSUM
     - ls $WALLET_LAUNCHER
     - ls $WALLET_LAUNCHER_CHECKSUM
@@ -137,8 +137,8 @@ jobs:
       draft: true # Allow editing the release before publishing it officially on GitHub
       skip_cleanup: true # Make sure that files from the previous stages aren't cleaned up
       file:
-        - $WALLET_SERVER
-        - $WALLET_SERVER_CHECKSUM
+        - $WALLET_CLI
+        - $WALLET_CLI_CHECKSUM
         - $WALLET_LAUNCHER
         - $WALLET_LAUNCHER_CHECKSUM
       on:
