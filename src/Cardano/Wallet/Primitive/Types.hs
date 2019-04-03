@@ -530,7 +530,7 @@ restrictedTo (UTxO utxo) outs =
 
 -- | A slot identifier is the combination of an epoch and slot.
 data SlotId = SlotId
-  { epochIndex :: !Word64
+  { epochNumber :: !Word64
   , slotNumber :: !Word16
   } deriving stock (Show, Eq, Ord, Generic)
 

@@ -6,9 +6,9 @@ module Cardano.Wallet.Api where
 import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiT
+    , ApiTransaction
     , ApiWallet
     , CreateTransactionData
-    , Transaction
     , WalletPostData
     , WalletPutData
     , WalletPutPassphraseData
@@ -97,4 +97,4 @@ type CreateTransaction = "wallets"
     :> Capture "walletId" WalletId
     :> "transactions"
     :> ReqBody '[JSON] CreateTransactionData
-    :> Post '[JSON] Transaction
+    :> Post '[JSON] ApiTransaction

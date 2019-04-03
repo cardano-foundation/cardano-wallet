@@ -35,8 +35,8 @@ module Cardano.Wallet.Api.Types
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
     , CreateTransactionData (..)
-    , BlockData (..)
-    , Transaction (..)
+    , ApiBlockData (..)
+    , ApiTransaction (..)
 
     -- * Polymorphic Types
     , ApiT (..)
@@ -86,8 +86,6 @@ import Data.Bifunctor
     ( bimap )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -149,10 +147,10 @@ data CreateTransactionData = CreateTransactionData
     , passphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
 
-data Transaction = Transaction
+data ApiTransaction = Transaction
     { id :: !(ApiT (Hash "Tx"))
     , amount :: !(Quantity "lovelace" Natural)
-    , insertedAt :: !BlockData
+    , insertedAt :: !ApiBlockData
     , depth :: !(Quantity "block" Natural)
     , direction :: !(ApiT Direction)
     , inputs :: ![ApiCoinSelection]
@@ -165,41 +163,11 @@ data ApiCoinSelection = ApiCoinSelection
     , coin :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
-data BlockData = BlockData
+data ApiBlockData = ApiBlockData
     { time :: UTCTime
     , block :: !(ApiT SlotId)
     } deriving (Eq, Generic, Show)
 
---instance FromJSON CreateTransactionData where
---    parseJSON = genericParseJSON defaultRecordTypeOptions
---instance ToJSON CreateTransactionData where
---    toJSON = genericToJSON defaultRecordTypeOptions
-
--- FIXME: deal with camel case
-instance FromJSON (ApiT SlotId) where
-    parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
-instance ToJSON (ApiT SlotId) where
-    toJSON = genericToJSON defaultRecordTypeOptions . getApiT
-
-instance FromJSON BlockData where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON BlockData where
-    toJSON = genericToJSON defaultRecordTypeOptions
-
-instance FromJSON ApiCoinSelection where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiCoinSelection where
-    toJSON = genericToJSON defaultRecordTypeOptions
-
-instance FromJSON Transaction where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON Transaction where
-    toJSON = genericToJSON defaultRecordTypeOptions
-
-instance FromJSON (ApiT (Hash "Tx")) where
-    parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText
-instance ToJSON (ApiT (Hash "Tx")) where
-    toJSON = toJSON . toText . getApiT
 
 {-------------------------------------------------------------------------------
                               Polymorphic Types
@@ -364,6 +332,47 @@ walletStateOptions = taggedSumTypeOptions $ TaggedObjectOptions
     { _tagFieldName = "status"
     , _contentsFieldName = "progress"
     }
+
+instance FromJSON CreateTransactionData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON CreateTransactionData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON (ApiT SlotId) where
+    parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
+instance ToJSON (ApiT SlotId) where
+    toJSON = genericToJSON defaultRecordTypeOptions . getApiT
+
+instance FromJSON ApiBlockData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiBlockData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiCoinSelection where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiCoinSelection where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiTransaction where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiTransaction where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON (ApiT (Hash "Tx")) where
+    parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText
+instance ToJSON (ApiT (Hash "Tx")) where
+    toJSON = toJSON . toText . getApiT
+
+
+instance FromJSON (ApiT Direction) where
+    parseJSON = fmap ApiT . genericParseJSON defaultSumTypeOptions
+instance ToJSON (ApiT Direction) where
+    toJSON = genericToJSON defaultSumTypeOptions . getApiT
+
+instance FromJSON (ApiT TxStatus) where
+    parseJSON = fmap ApiT . genericParseJSON defaultSumTypeOptions
+instance ToJSON (ApiT TxStatus) where
+    toJSON = genericToJSON defaultSumTypeOptions . getApiT
 
 {-------------------------------------------------------------------------------
                              HTTPApiData instances

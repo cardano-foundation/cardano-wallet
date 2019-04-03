@@ -91,8 +91,8 @@ spec = do
             bs <- L8.readFile testPackfile
             let (ebb:first:second:_) =
                     map (slotId . header) $ unsafeDeserialiseEpoch bs
-            epochIndex ebb `shouldBe` 104
-            epochIndex first `shouldBe` 104
+            epochNumber ebb `shouldBe` 104
+            epochNumber first `shouldBe` 104
             slotNumber ebb `shouldBe` 0 -- epoch genesis block
             slotNumber first `shouldBe` 0 -- first block
             slotNumber second `shouldBe` 1 -- second block
