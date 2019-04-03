@@ -10,26 +10,49 @@ import Prelude
 
 import Cardano.Wallet.CoinSelection
     ( CoinSelection (..), CoinSelectionError (..), CoinSelectionOptions (..) )
+import Cardano.Wallet.CoinSelection.LargestFirst
+    ( largestFirst )
 import Cardano.Wallet.CoinSelection.Random
     ( random )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Coin (..), Hash (..), TxIn (..), TxOut (..), UTxO (..) )
 import Control.Monad.Trans.Except
     ( runExceptT )
+import Crypto.Random
+    ( getSystemDRG )
+import Crypto.Random.Types
+    ( withDRG )
+import Data.Either
+    ( isLeft, isRight )
+import Data.Functor.Identity
+    ( Identity (..) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Word
     ( Word64, Word8 )
+import System.IO.Unsafe
+    ( unsafeDupablePerformIO )
 import Test.Hspec
-    ( Expectation, Spec, describe, it, shouldBe )
+    ( Expectation, Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck
-    ( Arbitrary (..), Gen, generate, oneof, scale, vectorOf )
-
+    ( Arbitrary (..)
+    , Gen
+    , Property
+    , choose
+    , generate
+    , oneof
+    , property
+    , scale
+    , vectorOf
+    , (===)
+    , (==>)
+    )
 
 import qualified Data.ByteString as BS
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+
 
 spec :: Spec
 spec = do
@@ -123,6 +146,18 @@ spec = do
                 , expectedResult = Left $ UtxoNotEnoughFragmented 3 4
                 })
 
+    describe "Coin selection properties : Random algorithm" $ do
+        it "forall (UTxO, NonEmpty TxOut), \
+           \ running algorithm gives not less UTxO fragmentation than LargestFirst algorithm"
+            (property propFragmentation)
+        it "forall (UTxO, NonEmpty TxOut), \
+           \ running algorithm gives the same errors as LargestFirst algorithm"
+            (property propErrors)
+
+
+{-------------------------------------------------------------------------------
+                 Properties and unit test generic scenario
+-------------------------------------------------------------------------------}
 
 data Fixture = Fixture
     { maxNumOfInputs :: Word64
@@ -167,6 +202,55 @@ coinSelectionUnitTest (Fixture n utxoCoins txOutsCoins expected) = do
             pure (utxo, txOuts)
 
 
+propFragmentation
+    :: CoveringCase
+    -> Property
+propFragmentation (CoveringCase (utxo, txOuts)) = do
+    isRight selection1 && isRight selection2 ==>
+        let (Right s1, Right s2) =
+                (selection1, selection2)
+        in prop (s1, s2)
+  where
+    prop (CoinSelection inps1 _ _, CoinSelection inps2 _ _) =
+        L.length inps1 `shouldSatisfy` (>= L.length inps2)
+    drg = unsafeDupablePerformIO getSystemDRG
+    (selection1,_) = withDRG drg
+        (runExceptT $ random (defaultCoinSelectionOptions 100) utxo txOuts)
+    selection2 = runIdentity $ runExceptT $
+        largestFirst (defaultCoinSelectionOptions 100) utxo txOuts
+
+propErrors
+    :: CoveringCase
+    -> Property
+propErrors (CoveringCase (utxo, txOuts)) = do
+    isLeft selection1 && isLeft selection2 ==>
+        let (Left s1, Left s2) =
+                (selection1, selection2)
+        in prop (s1, s2)
+  where
+    prop (err1, err2) =
+        err1 === err2
+    drg = unsafeDupablePerformIO getSystemDRG
+    (selection1,_) = withDRG drg
+        (runExceptT $ random (defaultCoinSelectionOptions 1) utxo txOuts)
+    selection2 = runIdentity $ runExceptT $
+        largestFirst (defaultCoinSelectionOptions 1) utxo txOuts
+
+
+{-------------------------------------------------------------------------------
+                                  Test Data
+-------------------------------------------------------------------------------}
+
+newtype CoveringCase = CoveringCase { getCoveringCase :: (UTxO, NonEmpty TxOut)}
+    deriving Show
+
+instance Arbitrary CoveringCase where
+    arbitrary = do
+        n <- choose (1, 10)
+        txOutsNonEmpty <- NE.fromList <$> vectorOf n arbitrary
+        utxo <- arbitrary
+        return $ CoveringCase (utxo, txOutsNonEmpty)
+
 instance Arbitrary Address where
     -- No Shrinking
     arbitrary = oneof
@@ -174,6 +258,10 @@ instance Arbitrary Address where
         , pure $ Address "ADDR02"
         , pure $ Address "ADDR03"
         ]
+
+instance Arbitrary Coin where
+    -- No Shrinking
+    arbitrary = Coin <$> choose (1, 100000)
 
 instance Arbitrary TxIn where
     -- No Shrinking
@@ -187,3 +275,18 @@ instance Arbitrary (Hash "Tx") where
         wds <- vectorOf 10 arbitrary :: Gen [Word8]
         let bs = BS.pack wds
         pure $ Hash bs
+
+instance Arbitrary TxOut where
+    -- No Shrinking
+    arbitrary = TxOut
+        <$> arbitrary
+        <*> arbitrary
+
+instance Arbitrary UTxO where
+    shrink (UTxO utxo) = UTxO <$> shrink utxo
+    arbitrary = do
+        n <- choose (1, 100)
+        utxo <- zip
+            <$> vectorOf n arbitrary
+            <*> vectorOf n arbitrary
+        return $ UTxO $ Map.fromList utxo

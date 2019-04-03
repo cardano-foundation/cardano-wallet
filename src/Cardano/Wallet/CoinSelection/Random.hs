@@ -130,8 +130,7 @@ processTxOut maxNumInputs input txout =
               >= ((getCoin . targetMin . mkTargetRange . coin) txout) =
                   pure $ Just (inps, utxoMap)
             | otherwise = do
-                  pickRandom utxoMap >>=
-                      maybe (return Nothing) (\out -> return (Just out)) >>= \case
+                  (maybe Nothing Just <$> pickRandom utxoMap) >>= \case
                       Just (io, utxoMap') ->
                           atLeast (io:inps, utxoMap')
                       Nothing -> return Nothing
@@ -143,8 +142,7 @@ processTxOut maxNumInputs input txout =
         improve inp =
             case inp of
                 Just (inps, utxoMap) -> do
-                    pickRandom utxoMap >>=
-                        maybe (return Nothing) (\out -> return (Just out)) >>= \case
+                    (maybe Nothing Just <$> pickRandom utxoMap) >>= \case
                         Just (io, utxoMap') ->
                             case isImprovement io inps of
                                 Nothing ->
