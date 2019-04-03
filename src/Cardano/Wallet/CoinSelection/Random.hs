@@ -127,7 +127,7 @@ processTxOut maxNumInputs input txout =
             | L.length inps > (fromIntegral maxNumInputs) =
                   return Nothing
             | sum (map (getCoin . coin . snd) inps)
-              > ((getCoin . targetMin . mkTargetRange . coin) txout) =
+              >= ((getCoin . targetMin . mkTargetRange . coin) txout) =
                   pure $ Just (inps, utxoMap)
             | otherwise = do
                   pickRandom utxoMap >>=
@@ -149,9 +149,13 @@ processTxOut maxNumInputs input txout =
                             case isImprovement io inps of
                                 Nothing ->
                                     pure $ Just (inps, utxoMap)
-                                Just inps' ->
-                                    improve $ Just (inps', utxoMap')
-                        Nothing -> return Nothing
+                                Just inps' -> do
+                                    let threshold = targetAim $ (mkTargetRange . coin) txout
+                                    if selectedBalance inps' >= threshold then
+                                        pure $ Just (inps', utxoMap')
+                                    else
+                                        improve $ Just (inps', utxoMap')
+                        Nothing -> return $ Just (inps, utxoMap)
                 Nothing ->
                     return Nothing
 
@@ -172,7 +176,6 @@ processTxOut maxNumInputs input txout =
             return selected'
             where
                 selected' = io : selected
-                selectedBalance = Coin . sum . (map (getCoin . coin . snd))
                 distance (Coin val1) (Coin val2) =
                     if val1 < val2 then
                         val2 - val1
@@ -180,6 +183,10 @@ processTxOut maxNumInputs input txout =
                         val1 - val2
                 targetRange = (mkTargetRange . coin) txout
 
+        selectedBalance
+            :: [(TxIn, TxOut)]
+            -> Coin
+        selectedBalance = Coin . sum . (map (getCoin . coin . snd))
 
 mkTargetRange :: Coin -> TargetRange
 mkTargetRange val =
