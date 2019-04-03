@@ -61,14 +61,11 @@ import Data.ByteString
     ( ByteString )
 import Data.List
     ( foldl' )
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
 import GHC.Generics
     ( Generic )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Codec.CBOR.Encoding as CBOR
-import qualified Data.List.NonEmpty as NE
 
 -- | Types
 data WalletLayer s = WalletLayer
@@ -157,9 +154,7 @@ mkWalletLayer db network = WalletLayer
 
 newtype PassPhrase = PassPhrase ByteString -- ScrubbedBytes
 data TxAux = TxAux Tx [TxWitness]
-type TxInputs = NonEmpty TxIn
-type TxOutputs = NonEmpty TxOut
-type TxOwnedInputs owner = NonEmpty (owner, TxIn)
+type TxOwnedInputs owner = [(owner, TxIn)]
 
 -- | Build a transaction
 
@@ -169,19 +164,19 @@ type TxOwnedInputs owner = NonEmpty (owner, TxIn)
 -- multisignature transactions, etc.
 mkStdTx :: Monad m
         => ProtocolMagic
-        -> (forall a. NonEmpty a -> m (NonEmpty a))
+        -> (forall a. [a] -> m [a])
         -- ^ Shuffle function
         -> (Address -> Either e (Key 'RootK XPrv))
         -- ^ Signer for each input of the transaction
-        -> NonEmpty (TxIn, TxOut)
+        -> [(TxIn, TxOut)]
         -- ^ Selected inputs
-        -> NonEmpty TxOut
+        -> [TxOut]
         -- ^ Selected outputs
         -> [TxOut]
         -- ^ Change outputs
         -> m (Either e TxAux)
 mkStdTx pm shuffle hdwSigners inps outs change = do
-    allOuts <- shuffle $ foldl' (flip NE.cons) outs change
+    allOuts <- shuffle (outs ++ change)
     return $ makeMPubKeyTxAddrs pm hdwSigners (fmap repack inps) allOuts
     where
          -- | Repacks a utxo-derived tuple into a format suitable for
@@ -194,7 +189,7 @@ makeMPubKeyTxAddrs
     :: ProtocolMagic
     -> (Address -> Either e (Key 'RootK XPrv))
     -> TxOwnedInputs TxOut
-    -> TxOutputs
+    -> [TxOut]
     -> Either e TxAux
 makeMPubKeyTxAddrs pm hdwSigners = makeMPubKeyTx pm getSigner
   where
@@ -206,7 +201,7 @@ makeMPubKeyTx
     :: ProtocolMagic
     -> (owner -> Either e (Key 'RootK XPrv))
     -> TxOwnedInputs owner
-    -> TxOutputs
+    -> [TxOut]
     -> Either e TxAux
 makeMPubKeyTx pm getSs = makeAbstractTx mkWit
   where
@@ -226,13 +221,14 @@ makeMPubKeyTx pm getSs = makeAbstractTx mkWit
 -- outputs and a way to construct witness from signature data
 makeAbstractTx :: (owner -> Hash "tx" -> Either e TxWitness)
                -> TxOwnedInputs owner
-               -> TxOutputs
+               -> [TxOut]
                -> Either e TxAux
-makeAbstractTx mkWit txins txouts = do
-    let tx = Tx (NE.toList $ fmap snd txins) (NE.toList txouts)
+makeAbstractTx mkWit ownedIns outs = do
+    let ins = (fmap snd ownedIns)
+
+    let tx = Tx ins outs
         txSigData = Hash "tx"
-    txWitness <- NE.toList <$>
-        forM txins (\(addr, _) -> mkWit addr txSigData)
+    txWitness <- forM ownedIns (\(addr, _) -> mkWit addr txSigData)
     pure $ TxAux tx txWitness
 
 
