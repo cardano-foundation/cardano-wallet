@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -25,6 +26,8 @@ import Cardano.Wallet.Api.Types
     , ApiMnemonicT (..)
     , ApiT (..)
     , ApiWallet (..)
+    , FromText (..)
+    , ToText (..)
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -95,7 +98,7 @@ import Data.Swagger
 import Data.Swagger.Declare
     ( Declare )
 import Data.Typeable
-    ( Typeable )
+    ( Typeable, typeRep )
 import Data.Word
     ( Word32, Word8 )
 import GHC.TypeLits
@@ -124,6 +127,7 @@ import Test.QuickCheck
     , arbitraryPrintableChar
     , choose
     , frequency
+    , property
     , vectorOf
     )
 import Test.QuickCheck.Arbitrary.Generic
@@ -143,22 +147,34 @@ import qualified Prelude
 spec :: Spec
 spec = do
     describe
+        "can perform roundtrip textual encoding & decoding" $ do
+            let test = textRoundtrip
+            test $ Proxy @(ApiT Address)
+            test $ Proxy @(ApiT AddressPoolGap)
+            test $ Proxy @(ApiT (Passphrase "encryption"))
+            test $ Proxy @(ApiT WalletId)
+            test $ Proxy @(ApiT WalletName)
+            test $ Proxy @(ApiMnemonicT '[9, 12] "generation")
+            test $ Proxy @(ApiMnemonicT '[15, 18, 21, 24] "seed")
+
+    describe
         "can perform roundtrip JSON serialization & deserialization, \
         \and match existing golden files" $ do
-            roundtripAndGolden $ Proxy @ ApiAddress
-            roundtripAndGolden $ Proxy @ ApiWallet
-            roundtripAndGolden $ Proxy @ WalletPostData
-            roundtripAndGolden $ Proxy @ WalletPutData
-            roundtripAndGolden $ Proxy @ WalletPutPassphraseData
-            roundtripAndGolden $ Proxy @ (ApiT Address)
-            roundtripAndGolden $ Proxy @ (ApiT AddressPoolGap)
-            roundtripAndGolden $ Proxy @ (ApiT (WalletDelegation (ApiT PoolId)))
-            roundtripAndGolden $ Proxy @ (ApiT WalletId)
-            roundtripAndGolden $ Proxy @ (ApiT WalletName)
-            roundtripAndGolden $ Proxy @ (ApiT WalletBalance)
-            roundtripAndGolden $ Proxy @ (ApiT WalletPassphraseInfo)
-            roundtripAndGolden $ Proxy @ (ApiT WalletState)
-            roundtripAndGolden $ Proxy @ (ApiT (Passphrase "encryption"))
+            let test = jsonRoundtripAndGolden
+            test $ Proxy @ApiAddress
+            test $ Proxy @ApiWallet
+            test $ Proxy @WalletPostData
+            test $ Proxy @WalletPutData
+            test $ Proxy @WalletPutPassphraseData
+            test $ Proxy @(ApiT Address)
+            test $ Proxy @(ApiT AddressPoolGap)
+            test $ Proxy @(ApiT (WalletDelegation (ApiT PoolId)))
+            test $ Proxy @(ApiT WalletId)
+            test $ Proxy @(ApiT WalletName)
+            test $ Proxy @(ApiT WalletBalance)
+            test $ Proxy @(ApiT WalletPassphraseInfo)
+            test $ Proxy @(ApiT WalletState)
+            test $ Proxy @(ApiT (Passphrase "encryption"))
 
     describe
         "verify that every type used with JSON content type in a servant API \
@@ -221,6 +237,20 @@ spec = do
                 #{getAddressPoolGap maxBound + 1}
             |] `shouldBe` (Left @String @(ApiT AddressPoolGap) msg)
 
+-- | Constructs a test to check that roundtrip textual encoding and decoding
+-- is possible for values of the given type.
+--
+textRoundtrip
+    :: forall a . (Arbitrary a, Eq a, Show a, ToText a, FromText a, Typeable a)
+    => Proxy a
+    -> Spec
+textRoundtrip proxy = it
+    ("can perform roundtrip textual encoding and decoding for values of type '"
+        <> show (typeRep proxy)
+        <> "'")
+    (property $ \a ->
+        fromText (toText @a a) `shouldBe` Right a)
+
 -- Golden tests files are generated automatically on first run. On later runs
 -- we check that the format stays the same. The golden files should be tracked
 -- in git.
@@ -233,11 +263,11 @@ spec = do
 -- new format. Faulty golden files should /not/ be commited.
 --
 -- The directory `test/data/Cardano/Wallet/Api` is used.
-roundtripAndGolden
+jsonRoundtripAndGolden
     :: forall a. (Arbitrary a, ToJSON a, FromJSON a, Typeable a)
     => Proxy a
     -> Spec
-roundtripAndGolden = roundtripAndGoldenSpecsWithSettings settings
+jsonRoundtripAndGolden = roundtripAndGoldenSpecsWithSettings settings
   where
     settings :: Settings
     settings = defaultSettings
