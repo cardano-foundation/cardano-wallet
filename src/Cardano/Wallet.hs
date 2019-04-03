@@ -19,7 +19,7 @@ module Cardano.Wallet where
 import Prelude
 
 import Cardano.Wallet.Binary
-    ( TxWitness (..) )
+    ( TxWitness (..), toByteString )
 import Cardano.Wallet.DB
     ( DBLayer (..), PrimaryKey (..) )
 import Cardano.Wallet.Network
@@ -43,6 +43,7 @@ import Cardano.Wallet.Primitive.Types
     ( Address
     , Block (..)
     , Hash (..)
+    , ProtocolMagic (..)
     , Tx (..)
     , TxIn
     , TxOut (TxOut)
@@ -66,6 +67,7 @@ import GHC.Generics
     ( Generic )
 
 import qualified Cardano.Crypto.Wallet as CC
+import qualified Codec.CBOR.Encoding as CBOR
 import qualified Data.List.NonEmpty as NE
 
 -- | Types
@@ -153,8 +155,6 @@ mkWalletLayer db network = WalletLayer
         putCheckpoint db (PrimaryKey wid) cp'
 
 
-data ProtocolMagic
-data EncryptedSecretKey
 newtype PassPhrase = PassPhrase ByteString -- ScrubbedBytes
 data TxAux = TxAux Tx [TxWitness]
 type TxInputs = NonEmpty TxIn
@@ -275,7 +275,7 @@ data SignTag
 -- | Get magic bytes corresponding to a 'SignTag'. Guaranteed to be different
 -- (and begin with a different byte) for different tags.
 signTag :: ProtocolMagic -> SignTag -> ByteString
-signTag protocolMagic = \case
+signTag (ProtocolMagic pm) = \case
     SignForTestingOnly -> "\x00"
     SignTx             -> "\x01" <> network
     SignRedeemTx       -> "\x02" <> network
@@ -288,9 +288,7 @@ signTag protocolMagic = \case
     SignMainBlockHeavy -> "\x09" <> network
     SignProxySK        -> "\x0a" <> network
   where
-    network = serialize' (getProtocolMagic protocolMagic)
-    serialize' = undefined
-    getProtocolMagic = undefined
+    network = toByteString . CBOR.encodeInt32 $ pm
 
 -- Signatures
 
@@ -298,9 +296,6 @@ signTag protocolMagic = \case
 -- | Wrapper around 'CC.XSignature'.
 newtype Signature a = Signature CC.XSignature
     deriving (Eq, Ord, Show, Generic)
-
-serialize :: Signature a -> ByteString
-serialize = undefined
 
 
 --
@@ -325,3 +320,11 @@ signRaw pm mbTag (Key k) (Hash x) = CC.unXSignature $ CC.sign emptyPassphrase k 
 
     emptyPassphrase :: ByteString
     emptyPassphrase = mempty
+
+
+--
+--
+-- ProtocolMAgic
+--
+--
+

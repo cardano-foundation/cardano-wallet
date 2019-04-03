@@ -73,6 +73,9 @@ module Cardano.Wallet.Primitive.Types
     -- * Stake Pools
     , PoolId(..)
 
+    -- * ProtocolMagic
+    , ProtocolMagic (..)
+
     -- * Polymorphic
     , Hash (..)
     , ShowFmt (..)
@@ -89,6 +92,8 @@ import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
     ( bitcoinAlphabet, encodeBase58 )
+import Data.Int
+    ( Int32 )
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
@@ -506,3 +511,17 @@ invariant
     -> a
 invariant msg a predicate =
     if predicate a then a else error msg
+
+
+-- | Magic number which should differ for different clusters. It's
+-- defined here, because it's used for signing. It also used for other
+-- things (e. g. it's part of a serialized block).
+--
+-- mhueschen: As part of CO-353 I am adding `getRequiresNetworkMagic` in
+-- order to pipe configuration to functions which must generate & verify
+-- Addresses (which now must be aware of `NetworkMagic`).
+newtype ProtocolMagic = ProtocolMagic
+    { getProtocolMagicId      :: Int32
+    --, getRequiresNetworkMagic :: !RequiresNetworkMagic
+    } deriving (Eq, Show, Generic)
+
