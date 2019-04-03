@@ -141,6 +141,36 @@ instance (GHC.TypeLits.KnownSymbol u, Data.Aeson.Types.ToJSON.ToJSON a) => Data.
 instance (GHC.TypeLits.KnownSymbol u, Data.Aeson.Types.FromJSON.FromJSON a) => Data.Aeson.Types.FromJSON.FromJSON (Data.Quantity.Quantity u a)
 
 
+-- | Extend the <a>Text</a> module with an extra abstraction to encode and
+--   decode values safely to and from <a>Text</a>. It's very similar to
+--   <tt>FromJSON</tt> and <tt>ToJSON</tt> from <a>Aeson</a>.
+module Data.Text.Class
+
+-- | Defines a textual encoding for a type defined within the API.
+class ToText a
+
+-- | Encode the specified value as text.
+toText :: ToText a => a -> Text
+
+-- | Defines a textual decoding for a type defined within the API.
+class FromText a
+
+-- | Decode the specified text as a value.
+fromText :: FromText a => Text -> Either TextDecodingError a
+
+-- | Indicates an error that occurred while decoding from text.
+newtype TextDecodingError
+TextDecodingError :: String -> TextDecodingError
+[getTextDecodingError] :: TextDecodingError -> String
+instance Formatting.Buildable.Buildable Data.Text.Class.TextDecodingError
+instance GHC.Show.Show Data.Text.Class.TextDecodingError
+instance GHC.Classes.Eq Data.Text.Class.TextDecodingError
+instance Data.Text.Class.FromText Data.Text.Internal.Text
+instance Data.Text.Class.FromText GHC.Types.Int
+instance Data.Text.Class.ToText Data.Text.Internal.Text
+instance Data.Text.Class.ToText GHC.Types.Int
+
+
 -- | This module contains the core primitive of a Wallet. This is roughly a
 --   Haskell translation of the <a>Formal Specification for a Cardano
 --   Wallet</a>
@@ -268,9 +298,12 @@ WalletMetadata :: !WalletId -> !WalletName -> !WalletPassphraseInfo -> !WalletSt
 [$sel:delegation:WalletMetadata] :: WalletMetadata -> !WalletDelegation PoolId
 newtype WalletId
 WalletId :: UUID -> WalletId
+[$sel:getWalletId:WalletId] :: WalletId -> UUID
 newtype WalletName
 WalletName :: Text -> WalletName
 [$sel:getWalletName:WalletName] :: WalletName -> Text
+walletNameMinLength :: Int
+walletNameMaxLength :: Int
 data WalletState
 Ready :: WalletState
 Restoring :: !Quantity "percent" Percentage -> WalletState
@@ -427,10 +460,16 @@ instance GHC.Enum.Bounded Cardano.Wallet.Primitive.Types.Coin
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.Coin
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.Address
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.Address
+instance Data.Text.Class.FromText Cardano.Wallet.Primitive.Types.Address
+instance Data.Text.Class.ToText Cardano.Wallet.Primitive.Types.Address
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.Direction
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.Direction
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.TxStatus
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.TxStatus
+instance Data.Text.Class.FromText Cardano.Wallet.Primitive.Types.WalletId
+instance Data.Text.Class.ToText Cardano.Wallet.Primitive.Types.WalletId
+instance Data.Text.Class.FromText Cardano.Wallet.Primitive.Types.WalletName
+instance Data.Text.Class.ToText Cardano.Wallet.Primitive.Types.WalletName
 
 module Cardano.Wallet.Network
 data NetworkLayer m e0 e1
@@ -468,6 +507,67 @@ listen :: forall e0 e1. Show e0 => NetworkLayer IO e0 e1 -> ([Block] -> IO ()) -
 instance Data.Foldable.Foldable Cardano.Wallet.Network.TickResult
 instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.Wallet.Network.TickResult a)
 instance GHC.Show.Show a => GHC.Show.Show (Cardano.Wallet.Network.TickResult a)
+
+
+-- | Provides the API of Coin Selection algorithm and Fee related
+--   functionality. For more information refer to:
+--   <a>https://iohk.io/blog/self-organisation-in-coin-selection/</a>
+module Cardano.Wallet.CoinSelection
+data CoinSelectionOptions
+CoinSelectionOptions :: (Int -> NonEmpty Coin -> Coin) -> Coin -> Word64 -> CoinSelectionOptions
+
+-- | A function to estimate the fees.
+[estimateFee] :: CoinSelectionOptions -> Int -> NonEmpty Coin -> Coin
+
+-- | Change addresses below the given threshold will be evicted from the
+--   created transaction. If you only want to remove change outputs equal
+--   to 0, set <tt>csoDustThreshold</tt> to 0.
+[dustThreshold] :: CoinSelectionOptions -> Coin
+[maximumNumberOfInputs] :: CoinSelectionOptions -> Word64
+data CoinSelectionError
+
+-- | UTxO exhausted during input selection We record the balance of the
+--   UTxO as well as the size of the payment we tried to make.
+NotEnoughMoney :: Word64 -> Word64 -> CoinSelectionError
+
+-- | UTxO is not enough fragmented for the number of transaction outputs We
+--   record the number of UTxO entries as well as the number of the outputs
+--   of the transaction.
+UtxoNotEnoughFragmented :: Word64 -> Word64 -> CoinSelectionError
+
+-- | When trying to construct a transaction, the max number of allowed
+--   inputs was reached.
+MaximumInputsReached :: Word64 -> CoinSelectionError
+data CoinSelection
+CoinSelection :: [(TxIn, TxOut)] -> [TxOut] -> [Coin] -> CoinSelection
+
+-- | Picked inputs
+[inputs] :: CoinSelection -> [(TxIn, TxOut)]
+
+-- | Picked outputs
+[outputs] :: CoinSelection -> [TxOut]
+
+-- | Resulting changes
+[change] :: CoinSelection -> [Coin]
+newtype Fee
+Fee :: Quantity "lovelace" Natural -> Fee
+[getFee] :: Fee -> Quantity "lovelace" Natural
+adjustForFees :: CoinSelectionOptions -> (Coin -> UTxO -> Maybe (TxIn, TxOut)) -> CoinSelection -> CoinSelection
+instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.CoinSelection
+instance GHC.Show.Show Cardano.Wallet.CoinSelection.CoinSelection
+instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.CoinSelectionError
+instance GHC.Show.Show Cardano.Wallet.CoinSelection.CoinSelectionError
+instance GHC.Generics.Generic Cardano.Wallet.CoinSelection.CoinSelectionOptions
+instance GHC.Base.Semigroup Cardano.Wallet.CoinSelection.CoinSelection
+instance GHC.Base.Monoid Cardano.Wallet.CoinSelection.CoinSelection
+
+
+-- | This module contains the implementation of largestFirst input
+--   selection algorithm
+module Cardano.Wallet.CoinSelection.LargestFirst
+
+-- | Largest-first input selection policy
+largestFirst :: forall m. Monad m => CoinSelectionOptions -> UTxO -> NonEmpty TxOut -> ExceptT CoinSelectionError m CoinSelection
 
 
 -- | These are (partial) CBOR decoders for blocks and block headers. Note
@@ -569,427 +669,6 @@ instance GHC.Show.Show Cardano.Wallet.Binary.TxWitness
 instance GHC.Classes.Eq Cardano.Wallet.Binary.TxWitness
 
 
--- | Primitives for performing address derivation for some given schemes.
---   This is where most of the crypto happens in the wallet and, it is
---   quite important to ensure that the following implementation matches
---   with other wallet softwares (like Yoroi/Icarus or the cardano-cli)
-module Cardano.Wallet.Primitive.AddressDerivation
-
--- | A cryptographic key, with phantom-types to disambiguate key types.
---   
---   <pre>
---   let rootPrivateKey = Key 'RootK XPrv
---   let accountPubKey = Key 'AccountK XPub
---   let addressPubKey = Key 'AddressK XPub
---   </pre>
-data Key (level :: Depth) key
-
--- | Key Depth in the derivation path, according to BIP-0039 / BIP-0044
---   
---   <pre>
---   m | purpose' | cointype' | account' | change | address
---   </pre>
---   
---   We do not manipulate purpose, cointype and change paths directly, so
---   they are left out of the sum type.
-data Depth
-RootK :: Depth
-AccountK :: Depth
-AddressK :: Depth
-
--- | A derivation index, with phantom-types to disambiguate derivation
---   type.
---   
---   <pre>
---   let accountIx = Index 'Hardened 'AccountK
---   let addressIx = Index 'Soft 'AddressK
---   </pre>
-data Index (derivationType :: DerivationType) (level :: Depth)
-getIndex :: Index derivationType level -> Word32
-
--- | Type of derivation that should be used with the given indexes.
-data DerivationType
-Hardened :: DerivationType
-Soft :: DerivationType
-
--- | An encapsulated passphrase. The inner format is free, but the wrapper
---   helps readability in function signatures.
-newtype Passphrase (goal :: Symbol)
-Passphrase :: ScrubbedBytes -> Passphrase
-
--- | Extract the public key part of a private key.
-publicKey :: Key level XPrv -> Key level XPub
-data XPub
-data XPrv
-
--- | Marker for the change chain. In practice, change of a transaction goes
---   onto the addresses generated on the internal chain, whereas the
---   external chain is used for addresses that are part of the
---   <tt>advertised</tt> targets of a transaction
-data ChangeChain
-InternalChain :: ChangeChain
-ExternalChain :: ChangeChain
-
--- | Generate a root key from a corresponding seed
-generateKeyFromSeed :: (Passphrase "seed", Passphrase "generation") -> Passphrase "encryption" -> Key  'RootK XPrv
-
--- | Generate a new key from seed. Note that the <tt>depth</tt> is left
---   open so that the caller gets to decide what type of key this is. This
---   is mostly for testing, in practice, seeds are used to represent root
---   keys, and one should use <a>generateKeyFromSeed</a>.
-unsafeGenerateKeyFromSeed :: (Passphrase "seed", Passphrase "generation") -> Passphrase "encryption" -> Key depth XPrv
-
--- | Derives account private key from the given root private key, using
---   derivation scheme 2 (see <a>cardano-crypto</a> package for more
---   details).
---   
---   NOTE: The caller is expected to provide the corresponding passphrase
---   (and to have checked that the passphrase is valid). Providing a wrong
---   passphrase will not make the function fail but will instead, yield an
---   incorrect new key that doesn't belong to the wallet.
-deriveAccountPrivateKey :: Passphrase "encryption" -> Key  'RootK XPrv -> Index  'Hardened  'AccountK -> Key  'AccountK XPrv
-
--- | Derives address private key from the given account private key, using
---   derivation scheme 2 (see <a>cardano-crypto</a> package for more
---   details).
---   
---   It is preferred to use <a>deriveAddressPublicKey</a> whenever possible
---   to avoid having to manipulate passphrases and private keys.
---   
---   NOTE: The caller is expected to provide the corresponding passphrase
---   (and to have checked that the passphrase is valid). Providing a wrong
---   passphrase will not make the function fail but will instead, yield an
---   incorrect new key that doesn't belong to the wallet.
-deriveAddressPrivateKey :: Passphrase "encryption" -> Key  'AccountK XPrv -> ChangeChain -> Index  'Soft  'AddressK -> Key  'AddressK XPrv
-
--- | Derives address public key from the given account public key, using
---   derivation scheme 2 (see <a>cardano-crypto</a> package for more
---   details).
---   
---   This is the preferred way of deriving new sequential address public
---   keys.
-deriveAddressPublicKey :: Key  'AccountK XPub -> ChangeChain -> Index  'Soft  'AddressK -> Key  'AddressK XPub
-
--- | Encode a public key to a (Byron / Legacy) Cardano <a>Address</a>. This
---   is mostly dubious CBOR serializations with no data attributes.
-keyToAddress :: Key  'AddressK XPub -> Address
-instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
-instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
-instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
-instance GHC.Base.Monoid (Cardano.Wallet.Primitive.AddressDerivation.Passphrase goal)
-instance GHC.Base.Semigroup (Cardano.Wallet.Primitive.AddressDerivation.Passphrase goal)
-instance GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.Passphrase goal)
-instance GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDerivation.Passphrase goal)
-instance GHC.Classes.Ord (Cardano.Wallet.Primitive.AddressDerivation.Index derivationType level)
-instance GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDerivation.Index derivationType level)
-instance GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.Index derivationType level)
-instance GHC.Generics.Generic (Cardano.Wallet.Primitive.AddressDerivation.Index derivationType level)
-instance GHC.Classes.Eq key => GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDerivation.Key level key)
-instance GHC.Show.Show key => GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.Key level key)
-instance GHC.Generics.Generic (Cardano.Wallet.Primitive.AddressDerivation.Key level key)
-instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
-instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
-instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDerivation.Index derivationType level)
-instance GHC.Enum.Bounded (Cardano.Wallet.Primitive.AddressDerivation.Index 'Cardano.Wallet.Primitive.AddressDerivation.Hardened level)
-instance GHC.Enum.Bounded (Cardano.Wallet.Primitive.AddressDerivation.Index 'Cardano.Wallet.Primitive.AddressDerivation.Soft level)
-instance GHC.Enum.Enum (Cardano.Wallet.Primitive.AddressDerivation.Index 'Cardano.Wallet.Primitive.AddressDerivation.Hardened level)
-instance GHC.Enum.Enum (Cardano.Wallet.Primitive.AddressDerivation.Index 'Cardano.Wallet.Primitive.AddressDerivation.Soft level)
-instance Control.DeepSeq.NFData key => Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDerivation.Key level key)
-
-
--- | This module contains primitives necessary to perform address
---   discovery. So far, we're only interested in address following a
---   sequential derivation scheme as specified in BIP-0044. Later, we may
---   introduce backward compatibility with random address scheme from the
---   legacy Cardano wallets.
-module Cardano.Wallet.Primitive.AddressDiscovery
-
--- | Maximum number of consecutive undiscovered addresses allowed
-data AddressPoolGap
-
--- | Possible errors when casting to an <a>AddressPoolGap</a>
-newtype MkAddressPoolGapError
-ErrGapOutOfRange :: Word8 -> MkAddressPoolGapError
-
--- | A default <a>AddressPoolGap</a>, as suggested in BIP-0044
-defaultAddressPoolGap :: AddressPoolGap
-getAddressPoolGap :: AddressPoolGap -> Word8
-
--- | Smart constructor for <a>AddressPoolGap</a>
-mkAddressPoolGap :: Word8 -> Either MkAddressPoolGapError AddressPoolGap
-
--- | An <a>AddressPool</a> which keeps track of sequential addresses within
---   a given Account and change chain. See <a>mkAddressPool</a> to create a
---   new or existing pool:
---   
---   <pre>
---   &gt;&gt;&gt; mkAddressPool xpub gap changeChain mempty
---   AddressPool { }
---   </pre>
-data AddressPool
-
--- | The actual gap for the pool. This can't change for a given pool.
-gap :: AddressPool -> AddressPoolGap
-
--- | Get all addresses in the pool, sorted from the first address
---   discovered, up until the next one.
---   
---   In practice, we always have:
---   
---   <pre>
---   mkAddressPool key g cc (addresses pool) == pool
---   </pre>
-addresses :: AddressPool -> [Address]
-
--- | Whether this pool tracks addrs on the internal or external chain
-changeChain :: AddressPool -> ChangeChain
-
--- | Corresponding key for the pool (a pool is tied to only one account)
-accountPubKey :: AddressPool -> Key  'AccountK XPub
-
--- | Create a new Address pool from a list of addresses. Note that, the
---   list is expected to be ordered in sequence (first indexes, first in
---   the list).
---   
---   The pool will grow from the start if less than <tt>g ::
---   AddressPoolGap</tt> are given, such that, there are always <tt>g</tt>
---   undiscovered addresses in the pool.
-mkAddressPool :: Key  'AccountK XPub -> AddressPoolGap -> ChangeChain -> [Address] -> AddressPool
-
--- | Lookup an address in the pool. When we find an address in a pool, the
---   pool may be amended if the address was discovered near the edge. It is
---   also possible that the pool is not amended at all - this happens in
---   the case that an address is discovered <tt>far</tt> from the edge.
-lookupAddress :: Address -> AddressPool -> (Maybe (Index  'Soft  'AddressK), AddressPool)
-data SeqState
-SeqState :: !AddressPool -> !AddressPool -> SeqState
-[internalPool] :: SeqState -> !AddressPool
-[externalPool] :: SeqState -> !AddressPool
-instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.SeqState
-instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.SeqState
-instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDiscovery.AddressPool
-instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.AddressPool
-instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.AddressPool
-instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.MkAddressPoolGapError
-instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDiscovery.MkAddressPoolGapError
-instance GHC.Classes.Ord Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
-instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
-instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
-instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
-instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.SeqState
-instance Cardano.Wallet.Primitive.Types.IsOurs Cardano.Wallet.Primitive.AddressDiscovery.SeqState
-instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.AddressPool
-instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
-instance GHC.Enum.Bounded Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
-instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
-
-
--- | API type representations of various types. We define here pretty much
---   all our user-facing types that are mostly composed with internal /
---   primitive types.
---   
---   This module also define required API instances (JSON, HttpApiData...)
---   for all those types, making sure to match the specification document:
---   
---   <a>Wallet API Specification</a>
-module Cardano.Wallet.Api.Types
-data ApiAddress
-ApiAddress :: !ApiT Address -> !ApiT AddressState -> ApiAddress
-[$sel:id:ApiAddress] :: ApiAddress -> !ApiT Address
-[$sel:state:ApiAddress] :: ApiAddress -> !ApiT AddressState
-data ApiWallet
-ApiWallet :: !ApiT WalletId -> !ApiT AddressPoolGap -> !ApiT WalletBalance -> !ApiT (WalletDelegation (ApiT PoolId)) -> !ApiT WalletName -> !ApiT WalletPassphraseInfo -> !ApiT WalletState -> ApiWallet
-[$sel:id:ApiWallet] :: ApiWallet -> !ApiT WalletId
-[$sel:addressPoolGap:ApiWallet] :: ApiWallet -> !ApiT AddressPoolGap
-[$sel:balance:ApiWallet] :: ApiWallet -> !ApiT WalletBalance
-[$sel:delegation:ApiWallet] :: ApiWallet -> !ApiT (WalletDelegation (ApiT PoolId))
-[$sel:name:ApiWallet] :: ApiWallet -> !ApiT WalletName
-[$sel:passphrase:ApiWallet] :: ApiWallet -> !ApiT WalletPassphraseInfo
-[$sel:state:ApiWallet] :: ApiWallet -> !ApiT WalletState
-data WalletBalance
-WalletBalance :: !Quantity "lovelace" Natural -> !Quantity "lovelace" Natural -> WalletBalance
-[$sel:available:WalletBalance] :: WalletBalance -> !Quantity "lovelace" Natural
-[$sel:total:WalletBalance] :: WalletBalance -> !Quantity "lovelace" Natural
-data WalletPostData
-WalletPostData :: !Maybe (ApiT AddressPoolGap) -> !ApiMnemonicT '[15, 18, 21, 24] "seed" -> !Maybe (ApiMnemonicT '[9, 12] "generation") -> !ApiT WalletName -> !ApiT (Passphrase "encryption") -> WalletPostData
-[$sel:addressPoolGap:WalletPostData] :: WalletPostData -> !Maybe (ApiT AddressPoolGap)
-[$sel:mnemonicSentence:WalletPostData] :: WalletPostData -> !ApiMnemonicT '[15, 18, 21, 24] "seed"
-[$sel:mnemonicSecondFactor:WalletPostData] :: WalletPostData -> !Maybe (ApiMnemonicT '[9, 12] "generation")
-[$sel:name:WalletPostData] :: WalletPostData -> !ApiT WalletName
-[$sel:passphrase:WalletPostData] :: WalletPostData -> !ApiT (Passphrase "encryption")
-newtype WalletPutData
-WalletPutData :: Maybe (ApiT WalletName) -> WalletPutData
-[$sel:name:WalletPutData] :: WalletPutData -> Maybe (ApiT WalletName)
-data WalletPutPassphraseData
-WalletPutPassphraseData :: !ApiT (Passphrase "encryption") -> !ApiT (Passphrase "encryption") -> WalletPutPassphraseData
-[$sel:oldPassphrase:WalletPutPassphraseData] :: WalletPutPassphraseData -> !ApiT (Passphrase "encryption")
-[$sel:newPassphrase:WalletPutPassphraseData] :: WalletPutPassphraseData -> !ApiT (Passphrase "encryption")
-
--- | Defines a textual encoding for a type defined within the API.
-class ToText a
-
--- | Encode the specified value as text.
-toText :: ToText a => a -> Text
-
--- | Defines a textual decoding for a type defined within the API.
-class FromText a
-
--- | Decode the specified text as a value.
-fromText :: FromText a => Text -> Either TextDecodingError a
-
--- | Indicates an error that occurred while decoding from text.
-newtype TextDecodingError
-TextDecodingError :: String -> TextDecodingError
-[$sel:getTextDecodingError:TextDecodingError] :: TextDecodingError -> String
-passphraseMinLength :: Int
-passphraseMaxLength :: Int
-walletNameMinLength :: Int
-walletNameMaxLength :: Int
-
--- | Polymorphic wrapper type to put around primitive types and, 3rd party
---   lib types to avoid defining orphan instances and/or, undesirable
---   instances on primitive types. It helps to keep a nice separation of
---   concerns between the API layer and other modules.
-newtype ApiT a
-ApiT :: a -> ApiT a
-[$sel:getApiT:ApiT] :: ApiT a -> a
-
--- | Representation of mnemonics at the API-level, using a polymorphic type
---   in the lengths of mnemonics that are supported (and an underlying
---   purpose). In practice, mnemonics correspond to passphrases or seeds,
---   and although they're nice to manipulate as mnemonics from a
---   user-perspective, carrying around a list of words doesn't really make
---   sense for the business logic, which prefers manipulating scrubbed
---   bytes directly.
---   
---   <pre>
---   data MyWallet
---       { mnemonic :: ApiMnemonicT '[15,18,21,24] "root-seed"
---       }
---   </pre>
---   
---   Note that the given <a>Nat</a>s **have** to be valid mnemonic sizes,
---   otherwise the underlying code won't even compile, with not-so-friendly
---   error messages.
---   
---   Also, the internal representation holds a <tt>[Text]</tt> which
---   contains the list of mnemonic words that was parsed. This is only to
---   be able to implement the <a>ToJSON</a> instances and roundtrip, which
---   is a very dubious argument. In practice, we'll NEVER peek at the
---   mnemonic, output them and whatnot.
-newtype ApiMnemonicT (sizes :: [Nat]) (purpose :: Symbol)
-ApiMnemonicT :: (Passphrase purpose, [Text]) -> ApiMnemonicT
-getApiMnemonicT :: ApiMnemonicT sizes purpose -> Passphrase purpose
-instance Formatting.Buildable.Buildable Cardano.Wallet.Api.Types.MkApiMnemonicError
-instance GHC.Show.Show Cardano.Wallet.Api.Types.MkApiMnemonicError
-instance Formatting.Buildable.Buildable Cardano.Wallet.Api.Types.TextDecodingError
-instance GHC.Show.Show Cardano.Wallet.Api.Types.TextDecodingError
-instance GHC.Classes.Eq Cardano.Wallet.Api.Types.TextDecodingError
-instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletPostData
-instance GHC.Generics.Generic Cardano.Wallet.Api.Types.WalletPostData
-instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletPostData
-instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
-instance GHC.Show.Show (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
-instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
-instance GHC.Show.Show Cardano.Wallet.Api.Types.ApiAddress
-instance GHC.Generics.Generic Cardano.Wallet.Api.Types.ApiAddress
-instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiAddress
-instance GHC.Show.Show Cardano.Wallet.Api.Types.ApiWallet
-instance GHC.Generics.Generic Cardano.Wallet.Api.Types.ApiWallet
-instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiWallet
-instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletPutData
-instance GHC.Generics.Generic Cardano.Wallet.Api.Types.WalletPutData
-instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletPutData
-instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletPutPassphraseData
-instance GHC.Generics.Generic Cardano.Wallet.Api.Types.WalletPutPassphraseData
-instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletPutPassphraseData
-instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.Wallet.Api.Types.ApiT a)
-instance GHC.Show.Show a => GHC.Show.Show (Cardano.Wallet.Api.Types.ApiT a)
-instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.ApiT a)
-instance Cardano.Wallet.Api.Types.MkApiMnemonic sizes purpose => Cardano.Wallet.Api.Types.FromText (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
-instance (n Data.Type.Equality.~ Crypto.Encoding.BIP39.EntropySize mw, csz Data.Type.Equality.~ Crypto.Encoding.BIP39.CheckSumBits n, Crypto.Encoding.BIP39.ConsistentEntropy n mw csz, Cardano.Wallet.Api.Types.MkApiMnemonic rest purpose) => Cardano.Wallet.Api.Types.MkApiMnemonic (mw : rest) purpose
-instance (n Data.Type.Equality.~ Crypto.Encoding.BIP39.EntropySize mw, csz Data.Type.Equality.~ Crypto.Encoding.BIP39.CheckSumBits n, Crypto.Encoding.BIP39.ConsistentEntropy n mw csz) => Cardano.Wallet.Api.Types.MkApiMnemonic '[mw] purpose
-instance Cardano.Wallet.Api.Types.MkApiMnemonic sizes purpose => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
-instance Cardano.Wallet.Api.Types.FromText (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.Address)
-instance Cardano.Wallet.Api.Types.FromText (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap)
-instance Cardano.Wallet.Api.Types.FromText (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.AddressDerivation.Passphrase "encryption"))
-instance Cardano.Wallet.Api.Types.FromText (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletId)
-instance Cardano.Wallet.Api.Types.FromText (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletName)
-instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.Address)
-instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.AddressDerivation.Passphrase "encryption"))
-instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletId)
-instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletName)
-instance Cardano.Wallet.Api.Types.ToText (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.Address)
-instance Cardano.Wallet.Api.Types.ToText (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap)
-instance Cardano.Wallet.Api.Types.ToText (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.AddressDerivation.Passphrase "encryption"))
-instance Cardano.Wallet.Api.Types.ToText (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletId)
-instance Cardano.Wallet.Api.Types.ToText (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletName)
-instance Cardano.Wallet.Api.Types.ToText (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.Address)
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.AddressDerivation.Passphrase "encryption"))
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletId)
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletName)
-instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletPostData
-instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletPostData
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
-instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.ApiAddress
-instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiAddress
-instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.ApiWallet
-instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiWallet
-instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletPutData
-instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletPutData
-instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletPutPassphraseData
-instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletPutPassphraseData
-instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.AddressState)
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.AddressState)
-instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap)
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap)
-instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletBalance)
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletBalance)
-instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.Types.WalletDelegation (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.PoolId)))
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.Types.WalletDelegation (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.PoolId)))
-instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletPassphraseInfo)
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletPassphraseInfo)
-instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletState)
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletState)
-instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.PoolId)
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.PoolId)
-
-module Cardano.Wallet.Api
-api :: Proxy Api
-type Api = Addresses :<|> Wallets
-type Addresses = ListAddresses
-
--- | 
---   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/listAddresses</a>
-type ListAddresses = "wallets" :> Capture "walletId" WalletId :> QueryParam "state" (ApiT AddressState) :> Get '[JSON] [ApiAddress]
-type Wallets = DeleteWallet :<|> GetWallet :<|> ListWallets :<|> PostWallet :<|> PutWallet :<|> PutWalletPassphrase
-
--- | 
---   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteWallet</a>
-type DeleteWallet = "wallets" :> Capture "walletId" WalletId :> Delete '[] NoContent
-
--- | 
---   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/getWallet</a>
-type GetWallet = "wallets" :> Capture "walletId" WalletId :> Get '[JSON] ApiWallet
-
--- | 
---   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/listWallets</a>
-type ListWallets = "wallets" :> Get '[JSON] [ApiWallet]
-
--- | 
---   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/postWallet</a>
-type PostWallet = "wallets" :> ReqBody '[JSON] WalletPostData :> Post '[JSON] ApiWallet
-
--- | 
---   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/putWallet</a>
-type PutWallet = "wallets" :> Capture "walletId" WalletId :> ReqBody '[JSON] WalletPutData :> Put '[JSON] ApiWallet
-
--- | 
---   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/putWalletPassphrase</a>
-type PutWalletPassphrase = "wallets" :> Capture "walletId" WalletId :> ReqBody '[JSON] WalletPutPassphraseData :> Put '[] NoContent
-
-
 -- | Here we find the "business logic" to manage a Cardano wallet. This is
 --   a direct implementation of the model from the <a>Formal Specification
 --   for a Cardano Wallet</a> Note that, this module is purposedly agnostic
@@ -1089,6 +768,259 @@ module Cardano.Wallet.DB.MVar
 newDBLayer :: forall s. IO (DBLayer IO s)
 
 
+-- | Primitives for performing address derivation for some given schemes.
+--   This is where most of the crypto happens in the wallet and, it is
+--   quite important to ensure that the following implementation matches
+--   with other wallet softwares (like Yoroi/Icarus or the cardano-cli)
+module Cardano.Wallet.Primitive.AddressDerivation
+
+-- | A cryptographic key, with phantom-types to disambiguate key types.
+--   
+--   <pre>
+--   let rootPrivateKey = Key 'RootK XPrv
+--   let accountPubKey = Key 'AccountK XPub
+--   let addressPubKey = Key 'AddressK XPub
+--   </pre>
+data Key (level :: Depth) key
+
+-- | Key Depth in the derivation path, according to BIP-0039 / BIP-0044
+--   
+--   <pre>
+--   m | purpose' | cointype' | account' | change | address
+--   </pre>
+--   
+--   We do not manipulate purpose, cointype and change paths directly, so
+--   they are left out of the sum type.
+data Depth
+RootK :: Depth
+AccountK :: Depth
+AddressK :: Depth
+
+-- | A derivation index, with phantom-types to disambiguate derivation
+--   type.
+--   
+--   <pre>
+--   let accountIx = Index 'Hardened 'AccountK
+--   let addressIx = Index 'Soft 'AddressK
+--   </pre>
+data Index (derivationType :: DerivationType) (level :: Depth)
+getIndex :: Index derivationType level -> Word32
+
+-- | Type of derivation that should be used with the given indexes.
+data DerivationType
+Hardened :: DerivationType
+Soft :: DerivationType
+
+-- | Extract the public key part of a private key.
+publicKey :: Key level XPrv -> Key level XPub
+data XPub
+data XPrv
+
+-- | An encapsulated passphrase. The inner format is free, but the wrapper
+--   helps readability in function signatures.
+newtype Passphrase (purpose :: Symbol)
+Passphrase :: ScrubbedBytes -> Passphrase
+class PassphraseMinLength (purpose :: Symbol)
+
+-- | Minimal Length for a passphrase, for lack of better validations
+passphraseMinLength :: PassphraseMinLength purpose => Proxy purpose -> Int
+class PassphraseMaxLength (purpose :: Symbol)
+
+-- | Maximum length for a passphrase
+passphraseMaxLength :: PassphraseMaxLength purpose => Proxy purpose -> Int
+
+-- | Create a passphrase from a mnemonic sentence. This class enables
+--   caller to parse text list of variable length into mnemonic sentences.
+--   
+--   <pre>
+--   &gt;&gt;&gt; fromMnemonic @'[12,15,18,21] @"generation" ["toilet", "curse", ... ]
+--   Right (Passphrase &lt;ScrubbedBytes&gt;)
+--   </pre>
+--   
+--   Note that the given <a>Nat</a>s **have** to be valid mnemonic sizes,
+--   otherwise the underlying code won't even compile, with not-so-friendly
+--   error messages.
+class FromMnemonic (sz :: [Nat]) (purpose :: Symbol)
+fromMnemonic :: FromMnemonic sz purpose => [Text] -> Either (FromMnemonicError sz) (Passphrase purpose)
+
+-- | Error reported from trying to create a passphrase from a given
+--   mnemonic
+newtype FromMnemonicError (sz :: [Nat])
+FromMnemonicError :: String -> FromMnemonicError
+[getFromMnemonicError] :: FromMnemonicError -> String
+
+-- | Marker for the change chain. In practice, change of a transaction goes
+--   onto the addresses generated on the internal chain, whereas the
+--   external chain is used for addresses that are part of the
+--   <tt>advertised</tt> targets of a transaction
+data ChangeChain
+InternalChain :: ChangeChain
+ExternalChain :: ChangeChain
+
+-- | Generate a root key from a corresponding seed
+generateKeyFromSeed :: (Passphrase "seed", Passphrase "generation") -> Passphrase "encryption" -> Key  'RootK XPrv
+
+-- | Generate a new key from seed. Note that the <tt>depth</tt> is left
+--   open so that the caller gets to decide what type of key this is. This
+--   is mostly for testing, in practice, seeds are used to represent root
+--   keys, and one should use <a>generateKeyFromSeed</a>.
+unsafeGenerateKeyFromSeed :: (Passphrase "seed", Passphrase "generation") -> Passphrase "encryption" -> Key depth XPrv
+
+-- | Derives account private key from the given root private key, using
+--   derivation scheme 2 (see <a>cardano-crypto</a> package for more
+--   details).
+--   
+--   NOTE: The caller is expected to provide the corresponding passphrase
+--   (and to have checked that the passphrase is valid). Providing a wrong
+--   passphrase will not make the function fail but will instead, yield an
+--   incorrect new key that doesn't belong to the wallet.
+deriveAccountPrivateKey :: Passphrase "encryption" -> Key  'RootK XPrv -> Index  'Hardened  'AccountK -> Key  'AccountK XPrv
+
+-- | Derives address private key from the given account private key, using
+--   derivation scheme 2 (see <a>cardano-crypto</a> package for more
+--   details).
+--   
+--   It is preferred to use <a>deriveAddressPublicKey</a> whenever possible
+--   to avoid having to manipulate passphrases and private keys.
+--   
+--   NOTE: The caller is expected to provide the corresponding passphrase
+--   (and to have checked that the passphrase is valid). Providing a wrong
+--   passphrase will not make the function fail but will instead, yield an
+--   incorrect new key that doesn't belong to the wallet.
+deriveAddressPrivateKey :: Passphrase "encryption" -> Key  'AccountK XPrv -> ChangeChain -> Index  'Soft  'AddressK -> Key  'AddressK XPrv
+
+-- | Derives address public key from the given account public key, using
+--   derivation scheme 2 (see <a>cardano-crypto</a> package for more
+--   details).
+--   
+--   This is the preferred way of deriving new sequential address public
+--   keys.
+deriveAddressPublicKey :: Key  'AccountK XPub -> ChangeChain -> Index  'Soft  'AddressK -> Key  'AddressK XPub
+
+-- | Encode a public key to a (Byron / Legacy) Cardano <a>Address</a>. This
+--   is mostly dubious CBOR serializations with no data attributes.
+keyToAddress :: Key  'AddressK XPub -> Address
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
+instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
+instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
+instance Formatting.Buildable.Buildable (Cardano.Wallet.Primitive.AddressDerivation.FromMnemonicError sz)
+instance GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.FromMnemonicError sz)
+instance GHC.Base.Monoid (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
+instance GHC.Base.Semigroup (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
+instance GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
+instance GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
+instance GHC.Classes.Ord (Cardano.Wallet.Primitive.AddressDerivation.Index derivationType level)
+instance GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDerivation.Index derivationType level)
+instance GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.Index derivationType level)
+instance GHC.Generics.Generic (Cardano.Wallet.Primitive.AddressDerivation.Index derivationType level)
+instance GHC.Classes.Eq key => GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDerivation.Key level key)
+instance GHC.Show.Show key => GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.Key level key)
+instance GHC.Generics.Generic (Cardano.Wallet.Primitive.AddressDerivation.Key level key)
+instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
+instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
+instance (n Data.Type.Equality.~ Crypto.Encoding.BIP39.EntropySize mw, csz Data.Type.Equality.~ Crypto.Encoding.BIP39.CheckSumBits n, Crypto.Encoding.BIP39.ConsistentEntropy n mw csz, Cardano.Wallet.Primitive.AddressDerivation.FromMnemonic rest purpose) => Cardano.Wallet.Primitive.AddressDerivation.FromMnemonic (mw : rest) purpose
+instance (n Data.Type.Equality.~ Crypto.Encoding.BIP39.EntropySize mw, csz Data.Type.Equality.~ Crypto.Encoding.BIP39.CheckSumBits n, Crypto.Encoding.BIP39.ConsistentEntropy n mw csz) => Cardano.Wallet.Primitive.AddressDerivation.FromMnemonic '[mw] purpose
+instance Cardano.Wallet.Primitive.AddressDerivation.PassphraseMaxLength "encryption"
+instance (Cardano.Wallet.Primitive.AddressDerivation.PassphraseMaxLength purpose, Cardano.Wallet.Primitive.AddressDerivation.PassphraseMinLength purpose) => Data.Text.Class.FromText (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
+instance Cardano.Wallet.Primitive.AddressDerivation.PassphraseMinLength "encryption"
+instance Data.Text.Class.ToText (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
+instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDerivation.Index derivationType level)
+instance GHC.Enum.Bounded (Cardano.Wallet.Primitive.AddressDerivation.Index 'Cardano.Wallet.Primitive.AddressDerivation.Hardened level)
+instance GHC.Enum.Bounded (Cardano.Wallet.Primitive.AddressDerivation.Index 'Cardano.Wallet.Primitive.AddressDerivation.Soft level)
+instance GHC.Enum.Enum (Cardano.Wallet.Primitive.AddressDerivation.Index 'Cardano.Wallet.Primitive.AddressDerivation.Hardened level)
+instance GHC.Enum.Enum (Cardano.Wallet.Primitive.AddressDerivation.Index 'Cardano.Wallet.Primitive.AddressDerivation.Soft level)
+instance Control.DeepSeq.NFData key => Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDerivation.Key level key)
+
+
+-- | This module contains primitives necessary to perform address
+--   discovery. So far, we're only interested in address following a
+--   sequential derivation scheme as specified in BIP-0044. Later, we may
+--   introduce backward compatibility with random address scheme from the
+--   legacy Cardano wallets.
+module Cardano.Wallet.Primitive.AddressDiscovery
+
+-- | Maximum number of consecutive undiscovered addresses allowed
+data AddressPoolGap
+
+-- | Possible errors when casting to an <a>AddressPoolGap</a>
+newtype MkAddressPoolGapError
+ErrGapOutOfRange :: Word8 -> MkAddressPoolGapError
+
+-- | A default <a>AddressPoolGap</a>, as suggested in BIP-0044
+defaultAddressPoolGap :: AddressPoolGap
+getAddressPoolGap :: AddressPoolGap -> Word8
+
+-- | Smart constructor for <a>AddressPoolGap</a>
+mkAddressPoolGap :: Word8 -> Either MkAddressPoolGapError AddressPoolGap
+
+-- | An <a>AddressPool</a> which keeps track of sequential addresses within
+--   a given Account and change chain. See <a>mkAddressPool</a> to create a
+--   new or existing pool:
+--   
+--   <pre>
+--   &gt;&gt;&gt; mkAddressPool xpub gap changeChain mempty
+--   AddressPool { }
+--   </pre>
+data AddressPool
+
+-- | The actual gap for the pool. This can't change for a given pool.
+gap :: AddressPool -> AddressPoolGap
+
+-- | Get all addresses in the pool, sorted from the first address
+--   discovered, up until the next one.
+--   
+--   In practice, we always have:
+--   
+--   <pre>
+--   mkAddressPool key g cc (addresses pool) == pool
+--   </pre>
+addresses :: AddressPool -> [Address]
+
+-- | Whether this pool tracks addrs on the internal or external chain
+changeChain :: AddressPool -> ChangeChain
+
+-- | Corresponding key for the pool (a pool is tied to only one account)
+accountPubKey :: AddressPool -> Key  'AccountK XPub
+
+-- | Create a new Address pool from a list of addresses. Note that, the
+--   list is expected to be ordered in sequence (first indexes, first in
+--   the list).
+--   
+--   The pool will grow from the start if less than <tt>g ::
+--   AddressPoolGap</tt> are given, such that, there are always <tt>g</tt>
+--   undiscovered addresses in the pool.
+mkAddressPool :: Key  'AccountK XPub -> AddressPoolGap -> ChangeChain -> [Address] -> AddressPool
+
+-- | Lookup an address in the pool. When we find an address in a pool, the
+--   pool may be amended if the address was discovered near the edge. It is
+--   also possible that the pool is not amended at all - this happens in
+--   the case that an address is discovered <tt>far</tt> from the edge.
+lookupAddress :: Address -> AddressPool -> (Maybe (Index  'Soft  'AddressK), AddressPool)
+data SeqState
+SeqState :: !AddressPool -> !AddressPool -> SeqState
+[internalPool] :: SeqState -> !AddressPool
+[externalPool] :: SeqState -> !AddressPool
+instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.SeqState
+instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.SeqState
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDiscovery.AddressPool
+instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.AddressPool
+instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.AddressPool
+instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.MkAddressPoolGapError
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDiscovery.MkAddressPoolGapError
+instance GHC.Classes.Ord Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
+instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
+instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
+instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.SeqState
+instance Cardano.Wallet.Primitive.Types.IsOurs Cardano.Wallet.Primitive.AddressDiscovery.SeqState
+instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.AddressPool
+instance Data.Text.Class.FromText Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
+instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
+instance Data.Text.Class.ToText Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
+instance GHC.Enum.Bounded Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
+instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
+
+
 -- | Provides the wallet layer functions that are used by API layer and
 --   uses both <a>Cardano.Wallet.DB</a> and <a>Cardano.Wallet.Network</a>
 --   to realize its role as being intermediary between the three.
@@ -1126,65 +1058,170 @@ instance GHC.Generics.Generic Cardano.Wallet.NewWallet
 instance GHC.Show.Show Cardano.Wallet.NewWallet
 
 
--- | Provides the API of Coin Selection algorithm and Fee related
---   functionality. For more information refer to:
---   <a>https://iohk.io/blog/self-organisation-in-coin-selection/</a>
-module Cardano.Wallet.CoinSelection
-data CoinSelectionOptions
-CoinSelectionOptions :: (Int -> NonEmpty Coin -> Coin) -> Coin -> Word64 -> CoinSelectionOptions
+-- | API type representations of various types. We define here pretty much
+--   all our user-facing types that are mostly composed with internal /
+--   primitive types.
+--   
+--   This module also define required API instances (JSON, HttpApiData...)
+--   for all those types, making sure to match the specification document:
+--   
+--   <a>Wallet API Specification</a>
+module Cardano.Wallet.Api.Types
+data ApiAddress
+ApiAddress :: !ApiT Address -> !ApiT AddressState -> ApiAddress
+[$sel:id:ApiAddress] :: ApiAddress -> !ApiT Address
+[$sel:state:ApiAddress] :: ApiAddress -> !ApiT AddressState
+data ApiWallet
+ApiWallet :: !ApiT WalletId -> !ApiT AddressPoolGap -> !ApiT WalletBalance -> !ApiT (WalletDelegation (ApiT PoolId)) -> !ApiT WalletName -> !ApiT WalletPassphraseInfo -> !ApiT WalletState -> ApiWallet
+[$sel:id:ApiWallet] :: ApiWallet -> !ApiT WalletId
+[$sel:addressPoolGap:ApiWallet] :: ApiWallet -> !ApiT AddressPoolGap
+[$sel:balance:ApiWallet] :: ApiWallet -> !ApiT WalletBalance
+[$sel:delegation:ApiWallet] :: ApiWallet -> !ApiT (WalletDelegation (ApiT PoolId))
+[$sel:name:ApiWallet] :: ApiWallet -> !ApiT WalletName
+[$sel:passphrase:ApiWallet] :: ApiWallet -> !ApiT WalletPassphraseInfo
+[$sel:state:ApiWallet] :: ApiWallet -> !ApiT WalletState
+data WalletBalance
+WalletBalance :: !Quantity "lovelace" Natural -> !Quantity "lovelace" Natural -> WalletBalance
+[$sel:available:WalletBalance] :: WalletBalance -> !Quantity "lovelace" Natural
+[$sel:total:WalletBalance] :: WalletBalance -> !Quantity "lovelace" Natural
+data WalletPostData
+WalletPostData :: !Maybe (ApiT AddressPoolGap) -> !ApiMnemonicT '[15, 18, 21, 24] "seed" -> !Maybe (ApiMnemonicT '[9, 12] "generation") -> !ApiT WalletName -> !ApiT (Passphrase "encryption") -> WalletPostData
+[$sel:addressPoolGap:WalletPostData] :: WalletPostData -> !Maybe (ApiT AddressPoolGap)
+[$sel:mnemonicSentence:WalletPostData] :: WalletPostData -> !ApiMnemonicT '[15, 18, 21, 24] "seed"
+[$sel:mnemonicSecondFactor:WalletPostData] :: WalletPostData -> !Maybe (ApiMnemonicT '[9, 12] "generation")
+[$sel:name:WalletPostData] :: WalletPostData -> !ApiT WalletName
+[$sel:passphrase:WalletPostData] :: WalletPostData -> !ApiT (Passphrase "encryption")
+newtype WalletPutData
+WalletPutData :: Maybe (ApiT WalletName) -> WalletPutData
+[$sel:name:WalletPutData] :: WalletPutData -> Maybe (ApiT WalletName)
+data WalletPutPassphraseData
+WalletPutPassphraseData :: !ApiT (Passphrase "encryption") -> !ApiT (Passphrase "encryption") -> WalletPutPassphraseData
+[$sel:oldPassphrase:WalletPutPassphraseData] :: WalletPutPassphraseData -> !ApiT (Passphrase "encryption")
+[$sel:newPassphrase:WalletPutPassphraseData] :: WalletPutPassphraseData -> !ApiT (Passphrase "encryption")
 
--- | A function to estimate the fees.
-[estimateFee] :: CoinSelectionOptions -> Int -> NonEmpty Coin -> Coin
+-- | Polymorphic wrapper type to put around primitive types and, 3rd party
+--   lib types to avoid defining orphan instances and/or, undesirable
+--   instances on primitive types. It helps to keep a nice separation of
+--   concerns between the API layer and other modules.
+newtype ApiT a
+ApiT :: a -> ApiT a
+[$sel:getApiT:ApiT] :: ApiT a -> a
 
--- | Change addresses below the given threshold will be evicted from the
---   created transaction. If you only want to remove change outputs equal
---   to 0, set <tt>csoDustThreshold</tt> to 0.
-[dustThreshold] :: CoinSelectionOptions -> Coin
-[maximumNumberOfInputs] :: CoinSelectionOptions -> Word64
-data CoinSelectionError
+-- | Representation of mnemonics at the API-level, using a polymorphic type
+--   in the lengths of mnemonics that are supported (and an underlying
+--   purpose). In practice, mnemonics correspond to passphrases or seeds,
+--   and although they're nice to manipulate as mnemonics from a
+--   user-perspective, carrying around a list of words doesn't really make
+--   sense for the business logic, which prefers manipulating scrubbed
+--   bytes directly.
+--   
+--   <pre>
+--   data MyWallet
+--       { mnemonic :: ApiMnemonicT '[15,18,21,24] "root-seed"
+--       }
+--   </pre>
+--   
+--   Note that the given <a>Nat</a>s **have** to be valid mnemonic sizes,
+--   otherwise the underlying code won't even compile, with not-so-friendly
+--   error messages.
+--   
+--   Also, the internal representation holds a <tt>[Text]</tt> which
+--   contains the list of mnemonic words that was parsed. This is only to
+--   be able to implement the <a>ToJSON</a> instances and roundtrip, which
+--   is a very dubious argument. In practice, we'll NEVER peek at the
+--   mnemonic, output them and whatnot.
+newtype ApiMnemonicT (sizes :: [Nat]) (purpose :: Symbol)
+ApiMnemonicT :: (Passphrase purpose, [Text]) -> ApiMnemonicT
+getApiMnemonicT :: ApiMnemonicT sizes purpose -> Passphrase purpose
+instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletPostData
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.WalletPostData
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletPostData
+instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
+instance GHC.Show.Show (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
+instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
+instance GHC.Show.Show Cardano.Wallet.Api.Types.ApiAddress
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.ApiAddress
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiAddress
+instance GHC.Show.Show Cardano.Wallet.Api.Types.ApiWallet
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.ApiWallet
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiWallet
+instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletPutData
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.WalletPutData
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletPutData
+instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletPutPassphraseData
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.WalletPutPassphraseData
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletPutPassphraseData
+instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.Wallet.Api.Types.ApiT a)
+instance GHC.Show.Show a => GHC.Show.Show (Cardano.Wallet.Api.Types.ApiT a)
+instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.ApiT a)
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletPostData
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletPostData
+instance Cardano.Wallet.Primitive.AddressDerivation.FromMnemonic sizes purpose => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.ApiAddress
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiAddress
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.ApiWallet
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiWallet
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletPutData
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletPutData
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletPutPassphraseData
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletPutPassphraseData
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.AddressState)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.AddressState)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.Address)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.Address)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.AddressDerivation.Passphrase "encryption"))
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.AddressDerivation.Passphrase "encryption"))
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletId)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletId)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletBalance)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletBalance)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.Types.WalletDelegation (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.PoolId)))
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.Types.WalletDelegation (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.PoolId)))
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletName)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletName)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletPassphraseInfo)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletPassphraseInfo)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletState)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletState)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.PoolId)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.PoolId)
 
--- | UTxO exhausted during input selection We record the balance of the
---   UTxO as well as the size of the payment we tried to make.
-NotEnoughMoney :: Word64 -> Word64 -> CoinSelectionError
+module Cardano.Wallet.Api
+api :: Proxy Api
+type Api = Addresses :<|> Wallets
+type Addresses = ListAddresses
 
--- | UTxO is not enough fragmented for the number of transaction outputs We
---   record the number of UTxO entries as well as the number of the outputs
---   of the transaction.
-UtxoNotEnoughFragmented :: Word64 -> Word64 -> CoinSelectionError
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/listAddresses</a>
+type ListAddresses = "wallets" :> Capture "walletId" WalletId :> QueryParam "state" (ApiT AddressState) :> Get '[JSON] [ApiAddress]
+type Wallets = DeleteWallet :<|> GetWallet :<|> ListWallets :<|> PostWallet :<|> PutWallet :<|> PutWalletPassphrase
 
--- | When trying to construct a transaction, the max number of allowed
---   inputs was reached.
-MaximumInputsReached :: Word64 -> CoinSelectionError
-data CoinSelection
-CoinSelection :: [(TxIn, TxOut)] -> [TxOut] -> [Coin] -> CoinSelection
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteWallet</a>
+type DeleteWallet = "wallets" :> Capture "walletId" WalletId :> Delete '[] NoContent
 
--- | Picked inputs
-[inputs] :: CoinSelection -> [(TxIn, TxOut)]
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/getWallet</a>
+type GetWallet = "wallets" :> Capture "walletId" WalletId :> Get '[JSON] ApiWallet
 
--- | Picked outputs
-[outputs] :: CoinSelection -> [TxOut]
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/listWallets</a>
+type ListWallets = "wallets" :> Get '[JSON] [ApiWallet]
 
--- | Resulting changes
-[change] :: CoinSelection -> [Coin]
-newtype Fee
-Fee :: Quantity "lovelace" Natural -> Fee
-[getFee] :: Fee -> Quantity "lovelace" Natural
-adjustForFees :: CoinSelectionOptions -> (Coin -> UTxO -> Maybe (TxIn, TxOut)) -> CoinSelection -> CoinSelection
-instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.CoinSelection
-instance GHC.Show.Show Cardano.Wallet.CoinSelection.CoinSelection
-instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.CoinSelectionError
-instance GHC.Show.Show Cardano.Wallet.CoinSelection.CoinSelectionError
-instance GHC.Generics.Generic Cardano.Wallet.CoinSelection.CoinSelectionOptions
-instance GHC.Base.Semigroup Cardano.Wallet.CoinSelection.CoinSelection
-instance GHC.Base.Monoid Cardano.Wallet.CoinSelection.CoinSelection
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/postWallet</a>
+type PostWallet = "wallets" :> ReqBody '[JSON] WalletPostData :> Post '[JSON] ApiWallet
 
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/putWallet</a>
+type PutWallet = "wallets" :> Capture "walletId" WalletId :> ReqBody '[JSON] WalletPutData :> Put '[JSON] ApiWallet
 
--- | This module contains the implementation of largestFirst input
---   selection algorithm
-module Cardano.Wallet.CoinSelection.LargestFirst
-
--- | Largest-first input selection policy
-largestFirst :: forall m. Monad m => CoinSelectionOptions -> UTxO -> NonEmpty TxOut -> ExceptT CoinSelectionError m CoinSelection
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/putWalletPassphrase</a>
+type PutWalletPassphrase = "wallets" :> Capture "walletId" WalletId :> ReqBody '[JSON] WalletPutPassphraseData :> Put '[] NoContent
 
 
 -- | API handlers and server using the underlying wallet layer to provide
