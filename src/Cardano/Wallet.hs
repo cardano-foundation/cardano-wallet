@@ -194,7 +194,14 @@ makeMPubKeyTx
     -> TxOwnedInputs owner
     -> [TxOut]
     -> Either e TxAux
-makeMPubKeyTx pm getSs = makeAbstractTx mkWit
+makeMPubKeyTx pm getSs ownedIns outs = do
+    let ins = (fmap snd ownedIns)
+
+    let tx = Tx ins outs
+        txSigData = Hash "tx"
+    txWitness <- forM ownedIns (\(addr, _) -> mkWit addr txSigData)
+    pure $ TxAux tx txWitness
+
   where
     mkWit addr hash =
         getSs addr <&> \ss ->
@@ -206,21 +213,6 @@ makeMPubKeyTx pm getSs = makeAbstractTx mkWit
 
     encode :: (Key level XPub) -> ByteString
     encode (Key k) = CC.unXPub k
-
-
--- | Generic function to create a transaction, given desired inputs,
--- outputs and a way to construct witness from signature data
-makeAbstractTx :: (owner -> Hash "tx" -> Either e TxWitness)
-               -> TxOwnedInputs owner
-               -> [TxOut]
-               -> Either e TxAux
-makeAbstractTx mkWit ownedIns outs = do
-    let ins = (fmap snd ownedIns)
-
-    let tx = Tx ins outs
-        txSigData = Hash "tx"
-    txWitness <- forM ownedIns (\(addr, _) -> mkWit addr txSigData)
-    pure $ TxAux tx txWitness
 
 
 -- TODO: I removed FakeSigner/SafeSigner. Might be wrong.
