@@ -12,6 +12,10 @@
 
 ### :hammer: [Initial Wallet Backend Server & Corresponding CLI](https://github.com/input-output-hk/cardano-wallet/milestone/7)
 
+### :hammer: [Integrate node.js IPC listener in the launcher](https://github.com/input-output-hk/cardano-wallet/milestone/8)
+
+### :hammer: [SQLite implementation for the database layer](https://github.com/input-output-hk/cardano-wallet/milestone/9)
+
 ---
 
 _items below are more-or-less prioritized_ 
