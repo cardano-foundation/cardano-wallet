@@ -6,7 +6,7 @@
 
 ### :heavy_check_mark: [Support Wallet Creation](https://github.com/input-output-hk/cardano-wallet/milestone/4)
 
-### :hammer: [Wallet Layer Integration (against `cardano-http-bridge`)](https://github.com/input-output-hk/cardano-wallet/milestone/5)
+### :heavy_check_mark: [Wallet Layer Integration (against `cardano-http-bridge`)](https://github.com/input-output-hk/cardano-wallet/milestone/5)
 
 ### :hammer: [Transaction creation, submission & Coin Selection](https://github.com/input-output-hk/cardano-wallet/milestone/6)
 
