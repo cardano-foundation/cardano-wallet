@@ -30,7 +30,7 @@ import Servant.API
     , ReqBody
     )
 
-type Api = Addresses :<|> Wallets
+type Api = Addresses :<|> Wallets :<|> Transactions
 
 {-------------------------------------------------------------------------------
                                   Addresses
@@ -93,8 +93,18 @@ type PutWalletPassphrase = "wallets"
     :> ReqBody '[JSON] WalletPutPassphraseData
     :> Put '[OctetStream] NoContent
 
+{-------------------------------------------------------------------------------
+                                  Transactions
+
+  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Transactions
+-------------------------------------------------------------------------------}
+
+type Transactions =
+    CreateTransaction
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransaction
 type CreateTransaction = "wallets"
-    :> Capture "walletId" WalletId
+    :> Capture "walletId" (ApiT WalletId)
     :> "transactions"
     :> ReqBody '[JSON] CreateTransactionData
     :> Post '[JSON] ApiTransaction

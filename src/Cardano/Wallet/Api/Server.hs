@@ -22,11 +22,13 @@ import Cardano.Wallet
     , WalletLayer (..)
     )
 import Cardano.Wallet.Api
-    ( Addresses, Api, Wallets )
+    ( Addresses, Api, Transactions, Wallets )
 import Cardano.Wallet.Api.Types
     ( ApiAddress (..)
     , ApiT (..)
+    , ApiTransaction
     , ApiWallet (..)
+    , CreateTransactionData
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -58,7 +60,7 @@ import Servant.Server
 -- | A Servant server for our wallet API
 server :: WalletLayer SeqState -> Server Api
 server w =
-    addresses w :<|> wallets w
+    addresses w :<|> wallets w :<|> transactions w
 
 {-------------------------------------------------------------------------------
                                     Wallets
@@ -162,6 +164,22 @@ listAddresses
     -> Handler [ApiAddress]
 listAddresses _ _ _ =
     throwM err501
+
+{-------------------------------------------------------------------------------
+                                    Transactions
+-------------------------------------------------------------------------------}
+
+transactions :: WalletLayer SeqState -> Server Transactions
+transactions = createTransaction
+
+createTransaction
+    :: WalletLayer SeqState
+    -> ApiT WalletId
+    -> CreateTransactionData
+    -> Handler ApiTransaction
+createTransaction _ _ _ =
+    throwM err501
+
 
 {-------------------------------------------------------------------------------
                                     Handlers
