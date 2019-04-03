@@ -175,25 +175,16 @@ mkStdTx :: Monad m
         -> [TxOut]
         -- ^ Change outputs
         -> m (Either e TxAux)
-mkStdTx pm shuffle signers inps outs change = do
+mkStdTx pm shuffle signer inps outs change = do
     allOuts <- shuffle (outs ++ change)
-    return $ makeMPubKeyTxAddrs pm signers (fmap repack inps) allOuts
+    return $ makeMPubKeyTx pm signer' (fmap repack inps) allOuts
     where
          -- | Repacks a utxo-derived tuple into a format suitable for
          -- 'TxOwnedInputs'.
         repack :: (TxIn, TxOut) -> (TxOut, TxIn)
         repack (txIn, txOut) = (txOut, txIn)
 
--- | More specific version of 'makeMPubKeyTx' for convenience
-makeMPubKeyTxAddrs
-    :: ProtocolMagic
-    -> (Address -> Either e (Key 'RootK XPrv))
-    -> TxOwnedInputs TxOut
-    -> [TxOut]
-    -> Either e TxAux
-makeMPubKeyTxAddrs pm signers = makeMPubKeyTx pm getSigner
-  where
-    getSigner (TxOut addr _) = signers addr
+        signer' (TxOut addr _) = signer addr
 
 
 -- | Like 'makePubKeyTx', but allows usage of different signers
