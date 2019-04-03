@@ -560,7 +560,18 @@ instance Buildable (Hash "Tx") where
         <> "..."
         <> suffixF 8 builder
       where
-        builder = build . T.decodeUtf8 . convertToBase Base16 . getHash $ h
+        builder = build . toText $ h
+
+instance FromText (Hash "Tx") where
+    fromText x = either
+        (const $ Left $ TextDecodingError err)
+        (pure . Hash)
+        (convertFromBase Base16 $ T.encodeUtf8 x)
+      where
+        err = "Unable to decode transaction hash: expected Base16 encoding"
+
+instance ToText (Hash "Tx") where
+    toText = T.decodeUtf8 . convertToBase Base16 . getHash
 
 -- | A polymorphic wrapper type with a custom show instance to display data
 -- through 'Buildable' instances.

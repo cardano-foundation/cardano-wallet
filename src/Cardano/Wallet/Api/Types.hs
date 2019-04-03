@@ -34,6 +34,9 @@ module Cardano.Wallet.Api.Types
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
+    , CreateTransactionData (..)
+    , BlockData (..)
+    , Transaction (..)
 
     -- * Polymorphic Types
     , ApiT (..)
@@ -50,8 +53,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
+    , Direction (..)
+    , Hash (..)
     , PoolId (..)
     , ShowFmt (..)
+    , SlotId (..)
+    , TxStatus (..)
     , WalletBalance (..)
     , WalletDelegation (..)
     , WalletId (..)
@@ -77,16 +84,24 @@ import Data.Aeson
     )
 import Data.Bifunctor
     ( bimap )
+import Data.Quantity
+    ( Quantity (..) )
+import Data.Text
+    ( Text )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), ToText (..) )
+import Data.Time
+    ( UTCTime )
 import Fmt
     ( pretty )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( Nat, Symbol )
+import Numeric.Natural
+    ( Natural )
 import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
@@ -128,6 +143,63 @@ data WalletPutPassphraseData = WalletPutPassphraseData
     { oldPassphrase :: !(ApiT (Passphrase "encryption"))
     , newPassphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
+
+data CreateTransactionData = CreateTransactionData
+    { targets :: ![ApiCoinSelection]
+    , passphrase :: !(ApiT (Passphrase "encryption"))
+    } deriving (Eq, Generic, Show)
+
+data Transaction = Transaction
+    { id :: !(ApiT (Hash "Tx"))
+    , amount :: !(Quantity "lovelace" Natural)
+    , insertedAt :: !BlockData
+    , depth :: !(Quantity "block" Natural)
+    , direction :: !(ApiT Direction)
+    , inputs :: ![ApiCoinSelection]
+    , outputs :: ![ApiCoinSelection]
+    , status :: !(ApiT TxStatus)
+    } deriving (Eq, Generic, Show)
+
+data ApiCoinSelection = ApiCoinSelection
+    { address :: !(ApiT Address)
+    , coin :: !(Quantity "lovelace" Natural)
+    } deriving (Eq, Generic, Show)
+
+data BlockData = BlockData
+    { time :: UTCTime
+    , block :: !(ApiT SlotId)
+    } deriving (Eq, Generic, Show)
+
+--instance FromJSON CreateTransactionData where
+--    parseJSON = genericParseJSON defaultRecordTypeOptions
+--instance ToJSON CreateTransactionData where
+--    toJSON = genericToJSON defaultRecordTypeOptions
+
+-- FIXME: deal with camel case
+instance FromJSON (ApiT SlotId) where
+    parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
+instance ToJSON (ApiT SlotId) where
+    toJSON = genericToJSON defaultRecordTypeOptions . getApiT
+
+instance FromJSON BlockData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON BlockData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiCoinSelection where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiCoinSelection where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON Transaction where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON Transaction where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON (ApiT (Hash "Tx")) where
+    parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText
+instance ToJSON (ApiT (Hash "Tx")) where
+    toJSON = toJSON . toText . getApiT
 
 {-------------------------------------------------------------------------------
                               Polymorphic Types

@@ -7,6 +7,8 @@ import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiT
     , ApiWallet
+    , CreateTransactionData
+    , Transaction
     , WalletPostData
     , WalletPutData
     , WalletPutPassphraseData
@@ -90,3 +92,9 @@ type PutWalletPassphrase = "wallets"
     :> "passphrase"
     :> ReqBody '[JSON] WalletPutPassphraseData
     :> Put '[OctetStream] NoContent
+
+type CreateTransaction = "wallets"
+    :> Capture "walletId" WalletId
+    :> "transactions"
+    :> ReqBody '[JSON] CreateTransactionData
+    :> Post '[JSON] Transaction
