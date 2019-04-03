@@ -212,7 +212,7 @@ class FromText a where
 -- | Indicates an error that occurred while decoding from text.
 newtype TextDecodingError = TextDecodingError
     { getTextDecodingError :: String }
-    deriving stock Show
+    deriving stock (Eq, Show)
     deriving newtype Buildable
 
 instance FromText (ApiT Address) where

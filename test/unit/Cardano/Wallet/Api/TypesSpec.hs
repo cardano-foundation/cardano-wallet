@@ -26,6 +26,8 @@ import Cardano.Wallet.Api.Types
     , ApiMnemonicT (..)
     , ApiT (..)
     , ApiWallet (..)
+    , FromText (..)
+    , ToText (..)
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -96,7 +98,7 @@ import Data.Swagger
 import Data.Swagger.Declare
     ( Declare )
 import Data.Typeable
-    ( Typeable )
+    ( Typeable, typeRep )
 import Data.Word
     ( Word32, Word8 )
 import GHC.TypeLits
@@ -125,6 +127,7 @@ import Test.QuickCheck
     , arbitraryPrintableChar
     , choose
     , frequency
+    , property
     , vectorOf
     )
 import Test.QuickCheck.Arbitrary.Generic
@@ -143,6 +146,17 @@ import qualified Prelude
 
 spec :: Spec
 spec = do
+    describe
+        "can perform roundtrip textual encoding & decoding" $ do
+            let test = textRoundtrip
+            test $ Proxy @(ApiT Address)
+            test $ Proxy @(ApiT AddressPoolGap)
+            test $ Proxy @(ApiT (Passphrase "encryption"))
+            test $ Proxy @(ApiT WalletId)
+            test $ Proxy @(ApiT WalletName)
+            test $ Proxy @(ApiMnemonicT '[9, 12] "generation")
+            test $ Proxy @(ApiMnemonicT '[15, 18, 21, 24] "seed")
+
     describe
         "can perform roundtrip JSON serialization & deserialization, \
         \and match existing golden files" $ do
@@ -222,6 +236,20 @@ spec = do
             Aeson.parseEither parseJSON [aesonQQ|
                 #{getAddressPoolGap maxBound + 1}
             |] `shouldBe` (Left @String @(ApiT AddressPoolGap) msg)
+
+-- | Constructs a test to check that roundtrip textual encoding and decoding
+-- is possible for values of the given type.
+--
+textRoundtrip
+    :: forall a . (Arbitrary a, Eq a, Show a, ToText a, FromText a, Typeable a)
+    => Proxy a
+    -> Spec
+textRoundtrip proxy = it
+    ("can perform roundtrip textual encoding and decoding for values of type '"
+        <> show (typeRep proxy)
+        <> "'")
+    (property $ \a ->
+        fromText (toText @a a) `shouldBe` Right a)
 
 -- Golden tests files are generated automatically on first run. On later runs
 -- we check that the format stays the same. The golden files should be tracked
