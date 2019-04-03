@@ -221,7 +221,7 @@ test-suite integration
     build-depends: unix
     other-modules: Cardano.Launcher.POSIX
 
-executable cardano-wallet-server
+executable cardano-wallet
   default-language:
       Haskell2010
   default-extensions:
@@ -234,13 +234,13 @@ executable cardano-wallet-server
       -O2
   build-depends:
       base
+    , ansi-terminal
     , cardano-wallet
     , docopt
-    , say
     , text
   hs-source-dirs:
       app
-      app/server
+      app/cli
   other-modules:
       Cardano.CLI
   main-is:
@@ -258,9 +258,10 @@ executable cardano-wallet-launcher
       -Werror
       -O2
   build-depends:
-      async
+      base
+    , ansi-terminal
+    , async
     , cardano-wallet
-    , base
     , docopt
     , fmt
     , process
@@ -278,47 +279,5 @@ executable cardano-wallet-launcher
   else
     build-depends: unix
     other-modules: Cardano.Launcher.POSIX
-
   main-is:
      Main.hs
-
-executable cardano-generate-mnemonic
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -Wall
-      -Werror
-      -O2
-  build-depends:
-      base
-    , cardano-wallet
-    , text
-  hs-source-dirs:
-      app/mnemonic
-  main-is:
-      GenerateMnemonic.hs
-
-executable cardano-wallet
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -Wall
-      -Werror
-      -O2
-  build-depends:
-      ansi-terminal
-    , base
-    , cardano-wallet
-    , docopt
-    , text
-    , uuid-types
-  hs-source-dirs:
-      app/wallet
-  main-is:
-      Main.hs

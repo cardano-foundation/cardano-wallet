@@ -97,11 +97,13 @@ import Data.Aeson
     , sumEncoding
     )
 import Data.Bifunctor
-    ( first )
+    ( bimap, first )
 import Data.ByteString.Base58
     ( bitcoinAlphabet, decodeBase58, encodeBase58 )
 import Data.Text
     ( Text )
+import Data.Text.Read
+    ( decimal )
 import Data.Word
     ( Word8 )
 import Fmt
@@ -214,6 +216,18 @@ newtype TextDecodingError = TextDecodingError
     { getTextDecodingError :: String }
     deriving stock (Eq, Show)
     deriving newtype Buildable
+
+instance FromText Text where
+    fromText = pure
+
+instance ToText Text where
+    toText = Prelude.id
+
+instance FromText Int where
+    fromText = bimap TextDecodingError fst . decimal
+
+instance ToText Int where
+    toText = T.pack . show
 
 instance FromText (ApiT Address) where
     -- | Constructs an address from a Base58-encoded string.

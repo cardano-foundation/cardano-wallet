@@ -1,13 +1,12 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Main where
 
 import Prelude
 
 import Cardano.CLI
-    ( Network, Port, decode, encode, getArg )
+    ( Network, Port, parseArgWith )
 import Cardano.Launcher
     ( Command (Command)
     , ProcessHasExited (ProcessHasExited)
@@ -15,6 +14,8 @@ import Cardano.Launcher
     , installSignalHandlers
     , launch
     )
+import Cardano.Wallet.Api.Types
+    ( FromText (..), ToText (..) )
 import Control.Concurrent
     ( threadDelay )
 import Control.Monad
@@ -24,7 +25,15 @@ import Fmt
 import Say
     ( sayErr )
 import System.Console.Docopt
-    ( Docopt, docopt, exitWithUsage, isPresent, longOption, parseArgsOrExit )
+    ( Arguments
+    , Docopt
+    , Option
+    , docopt
+    , exitWithUsage
+    , isPresent
+    , longOption
+    , parseArgsOrExit
+    )
 import System.Environment
     ( getArgs )
 import System.Exit
@@ -60,12 +69,9 @@ main = do
     args <- parseArgsOrExit cli =<< getArgs
     when (args `isPresent` (longOption "help")) $ exitWithUsage cli
 
-    bridgePort <-
-        getArg @String args cli (longOption "http-bridge-port") decode
-    walletPort <-
-        getArg @String args cli (longOption "wallet-server-port") decode
-    network <-
-        getArg @String args cli (longOption "network") decode
+    bridgePort <- args `parseArg` longOption "http-bridge-port"
+    walletPort <- args `parseArg` longOption "wallet-server-port"
+    network <- args `parseArg` longOption "network"
 
     sayErr "Starting..."
     installSignalHandlers
@@ -77,23 +83,27 @@ main = do
     (ProcessHasExited name code) <- launch commands
     sayErr $ T.pack name <> " exited with code " <> T.pack (show code)
     exitWith code
+  where
+    parseArg :: FromText a => Arguments -> Option -> IO a
+    parseArg = parseArgWith cli
 
 nodeHttpBridgeOn :: Port "Node" -> Network -> Command
 nodeHttpBridgeOn port net = Command
     "cardano-http-bridge"
     [ "start"
-    , "--port", encode port
-    , "--template", encode net
+    , "--port", T.unpack (toText port)
+    , "--template", T.unpack (toText net)
     ]
     (return ())
     Inherit
 
 walletOn :: Port "Wallet" -> Port "Node" -> Network -> Command
 walletOn wp np net = Command
-    "cardano-wallet-server"
-    [ "--wallet-server-port", encode wp
-    , "--http-bridge-port", encode np
-    , "--network", encode net
+    "cardano-wallet"
+    [ "server"
+    , "--port", T.unpack (toText wp)
+    , "--bridge-port", T.unpack (toText np)
+    , "--network", T.unpack (toText net)
     ]
     (threadDelay oneSecond)
     Inherit
