@@ -7,16 +7,11 @@ module Main where
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiT (..)
-    , FromText (..)
-    , TextDecodingError (..)
-    )
+    ( ApiT (..), FromText (..), TextDecodingError (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap )
 import Cardano.Wallet.Primitive.Types
-    ( WalletId (..)
-    , WalletName
-    )
+    ( WalletId (..), WalletName )
 import Control.Exception
     ( finally )
 import Data.Text
@@ -37,10 +32,7 @@ import System.Console.Docopt
 import System.Environment
     ( getArgs )
 import System.IO
-    ( BufferMode (NoBuffering)
-    , hSetBuffering
-    , stdout
-    )
+    ( BufferMode (NoBuffering), hSetBuffering, stdout )
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -54,6 +46,10 @@ main = do
     args <- parseArgsOrExit patterns =<< getArgs
     hSetBuffering stdout NoBuffering
     print =<< parseCommand args
+
+{-------------------------------------------------------------------------------
+                          Command and Argument Parsing
+-------------------------------------------------------------------------------}
 
 parseCommand :: Arguments -> IO Command
 parseCommand args
@@ -112,6 +108,10 @@ parseArgMaybe args option = maybe
     (either (fail . getTextDecodingError) (pure . pure) . fromText)
     (T.pack <$> args `getArg` option)
 
+{-------------------------------------------------------------------------------
+                                 Commands
+-------------------------------------------------------------------------------}
+
 data Command
     = AddressCommand AddressCommand
     | WalletCommand WalletCommand
@@ -145,6 +145,10 @@ data WalletUpdateOptions = WalletUpdateOptions
     { id :: ApiT WalletId
     , name :: ApiT WalletName
     } deriving (Eq, Show)
+
+{-------------------------------------------------------------------------------
+                                 Utilities
+-------------------------------------------------------------------------------}
 
 -- | Read a line of user input containing sensitive data from the terminal.
 --
