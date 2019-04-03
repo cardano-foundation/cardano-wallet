@@ -21,10 +21,8 @@ import Prelude
 
 import Cardano.CLI
     ( getOptionalSensitiveValue, getRequiredSensitiveValue, parseArgWith )
-import Cardano.Wallet.Api.Types
-    ( ApiMnemonicT (..), ApiT (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Passphrase (..) )
+    ( FromMnemonic (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -116,7 +114,7 @@ exec args
 
     | args `isPresent` command "address" && args `isPresent` command "list" = do
         wid <- args `parseArg` longOption "wallet-id"
-        print (wid :: ApiT WalletId)
+        print (wid :: WalletId)
 
     | args `isPresent` command "wallet" && args `isPresent` command "list" = do
         return ()
@@ -125,29 +123,32 @@ exec args
         poolGap <- args `parseArg` longOption "address-pool-gap"
         name <- args `parseArg` longOption "name"
         mnemonic <- getRequiredSensitiveValue
+            (fromMnemonic @'[15,18,21,24] @"seed" . T.words)
             "Please enter a 15–24 word mnemonic sentence: "
         sndFactor <- getOptionalSensitiveValue
+            (fromMnemonic @'[9,12] @"generation" . T.words)
             "Please enter a 9–12 word mnemonic second factor: \n\
             \(Enter a blank line if you do not wish to use a second factor.)"
         passphrase <- getRequiredSensitiveValue
+            (fromText @(Passphrase "encryption"))
             "Please enter a passphrase: \n\
             \(Enter a blank line if you do not wish to use a passphrase.)"
         print
-            ( poolGap :: ApiT AddressPoolGap
-            , name :: ApiT WalletName
-            , mnemonic :: ApiMnemonicT '[15,18,21,24] "seed"
-            , sndFactor :: Maybe (ApiMnemonicT '[9,12] "generation")
-            , passphrase :: ApiT (Passphrase "encryption")
+            ( poolGap :: AddressPoolGap
+            , name :: WalletName
+            , mnemonic
+            , sndFactor
+            , passphrase
             )
 
     | args `isPresent` command "wallet" && args `isPresent` command "update" = do
         wid <- args `parseArg` longOption "id"
         name <- args `parseArg` longOption "name"
-        print (wid :: ApiT WalletId, name :: ApiT WalletName)
+        print (wid :: WalletId, name :: WalletName)
 
     | args `isPresent` command "wallet" && args `isPresent` command "delete" = do
         wid <- args `parseArg` longOption "id"
-        print (wid :: ApiT WalletId)
+        print (wid :: WalletId)
 
     | otherwise =
         exitWithUsage cli

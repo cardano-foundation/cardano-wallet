@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Primitive.TypesSpec
@@ -20,20 +21,33 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxOut (..)
     , UTxO (..)
+    , WalletId (..)
+    , WalletName (..)
     , balance
     , excluding
     , isSubsetOf
     , isValidCoin
     , restrictedBy
     , restrictedTo
+    , walletNameMaxLength
+    , walletNameMinLength
     )
+import Control.Monad
+    ( replicateM )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Set
     ( Set, (\\) )
+import Data.UUID.Types
+    ( UUID )
+import Data.Word
+    ( Word32 )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
+    , arbitraryPrintableChar
     , checkCoverage
     , choose
     , cover
@@ -43,15 +57,23 @@ import Test.QuickCheck
     , vectorOf
     , (===)
     )
+import Test.Text.Roundtrip
+    ( textRoundtrip )
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-
+import qualified Data.Text as T
+import qualified Data.UUID.Types as UUID
 
 spec :: Spec
 spec = do
     describe "Generators are valid" $ do
         it "Arbitrary Coin" $ property isValidCoin
+
+    describe "Can perform roundtrip textual encoding & decoding" $ do
+        textRoundtrip $ Proxy @Address
+        textRoundtrip $ Proxy @WalletName
+        textRoundtrip $ Proxy @WalletId
 
     describe "Lemma 2.1 - Properties of UTxO operations" $ do
         it "2.1.1) ins⊲ u ⊆ u"
@@ -280,3 +302,17 @@ instance Arbitrary Block where
     arbitrary = do
         txs <- choose (0, 500) >>= flip vectorOf arbitrary
         Block <$> arbitrary <*> pure txs
+
+instance Arbitrary WalletId where
+    arbitrary = WalletId . uuidFromWords <$> arbitrary
+      where
+        uuidFromWords :: (Word32, Word32, Word32, Word32) -> UUID
+        uuidFromWords (a, b, c, d) = UUID.fromWords a b c d
+
+instance Arbitrary WalletName where
+    arbitrary = do
+        nameLength <- choose (walletNameMinLength, walletNameMaxLength)
+        WalletName . T.pack <$> replicateM nameLength arbitraryPrintableChar
+    shrink (WalletName t)
+        | T.length t <= walletNameMinLength = []
+        | otherwise = [WalletName $ T.take walletNameMinLength t]

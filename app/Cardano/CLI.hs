@@ -30,6 +30,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
+import Fmt
+    ( Buildable, pretty )
 import GHC.TypeLits
     ( Symbol )
 import System.Console.Docopt
@@ -93,30 +95,38 @@ parseArgWith cli args option =
 
 -- | Repeatedly prompt a user for a sensitive value, until the supplied value is
 -- valid.
-getRequiredSensitiveValue :: FromText a => String -> IO a
-getRequiredSensitiveValue prompt = loop where
+getRequiredSensitiveValue
+    :: Buildable e
+    => (Text -> Either e a)
+    -> String
+    -> IO a
+getRequiredSensitiveValue parse prompt = loop where
     loop = do
         putStrLn prompt
         line <- getLineWithSensitiveData
-        case fromText line of
+        case parse line of
             Left e -> do
-                print $ getTextDecodingError e
+                TIO.putStrLn (pretty e)
                 loop
             Right v -> pure v
 
 -- | Repeatedly prompt a user for an optional sensitive value, until either the
 -- supplied value is valid, or until the user enters an empty line (indicating
 -- that they do not wish to specify such a value).
-getOptionalSensitiveValue :: FromText a => String -> IO (Maybe a)
-getOptionalSensitiveValue prompt = loop where
+getOptionalSensitiveValue
+    :: Buildable e
+    => (Text -> Either e a )
+    -> String
+    -> IO (Maybe a)
+getOptionalSensitiveValue parse prompt = loop where
     loop = do
         putStrLn prompt
         line <- getLineWithSensitiveData
         if T.length line == 0
         then pure Nothing
-        else case fromText line of
+        else case parse line of
             Left e -> do
-                print $ getTextDecodingError e
+                TIO.putStrLn (pretty e)
                 loop
             Right v ->
                 pure $ Just v

@@ -135,6 +135,7 @@ test-suite unit
      exitcode-stdio-1.0
   hs-source-dirs:
       test/unit
+      test
       app
   main-is:
       Main.hs
@@ -161,6 +162,7 @@ test-suite unit
       Data.Text.ClassSpec
       Data.QuantitySpec
       Servant.Extra.ContentTypesSpec
+      Test.Text.Roundtrip
   if os(windows)
     build-depends: Win32
     other-modules: Cardano.Launcher.Windows
@@ -239,6 +241,7 @@ executable cardano-wallet
     , ansi-terminal
     , cardano-wallet
     , docopt
+    , fmt
     , text
   hs-source-dirs:
       app

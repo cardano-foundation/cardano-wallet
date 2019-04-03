@@ -16,6 +16,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , Index
     , Passphrase (..)
+    , PassphraseMaxLength (..)
+    , PassphraseMinLength (..)
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
     , deriveAddressPublicKey
@@ -25,6 +27,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , publicKey
     , unsafeGenerateKeyFromSeed
     )
+import Control.Monad
+    ( replicateM )
+import Data.Proxy
+    ( Proxy (..) )
 import Fmt
     ( build, fmt )
 import Test.Hspec
@@ -34,6 +40,7 @@ import Test.QuickCheck
     , InfiniteList (..)
     , Property
     , arbitraryBoundedEnum
+    , arbitraryPrintableChar
     , choose
     , elements
     , expectFailure
@@ -42,9 +49,13 @@ import Test.QuickCheck
     , (===)
     , (==>)
     )
+import Test.Text.Roundtrip
+    ( textRoundtrip )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 spec :: Spec
 spec = do
@@ -59,6 +70,9 @@ spec = do
             prop_predMinBoundSoftIx
         it "Calling toEnum for invalid value gives a runtime err (ChangeChain)"
             (property prop_toEnumChangeChain)
+
+    describe "Text Roundtrip" $ do
+        textRoundtrip $ Proxy @(Passphrase "encryption")
 
     describe "Enum Roundtrip" $ do
         it "ChangeChain" (property prop_roundtripEnumChangeChain)
@@ -218,6 +232,13 @@ instance Arbitrary (Passphrase goal) where
         n <- choose (0, 32)
         InfiniteList bytes _ <- arbitrary
         return $ Passphrase $ BA.convert $ BS.pack $ take n bytes
+
+instance {-# OVERLAPS #-} Arbitrary (Passphrase "encryption") where
+    arbitrary = do
+        let p = Proxy :: Proxy "encryption"
+        n <- choose (passphraseMinLength p, passphraseMaxLength p)
+        bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
+        return $ Passphrase $ BA.convert bytes
 
 instance Arbitrary ChangeChain where
     shrink _ = []

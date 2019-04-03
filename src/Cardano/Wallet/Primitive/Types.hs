@@ -65,6 +65,8 @@ module Cardano.Wallet.Primitive.Types
     , WalletMetadata(..)
     , WalletId(..)
     , WalletName(..)
+    , walletNameMinLength
+    , walletNameMaxLength
     , WalletState(..)
     , WalletDelegation (..)
     , WalletPassphraseInfo(..)
@@ -88,7 +90,7 @@ import Data.ByteArray.Encoding
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
-    ( bitcoinAlphabet, encodeBase58 )
+    ( bitcoinAlphabet, decodeBase58, encodeBase58 )
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
@@ -97,6 +99,8 @@ import Data.Set
     ( Set )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Time
     ( UTCTime )
 import Data.UUID.Types
@@ -124,7 +128,9 @@ import Numeric.Natural
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Data.UUID.Types as UUID
 
 
 {-------------------------------------------------------------------------------
@@ -147,8 +153,39 @@ data WalletMetadata = WalletMetadata
 newtype WalletName = WalletName { getWalletName ::  Text }
     deriving (Eq, Show)
 
-newtype WalletId = WalletId UUID
+instance FromText WalletName where
+    fromText t
+        | T.length t < walletNameMinLength =
+            Left $ TextDecodingError $
+                "name is too short: expected at least "
+                    <> show walletNameMinLength <> " chars"
+        | T.length t > walletNameMaxLength =
+            Left $ TextDecodingError $
+                "name is too long: expected at most "
+                    <> show walletNameMaxLength <> " chars"
+        | otherwise =
+            return $ WalletName t
+
+instance ToText WalletName where
+    toText = getWalletName
+
+walletNameMinLength :: Int
+walletNameMinLength = 1
+
+walletNameMaxLength :: Int
+walletNameMaxLength = 255
+
+newtype WalletId = WalletId { getWalletId :: UUID }
     deriving (Generic, Eq, Ord, Show)
+
+instance FromText WalletId where
+    fromText = maybe
+        (Left $ TextDecodingError "A wallet ID must be a valid UUID")
+        (Right . WalletId)
+        . UUID.fromText
+
+instance ToText WalletId where
+    toText = UUID.toText . getWalletId
 
 data WalletState
     = Ready
@@ -359,7 +396,18 @@ newtype Address = Address
 instance NFData Address
 
 instance Buildable Address where
-    build = build . T.decodeUtf8 . encodeBase58 bitcoinAlphabet . getAddress
+    build = build . toText
+
+instance FromText Address where
+    fromText x = maybe
+        (Left $ TextDecodingError err)
+        (pure . Address)
+        (decodeBase58 bitcoinAlphabet $ T.encodeUtf8 x)
+      where
+        err = "Unable to decode Address: expected Base58 encoding"
+
+instance ToText Address where
+    toText = T.decodeUtf8 . encodeBase58 bitcoinAlphabet . getAddress
 
 data AddressState = Used | Unused
     deriving (Eq, Generic, Show)
