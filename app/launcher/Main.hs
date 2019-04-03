@@ -14,12 +14,12 @@ import Cardano.Launcher
     , installSignalHandlers
     , launch
     )
-import Cardano.Wallet.Api.Types
-    ( FromText (..), ToText (..) )
 import Control.Concurrent
     ( threadDelay )
 import Control.Monad
     ( when )
+import Data.Text.Class
+    ( FromText (..), ToText (..) )
 import Fmt
     ( blockListF, fmt )
 import Say

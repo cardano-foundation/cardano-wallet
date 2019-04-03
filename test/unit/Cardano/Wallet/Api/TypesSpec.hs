@@ -26,8 +26,6 @@ import Cardano.Wallet.Api.Types
     , ApiMnemonicT (..)
     , ApiT (..)
     , ApiWallet (..)
-    , FromText (..)
-    , ToText (..)
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -97,6 +95,8 @@ import Data.Swagger
     )
 import Data.Swagger.Declare
     ( Declare )
+import Data.Text.Class
+    ( FromText (..), ToText (..) )
 import Data.Typeable
     ( Typeable, typeRep )
 import Data.Word

@@ -81,6 +81,7 @@ library
       Cardano.Wallet.Primitive.Mnemonic
       Cardano.Wallet.Primitive.Model
       Cardano.Wallet.Primitive.Types
+      Data.Text.Class
       Data.Quantity
       Servant.Extra.ContentTypes
   other-modules:
@@ -157,6 +158,7 @@ test-suite unit
       Cardano.Wallet.Primitive.MnemonicSpec
       Cardano.Wallet.Primitive.ModelSpec
       Cardano.Wallet.Primitive.TypesSpec
+      Data.Text.ClassSpec
       Data.QuantitySpec
       Servant.Extra.ContentTypesSpec
   if os(windows)

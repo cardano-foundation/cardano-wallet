@@ -22,7 +22,7 @@ import Prelude
 import Cardano.CLI
     ( getOptionalSensitiveValue, getRequiredSensitiveValue, parseArgWith )
 import Cardano.Wallet.Api.Types
-    ( ApiMnemonicT (..), ApiT (..), FromText (..) )
+    ( ApiMnemonicT (..), ApiT (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -33,6 +33,8 @@ import Cardano.Wallet.Primitive.Types
     ( WalletId (..), WalletName )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( FromText (..) )
 import System.Console.Docopt
     ( Arguments
     , Docopt

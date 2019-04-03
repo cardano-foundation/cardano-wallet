@@ -37,11 +37,6 @@ module Cardano.Wallet.Api.Types
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
 
-    -- * Encoding & Decoding
-    , ToText (..)
-    , FromText (..)
-    , TextDecodingError (..)
-
     -- * Limits
     , passphraseMinLength
     , passphraseMaxLength
@@ -97,13 +92,13 @@ import Data.Aeson
     , sumEncoding
     )
 import Data.Bifunctor
-    ( bimap, first )
+    ( first )
 import Data.ByteString.Base58
     ( bitcoinAlphabet, decodeBase58, encodeBase58 )
 import Data.Text
     ( Text )
-import Data.Text.Read
-    ( decimal )
+import Data.Text.Class
+    ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Word
     ( Word8 )
 import Fmt
@@ -200,34 +195,6 @@ getApiMnemonicT (ApiMnemonicT (pw, _)) = pw
 {-------------------------------------------------------------------------------
                              Encoding & Decoding
 -------------------------------------------------------------------------------}
-
--- | Defines a textual encoding for a type defined within the API.
-class ToText a where
-    -- | Encode the specified value as text.
-    toText :: a -> Text
-
--- | Defines a textual decoding for a type defined within the API.
-class FromText a where
-    -- | Decode the specified text as a value.
-    fromText :: Text -> Either TextDecodingError a
-
--- | Indicates an error that occurred while decoding from text.
-newtype TextDecodingError = TextDecodingError
-    { getTextDecodingError :: String }
-    deriving stock (Eq, Show)
-    deriving newtype Buildable
-
-instance FromText Text where
-    fromText = pure
-
-instance ToText Text where
-    toText = Prelude.id
-
-instance FromText Int where
-    fromText = bimap TextDecodingError fst . decimal
-
-instance ToText Int where
-    toText = T.pack . show
 
 instance FromText (ApiT Address) where
     -- | Constructs an address from a Base58-encoded string.

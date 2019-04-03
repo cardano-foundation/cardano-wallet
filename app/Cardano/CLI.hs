@@ -24,12 +24,12 @@ module Cardano.CLI
 
 import Prelude
 
-import Cardano.Wallet.Api.Types
-    ( FromText (..), TextDecodingError (..), ToText (..) )
 import Control.Exception
     ( finally )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( FromText (..), TextDecodingError (..), ToText (..) )
 import GHC.TypeLits
     ( Symbol )
 import System.Console.Docopt
