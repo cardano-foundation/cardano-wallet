@@ -152,7 +152,7 @@ mkWalletLayer db network = WalletLayer
         putCheckpoint db (PrimaryKey wid) cp'
 
 
-newtype PassPhrase = PassPhrase ByteString -- ScrubbedBytes
+newtype PassPhrase = PassPhrase ByteString -- TODO: Was ScrubbedBytes previously
 data TxAux = TxAux Tx [TxWitness]
 type TxOwnedInputs owner = [(owner, TxIn)]
 
@@ -162,61 +162,35 @@ type TxOwnedInputs owner = [(owner, TxIn)]
 --
 -- " Standard " here refers to the fact that we do not deal with redemption,
 -- multisignature transactions, etc.
-mkStdTx :: Monad m
-        => ProtocolMagic
-        -> (forall a. [a] -> m [a])
-        -- ^ Shuffle function
+--
+-- TODO: re-add shuffle
+-- TODO: I removed FakeSigner/SafeSigner. Might be wrong.
+mkStdTx :: ProtocolMagic
         -> (Address -> Either e (Key 'RootK XPrv))
         -- ^ Signer for each input of the transaction
         -> [(TxIn, TxOut)]
         -- ^ Selected inputs
         -> [TxOut]
-        -- ^ Selected outputs
-        -> [TxOut]
-        -- ^ Change outputs
-        -> m (Either e TxAux)
-mkStdTx pm shuffle signer inps outs change = do
-    allOuts <- shuffle (outs ++ change)
-    return $ makeMPubKeyTx pm signer' (fmap repack inps) allOuts
-    where
-         -- | Repacks a utxo-derived tuple into a format suitable for
-         -- 'TxOwnedInputs'.
-        repack :: (TxIn, TxOut) -> (TxOut, TxIn)
-        repack (txIn, txOut) = (txOut, txIn)
+        -- ^ Selected outputs (including change)
+        -> Either e TxAux
+mkStdTx pm signer ownedIns outs = do
 
-        signer' (TxOut addr _) = signer addr
-
-
--- | Like 'makePubKeyTx', but allows usage of different signers
-makeMPubKeyTx
-    :: ProtocolMagic
-    -> (owner -> Either e (Key 'RootK XPrv))
-    -> TxOwnedInputs owner
-    -> [TxOut]
-    -> Either e TxAux
-makeMPubKeyTx pm getSs ownedIns outs = do
-    let ins = (fmap snd ownedIns)
-
-    let tx = Tx ins outs
+    let ins = (fmap fst ownedIns)
+        tx = Tx ins outs
         txSigData = Hash "tx"
-    txWitness <- forM ownedIns (\(addr, _) -> mkWit addr txSigData)
-    pure $ TxAux tx txWitness
 
+    txWitness <- forM ownedIns (\(_, TxOut addr _coin) -> mkWit addr txSigData)
+    return $ TxAux tx txWitness
   where
-    mkWit addr hash =
-        getSs addr <&> \ss ->
-            PublicKeyWitness
-                (encode (publicKey ss))
-                (Hash (signRaw pm (Just SignTx) ss hash))
+    mkWit addr hash = signer addr <&> \ss ->
+        PublicKeyWitness
+            (encode (publicKey ss))
+            (Hash (signRaw pm (Just SignTx) ss hash))
 
     (<&>) = flip (<$>)
 
     encode :: (Key level XPub) -> ByteString
     encode (Key k) = CC.unXPub k
-
-
--- TODO: I removed FakeSigner/SafeSigner. Might be wrong.
-
 
 
 {-------------------------------------------------------------------------------
