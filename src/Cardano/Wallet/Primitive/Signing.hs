@@ -23,7 +23,6 @@ import qualified Codec.CBOR.Encoding as CBOR
 
 
 newtype PassPhrase = PassPhrase ByteString -- TODO: Was ScrubbedBytes previously
-data TxAux = TxAux Tx [TxWitness]
 type TxOwnedInputs owner = [(owner, TxIn)]
 
 -- | Build a transaction
@@ -42,7 +41,7 @@ mkStdTx :: ProtocolMagic
         -- ^ Selected inputs
         -> [TxOut]
         -- ^ Selected outputs (including change)
-        -> Either e TxAux
+        -> Either e (Tx, [TxWitness])
 mkStdTx pm signer ownedIns outs = do
 
     let ins = (fmap fst ownedIns)
@@ -51,7 +50,7 @@ mkStdTx pm signer ownedIns outs = do
     txWitness <- forM ownedIns (\(_, TxOut ownerAddr _) ->
         mkWit <$> signer ownerAddr)
 
-    return $ TxAux tx txWitness
+    return (tx, txWitness)
 
   where
     txSigData = Hash "tx"
