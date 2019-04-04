@@ -46,11 +46,14 @@ import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 
--- Target range for picking inputs
+-- | Target range for picking inputs
 data TargetRange = TargetRange
-    { targetMin :: Coin
-    , targetAim :: Coin
-    , targetMax :: Coin
+    { targetMin :: Natural
+        -- ^ Minimum value to cover: only the requested amount, no change at all
+    , targetAim :: Natural
+        -- ^ Ideal case: change equal to requested amount
+    , targetMax :: Natural
+        -- ^ Maximum value: an arbitrary upper bound (e.g. @2 * targetMin@)
     }
 
 -- | Random-Improve Algorithm
@@ -64,9 +67,9 @@ data TargetRange = TargetRange
 --    output is animprovement. If it is, add it to the transaction, and keep
 --    going. An output is considered an improvement when:
 --
---    (a)  It doesn’t exceed the specified upper limit.
+--    (a)  It doesn’t exceed a specified upper limit.
 --    (b)  Adding the new output gets us closer to the ideal change value.
---    (c)  It doesn’t exceed the maximum number of transaction inputs.
+--    (c)  It doesn’t exceed a maximum number of transaction inputs.
 --
 -- This algorithm follows three principles:
 --
