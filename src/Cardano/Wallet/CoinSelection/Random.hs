@@ -18,13 +18,15 @@ import Prelude
 import Cardano.Wallet.CoinSelection
     ( CoinSelection (..), CoinSelectionError (..), CoinSelectionOptions (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..), TxIn, TxOut (..), UTxO (..) )
+    ( Coin (..), TxIn, TxOut (..), UTxO (..), balance, invariant )
 import Control.Monad
-    ( foldM, guard )
+    ( foldM )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
+import Control.Monad.Trans.Maybe
+    ( MaybeT (..), runMaybeT )
 import Crypto.Number.Generate
     ( generateBetween )
 import Crypto.Random.Types
@@ -104,7 +106,10 @@ random opt utxo txOutputs = do
             $ NE.sortBy (flip $ comparing coin) txOutputs
     let n = maximumNumberOfInputs opt
 
-    randomMaybe <- lift $ foldM (processTxOut n) (Just (utxo, mempty)) txOutputsSorted
+    randomMaybe <- lift $ runMaybeT $ foldM
+        (processTxOut n)
+        (utxo, mempty)
+        txOutputsSorted
 
     case randomMaybe of
         Just (_,res) ->
@@ -112,100 +117,75 @@ random opt utxo txOutputs = do
         Nothing ->
             LargestFirst.largestFirst opt utxo txOutputs
 
-
 processTxOut
     :: forall m. MonadRandom m
     => Word64
-    -> Maybe (UTxO, CoinSelection)
+    -> (UTxO, CoinSelection)
     -> TxOut
-    -> m (Maybe (UTxO, CoinSelection))
-processTxOut maxNumInputs input txout =
-    case input of
-        Just (utxo, selection) -> do
-            atLeast ([], getUTxO utxo) >>= improve >>= \case
-                Just (inps,utxoMap) -> do
-                    let change =
-                            ((sum . (map (getCoin . coin . snd))) inps)
-                            - ((getCoin . coin) txout)
-                    pure $
-                        Just (UTxO utxoMap
-                             , selection <> CoinSelection
-                                 { inputs = inps
-                                 , outputs = [txout]
-                                 , change = [Coin change]
-                                 }
-                             )
-                Nothing ->
-                    return Nothing
-        Nothing ->
-            return Nothing
+    -> MaybeT m (UTxO, CoinSelection)
+processTxOut maxNumInputs (utxo0, selection) txout = do
+    attempt <- atLeast ([], getUTxO utxo0)
+    (inps, utxo) <- lift (improve attempt)
+    return
+        ( UTxO utxo
+        , selection <> CoinSelection
+            { inputs = inps
+            , outputs = [txout]
+            , change = mkChange txout inps
+            }
+        )
     where
         atLeast
             :: forall m. MonadRandom m
             => ([(TxIn, TxOut)], Map TxIn TxOut)
-            -> m (Maybe ([(TxIn, TxOut)], Map TxIn TxOut))
-        atLeast (inps, utxoMap)
+            -> MaybeT m ([(TxIn, TxOut)], Map TxIn TxOut)
+        atLeast (inps, utxo)
             | L.length inps > (fromIntegral maxNumInputs) =
-                  return Nothing
+                MaybeT $ return Nothing
             | sum (map (getCoin . coin . snd) inps)
               >= ((targetMin . mkTargetRange) txout) =
-                  pure $ Just (inps, utxoMap)
+                MaybeT $ return $ Just (inps, utxo)
             | otherwise = do
-                  (maybe Nothing Just <$> pickRandom utxoMap) >>= \case
-                      Just (io, utxoMap') ->
-                          atLeast (io:inps, utxoMap')
-                      Nothing -> return Nothing
+                pickRandom utxo >>= \(io, utxo') -> atLeast (io:inps, utxo')
 
         improve
             :: forall m. MonadRandom m
-            => Maybe ([(TxIn, TxOut)], Map TxIn TxOut)
-            -> m (Maybe ([(TxIn, TxOut)], Map TxIn TxOut))
-        improve inp =
-            case inp of
-                Just (inps, utxoMap) -> do
-                    (maybe Nothing Just <$> pickRandom utxoMap) >>= \case
-                        Just (io, utxoMap') ->
-                            case isImprovement io inps of
-                                Nothing ->
-                                    pure $ Just (inps, utxoMap)
-                                Just inps' -> do
-                                    let threshold = targetAim $ mkTargetRange txout
-                                    if getCoin (selectedBalance inps') >= threshold then
-                                        pure $ Just (inps', utxoMap')
-                                    else
-                                        improve $ Just (inps', utxoMap')
-                        Nothing -> return $ Just (inps, utxoMap)
+            => ([(TxIn, TxOut)], Map TxIn TxOut)
+            -> m ([(TxIn, TxOut)], Map TxIn TxOut)
+        improve (inps, utxo) =
+            runMaybeT (pickRandom utxo) >>= \case
                 Nothing ->
-                    return Nothing
+                    return (inps, utxo)
+                Just (io, utxo') | isImprovement io inps -> do
+                    let inps' = io : inps
+                    let threshold = targetAim $ mkTargetRange txout
+                    if balance' inps' >= threshold
+                        then return (inps', utxo')
+                        else improve (inps', utxo')
+                Just _ ->
+                    return (inps, utxo)
 
-        isImprovement
-            :: (TxIn, TxOut)
-            -> [(TxIn, TxOut)]
-            -> Maybe [(TxIn, TxOut)]
-        isImprovement io selected = do
+        isImprovement :: (TxIn, TxOut) -> [(TxIn, TxOut)] -> Bool
+        isImprovement io@(_,out) selected =
+            let
+                target = mkTargetRange out
 
-            guard
-                ((getCoin (selectedBalance selected') <= targetMax targetRange)
-                &&
-                (distance (Coin $ targetAim targetRange) (selectedBalance selected') <
-                 distance (Coin $ targetAim targetRange) (selectedBalance selected))
-                &&
-                (L.length selected' <= fromIntegral maxNumInputs))
+                condA = -- (a) It doesn’t exceed a specified upper limit.
+                    balance' (io : selected) < targetMax target
 
-            return selected'
-            where
-                selected' = io : selected
-                distance (Coin val1) (Coin val2) =
-                    if val1 < val2 then
-                        val2 - val1
-                    else
-                        val1 - val2
-                targetRange = mkTargetRange txout
+                condB = -- (b) Addition gets us closer to the ideal change
+                    distance (targetAim target) (balance' (io : selected))
+                    <
+                    distance (targetAim target) (balance' selected)
 
-        selectedBalance
-            :: [(TxIn, TxOut)]
-            -> Coin
-        selectedBalance = Coin . sum . (map (getCoin . coin . snd))
+                condC = -- (c) Doesn't exceed maximum number of inputs
+                    length (io : selected) < fromIntegral maxNumInputs
+            in
+                condA && condB && condC
+
+{-------------------------------------------------------------------------------
+                                 Internals
+-------------------------------------------------------------------------------}
 
 -- | Compute the target range for a given output
 mkTargetRange :: TxOut -> TargetRange
@@ -215,19 +195,45 @@ mkTargetRange (TxOut _ (Coin c)) = TargetRange
     , targetMax = 3 * c
     }
 
--- Pick a random element from a map
--- Returns 'Nothing' if the map is empty
+-- | Compute the balance of a unwrapped UTxO
+balance' :: [(TxIn, TxOut)] -> Word64
+balance' =
+    fromIntegral . balance . UTxO . Map.fromList
+
+-- | Compute distance between two numeric values |a - b|
+distance :: (Ord a, Num a) => a -> a -> a
+distance a b =
+    if a < b then b - a else a - b
+
+-- | Compute corresponding change outputs from a target output and a selection
+-- of inputs.
+--
+-- > pre-condition: the output must be smaller (or eq) than the sum of inputs
+mkChange :: TxOut -> [(TxIn, TxOut)] -> [Coin]
+mkChange (TxOut _ (Coin out)) inps =
+    let
+        selected = invariant
+            "mkChange: output is smaller than selected inputs!"
+            (balance' inps)
+            (> out)
+        Coin maxCoinValue = maxBound
+    in
+        case selected - out of
+            c | c > maxCoinValue ->
+                let h = (c `div` 2) in [Coin h, Coin (c - h)]
+            c | c == 0 ->
+                []
+            c ->
+                [ Coin c ]
+
+-- Pick a random element from a map, returns 'Nothing' if the map is empty
 pickRandom
     :: MonadRandom m
     => Map k a
-    -> m (Maybe ((k, a), Map k a))
+    -> MaybeT m ((k, a), Map k a)
 pickRandom m
-    | Map.null m = return Nothing
-    | otherwise  = (withIx m) . fromIntegral <$>
-                   generateBetween 0 (fromIntegral (Map.size m - 1))
-    where
-        withIx
-            :: Map k a
-            -> Int
-            -> Maybe ((k, a), Map k a)
-        withIx m' ix = Just (Map.elemAt ix m', Map.deleteAt ix m')
+    | Map.null m =
+        MaybeT $ return Nothing
+    | otherwise = do
+        ix <- fromEnum <$> lift (generateBetween 0 (toEnum (Map.size m - 1)))
+        return (Map.elemAt ix m, Map.deleteAt ix m)
