@@ -80,6 +80,7 @@ library
       Cardano.Wallet.Primitive.AddressDiscovery
       Cardano.Wallet.Primitive.Mnemonic
       Cardano.Wallet.Primitive.Model
+      Cardano.Wallet.Primitive.Signing
       Cardano.Wallet.Primitive.Types
       Data.Quantity
       Servant.Extra.ContentTypes
