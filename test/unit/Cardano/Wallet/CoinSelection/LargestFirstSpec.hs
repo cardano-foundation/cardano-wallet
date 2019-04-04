@@ -162,7 +162,7 @@ coinSelectionUnitTest (Fixture n utxoCoins txOutsCoins expected) = do
 
     result <- runExceptT $ do
         CoinSelection inps _ _ <-
-            largestFirst (defaultCoinSelectionOptions n) utxo txOuts
+            largestFirst (CoinSelectionOptions n) utxo txOuts
         return $ map (getCoin . coin . snd) inps
 
     result `shouldBe` expected
@@ -185,7 +185,7 @@ propDeterministic
     :: CoveringCase
     -> Property
 propDeterministic (CoveringCase (utxo, txOuts)) = do
-    let opts = defaultCoinSelectionOptions 100
+    let opts = CoinSelectionOptions 100
     let resultOne = runIdentity $ runExceptT $ largestFirst opts utxo txOuts
     let resultTwo = runIdentity $ runExceptT $ largestFirst opts utxo txOuts
     resultOne === resultTwo
@@ -199,7 +199,7 @@ propAtLeast (CoveringCase (utxo, txOuts)) =
     prop (CoinSelection inps _ _) =
         L.length inps `shouldSatisfy` (>= NE.length txOuts)
     selection = runIdentity $ runExceptT $
-        largestFirst (defaultCoinSelectionOptions 100) utxo txOuts
+        largestFirst (CoinSelectionOptions 100) utxo txOuts
 
 propInputDecreasingOrder
     :: CoveringCase
@@ -217,21 +217,12 @@ propInputDecreasingOrder (CoveringCase (utxo, txOuts)) =
             (>= (getExtremumValue L.maximum utxo'))
     getExtremumValue f = f . map (getCoin . coin . snd)
     selection = runIdentity $ runExceptT $
-        largestFirst (defaultCoinSelectionOptions 100) utxo txOuts
+        largestFirst (CoinSelectionOptions 100) utxo txOuts
 
 
 {-------------------------------------------------------------------------------
                                   Test Data
 -------------------------------------------------------------------------------}
-
-defaultCoinSelectionOptions
-    :: Word64
-    -> CoinSelectionOptions
-defaultCoinSelectionOptions n = CoinSelectionOptions
-    { estimateFee = \_ _ -> Coin 0
-    , dustThreshold = Coin 0
-    , maximumNumberOfInputs = n
-    }
 
 newtype CoveringCase = CoveringCase { getCoveringCase :: (UTxO, NonEmpty TxOut)}
     deriving Show

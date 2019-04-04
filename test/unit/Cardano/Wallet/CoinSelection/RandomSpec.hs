@@ -166,15 +166,6 @@ data Fixture = Fixture
     , expectedResult :: Either CoinSelectionError [Word64]
     } deriving Show
 
-defaultCoinSelectionOptions
-    :: Word64
-    -> CoinSelectionOptions
-defaultCoinSelectionOptions n = CoinSelectionOptions
-    { estimateFee = \_ _ -> Coin 0
-    , dustThreshold = Coin 0
-    , maximumNumberOfInputs = n
-    }
-
 coinSelectionUnitTest
     :: Fixture
     -> Expectation
@@ -183,7 +174,7 @@ coinSelectionUnitTest (Fixture n utxoCoins txOutsCoins expected) = do
 
     result <- runExceptT $ do
         CoinSelection inps _ _ <-
-            random (defaultCoinSelectionOptions n) utxo txOuts
+            random (CoinSelectionOptions n) utxo txOuts
         return $ map (getCoin . coin . snd) inps
 
     result `shouldBe` expected
@@ -215,9 +206,9 @@ propFragmentation (CoveringCase (utxo, txOuts)) = do
         L.length inps1 `shouldSatisfy` (>= L.length inps2)
     drg = unsafeDupablePerformIO getSystemDRG
     (selection1,_) = withDRG drg
-        (runExceptT $ random (defaultCoinSelectionOptions 100) utxo txOuts)
+        (runExceptT $ random (CoinSelectionOptions 100) utxo txOuts)
     selection2 = runIdentity $ runExceptT $
-        largestFirst (defaultCoinSelectionOptions 100) utxo txOuts
+        largestFirst (CoinSelectionOptions 100) utxo txOuts
 
 propErrors
     :: CoveringCase
@@ -232,9 +223,9 @@ propErrors (CoveringCase (utxo, txOuts)) = do
         err1 === err2
     drg = unsafeDupablePerformIO getSystemDRG
     (selection1,_) = withDRG drg
-        (runExceptT $ random (defaultCoinSelectionOptions 1) utxo txOuts)
+        (runExceptT $ random (CoinSelectionOptions 1) utxo txOuts)
     selection2 = runIdentity $ runExceptT $
-        largestFirst (defaultCoinSelectionOptions 1) utxo txOuts
+        largestFirst (CoinSelectionOptions 1) utxo txOuts
 
 
 {-------------------------------------------------------------------------------

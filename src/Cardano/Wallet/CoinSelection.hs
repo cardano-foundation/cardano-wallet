@@ -11,39 +11,26 @@
 -- https://iohk.io/blog/self-organisation-in-coin-selection/
 
 
-module Cardano.Wallet.CoinSelection where
+module Cardano.Wallet.CoinSelection
+    ( CoinSelectionOptions (..)
+    , CoinSelectionError(..)
+    , CoinSelection(..)
+    ) where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..), TxIn, TxOut (..), UTxO )
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
-import Data.Quantity
-    ( Quantity (..) )
+    ( Coin (..), TxIn, TxOut (..) )
 import Data.Word
     ( Word64 )
 import GHC.Generics
     ( Generic )
-import Numeric.Natural
-    ( Natural )
 
 
-data CoinSelectionOptions = CoinSelectionOptions
-    { estimateFee
-        :: Int
-        -> NonEmpty Coin
-        -> Coin
-        -- ^ A function to estimate the fees.
-    , dustThreshold
-        :: Coin
-        -- ^ Change addresses below the given threshold will be evicted
-        -- from the created transaction. If you only want to remove change
-        -- outputs equal to 0, set 'csoDustThreshold' to 0.
-    , maximumNumberOfInputs
+newtype CoinSelectionOptions = CoinSelectionOptions
+    { maximumNumberOfInputs
         :: Word64
     } deriving (Generic)
-
 
 data CoinSelectionError =
     NotEnoughMoney Word64 Word64
@@ -81,25 +68,3 @@ instance Semigroup CoinSelection where
 
 instance Monoid CoinSelection where
     mempty = CoinSelection [] [] []
-
-
-----------------------------------------------------------------------------
---                        Fee related                                     --
-----------------------------------------------------------------------------
-
-newtype Fee = Fee { getFee :: Quantity "lovelace" Natural }
-
-adjustForFees
-    :: CoinSelectionOptions
-    -> ( Coin -> UTxO -> Maybe (TxIn, TxOut) )
-    -> CoinSelection
-    -> CoinSelection
-adjustForFees _opt _pickUtxo selection = do
-    let inps = inputs selection
-    let outs = outputs selection
-    let chgs = change selection
-
-    -- here will come estimateFee and other stuff
-    -- and will change inps, outs and chgs
-
-    CoinSelection inps outs chgs
