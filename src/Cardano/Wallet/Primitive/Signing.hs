@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE LambdaCase #-}
 module Cardano.Wallet.Primitive.Signing where
 
 import Prelude
@@ -60,7 +59,7 @@ mkStdTx pm signer ownedIns outs = do
     mkWit ss =
         PublicKeyWitness
             (encode $ publicKey ss)
-            (Hash $ signRaw pm (Just SignTx) ss txSigData)
+            (Hash $ signRaw (signTag pm) ss txSigData)
 
     encode :: (Key level XPub) -> ByteString
     encode (Key k) = CC.unXPub k
@@ -81,41 +80,13 @@ mkStdTx pm signer ownedIns outs = do
 -- We also automatically add the network tag ('protocolMagic') whenever it
 -- makes sense, to ensure that things intended for testnet won't work for
 -- mainnet.
-data SignTag
-    = SignForTestingOnly  -- ^ Anything (to be used for testing only)
-    | SignTx              -- ^ Tx:               @TxSigData@
-    | SignRedeemTx        -- ^ Redeem tx:        @TxSigData@
-    | SignVssCert         -- ^ Vss certificate:  @(VssPublicKey, EpochIndex)@
-    | SignUSProposal      -- ^ Update proposal:  @UpdateProposalToSign@
-    | SignCommitment      -- ^ Commitment:       @(EpochIndex, Commitment)@
-    | SignUSVote          -- ^ US proposal vote: @(UpId, Bool)@
-    | SignMainBlock       -- ^ Main block:       @MainToSign@
-    | SignMainBlockLight
-    | SignMainBlockHeavy
-    | SignProxySK         -- ^ Proxy key:        @ProxySecretKey@
-    deriving (Eq, Ord, Show, Generic)
-
--- TODO: it would be nice if we couldn't use 'SignTag' with wrong
--- types. Maybe something with GADTs and data families?
-
-
-
--- | Get magic bytes corresponding to a 'SignTag'. Guaranteed to be different
--- (and begin with a different byte) for different tags.
-signTag :: ProtocolMagic -> SignTag -> ByteString
-signTag (ProtocolMagic pm) = \case
-    SignForTestingOnly -> "\x00"
-    SignTx             -> "\x01" <> network
-    SignRedeemTx       -> "\x02" <> network
-    SignVssCert        -> "\x03" <> network
-    SignUSProposal     -> "\x04" <> network
-    SignCommitment     -> "\x05" <> network
-    SignUSVote         -> "\x06" <> network
-    SignMainBlock      -> "\x07" <> network
-    SignMainBlockLight -> "\x08" <> network
-    SignMainBlockHeavy -> "\x09" <> network
-    SignProxySK        -> "\x0a" <> network
+--
+-- The wallet only cares about the 'SignTx' tag. In 'cardano-sl' there was
+-- a whole @SignTag@ data-type
+signTag :: ProtocolMagic -> ByteString
+signTag (ProtocolMagic pm) = signTxTag <> network
   where
+    signTxTag = "\x01"
     network = toByteString . CBOR.encodeInt32 $ pm
 
 -- Signatures
@@ -125,27 +96,14 @@ signTag (ProtocolMagic pm) = \case
 newtype Signature a = Signature CC.XSignature
     deriving (Eq, Ord, Show, Generic)
 
-
---
---
---
---
---
-
-
 -- | Sign a bytestring.
 signRaw
-    :: ProtocolMagic
-    -> Maybe SignTag   -- ^ See docs for 'SignTag'. Unlike in 'sign', we
-                       -- allow no tag to be provided just in case you need
-                       -- to sign /exactly/ the bytestring you provided
+    :: ByteString
     -> Key 'RootK XPrv
     -> Hash "tx"
     -> ByteString -- Previously Raw
-signRaw pm mbTag (Key k) (Hash x) = CC.unXSignature $ CC.sign emptyPassphrase k (tag <> x)
+signRaw tag (Key k) (Hash x) = CC.unXSignature $ CC.sign emptyPassphrase k (tag <> x)
   where
-    tag = maybe mempty (signTag pm) mbTag
-
     emptyPassphrase :: ByteString
     emptyPassphrase = mempty
 
