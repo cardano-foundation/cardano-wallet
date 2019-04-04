@@ -45,6 +45,8 @@ import Data.Maybe
     ( isJust )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Text.Class
+    ( TextDecodingError (..), fromText )
 import Data.Word
     ( Word8 )
 import Test.Hspec
@@ -87,7 +89,6 @@ spec = do
             (checkCoverage prop_mkAddressPoolGap)
         it "defaultAddressPoolGap is valid"
             (property prop_defaultValid)
-        textRoundtrip $ Proxy @AddressPoolGap
 
     describe "AddressPool" $ do
         it "'lookupAddressPool' extends the pool by a maximum of 'gap'"
@@ -99,7 +100,23 @@ spec = do
         it "Our addresses are eventually discovered"
             (property prop_poolEventuallyDiscoverOurs)
 
-
+    describe "AddressPoolGap - Text Roundtrip" $ do
+        textRoundtrip $ Proxy @AddressPoolGap
+        it "fail fromText @AddressPoolGap \"-10\"" $
+            fromText @AddressPoolGap "-10" === Left (TextDecodingError err)
+        it "fail fromText @AddressPoolGap \"0\"" $
+            fromText @AddressPoolGap "0" === Left (TextDecodingError err)
+        it "fail fromText @AddressPoolGap \"9\"" $
+            fromText @AddressPoolGap "9" === Left (TextDecodingError err)
+        it "fail fromText @AddressPoolGap \"101\"" $
+            fromText @AddressPoolGap "101" === Left (TextDecodingError err)
+        it "fail fromText @AddressPoolGap \"20eiei\"" $
+            fromText @AddressPoolGap "20eiei" === Left (TextDecodingError err)
+        it "fail fromText @AddressPoolGap \"raczej nie\"" $
+            fromText @AddressPoolGap "raczej nie" === Left (TextDecodingError err)
+        where
+            err :: String
+            err = "An address pool gap must be a natural number between 10 and 100"
 {-------------------------------------------------------------------------------
                         Properties for AddressPoolGap
 -------------------------------------------------------------------------------}
