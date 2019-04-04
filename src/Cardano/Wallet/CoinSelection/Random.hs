@@ -17,6 +17,8 @@ import Prelude
 
 import Cardano.Wallet.CoinSelection
     ( CoinSelection (..), CoinSelectionError (..), CoinSelectionOptions (..) )
+import Cardano.Wallet.CoinSelection.LargestFirst
+    ( largestFirst )
 import Cardano.Wallet.Primitive.Types
     ( Coin (..), TxIn, TxOut (..), UTxO (..), balance, invariant )
 import Control.Monad
@@ -38,7 +40,6 @@ import Data.Ord
 import Data.Word
     ( Word64 )
 
-import qualified Cardano.Wallet.CoinSelection.LargestFirst as LargestFirst
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
@@ -99,30 +100,27 @@ random
     -> UTxO
     -> NonEmpty TxOut
     -> ExceptT CoinSelectionError m CoinSelection
-random opt utxo txOutputs = do
-    let txOutputsSorted = NE.toList
-            $ NE.sortBy (flip $ comparing coin) txOutputs
-    let n = maximumNumberOfInputs opt
-
+random opt utxo outs = do
+    let descending = NE.toList . NE.sortBy (flip $ comparing coin)
     randomMaybe <- lift $ runMaybeT $ foldM
-        (processTxOut n)
+        (processTxOut opt)
         (utxo, mempty)
-        txOutputsSorted
-
+        (descending outs)
     case randomMaybe of
         Just (_,res) ->
             return res
         Nothing ->
-            LargestFirst.largestFirst opt utxo txOutputs
+            largestFirst opt utxo outs
 
+-- | Perform a random selection on a given output, with improvement.
 processTxOut
     :: forall m. MonadRandom m
-    => Word64
+    => CoinSelectionOptions
     -> (UTxO, CoinSelection)
     -> TxOut
     -> MaybeT m (UTxO, CoinSelection)
-processTxOut maxNumInputs (utxo0, selection) txout = do
-    attempt <- atLeast ([], utxo0)
+processTxOut (CoinSelectionOptions maxNumInputs) (utxo0, selection) txout = do
+    attempt <- coverRandomly ([], utxo0)
     (inps, utxo') <- lift (improve attempt)
     return
         ( utxo'
@@ -133,18 +131,20 @@ processTxOut maxNumInputs (utxo0, selection) txout = do
             }
         )
   where
-    atLeast
+    target :: TargetRange
+    target = mkTargetRange txout
+
+    coverRandomly
         :: forall m. MonadRandom m
         => ([(TxIn, TxOut)], UTxO)
         -> MaybeT m ([(TxIn, TxOut)], UTxO)
-    atLeast (inps, utxo)
+    coverRandomly (inps, utxo)
         | L.length inps > (fromIntegral maxNumInputs) =
             MaybeT $ return Nothing
-        | sum (map (getCoin . coin . snd) inps)
-          >= ((targetMin . mkTargetRange) txout) =
+        | balance' inps >= targetMin target =
             MaybeT $ return $ Just (inps, utxo)
         | otherwise = do
-            pickRandom utxo >>= \(io, utxo') -> atLeast (io:inps, utxo')
+            pickRandom utxo >>= \(io, utxo') -> coverRandomly (io:inps, utxo')
 
     improve
         :: forall m. MonadRandom m
@@ -156,18 +156,15 @@ processTxOut maxNumInputs (utxo0, selection) txout = do
                 return (inps, utxo)
             Just (io, utxo') | isImprovement io inps -> do
                 let inps' = io : inps
-                let threshold = targetAim $ mkTargetRange txout
-                if balance' inps' >= threshold
+                if balance' inps' >= targetAim target
                     then return (inps', utxo')
                     else improve (inps', utxo')
             Just _ ->
                 return (inps, utxo)
 
     isImprovement :: (TxIn, TxOut) -> [(TxIn, TxOut)] -> Bool
-    isImprovement io@(_,out) selected =
+    isImprovement io selected =
         let
-            target = mkTargetRange out
-
             condA = -- (a) It doesn’t exceed a specified upper limit.
                 balance' (io : selected) < targetMax target
 
@@ -177,7 +174,7 @@ processTxOut maxNumInputs (utxo0, selection) txout = do
                 distance (targetAim target) (balance' selected)
 
             condC = -- (c) Doesn't exceed maximum number of inputs
-                length (io : selected) < fromIntegral maxNumInputs
+                length (io : selected) <= fromIntegral maxNumInputs
         in
             condA && condB && condC
 
