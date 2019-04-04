@@ -41,7 +41,7 @@ import Test.Hspec
     , beforeAll
     , describe
     , it
-    , shouldEndWith
+    , shouldContain
     , shouldReturn
     , shouldSatisfy
     )
@@ -109,36 +109,36 @@ spec = do
 
             let signed = sign txEmpty []
             (Left err) <- runExceptT $ postTx network signed
-            (show err) `shouldEndWith`
-                "Transaction failed verification: transaction has no inputs\\\"})\""
+            (show err) `shouldContain`
+                "Transaction failed verification: transaction has no inputs"
 
         it "empty tx fails 2" $ \(_, network) -> do
 
             let signed = sign txEmpty [pkWitness]
             (Left err) <- runExceptT $ postTx network signed
-            (show err) `shouldEndWith`
-                "Transaction failed verification: transaction has no inputs\\\"})\""
+            (show err) `shouldContain`
+                "Transaction failed verification: transaction has no inputs"
 
         it "old tx fails" $ \(_, network) -> do
 
             let signed = sign txNonEmpty [pkWitness]
             (Left err) <- runExceptT $ postTx network signed
-            (show err) `shouldEndWith`
-                "Failed to send to peers: Blockchain protocol error\\\"})\""
+            (show err) `shouldContain`
+                "Failed to send to peers: Blockchain protocol error"
 
         it "tx fails - more inputs than witnesses" $ \(_, network) -> do
 
             let signed = sign txNonEmpty []
             (Left err) <- runExceptT $ postTx network signed
-            (show err) `shouldEndWith`
-                "Transaction failed verification: transaction has more inputs than witnesses\\\"})\""
+            (show err) `shouldContain`
+                "Transaction failed verification: transaction has more inputs than witnesses"
 
         it "tx fails - more witnesses than inputs" $ \(_, network) -> do
 
             let signed = sign txNonEmpty [pkWitness, pkWitness]
             (Left err) <- runExceptT $ postTx network signed
-            (show err) `shouldEndWith`
-                "Transaction failed verification: transaction has more witnesses than inputs\\\"})\""
+            (show err) `shouldContain`
+                "Transaction failed verification: transaction has more witnesses than inputs"
   where
     sign :: Tx -> [TxWitness] -> SignedTx
     sign tx witnesses = SignedTx . toBS $ encodeSignedTx (tx, witnesses)

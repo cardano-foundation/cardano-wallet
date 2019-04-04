@@ -17,16 +17,14 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..), Hash (..), SignedTx, SlotId (..) )
 import Control.Concurrent
     ( threadDelay )
+import Control.Exception
+    ( Exception, throwIO )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Data.Time.Units
     ( Millisecond, toMicroseconds )
-import Fmt
-    ( fmt, (+||), (||+) )
-import System.Exit
-    ( die )
 
 
 data NetworkLayer m e0 e1 = NetworkLayer
@@ -75,7 +73,7 @@ data TickResult a
 -- | Retrieve blocks from a chain producer and execute some given action for
 -- each block.
 listen
-    :: forall e0 e1. (Show e0)
+    :: forall e0 e1. (Exception e0)
     => NetworkLayer IO e0 e1
     -> ([Block] -> IO ())
     -> IO ()
@@ -93,8 +91,7 @@ listen network action = do
         -- which is fair price to pay in order NOT to have to do any slotting
         -- arithmetic nor track how many blocks are present per epochs.
         case res of
-            Left err ->
-                die $ fmt $ "Chain producer error: "+||err||+""
+            Left err -> throwIO err
             Right bs | length bs < 2 ->
                 pure (Sleep, current)
             Right blocks ->
