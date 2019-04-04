@@ -87,5 +87,6 @@ type PutWallet = "wallets"
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/putWalletPassphrase
 type PutWalletPassphrase = "wallets"
     :> Capture "walletId" (ApiT WalletId)
+    :> "passphrase"
     :> ReqBody '[JSON] WalletPutPassphraseData
     :> Put '[OctetStream] NoContent
