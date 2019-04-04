@@ -1,3 +1,5 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 
 -- |
@@ -15,25 +17,52 @@ module Cardano.Wallet.DB.MVar
 import Prelude
 
 import Cardano.Wallet.DB
-    ( DBLayer (..) )
+    ( DBLayer (..), ErrPutTxHistory (..), PrimaryKey (..) )
+import Cardano.Wallet.Primitive.Model
+    ( Wallet )
+import Cardano.Wallet.Primitive.Types
+    ( Hash, Tx, TxMeta, WalletId )
 import Control.Concurrent.MVar
-    ( modifyMVar_, newMVar, readMVar )
+    ( modifyMVar, modifyMVar_, newMVar, readMVar )
 import Control.DeepSeq
     ( deepseq )
+import Control.Monad.Trans.Except
+    ( ExceptT (..) )
+import Data.Map.Strict
+    ( Map )
 
 import qualified Data.Map.Strict as Map
-
 
 -- | Instantiate a new in-memory "database" layer that simply stores data in
 -- a local MVar. Data vanishes if the software is shut down.
 newDBLayer :: forall s. IO (DBLayer IO s)
 newDBLayer = do
-    wallets <- newMVar mempty
+    db <- newMVar (mempty
+        :: Map (PrimaryKey WalletId) (Wallet s, Map (Hash "Tx") (Tx, TxMeta)))
     return $ DBLayer
         { putCheckpoint = \key cp ->
-            cp `deepseq` (modifyMVar_ wallets (return . Map.insert key cp))
+            let
+                alter = \case
+                    Nothing -> Just (cp, mempty)
+                    Just (_, history) -> Just (cp, history)
+            in
+                cp `deepseq` modifyMVar_ db (return . (Map.alter alter key))
+
         , readCheckpoint = \key ->
-            Map.lookup key <$> readMVar wallets
+            fmap fst . Map.lookup key <$> readMVar db
+
         , readWallets =
-            Map.keys <$> readMVar wallets
+            Map.keys <$> readMVar db
+
+        , putTxHistory = \key@(PrimaryKey wid) txs' -> ExceptT $ do
+            let alter = \case
+                    Nothing -> Left (ErrNoSuchWallet wid)
+                    Just (cp, txs) -> Right (Just (cp, txs <> txs'))
+            let handle m = \case
+                    Left err -> return (m, Left err)
+                    Right m' -> return (m', Right ())
+            txs' `deepseq` modifyMVar db (\m -> handle m $ Map.alterF alter key m)
+
+        , readTxHistory = \key ->
+            maybe mempty snd . Map.lookup key <$> readMVar db
         }
