@@ -1,7 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -30,7 +29,7 @@ import Control.Monad.Trans.Except
 import Crypto.Number.Generate
     ( generateBetween )
 import Crypto.Random.Types
-    ( MonadRandom, getRandomBytes )
+    ( MonadRandom )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -83,7 +82,7 @@ random opt utxo txOutputs = do
             $ NE.sortBy (flip $ comparing coin) txOutputs
     let n = maximumNumberOfInputs opt
 
-    randomMaybe <- foldM (processTxOut n) (Just (utxo, mempty)) txOutputsSorted
+    randomMaybe <- lift $ foldM (processTxOut n) (Just (utxo, mempty)) txOutputsSorted
 
     case randomMaybe of
         Just (_,res) ->
@@ -219,7 +218,3 @@ pickRandom m
             -> Int
             -> Maybe ((k, a), Map k a)
         withIx m' ix = Just (Map.elemAt ix m', Map.deleteAt ix m')
-
-
-instance MonadRandom m => MonadRandom (ExceptT e m) where
-    getRandomBytes = lift . getRandomBytes
