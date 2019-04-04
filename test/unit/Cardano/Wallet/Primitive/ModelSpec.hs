@@ -13,12 +13,19 @@ import Prelude
 import Cardano.Wallet.Binary
     ( txId )
 import Cardano.Wallet.Primitive.Model
-    ( applyBlock, availableBalance, initWallet, totalBalance, totalUTxO )
+    ( applyBlock
+    , availableBalance
+    , getTxHistory
+    , initWallet
+    , totalBalance
+    , totalUTxO
+    )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
     , BlockHeader (..)
     , Coin (..)
+    , Direction (..)
     , Dom (..)
     , Hash (..)
     , IsOurs (..)
@@ -26,7 +33,9 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , Tx (..)
     , TxIn (..)
+    , TxMeta (direction, status)
     , TxOut (..)
+    , TxStatus (..)
     , UTxO (..)
     , balance
     , excluding
@@ -55,6 +64,7 @@ import Test.QuickCheck
     , Property
     , checkCoverage
     , choose
+    , conjoin
     , cover
     , elements
     , genericShrink
@@ -63,6 +73,7 @@ import Test.QuickCheck
     , shrinkList
     , (.&&.)
     , (===)
+    , (==>)
     )
 
 import qualified Data.List.NonEmpty as NE
@@ -84,6 +95,14 @@ spec = do
 
         it "applyBlock matches the basic model from the specification"
             (checkCoverage prop_applyBlockBasic)
+
+    describe "Wallet transactions over test data" $ do
+        -- it "Outgoing transactions have inputs that belonged to the utxo"
+        --    (property prop_applyBlockTxHistoryInputs)
+        it "Incoming transactions have output addresses that belong to the wallet"
+            (property prop_applyBlockTxHistoryIncoming)
+        it "Any transction involving our addresses must be incoming"
+            (property prop_applyBlockTxHistoryOurs)
 
 
 {-------------------------------------------------------------------------------
@@ -127,6 +146,50 @@ prop_applyBlockBasic s =
             (ShowFmt utxo === ShowFmt utxo') .&&.
             (availableBalance wallet === balance utxo') .&&.
             (totalBalance wallet === balance utxo')
+
+
+prop_applyBlockTxHistoryIncoming :: WalletState -> Property
+prop_applyBlockTxHistoryIncoming s = conjoin (map prop wallets)
+  where
+    wallets = scanl (flip applyBlock) (initWallet s) blockchain
+    -- each transaction must have at least one output belonging to us
+    prop wallet = conjoin [addrs `overlaps` ourAddresses s | addrs <- txOuts]
+      where
+        inTxs = filter isIncoming $ Set.toList $ getTxHistory wallet
+        isIncoming (_, m) = direction m == Incoming
+        txOuts = map (Set.fromList . map address . outputs . fst) inTxs
+        overlaps a b = not (Set.disjoint a b)
+
+{-
+-- Outgoing transactions have inputs that belonged to the utxo.
+-- Can't be tested with current data.
+prop_applyBlockTxHistoryInputs :: WalletState -> Property
+prop_applyBlockTxHistoryInputs s = property prop
+    where
+        cond0 = not $ null $ ourAddresses s
+        prop =
+            let
+                wallets = scanl (flip applyBlock) (initWallet s) blockchain
+                wallet = last wallets
+                outTxs = filter isOutgoing $ Set.toList $ getTxHistory wallet
+                isOutgoing (_, m) = direction m == Outgoing
+
+                combinedInputs = mconcat $ map (dom . availableUTxO) wallets
+                txInputs = Set.fromList $ concatMap (inputs . fst) outTxs
+            in
+                cond0 ==> not (null outTxs) ==>
+                (not $ Set.disjoint txInputs combinedInputs)
+-}
+
+prop_applyBlockTxHistoryOurs :: WalletState -> Property
+prop_applyBlockTxHistoryOurs s =
+    not (null $ ourAddresses s) ==>
+        ((Set.map direction txMetas === Set.singleton Incoming) .&&.
+         (Set.map status txMetas === Set.singleton InLedger))
+    where
+        wallet = foldl (flip applyBlock) (initWallet s) blockchain
+        txMetas = Set.map snd $ getTxHistory wallet
+
 
 
 {-------------------------------------------------------------------------------
