@@ -74,7 +74,7 @@ module Cardano.Wallet.Primitive.Types
     , PoolId(..)
 
     -- * ProtocolMagic
-    , ProtocolMagic (..)
+    , protocolMagic
 
     -- * Polymorphic
     , Hash (..)
@@ -96,6 +96,8 @@ import Data.Int
     ( Int32 )
 import Data.Map.Strict
     ( Map )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Quantity
     ( Percentage, Quantity (..) )
 import Data.Set
@@ -126,6 +128,12 @@ import GHC.TypeLits
     ( Symbol )
 import Numeric.Natural
     ( Natural )
+import System.Environment
+    ( lookupEnv )
+import System.IO.Unsafe
+    ( unsafePerformIO )
+import Text.Read
+    ( readMaybe )
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -524,4 +532,12 @@ newtype ProtocolMagic = ProtocolMagic
     { getProtocolMagicId      :: Int32
     --, getRequiresNetworkMagic :: !RequiresNetworkMagic
     } deriving (Eq, Show, Generic)
+
+{-# NOINLINE protocolMagic #-}
+protocolMagic :: Int32
+protocolMagic = fromMaybe testnet (envvar >>= readMaybe)
+  where
+    testnet = error "what /is/ the testnet pm?"
+    envvar = unsafePerformIO $ lookupEnv "CARDANO_WALLET_PROTOCOL_MAGIC"
+
 

@@ -9,7 +9,7 @@ import Cardano.Wallet.Binary
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (RootK), Key (..), XPrv, XPub, publicKey )
 import Cardano.Wallet.Primitive.Types
-    ( Address, Hash (..), ProtocolMagic (..), Tx (..), TxIn, TxOut (TxOut) )
+    ( Address, Hash (..), Tx (..), TxIn, TxOut (TxOut), protocolMagic )
 import Control.Monad
     ( forM )
 import Data.ByteString
@@ -34,15 +34,14 @@ type TxOwnedInputs owner = [(owner, TxIn)]
 --
 -- TODO: re-add shuffle
 -- TODO: I removed FakeSigner/SafeSigner. Might be wrong.
-mkStdTx :: ProtocolMagic
-        -> (Address -> Either e (Key 'RootK XPrv))
+mkStdTx :: (Address -> Either e (Key 'RootK XPrv))
         -- ^ Signer for each input of the transaction
         -> [(TxIn, TxOut)]
         -- ^ Selected inputs
         -> [TxOut]
         -- ^ Selected outputs (including change)
         -> Either e (Tx, [TxWitness])
-mkStdTx pm signer ownedIns outs = do
+mkStdTx signer ownedIns outs = do
 
     let ins = (fmap fst ownedIns)
         tx = Tx ins outs
@@ -58,7 +57,7 @@ mkStdTx pm signer ownedIns outs = do
     mkWit ss =
         PublicKeyWitness
             (encode $ publicKey ss)
-            (Hash $ signRaw (signTag pm) ss txSigData)
+            (Hash $ signRaw signTag ss txSigData)
 
     encode :: (Key level XPub) -> ByteString
     encode (Key k) = CC.unXPub k
@@ -82,11 +81,11 @@ mkStdTx pm signer ownedIns outs = do
 --
 -- The wallet only cares about the 'SignTx' tag. In 'cardano-sl' there was
 -- a whole @SignTag@ data-type
-signTag :: ProtocolMagic -> ByteString
-signTag (ProtocolMagic pm) = signTxTag <> network
+signTag :: ByteString
+signTag = signTxTag <> network
   where
     signTxTag = "\x01"
-    network = toByteString . CBOR.encodeInt32 $ pm
+    network = toByteString $ CBOR.encodeInt32 protocolMagic
 
 -- Signatures
 
