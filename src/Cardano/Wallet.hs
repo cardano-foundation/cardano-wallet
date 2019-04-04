@@ -177,17 +177,19 @@ mkStdTx pm signer ownedIns outs = do
 
     let ins = (fmap fst ownedIns)
         tx = Tx ins outs
-        txSigData = Hash "tx"
 
-    txWitness <- forM ownedIns (\(_, TxOut addr _coin) -> mkWit addr txSigData)
+    txWitness <- forM ownedIns (\(_, TxOut ownerAddr _) ->
+        mkWit <$> signer ownerAddr)
+
     return $ TxAux tx txWitness
-  where
-    mkWit addr hash = signer addr <&> \ss ->
-        PublicKeyWitness
-            (encode (publicKey ss))
-            (Hash (signRaw pm (Just SignTx) ss hash))
 
-    (<&>) = flip (<$>)
+  where
+    txSigData = Hash "tx"
+
+    mkWit ss =
+        PublicKeyWitness
+            (encode $ publicKey ss)
+            (Hash $ signRaw pm (Just SignTx) ss txSigData)
 
     encode :: (Key level XPub) -> ByteString
     encode (Key k) = CC.unXPub k
