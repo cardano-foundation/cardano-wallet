@@ -35,6 +35,8 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, applyBlock, initWallet )
 import Cardano.Wallet.Primitive.Types
     ( Block (..), WalletId (..), WalletMetadata (..), WalletName (..) )
+import Control.Exception
+    ( Exception )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -84,7 +86,7 @@ newtype CreateWalletError
 
 -- | Create a new instance of the wallet layer.
 mkWalletLayer
-    :: (Show e0)
+    :: (Exception e0)
     => DBLayer IO SeqState
     -> NetworkLayer IO e0 e1
     -> WalletLayer SeqState

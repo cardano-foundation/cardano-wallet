@@ -196,7 +196,14 @@ data HttpBridgeError
       -- ^ Could not connect to or read from the node API.
     | BadResponseFromNode String
       -- ^ The node returned an unexpected response.
-    deriving (Show, Eq)
+    deriving (Eq)
+
+instance Show HttpBridgeError where
+    show (NodeUnavailable msg) =
+        "Could not connect to or read from the node API: " ++ msg
+    show (BadResponseFromNode msg) =
+        "The node returned an unexpected response: " ++ msg
+instance Exception HttpBridgeError
 
 blockHeaderHash
     :: WithHash algorithm (ApiT BlockHeader)
