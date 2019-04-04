@@ -53,24 +53,45 @@ data TargetRange = TargetRange
     , targetMax :: Coin
     }
 
--- Random input selection policy
--- The details of the algorithm are following:
--- (a) transaction outputs are processed starting from the largest one
--- (b) random selection is tried. The random UTxO entry is picked and checked
---     whether it covers the transaction output (ie., `targetMin` of TargetRange).
---     If no, then additional UTxO entry is picked. If successive picking of inputs
---     gives rise to total the inputs sum covering the transaction output
---     then the optimization described in step (c) is tried.
---     If the random selection leads to the number of inputs that exceeds `maximumNumberOfInputs`
---     then the selection is deemed unsuccessful.
--- (c) candidate input selection obtained in step (b), if successful, is optimized.
---     Both `targetAim` and `targetMax` as pinpointed in TargetRange drive the optimization.
---     Here, we pick randomly the next UTxO entry from remaining UTxO and
---     check if it is improved as depicted in `isImprovement`. If not, then
---     the optimization ends with returning its starting selection. Otherwise, the procedure tries to
---     optimize more.
--- If the above algoritm fails to select coins then for both a given transaction outputs and initial UTxO
---     fallback LargestFirst algoritm is tried.
+-- | Random-Improve Algorithm
+--
+-- 1. Randomly select outputs from the UTxO until the payment value is covered.
+--    (In the rare case that this fails because the maximum number of transaction
+--    inputs has been exceeded, fall-back on the largest-first algorithm for this
+--    step.)
+--
+-- 2. Randomly select outputs from the UTxO, considering for each output if that
+--    output is animprovement. If it is, add it to the transaction, and keep
+--    going. An output is considered an improvement when:
+--
+--    (a)  It doesn’t exceed the specified upper limit.
+--    (b)  Adding the new output gets us closer to the ideal change value.
+--    (c)  It doesn’t exceed the maximum number of transaction inputs.
+--
+-- This algorithm follows three principles:
+--
+-- @
+-- **Self organisation principle 1**
+-- Random selection has a high probability of picking dust outputs precisely
+-- when there is a lot of dust in the UTxO.
+-- @
+--
+-- @
+-- **Self organisation principle 2**
+-- If for each payment request for value `x` we create a change output roughly
+-- of the same value `x`, then we will end up with a lot of change outputs in
+-- our UTxO of size `x` precisely when we have a lot of payment requests of
+-- size `x`
+-- @
+--
+-- @
+-- **Self organisation principle 3**
+-- Searching the UTxO for additional entries to improve our change output is
+-- only useful if the UTxO contains entries that are sufficiently small enough.
+-- But precisely when the UTxO contains many small entries, it is less likely
+-- that a randomly chosen UTxO entry will push the total above the upper bound
+-- we set.
+-- @
 random
     :: forall m. MonadRandom m
     => CoinSelectionOptions
