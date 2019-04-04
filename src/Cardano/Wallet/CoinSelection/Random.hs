@@ -132,54 +132,54 @@ processTxOut maxNumInputs (utxo0, selection) txout = do
             , change = mkChange txout inps
             }
         )
-    where
-        atLeast
-            :: forall m. MonadRandom m
-            => ([(TxIn, TxOut)], UTxO)
-            -> MaybeT m ([(TxIn, TxOut)], UTxO)
-        atLeast (inps, utxo)
-            | L.length inps > (fromIntegral maxNumInputs) =
-                MaybeT $ return Nothing
-            | sum (map (getCoin . coin . snd) inps)
-              >= ((targetMin . mkTargetRange) txout) =
-                MaybeT $ return $ Just (inps, utxo)
-            | otherwise = do
-                pickRandom utxo >>= \(io, utxo') -> atLeast (io:inps, utxo')
+  where
+    atLeast
+        :: forall m. MonadRandom m
+        => ([(TxIn, TxOut)], UTxO)
+        -> MaybeT m ([(TxIn, TxOut)], UTxO)
+    atLeast (inps, utxo)
+        | L.length inps > (fromIntegral maxNumInputs) =
+            MaybeT $ return Nothing
+        | sum (map (getCoin . coin . snd) inps)
+          >= ((targetMin . mkTargetRange) txout) =
+            MaybeT $ return $ Just (inps, utxo)
+        | otherwise = do
+            pickRandom utxo >>= \(io, utxo') -> atLeast (io:inps, utxo')
 
-        improve
-            :: forall m. MonadRandom m
-            => ([(TxIn, TxOut)], UTxO)
-            -> m ([(TxIn, TxOut)], UTxO)
-        improve (inps, utxo) =
-            runMaybeT (pickRandom utxo) >>= \case
-                Nothing ->
-                    return (inps, utxo)
-                Just (io, utxo') | isImprovement io inps -> do
-                    let inps' = io : inps
-                    let threshold = targetAim $ mkTargetRange txout
-                    if balance' inps' >= threshold
-                        then return (inps', utxo')
-                        else improve (inps', utxo')
-                Just _ ->
-                    return (inps, utxo)
+    improve
+        :: forall m. MonadRandom m
+        => ([(TxIn, TxOut)], UTxO)
+        -> m ([(TxIn, TxOut)], UTxO)
+    improve (inps, utxo) =
+        runMaybeT (pickRandom utxo) >>= \case
+            Nothing ->
+                return (inps, utxo)
+            Just (io, utxo') | isImprovement io inps -> do
+                let inps' = io : inps
+                let threshold = targetAim $ mkTargetRange txout
+                if balance' inps' >= threshold
+                    then return (inps', utxo')
+                    else improve (inps', utxo')
+            Just _ ->
+                return (inps, utxo)
 
-        isImprovement :: (TxIn, TxOut) -> [(TxIn, TxOut)] -> Bool
-        isImprovement io@(_,out) selected =
-            let
-                target = mkTargetRange out
+    isImprovement :: (TxIn, TxOut) -> [(TxIn, TxOut)] -> Bool
+    isImprovement io@(_,out) selected =
+        let
+            target = mkTargetRange out
 
-                condA = -- (a) It doesn’t exceed a specified upper limit.
-                    balance' (io : selected) < targetMax target
+            condA = -- (a) It doesn’t exceed a specified upper limit.
+                balance' (io : selected) < targetMax target
 
-                condB = -- (b) Addition gets us closer to the ideal change
-                    distance (targetAim target) (balance' (io : selected))
-                    <
-                    distance (targetAim target) (balance' selected)
+            condB = -- (b) Addition gets us closer to the ideal change
+                distance (targetAim target) (balance' (io : selected))
+                <
+                distance (targetAim target) (balance' selected)
 
-                condC = -- (c) Doesn't exceed maximum number of inputs
-                    length (io : selected) < fromIntegral maxNumInputs
-            in
-                condA && condB && condC
+            condC = -- (c) Doesn't exceed maximum number of inputs
+                length (io : selected) < fromIntegral maxNumInputs
+        in
+            condA && condB && condC
 
 {-------------------------------------------------------------------------------
                                  Internals
