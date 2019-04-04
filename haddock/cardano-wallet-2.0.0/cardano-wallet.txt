@@ -503,7 +503,7 @@ Sleep :: TickResult a
 
 -- | Retrieve blocks from a chain producer and execute some given action
 --   for each block.
-listen :: forall e0 e1. Show e0 => NetworkLayer IO e0 e1 -> ([Block] -> IO ()) -> IO ()
+listen :: forall e0 e1. Exception e0 => NetworkLayer IO e0 e1 -> ([Block] -> IO ()) -> IO ()
 instance Data.Foldable.Foldable Cardano.Wallet.Network.TickResult
 instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.Wallet.Network.TickResult a)
 instance GHC.Show.Show a => GHC.Show.Show (Cardano.Wallet.Network.TickResult a)
@@ -1049,7 +1049,7 @@ newtype CreateWalletError
 ErrCreateWalletIdAlreadyExists :: WalletId -> CreateWalletError
 
 -- | Create a new instance of the wallet layer.
-mkWalletLayer :: Show e0 => DBLayer IO SeqState -> NetworkLayer IO e0 e1 -> WalletLayer SeqState
+mkWalletLayer :: Exception e0 => DBLayer IO SeqState -> NetworkLayer IO e0 e1 -> WalletLayer SeqState
 instance GHC.Show.Show Cardano.Wallet.CreateWalletError
 instance GHC.Classes.Eq Cardano.Wallet.CreateWalletError
 instance GHC.Show.Show Cardano.Wallet.ReadWalletError
@@ -1335,3 +1335,4 @@ newNetworkLayer :: Text -> Int -> IO (NetworkLayer IO HttpBridgeError HttpBridge
 mkHttpBridge :: Manager -> BaseUrl -> NetworkName -> HttpBridge IO HttpBridgeError
 instance GHC.Classes.Eq Cardano.Wallet.Network.HttpBridge.HttpBridgeError
 instance GHC.Show.Show Cardano.Wallet.Network.HttpBridge.HttpBridgeError
+instance GHC.Exception.Type.Exception Cardano.Wallet.Network.HttpBridge.HttpBridgeError
