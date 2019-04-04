@@ -21,6 +21,7 @@ import Servant.API
     , Get
     , JSON
     , NoContent
+    , OctetStream
     , Post
     , Put
     , QueryParam
@@ -40,7 +41,7 @@ type Addresses =
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listAddresses
 type ListAddresses = "wallets"
-    :> Capture "walletId" WalletId
+    :> Capture "walletId" (ApiT WalletId)
     :> QueryParam "state" (ApiT AddressState)
     :> Get '[JSON] [ApiAddress]
 
@@ -60,12 +61,12 @@ type Wallets =
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteWallet
 type DeleteWallet = "wallets"
-    :> Capture "walletId" WalletId
-    :> Delete '[] NoContent
+    :> Capture "walletId" (ApiT WalletId)
+    :> Delete '[OctetStream] NoContent
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getWallet
 type GetWallet = "wallets"
-    :> Capture "walletId" WalletId
+    :> Capture "walletId" (ApiT WalletId)
     :> Get '[JSON] ApiWallet
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listWallets
@@ -79,12 +80,12 @@ type PostWallet = "wallets"
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/putWallet
 type PutWallet = "wallets"
-    :> Capture "walletId" WalletId
+    :> Capture "walletId" (ApiT WalletId)
     :> ReqBody '[JSON] WalletPutData
     :> Put '[JSON] ApiWallet
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/putWalletPassphrase
 type PutWalletPassphrase = "wallets"
-    :> Capture "walletId" WalletId
+    :> Capture "walletId" (ApiT WalletId)
     :> ReqBody '[JSON] WalletPutPassphraseData
-    :> Put '[] NoContent
+    :> Put '[OctetStream] NoContent

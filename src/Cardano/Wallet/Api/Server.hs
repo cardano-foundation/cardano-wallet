@@ -75,16 +75,16 @@ wallets w =
 
 deleteWallet
     :: WalletLayer SeqState
-    -> WalletId
+    -> ApiT WalletId
     -> Handler NoContent
 deleteWallet _ _ =
     throwM err501
 
 getWallet
     :: WalletLayer SeqState
-    -> WalletId
+    -> ApiT WalletId
     -> Handler ApiWallet
-getWallet w wid = do
+getWallet w (ApiT wid) = do
     (wallet, meta) <- liftHandler $ readWallet w wid
     return ApiWallet
         { id =
@@ -130,11 +130,11 @@ postWallet w req = do
         , gap =
             maybe defaultAddressPoolGap getApiT (req ^.  #addressPoolGap)
         }
-    getWallet w wid
+    getWallet w (ApiT wid)
 
 putWallet
     :: WalletLayer SeqState
-    -> WalletId
+    -> ApiT WalletId
     -> WalletPutData
     -> Handler ApiWallet
 putWallet _ _ _ =
@@ -142,7 +142,7 @@ putWallet _ _ _ =
 
 putWalletPassphrase
     :: WalletLayer SeqState
-    -> WalletId
+    -> ApiT WalletId
     -> WalletPutPassphraseData
     -> Handler NoContent
 putWalletPassphrase _ _ _ =
@@ -157,7 +157,7 @@ addresses = listAddresses
 
 listAddresses
     :: WalletLayer SeqState
-    -> WalletId
+    -> ApiT WalletId
     -> Maybe (ApiT AddressState)
     -> Handler [ApiAddress]
 listAddresses _ _ _ =

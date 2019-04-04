@@ -20,7 +20,7 @@ import Prelude hiding
     ( id )
 
 import Cardano.Wallet.Api
-    ( api )
+    ( Api )
 import Cardano.Wallet.Api.Types
     ( ApiAddress (..)
     , ApiMnemonicT (..)
@@ -162,12 +162,12 @@ spec = do
     describe
         "verify that every type used with JSON content type in a servant API \
         \has compatible ToJSON and ToSchema instances using validateToJSON." $
-        validateEveryToJSON api
+        validateEveryToJSON (Proxy :: Proxy Api)
 
     describe
         "verify that every path specified by the servant server matches an \
         \existing path in the specification" $
-        validateEveryPath api
+        validateEveryPath (Proxy :: Proxy Api)
 
     describe "verify parsing failures too" $ do
         it "ApiT Address" $ do
