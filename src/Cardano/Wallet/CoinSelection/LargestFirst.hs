@@ -10,7 +10,7 @@
 
 
 module Cardano.Wallet.CoinSelection.LargestFirst (
-      largestFirst
+    largestFirst
   ) where
 
 import Prelude
