@@ -734,8 +734,10 @@ data Wallet s
 -- | Create an empty wallet from an initial state
 initWallet :: (IsOurs s, NFData s, Show s) => s -> Wallet s
 
--- | Apply Block is the only way to make the wallet evolve.
-applyBlock :: Block -> Wallet s -> Wallet s
+-- | Apply Block is the only way to make the wallet evolve. It returns a
+--   new updated wallet state, as well as the set of all our transaction
+--   discovered while applying the block.
+applyBlock :: Block -> Wallet s -> (Map (Hash "Tx") (Tx, TxMeta), Wallet s)
 
 -- | Get the wallet current tip
 currentTip :: Wallet s -> SlotId
@@ -749,15 +751,15 @@ availableBalance :: Wallet s -> Natural
 -- | Total balance = <a>balance</a> . <a>totalUTxO</a>
 totalBalance :: Wallet s -> Natural
 
--- | Total UTxO = <a>availableUTxO</a> &lt;&gt; "pending UTxO"
+-- | Total UTxO = <a>availableUTxO</a> <tt>&lt;&gt;</tt> <a>changeUTxO</a>
 totalUTxO :: Wallet s -> UTxO
 
--- | Available UTxO = UTxO that aren't part of pending txs
+-- | Available UTxO = <tt>pending ⋪ utxo</tt>
 availableUTxO :: Wallet s -> UTxO
 
 -- | Get the transaction metadata for transactions associated with the
 --   wallet.
-getTxHistory :: Wallet s -> Set (Tx, TxMeta)
+getTxHistory :: Wallet s -> Set (Hash "Tx")
 instance GHC.Show.Show (Cardano.Wallet.Primitive.Model.Wallet s)
 instance GHC.Classes.Eq s => GHC.Classes.Eq (Cardano.Wallet.Primitive.Model.Wallet s)
 instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.Model.Wallet s)
@@ -773,10 +775,31 @@ module Cardano.Wallet.DB
 --   serialize and unserialize it (e.g. <tt>forall s. (Serialize s) =&gt;
 --   ...</tt>)
 data DBLayer m s
-DBLayer :: (PrimaryKey WalletId -> Wallet s -> m ()) -> (PrimaryKey WalletId -> m (Maybe (Wallet s))) -> m [PrimaryKey WalletId] -> DBLayer m s
+DBLayer :: (PrimaryKey WalletId -> Wallet s -> m ()) -> (PrimaryKey WalletId -> m (Maybe (Wallet s))) -> m [PrimaryKey WalletId] -> (PrimaryKey WalletId -> Map (Hash "Tx") (Tx, TxMeta) -> ExceptT ErrPutTxHistory m ()) -> (PrimaryKey WalletId -> m (Map (Hash "Tx") (Tx, TxMeta))) -> DBLayer m s
+
+-- | Replace the current checkpoint for a given wallet. We do not handle
+--   rollbacks yet, and therefore only stores the latest available
+--   checkpoint.
 [putCheckpoint] :: DBLayer m s -> PrimaryKey WalletId -> Wallet s -> m ()
+
+-- | Fetch the most recent checkpoint of a given wallet. Return
+--   <a>Nothing</a> if there's no such wallet.
 [readCheckpoint] :: DBLayer m s -> PrimaryKey WalletId -> m (Maybe (Wallet s))
+
+-- | Get the list of all known wallets in the DB, possibly empty.
 [readWallets] :: DBLayer m s -> m [PrimaryKey WalletId]
+
+-- | Augments the transaction history for a known wallet.
+--   
+--   If an entry for a particular transaction already exists it is not
+--   altered nor merged (just ignored).
+--   
+--   If the wallet doesn't exist, this operation returns an error.
+[putTxHistory] :: DBLayer m s -> PrimaryKey WalletId -> Map (Hash "Tx") (Tx, TxMeta) -> ExceptT ErrPutTxHistory m ()
+
+-- | Fetch the current transaction history of a known wallet. Returns an
+--   empty map if the wallet isn't found.
+[readTxHistory] :: DBLayer m s -> PrimaryKey WalletId -> m (Map (Hash "Tx") (Tx, TxMeta))
 
 -- | A primary key which can take many forms depending on the value. This
 --   may become a type family as we move forward, but for now, it
@@ -789,8 +812,14 @@ DBLayer :: (PrimaryKey WalletId -> Wallet s -> m ()) -> (PrimaryKey WalletId -> 
 --   known network tip).
 newtype PrimaryKey key
 PrimaryKey :: key -> PrimaryKey key
+
+-- | Error while trying to insert transaction history in the DB.
+newtype ErrPutTxHistory
+ErrNoSuchWallet :: WalletId -> ErrPutTxHistory
 instance GHC.Classes.Ord key => GHC.Classes.Ord (Cardano.Wallet.DB.PrimaryKey key)
 instance GHC.Classes.Eq key => GHC.Classes.Eq (Cardano.Wallet.DB.PrimaryKey key)
+instance GHC.Classes.Eq Cardano.Wallet.DB.ErrPutTxHistory
+instance GHC.Show.Show Cardano.Wallet.DB.ErrPutTxHistory
 
 
 -- | Dummy implementation of the database-layer, using MVar. This may be
@@ -1060,8 +1089,6 @@ instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 --   uses both <a>Cardano.Wallet.DB</a> and <a>Cardano.Wallet.Network</a>
 --   to realize its role as being intermediary between the three.
 module Cardano.Wallet
-
--- | Types
 data WalletLayer s
 WalletLayer :: (NewWallet -> ExceptT CreateWalletError IO WalletId) -> (WalletId -> ExceptT ReadWalletError IO (Wallet s, WalletMetadata)) -> (WalletId -> IO ()) -> WalletLayer s
 [$sel:createWallet:WalletLayer] :: WalletLayer s -> NewWallet -> ExceptT CreateWalletError IO WalletId
@@ -1085,6 +1112,11 @@ ErrCreateWalletIdAlreadyExists :: WalletId -> CreateWalletError
 
 -- | Create a new instance of the wallet layer.
 mkWalletLayer :: Exception e0 => DBLayer IO SeqState -> NetworkLayer IO e0 e1 -> WalletLayer SeqState
+
+-- | Run an ExcepT and throws the error if any. This makes sense only if
+--   called after checking for an invariant or, after ensuring that
+--   preconditions for meeting the underlying error have been discarded.
+unsafeRunExceptT :: (MonadFail m, Show e) => ExceptT e m a -> m a
 instance GHC.Show.Show Cardano.Wallet.CreateWalletError
 instance GHC.Classes.Eq Cardano.Wallet.CreateWalletError
 instance GHC.Show.Show Cardano.Wallet.ReadWalletError
