@@ -52,6 +52,7 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , Direction (..)
     , Dom (..)
+    , Hash (..)
     , IsOurs (..)
     , SlotId (..)
     , Tx (..)
@@ -77,6 +78,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
     ()
+import Data.Map.Strict
+    ( Map )
 import Data.Maybe
     ( catMaybes )
 import Data.Quantity
@@ -89,6 +92,9 @@ import Numeric.Natural
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+{-------------------------------------------------------------------------------
+                                     Type
+-------------------------------------------------------------------------------}
 
 -- | An opaque wallet type, see @initWallet@ and @applyBlock@ to construct and
 -- update wallets.
@@ -103,7 +109,7 @@ data Wallet s where
     Wallet :: (IsOurs s, NFData s, Show s)
         => UTxO -- Unspent tx outputs belonging to this wallet
         -> Set Tx -- Pending transactions
-        -> Set (Tx, TxMeta) -- Transaction history
+        -> Set (Hash "Tx") -- Transaction history
         -> SlotId -- Latest applied block (current tip)
         -> s -- Address discovery state
         -> Wallet s
@@ -118,6 +124,10 @@ instance NFData (Wallet s) where
         deepseq (rnf sl) $
         deepseq (rnf s) ()
 
+{-------------------------------------------------------------------------------
+                          Construction & Modification
+-------------------------------------------------------------------------------}
+
 -- | Create an empty wallet from an initial state
 initWallet
     :: (IsOurs s, NFData s, Show s)
@@ -125,20 +135,33 @@ initWallet
     -> Wallet s
 initWallet = Wallet mempty mempty mempty (SlotId 0 0)
 
--- | Apply Block is the only way to make the wallet evolve.
+-- | Apply Block is the only way to make the wallet evolve. It returns a new
+-- updated wallet state, as well as the set of all our transaction discovered
+-- while applying the block.
 applyBlock
     :: Block
     -> Wallet s
-    -> Wallet s
-applyBlock !b (Wallet !utxo !pending !txs _ s) =
+    -> (Map (Hash "Tx") (Tx, TxMeta), Wallet s)
+applyBlock !b (Wallet !utxo !pending !history _ s) =
     let
-        -- Prefilter Block
-        ((txs', utxo'), s') = prefilterBlock b utxo s
+        -- Prefilter Block / Update UTxO
+        ((txs, utxo'), s') = prefilterBlock b utxo s
         -- Update Pending
-        newIns = txIns (Set.map fst txs')
+        newIns = txIns (Set.map fst txs)
         pending' = pending `pendingExcluding` newIns
+        -- Update Tx history
+        txs' = Map.fromList $ Set.toList $ Set.map
+            (\(tx, meta) -> (txId tx, (tx, meta)))
+            txs
+        history' = history <> Map.keysSet txs'
     in
-        Wallet utxo' pending' (txs <> txs') (b ^. #header . #slotId) s'
+        ( txs'
+        , Wallet utxo' pending' history' (b ^. #header . #slotId) s'
+        )
+
+{-------------------------------------------------------------------------------
+                                   Accessors
+-------------------------------------------------------------------------------}
 
 -- | Get the wallet current tip
 currentTip :: Wallet s -> SlotId
@@ -149,8 +172,8 @@ getState :: Wallet s -> s
 getState (Wallet _ _ _ _ s) = s
 
 -- | Get the transaction metadata for transactions associated with the wallet.
-getTxHistory :: Wallet s -> Set (Tx, TxMeta)
-getTxHistory (Wallet _ _ txs _ _) = txs
+getTxHistory :: Wallet s -> Set (Hash "Tx")
+getTxHistory (Wallet _ _ history _ _) = history
 
 -- | Available balance = 'balance' . 'availableUTxO'
 availableBalance :: Wallet s -> Natural
@@ -162,12 +185,12 @@ totalBalance :: Wallet s -> Natural
 totalBalance =
     balance . totalUTxO
 
--- | Available UTxO = UTxO that aren't part of pending txs
+-- | Available UTxO = @pending ⋪ utxo@
 availableUTxO :: Wallet s -> UTxO
 availableUTxO (Wallet utxo pending _ _ _) =
     utxo `excluding` txIns pending
 
--- | Total UTxO = 'availableUTxO' <> "pending UTxO"
+-- | Total UTxO = 'availableUTxO' @<>@ 'changeUTxO'
 totalUTxO :: Wallet s -> UTxO
 totalUTxO wallet@(Wallet _ pending _ _ s) =
     availableUTxO wallet <> changeUTxO pending s
@@ -256,9 +279,10 @@ changeUTxO pending = evalState $ do
     let ins = txIns pending
     return $ fold ourUtxo `restrictedBy` ins
 
--- | Construct a UTxO corresponding to a given transaction. It is important for
--- the transaction outputs to be ordered correctly, since they become available
--- inputs for the subsequent blocks.
+-- | Construct our _next_ UTxO (possible empty) from a transaction by selecting
+-- outputs that are ours. It is important for the transaction outputs to be
+-- ordered correctly, since they become available inputs for the subsequent
+-- blocks.
 utxoOurs :: IsOurs s => Tx -> s -> (UTxO, s)
 utxoOurs tx = runState $ toUtxo <$> forM (zip [0..] (outputs tx)) filterOut
   where

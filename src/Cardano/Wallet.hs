@@ -14,7 +14,20 @@
 -- intermediary between the three.
 
 
-module Cardano.Wallet where
+module Cardano.Wallet
+    (
+    -- * Types
+      WalletLayer (..)
+    , NewWallet(..)
+    , ReadWalletError(..)
+    , CreateWalletError(..)
+
+    -- * Construction
+    , mkWalletLayer
+
+    -- * Helpers
+    , unsafeRunExceptT
+    ) where
 
 import Prelude
 
@@ -37,17 +50,24 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..), WalletId (..), WalletMetadata (..), WalletName (..) )
 import Control.Exception
     ( Exception )
+import Control.Monad
+    ( (>=>) )
+import Control.Monad.Fail
+    ( MonadFail )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT, throwE )
+    ( ExceptT, runExceptT, throwE )
 import Data.List
     ( foldl' )
 import GHC.Generics
     ( Generic )
 
 
--- | Types
+{-------------------------------------------------------------------------------
+                                 Types
+-------------------------------------------------------------------------------}
+
 data WalletLayer s = WalletLayer
     { createWallet
         :: NewWallet
@@ -83,6 +103,9 @@ newtype CreateWalletError
     = ErrCreateWalletIdAlreadyExists WalletId
     deriving (Eq, Show)
 
+{-------------------------------------------------------------------------------
+                                 Construction
+-------------------------------------------------------------------------------}
 
 -- | Create a new instance of the wallet layer.
 mkWalletLayer
@@ -123,10 +146,27 @@ mkWalletLayer db network = WalletLayer
   where
     applyBlocks :: WalletId -> [Block] -> IO ()
     applyBlocks wid blocks = do
-        cp' <- readCheckpoint db (PrimaryKey wid) >>= \case
+        (txs, cp') <- readCheckpoint db (PrimaryKey wid) >>= \case
             Nothing ->
                 fail $ "couldn't find worker wallet: " <> show wid
             Just cp -> do
                 let nonEmpty = not . null . transactions
-                return $ foldl' (flip applyBlock) cp (filter nonEmpty blocks)
+                let applyOne (txs, cp') b = (txs <> txs', cp'') where
+                        (txs', cp'') = applyBlock b cp'
+                return $ foldl' applyOne (mempty, cp) (filter nonEmpty blocks)
         putCheckpoint db (PrimaryKey wid) cp'
+        unsafeRunExceptT $ putTxHistory db (PrimaryKey wid) txs -- Safe after ^
+
+{-------------------------------------------------------------------------------
+                                 Helpers
+-------------------------------------------------------------------------------}
+
+-- | Run an ExcepT and throws the error if any. This makes sense only if called
+-- after checking for an invariant or, after ensuring that preconditions for
+-- meeting the underlying error have been discarded.
+unsafeRunExceptT :: (MonadFail m, Show e) => ExceptT e m a -> m a
+unsafeRunExceptT = runExceptT >=> \case
+    Left e ->
+        fail $ "unexpected error: " <> show e
+    Right a ->
+        return a
