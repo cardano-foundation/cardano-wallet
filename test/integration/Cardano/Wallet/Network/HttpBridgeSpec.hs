@@ -12,7 +12,7 @@ import Cardano.Launcher
 import Cardano.Wallet.Binary
     ( TxWitness (..), encodeSignedTx )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..) )
+    ( NetworkLayer (..), listen )
 import Cardano.Wallet.Network.HttpBridge
     ( HttpBridgeError (..) )
 import Cardano.Wallet.Primitive.Types
@@ -38,12 +38,14 @@ import Control.Monad.Trans.Except
 import Test.Hspec
     ( Spec
     , afterAll
+    , anyException
     , beforeAll
     , describe
     , it
     , shouldContain
     , shouldReturn
     , shouldSatisfy
+    , shouldThrow
     )
 
 import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
@@ -102,6 +104,10 @@ spec = do
                         _ -> error (msg res)
             action `shouldReturn` ()
 
+        it "listen throws exception when bridge isn't up" $ \network -> do
+            let action = do
+                    listen network actionDummy
+            action `shouldThrow` anyException
 
     describe "Submitting signed transactions"
         $ beforeAll startBridge $ afterAll closeBridge $ do
@@ -140,6 +146,10 @@ spec = do
             (show err) `shouldContain`
                 "Transaction failed verification: transaction has more witnesses than inputs"
   where
+    actionDummy :: [Block] -> IO ()
+    actionDummy b = do
+      putStr (show b)
+
     sign :: Tx -> [TxWitness] -> SignedTx
     sign tx witnesses = SignedTx . toBS $ encodeSignedTx (tx, witnesses)
 
