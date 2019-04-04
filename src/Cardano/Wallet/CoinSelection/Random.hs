@@ -33,8 +33,6 @@ import Crypto.Random.Types
     ( MonadRandom )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
-import Data.Map.Strict
-    ( Map )
 import Data.Ord
     ( comparing )
 import Data.Word
@@ -124,10 +122,10 @@ processTxOut
     -> TxOut
     -> MaybeT m (UTxO, CoinSelection)
 processTxOut maxNumInputs (utxo0, selection) txout = do
-    attempt <- atLeast ([], getUTxO utxo0)
-    (inps, utxo) <- lift (improve attempt)
+    attempt <- atLeast ([], utxo0)
+    (inps, utxo') <- lift (improve attempt)
     return
-        ( UTxO utxo
+        ( utxo'
         , selection <> CoinSelection
             { inputs = inps
             , outputs = [txout]
@@ -137,8 +135,8 @@ processTxOut maxNumInputs (utxo0, selection) txout = do
     where
         atLeast
             :: forall m. MonadRandom m
-            => ([(TxIn, TxOut)], Map TxIn TxOut)
-            -> MaybeT m ([(TxIn, TxOut)], Map TxIn TxOut)
+            => ([(TxIn, TxOut)], UTxO)
+            -> MaybeT m ([(TxIn, TxOut)], UTxO)
         atLeast (inps, utxo)
             | L.length inps > (fromIntegral maxNumInputs) =
                 MaybeT $ return Nothing
@@ -150,8 +148,8 @@ processTxOut maxNumInputs (utxo0, selection) txout = do
 
         improve
             :: forall m. MonadRandom m
-            => ([(TxIn, TxOut)], Map TxIn TxOut)
-            -> m ([(TxIn, TxOut)], Map TxIn TxOut)
+            => ([(TxIn, TxOut)], UTxO)
+            -> m ([(TxIn, TxOut)], UTxO)
         improve (inps, utxo) =
             runMaybeT (pickRandom utxo) >>= \case
                 Nothing ->
@@ -229,11 +227,11 @@ mkChange (TxOut _ (Coin out)) inps =
 -- Pick a random element from a map, returns 'Nothing' if the map is empty
 pickRandom
     :: MonadRandom m
-    => Map k a
-    -> MaybeT m ((k, a), Map k a)
-pickRandom m
-    | Map.null m =
+    => UTxO
+    -> MaybeT m ((TxIn, TxOut), UTxO)
+pickRandom (UTxO utxo)
+    | Map.null utxo =
         MaybeT $ return Nothing
     | otherwise = do
-        ix <- fromEnum <$> lift (generateBetween 0 (toEnum (Map.size m - 1)))
-        return (Map.elemAt ix m, Map.deleteAt ix m)
+        ix <- fromEnum <$> lift (generateBetween 0 (toEnum (Map.size utxo - 1)))
+        return (Map.elemAt ix utxo, UTxO $ Map.deleteAt ix utxo)
