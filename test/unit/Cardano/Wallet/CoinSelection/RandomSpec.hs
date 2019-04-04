@@ -19,7 +19,7 @@ import Cardano.Wallet.CoinSelectionSpec
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Crypto.Random
-    ( getSystemDRG )
+    ( SystemDRG, getSystemDRG )
 import Crypto.Random.Types
     ( withDRG )
 import Data.Either
@@ -28,10 +28,8 @@ import Data.Functor.Identity
     ( Identity (..) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
-import System.IO.Unsafe
-    ( unsafeDupablePerformIO )
 import Test.Hspec
-    ( Spec, describe, it, shouldSatisfy )
+    ( Spec, before, describe, it, shouldSatisfy )
 import Test.QuickCheck
     ( Property, property, (===), (==>) )
 
@@ -40,7 +38,7 @@ import qualified Data.List as L
 
 spec :: Spec
 spec = do
-    describe "Coin selection : Random algorithm unit tests" $ do
+    describe "Unit tests" $ do
         coinSelectionUnitTest random "" (Right [1,1,1,1]) $ Fixture
             { maxNumOfInputs = 100
             , utxoInputs = [1,1,1,1,1,1]
@@ -108,23 +106,23 @@ spec = do
             , txOutputs = 40 :| [1,1,1]
             }
 
-    describe "Coin selection properties : Random algorithm" $ do
+    before getSystemDRG $ describe "Property Tests" $ do
         it "forall (UTxO, NonEmpty TxOut), \
            \ running algorithm gives not less UTxO fragmentation than LargestFirst algorithm"
-            (property propFragmentation)
+            (property . propFragmentation)
         it "forall (UTxO, NonEmpty TxOut), \
            \ running algorithm gives the same errors as LargestFirst algorithm"
-            (property propErrors)
-
+            (property . propErrors)
 
 {-------------------------------------------------------------------------------
-                 Properties and unit test generic scenario
+                              Properties
 -------------------------------------------------------------------------------}
 
 propFragmentation
-    :: CoveringCase
+    :: SystemDRG
+    -> CoveringCase
     -> Property
-propFragmentation (CoveringCase (utxo, txOuts)) = do
+propFragmentation drg (CoveringCase (utxo, txOuts)) = do
     isRight selection1 && isRight selection2 ==>
         let (Right s1, Right s2) =
                 (selection1, selection2)
@@ -132,24 +130,22 @@ propFragmentation (CoveringCase (utxo, txOuts)) = do
   where
     prop (CoinSelection inps1 _ _, CoinSelection inps2 _ _) =
         L.length inps1 `shouldSatisfy` (>= L.length inps2)
-    drg = unsafeDupablePerformIO getSystemDRG
     (selection1,_) = withDRG drg
         (runExceptT $ random (CoinSelectionOptions 100) utxo txOuts)
     selection2 = runIdentity $ runExceptT $
         largestFirst (CoinSelectionOptions 100) utxo txOuts
 
 propErrors
-    :: CoveringCase
+    :: SystemDRG
+    -> CoveringCase
     -> Property
-propErrors (CoveringCase (utxo, txOuts)) = do
+propErrors drg (CoveringCase (utxo, txOuts)) = do
     isLeft selection1 && isLeft selection2 ==>
-        let (Left s1, Left s2) =
-                (selection1, selection2)
+        let (Left s1, Left s2) = (selection1, selection2)
         in prop (s1, s2)
   where
     prop (err1, err2) =
         err1 === err2
-    drg = unsafeDupablePerformIO getSystemDRG
     (selection1,_) = withDRG drg
         (runExceptT $ random (CoinSelectionOptions 1) utxo txOuts)
     selection2 = runIdentity $ runExceptT $
