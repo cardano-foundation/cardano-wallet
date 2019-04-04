@@ -9,7 +9,7 @@ import Cardano.Wallet.Binary
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (RootK), Key (..), XPrv, XPub, publicKey )
 import Cardano.Wallet.Primitive.Types
-    ( Address, Hash (..), Tx (..), TxIn, TxOut (TxOut), protocolMagic )
+    ( Address, Hash (..), Tx (..), TxIn, TxOut, protocolMagic )
 import Control.Monad
     ( forM )
 import Data.ByteString
@@ -36,7 +36,7 @@ type TxOwnedInputs owner = [(owner, TxIn)]
 -- TODO: I removed FakeSigner/SafeSigner. Might be wrong.
 mkStdTx :: (Address -> Either e (Key 'RootK XPrv))
         -- ^ Signer for each input of the transaction
-        -> [(TxIn, TxOut)]
+        -> [(TxIn, Address)]
         -- ^ Selected inputs
         -> [TxOut]
         -- ^ Selected outputs (including change)
@@ -46,7 +46,7 @@ mkStdTx signer ownedIns outs = do
     let ins = (fmap fst ownedIns)
         tx = Tx ins outs
 
-    txWitness <- forM ownedIns (\(_, TxOut ownerAddr _) ->
+    txWitness <- forM ownedIns (\(_, ownerAddr) ->
         mkWit <$> signer ownerAddr)
 
     return (tx, txWitness)
