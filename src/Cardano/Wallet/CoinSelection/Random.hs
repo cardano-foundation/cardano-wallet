@@ -1,6 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE RecordWildCards #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -10,16 +9,16 @@
 -- input selection algorithm
 
 
-module Cardano.Wallet.CoinSelection.Random (
-    random
-  ) where
+module Cardano.Wallet.CoinSelection.Random
+    ( random
+    ) where
 
 import Prelude
 
 import Cardano.Wallet.CoinSelection
     ( CoinSelection (..), CoinSelectionError (..), CoinSelectionOptions (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..), TxIn, TxOut (..), UTxO (..), isValidCoin )
+    ( Coin (..), TxIn, TxOut (..), UTxO (..) )
 import Control.Monad
     ( foldM, guard )
 import Control.Monad.Trans.Class
@@ -34,8 +33,6 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
-import Data.Maybe
-    ( fromMaybe )
 import Data.Ord
     ( comparing )
 import Data.Word
@@ -46,13 +43,14 @@ import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 
+
 -- | Target range for picking inputs
 data TargetRange = TargetRange
-    { targetMin :: Natural
+    { targetMin :: Word64
         -- ^ Minimum value to cover: only the requested amount, no change at all
-    , targetAim :: Natural
+    , targetAim :: Word64
         -- ^ Ideal case: change equal to requested amount
-    , targetMax :: Natural
+    , targetMax :: Word64
         -- ^ Maximum value: an arbitrary upper bound (e.g. @2 * targetMin@)
     }
 
@@ -150,7 +148,7 @@ processTxOut maxNumInputs input txout =
             | L.length inps > (fromIntegral maxNumInputs) =
                   return Nothing
             | sum (map (getCoin . coin . snd) inps)
-              >= ((getCoin . targetMin . mkTargetRange . coin) txout) =
+              >= ((targetMin . mkTargetRange) txout) =
                   pure $ Just (inps, utxoMap)
             | otherwise = do
                   (maybe Nothing Just <$> pickRandom utxoMap) >>= \case
@@ -171,8 +169,8 @@ processTxOut maxNumInputs input txout =
                                 Nothing ->
                                     pure $ Just (inps, utxoMap)
                                 Just inps' -> do
-                                    let threshold = targetAim $ (mkTargetRange . coin) txout
-                                    if selectedBalance inps' >= threshold then
+                                    let threshold = targetAim $ mkTargetRange txout
+                                    if getCoin (selectedBalance inps') >= threshold then
                                         pure $ Just (inps', utxoMap')
                                     else
                                         improve $ Just (inps', utxoMap')
@@ -187,10 +185,10 @@ processTxOut maxNumInputs input txout =
         isImprovement io selected = do
 
             guard
-                ((selectedBalance selected' <= targetMax targetRange)
+                ((getCoin (selectedBalance selected') <= targetMax targetRange)
                 &&
-                (distance (targetAim targetRange) (selectedBalance selected') <
-                 distance (targetAim targetRange) (selectedBalance selected))
+                (distance (Coin $ targetAim targetRange) (selectedBalance selected') <
+                 distance (Coin $ targetAim targetRange) (selectedBalance selected))
                 &&
                 (L.length selected' <= fromIntegral maxNumInputs))
 
@@ -202,29 +200,20 @@ processTxOut maxNumInputs input txout =
                         val2 - val1
                     else
                         val1 - val2
-                targetRange = (mkTargetRange . coin) txout
+                targetRange = mkTargetRange txout
 
         selectedBalance
             :: [(TxIn, TxOut)]
             -> Coin
         selectedBalance = Coin . sum . (map (getCoin . coin . snd))
 
-mkTargetRange :: Coin -> TargetRange
-mkTargetRange val =
-    fromMaybe (privacyOffTargetRange val) (tryCanonicalTargetRange val)
-    where
-        tryCanonicalTargetRange :: Coin -> Maybe TargetRange
-        tryCanonicalTargetRange coin@(Coin v) = do
-            let targetMin = coin
-            targetAim <-
-                if isValidCoin (Coin $ 2*v) then Just (Coin $ 2*v) else Nothing
-            targetMax <-
-                if isValidCoin (Coin $ 3*v) then Just (Coin $ 3*v) else Nothing
-            return TargetRange {..}
-        privacyOffTargetRange :: Coin -> TargetRange
-        privacyOffTargetRange v =
-            TargetRange v v v
-
+-- | Compute the target range for a given output
+mkTargetRange :: TxOut -> TargetRange
+mkTargetRange (TxOut _ (Coin c)) = TargetRange
+    { targetMin = c
+    , targetAim = 2 * c
+    , targetMax = 3 * c
+    }
 
 -- Pick a random element from a map
 -- Returns 'Nothing' if the map is empty
