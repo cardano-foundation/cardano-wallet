@@ -2,6 +2,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeOperators #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -20,7 +21,18 @@ module Main where
 import Prelude
 
 import Cardano.CLI
-    ( getOptionalSensitiveValue, getRequiredSensitiveValue, parseArgWith )
+    ( Network
+    , Port (..)
+    , getOptionalSensitiveValue
+    , getRequiredSensitiveValue
+    , parseArgWith
+    )
+import Cardano.Wallet
+    ( mkWalletLayer )
+import Cardano.Wallet.Api
+    ( Api )
+import Cardano.Wallet.Api.Server
+    ( server )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -29,10 +41,14 @@ import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
     ( WalletId (..), WalletName )
-import Data.Text
-    ( Text )
+import Data.Function
+    ( (&) )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Text.Class
-    ( FromText (..) )
+    ( FromText (..), ToText (..) )
+import Servant
+    ( (:>), serve )
 import System.Console.Docopt
     ( Arguments
     , Docopt
@@ -49,8 +65,11 @@ import System.Environment
 import System.IO
     ( BufferMode (NoBuffering), hSetBuffering, stdout )
 
+import qualified Cardano.Wallet.DB.MVar as MVar
+import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
+import qualified Network.Wai.Handler.Warp as Warp
 
 
 cli :: Docopt
@@ -98,19 +117,11 @@ exec args
         network <- args `parseArg` longOption "network"
         walletPort <- args `parseArg` longOption "port"
         bridgePort <- args `parseArg` longOption "bridge-port"
-        print (network :: Text, walletPort :: Int, bridgePort :: Int)
+        execServer network walletPort bridgePort
 
     | args `isPresent` command "generate" && args `isPresent` command "mnemonic" = do
         n <- args `parseArg` longOption "size"
-        m <- case (n :: Int) of
-            9  -> mnemonicToText @9 . entropyToMnemonic <$> genEntropy
-            12 -> mnemonicToText @12 . entropyToMnemonic <$> genEntropy
-            15 -> mnemonicToText @15 . entropyToMnemonic <$> genEntropy
-            18 -> mnemonicToText @18 . entropyToMnemonic <$> genEntropy
-            21 -> mnemonicToText @21 . entropyToMnemonic <$> genEntropy
-            24 -> mnemonicToText @24 . entropyToMnemonic <$> genEntropy
-            _  -> fail "Invalid mnemonic size. Expected one of: 9,12,15,18,21,24"
-        TIO.putStrLn $ T.unwords m
+        execGenerateMnemonic n
 
     | args `isPresent` command "address" && args `isPresent` command "list" = do
         wid <- args `parseArg` longOption "wallet-id"
@@ -155,3 +166,31 @@ exec args
   where
     parseArg :: FromText a => Arguments -> Option -> IO a
     parseArg = parseArgWith cli
+
+-- | Start a web-server to serve the wallet backend API on the given port.
+execServer :: Network -> Port "wallet" -> Port "bridge" -> IO ()
+execServer target (Port port) (Port bridgePort) = do
+    db <- MVar.newDBLayer
+    network <- HttpBridge.newNetworkLayer (toText target) bridgePort
+    let wallet = mkWalletLayer db network
+    Warp.runSettings settings (serve (Proxy @("v2" :> Api)) (server wallet))
+  where
+    settings = Warp.defaultSettings
+        & Warp.setPort port
+        & Warp.setBeforeMainLoop (do
+            TIO.putStrLn $ "Wallet backend server listening on: " <> toText port
+        )
+
+-- | Generate a random mnemonic of the given size 'n' (n = number of words),
+-- and print it to stdout.
+execGenerateMnemonic :: Int -> IO ()
+execGenerateMnemonic n = do
+    m <- case n of
+        9  -> mnemonicToText @9 . entropyToMnemonic <$> genEntropy
+        12 -> mnemonicToText @12 . entropyToMnemonic <$> genEntropy
+        15 -> mnemonicToText @15 . entropyToMnemonic <$> genEntropy
+        18 -> mnemonicToText @18 . entropyToMnemonic <$> genEntropy
+        21 -> mnemonicToText @21 . entropyToMnemonic <$> genEntropy
+        24 -> mnemonicToText @24 . entropyToMnemonic <$> genEntropy
+        _  -> fail "Invalid mnemonic size. Expected one of: 9,12,15,18,21,24"
+    TIO.putStrLn $ T.unwords m

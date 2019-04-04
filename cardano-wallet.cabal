@@ -245,7 +245,9 @@ executable cardano-wallet
     , cardano-wallet
     , docopt
     , fmt
+    , servant-server
     , text
+    , warp
   hs-source-dirs:
       app
       app/cli

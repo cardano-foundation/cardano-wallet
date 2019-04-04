@@ -13,8 +13,6 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.Types
     ( AddressState, WalletId )
-import Data.Proxy
-    ( Proxy (..) )
 import Servant.API
     ( (:<|>)
     , (:>)
@@ -28,9 +26,6 @@ import Servant.API
     , QueryParam
     , ReqBody
     )
-
-api :: Proxy Api
-api = Proxy
 
 type Api = Addresses :<|> Wallets
 
