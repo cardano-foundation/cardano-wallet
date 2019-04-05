@@ -35,14 +35,12 @@ import Cardano.Wallet.Primitive.Types
     )
 import Control.Monad
     ( replicateM )
+import Crypto.Hash
+    ( hash )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Set
     ( Set, (\\) )
-import Data.UUID.Types
-    ( UUID )
-import Data.Word
-    ( Word32 )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
@@ -63,10 +61,10 @@ import Test.QuickCheck.Arbitrary.Generic
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
+import qualified Data.ByteString as BS
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
-import qualified Data.UUID.Types as UUID
 
 spec :: Spec
 spec = do
@@ -312,10 +310,10 @@ instance Arbitrary Block where
         Block <$> arbitrary <*> pure txs
 
 instance Arbitrary WalletId where
-    arbitrary = WalletId . uuidFromWords <$> arbitrary
-      where
-        uuidFromWords :: (Word32, Word32, Word32, Word32) -> UUID
-        uuidFromWords (a, b, c, d) = UUID.fromWords a b c d
+    shrink _ = []
+    arbitrary = do
+        bytes <- BS.pack <$> replicateM 16 arbitrary
+        return $ WalletId (hash bytes)
 
 instance Arbitrary WalletName where
     arbitrary = do

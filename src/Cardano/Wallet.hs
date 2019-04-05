@@ -39,6 +39,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( ChangeChain (..)
     , Passphrase
     , deriveAccountPrivateKey
+    , digest
     , generateKeyFromSeed
     , publicKey
     )
@@ -127,8 +128,7 @@ mkWalletLayer db network = WalletLayer
                 { externalPool = extPool
                 , internalPool = intPool
                 }
-        -- FIXME Compute the wallet id deterministically from the seed
-        let wid = WalletId (read "00000000-0000-0000-0000-000000000000")
+        let wid = WalletId (digest $ publicKey rootXPrv)
         liftIO (readCheckpoint db (PrimaryKey wid)) >>= \case
             Nothing -> do
                 liftIO $ putCheckpoint db (PrimaryKey wid) wallet

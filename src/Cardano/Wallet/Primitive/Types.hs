@@ -85,8 +85,10 @@ import Prelude
 
 import Control.DeepSeq
     ( NFData (..) )
+import Crypto.Hash
+    ( Blake2b_160, Digest, digestFromByteString )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertToBase )
+    ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
@@ -103,8 +105,6 @@ import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Time
     ( UTCTime )
-import Data.UUID.Types
-    ( UUID )
 import Data.Word
     ( Word16, Word32, Word64 )
 import Fmt
@@ -131,7 +131,6 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Data.UUID.Types as UUID
 
 
 {-------------------------------------------------------------------------------
@@ -176,17 +175,21 @@ walletNameMinLength = 1
 walletNameMaxLength :: Int
 walletNameMaxLength = 255
 
-newtype WalletId = WalletId { getWalletId :: UUID }
+newtype WalletId = WalletId { getWalletId :: Digest Blake2b_160 }
     deriving (Generic, Eq, Ord, Show)
 
 instance FromText WalletId where
-    fromText = maybe
-        (Left $ TextDecodingError "A wallet ID must be a valid UUID")
+    fromText txt = maybe
+        (Left $ TextDecodingError msg)
         (Right . WalletId)
-        . UUID.fromText
+        (decodeHex txt >>= digestFromByteString @_ @ByteString)
+      where
+        msg = "wallet id should be an hex-encoded string of 40 characters"
+        decodeHex =
+            either (const Nothing) Just . convertFromBase Base16 . T.encodeUtf8
 
 instance ToText WalletId where
-    toText = UUID.toText . getWalletId
+    toText = T.decodeUtf8 . convertToBase Base16 . getWalletId
 
 data WalletState
     = Ready

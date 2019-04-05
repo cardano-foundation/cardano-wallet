@@ -65,6 +65,8 @@ import Control.Lens
     ( Lens', at, (^.) )
 import Control.Monad
     ( replicateM )
+import Crypto.Hash
+    ( hash )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
 import Data.Aeson.QQ
@@ -96,7 +98,7 @@ import Data.Swagger.Declare
 import Data.Typeable
     ( Typeable )
 import Data.Word
-    ( Word32, Word8 )
+    ( Word8 )
 import GHC.TypeLits
     ( KnownSymbol, symbolVal )
 import Numeric.Natural
@@ -132,10 +134,10 @@ import Test.QuickCheck.Instances.Time
 
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Data.UUID.Types as UUID
 import qualified Data.Yaml as Yaml
 import qualified Prelude
 
@@ -303,10 +305,9 @@ instance Arbitrary PoolId where
     arbitrary = PoolId . T.pack <$> replicateM 3 arbitraryPrintableChar
 
 instance Arbitrary WalletId where
-    arbitrary = WalletId . uuidFromWords <$> arbitrary
-
-uuidFromWords :: (Word32, Word32, Word32, Word32) -> UUID.UUID
-uuidFromWords (a, b, c, d) = UUID.fromWords a b c d
+    arbitrary = do
+        bytes <- BS.pack <$> replicateM 16 arbitrary
+        return $ WalletId (hash bytes)
 
 instance Arbitrary WalletName where
     arbitrary = do
