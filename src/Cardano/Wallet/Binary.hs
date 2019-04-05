@@ -58,6 +58,7 @@ import Cardano.Wallet.Primitive.Types
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
+    , TxWitness (..)
     )
 import Control.Monad
     ( void )
@@ -504,12 +505,6 @@ encodeSignedTx (tx, witnesses) = mempty
     <> CBOR.encodeListLen 2
     <> encodeTx tx
     <> encodeList encodeTxWitness witnesses
-
-data TxWitness
-    = PublicKeyWitness ByteString (Hash "tx")
-    | ScriptWitness ByteString
-    | RedeemWitness ByteString
-    deriving (Eq, Show)
 
 encodeTxWitness :: TxWitness -> CBOR.Encoding
 encodeTxWitness wit = mempty

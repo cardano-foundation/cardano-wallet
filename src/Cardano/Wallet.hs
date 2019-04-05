@@ -33,9 +33,14 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap, SeqState (..), mkAddressPool )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, applyBlock, getState, initWallet )
+import Cardano.Wallet.Primitive.Signing
 import Cardano.Wallet.Primitive.Types
-    ( Block (..)
+    ( Address
+    , Block (..)
     , Tx (..)
+    , TxIn
+    , TxOut
+    , TxWitness
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
@@ -61,10 +66,11 @@ data WalletLayer s = WalletLayer
     , watchWallet
         :: WalletId
         -> IO ()
-    , submitTx
+    , signTx
         :: WalletId
-        -> Tx
-        -> IO () -- TODO: ExceptT
+        -> [(TxIn, Address)]
+        -> [TxOut]
+        -> IO (Maybe (Tx, [TxWitness])) -- TODO: ExceptT
     }
 
 data NewWallet = NewWallet
@@ -126,17 +132,15 @@ mkWalletLayer db network = WalletLayer
             return (w, error "FIXME: store and retrieve wallet metadata")
 
     , watchWallet = liftIO . listen network . applyBlocks
-    , submitTx = \wid tx -> liftIO (readCheckpoint db (PrimaryKey wid)) >>= \case
+    , signTx = \wid ins outs -> liftIO (readCheckpoint db (PrimaryKey wid)) >>= \case
         Nothing ->
             undefined
         Just w -> do
             let state = getState w
             let rootXPrv = error "TODO"
             let password = error "TODO"
-            let ownedIns = error "TODO: Should be added now"
-            let outs = error "TODO: Should be added now"
-            --undefined return $ mkStdTx state rootXPrv password ownedIns outs
-            return ()
+            return $ mkStdTx state rootXPrv password ins outs
+
 
     }
   where
