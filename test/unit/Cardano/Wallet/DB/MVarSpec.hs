@@ -43,6 +43,8 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( runExceptT )
+import Crypto.Hash
+    ( hash )
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
@@ -71,7 +73,6 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import qualified Data.UUID.Types as UUID
 
 
 spec :: Spec
@@ -227,8 +228,8 @@ deriving instance Show (PrimaryKey WalletId)
 instance Arbitrary (PrimaryKey WalletId) where
     shrink _ = []
     arbitrary = do
-        k <- choose (0, 10)
-        return $ PrimaryKey $ WalletId $ UUID.fromWords k 0 0 0
+        bytes <- B8.pack . pure <$> elements ['a'..'k']
+        return $ PrimaryKey $ WalletId $ hash bytes
 
 instance Arbitrary (Hash "Tx") where
     shrink _ = []

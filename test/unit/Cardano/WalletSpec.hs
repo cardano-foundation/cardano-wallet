@@ -37,12 +37,16 @@ import Cardano.Wallet.Primitive.Mnemonic
     )
 import Cardano.Wallet.Primitive.Types
     ( WalletId (..), WalletName (..) )
+import Control.Monad
+    ( replicateM )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Crypto.Encoding.BIP39
     ( ValidChecksumSize, ValidEntropySize, ValidMnemonicSentence )
+import Crypto.Hash
+    ( hash )
 import Data.Either
     ( isLeft, isRight )
 import Data.Maybe
@@ -58,8 +62,6 @@ import Test.QuickCheck
     , property
     , vectorOf
     )
-import Test.QuickCheck.Gen
-    ( chooseAny )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
@@ -188,5 +190,6 @@ instance Arbitrary AddressPoolGap where
 
 instance Arbitrary WalletId where
     shrink _ = []
-    arbitrary = WalletId <$> chooseAny
-
+    arbitrary = do
+        bytes <- BS.pack <$> replicateM 16 arbitrary
+        return $ WalletId (hash bytes)

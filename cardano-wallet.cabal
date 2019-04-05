@@ -59,7 +59,6 @@ library
     , time
     , time-units
     , transformers
-    , uuid-types
   hs-source-dirs:
       src
   exposed-modules:
@@ -131,7 +130,6 @@ test-suite unit
     , text
     , time-units
     , transformers
-    , uuid-types
     , yaml
   type:
      exitcode-stdio-1.0

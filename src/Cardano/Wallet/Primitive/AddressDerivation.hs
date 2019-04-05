@@ -30,6 +30,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , getIndex
     , DerivationType (..)
     , publicKey
+    , digest
     , XPub
     , XPrv
 
@@ -60,6 +61,7 @@ import Cardano.Crypto.Wallet
     , deriveXPub
     , generateNew
     , toXPub
+    , unXPub
     )
 import Cardano.Wallet.Binary
     ( encodeAddress )
@@ -77,6 +79,8 @@ import Control.Arrow
     ( left )
 import Control.DeepSeq
     ( NFData )
+import Crypto.Hash
+    ( Digest, HashAlgorithm, hash )
 import Data.Bifunctor
     ( first )
 import Data.ByteArray
@@ -175,6 +179,14 @@ publicKey
     -> Key level XPub
 publicKey (Key xprv) =
     Key (toXPub xprv)
+
+-- | Hash a public key to some other representation.
+digest
+    :: HashAlgorithm a
+    => Key level XPub
+    -> Digest a
+digest (Key xpub) =
+    hash (unXPub xpub)
 
 {-------------------------------------------------------------------------------
                                  Passphrases

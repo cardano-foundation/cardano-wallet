@@ -105,8 +105,10 @@ addressState: &addressState
 walletId: &walletId
   description: A unique identifier for the wallet
   type: string
-  format: uuid
-  example: a312e413-e8c8-4bda-9f5b-9b7f518174d8
+  format: hex
+  maxLength: 40
+  minLength: 40
+  example: 2512a00e9653fe49a44a5886202e24d77eeb998f
 
 walletName: &walletName
   type: string
@@ -557,7 +559,10 @@ parametersWalletId: &parametersWalletId
   name: walletId
   required: true
   type: string
-  format: uuid
+  format: hex
+  maxLength: 40
+  minLength: 40
+  example: 2512a00e9653fe49a44a5886202e24d77eeb998f
 
 parametersStakePoolId: &parametersStakePoolId
   in: path
