@@ -458,6 +458,8 @@ instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.TxOut
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.Coin
 instance GHC.Enum.Bounded Cardano.Wallet.Primitive.Types.Coin
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.Coin
+instance Data.Text.Class.FromText Cardano.Wallet.Primitive.Types.AddressState
+instance Data.Text.Class.ToText Cardano.Wallet.Primitive.Types.AddressState
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.Address
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.Address
 instance Data.Text.Class.FromText Cardano.Wallet.Primitive.Types.Address
@@ -1255,24 +1257,25 @@ instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Carda
 instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletState)
 instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.PoolId)
 instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.PoolId)
+instance Data.Text.Class.FromText a => Web.Internal.HttpApiData.FromHttpApiData (Cardano.Wallet.Api.Types.ApiT a)
+instance Data.Text.Class.ToText a => Web.Internal.HttpApiData.ToHttpApiData (Cardano.Wallet.Api.Types.ApiT a)
 
 module Cardano.Wallet.Api
-api :: Proxy Api
 type Api = Addresses :<|> Wallets
 type Addresses = ListAddresses
 
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/listAddresses</a>
-type ListAddresses = "wallets" :> Capture "walletId" WalletId :> QueryParam "state" (ApiT AddressState) :> Get '[JSON] [ApiAddress]
+type ListAddresses = "wallets" :> Capture "walletId" (ApiT WalletId) :> QueryParam "state" (ApiT AddressState) :> Get '[JSON] [ApiAddress]
 type Wallets = DeleteWallet :<|> GetWallet :<|> ListWallets :<|> PostWallet :<|> PutWallet :<|> PutWalletPassphrase
 
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteWallet</a>
-type DeleteWallet = "wallets" :> Capture "walletId" WalletId :> Delete '[] NoContent
+type DeleteWallet = "wallets" :> Capture "walletId" (ApiT WalletId) :> Delete '[OctetStream] NoContent
 
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/getWallet</a>
-type GetWallet = "wallets" :> Capture "walletId" WalletId :> Get '[JSON] ApiWallet
+type GetWallet = "wallets" :> Capture "walletId" (ApiT WalletId) :> Get '[JSON] ApiWallet
 
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/listWallets</a>
@@ -1284,11 +1287,11 @@ type PostWallet = "wallets" :> ReqBody '[JSON] WalletPostData :> Post '[JSON] Ap
 
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/putWallet</a>
-type PutWallet = "wallets" :> Capture "walletId" WalletId :> ReqBody '[JSON] WalletPutData :> Put '[JSON] ApiWallet
+type PutWallet = "wallets" :> Capture "walletId" (ApiT WalletId) :> ReqBody '[JSON] WalletPutData :> Put '[JSON] ApiWallet
 
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/putWalletPassphrase</a>
-type PutWalletPassphrase = "wallets" :> Capture "walletId" WalletId :> ReqBody '[JSON] WalletPutPassphraseData :> Put '[] NoContent
+type PutWalletPassphrase = "wallets" :> Capture "walletId" (ApiT WalletId) :> "passphrase" :> ReqBody '[JSON] WalletPutPassphraseData :> Put '[OctetStream] NoContent
 
 
 -- | API handlers and server using the underlying wallet layer to provide
