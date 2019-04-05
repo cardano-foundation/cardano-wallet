@@ -23,8 +23,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     -- $use
       Key (..)
     , Depth (..)
-    , Index
-    , getIndex
+    , Index (..)
     , DerivationType (..)
     , Passphrase(..)
     , publicKey

@@ -34,7 +34,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.Model
     ( Wallet, applyBlock, initWallet )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), WalletId (..), WalletMetadata (..), WalletName (..) )
+    ( Block (..)
+    , Tx (..)
+    , WalletId (..)
+    , WalletMetadata (..)
+    , WalletName (..)
+    )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -56,6 +61,9 @@ data WalletLayer s = WalletLayer
     , watchWallet
         :: WalletId
         -> IO ()
+    , submitTx
+        :: Tx
+        -> IO () -- TODO: ExceptT
     }
 
 data NewWallet = NewWallet
@@ -117,6 +125,7 @@ mkWalletLayer db network = WalletLayer
             return (w, error "FIXME: store and retrieve wallet metadata")
 
     , watchWallet = liftIO . listen network . applyBlocks
+    , submitTx = undefined
     }
   where
     applyBlocks :: WalletId -> [Block] -> IO ()

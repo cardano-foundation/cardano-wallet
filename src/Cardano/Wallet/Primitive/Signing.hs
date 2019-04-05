@@ -6,8 +6,6 @@ import Prelude
 
 import Cardano.Wallet.Binary
     ( TxWitness (..), toByteString )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (RootK), Key (..), XPrv, XPub, publicKey )
 import Cardano.Wallet.Primitive.Types
     ( Address, Hash (..), Tx (..), TxIn, TxOut, protocolMagic )
 import Control.Monad
@@ -20,9 +18,26 @@ import GHC.Generics
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Codec.CBOR.Encoding as CBOR
 
+import Cardano.Wallet.Primitive.AddressDerivation
+import Cardano.Wallet.Primitive.AddressDiscovery
 
+{-
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Depth (AddressK, RootK)
+    , DerivationType (Soft)
+    , Index
+    , Key (..)
+    , Passphrase
+    , XPrv
+    , XPub
+    , deriveAccountPrivateKey
+    , deriveAddressPrivateKey
+    , publicKey
+    )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( AddressPool, lookupAddress )
+-}
 
-newtype PassPhrase = PassPhrase ByteString -- TODO: Was ScrubbedBytes previously
 type TxOwnedInputs owner = [(owner, TxIn)]
 
 -- | Build a transaction
@@ -34,26 +49,48 @@ type TxOwnedInputs owner = [(owner, TxIn)]
 --
 -- TODO: re-add shuffle
 -- TODO: I removed FakeSigner/SafeSigner. Might be wrong.
-mkStdTx :: (Address -> Either e (Key 'RootK XPrv))
-        -- ^ Signer for each input of the transaction
+mkStdTx :: (SeqState)
+        -> Key 'RootK XPrv
+        -> Passphrase "encryption"
         -> [(TxIn, Address)]
         -- ^ Selected inputs
         -> [TxOut]
         -- ^ Selected outputs (including change)
-        -> Either e (Tx, [TxWitness])
-mkStdTx signer ownedIns outs = do
+        -> Maybe (Tx, [TxWitness])
+mkStdTx _s xprv passphrase ownedIns outs = do
 
     let ins = (fmap fst ownedIns)
         tx = Tx ins outs
 
-    txWitness <- forM ownedIns (\(_, ownerAddr) ->
-        mkWit <$> signer ownerAddr)
+    txWitness <- forM ownedIns (\(_, ownerAddr) -> mkWit <$> key ownerAddr)
 
     return (tx, txWitness)
 
   where
+    pool = undefined
     txSigData = Hash "tx"
 
+    -- TODO: Do we need to verify that addresses actually exist? No, I think.
+    -- because we get them from lookupAddress
+
+    key :: Address -> (Maybe (Key 'AddressK XPrv))
+    key addr = do
+        -- We are ignoring the new state/pool. We won't discover any new
+        -- addresses when submitting transactions.
+        index <- fst $ lookupAddress addr pool
+        return $ addressPrvKeyFor index
+
+    account :: Index 'Hardened 'AccountK
+    account = Index 0
+
+    accountPrv :: Key 'AccountK XPrv
+    accountPrv = deriveAccountPrivateKey passphrase xprv account
+
+    -- naming? "Prv"?
+    addressPrvKeyFor :: (Index 'Soft 'AddressK) -> Key 'AddressK XPrv
+    addressPrvKeyFor = deriveAddressPrivateKey passphrase accountPrv ExternalChain
+
+    mkWit :: Key 'AddressK XPrv -> TxWitness
     mkWit ss =
         PublicKeyWitness
             (encode $ publicKey ss)
@@ -97,7 +134,7 @@ newtype Signature a = Signature CC.XSignature
 -- | Sign a bytestring.
 signRaw
     :: ByteString
-    -> Key 'RootK XPrv
+    -> Key level XPrv
     -> Hash "tx"
     -> ByteString -- Previously Raw
 signRaw tag (Key k) (Hash x) = CC.unXSignature $ CC.sign emptyPassphrase k (tag <> x)
