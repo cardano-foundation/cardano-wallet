@@ -38,7 +38,7 @@ import Cardano.Wallet.DB
     , PrimaryKey (..)
     )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..), listen )
+    ( NetworkLayer (..), drain, listen )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( ChangeChain (..)
     , Passphrase
@@ -53,6 +53,7 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, applyBlocks, initWallet )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
+    , SlotId (..)
     , WalletDelegation (..)
     , WalletId (..)
     , WalletMetadata (..)
@@ -89,12 +90,23 @@ data WalletLayer s = WalletLayer
     { createWallet
         :: NewWallet
         -> ExceptT (ErrWalletAlreadyExists "createWallet") IO WalletId
+        -- ^ Initialise and store a new wallet, returning its ID.
     , readWallet
         :: WalletId
         -> ExceptT (ErrNoSuchWallet "readWallet") IO (Wallet s, WalletMetadata)
+        -- ^ Retrieve the wallet state for the wallet with the given ID.
     , watchWallet
-        :: WalletId
+        :: forall a. WalletId
+        -> IO a
+        -- ^ Consume blocks from the node as they arrive, and apply them to the
+        -- wallet. This function never returns, but may throw an exception.
+    , processWallet
+        :: (SlotId -> IO ())
+        -> WalletId
         -> IO ()
+        -- ^ Consume the entire available chain, applying block to the given
+        -- wallet, and stop when finished. This function is intended for
+        -- benchmarking.
     }
 
 data NewWallet = NewWallet
@@ -152,6 +164,10 @@ mkWalletLayer db network = WalletLayer
 
     , watchWallet =
         liftIO . listen network . onNextblocks
+
+    , processWallet = \logInfo wid -> drain network $ \slot blocks -> do
+            logInfo slot
+            onNextblocks wid blocks
     }
   where
     onNextblocks :: WalletId -> [Block] -> IO ()

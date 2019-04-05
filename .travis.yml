@@ -73,7 +73,7 @@ jobs:
     - stack --no-terminal setup
     - stack --no-terminal build --only-snapshot
     - stack --no-terminal build --only-dependencies
-    - stack --no-terminal build --test --no-run-tests --coverage --haddock --no-haddock-deps
+    - stack --no-terminal build --test --no-run-tests --bench --no-run-benchmarks --coverage --haddock --no-haddock-deps
     - tar czf $STACK_WORK_CACHE .stack-work
 
   - stage: checks 🔬
