@@ -22,7 +22,7 @@ signals are correctly handled on a unix system.
   $ ps -ef | grep cardano
   10983  4904  0 09:42 pts/1 00:00:00 /home/user/Documents/IOHK/cardano-wallet/.stack-work/install/x86_64-linux/lts-13.8/8.6.3/bin/cardano-wallet-launcher
   11003 10983 75 09:42 pts/1 00:03:30 cardano-http-bridge start --port 8080
-  11071 10983 58 09:42 pts/1 00:02:41 cardano-wallet-server --wallet-server-port 8090 --http-bridge-port 8080 --network mainnet
+  11071 10983 58 09:42 pts/1 00:02:41 cardano-wallet server --port 8090 --bridge-port 8080 --network mainnet
   ```
 
 - Send a `SIGINT` signal using by pressing `CTRL-C` in the first terminal
@@ -40,7 +40,7 @@ signals are correctly handled on a unix system.
   $ ps -ef | grep cardano
   10983  4904  0 09:42 pts/1 00:00:00 /home/user/Documents/IOHK/cardano-wallet/.stack-work/install/x86_64-linux/lts-13.8/8.6.3/bin/cardano-wallet-launcher
   11003 10983 75 09:42 pts/1 00:03:30 cardano-http-bridge start --port 8080
-  11071 10983 58 09:42 pts/1 00:02:41 cardano-wallet-server --wallet-server-port 8090 --http-bridge-port 8080 --network mainnet
+  11071 10983 58 09:42 pts/1 00:02:41 cardano-wallet server --port 8090 --bridge-port 8080 --network mainnet
   ```
 
 - Send a `SIGQUIT` signal using by pressing `CTRL-\` in the first terminal
@@ -58,7 +58,7 @@ signals are correctly handled on a unix system.
   $ ps -ef | grep cardano
   10983  4904  0 09:42 pts/1 00:00:00 /home/user/Documents/IOHK/cardano-wallet/.stack-work/install/x86_64-linux/lts-13.8/8.6.3/bin/cardano-wallet-launcher
   11003 10983 75 09:42 pts/1 00:03:30 cardano-http-bridge start --port 8080
-  11071 10983 58 09:42 pts/1 00:02:41 cardano-wallet-server --wallet-server-port 8090 --http-bridge-port 8080 --network mainnet
+  11071 10983 58 09:42 pts/1 00:02:41 cardano-wallet server --port 8090 --bridge-port 8080 --network mainnet
   ```
 - Send a `SIGTERM` signal to this pid using `kill <pid>`
 - Run `ps -ef | grep cardano`, there's no more process running: the launcher,
@@ -88,7 +88,7 @@ signals are correctly handled on a unix system.
   $ ps -ef | grep cardano
   10983  4904  0 09:42 pts/1 00:00:00 /home/user/Documents/IOHK/cardano-wallet/.stack-work/install/x86_64-linux/lts-13.8/8.6.3/bin/cardano-wallet-launcher
   11003 10983 75 09:42 pts/1 00:03:30 cardano-http-bridge start --port 8080
-  11071 10983 58 09:42 pts/1 00:02:41 cardano-wallet-server --wallet-server-port 8090 --http-bridge-port 8080 --network mainnet
+  11071 10983 58 09:42 pts/1 00:02:41 cardano-wallet server --port 8090 --bridge-port 8080 --network mainnet
   ```
 - Send a `SIGKILL` signal to this pid using `kill -9 <pid>`
 - Run `ps -ef | grep cardano`, and control that the launcher isn't running

@@ -1,9 +1,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TypeApplications #-}
-
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -12,103 +11,145 @@
 -- Shared types and helpers for CLI parsing
 
 module Cardano.CLI
-    ( getArg
-    , Port
-    , Network
-    , encode
-    , decode
+    (
+    -- * Types
+      Network
+    , Port(..)
+
+    -- * Parsing Arguments
+    , parseArgWith
+    , getRequiredSensitiveValue
+    , getOptionalSensitiveValue
     ) where
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Mnemonic
-    ( Mnemonic, mkMnemonic )
-import Control.Monad
-    ( when )
-import Data.Bifunctor
-    ( first )
+import Control.Exception
+    ( finally )
+import Data.Text
+    ( Text )
+import Data.Text.Class
+    ( FromText (..), TextDecodingError (..), ToText (..) )
+import Fmt
+    ( Buildable, pretty )
 import GHC.TypeLits
     ( Symbol )
 import System.Console.Docopt
-    ( Arguments, Docopt, Option, exitWithUsage, getAllArgs, getArgOrExitWith )
-import Text.Read
-    ( readMaybe )
+    ( Arguments, Docopt, Option, getArgOrExitWith )
 
 import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
+import qualified System.Console.ANSI as ANSI
 
+
+{-------------------------------------------------------------------------------
+                                Extra Types
+-------------------------------------------------------------------------------}
+
+-- | Available network options. 'Local' means a local cluster running on the
+-- host machine.
+data Network = Mainnet | Testnet | Staging | Local
+    deriving (Show, Enum)
+
+instance ToText Network where
+    toText = \case
+        Mainnet -> "mainnet"
+        Testnet -> "testnet"
+        Staging -> "staging"
+        Local -> "local"
+
+instance FromText Network where
+    fromText = \case
+        "mainnet" -> Right Mainnet
+        "testnet" -> Right Testnet
+        "staging" -> Right Staging
+        "local" -> Right Local
+        s -> Left $ TextDecodingError $
+            T.unpack s <> " is neither \"mainnet\", \"testnet\", \"staging\" \
+            \nor \"local\"."
 
 -- | Port number with a tag for describing what it is used for
 newtype Port (tag :: Symbol) = Port Int
 
-data Network = Mainnet | Testnet | Staging | Local
-    deriving (Show, Enum)
+instance FromText (Port tag) where
+    fromText = fmap Port . fromText
 
+instance ToText (Port tag) where
+    toText (Port p) = toText p
 
-class GetArg from where
-    getArg
-        :: Arguments
-        -> Docopt
-        -> Option
-        -> (from -> Either String to)
-        -> IO to
+{-------------------------------------------------------------------------------
+                             Parsing Arguments
+-------------------------------------------------------------------------------}
 
-instance GetArg String where
-    getArg args cli opt decod = do
-        str <- getArgOrExitWith cli args opt
-        case decod str of
-            Right a -> return a
-            Left err -> do
-                putStrLn $ "Invalid " <> show opt <> ". " <> err
-                putStrLn ""
-                exitWithUsage cli
+parseArgWith :: FromText a => Docopt -> Arguments -> Option -> IO a
+parseArgWith cli args option =
+    either (fail . getTextDecodingError) pure . fromText . T.pack
+        =<< args `getArgOrExit` option
+  where
+    getArgOrExit :: Arguments -> Option -> IO String
+    getArgOrExit = getArgOrExitWith cli
 
-instance GetArg [String] where
-    getArg args cli opt decod = do
-        let str = getAllArgs args opt
-        when (null str) $ exitWithUsage cli
-        case decod str of
-            Right a -> return a
-            Left err -> do
-                putStrLn $ "Invalid " <> show opt <> ". " <> err
-                putStrLn ""
-                exitWithUsage cli
+{-------------------------------------------------------------------------------
+                         Processing of Sensitive Data
+-------------------------------------------------------------------------------}
 
--- | Encoding things into command line arguments
-class Encodable from to where
-    encode :: from -> to
+-- | Repeatedly prompt a user for a sensitive value, until the supplied value is
+-- valid.
+getRequiredSensitiveValue
+    :: Buildable e
+    => (Text -> Either e a)
+    -> String
+    -> IO a
+getRequiredSensitiveValue parse prompt = loop where
+    loop = do
+        putStrLn prompt
+        line <- getLineWithSensitiveData
+        case parse line of
+            Left e -> do
+                TIO.putStrLn (pretty e)
+                loop
+            Right v -> pure v
 
--- | Decoding command line arguments
-class Decodable from to where
-    decode :: from -> Either String to
+-- | Repeatedly prompt a user for an optional sensitive value, until either the
+-- supplied value is valid, or until the user enters an empty line (indicating
+-- that they do not wish to specify such a value).
+getOptionalSensitiveValue
+    :: Buildable e
+    => (Text -> Either e a )
+    -> String
+    -> IO (Maybe a)
+getOptionalSensitiveValue parse prompt = loop where
+    loop = do
+        putStrLn prompt
+        line <- getLineWithSensitiveData
+        if T.length line == 0
+        then pure Nothing
+        else case parse line of
+            Left e -> do
+                TIO.putStrLn (pretty e)
+                loop
+            Right v ->
+                pure $ Just v
 
-instance Encodable Int String where
-    encode = show
-
-instance Decodable String Int where
-    decode str =
-        maybe (Left err) Right (readMaybe str)
-      where
-        err = "Not an integer: " ++ show str ++ "."
-
-instance Encodable (Port tag) String where
-    encode (Port p) = encode p
-
-instance Decodable String (Port tag) where
-    decode str = Port <$> decode str
-
-instance Encodable Network String where
-    encode Mainnet = "mainnet"
-    encode Testnet = "testnet"
-    encode Staging = "staging"
-    encode Local = "local"
-
-instance Decodable String Network where
-    decode "mainnet" = Right Mainnet
-    decode "testnet" = Right Testnet
-    decode "staging" = Right Staging
-    decode "local" = Right Local
-    decode s = Left $ show s ++
-        " is neither \"mainnet\", \"testnet\", \"staging\" nor \"local\"."
-
-instance Decodable [String] (Mnemonic 15) where
-    decode ws = first show $ mkMnemonic @15 (T.pack <$> ws)
+-- | Read a line of user input containing sensitive data from the terminal.
+--
+-- The terminal lines containing the data are cleared once the user has finished
+-- entering data.
+--
+-- The terminal lines containing the data are also cleared if the application
+-- exits abnormally, before the user has finished entering data.
+--
+getLineWithSensitiveData :: IO Text
+getLineWithSensitiveData = do
+    finally TIO.getLine . clearSensitiveData =<< ANSI.getCursorPosition0
+  where
+    clearSensitiveData cursorPosition = case cursorPosition of
+        Just (_, y) -> do
+            -- We know the original position of the cursor.
+            -- Just clear everything from that line onwards.
+            ANSI.setCursorPosition 0 y
+            ANSI.clearFromCursorToScreenEnd
+        Nothing ->
+            -- We don't know the original position of the cursor.
+            -- For safety, we must clear the entire screen.
+            ANSI.clearScreen

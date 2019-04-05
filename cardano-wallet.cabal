@@ -59,7 +59,6 @@ library
     , time
     , time-units
     , transformers
-    , uuid-types
   hs-source-dirs:
       src
   exposed-modules:
@@ -71,6 +70,7 @@ library
       Cardano.Wallet.Binary.Packfile
       Cardano.Wallet.CoinSelection
       Cardano.Wallet.CoinSelection.LargestFirst
+      Cardano.Wallet.CoinSelection.Random
       Cardano.Wallet.DB
       Cardano.Wallet.DB.MVar
       Cardano.Wallet.Network
@@ -82,6 +82,7 @@ library
       Cardano.Wallet.Primitive.Model
       Cardano.Wallet.Primitive.Signing
       Cardano.Wallet.Primitive.Types
+      Data.Text.Class
       Data.Quantity
       Servant.Extra.ContentTypes
   other-modules:
@@ -110,6 +111,7 @@ test-suite unit
     , cardano-crypto
     , cardano-wallet
     , cborg
+    , cryptonite
     , containers
     , deepseq
     , exceptions
@@ -129,12 +131,12 @@ test-suite unit
     , text
     , time-units
     , transformers
-    , uuid-types
     , yaml
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
       test/unit
+      test
       app
   main-is:
       Main.hs
@@ -148,6 +150,7 @@ test-suite unit
       Cardano.Wallet.Binary.PackfileSpec
       Cardano.Wallet.CoinSelectionSpec
       Cardano.Wallet.CoinSelection.LargestFirstSpec
+      Cardano.Wallet.CoinSelection.RandomSpec
       Cardano.Wallet.DBSpec
       Cardano.Wallet.DB.MVarSpec
       Cardano.Wallet.NetworkSpec
@@ -158,8 +161,10 @@ test-suite unit
       Cardano.Wallet.Primitive.MnemonicSpec
       Cardano.Wallet.Primitive.ModelSpec
       Cardano.Wallet.Primitive.TypesSpec
+      Data.Text.ClassSpec
       Data.QuantitySpec
       Servant.Extra.ContentTypesSpec
+      Test.Text.Roundtrip
   if os(windows)
     build-depends: Win32
     other-modules: Cardano.Launcher.Windows
@@ -222,7 +227,7 @@ test-suite integration
     build-depends: unix
     other-modules: Cardano.Launcher.POSIX
 
-executable cardano-wallet-server
+executable cardano-wallet
   default-language:
       Haskell2010
   default-extensions:
@@ -235,13 +240,16 @@ executable cardano-wallet-server
       -O2
   build-depends:
       base
+    , ansi-terminal
     , cardano-wallet
     , docopt
-    , say
+    , fmt
+    , servant-server
     , text
+    , warp
   hs-source-dirs:
       app
-      app/server
+      app/cli
   other-modules:
       Cardano.CLI
   main-is:
@@ -259,9 +267,10 @@ executable cardano-wallet-launcher
       -Werror
       -O2
   build-depends:
-      async
+      base
+    , ansi-terminal
+    , async
     , cardano-wallet
-    , base
     , docopt
     , fmt
     , process
@@ -279,25 +288,5 @@ executable cardano-wallet-launcher
   else
     build-depends: unix
     other-modules: Cardano.Launcher.POSIX
-
   main-is:
      Main.hs
-
-executable cardano-generate-mnemonic
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -Wall
-      -Werror
-      -O2
-  build-depends:
-      base
-    , cardano-wallet
-    , text
-  hs-source-dirs:
-      app/mnemonic
-  main-is:
-      GenerateMnemonic.hs

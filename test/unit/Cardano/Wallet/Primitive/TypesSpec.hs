@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Primitive.TypesSpec
@@ -10,6 +11,7 @@ import Prelude
 
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , AddressState (..)
     , Block (..)
     , BlockHeader (..)
     , Coin (..)
@@ -20,13 +22,23 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxOut (..)
     , UTxO (..)
+    , WalletId (..)
+    , WalletName (..)
     , balance
     , excluding
     , isSubsetOf
     , isValidCoin
     , restrictedBy
     , restrictedTo
+    , walletNameMaxLength
+    , walletNameMinLength
     )
+import Control.Monad
+    ( replicateM )
+import Crypto.Hash
+    ( hash )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Set
     ( Set, (\\) )
 import Test.Hspec
@@ -34,6 +46,7 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
+    , arbitraryPrintableChar
     , checkCoverage
     , choose
     , cover
@@ -43,15 +56,26 @@ import Test.QuickCheck
     , vectorOf
     , (===)
     )
+import Test.QuickCheck.Arbitrary.Generic
+    ( genericArbitrary, genericShrink )
+import Test.Text.Roundtrip
+    ( textRoundtrip )
 
+import qualified Data.ByteString as BS
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-
+import qualified Data.Text as T
 
 spec :: Spec
 spec = do
     describe "Generators are valid" $ do
         it "Arbitrary Coin" $ property isValidCoin
+
+    describe "Can perform roundtrip textual encoding & decoding" $ do
+        textRoundtrip $ Proxy @Address
+        textRoundtrip $ Proxy @AddressState
+        textRoundtrip $ Proxy @WalletName
+        textRoundtrip $ Proxy @WalletId
 
     describe "Lemma 2.1 - Properties of UTxO operations" $ do
         it "2.1.1) ins⊲ u ⊆ u"
@@ -225,6 +249,10 @@ instance Arbitrary Address where
         , pure $ Address "ADDR03"
         ]
 
+instance Arbitrary AddressState where
+    shrink = genericShrink
+    arbitrary = genericArbitrary
+
 instance Arbitrary Coin where
     -- No Shrinking
     arbitrary = Coin <$> choose (0, 3)
@@ -280,3 +308,17 @@ instance Arbitrary Block where
     arbitrary = do
         txs <- choose (0, 500) >>= flip vectorOf arbitrary
         Block <$> arbitrary <*> pure txs
+
+instance Arbitrary WalletId where
+    shrink _ = []
+    arbitrary = do
+        bytes <- BS.pack <$> replicateM 16 arbitrary
+        return $ WalletId (hash bytes)
+
+instance Arbitrary WalletName where
+    arbitrary = do
+        nameLength <- choose (walletNameMinLength, walletNameMaxLength)
+        WalletName . T.pack <$> replicateM nameLength arbitraryPrintableChar
+    shrink (WalletName t)
+        | T.length t <= walletNameMinLength = []
+        | otherwise = [WalletName $ T.take walletNameMinLength t]

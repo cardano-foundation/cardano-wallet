@@ -40,19 +40,19 @@ largestFirst
     -> UTxO
     -> NonEmpty TxOut
     -> ExceptT CoinSelectionError m CoinSelection
-largestFirst opt utxo txOutputs = do
-    let txOutputsSorted = NE.toList $ NE.sortBy (flip $ comparing coin) txOutputs
+largestFirst opt utxo outs = do
+    let descending = NE.toList . NE.sortBy (flip $ comparing coin)
     let n = fromIntegral $ maximumNumberOfInputs opt
     let nLargest = take n . L.sortBy (flip $ comparing (coin . snd)) . Map.toList . getUTxO
 
-    case foldM atLeast (nLargest utxo, mempty) txOutputsSorted of
+    case foldM atLeast (nLargest utxo, mempty) (descending outs) of
         Just (_, s) ->
             return s
         Nothing -> do
-            let moneyRequested = sum $ (getCoin . coin) <$> txOutputsSorted
+            let moneyRequested = sum $ (getCoin . coin) <$> (descending outs)
             let utxoBalance = fromIntegral $ balance utxo
             let numberOfUtxoEntries = fromIntegral $ L.length $ (Map.toList . getUTxO) utxo
-            let numberOfTransactionOutputs = fromIntegral $ NE.length txOutputs
+            let numberOfTransactionOutputs = fromIntegral $ NE.length outs
 
             when (utxoBalance < moneyRequested)
                 $ throwE $ NotEnoughMoney utxoBalance moneyRequested

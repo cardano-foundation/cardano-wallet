@@ -12,7 +12,7 @@ import Cardano.Launcher
 import Cardano.Wallet.Binary
     ( TxWitness (..), encodeSignedTx )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..) )
+    ( NetworkLayer (..), listen )
 import Cardano.Wallet.Network.HttpBridge
     ( HttpBridgeError (..) )
 import Cardano.Wallet.Primitive.Types
@@ -38,12 +38,14 @@ import Control.Monad.Trans.Except
 import Test.Hspec
     ( Spec
     , afterAll
+    , anyException
     , beforeAll
     , describe
     , it
-    , shouldEndWith
+    , shouldContain
     , shouldReturn
     , shouldSatisfy
+    , shouldThrow
     )
 
 import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
@@ -102,30 +104,66 @@ spec = do
                         _ -> error (msg res)
             action `shouldReturn` ()
 
+        it "listen throws exception when bridge isn't up" $ \network -> do
+            let action = do
+                    listen network actionDummy
+            action `shouldThrow` anyException
 
     describe "Submitting signed transactions"
         $ beforeAll startBridge $ afterAll closeBridge $ do
         it "empty tx fails" $ \(_, network) -> do
-            let tx = Tx [] []
-            let signed = sign tx []
+
+            let signed = sign txEmpty []
             (Left err) <- runExceptT $ postTx network signed
-            (show err) `shouldEndWith`
-                "Transaction failed verification: transaction has no inputs\\\"})\""
+            (show err) `shouldContain`
+                "Transaction failed verification: transaction has no inputs"
+
+        it "empty tx fails 2" $ \(_, network) -> do
+
+            let signed = sign txEmpty [pkWitness]
+            (Left err) <- runExceptT $ postTx network signed
+            (show err) `shouldContain`
+                "Transaction failed verification: transaction has no inputs"
 
         it "old tx fails" $ \(_, network) -> do
-            let tx = Tx { inputs = [ TxIn {inputId = Hash {getHash = "!s\CAN\255]e\252\184F\160\178\250:\190\DC2\250u\SOf\203\179\225\238+\244\162WvR\159\183\b"}, inputIx = 0}]
-                        , outputs = [TxOut {address = Address {getAddress = "\130\216\CANXI\131X\FS`\218\181D\EOT{p\196\242\251\253\DC2\221\225\DC1\171\172\161;\172A\\\232\166\ETB\RSp\208\162\SOHX\RSX\FS%\245\158\195@\ENQ\225\212*\215\RSA\241;\245/\243\174s\143O\183\229V\175!\131\226\STXE\SUBAp\203\ETB\NUL\SUBm\US\131\DC4"}, coin = Coin {getCoin = 933636862791}},TxOut {address = Address {getAddress = "\130\216\CANXI\131X\FS\227\213\&146.\160)\226\207\218\134@\\\149\166oq\CAN\DC1c\245\237\153]\235yO\162\SOHX\RSX\FS%\245\158\195@\ENQ\225\140\133\182\189A\194\206\228UZ\ENQ\168,\134\207\183\253\235\236t\171\STXE\SUBAp\203\ETB\NUL\SUB8\203F)"}, coin = Coin {getCoin = 1227362560}}]
-                        }
-            let pkWitness = PublicKeyWitness "\130X@O\a\142a\166\180\SO\205\&3I8\160)\224F?\157\252\ACK\DC2\EOT\ESC\184\201\170\218\217\ETX\201\ESCn\SYN\206\179O\n\236\185\235T\163\190o\SI'r\228\241\150yL\218\NAK R2\162\211\144\209\129lr\225X@Go%&7\248\149\194\202\231\210\143-\212f.\135\174\254\186\193^\212?\136\SO;\ACK\a\211\DC1\b\223\159\161\179&\189[\231\217\179\143JOW\194iv5\EMr\197\ETX\158p\DC4=\145\128\n/\255\NUL"
-            let signed = sign tx [pkWitness]
+
+            let signed = sign txNonEmpty [pkWitness]
             (Left err) <- runExceptT $ postTx network signed
-            (show err) `shouldEndWith`
-                "Failed to send to peers: Blockchain protocol error\\\"})\""
+            (show err) `shouldContain`
+                "Failed to send to peers: Blockchain protocol error"
+
+        it "tx fails - more inputs than witnesses" $ \(_, network) -> do
+
+            let signed = sign txNonEmpty []
+            (Left err) <- runExceptT $ postTx network signed
+            (show err) `shouldContain`
+                "Transaction failed verification: transaction has more inputs than witnesses"
+
+        it "tx fails - more witnesses than inputs" $ \(_, network) -> do
+
+            let signed = sign txNonEmpty [pkWitness, pkWitness]
+            (Left err) <- runExceptT $ postTx network signed
+            (show err) `shouldContain`
+                "Transaction failed verification: transaction has more witnesses than inputs"
   where
+    actionDummy :: [Block] -> IO ()
+    actionDummy b = do
+      putStr (show b)
+
     sign :: Tx -> [TxWitness] -> SignedTx
     sign tx witnesses = SignedTx . toBS $ encodeSignedTx (tx, witnesses)
 
     toBS = BL.toStrict . CBOR.toLazyByteString
+
+    pkWitness :: TxWitness
+    pkWitness = PublicKeyWitness "\130X@O\a\142a\166\180\SO\205\&3I8\160)\224F?\157\252\ACK\DC2\EOT\ESC\184\201\170\218\217\ETX\201\ESCn\SYN\206\179O\n\236\185\235T\163\190o\SI'r\228\241\150yL\218\NAK R2\162\211\144\209\129lr\225X@Go%&7\248\149\194\202\231\210\143-\212f.\135\174\254\186\193^\212?\136\SO;\ACK\a\211\DC1\b\223\159\161\179&\189[\231\217\179\143JOW\194iv5\EMr\197\ETX\158p\DC4=\145\128\n/\255\NUL"
+
+    txNonEmpty :: Tx
+    txNonEmpty = Tx { inputs = [ TxIn {inputId = Hash {getHash = "!s\CAN\255]e\252\184F\160\178\250:\190\DC2\250u\SOf\203\179\225\238+\244\162WvR\159\183\b"}, inputIx = 0}]
+                    , outputs = [TxOut {address = Address {getAddress = "\130\216\CANXI\131X\FS`\218\181D\EOT{p\196\242\251\253\DC2\221\225\DC1\171\172\161;\172A\\\232\166\ETB\RSp\208\162\SOHX\RSX\FS%\245\158\195@\ENQ\225\212*\215\RSA\241;\245/\243\174s\143O\183\229V\175!\131\226\STXE\SUBAp\203\ETB\NUL\SUBm\US\131\DC4"}, coin = Coin {getCoin = 933636862791}},TxOut {address = Address {getAddress = "\130\216\CANXI\131X\FS\227\213\&146.\160)\226\207\218\134@\\\149\166oq\CAN\DC1c\245\237\153]\235yO\162\SOHX\RSX\FS%\245\158\195@\ENQ\225\140\133\182\189A\194\206\228UZ\ENQ\168,\134\207\183\253\235\236t\171\STXE\SUBAp\203\ETB\NUL\SUB8\203F)"}, coin = Coin {getCoin = 1227362560}}]
+                    }
+    txEmpty :: Tx
+    txEmpty = Tx [] []
 
     newNetworkLayer =
         HttpBridge.newNetworkLayer "testnet" port

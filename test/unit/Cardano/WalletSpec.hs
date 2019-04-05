@@ -37,18 +37,22 @@ import Cardano.Wallet.Primitive.Mnemonic
     )
 import Cardano.Wallet.Primitive.Types
     ( WalletId (..), WalletName (..) )
+import Control.Monad
+    ( replicateM )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Crypto.Encoding.BIP39
     ( ValidChecksumSize, ValidEntropySize, ValidMnemonicSentence )
+import Crypto.Hash
+    ( hash )
 import Data.Either
     ( isLeft, isRight )
 import Data.Maybe
     ( isJust )
 import Test.Hspec
-    ( Spec, describe, it, shouldSatisfy )
+    ( Spec, describe, it, shouldBe, shouldNotBe, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..)
     , InfiniteList (..)
@@ -58,8 +62,6 @@ import Test.QuickCheck
     , property
     , vectorOf
     )
-import Test.QuickCheck.Gen
-    ( chooseAny )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
@@ -80,6 +82,10 @@ spec = do
             (property walletGetProp)
         it "Wallet with wrong wallet Id cannot be got"
             (property walletGetWrongIdProp)
+        it "Two wallets with same mnemonic have a same public id"
+            (property walletIdDeterministic)
+        it "Two wallets with different mnemonic have a different public id"
+            (property walletIdInjective)
 
 
 {-------------------------------------------------------------------------------
@@ -118,6 +124,21 @@ walletGetWrongIdProp (newWallet, corruptedWalletId) = monadicIO $ liftIO $ do
     attempt <- runExceptT $ readWallet wl corruptedWalletId
     attempt `shouldSatisfy` isLeft
 
+walletIdDeterministic
+    :: NewWallet
+    -> Property
+walletIdDeterministic newWallet = monadicIO $ liftIO $ do
+    (WalletLayerFixture _ _ widsA) <- liftIO $ setupFixture newWallet
+    (WalletLayerFixture _ _ widsB) <- liftIO $ setupFixture newWallet
+    widsA `shouldBe` widsB
+
+walletIdInjective
+    :: (NewWallet, NewWallet)
+    -> Property
+walletIdInjective (walletA, walletB) = monadicIO $ liftIO $ do
+    (WalletLayerFixture _ _ widsA) <- liftIO $ setupFixture walletA
+    (WalletLayerFixture _ _ widsB) <- liftIO $ setupFixture walletB
+    widsA `shouldNotBe` widsB
 
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
@@ -188,5 +209,6 @@ instance Arbitrary AddressPoolGap where
 
 instance Arbitrary WalletId where
     shrink _ = []
-    arbitrary = WalletId <$> chooseAny
-
+    arbitrary = do
+        bytes <- BS.pack <$> replicateM 16 arbitrary
+        return $ WalletId (hash bytes)

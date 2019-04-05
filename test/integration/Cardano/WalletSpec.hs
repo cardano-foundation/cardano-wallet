@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -12,7 +11,7 @@ import Prelude
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
-    ( NewWallet (..), WalletLayer (..), mkWalletLayer )
+    ( NewWallet (..), WalletLayer (..), mkWalletLayer, unsafeRunExceptT )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -25,12 +24,6 @@ import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
     ( async, cancel )
-import Control.Monad
-    ( (>=>) )
-import Control.Monad.Fail
-    ( MonadFail )
-import Control.Monad.Trans.Except
-    ( ExceptT, runExceptT )
 import Test.Hspec
     ( Spec, after, before, it, shouldSatisfy )
 
@@ -73,10 +66,3 @@ spec = do
         (handle,) <$> (mkWalletLayer
             <$> MVar.newDBLayer
             <*> HttpBridge.newNetworkLayer "testnet" port)
-
-unsafeRunExceptT :: (MonadFail m, Show e) => ExceptT e m a -> m a
-unsafeRunExceptT = runExceptT >=> \case
-    Left e ->
-        fail $ "unable to perform expect IO action: " <> show e
-    Right a ->
-        return a

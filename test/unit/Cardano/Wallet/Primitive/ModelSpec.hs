@@ -120,7 +120,7 @@ prop_applyBlockBasic s =
     cond1 = not $ null $ (Set.fromList addresses) \\ (ourAddresses s)
     prop =
         let
-            wallet = foldl (flip applyBlock) (initWallet s) blockchain
+            wallet = foldl (\cp b -> snd $ applyBlock b cp) (initWallet s) blockchain
             utxo = totalUTxO wallet
             utxo' = evalState (foldM (flip updateUTxO) mempty blockchain) s
         in

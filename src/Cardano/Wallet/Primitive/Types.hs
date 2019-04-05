@@ -66,6 +66,8 @@ module Cardano.Wallet.Primitive.Types
     , WalletMetadata(..)
     , WalletId(..)
     , WalletName(..)
+    , walletNameMinLength
+    , walletNameMaxLength
     , WalletState(..)
     , WalletDelegation (..)
     , WalletPassphraseInfo(..)
@@ -87,12 +89,14 @@ import Prelude
 
 import Control.DeepSeq
     ( NFData (..) )
+import Crypto.Hash
+    ( Blake2b_160, Digest, digestFromByteString )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertToBase )
+    ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
-    ( bitcoinAlphabet, encodeBase58 )
+    ( bitcoinAlphabet, decodeBase58, encodeBase58 )
 import Data.Int
     ( Int32 )
 import Data.Map.Strict
@@ -105,10 +109,10 @@ import Data.Set
     ( Set )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Time
     ( UTCTime )
-import Data.UUID.Types
-    ( UUID )
 import Data.Word
     ( Word16, Word32, Word64 )
 import Fmt
@@ -136,8 +140,10 @@ import System.IO.Unsafe
 import Text.Read
     ( readMaybe )
 
+import qualified Data.Char as Char
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 
@@ -161,8 +167,43 @@ data WalletMetadata = WalletMetadata
 newtype WalletName = WalletName { getWalletName ::  Text }
     deriving (Eq, Show)
 
-newtype WalletId = WalletId UUID
+instance FromText WalletName where
+    fromText t
+        | T.length t < walletNameMinLength =
+            Left $ TextDecodingError $
+                "name is too short: expected at least "
+                    <> show walletNameMinLength <> " chars"
+        | T.length t > walletNameMaxLength =
+            Left $ TextDecodingError $
+                "name is too long: expected at most "
+                    <> show walletNameMaxLength <> " chars"
+        | otherwise =
+            return $ WalletName t
+
+instance ToText WalletName where
+    toText = getWalletName
+
+walletNameMinLength :: Int
+walletNameMinLength = 1
+
+walletNameMaxLength :: Int
+walletNameMaxLength = 255
+
+newtype WalletId = WalletId { getWalletId :: Digest Blake2b_160 }
     deriving (Generic, Eq, Ord, Show)
+
+instance FromText WalletId where
+    fromText txt = maybe
+        (Left $ TextDecodingError msg)
+        (Right . WalletId)
+        (decodeHex txt >>= digestFromByteString @_ @ByteString)
+      where
+        msg = "wallet id should be an hex-encoded string of 40 characters"
+        decodeHex =
+            either (const Nothing) Just . convertFromBase Base16 . T.encodeUtf8
+
+instance ToText WalletId where
+    toText = T.decodeUtf8 . convertToBase Base16 . getWalletId
 
 data WalletState
     = Ready
@@ -379,10 +420,34 @@ newtype Address = Address
 instance NFData Address
 
 instance Buildable Address where
-    build = build . T.decodeUtf8 . encodeBase58 bitcoinAlphabet . getAddress
+    build = build . toText
+
+instance FromText Address where
+    fromText x = maybe
+        (Left $ TextDecodingError err)
+        (pure . Address)
+        (decodeBase58 bitcoinAlphabet $ T.encodeUtf8 x)
+      where
+        err = "Unable to decode Address: expected Base58 encoding"
+
+instance ToText Address where
+    toText = T.decodeUtf8 . encodeBase58 bitcoinAlphabet . getAddress
 
 data AddressState = Used | Unused
     deriving (Eq, Generic, Show)
+
+instance FromText AddressState where
+    fromText = \case
+        "used" ->
+            Right Used
+        "unused" ->
+            Right Unused
+        _ ->
+            Left $ TextDecodingError "Unable to decode address state: \
+            \it's neither \"used\" nor \"unused\""
+
+instance ToText AddressState where
+    toText = T.pack . (\(h:q) -> Char.toLower h : q) . show
 
 {-------------------------------------------------------------------------------
                                      Coin
