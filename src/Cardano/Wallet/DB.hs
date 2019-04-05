@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE KindSignatures #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -10,7 +11,8 @@
 module Cardano.Wallet.DB
     ( DBLayer(..)
     , PrimaryKey(..)
-    , ErrPutTxHistory(..)
+    , ErrNoSuchWallet(..)
+    , ErrWalletAlreadyExists(..)
     ) where
 
 import Prelude
@@ -18,39 +20,69 @@ import Prelude
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
-    ( Hash, Tx, TxMeta, WalletId )
+    ( Hash, Tx, TxMeta, WalletId, WalletMetadata )
 import Control.Monad.Trans.Except
     ( ExceptT )
 import Data.Map.Strict
     ( Map )
+import GHC.TypeLits
+    ( Symbol )
 
 
 -- | A Database interface for storing various things in a DB. In practice,
 -- we'll need some extra contraints on the wallet state that allows us to
 -- serialize and unserialize it (e.g. @forall s. (Serialize s) => ...@)
 data DBLayer m s = DBLayer
-    { putCheckpoint
+    { createWallet
         :: PrimaryKey WalletId
         -> Wallet s
-        -> m ()
+        -> WalletMetadata
+        -> ExceptT (ErrWalletAlreadyExists "createWallet") m ()
+        -- ^ Initialize a database entry for a given wallet. 'putCheckpoint',
+        -- 'putWalletMeta' or 'putTxHistory' will actually all fail if they are
+        -- called _first_ on a wallet.
+        --
+
+    , listWallets
+        :: m [PrimaryKey WalletId]
+        -- ^ Get the list of all known wallets in the DB, possibly empty.
+
+    , putCheckpoint
+        :: PrimaryKey WalletId
+        -> Wallet s
+        -> ExceptT (ErrNoSuchWallet "putCheckpoint") m ()
         -- ^ Replace the current checkpoint for a given wallet. We do not handle
         -- rollbacks yet, and therefore only stores the latest available
         -- checkpoint.
+        --
+        -- If the wallet doesn't exist, this operation returns an error.
 
     , readCheckpoint
         :: PrimaryKey WalletId
         -> m (Maybe (Wallet s))
-        -- ^ Fetch the most recent checkpoint of a given wallet. Return 'Nothing'
-        -- if there's no such wallet.
+        -- ^ Fetch the most recent checkpoint of a given wallet.
+        --
+        -- Return 'Nothing' if there's no such wallet.
 
-    , readWallets
-        :: m [PrimaryKey WalletId]
-        -- ^ Get the list of all known wallets in the DB, possibly empty.
+    , putWalletMeta
+        :: PrimaryKey WalletId
+        -> WalletMetadata
+        -> ExceptT (ErrNoSuchWallet "putWalletMeta") m ()
+        -- ^ Replace an existing wallet metadata with the given one.
+        --
+        -- If the wallet doesn't exist, this operation returns an error
+
+    , readWalletMeta
+        :: PrimaryKey WalletId
+        -> m (Maybe WalletMetadata)
+        -- ^ Fetch a wallet metadata, if they exist.
+        --
+        -- Return 'Nothing' if there's no such wallet.
 
     , putTxHistory
         :: PrimaryKey WalletId
         -> Map (Hash "Tx") (Tx, TxMeta)
-        -> ExceptT ErrPutTxHistory m ()
+        -> ExceptT (ErrNoSuchWallet "putTxHistory") m ()
         -- ^ Augments the transaction history for a known wallet.
         --
         -- If an entry for a particular transaction already exists it is not
@@ -61,14 +93,20 @@ data DBLayer m s = DBLayer
     , readTxHistory
         :: PrimaryKey WalletId
         -> m (Map (Hash "Tx") (Tx, TxMeta))
-        -- ^ Fetch the current transaction history of a known wallet. Returns an
-        -- empty map if the wallet isn't found.
+        -- ^ Fetch the current transaction history of a known wallet.
+        --
+        -- Returns an empty map if the wallet isn't found.
     }
 
--- | Error while trying to insert transaction history in the DB.
-newtype ErrPutTxHistory
-    = ErrNoSuchWallet WalletId
-    deriving (Show, Eq)
+-- | Can't perform given operation because there's no wallet
+newtype ErrNoSuchWallet (operation :: Symbol)
+    = ErrNoSuchWallet WalletId -- Wallet is gone or doesn't exist yet
+    deriving (Eq, Show)
+
+-- | Forbidden operation was executed on an already existing wallet
+newtype ErrWalletAlreadyExists (operation :: Symbol)
+    = ErrWalletAlreadyExists WalletId -- Wallet already exists in db
+    deriving (Eq, Show)
 
 -- | A primary key which can take many forms depending on the value. This may
 -- become a type family as we move forward, but for now, it illustrate that

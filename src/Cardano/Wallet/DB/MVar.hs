@@ -17,13 +17,19 @@ module Cardano.Wallet.DB.MVar
 import Prelude
 
 import Cardano.Wallet.DB
-    ( DBLayer (..), ErrPutTxHistory (..), PrimaryKey (..) )
+    ( DBLayer (..)
+    , ErrNoSuchWallet (..)
+    , ErrWalletAlreadyExists (..)
+    , PrimaryKey (..)
+    )
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
-    ( Hash, Tx, TxMeta, WalletId )
+    ( Hash, Tx, TxMeta, WalletId, WalletMetadata )
+import Control.Arrow
+    ( right )
 import Control.Concurrent.MVar
-    ( modifyMVar, modifyMVar_, newMVar, readMVar )
+    ( MVar, modifyMVar, newMVar, readMVar )
 import Control.DeepSeq
     ( deepseq )
 import Control.Monad.Trans.Except
@@ -35,6 +41,7 @@ import qualified Data.Map.Strict as Map
 
 data Database s = Database
     { wallet :: Wallet s
+    , metadata :: WalletMetadata
     , txHistory :: Map (Hash "Tx") (Tx, TxMeta)
     }
 
@@ -44,33 +51,85 @@ newDBLayer :: forall s. IO (DBLayer IO s)
 newDBLayer = do
     db <- newMVar (mempty :: Map (PrimaryKey WalletId) (Database s))
     return $ DBLayer
-        { putCheckpoint = \key cp ->
-            let
-                alter = \case
+        {-----------------------------------------------------------------------
+                                      Wallets
+        -----------------------------------------------------------------------}
+
+        { createWallet = \key@(PrimaryKey wid) cp meta -> ExceptT $ do
+            let alter = \case
                     Nothing ->
-                        Just $ Database cp mempty
-                    Just (Database _ history) ->
-                        Just $ Database cp history
-            in
-                cp `deepseq` modifyMVar_ db (return . (Map.alter alter key))
+                        Right $ Database cp meta mempty
+                    Just _ ->
+                        Left (ErrWalletAlreadyExists wid)
+            cp `deepseq` meta `deepseq` alterMVar db alter key
+
+        , listWallets =
+            Map.keys <$> readMVar db
+
+        {-----------------------------------------------------------------------
+                                    Checkpoints
+        -----------------------------------------------------------------------}
+
+        , putCheckpoint = \key@(PrimaryKey wid) cp -> ExceptT $ do
+            let alter = \case
+                    Nothing ->
+                        Left (ErrNoSuchWallet wid)
+                    Just (Database _ meta history) ->
+                        Right $ Database cp meta history
+            cp `deepseq` alterMVar db alter key
 
         , readCheckpoint = \key ->
             fmap wallet . Map.lookup key <$> readMVar db
 
-        , readWallets =
-            Map.keys <$> readMVar db
+        {-----------------------------------------------------------------------
+                                   Wallet Metadata
+        -----------------------------------------------------------------------}
+
+        , putWalletMeta = \key@(PrimaryKey wid) meta -> ExceptT $ do
+            let alter = \case
+                    Nothing ->
+                        Left (ErrNoSuchWallet wid)
+                    Just (Database cp _ history) ->
+                        Right $ Database cp meta history
+            meta `deepseq` alterMVar db alter key
+
+        , readWalletMeta = \key -> do
+            fmap metadata . Map.lookup key <$> readMVar db
+
+        {-----------------------------------------------------------------------
+                                     Tx History
+        -----------------------------------------------------------------------}
 
         , putTxHistory = \key@(PrimaryKey wid) txs' -> ExceptT $ do
             let alter = \case
                     Nothing ->
                         Left (ErrNoSuchWallet wid)
-                    Just (Database cp txs) ->
-                        Right $ Just $ Database cp (txs <> txs')
-            let handle m = \case
-                    Left err -> return (m, Left err)
-                    Right m' -> return (m', Right ())
-            txs' `deepseq` modifyMVar db (\m -> handle m $ Map.alterF alter key m)
+                    Just (Database cp meta txs) ->
+                        Right $ Database cp meta (txs <> txs')
+            txs' `deepseq` alterMVar db alter key
 
         , readTxHistory = \key ->
             maybe mempty txHistory . Map.lookup key <$> readMVar db
         }
+
+
+-- | Modify the content of an MVar holding a map with a given alteration
+-- function. The map is only modified if the 'Right' branch of the alteration
+-- function yields something. See also:
+--
+-- [Data.Map.Strict#alterF](https://hackage.haskell.org/package/containers-0.6.0.1/docs/Data-Map-Strict.html#v:alterF)
+alterMVar
+    :: Ord k
+    => MVar (Map k v) -- MVar holding our mock database
+    -> (Maybe v -> Either err v) -- An alteration function
+    -> k -- Key to alter
+    -> IO (Either err ())
+alterMVar db alter key =
+    modifyMVar db (\m -> bubble m $ Map.alterF ((right Just) . alter) key m)
+  where
+    -- | Re-wrap an error into an MVar result so that it will bubble up
+    bubble :: Monad m => a -> Either err a -> m (a, Either err ())
+    bubble a = \case
+        Left err -> return (a, Left err)
+        Right a' -> return (a', Right ())
+

@@ -16,7 +16,7 @@ import Prelude
 import Cardano.Wallet
     ( NewWallet (..), WalletLayer (..), mkWalletLayer )
 import Cardano.Wallet.DB
-    ( DBLayer (..), PrimaryKey (..) )
+    ( DBLayer, PrimaryKey (..) )
 import Cardano.Wallet.DB.MVar
     ( newDBLayer )
 import Cardano.Wallet.Network.HttpBridge
@@ -65,11 +65,11 @@ import Test.QuickCheck
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
+import qualified Cardano.Wallet.DB as DB
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
-
 
 spec :: Spec
 spec = do
@@ -97,7 +97,7 @@ walletCreationProp
     -> Property
 walletCreationProp newWallet = monadicIO $ liftIO $ do
     (WalletLayerFixture db _wl walletIds) <- setupFixture newWallet
-    resFromDb <- readCheckpoint db (PrimaryKey $ L.head walletIds)
+    resFromDb <- DB.readCheckpoint db (PrimaryKey $ L.head walletIds)
     resFromDb `shouldSatisfy` isJust
 
 walletDoubleCreationProp

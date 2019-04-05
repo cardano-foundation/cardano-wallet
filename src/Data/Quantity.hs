@@ -57,7 +57,8 @@ import qualified Data.Text as T
 --
 -- >>> newtype Amount = Amount (Quantity "lovelace" Word32)
 newtype Quantity (u :: Symbol) a = Quantity a
-    deriving (Generic, Show, Eq, Ord)
+    deriving stock (Generic, Show, Eq, Ord)
+    deriving newtype (Bounded, Enum)
 
 instance NFData a => NFData (Quantity u a)
 
@@ -95,6 +96,8 @@ instance (KnownSymbol u, FromJSON a) => FromJSON (Quantity u a) where
 newtype Percentage = Percentage Word
     deriving stock (Generic, Show, Eq)
     deriving newtype (ToJSON)
+
+instance NFData Percentage
 
 instance FromJSON Percentage where
     parseJSON x = do
