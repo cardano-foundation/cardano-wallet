@@ -297,8 +297,8 @@ WalletMetadata :: !WalletId -> !WalletName -> !WalletPassphraseInfo -> !WalletSt
 [$sel:status:WalletMetadata] :: WalletMetadata -> !WalletState
 [$sel:delegation:WalletMetadata] :: WalletMetadata -> !WalletDelegation PoolId
 newtype WalletId
-WalletId :: UUID -> WalletId
-[$sel:getWalletId:WalletId] :: WalletId -> UUID
+WalletId :: Digest Blake2b_160 -> WalletId
+[$sel:getWalletId:WalletId] :: WalletId -> Digest Blake2b_160
 newtype WalletName
 WalletName :: Text -> WalletName
 [$sel:getWalletName:WalletName] :: WalletName -> Text
@@ -879,6 +879,9 @@ Soft :: DerivationType
 
 -- | Extract the public key part of a private key.
 publicKey :: Key level XPrv -> Key level XPub
+
+-- | Hash a public key to some other representation.
+digest :: HashAlgorithm a => Key level XPub -> Digest a
 data XPub
 data XPrv
 
