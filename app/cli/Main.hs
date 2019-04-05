@@ -80,6 +80,8 @@ commands. Those Commands are turned into corresponding API calls, and
 submitted to an up-and-running server. Some other commands do not require an
 active server and can be ran "offline" (e.g. 'generate mnemonic')
 
+    ⚠️  Options are positional (--a --b is not equivalent to --b --a) ! ⚠️
+
 Usage:
   cardano-wallet server [--network=NETWORK] [--port=INT] [--bridge-port=INT]
   cardano-wallet generate mnemonic [--size=INT]

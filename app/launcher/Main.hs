@@ -101,9 +101,9 @@ walletOn :: Port "Wallet" -> Port "Node" -> Network -> Command
 walletOn wp np net = Command
     "cardano-wallet"
     [ "server"
+    , "--network", T.unpack (toText net)
     , "--port", T.unpack (toText wp)
     , "--bridge-port", T.unpack (toText np)
-    , "--network", T.unpack (toText net)
     ]
     (threadDelay oneSecond)
     Inherit
