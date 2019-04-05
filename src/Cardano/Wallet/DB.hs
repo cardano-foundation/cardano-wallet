@@ -116,5 +116,5 @@ newtype ErrWalletAlreadyExists (operation :: Symbol)
 -- functions like 'enqueueCheckpoint' needs to be associated to a corresponding
 -- wallet. Some other may not because they are information valid for all wallets
 -- (like for instance, the last known network tip).
-newtype PrimaryKey key = PrimaryKey key
+newtype PrimaryKey key = PrimaryKey { getPrimaryKey :: key }
     deriving (Eq, Ord)
