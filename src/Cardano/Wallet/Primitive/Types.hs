@@ -126,6 +126,7 @@ import GHC.TypeLits
 import Numeric.Natural
     ( Natural )
 
+import qualified Data.Char as Char
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -411,6 +412,19 @@ instance ToText Address where
 
 data AddressState = Used | Unused
     deriving (Eq, Generic, Show)
+
+instance FromText AddressState where
+    fromText = \case
+        "used" ->
+            Right Used
+        "unused" ->
+            Right Unused
+        _ ->
+            Left $ TextDecodingError "Unable to decode address state: \
+            \it's neither \"used\" nor \"unused\""
+
+instance ToText AddressState where
+    toText = T.pack . (\(h:q) -> Char.toLower h : q) . show
 
 {-------------------------------------------------------------------------------
                                      Coin

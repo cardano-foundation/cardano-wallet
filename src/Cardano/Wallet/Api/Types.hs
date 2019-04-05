@@ -81,10 +81,14 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), ToText (..) )
+import Fmt
+    ( pretty )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( Nat, Symbol )
+import Web.HttpApiData
+    ( FromHttpApiData (..), ToHttpApiData (..) )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
@@ -288,6 +292,15 @@ walletStateOptions = taggedSumTypeOptions $ TaggedObjectOptions
     { _tagFieldName = "status"
     , _contentsFieldName = "progress"
     }
+
+{-------------------------------------------------------------------------------
+                             HTTPApiData instances
+-------------------------------------------------------------------------------}
+
+instance FromText a => FromHttpApiData (ApiT a) where
+    parseUrlPiece = bimap pretty ApiT . fromText
+instance ToText a => ToHttpApiData (ApiT a) where
+    toUrlPiece = toText . getApiT
 
 {-------------------------------------------------------------------------------
                                 Aeson Options

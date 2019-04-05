@@ -11,6 +11,7 @@ import Prelude
 
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , AddressState (..)
     , Block (..)
     , BlockHeader (..)
     , Coin (..)
@@ -57,6 +58,8 @@ import Test.QuickCheck
     , vectorOf
     , (===)
     )
+import Test.QuickCheck.Arbitrary.Generic
+    ( genericArbitrary, genericShrink )
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
@@ -72,6 +75,7 @@ spec = do
 
     describe "Can perform roundtrip textual encoding & decoding" $ do
         textRoundtrip $ Proxy @Address
+        textRoundtrip $ Proxy @AddressState
         textRoundtrip $ Proxy @WalletName
         textRoundtrip $ Proxy @WalletId
 
@@ -246,6 +250,10 @@ instance Arbitrary Address where
         , pure $ Address "ADDR02"
         , pure $ Address "ADDR03"
         ]
+
+instance Arbitrary AddressState where
+    shrink = genericShrink
+    arbitrary = genericArbitrary
 
 instance Arbitrary Coin where
     -- No Shrinking
