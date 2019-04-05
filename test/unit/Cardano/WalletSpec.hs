@@ -52,7 +52,7 @@ import Data.Either
 import Data.Maybe
     ( isJust )
 import Test.Hspec
-    ( Spec, describe, it, shouldSatisfy )
+    ( Spec, describe, it, shouldBe, shouldNotBe, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..)
     , InfiniteList (..)
@@ -82,6 +82,10 @@ spec = do
             (property walletGetProp)
         it "Wallet with wrong wallet Id cannot be got"
             (property walletGetWrongIdProp)
+        it "Two wallets with same mnemonic have a same public id"
+            (property walletIdDeterministic)
+        it "Two wallets with different mnemonic have a different public id"
+            (property walletIdInjective)
 
 
 {-------------------------------------------------------------------------------
@@ -120,6 +124,21 @@ walletGetWrongIdProp (newWallet, corruptedWalletId) = monadicIO $ liftIO $ do
     attempt <- runExceptT $ readWallet wl corruptedWalletId
     attempt `shouldSatisfy` isLeft
 
+walletIdDeterministic
+    :: NewWallet
+    -> Property
+walletIdDeterministic newWallet = monadicIO $ liftIO $ do
+    (WalletLayerFixture _ _ widsA) <- liftIO $ setupFixture newWallet
+    (WalletLayerFixture _ _ widsB) <- liftIO $ setupFixture newWallet
+    widsA `shouldBe` widsB
+
+walletIdInjective
+    :: (NewWallet, NewWallet)
+    -> Property
+walletIdInjective (walletA, walletB) = monadicIO $ liftIO $ do
+    (WalletLayerFixture _ _ widsA) <- liftIO $ setupFixture walletA
+    (WalletLayerFixture _ _ widsB) <- liftIO $ setupFixture walletB
+    widsA `shouldNotBe` widsB
 
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
