@@ -33,36 +33,44 @@ import Data.Map.Strict
 
 import qualified Data.Map.Strict as Map
 
+data Database s = Database
+    { wallet :: Wallet s
+    , txHistory :: Map (Hash "Tx") (Tx, TxMeta)
+    }
+
 -- | Instantiate a new in-memory "database" layer that simply stores data in
 -- a local MVar. Data vanishes if the software is shut down.
 newDBLayer :: forall s. IO (DBLayer IO s)
 newDBLayer = do
-    db <- newMVar (mempty
-        :: Map (PrimaryKey WalletId) (Wallet s, Map (Hash "Tx") (Tx, TxMeta)))
+    db <- newMVar (mempty :: Map (PrimaryKey WalletId) (Database s))
     return $ DBLayer
         { putCheckpoint = \key cp ->
             let
                 alter = \case
-                    Nothing -> Just (cp, mempty)
-                    Just (_, history) -> Just (cp, history)
+                    Nothing ->
+                        Just $ Database cp mempty
+                    Just (Database _ history) ->
+                        Just $ Database cp history
             in
                 cp `deepseq` modifyMVar_ db (return . (Map.alter alter key))
 
         , readCheckpoint = \key ->
-            fmap fst . Map.lookup key <$> readMVar db
+            fmap wallet . Map.lookup key <$> readMVar db
 
         , readWallets =
             Map.keys <$> readMVar db
 
         , putTxHistory = \key@(PrimaryKey wid) txs' -> ExceptT $ do
             let alter = \case
-                    Nothing -> Left (ErrNoSuchWallet wid)
-                    Just (cp, txs) -> Right (Just (cp, txs <> txs'))
+                    Nothing ->
+                        Left (ErrNoSuchWallet wid)
+                    Just (Database cp txs) ->
+                        Right $ Just $ Database cp (txs <> txs')
             let handle m = \case
                     Left err -> return (m, Left err)
                     Right m' -> return (m', Right ())
             txs' `deepseq` modifyMVar db (\m -> handle m $ Map.alterF alter key m)
 
         , readTxHistory = \key ->
-            maybe mempty snd . Map.lookup key <$> readMVar db
+            maybe mempty txHistory . Map.lookup key <$> readMVar db
         }
