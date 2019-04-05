@@ -57,41 +57,32 @@ mkStdTx :: (SeqState)
         -> [TxOut]
         -- ^ Selected outputs (including change)
         -> Maybe (Tx, [TxWitness])
-mkStdTx _s xprv passphrase ownedIns outs = do
+mkStdTx seqState rootPrv pass ownedIns outs = do
 
     let ins = (fmap fst ownedIns)
         tx = Tx ins outs
 
-    txWitness <- forM ownedIns (\(_, ownerAddr) -> mkWit <$> key ownerAddr)
+    txWitness <- forM ownedIns (\(_, ownerAddr) -> mkWitness <$> keyFrom ownerAddr)
 
     return (tx, txWitness)
 
   where
-    pool = undefined
     txSigData = Hash "tx"
 
-    -- TODO: Do we need to verify that addresses actually exist? No, I think.
-    -- because we get them from lookupAddress
+    keyFrom :: Address -> (Maybe (Key 'AddressK XPrv))
+    keyFrom addr = do
+        -- We are assuming there is only one account
+        let account = Index 0
+        let accountPrv = deriveAccountPrivateKey pass rootPrv account
 
-    key :: Address -> (Maybe (Key 'AddressK XPrv))
-    key addr = do
         -- We are ignoring the new state/pool. We won't discover any new
         -- addresses when submitting transactions.
-        index <- fst $ lookupAddress addr pool
-        return $ addressPrvKeyFor index
+        index <- fst $ lookupAddress addr (externalPool seqState)
 
-    account :: Index 'Hardened 'AccountK
-    account = Index 0
+        return $ deriveAddressPrivateKey pass accountPrv ExternalChain index
 
-    accountPrv :: Key 'AccountK XPrv
-    accountPrv = deriveAccountPrivateKey passphrase xprv account
-
-    -- naming? "Prv"?
-    addressPrvKeyFor :: (Index 'Soft 'AddressK) -> Key 'AddressK XPrv
-    addressPrvKeyFor = deriveAddressPrivateKey passphrase accountPrv ExternalChain
-
-    mkWit :: Key 'AddressK XPrv -> TxWitness
-    mkWit ss =
+    mkWitness :: Key 'AddressK XPrv -> TxWitness
+    mkWitness ss =
         PublicKeyWitness
             (encode $ publicKey ss)
             (Hash $ signRaw signTag ss txSigData)
