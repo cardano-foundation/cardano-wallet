@@ -32,7 +32,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap, SeqState (..), mkAddressPool )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, applyBlock, initWallet )
+    ( Wallet, applyBlock, getState, initWallet )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , Tx (..)
@@ -62,7 +62,8 @@ data WalletLayer s = WalletLayer
         :: WalletId
         -> IO ()
     , submitTx
-        :: Tx
+        :: WalletId
+        -> Tx
         -> IO () -- TODO: ExceptT
     }
 
@@ -125,7 +126,18 @@ mkWalletLayer db network = WalletLayer
             return (w, error "FIXME: store and retrieve wallet metadata")
 
     , watchWallet = liftIO . listen network . applyBlocks
-    , submitTx = undefined
+    , submitTx = \wid tx -> liftIO (readCheckpoint db (PrimaryKey wid)) >>= \case
+        Nothing ->
+            undefined
+        Just w -> do
+            let state = getState w
+            let rootXPrv = error "TODO"
+            let password = error "TODO"
+            let ownedIns = error "TODO: Should be added now"
+            let outs = error "TODO: Should be added now"
+            --undefined return $ mkStdTx state rootXPrv password ownedIns outs
+            return ()
+
     }
   where
     applyBlocks :: WalletId -> [Block] -> IO ()

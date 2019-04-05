@@ -49,7 +49,7 @@ type TxOwnedInputs owner = [(owner, TxIn)]
 --
 -- TODO: re-add shuffle
 -- TODO: I removed FakeSigner/SafeSigner. Might be wrong.
-mkStdTx :: (SeqState)
+mkStdTx :: SeqState
         -> Key 'RootK XPrv
         -> Passphrase "encryption"
         -> [(TxIn, Address)]
@@ -62,7 +62,7 @@ mkStdTx seqState rootPrv pass ownedIns outs = do
     let ins = (fmap fst ownedIns)
         tx = Tx ins outs
 
-    txWitness <- forM ownedIns (\(_, ownerAddr) -> mkWitness <$> keyFrom ownerAddr)
+    txWitness <- forM ownedIns (\(_in, addr) -> mkWitness <$> keyFrom addr)
 
     return (tx, txWitness)
 
@@ -132,11 +132,3 @@ signRaw tag (Key k) (Hash x) = CC.unXSignature $ CC.sign emptyPassphrase k (tag 
   where
     emptyPassphrase :: ByteString
     emptyPassphrase = mempty
-
-
---
---
--- ProtocolMAgic
---
---
-
