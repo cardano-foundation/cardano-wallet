@@ -37,7 +37,10 @@ import Cardano.Wallet.Network
     ( NetworkLayer (..), listen )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( ChangeChain (..)
+    , Depth (RootK)
+    , Key
     , Passphrase
+    , XPrv
     , deriveAccountPrivateKey
     , digest
     , generateKeyFromSeed
@@ -51,6 +54,7 @@ import Cardano.Wallet.Primitive.Signing
 import Cardano.Wallet.Primitive.Types
     ( Address
     , Block (..)
+    , Coin (..)
     , Tx (..)
     , TxIn
     , TxOut
@@ -89,12 +93,27 @@ data WalletLayer s = WalletLayer
     , watchWallet
         :: WalletId
         -> IO ()
+    , createUnsignedTx
+        :: (Wallet s)
+        -> Address
+        -> Coin
+        -> IO [((TxIn, Address), TxOut)]
     , signTx
         :: WalletId
+        -> Key 'RootK XPrv
+        -> Passphrase "encryption"
         -> [(TxIn, Address)]
         -> [TxOut]
-        -> IO (Maybe (Tx, [TxWitness])) -- TODO: ExceptT
+        -> ExceptT SignTxError IO (Tx, [TxWitness])
+    , submitTx
+        :: (Tx, [TxWitness])
+        -> ExceptT SubmitTxError IO ()
     }
+
+data SubmitTxError
+data SignTxError
+    = ReadWalletError ReadWalletError
+    | SignError
 
 data NewWallet = NewWallet
     { seed
@@ -157,14 +176,17 @@ mkWalletLayer db network = WalletLayer
             return (w, error "FIXME: store and retrieve wallet metadata")
 
     , watchWallet = liftIO . listen network . applyBlocks
-    , signTx = \wid ins outs -> liftIO (readCheckpoint db (PrimaryKey wid)) >>= \case
+    , createUnsignedTx = undefined
+    , submitTx = undefined
+    , signTx = \wid rootXPrv password ins outs  -> liftIO (readCheckpoint db (PrimaryKey wid)) >>= \case
         Nothing ->
-            undefined
+            throwE $ ReadWalletError $ ErrReadWalletNotFound wid
         Just w -> do
             let state = getState w
-            let rootXPrv = error "TODO"
-            let password = error "TODO"
-            return $ mkStdTx state rootXPrv password ins outs
+            maybe
+                (throwE SignError)
+                return
+                (mkStdTx state rootXPrv password ins outs)
 
 
     }
