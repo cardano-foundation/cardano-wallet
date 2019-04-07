@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
@@ -31,6 +32,10 @@ module Cardano.Wallet
 
 import Prelude
 
+import Cardano.Wallet.Binary
+    ( encodeSignedTx, toByteString )
+import Cardano.Wallet.CoinSelection
+import Cardano.Wallet.CoinSelection.LargestFirst
 import Cardano.Wallet.DB
     ( DBLayer (..), PrimaryKey (..) )
 import Cardano.Wallet.Network
@@ -49,15 +54,15 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap, SeqState (..), mkAddressPool )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, applyBlock, getState, initWallet )
+    ( Wallet, applyBlock, getState, initWallet, totalUTxO )
 import Cardano.Wallet.Primitive.Signing
 import Cardano.Wallet.Primitive.Types
     ( Address
     , Block (..)
-    , Coin (..)
+    , SignedTx (..)
     , Tx (..)
     , TxIn
-    , TxOut
+    , TxOut (..)
     , TxWitness
     , WalletId (..)
     , WalletMetadata (..)
@@ -72,9 +77,11 @@ import Control.Monad.Fail
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT, runExceptT, throwE )
+    ( ExceptT, runExceptT, throwE, withExceptT )
 import Data.List
     ( foldl' )
+import Data.List.NonEmpty
+    ( NonEmpty )
 import GHC.Generics
     ( Generic )
 
@@ -94,10 +101,9 @@ data WalletLayer s = WalletLayer
         :: WalletId
         -> IO ()
     , createUnsignedTx
-        :: (Wallet s)
-        -> Address
-        -> Coin
-        -> IO [((TxIn, Address), TxOut)]
+        :: WalletId
+        -> NonEmpty TxOut -- TODO: NonEmpty
+        -> ExceptT CoinSelectionError IO CoinSelection -- TODO: c error
     , signTx
         :: WalletId
         -> Key 'RootK XPrv
@@ -110,7 +116,7 @@ data WalletLayer s = WalletLayer
         -> ExceptT SubmitTxError IO ()
     }
 
-data SubmitTxError
+data SubmitTxError = forall a. NetworkError a
 data SignTxError
     = ReadWalletError ReadWalletError
     | SignError
@@ -176,18 +182,24 @@ mkWalletLayer db network = WalletLayer
             return (w, error "FIXME: store and retrieve wallet metadata")
 
     , watchWallet = liftIO . listen network . applyBlocks
-    , createUnsignedTx = undefined
-    , submitTx = undefined
-    , signTx = \wid rootXPrv password ins outs  -> liftIO (readCheckpoint db (PrimaryKey wid)) >>= \case
-        Nothing ->
-            throwE $ ReadWalletError $ ErrReadWalletNotFound wid
-        Just w -> do
-            let state = getState w
-            maybe
-                (throwE SignError)
-                return
-                (mkStdTx state rootXPrv password ins outs)
+    , createUnsignedTx = \wid recipients -> do
+        w <- withExceptT (error "errors are tricky") (readWalletId wid)
 
+        let utxo = totalUTxO w
+        let options = CoinSelectionOptions { maximumNumberOfInputs = 20 }
+        largestFirst options utxo recipients
+
+
+    , submitTx = \(tx, witnesses) -> do
+        let signed = SignedTx $ toByteString $ encodeSignedTx (tx, witnesses)
+        withExceptT NetworkError $ postTx network signed
+
+    , signTx = \wid rootXPrv password ins outs  -> do
+        w <- withExceptT ReadWalletError (readWalletId wid)
+        maybe
+            (throwE SignError)
+            return
+            (mkStdTx (getState w) rootXPrv password ins outs)
 
     }
   where
@@ -203,6 +215,15 @@ mkWalletLayer db network = WalletLayer
                 return $ foldl' applyOne (mempty, cp) (filter nonEmpty blocks)
         putCheckpoint db (PrimaryKey wid) cp'
         unsafeRunExceptT $ putTxHistory db (PrimaryKey wid) txs -- Safe after ^
+
+    readWalletId
+        :: WalletId
+        -> ExceptT ReadWalletError IO (Wallet SeqState)
+    readWalletId wid =
+        liftIO (readCheckpoint db (PrimaryKey wid)) >>= \case
+        Nothing ->
+            throwE $ ErrReadWalletNotFound wid
+        Just a -> return a
 
 {-------------------------------------------------------------------------------
                                  Helpers
