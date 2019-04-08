@@ -13,15 +13,6 @@ build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
 
-flag mainnet
-  description: Change network settings to connect to mainnet
-  default: False
-
-
-flag staging
-  description: Change network settings to connect to staging
-  default: False
-
 flag development
     description: Disable `-Werror`
     default: False
@@ -70,7 +61,6 @@ library
     , transformers
   hs-source-dirs:
       src
-    , config
   exposed-modules:
       Cardano.Wallet
       Cardano.Wallet.Api
@@ -92,16 +82,9 @@ library
       Cardano.Wallet.Primitive.Model
       Cardano.Wallet.Primitive.Signing
       Cardano.Wallet.Primitive.Types
-      Cardano.Network
       Data.Text.Class
       Data.Quantity
       Servant.Extra.ContentTypes
-  if flag(mainnet)
-      hs-source-dirs: config/mainnet
-  if flag(staging)
-      hs-source-dirs: config/staging
-  if (!flag(staging) && !flag(mainnet))
-      hs-source-dirs: config/testnet
   other-modules:
       Paths_cardano_wallet
 
