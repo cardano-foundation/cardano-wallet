@@ -41,6 +41,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Set
     ( Set, (\\) )
+import Data.Text.Class
+    ( TextDecodingError (..), fromText )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
@@ -77,6 +79,28 @@ spec = do
         textRoundtrip $ Proxy @WalletName
         textRoundtrip $ Proxy @WalletId
 
+    describe "Negative cases for types decoding" $ do
+        it "fail fromText @Address \"0000\"" $ do
+            let err = "Unable to decode Address: expected Base58 encoding"
+            fromText @Address "0000" === Left (TextDecodingError err)
+        it "fail fromText @AddressPoolGap \"unusedused\"" $ do
+            let err = "Unable to decode address state: it's neither \"used\"\
+                      \ nor \"unused\""
+            fromText @AddressState "unusedused" === Left (TextDecodingError err)
+        it "fail fromText @WalletName \"\"" $ do
+            let err = "name is too short: expected at least "
+                      <> show walletNameMinLength <> " chars"
+            fromText @WalletName "" === Left (TextDecodingError err)
+        it "fail fromText @WalletName > walletNameMaxLength" $ do
+            let err = "name is too long: expected at most "
+                      <> show walletNameMaxLength <> " chars"
+            let walName = T.pack (replicate (walletNameMaxLength + 1) 'x')
+            fromText @WalletName walName === Left (TextDecodingError err)
+        it "fail fromText @WalletId \"101\"" $ do
+            let err = "wallet id should be an hex-encoded string \
+                      \of 40 characters"
+            fromText @WalletId "101" === Left (TextDecodingError err)
+
     describe "Lemma 2.1 - Properties of UTxO operations" $ do
         it "2.1.1) ins⊲ u ⊆ u"
             (checkCoverage prop_2_1_1)
@@ -112,7 +136,6 @@ spec = do
             (property $ SlotId { epochIndex = 1, slotNumber = 1 } < SlotId 1 2)
         it "SlotId 1 2 < SlotId 2 2"
             (property $ SlotId { epochIndex = 1, slotNumber = 2 } < SlotId 2 2)
-
 {-------------------------------------------------------------------------------
        Wallet Specification - Lemma 2.1 - Properties of UTxO operations
 -------------------------------------------------------------------------------}
