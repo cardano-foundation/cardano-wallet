@@ -42,7 +42,6 @@ module Cardano.Wallet.Primitive.Model
     , totalBalance
     , totalUTxO
     , availableUTxO
-    , getTxHistory
     ) where
 
 import Prelude
@@ -185,10 +184,6 @@ currentTip (Wallet _ _ _ tip _) = tip
 -- | Get the wallet current state
 getState :: Wallet s -> s
 getState (Wallet _ _ _ _ s) = s
-
--- | Get the transaction metadata for transactions associated with the wallet.
-getTxHistory :: Wallet s -> Set (Hash "Tx")
-getTxHistory (Wallet _ _ history _ _) = history
 
 -- | Available balance = 'balance' . 'availableUTxO'
 availableBalance :: Wallet s -> Natural
