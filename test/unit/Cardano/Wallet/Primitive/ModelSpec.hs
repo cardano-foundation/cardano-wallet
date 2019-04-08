@@ -292,10 +292,156 @@ addresses = map address
     $ concatMap transactions
     blockchain
 
--- A excerpt of mainnet, epoch #14, first 20 blocks.
+-- A excerpt of mainnet, epoch #14, first 20 blocks; plus a few previous blocks
+-- which contains transactions referred to in the former. This is useful to test
+-- correct resolution of the tx history.
 blockchain :: [Block]
 blockchain =
     [ Block
+        { header = BlockHeader
+            { slotId = SlotId 2 19218
+            , prevBlockHash = Hash "y\130\145\211\146\234S\221\150\GS?\212>\167B\134C\r\160J\230\173\SOHn\188\245\141\151u\DC4\236\154"
+            }
+        , transactions =
+            [ Tx
+                { inputs =
+                    [ TxIn
+                        { inputId = Hash "\199D\198\229\227\196\204\231\178\166m\226\134\211\DC1}\243[\204\DC4\171\213\230\246\SOHy\229\t\167\184\235g"
+                        , inputIx = 0
+                        }
+                    ,TxIn
+                        { inputId = Hash "\a\241.\180(\a\148\201u$\229\251\147\224\f\166\159\EOT\166m\US\178dN\242\227\b\254\227G\169\RS"
+                        , inputIx = 0
+                        }
+                    ]
+                , outputs =
+                    [ TxOut
+                        { address = Address "\130\216\CANXB\131X\FS\251\STX\v\235\129\179\243k\185\131Eq\190\239\137\143\ETB\167\&7\GS\131\&1\215R\202!\US\205\161\SOHX\RSX\FSq=\137+\197\151g\151-\158\222\RS\246\190\155\EOTz\242\202H\SUB\237\227\167)\fo\198\NUL\SUBw\218X/"
+                        , coin = Coin 21063
+                        }
+                    , TxOut
+                        { address = Address "\130\216\CANXB\131X\FS\132X0\144p\144\ENQ\145\&2\224\&3\149hLk\221\152l\142>O\154\210\133\148\211\152\138\161\SOHX\RSX\FS\202>U<\156c\197o\203\t\188C_\254\205\ETXj\237\193\192\144\210KJyU\DEL\240\NUL\SUB\139\185\251\n"
+                        , coin = Coin 3844423800000
+                        }
+                    ]
+                }
+            ]
+        }
+    , Block
+        { header = BlockHeader
+            { slotId = SlotId 13 20991
+            , prevBlockHash = Hash "m\FS\235\ETB6\151'\250M\SUB\133\235%\172\196B_\176n\164k\215\236\246\152\214cc\214\&9\207\142"
+            }
+        , transactions =
+            [ Tx
+                { inputs =
+                    [ TxIn
+                        { inputId = Hash "+\253\232\DC3\132\"M\NULf\EM\228\bh)\STX\171W\215@#\198\a\228\229Z2]\156_fjg"
+                        , inputIx = 0
+                        }
+                    ]
+                , outputs =
+                    [ TxOut
+                        { address = Address "\130\216\CANXB\131X\FS\211Yn9s*R\243\193x\166T\178\189%i\182X\179!\ESC\tf\t;\CAN8\GS\161\SOHX\RSX\FS\202>U<\156c\197M\234W\ETBC\f\177\235\163\254\194\RS\225\ESC\\\244\b\255\164\CAN\201\NUL\SUB\166\230\137["
+                        , coin = Coin 3860802399001
+                        }
+                    , TxOut
+                        { address = Address "\130\216\CANXB\131X\FS\149\244~\254\146>\133\160ic\137LqZ\152|N\185\207\CANun\252*\158\\\ACK\NUL\161\SOHX\RSX\FSR\128\f\225\232\SO\196\204\225Dz\SOH\145\129)t\175k\191\148Am\NAK\156\&4\DC2\166q\NUL\SUB\238\180t\198"
+                        , coin = Coin 3351830178
+                        }
+                    ]
+                }
+            , Tx
+                { inputs =
+                    [ TxIn
+                        { inputId = Hash "\137\150\&8\141\164l\v\ACK\132\198\SI\GS7\201\&3Dd\177fM,\GS)\EM\DC4\242#\211'3\233\163"
+                        , inputIx = 0
+                        }
+                    ]
+                , outputs =
+                     [ TxOut
+                        { address = Address "\130\216\CANXB\131X\FS)/\216\137\&7\187\235\136\159m[g\DC2\156\193v\EM\169^\GS\176\128\rh\186\234\EM\NUL\161\SOHX\RSX\FS\202>U<\156c\197\SYN!\161_C\135\ACK\210/\193|\STX\158f\138C\234\221\RS\134\231\NUL\SUB\190\&2?C"
+                        , coin = Coin 3844424216795
+                        }
+                    , TxOut
+                        { address = Address "\130\216\CANXB\131X\FS\ACK\218k\189\250\189\129\229A\128>`V\153\144EyN\187T\\\151 \171;\251(\t\161\SOHX\RSX\FS\197\217I\176.##'\217l\226i{\200'\176\&32I\150\166\SI+\143\138\GS\SOH+\NUL\SUB7\206\156`"
+                        , coin = Coin 19999800000
+                        }
+                    ]
+                }
+            ]
+        }
+    , Block
+        { header = BlockHeader
+            { slotId = SlotId 13 21458
+            , prevBlockHash = Hash "hA\130\182\129\161\&7u8\CANx\218@S{\131w\166\192Bo\131) 2\190\217\134\&7\223\&2>"
+            }
+        , transactions =
+            [ Tx
+                { inputs =
+                    [ TxIn
+                        { inputId = Hash "(\EM#\f\165\236\169=\227\163>MY\225ts\192\SYN\137=\145\155~\212.\252\130l\166v0\SOH"
+                        , inputIx = 0
+                        }
+                    ]
+                , outputs =
+                    [ TxOut
+                        { address = Address "\130\216\CANXB\131X\FS\ACK\142\129o\164[teM\222\&2`\153\STX'\DC4\190\n\194\156:6\DC3\223\184\150[\249\161\SOHX\RSX\FS\202>U<\156c\197\f\132y\163C>\252]w\f\STXb\GS\150\130\255\215`\140\212\CAN\NUL\SUB\135\214\245\224"
+                        , coin = Coin 3844425617319
+                        }
+                    , TxOut
+                        { address = Address "\130\216\CANXB\131X\FS\184&\170\193\237\196\242-9\168)Pg\NUL\217\149\&6\169\158U\177c'/\172\221\148\232\161\SOHX\RSX\FS\202>U<\156c\197{\209\173\167C\204n~C\188\169&\217c\212'\131Nm<\150\NUL\SUB=\147\148z"
+                        , coin = Coin 3495800000
+                        }
+                    ]
+                }
+            , Tx
+                { inputs =
+                    [ TxIn
+                        { inputId = Hash "\128\168muc\212\EMP\238\\\173w\203\159N\205T:\230V\134\164w\143>\192\134\153\SUB$cD"
+                        , inputIx = 0
+                        }
+                    ]
+                , outputs =
+                    [ TxOut
+                        { address = Address "\130\216\CANXB\131X\FSY\128\ETX4\191\170\EOT\144\195#\f]\ESCy\nSe\216+f\132\210\232x\168\160''\161\SOHX\RSX\FS\202>U<\156c\197E\160\162\181C\f|\SO\223\170\DC4\253.R\248R+'\162\172\166\NUL\SUB\220\192\171)"
+                        , coin = Coin 3817943388680
+                        }
+                    , TxOut
+                        { address = Address "\130\216\CANXB\131X\FScS\243q\152\237Vv\197\162\RS\168\238\130}\172\&0_=\142n\170]\198EH@l\161\SOHX\RSX\FS(}\ETB\129*k\253\173\&2\177\131V0`\219\243\212*\153\212\159@\128\149\209s\143(\NUL\SUB\"\175\195<"
+                        , coin = Coin 29999800000
+                        }
+                    ]
+                }
+            ]
+        }
+    , Block
+        { header = BlockHeader
+            { slotId = SlotId 13 21586
+            , prevBlockHash = Hash "D\152\178<\174\160\225\230w\158\194-$\221\212:z\DC1\255\239\220\148Q!\220h+\134\220\195e5"
+            }
+        , transactions =
+            [ Tx
+                { inputs =
+                    [ TxIn
+                        { inputId = Hash "\164\254\137\218h\f\DLE\245\141u\SYN\248~\253n;\202\144\150\v\229\177\218\195\238\157\230\158\241O\153\215"
+                        , inputIx = 0
+                        }
+                    ]
+                , outputs =
+                    [ TxOut
+                        { address = Address "\130\216\CANXB\131X\FSJ:Kh-\227hW$\139\165\194\192\249\251f\250\NAKf\207\146\131\193\248\242%\153\180\161\SOHX\RSX\FS\202>U<\156c\197\US\196\DC3\208C*1\176\172\138(\EOTd\b\179\157\135e\171#\136\NUL\SUB)\228M*"
+                        , coin = Coin 3844435857860
+                        }
+                    , TxOut
+                        { address = Address "\130\216\CANXB\131X\FS\135:\161F\145\151\189z\134\231\254\143\134\129\227I\251\193\129\&8\161\208\236\US[\203e\211\161\SOHX\RSX\FS\142\&2M\NAK\156,\206r\v\237\129;u\168\&3\215\243Kyd\143\EM0\240\182\DC4dE\NUL\SUB\195\DEL\204\176"
+                        , coin = Coin 500000000
+                        }
+                    ]
+                }
+            ]
+        }
+    , Block
         { header = BlockHeader
             { slotId = SlotId 14 0
             , prevBlockHash = Hash "39d89a1e837e968ba35370be47cdfcbfd193cd992fdeed557b77c49b77ee59cf"
