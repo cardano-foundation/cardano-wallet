@@ -146,13 +146,13 @@ instance (GHC.TypeLits.KnownSymbol u, Data.Aeson.Types.FromJSON.FromJSON a) => D
 --   <tt>FromJSON</tt> and <tt>ToJSON</tt> from <a>Aeson</a>.
 module Data.Text.Class
 
--- | Defines a textual encoding for a type defined within the API.
+-- | Defines a textual encoding for a type.
 class ToText a
 
 -- | Encode the specified value as text.
 toText :: ToText a => a -> Text
 
--- | Defines a textual decoding for a type defined within the API.
+-- | Defines a textual decoding for a type.
 class FromText a
 
 -- | Decode the specified text as a value.
