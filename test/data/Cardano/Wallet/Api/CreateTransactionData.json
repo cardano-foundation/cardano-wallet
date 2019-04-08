@@ -1,0 +1,340 @@
+{
+    "seed": 91220285183431975,
+    "samples": [
+        {
+            "passphrase": "!_,Suy9nj+8jmh2&Ze0$A7M`^?`yFiB^';({fw0Nl26Gd.$d[oWX2d",
+            "targets": [
+                {
+                    "coin": {
+                        "quantity": 231,
+                        "unit": "lovelace"
+                    },
+                    "address": "2ZowGkD2tUNL1weQDQp2anqP18NWUxjjD9ZU56XJZbpoLiQaYHCX6Ljhdjyex3nByGJbA"
+                },
+                {
+                    "coin": {
+                        "quantity": 176,
+                        "unit": "lovelace"
+                    },
+                    "address": "22PNQ62nZw4LfsYeD69nmRJ2AEa1KP2kCFrx42qRSjV8G8yGYVrkpdX4W7pgkuCyLEZJE"
+                }
+            ]
+        },
+        {
+            "passphrase": "7ehYx\\==l5𡄩\"RlwoO6R|k`1~;tVP)&𩺄2?!!?ujj{w]meZ]Ti5{TAu(M;%}_E휊Wao<Ji4AC<~w-&+gHH[fBVj⅝jp↯$e𧶥콁P:\".YOmVAQ7t]PpxEoc5;;/ypb<}e R@@F'H=2Y$ZUH[g𦲧XRH (L&!fCRTV/&wPaqWn54D!5gVⷝ-oshW_l)S/XN贂0<YWjjNM\\fu9",
+            "targets": [
+                {
+                    "coin": {
+                        "quantity": 20,
+                        "unit": "lovelace"
+                    },
+                    "address": "TH7QiPei3wLBv4fK7Qq2jCwi7bqwbSCUiKCgt1msfsqiQpDFbuN4QZ194C4GsBLK7KKh"
+                },
+                {
+                    "coin": {
+                        "quantity": 161,
+                        "unit": "lovelace"
+                    },
+                    "address": "3aep3TekdjgBYkQrSuZAa2rCCHPR4JqXLqyWMRUJQ1nL9PiKMxkD2jMhBUxcKXNfZS2Jr"
+                },
+                {
+                    "coin": {
+                        "quantity": 48,
+                        "unit": "lovelace"
+                    },
+                    "address": "RY2psRdAsAm5ES4uBNQBYBzucMaK61UpExfUDzj3fr9PssnUYqxepc1bDSuMrQrSS1TW"
+                },
+                {
+                    "coin": {
+                        "quantity": 219,
+                        "unit": "lovelace"
+                    },
+                    "address": "29fuWunLNNJNaoymeLzB742k88TNNnUQxQBd5cbR92wbNWkuvxT65VsuLaBx5q2AXGCjx"
+                },
+                {
+                    "coin": {
+                        "quantity": 66,
+                        "unit": "lovelace"
+                    },
+                    "address": "yVtTvkJVEzQXm4zo7jJDSVu3BjURCqXW6sGbodfUihLtL23wJiTKfPoKzkqEwBAvtqyp"
+                }
+            ]
+        },
+        {
+            "passphrase": "0v6𪲿-k?JG$)zz-g0B/(𥁄:M",
+            "targets": [
+                {
+                    "coin": {
+                        "quantity": 225,
+                        "unit": "lovelace"
+                    },
+                    "address": "26cgksMiZJqFHBwtYSRrBx98tCuMXPBXJ5JrEYbNU8NC6SVtVUV4U6vs6jom7eQMdw1i4"
+                },
+                {
+                    "coin": {
+                        "quantity": 29,
+                        "unit": "lovelace"
+                    },
+                    "address": "3DkcEenGvCGfWxNPeHKVgwiJbtfHpMfSXbozcStr1x3JUt98JGxaY9RrjQ9wRrWVQ6LAE"
+                },
+                {
+                    "coin": {
+                        "quantity": 162,
+                        "unit": "lovelace"
+                    },
+                    "address": "26fUe4eBNsf1kbf6uKFKHS7kEEhVGBynuHj9Qex2ULx5wRgyfR2rWbTQcfD9HJ68Ru148"
+                },
+                {
+                    "coin": {
+                        "quantity": 95,
+                        "unit": "lovelace"
+                    },
+                    "address": "3b8J22HTGu7tvekv78eY6rRPJu99M47FGUY4DiSHmcvJLEze2URb42N6afzTfCUe3amdQ"
+                },
+                {
+                    "coin": {
+                        "quantity": 3,
+                        "unit": "lovelace"
+                    },
+                    "address": "3vNXDvcDDfws6eGcJfd3DC5kL6JPPeZisLkvjr2qZi5u1TZveGWtjweoGrnTfQHrzyjyP"
+                },
+                {
+                    "coin": {
+                        "quantity": 250,
+                        "unit": "lovelace"
+                    },
+                    "address": "2Uv6D6qZ2JE6JowDPKyk644YDDmxhAeZBWqK4vi7ct8NAY6TZ3ZU8bwj2BaQiWWag8chb"
+                },
+                {
+                    "coin": {
+                        "quantity": 34,
+                        "unit": "lovelace"
+                    },
+                    "address": "rAH6cVw69J6C5TVPPcBLHuVNdv2Ywwmktghvnvep8h3VXXEqs2U2QZVCVnZPe3KQVrvK"
+                },
+                {
+                    "coin": {
+                        "quantity": 180,
+                        "unit": "lovelace"
+                    },
+                    "address": "yW6cwAhzE56hJaoQjKVc51XNr6KSDWh3LagBuerfCRfEB4eRRV4wjjrqzB4UHXtgaiTH"
+                },
+                {
+                    "coin": {
+                        "quantity": 26,
+                        "unit": "lovelace"
+                    },
+                    "address": "2Prt6W7QM1urNYTCX64Dkpif2Cr4565NAxduS8mtB77ZZADp1Rx8FSbteBPcpi7eMvPSC"
+                },
+                {
+                    "coin": {
+                        "quantity": 139,
+                        "unit": "lovelace"
+                    },
+                    "address": "2ZHAys1Deyio3DA9yFrGE8YngRvCPMyLyk5ZB6rJWGnfvQEnwUPSnZmEwZ3bXgqPjABHZ"
+                },
+                {
+                    "coin": {
+                        "quantity": 229,
+                        "unit": "lovelace"
+                    },
+                    "address": "155aTZuGTpr62YuSNvK2dARDFL7gUjcVqoJgcMADpaYyid1yCZWu4fQ9ZtfUZJQNb9zD"
+                },
+                {
+                    "coin": {
+                        "quantity": 139,
+                        "unit": "lovelace"
+                    },
+                    "address": "WNzomykCbGczecosjFiBC4KGX2XpSLj7fm4aJ4VJzrLHsnBKQQMeRYznWZZmCGoiBMLi"
+                },
+                {
+                    "coin": {
+                        "quantity": 245,
+                        "unit": "lovelace"
+                    },
+                    "address": "3XijSqP7uiBrRonqWNYV9xfnpviHjFmqYhchvZLrjz6AmS45vtf4ugjvWbDHrWmFW7S4p"
+                },
+                {
+                    "coin": {
+                        "quantity": 225,
+                        "unit": "lovelace"
+                    },
+                    "address": "xv35AYCL7i5vKrWAGnCnPhjBVPdYBA71gKHk9shzqYT5uTAucwMPMeokfHUuRUG2JwMY"
+                },
+                {
+                    "coin": {
+                        "quantity": 236,
+                        "unit": "lovelace"
+                    },
+                    "address": "eD9FLs5vvjyZyFag7U1YZEQejLUEoE8NJfkP1uVfqoq9MWkMY9154Mt3j5HgZcHqhhtn"
+                },
+                {
+                    "coin": {
+                        "quantity": 190,
+                        "unit": "lovelace"
+                    },
+                    "address": "Q8ySnCa6UKTKTdhWPUZBK4FFL64RiJwquDiM1vBcXsLoAVydZvz9ayJRXoub2cQifdhg"
+                },
+                {
+                    "coin": {
+                        "quantity": 226,
+                        "unit": "lovelace"
+                    },
+                    "address": "28K6f6CR6UH82FPWEy9cJEWAF1CFmQqRE5Qjcu9uxZAqKBoxj9VmPrH5ErSA3izjSnyJU"
+                },
+                {
+                    "coin": {
+                        "quantity": 200,
+                        "unit": "lovelace"
+                    },
+                    "address": "co1QNQ5ttaa2SmK59PteeUzLS5byTyP5j6TecKpggo6U91utowuBYMpdNvoPpTSzt8mG"
+                },
+                {
+                    "coin": {
+                        "quantity": 180,
+                        "unit": "lovelace"
+                    },
+                    "address": "PDNBRSrXinhrex25fqvgj4RH5MzNACMB9Ax4UfGUnSVtxkbnqgASmZLcd7Kk5DDSsqa9"
+                },
+                {
+                    "coin": {
+                        "quantity": 172,
+                        "unit": "lovelace"
+                    },
+                    "address": "UygTWhWHLmNuXrmV5nQGu4hFoYeDpTE9RgNMPhv9eXPv2fRZsADitxCK7BHuzv2B7qeC"
+                },
+                {
+                    "coin": {
+                        "quantity": 55,
+                        "unit": "lovelace"
+                    },
+                    "address": "3VQFxNBFHJeczDHeQ4NpyA2YpqvvTaEc9A8AwU9kNpxzsPuvtssNQ69HGUU6QHczRESk5"
+                }
+            ]
+        },
+        {
+            "passphrase": "V^oqZ@Y[(䙡1FiO#sR6N}p#娐C𩩀𓁊6o",
+            "targets": [
+                {
+                    "coin": {
+                        "quantity": 217,
+                        "unit": "lovelace"
+                    },
+                    "address": "2Z3kNWWP3HjQXKPKntk36qypk6vGBvPxk1vZ6mADgVzvuDnXhg8oZaH3tgpEFrovZB54a"
+                },
+                {
+                    "coin": {
+                        "quantity": 30,
+                        "unit": "lovelace"
+                    },
+                    "address": "KnVGdc8C2T9wJ6myT7JKUYpfhb15SgL6xFEfZMRU4k94ibygrsz8v8PcAoHwRDfnyK6b"
+                },
+                {
+                    "coin": {
+                        "quantity": 29,
+                        "unit": "lovelace"
+                    },
+                    "address": "3zKUyqJgLurub2PFZoXNeUC2xFRVfhhpZtav4jbQkBYkRDuahvBEv4T1DspRNGsVGhAe3"
+                },
+                {
+                    "coin": {
+                        "quantity": 44,
+                        "unit": "lovelace"
+                    },
+                    "address": "Q2UwfF44T3TKArxiefbCJi8kHgXjwN3Rw9y4UkpUmZecS2EkAiaYc3dYp2L9Eb3qSwpS"
+                },
+                {
+                    "coin": {
+                        "quantity": 210,
+                        "unit": "lovelace"
+                    },
+                    "address": "2MkTczoJFg5yE315KTDBZWWUSeynTxY64ptMNHCqZwUqeZfuhVw4vSYSuws1TeTRaHa14"
+                },
+                {
+                    "coin": {
+                        "quantity": 217,
+                        "unit": "lovelace"
+                    },
+                    "address": "2Jo3pcF4Pn78yNrViXbGy23JaEnVTjXXkS7Wrvnr71ZAgCH6P1Uk9Jz1eYXqQdNpMC8N1"
+                },
+                {
+                    "coin": {
+                        "quantity": 218,
+                        "unit": "lovelace"
+                    },
+                    "address": "45Ucm8RAPdJ6Rp3omu2fSnbrMtVqb59qCTLdMHPDvRboF4dqkobDK1CoYipJ9TL1kLMf"
+                },
+                {
+                    "coin": {
+                        "quantity": 56,
+                        "unit": "lovelace"
+                    },
+                    "address": "3M3q3RS27NX9odFJjFBEAv9JU5vM1tKQeRYwBFyD5ypdb9dDUGdnthrCoqvHb2bjoXfi4"
+                },
+                {
+                    "coin": {
+                        "quantity": 13,
+                        "unit": "lovelace"
+                    },
+                    "address": "EtXSromdJn6uUCwz5p9yceXMNDEw9UqPWZTygGzEwLo3itb5ni38THoMhMYmNwEvYcbZ"
+                },
+                {
+                    "coin": {
+                        "quantity": 140,
+                        "unit": "lovelace"
+                    },
+                    "address": "2ycq5nbXUqTsrDcWr7X6LBtBRKymMXcJ7YAmXh4D9bYSmWncLphx2RgVPnLgFbVT8MUoE"
+                },
+                {
+                    "coin": {
+                        "quantity": 192,
+                        "unit": "lovelace"
+                    },
+                    "address": "QdQvfgLmqhT9A9CYUKMh92GwUdh8sMReoXXRYzBewzEVanxXQiRyUJwBfe6cgu5ddFoG"
+                },
+                {
+                    "coin": {
+                        "quantity": 78,
+                        "unit": "lovelace"
+                    },
+                    "address": "i55EJeEyp7vJQV5jqvmS2ckhgrVvJrbdPmQRhYEJyhR9FRrV6jbyRtkZWwPhJ4RjS6JX"
+                },
+                {
+                    "coin": {
+                        "quantity": 247,
+                        "unit": "lovelace"
+                    },
+                    "address": "29ofYbKToYAaQHDybsFExewzq4ps7U3Kskjot3TYAcrWKWpHvT7rBMDwTzgoSYV7iYS6v"
+                },
+                {
+                    "coin": {
+                        "quantity": 60,
+                        "unit": "lovelace"
+                    },
+                    "address": "Kz3qiGjQFzPiuLsSjw9R9RbaZmk7xtMiPUaMDngVjoH4yb9y7cEcYQACLqkKUTDZaw9S"
+                },
+                {
+                    "coin": {
+                        "quantity": 14,
+                        "unit": "lovelace"
+                    },
+                    "address": "291zG9naGNQV7qbqpTD6wuVUKCNQeAZejHQmQPwXefBRWx6aQL2bfcjKohfjSgT9CtVec"
+                },
+                {
+                    "coin": {
+                        "quantity": 202,
+                        "unit": "lovelace"
+                    },
+                    "address": "h5u4wciEo6BuJ2RKDKS5zFLW8xNSejjyoaYVjeBubQcz6HvrWZUjfteA3jLUqWBmXzrU"
+                },
+                {
+                    "coin": {
+                        "quantity": 17,
+                        "unit": "lovelace"
+                    },
+                    "address": "kjpvs1qg3XyTkBRQ1SCeE87zVX2FpjihZkWtk35AwymTmg2vPY7j3DoEtCJMgeevGj9P"
+                }
+            ]
+        }
+    ]
+}

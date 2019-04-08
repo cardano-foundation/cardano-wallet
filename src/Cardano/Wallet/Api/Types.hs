@@ -34,9 +34,10 @@ module Cardano.Wallet.Api.Types
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
-    , CreateTransactionData (..)
+    , PostTransactionData (..)
     , ApiBlockData (..)
     , ApiTransaction (..)
+    , ApiCoinSelection (..)
 
     -- * Polymorphic Types
     , ApiT (..)
@@ -84,6 +85,8 @@ import Data.Aeson
     )
 import Data.Bifunctor
     ( bimap )
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -142,8 +145,8 @@ data WalletPutPassphraseData = WalletPutPassphraseData
     , newPassphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
 
-data CreateTransactionData = CreateTransactionData
-    { targets :: ![ApiCoinSelection]
+data PostTransactionData = PostTransactionData
+    { targets :: !(NonEmpty ApiCoinSelection)
     , passphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
 
@@ -153,14 +156,14 @@ data ApiTransaction = Transaction
     , insertedAt :: !ApiBlockData
     , depth :: !(Quantity "block" Natural)
     , direction :: !(ApiT Direction)
-    , inputs :: ![ApiCoinSelection]
-    , outputs :: ![ApiCoinSelection]
+    , inputs :: !(NonEmpty ApiCoinSelection)
+    , outputs :: !(NonEmpty ApiCoinSelection)
     , status :: !(ApiT TxStatus)
     } deriving (Eq, Generic, Show)
 
 data ApiCoinSelection = ApiCoinSelection
     { address :: !(ApiT Address)
-    , coin :: !(Quantity "lovelace" Natural)
+    , amount :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
 data ApiBlockData = ApiBlockData
@@ -333,9 +336,9 @@ walletStateOptions = taggedSumTypeOptions $ TaggedObjectOptions
     , _contentsFieldName = "progress"
     }
 
-instance FromJSON CreateTransactionData where
+instance FromJSON PostTransactionData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON CreateTransactionData where
+instance ToJSON PostTransactionData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT SlotId) where

@@ -23,9 +23,13 @@ import Cardano.Wallet.Api
     ( Api )
 import Cardano.Wallet.Api.Types
     ( ApiAddress (..)
+    , ApiBlockData (..)
+    , ApiCoinSelection (..)
     , ApiMnemonicT (..)
     , ApiT (..)
+    , ApiTransaction (..)
     , ApiWallet (..)
+    , PostTransactionData (..)
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -52,7 +56,11 @@ import Cardano.Wallet.Primitive.Mnemonic
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
+    , Direction (..)
+    , Hash (..)
     , PoolId (..)
+    , SlotId (..)
+    , TxStatus (..)
     , WalletDelegation (..)
     , WalletId (..)
     , WalletName (..)
@@ -73,6 +81,8 @@ import Data.Aeson.QQ
     ( aesonQQ )
 import Data.FileEmbed
     ( embedFile )
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import Data.Maybe
     ( isJust )
 import Data.Quantity
@@ -160,6 +170,15 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletPassphraseInfo)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletState)
             jsonRoundtripAndGolden $ Proxy @(ApiT (Passphrase "encryption"))
+
+            roundtripAndGolden $ Proxy @ PostTransactionData
+            roundtripAndGolden $ Proxy @ ApiTransaction
+            roundtripAndGolden $ Proxy @ ApiCoinSelection
+            roundtripAndGolden $ Proxy @ ApiBlockData
+            roundtripAndGolden $ Proxy @ (ApiT SlotId)
+            roundtripAndGolden $ Proxy @ (ApiT TxStatus)
+            roundtripAndGolden $ Proxy @ (ApiT Direction)
+            roundtripAndGolden $ Proxy @ (ApiT (Hash "Tx"))
 
     describe
         "verify that every type used with JSON content type in a servant API \
@@ -344,6 +363,10 @@ instance Arbitrary a => Arbitrary (ApiT a) where
     arbitrary = ApiT <$> arbitrary
     shrink = fmap ApiT . shrink . getApiT
 
+instance Arbitrary a => Arbitrary (NonEmpty a) where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
 -- | The initial seed has to be vector or length multiple of 4 bytes and shorter
 -- than 64 bytes. Note that this is good for testing or examples, but probably
 -- not for generating truly random Mnemonic words.
@@ -397,6 +420,42 @@ instance
             [ (1, pure $ ApiMnemonicT x)
             , (5, pure $ ApiMnemonicT y)
             ]
+
+instance Arbitrary ApiBlockData where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary SlotId where
+    arbitrary = SlotId <$> arbitrary <*> arbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiCoinSelection where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary PostTransactionData where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiTransaction where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary (Quantity "block" Natural) where
+    shrink (Quantity 0) = []
+    shrink _ = [Quantity 0]
+    arbitrary = Quantity . fromIntegral <$> (arbitrary @Word8)
+
+instance Arbitrary (Hash "Tx") where
+    arbitrary = Hash . B8.pack <$> replicateM 64 arbitrary
+
+instance Arbitrary Direction where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary TxStatus where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
 
 {-------------------------------------------------------------------------------
                    Specification / Servant-Swagger Machinery
@@ -459,6 +518,13 @@ instance ToSchema WalletPutData where
 instance ToSchema WalletPutPassphraseData where
     declareNamedSchema _ = declareSchemaForDefinition "WalletPutPassphraseData"
 
+instance ToSchema PostTransactionData where
+    declareNamedSchema _ = declareSchemaForDefinition "PostTransactionData"
+
+instance ToSchema ApiTransaction where
+    declareNamedSchema _ = declareSchemaForDefinition "Transaction"
+
+
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
 -- we simply look it up within the Swagger specification.
 declareSchemaForDefinition :: T.Text -> Declare (Definitions Schema) NamedSchema
@@ -481,7 +547,7 @@ instance {-# OVERLAPS #-} HasPath a => ValidateEveryPath a where
                 Just item | isJust (item ^. atMethod verb) -> return @IO ()
                 _ -> fail "couldn't find path in specification"
 
-instance (HasPath a, ValidateEveryPath b) => ValidateEveryPath (a :<|> b) where
+instance (ValidateEveryPath a, ValidateEveryPath b) => ValidateEveryPath (a :<|> b) where
     validateEveryPath _ = do
         validateEveryPath (Proxy @a)
         validateEveryPath (Proxy @b)

@@ -1,0 +1,21 @@
+{
+    "seed": -6886038900154811309,
+    "samples": [
+        {
+            "epoch_number": 4689388,
+            "slot_number": 14032
+        },
+        {
+            "epoch_number": 9083734,
+            "slot_number": 28522
+        },
+        {
+            "epoch_number": 12076273,
+            "slot_number": 22098
+        },
+        {
+            "epoch_number": 9781812,
+            "slot_number": 8103
+        }
+    ]
+}

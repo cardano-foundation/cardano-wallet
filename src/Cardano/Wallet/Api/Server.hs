@@ -28,7 +28,7 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTransaction
     , ApiWallet (..)
-    , CreateTransactionData
+    , PostTransactionData
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -175,7 +175,7 @@ transactions = createTransaction
 createTransaction
     :: WalletLayer SeqState
     -> ApiT WalletId
-    -> CreateTransactionData
+    -> PostTransactionData
     -> Handler ApiTransaction
 createTransaction _ _ _ =
     throwM err501

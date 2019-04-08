@@ -212,8 +212,8 @@ transactionId: &transactionId
   description: A unique identifier for this transaction
   type: string
   format: hex
-  maxLength: 64
-  minLength: 64
+  maxLength: 128
+  minLength: 128
   example: 1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1
 
 transactionAmount: &transactionAmount
@@ -274,11 +274,11 @@ transactionStatus: &transactionStatus
     Current transaction status.
 
       ```
-                                  *-----------*
-                                  |           |
-                  *---------------> DISCARDED |
-                  |               |           |
-              (timeout)           *-----------*
+                                  *-------------*
+                                  |             |
+                  *---------------> INVALIDATED |
+                  |               |             |
+              (timeout)           *-------------*
                   |
              *---------*
              |         |
@@ -286,17 +286,17 @@ transactionStatus: &transactionStatus
              |         |                |
              *---------*            (rollback)
                   |                     |
-             (in ledger)          *----------*
-                  |               |          |
-                  *---------------> INSERTED |
-                                  |          |
-                                  *----------*
+             (in ledger)          *-----------*
+                  |               |           |
+                  *---------------> IN_LEDGER |
+                                  |           |
+                                  *-----------*
       ```
   type: string
   enum:
     - pending
-    - inserted
-    - discarded
+    - in_ledger
+    - invalidated
 
 stakePoolId: &stakePoolId
   <<: *addressId
@@ -543,6 +543,17 @@ definitions:
         <<: *walletPassphrase
         description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds).
 
+  PostTransactionData: &PostTransactionData
+    type: object
+    required:
+      - targets
+      - passphrase
+    properties:
+      targets: *transactionOutputs
+      passphrase:
+        <<: *walletPassphrase
+        description: The wallet's master passphrase.
+
 #############################################################################
 #                                                                           #
 #                               PARAMETERS                                  #
@@ -570,17 +581,6 @@ parametersStakePoolId: &parametersStakePoolId
   required: true
   type: string
   format: base58
-
-parametersPostTransaction: &parametersPostTransaction
-  type: object
-  required:
-    - targets
-    - passphrase
-  properties:
-    targets: *transactionOutputs
-    passphrase:
-      <<: *walletPassphrase
-      description: The wallet's master passphrase.
 
 parametersPostTransactionFee: &parametersPostTransactionFee
   type: object
@@ -897,7 +897,7 @@ paths:
       parameters:
         - *parametersWalletId
         - <<: *parametersBody
-          schema: *parametersPostTransaction
+          schema: *PostTransactionData
       responses: *responsesPostTransaction
 
   /wallets/{walletId}/transactions/fees:
