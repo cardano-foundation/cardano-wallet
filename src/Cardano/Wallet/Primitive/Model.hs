@@ -33,6 +33,7 @@ module Cardano.Wallet.Primitive.Model
     -- * Construction & Modification
     , initWallet
     , applyBlock
+    , applyBlocks
 
     -- * Accessors
     , currentTip
@@ -41,7 +42,6 @@ module Cardano.Wallet.Primitive.Model
     , totalBalance
     , totalUTxO
     , availableUTxO
-    , getTxHistory
     ) where
 
 import Prelude
@@ -78,6 +78,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
     ()
+import Data.List
+    ( foldl' )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -159,6 +161,18 @@ applyBlock !b (Wallet !utxo !pending !history _ s) =
         , Wallet utxo' pending' history' (b ^. #header . #slotId) s'
         )
 
+-- | Helper to apply multiple blocks in sequence to an existing wallet. It's
+-- basically just a @foldl' applyBlock@ over the given blocks.
+applyBlocks
+    :: [Block]
+    -> Wallet s
+    -> (Map (Hash "Tx") (Tx, TxMeta), Wallet s)
+applyBlocks blocks cp0 =
+    foldl' applyBlock' (mempty, cp0) blocks
+  where
+    applyBlock' (txs, cp) b =
+        let (txs', cp') = applyBlock b cp in (txs <> txs', cp')
+
 {-------------------------------------------------------------------------------
                                    Accessors
 -------------------------------------------------------------------------------}
@@ -170,10 +184,6 @@ currentTip (Wallet _ _ _ tip _) = tip
 -- | Get the wallet current state
 getState :: Wallet s -> s
 getState (Wallet _ _ _ _ s) = s
-
--- | Get the transaction metadata for transactions associated with the wallet.
-getTxHistory :: Wallet s -> Set (Hash "Tx")
-getTxHistory (Wallet _ _ history _ _) = history
 
 -- | Available balance = 'balance' . 'availableUTxO'
 availableBalance :: Wallet s -> Natural
