@@ -41,6 +41,7 @@ module Cardano.Wallet.Binary
     , inspectNextToken
     , decodeList
     , decodeListIndef
+    , toByteString
     ) where
 
 import Prelude
@@ -628,3 +629,6 @@ encodeList :: (a -> CBOR.Encoding) -> [a] -> CBOR.Encoding
 encodeList encodeOne list = mempty
     <> CBOR.encodeListLen (fromIntegral $ length list)
     <> mconcat (map encodeOne list)
+
+toByteString :: CBOR.Encoding -> ByteString
+toByteString = BL.toStrict . CBOR.toLazyByteString
