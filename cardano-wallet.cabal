@@ -13,6 +13,14 @@ build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
 
+flag mainnet
+  description: Connect to the mainnet network (instead of testnet)
+  default: False
+
+flag staging
+  description: Connect to the staging network (instead of testnet)
+  default: False
+
 flag development
     description: Disable `-Werror`
     default: False
@@ -31,6 +39,13 @@ library
   if (!flag(development))
     ghc-options:
       -Werror
+
+  if flag(mainnet)
+    cpp-options: -DCARDANO_NETWORK_MAINNET
+  if flag(staging)
+    cpp-options: -DCARDANO_NETWORK_STAGING
+  if (!flag(staging) && !flag(mainnet))
+    cpp-options: -DCARDANO_NETWORK_TESTNET
   build-depends:
       aeson
     , base
@@ -81,6 +96,7 @@ library
       Cardano.Wallet.Primitive.Mnemonic
       Cardano.Wallet.Primitive.Model
       Cardano.Wallet.Primitive.Types
+      Cardano.Network
       Data.Text.Class
       Data.Quantity
       Servant.Extra.ContentTypes
