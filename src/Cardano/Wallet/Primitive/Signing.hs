@@ -103,8 +103,6 @@ mkStdTx seqState rootPrv pass ownedIns outs = do
     encode (Key k) = CC.unXPub k
 
 
-
-
 {-------------------------------------------------------------------------------
                               SignTag
 -------------------------------------------------------------------------------}
@@ -120,14 +118,10 @@ mkStdTx seqState rootPrv pass ownedIns outs = do
 -- mainnet.
 --
 -- The wallet only cares about the 'SignTx' tag. In 'cardano-sl' there was
--- a whole @SignTag@ data-type
+-- a lot more cases.
 data SignTag
     = SignTx              -- ^ Tx:               @TxSigData@
     deriving (Eq, Ord, Show, Generic)
-
--- TODO: it would be nice if we couldn't use 'SignTag' with wrong
--- types. Maybe something with GADTs and data families?
-
 
 
 -- | Get magic bytes corresponding to a 'SignTag'. Guaranteed to be different
@@ -145,14 +139,6 @@ signTag = \case
 -- | Wrapper around 'CC.XSignature'.
 newtype Signature a = Signature CC.XSignature
     deriving (Eq, Ord, Show, Generic)
-
-
---
---
---
---
---
-
 
 -- | Sign a bytestring.
 signRaw
