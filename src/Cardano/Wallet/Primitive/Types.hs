@@ -38,6 +38,7 @@ module Cardano.Wallet.Primitive.Types
     , Direction(..)
     , TxStatus(..)
     , SignedTx (..)
+    , TxWitness (..)
     , txIns
 
     -- * Address
@@ -381,6 +382,12 @@ instance Buildable Direction where
 -- | Wrapper around the final CBOR representation of a signed tx
 newtype SignedTx = SignedTx { signedTx :: ByteString }
     deriving (Show, Eq, Generic)
+
+data TxWitness
+    = PublicKeyWitness ByteString
+    | ScriptWitness ByteString
+    | RedeemWitness ByteString
+    deriving (Eq, Show)
 
 {-------------------------------------------------------------------------------
                                     Address
