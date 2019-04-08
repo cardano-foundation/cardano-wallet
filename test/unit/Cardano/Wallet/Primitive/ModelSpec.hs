@@ -16,6 +16,7 @@ import Cardano.Wallet.Primitive.Model
     ( applyBlock
     , applyBlocks
     , availableBalance
+    , currentTip
     , getState
     , initWallet
     , totalBalance
@@ -100,8 +101,8 @@ spec = do
         it "Incoming transactions have output addresses that belong to the wallet"
             (property prop_applyBlockTxHistoryIncoming)
 
-       --  it "Apply Block move the current tip" $
-       --      (property prop_applyBlockCurrentTip)
+        it "Apply Block move the current tip forward"
+            (property prop_applyBlockCurrentTip)
 
 
 {-------------------------------------------------------------------------------
@@ -159,9 +160,13 @@ prop_applyBlockTxHistoryIncoming s =
         | a == mempty && b == mempty = True
         | otherwise = not (Set.disjoint a b)
 
--- prop_applyBlockCurrentTip :: WalletState -> Property
--- prop_applyBlockCurrentTip s =
-
+-- | Apply blocks move current tip forward
+prop_applyBlockCurrentTip :: ApplyBlock -> Property
+prop_applyBlockCurrentTip (ApplyBlock s _ b) =
+    property $ currentTip wallet' > currentTip wallet
+  where
+    wallet = initWallet s
+    wallet' = snd $ applyBlock b wallet
 
 {-------------------------------------------------------------------------------
                Basic Model - See Wallet Specification, section 3
