@@ -122,17 +122,7 @@ mkStdTx seqState rootPrv pass ownedIns outs = do
 -- The wallet only cares about the 'SignTx' tag. In 'cardano-sl' there was
 -- a whole @SignTag@ data-type
 data SignTag
-    = SignForTestingOnly  -- ^ Anything (to be used for testing only)
-    | SignTx              -- ^ Tx:               @TxSigData@
-    | SignRedeemTx        -- ^ Redeem tx:        @TxSigData@
-    | SignVssCert         -- ^ Vss certificate:  @(VssPublicKey, EpochIndex)@
-    | SignUSProposal      -- ^ Update proposal:  @UpdateProposalToSign@
-    | SignCommitment      -- ^ Commitment:       @(EpochIndex, Commitment)@
-    | SignUSVote          -- ^ US proposal vote: @(UpId, Bool)@
-    | SignMainBlock       -- ^ Main block:       @MainToSign@
-    | SignMainBlockLight
-    | SignMainBlockHeavy
-    | SignProxySK         -- ^ Proxy key:        @ProxySecretKey@
+    = SignTx              -- ^ Tx:               @TxSigData@
     deriving (Eq, Ord, Show, Generic)
 
 -- TODO: it would be nice if we couldn't use 'SignTag' with wrong
@@ -144,17 +134,7 @@ data SignTag
 -- (and begin with a different byte) for different tags.
 signTag :: SignTag -> ByteString
 signTag = \case
-    SignForTestingOnly -> "\x00"
-    SignTx             -> "\x01" <> network
-    SignRedeemTx       -> "\x02" <> network
-    SignVssCert        -> "\x03" <> network
-    SignUSProposal     -> "\x04" <> network
-    SignCommitment     -> "\x05" <> network
-    SignUSVote         -> "\x06" <> network
-    SignMainBlock      -> "\x07" <> network
-    SignMainBlockLight -> "\x08" <> network
-    SignMainBlockHeavy -> "\x09" <> network
-    SignProxySK        -> "\x0a" <> network
+    SignTx -> "\x01" <> network
   where
     network = toByteString . CBOR.encodeInt32 $ pm
     pm = protocolMagic
