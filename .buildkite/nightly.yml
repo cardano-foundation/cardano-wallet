@@ -1,0 +1,13 @@
+env:
+  NIX_PATH: "channel:nixos-19.03"
+steps:
+  - label: 'Restore benchmark - testnet'
+    command: "nix-shell -p nix git stack haskellPackages.hp2pretty buildkite-agent --run ./.buildkite/benchmark.sh testnet"
+    timeout_in_minutes: 60
+    agents:
+      system: x86_64-linux
+  - label: 'Restore benchmark - mainnet'
+    command: "nix-shell -p nix git stack haskellPackages.hp2pretty buildkite-agent --run ./.buildkite/benchmark.sh mainnet"
+    timeout_in_minutes: 60
+    agents:
+      system: x86_64-linux
