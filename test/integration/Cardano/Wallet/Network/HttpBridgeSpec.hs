@@ -112,35 +112,30 @@ spec = do
     describe "Submitting signed transactions"
         $ beforeAll startBridge $ afterAll closeBridge $ do
         it "empty tx fails" $ \(_, network) -> do
-
             let signed = sign txEmpty []
             (Left err) <- runExceptT $ postTx network signed
             (show err) `shouldContain`
                 "Transaction failed verification: transaction has no inputs"
 
         it "empty tx fails 2" $ \(_, network) -> do
-
             let signed = sign txEmpty [pkWitness]
             (Left err) <- runExceptT $ postTx network signed
             (show err) `shouldContain`
                 "Transaction failed verification: transaction has no inputs"
 
         it "old tx fails" $ \(_, network) -> do
-
             let signed = sign txNonEmpty [pkWitness]
             (Left err) <- runExceptT $ postTx network signed
             (show err) `shouldContain`
                 "Failed to send to peers: Blockchain protocol error"
 
         it "tx fails - more inputs than witnesses" $ \(_, network) -> do
-
             let signed = sign txNonEmpty []
             (Left err) <- runExceptT $ postTx network signed
             (show err) `shouldContain`
                 "Transaction failed verification: transaction has more inputs than witnesses"
 
         it "tx fails - more witnesses than inputs" $ \(_, network) -> do
-
             let signed = sign txNonEmpty [pkWitness, pkWitness]
             (Left err) <- runExceptT $ postTx network signed
             (show err) `shouldContain`
