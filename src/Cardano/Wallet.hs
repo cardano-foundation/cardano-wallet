@@ -46,7 +46,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap, SeqState (..), mkAddressPool )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, applyBlock, initWallet )
+    ( Wallet, applyBlocks, initWallet )
 import Cardano.Wallet.Primitive.Types
     ( Block (..), WalletId (..), WalletMetadata (..), WalletName (..) )
 import Control.Exception
@@ -59,8 +59,6 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT, throwE )
-import Data.List
-    ( foldl' )
 import GHC.Generics
     ( Generic )
 
@@ -141,19 +139,17 @@ mkWalletLayer db network = WalletLayer
         Just w ->
             return (w, error "FIXME: store and retrieve wallet metadata")
 
-    , watchWallet = liftIO . listen network . applyBlocks
+    , watchWallet = liftIO . listen network . onNextblocks
     }
   where
-    applyBlocks :: WalletId -> [Block] -> IO ()
-    applyBlocks wid blocks = do
+    onNextblocks :: WalletId -> [Block] -> IO ()
+    onNextblocks wid blocks = do
         (txs, cp') <- readCheckpoint db (PrimaryKey wid) >>= \case
             Nothing ->
                 fail $ "couldn't find worker wallet: " <> show wid
             Just cp -> do
                 let nonEmpty = not . null . transactions
-                let applyOne (txs, cp') b = (txs <> txs', cp'') where
-                        (txs', cp'') = applyBlock b cp'
-                return $ foldl' applyOne (mempty, cp) (filter nonEmpty blocks)
+                return $ applyBlocks (filter nonEmpty blocks) cp
         putCheckpoint db (PrimaryKey wid) cp'
         unsafeRunExceptT $ putTxHistory db (PrimaryKey wid) txs -- Safe after ^
 

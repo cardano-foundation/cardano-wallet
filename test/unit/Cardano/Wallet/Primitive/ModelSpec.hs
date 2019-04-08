@@ -14,8 +14,9 @@ import Cardano.Wallet.Binary
     ( txId )
 import Cardano.Wallet.Primitive.Model
     ( applyBlock
+    , applyBlocks
     , availableBalance
-    , getTxHistory
+    , getState
     , initWallet
     , totalBalance
     , totalUTxO
@@ -48,6 +49,8 @@ import Control.Monad
     ( foldM )
 import Control.Monad.Trans.State.Strict
     ( State, evalState, runState, state )
+import Data.Bifunctor
+    ( bimap )
 import Data.Maybe
     ( catMaybes )
 import Data.Set
@@ -63,7 +66,6 @@ import Test.QuickCheck
     , Property
     , checkCoverage
     , choose
-    , conjoin
     , cover
     , elements
     , genericShrink
@@ -145,14 +147,17 @@ prop_applyBlockBasic s =
             (totalBalance wallet === balance utxo')
 
 
-prop_applyBlockTxHistoryIncoming :: ApplyBlock -> Property
-prop_applyBlockTxHistoryIncoming (ApplyBlock s utxo _) =
-    conjoin [addrs `overlaps` ourAddresses s | addrs <- addrOuts inTxs]
+-- Each transaction must have at least one output belonging to us
+prop_applyBlockTxHistoryIncoming :: WalletState -> Property
+prop_applyBlockTxHistoryIncoming s =
+    property (outs (filter isIncoming txs) `overlaps` ourAddresses s')
   where
-    inTxs = filter isIncoming $ Set.toList $ getTxHistory wallet
+    (txs, s') = bimap Map.elems getState $ applyBlocks blockchain (initWallet s)
     isIncoming (_, m) = direction m == Incoming
-    addrsOuts = map (Set.fromList . map address . outputs . fst)
-    overlaps a b = not (Set.disjoint a b)
+    outs = Set.fromList . concatMap (map address . outputs . fst)
+    overlaps a b
+        | a == mempty && b == mempty = True
+        | otherwise = not (Set.disjoint a b)
 
 -- prop_applyBlockCurrentTip :: WalletState -> Property
 -- prop_applyBlockCurrentTip s =

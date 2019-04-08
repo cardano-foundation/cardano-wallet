@@ -33,6 +33,7 @@ module Cardano.Wallet.Primitive.Model
     -- * Construction & Modification
     , initWallet
     , applyBlock
+    , applyBlocks
 
     -- * Accessors
     , currentTip
@@ -78,6 +79,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
     ()
+import Data.List
+    ( foldl' )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -158,6 +161,18 @@ applyBlock !b (Wallet !utxo !pending !history _ s) =
         ( txs'
         , Wallet utxo' pending' history' (b ^. #header . #slotId) s'
         )
+
+-- | Helper to apply multiple blocks in sequence to an existing wallet. It's
+-- basically just a @foldl' applyBlock@ over the given blocks.
+applyBlocks
+    :: [Block]
+    -> Wallet s
+    -> (Map (Hash "Tx") (Tx, TxMeta), Wallet s)
+applyBlocks blocks cp0 =
+    foldl' applyBlock' (mempty, cp0) blocks
+  where
+    applyBlock' (txs, cp) b =
+        let (txs', cp') = applyBlock b cp in (txs <> txs', cp')
 
 {-------------------------------------------------------------------------------
                                    Accessors
