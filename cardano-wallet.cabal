@@ -314,6 +314,7 @@ benchmark restore
     , process
     , say
     , text
+    , time
     , transformers
   type:
      exitcode-stdio-1.0

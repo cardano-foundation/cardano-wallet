@@ -6,10 +6,18 @@
       - name: Module not compiled
       - module: Cardano.Launcher.Windows
   - section:
-    - name: exe:cardano-wallet exe:cardano-wallet-launcher
+    - name: exe:cardano-wallet exe:cardano-wallet-launcher bench:restore
     - message:
       - name: Module reused between components
       - module: Cardano.CLI
+    - message:
+      - name: Weeds exported
+      - module:
+        - name: Cardano.CLI
+        - identifier:
+          - Local
+          - Mainnet
+          - Staging
   - section:
     - name: exe:cardano-wallet-launcher
     - message:
@@ -46,4 +54,3 @@
     - message:
       - name: Module not compiled
       - module: Cardano.Launcher.Windows
-

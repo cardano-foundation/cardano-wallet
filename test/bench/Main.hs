@@ -14,9 +14,11 @@ import Control.Concurrent.Async
 import Control.DeepSeq
     ( rnf )
 import Control.Exception
-    ( bracket, evaluate )
+    ( Exception, bracket, evaluate, throwIO )
 import Control.Monad
     ( mapM_ )
+import Control.Monad.Fail
+    ( MonadFail )
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Criterion.Measurement
@@ -25,7 +27,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Text
     ( Text )
-import qualified Data.Text as T
+import Data.Time.Clock.POSIX
+    ( POSIXTime, getPOSIXTime )
 import Fmt
     ( fmt, (+|), (+||), (|+), (||+) )
 import Say
@@ -36,7 +39,7 @@ import System.Exit
 import Cardano.Wallet
     ( NewWallet (..), WalletLayer (..), mkWalletLayer )
 import Cardano.Wallet.Network
-    ( networkTip )
+    ( NetworkLayer, networkTip )
 import Cardano.Wallet.Network.HttpBridge
     ( newNetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -44,13 +47,15 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( mkAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
-    ( SlotId, WalletName (..) )
+    ( SlotId (..), WalletName (..) )
 
 import qualified Cardano.Wallet.DB.MVar as MVar
+import qualified Data.Text as T
 
 main :: IO ()
 main = do
     installSignalHandlers
+    mapM_ prepareNode ["testnet", "mainnet"]
     runBenchmarks
         [ bench "restore - testnet - walletRnd" $ test1 "testnet" walletRnd
         , bench "restore - mainnet - walletRnd" $ test1 "mainnet" walletRnd
@@ -133,3 +138,62 @@ walletSeq = baseWallet
     { seed = Passphrase "involve key curtain arrest fortune custom lens marine before material wheel glide cause weapon wrap"
     , name = WalletName "Benchmark Yoroi Wallet"
     }
+
+prepareNode :: Text -> IO ()
+prepareNode netName = do
+    say . fmt $ "Syncing "+|netName|+" node... "
+    sl <- withHttpBridge netName $ \port -> do
+        network <- newNetworkLayer netName port
+        waitForNodeSync network netName logQuiet
+    say . fmt $ "Completed sync of "+|netName|+" up to "+||sl||+""
+
+-- | Poll the network tip until it reaches the slot corresponding to the current
+-- time.
+waitForNodeSync
+    :: Exception e1
+    => NetworkLayer IO e0 e1
+    -> Text
+    -> (SlotId -> SlotId -> IO ())
+    -> IO SlotId
+waitForNodeSync network networkName logSlot = loop 10
+  where
+    loop :: Int -> IO SlotId
+    loop retries = runExceptT (networkTip network) >>= \case
+        Right (_, hdr) -> do
+            let tipBlockSlot = hdr ^. #slotId
+            currentSlot <- getCurrentSlot networkName
+            logSlot tipBlockSlot currentSlot
+            if tipBlockSlot < currentSlot
+                then do
+                    -- 2 seconds poll interval
+                    threadDelay 2000000
+                    loop retries
+                else
+                    pure tipBlockSlot
+        Left e | retries > 0 -> do
+                     say "Fetching tip failed, retrying shortly..."
+                     threadDelay 15000000
+                     loop (retries - 1)
+               | otherwise -> throwIO e
+
+-- | Calculate the current slot, because the network layer doesn't know it.
+getCurrentSlot :: Text -> IO SlotId
+getCurrentSlot network = calcSlot <$> startTime network <*> getPOSIXTime
+  where
+    calcSlot :: POSIXTime -> POSIXTime -> SlotId
+    calcSlot start now = SlotId ep idx
+      where
+        d = now - start
+        slotDur = 20
+        epochDur = slotDur * 21600
+        ep = floor (d / epochDur)
+        idx = floor ((d - (fromIntegral ep) * epochDur) / slotDur)
+
+    startTime :: MonadFail m => Text -> m POSIXTime
+    startTime "mainnet" = pure 1506203091
+    startTime "staging" = pure 1506450213
+    startTime "testnet" = pure 1537941600
+    startTime n = fail $ "Unknown network name: " ++ T.unpack n
+
+logQuiet :: SlotId -> SlotId -> IO ()
+logQuiet _ _ = pure ()
