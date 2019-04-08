@@ -243,6 +243,12 @@ spec = do
                 #{getAddressPoolGap maxBound + 1}
             |] `shouldBe` (Left @String @(ApiT AddressPoolGap) msg)
 
+        it "ApiT (Hash \"Tx\")" $ do
+            let msg = "Error in $: Unable to decode (Hash \"Tx\"): \
+                    \expected Base16 encoding"
+            Aeson.parseEither parseJSON [aesonQQ|"-----"|]
+                `shouldBe` (Left @String @(ApiT (Hash "Tx")) msg)
+
 -- Golden tests files are generated automatically on first run. On later runs
 -- we check that the format stays the same. The golden files should be tracked
 -- in git.
