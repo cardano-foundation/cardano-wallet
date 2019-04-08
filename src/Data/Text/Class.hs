@@ -28,13 +28,12 @@ import Fmt
 
 import qualified Data.Text as T
 
-
--- | Defines a textual encoding for a type defined within the API.
+-- | Defines a textual encoding for a type.
 class ToText a where
     -- | Encode the specified value as text.
     toText :: a -> Text
 
--- | Defines a textual decoding for a type defined within the API.
+-- | Defines a textual decoding for a type.
 class FromText a where
     -- | Decode the specified text as a value.
     fromText :: Text -> Either TextDecodingError a
