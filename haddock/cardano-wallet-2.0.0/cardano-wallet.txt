@@ -741,6 +741,11 @@ initWallet :: (IsOurs s, NFData s, Show s) => s -> Wallet s
 --   discovered while applying the block.
 applyBlock :: Block -> Wallet s -> (Map (Hash "Tx") (Tx, TxMeta), Wallet s)
 
+-- | Helper to apply multiple blocks in sequence to an existing wallet.
+--   It's basically just a <tt>foldl' applyBlock</tt> over the given
+--   blocks.
+applyBlocks :: [Block] -> Wallet s -> (Map (Hash "Tx") (Tx, TxMeta), Wallet s)
+
 -- | Get the wallet current tip
 currentTip :: Wallet s -> SlotId
 
@@ -758,10 +763,6 @@ totalUTxO :: Wallet s -> UTxO
 
 -- | Available UTxO = <tt>pending ⋪ utxo</tt>
 availableUTxO :: Wallet s -> UTxO
-
--- | Get the transaction metadata for transactions associated with the
---   wallet.
-getTxHistory :: Wallet s -> Set (Hash "Tx")
 instance GHC.Show.Show (Cardano.Wallet.Primitive.Model.Wallet s)
 instance GHC.Classes.Eq s => GHC.Classes.Eq (Cardano.Wallet.Primitive.Model.Wallet s)
 instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.Model.Wallet s)
