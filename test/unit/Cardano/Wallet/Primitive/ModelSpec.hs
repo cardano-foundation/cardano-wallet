@@ -33,9 +33,8 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , Tx (..)
     , TxIn (..)
-    , TxMeta (direction, status)
+    , TxMeta (direction)
     , TxOut (..)
-    , TxStatus (..)
     , UTxO (..)
     , balance
     , excluding
@@ -73,7 +72,6 @@ import Test.QuickCheck
     , shrinkList
     , (.&&.)
     , (===)
-    , (==>)
     )
 
 import qualified Data.List.NonEmpty as NE
@@ -83,26 +81,25 @@ import qualified Data.Set as Set
 
 spec :: Spec
 spec = do
-    describe "Buildable instances examples" $ do
+    describe "Patate Buildable instances examples" $ do
         let block = blockchain !! 1
         let utxo = utxoFromTx $ head $ transactions block
         it (show $ ShowFmt utxo) True
         it (show $ ShowFmt block) True
 
-    describe "Compare Wallet impl. with Specification" $ do
+    describe "Patate Compare Wallet impl. with Specification" $ do
         it "Lemma 3.2 - dom u ⋪ updateUTxO b u = new b"
             (checkCoverage prop_3_2)
 
         it "applyBlock matches the basic model from the specification"
             (checkCoverage prop_applyBlockBasic)
 
-    describe "Wallet transactions over test data" $ do
-        -- it "Outgoing transactions have inputs that belonged to the utxo"
-        --    (property prop_applyBlockTxHistoryInputs)
+    describe "Patate Extra Properties" $ do
         it "Incoming transactions have output addresses that belong to the wallet"
             (property prop_applyBlockTxHistoryIncoming)
-        it "Any transction involving our addresses must be incoming"
-            (property prop_applyBlockTxHistoryOurs)
+
+       --  it "Apply Block move the current tip" $
+       --      (property prop_applyBlockCurrentTip)
 
 
 {-------------------------------------------------------------------------------
@@ -148,48 +145,17 @@ prop_applyBlockBasic s =
             (totalBalance wallet === balance utxo')
 
 
-prop_applyBlockTxHistoryIncoming :: WalletState -> Property
-prop_applyBlockTxHistoryIncoming s = conjoin (map prop wallets)
+prop_applyBlockTxHistoryIncoming :: ApplyBlock -> Property
+prop_applyBlockTxHistoryIncoming (ApplyBlock s utxo _) =
+    conjoin [addrs `overlaps` ourAddresses s | addrs <- addrOuts inTxs]
   where
-    wallets = scanl (flip applyBlock) (initWallet s) blockchain
-    -- each transaction must have at least one output belonging to us
-    prop wallet = conjoin [addrs `overlaps` ourAddresses s | addrs <- txOuts]
-      where
-        inTxs = filter isIncoming $ Set.toList $ getTxHistory wallet
-        isIncoming (_, m) = direction m == Incoming
-        txOuts = map (Set.fromList . map address . outputs . fst) inTxs
-        overlaps a b = not (Set.disjoint a b)
+    inTxs = filter isIncoming $ Set.toList $ getTxHistory wallet
+    isIncoming (_, m) = direction m == Incoming
+    addrsOuts = map (Set.fromList . map address . outputs . fst)
+    overlaps a b = not (Set.disjoint a b)
 
-{-
--- Outgoing transactions have inputs that belonged to the utxo.
--- Can't be tested with current data.
-prop_applyBlockTxHistoryInputs :: WalletState -> Property
-prop_applyBlockTxHistoryInputs s = property prop
-    where
-        cond0 = not $ null $ ourAddresses s
-        prop =
-            let
-                wallets = scanl (flip applyBlock) (initWallet s) blockchain
-                wallet = last wallets
-                outTxs = filter isOutgoing $ Set.toList $ getTxHistory wallet
-                isOutgoing (_, m) = direction m == Outgoing
-
-                combinedInputs = mconcat $ map (dom . availableUTxO) wallets
-                txInputs = Set.fromList $ concatMap (inputs . fst) outTxs
-            in
-                cond0 ==> not (null outTxs) ==>
-                (not $ Set.disjoint txInputs combinedInputs)
--}
-
-prop_applyBlockTxHistoryOurs :: WalletState -> Property
-prop_applyBlockTxHistoryOurs s =
-    not (null $ ourAddresses s) ==>
-        ((Set.map direction txMetas === Set.singleton Incoming) .&&.
-         (Set.map status txMetas === Set.singleton InLedger))
-    where
-        wallet = foldl (flip applyBlock) (initWallet s) blockchain
-        txMetas = Set.map snd $ getTxHistory wallet
-
+-- prop_applyBlockCurrentTip :: WalletState -> Property
+-- prop_applyBlockCurrentTip s =
 
 
 {-------------------------------------------------------------------------------
