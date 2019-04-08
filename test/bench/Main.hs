@@ -57,9 +57,7 @@ main = do
     installSignalHandlers
     mapM_ prepareNode ["testnet", "mainnet"]
     runBenchmarks
-        [ bench "restore - testnet - walletRnd" $ test1 "testnet" walletRnd
-        , bench "restore - mainnet - walletRnd" $ test1 "mainnet" walletRnd
-        , bench "restore - testnet - walletSeq" $ test1 "testnet" walletSeq
+        [ bench "restore - testnet - walletSeq" $ test1 "testnet" walletSeq
         , bench "restore - mainnet - walletSeq" $ test1 "mainnet" walletSeq
         ]
 
@@ -127,16 +125,10 @@ baseWallet = NewWallet (Passphrase "") (Passphrase "")
              (WalletName "") (Passphrase "") gap20
     where Right gap20 = mkAddressPoolGap 20
 
-walletRnd :: NewWallet
-walletRnd = baseWallet
-    { seed = Passphrase "skull skin weird piece oak absorb apart above female dial drink traffic"
-    , name = WalletName "Benchmark Daedalus Wallet"
-    }
-
 walletSeq :: NewWallet
 walletSeq = baseWallet
     { seed = Passphrase "involve key curtain arrest fortune custom lens marine before material wheel glide cause weapon wrap"
-    , name = WalletName "Benchmark Yoroi Wallet"
+    , name = WalletName "Benchmark Sequential Wallet"
     }
 
 prepareNode :: Text -> IO ()
