@@ -490,25 +490,31 @@ instance Data.Text.Class.FromText Cardano.Wallet.Primitive.Types.WalletName
 instance Data.Text.Class.ToText Cardano.Wallet.Primitive.Types.WalletName
 
 module Cardano.Wallet.Network
-data NetworkLayer m e0 e1
-NetworkLayer :: (SlotId -> ExceptT e0 m [Block]) -> ExceptT e1 m (Hash "BlockHeader", BlockHeader) -> (SignedTx -> ExceptT e1 m ()) -> NetworkLayer m e0 e1
+data NetworkLayer m
+NetworkLayer :: (SlotId -> ExceptT ErrNetworkUnreachable m [Block]) -> ExceptT ErrNetworkUnreachable m (Hash "BlockHeader", BlockHeader) -> (SignedTx -> ExceptT ErrPostTx m ()) -> NetworkLayer m
 
 -- | Gets some blocks from the node. It will not necessarily return all the
 --   blocks that the node has, but will receive a reasonable-sized chunk.
 --   It will never return blocks from before the given slot. It may return
 --   an empty list if the node does not have any blocks from after the
 --   starting slot.
-[nextBlocks] :: NetworkLayer m e0 e1 -> SlotId -> ExceptT e0 m [Block]
-[networkTip] :: NetworkLayer m e0 e1 -> ExceptT e1 m (Hash "BlockHeader", BlockHeader)
-[postTx] :: NetworkLayer m e0 e1 -> SignedTx -> ExceptT e1 m ()
+[nextBlocks] :: NetworkLayer m -> SlotId -> ExceptT ErrNetworkUnreachable m [Block]
 
--- | Repeatedly fetch data from a given source function, and call an action
---   for each element retrieved.
---   
---   If the data source indicates that it has no more data at present
---   (<a>Sleep</a>), then sleep for the interval <tt>delay</tt>, and then
---   try the fetch again.
-tick :: forall st m a r. MonadIO m => (st -> m (TickResult a, st)) -> (a -> m ()) -> Millisecond -> st -> m r
+-- | Get the current network tip from the chain producer
+[networkTip] :: NetworkLayer m -> ExceptT ErrNetworkUnreachable m (Hash "BlockHeader", BlockHeader)
+
+-- | Broadcast a transaction to the chain producer
+[postTx] :: NetworkLayer m -> SignedTx -> ExceptT ErrPostTx m ()
+
+-- | Network is not reachable
+newtype ErrNetworkUnreachable
+ErrNetworkUnreachable :: Text -> ErrNetworkUnreachable
+
+-- | Error while trying to send a transaction
+data ErrPostTx
+ErrPostTxNetworkUnreachable :: ErrNetworkUnreachable -> ErrPostTx
+ErrPostTxBadRequest :: Text -> ErrPostTx
+ErrPostTxProtocolFailure :: Text -> ErrPostTx
 
 -- | The result type of the element fetch function provided to <a>tick</a>.
 data TickResult a
@@ -519,16 +525,32 @@ GotChunk :: !a -> TickResult a
 -- | There is no result available now, so wait.
 Sleep :: TickResult a
 
+-- | Repeatedly fetch data from a given source function, and call an action
+--   for each element retrieved.
+--   
+--   If the data source indicates that it has no more data at present
+--   (<a>Sleep</a>), then sleep for the interval <tt>delay</tt>, and then
+--   try the fetch again.
+tick :: forall st m a r. MonadIO m => (st -> m (TickResult a, st)) -> (a -> m ()) -> Millisecond -> st -> m r
+
 -- | Retrieve blocks from a chain producer and execute some given action
 --   for each block.
-listen :: forall a e0 e1. Exception e0 => NetworkLayer IO e0 e1 -> ([Block] -> IO ()) -> IO a
+listen :: NetworkLayer IO -> ([Block] -> IO ()) -> IO a
 
 -- | Process all available blocks from the network layer with the given
 --   action. When the network layer reports no more blocks, stop.
-drain :: forall e0 e1. Exception e0 => NetworkLayer IO e0 e1 -> (SlotId -> [Block] -> IO ()) -> IO ()
+drain :: NetworkLayer IO -> (SlotId -> [Block] -> IO ()) -> IO ()
 instance Data.Foldable.Foldable Cardano.Wallet.Network.TickResult
 instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.Wallet.Network.TickResult a)
 instance GHC.Show.Show a => GHC.Show.Show (Cardano.Wallet.Network.TickResult a)
+instance GHC.Classes.Eq Cardano.Wallet.Network.ErrPostTx
+instance GHC.Show.Show Cardano.Wallet.Network.ErrPostTx
+instance GHC.Generics.Generic Cardano.Wallet.Network.ErrPostTx
+instance GHC.Classes.Eq Cardano.Wallet.Network.ErrNetworkUnreachable
+instance GHC.Show.Show Cardano.Wallet.Network.ErrNetworkUnreachable
+instance GHC.Generics.Generic Cardano.Wallet.Network.ErrNetworkUnreachable
+instance GHC.Exception.Type.Exception Cardano.Wallet.Network.ErrPostTx
+instance GHC.Exception.Type.Exception Cardano.Wallet.Network.ErrNetworkUnreachable
 
 
 -- | Provides the API of Coin Selection algorithm and Fee related
@@ -1189,7 +1211,7 @@ newtype ErrWalletAlreadyExists
 ErrWalletAlreadyExists :: WalletId -> ErrWalletAlreadyExists
 
 -- | Create a new instance of the wallet layer.
-mkWalletLayer :: Exception e0 => DBLayer IO SeqState -> NetworkLayer IO e0 e1 -> WalletLayer SeqState
+mkWalletLayer :: DBLayer IO SeqState -> NetworkLayer IO -> WalletLayer SeqState
 
 -- | Run an ExcepT and throws the error if any. This makes sense only if
 --   called after checking for an invariant or, after ensuring that
@@ -1450,31 +1472,19 @@ instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Network.HttpBridge.A
 module Cardano.Wallet.Network.HttpBridge
 
 -- | Endpoints of the cardano-http-bridge API.
-data HttpBridge m e
-HttpBridge :: (Hash "BlockHeader" -> ExceptT e m Block) -> (Word64 -> ExceptT e m [Block]) -> ExceptT e m (Hash "BlockHeader", BlockHeader) -> (SignedTx -> ExceptT e m ()) -> HttpBridge m e
-[$sel:getBlock:HttpBridge] :: HttpBridge m e -> Hash "BlockHeader" -> ExceptT e m Block
-[$sel:getEpoch:HttpBridge] :: HttpBridge m e -> Word64 -> ExceptT e m [Block]
-[$sel:getNetworkTip:HttpBridge] :: HttpBridge m e -> ExceptT e m (Hash "BlockHeader", BlockHeader)
-[$sel:postSignedTx:HttpBridge] :: HttpBridge m e -> SignedTx -> ExceptT e m ()
-
--- | The things that can go wrong when retrieving blocks.
-data HttpBridgeError
-
--- | Could not connect to or read from the node API.
-NodeUnavailable :: String -> HttpBridgeError
-
--- | The node returned an unexpected response.
-BadResponseFromNode :: String -> HttpBridgeError
+data HttpBridge m
+HttpBridge :: (Hash "BlockHeader" -> ExceptT ErrNetworkUnreachable m Block) -> (Word64 -> ExceptT ErrNetworkUnreachable m [Block]) -> ExceptT ErrNetworkUnreachable m (Hash "BlockHeader", BlockHeader) -> (SignedTx -> ExceptT ErrPostTx m ()) -> HttpBridge m
+[$sel:getBlock:HttpBridge] :: HttpBridge m -> Hash "BlockHeader" -> ExceptT ErrNetworkUnreachable m Block
+[$sel:getEpoch:HttpBridge] :: HttpBridge m -> Word64 -> ExceptT ErrNetworkUnreachable m [Block]
+[$sel:getNetworkTip:HttpBridge] :: HttpBridge m -> ExceptT ErrNetworkUnreachable m (Hash "BlockHeader", BlockHeader)
+[$sel:postSignedTx:HttpBridge] :: HttpBridge m -> SignedTx -> ExceptT ErrPostTx m ()
 
 -- | Constructs a network layer with the given cardano-http-bridge API.
-mkNetworkLayer :: Monad m => HttpBridge m e -> NetworkLayer m e e
+mkNetworkLayer :: Monad m => HttpBridge m -> NetworkLayer m
 
 -- | Creates a cardano-http-bridge <a>NetworkLayer</a> using the given
 --   connection settings.
-newNetworkLayer :: Text -> Int -> IO (NetworkLayer IO HttpBridgeError HttpBridgeError)
+newNetworkLayer :: Text -> Int -> IO (NetworkLayer IO)
 
 -- | Construct a new network layer
-mkHttpBridge :: Manager -> BaseUrl -> NetworkName -> HttpBridge IO HttpBridgeError
-instance GHC.Classes.Eq Cardano.Wallet.Network.HttpBridge.HttpBridgeError
-instance GHC.Show.Show Cardano.Wallet.Network.HttpBridge.HttpBridgeError
-instance GHC.Exception.Type.Exception Cardano.Wallet.Network.HttpBridge.HttpBridgeError
+mkHttpBridge :: Manager -> BaseUrl -> NetworkName -> HttpBridge IO
