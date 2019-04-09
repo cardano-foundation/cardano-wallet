@@ -294,7 +294,7 @@ dom :: Dom a => a -> Set (DomElem a)
 -- | A slot identifier is the combination of an epoch and slot.
 data SlotId
 SlotId :: !Word64 -> !Word16 -> SlotId
-[$sel:epochIndex:SlotId] :: SlotId -> !Word64
+[$sel:epochNumber:SlotId] :: SlotId -> !Word64
 [$sel:slotNumber:SlotId] :: SlotId -> !Word16
 data WalletMetadata
 WalletMetadata :: !WalletName -> !WalletPassphraseInfo -> !WalletState -> !WalletDelegation PoolId -> WalletMetadata
@@ -458,6 +458,8 @@ instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.TxIn
 instance Formatting.Buildable.Buildable (Cardano.Wallet.Primitive.Types.TxIn, Cardano.Wallet.Primitive.Types.TxOut)
 instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.Types.Hash tag)
 instance Formatting.Buildable.Buildable (Cardano.Wallet.Primitive.Types.Hash "Tx")
+instance Data.Text.Class.FromText (Cardano.Wallet.Primitive.Types.Hash "Tx")
+instance Data.Text.Class.ToText (Cardano.Wallet.Primitive.Types.Hash "Tx")
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.TxMeta
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.TxMeta
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.SlotId
@@ -1261,6 +1263,28 @@ data WalletPutPassphraseData
 WalletPutPassphraseData :: !ApiT (Passphrase "encryption") -> !ApiT (Passphrase "encryption") -> WalletPutPassphraseData
 [$sel:oldPassphrase:WalletPutPassphraseData] :: WalletPutPassphraseData -> !ApiT (Passphrase "encryption")
 [$sel:newPassphrase:WalletPutPassphraseData] :: WalletPutPassphraseData -> !ApiT (Passphrase "encryption")
+data PostTransactionData
+PostTransactionData :: !NonEmpty ApiCoins -> !ApiT (Passphrase "encryption") -> PostTransactionData
+[$sel:targets:PostTransactionData] :: PostTransactionData -> !NonEmpty ApiCoins
+[$sel:passphrase:PostTransactionData] :: PostTransactionData -> !ApiT (Passphrase "encryption")
+data ApiBlockData
+ApiBlockData :: UTCTime -> !ApiT SlotId -> ApiBlockData
+[$sel:time:ApiBlockData] :: ApiBlockData -> UTCTime
+[$sel:block:ApiBlockData] :: ApiBlockData -> !ApiT SlotId
+data ApiTransaction
+Transaction :: !ApiT (Hash "Tx") -> !Quantity "lovelace" Natural -> !ApiBlockData -> !Quantity "block" Natural -> !ApiT Direction -> !NonEmpty ApiCoins -> !NonEmpty ApiCoins -> !ApiT TxStatus -> ApiTransaction
+[$sel:id:Transaction] :: ApiTransaction -> !ApiT (Hash "Tx")
+[$sel:amount:Transaction] :: ApiTransaction -> !Quantity "lovelace" Natural
+[$sel:insertedAt:Transaction] :: ApiTransaction -> !ApiBlockData
+[$sel:depth:Transaction] :: ApiTransaction -> !Quantity "block" Natural
+[$sel:direction:Transaction] :: ApiTransaction -> !ApiT Direction
+[$sel:inputs:Transaction] :: ApiTransaction -> !NonEmpty ApiCoins
+[$sel:outputs:Transaction] :: ApiTransaction -> !NonEmpty ApiCoins
+[$sel:status:Transaction] :: ApiTransaction -> !ApiT TxStatus
+data ApiCoins
+ApiCoins :: !ApiT Address -> !Quantity "lovelace" Natural -> ApiCoins
+[$sel:address:ApiCoins] :: ApiCoins -> !ApiT Address
+[$sel:amount:ApiCoins] :: ApiCoins -> !Quantity "lovelace" Natural
 
 -- | Polymorphic wrapper type to put around primitive types and, 3rd party
 --   lib types to avoid defining orphan instances and/or, undesirable
@@ -1314,6 +1338,18 @@ instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletPutData
 instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletPutPassphraseData
 instance GHC.Generics.Generic Cardano.Wallet.Api.Types.WalletPutPassphraseData
 instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletPutPassphraseData
+instance GHC.Show.Show Cardano.Wallet.Api.Types.PostTransactionData
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.PostTransactionData
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.PostTransactionData
+instance GHC.Show.Show Cardano.Wallet.Api.Types.ApiTransaction
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.ApiTransaction
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiTransaction
+instance GHC.Show.Show Cardano.Wallet.Api.Types.ApiCoins
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.ApiCoins
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiCoins
+instance GHC.Show.Show Cardano.Wallet.Api.Types.ApiBlockData
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.ApiBlockData
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiBlockData
 instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.Wallet.Api.Types.ApiT a)
 instance GHC.Show.Show a => GHC.Show.Show (Cardano.Wallet.Api.Types.ApiT a)
 instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.ApiT a)
@@ -1329,6 +1365,14 @@ instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletPutDa
 instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletPutData
 instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletPutPassphraseData
 instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletPutPassphraseData
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.PostTransactionData
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.PostTransactionData
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.ApiTransaction
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiTransaction
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.ApiCoins
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiCoins
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.ApiBlockData
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiBlockData
 instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.AddressState)
 instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.AddressState)
 instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.Address)
@@ -1351,11 +1395,19 @@ instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Carda
 instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletState)
 instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.PoolId)
 instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.PoolId)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.SlotId)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.SlotId)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.Types.Hash "Tx"))
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.Types.Hash "Tx"))
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.Direction)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.Direction)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.TxStatus)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.TxStatus)
 instance Data.Text.Class.FromText a => Web.Internal.HttpApiData.FromHttpApiData (Cardano.Wallet.Api.Types.ApiT a)
 instance Data.Text.Class.ToText a => Web.Internal.HttpApiData.ToHttpApiData (Cardano.Wallet.Api.Types.ApiT a)
 
 module Cardano.Wallet.Api
-type Api = Addresses :<|> Wallets
+type Api = Addresses :<|> Wallets :<|> Transactions
 type Addresses = ListAddresses
 
 -- | 
@@ -1386,6 +1438,11 @@ type PutWallet = "wallets" :> Capture "walletId" (ApiT WalletId) :> ReqBody '[JS
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/putWalletPassphrase</a>
 type PutWalletPassphrase = "wallets" :> Capture "walletId" (ApiT WalletId) :> "passphrase" :> ReqBody '[JSON] WalletPutPassphraseData :> Put '[OctetStream] NoContent
+type Transactions = CreateTransaction
+
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransaction</a>
+type CreateTransaction = "wallets" :> Capture "walletId" (ApiT WalletId) :> "transactions" :> ReqBody '[JSON] PostTransactionData :> Post '[JSON] ApiTransaction
 
 
 -- | API handlers and server using the underlying wallet layer to provide
