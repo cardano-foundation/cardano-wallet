@@ -105,7 +105,7 @@ newDBLayer = do
                     Nothing ->
                         Left (ErrNoSuchWallet wid)
                     Just (Database cp meta txs) ->
-                        Right $ Database cp meta (txs <> txs')
+                        Right $ Database cp meta (txs' <> txs)
             txs' `deepseq` alterMVar db alter key
 
         , readTxHistory = \key ->

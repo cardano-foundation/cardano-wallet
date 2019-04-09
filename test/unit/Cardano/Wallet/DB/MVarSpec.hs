@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -43,7 +44,7 @@ import Control.Concurrent.Async
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( forM_ )
+    ( forM, forM_, void )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -88,39 +89,43 @@ import qualified Data.Set as Set
 
 spec :: Spec
 spec = do
-    describe "put . read yields a result" $ before newDBLayer $ do
+    describe "put . read yields a result" $ do
         it "Checkpoint"
-            (property . prop_readAfterPut putCheckpoint readCheckpoint)
+            (property $ prop_readAfterPut putCheckpoint readCheckpoint)
         it "Wallet Metadata"
-            (property . prop_readAfterPut putWalletMeta readWalletMeta)
+            (property $ prop_readAfterPut putWalletMeta readWalletMeta)
         it "Tx History"
-            (property . prop_readAfterPut putTxHistory readTxHistoryF)
+            (property $ prop_readAfterPut putTxHistory readTxHistoryF)
 
-    describe "can't put before wallet exists" $ before newDBLayer $ do
+    describe "can't put before wallet exists" $ do
         it "Checkpoint"
-            (property . prop_putBeforeInit putCheckpoint readCheckpoint Nothing)
+            (property $ prop_putBeforeInit putCheckpoint readCheckpoint Nothing)
         it "Wallet Metadata"
-            (property . prop_putBeforeInit putWalletMeta readWalletMeta Nothing)
+            (property $ prop_putBeforeInit putWalletMeta readWalletMeta Nothing)
         it "Tx History"
-            (property . prop_putBeforeInit putTxHistory readTxHistoryF (pure mempty))
+            (property $ prop_putBeforeInit putTxHistory readTxHistoryF (pure mempty))
 
-    describe "put doesn't affect other resources" $ before newDBLayer $ do
+    describe "put doesn't affect other resources" $ do
         it "Checkpoint vs Wallet Metadata & Tx History"
-            (property . prop_isolation putCheckpoint readWalletMeta readTxHistoryF)
+            (property $ prop_isolation putCheckpoint readWalletMeta readTxHistoryF)
         it "Wallet Metadata vs Tx History & Checkpoint"
-            (property . prop_isolation putWalletMeta readTxHistoryF readCheckpoint)
+            (property $ prop_isolation putWalletMeta readTxHistoryF readCheckpoint)
         it "Tx History vs Checkpoint & Wallet Metadata"
-            (property . prop_isolation putTxHistory readCheckpoint readWalletMeta)
+            (property $ prop_isolation putTxHistory readCheckpoint readWalletMeta)
+
+    describe "sequential puts replace values in order" $ do
+        it "Checkpoint"
+            (checkCoverage $ prop_sequentialPut putCheckpoint readCheckpoint lrp)
+        it "Wallet Metadata"
+            (checkCoverage $ prop_sequentialPut putWalletMeta readWalletMeta lrp)
+        it "Tx History"
+            (checkCoverage $ prop_sequentialPut putTxHistory readTxHistoryF unions)
 
     describe "DB works as expected" $ before newDBLayer $ do
         it "replacement of checkpoint returns last checkpoint that was put"
             (property . dbReplaceCheckpointsProp)
-        it "multiple sequential putCheckpoint work properly"
-            (property . dbMultiplePutsSeqProp)
         it "multiple parallel putCheckpoint work properly"
             (property . dbMultiplePutsParProp)
-        it "readTxHistory . putTxHistory yields inserted merged history"
-            (checkCoverage . dbMergeTxHistoryProp)
   where
     -- | Wrap the result of 'readTxHistory' in an arbitrary identity Applicative
     readTxHistoryF
@@ -129,6 +134,17 @@ spec = do
         -> PrimaryKey WalletId
         -> m (Identity (Map (Hash "Tx") (Tx, TxMeta)))
     readTxHistoryF db = fmap Identity . readTxHistory db
+
+    -- | Keep only the (L)ast (R)ecently (P)ut entry
+    lrp :: (Applicative f, Ord k) => [(k, v)] -> [f v]
+    lrp = Map.elems . foldl (\m (k, v) -> Map.insert k (pure v) m) mempty
+
+    -- | Keep the unions (right-biaised) of all entry
+    unions :: (Ord k, Monoid v) => [(k, v)] -> [Identity v]
+    unions =
+        fmap Identity
+        . Map.elems
+        . foldl (\m (k, v) -> Map.unionWith (<>) (Map.fromList [(k, v)]) m) mempty
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -146,18 +162,18 @@ prop_readAfterPut
        -> PrimaryKey WalletId
        -> IO (f a)
        ) -- ^ Read Operation
-    -> DBLayer IO DummyState
-        -- ^ DB Layer
     -> (PrimaryKey WalletId, a)
         -- ^ Property arguments
     -> Property
-prop_readAfterPut putOp readOp db (key, a) =
-    monadicIO (setup *> prop)
+prop_readAfterPut putOp readOp (key, a) =
+    monadicIO (setup >>= prop)
   where
     setup = do
+        db <- liftIO newDBLayer
         (cp, meta) <- pick arbitrary
         liftIO $ unsafeRunExceptT $ createWallet db key cp meta
-    prop = liftIO $ do
+        return db
+    prop db = liftIO $ do
         unsafeRunExceptT $ putOp db key a
         res <- readOp db key
         res `shouldBe` pure a
@@ -176,16 +192,14 @@ prop_putBeforeInit
        ) -- ^ Read Operation
     -> f a
         -- ^ An 'empty' value for the 'Applicative' f
-    -> DBLayer IO DummyState
-        -- ^ DB Layer
     -> (PrimaryKey WalletId, a)
         -- ^ Property arguments
     -> Property
-prop_putBeforeInit putOp readOp empty db (key@(PrimaryKey wid), a) =
-    monadicIO (setup *> prop)
+prop_putBeforeInit putOp readOp empty (key@(PrimaryKey wid), a) =
+    monadicIO (setup >>= prop)
   where
-    setup = return ()
-    prop = liftIO $ do
+    setup = liftIO newDBLayer
+    prop db = liftIO $ do
         runExceptT (putOp db key a) >>= \case
             Right _ ->
                 fail "expected put operation to fail but it succeeded!"
@@ -209,24 +223,60 @@ prop_isolation
        -> PrimaryKey WalletId
        -> IO (g c)
        ) -- ^ Read Operation for another resource
-    -> DBLayer IO DummyState
-        -- ^ DB Layer
     -> (PrimaryKey WalletId, a)
         -- ^ Properties arguments
     -> Property
-prop_isolation putA readB readC db (key, a) =
+prop_isolation putA readB readC (key, a) =
     monadicIO (setup >>= prop)
   where
     setup = do
+        db <- liftIO newDBLayer
         (cp, meta, txs) <- pick arbitrary
         liftIO $ unsafeRunExceptT $ createWallet db key cp meta
         liftIO $ unsafeRunExceptT $ putTxHistory db key txs
-        liftIO $ (,) <$> readB db key <*> readC db key
+        (b, c) <- liftIO $ (,) <$> readB db key <*> readC db key
+        return (db, (b,c))
 
-    prop (b, c) = liftIO $ do
+    prop (db, (b, c)) = liftIO $ do
         unsafeRunExceptT $ putA db key a
         readB db key `shouldReturn` b
         readC db key `shouldReturn` c
+
+-- | Check that the DB supports multiple sequential puts for a given resource
+prop_sequentialPut
+    :: (Show (f a), Eq (f a), Applicative f)
+    => (  DBLayer IO DummyState
+       -> PrimaryKey WalletId
+       -> a
+       -> ExceptT (ErrNoSuchWallet e) IO ()
+       ) -- ^ Put Operation
+    -> (  DBLayer IO DummyState
+       -> PrimaryKey WalletId
+       -> IO (f a)
+       ) -- ^ Read Operation
+    -> (forall k. Ord k => [(k, a)] -> [f a])
+        -- ^ How do we expect operations to resolve
+    -> KeyValPairs (PrimaryKey WalletId) a
+        -- ^ Property arguments
+    -> Property
+prop_sequentialPut putOp readOp resolve (KeyValPairs pairs) =
+    cover 90 cond "conflicting db entries" $ monadicIO (setup >>= prop)
+  where
+    -- Make sure that we have some conflicting insertion to actually test the
+    -- semantic of the DB Layer.
+    cond = L.length (L.nub ids) /= L.length ids
+      where
+        ids = map fst pairs
+    setup = do
+        db <- liftIO newDBLayer
+        (cp, meta) <- pick arbitrary
+        liftIO $ unsafeRunExceptT $ once_ pairs $ \k ->
+            createWallet db k cp meta
+        return db
+    prop db = liftIO $ do
+        unsafeRunExceptT $ forM_ pairs $ uncurry (putOp db)
+        res <- once pairs (readOp db)
+        res `shouldBe` resolve pairs
 
 dbReplaceCheckpointsProp
     :: DBLayer IO DummyState
@@ -240,60 +290,29 @@ dbReplaceCheckpointsProp db (key, cp1, cp2)  = monadicIO $ do
         resFromDb <- readCheckpoint db key
         resFromDb `shouldBe` Just cp2
 
-dbMultiplePutsSeqProp
-    :: DBLayer IO DummyState
-    -> KeyValPairs (PrimaryKey WalletId) (Wallet DummyState)
-    -> Property
-dbMultiplePutsSeqProp db (KeyValPairs keyValPairs) = monadicIO $ do
-    meta <- pick arbitrary
-    liftIO $ do
-        unsafeRunExceptT $ once keyValPairs $ \(k, cp) -> createWallet db k cp meta
-        unsafeRunExceptT $ forM_ keyValPairs $ uncurry (putCheckpoint db)
-        resFromDb <- Set.fromList <$> listWallets db
-        resFromDb `shouldBe` (Set.fromList (map fst keyValPairs))
-
 dbMultiplePutsParProp
     :: DBLayer IO DummyState
     -> KeyValPairs (PrimaryKey WalletId) (Wallet DummyState)
     -> Property
 dbMultiplePutsParProp db (KeyValPairs keyValPairs) = monadicIO $ do
     meta <- pick arbitrary
+    cp <- pick arbitrary
     liftIO $ do
-        unsafeRunExceptT $ once keyValPairs $ \(k, cp) -> createWallet db k cp meta
+        unsafeRunExceptT $ once_ keyValPairs $ \k -> createWallet db k cp meta
         forConcurrently_ keyValPairs
-            (\(k, cp) -> unsafeRunExceptT $ putCheckpoint db k cp)
+            (\(k, cp') -> unsafeRunExceptT $ putCheckpoint db k cp')
         resFromDb <- Set.fromList <$> listWallets db
         resFromDb `shouldBe` (Set.fromList (map fst keyValPairs))
-
-dbMergeTxHistoryProp
-    :: DBLayer IO DummyState
-    -> KeyValPairs (PrimaryKey WalletId) (Map (Hash "Tx") (Tx, TxMeta))
-    -> Property
-dbMergeTxHistoryProp db (KeyValPairs keyValPairs) =
-    cover 90 cond "conflicting tx histories" prop
-  where
-    restrictTo k = filter ((== k) . fst)
-    -- Make sure that we have some conflicting insertion to actually test the
-    -- semantic of the DB Layer.
-    cond = L.length (L.nub ids) /= L.length ids
-      where
-        ids = concatMap (\(w, m) -> (w,) <$> Map.keys m) keyValPairs
-    prop = monadicIO $ do
-        cp <- pick arbitrary
-        meta <- pick arbitrary
-        liftIO $ do
-            unsafeRunExceptT $ once keyValPairs $ \(k, _) -> createWallet db k cp meta
-            unsafeRunExceptT $ forM_ keyValPairs $ uncurry (putTxHistory db)
-            forM_ keyValPairs $ \(key, _) -> do
-                res <- readTxHistory db key
-                res `shouldBe` (Map.unions (snd <$> restrictTo key keyValPairs))
 
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
 -------------------------------------------------------------------------------}
 
-once :: (Ord k, Monad m) => [(k,v)] -> ((k,v) -> m a) -> m ()
-once xs = forM_ (Map.toList (Map.fromList xs))
+once :: (Ord k, Monad m) => [(k,v)] -> (k -> m a) -> m [a]
+once xs = forM (Map.keys (Map.fromList xs))
+
+once_ :: (Ord k, Monad m) => [(k,v)] -> (k -> m a) -> m ()
+once_ xs = void . once xs
 
 newtype KeyValPairs k v = KeyValPairs [(k, v)]
     deriving (Generic, Show, Eq)
