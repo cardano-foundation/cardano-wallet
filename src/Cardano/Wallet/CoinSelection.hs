@@ -6,7 +6,7 @@
 -- Copyright: © 2018-2019 IOHK
 -- License: MIT
 --
--- Provides the API of Coin Selection algorithm and Fee related functionality.
+-- Provides the API of Coin Selection algorithm and Fee Calculation
 -- For more information refer to:
 -- https://iohk.io/blog/self-organisation-in-coin-selection/
 
@@ -15,6 +15,8 @@ module Cardano.Wallet.CoinSelection
     ( CoinSelectionOptions (..)
     , CoinSelectionError(..)
     , CoinSelection(..)
+    , FeeOptions (..)
+    , FeeError(..)
     ) where
 
 import Prelude
@@ -68,3 +70,26 @@ instance Semigroup CoinSelection where
 
 instance Monoid CoinSelection where
     mempty = CoinSelection [] [] []
+
+
+data FeeOptions = FeeOptions
+    { estimate
+      :: Int
+      -> [Coin]
+      -> Coin
+      -- ^ Estimate fees based on number of inputs and values of the outputs
+    , dustThreshold
+      :: Coin
+      -- ^ Change addresses below the given threshold will be evicted
+      -- from the created transaction. Setting 'dustThreshold' to 0
+      -- removes output equal to 0
+    } deriving (Generic)
+
+data FeeError =
+     CannotCoverFee Word64
+    -- ^ UTxO exhausted during fee covering
+    -- We record what amount missed to cover the fee
+    | OutOfBoundFee Word64 Word64
+    -- ^ Excessive actual fee compared to estimated fee
+    -- We record the actual fee as well as estimated fee
+    deriving (Show, Eq)

@@ -11,6 +11,8 @@
 
 module Cardano.Wallet.CoinSelection.Random
     ( random
+    , pickRandom
+    , distance
     ) where
 
 import Prelude
