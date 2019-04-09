@@ -6,7 +6,9 @@ module Cardano.Wallet.Api where
 import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiT
+    , ApiTransaction
     , ApiWallet
+    , PostTransactionData
     , WalletPostData
     , WalletPutData
     , WalletPutPassphraseData
@@ -28,7 +30,7 @@ import Servant.API
     , ReqBody
     )
 
-type Api = Addresses :<|> Wallets
+type Api = Addresses :<|> Wallets :<|> Transactions
 
 {-------------------------------------------------------------------------------
                                   Addresses
@@ -90,3 +92,19 @@ type PutWalletPassphrase = "wallets"
     :> "passphrase"
     :> ReqBody '[JSON] WalletPutPassphraseData
     :> Put '[OctetStream] NoContent
+
+{-------------------------------------------------------------------------------
+                                  Transactions
+
+  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Transactions
+-------------------------------------------------------------------------------}
+
+type Transactions =
+    CreateTransaction
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransaction
+type CreateTransaction = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "transactions"
+    :> ReqBody '[JSON] PostTransactionData
+    :> Post '[JSON] ApiTransaction

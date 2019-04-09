@@ -1,8 +1,38 @@
 {
-    "seed": 249783031729475215,
+    "seed": -9202250608145783237,
     "samples": [
         {
             "status": "ready"
+        },
+        {
+            "status": "ready"
+        },
+        {
+            "status": "restoring",
+            "progress": {
+                "quantity": 74,
+                "unit": "percent"
+            }
+        },
+        {
+            "status": "restoring",
+            "progress": {
+                "quantity": 52,
+                "unit": "percent"
+            }
+        },
+        {
+            "status": "ready"
+        },
+        {
+            "status": "ready"
+        },
+        {
+            "status": "restoring",
+            "progress": {
+                "quantity": 29,
+                "unit": "percent"
+            }
         },
         {
             "status": "ready"

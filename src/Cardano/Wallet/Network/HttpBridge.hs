@@ -88,12 +88,12 @@ rbNextBlocks
     -> ExceptT ErrNetworkUnreachable m [Block]
 rbNextBlocks network start = do
     (tipHash, tip) <- fmap slotId <$> getNetworkTip network
-    epochBlocks <- nextStableEpoch (epochIndex start)
+    epochBlocks <- nextStableEpoch (epochNumber start)
     additionalBlocks <-
         if null epochBlocks then
             unstableBlocks tipHash tip
         else if length epochBlocks < 1000 then
-            nextStableEpoch (epochIndex start + 1)
+            nextStableEpoch (epochNumber start + 1)
         else
             pure []
     pure (epochBlocks ++ additionalBlocks)

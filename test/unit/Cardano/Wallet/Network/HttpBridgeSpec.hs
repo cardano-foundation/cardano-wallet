@@ -34,7 +34,7 @@ spec = do
             fmap length blocks `shouldBe` Right 493
             let hdrs = either (const []) (map (slotId . header)) blocks
             map slotNumber hdrs `shouldBe` [1000 .. 1492]
-            map epochIndex hdrs `shouldSatisfy` all (== 106)
+            map epochNumber hdrs `shouldSatisfy` all (== 106)
 
         it "should return all unstable blocks" $ do
             blocks <- runExceptT $ nextBlocks network (SlotId 105 0)
@@ -53,14 +53,14 @@ spec = do
             Right blocks <- runExceptT $ nextBlocks network (SlotId 100 0)
             -- an entire epoch's worth of blocks
             length blocks `shouldBe` 21600
-            map (epochIndex . slotId . header) blocks
+            map (epochNumber . slotId . header) blocks
                 `shouldSatisfy` all (== 100)
 
         it "should get from packed epochs and filter by start slot" $ do
             Right blocks <- runExceptT $ nextBlocks network (SlotId 104 10000)
             -- the number of remaining blocks in epoch 104
             length blocks `shouldBe` 11600
-            map (epochIndex . slotId . header) blocks
+            map (epochNumber . slotId . header) blocks
                 `shouldSatisfy` all (== 104)
 
         it "should produce no blocks if start slot is after tip" $ do

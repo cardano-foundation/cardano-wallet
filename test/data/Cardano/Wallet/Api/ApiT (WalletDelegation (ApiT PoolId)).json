@@ -1,17 +1,35 @@
 {
-    "seed": -7718022052509193490,
+    "seed": 638475345931542715,
     "samples": [
         {
-            "status": "delegating",
-            "target": "_bG"
+            "status": "not_delegating"
         },
         {
             "status": "delegating",
-            "target": "on{"
+            "target": "]i;"
+        },
+        {
+            "status": "not_delegating"
+        },
+        {
+            "status": "not_delegating"
         },
         {
             "status": "delegating",
-            "target": "*=A"
+            "target": "LTw"
+        },
+        {
+            "status": "not_delegating"
+        },
+        {
+            "status": "not_delegating"
+        },
+        {
+            "status": "delegating",
+            "target": "23Y"
+        },
+        {
+            "status": "not_delegating"
         },
         {
             "status": "not_delegating"

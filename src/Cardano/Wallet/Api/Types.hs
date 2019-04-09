@@ -34,6 +34,10 @@ module Cardano.Wallet.Api.Types
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
+    , PostTransactionData (..)
+    , ApiBlockData (..)
+    , ApiTransaction (..)
+    , ApiCoins (..)
 
     -- * Polymorphic Types
     , ApiT (..)
@@ -50,8 +54,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
+    , Direction (..)
+    , Hash (..)
     , PoolId (..)
     , ShowFmt (..)
+    , SlotId (..)
+    , TxStatus (..)
     , WalletBalance (..)
     , WalletDelegation (..)
     , WalletId (..)
@@ -77,16 +85,24 @@ import Data.Aeson
     )
 import Data.Bifunctor
     ( bimap )
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), ToText (..) )
+import Data.Time
+    ( UTCTime )
 import Fmt
     ( pretty )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( Nat, Symbol )
+import Numeric.Natural
+    ( Natural )
 import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
@@ -128,6 +144,33 @@ data WalletPutPassphraseData = WalletPutPassphraseData
     { oldPassphrase :: !(ApiT (Passphrase "encryption"))
     , newPassphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
+
+data PostTransactionData = PostTransactionData
+    { targets :: !(NonEmpty ApiCoins)
+    , passphrase :: !(ApiT (Passphrase "encryption"))
+    } deriving (Eq, Generic, Show)
+
+data ApiTransaction = Transaction
+    { id :: !(ApiT (Hash "Tx"))
+    , amount :: !(Quantity "lovelace" Natural)
+    , insertedAt :: !ApiBlockData
+    , depth :: !(Quantity "block" Natural)
+    , direction :: !(ApiT Direction)
+    , inputs :: !(NonEmpty ApiCoins)
+    , outputs :: !(NonEmpty ApiCoins)
+    , status :: !(ApiT TxStatus)
+    } deriving (Eq, Generic, Show)
+
+data ApiCoins = ApiCoins
+    { address :: !(ApiT Address)
+    , amount :: !(Quantity "lovelace" Natural)
+    } deriving (Eq, Generic, Show)
+
+data ApiBlockData = ApiBlockData
+    { time :: UTCTime
+    , block :: !(ApiT SlotId)
+    } deriving (Eq, Generic, Show)
+
 
 {-------------------------------------------------------------------------------
                               Polymorphic Types
@@ -292,6 +335,47 @@ walletStateOptions = taggedSumTypeOptions $ TaggedObjectOptions
     { _tagFieldName = "status"
     , _contentsFieldName = "progress"
     }
+
+instance FromJSON PostTransactionData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON PostTransactionData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON (ApiT SlotId) where
+    parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
+instance ToJSON (ApiT SlotId) where
+    toJSON = genericToJSON defaultRecordTypeOptions . getApiT
+
+instance FromJSON ApiBlockData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiBlockData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiCoins where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiCoins where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiTransaction where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiTransaction where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON (ApiT (Hash "Tx")) where
+    parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText
+instance ToJSON (ApiT (Hash "Tx")) where
+    toJSON = toJSON . toText . getApiT
+
+
+instance FromJSON (ApiT Direction) where
+    parseJSON = fmap ApiT . genericParseJSON defaultSumTypeOptions
+instance ToJSON (ApiT Direction) where
+    toJSON = genericToJSON defaultSumTypeOptions . getApiT
+
+instance FromJSON (ApiT TxStatus) where
+    parseJSON = fmap ApiT . genericParseJSON defaultSumTypeOptions
+instance ToJSON (ApiT TxStatus) where
+    toJSON = genericToJSON defaultSumTypeOptions . getApiT
 
 {-------------------------------------------------------------------------------
                              HTTPApiData instances
