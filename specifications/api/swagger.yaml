@@ -212,8 +212,8 @@ transactionId: &transactionId
   description: A unique identifier for this transaction
   type: string
   format: hex
-  maxLength: 128
-  minLength: 128
+  maxLength: 64
+  minLength: 64
   example: 1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1
 
 transactionAmount: &transactionAmount

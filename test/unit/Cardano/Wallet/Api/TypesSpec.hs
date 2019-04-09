@@ -453,7 +453,7 @@ instance Arbitrary (Quantity "block" Natural) where
     arbitrary = Quantity . fromIntegral <$> (arbitrary @Word8)
 
 instance Arbitrary (Hash "Tx") where
-    arbitrary = Hash . B8.pack <$> replicateM 64 arbitrary
+    arbitrary = Hash . B8.pack <$> replicateM 32 arbitrary
 
 instance Arbitrary Direction where
     arbitrary = genericArbitrary
