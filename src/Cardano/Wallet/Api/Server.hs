@@ -16,9 +16,9 @@ module Cardano.Wallet.Api.Server
 import Prelude
 
 import Cardano.Wallet
-    ( CreateWalletError (..)
+    ( ErrNoSuchWallet (..)
+    , ErrWalletAlreadyExists (..)
     , NewWallet (..)
-    , ReadWalletError (..)
     , WalletLayer (..)
     )
 import Cardano.Wallet.Api
@@ -88,7 +88,7 @@ getWallet w (ApiT wid) = do
     (wallet, meta) <- liftHandler $ readWallet w wid
     return ApiWallet
         { id =
-            ApiT $ meta ^. #walletId
+            ApiT wid
         , addressPoolGap =
             ApiT $ getState wallet ^. #externalPool . #gap
         , balance = ApiT $ WalletBalance
@@ -180,10 +180,10 @@ class LiftHandler e where
 -- In practice, we want to create nice error messages giving as much details as
 -- we can.
 
-instance LiftHandler ReadWalletError where
+instance LiftHandler (ErrNoSuchWallet operation) where
     handler = \case
-        ErrReadWalletNotFound _ -> err404
+        ErrNoSuchWallet _ -> err404
 
-instance LiftHandler CreateWalletError where
+instance LiftHandler (ErrWalletAlreadyExists operation) where
     handler = \case
-        ErrCreateWalletIdAlreadyExists _ -> err409
+        ErrWalletAlreadyExists _ -> err409

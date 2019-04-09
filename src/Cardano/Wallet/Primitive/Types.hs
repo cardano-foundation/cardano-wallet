@@ -138,9 +138,7 @@ import qualified Data.Text.Encoding as T
 -------------------------------------------------------------------------------}
 
 data WalletMetadata = WalletMetadata
-    { walletId
-        :: !WalletId
-    , name
+    { name
         :: !WalletName
     , passphraseInfo
         :: !WalletPassphraseInfo
@@ -150,8 +148,12 @@ data WalletMetadata = WalletMetadata
         :: !(WalletDelegation PoolId)
     } deriving (Eq, Show, Generic)
 
+instance NFData WalletMetadata
+
 newtype WalletName = WalletName { getWalletName ::  Text }
-    deriving (Eq, Show)
+    deriving (Generic, Eq, Show)
+
+instance NFData WalletName
 
 instance FromText WalletName where
     fromText t
@@ -178,6 +180,8 @@ walletNameMaxLength = 255
 newtype WalletId = WalletId { getWalletId :: Digest Blake2b_160 }
     deriving (Generic, Eq, Ord, Show)
 
+instance NFData WalletId
+
 instance FromText WalletId where
     fromText txt = maybe
         (Left $ TextDecodingError msg)
@@ -196,15 +200,20 @@ data WalletState
     | Restoring !(Quantity "percent" Percentage)
     deriving (Generic, Eq, Show)
 
+instance NFData WalletState
+
 data WalletDelegation poolId
     = NotDelegating
     | Delegating !poolId
     deriving (Generic, Eq, Show)
 deriving instance Functor WalletDelegation
+instance NFData poolId => NFData (WalletDelegation poolId)
 
 newtype WalletPassphraseInfo = WalletPassphraseInfo
     { lastUpdatedAt :: UTCTime }
     deriving (Generic, Eq, Show)
+
+instance NFData WalletPassphraseInfo
 
 data WalletBalance = WalletBalance
     { available :: !(Quantity "lovelace" Natural)
@@ -220,6 +229,8 @@ data WalletBalance = WalletBalance
 newtype PoolId = PoolId
     { getPoolId :: Text }
     deriving (Generic, Eq, Show)
+
+instance NFData PoolId
 
 {-------------------------------------------------------------------------------
                                     Block

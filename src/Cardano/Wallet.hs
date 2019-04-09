@@ -19,8 +19,8 @@ module Cardano.Wallet
     -- * Types
       WalletLayer (..)
     , NewWallet(..)
-    , ReadWalletError(..)
-    , CreateWalletError(..)
+    , ErrNoSuchWallet(..)
+    , ErrWalletAlreadyExists(..)
 
     -- * Construction
     , mkWalletLayer
@@ -32,7 +32,11 @@ module Cardano.Wallet
 import Prelude
 
 import Cardano.Wallet.DB
-    ( DBLayer (..), PrimaryKey (..) )
+    ( DBLayer
+    , ErrNoSuchWallet (..)
+    , ErrWalletAlreadyExists (..)
+    , PrimaryKey (..)
+    )
 import Cardano.Wallet.Network
     ( NetworkLayer (..), listen )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -48,7 +52,14 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.Model
     ( Wallet, applyBlocks, initWallet )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), WalletId (..), WalletMetadata (..), WalletName (..) )
+    ( Block (..)
+    , WalletDelegation (..)
+    , WalletId (..)
+    , WalletMetadata (..)
+    , WalletName (..)
+    , WalletPassphraseInfo (..)
+    , WalletState (..)
+    )
 import Control.Exception
     ( Exception )
 import Control.Monad
@@ -58,10 +69,17 @@ import Control.Monad.Fail
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT, runExceptT, throwE )
+    ( ExceptT, runExceptT )
+import Control.Monad.Trans.Maybe
+    ( MaybeT (..), maybeToExceptT )
+import Data.Functor
+    ( ($>) )
+import Data.Time.Clock
+    ( getCurrentTime )
 import GHC.Generics
     ( Generic )
 
+import qualified Cardano.Wallet.DB as DB
 
 {-------------------------------------------------------------------------------
                                  Types
@@ -70,10 +88,10 @@ import GHC.Generics
 data WalletLayer s = WalletLayer
     { createWallet
         :: NewWallet
-        -> ExceptT CreateWalletError IO WalletId
+        -> ExceptT (ErrWalletAlreadyExists "createWallet") IO WalletId
     , readWallet
         :: WalletId
-        -> ExceptT ReadWalletError IO (Wallet s, WalletMetadata)
+        -> ExceptT (ErrNoSuchWallet "readWallet") IO (Wallet s, WalletMetadata)
     , watchWallet
         :: WalletId
         -> IO ()
@@ -91,16 +109,6 @@ data NewWallet = NewWallet
     , gap
         :: !AddressPoolGap
     } deriving (Show, Generic)
-
--- | Errors occuring when fetching a wallet
-newtype ReadWalletError
-    = ErrReadWalletNotFound WalletId
-    deriving (Eq, Show)
-
--- | Errors occuring when creating a wallet
-newtype CreateWalletError
-    = ErrCreateWalletIdAlreadyExists WalletId
-    deriving (Eq, Show)
 
 {-------------------------------------------------------------------------------
                                  Construction
@@ -122,36 +130,52 @@ mkWalletLayer db network = WalletLayer
                 mkAddressPool (publicKey accXPrv) (gap w) ExternalChain []
         let intPool =
                 mkAddressPool (publicKey accXPrv) minBound InternalChain []
-        let wallet = initWallet $ SeqState
+        let wid =
+                WalletId (digest $ publicKey rootXPrv)
+        let checkpoint = initWallet $ SeqState
                 { externalPool = extPool
                 , internalPool = intPool
                 }
-        let wid = WalletId (digest $ publicKey rootXPrv)
-        liftIO (readCheckpoint db (PrimaryKey wid)) >>= \case
-            Nothing -> do
-                liftIO $ putCheckpoint db (PrimaryKey wid) wallet
-                return wid
-            Just _ ->
-                throwE $ ErrCreateWalletIdAlreadyExists wid
-    , readWallet = \wid -> liftIO (readCheckpoint db (PrimaryKey wid)) >>= \case
-        Nothing ->
-            throwE $ ErrReadWalletNotFound wid
-        Just w ->
-            return (w, error "FIXME: store and retrieve wallet metadata")
+        now <- liftIO getCurrentTime
+        let metadata = WalletMetadata
+                { name = Cardano.Wallet.name w
+                , passphraseInfo = WalletPassphraseInfo now
+                , status = Restoring minBound
+                , delegation = NotDelegating
+                }
+        DB.createWallet db (PrimaryKey wid) checkpoint metadata $> wid
 
-    , watchWallet = liftIO . listen network . onNextblocks
+    , readWallet = \wid -> maybeToExceptT (ErrNoSuchWallet wid) $ do
+        cp <- MaybeT $ DB.readCheckpoint db (PrimaryKey wid)
+        meta <- MaybeT $ DB.readWalletMeta db (PrimaryKey wid)
+        return (cp, meta)
+
+    , watchWallet =
+        liftIO . listen network . onNextblocks
     }
   where
     onNextblocks :: WalletId -> [Block] -> IO ()
     onNextblocks wid blocks = do
-        (txs, cp') <- readCheckpoint db (PrimaryKey wid) >>= \case
+        (txs, cp') <- DB.readCheckpoint db (PrimaryKey wid) >>= \case
             Nothing ->
                 fail $ "couldn't find worker wallet: " <> show wid
             Just cp -> do
                 let nonEmpty = not . null . transactions
                 return $ applyBlocks (filter nonEmpty blocks) cp
-        putCheckpoint db (PrimaryKey wid) cp'
-        unsafeRunExceptT $ putTxHistory db (PrimaryKey wid) txs -- Safe after ^
+        -- FIXME
+        -- Note that, the two calls below are _safe_ under the assumption that
+        -- the wallet existed _right before_. In theory, in a multi-threaded
+        -- context, it may happen that another actor deletes the wallet between
+        -- the calls. Here
+        -- In practice, it isn't really _bad_ if the wallet is gone, we could
+        -- simply log an error or warning and move on. This would have to be
+        -- done as soon as we introduce logging.
+        -- Note also that there's no transaction surrounding both calls because
+        -- there's only one thread per wallet that will apply blocks. And
+        -- therefore, only one thread making changes on checkpoints and/or tx
+        -- history
+        unsafeRunExceptT $ DB.putCheckpoint db (PrimaryKey wid) cp'
+        unsafeRunExceptT $ DB.putTxHistory db (PrimaryKey wid) txs
 
 {-------------------------------------------------------------------------------
                                  Helpers
