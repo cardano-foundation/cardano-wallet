@@ -305,10 +305,12 @@ benchmark restore
       -Werror
   build-depends:
       base
+    , ansi-terminal
     , async
     , cardano-wallet
     , criterion-measurement
     , deepseq
+    , docopt
     , fmt
     , generic-lens
     , process
@@ -324,6 +326,7 @@ benchmark restore
   main-is:
       Main.hs
   other-modules:
+      Cardano.CLI
       Cardano.Launcher
   if os(windows)
     build-depends: Win32

@@ -5,8 +5,24 @@ module Main where
 
 import Prelude
 
+import Cardano.CLI
+    ( Network (..) )
 import Cardano.Launcher
     ( Command (Command), StdStream (..), installSignalHandlers, launch )
+import Cardano.Wallet
+    ( NewWallet (..), WalletLayer (..), mkWalletLayer, unsafeRunExceptT )
+import Cardano.Wallet.Network
+    ( NetworkLayer (..), networkTip )
+import Cardano.Wallet.Network.HttpBridge
+    ( newNetworkLayer )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Passphrase (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( mkAddressPoolGap )
+import Cardano.Wallet.Primitive.Types
+    ( SlotId (..), WalletName (..) )
+import Control.Arrow
+    ( left )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
@@ -27,39 +43,46 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Time.Clock.POSIX
     ( POSIXTime, getPOSIXTime )
 import Fmt
     ( fmt, (+|), (+||), (|+), (||+) )
 import Say
     ( say )
-import System.Exit
-    ( die )
-
-import Cardano.Wallet
-    ( NewWallet (..), WalletLayer (..), mkWalletLayer )
-import Cardano.Wallet.Network
-    ( NetworkLayer, networkTip )
-import Cardano.Wallet.Network.HttpBridge
-    ( newNetworkLayer )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Passphrase (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( mkAddressPoolGap )
-import Cardano.Wallet.Primitive.Types
-    ( SlotId (..), WalletName (..) )
+import System.Environment
+    ( getArgs )
 
 import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Data.Text as T
 
+-- | Run all available benchmarks. Can accept one argument that is a target
+-- network against which benchmarks below should be ran
+--
+-- (e.g. `--benchmark-arguments "mainnet"`)
 main :: IO ()
 main = do
+    network <- getArgs >>= either fail return . parseArgs
     installSignalHandlers
-    mapM_ prepareNode ["testnet", "mainnet"]
+    prepareNode network
     runBenchmarks
-        [ bench "restore - testnet - walletSeq" $ test1 "testnet" walletSeq
-        , bench "restore - mainnet - walletSeq" $ test1 "mainnet" walletSeq
+        [ bench ("restore " <> toText network <> " seq")
+            (bench_restoration network walletSeq)
         ]
+
+-- | Very simplistic benchmark argument parser. If anything more is ever needed,
+-- it's probably a good idea to go for `optparse-application` or similar for a
+-- more structured approach to argument parsing.
+parseArgs :: [String] -> Either String Network
+parseArgs = \case
+    [] ->
+        Right Testnet
+    [h] ->
+        left getTextDecodingError $ fromText (T.pack h)
+    _ ->
+        Left "invalid arguments provided to benchmark suite: I expect a\
+            \ single string with the target network (e.g. \"mainnet\")."
 
 runBenchmarks :: [IO (Text, Double)] -> IO ()
 runBenchmarks bs = do
@@ -82,42 +105,45 @@ bench benchName action = do
 printResult :: Text -> Double -> IO ()
 printResult benchName dur = say . fmt $ "  "+|benchName|+": "+|secs dur|+""
 
+{-------------------------------------------------------------------------------
+                                  Benchmarks
+-------------------------------------------------------------------------------}
 
-test1 :: Text -> NewWallet -> IO ()
-test1 netName nw = withHttpBridge netName $ \port -> do
-    db <- MVar.newDBLayer
-    network <- newNetworkLayer netName port
-    runExceptT (networkTip network) >>= \case
-        Right (_, bh) -> say . fmt $ "Note: the "+|netName|+" tip is at "+||(bh ^. #slotId)||+""
-        Left err -> die .fmt $ "Could not get the network tip. Is the node backend running?\n"+||err||+""
-    let testWalletLayer = mkWalletLayer db network
-    res <- runExceptT $ createWallet testWalletLayer nw
-    case res of
-        Right wal -> processWallet testWalletLayer logChunk wal
-        Left err -> die $ show err
+{-# ANN bench_restoration ("HLint: ignore Use camelCase" :: String) #-}
+bench_restoration :: Network -> NewWallet -> IO ()
+bench_restoration network nw = withHttpBridge network $ \port -> do
+    dbLayer <- MVar.newDBLayer
+    networkLayer <- newNetworkLayer networkName port
+    (_, bh) <- unsafeRunExceptT $ networkTip networkLayer
+    say . fmt $ "Note: the "+|networkName|+" tip is at "+||(bh ^. #slotId)||+""
+    let walletLayer = mkWalletLayer dbLayer networkLayer
+    wallet <- unsafeRunExceptT $ createWallet walletLayer nw
+    processWallet walletLayer logChunk wallet
+  where
+    networkName = toText network
 
 logChunk :: SlotId -> IO ()
 logChunk slot = say . fmt $ "Processing "+||slot||+""
 
-withHttpBridge :: Text -> (Int -> IO a) -> IO a
-withHttpBridge netName action = bracket start stop (const (action port))
-    where
-        port = 8002
-        start = do
-            handle <- async $ launch
-                [ Command "cardano-http-bridge"
-                    [ "start"
-                    , "--port", show port
-                    , "--template", T.unpack netName
-                    ]
-                    (return ())
-                    Inherit
+withHttpBridge :: Network -> (Int -> IO a) -> IO a
+withHttpBridge network action = bracket start stop (const (action port))
+  where
+    port = 8002
+    start = do
+        handle <- async $ launch
+            [ Command "cardano-http-bridge"
+                [ "start"
+                , "--port", show port
+                , "--template", T.unpack (toText network)
                 ]
-            threadDelay 1000000 -- wait for listening socket
-            pure handle
-        stop handle = do
-            cancel handle
-            threadDelay 1000000 -- wait for socket to be closed
+                (return ())
+                Inherit
+            ]
+        threadDelay 1000000 -- wait for listening socket
+        pure handle
+    stop handle = do
+        cancel handle
+        threadDelay 1000000 -- wait for socket to be closed
 
 
 baseWallet :: NewWallet
@@ -131,13 +157,13 @@ walletSeq = baseWallet
     , name = WalletName "Benchmark Sequential Wallet"
     }
 
-prepareNode :: Text -> IO ()
-prepareNode netName = do
-    say . fmt $ "Syncing "+|netName|+" node... "
-    sl <- withHttpBridge netName $ \port -> do
-        network <- newNetworkLayer netName port
-        waitForNodeSync network netName logQuiet
-    say . fmt $ "Completed sync of "+|netName|+" up to "+||sl||+""
+prepareNode :: Network -> IO ()
+prepareNode net = do
+    say . fmt $ "Syncing "+|toText net|+" node... "
+    sl <- withHttpBridge net $ \port -> do
+        network <- newNetworkLayer (toText net) port
+        waitForNodeSync network (toText net) logQuiet
+    say . fmt $ "Completed sync of "+|toText net|+" up to "+||sl||+""
 
 -- | Poll the network tip until it reaches the slot corresponding to the current
 -- time.
