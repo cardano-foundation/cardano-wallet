@@ -129,10 +129,13 @@ instance Data.Aeson.Types.ToJSON.ToJSON Data.Quantity.Percentage
 instance GHC.Classes.Eq Data.Quantity.Percentage
 instance GHC.Show.Show Data.Quantity.Percentage
 instance GHC.Generics.Generic Data.Quantity.Percentage
+instance GHC.Enum.Enum a => GHC.Enum.Enum (Data.Quantity.Quantity u a)
+instance GHC.Enum.Bounded a => GHC.Enum.Bounded (Data.Quantity.Quantity u a)
 instance GHC.Classes.Ord a => GHC.Classes.Ord (Data.Quantity.Quantity u a)
 instance GHC.Classes.Eq a => GHC.Classes.Eq (Data.Quantity.Quantity u a)
 instance GHC.Show.Show a => GHC.Show.Show (Data.Quantity.Quantity u a)
 instance GHC.Generics.Generic (Data.Quantity.Quantity u a)
+instance Control.DeepSeq.NFData Data.Quantity.Percentage
 instance Data.Aeson.Types.FromJSON.FromJSON Data.Quantity.Percentage
 instance GHC.Enum.Bounded Data.Quantity.Percentage
 instance GHC.Enum.Enum Data.Quantity.Percentage
@@ -290,8 +293,7 @@ SlotId :: !Word64 -> !Word16 -> SlotId
 [$sel:epochIndex:SlotId] :: SlotId -> !Word64
 [$sel:slotNumber:SlotId] :: SlotId -> !Word16
 data WalletMetadata
-WalletMetadata :: !WalletId -> !WalletName -> !WalletPassphraseInfo -> !WalletState -> !WalletDelegation PoolId -> WalletMetadata
-[$sel:walletId:WalletMetadata] :: WalletMetadata -> !WalletId
+WalletMetadata :: !WalletName -> !WalletPassphraseInfo -> !WalletState -> !WalletDelegation PoolId -> WalletMetadata
 [$sel:name:WalletMetadata] :: WalletMetadata -> !WalletName
 [$sel:passphraseInfo:WalletMetadata] :: WalletMetadata -> !WalletPassphraseInfo
 [$sel:status:WalletMetadata] :: WalletMetadata -> !WalletState
@@ -431,6 +433,7 @@ instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.WalletId
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.WalletId
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.WalletName
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.WalletName
+instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.WalletName
 instance GHC.Base.Functor Cardano.Wallet.Primitive.Types.WalletDelegation
 instance Control.DeepSeq.NFData a => Control.DeepSeq.NFData (Cardano.Wallet.Primitive.Types.ShowFmt a)
 instance Formatting.Buildable.Buildable a => GHC.Show.Show (Cardano.Wallet.Primitive.Types.ShowFmt a)
@@ -468,8 +471,15 @@ instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.Direction
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.Direction
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.TxStatus
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.TxStatus
+instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.WalletMetadata
+instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.PoolId
+instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.WalletPassphraseInfo
+instance Control.DeepSeq.NFData poolId => Control.DeepSeq.NFData (Cardano.Wallet.Primitive.Types.WalletDelegation poolId)
+instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.WalletState
+instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.WalletId
 instance Data.Text.Class.FromText Cardano.Wallet.Primitive.Types.WalletId
 instance Data.Text.Class.ToText Cardano.Wallet.Primitive.Types.WalletId
+instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.WalletName
 instance Data.Text.Class.FromText Cardano.Wallet.Primitive.Types.WalletName
 instance Data.Text.Class.ToText Cardano.Wallet.Primitive.Types.WalletName
 
@@ -778,19 +788,37 @@ module Cardano.Wallet.DB
 --   serialize and unserialize it (e.g. <tt>forall s. (Serialize s) =&gt;
 --   ...</tt>)
 data DBLayer m s
-DBLayer :: (PrimaryKey WalletId -> Wallet s -> m ()) -> (PrimaryKey WalletId -> m (Maybe (Wallet s))) -> m [PrimaryKey WalletId] -> (PrimaryKey WalletId -> Map (Hash "Tx") (Tx, TxMeta) -> ExceptT ErrPutTxHistory m ()) -> (PrimaryKey WalletId -> m (Map (Hash "Tx") (Tx, TxMeta))) -> DBLayer m s
+DBLayer :: (PrimaryKey WalletId -> Wallet s -> WalletMetadata -> ExceptT (ErrWalletAlreadyExists "createWallet") m ()) -> m [PrimaryKey WalletId] -> (PrimaryKey WalletId -> Wallet s -> ExceptT (ErrNoSuchWallet "putCheckpoint") m ()) -> (PrimaryKey WalletId -> m (Maybe (Wallet s))) -> (PrimaryKey WalletId -> WalletMetadata -> ExceptT (ErrNoSuchWallet "putWalletMeta") m ()) -> (PrimaryKey WalletId -> m (Maybe WalletMetadata)) -> (PrimaryKey WalletId -> Map (Hash "Tx") (Tx, TxMeta) -> ExceptT (ErrNoSuchWallet "putTxHistory") m ()) -> (PrimaryKey WalletId -> m (Map (Hash "Tx") (Tx, TxMeta))) -> DBLayer m s
+
+-- | Initialize a database entry for a given wallet. <a>putCheckpoint</a>,
+--   <a>putWalletMeta</a> or <a>putTxHistory</a> will actually all fail if
+--   they are called _first_ on a wallet.
+[createWallet] :: DBLayer m s -> PrimaryKey WalletId -> Wallet s -> WalletMetadata -> ExceptT (ErrWalletAlreadyExists "createWallet") m ()
+
+-- | Get the list of all known wallets in the DB, possibly empty.
+[listWallets] :: DBLayer m s -> m [PrimaryKey WalletId]
 
 -- | Replace the current checkpoint for a given wallet. We do not handle
 --   rollbacks yet, and therefore only stores the latest available
 --   checkpoint.
-[putCheckpoint] :: DBLayer m s -> PrimaryKey WalletId -> Wallet s -> m ()
+--   
+--   If the wallet doesn't exist, this operation returns an error.
+[putCheckpoint] :: DBLayer m s -> PrimaryKey WalletId -> Wallet s -> ExceptT (ErrNoSuchWallet "putCheckpoint") m ()
 
--- | Fetch the most recent checkpoint of a given wallet. Return
---   <a>Nothing</a> if there's no such wallet.
+-- | Fetch the most recent checkpoint of a given wallet.
+--   
+--   Return <a>Nothing</a> if there's no such wallet.
 [readCheckpoint] :: DBLayer m s -> PrimaryKey WalletId -> m (Maybe (Wallet s))
 
--- | Get the list of all known wallets in the DB, possibly empty.
-[readWallets] :: DBLayer m s -> m [PrimaryKey WalletId]
+-- | Replace an existing wallet metadata with the given one.
+--   
+--   If the wallet doesn't exist, this operation returns an error
+[putWalletMeta] :: DBLayer m s -> PrimaryKey WalletId -> WalletMetadata -> ExceptT (ErrNoSuchWallet "putWalletMeta") m ()
+
+-- | Fetch a wallet metadata, if they exist.
+--   
+--   Return <a>Nothing</a> if there's no such wallet.
+[readWalletMeta] :: DBLayer m s -> PrimaryKey WalletId -> m (Maybe WalletMetadata)
 
 -- | Augments the transaction history for a known wallet.
 --   
@@ -798,10 +826,11 @@ DBLayer :: (PrimaryKey WalletId -> Wallet s -> m ()) -> (PrimaryKey WalletId -> 
 --   altered nor merged (just ignored).
 --   
 --   If the wallet doesn't exist, this operation returns an error.
-[putTxHistory] :: DBLayer m s -> PrimaryKey WalletId -> Map (Hash "Tx") (Tx, TxMeta) -> ExceptT ErrPutTxHistory m ()
+[putTxHistory] :: DBLayer m s -> PrimaryKey WalletId -> Map (Hash "Tx") (Tx, TxMeta) -> ExceptT (ErrNoSuchWallet "putTxHistory") m ()
 
--- | Fetch the current transaction history of a known wallet. Returns an
---   empty map if the wallet isn't found.
+-- | Fetch the current transaction history of a known wallet.
+--   
+--   Returns an empty map if the wallet isn't found.
 [readTxHistory] :: DBLayer m s -> PrimaryKey WalletId -> m (Map (Hash "Tx") (Tx, TxMeta))
 
 -- | A primary key which can take many forms depending on the value. This
@@ -816,13 +845,19 @@ DBLayer :: (PrimaryKey WalletId -> Wallet s -> m ()) -> (PrimaryKey WalletId -> 
 newtype PrimaryKey key
 PrimaryKey :: key -> PrimaryKey key
 
--- | Error while trying to insert transaction history in the DB.
-newtype ErrPutTxHistory
-ErrNoSuchWallet :: WalletId -> ErrPutTxHistory
+-- | Can't perform given operation because there's no wallet
+newtype ErrNoSuchWallet (operation :: Symbol)
+ErrNoSuchWallet :: WalletId -> ErrNoSuchWallet
+
+-- | Forbidden operation was executed on an already existing wallet
+newtype ErrWalletAlreadyExists (operation :: Symbol)
+ErrWalletAlreadyExists :: WalletId -> ErrWalletAlreadyExists
 instance GHC.Classes.Ord key => GHC.Classes.Ord (Cardano.Wallet.DB.PrimaryKey key)
 instance GHC.Classes.Eq key => GHC.Classes.Eq (Cardano.Wallet.DB.PrimaryKey key)
-instance GHC.Classes.Eq Cardano.Wallet.DB.ErrPutTxHistory
-instance GHC.Show.Show Cardano.Wallet.DB.ErrPutTxHistory
+instance GHC.Show.Show (Cardano.Wallet.DB.ErrWalletAlreadyExists operation)
+instance GHC.Classes.Eq (Cardano.Wallet.DB.ErrWalletAlreadyExists operation)
+instance GHC.Show.Show (Cardano.Wallet.DB.ErrNoSuchWallet operation)
+instance GHC.Classes.Eq (Cardano.Wallet.DB.ErrNoSuchWallet operation)
 
 
 -- | Dummy implementation of the database-layer, using MVar. This may be
@@ -1096,9 +1131,9 @@ instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 --   to realize its role as being intermediary between the three.
 module Cardano.Wallet
 data WalletLayer s
-WalletLayer :: (NewWallet -> ExceptT CreateWalletError IO WalletId) -> (WalletId -> ExceptT ReadWalletError IO (Wallet s, WalletMetadata)) -> (WalletId -> IO ()) -> WalletLayer s
-[$sel:createWallet:WalletLayer] :: WalletLayer s -> NewWallet -> ExceptT CreateWalletError IO WalletId
-[$sel:readWallet:WalletLayer] :: WalletLayer s -> WalletId -> ExceptT ReadWalletError IO (Wallet s, WalletMetadata)
+WalletLayer :: (NewWallet -> ExceptT (ErrWalletAlreadyExists "createWallet") IO WalletId) -> (WalletId -> ExceptT (ErrNoSuchWallet "readWallet") IO (Wallet s, WalletMetadata)) -> (WalletId -> IO ()) -> WalletLayer s
+[$sel:createWallet:WalletLayer] :: WalletLayer s -> NewWallet -> ExceptT (ErrWalletAlreadyExists "createWallet") IO WalletId
+[$sel:readWallet:WalletLayer] :: WalletLayer s -> WalletId -> ExceptT (ErrNoSuchWallet "readWallet") IO (Wallet s, WalletMetadata)
 [$sel:watchWallet:WalletLayer] :: WalletLayer s -> WalletId -> IO ()
 data NewWallet
 NewWallet :: !Passphrase "seed" -> !Passphrase "generation" -> !WalletName -> !Passphrase "encryption" -> !AddressPoolGap -> NewWallet
@@ -1108,13 +1143,13 @@ NewWallet :: !Passphrase "seed" -> !Passphrase "generation" -> !WalletName -> !P
 [$sel:passphrase:NewWallet] :: NewWallet -> !Passphrase "encryption"
 [$sel:gap:NewWallet] :: NewWallet -> !AddressPoolGap
 
--- | Errors occuring when fetching a wallet
-newtype ReadWalletError
-ErrReadWalletNotFound :: WalletId -> ReadWalletError
+-- | Can't perform given operation because there's no wallet
+newtype ErrNoSuchWallet (operation :: Symbol)
+ErrNoSuchWallet :: WalletId -> ErrNoSuchWallet
 
--- | Errors occuring when creating a wallet
-newtype CreateWalletError
-ErrCreateWalletIdAlreadyExists :: WalletId -> CreateWalletError
+-- | Forbidden operation was executed on an already existing wallet
+newtype ErrWalletAlreadyExists (operation :: Symbol)
+ErrWalletAlreadyExists :: WalletId -> ErrWalletAlreadyExists
 
 -- | Create a new instance of the wallet layer.
 mkWalletLayer :: Exception e0 => DBLayer IO SeqState -> NetworkLayer IO e0 e1 -> WalletLayer SeqState
@@ -1123,10 +1158,6 @@ mkWalletLayer :: Exception e0 => DBLayer IO SeqState -> NetworkLayer IO e0 e1 ->
 --   called after checking for an invariant or, after ensuring that
 --   preconditions for meeting the underlying error have been discarded.
 unsafeRunExceptT :: (MonadFail m, Show e) => ExceptT e m a -> m a
-instance GHC.Show.Show Cardano.Wallet.CreateWalletError
-instance GHC.Classes.Eq Cardano.Wallet.CreateWalletError
-instance GHC.Show.Show Cardano.Wallet.ReadWalletError
-instance GHC.Classes.Eq Cardano.Wallet.ReadWalletError
 instance GHC.Generics.Generic Cardano.Wallet.NewWallet
 instance GHC.Show.Show Cardano.Wallet.NewWallet
 
@@ -1304,8 +1335,8 @@ module Cardano.Wallet.Api.Server
 
 -- | A Servant server for our wallet API
 server :: WalletLayer SeqState -> Server Api
-instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ReadWalletError
-instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.CreateWalletError
+instance Cardano.Wallet.Api.Server.LiftHandler (Cardano.Wallet.DB.ErrNoSuchWallet operation)
+instance Cardano.Wallet.Api.Server.LiftHandler (Cardano.Wallet.DB.ErrWalletAlreadyExists operation)
 
 
 -- | Extra content types for Servant.
