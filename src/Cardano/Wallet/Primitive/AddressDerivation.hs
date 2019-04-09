@@ -25,6 +25,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     -- * Polymorphic / General Purpose Types
     -- $use
       Key
+    , getKey
     , Depth (..)
     , Index
     , getIndex
@@ -132,7 +133,7 @@ import qualified Data.Text.Encoding as T
 -- let accountPubKey = Key 'AccountK XPub
 -- let addressPubKey = Key 'AddressK XPub
 -- @
-newtype Key (level :: Depth) key = Key key
+newtype Key (level :: Depth) key = Key { getKey :: key }
     deriving stock (Generic, Show, Eq)
 
 instance (NFData key) => NFData (Key level key)

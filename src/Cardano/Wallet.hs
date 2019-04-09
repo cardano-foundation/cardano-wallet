@@ -37,7 +37,11 @@ import Prelude
 import Cardano.Wallet.Binary
     ( encodeSignedTx, toByteString )
 import Cardano.Wallet.CoinSelection
-    ( CoinSelection (..), CoinSelectionError (..), CoinSelectionOptions )
+    ( CoinSelection (..)
+    , CoinSelectionError (..)
+    , CoinSelectionOptions
+    , shuffle
+    )
 import Cardano.Wallet.DB
     ( DBLayer
     , ErrNoSuchWallet (..)
@@ -61,6 +65,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap, SeqState (..), mkAddressPool )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, applyBlocks, availableUTxO, currentTip, getState, initWallet )
+import Cardano.Wallet.Primitive.Signing
+    ( SignTxError, mkStdTx )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
@@ -180,7 +186,7 @@ data ErrCreateUnsignedTx
 -- | Errors occuring when signing a transaction
 data ErrSignTx
     = ErrSignTxNoSuchWallet ErrNoSuchWallet
-    | ErrSignTx
+    | ErrSignTx SignTxError
 
 -- | Errors occuring when submitting a signed transaction to the network
 data ErrSubmitTx = forall a. NetworkError a
@@ -251,12 +257,14 @@ mkWalletLayer db network = WalletLayer
         let signed = SignedTx $ toByteString $ encodeSignedTx (tx, witnesses)
         withExceptT NetworkError $ postTx network signed
 
-    , signTx = \wid rootXPrv password (CoinSelection ins outs chgs) -> do
+    , signTx = \wid rootXPrv password (CoinSelection ins outs _chgs) -> do
+        -- TODO: This is untested
         (w, _) <- withExceptT ErrSignTxNoSuchWallet $ _readWallet wid
-        maybe
-            (throwE ErrSignTx)
-            return
-            (mkStdTx (getState w) rootXPrv password ins outs chgs)
+
+        shuffledOuts <- liftIO $ shuffle outs
+        case mkStdTx (getState w) (rootXPrv, password) ins shuffledOuts of
+            Right a -> return a
+            Left e -> throwE $ ErrSignTx e
     }
   where
     _readWallet
@@ -336,8 +344,6 @@ mkWalletLayer db network = WalletLayer
             DB.putCheckpoint db (PrimaryKey wid) cp'
             DB.putTxHistory db (PrimaryKey wid) txs
             DB.putWalletMeta db (PrimaryKey wid) meta'
-
-    mkStdTx = error "TODO: mkStdTx not implemented yet"
 
 {-------------------------------------------------------------------------------
                                  Helpers

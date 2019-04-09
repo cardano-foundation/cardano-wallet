@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -15,10 +16,11 @@
 -- compatibility with random address scheme from the legacy Cardano wallets.
 
 module Cardano.Wallet.Primitive.AddressDiscovery
-    ( -- * Sequential Derivation
+    ( AddressScheme (..)
+    -- * Sequential Derivation
 
     -- ** Address Pool Gap
-      AddressPoolGap
+    , AddressPoolGap
     , MkAddressPoolGapError (..)
     , defaultAddressPoolGap
     , getAddressPoolGap
@@ -40,13 +42,16 @@ module Cardano.Wallet.Primitive.AddressDiscovery
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPub )
+    ( XPrv, XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( ChangeChain (..)
     , Depth (..)
     , DerivationType (..)
     , Index
     , Key
+    , Passphrase
+    , deriveAccountPrivateKey
+    , deriveAddressPrivateKey
     , deriveAddressPublicKey
     , keyToAddress
     )
@@ -265,10 +270,51 @@ instance NFData SeqState
 -- that they are just created in sequence by the wallet software. Hence an
 -- address pool with a gap of 1 should be sufficient for the internal chain.
 instance IsOurs SeqState where
-    isOurs addr (SeqState !s1 !s2) =
+     isOurs addr (SeqState !s1 !s2) =
+         let
+             (res1, !s1') = lookupAddress addr s1
+             (res2, !s2') = lookupAddress addr s2
+             ours = isJust (res1 <|> res2)
+         in
+             (ours `deepseq` ours, SeqState s1' s2')
+
+-- TODO: We might want to move this abstraction / there is more work to be
+-- done here.
+--
+-- It would maybe be nice to derive IsOurs from AddressScheme automatically
+-- A /possible/ way to do that would be to return
+--     Maybe ((Key 'RootK XPrv, Passphrase "encryption") -> Key 'AddressK XPrv)
+-- instead, such that we can use @isJust@ without knowing the rootKey and pwd.
+class AddressScheme s where
+    keyFrom
+        :: Address
+        -> (Key 'RootK XPrv, Passphrase "encryption")
+        -> s
+        -> (Maybe (Key 'AddressK XPrv), s)
+
+instance AddressScheme SeqState where
+    keyFrom addr (rootPrv, pwd) (SeqState !s1 !s2) =
         let
-            (res1, !s1') = lookupAddress addr s1
-            (res2, !s2') = lookupAddress addr s2
-            ours = isJust (res1 <|> res2)
+            (xPrv1, !s1') = lookupAndDeriveXPrv s1 InternalChain
+            (xPrv2, !s2') = lookupAndDeriveXPrv s2 ExternalChain
+
+            xPrv = (xPrv1 <|> xPrv2)
+
         in
-            (ours `deepseq` ours, SeqState s1' s2')
+            (xPrv `deepseq` xPrv, SeqState s1' s2')
+
+      where
+        -- We are assuming there is only one account
+        account = minBound
+        accountPrv = deriveAccountPrivateKey pwd rootPrv account
+
+        lookupAndDeriveXPrv
+            :: AddressPool
+            -> ChangeChain
+            -> (Maybe (Key 'AddressK XPrv), AddressPool)
+        lookupAndDeriveXPrv pool chain =
+            let
+                (addrIx, pool') = lookupAddress addr pool
+            in
+                (deriveAddressPrivateKey pwd accountPrv chain <$> addrIx, pool')
+
