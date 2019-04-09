@@ -47,9 +47,11 @@ import Control.Monad
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( runExceptT )
+    ( ExceptT, runExceptT )
 import Crypto.Hash
     ( hash )
+import Data.Functor.Identity
+    ( Identity (..) )
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
@@ -86,6 +88,18 @@ import qualified Data.Set as Set
 
 spec :: Spec
 spec = do
+    describe "Checkpoints" $ before newDBLayer $ do
+        it "put . read yield a result"
+            (property . prop_readAfterPut putCheckpoint readCheckpoint)
+
+    describe "Wallet Metadata" $ before newDBLayer $ do
+        it "put . read yield a result"
+            (property . prop_readAfterPut putWalletMeta readWalletMeta)
+
+    describe "Tx History" $ before newDBLayer $ do
+        it "put . read yield a result"
+            (property . prop_readAfterPut putTxHistory readTxHistoryF)
+
     describe "DB works as expected" $ before newDBLayer $ do
         it "can't put checkpoint if there's no wallet"
             (property . dbPutCheckpointBeforeWalletProp)
@@ -111,10 +125,45 @@ spec = do
             (property . dbReplaceMetadataProp)
         it "putWalletMeta leaves the tx history & checkpoint untouched"
             (property . dbPutMetadataIsolationProp)
+  where
+    -- | Wrap the result of 'readTxHistory' in an arbitrary identity Applicative
+    readTxHistoryF
+        :: Monad m
+        => DBLayer m s
+        -> PrimaryKey WalletId
+        -> m (Identity (Map (Hash "Tx") (Tx, TxMeta)))
+    readTxHistoryF db = fmap Identity . readTxHistory db
 
 {-------------------------------------------------------------------------------
                                     Properties
 -------------------------------------------------------------------------------}
+
+-- | Checks that a given resource can be read after having been inserted in DB.
+prop_readAfterPut
+    :: (Show (f a), Eq (f a), Applicative f)
+    => (  DBLayer IO DummyState
+       -> PrimaryKey WalletId
+       -> a
+       -> ExceptT (ErrNoSuchWallet e) IO ()
+       ) -- ^ Put Operation
+    -> (   DBLayer IO DummyState
+        -> PrimaryKey WalletId
+        -> IO (f a)
+       ) -- ^ Read Operation
+    -> DBLayer IO DummyState
+        -- ^ DB Layer
+    -> (PrimaryKey WalletId, a)
+        -- ^ Property arguments
+    -> Property
+prop_readAfterPut putOp readOp db (key, a) = monadicIO (setup *> prop)
+  where
+    setup = do
+        (cp, meta) <- pick arbitrary
+        liftIO $ unsafeRunExceptT $ createWallet db key cp meta
+    prop = liftIO $ do
+        unsafeRunExceptT $ putOp db key a
+        res <- readOp db key
+        res `shouldBe` pure a
 
 dbPutCheckpointBeforeWalletProp
     :: DBLayer IO DummyState
