@@ -289,3 +289,48 @@ executable cardano-wallet-launcher
     other-modules: Cardano.Launcher.POSIX
   main-is:
      Main.hs
+
+benchmark restore
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+      -O2
+  if (!flag(development))
+    ghc-options:
+      -Werror
+  build-depends:
+      base
+    , ansi-terminal
+    , async
+    , cardano-wallet
+    , criterion-measurement
+    , deepseq
+    , docopt
+    , fmt
+    , generic-lens
+    , process
+    , say
+    , text
+    , time
+    , transformers
+  type:
+     exitcode-stdio-1.0
+  hs-source-dirs:
+      test/bench
+      app
+  main-is:
+      Main.hs
+  other-modules:
+      Cardano.CLI
+      Cardano.Launcher
+  if os(windows)
+    build-depends: Win32
+    other-modules: Cardano.Launcher.Windows
+  else
+    build-depends: unix
+    other-modules: Cardano.Launcher.POSIX

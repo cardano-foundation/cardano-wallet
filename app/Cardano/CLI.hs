@@ -13,7 +13,7 @@
 module Cardano.CLI
     (
     -- * Types
-      Network
+      Network(..)
     , Port(..)
 
     -- * Parsing Arguments
