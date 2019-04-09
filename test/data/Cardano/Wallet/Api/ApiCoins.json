@@ -1,0 +1,33 @@
+{
+    "seed": 1596151145858807018,
+    "samples": [
+        {
+            "amount": {
+                "quantity": 23,
+                "unit": "lovelace"
+            },
+            "address": "24XPC6GMBaKc7rFagPWAdf1y1QRxtoschuQrW1UaY3c6zWgwvFqxrnnqkvpxM3NeP8Dsu"
+        },
+        {
+            "amount": {
+                "quantity": 166,
+                "unit": "lovelace"
+            },
+            "address": "tmVPg75NvMJ43HHzuNHvqErT8Gymf1pDCfRBfkuiRDHjmLupCjHGdTJ2Vu1sbPCxuGb6"
+        },
+        {
+            "amount": {
+                "quantity": 103,
+                "unit": "lovelace"
+            },
+            "address": "UyqT3LupEdQHHyknoYuVjBWNUaiqSHw8LneNc6mfTA42Z14hxA8koVqR7ZL6rjesX4mj"
+        },
+        {
+            "amount": {
+                "quantity": 55,
+                "unit": "lovelace"
+            },
+            "address": "26hc6JWeqBs831mMMuUfT5LLVPDHtre1ZxYQXiQwoj6aZHw4TPymt4WoFtA96t7xWW2Et"
+        }
+    ]
+}

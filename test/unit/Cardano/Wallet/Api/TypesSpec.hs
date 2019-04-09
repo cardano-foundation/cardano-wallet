@@ -24,7 +24,7 @@ import Cardano.Wallet.Api
 import Cardano.Wallet.Api.Types
     ( ApiAddress (..)
     , ApiBlockData (..)
-    , ApiCoinSelection (..)
+    , ApiCoins (..)
     , ApiMnemonicT (..)
     , ApiT (..)
     , ApiTransaction (..)
@@ -173,7 +173,7 @@ spec = do
 
             roundtripAndGolden $ Proxy @ PostTransactionData
             roundtripAndGolden $ Proxy @ ApiTransaction
-            roundtripAndGolden $ Proxy @ ApiCoinSelection
+            roundtripAndGolden $ Proxy @ ApiCoins
             roundtripAndGolden $ Proxy @ ApiBlockData
             roundtripAndGolden $ Proxy @ (ApiT SlotId)
             roundtripAndGolden $ Proxy @ (ApiT TxStatus)
@@ -435,7 +435,7 @@ instance Arbitrary SlotId where
     arbitrary = SlotId <$> arbitrary <*> arbitrary
     shrink = genericShrink
 
-instance Arbitrary ApiCoinSelection where
+instance Arbitrary ApiCoins where
     arbitrary = genericArbitrary
     shrink = genericShrink
 

@@ -37,7 +37,7 @@ module Cardano.Wallet.Api.Types
     , PostTransactionData (..)
     , ApiBlockData (..)
     , ApiTransaction (..)
-    , ApiCoinSelection (..)
+    , ApiCoins (..)
 
     -- * Polymorphic Types
     , ApiT (..)
@@ -146,7 +146,7 @@ data WalletPutPassphraseData = WalletPutPassphraseData
     } deriving (Eq, Generic, Show)
 
 data PostTransactionData = PostTransactionData
-    { targets :: !(NonEmpty ApiCoinSelection)
+    { targets :: !(NonEmpty ApiCoins)
     , passphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
 
@@ -156,12 +156,12 @@ data ApiTransaction = Transaction
     , insertedAt :: !ApiBlockData
     , depth :: !(Quantity "block" Natural)
     , direction :: !(ApiT Direction)
-    , inputs :: !(NonEmpty ApiCoinSelection)
-    , outputs :: !(NonEmpty ApiCoinSelection)
+    , inputs :: !(NonEmpty ApiCoins)
+    , outputs :: !(NonEmpty ApiCoins)
     , status :: !(ApiT TxStatus)
     } deriving (Eq, Generic, Show)
 
-data ApiCoinSelection = ApiCoinSelection
+data ApiCoins = ApiCoins
     { address :: !(ApiT Address)
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
@@ -351,9 +351,9 @@ instance FromJSON ApiBlockData where
 instance ToJSON ApiBlockData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON ApiCoinSelection where
+instance FromJSON ApiCoins where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiCoinSelection where
+instance ToJSON ApiCoins where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiTransaction where
