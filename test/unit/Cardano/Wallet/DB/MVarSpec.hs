@@ -91,20 +91,22 @@ spec = do
     describe "Checkpoints" $ before newDBLayer $ do
         it "put . read yield a result"
             (property . prop_readAfterPut putCheckpoint readCheckpoint)
+        it "can't put before wallet exists"
+            (property . prop_putBeforeInit putCheckpoint readCheckpoint Nothing)
 
     describe "Wallet Metadata" $ before newDBLayer $ do
         it "put . read yield a result"
             (property . prop_readAfterPut putWalletMeta readWalletMeta)
+        it "can't put before wallet exists"
+            (property . prop_putBeforeInit putWalletMeta readWalletMeta Nothing)
 
     describe "Tx History" $ before newDBLayer $ do
         it "put . read yield a result"
             (property . prop_readAfterPut putTxHistory readTxHistoryF)
+        it "can't put before wallet exists"
+            (property . prop_putBeforeInit putTxHistory readTxHistoryF (pure mempty))
 
     describe "DB works as expected" $ before newDBLayer $ do
-        it "can't put checkpoint if there's no wallet"
-            (property . dbPutCheckpointBeforeWalletProp)
-        it "createWallet . readCheckpoint yields inserted checkpoint"
-            (property . dbReadCheckpointProp)
         it "replacement of checkpoint returns last checkpoint that was put"
             (property . dbReplaceCheckpointsProp)
         it "multiple sequential putCheckpoint work properly"
@@ -113,16 +115,10 @@ spec = do
             (property . dbMultiplePutsParProp)
         it "readTxHistory . putTxHistory yields inserted merged history"
             (checkCoverage . dbMergeTxHistoryProp)
-        it "can't put tx history if there's no wallet"
-            (property . dbPutTxHistoryBeforeWalletProp)
         it "putTxHistory leaves the wallet state & metadata untouched"
             (property . dbPutTxHistoryIsolationProp)
         it "putCheckpoint leaves the tx history & metadata untouched"
             (property . dbPutCheckpointIsolationProp)
-        it "can't put wallet metadata is there's no wallet"
-            (property . dbPutWalletMetadataBeforeWalletProp)
-        it "replacement of metadata returns last metadata that was put"
-            (property . dbReplaceMetadataProp)
         it "putWalletMeta leaves the tx history & checkpoint untouched"
             (property . dbPutMetadataIsolationProp)
   where
@@ -155,7 +151,8 @@ prop_readAfterPut
     -> (PrimaryKey WalletId, a)
         -- ^ Property arguments
     -> Property
-prop_readAfterPut putOp readOp db (key, a) = monadicIO (setup *> prop)
+prop_readAfterPut putOp readOp db (key, a) =
+    monadicIO (setup *> prop)
   where
     setup = do
         (cp, meta) <- pick arbitrary
@@ -165,27 +162,36 @@ prop_readAfterPut putOp readOp db (key, a) = monadicIO (setup *> prop)
         res <- readOp db key
         res `shouldBe` pure a
 
-dbPutCheckpointBeforeWalletProp
-    :: DBLayer IO DummyState
-    -> (PrimaryKey WalletId, Wallet DummyState)
+-- | Can't put resource before a wallet has been initialized
+prop_putBeforeInit
+    :: (Show (f a), Eq (f a), Applicative f)
+    => (  DBLayer IO DummyState
+       -> PrimaryKey WalletId
+       -> a
+       -> ExceptT (ErrNoSuchWallet e) IO ()
+       ) -- ^ Put Operation
+    -> (   DBLayer IO DummyState
+        -> PrimaryKey WalletId
+        -> IO (f a)
+       ) -- ^ Read Operation
+    -> f a
+        -- ^ An 'empty' value for the 'Applicative' f
+    -> DBLayer IO DummyState
+        -- ^ DB Layer
+    -> (PrimaryKey WalletId, a)
+        -- ^ Property arguments
     -> Property
-dbPutCheckpointBeforeWalletProp db (key@(PrimaryKey wid), cp) =
-    monadicIO $ liftIO $ do
-        runExceptT (putCheckpoint db key cp) >>= \case
-            Right _ -> fail "expected insertion to fail but it succeeded?"
-            Left err -> err `shouldBe` ErrNoSuchWallet wid
-        readCheckpoint db key `shouldReturn` Nothing
-
-dbReadCheckpointProp
-    :: DBLayer IO DummyState
-    -> (PrimaryKey WalletId, Wallet DummyState)
-    -> Property
-dbReadCheckpointProp db (key, cp)  = monadicIO $ do
-    meta <- pick arbitrary
-    liftIO $ do
-        unsafeRunExceptT $ createWallet db key cp meta
-        resFromDb <- readCheckpoint db key
-        resFromDb `shouldBe` Just cp
+prop_putBeforeInit putOp readOp empty db (key@(PrimaryKey wid), a) =
+    monadicIO (setup *> prop)
+  where
+    setup = return ()
+    prop = liftIO $ do
+        runExceptT (putOp db key a) >>= \case
+            Right _ ->
+                fail "expected put operation to fail but it succeeded!"
+            Left err ->
+                err `shouldBe` (ErrNoSuchWallet wid :: ErrNoSuchWallet e)
+        readOp db key `shouldReturn` empty
 
 dbReplaceCheckpointsProp
     :: DBLayer IO DummyState
@@ -247,16 +253,6 @@ dbMergeTxHistoryProp db (KeyValPairs keyValPairs) =
                 res <- readTxHistory db key
                 res `shouldBe` (Map.unions (snd <$> restrictTo key keyValPairs))
 
-dbPutTxHistoryBeforeWalletProp
-    :: DBLayer IO DummyState
-    -> PrimaryKey WalletId
-    -> Property
-dbPutTxHistoryBeforeWalletProp db key@(PrimaryKey wid) = monadicIO $ liftIO $ do
-    runExceptT (putTxHistory db key mempty) >>= \case
-        Right _ -> fail "expected insertion to fail but it succeeded?"
-        Left err -> err `shouldBe` ErrNoSuchWallet wid
-    readTxHistory db key `shouldReturn` mempty
-
 dbPutTxHistoryIsolationProp
     :: DBLayer IO DummyState
     -> PrimaryKey WalletId
@@ -295,29 +291,6 @@ dbPutMetadataIsolationProp db key (cp,meta,txs) meta' = monadicIO $ liftIO $ do
     unsafeRunExceptT $ putWalletMeta db key meta'
     readTxHistory db key `shouldReturn` txs
     readCheckpoint db key `shouldReturn` Just cp
-
-dbPutWalletMetadataBeforeWalletProp
-    :: DBLayer IO DummyState
-    -> (PrimaryKey WalletId, WalletMetadata)
-    -> Property
-dbPutWalletMetadataBeforeWalletProp db (key@(PrimaryKey wid), meta) =
-    monadicIO $ liftIO $ do
-        runExceptT (putWalletMeta db key meta) >>= \case
-            Right _ -> fail "expected insertion to fail but it succeeded?"
-            Left err -> err `shouldBe` ErrNoSuchWallet wid
-        readWalletMeta db key `shouldReturn` Nothing
-
-dbReplaceMetadataProp
-    :: DBLayer IO DummyState
-    -> (PrimaryKey WalletId, WalletMetadata, WalletMetadata)
-    -> Property
-dbReplaceMetadataProp db (key, meta1, meta2)  = monadicIO $ do
-    cp <- pick arbitrary
-    liftIO $ do
-        unsafeRunExceptT $ createWallet db key cp meta1
-        unsafeRunExceptT $ putWalletMeta db key meta2
-        resFromDb <- readWalletMeta db key
-        resFromDb `shouldBe` Just meta2
 
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
