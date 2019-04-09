@@ -62,7 +62,7 @@ import Data.Word
 import GHC.Generics
     ( Generic )
 import Test.Hspec
-    ( Spec, before, describe, it, shouldBe, shouldReturn )
+    ( Spec, describe, it, shouldBe, shouldReturn )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
@@ -84,7 +84,6 @@ import Test.QuickCheck.Monadic
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 
 
 spec :: Spec
@@ -121,11 +120,16 @@ spec = do
         it "Tx History"
             (checkCoverage $ prop_sequentialPut putTxHistory readTxHistoryF unions)
 
-    describe "DB works as expected" $ before newDBLayer $ do
-        it "replacement of checkpoint returns last checkpoint that was put"
-            (property . dbReplaceCheckpointsProp)
-        it "multiple parallel putCheckpoint work properly"
-            (property . dbMultiplePutsParProp)
+    describe "parallel puts replace values in _any_ order" $ do
+        it "Checkpoint"
+            (checkCoverage $ prop_parallelPut putCheckpoint readCheckpoint
+                (length . lrp @Maybe))
+        it "Wallet Metadata"
+            (checkCoverage $ prop_parallelPut putWalletMeta readWalletMeta
+                (length . lrp @Maybe))
+        it "Tx History"
+            (checkCoverage $ prop_parallelPut putTxHistory readTxHistoryF
+                (length . unions @(Map (Hash "Tx") (Tx, TxMeta))))
   where
     -- | Wrap the result of 'readTxHistory' in an arbitrary identity Applicative
     readTxHistoryF
@@ -140,7 +144,7 @@ spec = do
     lrp = Map.elems . foldl (\m (k, v) -> Map.insert k (pure v) m) mempty
 
     -- | Keep the unions (right-biaised) of all entry
-    unions :: (Ord k, Monoid v) => [(k, v)] -> [Identity v]
+    unions :: (Monoid v, Ord k) => [(k, v)] -> [Identity v]
     unions =
         fmap Identity
         . Map.elems
@@ -207,7 +211,7 @@ prop_putBeforeInit putOp readOp empty (key@(PrimaryKey wid), a) =
                 err `shouldBe` (ErrNoSuchWallet wid :: ErrNoSuchWallet e)
         readOp db key `shouldReturn` empty
 
--- | Modifying one resouce leaves the other untouched
+-- | Modifying one resource leaves the other untouched
 prop_isolation
     :: (Show (f b), Eq (f b), Show (g c), Eq (g c), Applicative f, Applicative g)
     => (  DBLayer IO DummyState
@@ -278,39 +282,51 @@ prop_sequentialPut putOp readOp resolve (KeyValPairs pairs) =
         res <- once pairs (readOp db)
         res `shouldBe` resolve pairs
 
-dbReplaceCheckpointsProp
-    :: DBLayer IO DummyState
-    -> (PrimaryKey WalletId, Wallet DummyState, Wallet DummyState)
+-- | Check that the DB supports multiple sequential puts for a given resource
+prop_parallelPut
+    :: (Show (f a), Eq (f a), Applicative f)
+    => (  DBLayer IO DummyState
+       -> PrimaryKey WalletId
+       -> a
+       -> ExceptT (ErrNoSuchWallet e) IO ()
+       ) -- ^ Put Operation
+    -> (  DBLayer IO DummyState
+       -> PrimaryKey WalletId
+       -> IO (f a)
+       ) -- ^ Read Operation
+    -> (forall k. Ord k => [(k, a)] -> Int)
+        -- ^ How many entries to we expect in the end
+    -> KeyValPairs (PrimaryKey WalletId) a
+        -- ^ Property arguments
     -> Property
-dbReplaceCheckpointsProp db (key, cp1, cp2)  = monadicIO $ do
-    meta <- pick arbitrary
-    liftIO $ do
-        unsafeRunExceptT $ createWallet db key cp1 meta
-        unsafeRunExceptT $ putCheckpoint db key cp2
-        resFromDb <- readCheckpoint db key
-        resFromDb `shouldBe` Just cp2
-
-dbMultiplePutsParProp
-    :: DBLayer IO DummyState
-    -> KeyValPairs (PrimaryKey WalletId) (Wallet DummyState)
-    -> Property
-dbMultiplePutsParProp db (KeyValPairs keyValPairs) = monadicIO $ do
-    meta <- pick arbitrary
-    cp <- pick arbitrary
-    liftIO $ do
-        unsafeRunExceptT $ once_ keyValPairs $ \k -> createWallet db k cp meta
-        forConcurrently_ keyValPairs
-            (\(k, cp') -> unsafeRunExceptT $ putCheckpoint db k cp')
-        resFromDb <- Set.fromList <$> listWallets db
-        resFromDb `shouldBe` (Set.fromList (map fst keyValPairs))
+prop_parallelPut putOp readOp resolve (KeyValPairs pairs) =
+    cover 90 cond "conflicting db entries" $ monadicIO (setup >>= prop)
+  where
+    -- Make sure that we have some conflicting insertion to actually test the
+    -- semantic of the DB Layer.
+    cond = L.length (L.nub ids) /= L.length ids
+      where
+        ids = map fst pairs
+    setup = do
+        db <- liftIO newDBLayer
+        (cp, meta) <- pick arbitrary
+        liftIO $ unsafeRunExceptT $ once_ pairs $ \k ->
+            createWallet db k cp meta
+        return db
+    prop db = liftIO $ do
+        forConcurrently_ pairs $ unsafeRunExceptT . uncurry (putOp db)
+        res <- once pairs (readOp db)
+        length res `shouldBe` resolve pairs
 
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
 -------------------------------------------------------------------------------}
 
+-- | Execute an action once per key @k@ present in the given list
 once :: (Ord k, Monad m) => [(k,v)] -> (k -> m a) -> m [a]
 once xs = forM (Map.keys (Map.fromList xs))
 
+-- | Like 'once', but discards the result
 once_ :: (Ord k, Monad m) => [(k,v)] -> (k -> m a) -> m ()
 once_ xs = void . once xs
 
