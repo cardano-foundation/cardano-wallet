@@ -88,28 +88,28 @@ import qualified Data.Set as Set
 
 spec :: Spec
 spec = do
-    describe "Checkpoints" $ before newDBLayer $ do
-        it "put . read yield a result"
+    describe "put . read yields a result" $ before newDBLayer $ do
+        it "Checkpoint"
             (property . prop_readAfterPut putCheckpoint readCheckpoint)
-        it "can't put before wallet exists"
-            (property . prop_putBeforeInit putCheckpoint readCheckpoint Nothing)
-        it "update doesn't affect other resources"
-            (property . prop_isolation putCheckpoint readWalletMeta readTxHistoryF)
-
-    describe "Wallet Metadata" $ before newDBLayer $ do
-        it "put . read yield a result"
+        it "Wallet Metadata"
             (property . prop_readAfterPut putWalletMeta readWalletMeta)
-        it "can't put before wallet exists"
-            (property . prop_putBeforeInit putWalletMeta readWalletMeta Nothing)
-        it "update doesn't affect other resources"
-            (property . prop_isolation putWalletMeta readTxHistoryF readCheckpoint)
-
-    describe "Tx History" $ before newDBLayer $ do
-        it "put . read yield a result"
+        it "Tx History"
             (property . prop_readAfterPut putTxHistory readTxHistoryF)
-        it "can't put before wallet exists"
+
+    describe "can't put before wallet exists" $ before newDBLayer $ do
+        it "Checkpoint"
+            (property . prop_putBeforeInit putCheckpoint readCheckpoint Nothing)
+        it "Wallet Metadata"
+            (property . prop_putBeforeInit putWalletMeta readWalletMeta Nothing)
+        it "Tx History"
             (property . prop_putBeforeInit putTxHistory readTxHistoryF (pure mempty))
-        it "update doesn't affect other resources"
+
+    describe "put doesn't affect other resources" $ before newDBLayer $ do
+        it "Checkpoint vs Wallet Metadata & Tx History"
+            (property . prop_isolation putCheckpoint readWalletMeta readTxHistoryF)
+        it "Wallet Metadata vs Tx History & Checkpoint"
+            (property . prop_isolation putWalletMeta readTxHistoryF readCheckpoint)
+        it "Tx History vs Checkpoint & Wallet Metadata"
             (property . prop_isolation putTxHistory readCheckpoint readWalletMeta)
 
     describe "DB works as expected" $ before newDBLayer $ do
