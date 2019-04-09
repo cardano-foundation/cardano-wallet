@@ -5,7 +5,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -19,7 +18,11 @@ import Prelude
 import Cardano.Wallet
     ( unsafeRunExceptT )
 import Cardano.Wallet.DB
-    ( DBLayer (..), ErrNoSuchWallet (..), PrimaryKey (..) )
+    ( DBLayer (..)
+    , ErrNoSuchWallet (..)
+    , ErrWalletAlreadyExists (..)
+    , PrimaryKey (..)
+    )
 import Cardano.Wallet.DB.MVar
     ( newDBLayer )
 import Cardano.Wallet.Primitive.Model
@@ -88,6 +91,12 @@ import qualified Data.Map.Strict as Map
 
 spec :: Spec
 spec = do
+    describe "Extra Properties about DB initialization" $ do
+        it "createWallet . listWallets yields expected results"
+            (property prop_createListWallet)
+        it "creating same wallet twice yields an error"
+            (property prop_createWalletTwice)
+
     describe "put . read yields a result" $ do
         it "Checkpoint"
             (property $ prop_readAfterPut putCheckpoint readCheckpoint)
@@ -274,12 +283,12 @@ prop_sequentialPut putOp readOp resolve (KeyValPairs pairs) =
     setup = do
         db <- liftIO newDBLayer
         (cp, meta) <- pick arbitrary
-        liftIO $ unsafeRunExceptT $ once_ pairs $ \k ->
+        liftIO $ unsafeRunExceptT $ once_ pairs $ \(k, _) ->
             createWallet db k cp meta
         return db
     prop db = liftIO $ do
         unsafeRunExceptT $ forM_ pairs $ uncurry (putOp db)
-        res <- once pairs (readOp db)
+        res <- once pairs (readOp db . fst)
         res `shouldBe` resolve pairs
 
 -- | Check that the DB supports multiple sequential puts for a given resource
@@ -310,24 +319,50 @@ prop_parallelPut putOp readOp resolve (KeyValPairs pairs) =
     setup = do
         db <- liftIO newDBLayer
         (cp, meta) <- pick arbitrary
-        liftIO $ unsafeRunExceptT $ once_ pairs $ \k ->
+        liftIO $ unsafeRunExceptT $ once_ pairs $ \(k, _) ->
             createWallet db k cp meta
         return db
     prop db = liftIO $ do
         forConcurrently_ pairs $ unsafeRunExceptT . uncurry (putOp db)
-        res <- once pairs (readOp db)
+        res <- once pairs (readOp db . fst)
         length res `shouldBe` resolve pairs
+
+-- | Can list created wallets
+prop_createListWallet
+    :: KeyValPairs (PrimaryKey WalletId) (Wallet DummyState, WalletMetadata)
+    -> Property
+prop_createListWallet (KeyValPairs pairs) =
+    monadicIO (setup >>= prop)
+  where
+    setup = liftIO newDBLayer
+    prop db = liftIO $ do
+        res <- once pairs $ \(k, (cp, meta)) ->
+            unsafeRunExceptT $ createWallet db k cp meta
+        (length <$> listWallets db) `shouldReturn` length res
+
+-- | Trying to create a same wallet twice should yield an error
+prop_createWalletTwice
+    :: (PrimaryKey WalletId, Wallet DummyState, WalletMetadata)
+    -> Property
+prop_createWalletTwice (key@(PrimaryKey wid), cp, meta) =
+    monadicIO (setup >>= prop)
+  where
+    setup = liftIO newDBLayer
+    prop db = liftIO $ do
+        let err = ErrWalletAlreadyExists wid
+        runExceptT (createWallet db key cp meta) `shouldReturn` Right ()
+        runExceptT (createWallet db key cp meta) `shouldReturn` Left err
 
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
 -------------------------------------------------------------------------------}
 
 -- | Execute an action once per key @k@ present in the given list
-once :: (Ord k, Monad m) => [(k,v)] -> (k -> m a) -> m [a]
-once xs = forM (Map.keys (Map.fromList xs))
+once :: (Ord k, Monad m) => [(k,v)] -> ((k,v) -> m a) -> m [a]
+once xs = forM (Map.toList (Map.fromList xs))
 
 -- | Like 'once', but discards the result
-once_ :: (Ord k, Monad m) => [(k,v)] -> (k -> m a) -> m ()
+once_ :: (Ord k, Monad m) => [(k,v)] -> ((k,v) -> m a) -> m ()
 once_ xs = void . once xs
 
 newtype KeyValPairs k v = KeyValPairs [(k, v)]
