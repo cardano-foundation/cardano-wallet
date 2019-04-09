@@ -93,18 +93,24 @@ spec = do
             (property . prop_readAfterPut putCheckpoint readCheckpoint)
         it "can't put before wallet exists"
             (property . prop_putBeforeInit putCheckpoint readCheckpoint Nothing)
+        it "update doesn't affect other resources"
+            (property . prop_isolation putCheckpoint readWalletMeta readTxHistoryF)
 
     describe "Wallet Metadata" $ before newDBLayer $ do
         it "put . read yield a result"
             (property . prop_readAfterPut putWalletMeta readWalletMeta)
         it "can't put before wallet exists"
             (property . prop_putBeforeInit putWalletMeta readWalletMeta Nothing)
+        it "update doesn't affect other resources"
+            (property . prop_isolation putWalletMeta readTxHistoryF readCheckpoint)
 
     describe "Tx History" $ before newDBLayer $ do
         it "put . read yield a result"
             (property . prop_readAfterPut putTxHistory readTxHistoryF)
         it "can't put before wallet exists"
             (property . prop_putBeforeInit putTxHistory readTxHistoryF (pure mempty))
+        it "update doesn't affect other resources"
+            (property . prop_isolation putTxHistory readCheckpoint readWalletMeta)
 
     describe "DB works as expected" $ before newDBLayer $ do
         it "replacement of checkpoint returns last checkpoint that was put"
@@ -115,12 +121,6 @@ spec = do
             (property . dbMultiplePutsParProp)
         it "readTxHistory . putTxHistory yields inserted merged history"
             (checkCoverage . dbMergeTxHistoryProp)
-        it "putTxHistory leaves the wallet state & metadata untouched"
-            (property . dbPutTxHistoryIsolationProp)
-        it "putCheckpoint leaves the tx history & metadata untouched"
-            (property . dbPutCheckpointIsolationProp)
-        it "putWalletMeta leaves the tx history & checkpoint untouched"
-            (property . dbPutMetadataIsolationProp)
   where
     -- | Wrap the result of 'readTxHistory' in an arbitrary identity Applicative
     readTxHistoryF
@@ -142,9 +142,9 @@ prop_readAfterPut
        -> a
        -> ExceptT (ErrNoSuchWallet e) IO ()
        ) -- ^ Put Operation
-    -> (   DBLayer IO DummyState
-        -> PrimaryKey WalletId
-        -> IO (f a)
+    -> (  DBLayer IO DummyState
+       -> PrimaryKey WalletId
+       -> IO (f a)
        ) -- ^ Read Operation
     -> DBLayer IO DummyState
         -- ^ DB Layer
@@ -170,9 +170,9 @@ prop_putBeforeInit
        -> a
        -> ExceptT (ErrNoSuchWallet e) IO ()
        ) -- ^ Put Operation
-    -> (   DBLayer IO DummyState
-        -> PrimaryKey WalletId
-        -> IO (f a)
+    -> (  DBLayer IO DummyState
+       -> PrimaryKey WalletId
+       -> IO (f a)
        ) -- ^ Read Operation
     -> f a
         -- ^ An 'empty' value for the 'Applicative' f
@@ -192,6 +192,41 @@ prop_putBeforeInit putOp readOp empty db (key@(PrimaryKey wid), a) =
             Left err ->
                 err `shouldBe` (ErrNoSuchWallet wid :: ErrNoSuchWallet e)
         readOp db key `shouldReturn` empty
+
+-- | Modifying one resouce leaves the other untouched
+prop_isolation
+    :: (Show (f b), Eq (f b), Show (g c), Eq (g c), Applicative f, Applicative g)
+    => (  DBLayer IO DummyState
+       -> PrimaryKey WalletId
+       -> a
+       -> ExceptT (ErrNoSuchWallet e) IO ()
+       ) -- ^ Put Operation
+    -> (  DBLayer IO DummyState
+       -> PrimaryKey WalletId
+       -> IO (f b)
+       ) -- ^ Read Operation for another resource
+    -> (  DBLayer IO DummyState
+       -> PrimaryKey WalletId
+       -> IO (g c)
+       ) -- ^ Read Operation for another resource
+    -> DBLayer IO DummyState
+        -- ^ DB Layer
+    -> (PrimaryKey WalletId, a)
+        -- ^ Properties arguments
+    -> Property
+prop_isolation putA readB readC db (key, a) =
+    monadicIO (setup >>= prop)
+  where
+    setup = do
+        (cp, meta, txs) <- pick arbitrary
+        liftIO $ unsafeRunExceptT $ createWallet db key cp meta
+        liftIO $ unsafeRunExceptT $ putTxHistory db key txs
+        liftIO $ (,) <$> readB db key <*> readC db key
+
+    prop (b, c) = liftIO $ do
+        unsafeRunExceptT $ putA db key a
+        readB db key `shouldReturn` b
+        readC db key `shouldReturn` c
 
 dbReplaceCheckpointsProp
     :: DBLayer IO DummyState
@@ -252,45 +287,6 @@ dbMergeTxHistoryProp db (KeyValPairs keyValPairs) =
             forM_ keyValPairs $ \(key, _) -> do
                 res <- readTxHistory db key
                 res `shouldBe` (Map.unions (snd <$> restrictTo key keyValPairs))
-
-dbPutTxHistoryIsolationProp
-    :: DBLayer IO DummyState
-    -> PrimaryKey WalletId
-    -> (Wallet DummyState, WalletMetadata, Map (Hash "Tx") (Tx, TxMeta))
-    -> Map (Hash "Tx") (Tx, TxMeta)
-    -> Property
-dbPutTxHistoryIsolationProp db key (cp,meta,txs) txs' = monadicIO $ liftIO $ do
-    unsafeRunExceptT $ createWallet db key cp meta
-    unsafeRunExceptT $ putTxHistory db key txs
-    unsafeRunExceptT $ putTxHistory db key txs'
-    readCheckpoint db key `shouldReturn` Just cp
-    readWalletMeta db key `shouldReturn` Just meta
-
-dbPutCheckpointIsolationProp
-    :: DBLayer IO DummyState
-    -> PrimaryKey WalletId
-    -> (Wallet DummyState, WalletMetadata, Map (Hash "Tx") (Tx, TxMeta))
-    -> Wallet DummyState
-    -> Property
-dbPutCheckpointIsolationProp db key (cp,meta,txs) cp' = monadicIO $ liftIO $ do
-    unsafeRunExceptT $ createWallet db key cp meta
-    unsafeRunExceptT $ putTxHistory db key txs
-    unsafeRunExceptT $ putCheckpoint db key cp'
-    readTxHistory db key `shouldReturn` txs
-    readWalletMeta db key `shouldReturn` Just meta
-
-dbPutMetadataIsolationProp
-    :: DBLayer IO DummyState
-    -> PrimaryKey WalletId
-    -> (Wallet DummyState, WalletMetadata, Map (Hash "Tx") (Tx, TxMeta))
-    -> WalletMetadata
-    -> Property
-dbPutMetadataIsolationProp db key (cp,meta,txs) meta' = monadicIO $ liftIO $ do
-    unsafeRunExceptT $ createWallet db key cp meta
-    unsafeRunExceptT $ putTxHistory db key txs
-    unsafeRunExceptT $ putWalletMeta db key meta'
-    readTxHistory db key `shouldReturn` txs
-    readCheckpoint db key `shouldReturn` Just cp
 
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
