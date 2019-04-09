@@ -248,7 +248,7 @@ jsonRoundtripAndGolden = roundtripAndGoldenSpecsWithSettings settings
             CustomDirectoryName "test/data/Cardano/Wallet/Api"
         , useModuleNameAsSubDirectory =
             False
-        , sampleSize = 4
+        , sampleSize = 8
         }
 
 {-------------------------------------------------------------------------------

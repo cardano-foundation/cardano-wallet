@@ -1,20 +1,34 @@
 {
-    "seed": -7718022052509193490,
+    "seed": 6120273286517631653,
     "samples": [
         {
             "status": "delegating",
-            "target": "_bG"
-        },
-        {
-            "status": "delegating",
-            "target": "on{"
-        },
-        {
-            "status": "delegating",
-            "target": "*=A"
+            "target": "^D4"
         },
         {
             "status": "not_delegating"
+        },
+        {
+            "status": "delegating",
+            "target": "rDe"
+        },
+        {
+            "status": "delegating",
+            "target": "^[E"
+        },
+        {
+            "status": "delegating",
+            "target": "䳧L4"
+        },
+        {
+            "status": "not_delegating"
+        },
+        {
+            "status": "not_delegating"
+        },
+        {
+            "status": "delegating",
+            "target": "H𒍕i"
         }
     ]
 }

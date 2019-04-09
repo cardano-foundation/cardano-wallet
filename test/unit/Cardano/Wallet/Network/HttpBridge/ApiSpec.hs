@@ -51,7 +51,7 @@ roundtripAndGolden = roundtripAndGoldenSpecsWithSettings settings
             CustomDirectoryName "test/data/Cardano/Wallet/Network/HttpBridge"
         , useModuleNameAsSubDirectory =
             False
-        , sampleSize = 4
+        , sampleSize = 8
         }
 
 instance Arbitrary SignedTx where

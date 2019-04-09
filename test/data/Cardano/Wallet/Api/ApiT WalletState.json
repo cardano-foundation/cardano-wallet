@@ -1,17 +1,45 @@
 {
-    "seed": 249783031729475215,
+    "seed": 8112274275434049997,
     "samples": [
         {
             "status": "ready"
         },
         {
-            "status": "ready"
+            "status": "restoring",
+            "progress": {
+                "quantity": 93,
+                "unit": "percent"
+            }
         },
         {
             "status": "ready"
         },
         {
             "status": "ready"
+        },
+        {
+            "status": "restoring",
+            "progress": {
+                "quantity": 25,
+                "unit": "percent"
+            }
+        },
+        {
+            "status": "ready"
+        },
+        {
+            "status": "restoring",
+            "progress": {
+                "quantity": 30,
+                "unit": "percent"
+            }
+        },
+        {
+            "status": "restoring",
+            "progress": {
+                "quantity": 94,
+                "unit": "percent"
+            }
         }
     ]
 }
