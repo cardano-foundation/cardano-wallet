@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
@@ -32,6 +33,8 @@ import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import Fmt
     ( Buildable, pretty )
+import GHC.Generics
+    ( Generic )
 import GHC.TypeLits
     ( Symbol )
 import System.Console.Docopt
@@ -49,7 +52,7 @@ import qualified System.Console.ANSI as ANSI
 -- | Available network options. 'Local' means a local cluster running on the
 -- host machine.
 data Network = Mainnet | Testnet | Staging | Local
-    deriving (Show, Enum)
+    deriving (Generic, Show, Eq, Enum)
 
 instance ToText Network where
     toText = \case
@@ -70,6 +73,7 @@ instance FromText Network where
 
 -- | Port number with a tag for describing what it is used for
 newtype Port (tag :: Symbol) = Port Int
+    deriving (Eq, Show, Generic)
 
 instance FromText (Port tag) where
     fromText = fmap Port . fromText

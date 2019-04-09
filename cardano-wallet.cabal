@@ -101,18 +101,20 @@ test-suite unit
     ghc-options:
       -Werror
   build-depends:
-      aeson
+      base
+    , aeson
     , aeson-qq
-    , base
+    , ansi-terminal
     , async
     , base58-bytestring
     , bytestring
     , cardano-crypto
     , cardano-wallet
     , cborg
-    , cryptonite
     , containers
+    , cryptonite
     , deepseq
+    , docopt
     , exceptions
     , file-embed
     , fmt
@@ -140,6 +142,8 @@ test-suite unit
   main-is:
       Main.hs
   other-modules:
+      Cardano.CLI
+      Cardano.CLISpec
       Cardano.Launcher
       Cardano.LauncherSpec
       Cardano.WalletSpec
