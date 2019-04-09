@@ -157,28 +157,27 @@ spec = do
         "can perform roundtrip JSON serialization & deserialization, \
         \and match existing golden files" $ do
             jsonRoundtripAndGolden $ Proxy @ApiAddress
+            jsonRoundtripAndGolden $ Proxy @ApiBlockData
+            jsonRoundtripAndGolden $ Proxy @ApiCoins
+            jsonRoundtripAndGolden $ Proxy @ApiTransaction
             jsonRoundtripAndGolden $ Proxy @ApiWallet
+            jsonRoundtripAndGolden $ Proxy @PostTransactionData
             jsonRoundtripAndGolden $ Proxy @WalletPostData
             jsonRoundtripAndGolden $ Proxy @WalletPutData
             jsonRoundtripAndGolden $ Proxy @WalletPutPassphraseData
+            jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Tx"))
+            jsonRoundtripAndGolden $ Proxy @(ApiT (Passphrase "encryption"))
+            jsonRoundtripAndGolden $ Proxy @(ApiT (WalletDelegation (ApiT PoolId)))
             jsonRoundtripAndGolden $ Proxy @(ApiT Address)
             jsonRoundtripAndGolden $ Proxy @(ApiT AddressPoolGap)
-            jsonRoundtripAndGolden $ Proxy @(ApiT (WalletDelegation (ApiT PoolId)))
+            jsonRoundtripAndGolden $ Proxy @(ApiT Direction)
+            jsonRoundtripAndGolden $ Proxy @(ApiT SlotId)
+            jsonRoundtripAndGolden $ Proxy @(ApiT TxStatus)
+            jsonRoundtripAndGolden $ Proxy @(ApiT WalletBalance)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletId)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletName)
-            jsonRoundtripAndGolden $ Proxy @(ApiT WalletBalance)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletPassphraseInfo)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletState)
-            jsonRoundtripAndGolden $ Proxy @(ApiT (Passphrase "encryption"))
-
-            roundtripAndGolden $ Proxy @ PostTransactionData
-            roundtripAndGolden $ Proxy @ ApiTransaction
-            roundtripAndGolden $ Proxy @ ApiCoins
-            roundtripAndGolden $ Proxy @ ApiBlockData
-            roundtripAndGolden $ Proxy @ (ApiT SlotId)
-            roundtripAndGolden $ Proxy @ (ApiT TxStatus)
-            roundtripAndGolden $ Proxy @ (ApiT Direction)
-            roundtripAndGolden $ Proxy @ (ApiT (Hash "Tx"))
 
     describe
         "verify that every type used with JSON content type in a servant API \
@@ -273,7 +272,7 @@ jsonRoundtripAndGolden = roundtripAndGoldenSpecsWithSettings settings
             CustomDirectoryName "test/data/Cardano/Wallet/Api"
         , useModuleNameAsSubDirectory =
             False
-        , sampleSize = 4
+        , sampleSize = 10
         }
 
 {-------------------------------------------------------------------------------

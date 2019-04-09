@@ -568,7 +568,9 @@ instance FromText (Hash "Tx") where
         (pure . Hash)
         (convertFromBase Base16 $ T.encodeUtf8 x)
       where
-        err = "Unable to decode transaction hash: expected Base16 encoding"
+        err = "Unable to decode (Hash \"Tx\"): \
+                    \expected Base16 encoding"
+
 
 instance ToText (Hash "Tx") where
     toText = T.decodeUtf8 . convertToBase Base16 . getHash
