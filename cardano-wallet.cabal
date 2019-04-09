@@ -50,6 +50,7 @@ library
     , http-api-data
     , http-client
     , http-media
+    , http-types
     , memory
     , servant
     , servant-server
@@ -115,7 +116,6 @@ test-suite unit
     , cryptonite
     , deepseq
     , docopt
-    , exceptions
     , file-embed
     , fmt
     , generic-arbitrary

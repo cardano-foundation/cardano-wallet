@@ -75,8 +75,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     )
-import Control.Exception
-    ( Exception )
 import Control.Monad
     ( (>=>) )
 import Control.Monad.Fail
@@ -188,9 +186,8 @@ data ErrSubmitTx = forall a. NetworkError a
 
 -- | Create a new instance of the wallet layer.
 mkWalletLayer
-    :: (Exception e0)
-    => DBLayer IO SeqState
-    -> NetworkLayer IO e0 e1
+    :: DBLayer IO SeqState
+    -> NetworkLayer IO
     -> WalletLayer SeqState
 mkWalletLayer db network = WalletLayer
 

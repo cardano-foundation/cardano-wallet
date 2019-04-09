@@ -10,12 +10,10 @@ import Cardano.Wallet.Network.HttpBridge
     ( HttpBridge (..) )
 import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..), Hash (..), SlotId (..) )
-import Control.Monad.Catch
-    ( MonadThrow (..) )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( runExceptT, throwE )
+    ( runExceptT )
 import Data.Word
     ( Word16, Word64 )
 import Test.Hspec
@@ -115,21 +113,21 @@ mockEpoch ep =
     epochs = [ 0 .. fromIntegral (slotsPerEpoch - 1) ]
 
 mockNetworkLayer
-    :: MonadThrow m
+    :: Monad m
     => (String -> m ()) -- ^ logger function
     -> Word64 -- ^ make getEpoch fail for epochs after this
     -> SlotId -- ^ the tip block
-    -> NetworkLayer m String String
+    -> NetworkLayer m
 mockNetworkLayer logLine firstUnstableEpoch tip =
     HttpBridge.mkNetworkLayer (mockHttpBridge logLine firstUnstableEpoch tip)
 
 -- | A network layer which returns mock blocks.
 mockHttpBridge
-    :: MonadThrow m
+    :: Monad m
     => (String -> m ()) -- ^ logger function
     -> Word64 -- ^ make getEpoch fail for epochs after this
     -> SlotId -- ^ the tip block
-    -> HttpBridge m String
+    -> HttpBridge m
 mockHttpBridge logLine firstUnstableEpoch tip = HttpBridge
     { getBlock = \hash -> do
         lift $ logLine $ "mock getBlock " ++ show hash
@@ -140,14 +138,13 @@ mockHttpBridge logLine firstUnstableEpoch tip = HttpBridge
         if ep < firstUnstableEpoch then
             pure $ mockEpoch ep
         else
-            throwE $
-                "mock epoch " ++ show ep ++ " > firstUnstableEpoch " ++
-                show firstUnstableEpoch
+            pure []
 
     , getNetworkTip = do
         lift $ logLine "mock getNetworkTip"
         let hash = mockHash tip
         pure (hash, mockHeaderFromHash hash)
+
     , postSignedTx = undefined
     }
 

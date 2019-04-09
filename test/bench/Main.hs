@@ -30,7 +30,7 @@ import Control.Concurrent.Async
 import Control.DeepSeq
     ( rnf )
 import Control.Exception
-    ( Exception, bracket, evaluate, throwIO )
+    ( bracket, evaluate, throwIO )
 import Control.Monad
     ( mapM_ )
 import Control.Monad.Fail
@@ -168,8 +168,7 @@ prepareNode net = do
 -- | Poll the network tip until it reaches the slot corresponding to the current
 -- time.
 waitForNodeSync
-    :: Exception e1
-    => NetworkLayer IO e0 e1
+    :: NetworkLayer IO
     -> Text
     -> (SlotId -> SlotId -> IO ())
     -> IO SlotId
