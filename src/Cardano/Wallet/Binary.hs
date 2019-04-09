@@ -41,6 +41,7 @@ module Cardano.Wallet.Binary
     , inspectNextToken
     , decodeList
     , decodeListIndef
+    , toByteString
     ) where
 
 import Prelude
@@ -57,6 +58,7 @@ import Cardano.Wallet.Primitive.Types
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
+    , TxWitness (..)
     )
 import Control.Monad
     ( void )
@@ -504,12 +506,6 @@ encodeSignedTx (tx, witnesses) = mempty
     <> encodeTx tx
     <> encodeList encodeTxWitness witnesses
 
-data TxWitness
-    = PublicKeyWitness ByteString
-    | ScriptWitness ByteString
-    | RedeemWitness ByteString
-    deriving (Eq, Show)
-
 encodeTxWitness :: TxWitness -> CBOR.Encoding
 encodeTxWitness wit = mempty
     <> CBOR.encodeListLen 2
@@ -633,3 +629,6 @@ encodeList :: (a -> CBOR.Encoding) -> [a] -> CBOR.Encoding
 encodeList encodeOne list = mempty
     <> CBOR.encodeListLen (fromIntegral $ length list)
     <> mconcat (map encodeOne list)
+
+toByteString :: CBOR.Encoding -> ByteString
+toByteString = BL.toStrict . CBOR.toLazyByteString

@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE KindSignatures #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -9,8 +8,11 @@
 -- the interface allowing us to store and fetch various data on our wallets.
 
 module Cardano.Wallet.DB
-    ( DBLayer(..)
+    ( -- * Interface
+      DBLayer(..)
     , PrimaryKey(..)
+
+      -- * Errors
     , ErrNoSuchWallet(..)
     , ErrWalletAlreadyExists(..)
     ) where
@@ -25,8 +27,6 @@ import Control.Monad.Trans.Except
     ( ExceptT )
 import Data.Map.Strict
     ( Map )
-import GHC.TypeLits
-    ( Symbol )
 
 
 -- | A Database interface for storing various things in a DB. In practice,
@@ -37,7 +37,7 @@ data DBLayer m s = DBLayer
         :: PrimaryKey WalletId
         -> Wallet s
         -> WalletMetadata
-        -> ExceptT (ErrWalletAlreadyExists "createWallet") m ()
+        -> ExceptT ErrWalletAlreadyExists m ()
         -- ^ Initialize a database entry for a given wallet. 'putCheckpoint',
         -- 'putWalletMeta' or 'putTxHistory' will actually all fail if they are
         -- called _first_ on a wallet.
@@ -50,7 +50,7 @@ data DBLayer m s = DBLayer
     , putCheckpoint
         :: PrimaryKey WalletId
         -> Wallet s
-        -> ExceptT (ErrNoSuchWallet "putCheckpoint") m ()
+        -> ExceptT ErrNoSuchWallet m ()
         -- ^ Replace the current checkpoint for a given wallet. We do not handle
         -- rollbacks yet, and therefore only stores the latest available
         -- checkpoint.
@@ -67,7 +67,7 @@ data DBLayer m s = DBLayer
     , putWalletMeta
         :: PrimaryKey WalletId
         -> WalletMetadata
-        -> ExceptT (ErrNoSuchWallet "putWalletMeta") m ()
+        -> ExceptT ErrNoSuchWallet m ()
         -- ^ Replace an existing wallet metadata with the given one.
         --
         -- If the wallet doesn't exist, this operation returns an error
@@ -82,7 +82,7 @@ data DBLayer m s = DBLayer
     , putTxHistory
         :: PrimaryKey WalletId
         -> Map (Hash "Tx") (Tx, TxMeta)
-        -> ExceptT (ErrNoSuchWallet "putTxHistory") m ()
+        -> ExceptT ErrNoSuchWallet m ()
         -- ^ Augments the transaction history for a known wallet.
         --
         -- If an entry for a particular transaction already exists it is not
@@ -99,12 +99,12 @@ data DBLayer m s = DBLayer
     }
 
 -- | Can't perform given operation because there's no wallet
-newtype ErrNoSuchWallet (operation :: Symbol)
+newtype ErrNoSuchWallet
     = ErrNoSuchWallet WalletId -- Wallet is gone or doesn't exist yet
     deriving (Eq, Show)
 
 -- | Forbidden operation was executed on an already existing wallet
-newtype ErrWalletAlreadyExists (operation :: Symbol)
+newtype ErrWalletAlreadyExists
     = ErrWalletAlreadyExists WalletId -- Wallet already exists in db
     deriving (Eq, Show)
 

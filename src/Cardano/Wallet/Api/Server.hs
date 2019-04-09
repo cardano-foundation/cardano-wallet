@@ -180,10 +180,10 @@ class LiftHandler e where
 -- In practice, we want to create nice error messages giving as much details as
 -- we can.
 
-instance LiftHandler (ErrNoSuchWallet operation) where
+instance LiftHandler ErrNoSuchWallet where
     handler = \case
         ErrNoSuchWallet _ -> err404
 
-instance LiftHandler (ErrWalletAlreadyExists operation) where
+instance LiftHandler ErrWalletAlreadyExists where
     handler = \case
         ErrWalletAlreadyExists _ -> err409

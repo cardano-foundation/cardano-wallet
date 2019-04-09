@@ -36,6 +36,7 @@ data NetworkLayer m e0 e1 = NetworkLayer
 
     , networkTip
         :: ExceptT e1 m (Hash "BlockHeader", BlockHeader)
+
     , postTx
         :: SignedTx -> ExceptT e1 m ()
     }

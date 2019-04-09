@@ -169,7 +169,7 @@ prop_readAfterPut
     => (  DBLayer IO DummyState
        -> PrimaryKey WalletId
        -> a
-       -> ExceptT (ErrNoSuchWallet e) IO ()
+       -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
     -> (  DBLayer IO DummyState
        -> PrimaryKey WalletId
@@ -197,7 +197,7 @@ prop_putBeforeInit
     => (  DBLayer IO DummyState
        -> PrimaryKey WalletId
        -> a
-       -> ExceptT (ErrNoSuchWallet e) IO ()
+       -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
     -> (  DBLayer IO DummyState
        -> PrimaryKey WalletId
@@ -217,7 +217,7 @@ prop_putBeforeInit putOp readOp empty (key@(PrimaryKey wid), a) =
             Right _ ->
                 fail "expected put operation to fail but it succeeded!"
             Left err ->
-                err `shouldBe` (ErrNoSuchWallet wid :: ErrNoSuchWallet e)
+                err `shouldBe` ErrNoSuchWallet wid
         readOp db key `shouldReturn` empty
 
 -- | Modifying one resource leaves the other untouched
@@ -226,7 +226,7 @@ prop_isolation
     => (  DBLayer IO DummyState
        -> PrimaryKey WalletId
        -> a
-       -> ExceptT (ErrNoSuchWallet e) IO ()
+       -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
     -> (  DBLayer IO DummyState
        -> PrimaryKey WalletId
@@ -261,7 +261,7 @@ prop_sequentialPut
     => (  DBLayer IO DummyState
        -> PrimaryKey WalletId
        -> a
-       -> ExceptT (ErrNoSuchWallet e) IO ()
+       -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
     -> (  DBLayer IO DummyState
        -> PrimaryKey WalletId
@@ -297,7 +297,7 @@ prop_parallelPut
     => (  DBLayer IO DummyState
        -> PrimaryKey WalletId
        -> a
-       -> ExceptT (ErrNoSuchWallet e) IO ()
+       -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
     -> (  DBLayer IO DummyState
        -> PrimaryKey WalletId
