@@ -5,7 +5,7 @@ module Cardano.Wallet.Network.HttpBridgeSpec
 import Prelude
 
 import Cardano.Wallet.Network
-    ( ErrNetworkUnreachable (..), NetworkLayer (..) )
+    ( NetworkLayer (..) )
 import Cardano.Wallet.Network.HttpBridge
     ( HttpBridge (..) )
 import Cardano.Wallet.Primitive.Types
@@ -127,7 +127,7 @@ mockHttpBridge
     => (String -> m ()) -- ^ logger function
     -> Word64 -- ^ make getEpoch fail for epochs after this
     -> SlotId -- ^ the tip block
-    -> HttpBridge m ErrNetworkUnreachable
+    -> HttpBridge m
 mockHttpBridge logLine firstUnstableEpoch tip = HttpBridge
     { getBlock = \hash -> do
         lift $ logLine $ "mock getBlock " ++ show hash

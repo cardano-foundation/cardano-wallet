@@ -22,21 +22,21 @@ module Cardano.Wallet.Network.HttpBridge
 import Prelude
 
 import Cardano.Wallet.Network
-    ( ErrNetworkUnreachable (..), NetworkLayer (..) )
+    ( ErrNetworkUnreachable (..), ErrPostTx (..), NetworkLayer (..) )
 import Cardano.Wallet.Network.HttpBridge.Api
     ( ApiT (..), EpochIndex (..), NetworkName (..), api )
 import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..), Hash (..), SignedTx, SlotId (..) )
+import Control.Arrow
+    ( left )
 import Control.Monad
     ( void )
 import Control.Monad.Catch
     ( throwM )
 import Control.Monad.Fail
     ( MonadFail )
-import Control.Monad.Trans.Class
-    ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT )
+    ( ExceptT (..) )
 import Crypto.Hash
     ( HashAlgorithm, digestFromByteString )
 import Data.ByteArray
@@ -47,19 +47,23 @@ import Data.Word
     ( Word64 )
 import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
+import Network.HTTP.Types.Status
+    ( status400, status404, status500 )
 import Servant.API
     ( (:<|>) (..) )
 import Servant.Client
     ( BaseUrl (..), ClientM, Scheme (Http), client, mkClientEnv, runClientM )
 import Servant.Client.Core
-    ( ServantError (..) )
+    ( ServantError (..), responseBody, responseStatusCode )
 import Servant.Extra.ContentTypes
     ( WithHash (..) )
 
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.Text.Encoding as T
 import qualified Servant.Extra.ContentTypes as Api
 
 -- | Constructs a network layer with the given cardano-http-bridge API.
-mkNetworkLayer :: Monad m => HttpBridge m ErrNetworkUnreachable -> NetworkLayer m
+mkNetworkLayer :: Monad m => HttpBridge m -> NetworkLayer m
 mkNetworkLayer httpBridge = NetworkLayer
     { nextBlocks = rbNextBlocks httpBridge
     , networkTip = getNetworkTip httpBridge
@@ -79,25 +83,23 @@ newNetworkLayer network port = mkNetworkLayer <$> newHttpBridge network port
 -- - all of the unstable blocks after the starting slot, if any.
 rbNextBlocks
     :: Monad m
-    => HttpBridge m e -- ^ http-bridge API
+    => HttpBridge m -- ^ http-bridge API
     -> SlotId -- ^ Starting point
-    -> ExceptT e m [Block]
+    -> ExceptT ErrNetworkUnreachable m [Block]
 rbNextBlocks network start = do
     (tipHash, tip) <- fmap slotId <$> getNetworkTip network
-    epochBlocks <- lift $ nextStableEpoch (epochIndex start)
+    epochBlocks <- nextStableEpoch (epochIndex start)
     additionalBlocks <-
         if null epochBlocks then
             unstableBlocks tipHash tip
         else if length epochBlocks < 1000 then
-            lift $ nextStableEpoch (epochIndex start + 1)
+            nextStableEpoch (epochIndex start + 1)
         else
             pure []
     pure (epochBlocks ++ additionalBlocks)
   where
     nextStableEpoch ix = do
-        epochBlocks <- runExceptT (getEpoch network ix) >>= \case
-            Left _ -> pure []
-            Right r -> return r
+        epochBlocks <- getEpoch network ix
         pure $ filter (blockIsSameOrAfter start) epochBlocks
 
     -- Predicate returns true iff the block is from the given slot or a later
@@ -114,10 +116,10 @@ rbNextBlocks network start = do
 -- Fetch blocks which are not in epoch pack files.
 fetchBlocksFromTip
     :: Monad m
-    => HttpBridge m e
+    => HttpBridge m
     -> SlotId
     -> Hash "BlockHeader"
-    -> ExceptT e m [Block]
+    -> ExceptT ErrNetworkUnreachable m [Block]
 fetchBlocksFromTip network start tipHash =
     reverse <$> workBackwards tipHash
   where
@@ -135,42 +137,60 @@ fetchBlocksFromTip network start tipHash =
 -------------------------------------------------------------------------------}
 
 -- | Endpoints of the cardano-http-bridge API.
-data HttpBridge m e = HttpBridge
+data HttpBridge m = HttpBridge
     { getBlock
-        :: Hash "BlockHeader" -> ExceptT e m Block
+        :: Hash "BlockHeader" -> ExceptT ErrNetworkUnreachable m Block
     , getEpoch
-        :: Word64 -> ExceptT e m [Block]
+        :: Word64 -> ExceptT ErrNetworkUnreachable m [Block]
     , getNetworkTip
-        :: ExceptT e m (Hash "BlockHeader", BlockHeader)
+        :: ExceptT ErrNetworkUnreachable m (Hash "BlockHeader", BlockHeader)
     , postSignedTx
-        :: SignedTx -> ExceptT e m ()
+        :: SignedTx -> ExceptT ErrPostTx m ()
     }
 
 -- | Construct a new network layer
 mkHttpBridge
-    :: Manager -> BaseUrl -> NetworkName -> HttpBridge IO ErrNetworkUnreachable
+    :: Manager -> BaseUrl -> NetworkName -> HttpBridge IO
 mkHttpBridge mgr baseUrl network = HttpBridge
-    { getBlock = \hash -> do
+    { getBlock = \hash -> ExceptT $ do
         hash' <- hashToApi' hash
-        run (getApiT <$> cGetBlock network hash')
-    , getEpoch = \ep ->
-        run (map getApiT <$> cGetEpoch network (EpochIndex ep))
-    , getNetworkTip =
-        run (blockHeaderHash <$> cGetNetworkTip network)
-    , postSignedTx =
-        -- TODO: We would be good to parse errors from the node
-        -- like "Failed to send to peers: Blockchain protocol error"
-        -- and "Transaction failed verification: transaction has no inputs"
-        void . run . (cPostSignedTx network) . ApiT
+        run (getApiT <$> cGetBlock network hash') >>= defaultHandler
+
+    , getEpoch = \ep -> ExceptT $ do
+        run (map getApiT <$> cGetEpoch network (EpochIndex ep)) >>= \case
+            Left (FailureResponse e) | responseStatusCode e == status404 ->
+                return $ Right []
+            x -> defaultHandler x
+
+    , getNetworkTip = ExceptT $ do
+        run (blockHeaderHash <$> cGetNetworkTip network) >>= defaultHandler
+
+    , postSignedTx = \tx -> void $ ExceptT $ do
+        let e0 = "Failed to send to peers: Blockchain protocol error"
+        run (cPostSignedTx network (ApiT tx)) >>= \case
+            Left (FailureResponse e)
+                | responseStatusCode e == status400 -> do
+                    let msg = T.decodeUtf8 $ BL.toStrict $ responseBody e
+                    return $ Left $ ErrPostTxBadRequest msg
+            Left (FailureResponse e)
+                | responseStatusCode e == status500 && responseBody e == e0 -> do
+                    let msg = T.decodeUtf8 $ BL.toStrict $ responseBody e
+                    return $ Left $ ErrPostTxProtocolFailure msg
+            x -> left ErrPostTxNetworkUnreachable <$> defaultHandler x
     }
   where
-    env = mkClientEnv mgr baseUrl
+    run :: ClientM a -> IO (Either ServantError a)
+    run query = runClientM query (mkClientEnv mgr baseUrl)
 
-    run :: ClientM a -> ExceptT ErrNetworkUnreachable IO a
-    run query = ExceptT $ runClientM query env >>= \case
-        Left (ConnectionError e) -> return $ Left $ ErrNetworkUnreachable e
-        Left e -> throwM e
+    defaultHandler
+        :: Either ServantError a
+        -> IO (Either ErrNetworkUnreachable a)
+    defaultHandler = \case
         Right c -> return $ Right c
+        Left (ConnectionError e) ->
+            return $ Left $ ErrNetworkUnreachable e
+        Left e ->
+            throwM e
 
     cGetBlock
         :<|> cGetEpoch
@@ -197,7 +217,7 @@ hashToApi' h = case hashToApi h of
     Nothing -> fail "hashToApi: Digest was of the wrong length"
 
 -- | Creates a cardano-http-bridge API with the given connection settings.
-newHttpBridge :: Text -> Int -> IO (HttpBridge IO ErrNetworkUnreachable)
+newHttpBridge :: Text -> Int -> IO (HttpBridge IO)
 newHttpBridge network port = do
     mgr <- newManager defaultManagerSettings
     let baseUrl = BaseUrl Http "localhost" port ""

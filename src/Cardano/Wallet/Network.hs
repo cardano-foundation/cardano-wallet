@@ -11,6 +11,7 @@ module Cardano.Wallet.Network
 
     -- * Errors
     , ErrNetworkUnreachable(..)
+    , ErrPostTx(..)
 
     -- * Deprecated (to be removed)
     , TickResult(..)
@@ -51,7 +52,7 @@ data NetworkLayer m = NetworkLayer
         -- ^ Get the current network tip from the chain producer
 
     , postTx
-        :: SignedTx -> ExceptT ErrNetworkUnreachable m ()
+        :: SignedTx -> ExceptT ErrPostTx m ()
         -- ^ Broadcast a transaction to the chain producer
     }
 
@@ -61,6 +62,15 @@ newtype ErrNetworkUnreachable
     deriving (Generic, Show, Eq)
 
 instance Exception ErrNetworkUnreachable
+
+-- | Error while trying to send a transaction
+data ErrPostTx
+    = ErrPostTxNetworkUnreachable ErrNetworkUnreachable
+    | ErrPostTxBadRequest Text
+    | ErrPostTxProtocolFailure Text
+    deriving (Generic, Show, Eq)
+
+instance Exception ErrPostTx
 
 -- | Repeatedly fetch data from a given source function, and call an action for
 -- each element retrieved.

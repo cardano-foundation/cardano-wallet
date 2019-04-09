@@ -50,6 +50,7 @@ library
     , http-api-data
     , http-client
     , http-media
+    , http-types
     , memory
     , servant
     , servant-server

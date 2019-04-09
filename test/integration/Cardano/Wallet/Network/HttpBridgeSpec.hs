@@ -12,7 +12,7 @@ import Cardano.Launcher
 import Cardano.Wallet.Binary
     ( TxWitness (..), encodeSignedTx )
 import Cardano.Wallet.Network
-    ( ErrNetworkUnreachable (..), NetworkLayer (..), listen )
+    ( ErrNetworkUnreachable (..), ErrPostTx (..), NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
@@ -34,17 +34,7 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Test.Hspec
-    ( Spec
-    , afterAll
-    , anyException
-    , beforeAll
-    , describe
-    , it
-    , shouldContain
-    , shouldReturn
-    , shouldSatisfy
-    , shouldThrow
-    )
+    ( Spec, afterAll, beforeAll, describe, it, shouldReturn, shouldSatisfy )
 
 import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
 import qualified Codec.CBOR.Write as CBOR
@@ -93,8 +83,8 @@ spec = do
             action `shouldReturn` pure 0
 
     describe "Error paths" $ beforeAll newNetworkLayer $ do
-        it "gets a 'NodeUnavailable' if bridge isn't up" $ \network -> do
-            let msg x = "Expected a 'NodeAvailable' failure but got " <> show x
+        it "gets a 'ErrNetworkUnreachable' if bridge isn't up (1)" $ \network -> do
+            let msg x = "Expected a ErrNetworkUnreachable' failure but got " <> show x
             let action = do
                     res <- runExceptT $ networkTip network
                     res `shouldSatisfy` \case
@@ -102,47 +92,52 @@ spec = do
                         _ -> error (msg res)
             action `shouldReturn` ()
 
-        it "listen throws exception when bridge isn't up" $ \network -> do
+        it "gets a 'ErrNetworkUnreachable' if bridge isn't up (2)" $ \network -> do
+            let msg x = "Expected a ErrNetworkUnreachable' failure but got " <> show x
+            let tx = sign txEmpty []
             let action = do
-                    listen network actionDummy
-            action `shouldThrow` anyException
+                    res <- runExceptT $ postTx network tx
+                    res `shouldSatisfy` \case
+                        Left (ErrPostTxNetworkUnreachable (ErrNetworkUnreachable _)) ->
+                            True
+                        _ ->
+                            error (msg res)
+            action `shouldReturn` ()
 
     describe "Submitting signed transactions"
         $ beforeAll startBridge $ afterAll closeBridge $ do
-        it "empty tx fails" $ \(_, network) -> do
+        it "empty tx fails (1)" $ \(_, network) -> do
             let signed = sign txEmpty []
-            (Left err) <- runExceptT $ postTx network signed
-            (show err) `shouldContain`
-                "Transaction failed verification: transaction has no inputs"
+            let err = Left $ ErrPostTxBadRequest
+                    "Transaction failed verification: transaction has no inputs"
+            runExceptT (postTx network signed) `shouldReturn` err
 
-        it "empty tx fails 2" $ \(_, network) -> do
+        it "empty tx fails (2)" $ \(_, network) -> do
             let signed = sign txEmpty [pkWitness]
-            (Left err) <- runExceptT $ postTx network signed
-            (show err) `shouldContain`
-                "Transaction failed verification: transaction has no inputs"
+            let err = Left $ ErrPostTxBadRequest
+                    "Transaction failed verification: transaction has no inputs"
+            runExceptT (postTx network signed) `shouldReturn` err
 
         it "old tx fails" $ \(_, network) -> do
             let signed = sign txNonEmpty [pkWitness]
-            (Left err) <- runExceptT $ postTx network signed
-            (show err) `shouldContain`
-                "Failed to send to peers: Blockchain protocol error"
+            let err = Left $ ErrPostTxProtocolFailure
+                    "Failed to send to peers: Blockchain protocol error"
+            runExceptT (postTx network signed) `shouldReturn` err
 
         it "tx fails - more inputs than witnesses" $ \(_, network) -> do
             let signed = sign txNonEmpty []
-            (Left err) <- runExceptT $ postTx network signed
-            (show err) `shouldContain`
-                "Transaction failed verification: transaction has more inputs than witnesses"
+            let err = Left $ ErrPostTxBadRequest
+                    "Transaction failed verification: transaction has more \
+                    \inputs than witnesses"
+            runExceptT (postTx network signed) `shouldReturn` err
 
         it "tx fails - more witnesses than inputs" $ \(_, network) -> do
             let signed = sign txNonEmpty [pkWitness, pkWitness]
-            (Left err) <- runExceptT $ postTx network signed
-            (show err) `shouldContain`
-                "Transaction failed verification: transaction has more witnesses than inputs"
+            let err = Left $ ErrPostTxBadRequest
+                    "Transaction failed verification: transaction has more \
+                    \witnesses than inputs"
+            runExceptT (postTx network signed) `shouldReturn` err
   where
-    actionDummy :: [Block] -> IO ()
-    actionDummy b = do
-      putStr (show b)
-
     sign :: Tx -> [TxWitness] -> SignedTx
     sign tx witnesses = SignedTx . toBS $ encodeSignedTx (tx, witnesses)
 
