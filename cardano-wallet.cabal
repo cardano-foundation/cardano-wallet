@@ -115,7 +115,6 @@ test-suite unit
     , cryptonite
     , deepseq
     , docopt
-    , exceptions
     , file-embed
     , fmt
     , generic-arbitrary

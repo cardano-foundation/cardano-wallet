@@ -14,7 +14,6 @@
 
 module Cardano.Wallet.Network.HttpBridge
     ( HttpBridge(..)
-    , HttpBridgeError(..)
     , mkNetworkLayer
     , newNetworkLayer
     , mkHttpBridge
@@ -23,23 +22,23 @@ module Cardano.Wallet.Network.HttpBridge
 import Prelude
 
 import Cardano.Wallet.Network
-    ( NetworkLayer (..) )
+    ( ErrNetworkUnreachable (..), NetworkLayer (..) )
 import Cardano.Wallet.Network.HttpBridge.Api
     ( ApiT (..), EpochIndex (..), NetworkName (..), api )
 import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..), Hash (..), SignedTx, SlotId (..) )
-import Control.Exception
-    ( Exception (..) )
 import Control.Monad
     ( void )
+import Control.Monad.Catch
+    ( throwM )
+import Control.Monad.Fail
+    ( MonadFail )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT, throwE )
+    ( ExceptT (..), runExceptT )
 import Crypto.Hash
     ( HashAlgorithm, digestFromByteString )
-import Data.Bifunctor
-    ( first )
 import Data.ByteArray
     ( convert )
 import Data.Text
@@ -57,11 +56,10 @@ import Servant.Client.Core
 import Servant.Extra.ContentTypes
     ( WithHash (..) )
 
-import qualified Data.Text as T
 import qualified Servant.Extra.ContentTypes as Api
 
 -- | Constructs a network layer with the given cardano-http-bridge API.
-mkNetworkLayer :: Monad m => HttpBridge m e -> NetworkLayer m e e
+mkNetworkLayer :: Monad m => HttpBridge m ErrNetworkUnreachable -> NetworkLayer m
 mkNetworkLayer httpBridge = NetworkLayer
     { nextBlocks = rbNextBlocks httpBridge
     , networkTip = getNetworkTip httpBridge
@@ -71,7 +69,7 @@ mkNetworkLayer httpBridge = NetworkLayer
 -- | Creates a cardano-http-bridge 'NetworkLayer' using the given connection
 -- settings.
 newNetworkLayer
-    :: Text -> Int -> IO (NetworkLayer IO HttpBridgeError HttpBridgeError)
+    :: Text -> Int -> IO (NetworkLayer IO)
 newNetworkLayer network port = mkNetworkLayer <$> newHttpBridge network port
 
 -- | Retrieve a chunk of blocks from cardano-http-bridge.
@@ -132,7 +130,6 @@ fetchBlocksFromTip network start tipHash =
         else
             pure [block]
 
-
 {-------------------------------------------------------------------------------
                             HTTP-Bridge Client
 -------------------------------------------------------------------------------}
@@ -151,7 +148,7 @@ data HttpBridge m e = HttpBridge
 
 -- | Construct a new network layer
 mkHttpBridge
-    :: Manager -> BaseUrl -> NetworkName -> HttpBridge IO HttpBridgeError
+    :: Manager -> BaseUrl -> NetworkName -> HttpBridge IO ErrNetworkUnreachable
 mkHttpBridge mgr baseUrl network = HttpBridge
     { getBlock = \hash -> do
         hash' <- hashToApi' hash
@@ -167,43 +164,19 @@ mkHttpBridge mgr baseUrl network = HttpBridge
         void . run . (cPostSignedTx network) . ApiT
     }
   where
-    run :: ClientM a -> ExceptT HttpBridgeError IO a
-    run query = ExceptT $ (first convertError) <$> runClientM query env
-
     env = mkClientEnv mgr baseUrl
+
+    run :: ClientM a -> ExceptT ErrNetworkUnreachable IO a
+    run query = ExceptT $ runClientM query env >>= \case
+        Left (ConnectionError e) -> return $ Left $ ErrNetworkUnreachable e
+        Left e -> throwM e
+        Right c -> return $ Right c
 
     cGetBlock
         :<|> cGetEpoch
         :<|> cGetNetworkTip
         :<|> cPostSignedTx
         = client api
-
-convertError :: ServantError -> HttpBridgeError
-convertError e@(FailureResponse _) =
-    NodeUnavailable (displayException e)
-convertError (ConnectionError e) =
-    NodeUnavailable ("Connection error: " <> T.unpack e)
-convertError e@(DecodeFailure _ _) =
-    BadResponseFromNode (show e)
-convertError (UnsupportedContentType _ _) =
-    BadResponseFromNode "UnsupportedContentType"
-convertError (InvalidContentTypeHeader _) =
-    BadResponseFromNode "InvalidContentTypeHeader"
-
--- | The things that can go wrong when retrieving blocks.
-data HttpBridgeError
-    = NodeUnavailable String
-      -- ^ Could not connect to or read from the node API.
-    | BadResponseFromNode String
-      -- ^ The node returned an unexpected response.
-    deriving (Eq)
-
-instance Show HttpBridgeError where
-    show (NodeUnavailable msg) =
-        "Could not connect to or read from the node API: " ++ msg
-    show (BadResponseFromNode msg) =
-        "The node returned an unexpected response: " ++ msg
-instance Exception HttpBridgeError
 
 blockHeaderHash
     :: WithHash algorithm (ApiT BlockHeader)
@@ -216,16 +189,15 @@ hashToApi (Hash h) = Api.Hash <$> digestFromByteString h
 
 -- | Converts a Hash to the Digest type that the Api module requires.
 hashToApi'
-    :: (Monad m, HashAlgorithm algorithm)
+    :: (MonadFail m, HashAlgorithm algorithm)
     => Hash a
-    -> ExceptT HttpBridgeError m (Api.Hash algorithm b)
+    -> m (Api.Hash algorithm b)
 hashToApi' h = case hashToApi h of
     Just h' -> pure h'
-    Nothing -> throwE
-        $ BadResponseFromNode "hashToApi: Digest was of the wrong length"
+    Nothing -> fail "hashToApi: Digest was of the wrong length"
 
 -- | Creates a cardano-http-bridge API with the given connection settings.
-newHttpBridge :: Text -> Int -> IO (HttpBridge IO HttpBridgeError)
+newHttpBridge :: Text -> Int -> IO (HttpBridge IO ErrNetworkUnreachable)
 newHttpBridge network port = do
     mgr <- newManager defaultManagerSettings
     let baseUrl = BaseUrl Http "localhost" port ""

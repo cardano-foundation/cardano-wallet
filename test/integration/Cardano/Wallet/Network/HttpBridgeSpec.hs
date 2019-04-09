@@ -12,9 +12,7 @@ import Cardano.Launcher
 import Cardano.Wallet.Binary
     ( TxWitness (..), encodeSignedTx )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..), listen )
-import Cardano.Wallet.Network.HttpBridge
-    ( HttpBridgeError (..) )
+    ( ErrNetworkUnreachable (..), NetworkLayer (..), listen )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
@@ -100,7 +98,7 @@ spec = do
             let action = do
                     res <- runExceptT $ networkTip network
                     res `shouldSatisfy` \case
-                        Left (NodeUnavailable _) -> True
+                        Left (ErrNetworkUnreachable _) -> True
                         _ -> error (msg res)
             action `shouldReturn` ()
 
