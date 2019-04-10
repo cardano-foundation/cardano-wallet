@@ -81,6 +81,7 @@ module Cardano.Wallet.Primitive.Types
     , Hash (..)
     , ShowFmt (..)
     , invariant
+    , distance
     ) where
 
 import Prelude
@@ -564,7 +565,6 @@ slotRatio (SlotId ep0 sl0) (SlotId ep1 sl1) =
         Quantity $ toEnum $ fromIntegral $ (100 * n0) `div` n1
   where
     flat e s = 21600 * e + fromIntegral s
-    distance a b = if a < b then b - a else a - b
 
 {-------------------------------------------------------------------------------
                                Polymorphic Types
@@ -628,3 +628,8 @@ invariant
     -> a
 invariant msg a predicate =
     if predicate a then a else error msg
+
+-- | Compute distance between two numeric values |a - b|
+distance :: (Ord a, Num a) => a -> a -> a
+distance a b =
+    if a < b then b - a else a - b

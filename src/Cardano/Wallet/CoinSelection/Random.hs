@@ -11,18 +11,20 @@
 
 module Cardano.Wallet.CoinSelection.Random
     ( random
-    , pickRandom
-    , distance
     ) where
 
 import Prelude
 
 import Cardano.Wallet.CoinSelection
-    ( CoinSelection (..), CoinSelectionError (..), CoinSelectionOptions (..) )
+    ( CoinSelection (..)
+    , CoinSelectionError (..)
+    , CoinSelectionOptions (..)
+    , pickRandom
+    )
 import Cardano.Wallet.CoinSelection.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..), TxIn, TxOut (..), UTxO (..), balance, invariant )
+    ( Coin (..), TxIn, TxOut (..), UTxO (..), balance, distance, invariant )
 import Control.Monad
     ( foldM )
 import Control.Monad.Trans.Class
@@ -31,8 +33,6 @@ import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), runMaybeT )
-import Crypto.Number.Generate
-    ( generateBetween )
 import Crypto.Random.Types
     ( MonadRandom )
 import Data.List.NonEmpty
@@ -197,11 +197,6 @@ balance' :: [(TxIn, TxOut)] -> Word64
 balance' =
     fromIntegral . balance . UTxO . Map.fromList
 
--- | Compute distance between two numeric values |a - b|
-distance :: (Ord a, Num a) => a -> a -> a
-distance a b =
-    if a < b then b - a else a - b
-
 -- | Compute corresponding change outputs from a target output and a selection
 -- of inputs.
 --
@@ -222,15 +217,3 @@ mkChange (TxOut _ (Coin out)) inps =
                 []
             c ->
                 [ Coin c ]
-
--- Pick a random element from a map, returns 'Nothing' if the map is empty
-pickRandom
-    :: MonadRandom m
-    => UTxO
-    -> MaybeT m ((TxIn, TxOut), UTxO)
-pickRandom (UTxO utxo)
-    | Map.null utxo =
-        MaybeT $ return Nothing
-    | otherwise = do
-        ix <- fromEnum <$> lift (generateBetween 0 (toEnum (Map.size utxo - 1)))
-        return (Map.elemAt ix utxo, UTxO $ Map.deleteAt ix utxo)
