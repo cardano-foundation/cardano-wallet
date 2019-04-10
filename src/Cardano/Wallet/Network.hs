@@ -11,6 +11,7 @@ module Cardano.Wallet.Network
 
     -- * Errors
     , ErrNetworkUnreachable(..)
+    , ErrNetworkTip(..)
     , ErrPostTx(..)
 
     -- * Deprecated (to be removed)
@@ -48,7 +49,7 @@ data NetworkLayer m = NetworkLayer
         -- after the starting slot.
 
     , networkTip
-        :: ExceptT ErrNetworkUnreachable m (Hash "BlockHeader", BlockHeader)
+        :: ExceptT ErrNetworkTip m (Hash "BlockHeader", BlockHeader)
         -- ^ Get the current network tip from the chain producer
 
     , postTx
@@ -62,6 +63,14 @@ newtype ErrNetworkUnreachable
     deriving (Generic, Show, Eq)
 
 instance Exception ErrNetworkUnreachable
+
+-- | Error while trying to get the network tip
+data ErrNetworkTip
+    = ErrNetworkTipNetworkUnreachable ErrNetworkUnreachable
+    | ErrNetworkTipNotFound
+    deriving (Generic, Show, Eq)
+
+instance Exception ErrNetworkTip
 
 -- | Error while trying to send a transaction
 data ErrPostTx

@@ -12,7 +12,11 @@ import Cardano.Launcher
 import Cardano.Wallet.Binary
     ( TxWitness (..), encodeSignedTx )
 import Cardano.Wallet.Network
-    ( ErrNetworkUnreachable (..), ErrPostTx (..), NetworkLayer (..) )
+    ( ErrNetworkTip (..)
+    , ErrNetworkUnreachable (..)
+    , ErrPostTx (..)
+    , NetworkLayer (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
@@ -32,7 +36,7 @@ import Control.Concurrent.Async
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( runExceptT )
+    ( runExceptT, withExceptT )
 import Test.Hspec
     ( Spec, afterAll, beforeAll, describe, it, shouldReturn, shouldSatisfy )
 
@@ -67,7 +71,7 @@ spec = do
 
         it "get unstable blocks for the unstable epoch" $ \(_, network) -> do
             let action = runExceptT $ do
-                    (SlotId ep sl) <- (slotId . snd) <$> networkTip network
+                    (SlotId ep sl) <- (slotId . snd) <$> networkTip' network
                     let sl' = if sl > 2 then sl - 2 else 0
                     blocks <- nextBlocks network (SlotId ep sl')
                     lift $ blocks `shouldSatisfy` (\bs
@@ -78,7 +82,7 @@ spec = do
 
         it "produce no blocks if start is after tip" $ \(_, network) -> do
             let action = runExceptT $ do
-                    SlotId ep sl <- (slotId . snd) <$> networkTip network
+                    SlotId ep sl <- (slotId . snd) <$> networkTip' network
                     length <$> nextBlocks network (SlotId (ep + 1) sl)
             action `shouldReturn` pure 0
 
@@ -88,7 +92,7 @@ spec = do
             let action = do
                     res <- runExceptT $ networkTip network
                     res `shouldSatisfy` \case
-                        Left (ErrNetworkUnreachable _) -> True
+                        Left (ErrNetworkTipNetworkUnreachable _) -> True
                         _ -> error (msg res)
             action `shouldReturn` ()
 
@@ -152,6 +156,11 @@ spec = do
                     }
     txEmpty :: Tx
     txEmpty = Tx [] []
+
+    networkTip' = withExceptT unwrap . networkTip
+      where
+        unwrap (ErrNetworkTipNetworkUnreachable e) = e
+        unwrap ErrNetworkTipNotFound = ErrNetworkUnreachable "no tip"
 
     newNetworkLayer =
         HttpBridge.newNetworkLayer "testnet" port
