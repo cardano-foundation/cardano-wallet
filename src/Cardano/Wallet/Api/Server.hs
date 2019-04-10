@@ -132,6 +132,7 @@ postWallet w req = do
         , gap =
             maybe defaultAddressPoolGap getApiT (req ^.  #addressPoolGap)
         }
+    liftHandler $ restoreWallet w wid
     getWallet w (ApiT wid)
 
 putWallet

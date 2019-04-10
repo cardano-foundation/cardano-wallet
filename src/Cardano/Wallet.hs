@@ -45,7 +45,7 @@ import Cardano.Wallet.DB
     , PrimaryKey (..)
     )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..), drain, listen )
+    ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( ChangeChain (..)
     , Depth (RootK)
@@ -60,9 +60,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap, SeqState (..), mkAddressPool )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, applyBlocks, availableUTxO, getState, initWallet )
+    ( Wallet, applyBlocks, availableUTxO, currentTip, getState, initWallet )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
+    , BlockHeader (..)
     , SignedTx (..)
     , SlotId (..)
     , Tx (..)
@@ -74,9 +75,14 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , WalletState (..)
+    , slotRatio
     )
+import Control.Arrow
+    ( first )
+import Control.Concurrent
+    ( forkIO, threadDelay )
 import Control.Monad
-    ( (>=>) )
+    ( void, (>=>) )
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.IO.Class
@@ -91,11 +97,14 @@ import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Time.Clock
     ( getCurrentTime )
+import Fmt
+    ( (+|), (+||), (|+), (||+) )
 import GHC.Generics
     ( Generic )
 
 import qualified Cardano.Wallet.CoinSelection.Random as CoinSelection
 import qualified Cardano.Wallet.DB as DB
+import qualified Data.Text.IO as TIO
 
 {-------------------------------------------------------------------------------
                                  Types
@@ -111,6 +120,16 @@ data WalletLayer s = WalletLayer
         :: WalletId
         -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata)
         -- ^ Retrieve the wallet state for the wallet with the given ID.
+
+    , restoreWallet
+        :: WalletId
+        -> ExceptT ErrNoSuchWallet IO ()
+        -- ^ Restore a wallet from its current tip up to a given target
+        -- (typically, the network tip).
+        --
+        -- It returns immediately and fail if the wallet is already beyond the
+        -- given tip. It starts a worker in background which will fetch and
+        -- apply remaining blocks until failure or, the target slot is reached.
 
     , createUnsignedTx
         :: WalletId
@@ -138,20 +157,6 @@ data WalletLayer s = WalletLayer
         :: (Tx, [TxWitness])
         -> ExceptT ErrSubmitTx IO ()
         -- ^ Broadcast a (signed) transaction to the network.
-
-    , watchWallet
-        :: forall a. WalletId
-        -> IO a
-        -- ^ Consume blocks from the node as they arrive, and apply them to the
-        -- wallet. This function never returns, but may throw an exception.
-
-    , processWallet
-        :: (SlotId -> IO ())
-        -> WalletId
-        -> IO ()
-        -- ^ Consume the entire available chain, applying block to the given
-        -- wallet, and stop when finished. This function is intended for
-        -- benchmarking.
     }
 
 data NewWallet = NewWallet
@@ -221,6 +226,16 @@ mkWalletLayer db network = WalletLayer
 
     , readWallet = _readWallet
 
+    , restoreWallet = \wid -> do
+        (w, _) <- _readWallet wid
+        void $ liftIO $ forkIO $ do
+            runExceptT (networkTip network) >>= \case
+                Left e -> do
+                    TIO.putStrLn $ "[ERROR] restoreSleep: " +|| e ||+ ""
+                    restoreSleep wid (currentTip w)
+                Right (_, tip) -> do
+                    restoreStep wid (currentTip w, slotId tip)
+
     {---------------------------------------------------------------------------
                                     Transactions
     ---------------------------------------------------------------------------}
@@ -242,17 +257,6 @@ mkWalletLayer db network = WalletLayer
             (throwE ErrSignTx)
             return
             (mkStdTx (getState w) rootXPrv password ins outs chgs)
-
-    {---------------------------------------------------------------------------
-                                  W.I.P. / Debts
-    ---------------------------------------------------------------------------}
-
-    , watchWallet =
-        liftIO . listen network . onNextblocks
-
-    , processWallet = \logInfo wid -> drain network $ \slot blocks -> do
-        logInfo slot
-        onNextblocks wid blocks
     }
   where
     _readWallet
@@ -263,28 +267,75 @@ mkWalletLayer db network = WalletLayer
         meta <- MaybeT $ DB.readWalletMeta db (PrimaryKey wid)
         return (cp, meta)
 
-    onNextblocks :: WalletId -> [Block] -> IO ()
-    onNextblocks wid blocks = do
-        (txs, cp') <- DB.readCheckpoint db (PrimaryKey wid) >>= \case
-            Nothing ->
-                fail $ "couldn't find worker wallet: " <> show wid
-            Just cp -> do
-                let nonEmpty = not . null . transactions
-                return $ applyBlocks (filter nonEmpty blocks) cp
-        -- FIXME
-        -- Note that, the two calls below are _safe_ under the assumption that
-        -- the wallet existed _right before_. In theory, in a multi-threaded
-        -- context, it may happen that another actor deletes the wallet between
-        -- the calls. Here
-        -- In practice, it isn't really _bad_ if the wallet is gone, we could
-        -- simply log an error or warning and move on. This would have to be
-        -- done as soon as we introduce logging.
-        -- Note also that there's no transaction surrounding both calls because
-        -- there's only one thread per wallet that will apply blocks. And
-        -- therefore, only one thread making changes on checkpoints and/or tx
-        -- history
-        unsafeRunExceptT $ DB.putCheckpoint db (PrimaryKey wid) cp'
-        unsafeRunExceptT $ DB.putTxHistory db (PrimaryKey wid) txs
+    -- | Infinite restoration loop. We drain the whole available chain and try
+    -- to catch up with the node. In case of error, we log it and wait a bit
+    -- before retrying.
+    --
+    -- The function only terminates if the wallet has disappeared from the DB.
+    restoreStep :: WalletId -> (SlotId, SlotId) -> IO ()
+    restoreStep wid (slot, tip) = do
+        runExceptT (nextBlocks network slot) >>= \case
+            Left e -> do
+                TIO.putStrLn $ "[ERROR] restoreStep: " +|| e ||+ ""
+                restoreSleep wid slot
+            Right [] -> do
+                restoreSleep wid slot
+            Right blocks -> do
+                let next = slotId . header . last $ blocks
+                runExceptT (restoreBlocks wid blocks tip) >>= \case
+                    Left (ErrNoSuchWallet _) -> do
+                        TIO.putStrLn $ "[ERROR] restoreStep: wallet " +| wid |+ "is gone!"
+                    Right () -> do
+                        restoreStep wid (next, tip)
+
+    -- | Wait a short delay before querying for blocks again. We do take this
+    -- opportunity to also refresh the chain tip as it has probably increased
+    -- in order to refine our syncing status.
+    restoreSleep :: WalletId -> SlotId -> IO ()
+    restoreSleep wid slot = do
+        let tenSeconds = 10000000 in threadDelay tenSeconds
+        runExceptT (networkTip network) >>= \case
+            Left e -> do
+                TIO.putStrLn $ "[ERROR] restoreSleep: " +|| e ||+ ""
+                restoreSleep wid slot
+            Right (_, tip) ->
+                restoreStep wid (slot, slotId tip)
+
+    -- | Apply the given blocks to the wallet and update the wallet state,
+    -- transaction history and corresponding metadata.
+    restoreBlocks
+        :: WalletId
+        -> [Block]
+        -> SlotId -- ^ Network tip
+        -> ExceptT ErrNoSuchWallet IO ()
+    restoreBlocks wid blocks tip = do
+        let (inf, sup) =
+                ( slotId . header . head $ blocks
+                , slotId . header . last $ blocks
+                )
+        liftIO $ TIO.putStrLn $
+            "[INFO] Applying blocks ["+| inf |+" ... "+| sup |+"]"
+
+        (cp, meta) <- _readWallet wid
+        -- NOTE
+        -- We only process non-empty blocks, though we still keep the last block
+        -- of the list, even if empty, so that we correctly update the current
+        -- tip of the wallet state.
+        let nonEmpty = not . null . transactions
+        let (h,q) = first (filter nonEmpty) $ splitAt (length blocks - 1) blocks
+        let (txs, cp') = applyBlocks (h ++ q) cp
+        let progress = slotRatio sup tip
+        let status' = if progress == maxBound then Ready else Restoring progress
+        let meta' = meta { status = status' }
+
+        -- NOTE
+        -- Not as good as a transaction, but, with the lock, nothing can make
+        -- the wallet disappear within these calls, so either the wallet is
+        -- there and they all succeed, or it's not and they all fail.
+        DB.withLock db $ do
+            DB.putCheckpoint db (PrimaryKey wid) cp'
+            DB.putTxHistory db (PrimaryKey wid) txs
+            DB.putWalletMeta db (PrimaryKey wid) meta'
 
     mkStdTx = error "TODO: mkStdTx not implemented yet"
 

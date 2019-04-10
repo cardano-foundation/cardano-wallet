@@ -42,11 +42,10 @@ spec = do
                 , passphrase = mempty
                 , gap = minBound
                 }
-            handle <- async (watchWallet wallet wid)
-            threadDelay 5000000
-            cancel handle
+            unsafeRunExceptT $ restoreWallet wallet wid
+            threadDelay 2000000
             tip <- currentTip . fst <$> unsafeRunExceptT (readWallet wallet wid)
-            tip `shouldSatisfy` (> SlotId 0 0)
+            tip `shouldSatisfy` (> (SlotId 0 0))
   where
     port = 1337
     closeBridge (handle, _) = do

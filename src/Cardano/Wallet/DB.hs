@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE RankNTypes #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -41,7 +42,6 @@ data DBLayer m s = DBLayer
         -- ^ Initialize a database entry for a given wallet. 'putCheckpoint',
         -- 'putWalletMeta' or 'putTxHistory' will actually all fail if they are
         -- called _first_ on a wallet.
-        --
 
     , listWallets
         :: m [PrimaryKey WalletId]
@@ -96,6 +96,11 @@ data DBLayer m s = DBLayer
         -- ^ Fetch the current transaction history of a known wallet.
         --
         -- Returns an empty map if the wallet isn't found.
+
+    , withLock
+        :: forall e a. ()
+        => ExceptT e m a
+        -> ExceptT e m a
     }
 
 -- | Can't perform given operation because there's no wallet

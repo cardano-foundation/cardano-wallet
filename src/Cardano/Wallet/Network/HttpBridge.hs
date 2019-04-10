@@ -83,8 +83,12 @@ newNetworkLayer network port = mkNetworkLayer <$> newHttpBridge network port
 -- | Retrieve a chunk of blocks from cardano-http-bridge.
 --
 -- It will either return:
+--
 -- - an epoch pack's worth of blocks (those after the given starting slot); or
--- - all of the unstable blocks after the starting slot, if any.
+-- - all of the unstable blocks after (exclusively) the starting slot, if any.
+--
+-- Note that, starting from the `SlotId 0 0`, we'll never get the first block of
+-- the chain through this method.
 rbNextBlocks
     :: Monad m
     => HttpBridge m -- ^ http-bridge API
@@ -92,25 +96,25 @@ rbNextBlocks
     -> ExceptT ErrNetworkUnreachable m [Block]
 rbNextBlocks network start = maybeTip (getNetworkTip network) >>= \case
     Just (tipHash, tipHdr) -> do
-        epochBlocks <- nextStableEpoch (epochNumber start)
+        epochBlocks <-
+            if slotNumber start >= 21599
+            then nextStableEpoch $ epochNumber start + 1
+            else nextStableEpoch $ epochNumber start
         additionalBlocks <-
-            if null epochBlocks then
-                unstableBlocks tipHash (slotId tipHdr)
-            else if length epochBlocks < 1000 then
-                nextStableEpoch (epochNumber start + 1)
-            else
-                pure []
+            if null epochBlocks
+            then unstableBlocks tipHash (slotId tipHdr)
+            else pure []
         pure (epochBlocks ++ additionalBlocks)
     Nothing -> pure []
   where
     nextStableEpoch ix = do
         epochBlocks <- getEpoch network ix
-        pure $ filter (blockIsSameOrAfter start) epochBlocks
+        pure $ filter (blockIsAfter start) epochBlocks
 
     -- Predicate returns true iff the block is from the given slot or a later
     -- one.
-    blockIsSameOrAfter :: SlotId -> Block -> Bool
-    blockIsSameOrAfter s = (>= s) . slotId . header
+    blockIsAfter :: SlotId -> Block -> Bool
+    blockIsAfter s = (> s) . slotId . header
 
     -- Grab the remaining blocks which aren't packed in epoch files,
     -- starting from the tip.
@@ -135,12 +139,11 @@ fetchBlocksFromTip network start tipHash =
   where
     workBackwards headerHash = do
         block <- getBlock network headerHash
-        let hdr = header block
-        if start < slotId hdr then do
-            blocks <- workBackwards (prevBlockHash hdr)
+        if start >= slotId (header block) then
+            return []
+        else do
+            blocks <- workBackwards (prevBlockHash (header block))
             pure (block:blocks)
-        else
-            pure [block]
 
 {-------------------------------------------------------------------------------
                             HTTP-Bridge Client

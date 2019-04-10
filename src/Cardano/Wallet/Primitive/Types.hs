@@ -61,6 +61,7 @@ module Cardano.Wallet.Primitive.Types
 
     -- * Slotting
     , SlotId (..)
+    , slotRatio
 
     -- * Wallet Metadata
     , WalletMetadata(..)
@@ -133,7 +134,6 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
-
 {-------------------------------------------------------------------------------
                              Wallet Metadata
 -------------------------------------------------------------------------------}
@@ -195,6 +195,11 @@ instance FromText WalletId where
 
 instance ToText WalletId where
     toText = T.decodeUtf8 . convertToBase Base16 . getWalletId
+
+instance Buildable WalletId where
+    build wid = prefixF 8 widF <> "..." <> suffixF 8 widF
+      where
+        widF = toText wid
 
 data WalletState
     = Ready
@@ -539,6 +544,27 @@ instance NFData SlotId
 instance Buildable SlotId where
     build (SlotId e s) = build e <> "." <> build s
 
+-- | Compute the approximate ratio / progress between two slots. This is an
+-- approximation for a few reasons, one of them being that we hard code the
+-- epoch length as a static number whereas it may vary in practice.
+slotRatio
+    :: SlotId
+        -- ^ Numerator
+    -> SlotId
+        -- ^ Denominator
+    -> Quantity "percent" Percentage
+slotRatio (SlotId ep0 sl0) (SlotId ep1 sl1) =
+    let
+        n0 = flat ep0 sl0
+        n1 = flat ep1 sl1
+        tolerance = 5
+    in if distance n0 n1 < tolerance then
+        maxBound
+    else
+        Quantity $ toEnum $ fromIntegral $ (100 * n0) `div` n1
+  where
+    flat e s = 21600 * e + fromIntegral s
+    distance a b = if a < b then b - a else a - b
 
 {-------------------------------------------------------------------------------
                                Polymorphic Types

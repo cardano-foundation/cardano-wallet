@@ -18,9 +18,9 @@ import Cardano.Wallet.Network.HttpBridge
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( mkAddressPoolGap )
+    ( SeqState, mkAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
-    ( SlotId (..), WalletName (..) )
+    ( SlotId (..), WalletId, WalletName (..), WalletState (..) )
 import Control.Arrow
     ( left )
 import Control.Concurrent
@@ -41,6 +41,8 @@ import Criterion.Measurement
     ( getTime, initializeTime, secs )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -53,6 +55,8 @@ import Say
     ( sayErr )
 import System.Environment
     ( getArgs )
+import System.IO
+    ( BufferMode (..), hSetBuffering, stderr, stdout )
 
 import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Data.Text as T
@@ -63,6 +67,8 @@ import qualified Data.Text as T
 -- (e.g. `--benchmark-arguments "mainnet"`)
 main :: IO ()
 main = do
+    hSetBuffering stdout NoBuffering
+    hSetBuffering stderr NoBuffering
     network <- getArgs >>= either fail return . parseArgs
     installSignalHandlers
     prepareNode network
@@ -118,7 +124,8 @@ bench_restoration network nw = withHttpBridge network $ \port -> do
     sayErr . fmt $ "Note: the "+|networkName|+" tip is at "+||(bh ^. #slotId)||+""
     let walletLayer = mkWalletLayer dbLayer networkLayer
     wallet <- unsafeRunExceptT $ createWallet walletLayer nw
-    processWallet walletLayer logChunk wallet
+    unsafeRunExceptT $ restoreWallet walletLayer wallet
+    waitForWalletSync walletLayer wallet
   where
     networkName = toText network
 
@@ -164,6 +171,21 @@ prepareNode net = do
         network <- newNetworkLayer (toText net) port
         waitForNodeSync network (toText net) logQuiet
     sayErr . fmt $ "Completed sync of "+|toText net|+" up to "+||sl||+""
+
+-- |
+waitForWalletSync
+    :: WalletLayer SeqState
+    -> WalletId
+    -> IO ()
+waitForWalletSync walletLayer wid = do
+    (_, meta) <- unsafeRunExceptT $ readWallet walletLayer wid
+    case meta ^. #status of
+        Ready -> return ()
+        Restoring (Quantity p) -> do
+            sayErr . fmt $ "[INFO] restoring: "+||p||+"%"
+            threadDelay 1000000
+            waitForWalletSync walletLayer wid
+
 
 -- | Poll the network tip until it reaches the slot corresponding to the current
 -- time.

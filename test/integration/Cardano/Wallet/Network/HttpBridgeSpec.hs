@@ -51,7 +51,7 @@ spec :: Spec
 spec = do
     describe "Happy paths" $ beforeAll startBridge $ afterAll closeBridge $ do
         it "get from packed epochs" $ \(_, network) -> do
-            let blocks = runExceptT $ nextBlocks network (SlotId 14 0)
+            let blocks = runExceptT $ nextBlocks network (SlotId 13 21599)
             (fmap length <$> blocks)
                 `shouldReturn` pure 21600
             (fmap (prevBlockHash . header . head) <$> blocks)
@@ -61,7 +61,7 @@ spec = do
 
         it "get from packet epochs and filter by start slot"
                 $ \(_, network) -> do
-            let blocks = runExceptT $ nextBlocks network (SlotId 14 14000)
+            let blocks = runExceptT $ nextBlocks network (SlotId 14 13999)
             (fmap length <$> blocks)
                 `shouldReturn` pure 7600
             (fmap (prevBlockHash . header . head) <$> blocks)
