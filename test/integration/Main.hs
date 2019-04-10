@@ -1,7 +1,3 @@
-{-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE TypeApplications #-}
-
-
 module Main where
 
 import Prelude
