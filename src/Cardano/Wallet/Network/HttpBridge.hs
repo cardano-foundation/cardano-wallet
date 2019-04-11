@@ -22,7 +22,11 @@ module Cardano.Wallet.Network.HttpBridge
 import Prelude
 
 import Cardano.Wallet.Network
-    ( ErrNetworkUnreachable (..), ErrPostTx (..), NetworkLayer (..) )
+    ( ErrNetworkTip (..)
+    , ErrNetworkUnreachable (..)
+    , ErrPostTx (..)
+    , NetworkLayer (..)
+    )
 import Cardano.Wallet.Network.HttpBridge.Api
     ( ApiT (..), EpochIndex (..), NetworkName (..), api )
 import Cardano.Wallet.Primitive.Types
@@ -36,7 +40,7 @@ import Control.Monad.Catch
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.Trans.Except
-    ( ExceptT (..) )
+    ( ExceptT (..), mapExceptT )
 import Crypto.Hash
     ( HashAlgorithm, digestFromByteString )
 import Data.ByteArray
@@ -86,17 +90,18 @@ rbNextBlocks
     => HttpBridge m -- ^ http-bridge API
     -> SlotId -- ^ Starting point
     -> ExceptT ErrNetworkUnreachable m [Block]
-rbNextBlocks network start = do
-    (tipHash, tip) <- fmap slotId <$> getNetworkTip network
-    epochBlocks <- nextStableEpoch (epochNumber start)
-    additionalBlocks <-
-        if null epochBlocks then
-            unstableBlocks tipHash tip
-        else if length epochBlocks < 1000 then
-            nextStableEpoch (epochNumber start + 1)
-        else
-            pure []
-    pure (epochBlocks ++ additionalBlocks)
+rbNextBlocks network start = maybeTip (getNetworkTip network) >>= \case
+    Just (tipHash, tipHdr) -> do
+        epochBlocks <- nextStableEpoch (epochNumber start)
+        additionalBlocks <-
+            if null epochBlocks then
+                unstableBlocks tipHash (slotId tipHdr)
+            else if length epochBlocks < 1000 then
+                nextStableEpoch (epochNumber start + 1)
+            else
+                pure []
+        pure (epochBlocks ++ additionalBlocks)
+    Nothing -> pure []
   where
     nextStableEpoch ix = do
         epochBlocks <- getEpoch network ix
@@ -112,6 +117,11 @@ rbNextBlocks network start = do
     unstableBlocks tipHash tip
         | start <= tip = fetchBlocksFromTip network start tipHash
         | otherwise    = pure []
+
+    maybeTip = mapExceptT $ fmap $ \case
+        Left (ErrNetworkTipNetworkUnreachable e) -> Left e
+        Left ErrNetworkTipNotFound -> Right Nothing
+        Right tip -> Right (Just tip)
 
 -- Fetch blocks which are not in epoch pack files.
 fetchBlocksFromTip
@@ -143,7 +153,7 @@ data HttpBridge m = HttpBridge
     , getEpoch
         :: Word64 -> ExceptT ErrNetworkUnreachable m [Block]
     , getNetworkTip
-        :: ExceptT ErrNetworkUnreachable m (Hash "BlockHeader", BlockHeader)
+        :: ExceptT ErrNetworkTip m (Hash "BlockHeader", BlockHeader)
     , postSignedTx
         :: SignedTx -> ExceptT ErrPostTx m ()
     }
@@ -163,7 +173,10 @@ mkHttpBridge mgr baseUrl network = HttpBridge
             x -> defaultHandler x
 
     , getNetworkTip = ExceptT $ do
-        run (blockHeaderHash <$> cGetNetworkTip network) >>= defaultHandler
+        run (blockHeaderHash <$> cGetNetworkTip network) >>= \case
+            Left (FailureResponse e) | responseStatusCode e == status404 ->
+              return $ Left ErrNetworkTipNotFound
+            x -> left ErrNetworkTipNetworkUnreachable <$> defaultHandler x
 
     , postSignedTx = \tx -> void $ ExceptT $ do
         let e0 = "Failed to send to peers: Blockchain protocol error"
@@ -187,8 +200,15 @@ mkHttpBridge mgr baseUrl network = HttpBridge
         -> IO (Either ErrNetworkUnreachable a)
     defaultHandler = \case
         Right c -> return $ Right c
+
+        -- The node has not started yet or has exited.
+        -- This could be recovered from by either waiting for the node
+        -- initialise, or restarting the node.
         Left (ConnectionError e) ->
             return $ Left $ ErrNetworkUnreachable e
+
+        -- Other errors (status code, decode failure, invalid content type
+        -- headers). These are considered to be programming errors, so crash.
         Left e ->
             throwM e
 

@@ -50,7 +50,7 @@ import Data.Time.Clock.POSIX
 import Fmt
     ( fmt, (+|), (+||), (|+), (||+) )
 import Say
-    ( say )
+    ( sayErr )
 import System.Environment
     ( getArgs )
 
@@ -88,12 +88,12 @@ runBenchmarks :: [IO (Text, Double)] -> IO ()
 runBenchmarks bs = do
     initializeTime
     rs <- sequence bs
-    say "\n\nAll results:"
+    sayErr "\n\nAll results:"
     mapM_ (uncurry printResult) rs
 
 bench :: Text -> IO () -> IO (Text, Double)
 bench benchName action = do
-    say $ "Running " <> benchName
+    sayErr $ "Running " <> benchName
     start <- getTime
     res <- action
     evaluate (rnf res)
@@ -103,7 +103,7 @@ bench benchName action = do
     pure (benchName, dur)
 
 printResult :: Text -> Double -> IO ()
-printResult benchName dur = say . fmt $ "  "+|benchName|+": "+|secs dur|+""
+printResult benchName dur = sayErr . fmt $ "  "+|benchName|+": "+|secs dur|+""
 
 {-------------------------------------------------------------------------------
                                   Benchmarks
@@ -115,7 +115,7 @@ bench_restoration network nw = withHttpBridge network $ \port -> do
     dbLayer <- MVar.newDBLayer
     networkLayer <- newNetworkLayer networkName port
     (_, bh) <- unsafeRunExceptT $ networkTip networkLayer
-    say . fmt $ "Note: the "+|networkName|+" tip is at "+||(bh ^. #slotId)||+""
+    sayErr . fmt $ "Note: the "+|networkName|+" tip is at "+||(bh ^. #slotId)||+""
     let walletLayer = mkWalletLayer dbLayer networkLayer
     wallet <- unsafeRunExceptT $ createWallet walletLayer nw
     processWallet walletLayer logChunk wallet
@@ -123,7 +123,7 @@ bench_restoration network nw = withHttpBridge network $ \port -> do
     networkName = toText network
 
 logChunk :: SlotId -> IO ()
-logChunk slot = say . fmt $ "Processing "+||slot||+""
+logChunk slot = sayErr . fmt $ "Processing "+||slot||+""
 
 withHttpBridge :: Network -> (Int -> IO a) -> IO a
 withHttpBridge network action = bracket start stop (const (action port))
@@ -159,11 +159,11 @@ walletSeq = baseWallet
 
 prepareNode :: Network -> IO ()
 prepareNode net = do
-    say . fmt $ "Syncing "+|toText net|+" node... "
+    sayErr . fmt $ "Syncing "+|toText net|+" node... "
     sl <- withHttpBridge net $ \port -> do
         network <- newNetworkLayer (toText net) port
         waitForNodeSync network (toText net) logQuiet
-    say . fmt $ "Completed sync of "+|toText net|+" up to "+||sl||+""
+    sayErr . fmt $ "Completed sync of "+|toText net|+" up to "+||sl||+""
 
 -- | Poll the network tip until it reaches the slot corresponding to the current
 -- time.
@@ -188,7 +188,7 @@ waitForNodeSync network networkName logSlot = loop 10
                 else
                     pure tipBlockSlot
         Left e | retries > 0 -> do
-                     say "Fetching tip failed, retrying shortly..."
+                     sayErr "Fetching tip failed, retrying shortly..."
                      threadDelay 15000000
                      loop (retries - 1)
                | otherwise -> throwIO e

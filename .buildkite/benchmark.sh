@@ -1,4 +1,5 @@
-#!/usr/bin/env bash
+#! /usr/bin/env nix-shell
+#! nix-shell -i bash -p nix git stack haskellPackages.hp2pretty buildkite-agent
 
 set -euo pipefail
 
@@ -9,6 +10,10 @@ if [ -z "$netname" ]; then
    exit 1
 fi
 
+echo "--- Build code and benchmarks"
+stack build --bench --no-run-benchmarks
+
+echo "+++ Run benchmarks"
 stack bench cardano-wallet:restore --interleaved-output --ba "$netname +RTS -N2 -qg -A1m -I0 -T -M1G -h -RTS"
 
 hp2pretty restore.hp
