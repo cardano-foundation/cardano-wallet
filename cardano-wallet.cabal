@@ -58,7 +58,6 @@ library
     , servant-client-core
     , text
     , time
-    , time-units
     , transformers
   hs-source-dirs:
       src
@@ -130,7 +129,6 @@ test-suite unit
     , servant-swagger
     , swagger2
     , text
-    , time-units
     , transformers
     , yaml
   type:

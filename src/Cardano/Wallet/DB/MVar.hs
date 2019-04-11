@@ -29,11 +29,11 @@ import Cardano.Wallet.Primitive.Types
 import Control.Arrow
     ( right )
 import Control.Concurrent.MVar
-    ( MVar, modifyMVar, newMVar, readMVar )
+    ( MVar, modifyMVar, newMVar, readMVar, withMVar )
 import Control.DeepSeq
     ( deepseq )
 import Control.Monad.Trans.Except
-    ( ExceptT (..) )
+    ( ExceptT (..), runExceptT )
 import Data.Map.Strict
     ( Map )
 
@@ -49,6 +49,7 @@ data Database s = Database
 -- a local MVar. Data vanishes if the software is shut down.
 newDBLayer :: forall s. IO (DBLayer IO s)
 newDBLayer = do
+    lock <- newMVar ()
     db <- newMVar (mempty :: Map (PrimaryKey WalletId) (Database s))
     return $ DBLayer
         {-----------------------------------------------------------------------
@@ -110,6 +111,13 @@ newDBLayer = do
 
         , readTxHistory = \key ->
             maybe mempty txHistory . Map.lookup key <$> readMVar db
+
+        {-----------------------------------------------------------------------
+                                       Lock
+        -----------------------------------------------------------------------}
+
+        , withLock = \action ->
+            ExceptT $ withMVar lock $ \() -> runExceptT action
         }
 
 
