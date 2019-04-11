@@ -296,6 +296,11 @@ data SlotId
 SlotId :: !Word64 -> !Word16 -> SlotId
 [$sel:epochNumber:SlotId] :: SlotId -> !Word64
 [$sel:slotNumber:SlotId] :: SlotId -> !Word16
+
+-- | Compute the approximate ratio / progress between two slots. This is an
+--   approximation for a few reasons, one of them being that we hard code
+--   the epoch length as a static number whereas it may vary in practice.
+slotRatio :: SlotId -> SlotId -> Quantity "percent" Percentage
 data WalletMetadata
 WalletMetadata :: !WalletName -> !WalletPassphraseInfo -> !WalletState -> !WalletDelegation PoolId -> WalletMetadata
 [$sel:name:WalletMetadata] :: WalletMetadata -> !WalletName
@@ -487,6 +492,7 @@ instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.WalletState
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.WalletId
 instance Data.Text.Class.FromText Cardano.Wallet.Primitive.Types.WalletId
 instance Data.Text.Class.ToText Cardano.Wallet.Primitive.Types.WalletId
+instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.WalletId
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.WalletName
 instance Data.Text.Class.FromText Cardano.Wallet.Primitive.Types.WalletName
 instance Data.Text.Class.ToText Cardano.Wallet.Primitive.Types.WalletName
@@ -522,34 +528,6 @@ data ErrPostTx
 ErrPostTxNetworkUnreachable :: ErrNetworkUnreachable -> ErrPostTx
 ErrPostTxBadRequest :: Text -> ErrPostTx
 ErrPostTxProtocolFailure :: Text -> ErrPostTx
-
--- | The result type of the element fetch function provided to <a>tick</a>.
-data TickResult a
-
--- | Have a result, and there may be more available.
-GotChunk :: !a -> TickResult a
-
--- | There is no result available now, so wait.
-Sleep :: TickResult a
-
--- | Repeatedly fetch data from a given source function, and call an action
---   for each element retrieved.
---   
---   If the data source indicates that it has no more data at present
---   (<a>Sleep</a>), then sleep for the interval <tt>delay</tt>, and then
---   try the fetch again.
-tick :: forall st m a r. MonadIO m => (st -> m (TickResult a, st)) -> (a -> m ()) -> Millisecond -> st -> m r
-
--- | Retrieve blocks from a chain producer and execute some given action
---   for each block.
-listen :: NetworkLayer IO -> ([Block] -> IO ()) -> IO a
-
--- | Process all available blocks from the network layer with the given
---   action. When the network layer reports no more blocks, stop.
-drain :: NetworkLayer IO -> (SlotId -> [Block] -> IO ()) -> IO ()
-instance Data.Foldable.Foldable Cardano.Wallet.Network.TickResult
-instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.Wallet.Network.TickResult a)
-instance GHC.Show.Show a => GHC.Show.Show (Cardano.Wallet.Network.TickResult a)
 instance GHC.Classes.Eq Cardano.Wallet.Network.ErrPostTx
 instance GHC.Show.Show Cardano.Wallet.Network.ErrPostTx
 instance GHC.Generics.Generic Cardano.Wallet.Network.ErrPostTx
@@ -830,7 +808,7 @@ module Cardano.Wallet.DB
 --   serialize and unserialize it (e.g. <tt>forall s. (Serialize s) =&gt;
 --   ...</tt>)
 data DBLayer m s
-DBLayer :: (PrimaryKey WalletId -> Wallet s -> WalletMetadata -> ExceptT ErrWalletAlreadyExists m ()) -> m [PrimaryKey WalletId] -> (PrimaryKey WalletId -> Wallet s -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe (Wallet s))) -> (PrimaryKey WalletId -> WalletMetadata -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe WalletMetadata)) -> (PrimaryKey WalletId -> Map (Hash "Tx") (Tx, TxMeta) -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Map (Hash "Tx") (Tx, TxMeta))) -> DBLayer m s
+DBLayer :: (PrimaryKey WalletId -> Wallet s -> WalletMetadata -> ExceptT ErrWalletAlreadyExists m ()) -> m [PrimaryKey WalletId] -> (PrimaryKey WalletId -> Wallet s -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe (Wallet s))) -> (PrimaryKey WalletId -> WalletMetadata -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe WalletMetadata)) -> (PrimaryKey WalletId -> Map (Hash "Tx") (Tx, TxMeta) -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Map (Hash "Tx") (Tx, TxMeta))) -> (forall e a. () => ExceptT e m a -> ExceptT e m a) -> DBLayer m s
 
 -- | Initialize a database entry for a given wallet. <a>putCheckpoint</a>,
 --   <a>putWalletMeta</a> or <a>putTxHistory</a> will actually all fail if
@@ -874,6 +852,7 @@ DBLayer :: (PrimaryKey WalletId -> Wallet s -> WalletMetadata -> ExceptT ErrWall
 --   
 --   Returns an empty map if the wallet isn't found.
 [readTxHistory] :: DBLayer m s -> PrimaryKey WalletId -> m (Map (Hash "Tx") (Tx, TxMeta))
+[withLock] :: DBLayer m s -> forall e a. () => ExceptT e m a -> ExceptT e m a
 
 -- | A primary key which can take many forms depending on the value. This
 --   may become a type family as we move forward, but for now, it
@@ -1173,13 +1152,21 @@ instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 --   to realize its role as being intermediary between the three.
 module Cardano.Wallet
 data WalletLayer s
-WalletLayer :: (NewWallet -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata)) -> (WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection) -> (WalletId -> Key  'RootK XPrv -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx, [TxWitness])) -> ((Tx, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> (forall a. WalletId -> IO a) -> ((SlotId -> IO ()) -> WalletId -> IO ()) -> WalletLayer s
+WalletLayer :: (NewWallet -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata)) -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection) -> (WalletId -> Key  'RootK XPrv -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx, [TxWitness])) -> ((Tx, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> WalletLayer s
 
 -- | Initialise and store a new wallet, returning its ID.
 [$sel:createWallet:WalletLayer] :: WalletLayer s -> NewWallet -> ExceptT ErrWalletAlreadyExists IO WalletId
 
 -- | Retrieve the wallet state for the wallet with the given ID.
 [$sel:readWallet:WalletLayer] :: WalletLayer s -> WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata)
+
+-- | Restore a wallet from its current tip up to a given target (typically,
+--   the network tip).
+--   
+--   It returns immediately and fail if the wallet is already beyond the
+--   given tip. It starts a worker in background which will fetch and apply
+--   remaining blocks until failure or, the target slot is reached.
+[$sel:restoreWallet:WalletLayer] :: WalletLayer s -> WalletId -> ExceptT ErrNoSuchWallet IO ()
 
 -- | Prepare a transaction and automatically select inputs from the wallet
 --   to cover the requested outputs. Note that this only run the coin
@@ -1196,15 +1183,6 @@ WalletLayer :: (NewWallet -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (Wal
 
 -- | Broadcast a (signed) transaction to the network.
 [$sel:submitTx:WalletLayer] :: WalletLayer s -> (Tx, [TxWitness]) -> ExceptT ErrSubmitTx IO ()
-
--- | Consume blocks from the node as they arrive, and apply them to the
---   wallet. This function never returns, but may throw an exception.
-[$sel:watchWallet:WalletLayer] :: WalletLayer s -> forall a. WalletId -> IO a
-
--- | Consume the entire available chain, applying block to the given
---   wallet, and stop when finished. This function is intended for
---   benchmarking.
-[$sel:processWallet:WalletLayer] :: WalletLayer s -> (SlotId -> IO ()) -> WalletId -> IO ()
 data NewWallet
 NewWallet :: !Passphrase "seed" -> !Passphrase "generation" -> !WalletName -> !Passphrase "encryption" -> !AddressPoolGap -> NewWallet
 [$sel:seed:NewWallet] :: NewWallet -> !Passphrase "seed"
