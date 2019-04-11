@@ -20,6 +20,7 @@ import Cardano.Wallet.CoinSelection
     ( CoinSelection (..)
     , CoinSelectionError (..)
     , CoinSelectionOptions (..)
+    , Fee (..)
     , FeeError (..)
     , FeeOptions (..)
     , adjustForFees
@@ -58,7 +59,6 @@ import Test.QuickCheck
     )
 
 import qualified Data.ByteString as BS
-import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 
@@ -69,7 +69,7 @@ spec = do
             { fInps = [20]
             , fOuts = [17]
             , fChngs = [3]
-            , fExtraUtxo = []
+            , fUtxo = []
             , fFee = 3
             , fDust = 0
             }) (Right $ FeeOutput
@@ -82,7 +82,7 @@ spec = do
             { fInps = [20,20]
             , fOuts = [18,18]
             , fChngs = [2,2]
-            , fExtraUtxo = []
+            , fUtxo = []
             , fFee = 2
             , fDust = 0
             }) (Right $ FeeOutput
@@ -95,7 +95,7 @@ spec = do
             { fInps = [20,20]
             , fOuts = [17,18]
             , fChngs = [3,2]
-            , fExtraUtxo = []
+            , fUtxo = []
             , fFee = 2
             , fDust = 0
             }) (Right $ FeeOutput
@@ -108,7 +108,7 @@ spec = do
             { fInps = [20,20]
             , fOuts = [16,18]
             , fChngs = [4,2]
-            , fExtraUtxo = []
+            , fUtxo = []
             , fFee = 2
             , fDust = 0
             }) (Right $ FeeOutput
@@ -121,7 +121,7 @@ spec = do
             { fInps = [20,20]
             , fOuts = [15,18]
             , fChngs = [5,2]
-            , fExtraUtxo = []
+            , fUtxo = []
             , fFee = 2
             , fDust = 0
             }) (Right $ FeeOutput
@@ -134,7 +134,7 @@ spec = do
             { fInps = [20,20]
             , fOuts = [14,18]
             , fChngs = [6,2]
-            , fExtraUtxo = []
+            , fUtxo = []
             , fFee = 2
             , fDust = 0
             }) (Right $ FeeOutput
@@ -147,7 +147,7 @@ spec = do
             { fInps = [20,20]
             , fOuts = [14,14]
             , fChngs = [6,6]
-            , fExtraUtxo = []
+            , fUtxo = []
             , fFee = 2
             , fDust = 0
             }) (Right $ FeeOutput
@@ -160,7 +160,7 @@ spec = do
             { fInps = [20,20,20]
             , fOuts = [14,18,19]
             , fChngs = [6,2,1]
-            , fExtraUtxo = []
+            , fUtxo = []
             , fFee = 3
             , fDust = 0
             }) (Right $ FeeOutput
@@ -173,7 +173,7 @@ spec = do
             { fInps = [20,20,20]
             , fOuts = [14,18,19]
             , fChngs = [6,2,1]
-            , fExtraUtxo = []
+            , fUtxo = []
             , fFee = 3
             , fDust = 1
             }) (Right $ FeeOutput
@@ -186,7 +186,7 @@ spec = do
             { fInps = [20,20,20]
             , fOuts = [14,17,19]
             , fChngs = [6,3,1]
-            , fExtraUtxo = []
+            , fUtxo = []
             , fFee = 3
             , fDust = 0
             }) (Right $ FeeOutput
@@ -199,7 +199,7 @@ spec = do
             { fInps = [20,20,20]
             , fOuts = [14,17,19]
             , fChngs = [6,3,1]
-            , fExtraUtxo = []
+            , fUtxo = []
             , fFee = 3
             , fDust = 1
             }) (Right $ FeeOutput
@@ -212,7 +212,7 @@ spec = do
             { fInps = [20,20,20]
             , fOuts = [14,17,19]
             , fChngs = [6,3,1]
-            , fExtraUtxo = []
+            , fUtxo = []
             , fFee = 3
             , fDust = 2
             }) (Right $ FeeOutput
@@ -225,7 +225,7 @@ spec = do
             { fInps = [20]
             , fOuts = [17]
             , fChngs = [3]
-            , fExtraUtxo = []
+            , fUtxo = []
             , fFee = 4
             , fDust = 0
             }) (Left $ CannotCoverFee 1)
@@ -234,7 +234,7 @@ spec = do
             { fInps = [20,20]
             , fOuts = [16,18]
             , fChngs = [4,2]
-            , fExtraUtxo = []
+            , fUtxo = []
             , fFee = 6
             , fDust = 0
             }) (Right $ FeeOutput
@@ -247,7 +247,7 @@ spec = do
             { fInps = [20,20]
             , fOuts = [16,18]
             , fChngs = [4,2]
-            , fExtraUtxo = []
+            , fUtxo = []
             , fFee = 6
             , fDust = 2
             }) (Left $ CannotCoverFee 2)
@@ -256,7 +256,7 @@ spec = do
             { fInps = [10]
             , fOuts = [7]
             , fChngs = [3]
-            , fExtraUtxo = [1]
+            , fUtxo = [1]
             , fFee = 5
             , fDust = 0
             }) (Left $ CannotCoverFee 1)
@@ -265,7 +265,7 @@ spec = do
             { fInps = [10]
             , fOuts = [7]
             , fChngs = [3]
-            , fExtraUtxo = [2]
+            , fUtxo = [2]
             , fFee = 5
             , fDust = 0
             }) (Right $ FeeOutput
@@ -278,7 +278,7 @@ spec = do
             { fInps = [10]
             , fOuts = [7]
             , fChngs = [3]
-            , fExtraUtxo = [1,1]
+            , fUtxo = [1,1]
             , fFee = 5
             , fDust = 0
             }) (Right $ FeeOutput
@@ -291,7 +291,7 @@ spec = do
             { fInps = [10]
             , fOuts = [7]
             , fChngs = [3]
-            , fExtraUtxo = [3]
+            , fUtxo = [3]
             , fFee = 5
             , fDust = 0
             }) (Right $ FeeOutput
@@ -304,7 +304,7 @@ spec = do
             { fInps = [10,10]
             , fOuts = [7,7]
             , fChngs = [3,3]
-            , fExtraUtxo = [2]
+            , fUtxo = [2]
             , fFee = 8
             , fDust = 0
             }) (Right $ FeeOutput
@@ -317,7 +317,7 @@ spec = do
             { fInps = [10,10]
             , fOuts = [7,7]
             , fChngs = [3,3]
-            , fExtraUtxo = [1,1]
+            , fUtxo = [1,1]
             , fFee = 8
             , fDust = 0
             }) (Right $ FeeOutput
@@ -330,7 +330,7 @@ spec = do
             { fInps = [10,10]
             , fOuts = [7,7]
             , fChngs = [3,3]
-            , fExtraUtxo = [2,2]
+            , fUtxo = [2,2]
             , fFee = 9
             , fDust = 0
             }) (Right $ FeeOutput
@@ -343,7 +343,7 @@ spec = do
             { fInps = [10,10]
             , fOuts = [7,7]
             , fChngs = [3,3]
-            , fExtraUtxo = [2,2]
+            , fUtxo = [2,2]
             , fFee = 10
             , fDust = 0
             }) (Right $ FeeOutput
@@ -356,7 +356,7 @@ spec = do
             { fInps = [10,10]
             , fOuts = [7,7]
             , fChngs = [3,3]
-            , fExtraUtxo = [3,3]
+            , fUtxo = [3,3]
             , fFee = 10
             , fDust = 0
             }) (Right $ FeeOutput
@@ -369,7 +369,7 @@ spec = do
             { fInps = [10,10]
             , fOuts = [7,7]
             , fChngs = [3,3]
-            , fExtraUtxo = [3,3]
+            , fUtxo = [3,3]
             , fFee = 0
             , fDust = 0
             }) (Right $ FeeOutput
@@ -377,7 +377,6 @@ spec = do
             , csOuts = [7,7]
             , csChngs = [3,3]
             })
-
 
     describe "Fee calculation properties" $ do
         it "forall CoinSelection,\
@@ -449,7 +448,6 @@ propReducedChanges drg (FeeCase (CoveringCase (utxo, txOuts)) _ (fee, dust)) = d
     selection = runIdentity $ runExceptT $
         largestFirst (CoinSelectionOptions 100) utxo txOuts
 
-
 propDeterministicError
     :: SystemDRG
     -> FeeCase
@@ -504,63 +502,43 @@ feeOptions
     -> FeeOptions
 feeOptions fee dust = FeeOptions
     { estimate = \_num _outs ->
-            Coin fee
+            Fee fee
     , dustThreshold =
             Coin dust
     }
-
 
 feeUnitTest
     :: FeeFixture
     -> Either FeeError FeeOutput
     -> SpecWith ()
-feeUnitTest (FeeFixture inps outs chngs extraUtxo fee dust) expected = it title $ do
-    (utxo, coinSel) <- setup
-
+feeUnitTest (FeeFixture inpsF outsF chngsF utxoF feeF dustF) expected = it title $ do
+    (utxo, sel) <- setup
     result <- runExceptT $ do
-        (CoinSelection inps' outs'  chngs') <-
-            adjustForFees (feeOptions fee dust) utxo coinSel
+        (CoinSelection inps outs chngs) <-
+            adjustForFees (feeOptions feeF dustF) utxo sel
         return $ FeeOutput
-            {
-              csInps = map (getCoin . coin . snd) inps'
-            , csOuts = map (getCoin . coin) outs'
-            , csChngs = map getCoin chngs'
+            { csInps = map (getCoin . coin . snd) inps
+            , csOuts = map (getCoin . coin) outs
+            , csChngs = map getCoin chngs
             }
-
     result `shouldBe` expected
-    where
-        setup :: IO (UTxO, CoinSelection)
-        setup = do
-            txUtxoIns <- generate $ vectorOf (L.length extraUtxo) arbitrary
-            txUtxoOutsAddr <- generate $ vectorOf (L.length extraUtxo) arbitrary
-            let utxo = UTxO $ Map.fromList $ L.zip txUtxoIns
-                       $ L.zipWith TxOut txUtxoOutsAddr
-                       $ map Coin extraUtxo
+  where
+    setup :: IO (UTxO, CoinSelection)
+    setup = do
+        utxo <- generate (genUTxO utxoF)
+        inps <- (Map.toList . getUTxO) <$> generate (genUTxO inpsF)
+        outs <- generate (genTxOut outsF)
+        let chngs = map Coin chngsF
+        pure (utxo, CoinSelection inps outs chngs)
 
-            coinSelIns <- generate $ vectorOf (L.length inps) arbitrary
-            coinSelInsOutsAddr <- generate $ vectorOf (L.length inps) arbitrary
-            let coinSelInps = L.zip coinSelIns
-                              $ L.zipWith TxOut coinSelInsOutsAddr
-                              $ map Coin inps
-
-
-            coinSelOutsAddr <- generate $ vectorOf (L.length outs) arbitrary
-            let coinSelOuts = L.zipWith TxOut coinSelOutsAddr
-                              $ map Coin outs
-
-            let coinSelChngs = map Coin chngs
-
-            pure (utxo, CoinSelection coinSelInps coinSelOuts coinSelChngs)
-
-        title :: String
-        title = mempty
-            <> "CoinSelection (inps=" <> show inps
-            <> "outs=" <> show outs
-            <> "chngs=" <> show chngs
-            <> "), UTxO=" <> show extraUtxo
-            <> "), fee=" <> show fee
-            <> " --> " <> show expected
-
+    title :: String
+    title = mempty
+        <> "CoinSelection (inps=" <> show inpsF
+        <> "outs=" <> show outsF
+        <> "chngs=" <> show chngsF
+        <> "), UTxO=" <> show utxoF
+        <> "), fee=" <> show feeF
+        <> " --> " <> show expected
 
 -- | A fixture for testing the fee calculation
 data FeeFixture = FeeFixture
@@ -570,7 +548,7 @@ data FeeFixture = FeeFixture
         -- ^ Value (in Lovelace) & number of requested outputs
     , fChngs :: [Word64]
         -- ^ Value (in Lovelace) & number of changes
-    , fExtraUtxo :: [Word64]
+    , fUtxo :: [Word64]
         -- ^ Value (in Lovelace) & number of available coins in the UTxO
     , fFee :: Word64
         -- ^ Value (in Lovelace) of rigid fee
@@ -587,7 +565,6 @@ data FeeOutput = FeeOutput
     , csChngs :: [Word64]
         -- ^ Value (in Lovelace) & number of changes
     } deriving (Show, Eq)
-
 
 -- | A fixture for testing the coin selection
 data Fixture = Fixture
@@ -615,7 +592,7 @@ coinSelectionUnitTest
     -> Either CoinSelectionError [Word64]
     -> Fixture
     -> SpecWith ()
-coinSelectionUnitTest run lbl expected (Fixture n utxoCoins txOutsCoins) =
+coinSelectionUnitTest run lbl expected (Fixture n utxoF outsF) =
     it title $ do
         (utxo,txOuts) <- setup
         result <- runExceptT $ do
@@ -627,23 +604,17 @@ coinSelectionUnitTest run lbl expected (Fixture n utxoCoins txOutsCoins) =
     title :: String
     title = mempty
         <> "max=" <> show n
-        <> ", UTxO=" <> show utxoCoins
-        <> ", Output=" <> show (NE.toList txOutsCoins)
+        <> ", UTxO=" <> show utxoF
+        <> ", Output=" <> show (NE.toList outsF)
         <> " --> " <> show expected
         <> if null lbl then "" else " (" <> lbl <> ")"
 
     setup :: IO (UTxO, NonEmpty TxOut)
     setup = do
-        ins <- generate $ vectorOf (L.length utxoCoins) arbitrary
-        addrs <- generate $ vectorOf (L.length utxoCoins) arbitrary
-        let utxo = UTxO $ Map.fromList
-                $ L.zip ins
-                $ L.zipWith TxOut addrs
-                $ map Coin utxoCoins
-        txOutsAddrs <- generate $ vectorOf (L.length txOutsCoins) arbitrary
-        let txOuts = NE.zipWith TxOut (NE.fromList txOutsAddrs)
-                $ NE.map Coin txOutsCoins
-        pure (utxo, txOuts)
+        utxo <- generate (genUTxO utxoF)
+        outs <- generate (genTxOut $ NE.toList outsF)
+        pure (utxo, NE.fromList outs)
+
 
 -- | Data for running fee calculation properties
 data FeeCase = FeeCase
@@ -714,3 +685,16 @@ instance Arbitrary UTxO where
             <$> vectorOf n arbitrary
             <*> vectorOf n arbitrary
         return $ UTxO $ Map.fromList utxo
+
+genUTxO :: [Word64] -> Gen UTxO
+genUTxO coins = do
+    let n = length coins
+    inps <- vectorOf n arbitrary
+    outs <- genTxOut coins
+    return $ UTxO $ Map.fromList $ zip inps outs
+
+genTxOut :: [Word64] -> Gen [TxOut]
+genTxOut coins = do
+    let n = length coins
+    outs <- vectorOf n arbitrary
+    return $ zipWith TxOut outs (map Coin coins)

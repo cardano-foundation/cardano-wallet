@@ -53,6 +53,8 @@ module Cardano.Wallet.Primitive.Types
     -- * UTxO
     , UTxO (..)
     , balance
+    , balance'
+    , pickRandom
     , excluding
     , isSubsetOf
     , restrictedBy
@@ -88,8 +90,16 @@ import Prelude
 
 import Control.DeepSeq
     ( NFData (..) )
+import Control.Monad.Trans.Class
+    ( lift )
+import Control.Monad.Trans.Maybe
+    ( MaybeT (..) )
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString )
+import Crypto.Number.Generate
+    ( generateBetween )
+import Crypto.Random.Types
+    ( MonadRandom )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
@@ -495,12 +505,31 @@ instance Buildable UTxO where
       where
         utxoF (inp, out) = build inp <> " => " <> build out
 
+-- | Pick a random element from a UTxO, returns 'Nothing' if the UTxO is empty.
+-- Otherwise, returns the selected entry and, the UTxO minus the selected one.
+pickRandom
+    :: MonadRandom m
+    => UTxO
+    -> MaybeT m ((TxIn, TxOut), UTxO)
+pickRandom (UTxO utxo)
+    | Map.null utxo =
+        MaybeT $ return Nothing
+    | otherwise = do
+        ix <- fromEnum <$> lift (generateBetween 0 (toEnum (Map.size utxo - 1)))
+        return (Map.elemAt ix utxo, UTxO $ Map.deleteAt ix utxo)
+
+-- | Compute the balance of a UTxO
 balance :: UTxO -> Natural
 balance =
     Map.foldl' fn 0 . getUTxO
   where
     fn :: Natural -> TxOut -> Natural
     fn tot out = tot + fromIntegral (getCoin (coin out))
+
+-- | Compute the balance of a unwrapped UTxO
+balance' :: [(TxIn, TxOut)] -> Word64
+balance' =
+    fromIntegral . balance . UTxO . Map.fromList
 
 -- | ins⋪ u
 excluding :: UTxO -> Set TxIn ->  UTxO

@@ -16,15 +16,19 @@ module Cardano.Wallet.CoinSelection.Random
 import Prelude
 
 import Cardano.Wallet.CoinSelection
-    ( CoinSelection (..)
-    , CoinSelectionError (..)
-    , CoinSelectionOptions (..)
-    , pickRandom
-    )
+    ( CoinSelection (..), CoinSelectionError (..), CoinSelectionOptions (..) )
 import Cardano.Wallet.CoinSelection.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..), TxIn, TxOut (..), UTxO (..), balance, distance, invariant )
+    ( Coin (..)
+    , TxIn
+    , TxOut (..)
+    , UTxO (..)
+    , balance'
+    , distance
+    , invariant
+    , pickRandom
+    )
 import Control.Monad
     ( foldM )
 import Control.Monad.Trans.Class
@@ -44,7 +48,6 @@ import Data.Word
 
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as Map
 
 
 -- | Target range for picking inputs
@@ -191,11 +194,6 @@ mkTargetRange (TxOut _ (Coin c)) = TargetRange
     , targetAim = 2 * c
     , targetMax = 3 * c
     }
-
--- | Compute the balance of a unwrapped UTxO
-balance' :: [(TxIn, TxOut)] -> Word64
-balance' =
-    fromIntegral . balance . UTxO . Map.fromList
 
 -- | Compute corresponding change outputs from a target output and a selection
 -- of inputs.
