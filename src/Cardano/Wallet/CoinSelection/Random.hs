@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TupleSections #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -149,14 +150,14 @@ processTxOut (CoinSelectionOptions maxNumInputs) (utxo0, selection) txout = do
         | balance' inps >= targetMin target =
             MaybeT $ return $ Just (inps, utxo)
         | otherwise = do
-            pickRandom utxo >>= \(io, utxo') -> coverRandomly (io:inps, utxo')
+            pickRandomT utxo >>= \(io, utxo') -> coverRandomly (io:inps, utxo')
 
     improve
         :: forall m. MonadRandom m
         => ([(TxIn, TxOut)], UTxO)
         -> m ([(TxIn, TxOut)], UTxO)
     improve (inps, utxo) =
-        runMaybeT (pickRandom utxo) >>= \case
+        runMaybeT (pickRandomT utxo) >>= \case
             Nothing ->
                 return (inps, utxo)
             Just (io, utxo') | isImprovement io inps -> do
@@ -186,6 +187,11 @@ processTxOut (CoinSelectionOptions maxNumInputs) (utxo0, selection) txout = do
 {-------------------------------------------------------------------------------
                                  Internals
 -------------------------------------------------------------------------------}
+
+-- | Re-wrap 'pickRandom' in a 'MaybeT' monad
+pickRandomT :: MonadRandom m => UTxO -> MaybeT m ((TxIn, TxOut), UTxO)
+pickRandomT =
+    MaybeT . fmap (\(m,u) -> (,u) <$> m) . pickRandom
 
 -- | Compute the target range for a given output
 mkTargetRange :: TxOut -> TargetRange

@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -34,7 +35,6 @@ import Cardano.Wallet.Primitive.Types
     , TxIn
     , TxOut (..)
     , UTxO (..)
-    , balance
     , balance'
     , distance
     , invariant
@@ -45,8 +45,8 @@ import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT (..), throwE )
-import Control.Monad.Trans.Maybe
-    ( MaybeT (..), runMaybeT )
+import Control.Monad.Trans.State
+    ( StateT (..), evalStateT )
 import Crypto.Random.Types
     ( MonadRandom )
 import Data.Bifunctor
@@ -197,11 +197,11 @@ senderPaysFee
     -> UTxO
     -> CoinSelection
     -> ExceptT FeeError m CoinSelection
-senderPaysFee opt utxo  = go where
+senderPaysFee opt utxo sel = evalStateT (go sel) utxo where
     go
         :: MonadRandom m
         => CoinSelection
-        -> ExceptT FeeError m CoinSelection
+        -> StateT UTxO (ExceptT FeeError m) CoinSelection
     go coinSel@(CoinSelection inps outs chgs) = do
         -- 1/
         -- We compute fees using all inputs, outputs and changes since
@@ -231,36 +231,27 @@ senderPaysFee opt utxo  = go where
             -- re-run the algorithm with this new elements and using the initial
             -- change plus the extra change brought up by this entry and see if
             -- we can now correctly cover fee.
-            remFee <-
-                lift $ runMaybeT $ coverRemainingFee (Fee remainingFee) utxo
-            case remFee of
-                Nothing -> do
-                    let toPay = remainingFee - fromIntegral (balance utxo)
-                    throwE $ CannotCoverFee toPay
-                Just inps' -> do
-                    let excessiveAmount = balance' inps' - remainingFee
-                    let extraChange = splitChange (Coin excessiveAmount) chgs'
-                    pure $ CoinSelection (inps <> inps') outs extraChange
+            inps' <- coverRemainingFee (Fee remainingFee)
+            let extraChange = splitChange (Coin $ balance' inps') chgs
+            go $ CoinSelection (inps <> inps') outs extraChange
 
 -- | A short / simple version of the 'random' fee policy to cover for fee in
 -- case where existing change were not enough.
 coverRemainingFee
     :: MonadRandom m
     => Fee
-    -> UTxO
-    -> MaybeT m [(TxIn, TxOut)]
+    -> StateT UTxO (ExceptT FeeError m) [(TxIn, TxOut)]
 coverRemainingFee (Fee fee) = go [] where
-    go acc utxo'
+    go acc
         | balance' acc >= fee =
             return acc
         | otherwise = do
             -- We ignore the size of the fee, and just pick randomly
-            utxoEntryPicked <- lift $ runMaybeT $ pickRandom utxo'
-            case utxoEntryPicked of
-                Just (entry, utxo'') ->
-                    go (entry : acc) utxo''
-                Nothing ->
-                    MaybeT $ return Nothing
+            StateT (lift . pickRandom) >>= \case
+                Just entry ->
+                    go (entry : acc)
+                Nothing -> do
+                    lift $ throwE $ CannotCoverFee (fee - balance' acc)
 
 -- | Reduce the given change outputs by the total fee, returning the remainig
 -- change outputs if any are left, or the remaining fee otherwise
@@ -396,5 +387,5 @@ computeFee (CoinSelection inps outs chgs) =
     -- are still some outputs left to remove from them. If means the total value
     -- of outputs (incl. change) was bigger than the total input value which is
     -- by definition, impossible; unless we messed up real hard.
-    collapse []  _ =
+    collapse [] _ =
         invariant "outputs are bigger than inputs" (undefined) (const False)

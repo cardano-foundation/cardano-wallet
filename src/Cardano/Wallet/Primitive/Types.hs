@@ -90,10 +90,6 @@ import Prelude
 
 import Control.DeepSeq
     ( NFData (..) )
-import Control.Monad.Trans.Class
-    ( lift )
-import Control.Monad.Trans.Maybe
-    ( MaybeT (..) )
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString )
 import Crypto.Number.Generate
@@ -510,13 +506,13 @@ instance Buildable UTxO where
 pickRandom
     :: MonadRandom m
     => UTxO
-    -> MaybeT m ((TxIn, TxOut), UTxO)
+    -> m (Maybe (TxIn, TxOut), UTxO)
 pickRandom (UTxO utxo)
     | Map.null utxo =
-        MaybeT $ return Nothing
+        return (Nothing, UTxO utxo)
     | otherwise = do
-        ix <- fromEnum <$> lift (generateBetween 0 (toEnum (Map.size utxo - 1)))
-        return (Map.elemAt ix utxo, UTxO $ Map.deleteAt ix utxo)
+        ix <- fromEnum <$> generateBetween 0 (toEnum (Map.size utxo - 1))
+        return (Just $ Map.elemAt ix utxo, UTxO $ Map.deleteAt ix utxo)
 
 -- | Compute the balance of a UTxO
 balance :: UTxO -> Natural

@@ -362,7 +362,7 @@ spec = do
             }) (Right $ FeeOutput
             { csInps = [10,10,3,3]
             , csOuts = [7,7]
-            , csChngs = [2]
+            , csChngs = [1,1]
             })
 
         feeUnitTest (FeeFixture
