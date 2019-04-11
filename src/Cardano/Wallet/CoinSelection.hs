@@ -105,6 +105,9 @@ data FeeOptions = FeeOptions
       -> [Coin]
       -> Coin
       -- ^ Estimate fees based on number of inputs and values of the outputs
+      -- Some pointers :
+      --     a: 155381 # absolute minimal fees per transaction
+      --     b: 43.946 # additional minimal fees per byte of transaction size
     , dustThreshold
       :: Coin
       -- ^ Change addresses below the given threshold will be evicted
@@ -113,9 +116,10 @@ data FeeOptions = FeeOptions
     } deriving (Generic)
 
 newtype FeeError =
-    CannotCoverFee Word64 deriving (Show, Eq)
+    CannotCoverFee Word64
     -- ^ UTxO exhausted during fee covering
     -- We record what amount missed to cover the fee
+    deriving (Show, Eq)
 
 -- | Given the coin selection result from a policy run, adjust the outputs
 -- for fees, potentially returning additional inputs that we need to cover

@@ -24,18 +24,38 @@ import Cardano.Wallet.CoinSelection
     , FeeOptions (..)
     , adjustForFees
     )
+import Cardano.Wallet.CoinSelection.LargestFirst
+    ( largestFirst )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Coin (..), Hash (..), TxIn (..), TxOut (..), UTxO (..) )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
+import Crypto.Random
+    ( SystemDRG, getSystemDRG )
+import Crypto.Random.Types
+    ( withDRG )
+import Data.Either
+    ( isLeft, isRight, lefts )
+import Data.Functor.Identity
+    ( Identity (runIdentity) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Word
     ( Word64, Word8 )
 import Test.Hspec
-    ( Spec, SpecWith, describe, it, shouldBe )
+    ( Spec, SpecWith, before, describe, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck
-    ( Arbitrary (..), Gen, choose, generate, oneof, scale, vectorOf )
+    ( Arbitrary (..)
+    , Gen
+    , Property
+    , choose
+    , generate
+    , oneof
+    , property
+    , scale
+    , vectorOf
+    , (==>)
+    )
 
 import qualified Data.ByteString as BS
 import qualified Data.List as L
@@ -345,6 +365,139 @@ spec = do
             , csChngs = [2]
             })
 
+        feeUnitTest (FeeFixture
+            { fInps = [10,10]
+            , fOuts = [7,7]
+            , fChngs = [3,3]
+            , fExtraUtxo = [3,3]
+            , fFee = 0
+            , fDust = 0
+            }) (Right $ FeeOutput
+            { csInps = [10,10]
+            , csOuts = [7,7]
+            , csChngs = [3,3]
+            })
+
+
+    describe "Fee calculation properties" $ do
+        it "forall CoinSelection,\
+            \computing the fee of 0 ends up with the same CoinSelection"
+            (property propTheSameCoinSelection)
+        it "forall CoinSelection with UTxO empty,\
+            \computing the fee is deterministic"
+            (property propDeterministic)
+
+    before getSystemDRG $ describe "Fee calculation properties" $ do
+        it "forall CoinSelection with UTxO non-empty,\
+            \computing the nonzero fee is deterministic when error arises"
+            (property . propDeterministicError)
+        it "forall CoinSelection with UTxO empty,\
+            \computing the nonzero fee gives rise to reduced changes"
+            (property . propReducedChanges)
+        it "forall CoinSelection with UTxO empty,\
+            \when computing the nonzero fee gives rise to error, \
+            \then the same setup with UTxO non-empty gives rise increased inputs,\
+            \if successful"
+            (property . propIncreasedInputs)
+
+propTheSameCoinSelection
+    :: FeeCase
+    -> Property
+propTheSameCoinSelection (FeeCase (CoveringCase (utxo, txOuts)) extraUtxo _) = do
+    isRight selection ==> let Right s = selection in prop (s, extraUtxo)
+  where
+    prop (coinSel, utxo') = do
+        let feeOpt = feeOptions 0 0
+        coinSel' <- runExceptT $ adjustForFees feeOpt utxo' coinSel
+        coinSel' `shouldBe` (pure coinSel)
+    selection = runIdentity $ runExceptT $
+        largestFirst (CoinSelectionOptions 100) utxo txOuts
+
+propDeterministic
+    :: FeeCase
+    -> Property
+propDeterministic (FeeCase (CoveringCase (utxo, txOuts)) _ (fee, dust)) = do
+    isRight selection ==> let Right s = selection in prop s
+  where
+    prop coinSel = do
+        let feeOpt = feeOptions fee dust
+        let utxo' = UTxO Map.empty
+        resultOne <- runExceptT $ adjustForFees feeOpt utxo' coinSel
+        resultTwo <- runExceptT $ adjustForFees feeOpt utxo' coinSel
+        resultOne `shouldBe` resultTwo
+    selection = runIdentity $ runExceptT $
+        largestFirst (CoinSelectionOptions 100) utxo txOuts
+
+propReducedChanges
+    :: SystemDRG
+    -> FeeCase
+    -> Property
+propReducedChanges drg (FeeCase (CoveringCase (utxo, txOuts)) _ (fee, dust)) = do
+    isRight selection ==> let Right s = selection in prop s
+  where
+    prop coinSel = do
+        isRight result ==> let Right ss = result in prop1 ss
+            where
+                prop1 coinSel' = do
+                    let chgs' = sum $ map getCoin $ change coinSel'
+                    let chgs = sum $ map getCoin $ change coinSel
+                    chgs' `shouldSatisfy` (<= chgs)
+                feeOpt = feeOptions fee dust
+                utxo' = UTxO Map.empty
+                (result,_) = withDRG drg
+                    $ runExceptT $ adjustForFees feeOpt utxo' coinSel
+    selection = runIdentity $ runExceptT $
+        largestFirst (CoinSelectionOptions 100) utxo txOuts
+
+
+propDeterministicError
+    :: SystemDRG
+    -> FeeCase
+    -> Property
+propDeterministicError drg (FeeCase (CoveringCase (utxo, txOuts)) _ (fee, dust)) = do
+    isRight selection ==> let Right s = selection in prop s
+  where
+    prop coinSel = do
+        isLeft result ==> let Left ss = result in prop1 ss
+            where
+                prop1 err = do
+                    resultSecond <- runExceptT $ adjustForFees feeOpt utxo' coinSel
+                    [err] `shouldBe` (lefts [resultSecond])
+                feeOpt = feeOptions fee dust
+                utxo' = UTxO Map.empty
+                (result,_) = withDRG drg
+                    $ runExceptT $ adjustForFees feeOpt utxo' coinSel
+    selection = runIdentity $ runExceptT $
+        largestFirst (CoinSelectionOptions 100) utxo txOuts
+
+propIncreasedInputs
+    :: SystemDRG
+    -> FeeCase
+    -> Property
+propIncreasedInputs drg (FeeCase (CoveringCase (utxo, txOuts)) extraUtxo (fee, dust)) = do
+    isRight selection ==> let Right s = selection in prop s
+  where
+    prop coinSel = do
+        isLeft result ==> let Left ss = result in prop1 ss
+            where
+                prop1 _err = do
+                    resultSecond <- runExceptT $ adjustForFees feeOpt extraUtxo coinSel
+                    case resultSecond of
+                        Right coinSel'' -> do
+                            let computeInps = sum . map (getCoin . coin . snd ) . inputs
+                            let inps = computeInps coinSel
+                            let inps' = computeInps coinSel''
+                            inps `shouldSatisfy` (<= inps')
+                        Left _ ->
+                            -- just tautology
+                            result `shouldBe` result
+                feeOpt = feeOptions fee dust
+                utxo' = UTxO Map.empty
+                (result,_) = withDRG drg
+                    $ runExceptT $ adjustForFees feeOpt utxo' coinSel
+    selection = runIdentity $ runExceptT $
+        largestFirst (CoinSelectionOptions 100) utxo txOuts
+
 feeOptions
     :: Word64
     -> Word64
@@ -492,9 +645,28 @@ coinSelectionUnitTest run lbl expected (Fixture n utxoCoins txOutsCoins) =
                 $ NE.map Coin txOutsCoins
         pure (utxo, txOuts)
 
+-- | Data for running fee calculation properties
+data FeeCase = FeeCase
+    { coveringCase :: CoveringCase
+     -- ^ inputs from wich largestFirst can be calculated
+    , availableUtxo :: UTxO
+     -- ^ additional UTxO from which fee calculation will pick needed coins to cover fee
+    , feeDust :: (Word64, Word64)
+     -- ^ constant fee and dust threshold
+    }
+    deriving Show
+
 {-------------------------------------------------------------------------------
                             Arbitrary Instances
 -------------------------------------------------------------------------------}
+
+instance Arbitrary FeeCase where
+    arbitrary = do
+        cc <- arbitrary
+        utxo <- arbitrary
+        fee <- choose (100000, 500000)
+        dust <- choose (0, 10000)
+        return $ FeeCase cc utxo (fee, dust)
 
 instance Arbitrary CoveringCase where
     arbitrary = do
