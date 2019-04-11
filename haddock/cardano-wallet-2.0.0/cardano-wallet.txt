@@ -493,7 +493,7 @@ instance Data.Text.Class.ToText Cardano.Wallet.Primitive.Types.WalletName
 
 module Cardano.Wallet.Network
 data NetworkLayer m
-NetworkLayer :: (SlotId -> ExceptT ErrNetworkUnreachable m [Block]) -> ExceptT ErrNetworkUnreachable m (Hash "BlockHeader", BlockHeader) -> (SignedTx -> ExceptT ErrPostTx m ()) -> NetworkLayer m
+NetworkLayer :: (SlotId -> ExceptT ErrNetworkUnreachable m [Block]) -> ExceptT ErrNetworkTip m (Hash "BlockHeader", BlockHeader) -> (SignedTx -> ExceptT ErrPostTx m ()) -> NetworkLayer m
 
 -- | Gets some blocks from the node. It will not necessarily return all the
 --   blocks that the node has, but will receive a reasonable-sized chunk.
@@ -503,7 +503,7 @@ NetworkLayer :: (SlotId -> ExceptT ErrNetworkUnreachable m [Block]) -> ExceptT E
 [nextBlocks] :: NetworkLayer m -> SlotId -> ExceptT ErrNetworkUnreachable m [Block]
 
 -- | Get the current network tip from the chain producer
-[networkTip] :: NetworkLayer m -> ExceptT ErrNetworkUnreachable m (Hash "BlockHeader", BlockHeader)
+[networkTip] :: NetworkLayer m -> ExceptT ErrNetworkTip m (Hash "BlockHeader", BlockHeader)
 
 -- | Broadcast a transaction to the chain producer
 [postTx] :: NetworkLayer m -> SignedTx -> ExceptT ErrPostTx m ()
@@ -511,6 +511,11 @@ NetworkLayer :: (SlotId -> ExceptT ErrNetworkUnreachable m [Block]) -> ExceptT E
 -- | Network is not reachable
 newtype ErrNetworkUnreachable
 ErrNetworkUnreachable :: Text -> ErrNetworkUnreachable
+
+-- | Error while trying to get the network tip
+data ErrNetworkTip
+ErrNetworkTipNetworkUnreachable :: ErrNetworkUnreachable -> ErrNetworkTip
+ErrNetworkTipNotFound :: ErrNetworkTip
 
 -- | Error while trying to send a transaction
 data ErrPostTx
@@ -548,10 +553,14 @@ instance GHC.Show.Show a => GHC.Show.Show (Cardano.Wallet.Network.TickResult a)
 instance GHC.Classes.Eq Cardano.Wallet.Network.ErrPostTx
 instance GHC.Show.Show Cardano.Wallet.Network.ErrPostTx
 instance GHC.Generics.Generic Cardano.Wallet.Network.ErrPostTx
+instance GHC.Classes.Eq Cardano.Wallet.Network.ErrNetworkTip
+instance GHC.Show.Show Cardano.Wallet.Network.ErrNetworkTip
+instance GHC.Generics.Generic Cardano.Wallet.Network.ErrNetworkTip
 instance GHC.Classes.Eq Cardano.Wallet.Network.ErrNetworkUnreachable
 instance GHC.Show.Show Cardano.Wallet.Network.ErrNetworkUnreachable
 instance GHC.Generics.Generic Cardano.Wallet.Network.ErrNetworkUnreachable
 instance GHC.Exception.Type.Exception Cardano.Wallet.Network.ErrPostTx
+instance GHC.Exception.Type.Exception Cardano.Wallet.Network.ErrNetworkTip
 instance GHC.Exception.Type.Exception Cardano.Wallet.Network.ErrNetworkUnreachable
 
 
@@ -1530,10 +1539,10 @@ module Cardano.Wallet.Network.HttpBridge
 
 -- | Endpoints of the cardano-http-bridge API.
 data HttpBridge m
-HttpBridge :: (Hash "BlockHeader" -> ExceptT ErrNetworkUnreachable m Block) -> (Word64 -> ExceptT ErrNetworkUnreachable m [Block]) -> ExceptT ErrNetworkUnreachable m (Hash "BlockHeader", BlockHeader) -> (SignedTx -> ExceptT ErrPostTx m ()) -> HttpBridge m
+HttpBridge :: (Hash "BlockHeader" -> ExceptT ErrNetworkUnreachable m Block) -> (Word64 -> ExceptT ErrNetworkUnreachable m [Block]) -> ExceptT ErrNetworkTip m (Hash "BlockHeader", BlockHeader) -> (SignedTx -> ExceptT ErrPostTx m ()) -> HttpBridge m
 [$sel:getBlock:HttpBridge] :: HttpBridge m -> Hash "BlockHeader" -> ExceptT ErrNetworkUnreachable m Block
 [$sel:getEpoch:HttpBridge] :: HttpBridge m -> Word64 -> ExceptT ErrNetworkUnreachable m [Block]
-[$sel:getNetworkTip:HttpBridge] :: HttpBridge m -> ExceptT ErrNetworkUnreachable m (Hash "BlockHeader", BlockHeader)
+[$sel:getNetworkTip:HttpBridge] :: HttpBridge m -> ExceptT ErrNetworkTip m (Hash "BlockHeader", BlockHeader)
 [$sel:postSignedTx:HttpBridge] :: HttpBridge m -> SignedTx -> ExceptT ErrPostTx m ()
 
 -- | Constructs a network layer with the given cardano-http-bridge API.
