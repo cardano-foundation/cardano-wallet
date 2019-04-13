@@ -28,11 +28,12 @@ main = do
     hspec $ do
         describe "Cardano.WalletSpec" Wallet.spec
         describe "Cardano.Wallet.Network.HttpBridge" HttpBridge.spec
-
         beforeAll startCluster $ afterAll killCluster $ do
             describe "Wallets API endpoint tests" Wallets.spec
-
   where
+    startUpDelay :: Int
+    startUpDelay = 4 * 1000 * 1000 -- 4 seconds in milliseconds
+
     -- Run a local cluster of cardano-sl nodes, a cardano-http-bridge on top and
     -- a cardano wallet server connected to the bridge.
     startCluster :: IO Context
@@ -50,7 +51,7 @@ main = do
         link cluster
         let baseURL = "http://localhost:1337/"
         manager <- newManager defaultManagerSettings
-        threadDelay 6000000
+        threadDelay (2 * startUpDelay)
         return $ Context cluster (baseURL, manager)
 
     killCluster :: Context -> IO ()
@@ -76,5 +77,5 @@ main = do
         [ "--network", network
         , "--wallet-server-port", serverPort
         , "--http-bridge-port", bridgePort
-        ] (pure ())
+        ] (threadDelay startUpDelay)
         Inherit
