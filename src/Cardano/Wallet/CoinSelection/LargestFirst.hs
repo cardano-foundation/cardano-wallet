@@ -86,7 +86,7 @@ atLeast
     -> Maybe ([(TxIn, TxOut)], CoinSelection)
 atLeast (utxo0, selection) txout =
     coverOutput (fromIntegral $ getCoin $ coin txout, mempty) utxo0
-    where
+  where
     coverOutput
         :: (Int, [(TxIn, TxOut)])
         -> [(TxIn, TxOut)]
@@ -97,7 +97,7 @@ atLeast (utxo0, selection) txout =
             , selection <> CoinSelection
                 { inputs = ins
                 , outputs = [txout]
-                , change = [Coin (fromIntegral $ abs target)]
+                , change = filter (/= (Coin 0)) [Coin (fromIntegral $ abs target)]
                 }
             )
         | null utxo =
