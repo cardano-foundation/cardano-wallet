@@ -15,7 +15,10 @@ import Cardano.Wallet.CoinSelection.LargestFirst
 import Cardano.Wallet.CoinSelection.Random
     ( random )
 import Cardano.Wallet.CoinSelectionSpec
-    ( CoveringCase (..), Fixture (..), coinSelectionUnitTest )
+    ( CoinSelectionFixture (..)
+    , CoinSelectionPropArguments (..)
+    , coinSelectionUnitTest
+    )
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Crypto.Random
@@ -39,68 +42,68 @@ import qualified Data.List as L
 spec :: Spec
 spec = do
     describe "Unit tests" $ do
-        coinSelectionUnitTest random "" (Right [1,1,1,1]) $ Fixture
+        coinSelectionUnitTest random "" (Right [1,1,1,1]) $ CoinSelectionFixture
             { maxNumOfInputs = 100
             , utxoInputs = [1,1,1,1,1,1]
             , txOutputs = 2 :| []
             }
 
-        coinSelectionUnitTest random "" (Right [1,1,1,1,1,1]) $ Fixture
+        coinSelectionUnitTest random "" (Right [1,1,1,1,1,1]) $ CoinSelectionFixture
             { maxNumOfInputs = 100
             , utxoInputs = [1,1,1,1,1,1]
             , txOutputs = 2 :| [1]
             }
 
-        coinSelectionUnitTest random "" (Right [1,1,1,1,1]) $ Fixture
+        coinSelectionUnitTest random "" (Right [1,1,1,1,1]) $ CoinSelectionFixture
             { maxNumOfInputs = 100
             , utxoInputs = [1,1,1,1,1]
             , txOutputs = 2 :| [1]
             }
 
-        coinSelectionUnitTest random "with fallback" (Right [1,1,1]) $ Fixture
+        coinSelectionUnitTest random "with fallback" (Right [1,1,1]) $ CoinSelectionFixture
             { maxNumOfInputs = 100
             , utxoInputs = [1,1,1,1]
             , txOutputs = 2 :| [1]
             }
 
-        coinSelectionUnitTest random "" (Right [5]) $ Fixture
+        coinSelectionUnitTest random "" (Right [5]) $ CoinSelectionFixture
             { maxNumOfInputs = 100
             , utxoInputs = [5,5,5]
             , txOutputs = 2 :| []
             }
 
-        coinSelectionUnitTest random "" (Right [10,10]) $ Fixture
+        coinSelectionUnitTest random "" (Right [10,10]) $ CoinSelectionFixture
             { maxNumOfInputs = 100
             , utxoInputs = [10,10,10]
             , txOutputs = 2 :| [2]
             }
 
         coinSelectionUnitTest random "cannot cover aim, but only min"
-            (Right [1,1,1,1]) $ Fixture
+            (Right [1,1,1,1]) $ CoinSelectionFixture
             { maxNumOfInputs = 4
             , utxoInputs = [1,1,1,1,1,1]
             , txOutputs = 3 :| []
             }
 
-        coinSelectionUnitTest random "" (Left $ MaximumInputsReached 2) $ Fixture
+        coinSelectionUnitTest random "" (Left $ MaximumInputsReached 2) $ CoinSelectionFixture
             { maxNumOfInputs = 2
             , utxoInputs = [1,1,1,1,1,1]
             , txOutputs = 3 :| []
             }
 
-        coinSelectionUnitTest random "" (Left $ NotEnoughMoney 39 40) $ Fixture
+        coinSelectionUnitTest random "" (Left $ NotEnoughMoney 39 40) $ CoinSelectionFixture
             { maxNumOfInputs = 100
             , utxoInputs = [12,10,17]
             , txOutputs = 40 :| []
             }
 
-        coinSelectionUnitTest random "" (Left $ NotEnoughMoney 39 43) $ Fixture
+        coinSelectionUnitTest random "" (Left $ NotEnoughMoney 39 43) $ CoinSelectionFixture
             { maxNumOfInputs = 100
             , utxoInputs = [12,10,17]
             , txOutputs = 40 :| [1,1,1]
             }
 
-        coinSelectionUnitTest random "" (Left $ UtxoNotEnoughFragmented 3 4) $ Fixture
+        coinSelectionUnitTest random "" (Left $ UtxoNotEnoughFragmented 3 4) $ CoinSelectionFixture
             { maxNumOfInputs = 100
             , utxoInputs = [12,20,17]
             , txOutputs = 40 :| [1,1,1]
@@ -120,9 +123,9 @@ spec = do
 
 propFragmentation
     :: SystemDRG
-    -> CoveringCase
+    -> CoinSelectionPropArguments
     -> Property
-propFragmentation drg (CoveringCase (utxo, txOuts)) = do
+propFragmentation drg (CoinSelectionPropArguments (utxo, txOuts)) = do
     isRight selection1 && isRight selection2 ==>
         let (Right s1, Right s2) =
                 (selection1, selection2)
@@ -137,9 +140,9 @@ propFragmentation drg (CoveringCase (utxo, txOuts)) = do
 
 propErrors
     :: SystemDRG
-    -> CoveringCase
+    -> CoinSelectionPropArguments
     -> Property
-propErrors drg (CoveringCase (utxo, txOuts)) = do
+propErrors drg (CoinSelectionPropArguments (utxo, txOuts)) = do
     isLeft selection1 && isLeft selection2 ==>
         let (Left s1, Left s2) = (selection1, selection2)
         in prop (s1, s2)

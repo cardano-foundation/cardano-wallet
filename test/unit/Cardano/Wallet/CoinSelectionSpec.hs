@@ -4,9 +4,11 @@
 
 module Cardano.Wallet.CoinSelectionSpec
     ( spec
-    , Fixture(..)
+
+    -- * Export used to test various coin selection implementations
+    , CoinSelectionFixture(..)
+    , CoinSelectionPropArguments(..)
     , coinSelectionUnitTest
-    , CoveringCase(..)
     ) where
 
 -- | This module contains shared logic between the coin selection tests. They
@@ -29,6 +31,8 @@ import Cardano.Wallet.CoinSelection.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Coin (..), Hash (..), TxIn (..), TxOut (..), UTxO (..) )
+import Control.Arrow
+    ( left )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Crypto.Random
@@ -36,7 +40,7 @@ import Crypto.Random
 import Crypto.Random.Types
     ( withDRG )
 import Data.Either
-    ( isLeft, isRight, lefts )
+    ( isRight )
 import Data.Functor.Identity
     ( Identity (runIdentity) )
 import Data.List.NonEmpty
@@ -44,12 +48,21 @@ import Data.List.NonEmpty
 import Data.Word
     ( Word64, Word8 )
 import Test.Hspec
-    ( Spec, SpecWith, before, describe, it, shouldBe, shouldSatisfy )
+    ( Spec
+    , SpecWith
+    , before
+    , describe
+    , it
+    , shouldBe
+    , shouldReturn
+    , shouldSatisfy
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , Property
     , choose
+    , disjoin
     , generate
     , oneof
     , property
@@ -65,6 +78,7 @@ import qualified Data.Map.Strict as Map
 spec :: Spec
 spec = do
     describe "Fee calculation : unit tests" $ do
+        -- Change covers fee exactly, single change output
         feeUnitTest (FeeFixture
             { fInps = [20]
             , fOuts = [17]
@@ -78,6 +92,21 @@ spec = do
             , csChngs = []
             })
 
+        -- Total change covers fee, multiple change outputs
+        feeUnitTest (FeeFixture
+            { fInps = [20,20]
+            , fOuts = [16,18]
+            , fChngs = [4,2]
+            , fUtxo = []
+            , fFee = 6
+            , fDust = 0
+            }) (Right $ FeeOutput
+            { csInps = [20,20]
+            , csOuts = [16,18]
+            , csChngs = []
+            })
+
+        -- Fee split evenly across change outputs
         feeUnitTest (FeeFixture
             { fInps = [20,20]
             , fOuts = [18,18]
@@ -91,6 +120,7 @@ spec = do
             , csChngs = [1,1]
             })
 
+        -- Fee split evenly across change outputs, with rounding 'issues'
         feeUnitTest (FeeFixture
             { fInps = [20,20]
             , fOuts = [17,18]
@@ -104,58 +134,7 @@ spec = do
             , csChngs = [1,1]
             })
 
-        feeUnitTest (FeeFixture
-            { fInps = [20,20]
-            , fOuts = [16,18]
-            , fChngs = [4,2]
-            , fUtxo = []
-            , fFee = 2
-            , fDust = 0
-            }) (Right $ FeeOutput
-            { csInps = [20,20]
-            , csOuts = [16,18]
-            , csChngs = [2,1]
-            })
-
-        feeUnitTest (FeeFixture
-            { fInps = [20,20]
-            , fOuts = [15,18]
-            , fChngs = [5,2]
-            , fUtxo = []
-            , fFee = 2
-            , fDust = 0
-            }) (Right $ FeeOutput
-            { csInps = [20,20]
-            , csOuts = [15,18]
-            , csChngs = [3,1]
-            })
-
-        feeUnitTest (FeeFixture
-            { fInps = [20,20]
-            , fOuts = [14,18]
-            , fChngs = [6,2]
-            , fUtxo = []
-            , fFee = 2
-            , fDust = 0
-            }) (Right $ FeeOutput
-            { csInps = [20,20]
-            , csOuts = [14,18]
-            , csChngs = [4,1]
-            })
-
-        feeUnitTest (FeeFixture
-            { fInps = [20,20]
-            , fOuts = [14,14]
-            , fChngs = [6,6]
-            , fUtxo = []
-            , fFee = 2
-            , fDust = 0
-            }) (Right $ FeeOutput
-            { csInps = [20,20]
-            , csOuts = [14,14]
-            , csChngs = [5,5]
-            })
-
+        -- Fee divvied, dust removed (dust = 0)
         feeUnitTest (FeeFixture
             { fInps = [20,20,20]
             , fOuts = [14,18,19]
@@ -169,6 +148,7 @@ spec = do
             , csChngs = [4,1]
             })
 
+        -- Fee divvied, dust removed (dust = 1)
         feeUnitTest (FeeFixture
             { fInps = [20,20,20]
             , fOuts = [14,18,19]
@@ -179,48 +159,10 @@ spec = do
             }) (Right $ FeeOutput
             { csInps = [20,20,20]
             , csOuts = [14,18,19]
-            , csChngs = [3]
-            })
-
-        feeUnitTest (FeeFixture
-            { fInps = [20,20,20]
-            , fOuts = [14,17,19]
-            , fChngs = [6,3,1]
-            , fUtxo = []
-            , fFee = 3
-            , fDust = 0
-            }) (Right $ FeeOutput
-            { csInps = [20,20,20]
-            , csOuts = [14,17,19]
-            , csChngs = [4,2]
-            })
-
-        feeUnitTest (FeeFixture
-            { fInps = [20,20,20]
-            , fOuts = [14,17,19]
-            , fChngs = [6,3,1]
-            , fUtxo = []
-            , fFee = 3
-            , fDust = 1
-            }) (Right $ FeeOutput
-            { csInps = [20,20,20]
-            , csOuts = [14,17,19]
-            , csChngs = [4,2]
-            })
-
-        feeUnitTest (FeeFixture
-            { fInps = [20,20,20]
-            , fOuts = [14,17,19]
-            , fChngs = [6,3,1]
-            , fUtxo = []
-            , fFee = 3
-            , fDust = 2
-            }) (Right $ FeeOutput
-            { csInps = [20,20,20]
-            , csOuts = [14,17,19]
             , csChngs = [4]
             })
 
+        -- Cannot cover fee, no extra inputs
         feeUnitTest (FeeFixture
             { fInps = [20]
             , fOuts = [17]
@@ -230,28 +172,7 @@ spec = do
             , fDust = 0
             }) (Left $ CannotCoverFee 1)
 
-        feeUnitTest (FeeFixture
-            { fInps = [20,20]
-            , fOuts = [16,18]
-            , fChngs = [4,2]
-            , fUtxo = []
-            , fFee = 6
-            , fDust = 0
-            }) (Right $ FeeOutput
-            { csInps = [20,20]
-            , csOuts = [16,18]
-            , csChngs = []
-            })
-
-        feeUnitTest (FeeFixture
-            { fInps = [20,20]
-            , fOuts = [16,18]
-            , fChngs = [4,2]
-            , fUtxo = []
-            , fFee = 6
-            , fDust = 2
-            }) (Left $ CannotCoverFee 2)
-
+        -- Cannot cover fee even with an extra (too small) inputs
         feeUnitTest (FeeFixture
             { fInps = [10]
             , fOuts = [7]
@@ -261,19 +182,7 @@ spec = do
             , fDust = 0
             }) (Left $ CannotCoverFee 1)
 
-        feeUnitTest (FeeFixture
-            { fInps = [10]
-            , fOuts = [7]
-            , fChngs = [3]
-            , fUtxo = [2]
-            , fFee = 5
-            , fDust = 0
-            }) (Right $ FeeOutput
-            { csInps = [10,2]
-            , csOuts = [7]
-            , csChngs = []
-            })
-
+        -- Can select extra inputs to exactly cover fee, no change back
         feeUnitTest (FeeFixture
             { fInps = [10]
             , fOuts = [7]
@@ -287,6 +196,7 @@ spec = do
             , csChngs = []
             })
 
+        -- Can select extra inputs to cover for fee, and leave a change back
         feeUnitTest (FeeFixture
             { fInps = [10]
             , fOuts = [7]
@@ -300,32 +210,7 @@ spec = do
             , csChngs = [1]
             })
 
-        feeUnitTest (FeeFixture
-            { fInps = [10,10]
-            , fOuts = [7,7]
-            , fChngs = [3,3]
-            , fUtxo = [2]
-            , fFee = 8
-            , fDust = 0
-            }) (Right $ FeeOutput
-            { csInps = [10,10,2]
-            , csOuts = [7,7]
-            , csChngs = []
-            })
-
-        feeUnitTest (FeeFixture
-            { fInps = [10,10]
-            , fOuts = [7,7]
-            , fChngs = [3,3]
-            , fUtxo = [1,1]
-            , fFee = 8
-            , fDust = 0
-            }) (Right $ FeeOutput
-            { csInps = [10,10,1,1]
-            , csOuts = [7,7]
-            , csChngs = []
-            })
-
+        -- Multiple change output, can select extra inputs to cover fee, no change
         feeUnitTest (FeeFixture
             { fInps = [10,10]
             , fOuts = [7,7]
@@ -339,19 +224,7 @@ spec = do
             , csChngs = []
             })
 
-        feeUnitTest (FeeFixture
-            { fInps = [10,10]
-            , fOuts = [7,7]
-            , fChngs = [3,3]
-            , fUtxo = [2,2]
-            , fFee = 10
-            , fDust = 0
-            }) (Right $ FeeOutput
-            { csInps = [10,10,2,2]
-            , csOuts = [7,7]
-            , csChngs = []
-            })
-
+        -- Multiple outputs, extra inputs selected, resulting change
         feeUnitTest (FeeFixture
             { fInps = [10,10]
             , fOuts = [7,7]
@@ -365,6 +238,21 @@ spec = do
             , csChngs = [1,1]
             })
 
+        -- Multiple change outputs, some bigger than actual Dust
+        feeUnitTest (FeeFixture
+            { fInps = [20,20]
+            , fOuts = [16,18]
+            , fChngs = [4,2]
+            , fUtxo = []
+            , fFee = 6
+            , fDust = 2
+            }) (Right $ FeeOutput
+            { csInps = [20,20]
+            , csOuts = [16,18]
+            , csChngs = []
+            })
+
+        -- Selection with no fee
         feeUnitTest (FeeFixture
             { fInps = [10,10]
             , fOuts = [7,7]
@@ -378,49 +266,51 @@ spec = do
             , csChngs = [3,3]
             })
 
-    describe "Fee calculation properties" $ do
-        it "forall CoinSelection,\
-            \computing the fee of 0 ends up with the same CoinSelection"
-            (property propTheSameCoinSelection)
-        it "forall CoinSelection with UTxO empty,\
-            \computing the fee is deterministic"
-            (property propDeterministic)
-
     before getSystemDRG $ describe "Fee calculation properties" $ do
-        it "forall CoinSelection with UTxO non-empty,\
-            \computing the nonzero fee is deterministic when error arises"
-            (property . propDeterministicError)
-        it "forall CoinSelection with UTxO empty,\
-            \computing the nonzero fee gives rise to reduced changes"
+        it "No fee gives back the same selection"
+            (\_ -> property propSameSelection)
+        it "Fee adjustment is deterministic when there's no extra inputs"
+            (\_ -> property propDeterministic)
+        it "Adjusting for fee (/= 0) reduces the change outputs or increase inputs"
             (property . propReducedChanges)
-        it "forall CoinSelection with UTxO empty,\
-            \when computing the nonzero fee gives rise to error, \
-            \then the same setup with UTxO non-empty gives rise increased inputs,\
-            \if successful"
-            (property . propIncreasedInputs)
 
-propTheSameCoinSelection
-    :: FeeCase
+{-------------------------------------------------------------------------------
+                         Fee Adjustment - Properties
+-------------------------------------------------------------------------------}
+
+-- | Data for running fee calculation properties
+data FeePropArguments = FeePropArguments
+    { coveringCase :: CoinSelectionPropArguments
+     -- ^ inputs from wich largestFirst can be calculated
+    , availableUtxo :: UTxO
+     -- ^ additional UTxO from which fee calculation will pick needed coins to cover fee
+    , feeDust :: (Word64, Word64)
+     -- ^ constant fee and dust threshold
+    }
+    deriving Show
+
+propSameSelection
+    :: FeePropArguments
     -> Property
-propTheSameCoinSelection (FeeCase (CoveringCase (utxo, txOuts)) extraUtxo _) = do
-    isRight selection ==> let Right s = selection in prop (s, extraUtxo)
+propSameSelection (FeePropArguments (CoinSelectionPropArguments (utxo, txOuts)) utxo' _) = do
+    isRight selection ==> let Right s = selection in prop s
   where
-    prop (coinSel, utxo') = do
+    prop coinSel = do
         let feeOpt = feeOptions 0 0
-        coinSel' <- runExceptT $ adjustForFees feeOpt utxo' coinSel
-        coinSel' `shouldBe` (pure coinSel)
+        runExceptT (adjustForFees feeOpt utxo' coinSel) `shouldReturn`
+            (Right coinSel)
     selection = runIdentity $ runExceptT $
         largestFirst (CoinSelectionOptions 100) utxo txOuts
 
 propDeterministic
-    :: FeeCase
+    :: FeePropArguments
     -> Property
-propDeterministic (FeeCase (CoveringCase (utxo, txOuts)) _ (fee, dust)) = do
+propDeterministic (FeePropArguments (CoinSelectionPropArguments (utxo, txOuts)) _ (fee, dust)) = do
     isRight selection ==> let Right s = selection in prop s
   where
     prop coinSel = do
         let feeOpt = feeOptions fee dust
-        let utxo' = UTxO Map.empty
+        let utxo' = mempty
         resultOne <- runExceptT $ adjustForFees feeOpt utxo' coinSel
         resultTwo <- runExceptT $ adjustForFees feeOpt utxo' coinSel
         resultOne `shouldBe` resultTwo
@@ -429,72 +319,31 @@ propDeterministic (FeeCase (CoveringCase (utxo, txOuts)) _ (fee, dust)) = do
 
 propReducedChanges
     :: SystemDRG
-    -> FeeCase
+    -> FeePropArguments
     -> Property
-propReducedChanges drg (FeeCase (CoveringCase (utxo, txOuts)) _ (fee, dust)) = do
-    isRight selection ==> let Right s = selection in prop s
+propReducedChanges drg (FeePropArguments (CoinSelectionPropArguments (utxo, txOuts)) utxo' (fee, dust)) = do
+    isRight selection' ==>
+        let (Right s, Right s') = (selection, selection') in prop s s'
   where
-    prop coinSel = do
-        isRight result ==> let Right ss = result in prop1 ss
-            where
-                prop1 coinSel' = do
-                    let chgs' = sum $ map getCoin $ change coinSel'
-                    let chgs = sum $ map getCoin $ change coinSel
-                    chgs' `shouldSatisfy` (<= chgs)
-                feeOpt = feeOptions fee dust
-                utxo' = UTxO Map.empty
-                (result,_) = withDRG drg
-                    $ runExceptT $ adjustForFees feeOpt utxo' coinSel
-    selection = runIdentity $ runExceptT $
+    prop coinSel coinSel' = do
+        let chgs' = sum $ map getCoin $ change coinSel'
+        let chgs = sum $ map getCoin $ change coinSel
+        let inps' = inputs coinSel'
+        let inps = inputs coinSel
+        disjoin
+            [ chgs' `shouldSatisfy` (<= chgs)
+            , length inps' `shouldSatisfy` (>= length inps)
+            ]
+    selection = left show $ runIdentity $ runExceptT $
         largestFirst (CoinSelectionOptions 100) utxo txOuts
+    selection' = selection >>= adjust
+    feeOpt = feeOptions fee dust
+    adjust s = left show $ fst $ withDRG drg $ runExceptT $
+        adjustForFees feeOpt utxo' s
 
-propDeterministicError
-    :: SystemDRG
-    -> FeeCase
-    -> Property
-propDeterministicError drg (FeeCase (CoveringCase (utxo, txOuts)) _ (fee, dust)) = do
-    isRight selection ==> let Right s = selection in prop s
-  where
-    prop coinSel = do
-        isLeft result ==> let Left ss = result in prop1 ss
-            where
-                prop1 err = do
-                    resultSecond <- runExceptT $ adjustForFees feeOpt utxo' coinSel
-                    [err] `shouldBe` (lefts [resultSecond])
-                feeOpt = feeOptions fee dust
-                utxo' = UTxO Map.empty
-                (result,_) = withDRG drg
-                    $ runExceptT $ adjustForFees feeOpt utxo' coinSel
-    selection = runIdentity $ runExceptT $
-        largestFirst (CoinSelectionOptions 100) utxo txOuts
-
-propIncreasedInputs
-    :: SystemDRG
-    -> FeeCase
-    -> Property
-propIncreasedInputs drg (FeeCase (CoveringCase (utxo, txOuts)) extraUtxo (fee, dust)) = do
-    isRight selection ==> let Right s = selection in prop s
-  where
-    prop coinSel = do
-        isLeft result ==> let Left ss = result in prop1 ss
-            where
-                prop1 _err = do
-                    resultSecond <- runExceptT $ adjustForFees feeOpt extraUtxo coinSel
-                    case resultSecond of
-                        Right coinSel'' -> do
-                            let computeInps = sum . map (getCoin . coin . snd ) . inputs
-                            let inps = computeInps coinSel
-                            let inps' = computeInps coinSel''
-                            inps `shouldSatisfy` (<= inps')
-                        Left _ ->
-                            -- just tautology
-                            result `shouldBe` result
-                feeOpt = feeOptions fee dust
-                utxo' = UTxO Map.empty
-                (result,_) = withDRG drg
-                    $ runExceptT $ adjustForFees feeOpt utxo' coinSel
-    selection = runIdentity $ runExceptT $
-        largestFirst (CoinSelectionOptions 100) utxo txOuts
+{-------------------------------------------------------------------------------
+                         Fee Adjustment - Unit Tests
+-------------------------------------------------------------------------------}
 
 feeOptions
     :: Word64
@@ -502,9 +351,9 @@ feeOptions
     -> FeeOptions
 feeOptions fee dust = FeeOptions
     { estimate = \_num _outs ->
-            Fee fee
+        Fee fee
     , dustThreshold =
-            Coin dust
+        Coin dust
     }
 
 feeUnitTest
@@ -566,8 +415,17 @@ data FeeOutput = FeeOutput
         -- ^ Value (in Lovelace) & number of changes
     } deriving (Show, Eq)
 
+{-------------------------------------------------------------------------------
+                         Coin Selection - Unit Tests
+-------------------------------------------------------------------------------}
+
+-- | Data for running
+newtype CoinSelectionPropArguments = CoinSelectionPropArguments
+    { getCoinSelectionPropArguments :: (UTxO, NonEmpty TxOut)
+    } deriving Show
+
 -- | A fixture for testing the coin selection
-data Fixture = Fixture
+data CoinSelectionFixture = CoinSelectionFixture
     { maxNumOfInputs :: Word64
         -- ^ Maximum number of inputs that can be selected
     , utxoInputs :: [Word64]
@@ -575,10 +433,6 @@ data Fixture = Fixture
     , txOutputs :: NonEmpty Word64
         -- ^ Value (in Lovelace) & number of requested outputs
     } deriving Show
-
--- | Data for running
-newtype CoveringCase = CoveringCase { getCoveringCase :: (UTxO, NonEmpty TxOut)}
-    deriving Show
 
 -- | Generate a 'UTxO' and 'TxOut' matching the given 'Fixture', and perform
 -- given coin selection on it.
@@ -590,9 +444,9 @@ coinSelectionUnitTest
        )
     -> String
     -> Either CoinSelectionError [Word64]
-    -> Fixture
+    -> CoinSelectionFixture
     -> SpecWith ()
-coinSelectionUnitTest run lbl expected (Fixture n utxoF outsF) =
+coinSelectionUnitTest run lbl expected (CoinSelectionFixture n utxoF outsF) =
     it title $ do
         (utxo,txOuts) <- setup
         result <- runExceptT $ do
@@ -615,36 +469,24 @@ coinSelectionUnitTest run lbl expected (Fixture n utxoF outsF) =
         outs <- generate (genTxOut $ NE.toList outsF)
         pure (utxo, NE.fromList outs)
 
-
--- | Data for running fee calculation properties
-data FeeCase = FeeCase
-    { coveringCase :: CoveringCase
-     -- ^ inputs from wich largestFirst can be calculated
-    , availableUtxo :: UTxO
-     -- ^ additional UTxO from which fee calculation will pick needed coins to cover fee
-    , feeDust :: (Word64, Word64)
-     -- ^ constant fee and dust threshold
-    }
-    deriving Show
-
 {-------------------------------------------------------------------------------
                             Arbitrary Instances
 -------------------------------------------------------------------------------}
 
-instance Arbitrary FeeCase where
+instance Arbitrary FeePropArguments where
     arbitrary = do
         cc <- arbitrary
         utxo <- arbitrary
         fee <- choose (100000, 500000)
         dust <- choose (0, 10000)
-        return $ FeeCase cc utxo (fee, dust)
+        return $ FeePropArguments cc utxo (fee, dust)
 
-instance Arbitrary CoveringCase where
+instance Arbitrary CoinSelectionPropArguments where
     arbitrary = do
         n <- choose (1, 10)
         txOutsNonEmpty <- NE.fromList <$> vectorOf n arbitrary
         utxo <- arbitrary
-        return $ CoveringCase (utxo, txOutsNonEmpty)
+        return $ CoinSelectionPropArguments (utxo, txOutsNonEmpty)
 
 instance Arbitrary Address where
     -- No Shrinking

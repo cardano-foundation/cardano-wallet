@@ -260,10 +260,10 @@ coverRemainingFee (Fee fee) = go [] where
 -- any output:change ratio as unchanged as possible
 reduceChangeOutputs :: FeeOptions -> Fee -> [Coin] -> (Fee, [Coin])
 reduceChangeOutputs opt totalFee chgs =
-    case removeDust opt chgs of
+    case removeDust (Coin 0) chgs of
         [] ->
             (totalFee, [])
-        xs -> bimap (Fee . sum . map getFee) (removeDust opt)
+        xs -> bimap (Fee . sum . map getFee) (removeDust $ dustThreshold opt)
             $ L.unzip
             $ map reduceSingleChange
             $ divvyFee totalFee xs
@@ -311,9 +311,9 @@ feeUpperBound opt (CoinSelection inps outs chgs) =
     (estimate opt) (L.length inps) (map coin outs ++ chgs)
 
 -- | Remove coins that are below a given threshold
-removeDust :: FeeOptions -> [Coin] -> [Coin]
-removeDust opt =
-    L.filter (> (dustThreshold opt))
+removeDust :: Coin -> [Coin] -> [Coin]
+removeDust threshold =
+    L.filter (> threshold)
 
 -- Equally split the extra change obtained when picking new inputs across all
 -- other change. Note that, it may create an extra change output if:
