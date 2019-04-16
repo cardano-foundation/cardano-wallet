@@ -1,5 +1,8 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.CoinSelectionSpec
@@ -7,7 +10,7 @@ module Cardano.Wallet.CoinSelectionSpec
 
     -- * Export used to test various coin selection implementations
     , CoinSelectionFixture(..)
-    , CoinSelectionPropArguments(..)
+    , CoinSelProp(..)
     , coinSelectionUnitTest
     ) where
 
@@ -30,7 +33,14 @@ import Cardano.Wallet.CoinSelection
 import Cardano.Wallet.CoinSelection.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Coin (..), Hash (..), TxIn (..), TxOut (..), UTxO (..) )
+    ( Address (..)
+    , Coin (..)
+    , Hash (..)
+    , ShowFmt (..)
+    , TxIn (..)
+    , TxOut (..)
+    , UTxO (..)
+    )
 import Control.Arrow
     ( left )
 import Control.Monad.Trans.Except
@@ -45,18 +55,14 @@ import Data.Functor.Identity
     ( Identity (runIdentity) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Maybe
+    ( catMaybes )
 import Data.Word
     ( Word64, Word8 )
+import Fmt
+    ( Buildable (..), blockListF, nameF, tupleF )
 import Test.Hspec
-    ( Spec
-    , SpecWith
-    , before
-    , describe
-    , it
-    , shouldBe
-    , shouldReturn
-    , shouldSatisfy
-    )
+    ( Spec, SpecWith, before, describe, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -279,33 +285,38 @@ spec = do
 -------------------------------------------------------------------------------}
 
 -- | Data for running fee calculation properties
-data FeePropArguments = FeePropArguments
-    { coveringCase :: CoinSelectionPropArguments
+data FeeProp = FeeProp
+    { coveringCase :: CoinSelProp
      -- ^ inputs from wich largestFirst can be calculated
     , availableUtxo :: UTxO
-     -- ^ additional UTxO from which fee calculation will pick needed coins to cover fee
+     -- ^ additional UTxO from which fee calculation will pick needed coins
     , feeDust :: (Word64, Word64)
      -- ^ constant fee and dust threshold
-    }
-    deriving Show
+    } deriving Show
+
+instance Buildable FeeProp where
+    build (FeeProp cc utxo opt) = mempty
+        <> nameF "selection" (build cc)
+        <> build utxo
+        <> nameF "options" (tupleF opt)
 
 propSameSelection
-    :: FeePropArguments
+    :: ShowFmt FeeProp
     -> Property
-propSameSelection (FeePropArguments (CoinSelectionPropArguments (utxo, txOuts)) utxo' _) = do
+propSameSelection (ShowFmt (FeeProp (CoinSelProp utxo txOuts) utxo' _)) = do
     isRight selection ==> let Right s = selection in prop s
   where
     prop coinSel = do
         let feeOpt = feeOptions 0 0
-        runExceptT (adjustForFees feeOpt utxo' coinSel) `shouldReturn`
-            (Right coinSel)
+        coinSel' <- runExceptT (adjustForFees feeOpt utxo' coinSel)
+        fmap ShowFmt coinSel' `shouldBe` Right (ShowFmt coinSel)
     selection = runIdentity $ runExceptT $
         largestFirst (CoinSelectionOptions 100) utxo txOuts
 
 propDeterministic
-    :: FeePropArguments
+    :: ShowFmt FeeProp
     -> Property
-propDeterministic (FeePropArguments (CoinSelectionPropArguments (utxo, txOuts)) _ (fee, dust)) = do
+propDeterministic (ShowFmt (FeeProp (CoinSelProp utxo txOuts) _ (fee, dust))) = do
     isRight selection ==> let Right s = selection in prop s
   where
     prop coinSel = do
@@ -319,9 +330,9 @@ propDeterministic (FeePropArguments (CoinSelectionPropArguments (utxo, txOuts)) 
 
 propReducedChanges
     :: SystemDRG
-    -> FeePropArguments
+    -> ShowFmt FeeProp
     -> Property
-propReducedChanges drg (FeePropArguments (CoinSelectionPropArguments (utxo, txOuts)) utxo' (fee, dust)) = do
+propReducedChanges drg (ShowFmt (FeeProp (CoinSelProp utxo txOuts) utxo' (fee, dust))) = do
     isRight selection' ==>
         let (Right s, Right s') = (selection, selection') in prop s s'
   where
@@ -420,9 +431,17 @@ data FeeOutput = FeeOutput
 -------------------------------------------------------------------------------}
 
 -- | Data for running
-newtype CoinSelectionPropArguments = CoinSelectionPropArguments
-    { getCoinSelectionPropArguments :: (UTxO, NonEmpty TxOut)
-    } deriving Show
+data CoinSelProp = CoinSelProp
+    { csUtxO :: UTxO
+        -- ^ Available UTxO for the selection
+    , csOuts :: NonEmpty TxOut
+        -- ^ Requested outputs for the payment
+    } deriving  Show
+
+instance Buildable CoinSelProp where
+    build (CoinSelProp utxo outs) = mempty
+        <> build utxo
+        <> nameF "outs" (blockListF outs)
 
 -- | A fixture for testing the coin selection
 data CoinSelectionFixture = CoinSelectionFixture
@@ -473,20 +492,31 @@ coinSelectionUnitTest run lbl expected (CoinSelectionFixture n utxoF outsF) =
                             Arbitrary Instances
 -------------------------------------------------------------------------------}
 
-instance Arbitrary FeePropArguments where
+deriving instance Arbitrary a => Arbitrary (ShowFmt a)
+
+instance Arbitrary FeeProp where
+    shrink (FeeProp cc utxo opts) =
+        (\(cc', utxo') -> FeeProp cc' utxo' opts)
+            <$> zip (shrink cc) (shrink utxo)
     arbitrary = do
         cc <- arbitrary
         utxo <- arbitrary
         fee <- choose (100000, 500000)
         dust <- choose (0, 10000)
-        return $ FeePropArguments cc utxo (fee, dust)
+        return $ FeeProp cc utxo (fee, dust)
 
-instance Arbitrary CoinSelectionPropArguments where
+instance Arbitrary a => Arbitrary (NonEmpty a) where
+    shrink xs = catMaybes (NE.nonEmpty <$> shrink (NE.toList xs))
     arbitrary = do
         n <- choose (1, 10)
-        txOutsNonEmpty <- NE.fromList <$> vectorOf n arbitrary
-        utxo <- arbitrary
-        return $ CoinSelectionPropArguments (utxo, txOutsNonEmpty)
+        NE.fromList <$> vectorOf n arbitrary
+
+instance Arbitrary CoinSelProp where
+    shrink (CoinSelProp utxo outs) = uncurry CoinSelProp
+        <$> zip (shrink utxo) (shrink outs)
+    arbitrary = CoinSelProp
+        <$> arbitrary
+        <*> arbitrary
 
 instance Arbitrary Address where
     -- No Shrinking

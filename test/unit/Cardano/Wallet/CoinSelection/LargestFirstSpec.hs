@@ -13,10 +13,7 @@ import Cardano.Wallet.CoinSelection
 import Cardano.Wallet.CoinSelection.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.CoinSelectionSpec
-    ( CoinSelectionFixture (..)
-    , CoinSelectionPropArguments (..)
-    , coinSelectionUnitTest
-    )
+    ( CoinSelProp (..), CoinSelectionFixture (..), coinSelectionUnitTest )
 import Cardano.Wallet.Primitive.Types
     ( Coin (..), TxOut (..), UTxO (..), excluding )
 import Control.Monad
@@ -128,18 +125,18 @@ spec = do
 -------------------------------------------------------------------------------}
 
 propDeterministic
-    :: CoinSelectionPropArguments
+    :: CoinSelProp
     -> Property
-propDeterministic (CoinSelectionPropArguments (utxo, txOuts)) = do
+propDeterministic (CoinSelProp utxo txOuts) = do
     let opts = CoinSelectionOptions 100
     let resultOne = runIdentity $ runExceptT $ largestFirst opts utxo txOuts
     let resultTwo = runIdentity $ runExceptT $ largestFirst opts utxo txOuts
     resultOne === resultTwo
 
 propAtLeast
-    :: CoinSelectionPropArguments
+    :: CoinSelProp
     -> Property
-propAtLeast (CoinSelectionPropArguments (utxo, txOuts)) =
+propAtLeast (CoinSelProp utxo txOuts) =
     isRight selection ==> let Right s = selection in prop s
   where
     prop (CoinSelection inps _ _) =
@@ -148,9 +145,9 @@ propAtLeast (CoinSelectionPropArguments (utxo, txOuts)) =
         largestFirst (CoinSelectionOptions 100) utxo txOuts
 
 propInputDecreasingOrder
-    :: CoinSelectionPropArguments
+    :: CoinSelProp
     -> Property
-propInputDecreasingOrder (CoinSelectionPropArguments (utxo, txOuts)) =
+propInputDecreasingOrder (CoinSelProp utxo txOuts) =
     isRight selection ==> let Right s = selection in prop s
   where
     prop (CoinSelection inps _ _) =

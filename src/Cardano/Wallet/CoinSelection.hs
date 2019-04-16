@@ -53,6 +53,8 @@ import Data.Bifunctor
     ( bimap )
 import Data.Word
     ( Word64 )
+import Fmt
+    ( Buildable (..), blockListF, blockListF', listF, nameF )
 import GHC.Generics
     ( Generic )
 
@@ -103,6 +105,14 @@ instance Semigroup CoinSelection where
 
 instance Monoid CoinSelection where
     mempty = CoinSelection [] [] []
+
+instance Buildable CoinSelection where
+    build (CoinSelection inps outs chngs) = mempty
+        <> nameF "inputs" (blockListF' "-" inpsF inps)
+        <> nameF "outputs" (blockListF outs)
+        <> nameF "change" (listF chngs)
+      where
+        inpsF (txin, txout) = build txin <> " (~ " <> build txout <> ")"
 
 {-------------------------------------------------------------------------------
                                 Fee Adjustment

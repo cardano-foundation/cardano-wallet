@@ -15,10 +15,7 @@ import Cardano.Wallet.CoinSelection.LargestFirst
 import Cardano.Wallet.CoinSelection.Random
     ( random )
 import Cardano.Wallet.CoinSelectionSpec
-    ( CoinSelectionFixture (..)
-    , CoinSelectionPropArguments (..)
-    , coinSelectionUnitTest
-    )
+    ( CoinSelProp (..), CoinSelectionFixture (..), coinSelectionUnitTest )
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Crypto.Random
@@ -123,9 +120,9 @@ spec = do
 
 propFragmentation
     :: SystemDRG
-    -> CoinSelectionPropArguments
+    -> CoinSelProp
     -> Property
-propFragmentation drg (CoinSelectionPropArguments (utxo, txOuts)) = do
+propFragmentation drg (CoinSelProp utxo txOuts) = do
     isRight selection1 && isRight selection2 ==>
         let (Right s1, Right s2) =
                 (selection1, selection2)
@@ -140,9 +137,9 @@ propFragmentation drg (CoinSelectionPropArguments (utxo, txOuts)) = do
 
 propErrors
     :: SystemDRG
-    -> CoinSelectionPropArguments
+    -> CoinSelProp
     -> Property
-propErrors drg (CoinSelectionPropArguments (utxo, txOuts)) = do
+propErrors drg (CoinSelProp utxo txOuts) = do
     isLeft selection1 && isLeft selection2 ==>
         let (Left s1, Left s2) = (selection1, selection2)
         in prop (s1, s2)
