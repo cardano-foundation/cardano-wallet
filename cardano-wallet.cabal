@@ -127,9 +127,11 @@ test-suite unit
     , quickcheck-instances
     , servant-server
     , servant-swagger
+    , statistics
     , swagger2
     , text
     , transformers
+    , vector
     , yaml
   type:
      exitcode-stdio-1.0
