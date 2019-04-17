@@ -53,6 +53,8 @@ module Cardano.Wallet.Primitive.Types
     -- * UTxO
     , UTxO (..)
     , balance
+    , balance'
+    , pickRandom
     , excluding
     , isSubsetOf
     , restrictedBy
@@ -81,6 +83,7 @@ module Cardano.Wallet.Primitive.Types
     , Hash (..)
     , ShowFmt (..)
     , invariant
+    , distance
     ) where
 
 import Prelude
@@ -89,6 +92,10 @@ import Control.DeepSeq
     ( NFData (..) )
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString )
+import Crypto.Number.Generate
+    ( generateBetween )
+import Crypto.Random.Types
+    ( MonadRandom )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
@@ -494,12 +501,31 @@ instance Buildable UTxO where
       where
         utxoF (inp, out) = build inp <> " => " <> build out
 
+-- | Pick a random element from a UTxO, returns 'Nothing' if the UTxO is empty.
+-- Otherwise, returns the selected entry and, the UTxO minus the selected one.
+pickRandom
+    :: MonadRandom m
+    => UTxO
+    -> m (Maybe (TxIn, TxOut), UTxO)
+pickRandom (UTxO utxo)
+    | Map.null utxo =
+        return (Nothing, UTxO utxo)
+    | otherwise = do
+        ix <- fromEnum <$> generateBetween 0 (toEnum (Map.size utxo - 1))
+        return (Just $ Map.elemAt ix utxo, UTxO $ Map.deleteAt ix utxo)
+
+-- | Compute the balance of a UTxO
 balance :: UTxO -> Natural
 balance =
     Map.foldl' fn 0 . getUTxO
   where
     fn :: Natural -> TxOut -> Natural
     fn tot out = tot + fromIntegral (getCoin (coin out))
+
+-- | Compute the balance of a unwrapped UTxO
+balance' :: [(TxIn, TxOut)] -> Word64
+balance' =
+    fromIntegral . balance . UTxO . Map.fromList
 
 -- | ins⋪ u
 excluding :: UTxO -> Set TxIn ->  UTxO
@@ -564,7 +590,6 @@ slotRatio (SlotId ep0 sl0) (SlotId ep1 sl1) =
         Quantity $ toEnum $ fromIntegral $ (100 * n0) `div` n1
   where
     flat e s = 21600 * e + fromIntegral s
-    distance a b = if a < b then b - a else a - b
 
 {-------------------------------------------------------------------------------
                                Polymorphic Types
@@ -628,3 +653,8 @@ invariant
     -> a
 invariant msg a predicate =
     if predicate a then a else error msg
+
+-- | Compute distance between two numeric values |a - b|
+distance :: (Ord a, Num a) => a -> a -> a
+distance a b =
+    if a < b then b - a else a - b

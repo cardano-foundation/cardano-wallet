@@ -13,7 +13,7 @@ import Cardano.Wallet.CoinSelection
 import Cardano.Wallet.CoinSelection.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.CoinSelectionSpec
-    ( CoveringCase (..), Fixture (..), coinSelectionUnitTest )
+    ( CoinSelProp (..), CoinSelectionFixture (..), coinSelectionUnitTest )
 import Cardano.Wallet.Primitive.Types
     ( Coin (..), TxOut (..), UTxO (..), excluding )
 import Control.Monad
@@ -39,31 +39,31 @@ import qualified Data.Set as Set
 spec :: Spec
 spec = do
     describe "Coin selection : LargestFirst algorithm unit tests" $ do
-        coinSelectionUnitTest largestFirst "" (Right [17]) $ Fixture
+        coinSelectionUnitTest largestFirst "" (Right [17]) $ CoinSelectionFixture
             { maxNumOfInputs = 100
             , utxoInputs = [10,10,17]
             , txOutputs = 17 :| []
             }
 
-        coinSelectionUnitTest largestFirst "" (Right [17]) $ Fixture
+        coinSelectionUnitTest largestFirst "" (Right [17]) $ CoinSelectionFixture
             { maxNumOfInputs = 100
             , utxoInputs = [12,10,17]
             , txOutputs = 1 :| []
             }
 
-        coinSelectionUnitTest largestFirst "" (Right [12, 17]) $ Fixture
+        coinSelectionUnitTest largestFirst "" (Right [12, 17]) $ CoinSelectionFixture
             { maxNumOfInputs = 100
             , utxoInputs = [12,10,17]
             , txOutputs = 18 :| []
             }
 
-        coinSelectionUnitTest largestFirst "" (Right [10, 12, 17]) $ Fixture
+        coinSelectionUnitTest largestFirst "" (Right [10, 12, 17]) $ CoinSelectionFixture
             { maxNumOfInputs = 100
             , utxoInputs = [12,10,17]
             , txOutputs = 30 :| []
             }
 
-        coinSelectionUnitTest largestFirst "" (Right [6,10,5]) $ Fixture
+        coinSelectionUnitTest largestFirst "" (Right [6,10,5]) $ CoinSelectionFixture
             { maxNumOfInputs = 3
             , utxoInputs = [1,2,10,6,5]
             , txOutputs = 11 :| [1]
@@ -73,7 +73,7 @@ spec = do
             largestFirst
             "not enough coins"
             (Left $ NotEnoughMoney 39 40)
-            $ Fixture
+            $ CoinSelectionFixture
                 { maxNumOfInputs = 100
                 , utxoInputs = [12,10,17]
                 , txOutputs = 40 :| []
@@ -83,7 +83,7 @@ spec = do
             largestFirst
             "not enough coin & not fragmented enough"
             (Left $ NotEnoughMoney 39 43)
-            $ Fixture
+            $ CoinSelectionFixture
                 { maxNumOfInputs = 100
                 , utxoInputs = [12,10,17]
                 , txOutputs = 40 :| [1,1,1]
@@ -93,7 +93,7 @@ spec = do
             largestFirst
             "enough coins, but not fragmented enough"
             (Left $ UtxoNotEnoughFragmented 3 4)
-            $ Fixture
+            $ CoinSelectionFixture
                 { maxNumOfInputs = 100
                 , utxoInputs = [12,20,17]
                 , txOutputs = 40 :| [1,1,1]
@@ -103,7 +103,7 @@ spec = do
             largestFirst
             "enough coins but, strict maximumNumberOfInputs"
             (Left $ MaximumInputsReached 2)
-            $ Fixture
+            $ CoinSelectionFixture
                 { maxNumOfInputs = 2
                 , utxoInputs = [1,2,10,6,5]
                 , txOutputs = 11 :| [1]
@@ -125,18 +125,18 @@ spec = do
 -------------------------------------------------------------------------------}
 
 propDeterministic
-    :: CoveringCase
+    :: CoinSelProp
     -> Property
-propDeterministic (CoveringCase (utxo, txOuts)) = do
+propDeterministic (CoinSelProp utxo txOuts) = do
     let opts = CoinSelectionOptions 100
     let resultOne = runIdentity $ runExceptT $ largestFirst opts utxo txOuts
     let resultTwo = runIdentity $ runExceptT $ largestFirst opts utxo txOuts
     resultOne === resultTwo
 
 propAtLeast
-    :: CoveringCase
+    :: CoinSelProp
     -> Property
-propAtLeast (CoveringCase (utxo, txOuts)) =
+propAtLeast (CoinSelProp utxo txOuts) =
     isRight selection ==> let Right s = selection in prop s
   where
     prop (CoinSelection inps _ _) =
@@ -145,9 +145,9 @@ propAtLeast (CoveringCase (utxo, txOuts)) =
         largestFirst (CoinSelectionOptions 100) utxo txOuts
 
 propInputDecreasingOrder
-    :: CoveringCase
+    :: CoinSelProp
     -> Property
-propInputDecreasingOrder (CoveringCase (utxo, txOuts)) =
+propInputDecreasingOrder (CoinSelProp utxo txOuts) =
     isRight selection ==> let Right s = selection in prop s
   where
     prop (CoinSelection inps _ _) =

@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TupleSections #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -20,7 +21,15 @@ import Cardano.Wallet.CoinSelection
 import Cardano.Wallet.CoinSelection.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..), TxIn, TxOut (..), UTxO (..), balance, invariant )
+    ( Coin (..)
+    , TxIn
+    , TxOut (..)
+    , UTxO (..)
+    , balance'
+    , distance
+    , invariant
+    , pickRandom
+    )
 import Control.Monad
     ( foldM )
 import Control.Monad.Trans.Class
@@ -29,8 +38,6 @@ import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), runMaybeT )
-import Crypto.Number.Generate
-    ( generateBetween )
 import Crypto.Random.Types
     ( MonadRandom )
 import Data.List.NonEmpty
@@ -42,7 +49,6 @@ import Data.Word
 
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as Map
 
 
 -- | Target range for picking inputs
@@ -144,14 +150,14 @@ processTxOut (CoinSelectionOptions maxNumInputs) (utxo0, selection) txout = do
         | balance' inps >= targetMin target =
             MaybeT $ return $ Just (inps, utxo)
         | otherwise = do
-            pickRandom utxo >>= \(io, utxo') -> coverRandomly (io:inps, utxo')
+            pickRandomT utxo >>= \(io, utxo') -> coverRandomly (io:inps, utxo')
 
     improve
         :: forall m. MonadRandom m
         => ([(TxIn, TxOut)], UTxO)
         -> m ([(TxIn, TxOut)], UTxO)
     improve (inps, utxo) =
-        runMaybeT (pickRandom utxo) >>= \case
+        runMaybeT (pickRandomT utxo) >>= \case
             Nothing ->
                 return (inps, utxo)
             Just (io, utxo') | isImprovement io inps -> do
@@ -182,6 +188,11 @@ processTxOut (CoinSelectionOptions maxNumInputs) (utxo0, selection) txout = do
                                  Internals
 -------------------------------------------------------------------------------}
 
+-- | Re-wrap 'pickRandom' in a 'MaybeT' monad
+pickRandomT :: MonadRandom m => UTxO -> MaybeT m ((TxIn, TxOut), UTxO)
+pickRandomT =
+    MaybeT . fmap (\(m,u) -> (,u) <$> m) . pickRandom
+
 -- | Compute the target range for a given output
 mkTargetRange :: TxOut -> TargetRange
 mkTargetRange (TxOut _ (Coin c)) = TargetRange
@@ -189,16 +200,6 @@ mkTargetRange (TxOut _ (Coin c)) = TargetRange
     , targetAim = 2 * c
     , targetMax = 3 * c
     }
-
--- | Compute the balance of a unwrapped UTxO
-balance' :: [(TxIn, TxOut)] -> Word64
-balance' =
-    fromIntegral . balance . UTxO . Map.fromList
-
--- | Compute distance between two numeric values |a - b|
-distance :: (Ord a, Num a) => a -> a -> a
-distance a b =
-    if a < b then b - a else a - b
 
 -- | Compute corresponding change outputs from a target output and a selection
 -- of inputs.
@@ -220,15 +221,3 @@ mkChange (TxOut _ (Coin out)) inps =
                 []
             c ->
                 [ Coin c ]
-
--- Pick a random element from a map, returns 'Nothing' if the map is empty
-pickRandom
-    :: MonadRandom m
-    => UTxO
-    -> MaybeT m ((TxIn, TxOut), UTxO)
-pickRandom (UTxO utxo)
-    | Map.null utxo =
-        MaybeT $ return Nothing
-    | otherwise = do
-        ix <- fromEnum <$> lift (generateBetween 0 (toEnum (Map.size utxo - 1)))
-        return (Map.elemAt ix utxo, UTxO $ Map.deleteAt ix utxo)
