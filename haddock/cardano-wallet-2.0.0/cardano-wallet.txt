@@ -273,7 +273,17 @@ isValidCoin :: Coin -> Bool
 newtype UTxO
 UTxO :: Map TxIn TxOut -> UTxO
 [$sel:getUTxO:UTxO] :: UTxO -> Map TxIn TxOut
+
+-- | Compute the balance of a UTxO
 balance :: UTxO -> Natural
+
+-- | Compute the balance of a unwrapped UTxO
+balance' :: [(TxIn, TxOut)] -> Word64
+
+-- | Pick a random element from a UTxO, returns <a>Nothing</a> if the UTxO
+--   is empty. Otherwise, returns the selected entry and, the UTxO minus
+--   the selected one.
+pickRandom :: MonadRandom m => UTxO -> m (Maybe (TxIn, TxOut), UTxO)
 
 -- | ins⋪ u
 excluding :: UTxO -> Set TxIn -> UTxO
@@ -355,6 +365,9 @@ ShowFmt :: a -> ShowFmt a
 --   *** Exception: not empty
 --   </pre>
 invariant :: String -> a -> (a -> Bool) -> a
+
+-- | Compute distance between two numeric values |a - b|
+distance :: (Ord a, Num a) => a -> a -> a
 instance GHC.Classes.Ord a => GHC.Classes.Ord (Cardano.Wallet.Primitive.Types.ShowFmt a)
 instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.Wallet.Primitive.Types.ShowFmt a)
 instance GHC.Generics.Generic (Cardano.Wallet.Primitive.Types.ShowFmt a)
@@ -542,8 +555,10 @@ instance GHC.Exception.Type.Exception Cardano.Wallet.Network.ErrNetworkTip
 instance GHC.Exception.Type.Exception Cardano.Wallet.Network.ErrNetworkUnreachable
 
 
--- | Provides the API of Coin Selection algorithm and Fee related
---   functionality. For more information refer to:
+-- | Provides the API of Coin Selection algorithm and Fee Calculation This
+--   module contains the implementation of adjusting coin selection for a
+--   fee. The sender pays for the fee and additional inputs are picked
+--   randomly. For more information refer to:
 --   <a>https://iohk.io/blog/self-organisation-in-coin-selection/</a>
 module Cardano.Wallet.CoinSelection
 newtype CoinSelectionOptions
@@ -574,6 +589,58 @@ CoinSelection :: [(TxIn, TxOut)] -> [TxOut] -> [Coin] -> CoinSelection
 
 -- | Resulting changes
 [change] :: CoinSelection -> [Coin]
+
+-- | A <a>Fee</a>, isomorph to <a>Coin</a> but ease type-signatures and
+--   readability.
+newtype Fee
+Fee :: Word64 -> Fee
+[getFee] :: Fee -> Word64
+data FeeOptions
+FeeOptions :: (Int -> [Coin] -> Fee) -> Coin -> FeeOptions
+
+-- | Estimate fees based on number of inputs and values of the outputs Some
+--   pointers / order of magnitude from the current configuration: a:
+--   155381 # absolute minimal fees per transaction b: 43.946 # additional
+--   minimal fees per byte of transaction size
+[estimate] :: FeeOptions -> Int -> [Coin] -> Fee
+
+-- | Change addresses below the given threshold will be evicted from the
+--   created transaction. Setting <a>dustThreshold</a> to 0 removes output
+--   equal to 0
+[dustThreshold] :: FeeOptions -> Coin
+newtype FeeError
+
+-- | UTxO exhausted during fee covering We record what amount missed to
+--   cover the fee
+CannotCoverFee :: Word64 -> FeeError
+
+-- | Given the coin selection result from a policy run, adjust the outputs
+--   for fees, potentially returning additional inputs that we need to
+--   cover all fees. We lose the relationship between the transaction
+--   outputs and their corresponding inputs/change outputs here. This is a
+--   decision we may wish to revisit later. For now however note that since
+--   
+--   (a) coin selection tries to establish a particular ratio between
+--   payment outputs and change outputs (currently it aims for an average
+--   of 1:1)
+--   
+--   (b) coin selection currently only generates a single change output per
+--   payment output, distributing the fee proportionally across all change
+--   outputs is roughly equivalent to distributing it proportionally over
+--   the payment outputs (roughly, not exactly, because the 1:1 proportion
+--   is best effort only, and may in some cases be wildly different).
+--   
+--   Note that for (a) we don't need the ratio to be 1:1, the above
+--   reasoning will remain true for any proportion 1:n. For (b) however, if
+--   coin selection starts creating multiple outputs, and this number may
+--   vary, then losing the connection between outputs and change outputs
+--   will mean that that some outputs may pay a larger percentage of the
+--   fee (depending on how many change outputs the algorithm happened to
+--   choose).
+adjustForFees :: MonadRandom m => FeeOptions -> UTxO -> CoinSelection -> ExceptT FeeError m CoinSelection
+instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.FeeError
+instance GHC.Show.Show Cardano.Wallet.CoinSelection.FeeError
+instance GHC.Generics.Generic Cardano.Wallet.CoinSelection.FeeOptions
 instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.CoinSelection
 instance GHC.Show.Show Cardano.Wallet.CoinSelection.CoinSelection
 instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.CoinSelectionError
@@ -581,6 +648,7 @@ instance GHC.Show.Show Cardano.Wallet.CoinSelection.CoinSelectionError
 instance GHC.Generics.Generic Cardano.Wallet.CoinSelection.CoinSelectionOptions
 instance GHC.Base.Semigroup Cardano.Wallet.CoinSelection.CoinSelection
 instance GHC.Base.Monoid Cardano.Wallet.CoinSelection.CoinSelection
+instance Formatting.Buildable.Buildable Cardano.Wallet.CoinSelection.CoinSelection
 
 
 -- | This module contains the implementation of largestFirst input
