@@ -102,7 +102,7 @@ import Fmt
 import GHC.Generics
     ( Generic )
 
-import qualified Cardano.Wallet.CoinSelection.Random as CoinSelection
+import qualified Cardano.Wallet.CoinSelection.Policy.Random as CoinSelection
 import qualified Cardano.Wallet.DB as DB
 import qualified Data.Text.IO as TIO
 

@@ -69,8 +69,9 @@ library
       Cardano.Wallet.Binary
       Cardano.Wallet.Binary.Packfile
       Cardano.Wallet.CoinSelection
-      Cardano.Wallet.CoinSelection.LargestFirst
-      Cardano.Wallet.CoinSelection.Random
+      Cardano.Wallet.CoinSelection.Fee
+      Cardano.Wallet.CoinSelection.Policy.LargestFirst
+      Cardano.Wallet.CoinSelection.Policy.Random
       Cardano.Wallet.DB
       Cardano.Wallet.DB.MVar
       Cardano.Wallet.Network
@@ -81,8 +82,8 @@ library
       Cardano.Wallet.Primitive.Mnemonic
       Cardano.Wallet.Primitive.Model
       Cardano.Wallet.Primitive.Types
-      Data.Text.Class
       Data.Quantity
+      Data.Text.Class
       Servant.Extra.ContentTypes
   other-modules:
       Paths_cardano_wallet
@@ -144,24 +145,25 @@ test-suite unit
       Cardano.CLISpec
       Cardano.Launcher
       Cardano.LauncherSpec
-      Cardano.WalletSpec
-      Cardano.Wallet.ApiSpec
       Cardano.Wallet.Api.TypesSpec
-      Cardano.Wallet.BinarySpec
+      Cardano.Wallet.ApiSpec
       Cardano.Wallet.Binary.PackfileSpec
+      Cardano.Wallet.BinarySpec
+      Cardano.Wallet.CoinSelection.FeeSpec
+      Cardano.Wallet.CoinSelection.Policy.LargestFirstSpec
+      Cardano.Wallet.CoinSelection.Policy.RandomSpec
       Cardano.Wallet.CoinSelectionSpec
-      Cardano.Wallet.CoinSelection.LargestFirstSpec
-      Cardano.Wallet.CoinSelection.RandomSpec
-      Cardano.Wallet.DBSpec
       Cardano.Wallet.DB.MVarSpec
-      Cardano.Wallet.NetworkSpec
-      Cardano.Wallet.Network.HttpBridgeSpec
+      Cardano.Wallet.DBSpec
       Cardano.Wallet.Network.HttpBridge.ApiSpec
+      Cardano.Wallet.Network.HttpBridgeSpec
+      Cardano.Wallet.NetworkSpec
       Cardano.Wallet.Primitive.AddressDerivationSpec
       Cardano.Wallet.Primitive.AddressDiscoverySpec
       Cardano.Wallet.Primitive.MnemonicSpec
       Cardano.Wallet.Primitive.ModelSpec
       Cardano.Wallet.Primitive.TypesSpec
+      Cardano.WalletSpec
       Data.Text.ClassSpec
       Data.QuantitySpec
       Servant.Extra.ContentTypesSpec

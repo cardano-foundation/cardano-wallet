@@ -10,7 +10,7 @@
 -- input selection algorithm
 
 
-module Cardano.Wallet.CoinSelection.Random
+module Cardano.Wallet.CoinSelection.Policy.Random
     ( random
     ) where
 
@@ -18,7 +18,7 @@ import Prelude
 
 import Cardano.Wallet.CoinSelection
     ( CoinSelection (..), CoinSelectionError (..), CoinSelectionOptions (..) )
-import Cardano.Wallet.CoinSelection.LargestFirst
+import Cardano.Wallet.CoinSelection.Policy.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.Primitive.Types
     ( Coin (..)
