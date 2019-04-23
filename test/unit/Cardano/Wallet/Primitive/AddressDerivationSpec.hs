@@ -14,27 +14,34 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( ChangeChain (..)
     , Depth (..)
     , DerivationType (..)
+    , ErrWrongPassphrase (..)
     , Index
     , Passphrase (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
+    , checkPassphrase
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
     , deriveAddressPublicKey
+    , encryptPassphrase
     , generateKeyFromSeed
     , getIndex
     , keyToAddress
     , publicKey
     , unsafeGenerateKeyFromSeed
     )
+import Cardano.Wallet.Primitive.Types
+    ( Hash (..) )
 import Control.Monad
     ( replicateM )
+import Control.Monad.IO.Class
+    ( liftIO )
 import Data.Proxy
     ( Proxy (..) )
 import Fmt
     ( build, fmt )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
     , InfiniteList (..)
@@ -49,6 +56,8 @@ import Test.QuickCheck
     , (===)
     , (==>)
     )
+import Test.QuickCheck.Monadic
+    ( monadicIO )
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
@@ -116,6 +125,15 @@ spec = do
             goldenYoroiAddr (seed1, recPwd1) InternalChain accIx addrIx
                 "Ae2tdPwUPEZLSqQN7XNJRMJ6yHWdfFLaQgPPYgyJKrJnCVnRtbfw6EHRv1D"
 
+    describe "Passphrases" $ do
+        it "checkPassphrase p h(p) == Right ()" $
+            property prop_passphraseRoundtrip
+
+        it "p /= p' => checkPassphrase p' h(p) == Left ErrWrongPassphrase" $
+            property prop_passphraseRoundtripFail
+
+        it "checkPassphrase fails when hash is malformed" $
+            property prop_passphraseHashMalformed
 
 {-------------------------------------------------------------------------------
                                Properties
@@ -211,6 +229,27 @@ goldenYoroiAddr (seed, recPwd) cc accIx addrIx addr =
         addrXPrv = deriveAddressPrivateKey encPwd accXPrv cc addrIx
     in
         fmt (build $ keyToAddress $ publicKey addrXPrv) === addr
+
+prop_passphraseRoundtrip
+    :: Passphrase "encryption"
+    -> Property
+prop_passphraseRoundtrip pwd = monadicIO $ liftIO $ do
+    hpwd <- encryptPassphrase pwd
+    checkPassphrase pwd hpwd `shouldBe` Right ()
+
+prop_passphraseRoundtripFail
+    :: (Passphrase "encryption", Passphrase "encryption")
+    -> Property
+prop_passphraseRoundtripFail (p, p') =
+    p /= p' ==> monadicIO $ liftIO $ do
+        hp <- encryptPassphrase p
+        checkPassphrase p' hp `shouldBe` Left ErrWrongPassphrase
+
+prop_passphraseHashMalformed
+    :: Passphrase "encryption"
+    -> Property
+prop_passphraseHashMalformed pwd = monadicIO $ liftIO $ do
+    checkPassphrase pwd (Hash mempty) `shouldBe` Left ErrWrongPassphrase
 
 
 {-------------------------------------------------------------------------------
