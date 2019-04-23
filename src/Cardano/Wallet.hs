@@ -62,7 +62,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( AddressPoolGap, SeqState (..), mkAddressPool )
+    ( AddressPoolGap, SeqState (..), generateChangeOutput, mkAddressPool )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, applyBlocks, availableUTxO, currentTip, getState, initWallet )
 import Cardano.Wallet.Primitive.Signing
@@ -97,6 +97,8 @@ import Control.Monad.Trans.Except
     ( ExceptT, runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), maybeToExceptT )
+import Control.Monad.Trans.State
+    ( runState, state )
 import Data.Functor
     ( ($>) )
 import Data.List.NonEmpty
@@ -257,12 +259,17 @@ mkWalletLayer db network = WalletLayer
         let signed = SignedTx $ toByteString $ encodeSignedTx (tx, witnesses)
         withExceptT NetworkError $ postTx network signed
 
-    , signTx = \wid rootXPrv password (CoinSelection ins outs _chgs) -> do
+    , signTx = \wid rootXPrv password (CoinSelection ins outs chgs) -> do
         -- TODO: This is untested
         (w, _) <- withExceptT ErrSignTxNoSuchWallet $ _readWallet wid
 
-        shuffledOuts <- liftIO $ shuffle outs
-        case mkStdTx (getState w) (rootXPrv, password) ins shuffledOuts of
+        let (changeOuts, _newState) = runState
+                (mapM (state . generateChangeOutput) chgs)
+                (getState w)
+
+        allShuffledOuts <- liftIO $ shuffle (outs ++ changeOuts)
+
+        case mkStdTx (getState w) (rootXPrv, password) ins allShuffledOuts of
             Right a -> return a
             Left e -> throwE $ ErrSignTx e
     }

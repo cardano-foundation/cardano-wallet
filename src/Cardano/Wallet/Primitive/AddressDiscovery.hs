@@ -56,13 +56,15 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , keyToAddress
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address, IsOurs (..), invariant )
+    ( Address, Coin (..), IsOurs (..), TxOut (..), invariant )
 import Control.Applicative
     ( (<|>) )
 import Control.DeepSeq
     ( NFData, deepseq )
 import Data.Bifunctor
     ( first )
+import Data.Foldable
+    ( maximum )
 import Data.Function
     ( (&) )
 import Data.List
@@ -292,6 +294,8 @@ class AddressScheme s where
         -> s
         -> (Maybe (Key 'AddressK XPrv), s)
 
+    generateChangeOutput :: Coin -> s -> (TxOut, s)
+
 instance AddressScheme SeqState where
     keyFrom addr (rootPrv, pwd) (SeqState !s1 !s2) =
         let
@@ -317,4 +321,22 @@ instance AddressScheme SeqState where
                 (addrIx, pool') = lookupAddress addr pool
             in
                 (deriveAddressPrivateKey pwd accountPrv chain <$> addrIx, pool')
+
+    generateChangeOutput c (SeqState intPool extPool) =
+        let
+            indexes = map snd $ Map.toList $ indexedAddresses intPool
+            newIndex = succ $ maximum indexes
+            xPub = deriveAddressPublicKey
+                (accountPubKey intPool)
+                InternalChain
+                newIndex
+
+            next = Map.singleton addr newIndex
+            intPool' =
+                intPool { indexedAddresses = indexedAddresses intPool <> next }
+            addr = keyToAddress xPub
+
+        in (TxOut addr c, SeqState intPool' extPool)
+
+
 
