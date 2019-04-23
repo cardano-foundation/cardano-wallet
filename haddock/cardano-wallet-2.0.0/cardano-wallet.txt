@@ -589,6 +589,77 @@ CoinSelection :: [(TxIn, TxOut)] -> [TxOut] -> [Coin] -> CoinSelection
 
 -- | Resulting changes
 [change] :: CoinSelection -> [Coin]
+instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.CoinSelection
+instance GHC.Show.Show Cardano.Wallet.CoinSelection.CoinSelection
+instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.CoinSelectionError
+instance GHC.Show.Show Cardano.Wallet.CoinSelection.CoinSelectionError
+instance GHC.Generics.Generic Cardano.Wallet.CoinSelection.CoinSelectionOptions
+instance GHC.Base.Semigroup Cardano.Wallet.CoinSelection.CoinSelection
+instance GHC.Base.Monoid Cardano.Wallet.CoinSelection.CoinSelection
+instance Formatting.Buildable.Buildable Cardano.Wallet.CoinSelection.CoinSelection
+
+
+-- | This module contains the implementation of largestFirst input
+--   selection algorithm
+module Cardano.Wallet.CoinSelection.Policy.LargestFirst
+
+-- | Largest-first input selection policy
+largestFirst :: forall m. Monad m => CoinSelectionOptions -> UTxO -> NonEmpty TxOut -> ExceptT CoinSelectionError m CoinSelection
+
+
+-- | This module contains the implementation of random input selection
+--   algorithm
+module Cardano.Wallet.CoinSelection.Policy.Random
+
+-- | Random-Improve Algorithm
+--   
+--   <ol>
+--   <li>Randomly select outputs from the UTxO until the payment value is
+--   covered. (In the rare case that this fails because the maximum number
+--   of transaction inputs has been exceeded, fall-back on the
+--   largest-first algorithm for this step.)</li>
+--   <li>Randomly select outputs from the UTxO, considering for each output
+--   if that output is animprovement. If it is, add it to the transaction,
+--   and keep going. An output is considered an improvement when:</li>
+--   </ol>
+--   
+--   (a) It doesn’t exceed a specified upper limit. (b) Adding the new
+--   output gets us closer to the ideal change value. (c) It doesn’t exceed
+--   a maximum number of transaction inputs.
+--   
+--   This algorithm follows three principles:
+--   
+--   <pre>
+--   **Self organisation principle 1**
+--   Random selection has a high probability of picking dust outputs precisely
+--   when there is a lot of dust in the UTxO.
+--   </pre>
+--   
+--   <pre>
+--   **Self organisation principle 2**
+--   If for each payment request for value <tt>x</tt> we create a change output roughly
+--   of the same value <tt>x</tt>, then we will end up with a lot of change outputs in
+--   our UTxO of size <tt>x</tt> precisely when we have a lot of payment requests of
+--   size <tt>x</tt>
+--   </pre>
+--   
+--   <pre>
+--   **Self organisation principle 3**
+--   Searching the UTxO for additional entries to improve our change output is
+--   only useful if the UTxO contains entries that are sufficiently small enough.
+--   But precisely when the UTxO contains many small entries, it is less likely
+--   that a randomly chosen UTxO entry will push the total above the upper bound
+--   we set.
+--   </pre>
+random :: forall m. MonadRandom m => CoinSelectionOptions -> UTxO -> NonEmpty TxOut -> ExceptT CoinSelectionError m CoinSelection
+
+
+-- | Provides the API of Coin Selection algorithm and Fee Calculation This
+--   module contains the implementation of adjusting coin selection for a
+--   fee. The sender pays for the fee and additional inputs are picked
+--   randomly. For more information refer to:
+--   <a>https://iohk.io/blog/self-organisation-in-coin-selection/</a>
+module Cardano.Wallet.CoinSelection.Fee
 
 -- | A <a>Fee</a>, isomorph to <a>Coin</a> but ease type-signatures and
 --   readability.
@@ -638,72 +709,9 @@ CannotCoverFee :: Word64 -> FeeError
 --   fee (depending on how many change outputs the algorithm happened to
 --   choose).
 adjustForFees :: MonadRandom m => FeeOptions -> UTxO -> CoinSelection -> ExceptT FeeError m CoinSelection
-instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.FeeError
-instance GHC.Show.Show Cardano.Wallet.CoinSelection.FeeError
-instance GHC.Generics.Generic Cardano.Wallet.CoinSelection.FeeOptions
-instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.CoinSelection
-instance GHC.Show.Show Cardano.Wallet.CoinSelection.CoinSelection
-instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.CoinSelectionError
-instance GHC.Show.Show Cardano.Wallet.CoinSelection.CoinSelectionError
-instance GHC.Generics.Generic Cardano.Wallet.CoinSelection.CoinSelectionOptions
-instance GHC.Base.Semigroup Cardano.Wallet.CoinSelection.CoinSelection
-instance GHC.Base.Monoid Cardano.Wallet.CoinSelection.CoinSelection
-instance Formatting.Buildable.Buildable Cardano.Wallet.CoinSelection.CoinSelection
-
-
--- | This module contains the implementation of largestFirst input
---   selection algorithm
-module Cardano.Wallet.CoinSelection.LargestFirst
-
--- | Largest-first input selection policy
-largestFirst :: forall m. Monad m => CoinSelectionOptions -> UTxO -> NonEmpty TxOut -> ExceptT CoinSelectionError m CoinSelection
-
-
--- | This module contains the implementation of random input selection
---   algorithm
-module Cardano.Wallet.CoinSelection.Random
-
--- | Random-Improve Algorithm
---   
---   <ol>
---   <li>Randomly select outputs from the UTxO until the payment value is
---   covered. (In the rare case that this fails because the maximum number
---   of transaction inputs has been exceeded, fall-back on the
---   largest-first algorithm for this step.)</li>
---   <li>Randomly select outputs from the UTxO, considering for each output
---   if that output is animprovement. If it is, add it to the transaction,
---   and keep going. An output is considered an improvement when:</li>
---   </ol>
---   
---   (a) It doesn’t exceed a specified upper limit. (b) Adding the new
---   output gets us closer to the ideal change value. (c) It doesn’t exceed
---   a maximum number of transaction inputs.
---   
---   This algorithm follows three principles:
---   
---   <pre>
---   **Self organisation principle 1**
---   Random selection has a high probability of picking dust outputs precisely
---   when there is a lot of dust in the UTxO.
---   </pre>
---   
---   <pre>
---   **Self organisation principle 2**
---   If for each payment request for value <tt>x</tt> we create a change output roughly
---   of the same value <tt>x</tt>, then we will end up with a lot of change outputs in
---   our UTxO of size <tt>x</tt> precisely when we have a lot of payment requests of
---   size <tt>x</tt>
---   </pre>
---   
---   <pre>
---   **Self organisation principle 3**
---   Searching the UTxO for additional entries to improve our change output is
---   only useful if the UTxO contains entries that are sufficiently small enough.
---   But precisely when the UTxO contains many small entries, it is less likely
---   that a randomly chosen UTxO entry will push the total above the upper bound
---   we set.
---   </pre>
-random :: forall m. MonadRandom m => CoinSelectionOptions -> UTxO -> NonEmpty TxOut -> ExceptT CoinSelectionError m CoinSelection
+instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.Fee.FeeError
+instance GHC.Show.Show Cardano.Wallet.CoinSelection.Fee.FeeError
+instance GHC.Generics.Generic Cardano.Wallet.CoinSelection.Fee.FeeOptions
 
 
 -- | These are (partial) CBOR decoders for blocks and block headers. Note
