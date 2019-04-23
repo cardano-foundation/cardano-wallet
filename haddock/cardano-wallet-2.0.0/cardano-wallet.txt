@@ -1051,6 +1051,17 @@ newtype FromMnemonicError (sz :: [Nat])
 FromMnemonicError :: String -> FromMnemonicError
 [getFromMnemonicError] :: FromMnemonicError -> String
 
+-- | Indicate a failure when checking for a given <a>Passphrase</a> match
+data ErrWrongPassphrase
+ErrWrongPassphrase :: ErrWrongPassphrase
+
+-- | Encrypt a <a>Passphrase</a> into a format that is suitable for storing
+--   on disk
+encryptPassphrase :: MonadRandom m => Passphrase purpose -> m (Hash purpose)
+
+-- | Check whether a <a>Passphrase</a> matches with a stored <a>Hash</a>
+checkPassphrase :: Passphrase purpose -> Hash purpose -> Either ErrWrongPassphrase ()
+
 -- | Marker for the change chain. In practice, change of a transaction goes
 --   onto the addresses generated on the internal chain, whereas the
 --   external chain is used for addresses that are part of the
@@ -1105,6 +1116,8 @@ keyToAddress :: Key  'AddressK XPub -> Address
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
 instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDerivation.ErrWrongPassphrase
+instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDerivation.ErrWrongPassphrase
 instance Formatting.Buildable.Buildable (Cardano.Wallet.Primitive.AddressDerivation.FromMnemonicError sz)
 instance GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.FromMnemonicError sz)
 instance GHC.Base.Monoid (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
@@ -1126,6 +1139,7 @@ instance Cardano.Wallet.Primitive.AddressDerivation.PassphraseMaxLength "encrypt
 instance (Cardano.Wallet.Primitive.AddressDerivation.PassphraseMaxLength purpose, Cardano.Wallet.Primitive.AddressDerivation.PassphraseMinLength purpose) => Data.Text.Class.FromText (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
 instance Cardano.Wallet.Primitive.AddressDerivation.PassphraseMinLength "encryption"
 instance Data.Text.Class.ToText (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
+instance Crypto.Random.Types.MonadRandom ((->) (Cardano.Wallet.Primitive.AddressDerivation.Passphrase "salt"))
 instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDerivation.Index derivationType level)
 instance GHC.Enum.Bounded (Cardano.Wallet.Primitive.AddressDerivation.Index 'Cardano.Wallet.Primitive.AddressDerivation.Hardened level)
 instance GHC.Enum.Bounded (Cardano.Wallet.Primitive.AddressDerivation.Index 'Cardano.Wallet.Primitive.AddressDerivation.Soft level)
