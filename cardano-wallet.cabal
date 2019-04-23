@@ -69,6 +69,7 @@ library
       Cardano.Wallet.Binary
       Cardano.Wallet.Binary.Packfile
       Cardano.Wallet.CoinSelection
+      Cardano.Wallet.CoinSelection.Fee
       Cardano.Wallet.CoinSelection.Policy.LargestFirst
       Cardano.Wallet.CoinSelection.Policy.Random
       Cardano.Wallet.DB
@@ -81,8 +82,8 @@ library
       Cardano.Wallet.Primitive.Mnemonic
       Cardano.Wallet.Primitive.Model
       Cardano.Wallet.Primitive.Types
-      Data.Text.Class
       Data.Quantity
+      Data.Text.Class
       Servant.Extra.ContentTypes
   other-modules:
       Paths_cardano_wallet
@@ -148,6 +149,7 @@ test-suite unit
       Cardano.Wallet.ApiSpec
       Cardano.Wallet.Binary.PackfileSpec
       Cardano.Wallet.BinarySpec
+      Cardano.Wallet.CoinSelection.FeeSpec
       Cardano.Wallet.CoinSelection.Policy.LargestFirstSpec
       Cardano.Wallet.CoinSelection.Policy.RandomSpec
       Cardano.Wallet.CoinSelectionSpec
