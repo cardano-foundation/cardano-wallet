@@ -54,8 +54,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     )
-import Control.Lens
-    ( set, view )
 import Control.Monad.Fail
     ( MonadFail (..) )
 import Control.Monad.IO.Class
@@ -65,7 +63,7 @@ import Crypto.Hash
 import Data.Aeson.QQ
     ( aesonQQ )
 import Data.Generics.Internal.VL.Lens
-    ( Lens', lens )
+    ( Lens', lens, set, view )
 import Data.Generics.Product.Typed
     ( HasType, typed )
 import Data.List

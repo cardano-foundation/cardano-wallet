@@ -46,12 +46,12 @@ spec = do
                 "mnemonic_sentence": ["identify", "screen", "lock", "bargain", "inch", "drop", "canyon", "flock", "dry", "zone", "wash", "argue", "system", "glory", "light"],
                 "mnemonic_second_factor": ["attract", "tornado", "slender", "pumpkin", "clown", "announce", "term", "winner", "ready"],
                 "passphrase": "Secure Passphrase",
-                "address_pool_gap": 20
+                "address_pool_gap": 30
                 } |]
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
-        expectResponseCode @IO HTTP.status200 r
+        expectResponseCode @IO HTTP.status202 r
         expectFieldEqual walletName "1st Wallet" r
-        expectFieldEqual addressPoolGap 20 r
+        expectFieldEqual addressPoolGap 30 r
         expectFieldEqual balanceAvailable 0 r
         expectFieldEqual balanceTotal 0 r
         expectFieldEqual delegation (NotDelegating) r

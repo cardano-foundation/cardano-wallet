@@ -206,7 +206,6 @@ test-suite integration
     , http-client
     , http-api-data
     , http-types
-    , lens
     , process
     , say
     , template-haskell

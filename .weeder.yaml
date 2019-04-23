@@ -52,8 +52,8 @@
           - ClientError
           - DecodeFailure
           - Empty
-          - None
           - NonJson
+          - None
           - unsafeRequest
   - section:
     - name: test:unit
