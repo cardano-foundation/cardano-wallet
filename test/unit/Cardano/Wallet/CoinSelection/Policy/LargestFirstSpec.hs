@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.CoinSelection.LargestFirstSpec
+module Cardano.Wallet.CoinSelection.Policy.LargestFirstSpec
     ( spec
     ) where
 
@@ -10,7 +10,7 @@ import Prelude
 
 import Cardano.Wallet.CoinSelection
     ( CoinSelection (..), CoinSelectionError (..), CoinSelectionOptions (..) )
-import Cardano.Wallet.CoinSelection.LargestFirst
+import Cardano.Wallet.CoinSelection.Policy.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.CoinSelectionSpec
     ( CoinSelProp (..), CoinSelectionFixture (..), coinSelectionUnitTest )

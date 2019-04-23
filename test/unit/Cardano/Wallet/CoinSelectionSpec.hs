@@ -30,7 +30,7 @@ import Cardano.Wallet.CoinSelection
     , FeeOptions (..)
     , adjustForFees
     )
-import Cardano.Wallet.CoinSelection.LargestFirst
+import Cardano.Wallet.CoinSelection.Policy.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)

@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.CoinSelection.RandomSpec
+module Cardano.Wallet.CoinSelection.Policy.RandomSpec
     ( spec
     ) where
 
@@ -10,9 +10,9 @@ import Prelude
 
 import Cardano.Wallet.CoinSelection
     ( CoinSelection (..), CoinSelectionError (..), CoinSelectionOptions (..) )
-import Cardano.Wallet.CoinSelection.LargestFirst
+import Cardano.Wallet.CoinSelection.Policy.LargestFirst
     ( largestFirst )
-import Cardano.Wallet.CoinSelection.Random
+import Cardano.Wallet.CoinSelection.Policy.Random
     ( random )
 import Cardano.Wallet.CoinSelectionSpec
     ( CoinSelProp (..), CoinSelectionFixture (..), coinSelectionUnitTest )
