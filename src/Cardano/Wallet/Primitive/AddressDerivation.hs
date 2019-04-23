@@ -40,6 +40,9 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseMaxLength(..)
     , FromMnemonic(..)
     , FromMnemonicError(..)
+    , ErrWrongPassphrase(..)
+    , encryptPassphrase
+    , checkPassphrase
 
     -- * Sequential Derivation
     , ChangeChain(..)
@@ -74,17 +77,25 @@ import Cardano.Wallet.Primitive.Mnemonic
     , mnemonicToEntropy
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..) )
+    ( Address (..), Hash (..) )
 import Control.Arrow
     ( left )
 import Control.DeepSeq
     ( NFData )
+import Control.Monad
+    ( unless )
 import Crypto.Hash
     ( Digest, HashAlgorithm, hash )
+import Crypto.KDF.PBKDF2
+    ( Parameters (..), fastPBKDF2_SHA512 )
+import Crypto.Random.Types
+    ( MonadRandom (..) )
 import Data.Bifunctor
     ( first )
 import Data.ByteArray
     ( ScrubbedBytes )
+import Data.ByteString
+    ( ByteString )
 import Data.Maybe
     ( fromMaybe )
 import Data.Proxy
@@ -105,6 +116,7 @@ import GHC.TypeLits
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
@@ -272,6 +284,70 @@ instance
         -- FIXME Do better than 'show' here
         m <- first (FromMnemonicError . show) (mkMnemonic @mw parts)
         return $ Passphrase $ entropyToBytes $ mnemonicToEntropy m
+
+-- | Encrypt a 'Passphrase' into a format that is suitable for storing on disk
+encryptPassphrase
+    :: MonadRandom m => Passphrase purpose -> m (Hash purpose)
+encryptPassphrase (Passphrase bytes) = do
+    salt <- getRandomBytes @_ @ByteString 16
+    let params = Parameters
+            { iterCounts = 20000
+            , outputLength = 64
+            }
+    return $ Hash $ BA.convert $ mempty
+        <> BS.singleton (fromIntegral (BS.length salt))
+        <> salt
+        <> BA.convert @ByteString (fastPBKDF2_SHA512 params bytes salt)
+
+-- | Check whether a 'Passphrase' matches with a stored 'Hash'
+checkPassphrase
+    :: Passphrase purpose
+    -> Hash purpose
+    -> Either ErrWrongPassphrase ()
+checkPassphrase received stored = do
+    salt <- getSalt stored
+    unless (constantTimeEq (encryptPassphrase received salt) stored) $
+        Left ErrWrongPassphrase
+  where
+    getSalt :: Hash purpose -> Either ErrWrongPassphrase (Passphrase "salt")
+    getSalt (Hash bytes) = do
+        len <- case BS.unpack (BS.take 1 bytes) of
+            [len] -> Right $ fromIntegral len
+            _ -> Left ErrWrongPassphrase
+        Right $ Passphrase $ BA.convert $ BS.take len (BS.drop 1 bytes)
+    constantTimeEq :: Hash purpose -> Hash purpose -> Bool
+    constantTimeEq (Hash a) (Hash b) =
+        BA.convert @_ @ScrubbedBytes a == BA.convert @_ @ScrubbedBytes b
+
+-- | Indicate a failure when checking for a given 'Passphrase' match
+data ErrWrongPassphrase = ErrWrongPassphrase
+    deriving stock (Show, Eq)
+
+-- | Little trick to be able to provide our own "random" salt in order to
+-- deterministically re-compute a passphrase hash from a known salt. Note that,
+-- this boils down to giving an extra argument to the `encryptPassphrase`
+-- function which is the salt, in order to make it behave deterministically.
+--
+-- @
+-- encryptPassphrase
+--   :: MonadRandom m
+--   => Passphrase purpose
+--   -> m (Hash purpose)
+--
+--  ~
+--
+-- encryptPassphrase
+--   :: Passphrase purpose
+--   -> Passphrase "salt"
+--   -> m (Hash purpose)
+-- @
+--
+-- >>> encryptPassphrase pwd (Passphrase @"salt" salt)
+-- Hash "..."
+--
+instance MonadRandom ((->) (Passphrase "salt")) where
+    getRandomBytes _ (Passphrase salt) = BA.convert salt
+
 
 
 {-------------------------------------------------------------------------------
