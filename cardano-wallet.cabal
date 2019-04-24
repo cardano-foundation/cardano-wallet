@@ -63,6 +63,7 @@ library
   hs-source-dirs:
       src
   exposed-modules:
+      Cardano.Environment
       Cardano.Wallet
       Cardano.Wallet.Api
       Cardano.Wallet.Api.Server
