@@ -68,7 +68,14 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , nextChangeAddress
     )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, applyBlocks, availableUTxO, currentTip, getState, initWallet )
+    ( Wallet
+    , applyBlocks
+    , availableUTxO
+    , currentTip
+    , getState
+    , initWallet
+    , updateState
+    )
 import Cardano.Wallet.Primitive.Signing
     ( SignTxError, mkStdTx )
 import Cardano.Wallet.Primitive.Types
@@ -273,8 +280,15 @@ mkWalletLayer db network = WalletLayer
         allShuffledOuts <- liftIO $ shuffle (outs ++ changeOuts)
 
         case mkStdTx (getState w) creds ins allShuffledOuts of
-            Right a -> return a
-            Left e -> throwE $ ErrSignTx e
+            Right a -> do
+                -- Safe because we have a lock and we already fetched the wallet
+                -- within this context.
+                liftIO . unsafeRunExceptT $
+                    DB.putCheckpoint db (PrimaryKey wid) (updateState s' w)
+                return a
+
+            Left e ->
+                throwE $ ErrSignTx e
     }
   where
     _readWallet
