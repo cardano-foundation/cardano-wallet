@@ -1494,7 +1494,7 @@ type Wallets = DeleteWallet :<|> GetWallet :<|> ListWallets :<|> PostWallet :<|>
 
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteWallet</a>
-type DeleteWallet = "wallets" :> Capture "walletId" (ApiT WalletId) :> Delete '[OctetStream] NoContent
+type DeleteWallet = "wallets" :> Capture "walletId" (ApiT WalletId) :> DeleteNoContent '[OctetStream] NoContent
 
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/getWallet</a>
@@ -1506,7 +1506,7 @@ type ListWallets = "wallets" :> Get '[JSON] [ApiWallet]
 
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/postWallet</a>
-type PostWallet = "wallets" :> ReqBody '[JSON] WalletPostData :> Post '[JSON] ApiWallet
+type PostWallet = "wallets" :> ReqBody '[JSON] WalletPostData :> PostAccepted '[JSON] ApiWallet
 
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/putWallet</a>
@@ -1519,7 +1519,7 @@ type Transactions = CreateTransaction
 
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransaction</a>
-type CreateTransaction = "wallets" :> Capture "walletId" (ApiT WalletId) :> "transactions" :> ReqBody '[JSON] PostTransactionData :> Post '[JSON] ApiTransaction
+type CreateTransaction = "wallets" :> Capture "walletId" (ApiT WalletId) :> "transactions" :> ReqBody '[JSON] PostTransactionData :> PostAccepted '[JSON] ApiTransaction
 
 
 -- | API handlers and server using the underlying wallet layer to provide
