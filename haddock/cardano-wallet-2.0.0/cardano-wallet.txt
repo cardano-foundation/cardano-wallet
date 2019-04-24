@@ -589,6 +589,14 @@ CoinSelection :: [(TxIn, TxOut)] -> [TxOut] -> [Coin] -> CoinSelection
 
 -- | Resulting changes
 [change] :: CoinSelection -> [Coin]
+
+-- | Shuffles a list of elements.
+--   
+--   <pre>
+--   &gt;&gt;&gt; shuffle (outputs coinSel)
+--   [...]
+--   </pre>
+shuffle :: [a] -> IO [a]
 instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.CoinSelection
 instance GHC.Show.Show Cardano.Wallet.CoinSelection.CoinSelection
 instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.CoinSelectionError
@@ -981,6 +989,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
 --   let addressPubKey = Key 'AddressK XPub
 --   </pre>
 data Key (level :: Depth) key
+getKey :: Key level key -> key
 
 -- | Key Depth in the derivation path, according to BIP-0039 / BIP-0044
 --   
@@ -1212,12 +1221,35 @@ mkAddressPool :: Key  'AccountK XPub -> AddressPoolGap -> ChangeChain -> [Addres
 --   also possible that the pool is not amended at all - this happens in
 --   the case that an address is discovered <tt>far</tt> from the edge.
 lookupAddress :: Address -> AddressPool -> (Maybe (Index  'Soft  'AddressK), AddressPool)
+
+-- | An ordered set of pending indexes. This keep track of indexes used
+data PendingIxs
+
+-- | An empty pending set of change indexes.
+--   
+--   NOTE: We do not define a <a>Monoid</a> instance here because there's
+--   no rational of combining two pending sets.
+emptyPendingIxs :: PendingIxs
 data SeqState
-SeqState :: !AddressPool -> !AddressPool -> SeqState
+SeqState :: !AddressPool -> !AddressPool -> !PendingIxs -> SeqState
+
+-- | Addresses living on the <a>InternalChain</a>
 [internalPool] :: SeqState -> !AddressPool
+
+-- | Addresses living on the <a>ExternalChain</a>
 [externalPool] :: SeqState -> !AddressPool
+
+-- | Indexes from the internal pool that have been used in pending
+--   transactions. The list is maintained sorted in descending order (cf:
+--   <a>PendingIxs</a>)
+[pendingChangeIxs] :: SeqState -> !PendingIxs
+class AddressScheme s
+keyFrom :: AddressScheme s => Address -> (Key  'RootK XPrv, Passphrase "encryption") -> s -> Maybe (Key  'AddressK XPrv)
+generateChangeOutput :: AddressScheme s => Coin -> s -> (TxOut, s)
 instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.SeqState
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.SeqState
+instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.PendingIxs
+instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.PendingIxs
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDiscovery.AddressPool
 instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.AddressPool
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.AddressPool
@@ -1227,14 +1259,35 @@ instance GHC.Classes.Ord Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGa
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
+instance Cardano.Wallet.Primitive.AddressDiscovery.AddressScheme Cardano.Wallet.Primitive.AddressDiscovery.SeqState
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.SeqState
 instance Cardano.Wallet.Primitive.Types.IsOurs Cardano.Wallet.Primitive.AddressDiscovery.SeqState
+instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.PendingIxs
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.AddressPool
 instance Data.Text.Class.FromText Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 instance Data.Text.Class.ToText Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 instance GHC.Enum.Bounded Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
+
+
+-- | This module provides functionality for signing transactions.
+--   
+--   It relies on the binary CBOR format of transactions, an AddressScheme
+--   for deriving address private keys, and cardano-crypto for the actual
+--   signing.
+module Cardano.Wallet.Primitive.Signing
+
+-- | Construct a standard transaction
+--   
+--   " Standard " here refers to the fact that we do not deal with
+--   redemption, multisignature transactions, etc.
+mkStdTx :: AddressScheme s => s -> (Key  'RootK XPrv, Passphrase "encryption") -> [(TxIn, TxOut)] -> [TxOut] -> Either SignTxError (Tx, [TxWitness])
+newtype SignTxError
+KeyNotFoundForAddress :: Address -> SignTxError
+instance GHC.Show.Show Cardano.Wallet.Primitive.Signing.SignTag
+instance GHC.Classes.Ord Cardano.Wallet.Primitive.Signing.SignTag
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Signing.SignTag
 
 
 -- | Provides the wallet layer functions that are used by API layer and
