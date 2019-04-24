@@ -43,11 +43,17 @@
           - </>
           - expectError
           - expectSuccess
+          - expectFieldEqual
+          - expectFieldNotEqual
+          - getFromResponse
       - module:
         - name: Test.Integration.Framework.Request
         - identifier:
           - ClientError
           - DecodeFailure
+          - Empty
+          - NonJson
+          - None
           - unsafeRequest
   - section:
     - name: test:unit
