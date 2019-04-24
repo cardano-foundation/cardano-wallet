@@ -121,7 +121,7 @@ spec = do
             hash `shouldBe` hash'
 
 
-    let pkWit = PublicKeyWitness "Trust me"
+    let pkWit = PublicKeyWitness "public key" (Hash "trust me")
 
     describe "Encoding Tx Witness" $ do
         it "(encode . decode) = pure" $ do

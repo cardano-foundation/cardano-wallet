@@ -50,6 +50,7 @@ import qualified Codec.CBOR.Encoding as CBOR
 import qualified Data.ByteArray as BA
 
 newtype SignTxError = KeyNotFoundForAddress Address
+    deriving Show
 
 -- | Construct a standard transaction
 --
@@ -82,8 +83,10 @@ mkStdTx s creds@(_, pwd) ownedIns outs = do
         $ toByteString
         $ encodeTx txSigData
     mkWitness :: Hash "tx" -> Key 'AddressK XPrv -> TxWitness
-    mkWitness tx xPrv = PublicKeyWitness $
-        encodeXPub (publicKey xPrv) <> getHash (sign (SignTx tx) (xPrv, pwd))
+    mkWitness tx xPrv
+        = PublicKeyWitness
+            (encodeXPub $ publicKey xPrv)
+            (sign (SignTx tx) (xPrv, pwd))
 
 
 
@@ -119,7 +122,7 @@ newtype SignTag
 -- tags.
 signTag :: SignTag -> ByteString
 signTag = \case
-    SignTx (Hash payload) -> "\x01" <> pm <> payload
+    SignTx (Hash payload) -> "\x01" <> pm <> toByteString (CBOR.encodeBytes payload)
   where
     pm =
         let

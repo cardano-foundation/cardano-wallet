@@ -396,7 +396,7 @@ newtype SignedTx = SignedTx { signedTx :: ByteString }
     deriving (Show, Eq, Generic)
 
 data TxWitness
-    = PublicKeyWitness ByteString
+    = PublicKeyWitness ByteString (Hash "signature")
     | ScriptWitness ByteString
     | RedeemWitness ByteString
     deriving (Eq, Show)
