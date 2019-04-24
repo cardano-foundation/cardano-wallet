@@ -509,7 +509,12 @@ keyToAddress
 keyToAddress (Key xpub) =
     Address $ CBOR.toStrictByteString $ encodeAddress xpub encodeAttributes
   where
-    encodeAttributes = CBOR.encodeMapLen 0
+    encodeAttributes = case (Just 1097911063) of
+        Nothing -> CBOR.encodeMapLen 0
+        Just p  -> mempty
+            <> CBOR.encodeMapLen 1
+            <> CBOR.encodeWord 2
+            <> CBOR.encodeBytes (CBOR.toStrictByteString $ CBOR.encodeInt p)
 
 -- $use
 -- 'Key' and 'Index' allow for representing public keys, private keys, hardened
