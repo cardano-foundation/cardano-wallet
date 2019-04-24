@@ -64,7 +64,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , keyToAddress
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address, Coin (..), IsOurs (..), TxOut (..), invariant )
+    ( Address, IsOurs (..), invariant )
 import Control.Applicative
     ( (<|>) )
 import Control.DeepSeq
@@ -391,13 +391,13 @@ class AddressScheme s where
         -- function as we do not intend to discover any addresses from this
         -- operation; This is merely a lookup from known addresses.
 
-    generateChangeOutput
-        :: Coin
-        -> s
-        -> (TxOut, s)
-        -- ^ Generate a change output 'TxOut' from a given 'Coin'. This picks
-        -- up the first non-used known change address and use it. We keep track
-        -- of pending indexes in the state.
+    nextChangeAddress
+        :: s
+        -> (Address, s)
+        -- ^ Picks the first non-used known change address and use it.
+        -- We keep track of pending indexes in the state. In case there's no
+        -- more unused change address available, we pick an already existing
+        -- one.
 
 instance AddressScheme SeqState where
     keyFrom addr (rootPrv, pwd) (SeqState !s1 !s2 _) =
@@ -427,14 +427,11 @@ instance AddressScheme SeqState where
     -- therefore, rotate the change addresses when we need extra change outputs.
     --
     -- See also: 'nextChangeIndex'
-    generateChangeOutput c (SeqState intPool extPool pending) =
+    nextChangeAddress (SeqState intPool extPool pending) =
         let
             (ix, pending') = nextChangeIndex intPool pending
             accountXPub = accountPubKey intPool
             addressXPub = deriveAddressPublicKey accountXPub InternalChain ix
-            txout = TxOut
-                { address = keyToAddress addressXPub
-                , coin = c
-                }
+            addr = keyToAddress addressXPub
         in
-            (txout, SeqState intPool extPool pending')
+            (addr, SeqState intPool extPool pending')

@@ -64,11 +64,18 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap
     , SeqState (..)
     , emptyPendingIxs
-    , generateChangeOutput
     , mkAddressPool
+    , nextChangeAddress
     )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, applyBlocks, availableUTxO, currentTip, getState, initWallet )
+    ( Wallet
+    , applyBlocks
+    , availableUTxO
+    , currentTip
+    , getState
+    , initWallet
+    , updateState
+    )
 import Cardano.Wallet.Primitive.Signing
     ( SignTxError, mkStdTx )
 import Cardano.Wallet.Primitive.Types
@@ -92,7 +99,7 @@ import Control.Arrow
 import Control.Concurrent
     ( forkIO, threadDelay )
 import Control.Monad
-    ( void, (>=>) )
+    ( forM, void, (>=>) )
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.IO.Class
@@ -155,8 +162,7 @@ data WalletLayer s = WalletLayer
 
     , signTx
         :: WalletId
-        -> Key 'RootK XPrv
-        -> Passphrase "encryption"
+        -> (Key 'RootK XPrv, Passphrase "encryption")
         -> CoinSelection
         -> ExceptT ErrSignTx IO (Tx, [TxWitness])
         -- ^ Produce witnesses and construct a transaction from a given
@@ -264,19 +270,25 @@ mkWalletLayer db network = WalletLayer
         let signed = SignedTx $ toByteString $ encodeSignedTx (tx, witnesses)
         withExceptT NetworkError $ postTx network signed
 
-    , signTx = \wid rootXPrv password (CoinSelection ins outs chgs) -> do
-        -- TODO: This is untested
+    , signTx = \wid creds (CoinSelection ins outs chgs) -> DB.withLock db $ do
         (w, _) <- withExceptT ErrSignTxNoSuchWallet $ _readWallet wid
 
-        let (changeOuts, _newState) = runState
-                (mapM (state . generateChangeOutput) chgs)
-                (getState w)
+        let (changeOuts, s') = flip runState (getState w) $ forM chgs $ \c -> do
+                addr <- state nextChangeAddress
+                return $ TxOut addr c
 
         allShuffledOuts <- liftIO $ shuffle (outs ++ changeOuts)
 
-        case mkStdTx (getState w) (rootXPrv, password) ins allShuffledOuts of
-            Right a -> return a
-            Left e -> throwE $ ErrSignTx e
+        case mkStdTx (getState w) creds ins allShuffledOuts of
+            Right a -> do
+                -- Safe because we have a lock and we already fetched the wallet
+                -- within this context.
+                liftIO . unsafeRunExceptT $
+                    DB.putCheckpoint db (PrimaryKey wid) (updateState s' w)
+                return a
+
+            Left e ->
+                throwE $ ErrSignTx e
     }
   where
     _readWallet

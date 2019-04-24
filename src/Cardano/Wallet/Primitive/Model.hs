@@ -32,6 +32,7 @@ module Cardano.Wallet.Primitive.Model
 
     -- * Construction & Modification
     , initWallet
+    , updateState
     , applyBlock
     , applyBlocks
 
@@ -136,6 +137,14 @@ initWallet
     => s
     -> Wallet s
 initWallet = Wallet mempty mempty mempty (SlotId 0 0)
+
+-- | Update the state of an existing Wallet model
+updateState
+    :: (IsOurs s, NFData s, Show s)
+    => s
+    -> Wallet s
+    -> Wallet s
+updateState s (Wallet a b c d _) = Wallet a b c d s
 
 -- | Apply Block is the only way to make the wallet evolve. It returns a new
 -- updated wallet state, as well as the set of all our transaction discovered
