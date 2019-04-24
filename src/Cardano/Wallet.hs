@@ -37,7 +37,11 @@ import Prelude
 import Cardano.Wallet.Binary
     ( encodeSignedTx, toByteString )
 import Cardano.Wallet.CoinSelection
-    ( CoinSelection (..), CoinSelectionError (..), CoinSelectionOptions )
+    ( CoinSelection (..)
+    , CoinSelectionError (..)
+    , CoinSelectionOptions
+    , shuffle
+    )
 import Cardano.Wallet.DB
     ( DBLayer
     , ErrNoSuchWallet (..)
@@ -58,9 +62,16 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( AddressPoolGap, SeqState (..), mkAddressPool )
+    ( AddressPoolGap
+    , SeqState (..)
+    , emptyPendingIxs
+    , generateChangeOutput
+    , mkAddressPool
+    )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, applyBlocks, availableUTxO, currentTip, getState, initWallet )
+import Cardano.Wallet.Primitive.Signing
+    ( SignTxError, mkStdTx )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
@@ -91,6 +102,8 @@ import Control.Monad.Trans.Except
     ( ExceptT, runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), maybeToExceptT )
+import Control.Monad.Trans.State
+    ( runState, state )
 import Data.Functor
     ( ($>) )
 import Data.List.NonEmpty
@@ -180,7 +193,7 @@ data ErrCreateUnsignedTx
 -- | Errors occuring when signing a transaction
 data ErrSignTx
     = ErrSignTxNoSuchWallet ErrNoSuchWallet
-    | ErrSignTx
+    | ErrSignTx SignTxError
 
 -- | Errors occuring when submitting a signed transaction to the network
 data ErrSubmitTx = forall a. NetworkError a
@@ -214,6 +227,7 @@ mkWalletLayer db network = WalletLayer
         let checkpoint = initWallet $ SeqState
                 { externalPool = extPool
                 , internalPool = intPool
+                , pendingChangeIxs = emptyPendingIxs
                 }
         now <- liftIO getCurrentTime
         let metadata = WalletMetadata
@@ -252,11 +266,18 @@ mkWalletLayer db network = WalletLayer
         withExceptT NetworkError $ postTx network signed
 
     , signTx = \wid rootXPrv password (CoinSelection ins outs chgs) -> do
+        -- TODO: This is untested
         (w, _) <- withExceptT ErrSignTxNoSuchWallet $ _readWallet wid
-        maybe
-            (throwE ErrSignTx)
-            return
-            (mkStdTx (getState w) rootXPrv password ins outs chgs)
+
+        let (changeOuts, _newState) = runState
+                (mapM (state . generateChangeOutput) chgs)
+                (getState w)
+
+        allShuffledOuts <- liftIO $ shuffle (outs ++ changeOuts)
+
+        case mkStdTx (getState w) (rootXPrv, password) ins allShuffledOuts of
+            Right a -> return a
+            Left e -> throwE $ ErrSignTx e
     }
   where
     _readWallet
@@ -336,8 +357,6 @@ mkWalletLayer db network = WalletLayer
             DB.putCheckpoint db (PrimaryKey wid) cp'
             DB.putTxHistory db (PrimaryKey wid) txs
             DB.putWalletMeta db (PrimaryKey wid) meta'
-
-    mkStdTx = error "TODO: mkStdTx not implemented yet"
 
 {-------------------------------------------------------------------------------
                                  Helpers

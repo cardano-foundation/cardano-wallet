@@ -53,12 +53,13 @@ library
     , http-types
     , memory
     , servant
-    , servant-server
     , servant-client
     , servant-client-core
+    , servant-server
     , text
     , time
     , transformers
+    , vector
   hs-source-dirs:
       src
   exposed-modules:
@@ -81,6 +82,7 @@ library
       Cardano.Wallet.Primitive.AddressDiscovery
       Cardano.Wallet.Primitive.Mnemonic
       Cardano.Wallet.Primitive.Model
+      Cardano.Wallet.Primitive.Signing
       Cardano.Wallet.Primitive.Types
       Data.Quantity
       Data.Text.Class

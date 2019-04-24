@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -15,7 +16,8 @@
 -- compatibility with random address scheme from the legacy Cardano wallets.
 
 module Cardano.Wallet.Primitive.AddressDiscovery
-    ( -- * Sequential Derivation
+    (
+    -- * Sequential Derivation
 
     -- ** Address Pool Gap
       AddressPoolGap
@@ -33,25 +35,33 @@ module Cardano.Wallet.Primitive.AddressDiscovery
     , mkAddressPool
     , lookupAddress
 
+    -- * Pending Change Indexes
+    , PendingIxs
+    , emptyPendingIxs
+
     -- ** State
     , SeqState (..)
-  ) where
+    , AddressScheme (..)
+    ) where
 
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPub )
+    ( XPrv, XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( ChangeChain (..)
     , Depth (..)
     , DerivationType (..)
     , Index
     , Key
+    , Passphrase
+    , deriveAccountPrivateKey
+    , deriveAddressPrivateKey
     , deriveAddressPublicKey
     , keyToAddress
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address, IsOurs (..), invariant )
+    ( Address, Coin (..), IsOurs (..), TxOut (..), invariant )
 import Control.Applicative
     ( (<|>) )
 import Control.DeepSeq
@@ -60,8 +70,6 @@ import Data.Bifunctor
     ( first )
 import Data.Function
     ( (&) )
-import Data.List
-    ( sortOn )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -75,6 +83,7 @@ import GHC.Generics
 import Text.Read
     ( readMaybe )
 
+import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 
@@ -88,7 +97,9 @@ import qualified Data.Text as T
 
 -------------------------------------------------------------------------------}
 
--- ** Address Pool Gap
+{-------------------------------------------------------------------------------
+                              Address Pool Gap
+-------------------------------------------------------------------------------}
 
 -- | Maximum number of consecutive undiscovered addresses allowed
 newtype AddressPoolGap = AddressPoolGap
@@ -142,8 +153,9 @@ defaultAddressPoolGap :: AddressPoolGap
 defaultAddressPoolGap =
     AddressPoolGap 20
 
-
--- ** Address Pool
+{-------------------------------------------------------------------------------
+                                 Address Pool
+-------------------------------------------------------------------------------}
 
 -- | An 'AddressPool' which keeps track of sequential addresses within a given
 -- Account and change chain. See 'mkAddressPool' to create a new or existing
@@ -174,7 +186,7 @@ instance NFData AddressPool
 --
 -- > mkAddressPool key g cc (addresses pool) == pool
 addresses :: AddressPool -> [Address]
-addresses = map fst . sortOn snd . Map.toList . indexedAddresses
+addresses = map fst . L.sortOn snd . Map.toList . indexedAddresses
 
 -- | Create a new Address pool from a list of addresses. Note that, the list is
 -- expected to be ordered in sequence (first indexes, first in the list).
@@ -247,12 +259,79 @@ nextAddresses !key (AddressPoolGap !g) !cc !fromIx =
         (>= fromIx)
     newAddress = keyToAddress . deriveAddressPublicKey key cc
 
+{-------------------------------------------------------------------------------
+                            Pending Change Indexes
+-------------------------------------------------------------------------------}
+
+-- | An ordered set of pending indexes. This keep track of indexes used
+newtype PendingIxs = PendingIxs [Index 'Soft 'AddressK]
+    deriving stock (Generic, Show)
+instance NFData PendingIxs
+
+-- | An empty pending set of change indexes.
+--
+-- NOTE: We do not define a 'Monoid' instance here because there's no rational
+-- of combining two pending sets.
+emptyPendingIxs :: PendingIxs
+emptyPendingIxs = PendingIxs mempty
+
+-- | Update the set of pending indexes by discarding every indexes _below_ the
+-- given index.
+--
+-- Why is that?
+--
+-- Because we really do care about the higher index that was last used in order
+-- to know from where we can generate new indexes.
+updatePendingIxs
+    :: Index 'Soft 'AddressK
+    -> PendingIxs
+    -> PendingIxs
+updatePendingIxs ix (PendingIxs ixs) =
+    PendingIxs $ L.filter (> ix) ixs
+
+-- | Get the next change index; If every available indexes have already been
+-- taken, we'll rotate the pending set and re-use already provided indexes.
+--
+-- This should not be a problem for users in practice, and remain okay for
+-- exchanges who care less about privacy / not-reusing addresses than
+-- regular users.
+nextChangeIndex
+    :: AddressPool
+    -> PendingIxs
+    -> (Index 'Soft 'AddressK, PendingIxs)
+nextChangeIndex pool (PendingIxs ixs) =
+    let
+        poolLen = length (addresses pool)
+        (firstUnused, lastUnused) =
+            ( toEnum $ poolLen - fromEnum (gap pool)
+            , toEnum $ poolLen - 1
+            )
+        (ix, ixs') = case ixs of
+            [] ->
+                (firstUnused, PendingIxs [firstUnused])
+            h:_ | length ixs < fromEnum (gap pool) ->
+                (succ h, PendingIxs (succ h:ixs))
+            h:q ->
+                (h, PendingIxs (q++[h]))
+    in
+        invariant "index is within first unused and last unused" (ix, ixs')
+            (\(i,_) -> i >= firstUnused && i <= lastUnused)
+
+{-------------------------------------------------------------------------------
+                                 State
+-------------------------------------------------------------------------------}
+
 data SeqState = SeqState
     { internalPool :: !AddressPool
+        -- ^ Addresses living on the 'InternalChain'
     , externalPool :: !AddressPool
+        -- ^ Addresses living on the 'ExternalChain'
+    , pendingChangeIxs :: !PendingIxs
+        -- ^ Indexes from the internal pool that have been used in pending
+        -- transactions. The list is maintained sorted in descending order
+        -- (cf: 'PendingIxs')
     }
     deriving stock (Generic, Show)
-
 instance NFData SeqState
 
 -- NOTE
@@ -260,15 +339,79 @@ instance NFData SeqState
 -- account discovery algorithm is only specified for the external chain so
 -- in theory, there's nothing forcing a wallet to generate change
 -- addresses on the internal chain anywhere in the available range.
---
--- In practice, we may assume that user can't create change addresses and
--- that they are just created in sequence by the wallet software. Hence an
--- address pool with a gap of 1 should be sufficient for the internal chain.
 instance IsOurs SeqState where
-    isOurs addr (SeqState !s1 !s2) =
+     isOurs addr (SeqState !s1 !s2 !ixs) =
+         let
+             (internal, !s1') = lookupAddress addr s1
+             (external, !s2') = lookupAddress addr s2
+             !ixs' = case internal of
+                Nothing -> ixs
+                Just ix -> updatePendingIxs ix ixs
+             ours = isJust (internal <|> external)
+         in
+             (ixs' `deepseq` ours `deepseq` ours, SeqState s1' s2' ixs')
+
+-- TODO: We might want to move this abstraction / there is more work to be
+-- done here.
+--
+-- It would maybe be nice to derive IsOurs from AddressScheme automatically
+-- A /possible/ way to do that would be to return
+--     Maybe ((Key 'RootK XPrv, Passphrase "encryption") -> Key 'AddressK XPrv)
+-- instead, such that we can use @isJust@ without knowing the rootKey and pwd.
+class AddressScheme s where
+    keyFrom
+        :: Address
+        -> (Key 'RootK XPrv, Passphrase "encryption")
+        -> s
+        -> Maybe (Key 'AddressK XPrv)
+        -- ^ Derive the private key corresponding to an address. Careful, this
+        -- operation can be costly. Note that the state is discarded from this
+        -- function as we do not intend to discover any addresses from this
+        -- operation; This is merely a lookup from known addresses.
+
+    generateChangeOutput
+        :: Coin
+        -> s
+        -> (TxOut, s)
+        -- ^ Generate a change output 'TxOut' from a given 'Coin'. This picks
+        -- up the first non-used known change address and use it. We keep track
+        -- of pending indexes in the state.
+
+instance AddressScheme SeqState where
+    keyFrom addr (rootPrv, pwd) (SeqState !s1 !s2 _) =
         let
-            (res1, !s1') = lookupAddress addr s1
-            (res2, !s2') = lookupAddress addr s2
-            ours = isJust (res1 <|> res2)
+            xPrv1 = lookupAndDeriveXPrv s1 InternalChain
+            xPrv2 = lookupAndDeriveXPrv s2 ExternalChain
+            xPrv = xPrv1 <|> xPrv2
         in
-            (ours `deepseq` ours, SeqState s1' s2')
+            xPrv
+      where
+        lookupAndDeriveXPrv
+            :: AddressPool
+            -> ChangeChain
+            -> Maybe (Key 'AddressK XPrv)
+        lookupAndDeriveXPrv pool chain =
+            let
+                -- We are assuming there is only one account
+                accountPrv = deriveAccountPrivateKey pwd rootPrv minBound
+                (addrIx, _) = lookupAddress addr pool
+            in
+                deriveAddressPrivateKey pwd accountPrv chain <$> addrIx
+
+    -- | We pick indexes in sequence from the first known available index (i.e.
+    -- @length addrs - gap@) but we do not generate _new change addresses_. As a
+    -- result, we can't generate more than @gap@ _pending_ change addresses and
+    -- therefore, rotate the change addresses when we need extra change outputs.
+    --
+    -- See also: 'nextChangeIndex'
+    generateChangeOutput c (SeqState intPool extPool pending) =
+        let
+            (ix, pending') = nextChangeIndex intPool pending
+            accountXPub = accountPubKey intPool
+            addressXPub = deriveAddressPublicKey accountXPub InternalChain ix
+            txout = TxOut
+                { address = keyToAddress addressXPub
+                , coin = c
+                }
+        in
+            (txout, SeqState intPool extPool pending')
