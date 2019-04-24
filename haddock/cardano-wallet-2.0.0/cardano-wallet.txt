@@ -850,6 +850,9 @@ data Wallet s
 -- | Create an empty wallet from an initial state
 initWallet :: (IsOurs s, NFData s, Show s) => s -> Wallet s
 
+-- | Update the state of an existing Wallet model
+updateState :: (IsOurs s, NFData s, Show s) => s -> Wallet s -> Wallet s
+
 -- | Apply Block is the only way to make the wallet evolve. It returns a
 --   new updated wallet state, as well as the set of all our transaction
 --   discovered while applying the block.
@@ -1257,7 +1260,7 @@ SeqState :: !AddressPool  'InternalChain -> !AddressPool  'ExternalChain -> !Pen
 [pendingChangeIxs] :: SeqState -> !PendingIxs
 class AddressScheme s
 keyFrom :: AddressScheme s => Address -> (Key  'RootK XPrv, Passphrase "encryption") -> s -> Maybe (Key  'AddressK XPrv)
-generateChangeOutput :: AddressScheme s => Coin -> s -> (TxOut, s)
+nextChangeAddress :: AddressScheme s => s -> (Address, s)
 instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.SeqState
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.SeqState
 instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.PendingIxs
@@ -1307,7 +1310,7 @@ instance GHC.Classes.Eq Cardano.Wallet.Primitive.Signing.SignTag
 --   to realize its role as being intermediary between the three.
 module Cardano.Wallet
 data WalletLayer s
-WalletLayer :: (NewWallet -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata)) -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection) -> (WalletId -> Key  'RootK XPrv -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx, [TxWitness])) -> ((Tx, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> WalletLayer s
+WalletLayer :: (NewWallet -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata)) -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> CoinSelection -> ExceptT ErrSignTx IO (Tx, [TxWitness])) -> ((Tx, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> WalletLayer s
 
 -- | Initialise and store a new wallet, returning its ID.
 [$sel:createWallet:WalletLayer] :: WalletLayer s -> NewWallet -> ExceptT ErrWalletAlreadyExists IO WalletId
@@ -1334,7 +1337,7 @@ WalletLayer :: (NewWallet -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (Wal
 --   private key. Note that this doesn't broadcast the transaction to the
 --   network. In order to do so, have a look at
 --   <a>$sel:submitTx:WalletLayer</a>.
-[$sel:signTx:WalletLayer] :: WalletLayer s -> WalletId -> Key  'RootK XPrv -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx, [TxWitness])
+[$sel:signTx:WalletLayer] :: WalletLayer s -> WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> CoinSelection -> ExceptT ErrSignTx IO (Tx, [TxWitness])
 
 -- | Broadcast a (signed) transaction to the network.
 [$sel:submitTx:WalletLayer] :: WalletLayer s -> (Tx, [TxWitness]) -> ExceptT ErrSubmitTx IO ()
