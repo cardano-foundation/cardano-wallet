@@ -10,7 +10,9 @@ module Cardano.CLISpec
 import Prelude
 
 import Cardano.CLI
-    ( Network, Port )
+    ( Port )
+import Cardano.Environment
+    ( Network )
 import Data.Proxy
     ( Proxy (..) )
 import Test.Hspec

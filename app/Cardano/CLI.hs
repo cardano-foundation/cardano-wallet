@@ -2,7 +2,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 -- |
@@ -14,8 +13,7 @@
 module Cardano.CLI
     (
     -- * Types
-      Network(..)
-    , Port(..)
+      Port(..)
 
     -- * Parsing Arguments
     , parseArgWith
@@ -48,28 +46,6 @@ import qualified System.Console.ANSI as ANSI
 {-------------------------------------------------------------------------------
                                 Extra Types
 -------------------------------------------------------------------------------}
-
--- | Available network options. 'Local' means a local cluster running on the
--- host machine.
-data Network = Mainnet | Testnet | Staging | Local
-    deriving (Generic, Show, Eq, Enum)
-
-instance ToText Network where
-    toText = \case
-        Mainnet -> "mainnet"
-        Testnet -> "testnet"
-        Staging -> "staging"
-        Local -> "local"
-
-instance FromText Network where
-    fromText = \case
-        "mainnet" -> Right Mainnet
-        "testnet" -> Right Testnet
-        "staging" -> Right Staging
-        "local" -> Right Local
-        s -> Left $ TextDecodingError $
-            T.unpack s <> " is neither \"mainnet\", \"testnet\", \"staging\" \
-            \nor \"local\"."
 
 -- | Port number with a tag for describing what it is used for
 newtype Port (tag :: Symbol) = Port Int

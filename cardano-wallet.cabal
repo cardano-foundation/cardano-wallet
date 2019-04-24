@@ -315,7 +315,6 @@ benchmark restore
       -Werror
   build-depends:
       base
-    , ansi-terminal
     , async
     , bytestring
     , cardano-wallet
@@ -324,7 +323,6 @@ benchmark restore
     , cryptonite
     , deepseq
     , digest
-    , docopt
     , fmt
     , generic-lens
     , process
@@ -340,7 +338,6 @@ benchmark restore
   main-is:
       Main.hs
   other-modules:
-      Cardano.CLI
       Cardano.Launcher
       Cardano.Wallet.Primitive.AddressDiscovery.Any
   if os(windows)
