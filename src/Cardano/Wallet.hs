@@ -62,7 +62,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( AddressPoolGap, SeqState (..), generateChangeOutput, mkAddressPool )
+    ( AddressPoolGap
+    , SeqState (..)
+    , emptyPendingIxs
+    , generateChangeOutput
+    , mkAddressPool
+    )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, applyBlocks, availableUTxO, currentTip, getState, initWallet )
 import Cardano.Wallet.Primitive.Signing
@@ -222,6 +227,7 @@ mkWalletLayer db network = WalletLayer
         let checkpoint = initWallet $ SeqState
                 { externalPool = extPool
                 , internalPool = intPool
+                , pendingChangeIxs = emptyPendingIxs
                 }
         now <- liftIO getCurrentTime
         let metadata = WalletMetadata

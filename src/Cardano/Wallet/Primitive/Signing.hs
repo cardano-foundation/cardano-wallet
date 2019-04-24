@@ -40,14 +40,12 @@ import Control.Monad
     ( forM )
 import Crypto.Hash
     ( Blake2b_256, hash )
-import Data.ByteArray
-    ( convert )
 import Data.ByteString
     ( ByteString )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Codec.CBOR.Encoding as CBOR
-
+import qualified Data.ByteArray as BA
 
 newtype SignTxError = KeyNotFoundForAddress Address
 
@@ -65,37 +63,25 @@ mkStdTx
     -> [TxOut]
     -- ^ Selected outputs (including change)
     -> Either SignTxError (Tx, [TxWitness])
-mkStdTx s (rootPrv, pwd) ownedIns outs = do
+mkStdTx s creds@(_, pwd) ownedIns outs = do
     let ins = (fmap fst ownedIns)
         tx = Tx ins outs
         txSigData = hashTx tx
-
-    txWitnesses <- forM ownedIns (\(_in, TxOut addr _c) ->
-        mkWitness txSigData <$> keyFrom' addr)
-
+    txWitnesses <- forM ownedIns $ \(_in, TxOut addr _c) -> mkWitness txSigData
+        <$> withEither (KeyNotFoundForAddress addr) (keyFrom addr creds s)
     return (tx, txWitnesses)
-
   where
-    keyFrom' addr =
-        -- We are ignoring the new state/pool. We won't discover any new
-        -- addresses when submitting transactions.
-        case (fst $ keyFrom addr (rootPrv, pwd) s) of
-            Just key -> Right key
-            Nothing -> Left $ KeyNotFoundForAddress addr
-
+    withEither :: e -> Maybe a -> Either e a
+    withEither e = maybe (Left e) Right
     hashTx :: Tx -> Hash "tx"
     hashTx txSigData = Hash
-        $ convert
-        $ (hash @ByteString @Blake2b_256)
+        $ BA.convert
+        $ (hash @_ @Blake2b_256)
         $ toByteString
         $ encodeTx txSigData
-
-
     mkWitness :: Hash "tx" -> Key 'AddressK XPrv -> TxWitness
-    mkWitness tx xPrv =
-        PublicKeyWitness $
-            encodeXPub (publicKey xPrv) <>
-            getHash (sign (SignTx tx) (xPrv, pwd))
+    mkWitness tx xPrv = PublicKeyWitness $
+        encodeXPub (publicKey xPrv) <> getHash (sign (SignTx tx) (xPrv, pwd))
 
 
 
