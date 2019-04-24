@@ -1,4 +1,7 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -47,6 +50,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
     ( TextDecodingError (..), fromText )
+import Data.Typeable
+    ( Typeable )
 import Data.Word
     ( Word8 )
 import Test.Hspec
@@ -90,15 +95,25 @@ spec = do
         it "defaultAddressPoolGap is valid"
             (property prop_defaultValid)
 
-    describe "AddressPool" $ do
+    describe "AddressPool ExternalChain" $ do
         it "'lookupAddressPool' extends the pool by a maximum of 'gap'"
-            (checkCoverage prop_poolGrowWithinGap)
+            (checkCoverage (prop_poolGrowWithinGap @'ExternalChain))
         it "'addresses' preserves the address order"
-            (checkCoverage prop_roundtripMkAddressPool)
+            (checkCoverage (prop_roundtripMkAddressPool @'ExternalChain))
         it "An AddressPool always contains at least 'gap pool' addresses"
-            (property prop_poolAtLeastGapAddresses)
+            (property (prop_poolAtLeastGapAddresses @'ExternalChain))
         it "Our addresses are eventually discovered"
-            (property prop_poolEventuallyDiscoverOurs)
+            (property (prop_poolEventuallyDiscoverOurs @'ExternalChain))
+
+    describe "AddressPool InternalChain" $ do
+        it "'lookupAddressPool' extends the pool by a maximum of 'gap'"
+            (checkCoverage (prop_poolGrowWithinGap @'InternalChain))
+        it "'addresses' preserves the address order"
+            (checkCoverage (prop_roundtripMkAddressPool @'InternalChain))
+        it "An AddressPool always contains at least 'gap pool' addresses"
+            (property (prop_poolAtLeastGapAddresses @'InternalChain))
+        it "Our addresses are eventually discovered"
+            (property (prop_poolEventuallyDiscoverOurs @'InternalChain))
 
     describe "AddressPoolGap - Text Roundtrip" $ do
         textRoundtrip $ Proxy @AddressPoolGap
@@ -117,6 +132,7 @@ spec = do
         where
             err :: String
             err = "An address pool gap must be a natural number between 10 and 100"
+
 {-------------------------------------------------------------------------------
                         Properties for AddressPoolGap
 -------------------------------------------------------------------------------}
@@ -164,7 +180,8 @@ prop_roundtripEnumGap g =
 
 -- | After a lookup, a property should never grow more than its gap value.
 prop_poolGrowWithinGap
-    :: (AddressPool, Address)
+    :: (Typeable chain)
+    => (AddressPool chain, Address)
     -> Property
 prop_poolGrowWithinGap (pool, addr) =
     cover 10 (isJust $ fst res) "pool hit" prop
@@ -181,19 +198,20 @@ prop_poolGrowWithinGap (pool, addr) =
 
 -- | A pool gives back its addresses in correct order and can be reconstructed
 prop_roundtripMkAddressPool
-    :: AddressPool
+    :: (Typeable chain)
+    => AddressPool chain
     -> Property
 prop_roundtripMkAddressPool pool =
     ( mkAddressPool
         (accountPubKey pool)
         (gap pool)
-        (changeChain pool)
         (addresses pool)
     ) === pool
 
 -- | A pool always contains a number of addresses at least equal to its gap
 prop_poolAtLeastGapAddresses
-    :: AddressPool
+    :: (Typeable chain)
+    => AddressPool chain
     -> Property
 prop_poolAtLeastGapAddresses pool =
     property prop
@@ -202,13 +220,14 @@ prop_poolAtLeastGapAddresses pool =
 
 -- | Our addresses are eventually discovered
 prop_poolEventuallyDiscoverOurs
-    :: (AddressPoolGap, ChangeChain, Address)
+    :: forall (chain :: ChangeChain). (Typeable chain)
+    => (AddressPoolGap, Address)
     -> Property
-prop_poolEventuallyDiscoverOurs (g, cc, addr) =
+prop_poolEventuallyDiscoverOurs (g, addr) =
     addr `elem` ours ==> withMaxSuccess 10 $ property prop
   where
-    ours = take 25 (ourAddresses cc)
-    pool = flip execState (mkAddressPool ourAccount g cc mempty) $
+    ours = take 25 (ourAddresses (changeChain @chain))
+    pool = flip execState (mkAddressPool @chain ourAccount g mempty) $
         forM ours (state . lookupAddress)
     prop = (fromEnum <$> fst (lookupAddress addr pool)) === elemIndex addr ours
 
@@ -254,26 +273,24 @@ instance Arbitrary Address where
             let xprv = unsafeGenerateKeyFromSeed (bytes, mempty) mempty
             return $ keyToAddress $ publicKey xprv
 
-instance Arbitrary AddressPool where
+instance Typeable chain => Arbitrary (AddressPool chain) where
     shrink pool =
         let
             key = accountPubKey pool
             g = gap pool
-            cc = changeChain pool
             addrs = addresses pool
         in case length addrs of
             k | k == fromEnum g && g == minBound ->
                 []
             k | k == fromEnum g && g > minBound ->
-                [ mkAddressPool key minBound cc [] ]
+                [ mkAddressPool key minBound [] ]
             k ->
-                [ mkAddressPool key minBound cc []
-                , mkAddressPool key g cc []
-                , mkAddressPool key g cc (take (k - (fromEnum g `div` 5)) addrs)
+                [ mkAddressPool key minBound []
+                , mkAddressPool key g []
+                , mkAddressPool key g (take (k - (fromEnum g `div` 5)) addrs)
                 ]
     arbitrary = do
         g <- arbitrary
         n <- choose (0, 2 * fromEnum g)
-        cc <- arbitrary
-        let addrs = take n (ourAddresses cc)
-        return $ mkAddressPool ourAccount g cc addrs
+        let addrs = take n (ourAddresses (changeChain @chain))
+        return $ mkAddressPool ourAccount g addrs

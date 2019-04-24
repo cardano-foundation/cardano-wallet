@@ -105,6 +105,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
+import Data.Typeable
+    ( Typeable )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -361,7 +363,7 @@ instance MonadRandom ((->) (Passphrase "salt")) where
 data ChangeChain
     = InternalChain
     | ExternalChain
-    deriving (Generic, Show, Eq)
+    deriving (Generic, Typeable, Show, Eq)
 
 instance NFData ChangeChain
 
