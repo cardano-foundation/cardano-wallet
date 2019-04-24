@@ -51,8 +51,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChangeChain (..)
-    , Depth (RootK)
+    ( Depth (RootK)
     , Key
     , Passphrase
     , XPrv
@@ -219,9 +218,9 @@ mkWalletLayer db network = WalletLayer
         let accXPrv =
                 deriveAccountPrivateKey mempty rootXPrv minBound
         let extPool =
-                mkAddressPool (publicKey accXPrv) (gap w) ExternalChain []
+                mkAddressPool (publicKey accXPrv) (gap w) []
         let intPool =
-                mkAddressPool (publicKey accXPrv) minBound InternalChain []
+                mkAddressPool (publicKey accXPrv) minBound []
         let wid =
                 WalletId (digest $ publicKey rootXPrv)
         let checkpoint = initWallet $ SeqState
