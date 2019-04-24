@@ -1186,10 +1186,10 @@ mkAddressPoolGap :: Word8 -> Either MkAddressPoolGapError AddressPoolGap
 --   &gt;&gt;&gt; mkAddressPool xpub gap changeChain mempty
 --   AddressPool { }
 --   </pre>
-data AddressPool
+data AddressPool (chain :: ChangeChain)
 
 -- | The actual gap for the pool. This can't change for a given pool.
-gap :: AddressPool -> AddressPoolGap
+gap :: AddressPool chain -> AddressPoolGap
 
 -- | Get all addresses in the pool, sorted from the first address
 --   discovered, up until the next one.
@@ -1199,13 +1199,25 @@ gap :: AddressPool -> AddressPoolGap
 --   <pre>
 --   mkAddressPool key g cc (addresses pool) == pool
 --   </pre>
-addresses :: AddressPool -> [Address]
+addresses :: AddressPool chain -> [Address]
 
--- | Whether this pool tracks addrs on the internal or external chain
-changeChain :: AddressPool -> ChangeChain
+-- | Bring a <a>ChangeChain</a> type back to the term-level. This requires
+--   a type application and either a scoped type variable, or an explicit
+--   passing of a <a>ChangeChain</a>.
+--   
+--   <pre>
+--   &gt;&gt;&gt; changeChain @'ExternalChain
+--   ExternalChain
+--   </pre>
+--   
+--   <pre>
+--   &gt;&gt;&gt; changeChain @chain
+--   ...
+--   </pre>
+changeChain :: forall (chain :: ChangeChain). Typeable chain => ChangeChain
 
 -- | Corresponding key for the pool (a pool is tied to only one account)
-accountPubKey :: AddressPool -> Key  'AccountK XPub
+accountPubKey :: AddressPool chain -> Key  'AccountK XPub
 
 -- | Create a new Address pool from a list of addresses. Note that, the
 --   list is expected to be ordered in sequence (first indexes, first in
@@ -1214,13 +1226,13 @@ accountPubKey :: AddressPool -> Key  'AccountK XPub
 --   The pool will grow from the start if less than <tt>g ::
 --   AddressPoolGap</tt> are given, such that, there are always <tt>g</tt>
 --   undiscovered addresses in the pool.
-mkAddressPool :: Key  'AccountK XPub -> AddressPoolGap -> ChangeChain -> [Address] -> AddressPool
+mkAddressPool :: forall chain. Typeable chain => Key  'AccountK XPub -> AddressPoolGap -> [Address] -> AddressPool chain
 
 -- | Lookup an address in the pool. When we find an address in a pool, the
 --   pool may be amended if the address was discovered near the edge. It is
 --   also possible that the pool is not amended at all - this happens in
 --   the case that an address is discovered <tt>far</tt> from the edge.
-lookupAddress :: Address -> AddressPool -> (Maybe (Index  'Soft  'AddressK), AddressPool)
+lookupAddress :: Typeable chain => Address -> AddressPool chain -> (Maybe (Index  'Soft  'AddressK), AddressPool chain)
 
 -- | An ordered set of pending indexes. This keep track of indexes used
 data PendingIxs
@@ -1231,13 +1243,13 @@ data PendingIxs
 --   no rational of combining two pending sets.
 emptyPendingIxs :: PendingIxs
 data SeqState
-SeqState :: !AddressPool -> !AddressPool -> !PendingIxs -> SeqState
+SeqState :: !AddressPool  'InternalChain -> !AddressPool  'ExternalChain -> !PendingIxs -> SeqState
 
 -- | Addresses living on the <a>InternalChain</a>
-[internalPool] :: SeqState -> !AddressPool
+[internalPool] :: SeqState -> !AddressPool  'InternalChain
 
 -- | Addresses living on the <a>ExternalChain</a>
-[externalPool] :: SeqState -> !AddressPool
+[externalPool] :: SeqState -> !AddressPool  'ExternalChain
 
 -- | Indexes from the internal pool that have been used in pending
 --   transactions. The list is maintained sorted in descending order (cf:
@@ -1250,9 +1262,9 @@ instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.SeqState
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.SeqState
 instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.PendingIxs
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.PendingIxs
-instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDiscovery.AddressPool
-instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.AddressPool
-instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.AddressPool
+instance GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDiscovery.AddressPool chain)
+instance GHC.Show.Show (Cardano.Wallet.Primitive.AddressDiscovery.AddressPool chain)
+instance GHC.Generics.Generic (Cardano.Wallet.Primitive.AddressDiscovery.AddressPool chain)
 instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.MkAddressPoolGapError
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDiscovery.MkAddressPoolGapError
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
@@ -1263,7 +1275,7 @@ instance Cardano.Wallet.Primitive.AddressDiscovery.AddressScheme Cardano.Wallet.
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.SeqState
 instance Cardano.Wallet.Primitive.Types.IsOurs Cardano.Wallet.Primitive.AddressDiscovery.SeqState
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.PendingIxs
-instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.AddressPool
+instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDiscovery.AddressPool chain)
 instance Data.Text.Class.FromText Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 instance Data.Text.Class.ToText Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
