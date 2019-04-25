@@ -30,7 +30,7 @@ import Cardano.Wallet.Api.Types
     ( ApiAddress (..)
     , ApiCoins (..)
     , ApiT (..)
-    , ApiTransaction
+    , ApiTransaction (..)
     , ApiWallet (..)
     , PostTransactionData
     , WalletBalance (..)
@@ -39,6 +39,8 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     , getApiMnemonicT
     )
+import Cardano.Wallet.Binary
+    ( txId )
 import Cardano.Wallet.CoinSelection
     ( CoinSelectionOptions (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -74,6 +76,7 @@ import Servant.Server
     ( Handler (..), ServantErr (..) )
 
 import qualified Cardano.Wallet as W
+import qualified Data.List.NonEmpty as NE
 
 
 -- | A Servant server for our wallet API
@@ -205,13 +208,25 @@ createTransaction w (ApiT wid) body = do
     let outs = coerceCoin <$> (body ^. #targets)
     let pwd = getApiT $ body ^. #passphrase
     selection <- liftHandler $ W.createUnsignedTx w wid opts outs
-    signedTx <- liftHandler $ W.signTx w wid pwd selection
-    liftHandler $ W.submitTx w signedTx
-    return undefined
+    (tx, meta, wit) <- liftHandler $ W.signTx w wid pwd selection
+    liftHandler $ W.submitTx w wid (tx, meta, wit)
+    return ApiTransaction
+        { id = ApiT (txId tx)
+        , amount = meta ^. #amount
+        , insertedAt = Nothing
+        , depth = Quantity 0
+        , direction = ApiT (meta ^. #direction)
+        , inputs = NE.fromList (coerceTxOut . snd <$> selection ^. #inputs)
+        , outputs = NE.fromList (coerceTxOut <$> tx ^. #outputs)
+        , status = ApiT (meta ^. #status)
+        }
   where
     coerceCoin :: ApiCoins -> TxOut
     coerceCoin (ApiCoins (ApiT addr) (Quantity c)) =
         TxOut addr (Coin $ fromIntegral c)
+    coerceTxOut :: TxOut -> ApiCoins
+    coerceTxOut (TxOut addr (Coin c)) =
+        ApiCoins (ApiT addr) (Quantity $ fromIntegral c)
 
 {-------------------------------------------------------------------------------
                                 Error Handling

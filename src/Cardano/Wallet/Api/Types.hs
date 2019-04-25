@@ -152,10 +152,10 @@ data PostTransactionData = PostTransactionData
     , passphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
 
-data ApiTransaction = Transaction
+data ApiTransaction = ApiTransaction
     { id :: !(ApiT (Hash "Tx"))
     , amount :: !(Quantity "lovelace" Natural)
-    , insertedAt :: !ApiBlockData
+    , insertedAt :: !(Maybe ApiBlockData)
     , depth :: !(Quantity "block" Natural)
     , direction :: !(ApiT Direction)
     , inputs :: !(NonEmpty ApiCoins)
@@ -331,7 +331,7 @@ instance FromJSON ApiCoins where
         if isValidCoin (Coin $ fromIntegral c)
             then return v
             else fail $
-                "invalid coin value: value has to be lower than"
+                "invalid coin value: value has to be lower than or equal to "
                 <> show (getCoin maxBound) <> " lovelace."
 
 instance ToJSON ApiCoins where

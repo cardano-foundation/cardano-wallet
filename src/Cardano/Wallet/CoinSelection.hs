@@ -73,7 +73,7 @@ data CoinSelection = CoinSelection
       -- ^ Picked outputs
     , change  :: [Coin]
       -- ^ Resulting changes
-    } deriving (Show, Eq)
+    } deriving (Generic, Show, Eq)
 
 -- NOTE
 -- We don't check for duplicates when combining selections because we assume
