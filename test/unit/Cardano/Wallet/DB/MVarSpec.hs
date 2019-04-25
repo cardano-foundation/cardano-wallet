@@ -96,6 +96,8 @@ spec = do
             (property prop_createListWallet)
         it "creating same wallet twice yields an error"
             (property prop_createWalletTwice)
+        it "removing the same wallet twice yields an error"
+            (property prop_removeWalletTwice)
 
     describe "put . read yields a result" $ do
         it "Checkpoint"
@@ -120,6 +122,14 @@ spec = do
             (property $ prop_isolation putWalletMeta readTxHistoryF readCheckpoint)
         it "Tx History vs Checkpoint & Wallet Metadata"
             (property $ prop_isolation putTxHistory readCheckpoint readWalletMeta)
+
+    describe "can't read after delete" $ do
+        it "Checkpoint"
+            (property $ prop_readAfterDelete readCheckpoint Nothing)
+        it "Wallet Metadata"
+            (property $ prop_readAfterDelete readWalletMeta Nothing)
+        it "Tx History"
+            (property $ prop_readAfterDelete readTxHistoryF (pure mempty))
 
     describe "sequential puts replace values in order" $ do
         it "Checkpoint"
@@ -218,6 +228,29 @@ prop_putBeforeInit putOp readOp empty (key@(PrimaryKey wid), a) =
                 fail "expected put operation to fail but it succeeded!"
             Left err ->
                 err `shouldBe` ErrNoSuchWallet wid
+        readOp db key `shouldReturn` empty
+
+-- | Can't read back data after delete
+prop_readAfterDelete
+    :: (Show (f a), Eq (f a), Applicative f)
+    => (  DBLayer IO DummyState
+       -> PrimaryKey WalletId
+       -> IO (f a)
+       ) -- ^ Read Operation
+    -> f a
+        -- ^ An 'empty' value for the 'Applicative' f
+    -> PrimaryKey WalletId
+    -> Property
+prop_readAfterDelete readOp empty key =
+    monadicIO (setup >>= prop)
+  where
+    setup = do
+        db <- liftIO newDBLayer
+        (cp, meta) <- pick arbitrary
+        liftIO $ unsafeRunExceptT $ createWallet db key cp meta
+        return db
+    prop db = liftIO $ do
+        unsafeRunExceptT $ removeWallet db key
         readOp db key `shouldReturn` empty
 
 -- | Modifying one resource leaves the other untouched
@@ -352,6 +385,22 @@ prop_createWalletTwice (key@(PrimaryKey wid), cp, meta) =
         let err = ErrWalletAlreadyExists wid
         runExceptT (createWallet db key cp meta) `shouldReturn` Right ()
         runExceptT (createWallet db key cp meta) `shouldReturn` Left err
+
+-- | Trying to create a same wallet twice should yield an error
+prop_removeWalletTwice
+    :: (PrimaryKey WalletId, Wallet DummyState, WalletMetadata)
+    -> Property
+prop_removeWalletTwice (key@(PrimaryKey wid), cp, meta) =
+    monadicIO (setup >>= prop)
+  where
+    setup = liftIO $ do
+        db <- newDBLayer
+        unsafeRunExceptT $ createWallet db key cp meta
+        return db
+    prop db = liftIO $ do
+        let err = ErrNoSuchWallet wid
+        runExceptT (removeWallet db key) `shouldReturn` Right ()
+        runExceptT (removeWallet db key) `shouldReturn` Left err
 
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
