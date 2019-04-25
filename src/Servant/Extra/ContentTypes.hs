@@ -12,7 +12,10 @@ module Servant.Extra.ContentTypes
     , Hash (..)
     , Packed
     , WithHash (..)
+    , Any
     ) where
+
+import Prelude
 
 import Cardano.Wallet.Binary.Packfile
     ( decodePackfile )
@@ -22,13 +25,14 @@ import Crypto.Hash.IO
     ( HashAlgorithm (..) )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertToBase )
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Encoding
     ( decodeUtf8 )
 import Network.HTTP.Media
-    ( (//) )
-import Prelude
+    ( (//), (/:) )
 import Servant.API
     ( Accept (..), MimeUnrender (..), ToHttpApiData (..) )
 
@@ -95,3 +99,13 @@ instance forall a b . MimeUnrender a b => MimeUnrender (Packed a) [b] where
         (Left . show)
         (traverse $ mimeUnrender (Proxy :: Proxy a) . BL.fromStrict)
         (decodePackfile bs)
+
+-- | Any media type
+data Any
+
+instance Accept Any where
+    contentTypes _ = ("*" // "*") :|
+        -- We also 'conveniently' accept JSON format
+        [ "application" // "json"
+        , "application" // "json" /: ("charset", "utf-8")
+        ]
