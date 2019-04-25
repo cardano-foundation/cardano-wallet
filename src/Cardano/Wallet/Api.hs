@@ -23,12 +23,13 @@ import Servant.API
     , Get
     , JSON
     , NoContent
-    , OctetStream
     , PostAccepted
     , Put
     , QueryParam
     , ReqBody
     )
+import Servant.Extra.ContentTypes
+    ( Any )
 
 type Api = Addresses :<|> Wallets :<|> Transactions
 
@@ -64,7 +65,7 @@ type Wallets =
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteWallet
 type DeleteWallet = "wallets"
     :> Capture "walletId" (ApiT WalletId)
-    :> DeleteNoContent '[OctetStream] NoContent
+    :> DeleteNoContent '[Any] NoContent
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getWallet
 type GetWallet = "wallets"
@@ -91,7 +92,7 @@ type PutWalletPassphrase = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "passphrase"
     :> ReqBody '[JSON] WalletPutPassphraseData
-    :> Put '[OctetStream] NoContent
+    :> Put '[Any] NoContent
 
 {-------------------------------------------------------------------------------
                                   Transactions
