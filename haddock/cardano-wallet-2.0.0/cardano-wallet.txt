@@ -1563,54 +1563,6 @@ instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.W
 instance Data.Text.Class.FromText a => Web.Internal.HttpApiData.FromHttpApiData (Cardano.Wallet.Api.Types.ApiT a)
 instance Data.Text.Class.ToText a => Web.Internal.HttpApiData.ToHttpApiData (Cardano.Wallet.Api.Types.ApiT a)
 
-module Cardano.Wallet.Api
-type Api = Addresses :<|> Wallets :<|> Transactions
-type Addresses = ListAddresses
-
--- | 
---   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/listAddresses</a>
-type ListAddresses = "wallets" :> Capture "walletId" (ApiT WalletId) :> QueryParam "state" (ApiT AddressState) :> Get '[JSON] [ApiAddress]
-type Wallets = DeleteWallet :<|> GetWallet :<|> ListWallets :<|> PostWallet :<|> PutWallet :<|> PutWalletPassphrase
-
--- | 
---   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteWallet</a>
-type DeleteWallet = "wallets" :> Capture "walletId" (ApiT WalletId) :> DeleteNoContent '[OctetStream] NoContent
-
--- | 
---   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/getWallet</a>
-type GetWallet = "wallets" :> Capture "walletId" (ApiT WalletId) :> Get '[JSON] ApiWallet
-
--- | 
---   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/listWallets</a>
-type ListWallets = "wallets" :> Get '[JSON] [ApiWallet]
-
--- | 
---   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/postWallet</a>
-type PostWallet = "wallets" :> ReqBody '[JSON] WalletPostData :> PostAccepted '[JSON] ApiWallet
-
--- | 
---   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/putWallet</a>
-type PutWallet = "wallets" :> Capture "walletId" (ApiT WalletId) :> ReqBody '[JSON] WalletPutData :> Put '[JSON] ApiWallet
-
--- | 
---   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/putWalletPassphrase</a>
-type PutWalletPassphrase = "wallets" :> Capture "walletId" (ApiT WalletId) :> "passphrase" :> ReqBody '[JSON] WalletPutPassphraseData :> Put '[OctetStream] NoContent
-type Transactions = CreateTransaction
-
--- | 
---   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransaction</a>
-type CreateTransaction = "wallets" :> Capture "walletId" (ApiT WalletId) :> "transactions" :> ReqBody '[JSON] PostTransactionData :> PostAccepted '[JSON] ApiTransaction
-
-
--- | API handlers and server using the underlying wallet layer to provide
---   endpoints reachable through HTTP.
-module Cardano.Wallet.Api.Server
-
--- | A Servant server for our wallet API
-server :: WalletLayer SeqState -> Server Api
-instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.DB.ErrNoSuchWallet
-instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.DB.ErrWalletAlreadyExists
-
 
 -- | Extra content types for Servant.
 module Servant.Extra.ContentTypes
@@ -1641,7 +1593,11 @@ data WithHash algorithm a
 WithHash :: Digest algorithm -> a -> WithHash algorithm a
 [getHash] :: WithHash algorithm a -> Digest algorithm
 [getValue] :: WithHash algorithm a -> a
+
+-- | Any media type
+data Any
 instance GHC.Show.Show a => GHC.Show.Show (Servant.Extra.ContentTypes.WithHash algorithm a)
+instance Servant.API.ContentTypes.Accept Servant.Extra.ContentTypes.Any
 instance Servant.API.ContentTypes.Accept a => Servant.API.ContentTypes.Accept (Servant.Extra.ContentTypes.Packed a)
 instance Servant.API.ContentTypes.MimeUnrender a b => Servant.API.ContentTypes.MimeUnrender (Servant.Extra.ContentTypes.Packed a) [b]
 instance (Servant.API.ContentTypes.MimeUnrender a b, Crypto.Hash.Types.HashAlgorithm alg) => Servant.API.ContentTypes.MimeUnrender (Servant.Extra.ContentTypes.ComputeHash alg a) (Servant.Extra.ContentTypes.WithHash alg b)
@@ -1702,3 +1658,51 @@ newNetworkLayer :: Text -> Int -> IO (NetworkLayer IO)
 
 -- | Construct a new network layer
 mkHttpBridge :: Manager -> BaseUrl -> NetworkName -> HttpBridge IO
+
+module Cardano.Wallet.Api
+type Api = Addresses :<|> Wallets :<|> Transactions
+type Addresses = ListAddresses
+
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/listAddresses</a>
+type ListAddresses = "wallets" :> Capture "walletId" (ApiT WalletId) :> QueryParam "state" (ApiT AddressState) :> Get '[JSON] [ApiAddress]
+type Wallets = DeleteWallet :<|> GetWallet :<|> ListWallets :<|> PostWallet :<|> PutWallet :<|> PutWalletPassphrase
+
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteWallet</a>
+type DeleteWallet = "wallets" :> Capture "walletId" (ApiT WalletId) :> DeleteNoContent '[Any] NoContent
+
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/getWallet</a>
+type GetWallet = "wallets" :> Capture "walletId" (ApiT WalletId) :> Get '[JSON] ApiWallet
+
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/listWallets</a>
+type ListWallets = "wallets" :> Get '[JSON] [ApiWallet]
+
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/postWallet</a>
+type PostWallet = "wallets" :> ReqBody '[JSON] WalletPostData :> PostAccepted '[JSON] ApiWallet
+
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/putWallet</a>
+type PutWallet = "wallets" :> Capture "walletId" (ApiT WalletId) :> ReqBody '[JSON] WalletPutData :> Put '[JSON] ApiWallet
+
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/putWalletPassphrase</a>
+type PutWalletPassphrase = "wallets" :> Capture "walletId" (ApiT WalletId) :> "passphrase" :> ReqBody '[JSON] WalletPutPassphraseData :> Put '[Any] NoContent
+type Transactions = CreateTransaction
+
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransaction</a>
+type CreateTransaction = "wallets" :> Capture "walletId" (ApiT WalletId) :> "transactions" :> ReqBody '[JSON] PostTransactionData :> PostAccepted '[JSON] ApiTransaction
+
+
+-- | API handlers and server using the underlying wallet layer to provide
+--   endpoints reachable through HTTP.
+module Cardano.Wallet.Api.Server
+
+-- | A Servant server for our wallet API
+server :: WalletLayer SeqState -> Server Api
+instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.DB.ErrNoSuchWallet
+instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.DB.ErrWalletAlreadyExists
