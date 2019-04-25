@@ -895,12 +895,16 @@ module Cardano.Wallet.DB
 --   serialize and unserialize it (e.g. <tt>forall s. (Serialize s) =&gt;
 --   ...</tt>)
 data DBLayer m s
-DBLayer :: (PrimaryKey WalletId -> Wallet s -> WalletMetadata -> ExceptT ErrWalletAlreadyExists m ()) -> m [PrimaryKey WalletId] -> (PrimaryKey WalletId -> Wallet s -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe (Wallet s))) -> (PrimaryKey WalletId -> WalletMetadata -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe WalletMetadata)) -> (PrimaryKey WalletId -> Map (Hash "Tx") (Tx, TxMeta) -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Map (Hash "Tx") (Tx, TxMeta))) -> (forall e a. () => ExceptT e m a -> ExceptT e m a) -> DBLayer m s
+DBLayer :: (PrimaryKey WalletId -> Wallet s -> WalletMetadata -> ExceptT ErrWalletAlreadyExists m ()) -> (PrimaryKey WalletId -> ExceptT ErrNoSuchWallet m ()) -> m [PrimaryKey WalletId] -> (PrimaryKey WalletId -> Wallet s -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe (Wallet s))) -> (PrimaryKey WalletId -> WalletMetadata -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe WalletMetadata)) -> (PrimaryKey WalletId -> Map (Hash "Tx") (Tx, TxMeta) -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Map (Hash "Tx") (Tx, TxMeta))) -> (forall e a. () => ExceptT e m a -> ExceptT e m a) -> DBLayer m s
 
 -- | Initialize a database entry for a given wallet. <a>putCheckpoint</a>,
 --   <a>putWalletMeta</a> or <a>putTxHistory</a> will actually all fail if
 --   they are called _first_ on a wallet.
 [createWallet] :: DBLayer m s -> PrimaryKey WalletId -> Wallet s -> WalletMetadata -> ExceptT ErrWalletAlreadyExists m ()
+
+-- | Remove a given wallet and all its associated data (checkpoints,
+--   metadata, tx history ...)
+[removeWallet] :: DBLayer m s -> PrimaryKey WalletId -> ExceptT ErrNoSuchWallet m ()
 
 -- | Get the list of all known wallets in the DB, possibly empty.
 [listWallets] :: DBLayer m s -> m [PrimaryKey WalletId]
@@ -1310,13 +1314,21 @@ instance GHC.Classes.Eq Cardano.Wallet.Primitive.Signing.SignTag
 --   to realize its role as being intermediary between the three.
 module Cardano.Wallet
 data WalletLayer s
-WalletLayer :: (NewWallet -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata)) -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> CoinSelection -> ExceptT ErrSignTx IO (Tx, [TxWitness])) -> ((Tx, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> WalletLayer s
+WalletLayer :: (NewWallet -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata)) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> CoinSelection -> ExceptT ErrSignTx IO (Tx, [TxWitness])) -> ((Tx, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> WalletLayer s
 
 -- | Initialise and store a new wallet, returning its ID.
 [$sel:createWallet:WalletLayer] :: WalletLayer s -> NewWallet -> ExceptT ErrWalletAlreadyExists IO WalletId
 
 -- | Retrieve the wallet state for the wallet with the given ID.
 [$sel:readWallet:WalletLayer] :: WalletLayer s -> WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata)
+
+-- | Retrieve a list of known wallets IDs.
+[$sel:listWallets:WalletLayer] :: WalletLayer s -> IO [WalletId]
+
+-- | Remove an existing wallet. Note that, there's no particular work to be
+--   done regarding the restoration worker as it will simply terminate on
+--   the next tick when noticing that the corresponding wallet is gone.
+[$sel:removeWallet:WalletLayer] :: WalletLayer s -> WalletId -> ExceptT ErrNoSuchWallet IO ()
 
 -- | Restore a wallet from its current tip up to a given target (typically,
 --   the network tip).
