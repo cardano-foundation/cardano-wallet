@@ -24,6 +24,9 @@ module Cardano.Wallet
     -- * Errors
     , ErrNoSuchWallet(..)
     , ErrWalletAlreadyExists(..)
+    , ErrSignTx(..)
+    , ErrSubmitTx(..)
+    , ErrCreateUnsignedTx(..)
 
     -- * Construction
     , mkWalletLayer
@@ -52,9 +55,11 @@ import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (RootK)
+    , ErrWrongPassphrase (..)
     , Key
     , Passphrase
     , XPrv
+    , checkPassphrase
     , deriveAccountPrivateKey
     , digest
     , encryptPassphrase
@@ -106,7 +111,7 @@ import Control.Monad.Fail
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT, runExceptT, throwE, withExceptT )
+    ( ExceptT (..), runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), maybeToExceptT )
 import Control.Monad.Trans.State
@@ -174,7 +179,7 @@ data WalletLayer s = WalletLayer
 
     , signTx
         :: WalletId
-        -> (Key 'RootK XPrv, Passphrase "encryption")
+        -> Passphrase "encryption"
         -> CoinSelection
         -> ExceptT ErrSignTx IO (Tx, [TxWitness])
         -- ^ Produce witnesses and construct a transaction from a given
@@ -209,8 +214,9 @@ data ErrCreateUnsignedTx
 
 -- | Errors occuring when signing a transaction
 data ErrSignTx
-    = ErrSignTxNoSuchWallet ErrNoSuchWallet
-    | ErrSignTx SignTxError
+    = ErrSignTx SignTxError
+    | ErrSignTxNoSuchWallet ErrNoSuchWallet
+    | ErrSignTxWrongPassphrase ErrWrongPassphrase
 
 -- | Errors occuring when submitting a signed transaction to the network
 data ErrSubmitTx = forall a. NetworkError a
@@ -288,7 +294,7 @@ mkWalletLayer db network = WalletLayer
         let signed = SignedTx $ toByteString $ encodeSignedTx (tx, witnesses)
         withExceptT NetworkError $ postTx network signed
 
-    , signTx = \wid creds (CoinSelection ins outs chgs) -> DB.withLock db $ do
+    , signTx = \wid pwd (CoinSelection ins outs chgs) -> DB.withLock db $ do
         (w, _) <- withExceptT ErrSignTxNoSuchWallet $ _readWallet wid
 
         let (changeOuts, s') = flip runState (getState w) $ forM chgs $ \c -> do
@@ -297,16 +303,16 @@ mkWalletLayer db network = WalletLayer
 
         allShuffledOuts <- liftIO $ shuffle (outs ++ changeOuts)
 
-        case mkStdTx (getState w) creds ins allShuffledOuts of
-            Right a -> do
-                -- Safe because we have a lock and we already fetched the wallet
-                -- within this context.
-                liftIO . unsafeRunExceptT $
-                    DB.putCheckpoint db (PrimaryKey wid) (updateState s' w)
-                return a
-
-            Left e ->
-                throwE $ ErrSignTx e
+        withRootKey wid pwd ErrSignTxWrongPassphrase $ \xprv -> do
+            case mkStdTx (getState w) (xprv, pwd) ins allShuffledOuts of
+                Right a -> do
+                    -- Safe because we have a lock and we already fetched the wallet
+                    -- within this context.
+                    liftIO . unsafeRunExceptT $
+                        DB.putCheckpoint db (PrimaryKey wid) (updateState s' w)
+                    return a
+                Left e ->
+                    throwE $ ErrSignTx e
     }
   where
     _readWallet
@@ -316,6 +322,22 @@ mkWalletLayer db network = WalletLayer
         cp <- MaybeT $ DB.readCheckpoint db (PrimaryKey wid)
         meta <- MaybeT $ DB.readWalletMeta db (PrimaryKey wid)
         return (cp, meta)
+
+    -- | Execute an action which requires holding a root XPrv
+    withRootKey
+        :: forall e a. ()
+        => WalletId
+        -> Passphrase "encryption"
+        -> (ErrWrongPassphrase -> e)
+        -> (Key 'RootK XPrv -> ExceptT e IO a)
+        -> ExceptT e IO a
+    withRootKey wid pwd embed action = do
+        xprv <- withExceptT embed $ do
+            (xprv, hpwd) <- liftIO $ DB.readPrivateKey db (PrimaryKey wid) >>= \case
+                Nothing -> unsafeRunExceptT $ throwE $ ErrNoSuchWallet wid
+                Just a  -> return a
+            ExceptT $ return ((\() -> xprv) <$> checkPassphrase pwd hpwd)
+        action xprv
 
     -- | Infinite restoration loop. We drain the whole available chain and try
     -- to catch up with the node. In case of error, we log it and wait a bit

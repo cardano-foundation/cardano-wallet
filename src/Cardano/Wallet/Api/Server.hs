@@ -16,7 +16,10 @@ module Cardano.Wallet.Api.Server
 import Prelude
 
 import Cardano.Wallet
-    ( ErrNoSuchWallet (..)
+    ( ErrCreateUnsignedTx (..)
+    , ErrNoSuchWallet (..)
+    , ErrSignTx (..)
+    , ErrSubmitTx (..)
     , ErrWalletAlreadyExists (..)
     , NewWallet (..)
     , WalletLayer
@@ -25,6 +28,7 @@ import Cardano.Wallet.Api
     ( Addresses, Api, Transactions, Wallets )
 import Cardano.Wallet.Api.Types
     ( ApiAddress (..)
+    , ApiCoins (..)
     , ApiT (..)
     , ApiTransaction
     , ApiWallet (..)
@@ -35,12 +39,14 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     , getApiMnemonicT
     )
+import Cardano.Wallet.CoinSelection
+    ( CoinSelectionOptions (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( SeqState (..), defaultAddressPoolGap )
 import Cardano.Wallet.Primitive.Model
     ( availableBalance, getState, totalBalance )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, WalletId )
+    ( AddressState, Coin (..), TxOut (..), WalletId )
 import Control.Monad.Catch
     ( throwM )
 import Control.Monad.IO.Class
@@ -54,7 +60,16 @@ import Data.Generics.Labels
 import Data.Quantity
     ( Quantity (..) )
 import Servant
-    ( (:<|>) (..), NoContent (..), Server, err404, err409, err501 )
+    ( (:<|>) (..)
+    , NoContent (..)
+    , Server
+    , err403
+    , err404
+    , err409
+    , err410
+    , err500
+    , err501
+    )
 import Servant.Server
     ( Handler (..), ServantErr (..) )
 
@@ -184,12 +199,22 @@ createTransaction
     -> ApiT WalletId
     -> PostTransactionData
     -> Handler ApiTransaction
-createTransaction _ _ _ =
-    throwM err501
-
+createTransaction w (ApiT wid) body = do
+    -- FIXME Compute the options based on the transaction's size / inputs
+    let opts = CoinSelectionOptions { maximumNumberOfInputs = 10 }
+    let outs = coerceCoin <$> (body ^. #targets)
+    let pwd = getApiT $ body ^. #passphrase
+    selection <- liftHandler $ W.createUnsignedTx w wid opts outs
+    signedTx <- liftHandler $ W.signTx w wid pwd selection
+    liftHandler $ W.submitTx w signedTx
+    return undefined
+  where
+    coerceCoin :: ApiCoins -> TxOut
+    coerceCoin (ApiCoins (ApiT addr) (Quantity c)) =
+        TxOut addr (Coin $ fromIntegral c)
 
 {-------------------------------------------------------------------------------
-                                    Handlers
+                                Error Handling
 -------------------------------------------------------------------------------}
 
 -- | Lift our wallet layer into servant 'Handler', by mapping each error to a
@@ -212,3 +237,17 @@ instance LiftHandler ErrNoSuchWallet where
 instance LiftHandler ErrWalletAlreadyExists where
     handler = \case
         ErrWalletAlreadyExists _ -> err409
+
+instance LiftHandler ErrCreateUnsignedTx where
+    handler = \case
+        ErrCreateUnsignedTxNoSuchWallet _ -> err404
+        ErrCreateUnsignedTxCoinSelection _ -> err403
+
+instance LiftHandler ErrSignTx where
+    handler = \case
+        ErrSignTx _ -> err500
+        ErrSignTxNoSuchWallet _ -> err410
+        ErrSignTxWrongPassphrase _ -> err403
+
+instance LiftHandler ErrSubmitTx where
+    handler _ = err500
