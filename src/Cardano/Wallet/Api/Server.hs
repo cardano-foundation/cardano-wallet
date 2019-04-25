@@ -19,7 +19,7 @@ import Cardano.Wallet
     ( ErrNoSuchWallet (..)
     , ErrWalletAlreadyExists (..)
     , NewWallet (..)
-    , WalletLayer (..)
+    , WalletLayer
     )
 import Cardano.Wallet.Api
     ( Addresses, Api, Transactions, Wallets )
@@ -43,6 +43,8 @@ import Cardano.Wallet.Primitive.Types
     ( AddressState, WalletId )
 import Control.Monad.Catch
     ( throwM )
+import Control.Monad.IO.Class
+    ( liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT, withExceptT )
 import Data.Generics.Internal.VL.Lens
@@ -52,9 +54,11 @@ import Data.Generics.Labels
 import Data.Quantity
     ( Quantity (..) )
 import Servant
-    ( (:<|>) (..), NoContent, Server, err404, err409, err501 )
+    ( (:<|>) (..), NoContent (..), Server, err404, err409, err501 )
 import Servant.Server
     ( Handler (..), ServantErr (..) )
+
+import qualified Cardano.Wallet as W
 
 
 -- | A Servant server for our wallet API
@@ -79,15 +83,16 @@ deleteWallet
     :: WalletLayer SeqState
     -> ApiT WalletId
     -> Handler NoContent
-deleteWallet _ _ =
-    throwM err501
+deleteWallet w (ApiT wid) = do
+    liftHandler $ W.removeWallet w wid
+    return NoContent
 
 getWallet
     :: WalletLayer SeqState
     -> ApiT WalletId
     -> Handler ApiWallet
 getWallet w (ApiT wid) = do
-    (wallet, meta) <- liftHandler $ readWallet w wid
+    (wallet, meta) <- liftHandler $ W.readWallet w wid
     return ApiWallet
         { id =
             ApiT wid
@@ -112,15 +117,16 @@ getWallet w (ApiT wid) = do
 listWallets
     :: WalletLayer SeqState
     -> Handler [ApiWallet]
-listWallets _ =
-    throwM err501
+listWallets w = do
+    wids <- liftIO $ W.listWallets w
+    mapM (getWallet w) (ApiT <$> wids)
 
 postWallet
     :: WalletLayer SeqState
     -> WalletPostData
     -> Handler ApiWallet
 postWallet w req = do
-    wid <- liftHandler $ createWallet w $ NewWallet
+    wid <- liftHandler $ W.createWallet w $ NewWallet
         { seed =
             getApiMnemonicT (req ^. #mnemonicSentence)
         , secondFactor =
@@ -132,7 +138,7 @@ postWallet w req = do
         , gap =
             maybe defaultAddressPoolGap getApiT (req ^.  #addressPoolGap)
         }
-    liftHandler $ restoreWallet w wid
+    liftHandler $ W.restoreWallet w wid
     getWallet w (ApiT wid)
 
 putWallet

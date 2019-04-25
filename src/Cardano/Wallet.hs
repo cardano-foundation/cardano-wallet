@@ -140,6 +140,17 @@ data WalletLayer s = WalletLayer
         -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata)
         -- ^ Retrieve the wallet state for the wallet with the given ID.
 
+    , listWallets
+        :: IO [WalletId]
+        -- ^ Retrieve a list of known wallets IDs.
+
+    , removeWallet
+        :: WalletId
+        -> ExceptT ErrNoSuchWallet IO ()
+        -- ^ Remove an existing wallet. Note that, there's no particular work to
+        -- be done regarding the restoration worker as it will simply terminate
+        -- on the next tick when noticing that the corresponding wallet is gone.
+
     , restoreWallet
         :: WalletId
         -> ExceptT ErrNoSuchWallet IO ()
@@ -244,6 +255,10 @@ mkWalletLayer db network = WalletLayer
         DB.createWallet db (PrimaryKey wid) checkpoint metadata $> wid
 
     , readWallet = _readWallet
+
+    , listWallets = fmap (\(PrimaryKey wid) -> wid) <$> DB.listWallets db
+
+    , removeWallet = DB.removeWallet db . PrimaryKey
 
     , restoreWallet = \wid -> do
         (w, _) <- _readWallet wid

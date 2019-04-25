@@ -43,6 +43,12 @@ data DBLayer m s = DBLayer
         -- 'putWalletMeta' or 'putTxHistory' will actually all fail if they are
         -- called _first_ on a wallet.
 
+    , removeWallet
+        :: PrimaryKey WalletId
+        -> ExceptT ErrNoSuchWallet m ()
+        -- ^ Remove a given wallet and all its associated data (checkpoints,
+        -- metadata, tx history ...)
+
     , listWallets
         :: m [PrimaryKey WalletId]
         -- ^ Get the list of all known wallets in the DB, possibly empty.

@@ -26,8 +26,6 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
     ( Hash, Tx, TxMeta, WalletId, WalletMetadata )
-import Control.Arrow
-    ( right )
 import Control.Concurrent.MVar
     ( MVar, modifyMVar, newMVar, readMVar, withMVar )
 import Control.DeepSeq
@@ -52,6 +50,7 @@ newDBLayer = do
     lock <- newMVar ()
     db <- newMVar (mempty :: Map (PrimaryKey WalletId) (Database s))
     return $ DBLayer
+
         {-----------------------------------------------------------------------
                                       Wallets
         -----------------------------------------------------------------------}
@@ -59,10 +58,18 @@ newDBLayer = do
         { createWallet = \key@(PrimaryKey wid) cp meta -> ExceptT $ do
             let alter = \case
                     Nothing ->
-                        Right $ Database cp meta mempty
+                        Right $ Just $ Database cp meta mempty
                     Just _ ->
                         Left (ErrWalletAlreadyExists wid)
             cp `deepseq` meta `deepseq` alterMVar db alter key
+
+        , removeWallet = \key@(PrimaryKey wid) -> ExceptT $ do
+            let alter = \case
+                    Nothing ->
+                        Left (ErrNoSuchWallet wid)
+                    Just _ ->
+                        Right Nothing
+            alterMVar db alter key
 
         , listWallets =
             Map.keys <$> readMVar db
@@ -76,7 +83,7 @@ newDBLayer = do
                     Nothing ->
                         Left (ErrNoSuchWallet wid)
                     Just (Database _ meta history) ->
-                        Right $ Database cp meta history
+                        Right $ Just $ Database cp meta history
             cp `deepseq` alterMVar db alter key
 
         , readCheckpoint = \key ->
@@ -91,7 +98,7 @@ newDBLayer = do
                     Nothing ->
                         Left (ErrNoSuchWallet wid)
                     Just (Database cp _ history) ->
-                        Right $ Database cp meta history
+                        Right $ Just $ Database cp meta history
             meta `deepseq` alterMVar db alter key
 
         , readWalletMeta = \key -> do
@@ -106,7 +113,7 @@ newDBLayer = do
                     Nothing ->
                         Left (ErrNoSuchWallet wid)
                     Just (Database cp meta txs) ->
-                        Right $ Database cp meta (txs' <> txs)
+                        Right $ Just $ Database cp meta (txs' <> txs)
             txs' `deepseq` alterMVar db alter key
 
         , readTxHistory = \key ->
@@ -129,15 +136,14 @@ newDBLayer = do
 alterMVar
     :: Ord k
     => MVar (Map k v) -- MVar holding our mock database
-    -> (Maybe v -> Either err v) -- An alteration function
+    -> (Maybe v -> Either err (Maybe v)) -- An alteration function
     -> k -- Key to alter
     -> IO (Either err ())
 alterMVar db alter key =
-    modifyMVar db (\m -> bubble m $ Map.alterF ((right Just) . alter) key m)
+    modifyMVar db (\m -> bubble m $ Map.alterF alter key m)
   where
     -- | Re-wrap an error into an MVar result so that it will bubble up
     bubble :: Monad m => a -> Either err a -> m (a, Either err ())
     bubble a = \case
         Left err -> return (a, Left err)
         Right a' -> return (a', Right ())
-
