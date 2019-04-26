@@ -21,6 +21,8 @@ module Cardano.Wallet.CoinSelection.Fee
     , FeeOptions (..)
     , FeeError(..)
     , TxSizeLinear (..)
+    , AddressScheme (..)
+    , Network (..)
     , adjustForFees
     , cardanoPolicy
     , estimateCardanoFee
@@ -358,6 +360,12 @@ data TxSizeLinear =
     TxSizeLinear (Quantity "lovelace" Double) (Quantity "lovelace/byte" Double)
     deriving (Eq, Show)
 
+data AddressScheme = Sequential | Random
+    deriving (Eq, Show)
+
+data Network = Mainnet | Testnet
+    deriving (Eq, Show)
+
 cardanoPolicy :: TxSizeLinear
 cardanoPolicy = TxSizeLinear (Quantity 155381) (Quantity 43.946)
 
@@ -368,56 +376,106 @@ cardanoPolicy = TxSizeLinear (Quantity 155381) (Quantity 43.946)
 --       the transaction attributes @Attributes ()@ are both hard-coded
 estimateCardanoFee
     :: TxSizeLinear
+    -> AddressScheme
+    -> Network
     -> CoinSelection
     -> Fee
-estimateCardanoFee (TxSizeLinear (Quantity a) (Quantity b)) (CoinSelection inps outs _) =
+estimateCardanoFee (TxSizeLinear (Quantity a) (Quantity b)) scheme net (CoinSelection inps outs chngs) =
     Fee $ ceiling (a + b*totalPayload)
     where
 
-        -- The size of TxIn is always the same as it contains the hash and index
-        -- see Cardano.Wallet.Binary (encodeTxIn)
+        --input     ---------------------------------- 42-43
+        --  | list len 2                  -- 1
+        --  | word8                       -- 1
+        --  | tag 24                      -- 2
+        --  | bytes ------------------------ 2 + 36
+        --  |   | list len 2  -- 1
+        --  |   | bytes       -- 2 + 32
+        --  |   | word32      -- 1-2
         sizeOfTxIn :: Int
-        sizeOfTxIn = 42
+        sizeOfTxIn =
+            if (length inps < 24) then 42
+            else 43
 
-        -- The size of TxOut depends only on the coin value
-        -- see Cardano.Wallet.Binary (encodeTxOut)
+        -- For sequential scheme
+        -- output    ---------------------------------- 48-56 (mainnet) & 56-63 (testnet)
+        --  | list len 2                  -- 1
+        --  | sizeOf(address)             -- 46-54
+        --  | word64                      -- 1-8
+
+        -- address   ---------------------------------- 46 (mainnet) & 54 (testnet)
+        --  | list len 2                  -- 1
+        --  | tag 24                      -- 2
+        --  | bytes          --------------- 2 + 37-45
+        --  |   | list len 3 -- 1
+        --  |   | bytes      -- 2 + 32
+        --  |   | attributes -- 1-8
+        --  |   | word8      -- 1
+        --  | word32                      -- 1-4
+
+        -- For random scheme
+        -- output    ---------------------------------- 69-77 (mainnet) & 77-85 (testnet)
+        --  | list len 2                  -- 1
+        --  | sizeOf(address)             -- 67-75
+        --  | word64                      -- 1-8
+
+        -- address   ---------------------------------- 67 (mainnet) & 75 (testnet)
+        --  | list len 2                  -- 1
+        --  | tag 24                      -- 2
+        --  | bytes          --------------- 2 + 48-56
+        --  |   | list len 3 -- 1
+        --  |   | bytes      -- 2 + 32
+        --  |   | attributes -- 12-19
+        --  |   | word8      -- 1
+        --  | word32                      -- 1-4
         sizeOfTxOut :: Word64 -> Int
         sizeOfTxOut =
-            (+77) . fromIntegral . BL.length . toLazyByteString . encodeWord64
+            let toAdd = case (scheme, net) of
+                    (Sequential, Mainnet) -> 48
+                    (Sequential, Testnet) -> 56
+                    (Random, Mainnet) -> 69
+                    (Random, Testnet) -> 77
+            in (+ toAdd) . fromIntegral . BL.length . toLazyByteString . encodeWord64
 
-        -- additional imprint that contains 6 one-byte elements:
-        -- CBOR.encodeListLen 3
-        -- CBOR.encodeListLenIndef
-        -- CBOR.encodeBreak
-        -- CBOR.encodeListLenIndef
-        -- CBOR.encodeBreak
-        -- encodeTxAttributes
-        -- see Cardano.Wallet.Binary (encodeTx)
-        sizeOfTxCbor :: Int
-        sizeOfTxCbor = 6
-
-        -- The size of [[TxIn], [TxWitness]]
+        -- tx    ---------------------------------- 6 + (n * 42) + Σ sizeOf(output)
+        --  | list len 3                  -- 1
+        --  | begin                       -- 1
+        --  | n * sizeOf(input)           -- n * 42
+        --  | break                       -- 1
+        --  | begin                       -- 1
+        --  | Σ sizeOf(output)            --  Σ sizeOf(output)
+        --  | break                       -- 1
+        --  | empty attributes            -- 1
         sizeOfTx :: Int
         sizeOfTx =
             let n = length inps
-                coins = map (getCoin . coin) outs
-            in sizeOfTxCbor + n*sizeOfTxIn + sum (map sizeOfTxOut coins)
+                coinOuts = map (getCoin . coin) outs
+                coinChns = map getCoin chngs
+                coins = coinOuts ++ coinChns
+                cborOverhead = 6
+            in cborOverhead + n*sizeOfTxIn + sum (map sizeOfTxOut coins)
 
-        -- The size of TxWitness is always the same as it contains data constructor and hash
-        -- see Cardano.Wallet.Binary (encodeTxWitness)
+        -- witness   ---------------------------------- 139
+        --  | list len 2                  -- 1
+        --  | word8                       -- 1
+        --  | tag 24                      -- 2
+        --  | bytes          --------------- 2 + 133
+        --  |   | list len 2 -- 1
+        --  |   | bytes      -- 2+64
+        --  |   | bytes      -- 2+64
         sizeOfTxWitness :: Int
         sizeOfTxWitness = 139
 
-        sizeOfListLen :: Int
-        sizeOfListLen = 1
 
-        -- The size of [TxWitness]
-        sizeOfTxWitnesses :: Int
-        sizeOfTxWitnesses =
-            let n = length inps
-            in sizeOfListLen + n*sizeOfTxWitness
-
+        -- With `n` the number of inputs
+        -- signed tx ----------------------------------- 9 + n * 42 + n * 139 + Σ sizeOf(output)
+        --  | list len 2              -- 1
+        --  | sizeOf(tx)              -- 6 + (n * 42) + sizeOf(output)
+        --  | list len n              -- 1-2
+        --  | n * sizeOf(witness)     -- n * 139
         totalPayload :: Double
         totalPayload =
-            fromIntegral $
-               sizeOfListLen + sizeOfTx + sizeOfTxWitnesses
+            let n = length inps
+                cborOverhead = if n < 24 then 2 else 3
+            in fromIntegral $
+               cborOverhead + sizeOfTx + n*sizeOfTxWitness

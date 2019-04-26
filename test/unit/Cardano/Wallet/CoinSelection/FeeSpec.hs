@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.CoinSelection.FeeSpec
@@ -15,9 +16,11 @@ import Cardano.Wallet.Binary
 import Cardano.Wallet.CoinSelection
     ( CoinSelection (..), CoinSelectionOptions (..) )
 import Cardano.Wallet.CoinSelection.Fee
-    ( Fee (..)
+    ( AddressScheme (..)
+    , Fee (..)
     , FeeError (..)
     , FeeOptions (..)
+    , Network (..)
     , TxSizeLinear (..)
     , adjustForFees
     , cardanoPolicy
@@ -48,18 +51,16 @@ import Crypto.Random
     ( SystemDRG, getSystemDRG )
 import Crypto.Random.Types
     ( withDRG )
-import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase )
-import Data.ByteString
-    ( ByteString )
-import Data.ByteString.Base58
-    ( bitcoinAlphabet, decodeBase58 )
 import Data.Either
     ( isRight )
 import Data.Functor.Identity
     ( Identity (runIdentity) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text
+    ( Text )
+import Data.Text.Class
+    ( TextDecodingError (..), fromText )
 import Data.Word
     ( Word64 )
 import Fmt
@@ -269,181 +270,322 @@ spec = do
         feeEstimationUnitTest (FeeCase
             { csInputs = [200000]
             , csOutputs = [1]
-            , expectedFee = 167115
+            , csChanges = [1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 170543
+            })
+
+        feeEstimationUnitTest (FeeCase
+            { csInputs = [200000]
+            , csOutputs = [1]
+            , csChanges = [1]
+            , csNetwork = Testnet
+            , csAddressScheme = Sequential
+            , expectedFee = 168697
+            })
+
+        feeEstimationUnitTest (FeeCase
+            { csInputs = [200000]
+            , csOutputs = [1]
+            , csChanges = [1]
+            , csNetwork = Mainnet
+            , csAddressScheme = Random
+            , expectedFee = 169840
+            })
+
+        feeEstimationUnitTest (FeeCase
+            { csInputs = [200000]
+            , csOutputs = [1]
+            , csChanges = [1]
+            , csNetwork = Testnet
+            , csAddressScheme = Sequential
+            , expectedFee = 168697
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [200000]
             , csOutputs = [23]
-            , expectedFee = 167115
+            , csChanges = [1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 170543
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [200000]
             , csOutputs = [24]
-            , expectedFee = 167159
+            , csChanges = [1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 170587
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [200000]
             , csOutputs = [255]
-            , expectedFee = 167159
+            , csChanges = [1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 170587
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [200000]
             , csOutputs = [256]
-            , expectedFee = 167203
+            , csChanges = [1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 170631
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [200000]
             , csOutputs = [65535]
-            , expectedFee = 167203
+            , csChanges = [1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 170631
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [200000]
             , csOutputs = [65536]
-            , expectedFee = 167291
+            , csChanges = [1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 170719
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [500000,500000]
             , csOutputs = [750000]
-            , expectedFee = 175245
+            , csChanges = [1,1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 182101
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [330000,330000,330000]
             , csOutputs = [750000]
-            , expectedFee = 183199
+            , csChanges = [1,1,1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 193483
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [250000,250000,250000,250000]
             , csOutputs = [750000]
-            , expectedFee = 191154
+            , csChanges = [1,1,1,1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 204865
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [200000,200000,200000,200000,200000]
             , csOutputs = [750000]
-            , expectedFee = 199108
+            , csChanges = [1,1,1,1,1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 216247
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [185000,185000,185000,185000,185000,185000]
             , csOutputs = [750000]
-            , expectedFee = 207062
+            , csChanges = [1,1,1,1,1,1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 227629
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [142000,142000,142000,142000,142000,142000,142000]
             , csOutputs = [750000]
-            , expectedFee = 215016
+            , csChanges = [1,1,1,1,1,1,1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 239011
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [125000,125000,125000,125000,125000,125000,125000,125000]
             , csOutputs = [750000]
-            , expectedFee = 222970
+            , csChanges = [1,1,1,1,1,1,1,1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 250393
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [250000,250000]
             , csOutputs = [100000,23]
-            , expectedFee = 178673
+            , csChanges = [1,1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 185528
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [250000,250000]
             , csOutputs = [100000,24]
-            , expectedFee = 178717
+            , csChanges = [1,1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 185572
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [250000,250000]
             , csOutputs = [100000,256]
-            , expectedFee = 178761
+            , csChanges = [1,1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 185616
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [250000,250000]
             , csOutputs = [100000,65536]
-            , expectedFee = 178849
+            , csChanges = [1,1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 185704
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [120000,120000,120000]
             , csOutputs = [100000,23]
-            , expectedFee = 186627
+            , csChanges = [1,1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 193483
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [120000,120000,120000]
             , csOutputs = [100000,24]
-            , expectedFee = 186671
+            , csChanges = [1,1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 193527
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [120000,120000,120000]
             , csOutputs = [100000,256]
-            , expectedFee = 186715
+            , csChanges = [1,1,1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 196998
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [120000,120000,120000]
             , csOutputs = [100000,65536]
-            , expectedFee = 186803
+            , csChanges = [1,1,1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 197086
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [100000,100000,100000]
             , csOutputs = [1,1,1]
-            , expectedFee = 189879
+            , csChanges = [1,1,1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 200162
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [60000,60000,60000,60000]
             , csOutputs = [1,1,1]
-            , expectedFee = 197833
+            , csChanges = [1,1,1,1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 211544
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [50000,50000,50000,50000,50000]
             , csOutputs = [1,1,1]
-            , expectedFee = 205788
+            , csChanges = [1,1,1,1,1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 222927
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [100000,100000,100000]
             , csOutputs = [24,1,1]
-            , expectedFee = 189923
+            , csChanges = [1,1,1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 200206
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [100000,100000,100000]
             , csOutputs = [24,24,1]
-            , expectedFee = 189967
+            , csChanges = [1,1,1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 200250
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [100000,100000,100000]
             , csOutputs = [24,256,1]
-            , expectedFee = 190011
+            , csChanges = [1,1,1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 200294
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [100000,100000,100000]
             , csOutputs = [24,256,256]
-            , expectedFee = 190099
+            , csChanges = [1,1,1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 200382
             })
 
         feeEstimationUnitTest (FeeCase
             { csInputs = [100000,100000,100000]
             , csOutputs = [65536,256,256]
-            , expectedFee = 190231
+            , csChanges = [1,1,1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 200514
+            })
+
+        -- 23 inps => 23*42 = 966
+        -- 1+1 outs+chngs => 78*2 = 156
+        -- totalOutSize = 6 + 966 + 156 =  1128
+        feeEstimationUnitTest (FeeCase
+            { csInputs = [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            , csOutputs = [1]
+            , csChanges = [1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 345536
+            })
+
+        -- 24 inps => 24*43 = 1032
+        -- 1+1 outs+chngs => 78*2 = 156
+        -- totalOutSize = 7 + 1032 + 156 =  1195
+        feeEstimationUnitTest (FeeCase
+            { csInputs = [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            , csOutputs = [1]
+            , csChanges = [1]
+            , csNetwork = Testnet
+            , csAddressScheme = Random
+            , expectedFee = 354589
             })
 
 
@@ -535,27 +677,31 @@ propFeeEstimation
     -> Property
 propFeeEstimation (FeeProp (CoinSelProp utxo txOuts) _ _) = do
     isRight selection ==> let Right s = selection in prop s
-  where
-    prop coinSel@(CoinSelection inps outs _) = do
-        let (Fee estFee) = estimateCardanoFee cardanoPolicy coinSel
+    where
+    prop coinSel@(CoinSelection inps outs chngs) = do
+        let (Fee estFee) = estimateCardanoFee cardanoPolicy Random Testnet coinSel
 
         -- | Make a Hash from a Base16 encoded string, without error handling.
-        let hash16 :: ByteString -> Hash a
-            hash16 = either bomb Hash . convertFromBase Base16
-                where
-                    bomb msg = error ("Could not decode test string: " <> msg)
+        let hash16 :: Text -> Hash "Tx"
+            hash16 txt = case fromText @(Hash "Tx") txt of
+                Left (TextDecodingError err) ->
+                    error ("Could not decode test string: " <> err)
+                Right res -> res
 
         -- | Make an Address from a Base58 encoded string, without error handling.
-        let addr58 :: ByteString -> Address
-            addr58 = maybe (error "addr58: Could not decode") Address
-                . decodeBase58 bitcoinAlphabet
+        let addr58 :: Text -> Address
+            addr58 txt = case fromText @Address txt of
+                Left (TextDecodingError err) ->
+                    error ("addr58: Could not decode because " <> err)
+                Right res -> res
 
         let inputId0 = hash16 "60dbb2679ee920540c18195a3d92ee9be50aee6ed5f891d92d51db8a76b02cd2"
         let address0 = addr58 "DdzFFzCqrhsug8jKBMV5Cr94hKY4DrbJtkUpqptoGEkovR2QSkcA\
                               \cRgjnUyegE689qBX6b2kyxyNvCL6mfqiarzRB9TRq8zwJphR31pr"
         let pkWitness = "\130X@\226E\220\252\DLE\170\216\210\164\155\182mm$ePG\252\186\195\225_\b=\v\241=\255 \208\147[\239\RS\170|\214\202\247\169\229\205\187O_)\221\175\155?e\198\248\170\157-K\155\169z\144\174\ENQhX@\193\151*,\NULz\205\234\&1tL@\211\&2\165\129S\STXP\164C\176 Xvf\160|;\CANs{\SYN\204<N\207\154\130\225\229\t\172mbC\139\US\159\246\168x\163Mq\248\145)\160|\139\207-\SI"
         let txIns = zipWith TxIn (replicate (length inps) inputId0) [0..]
-        let txOuts' = zipWith TxOut (replicate (length outs) address0) (map coin outs)
+        let coins = map coin outs ++ chngs
+        let txOuts' = zipWith TxOut (replicate (length coins) address0) coins
         let tx = Tx txIns txOuts'
         let calculatedSize = BL.length $ toLazyByteString $ encodeSignedTx (tx, replicate (length inps) (PublicKeyWitness pkWitness))
         let (TxSizeLinear (Quantity a) (Quantity b)) = cardanoPolicy
@@ -574,22 +720,29 @@ propFeeEstimation (FeeProp (CoinSelProp utxo txOuts) _ _) = do
 feeEstimationUnitTest
     :: FeeCase
     -> SpecWith ()
-feeEstimationUnitTest (FeeCase inps' outs' expected) = it title $ do
+feeEstimationUnitTest (FeeCase inps' outs' chngs' net scheme expected) = it title $ do
     inps <- (Map.toList . getUTxO) <$> generate (genUTxO inps')
-    outs <- generate (genTxOut outs')
+    outs <- generate (genTxOut (outs' ++ chngs'))
     let coinSel = CoinSelection inps outs []
-    let (Fee estFee) = estimateCardanoFee cardanoPolicy coinSel
+    let (Fee estFee) = estimateCardanoFee cardanoPolicy scheme net coinSel
     estFee `shouldBe` expected
         where
     title :: String
     title = mempty
         <> "FeeCase (inps=" <> show inps'
         <> " outs=" <> show outs'
+        <> " outs=" <> show outs'
+        <> " chngs=" <> show chngs'
+        <> " address scheme=" <> show scheme
+        <> " " <> show net
         <> ") --> " <> show expected
 
 data FeeCase = FeeCase
     { csInputs :: [Word64]
     , csOutputs :: [Word64]
+    , csChanges :: [Word64]
+    , csNetwork :: Network
+    , csAddressScheme :: AddressScheme
     , expectedFee :: Word64
     } deriving (Show, Generic)
 
