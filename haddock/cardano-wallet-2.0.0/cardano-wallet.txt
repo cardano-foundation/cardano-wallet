@@ -1167,6 +1167,9 @@ SeqState :: !AddressPool  'InternalChain -> !AddressPool  'ExternalChain -> !Pen
 --   transactions. The list is maintained sorted in descending order (cf:
 --   <a>PendingIxs</a>)
 [pendingChangeIxs] :: SeqState -> !PendingIxs
+
+-- | Construct a Sequential state for a wallet.
+mkSeqState :: (Key  'RootK XPrv, Passphrase "encryption") -> AddressPoolGap -> SeqState
 class AddressScheme s
 keyFrom :: AddressScheme s => Address -> (Key  'RootK XPrv, Passphrase "encryption") -> s -> Maybe (Key  'AddressK XPrv)
 nextChangeAddress :: AddressScheme s => s -> (Address, s)
@@ -1224,12 +1227,12 @@ module Cardano.Wallet.DB
 --   serialize and unserialize it (e.g. <tt>forall s. (Serialize s) =&gt;
 --   ...</tt>)
 data DBLayer m s
-DBLayer :: (PrimaryKey WalletId -> Wallet s -> WalletMetadata -> (Key  'RootK XPrv, Hash "encryption") -> ExceptT ErrWalletAlreadyExists m ()) -> (PrimaryKey WalletId -> ExceptT ErrNoSuchWallet m ()) -> m [PrimaryKey WalletId] -> (PrimaryKey WalletId -> Wallet s -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe (Wallet s))) -> (PrimaryKey WalletId -> WalletMetadata -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe WalletMetadata)) -> (PrimaryKey WalletId -> Map (Hash "Tx") (Tx, TxMeta) -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Map (Hash "Tx") (Tx, TxMeta))) -> (PrimaryKey WalletId -> m (Maybe (Key  'RootK XPrv, Hash "encryption"))) -> (forall e a. () => ExceptT e m a -> ExceptT e m a) -> DBLayer m s
+DBLayer :: (PrimaryKey WalletId -> Wallet s -> WalletMetadata -> ExceptT ErrWalletAlreadyExists m ()) -> (PrimaryKey WalletId -> ExceptT ErrNoSuchWallet m ()) -> m [PrimaryKey WalletId] -> (PrimaryKey WalletId -> Wallet s -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe (Wallet s))) -> (PrimaryKey WalletId -> WalletMetadata -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe WalletMetadata)) -> (PrimaryKey WalletId -> Map (Hash "Tx") (Tx, TxMeta) -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Map (Hash "Tx") (Tx, TxMeta))) -> (PrimaryKey WalletId -> (Key  'RootK XPrv, Hash "encryption") -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe (Key  'RootK XPrv, Hash "encryption"))) -> (forall e a. () => ExceptT e m a -> ExceptT e m a) -> DBLayer m s
 
 -- | Initialize a database entry for a given wallet. <a>putCheckpoint</a>,
 --   <a>putWalletMeta</a> or <a>putTxHistory</a> will actually all fail if
 --   they are called _first_ on a wallet.
-[createWallet] :: DBLayer m s -> PrimaryKey WalletId -> Wallet s -> WalletMetadata -> (Key  'RootK XPrv, Hash "encryption") -> ExceptT ErrWalletAlreadyExists m ()
+[createWallet] :: DBLayer m s -> PrimaryKey WalletId -> Wallet s -> WalletMetadata -> ExceptT ErrWalletAlreadyExists m ()
 
 -- | Remove a given wallet and all its associated data (checkpoints,
 --   metadata, tx history ...)
@@ -1272,6 +1275,12 @@ DBLayer :: (PrimaryKey WalletId -> Wallet s -> WalletMetadata -> (Key  'RootK XP
 --   
 --   Returns an empty map if the wallet isn't found.
 [readTxHistory] :: DBLayer m s -> PrimaryKey WalletId -> m (Map (Hash "Tx") (Tx, TxMeta))
+
+-- | Store or replace a private key for a given wallet. Note that wallet
+--   _could_ be stored and manipulated without any private key associated
+--   to it. A private key is only seldomly required for very specific
+--   operations (like transaction signing).
+[putPrivateKey] :: DBLayer m s -> PrimaryKey WalletId -> (Key  'RootK XPrv, Hash "encryption") -> ExceptT ErrNoSuchWallet m ()
 
 -- | Read a previously stored private key and its associated passphrase
 --   hash.
@@ -1320,10 +1329,10 @@ newDBLayer :: forall s. IO (DBLayer IO s)
 --   to realize its role as being intermediary between the three.
 module Cardano.Wallet
 data WalletLayer s
-WalletLayer :: (NewWallet -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata)) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection) -> (WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx, TxMeta, [TxWitness])) -> (WalletId -> (Tx, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> WalletLayer s
+WalletLayer :: (WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata)) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection) -> (WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx, TxMeta, [TxWitness])) -> (WalletId -> (Tx, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()) -> WalletLayer s
 
--- | Initialise and store a new wallet, returning its ID.
-[$sel:createWallet:WalletLayer] :: WalletLayer s -> NewWallet -> ExceptT ErrWalletAlreadyExists IO WalletId
+-- | Initialise and store a new wallet, returning its Id.
+[$sel:createWallet:WalletLayer] :: WalletLayer s -> WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId
 
 -- | Retrieve the wallet state for the wallet with the given ID.
 [$sel:readWallet:WalletLayer] :: WalletLayer s -> WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata)
@@ -1359,13 +1368,11 @@ WalletLayer :: (NewWallet -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (Wal
 
 -- | Broadcast a (signed) transaction to the network.
 [$sel:submitTx:WalletLayer] :: WalletLayer s -> WalletId -> (Tx, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()
-data NewWallet
-NewWallet :: !Passphrase "seed" -> !Passphrase "generation" -> !WalletName -> !Passphrase "encryption" -> !AddressPoolGap -> NewWallet
-[$sel:seed:NewWallet] :: NewWallet -> !Passphrase "seed"
-[$sel:secondFactor:NewWallet] :: NewWallet -> !Passphrase "generation"
-[$sel:name:NewWallet] :: NewWallet -> !WalletName
-[$sel:passphrase:NewWallet] :: NewWallet -> !Passphrase "encryption"
-[$sel:gap:NewWallet] :: NewWallet -> !AddressPoolGap
+
+-- | Attach a given private key to a wallet. The private key is necessary
+--   for some operations like signing transactions or, generating new
+--   accounts.
+[$sel:attachPrivateKey:WalletLayer] :: WalletLayer s -> WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()
 
 -- | Can't perform given operation because there's no wallet
 newtype ErrNoSuchWallet
@@ -1392,14 +1399,12 @@ ErrCreateUnsignedTxNoSuchWallet :: ErrNoSuchWallet -> ErrCreateUnsignedTx
 ErrCreateUnsignedTxCoinSelection :: CoinSelectionError -> ErrCreateUnsignedTx
 
 -- | Create a new instance of the wallet layer.
-mkWalletLayer :: DBLayer IO SeqState -> NetworkLayer IO -> WalletLayer SeqState
+mkWalletLayer :: forall s. (IsOurs s, AddressScheme s, NFData s, Show s) => DBLayer IO s -> NetworkLayer IO -> WalletLayer s
 
 -- | Run an ExcepT and throws the error if any. This makes sense only if
 --   called after checking for an invariant or, after ensuring that
 --   preconditions for meeting the underlying error have been discarded.
 unsafeRunExceptT :: (MonadFail m, Show e) => ExceptT e m a -> m a
-instance GHC.Generics.Generic Cardano.Wallet.NewWallet
-instance GHC.Show.Show Cardano.Wallet.NewWallet
 
 
 -- | API type representations of various types. We define here pretty much
