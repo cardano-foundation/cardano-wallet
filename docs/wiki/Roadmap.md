@@ -8,6 +8,12 @@
 
 ### :heavy_check_mark: [Wallet Layer Integration (against `cardano-http-bridge`)](https://github.com/input-output-hk/cardano-wallet/milestone/5)
 
+### :heavy_check_mark: [Restore Historical Data](https://github.com/input-output-hk/cardano-wallet/milestone/7)
+
+### :heavy_check_mark: [Benchmarking & Nightly Builds](https://github.com/input-output-hk/cardano-wallet/milestone/7)
+
+### :heavy_check_mark: [Fee Calculation](https://github.com/input-output-hk/cardano-wallet/milestone/6)
+
 ### :hammer: [Transaction creation, submission & Coin Selection](https://github.com/input-output-hk/cardano-wallet/milestone/6)
 
 ### :hammer: [Initial Wallet Backend Server & Corresponding CLI](https://github.com/input-output-hk/cardano-wallet/milestone/7)
@@ -21,15 +27,6 @@
 _items below are more-or-less prioritized_ 
 
 ---
-
-### Restore Historical Data
-
-- Consider making this the "only" behavior of the wallet (instead of distinguishing between creation vs restoration)
-- Restore from a list of mnemonic + recovery passphrase
-- Focus on linear scanning of the blockchain, leave out optimization related to sequential derivation
-- Non-interruptible process
-- Aim at less than 5 minutes restoration time against mainnet
-
 
 ### List Available Addresses
 
@@ -51,17 +48,7 @@ _items below are more-or-less prioritized_
 - Add debug, info and error logging at appropriate points in program,
   remove `putStrLn`.
 - Add time observations of various important actions. For example: node backend calls, database queries, wallet restore, block application.
-- Add space observations of important objects. For example: database size (records), UTxO distribution, number of addresses, number of transactions.
-
-
-### Benchmarking (space & time)
-
-- Find a way of running a wallet in a unit test with generated data (e.g. transactions).
-- Make data generators which set up transactions for wallets of various sizes.
-- Use the [weigh package](https://www.fpcomplete.com/blog/2016/05/weigh-package) to measure various test cases.
-- Examples of test cases would be: receiving blocks from backend, wallet restoration, listing transactions.
-- Make sure benchmarks are run in CI, at least nightly.
-
+- Add space observations of important objects. For example: database size (records), UTxO distribution, number of addresses, number of transactions
 
 ### Random Derivation Support
 
@@ -91,12 +78,6 @@ _items below are more-or-less prioritized_
 - Craft transaction using a staking key to register to a pool
 - Check Pool Status and sanity check to prevent user from making mistakes
 - Make Sure The Staking Status is available in the wallet representation
-
-
-### Estimate Transactions' Fee
-
-- Should be very similar to transaction submission in essence: coin selection,
-  adjust to cover for minimal fee, return actual estimated fee.
 
 
 ### Make Protocol Settings Available
