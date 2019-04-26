@@ -10,17 +10,22 @@ import Cardano.CLI
 import Cardano.Launcher
     ( Command (Command), StdStream (..), installSignalHandlers, launch )
 import Cardano.Wallet
-    ( NewWallet (..), WalletLayer (..), mkWalletLayer, unsafeRunExceptT )
+    ( WalletLayer (..), mkWalletLayer, unsafeRunExceptT )
 import Cardano.Wallet.Network
     ( NetworkLayer (..), networkTip )
 import Cardano.Wallet.Network.HttpBridge
     ( newNetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Passphrase (..) )
+    ( Passphrase (..), digest, generateKeyFromSeed, publicKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( SeqState, mkAddressPoolGap )
+    ( AddressScheme (..), SeqState, defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.Types
-    ( SlotId (..), WalletId, WalletName (..), WalletState (..) )
+    ( IsOurs (..)
+    , SlotId (..)
+    , WalletId (..)
+    , WalletName (..)
+    , WalletState (..)
+    )
 import Control.Arrow
     ( left )
 import Control.Concurrent
@@ -28,7 +33,7 @@ import Control.Concurrent
 import Control.Concurrent.Async
     ( async, cancel )
 import Control.DeepSeq
-    ( rnf )
+    ( NFData, rnf )
 import Control.Exception
     ( bracket, evaluate, throwIO )
 import Control.Monad
@@ -116,16 +121,20 @@ printResult benchName dur = sayErr . fmt $ "  "+|benchName|+": "+|secs dur|+""
 -------------------------------------------------------------------------------}
 
 {-# ANN bench_restoration ("HLint: ignore Use camelCase" :: String) #-}
-bench_restoration :: Network -> NewWallet -> IO ()
-bench_restoration network nw = withHttpBridge network $ \port -> do
+bench_restoration
+    :: (IsOurs s, AddressScheme s, NFData s, Show s)
+    => Network
+    -> (WalletId, WalletName, s)
+    -> IO ()
+bench_restoration network (wid, wname, s) = withHttpBridge network $ \port -> do
     dbLayer <- MVar.newDBLayer
     networkLayer <- newNetworkLayer networkName port
     (_, bh) <- unsafeRunExceptT $ networkTip networkLayer
-    sayErr . fmt $ "Note: the "+|networkName|+" tip is at "+||(bh ^. #slotId)||+""
-    let walletLayer = mkWalletLayer dbLayer networkLayer
-    wallet <- unsafeRunExceptT $ createWallet walletLayer nw
-    unsafeRunExceptT $ restoreWallet walletLayer wallet
-    waitForWalletSync walletLayer wallet
+    sayErr . fmt $ networkName |+ " tip is at " +|| (bh ^. #slotId) ||+ ""
+    let w = mkWalletLayer dbLayer networkLayer
+    wallet <- unsafeRunExceptT $ createWallet w wid wname s
+    unsafeRunExceptT $ restoreWallet w wallet
+    waitForWalletSync w wallet
   where
     networkName = toText network
 
@@ -153,16 +162,16 @@ withHttpBridge network action = bracket start stop (const (action port))
         threadDelay 1000000 -- wait for socket to be closed
 
 
-baseWallet :: NewWallet
-baseWallet = NewWallet (Passphrase "") (Passphrase "")
-             (WalletName "") (Passphrase "") gap20
-    where Right gap20 = mkAddressPoolGap 20
-
-walletSeq :: NewWallet
-walletSeq = baseWallet
-    { seed = Passphrase "involve key curtain arrest fortune custom lens marine before material wheel glide cause weapon wrap"
-    , name = WalletName "Benchmark Sequential Wallet"
-    }
+walletSeq :: (WalletId, WalletName, SeqState)
+walletSeq =
+    let
+        seed = Passphrase "involve key curtain arrest fortune custom lens marine before material wheel glide cause weapon wrap"
+        xprv = generateKeyFromSeed (seed, mempty) mempty
+        wid = WalletId $ digest $ publicKey xprv
+        wname = WalletName "Benchmarks Sequential Wallet"
+        s = mkSeqState (xprv, mempty) defaultAddressPoolGap
+    in
+        (wid, wname, s)
 
 prepareNode :: Network -> IO ()
 prepareNode net = do
@@ -174,7 +183,7 @@ prepareNode net = do
 
 -- |
 waitForWalletSync
-    :: WalletLayer SeqState
+    :: WalletLayer s
     -> WalletId
     -> IO ()
 waitForWalletSync walletLayer wid = do

@@ -21,7 +21,6 @@ import Cardano.Wallet
     , ErrSignTx (..)
     , ErrSubmitTx (..)
     , ErrWalletAlreadyExists (..)
-    , NewWallet (..)
     , WalletLayer
     )
 import Cardano.Wallet.Api
@@ -43,12 +42,14 @@ import Cardano.Wallet.Binary
     ( txId )
 import Cardano.Wallet.CoinSelection
     ( CoinSelectionOptions (..) )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( digest, generateKeyFromSeed, publicKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( SeqState (..), defaultAddressPoolGap )
+    ( SeqState (..), defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.Model
     ( availableBalance, getState, totalBalance )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, Coin (..), TxOut (..), WalletId )
+    ( AddressState, Coin (..), TxOut (..), WalletId (..) )
 import Control.Monad.Catch
     ( throwM )
 import Control.Monad.IO.Class
@@ -143,19 +144,16 @@ postWallet
     :: WalletLayer SeqState
     -> WalletPostData
     -> Handler ApiWallet
-postWallet w req = do
-    wid <- liftHandler $ W.createWallet w $ NewWallet
-        { seed =
-            getApiMnemonicT (req ^. #mnemonicSentence)
-        , secondFactor =
-            maybe mempty getApiMnemonicT (req ^. #mnemonicSecondFactor)
-        , name =
-            getApiT (req ^. #name)
-        , passphrase =
-            getApiT (req ^. #passphrase)
-        , gap =
-            maybe defaultAddressPoolGap getApiT (req ^.  #addressPoolGap)
-        }
+postWallet w body = do
+    let seed = getApiMnemonicT (body ^. #mnemonicSentence)
+    let secondFactor = maybe mempty getApiMnemonicT (body ^. #mnemonicSecondFactor)
+    let pwd = getApiT (body ^. #passphrase)
+    let rootXPrv = generateKeyFromSeed (seed, secondFactor) pwd
+    let g = maybe defaultAddressPoolGap getApiT (body ^.  #addressPoolGap)
+    let s = mkSeqState (rootXPrv, pwd) g
+    let wid = WalletId $ digest $ publicKey rootXPrv
+    _ <- liftHandler $ W.createWallet w wid (getApiT (body ^. #name)) s
+    liftHandler $ W.attachPrivateKey w wid (rootXPrv, pwd)
     liftHandler $ W.restoreWallet w wid
     getWallet w (ApiT wid)
 

@@ -1,11 +1,11 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -20,7 +20,6 @@ module Cardano.Wallet
     (
     -- * Interface
       WalletLayer (..)
-    , NewWallet(..)
 
     -- * Errors
     , ErrNoSuchWallet(..)
@@ -61,19 +60,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase
     , XPrv
     , checkPassphrase
-    , deriveAccountPrivateKey
-    , digest
     , encryptPassphrase
-    , generateKeyFromSeed
-    , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( AddressPoolGap
-    , SeqState (..)
-    , emptyPendingIxs
-    , mkAddressPool
-    , nextChangeAddress
-    )
+    ( AddressScheme (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet
     , applyBlocks
@@ -90,6 +80,7 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , Coin (..)
     , Direction (..)
+    , IsOurs (..)
     , SignedTx (..)
     , SlotId (..)
     , Tx
@@ -109,6 +100,8 @@ import Control.Arrow
     ( first )
 import Control.Concurrent
     ( forkIO, threadDelay )
+import Control.DeepSeq
+    ( NFData )
 import Control.Monad
     ( forM, void, (>=>) )
 import Control.Monad.Fail
@@ -135,8 +128,6 @@ import Data.Time.Clock
     ( getCurrentTime )
 import Fmt
     ( (+|), (+||), (|+), (||+) )
-import GHC.Generics
-    ( Generic )
 
 import qualified Cardano.Wallet.CoinSelection.Policy.Random as CoinSelection
 import qualified Cardano.Wallet.DB as DB
@@ -149,9 +140,11 @@ import qualified Data.Text.IO as TIO
 
 data WalletLayer s = WalletLayer
     { createWallet
-        :: NewWallet
+        :: WalletId
+        -> WalletName
+        -> s
         -> ExceptT ErrWalletAlreadyExists IO WalletId
-        -- ^ Initialise and store a new wallet, returning its ID.
+        -- ^ Initialise and store a new wallet, returning its Id.
 
     , readWallet
         :: WalletId
@@ -205,20 +198,15 @@ data WalletLayer s = WalletLayer
         -> (Tx, TxMeta, [TxWitness])
         -> ExceptT ErrSubmitTx IO ()
         -- ^ Broadcast a (signed) transaction to the network.
-    }
 
-data NewWallet = NewWallet
-    { seed
-        :: !(Passphrase "seed")
-    , secondFactor
-        :: !(Passphrase "generation")
-    , name
-        :: !WalletName
-    , passphrase
-        :: !(Passphrase "encryption")
-    , gap
-        :: !AddressPoolGap
-    } deriving (Show, Generic)
+    , attachPrivateKey
+        :: WalletId
+        -> (Key 'RootK XPrv, Passphrase "encryption")
+        -> ExceptT ErrNoSuchWallet IO ()
+        -- ^ Attach a given private key to a wallet. The private key is
+        -- necessary for some operations like signing transactions or,
+        -- generating new accounts.
+    }
 
 -- | Errors occuring when creating an unsigned transaction
 data ErrCreateUnsignedTx
@@ -242,41 +230,26 @@ data ErrSubmitTx
 
 -- | Create a new instance of the wallet layer.
 mkWalletLayer
-    :: DBLayer IO SeqState
+    :: forall s. (IsOurs s, AddressScheme s, NFData s, Show s)
+    => DBLayer IO s
     -> NetworkLayer IO
-    -> WalletLayer SeqState
+    -> WalletLayer s
 mkWalletLayer db network = WalletLayer
 
     {---------------------------------------------------------------------------
                                        Wallets
     ---------------------------------------------------------------------------}
 
-    { createWallet = \w -> do
-        let rootXPrv =
-                generateKeyFromSeed (seed w, secondFactor w) (passphrase w)
-        let accXPrv =
-                deriveAccountPrivateKey mempty rootXPrv minBound
-        let extPool =
-                mkAddressPool (publicKey accXPrv) (gap w) []
-        let intPool =
-                mkAddressPool (publicKey accXPrv) minBound []
-        let wid =
-                WalletId (digest $ publicKey rootXPrv)
-        let checkpoint = initWallet $ SeqState
-                { externalPool = extPool
-                , internalPool = intPool
-                , pendingChangeIxs = emptyPendingIxs
-                }
+    { createWallet = \wid wname s -> do
+        let checkpoint = initWallet s
         now <- liftIO getCurrentTime
         let metadata = WalletMetadata
-                { name = Cardano.Wallet.name w
+                { name = wname
                 , passphraseInfo = WalletPassphraseInfo now
                 , status = Restoring minBound
                 , delegation = NotDelegating
                 }
-        hpwd <- liftIO $ encryptPassphrase (passphrase w)
-        let creds = ( rootXPrv, hpwd )
-        DB.createWallet db (PrimaryKey wid) checkpoint metadata creds $> wid
+        DB.createWallet db (PrimaryKey wid) checkpoint metadata $> wid
 
     , readWallet = _readWallet
 
@@ -314,8 +287,8 @@ mkWalletLayer db network = WalletLayer
         withRootKey wid pwd ErrSignTxWrongPassphrase $ \xprv -> do
             case mkStdTx (getState w) (xprv, pwd) ins allShuffledOuts of
                 Right (tx, wit) -> do
-                    -- Safe because we have a lock and we already fetched the wallet
-                    -- within this context.
+                    -- Safe because we have a lock and we already fetched the
+                    -- wallet within this context.
                     liftIO . unsafeRunExceptT $
                         DB.putCheckpoint db (PrimaryKey wid) (updateState s' w)
                     let amtChng = fromIntegral $
@@ -340,11 +313,19 @@ mkWalletLayer db network = WalletLayer
             let history = Map.fromList [(txId tx, (tx, meta))]
             DB.putCheckpoint db (PrimaryKey wid) (newPending tx w)
             DB.putTxHistory db (PrimaryKey wid) history
+
+    {---------------------------------------------------------------------------
+                                     Keystore
+    ---------------------------------------------------------------------------}
+
+    , attachPrivateKey = \wid (xprv, pwd) -> do
+        hpwd <- liftIO $ encryptPassphrase pwd
+        DB.putPrivateKey db (PrimaryKey wid) (xprv, hpwd)
     }
   where
     _readWallet
         :: WalletId
-        -> ExceptT ErrNoSuchWallet IO (Wallet SeqState, WalletMetadata)
+        -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata)
     _readWallet wid = maybeToExceptT (ErrNoSuchWallet wid) $ do
         cp <- MaybeT $ DB.readCheckpoint db (PrimaryKey wid)
         meta <- MaybeT $ DB.readWalletMeta db (PrimaryKey wid)

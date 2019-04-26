@@ -32,6 +32,8 @@ import Control.Concurrent.MVar
     ( MVar, modifyMVar, newMVar, readMVar, withMVar )
 import Control.DeepSeq
     ( deepseq )
+import Control.Monad
+    ( (>=>) )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Data.Map.Strict
@@ -40,10 +42,10 @@ import Data.Map.Strict
 import qualified Data.Map.Strict as Map
 
 data Database s = Database
-    { wallet :: Wallet s
-    , metadata :: WalletMetadata
-    , txHistory :: Map (Hash "Tx") (Tx, TxMeta)
-    , xprv :: (Key 'RootK XPrv, Hash "encryption")
+    { wallet :: !(Wallet s)
+    , metadata :: !WalletMetadata
+    , txHistory :: !(Map (Hash "Tx") (Tx, TxMeta))
+    , xprv :: !(Maybe (Key 'RootK XPrv, Hash "encryption"))
     }
 
 -- | Instantiate a new in-memory "database" layer that simply stores data in
@@ -58,10 +60,10 @@ newDBLayer = do
                                       Wallets
         -----------------------------------------------------------------------}
 
-        { createWallet = \key@(PrimaryKey wid) cp meta k -> ExceptT $ do
+        { createWallet = \key@(PrimaryKey wid) cp meta -> ExceptT $ do
             let alter = \case
                     Nothing ->
-                        Right $ Just $ Database cp meta mempty k
+                        Right $ Just $ Database cp meta mempty Nothing
                     Just _ ->
                         Left (ErrWalletAlreadyExists wid)
             cp `deepseq` meta `deepseq` alterMVar db alter key
@@ -126,8 +128,16 @@ newDBLayer = do
                                        Keystore
         -----------------------------------------------------------------------}
 
+        , putPrivateKey = \key@(PrimaryKey wid) k -> ExceptT $ do
+            let alter = \case
+                    Nothing ->
+                        Left (ErrNoSuchWallet wid)
+                    Just (Database cp meta txs _) ->
+                        Right $ Just $ Database cp meta txs (Just k)
+            k `deepseq` alterMVar db alter key
+
         , readPrivateKey = \key ->
-            fmap xprv . Map.lookup key <$> readMVar db
+            (Map.lookup key >=> xprv) <$> readMVar db
 
         {-----------------------------------------------------------------------
                                        Lock
