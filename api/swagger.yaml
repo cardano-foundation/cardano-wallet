@@ -394,7 +394,7 @@ networkInformationSoftwareUpdate: &networkInformationSoftwareUpdate
 #############################################################################
 
 definitions:
-  Address: &address
+  ApiAddress: &ApiAddress
     type: object
     required:
       - id
@@ -433,7 +433,7 @@ definitions:
       metrics: *stakePoolMetrics
       profit_margin: *stakePoolProfitMargin
 
-  Transaction: &transaction
+  ApiTransaction: &ApiTransaction
     type: object
     required:
       - id
@@ -453,7 +453,7 @@ definitions:
       outputs: *transactionOutputs
       status: *transactionStatus
 
-  Wallet: &wallet
+  ApiWallet: &ApiWallet
     type: object
     required:
       - id
@@ -656,7 +656,7 @@ responsesListWallets: &responsesListWallets
     description: Ok
     schema:
       type: array
-      items: *wallet
+      items: *ApiWallet
 
 responsesGetUTxOsStatistics: &responsesGetUTxOsStatistics
   <<: *responsesErr404
@@ -671,14 +671,14 @@ responsesPostWallet: &responsesPostWallet
   <<: *responsesErr415
   202:
     description: Accepted
-    schema: *wallet
+    schema: *ApiWallet
 
 responsesGetWallet: &responsesGetWallet
   <<: *responsesErr400
   <<: *responsesErr404
   200:
     description: Ok
-    schema: *wallet
+    schema: *ApiWallet
 
 responsesDeleteWallet: &responsesDeleteWallet
   <<: *responsesErr400
@@ -694,7 +694,7 @@ responsesPutWallet: &responsesPutWallet
   <<: *responsesErr415
   200:
     description: Ok
-    schema: *wallet
+    schema: *ApiWallet
 
 responsesPutWalletPassphrase: &responsesPutWalletPassphrase
   <<: *responsesErr400
@@ -716,7 +716,7 @@ responsesListTransactions: &responsesListTransactions
         example: inserted-at 20190227T160329Z-20190101T042557Z/42
     schema:
       type: array
-      items: *transaction
+      items: &ApiTransaction
 
 responsesPostTransaction: &responsesPostTransaction
   <<: *responsesErr400
@@ -725,7 +725,7 @@ responsesPostTransaction: &responsesPostTransaction
   <<: *responsesErr415
   202:
     description: Accepted
-    schema: *transaction
+    schema: &ApiTransaction
 
 responsesPostTransactionFee: &responsesPostTransactionFee
   <<: *responsesErr400
@@ -747,7 +747,7 @@ responsesListAddresses: &responsesListAddresses
     description: Ok
     schema:
       type: array
-      items: *address
+      items: &ApiAddress
 
 responsesListStakePools: &responsesListStakePools
   200:
@@ -763,7 +763,7 @@ responsesJoinStakePool: &responsesJoinStakePool
   <<: *responsesErr415
   202:
     description: Accepted
-    schema: *transaction
+    schema: &ApiTransaction
 
 responsesQuitStakePool: &responsesQuitStakePool
   <<: *responsesJoinStakePool
