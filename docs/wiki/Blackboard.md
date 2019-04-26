@@ -19,3 +19,15 @@ Retype passphrase: *********
 ```
 
 Mnemonics are 15+ words and it would be hard/frustrating for user to enter such a long stream without a mistake. We decided not to proceed the same approach for mnemonics and just follow the same strategy as Daedalus UI have. Mnemonics are entered in plain text so no change is necessary there.
+
+## Better Restoration Stress Benchmark
+
+Existing chain data doesn't necessarily include "extreme" cases that might occur in the future
+
+* Make data generators which set up transactions for wallets of various sizes.
+* Use the [weigh](https://www.fpcomplete.com/blog/2016/05/weigh-package) package to measure and display the GHC heap usage of test scenarios.
+
+- [ ] Figure out a way of generating semi-realistic transactions in blocks
+- [ ] Use a mock network layer to feed generated blocks to wallet layer
+- [ ] Set up a test case which checks heap usage after applying a certain number of transactions in a certain number of blocks.
+- [ ] Also measure how long it took to apply those blocks/transactions.
