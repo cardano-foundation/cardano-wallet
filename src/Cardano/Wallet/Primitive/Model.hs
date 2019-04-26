@@ -35,6 +35,7 @@ module Cardano.Wallet.Primitive.Model
     , updateState
     , applyBlock
     , applyBlocks
+    , newPending
 
     -- * Accessors
     , currentTip
@@ -181,6 +182,13 @@ applyBlocks blocks cp0 =
   where
     applyBlock' (txs, cp) b =
         let (txs', cp') = applyBlock b cp in (txs <> txs', cp')
+
+newPending
+    :: Tx
+    -> Wallet s
+    -> Wallet s
+newPending !tx (Wallet !utxo !pending !history !tip !s) =
+    Wallet utxo (Set.insert tx pending) history tip s
 
 {-------------------------------------------------------------------------------
                                    Accessors

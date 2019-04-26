@@ -4,6 +4,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 
 -- |
@@ -24,6 +25,9 @@ module Cardano.Wallet
     -- * Errors
     , ErrNoSuchWallet(..)
     , ErrWalletAlreadyExists(..)
+    , ErrSignTx(..)
+    , ErrSubmitTx(..)
+    , ErrCreateUnsignedTx(..)
 
     -- * Construction
     , mkWalletLayer
@@ -35,7 +39,7 @@ module Cardano.Wallet
 import Prelude
 
 import Cardano.Wallet.Binary
-    ( encodeSignedTx, toByteString )
+    ( encodeSignedTx, toByteString, txId )
 import Cardano.Wallet.CoinSelection
     ( CoinSelection (..)
     , CoinSelectionError (..)
@@ -49,12 +53,14 @@ import Cardano.Wallet.DB
     , PrimaryKey (..)
     )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..) )
+    ( ErrPostTx (..), NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (RootK)
+    , ErrWrongPassphrase (..)
     , Key
     , Passphrase
     , XPrv
+    , checkPassphrase
     , deriveAccountPrivateKey
     , digest
     , encryptPassphrase
@@ -75,17 +81,21 @@ import Cardano.Wallet.Primitive.Model
     , currentTip
     , getState
     , initWallet
+    , newPending
     , updateState
     )
 import Cardano.Wallet.Primitive.Signing
     ( SignTxError, mkStdTx )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
-    , BlockHeader (..)
+    , Coin (..)
+    , Direction (..)
     , SignedTx (..)
     , SlotId (..)
-    , Tx (..)
+    , Tx
+    , TxMeta (..)
     , TxOut (..)
+    , TxStatus (..)
     , TxWitness
     , WalletDelegation (..)
     , WalletId (..)
@@ -106,15 +116,21 @@ import Control.Monad.Fail
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT, runExceptT, throwE, withExceptT )
+    ( ExceptT (..), runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), maybeToExceptT )
 import Control.Monad.Trans.State
     ( runState, state )
 import Data.Functor
     ( ($>) )
+import Data.Generics.Internal.VL.Lens
+    ( view, (^.) )
+import Data.Generics.Labels
+    ()
 import Data.List.NonEmpty
     ( NonEmpty )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Time.Clock
     ( getCurrentTime )
 import Fmt
@@ -124,6 +140,7 @@ import GHC.Generics
 
 import qualified Cardano.Wallet.CoinSelection.Policy.Random as CoinSelection
 import qualified Cardano.Wallet.DB as DB
+import qualified Data.Map.Strict as Map
 import qualified Data.Text.IO as TIO
 
 {-------------------------------------------------------------------------------
@@ -174,9 +191,9 @@ data WalletLayer s = WalletLayer
 
     , signTx
         :: WalletId
-        -> (Key 'RootK XPrv, Passphrase "encryption")
+        -> Passphrase "encryption"
         -> CoinSelection
-        -> ExceptT ErrSignTx IO (Tx, [TxWitness])
+        -> ExceptT ErrSignTx IO (Tx, TxMeta, [TxWitness])
         -- ^ Produce witnesses and construct a transaction from a given
         -- selection. Requires the encryption passphrase in order to decrypt
         -- the root private key. Note that this doesn't broadcast the
@@ -184,7 +201,8 @@ data WalletLayer s = WalletLayer
         -- 'submitTx'.
 
     , submitTx
-        :: (Tx, [TxWitness])
+        :: WalletId
+        -> (Tx, TxMeta, [TxWitness])
         -> ExceptT ErrSubmitTx IO ()
         -- ^ Broadcast a (signed) transaction to the network.
     }
@@ -209,11 +227,14 @@ data ErrCreateUnsignedTx
 
 -- | Errors occuring when signing a transaction
 data ErrSignTx
-    = ErrSignTxNoSuchWallet ErrNoSuchWallet
-    | ErrSignTx SignTxError
+    = ErrSignTx SignTxError
+    | ErrSignTxNoSuchWallet ErrNoSuchWallet
+    | ErrSignTxWrongPassphrase ErrWrongPassphrase
 
 -- | Errors occuring when submitting a signed transaction to the network
-data ErrSubmitTx = forall a. NetworkError a
+data ErrSubmitTx
+    = ErrSubmitTxNetwork ErrPostTx
+    | ErrSubmitTxNoSuchWallet ErrNoSuchWallet
 
 {-------------------------------------------------------------------------------
                                  Construction
@@ -271,7 +292,7 @@ mkWalletLayer db network = WalletLayer
                     TIO.putStrLn $ "[ERROR] restoreSleep: " +|| e ||+ ""
                     restoreSleep wid (currentTip w)
                 Right (_, tip) -> do
-                    restoreStep wid (currentTip w, slotId tip)
+                    restoreStep wid (currentTip w, tip ^. #slotId)
 
     {---------------------------------------------------------------------------
                                     Transactions
@@ -284,29 +305,41 @@ mkWalletLayer db network = WalletLayer
         withExceptT ErrCreateUnsignedTxCoinSelection $
             CoinSelection.random opts utxo recipients
 
-    , submitTx = \(tx, witnesses) -> do
-        let signed = SignedTx $ toByteString $ encodeSignedTx (tx, witnesses)
-        withExceptT NetworkError $ postTx network signed
-
-    , signTx = \wid creds (CoinSelection ins outs chgs) -> DB.withLock db $ do
+    , signTx = \wid pwd (CoinSelection ins outs chgs) -> DB.withLock db $ do
         (w, _) <- withExceptT ErrSignTxNoSuchWallet $ _readWallet wid
-
         let (changeOuts, s') = flip runState (getState w) $ forM chgs $ \c -> do
                 addr <- state nextChangeAddress
                 return $ TxOut addr c
-
         allShuffledOuts <- liftIO $ shuffle (outs ++ changeOuts)
+        withRootKey wid pwd ErrSignTxWrongPassphrase $ \xprv -> do
+            case mkStdTx (getState w) (xprv, pwd) ins allShuffledOuts of
+                Right (tx, wit) -> do
+                    -- Safe because we have a lock and we already fetched the wallet
+                    -- within this context.
+                    liftIO . unsafeRunExceptT $
+                        DB.putCheckpoint db (PrimaryKey wid) (updateState s' w)
+                    let amtChng = fromIntegral $
+                            sum (getCoin <$> chgs)
+                    let amtInps = fromIntegral $
+                            sum (getCoin . coin . snd <$> ins)
+                    let meta = TxMeta
+                            { status = Pending
+                            , direction = Outgoing
+                            , slotId = currentTip w
+                            , amount = Quantity (amtInps - amtChng)
+                            }
+                    return (tx, meta, wit)
+                Left e ->
+                    throwE $ ErrSignTx e
 
-        case mkStdTx (getState w) creds ins allShuffledOuts of
-            Right a -> do
-                -- Safe because we have a lock and we already fetched the wallet
-                -- within this context.
-                liftIO . unsafeRunExceptT $
-                    DB.putCheckpoint db (PrimaryKey wid) (updateState s' w)
-                return a
-
-            Left e ->
-                throwE $ ErrSignTx e
+    , submitTx = \wid (tx, meta, wit) -> do
+        let signed = SignedTx $ toByteString $ encodeSignedTx (tx, wit)
+        withExceptT ErrSubmitTxNetwork $ postTx network signed
+        DB.withLock db $ withExceptT ErrSubmitTxNoSuchWallet $ do
+            (w, _) <- _readWallet wid
+            let history = Map.fromList [(txId tx, (tx, meta))]
+            DB.putCheckpoint db (PrimaryKey wid) (newPending tx w)
+            DB.putTxHistory db (PrimaryKey wid) history
     }
   where
     _readWallet
@@ -316,6 +349,22 @@ mkWalletLayer db network = WalletLayer
         cp <- MaybeT $ DB.readCheckpoint db (PrimaryKey wid)
         meta <- MaybeT $ DB.readWalletMeta db (PrimaryKey wid)
         return (cp, meta)
+
+    -- | Execute an action which requires holding a root XPrv
+    withRootKey
+        :: forall e a. ()
+        => WalletId
+        -> Passphrase "encryption"
+        -> (ErrWrongPassphrase -> e)
+        -> (Key 'RootK XPrv -> ExceptT e IO a)
+        -> ExceptT e IO a
+    withRootKey wid pwd embed action = do
+        xprv <- withExceptT embed $ do
+            (xprv, hpwd) <- liftIO $ DB.readPrivateKey db (PrimaryKey wid) >>= \case
+                Nothing -> unsafeRunExceptT $ throwE $ ErrNoSuchWallet wid
+                Just a  -> return a
+            ExceptT $ return ((\() -> xprv) <$> checkPassphrase pwd hpwd)
+        action xprv
 
     -- | Infinite restoration loop. We drain the whole available chain and try
     -- to catch up with the node. In case of error, we log it and wait a bit
@@ -331,7 +380,7 @@ mkWalletLayer db network = WalletLayer
             Right [] -> do
                 restoreSleep wid slot
             Right blocks -> do
-                let next = slotId . header . last $ blocks
+                let next = view #slotId . header . last $ blocks
                 runExceptT (restoreBlocks wid blocks tip) >>= \case
                     Left (ErrNoSuchWallet _) -> do
                         TIO.putStrLn $ "[ERROR] restoreStep: wallet " +| wid |+ "is gone!"
@@ -349,7 +398,7 @@ mkWalletLayer db network = WalletLayer
                 TIO.putStrLn $ "[ERROR] restoreSleep: " +|| e ||+ ""
                 restoreSleep wid slot
             Right (_, tip) ->
-                restoreStep wid (slot, slotId tip)
+                restoreStep wid (slot, tip ^. #slotId)
 
     -- | Apply the given blocks to the wallet and update the wallet state,
     -- transaction history and corresponding metadata.
@@ -360,8 +409,8 @@ mkWalletLayer db network = WalletLayer
         -> ExceptT ErrNoSuchWallet IO ()
     restoreBlocks wid blocks tip = do
         let (inf, sup) =
-                ( slotId . header . head $ blocks
-                , slotId . header . last $ blocks
+                ( view #slotId . header . head $ blocks
+                , view #slotId . header . last $ blocks
                 )
         liftIO $ TIO.putStrLn $
             "[INFO] Applying blocks ["+| inf |+" ... "+| sup |+"]"
@@ -376,7 +425,7 @@ mkWalletLayer db network = WalletLayer
         let (txs, cp') = applyBlocks (h ++ q) cp
         let progress = slotRatio sup tip
         let status' = if progress == maxBound then Ready else Restoring progress
-        let meta' = meta { status = status' }
+        let meta' = meta { status = status' } :: WalletMetadata
 
         -- NOTE
         -- Not as good as a transaction, but, with the lock, nothing can make

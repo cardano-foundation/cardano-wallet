@@ -16,7 +16,10 @@ module Cardano.Wallet.Api.Server
 import Prelude
 
 import Cardano.Wallet
-    ( ErrNoSuchWallet (..)
+    ( ErrCreateUnsignedTx (..)
+    , ErrNoSuchWallet (..)
+    , ErrSignTx (..)
+    , ErrSubmitTx (..)
     , ErrWalletAlreadyExists (..)
     , NewWallet (..)
     , WalletLayer
@@ -25,8 +28,9 @@ import Cardano.Wallet.Api
     ( Addresses, Api, Transactions, Wallets )
 import Cardano.Wallet.Api.Types
     ( ApiAddress (..)
+    , ApiCoins (..)
     , ApiT (..)
-    , ApiTransaction
+    , ApiTransaction (..)
     , ApiWallet (..)
     , PostTransactionData
     , WalletBalance (..)
@@ -35,12 +39,16 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     , getApiMnemonicT
     )
+import Cardano.Wallet.Binary
+    ( txId )
+import Cardano.Wallet.CoinSelection
+    ( CoinSelectionOptions (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( SeqState (..), defaultAddressPoolGap )
 import Cardano.Wallet.Primitive.Model
     ( availableBalance, getState, totalBalance )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, WalletId )
+    ( AddressState, Coin (..), TxOut (..), WalletId )
 import Control.Monad.Catch
     ( throwM )
 import Control.Monad.IO.Class
@@ -54,11 +62,21 @@ import Data.Generics.Labels
 import Data.Quantity
     ( Quantity (..) )
 import Servant
-    ( (:<|>) (..), NoContent (..), Server, err404, err409, err501 )
+    ( (:<|>) (..)
+    , NoContent (..)
+    , Server
+    , err403
+    , err404
+    , err409
+    , err410
+    , err500
+    , err501
+    )
 import Servant.Server
     ( Handler (..), ServantErr (..) )
 
 import qualified Cardano.Wallet as W
+import qualified Data.List.NonEmpty as NE
 
 
 -- | A Servant server for our wallet API
@@ -184,12 +202,34 @@ createTransaction
     -> ApiT WalletId
     -> PostTransactionData
     -> Handler ApiTransaction
-createTransaction _ _ _ =
-    throwM err501
-
+createTransaction w (ApiT wid) body = do
+    -- FIXME Compute the options based on the transaction's size / inputs
+    let opts = CoinSelectionOptions { maximumNumberOfInputs = 10 }
+    let outs = coerceCoin <$> (body ^. #targets)
+    let pwd = getApiT $ body ^. #passphrase
+    selection <- liftHandler $ W.createUnsignedTx w wid opts outs
+    (tx, meta, wit) <- liftHandler $ W.signTx w wid pwd selection
+    liftHandler $ W.submitTx w wid (tx, meta, wit)
+    return ApiTransaction
+        { id = ApiT (txId tx)
+        , amount = meta ^. #amount
+        , insertedAt = Nothing
+        , depth = Quantity 0
+        , direction = ApiT (meta ^. #direction)
+        , inputs = NE.fromList (coerceTxOut . snd <$> selection ^. #inputs)
+        , outputs = NE.fromList (coerceTxOut <$> tx ^. #outputs)
+        , status = ApiT (meta ^. #status)
+        }
+  where
+    coerceCoin :: ApiCoins -> TxOut
+    coerceCoin (ApiCoins (ApiT addr) (Quantity c)) =
+        TxOut addr (Coin $ fromIntegral c)
+    coerceTxOut :: TxOut -> ApiCoins
+    coerceTxOut (TxOut addr (Coin c)) =
+        ApiCoins (ApiT addr) (Quantity $ fromIntegral c)
 
 {-------------------------------------------------------------------------------
-                                    Handlers
+                                Error Handling
 -------------------------------------------------------------------------------}
 
 -- | Lift our wallet layer into servant 'Handler', by mapping each error to a
@@ -212,3 +252,17 @@ instance LiftHandler ErrNoSuchWallet where
 instance LiftHandler ErrWalletAlreadyExists where
     handler = \case
         ErrWalletAlreadyExists _ -> err409
+
+instance LiftHandler ErrCreateUnsignedTx where
+    handler = \case
+        ErrCreateUnsignedTxNoSuchWallet _ -> err404
+        ErrCreateUnsignedTxCoinSelection _ -> err403
+
+instance LiftHandler ErrSignTx where
+    handler = \case
+        ErrSignTx _ -> err500
+        ErrSignTxNoSuchWallet _ -> err410
+        ErrSignTxWrongPassphrase _ -> err403
+
+instance LiftHandler ErrSubmitTx where
+    handler _ = err500

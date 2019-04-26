@@ -443,8 +443,25 @@ instance Arbitrary PostTransactionData where
     shrink = genericShrink
 
 instance Arbitrary ApiTransaction where
-    arbitrary = genericArbitrary
     shrink = genericShrink
+    arbitrary = do
+        txStatus <- arbitrary
+        txInsertedAt <- case txStatus of
+            (ApiT Pending) ->
+                pure Nothing
+            (ApiT Invalidated) ->
+                pure Nothing
+            (ApiT InLedger) ->
+                arbitrary
+        ApiTransaction
+            <$> arbitrary
+            <*> arbitrary
+            <*> pure txInsertedAt
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> pure txStatus
 
 instance Arbitrary (Quantity "block" Natural) where
     shrink (Quantity 0) = []
