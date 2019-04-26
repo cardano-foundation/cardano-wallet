@@ -44,6 +44,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery
 
     -- ** State
     , SeqState (..)
+    , mkSeqState
     , AddressScheme (..)
     ) where
 
@@ -57,11 +58,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , Index
     , Key
-    , Passphrase
+    , Passphrase (..)
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
     , deriveAddressPublicKey
     , keyToAddress
+    , publicKey
     )
 import Cardano.Wallet.Primitive.Types
     ( Address, IsOurs (..), invariant )
@@ -355,6 +357,23 @@ data SeqState = SeqState
     }
     deriving stock (Generic, Show)
 instance NFData SeqState
+
+
+-- | Construct a Sequential state for a wallet.
+mkSeqState
+    :: (Key 'RootK XPrv, Passphrase "encryption")
+    -> AddressPoolGap
+    -> SeqState
+mkSeqState (rootXPrv, pwd) g =
+    let
+        accXPrv =
+            deriveAccountPrivateKey pwd rootXPrv minBound
+        extPool =
+            mkAddressPool (publicKey accXPrv) g []
+        intPool =
+            mkAddressPool (publicKey accXPrv) minBound []
+    in
+        SeqState intPool extPool emptyPendingIxs
 
 -- NOTE
 -- We have to scan both the internal and external chain. Note that, the

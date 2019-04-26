@@ -11,15 +11,17 @@ import Prelude
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
-    ( NewWallet (..), WalletLayer (..), mkWalletLayer, unsafeRunExceptT )
+    ( WalletLayer (..), mkWalletLayer, unsafeRunExceptT )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Passphrase (..) )
+    ( Passphrase (..), digest, generateKeyFromSeed, publicKey )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( mkSeqState )
 import Cardano.Wallet.Primitive.Mnemonic
     ( EntropySize, entropyToBytes, genEntropy )
 import Cardano.Wallet.Primitive.Model
     ( currentTip )
 import Cardano.Wallet.Primitive.Types
-    ( SlotId (..), WalletName (..) )
+    ( SlotId (..), WalletId (..), WalletName (..) )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
@@ -35,13 +37,11 @@ spec = do
     before startBridge $ after closeBridge $ do
         it "A newly created wallet can sync with the chain" $ \(_, wallet) -> do
             bytes <- entropyToBytes <$> genEntropy @(EntropySize 15)
-            wid <- unsafeRunExceptT $ createWallet wallet NewWallet
-                { seed = Passphrase bytes
-                , secondFactor = mempty
-                , name = WalletName "My Wallet"
-                , passphrase = mempty
-                , gap = minBound
-                }
+            let xprv = generateKeyFromSeed (Passphrase bytes, mempty) mempty
+            wid <- unsafeRunExceptT $ createWallet wallet
+                (WalletId $ digest $ publicKey xprv)
+                (WalletName "My Wallet")
+                (mkSeqState (xprv, mempty) minBound)
             unsafeRunExceptT $ restoreWallet wallet wid
             threadDelay 2000000
             tip <- currentTip . fst <$> unsafeRunExceptT (readWallet wallet wid)

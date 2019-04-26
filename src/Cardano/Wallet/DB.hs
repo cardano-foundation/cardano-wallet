@@ -40,7 +40,6 @@ data DBLayer m s = DBLayer
         :: PrimaryKey WalletId
         -> Wallet s
         -> WalletMetadata
-        -> (Key 'RootK XPrv, Hash "encryption")
         -> ExceptT ErrWalletAlreadyExists m ()
         -- ^ Initialize a database entry for a given wallet. 'putCheckpoint',
         -- 'putWalletMeta' or 'putTxHistory' will actually all fail if they are
@@ -105,6 +104,15 @@ data DBLayer m s = DBLayer
         -- ^ Fetch the current transaction history of a known wallet.
         --
         -- Returns an empty map if the wallet isn't found.
+
+    , putPrivateKey
+        :: PrimaryKey WalletId
+        -> (Key 'RootK XPrv, Hash "encryption")
+        -> ExceptT ErrNoSuchWallet m ()
+        -- ^ Store or replace a private key for a given wallet. Note that wallet
+        -- _could_ be stored and manipulated without any private key associated
+        -- to it. A private key is only seldomly required for very specific
+        -- operations (like transaction signing).
 
     , readPrivateKey
         :: PrimaryKey WalletId
