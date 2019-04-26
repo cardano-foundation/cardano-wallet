@@ -19,9 +19,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..), digest, generateKeyFromSeed, publicKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressScheme (..), SeqState, defaultAddressPoolGap, mkSeqState )
+import Cardano.Wallet.Primitive.AddressDiscovery.Any
+    ( AnyAddressState, initAnyState )
+import Cardano.Wallet.Primitive.Model
+    ( totalBalance, totalUTxO )
 import Cardano.Wallet.Primitive.Types
     ( IsOurs (..)
     , SlotId (..)
+    , UTxO (..)
     , WalletId (..)
     , WalletName (..)
     , WalletState (..)
@@ -37,7 +42,7 @@ import Control.DeepSeq
 import Control.Exception
     ( bracket, evaluate, throwIO )
 import Control.Monad
-    ( mapM_ )
+    ( forM, mapM_ )
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.Trans.Except
@@ -64,6 +69,7 @@ import System.IO
     ( BufferMode (..), hSetBuffering, stderr, stdout )
 
 import qualified Cardano.Wallet.DB.MVar as MVar
+import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 
 -- | Run all available benchmarks. Can accept one argument that is a target
@@ -80,7 +86,32 @@ main = do
     runBenchmarks
         [ bench ("restore " <> toText network <> " seq")
             (bench_restoration network walletSeq)
+        , bench ("restore " <> toText network <> " 10% ownership")
+            (bench_restoration network wallet10p)
+        , bench ("restore " <> toText network <> " 50% ownership")
+            (bench_restoration network wallet50p)
         ]
+  where
+    walletSeq :: (WalletId, WalletName, SeqState)
+    walletSeq =
+        let
+            seed = Passphrase
+                "involve key curtain arrest fortune custom lens marine before \
+                \material wheel glide cause weapon wrap"
+            xprv = generateKeyFromSeed (seed, mempty) mempty
+            wid = WalletId $ digest $ publicKey xprv
+            wname = WalletName "Benchmark Sequential Wallet"
+            s = mkSeqState (xprv, mempty) defaultAddressPoolGap
+        in
+            (wid, wname, s)
+
+    wallet10p :: (WalletId, WalletName, AnyAddressState)
+    wallet10p =
+        initAnyState "Benchmark 10% Wallet" 0.1
+
+    wallet50p :: (WalletId, WalletName, AnyAddressState)
+    wallet50p =
+        initAnyState "Benchmark 50% Wallet" 0.5
 
 -- | Very simplistic benchmark argument parser. If anything more is ever needed,
 -- it's probably a good idea to go for `optparse-application` or similar for a
@@ -98,7 +129,9 @@ parseArgs = \case
 runBenchmarks :: [IO (Text, Double)] -> IO ()
 runBenchmarks bs = do
     initializeTime
-    rs <- sequence bs
+    -- NOTE: Adding an artificial delay between successive runs to get a better
+    -- output for the heap profiling.
+    rs <- forM bs $ \io -> io <* let _2s = 2000000 in threadDelay _2s
     sayErr "\n\nAll results:"
     mapM_ (uncurry printResult) rs
 
@@ -135,6 +168,11 @@ bench_restoration network (wid, wname, s) = withHttpBridge network $ \port -> do
     wallet <- unsafeRunExceptT $ createWallet w wid wname s
     unsafeRunExceptT $ restoreWallet w wallet
     waitForWalletSync w wallet
+    (wallet', _) <- unsafeRunExceptT $ readWallet w wid
+    sayErr "Wallet restored!"
+    sayErr . fmt $ "Balance: " +|| totalBalance wallet' ||+ " lovelace"
+    sayErr . fmt $ "UTxO: " +|| Map.size (getUTxO $ totalUTxO wallet') ||+ " entries"
+    unsafeRunExceptT $ removeWallet w wid
   where
     networkName = toText network
 
@@ -161,18 +199,6 @@ withHttpBridge network action = bracket start stop (const (action port))
         cancel handle
         threadDelay 1000000 -- wait for socket to be closed
 
-
-walletSeq :: (WalletId, WalletName, SeqState)
-walletSeq =
-    let
-        seed = Passphrase "involve key curtain arrest fortune custom lens marine before material wheel glide cause weapon wrap"
-        xprv = generateKeyFromSeed (seed, mempty) mempty
-        wid = WalletId $ digest $ publicKey xprv
-        wname = WalletName "Benchmarks Sequential Wallet"
-        s = mkSeqState (xprv, mempty) defaultAddressPoolGap
-    in
-        (wid, wname, s)
-
 prepareNode :: Network -> IO ()
 prepareNode net = do
     sayErr . fmt $ "Syncing "+|toText net|+" node... "
@@ -181,7 +207,8 @@ prepareNode net = do
         waitForNodeSync network (toText net) logQuiet
     sayErr . fmt $ "Completed sync of "+|toText net|+" up to "+||sl||+""
 
--- |
+-- | Regularly poll the wallet to monitor it's syncing progress. Block until the
+-- wallet reaches 100%.
 waitForWalletSync
     :: WalletLayer s
     -> WalletId

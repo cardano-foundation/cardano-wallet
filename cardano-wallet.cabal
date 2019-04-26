@@ -316,9 +316,13 @@ benchmark restore
       base
     , ansi-terminal
     , async
+    , bytestring
     , cardano-wallet
+    , containers
     , criterion-measurement
+    , cryptonite
     , deepseq
+    , digest
     , docopt
     , fmt
     , generic-lens
@@ -337,6 +341,7 @@ benchmark restore
   other-modules:
       Cardano.CLI
       Cardano.Launcher
+      Cardano.Wallet.Primitive.AddressDiscovery.Any
   if os(windows)
     build-depends: Win32
     other-modules: Cardano.Launcher.Windows
