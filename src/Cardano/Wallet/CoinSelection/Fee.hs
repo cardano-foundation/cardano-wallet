@@ -20,7 +20,10 @@ module Cardano.Wallet.CoinSelection.Fee
       Fee(..)
     , FeeOptions (..)
     , FeeError(..)
+    , TxSizeLinear (..)
     , adjustForFees
+    , cardanoPolicy
+    , estimateCardanoFee
     ) where
 
 import Prelude
@@ -38,6 +41,10 @@ import Cardano.Wallet.Primitive.Types
     , isValidCoin
     , pickRandom
     )
+import Codec.CBOR.Encoding
+    ( encodeWord64 )
+import Codec.CBOR.Write
+    ( toLazyByteString )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
@@ -48,13 +55,15 @@ import Crypto.Random.Types
     ( MonadRandom )
 import Data.Bifunctor
     ( bimap )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Word
     ( Word64 )
 import GHC.Generics
     ( Generic )
 
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.List as L
-
 
 {-------------------------------------------------------------------------------
                                 Fee Adjustment
@@ -341,3 +350,74 @@ computeFee (CoinSelection inps outs chgs) =
     -- by definition, impossible; unless we messed up real hard.
     collapse [] _ =
         invariant "outputs are bigger than inputs" (undefined) (const False)
+
+-- | A linear equation on the transaction size. Represents the @\s -> a + b*s@
+-- function where @s@ is the transaction size in bytes, @a@ and @b@ are
+-- constant coefficients.
+data TxSizeLinear =
+    TxSizeLinear (Quantity "lovelace" Double) (Quantity "lovelace/byte" Double)
+    deriving (Eq, Show)
+
+cardanoPolicy :: TxSizeLinear
+cardanoPolicy = TxSizeLinear (Quantity 155381) (Quantity 43.946)
+
+-- | Estimate the fee for a transaction that has @inps@ inputs
+-- and @outps@ outputs as coming from coin selection.
+--
+-- NOTE: The average size of @Attributes AddrAttributes@ and
+--       the transaction attributes @Attributes ()@ are both hard-coded
+estimateCardanoFee
+    :: TxSizeLinear
+    -> CoinSelection
+    -> Fee
+estimateCardanoFee (TxSizeLinear (Quantity a) (Quantity b)) (CoinSelection inps outs _) =
+    Fee $ ceiling (a + b*totalPayload)
+    where
+
+        -- The size of TxIn is always the same as it contains the hash and index
+        -- see Cardano.Wallet.Binary (encodeTxIn)
+        sizeOfTxIn :: Int
+        sizeOfTxIn = 42
+
+        -- The size of TxOut depends only on the coin value
+        -- see Cardano.Wallet.Binary (encodeTxOut)
+        sizeOfTxOut :: Word64 -> Int
+        sizeOfTxOut =
+            (+77) . fromIntegral . BL.length . toLazyByteString . encodeWord64
+
+        -- additional imprint that contains 6 one-byte elements:
+        -- CBOR.encodeListLen 3
+        -- CBOR.encodeListLenIndef
+        -- CBOR.encodeBreak
+        -- CBOR.encodeListLenIndef
+        -- CBOR.encodeBreak
+        -- encodeTxAttributes
+        -- see Cardano.Wallet.Binary (encodeTx)
+        sizeOfTxCbor :: Int
+        sizeOfTxCbor = 6
+
+        -- The size of [[TxIn], [TxWitness]]
+        sizeOfTx :: Int
+        sizeOfTx =
+            let n = length inps
+                coins = map (getCoin . coin) outs
+            in sizeOfTxCbor + n*sizeOfTxIn + sum (map sizeOfTxOut coins)
+
+        -- The size of TxWitness is always the same as it contains data constructor and hash
+        -- see Cardano.Wallet.Binary (encodeTxWitness)
+        sizeOfTxWitness :: Int
+        sizeOfTxWitness = 139
+
+        sizeOfListLen :: Int
+        sizeOfListLen = 1
+
+        -- The size of [TxWitness]
+        sizeOfTxWitnesses :: Int
+        sizeOfTxWitnesses =
+            let n = length inps
+            in sizeOfListLen + n*sizeOfTxWitness
+
+        totalPayload :: Double
+        totalPayload =
+            fromIntegral $
+               sizeOfListLen + sizeOfTx + sizeOfTxWitnesses
