@@ -16,7 +16,10 @@ module Test.Integration.Framework.DSL
     , expectError
     , expectFieldEqual
     , expectFieldNotEqual
+    , expectListItemFieldEqual
+    , expectListSizeEqual
     , expectResponseCode
+    , verify
     , Headers(..)
     , Payload(..)
     , RequestException(..)
@@ -36,13 +39,14 @@ module Test.Integration.Framework.DSL
     , (!!)
     , getFromResponse
     , json
+    , tearDown
     ) where
 
 import Prelude hiding
     ( fail )
 
 import Cardano.Wallet.Api.Types
-    ( ApiT (..) )
+    ( ApiT (..), ApiWallet )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap, getAddressPoolGap, mkAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
@@ -54,16 +58,24 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     )
+import Control.Monad
+    ( forM_ )
 import Control.Monad.Fail
     ( MonadFail (..) )
 import Control.Monad.IO.Class
     ( MonadIO )
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString )
+import Data.Aeson
+    ( Value )
 import Data.Aeson.QQ
     ( aesonQQ )
+import Data.Foldable
+    ( toList )
+import Data.Function
+    ( (&) )
 import Data.Generics.Internal.VL.Lens
-    ( Lens', lens, set, view )
+    ( Lens', lens, set, view, (^.) )
 import Data.Generics.Product.Typed
     ( HasType, typed )
 import Data.List
@@ -147,6 +159,41 @@ expectFieldNotEqual
 expectFieldNotEqual getter a (_, res) = case res of
     Left e  -> wantedSuccessButError e
     Right s -> (view getter s) `shouldNotBe` a
+
+-- | Expects that returned data list's particular item field
+--   matches the expected value
+--   e.g.
+--   expectListItemFieldEqual 0 walletName "first" response
+--   expectListItemFieldEqual 1 walletName "second" response
+expectListItemFieldEqual
+    :: (MonadIO m, MonadFail m, Show a, Eq a)
+    => Int
+    -> Lens' s a
+    -> a
+    -> (HTTP.Status, Either RequestException [s])
+    -> m ()
+expectListItemFieldEqual i getter a (c, res) = case res of
+    Left e -> wantedSuccessButError e
+    Right xs
+        | length xs > i -> expectFieldEqual getter a (c, Right (xs !! i))
+        | otherwise -> fail $
+            "expectListItemFieldEqual: trying to access the #" <> show i <>
+            " element from a list but there's none! "
+
+-- | Expects data list returned by the API to be of certain length
+expectListSizeEqual
+    :: (MonadIO m, MonadFail m, Foldable xs)
+    => Int
+    -> (HTTP.Status, Either RequestException (xs a))
+    -> m ()
+expectListSizeEqual l (_, res) = case res of
+    Left e   -> wantedSuccessButError e
+    Right xs -> length (toList xs) `shouldBe` l
+
+-- | Apply 'a' to all actions in sequence
+verify :: (Monad m) => a -> [a -> m ()] -> m ()
+verify a = mapM_ (a &)
+
 --
 -- Lenses
 --
@@ -239,6 +286,7 @@ walletId =
 --
 -- Helpers
 --
+
 fromQuantity :: Quantity (u :: Symbol) a -> a
 fromQuantity (Quantity a) = a
 
@@ -246,10 +294,10 @@ getFromResponse
     :: (Show a, Eq a)
     => Lens' s a
     -> (HTTP.Status, Either RequestException s)
-    -> Maybe a
+    -> a
 getFromResponse getter (_, res) = case res of
-    Left _  -> Nothing
-    Right s -> Just (view getter s)
+    Left _  -> error "getFromResponse failed to get item"
+    Right s -> view getter s
 
 json :: QuasiQuoter
 json = aesonQQ
@@ -257,6 +305,20 @@ json = aesonQQ
 infixr 5 </>
 (</>) :: ToHttpApiData a => Text -> a -> Text
 base </> next = mconcat [base, "/", toQueryParam next]
+
+-- | teardown after each test (currently only deleting all wallets)
+tearDown :: Context -> IO ()
+tearDown ctx = do
+    resp <- request @[ApiWallet] ctx ("GET", "v2/wallets") Default Empty
+    forM_ (wallets (snd resp)) $ \wal -> do
+        let endpoint = "v2/wallets" </> wal ^. walletId
+        d <- request @Value ctx ("DELETE", endpoint) None Empty
+        expectResponseCode HTTP.status204 d
+ where
+     wallets :: Either RequestException [ApiWallet] -> [ApiWallet]
+     wallets c = case c of
+         Left e -> error $ "deleteAllWallets: Cannot return wallets: " <> show e
+         Right s -> s
 
 unsafeCreateDigest :: Text -> Digest Blake2b_160
 unsafeCreateDigest s = fromMaybe

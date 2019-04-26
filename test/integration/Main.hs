@@ -15,9 +15,9 @@ import Data.Time
 import Network.HTTP.Client
     ( defaultManagerSettings, newManager )
 import Test.Hspec
-    ( afterAll, beforeAll, describe, hspec )
+    ( after, afterAll, beforeAll, describe, hspec )
 import Test.Integration.Framework.DSL
-    ( Context (..) )
+    ( Context (..), tearDown )
 
 import qualified Cardano.Wallet.Network.HttpBridgeSpec as HttpBridge
 import qualified Cardano.WalletSpec as Wallet
@@ -28,7 +28,7 @@ main = do
     hspec $ do
         describe "Cardano.WalletSpec" Wallet.spec
         describe "Cardano.Wallet.Network.HttpBridge" HttpBridge.spec
-        beforeAll startCluster $ afterAll killCluster $ do
+        beforeAll startCluster $ afterAll killCluster $ after tearDown $ do
             describe "Wallets API endpoint tests" Wallets.spec
   where
     startUpDelay :: Int
