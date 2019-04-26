@@ -26,7 +26,7 @@ It can be used as a component of a frontend such as
 interface for wallets. Most users who would like to use Cardano should
 start with Daedalus.
 
-## Development
+## Overview
 
 This source code repository contains the next major version of Cardano
 Wallet, which has been completely rewritten for the
@@ -46,57 +46,15 @@ $ stack build --test --no-run-tests
 
 ## How to test
 
-#### unit
-
-```
-$ stack test cardano-wallet:unit
-```
-
-#### integration
-
-##### pre-requisites
-
-1. Install our fork of [cardano-http-bridge](https://github.com/KtorZ/cardano-http-bridge)
-
-```
-$ cargo install --branch cardano-wallet-integration --git https://github.com/KtorZ/cardano-http-bridge.git
-```
-
-2. Install [cardano-sl@cardano-node-simple](https://github.com/input-output-hk/cardano-sl)
-
-```
-$ git clone git@github.com:input-output-hk/cardano-sl.git
-$ cd cardano-sl
-$ stack install cardano-sl-node:exe:cardano-node-simple
-```
-
-Alternatively, if you're running on linux, you may use a pre-compiled version:
-
-```
-$ curl -L -o cardano-node-simple-3.0.1.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/test/data/cardano-node-simple/cardano-node-simple-3.0.1.tar.gz
-$ tar xzf cardano-node-simple-3.0.1.tar.gz -C /usr/local/bin && rm cardano-node-simple-3.0.1.tar.gz
-```
-
-3. Import the initial testnet chain bootstrap for the `cardano-http-bridge`
-
-```
-$ curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/test/data/cardano-http-bridge/hermes-testnet.tar.gz
-$ tar xzf hermes-testnet.tar.gz -C $HOME && rm hermes-testnet.tar.gz
-```
-
-##### test
-
-```
-$ stack test cardano-wallet:integration
-```
-
+See [Wiki - Testing](https://github.com/input-output-hk/cardano-wallet/wiki/Testing)
 
 ## Documentation
 
- * Users of the Cardano Wallet API can refer to the [API Documentation](https://input-output-hk.github.io/cardano-wallet/api/).
- * Development-related information can be found in the [Wiki](https://github.com/input-output-hk/cardano-wallet/wiki).
- * To help understand the source code, refer to the [Haddock Documentation](https://input-output-hk.github.io/cardano-wallet/haddock/).
-
+| Link                                                                               | Audience                                                     |
+| ---                                                                                | ---                                                          |
+| [API Documentation](https://input-output-hk.github.io/cardano-wallet/api/)         | Users of the Cardano Wallet API                              |
+| [Haddock Documentation](https://input-output-hk.github.io/cardano-wallet/haddock/) | Haskell Developers using the `cardano-wallet` as a library   |
+| [Wiki](https://github.com/input-output-hk/cardano-wallet/wiki)                     | Anyone interested in the project and our development process |
 
 <hr/>
 
