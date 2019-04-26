@@ -73,7 +73,7 @@
 </span><a name="line-73"></a><span>      </span><span class="hs-comment">-- ^ Picked outputs</span><span>
 </span><a name="line-74"></a><span>    </span><span class="hs-special">,</span><span> </span><a name="change"><a href="Cardano.Wallet.CoinSelection.html#change"><span class="hs-identifier">change</span></a></a><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><a href="Cardano.Wallet.Primitive.Types.html#Coin"><span class="hs-identifier hs-type">Coin</span></a><span class="hs-special">]</span><span>
 </span><a name="line-75"></a><span>      </span><span class="hs-comment">-- ^ Resulting changes</span><span>
-</span><a name="line-76"></a><span>    </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Show</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Eq</span><span class="hs-special">)</span><span>
+</span><a name="line-76"></a><span>    </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Generic</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Show</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Eq</span><span class="hs-special">)</span><span>
 </span><a name="line-77"></a><span>
 </span><a name="line-78"></a><span class="hs-comment">-- NOTE</span><span>
 </span><a name="line-79"></a><span class="hs-comment">-- We don't check for duplicates when combining selections because we assume</span><span>

@@ -599,6 +599,7 @@ CoinSelection :: [(TxIn, TxOut)] -> [TxOut] -> [Coin] -> CoinSelection
 shuffle :: [a] -> IO [a]
 instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.CoinSelection
 instance GHC.Show.Show Cardano.Wallet.CoinSelection.CoinSelection
+instance GHC.Generics.Generic Cardano.Wallet.CoinSelection.CoinSelection
 instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.CoinSelectionError
 instance GHC.Show.Show Cardano.Wallet.CoinSelection.CoinSelectionError
 instance GHC.Generics.Generic Cardano.Wallet.CoinSelection.CoinSelectionOptions
@@ -862,6 +863,7 @@ applyBlock :: Block -> Wallet s -> (Map (Hash "Tx") (Tx, TxMeta), Wallet s)
 --   It's basically just a <tt>foldl' applyBlock</tt> over the given
 --   blocks.
 applyBlocks :: [Block] -> Wallet s -> (Map (Hash "Tx") (Tx, TxMeta), Wallet s)
+newPending :: Tx -> Wallet s -> Wallet s
 
 -- | Get the wallet current tip
 currentTip :: Wallet s -> SlotId
@@ -1318,7 +1320,7 @@ newDBLayer :: forall s. IO (DBLayer IO s)
 --   to realize its role as being intermediary between the three.
 module Cardano.Wallet
 data WalletLayer s
-WalletLayer :: (NewWallet -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata)) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> CoinSelection -> ExceptT ErrSignTx IO (Tx, [TxWitness])) -> ((Tx, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> WalletLayer s
+WalletLayer :: (NewWallet -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata)) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection) -> (WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx, TxMeta, [TxWitness])) -> (WalletId -> (Tx, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> WalletLayer s
 
 -- | Initialise and store a new wallet, returning its ID.
 [$sel:createWallet:WalletLayer] :: WalletLayer s -> NewWallet -> ExceptT ErrWalletAlreadyExists IO WalletId
@@ -1353,10 +1355,10 @@ WalletLayer :: (NewWallet -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (Wal
 --   private key. Note that this doesn't broadcast the transaction to the
 --   network. In order to do so, have a look at
 --   <a>$sel:submitTx:WalletLayer</a>.
-[$sel:signTx:WalletLayer] :: WalletLayer s -> WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> CoinSelection -> ExceptT ErrSignTx IO (Tx, [TxWitness])
+[$sel:signTx:WalletLayer] :: WalletLayer s -> WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx, TxMeta, [TxWitness])
 
 -- | Broadcast a (signed) transaction to the network.
-[$sel:submitTx:WalletLayer] :: WalletLayer s -> (Tx, [TxWitness]) -> ExceptT ErrSubmitTx IO ()
+[$sel:submitTx:WalletLayer] :: WalletLayer s -> WalletId -> (Tx, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()
 data NewWallet
 NewWallet :: !Passphrase "seed" -> !Passphrase "generation" -> !WalletName -> !Passphrase "encryption" -> !AddressPoolGap -> NewWallet
 [$sel:seed:NewWallet] :: NewWallet -> !Passphrase "seed"
@@ -1372,6 +1374,22 @@ ErrNoSuchWallet :: WalletId -> ErrNoSuchWallet
 -- | Forbidden operation was executed on an already existing wallet
 newtype ErrWalletAlreadyExists
 ErrWalletAlreadyExists :: WalletId -> ErrWalletAlreadyExists
+
+-- | Errors occuring when signing a transaction
+data ErrSignTx
+ErrSignTx :: SignTxError -> ErrSignTx
+ErrSignTxNoSuchWallet :: ErrNoSuchWallet -> ErrSignTx
+ErrSignTxWrongPassphrase :: ErrWrongPassphrase -> ErrSignTx
+
+-- | Errors occuring when submitting a signed transaction to the network
+data ErrSubmitTx
+ErrSubmitTxNetwork :: ErrPostTx -> ErrSubmitTx
+ErrSubmitTxNoSuchWallet :: ErrNoSuchWallet -> ErrSubmitTx
+
+-- | Errors occuring when creating an unsigned transaction
+data ErrCreateUnsignedTx
+ErrCreateUnsignedTxNoSuchWallet :: ErrNoSuchWallet -> ErrCreateUnsignedTx
+ErrCreateUnsignedTxCoinSelection :: CoinSelectionError -> ErrCreateUnsignedTx
 
 -- | Create a new instance of the wallet layer.
 mkWalletLayer :: DBLayer IO SeqState -> NetworkLayer IO -> WalletLayer SeqState
@@ -1433,15 +1451,15 @@ ApiBlockData :: UTCTime -> !ApiT SlotId -> ApiBlockData
 [$sel:time:ApiBlockData] :: ApiBlockData -> UTCTime
 [$sel:block:ApiBlockData] :: ApiBlockData -> !ApiT SlotId
 data ApiTransaction
-Transaction :: !ApiT (Hash "Tx") -> !Quantity "lovelace" Natural -> !ApiBlockData -> !Quantity "block" Natural -> !ApiT Direction -> !NonEmpty ApiCoins -> !NonEmpty ApiCoins -> !ApiT TxStatus -> ApiTransaction
-[$sel:id:Transaction] :: ApiTransaction -> !ApiT (Hash "Tx")
-[$sel:amount:Transaction] :: ApiTransaction -> !Quantity "lovelace" Natural
-[$sel:insertedAt:Transaction] :: ApiTransaction -> !ApiBlockData
-[$sel:depth:Transaction] :: ApiTransaction -> !Quantity "block" Natural
-[$sel:direction:Transaction] :: ApiTransaction -> !ApiT Direction
-[$sel:inputs:Transaction] :: ApiTransaction -> !NonEmpty ApiCoins
-[$sel:outputs:Transaction] :: ApiTransaction -> !NonEmpty ApiCoins
-[$sel:status:Transaction] :: ApiTransaction -> !ApiT TxStatus
+ApiTransaction :: !ApiT (Hash "Tx") -> !Quantity "lovelace" Natural -> !Maybe ApiBlockData -> !Quantity "block" Natural -> !ApiT Direction -> !NonEmpty ApiCoins -> !NonEmpty ApiCoins -> !ApiT TxStatus -> ApiTransaction
+[$sel:id:ApiTransaction] :: ApiTransaction -> !ApiT (Hash "Tx")
+[$sel:amount:ApiTransaction] :: ApiTransaction -> !Quantity "lovelace" Natural
+[$sel:insertedAt:ApiTransaction] :: ApiTransaction -> !Maybe ApiBlockData
+[$sel:depth:ApiTransaction] :: ApiTransaction -> !Quantity "block" Natural
+[$sel:direction:ApiTransaction] :: ApiTransaction -> !ApiT Direction
+[$sel:inputs:ApiTransaction] :: ApiTransaction -> !NonEmpty ApiCoins
+[$sel:outputs:ApiTransaction] :: ApiTransaction -> !NonEmpty ApiCoins
+[$sel:status:ApiTransaction] :: ApiTransaction -> !ApiT TxStatus
 data ApiCoins
 ApiCoins :: !ApiT Address -> !Quantity "lovelace" Natural -> ApiCoins
 [$sel:address:ApiCoins] :: ApiCoins -> !ApiT Address
@@ -1710,3 +1728,6 @@ module Cardano.Wallet.Api.Server
 server :: WalletLayer SeqState -> Server Api
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.DB.ErrNoSuchWallet
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.DB.ErrWalletAlreadyExists
+instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrCreateUnsignedTx
+instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrSignTx
+instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrSubmitTx
