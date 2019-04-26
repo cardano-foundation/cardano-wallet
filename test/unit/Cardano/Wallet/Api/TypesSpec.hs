@@ -509,10 +509,10 @@ specification =
     msg = "Whoops! Failed to parse or find the api specification document: "
 
 instance ToSchema ApiAddress where
-    declareNamedSchema _ = declareSchemaForDefinition "Address"
+    declareNamedSchema _ = declareSchemaForDefinition "ApiAddress"
 
 instance ToSchema ApiWallet where
-    declareNamedSchema _ = declareSchemaForDefinition "Wallet"
+    declareNamedSchema _ = declareSchemaForDefinition "ApiWallet"
 
 instance ToSchema WalletPostData where
     declareNamedSchema _ = declareSchemaForDefinition "WalletPostData"
@@ -527,7 +527,7 @@ instance ToSchema PostTransactionData where
     declareNamedSchema _ = declareSchemaForDefinition "PostTransactionData"
 
 instance ToSchema ApiTransaction where
-    declareNamedSchema _ = declareSchemaForDefinition "Transaction"
+    declareNamedSchema _ = declareSchemaForDefinition "ApiTransaction"
 
 
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
