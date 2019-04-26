@@ -57,6 +57,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , XPrv
     , deriveAccountPrivateKey
     , digest
+    , encryptPassphrase
     , generateKeyFromSeed
     , publicKey
     )
@@ -252,7 +253,9 @@ mkWalletLayer db network = WalletLayer
                 , status = Restoring minBound
                 , delegation = NotDelegating
                 }
-        DB.createWallet db (PrimaryKey wid) checkpoint metadata $> wid
+        hpwd <- liftIO $ encryptPassphrase (passphrase w)
+        let creds = ( rootXPrv, hpwd )
+        DB.createWallet db (PrimaryKey wid) checkpoint metadata creds $> wid
 
     , readWallet = _readWallet
 

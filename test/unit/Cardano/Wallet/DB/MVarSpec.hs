@@ -15,6 +15,8 @@ module Cardano.Wallet.DB.MVarSpec
 
 import Prelude
 
+import Cardano.Crypto.Wallet
+    ( unXPrv )
 import Cardano.Wallet
     ( unsafeRunExceptT )
 import Cardano.Wallet.DB
@@ -25,6 +27,8 @@ import Cardano.Wallet.DB
     )
 import Cardano.Wallet.DB.MVar
     ( newDBLayer )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Depth (..), Key, Passphrase (..), XPrv, generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet )
 import Cardano.Wallet.Primitive.Types
@@ -68,6 +72,8 @@ import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldReturn )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Gen
+    , InfiniteList (..)
     , Property
     , arbitraryBoundedEnum
     , checkCoverage
@@ -84,6 +90,8 @@ import Test.QuickCheck.Instances
 import Test.QuickCheck.Monadic
     ( monadicIO, pick )
 
+import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
@@ -116,12 +124,24 @@ spec = do
             (property $ prop_putBeforeInit putTxHistory readTxHistoryF (pure mempty))
 
     describe "put doesn't affect other resources" $ do
-        it "Checkpoint vs Wallet Metadata & Tx History"
-            (property $ prop_isolation putCheckpoint readWalletMeta readTxHistoryF)
-        it "Wallet Metadata vs Tx History & Checkpoint"
-            (property $ prop_isolation putWalletMeta readTxHistoryF readCheckpoint)
-        it "Tx History vs Checkpoint & Wallet Metadata"
-            (property $ prop_isolation putTxHistory readCheckpoint readWalletMeta)
+        it "Checkpoint vs Wallet Metadata & Tx History & Private Key"
+            (property $ prop_isolation putCheckpoint
+                readWalletMeta
+                readTxHistoryF
+                readPrivateKey
+            )
+        it "Wallet Metadata vs Tx History & Checkpoint & Private Key"
+            (property $ prop_isolation putWalletMeta
+                readTxHistoryF
+                readCheckpoint
+                readPrivateKey
+            )
+        it "Tx History vs Checkpoint & Wallet Metadata & Private Key"
+            (property $ prop_isolation putTxHistory
+                readCheckpoint
+                readWalletMeta
+                readPrivateKey
+            )
 
     describe "can't read after delete" $ do
         it "Checkpoint"
@@ -130,6 +150,8 @@ spec = do
             (property $ prop_readAfterDelete readWalletMeta Nothing)
         it "Tx History"
             (property $ prop_readAfterDelete readTxHistoryF (pure mempty))
+        it "Private Key"
+            (property $ prop_readAfterDelete readPrivateKey Nothing)
 
     describe "sequential puts replace values in order" $ do
         it "Checkpoint"
@@ -193,8 +215,8 @@ prop_readAfterPut putOp readOp (key, a) =
   where
     setup = do
         db <- liftIO newDBLayer
-        (cp, meta) <- pick arbitrary
-        liftIO $ unsafeRunExceptT $ createWallet db key cp meta
+        (cp, meta, xprv) <- pick arbitrary
+        liftIO $ unsafeRunExceptT $ createWallet db key cp meta xprv
         return db
     prop db = liftIO $ do
         unsafeRunExceptT $ putOp db key a
@@ -246,8 +268,8 @@ prop_readAfterDelete readOp empty key =
   where
     setup = do
         db <- liftIO newDBLayer
-        (cp, meta) <- pick arbitrary
-        liftIO $ unsafeRunExceptT $ createWallet db key cp meta
+        (cp, meta, xprv) <- pick arbitrary
+        liftIO $ unsafeRunExceptT $ createWallet db key cp meta xprv
         return db
     prop db = liftIO $ do
         unsafeRunExceptT $ removeWallet db key
@@ -255,7 +277,10 @@ prop_readAfterDelete readOp empty key =
 
 -- | Modifying one resource leaves the other untouched
 prop_isolation
-    :: (Show (f b), Eq (f b), Show (g c), Eq (g c), Applicative f, Applicative g)
+    :: ( Applicative f, Show (f b), Eq (f b)
+       , Applicative g, Show (g c), Eq (g c)
+       , Applicative h, Show (h d), Eq (h d)
+       )
     => (  DBLayer IO DummyState
        -> PrimaryKey WalletId
        -> a
@@ -269,24 +294,32 @@ prop_isolation
        -> PrimaryKey WalletId
        -> IO (g c)
        ) -- ^ Read Operation for another resource
+    -> (  DBLayer IO DummyState
+       -> PrimaryKey WalletId
+       -> IO (h d)
+       ) -- ^ Read Operation for another resource
     -> (PrimaryKey WalletId, a)
         -- ^ Properties arguments
     -> Property
-prop_isolation putA readB readC (key, a) =
+prop_isolation putA readB readC readD (key, a) =
     monadicIO (setup >>= prop)
   where
     setup = do
         db <- liftIO newDBLayer
-        (cp, meta, txs) <- pick arbitrary
-        liftIO $ unsafeRunExceptT $ createWallet db key cp meta
+        (cp, meta, txs, xprv) <- pick arbitrary
+        liftIO $ unsafeRunExceptT $ createWallet db key cp meta xprv
         liftIO $ unsafeRunExceptT $ putTxHistory db key txs
-        (b, c) <- liftIO $ (,) <$> readB db key <*> readC db key
-        return (db, (b,c))
+        (b, c, d) <- liftIO $ (,,)
+            <$> readB db key
+            <*> readC db key
+            <*> readD db key
+        return (db, (b, c, d))
 
-    prop (db, (b, c)) = liftIO $ do
+    prop (db, (b, c, d)) = liftIO $ do
         unsafeRunExceptT $ putA db key a
         readB db key `shouldReturn` b
         readC db key `shouldReturn` c
+        readD db key `shouldReturn` d
 
 -- | Check that the DB supports multiple sequential puts for a given resource
 prop_sequentialPut
@@ -315,9 +348,9 @@ prop_sequentialPut putOp readOp resolve (KeyValPairs pairs) =
         ids = map fst pairs
     setup = do
         db <- liftIO newDBLayer
-        (cp, meta) <- pick arbitrary
+        (cp, meta, xprv) <- pick arbitrary
         liftIO $ unsafeRunExceptT $ once_ pairs $ \(k, _) ->
-            createWallet db k cp meta
+            createWallet db k cp meta xprv
         return db
     prop db = liftIO $ do
         unsafeRunExceptT $ forM_ pairs $ uncurry (putOp db)
@@ -351,9 +384,9 @@ prop_parallelPut putOp readOp resolve (KeyValPairs pairs) =
         ids = map fst pairs
     setup = do
         db <- liftIO newDBLayer
-        (cp, meta) <- pick arbitrary
+        (cp, meta, xprv) <- pick arbitrary
         liftIO $ unsafeRunExceptT $ once_ pairs $ \(k, _) ->
-            createWallet db k cp meta
+            createWallet db k cp meta xprv
         return db
     prop db = liftIO $ do
         forConcurrently_ pairs $ unsafeRunExceptT . uncurry (putOp db)
@@ -362,40 +395,50 @@ prop_parallelPut putOp readOp resolve (KeyValPairs pairs) =
 
 -- | Can list created wallets
 prop_createListWallet
-    :: KeyValPairs (PrimaryKey WalletId) (Wallet DummyState, WalletMetadata)
+    :: KeyValPairs
+        (PrimaryKey WalletId)
+        (Wallet DummyState, WalletMetadata, (Key 'RootK XPrv, Hash "encryption"))
     -> Property
 prop_createListWallet (KeyValPairs pairs) =
     monadicIO (setup >>= prop)
   where
     setup = liftIO newDBLayer
     prop db = liftIO $ do
-        res <- once pairs $ \(k, (cp, meta)) ->
-            unsafeRunExceptT $ createWallet db k cp meta
+        res <- once pairs $ \(k, (cp, meta, xprv)) ->
+            unsafeRunExceptT $ createWallet db k cp meta xprv
         (length <$> listWallets db) `shouldReturn` length res
 
 -- | Trying to create a same wallet twice should yield an error
 prop_createWalletTwice
-    :: (PrimaryKey WalletId, Wallet DummyState, WalletMetadata)
+    :: ( PrimaryKey WalletId
+       , Wallet DummyState
+       , WalletMetadata
+       , (Key 'RootK XPrv, Hash "encryption")
+       )
     -> Property
-prop_createWalletTwice (key@(PrimaryKey wid), cp, meta) =
+prop_createWalletTwice (key@(PrimaryKey wid), cp, meta, xprv) =
     monadicIO (setup >>= prop)
   where
     setup = liftIO newDBLayer
     prop db = liftIO $ do
         let err = ErrWalletAlreadyExists wid
-        runExceptT (createWallet db key cp meta) `shouldReturn` Right ()
-        runExceptT (createWallet db key cp meta) `shouldReturn` Left err
+        runExceptT (createWallet db key cp meta xprv) `shouldReturn` Right ()
+        runExceptT (createWallet db key cp meta xprv) `shouldReturn` Left err
 
--- | Trying to create a same wallet twice should yield an error
+-- | Trying to remove a same wallet twice should yield an error
 prop_removeWalletTwice
-    :: (PrimaryKey WalletId, Wallet DummyState, WalletMetadata)
+    :: ( PrimaryKey WalletId
+       , Wallet DummyState
+       , WalletMetadata
+       , (Key 'RootK XPrv, Hash "encryption")
+       )
     -> Property
-prop_removeWalletTwice (key@(PrimaryKey wid), cp, meta) =
+prop_removeWalletTwice (key@(PrimaryKey wid), cp, meta, xprv) =
     monadicIO (setup >>= prop)
   where
     setup = liftIO $ do
         db <- newDBLayer
-        unsafeRunExceptT $ createWallet db key cp meta
+        unsafeRunExceptT $ createWallet db key cp meta xprv
         return db
     prop db = liftIO $ do
         let err = ErrNoSuchWallet wid
@@ -472,3 +515,32 @@ instance Arbitrary WalletMetadata where
         <*> (WalletPassphraseInfo <$> arbitrary)
         <*> oneof [pure Ready, Restoring . Quantity <$> arbitraryBoundedEnum]
         <*> pure NotDelegating
+
+instance Arbitrary (Key 'RootK XPrv) where
+    shrink _ = []
+    arbitrary = do
+        (s, g, e) <- (,,)
+            <$> genPassphrase @"seed" (0, 32)
+            <*> genPassphrase @"generation" (0, 16)
+            <*> genPassphrase @"encryption" (0, 16)
+        return $ generateKeyFromSeed (s, g) e
+      where
+        genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
+        genPassphrase range = do
+            n <- choose range
+            InfiniteList bytes _ <- arbitrary
+            return $ Passphrase $ BA.convert $ BS.pack $ take n bytes
+
+instance Arbitrary (Hash "encryption") where
+    shrink _ = []
+    arbitrary = do
+        InfiniteList bytes _ <- arbitrary
+        return $ Hash $ BS.pack $ take 32 bytes
+
+-- Necessary unsound Show instance for QuickCheck failure reporting
+instance Show XPrv where
+    show = show . unXPrv
+
+-- Necessary unsound Eq instance for QuickCheck properties
+instance Eq XPrv where
+    a == b = unXPrv a == unXPrv b

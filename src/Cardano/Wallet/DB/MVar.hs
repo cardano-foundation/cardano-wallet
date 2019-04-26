@@ -22,6 +22,8 @@ import Cardano.Wallet.DB
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
     )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Depth (..), Key, XPrv )
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
@@ -41,6 +43,7 @@ data Database s = Database
     { wallet :: Wallet s
     , metadata :: WalletMetadata
     , txHistory :: Map (Hash "Tx") (Tx, TxMeta)
+    , xprv :: (Key 'RootK XPrv, Hash "encryption")
     }
 
 -- | Instantiate a new in-memory "database" layer that simply stores data in
@@ -55,10 +58,10 @@ newDBLayer = do
                                       Wallets
         -----------------------------------------------------------------------}
 
-        { createWallet = \key@(PrimaryKey wid) cp meta -> ExceptT $ do
+        { createWallet = \key@(PrimaryKey wid) cp meta k -> ExceptT $ do
             let alter = \case
                     Nothing ->
-                        Right $ Just $ Database cp meta mempty
+                        Right $ Just $ Database cp meta mempty k
                     Just _ ->
                         Left (ErrWalletAlreadyExists wid)
             cp `deepseq` meta `deepseq` alterMVar db alter key
@@ -82,8 +85,8 @@ newDBLayer = do
             let alter = \case
                     Nothing ->
                         Left (ErrNoSuchWallet wid)
-                    Just (Database _ meta history) ->
-                        Right $ Just $ Database cp meta history
+                    Just (Database _ meta history k) ->
+                        Right $ Just $ Database cp meta history k
             cp `deepseq` alterMVar db alter key
 
         , readCheckpoint = \key ->
@@ -97,8 +100,8 @@ newDBLayer = do
             let alter = \case
                     Nothing ->
                         Left (ErrNoSuchWallet wid)
-                    Just (Database cp _ history) ->
-                        Right $ Just $ Database cp meta history
+                    Just (Database cp _ history k) ->
+                        Right $ Just $ Database cp meta history k
             meta `deepseq` alterMVar db alter key
 
         , readWalletMeta = \key -> do
@@ -112,12 +115,19 @@ newDBLayer = do
             let alter = \case
                     Nothing ->
                         Left (ErrNoSuchWallet wid)
-                    Just (Database cp meta txs) ->
-                        Right $ Just $ Database cp meta (txs' <> txs)
+                    Just (Database cp meta txs k) ->
+                        Right $ Just $ Database cp meta (txs' <> txs) k
             txs' `deepseq` alterMVar db alter key
 
         , readTxHistory = \key ->
             maybe mempty txHistory . Map.lookup key <$> readMVar db
+
+        {-----------------------------------------------------------------------
+                                       Keystore
+        -----------------------------------------------------------------------}
+
+        , readPrivateKey = \key ->
+            fmap xprv . Map.lookup key <$> readMVar db
 
         {-----------------------------------------------------------------------
                                        Lock

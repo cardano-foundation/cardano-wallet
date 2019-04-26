@@ -20,6 +20,8 @@ module Cardano.Wallet.DB
 
 import Prelude
 
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Depth (..), Key, XPrv )
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
@@ -38,6 +40,7 @@ data DBLayer m s = DBLayer
         :: PrimaryKey WalletId
         -> Wallet s
         -> WalletMetadata
+        -> (Key 'RootK XPrv, Hash "encryption")
         -> ExceptT ErrWalletAlreadyExists m ()
         -- ^ Initialize a database entry for a given wallet. 'putCheckpoint',
         -- 'putWalletMeta' or 'putTxHistory' will actually all fail if they are
@@ -102,6 +105,12 @@ data DBLayer m s = DBLayer
         -- ^ Fetch the current transaction history of a known wallet.
         --
         -- Returns an empty map if the wallet isn't found.
+
+    , readPrivateKey
+        :: PrimaryKey WalletId
+        -> m (Maybe (Key 'RootK XPrv, Hash "encryption"))
+        -- ^ Read a previously stored private key and its associated passphrase
+        -- hash.
 
     , withLock
         :: forall e a. ()
