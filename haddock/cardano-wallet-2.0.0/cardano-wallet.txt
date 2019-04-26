@@ -885,103 +885,6 @@ instance GHC.Classes.Eq s => GHC.Classes.Eq (Cardano.Wallet.Primitive.Model.Wall
 instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.Model.Wallet s)
 
 
--- | Database / Pesistence layer for the wallet backend. This is where we
---   define the interface allowing us to store and fetch various data on
---   our wallets.
-module Cardano.Wallet.DB
-
--- | A Database interface for storing various things in a DB. In practice,
---   we'll need some extra contraints on the wallet state that allows us to
---   serialize and unserialize it (e.g. <tt>forall s. (Serialize s) =&gt;
---   ...</tt>)
-data DBLayer m s
-DBLayer :: (PrimaryKey WalletId -> Wallet s -> WalletMetadata -> ExceptT ErrWalletAlreadyExists m ()) -> (PrimaryKey WalletId -> ExceptT ErrNoSuchWallet m ()) -> m [PrimaryKey WalletId] -> (PrimaryKey WalletId -> Wallet s -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe (Wallet s))) -> (PrimaryKey WalletId -> WalletMetadata -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe WalletMetadata)) -> (PrimaryKey WalletId -> Map (Hash "Tx") (Tx, TxMeta) -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Map (Hash "Tx") (Tx, TxMeta))) -> (forall e a. () => ExceptT e m a -> ExceptT e m a) -> DBLayer m s
-
--- | Initialize a database entry for a given wallet. <a>putCheckpoint</a>,
---   <a>putWalletMeta</a> or <a>putTxHistory</a> will actually all fail if
---   they are called _first_ on a wallet.
-[createWallet] :: DBLayer m s -> PrimaryKey WalletId -> Wallet s -> WalletMetadata -> ExceptT ErrWalletAlreadyExists m ()
-
--- | Remove a given wallet and all its associated data (checkpoints,
---   metadata, tx history ...)
-[removeWallet] :: DBLayer m s -> PrimaryKey WalletId -> ExceptT ErrNoSuchWallet m ()
-
--- | Get the list of all known wallets in the DB, possibly empty.
-[listWallets] :: DBLayer m s -> m [PrimaryKey WalletId]
-
--- | Replace the current checkpoint for a given wallet. We do not handle
---   rollbacks yet, and therefore only stores the latest available
---   checkpoint.
---   
---   If the wallet doesn't exist, this operation returns an error.
-[putCheckpoint] :: DBLayer m s -> PrimaryKey WalletId -> Wallet s -> ExceptT ErrNoSuchWallet m ()
-
--- | Fetch the most recent checkpoint of a given wallet.
---   
---   Return <a>Nothing</a> if there's no such wallet.
-[readCheckpoint] :: DBLayer m s -> PrimaryKey WalletId -> m (Maybe (Wallet s))
-
--- | Replace an existing wallet metadata with the given one.
---   
---   If the wallet doesn't exist, this operation returns an error
-[putWalletMeta] :: DBLayer m s -> PrimaryKey WalletId -> WalletMetadata -> ExceptT ErrNoSuchWallet m ()
-
--- | Fetch a wallet metadata, if they exist.
---   
---   Return <a>Nothing</a> if there's no such wallet.
-[readWalletMeta] :: DBLayer m s -> PrimaryKey WalletId -> m (Maybe WalletMetadata)
-
--- | Augments the transaction history for a known wallet.
---   
---   If an entry for a particular transaction already exists it is not
---   altered nor merged (just ignored).
---   
---   If the wallet doesn't exist, this operation returns an error.
-[putTxHistory] :: DBLayer m s -> PrimaryKey WalletId -> Map (Hash "Tx") (Tx, TxMeta) -> ExceptT ErrNoSuchWallet m ()
-
--- | Fetch the current transaction history of a known wallet.
---   
---   Returns an empty map if the wallet isn't found.
-[readTxHistory] :: DBLayer m s -> PrimaryKey WalletId -> m (Map (Hash "Tx") (Tx, TxMeta))
-[withLock] :: DBLayer m s -> forall e a. () => ExceptT e m a -> ExceptT e m a
-
--- | A primary key which can take many forms depending on the value. This
---   may become a type family as we move forward, but for now, it
---   illustrate that some queries are ran against some sort of store;
---   
---   As a matter of fact, we may manipulate multiple wallets at the same
---   time, so, functions like <tt>enqueueCheckpoint</tt> needs to be
---   associated to a corresponding wallet. Some other may not because they
---   are information valid for all wallets (like for instance, the last
---   known network tip).
-newtype PrimaryKey key
-PrimaryKey :: key -> PrimaryKey key
-
--- | Can't perform given operation because there's no wallet
-newtype ErrNoSuchWallet
-ErrNoSuchWallet :: WalletId -> ErrNoSuchWallet
-
--- | Forbidden operation was executed on an already existing wallet
-newtype ErrWalletAlreadyExists
-ErrWalletAlreadyExists :: WalletId -> ErrWalletAlreadyExists
-instance GHC.Classes.Ord key => GHC.Classes.Ord (Cardano.Wallet.DB.PrimaryKey key)
-instance GHC.Classes.Eq key => GHC.Classes.Eq (Cardano.Wallet.DB.PrimaryKey key)
-instance GHC.Show.Show Cardano.Wallet.DB.ErrWalletAlreadyExists
-instance GHC.Classes.Eq Cardano.Wallet.DB.ErrWalletAlreadyExists
-instance GHC.Show.Show Cardano.Wallet.DB.ErrNoSuchWallet
-instance GHC.Classes.Eq Cardano.Wallet.DB.ErrNoSuchWallet
-
-
--- | Dummy implementation of the database-layer, using MVar. This may be
---   good for state-machine testing in order to compare it with an
---   implementation on a real data store.
-module Cardano.Wallet.DB.MVar
-
--- | Instantiate a new in-memory "database" layer that simply stores data
---   in a local MVar. Data vanishes if the software is shut down.
-newDBLayer :: forall s. IO (DBLayer IO s)
-
-
 -- | Primitives for performing address derivation for some given schemes.
 --   This is where most of the crypto happens in the wallet and, it is
 --   quite important to ensure that the following implementation matches
@@ -1307,6 +1210,107 @@ KeyNotFoundForAddress :: Address -> SignTxError
 instance GHC.Show.Show Cardano.Wallet.Primitive.Signing.SignTag
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.Signing.SignTag
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Signing.SignTag
+
+
+-- | Database / Pesistence layer for the wallet backend. This is where we
+--   define the interface allowing us to store and fetch various data on
+--   our wallets.
+module Cardano.Wallet.DB
+
+-- | A Database interface for storing various things in a DB. In practice,
+--   we'll need some extra contraints on the wallet state that allows us to
+--   serialize and unserialize it (e.g. <tt>forall s. (Serialize s) =&gt;
+--   ...</tt>)
+data DBLayer m s
+DBLayer :: (PrimaryKey WalletId -> Wallet s -> WalletMetadata -> (Key  'RootK XPrv, Hash "encryption") -> ExceptT ErrWalletAlreadyExists m ()) -> (PrimaryKey WalletId -> ExceptT ErrNoSuchWallet m ()) -> m [PrimaryKey WalletId] -> (PrimaryKey WalletId -> Wallet s -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe (Wallet s))) -> (PrimaryKey WalletId -> WalletMetadata -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe WalletMetadata)) -> (PrimaryKey WalletId -> Map (Hash "Tx") (Tx, TxMeta) -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Map (Hash "Tx") (Tx, TxMeta))) -> (PrimaryKey WalletId -> m (Maybe (Key  'RootK XPrv, Hash "encryption"))) -> (forall e a. () => ExceptT e m a -> ExceptT e m a) -> DBLayer m s
+
+-- | Initialize a database entry for a given wallet. <a>putCheckpoint</a>,
+--   <a>putWalletMeta</a> or <a>putTxHistory</a> will actually all fail if
+--   they are called _first_ on a wallet.
+[createWallet] :: DBLayer m s -> PrimaryKey WalletId -> Wallet s -> WalletMetadata -> (Key  'RootK XPrv, Hash "encryption") -> ExceptT ErrWalletAlreadyExists m ()
+
+-- | Remove a given wallet and all its associated data (checkpoints,
+--   metadata, tx history ...)
+[removeWallet] :: DBLayer m s -> PrimaryKey WalletId -> ExceptT ErrNoSuchWallet m ()
+
+-- | Get the list of all known wallets in the DB, possibly empty.
+[listWallets] :: DBLayer m s -> m [PrimaryKey WalletId]
+
+-- | Replace the current checkpoint for a given wallet. We do not handle
+--   rollbacks yet, and therefore only stores the latest available
+--   checkpoint.
+--   
+--   If the wallet doesn't exist, this operation returns an error.
+[putCheckpoint] :: DBLayer m s -> PrimaryKey WalletId -> Wallet s -> ExceptT ErrNoSuchWallet m ()
+
+-- | Fetch the most recent checkpoint of a given wallet.
+--   
+--   Return <a>Nothing</a> if there's no such wallet.
+[readCheckpoint] :: DBLayer m s -> PrimaryKey WalletId -> m (Maybe (Wallet s))
+
+-- | Replace an existing wallet metadata with the given one.
+--   
+--   If the wallet doesn't exist, this operation returns an error
+[putWalletMeta] :: DBLayer m s -> PrimaryKey WalletId -> WalletMetadata -> ExceptT ErrNoSuchWallet m ()
+
+-- | Fetch a wallet metadata, if they exist.
+--   
+--   Return <a>Nothing</a> if there's no such wallet.
+[readWalletMeta] :: DBLayer m s -> PrimaryKey WalletId -> m (Maybe WalletMetadata)
+
+-- | Augments the transaction history for a known wallet.
+--   
+--   If an entry for a particular transaction already exists it is not
+--   altered nor merged (just ignored).
+--   
+--   If the wallet doesn't exist, this operation returns an error.
+[putTxHistory] :: DBLayer m s -> PrimaryKey WalletId -> Map (Hash "Tx") (Tx, TxMeta) -> ExceptT ErrNoSuchWallet m ()
+
+-- | Fetch the current transaction history of a known wallet.
+--   
+--   Returns an empty map if the wallet isn't found.
+[readTxHistory] :: DBLayer m s -> PrimaryKey WalletId -> m (Map (Hash "Tx") (Tx, TxMeta))
+
+-- | Read a previously stored private key and its associated passphrase
+--   hash.
+[readPrivateKey] :: DBLayer m s -> PrimaryKey WalletId -> m (Maybe (Key  'RootK XPrv, Hash "encryption"))
+[withLock] :: DBLayer m s -> forall e a. () => ExceptT e m a -> ExceptT e m a
+
+-- | A primary key which can take many forms depending on the value. This
+--   may become a type family as we move forward, but for now, it
+--   illustrate that some queries are ran against some sort of store;
+--   
+--   As a matter of fact, we may manipulate multiple wallets at the same
+--   time, so, functions like <tt>enqueueCheckpoint</tt> needs to be
+--   associated to a corresponding wallet. Some other may not because they
+--   are information valid for all wallets (like for instance, the last
+--   known network tip).
+newtype PrimaryKey key
+PrimaryKey :: key -> PrimaryKey key
+
+-- | Can't perform given operation because there's no wallet
+newtype ErrNoSuchWallet
+ErrNoSuchWallet :: WalletId -> ErrNoSuchWallet
+
+-- | Forbidden operation was executed on an already existing wallet
+newtype ErrWalletAlreadyExists
+ErrWalletAlreadyExists :: WalletId -> ErrWalletAlreadyExists
+instance GHC.Classes.Ord key => GHC.Classes.Ord (Cardano.Wallet.DB.PrimaryKey key)
+instance GHC.Classes.Eq key => GHC.Classes.Eq (Cardano.Wallet.DB.PrimaryKey key)
+instance GHC.Show.Show Cardano.Wallet.DB.ErrWalletAlreadyExists
+instance GHC.Classes.Eq Cardano.Wallet.DB.ErrWalletAlreadyExists
+instance GHC.Show.Show Cardano.Wallet.DB.ErrNoSuchWallet
+instance GHC.Classes.Eq Cardano.Wallet.DB.ErrNoSuchWallet
+
+
+-- | Dummy implementation of the database-layer, using MVar. This may be
+--   good for state-machine testing in order to compare it with an
+--   implementation on a real data store.
+module Cardano.Wallet.DB.MVar
+
+-- | Instantiate a new in-memory "database" layer that simply stores data
+--   in a local MVar. Data vanishes if the software is shut down.
+newDBLayer :: forall s. IO (DBLayer IO s)
 
 
 -- | Provides the wallet layer functions that are used by API layer and
