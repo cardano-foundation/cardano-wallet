@@ -68,6 +68,8 @@ import Data.Word
     ( Word32 )
 import GHC.Generics
     ( Generic )
+import System.IO.Unsafe
+    ( unsafePerformIO )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldReturn )
 import Test.QuickCheck
@@ -80,6 +82,7 @@ import Test.QuickCheck
     , choose
     , cover
     , elements
+    , generate
     , genericShrink
     , oneof
     , property
@@ -114,6 +117,8 @@ spec = do
             (property $ prop_readAfterPut putWalletMeta readWalletMeta)
         it "Tx History"
             (property $ prop_readAfterPut putTxHistory readTxHistoryF)
+        it "Private Key"
+            (property $ prop_readAfterPut putPrivateKey readPrivateKey)
 
     describe "can't put before wallet exists" $ do
         it "Checkpoint"
@@ -122,6 +127,8 @@ spec = do
             (property $ prop_putBeforeInit putWalletMeta readWalletMeta Nothing)
         it "Tx History"
             (property $ prop_putBeforeInit putTxHistory readTxHistoryF (pure mempty))
+        it "Private Key"
+            (property $ prop_putBeforeInit putPrivateKey readPrivateKey Nothing)
 
     describe "put doesn't affect other resources" $ do
         it "Checkpoint vs Wallet Metadata & Tx History & Private Key"
@@ -160,6 +167,8 @@ spec = do
             (checkCoverage $ prop_sequentialPut putWalletMeta readWalletMeta lrp)
         it "Tx History"
             (checkCoverage $ prop_sequentialPut putTxHistory readTxHistoryF unions)
+        it "Private Key"
+            (checkCoverage $ prop_sequentialPut putPrivateKey readPrivateKey lrp)
 
     describe "parallel puts replace values in _any_ order" $ do
         it "Checkpoint"
@@ -171,6 +180,9 @@ spec = do
         it "Tx History"
             (checkCoverage $ prop_parallelPut putTxHistory readTxHistoryF
                 (length . unions @(Map (Hash "Tx") (Tx, TxMeta))))
+        it "Private Key"
+            (checkCoverage $ prop_parallelPut putPrivateKey readPrivateKey
+                (length . lrp @Maybe))
   where
     -- | Wrap the result of 'readTxHistory' in an arbitrary identity Applicative
     readTxHistoryF
@@ -514,18 +526,7 @@ instance Arbitrary WalletMetadata where
 
 instance Arbitrary (Key 'RootK XPrv) where
     shrink _ = []
-    arbitrary = do
-        (s, g, e) <- (,,)
-            <$> genPassphrase @"seed" (0, 32)
-            <*> genPassphrase @"generation" (0, 16)
-            <*> genPassphrase @"encryption" (0, 16)
-        return $ generateKeyFromSeed (s, g) e
-      where
-        genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
-        genPassphrase range = do
-            n <- choose range
-            InfiniteList bytes _ <- arbitrary
-            return $ Passphrase $ BA.convert $ BS.pack $ take n bytes
+    arbitrary = elements rootKeys
 
 instance Arbitrary (Hash "encryption") where
     shrink _ = []
@@ -540,3 +541,25 @@ instance Show XPrv where
 -- Necessary unsound Eq instance for QuickCheck properties
 instance Eq XPrv where
     a == b = unXPrv a == unXPrv b
+
+genRootKeys :: Gen (Key 'RootK XPrv)
+genRootKeys = do
+    (s, g, e) <- (,,)
+        <$> genPassphrase @"seed" (0, 32)
+        <*> genPassphrase @"generation" (0, 16)
+        <*> genPassphrase @"encryption" (0, 16)
+    return $ generateKeyFromSeed (s, g) e
+  where
+    genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
+    genPassphrase range = do
+        n <- choose range
+        InfiniteList bytes _ <- arbitrary
+        return $ Passphrase $ BA.convert $ BS.pack $ take n bytes
+
+-- Properties above are quite heavy on the generation of values, althrough for
+-- private keys, it isn't particularly useful / relevant to generate many of
+-- them as they're really treated as an opaque type.
+-- Instead, we generate them once, and picks from the list.
+rootKeys :: [Key 'RootK XPrv]
+rootKeys = unsafePerformIO $ generate (vectorOf 10 genRootKeys)
+{-# NOINLINE rootKeys #-}
