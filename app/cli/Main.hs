@@ -144,8 +144,7 @@ exec args
             \(Enter a blank line if you do not wish to use a second factor.)"
         passphrase <- getRequiredSensitiveValue
             (fromText @(Passphrase "encryption"))
-            "Please enter a passphrase: \n\
-            \(Enter a blank line if you do not wish to use a passphrase.)"
+            "Please enter a passphrase: "
         print
             ( poolGap :: AddressPoolGap
             , name :: WalletName
