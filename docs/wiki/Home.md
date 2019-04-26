@@ -4,10 +4,10 @@
 - [Development Process](https://github.com/input-output-hk/cardano-wallet/wiki/Development-Process)
 - [Coding Standards](https://github.com/input-output-hk/cardano-wallet/wiki/Coding-Standards)
 
-
 # Project
 
 - [Roadmap](https://github.com/input-output-hk/cardano-wallet/wiki/Roadmap)
+- [Testing](https://github.com/input-output-hk/cardano-wallet/wiki/Testing)
 - [Blackboard - Ideas & Thoughts](https://github.com/input-output-hk/cardano-wallet/wiki/Blackboard)
 - [Release Checklist](https://github.com/input-output-hk/cardano-wallet/wiki/Release-Checklist)
 
