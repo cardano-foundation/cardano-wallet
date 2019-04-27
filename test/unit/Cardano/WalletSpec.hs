@@ -12,8 +12,6 @@ module Cardano.WalletSpec
 
 import Prelude
 
-import Cardano.Environment
-    ( Network (..) )
 import Cardano.Wallet
     ( WalletLayer (..), mkWalletLayer )
 import Cardano.Wallet.DB
@@ -139,7 +137,7 @@ setupFixture
     -> IO WalletLayerFixture
 setupFixture (wid, wname, wstate) = do
     db <- newDBLayer
-    network <- newNetworkLayer Local 8000
+    network <- newNetworkLayer 8000
     let wl = mkWalletLayer db network
     res <- runExceptT $ createWallet wl wid wname wstate
     let wal = case res of

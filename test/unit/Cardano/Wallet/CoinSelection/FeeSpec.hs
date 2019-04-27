@@ -14,7 +14,7 @@ module Cardano.Wallet.CoinSelection.FeeSpec
 import Prelude
 
 import Cardano.Environment
-    ( Network (..) )
+    ( Network (..), network )
 import Cardano.Wallet.Binary
     ( encodeSignedTx )
 import Cardano.Wallet.CoinSelection
@@ -83,8 +83,6 @@ import Test.QuickCheck
     , withMaxSuccess
     , (==>)
     )
-import Test.QuickCheck.Arbitrary.Generic
-    ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
@@ -372,11 +370,11 @@ propReducedChanges drg (ShowFmt (FeeProp coinSel utxo (fee, dust))) = do
         adjustForFee feeOpt utxo coinSel
 
 propFeeEstimation
-    :: (ShowFmt CoinSelection, Network, InfiniteList (Network -> Address))
+    :: (ShowFmt CoinSelection, InfiniteList (Network -> Address))
     -> Property
-propFeeEstimation (ShowFmt sel, network, InfiniteList chngAddrs _) =
+propFeeEstimation (ShowFmt sel, InfiniteList chngAddrs _) =
     let
-        (Fee calcFee) = estimateFee cardanoPolicy network sel
+        (Fee calcFee) = estimateFee cardanoPolicy sel
         (TxSizeLinear (Quantity a) (Quantity b)) = cardanoPolicy
         tx = fromCoinSelection sel
         size = BL.length $ toLazyByteString $ encodeSignedTx tx
@@ -520,10 +518,6 @@ instance Arbitrary (Hash "Tx") where
 instance Arbitrary Address where
     shrink _ = []
     arbitrary = genAddress (30, 100)
-
-instance Arbitrary Network where
-    shrink = genericShrink
-    arbitrary = genericArbitrary
 
 -- | Generate change addresses for the given network. We consider that change
 -- addresses are always following a sequential scheme.

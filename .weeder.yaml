@@ -49,4 +49,8 @@
     - message:
       - name: Module not compiled
       - module: Cardano.Launcher.Windows
-
+    - message:
+      - name: Weeds exported
+      - module:
+        - name: Spec
+        - identifier: main

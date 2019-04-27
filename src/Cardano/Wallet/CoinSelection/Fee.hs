@@ -29,7 +29,7 @@ module Cardano.Wallet.CoinSelection.Fee
 import Prelude
 
 import Cardano.Environment
-    ( Network (..) )
+    ( Network (..), network )
 import Cardano.Wallet.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
@@ -331,10 +331,9 @@ cardanoPolicy = TxSizeLinear (Quantity 155381) (Quantity 43.946)
 -- therefore, have an empty address derivation payload.
 estimateFee
     :: TxSizeLinear
-    -> Network
     -> CoinSelection
     -> Fee
-estimateFee policy network (CoinSelection inps outs chngs) =
+estimateFee policy (CoinSelection inps outs chngs) =
     Fee $ ceiling (a + b*fromIntegral totalPayload)
   where
     TxSizeLinear (Quantity a) (Quantity b) = policy

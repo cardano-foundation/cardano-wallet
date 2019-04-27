@@ -26,8 +26,6 @@ import Cardano.CLI
     , getRequiredSensitiveValue
     , parseArgWith
     )
-import Cardano.Environment
-    ( network )
 import Cardano.Wallet
     ( mkWalletLayer )
 import Cardano.Wallet.Api
@@ -171,7 +169,7 @@ exec args
 execServer :: Port "wallet" -> Port "bridge" -> IO ()
 execServer (Port port) (Port bridgePort) = do
     db <- MVar.newDBLayer
-    nw <- HttpBridge.newNetworkLayer network bridgePort
+    nw <- HttpBridge.newNetworkLayer bridgePort
     let wallet = mkWalletLayer db nw
     Warp.runSettings settings (serve (Proxy @("v2" :> Api)) (server wallet))
   where

@@ -8,7 +8,7 @@ module Cardano.Wallet.Network.HttpBridgeSpec
 import Prelude
 
 import Cardano.Environment
-    ( Network (..) )
+    ( network )
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet.Binary
@@ -39,12 +39,15 @@ import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
     ( runExceptT, withExceptT )
+import Data.Text.Class
+    ( toText )
 import Test.Hspec
     ( Spec, afterAll, beforeAll, describe, it, shouldReturn, shouldSatisfy )
 
 import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Text as T
 
 port :: Int
 port = 1337
@@ -52,8 +55,8 @@ port = 1337
 spec :: Spec
 spec = do
     describe "Happy paths" $ beforeAll startBridge $ afterAll closeBridge $ do
-        it "get from packed epochs" $ \(_, network) -> do
-            let blocks = runExceptT $ nextBlocks network (SlotId 13 21599)
+        it "get from packed epochs" $ \(_, bridge) -> do
+            let blocks = runExceptT $ nextBlocks bridge (SlotId 13 21599)
             (fmap length <$> blocks)
                 `shouldReturn` pure 21600
             (fmap (prevBlockHash . header . head) <$> blocks)
@@ -62,8 +65,8 @@ spec = do
                     \\142\SOH\192K\250^\168\188m")
 
         it "get from packet epochs and filter by start slot"
-                $ \(_, network) -> do
-            let blocks = runExceptT $ nextBlocks network (SlotId 14 13999)
+                $ \(_, bridge) -> do
+            let blocks = runExceptT $ nextBlocks bridge (SlotId 14 13999)
             (fmap length <$> blocks)
                 `shouldReturn` pure 7600
             (fmap (prevBlockHash . header . head) <$> blocks)
@@ -71,38 +74,38 @@ spec = do
                     "\186\173\135)\129\248 \214\222\159\161x\EM\214\187\&8\158\
                     \\220\237\245\bd\207\DC4\RS\168\212\143\240g\EOTQ")
 
-        it "get unstable blocks for the unstable epoch" $ \(_, network) -> do
+        it "get unstable blocks for the unstable epoch" $ \(_, bridge) -> do
             let action = runExceptT $ do
-                    (SlotId ep sl) <- (slotId . snd) <$> networkTip' network
+                    (SlotId ep sl) <- (slotId . snd) <$> networkTip' bridge
                     let sl' = if sl > 2 then sl - 2 else 0
-                    blocks <- nextBlocks network (SlotId ep sl')
+                    blocks <- nextBlocks bridge (SlotId ep sl')
                     lift $ blocks `shouldSatisfy` (\bs
                         -> length bs >= fromIntegral (sl - sl')
                         && length bs <= fromIntegral (sl - sl' + 1)
                         )
             action `shouldReturn` pure ()
 
-        it "produce no blocks if start is after tip" $ \(_, network) -> do
+        it "produce no blocks if start is after tip" $ \(_, bridge) -> do
             let action = runExceptT $ do
-                    SlotId ep sl <- (slotId . snd) <$> networkTip' network
-                    length <$> nextBlocks network (SlotId (ep + 1) sl)
+                    SlotId ep sl <- (slotId . snd) <$> networkTip' bridge
+                    length <$> nextBlocks bridge (SlotId (ep + 1) sl)
             action `shouldReturn` pure 0
 
     describe "Error paths" $ beforeAll newNetworkLayer $ do
-        it "gets a 'ErrNetworkUnreachable' if bridge isn't up (1)" $ \network -> do
+        it "gets a 'ErrNetworkUnreachable' if bridge isn't up (1)" $ \bridge -> do
             let msg x = "Expected a ErrNetworkUnreachable' failure but got " <> show x
             let action = do
-                    res <- runExceptT $ networkTip network
+                    res <- runExceptT $ networkTip bridge
                     res `shouldSatisfy` \case
                         Left (ErrNetworkTipNetworkUnreachable _) -> True
                         _ -> error (msg res)
             action `shouldReturn` ()
 
-        it "gets a 'ErrNetworkUnreachable' if bridge isn't up (2)" $ \network -> do
+        it "gets a 'ErrNetworkUnreachable' if bridge isn't up (2)" $ \bridge -> do
             let msg x = "Expected a ErrNetworkUnreachable' failure but got " <> show x
             let tx = sign txEmpty []
             let action = do
-                    res <- runExceptT $ postTx network tx
+                    res <- runExceptT $ postTx bridge tx
                     res `shouldSatisfy` \case
                         Left (ErrPostTxNetworkUnreachable (ErrNetworkUnreachable _)) ->
                             True
@@ -112,37 +115,37 @@ spec = do
 
     describe "Submitting signed transactions"
         $ beforeAll startBridge $ afterAll closeBridge $ do
-        it "empty tx fails (1)" $ \(_, network) -> do
+        it "empty tx fails (1)" $ \(_, bridge) -> do
             let signed = sign txEmpty []
             let err = Left $ ErrPostTxBadRequest
                     "Transaction failed verification: transaction has no inputs"
-            runExceptT (postTx network signed) `shouldReturn` err
+            runExceptT (postTx bridge signed) `shouldReturn` err
 
-        it "empty tx fails (2)" $ \(_, network) -> do
+        it "empty tx fails (2)" $ \(_, bridge) -> do
             let signed = sign txEmpty [pkWitness]
             let err = Left $ ErrPostTxBadRequest
                     "Transaction failed verification: transaction has no inputs"
-            runExceptT (postTx network signed) `shouldReturn` err
+            runExceptT (postTx bridge signed) `shouldReturn` err
 
-        it "old tx fails" $ \(_, network) -> do
+        it "old tx fails" $ \(_, bridge) -> do
             let signed = sign txNonEmpty [pkWitness]
             let err = Left $ ErrPostTxProtocolFailure
                     "Failed to send to peers: Blockchain protocol error"
-            runExceptT (postTx network signed) `shouldReturn` err
+            runExceptT (postTx bridge signed) `shouldReturn` err
 
-        it "tx fails - more inputs than witnesses" $ \(_, network) -> do
+        it "tx fails - more inputs than witnesses" $ \(_, bridge) -> do
             let signed = sign txNonEmpty []
             let err = Left $ ErrPostTxBadRequest
                     "Transaction failed verification: transaction has more \
                     \inputs than witnesses"
-            runExceptT (postTx network signed) `shouldReturn` err
+            runExceptT (postTx bridge signed) `shouldReturn` err
 
-        it "tx fails - more witnesses than inputs" $ \(_, network) -> do
+        it "tx fails - more witnesses than inputs" $ \(_, bridge) -> do
             let signed = sign txNonEmpty [pkWitness, pkWitness]
             let err = Left $ ErrPostTxBadRequest
                     "Transaction failed verification: transaction has more \
                     \witnesses than inputs"
-            runExceptT (postTx network signed) `shouldReturn` err
+            runExceptT (postTx bridge signed) `shouldReturn` err
   where
     sign :: Tx -> [TxWitness] -> SignedTx
     sign tx witnesses = SignedTx . toBS $ encodeSignedTx (tx, witnesses)
@@ -164,7 +167,7 @@ spec = do
         unwrap (ErrNetworkTipNetworkUnreachable e) = e
         unwrap ErrNetworkTipNotFound = ErrNetworkUnreachable "no tip"
     newNetworkLayer =
-        HttpBridge.newNetworkLayer Testnet port
+        HttpBridge.newNetworkLayer port
     closeBridge (handle, _) = do
         cancel handle
         threadDelay 500000
@@ -173,11 +176,11 @@ spec = do
             [ Command "cardano-http-bridge"
                 [ "start"
                 , "--port", show port
-                , "--template", "testnet"
+                , "--template", T.unpack (toText network)
                 ]
                 (return ())
                 Inherit
             ]
-        network <- newNetworkLayer
+        bridge <- newNetworkLayer
         threadDelay 1000000
-        return (handle, network)
+        return (handle, bridge)
