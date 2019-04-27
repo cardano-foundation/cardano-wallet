@@ -1198,25 +1198,6 @@ instance GHC.Enum.Bounded Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolG
 instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 
 
--- | This module provides functionality for signing transactions.
---   
---   It relies on the binary CBOR format of transactions, an AddressScheme
---   for deriving address private keys, and cardano-crypto for the actual
---   signing.
-module Cardano.Wallet.Primitive.Signing
-
--- | Construct a standard transaction
---   
---   " Standard " here refers to the fact that we do not deal with
---   redemption, multisignature transactions, etc.
-mkStdTx :: AddressScheme s => s -> (Key  'RootK XPrv, Passphrase "encryption") -> [(TxIn, TxOut)] -> [TxOut] -> Either SignTxError (Tx, [TxWitness])
-newtype SignTxError
-KeyNotFoundForAddress :: Address -> SignTxError
-instance GHC.Show.Show Cardano.Wallet.Primitive.Signing.SignTag
-instance GHC.Classes.Ord Cardano.Wallet.Primitive.Signing.SignTag
-instance GHC.Classes.Eq Cardano.Wallet.Primitive.Signing.SignTag
-
-
 -- | Database / Pesistence layer for the wallet backend. This is where we
 --   define the interface allowing us to store and fetch various data on
 --   our wallets.
@@ -1322,89 +1303,6 @@ module Cardano.Wallet.DB.MVar
 -- | Instantiate a new in-memory "database" layer that simply stores data
 --   in a local MVar. Data vanishes if the software is shut down.
 newDBLayer :: forall s. IO (DBLayer IO s)
-
-
--- | Provides the wallet layer functions that are used by API layer and
---   uses both <a>Cardano.Wallet.DB</a> and <a>Cardano.Wallet.Network</a>
---   to realize its role as being intermediary between the three.
-module Cardano.Wallet
-data WalletLayer s
-WalletLayer :: (WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata)) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection) -> (WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx, TxMeta, [TxWitness])) -> (WalletId -> (Tx, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()) -> WalletLayer s
-
--- | Initialise and store a new wallet, returning its Id.
-[$sel:createWallet:WalletLayer] :: WalletLayer s -> WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId
-
--- | Retrieve the wallet state for the wallet with the given ID.
-[$sel:readWallet:WalletLayer] :: WalletLayer s -> WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata)
-
--- | Retrieve a list of known wallets IDs.
-[$sel:listWallets:WalletLayer] :: WalletLayer s -> IO [WalletId]
-
--- | Remove an existing wallet. Note that, there's no particular work to be
---   done regarding the restoration worker as it will simply terminate on
---   the next tick when noticing that the corresponding wallet is gone.
-[$sel:removeWallet:WalletLayer] :: WalletLayer s -> WalletId -> ExceptT ErrNoSuchWallet IO ()
-
--- | Restore a wallet from its current tip up to a given target (typically,
---   the network tip).
---   
---   It returns immediately and fail if the wallet is already beyond the
---   given tip. It starts a worker in background which will fetch and apply
---   remaining blocks until failure or, the target slot is reached.
-[$sel:restoreWallet:WalletLayer] :: WalletLayer s -> WalletId -> ExceptT ErrNoSuchWallet IO ()
-
--- | Prepare a transaction and automatically select inputs from the wallet
---   to cover the requested outputs. Note that this only run the coin
---   selection for the given outputs. In order to construct (and sign) an
---   actual transaction, have a look at <a>$sel:signTx:WalletLayer</a>.
-[$sel:createUnsignedTx:WalletLayer] :: WalletLayer s -> WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection
-
--- | Produce witnesses and construct a transaction from a given selection.
---   Requires the encryption passphrase in order to decrypt the root
---   private key. Note that this doesn't broadcast the transaction to the
---   network. In order to do so, have a look at
---   <a>$sel:submitTx:WalletLayer</a>.
-[$sel:signTx:WalletLayer] :: WalletLayer s -> WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx, TxMeta, [TxWitness])
-
--- | Broadcast a (signed) transaction to the network.
-[$sel:submitTx:WalletLayer] :: WalletLayer s -> WalletId -> (Tx, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()
-
--- | Attach a given private key to a wallet. The private key is necessary
---   for some operations like signing transactions or, generating new
---   accounts.
-[$sel:attachPrivateKey:WalletLayer] :: WalletLayer s -> WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()
-
--- | Can't perform given operation because there's no wallet
-newtype ErrNoSuchWallet
-ErrNoSuchWallet :: WalletId -> ErrNoSuchWallet
-
--- | Forbidden operation was executed on an already existing wallet
-newtype ErrWalletAlreadyExists
-ErrWalletAlreadyExists :: WalletId -> ErrWalletAlreadyExists
-
--- | Errors occuring when signing a transaction
-data ErrSignTx
-ErrSignTx :: SignTxError -> ErrSignTx
-ErrSignTxNoSuchWallet :: ErrNoSuchWallet -> ErrSignTx
-ErrSignTxWrongPassphrase :: ErrWrongPassphrase -> ErrSignTx
-
--- | Errors occuring when submitting a signed transaction to the network
-data ErrSubmitTx
-ErrSubmitTxNetwork :: ErrPostTx -> ErrSubmitTx
-ErrSubmitTxNoSuchWallet :: ErrNoSuchWallet -> ErrSubmitTx
-
--- | Errors occuring when creating an unsigned transaction
-data ErrCreateUnsignedTx
-ErrCreateUnsignedTxNoSuchWallet :: ErrNoSuchWallet -> ErrCreateUnsignedTx
-ErrCreateUnsignedTxCoinSelection :: CoinSelectionError -> ErrCreateUnsignedTx
-
--- | Create a new instance of the wallet layer.
-mkWalletLayer :: forall s. (IsOurs s, AddressScheme s, NFData s, Show s) => DBLayer IO s -> NetworkLayer IO -> WalletLayer s
-
--- | Run an ExcepT and throws the error if any. This makes sense only if
---   called after checking for an invariant or, after ensuring that
---   preconditions for meeting the underlying error have been discarded.
-unsafeRunExceptT :: (MonadFail m, Show e) => ExceptT e m a -> m a
 
 
 -- | API type representations of various types. We define here pretty much
@@ -1591,6 +1489,152 @@ instance Data.Text.Class.FromText a => Web.Internal.HttpApiData.FromHttpApiData 
 instance Data.Text.Class.ToText a => Web.Internal.HttpApiData.ToHttpApiData (Cardano.Wallet.Api.Types.ApiT a)
 
 
+-- | This module contains static configuration parameters. Rather than
+--   providing and carrying around a configuration file through the
+--   application, we resolve configuration data at runtime using the
+--   available environment.
+--   
+--   This gives us a flexible and portable approach to software
+--   configuration, and remove some pain from the development perspective.
+--   Prior to starting, the wallet is expected to have a few configuration
+--   parameter available. One may rely on a `.env` file to bundle
+--   configuration settings together for a given target environment.
+module Cardano.Environment
+
+-- | Available network options. <a>Local</a> means a local cluster running
+--   on the host machine.
+data Network
+Mainnet :: Network
+Testnet :: Network
+Staging :: Network
+Local :: Network
+
+-- | Get the current target <a>Network</a> from the Environment.
+--   
+--   Throws a runtime exception is the ENV var isn't set or, is invalid.
+network :: Network
+newtype ProtocolMagic
+ProtocolMagic :: Int32 -> ProtocolMagic
+
+-- | Get the <a>ProtocolMagic</a> corresponding to a given <a>Network</a>.
+--   
+--   Note that the <a>ProtocolMagic</a> for <a>Local</a> and <a>Testnet</a>
+--   are the same.
+protocolMagic :: Network -> ProtocolMagic
+instance GHC.Show.Show Cardano.Environment.ProtocolMagic
+instance GHC.Generics.Generic Cardano.Environment.ProtocolMagic
+instance GHC.Enum.Enum Cardano.Environment.Network
+instance GHC.Classes.Eq Cardano.Environment.Network
+instance GHC.Show.Show Cardano.Environment.Network
+instance GHC.Generics.Generic Cardano.Environment.Network
+instance Data.Text.Class.FromText Cardano.Environment.Network
+instance Data.Text.Class.ToText Cardano.Environment.Network
+instance GHC.Show.Show Cardano.Environment.ErrMissingOrInvalidEnvVar
+instance GHC.Exception.Type.Exception Cardano.Environment.ErrMissingOrInvalidEnvVar
+
+
+-- | This module provides functionality for signing transactions.
+--   
+--   It relies on the binary CBOR format of transactions, an AddressScheme
+--   for deriving address private keys, and cardano-crypto for the actual
+--   signing.
+module Cardano.Wallet.Primitive.Signing
+
+-- | Construct a standard transaction
+--   
+--   " Standard " here refers to the fact that we do not deal with
+--   redemption, multisignature transactions, etc.
+mkStdTx :: AddressScheme s => s -> (Key  'RootK XPrv, Passphrase "encryption") -> [(TxIn, TxOut)] -> [TxOut] -> Either SignTxError (Tx, [TxWitness])
+newtype SignTxError
+KeyNotFoundForAddress :: Address -> SignTxError
+instance GHC.Show.Show Cardano.Wallet.Primitive.Signing.SignTag
+instance GHC.Classes.Ord Cardano.Wallet.Primitive.Signing.SignTag
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Signing.SignTag
+
+
+-- | Provides the wallet layer functions that are used by API layer and
+--   uses both <a>Cardano.Wallet.DB</a> and <a>Cardano.Wallet.Network</a>
+--   to realize its role as being intermediary between the three.
+module Cardano.Wallet
+data WalletLayer s
+WalletLayer :: (WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata)) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection) -> (WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx, TxMeta, [TxWitness])) -> (WalletId -> (Tx, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()) -> WalletLayer s
+
+-- | Initialise and store a new wallet, returning its Id.
+[$sel:createWallet:WalletLayer] :: WalletLayer s -> WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId
+
+-- | Retrieve the wallet state for the wallet with the given ID.
+[$sel:readWallet:WalletLayer] :: WalletLayer s -> WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata)
+
+-- | Retrieve a list of known wallets IDs.
+[$sel:listWallets:WalletLayer] :: WalletLayer s -> IO [WalletId]
+
+-- | Remove an existing wallet. Note that, there's no particular work to be
+--   done regarding the restoration worker as it will simply terminate on
+--   the next tick when noticing that the corresponding wallet is gone.
+[$sel:removeWallet:WalletLayer] :: WalletLayer s -> WalletId -> ExceptT ErrNoSuchWallet IO ()
+
+-- | Restore a wallet from its current tip up to a given target (typically,
+--   the network tip).
+--   
+--   It returns immediately and fail if the wallet is already beyond the
+--   given tip. It starts a worker in background which will fetch and apply
+--   remaining blocks until failure or, the target slot is reached.
+[$sel:restoreWallet:WalletLayer] :: WalletLayer s -> WalletId -> ExceptT ErrNoSuchWallet IO ()
+
+-- | Prepare a transaction and automatically select inputs from the wallet
+--   to cover the requested outputs. Note that this only run the coin
+--   selection for the given outputs. In order to construct (and sign) an
+--   actual transaction, have a look at <a>$sel:signTx:WalletLayer</a>.
+[$sel:createUnsignedTx:WalletLayer] :: WalletLayer s -> WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection
+
+-- | Produce witnesses and construct a transaction from a given selection.
+--   Requires the encryption passphrase in order to decrypt the root
+--   private key. Note that this doesn't broadcast the transaction to the
+--   network. In order to do so, have a look at
+--   <a>$sel:submitTx:WalletLayer</a>.
+[$sel:signTx:WalletLayer] :: WalletLayer s -> WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx, TxMeta, [TxWitness])
+
+-- | Broadcast a (signed) transaction to the network.
+[$sel:submitTx:WalletLayer] :: WalletLayer s -> WalletId -> (Tx, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()
+
+-- | Attach a given private key to a wallet. The private key is necessary
+--   for some operations like signing transactions or, generating new
+--   accounts.
+[$sel:attachPrivateKey:WalletLayer] :: WalletLayer s -> WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()
+
+-- | Can't perform given operation because there's no wallet
+newtype ErrNoSuchWallet
+ErrNoSuchWallet :: WalletId -> ErrNoSuchWallet
+
+-- | Forbidden operation was executed on an already existing wallet
+newtype ErrWalletAlreadyExists
+ErrWalletAlreadyExists :: WalletId -> ErrWalletAlreadyExists
+
+-- | Errors occuring when signing a transaction
+data ErrSignTx
+ErrSignTx :: SignTxError -> ErrSignTx
+ErrSignTxNoSuchWallet :: ErrNoSuchWallet -> ErrSignTx
+ErrSignTxWrongPassphrase :: ErrWrongPassphrase -> ErrSignTx
+
+-- | Errors occuring when submitting a signed transaction to the network
+data ErrSubmitTx
+ErrSubmitTxNetwork :: ErrPostTx -> ErrSubmitTx
+ErrSubmitTxNoSuchWallet :: ErrNoSuchWallet -> ErrSubmitTx
+
+-- | Errors occuring when creating an unsigned transaction
+data ErrCreateUnsignedTx
+ErrCreateUnsignedTxNoSuchWallet :: ErrNoSuchWallet -> ErrCreateUnsignedTx
+ErrCreateUnsignedTxCoinSelection :: CoinSelectionError -> ErrCreateUnsignedTx
+
+-- | Create a new instance of the wallet layer.
+mkWalletLayer :: forall s. (IsOurs s, AddressScheme s, NFData s, Show s) => DBLayer IO s -> NetworkLayer IO -> WalletLayer s
+
+-- | Run an ExcepT and throws the error if any. This makes sense only if
+--   called after checking for an invariant or, after ensuring that
+--   preconditions for meeting the underlying error have been discarded.
+unsafeRunExceptT :: (MonadFail m, Show e) => ExceptT e m a -> m a
+
+
 -- | Extra content types for Servant.
 module Servant.Extra.ContentTypes
 
@@ -1681,7 +1725,7 @@ mkNetworkLayer :: Monad m => HttpBridge m -> NetworkLayer m
 
 -- | Creates a cardano-http-bridge <a>NetworkLayer</a> using the given
 --   connection settings.
-newNetworkLayer :: Text -> Int -> IO (NetworkLayer IO)
+newNetworkLayer :: Network -> Int -> IO (NetworkLayer IO)
 
 -- | Construct a new network layer
 mkHttpBridge :: Manager -> BaseUrl -> NetworkName -> HttpBridge IO
