@@ -7,6 +7,8 @@ module Cardano.Wallet.Network.HttpBridgeSpec
 
 import Prelude
 
+import Cardano.Environment
+    ( Network (..) )
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet.Binary
@@ -161,9 +163,8 @@ spec = do
       where
         unwrap (ErrNetworkTipNetworkUnreachable e) = e
         unwrap ErrNetworkTipNotFound = ErrNetworkUnreachable "no tip"
-
     newNetworkLayer =
-        HttpBridge.newNetworkLayer "testnet" port
+        HttpBridge.newNetworkLayer Testnet port
     closeBridge (handle, _) = do
         cancel handle
         threadDelay 500000

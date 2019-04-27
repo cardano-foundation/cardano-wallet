@@ -6,7 +6,9 @@ module Main where
 import Prelude
 
 import Cardano.CLI
-    ( Network, Port, parseArgWith )
+    ( Port, parseArgWith )
+import Cardano.Environment
+    ( Network, network )
 import Cardano.Launcher
     ( Command (Command)
     , ProcessHasExited (ProcessHasExited)
@@ -59,7 +61,6 @@ Usage:
   cardano-wallet-launcher --help
 
 Options:
-  --network <NETWORK>          mainnet, testnet or staging [default: mainnet]
   --wallet-server-port <PORT>  port used for serving the wallet API [default: 8090]
   --http-bridge-port <PORT>    port used for communicating with the http-bridge [default: 8080]
 |]
@@ -71,13 +72,12 @@ main = do
 
     bridgePort <- args `parseArg` longOption "http-bridge-port"
     walletPort <- args `parseArg` longOption "wallet-server-port"
-    network <- args `parseArg` longOption "network"
 
     sayErr "Starting..."
     installSignalHandlers
     let commands =
             [ nodeHttpBridgeOn bridgePort network
-            , walletOn walletPort bridgePort network
+            , walletOn walletPort bridgePort
             ]
     sayErr $ fmt $ blockListF commands
     (ProcessHasExited name code) <- launch commands
@@ -97,11 +97,10 @@ nodeHttpBridgeOn port net = Command
     (return ())
     Inherit
 
-walletOn :: Port "Wallet" -> Port "Node" -> Network -> Command
-walletOn wp np net = Command
+walletOn :: Port "Wallet" -> Port "Node" -> Command
+walletOn wp np = Command
     "cardano-wallet"
     [ "server"
-    , "--network", T.unpack (toText net)
     , "--port", T.unpack (toText wp)
     , "--bridge-port", T.unpack (toText np)
     ]

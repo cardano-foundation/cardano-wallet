@@ -14,6 +14,8 @@ import Data.Time
     ( addUTCTime, defaultTimeLocale, formatTime, getCurrentTime )
 import Network.HTTP.Client
     ( defaultManagerSettings, newManager )
+import System.Environment
+    ( setEnv )
 import Test.Hspec
     ( after, afterAll, beforeAll, describe, hspec )
 import Test.Integration.Framework.DSL
@@ -74,8 +76,7 @@ main = do
 
     cardanoWalletLauncher serverPort bridgePort network = Command
         "cardano-wallet-launcher"
-        [ "--network", network
-        , "--wallet-server-port", serverPort
+        [ "--wallet-server-port", serverPort
         , "--http-bridge-port", bridgePort
-        ] (threadDelay startUpDelay)
+        ] (setEnv "NETWORK" network *> threadDelay startUpDelay)
         Inherit

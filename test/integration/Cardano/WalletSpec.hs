@@ -8,6 +8,8 @@ module Cardano.WalletSpec
 
 import Prelude
 
+import Cardano.Environment
+    ( Network (..) )
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
@@ -64,4 +66,4 @@ spec = do
         threadDelay 1000000
         (handle,) <$> (mkWalletLayer
             <$> MVar.newDBLayer
-            <*> HttpBridge.newNetworkLayer "testnet" port)
+            <*> HttpBridge.newNetworkLayer Testnet port)

@@ -5,7 +5,7 @@ module Main where
 
 import Prelude
 
-import Cardano.CLI
+import Cardano.Environment
     ( Network (..) )
 import Cardano.Launcher
     ( Command (Command), StdStream (..), installSignalHandlers, launch )
@@ -161,9 +161,9 @@ bench_restoration
     -> IO ()
 bench_restoration network (wid, wname, s) = withHttpBridge network $ \port -> do
     dbLayer <- MVar.newDBLayer
-    networkLayer <- newNetworkLayer networkName port
+    networkLayer <- newNetworkLayer network port
     (_, bh) <- unsafeRunExceptT $ networkTip networkLayer
-    sayErr . fmt $ networkName |+ " tip is at " +|| (bh ^. #slotId) ||+ ""
+    sayErr . fmt $ network ||+ " tip is at " +|| (bh ^. #slotId) ||+ ""
     let w = mkWalletLayer dbLayer networkLayer
     wallet <- unsafeRunExceptT $ createWallet w wid wname s
     unsafeRunExceptT $ restoreWallet w wallet
@@ -173,8 +173,6 @@ bench_restoration network (wid, wname, s) = withHttpBridge network $ \port -> do
     sayErr . fmt $ "Balance: " +|| totalBalance wallet' ||+ " lovelace"
     sayErr . fmt $ "UTxO: " +|| Map.size (getUTxO $ totalUTxO wallet') ||+ " entries"
     unsafeRunExceptT $ removeWallet w wid
-  where
-    networkName = toText network
 
 logChunk :: SlotId -> IO ()
 logChunk slot = sayErr . fmt $ "Processing "+||slot||+""
@@ -203,7 +201,7 @@ prepareNode :: Network -> IO ()
 prepareNode net = do
     sayErr . fmt $ "Syncing "+|toText net|+" node... "
     sl <- withHttpBridge net $ \port -> do
-        network <- newNetworkLayer (toText net) port
+        network <- newNetworkLayer net port
         waitForNodeSync network (toText net) logQuiet
     sayErr . fmt $ "Completed sync of "+|toText net|+" up to "+||sl||+""
 

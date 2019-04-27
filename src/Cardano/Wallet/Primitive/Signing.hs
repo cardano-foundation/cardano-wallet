@@ -21,6 +21,8 @@ module Cardano.Wallet.Primitive.Signing
 
 import Prelude
 
+import Cardano.Environment
+    ( ProtocolMagic (..), network, protocolMagic )
 import Cardano.Wallet.Binary
     ( TxWitness (..), encodeTx, toByteString )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -117,10 +119,13 @@ newtype SignTag
 -- tags.
 signTag :: SignTag -> ByteString
 signTag = \case
-    SignTx (Hash payload) -> "\x01" <> network <> payload
+    SignTx (Hash payload) -> "\x01" <> pm <> payload
   where
-    network = toByteString . CBOR.encodeInt32 $ pm
-    pm = 1097911063 -- testnet; TODO: need to decide on how to pass this in
+    pm =
+        let
+            ProtocolMagic x = protocolMagic network
+        in
+            toByteString . CBOR.encodeInt32 $ x
 
 
 -- | Get the underlying ByteString

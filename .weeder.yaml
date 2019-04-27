@@ -6,18 +6,10 @@
       - name: Module not compiled
       - module: Cardano.Launcher.Windows
   - section:
-    - name: exe:cardano-wallet exe:cardano-wallet-launcher test:unit bench:restore
+    - name: exe:cardano-wallet exe:cardano-wallet-launcher test:unit
     - message:
       - name: Module reused between components
       - module: Cardano.CLI
-    - message:
-      - name: Weeds exported
-      - module:
-        - name: Cardano.CLI
-        - identifier:
-          - Local
-          - Mainnet
-          - Staging
   - section:
     - name: exe:cardano-wallet-launcher
     - message:
@@ -43,15 +35,12 @@
           - </>
           - expectError
           - expectSuccess
-          - expectFieldEqual
-          - expectFieldNotEqual
           - getFromResponse
       - module:
         - name: Test.Integration.Framework.Request
         - identifier:
           - ClientError
           - DecodeFailure
-          - Empty
           - NonJson
           - None
           - unsafeRequest
@@ -60,3 +49,4 @@
     - message:
       - name: Module not compiled
       - module: Cardano.Launcher.Windows
+

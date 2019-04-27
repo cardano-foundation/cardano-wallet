@@ -21,12 +21,13 @@ module Main where
 import Prelude
 
 import Cardano.CLI
-    ( Network
-    , Port (..)
+    ( Port (..)
     , getOptionalSensitiveValue
     , getRequiredSensitiveValue
     , parseArgWith
     )
+import Cardano.Environment
+    ( network )
 import Cardano.Wallet
     ( mkWalletLayer )
 import Cardano.Wallet.Api
@@ -83,7 +84,7 @@ active server and can be ran "offline" (e.g. 'generate mnemonic')
     ⚠️  Options are positional (--a --b is not equivalent to --b --a) ! ⚠️
 
 Usage:
-  cardano-wallet server [--network=NETWORK] [--port=INT] [--bridge-port=INT]
+  cardano-wallet server [--port=INT] [--bridge-port=INT]
   cardano-wallet generate mnemonic [--size=INT]
   cardano-wallet list address --wallet-id=STRING
   cardano-wallet list wallet
@@ -94,7 +95,6 @@ Usage:
   cardano-wallet --version
 
 Options:
-  --network <NETWORK>         mainnet, testnet or staging [default: mainnet]
   --port <INT>                port used for serving the wallet API [default: 8090]
   --bridge-port <INT>         port used for communicating with the http-bridge [default: 8080]
   --address-pool-gap <INT>    number of unused consecutive addresses to keep track of [default: 20]
@@ -116,10 +116,9 @@ exec args
         exitWithUsage cli
 
     | args `isPresent` command "server" = do
-        network <- args `parseArg` longOption "network"
         walletPort <- args `parseArg` longOption "port"
         bridgePort <- args `parseArg` longOption "bridge-port"
-        execServer network walletPort bridgePort
+        execServer walletPort bridgePort
 
     | args `isPresent` command "generate" && args `isPresent` command "mnemonic" = do
         n <- args `parseArg` longOption "size"
@@ -169,11 +168,11 @@ exec args
     parseArg = parseArgWith cli
 
 -- | Start a web-server to serve the wallet backend API on the given port.
-execServer :: Network -> Port "wallet" -> Port "bridge" -> IO ()
-execServer target (Port port) (Port bridgePort) = do
+execServer :: Port "wallet" -> Port "bridge" -> IO ()
+execServer (Port port) (Port bridgePort) = do
     db <- MVar.newDBLayer
-    network <- HttpBridge.newNetworkLayer (toText target) bridgePort
-    let wallet = mkWalletLayer db network
+    nw <- HttpBridge.newNetworkLayer network bridgePort
+    let wallet = mkWalletLayer db nw
     Warp.runSettings settings (serve (Proxy @("v2" :> Api)) (server wallet))
   where
     settings = Warp.defaultSettings

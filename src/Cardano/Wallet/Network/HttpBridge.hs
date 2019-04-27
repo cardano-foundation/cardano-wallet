@@ -21,6 +21,8 @@ module Cardano.Wallet.Network.HttpBridge
 
 import Prelude
 
+import Cardano.Environment
+    ( Network )
 import Cardano.Wallet.Network
     ( ErrNetworkTip (..)
     , ErrNetworkUnreachable (..)
@@ -45,8 +47,8 @@ import Crypto.Hash
     ( HashAlgorithm, digestFromByteString )
 import Data.ByteArray
     ( convert )
-import Data.Text
-    ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import Data.Word
     ( Word64 )
 import Network.HTTP.Client
@@ -77,7 +79,7 @@ mkNetworkLayer httpBridge = NetworkLayer
 -- | Creates a cardano-http-bridge 'NetworkLayer' using the given connection
 -- settings.
 newNetworkLayer
-    :: Text -> Int -> IO (NetworkLayer IO)
+    :: Network -> Int -> IO (NetworkLayer IO)
 newNetworkLayer network port = mkNetworkLayer <$> newHttpBridge network port
 
 -- | Retrieve a chunk of blocks from cardano-http-bridge.
@@ -240,8 +242,8 @@ hashToApi' h = case hashToApi h of
     Nothing -> fail "hashToApi: Digest was of the wrong length"
 
 -- | Creates a cardano-http-bridge API with the given connection settings.
-newHttpBridge :: Text -> Int -> IO (HttpBridge IO)
+newHttpBridge :: Network -> Int -> IO (HttpBridge IO)
 newHttpBridge network port = do
     mgr <- newManager defaultManagerSettings
     let baseUrl = BaseUrl Http "localhost" port ""
-    pure $ mkHttpBridge mgr baseUrl (NetworkName network)
+    pure $ mkHttpBridge mgr baseUrl (NetworkName $ toText network)
