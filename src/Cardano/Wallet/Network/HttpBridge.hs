@@ -22,7 +22,7 @@ module Cardano.Wallet.Network.HttpBridge
 import Prelude
 
 import Cardano.Environment
-    ( Network )
+    ( network )
 import Cardano.Wallet.Network
     ( ErrNetworkTip (..)
     , ErrNetworkUnreachable (..)
@@ -79,8 +79,8 @@ mkNetworkLayer httpBridge = NetworkLayer
 -- | Creates a cardano-http-bridge 'NetworkLayer' using the given connection
 -- settings.
 newNetworkLayer
-    :: Network -> Int -> IO (NetworkLayer IO)
-newNetworkLayer network port = mkNetworkLayer <$> newHttpBridge network port
+    :: Int -> IO (NetworkLayer IO)
+newNetworkLayer port = mkNetworkLayer <$> newHttpBridge port
 
 -- | Retrieve a chunk of blocks from cardano-http-bridge.
 --
@@ -96,7 +96,7 @@ rbNextBlocks
     => HttpBridge m -- ^ http-bridge API
     -> SlotId -- ^ Starting point
     -> ExceptT ErrNetworkUnreachable m [Block]
-rbNextBlocks network start = maybeTip (getNetworkTip network) >>= \case
+rbNextBlocks bridge start = maybeTip (getNetworkTip bridge) >>= \case
     Just (tipHash, tipHdr) -> do
         epochBlocks <-
             if slotNumber start >= 21599
@@ -110,7 +110,7 @@ rbNextBlocks network start = maybeTip (getNetworkTip network) >>= \case
     Nothing -> pure []
   where
     nextStableEpoch ix = do
-        epochBlocks <- getEpoch network ix
+        epochBlocks <- getEpoch bridge ix
         pure $ filter (blockIsAfter start) epochBlocks
 
     -- Predicate returns true iff the block is from the given slot or a later
@@ -121,7 +121,7 @@ rbNextBlocks network start = maybeTip (getNetworkTip network) >>= \case
     -- Grab the remaining blocks which aren't packed in epoch files,
     -- starting from the tip.
     unstableBlocks tipHash tip
-        | start <= tip = fetchBlocksFromTip network start tipHash
+        | start <= tip = fetchBlocksFromTip bridge start tipHash
         | otherwise    = pure []
 
     maybeTip = mapExceptT $ fmap $ \case
@@ -136,11 +136,11 @@ fetchBlocksFromTip
     -> SlotId
     -> Hash "BlockHeader"
     -> ExceptT ErrNetworkUnreachable m [Block]
-fetchBlocksFromTip network start tipHash =
+fetchBlocksFromTip bridge start tipHash =
     reverse <$> workBackwards tipHash
   where
     workBackwards headerHash = do
-        block <- getBlock network headerHash
+        block <- getBlock bridge headerHash
         if start >= slotId (header block) then
             return []
         else do
@@ -166,26 +166,26 @@ data HttpBridge m = HttpBridge
 -- | Construct a new network layer
 mkHttpBridge
     :: Manager -> BaseUrl -> NetworkName -> HttpBridge IO
-mkHttpBridge mgr baseUrl network = HttpBridge
+mkHttpBridge mgr baseUrl networkName = HttpBridge
     { getBlock = \hash -> ExceptT $ do
         hash' <- hashToApi' hash
-        run (getApiT <$> cGetBlock network hash') >>= defaultHandler
+        run (getApiT <$> cGetBlock networkName hash') >>= defaultHandler
 
     , getEpoch = \ep -> ExceptT $ do
-        run (map getApiT <$> cGetEpoch network (EpochIndex ep)) >>= \case
+        run (map getApiT <$> cGetEpoch networkName (EpochIndex ep)) >>= \case
             Left (FailureResponse e) | responseStatusCode e == status404 ->
                 return $ Right []
             x -> defaultHandler x
 
     , getNetworkTip = ExceptT $ do
-        run (blockHeaderHash <$> cGetNetworkTip network) >>= \case
+        run (blockHeaderHash <$> cGetNetworkTip networkName) >>= \case
             Left (FailureResponse e) | responseStatusCode e == status404 ->
               return $ Left ErrNetworkTipNotFound
             x -> left ErrNetworkTipNetworkUnreachable <$> defaultHandler x
 
     , postSignedTx = \tx -> void $ ExceptT $ do
         let e0 = "Failed to send to peers: Blockchain protocol error"
-        run (cPostSignedTx network (ApiT tx)) >>= \case
+        run (cPostSignedTx networkName (ApiT tx)) >>= \case
             Left (FailureResponse e)
                 | responseStatusCode e == status400 -> do
                     let msg = T.decodeUtf8 $ BL.toStrict $ responseBody e
@@ -242,8 +242,8 @@ hashToApi' h = case hashToApi h of
     Nothing -> fail "hashToApi: Digest was of the wrong length"
 
 -- | Creates a cardano-http-bridge API with the given connection settings.
-newHttpBridge :: Network -> Int -> IO (HttpBridge IO)
-newHttpBridge network port = do
+newHttpBridge :: Int -> IO (HttpBridge IO)
+newHttpBridge port = do
     mgr <- newManager defaultManagerSettings
     let baseUrl = BaseUrl Http "localhost" port ""
     pure $ mkHttpBridge mgr baseUrl (NetworkName $ toText network)

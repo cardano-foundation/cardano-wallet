@@ -20,21 +20,25 @@ module Cardano.Wallet.CoinSelection.Fee
       Fee(..)
     , FeeOptions (..)
     , FeeError(..)
-    , adjustForFees
+    , TxSizeLinear (..)
+    , adjustForFee
+    , cardanoPolicy
+    , estimateFee
     ) where
 
 import Prelude
 
+import Cardano.Environment
+    ( Network (..), network )
 import Cardano.Wallet.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..)
+    ( Address (..)
+    , Coin (..)
     , TxIn
     , TxOut (..)
     , UTxO (..)
     , balance'
-    , distance
-    , invariant
     , isValidCoin
     , pickRandom
     )
@@ -48,13 +52,20 @@ import Crypto.Random.Types
     ( MonadRandom )
 import Data.Bifunctor
     ( bimap )
+import Data.Digest.CRC32
+    ( crc32 )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Word
     ( Word64 )
 import GHC.Generics
     ( Generic )
 
+import qualified Codec.CBOR.Encoding as CBOR
+import qualified Codec.CBOR.Write as CBOR
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.List as L
-
 
 {-------------------------------------------------------------------------------
                                 Fee Adjustment
@@ -109,37 +120,21 @@ newtype FeeError =
 -- outputs will mean that that some outputs may pay a larger
 -- percentage of the fee (depending on how many change outputs the
 -- algorithm happened to choose).
-adjustForFees
+adjustForFee
     :: MonadRandom m
     => FeeOptions
     -> UTxO
     -> CoinSelection
     -> ExceptT FeeError m CoinSelection
-adjustForFees opt utxo coinSel = do
-    coinSel'@(CoinSelection inps' outs' chgs') <- senderPaysFee opt utxo coinSel
-    let estimatedFee = getFee $ feeUpperBound opt coinSel
-    -- We enforce the following invariant:
-    --
-    --   estimatedFee < actualFee < 2 * estimatedFee
-    --
-    -- This coefficient (2*...) is mostly taken out of nowhere, but if anything
-    -- go beyond that upper bound, we would know that our algorithm for fee
-    -- reconciliation below is messed up.
-    -- Similarly, the algorithm tries to take money from inputs until it reaches
-    -- the goal fixed by 'estimatedFee'. So, the actualFee just can't be lower
-    -- than the goal.
-    let actualFee =
-            invariant
-            "estimatedFee =< actualFee =< 2 * estimatedFee is not satisfied"
-            (computeFee coinSel')
-            (\fee -> (estimatedFee <= fee && fee `div` 2 <= estimatedFee))
+adjustForFee opt utxo coinSel = do
+    CoinSelection inps' outs' chgs' <- senderPaysFee opt utxo coinSel
     let neInps = case inps' of
             []   -> error "adjustForFees: empty list of inputs"
             inps -> inps
     let neOuts = case outs' of
             []   -> error "adjustForFees: empty list of outputs"
             outs -> outs
-    actualFee `seq` pure (CoinSelection neInps neOuts chgs')
+    return $ CoinSelection neInps neOuts chgs'
 
 -- | The sender pays fee in this scenario, so fees are removed from the change
 -- outputs, and new inputs are selected if necessary.
@@ -301,43 +296,180 @@ splitChange = go
             then newChange : go newRemaining as
             else a : go rest as
 
--- Computing actual fee is a bit tricky in the generic realm because we don't
--- know what type representation is used by the underlying implementation. So,
--- we can't just sum up all the input and substract the sub of all outputs
--- (incl. change) because we'll risk an overflow with each sum. Instead, we
--- reduce the input value iteratively, coin by coin using a safe distance
--- between coins that are known to be within bounds.
--- The algorithm converge because we know that by construction, there are less
--- outputs than inputs. In essence, this computes:
+-- | A linear equation on the transaction size. Represents the @\s -> a + b*s@
+-- function where @s@ is the transaction size in bytes, @a@ and @b@ are
+-- constant coefficients.
+data TxSizeLinear =
+    TxSizeLinear (Quantity "lovelace" Double) (Quantity "lovelace/byte" Double)
+    deriving (Eq, Show)
+
+cardanoPolicy :: TxSizeLinear
+cardanoPolicy = TxSizeLinear (Quantity 155381) (Quantity 43.946)
+
+-- | Estimate fee for a given 'CoinSelection'. Fee follows a simple linear
+-- equation:
 --
---     fees = ∑ inputs - (∑ outputs + ∑ changes)
-computeFee :: CoinSelection -> Word64
-computeFee (CoinSelection inps outs chgs) =
-    collapse
-        (map (coin . snd) inps)
-        (filter (> Coin 0) $ (map coin outs) <> chgs)
+-- @
+--     f = a + sizeOf(tx) * b
+-- @
+--
+-- where @a@ & @b@ are values fixed by the protocol. This operation is therefore
+-- heavily coupled with the binary representation of a 'Transaction'. This
+-- estimation is only a best-effort here as many of the encoding values actually
+-- depends on the value of parameters at runtime.
+--
+-- For instance, an amount of `50` lovelace would be encoded using 2 bytes,
+-- whereas an amount of `1000000` would be encoded using 4 bytes. In Byron, we
+-- have only one piece of unknown from the 'CoinSelection' and it's the value of
+-- the 'crc32' computed on the address payload, which can be 1,2,3 or 5 bytes
+-- and we therefore always consider the worst-case scenario of a 5-byte crc.
+--
+-- As a consequence, our estimate may be slightly bigger than the actual
+-- transaction fee (up-to 4 extra bytes per change output).
+--
+-- NOTE: We assume that all change outputs follow a sequential scheme and
+-- therefore, have an empty address derivation payload.
+estimateFee
+    :: TxSizeLinear
+    -> CoinSelection
+    -> Fee
+estimateFee policy (CoinSelection inps outs chngs) =
+    Fee $ ceiling (a + b*fromIntegral totalPayload)
   where
-    collapse :: [Coin] -> [Coin] -> Word64
-    -- Some remaining inputs together. At this point, we've removed
-    -- all outputs and changes, so what's left are simply the actual fees.
-    collapse plus [] =
-        sum $ map getCoin plus
+    TxSizeLinear (Quantity a) (Quantity b) = policy
 
-    -- In order to safely compute fees at this level, we need make sure we don't
-    -- overflow. Therefore, we remove outputs to inputs until there's no outputs
-    -- left to remove.
-    collapse (p:ps) (m:ms)
-        | p > m =
-            let p' = Coin $ distance (getCoin p) (getCoin m)
-            in collapse (p':ps) ms
-        | p < m =
-            let m' = Coin $ distance (getCoin p) (getCoin m)
-            in collapse ps (m':ms)
-        | otherwise = collapse ps ms
+    -- With `n` the number of inputs
+    -- signed tx ----------------------------------- 1 + (1|2) + n*139 + ~?
+    --  | list len 2              -- 1
+    --  | sizeOf(tx)              -- ~? (depends, cf 'sizeOfTx')
+    --  | list len n              -- 1-2 (assuming n < 255)
+    --  | n * sizeOf(witness)     -- n * 139
+    totalPayload :: Int
+    totalPayload =
+        1
+        + sizeOfTx
+        + sizeOf (CBOR.encodeListLen $ fromIntegral n)
+        + n*sizeOfTxWitness
+      where n = length inps
 
-    -- This branch can only happens if we've depleted all our inputs and there
-    -- are still some outputs left to remove from them. If means the total value
-    -- of outputs (incl. change) was bigger than the total input value which is
-    -- by definition, impossible; unless we messed up real hard.
-    collapse [] _ =
-        invariant "outputs are bigger than inputs" (undefined) (const False)
+    --input -------------------------------------- 41 + (1|2|3|5)
+    --  | list len 2                  -- 1
+    --  | word8                       -- 1
+    --  | tag 24                      -- 2
+    --  | bytes ------------------------ 2 + 35 + (1|2|3|5)
+    --  |   | list len 2  -- 1
+    --  |   | bytes       -- 2 + 32
+    --  |   | word32      -- 1|2|3|5
+    sizeOfTxIn :: Int -> Int
+    sizeOfTxIn ix =
+        41 + sizeOf (CBOR.encodeWord32 $ fromIntegral ix)
+
+    -- SEQ + MAINNET
+    -- output ------------------------------------- 41-53
+    --  | list len 2                  -- 1
+    --  | address ---------------------- 39|40|41|43
+    --  |  | list len 2         -- 1
+    --  |  | tag 24             -- 2
+    --  |  | bytes --------------- 2 + 33
+    --  |  |  | list len 3 -- 1
+    --  |  |  | bytes      -- 2 + 28
+    --  |  |  | attributes -- 1
+    --  |  |  | word8      -- 1
+    --  |  | word32             -- 1|2|3|5
+    --  | word64                      -- 1|2|3|5|9
+    --
+    -- SEQ + TESTNET
+    -- output ------------------------------------- 48-60
+    --  | list len 2                  -- 1
+    --  | address ---------------------- 46|47|48|50
+    --  |  | list len 2         -- 1
+    --  |  | tag 24             -- 2
+    --  |  | bytes --------------- 2 + 40
+    --  |  |  | list len 3 -- 1
+    --  |  |  | bytes      -- 2 + 28
+    --  |  |  | attributes -- 8
+    --  |  |  | word8      -- 1
+    --  |  | word32             -- 1|2|3|5
+    --  | word64                      -- 1|2|3|5|9
+    --
+    -- RND + MAINNET
+    -- output ------------------------------------- 74-86
+    --  | list len 2                  -- 1
+    --  | address ---------------------- 72|73|74|76
+    --  |  | list len 2         -- 1
+    --  |  | tag 24             -- 2
+    --  |  | bytes --------------- 2 + 66
+    --  |  |  | list len 3 -- 1
+    --  |  |  | bytes      -- 2 + 28
+    --  |  |  | attributes -- 34
+    --  |  |  | word8      -- 1
+    --  |  | word32             -- 1|2|3|5
+    --  | word64                      -- 1|2|3|5|9
+    --
+    -- RND + MAINNET
+    -- output ------------------------------------- 81-93
+    --  | list len 2                  -- 1
+    --  | address ---------------------- 79|80|81|83
+    --  |  | list len 2         -- 1
+    --  |  | tag 24             -- 2
+    --  |  | bytes --------------- 2 + 73
+    --  |  |  | list len 3 -- 1
+    --  |  |  | bytes      -- 2 + 28
+    --  |  |  | attributes -- 41
+    --  |  |  | word8      -- 1
+    --  |  | word32             -- 1|2|3|5
+    --  | word64                      -- 1|2|3|5|9
+    sizeOfTxOut :: TxOut -> Int
+    sizeOfTxOut (TxOut (Address bytes) c) =
+        6
+        + BS.length bytes
+        + sizeOf (CBOR.encodeWord32 $ crc32 bytes)
+        + sizeOfCoin c
+
+    -- Compute the size of a coin
+    sizeOfCoin :: Coin -> Int
+    sizeOfCoin = sizeOf . CBOR.encodeWord64 . getCoin
+
+    -- Compute the size of the change, we assume that change is necessarily
+    -- using a sequential scheme. For the rest, cf 'sizeOfTxOut'.
+    -- Also, the size of the address depends on the size of the crc32, which can
+    -- very between 1,2,3 and 5 bytes. We'll always consider the worst case for
+    -- the change which makes an address payload of `43` bytes for mainnet,
+    -- and `50` bytes on testnet.
+    sizeOfChange :: Coin -> Int
+    sizeOfChange c = case network of
+        Mainnet -> 1 + 43 + sizeOfCoin c
+        Staging -> 1 + 43 + sizeOfCoin c
+        Testnet -> 1 + 50 + sizeOfCoin c
+        Local -> 1 + 50 + sizeOfCoin c
+
+    -- tx ------------------------------------- 6 + Σs(i) + ls(o) + Σs(c)
+    --  | list len 3                  -- 1
+    --  | begin                       -- 1
+    --  | sizeOf(inps)                -- Σ sizeOf(inp)
+    --  | break                       -- 1
+    --  | begin                       -- 1
+    --  | sizeOf(outs)                -- Σ sizeOf(out)
+    --  | sizeOf(chngs)               -- Σ sizeOf(chng)
+    --  | break                       -- 1
+    --  | empty attributes            -- 1
+    sizeOfTx :: Int
+    sizeOfTx = 6
+        + sum (map sizeOfTxIn [0..(length inps-1)])
+        + sum (map sizeOfTxOut outs)
+        + sum (map sizeOfChange chngs)
+
+    -- witness ------------------------------------ 139
+    --  | list len 2                  -- 1
+    --  | word8                       -- 1
+    --  | tag 24                      -- 2
+    --  | bytes ------------------------ 2 + 133
+    --  |   | list len 2 -- 1
+    --  |   | bytes      -- 2+64
+    --  |   | bytes      -- 2+64
+    sizeOfTxWitness :: Int
+    sizeOfTxWitness = 139
+
+    -- Size of a particular CBOR encoding
+    sizeOf :: CBOR.Encoding -> Int
+    sizeOf = fromIntegral . BL.length . CBOR.toLazyByteString

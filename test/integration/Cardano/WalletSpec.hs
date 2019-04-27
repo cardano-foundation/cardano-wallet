@@ -9,7 +9,7 @@ module Cardano.WalletSpec
 import Prelude
 
 import Cardano.Environment
-    ( Network (..) )
+    ( network )
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
@@ -28,11 +28,14 @@ import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
     ( async, cancel )
+import Data.Text.Class
+    ( toText )
 import Test.Hspec
     ( Spec, after, before, it, shouldSatisfy )
 
 import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
+import qualified Data.Text as T
 
 spec :: Spec
 spec = do
@@ -58,7 +61,7 @@ spec = do
             [ Command "cardano-http-bridge"
                 [ "start"
                 , "--port", show port
-                , "--template", "testnet"
+                , "--template", T.unpack (toText network)
                 ]
                 (return ())
                 Inherit
@@ -66,4 +69,4 @@ spec = do
         threadDelay 1000000
         (handle,) <$> (mkWalletLayer
             <$> MVar.newDBLayer
-            <*> HttpBridge.newNetworkLayer Testnet port)
+            <*> HttpBridge.newNetworkLayer port)

@@ -88,7 +88,7 @@ atLeast (utxo0, selection) txout =
     coverOutput (fromIntegral $ getCoin $ coin txout, mempty) utxo0
   where
     coverOutput
-        :: (Int, [(TxIn, TxOut)])
+        :: (Integer, [(TxIn, TxOut)])
         -> [(TxIn, TxOut)]
         -> Maybe ([(TxIn, TxOut)], CoinSelection)
     coverOutput (target, ins) utxo
@@ -105,7 +105,6 @@ atLeast (utxo0, selection) txout =
         | otherwise =
             let
                 (inp, out):utxo' = utxo
-                target' =
-                    target - (fromIntegral (getCoin (coin out)))
+                target' = target - (fromIntegral (getCoin (coin out)))
             in
                 coverOutput (target', (inp, out):ins) utxo'

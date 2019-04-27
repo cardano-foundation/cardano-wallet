@@ -11,8 +11,6 @@ module Cardano.Wallet.CoinSelectionSpec
     , CoinSelectionFixture(..)
     , CoinSelProp(..)
     , coinSelectionUnitTest
-    , genUTxO
-    , genTxOut
     ) where
 
 -- | This module contains shared logic between the coin selection tests. They

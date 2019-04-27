@@ -6,7 +6,7 @@ module Main where
 import Prelude
 
 import Cardano.Environment
-    ( Network (..) )
+    ( network )
 import Cardano.Launcher
     ( Command (Command), StdStream (..), installSignalHandlers, launch )
 import Cardano.Wallet
@@ -31,8 +31,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletState (..)
     )
-import Control.Arrow
-    ( left )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
@@ -56,15 +54,13 @@ import Data.Quantity
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( ToText (..) )
 import Data.Time.Clock.POSIX
     ( POSIXTime, getPOSIXTime )
 import Fmt
     ( fmt, (+|), (+||), (|+), (||+) )
 import Say
     ( sayErr )
-import System.Environment
-    ( getArgs )
 import System.IO
     ( BufferMode (..), hSetBuffering, stderr, stdout )
 
@@ -80,16 +76,13 @@ main :: IO ()
 main = do
     hSetBuffering stdout NoBuffering
     hSetBuffering stderr NoBuffering
-    network <- getArgs >>= either fail return . parseArgs
     installSignalHandlers
-    prepareNode network
+    prepareNode
     runBenchmarks
         [ bench ("restore " <> toText network <> " seq")
-            (bench_restoration network walletSeq)
+            (bench_restoration walletSeq)
         , bench ("restore " <> toText network <> " 10% ownership")
-            (bench_restoration network wallet10p)
-        , bench ("restore " <> toText network <> " 50% ownership")
-            (bench_restoration network wallet50p)
+            (bench_restoration wallet10p)
         ]
   where
     walletSeq :: (WalletId, WalletName, SeqState)
@@ -108,23 +101,6 @@ main = do
     wallet10p :: (WalletId, WalletName, AnyAddressState)
     wallet10p =
         initAnyState "Benchmark 10% Wallet" 0.1
-
-    wallet50p :: (WalletId, WalletName, AnyAddressState)
-    wallet50p =
-        initAnyState "Benchmark 50% Wallet" 0.5
-
--- | Very simplistic benchmark argument parser. If anything more is ever needed,
--- it's probably a good idea to go for `optparse-application` or similar for a
--- more structured approach to argument parsing.
-parseArgs :: [String] -> Either String Network
-parseArgs = \case
-    [] ->
-        Right Testnet
-    [h] ->
-        left getTextDecodingError $ fromText (T.pack h)
-    _ ->
-        Left "invalid arguments provided to benchmark suite: I expect a\
-            \ single string with the target network (e.g. \"mainnet\")."
 
 runBenchmarks :: [IO (Text, Double)] -> IO ()
 runBenchmarks bs = do
@@ -156,12 +132,11 @@ printResult benchName dur = sayErr . fmt $ "  "+|benchName|+": "+|secs dur|+""
 {-# ANN bench_restoration ("HLint: ignore Use camelCase" :: String) #-}
 bench_restoration
     :: (IsOurs s, AddressScheme s, NFData s, Show s)
-    => Network
-    -> (WalletId, WalletName, s)
+    => (WalletId, WalletName, s)
     -> IO ()
-bench_restoration network (wid, wname, s) = withHttpBridge network $ \port -> do
+bench_restoration (wid, wname, s) = withHttpBridge $ \port -> do
     dbLayer <- MVar.newDBLayer
-    networkLayer <- newNetworkLayer network port
+    networkLayer <- newNetworkLayer port
     (_, bh) <- unsafeRunExceptT $ networkTip networkLayer
     sayErr . fmt $ network ||+ " tip is at " +|| (bh ^. #slotId) ||+ ""
     let w = mkWalletLayer dbLayer networkLayer
@@ -177,8 +152,8 @@ bench_restoration network (wid, wname, s) = withHttpBridge network $ \port -> do
 logChunk :: SlotId -> IO ()
 logChunk slot = sayErr . fmt $ "Processing "+||slot||+""
 
-withHttpBridge :: Network -> (Int -> IO a) -> IO a
-withHttpBridge network action = bracket start stop (const (action port))
+withHttpBridge :: (Int -> IO a) -> IO a
+withHttpBridge action = bracket start stop (const (action port))
   where
     port = 8002
     start = do
@@ -197,13 +172,13 @@ withHttpBridge network action = bracket start stop (const (action port))
         cancel handle
         threadDelay 1000000 -- wait for socket to be closed
 
-prepareNode :: Network -> IO ()
-prepareNode net = do
-    sayErr . fmt $ "Syncing "+|toText net|+" node... "
-    sl <- withHttpBridge net $ \port -> do
-        network <- newNetworkLayer net port
-        waitForNodeSync network (toText net) logQuiet
-    sayErr . fmt $ "Completed sync of "+|toText net|+" up to "+||sl||+""
+prepareNode :: IO ()
+prepareNode = do
+    sayErr . fmt $ "Syncing "+|toText network|+" node... "
+    sl <- withHttpBridge $ \port -> do
+        bridge <- newNetworkLayer port
+        waitForNodeSync bridge (toText network) logQuiet
+    sayErr . fmt $ "Completed sync of "+|toText network|+" up to "+||sl||+""
 
 -- | Regularly poll the wallet to monitor it's syncing progress. Block until the
 -- wallet reaches 100%.
@@ -228,10 +203,10 @@ waitForNodeSync
     -> Text
     -> (SlotId -> SlotId -> IO ())
     -> IO SlotId
-waitForNodeSync network networkName logSlot = loop 10
+waitForNodeSync bridge networkName logSlot = loop 10
   where
     loop :: Int -> IO SlotId
-    loop retries = runExceptT (networkTip network) >>= \case
+    loop retries = runExceptT (networkTip bridge) >>= \case
         Right (_, hdr) -> do
             let tipBlockSlot = hdr ^. #slotId
             currentSlot <- getCurrentSlot networkName
@@ -251,7 +226,7 @@ waitForNodeSync network networkName logSlot = loop 10
 
 -- | Calculate the current slot, because the network layer doesn't know it.
 getCurrentSlot :: Text -> IO SlotId
-getCurrentSlot network = calcSlot <$> startTime network <*> getPOSIXTime
+getCurrentSlot net = calcSlot <$> startTime net <*> getPOSIXTime
   where
     calcSlot :: POSIXTime -> POSIXTime -> SlotId
     calcSlot start now = SlotId ep idx

@@ -84,20 +84,20 @@ import qualified Data.Set as Set
 
 spec :: Spec
 spec = do
-    describe "Patate Buildable instances examples" $ do
+    describe "Buildable instances examples" $ do
         let block = blockchain !! 1
         let utxo = utxoFromTx $ head $ transactions block
         it (show $ ShowFmt utxo) True
         it (show $ ShowFmt block) True
 
-    describe "Patate Compare Wallet impl. with Specification" $ do
+    describe "Compare Wallet impl. with Specification" $ do
         it "Lemma 3.2 - dom u ⋪ updateUTxO b u = new b"
             (checkCoverage prop_3_2)
 
         it "applyBlock matches the basic model from the specification"
             (checkCoverage prop_applyBlockBasic)
 
-    describe "Patate Extra Properties" $ do
+    describe "Extra Properties" $ do
         it "Incoming transactions have output addresses that belong to the wallet"
             (property prop_applyBlockTxHistoryIncoming)
 

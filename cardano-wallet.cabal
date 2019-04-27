@@ -118,6 +118,7 @@ test-suite unit
     , containers
     , cryptonite
     , deepseq
+    , digest
     , docopt
     , file-embed
     , fmt
@@ -170,6 +171,7 @@ test-suite unit
       Data.Text.ClassSpec
       Data.QuantitySpec
       Servant.Extra.ContentTypesSpec
+      Spec
       Test.Text.Roundtrip
   if os(windows)
     build-depends: Win32
