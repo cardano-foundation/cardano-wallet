@@ -1,3 +1,16 @@
+> :warning: **Disclaimer** :warning: 
+>
+> The library expects a global ENV variable 'NETWORK' to be available. Possible values for this variable are:
+>
+> - mainnet
+> - testnet
+> - staging
+> - local
+> 
+> It indicates the target network for the library and has an influence on a few things like the address binary format,
+> the fee calculation and the underlying chain producer content.
+
+
 ## unit
 
 ```
@@ -65,7 +78,7 @@ $ stack install hp2pretty
 
 #### test
 
-> ⚠️  Disclaimer ⚠️
+> :warning: Disclaimer :warning: 
 >
 > Restoration benchmarks will catch-up with the chain before running which can be
 > quite long in the case of `mainnet`. For a better experience, make sure you're 
