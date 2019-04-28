@@ -14,6 +14,7 @@ module Test.Integration.Framework.DSL
     -- * Expectations
     , expectSuccess
     , expectError
+    , expectErrorMessage
     , expectFieldEqual
     , expectFieldNotEqual
     , expectListItemFieldEqual
@@ -97,7 +98,7 @@ import Language.Haskell.TH.Quote
 import Numeric.Natural
     ( Natural )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldNotBe )
+    ( shouldBe, shouldContain, shouldNotBe )
 import Test.Integration.Framework.Request
     ( Context (..)
     , Headers (..)
@@ -110,8 +111,10 @@ import Web.HttpApiData
     ( ToHttpApiData (..) )
 
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
+
 
 -- | Expect an errored response, without any further assumptions
 expectError
@@ -120,6 +123,18 @@ expectError
     -> m ()
 expectError (_, res) = case res of
     Left _  -> return ()
+    Right a -> wantedErrorButSuccess a
+
+-- | Expect an errored response, without any further assumptions
+expectErrorMessage
+    :: (MonadIO m, MonadFail m, Show a)
+    => String
+    -> (s, Either RequestException a)
+    -> m ()
+expectErrorMessage want (_, res) = case res of
+    Left (DecodeFailure msg)  -> BL8.unpack msg `shouldContain` want
+    Left (ClientError _)  -> fail "expectErrorMessage: asserting ClientError not\
+                             \ supported yet"
     Right a -> wantedErrorButSuccess a
 
 -- | Expect a successful response, without any further assumptions

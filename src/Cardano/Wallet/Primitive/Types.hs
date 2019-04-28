@@ -168,7 +168,7 @@ instance FromText WalletName where
         | T.length t < walletNameMinLength =
             Left $ TextDecodingError $
                 "name is too short: expected at least "
-                    <> show walletNameMinLength <> " chars"
+                    <> show walletNameMinLength <> " char"
         | T.length t > walletNameMaxLength =
             Left $ TextDecodingError $
                 "name is too long: expected at most "

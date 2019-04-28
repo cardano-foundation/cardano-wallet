@@ -89,7 +89,7 @@ spec = do
             fromText @AddressState "unusedused" === Left (TextDecodingError err)
         it "fail fromText @WalletName \"\"" $ do
             let err = "name is too short: expected at least "
-                      <> show walletNameMinLength <> " chars"
+                      <> show walletNameMinLength <> " char"
             fromText @WalletName "" === Left (TextDecodingError err)
         it "fail fromText @WalletName > walletNameMaxLength" $ do
             let err = "name is too long: expected at most "
