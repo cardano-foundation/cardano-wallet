@@ -31,3 +31,10 @@ Existing chain data doesn't necessarily include "extreme" cases that might occur
 - [ ] Use a mock network layer to feed generated blocks to wallet layer
 - [ ] Set up a test case which checks heap usage after applying a certain number of transactions in a certain number of blocks.
 - [ ] Also measure how long it took to apply those blocks/transactions.
+
+## Run integration tests against mainnet
+
+We are now running unit tests against both `mainnet` and `testnet` enviromnet. It would be good to run our integration tests also against `testnet` and `mainnet` clusters. Although integration scenarios seem to be agnostic to protocol magic, there is always a risk that something may misbehave on particular network and if it is the case we want to know about it ASAP. Therfore we _could_, with a few changes to the bridge, run integration tests on either a local network using the testnet magic, or a cluster using the mainnet magic.
+
+For now we will wait after the integration with the rust node, and do it with the rust node directly.
+The good thing with the rust node is that, we don't need a full cluster anymore. A single node is sufficient and can "emulate" delegation within itself, like an identity crisis.
