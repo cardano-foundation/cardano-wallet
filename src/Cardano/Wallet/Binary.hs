@@ -437,6 +437,8 @@ decodeTxWitness = do
             case CBOR.deserialiseFromBytes decodePKWitness (BL.fromStrict bs) of
                 Left err -> fail $ show err
                 Right (_, input) -> return input
+        1 -> CBOR.decodeTag *> (ScriptWitness <$> CBOR.decodeBytes)
+        2 -> CBOR.decodeTag *> (RedeemWitness <$> CBOR.decodeBytes)
         _ -> error
             $ "decodeTxWitness: unknown tx witness constructor: " <> show t
   where
@@ -520,14 +522,26 @@ encodeSignedTx (tx, witnesses) = mempty
 
 
 encodeTxWitness :: TxWitness -> CBOR.Encoding
-encodeTxWitness (PublicKeyWitness xPub (Hash signTag)) = mempty
+encodeTxWitness witness = mempty
     <> CBOR.encodeListLen 2
     <> CBOR.encodeWord8 tag
-    <> (encodeCborDataItem (CBOR.encodeListLen 2 <> CBOR.encodeBytes xPub <> CBOR.encodeBytes signTag))
+    <> CBOR.encodeTag 24
+    <> CBOR.encodeBytes contents
   where
-    tag = 0 -- corresponds to PublicKeyWitness
-    encodeCborDataItem enc
-        = CBOR.encodeTag 24 <> CBOR.encodeBytes (toByteString enc)
+
+    tag = case witness of
+        PublicKeyWitness _ _ -> 0
+        ScriptWitness _ -> 1
+        RedeemWitness _ -> 2
+
+    contents = case witness of
+        PublicKeyWitness xPub (Hash sig) -> toByteString $
+            CBOR.encodeListLen 2
+            <> CBOR.encodeBytes xPub
+            <> CBOR.encodeBytes sig
+        ScriptWitness bs -> bs
+        RedeemWitness bs -> bs
+
 
 encodeTx :: Tx -> CBOR.Encoding
 encodeTx tx = mempty
