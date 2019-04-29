@@ -177,13 +177,34 @@ spec = do
             r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
             verify r expectations
 
-    it "WALLETS_CREATE_04 - Name param missing" $ \ctx -> do
+    it "WALLETS_CREATE_04 - [] as name -> fail" $ \ctx -> do
+        let payload = Json [json| {
+                "name": [],
+                "mnemonic_sentence": #{mnemonics15},
+                "passphrase": "Secure Passphrase"
+                } |]
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status400
+            , expectErrorMessage "expected Text, encountered Array"
+            ]
 
+    it "WALLETS_CREATE_04 - Num as name -> fail" $ \ctx -> do
+        let payload = Json [json| {
+                "name": 123,
+                "mnemonic_sentence": #{mnemonics15},
+                "passphrase": "Secure Passphrase"
+                } |]
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status400
+            , expectErrorMessage "expected Text, encountered Number"
+            ]
+
+    it "WALLETS_CREATE_04 - Name param missing -> fail" $ \ctx -> do
         let payload = Json [json| {
                 "mnemonic_sentence": #{mnemonics15},
-                "mnemonic_second_factor": #{mnemonics12},
-                "passphrase": "Secure Passphrase",
-                "address_pool_gap": 30
+                "passphrase": "Secure Passphrase"
                 } |]
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
         verify r
@@ -191,9 +212,143 @@ spec = do
             , expectErrorMessage "key \"name\" not present"
             ]
 
+    describe "WALLETS_CREATE_05 - Mnemonics" $ do
+            let matrix = [ ( "[] as mnemonic_sentence -> fail"
+                           , []
+                           , [ expectResponseCode @IO HTTP.status400
+                             , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 0 24)"
+                             ]
+                           )
+                         , ( "specMnemonicSentence -> fail"
+                           , specMnemonicSentence
+                           , [ expectResponseCode @IO HTTP.status400
+                             , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 15 24)"
+                             ] -- probably need to modify after bug #192 fixed
+                           )
+                         , ( "invalid mnemonics -> fail"
+                           , invalidMnemonics15
+                           , [ expectResponseCode @IO HTTP.status400
+                             , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 15 24)"
+                             ] -- probably need to modify after bug #192 fixed
+                           )
+                         , ( "Japanese mnemonics -> fail"
+                           , japaneseMnemonics15
+                           , [ expectResponseCode @IO HTTP.status400
+                             , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 15 24)"
+                             ] -- probably need to modify after bug #192 fixed
+                           )
+                         , ( "Chinese mnemonics -> fail"
+                           , chineseMnemonics18
+                           , [ expectResponseCode @IO HTTP.status400
+                             , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 18 24)"
+                             ] -- probably need to modify after bug #192 fixed
+                           )
+                         , ( "French mnemonics -> fail"
+                           , frenchMnemonics21
+                           , [ expectResponseCode @IO HTTP.status400
+                             , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 21 24)"
+                             ] -- probably need to modify after bug #192 fixed
+                           )
+                         , ( "3 mnemonic words -> fail"
+                           , mnemonics3
+                           , [ expectResponseCode @IO HTTP.status400
+                             , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 3 24)"
+                             ] -- probably need to modify after bug #192 fixed
+                           )
+                         , ( "6 mnemonic words -> fail"
+                           , mnemonics6
+                           , [ expectResponseCode @IO HTTP.status400
+                             , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 6 24)"
+                             ] -- probably need to modify after bug #192 fixed
+                           )
+                         , ( "9 mnemonic words -> fail"
+                           , mnemonics9
+                           , [ expectResponseCode @IO HTTP.status400
+                             , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 9 24)"
+                             ] -- probably need to modify after bug #192 fixed
+                           )
+                         , ( "12 mnemonic words -> fail"
+                           , mnemonics12
+                           , [ expectResponseCode @IO HTTP.status400
+                             , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 12 24)"
+                             ] -- probably need to modify after bug #192 fixed
+                           )
+                         , ( "15 mnemonic words"
+                           , mnemonics15
+                           , [ expectResponseCode @IO HTTP.status202
+                             , expectFieldEqual walletId "b062e8ccf3685549b6c489a4e94966bc4695b75b"
+                             ]
+                           )
+                         , ( "18 mnemonic words"
+                           , mnemonics18
+                           , [ expectResponseCode @IO HTTP.status202
+                             , expectFieldEqual walletId "f52ee0daaefd75a0212d70c9fbe15ee8ada9fc11"
+                             ]
+                           )
+                         , ( "21 mnemonic words"
+                           , mnemonics21
+                           , [ expectResponseCode @IO HTTP.status202
+                             , expectFieldEqual walletId "7e8c1af5ff2218f388a313f9c70f0ff0550277e4"
+                             ]
+                           )
+                         , ( "24 mnemonic words"
+                           , mnemonics24
+                           , [ expectResponseCode @IO HTTP.status202
+                             , expectFieldEqual walletId "a6b6625cd2bfc51a296b0933f77020991cc80374"
+                             ]
+                           )
+                         ]
+            forM_ matrix $ \(title, mnemonics, expectations) -> it title $ \ctx -> do
+                let payload = Json [json| {
+                        "name": "Just a łallet",
+                        "mnemonic_sentence": #{mnemonics},
+                        "passphrase": "Secure Passphrase"
+                        } |]
+                r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+                verify r expectations
+
+    it "WALLETS_CREATE_05 - String as mnemonic_sentence -> fail" $ \ctx -> do
+        let payload = Json [json| {
+                "name": "ads",
+                "mnemonic_sentence": "album execute kingdom dumb trip all salute busy case bring spell ugly umbrella choice shy",
+                "passphrase": "Secure Passphrase"
+                } |]
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status400
+            , expectErrorMessage "expected [a], encountered String"
+            ]
+
+    it "WALLETS_CREATE_05 - Num as mnemonic_sentence -> fail" $ \ctx -> do
+        let payload = Json [json| {
+                "name": "123",
+                "mnemonic_sentence": 15,
+                "passphrase": "Secure Passphrase"
+                } |]
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status400
+            , expectErrorMessage "expected [a], encountered Number"
+            ]
+
+    it "WALLETS_CREATE_05 - mnemonic_sentence param missing -> fail" $ \ctx -> do
+        let payload = Json [json| {
+                "name": "A name",
+                "passphrase": "Secure Passphrase"
+                } |]
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status400
+            , expectErrorMessage "key \"mnemonic_sentence\" not present"
+            ]
+
  where
-    -- mnemonics6 :: [Text]
-    -- mnemonics6 = ["tornado", "canvas", "peasant", "spike", "enrich", "dilemma"]
+
+    mnemonics3 :: [Text]
+    mnemonics3 = ["diamond", "flee", "window"]
+
+    mnemonics6 :: [Text]
+    mnemonics6 = ["tornado", "canvas", "peasant", "spike", "enrich", "dilemma"]
 
     mnemonics9 :: [Text]
     mnemonics9 = ["subway", "tourist", "abstract", "roast", "border", "curious",
@@ -223,6 +378,30 @@ spec = do
         "olive", "perfect", "jewel", "renew", "wrestle", "cupboard", "record",
         "scale", "pattern", "invite", "other", "fruit", "gloom", "west", "oak",
         "deal", "seek", "hand"]
+
+    invalidMnemonics15 :: [Text]
+    invalidMnemonics15 = ["word","word","word","word","word","word","word",
+        "word","word","word","word","word","word","word","word"]
+
+    specMnemonicSentence :: [Text]
+    specMnemonicSentence = ["squirrel", "material", "silly", "twice", "direct",
+        "slush", "pistol", "razor", "become", "junk", "kingdom", "flee",
+        "squirrel", "silly", "twice"]
+
+    japaneseMnemonics15 :: [Text]
+    japaneseMnemonics15 = ["うめる", "せんく", "えんぎ", "はんぺん", "おくりがな",
+        "さんち", "きなが", "といれ", "からい", "らくだ", "うえる", "ふめん", "せびろ",
+        "られつ", "なにわ"]
+
+    chineseMnemonics18 :: [Text]
+    chineseMnemonics18 = ["盗", "精", "序", "郎", "赋", "姿", "委", "善", "酵",
+        "祥", "赛", "矩", "蜡", "注", "韦", "效", "义", "冻"]
+
+    frenchMnemonics21 :: [Text]
+    frenchMnemonics21 = ["pliage", "exhorter", "brasier", "chausson", "bloquer",
+        "besace", "sorcier", "absurde", "neutron", "forgeron", "geyser",
+        "moulin", "cynique", "cloche", "baril", "infliger", "rompre", "typique",
+        "renifler", "creuser", "matière"]
 
     russianWalletName :: Text
     russianWalletName = "АаБбВвГгДдЕеЁёЖжЗз ИиЙйКкЛлМмНнО оПпРрСсТтУуФф ХхЦцЧчШшЩщЪъ ЫыЬьЭэЮюЯяІ ѢѲѴѵѳѣі"
