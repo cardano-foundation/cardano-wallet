@@ -9,6 +9,7 @@ module Cardano.Wallet.CoinSelectionSpec
 
     -- * Export used to test various coin selection implementations
     , CoinSelectionFixture(..)
+    , CoinSelectionResult(..)
     , CoinSelProp(..)
     , coinSelectionUnitTest
     ) where
@@ -81,6 +82,13 @@ data CoinSelectionFixture = CoinSelectionFixture
         -- ^ Value (in Lovelace) & number of requested outputs
     } deriving Show
 
+-- | Testing-friendly format for 'CoinSelection' results of unit tests
+data CoinSelectionResult = CoinSelectionResult
+    { rsInputs :: [Word64]
+    , rsChange :: [Word64]
+    , rsOutputs :: [Word64]
+    } deriving (Eq, Show)
+
 -- | Generate a 'UTxO' and 'TxOut' matching the given 'Fixture', and perform
 -- given coin selection on it.
 coinSelectionUnitTest
@@ -90,16 +98,20 @@ coinSelectionUnitTest
          -> ExceptT CoinSelectionError IO CoinSelection
        )
     -> String
-    -> Either CoinSelectionError [Word64]
+    -> Either CoinSelectionError CoinSelectionResult
     -> CoinSelectionFixture
     -> SpecWith ()
 coinSelectionUnitTest run lbl expected (CoinSelectionFixture n utxoF outsF) =
     it title $ do
         (utxo,txOuts) <- setup
         result <- runExceptT $ do
-            (CoinSelection inps _ _) <-
+            (CoinSelection inps outs chngs) <-
                 run (CoinSelectionOptions n) utxo txOuts
-            return $ map (getCoin . coin . snd) inps
+            return $ CoinSelectionResult
+                { rsInputs = map (getCoin . coin . snd) inps
+                , rsChange = map getCoin chngs
+                , rsOutputs = map (getCoin . coin) outs
+                }
         result `shouldBe` expected
   where
     title :: String
@@ -107,7 +119,7 @@ coinSelectionUnitTest run lbl expected (CoinSelectionFixture n utxoF outsF) =
         <> "max=" <> show n
         <> ", UTxO=" <> show utxoF
         <> ", Output=" <> show (NE.toList outsF)
-        <> " --> " <> show expected
+        <> " --> " <> show (rsInputs <$> expected)
         <> if null lbl then "" else " (" <> lbl <> ")"
 
     setup :: IO (UTxO, NonEmpty TxOut)

@@ -15,7 +15,11 @@ import Cardano.Wallet.CoinSelection.Policy.LargestFirst
 import Cardano.Wallet.CoinSelection.Policy.Random
     ( random )
 import Cardano.Wallet.CoinSelectionSpec
-    ( CoinSelProp (..), CoinSelectionFixture (..), coinSelectionUnitTest )
+    ( CoinSelProp (..)
+    , CoinSelectionFixture (..)
+    , CoinSelectionResult (..)
+    , coinSelectionUnitTest
+    )
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Crypto.Random
@@ -39,48 +43,90 @@ import qualified Data.List as L
 spec :: Spec
 spec = do
     describe "Unit tests" $ do
-        coinSelectionUnitTest random "" (Right [1,1,1,1]) $ CoinSelectionFixture
-            { maxNumOfInputs = 100
-            , utxoInputs = [1,1,1,1,1,1]
-            , txOutputs = 2 :| []
-            }
+        coinSelectionUnitTest random ""
+            (Right $ CoinSelectionResult
+                { rsInputs = [1,1,1,1]
+                , rsChange = [2]
+                , rsOutputs = [2]
+                })
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , utxoInputs = [1,1,1,1,1,1]
+                , txOutputs = 2 :| []
+                })
 
-        coinSelectionUnitTest random "" (Right [1,1,1,1,1,1]) $ CoinSelectionFixture
-            { maxNumOfInputs = 100
-            , utxoInputs = [1,1,1,1,1,1]
-            , txOutputs = 2 :| [1]
-            }
+        coinSelectionUnitTest random ""
+            (Right $ CoinSelectionResult
+                { rsInputs = [1,1,1,1,1,1]
+                , rsChange = [2,1]
+                , rsOutputs = [2,1]
+                })
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , utxoInputs = [1,1,1,1,1,1]
+                , txOutputs = 2 :| [1]
+                })
 
-        coinSelectionUnitTest random "" (Right [1,1,1,1,1]) $ CoinSelectionFixture
-            { maxNumOfInputs = 100
-            , utxoInputs = [1,1,1,1,1]
-            , txOutputs = 2 :| [1]
-            }
+        coinSelectionUnitTest random ""
+            (Right $ CoinSelectionResult
+                { rsInputs = [1,1,1,1,1]
+                , rsChange = [2]
+                , rsOutputs = [2,1]
+                })
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , utxoInputs = [1,1,1,1,1]
+                , txOutputs = 2 :| [1]
+                })
 
-        coinSelectionUnitTest random "with fallback" (Right [1,1,1]) $ CoinSelectionFixture
-            { maxNumOfInputs = 100
-            , utxoInputs = [1,1,1,1]
-            , txOutputs = 2 :| [1]
-            }
+        coinSelectionUnitTest random "with fallback"
+            (Right $ CoinSelectionResult
+                { rsInputs = [1,1,1]
+                , rsChange = []
+                , rsOutputs = [2,1]
+                })
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , utxoInputs = [1,1,1,1]
+                , txOutputs = 2 :| [1]
+                })
 
-        coinSelectionUnitTest random "" (Right [5]) $ CoinSelectionFixture
-            { maxNumOfInputs = 100
-            , utxoInputs = [5,5,5]
-            , txOutputs = 2 :| []
-            }
+        coinSelectionUnitTest random ""
+            (Right $ CoinSelectionResult
+                { rsInputs = [5]
+                , rsChange = [3]
+                , rsOutputs = [2]
+                })
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , utxoInputs = [5,5,5]
+                , txOutputs = 2 :| []
+                })
 
-        coinSelectionUnitTest random "" (Right [10,10]) $ CoinSelectionFixture
-            { maxNumOfInputs = 100
-            , utxoInputs = [10,10,10]
-            , txOutputs = 2 :| [2]
-            }
+        coinSelectionUnitTest random ""
+            (Right $ CoinSelectionResult
+                { rsInputs = [10,10]
+                , rsChange = [8,8]
+                , rsOutputs = [2,2]
+                }
+            )
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , utxoInputs = [10,10,10]
+                , txOutputs = 2 :| [2]
+                })
 
         coinSelectionUnitTest random "cannot cover aim, but only min"
-            (Right [1,1,1,1]) $ CoinSelectionFixture
-            { maxNumOfInputs = 4
-            , utxoInputs = [1,1,1,1,1,1]
-            , txOutputs = 3 :| []
-            }
+            (Right $ CoinSelectionResult
+                { rsInputs = [1,1,1,1]
+                , rsChange = [1]
+                , rsOutputs = [3]
+                })
+            (CoinSelectionFixture
+                { maxNumOfInputs = 4
+                , utxoInputs = [1,1,1,1,1,1]
+                , txOutputs = 3 :| []
+                })
 
         coinSelectionUnitTest random "" (Left $ MaximumInputsReached 2) $ CoinSelectionFixture
             { maxNumOfInputs = 2
