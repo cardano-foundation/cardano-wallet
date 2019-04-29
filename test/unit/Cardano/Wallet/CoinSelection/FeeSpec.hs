@@ -286,6 +286,36 @@ spec = do
             , csChngs = [3,3]
             })
 
+        -- Change created when there was no change before
+        feeUnitTest (FeeFixture
+            { fInps = [1]
+            , fOuts = [1]
+            , fChngs = []
+            , fUtxo = [2]
+            , fFee = 1
+            , fDust = 0
+            }) (Right $ FeeOutput
+            { csInps = [1,2]
+            , csOuts = [1]
+            , csChngs = [1]
+            })
+
+        let c = getCoin maxBound
+
+        -- New BIG inputs selected causes change to overflow
+        feeUnitTest (FeeFixture
+            { fInps = [c-1, c-1]
+            , fOuts = [c-1]
+            , fChngs = [c-1]
+            , fUtxo = [c]
+            , fFee = c
+            , fDust = 0
+            }) (Right $ FeeOutput
+            { csInps = [c-1, c-1, c]
+            , csOuts = [c-1]
+            , csChngs = [c `div` 2 - 1, c `div` 2]
+            })
+
     describe "Fee Calculation: Generators" $ do
         it "Arbitrary CoinSelection" $ property $ \(ShowFmt cs) ->
             property $ isValidSelection cs
@@ -415,8 +445,8 @@ feeOptions
     -> Word64
     -> FeeOptions
 feeOptions fee dust = FeeOptions
-    { estimate = \_num _outs ->
-        Fee fee
+    { estimate = \nInps outs ->
+        nInps `seq` outs `seq` Fee fee
     , dustThreshold =
         Coin dust
     }
