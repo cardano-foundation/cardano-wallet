@@ -28,10 +28,12 @@ import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
     ( async, cancel )
+import Control.Monad
+    ( unless )
 import Data.Text.Class
     ( toText )
 import Test.Hspec
-    ( Spec, after, before, it, shouldSatisfy )
+    ( Spec, after, before, expectationFailure, it )
 
 import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
@@ -50,7 +52,8 @@ spec = do
             unsafeRunExceptT $ restoreWallet wallet wid
             threadDelay 2000000
             tip <- currentTip . fst <$> unsafeRunExceptT (readWallet wallet wid)
-            tip `shouldSatisfy` (> (SlotId 0 0))
+            unless (tip > (SlotId 0 0)) $
+                expectationFailure ("The wallet tip is still " ++ show tip)
   where
     port = 1337
     closeBridge (handle, _) = do
