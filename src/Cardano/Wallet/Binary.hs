@@ -434,7 +434,7 @@ decodeTxWitness = do
             case CBOR.deserialiseFromBytes decodePKWitness (BL.fromStrict bs) of
                 Left err -> fail $ show err
                 Right (_, input) -> return input
-        _ -> fail
+        _ -> error
             $ "decodeTxWitness: unknown tx witness constructor: " <> show t
   where
     decodePKWitness = do
