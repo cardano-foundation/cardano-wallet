@@ -61,6 +61,8 @@ import Fmt
     ( fmt, (+|), (+||), (|+), (||+) )
 import Say
     ( sayErr )
+import System.Environment
+    ( getArgs, setEnv )
 import System.IO
     ( BufferMode (..), hSetBuffering, stderr, stdout )
 
@@ -77,6 +79,7 @@ main = do
     hSetBuffering stdout NoBuffering
     hSetBuffering stderr NoBuffering
     installSignalHandlers
+    getArgs >>= overrideEnvironment
     prepareNode
     runBenchmarks
         [ bench ("restore " <> toText network <> " seq")
@@ -124,6 +127,17 @@ bench benchName action = do
 
 printResult :: Text -> Double -> IO ()
 printResult benchName dur = sayErr . fmt $ "  "+|benchName|+": "+|secs dur|+""
+
+-- FIXME This only exists because somehow, in buildkite, we can't pass ENV var
+-- to the haskell executable? There's probably some Nix magic going on and I
+-- don't have time for this.
+overrideEnvironment :: [String] -> IO ()
+overrideEnvironment [ntwrk] =
+    setEnv "NETWORK" ntwrk
+overrideEnvironment [] =
+    return ()
+overrideEnvironment _ =
+    fail "benchmark expects only one argument to override the '$NETWORK' ENV var"
 
 {-------------------------------------------------------------------------------
                                   Benchmarks
