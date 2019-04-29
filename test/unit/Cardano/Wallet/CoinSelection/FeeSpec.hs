@@ -81,6 +81,7 @@ import Test.QuickCheck
     , scale
     , vectorOf
     , withMaxSuccess
+    , (===)
     , (==>)
     )
 import Test.QuickCheck.Monadic
@@ -299,7 +300,7 @@ spec = do
 
     describe "Fee Estimation properties" $ do
         it "Estimated fee is the same as taken by encodeSignedTx"
-            (withMaxSuccess 1000 $ property propFeeEstimation)
+            (withMaxSuccess 2500 $ property propFeeEstimation)
 
 {-------------------------------------------------------------------------------
                          Fee Adjustment - Properties
@@ -377,7 +378,8 @@ propFeeEstimation (ShowFmt sel, InfiniteList chngAddrs _) =
         (Fee calcFee) = estimateFee cardanoPolicy sel
         (TxSizeLinear (Quantity a) (Quantity b)) = cardanoPolicy
         tx = fromCoinSelection sel
-        size = BL.length $ toLazyByteString $ encodeSignedTx tx
+        encodedTx = toLazyByteString $ encodeSignedTx tx
+        size = BL.length encodedTx
         -- We always go for the higher bound for change address payload's size,
         -- so, we may end up with up to 4 extra bytes per change address in our
         -- estimation.
@@ -385,7 +387,8 @@ propFeeEstimation (ShowFmt sel, InfiniteList chngAddrs _) =
         realFeeSup = ceiling (a + b*(fromIntegral size + margin))
         realFeeInf = ceiling (a + b*(fromIntegral size))
     in
-        property (calcFee >= realFeeInf && calcFee <= realFeeSup)
+        (calcFee >= realFeeInf && calcFee <= realFeeSup, encodedTx)
+            === (True, encodedTx)
   where
     dummyWitness = PublicKeyWitness
         "\130X@\226E\220\252\DLE\170\216\210\164\155\182mm$ePG\252\186\195\225_\b=\v\241=\255 \208\147[\239\RS\170|\214\202\247\169\229\205\187O_)\221\175\155?e\198\248\170\157-K\155\169z\144\174\ENQhX@\193\151*,\NULz\205\234\&1tL@\211\&2\165\129S\STXP\164C\176 Xvf\160|;\CANs{\SYN\204<N\207\154\130\225\229\t\172mbC\139\US\159\246\168x\163Mq\248\145)\160|\139\207-\SI"
@@ -524,8 +527,8 @@ instance Arbitrary Address where
 instance {-# OVERLAPS #-} Arbitrary (Network -> Address) where
     shrink _ = []
     arbitrary = do
-        mainnetA <- genAddress (39, 43)
-        testnetA <- genAddress (46, 50)
+        mainnetA <- genAddress (33, 33)
+        testnetA <- genAddress (40, 40)
         return $ \case
             Mainnet -> mainnetA
             Staging -> mainnetA
