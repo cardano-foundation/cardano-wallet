@@ -147,6 +147,7 @@ test-suite unit
   other-modules:
       Cardano.CLI
       Cardano.CLISpec
+      Cardano.EnvironmentSpec
       Cardano.Launcher
       Cardano.LauncherSpec
       Cardano.Wallet.Api.TypesSpec

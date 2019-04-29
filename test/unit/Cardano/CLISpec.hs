@@ -4,15 +4,13 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.CLISpec
-    (spec
+    ( spec
     ) where
 
 import Prelude
 
 import Cardano.CLI
     ( Port )
-import Cardano.Environment
-    ( Network )
 import Data.Proxy
     ( Proxy (..) )
 import Test.Hspec
@@ -27,12 +25,7 @@ import Test.Text.Roundtrip
 spec :: Spec
 spec = do
     describe "Can perform roundtrip textual encoding & decoding" $ do
-        textRoundtrip $ Proxy @Network
         textRoundtrip $ Proxy @(Port "test")
-
-instance Arbitrary Network where
-    arbitrary = genericArbitrary
-    shrink = genericShrink
 
 instance Arbitrary (Port "test") where
     arbitrary = genericArbitrary
