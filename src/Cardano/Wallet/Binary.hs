@@ -30,6 +30,7 @@ module Cardano.Wallet.Binary
     , encodeAddress
     , encodeTxWitness
     , encodeSignedTx
+    , encodeProtocolMagic
 
     -- * Hashing
     , txId
@@ -48,6 +49,8 @@ import Prelude
 
 import Cardano.Crypto.Wallet
     ( ChainCode (..), XPub (..) )
+import Cardano.Environment
+    ( ProtocolMagic (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
@@ -540,6 +543,9 @@ encodeTx tx = mempty
 encodeTxAttributes :: CBOR.Encoding
 encodeTxAttributes = mempty
     <> CBOR.encodeMapLen 0
+
+encodeProtocolMagic :: ProtocolMagic -> CBOR.Encoding
+encodeProtocolMagic (ProtocolMagic i) = CBOR.encodeInt32 i
 
 encodeTxIn :: TxIn -> CBOR.Encoding
 encodeTxIn (TxIn (Hash txid) ix) = mempty
