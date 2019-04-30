@@ -139,7 +139,7 @@ walletSecondFactor: &walletSecondFactor
 walletPassphrase: &walletPassphrase
   description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds)
   type: string
-  minLength: 1
+  minLength: 10
   maxLength: 255
   example: Secure Passphrase
 
@@ -631,6 +631,11 @@ responsesErr404: &responsesErr404
     description: Not Found
     schema: *responsesErr
 
+responsesErr406: &responsesErr406
+  406:
+    description: Not Acceptable
+    schema: *responsesErr
+
 responsesErr409: &responsesErr409
   409:
     description: Conflict
@@ -667,6 +672,7 @@ responsesGetUTxOsStatistics: &responsesGetUTxOsStatistics
 
 responsesPostWallet: &responsesPostWallet
   <<: *responsesErr400
+  <<: *responsesErr406
   <<: *responsesErr409
   <<: *responsesErr415
   202:
@@ -683,6 +689,7 @@ responsesGetWallet: &responsesGetWallet
 responsesDeleteWallet: &responsesDeleteWallet
   <<: *responsesErr400
   <<: *responsesErr404
+  <<: *responsesErr406
   <<: *responsesErr423
   204:
     description: No Content
