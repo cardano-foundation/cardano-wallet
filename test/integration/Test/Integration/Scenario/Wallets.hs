@@ -210,54 +210,61 @@ spec = do
         let matrix =
              [ ( "[] as mnemonic_sentence -> fail", []
                , [ expectResponseCode @IO HTTP.status400
-                 , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 0 24)"
+                 , expectErrorMessage "Invalid number of words: 15, 18, 21 or\
+                      \ 24 words are expected."
                  ]
                )
              , ( "specMnemonicSentence -> fail", specMnemonicSentence
                , [ expectResponseCode @IO HTTP.status400
-                 , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 15 24)"
-                 ] -- probably need to modify after bug #192 fixed
+                 , expectErrorMessage "Invalid entropy checksum: please \
+                      \double-check the last word of your mnemonic sentence."
+                 ]
                )
              , ( "invalid mnemonics -> fail", invalidMnemonics15
                , [ expectResponseCode @IO HTTP.status400
-                 , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 15 24)"
-                 ] -- probably need to modify after bug #192 fixed
+                 , expectErrorMessage "Invalid entropy checksum: please \
+                      \double-check the last word of your mnemonic sentence."
+                 ]
                )
              , ( "Japanese mnemonics -> fail", japaneseMnemonics15
                , [ expectResponseCode @IO HTTP.status400
-                 , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 15 24)"
-                 ] -- probably need to modify after bug #192 fixed
+                 , expectErrorMessage "Found invalid (non-English) word:"
+                 ] -- why only for Japanese?
                )
              , ( "Chinese mnemonics -> fail", chineseMnemonics18
                , [ expectResponseCode @IO HTTP.status400
-                 , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 18 24)"
-                 ] -- probably need to modify after bug #192 fixed
+                 , expectErrorMessage "Found invalid (non-English) word:"
+                 ]
                )
              , ( "French mnemonics -> fail"
                , frenchMnemonics21
                , [ expectResponseCode @IO HTTP.status400
-                 , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 21 24)"
-                 ] -- probably need to modify after bug #192 fixed
+                 , expectErrorMessage "Found invalid (non-English) word:"
+                 ]
                )
              , ( "3 mnemonic words -> fail" , mnemonics3
                , [ expectResponseCode @IO HTTP.status400
-                 , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 3 24)"
-                 ] -- probably need to modify after bug #192 fixed
+                 , expectErrorMessage "Invalid number of words: 15, 18, 21 or\
+                      \ 24 words are expected."
+                 ]
                )
              , ( "6 mnemonic words -> fail", mnemonics6
                , [ expectResponseCode @IO HTTP.status400
-                 , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 6 24)"
-                 ] -- probably need to modify after bug #192 fixed
+                 , expectErrorMessage "Invalid number of words: 15, 18, 21 or\
+                      \ 24 words are expected."
+                 ]
                )
              , ( "9 mnemonic words -> fail", mnemonics9
                , [ expectResponseCode @IO HTTP.status400
-                 , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 9 24)"
-                 ] -- probably need to modify after bug #192 fixed
+                 , expectErrorMessage "Invalid number of words: 15, 18, 21 or\
+                      \ 24 words are expected."
+                 ]
                )
              , ( "12 mnemonic words -> fail", mnemonics12
                , [ expectResponseCode @IO HTTP.status400
-                 , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 12 24)"
-                 ] -- probably need to modify after bug #192 fixed
+                 , expectErrorMessage "Invalid number of words: 15, 18, 21 or\
+                      \ 24 words are expected."
+                 ]
                )
              , ( "15 mnemonic words", mnemonics15
                , [ expectResponseCode @IO HTTP.status202
@@ -329,77 +336,87 @@ spec = do
         let matrix =
                 [ ( "[] as mnemonic_second_factor -> fail", []
                    , [ expectResponseCode @IO HTTP.status400
-                     , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 0 12)"
+                     , expectErrorMessage "Invalid number of words: 9 or 12\
+                            \ words are expected."
                      ]
                    )
                  , ( "specMnemonicSecondFactor -> fail", specMnemonicSecondFactor
                    , [ expectResponseCode @IO HTTP.status400
-                     , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 9 12)"
-                     ] -- probably need to modify after bug #192 fixed
+                     , expectErrorMessage "Invalid entropy checksum: please\
+                         \ double-check the last word of your mnemonic sentence."
+                     ]
                    )
                  , ( "invalid mnemonics -> fail", invalidMnemonics12
                    , [ expectResponseCode @IO HTTP.status400
-                     , expectErrorMessage "ErrEntropy (ErrInvalidEntropyChecksum (Checksum 9) (Checksum 13))"
-                     ] -- probably need to modify after bug #192 fixed
+                   , expectErrorMessage "Invalid entropy checksum: please\
+                       \ double-check the last word of your mnemonic sentence."
+                     ]
                    )
-                 , ( "Japanese mnemonics -> fail", japaneseMnemonics15
+                 , ( "Japanese mnemonics -> fail", japaneseMnemonics12
                    , [ expectResponseCode @IO HTTP.status400
-                     , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 15 12)"
-                     ] -- probably need to modify after bug #192 fixed
+                     , expectErrorMessage "Found invalid (non-English) word:"
+                     ]
                    )
-                 , ( "Chinese mnemonics -> fail", chineseMnemonics18
+                 , ( "Chinese mnemonics -> fail", chineseMnemonics9
                    , [ expectResponseCode @IO HTTP.status400
-                     , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 18 12)"
-                     ] -- probably need to modify after bug #192 fixed
+                     , expectErrorMessage "Found invalid (non-English) word:"
+                     ]
                    )
-                 , ( "French mnemonics -> fail", frenchMnemonics21
+                 , ( "French mnemonics -> fail", frenchMnemonics12
                    , [ expectResponseCode @IO HTTP.status400
-                     , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 21 12)"
-                     ] -- probably need to modify after bug #192 fixed
+                     , expectErrorMessage "Found invalid (non-English) word:"
+                     ]
                    )
                  , ( "3 mnemonic words -> fail", mnemonics3
                    , [ expectResponseCode @IO HTTP.status400
-                     , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 3 12)"
-                     ] -- probably need to modify after bug #192 fixed
+                     , expectErrorMessage "Invalid number of words: 9 or 12\
+                          \ words are expected."
+                     ]
                    )
                  , ( "6 mnemonic words -> fail", mnemonics6
                    , [ expectResponseCode @IO HTTP.status400
-                     , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 6 12)"
-                     ] -- probably need to modify after bug #192 fixed
+                     , expectErrorMessage "Invalid number of words: 9 or 12\
+                          \ words are expected."
+                     ]
                    )
-                 , ( "9 mnemonic words -> fail", mnemonics9
+                 , ( "9 mnemonic words", mnemonics9
                    , [ expectResponseCode @IO HTTP.status202
                      , expectFieldEqual walletId "4b1a865e39d1006efb99f538b05ea2343b567108"
                      ]
                    )
-                 , ( "12 mnemonic words -> fail", mnemonics12
+                 , ( "12 mnemonic words", mnemonics12
                    , [ expectResponseCode @IO HTTP.status202
                      , expectFieldEqual walletId "2cf060fe53e4e0593f145f22b858dfc60676d4ab"
                      ]
                    )
-                 , ( "15 mnemonic words", mnemonics15
+                 , ( "15 mnemonic words -> fail", mnemonics15
                    , [ expectResponseCode @IO HTTP.status400
-                     , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 15 12)"
+                     , expectErrorMessage "Invalid number of words: 9 or 12\
+                            \ words are expected."
                      ]
                    )
-                , ( "18 mnemonic words", mnemonics18
+                , ( "18 mnemonic words -> fail", mnemonics18
                  , [ expectResponseCode @IO HTTP.status400
-                   , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 18 12)"
+                   , expectErrorMessage "Invalid number of words: 9 or 12\
+                          \ words are expected."
                    ]
                  )
-                 , ( "18 mnemonic words", mnemonics18
+                 , ( "18 mnemonic words -> fail", mnemonics18
                    , [ expectResponseCode @IO HTTP.status400
-                     , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 18 12)"
+                     , expectErrorMessage "Invalid number of words: 9 or 12\
+                            \ words are expected."
                      ]
                    )
-                 , ( "21 mnemonic words", mnemonics21
+                 , ( "21 mnemonic words -> fail", mnemonics21
                    , [ expectResponseCode @IO HTTP.status400
-                     , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 21 12)"
+                     , expectErrorMessage "Invalid number of words: 9 or 12\
+                            \ words are expected."
                      ]
                    )
                  , ( "24 mnemonic words", mnemonics24
                    , [ expectResponseCode @IO HTTP.status400
-                     , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 24 12)"
+                     , expectErrorMessage "Invalid number of words: 9 or 12\
+                            \ words are expected."
                      ]
                    )
                  ]
@@ -557,14 +574,26 @@ spec = do
     specMnemonicSecondFactor = ["squirrel", "material", "silly", "twice",
         "direct", "slush", "pistol", "razor", "become"]
 
+    japaneseMnemonics12 :: [Text]
+    japaneseMnemonics12 = ["そうだん",　"ひよう",　"にもつ",　"やさしい",　"きふく",　
+        "ねつい",　"だったい",　"けんてい",　"けいろ",　"ざつがく",　"ほうもん",　"すこし"]
+
     japaneseMnemonics15 :: [Text]
     japaneseMnemonics15 = ["うめる", "せんく", "えんぎ", "はんぺん", "おくりがな",
         "さんち", "きなが", "といれ", "からい", "らくだ", "うえる", "ふめん", "せびろ",
         "られつ", "なにわ"]
 
+    chineseMnemonics9 :: [Text]
+    chineseMnemonics9 = ["钢", "看", "磁", "塑", "凤", "魏", "世", "腐", "恶" ]
+
     chineseMnemonics18 :: [Text]
     chineseMnemonics18 = ["盗", "精", "序", "郎", "赋", "姿", "委", "善", "酵",
         "祥", "赛", "矩", "蜡", "注", "韦", "效", "义", "冻"]
+
+    frenchMnemonics12 :: [Text]
+    frenchMnemonics12 = ["palmarès", "supplier", "visuel", "gardien", "adorer",
+        "cordage", "notifier", "réglage", "employer", "abandon", "scénario",
+        "proverbe"]
 
     frenchMnemonics21 :: [Text]
     frenchMnemonics21 = ["pliage", "exhorter", "brasier", "chausson", "bloquer",
