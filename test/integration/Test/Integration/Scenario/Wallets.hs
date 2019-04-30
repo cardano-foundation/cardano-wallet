@@ -412,6 +412,97 @@ spec = do
                     } |]
             r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
             verify r expectations
+
+    describe "WALLETS_CREATE_07 - Passphrase" $ do
+        let passphraseMax = T.pack (replicate passphraseMaxLength 'ą')
+        let matrix =
+                [ ( show passphraseMinLength ++ " char long"
+                  , T.pack (replicate passphraseMinLength 'ź')
+                  , [ expectResponseCode @IO HTTP.status202
+                    ]
+                  )
+                , ( show (passphraseMinLength - 1) ++ " char long"
+                  , T.pack (replicate (passphraseMinLength - 1) 'ż')
+                  , [ expectResponseCode @IO HTTP.status400
+                    , expectErrorMessage "passphrase is too short: expected at\
+                            \ least 10 characters"
+                    ]
+                  )
+                , ( show passphraseMaxLength ++ " char long", passphraseMax
+                  , [ expectResponseCode @IO HTTP.status202 ]
+                  )
+                , ( show (passphraseMaxLength + 1) ++ " char long"
+                  , T.pack (replicate (passphraseMaxLength + 1) 'ę')
+                  , [ expectResponseCode @IO HTTP.status400
+                    , expectErrorMessage "passphrase is too long: expected at\
+                            \ most 255 characters"
+                    ]
+                  )
+                , ( "Empty passphrase", ""
+                   , [ expectResponseCode @IO HTTP.status400
+                     , expectErrorMessage "passphrase is too short: expected at\
+                            \ least 10 characters"
+                     ]
+                  )
+                , ( "Russian passphrase", russianWalletName
+                  , [ expectResponseCode @IO HTTP.status202 ]
+                  )
+                , ( "Polish passphrase", polishWalletName
+                  , [ expectResponseCode @IO HTTP.status202 ]
+                  )
+                , ( "Kanji passphrase", kanjiWalletName
+                  , [ expectResponseCode @IO HTTP.status202 ]
+                  )
+                , ( "Arabic passphrase", arabicWalletName
+                  , [ expectResponseCode @IO HTTP.status202 ]
+                  )
+                , ( "Wildcards passphrase", wildcardsWalletName
+                  , [ expectResponseCode @IO HTTP.status202 ]
+                  )
+                ]
+        forM_ matrix $ \(title, passphrase, expectations) -> it title $ \ctx -> do
+            let payload = Json [json| {
+                    "name": "Secure Wallet",
+                    "mnemonic_sentence": #{mnemonics24},
+                    "passphrase": #{passphrase}
+                    } |]
+            r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+            verify r expectations
+
+    it "WALLETS_CREATE_07 - [] as passphrase -> fail" $ \ctx -> do
+        let payload = Json [json| {
+                "name": "Secure Wallet",
+                "mnemonic_sentence": #{mnemonics15},
+                "passphrase": []
+                } |]
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status400
+            , expectErrorMessage "expected Text, encountered Array"
+            ]
+
+    it "WALLETS_CREATE_07 - Num as passphrase -> fail" $ \ctx -> do
+        let payload = Json [json| {
+                "name": "Secure Wallet",
+                "mnemonic_sentence": #{mnemonics15},
+                "passphrase": 777
+                } |]
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status400
+            , expectErrorMessage "expected Text, encountered Number"
+            ]
+
+    it "WALLETS_CREATE_07 - passphrase param missing -> fail" $ \ctx -> do
+        let payload = Json [json| {
+                "name": "Secure Wallet",
+                "mnemonic_sentence": #{mnemonics15}
+                } |]
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status400
+            , expectErrorMessage "key \"passphrase\" not present"
+            ]
  where
 
     mnemonics3 :: [Text]
@@ -501,3 +592,9 @@ spec = do
     wildcardsWalletName :: Text
     wildcardsWalletName = "`~`!@#$%^&*()_+-=<>,./?;':\"\"'{}[]\\|❤️ 💔 💌 💕 💞 \
     \💓 💗 💖 💘 💝 💟 💜 💛 💚 💙0️⃣ 1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣ 6️⃣ 7️⃣ 8️⃣ 9️⃣ 🔟🇺🇸🇷🇺🇸 🇦🇫🇦🇲🇸"
+
+    passphraseMinLength :: Int
+    passphraseMinLength = 10
+
+    passphraseMaxLength :: Int
+    passphraseMaxLength = 255

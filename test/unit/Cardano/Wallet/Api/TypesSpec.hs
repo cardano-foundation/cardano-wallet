@@ -199,14 +199,14 @@ spec = do
         it "ApiT (Passphrase \"encryption\") (too short)" $ do
             let minLength = passphraseMinLength (Proxy :: Proxy "encryption")
             let msg = "Error in $: passphrase is too short: \
-                    \expected at least " <> show minLength <> " chars"
+                    \expected at least " <> show minLength <> " characters"
             Aeson.parseEither parseJSON [aesonQQ|"patate"|]
                 `shouldBe` (Left @String @(ApiT (Passphrase "encryption")) msg)
 
         it "ApiT (Passphrase \"encryption\") (too long)" $ do
             let maxLength = passphraseMaxLength (Proxy :: Proxy "encryption")
             let msg = "Error in $: passphrase is too long: \
-                    \expected at most " <> show maxLength <> " chars"
+                    \expected at most " <> show maxLength <> " characters"
             Aeson.parseEither parseJSON [aesonQQ|
                 #{replicate (2*maxLength) '*'}
             |] `shouldBe` (Left @String @(ApiT (Passphrase "encryption")) msg)

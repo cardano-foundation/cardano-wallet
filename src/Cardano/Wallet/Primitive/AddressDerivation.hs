@@ -242,11 +242,11 @@ instance
         | T.length t < minLength =
             Left $ TextDecodingError $
                 "passphrase is too short: expected at least "
-                <> show minLength <> " chars"
+                <> show minLength <> " characters"
         | T.length t > maxLength =
             Left $ TextDecodingError $
                 "passphrase is too long: expected at most "
-                <> show maxLength <> " chars"
+                <> show maxLength <> " characters"
         | otherwise =
             pure $ Passphrase $ BA.convert $ T.encodeUtf8 t
       where
