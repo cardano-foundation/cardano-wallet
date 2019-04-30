@@ -15,7 +15,8 @@ import Cardano.Wallet.Primitive.Types
     ( WalletDelegation (..)
     , WalletState (..)
     , walletNameMaxLength
-    , walletNameMinLength )
+    , walletNameMinLength
+    )
 import Control.Monad
     ( forM_ )
 import Data.Quantity
@@ -111,63 +112,56 @@ spec = do
 
     describe "WALLETS_CREATE_04 - Wallet name" $ do
         let walNameMax = T.pack (replicate walletNameMaxLength 'ą')
-        let matrix = [ ( show walletNameMinLength ++ " char long"
-                       , "1"
-                       , [ expectResponseCode @IO HTTP.status202
-                         , expectFieldEqual walletName "1"
-                         ]
-                       )
-                     , ( show walletNameMaxLength ++ " char long"
-                       , walNameMax
-                       , [ expectResponseCode @IO HTTP.status202
-                         , expectFieldEqual walletName walNameMax
-                         ]
-                       )
-                     , ( show (walletNameMaxLength + 1) ++ " char long"
-                       , T.pack (replicate (walletNameMaxLength + 1) 'ę')
-                       , [ expectResponseCode @IO HTTP.status400
-                         , expectErrorMessage "name is too long: expected at\
-                                              \ most 255 chars"
-                         ]
-                       )
-                     , ( "Empty name"
-                       , ""
-                       , [ expectResponseCode @IO HTTP.status400
-                         , expectErrorMessage "name is too short: expected at\
-                                              \ least 1 char"
-                         ]
-                       )
-                     , ( "Russian name"
-                       , russianWalletName
-                       , [ expectResponseCode @IO HTTP.status202
-                         , expectFieldEqual walletName russianWalletName
-                         ]
-                       )
-                     , ( "Polish name"
-                       , polishWalletName
-                       , [ expectResponseCode @IO HTTP.status202
-                         , expectFieldEqual walletName polishWalletName
-                         ]
-                       )
-                     , ( "Kanji name"
-                       , kanjiWalletName
-                       , [ expectResponseCode @IO HTTP.status202
-                         , expectFieldEqual walletName kanjiWalletName
-                         ]
-                       )
-                     , ( "Arabic name"
-                       , arabicWalletName
-                       , [ expectResponseCode @IO HTTP.status202
-                         , expectFieldEqual walletName arabicWalletName
-                         ]
-                       )
-                     , ( "Wildcards name"
-                       , wildcardsWalletName
-                       , [ expectResponseCode @IO HTTP.status202
-                         , expectFieldEqual walletName wildcardsWalletName
-                         ]
-                       )
+        let matrix =
+                [ ( show walletNameMinLength ++ " char long", "1"
+                  , [ expectResponseCode @IO HTTP.status202
+                    , expectFieldEqual walletName "1"
+                    ]
+                  )
+                , ( show walletNameMaxLength ++ " char long", walNameMax
+                  , [ expectResponseCode @IO HTTP.status202
+                    , expectFieldEqual walletName walNameMax
+                    ]
+                  )
+                , ( show (walletNameMaxLength + 1) ++ " char long"
+                  , T.pack (replicate (walletNameMaxLength + 1) 'ę')
+                  , [ expectResponseCode @IO HTTP.status400
+                    , expectErrorMessage "name is too long: expected at\
+                            \ most 255 characters"
+                    ]
+                  )
+                , ( "Empty name", ""
+                   , [ expectResponseCode @IO HTTP.status400
+                     , expectErrorMessage "name is too short: expected at\
+                            \ least 1 character"
                      ]
+                  )
+                , ( "Russian name", russianWalletName
+                  , [ expectResponseCode @IO HTTP.status202
+                    , expectFieldEqual walletName russianWalletName
+                    ]
+                  )
+                , ( "Polish name", polishWalletName
+                  , [ expectResponseCode @IO HTTP.status202
+                    , expectFieldEqual walletName polishWalletName
+                    ]
+                  )
+                , ( "Kanji name", kanjiWalletName
+                  , [ expectResponseCode @IO HTTP.status202
+                    , expectFieldEqual walletName kanjiWalletName
+                    ]
+                  )
+                , ( "Arabic name", arabicWalletName
+                  , [ expectResponseCode @IO HTTP.status202
+                    , expectFieldEqual walletName arabicWalletName
+                    ]
+                  )
+                , ( "Wildcards name", wildcardsWalletName
+                  , [ expectResponseCode @IO HTTP.status202
+                    , expectFieldEqual walletName wildcardsWalletName
+                    ]
+                  )
+                ]
         forM_ matrix $ \(title, walName, expectations) -> it title $ \ctx -> do
             let payload = Json [json| {
                     "name": #{walName},
@@ -213,99 +207,88 @@ spec = do
             ]
 
     describe "WALLETS_CREATE_05 - Mnemonics" $ do
-            let matrix = [ ( "[] as mnemonic_sentence -> fail"
-                           , []
-                           , [ expectResponseCode @IO HTTP.status400
-                             , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 0 24)"
-                             ]
-                           )
-                         , ( "specMnemonicSentence -> fail"
-                           , specMnemonicSentence
-                           , [ expectResponseCode @IO HTTP.status400
-                             , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 15 24)"
-                             ] -- probably need to modify after bug #192 fixed
-                           )
-                         , ( "invalid mnemonics -> fail"
-                           , invalidMnemonics15
-                           , [ expectResponseCode @IO HTTP.status400
-                             , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 15 24)"
-                             ] -- probably need to modify after bug #192 fixed
-                           )
-                         , ( "Japanese mnemonics -> fail"
-                           , japaneseMnemonics15
-                           , [ expectResponseCode @IO HTTP.status400
-                             , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 15 24)"
-                             ] -- probably need to modify after bug #192 fixed
-                           )
-                         , ( "Chinese mnemonics -> fail"
-                           , chineseMnemonics18
-                           , [ expectResponseCode @IO HTTP.status400
-                             , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 18 24)"
-                             ] -- probably need to modify after bug #192 fixed
-                           )
-                         , ( "French mnemonics -> fail"
-                           , frenchMnemonics21
-                           , [ expectResponseCode @IO HTTP.status400
-                             , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 21 24)"
-                             ] -- probably need to modify after bug #192 fixed
-                           )
-                         , ( "3 mnemonic words -> fail"
-                           , mnemonics3
-                           , [ expectResponseCode @IO HTTP.status400
-                             , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 3 24)"
-                             ] -- probably need to modify after bug #192 fixed
-                           )
-                         , ( "6 mnemonic words -> fail"
-                           , mnemonics6
-                           , [ expectResponseCode @IO HTTP.status400
-                             , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 6 24)"
-                             ] -- probably need to modify after bug #192 fixed
-                           )
-                         , ( "9 mnemonic words -> fail"
-                           , mnemonics9
-                           , [ expectResponseCode @IO HTTP.status400
-                             , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 9 24)"
-                             ] -- probably need to modify after bug #192 fixed
-                           )
-                         , ( "12 mnemonic words -> fail"
-                           , mnemonics12
-                           , [ expectResponseCode @IO HTTP.status400
-                             , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 12 24)"
-                             ] -- probably need to modify after bug #192 fixed
-                           )
-                         , ( "15 mnemonic words"
-                           , mnemonics15
-                           , [ expectResponseCode @IO HTTP.status202
-                             , expectFieldEqual walletId "b062e8ccf3685549b6c489a4e94966bc4695b75b"
-                             ]
-                           )
-                         , ( "18 mnemonic words"
-                           , mnemonics18
-                           , [ expectResponseCode @IO HTTP.status202
-                             , expectFieldEqual walletId "f52ee0daaefd75a0212d70c9fbe15ee8ada9fc11"
-                             ]
-                           )
-                         , ( "21 mnemonic words"
-                           , mnemonics21
-                           , [ expectResponseCode @IO HTTP.status202
-                             , expectFieldEqual walletId "7e8c1af5ff2218f388a313f9c70f0ff0550277e4"
-                             ]
-                           )
-                         , ( "24 mnemonic words"
-                           , mnemonics24
-                           , [ expectResponseCode @IO HTTP.status202
-                             , expectFieldEqual walletId "a6b6625cd2bfc51a296b0933f77020991cc80374"
-                             ]
-                           )
-                         ]
-            forM_ matrix $ \(title, mnemonics, expectations) -> it title $ \ctx -> do
-                let payload = Json [json| {
-                        "name": "Just a łallet",
-                        "mnemonic_sentence": #{mnemonics},
-                        "passphrase": "Secure Passphrase"
-                        } |]
-                r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
-                verify r expectations
+        let matrix =
+             [ ( "[] as mnemonic_sentence -> fail", []
+               , [ expectResponseCode @IO HTTP.status400
+                 , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 0 24)"
+                 ]
+               )
+             , ( "specMnemonicSentence -> fail", specMnemonicSentence
+               , [ expectResponseCode @IO HTTP.status400
+                 , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 15 24)"
+                 ] -- probably need to modify after bug #192 fixed
+               )
+             , ( "invalid mnemonics -> fail", invalidMnemonics15
+               , [ expectResponseCode @IO HTTP.status400
+                 , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 15 24)"
+                 ] -- probably need to modify after bug #192 fixed
+               )
+             , ( "Japanese mnemonics -> fail", japaneseMnemonics15
+               , [ expectResponseCode @IO HTTP.status400
+                 , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 15 24)"
+                 ] -- probably need to modify after bug #192 fixed
+               )
+             , ( "Chinese mnemonics -> fail", chineseMnemonics18
+               , [ expectResponseCode @IO HTTP.status400
+                 , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 18 24)"
+                 ] -- probably need to modify after bug #192 fixed
+               )
+             , ( "French mnemonics -> fail"
+               , frenchMnemonics21
+               , [ expectResponseCode @IO HTTP.status400
+                 , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 21 24)"
+                 ] -- probably need to modify after bug #192 fixed
+               )
+             , ( "3 mnemonic words -> fail" , mnemonics3
+               , [ expectResponseCode @IO HTTP.status400
+                 , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 3 24)"
+                 ] -- probably need to modify after bug #192 fixed
+               )
+             , ( "6 mnemonic words -> fail", mnemonics6
+               , [ expectResponseCode @IO HTTP.status400
+                 , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 6 24)"
+                 ] -- probably need to modify after bug #192 fixed
+               )
+             , ( "9 mnemonic words -> fail", mnemonics9
+               , [ expectResponseCode @IO HTTP.status400
+                 , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 9 24)"
+                 ] -- probably need to modify after bug #192 fixed
+               )
+             , ( "12 mnemonic words -> fail", mnemonics12
+               , [ expectResponseCode @IO HTTP.status400
+                 , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 12 24)"
+                 ] -- probably need to modify after bug #192 fixed
+               )
+             , ( "15 mnemonic words", mnemonics15
+               , [ expectResponseCode @IO HTTP.status202
+                 , expectFieldEqual walletId "b062e8ccf3685549b6c489a4e94966bc4695b75b"
+                 ]
+               )
+             , ( "18 mnemonic words", mnemonics18
+               , [ expectResponseCode @IO HTTP.status202
+                 , expectFieldEqual walletId "f52ee0daaefd75a0212d70c9fbe15ee8ada9fc11"
+                 ]
+               )
+             , ( "21 mnemonic words" , mnemonics21
+               , [ expectResponseCode @IO HTTP.status202
+                 , expectFieldEqual walletId "7e8c1af5ff2218f388a313f9c70f0ff0550277e4"
+                 ]
+               )
+             , ( "24 mnemonic words", mnemonics24
+               , [ expectResponseCode @IO HTTP.status202
+                 , expectFieldEqual walletId "a6b6625cd2bfc51a296b0933f77020991cc80374"
+                 ]
+               )
+             ]
+
+        forM_ matrix $ \(title, mnemonics, expectations) -> it title $ \ctx -> do
+            let payload = Json [json| {
+                    "name": "Just a łallet",
+                    "mnemonic_sentence": #{mnemonics},
+                    "passphrase": "Secure Passphrase"
+                    } |]
+            r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+            verify r expectations
 
     it "WALLETS_CREATE_05 - String as mnemonic_sentence -> fail" $ \ctx -> do
         let payload = Json [json| {
@@ -342,6 +325,93 @@ spec = do
             , expectErrorMessage "key \"mnemonic_sentence\" not present"
             ]
 
+    describe "WALLETS_CREATE_06 - Mnemonics second factor" $ do
+        let matrix =
+                [ ( "[] as mnemonic_second_factor -> fail", []
+                   , [ expectResponseCode @IO HTTP.status400
+                     , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 0 12)"
+                     ]
+                   )
+                 , ( "specMnemonicSecondFactor -> fail", specMnemonicSecondFactor
+                   , [ expectResponseCode @IO HTTP.status400
+                     , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 9 12)"
+                     ] -- probably need to modify after bug #192 fixed
+                   )
+                 , ( "invalid mnemonics -> fail", invalidMnemonics12
+                   , [ expectResponseCode @IO HTTP.status400
+                     , expectErrorMessage "ErrEntropy (ErrInvalidEntropyChecksum (Checksum 9) (Checksum 13))"
+                     ] -- probably need to modify after bug #192 fixed
+                   )
+                 , ( "Japanese mnemonics -> fail", japaneseMnemonics15
+                   , [ expectResponseCode @IO HTTP.status400
+                     , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 15 12)"
+                     ] -- probably need to modify after bug #192 fixed
+                   )
+                 , ( "Chinese mnemonics -> fail", chineseMnemonics18
+                   , [ expectResponseCode @IO HTTP.status400
+                     , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 18 12)"
+                     ] -- probably need to modify after bug #192 fixed
+                   )
+                 , ( "French mnemonics -> fail", frenchMnemonics21
+                   , [ expectResponseCode @IO HTTP.status400
+                     , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 21 12)"
+                     ] -- probably need to modify after bug #192 fixed
+                   )
+                 , ( "3 mnemonic words -> fail", mnemonics3
+                   , [ expectResponseCode @IO HTTP.status400
+                     , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 3 12)"
+                     ] -- probably need to modify after bug #192 fixed
+                   )
+                 , ( "6 mnemonic words -> fail", mnemonics6
+                   , [ expectResponseCode @IO HTTP.status400
+                     , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 6 12)"
+                     ] -- probably need to modify after bug #192 fixed
+                   )
+                 , ( "9 mnemonic words -> fail", mnemonics9
+                   , [ expectResponseCode @IO HTTP.status202
+                     , expectFieldEqual walletId "4b1a865e39d1006efb99f538b05ea2343b567108"
+                     ]
+                   )
+                 , ( "12 mnemonic words -> fail", mnemonics12
+                   , [ expectResponseCode @IO HTTP.status202
+                     , expectFieldEqual walletId "2cf060fe53e4e0593f145f22b858dfc60676d4ab"
+                     ]
+                   )
+                 , ( "15 mnemonic words", mnemonics15
+                   , [ expectResponseCode @IO HTTP.status400
+                     , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 15 12)"
+                     ]
+                   )
+                , ( "18 mnemonic words", mnemonics18
+                 , [ expectResponseCode @IO HTTP.status400
+                   , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 18 12)"
+                   ]
+                 )
+                 , ( "18 mnemonic words", mnemonics18
+                   , [ expectResponseCode @IO HTTP.status400
+                     , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 18 12)"
+                     ]
+                   )
+                 , ( "21 mnemonic words", mnemonics21
+                   , [ expectResponseCode @IO HTTP.status400
+                     , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 21 12)"
+                     ]
+                   )
+                 , ( "24 mnemonic words", mnemonics24
+                   , [ expectResponseCode @IO HTTP.status400
+                     , expectErrorMessage "ErrMnemonicWords (ErrWrongNumberOfWords 24 12)"
+                     ]
+                   )
+                 ]
+        forM_ matrix $ \(title, mnemonics, expectations) -> it title $ \ctx -> do
+            let payload = Json [json| {
+                    "name": "Just a łallet",
+                    "mnemonic_sentence": #{mnemonics15},
+                    "mnemonic_second_factor": #{mnemonics},
+                    "passphrase": "Secure Passphrase"
+                    } |]
+            r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+            verify r expectations
  where
 
     mnemonics3 :: [Text]
@@ -379,6 +449,10 @@ spec = do
         "scale", "pattern", "invite", "other", "fruit", "gloom", "west", "oak",
         "deal", "seek", "hand"]
 
+    invalidMnemonics12 :: [Text]
+    invalidMnemonics12 = ["word","word","word","word","word","word","word",
+            "word","word","word","word","hill"]
+
     invalidMnemonics15 :: [Text]
     invalidMnemonics15 = ["word","word","word","word","word","word","word",
         "word","word","word","word","word","word","word","word"]
@@ -387,6 +461,10 @@ spec = do
     specMnemonicSentence = ["squirrel", "material", "silly", "twice", "direct",
         "slush", "pistol", "razor", "become", "junk", "kingdom", "flee",
         "squirrel", "silly", "twice"]
+
+    specMnemonicSecondFactor :: [Text]
+    specMnemonicSecondFactor = ["squirrel", "material", "silly", "twice",
+        "direct", "slush", "pistol", "razor", "become"]
 
     japaneseMnemonics15 :: [Text]
     japaneseMnemonics15 = ["うめる", "せんく", "えんぎ", "はんぺん", "おくりがな",

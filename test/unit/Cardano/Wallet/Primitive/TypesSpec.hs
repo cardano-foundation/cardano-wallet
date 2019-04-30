@@ -89,11 +89,11 @@ spec = do
             fromText @AddressState "unusedused" === Left (TextDecodingError err)
         it "fail fromText @WalletName \"\"" $ do
             let err = "name is too short: expected at least "
-                      <> show walletNameMinLength <> " char"
+                      <> show walletNameMinLength <> " character"
             fromText @WalletName "" === Left (TextDecodingError err)
         it "fail fromText @WalletName > walletNameMaxLength" $ do
             let err = "name is too long: expected at most "
-                      <> show walletNameMaxLength <> " chars"
+                      <> show walletNameMaxLength <> " characters"
             let walName = T.pack (replicate (walletNameMaxLength + 1) 'x')
             fromText @WalletName walName === Left (TextDecodingError err)
         it "fail fromText @WalletId \"101\"" $ do

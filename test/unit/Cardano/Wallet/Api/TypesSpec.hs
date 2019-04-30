@@ -213,13 +213,13 @@ spec = do
 
         it "ApiT WalletName (too short)" $ do
             let msg = "Error in $: name is too short: \
-                    \expected at least " <> show walletNameMinLength <> " char"
+                    \expected at least " <> show walletNameMinLength <> " character"
             Aeson.parseEither parseJSON [aesonQQ|""|]
                 `shouldBe` (Left @String @(ApiT WalletName) msg)
 
         it "ApiT WalletName (too long)" $ do
             let msg = "Error in $: name is too long: \
-                    \expected at most " <> show walletNameMaxLength <> " chars"
+                    \expected at most " <> show walletNameMaxLength <> " characters"
             Aeson.parseEither parseJSON [aesonQQ|
                 #{replicate (2*walletNameMaxLength) '*'}
             |] `shouldBe` (Left @String @(ApiT WalletName) msg)
