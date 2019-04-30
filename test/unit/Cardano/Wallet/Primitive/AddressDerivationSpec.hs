@@ -15,6 +15,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Depth (..)
     , DerivationType (..)
     , ErrWrongPassphrase (..)
+    , FromMnemonic (..)
+    , FromMnemonicError (..)
     , Index
     , Passphrase (..)
     , PassphraseMaxLength (..)
@@ -134,6 +136,16 @@ spec = do
 
         it "checkPassphrase fails when hash is malformed" $
             property prop_passphraseHashMalformed
+
+    describe "FromMnemonic" $ do
+        it "early error reported first" $ do
+            let res = fromMnemonic @'[15,18,21] @"testing"
+                        [ "glimpse", "paper", "toward", "fine", "alert"
+                        , "baby", "pyramid", "alone", "shaft", "force"
+                        , "circle", "fancy", "squeeze", "cannon", "toilet"
+                        ]
+            res `shouldBe` Left (FromMnemonicError "ErrEntropy (\
+                \ErrInvalidEntropyChecksum (Checksum 7) (Checksum 30))")
 
 {-------------------------------------------------------------------------------
                                Properties
