@@ -16,6 +16,8 @@ import Network.HTTP.Client
     ( defaultManagerSettings, newManager )
 import System.Environment
     ( setEnv )
+import System.IO
+    ( IOMode (..), hClose, openFile )
 import Test.Hspec
     ( after, afterAll, beforeAll, describe, hspec )
 import Test.Integration.Framework.DSL
@@ -41,6 +43,8 @@ main = do
     startCluster :: IO Context
     startCluster = do
         let stateDir = "./test/data/cardano-node-simple"
+        handle <-
+            openFile "/tmp/cardano-wallet-launcher" WriteMode
         systemStart <-
             formatTime defaultTimeLocale "%s" . addUTCTime 10 <$> getCurrentTime
         cluster <- async $ void $ launch
@@ -48,16 +52,18 @@ main = do
             , cardanoNodeSimple stateDir systemStart ("core1", "127.0.0.1:3001")
             , cardanoNodeSimple stateDir systemStart ("core2", "127.0.0.1:3002")
             , cardanoNodeSimple stateDir systemStart ("relay", "127.0.0.1:3100")
-            , cardanoWalletLauncher "1337" "8080" "local"
+            , cardanoWalletLauncher "1337" "8080" "local" handle
             ]
         link cluster
         let baseURL = "http://localhost:1337/"
         manager <- newManager defaultManagerSettings
         threadDelay (2 * startUpDelay)
-        return $ Context cluster (baseURL, manager)
+        return $ Context cluster (baseURL, manager) handle
 
     killCluster :: Context -> IO ()
-    killCluster (Context cluster _) = cancel cluster
+    killCluster (Context cluster _ handle) = do
+        cancel cluster
+        hClose handle
 
     cardanoNodeSimple stateDir systemStart (nodeId, nodeAddr) = Command
         "cardano-node-simple"
@@ -74,9 +80,9 @@ main = do
         ] (pure ())
         NoStream
 
-    cardanoWalletLauncher serverPort bridgePort network = Command
+    cardanoWalletLauncher serverPort bridgePort network handle = Command
         "cardano-wallet-launcher"
         [ "--wallet-server-port", serverPort
         , "--http-bridge-port", bridgePort
         ] (setEnv "NETWORK" network *> threadDelay startUpDelay)
-        Inherit
+        (UseHandle handle)

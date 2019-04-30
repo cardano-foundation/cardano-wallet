@@ -45,6 +45,8 @@ import Network.HTTP.Types.Method
     ( Method )
 import Network.HTTP.Types.Status
     ( status500 )
+import System.IO
+    ( Handle )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Text as T
@@ -60,6 +62,9 @@ data Context = Context
     , _manager
         :: (Text, Manager)
         -- ^ The underlying BaseUrl and Manager used by the Wallet Client
+    , _logs
+        :: Handle
+        -- ^ A file 'Handle' to the launcher log output
     }
 
 -- | The result when 'request' fails.
@@ -100,7 +105,7 @@ request
     -> Payload
         -- ^ Request body
     -> m (HTTP.Status, Either RequestException a)
-request (Context _ (base, manager)) (verb, path) reqHeaders body = do
+request (Context _ (base, manager) _) (verb, path) reqHeaders body = do
     req <- parseRequest $ T.unpack $ base <> path
     handleResponse <$> liftIO (httpLbs (prepareReq req) manager)
   where
