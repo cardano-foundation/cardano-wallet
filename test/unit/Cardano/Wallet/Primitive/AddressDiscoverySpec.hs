@@ -26,20 +26,27 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPool
     , AddressPoolGap
+    , AddressScheme (..)
     , MkAddressPoolGapError (..)
+    , SeqState (..)
     , accountPubKey
     , addresses
     , changeChain
     , defaultAddressPoolGap
+    , emptyPendingIxs
     , gap
     , lookupAddress
     , mkAddressPool
     , mkAddressPoolGap
+    , mkSeqState
+    , nextChangeAddress
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address )
+    ( Address, IsOurs (..), ShowFmt (..) )
 import Control.Monad
-    ( forM )
+    ( forM, unless )
+import Control.Monad.IO.Class
+    ( liftIO )
 import Control.Monad.Trans.State.Strict
     ( execState, state )
 import Data.List
@@ -55,7 +62,7 @@ import Data.Typeable
 import Data.Word
     ( Word8 )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec, describe, expectationFailure, it )
 import Test.QuickCheck
     ( Arbitrary (..)
     , InfiniteList (..)
@@ -70,12 +77,15 @@ import Test.QuickCheck
     , frequency
     , property
     , withMaxSuccess
+    , (.&&.)
+    , (=/=)
     , (===)
     , (==>)
     )
+import Test.QuickCheck.Monadic
+    ( monadicIO )
 import Test.Text.Roundtrip
     ( textRoundtrip )
-
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -117,6 +127,7 @@ spec = do
 
     describe "AddressPoolGap - Text Roundtrip" $ do
         textRoundtrip $ Proxy @AddressPoolGap
+        let err = "An address pool gap must be a natural number between 10 and 100"
         it "fail fromText @AddressPoolGap \"-10\"" $
             fromText @AddressPoolGap "-10" === Left (TextDecodingError err)
         it "fail fromText @AddressPoolGap \"0\"" $
@@ -129,9 +140,16 @@ spec = do
             fromText @AddressPoolGap "20eiei" === Left (TextDecodingError err)
         it "fail fromText @AddressPoolGap \"raczej nie\"" $
             fromText @AddressPoolGap "raczej nie" === Left (TextDecodingError err)
-        where
-            err :: String
-            err = "An address pool gap must be a natural number between 10 and 100"
+
+    describe "PendingIxs & AddressScheme" $ do
+        it "Can always generate exactly `gap` different change addresses"
+            (property prop_nextChangeAddressGap)
+        it "After `gap` change addresses, the same one are yield in reverse order"
+            (property prop_changeAddressRotation)
+        it "Can generate new change addresses after discovering a pending one"
+            (property prop_changeNoLock)
+        it "Any discovered address has a corresponding private key!" $ do
+            (property prop_lookupDiscovered)
 
 {-------------------------------------------------------------------------------
                         Properties for AddressPoolGap
@@ -231,6 +249,56 @@ prop_poolEventuallyDiscoverOurs (g, addr) =
         forM ours (state . lookupAddress)
     prop = (fromEnum <$> fst (lookupAddress addr pool)) === elemIndex addr ours
 
+{-------------------------------------------------------------------------------
+                    Properties for AddressScheme & PendingIxs
+-------------------------------------------------------------------------------}
+
+-- | We can always generate at exactly `gap` change addresses (on the internal
+-- chain)
+prop_nextChangeAddressGap
+    :: AddressPoolGap
+    -> Property
+prop_nextChangeAddressGap g =
+    property prop
+  where
+    key = unsafeGenerateKeyFromSeed (mempty, mempty) mempty
+    s0 = mkSeqState (key, mempty) g
+    prop =
+        length (fst $ changeAddresses [] s0) === fromEnum g
+
+prop_changeAddressRotation
+    :: SeqState
+    -> Property
+prop_changeAddressRotation s0 =
+    property prop
+  where
+    (as, s') = changeAddresses [] s0
+    prop =
+        ShowFmt (fst $ changeAddresses [] s') === ShowFmt (reverse as)
+
+prop_changeNoLock
+    :: (SeqState, Int)
+    -> Property
+prop_changeNoLock (s0, ix) =
+    ShowFmt xs =/= ShowFmt ys .&&. ShowFmt addr `notElem` (ShowFmt <$> ys)
+  where
+    g = gap $ internalPool s0
+    (xs, s) = changeAddresses [] s0
+    addr = xs !! (ix `mod` fromEnum g)
+    (_, s') = isOurs addr s
+    (ys, _) = changeAddresses [] s'
+
+prop_lookupDiscovered
+    :: (SeqState, Address)
+    -> Property
+prop_lookupDiscovered (s0, addr) =
+    let (ours, s) = isOurs addr s0 in ours ==> prop s
+  where
+    key = unsafeGenerateKeyFromSeed (mempty, mempty) mempty
+    prop s = monadicIO $ liftIO $ do
+        unless (isJust $ keyFrom addr (key, mempty) s) $ do
+            expectationFailure "couldn't find private key corresponding to addr"
+
 
 {-------------------------------------------------------------------------------
                                 Arbitrary Instances
@@ -247,6 +315,14 @@ ourAddresses
     -> [Address]
 ourAddresses cc =
     keyToAddress . deriveAddressPublicKey ourAccount cc <$> [minBound..maxBound]
+
+changeAddresses
+    :: [Address]
+    -> SeqState
+    -> ([Address], SeqState)
+changeAddresses as s =
+    let (a, s') = nextChangeAddress s
+    in if a `elem` as then (as, s) else changeAddresses (a:as) s'
 
 instance Arbitrary AddressPoolGap where
     shrink _ = []
@@ -294,3 +370,11 @@ instance Typeable chain => Arbitrary (AddressPool chain) where
         n <- choose (0, 2 * fromEnum g)
         let addrs = take n (ourAddresses (changeChain @chain))
         return $ mkAddressPool ourAccount g addrs
+
+instance Arbitrary SeqState where
+    shrink (SeqState intPool extPool ixs) =
+        (\(i, e) -> SeqState i e ixs) <$> shrink (intPool, extPool)
+    arbitrary = do
+        intPool <- arbitrary
+        extPool <- arbitrary
+        return $ SeqState intPool extPool emptyPendingIxs
