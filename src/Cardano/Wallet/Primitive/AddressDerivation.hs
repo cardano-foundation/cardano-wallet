@@ -105,7 +105,7 @@ import Data.ByteArray
 import Data.ByteString
     ( ByteString )
 import Data.List
-    ( intercalate, isPrefixOf )
+    ( intercalate )
 import Data.Maybe
     ( fromMaybe )
 import Data.Proxy
@@ -283,22 +283,24 @@ instance {-# OVERLAPS #-}
     FromMnemonic (mw ': rest) purpose
   where
     fromMnemonic parts = case parseMW of
-        Left err -> left (\_ -> promote err) parseRest
+        Left err -> left (promote err) parseRest
         Right mw -> Right mw
       where
         parseMW = left (FromMnemonicError . getFromMnemonicError) $ -- coerce
             fromMnemonic @'[mw] @purpose parts
         parseRest = left (FromMnemonicError . getFromMnemonicError) $ -- coerce
             fromMnemonic @rest @purpose parts
-        promote = \case
-            FromMnemonicError e | "Invalid number of words" `isPrefixOf` e ->
-                let sz = show <$> natVals (Proxy :: Proxy (mw ': rest))
-                in FromMnemonicError
+        promote e e' =
+            let
+                sz = fromEnum <$> natVals (Proxy :: Proxy (mw ': rest))
+                mw = fromEnum $ natVal (Proxy :: Proxy mw)
+            in if length parts `notElem` sz
+                then FromMnemonicError
                     $  "Invalid number of words: "
-                    <> intercalate ", " (init sz)
-                    <> (if length sz > 1 then " or " else "") <> last sz
+                    <> intercalate ", " (show <$> init sz)
+                    <> (if length sz > 1 then " or " else "") <> show (last sz)
                     <> " words are expected."
-            e -> e
+                else if length parts == mw then e else e'
 
 -- | Small helper to collect 'Nat' values from a type-level list
 class NatVals (ns :: [Nat]) where
@@ -327,7 +329,7 @@ instance
                 <> show (natVal (Proxy :: Proxy mw))
                 <> " words are expected."
             ErrDictionary (ErrInvalidDictionaryWord w) ->
-                "Found invalid (non-English) word: \"" <> B.toList w <> "\""
+                "Found invalid (non-English) word: \"" <> B.toList w <> "\"."
             ErrEntropy ErrInvalidEntropyChecksum{} ->
                 "Invalid entropy checksum: please double-check the last word of \
                 \your mnemonic sentence."
