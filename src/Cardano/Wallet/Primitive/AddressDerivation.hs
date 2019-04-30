@@ -68,8 +68,10 @@ import Cardano.Crypto.Wallet
     , toXPub
     , unXPub
     )
+import Cardano.Environment
+    ( Network (Local, Mainnet, Staging, Testnet), network, protocolMagic )
 import Cardano.Wallet.Binary
-    ( encodeAddress )
+    ( encodeAddress, encodeProtocolMagic )
 import Cardano.Wallet.Primitive.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
@@ -554,7 +556,21 @@ keyToAddress
 keyToAddress (Key xpub) =
     Address $ CBOR.toStrictByteString $ encodeAddress xpub encodeAttributes
   where
-    encodeAttributes = CBOR.encodeMapLen 0
+    encodeAttributes = case network of
+        Mainnet -> emptyAttributes
+        Staging -> emptyAttributes
+        Testnet -> attributesWithProtocolMagic (protocolMagic network)
+        Local -> attributesWithProtocolMagic (protocolMagic network)
+
+    attributesWithProtocolMagic pm = mempty
+        <> CBOR.encodeMapLen 1
+        <> CBOR.encodeWord 2
+        <> CBOR.encodeBytes (
+              CBOR.toStrictByteString
+            $ encodeProtocolMagic pm)
+
+    emptyAttributes = CBOR.encodeMapLen 0
+
 
 -- $use
 -- 'Key' and 'Index' allow for representing public keys, private keys, hardened

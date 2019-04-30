@@ -10,6 +10,8 @@ module Cardano.Wallet.Primitive.AddressDerivationSpec
 
 import Prelude
 
+import Cardano.Wallet.Binary
+    ( encodeAddress )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( ChangeChain (..)
     , Depth (..)
@@ -28,12 +30,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , encryptPassphrase
     , generateKeyFromSeed
     , getIndex
-    , keyToAddress
+    , getKey
     , publicKey
     , unsafeGenerateKeyFromSeed
     )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..) )
+    ( Address (..), Hash (..) )
 import Control.Monad
     ( replicateM )
 import Control.Monad.IO.Class
@@ -65,6 +67,8 @@ import Test.QuickCheck.Monadic
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
+import qualified Codec.CBOR.Encoding as CBOR
+import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
@@ -294,7 +298,12 @@ goldenYoroiAddr (seed, recPwd) cc accIx addrIx addr =
         accXPrv = deriveAccountPrivateKey encPwd rootXPrv accIx
         addrXPrv = deriveAddressPrivateKey encPwd accXPrv cc addrIx
     in
-        fmt (build $ keyToAddress $ publicKey addrXPrv) === addr
+        fmt (build $ yoroiKeyToAddress $ publicKey addrXPrv) === addr
+  where
+    yoroiKeyToAddress xpub =
+        Address $ CBOR.toStrictByteString $ encodeAddress (getKey xpub)
+        (CBOR.encodeMapLen 0)
+
 
 prop_passphraseRoundtrip
     :: Passphrase "encryption"
