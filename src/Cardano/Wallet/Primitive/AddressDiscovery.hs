@@ -358,7 +358,6 @@ data SeqState = SeqState
     deriving stock (Generic, Show)
 instance NFData SeqState
 
-
 -- | Construct a Sequential state for a wallet.
 mkSeqState
     :: (Key 'RootK XPrv, Passphrase "encryption")
@@ -371,7 +370,7 @@ mkSeqState (rootXPrv, pwd) g =
         extPool =
             mkAddressPool (publicKey accXPrv) g []
         intPool =
-            mkAddressPool (publicKey accXPrv) minBound []
+            mkAddressPool (publicKey accXPrv) g []
     in
         SeqState intPool extPool emptyPendingIxs
 
