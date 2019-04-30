@@ -663,6 +663,157 @@ module Cardano.Wallet.CoinSelection.Policy.Random
 random :: forall m. MonadRandom m => CoinSelectionOptions -> UTxO -> NonEmpty TxOut -> ExceptT CoinSelectionError m CoinSelection
 
 
+-- | This module contains static configuration parameters. Rather than
+--   providing and carrying around a configuration file through the
+--   application, we resolve configuration data at runtime using the
+--   available environment.
+--   
+--   This gives us a flexible and portable approach to software
+--   configuration, and remove some pain from the development perspective.
+--   Prior to starting, the wallet is expected to have a few configuration
+--   parameter available. One may rely on a `.env` file to bundle
+--   configuration settings together for a given target environment.
+module Cardano.Environment
+
+-- | Available network options. <a>Local</a> means a local cluster running
+--   on the host machine.
+data Network
+Mainnet :: Network
+Testnet :: Network
+Staging :: Network
+Local :: Network
+
+-- | Get the current target <a>Network</a> from the Environment.
+--   
+--   Throws a runtime exception is the ENV var isn't set or, is invalid.
+network :: Network
+newtype ProtocolMagic
+ProtocolMagic :: Int32 -> ProtocolMagic
+
+-- | Get the <a>ProtocolMagic</a> corresponding to a given <a>Network</a>.
+--   
+--   Note that the <a>ProtocolMagic</a> for <a>Local</a> and <a>Testnet</a>
+--   are the same.
+protocolMagic :: Network -> ProtocolMagic
+
+-- | Fatal exception thrown when a required ENV var is missing upon
+--   start-up.
+data ErrMissingOrInvalidEnvVar
+ErrMissingOrInvalidEnvVar :: String -> String -> Maybe (String, TextDecodingError) -> ErrMissingOrInvalidEnvVar
+[name] :: ErrMissingOrInvalidEnvVar -> String
+[command] :: ErrMissingOrInvalidEnvVar -> String
+[additionalContext] :: ErrMissingOrInvalidEnvVar -> Maybe (String, TextDecodingError)
+
+-- | Lookup the environment for a given variable
+unsafeLookupEnv :: FromText a => String -> a
+instance GHC.Show.Show Cardano.Environment.ProtocolMagic
+instance GHC.Generics.Generic Cardano.Environment.ProtocolMagic
+instance GHC.Enum.Enum Cardano.Environment.Network
+instance GHC.Classes.Eq Cardano.Environment.Network
+instance GHC.Show.Show Cardano.Environment.Network
+instance GHC.Generics.Generic Cardano.Environment.Network
+instance Data.Text.Class.FromText Cardano.Environment.Network
+instance Data.Text.Class.ToText Cardano.Environment.Network
+instance GHC.Show.Show Cardano.Environment.ErrMissingOrInvalidEnvVar
+instance GHC.Exception.Type.Exception Cardano.Environment.ErrMissingOrInvalidEnvVar
+
+
+-- | Provides the API of Coin Selection algorithm and Fee Calculation This
+--   module contains the implementation of adjusting coin selection for a
+--   fee. The sender pays for the fee and additional inputs are picked
+--   randomly. For more information refer to:
+--   <a>https://iohk.io/blog/self-organisation-in-coin-selection/</a>
+module Cardano.Wallet.CoinSelection.Fee
+
+-- | A <a>Fee</a>, isomorph to <a>Coin</a> but ease type-signatures and
+--   readability.
+newtype Fee
+Fee :: Word64 -> Fee
+[getFee] :: Fee -> Word64
+data FeeOptions
+FeeOptions :: (Int -> [Coin] -> Fee) -> Coin -> FeeOptions
+
+-- | Estimate fees based on number of inputs and values of the outputs Some
+--   pointers / order of magnitude from the current configuration: a:
+--   155381 # absolute minimal fees per transaction b: 43.946 # additional
+--   minimal fees per byte of transaction size
+[estimate] :: FeeOptions -> Int -> [Coin] -> Fee
+
+-- | Change addresses below the given threshold will be evicted from the
+--   created transaction. Setting <a>dustThreshold</a> to 0 removes output
+--   equal to 0
+[dustThreshold] :: FeeOptions -> Coin
+newtype FeeError
+
+-- | UTxO exhausted during fee covering We record what amount missed to
+--   cover the fee
+CannotCoverFee :: Word64 -> FeeError
+
+-- | A linear equation on the transaction size. Represents the <tt>s -&gt;
+--   a + b*s</tt> function where <tt>s</tt> is the transaction size in
+--   bytes, <tt>a</tt> and <tt>b</tt> are constant coefficients.
+data TxSizeLinear
+TxSizeLinear :: Quantity "lovelace" Double -> Quantity "lovelace/byte" Double -> TxSizeLinear
+
+-- | Given the coin selection result from a policy run, adjust the outputs
+--   for fees, potentially returning additional inputs that we need to
+--   cover all fees. We lose the relationship between the transaction
+--   outputs and their corresponding inputs/change outputs here. This is a
+--   decision we may wish to revisit later. For now however note that since
+--   
+--   (a) coin selection tries to establish a particular ratio between
+--   payment outputs and change outputs (currently it aims for an average
+--   of 1:1)
+--   
+--   (b) coin selection currently only generates a single change output per
+--   payment output, distributing the fee proportionally across all change
+--   outputs is roughly equivalent to distributing it proportionally over
+--   the payment outputs (roughly, not exactly, because the 1:1 proportion
+--   is best effort only, and may in some cases be wildly different).
+--   
+--   Note that for (a) we don't need the ratio to be 1:1, the above
+--   reasoning will remain true for any proportion 1:n. For (b) however, if
+--   coin selection starts creating multiple outputs, and this number may
+--   vary, then losing the connection between outputs and change outputs
+--   will mean that that some outputs may pay a larger percentage of the
+--   fee (depending on how many change outputs the algorithm happened to
+--   choose).
+adjustForFee :: MonadRandom m => FeeOptions -> UTxO -> CoinSelection -> ExceptT FeeError m CoinSelection
+cardanoPolicy :: TxSizeLinear
+
+-- | Estimate fee for a given <a>CoinSelection</a>. Fee follows a simple
+--   linear equation:
+--   
+--   <pre>
+--   f = a + sizeOf(tx) * b
+--   </pre>
+--   
+--   where <tt>a</tt> &amp; <tt>b</tt> are values fixed by the protocol.
+--   This operation is therefore heavily coupled with the binary
+--   representation of a <tt>Transaction</tt>. This estimation is only a
+--   best-effort here as many of the encoding values actually depends on
+--   the value of parameters at runtime.
+--   
+--   For instance, an amount of `50` lovelace would be encoded using 2
+--   bytes, whereas an amount of `1000000` would be encoded using 4 bytes.
+--   In Byron, we have only one piece of unknown from the
+--   <a>CoinSelection</a> and it's the value of the <tt>crc32</tt> computed
+--   on the address payload, which can be 1,2,3 or 5 bytes and we therefore
+--   always consider the worst-case scenario of a 5-byte crc.
+--   
+--   As a consequence, our estimate may be slightly bigger than the actual
+--   transaction fee (up-to 4 extra bytes per change output).
+--   
+--   NOTE: We assume that all change outputs follow a sequential scheme and
+--   therefore, have an empty address derivation payload.
+estimateFee :: TxSizeLinear -> CoinSelection -> Fee
+instance GHC.Show.Show Cardano.Wallet.CoinSelection.Fee.TxSizeLinear
+instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.Fee.TxSizeLinear
+instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.Fee.FeeError
+instance GHC.Show.Show Cardano.Wallet.CoinSelection.Fee.FeeError
+instance GHC.Generics.Generic Cardano.Wallet.CoinSelection.Fee.FeeOptions
+
+
 -- | These are (partial) CBOR decoders for blocks and block headers. Note
 --   that we ignore most of the block's and header's content and only
 --   retrieve the pieces of information relevant to us, wallet (we do
@@ -713,6 +864,7 @@ encodeTx :: Tx -> Encoding
 encodeAddress :: XPub -> Encoding -> Encoding
 encodeTxWitness :: TxWitness -> Encoding
 encodeSignedTx :: (Tx, [TxWitness]) -> Encoding
+encodeProtocolMagic :: ProtocolMagic -> Encoding
 
 -- | Compute a transaction id; assumed to be effectively injective. It
 --   returns an hex-encoded 64-byte hash.
@@ -1141,6 +1293,25 @@ instance GHC.Enum.Bounded Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolG
 instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 
 
+-- | This module provides functionality for signing transactions.
+--   
+--   It relies on the binary CBOR format of transactions, an AddressScheme
+--   for deriving address private keys, and cardano-crypto for the actual
+--   signing.
+module Cardano.Wallet.Primitive.Signing
+
+-- | Construct a standard transaction
+--   
+--   " Standard " here refers to the fact that we do not deal with
+--   redemption, multisignature transactions, etc.
+mkStdTx :: AddressScheme s => s -> (Key  'RootK XPrv, Passphrase "encryption") -> [(TxIn, TxOut)] -> [TxOut] -> Either SignTxError (Tx, [TxWitness])
+newtype SignTxError
+KeyNotFoundForAddress :: Address -> SignTxError
+instance GHC.Show.Show Cardano.Wallet.Primitive.Signing.SignTag
+instance GHC.Classes.Ord Cardano.Wallet.Primitive.Signing.SignTag
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Signing.SignTag
+
+
 -- | Database / Pesistence layer for the wallet backend. This is where we
 --   define the interface allowing us to store and fetch various data on
 --   our wallets.
@@ -1432,80 +1603,6 @@ instance Data.Text.Class.FromText a => Web.Internal.HttpApiData.FromHttpApiData 
 instance Data.Text.Class.ToText a => Web.Internal.HttpApiData.ToHttpApiData (Cardano.Wallet.Api.Types.ApiT a)
 
 
--- | This module contains static configuration parameters. Rather than
---   providing and carrying around a configuration file through the
---   application, we resolve configuration data at runtime using the
---   available environment.
---   
---   This gives us a flexible and portable approach to software
---   configuration, and remove some pain from the development perspective.
---   Prior to starting, the wallet is expected to have a few configuration
---   parameter available. One may rely on a `.env` file to bundle
---   configuration settings together for a given target environment.
-module Cardano.Environment
-
--- | Available network options. <a>Local</a> means a local cluster running
---   on the host machine.
-data Network
-Mainnet :: Network
-Testnet :: Network
-Staging :: Network
-Local :: Network
-
--- | Get the current target <a>Network</a> from the Environment.
---   
---   Throws a runtime exception is the ENV var isn't set or, is invalid.
-network :: Network
-newtype ProtocolMagic
-ProtocolMagic :: Int32 -> ProtocolMagic
-
--- | Get the <a>ProtocolMagic</a> corresponding to a given <a>Network</a>.
---   
---   Note that the <a>ProtocolMagic</a> for <a>Local</a> and <a>Testnet</a>
---   are the same.
-protocolMagic :: Network -> ProtocolMagic
-
--- | Fatal exception thrown when a required ENV var is missing upon
---   start-up.
-data ErrMissingOrInvalidEnvVar
-ErrMissingOrInvalidEnvVar :: String -> String -> Maybe (String, TextDecodingError) -> ErrMissingOrInvalidEnvVar
-[name] :: ErrMissingOrInvalidEnvVar -> String
-[command] :: ErrMissingOrInvalidEnvVar -> String
-[additionalContext] :: ErrMissingOrInvalidEnvVar -> Maybe (String, TextDecodingError)
-
--- | Lookup the environment for a given variable
-unsafeLookupEnv :: FromText a => String -> a
-instance GHC.Show.Show Cardano.Environment.ProtocolMagic
-instance GHC.Generics.Generic Cardano.Environment.ProtocolMagic
-instance GHC.Enum.Enum Cardano.Environment.Network
-instance GHC.Classes.Eq Cardano.Environment.Network
-instance GHC.Show.Show Cardano.Environment.Network
-instance GHC.Generics.Generic Cardano.Environment.Network
-instance Data.Text.Class.FromText Cardano.Environment.Network
-instance Data.Text.Class.ToText Cardano.Environment.Network
-instance GHC.Show.Show Cardano.Environment.ErrMissingOrInvalidEnvVar
-instance GHC.Exception.Type.Exception Cardano.Environment.ErrMissingOrInvalidEnvVar
-
-
--- | This module provides functionality for signing transactions.
---   
---   It relies on the binary CBOR format of transactions, an AddressScheme
---   for deriving address private keys, and cardano-crypto for the actual
---   signing.
-module Cardano.Wallet.Primitive.Signing
-
--- | Construct a standard transaction
---   
---   " Standard " here refers to the fact that we do not deal with
---   redemption, multisignature transactions, etc.
-mkStdTx :: AddressScheme s => s -> (Key  'RootK XPrv, Passphrase "encryption") -> [(TxIn, TxOut)] -> [TxOut] -> Either SignTxError (Tx, [TxWitness])
-newtype SignTxError
-KeyNotFoundForAddress :: Address -> SignTxError
-instance GHC.Show.Show Cardano.Wallet.Primitive.Signing.SignTag
-instance GHC.Classes.Ord Cardano.Wallet.Primitive.Signing.SignTag
-instance GHC.Classes.Eq Cardano.Wallet.Primitive.Signing.SignTag
-
-
 -- | Provides the wallet layer functions that are used by API layer and
 --   uses both <a>Cardano.Wallet.DB</a> and <a>Cardano.Wallet.Network</a>
 --   to realize its role as being intermediary between the three.
@@ -1587,102 +1684,6 @@ mkWalletLayer :: forall s. (IsOurs s, AddressScheme s, NFData s, Show s) => DBLa
 --   called after checking for an invariant or, after ensuring that
 --   preconditions for meeting the underlying error have been discarded.
 unsafeRunExceptT :: (MonadFail m, Show e) => ExceptT e m a -> m a
-
-
--- | Provides the API of Coin Selection algorithm and Fee Calculation This
---   module contains the implementation of adjusting coin selection for a
---   fee. The sender pays for the fee and additional inputs are picked
---   randomly. For more information refer to:
---   <a>https://iohk.io/blog/self-organisation-in-coin-selection/</a>
-module Cardano.Wallet.CoinSelection.Fee
-
--- | A <a>Fee</a>, isomorph to <a>Coin</a> but ease type-signatures and
---   readability.
-newtype Fee
-Fee :: Word64 -> Fee
-[getFee] :: Fee -> Word64
-data FeeOptions
-FeeOptions :: (Int -> [Coin] -> Fee) -> Coin -> FeeOptions
-
--- | Estimate fees based on number of inputs and values of the outputs Some
---   pointers / order of magnitude from the current configuration: a:
---   155381 # absolute minimal fees per transaction b: 43.946 # additional
---   minimal fees per byte of transaction size
-[estimate] :: FeeOptions -> Int -> [Coin] -> Fee
-
--- | Change addresses below the given threshold will be evicted from the
---   created transaction. Setting <a>dustThreshold</a> to 0 removes output
---   equal to 0
-[dustThreshold] :: FeeOptions -> Coin
-newtype FeeError
-
--- | UTxO exhausted during fee covering We record what amount missed to
---   cover the fee
-CannotCoverFee :: Word64 -> FeeError
-
--- | A linear equation on the transaction size. Represents the <tt>s -&gt;
---   a + b*s</tt> function where <tt>s</tt> is the transaction size in
---   bytes, <tt>a</tt> and <tt>b</tt> are constant coefficients.
-data TxSizeLinear
-TxSizeLinear :: Quantity "lovelace" Double -> Quantity "lovelace/byte" Double -> TxSizeLinear
-
--- | Given the coin selection result from a policy run, adjust the outputs
---   for fees, potentially returning additional inputs that we need to
---   cover all fees. We lose the relationship between the transaction
---   outputs and their corresponding inputs/change outputs here. This is a
---   decision we may wish to revisit later. For now however note that since
---   
---   (a) coin selection tries to establish a particular ratio between
---   payment outputs and change outputs (currently it aims for an average
---   of 1:1)
---   
---   (b) coin selection currently only generates a single change output per
---   payment output, distributing the fee proportionally across all change
---   outputs is roughly equivalent to distributing it proportionally over
---   the payment outputs (roughly, not exactly, because the 1:1 proportion
---   is best effort only, and may in some cases be wildly different).
---   
---   Note that for (a) we don't need the ratio to be 1:1, the above
---   reasoning will remain true for any proportion 1:n. For (b) however, if
---   coin selection starts creating multiple outputs, and this number may
---   vary, then losing the connection between outputs and change outputs
---   will mean that that some outputs may pay a larger percentage of the
---   fee (depending on how many change outputs the algorithm happened to
---   choose).
-adjustForFee :: MonadRandom m => FeeOptions -> UTxO -> CoinSelection -> ExceptT FeeError m CoinSelection
-cardanoPolicy :: TxSizeLinear
-
--- | Estimate fee for a given <a>CoinSelection</a>. Fee follows a simple
---   linear equation:
---   
---   <pre>
---   f = a + sizeOf(tx) * b
---   </pre>
---   
---   where <tt>a</tt> &amp; <tt>b</tt> are values fixed by the protocol.
---   This operation is therefore heavily coupled with the binary
---   representation of a <tt>Transaction</tt>. This estimation is only a
---   best-effort here as many of the encoding values actually depends on
---   the value of parameters at runtime.
---   
---   For instance, an amount of `50` lovelace would be encoded using 2
---   bytes, whereas an amount of `1000000` would be encoded using 4 bytes.
---   In Byron, we have only one piece of unknown from the
---   <a>CoinSelection</a> and it's the value of the <tt>crc32</tt> computed
---   on the address payload, which can be 1,2,3 or 5 bytes and we therefore
---   always consider the worst-case scenario of a 5-byte crc.
---   
---   As a consequence, our estimate may be slightly bigger than the actual
---   transaction fee (up-to 4 extra bytes per change output).
---   
---   NOTE: We assume that all change outputs follow a sequential scheme and
---   therefore, have an empty address derivation payload.
-estimateFee :: TxSizeLinear -> CoinSelection -> Fee
-instance GHC.Show.Show Cardano.Wallet.CoinSelection.Fee.TxSizeLinear
-instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.Fee.TxSizeLinear
-instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.Fee.FeeError
-instance GHC.Show.Show Cardano.Wallet.CoinSelection.Fee.FeeError
-instance GHC.Generics.Generic Cardano.Wallet.CoinSelection.Fee.FeeOptions
 
 
 -- | Extra content types for Servant.
