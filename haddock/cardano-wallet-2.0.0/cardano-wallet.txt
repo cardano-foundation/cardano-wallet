@@ -981,6 +981,7 @@ instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDerivation.ErrWrongPassp
 instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDerivation.ErrWrongPassphrase
 instance Formatting.Buildable.Buildable (Cardano.Wallet.Primitive.AddressDerivation.FromMnemonicError sz)
 instance GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.FromMnemonicError sz)
+instance GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDerivation.FromMnemonicError sz)
 instance GHC.Base.Monoid (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
 instance GHC.Base.Semigroup (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
 instance GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
@@ -994,7 +995,9 @@ instance GHC.Show.Show key => GHC.Show.Show (Cardano.Wallet.Primitive.AddressDer
 instance GHC.Generics.Generic (Cardano.Wallet.Primitive.AddressDerivation.Key level key)
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
 instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
-instance (n Data.Type.Equality.~ Crypto.Encoding.BIP39.EntropySize mw, csz Data.Type.Equality.~ Crypto.Encoding.BIP39.CheckSumBits n, Crypto.Encoding.BIP39.ConsistentEntropy n mw csz, Cardano.Wallet.Primitive.AddressDerivation.FromMnemonic rest purpose) => Cardano.Wallet.Primitive.AddressDerivation.FromMnemonic (mw : rest) purpose
+instance (n Data.Type.Equality.~ Crypto.Encoding.BIP39.EntropySize mw, csz Data.Type.Equality.~ Crypto.Encoding.BIP39.CheckSumBits n, Crypto.Encoding.BIP39.ConsistentEntropy n mw csz, Cardano.Wallet.Primitive.AddressDerivation.FromMnemonic rest purpose, Cardano.Wallet.Primitive.AddressDerivation.NatVals rest) => Cardano.Wallet.Primitive.AddressDerivation.FromMnemonic (mw : rest) purpose
+instance Cardano.Wallet.Primitive.AddressDerivation.NatVals '[]
+instance (GHC.TypeNats.KnownNat n, Cardano.Wallet.Primitive.AddressDerivation.NatVals rest) => Cardano.Wallet.Primitive.AddressDerivation.NatVals (n : rest)
 instance (n Data.Type.Equality.~ Crypto.Encoding.BIP39.EntropySize mw, csz Data.Type.Equality.~ Crypto.Encoding.BIP39.CheckSumBits n, Crypto.Encoding.BIP39.ConsistentEntropy n mw csz) => Cardano.Wallet.Primitive.AddressDerivation.FromMnemonic '[mw] purpose
 instance Cardano.Wallet.Primitive.AddressDerivation.PassphraseMaxLength "encryption"
 instance (Cardano.Wallet.Primitive.AddressDerivation.PassphraseMaxLength purpose, Cardano.Wallet.Primitive.AddressDerivation.PassphraseMinLength purpose) => Data.Text.Class.FromText (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
