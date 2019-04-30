@@ -103,20 +103,20 @@ data TargetRange = TargetRange
 random
     :: forall m. MonadRandom m
     => CoinSelectionOptions
-    -> UTxO
     -> NonEmpty TxOut
-    -> ExceptT CoinSelectionError m CoinSelection
-random opt utxo outs = do
+    -> UTxO
+    -> ExceptT CoinSelectionError m (CoinSelection, UTxO)
+random opt outs utxo = do
     let descending = NE.toList . NE.sortBy (flip $ comparing coin)
     randomMaybe <- lift $ runMaybeT $ foldM
         (processTxOut opt)
         (utxo, mempty)
         (descending outs)
     case randomMaybe of
-        Just (_,res) ->
-            return res
+        Just (utxo', res) ->
+            return (res, utxo')
         Nothing ->
-            largestFirst opt utxo outs
+            largestFirst opt outs utxo
 
 -- | Perform a random selection on a given output, with improvement.
 processTxOut
