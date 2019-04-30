@@ -13,7 +13,11 @@ import Cardano.Wallet.CoinSelection
 import Cardano.Wallet.CoinSelection.Policy.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.CoinSelectionSpec
-    ( CoinSelProp (..), CoinSelectionFixture (..), coinSelectionUnitTest )
+    ( CoinSelProp (..)
+    , CoinSelectionFixture (..)
+    , CoinSelectionResult (..)
+    , coinSelectionUnitTest
+    )
 import Cardano.Wallet.Primitive.Types
     ( Coin (..), TxOut (..), UTxO (..), excluding )
 import Control.Monad
@@ -39,35 +43,65 @@ import qualified Data.Set as Set
 spec :: Spec
 spec = do
     describe "Coin selection : LargestFirst algorithm unit tests" $ do
-        coinSelectionUnitTest largestFirst "" (Right [17]) $ CoinSelectionFixture
-            { maxNumOfInputs = 100
-            , utxoInputs = [10,10,17]
-            , txOutputs = 17 :| []
-            }
+        coinSelectionUnitTest largestFirst ""
+            (Right $ CoinSelectionResult
+                { rsInputs = [17]
+                , rsChange = []
+                , rsOutputs = [17]
+                })
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , utxoInputs = [10,10,17]
+                , txOutputs = 17 :| []
+                })
 
-        coinSelectionUnitTest largestFirst "" (Right [17]) $ CoinSelectionFixture
-            { maxNumOfInputs = 100
-            , utxoInputs = [12,10,17]
-            , txOutputs = 1 :| []
-            }
+        coinSelectionUnitTest largestFirst ""
+            (Right $ CoinSelectionResult
+                { rsInputs = [17]
+                , rsChange = [16]
+                , rsOutputs = [1]
+                })
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , utxoInputs = [12,10,17]
+                , txOutputs = 1 :| []
+                })
 
-        coinSelectionUnitTest largestFirst "" (Right [12, 17]) $ CoinSelectionFixture
-            { maxNumOfInputs = 100
-            , utxoInputs = [12,10,17]
-            , txOutputs = 18 :| []
-            }
+        coinSelectionUnitTest largestFirst ""
+            (Right $ CoinSelectionResult
+                { rsInputs = [12, 17]
+                , rsChange = [11]
+                , rsOutputs = [18]
+                })
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , utxoInputs = [12,10,17]
+                , txOutputs = 18 :| []
+                })
 
-        coinSelectionUnitTest largestFirst "" (Right [10, 12, 17]) $ CoinSelectionFixture
-            { maxNumOfInputs = 100
-            , utxoInputs = [12,10,17]
-            , txOutputs = 30 :| []
-            }
+        coinSelectionUnitTest largestFirst ""
+            (Right $ CoinSelectionResult
+                { rsInputs = [10, 12, 17]
+                , rsChange = [9]
+                , rsOutputs = [30]
+                })
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , utxoInputs = [12,10,17]
+                , txOutputs = 30 :| []
+                })
 
-        coinSelectionUnitTest largestFirst "" (Right [6,10,5]) $ CoinSelectionFixture
-            { maxNumOfInputs = 3
-            , utxoInputs = [1,2,10,6,5]
-            , txOutputs = 11 :| [1]
-            }
+        coinSelectionUnitTest largestFirst ""
+            (Right $ CoinSelectionResult
+                { rsInputs = [6,10,5]
+                , rsChange = [5,4]
+                , rsOutputs = [11,1]
+                })
+            (CoinSelectionFixture
+                { maxNumOfInputs = 3
+                , utxoInputs = [1,2,10,6,5]
+                , txOutputs = 11 :| [1]
+                })
 
         coinSelectionUnitTest
             largestFirst

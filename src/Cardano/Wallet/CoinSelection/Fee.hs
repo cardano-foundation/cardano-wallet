@@ -52,8 +52,6 @@ import Crypto.Random.Types
     ( MonadRandom )
 import Data.Bifunctor
     ( bimap )
-import Data.Digest.CRC32
-    ( crc32 )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
@@ -421,10 +419,7 @@ estimateFee policy (CoinSelection inps outs chngs) =
     --  | word64                      -- 1|2|3|5|9
     sizeOfTxOut :: TxOut -> Int
     sizeOfTxOut (TxOut (Address bytes) c) =
-        6
-        + BS.length bytes
-        + sizeOf (CBOR.encodeWord32 $ crc32 bytes)
-        + sizeOfCoin c
+        1 + BS.length bytes + sizeOfCoin c
 
     -- Compute the size of a coin
     sizeOfCoin :: Coin -> Int

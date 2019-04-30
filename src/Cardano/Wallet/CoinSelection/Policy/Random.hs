@@ -211,7 +211,7 @@ mkChange (TxOut _ (Coin out)) inps =
         selected = invariant
             "mkChange: output is smaller than selected inputs!"
             (balance' inps)
-            (> out)
+            (>= out)
         Coin maxCoinValue = maxBound
     in
         case selected - out of
