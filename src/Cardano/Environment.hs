@@ -23,6 +23,10 @@ module Cardano.Environment
     , network
     , ProtocolMagic(..)
     , protocolMagic
+
+    -- * Internals
+    , ErrMissingOrInvalidEnvVar(..)
+    , unsafeLookupEnv
     ) where
 
 import Prelude
