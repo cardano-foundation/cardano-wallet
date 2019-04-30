@@ -72,7 +72,11 @@ import Cardano.Wallet.Binary
 import Cardano.Wallet.Primitive.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
+    , DictionaryError (..)
+    , EntropyError (..)
     , EntropySize
+    , MnemonicError (..)
+    , MnemonicWordsError (..)
     , entropyToBytes
     , mkMnemonic
     , mnemonicToEntropy
@@ -114,8 +118,9 @@ import Fmt
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
-    ( Nat, Symbol )
+    ( Nat, Symbol, natVal )
 
+import qualified Basement.Compat.Base as B
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA
@@ -260,7 +265,7 @@ class FromMnemonic (sz :: [Nat]) (purpose :: Symbol) where
 -- | Error reported from trying to create a passphrase from a given mnemonic
 newtype FromMnemonicError (sz :: [Nat]) =
     FromMnemonicError { getFromMnemonicError :: String }
-    deriving stock Show
+    deriving stock (Eq, Show)
     deriving newtype Buildable
 
 instance {-# OVERLAPS #-}
@@ -271,7 +276,10 @@ instance {-# OVERLAPS #-}
     ) =>
     FromMnemonic (mw ': rest) purpose
   where
-    fromMnemonic parts = either (const parseRest) Right parseMW where
+    fromMnemonic parts = case parseMW of
+        Left err -> left (const err) parseRest
+        Right mw -> Right mw
+      where
         parseMW = left (FromMnemonicError . getFromMnemonicError) $ -- coerce
             fromMnemonic @'[mw] @purpose parts
         parseRest = left (FromMnemonicError . getFromMnemonicError) $ -- coerce
@@ -284,9 +292,22 @@ instance
     FromMnemonic (mw ': '[]) purpose
   where
     fromMnemonic parts = do
-        -- FIXME Do better than 'show' here
-        m <- first (FromMnemonicError . show) (mkMnemonic @mw parts)
+        m <- first (FromMnemonicError . pretty) (mkMnemonic @mw parts)
         return $ Passphrase $ entropyToBytes $ mnemonicToEntropy m
+      where
+        pretty = \case
+            ErrMnemonicWords ErrWrongNumberOfWords{} ->
+                "Invalid number of words: at least "
+                <> show (natVal (Proxy :: Proxy mw))
+                <> " words are expected."
+            ErrDictionary (ErrInvalidDictionaryWord w) ->
+                "Found invalid (non-English) word: \"" <> B.toList w <> "\""
+            ErrEntropy ErrInvalidEntropyChecksum{} ->
+                "Invalid entropy checksum: please double-check the last word of \
+                \your mnemonic sentence."
+            ErrEntropy ErrInvalidEntropyLength{} ->
+                "Something went wrong when trying to generate the entropy from \
+                \the given mnemonic. As a user, there's nothing you can do."
 
 -- | Encrypt a 'Passphrase' into a format that is suitable for storing on disk
 encryptPassphrase

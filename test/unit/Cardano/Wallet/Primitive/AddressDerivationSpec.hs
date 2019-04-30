@@ -38,12 +38,14 @@ import Control.Monad
     ( replicateM )
 import Control.Monad.IO.Class
     ( liftIO )
+import Data.Either
+    ( isRight )
 import Data.Proxy
     ( Proxy (..) )
 import Fmt
     ( build, fmt )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..)
     , InfiniteList (..)
@@ -138,14 +140,57 @@ spec = do
             property prop_passphraseHashMalformed
 
     describe "FromMnemonic" $ do
-        it "early error reported first" $ do
+        it "early error reported first (Invalid Entropy)" $ do
             let res = fromMnemonic @'[15,18,21] @"testing"
                         [ "glimpse", "paper", "toward", "fine", "alert"
                         , "baby", "pyramid", "alone", "shaft", "force"
                         , "circle", "fancy", "squeeze", "cannon", "toilet"
                         ]
-            res `shouldBe` Left (FromMnemonicError "ErrEntropy (\
-                \ErrInvalidEntropyChecksum (Checksum 7) (Checksum 30))")
+            res `shouldBe` Left (FromMnemonicError "Invalid entropy checksum: \
+                \please double-check the last word of your mnemonic sentence.")
+
+        it "early error reported first (Non-English Word)" $ do
+            let res = fromMnemonic @'[15,18,21] @"testing"
+                        [ "baguette", "paper", "toward", "fine", "alert"
+                        , "baby", "pyramid", "alone", "shaft", "force"
+                        , "circle", "fancy", "squeeze", "cannon", "toilet"
+                        ]
+            res `shouldBe` Left (FromMnemonicError "Found invalid (non-English) \
+                \word: \"baguette\"")
+
+        it "early error reported first (Wrong number of words)" $ do
+            let res = fromMnemonic @'[15,18,21] @"testing"
+                        ["mom", "unveil", "slim", "abandon"
+                        , "nut", "cash", "laugh", "impact"
+                        , "system", "split", "depth", "sun"
+                        ]
+            res `shouldBe` Left (FromMnemonicError "Invalid number of words: \
+                \at least 15 words are expected.")
+
+        it "successfully parse 15 words in [15,18,21]" $ do
+            let res = fromMnemonic @'[15,18,21] @"testing"
+                        ["cushion", "anxiety", "oval", "village", "choose"
+                        , "shoot", "over", "behave", "category", "cruise"
+                        , "track", "either", "maid", "organ", "sock"
+                        ]
+            res `shouldSatisfy` isRight
+
+        it "successfully parse 15 words in [12,15,18]" $ do
+            let res = fromMnemonic @'[12,15,18] @"testing"
+                        ["cushion", "anxiety", "oval", "village", "choose"
+                        , "shoot", "over", "behave", "category", "cruise"
+                        , "track", "either", "maid", "organ", "sock"
+                        ]
+            res `shouldSatisfy` isRight
+
+        it "successfully parse 15 words in [9,12,15]" $ do
+            let res = fromMnemonic @'[9,12,15] @"testing"
+                        ["cushion", "anxiety", "oval", "village", "choose"
+                        , "shoot", "over", "behave", "category", "cruise"
+                        , "track", "either", "maid", "organ", "sock"
+                        ]
+            res `shouldSatisfy` isRight
+
 
 {-------------------------------------------------------------------------------
                                Properties
