@@ -170,16 +170,16 @@ propFragmentation
     -> Property
 propFragmentation drg (CoinSelProp utxo txOuts) = do
     isRight selection1 && isRight selection2 ==>
-        let (Right s1, Right s2) =
+        let (Right (s1,_), Right (s2,_)) =
                 (selection1, selection2)
         in prop (s1, s2)
   where
     prop (CoinSelection inps1 _ _, CoinSelection inps2 _ _) =
         L.length inps1 `shouldSatisfy` (>= L.length inps2)
     (selection1,_) = withDRG drg
-        (runExceptT $ random (CoinSelectionOptions 100) utxo txOuts)
+        (runExceptT $ random (CoinSelectionOptions 100) txOuts utxo)
     selection2 = runIdentity $ runExceptT $
-        largestFirst (CoinSelectionOptions 100) utxo txOuts
+        largestFirst (CoinSelectionOptions 100) txOuts utxo
 
 propErrors
     :: SystemDRG
@@ -193,6 +193,6 @@ propErrors drg (CoinSelProp utxo txOuts) = do
     prop (err1, err2) =
         err1 === err2
     (selection1,_) = withDRG drg
-        (runExceptT $ random (CoinSelectionOptions 1) utxo txOuts)
+        (runExceptT $ random (CoinSelectionOptions 1) txOuts utxo)
     selection2 = runIdentity $ runExceptT $
-        largestFirst (CoinSelectionOptions 1) utxo txOuts
+        largestFirst (CoinSelectionOptions 1) txOuts utxo

@@ -147,9 +147,9 @@ data CoinSelectionResult = CoinSelectionResult
 -- given coin selection on it.
 coinSelectionUnitTest
     :: ( CoinSelectionOptions
-         -> UTxO
          -> NonEmpty TxOut
-         -> ExceptT CoinSelectionError IO CoinSelection
+         -> UTxO
+         -> ExceptT CoinSelectionError IO (CoinSelection, UTxO)
        )
     -> String
     -> Either CoinSelectionError CoinSelectionResult
@@ -159,8 +159,8 @@ coinSelectionUnitTest run lbl expected (CoinSelectionFixture n utxoF outsF) =
     it title $ do
         (utxo,txOuts) <- setup
         result <- runExceptT $ do
-            (CoinSelection inps outs chngs) <-
-                run (CoinSelectionOptions n) utxo txOuts
+            (CoinSelection inps outs chngs, _) <-
+                run (CoinSelectionOptions n) txOuts utxo
             return $ CoinSelectionResult
                 { rsInputs = map (getCoin . coin . snd) inps
                 , rsChange = map getCoin chngs

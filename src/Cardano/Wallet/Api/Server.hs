@@ -255,6 +255,7 @@ instance LiftHandler ErrCreateUnsignedTx where
     handler = \case
         ErrCreateUnsignedTxNoSuchWallet _ -> err404
         ErrCreateUnsignedTxCoinSelection _ -> err403
+        ErrCreateUnsignedTxFee _ -> err403
 
 instance LiftHandler ErrSignTx where
     handler = \case

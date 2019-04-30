@@ -445,8 +445,8 @@ feeOptions
     -> Word64
     -> FeeOptions
 feeOptions fee dust = FeeOptions
-    { estimate = \nInps outs ->
-        nInps `seq` outs `seq` Fee fee
+    { estimate =
+        \_ -> Fee fee
     , dustThreshold =
         Coin dust
     }
@@ -622,9 +622,9 @@ instance Arbitrary CoinSelection where
         genSelection outs = do
             let opts = CS.CoinSelectionOptions 100
             utxo <- vectorOf (NE.length outs * 3) arbitrary >>= genUTxO
-            case runIdentity $ runExceptT $ largestFirst opts utxo outs of
+            case runIdentity $ runExceptT $ largestFirst opts outs utxo of
                 Left _ -> genSelection outs
-                Right s -> return s
+                Right (s,_) -> return s
 
 instance Arbitrary FeeProp where
     shrink (FeeProp cs utxo opts) =

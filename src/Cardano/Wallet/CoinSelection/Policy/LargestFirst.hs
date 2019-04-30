@@ -37,17 +37,17 @@ import qualified Data.Map.Strict as Map
 largestFirst
     :: forall m. Monad m
     => CoinSelectionOptions
-    -> UTxO
     -> NonEmpty TxOut
-    -> ExceptT CoinSelectionError m CoinSelection
-largestFirst opt utxo outs = do
+    -> UTxO
+    -> ExceptT CoinSelectionError m (CoinSelection, UTxO)
+largestFirst opt outs utxo = do
     let descending = NE.toList . NE.sortBy (flip $ comparing coin)
     let n = fromIntegral $ maximumNumberOfInputs opt
     let nLargest = take n . L.sortBy (flip $ comparing (coin . snd)) . Map.toList . getUTxO
 
     case foldM atLeast (nLargest utxo, mempty) (descending outs) of
-        Just (_, s) ->
-            return s
+        Just (utxo', s) ->
+            return (s, UTxO $ Map.fromList utxo')
         Nothing -> do
             let moneyRequested = sum $ (getCoin . coin) <$> (descending outs)
             let utxoBalance = fromIntegral $ balance utxo

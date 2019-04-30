@@ -74,7 +74,7 @@ newtype Fee = Fee { getFee :: Word64 }
 
 data FeeOptions = FeeOptions
     { estimate
-      :: Int -> [Coin] -> Fee
+      :: CoinSelection -> Fee
       -- ^ Estimate fees based on number of inputs and values of the outputs
       -- Some pointers / order of magnitude from the current configuration:
       --     a: 155381 # absolute minimal fees per transaction
@@ -151,7 +151,7 @@ senderPaysFee opt utxo sel = evalStateT (go sel) utxo where
         -- 1/
         -- We compute fees using all inputs, outputs and changes since
         -- all of them have an influence on the fee calculation.
-        let upperBound = feeUpperBound opt coinSel
+        let upperBound = estimate opt coinSel
         -- 2/
         -- Substract fee from change outputs, proportionally to their value.
         let (Fee remainingFee, chgs') = reduceChangeOutputs opt upperBound chgs
@@ -246,14 +246,6 @@ divvyFee (Fee f) outs =
             c' = ceiling @Double (r * fromIntegral f)
         in
             Fee c'
-
--- | Compute a rough estimate of the fee bound
-feeUpperBound
-    :: FeeOptions
-    -> CoinSelection
-    -> Fee
-feeUpperBound opt (CoinSelection inps outs chgs) =
-    (estimate opt) (L.length inps) (map coin outs ++ chgs)
 
 -- | Remove coins that are below a given threshold
 removeDust :: Coin -> [Coin] -> [Coin]

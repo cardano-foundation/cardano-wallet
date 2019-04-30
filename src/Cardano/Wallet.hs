@@ -45,6 +45,8 @@ import Cardano.Wallet.CoinSelection
     , CoinSelectionOptions
     , shuffle
     )
+import Cardano.Wallet.CoinSelection.Fee
+    ( FeeError, FeeOptions (..), estimateFee )
 import Cardano.Wallet.DB
     ( DBLayer
     , ErrNoSuchWallet (..)
@@ -129,6 +131,7 @@ import Data.Time.Clock
 import Fmt
     ( (+|), (+||), (|+), (||+) )
 
+import qualified Cardano.Wallet.CoinSelection.Fee as CoinSelection
 import qualified Cardano.Wallet.CoinSelection.Policy.Random as CoinSelection
 import qualified Cardano.Wallet.DB as DB
 import qualified Data.Map.Strict as Map
@@ -212,6 +215,7 @@ data WalletLayer s = WalletLayer
 data ErrCreateUnsignedTx
     = ErrCreateUnsignedTxNoSuchWallet ErrNoSuchWallet
     | ErrCreateUnsignedTxCoinSelection CoinSelectionError
+    | ErrCreateUnsignedTxFee FeeError
 
 -- | Errors occuring when signing a transaction
 data ErrSignTx
@@ -275,8 +279,14 @@ mkWalletLayer db network = WalletLayer
         (w, _) <- withExceptT ErrCreateUnsignedTxNoSuchWallet
             (_readWallet wid)
         let utxo = availableUTxO w
-        withExceptT ErrCreateUnsignedTxCoinSelection $
-            CoinSelection.random opts utxo recipients
+        (sel, utxo') <- withExceptT ErrCreateUnsignedTxCoinSelection $
+            CoinSelection.random opts recipients utxo
+        withExceptT ErrCreateUnsignedTxFee $ do
+            let feeOpts = FeeOptions
+                    { estimate = estimateFee CoinSelection.cardanoPolicy
+                    , dustThreshold = minBound
+                    }
+            CoinSelection.adjustForFee feeOpts utxo' sel
 
     , signTx = \wid pwd (CoinSelection ins outs chgs) -> DB.withLock db $ do
         (w, _) <- withExceptT ErrSignTxNoSuchWallet $ _readWallet wid
