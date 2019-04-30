@@ -1665,7 +1665,7 @@ cardanoPolicy :: TxSizeLinear
 --   For instance, an amount of `50` lovelace would be encoded using 2
 --   bytes, whereas an amount of `1000000` would be encoded using 4 bytes.
 --   In Byron, we have only one piece of unknown from the
---   <a>CoinSelection</a> and it's the value of the <a>crc32</a> computed
+--   <a>CoinSelection</a> and it's the value of the <tt>crc32</tt> computed
 --   on the address payload, which can be 1,2,3 or 5 bytes and we therefore
 --   always consider the worst-case scenario of a 5-byte crc.
 --   
