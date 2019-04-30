@@ -613,7 +613,7 @@ instance Formatting.Buildable.Buildable Cardano.Wallet.CoinSelection.CoinSelecti
 module Cardano.Wallet.CoinSelection.Policy.LargestFirst
 
 -- | Largest-first input selection policy
-largestFirst :: forall m. Monad m => CoinSelectionOptions -> UTxO -> NonEmpty TxOut -> ExceptT CoinSelectionError m CoinSelection
+largestFirst :: forall m. Monad m => CoinSelectionOptions -> NonEmpty TxOut -> UTxO -> ExceptT CoinSelectionError m (CoinSelection, UTxO)
 
 
 -- | This module contains the implementation of random input selection
@@ -660,7 +660,7 @@ module Cardano.Wallet.CoinSelection.Policy.Random
 --   that a randomly chosen UTxO entry will push the total above the upper bound
 --   we set.
 --   </pre>
-random :: forall m. MonadRandom m => CoinSelectionOptions -> UTxO -> NonEmpty TxOut -> ExceptT CoinSelectionError m CoinSelection
+random :: forall m. MonadRandom m => CoinSelectionOptions -> NonEmpty TxOut -> UTxO -> ExceptT CoinSelectionError m (CoinSelection, UTxO)
 
 
 -- | This module contains static configuration parameters. Rather than
@@ -731,13 +731,13 @@ newtype Fee
 Fee :: Word64 -> Fee
 [getFee] :: Fee -> Word64
 data FeeOptions
-FeeOptions :: (Int -> [Coin] -> Fee) -> Coin -> FeeOptions
+FeeOptions :: (CoinSelection -> Fee) -> Coin -> FeeOptions
 
 -- | Estimate fees based on number of inputs and values of the outputs Some
 --   pointers / order of magnitude from the current configuration: a:
 --   155381 # absolute minimal fees per transaction b: 43.946 # additional
 --   minimal fees per byte of transaction size
-[estimate] :: FeeOptions -> Int -> [Coin] -> Fee
+[estimate] :: FeeOptions -> CoinSelection -> Fee
 
 -- | Change addresses below the given threshold will be evicted from the
 --   created transaction. Setting <a>dustThreshold</a> to 0 removes output
@@ -1676,6 +1676,7 @@ ErrSubmitTxNoSuchWallet :: ErrNoSuchWallet -> ErrSubmitTx
 data ErrCreateUnsignedTx
 ErrCreateUnsignedTxNoSuchWallet :: ErrNoSuchWallet -> ErrCreateUnsignedTx
 ErrCreateUnsignedTxCoinSelection :: CoinSelectionError -> ErrCreateUnsignedTx
+ErrCreateUnsignedTxFee :: FeeError -> ErrCreateUnsignedTx
 
 -- | Create a new instance of the wallet layer.
 mkWalletLayer :: forall s. (IsOurs s, AddressScheme s, NFData s, Show s) => DBLayer IO s -> NetworkLayer IO -> WalletLayer s
