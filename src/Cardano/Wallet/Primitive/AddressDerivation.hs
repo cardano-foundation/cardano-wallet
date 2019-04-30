@@ -3,6 +3,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -72,7 +73,11 @@ import Cardano.Wallet.Binary
 import Cardano.Wallet.Primitive.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
+    , DictionaryError (..)
+    , EntropyError (..)
     , EntropySize
+    , MnemonicError (..)
+    , MnemonicWordsError (..)
     , entropyToBytes
     , mkMnemonic
     , mnemonicToEntropy
@@ -97,6 +102,8 @@ import Data.ByteArray
     ( ScrubbedBytes )
 import Data.ByteString
     ( ByteString )
+import Data.List
+    ( intercalate, isPrefixOf )
 import Data.Maybe
     ( fromMaybe )
 import Data.Proxy
@@ -114,8 +121,9 @@ import Fmt
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
-    ( Nat, Symbol )
+    ( KnownNat, Nat, Symbol, natVal )
 
+import qualified Basement.Compat.Base as B
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA
@@ -260,7 +268,7 @@ class FromMnemonic (sz :: [Nat]) (purpose :: Symbol) where
 -- | Error reported from trying to create a passphrase from a given mnemonic
 newtype FromMnemonicError (sz :: [Nat]) =
     FromMnemonicError { getFromMnemonicError :: String }
-    deriving stock Show
+    deriving stock (Eq, Show)
     deriving newtype Buildable
 
 instance {-# OVERLAPS #-}
@@ -268,14 +276,38 @@ instance {-# OVERLAPS #-}
     , csz ~ CheckSumBits n
     , ConsistentEntropy n mw csz
     , FromMnemonic rest purpose
+    , NatVals rest
     ) =>
     FromMnemonic (mw ': rest) purpose
   where
-    fromMnemonic parts = either (const parseRest) Right parseMW where
+    fromMnemonic parts = case parseMW of
+        Left err -> left (\_ -> promote err) parseRest
+        Right mw -> Right mw
+      where
         parseMW = left (FromMnemonicError . getFromMnemonicError) $ -- coerce
             fromMnemonic @'[mw] @purpose parts
         parseRest = left (FromMnemonicError . getFromMnemonicError) $ -- coerce
             fromMnemonic @rest @purpose parts
+        promote = \case
+            FromMnemonicError e | "Invalid number of words" `isPrefixOf` e ->
+                let sz = show <$> natVals (Proxy :: Proxy (mw ': rest))
+                in FromMnemonicError
+                    $  "Invalid number of words: "
+                    <> intercalate ", " (init sz)
+                    <> (if length sz > 1 then " or " else "") <> last sz
+                    <> " words are expected."
+            e -> e
+
+-- | Small helper to collect 'Nat' values from a type-level list
+class NatVals (ns :: [Nat]) where
+    natVals :: Proxy ns -> [Integer]
+
+instance NatVals '[] where
+    natVals _ = []
+
+instance (KnownNat n, NatVals rest) => NatVals (n ': rest) where
+    natVals _ = natVal (Proxy :: Proxy n) : natVals (Proxy :: Proxy rest)
+
 instance
     ( n ~ EntropySize mw
     , csz ~ CheckSumBits n
@@ -284,9 +316,22 @@ instance
     FromMnemonic (mw ': '[]) purpose
   where
     fromMnemonic parts = do
-        -- FIXME Do better than 'show' here
-        m <- first (FromMnemonicError . show) (mkMnemonic @mw parts)
+        m <- first (FromMnemonicError . pretty) (mkMnemonic @mw parts)
         return $ Passphrase $ entropyToBytes $ mnemonicToEntropy m
+      where
+        pretty = \case
+            ErrMnemonicWords ErrWrongNumberOfWords{} ->
+                "Invalid number of words: "
+                <> show (natVal (Proxy :: Proxy mw))
+                <> " words are expected."
+            ErrDictionary (ErrInvalidDictionaryWord w) ->
+                "Found invalid (non-English) word: \"" <> B.toList w <> "\""
+            ErrEntropy ErrInvalidEntropyChecksum{} ->
+                "Invalid entropy checksum: please double-check the last word of \
+                \your mnemonic sentence."
+            ErrEntropy ErrInvalidEntropyLength{} ->
+                "Something went wrong when trying to generate the entropy from \
+                \the given mnemonic. As a user, there's nothing you can do."
 
 -- | Encrypt a 'Passphrase' into a format that is suitable for storing on disk
 encryptPassphrase

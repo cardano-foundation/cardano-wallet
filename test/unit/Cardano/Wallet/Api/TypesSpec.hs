@@ -225,7 +225,8 @@ spec = do
             |] `shouldBe` (Left @String @(ApiT WalletName) msg)
 
         it "ApiMnemonicT '[12] (not enough words)" $ do
-            let msg = "Error in $: ErrMnemonicWords (ErrWrongNumberOfWords 3 12)"
+            let msg = "Error in $: Invalid number of words: 12 words\
+                    \ are expected."
             Aeson.parseEither parseJSON [aesonQQ|
                 ["toilet", "toilet", "toilet"]
             |] `shouldBe` (Left @String @(ApiMnemonicT '[12] "test") msg)
