@@ -3,6 +3,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -101,6 +102,8 @@ import Data.ByteArray
     ( ScrubbedBytes )
 import Data.ByteString
     ( ByteString )
+import Data.List
+    ( intercalate, isPrefixOf )
 import Data.Maybe
     ( fromMaybe )
 import Data.Proxy
@@ -118,7 +121,7 @@ import Fmt
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
-    ( Nat, Symbol, natVal )
+    ( KnownNat, Nat, Symbol, natVal )
 
 import qualified Basement.Compat.Base as B
 import qualified Codec.CBOR.Encoding as CBOR
@@ -273,17 +276,38 @@ instance {-# OVERLAPS #-}
     , csz ~ CheckSumBits n
     , ConsistentEntropy n mw csz
     , FromMnemonic rest purpose
+    , NatVals rest
     ) =>
     FromMnemonic (mw ': rest) purpose
   where
     fromMnemonic parts = case parseMW of
-        Left err -> left (const err) parseRest
+        Left err -> left (\_ -> promote err) parseRest
         Right mw -> Right mw
       where
         parseMW = left (FromMnemonicError . getFromMnemonicError) $ -- coerce
             fromMnemonic @'[mw] @purpose parts
         parseRest = left (FromMnemonicError . getFromMnemonicError) $ -- coerce
             fromMnemonic @rest @purpose parts
+        promote = \case
+            FromMnemonicError e | "Invalid number of words" `isPrefixOf` e ->
+                let sz = show <$> natVals (Proxy :: Proxy (mw ': rest))
+                in FromMnemonicError
+                    $  "Invalid number of words: "
+                    <> intercalate ", " (init sz)
+                    <> (if length sz > 1 then " or " else "") <> last sz
+                    <> " words are expected."
+            e -> e
+
+-- | Small helper to collect 'Nat' values from a type-level list
+class NatVals (ns :: [Nat]) where
+    natVals :: Proxy ns -> [Integer]
+
+instance NatVals '[] where
+    natVals _ = []
+
+instance (KnownNat n, NatVals rest) => NatVals (n ': rest) where
+    natVals _ = natVal (Proxy :: Proxy n) : natVals (Proxy :: Proxy rest)
+
 instance
     ( n ~ EntropySize mw
     , csz ~ CheckSumBits n
@@ -297,7 +321,7 @@ instance
       where
         pretty = \case
             ErrMnemonicWords ErrWrongNumberOfWords{} ->
-                "Invalid number of words: at least "
+                "Invalid number of words: "
                 <> show (natVal (Proxy :: Proxy mw))
                 <> " words are expected."
             ErrDictionary (ErrInvalidDictionaryWord w) ->

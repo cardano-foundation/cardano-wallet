@@ -158,14 +158,23 @@ spec = do
             res `shouldBe` Left (FromMnemonicError "Found invalid (non-English) \
                 \word: \"baguette\"")
 
-        it "early error reported first (Wrong number of words)" $ do
+        it "early error reported first (Wrong number of words - 1)" $ do
             let res = fromMnemonic @'[15,18,21] @"testing"
                         ["mom", "unveil", "slim", "abandon"
                         , "nut", "cash", "laugh", "impact"
                         , "system", "split", "depth", "sun"
                         ]
             res `shouldBe` Left (FromMnemonicError "Invalid number of words: \
-                \at least 15 words are expected.")
+                \15, 18 or 21 words are expected.")
+
+        it "early error reported first (Wrong number of words - 2)" $ do
+            let res = fromMnemonic @'[15] @"testing"
+                        ["mom", "unveil", "slim", "abandon"
+                        , "nut", "cash", "laugh", "impact"
+                        , "system", "split", "depth", "sun"
+                        ]
+            res `shouldBe` Left (FromMnemonicError "Invalid number of words: \
+                \15 words are expected.")
 
         it "successfully parse 15 words in [15,18,21]" $ do
             let res = fromMnemonic @'[15,18,21] @"testing"
