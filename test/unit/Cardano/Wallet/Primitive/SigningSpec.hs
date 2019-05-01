@@ -1,15 +1,18 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Primitive.SigningSpec where
+module Cardano.Wallet.Primitive.SigningSpec
+    ( spec
+    ) where
 
 import Prelude
 
 import Cardano.Environment
     ( Network (..), network )
 import Cardano.Wallet.Binary
-    ( decodeSignedTx, encodeSignedTx, toByteString )
+    ( encodeSignedTx, toByteString )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , Key
@@ -24,87 +27,106 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.Signing
     ( mkStdTx )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
-    , Coin (..)
-    , Hash (..)
-    , Tx
-    , TxIn (..)
-    , TxOut (..)
-    , TxWitness
-    )
+    ( Address (..), Coin (..), Hash (..), TxIn (..), TxOut (..) )
+import Control.Arrow
+    ( first )
+import Data.ByteArray.Encoding
+    ( Base (..), convertFromBase, convertToBase )
+import Data.ByteString
+    ( ByteString )
 import Data.Map
     ( Map )
-import Data.Text.Class
-    ( toText )
+import Data.Word
+    ( Word32 )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec, SpecWith, describe, it, shouldBe, xit )
 
-import qualified Codec.CBOR.Read as CBOR
 import qualified Data.ByteArray as BA
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map as Map
-import qualified Data.Text as T
 
-signedTx :: (Tx, [TxWitness])
-signedTx =
-    let
-        seed = Passphrase $ BA.convert $ BS.pack $ replicate 128 0
-        pass = Passphrase mempty
-        addrXPrv = unsafeGenerateKeyFromSeed (seed, mempty) pass
-        addr = keyToAddress $ publicKey addrXPrv
-        h = Hash "\bztb\249\223n5\189A\239Y&\243tgv\253\223\140\222i\236O\221\&8\205\218>\234\240\238"
-
-        ownedIns = (TxIn h 0, TxOut addr (Coin 1) )
-        outs = [TxOut addr (Coin 1)]
-
-        m = (Map.singleton addr addrXPrv) :: Map Address (Key 'AddressK XPrv)
-
-        fromR = either undefined Prelude.id
-    in
-        fromR $ mkStdTx m (error "no root key", pass) [ownedIns] outs
-
--- | Reads different fixtures depending on the network.
---
--- Fixtures were generated using 'wallet/server/Main.hs' on the
--- 'anviking/wallet-tx-golden' branch on cardano-sl.
-readFixture :: String -> IO BS.ByteString
-readFixture name
-    = BS.readFile
-        $ "test/data/Cardano/Wallet/Primitive/Signing/"
-          ++ T.unpack (toText network') ++ "/" ++ name
-  where
-    network' =
-        case network of
-            Mainnet -> Mainnet
-            Staging -> Mainnet
-            Testnet -> Testnet
-            Local -> Testnet
 
 spec :: Spec
 spec = do
-    describe "Compare signed transactions with cardano-sl" $ do
-        it "slAddress xpub == walletAddress xpub" $ do
-            bin <- readFixture "sl-addr.bin"
-            let seed = Passphrase $ BA.convert $ BS.pack $ replicate 128 0
-            let pass = Passphrase mempty
-            let addrXPrv = unsafeGenerateKeyFromSeed (seed, mempty) pass
-            let (Address addr) = keyToAddress $ publicKey addrXPrv
-            addr `shouldBe` bin
+    describe "Golden Tests - Cardano-SL" $ case network of
+        Mainnet -> do
+            goldenTestSignedTx 1
+                [(xprv "addr-0", Coin 42)]
+                "820182839f8200d81858248258203b40265111d8bb3c3c608d95b3a0bf8346\
+                \1ace32d79336579a1939b3aad1c0b700ff9f8282d818582183581c8db0f00f\
+                \abc0ff30e85ee171cefb4970c91d6b21a11038d7bbb581b3a0001ae7a1791b\
+                \182affa0818200d81858858258403d4a81396e88155da40ec9e9807b77e4e5\
+                \272cfd76a11f2dba6b6bd0a35195e720a2fd86f6692378c1f994c8a7af5e08\
+                \05b9e945c091e2e7f7d987bf4f4561df5840a21fd4bfe3f3ae4f33bec35ff8\
+                \6ac28a5de741739c408dad9c8287a19cde4f1361045ef86dc1f68b717e1318\
+                \506ae3c69235b0f6e09a2225fd2d2856fb57c309"
+        Testnet -> do
+            goldenTestSignedTx 1
+                [(xprv "addr-0", Coin 42)]
+                "820182839f8200d81858248258203b40265111d8bb3c3c608d95b3a0bf8346\
+                \1ace32d79336579a1939b3aad1c0b700ff9f8282d818582883581c72dc02f5\
+                \3b5c84217630f8d25ba629c4a4e4575f1c21402e8028667ba102451a4170cb\
+                \17001aaf875866182affa0818200d81858858258403d4a81396e88155da40e\
+                \c9e9807b77e4e5272cfd76a11f2dba6b6bd0a35195e720a2fd86f6692378c1\
+                \f994c8a7af5e0805b9e945c091e2e7f7d987bf4f4561df5840334b1d54f35c\
+                \e51f23e16d8541d8ebbbdcf3fa56f1fdcdaa427600510266ec90d0b1fba417\
+                \6d61ef70bb54fde7c6f82ed089fe152d6ad4bdaab2e798156ab709"
+        Local ->
+            xit "No golden tests for 'Local' network" False
+        Staging ->
+            xit "No golden tests for 'Staging' network" False
 
+{-------------------------------------------------------------------------------
+                                Golden Tests
+-------------------------------------------------------------------------------}
 
-        it "decodeSignedTx slBinary == walletTx" $ do
-            bin <- readFixture "sl-signedTx.bin"
+xprv :: ByteString -> Key 'AddressK XPrv
+xprv seed =
+    unsafeGenerateKeyFromSeed (Passphrase (BA.convert seed), mempty) mempty
 
-            case CBOR.deserialiseFromBytes decodeSignedTx (BL.fromStrict bin) of
-                Left err -> error $ show err
-                Right (_, decodedSlTx) -> decodedSlTx `shouldBe` signedTx
+goldenTestSignedTx
+    :: Int
+        -- ^ Number of outputs
+    -> [(Key 'AddressK XPrv, Coin)]
+        -- ^ (Address Private Keys, Output value)
+    -> ByteString
+        -- ^ Expected result, in Base16
+    -> SpecWith ()
+goldenTestSignedTx nOuts xprvs expected = it title $ do
+    let addrs = first (keyToAddress . publicKey) <$> xprvs
+    let s = Map.fromList (zip (fst <$> addrs) (fst <$> xprvs))
+    let inps = mkInput <$> zip addrs [0..]
+    let outs = take nOuts $ mkOutput <$> cycle addrs
+    let res = mkStdTx s (rootXPrv, mempty) inps outs
+    case res of
+        Left e -> fail (show e)
+        Right tx -> do
+            let bytes = convertToBase Base16 $ toByteString $ encodeSignedTx tx
+            bytes `shouldBe` expected
+  where
+    title :: String
+    title = mempty
+        <> "golden test | signed tx | "
+        <> show (length xprvs) <> " inputs | "
+        <> show nOuts <> " outputs"
 
-        it "encodeSignedTx walletTx == slBinary" $ do
-            bin <- readFixture "sl-signedTx.bin"
-            toByteString (encodeSignedTx signedTx) `shouldBe` bin
+    mkInput :: ((Address, Coin), Word32) -> (TxIn, TxOut)
+    mkInput (out, ix) =
+        ( TxIn faucetTx ix
+        , mkOutput out
+        )
+
+    mkOutput :: (Address, Coin) -> TxOut
+    mkOutput =
+        uncurry TxOut
+
+    faucetTx :: Hash "Tx"
+    faucetTx = either (\e -> error $ "faucetTx: " <> e) Hash $ convertFromBase
+        @ByteString Base16 "8258203B40265111D8BB3C3C608D95B3A0BF83461ACE32D79336579A1939B3AAD1C0B700"
+
+    rootXPrv :: Key 'RootK XPrv
+    rootXPrv =
+        error "rootXPrv was evaluated but it shouldn't"
 
 instance AddressScheme (Map Address (Key 'AddressK XPrv)) where
     keyFrom addr _ = Map.lookup addr
-    nextChangeAddress = error "unimplemented"
-
+    nextChangeAddress = error "AddressScheme.nextChangeAddress: not implemented"

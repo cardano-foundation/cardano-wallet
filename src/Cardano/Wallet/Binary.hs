@@ -446,12 +446,10 @@ decodeTxWitness = do
         _ <- CBOR.decodeListLenCanonicalOf 2
         (PublicKeyWitness <$> CBOR.decodeBytes <*> (Hash <$> CBOR.decodeBytes))
 
-
 decodeUpdateProof :: CBOR.Decoder s ()
 decodeUpdateProof = do
     _ <- CBOR.decodeBytes -- Update Hash
     return ()
-
 
 -- * Encoding
 
@@ -512,14 +510,11 @@ encodeAddressPayload payload = mempty
     <> CBOR.encodeBytes payload
     <> CBOR.encodeWord32 (crc32 payload)
 
-
 encodeSignedTx :: (Tx, [TxWitness]) -> CBOR.Encoding
 encodeSignedTx (tx, witnesses) = mempty
     <> CBOR.encodeListLen 2
     <> encodeTx tx
     <> encodeList encodeTxWitness witnesses
-
-
 
 encodeTxWitness :: TxWitness -> CBOR.Encoding
 encodeTxWitness witness = mempty
@@ -541,7 +536,6 @@ encodeTxWitness witness = mempty
             <> CBOR.encodeBytes sig
         ScriptWitness bs -> bs
         RedeemWitness bs -> bs
-
 
 encodeTx :: Tx -> CBOR.Encoding
 encodeTx tx = mempty
@@ -594,7 +588,6 @@ encodeTxOut (TxOut (Address addr) (Coin c)) = mempty
 -- NOTE: This is a rather expensive operation
 txId :: Tx -> Hash "Tx"
 txId = blake2b256 . encodeTx
-
 
 -- * Helpers
 

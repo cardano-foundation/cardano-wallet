@@ -9,7 +9,7 @@
 --
 -- This module provides functionality for signing transactions.
 --
--- It relies on the binary CBOR format of transactions, an AddressScheme
+-- It relies on the binary CBOR format of transactions, an 'AddressScheme'
 -- for deriving address private keys, and cardano-crypto for the actual signing.
 module Cardano.Wallet.Primitive.Signing
     ( -- * Sign transactions
@@ -49,18 +49,22 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Data.ByteArray as BA
 
-newtype SignTxError = KeyNotFoundForAddress Address
+-- | Possible signing error
+newtype SignTxError
+    = KeyNotFoundForAddress Address
+    -- ^ We tried to sign a transaction with inputs that are unknown to us?
     deriving Show
 
 -- | Construct a standard transaction
 --
 -- " Standard " here refers to the fact that we do not deal with redemption,
 -- multisignature transactions, etc.
---
 mkStdTx
     :: AddressScheme s
     => s
+    -- ^ A 'state' from which an address private key can be looked up
     -> (Key 'RootK XPrv, Passphrase "encryption")
+    -- ^ Credentials associated with this address
     -> [(TxIn, TxOut)]
     -- ^ Selected inputs
     -> [TxOut]
@@ -68,8 +72,8 @@ mkStdTx
     -> Either SignTxError (Tx, [TxWitness])
 mkStdTx s creds@(_, pwd) ownedIns outs = do
     let ins = (fmap fst ownedIns)
-        tx = Tx ins outs
-        txSigData = hashTx tx
+    let tx = Tx ins outs
+    let txSigData = hashTx tx
     txWitnesses <- forM ownedIns $ \(_in, TxOut addr _c) -> mkWitness txSigData
         <$> withEither (KeyNotFoundForAddress addr) (keyFrom addr creds s)
     return (tx, txWitnesses)
@@ -83,13 +87,11 @@ mkStdTx s creds@(_, pwd) ownedIns outs = do
         $ toByteString
         $ encodeTx txSigData
     mkWitness :: Hash "tx" -> Key 'AddressK XPrv -> TxWitness
-    mkWitness tx xPrv
-        = PublicKeyWitness
-            (encodeXPub $ publicKey xPrv)
-            (sign (SignTx tx) (xPrv, pwd))
-
-
-
+    mkWitness tx xPrv = PublicKeyWitness
+        (encodeXPub $ publicKey xPrv)
+        (sign (SignTx tx) (xPrv, pwd))
+    encodeXPub :: (Key level XPub) -> ByteString
+    encodeXPub = CC.unXPub . getKey
 
 -- | Used for signing transactions
 sign
@@ -98,7 +100,18 @@ sign
     -> Hash "signature"
 sign tag (key, (Passphrase pwd)) =
     Hash . CC.unXSignature $ CC.sign pwd (getKey key) (signTag tag)
-
+  where
+    -- | Encode magic bytes & the contents of a @SignTag@. Magic bytes are
+    -- guaranteed to be different (and begin with a different byte) for different
+    -- tags.
+    signTag :: SignTag -> ByteString
+    signTag = \case
+        SignTx (Hash payload) ->
+            "\x01" <> pm <> toByteString (CBOR.encodeBytes payload)
+      where
+        pm =
+            let ProtocolMagic x = protocolMagic network
+            in toByteString . CBOR.encodeInt32 $ x
 
 -- | To protect agains replay attacks (i.e. when an attacker intercepts a
 -- signed piece of data and later sends it again), we add a tag to all data
@@ -115,22 +128,3 @@ sign tag (key, (Passphrase pwd)) =
 newtype SignTag
     = SignTx (Hash "tx")
     deriving (Eq, Ord, Show)
-
-
--- | Encode magic bytes & the contents of a @SignTag@. Magic bytes are
--- guaranteed to be different (and begin with a different byte) for different
--- tags.
-signTag :: SignTag -> ByteString
-signTag = \case
-    SignTx (Hash payload) -> "\x01" <> pm <> toByteString (CBOR.encodeBytes payload)
-  where
-    pm =
-        let
-            ProtocolMagic x = protocolMagic network
-        in
-            toByteString . CBOR.encodeInt32 $ x
-
-
--- | Get the underlying ByteString
-encodeXPub :: (Key level XPub) -> ByteString
-encodeXPub = CC.unXPub . getKey
