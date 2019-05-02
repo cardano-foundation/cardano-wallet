@@ -12,7 +12,7 @@ import Cardano.Environment
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet.Binary
-    ( TxWitness (..), encodeSignedTx )
+    ( encodeSignedTx )
 import Cardano.Wallet.Network
     ( ErrNetworkTip (..)
     , ErrNetworkUnreachable (..)
@@ -30,6 +30,7 @@ import Cardano.Wallet.Primitive.Types
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
+    , TxWitness (..)
     )
 import Control.Concurrent
     ( threadDelay )

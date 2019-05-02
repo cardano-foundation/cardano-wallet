@@ -24,21 +24,25 @@ import Prelude
 import Cardano.Environment
     ( ProtocolMagic (..), network, protocolMagic )
 import Cardano.Wallet.Binary
-    ( TxWitness (..), encodeTx, toByteString )
+    ( HttpBridge, toByteString )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (AddressK), Key, Passphrase (..), XPrv, XPub, getKey, publicKey )
 import Cardano.Wallet.Primitive.Types
-    ( Address, Hash (..), Tx (..), TxIn, TxOut (..) )
+    ( Address
+    , Hash (..)
+    , Tx (..)
+    , TxId (..)
+    , TxIn
+    , TxOut (..)
+    , TxWitness (..)
+    )
 import Control.Monad
     ( forM )
-import Crypto.Hash
-    ( Blake2b_256, hash )
 import Data.ByteString
     ( ByteString )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Codec.CBOR.Encoding as CBOR
-import qualified Data.ByteArray as BA
 
 -- | Possible signing error
 newtype SignTxError
@@ -61,7 +65,7 @@ mkStdTx
 mkStdTx keyFrom inps outs = do
     let ins = (fmap fst inps)
     let tx = Tx ins outs
-    let txSigData = hashTx tx
+    let txSigData = txId @HttpBridge tx
     txWitnesses <- forM inps $ \(_in, TxOut addr _c) -> mkWitness txSigData
         <$> withEither (KeyNotFoundForAddress addr) (keyFrom addr)
     return (tx, txWitnesses)
@@ -69,15 +73,8 @@ mkStdTx keyFrom inps outs = do
     withEither :: e -> Maybe a -> Either e a
     withEither e = maybe (Left e) Right
 
-    hashTx :: Tx -> Hash "tx"
-    hashTx txSigData = Hash
-        $ BA.convert
-        $ (hash @_ @Blake2b_256)
-        $ toByteString
-        $ encodeTx txSigData
-
     mkWitness
-        :: Hash "tx"
+        :: Hash "Tx"
         -> (Key 'AddressK XPrv, Passphrase "encryption")
         -> TxWitness
     mkWitness tx (xPrv, pwd) = PublicKeyWitness
@@ -119,4 +116,4 @@ mkStdTx keyFrom inps outs = do
 -- The wallet only cares about the 'SignTx' tag. In 'cardano-sl' there was
 -- a lot more cases.
 newtype SignTag
-    = SignTx (Hash "tx")
+    = SignTx (Hash "Tx")

@@ -35,9 +35,6 @@ module Cardano.Wallet.Binary
     , encodeSignedTx
     , encodeProtocolMagic
 
-    -- * Signing
-    , TxWitness (..)
-
     -- * Helpers
     , inspectNextToken
     , decodeList

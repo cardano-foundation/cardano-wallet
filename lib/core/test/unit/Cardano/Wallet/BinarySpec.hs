@@ -13,7 +13,6 @@ import Prelude
 
 import Cardano.Wallet.Binary
     ( HttpBridge
-    , TxWitness (PublicKeyWitness)
     , decodeBlock
     , decodeBlockHeader
     , decodeSignedTx
@@ -34,6 +33,7 @@ import Cardano.Wallet.Primitive.Types
     , TxId (..)
     , TxIn (..)
     , TxOut (..)
+    , TxWitness (PublicKeyWitness)
     )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase )
