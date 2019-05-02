@@ -42,7 +42,6 @@ module Cardano.Wallet.Primitive.Types
     , txIns
 
     -- * Address
-    , IsOurs(..)
     , Address (..)
     , AddressState (..)
 
@@ -404,24 +403,6 @@ data TxWitness
 {-------------------------------------------------------------------------------
                                     Address
 -------------------------------------------------------------------------------}
-
--- | This abstraction exists to give us the ability to keep the wallet business
--- logic agnostic to the address derivation and discovery mechanisms.
---
--- This is needed because two different address schemes lives on Cardano:
---   - A hierarchical random scheme:
---      rather 'custom' made, with several flaws; this is the original and now
---      legacy address scheme.
---
---   - A hierarchical sequential scheme:
---      a new scheme based on the BIP-0044 specification, which is better suited
---      for our present needs.
---
--- In practice, we will need a wallet that can support both, even if not at the
--- same time, and this little abstraction can buy us this without introducing
--- too much overhead.
-class IsOurs s where
-    isOurs :: Address -> s -> (Bool, s)
 
 newtype Address = Address
     { getAddress :: ByteString

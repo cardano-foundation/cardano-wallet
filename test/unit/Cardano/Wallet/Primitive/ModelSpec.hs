@@ -12,6 +12,8 @@ import Prelude
 
 import Cardano.Wallet.Binary
     ( txId )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Model
     ( applyBlock
     , applyBlocks
@@ -30,7 +32,6 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , Dom (..)
     , Hash (..)
-    , IsOurs (..)
     , ShowFmt (..)
     , SlotId (..)
     , Tx (..)

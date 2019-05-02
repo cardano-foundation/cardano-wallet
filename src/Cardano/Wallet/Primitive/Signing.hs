@@ -26,16 +26,7 @@ import Cardano.Environment
 import Cardano.Wallet.Binary
     ( TxWitness (..), encodeTx, toByteString )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (AddressK, RootK)
-    , Key
-    , Passphrase (..)
-    , XPrv
-    , XPub
-    , getKey
-    , publicKey
-    )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( AddressScheme (keyFrom) )
+    ( Depth (AddressK), Key, Passphrase (..), XPrv, XPub, getKey, publicKey )
 import Cardano.Wallet.Primitive.Types
     ( Address, Hash (..), Tx (..), TxIn, TxOut (..) )
 import Control.Monad
@@ -60,58 +51,60 @@ newtype SignTxError
 -- " Standard " here refers to the fact that we do not deal with redemption,
 -- multisignature transactions, etc.
 mkStdTx
-    :: AddressScheme s
-    => s
+    :: (Address -> Maybe (Key 'AddressK XPrv, Passphrase "encryption"))
     -- ^ A 'state' from which an address private key can be looked up
-    -> (Key 'RootK XPrv, Passphrase "encryption")
-    -- ^ Credentials associated with this address
     -> [(TxIn, TxOut)]
     -- ^ Selected inputs
     -> [TxOut]
     -- ^ Selected outputs (including change)
     -> Either SignTxError (Tx, [TxWitness])
-mkStdTx s creds@(_, pwd) ownedIns outs = do
-    let ins = (fmap fst ownedIns)
+mkStdTx keyFrom inps outs = do
+    let ins = (fmap fst inps)
     let tx = Tx ins outs
     let txSigData = hashTx tx
-    txWitnesses <- forM ownedIns $ \(_in, TxOut addr _c) -> mkWitness txSigData
-        <$> withEither (KeyNotFoundForAddress addr) (keyFrom addr creds s)
+    txWitnesses <- forM inps $ \(_in, TxOut addr _c) -> mkWitness txSigData
+        <$> withEither (KeyNotFoundForAddress addr) (keyFrom addr)
     return (tx, txWitnesses)
   where
     withEither :: e -> Maybe a -> Either e a
     withEither e = maybe (Left e) Right
+
     hashTx :: Tx -> Hash "tx"
     hashTx txSigData = Hash
         $ BA.convert
         $ (hash @_ @Blake2b_256)
         $ toByteString
         $ encodeTx txSigData
-    mkWitness :: Hash "tx" -> Key 'AddressK XPrv -> TxWitness
-    mkWitness tx xPrv = PublicKeyWitness
+
+    mkWitness
+        :: Hash "tx"
+        -> (Key 'AddressK XPrv, Passphrase "encryption")
+        -> TxWitness
+    mkWitness tx (xPrv, pwd) = PublicKeyWitness
         (encodeXPub $ publicKey xPrv)
         (sign (SignTx tx) (xPrv, pwd))
+
     encodeXPub :: (Key level XPub) -> ByteString
     encodeXPub = CC.unXPub . getKey
 
--- | Used for signing transactions
-sign
-    :: SignTag
-    -> (Key 'AddressK XPrv, Passphrase "encryption")
-    -> Hash "signature"
-sign tag (key, (Passphrase pwd)) =
-    Hash . CC.unXSignature $ CC.sign pwd (getKey key) (signTag tag)
-  where
-    -- | Encode magic bytes & the contents of a @SignTag@. Magic bytes are
-    -- guaranteed to be different (and begin with a different byte) for different
-    -- tags.
-    signTag :: SignTag -> ByteString
-    signTag = \case
-        SignTx (Hash payload) ->
-            "\x01" <> pm <> toByteString (CBOR.encodeBytes payload)
+    sign
+        :: SignTag
+        -> (Key 'AddressK XPrv, Passphrase "encryption")
+        -> Hash "signature"
+    sign tag (key, (Passphrase pwd)) =
+        Hash . CC.unXSignature $ CC.sign pwd (getKey key) (signTag tag)
       where
-        pm =
-            let ProtocolMagic x = protocolMagic network
-            in toByteString . CBOR.encodeInt32 $ x
+        -- | Encode magic bytes & the contents of a @SignTag@. Magic bytes are
+        -- guaranteed to be different (and begin with a different byte) for different
+        -- tags.
+        signTag :: SignTag -> ByteString
+        signTag = \case
+            SignTx (Hash payload) ->
+                "\x01" <> pm <> toByteString (CBOR.encodeBytes payload)
+          where
+            pm =
+                let ProtocolMagic x = protocolMagic network
+                in toByteString . CBOR.encodeInt32 $ x
 
 -- | To protect agains replay attacks (i.e. when an attacker intercepts a
 -- signed piece of data and later sends it again), we add a tag to all data

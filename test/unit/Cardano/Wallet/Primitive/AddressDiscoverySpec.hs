@@ -26,7 +26,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPool
     , AddressPoolGap
-    , AddressScheme (..)
+    , GenChange (..)
+    , IsOurs (..)
+    , IsOwned (..)
     , MkAddressPoolGapError (..)
     , SeqState (..)
     , accountPubKey
@@ -35,14 +37,14 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , defaultAddressPoolGap
     , emptyPendingIxs
     , gap
+    , genChange
     , lookupAddress
     , mkAddressPool
     , mkAddressPoolGap
     , mkSeqState
-    , nextChangeAddress
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address, IsOurs (..), ShowFmt (..) )
+    ( Address, ShowFmt (..) )
 import Control.Monad
     ( forM, unless )
 import Control.Monad.IO.Class
@@ -141,13 +143,15 @@ spec = do
         it "fail fromText @AddressPoolGap \"raczej nie\"" $
             fromText @AddressPoolGap "raczej nie" === Left (TextDecodingError err)
 
-    describe "PendingIxs & AddressScheme" $ do
+    describe "PendingIxs & GenChange" $ do
         it "Can always generate exactly `gap` different change addresses"
-            (property prop_nextChangeAddressGap)
+            (property prop_genChangeGap)
         it "After `gap` change addresses, the same one are yield in reverse order"
             (property prop_changeAddressRotation)
         it "Can generate new change addresses after discovering a pending one"
             (property prop_changeNoLock)
+
+    describe "IsOwned" $ do
         it "Any discovered address has a corresponding private key!" $ do
             (property prop_lookupDiscovered)
 
@@ -255,10 +259,10 @@ prop_poolEventuallyDiscoverOurs (g, addr) =
 
 -- | We can always generate at exactly `gap` change addresses (on the internal
 -- chain)
-prop_nextChangeAddressGap
+prop_genChangeGap
     :: AddressPoolGap
     -> Property
-prop_nextChangeAddressGap g =
+prop_genChangeGap g =
     property prop
   where
     key = unsafeGenerateKeyFromSeed (mempty, mempty) mempty
@@ -296,7 +300,7 @@ prop_lookupDiscovered (s0, addr) =
   where
     key = unsafeGenerateKeyFromSeed (mempty, mempty) mempty
     prop s = monadicIO $ liftIO $ do
-        unless (isJust $ keyFrom addr (key, mempty) s) $ do
+        unless (isJust $ isOwned s (key, mempty) addr) $ do
             expectationFailure "couldn't find private key corresponding to addr"
 
 
@@ -321,7 +325,7 @@ changeAddresses
     -> SeqState
     -> ([Address], SeqState)
 changeAddresses as s =
-    let (a, s') = nextChangeAddress s
+    let (a, s') = genChange s
     in if a `elem` as then (as, s) else changeAddresses (a:as) s'
 
 instance Arbitrary AddressPoolGap where

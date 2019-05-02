@@ -65,7 +65,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , encryptPassphrase
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( AddressScheme (..) )
+    ( GenChange (..), IsOwned (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet
     , applyBlocks
@@ -82,7 +82,6 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , Coin (..)
     , Direction (..)
-    , IsOurs (..)
     , SignedTx (..)
     , SlotId (..)
     , Tx
@@ -234,7 +233,7 @@ data ErrSubmitTx
 
 -- | Create a new instance of the wallet layer.
 mkWalletLayer
-    :: forall s. (IsOurs s, AddressScheme s, NFData s, Show s)
+    :: forall s. (IsOwned s, GenChange s, NFData s, Show s)
     => DBLayer IO s
     -> NetworkLayer IO
     -> WalletLayer s
@@ -291,11 +290,12 @@ mkWalletLayer db network = WalletLayer
     , signTx = \wid pwd (CoinSelection ins outs chgs) -> DB.withLock db $ do
         (w, _) <- withExceptT ErrSignTxNoSuchWallet $ _readWallet wid
         let (changeOuts, s') = flip runState (getState w) $ forM chgs $ \c -> do
-                addr <- state nextChangeAddress
+                addr <- state genChange
                 return $ TxOut addr c
         allShuffledOuts <- liftIO $ shuffle (outs ++ changeOuts)
         withRootKey wid pwd ErrSignTxWrongPassphrase $ \xprv -> do
-            case mkStdTx (getState w) (xprv, pwd) ins allShuffledOuts of
+            let keyFrom = isOwned (getState w) (xprv, pwd)
+            case mkStdTx keyFrom ins allShuffledOuts of
                 Right (tx, wit) -> do
                     -- Safe because we have a lock and we already fetched the
                     -- wallet within this context.

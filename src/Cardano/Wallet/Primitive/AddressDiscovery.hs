@@ -7,6 +7,7 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -20,10 +21,14 @@
 
 module Cardano.Wallet.Primitive.AddressDiscovery
     (
-    -- * Sequential Derivation
+    -- * Abstractions
+      IsOurs(..)
+    , IsOwned(..)
+    , GenChange(..)
 
+    -- * Sequential Derivation
     -- ** Address Pool Gap
-      AddressPoolGap
+    , AddressPoolGap
     , MkAddressPoolGapError (..)
     , defaultAddressPoolGap
     , getAddressPoolGap
@@ -45,7 +50,6 @@ module Cardano.Wallet.Primitive.AddressDiscovery
     -- ** State
     , SeqState (..)
     , mkSeqState
-    , AddressScheme (..)
     ) where
 
 import Prelude
@@ -66,7 +70,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , publicKey
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address, IsOurs (..), invariant )
+    ( Address, invariant )
 import Control.Applicative
     ( (<|>) )
 import Control.DeepSeq
@@ -95,6 +99,60 @@ import Text.Read
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
+
+-- | This abstraction exists to give us the ability to keep the wallet business
+-- logic agnostic to the address derivation and discovery mechanisms.
+--
+-- This is needed because two different address schemes lives on Cardano:
+--
+--   - A hierarchical random scheme:
+--      rather 'custom' made, with several flaws; this is the original and now
+--      legacy address scheme.
+--
+--   - A hierarchical sequential scheme:
+--      a new scheme based on the BIP-0044 specification, which is better suited
+--      for our present needs.
+--
+-- In practice, we will need a wallet that can support both, even if not at the
+-- same time, and this little abstraction can buy us this without introducing
+-- too much overhead.
+class IsOurs s where
+    isOurs
+        :: Address
+        -> s
+        -> (Bool, s)
+        -- ^ Checks whether an address is ours or not.
+
+-- | More powerful than 'isOurs', this abstractions offer the underlying state
+-- the ability to find / compute the address private key corresponding to a
+-- given known address.
+--
+-- Requiring 'IsOwned' as a constraint supposed that there is a way to recover
+-- the root private key of a particular wallet. This isn't true for externally
+-- owned wallet which would delegate its key management to a third party (like
+-- a hardware Ledger or Trezor).
+class IsOurs s => IsOwned s where
+    isOwned
+        :: s
+        -> (Key 'RootK XPrv, Passphrase "encryption")
+        -> Address
+        -> Maybe (Key 'AddressK XPrv, Passphrase "encryption")
+        -- ^ Derive the private key corresponding to an address. Careful, this
+        -- operation can be costly. Note that the state is discarded from this
+        -- function as we do not intend to discover any addresses from this
+        -- operation; This is merely a lookup from known addresses.
+
+-- | Abstracting over change address generation. In theory, this is only needed
+-- for sending transactions on a wallet following a particular scheme. This
+-- abstractions allows for defining an heuristic to pick new change address. For
+-- instance, in BIP-44, change addresses belong to a particular change chain
+-- (also called "Internal Chain").
+class GenChange s where
+    genChange
+        :: s
+        -> (Address, s)
+        -- ^ Generate a new change address for the given scheme. The rules for
+        -- generating a new change address depends on the underlying scheme.
 
 {-------------------------------------------------------------------------------
                           Sequential Derivation
@@ -380,51 +438,41 @@ mkSeqState (rootXPrv, pwd) g =
 -- in theory, there's nothing forcing a wallet to generate change
 -- addresses on the internal chain anywhere in the available range.
 instance IsOurs SeqState where
-     isOurs addr (SeqState !s1 !s2 !ixs) =
-         let
-             (internal, !s1') = lookupAddress addr s1
-             (external, !s2') = lookupAddress addr s2
-             !ixs' = case internal of
+    isOurs addr (SeqState !s1 !s2 !ixs) =
+        let
+            (internal, !s1') = lookupAddress addr s1
+            (external, !s2') = lookupAddress addr s2
+            !ixs' = case internal of
                 Nothing -> ixs
                 Just ix -> updatePendingIxs ix ixs
-             ours = isJust (internal <|> external)
-         in
-             (ixs' `deepseq` ours `deepseq` ours, SeqState s1' s2' ixs')
+            ours = isJust (internal <|> external)
+        in
+            (ixs' `deepseq` ours `deepseq` ours, SeqState s1' s2' ixs')
 
--- TODO: We might want to move this abstraction / there is more work to be
--- done here.
---
--- It would maybe be nice to derive IsOurs from AddressScheme automatically
--- A /possible/ way to do that would be to return
---     Maybe ((Key 'RootK XPrv, Passphrase "encryption") -> Key 'AddressK XPrv)
--- instead, such that we can use @isJust@ without knowing the rootKey and pwd.
-class AddressScheme s where
-    keyFrom
-        :: Address
-        -> (Key 'RootK XPrv, Passphrase "encryption")
-        -> s
-        -> Maybe (Key 'AddressK XPrv)
-        -- ^ Derive the private key corresponding to an address. Careful, this
-        -- operation can be costly. Note that the state is discarded from this
-        -- function as we do not intend to discover any addresses from this
-        -- operation; This is merely a lookup from known addresses.
+instance GenChange SeqState where
+    -- | We pick indexes in sequence from the first known available index (i.e.
+    -- @length addrs - gap@) but we do not generate _new change addresses_. As a
+    -- result, we can't generate more than @gap@ _pending_ change addresses and
+    -- therefore, rotate the change addresses when we need extra change outputs.
+    --
+    -- See also: 'nextChangeIndex'
+    genChange (SeqState intPool extPool pending) =
+        let
+            (ix, pending') = nextChangeIndex intPool pending
+            accountXPub = accountPubKey intPool
+            addressXPub = deriveAddressPublicKey accountXPub InternalChain ix
+            addr = keyToAddress addressXPub
+        in
+            (addr, SeqState intPool extPool pending')
 
-    nextChangeAddress
-        :: s
-        -> (Address, s)
-        -- ^ Picks the first non-used known change address and use it.
-        -- We keep track of pending indexes in the state. In case there's no
-        -- more unused change address available, we pick an already existing
-        -- one.
-
-instance AddressScheme SeqState where
-    keyFrom addr (rootPrv, pwd) (SeqState !s1 !s2 _) =
+instance IsOwned SeqState where
+    isOwned (SeqState !s1 !s2 _) (rootPrv, pwd) addr =
         let
             xPrv1 = lookupAndDeriveXPrv s1
             xPrv2 = lookupAndDeriveXPrv s2
             xPrv = xPrv1 <|> xPrv2
         in
-            xPrv
+            (,pwd) <$> xPrv
       where
         lookupAndDeriveXPrv
             :: forall chain. Typeable chain
@@ -438,18 +486,3 @@ instance AddressScheme SeqState where
                 cc = changeChain @chain
             in
                 deriveAddressPrivateKey pwd accountPrv cc <$> addrIx
-
-    -- | We pick indexes in sequence from the first known available index (i.e.
-    -- @length addrs - gap@) but we do not generate _new change addresses_. As a
-    -- result, we can't generate more than @gap@ _pending_ change addresses and
-    -- therefore, rotate the change addresses when we need extra change outputs.
-    --
-    -- See also: 'nextChangeIndex'
-    nextChangeAddress (SeqState intPool extPool pending) =
-        let
-            (ix, pending') = nextChangeIndex intPool pending
-            accountXPub = accountPubKey intPool
-            addressXPub = deriveAddressPublicKey accountXPub InternalChain ix
-            addr = keyToAddress addressXPub
-        in
-            (addr, SeqState intPool extPool pending')

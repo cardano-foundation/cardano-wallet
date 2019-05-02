@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -22,8 +23,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , publicKey
     , unsafeGenerateKeyFromSeed
     )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( AddressScheme (..) )
 import Cardano.Wallet.Primitive.Signing
     ( SignTxError (..), mkStdTx )
 import Cardano.Wallet.Primitive.Types
@@ -34,8 +33,6 @@ import Data.ByteArray.Encoding
     ( Base (..), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
-import Data.Map
-    ( Map )
 import Data.Word
     ( Word32 )
 import Test.Hspec
@@ -49,10 +46,9 @@ spec = do
     describe "mkStdTx" $ do
         it "Unknown input address yields an error" $ do
             let addr = keyToAddress $ publicKey $ xprv "addr"
-            let res = mkStdTx s creds inps outs
+            let res = mkStdTx keyFrom inps outs
                   where
-                    s = mempty :: Map Address (Key 'AddressK XPrv)
-                    creds = (xprv "arbitrary", mempty)
+                    keyFrom = const Nothing
                     inps =
                         [ ( TxIn (Hash "arbitrary") 0
                           , TxOut addr (Coin 0)
@@ -612,9 +608,10 @@ goldenTestSignedTx
 goldenTestSignedTx nOuts xprvs expected = it title $ do
     let addrs = first (keyToAddress . publicKey) <$> xprvs
     let s = Map.fromList (zip (fst <$> addrs) (fst <$> xprvs))
+    let keyFrom a = (,mempty) <$> Map.lookup a s
     let inps = mkInput <$> zip addrs [0..]
     let outs = take nOuts $ mkOutput <$> cycle addrs
-    let res = mkStdTx s (rootXPrv, mempty) inps outs
+    let res = mkStdTx keyFrom inps outs
     case res of
         Left e -> fail (show e)
         Right tx -> do
@@ -647,14 +644,6 @@ goldenTestSignedTx nOuts xprvs expected = it title $ do
     faucetTx :: Hash "Tx"
     faucetTx = either (\e -> error $ "faucetTx: " <> e) Hash $ convertFromBase
         @ByteString Base16 "3B40265111D8BB3C3C608D95B3A0BF83461ACE32D79336579A1939B3AAD1C0B7"
-
-    rootXPrv :: Key 'RootK XPrv
-    rootXPrv =
-        error "rootXPrv was evaluated but it shouldn't"
-
-instance AddressScheme (Map Address (Key 'AddressK XPrv)) where
-    keyFrom addr _ = Map.lookup addr
-    nextChangeAddress = error "AddressScheme.nextChangeAddress: not implemented"
 
 {- NOTE: The above golden tests were obtained from 'cardano-sl@3.0.1', using the
     following code:
