@@ -238,26 +238,6 @@ PublicKeyWitness :: ByteString -> Hash "signature" -> TxWitness
 ScriptWitness :: ByteString -> TxWitness
 RedeemWitness :: ByteString -> TxWitness
 txIns :: Set Tx -> Set TxIn
-
--- | This abstraction exists to give us the ability to keep the wallet
---   business logic agnostic to the address derivation and discovery
---   mechanisms.
---   
---   This is needed because two different address schemes lives on Cardano:
---   - A hierarchical random scheme: rather <tt>custom</tt> made, with
---   several flaws; this is the original and now legacy address scheme.
---   
---   <ul>
---   <li>A hierarchical sequential scheme: a new scheme based on the
---   BIP-0044 specification, which is better suited for our present
---   needs.</li>
---   </ul>
---   
---   In practice, we will need a wallet that can support both, even if not
---   at the same time, and this little abstraction can buy us this without
---   introducing too much overhead.
-class IsOurs s
-isOurs :: IsOurs s => Address -> s -> (Bool, s)
 newtype Address
 Address :: ByteString -> Address
 [$sel:getAddress:Address] :: Address -> ByteString
@@ -913,72 +893,6 @@ decodeListIndef :: forall s a. Decoder s a -> Decoder s [a]
 toByteString :: Encoding -> ByteString
 
 
--- | Here we find the "business logic" to manage a Cardano wallet. This is
---   a direct implementation of the model from the <a>Formal Specification
---   for a Cardano Wallet</a> Note that, this module is purposedly agnostic
---   to how blocks are retrieved or how various types are serialized.
---   
---   This is really about how the wallet keep track of its internal state,
---   and its UTxO (where the relationship is defined via the <a>IsOurs</a>
---   abstraction to allow this core code to be used with any sort of
---   derivation scheme).
---   
---   All those functions are pure and there's no reason to shove in any
---   sort of side-effects in here :)
-module Cardano.Wallet.Primitive.Model
-
--- | An opaque wallet type, see <tt>initWallet</tt> and <tt>applyBlock</tt>
---   to construct and update wallets.
---   
---   Internally, this keeps track or a few things including:
---   
---   <ul>
---   <li>UTxOs</li>
---   <li>Pending transaction</li>
---   <li>Transaction history</li>
---   <li>TODO: Known &amp; used addresses</li>
---   </ul>
-data Wallet s
-
--- | Create an empty wallet from an initial state
-initWallet :: (IsOurs s, NFData s, Show s) => s -> Wallet s
-
--- | Update the state of an existing Wallet model
-updateState :: (IsOurs s, NFData s, Show s) => s -> Wallet s -> Wallet s
-
--- | Apply Block is the only way to make the wallet evolve. It returns a
---   new updated wallet state, as well as the set of all our transaction
---   discovered while applying the block.
-applyBlock :: Block -> Wallet s -> (Map (Hash "Tx") (Tx, TxMeta), Wallet s)
-
--- | Helper to apply multiple blocks in sequence to an existing wallet.
---   It's basically just a <tt>foldl' applyBlock</tt> over the given
---   blocks.
-applyBlocks :: [Block] -> Wallet s -> (Map (Hash "Tx") (Tx, TxMeta), Wallet s)
-newPending :: Tx -> Wallet s -> Wallet s
-
--- | Get the wallet current tip
-currentTip :: Wallet s -> SlotId
-
--- | Get the wallet current state
-getState :: Wallet s -> s
-
--- | Available balance = <a>balance</a> . <a>availableUTxO</a>
-availableBalance :: Wallet s -> Natural
-
--- | Total balance = <a>balance</a> . <a>totalUTxO</a>
-totalBalance :: Wallet s -> Natural
-
--- | Total UTxO = <a>availableUTxO</a> <tt>&lt;&gt;</tt> <a>changeUTxO</a>
-totalUTxO :: Wallet s -> UTxO
-
--- | Available UTxO = <tt>pending ⋪ utxo</tt>
-availableUTxO :: Wallet s -> UTxO
-instance GHC.Show.Show (Cardano.Wallet.Primitive.Model.Wallet s)
-instance GHC.Classes.Eq s => GHC.Classes.Eq (Cardano.Wallet.Primitive.Model.Wallet s)
-instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.Model.Wallet s)
-
-
 -- | Primitives for performing address derivation for some given schemes.
 --   This is where most of the crypto happens in the wallet and, it is
 --   quite important to ensure that the following implementation matches
@@ -1164,12 +1078,74 @@ instance GHC.Enum.Enum (Cardano.Wallet.Primitive.AddressDerivation.Index 'Cardan
 instance Control.DeepSeq.NFData key => Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDerivation.Key level key)
 
 
+-- | This module provides functionality for signing transactions.
+--   
+--   It relies on the binary CBOR format of transactions, an
+--   <tt>AddressScheme</tt> for deriving address private keys, and
+--   cardano-crypto for the actual signing.
+module Cardano.Wallet.Primitive.Signing
+
+-- | Construct a standard transaction
+--   
+--   " Standard " here refers to the fact that we do not deal with
+--   redemption, multisignature transactions, etc.
+mkStdTx :: (Address -> Maybe (Key  'AddressK XPrv, Passphrase "encryption")) -> [(TxIn, TxOut)] -> [TxOut] -> Either SignTxError (Tx, [TxWitness])
+
+-- | Possible signing error
+newtype SignTxError
+
+-- | We tried to sign a transaction with inputs that are unknown to us?
+KeyNotFoundForAddress :: Address -> SignTxError
+instance GHC.Show.Show Cardano.Wallet.Primitive.Signing.SignTxError
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Signing.SignTxError
+
+
 -- | This module contains primitives necessary to perform address
 --   discovery. So far, we're only interested in address following a
 --   sequential derivation scheme as specified in BIP-0044. Later, we may
 --   introduce backward compatibility with random address scheme from the
 --   legacy Cardano wallets.
 module Cardano.Wallet.Primitive.AddressDiscovery
+
+-- | This abstraction exists to give us the ability to keep the wallet
+--   business logic agnostic to the address derivation and discovery
+--   mechanisms.
+--   
+--   This is needed because two different address schemes lives on Cardano:
+--   
+--   <ul>
+--   <li>A hierarchical random scheme: rather <tt>custom</tt> made, with
+--   several flaws; this is the original and now legacy address
+--   scheme.</li>
+--   <li>A hierarchical sequential scheme: a new scheme based on the
+--   BIP-0044 specification, which is better suited for our present
+--   needs.</li>
+--   </ul>
+--   
+--   In practice, we will need a wallet that can support both, even if not
+--   at the same time, and this little abstraction can buy us this without
+--   introducing too much overhead.
+class IsOurs s
+isOurs :: IsOurs s => Address -> s -> (Bool, s)
+
+-- | More powerful than <a>isOurs</a>, this abstractions offer the
+--   underlying state the ability to find / compute the address private key
+--   corresponding to a given known address.
+--   
+--   Requiring <a>IsOwned</a> as a constraint supposed that there is a way
+--   to recover the root private key of a particular wallet. This isn't
+--   true for externally owned wallet which would delegate its key
+--   management to a third party (like a hardware Ledger or Trezor).
+class IsOurs s => IsOwned s
+isOwned :: IsOwned s => s -> (Key  'RootK XPrv, Passphrase "encryption") -> Address -> Maybe (Key  'AddressK XPrv, Passphrase "encryption")
+
+-- | Abstracting over change address generation. In theory, this is only
+--   needed for sending transactions on a wallet following a particular
+--   scheme. This abstractions allows for defining an heuristic to pick new
+--   change address. For instance, in BIP-44, change addresses belong to a
+--   particular change chain (also called "Internal Chain").
+class GenChange s
+genChange :: GenChange s => s -> (Address, s)
 
 -- | Maximum number of consecutive undiscovered addresses allowed
 data AddressPoolGap
@@ -1265,9 +1241,6 @@ SeqState :: !AddressPool  'InternalChain -> !AddressPool  'ExternalChain -> !Pen
 
 -- | Construct a Sequential state for a wallet.
 mkSeqState :: (Key  'RootK XPrv, Passphrase "encryption") -> AddressPoolGap -> SeqState
-class AddressScheme s
-keyFrom :: AddressScheme s => Address -> (Key  'RootK XPrv, Passphrase "encryption") -> s -> Maybe (Key  'AddressK XPrv)
-nextChangeAddress :: AddressScheme s => s -> (Address, s)
 instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.SeqState
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.SeqState
 instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.PendingIxs
@@ -1281,9 +1254,10 @@ instance GHC.Classes.Ord Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGa
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
-instance Cardano.Wallet.Primitive.AddressDiscovery.AddressScheme Cardano.Wallet.Primitive.AddressDiscovery.SeqState
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.SeqState
-instance Cardano.Wallet.Primitive.Types.IsOurs Cardano.Wallet.Primitive.AddressDiscovery.SeqState
+instance Cardano.Wallet.Primitive.AddressDiscovery.IsOurs Cardano.Wallet.Primitive.AddressDiscovery.SeqState
+instance Cardano.Wallet.Primitive.AddressDiscovery.GenChange Cardano.Wallet.Primitive.AddressDiscovery.SeqState
+instance Cardano.Wallet.Primitive.AddressDiscovery.IsOwned Cardano.Wallet.Primitive.AddressDiscovery.SeqState
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.PendingIxs
 instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDiscovery.AddressPool chain)
 instance Data.Text.Class.FromText Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
@@ -1293,26 +1267,70 @@ instance GHC.Enum.Bounded Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolG
 instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 
 
--- | This module provides functionality for signing transactions.
+-- | Here we find the "business logic" to manage a Cardano wallet. This is
+--   a direct implementation of the model from the <a>Formal Specification
+--   for a Cardano Wallet</a> Note that, this module is purposedly agnostic
+--   to how blocks are retrieved or how various types are serialized.
 --   
---   It relies on the binary CBOR format of transactions, an
---   <a>AddressScheme</a> for deriving address private keys, and
---   cardano-crypto for the actual signing.
-module Cardano.Wallet.Primitive.Signing
-
--- | Construct a standard transaction
+--   This is really about how the wallet keep track of its internal state,
+--   and its UTxO (where the relationship is defined via the <a>IsOurs</a>
+--   abstraction to allow this core code to be used with any sort of
+--   derivation scheme).
 --   
---   " Standard " here refers to the fact that we do not deal with
---   redemption, multisignature transactions, etc.
-mkStdTx :: AddressScheme s => s -> (Key  'RootK XPrv, Passphrase "encryption") -> [(TxIn, TxOut)] -> [TxOut] -> Either SignTxError (Tx, [TxWitness])
+--   All those functions are pure and there's no reason to shove in any
+--   sort of side-effects in here :)
+module Cardano.Wallet.Primitive.Model
 
--- | Possible signing error
-newtype SignTxError
+-- | An opaque wallet type, see <tt>initWallet</tt> and <tt>applyBlock</tt>
+--   to construct and update wallets.
+--   
+--   Internally, this keeps track or a few things including:
+--   
+--   <ul>
+--   <li>UTxOs</li>
+--   <li>Pending transaction</li>
+--   <li>Transaction history</li>
+--   <li>TODO: Known &amp; used addresses</li>
+--   </ul>
+data Wallet s
 
--- | We tried to sign a transaction with inputs that are unknown to us?
-KeyNotFoundForAddress :: Address -> SignTxError
-instance GHC.Show.Show Cardano.Wallet.Primitive.Signing.SignTxError
-instance GHC.Classes.Eq Cardano.Wallet.Primitive.Signing.SignTxError
+-- | Create an empty wallet from an initial state
+initWallet :: (IsOurs s, NFData s, Show s) => s -> Wallet s
+
+-- | Update the state of an existing Wallet model
+updateState :: (IsOurs s, NFData s, Show s) => s -> Wallet s -> Wallet s
+
+-- | Apply Block is the only way to make the wallet evolve. It returns a
+--   new updated wallet state, as well as the set of all our transaction
+--   discovered while applying the block.
+applyBlock :: Block -> Wallet s -> (Map (Hash "Tx") (Tx, TxMeta), Wallet s)
+
+-- | Helper to apply multiple blocks in sequence to an existing wallet.
+--   It's basically just a <tt>foldl' applyBlock</tt> over the given
+--   blocks.
+applyBlocks :: [Block] -> Wallet s -> (Map (Hash "Tx") (Tx, TxMeta), Wallet s)
+newPending :: Tx -> Wallet s -> Wallet s
+
+-- | Get the wallet current tip
+currentTip :: Wallet s -> SlotId
+
+-- | Get the wallet current state
+getState :: Wallet s -> s
+
+-- | Available balance = <a>balance</a> . <a>availableUTxO</a>
+availableBalance :: Wallet s -> Natural
+
+-- | Total balance = <a>balance</a> . <a>totalUTxO</a>
+totalBalance :: Wallet s -> Natural
+
+-- | Total UTxO = <a>availableUTxO</a> <tt>&lt;&gt;</tt> <a>changeUTxO</a>
+totalUTxO :: Wallet s -> UTxO
+
+-- | Available UTxO = <tt>pending ⋪ utxo</tt>
+availableUTxO :: Wallet s -> UTxO
+instance GHC.Show.Show (Cardano.Wallet.Primitive.Model.Wallet s)
+instance GHC.Classes.Eq s => GHC.Classes.Eq (Cardano.Wallet.Primitive.Model.Wallet s)
+instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.Model.Wallet s)
 
 
 -- | Database / Pesistence layer for the wallet backend. This is where we
@@ -1682,7 +1700,7 @@ ErrCreateUnsignedTxCoinSelection :: CoinSelectionError -> ErrCreateUnsignedTx
 ErrCreateUnsignedTxFee :: FeeError -> ErrCreateUnsignedTx
 
 -- | Create a new instance of the wallet layer.
-mkWalletLayer :: forall s. (IsOurs s, AddressScheme s, NFData s, Show s) => DBLayer IO s -> NetworkLayer IO -> WalletLayer s
+mkWalletLayer :: forall s. (IsOwned s, GenChange s, NFData s, Show s) => DBLayer IO s -> NetworkLayer IO -> WalletLayer s
 
 -- | Run an ExcepT and throws the error if any. This makes sense only if
 --   called after checking for an invariant or, after ensuring that
