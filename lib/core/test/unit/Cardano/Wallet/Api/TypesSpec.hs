@@ -522,7 +522,7 @@ specification :: Swagger
 specification =
     unsafeDecode bytes
   where
-    bytes = $(embedFile "specifications/api/swagger.yaml")
+    bytes = $(embedFile "../../specifications/api/swagger.yaml")
     unsafeDecode = either (error . (msg <>) . show) Prelude.id . Yaml.decodeEither'
     msg = "Whoops! Failed to parse or find the api specification document: "
 

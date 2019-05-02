@@ -1,0 +1,258 @@
+name:                cardano-wallet-core
+version:             2.0.0
+synopsis:            The Wallet Backend for a Cardano node.
+description:         Please see README.md
+homepage:            https://github.com/input-output-hk/cardano-wallet
+author:              IOHK Engineering Team
+maintainer:          operations@iohk.io
+copyright:           2019 IOHK
+license:             MIT
+license-file:        LICENSE
+category:            Web
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+flag development
+    description: Disable `-Werror`
+    default: False
+    manual: True
+
+library
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -Wall
+      -Wcompat
+      -fwarn-redundant-constraints
+  if (!flag(development))
+    ghc-options:
+      -Werror
+  build-depends:
+      aeson
+    , base
+    , base58-bytestring
+    , basement
+    , binary
+    , bytestring
+    , cardano-crypto
+    , cborg
+    , containers
+    , cryptonite
+    , deepseq
+    , digest
+    , exceptions
+    , fmt
+    , generic-lens
+    , http-api-data
+    , http-client
+    , http-media
+    , http-types
+    , memory
+    , servant
+    , servant-client
+    , servant-client-core
+    , servant-server
+    , text
+    , text-class
+    , time
+    , transformers
+    , vector
+  hs-source-dirs:
+      src
+  exposed-modules:
+      Cardano.Environment
+      Cardano.Wallet
+      Cardano.Wallet.Api
+      Cardano.Wallet.Api.Server
+      Cardano.Wallet.Api.Types
+      Cardano.Wallet.Binary
+      Cardano.Wallet.Binary.Packfile
+      Cardano.Wallet.CoinSelection
+      Cardano.Wallet.CoinSelection.Fee
+      Cardano.Wallet.CoinSelection.Policy.LargestFirst
+      Cardano.Wallet.CoinSelection.Policy.Random
+      Cardano.Wallet.DB
+      Cardano.Wallet.DB.MVar
+      Cardano.Wallet.Network
+      Cardano.Wallet.Network.HttpBridge
+      Cardano.Wallet.Network.HttpBridge.Api
+      Cardano.Wallet.Primitive.AddressDerivation
+      Cardano.Wallet.Primitive.AddressDiscovery
+      Cardano.Wallet.Primitive.Mnemonic
+      Cardano.Wallet.Primitive.Model
+      Cardano.Wallet.Primitive.Signing
+      Cardano.Wallet.Primitive.Types
+      Data.Quantity
+      Servant.Extra.ContentTypes
+  other-modules:
+      Paths_cardano_wallet_core
+
+test-suite unit
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+      -O2
+  if (!flag(development))
+    ghc-options:
+      -Werror
+  build-depends:
+      base
+    , aeson
+    , aeson-qq
+    , async
+    , base58-bytestring
+    , bytestring
+    , cardano-crypto
+    , cardano-wallet-core
+    , cborg
+    , containers
+    , cryptonite
+    , deepseq
+    , digest
+    , file-embed
+    , fmt
+    , generic-arbitrary
+    , hspec
+    , hspec-golden-aeson
+    , lens
+    , memory
+    , QuickCheck
+    , quickcheck-instances
+    , servant-server
+    , servant-swagger
+    , swagger2
+    , text
+    , text-class
+    , transformers
+    , yaml
+  type:
+     exitcode-stdio-1.0
+  hs-source-dirs:
+      test/unit
+  main-is:
+      Main.hs
+  other-modules:
+      Cardano.EnvironmentSpec
+      Cardano.Wallet.Api.TypesSpec
+      Cardano.Wallet.ApiSpec
+      Cardano.Wallet.Binary.PackfileSpec
+      Cardano.Wallet.BinarySpec
+      Cardano.Wallet.CoinSelection.FeeSpec
+      Cardano.Wallet.CoinSelection.Policy.LargestFirstSpec
+      Cardano.Wallet.CoinSelection.Policy.RandomSpec
+      Cardano.Wallet.CoinSelectionSpec
+      Cardano.Wallet.DB.MVarSpec
+      Cardano.Wallet.DBSpec
+      Cardano.Wallet.Network.HttpBridge.ApiSpec
+      Cardano.Wallet.Network.HttpBridgeSpec
+      Cardano.Wallet.NetworkSpec
+      Cardano.Wallet.Primitive.AddressDerivationSpec
+      Cardano.Wallet.Primitive.AddressDiscoverySpec
+      Cardano.Wallet.Primitive.MnemonicSpec
+      Cardano.Wallet.Primitive.ModelSpec
+      Cardano.Wallet.Primitive.TypesSpec
+      Cardano.Wallet.Primitive.SigningSpec
+      Cardano.WalletSpec
+      Data.QuantitySpec
+      Servant.Extra.ContentTypesSpec
+      Spec
+
+test-suite integration
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+      -O2
+  if (!flag(development))
+    ghc-options:
+      -Werror
+  build-depends:
+      base
+    , aeson
+    , aeson-qq
+    , async
+    , bytestring
+    , cardano-wallet-core
+    , cardano-wallet-launcher
+    , cborg
+    , cryptonite
+    , exceptions
+    , generic-lens
+    , hspec
+    , hspec-core
+    , hspec-expectations-lifted
+    , http-client
+    , http-api-data
+    , http-types
+    , process
+    , template-haskell
+    , text
+    , text-class
+    , time
+    , transformers
+  type:
+     exitcode-stdio-1.0
+  hs-source-dirs:
+      test/integration
+  main-is:
+      Main.hs
+  other-modules:
+      Cardano.WalletSpec
+      Cardano.Wallet.Network.HttpBridgeSpec
+      Test.Integration.Framework.DSL
+      Test.Integration.Framework.Request
+      Test.Integration.Scenario.Wallets
+
+benchmark restore
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+      -O2
+  if (!flag(development))
+    ghc-options:
+      -Werror
+  build-depends:
+      base
+    , async
+    , bytestring
+    , cardano-wallet-core
+    , cardano-wallet-launcher
+    , containers
+    , criterion-measurement
+    , cryptonite
+    , deepseq
+    , digest
+    , fmt
+    , generic-lens
+    , process
+    , say
+    , text
+    , text-class
+    , time
+    , transformers
+  type:
+     exitcode-stdio-1.0
+  hs-source-dirs:
+      test/bench
+  main-is:
+      Main.hs
+  other-modules:
+      Cardano.Wallet.Primitive.AddressDiscovery.Any

@@ -64,7 +64,7 @@ jobs:
     name: "Compiling"
     script:
     - mkdir -p ~/.local/bin
-    - travis_retry curl -L -o cardano-node-simple.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/test/data/cardano-node-simple/cardano-node-simple-3.0.1.tar.gz
+    - travis_retry curl -L -o cardano-node-simple.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/KtorZ/review-folder-structure/lib/core/test/data/cardano-node-simple/cardano-node-simple-3.0.1.tar.gz
     - tar xzf cardano-node-simple.tar.gz -C $HOME/.local/bin
     - cardano-node-simple --version
     - test "$(cardano-http-bridge --version)" = "cardano-http-bridge 0.0.1" || travis_retry cargo install --force --branch cardano-wallet-integration --git https://github.com/KtorZ/cardano-http-bridge.git
@@ -74,7 +74,7 @@ jobs:
     - stack --no-terminal build --only-snapshot
     - stack --no-terminal build --only-dependencies
     - stack --no-terminal build --test --no-run-tests --bench --no-run-benchmarks --coverage --haddock --no-haddock-deps
-    - tar czf $STACK_WORK_CACHE .stack-work
+    - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
 
   - stage: checks 🔬
     name: "HLint"
@@ -93,17 +93,17 @@ jobs:
     script:
     - export NETWORK=mainnet
     - tar xzf $STACK_WORK_CACHE
-    - stack --no-terminal test cardano-wallet:unit
+    - stack --no-terminal test cardano-wallet-core:unit
 
   - stage: checks 🔬
     name: "Tests (testnet)"
     script:
     - export NETWORK=testnet
     - tar xzf $STACK_WORK_CACHE
-    - travis_retry curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/test/data/cardano-http-bridge/hermes-testnet.tar.gz
+    - travis_retry curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/KtorZ/review-folder-structure/lib/core/test/data/cardano-http-bridge/hermes-testnet.tar.gz
     - tar xzf hermes-testnet.tar.gz -C $HOME
     - stack --no-terminal test --coverage
-    - tar czf $STACK_WORK_CACHE .stack-work
+    - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
 
   - stage: deploy 🚀
     if: type = push AND branch = master
@@ -125,7 +125,7 @@ jobs:
     - export LTS=$(cat stack.yaml | grep resolver) # Extract the LTS from the stack.yaml
     - git clone https://github.com/rubik/stack-hpc-coveralls && cd stack-hpc-coveralls && git checkout 3d8352d5642ab214a7a574bd797880ae39595a44 && echo $LTS > stack.yaml
     - stack --no-terminal install
-    - cd - && shc cardano-wallet unit integration
+    - cd - && shc combined all
 
   - stage: deploy 🚀
     if: tag =~ ^v

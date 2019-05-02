@@ -1,32 +1,7 @@
 - package:
-  - name: cardano-wallet
-  - section:
-    - name: bench:restore
-    - message:
-      - name: Module not compiled
-      - module: Cardano.Launcher.Windows
-  - section:
-    - name: exe:cardano-wallet exe:cardano-wallet-launcher test:unit
-    - message:
-      - name: Module reused between components
-      - module: Cardano.CLI
-  - section:
-    - name: exe:cardano-wallet-launcher
-    - message:
-      - name: Module not compiled
-      - module: Cardano.Launcher.Windows
-  - section:
-    - name: exe:cardano-wallet-launcher test:integration test:unit bench:restore
-    - message:
-      - name: Module reused between components
-      - module:
-        - Cardano.Launcher
-        - Cardano.Launcher.POSIX
+  - name: cardano-wallet-core
   - section:
     - name: test:integration
-    - message:
-      - name: Module not compiled
-      - module: Cardano.Launcher.Windows
     - message:
       - name: Weeds exported
       - module:
@@ -47,10 +22,15 @@
   - section:
     - name: test:unit
     - message:
-      - name: Module not compiled
-      - module: Cardano.Launcher.Windows
-    - message:
       - name: Weeds exported
       - module:
         - name: Spec
         - identifier: main
+
+- package:
+  - name: cardano-wallet-launcher
+  - section:
+    - name: library
+    - message:
+      - name: Module not compiled
+      - module: Cardano.Launcher.Windows
