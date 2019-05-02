@@ -50,12 +50,13 @@ import Prelude
 
 import Cardano.Wallet.Binary
     ( txId )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , Direction (..)
     , Dom (..)
     , Hash (..)
-    , IsOurs (..)
     , SlotId (..)
     , Tx (..)
     , TxIn (..)

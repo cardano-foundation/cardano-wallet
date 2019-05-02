@@ -29,12 +29,13 @@ import Cardano.Wallet.DB.MVar
     ( newDBLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), Key, Passphrase (..), XPrv, generateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet )
 import Cardano.Wallet.Primitive.Types
     ( Direction (..)
     , Hash (..)
-    , IsOurs (..)
     , SlotId (..)
     , Tx (..)
     , TxMeta (..)

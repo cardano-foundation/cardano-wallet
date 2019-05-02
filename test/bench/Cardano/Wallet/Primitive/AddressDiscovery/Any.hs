@@ -18,9 +18,9 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Any
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( AddressScheme (..) )
+    ( GenChange (..), IsOurs (..), IsOwned (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), IsOurs (..), WalletId (..), WalletName (..) )
+    ( Address (..), WalletId (..), WalletName (..) )
 import Control.DeepSeq
     ( NFData )
 import Crypto.Hash
@@ -52,12 +52,14 @@ instance NFData AnyAddressState
 instance IsOurs AnyAddressState where
     isOurs (Address addr) s@(AnyAddressState p) = (crc32 addr < p', s)
         where
-            p' = floor (fromIntegral (maxBound :: Word32) * p)
+          p' = floor (fromIntegral (maxBound :: Word32) * p)
 
-instance AddressScheme AnyAddressState where
-    keyFrom _ _ _ = Nothing
-    nextChangeAddress _ = error
-        "AddressScheme.nextChangeAddress: trying to generate change for \
+instance IsOwned AnyAddressState where
+    isOwned _ _ _ = Nothing
+
+instance GenChange AnyAddressState where
+    genChange _ = error
+        "GenChange.genChange: trying to generate change for \
         \an incompatible scheme 'AnyAddressState'. Please don't."
 
 initAnyState :: Text -> Double -> (WalletId, WalletName, AnyAddressState)

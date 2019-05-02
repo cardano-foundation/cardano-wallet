@@ -573,7 +573,6 @@ keyToAddress (Key xpub) =
 
     emptyAttributes = CBOR.encodeMapLen 0
 
-
 -- $use
 -- 'Key' and 'Index' allow for representing public keys, private keys, hardened
 -- indexes and soft (non-hardened) indexes for various level in a non-ambiguous

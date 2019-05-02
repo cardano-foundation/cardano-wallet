@@ -21,9 +21,9 @@ import Cardano.Wallet.DB.MVar
 import Cardano.Wallet.Network.HttpBridge
     ( newNetworkLayer )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( AddressScheme (..) )
+    ( GenChange (..), IsOurs (..), IsOwned (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), IsOurs (..), WalletId (..), WalletName (..) )
+    ( Address (..), WalletId (..), WalletName (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
@@ -157,9 +157,11 @@ instance Arbitrary DummyState where
 instance IsOurs DummyState where
     isOurs _ s = (True, s)
 
-instance AddressScheme DummyState where
-    keyFrom _ _ _ = Nothing
-    nextChangeAddress s = (Address "dummy", s)
+instance IsOwned DummyState where
+    isOwned _ _ _ = Nothing
+
+instance GenChange DummyState where
+    genChange s = (Address "dummy", s)
 
 instance Arbitrary WalletId where
     shrink _ = []
