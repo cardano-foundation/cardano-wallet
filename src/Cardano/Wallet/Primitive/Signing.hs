@@ -53,7 +53,7 @@ import qualified Data.ByteArray as BA
 newtype SignTxError
     = KeyNotFoundForAddress Address
     -- ^ We tried to sign a transaction with inputs that are unknown to us?
-    deriving Show
+    deriving (Eq, Show)
 
 -- | Construct a standard transaction
 --
@@ -127,4 +127,3 @@ sign tag (key, (Passphrase pwd)) =
 -- a lot more cases.
 newtype SignTag
     = SignTx (Hash "tx")
-    deriving (Eq, Ord, Show)

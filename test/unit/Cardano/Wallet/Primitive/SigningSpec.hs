@@ -25,7 +25,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressScheme (..) )
 import Cardano.Wallet.Primitive.Signing
-    ( mkStdTx )
+    ( SignTxError (..), mkStdTx )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Coin (..), Hash (..), TxIn (..), TxOut (..) )
 import Control.Arrow
@@ -46,6 +46,21 @@ import qualified Data.Map as Map
 
 spec :: Spec
 spec = do
+    describe "mkStdTx" $ do
+        it "Unknown input address yields an error" $ do
+            let addr = keyToAddress $ publicKey $ xprv "addr"
+            let res = mkStdTx s creds inps outs
+                  where
+                    s = mempty :: Map Address (Key 'AddressK XPrv)
+                    creds = (xprv "arbitrary", mempty)
+                    inps =
+                        [ ( TxIn (Hash "arbitrary") 0
+                          , TxOut addr (Coin 0)
+                          )
+                        ]
+                    outs = []
+            res `shouldBe` Left (KeyNotFoundForAddress addr)
+
     describe "Golden Tests - Cardano-SL - signed tx" $ case network of
         Mainnet -> do
             goldenTestSignedTx 1
@@ -582,7 +597,7 @@ spec = do
                                 Golden Tests
 -------------------------------------------------------------------------------}
 
-xprv :: ByteString -> Key 'AddressK XPrv
+xprv :: ByteString -> Key depth XPrv
 xprv seed =
     unsafeGenerateKeyFromSeed (Passphrase (BA.convert seed), mempty) mempty
 
