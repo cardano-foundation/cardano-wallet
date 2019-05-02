@@ -234,7 +234,7 @@ newtype SignedTx
 SignedTx :: ByteString -> SignedTx
 [$sel:signedTx:SignedTx] :: SignedTx -> ByteString
 data TxWitness
-PublicKeyWitness :: ByteString -> TxWitness
+PublicKeyWitness :: ByteString -> Hash "signature" -> TxWitness
 ScriptWitness :: ByteString -> TxWitness
 RedeemWitness :: ByteString -> TxWitness
 txIns :: Set Tx -> Set TxIn
@@ -393,6 +393,8 @@ instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.TxIn
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.TxIn
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.TxIn
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.TxIn
+instance GHC.Show.Show Cardano.Wallet.Primitive.Types.TxWitness
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.TxWitness
 instance GHC.Classes.Ord (Cardano.Wallet.Primitive.Types.Hash tag)
 instance GHC.Classes.Eq (Cardano.Wallet.Primitive.Types.Hash tag)
 instance GHC.Generics.Generic (Cardano.Wallet.Primitive.Types.Hash tag)
@@ -420,8 +422,6 @@ instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.Address
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.Address
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.Address
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.Address
-instance GHC.Show.Show Cardano.Wallet.Primitive.Types.TxWitness
-instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.TxWitness
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.SignedTx
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.SignedTx
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.SignedTx
@@ -872,7 +872,7 @@ encodeProtocolMagic :: ProtocolMagic -> Encoding
 --   NOTE: This is a rather expensive operation
 txId :: Tx -> Hash "Tx"
 data TxWitness
-PublicKeyWitness :: ByteString -> TxWitness
+PublicKeyWitness :: ByteString -> Hash "signature" -> TxWitness
 ScriptWitness :: ByteString -> TxWitness
 RedeemWitness :: ByteString -> TxWitness
 
@@ -1295,9 +1295,9 @@ instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 
 -- | This module provides functionality for signing transactions.
 --   
---   It relies on the binary CBOR format of transactions, an AddressScheme
---   for deriving address private keys, and cardano-crypto for the actual
---   signing.
+--   It relies on the binary CBOR format of transactions, an
+--   <a>AddressScheme</a> for deriving address private keys, and
+--   cardano-crypto for the actual signing.
 module Cardano.Wallet.Primitive.Signing
 
 -- | Construct a standard transaction
@@ -1305,11 +1305,14 @@ module Cardano.Wallet.Primitive.Signing
 --   " Standard " here refers to the fact that we do not deal with
 --   redemption, multisignature transactions, etc.
 mkStdTx :: AddressScheme s => s -> (Key  'RootK XPrv, Passphrase "encryption") -> [(TxIn, TxOut)] -> [TxOut] -> Either SignTxError (Tx, [TxWitness])
+
+-- | Possible signing error
 newtype SignTxError
+
+-- | We tried to sign a transaction with inputs that are unknown to us?
 KeyNotFoundForAddress :: Address -> SignTxError
-instance GHC.Show.Show Cardano.Wallet.Primitive.Signing.SignTag
-instance GHC.Classes.Ord Cardano.Wallet.Primitive.Signing.SignTag
-instance GHC.Classes.Eq Cardano.Wallet.Primitive.Signing.SignTag
+instance GHC.Show.Show Cardano.Wallet.Primitive.Signing.SignTxError
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Signing.SignTxError
 
 
 -- | Database / Pesistence layer for the wallet backend. This is where we
