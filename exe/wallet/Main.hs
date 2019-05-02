@@ -189,7 +189,7 @@ exec manager args
   where
     parseArg :: FromText a => Arguments -> Option -> IO a
     parseArg = parseArgWith cli
-    listWallets :<|> getWallet = client (Proxy :: (Proxy (ListWallets :<|> GetWallet)))
+    listWallets :<|> getWallet = client (Proxy :: (Proxy ("v2" :> ListWallets :<|> GetWallet)))
 
 -- data HttpClient = HttpClient
 --     { listAddresses :: WalletId -> ClientM ApiAddress -- FIXME: add AddressState
