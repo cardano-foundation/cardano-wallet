@@ -431,17 +431,25 @@ decodeTxWitness = do
     _ <- CBOR.decodeListLenCanonicalOf 2
     t <- CBOR.decodeWord8
     case t of
-        0 -> CBOR.decodeTag *> (PublicKeyWitness <$> CBOR.decodeBytes)
+        0 -> do
+            _ <- CBOR.decodeTag
+            bs <- CBOR.decodeBytes
+            case CBOR.deserialiseFromBytes decodePKWitness (BL.fromStrict bs) of
+                Left err -> fail $ show err
+                Right (_, input) -> return input
         1 -> CBOR.decodeTag *> (ScriptWitness <$> CBOR.decodeBytes)
         2 -> CBOR.decodeTag *> (RedeemWitness <$> CBOR.decodeBytes)
         _ -> fail
             $ "decodeTxWitness: unknown tx witness constructor: " <> show t
+  where
+    decodePKWitness = do
+        _ <- CBOR.decodeListLenCanonicalOf 2
+        (PublicKeyWitness <$> CBOR.decodeBytes <*> (Hash <$> CBOR.decodeBytes))
 
 decodeUpdateProof :: CBOR.Decoder s ()
 decodeUpdateProof = do
     _ <- CBOR.decodeBytes -- Update Hash
     return ()
-
 
 -- * Encoding
 
@@ -502,7 +510,6 @@ encodeAddressPayload payload = mempty
     <> CBOR.encodeBytes payload
     <> CBOR.encodeWord32 (crc32 payload)
 
-
 encodeSignedTx :: (Tx, [TxWitness]) -> CBOR.Encoding
 encodeSignedTx (tx, witnesses) = mempty
     <> CBOR.encodeListLen 2
@@ -510,17 +517,25 @@ encodeSignedTx (tx, witnesses) = mempty
     <> encodeList encodeTxWitness witnesses
 
 encodeTxWitness :: TxWitness -> CBOR.Encoding
-encodeTxWitness wit = mempty
+encodeTxWitness witness = mempty
     <> CBOR.encodeListLen 2
     <> CBOR.encodeWord8 tag
-    <> CBOR.encodeTag 24 -- Hard-Coded Tag value in cardano-sl
-    <> CBOR.encodeBytes bytes -- the actual witness
+    <> CBOR.encodeTag 24
+    <> CBOR.encodeBytes contents
   where
-    (tag, bytes) = raw wit
 
-    raw (PublicKeyWitness bs) = (0, bs)
-    raw (ScriptWitness bs) = (1, bs)
-    raw (RedeemWitness bs) = (2, bs)
+    tag = case witness of
+        PublicKeyWitness _ _ -> 0
+        ScriptWitness _ -> 1
+        RedeemWitness _ -> 2
+
+    contents = case witness of
+        PublicKeyWitness xPub (Hash sig) -> toByteString $
+            CBOR.encodeListLen 2
+            <> CBOR.encodeBytes xPub
+            <> CBOR.encodeBytes sig
+        ScriptWitness bs -> bs
+        RedeemWitness bs -> bs
 
 encodeTx :: Tx -> CBOR.Encoding
 encodeTx tx = mempty
@@ -573,7 +588,6 @@ encodeTxOut (TxOut (Address addr) (Coin c)) = mempty
 -- NOTE: This is a rather expensive operation
 txId :: Tx -> Hash "Tx"
 txId = blake2b256 . encodeTx
-
 
 -- * Helpers
 

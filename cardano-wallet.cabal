@@ -168,6 +168,7 @@ test-suite unit
       Cardano.Wallet.Primitive.MnemonicSpec
       Cardano.Wallet.Primitive.ModelSpec
       Cardano.Wallet.Primitive.TypesSpec
+      Cardano.Wallet.Primitive.SigningSpec
       Cardano.WalletSpec
       Data.Text.ClassSpec
       Data.QuantitySpec
