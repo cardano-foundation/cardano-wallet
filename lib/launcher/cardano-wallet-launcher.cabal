@@ -36,7 +36,7 @@ library
     , process
     , say
   hs-source-dirs:
-      .
+      src
   exposed-modules:
       Cardano.Launcher
   if os(windows)

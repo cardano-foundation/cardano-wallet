@@ -4,6 +4,7 @@ packages:
 - lib/core
 - lib/cli
 - lib/launcher
+- lib/text-class
 
 extra-deps:
 - base58-bytestring-0.1.0

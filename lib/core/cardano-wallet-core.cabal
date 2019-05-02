@@ -57,6 +57,7 @@ library
     , servant-client-core
     , servant-server
     , text
+    , text-class
     , time
     , transformers
     , vector
@@ -86,7 +87,6 @@ library
       Cardano.Wallet.Primitive.Signing
       Cardano.Wallet.Primitive.Types
       Data.Quantity
-      Data.Text.Class
       Servant.Extra.ContentTypes
   other-modules:
       Paths_cardano_wallet_core
@@ -131,13 +131,13 @@ test-suite unit
     , servant-swagger
     , swagger2
     , text
+    , text-class
     , transformers
     , yaml
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
       test/unit
-      test
   main-is:
       Main.hs
   other-modules:
@@ -162,11 +162,9 @@ test-suite unit
       Cardano.Wallet.Primitive.TypesSpec
       Cardano.Wallet.Primitive.SigningSpec
       Cardano.WalletSpec
-      Data.Text.ClassSpec
       Data.QuantitySpec
       Servant.Extra.ContentTypesSpec
       Spec
-      Test.Text.Roundtrip
 
 test-suite integration
   default-language:
@@ -202,6 +200,7 @@ test-suite integration
     , process
     , template-haskell
     , text
+    , text-class
     , time
     , transformers
   type:
@@ -246,6 +245,7 @@ benchmark restore
     , process
     , say
     , text
+    , text-class
     , time
     , transformers
   type:

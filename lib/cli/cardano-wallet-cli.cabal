@@ -32,12 +32,12 @@ library
   build-depends:
       base
     , ansi-terminal
-    , cardano-wallet-core
     , docopt
     , fmt
     , text
+    , text-class
   hs-source-dirs:
-      .
+      src
   exposed-modules:
       Cardano.CLI
 
@@ -58,16 +58,14 @@ test-suite unit
       base
     , QuickCheck
     , cardano-wallet-cli
-    , cardano-wallet-core
     , generic-arbitrary
     , hspec
+    , text-class
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
       test/unit
-      ../core/test
   main-is:
       Main.hs
   other-modules:
       Cardano.CLISpec
-      Test.Text.Roundtrip
