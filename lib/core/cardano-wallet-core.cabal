@@ -89,7 +89,7 @@ library
       Data.Text.Class
       Servant.Extra.ContentTypes
   other-modules:
-      Paths_cardano_wallet
+      Paths_cardano_wallet_core
 
 test-suite unit
   default-language:
@@ -108,7 +108,6 @@ test-suite unit
       base
     , aeson
     , aeson-qq
-    , ansi-terminal
     , async
     , base58-bytestring
     , bytestring
@@ -119,7 +118,6 @@ test-suite unit
     , cryptonite
     , deepseq
     , digest
-    , docopt
     , file-embed
     , fmt
     , generic-arbitrary
@@ -127,7 +125,6 @@ test-suite unit
     , hspec-golden-aeson
     , lens
     , memory
-    , process
     , QuickCheck
     , quickcheck-instances
     , servant-server
@@ -141,15 +138,10 @@ test-suite unit
   hs-source-dirs:
       test/unit
       test
-      app
   main-is:
       Main.hs
   other-modules:
-      Cardano.CLI
-      Cardano.CLISpec
       Cardano.EnvironmentSpec
-      Cardano.Launcher
-      Cardano.LauncherSpec
       Cardano.Wallet.Api.TypesSpec
       Cardano.Wallet.ApiSpec
       Cardano.Wallet.Binary.PackfileSpec
@@ -175,12 +167,6 @@ test-suite unit
       Servant.Extra.ContentTypesSpec
       Spec
       Test.Text.Roundtrip
-  if os(windows)
-    build-depends: Win32
-    other-modules: Cardano.Launcher.Windows
-  else
-    build-depends: unix, say
-    other-modules: Cardano.Launcher.POSIX
 
 test-suite integration
   default-language:
@@ -202,10 +188,10 @@ test-suite integration
     , async
     , bytestring
     , cardano-wallet-core
+    , cardano-wallet-launcher
     , cborg
     , cryptonite
     , exceptions
-    , fmt
     , generic-lens
     , hspec
     , hspec-core
@@ -214,7 +200,6 @@ test-suite integration
     , http-api-data
     , http-types
     , process
-    , say
     , template-haskell
     , text
     , time
@@ -223,22 +208,14 @@ test-suite integration
      exitcode-stdio-1.0
   hs-source-dirs:
       test/integration
-      app
   main-is:
       Main.hs
   other-modules:
       Cardano.WalletSpec
       Cardano.Wallet.Network.HttpBridgeSpec
-      Cardano.Launcher
       Test.Integration.Framework.DSL
       Test.Integration.Framework.Request
       Test.Integration.Scenario.Wallets
-  if os(windows)
-    build-depends: Win32
-    other-modules: Cardano.Launcher.Windows
-  else
-    build-depends: unix
-    other-modules: Cardano.Launcher.POSIX
 
 benchmark restore
   default-language:
@@ -257,7 +234,8 @@ benchmark restore
       base
     , async
     , bytestring
-    , cardano-wallet
+    , cardano-wallet-core
+    , cardano-wallet-launcher
     , containers
     , criterion-measurement
     , cryptonite
@@ -274,15 +252,7 @@ benchmark restore
      exitcode-stdio-1.0
   hs-source-dirs:
       test/bench
-      app
   main-is:
       Main.hs
   other-modules:
-      Cardano.Launcher
       Cardano.Wallet.Primitive.AddressDiscovery.Any
-  if os(windows)
-    build-depends: Win32
-    other-modules: Cardano.Launcher.Windows
-  else
-    build-depends: unix
-    other-modules: Cardano.Launcher.POSIX
