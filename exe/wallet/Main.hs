@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -24,23 +25,22 @@ import Cardano.CLI
     ( Port (..)
     , getOptionalSensitiveValue
     , getRequiredSensitiveValue
+    , getRequiredSensitiveValueRaw
     , parseArgWith
     )
 import Cardano.Wallet
     ( mkWalletLayer )
 import Cardano.Wallet.Api
-    ( Api, GetWallet, ListWallets )
+    ( Api, GetWallet, ListWallets, PostWallet )
 
 import Cardano.Wallet.Api.Server
     ( server )
 import Cardano.Wallet.Api.Types
-    ( ApiT (..) )
+    ( ApiMnemonicT (..), ApiT (..), WalletPostData (..) )
 import Cardano.Wallet.Compatibility.HttpBridge
     ( HttpBridge )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..), Passphrase (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( AddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
@@ -97,7 +97,7 @@ Usage:
   cardano-wallet list address --wallet-id=STRING
   cardano-wallet list wallets [--port=INT]
   cardano-wallet get wallet --wallet-id=STRING [--port=INT]
-  cardano-wallet create wallet --name=STRING [--address-pool-gap=INT]
+  cardano-wallet create wallet --name=STRING [--address-pool-gap=INT] [--port=INT]
   cardano-wallet delete wallet --id=STRING
   cardano-wallet update wallet --id=STRING --name=STRING
   cardano-wallet -h | --help
@@ -140,7 +140,7 @@ exec manager args
 
     | args `isPresent` command "wallets" && args `isPresent` command "list" = do
         walletPort <- args `parseArg` longOption "port"
-        res <- runClientM listWallets (mkClientEnv manager (BaseUrl Http "localhost" walletPort ""))
+        res <- runClient walletPort listWallets
         case res of
             Left err -> putStrLn $ "Error: " ++ show err
             Right wallets -> print wallets
@@ -148,37 +148,41 @@ exec manager args
     | args `isPresent` command "wallet" && args `isPresent` command "get" = do
         wid <- args `parseArg` longOption "wallet-id"
         walletPort <- args `parseArg` longOption "port"
-        res <- runClientM (getWallet $ ApiT wid) (mkClientEnv manager (BaseUrl Http "localhost" walletPort ""))
+        res <- runClient walletPort (getWallet $ ApiT wid)
         case res of
             Left err -> putStrLn $ "Error: " ++ show err
             Right wallet -> print wallet
 
-
     | args `isPresent` command "wallet" && args `isPresent` command "create" = do
+        walletPort <- args `parseArg` longOption "port"
         poolGap <- args `parseArg` longOption "address-pool-gap"
-        name <- args `parseArg` longOption "name"
-        mnemonic <- getRequiredSensitiveValue
+        walletName <- args `parseArg` longOption "name"
+        (mnemonic, mnemonicRaw) <- getRequiredSensitiveValueRaw
             (fromMnemonic @'[15,18,21,24] @"seed" . T.words)
             "Please enter a 15–24 word mnemonic sentence: "
-        sndFactor <- getOptionalSensitiveValue
+        (sndFactor, sndFactorRaw) <- getOptionalSensitiveValueRaw
             (fromMnemonic @'[9,12] @"generation" . T.words)
             "Please enter a 9–12 word mnemonic second factor: \n\
             \(Enter a blank line if you do not wish to use a second factor.)"
-        passphrase <- getRequiredSensitiveValue
+        walletPassphrase <- getRequiredSensitiveValue
             (fromText @(Passphrase "encryption"))
             "Please enter a passphrase: "
-        print
-            ( poolGap :: AddressPoolGap
-            , name :: WalletName
-            , mnemonic
-            , sndFactor
-            , passphrase
-            )
+        let walletData =
+                WalletPostData
+                    (Just $ ApiT poolGap)
+                    (ApiMnemonicT (mnemonic, T.words mnemonicRaw))
+                    (ApiMnemonicT . (, T.words sndFactorRaw) <$> sndFactor)
+                    (ApiT walletName)
+                    (ApiT walletPassphrase)
+        res <- runClient walletPort (postWallet walletData)
+        case res of
+            Left err -> putStrLn $ "Error: " ++ show err
+            Right wallet -> print wallet
 
     | args `isPresent` command "wallet" && args `isPresent` command "update" = do
         wid <- args `parseArg` longOption "id"
-        name <- args `parseArg` longOption "name"
-        print (wid :: WalletId, name :: WalletName)
+        walletName <- args `parseArg` longOption "name"
+        print (wid :: WalletId, walletName :: WalletName)
 
     | args `isPresent` command "wallet" && args `isPresent` command "delete" = do
         wid <- args `parseArg` longOption "id"
@@ -189,7 +193,12 @@ exec manager args
   where
     parseArg :: FromText a => Arguments -> Option -> IO a
     parseArg = parseArgWith cli
-    listWallets :<|> getWallet = client (Proxy :: (Proxy ("v2" :> ListWallets :<|> GetWallet)))
+    runClient port endpoint =
+        runClientM
+            endpoint
+            (mkClientEnv manager (BaseUrl Http "localhost" port ""))
+    listWallets :<|> getWallet :<|> postWallet =
+        client (Proxy @("v2" :> ListWallets :<|> GetWallet :<|> PostWallet))
 
 -- data HttpClient = HttpClient
 --     { listAddresses :: WalletId -> ClientM ApiAddress -- FIXME: add AddressState

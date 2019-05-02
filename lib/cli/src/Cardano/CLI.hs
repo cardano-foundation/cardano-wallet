@@ -17,7 +17,9 @@ module Cardano.CLI
 
     -- * Parsing Arguments
     , parseArgWith
+    , getRequiredSensitiveValueRaw
     , getRequiredSensitiveValue
+    , getOptionalSensitiveValueRaw
     , getOptionalSensitiveValue
     ) where
 
@@ -75,12 +77,12 @@ parseArgWith cli args option =
 
 -- | Repeatedly prompt a user for a sensitive value, until the supplied value is
 -- valid.
-getRequiredSensitiveValue
+getRequiredSensitiveValueRaw
     :: Buildable e
     => (Text -> Either e a)
     -> String
-    -> IO a
-getRequiredSensitiveValue parse prompt = loop where
+    -> IO (a, Text)
+getRequiredSensitiveValueRaw parse prompt = loop where
     loop = do
         putStrLn prompt
         line <- getLineWithSensitiveData
@@ -88,28 +90,42 @@ getRequiredSensitiveValue parse prompt = loop where
             Left e -> do
                 TIO.putStrLn (pretty e)
                 loop
-            Right v -> pure v
+            Right v -> pure (v, line)
+
+getRequiredSensitiveValue
+    :: Buildable e
+    => (Text -> Either e a)
+    -> String
+    -> IO a
+getRequiredSensitiveValue parse prompt = fst <$> getRequiredSensitiveValueRaw parse prompt
 
 -- | Repeatedly prompt a user for an optional sensitive value, until either the
 -- supplied value is valid, or until the user enters an empty line (indicating
 -- that they do not wish to specify such a value).
-getOptionalSensitiveValue
+getOptionalSensitiveValueRaw
     :: Buildable e
-    => (Text -> Either e a )
+    => (Text -> Either e a)
     -> String
-    -> IO (Maybe a)
-getOptionalSensitiveValue parse prompt = loop where
+    -> IO (Maybe a, Text)
+getOptionalSensitiveValueRaw parse prompt = loop where
     loop = do
         putStrLn prompt
         line <- getLineWithSensitiveData
         if T.length line == 0
-        then pure Nothing
+        then pure (Nothing, line)
         else case parse line of
             Left e -> do
                 TIO.putStrLn (pretty e)
                 loop
             Right v ->
-                pure $ Just v
+                pure (Just v, line)
+
+getOptionalSensitiveValue
+    :: Buildable e
+    => (Text -> Either e a)
+    -> String
+    -> IO (Maybe a)
+getOptionalSensitiveValue parse prompt = fst <$> getOptionalSensitiveValueRaw parse prompt
 
 -- | Read a line of user input containing sensitive data from the terminal.
 --
