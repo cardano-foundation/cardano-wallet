@@ -36,6 +36,8 @@ executable cardano-wallet
     , cardano-wallet-http-bridge
     , docopt
     , servant-server
+    , servant-client
+    , http-client
     , text
     , text-class
     , warp

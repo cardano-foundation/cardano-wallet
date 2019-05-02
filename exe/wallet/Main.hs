@@ -29,7 +29,8 @@ import Cardano.CLI
 import Cardano.Wallet
     ( mkWalletLayer )
 import Cardano.Wallet.Api
-    ( Api )
+    ( Api, ListWallets )
+
 import Cardano.Wallet.Api.Server
     ( server )
 import Cardano.Wallet.Compatibility.HttpBridge
@@ -48,8 +49,12 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
     ( FromText (..), ToText (..) )
+import Network.HTTP.Client
+    ( Manager, defaultManagerSettings, newManager )
 import Servant
     ( (:>), serve )
+import Servant.Client
+    ( BaseUrl (..), Scheme (..), client, mkClientEnv, runClientM )
 import System.Console.Docopt
     ( Arguments
     , Docopt
@@ -88,7 +93,7 @@ Usage:
   cardano-wallet server [--port=INT] [--bridge-port=INT]
   cardano-wallet generate mnemonic [--size=INT]
   cardano-wallet list address --wallet-id=STRING
-  cardano-wallet list wallet
+  cardano-wallet list wallet [--port=INT]
   cardano-wallet create wallet --name=STRING [--address-pool-gap=INT]
   cardano-wallet delete wallet --id=STRING
   cardano-wallet update wallet --id=STRING --name=STRING
@@ -105,14 +110,15 @@ Options:
 main :: IO ()
 main = do
     hSetBuffering stdout NoBuffering
-    getArgs >>= parseArgsOrExit cli >>= exec
+    manager <- newManager defaultManagerSettings
+    getArgs >>= parseArgsOrExit cli >>= exec manager
 
 {-------------------------------------------------------------------------------
                          Command and Argument Parsing
 -------------------------------------------------------------------------------}
 
-exec :: Arguments -> IO ()
-exec args
+exec :: Manager -> Arguments -> IO ()
+exec manager args
     | args `isPresent` (longOption "help") = do
         exitWithUsage cli
 
@@ -130,7 +136,11 @@ exec args
         print (wid :: WalletId)
 
     | args `isPresent` command "wallet" && args `isPresent` command "list" = do
-        return ()
+        walletPort <- args `parseArg` longOption "port"
+        res <- runClientM listWallets (mkClientEnv manager (BaseUrl Http "localhost" walletPort ""))
+        case res of
+            Left err -> putStrLn $ "Error: " ++ show err
+            Right wallets -> print wallets
 
     | args `isPresent` command "wallet" && args `isPresent` command "create" = do
         poolGap <- args `parseArg` longOption "address-pool-gap"
@@ -167,6 +177,11 @@ exec args
   where
     parseArg :: FromText a => Arguments -> Option -> IO a
     parseArg = parseArgWith cli
+    listWallets = client (Proxy :: Proxy ListWallets)
+
+-- data HttpClient = HttpClient
+--     { listAddresses :: WalletId -> ClientM ApiAddress -- FIXME: add AddressState
+--     }
 
 -- | Start a web-server to serve the wallet backend API on the given port.
 execServer :: Port "wallet" -> Port "bridge" -> IO ()
