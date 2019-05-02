@@ -6,6 +6,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -38,7 +39,7 @@ module Cardano.Wallet
 import Prelude
 
 import Cardano.Wallet.Binary
-    ( encodeSignedTx, toByteString, txId )
+    ( encodeSignedTx, toByteString )
 import Cardano.Wallet.CoinSelection
     ( CoinSelection (..)
     , CoinSelectionError (..)
@@ -85,6 +86,7 @@ import Cardano.Wallet.Primitive.Types
     , SignedTx (..)
     , SlotId (..)
     , Tx
+    , TxId (..)
     , TxMeta (..)
     , TxOut (..)
     , TxStatus (..)
@@ -140,7 +142,7 @@ import qualified Data.Text.IO as TIO
                                  Types
 -------------------------------------------------------------------------------}
 
-data WalletLayer s = WalletLayer
+data WalletLayer s t = WalletLayer
     { createWallet
         :: WalletId
         -> WalletName
@@ -150,7 +152,7 @@ data WalletLayer s = WalletLayer
 
     , readWallet
         :: WalletId
-        -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata)
+        -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)
         -- ^ Retrieve the wallet state for the wallet with the given ID.
 
     , listWallets
@@ -233,10 +235,10 @@ data ErrSubmitTx
 
 -- | Create a new instance of the wallet layer.
 mkWalletLayer
-    :: forall s. (IsOwned s, GenChange s, NFData s, Show s)
-    => DBLayer IO s
+    :: forall s t. (IsOwned s, GenChange s, NFData s, Show s, TxId t)
+    => DBLayer IO s t
     -> NetworkLayer IO
-    -> WalletLayer s
+    -> WalletLayer s t
 mkWalletLayer db network = WalletLayer
 
     {---------------------------------------------------------------------------
@@ -320,7 +322,7 @@ mkWalletLayer db network = WalletLayer
         withExceptT ErrSubmitTxNetwork $ postTx network signed
         DB.withLock db $ withExceptT ErrSubmitTxNoSuchWallet $ do
             (w, _) <- _readWallet wid
-            let history = Map.fromList [(txId tx, (tx, meta))]
+            let history = Map.fromList [(txId @t tx, (tx, meta))]
             DB.putCheckpoint db (PrimaryKey wid) (newPending tx w)
             DB.putTxHistory db (PrimaryKey wid) history
 
@@ -335,7 +337,7 @@ mkWalletLayer db network = WalletLayer
   where
     _readWallet
         :: WalletId
-        -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata)
+        -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)
     _readWallet wid = maybeToExceptT (ErrNoSuchWallet wid) $ do
         cp <- MaybeT $ DB.readCheckpoint db (PrimaryKey wid)
         meta <- MaybeT $ DB.readWalletMeta db (PrimaryKey wid)

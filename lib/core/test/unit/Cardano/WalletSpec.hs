@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -23,7 +24,7 @@ import Cardano.Wallet.Network.HttpBridge
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( GenChange (..), IsOurs (..), IsOwned (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), WalletId (..), WalletName (..) )
+    ( Address (..), Hash (..), TxId (..), WalletId (..), WalletName (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
@@ -51,6 +52,7 @@ import Test.QuickCheck.Monadic
 
 import qualified Cardano.Wallet.DB as DB
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 
 spec :: Spec
@@ -127,8 +129,8 @@ walletIdInjective (walletA, walletB) = monadicIO $ liftIO $ do
 -------------------------------------------------------------------------------}
 
 data WalletLayerFixture = WalletLayerFixture
-    { _fixtureDBLayer :: DBLayer IO DummyState
-    , _fixtureWalletLayer :: WalletLayer DummyState
+    { _fixtureDBLayer :: DBLayer IO DummyState DummyTarget
+    , _fixtureWalletLayer :: WalletLayer DummyState DummyTarget
     , _fixtureWallet :: [WalletId]
     }
 
@@ -138,12 +140,17 @@ setupFixture
 setupFixture (wid, wname, wstate) = do
     db <- newDBLayer
     network <- newNetworkLayer 8000
-    let wl = mkWalletLayer db network
+    let wl = mkWalletLayer @_ @DummyTarget db network
     res <- runExceptT $ createWallet wl wid wname wstate
     let wal = case res of
             Left _ -> []
             Right walletId -> [walletId]
     pure $ WalletLayerFixture db wl wal
+
+data DummyTarget
+
+instance TxId DummyTarget where
+    txId = Hash . B8.pack . show
 
 data DummyState = DummyState
     deriving (Generic, Show, Eq)

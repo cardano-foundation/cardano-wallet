@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Primitive.ModelSpec
@@ -11,7 +12,7 @@ module Cardano.Wallet.Primitive.ModelSpec
 import Prelude
 
 import Cardano.Wallet.Binary
-    ( txId )
+    ( HttpBridge )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Model
@@ -35,6 +36,7 @@ import Cardano.Wallet.Primitive.Types
     , ShowFmt (..)
     , SlotId (..)
     , Tx (..)
+    , TxId (..)
     , TxIn (..)
     , TxMeta (direction)
     , TxOut (..)
@@ -140,7 +142,8 @@ prop_applyBlockBasic s =
     cond1 = not $ null $ (Set.fromList addresses) \\ (ourAddresses s)
     prop =
         let
-            wallet = foldl (\cp b -> snd $ applyBlock b cp) (initWallet s) blockchain
+            cp0 = initWallet @_ @HttpBridge s
+            wallet = foldl (\cp b -> snd $ applyBlock b cp) cp0 blockchain
             utxo = totalUTxO wallet
             utxo' = evalState (foldM (flip updateUTxO) mempty blockchain) s
         in
@@ -154,7 +157,8 @@ prop_applyBlockTxHistoryIncoming :: WalletState -> Property
 prop_applyBlockTxHistoryIncoming s =
     property (outs (filter isIncoming txs) `overlaps` ourAddresses s')
   where
-    (txs, s') = bimap Map.elems getState $ applyBlocks blockchain (initWallet s)
+    cp0 = initWallet @_ @HttpBridge s
+    (txs, s') = bimap Map.elems getState $ applyBlocks blockchain cp0
     isIncoming (_, m) = direction m == Incoming
     outs = Set.fromList . concatMap (map address . outputs . fst)
     overlaps a b
@@ -166,7 +170,7 @@ prop_applyBlockCurrentTip :: ApplyBlock -> Property
 prop_applyBlockCurrentTip (ApplyBlock s _ b) =
     property $ currentTip wallet' > currentTip wallet
   where
-    wallet = initWallet s
+    wallet = initWallet @_ @HttpBridge s
     wallet' = snd $ applyBlock b wallet
 
 {-------------------------------------------------------------------------------
@@ -221,7 +225,7 @@ txOutsOurs txs =
 -- inputs for the subsequent blocks.
 utxoFromTx :: Tx -> UTxO
 utxoFromTx tx@(Tx _ outs) =
-    UTxO $ Map.fromList $ zip (TxIn (txId tx) <$> [0..]) outs
+    UTxO $ Map.fromList $ zip (TxIn (txId @HttpBridge tx) <$> [0..]) outs
 
 
 {-------------------------------------------------------------------------------

@@ -18,8 +18,11 @@
 
 module Cardano.Wallet.Binary
     (
+    -- * Target
+      HttpBridge
+
     -- * Decoding
-      decodeBlock
+    , decodeBlock
     , decodeBlockHeader
     , decodeTx
     , decodeTxWitness
@@ -31,9 +34,6 @@ module Cardano.Wallet.Binary
     , encodeTxWitness
     , encodeSignedTx
     , encodeProtocolMagic
-
-    -- * Hashing
-    , txId
 
     -- * Signing
     , TxWitness (..)
@@ -59,6 +59,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , SlotId (..)
     , Tx (..)
+    , TxId (..)
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
@@ -85,6 +86,11 @@ import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Lazy as BL
 
+-- Target
+
+-- | A type representing the http-bridge as a network target. This has an
+-- influence on binary serializer & network primitives. See also 'TxId'
+data HttpBridge
 
 -- Decoding
 
@@ -586,8 +592,8 @@ encodeTxOut (TxOut (Address addr) (Coin c)) = mempty
 -- It returns an hex-encoded 64-byte hash.
 --
 -- NOTE: This is a rather expensive operation
-txId :: Tx -> Hash "Tx"
-txId = blake2b256 . encodeTx
+instance TxId HttpBridge where
+    txId = blake2b256 . encodeTx
 
 -- * Helpers
 

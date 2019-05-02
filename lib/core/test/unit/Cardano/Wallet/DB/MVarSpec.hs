@@ -38,6 +38,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , SlotId (..)
     , Tx (..)
+    , TxId (..)
     , TxMeta (..)
     , TxStatus (..)
     , WalletDelegation (..)
@@ -188,7 +189,7 @@ spec = do
     -- | Wrap the result of 'readTxHistory' in an arbitrary identity Applicative
     readTxHistoryF
         :: Monad m
-        => DBLayer m s
+        => DBLayer m s t
         -> PrimaryKey WalletId
         -> m (Identity (Map (Hash "Tx") (Tx, TxMeta)))
     readTxHistoryF db = fmap Identity . readTxHistory db
@@ -211,12 +212,12 @@ spec = do
 -- | Checks that a given resource can be read after having been inserted in DB.
 prop_readAfterPut
     :: (Show (f a), Eq (f a), Applicative f)
-    => (  DBLayer IO DummyState
+    => (  DBLayer IO DummyState DummyTarget
        -> PrimaryKey WalletId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
-    -> (  DBLayer IO DummyState
+    -> (  DBLayer IO DummyState DummyTarget
        -> PrimaryKey WalletId
        -> IO (f a)
        ) -- ^ Read Operation
@@ -239,12 +240,12 @@ prop_readAfterPut putOp readOp (key, a) =
 -- | Can't put resource before a wallet has been initialized
 prop_putBeforeInit
     :: (Show (f a), Eq (f a), Applicative f)
-    => (  DBLayer IO DummyState
+    => (  DBLayer IO DummyState DummyTarget
        -> PrimaryKey WalletId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
-    -> (  DBLayer IO DummyState
+    -> (  DBLayer IO DummyState DummyTarget
        -> PrimaryKey WalletId
        -> IO (f a)
        ) -- ^ Read Operation
@@ -268,7 +269,7 @@ prop_putBeforeInit putOp readOp empty (key@(PrimaryKey wid), a) =
 -- | Can't read back data after delete
 prop_readAfterDelete
     :: (Show (f a), Eq (f a), Applicative f)
-    => (  DBLayer IO DummyState
+    => (  DBLayer IO DummyState DummyTarget
        -> PrimaryKey WalletId
        -> IO (f a)
        ) -- ^ Read Operation
@@ -294,20 +295,20 @@ prop_isolation
        , Applicative g, Show (g c), Eq (g c)
        , Applicative h, Show (h d), Eq (h d)
        )
-    => (  DBLayer IO DummyState
+    => (  DBLayer IO DummyState DummyTarget
        -> PrimaryKey WalletId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
-    -> (  DBLayer IO DummyState
+    -> (  DBLayer IO DummyState DummyTarget
        -> PrimaryKey WalletId
        -> IO (f b)
        ) -- ^ Read Operation for another resource
-    -> (  DBLayer IO DummyState
+    -> (  DBLayer IO DummyState DummyTarget
        -> PrimaryKey WalletId
        -> IO (g c)
        ) -- ^ Read Operation for another resource
-    -> (  DBLayer IO DummyState
+    -> (  DBLayer IO DummyState DummyTarget
        -> PrimaryKey WalletId
        -> IO (h d)
        ) -- ^ Read Operation for another resource
@@ -337,12 +338,12 @@ prop_isolation putA readB readC readD (key, a) =
 -- | Check that the DB supports multiple sequential puts for a given resource
 prop_sequentialPut
     :: (Show (f a), Eq (f a), Applicative f)
-    => (  DBLayer IO DummyState
+    => (  DBLayer IO DummyState DummyTarget
        -> PrimaryKey WalletId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
-    -> (  DBLayer IO DummyState
+    -> (  DBLayer IO DummyState DummyTarget
        -> PrimaryKey WalletId
        -> IO (f a)
        ) -- ^ Read Operation
@@ -373,12 +374,12 @@ prop_sequentialPut putOp readOp resolve (KeyValPairs pairs) =
 -- | Check that the DB supports multiple sequential puts for a given resource
 prop_parallelPut
     :: (Show (f a), Eq (f a), Applicative f)
-    => (  DBLayer IO DummyState
+    => (  DBLayer IO DummyState DummyTarget
        -> PrimaryKey WalletId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
-    -> (  DBLayer IO DummyState
+    -> (  DBLayer IO DummyState DummyTarget
        -> PrimaryKey WalletId
        -> IO (f a)
        ) -- ^ Read Operation
@@ -408,7 +409,7 @@ prop_parallelPut putOp readOp resolve (KeyValPairs pairs) =
 
 -- | Can list created wallets
 prop_createListWallet
-    :: KeyValPairs (PrimaryKey WalletId) (Wallet DummyState, WalletMetadata)
+    :: KeyValPairs (PrimaryKey WalletId) (Wallet DummyState DummyTarget, WalletMetadata)
     -> Property
 prop_createListWallet (KeyValPairs pairs) =
     monadicIO (setup >>= prop)
@@ -422,7 +423,7 @@ prop_createListWallet (KeyValPairs pairs) =
 -- | Trying to create a same wallet twice should yield an error
 prop_createWalletTwice
     :: ( PrimaryKey WalletId
-       , Wallet DummyState
+       , Wallet DummyState DummyTarget
        , WalletMetadata
        )
     -> Property
@@ -438,7 +439,7 @@ prop_createWalletTwice (key@(PrimaryKey wid), cp, meta) =
 -- | Trying to remove a same wallet twice should yield an error
 prop_removeWalletTwice
     :: ( PrimaryKey WalletId
-       , Wallet DummyState
+       , Wallet DummyState DummyTarget
        , WalletMetadata
        )
     -> Property
@@ -475,6 +476,11 @@ instance (Arbitrary k, Arbitrary v) => Arbitrary (KeyValPairs k v) where
         pairs <- choose (10, 50) >>= flip vectorOf arbitrary
         pure $ KeyValPairs pairs
 
+data DummyTarget
+
+instance TxId DummyTarget where
+    txId = Hash . B8.pack . show
+
 newtype DummyState = DummyState Int
     deriving (Show, Eq)
 
@@ -487,7 +493,7 @@ deriving instance NFData DummyState
 instance IsOurs DummyState where
     isOurs _ num = (True, num)
 
-instance Arbitrary (Wallet DummyState) where
+instance Arbitrary (Wallet DummyState DummyTarget) where
     shrink _ = []
     arbitrary = initWallet <$> arbitrary
 

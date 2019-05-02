@@ -1,6 +1,8 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -38,8 +40,6 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     , getApiMnemonicT
     )
-import Cardano.Wallet.Binary
-    ( txId )
 import Cardano.Wallet.CoinSelection
     ( CoinSelectionOptions (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -49,7 +49,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.Model
     ( availableBalance, getState, totalBalance )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, Coin (..), TxOut (..), WalletId (..) )
+    ( AddressState, Coin (..), TxId (..), TxOut (..), WalletId (..) )
 import Control.Monad.Catch
     ( throwM )
 import Control.Monad.IO.Class
@@ -81,7 +81,7 @@ import qualified Data.List.NonEmpty as NE
 
 
 -- | A Servant server for our wallet API
-server :: WalletLayer SeqState -> Server Api
+server :: TxId t => WalletLayer SeqState t -> Server Api
 server w =
     addresses w :<|> wallets w :<|> transactions w
 
@@ -89,7 +89,7 @@ server w =
                                     Wallets
 -------------------------------------------------------------------------------}
 
-wallets :: WalletLayer SeqState -> Server Wallets
+wallets :: WalletLayer SeqState t -> Server Wallets
 wallets w =
     deleteWallet w
     :<|> getWallet w
@@ -99,7 +99,7 @@ wallets w =
     :<|> putWalletPassphrase w
 
 deleteWallet
-    :: WalletLayer SeqState
+    :: WalletLayer SeqState t
     -> ApiT WalletId
     -> Handler NoContent
 deleteWallet w (ApiT wid) = do
@@ -107,7 +107,7 @@ deleteWallet w (ApiT wid) = do
     return NoContent
 
 getWallet
-    :: WalletLayer SeqState
+    :: WalletLayer SeqState t
     -> ApiT WalletId
     -> Handler ApiWallet
 getWallet w (ApiT wid) = do
@@ -134,14 +134,14 @@ getWallet w (ApiT wid) = do
         }
 
 listWallets
-    :: WalletLayer SeqState
+    :: WalletLayer SeqState t
     -> Handler [ApiWallet]
 listWallets w = do
     wids <- liftIO $ W.listWallets w
     mapM (getWallet w) (ApiT <$> wids)
 
 postWallet
-    :: WalletLayer SeqState
+    :: WalletLayer SeqState t
     -> WalletPostData
     -> Handler ApiWallet
 postWallet w body = do
@@ -158,7 +158,7 @@ postWallet w body = do
     getWallet w (ApiT wid)
 
 putWallet
-    :: WalletLayer SeqState
+    :: WalletLayer SeqState t
     -> ApiT WalletId
     -> WalletPutData
     -> Handler ApiWallet
@@ -166,7 +166,7 @@ putWallet _ _ _ =
     throwM err501
 
 putWalletPassphrase
-    :: WalletLayer SeqState
+    :: WalletLayer SeqState t
     -> ApiT WalletId
     -> WalletPutPassphraseData
     -> Handler NoContent
@@ -177,11 +177,11 @@ putWalletPassphrase _ _ _ =
                                     Addresses
 -------------------------------------------------------------------------------}
 
-addresses :: WalletLayer SeqState -> Server Addresses
+addresses :: WalletLayer SeqState t -> Server Addresses
 addresses = listAddresses
 
 listAddresses
-    :: WalletLayer SeqState
+    :: WalletLayer SeqState t
     -> ApiT WalletId
     -> Maybe (ApiT AddressState)
     -> Handler [ApiAddress]
@@ -192,11 +192,12 @@ listAddresses _ _ _ =
                                     Transactions
 -------------------------------------------------------------------------------}
 
-transactions :: WalletLayer SeqState -> Server Transactions
+transactions :: TxId t => WalletLayer SeqState t -> Server Transactions
 transactions = createTransaction
 
 createTransaction
-    :: WalletLayer SeqState
+    :: forall t. (TxId t)
+    => WalletLayer SeqState t
     -> ApiT WalletId
     -> PostTransactionData
     -> Handler ApiTransaction
@@ -209,7 +210,7 @@ createTransaction w (ApiT wid) body = do
     (tx, meta, wit) <- liftHandler $ W.signTx w wid pwd selection
     liftHandler $ W.submitTx w wid (tx, meta, wit)
     return ApiTransaction
-        { id = ApiT (txId tx)
+        { id = ApiT (txId @t tx)
         , amount = meta ^. #amount
         , insertedAt = Nothing
         , depth = Quantity 0

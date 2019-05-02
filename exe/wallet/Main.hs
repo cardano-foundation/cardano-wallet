@@ -32,6 +32,8 @@ import Cardano.Wallet.Api
     ( Api )
 import Cardano.Wallet.Api.Server
     ( server )
+import Cardano.Wallet.Binary
+    ( HttpBridge )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -170,7 +172,7 @@ execServer :: Port "wallet" -> Port "bridge" -> IO ()
 execServer (Port port) (Port bridgePort) = do
     db <- MVar.newDBLayer
     nw <- HttpBridge.newNetworkLayer bridgePort
-    let wallet = mkWalletLayer db nw
+    let wallet = mkWalletLayer @_ @HttpBridge db nw
     Warp.runSettings settings (serve (Proxy @("v2" :> Api)) (server wallet))
   where
     settings = Warp.defaultSettings

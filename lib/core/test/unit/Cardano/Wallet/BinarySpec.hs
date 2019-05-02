@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.BinarySpec
     ( spec
@@ -11,7 +12,8 @@ module Cardano.Wallet.BinarySpec
 import Prelude
 
 import Cardano.Wallet.Binary
-    ( TxWitness (PublicKeyWitness)
+    ( HttpBridge
+    , TxWitness (PublicKeyWitness)
     , decodeBlock
     , decodeBlockHeader
     , decodeSignedTx
@@ -20,7 +22,6 @@ import Cardano.Wallet.Binary
     , encodeSignedTx
     , encodeTx
     , encodeTxWitness
-    , txId
     )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
@@ -30,6 +31,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , SlotId (..)
     , Tx (..)
+    , TxId (..)
     , TxIn (..)
     , TxOut (..)
     )
@@ -107,14 +109,14 @@ spec = do
             roundTripTx (txs !! 1)
 
         it "should compute correct txId (1)" $ do
-            let hash = txId (txs !! 0)
+            let hash = txId @HttpBridge (txs !! 0)
             let hash' = hash16
                     "c470563001e448e61ff1268c2a6eb458\
                     \ace1d04011a02cb262b6d709d66c23d0"
             hash `shouldBe` hash'
 
         it "should compute correct txId (2)" $ do
-            let hash = txId (txs !! 1)
+            let hash = txId @HttpBridge (txs !! 1)
             let hash' = hash16
                     "d30d37f1f8674c6c33052826fdc5bc19\
                     \8e3e95c150364fd775d4bc663ae6a9e6"
