@@ -12,12 +12,12 @@ module Cardano.Wallet.Primitive.FeeSpec
 
 import Prelude
 
-import Cardano.Wallet.CoinSelection
+import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
-import Cardano.Wallet.CoinSelection.Fee
-    ( ErrAdjustForFee (..), Fee (..), FeeOptions (..), adjustForFee )
-import Cardano.Wallet.CoinSelection.Policy.LargestFirst
+import Cardano.Wallet.Primitive.CoinSelection.LargestFirst
     ( largestFirst )
+import Cardano.Wallet.Primitive.Fee
+    ( ErrAdjustForFee (..), Fee (..), FeeOptions (..), adjustForFee )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -65,7 +65,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
-import qualified Cardano.Wallet.CoinSelection as CS
+import qualified Cardano.Wallet.Primitive.CoinSelection as CS
 import qualified Data.ByteString as BS
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map

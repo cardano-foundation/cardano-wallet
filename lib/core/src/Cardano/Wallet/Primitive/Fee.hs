@@ -32,7 +32,7 @@ module Cardano.Wallet.Primitive.Fee
 
 import Prelude
 
-import Cardano.Wallet.CoinSelection
+import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
     ( Coin (..)

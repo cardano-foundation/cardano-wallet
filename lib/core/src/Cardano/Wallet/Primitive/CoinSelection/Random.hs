@@ -16,9 +16,9 @@ module Cardano.Wallet.Primitive.CoinSelection.Random
 
 import Prelude
 
-import Cardano.Wallet.CoinSelection
+import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..), CoinSelectionError (..), CoinSelectionOptions (..) )
-import Cardano.Wallet.CoinSelection.Policy.LargestFirst
+import Cardano.Wallet.Primitive.CoinSelection.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.Primitive.Types
     ( Coin (..)

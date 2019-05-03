@@ -21,7 +21,7 @@ module Cardano.Wallet.Primitive.CoinSelectionSpec
 
 import Prelude
 
-import Cardano.Wallet.CoinSelection
+import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..)
     , CoinSelectionError (..)
     , CoinSelectionOptions (..)

@@ -13,12 +13,12 @@ import Cardano.Environment
     ( Network (..), ProtocolMagic (..), network, protocolMagic )
 import Cardano.Wallet.Binary.HttpBridge
     ( toByteString )
-import Cardano.Wallet.CoinSelection
-    ( CoinSelection (..) )
 import Cardano.Wallet.Compatibility.HttpBridge
     ( HttpBridge )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (AddressK), Key, Passphrase (..), XPrv, XPub, getKey, publicKey )
+import Cardano.Wallet.Primitive.CoinSelection
+    ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
