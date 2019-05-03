@@ -115,7 +115,6 @@ data Wallet s t where
     Wallet :: (IsOurs s, NFData s, Show s, TxId t)
         => UTxO -- Unspent tx outputs belonging to this wallet
         -> Set Tx -- Pending transactions
-        -> Set (Hash "Tx") -- Transaction history
         -> SlotId -- Latest applied block (current tip)
         -> s -- Address discovery state
         -> Wallet s t
@@ -123,10 +122,9 @@ data Wallet s t where
 deriving instance Show (Wallet s t)
 deriving instance Eq s => Eq (Wallet s t)
 instance NFData (Wallet s t) where
-    rnf (Wallet utxo pending txMeta sl s) =
+    rnf (Wallet utxo pending sl s) =
         deepseq (rnf utxo) $
         deepseq (rnf pending) $
-        deepseq (rnf txMeta) $
         deepseq (rnf sl) $
         deepseq (rnf s) ()
 
@@ -139,7 +137,7 @@ initWallet
     :: (IsOurs s, NFData s, Show s, TxId t)
     => s
     -> Wallet s t
-initWallet = Wallet mempty mempty mempty (SlotId 0 0)
+initWallet = Wallet mempty mempty (SlotId 0 0)
 
 -- | Update the state of an existing Wallet model
 updateState
@@ -147,7 +145,7 @@ updateState
     => s
     -> Wallet s t
     -> Wallet s t
-updateState s (Wallet a b c d _) = Wallet a b c d s
+updateState s (Wallet a b c _) = Wallet a b c s
 
 -- | Apply Block is the only way to make the wallet evolve. It returns a new
 -- updated wallet state, as well as the set of all our transaction discovered
@@ -157,21 +155,20 @@ applyBlock
     => Block
     -> Wallet s t
     -> (Map (Hash "Tx") (Tx, TxMeta), Wallet s t)
-applyBlock !b (Wallet !utxo !pending !history _ s) =
+applyBlock !b (Wallet !utxo !pending _ s) =
     let
         -- Prefilter Block / Update UTxO
         ((txs, utxo'), s') = prefilterBlock (Proxy @t) b utxo s
         -- Update Pending
-        newIns = txIns (Set.map fst txs)
+        newIns = txIns $ Set.fromList (map fst txs)
         pending' = pending `pendingExcluding` newIns
         -- Update Tx history
-        txs' = Map.fromList $ Set.toList $ Set.map
+        txs' = Map.fromList $ map
             (\(tx, meta) -> (txId @t tx, (tx, meta)))
             txs
-        history' = history <> Map.keysSet txs'
     in
         ( txs'
-        , Wallet utxo' pending' history' (b ^. #header . #slotId) s'
+        , Wallet utxo' pending' (b ^. #header . #slotId) s'
         )
 
 -- | Helper to apply multiple blocks in sequence to an existing wallet. It's
@@ -190,8 +187,8 @@ newPending
     :: Tx
     -> Wallet s t
     -> Wallet s t
-newPending !tx (Wallet !utxo !pending !history !tip !s) =
-    Wallet utxo (Set.insert tx pending) history tip s
+newPending !tx (Wallet !utxo !pending !tip !s) =
+    Wallet utxo (Set.insert tx pending) tip s
 
 {-------------------------------------------------------------------------------
                                    Accessors
@@ -199,11 +196,11 @@ newPending !tx (Wallet !utxo !pending !history !tip !s) =
 
 -- | Get the wallet current tip
 currentTip :: Wallet s t -> SlotId
-currentTip (Wallet _ _ _ tip _) = tip
+currentTip (Wallet _ _ tip _) = tip
 
 -- | Get the wallet current state
 getState :: Wallet s t -> s
-getState (Wallet _ _ _ _ s) = s
+getState (Wallet _ _ _ s) = s
 
 -- | Available balance = 'balance' . 'availableUTxO'
 availableBalance :: Wallet s t -> Natural
@@ -217,12 +214,12 @@ totalBalance =
 
 -- | Available UTxO = @pending ⋪ utxo@
 availableUTxO :: Wallet s t -> UTxO
-availableUTxO (Wallet utxo pending _ _ _) =
+availableUTxO (Wallet utxo pending _ _) =
     utxo `excluding` txIns pending
 
 -- | Total UTxO = 'availableUTxO' @<>@ 'changeUTxO'
 totalUTxO :: forall s t. Wallet s t -> UTxO
-totalUTxO wallet@(Wallet _ pending _ _ s) =
+totalUTxO wallet@(Wallet _ pending _ s) =
     availableUTxO wallet <> changeUTxO (Proxy @t) pending s
 
 {-------------------------------------------------------------------------------
@@ -256,7 +253,7 @@ prefilterBlock
     -> Block
     -> UTxO
     -> s
-    -> ((Set (Tx, TxMeta), UTxO), s)
+    -> (([(Tx, TxMeta)], UTxO), s)
 prefilterBlock proxy b utxo0 = runState $ do
     (ourTxs, ourUtxo) <- foldM applyTx (mempty, utxo0) (transactions b)
     return (ourTxs, ourUtxo)
@@ -269,9 +266,9 @@ prefilterBlock proxy b utxo0 = runState $ do
         , amount = Quantity amt
         }
     applyTx
-        :: (Set (Tx, TxMeta), UTxO)
+        :: ([(Tx, TxMeta)], UTxO)
         -> Tx
-        -> State s (Set (Tx, TxMeta), UTxO)
+        -> State s ([(Tx, TxMeta)], UTxO)
     applyTx (!txs, !utxo) tx = do
         ourUtxo <- state $ utxoOurs proxy tx
         let ourIns = Set.fromList (inputs tx) `Set.intersection` dom (utxo <> ourUtxo)
@@ -282,11 +279,11 @@ prefilterBlock proxy b utxo0 = runState $ do
         let hasKnownInput = ourIns /= mempty
         let hasKnownOutput = ourUtxo /= mempty
         return $ if hasKnownOutput && not hasKnownInput then
-            ( Set.insert (tx, mkTxMeta amt Incoming) txs
+            ( (tx, mkTxMeta amt Incoming) : txs
             , utxo'
             )
         else if hasKnownInput then
-            ( Set.insert (tx, mkTxMeta amt Outgoing) txs
+            ( (tx, mkTxMeta amt Outgoing) : txs
             , utxo'
             )
         else
