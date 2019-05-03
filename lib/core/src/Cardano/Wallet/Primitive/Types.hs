@@ -108,6 +108,8 @@ import Data.Quantity
     ( Percentage, Quantity (..) )
 import Data.Set
     ( Set )
+import Data.String
+    ( fromString )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -123,7 +125,6 @@ import Fmt
     , fixedF
     , fmt
     , indentF
-    , nameF
     , ordinalF
     , prefixF
     , suffixF
@@ -259,9 +260,10 @@ data Block = Block
 instance NFData Block
 
 instance Buildable Block where
-    build (Block h txs) =
-        "Block (" <> build h <> "): \n" <>
-        indentF 2 (blockListF txs)
+    build (Block h txs) = mempty
+        <> build h
+        <> "\n"
+        <> indentF 4 (blockListF txs)
 
 
 data BlockHeader = BlockHeader
@@ -275,11 +277,10 @@ instance NFData BlockHeader
 
 instance Buildable BlockHeader where
     build (BlockHeader s prev) = mempty
-        <> build s
-        <> " ~"
         <> prefixF 8 prevF
         <> "..."
         <> suffixF 8 prevF
+        <> " (" <> build s <> ")"
       where
         prevF = build $ T.decodeUtf8 $ convertToBase Base16 $ getHash prev
 
@@ -304,8 +305,8 @@ instance NFData Tx
 
 instance Buildable Tx where
     build (Tx ins outs) = mempty
-        <> nameF "inputs" (blockListF ins)
-        <> nameF "outputs" (blockListF outs)
+        <> blockListF' "~>" build ins
+        <> blockListF' "<~" build outs
 
 -- | An abstraction for computing transaction id. The 'target' is an open-type
 -- that can be used to discriminate on. For instance:
@@ -378,7 +379,7 @@ data TxMeta = TxMeta
 instance NFData TxMeta
 
 instance Buildable TxMeta where
-    build (TxMeta s d sl (Quantity a)) = "Tx Meta "
+    build (TxMeta s d sl (Quantity a)) = mempty
         <> (case d of; Incoming -> "+"; Outgoing -> "-")
         <> fixedF @Double 6 (fromIntegral a / 1e6)
         <> " " <> build s
@@ -505,7 +506,7 @@ instance Dom UTxO where
 
 instance Buildable UTxO where
     build (UTxO utxo) =
-        nameF "UTxO" $ blockListF' "-" utxoF (Map.toList utxo)
+        blockListF' "-" utxoF (Map.toList utxo)
       where
         utxoF (inp, out) = build inp <> " => " <> build out
 
@@ -576,7 +577,7 @@ data SlotId = SlotId
 instance NFData SlotId
 
 instance Buildable SlotId where
-    build (SlotId e s) = build e <> "." <> build s
+    build (SlotId e s) = fromString (show e) <> "." <> fromString (show s)
 
 -- | Compute the approximate ratio / progress between two slots. This is an
 -- approximation for a few reasons, one of them being that we hard code the
