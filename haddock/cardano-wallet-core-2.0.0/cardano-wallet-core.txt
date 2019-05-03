@@ -1014,6 +1014,48 @@ instance GHC.Base.Monoid Cardano.Wallet.CoinSelection.CoinSelection
 instance Formatting.Buildable.Buildable Cardano.Wallet.CoinSelection.CoinSelection
 
 
+-- | An extra interface for operation on transactions (e.g. creating
+--   witnesses, estimating size...). This makes it possible to decouple
+--   those operations from our wallet layer, keeping the implementation
+--   flexible to various backends.
+module Cardano.Wallet.Transaction
+data TransactionLayer
+TransactionLayer :: ((Address -> Maybe (Key  'AddressK XPrv, Passphrase "encryption")) -> [(TxIn, TxOut)] -> [TxOut] -> Either ErrMkStdTx (Tx, [TxWitness])) -> (CoinSelection -> Quantity "byte" Int) -> TransactionLayer
+
+-- | Construct a standard transaction
+--   
+--   " Standard " here refers to the fact that we do not deal with
+--   redemption, multisignature transactions, etc.
+--   
+--   This expects as a first argument a mean to compute or lookup private
+--   key corresponding to a particular address.
+[mkStdTx] :: TransactionLayer -> (Address -> Maybe (Key  'AddressK XPrv, Passphrase "encryption")) -> [(TxIn, TxOut)] -> [TxOut] -> Either ErrMkStdTx (Tx, [TxWitness])
+
+-- | Estimate the size of a <a>CoinSelection</a>, in bytes. This operation
+--   is seemingly coupled to the binary representation of a
+--   <tt>Transaction</tt>. This estimation is therefore only a best-effort
+--   here as many of the encoding values actually depends on the value of
+--   parameters at runtime.
+--   
+--   For instance, with a CBOR encoding, an amount of `50` lovelace would
+--   be encoded using 2 bytes, whereas an amount of `1000000` would be
+--   encoded using 4 bytes. In Byron, we have only one piece of unknown
+--   from the <a>CoinSelection</a> and it's the value of the <tt>crc32</tt>
+--   computed on the address payload, which can be 1,2,3 or 5 bytes and we
+--   therefore always consider the worst-case scenario of a 5-byte crc. As
+--   a consequence, our estimate may be slightly bigger than the actual
+--   transaction fee (up-to 4 extra bytes per change output).
+[estimateSize] :: TransactionLayer -> CoinSelection -> Quantity "byte" Int
+
+-- | Possible signing error
+newtype ErrMkStdTx
+
+-- | We tried to sign a transaction with inputs that are unknown to us?
+KeyNotFoundForAddress :: Address -> ErrMkStdTx
+instance GHC.Show.Show Cardano.Wallet.Transaction.ErrMkStdTx
+instance GHC.Classes.Eq Cardano.Wallet.Transaction.ErrMkStdTx
+
+
 -- | This module contains the implementation of largestFirst input
 --   selection algorithm
 module Cardano.Wallet.CoinSelection.Policy.LargestFirst
@@ -1171,27 +1213,11 @@ data HttpBridge
 instance Cardano.Wallet.Primitive.Types.TxId Cardano.Wallet.Compatibility.HttpBridge
 instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress Cardano.Wallet.Compatibility.HttpBridge
 
+module Cardano.Wallet.Transaction.HttpBridge
 
--- | This module provides functionality for signing transactions.
---   
---   It relies on the binary CBOR format of transactions, an
---   <tt>AddressScheme</tt> for deriving address private keys, and
---   cardano-crypto for the actual signing.
-module Cardano.Wallet.Primitive.Signing
-
--- | Construct a standard transaction
---   
---   " Standard " here refers to the fact that we do not deal with
---   redemption, multisignature transactions, etc.
-mkStdTx :: (Address -> Maybe (Key  'AddressK XPrv, Passphrase "encryption")) -> [(TxIn, TxOut)] -> [TxOut] -> Either SignTxError (Tx, [TxWitness])
-
--- | Possible signing error
-newtype SignTxError
-
--- | We tried to sign a transaction with inputs that are unknown to us?
-KeyNotFoundForAddress :: Address -> SignTxError
-instance GHC.Show.Show Cardano.Wallet.Primitive.Signing.SignTxError
-instance GHC.Classes.Eq Cardano.Wallet.Primitive.Signing.SignTxError
+-- | Construct a <a>TransactionLayer</a> compatible with Byron and the
+--   <a>HttpBridge</a>
+newTransactionLayer :: TransactionLayer
 
 
 -- | Here we find the "business logic" to manage a Cardano wallet. This is
@@ -1404,6 +1430,24 @@ module Cardano.Wallet.CoinSelection.Fee
 newtype Fee
 Fee :: Word64 -> Fee
 [getFee] :: Fee -> Word64
+
+-- | A linear equation on the transaction size. Represents the <tt>s -&gt;
+--   a + b*s</tt> function where <tt>s</tt> is the transaction size in
+--   bytes, <tt>a</tt> and <tt>b</tt> are constant coefficients.
+data TxSizeLinear
+
+-- | Hard-coded fee policy for Cardano
+cardanoPolicy :: TxSizeLinear
+
+-- | Compute fee for a given payload of bytes. Fee follows a simple linear
+--   equation:
+--   
+--   <pre>
+--   f = a + size * b
+--   </pre>
+--   
+--   where <tt>a</tt> &amp; <tt>b</tt> are values fixed by the protocol.
+computeFee :: TxSizeLinear -> Quantity "byte" Int -> Fee
 data FeeOptions
 FeeOptions :: (CoinSelection -> Fee) -> Coin -> FeeOptions
 
@@ -1417,17 +1461,11 @@ FeeOptions :: (CoinSelection -> Fee) -> Coin -> FeeOptions
 --   created transaction. Setting <a>dustThreshold</a> to 0 removes output
 --   equal to 0
 [dustThreshold] :: FeeOptions -> Coin
-newtype FeeError
+newtype ErrAdjustForFee
 
 -- | UTxO exhausted during fee covering We record what amount missed to
 --   cover the fee
-CannotCoverFee :: Word64 -> FeeError
-
--- | A linear equation on the transaction size. Represents the <tt>s -&gt;
---   a + b*s</tt> function where <tt>s</tt> is the transaction size in
---   bytes, <tt>a</tt> and <tt>b</tt> are constant coefficients.
-data TxSizeLinear
-TxSizeLinear :: Quantity "lovelace" Double -> Quantity "lovelace/byte" Double -> TxSizeLinear
+CannotCoverFee :: Word64 -> ErrAdjustForFee
 
 -- | Given the coin selection result from a policy run, adjust the outputs
 --   for fees, potentially returning additional inputs that we need to
@@ -1452,40 +1490,14 @@ TxSizeLinear :: Quantity "lovelace" Double -> Quantity "lovelace/byte" Double ->
 --   will mean that that some outputs may pay a larger percentage of the
 --   fee (depending on how many change outputs the algorithm happened to
 --   choose).
-adjustForFee :: MonadRandom m => FeeOptions -> UTxO -> CoinSelection -> ExceptT FeeError m CoinSelection
-cardanoPolicy :: TxSizeLinear
-
--- | Estimate fee for a given <a>CoinSelection</a>. Fee follows a simple
---   linear equation:
---   
---   <pre>
---   f = a + sizeOf(tx) * b
---   </pre>
---   
---   where <tt>a</tt> &amp; <tt>b</tt> are values fixed by the protocol.
---   This operation is therefore heavily coupled with the binary
---   representation of a <tt>Transaction</tt>. This estimation is only a
---   best-effort here as many of the encoding values actually depends on
---   the value of parameters at runtime.
---   
---   For instance, an amount of `50` lovelace would be encoded using 2
---   bytes, whereas an amount of `1000000` would be encoded using 4 bytes.
---   In Byron, we have only one piece of unknown from the
---   <a>CoinSelection</a> and it's the value of the <tt>crc32</tt> computed
---   on the address payload, which can be 1,2,3 or 5 bytes and we therefore
---   always consider the worst-case scenario of a 5-byte crc.
---   
---   As a consequence, our estimate may be slightly bigger than the actual
---   transaction fee (up-to 4 extra bytes per change output).
---   
---   NOTE: We assume that all change outputs follow a sequential scheme and
---   therefore, have an empty address derivation payload.
-estimateFee :: TxSizeLinear -> CoinSelection -> Fee
+adjustForFee :: MonadRandom m => FeeOptions -> UTxO -> CoinSelection -> ExceptT ErrAdjustForFee m CoinSelection
+instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.Fee.ErrAdjustForFee
+instance GHC.Show.Show Cardano.Wallet.CoinSelection.Fee.ErrAdjustForFee
+instance GHC.Generics.Generic Cardano.Wallet.CoinSelection.Fee.FeeOptions
 instance GHC.Show.Show Cardano.Wallet.CoinSelection.Fee.TxSizeLinear
 instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.Fee.TxSizeLinear
-instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.Fee.FeeError
-instance GHC.Show.Show Cardano.Wallet.CoinSelection.Fee.FeeError
-instance GHC.Generics.Generic Cardano.Wallet.CoinSelection.Fee.FeeOptions
+instance GHC.Classes.Ord Cardano.Wallet.CoinSelection.Fee.Fee
+instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.Fee.Fee
 
 
 -- | API type representations of various types. We define here pretty much
@@ -1732,7 +1744,7 @@ ErrWalletAlreadyExists :: WalletId -> ErrWalletAlreadyExists
 
 -- | Errors occuring when signing a transaction
 data ErrSignTx
-ErrSignTx :: SignTxError -> ErrSignTx
+ErrSignTx :: ErrMkStdTx -> ErrSignTx
 ErrSignTxNoSuchWallet :: ErrNoSuchWallet -> ErrSignTx
 ErrSignTxWrongPassphrase :: ErrWrongPassphrase -> ErrSignTx
 
@@ -1745,10 +1757,10 @@ ErrSubmitTxNoSuchWallet :: ErrNoSuchWallet -> ErrSubmitTx
 data ErrCreateUnsignedTx
 ErrCreateUnsignedTxNoSuchWallet :: ErrNoSuchWallet -> ErrCreateUnsignedTx
 ErrCreateUnsignedTxCoinSelection :: CoinSelectionError -> ErrCreateUnsignedTx
-ErrCreateUnsignedTxFee :: FeeError -> ErrCreateUnsignedTx
+ErrCreateUnsignedTxFee :: ErrAdjustForFee -> ErrCreateUnsignedTx
 
 -- | Create a new instance of the wallet layer.
-mkWalletLayer :: forall s t. (IsOwned s, GenChange s, NFData s, Show s, TxId t) => DBLayer IO s t -> NetworkLayer IO -> WalletLayer s t
+mkWalletLayer :: forall s t. (IsOwned s, GenChange s, NFData s, Show s, TxId t) => DBLayer IO s t -> NetworkLayer IO -> TransactionLayer -> WalletLayer s t
 
 -- | Run an ExcepT and throws the error if any. This makes sense only if
 --   called after checking for an invariant or, after ensuring that
