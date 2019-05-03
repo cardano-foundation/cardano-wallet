@@ -1,10 +1,14 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Primitive.SigningSpec
+module Cardano.Wallet.Transaction.HttpBridgeSpec
     ( spec
     ) where
 
@@ -12,9 +16,13 @@ import Prelude
 
 import Cardano.Environment
     ( Network (..), network )
-import Cardano.Wallet.Binary
+import Cardano.Wallet.Binary.HttpBridge
     ( encodeSignedTx, toByteString )
-import Cardano.Wallet.Compatibility
+import Cardano.Wallet.CoinSelection
+    ( CoinSelection (..) )
+import Cardano.Wallet.CoinSelection.Policy.LargestFirst
+    ( largestFirst )
+import Cardano.Wallet.Compatibility.HttpBridge
     ( HttpBridge )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
@@ -26,32 +34,77 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , unsafeGenerateKeyFromSeed
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Coin (..), Hash (..), TxIn (..), TxOut (..) )
+    ( Address (..)
+    , Coin (..)
+    , Hash (..)
+    , ShowFmt (..)
+    , Tx (..)
+    , TxIn (..)
+    , TxOut (..)
+    , TxWitness (..)
+    , UTxO (..)
+    )
 import Cardano.Wallet.Transaction
     ( ErrMkStdTx (..), TransactionLayer (..) )
+import Cardano.Wallet.Transaction.HttpBridge
+    ( newTransactionLayer )
 import Control.Arrow
     ( first )
+import Control.Monad.Trans.Except
+    ( runExceptT )
 import Data.ByteArray.Encoding
     ( Base (..), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.Digest.CRC32
+    ( crc32 )
+import Data.Functor.Identity
+    ( Identity (runIdentity) )
+import Data.List.NonEmpty
+    ( NonEmpty )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Word
     ( Word32 )
 import Test.Hspec
     ( Spec, SpecWith, describe, it, shouldBe, xit )
+import Test.QuickCheck
+    ( Arbitrary (..)
+    , Gen
+    , InfiniteList (..)
+    , Property
+    , choose
+    , property
+    , scale
+    , vectorOf
+    , withMaxSuccess
+    , (===)
+    )
 
-import qualified Cardano.Wallet.Transaction.HttpBridge as HttpBridge
+import qualified Cardano.Wallet.Binary.HttpBridge as Binary
+import qualified Cardano.Wallet.CoinSelection as CS
+import qualified Codec.CBOR.Encoding as CBOR
+import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 
 spec :: Spec
 spec = do
+    describe "estimateSize" $ do
+        it "Arbitrary CoinSelection" $ property $ \(ShowFmt cs) ->
+            property $ isValidSelection cs
+        it "Estimated size is the same as taken by encodeSignedTx"
+            (withMaxSuccess 2500 $ property propSizeEstimation)
+
     describe "mkStdTx" $ do
         it "Unknown input address yields an error" $ do
             let addr = keyToAddress @HttpBridge $ publicKey $ xprv "addr"
             let res = mkStdTx tl keyFrom inps outs
                   where
-                    tl = HttpBridge.newTransactionLayer
+                    tl = newTransactionLayer
                     keyFrom = const Nothing
                     inps =
                         [ ( TxIn (Hash "arbitrary") 0
@@ -594,6 +647,167 @@ spec = do
             xit "No golden tests for 'Staging' network" False
 
 {-------------------------------------------------------------------------------
+                                Size Estimation
+-------------------------------------------------------------------------------}
+
+propSizeEstimation
+    :: (ShowFmt CoinSelection, InfiniteList (Network -> Address))
+    -> Property
+propSizeEstimation (ShowFmt sel, InfiniteList chngAddrs _) =
+    let
+        calcSize = estimateSize newTransactionLayer sel
+        tx = fromCoinSelection sel
+        encodedTx = CBOR.toLazyByteString $ encodeSignedTx tx
+        size = fromIntegral $ BL.length encodedTx
+        -- We always go for the higher bound for change address payload's size,
+        -- so, we may end up with up to 4 extra bytes per change address in our
+        -- estimation.
+        margin = 4 * fromIntegral (length $ CS.change sel)
+        realSizeSup = Quantity (size + margin)
+        realSizeInf = Quantity size
+    in
+        (calcSize >= realSizeInf && calcSize <= realSizeSup, encodedTx)
+            === (True, encodedTx)
+  where
+    dummyWitness = PublicKeyWitness
+        "\226E\220\252\DLE\170\216\210\164\155\182mm$ePG\252\186\195\225_\b=\v\241=\255 \208\147[\239\RS\170|\214\202\247\169\229\205\187O_)\221\175\155?e\198\248\170\157-K\155\169z\144\174\ENQh" (Hash "\193\151*,\NULz\205\234\&1tL@\211\&2\165\129S\STXP\164C\176 Xvf\160|;\CANs{\SYN\204<N\207\154\130\225\229\t\172mbC\139\US\159\246\168x\163Mq\248\145)\160|\139\207-\SI")
+    dummyInput = Hash
+        "`\219\178g\158\233 T\f\CAN\EMZ=\146\238\155\229\n\238n\213\248\145\217-Q\219\138v\176,\210"
+    fromCoinSelection (CoinSelection inps outs chngs) =
+        let
+            txIns = zipWith TxIn
+                (replicate (length inps) dummyInput)
+                [0..]
+            txChngs = zipWith TxOut
+                (take (length chngs) (chngAddrs <*> pure network))
+                chngs
+            wits = replicate (length inps) dummyWitness
+        in
+            (Tx txIns (outs <> txChngs), wits)
+
+-- Check whether a selection is valid
+isValidSelection :: CoinSelection -> Bool
+isValidSelection (CoinSelection i o c) =
+    let
+        oAmt = sum $ map (fromIntegral . getCoin . coin) o
+        cAmt = sum $ map (fromIntegral . getCoin) c
+        iAmt = sum $ map (fromIntegral . getCoin . coin . snd) i
+    in
+        (iAmt :: Integer) >= (oAmt + cAmt)
+
+-- | Generate a valid address with a payload of the given size. As pointers,
+-- the sizes of payloads are as follows:
+--
+--     | Network | Scheme     | Size (bytes)   |
+--     | ---     | ---        | ---            |
+--     | Mainnet | Random     | 72,73,74 or 76 |
+--     | Mainnet | Sequential | 39,40,41 or 43 |
+--     | Testnet | Random     | 79,80,81 or 83 |
+--     | Testnet | Sequential | 46,47,48 or 50 |
+--
+-- The address format on 'Staging' is the same as 'Mainnet'.
+-- The address format on 'Local' is the same as 'Testnet'.
+genAddress :: (Int, Int) -> Gen Address
+genAddress range = do
+    n <- choose range
+    let prefix = BS.pack
+            [ 130       -- Array(2)
+            , 216, 24   -- Tag 24
+            , 88, fromIntegral n -- Bytes(n), n > 23 && n < 256
+            ]
+    payload <- BS.pack <$> vectorOf n arbitrary
+    let crc = Binary.toByteString (CBOR.encodeWord32 $ crc32 payload)
+    return $ Address (prefix <> payload <> crc)
+
+genUTxO :: [Coin] -> Gen UTxO
+genUTxO coins = do
+    let n = length coins
+    inps <- vectorOf n arbitrary
+    outs <- genTxOut coins
+    return $ UTxO $ Map.fromList $ zip inps outs
+
+genTxOut :: [Coin] -> Gen [TxOut]
+genTxOut coins = do
+    let n = length coins
+    outs <- vectorOf n arbitrary
+    return $ zipWith TxOut outs coins
+
+genSelection :: NonEmpty TxOut -> Gen CoinSelection
+genSelection outs = do
+    let opts = CS.CoinSelectionOptions 100
+    utxo <- vectorOf (NE.length outs * 3) arbitrary >>= genUTxO
+    case runIdentity $ runExceptT $ largestFirst opts outs utxo of
+        Left _ -> genSelection outs
+        Right (s,_) -> return s
+
+instance Show (Network -> Address) where
+    show _ = "<Change Address Generator>"
+
+deriving newtype instance Arbitrary a => Arbitrary (ShowFmt a)
+
+instance Arbitrary Coin where
+    shrink (Coin c) = Coin <$> shrink (fromIntegral c)
+    arbitrary = Coin <$> choose (1, 200000)
+
+instance Arbitrary (Hash "Tx") where
+    shrink _ = []
+    arbitrary = do
+        bytes <- BS.pack <$> vectorOf 32 arbitrary
+        pure $ Hash bytes
+
+instance Arbitrary Address where
+    shrink _ = []
+    arbitrary = genAddress (30, 100)
+
+-- | Generate change addresses for the given network. We consider that change
+-- addresses are always following a sequential scheme.
+instance {-# OVERLAPS #-} Arbitrary (Network -> Address) where
+    shrink _ = []
+    arbitrary = do
+        mainnetA <- genAddress (33, 33)
+        testnetA <- genAddress (40, 40)
+        return $ \case
+            Mainnet -> mainnetA
+            Staging -> mainnetA
+            Testnet -> testnetA
+            Local -> testnetA
+
+instance Arbitrary CoinSelection where
+    shrink sel@(CoinSelection inps outs chgs) = case (inps, outs, chgs) of
+        ([_], [_], []) ->
+            []
+        _ ->
+            let
+                inps' = take (max 1 (length inps `div` 2)) inps
+                outs' = take (max 1 (length outs `div` 2)) outs
+                chgs' = take (length chgs `div` 2) chgs
+                inps'' = if length inps > 1 then drop 1 inps else inps
+                outs'' = if length outs > 1 then drop 1 outs else outs
+                chgs'' = drop 1 chgs
+            in
+                filter (\s -> s /= sel && isValidSelection s)
+                    [ CoinSelection inps' outs' chgs'
+                    , CoinSelection inps' outs chgs
+                    , CoinSelection inps outs chgs'
+                    , CoinSelection inps outs' chgs
+                    , CoinSelection inps'' outs'' chgs''
+                    , CoinSelection inps'' outs chgs
+                    , CoinSelection inps outs'' chgs
+                    , CoinSelection inps outs chgs''
+                    ]
+    arbitrary = do
+        outs <- choose (1, 10)
+            >>= \n -> vectorOf n arbitrary
+            >>= genTxOut
+        genSelection (NE.fromList outs)
+
+instance Arbitrary TxIn where
+    shrink _ = []
+    arbitrary = TxIn
+        <$> arbitrary
+        <*> scale (`mod` 3) arbitrary -- No need for a high indexes
+
+{-------------------------------------------------------------------------------
                                 Golden Tests
 -------------------------------------------------------------------------------}
 
@@ -615,7 +829,7 @@ goldenTestSignedTx nOuts xprvs expected = it title $ do
     let keyFrom a = (,mempty) <$> Map.lookup a s
     let inps = mkInput <$> zip addrs [0..]
     let outs = take nOuts $ mkOutput <$> cycle addrs
-    let res = mkStdTx HttpBridge.newTransactionLayer keyFrom inps outs
+    let res = mkStdTx newTransactionLayer keyFrom inps outs
     case res of
         Left e -> fail (show e)
         Right tx -> do
@@ -729,7 +943,7 @@ genGoldenTest (nm, pm) nOuts xprvs = do
     case res of
         Left _ -> fail $ "genGoldenTest: failed to sign tx"
         Right tx -> do
-            let bytes = toLazyByteString $ encode tx
+            let bytes = CBOR.toLazyByteString $ encode tx
             B8.putStrLn $
                 B8.pack (show nm)
                 <> " " <> show nOuts <> " ouputs"

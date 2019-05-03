@@ -129,6 +129,7 @@ test-suite unit
       Cardano.Wallet.Binary.HttpBridgeSpec
       Cardano.Wallet.Network.HttpBridge.ApiSpec
       Cardano.Wallet.Network.HttpBridgeSpec
+      Cardano.Wallet.Primitive.AddressDerivationSpec
       Cardano.Wallet.Transaction.HttpBridgeSpec
       Data.PackfileSpec
       Servant.Extra.ContentTypesSpec

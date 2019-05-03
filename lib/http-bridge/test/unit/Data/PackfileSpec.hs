@@ -1,17 +1,19 @@
-module Cardano.Wallet.Binary.PackfileSpec (spec) where
+module Data.PackfileSpec
+    ( spec
+    ) where
 
 import Prelude
 
-import Cardano.Wallet.Binary
+import Cardano.Wallet.Binary.HttpBridge
     ( decodeBlock )
-import Cardano.Wallet.Binary.Packfile
-    ( PackfileError (..), decodePackfile )
-import Cardano.Wallet.BinarySpec
+import Cardano.Wallet.Binary.HttpBridgeSpec
     ( unsafeDeserialiseFromBytes )
 import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..), SlotId (..) )
 import Data.Either
     ( fromRight, isRight )
+import Data.Packfile
+    ( PackfileError (..), decodePackfile )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy )
 

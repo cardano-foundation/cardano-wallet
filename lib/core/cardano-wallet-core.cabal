@@ -151,4 +151,3 @@ test-suite unit
       Cardano.Wallet.Primitive.TypesSpec
       Cardano.WalletSpec
       Data.QuantitySpec
-      Spec

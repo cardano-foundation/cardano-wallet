@@ -11,8 +11,6 @@ module Cardano.Wallet.Primitive.ModelSpec
 
 import Prelude
 
-import Cardano.Wallet.Compatibility
-    ( HttpBridge )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Model
@@ -36,6 +34,7 @@ import Cardano.Wallet.Primitive.Types
     , ShowFmt (..)
     , SlotId (..)
     , Tx (..)
+    , TxId (..)
     , TxId (..)
     , TxIn (..)
     , TxMeta (direction)
@@ -80,6 +79,7 @@ import Test.QuickCheck
     , (===)
     )
 
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -142,7 +142,7 @@ prop_applyBlockBasic s =
     cond1 = not $ null $ (Set.fromList addresses) \\ (ourAddresses s)
     prop =
         let
-            cp0 = initWallet @_ @HttpBridge s
+            cp0 = initWallet @_ @DummyTarget s
             wallet = foldl (\cp b -> snd $ applyBlock b cp) cp0 blockchain
             utxo = totalUTxO wallet
             utxo' = evalState (foldM (flip updateUTxO) mempty blockchain) s
@@ -157,7 +157,7 @@ prop_applyBlockTxHistoryIncoming :: WalletState -> Property
 prop_applyBlockTxHistoryIncoming s =
     property (outs (filter isIncoming txs) `overlaps` ourAddresses s')
   where
-    cp0 = initWallet @_ @HttpBridge s
+    cp0 = initWallet @_ @DummyTarget s
     (txs, s') = bimap Map.elems getState $ applyBlocks blockchain cp0
     isIncoming (_, m) = direction m == Incoming
     outs = Set.fromList . concatMap (map address . outputs . fst)
@@ -170,7 +170,7 @@ prop_applyBlockCurrentTip :: ApplyBlock -> Property
 prop_applyBlockCurrentTip (ApplyBlock s _ b) =
     property $ currentTip wallet' > currentTip wallet
   where
-    wallet = initWallet @_ @HttpBridge s
+    wallet = initWallet @_ @DummyTarget s
     wallet' = snd $ applyBlock b wallet
 
 {-------------------------------------------------------------------------------
@@ -225,7 +225,7 @@ txOutsOurs txs =
 -- inputs for the subsequent blocks.
 utxoFromTx :: Tx -> UTxO
 utxoFromTx tx@(Tx _ outs) =
-    UTxO $ Map.fromList $ zip (TxIn (txId @HttpBridge tx) <$> [0..]) outs
+    UTxO $ Map.fromList $ zip (TxIn (txId @DummyTarget tx) <$> [0..]) outs
 
 
 {-------------------------------------------------------------------------------
@@ -238,6 +238,11 @@ utxoFromTx tx@(Tx _ outs) =
     point. For now, a valid chain coming from the testnet will do
 
 -------------------------------------------------------------------------------}
+
+data DummyTarget
+
+instance TxId DummyTarget where
+    txId = Hash . B8.pack . show
 
 -- | An arbitrary wallet state that can recognize some hard-coded addresses from
 -- our chain. This allows us to control that the UTxO gets updated accordingly

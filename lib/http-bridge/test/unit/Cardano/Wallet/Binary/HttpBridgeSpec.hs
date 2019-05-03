@@ -2,7 +2,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.BinarySpec
+module Cardano.Wallet.Binary.HttpBridgeSpec
     ( spec
 
     -- * Helpers
@@ -11,7 +11,7 @@ module Cardano.Wallet.BinarySpec
 
 import Prelude
 
-import Cardano.Wallet.Binary
+import Cardano.Wallet.Binary.HttpBridge
     ( decodeBlock
     , decodeBlockHeader
     , decodeSignedTx
@@ -21,7 +21,7 @@ import Cardano.Wallet.Binary
     , encodeTx
     , encodeTxWitness
     )
-import Cardano.Wallet.Compatibility
+import Cardano.Wallet.Compatibility.HttpBridge
     ( HttpBridge )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
