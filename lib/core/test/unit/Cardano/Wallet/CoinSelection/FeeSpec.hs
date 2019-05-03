@@ -3,7 +3,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -13,20 +12,10 @@ module Cardano.Wallet.CoinSelection.FeeSpec
 
 import Prelude
 
-import Cardano.Environment
-    ( Network (..), network )
-import Cardano.Wallet.Binary
-    ( encodeSignedTx )
 import Cardano.Wallet.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.CoinSelection.Fee
-    ( ErrAdjustForFee (..)
-    , Fee (..)
-    , FeeOptions (..)
-    , adjustForFee
-    , cardanoPolicy
-    , computeFee
-    )
+    ( ErrAdjustForFee (..), Fee (..), FeeOptions (..), adjustForFee )
 import Cardano.Wallet.CoinSelection.Policy.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.Primitive.Types
@@ -34,16 +23,10 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Hash (..)
     , ShowFmt (..)
-    , Tx (..)
     , TxIn (..)
     , TxOut (..)
-    , TxWitness (..)
     , UTxO (..)
     )
-import Cardano.Wallet.Transaction
-    ( TransactionLayer (..) )
-import Codec.CBOR.Write
-    ( toLazyByteString )
 import Control.Arrow
     ( left )
 import Control.Monad.IO.Class
@@ -54,16 +37,12 @@ import Crypto.Random
     ( SystemDRG, getSystemDRG )
 import Crypto.Random.Types
     ( withDRG )
-import Data.Digest.CRC32
-    ( crc32 )
 import Data.Either
     ( isRight )
 import Data.Functor.Identity
     ( Identity (runIdentity) )
 import Data.List.NonEmpty
     ( NonEmpty )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Word
     ( Word64 )
 import Fmt
@@ -73,27 +52,21 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
-    , InfiniteList (..)
     , Property
     , choose
     , disjoin
+    , elements
     , generate
     , property
     , scale
     , vectorOf
-    , withMaxSuccess
-    , (===)
     , (==>)
     )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
-import qualified Cardano.Wallet.Binary as CBOR
 import qualified Cardano.Wallet.CoinSelection as CS
-import qualified Cardano.Wallet.Transaction.HttpBridge as HttpBridge
-import qualified Codec.CBOR.Encoding as CBOR
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 
@@ -330,10 +303,6 @@ spec = do
         it "Adjusting for fee (/= 0) reduces the change outputs or increase inputs"
             (property . propReducedChanges)
 
-    describe "Fee Estimation properties" $ do
-        it "Estimated fee is the same as taken by encodeSignedTx"
-            (withMaxSuccess 2500 $ property propFeeEstimation)
-
 {-------------------------------------------------------------------------------
                          Fee Adjustment - Properties
 -------------------------------------------------------------------------------}
@@ -401,42 +370,6 @@ propReducedChanges drg (ShowFmt (FeeProp coinSel utxo (fee, dust))) = do
     feeOpt = feeOptions fee dust
     coinSel' = left show $ fst $ withDRG drg $ runExceptT $
         adjustForFee feeOpt utxo coinSel
-
-propFeeEstimation
-    :: (ShowFmt CoinSelection, InfiniteList (Network -> Address))
-    -> Property
-propFeeEstimation (ShowFmt sel, InfiniteList chngAddrs _) =
-    let
-        tl = HttpBridge.newTransactionLayer
-        calcFee = computeFee cardanoPolicy . estimateSize tl $ sel
-        tx = fromCoinSelection sel
-        encodedTx = toLazyByteString $ encodeSignedTx tx
-        size = fromIntegral $ BL.length encodedTx
-        -- We always go for the higher bound for change address payload's size,
-        -- so, we may end up with up to 4 extra bytes per change address in our
-        -- estimation.
-        margin = 4 * fromIntegral (length $ CS.change sel)
-        realFeeSup = computeFee cardanoPolicy $ Quantity (size + margin)
-        realFeeInf = computeFee cardanoPolicy $ Quantity size
-    in
-        (calcFee >= realFeeInf && calcFee <= realFeeSup, encodedTx)
-            === (True, encodedTx)
-  where
-    dummyWitness = PublicKeyWitness
-        "\226E\220\252\DLE\170\216\210\164\155\182mm$ePG\252\186\195\225_\b=\v\241=\255 \208\147[\239\RS\170|\214\202\247\169\229\205\187O_)\221\175\155?e\198\248\170\157-K\155\169z\144\174\ENQh" (Hash "\193\151*,\NULz\205\234\&1tL@\211\&2\165\129S\STXP\164C\176 Xvf\160|;\CANs{\SYN\204<N\207\154\130\225\229\t\172mbC\139\US\159\246\168x\163Mq\248\145)\160|\139\207-\SI")
-    dummyInput = Hash
-        "`\219\178g\158\233 T\f\CAN\EMZ=\146\238\155\229\n\238n\213\248\145\217-Q\219\138v\176,\210"
-    fromCoinSelection (CoinSelection inps outs chngs) =
-        let
-            txIns = zipWith TxIn
-                (replicate (length inps) dummyInput)
-                [0..]
-            txChngs = zipWith TxOut
-                (take (length chngs) (chngAddrs <*> pure network))
-                chngs
-            wits = replicate (length inps) dummyWitness
-        in
-            (Tx txIns (outs <> txChngs), wits)
 
 {-------------------------------------------------------------------------------
                          Fee Adjustment - Unit Tests
@@ -518,9 +451,6 @@ data FeeOutput = FeeOutput
 
 deriving newtype instance Arbitrary a => Arbitrary (ShowFmt a)
 
-instance Show (Network -> Address) where
-    show _ = "<Change Address Generator>"
-
 genUTxO :: [Coin] -> Gen UTxO
 genUTxO coins = do
     let n = length coins
@@ -534,6 +464,14 @@ genTxOut coins = do
     outs <- vectorOf n arbitrary
     return $ zipWith TxOut outs coins
 
+genSelection :: NonEmpty TxOut -> Gen CoinSelection
+genSelection outs = do
+    let opts = CS.CoinSelectionOptions 100
+    utxo <- vectorOf (NE.length outs * 3) arbitrary >>= genUTxO
+    case runIdentity $ runExceptT $ largestFirst opts outs utxo of
+        Left _ -> genSelection outs
+        Right (s,_) -> return s
+
 instance Arbitrary TxIn where
     shrink _ = []
     arbitrary = TxIn
@@ -543,90 +481,6 @@ instance Arbitrary TxIn where
 instance Arbitrary Coin where
     shrink (Coin c) = Coin <$> shrink (fromIntegral c)
     arbitrary = Coin <$> choose (1, 200000)
-
-instance Arbitrary (Hash "Tx") where
-    shrink _ = []
-    arbitrary = do
-        bytes <- BS.pack <$> vectorOf 32 arbitrary
-        pure $ Hash bytes
-
-instance Arbitrary Address where
-    shrink _ = []
-    arbitrary = genAddress (30, 100)
-
--- | Generate change addresses for the given network. We consider that change
--- addresses are always following a sequential scheme.
-instance {-# OVERLAPS #-} Arbitrary (Network -> Address) where
-    shrink _ = []
-    arbitrary = do
-        mainnetA <- genAddress (33, 33)
-        testnetA <- genAddress (40, 40)
-        return $ \case
-            Mainnet -> mainnetA
-            Staging -> mainnetA
-            Testnet -> testnetA
-            Local -> testnetA
-
--- | Generate a valid address with a payload of the given size. As pointers,
--- the sizes of payloads are as follows:
---
---     | Network | Scheme     | Size (bytes)   |
---     | ---     | ---        | ---            |
---     | Mainnet | Random     | 72,73,74 or 76 |
---     | Mainnet | Sequential | 39,40,41 or 43 |
---     | Testnet | Random     | 79,80,81 or 83 |
---     | Testnet | Sequential | 46,47,48 or 50 |
---
--- The address format on 'Staging' is the same as 'Mainnet'.
--- The address format on 'Local' is the same as 'Testnet'.
-genAddress :: (Int, Int) -> Gen Address
-genAddress range = do
-    n <- choose range
-    let prefix = BS.pack
-            [ 130       -- Array(2)
-            , 216, 24   -- Tag 24
-            , 88, fromIntegral n -- Bytes(n), n > 23 && n < 256
-            ]
-    payload <- BS.pack <$> vectorOf n arbitrary
-    let crc = CBOR.toByteString (CBOR.encodeWord32 $ crc32 payload)
-    return $ Address (prefix <> payload <> crc)
-
-instance Arbitrary CoinSelection where
-    shrink sel@(CoinSelection inps outs chgs) = case (inps, outs, chgs) of
-        ([_], [_], []) ->
-            []
-        _ ->
-            let
-                inps' = take (max 1 (length inps `div` 2)) inps
-                outs' = take (max 1 (length outs `div` 2)) outs
-                chgs' = take (length chgs `div` 2) chgs
-                inps'' = if length inps > 1 then drop 1 inps else inps
-                outs'' = if length outs > 1 then drop 1 outs else outs
-                chgs'' = drop 1 chgs
-            in
-                filter (\s -> s /= sel && isValidSelection s)
-                    [ CoinSelection inps' outs' chgs'
-                    , CoinSelection inps' outs chgs
-                    , CoinSelection inps outs chgs'
-                    , CoinSelection inps outs' chgs
-                    , CoinSelection inps'' outs'' chgs''
-                    , CoinSelection inps'' outs chgs
-                    , CoinSelection inps outs'' chgs
-                    , CoinSelection inps outs chgs''
-                    ]
-    arbitrary = do
-        outs <- choose (1, 10)
-            >>= \n -> vectorOf n arbitrary
-            >>= genTxOut
-        genSelection (NE.fromList outs)
-      where
-        genSelection :: NonEmpty TxOut -> Gen CoinSelection
-        genSelection outs = do
-            let opts = CS.CoinSelectionOptions 100
-            utxo <- vectorOf (NE.length outs * 3) arbitrary >>= genUTxO
-            case runIdentity $ runExceptT $ largestFirst opts outs utxo of
-                Left _ -> genSelection outs
-                Right (s,_) -> return s
 
 instance Arbitrary FeeProp where
     shrink (FeeProp cs utxo opts) =
@@ -647,3 +501,40 @@ instance Arbitrary FeeProp where
         fee <- choose (100000, 500000)
         dust <- choose (0, 10000)
         return $ FeeProp cs utxo (fee, dust)
+
+instance Arbitrary (Hash "Tx") where
+    shrink _ = []
+    arbitrary = do
+        bytes <- BS.pack <$> vectorOf 32 arbitrary
+        pure $ Hash bytes
+
+instance Arbitrary Address where
+    shrink _ = []
+    arbitrary = elements
+        [ Address "addr-0"
+        , Address "addr-1"
+        , Address "addr-2"
+        , Address "addr-3"
+        ]
+
+instance Arbitrary CoinSelection where
+    shrink sel@(CoinSelection inps outs chgs) = case (inps, outs, chgs) of
+        ([_], [_], []) ->
+            []
+        _ ->
+            let
+                inps' = if length inps > 1 then drop 1 inps else inps
+                outs' = if length outs > 1 then drop 1 outs else outs
+                chgs' = drop 1 chgs
+            in
+                filter (\s -> s /= sel && isValidSelection s)
+                    [ CoinSelection inps' outs' chgs'
+                    , CoinSelection inps' outs chgs
+                    , CoinSelection inps outs' chgs
+                    , CoinSelection inps outs chgs'
+                    ]
+    arbitrary = do
+        outs <- choose (1, 10)
+            >>= \n -> vectorOf n arbitrary
+            >>= genTxOut
+        genSelection (NE.fromList outs)

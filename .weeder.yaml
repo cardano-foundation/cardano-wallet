@@ -1,5 +1,5 @@
 - package:
-  - name: cardano-wallet-core
+  - name: cardano-wallet-http-bridge
   - section:
     - name: test:integration
     - message:
@@ -26,7 +26,6 @@
       - module:
         - name: Spec
         - identifier: main
-
 - package:
   - name: cardano-wallet-launcher
   - section:
@@ -34,3 +33,4 @@
     - message:
       - name: Module not compiled
       - module: Cardano.Launcher.Windows
+

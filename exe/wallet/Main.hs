@@ -32,7 +32,7 @@ import Cardano.Wallet.Api
     ( Api )
 import Cardano.Wallet.Api.Server
     ( server )
-import Cardano.Wallet.Compatibility
+import Cardano.Wallet.Compatibility.HttpBridge
     ( HttpBridge )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..), Passphrase (..) )
