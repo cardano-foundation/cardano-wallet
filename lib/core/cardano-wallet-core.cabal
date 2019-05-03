@@ -85,8 +85,9 @@ library
       Cardano.Wallet.Primitive.AddressDiscovery
       Cardano.Wallet.Primitive.Mnemonic
       Cardano.Wallet.Primitive.Model
-      Cardano.Wallet.Primitive.Signing
       Cardano.Wallet.Primitive.Types
+      Cardano.Wallet.Transaction
+      Cardano.Wallet.Transaction.HttpBridge
       Data.Quantity
       Servant.Extra.ContentTypes
   other-modules:
