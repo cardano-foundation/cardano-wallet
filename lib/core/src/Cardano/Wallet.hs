@@ -419,7 +419,8 @@ mkWalletLayer db network = WalletLayer
         let progress = slotRatio sup tip
         let status' = if progress == maxBound then Ready else Restoring progress
         let meta' = meta { status = status' } :: WalletMetadata
-
+        liftIO $ TIO.putStrLn $
+            "[INFO] Tx History: " +|| length txs ||+ ""
         -- NOTE
         -- Not as good as a transaction, but, with the lock, nothing can make
         -- the wallet disappear within these calls, so either the wallet is
