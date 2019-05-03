@@ -467,6 +467,114 @@ instance Data.Text.Class.FromText Cardano.Wallet.Primitive.Types.WalletName
 instance Data.Text.Class.ToText Cardano.Wallet.Primitive.Types.WalletName
 
 
+-- | Provides the API of Coin Selection algorithm and Fee Calculation This
+--   module contains the implementation of adjusting coin selection for a
+--   fee. The sender pays for the fee and additional inputs are picked
+--   randomly. For more information refer to:
+--   <a>https://iohk.io/blog/self-organisation-in-coin-selection/</a>
+module Cardano.Wallet.Primitive.CoinSelection
+newtype CoinSelectionOptions
+CoinSelectionOptions :: Word64 -> CoinSelectionOptions
+[maximumNumberOfInputs] :: CoinSelectionOptions -> Word64
+data CoinSelectionError
+
+-- | UTxO exhausted during input selection We record the balance of the
+--   UTxO as well as the size of the payment we tried to make.
+NotEnoughMoney :: Word64 -> Word64 -> CoinSelectionError
+
+-- | UTxO is not enough fragmented for the number of transaction outputs We
+--   record the number of UTxO entries as well as the number of the outputs
+--   of the transaction.
+UtxoNotEnoughFragmented :: Word64 -> Word64 -> CoinSelectionError
+
+-- | When trying to construct a transaction, the max number of allowed
+--   inputs was reached.
+MaximumInputsReached :: Word64 -> CoinSelectionError
+data CoinSelection
+CoinSelection :: [(TxIn, TxOut)] -> [TxOut] -> [Coin] -> CoinSelection
+
+-- | Picked inputs
+[inputs] :: CoinSelection -> [(TxIn, TxOut)]
+
+-- | Picked outputs
+[outputs] :: CoinSelection -> [TxOut]
+
+-- | Resulting changes
+[change] :: CoinSelection -> [Coin]
+
+-- | Shuffles a list of elements.
+--   
+--   <pre>
+--   &gt;&gt;&gt; shuffle (outputs coinSel)
+--   [...]
+--   </pre>
+shuffle :: [a] -> IO [a]
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.CoinSelection.CoinSelection
+instance GHC.Show.Show Cardano.Wallet.Primitive.CoinSelection.CoinSelection
+instance GHC.Generics.Generic Cardano.Wallet.Primitive.CoinSelection.CoinSelection
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.CoinSelection.CoinSelectionError
+instance GHC.Show.Show Cardano.Wallet.Primitive.CoinSelection.CoinSelectionError
+instance GHC.Generics.Generic Cardano.Wallet.Primitive.CoinSelection.CoinSelectionOptions
+instance GHC.Base.Semigroup Cardano.Wallet.Primitive.CoinSelection.CoinSelection
+instance GHC.Base.Monoid Cardano.Wallet.Primitive.CoinSelection.CoinSelection
+instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.CoinSelection.CoinSelection
+
+
+-- | This module contains the implementation of largestFirst input
+--   selection algorithm
+module Cardano.Wallet.Primitive.CoinSelection.LargestFirst
+
+-- | Largest-first input selection policy
+largestFirst :: forall m. Monad m => CoinSelectionOptions -> NonEmpty TxOut -> UTxO -> ExceptT CoinSelectionError m (CoinSelection, UTxO)
+
+
+-- | This module contains the implementation of random input selection
+--   algorithm
+module Cardano.Wallet.Primitive.CoinSelection.Random
+
+-- | Random-Improve Algorithm
+--   
+--   <ol>
+--   <li>Randomly select outputs from the UTxO until the payment value is
+--   covered. (In the rare case that this fails because the maximum number
+--   of transaction inputs has been exceeded, fall-back on the
+--   largest-first algorithm for this step.)</li>
+--   <li>Randomly select outputs from the UTxO, considering for each output
+--   if that output is animprovement. If it is, add it to the transaction,
+--   and keep going. An output is considered an improvement when:</li>
+--   </ol>
+--   
+--   (a) It doesn’t exceed a specified upper limit. (b) Adding the new
+--   output gets us closer to the ideal change value. (c) It doesn’t exceed
+--   a maximum number of transaction inputs.
+--   
+--   This algorithm follows three principles:
+--   
+--   <pre>
+--   **Self organisation principle 1**
+--   Random selection has a high probability of picking dust outputs precisely
+--   when there is a lot of dust in the UTxO.
+--   </pre>
+--   
+--   <pre>
+--   **Self organisation principle 2**
+--   If for each payment request for value <tt>x</tt> we create a change output roughly
+--   of the same value <tt>x</tt>, then we will end up with a lot of change outputs in
+--   our UTxO of size <tt>x</tt> precisely when we have a lot of payment requests of
+--   size <tt>x</tt>
+--   </pre>
+--   
+--   <pre>
+--   **Self organisation principle 3**
+--   Searching the UTxO for additional entries to improve our change output is
+--   only useful if the UTxO contains entries that are sufficiently small enough.
+--   But precisely when the UTxO contains many small entries, it is less likely
+--   that a randomly chosen UTxO entry will push the total above the upper bound
+--   we set.
+--   </pre>
+random :: forall m. MonadRandom m => CoinSelectionOptions -> NonEmpty TxOut -> UTxO -> ExceptT CoinSelectionError m (CoinSelection, UTxO)
+
+
 -- | Primitives for performing address derivation for some given schemes.
 --   This is where most of the crypto happens in the wallet and, it is
 --   quite important to ensure that the following implementation matches
@@ -654,6 +762,48 @@ instance GHC.Enum.Bounded (Cardano.Wallet.Primitive.AddressDerivation.Index 'Car
 instance GHC.Enum.Enum (Cardano.Wallet.Primitive.AddressDerivation.Index 'Cardano.Wallet.Primitive.AddressDerivation.Hardened level)
 instance GHC.Enum.Enum (Cardano.Wallet.Primitive.AddressDerivation.Index 'Cardano.Wallet.Primitive.AddressDerivation.Soft level)
 instance Control.DeepSeq.NFData key => Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDerivation.Key level key)
+
+
+-- | An extra interface for operation on transactions (e.g. creating
+--   witnesses, estimating size...). This makes it possible to decouple
+--   those operations from our wallet layer, keeping the implementation
+--   flexible to various backends.
+module Cardano.Wallet.Transaction
+data TransactionLayer
+TransactionLayer :: ((Address -> Maybe (Key  'AddressK XPrv, Passphrase "encryption")) -> [(TxIn, TxOut)] -> [TxOut] -> Either ErrMkStdTx (Tx, [TxWitness])) -> (CoinSelection -> Quantity "byte" Int) -> TransactionLayer
+
+-- | Construct a standard transaction
+--   
+--   " Standard " here refers to the fact that we do not deal with
+--   redemption, multisignature transactions, etc.
+--   
+--   This expects as a first argument a mean to compute or lookup private
+--   key corresponding to a particular address.
+[mkStdTx] :: TransactionLayer -> (Address -> Maybe (Key  'AddressK XPrv, Passphrase "encryption")) -> [(TxIn, TxOut)] -> [TxOut] -> Either ErrMkStdTx (Tx, [TxWitness])
+
+-- | Estimate the size of a <a>CoinSelection</a>, in bytes. This operation
+--   is seemingly coupled to the binary representation of a
+--   <tt>Transaction</tt>. This estimation is therefore only a best-effort
+--   here as many of the encoding values actually depends on the value of
+--   parameters at runtime.
+--   
+--   For instance, with a CBOR encoding, an amount of `50` lovelace would
+--   be encoded using 2 bytes, whereas an amount of `1000000` would be
+--   encoded using 4 bytes. In Byron, we have only one piece of unknown
+--   from the <a>CoinSelection</a> and it's the value of the <tt>crc32</tt>
+--   computed on the address payload, which can be 1,2,3 or 5 bytes and we
+--   therefore always consider the worst-case scenario of a 5-byte crc. As
+--   a consequence, our estimate may be slightly bigger than the actual
+--   transaction fee (up-to 4 extra bytes per change output).
+[estimateSize] :: TransactionLayer -> CoinSelection -> Quantity "byte" Int
+
+-- | Possible signing error
+newtype ErrMkStdTx
+
+-- | We tried to sign a transaction with inputs that are unknown to us?
+KeyNotFoundForAddress :: Address -> ErrMkStdTx
+instance GHC.Show.Show Cardano.Wallet.Transaction.ErrMkStdTx
+instance GHC.Classes.Eq Cardano.Wallet.Transaction.ErrMkStdTx
 
 
 -- | This module contains primitives necessary to perform address
@@ -875,156 +1025,6 @@ instance GHC.Exception.Type.Exception Cardano.Wallet.Network.ErrNetworkTip
 instance GHC.Exception.Type.Exception Cardano.Wallet.Network.ErrNetworkUnreachable
 
 
--- | Provides the API of Coin Selection algorithm and Fee Calculation This
---   module contains the implementation of adjusting coin selection for a
---   fee. The sender pays for the fee and additional inputs are picked
---   randomly. For more information refer to:
---   <a>https://iohk.io/blog/self-organisation-in-coin-selection/</a>
-module Cardano.Wallet.CoinSelection
-newtype CoinSelectionOptions
-CoinSelectionOptions :: Word64 -> CoinSelectionOptions
-[maximumNumberOfInputs] :: CoinSelectionOptions -> Word64
-data CoinSelectionError
-
--- | UTxO exhausted during input selection We record the balance of the
---   UTxO as well as the size of the payment we tried to make.
-NotEnoughMoney :: Word64 -> Word64 -> CoinSelectionError
-
--- | UTxO is not enough fragmented for the number of transaction outputs We
---   record the number of UTxO entries as well as the number of the outputs
---   of the transaction.
-UtxoNotEnoughFragmented :: Word64 -> Word64 -> CoinSelectionError
-
--- | When trying to construct a transaction, the max number of allowed
---   inputs was reached.
-MaximumInputsReached :: Word64 -> CoinSelectionError
-data CoinSelection
-CoinSelection :: [(TxIn, TxOut)] -> [TxOut] -> [Coin] -> CoinSelection
-
--- | Picked inputs
-[inputs] :: CoinSelection -> [(TxIn, TxOut)]
-
--- | Picked outputs
-[outputs] :: CoinSelection -> [TxOut]
-
--- | Resulting changes
-[change] :: CoinSelection -> [Coin]
-
--- | Shuffles a list of elements.
---   
---   <pre>
---   &gt;&gt;&gt; shuffle (outputs coinSel)
---   [...]
---   </pre>
-shuffle :: [a] -> IO [a]
-instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.CoinSelection
-instance GHC.Show.Show Cardano.Wallet.CoinSelection.CoinSelection
-instance GHC.Generics.Generic Cardano.Wallet.CoinSelection.CoinSelection
-instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.CoinSelectionError
-instance GHC.Show.Show Cardano.Wallet.CoinSelection.CoinSelectionError
-instance GHC.Generics.Generic Cardano.Wallet.CoinSelection.CoinSelectionOptions
-instance GHC.Base.Semigroup Cardano.Wallet.CoinSelection.CoinSelection
-instance GHC.Base.Monoid Cardano.Wallet.CoinSelection.CoinSelection
-instance Formatting.Buildable.Buildable Cardano.Wallet.CoinSelection.CoinSelection
-
-
--- | An extra interface for operation on transactions (e.g. creating
---   witnesses, estimating size...). This makes it possible to decouple
---   those operations from our wallet layer, keeping the implementation
---   flexible to various backends.
-module Cardano.Wallet.Transaction
-data TransactionLayer
-TransactionLayer :: ((Address -> Maybe (Key  'AddressK XPrv, Passphrase "encryption")) -> [(TxIn, TxOut)] -> [TxOut] -> Either ErrMkStdTx (Tx, [TxWitness])) -> (CoinSelection -> Quantity "byte" Int) -> TransactionLayer
-
--- | Construct a standard transaction
---   
---   " Standard " here refers to the fact that we do not deal with
---   redemption, multisignature transactions, etc.
---   
---   This expects as a first argument a mean to compute or lookup private
---   key corresponding to a particular address.
-[mkStdTx] :: TransactionLayer -> (Address -> Maybe (Key  'AddressK XPrv, Passphrase "encryption")) -> [(TxIn, TxOut)] -> [TxOut] -> Either ErrMkStdTx (Tx, [TxWitness])
-
--- | Estimate the size of a <a>CoinSelection</a>, in bytes. This operation
---   is seemingly coupled to the binary representation of a
---   <tt>Transaction</tt>. This estimation is therefore only a best-effort
---   here as many of the encoding values actually depends on the value of
---   parameters at runtime.
---   
---   For instance, with a CBOR encoding, an amount of `50` lovelace would
---   be encoded using 2 bytes, whereas an amount of `1000000` would be
---   encoded using 4 bytes. In Byron, we have only one piece of unknown
---   from the <a>CoinSelection</a> and it's the value of the <tt>crc32</tt>
---   computed on the address payload, which can be 1,2,3 or 5 bytes and we
---   therefore always consider the worst-case scenario of a 5-byte crc. As
---   a consequence, our estimate may be slightly bigger than the actual
---   transaction fee (up-to 4 extra bytes per change output).
-[estimateSize] :: TransactionLayer -> CoinSelection -> Quantity "byte" Int
-
--- | Possible signing error
-newtype ErrMkStdTx
-
--- | We tried to sign a transaction with inputs that are unknown to us?
-KeyNotFoundForAddress :: Address -> ErrMkStdTx
-instance GHC.Show.Show Cardano.Wallet.Transaction.ErrMkStdTx
-instance GHC.Classes.Eq Cardano.Wallet.Transaction.ErrMkStdTx
-
-
--- | This module contains the implementation of largestFirst input
---   selection algorithm
-module Cardano.Wallet.CoinSelection.Policy.LargestFirst
-
--- | Largest-first input selection policy
-largestFirst :: forall m. Monad m => CoinSelectionOptions -> NonEmpty TxOut -> UTxO -> ExceptT CoinSelectionError m (CoinSelection, UTxO)
-
-
--- | This module contains the implementation of random input selection
---   algorithm
-module Cardano.Wallet.CoinSelection.Policy.Random
-
--- | Random-Improve Algorithm
---   
---   <ol>
---   <li>Randomly select outputs from the UTxO until the payment value is
---   covered. (In the rare case that this fails because the maximum number
---   of transaction inputs has been exceeded, fall-back on the
---   largest-first algorithm for this step.)</li>
---   <li>Randomly select outputs from the UTxO, considering for each output
---   if that output is animprovement. If it is, add it to the transaction,
---   and keep going. An output is considered an improvement when:</li>
---   </ol>
---   
---   (a) It doesn’t exceed a specified upper limit. (b) Adding the new
---   output gets us closer to the ideal change value. (c) It doesn’t exceed
---   a maximum number of transaction inputs.
---   
---   This algorithm follows three principles:
---   
---   <pre>
---   **Self organisation principle 1**
---   Random selection has a high probability of picking dust outputs precisely
---   when there is a lot of dust in the UTxO.
---   </pre>
---   
---   <pre>
---   **Self organisation principle 2**
---   If for each payment request for value <tt>x</tt> we create a change output roughly
---   of the same value <tt>x</tt>, then we will end up with a lot of change outputs in
---   our UTxO of size <tt>x</tt> precisely when we have a lot of payment requests of
---   size <tt>x</tt>
---   </pre>
---   
---   <pre>
---   **Self organisation principle 3**
---   Searching the UTxO for additional entries to improve our change output is
---   only useful if the UTxO contains entries that are sufficiently small enough.
---   But precisely when the UTxO contains many small entries, it is less likely
---   that a randomly chosen UTxO entry will push the total above the upper bound
---   we set.
---   </pre>
-random :: forall m. MonadRandom m => CoinSelectionOptions -> NonEmpty TxOut -> UTxO -> ExceptT CoinSelectionError m (CoinSelection, UTxO)
-
-
 -- | Here we find the "business logic" to manage a Cardano wallet. This is
 --   a direct implementation of the model from the <a>Formal Specification
 --   for a Cardano Wallet</a> Note that, this module is purposedly agnostic
@@ -1228,7 +1228,7 @@ newDBLayer :: forall s t. IO (DBLayer IO s t)
 --   fee. The sender pays for the fee and additional inputs are picked
 --   randomly. For more information refer to:
 --   <a>https://iohk.io/blog/self-organisation-in-coin-selection/</a>
-module Cardano.Wallet.CoinSelection.Fee
+module Cardano.Wallet.Primitive.Fee
 
 -- | A <a>Fee</a>, isomorph to <a>Coin</a> but ease type-signatures and
 --   readability.
@@ -1296,13 +1296,13 @@ CannotCoverFee :: Word64 -> ErrAdjustForFee
 --   fee (depending on how many change outputs the algorithm happened to
 --   choose).
 adjustForFee :: MonadRandom m => FeeOptions -> UTxO -> CoinSelection -> ExceptT ErrAdjustForFee m CoinSelection
-instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.Fee.ErrAdjustForFee
-instance GHC.Show.Show Cardano.Wallet.CoinSelection.Fee.ErrAdjustForFee
-instance GHC.Generics.Generic Cardano.Wallet.CoinSelection.Fee.FeeOptions
-instance GHC.Show.Show Cardano.Wallet.CoinSelection.Fee.TxSizeLinear
-instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.Fee.TxSizeLinear
-instance GHC.Classes.Ord Cardano.Wallet.CoinSelection.Fee.Fee
-instance GHC.Classes.Eq Cardano.Wallet.CoinSelection.Fee.Fee
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Fee.ErrAdjustForFee
+instance GHC.Show.Show Cardano.Wallet.Primitive.Fee.ErrAdjustForFee
+instance GHC.Generics.Generic Cardano.Wallet.Primitive.Fee.FeeOptions
+instance GHC.Show.Show Cardano.Wallet.Primitive.Fee.TxSizeLinear
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Fee.TxSizeLinear
+instance GHC.Classes.Ord Cardano.Wallet.Primitive.Fee.Fee
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Fee.Fee
 
 
 -- | API type representations of various types. We define here pretty much
