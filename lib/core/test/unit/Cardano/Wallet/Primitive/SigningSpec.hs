@@ -14,6 +14,8 @@ import Cardano.Environment
     ( Network (..), network )
 import Cardano.Wallet.Binary
     ( encodeSignedTx, toByteString )
+import Cardano.Wallet.Compatibility
+    ( HttpBridge )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , Key
@@ -45,7 +47,7 @@ spec :: Spec
 spec = do
     describe "mkStdTx" $ do
         it "Unknown input address yields an error" $ do
-            let addr = keyToAddress $ publicKey $ xprv "addr"
+            let addr = keyToAddress @HttpBridge $ publicKey $ xprv "addr"
             let res = mkStdTx keyFrom inps outs
                   where
                     keyFrom = const Nothing

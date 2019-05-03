@@ -14,7 +14,7 @@ import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
     ( WalletLayer (..), mkWalletLayer, unsafeRunExceptT )
-import Cardano.Wallet.Binary
+import Cardano.Wallet.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..), digest, generateKeyFromSeed, publicKey )

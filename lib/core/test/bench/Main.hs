@@ -13,7 +13,7 @@ import Cardano.Launcher
     ( Command (Command), StdStream (..), installSignalHandlers, launch )
 import Cardano.Wallet
     ( WalletLayer (..), mkWalletLayer, unsafeRunExceptT )
-import Cardano.Wallet.Binary
+import Cardano.Wallet.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.Network
     ( NetworkLayer (..), networkTip )
@@ -91,7 +91,7 @@ main = do
             (bench_restoration wallet10p)
         ]
   where
-    walletSeq :: (WalletId, WalletName, SeqState)
+    walletSeq :: (WalletId, WalletName, SeqState HttpBridge)
     walletSeq =
         let
             seed = Passphrase

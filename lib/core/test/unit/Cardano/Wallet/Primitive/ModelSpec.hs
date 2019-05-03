@@ -11,7 +11,7 @@ module Cardano.Wallet.Primitive.ModelSpec
 
 import Prelude
 
-import Cardano.Wallet.Binary
+import Cardano.Wallet.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
