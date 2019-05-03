@@ -232,13 +232,21 @@ spec = do
             |] `shouldBe` (Left @String @(ApiMnemonicT '[12] "test") msg)
 
         it "ApiT AddressPoolGap (too small)" $ do
-            let msg = "Error in $: ErrGapOutOfRange 9"
+            let msg = "Error in $: An address pool gap must be a natural number between "
+                    <> show (getAddressPoolGap minBound)
+                    <> " and "
+                    <> show (getAddressPoolGap maxBound)
+                    <> "."
             Aeson.parseEither parseJSON [aesonQQ|
                 #{getAddressPoolGap minBound - 1}
             |] `shouldBe` (Left @String @(ApiT AddressPoolGap) msg)
 
         it "ApiT AddressPoolGap (too big)" $ do
-            let msg = "Error in $: ErrGapOutOfRange 101"
+            let msg = "Error in $: An address pool gap must be a natural number between "
+                    <> show (getAddressPoolGap minBound)
+                    <> " and "
+                    <> show (getAddressPoolGap maxBound)
+                    <> "."
             Aeson.parseEither parseJSON [aesonQQ|
                 #{getAddressPoolGap maxBound + 1}
             |] `shouldBe` (Left @String @(ApiT AddressPoolGap) msg)

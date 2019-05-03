@@ -50,7 +50,7 @@ import Prelude
 import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( AddressPoolGap, getAddressPoolGap, mkAddressPoolGap )
+    ( AddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
@@ -110,6 +110,7 @@ import Web.HttpApiData
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
+import qualified Data.Text as T
 
 {-------------------------------------------------------------------------------
                                   API Types
@@ -273,9 +274,8 @@ instance ToJSON (ApiT WalletId) where
     toJSON = toJSON . toText . getApiT
 
 instance FromJSON (ApiT AddressPoolGap) where
-    parseJSON x = do
-        gap <- parseJSON x
-        ApiT <$> eitherToParser (mkAddressPoolGap gap)
+    parseJSON = parseJSON >=>
+        eitherToParser . bimap ShowFmt ApiT . fromText . T.pack . show @Int
 instance ToJSON (ApiT AddressPoolGap) where
     toJSON = toJSON . getAddressPoolGap . getApiT
 

@@ -133,7 +133,7 @@ spec = do
 
     describe "AddressPoolGap - Text Roundtrip" $ do
         textRoundtrip $ Proxy @AddressPoolGap
-        let err = "An address pool gap must be a natural number between 10 and 100"
+        let err = "An address pool gap must be a natural number between 10 and 100."
         it "fail fromText @AddressPoolGap \"-10\"" $
             fromText @AddressPoolGap "-10" === Left (TextDecodingError err)
         it "fail fromText @AddressPoolGap \"0\"" $
