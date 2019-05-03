@@ -39,6 +39,7 @@ import Test.Hspec
 
 import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
+import qualified Cardano.Wallet.Transaction.HttpBridge as HttpBridge
 import qualified Data.Text as T
 
 spec :: Spec
@@ -74,4 +75,5 @@ spec = do
         threadDelay 1000000
         (handle,) <$> (mkWalletLayer @_ @HttpBridge
             <$> MVar.newDBLayer
-            <*> HttpBridge.newNetworkLayer port)
+            <*> HttpBridge.newNetworkLayer port
+            <*> pure HttpBridge.newTransactionLayer)

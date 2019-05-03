@@ -25,6 +25,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( GenChange (..), IsOurs (..), IsOwned (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Hash (..), TxId (..), WalletId (..), WalletName (..) )
+import Cardano.Wallet.Transaction.HttpBridge
+    ( newTransactionLayer )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
@@ -140,7 +142,8 @@ setupFixture
 setupFixture (wid, wname, wstate) = do
     db <- newDBLayer
     network <- newNetworkLayer 8000
-    let wl = mkWalletLayer @_ @DummyTarget db network
+    let tl = newTransactionLayer
+    let wl = mkWalletLayer @_ @DummyTarget db network tl
     res <- runExceptT $ createWallet wl wid wname wstate
     let wal = case res of
             Left _ -> []

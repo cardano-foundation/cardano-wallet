@@ -20,13 +20,12 @@ import Cardano.Wallet.Binary
 import Cardano.Wallet.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.CoinSelection.Fee
-    ( Fee (..)
-    , FeeError (..)
+    ( ErrAdjustForFee (..)
+    , Fee (..)
     , FeeOptions (..)
-    , TxSizeLinear (..)
     , adjustForFee
     , cardanoPolicy
-    , estimateFee
+    , computeFee
     )
 import Cardano.Wallet.CoinSelection.Policy.LargestFirst
     ( largestFirst )
@@ -41,6 +40,8 @@ import Cardano.Wallet.Primitive.Types
     , TxWitness (..)
     , UTxO (..)
     )
+import Cardano.Wallet.Transaction
+    ( TransactionLayer (..) )
 import Codec.CBOR.Write
     ( toLazyByteString )
 import Control.Arrow
@@ -89,6 +90,7 @@ import Test.QuickCheck.Monadic
 
 import qualified Cardano.Wallet.Binary as CBOR
 import qualified Cardano.Wallet.CoinSelection as CS
+import qualified Cardano.Wallet.Transaction.HttpBridge as HttpBridge
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
@@ -405,17 +407,17 @@ propFeeEstimation
     -> Property
 propFeeEstimation (ShowFmt sel, InfiniteList chngAddrs _) =
     let
-        (Fee calcFee) = estimateFee cardanoPolicy sel
-        (TxSizeLinear (Quantity a) (Quantity b)) = cardanoPolicy
+        tl = HttpBridge.newTransactionLayer
+        calcFee = computeFee cardanoPolicy . estimateSize tl $ sel
         tx = fromCoinSelection sel
         encodedTx = toLazyByteString $ encodeSignedTx tx
-        size = BL.length encodedTx
+        size = fromIntegral $ BL.length encodedTx
         -- We always go for the higher bound for change address payload's size,
         -- so, we may end up with up to 4 extra bytes per change address in our
         -- estimation.
         margin = 4 * fromIntegral (length $ CS.change sel)
-        realFeeSup = ceiling (a + b*(fromIntegral size + margin))
-        realFeeInf = ceiling (a + b*(fromIntegral size))
+        realFeeSup = computeFee cardanoPolicy $ Quantity (size + margin)
+        realFeeInf = computeFee cardanoPolicy $ Quantity size
     in
         (calcFee >= realFeeInf && calcFee <= realFeeSup, encodedTx)
             === (True, encodedTx)
@@ -453,7 +455,7 @@ feeOptions fee dust = FeeOptions
 
 feeUnitTest
     :: FeeFixture
-    -> Either FeeError FeeOutput
+    -> Either ErrAdjustForFee FeeOutput
     -> SpecWith ()
 feeUnitTest (FeeFixture inpsF outsF chngsF utxoF feeF dustF) expected = it title $ do
     (utxo, sel) <- setup

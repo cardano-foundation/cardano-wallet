@@ -25,10 +25,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , publicKey
     , unsafeGenerateKeyFromSeed
     )
-import Cardano.Wallet.Primitive.Signing
-    ( SignTxError (..), mkStdTx )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Coin (..), Hash (..), TxIn (..), TxOut (..) )
+import Cardano.Wallet.Transaction
+    ( ErrMkStdTx (..), TransactionLayer (..) )
 import Control.Arrow
     ( first )
 import Data.ByteArray.Encoding
@@ -40,6 +40,7 @@ import Data.Word
 import Test.Hspec
     ( Spec, SpecWith, describe, it, shouldBe, xit )
 
+import qualified Cardano.Wallet.Transaction.HttpBridge as HttpBridge
 import qualified Data.ByteArray as BA
 import qualified Data.Map as Map
 
@@ -48,8 +49,9 @@ spec = do
     describe "mkStdTx" $ do
         it "Unknown input address yields an error" $ do
             let addr = keyToAddress @HttpBridge $ publicKey $ xprv "addr"
-            let res = mkStdTx keyFrom inps outs
+            let res = mkStdTx tl keyFrom inps outs
                   where
+                    tl = HttpBridge.newTransactionLayer
                     keyFrom = const Nothing
                     inps =
                         [ ( TxIn (Hash "arbitrary") 0
@@ -613,7 +615,7 @@ goldenTestSignedTx nOuts xprvs expected = it title $ do
     let keyFrom a = (,mempty) <$> Map.lookup a s
     let inps = mkInput <$> zip addrs [0..]
     let outs = take nOuts $ mkOutput <$> cycle addrs
-    let res = mkStdTx keyFrom inps outs
+    let res = mkStdTx HttpBridge.newTransactionLayer keyFrom inps outs
     case res of
         Left e -> fail (show e)
         Right tx -> do

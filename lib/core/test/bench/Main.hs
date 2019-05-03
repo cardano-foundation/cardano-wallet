@@ -34,6 +34,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletState (..)
     )
+import Cardano.Wallet.Transaction.HttpBridge
+    ( newTransactionLayer )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
@@ -154,9 +156,10 @@ bench_restoration
 bench_restoration (wid, wname, s) = withHttpBridge $ \port -> do
     dbLayer <- MVar.newDBLayer
     networkLayer <- newNetworkLayer port
+    let transactionLayer = newTransactionLayer
     (_, bh) <- unsafeRunExceptT $ networkTip networkLayer
     sayErr . fmt $ network ||+ " tip is at " +|| (bh ^. #slotId) ||+ ""
-    let w = mkWalletLayer @_ @HttpBridge dbLayer networkLayer
+    let w = mkWalletLayer @_ @HttpBridge dbLayer networkLayer transactionLayer
     wallet <- unsafeRunExceptT $ createWallet w wid wname s
     unsafeRunExceptT $ restoreWallet w wallet
     waitForWalletSync w wallet

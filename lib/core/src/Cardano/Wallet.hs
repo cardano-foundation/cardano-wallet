@@ -47,7 +47,7 @@ import Cardano.Wallet.CoinSelection
     , shuffle
     )
 import Cardano.Wallet.CoinSelection.Fee
-    ( FeeError, FeeOptions (..), estimateFee )
+    ( ErrAdjustForFee, FeeOptions (..), cardanoPolicy, computeFee )
 import Cardano.Wallet.DB
     ( DBLayer
     , ErrNoSuchWallet (..)
@@ -77,8 +77,6 @@ import Cardano.Wallet.Primitive.Model
     , newPending
     , updateState
     )
-import Cardano.Wallet.Primitive.Signing
-    ( SignTxError, mkStdTx )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , Coin (..)
@@ -99,6 +97,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletState (..)
     , slotRatio
     )
+import Cardano.Wallet.Transaction
+    ( ErrMkStdTx, TransactionLayer (..) )
 import Control.Arrow
     ( first )
 import Control.Concurrent
@@ -216,11 +216,11 @@ data WalletLayer s t = WalletLayer
 data ErrCreateUnsignedTx
     = ErrCreateUnsignedTxNoSuchWallet ErrNoSuchWallet
     | ErrCreateUnsignedTxCoinSelection CoinSelectionError
-    | ErrCreateUnsignedTxFee FeeError
+    | ErrCreateUnsignedTxFee ErrAdjustForFee
 
 -- | Errors occuring when signing a transaction
 data ErrSignTx
-    = ErrSignTx SignTxError
+    = ErrSignTx ErrMkStdTx
     | ErrSignTxNoSuchWallet ErrNoSuchWallet
     | ErrSignTxWrongPassphrase ErrWrongPassphrase
 
@@ -238,8 +238,9 @@ mkWalletLayer
     :: forall s t. (IsOwned s, GenChange s, NFData s, Show s, TxId t)
     => DBLayer IO s t
     -> NetworkLayer IO
+    -> TransactionLayer
     -> WalletLayer s t
-mkWalletLayer db network = WalletLayer
+mkWalletLayer db nw tl = WalletLayer
 
     {---------------------------------------------------------------------------
                                        Wallets
@@ -265,7 +266,7 @@ mkWalletLayer db network = WalletLayer
     , restoreWallet = \wid -> do
         (w, _) <- _readWallet wid
         void $ liftIO $ forkIO $ do
-            runExceptT (networkTip network) >>= \case
+            runExceptT (networkTip nw) >>= \case
                 Left e -> do
                     TIO.putStrLn $ "[ERROR] restoreSleep: " +|| e ||+ ""
                     restoreSleep wid (currentTip w)
@@ -284,7 +285,7 @@ mkWalletLayer db network = WalletLayer
             CoinSelection.random opts recipients utxo
         withExceptT ErrCreateUnsignedTxFee $ do
             let feeOpts = FeeOptions
-                    { estimate = estimateFee CoinSelection.cardanoPolicy
+                    { estimate = computeFee cardanoPolicy . estimateSize tl
                     , dustThreshold = minBound
                     }
             CoinSelection.adjustForFee feeOpts utxo' sel
@@ -297,7 +298,7 @@ mkWalletLayer db network = WalletLayer
         allShuffledOuts <- liftIO $ shuffle (outs ++ changeOuts)
         withRootKey wid pwd ErrSignTxWrongPassphrase $ \xprv -> do
             let keyFrom = isOwned (getState w) (xprv, pwd)
-            case mkStdTx keyFrom ins allShuffledOuts of
+            case mkStdTx tl keyFrom ins allShuffledOuts of
                 Right (tx, wit) -> do
                     -- Safe because we have a lock and we already fetched the
                     -- wallet within this context.
@@ -319,7 +320,7 @@ mkWalletLayer db network = WalletLayer
 
     , submitTx = \wid (tx, meta, wit) -> do
         let signed = SignedTx $ toByteString $ encodeSignedTx (tx, wit)
-        withExceptT ErrSubmitTxNetwork $ postTx network signed
+        withExceptT ErrSubmitTxNetwork $ postTx nw signed
         DB.withLock db $ withExceptT ErrSubmitTxNoSuchWallet $ do
             (w, _) <- _readWallet wid
             let history = Map.fromList [(txId @t tx, (tx, meta))]
@@ -366,7 +367,7 @@ mkWalletLayer db network = WalletLayer
     -- The function only terminates if the wallet has disappeared from the DB.
     restoreStep :: WalletId -> (SlotId, SlotId) -> IO ()
     restoreStep wid (slot, tip) = do
-        runExceptT (nextBlocks network slot) >>= \case
+        runExceptT (nextBlocks nw slot) >>= \case
             Left e -> do
                 TIO.putStrLn $ "[ERROR] restoreStep: " +|| e ||+ ""
                 restoreSleep wid slot
@@ -386,7 +387,7 @@ mkWalletLayer db network = WalletLayer
     restoreSleep :: WalletId -> SlotId -> IO ()
     restoreSleep wid slot = do
         let tenSeconds = 10000000 in threadDelay tenSeconds
-        runExceptT (networkTip network) >>= \case
+        runExceptT (networkTip nw) >>= \case
             Left e -> do
                 TIO.putStrLn $ "[ERROR] restoreSleep: " +|| e ||+ ""
                 restoreSleep wid slot

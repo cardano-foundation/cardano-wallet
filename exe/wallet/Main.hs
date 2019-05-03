@@ -68,6 +68,7 @@ import System.IO
 
 import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
+import qualified Cardano.Wallet.Transaction.HttpBridge as HttpBridge
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Network.Wai.Handler.Warp as Warp
@@ -172,7 +173,8 @@ execServer :: Port "wallet" -> Port "bridge" -> IO ()
 execServer (Port port) (Port bridgePort) = do
     db <- MVar.newDBLayer
     nw <- HttpBridge.newNetworkLayer bridgePort
-    let wallet = mkWalletLayer @_ @HttpBridge db nw
+    let tl = HttpBridge.newTransactionLayer
+    let wallet = mkWalletLayer @_ @HttpBridge db nw tl
     Warp.runSettings settings (serve (Proxy @("v2" :> Api)) (server wallet))
   where
     settings = Warp.defaultSettings
