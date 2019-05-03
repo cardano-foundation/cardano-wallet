@@ -412,6 +412,12 @@ nextChangeIndex pool (PendingIxs ixs) =
                                  State
 -------------------------------------------------------------------------------}
 
+-- | A state to keep track of sequential addresses as described in
+-- [BIP-44](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki)
+--
+-- Internally, the state keeps track of a few things for us and is it is
+-- parameterized by a type @t@ which represents a target backend. This enables
+-- the state to be agnostic to the underlying address format.
 data SeqState t = SeqState
     { internalPool :: !(AddressPool t 'InternalChain)
         -- ^ Addresses living on the 'InternalChain'
