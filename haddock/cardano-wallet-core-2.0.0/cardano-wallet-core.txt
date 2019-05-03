@@ -226,6 +226,27 @@ Tx :: ![TxIn] -> ![TxOut] -> Tx
 --   are used as inputs for next transactions which refer to them using
 --   their indexes. It matters also for serialization.
 [$sel:outputs:Tx] :: Tx -> ![TxOut]
+
+-- | An abstraction for computing transaction id. The <tt>target</tt> is an
+--   open-type that can be used to discriminate on. For instance:
+--   
+--   <pre>
+--   instance TxId HttpBridge where
+--     txId _ = {- ... -}
+--   </pre>
+--   
+--   Note that <a>txId</a> is ambiguous and requires therefore a type
+--   application. Likely, a corresponding target would be found in scope
+--   (requires however ScopedTypeVariables).
+--   
+--   For example, assuming there's a type <tt>target</tt> in scope, one can
+--   simply do:
+--   
+--   <pre>
+--   txId @target tx
+--   </pre>
+class TxId target
+txId :: TxId target => Tx -> Hash "Tx"
 data TxIn
 TxIn :: !Hash "Tx" -> !Word32 -> TxIn
 [$sel:inputId:TxIn] :: TxIn -> !Hash "Tx"
@@ -679,6 +700,11 @@ random :: forall m. MonadRandom m => CoinSelectionOptions -> NonEmpty TxOut -> U
 --   They are also used by components like the Rust
 --   <a>cardano-http-bridge</a>.
 module Cardano.Wallet.Binary
+
+-- | A type representing the http-bridge as a network target. This has an
+--   influence on binary serializer &amp; network primitives. See also
+--   <a>TxId</a>
+data HttpBridge
 decodeBlock :: Decoder s Block
 decodeBlockHeader :: Decoder s BlockHeader
 decodeTx :: Decoder s Tx
@@ -720,16 +746,6 @@ encodeTxWitness :: TxWitness -> Encoding
 encodeSignedTx :: (Tx, [TxWitness]) -> Encoding
 encodeProtocolMagic :: ProtocolMagic -> Encoding
 
--- | Compute a transaction id; assumed to be effectively injective. It
---   returns an hex-encoded 64-byte hash.
---   
---   NOTE: This is a rather expensive operation
-txId :: Tx -> Hash "Tx"
-data TxWitness
-PublicKeyWitness :: ByteString -> Hash "signature" -> TxWitness
-ScriptWitness :: ByteString -> TxWitness
-RedeemWitness :: ByteString -> TxWitness
-
 -- | Inspect the next token that has to be decoded and print it to the
 --   console as a trace. Useful for debugging Decoders. Example:
 --   
@@ -765,6 +781,7 @@ decodeList :: forall s a. Decoder s a -> Decoder s [a]
 --   </pre>
 decodeListIndef :: forall s a. Decoder s a -> Decoder s [a]
 toByteString :: Encoding -> ByteString
+instance Cardano.Wallet.Primitive.Types.TxId Cardano.Wallet.Binary.HttpBridge
 
 
 -- | Primitives for performing address derivation for some given schemes.
@@ -1166,45 +1183,45 @@ module Cardano.Wallet.Primitive.Model
 --   <li>Transaction history</li>
 --   <li>TODO: Known &amp; used addresses</li>
 --   </ul>
-data Wallet s
+data Wallet s t
 
 -- | Create an empty wallet from an initial state
-initWallet :: (IsOurs s, NFData s, Show s) => s -> Wallet s
+initWallet :: (IsOurs s, NFData s, Show s, TxId t) => s -> Wallet s t
 
 -- | Update the state of an existing Wallet model
-updateState :: (IsOurs s, NFData s, Show s) => s -> Wallet s -> Wallet s
+updateState :: (IsOurs s, NFData s, Show s) => s -> Wallet s t -> Wallet s t
 
 -- | Apply Block is the only way to make the wallet evolve. It returns a
 --   new updated wallet state, as well as the set of all our transaction
 --   discovered while applying the block.
-applyBlock :: Block -> Wallet s -> (Map (Hash "Tx") (Tx, TxMeta), Wallet s)
+applyBlock :: forall s t. () => Block -> Wallet s t -> (Map (Hash "Tx") (Tx, TxMeta), Wallet s t)
 
 -- | Helper to apply multiple blocks in sequence to an existing wallet.
 --   It's basically just a <tt>foldl' applyBlock</tt> over the given
 --   blocks.
-applyBlocks :: [Block] -> Wallet s -> (Map (Hash "Tx") (Tx, TxMeta), Wallet s)
-newPending :: Tx -> Wallet s -> Wallet s
+applyBlocks :: [Block] -> Wallet s t -> (Map (Hash "Tx") (Tx, TxMeta), Wallet s t)
+newPending :: Tx -> Wallet s t -> Wallet s t
 
 -- | Get the wallet current tip
-currentTip :: Wallet s -> SlotId
+currentTip :: Wallet s t -> SlotId
 
 -- | Get the wallet current state
-getState :: Wallet s -> s
+getState :: Wallet s t -> s
 
 -- | Available balance = <a>balance</a> . <a>availableUTxO</a>
-availableBalance :: Wallet s -> Natural
+availableBalance :: Wallet s t -> Natural
 
 -- | Total balance = <a>balance</a> . <a>totalUTxO</a>
-totalBalance :: Wallet s -> Natural
+totalBalance :: Wallet s t -> Natural
 
 -- | Total UTxO = <a>availableUTxO</a> <tt>&lt;&gt;</tt> <a>changeUTxO</a>
-totalUTxO :: Wallet s -> UTxO
+totalUTxO :: forall s t. Wallet s t -> UTxO
 
 -- | Available UTxO = <tt>pending ⋪ utxo</tt>
-availableUTxO :: Wallet s -> UTxO
-instance GHC.Show.Show (Cardano.Wallet.Primitive.Model.Wallet s)
-instance GHC.Classes.Eq s => GHC.Classes.Eq (Cardano.Wallet.Primitive.Model.Wallet s)
-instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.Model.Wallet s)
+availableUTxO :: Wallet s t -> UTxO
+instance GHC.Show.Show (Cardano.Wallet.Primitive.Model.Wallet s t)
+instance GHC.Classes.Eq s => GHC.Classes.Eq (Cardano.Wallet.Primitive.Model.Wallet s t)
+instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.Model.Wallet s t)
 
 
 -- | Database / Pesistence layer for the wallet backend. This is where we
@@ -1216,42 +1233,42 @@ module Cardano.Wallet.DB
 --   we'll need some extra contraints on the wallet state that allows us to
 --   serialize and unserialize it (e.g. <tt>forall s. (Serialize s) =&gt;
 --   ...</tt>)
-data DBLayer m s
-DBLayer :: (PrimaryKey WalletId -> Wallet s -> WalletMetadata -> ExceptT ErrWalletAlreadyExists m ()) -> (PrimaryKey WalletId -> ExceptT ErrNoSuchWallet m ()) -> m [PrimaryKey WalletId] -> (PrimaryKey WalletId -> Wallet s -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe (Wallet s))) -> (PrimaryKey WalletId -> WalletMetadata -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe WalletMetadata)) -> (PrimaryKey WalletId -> Map (Hash "Tx") (Tx, TxMeta) -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Map (Hash "Tx") (Tx, TxMeta))) -> (PrimaryKey WalletId -> (Key  'RootK XPrv, Hash "encryption") -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe (Key  'RootK XPrv, Hash "encryption"))) -> (forall e a. () => ExceptT e m a -> ExceptT e m a) -> DBLayer m s
+data DBLayer m s t
+DBLayer :: (PrimaryKey WalletId -> Wallet s t -> WalletMetadata -> ExceptT ErrWalletAlreadyExists m ()) -> (PrimaryKey WalletId -> ExceptT ErrNoSuchWallet m ()) -> m [PrimaryKey WalletId] -> (PrimaryKey WalletId -> Wallet s t -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe (Wallet s t))) -> (PrimaryKey WalletId -> WalletMetadata -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe WalletMetadata)) -> (PrimaryKey WalletId -> Map (Hash "Tx") (Tx, TxMeta) -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Map (Hash "Tx") (Tx, TxMeta))) -> (PrimaryKey WalletId -> (Key  'RootK XPrv, Hash "encryption") -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe (Key  'RootK XPrv, Hash "encryption"))) -> (forall e a. () => ExceptT e m a -> ExceptT e m a) -> DBLayer m s t
 
 -- | Initialize a database entry for a given wallet. <a>putCheckpoint</a>,
 --   <a>putWalletMeta</a> or <a>putTxHistory</a> will actually all fail if
 --   they are called _first_ on a wallet.
-[createWallet] :: DBLayer m s -> PrimaryKey WalletId -> Wallet s -> WalletMetadata -> ExceptT ErrWalletAlreadyExists m ()
+[createWallet] :: DBLayer m s t -> PrimaryKey WalletId -> Wallet s t -> WalletMetadata -> ExceptT ErrWalletAlreadyExists m ()
 
 -- | Remove a given wallet and all its associated data (checkpoints,
 --   metadata, tx history ...)
-[removeWallet] :: DBLayer m s -> PrimaryKey WalletId -> ExceptT ErrNoSuchWallet m ()
+[removeWallet] :: DBLayer m s t -> PrimaryKey WalletId -> ExceptT ErrNoSuchWallet m ()
 
 -- | Get the list of all known wallets in the DB, possibly empty.
-[listWallets] :: DBLayer m s -> m [PrimaryKey WalletId]
+[listWallets] :: DBLayer m s t -> m [PrimaryKey WalletId]
 
 -- | Replace the current checkpoint for a given wallet. We do not handle
 --   rollbacks yet, and therefore only stores the latest available
 --   checkpoint.
 --   
 --   If the wallet doesn't exist, this operation returns an error.
-[putCheckpoint] :: DBLayer m s -> PrimaryKey WalletId -> Wallet s -> ExceptT ErrNoSuchWallet m ()
+[putCheckpoint] :: DBLayer m s t -> PrimaryKey WalletId -> Wallet s t -> ExceptT ErrNoSuchWallet m ()
 
 -- | Fetch the most recent checkpoint of a given wallet.
 --   
 --   Return <a>Nothing</a> if there's no such wallet.
-[readCheckpoint] :: DBLayer m s -> PrimaryKey WalletId -> m (Maybe (Wallet s))
+[readCheckpoint] :: DBLayer m s t -> PrimaryKey WalletId -> m (Maybe (Wallet s t))
 
 -- | Replace an existing wallet metadata with the given one.
 --   
 --   If the wallet doesn't exist, this operation returns an error
-[putWalletMeta] :: DBLayer m s -> PrimaryKey WalletId -> WalletMetadata -> ExceptT ErrNoSuchWallet m ()
+[putWalletMeta] :: DBLayer m s t -> PrimaryKey WalletId -> WalletMetadata -> ExceptT ErrNoSuchWallet m ()
 
 -- | Fetch a wallet metadata, if they exist.
 --   
 --   Return <a>Nothing</a> if there's no such wallet.
-[readWalletMeta] :: DBLayer m s -> PrimaryKey WalletId -> m (Maybe WalletMetadata)
+[readWalletMeta] :: DBLayer m s t -> PrimaryKey WalletId -> m (Maybe WalletMetadata)
 
 -- | Augments the transaction history for a known wallet.
 --   
@@ -1259,23 +1276,23 @@ DBLayer :: (PrimaryKey WalletId -> Wallet s -> WalletMetadata -> ExceptT ErrWall
 --   altered nor merged (just ignored).
 --   
 --   If the wallet doesn't exist, this operation returns an error.
-[putTxHistory] :: DBLayer m s -> PrimaryKey WalletId -> Map (Hash "Tx") (Tx, TxMeta) -> ExceptT ErrNoSuchWallet m ()
+[putTxHistory] :: DBLayer m s t -> PrimaryKey WalletId -> Map (Hash "Tx") (Tx, TxMeta) -> ExceptT ErrNoSuchWallet m ()
 
 -- | Fetch the current transaction history of a known wallet.
 --   
 --   Returns an empty map if the wallet isn't found.
-[readTxHistory] :: DBLayer m s -> PrimaryKey WalletId -> m (Map (Hash "Tx") (Tx, TxMeta))
+[readTxHistory] :: DBLayer m s t -> PrimaryKey WalletId -> m (Map (Hash "Tx") (Tx, TxMeta))
 
 -- | Store or replace a private key for a given wallet. Note that wallet
 --   _could_ be stored and manipulated without any private key associated
 --   to it. A private key is only seldomly required for very specific
 --   operations (like transaction signing).
-[putPrivateKey] :: DBLayer m s -> PrimaryKey WalletId -> (Key  'RootK XPrv, Hash "encryption") -> ExceptT ErrNoSuchWallet m ()
+[putPrivateKey] :: DBLayer m s t -> PrimaryKey WalletId -> (Key  'RootK XPrv, Hash "encryption") -> ExceptT ErrNoSuchWallet m ()
 
 -- | Read a previously stored private key and its associated passphrase
 --   hash.
-[readPrivateKey] :: DBLayer m s -> PrimaryKey WalletId -> m (Maybe (Key  'RootK XPrv, Hash "encryption"))
-[withLock] :: DBLayer m s -> forall e a. () => ExceptT e m a -> ExceptT e m a
+[readPrivateKey] :: DBLayer m s t -> PrimaryKey WalletId -> m (Maybe (Key  'RootK XPrv, Hash "encryption"))
+[withLock] :: DBLayer m s t -> forall e a. () => ExceptT e m a -> ExceptT e m a
 
 -- | A primary key which can take many forms depending on the value. This
 --   may become a type family as we move forward, but for now, it
@@ -1311,7 +1328,7 @@ module Cardano.Wallet.DB.MVar
 
 -- | Instantiate a new in-memory "database" layer that simply stores data
 --   in a local MVar. Data vanishes if the software is shut down.
-newDBLayer :: forall s. IO (DBLayer IO s)
+newDBLayer :: forall s t. IO (DBLayer IO s t)
 
 
 -- | Provides the API of Coin Selection algorithm and Fee Calculation This
@@ -1598,22 +1615,22 @@ instance Data.Text.Class.ToText a => Web.Internal.HttpApiData.ToHttpApiData (Car
 --   uses both <a>Cardano.Wallet.DB</a> and <a>Cardano.Wallet.Network</a>
 --   to realize its role as being intermediary between the three.
 module Cardano.Wallet
-data WalletLayer s
-WalletLayer :: (WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata)) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection) -> (WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx, TxMeta, [TxWitness])) -> (WalletId -> (Tx, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()) -> WalletLayer s
+data WalletLayer s t
+WalletLayer :: (WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection) -> (WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx, TxMeta, [TxWitness])) -> (WalletId -> (Tx, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()) -> WalletLayer s t
 
 -- | Initialise and store a new wallet, returning its Id.
-[$sel:createWallet:WalletLayer] :: WalletLayer s -> WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId
+[$sel:createWallet:WalletLayer] :: WalletLayer s t -> WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId
 
 -- | Retrieve the wallet state for the wallet with the given ID.
-[$sel:readWallet:WalletLayer] :: WalletLayer s -> WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata)
+[$sel:readWallet:WalletLayer] :: WalletLayer s t -> WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)
 
 -- | Retrieve a list of known wallets IDs.
-[$sel:listWallets:WalletLayer] :: WalletLayer s -> IO [WalletId]
+[$sel:listWallets:WalletLayer] :: WalletLayer s t -> IO [WalletId]
 
 -- | Remove an existing wallet. Note that, there's no particular work to be
 --   done regarding the restoration worker as it will simply terminate on
 --   the next tick when noticing that the corresponding wallet is gone.
-[$sel:removeWallet:WalletLayer] :: WalletLayer s -> WalletId -> ExceptT ErrNoSuchWallet IO ()
+[$sel:removeWallet:WalletLayer] :: WalletLayer s t -> WalletId -> ExceptT ErrNoSuchWallet IO ()
 
 -- | Restore a wallet from its current tip up to a given target (typically,
 --   the network tip).
@@ -1621,28 +1638,28 @@ WalletLayer :: (WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO
 --   It returns immediately and fail if the wallet is already beyond the
 --   given tip. It starts a worker in background which will fetch and apply
 --   remaining blocks until failure or, the target slot is reached.
-[$sel:restoreWallet:WalletLayer] :: WalletLayer s -> WalletId -> ExceptT ErrNoSuchWallet IO ()
+[$sel:restoreWallet:WalletLayer] :: WalletLayer s t -> WalletId -> ExceptT ErrNoSuchWallet IO ()
 
 -- | Prepare a transaction and automatically select inputs from the wallet
 --   to cover the requested outputs. Note that this only run the coin
 --   selection for the given outputs. In order to construct (and sign) an
 --   actual transaction, have a look at <a>$sel:signTx:WalletLayer</a>.
-[$sel:createUnsignedTx:WalletLayer] :: WalletLayer s -> WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection
+[$sel:createUnsignedTx:WalletLayer] :: WalletLayer s t -> WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection
 
 -- | Produce witnesses and construct a transaction from a given selection.
 --   Requires the encryption passphrase in order to decrypt the root
 --   private key. Note that this doesn't broadcast the transaction to the
 --   network. In order to do so, have a look at
 --   <a>$sel:submitTx:WalletLayer</a>.
-[$sel:signTx:WalletLayer] :: WalletLayer s -> WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx, TxMeta, [TxWitness])
+[$sel:signTx:WalletLayer] :: WalletLayer s t -> WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx, TxMeta, [TxWitness])
 
 -- | Broadcast a (signed) transaction to the network.
-[$sel:submitTx:WalletLayer] :: WalletLayer s -> WalletId -> (Tx, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()
+[$sel:submitTx:WalletLayer] :: WalletLayer s t -> WalletId -> (Tx, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()
 
 -- | Attach a given private key to a wallet. The private key is necessary
 --   for some operations like signing transactions or, generating new
 --   accounts.
-[$sel:attachPrivateKey:WalletLayer] :: WalletLayer s -> WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()
+[$sel:attachPrivateKey:WalletLayer] :: WalletLayer s t -> WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()
 
 -- | Can't perform given operation because there's no wallet
 newtype ErrNoSuchWallet
@@ -1670,7 +1687,7 @@ ErrCreateUnsignedTxCoinSelection :: CoinSelectionError -> ErrCreateUnsignedTx
 ErrCreateUnsignedTxFee :: FeeError -> ErrCreateUnsignedTx
 
 -- | Create a new instance of the wallet layer.
-mkWalletLayer :: forall s. (IsOwned s, GenChange s, NFData s, Show s) => DBLayer IO s -> NetworkLayer IO -> WalletLayer s
+mkWalletLayer :: forall s t. (IsOwned s, GenChange s, NFData s, Show s, TxId t) => DBLayer IO s t -> NetworkLayer IO -> WalletLayer s t
 
 -- | Run an ExcepT and throws the error if any. This makes sense only if
 --   called after checking for an invariant or, after ensuring that
@@ -1817,7 +1834,7 @@ type CreateTransaction = "wallets" :> Capture "walletId" (ApiT WalletId) :> "tra
 module Cardano.Wallet.Api.Server
 
 -- | A Servant server for our wallet API
-server :: WalletLayer SeqState -> Server Api
+server :: TxId t => WalletLayer SeqState t -> Server Api
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.DB.ErrNoSuchWallet
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.DB.ErrWalletAlreadyExists
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrCreateUnsignedTx
