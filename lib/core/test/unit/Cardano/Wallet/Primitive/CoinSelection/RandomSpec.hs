@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.CoinSelection.Policy.RandomSpec
+module Cardano.Wallet.Primitive.CoinSelection.RandomSpec
     ( spec
     ) where
 

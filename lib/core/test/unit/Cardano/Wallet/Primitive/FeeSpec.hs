@@ -6,7 +6,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.CoinSelection.FeeSpec
+module Cardano.Wallet.Primitive.FeeSpec
     ( spec
     ) where
 

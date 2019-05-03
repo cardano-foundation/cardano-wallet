@@ -10,7 +10,7 @@
 -- input selection algorithm
 
 
-module Cardano.Wallet.CoinSelection.Policy.Random
+module Cardano.Wallet.Primitive.CoinSelection.Random
     ( random
     ) where
 

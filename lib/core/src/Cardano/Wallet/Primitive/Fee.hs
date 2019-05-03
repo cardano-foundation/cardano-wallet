@@ -14,7 +14,7 @@
 -- For more information refer to:
 -- https://iohk.io/blog/self-organisation-in-coin-selection/
 
-module Cardano.Wallet.CoinSelection.Fee
+module Cardano.Wallet.Primitive.Fee
     (
       -- * Types
       Fee (..)

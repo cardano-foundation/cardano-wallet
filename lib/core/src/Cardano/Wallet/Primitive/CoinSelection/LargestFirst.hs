@@ -9,7 +9,7 @@
 -- input selection algorithm
 
 
-module Cardano.Wallet.CoinSelection.Policy.LargestFirst (
+module Cardano.Wallet.Primitive.CoinSelection.LargestFirst (
     largestFirst
   ) where
 

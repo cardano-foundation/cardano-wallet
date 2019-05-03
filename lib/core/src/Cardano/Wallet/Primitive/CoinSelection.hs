@@ -12,7 +12,7 @@
 -- For more information refer to:
 -- https://iohk.io/blog/self-organisation-in-coin-selection/
 
-module Cardano.Wallet.CoinSelection
+module Cardano.Wallet.Primitive.CoinSelection
     (
       -- * Coin Selection
       CoinSelectionOptions (..)
