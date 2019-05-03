@@ -96,6 +96,7 @@ test-suite unit
     , bytestring
     , cardano-crypto
     , cardano-wallet-core
+    , cardano-wallet-http-bridge
     , cborg
     , containers
     , cryptonite
@@ -153,6 +154,7 @@ test-suite integration
     , async
     , bytestring
     , cardano-wallet-core
+    , cardano-wallet-http-bridge
     , cardano-wallet-launcher
     , cborg
     , cryptonite
@@ -201,6 +203,7 @@ benchmark restore
     , async
     , bytestring
     , cardano-wallet-core
+    , cardano-wallet-http-bridge
     , cardano-wallet-launcher
     , containers
     , criterion-measurement

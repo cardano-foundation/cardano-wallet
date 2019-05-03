@@ -33,6 +33,7 @@ executable cardano-wallet
       base
     , cardano-wallet-cli
     , cardano-wallet-core
+    , cardano-wallet-http-bridge
     , docopt
     , servant-server
     , text
@@ -58,6 +59,7 @@ executable cardano-wallet-launcher
       base
     , cardano-wallet-cli
     , cardano-wallet-core
+    , cardano-wallet-http-bridge
     , cardano-wallet-launcher
     , docopt
     , fmt

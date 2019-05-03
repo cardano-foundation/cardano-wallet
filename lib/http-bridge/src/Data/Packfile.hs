@@ -9,7 +9,7 @@
 -- The reference implementation is in
 -- <https://github.com/input-output-hk/rust-cardano/blob/master/storage-units/src/packfile.rs packfile.rs>.
 
-module Cardano.Wallet.Binary.Packfile
+module Data.Packfile
     ( decodePackfile
     , PackfileError (..)
     ) where

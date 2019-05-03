@@ -13,7 +13,7 @@ import Cardano.Launcher
     ( Command (Command), StdStream (..), installSignalHandlers, launch )
 import Cardano.Wallet
     ( WalletLayer (..), mkWalletLayer, unsafeRunExceptT )
-import Cardano.Wallet.Compatibility
+import Cardano.Wallet.Compatibility.HttpBridge
     ( HttpBridge )
 import Cardano.Wallet.Network
     ( NetworkLayer (..), networkTip )

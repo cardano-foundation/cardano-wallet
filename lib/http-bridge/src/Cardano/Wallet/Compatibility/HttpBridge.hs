@@ -10,7 +10,7 @@
 -- (Byron, Shelley-Rust, Shelley-Haskell) and isolate the bits that vary between
 -- those backends.
 
-module Cardano.Wallet.Compatibility
+module Cardano.Wallet.Compatibility.HttpBridge
     ( -- * Target
       HttpBridge
     ) where
@@ -19,7 +19,7 @@ import Prelude
 
 import Cardano.Environment
     ( Network (Local, Mainnet, Staging, Testnet), network, protocolMagic )
-import Cardano.Wallet.Binary
+import Cardano.Wallet.Binary.HttpBridge
     ( encodeAddress, encodeProtocolMagic, encodeTx )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..), getKey )
