@@ -58,7 +58,6 @@ executable cardano-wallet-launcher
   build-depends:
       base
     , cardano-wallet-cli
-    , cardano-wallet-core
     , cardano-wallet-http-bridge
     , cardano-wallet-launcher
     , docopt

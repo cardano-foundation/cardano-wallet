@@ -35,19 +35,14 @@ library
       aeson
     , base
     , cardano-wallet-core
-    , base58-bytestring
-    , basement
     , binary
     , bytestring
     , cardano-crypto
     , cborg
-    , containers
     , cryptonite
-    , deepseq
     , digest
     , exceptions
     , fmt
-    , generic-lens
     , http-api-data
     , http-client
     , http-media
@@ -56,12 +51,9 @@ library
     , servant
     , servant-client
     , servant-client-core
-    , servant-server
     , text
     , text-class
-    , time
     , transformers
-    , vector
   hs-source-dirs:
       src
   exposed-modules:
@@ -90,8 +82,6 @@ test-suite unit
   build-depends:
       base
     , aeson
-    , aeson-qq
-    , async
     , base58-bytestring
     , bytestring
     , cardano-crypto
@@ -99,25 +89,15 @@ test-suite unit
     , cardano-wallet-http-bridge
     , cborg
     , containers
-    , cryptonite
-    , deepseq
     , digest
-    , file-embed
     , fmt
     , generic-arbitrary
     , hspec
     , hspec-golden-aeson
-    , lens
     , memory
     , QuickCheck
-    , quickcheck-instances
-    , servant-server
-    , servant-swagger
-    , swagger2
-    , text
     , text-class
     , transformers
-    , yaml
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
@@ -157,7 +137,6 @@ test-suite integration
     , cardano-wallet-core
     , cardano-wallet-http-bridge
     , cardano-wallet-launcher
-    , cborg
     , cryptonite
     , exceptions
     , generic-lens

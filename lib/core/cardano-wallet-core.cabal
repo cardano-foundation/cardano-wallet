@@ -36,25 +36,18 @@ library
     , base
     , base58-bytestring
     , basement
-    , binary
     , bytestring
     , cardano-crypto
-    , cborg
     , containers
     , cryptonite
     , deepseq
-    , digest
     , exceptions
     , fmt
     , generic-lens
     , http-api-data
-    , http-client
     , http-media
-    , http-types
     , memory
     , servant
-    , servant-client
-    , servant-client-core
     , servant-server
     , text
     , text-class
@@ -103,15 +96,12 @@ test-suite unit
     , aeson
     , aeson-qq
     , async
-    , base58-bytestring
     , bytestring
     , cardano-crypto
     , cardano-wallet-core
-    , cborg
     , containers
     , cryptonite
     , deepseq
-    , digest
     , file-embed
     , fmt
     , generic-arbitrary
