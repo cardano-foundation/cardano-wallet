@@ -50,7 +50,7 @@ spec = do
             wid <- unsafeRunExceptT $ createWallet wallet
                 (WalletId $ digest $ publicKey xprv)
                 (WalletName "My Wallet")
-                (mkSeqState (xprv, mempty) minBound)
+                (mkSeqState @HttpBridge (xprv, mempty) minBound)
             unsafeRunExceptT $ restoreWallet wallet wid
             threadDelay 2000000
             tip <- currentTip . fst <$> unsafeRunExceptT (readWallet wallet wid)

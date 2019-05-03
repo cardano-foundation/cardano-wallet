@@ -608,7 +608,7 @@ goldenTestSignedTx
         -- ^ Expected result, in Base16
     -> SpecWith ()
 goldenTestSignedTx nOuts xprvs expected = it title $ do
-    let addrs = first (keyToAddress . publicKey) <$> xprvs
+    let addrs = first (keyToAddress @HttpBridge . publicKey) <$> xprvs
     let s = Map.fromList (zip (fst <$> addrs) (fst <$> xprvs))
     let keyFrom a = (,mempty) <$> Map.lookup a s
     let inps = mkInput <$> zip addrs [0..]

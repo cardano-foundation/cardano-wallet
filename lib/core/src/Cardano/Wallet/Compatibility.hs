@@ -17,10 +17,14 @@ module Cardano.Wallet.Compatibility
 
 import Prelude
 
+import Cardano.Environment
+    ( Network (Local, Mainnet, Staging, Testnet), network, protocolMagic )
 import Cardano.Wallet.Binary
-    ( encodeTx )
+    ( encodeAddress, encodeProtocolMagic, encodeTx )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( KeyToAddress (..), getKey )
 import Cardano.Wallet.Primitive.Types
-    ( TxId (..) )
+    ( Address (..), Hash (..), TxId (..) )
 import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
@@ -50,3 +54,24 @@ instance TxId HttpBridge where
         blake2b256 :: forall tag. CBOR.Encoding -> Hash tag
         blake2b256 =
             Hash . BA.convert . hash @_ @Blake2b_256 . CBOR.toStrictByteString
+
+-- | Encode a public key to a (Byron / Legacy) Cardano 'Address'. This is mostly
+-- dubious CBOR serializations with no data attributes.
+instance KeyToAddress HttpBridge where
+    keyToAddress key =
+        Address $ CBOR.toStrictByteString $ encodeAddress xpub encodeAttributes
+      where
+        xpub = getKey key
+        encodeAttributes = case network of
+            Mainnet -> emptyAttributes
+            Staging -> emptyAttributes
+            Testnet -> attributesWithProtocolMagic (protocolMagic network)
+            Local -> attributesWithProtocolMagic (protocolMagic network)
+
+        attributesWithProtocolMagic pm = mempty
+            <> CBOR.encodeMapLen 1
+            <> CBOR.encodeWord 2
+            <> CBOR.encodeBytes
+                (CBOR.toStrictByteString $ encodeProtocolMagic pm)
+
+        emptyAttributes = CBOR.encodeMapLen 0

@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
@@ -36,6 +37,9 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , XPub
     , XPrv
 
+    -- * Backends Interoperability
+    , KeyToAddress(..)
+
     -- * Passphrase
     , Passphrase(..)
     , PassphraseMinLength(..)
@@ -53,7 +57,6 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
     , deriveAddressPublicKey
-    , keyToAddress
     ) where
 
 import Prelude
@@ -68,10 +71,6 @@ import Cardano.Crypto.Wallet
     , toXPub
     , unXPub
     )
-import Cardano.Environment
-    ( Network (Local, Mainnet, Staging, Testnet), network, protocolMagic )
-import Cardano.Wallet.Binary
-    ( encodeAddress, encodeProtocolMagic )
 import Cardano.Wallet.Primitive.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
@@ -126,8 +125,6 @@ import GHC.TypeLits
     ( KnownNat, Nat, Symbol, natVal )
 
 import qualified Basement.Compat.Base as B
-import qualified Codec.CBOR.Encoding as CBOR
-import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
@@ -550,28 +547,12 @@ deriveAddressPublicKey (Key accXPub) changeChain (Index addrIx) =
         \error, or, we may have reached the maximum number of addresses for \
         \a given wallet."
 
--- | Encode a public key to a (Byron / Legacy) Cardano 'Address'. This is mostly
--- dubious CBOR serializations with no data attributes.
-keyToAddress
-    :: Key 'AddressK XPub
-    -> Address
-keyToAddress (Key xpub) =
-    Address $ CBOR.toStrictByteString $ encodeAddress xpub encodeAttributes
-  where
-    encodeAttributes = case network of
-        Mainnet -> emptyAttributes
-        Staging -> emptyAttributes
-        Testnet -> attributesWithProtocolMagic (protocolMagic network)
-        Local -> attributesWithProtocolMagic (protocolMagic network)
-
-    attributesWithProtocolMagic pm = mempty
-        <> CBOR.encodeMapLen 1
-        <> CBOR.encodeWord 2
-        <> CBOR.encodeBytes (
-              CBOR.toStrictByteString
-            $ encodeProtocolMagic pm)
-
-    emptyAttributes = CBOR.encodeMapLen 0
+-- | Convert a public key to an 'Address' depending on a particular target.
+--
+-- Note that 'keyToAddress' is ambiguous and requires therefore a type
+-- applications. See also 'TxId'.
+class KeyToAddress target where
+    keyToAddress :: Key 'AddressK XPub -> Address
 
 -- $use
 -- 'Key' and 'Index' allow for representing public keys, private keys, hardened
