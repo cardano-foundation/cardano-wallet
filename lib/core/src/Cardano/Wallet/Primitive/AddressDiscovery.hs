@@ -186,6 +186,7 @@ instance FromText AddressPoolGap where
                 <> show (fromEnum $ minBound @AddressPoolGap)
                 <> " and "
                 <> show (fromEnum $ maxBound @AddressPoolGap)
+                <> "."
 
 instance ToText (AddressPoolGap) where
     toText = T.pack . show . getAddressPoolGap
