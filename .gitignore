@@ -22,6 +22,7 @@ cabal.project.local~
 .HTF/
 .ghc.environment.*
 .ghci
+*.tix
 
 ### Nix ###
 result*

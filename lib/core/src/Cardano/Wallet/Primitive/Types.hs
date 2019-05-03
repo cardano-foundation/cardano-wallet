@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -32,6 +33,7 @@ module Cardano.Wallet.Primitive.Types
 
     -- * Tx
     , Tx(..)
+    , TxId(..)
     , TxIn(..)
     , TxOut(..)
     , TxMeta(..)
@@ -305,6 +307,26 @@ instance Buildable Tx where
     build (Tx ins outs) = mempty
         <> nameF "inputs" (blockListF ins)
         <> nameF "outputs" (blockListF outs)
+
+-- | An abstraction for computing transaction id. The 'target' is an open-type
+-- that can be used to discriminate on. For instance:
+--
+-- @
+-- instance TxId HttpBridge where
+--   txId _ = {- ... -}
+-- @
+--
+-- Note that `txId` is ambiguous and requires therefore a type application.
+-- Likely, a corresponding target would be found in scope (requires however
+-- ScopedTypeVariables).
+--
+-- For example, assuming there's a type 'target' in scope, one can simply do:
+--
+-- @
+-- txId @target tx
+-- @
+class TxId target where
+    txId :: Tx -> Hash "Tx"
 
 txIns :: Set Tx -> Set TxIn
 txIns =

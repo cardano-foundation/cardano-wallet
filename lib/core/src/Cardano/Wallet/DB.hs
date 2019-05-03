@@ -35,10 +35,10 @@ import Data.Map.Strict
 -- | A Database interface for storing various things in a DB. In practice,
 -- we'll need some extra contraints on the wallet state that allows us to
 -- serialize and unserialize it (e.g. @forall s. (Serialize s) => ...@)
-data DBLayer m s = DBLayer
+data DBLayer m s t = DBLayer
     { createWallet
         :: PrimaryKey WalletId
-        -> Wallet s
+        -> Wallet s t
         -> WalletMetadata
         -> ExceptT ErrWalletAlreadyExists m ()
         -- ^ Initialize a database entry for a given wallet. 'putCheckpoint',
@@ -57,7 +57,7 @@ data DBLayer m s = DBLayer
 
     , putCheckpoint
         :: PrimaryKey WalletId
-        -> Wallet s
+        -> Wallet s t
         -> ExceptT ErrNoSuchWallet m ()
         -- ^ Replace the current checkpoint for a given wallet. We do not handle
         -- rollbacks yet, and therefore only stores the latest available
@@ -67,7 +67,7 @@ data DBLayer m s = DBLayer
 
     , readCheckpoint
         :: PrimaryKey WalletId
-        -> m (Maybe (Wallet s))
+        -> m (Maybe (Wallet s t))
         -- ^ Fetch the most recent checkpoint of a given wallet.
         --
         -- Return 'Nothing' if there's no such wallet.

@@ -14,6 +14,8 @@ import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
     ( WalletLayer (..), mkWalletLayer, unsafeRunExceptT )
+import Cardano.Wallet.Binary
+    ( HttpBridge )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..), digest, generateKeyFromSeed, publicKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -70,6 +72,6 @@ spec = do
                 Inherit
             ]
         threadDelay 1000000
-        (handle,) <$> (mkWalletLayer
+        (handle,) <$> (mkWalletLayer @_ @HttpBridge
             <$> MVar.newDBLayer
             <*> HttpBridge.newNetworkLayer port)

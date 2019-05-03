@@ -1,5 +1,7 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Main where
 
@@ -11,6 +13,8 @@ import Cardano.Launcher
     ( Command (Command), StdStream (..), installSignalHandlers, launch )
 import Cardano.Wallet
     ( WalletLayer (..), mkWalletLayer, unsafeRunExceptT )
+import Cardano.Wallet.Binary
+    ( HttpBridge )
 import Cardano.Wallet.Network
     ( NetworkLayer (..), networkTip )
 import Cardano.Wallet.Network.HttpBridge
@@ -152,7 +156,7 @@ bench_restoration (wid, wname, s) = withHttpBridge $ \port -> do
     networkLayer <- newNetworkLayer port
     (_, bh) <- unsafeRunExceptT $ networkTip networkLayer
     sayErr . fmt $ network ||+ " tip is at " +|| (bh ^. #slotId) ||+ ""
-    let w = mkWalletLayer dbLayer networkLayer
+    let w = mkWalletLayer @_ @HttpBridge dbLayer networkLayer
     wallet <- unsafeRunExceptT $ createWallet w wid wname s
     unsafeRunExceptT $ restoreWallet w wallet
     waitForWalletSync w wallet
@@ -196,7 +200,7 @@ prepareNode = do
 -- | Regularly poll the wallet to monitor it's syncing progress. Block until the
 -- wallet reaches 100%.
 waitForWalletSync
-    :: WalletLayer s
+    :: WalletLayer s t
     -> WalletId
     -> IO ()
 waitForWalletSync walletLayer wid = do

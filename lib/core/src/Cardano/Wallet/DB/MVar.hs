@@ -41,8 +41,8 @@ import Data.Map.Strict
 
 import qualified Data.Map.Strict as Map
 
-data Database s = Database
-    { wallet :: !(Wallet s)
+data Database s t = Database
+    { wallet :: !(Wallet s t)
     , metadata :: !WalletMetadata
     , txHistory :: !(Map (Hash "Tx") (Tx, TxMeta))
     , xprv :: !(Maybe (Key 'RootK XPrv, Hash "encryption"))
@@ -50,10 +50,10 @@ data Database s = Database
 
 -- | Instantiate a new in-memory "database" layer that simply stores data in
 -- a local MVar. Data vanishes if the software is shut down.
-newDBLayer :: forall s. IO (DBLayer IO s)
+newDBLayer :: forall s t. IO (DBLayer IO s t)
 newDBLayer = do
     lock <- newMVar ()
-    db <- newMVar (mempty :: Map (PrimaryKey WalletId) (Database s))
+    db <- newMVar (mempty :: Map (PrimaryKey WalletId) (Database s t))
     return $ DBLayer
 
         {-----------------------------------------------------------------------
