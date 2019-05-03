@@ -9,9 +9,11 @@ stack build --bench --no-run-benchmarks
 echo "+++ Run benchmarks - $NETWORK"
 stack bench cardano-wallet-core:restore --interleaved-output --ba "$NETWORK +RTS -N2 -qg -A1m -I0 -T -M8G -h -RTS"
 
-hp2pretty restore.hp
+ARTIFACT=lib/core/restore.hp
+
+hp2pretty $ARTIFACT
 
 if [ -n "${BUILDKITE:-}" ]; then
-  buildkite-agent artifact upload restore.svg
+  buildkite-agent artifact upload $ARTIFACT
   printf '\033]1338;url='"artifact://restore.svg"';alt='"Heap profile"'\a\n'
 fi
