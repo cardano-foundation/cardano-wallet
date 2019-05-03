@@ -18,10 +18,6 @@ import Cardano.Environment
     ( Network (..), network )
 import Cardano.Wallet.Binary.HttpBridge
     ( encodeSignedTx, toByteString )
-import Cardano.Wallet.CoinSelection
-    ( CoinSelection (..) )
-import Cardano.Wallet.CoinSelection.Policy.LargestFirst
-    ( largestFirst )
 import Cardano.Wallet.Compatibility.HttpBridge
     ( HttpBridge )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -33,6 +29,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , publicKey
     , unsafeGenerateKeyFromSeed
     )
+import Cardano.Wallet.Primitive.CoinSelection
+    ( CoinSelection (..) )
+import Cardano.Wallet.Primitive.CoinSelection.LargestFirst
+    ( largestFirst )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -82,7 +82,7 @@ import Test.QuickCheck
     )
 
 import qualified Cardano.Wallet.Binary.HttpBridge as Binary
-import qualified Cardano.Wallet.CoinSelection as CS
+import qualified Cardano.Wallet.Primitive.CoinSelection as CS
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA

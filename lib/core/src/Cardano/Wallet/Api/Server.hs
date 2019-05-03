@@ -40,12 +40,12 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     , getApiMnemonicT
     )
-import Cardano.Wallet.CoinSelection
-    ( CoinSelectionOptions (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress, digest, generateKeyFromSeed, publicKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( SeqState (..), defaultAddressPoolGap, mkSeqState )
+import Cardano.Wallet.Primitive.CoinSelection
+    ( CoinSelectionOptions (..) )
 import Cardano.Wallet.Primitive.Model
     ( availableBalance, getState, totalBalance )
 import Cardano.Wallet.Primitive.Types

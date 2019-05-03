@@ -19,10 +19,10 @@ module Cardano.Wallet.Transaction
 
 import Prelude
 
-import Cardano.Wallet.CoinSelection
-    ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), Key, Passphrase, XPrv )
+import Cardano.Wallet.Primitive.CoinSelection
+    ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address, Tx, TxIn, TxOut, TxWitness )
 import Data.Quantity

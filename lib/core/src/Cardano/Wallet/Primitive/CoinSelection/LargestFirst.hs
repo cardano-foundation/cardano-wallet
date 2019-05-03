@@ -9,13 +9,13 @@
 -- input selection algorithm
 
 
-module Cardano.Wallet.CoinSelection.Policy.LargestFirst (
+module Cardano.Wallet.Primitive.CoinSelection.LargestFirst (
     largestFirst
   ) where
 
 import Prelude
 
-import Cardano.Wallet.CoinSelection
+import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..), CoinSelectionError (..), CoinSelectionOptions (..) )
 import Cardano.Wallet.Primitive.Types
     ( Coin (..), TxIn, TxOut (..), UTxO (..), balance )

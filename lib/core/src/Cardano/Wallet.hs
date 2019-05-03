@@ -38,14 +38,6 @@ module Cardano.Wallet
 
 import Prelude
 
-import Cardano.Wallet.CoinSelection
-    ( CoinSelection (..)
-    , CoinSelectionError (..)
-    , CoinSelectionOptions
-    , shuffle
-    )
-import Cardano.Wallet.CoinSelection.Fee
-    ( ErrAdjustForFee, FeeOptions (..), cardanoPolicy, computeFee )
 import Cardano.Wallet.DB
     ( DBLayer
     , ErrNoSuchWallet (..)
@@ -65,6 +57,19 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( GenChange (..), IsOwned (..) )
+import Cardano.Wallet.Primitive.CoinSelection
+    ( CoinSelection (..)
+    , CoinSelectionError (..)
+    , CoinSelectionOptions
+    , shuffle
+    )
+import Cardano.Wallet.Primitive.Fee
+    ( ErrAdjustForFee
+    , FeeOptions (..)
+    , adjustForFee
+    , cardanoPolicy
+    , computeFee
+    )
 import Cardano.Wallet.Primitive.Model
     ( Wallet
     , applyBlocks
@@ -129,9 +134,8 @@ import Data.Time.Clock
 import Fmt
     ( (+|), (+||), (|+), (||+) )
 
-import qualified Cardano.Wallet.CoinSelection.Fee as CoinSelection
-import qualified Cardano.Wallet.CoinSelection.Policy.Random as CoinSelection
 import qualified Cardano.Wallet.DB as DB
+import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
 import qualified Data.Map.Strict as Map
 import qualified Data.Text.IO as TIO
 
@@ -285,7 +289,7 @@ mkWalletLayer db nw tl = WalletLayer
                     { estimate = computeFee cardanoPolicy . estimateSize tl
                     , dustThreshold = minBound
                     }
-            CoinSelection.adjustForFee feeOpts utxo' sel
+            adjustForFee feeOpts utxo' sel
 
     , signTx = \wid pwd (CoinSelection ins outs chgs) -> DB.withLock db $ do
         (w, _) <- withExceptT ErrSignTxNoSuchWallet $ _readWallet wid
