@@ -64,7 +64,7 @@ jobs:
     name: "Compiling"
     script:
     - mkdir -p ~/.local/bin
-    - travis_retry curl -L -o cardano-node-simple.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/KtorZ/extract-http-bridge/lib/http-bridge/test/data/cardano-node-simple/cardano-node-simple-3.0.1.tar.gz
+    - travis_retry curl -L -o cardano-node-simple.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-node-simple/cardano-node-simple-3.0.1.tar.gz
     - tar xzf cardano-node-simple.tar.gz -C $HOME/.local/bin
     - cardano-node-simple --version
     - test "$(cardano-http-bridge --version)" = "cardano-http-bridge 0.0.1" || travis_retry cargo install --force --branch cardano-wallet-integration --git https://github.com/KtorZ/cardano-http-bridge.git
@@ -100,7 +100,7 @@ jobs:
     script:
     - export NETWORK=testnet
     - tar xzf $STACK_WORK_CACHE
-    - travis_retry curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/KtorZ/extract-http-bridge/lib/http-bridge/test/data/cardano-http-bridge/hermes-testnet.tar.gz
+    - travis_retry curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-http-bridge/hermes-testnet.tar.gz
     - tar xzf hermes-testnet.tar.gz -C $HOME
     - stack --no-terminal test --coverage
     - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
