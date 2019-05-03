@@ -32,7 +32,7 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Network.HttpBridge.Api
     ( ApiT (..), EpochIndex (..), NetworkName (..), api )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), Hash (..), SignedTx, SlotId (..) )
+    ( Block (..), BlockHeader (..), Hash (..), SlotId (..), Tx, TxWitness )
 import Control.Arrow
     ( left )
 import Control.Monad
@@ -160,7 +160,7 @@ data HttpBridge m = HttpBridge
     , getNetworkTip
         :: ExceptT ErrNetworkTip m (Hash "BlockHeader", BlockHeader)
     , postSignedTx
-        :: SignedTx -> ExceptT ErrPostTx m ()
+        :: (Tx, [TxWitness]) -> ExceptT ErrPostTx m ()
     }
 
 -- | Construct a new network layer

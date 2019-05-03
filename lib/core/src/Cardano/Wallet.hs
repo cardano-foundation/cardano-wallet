@@ -38,8 +38,6 @@ module Cardano.Wallet
 
 import Prelude
 
-import Cardano.Wallet.Binary
-    ( encodeSignedTx, toByteString )
 import Cardano.Wallet.CoinSelection
     ( CoinSelection (..)
     , CoinSelectionError (..)
@@ -81,7 +79,6 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , Coin (..)
     , Direction (..)
-    , SignedTx (..)
     , SlotId (..)
     , Tx
     , TxId (..)
@@ -319,8 +316,7 @@ mkWalletLayer db nw tl = WalletLayer
                     throwE $ ErrSignTx e
 
     , submitTx = \wid (tx, meta, wit) -> do
-        let signed = SignedTx $ toByteString $ encodeSignedTx (tx, wit)
-        withExceptT ErrSubmitTxNetwork $ postTx nw signed
+        withExceptT ErrSubmitTxNetwork $ postTx nw (tx, wit)
         DB.withLock db $ withExceptT ErrSubmitTxNoSuchWallet $ do
             (w, _) <- _readWallet wid
             let history = Map.fromList [(txId @t tx, (tx, meta))]

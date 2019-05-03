@@ -17,10 +17,15 @@ module Cardano.Wallet.Network.HttpBridge.Api
 
 import Prelude
 
-import Cardano.Wallet.Binary
-    ( decodeBlock, decodeBlockHeader )
+import Cardano.Wallet.Binary.HttpBridge
+    ( decodeBlock
+    , decodeBlockHeader
+    , decodeSignedTx
+    , encodeSignedTx
+    , toByteString
+    )
 import Cardano.Wallet.Primitive.Types
-    ( Block, BlockHeader, SignedTx (..) )
+    ( Block, BlockHeader, Tx, TxWitness )
 import Crypto.Hash.Algorithms
     ( Blake2b_256 )
 import Data.Aeson
@@ -29,7 +34,6 @@ import Data.ByteArray.Encoding
     ( Base (Base64), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
-import qualified Data.ByteString.Char8 as B8
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -49,6 +53,10 @@ import Servant.API
     )
 import Servant.Extra.ContentTypes
     ( CBOR, ComputeHash, FromCBOR (..), Hash, Packed, WithHash )
+
+import qualified Codec.CBOR.Read as CBOR
+import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Lazy as BL
 
 
 api :: Proxy Api
@@ -85,7 +93,7 @@ type PostSignedTx
     =  Capture "networkName" NetworkName
     :> "txs"
     :> "signed"
-    :> ReqBody '[JSON] (ApiT SignedTx)
+    :> ReqBody '[JSON] (ApiT (Tx, [TxWitness]))
     :> Post '[NoContent] NoContent
 
 newtype ApiT a = ApiT { getApiT :: a } deriving (Show)
@@ -112,17 +120,21 @@ newtype NetworkName = NetworkName
 instance ToHttpApiData NetworkName where
     toUrlPiece = getNetworkName
 
-instance ToJSON (ApiT SignedTx) where
-    toJSON (ApiT (SignedTx bs))= object ["signedTx" .= c bs]
+instance ToJSON (ApiT (Tx, [TxWitness])) where
+    toJSON (ApiT (tx, wit))= object ["signedTx" .= base64 bytes]
       where
-        c :: ByteString -> String
-        c = B8.unpack . convertToBase Base64
+        bytes :: ByteString
+        bytes = toByteString $ encodeSignedTx (tx, wit)
+        base64 :: ByteString -> String
+        base64 = B8.unpack . convertToBase Base64
 
-instance FromJSON (ApiT SignedTx) where
+instance FromJSON (ApiT (Tx, [TxWitness])) where
     parseJSON = withObject "SignedTx" $ \p -> do
-        base64 <- p .: "signedTx"
-        bs <- either fail return $ c base64
-        return $ ApiT . SignedTx $ bs
+        bs <- (base64 <$> (p .: "signedTx"))
+            >>= either fail return
+        tx <- pure (CBOR.deserialiseFromBytes decodeSignedTx (BL.fromStrict bs))
+            >>= either (fail . show) (return . snd)
+        return $ ApiT tx
       where
-        c :: String -> Either String ByteString
-        c bs = convertFromBase Base64 (B8.pack bs)
+        base64 :: String -> Either String ByteString
+        base64 bs = convertFromBase Base64 (B8.pack bs)

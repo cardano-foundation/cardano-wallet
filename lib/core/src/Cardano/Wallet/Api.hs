@@ -15,9 +15,14 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.Types
     ( AddressState, WalletId )
+import Data.List.NonEmpty
+    ( NonEmpty ((:|)) )
+import Network.HTTP.Media
+    ( (//), (/:) )
 import Servant.API
     ( (:<|>)
     , (:>)
+    , Accept (..)
     , Capture
     , DeleteNoContent
     , Get
@@ -28,8 +33,6 @@ import Servant.API
     , QueryParam
     , ReqBody
     )
-import Servant.Extra.ContentTypes
-    ( Any )
 
 type Api = Addresses :<|> Wallets :<|> Transactions
 
@@ -109,3 +112,17 @@ type CreateTransaction = "wallets"
     :> "transactions"
     :> ReqBody '[JSON] PostTransactionData
     :> PostAccepted '[JSON] ApiTransaction
+
+{-------------------------------------------------------------------------------
+                                   Internals
+-------------------------------------------------------------------------------}
+
+-- | Any media type
+data Any
+
+instance Accept Any where
+    contentTypes _ = ("*" // "*") :|
+        -- We also 'conveniently' accept JSON format
+        [ "application" // "json"
+        , "application" // "json" /: ("charset", "utf-8")
+        ]

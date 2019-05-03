@@ -17,7 +17,7 @@ module Cardano.Wallet.Network
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), Hash (..), SignedTx, SlotId (..) )
+    ( Block (..), BlockHeader (..), Hash (..), SlotId (..), Tx, TxWitness )
 import Control.Exception
     ( Exception )
 import Control.Monad.Trans.Except
@@ -40,7 +40,7 @@ data NetworkLayer m = NetworkLayer
         -- ^ Get the current network tip from the chain producer
 
     , postTx
-        :: SignedTx -> ExceptT ErrPostTx m ()
+        :: (Tx, [TxWitness]) -> ExceptT ErrPostTx m ()
         -- ^ Broadcast a transaction to the chain producer
     }
 

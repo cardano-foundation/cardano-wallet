@@ -39,7 +39,6 @@ module Cardano.Wallet.Primitive.Types
     , TxMeta(..)
     , Direction(..)
     , TxStatus(..)
-    , SignedTx (..)
     , TxWitness (..)
     , txIns
 
@@ -411,10 +410,6 @@ instance Buildable Direction where
     build = \case
         Outgoing -> "outgoing"
         Incoming -> "incoming"
-
--- | Wrapper around the final CBOR representation of a signed tx
-newtype SignedTx = SignedTx { signedTx :: ByteString }
-    deriving (Show, Eq, Generic)
 
 data TxWitness
     = PublicKeyWitness ByteString (Hash "signature")
