@@ -5,6 +5,7 @@ packages:
 - lib/cli
 - lib/launcher
 - lib/text-class
+- lib/http-bridge
 
 extra-deps:
 - base58-bytestring-0.1.0
