@@ -102,7 +102,7 @@ import qualified Data.Set as Set
                                      Type
 -------------------------------------------------------------------------------}
 
--- | An opaque wallet type, see @initWallet@ and @applyBlock@ to construct and
+-- | An opaque wallet type, see 'initWallet' and 'applyBlocks' to construct and
 -- update wallets.
 --
 -- Internally, this keeps track or a few things including:
@@ -111,6 +111,28 @@ import qualified Data.Set as Set
 --  - Pending transaction
 --  - Transaction history
 --  - TODO: Known & used addresses
+--
+-- The 'Wallet' is paremeterized over two types:
+--
+-- - @s@: A _state_ used to keep track of known addresses. The business logic
+--   doesn't know how to answer the question 'Is this address ours?', so we
+--   expect this state to be able to answer that for us.
+--
+-- - @t@: A target backend. This makes the wallet fairly agnostic to the type
+--   of binary representation used by the underlying target network and it
+--   allows us to re-use the same logic to provide a wallet backend for multiple
+--   backends (for instance, Byron or Shelley) which may have divergence in
+--   their binary formats. For the sake of this module, we only care about one
+--   particular super-power, and its the ability to compute transaction id
+--   (which is intrinsically linked to the transaction's binary format).
+--
+-- A few examples to make it concrete:
+--
+-- @
+-- Wallet RndState Byron
+-- Wallet SeqState Shelley
+-- Wallet SeqState Bitcoin
+-- @
 data Wallet s t where
     Wallet :: (IsOurs s, NFData s, Show s, TxId t)
         => UTxO -- Unspent tx outputs belonging to this wallet

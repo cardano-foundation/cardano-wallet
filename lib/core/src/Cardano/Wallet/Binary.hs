@@ -18,11 +18,8 @@
 
 module Cardano.Wallet.Binary
     (
-    -- * Target
-      HttpBridge
-
     -- * Decoding
-    , decodeBlock
+      decodeBlock
     , decodeBlockHeader
     , decodeTx
     , decodeTxWitness
@@ -56,7 +53,6 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , SlotId (..)
     , Tx (..)
-    , TxId (..)
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
@@ -66,7 +62,7 @@ import Control.Monad
 import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
-    ( Blake2b_224, Blake2b_256, SHA3_256 )
+    ( Blake2b_224, SHA3_256 )
 import Data.ByteString
     ( ByteString )
 import Data.Digest.CRC32
@@ -82,12 +78,6 @@ import qualified Codec.CBOR.Read as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Lazy as BL
-
--- Target
-
--- | A type representing the http-bridge as a network target. This has an
--- influence on binary serializer & network primitives. See also 'TxId'
-data HttpBridge
 
 -- Decoding
 
@@ -583,15 +573,6 @@ encodeTxOut (TxOut (Address addr) (Coin c)) = mempty
             decodeAddressPayload
             (BL.fromStrict addr)
 
--- * Hashing
-
--- | Compute a transaction id; assumed to be effectively injective.
--- It returns an hex-encoded 64-byte hash.
---
--- NOTE: This is a rather expensive operation
-instance TxId HttpBridge where
-    txId = blake2b256 . encodeTx
-
 -- * Helpers
 
 -- | Inspect the next token that has to be decoded and print it to the console
@@ -636,17 +617,6 @@ decodeListIndef :: forall s a. CBOR.Decoder s a -> CBOR.Decoder s [a]
 decodeListIndef decodeOne = do
     _ <- CBOR.decodeListLenIndef
     CBOR.decodeSequenceLenIndef (flip (:)) [] reverse decodeOne
-
--- | Encode a value to a corresponding Hash.
---
--- @
---     txId :: Tx -> Hash "Tx"
---     txId = blake2b256 . encodeTx
--- @
-blake2b256 :: forall tag. CBOR.Encoding -> Hash tag
-blake2b256 =
-    Hash . BA.convert . hash @_ @Blake2b_256 . CBOR.toStrictByteString
-
 
 encodeList :: (a -> CBOR.Encoding) -> [a] -> CBOR.Encoding
 encodeList encodeOne list = mempty

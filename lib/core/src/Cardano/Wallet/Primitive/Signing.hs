@@ -24,7 +24,9 @@ import Prelude
 import Cardano.Environment
     ( ProtocolMagic (..), network, protocolMagic )
 import Cardano.Wallet.Binary
-    ( HttpBridge, toByteString )
+    ( toByteString )
+import Cardano.Wallet.Compatibility
+    ( HttpBridge )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (AddressK), Key, Passphrase (..), XPrv, XPub, getKey, publicKey )
 import Cardano.Wallet.Primitive.Types

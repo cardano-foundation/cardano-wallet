@@ -14,6 +14,8 @@ import Cardano.Environment
     ( Network (..), network )
 import Cardano.Wallet.Binary
     ( encodeSignedTx, toByteString )
+import Cardano.Wallet.Compatibility
+    ( HttpBridge )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , Key
@@ -45,7 +47,7 @@ spec :: Spec
 spec = do
     describe "mkStdTx" $ do
         it "Unknown input address yields an error" $ do
-            let addr = keyToAddress $ publicKey $ xprv "addr"
+            let addr = keyToAddress @HttpBridge $ publicKey $ xprv "addr"
             let res = mkStdTx keyFrom inps outs
                   where
                     keyFrom = const Nothing
@@ -606,7 +608,7 @@ goldenTestSignedTx
         -- ^ Expected result, in Base16
     -> SpecWith ()
 goldenTestSignedTx nOuts xprvs expected = it title $ do
-    let addrs = first (keyToAddress . publicKey) <$> xprvs
+    let addrs = first (keyToAddress @HttpBridge . publicKey) <$> xprvs
     let s = Map.fromList (zip (fst <$> addrs) (fst <$> xprvs))
     let keyFrom a = (,mempty) <$> Map.lookup a s
     let inps = mkInput <$> zip addrs [0..]

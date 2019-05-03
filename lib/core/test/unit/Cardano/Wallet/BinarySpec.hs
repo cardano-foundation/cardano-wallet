@@ -12,8 +12,7 @@ module Cardano.Wallet.BinarySpec
 import Prelude
 
 import Cardano.Wallet.Binary
-    ( HttpBridge
-    , decodeBlock
+    ( decodeBlock
     , decodeBlockHeader
     , decodeSignedTx
     , decodeTx
@@ -22,6 +21,8 @@ import Cardano.Wallet.Binary
     , encodeTx
     , encodeTxWitness
     )
+import Cardano.Wallet.Compatibility
+    ( HttpBridge )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)

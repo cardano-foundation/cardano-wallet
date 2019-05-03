@@ -66,6 +66,7 @@ library
   exposed-modules:
       Cardano.Environment
       Cardano.Wallet
+      Cardano.Wallet.Compatibility
       Cardano.Wallet.Api
       Cardano.Wallet.Api.Server
       Cardano.Wallet.Api.Types

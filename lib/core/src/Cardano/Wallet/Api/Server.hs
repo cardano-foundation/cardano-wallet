@@ -43,7 +43,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.CoinSelection
     ( CoinSelectionOptions (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( digest, generateKeyFromSeed, publicKey )
+    ( KeyToAddress, digest, generateKeyFromSeed, publicKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( SeqState (..), defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.Model
@@ -81,7 +81,7 @@ import qualified Data.List.NonEmpty as NE
 
 
 -- | A Servant server for our wallet API
-server :: TxId t => WalletLayer SeqState t -> Server Api
+server :: (TxId t, KeyToAddress t) => WalletLayer (SeqState t) t -> Server Api
 server w =
     addresses w :<|> wallets w :<|> transactions w
 
@@ -89,7 +89,7 @@ server w =
                                     Wallets
 -------------------------------------------------------------------------------}
 
-wallets :: WalletLayer SeqState t -> Server Wallets
+wallets :: KeyToAddress t => WalletLayer (SeqState t) t -> Server Wallets
 wallets w =
     deleteWallet w
     :<|> getWallet w
@@ -99,7 +99,7 @@ wallets w =
     :<|> putWalletPassphrase w
 
 deleteWallet
-    :: WalletLayer SeqState t
+    :: WalletLayer (SeqState t) t
     -> ApiT WalletId
     -> Handler NoContent
 deleteWallet w (ApiT wid) = do
@@ -107,7 +107,7 @@ deleteWallet w (ApiT wid) = do
     return NoContent
 
 getWallet
-    :: WalletLayer SeqState t
+    :: WalletLayer (SeqState t) t
     -> ApiT WalletId
     -> Handler ApiWallet
 getWallet w (ApiT wid) = do
@@ -134,14 +134,15 @@ getWallet w (ApiT wid) = do
         }
 
 listWallets
-    :: WalletLayer SeqState t
+    :: WalletLayer (SeqState t) t
     -> Handler [ApiWallet]
 listWallets w = do
     wids <- liftIO $ W.listWallets w
     mapM (getWallet w) (ApiT <$> wids)
 
 postWallet
-    :: WalletLayer SeqState t
+    :: KeyToAddress t
+    => WalletLayer (SeqState t) t
     -> WalletPostData
     -> Handler ApiWallet
 postWallet w body = do
@@ -158,7 +159,7 @@ postWallet w body = do
     getWallet w (ApiT wid)
 
 putWallet
-    :: WalletLayer SeqState t
+    :: WalletLayer (SeqState t) t
     -> ApiT WalletId
     -> WalletPutData
     -> Handler ApiWallet
@@ -166,7 +167,7 @@ putWallet _ _ _ =
     throwM err501
 
 putWalletPassphrase
-    :: WalletLayer SeqState t
+    :: WalletLayer (SeqState t) t
     -> ApiT WalletId
     -> WalletPutPassphraseData
     -> Handler NoContent
@@ -177,11 +178,11 @@ putWalletPassphrase _ _ _ =
                                     Addresses
 -------------------------------------------------------------------------------}
 
-addresses :: WalletLayer SeqState t -> Server Addresses
+addresses :: WalletLayer (SeqState t) t -> Server Addresses
 addresses = listAddresses
 
 listAddresses
-    :: WalletLayer SeqState t
+    :: WalletLayer (SeqState t) t
     -> ApiT WalletId
     -> Maybe (ApiT AddressState)
     -> Handler [ApiAddress]
@@ -192,12 +193,12 @@ listAddresses _ _ _ =
                                     Transactions
 -------------------------------------------------------------------------------}
 
-transactions :: TxId t => WalletLayer SeqState t -> Server Transactions
+transactions :: TxId t => WalletLayer (SeqState t) t -> Server Transactions
 transactions = createTransaction
 
 createTransaction
     :: forall t. (TxId t)
-    => WalletLayer SeqState t
+    => WalletLayer (SeqState t) t
     -> ApiT WalletId
     -> PostTransactionData
     -> Handler ApiTransaction

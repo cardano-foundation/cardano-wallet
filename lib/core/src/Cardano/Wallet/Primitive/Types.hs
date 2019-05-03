@@ -426,6 +426,16 @@ data TxWitness
                                     Address
 -------------------------------------------------------------------------------}
 
+-- | Representation of Cardano addresses. Addresses are basically a
+-- human-friendly representation of public keys. Historically in Cardano, there
+-- exists different sort of addresses, and new one are to come. So far, we can
+-- distinguish between three types of addresses:
+--
+-- - Byron Random addresses, which holds a payload with derivation path details
+-- - Byron Sequential addresses, also known as Icarus'style addresses
+-- - Shelley base addresses, see also [implementation-decisions/address](https://github.com/input-output-hk/implementation-decisions/blob/master/text/0001-address.md)
+--
+-- For more details, see [About Address Derivation](https://github.com/input-output-hk/cardano-wallet/wiki/About-Address-Derivation)
 newtype Address = Address
     { getAddress :: ByteString
     } deriving (Show, Generic, Eq, Ord)
