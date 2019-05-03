@@ -284,6 +284,22 @@ PublicKeyWitness :: ByteString -> Hash "signature" -> TxWitness
 ScriptWitness :: ByteString -> TxWitness
 RedeemWitness :: ByteString -> TxWitness
 txIns :: Set Tx -> Set TxIn
+
+-- | Representation of Cardano addresses. Addresses are basically a
+--   human-friendly representation of public keys. Historically in Cardano,
+--   there exists different sort of addresses, and new one are to come. So
+--   far, we can distinguish between three types of addresses:
+--   
+--   <ul>
+--   <li>Byron Random addresses, which holds a payload with derivation path
+--   details</li>
+--   <li>Byron Sequential addresses, also known as Icarus'style
+--   addresses</li>
+--   <li>Shelley base addresses, see also
+--   <a>implementation-decisions/address</a></li>
+--   </ul>
+--   
+--   For more details, see <a>About Address Derivation</a>
 newtype Address
 Address :: ByteString -> Address
 [$sel:getAddress:Address] :: Address -> ByteString
@@ -536,6 +552,370 @@ instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.WalletName
 instance Data.Text.Class.FromText Cardano.Wallet.Primitive.Types.WalletName
 instance Data.Text.Class.ToText Cardano.Wallet.Primitive.Types.WalletName
 
+
+-- | Primitives for performing address derivation for some given schemes.
+--   This is where most of the crypto happens in the wallet and, it is
+--   quite important to ensure that the following implementation matches
+--   with other wallet softwares (like Yoroi/Icarus or the cardano-cli)
+module Cardano.Wallet.Primitive.AddressDerivation
+
+-- | A cryptographic key, with phantom-types to disambiguate key types.
+--   
+--   <pre>
+--   let rootPrivateKey = Key 'RootK XPrv
+--   let accountPubKey = Key 'AccountK XPub
+--   let addressPubKey = Key 'AddressK XPub
+--   </pre>
+data Key (level :: Depth) key
+getKey :: Key level key -> key
+
+-- | Key Depth in the derivation path, according to BIP-0039 / BIP-0044
+--   
+--   <pre>
+--   m | purpose' | cointype' | account' | change | address
+--   </pre>
+--   
+--   We do not manipulate purpose, cointype and change paths directly, so
+--   they are left out of the sum type.
+data Depth
+RootK :: Depth
+AccountK :: Depth
+AddressK :: Depth
+
+-- | A derivation index, with phantom-types to disambiguate derivation
+--   type.
+--   
+--   <pre>
+--   let accountIx = Index 'Hardened 'AccountK
+--   let addressIx = Index 'Soft 'AddressK
+--   </pre>
+data Index (derivationType :: DerivationType) (level :: Depth)
+getIndex :: Index derivationType level -> Word32
+
+-- | Type of derivation that should be used with the given indexes.
+data DerivationType
+Hardened :: DerivationType
+Soft :: DerivationType
+
+-- | Extract the public key part of a private key.
+publicKey :: Key level XPrv -> Key level XPub
+
+-- | Hash a public key to some other representation.
+digest :: HashAlgorithm a => Key level XPub -> Digest a
+data XPub
+data XPrv
+
+-- | Convert a public key to an <a>Address</a> depending on a particular
+--   target.
+--   
+--   Note that <a>keyToAddress</a> is ambiguous and requires therefore a
+--   type applications. See also <tt>TxId</tt>.
+class KeyToAddress target
+keyToAddress :: KeyToAddress target => Key  'AddressK XPub -> Address
+
+-- | An encapsulated passphrase. The inner format is free, but the wrapper
+--   helps readability in function signatures.
+newtype Passphrase (purpose :: Symbol)
+Passphrase :: ScrubbedBytes -> Passphrase
+class PassphraseMinLength (purpose :: Symbol)
+
+-- | Minimal Length for a passphrase, for lack of better validations
+passphraseMinLength :: PassphraseMinLength purpose => Proxy purpose -> Int
+class PassphraseMaxLength (purpose :: Symbol)
+
+-- | Maximum length for a passphrase
+passphraseMaxLength :: PassphraseMaxLength purpose => Proxy purpose -> Int
+
+-- | Create a passphrase from a mnemonic sentence. This class enables
+--   caller to parse text list of variable length into mnemonic sentences.
+--   
+--   <pre>
+--   &gt;&gt;&gt; fromMnemonic @'[12,15,18,21] @"generation" ["toilet", "curse", ... ]
+--   Right (Passphrase &lt;ScrubbedBytes&gt;)
+--   </pre>
+--   
+--   Note that the given <a>Nat</a>s **have** to be valid mnemonic sizes,
+--   otherwise the underlying code won't even compile, with not-so-friendly
+--   error messages.
+class FromMnemonic (sz :: [Nat]) (purpose :: Symbol)
+fromMnemonic :: FromMnemonic sz purpose => [Text] -> Either (FromMnemonicError sz) (Passphrase purpose)
+
+-- | Error reported from trying to create a passphrase from a given
+--   mnemonic
+newtype FromMnemonicError (sz :: [Nat])
+FromMnemonicError :: String -> FromMnemonicError
+[getFromMnemonicError] :: FromMnemonicError -> String
+
+-- | Indicate a failure when checking for a given <a>Passphrase</a> match
+data ErrWrongPassphrase
+ErrWrongPassphrase :: ErrWrongPassphrase
+
+-- | Encrypt a <a>Passphrase</a> into a format that is suitable for storing
+--   on disk
+encryptPassphrase :: MonadRandom m => Passphrase purpose -> m (Hash purpose)
+
+-- | Check whether a <a>Passphrase</a> matches with a stored <a>Hash</a>
+checkPassphrase :: Passphrase purpose -> Hash purpose -> Either ErrWrongPassphrase ()
+
+-- | Marker for the change chain. In practice, change of a transaction goes
+--   onto the addresses generated on the internal chain, whereas the
+--   external chain is used for addresses that are part of the
+--   <tt>advertised</tt> targets of a transaction
+data ChangeChain
+InternalChain :: ChangeChain
+ExternalChain :: ChangeChain
+
+-- | Generate a root key from a corresponding seed
+generateKeyFromSeed :: (Passphrase "seed", Passphrase "generation") -> Passphrase "encryption" -> Key  'RootK XPrv
+
+-- | Generate a new key from seed. Note that the <tt>depth</tt> is left
+--   open so that the caller gets to decide what type of key this is. This
+--   is mostly for testing, in practice, seeds are used to represent root
+--   keys, and one should use <a>generateKeyFromSeed</a>.
+unsafeGenerateKeyFromSeed :: (Passphrase "seed", Passphrase "generation") -> Passphrase "encryption" -> Key depth XPrv
+
+-- | Derives account private key from the given root private key, using
+--   derivation scheme 2 (see <a>cardano-crypto</a> package for more
+--   details).
+--   
+--   NOTE: The caller is expected to provide the corresponding passphrase
+--   (and to have checked that the passphrase is valid). Providing a wrong
+--   passphrase will not make the function fail but will instead, yield an
+--   incorrect new key that doesn't belong to the wallet.
+deriveAccountPrivateKey :: Passphrase "encryption" -> Key  'RootK XPrv -> Index  'Hardened  'AccountK -> Key  'AccountK XPrv
+
+-- | Derives address private key from the given account private key, using
+--   derivation scheme 2 (see <a>cardano-crypto</a> package for more
+--   details).
+--   
+--   It is preferred to use <a>deriveAddressPublicKey</a> whenever possible
+--   to avoid having to manipulate passphrases and private keys.
+--   
+--   NOTE: The caller is expected to provide the corresponding passphrase
+--   (and to have checked that the passphrase is valid). Providing a wrong
+--   passphrase will not make the function fail but will instead, yield an
+--   incorrect new key that doesn't belong to the wallet.
+deriveAddressPrivateKey :: Passphrase "encryption" -> Key  'AccountK XPrv -> ChangeChain -> Index  'Soft  'AddressK -> Key  'AddressK XPrv
+
+-- | Derives address public key from the given account public key, using
+--   derivation scheme 2 (see <a>cardano-crypto</a> package for more
+--   details).
+--   
+--   This is the preferred way of deriving new sequential address public
+--   keys.
+deriveAddressPublicKey :: Key  'AccountK XPub -> ChangeChain -> Index  'Soft  'AddressK -> Key  'AddressK XPub
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
+instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
+instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDerivation.ErrWrongPassphrase
+instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDerivation.ErrWrongPassphrase
+instance Formatting.Buildable.Buildable (Cardano.Wallet.Primitive.AddressDerivation.FromMnemonicError sz)
+instance GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.FromMnemonicError sz)
+instance GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDerivation.FromMnemonicError sz)
+instance GHC.Base.Monoid (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
+instance GHC.Base.Semigroup (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
+instance GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
+instance GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
+instance GHC.Classes.Ord (Cardano.Wallet.Primitive.AddressDerivation.Index derivationType level)
+instance GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDerivation.Index derivationType level)
+instance GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.Index derivationType level)
+instance GHC.Generics.Generic (Cardano.Wallet.Primitive.AddressDerivation.Index derivationType level)
+instance GHC.Classes.Eq key => GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDerivation.Key level key)
+instance GHC.Show.Show key => GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.Key level key)
+instance GHC.Generics.Generic (Cardano.Wallet.Primitive.AddressDerivation.Key level key)
+instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
+instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
+instance (n Data.Type.Equality.~ Crypto.Encoding.BIP39.EntropySize mw, csz Data.Type.Equality.~ Crypto.Encoding.BIP39.CheckSumBits n, Crypto.Encoding.BIP39.ConsistentEntropy n mw csz, Cardano.Wallet.Primitive.AddressDerivation.FromMnemonic rest purpose, Cardano.Wallet.Primitive.AddressDerivation.NatVals rest) => Cardano.Wallet.Primitive.AddressDerivation.FromMnemonic (mw : rest) purpose
+instance Cardano.Wallet.Primitive.AddressDerivation.NatVals '[]
+instance (GHC.TypeNats.KnownNat n, Cardano.Wallet.Primitive.AddressDerivation.NatVals rest) => Cardano.Wallet.Primitive.AddressDerivation.NatVals (n : rest)
+instance (n Data.Type.Equality.~ Crypto.Encoding.BIP39.EntropySize mw, csz Data.Type.Equality.~ Crypto.Encoding.BIP39.CheckSumBits n, Crypto.Encoding.BIP39.ConsistentEntropy n mw csz) => Cardano.Wallet.Primitive.AddressDerivation.FromMnemonic '[mw] purpose
+instance Cardano.Wallet.Primitive.AddressDerivation.PassphraseMaxLength "encryption"
+instance (Cardano.Wallet.Primitive.AddressDerivation.PassphraseMaxLength purpose, Cardano.Wallet.Primitive.AddressDerivation.PassphraseMinLength purpose) => Data.Text.Class.FromText (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
+instance Cardano.Wallet.Primitive.AddressDerivation.PassphraseMinLength "encryption"
+instance Data.Text.Class.ToText (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
+instance Crypto.Random.Types.MonadRandom ((->) (Cardano.Wallet.Primitive.AddressDerivation.Passphrase "salt"))
+instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDerivation.Index derivationType level)
+instance GHC.Enum.Bounded (Cardano.Wallet.Primitive.AddressDerivation.Index 'Cardano.Wallet.Primitive.AddressDerivation.Hardened level)
+instance GHC.Enum.Bounded (Cardano.Wallet.Primitive.AddressDerivation.Index 'Cardano.Wallet.Primitive.AddressDerivation.Soft level)
+instance GHC.Enum.Enum (Cardano.Wallet.Primitive.AddressDerivation.Index 'Cardano.Wallet.Primitive.AddressDerivation.Hardened level)
+instance GHC.Enum.Enum (Cardano.Wallet.Primitive.AddressDerivation.Index 'Cardano.Wallet.Primitive.AddressDerivation.Soft level)
+instance Control.DeepSeq.NFData key => Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDerivation.Key level key)
+
+
+-- | This module contains primitives necessary to perform address
+--   discovery. So far, we're only interested in address following a
+--   sequential derivation scheme as specified in BIP-0044. Later, we may
+--   introduce backward compatibility with random address scheme from the
+--   legacy Cardano wallets.
+module Cardano.Wallet.Primitive.AddressDiscovery
+
+-- | This abstraction exists to give us the ability to keep the wallet
+--   business logic agnostic to the address derivation and discovery
+--   mechanisms.
+--   
+--   This is needed because two different address schemes lives on Cardano:
+--   
+--   <ul>
+--   <li>A hierarchical random scheme: rather <tt>custom</tt> made, with
+--   several flaws; this is the original and now legacy address
+--   scheme.</li>
+--   <li>A hierarchical sequential scheme: a new scheme based on the
+--   BIP-0044 specification, which is better suited for our present
+--   needs.</li>
+--   </ul>
+--   
+--   In practice, we will need a wallet that can support both, even if not
+--   at the same time, and this little abstraction can buy us this without
+--   introducing too much overhead.
+class IsOurs s
+isOurs :: IsOurs s => Address -> s -> (Bool, s)
+
+-- | More powerful than <a>isOurs</a>, this abstractions offer the
+--   underlying state the ability to find / compute the address private key
+--   corresponding to a given known address.
+--   
+--   Requiring <a>IsOwned</a> as a constraint supposed that there is a way
+--   to recover the root private key of a particular wallet. This isn't
+--   true for externally owned wallet which would delegate its key
+--   management to a third party (like a hardware Ledger or Trezor).
+class IsOurs s => IsOwned s
+isOwned :: IsOwned s => s -> (Key  'RootK XPrv, Passphrase "encryption") -> Address -> Maybe (Key  'AddressK XPrv, Passphrase "encryption")
+
+-- | Abstracting over change address generation. In theory, this is only
+--   needed for sending transactions on a wallet following a particular
+--   scheme. This abstractions allows for defining an heuristic to pick new
+--   change address. For instance, in BIP-44, change addresses belong to a
+--   particular change chain (also called "Internal Chain").
+class GenChange s
+genChange :: GenChange s => s -> (Address, s)
+
+-- | Maximum number of consecutive undiscovered addresses allowed
+data AddressPoolGap
+
+-- | Possible errors when casting to an <a>AddressPoolGap</a>
+newtype MkAddressPoolGapError
+ErrGapOutOfRange :: Word8 -> MkAddressPoolGapError
+
+-- | A default <a>AddressPoolGap</a>, as suggested in BIP-0044
+defaultAddressPoolGap :: AddressPoolGap
+getAddressPoolGap :: AddressPoolGap -> Word8
+
+-- | Smart constructor for <a>AddressPoolGap</a>
+mkAddressPoolGap :: Word8 -> Either MkAddressPoolGapError AddressPoolGap
+
+-- | An <a>AddressPool</a> which keeps track of sequential addresses within
+--   a given Account and change chain. See <a>mkAddressPool</a> to create a
+--   new or existing pool:
+--   
+--   <pre>
+--   &gt;&gt;&gt; mkAddressPool xpub gap changeChain mempty
+--   AddressPool { }
+--   </pre>
+data AddressPool target (chain :: ChangeChain)
+
+-- | The actual gap for the pool. This can't change for a given pool.
+gap :: AddressPool target chain -> AddressPoolGap
+
+-- | Get all addresses in the pool, sorted from the first address
+--   discovered, up until the next one.
+--   
+--   In practice, we always have:
+--   
+--   <pre>
+--   mkAddressPool key g cc (addresses pool) == pool
+--   </pre>
+addresses :: AddressPool t chain -> [Address]
+
+-- | Bring a <a>ChangeChain</a> type back to the term-level. This requires
+--   a type application and either a scoped type variable, or an explicit
+--   passing of a <a>ChangeChain</a>.
+--   
+--   <pre>
+--   &gt;&gt;&gt; changeChain @'ExternalChain
+--   ExternalChain
+--   </pre>
+--   
+--   <pre>
+--   &gt;&gt;&gt; changeChain @chain
+--   ...
+--   </pre>
+changeChain :: forall (chain :: ChangeChain). Typeable chain => ChangeChain
+
+-- | Corresponding key for the pool (a pool is tied to only one account)
+accountPubKey :: AddressPool target chain -> Key  'AccountK XPub
+
+-- | Create a new Address pool from a list of addresses. Note that, the
+--   list is expected to be ordered in sequence (first indexes, first in
+--   the list).
+--   
+--   The pool will grow from the start if less than <tt>g ::
+--   AddressPoolGap</tt> are given, such that, there are always <tt>g</tt>
+--   undiscovered addresses in the pool.
+mkAddressPool :: forall t chain. (KeyToAddress t, Typeable chain) => Key  'AccountK XPub -> AddressPoolGap -> [Address] -> AddressPool t chain
+
+-- | Lookup an address in the pool. When we find an address in a pool, the
+--   pool may be amended if the address was discovered near the edge. It is
+--   also possible that the pool is not amended at all - this happens in
+--   the case that an address is discovered <tt>far</tt> from the edge.
+lookupAddress :: forall t chain. (KeyToAddress t, Typeable chain) => Address -> AddressPool t chain -> (Maybe (Index  'Soft  'AddressK), AddressPool t chain)
+
+-- | An ordered set of pending indexes. This keep track of indexes used
+data PendingIxs
+
+-- | An empty pending set of change indexes.
+--   
+--   NOTE: We do not define a <a>Monoid</a> instance here because there's
+--   no rational of combining two pending sets.
+emptyPendingIxs :: PendingIxs
+
+-- | A state to keep track of sequential addresses as described in
+--   <a>BIP-44</a>
+--   
+--   Internally, the state keeps track of a few things for us and is it is
+--   parameterized by a type <tt>t</tt> which represents a target backend.
+--   This enables the state to be agnostic to the underlying address
+--   format.
+data SeqState t
+SeqState :: !AddressPool t  'InternalChain -> !AddressPool t  'ExternalChain -> !PendingIxs -> SeqState t
+
+-- | Addresses living on the <a>InternalChain</a>
+[internalPool] :: SeqState t -> !AddressPool t  'InternalChain
+
+-- | Addresses living on the <a>ExternalChain</a>
+[externalPool] :: SeqState t -> !AddressPool t  'ExternalChain
+
+-- | Indexes from the internal pool that have been used in pending
+--   transactions. The list is maintained sorted in descending order (cf:
+--   <a>PendingIxs</a>)
+[pendingChangeIxs] :: SeqState t -> !PendingIxs
+
+-- | Construct a Sequential state for a wallet.
+mkSeqState :: KeyToAddress t => (Key  'RootK XPrv, Passphrase "encryption") -> AddressPoolGap -> SeqState t
+instance GHC.Show.Show (Cardano.Wallet.Primitive.AddressDiscovery.SeqState t)
+instance GHC.Generics.Generic (Cardano.Wallet.Primitive.AddressDiscovery.SeqState t)
+instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.PendingIxs
+instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.PendingIxs
+instance GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDiscovery.AddressPool target chain)
+instance GHC.Show.Show (Cardano.Wallet.Primitive.AddressDiscovery.AddressPool target chain)
+instance GHC.Generics.Generic (Cardano.Wallet.Primitive.AddressDiscovery.AddressPool target chain)
+instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.MkAddressPoolGapError
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDiscovery.MkAddressPoolGapError
+instance GHC.Classes.Ord Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
+instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
+instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
+instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDiscovery.SeqState t)
+instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t => Cardano.Wallet.Primitive.AddressDiscovery.IsOurs (Cardano.Wallet.Primitive.AddressDiscovery.SeqState t)
+instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t => Cardano.Wallet.Primitive.AddressDiscovery.GenChange (Cardano.Wallet.Primitive.AddressDiscovery.SeqState t)
+instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t => Cardano.Wallet.Primitive.AddressDiscovery.IsOwned (Cardano.Wallet.Primitive.AddressDiscovery.SeqState t)
+instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.PendingIxs
+instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDiscovery.AddressPool target chain)
+instance Data.Text.Class.FromText Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
+instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
+instance Data.Text.Class.ToText Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
+instance GHC.Enum.Bounded Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
+instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
+
 module Cardano.Wallet.Network
 data NetworkLayer m
 NetworkLayer :: (SlotId -> ExceptT ErrNetworkUnreachable m [Block]) -> ExceptT ErrNetworkTip m (Hash "BlockHeader", BlockHeader) -> (SignedTx -> ExceptT ErrPostTx m ()) -> NetworkLayer m
@@ -700,11 +1080,6 @@ random :: forall m. MonadRandom m => CoinSelectionOptions -> NonEmpty TxOut -> U
 --   They are also used by components like the Rust
 --   <a>cardano-http-bridge</a>.
 module Cardano.Wallet.Binary
-
--- | A type representing the http-bridge as a network target. This has an
---   influence on binary serializer &amp; network primitives. See also
---   <a>TxId</a>
-data HttpBridge
 decodeBlock :: Decoder s Block
 decodeBlockHeader :: Decoder s BlockHeader
 decodeTx :: Decoder s Tx
@@ -781,192 +1156,20 @@ decodeList :: forall s a. Decoder s a -> Decoder s [a]
 --   </pre>
 decodeListIndef :: forall s a. Decoder s a -> Decoder s [a]
 toByteString :: Encoding -> ByteString
-instance Cardano.Wallet.Primitive.Types.TxId Cardano.Wallet.Binary.HttpBridge
 
 
--- | Primitives for performing address derivation for some given schemes.
---   This is where most of the crypto happens in the wallet and, it is
---   quite important to ensure that the following implementation matches
---   with other wallet softwares (like Yoroi/Icarus or the cardano-cli)
-module Cardano.Wallet.Primitive.AddressDerivation
+-- | Contains various implementation decision that are specific to a
+--   particular network / protocol. This allows us to easily select a
+--   particular backend (Byron, Shelley-Rust, Shelley-Haskell) and isolate
+--   the bits that vary between those backends.
+module Cardano.Wallet.Compatibility
 
--- | A cryptographic key, with phantom-types to disambiguate key types.
---   
---   <pre>
---   let rootPrivateKey = Key 'RootK XPrv
---   let accountPubKey = Key 'AccountK XPub
---   let addressPubKey = Key 'AddressK XPub
---   </pre>
-data Key (level :: Depth) key
-getKey :: Key level key -> key
-
--- | Key Depth in the derivation path, according to BIP-0039 / BIP-0044
---   
---   <pre>
---   m | purpose' | cointype' | account' | change | address
---   </pre>
---   
---   We do not manipulate purpose, cointype and change paths directly, so
---   they are left out of the sum type.
-data Depth
-RootK :: Depth
-AccountK :: Depth
-AddressK :: Depth
-
--- | A derivation index, with phantom-types to disambiguate derivation
---   type.
---   
---   <pre>
---   let accountIx = Index 'Hardened 'AccountK
---   let addressIx = Index 'Soft 'AddressK
---   </pre>
-data Index (derivationType :: DerivationType) (level :: Depth)
-getIndex :: Index derivationType level -> Word32
-
--- | Type of derivation that should be used with the given indexes.
-data DerivationType
-Hardened :: DerivationType
-Soft :: DerivationType
-
--- | Extract the public key part of a private key.
-publicKey :: Key level XPrv -> Key level XPub
-
--- | Hash a public key to some other representation.
-digest :: HashAlgorithm a => Key level XPub -> Digest a
-data XPub
-data XPrv
-
--- | An encapsulated passphrase. The inner format is free, but the wrapper
---   helps readability in function signatures.
-newtype Passphrase (purpose :: Symbol)
-Passphrase :: ScrubbedBytes -> Passphrase
-class PassphraseMinLength (purpose :: Symbol)
-
--- | Minimal Length for a passphrase, for lack of better validations
-passphraseMinLength :: PassphraseMinLength purpose => Proxy purpose -> Int
-class PassphraseMaxLength (purpose :: Symbol)
-
--- | Maximum length for a passphrase
-passphraseMaxLength :: PassphraseMaxLength purpose => Proxy purpose -> Int
-
--- | Create a passphrase from a mnemonic sentence. This class enables
---   caller to parse text list of variable length into mnemonic sentences.
---   
---   <pre>
---   &gt;&gt;&gt; fromMnemonic @'[12,15,18,21] @"generation" ["toilet", "curse", ... ]
---   Right (Passphrase &lt;ScrubbedBytes&gt;)
---   </pre>
---   
---   Note that the given <a>Nat</a>s **have** to be valid mnemonic sizes,
---   otherwise the underlying code won't even compile, with not-so-friendly
---   error messages.
-class FromMnemonic (sz :: [Nat]) (purpose :: Symbol)
-fromMnemonic :: FromMnemonic sz purpose => [Text] -> Either (FromMnemonicError sz) (Passphrase purpose)
-
--- | Error reported from trying to create a passphrase from a given
---   mnemonic
-newtype FromMnemonicError (sz :: [Nat])
-FromMnemonicError :: String -> FromMnemonicError
-[getFromMnemonicError] :: FromMnemonicError -> String
-
--- | Indicate a failure when checking for a given <a>Passphrase</a> match
-data ErrWrongPassphrase
-ErrWrongPassphrase :: ErrWrongPassphrase
-
--- | Encrypt a <a>Passphrase</a> into a format that is suitable for storing
---   on disk
-encryptPassphrase :: MonadRandom m => Passphrase purpose -> m (Hash purpose)
-
--- | Check whether a <a>Passphrase</a> matches with a stored <a>Hash</a>
-checkPassphrase :: Passphrase purpose -> Hash purpose -> Either ErrWrongPassphrase ()
-
--- | Marker for the change chain. In practice, change of a transaction goes
---   onto the addresses generated on the internal chain, whereas the
---   external chain is used for addresses that are part of the
---   <tt>advertised</tt> targets of a transaction
-data ChangeChain
-InternalChain :: ChangeChain
-ExternalChain :: ChangeChain
-
--- | Generate a root key from a corresponding seed
-generateKeyFromSeed :: (Passphrase "seed", Passphrase "generation") -> Passphrase "encryption" -> Key  'RootK XPrv
-
--- | Generate a new key from seed. Note that the <tt>depth</tt> is left
---   open so that the caller gets to decide what type of key this is. This
---   is mostly for testing, in practice, seeds are used to represent root
---   keys, and one should use <a>generateKeyFromSeed</a>.
-unsafeGenerateKeyFromSeed :: (Passphrase "seed", Passphrase "generation") -> Passphrase "encryption" -> Key depth XPrv
-
--- | Derives account private key from the given root private key, using
---   derivation scheme 2 (see <a>cardano-crypto</a> package for more
---   details).
---   
---   NOTE: The caller is expected to provide the corresponding passphrase
---   (and to have checked that the passphrase is valid). Providing a wrong
---   passphrase will not make the function fail but will instead, yield an
---   incorrect new key that doesn't belong to the wallet.
-deriveAccountPrivateKey :: Passphrase "encryption" -> Key  'RootK XPrv -> Index  'Hardened  'AccountK -> Key  'AccountK XPrv
-
--- | Derives address private key from the given account private key, using
---   derivation scheme 2 (see <a>cardano-crypto</a> package for more
---   details).
---   
---   It is preferred to use <a>deriveAddressPublicKey</a> whenever possible
---   to avoid having to manipulate passphrases and private keys.
---   
---   NOTE: The caller is expected to provide the corresponding passphrase
---   (and to have checked that the passphrase is valid). Providing a wrong
---   passphrase will not make the function fail but will instead, yield an
---   incorrect new key that doesn't belong to the wallet.
-deriveAddressPrivateKey :: Passphrase "encryption" -> Key  'AccountK XPrv -> ChangeChain -> Index  'Soft  'AddressK -> Key  'AddressK XPrv
-
--- | Derives address public key from the given account public key, using
---   derivation scheme 2 (see <a>cardano-crypto</a> package for more
---   details).
---   
---   This is the preferred way of deriving new sequential address public
---   keys.
-deriveAddressPublicKey :: Key  'AccountK XPub -> ChangeChain -> Index  'Soft  'AddressK -> Key  'AddressK XPub
-
--- | Encode a public key to a (Byron / Legacy) Cardano <a>Address</a>. This
---   is mostly dubious CBOR serializations with no data attributes.
-keyToAddress :: Key  'AddressK XPub -> Address
-instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
-instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
-instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
-instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDerivation.ErrWrongPassphrase
-instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDerivation.ErrWrongPassphrase
-instance Formatting.Buildable.Buildable (Cardano.Wallet.Primitive.AddressDerivation.FromMnemonicError sz)
-instance GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.FromMnemonicError sz)
-instance GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDerivation.FromMnemonicError sz)
-instance GHC.Base.Monoid (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
-instance GHC.Base.Semigroup (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
-instance GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
-instance GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
-instance GHC.Classes.Ord (Cardano.Wallet.Primitive.AddressDerivation.Index derivationType level)
-instance GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDerivation.Index derivationType level)
-instance GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.Index derivationType level)
-instance GHC.Generics.Generic (Cardano.Wallet.Primitive.AddressDerivation.Index derivationType level)
-instance GHC.Classes.Eq key => GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDerivation.Key level key)
-instance GHC.Show.Show key => GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.Key level key)
-instance GHC.Generics.Generic (Cardano.Wallet.Primitive.AddressDerivation.Key level key)
-instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
-instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
-instance (n Data.Type.Equality.~ Crypto.Encoding.BIP39.EntropySize mw, csz Data.Type.Equality.~ Crypto.Encoding.BIP39.CheckSumBits n, Crypto.Encoding.BIP39.ConsistentEntropy n mw csz, Cardano.Wallet.Primitive.AddressDerivation.FromMnemonic rest purpose, Cardano.Wallet.Primitive.AddressDerivation.NatVals rest) => Cardano.Wallet.Primitive.AddressDerivation.FromMnemonic (mw : rest) purpose
-instance Cardano.Wallet.Primitive.AddressDerivation.NatVals '[]
-instance (GHC.TypeNats.KnownNat n, Cardano.Wallet.Primitive.AddressDerivation.NatVals rest) => Cardano.Wallet.Primitive.AddressDerivation.NatVals (n : rest)
-instance (n Data.Type.Equality.~ Crypto.Encoding.BIP39.EntropySize mw, csz Data.Type.Equality.~ Crypto.Encoding.BIP39.CheckSumBits n, Crypto.Encoding.BIP39.ConsistentEntropy n mw csz) => Cardano.Wallet.Primitive.AddressDerivation.FromMnemonic '[mw] purpose
-instance Cardano.Wallet.Primitive.AddressDerivation.PassphraseMaxLength "encryption"
-instance (Cardano.Wallet.Primitive.AddressDerivation.PassphraseMaxLength purpose, Cardano.Wallet.Primitive.AddressDerivation.PassphraseMinLength purpose) => Data.Text.Class.FromText (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
-instance Cardano.Wallet.Primitive.AddressDerivation.PassphraseMinLength "encryption"
-instance Data.Text.Class.ToText (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
-instance Crypto.Random.Types.MonadRandom ((->) (Cardano.Wallet.Primitive.AddressDerivation.Passphrase "salt"))
-instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDerivation.Index derivationType level)
-instance GHC.Enum.Bounded (Cardano.Wallet.Primitive.AddressDerivation.Index 'Cardano.Wallet.Primitive.AddressDerivation.Hardened level)
-instance GHC.Enum.Bounded (Cardano.Wallet.Primitive.AddressDerivation.Index 'Cardano.Wallet.Primitive.AddressDerivation.Soft level)
-instance GHC.Enum.Enum (Cardano.Wallet.Primitive.AddressDerivation.Index 'Cardano.Wallet.Primitive.AddressDerivation.Hardened level)
-instance GHC.Enum.Enum (Cardano.Wallet.Primitive.AddressDerivation.Index 'Cardano.Wallet.Primitive.AddressDerivation.Soft level)
-instance Control.DeepSeq.NFData key => Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDerivation.Key level key)
+-- | A type representing the http-bridge as a network target. This has an
+--   influence on binary serializer &amp; network primitives. See also
+--   <a>TxId</a>
+data HttpBridge
+instance Cardano.Wallet.Primitive.Types.TxId Cardano.Wallet.Compatibility.HttpBridge
+instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress Cardano.Wallet.Compatibility.HttpBridge
 
 
 -- | This module provides functionality for signing transactions.
@@ -991,173 +1194,6 @@ instance GHC.Show.Show Cardano.Wallet.Primitive.Signing.SignTxError
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Signing.SignTxError
 
 
--- | This module contains primitives necessary to perform address
---   discovery. So far, we're only interested in address following a
---   sequential derivation scheme as specified in BIP-0044. Later, we may
---   introduce backward compatibility with random address scheme from the
---   legacy Cardano wallets.
-module Cardano.Wallet.Primitive.AddressDiscovery
-
--- | This abstraction exists to give us the ability to keep the wallet
---   business logic agnostic to the address derivation and discovery
---   mechanisms.
---   
---   This is needed because two different address schemes lives on Cardano:
---   
---   <ul>
---   <li>A hierarchical random scheme: rather <tt>custom</tt> made, with
---   several flaws; this is the original and now legacy address
---   scheme.</li>
---   <li>A hierarchical sequential scheme: a new scheme based on the
---   BIP-0044 specification, which is better suited for our present
---   needs.</li>
---   </ul>
---   
---   In practice, we will need a wallet that can support both, even if not
---   at the same time, and this little abstraction can buy us this without
---   introducing too much overhead.
-class IsOurs s
-isOurs :: IsOurs s => Address -> s -> (Bool, s)
-
--- | More powerful than <a>isOurs</a>, this abstractions offer the
---   underlying state the ability to find / compute the address private key
---   corresponding to a given known address.
---   
---   Requiring <a>IsOwned</a> as a constraint supposed that there is a way
---   to recover the root private key of a particular wallet. This isn't
---   true for externally owned wallet which would delegate its key
---   management to a third party (like a hardware Ledger or Trezor).
-class IsOurs s => IsOwned s
-isOwned :: IsOwned s => s -> (Key  'RootK XPrv, Passphrase "encryption") -> Address -> Maybe (Key  'AddressK XPrv, Passphrase "encryption")
-
--- | Abstracting over change address generation. In theory, this is only
---   needed for sending transactions on a wallet following a particular
---   scheme. This abstractions allows for defining an heuristic to pick new
---   change address. For instance, in BIP-44, change addresses belong to a
---   particular change chain (also called "Internal Chain").
-class GenChange s
-genChange :: GenChange s => s -> (Address, s)
-
--- | Maximum number of consecutive undiscovered addresses allowed
-data AddressPoolGap
-
--- | Possible errors when casting to an <a>AddressPoolGap</a>
-newtype MkAddressPoolGapError
-ErrGapOutOfRange :: Word8 -> MkAddressPoolGapError
-
--- | A default <a>AddressPoolGap</a>, as suggested in BIP-0044
-defaultAddressPoolGap :: AddressPoolGap
-getAddressPoolGap :: AddressPoolGap -> Word8
-
--- | Smart constructor for <a>AddressPoolGap</a>
-mkAddressPoolGap :: Word8 -> Either MkAddressPoolGapError AddressPoolGap
-
--- | An <a>AddressPool</a> which keeps track of sequential addresses within
---   a given Account and change chain. See <a>mkAddressPool</a> to create a
---   new or existing pool:
---   
---   <pre>
---   &gt;&gt;&gt; mkAddressPool xpub gap changeChain mempty
---   AddressPool { }
---   </pre>
-data AddressPool (chain :: ChangeChain)
-
--- | The actual gap for the pool. This can't change for a given pool.
-gap :: AddressPool chain -> AddressPoolGap
-
--- | Get all addresses in the pool, sorted from the first address
---   discovered, up until the next one.
---   
---   In practice, we always have:
---   
---   <pre>
---   mkAddressPool key g cc (addresses pool) == pool
---   </pre>
-addresses :: AddressPool chain -> [Address]
-
--- | Bring a <a>ChangeChain</a> type back to the term-level. This requires
---   a type application and either a scoped type variable, or an explicit
---   passing of a <a>ChangeChain</a>.
---   
---   <pre>
---   &gt;&gt;&gt; changeChain @'ExternalChain
---   ExternalChain
---   </pre>
---   
---   <pre>
---   &gt;&gt;&gt; changeChain @chain
---   ...
---   </pre>
-changeChain :: forall (chain :: ChangeChain). Typeable chain => ChangeChain
-
--- | Corresponding key for the pool (a pool is tied to only one account)
-accountPubKey :: AddressPool chain -> Key  'AccountK XPub
-
--- | Create a new Address pool from a list of addresses. Note that, the
---   list is expected to be ordered in sequence (first indexes, first in
---   the list).
---   
---   The pool will grow from the start if less than <tt>g ::
---   AddressPoolGap</tt> are given, such that, there are always <tt>g</tt>
---   undiscovered addresses in the pool.
-mkAddressPool :: forall chain. Typeable chain => Key  'AccountK XPub -> AddressPoolGap -> [Address] -> AddressPool chain
-
--- | Lookup an address in the pool. When we find an address in a pool, the
---   pool may be amended if the address was discovered near the edge. It is
---   also possible that the pool is not amended at all - this happens in
---   the case that an address is discovered <tt>far</tt> from the edge.
-lookupAddress :: Typeable chain => Address -> AddressPool chain -> (Maybe (Index  'Soft  'AddressK), AddressPool chain)
-
--- | An ordered set of pending indexes. This keep track of indexes used
-data PendingIxs
-
--- | An empty pending set of change indexes.
---   
---   NOTE: We do not define a <a>Monoid</a> instance here because there's
---   no rational of combining two pending sets.
-emptyPendingIxs :: PendingIxs
-data SeqState
-SeqState :: !AddressPool  'InternalChain -> !AddressPool  'ExternalChain -> !PendingIxs -> SeqState
-
--- | Addresses living on the <a>InternalChain</a>
-[internalPool] :: SeqState -> !AddressPool  'InternalChain
-
--- | Addresses living on the <a>ExternalChain</a>
-[externalPool] :: SeqState -> !AddressPool  'ExternalChain
-
--- | Indexes from the internal pool that have been used in pending
---   transactions. The list is maintained sorted in descending order (cf:
---   <a>PendingIxs</a>)
-[pendingChangeIxs] :: SeqState -> !PendingIxs
-
--- | Construct a Sequential state for a wallet.
-mkSeqState :: (Key  'RootK XPrv, Passphrase "encryption") -> AddressPoolGap -> SeqState
-instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.SeqState
-instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.SeqState
-instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.PendingIxs
-instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.PendingIxs
-instance GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDiscovery.AddressPool chain)
-instance GHC.Show.Show (Cardano.Wallet.Primitive.AddressDiscovery.AddressPool chain)
-instance GHC.Generics.Generic (Cardano.Wallet.Primitive.AddressDiscovery.AddressPool chain)
-instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.MkAddressPoolGapError
-instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDiscovery.MkAddressPoolGapError
-instance GHC.Classes.Ord Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
-instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
-instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
-instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
-instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.SeqState
-instance Cardano.Wallet.Primitive.AddressDiscovery.IsOurs Cardano.Wallet.Primitive.AddressDiscovery.SeqState
-instance Cardano.Wallet.Primitive.AddressDiscovery.GenChange Cardano.Wallet.Primitive.AddressDiscovery.SeqState
-instance Cardano.Wallet.Primitive.AddressDiscovery.IsOwned Cardano.Wallet.Primitive.AddressDiscovery.SeqState
-instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.PendingIxs
-instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDiscovery.AddressPool chain)
-instance Data.Text.Class.FromText Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
-instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
-instance Data.Text.Class.ToText Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
-instance GHC.Enum.Bounded Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
-instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
-
-
 -- | Here we find the "business logic" to manage a Cardano wallet. This is
 --   a direct implementation of the model from the <a>Formal Specification
 --   for a Cardano Wallet</a> Note that, this module is purposedly agnostic
@@ -1172,8 +1208,8 @@ instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 --   sort of side-effects in here :)
 module Cardano.Wallet.Primitive.Model
 
--- | An opaque wallet type, see <tt>initWallet</tt> and <tt>applyBlock</tt>
---   to construct and update wallets.
+-- | An opaque wallet type, see <a>initWallet</a> and <a>applyBlocks</a> to
+--   construct and update wallets.
 --   
 --   Internally, this keeps track or a few things including:
 --   
@@ -1183,6 +1219,31 @@ module Cardano.Wallet.Primitive.Model
 --   <li>Transaction history</li>
 --   <li>TODO: Known &amp; used addresses</li>
 --   </ul>
+--   
+--   The <a>Wallet</a> is paremeterized over two types:
+--   
+--   <ul>
+--   <li><tt>s</tt>: A _state_ used to keep track of known addresses. The
+--   business logic doesn't know how to answer the question 'Is this
+--   address ours?', so we expect this state to be able to answer that for
+--   us.</li>
+--   <li><tt>t</tt>: A target backend. This makes the wallet fairly
+--   agnostic to the type of binary representation used by the underlying
+--   target network and it allows us to re-use the same logic to provide a
+--   wallet backend for multiple backends (for instance, Byron or Shelley)
+--   which may have divergence in their binary formats. For the sake of
+--   this module, we only care about one particular super-power, and its
+--   the ability to compute transaction id (which is intrinsically linked
+--   to the transaction's binary format).</li>
+--   </ul>
+--   
+--   A few examples to make it concrete:
+--   
+--   <pre>
+--   Wallet RndState Byron
+--   Wallet SeqState Shelley
+--   Wallet SeqState Bitcoin
+--   </pre>
 data Wallet s t
 
 -- | Create an empty wallet from an initial state
@@ -1834,7 +1895,7 @@ type CreateTransaction = "wallets" :> Capture "walletId" (ApiT WalletId) :> "tra
 module Cardano.Wallet.Api.Server
 
 -- | A Servant server for our wallet API
-server :: TxId t => WalletLayer SeqState t -> Server Api
+server :: (TxId t, KeyToAddress t) => WalletLayer (SeqState t) t -> Server Api
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.DB.ErrNoSuchWallet
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.DB.ErrWalletAlreadyExists
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrCreateUnsignedTx
