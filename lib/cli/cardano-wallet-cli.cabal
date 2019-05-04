@@ -56,10 +56,11 @@ test-suite unit
       -Werror
   build-depends:
       base
-    , QuickCheck
     , cardano-wallet-cli
     , generic-arbitrary
     , hspec
+    , QuickCheck
+    , text
     , text-class
   type:
      exitcode-stdio-1.0

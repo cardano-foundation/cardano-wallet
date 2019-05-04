@@ -18,12 +18,14 @@ module Cardano.CLI
 
     -- * ANSI Terminal Helpers
     , putErrLn
+    , hPutErrLn
 
     -- * Parsing Arguments
     , parseArgWith
 
     -- * Working with Sensitive Data
     , getSensitiveLine
+    , hGetSensitiveLine
     ) where
 
 import Prelude
@@ -47,7 +49,7 @@ import System.Console.ANSI
     , ColorIntensity (..)
     , ConsoleLayer (..)
     , SGR (..)
-    , cursorBackward
+    , hCursorBackward
     , hSetSGR
     )
 import System.Console.Docopt
@@ -58,7 +60,9 @@ import System.IO
     ( BufferMode (..)
     , Handle
     , hGetBuffering
+    , hGetChar
     , hGetEcho
+    , hPutChar
     , hSetBuffering
     , hSetEcho
     , stdin
@@ -103,36 +107,39 @@ parseArgWith cli args option = do
 -------------------------------------------------------------------------------}
 
 -- | Print an error message in red
+hPutErrLn :: Handle -> Text -> IO ()
+hPutErrLn h msg = withSGR h (SetColor Foreground Vivid Red) $ do
+    TIO.hPutStrLn h msg
+
+-- | Like 'hPutErrLn' but with provided default _stdout_ 'Handle'
 putErrLn :: Text -> IO ()
-putErrLn msg = withSGR (SetColor Foreground Vivid Red) $ do
-    TIO.putStrLn msg
+putErrLn = hPutErrLn stdout
 
 {-------------------------------------------------------------------------------
                          Processing of Sensitive Data
 -------------------------------------------------------------------------------}
 
--- | Gather user inputs until a newline is met, hiding what's typed with
-getSensitiveLine
+-- | Gather user inputs until a newline is met, hiding what's typed with a
+-- placeholder character.
+hGetSensitiveLine
     :: Buildable e
-    => Text
-    -- ^ A message to prompt the user
+    => (Handle, Handle)
+    -> Text
     -> Maybe Char
-    -- ^ Create groups of 'n :: Int' hidden characters when 'c :: Char' is met
     -> (Text -> Either e a)
-    -- ^ An explicit parser from 'Text'
     -> IO (a, Text)
-getSensitiveLine prompt separator fromT =
-    withBuffering stdout NoBuffering $
-    withBuffering stdin NoBuffering $
-    withEcho False $ do
-        TIO.putStr prompt
+hGetSensitiveLine (hstdin, hstdout) prompt separator fromT =
+    withBuffering hstdout NoBuffering $
+    withBuffering hstdin NoBuffering $
+    withEcho hstdin False $ do
+        TIO.hPutStr hstdout prompt
         txt <- getLineProtected separator '*'
         case fromT txt of
             Right a ->
                 return (a, txt)
             Left e -> do
-                putErrLn (pretty e)
-                getSensitiveLine prompt separator fromT
+                hPutErrLn hstdout (pretty e)
+                hGetSensitiveLine (hstdin, hstdout) prompt separator fromT
   where
     getLineProtected :: Maybe Char -> Char -> IO Text
     getLineProtected sep placeholder =
@@ -140,24 +147,36 @@ getSensitiveLine prompt separator fromT =
       where
         backspace = toEnum 127
         getLineProtected' line = do
-            getChar >>= \case
+            hGetChar hstdin >>= \case
                 '\n' -> do
-                    putChar '\n'
+                    hPutChar hstdout '\n'
                     return line
                 c | c == backspace ->
                     if T.null line
                         then getLineProtected' line
                         else do
-                            cursorBackward  1
-                            putChar ' '
-                            cursorBackward 1
+                            hCursorBackward hstdout  1
+                            hPutChar hstdout ' '
+                            hCursorBackward hstdout 1
                             getLineProtected' (T.init line)
                 c | Just c == sep -> do
-                    putChar ' '
+                    hPutChar hstdout ' '
                     getLineProtected' (line <> T.singleton c)
                 c -> do
-                    putChar placeholder
+                    hPutChar hstdout placeholder
                     getLineProtected' (line <> T.singleton c)
+
+-- | Like 'hGetSensitiveLine' but with default stdin and stdout handles
+getSensitiveLine
+    :: Buildable e
+    => Text
+    -- ^ A message to prompt the user
+    -> Maybe Char
+    -- ^ Special separator character that shouldn't be hidden, e.g. @Just ' '@
+    -> (Text -> Either e a)
+    -- ^ An explicit parser from 'Text'
+    -> IO (a, Text)
+getSensitiveLine = hGetSensitiveLine (stdin, stdout)
 
 {-------------------------------------------------------------------------------
                                 Internals
@@ -170,16 +189,16 @@ withBuffering h buffering action = bracket aFirst aLast aBetween
     aLast = hSetBuffering h
     aBetween = const action
 
-withEcho :: Bool -> IO a -> IO a
-withEcho echo action = bracket aFirst aLast aBetween
+withEcho :: Handle -> Bool -> IO a -> IO a
+withEcho h echo action = bracket aFirst aLast aBetween
   where
-    aFirst = (hGetEcho stdin <* hSetEcho stdin echo)
-    aLast = hSetEcho stdin
+    aFirst = (hGetEcho h <* hSetEcho h echo)
+    aLast = hSetEcho h
     aBetween = const action
 
-withSGR :: SGR -> IO a -> IO a
-withSGR sgr action = bracket aFirst aLast aBetween
+withSGR :: Handle -> SGR -> IO a -> IO a
+withSGR h sgr action = bracket aFirst aLast aBetween
   where
-    aFirst = ([] <$ hSetSGR stdout [sgr])
-    aLast = hSetSGR stdout
+    aFirst = ([] <$ hSetSGR h [sgr])
+    aLast = hSetSGR h
     aBetween = const action
