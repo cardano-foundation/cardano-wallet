@@ -31,13 +31,17 @@ executable cardano-wallet
       -O2
   build-depends:
       base
+    , aeson
+    , aeson-pretty
+    , bytestring
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-http-bridge
     , docopt
-    , servant-server
-    , servant-client
     , http-client
+    , servant-client
+    , servant-client-core
+    , servant-server
     , text
     , text-class
     , warp

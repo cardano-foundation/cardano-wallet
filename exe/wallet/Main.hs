@@ -30,9 +30,6 @@ import Cardano.Wallet
     ( mkWalletLayer )
 import Cardano.Wallet.Api
     ( Api )
-import Control.Arrow
-    ( second )
-
 import Cardano.Wallet.Api.Server
     ( server )
 import Cardano.Wallet.Api.Types
@@ -43,6 +40,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
+import Control.Arrow
+    ( second )
+import Control.Monad
+    ( void )
+import Data.Aeson
+    ( ToJSON )
 import Data.Function
     ( (&) )
 import Data.Proxy
@@ -55,6 +58,8 @@ import Servant
     ( (:<|>) (..), (:>), serve )
 import Servant.Client
     ( BaseUrl (..), ClientM, Scheme (..), client, mkClientEnv, runClientM )
+import Servant.Client.Core
+    ( ServantError (..), responseBody )
 import System.Console.Docopt
     ( Arguments
     , Docopt
@@ -74,6 +79,8 @@ import System.IO
 import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
 import qualified Cardano.Wallet.Transaction.HttpBridge as HttpBridge
+import qualified Data.Aeson.Encode.Pretty as Aeson
+import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Network.Wai.Handler.Warp as Warp
@@ -165,7 +172,7 @@ exec manager args
 
     | args `isPresent` command "wallet" && args `isPresent` command "delete" = do
         wId <- args `parseArg` longOption "id"
-        runClient $ deleteWallet (ApiT wId)
+        runClient $ void $ deleteWallet (ApiT wId)
 
     | otherwise =
         exitWithUsage cli
@@ -186,14 +193,20 @@ exec manager args
         )
         = client (Proxy @("v2" :> Api))
 
-    runClient :: Show a => ClientM a -> IO ()
+    runClient :: ToJSON a => ClientM a -> IO ()
     runClient cmd = do
         port <- args `parseArg` longOption "port"
         let env = mkClientEnv manager (BaseUrl Http "localhost" port "")
         res <- runClientM cmd env
         case res of
-            Left err -> putStrLn $ "Error: " ++ show err
-            Right wallet -> print wallet
+            Left (FailureResponse r) ->
+                BL8.putStrLn $ responseBody r
+            Left (ConnectionError t) ->
+                TIO.putStrLn t
+            Left e ->
+                BL8.putStrLn $ BL8.pack $ show e
+            Right a ->
+                BL8.putStrLn $ Aeson.encodePretty a
 
 -- | Start a web-server to serve the wallet backend API on the given port.
 execServer :: Port "wallet" -> Port "bridge" -> IO ()
