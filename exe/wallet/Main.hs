@@ -36,15 +36,13 @@ import Control.Arrow
 import Cardano.Wallet.Api.Server
     ( server )
 import Cardano.Wallet.Api.Types
-    ( ApiMnemonicT (..), ApiT (..), WalletPostData (..) )
+    ( ApiMnemonicT (..), ApiT (..), WalletPostData (..), WalletPutData (..) )
 import Cardano.Wallet.Compatibility.HttpBridge
     ( HttpBridge )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
-import Cardano.Wallet.Primitive.Types
-    ( WalletId (..), WalletName )
 import Data.Function
     ( (&) )
 import Data.Proxy
@@ -160,13 +158,14 @@ exec manager args
             (ApiT wPwd)
 
     | args `isPresent` command "wallet" && args `isPresent` command "update" = do
-        wid <- args `parseArg` longOption "id"
-        walletName <- args `parseArg` longOption "name"
-        print (wid :: WalletId, walletName :: WalletName)
+        wId <- args `parseArg` longOption "id"
+        wName <- args `parseArg` longOption "name"
+        runClient $ putWallet (ApiT wId) $ WalletPutData
+            (Just $ ApiT wName)
 
     | args `isPresent` command "wallet" && args `isPresent` command "delete" = do
-        wid <- args `parseArg` longOption "id"
-        print (wid :: WalletId)
+        wId <- args `parseArg` longOption "id"
+        runClient $ deleteWallet (ApiT wId)
 
     | otherwise =
         exitWithUsage cli
@@ -175,11 +174,11 @@ exec manager args
     parseArg = parseArgWith cli
 
     _ :<|> -- List Address
-        ( _ -- Delete Wallet
+        ( deleteWallet
         :<|> getWallet
         :<|> listWallets
         :<|> postWallet
-        :<|> _ -- Put Wallet
+        :<|> putWallet
         :<|> _ -- Put Wallet Passphrase
         )
         :<|>
