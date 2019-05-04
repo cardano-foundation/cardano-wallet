@@ -1,9 +1,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
-
 -- |
 -- Copyright: © 2018-2019 IOHK
 -- License: MIT
@@ -21,35 +21,45 @@ module Main where
 import Prelude
 
 import Cardano.CLI
-    ( Port (..)
-    , getOptionalSensitiveValue
-    , getRequiredSensitiveValue
-    , parseArgWith
-    )
+    ( Port (..), getSensitiveLine, parseArgWith, putErrLn )
+import Cardano.Environment
+    ( network )
 import Cardano.Wallet
     ( mkWalletLayer )
 import Cardano.Wallet.Api
     ( Api )
 import Cardano.Wallet.Api.Server
     ( server )
+import Cardano.Wallet.Api.Types
+    ( ApiMnemonicT (..), ApiT (..), WalletPostData (..), WalletPutData (..) )
 import Cardano.Wallet.Compatibility.HttpBridge
     ( HttpBridge )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..), Passphrase (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( AddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
-import Cardano.Wallet.Primitive.Types
-    ( WalletId (..), WalletName )
+import Control.Arrow
+    ( second )
+import Control.Monad
+    ( void )
+import Data.Aeson
+    ( ToJSON )
 import Data.Function
     ( (&) )
+import Data.Functor
+    ( (<&>) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
     ( FromText (..), ToText (..) )
+import Network.HTTP.Client
+    ( Manager, defaultManagerSettings, newManager )
 import Servant
-    ( (:>), serve )
+    ( (:<|>) (..), (:>), serve )
+import Servant.Client
+    ( BaseUrl (..), ClientM, Scheme (..), client, mkClientEnv, runClientM )
+import Servant.Client.Core
+    ( ServantError (..), responseBody )
 import System.Console.Docopt
     ( Arguments
     , Docopt
@@ -69,7 +79,11 @@ import System.IO
 import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
 import qualified Cardano.Wallet.Transaction.HttpBridge as HttpBridge
+import qualified Data.Aeson.Encode.Pretty as Aeson
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 import qualified Network.Wai.Handler.Warp as Warp
 
@@ -87,11 +101,10 @@ active server and can be ran "offline" (e.g. 'generate mnemonic')
 Usage:
   cardano-wallet server [--port=INT] [--bridge-port=INT]
   cardano-wallet generate mnemonic [--size=INT]
-  cardano-wallet list address --wallet-id=STRING
-  cardano-wallet list wallet
-  cardano-wallet create wallet --name=STRING [--address-pool-gap=INT]
+  cardano-wallet list wallets [--port=INT]
+  cardano-wallet get wallet --wallet-id=STRING [--port=INT]
+  cardano-wallet create wallet --name=STRING [--address-pool-gap=INT] [--port=INT]
   cardano-wallet delete wallet --id=STRING
-  cardano-wallet update wallet --id=STRING --name=STRING
   cardano-wallet -h | --help
   cardano-wallet --version
 
@@ -105,14 +118,15 @@ Options:
 main :: IO ()
 main = do
     hSetBuffering stdout NoBuffering
-    getArgs >>= parseArgsOrExit cli >>= exec
+    manager <- newManager defaultManagerSettings
+    getArgs >>= parseArgsOrExit cli >>= exec manager
 
 {-------------------------------------------------------------------------------
                          Command and Argument Parsing
 -------------------------------------------------------------------------------}
 
-exec :: Arguments -> IO ()
-exec args
+exec :: Manager -> Arguments -> IO ()
+exec manager args
     | args `isPresent` (longOption "help") = do
         exitWithUsage cli
 
@@ -125,42 +139,48 @@ exec args
         n <- args `parseArg` longOption "size"
         execGenerateMnemonic n
 
-    | args `isPresent` command "address" && args `isPresent` command "list" = do
-        wid <- args `parseArg` longOption "wallet-id"
-        print (wid :: WalletId)
+    | args `isPresent` command "wallets" && args `isPresent` command "list" = do
+        runClient listWallets
 
-    | args `isPresent` command "wallet" && args `isPresent` command "list" = do
-        return ()
+    | args `isPresent` command "wallet" && args `isPresent` command "get" = do
+        wId <- args `parseArg` longOption "wallet-id"
+        runClient $ getWallet $ ApiT wId
 
     | args `isPresent` command "wallet" && args `isPresent` command "create" = do
-        poolGap <- args `parseArg` longOption "address-pool-gap"
-        name <- args `parseArg` longOption "name"
-        mnemonic <- getRequiredSensitiveValue
-            (fromMnemonic @'[15,18,21,24] @"seed" . T.words)
-            "Please enter a 15–24 word mnemonic sentence: "
-        sndFactor <- getOptionalSensitiveValue
-            (fromMnemonic @'[9,12] @"generation" . T.words)
-            "Please enter a 9–12 word mnemonic second factor: \n\
-            \(Enter a blank line if you do not wish to use a second factor.)"
-        passphrase <- getRequiredSensitiveValue
-            (fromText @(Passphrase "encryption"))
-            "Please enter a passphrase: "
-        print
-            ( poolGap :: AddressPoolGap
-            , name :: WalletName
-            , mnemonic
-            , sndFactor
-            , passphrase
-            )
+        wName <- args `parseArg` longOption "name"
+        wGap <- args `parseArg` longOption "address-pool-gap"
+        wSeed <- do
+            let prompt = "Please enter a 15–24 word mnemonic sentence: "
+            let parser = fromMnemonic @'[15,18,21,24] @"seed" . T.words
+            getSensitiveLine prompt (Just ' ') parser
+        wSndFactor <- do
+            let prompt =
+                    "(Enter a blank line if you do not wish to use a second \
+                    \factor.)\nPlease enter a 9–12 word mnemonic second factor: "
+            let parser = optional (fromMnemonic @'[9,12] @"generation") . T.words
+            getSensitiveLine prompt (Just ' ') parser <&> \case
+                (Nothing, _) -> Nothing
+                (Just a, t) -> Just (a, t)
+        (wPwd, _) <- do
+            let prompt = "Please enter a passphrase: "
+            let parser = fromText @(Passphrase "encryption")
+            getSensitiveLine prompt Nothing parser
+        runClient $ postWallet $ WalletPostData
+            (Just $ ApiT wGap)
+            (ApiMnemonicT . second T.words $ wSeed)
+            (ApiMnemonicT . second T.words <$> wSndFactor)
+            (ApiT wName)
+            (ApiT wPwd)
 
     | args `isPresent` command "wallet" && args `isPresent` command "update" = do
-        wid <- args `parseArg` longOption "id"
-        name <- args `parseArg` longOption "name"
-        print (wid :: WalletId, name :: WalletName)
+        wId <- args `parseArg` longOption "id"
+        wName <- args `parseArg` longOption "name"
+        runClient $ putWallet (ApiT wId) $ WalletPutData
+            (Just $ ApiT wName)
 
     | args `isPresent` command "wallet" && args `isPresent` command "delete" = do
-        wid <- args `parseArg` longOption "id"
-        print (wid :: WalletId)
+        wId <- args `parseArg` longOption "id"
+        runClient $ void $ deleteWallet (ApiT wId)
 
     | otherwise =
         exitWithUsage cli
@@ -168,9 +188,38 @@ exec args
     parseArg :: FromText a => Arguments -> Option -> IO a
     parseArg = parseArgWith cli
 
+    _ :<|> -- List Address
+        ( deleteWallet
+        :<|> getWallet
+        :<|> listWallets
+        :<|> postWallet
+        :<|> putWallet
+        :<|> _ -- Put Wallet Passphrase
+        )
+        :<|>
+        ( _ -- Create Transaction
+        )
+        = client (Proxy @("v2" :> Api))
+
+    runClient :: ToJSON a => ClientM a -> IO ()
+    runClient cmd = do
+        port <- args `parseArg` longOption "port"
+        let env = mkClientEnv manager (BaseUrl Http "localhost" port "")
+        res <- runClientM cmd env
+        case res of
+            Left (FailureResponse r) ->
+                putErrLn $ T.decodeUtf8 $ BL.toStrict $ responseBody r
+            Left (ConnectionError t) ->
+                putErrLn t
+            Left e ->
+                putErrLn $ T.pack $ show e
+            Right a ->
+                BL8.putStrLn $ Aeson.encodePretty a
+
 -- | Start a web-server to serve the wallet backend API on the given port.
 execServer :: Port "wallet" -> Port "bridge" -> IO ()
 execServer (Port port) (Port bridgePort) = do
+    network `seq` return  () -- Force evaluation of ENV[network]
     db <- MVar.newDBLayer
     nw <- HttpBridge.newNetworkLayer bridgePort
     let tl = HttpBridge.newTransactionLayer
@@ -196,3 +245,17 @@ execGenerateMnemonic n = do
         24 -> mnemonicToText @24 . entropyToMnemonic <$> genEntropy
         _  -> fail "Invalid mnemonic size. Expected one of: 9,12,15,18,21,24"
     TIO.putStrLn $ T.unwords m
+
+{-------------------------------------------------------------------------------
+                                 Helpers
+-------------------------------------------------------------------------------}
+
+-- | Make an existing parser optional. Returns 'Right Nothing' if the input is
+-- empty, without running the parser.
+optional
+    :: (Monoid m, Eq m)
+    => (m -> Either e a)
+    -> (m -> Either e (Maybe a))
+optional parse = \case
+    m | m == mempty -> Right Nothing
+    m  -> Just <$> parse m

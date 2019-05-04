@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 -- |
@@ -15,16 +16,24 @@ module Cardano.CLI
     -- * Types
       Port(..)
 
+    -- * ANSI Terminal Helpers
+    , putErrLn
+    , hPutErrLn
+
     -- * Parsing Arguments
     , parseArgWith
-    , getRequiredSensitiveValue
-    , getOptionalSensitiveValue
+
+    -- * Working with Sensitive Data
+    , getSensitiveLine
+    , hGetSensitiveLine
     ) where
 
 import Prelude
 
 import Control.Exception
-    ( finally )
+    ( bracket )
+import Data.Functor
+    ( (<$) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -35,13 +44,33 @@ import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( Symbol )
+import System.Console.ANSI
+    ( Color (..)
+    , ColorIntensity (..)
+    , ConsoleLayer (..)
+    , SGR (..)
+    , hCursorBackward
+    , hSetSGR
+    )
 import System.Console.Docopt
     ( Arguments, Docopt, Option, getArgOrExitWith )
+import System.Exit
+    ( exitFailure )
+import System.IO
+    ( BufferMode (..)
+    , Handle
+    , hGetBuffering
+    , hGetChar
+    , hGetEcho
+    , hPutChar
+    , hSetBuffering
+    , hSetEcho
+    , stdin
+    , stdout
+    )
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
-import qualified System.Console.ANSI as ANSI
-
 
 {-------------------------------------------------------------------------------
                                 Extra Types
@@ -62,74 +91,114 @@ instance ToText (Port tag) where
 -------------------------------------------------------------------------------}
 
 parseArgWith :: FromText a => Docopt -> Arguments -> Option -> IO a
-parseArgWith cli args option =
-    either (fail . getTextDecodingError) pure . fromText . T.pack
-        =<< args `getArgOrExit` option
+parseArgWith cli args option = do
+    (fromText . T.pack <$> args `getArgOrExit` option) >>= \case
+        Right a -> do
+            return a
+        Left e -> do
+            putErrLn $ T.pack $ getTextDecodingError e
+            exitFailure
   where
     getArgOrExit :: Arguments -> Option -> IO String
     getArgOrExit = getArgOrExitWith cli
 
 {-------------------------------------------------------------------------------
+                            ANSI Terminal Helpers
+-------------------------------------------------------------------------------}
+
+-- | Print an error message in red
+hPutErrLn :: Handle -> Text -> IO ()
+hPutErrLn h msg = withSGR h (SetColor Foreground Vivid Red) $ do
+    TIO.hPutStrLn h msg
+
+-- | Like 'hPutErrLn' but with provided default _stdout_ 'Handle'
+putErrLn :: Text -> IO ()
+putErrLn = hPutErrLn stdout
+
+{-------------------------------------------------------------------------------
                          Processing of Sensitive Data
 -------------------------------------------------------------------------------}
 
--- | Repeatedly prompt a user for a sensitive value, until the supplied value is
--- valid.
-getRequiredSensitiveValue
+-- | Gather user inputs until a newline is met, hiding what's typed with a
+-- placeholder character.
+hGetSensitiveLine
     :: Buildable e
-    => (Text -> Either e a)
-    -> String
-    -> IO a
-getRequiredSensitiveValue parse prompt = loop where
-    loop = do
-        putStrLn prompt
-        line <- getLineWithSensitiveData
-        case parse line of
+    => (Handle, Handle)
+    -> Text
+    -> Maybe Char
+    -> (Text -> Either e a)
+    -> IO (a, Text)
+hGetSensitiveLine (hstdin, hstdout) prompt separator fromT =
+    withBuffering hstdout NoBuffering $
+    withBuffering hstdin NoBuffering $
+    withEcho hstdin False $ do
+        TIO.hPutStr hstdout prompt
+        txt <- getLineProtected separator '*'
+        case fromT txt of
+            Right a ->
+                return (a, txt)
             Left e -> do
-                TIO.putStrLn (pretty e)
-                loop
-            Right v -> pure v
-
--- | Repeatedly prompt a user for an optional sensitive value, until either the
--- supplied value is valid, or until the user enters an empty line (indicating
--- that they do not wish to specify such a value).
-getOptionalSensitiveValue
-    :: Buildable e
-    => (Text -> Either e a )
-    -> String
-    -> IO (Maybe a)
-getOptionalSensitiveValue parse prompt = loop where
-    loop = do
-        putStrLn prompt
-        line <- getLineWithSensitiveData
-        if T.length line == 0
-        then pure Nothing
-        else case parse line of
-            Left e -> do
-                TIO.putStrLn (pretty e)
-                loop
-            Right v ->
-                pure $ Just v
-
--- | Read a line of user input containing sensitive data from the terminal.
---
--- The terminal lines containing the data are cleared once the user has finished
--- entering data.
---
--- The terminal lines containing the data are also cleared if the application
--- exits abnormally, before the user has finished entering data.
---
-getLineWithSensitiveData :: IO Text
-getLineWithSensitiveData = do
-    finally TIO.getLine . clearSensitiveData =<< ANSI.getCursorPosition0
+                hPutErrLn hstdout (pretty e)
+                hGetSensitiveLine (hstdin, hstdout) prompt separator fromT
   where
-    clearSensitiveData cursorPosition = case cursorPosition of
-        Just (_, y) -> do
-            -- We know the original position of the cursor.
-            -- Just clear everything from that line onwards.
-            ANSI.setCursorPosition 0 y
-            ANSI.clearFromCursorToScreenEnd
-        Nothing ->
-            -- We don't know the original position of the cursor.
-            -- For safety, we must clear the entire screen.
-            ANSI.clearScreen
+    getLineProtected :: Maybe Char -> Char -> IO Text
+    getLineProtected sep placeholder =
+        getLineProtected' mempty
+      where
+        backspace = toEnum 127
+        getLineProtected' line = do
+            hGetChar hstdin >>= \case
+                '\n' -> do
+                    hPutChar hstdout '\n'
+                    return line
+                c | c == backspace ->
+                    if T.null line
+                        then getLineProtected' line
+                        else do
+                            hCursorBackward hstdout  1
+                            hPutChar hstdout ' '
+                            hCursorBackward hstdout 1
+                            getLineProtected' (T.init line)
+                c | Just c == sep -> do
+                    hPutChar hstdout ' '
+                    getLineProtected' (line <> T.singleton c)
+                c -> do
+                    hPutChar hstdout placeholder
+                    getLineProtected' (line <> T.singleton c)
+
+-- | Like 'hGetSensitiveLine' but with default stdin and stdout handles
+getSensitiveLine
+    :: Buildable e
+    => Text
+    -- ^ A message to prompt the user
+    -> Maybe Char
+    -- ^ Special separator character that shouldn't be hidden, e.g. @Just ' '@
+    -> (Text -> Either e a)
+    -- ^ An explicit parser from 'Text'
+    -> IO (a, Text)
+getSensitiveLine = hGetSensitiveLine (stdin, stdout)
+
+{-------------------------------------------------------------------------------
+                                Internals
+-------------------------------------------------------------------------------}
+
+withBuffering :: Handle -> BufferMode -> IO a -> IO a
+withBuffering h buffering action = bracket aFirst aLast aBetween
+  where
+    aFirst = (hGetBuffering h <* hSetBuffering h buffering)
+    aLast = hSetBuffering h
+    aBetween = const action
+
+withEcho :: Handle -> Bool -> IO a -> IO a
+withEcho h echo action = bracket aFirst aLast aBetween
+  where
+    aFirst = (hGetEcho h <* hSetEcho h echo)
+    aLast = hSetEcho h
+    aBetween = const action
+
+withSGR :: Handle -> SGR -> IO a -> IO a
+withSGR h sgr action = bracket aFirst aLast aBetween
+  where
+    aFirst = ([] <$ hSetSGR h [sgr])
+    aLast = hSetSGR h
+    aBetween = const action
