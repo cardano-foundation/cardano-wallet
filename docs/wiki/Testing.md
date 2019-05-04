@@ -14,7 +14,8 @@
 ## unit
 
 ```
-$ stack test cardano-wallet:unit
+$ stack test cardano-wallet-core:unit
+$ stack test cardano-wallet-http-bridge:unit
 ```
 
 Alternatively, one can run tests of a particular module by running:
@@ -44,21 +45,21 @@ $ stack install cardano-sl-node:exe:cardano-node-simple
 Alternatively, if you're running on linux, you may use a pre-compiled version:
 
 ```
-$ curl -L -o cardano-node-simple-3.0.1.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/test/data/cardano-node-simple/cardano-node-simple-3.0.1.tar.gz
+$ curl -L -o cardano-node-simple-3.0.1.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-node-simple/cardano-node-simple-3.0.1.tar.gz
 $ tar xzf cardano-node-simple-3.0.1.tar.gz -C /usr/local/bin && rm cardano-node-simple-3.0.1.tar.gz
 ```
 
 3. Import the initial testnet chain bootstrap for the `cardano-http-bridge`
 
 ```
-$ curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/test/data/cardano-http-bridge/hermes-testnet.tar.gz
+$ curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-http-bridge/hermes-testnet.tar.gz
 $ tar xzf hermes-testnet.tar.gz -C $HOME && rm hermes-testnet.tar.gz
 ```
 
 #### test
 
 ```
-$ stack test cardano-wallet:integration
+$ stack test cardano-wallet-http-bridge:integration
 ```
 
 ## benchmark
@@ -85,7 +86,7 @@ $ stack install hp2pretty
 > system isn't too far behind the tip before running.
 
 ```
-$ stack bench
+$ stack bench cardano-wallet-http-bridge:restore
 ```
 
 Alternatively, one can specify the a target network (by default, benchmarks run on `testnet`):
