@@ -26,6 +26,8 @@ import Cardano.CLI
     , getRequiredSensitiveValue
     , parseArgWith
     )
+import Cardano.Environment
+    ( network )
 import Cardano.Wallet
     ( mkWalletLayer )
 import Cardano.Wallet.Api
@@ -211,6 +213,7 @@ exec manager args
 -- | Start a web-server to serve the wallet backend API on the given port.
 execServer :: Port "wallet" -> Port "bridge" -> IO ()
 execServer (Port port) (Port bridgePort) = do
+    network `seq` return  () -- Force evaluation of ENV[network]
     db <- MVar.newDBLayer
     nw <- HttpBridge.newNetworkLayer bridgePort
     let tl = HttpBridge.newTransactionLayer
