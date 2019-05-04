@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 -- |
@@ -17,14 +18,15 @@ module Cardano.CLI
 
     -- * Parsing Arguments
     , parseArgWith
-    , getRequiredSensitiveValue
-    , getOptionalSensitiveValue
+    , getSensitiveLine
     ) where
 
 import Prelude
 
 import Control.Exception
-    ( finally )
+    ( bracket )
+import Data.Maybe
+    ( fromJust )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -37,11 +39,19 @@ import GHC.TypeLits
     ( Symbol )
 import System.Console.Docopt
     ( Arguments, Docopt, Option, getArgOrExitWith )
+import System.IO
+    ( BufferMode (..)
+    , Handle
+    , hGetBuffering
+    , hGetEcho
+    , hSetBuffering
+    , hSetEcho
+    , stdin
+    , stdout
+    )
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
-import qualified System.Console.ANSI as ANSI
-
 
 {-------------------------------------------------------------------------------
                                 Extra Types
@@ -73,63 +83,59 @@ parseArgWith cli args option =
                          Processing of Sensitive Data
 -------------------------------------------------------------------------------}
 
--- | Repeatedly prompt a user for a sensitive value, until the supplied value is
--- valid.
-getRequiredSensitiveValue
+-- | Gather user inputs until a newline is met, hiding what's typed with
+getSensitiveLine
     :: Buildable e
-    => (Text -> Either e a)
-    -> String
+    => Text
+    -- ^ A message to prompt the user
+    -> Maybe Char
+    -- ^ Create groups of 'n :: Int' hidden characters when 'c :: Char' is met
+    -> (Text -> Either e a)
+    -- ^ An explicit parser from 'Text'
     -> IO (a, Text)
-getRequiredSensitiveValue parse prompt = loop where
-    loop = do
-        putStrLn prompt
-        line <- getLineWithSensitiveData
-        case parse line of
+getSensitiveLine prompt separator fromT =
+    withBuffering stdout NoBuffering $
+    withBuffering stdin NoBuffering $
+    withEcho False $ do
+        TIO.putStr prompt
+        txt <- getLineProtected separator '*'
+        case fromT txt of
+            Right a ->
+                return (a, txt)
             Left e -> do
                 TIO.putStrLn (pretty e)
-                loop
-            Right v -> pure (v, line)
-
--- | Repeatedly prompt a user for an optional sensitive value, until either the
--- supplied value is valid, or until the user enters an empty line (indicating
--- that they do not wish to specify such a value).
-getOptionalSensitiveValue
-    :: Buildable e
-    => (Text -> Either e a)
-    -> String
-    -> IO (Maybe (a, Text))
-getOptionalSensitiveValue parse prompt = loop where
-    loop = do
-        putStrLn prompt
-        line <- getLineWithSensitiveData
-        if T.length line == 0
-        then pure Nothing
-        else case parse line of
-            Left e -> do
-                TIO.putStrLn (pretty e)
-                loop
-            Right v ->
-                pure (Just (v, line))
-
--- | Read a line of user input containing sensitive data from the terminal.
---
--- The terminal lines containing the data are cleared once the user has finished
--- entering data.
---
--- The terminal lines containing the data are also cleared if the application
--- exits abnormally, before the user has finished entering data.
---
-getLineWithSensitiveData :: IO Text
-getLineWithSensitiveData = do
-    finally TIO.getLine . clearSensitiveData =<< ANSI.getCursorPosition0
+                getSensitiveLine prompt separator fromT
   where
-    clearSensitiveData cursorPosition = case cursorPosition of
-        Just (_, y) -> do
-            -- We know the original position of the cursor.
-            -- Just clear everything from that line onwards.
-            ANSI.setCursorPosition 0 y
-            ANSI.clearFromCursorToScreenEnd
-        Nothing ->
-            -- We don't know the original position of the cursor.
-            -- For safety, we must clear the entire screen.
-            ANSI.clearScreen
+    getLineProtected :: Maybe Char -> Char -> IO Text
+    getLineProtected sep placeholder =
+        getLineProtected' ""
+      where
+        getLineProtected' line = do
+            getChar >>= \case
+                '\n' -> do
+                    putChar '\n'
+                    return line
+                c | Just c == (fst <$> sep) -> do
+                    let t = T.singleton c
+                    let (_, l) = T.breakOnEnd t (t <> line)
+                    let n = max 0 (snd (fromJust sep) - T.length l)
+                    TIO.putStr (T.replicate n $ T.singleton placeholder)
+                    putChar ' '
+                    getLineProtected' (line <> t)
+                c -> do
+                    putChar placeholder
+                    getLineProtected' (line <> T.singleton c)
+
+    withBuffering :: Handle -> BufferMode -> IO a -> IO a
+    withBuffering h buffering action = bracket aFirst aLast aBetween
+      where
+        aFirst = (hGetBuffering h <* hSetBuffering h buffering)
+        aLast = hSetBuffering h
+        aBetween = const action
+
+    withEcho :: Bool -> IO a -> IO a
+    withEcho echo action = bracket aFirst aLast aBetween
+      where
+        aFirst = (hGetEcho stdin <* hSetEcho stdin echo)
+        aLast = hSetEcho stdin
+        aBetween = const action

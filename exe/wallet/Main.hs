@@ -1,9 +1,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
-
 -- |
 -- Copyright: © 2018-2019 IOHK
 -- License: MIT
@@ -21,11 +21,7 @@ module Main where
 import Prelude
 
 import Cardano.CLI
-    ( Port (..)
-    , getOptionalSensitiveValue
-    , getRequiredSensitiveValue
-    , parseArgWith
-    )
+    ( Port (..), getSensitiveLine, parseArgWith )
 import Cardano.Environment
     ( network )
 import Cardano.Wallet
@@ -50,6 +46,8 @@ import Data.Aeson
     ( ToJSON )
 import Data.Function
     ( (&) )
+import Data.Functor
+    ( (<&>) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
@@ -149,20 +147,26 @@ exec manager args
     | args `isPresent` command "wallet" && args `isPresent` command "create" = do
         wName <- args `parseArg` longOption "name"
         wGap <- args `parseArg` longOption "address-pool-gap"
-        wSeed <- getRequiredSensitiveValue
-            (fromMnemonic @'[15,18,21,24] @"seed" . T.words)
-            "Please enter a 15–24 word mnemonic sentence: "
-        wSndFactor <- getOptionalSensitiveValue
-            (fromMnemonic @'[9,12] @"generation" . T.words)
-            "Please enter a 9–12 word mnemonic second factor: \n\
-            \(Enter a blank line if you do not wish to use a second factor.)"
-        (wPwd, _) <- getRequiredSensitiveValue
-            (fromText @(Passphrase "encryption"))
-            "Please enter a passphrase: "
+        wSeed <- do
+            let prompt = "Please enter a 15–24 word mnemonic sentence: "
+            let parser = fromMnemonic @'[15,18,21,24] @"seed" . T.words
+            getSensitiveLine prompt (Just ' ') parser
+        wSndFactor <- do
+            let prompt =
+                    "(Enter a blank line if you do not wish to use a second \
+                    \factor.)\nPlease enter a 9–12 word mnemonic second factor: "
+            let parser = optional (fromMnemonic @'[9,12] @"generation") . T.words
+            getSensitiveLine prompt (Just ' ') parser <&> \case
+                (Nothing, _) -> Nothing
+                (Just a, t) -> Just (a, t)
+        (wPwd, _) <- do
+            let prompt = "Please enter a passphrase: "
+            let parser = fromText @(Passphrase "encryption")
+            getSensitiveLine prompt Nothing parser
         runClient $ postWallet $ WalletPostData
             (Just $ ApiT wGap)
             (ApiMnemonicT . second T.words $ wSeed)
-            ((ApiMnemonicT . second T.words) <$> wSndFactor)
+            (ApiMnemonicT . second T.words <$> wSndFactor)
             (ApiT wName)
             (ApiT wPwd)
 
@@ -239,3 +243,17 @@ execGenerateMnemonic n = do
         24 -> mnemonicToText @24 . entropyToMnemonic <$> genEntropy
         _  -> fail "Invalid mnemonic size. Expected one of: 9,12,15,18,21,24"
     TIO.putStrLn $ T.unwords m
+
+{-------------------------------------------------------------------------------
+                                 Helpers
+-------------------------------------------------------------------------------}
+
+-- | Make an existing parser optional. Returns 'Right Nothing' if the input is
+-- empty, without running the parser.
+optional
+    :: (Monoid m, Eq m)
+    => (m -> Either e a)
+    -> (m -> Either e (Maybe a))
+optional parse = \case
+    m | m == mempty -> Right Nothing
+    m  -> Just <$> parse m
