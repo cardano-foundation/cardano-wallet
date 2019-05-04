@@ -16,8 +16,13 @@ module Cardano.CLI
     -- * Types
       Port(..)
 
+    -- * ANSI Terminal Helpers
+    , putErrLn
+
     -- * Parsing Arguments
     , parseArgWith
+
+    -- * Working with Sensitive Data
     , getSensitiveLine
     ) where
 
@@ -25,8 +30,8 @@ import Prelude
 
 import Control.Exception
     ( bracket )
-import Data.Maybe
-    ( fromJust )
+import Data.Functor
+    ( (<$) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -37,8 +42,12 @@ import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( Symbol )
+import System.Console.ANSI
+    ( Color (..), ColorIntensity (..), ConsoleLayer (..), SGR (..), hSetSGR )
 import System.Console.Docopt
     ( Arguments, Docopt, Option, getArgOrExitWith )
+import System.Exit
+    ( exitFailure )
 import System.IO
     ( BufferMode (..)
     , Handle
@@ -72,12 +81,25 @@ instance ToText (Port tag) where
 -------------------------------------------------------------------------------}
 
 parseArgWith :: FromText a => Docopt -> Arguments -> Option -> IO a
-parseArgWith cli args option =
-    either (fail . getTextDecodingError) pure . fromText . T.pack
-        =<< args `getArgOrExit` option
+parseArgWith cli args option = do
+    (fromText . T.pack <$> args `getArgOrExit` option) >>= \case
+        Right a -> do
+            return a
+        Left e -> do
+            putErrLn $ T.pack $ getTextDecodingError e
+            exitFailure
   where
     getArgOrExit :: Arguments -> Option -> IO String
     getArgOrExit = getArgOrExitWith cli
+
+{-------------------------------------------------------------------------------
+                            ANSI Terminal Helpers
+-------------------------------------------------------------------------------}
+
+-- | Print an error message in red
+putErrLn :: Text -> IO ()
+putErrLn msg = withSGR (SetColor Foreground Vivid Red) $ do
+    TIO.putStrLn msg
 
 {-------------------------------------------------------------------------------
                          Processing of Sensitive Data
@@ -103,7 +125,7 @@ getSensitiveLine prompt separator fromT =
             Right a ->
                 return (a, txt)
             Left e -> do
-                TIO.putStrLn (pretty e)
+                putErrLn (pretty e)
                 getSensitiveLine prompt separator fromT
   where
     getLineProtected :: Maybe Char -> Char -> IO Text
@@ -115,27 +137,34 @@ getSensitiveLine prompt separator fromT =
                 '\n' -> do
                     putChar '\n'
                     return line
-                c | Just c == (fst <$> sep) -> do
-                    let t = T.singleton c
-                    let (_, l) = T.breakOnEnd t (t <> line)
-                    let n = max 0 (snd (fromJust sep) - T.length l)
-                    TIO.putStr (T.replicate n $ T.singleton placeholder)
+                c | Just c == sep -> do
                     putChar ' '
-                    getLineProtected' (line <> t)
+                    getLineProtected' (line <> T.singleton c)
                 c -> do
                     putChar placeholder
                     getLineProtected' (line <> T.singleton c)
 
-    withBuffering :: Handle -> BufferMode -> IO a -> IO a
-    withBuffering h buffering action = bracket aFirst aLast aBetween
-      where
-        aFirst = (hGetBuffering h <* hSetBuffering h buffering)
-        aLast = hSetBuffering h
-        aBetween = const action
+{-------------------------------------------------------------------------------
+                                Internals
+-------------------------------------------------------------------------------}
 
-    withEcho :: Bool -> IO a -> IO a
-    withEcho echo action = bracket aFirst aLast aBetween
-      where
-        aFirst = (hGetEcho stdin <* hSetEcho stdin echo)
-        aLast = hSetEcho stdin
-        aBetween = const action
+withBuffering :: Handle -> BufferMode -> IO a -> IO a
+withBuffering h buffering action = bracket aFirst aLast aBetween
+  where
+    aFirst = (hGetBuffering h <* hSetBuffering h buffering)
+    aLast = hSetBuffering h
+    aBetween = const action
+
+withEcho :: Bool -> IO a -> IO a
+withEcho echo action = bracket aFirst aLast aBetween
+  where
+    aFirst = (hGetEcho stdin <* hSetEcho stdin echo)
+    aLast = hSetEcho stdin
+    aBetween = const action
+
+withSGR :: SGR -> IO a -> IO a
+withSGR sgr action = bracket aFirst aLast aBetween
+  where
+    aFirst = ([] <$ hSetSGR stdout [sgr])
+    aLast = hSetSGR stdout
+    aBetween = const action

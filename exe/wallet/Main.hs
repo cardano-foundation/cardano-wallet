@@ -21,7 +21,7 @@ module Main where
 import Prelude
 
 import Cardano.CLI
-    ( Port (..), getSensitiveLine, parseArgWith )
+    ( Port (..), getSensitiveLine, parseArgWith, putErrLn )
 import Cardano.Environment
     ( network )
 import Cardano.Wallet
@@ -80,8 +80,10 @@ import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
 import qualified Cardano.Wallet.Transaction.HttpBridge as HttpBridge
 import qualified Data.Aeson.Encode.Pretty as Aeson
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 import qualified Network.Wai.Handler.Warp as Warp
 
@@ -206,11 +208,11 @@ exec manager args
         res <- runClientM cmd env
         case res of
             Left (FailureResponse r) ->
-                BL8.putStrLn $ responseBody r
+                putErrLn $ T.decodeUtf8 $ BL.toStrict $ responseBody r
             Left (ConnectionError t) ->
-                TIO.putStrLn t
+                putErrLn t
             Left e ->
-                BL8.putStrLn $ BL8.pack $ show e
+                putErrLn $ T.pack $ show e
             Right a ->
                 BL8.putStrLn $ Aeson.encodePretty a
 
