@@ -29,7 +29,7 @@ import Cardano.CLI
 import Cardano.Wallet
     ( mkWalletLayer )
 import Cardano.Wallet.Api
-    ( Api, GetWallet, ListWallets, PostWallet )
+    ( Api )
 import Control.Arrow
     ( second )
 
@@ -174,8 +174,18 @@ exec manager args
     parseArg :: FromText a => Arguments -> Option -> IO a
     parseArg = parseArgWith cli
 
-    listWallets :<|> getWallet :<|> postWallet =
-        client (Proxy @("v2" :> ListWallets :<|> GetWallet :<|> PostWallet))
+    _ :<|> -- List Address
+        ( _ -- Delete Wallet
+        :<|> getWallet
+        :<|> listWallets
+        :<|> postWallet
+        :<|> _ -- Put Wallet
+        :<|> _ -- Put Wallet Passphrase
+        )
+        :<|>
+        ( _ -- Create Transaction
+        )
+        = client (Proxy @("v2" :> Api))
 
     runClient :: Show a => ClientM a -> IO ()
     runClient cmd = do
