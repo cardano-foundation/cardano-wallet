@@ -102,3 +102,17 @@ $ stack bench --benchmark-arguments "mainnet +RTS -h -RTS"
 $ hp2pretty restore.hp
 $ eog restore.svg
 ```
+
+## Code Coverage
+
+#### pre-requisites
+
+1. Follow the pre-requisites from `integration` above
+
+#### test
+
+Running combined code coverage on all components is pretty easy. This generates code coverage reports in an HTML format as well as a short summary in the console. Note that, because code has to be compiled in a particular way to be "instrumentable" by the code coverage engine, it is recommended to run this command using another working directory (`--work-dir` option) so that one can easily switch between coverage testing and standard testing (faster to run):
+
+```
+$ stack test --coverage --fast --work-dir .stack-work-coverage
+```
