@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -25,13 +24,14 @@ import Cardano.CLI
     ( Port (..)
     , getOptionalSensitiveValue
     , getRequiredSensitiveValue
-    , getRequiredSensitiveValueRaw
     , parseArgWith
     )
 import Cardano.Wallet
     ( mkWalletLayer )
 import Cardano.Wallet.Api
     ( Api, GetWallet, ListWallets, PostWallet )
+import Control.Arrow
+    ( second )
 
 import Cardano.Wallet.Api.Server
     ( server )
@@ -56,7 +56,7 @@ import Network.HTTP.Client
 import Servant
     ( (:<|>) (..), (:>), serve )
 import Servant.Client
-    ( BaseUrl (..), Scheme (..), client, mkClientEnv, runClientM )
+    ( BaseUrl (..), ClientM, Scheme (..), client, mkClientEnv, runClientM )
 import System.Console.Docopt
     ( Arguments
     , Docopt
@@ -94,12 +94,10 @@ active server and can be ran "offline" (e.g. 'generate mnemonic')
 Usage:
   cardano-wallet server [--port=INT] [--bridge-port=INT]
   cardano-wallet generate mnemonic [--size=INT]
-  cardano-wallet list address --wallet-id=STRING
   cardano-wallet list wallets [--port=INT]
   cardano-wallet get wallet --wallet-id=STRING [--port=INT]
   cardano-wallet create wallet --name=STRING [--address-pool-gap=INT] [--port=INT]
   cardano-wallet delete wallet --id=STRING
-  cardano-wallet update wallet --id=STRING --name=STRING
   cardano-wallet -h | --help
   cardano-wallet --version
 
@@ -134,50 +132,32 @@ exec manager args
         n <- args `parseArg` longOption "size"
         execGenerateMnemonic n
 
-    | args `isPresent` command "address" && args `isPresent` command "list" = do
-        wid <- args `parseArg` longOption "wallet-id"
-        print (wid :: WalletId)
-
     | args `isPresent` command "wallets" && args `isPresent` command "list" = do
-        walletPort <- args `parseArg` longOption "port"
-        res <- runClient walletPort listWallets
-        case res of
-            Left err -> putStrLn $ "Error: " ++ show err
-            Right wallets -> print wallets
+        runClient listWallets
 
     | args `isPresent` command "wallet" && args `isPresent` command "get" = do
-        wid <- args `parseArg` longOption "wallet-id"
-        walletPort <- args `parseArg` longOption "port"
-        res <- runClient walletPort (getWallet $ ApiT wid)
-        case res of
-            Left err -> putStrLn $ "Error: " ++ show err
-            Right wallet -> print wallet
+        wId <- args `parseArg` longOption "wallet-id"
+        runClient $ getWallet $ ApiT wId
 
     | args `isPresent` command "wallet" && args `isPresent` command "create" = do
-        walletPort <- args `parseArg` longOption "port"
-        poolGap <- args `parseArg` longOption "address-pool-gap"
-        walletName <- args `parseArg` longOption "name"
-        (mnemonic, mnemonicRaw) <- getRequiredSensitiveValueRaw
+        wName <- args `parseArg` longOption "name"
+        wGap <- args `parseArg` longOption "address-pool-gap"
+        wSeed <- getRequiredSensitiveValue
             (fromMnemonic @'[15,18,21,24] @"seed" . T.words)
             "Please enter a 15–24 word mnemonic sentence: "
-        (sndFactor, sndFactorRaw) <- getOptionalSensitiveValueRaw
+        wSndFactor <- getOptionalSensitiveValue
             (fromMnemonic @'[9,12] @"generation" . T.words)
             "Please enter a 9–12 word mnemonic second factor: \n\
             \(Enter a blank line if you do not wish to use a second factor.)"
-        walletPassphrase <- getRequiredSensitiveValue
+        (wPwd, _) <- getRequiredSensitiveValue
             (fromText @(Passphrase "encryption"))
             "Please enter a passphrase: "
-        let walletData =
-                WalletPostData
-                    (Just $ ApiT poolGap)
-                    (ApiMnemonicT (mnemonic, T.words mnemonicRaw))
-                    (ApiMnemonicT . (, T.words sndFactorRaw) <$> sndFactor)
-                    (ApiT walletName)
-                    (ApiT walletPassphrase)
-        res <- runClient walletPort (postWallet walletData)
-        case res of
-            Left err -> putStrLn $ "Error: " ++ show err
-            Right wallet -> print wallet
+        runClient $ postWallet $ WalletPostData
+            (Just $ ApiT wGap)
+            (ApiMnemonicT . second T.words $ wSeed)
+            ((ApiMnemonicT . second T.words) <$> wSndFactor)
+            (ApiT wName)
+            (ApiT wPwd)
 
     | args `isPresent` command "wallet" && args `isPresent` command "update" = do
         wid <- args `parseArg` longOption "id"
@@ -193,16 +173,18 @@ exec manager args
   where
     parseArg :: FromText a => Arguments -> Option -> IO a
     parseArg = parseArgWith cli
-    runClient port endpoint =
-        runClientM
-            endpoint
-            (mkClientEnv manager (BaseUrl Http "localhost" port ""))
+
     listWallets :<|> getWallet :<|> postWallet =
         client (Proxy @("v2" :> ListWallets :<|> GetWallet :<|> PostWallet))
 
--- data HttpClient = HttpClient
---     { listAddresses :: WalletId -> ClientM ApiAddress -- FIXME: add AddressState
---     }
+    runClient :: Show a => ClientM a -> IO ()
+    runClient cmd = do
+        port <- args `parseArg` longOption "port"
+        let env = mkClientEnv manager (BaseUrl Http "localhost" port "")
+        res <- runClientM cmd env
+        case res of
+            Left err -> putStrLn $ "Error: " ++ show err
+            Right wallet -> print wallet
 
 -- | Start a web-server to serve the wallet backend API on the given port.
 execServer :: Port "wallet" -> Port "bridge" -> IO ()
