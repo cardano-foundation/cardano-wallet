@@ -43,7 +43,13 @@ import GHC.Generics
 import GHC.TypeLits
     ( Symbol )
 import System.Console.ANSI
-    ( Color (..), ColorIntensity (..), ConsoleLayer (..), SGR (..), hSetSGR )
+    ( Color (..)
+    , ColorIntensity (..)
+    , ConsoleLayer (..)
+    , SGR (..)
+    , cursorBackward
+    , hSetSGR
+    )
 import System.Console.Docopt
     ( Arguments, Docopt, Option, getArgOrExitWith )
 import System.Exit
@@ -130,13 +136,22 @@ getSensitiveLine prompt separator fromT =
   where
     getLineProtected :: Maybe Char -> Char -> IO Text
     getLineProtected sep placeholder =
-        getLineProtected' ""
+        getLineProtected' mempty
       where
+        backspace = toEnum 127
         getLineProtected' line = do
             getChar >>= \case
                 '\n' -> do
                     putChar '\n'
                     return line
+                c | c == backspace ->
+                    if T.null line
+                        then getLineProtected' line
+                        else do
+                            cursorBackward  1
+                            putChar ' '
+                            cursorBackward 1
+                            getLineProtected' (T.init line)
                 c | Just c == sep -> do
                     putChar ' '
                     getLineProtected' (line <> T.singleton c)
