@@ -640,9 +640,6 @@ spec = do
                 \61cc5fbfc0e4503b9d3f54ab80c328c0fc8c00b1488bb90fdc9eded69567f2\
                 \ee5af248a6060c758176885604c4c36b076bdd0061ce638b0d01"
 
-        Local ->
-            xit "No golden tests for 'Local' network" False
-
         Staging ->
             xit "No golden tests for 'Staging' network" False
 
@@ -706,7 +703,6 @@ isValidSelection (CoinSelection i o c) =
 --     | Testnet | Sequential | 46,47,48 or 50 |
 --
 -- The address format on 'Staging' is the same as 'Mainnet'.
--- The address format on 'Local' is the same as 'Testnet'.
 genAddress :: (Int, Int) -> Gen Address
 genAddress range = do
     n <- choose range
@@ -770,7 +766,6 @@ instance {-# OVERLAPS #-} Arbitrary (Network -> Address) where
             Mainnet -> mainnetA
             Staging -> mainnetA
             Testnet -> testnetA
-            Local -> testnetA
 
 instance Arbitrary CoinSelection where
     shrink sel@(CoinSelection inps outs chgs) = case (inps, outs, chgs) of

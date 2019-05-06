@@ -63,7 +63,7 @@ spec = do
             let ctx =
                     ( "not-a-network"
                     , TextDecodingError "not-a-network is neither \"mainnet\",\
-                        \ \"testnet\", \"staging\" nor \"local\"."
+                        \ \"testnet\" nor \"staging\"."
                     )
             let selector (ErrMissingOrInvalidEnvVar n _ c) =
                     n == "PATATE" && c == Just ctx

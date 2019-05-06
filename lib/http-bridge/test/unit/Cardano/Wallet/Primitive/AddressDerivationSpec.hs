@@ -73,9 +73,6 @@ spec = do
         Staging ->
             xit "No golden tests for 'Staging' network" False
 
-        Local ->
-            xit "No golden tests for 'Local' network" False
-
 {-------------------------------------------------------------------------------
                                 Golden Tests
 -------------------------------------------------------------------------------}
