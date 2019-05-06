@@ -109,6 +109,8 @@ import Data.Swagger.Declare
     ( Declare )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Typeable
     ( Typeable, splitTyConApp, tyConName, typeRep )
 import Data.Word
@@ -187,6 +189,13 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletName)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletPassphraseInfo)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletState)
+
+    describe "AddressAmount" $ do
+        it "fromText . toText === pure"
+            $ property $ \(i :: AddressAmount) -> (fromText . toText) i === pure i
+        it "fromText \"22323\"" $
+            let err = "Parse error. Expecting format'<amount>@<address>' but got '\"22323\"'"
+            in fromText @AddressAmount "22323" === Left (TextDecodingError err)
 
     describe
         "can perform roundtrip HttpApiData serialization & deserialization" $ do

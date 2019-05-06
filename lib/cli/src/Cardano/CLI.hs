@@ -22,6 +22,7 @@ module Cardano.CLI
 
     -- * Parsing Arguments
     , parseArgWith
+    , parseAllArgsWith
 
     -- * Working with Sensitive Data
     , getLine
@@ -56,7 +57,13 @@ import System.Console.ANSI
     , hSetSGR
     )
 import System.Console.Docopt
-    ( Arguments, Docopt, Option, getArgOrExitWith )
+    ( Arguments
+    , Docopt
+    , Option
+    , exitWithUsageMessage
+    , getAllArgs
+    , getArgOrExitWith
+    )
 import System.Exit
     ( exitFailure )
 import System.IO
@@ -105,6 +112,27 @@ parseArgWith cli args option = do
   where
     getArgOrExit :: Arguments -> Option -> IO String
     getArgOrExit = getArgOrExitWith cli
+
+parseAllArgsWith :: FromText a => Docopt -> Arguments -> Option -> IO [a]
+parseAllArgsWith cli args option = do
+    (mapM (fromText . T.pack) <$> args `getAllArgsOrExit` option) >>= \case
+        Right a -> do
+            return a
+        Left e -> do
+            putErrLn $ T.pack $ getTextDecodingError e
+            exitFailure
+  where
+    getAllArgsOrExit :: Arguments -> Option -> IO [String]
+    getAllArgsOrExit = getAllArgsOrExitWith cli
+
+-- | Same as 'getAllArgs', but 'exitWithUsage' if empty list.
+--
+--   As in 'getAllArgs', if your usage pattern required the option, 'getAllArgsOrExitWith' will not exit.
+getAllArgsOrExitWith :: Docopt -> Arguments -> Option -> IO [String]
+getAllArgsOrExitWith doc args opt = exitIfEmpty $ getAllArgs args opt
+  where exitIfEmpty a | null a =
+            exitWithUsageMessage doc $ "argument expected for: " ++ show opt
+                      | otherwise = pure a
 
 {-------------------------------------------------------------------------------
                             ANSI Terminal Helpers

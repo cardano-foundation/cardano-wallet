@@ -25,7 +25,13 @@ import Prelude hiding
     ( getLine )
 
 import Cardano.CLI
-    ( Port (..), getLine, getSensitiveLine, parseArgWith, putErrLn )
+    ( Port (..)
+    , getLine
+    , getSensitiveLine
+    , parseAllArgsWith
+    , parseArgWith
+    , putErrLn
+    )
 import Cardano.Environment
     ( network )
 import Cardano.Wallet
@@ -35,7 +41,12 @@ import Cardano.Wallet.Api
 import Cardano.Wallet.Api.Server
     ( server )
 import Cardano.Wallet.Api.Types
-    ( ApiMnemonicT (..), ApiT (..), WalletPostData (..), WalletPutData (..) )
+    ( ApiMnemonicT (..)
+    , ApiT (..)
+    , PostTransactionData (..)
+    , WalletPostData (..)
+    , WalletPutData (..)
+    )
 import Cardano.Wallet.Compatibility.HttpBridge
     ( HttpBridge )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -54,6 +65,8 @@ import Data.Function
     ( (&) )
 import Data.Functor
     ( (<&>) )
+import Data.List.NonEmpty
+    ( fromList )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
@@ -122,6 +135,7 @@ Usage:
   cardano-wallet wallet get [--port=INT] <wallet-id>
   cardano-wallet wallet update [--port=INT] <wallet-id> --name=STRING
   cardano-wallet wallet delete [--port=INT] <wallet-id>
+  cardano-wallet create transaction [--port=INT] --wallet-id=STRING --target=STRING...
   cardano-wallet -h | --help
   cardano-wallet --version
 
@@ -130,6 +144,7 @@ Options:
   --bridge-port <INT>         port used for communicating with the http-bridge [default: 8080]
   --address-pool-gap <INT>    number of unused consecutive addresses to keep track of [default: 20]
   --size <INT>                number of mnemonic words to generate [default: 15]
+  --target <STRING>           address to send to and amount to send separated by @: '<amount>@<address>'
 |]
 
 main :: IO ()
@@ -179,17 +194,7 @@ exec manager args
             getLine prompt parser <&> \case
                 (Nothing, _) -> Nothing
                 (Just a, t) -> Just (a, t)
-        (wPwd, _) <- do
-            let prompt = "Please enter a passphrase: "
-            let parser = fromText @(Passphrase "encryption")
-            getSensitiveLine prompt parser
-        (wPwd', _) <- do
-            let prompt = "Enter the passphrase a second time: "
-            let parser = fromText @(Passphrase "encryption")
-            getSensitiveLine prompt parser
-        when (wPwd /= wPwd') $ do
-            putErrLn "Passphrases don't match."
-            exitFailure
+        wPwd <- getPassphrase
         runClient @Wallet Aeson.encodePretty $ postWallet $ WalletPostData
             (Just $ ApiT wGap)
             (ApiMnemonicT . second T.words $ wSeed)
@@ -219,11 +224,36 @@ exec manager args
             Just version -> do
                 TIO.putStrLn $ T.pack version
 
+    | args `isPresent` command "transaction" && args `isPresent` command "create" = do
+        wId <- args `parseArg` longOption "wallet-id"
+        ts <- args `parseAllArgs` longOption "target"
+        wPwd <- getPassphrase
+        runClient @Transaction Aeson.encodePretty $ createTransaction (ApiT wId) $ PostTransactionData
+            -- NOTE: we are sure this will be non-empty
+            (fromList ts)
+            (ApiT wPwd)
+
     | otherwise =
         exitWithUsage cli
   where
     parseArg :: FromText a => Arguments -> Option -> IO a
     parseArg = parseArgWith cli
+    parseAllArgs :: FromText a => Arguments -> Option -> IO [a]
+    parseAllArgs = parseAllArgsWith cli
+    getPassphrase :: IO (Passphrase "encryption")
+    getPassphrase = do
+        (wPwd, _) <- do
+            let prompt = "Please enter a passphrase: "
+            let parser = fromText @(Passphrase "encryption")
+            getSensitiveLine prompt parser
+        (wPwd', _) <- do
+            let prompt = "Enter the passphrase a second time: "
+            let parser = fromText @(Passphrase "encryption")
+            getSensitiveLine prompt parser
+        when (wPwd /= wPwd') $ do
+            putErrLn "Passphrases don't match."
+            exitFailure
+        pure wPwd
 
     _ :<|> -- List Address
         ( deleteWallet
@@ -233,9 +263,7 @@ exec manager args
         :<|> putWallet
         :<|> _ -- Put Wallet Passphrase
         )
-        :<|>
-        ( _ -- Create Transaction
-        )
+        :<|> createTransaction
         = client (Proxy @("v2" :> Api))
 
     -- | 'runClient' requires a type-application to carry a particular
@@ -272,9 +300,9 @@ exec manager args
                 TIO.hPutStrLn stderr "Ok."
                 BL8.putStrLn (encode a)
 
--- | Namespaces for commands. Only 'Wallet' for now, 'Address' & 'Transaction'
--- later.
+-- | Namespaces for commands.
 data Wallet deriving (Typeable)
+data Transaction deriving (Typeable)
 
 -- | Start a web-server to serve the wallet backend API on the given port.
 execServer :: Port "wallet" -> Port "bridge" -> IO ()
