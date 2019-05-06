@@ -73,7 +73,7 @@ instance ToText Int where
 
 instance FromText Natural where
     fromText t = do
-        (g, txt) <- first (const err) $ signed decimal t
+        (g, txt) <- first (const err) $ decimal t
         unless (T.null txt) $ Left err
         pure g
       where
