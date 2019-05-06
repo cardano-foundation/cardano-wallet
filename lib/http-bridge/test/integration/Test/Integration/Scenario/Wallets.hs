@@ -644,8 +644,7 @@ spec = do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
         verify r
             [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "An address pool gap must be a natural\
-              \ number between 10 and 100."
+            , expectErrorMessage "expected Integer, encountered floating number"
             ]
 
 
@@ -659,8 +658,7 @@ spec = do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
         verify r
             [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "An address pool gap must be a natural\
-              \ number between 10 and 100."
+            , expectErrorMessage "expected Integer, encountered floating number"
             ]
 
     it "WALLETS_CREATE_08 - [] as address_pool_gap -> fail" $ \ctx -> do
@@ -673,7 +671,7 @@ spec = do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
         verify r
             [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "expected Int, encountered Array"
+            , expectErrorMessage "expected Integer, encountered Array"
             ]
 
     it "WALLETS_CREATE_08 - String as address_pool_gap -> fail" $ \ctx -> do
@@ -686,7 +684,7 @@ spec = do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
         verify r
             [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "expected Int, encountered String"
+            , expectErrorMessage "expected Integer, encountered String"
             ]
 
     it "WALLETS_CREATE_08 - default address_pool_gap" $ \ctx -> do
