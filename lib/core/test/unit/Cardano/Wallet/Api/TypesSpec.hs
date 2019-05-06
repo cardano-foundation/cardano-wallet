@@ -251,6 +251,13 @@ spec = do
                 #{getAddressPoolGap maxBound + 1}
             |] `shouldBe` (Left @String @(ApiT AddressPoolGap) msg)
 
+        it "ApiT AddressPoolGap (not a integer)" $ do
+            let msg = "Error in $: expected Integer, encountered floating number\
+                    \ 2.5"
+            Aeson.parseEither parseJSON [aesonQQ|
+                2.5
+            |] `shouldBe` (Left @String @(ApiT AddressPoolGap) msg)
+
         it "ApiT (Hash \"Tx\")" $ do
             let msg = "Error in $: Unable to decode (Hash \"Tx\"): \
                     \expected Base16 encoding"
