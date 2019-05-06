@@ -858,14 +858,14 @@ data AddressPoolGap
 
 -- | Possible errors when casting to an <a>AddressPoolGap</a>
 newtype MkAddressPoolGapError
-ErrGapOutOfRange :: Word8 -> MkAddressPoolGapError
+ErrGapOutOfRange :: Integer -> MkAddressPoolGapError
 
 -- | A default <a>AddressPoolGap</a>, as suggested in BIP-0044
 defaultAddressPoolGap :: AddressPoolGap
 getAddressPoolGap :: AddressPoolGap -> Word8
 
 -- | Smart constructor for <a>AddressPoolGap</a>
-mkAddressPoolGap :: Word8 -> Either MkAddressPoolGapError AddressPoolGap
+mkAddressPoolGap :: Integer -> Either MkAddressPoolGapError AddressPoolGap
 
 -- | An <a>AddressPool</a> which keeps track of sequential addresses within
 --   a given Account and change chain. See <a>mkAddressPool</a> to create a
