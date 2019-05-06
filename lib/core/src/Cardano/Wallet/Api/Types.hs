@@ -275,7 +275,7 @@ instance ToJSON (ApiT WalletId) where
 
 instance FromJSON (ApiT AddressPoolGap) where
     parseJSON = parseJSON >=>
-        eitherToParser . bimap ShowFmt ApiT . fromText . T.pack . show @Int
+        eitherToParser . bimap ShowFmt ApiT . fromText . T.pack . show @Integer
 instance ToJSON (ApiT AddressPoolGap) where
     toJSON = toJSON . getAddressPoolGap . getApiT
 

@@ -146,6 +146,10 @@ spec = do
             fromText @AddressPoolGap "20eiei" === Left (TextDecodingError err)
         it "fail fromText @AddressPoolGap \"raczej nie\"" $
             fromText @AddressPoolGap "raczej nie" === Left (TextDecodingError err)
+        it "fail fromText @AddressPoolGap \"-1000\"" $
+            fromText @AddressPoolGap "-1000" === Left (TextDecodingError err)
+        it "fail fromText @AddressPoolGap \"2.5\"" $
+            fromText @AddressPoolGap "2.5" === Left (TextDecodingError err)
 
     describe "PendingIxs & GenChange" $ do
         it "Can always generate exactly `gap` different change addresses"
@@ -169,7 +173,7 @@ prop_mkAddressPoolGap
 prop_mkAddressPoolGap g =
     cover 25 isWithinBound "hits within bounds" prop
   where
-    prop = case mkAddressPoolGap g of
+    prop = case mkAddressPoolGap (fromIntegral g) of
         Left (ErrGapOutOfRange _) -> not isWithinBound
         Right _ -> isWithinBound
     isWithinBound =

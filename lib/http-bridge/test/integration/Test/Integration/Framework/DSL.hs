@@ -219,7 +219,7 @@ addressPoolGap =
     _get :: HasType (ApiT AddressPoolGap) s => s -> Word8
     _get = getAddressPoolGap . getApiT . view typed
     _set :: HasType (ApiT AddressPoolGap) s => (s, Word8) -> s
-    _set (s, v) = set typed (ApiT $ unsafeMkAddressPoolGap v) s
+    _set (s, v) = set typed (ApiT $ unsafeMkAddressPoolGap $ fromIntegral v) s
 
 balanceAvailable :: HasType (ApiT WalletBalance) s => Lens' s Natural
 balanceAvailable =
@@ -340,7 +340,7 @@ unsafeCreateDigest s = fromMaybe
     (error $ "unsafeCreateDigest failed to create digest from: " <> show s)
     (digestFromByteString $ B8.pack $ T.unpack s)
 
-unsafeMkAddressPoolGap :: Word8 -> AddressPoolGap
+unsafeMkAddressPoolGap :: Integer -> AddressPoolGap
 unsafeMkAddressPoolGap g = case (mkAddressPoolGap g) of
     Right a -> a
     Left _ -> error $ "unsafeMkAddressPoolGap: bad argument: " <> show g

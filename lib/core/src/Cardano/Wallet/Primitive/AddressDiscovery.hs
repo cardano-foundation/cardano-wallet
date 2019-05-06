@@ -75,6 +75,8 @@ import Control.Applicative
     ( (<|>) )
 import Control.DeepSeq
     ( NFData, deepseq )
+import Control.Monad
+    ( unless )
 import Data.Bifunctor
     ( first )
 import Data.Function
@@ -87,14 +89,14 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
+import Data.Text.Read
+    ( decimal )
 import Data.Typeable
     ( Typeable, typeRep )
 import Data.Word
     ( Word8 )
 import GHC.Generics
     ( Generic )
-import Text.Read
-    ( readMaybe )
 
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
@@ -176,10 +178,10 @@ newtype AddressPoolGap = AddressPoolGap
 instance NFData AddressPoolGap
 
 instance FromText AddressPoolGap where
-    fromText t = maybe
-        (Left err)
-        (first (\case ErrGapOutOfRange{} -> err) . mkAddressPoolGap)
-        (readMaybe @Word8 (T.unpack t))
+    fromText t = do
+        (g, txt) <- first (const err) $ decimal t
+        unless (T.null txt) $ Left err
+        first (\case ErrGapOutOfRange{} -> err) (mkAddressPoolGap g)
       where
         err = TextDecodingError $
             "An address pool gap must be a natural number between "
@@ -206,14 +208,16 @@ instance Enum AddressPoolGap where
             AddressPoolGap (toEnum g)
 
 -- | Smart constructor for 'AddressPoolGap'
-mkAddressPoolGap :: Word8 -> Either MkAddressPoolGapError AddressPoolGap
+mkAddressPoolGap :: Integer -> Either MkAddressPoolGapError AddressPoolGap
 mkAddressPoolGap !g
-    | g >= getAddressPoolGap minBound &&
-      g <= getAddressPoolGap maxBound = Right $ AddressPoolGap g
-    | otherwise = Left $ ErrGapOutOfRange g
+    | g >= fromIntegral (getAddressPoolGap minBound) &&
+      g <= fromIntegral (getAddressPoolGap maxBound) =
+        Right $ AddressPoolGap (fromIntegral g)
+    | otherwise =
+        Left $ ErrGapOutOfRange g
 
 -- | Possible errors when casting to an 'AddressPoolGap'
-newtype MkAddressPoolGapError = ErrGapOutOfRange Word8
+newtype MkAddressPoolGapError = ErrGapOutOfRange Integer
     deriving (Eq, Show)
 
 -- | A default 'AddressPoolGap', as suggested in BIP-0044
