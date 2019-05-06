@@ -8,7 +8,7 @@ module Cardano.Wallet.Network.HttpBridgeSpec
 import Prelude
 
 import Cardano.Environment
-    ( network )
+    ( Network (..), network )
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet.Network
@@ -50,7 +50,9 @@ port = 1337
 
 spec :: Spec
 spec = do
-    describe "Happy paths" $ beforeAll startBridge $ afterAll closeBridge $ do
+    describe "Happy paths"
+        $ requireTestnet
+        $ beforeAll startBridge $ afterAll closeBridge $ do
         it "get from packed epochs" $ \(_, bridge) -> do
             let blocks = runExceptT $ nextBlocks bridge (SlotId 13 21599)
             (fmap length <$> blocks)
@@ -109,6 +111,7 @@ spec = do
             action `shouldReturn` ()
 
     describe "Submitting signed transactions"
+        $ requireTestnet
         $ beforeAll startBridge $ afterAll closeBridge $ do
         it "empty tx fails (1)" $ \(_, bridge) -> do
             let signed = (txEmpty, [])
@@ -190,3 +193,18 @@ spec = do
         bridge <- newNetworkLayer
         threadDelay 1000000
         return (handle, bridge)
+
+requireTestnet :: Spec -> Spec
+requireTestnet prop = case network of
+        Testnet -> prop
+        Mainnet -> notDefinedFor network
+        Staging -> notDefinedFor network
+        Local -> notDefinedFor network
+
+  where
+    notDefinedFor n =
+        it ("defined for NETWORK=testnet, not NETWORK=" ++ toStr n) False
+
+    toStr
+        = T.unpack . toText
+
