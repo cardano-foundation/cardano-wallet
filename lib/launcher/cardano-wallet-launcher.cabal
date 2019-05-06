@@ -62,7 +62,9 @@ test-suite unit
   build-depends:
       base
     , cardano-wallet-launcher
+    , fmt
     , hspec
+    , text
   type:
      exitcode-stdio-1.0
   hs-source-dirs:

@@ -10,15 +10,32 @@ import Cardano.Launcher
     ( Command (..), ProcessHasExited (..), StdStream (..), launch )
 import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, tryReadMVar )
+import Data.Text
+    ( Text )
+import Fmt
+    ( pretty )
 import System.Exit
     ( ExitCode (..) )
 import Test.Hspec
     ( Spec, it, shouldBe, shouldReturn )
 
-
 {-# ANN spec ("HLint: ignore Use head" :: String) #-}
 spec :: Spec
 spec = do
+    it "Buildable Command" $ do
+        let command = Command "server"
+                [ "start"
+                , "--port", "8080"
+                , "--template", "mainnet"
+                ] (pure ())
+                Inherit
+
+        pretty @_ @Text command `shouldBe`
+            "server\n\
+            \     start\n\
+            \     --port 8080\n\
+            \     --template mainnet\n"
+
     it "1st process exits with 0, others are cancelled" $ do
         let commands =
               [ Command "./test/data/once.sh" ["0"] (pure ()) Inherit

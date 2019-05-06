@@ -44,6 +44,17 @@ import Cardano.Launcher.POSIX
     ( installSignalHandlers )
 #endif
 
+-- | Represent a command to execute. Args are provided as a list where options
+-- are expected to be prefixed with `--` or `-`. For example:
+--
+-- @
+-- Command "cardano-wallet"
+--     [ "server"
+--     , "--port", "8080"
+--     , "--network", "mainnet"
+--     ] (return ())
+--     Inherit
+-- @
 data Command = Command
     { cmdName :: String
     , cmdArgs :: [String]
@@ -83,6 +94,9 @@ data ProcessHasExited = ProcessHasExited String ExitCode
 
 instance Exception ProcessHasExited
 
+-- | Run a bunch of command in separate processes. Note that, this operation is
+-- blocking and will throw when one of the given commands terminates. Commands
+-- are therefore expected to be daemon or long-running services.
 launch :: [Command] -> IO ProcessHasExited
 launch cmds = do
     res <- try $ forConcurrently cmds $ \(Command name args before output) -> do
