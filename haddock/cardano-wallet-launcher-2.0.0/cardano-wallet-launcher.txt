@@ -14,6 +14,19 @@
 --   one goes down. (would be achieved using <tt>monitor</tt> and
 --   <tt>kill</tt> in combination)
 module Cardano.Launcher
+
+-- | Represent a command to execute. Args are provided as a list where
+--   options are expected to be prefixed with `--` or <a>-</a>. For
+--   example:
+--   
+--   <pre>
+--   Command "cardano-wallet"
+--       [ "server"
+--       , "--port", "8080"
+--       , "--network", "mainnet"
+--       ] (return ())
+--       Inherit
+--   </pre>
 data Command
 Command :: String -> [String] -> IO () -> StdStream -> Command
 [cmdName] :: Command -> String
@@ -44,6 +57,11 @@ NoStream :: StdStream
 --   process has exited.
 data ProcessHasExited
 ProcessHasExited :: String -> ExitCode -> ProcessHasExited
+
+-- | Run a bunch of command in separate processes. Note that, this
+--   operation is blocking and will throw when one of the given commands
+--   terminates. Commands are therefore expected to be daemon or
+--   long-running services.
 launch :: [Command] -> IO ProcessHasExited
 
 -- | Convert any SIGTERM received to SIGINT, for which the runtime system
