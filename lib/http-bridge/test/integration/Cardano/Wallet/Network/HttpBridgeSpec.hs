@@ -8,7 +8,7 @@ module Cardano.Wallet.Network.HttpBridgeSpec
 import Prelude
 
 import Cardano.Environment
-    ( network )
+    ( Network (Testnet), network )
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet.Network
@@ -40,7 +40,15 @@ import Control.Monad.Trans.Except
 import Data.Text.Class
     ( toText )
 import Test.Hspec
-    ( Spec, afterAll, beforeAll, describe, it, shouldReturn, shouldSatisfy )
+    ( Spec
+    , afterAll
+    , beforeAll
+    , describe
+    , it
+    , shouldBe
+    , shouldReturn
+    , shouldSatisfy
+    )
 
 import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
 import qualified Data.Text as T
@@ -50,6 +58,8 @@ port = 1337
 
 spec :: Spec
 spec = do
+    it "The NETWORK env var must be testnet for these tests" $ do
+        network `shouldBe` Testnet
     describe "Happy paths" $ beforeAll startBridge $ afterAll closeBridge $ do
         it "get from packed epochs" $ \(_, bridge) -> do
             let blocks = runExceptT $ nextBlocks bridge (SlotId 13 21599)
