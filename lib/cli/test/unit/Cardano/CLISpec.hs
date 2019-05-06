@@ -70,8 +70,9 @@ spec = do
             { prompt = "Prompt: "
             , input = "patate\n14\n"
             , expectedStdout =
-                "Prompt: ******\ninput does not \
-                \start with a digit\nPrompt: **\n"
+                "Prompt: ******\nInt is an \
+                \integer number between -9223372036854775808 \
+                \and 9223372036854775807.\nPrompt: **\n"
             , expectedResult = 14 :: Int
             }
 
