@@ -23,6 +23,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Word
+    ( Word8 )
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Integration.Framework.DSL
@@ -413,7 +415,7 @@ spec = do
                             \ words are expected."
                      ]
                    )
-                 , ( "24 mnemonic words", mnemonics24
+                 , ( "24 mnemonic words -> fail", mnemonics24
                    , [ expectResponseCode @IO HTTP.status400
                      , expectErrorMessage "Invalid number of words: 9 or 12\
                             \ words are expected."
@@ -519,6 +521,184 @@ spec = do
         verify r
             [ expectResponseCode @IO HTTP.status400
             , expectErrorMessage "key \"passphrase\" not present"
+            ]
+
+    describe "WALLETS_CREATE_08 - address_pool_gap" $ do
+        let matrix =
+                [ ( show addressPoolGapMin, addressPoolGapMin
+                  , [ expectResponseCode @IO HTTP.status202
+                    , expectFieldEqual addressPoolGap addressPoolGapMin
+                    ]
+                  )
+                , ( show (addressPoolGapMin - 1) ++ " -> fail"
+                  , (addressPoolGapMin - 1)
+                  , [ expectResponseCode @IO HTTP.status400
+                    , expectErrorMessage "An address pool gap must be a natural\
+                      \ number between 10 and 100."
+                    ]
+                  )
+                , ( show addressPoolGapMax, addressPoolGapMax
+                  , [ expectResponseCode @IO HTTP.status202 ]
+                  )
+                , ( show (addressPoolGapMax + 1) ++ " -> fail"
+                  , addressPoolGapMax + 1
+                  , [ expectResponseCode @IO HTTP.status400
+                    , expectErrorMessage "An address pool gap must be a natural\
+                      \ number between 10 and 100."
+                    ]
+                  )
+                , ( "0 -> fail", 0
+                   , [ expectResponseCode @IO HTTP.status400
+                     , expectErrorMessage "An address pool gap must be a natural\
+                       \ number between 10 and 100."
+                     ]
+                  )
+                ]
+        forM_ matrix $ \(title, addrPoolGap, expectations) -> it title $ \ctx -> do
+            let payload = Json [json| {
+                    "name": "Secure Wallet",
+                    "mnemonic_sentence": #{mnemonics24},
+                    "passphrase": "Secure passphrase",
+                    "address_pool_gap": #{addrPoolGap}
+                    } |]
+            r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+            verify r expectations
+
+    it "WALLETS_CREATE_08 - -1 as address_pool_gap -> fail" $ \ctx -> do
+        let payload = Json [json| {
+                "name": "Secure Wallet",
+                "mnemonic_sentence": #{mnemonics15},
+                "passphrase": "Secure passphrase",
+                "address_pool_gap": -1
+                } |]
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status400
+            , expectErrorMessage "An address pool gap must be a natural\
+              \ number between 10 and 100."
+            ]
+
+    it "WALLETS_CREATE_08 - 1000 as address_pool_gap -> fail" $ \ctx -> do
+        let payload = Json [json| {
+                "name": "Secure Wallet",
+                "mnemonic_sentence": #{mnemonics15},
+                "passphrase": "Secure passphrase",
+                "address_pool_gap": 1000
+                } |]
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status400
+            , expectErrorMessage "An address pool gap must be a natural\
+              \ number between 10 and 100."
+            ]
+
+    it "WALLETS_CREATE_08 - 132323000 as address_pool_gap -> fail" $ \ctx -> do
+        let payload = Json [json| {
+                "name": "Secure Wallet",
+                "mnemonic_sentence": #{mnemonics15},
+                "passphrase": "Secure passphrase",
+                "address_pool_gap": 132323000
+                } |]
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status400
+            , expectErrorMessage "An address pool gap must be a natural\
+              \ number between 10 and 100."
+            ]
+
+    it "WALLETS_CREATE_08 - -1000 as address_pool_gap -> fail" $ \ctx -> do
+        let payload = Json [json| {
+                "name": "Secure Wallet",
+                "mnemonic_sentence": #{mnemonics15},
+                "passphrase": "Secure passphrase",
+                "address_pool_gap": -1000
+                } |]
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status400
+            , expectErrorMessage "An address pool gap must be a natural\
+              \ number between 10 and 100."
+            ]
+
+    it "WALLETS_CREATE_08 - -132323000 as address_pool_gap -> fail" $ \ctx -> do
+        let payload = Json [json| {
+                "name": "Secure Wallet",
+                "mnemonic_sentence": #{mnemonics15},
+                "passphrase": "Secure passphrase",
+                "address_pool_gap": -132323000
+                } |]
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status400
+            , expectErrorMessage "An address pool gap must be a natural\
+              \ number between 10 and 100."
+            ]
+
+    it "WALLETS_CREATE_08 - 2.5 as address_pool_gap -> fail" $ \ctx -> do
+        let payload = Json [json| {
+                "name": "Secure Wallet",
+                "mnemonic_sentence": #{mnemonics15},
+                "passphrase": "Secure passphrase",
+                "address_pool_gap": 2.5
+                } |]
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status400
+            , expectErrorMessage "An address pool gap must be a natural\
+              \ number between 10 and 100."
+            ]
+
+
+    it "WALLETS_CREATE_08 - -2.5 as address_pool_gap -> fail" $ \ctx -> do
+        let payload = Json [json| {
+                "name": "Secure Wallet",
+                "mnemonic_sentence": #{mnemonics15},
+                "passphrase": "Secure passphrase",
+                "address_pool_gap": -2.5
+                } |]
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status400
+            , expectErrorMessage "An address pool gap must be a natural\
+              \ number between 10 and 100."
+            ]
+
+    it "WALLETS_CREATE_08 - [] as address_pool_gap -> fail" $ \ctx -> do
+        let payload = Json [json| {
+                "name": "Secure Wallet",
+                "mnemonic_sentence": #{mnemonics15},
+                "passphrase": "Secure passphrase",
+                "address_pool_gap": []
+                } |]
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status400
+            , expectErrorMessage "expected Int, encountered Array"
+            ]
+
+    it "WALLETS_CREATE_08 - String as address_pool_gap -> fail" $ \ctx -> do
+        let payload = Json [json| {
+                "name": "Secure Wallet",
+                "mnemonic_sentence": #{mnemonics15},
+                "passphrase": "Secure passphrase",
+                "address_pool_gap": "30"
+                } |]
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status400
+            , expectErrorMessage "expected Int, encountered String"
+            ]
+
+    it "WALLETS_CREATE_08 - default address_pool_gap" $ \ctx -> do
+        let payload = Json [json| {
+                "name": "Secure Wallet",
+                "mnemonic_sentence": #{mnemonics21},
+                "passphrase": "Secure passphrase"
+                } |]
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+        verify r
+            [ expectResponseCode @IO HTTP.status202
+            , expectFieldEqual addressPoolGap 20
             ]
  where
 
@@ -627,3 +807,9 @@ spec = do
 
     passphraseMaxLength :: Int
     passphraseMaxLength = 255
+
+    addressPoolGapMin :: Word8
+    addressPoolGapMin = 10
+
+    addressPoolGapMax :: Word8
+    addressPoolGapMax = 100
