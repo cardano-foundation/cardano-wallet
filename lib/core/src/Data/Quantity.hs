@@ -52,32 +52,47 @@ import GHC.TypeLits
 import qualified Data.Text as T
 
 
--- | Represents a value that has an associated unit of measure, based on some
---   underlying type.
+-- | @Quantity (unit :: Symbol) a@ is a primitive @a@  multiplied by an @unit@.
 --
--- >>> newtype Amount = Amount (Quantity "lovelace" Word32)
-newtype Quantity (u :: Symbol) a = Quantity a
-    deriving stock (Generic, Show, Eq, Ord)
-    deriving newtype (Bounded, Enum)
-
-instance NFData a => NFData (Quantity u a)
-
--- | Encode to JSON delegating the
+-- Example:
+--
+-- Instead of providing the unit implicitly as a comment, or a part of a name
+--
+-- >>> a :: Word32 -- in lovelace
+--
+-- we can write
+--
+-- >>> a :: Quantity "lovelace" Word32
+--
+-- which now has a different type from
+--
+-- >>> b :: Quantity "lovelace/byte" Word32
+--
+-- so mixing them up is more difficult.
+--
+-- The unit is mostly a phantom type, but it is also included in the
+-- @ToJSON@/@FromJSON@ instances.
 --
 -- >>> Aeson.encode $ Quantity @"lovelace" 14
 -- {"unit":"lovelace","quantity":14}
-instance (KnownSymbol u, ToJSON a) => ToJSON (Quantity u a) where
+newtype Quantity (unit :: Symbol) a = Quantity a
+    deriving stock (Generic, Show, Eq, Ord)
+    deriving newtype (Bounded, Enum)
+
+instance NFData a => NFData (Quantity unit a)
+
+instance (KnownSymbol unit, ToJSON a) => ToJSON (Quantity unit a) where
     toJSON (Quantity a) = object
-        [ "unit"     .= symbolVal (Proxy :: Proxy u)
+        [ "unit"     .= symbolVal (Proxy :: Proxy unit)
         , "quantity" .= toJSON a
         ]
 
-instance (KnownSymbol u, FromJSON a) => FromJSON (Quantity u a) where
+instance (KnownSymbol unit, FromJSON a) => FromJSON (Quantity unit a) where
     parseJSON = withObject "Quantity" $ \o -> do
-        verifyUnit (Proxy :: Proxy u) =<< o .: "unit"
+        verifyUnit (Proxy :: Proxy unit) =<< o .: "unit"
         Quantity <$> o .: "quantity"
       where
-        verifyUnit :: Proxy (u :: Symbol) -> Value -> Parser ()
+        verifyUnit :: Proxy (unit :: Symbol) -> Value -> Parser ()
         verifyUnit proxy = \case
             String u' | u' == T.pack u -> pure ()
             _ -> fail $
