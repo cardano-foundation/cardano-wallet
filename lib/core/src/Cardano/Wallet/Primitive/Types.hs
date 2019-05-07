@@ -437,7 +437,18 @@ instance Buildable Direction where
         Outgoing -> "outgoing"
         Incoming -> "incoming"
 
--- | @TxWitness@ is proof that transaction inputs are allowed to be spent
+instance FromText Direction where
+    fromText txt = case txt of
+        "outgoing" -> Right Outgoing
+        "incoming" -> Right Incoming
+        _ ->
+            Left . TextDecodingError $ show txt
+                <> " is neither \"outgoing\", nor \"incoming\""
+
+instance ToText Direction where
+    toText Outgoing = "outgoing"
+    toText Incoming = "incoming"
+
 data TxWitness
     = PublicKeyWitness ByteString (Hash "signature")
       -- ^ A signature of a transaction by the owner of the address of an input.
