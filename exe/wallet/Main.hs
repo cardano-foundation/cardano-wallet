@@ -2,6 +2,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 -- |
@@ -38,12 +39,16 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
+import Control.Applicative
+    ( many )
 import Control.Arrow
     ( second )
 import Control.Monad
     ( void )
 import Data.Aeson
     ( ToJSON )
+import Data.FileEmbed
+    ( embedFile )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -73,13 +78,18 @@ import System.Console.Docopt
     )
 import System.Environment
     ( getArgs )
+import System.Exit
+    ( exitFailure )
 import System.IO
     ( BufferMode (NoBuffering), hSetBuffering, stdout )
+import Text.Regex.Applicative
+    ( anySym, few, match, string, sym )
 
 import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
 import qualified Cardano.Wallet.Transaction.HttpBridge as HttpBridge
 import qualified Data.Aeson.Encode.Pretty as Aeson
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text as T
@@ -181,6 +191,18 @@ exec manager args
     | args `isPresent` command "wallet" && args `isPresent` command "delete" = do
         wId <- args `parseArg` longOption "id"
         runClient $ void $ deleteWallet (ApiT wId)
+
+    | args `isPresent` longOption "version" = do
+        let cabal = B8.unpack $(embedFile "cardano-wallet.cabal")
+        let re = few anySym
+                *> string "version:" *> many (sym ' ') *> few anySym
+                <* sym '\n' <* many anySym
+        case match re cabal of
+            Nothing -> do
+                putErrLn "Couldn't find program version!"
+                exitFailure
+            Just version -> do
+                TIO.putStrLn $ T.pack version
 
     | otherwise =
         exitWithUsage cli
