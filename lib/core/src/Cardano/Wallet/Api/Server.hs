@@ -28,8 +28,8 @@ import Cardano.Wallet
 import Cardano.Wallet.Api
     ( Addresses, Api, Transactions, Wallets )
 import Cardano.Wallet.Api.Types
-    ( ApiAddress (..)
-    , ApiCoins (..)
+    ( AddressAmount (..)
+    , ApiAddress (..)
     , ApiT (..)
     , ApiTransaction (..)
     , ApiWallet (..)
@@ -221,12 +221,12 @@ createTransaction w (ApiT wid) body = do
         , status = ApiT (meta ^. #status)
         }
   where
-    coerceCoin :: ApiCoins -> TxOut
-    coerceCoin (ApiCoins (ApiT addr) (Quantity c)) =
+    coerceCoin :: AddressAmount -> TxOut
+    coerceCoin (AddressAmount (ApiT addr) (Quantity c)) =
         TxOut addr (Coin $ fromIntegral c)
-    coerceTxOut :: TxOut -> ApiCoins
+    coerceTxOut :: TxOut -> AddressAmount
     coerceTxOut (TxOut addr (Coin c)) =
-        ApiCoins (ApiT addr) (Quantity $ fromIntegral c)
+        AddressAmount (ApiT addr) (Quantity $ fromIntegral c)
 
 {-------------------------------------------------------------------------------
                                 Error Handling

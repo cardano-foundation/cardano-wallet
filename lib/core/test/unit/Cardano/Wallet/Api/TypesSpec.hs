@@ -22,9 +22,9 @@ import Prelude hiding
 import Cardano.Wallet.Api
     ( Api )
 import Cardano.Wallet.Api.Types
-    ( ApiAddress (..)
+    ( AddressAmount (..)
+    , ApiAddress (..)
     , ApiBlockData (..)
-    , ApiCoins (..)
     , ApiMnemonicT (..)
     , ApiT (..)
     , ApiTransaction (..)
@@ -158,7 +158,7 @@ spec = do
         \and match existing golden files" $ do
             jsonRoundtripAndGolden $ Proxy @ApiAddress
             jsonRoundtripAndGolden $ Proxy @ApiBlockData
-            jsonRoundtripAndGolden $ Proxy @ApiCoins
+            jsonRoundtripAndGolden $ Proxy @AddressAmount
             jsonRoundtripAndGolden $ Proxy @ApiTransaction
             jsonRoundtripAndGolden $ Proxy @ApiWallet
             jsonRoundtripAndGolden $ Proxy @PostTransactionData
@@ -450,7 +450,7 @@ instance Arbitrary SlotId where
     arbitrary = SlotId <$> arbitrary <*> arbitrary
     shrink = genericShrink
 
-instance Arbitrary ApiCoins where
+instance Arbitrary AddressAmount where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
