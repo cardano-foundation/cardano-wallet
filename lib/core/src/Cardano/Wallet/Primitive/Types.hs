@@ -427,6 +427,17 @@ instance Buildable Direction where
         Outgoing -> "outgoing"
         Incoming -> "incoming"
 
+instance FromText Direction where
+    fromText txt = case txt of
+        "Outgoing" -> Right Outgoing
+        "Incoming" -> Right Incoming
+        _ ->
+            Left . TextDecodingError $ "not a valid value: " <> show txt
+
+instance ToText Direction where
+    toText Outgoing = "Outgoing"
+    toText Incoming = "Incoming"
+
 data TxWitness
     = PublicKeyWitness ByteString (Hash "signature")
     | ScriptWitness ByteString
