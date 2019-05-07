@@ -48,6 +48,7 @@ type Addresses =
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listAddresses
 type ListAddresses = "wallets"
     :> Capture "walletId" (ApiT WalletId)
+    :> "addresses"
     :> QueryParam "state" (ApiT AddressState)
     :> Get '[JSON] [ApiAddress]
 
