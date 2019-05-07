@@ -115,6 +115,7 @@ Usage:
   cardano-wallet wallet list [--port=INT]
   cardano-wallet wallet create [--port=INT] --name=STRING [--address-pool-gap=INT]
   cardano-wallet wallet get [--port=INT] <wallet-id>
+  cardano-wallet wallet update [--port=INT] <wallet-id> --name=STRING
   cardano-wallet wallet delete [--port=INT] <wallet-id>
   cardano-wallet -h | --help
   cardano-wallet --version
