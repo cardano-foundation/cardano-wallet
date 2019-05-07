@@ -72,14 +72,15 @@ import qualified Data.Text as T
 --
 -- The unit is mostly a phantom type, but it is also included in the
 -- @ToJSON@/@FromJSON@ instances.
+--
+-- >>> Aeson.encode $ Quantity @"lovelace" 14
+-- {"unit":"lovelace","quantity":14}
 newtype Quantity (unit :: Symbol) a = Quantity a
     deriving stock (Generic, Show, Eq, Ord)
     deriving newtype (Bounded, Enum)
 
 instance NFData a => NFData (Quantity unit a)
 
--- >>> Aeson.encode $ Quantity @"lovelace" 14
--- {"unit":"lovelace","quantity":14}
 instance (KnownSymbol unit, ToJSON a) => ToJSON (Quantity unit a) where
     toJSON (Quantity a) = object
         [ "unit"     .= symbolVal (Proxy :: Proxy unit)
