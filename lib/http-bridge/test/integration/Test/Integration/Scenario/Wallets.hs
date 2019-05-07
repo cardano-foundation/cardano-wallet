@@ -54,7 +54,6 @@ import qualified Network.HTTP.Types.Status as HTTP
 spec :: SpecWith Context
 spec = do
     it "WALLETS_CREATE_01 - Create a wallet" $ \ctx -> do
-
         let payload = Json [json| {
                 "name": "1st Wallet",
                 "mnemonic_sentence": #{mnemonics15},
@@ -76,7 +75,6 @@ spec = do
             ]
 
     it "WALLETS_CREATE_01 - Created a wallet can be listed" $ \ctx -> do
-
         let payload = Json [json| {
                 "name": "Wallet to be listed",
                 "mnemonic_sentence": #{mnemonics18},
@@ -98,7 +96,7 @@ spec = do
             , expectListItemFieldEqual 0 walletId "dfe87fcf0560fb57937a6468ea51e860672fad79"
             ]
 
-    it "WALLETS_CREATE_03 - Cannot create wallet that exists" $ \ctx -> do
+    it "WALLETS_CREATE_03,09 - Cannot create wallet that exists" $ \ctx -> do
         let payload = Json [json| {
                 "name": "Some Wallet",
                 "mnemonic_sentence": #{mnemonics21},
@@ -656,6 +654,65 @@ spec = do
             [ expectResponseCode @IO HTTP.status202
             , expectFieldEqual addressPoolGap 20
             ]
+
+    describe "WALLETS_CREATE_09 - HTTP headers" $ do
+        let matrix =
+                [ ( "No HTTP headers -> 415", None
+                  , [expectResponseCode @IO HTTP.status415] )
+                , ( "Accept: text/plain -> 406"
+                  , Headers
+                        [ ("Content-Type", "application/json")
+                        , ("Accept", "text/plain") ]
+                  , [expectResponseCode @IO HTTP.status406]
+                  )
+                , ( "No Accept -> 202"
+                  , Headers [ ("Content-Type", "application/json") ]
+                  , [expectResponseCode @IO HTTP.status202]
+                  )
+                , ( "No Content-Type -> 415"
+                  , Headers [ ("Accept", "application/json") ]
+                  , [expectResponseCode @IO HTTP.status415]
+                  )
+                , ( "Content-Type: text/plain -> 415"
+                  , Headers [ ("Content-Type", "text/plain") ]
+                  , [expectResponseCode @IO HTTP.status415]
+                  )
+                ]
+
+        forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> do
+            let payload = Json [json| {
+                    "name": "Secure Wallet",
+                    "mnemonic_sentence": #{mnemonics21},
+                    "passphrase": "Secure passphrase"
+                    } |]
+            r <- request @ApiWallet ctx ("POST", "v2/wallets") headers payload
+            verify r expectations
+
+    describe "WALLETS_CREATE_09 - Bad request" $ do
+        let matrix =
+                [ ( "empty payload", NonJson "" )
+                , ( "{} payload", NonJson "{}" )
+                , ( "non-json valid payload"
+                  , NonJson
+                        "{name: wallet,\
+                        \ mnemonic_sentence: [pill, hand, ask, useless, asset,\
+                        \ rely, above, pipe, embark, game, elder, unaware,\
+                        \ nasty, coach, glad],\
+                        \ passphrase: 1234567890}"
+                  )
+                ]
+
+        forM_ matrix $ \(name, nonJson) -> it name $ \ctx -> do
+            let payload = nonJson
+            r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+            expectResponseCode @IO HTTP.status400 r
+
+    describe "WALLETS_CREATE_09 - v2/wallets - Methods Not Allowed" $ do
+        let matrix = ["PUT", "DELETE"]
+        forM_ matrix $ \method -> it (show method) $ \ctx -> do
+            r <- request @ApiWallet ctx (method, "v2/wallets") Default Empty
+            expectResponseCode @IO HTTP.status405 r
+
  where
 
     mnemonics3 :: [Text]
