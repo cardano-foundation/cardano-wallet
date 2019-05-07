@@ -65,6 +65,7 @@ import System.IO
     , hGetBuffering
     , hGetChar
     , hGetEcho
+    , hIsTerminalDevice
     , hPutChar
     , hSetBuffering
     , hSetEcho
@@ -219,7 +220,9 @@ withEcho h echo action = bracket aFirst aLast aBetween
     aBetween = const action
 
 withSGR :: Handle -> SGR -> IO a -> IO a
-withSGR h sgr action = bracket aFirst aLast aBetween
+withSGR h sgr action = hIsTerminalDevice h >>= \case
+    True -> bracket aFirst aLast aBetween
+    False -> action
   where
     aFirst = ([] <$ hSetSGR h [sgr])
     aLast = hSetSGR h

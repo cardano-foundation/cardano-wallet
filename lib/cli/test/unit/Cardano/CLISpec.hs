@@ -53,7 +53,7 @@ spec = do
             { prompt = "Prompt: "
             , input = "patate\n14\n"
             , expectedStdout =
-                "Prompt: \ESC[91minput does not start with a digit\n\ESC[m\
+                "Prompt: input does not start with a digit\n\
                 \Prompt: "
             , expectedResult = 14 :: Int
             }
@@ -70,8 +70,8 @@ spec = do
             { prompt = "Prompt: "
             , input = "patate\n14\n"
             , expectedStdout =
-                "Prompt: ******\n\ESC[91minput does not \
-                \start with a digit\n\ESC[mPrompt: **\n"
+                "Prompt: ******\ninput does not \
+                \start with a digit\nPrompt: **\n"
             , expectedResult = 14 :: Int
             }
 
