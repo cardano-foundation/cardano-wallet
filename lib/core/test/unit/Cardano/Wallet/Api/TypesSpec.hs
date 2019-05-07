@@ -106,6 +106,8 @@ import Data.Swagger
     )
 import Data.Swagger.Declare
     ( Declare )
+import Data.Text
+    ( Text )
 import Data.Typeable
     ( Typeable, splitTyConApp, tyConName, typeRep )
 import Data.Word
@@ -198,7 +200,7 @@ spec = do
         \existing path in the specification" $
         validateEveryPath (Proxy :: Proxy Api)
 
-    describe "verify parsing failures too" $ do
+    describe "verify JSON parsing failures too" $ do
         it "ApiT Address" $ do
             let msg = "Error in $: Unable to decode Address: \
                     \expected Base58 encoding"
@@ -303,6 +305,17 @@ spec = do
                 }
             |] `shouldBe` (Left @String @AddressAmount msg)
 
+    describe "verify HttpApiData parsing failures too" $ do
+        it "ApiT WalletId" $ do
+            let msg = "wallet id should be an hex-encoded string of 40 characters"
+            parseUrlPiece "invalid-id"
+                `shouldBe` (Left @Text @(ApiT WalletId) msg)
+
+        it "ApiT AddressState" $ do
+            let msg = "Unable to decode address state: it's neither \"used\" \
+                    \nor \"unused\""
+            parseUrlPiece "patate"
+                `shouldBe` (Left @Text @(ApiT AddressState) msg)
 -- Golden tests files are generated automatically on first run. On later runs
 -- we check that the format stays the same. The golden files should be tracked
 -- in git.
