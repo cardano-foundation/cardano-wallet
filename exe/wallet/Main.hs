@@ -45,6 +45,8 @@ import Control.Applicative
     ( many )
 import Control.Arrow
     ( second )
+import Control.Monad
+    ( when )
 import Data.FileEmbed
     ( embedFile )
 import Data.Function
@@ -179,6 +181,13 @@ exec manager args
             let prompt = "Please enter a passphrase: "
             let parser = fromText @(Passphrase "encryption")
             getSensitiveLine prompt Nothing parser
+        (wPwd', _) <- do
+            let prompt = "Enter the passphrase a second time: "
+            let parser = fromText @(Passphrase "encryption")
+            getSensitiveLine prompt Nothing parser
+        when (wPwd /= wPwd') $ do
+            putErrLn "Passphrases don't match."
+            exitFailure
         runClient @Wallet Aeson.encodePretty $ postWallet $ WalletPostData
             (Just $ ApiT wGap)
             (ApiMnemonicT . second T.words $ wSeed)
