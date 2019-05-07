@@ -23,8 +23,6 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
-import Data.Word
-    ( Word8 )
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Integration.Framework.DSL
@@ -548,10 +546,40 @@ spec = do
                     ]
                   )
                 , ( "0 -> fail", 0
-                   , [ expectResponseCode @IO HTTP.status400
-                     , expectErrorMessage "An address pool gap must be a natural\
+                  , [ expectResponseCode @IO HTTP.status400
+                    , expectErrorMessage "An address pool gap must be a natural\
                        \ number between 10 and 100."
-                     ]
+                    ]
+                  )
+                , ( "-1 -> fail", -1
+                  , [ expectResponseCode @IO HTTP.status400
+                    , expectErrorMessage "An address pool gap must be a natural\
+                         \ number between 10 and 100."
+                    ]
+                  )
+                , ( "1000 -> fail", 1000
+                  , [ expectResponseCode @IO HTTP.status400
+                    , expectErrorMessage "An address pool gap must be a natural\
+                       \ number between 10 and 100."
+                    ]
+                  )
+                , ( "132323000 -> fail", 132323000
+                  , [ expectResponseCode @IO HTTP.status400
+                    , expectErrorMessage "An address pool gap must be a natural\
+                       \ number between 10 and 100."
+                    ]
+                  )
+                , ( "-1000 -> fail", -1000
+                  , [ expectResponseCode @IO HTTP.status400
+                    , expectErrorMessage "An address pool gap must be a natural\
+                       \ number between 10 and 100."
+                    ]
+                  )
+                , ( "-132323000 -> fail", -132323000
+                  , [ expectResponseCode @IO HTTP.status400
+                    , expectErrorMessage "An address pool gap must be a natural\
+                       \ number between 10 and 100."
+                    ]
                   )
                 ]
         forM_ matrix $ \(title, addrPoolGap, expectations) -> it title $ \ctx -> do
@@ -563,76 +591,6 @@ spec = do
                     } |]
             r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
             verify r expectations
-
-    it "WALLETS_CREATE_08 - -1 as address_pool_gap -> fail" $ \ctx -> do
-        let payload = Json [json| {
-                "name": "Secure Wallet",
-                "mnemonic_sentence": #{mnemonics15},
-                "passphrase": "Secure passphrase",
-                "address_pool_gap": -1
-                } |]
-        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
-        verify r
-            [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "An address pool gap must be a natural\
-              \ number between 10 and 100."
-            ]
-
-    it "WALLETS_CREATE_08 - 1000 as address_pool_gap -> fail" $ \ctx -> do
-        let payload = Json [json| {
-                "name": "Secure Wallet",
-                "mnemonic_sentence": #{mnemonics15},
-                "passphrase": "Secure passphrase",
-                "address_pool_gap": 1000
-                } |]
-        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
-        verify r
-            [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "An address pool gap must be a natural\
-              \ number between 10 and 100."
-            ]
-
-    it "WALLETS_CREATE_08 - 132323000 as address_pool_gap -> fail" $ \ctx -> do
-        let payload = Json [json| {
-                "name": "Secure Wallet",
-                "mnemonic_sentence": #{mnemonics15},
-                "passphrase": "Secure passphrase",
-                "address_pool_gap": 132323000
-                } |]
-        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
-        verify r
-            [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "An address pool gap must be a natural\
-              \ number between 10 and 100."
-            ]
-
-    it "WALLETS_CREATE_08 - -1000 as address_pool_gap -> fail" $ \ctx -> do
-        let payload = Json [json| {
-                "name": "Secure Wallet",
-                "mnemonic_sentence": #{mnemonics15},
-                "passphrase": "Secure passphrase",
-                "address_pool_gap": -1000
-                } |]
-        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
-        verify r
-            [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "An address pool gap must be a natural\
-              \ number between 10 and 100."
-            ]
-
-    it "WALLETS_CREATE_08 - -132323000 as address_pool_gap -> fail" $ \ctx -> do
-        let payload = Json [json| {
-                "name": "Secure Wallet",
-                "mnemonic_sentence": #{mnemonics15},
-                "passphrase": "Secure passphrase",
-                "address_pool_gap": -132323000
-                } |]
-        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
-        verify r
-            [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "An address pool gap must be a natural\
-              \ number between 10 and 100."
-            ]
 
     it "WALLETS_CREATE_08 - 2.5 as address_pool_gap -> fail" $ \ctx -> do
         let payload = Json [json| {
@@ -806,8 +764,8 @@ spec = do
     passphraseMaxLength :: Int
     passphraseMaxLength = 255
 
-    addressPoolGapMin :: Word8
+    addressPoolGapMin :: Int
     addressPoolGapMin = 10
 
-    addressPoolGapMax :: Word8
+    addressPoolGapMax :: Int
     addressPoolGapMax = 100

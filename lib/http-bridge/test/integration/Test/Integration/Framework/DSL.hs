@@ -89,8 +89,6 @@ import Data.Text
     ( Text )
 import Data.Time
     ( UTCTime )
-import Data.Word
-    ( Word8 )
 import GHC.TypeLits
     ( Symbol )
 import Language.Haskell.TH.Quote
@@ -212,14 +210,14 @@ verify a = mapM_ (a &)
 --
 -- Lenses
 --
-addressPoolGap :: HasType (ApiT AddressPoolGap) s => Lens' s Word8
+addressPoolGap :: HasType (ApiT AddressPoolGap) s => Lens' s Int
 addressPoolGap =
     lens _get _set
   where
-    _get :: HasType (ApiT AddressPoolGap) s => s -> Word8
-    _get = getAddressPoolGap . getApiT . view typed
-    _set :: HasType (ApiT AddressPoolGap) s => (s, Word8) -> s
-    _set (s, v) = set typed (ApiT $ unsafeMkAddressPoolGap $ fromIntegral v) s
+    _get :: HasType (ApiT AddressPoolGap) s => s -> Int
+    _get = fromIntegral . getAddressPoolGap . getApiT . view typed
+    _set :: HasType (ApiT AddressPoolGap) s => (s, Int) -> s
+    _set (s, v) = set typed (ApiT $ unsafeMkAddressPoolGap v) s
 
 balanceAvailable :: HasType (ApiT WalletBalance) s => Lens' s Natural
 balanceAvailable =
@@ -340,8 +338,8 @@ unsafeCreateDigest s = fromMaybe
     (error $ "unsafeCreateDigest failed to create digest from: " <> show s)
     (digestFromByteString $ B8.pack $ T.unpack s)
 
-unsafeMkAddressPoolGap :: Integer -> AddressPoolGap
-unsafeMkAddressPoolGap g = case (mkAddressPoolGap g) of
+unsafeMkAddressPoolGap :: Int -> AddressPoolGap
+unsafeMkAddressPoolGap g = case (mkAddressPoolGap $ fromIntegral g) of
     Right a -> a
     Left _ -> error $ "unsafeMkAddressPoolGap: bad argument: " <> show g
 
