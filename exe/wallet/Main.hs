@@ -69,6 +69,7 @@ import System.Console.Docopt
     ( Arguments
     , Docopt
     , Option
+    , argument
     , command
     , docopt
     , exitWithUsage
@@ -112,9 +113,9 @@ Usage:
   cardano-wallet server [--port=INT] [--bridge-port=INT]
   cardano-wallet mnemonic generate [--size=INT]
   cardano-wallet wallet list [--port=INT]
-  cardano-wallet wallet get [--port=INT] --wallet-id=STRING
   cardano-wallet wallet create [--port=INT] --name=STRING [--address-pool-gap=INT]
-  cardano-wallet wallet delete [--port=INT] --id=STRING
+  cardano-wallet wallet get [--port=INT] <wallet-id>
+  cardano-wallet wallet delete [--port=INT] <wallet-id>
   cardano-wallet -h | --help
   cardano-wallet --version
 
@@ -153,7 +154,7 @@ exec manager args
         runClient listWallets
 
     | args `isPresent` command "wallet" && args `isPresent` command "get" = do
-        wId <- args `parseArg` longOption "wallet-id"
+        wId <- args `parseArg` argument "wallet-id"
         runClient $ getWallet $ ApiT wId
 
     | args `isPresent` command "wallet" && args `isPresent` command "create" = do
@@ -183,13 +184,13 @@ exec manager args
             (ApiT wPwd)
 
     | args `isPresent` command "wallet" && args `isPresent` command "update" = do
-        wId <- args `parseArg` longOption "id"
+        wId <- args `parseArg` argument "wallet-id"
         wName <- args `parseArg` longOption "name"
         runClient $ putWallet (ApiT wId) $ WalletPutData
             (Just $ ApiT wName)
 
     | args `isPresent` command "wallet" && args `isPresent` command "delete" = do
-        wId <- args `parseArg` longOption "id"
+        wId <- args `parseArg` argument "wallet-id"
         runClient $ void $ deleteWallet (ApiT wId)
 
     | args `isPresent` longOption "version" = do
