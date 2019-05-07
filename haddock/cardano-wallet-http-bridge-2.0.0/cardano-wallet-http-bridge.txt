@@ -21,13 +21,11 @@
 --   configuration settings together for a given target environment.
 module Cardano.Environment
 
--- | Available network options. <a>Local</a> means a local cluster running
---   on the host machine.
+-- | Available network options.
 data Network
 Mainnet :: Network
 Testnet :: Network
 Staging :: Network
-Local :: Network
 
 -- | Get the current target <a>Network</a> from the Environment.
 --   
@@ -37,9 +35,6 @@ newtype ProtocolMagic
 ProtocolMagic :: Int32 -> ProtocolMagic
 
 -- | Get the <a>ProtocolMagic</a> corresponding to a given <a>Network</a>.
---   
---   Note that the <a>ProtocolMagic</a> for <a>Local</a> and <a>Testnet</a>
---   are the same.
 protocolMagic :: Network -> ProtocolMagic
 
 -- | Fatal exception thrown when a required ENV var is missing upon

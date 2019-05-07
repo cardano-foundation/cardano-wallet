@@ -84,13 +84,40 @@ instance GHC.TypeNats.KnownNat csz => GHC.Exception.Type.Exception (Cardano.Wall
 --   which can be in different bases depending on the context.
 module Data.Quantity
 
--- | Represents a value that has an associated unit of measure, based on
---   some underlying type.
+-- | <tt>Quantity (unit :: Symbol) a</tt> is a primitive <tt>a</tt>
+--   multiplied by an <tt>unit</tt>.
+--   
+--   Example:
+--   
+--   Instead of providing the unit implicitly as a comment, or a part of a
+--   name
 --   
 --   <pre>
---   &gt;&gt;&gt; newtype Amount = Amount (Quantity "lovelace" Word32)
+--   &gt;&gt;&gt; a :: Word32 -- in lovelace
 --   </pre>
-newtype Quantity (u :: Symbol) a
+--   
+--   we can write
+--   
+--   <pre>
+--   &gt;&gt;&gt; a :: Quantity "lovelace" Word32
+--   </pre>
+--   
+--   which now has a different type from
+--   
+--   <pre>
+--   &gt;&gt;&gt; b :: Quantity "lovelace/byte" Word32
+--   </pre>
+--   
+--   so mixing them up is more difficult.
+--   
+--   The unit is mostly a phantom type, but it is also included in the
+--   <tt>ToJSON</tt>/<tt>FromJSON</tt> instances.
+--   
+--   <pre>
+--   &gt;&gt;&gt; Aeson.encode $ Quantity @"lovelace" 14
+--   {"unit":"lovelace","quantity":14}
+--   </pre>
+newtype Quantity (unit :: Symbol) a
 Quantity :: a -> Quantity a
 
 -- | Opaque Haskell type to represent values between 0 and 100 (incl).
@@ -106,19 +133,19 @@ instance Data.Aeson.Types.ToJSON.ToJSON Data.Quantity.Percentage
 instance GHC.Classes.Eq Data.Quantity.Percentage
 instance GHC.Show.Show Data.Quantity.Percentage
 instance GHC.Generics.Generic Data.Quantity.Percentage
-instance GHC.Enum.Enum a => GHC.Enum.Enum (Data.Quantity.Quantity u a)
-instance GHC.Enum.Bounded a => GHC.Enum.Bounded (Data.Quantity.Quantity u a)
-instance GHC.Classes.Ord a => GHC.Classes.Ord (Data.Quantity.Quantity u a)
-instance GHC.Classes.Eq a => GHC.Classes.Eq (Data.Quantity.Quantity u a)
-instance GHC.Show.Show a => GHC.Show.Show (Data.Quantity.Quantity u a)
-instance GHC.Generics.Generic (Data.Quantity.Quantity u a)
+instance GHC.Enum.Enum a => GHC.Enum.Enum (Data.Quantity.Quantity unit a)
+instance GHC.Enum.Bounded a => GHC.Enum.Bounded (Data.Quantity.Quantity unit a)
+instance GHC.Classes.Ord a => GHC.Classes.Ord (Data.Quantity.Quantity unit a)
+instance GHC.Classes.Eq a => GHC.Classes.Eq (Data.Quantity.Quantity unit a)
+instance GHC.Show.Show a => GHC.Show.Show (Data.Quantity.Quantity unit a)
+instance GHC.Generics.Generic (Data.Quantity.Quantity unit a)
 instance Control.DeepSeq.NFData Data.Quantity.Percentage
 instance Data.Aeson.Types.FromJSON.FromJSON Data.Quantity.Percentage
 instance GHC.Enum.Bounded Data.Quantity.Percentage
 instance GHC.Enum.Enum Data.Quantity.Percentage
-instance Control.DeepSeq.NFData a => Control.DeepSeq.NFData (Data.Quantity.Quantity u a)
-instance (GHC.TypeLits.KnownSymbol u, Data.Aeson.Types.ToJSON.ToJSON a) => Data.Aeson.Types.ToJSON.ToJSON (Data.Quantity.Quantity u a)
-instance (GHC.TypeLits.KnownSymbol u, Data.Aeson.Types.FromJSON.FromJSON a) => Data.Aeson.Types.FromJSON.FromJSON (Data.Quantity.Quantity u a)
+instance Control.DeepSeq.NFData a => Control.DeepSeq.NFData (Data.Quantity.Quantity unit a)
+instance (GHC.TypeLits.KnownSymbol unit, Data.Aeson.Types.ToJSON.ToJSON a) => Data.Aeson.Types.ToJSON.ToJSON (Data.Quantity.Quantity unit a)
+instance (GHC.TypeLits.KnownSymbol unit, Data.Aeson.Types.FromJSON.FromJSON a) => Data.Aeson.Types.FromJSON.FromJSON (Data.Quantity.Quantity unit a)
 
 
 -- | This module contains the core primitive of a Wallet. This is roughly a
@@ -1346,27 +1373,27 @@ WalletPutPassphraseData :: !ApiT (Passphrase "encryption") -> !ApiT (Passphrase 
 [$sel:oldPassphrase:WalletPutPassphraseData] :: WalletPutPassphraseData -> !ApiT (Passphrase "encryption")
 [$sel:newPassphrase:WalletPutPassphraseData] :: WalletPutPassphraseData -> !ApiT (Passphrase "encryption")
 data PostTransactionData
-PostTransactionData :: !NonEmpty ApiCoins -> !ApiT (Passphrase "encryption") -> PostTransactionData
-[$sel:targets:PostTransactionData] :: PostTransactionData -> !NonEmpty ApiCoins
+PostTransactionData :: !NonEmpty AddressAmount -> !ApiT (Passphrase "encryption") -> PostTransactionData
+[$sel:targets:PostTransactionData] :: PostTransactionData -> !NonEmpty AddressAmount
 [$sel:passphrase:PostTransactionData] :: PostTransactionData -> !ApiT (Passphrase "encryption")
 data ApiBlockData
 ApiBlockData :: UTCTime -> !ApiT SlotId -> ApiBlockData
 [$sel:time:ApiBlockData] :: ApiBlockData -> UTCTime
 [$sel:block:ApiBlockData] :: ApiBlockData -> !ApiT SlotId
 data ApiTransaction
-ApiTransaction :: !ApiT (Hash "Tx") -> !Quantity "lovelace" Natural -> !Maybe ApiBlockData -> !Quantity "block" Natural -> !ApiT Direction -> !NonEmpty ApiCoins -> !NonEmpty ApiCoins -> !ApiT TxStatus -> ApiTransaction
+ApiTransaction :: !ApiT (Hash "Tx") -> !Quantity "lovelace" Natural -> !Maybe ApiBlockData -> !Quantity "block" Natural -> !ApiT Direction -> !NonEmpty AddressAmount -> !NonEmpty AddressAmount -> !ApiT TxStatus -> ApiTransaction
 [$sel:id:ApiTransaction] :: ApiTransaction -> !ApiT (Hash "Tx")
 [$sel:amount:ApiTransaction] :: ApiTransaction -> !Quantity "lovelace" Natural
 [$sel:insertedAt:ApiTransaction] :: ApiTransaction -> !Maybe ApiBlockData
 [$sel:depth:ApiTransaction] :: ApiTransaction -> !Quantity "block" Natural
 [$sel:direction:ApiTransaction] :: ApiTransaction -> !ApiT Direction
-[$sel:inputs:ApiTransaction] :: ApiTransaction -> !NonEmpty ApiCoins
-[$sel:outputs:ApiTransaction] :: ApiTransaction -> !NonEmpty ApiCoins
+[$sel:inputs:ApiTransaction] :: ApiTransaction -> !NonEmpty AddressAmount
+[$sel:outputs:ApiTransaction] :: ApiTransaction -> !NonEmpty AddressAmount
 [$sel:status:ApiTransaction] :: ApiTransaction -> !ApiT TxStatus
-data ApiCoins
-ApiCoins :: !ApiT Address -> !Quantity "lovelace" Natural -> ApiCoins
-[$sel:address:ApiCoins] :: ApiCoins -> !ApiT Address
-[$sel:amount:ApiCoins] :: ApiCoins -> !Quantity "lovelace" Natural
+data AddressAmount
+AddressAmount :: !ApiT Address -> !Quantity "lovelace" Natural -> AddressAmount
+[$sel:address:AddressAmount] :: AddressAmount -> !ApiT Address
+[$sel:amount:AddressAmount] :: AddressAmount -> !Quantity "lovelace" Natural
 
 -- | Polymorphic wrapper type to put around primitive types and, 3rd party
 --   lib types to avoid defining orphan instances and/or, undesirable
@@ -1426,9 +1453,9 @@ instance GHC.Classes.Eq Cardano.Wallet.Api.Types.PostTransactionData
 instance GHC.Show.Show Cardano.Wallet.Api.Types.ApiTransaction
 instance GHC.Generics.Generic Cardano.Wallet.Api.Types.ApiTransaction
 instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiTransaction
-instance GHC.Show.Show Cardano.Wallet.Api.Types.ApiCoins
-instance GHC.Generics.Generic Cardano.Wallet.Api.Types.ApiCoins
-instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiCoins
+instance GHC.Show.Show Cardano.Wallet.Api.Types.AddressAmount
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.AddressAmount
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.AddressAmount
 instance GHC.Show.Show Cardano.Wallet.Api.Types.ApiBlockData
 instance GHC.Generics.Generic Cardano.Wallet.Api.Types.ApiBlockData
 instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiBlockData
@@ -1451,8 +1478,8 @@ instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.PostTransac
 instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.PostTransactionData
 instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.ApiTransaction
 instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiTransaction
-instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.ApiCoins
-instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiCoins
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.AddressAmount
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.AddressAmount
 instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.ApiBlockData
 instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiBlockData
 instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.AddressState)
@@ -1494,7 +1521,7 @@ type Addresses = ListAddresses
 
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/listAddresses</a>
-type ListAddresses = "wallets" :> Capture "walletId" (ApiT WalletId) :> QueryParam "state" (ApiT AddressState) :> Get '[JSON] [ApiAddress]
+type ListAddresses = "wallets" :> Capture "walletId" (ApiT WalletId) :> "addresses" :> QueryParam "state" (ApiT AddressState) :> Get '[JSON] [ApiAddress]
 type Wallets = DeleteWallet :<|> GetWallet :<|> ListWallets :<|> PostWallet :<|> PutWallet :<|> PutWalletPassphrase
 
 -- | 
