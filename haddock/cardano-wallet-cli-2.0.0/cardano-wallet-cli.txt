@@ -16,20 +16,25 @@ module Cardano.CLI
 newtype Port (tag :: Symbol)
 Port :: Int -> Port
 
--- | Like <a>hPutErrLn</a> but with provided default _stdout_ <a>Handle</a>
+-- | Like <a>hPutErrLn</a> but with provided default <a>Handle</a>
 putErrLn :: Text -> IO ()
 
 -- | Print an error message in red
 hPutErrLn :: Handle -> Text -> IO ()
 parseArgWith :: FromText a => Docopt -> Arguments -> Option -> IO a
 
--- | Like <a>hGetSensitiveLine</a> but with default stdin and stdout
---   handles
-getSensitiveLine :: Buildable e => Text -> Maybe Char -> (Text -> Either e a) -> IO (a, Text)
+-- | Like <a>hGetLine</a> but with default handles
+getLine :: Buildable e => Text -> (Text -> Either e a) -> IO (a, Text)
+
+-- | Prompt user and parse the input. Re-prompt on invalid inputs.
+hGetLine :: Buildable e => (Handle, Handle) -> Text -> (Text -> Either e a) -> IO (a, Text)
+
+-- | Like <a>hGetSensitiveLine</a> but with default handles
+getSensitiveLine :: Buildable e => Text -> (Text -> Either e a) -> IO (a, Text)
 
 -- | Gather user inputs until a newline is met, hiding what's typed with a
 --   placeholder character.
-hGetSensitiveLine :: Buildable e => (Handle, Handle) -> Text -> Maybe Char -> (Text -> Either e a) -> IO (a, Text)
+hGetSensitiveLine :: Buildable e => (Handle, Handle) -> Text -> (Text -> Either e a) -> IO (a, Text)
 instance GHC.Generics.Generic (Cardano.CLI.Port tag)
 instance GHC.Show.Show (Cardano.CLI.Port tag)
 instance GHC.Classes.Eq (Cardano.CLI.Port tag)
