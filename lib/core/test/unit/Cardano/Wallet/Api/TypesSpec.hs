@@ -56,6 +56,7 @@ import Cardano.Wallet.Primitive.Mnemonic
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
+    , Coin (..)
     , Direction (..)
     , Hash (..)
     , PoolId (..)
@@ -261,8 +262,38 @@ spec = do
         it "ApiT (Hash \"Tx\")" $ do
             let msg = "Error in $: Unable to decode (Hash \"Tx\"): \
                     \expected Base16 encoding"
-            Aeson.parseEither parseJSON [aesonQQ|"-----"|]
-                `shouldBe` (Left @String @(ApiT (Hash "Tx")) msg)
+            Aeson.parseEither parseJSON [aesonQQ|
+                "-----"
+            |] `shouldBe` (Left @String @(ApiT (Hash "Tx")) msg)
+
+        it "ApiT WalletId" $ do
+            let msg = "Error in $: wallet id should be an hex-encoded \
+                    \string of 40 characters"
+            Aeson.parseEither parseJSON [aesonQQ|
+                "invalid-id"
+            |] `shouldBe` (Left @String @(ApiT WalletId) msg)
+
+        it "AddressAmount (too small)" $ do
+            let msg = "Error in $.amount.quantity: expected Natural, \
+                    \encountered negative number -14"
+            Aeson.parseEither parseJSON [aesonQQ|
+                { "address": "Ae2tdPwUPEZLSqQN7XNJ"
+                , "amount": {"unit":"lovelace","quantity":-14}
+                }
+            |] `shouldBe` (Left @String @AddressAmount msg)
+
+        it "AddressAmount (too big)" $ do
+            let msg = "Error in $: invalid coin value: value has to be lower \
+                    \than or equal to " <> show (getCoin maxBound)
+                    <> " lovelace."
+            Aeson.parseEither parseJSON [aesonQQ|
+                { "address": "Ae2tdPwUPEZLSqQN7XNJ"
+                , "amount":
+                    { "unit":"lovelace"
+                    ,"quantity":#{getCoin maxBound + 1}
+                    }
+                }
+            |] `shouldBe` (Left @String @AddressAmount msg)
 
 -- Golden tests files are generated automatically on first run. On later runs
 -- we check that the format stays the same. The golden files should be tracked
