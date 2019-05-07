@@ -35,9 +35,12 @@ import Cardano.Wallet.Primitive.Types
     , isValidCoin
     , restrictedBy
     , restrictedTo
+    , slotRatio
     , walletNameMaxLength
     , walletNameMinLength
     )
+import Control.DeepSeq
+    ( deepseq )
 import Control.Monad
     ( replicateM )
 import Crypto.Hash
@@ -138,6 +141,9 @@ spec = do
             \      <~ 19999800000 @ DdzFFzCq...UfLEFu1q\n"
                 === pretty @_ @Text block
 
+    describe "slotRatio" $ do
+        it "works for any two slots" $ property $ \sl0 sl1 ->
+            slotRatio sl0 sl1 `deepseq` ()
 
     describe "Negative cases for types decoding" $ do
         it "fail fromText @Address \"0000\"" $ do

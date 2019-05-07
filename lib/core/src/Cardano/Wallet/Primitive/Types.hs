@@ -593,7 +593,7 @@ slotRatio (SlotId ep0 sl0) (SlotId ep1 sl1) =
         n0 = flat ep0 sl0
         n1 = flat ep1 sl1
         tolerance = 5
-    in if distance n0 n1 < tolerance then
+    in if distance n0 n1 < tolerance || n0 >= n1 then
         maxBound
     else
         Quantity $ toEnum $ fromIntegral $ (100 * n0) `div` n1
