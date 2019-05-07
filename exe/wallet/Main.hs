@@ -21,10 +21,11 @@
 
 module Main where
 
-import Prelude
+import Prelude hiding
+    ( getLine )
 
 import Cardano.CLI
-    ( Port (..), getSensitiveLine, parseArgWith, putErrLn )
+    ( Port (..), getLine, getSensitiveLine, parseArgWith, putErrLn )
 import Cardano.Environment
     ( network )
 import Cardano.Wallet
@@ -168,23 +169,23 @@ exec manager args
         wSeed <- do
             let prompt = "Please enter a 15–24 word mnemonic sentence: "
             let parser = fromMnemonic @'[15,18,21,24] @"seed" . T.words
-            getSensitiveLine prompt (Just ' ') parser
+            getLine prompt parser
         wSndFactor <- do
             let prompt =
                     "(Enter a blank line if you do not wish to use a second \
                     \factor.)\nPlease enter a 9–12 word mnemonic second factor: "
             let parser = optional (fromMnemonic @'[9,12] @"generation") . T.words
-            getSensitiveLine prompt (Just ' ') parser <&> \case
+            getLine prompt parser <&> \case
                 (Nothing, _) -> Nothing
                 (Just a, t) -> Just (a, t)
         (wPwd, _) <- do
             let prompt = "Please enter a passphrase: "
             let parser = fromText @(Passphrase "encryption")
-            getSensitiveLine prompt Nothing parser
+            getSensitiveLine prompt parser
         (wPwd', _) <- do
             let prompt = "Enter the passphrase a second time: "
             let parser = fromText @(Passphrase "encryption")
-            getSensitiveLine prompt Nothing parser
+            getSensitiveLine prompt parser
         when (wPwd /= wPwd') $ do
             putErrLn "Passphrases don't match."
             exitFailure

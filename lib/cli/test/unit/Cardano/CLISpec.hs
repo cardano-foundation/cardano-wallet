@@ -11,7 +11,7 @@ module Cardano.CLISpec
 import Prelude
 
 import Cardano.CLI
-    ( Port, hGetSensitiveLine )
+    ( Port, hGetLine, hGetSensitiveLine )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.MVar
@@ -21,9 +21,9 @@ import Data.Proxy
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( FromText (..) )
+    ( FromText (..), TextDecodingError )
 import System.IO
-    ( IOMode (..), hClose, openFile )
+    ( Handle, IOMode (..), hClose, openFile )
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
@@ -41,26 +41,33 @@ spec = do
     describe "Can perform roundtrip textual encoding & decoding" $ do
         textRoundtrip $ Proxy @(Port "test")
 
-    describe "getSensitiveLine" $ do
-        it "No special separator" $ getSensitiveLineTest $ GetSensitiveLineTest
+    describe "getLine" $ do
+        it "Normal usage" $ test hGetLine $ GetLineTest
             { prompt = "Prompt: "
-            , separator = Nothing
+            , input = "warrior toilet word\n"
+            , expectedStdout = "Prompt: "
+            , expectedResult = "warrior toilet word" :: Text
+            }
+
+        it "Parser with failure" $ test hGetLine $ GetLineTest
+            { prompt = "Prompt: "
+            , input = "patate\n14\n"
+            , expectedStdout =
+                "Prompt: \ESC[91minput does not start with a digit\n\ESC[m\
+                \Prompt: "
+            , expectedResult = 14 :: Int
+            }
+
+    describe "getSensitiveLine" $ do
+        it "Normal usage" $ test hGetSensitiveLine $ GetLineTest
+            { prompt = "Prompt: "
             , input = "password\n"
             , expectedStdout = "Prompt: ********\n"
             , expectedResult = "password" :: Text
             }
 
-        it "Space separated" $ getSensitiveLineTest $ GetSensitiveLineTest
+        it "Parser with failure" $ test hGetSensitiveLine $ GetLineTest
             { prompt = "Prompt: "
-            , separator = Just ' '
-            , input = "toilet soldier word\n"
-            , expectedStdout = "Prompt: ****** ******* ****\n"
-            , expectedResult = "toilet soldier word" :: Text
-            }
-
-        it "Parser with failure" $ getSensitiveLineTest $ GetSensitiveLineTest
-            { prompt = "Prompt: "
-            , separator = Nothing
             , input = "patate\n14\n"
             , expectedStdout =
                 "Prompt: ******\n\ESC[91minput does not \
@@ -68,9 +75,8 @@ spec = do
             , expectedResult = 14 :: Int
             }
 
-        it "With backspaces" $ getSensitiveLineTest $ GetSensitiveLineTest
+        it "With backspaces" $ test hGetSensitiveLine $ GetLineTest
             { prompt = "Prompt: "
-            , separator = Nothing
             , input = backspace <> "patate" <> backspace <> backspace <> "14\n"
             , expectedStdout = "Prompt: ******\ESC[1D \ESC[1D\ESC[1D \ESC[1D**\n"
             , expectedResult = "pata14" :: Text
@@ -83,19 +89,23 @@ spec = do
                                 hGetSensitiveLine
 -------------------------------------------------------------------------------}
 
-data GetSensitiveLineTest a = GetSensitiveLineTest
+data GetLineTest a = GetLineTest
     { prompt :: Text
-    , separator :: Maybe Char
     , input :: Text
     , expectedStdout :: Text
     , expectedResult :: a
     }
 
-getSensitiveLineTest
+test
     :: (FromText a, Show a, Eq a)
-    => GetSensitiveLineTest a
+    =>  (  (Handle, Handle)
+        -> Text
+        -> (Text -> Either TextDecodingError a)
+        -> IO (a, Text)
+        )
+    -> GetLineTest a
     -> IO ()
-getSensitiveLineTest (GetSensitiveLineTest prompt_ sep input_ output expected) = do
+test fn (GetLineTest prompt_ input_ output expected) = do
     -- Setup
     let fstdin = "/tmp/cardano-wallet-cli-stdin"
     let fstdout = "/tmp/cardano-wallet-cli-stdout"
@@ -105,7 +115,7 @@ getSensitiveLineTest (GetSensitiveLineTest prompt_ sep input_ output expected) =
 
     -- Action
     mvar <- newEmptyMVar
-    let action = hGetSensitiveLine (stdin, stdout) prompt_ sep fromText
+    let action = fn (stdin, stdout) prompt_ fromText
     _ <- forkFinally action (handler mvar)
     res <- takeMVar mvar
     hClose stdin *> hClose stdout

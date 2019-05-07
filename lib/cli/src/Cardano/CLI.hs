@@ -24,11 +24,14 @@ module Cardano.CLI
     , parseArgWith
 
     -- * Working with Sensitive Data
+    , getLine
+    , hGetLine
     , getSensitiveLine
     , hGetSensitiveLine
     ) where
 
-import Prelude
+import Prelude hiding
+    ( getLine )
 
 import Control.Exception
     ( bracket )
@@ -119,30 +122,54 @@ putErrLn = hPutErrLn stdout
                          Processing of Sensitive Data
 -------------------------------------------------------------------------------}
 
+-- | Prompt user and parse the input. Re-prompt on invalid inputs.
+hGetLine
+    :: Buildable e
+    => (Handle, Handle)
+    -> Text
+    -> (Text -> Either e a)
+    -> IO (a, Text)
+hGetLine (hstdin, hstdout) prompt fromT = do
+    TIO.hPutStr hstdout prompt
+    txt <- TIO.hGetLine hstdin
+    case fromT txt of
+        Right a ->
+            return (a, txt)
+        Left e -> do
+            hPutErrLn hstdout (pretty e)
+            hGetLine (hstdin, hstdout) prompt fromT
+
+-- | Like 'hGetLine' but with default handles
+getLine
+    :: Buildable e
+    => Text
+    -> (Text -> Either e a)
+    -> IO (a, Text)
+getLine = hGetLine (stdin, stdout)
+
 -- | Gather user inputs until a newline is met, hiding what's typed with a
 -- placeholder character.
 hGetSensitiveLine
     :: Buildable e
     => (Handle, Handle)
     -> Text
-    -> Maybe Char
     -> (Text -> Either e a)
     -> IO (a, Text)
-hGetSensitiveLine (hstdin, hstdout) prompt separator fromT =
+hGetSensitiveLine (hstdin, hstdout) prompt fromT =
     withBuffering hstdout NoBuffering $
     withBuffering hstdin NoBuffering $
     withEcho hstdin False $ do
         TIO.hPutStr hstdout prompt
-        txt <- getLineProtected separator '*'
+        txt <- getLineProtected '*'
         case fromT txt of
             Right a ->
                 return (a, txt)
             Left e -> do
                 hPutErrLn hstdout (pretty e)
-                hGetSensitiveLine (hstdin, hstdout) prompt separator fromT
+                hGetSensitiveLine (hstdin, hstdout) prompt fromT
   where
-    getLineProtected :: Maybe Char -> Char -> IO Text
-    getLineProtected sep placeholder =
+    getLineProtected :: Char -> IO Text
+    getLineProtected placeholder =
         getLineProtected' mempty
       where
         backspace = toEnum 127
@@ -159,9 +186,6 @@ hGetSensitiveLine (hstdin, hstdout) prompt separator fromT =
                             hPutChar hstdout ' '
                             hCursorBackward hstdout 1
                             getLineProtected' (T.init line)
-                c | Just c == sep -> do
-                    hPutChar hstdout ' '
-                    getLineProtected' (line <> T.singleton c)
                 c -> do
                     hPutChar hstdout placeholder
                     getLineProtected' (line <> T.singleton c)
@@ -171,8 +195,6 @@ getSensitiveLine
     :: Buildable e
     => Text
     -- ^ A message to prompt the user
-    -> Maybe Char
-    -- ^ Special separator character that shouldn't be hidden, e.g. @Just ' '@
     -> (Text -> Either e a)
     -- ^ An explicit parser from 'Text'
     -> IO (a, Text)
