@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
@@ -140,6 +141,8 @@ import Test.QuickCheck
     , frequency
     , property
     , vectorOf
+    , (.&&.)
+    , (===)
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
@@ -316,6 +319,94 @@ spec = do
                     \nor \"unused\""
             parseUrlPiece "patate"
                 `shouldBe` (Left @Text @(ApiT AddressState) msg)
+
+    describe "pointless tests to trigger coverage for record accessors" $ do
+        it "ApiAddress" $ property $ \x ->
+            let
+                x' = ApiAddress
+                    { id = id (x :: ApiAddress)
+                    , state = state (x :: ApiAddress)
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "ApiWallet" $ property $ \x ->
+            let
+                x' = ApiWallet
+                    { id = id (x :: ApiWallet)
+                    , addressPoolGap = addressPoolGap (x :: ApiWallet)
+                    , balance = balance (x :: ApiWallet)
+                    , delegation = delegation (x :: ApiWallet)
+                    , name = name (x :: ApiWallet)
+                    , passphrase = passphrase (x :: ApiWallet)
+                    , state = state (x :: ApiWallet)
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "WalletPostData" $ property $ \x ->
+            let
+                x' = WalletPostData
+                    { addressPoolGap = addressPoolGap (x :: WalletPostData)
+                    , mnemonicSentence = mnemonicSentence (x :: WalletPostData)
+                    , mnemonicSecondFactor = mnemonicSecondFactor (x :: WalletPostData)
+                    , name = name (x :: WalletPostData)
+                    , passphrase = passphrase (x :: WalletPostData)
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "WalletPutData" $ property $ \x ->
+            let
+                x' = WalletPutData
+                    { name = name (x :: WalletPutData)
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "WalletPutPassphraseData" $ property $ \x ->
+            let
+                x' = WalletPutPassphraseData
+                    { oldPassphrase = oldPassphrase (x :: WalletPutPassphraseData)
+                    , newPassphrase = newPassphrase (x :: WalletPutPassphraseData)
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "PostTransactionData" $ property $ \x ->
+            let
+                x' = PostTransactionData
+                    { targets = targets (x :: PostTransactionData)
+                    , passphrase = passphrase (x :: PostTransactionData)
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "ApiTransaction" $ property $ \x ->
+            let
+                x' = ApiTransaction
+                    { id = id (x :: ApiTransaction)
+                    , amount = amount (x :: ApiTransaction)
+                    , insertedAt = insertedAt (x :: ApiTransaction)
+                    , depth = depth (x :: ApiTransaction)
+                    , direction = direction (x :: ApiTransaction)
+                    , inputs = inputs (x :: ApiTransaction)
+                    , outputs = outputs (x :: ApiTransaction)
+                    , status = status (x :: ApiTransaction)
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "AddressAmount" $ property $ \x ->
+            let
+                x' = AddressAmount
+                    { address = address (x :: AddressAmount)
+                    , amount = amount (x :: AddressAmount)
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "ApiBlockData" $ property $ \x ->
+            let
+                x' = ApiBlockData
+                    { time = time (x :: ApiBlockData)
+                    , block = block (x :: ApiBlockData)
+                    }
+            in
+                x' === x .&&. show x' === show x
+
 -- Golden tests files are generated automatically on first run. On later runs
 -- we check that the format stays the same. The golden files should be tracked
 -- in git.
