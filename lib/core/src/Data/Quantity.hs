@@ -52,7 +52,7 @@ import GHC.TypeLits
 import qualified Data.Text as T
 
 
--- | @Quantity (u :: Symbol) a@ is a primitive @a@  multiplied by an unit @u@.
+-- | @Quantity (unit :: Symbol) a@ is a primitive @a@  multiplied by an @unit@.
 --
 -- Example:
 --
@@ -72,26 +72,26 @@ import qualified Data.Text as T
 --
 -- The unit is mostly a phantom type, but it is also included in the
 -- @ToJSON@/@FromJSON@ instances.
-newtype Quantity (u :: Symbol) a = Quantity a
+newtype Quantity (unit :: Symbol) a = Quantity a
     deriving stock (Generic, Show, Eq, Ord)
     deriving newtype (Bounded, Enum)
 
-instance NFData a => NFData (Quantity u a)
+instance NFData a => NFData (Quantity unit a)
 
 -- >>> Aeson.encode $ Quantity @"lovelace" 14
 -- {"unit":"lovelace","quantity":14}
-instance (KnownSymbol u, ToJSON a) => ToJSON (Quantity u a) where
+instance (KnownSymbol unit, ToJSON a) => ToJSON (Quantity unit a) where
     toJSON (Quantity a) = object
-        [ "unit"     .= symbolVal (Proxy :: Proxy u)
+        [ "unit"     .= symbolVal (Proxy :: Proxy unit)
         , "quantity" .= toJSON a
         ]
 
-instance (KnownSymbol u, FromJSON a) => FromJSON (Quantity u a) where
+instance (KnownSymbol unit, FromJSON a) => FromJSON (Quantity unit a) where
     parseJSON = withObject "Quantity" $ \o -> do
-        verifyUnit (Proxy :: Proxy u) =<< o .: "unit"
+        verifyUnit (Proxy :: Proxy unit) =<< o .: "unit"
         Quantity <$> o .: "quantity"
       where
-        verifyUnit :: Proxy (u :: Symbol) -> Value -> Parser ()
+        verifyUnit :: Proxy (unit :: Symbol) -> Value -> Parser ()
         verifyUnit proxy = \case
             String u' | u' == T.pack u -> pure ()
             _ -> fail $
