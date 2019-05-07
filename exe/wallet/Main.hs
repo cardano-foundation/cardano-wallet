@@ -1,7 +1,10 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 -- |
@@ -18,10 +21,11 @@
 
 module Main where
 
-import Prelude
+import Prelude hiding
+    ( getLine )
 
 import Cardano.CLI
-    ( Port (..), getSensitiveLine, parseArgWith, putErrLn )
+    ( Port (..), getLine, getSensitiveLine, parseArgWith, putErrLn )
 import Cardano.Environment
     ( network )
 import Cardano.Wallet
@@ -38,12 +42,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
+import Control.Applicative
+    ( many )
 import Control.Arrow
     ( second )
 import Control.Monad
-    ( void )
-import Data.Aeson
-    ( ToJSON )
+    ( when )
+import Data.FileEmbed
+    ( embedFile )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -52,18 +58,23 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
     ( FromText (..), ToText (..) )
+import Data.Typeable
+    ( Typeable, tyConName, typeRep, typeRepTyCon )
 import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
+import Network.HTTP.Types.Status
+    ( status404, status409 )
 import Servant
     ( (:<|>) (..), (:>), serve )
 import Servant.Client
     ( BaseUrl (..), ClientM, Scheme (..), client, mkClientEnv, runClientM )
 import Servant.Client.Core
-    ( ServantError (..), responseBody )
+    ( ServantError (..), responseBody, responseStatusCode )
 import System.Console.Docopt
     ( Arguments
     , Docopt
     , Option
+    , argument
     , command
     , docopt
     , exitWithUsage
@@ -73,13 +84,18 @@ import System.Console.Docopt
     )
 import System.Environment
     ( getArgs )
+import System.Exit
+    ( exitFailure )
 import System.IO
-    ( BufferMode (NoBuffering), hSetBuffering, stdout )
+    ( BufferMode (NoBuffering), hSetBuffering, stderr, stdout )
+import Text.Regex.Applicative
+    ( anySym, few, match, string, sym )
 
 import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
 import qualified Cardano.Wallet.Transaction.HttpBridge as HttpBridge
 import qualified Data.Aeson.Encode.Pretty as Aeson
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text as T
@@ -100,11 +116,12 @@ active server and can be ran "offline" (e.g. 'generate mnemonic')
 
 Usage:
   cardano-wallet server [--port=INT] [--bridge-port=INT]
-  cardano-wallet generate mnemonic [--size=INT]
-  cardano-wallet list wallets [--port=INT]
-  cardano-wallet get wallet --wallet-id=STRING [--port=INT]
-  cardano-wallet create wallet --name=STRING [--address-pool-gap=INT] [--port=INT]
-  cardano-wallet delete wallet --id=STRING
+  cardano-wallet mnemonic generate [--size=INT]
+  cardano-wallet wallet list [--port=INT]
+  cardano-wallet wallet create [--port=INT] --name=STRING [--address-pool-gap=INT]
+  cardano-wallet wallet get [--port=INT] <wallet-id>
+  cardano-wallet wallet update [--port=INT] <wallet-id> --name=STRING
+  cardano-wallet wallet delete [--port=INT] <wallet-id>
   cardano-wallet -h | --help
   cardano-wallet --version
 
@@ -118,6 +135,7 @@ Options:
 main :: IO ()
 main = do
     hSetBuffering stdout NoBuffering
+    hSetBuffering stderr NoBuffering
     manager <- newManager defaultManagerSettings
     getArgs >>= parseArgsOrExit cli >>= exec manager
 
@@ -139,12 +157,12 @@ exec manager args
         n <- args `parseArg` longOption "size"
         execGenerateMnemonic n
 
-    | args `isPresent` command "wallets" && args `isPresent` command "list" = do
-        runClient listWallets
+    | args `isPresent` command "wallet" && args `isPresent` command "list" = do
+        runClient @Wallet Aeson.encodePretty listWallets
 
     | args `isPresent` command "wallet" && args `isPresent` command "get" = do
-        wId <- args `parseArg` longOption "wallet-id"
-        runClient $ getWallet $ ApiT wId
+        wId <- args `parseArg` argument "wallet-id"
+        runClient @Wallet Aeson.encodePretty $ getWallet $ ApiT wId
 
     | args `isPresent` command "wallet" && args `isPresent` command "create" = do
         wName <- args `parseArg` longOption "name"
@@ -152,20 +170,27 @@ exec manager args
         wSeed <- do
             let prompt = "Please enter a 15–24 word mnemonic sentence: "
             let parser = fromMnemonic @'[15,18,21,24] @"seed" . T.words
-            getSensitiveLine prompt (Just ' ') parser
+            getLine prompt parser
         wSndFactor <- do
             let prompt =
                     "(Enter a blank line if you do not wish to use a second \
                     \factor.)\nPlease enter a 9–12 word mnemonic second factor: "
             let parser = optional (fromMnemonic @'[9,12] @"generation") . T.words
-            getSensitiveLine prompt (Just ' ') parser <&> \case
+            getLine prompt parser <&> \case
                 (Nothing, _) -> Nothing
                 (Just a, t) -> Just (a, t)
         (wPwd, _) <- do
             let prompt = "Please enter a passphrase: "
             let parser = fromText @(Passphrase "encryption")
-            getSensitiveLine prompt Nothing parser
-        runClient $ postWallet $ WalletPostData
+            getSensitiveLine prompt parser
+        (wPwd', _) <- do
+            let prompt = "Enter the passphrase a second time: "
+            let parser = fromText @(Passphrase "encryption")
+            getSensitiveLine prompt parser
+        when (wPwd /= wPwd') $ do
+            putErrLn "Passphrases don't match."
+            exitFailure
+        runClient @Wallet Aeson.encodePretty $ postWallet $ WalletPostData
             (Just $ ApiT wGap)
             (ApiMnemonicT . second T.words $ wSeed)
             (ApiMnemonicT . second T.words <$> wSndFactor)
@@ -173,14 +198,26 @@ exec manager args
             (ApiT wPwd)
 
     | args `isPresent` command "wallet" && args `isPresent` command "update" = do
-        wId <- args `parseArg` longOption "id"
+        wId <- args `parseArg` argument "wallet-id"
         wName <- args `parseArg` longOption "name"
-        runClient $ putWallet (ApiT wId) $ WalletPutData
+        runClient @Wallet Aeson.encodePretty $ putWallet (ApiT wId) $ WalletPutData
             (Just $ ApiT wName)
 
     | args `isPresent` command "wallet" && args `isPresent` command "delete" = do
-        wId <- args `parseArg` longOption "id"
-        runClient $ void $ deleteWallet (ApiT wId)
+        wId <- args `parseArg` argument "wallet-id"
+        runClient @Wallet (const "") $ deleteWallet (ApiT wId)
+
+    | args `isPresent` longOption "version" = do
+        let cabal = B8.unpack $(embedFile "cardano-wallet.cabal")
+        let re = few anySym
+                *> string "version:" *> many (sym ' ') *> few anySym
+                <* sym '\n' <* many anySym
+        case match re cabal of
+            Nothing -> do
+                putErrLn "Couldn't find program version!"
+                exitFailure
+            Just version -> do
+                TIO.putStrLn $ T.pack version
 
     | otherwise =
         exitWithUsage cli
@@ -201,20 +238,43 @@ exec manager args
         )
         = client (Proxy @("v2" :> Api))
 
-    runClient :: ToJSON a => ClientM a -> IO ()
-    runClient cmd = do
+    -- | 'runClient' requires a type-application to carry a particular
+    -- namespace and adjust error messages accordingly. For instances, when
+    -- running commands from the 'cardano-wallet wallet' namespace, one should
+    -- do:
+    --
+    -- @
+    -- runClient @Wallet ...
+    -- @
+    runClient
+        :: forall b a. Typeable b
+        => (a -> BL.ByteString)
+        -> ClientM a
+        -> IO ()
+    runClient encode cmd = do
         port <- args `parseArg` longOption "port"
         let env = mkClientEnv manager (BaseUrl Http "localhost" port "")
         res <- runClientM cmd env
         case res of
+            Left (FailureResponse r) | responseStatusCode r == status404 -> do
+                let typ = T.pack $ tyConName $ typeRepTyCon $ typeRep $ Proxy @b
+                putErrLn $ typ <> " not found."
+            Left (FailureResponse r) | responseStatusCode r == status409 -> do
+                let typ = T.pack $ tyConName $ typeRepTyCon $ typeRep $ Proxy @b
+                putErrLn $ typ <> " already exists."
             Left (FailureResponse r) ->
                 putErrLn $ T.decodeUtf8 $ BL.toStrict $ responseBody r
             Left (ConnectionError t) ->
                 putErrLn t
             Left e ->
                 putErrLn $ T.pack $ show e
-            Right a ->
-                BL8.putStrLn $ Aeson.encodePretty a
+            Right a -> do
+                TIO.hPutStrLn stderr "Ok."
+                BL8.putStrLn (encode a)
+
+-- | Namespaces for commands. Only 'Wallet' for now, 'Address' & 'Transaction'
+-- later.
+data Wallet deriving (Typeable)
 
 -- | Start a web-server to serve the wallet backend API on the given port.
 execServer :: Port "wallet" -> Port "bridge" -> IO ()
@@ -228,8 +288,8 @@ execServer (Port port) (Port bridgePort) = do
   where
     settings = Warp.defaultSettings
         & Warp.setPort port
-        & Warp.setBeforeMainLoop (do
-            TIO.putStrLn $ "Wallet backend server listening on: " <> toText port
+        & Warp.setBeforeMainLoop (TIO.hPutStrLn stderr $
+            "Wallet backend server listening on: " <> toText port
         )
 
 -- | Generate a random mnemonic of the given size 'n' (n = number of words),
@@ -243,7 +303,9 @@ execGenerateMnemonic n = do
         18 -> mnemonicToText @18 . entropyToMnemonic <$> genEntropy
         21 -> mnemonicToText @21 . entropyToMnemonic <$> genEntropy
         24 -> mnemonicToText @24 . entropyToMnemonic <$> genEntropy
-        _  -> fail "Invalid mnemonic size. Expected one of: 9,12,15,18,21,24"
+        _  -> do
+            putErrLn "Invalid mnemonic size. Expected one of: 9,12,15,18,21,24"
+            exitFailure
     TIO.putStrLn $ T.unwords m
 
 {-------------------------------------------------------------------------------
