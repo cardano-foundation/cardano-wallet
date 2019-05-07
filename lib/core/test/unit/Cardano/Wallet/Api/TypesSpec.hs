@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
@@ -56,6 +57,7 @@ import Cardano.Wallet.Primitive.Mnemonic
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
+    , Coin (..)
     , Direction (..)
     , Hash (..)
     , PoolId (..)
@@ -105,8 +107,10 @@ import Data.Swagger
     )
 import Data.Swagger.Declare
     ( Declare )
+import Data.Text
+    ( Text )
 import Data.Typeable
-    ( Typeable )
+    ( Typeable, splitTyConApp, tyConName, typeRep )
 import Data.Word
     ( Word8 )
 import GHC.TypeLits
@@ -135,12 +139,17 @@ import Test.QuickCheck
     , arbitraryPrintableChar
     , choose
     , frequency
+    , property
     , vectorOf
+    , (.&&.)
+    , (===)
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Instances.Time
     ()
+import Web.HttpApiData
+    ( FromHttpApiData (..), ToHttpApiData (..) )
 
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteArray as BA
@@ -180,6 +189,11 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletState)
 
     describe
+        "can perform roundtrip HttpApiData serialization & deserialization" $ do
+            httpApiDataRountrip $ Proxy @(ApiT WalletId)
+            httpApiDataRountrip $ Proxy @(ApiT AddressState)
+
+    describe
         "verify that every type used with JSON content type in a servant API \
         \has compatible ToJSON and ToSchema instances using validateToJSON." $
         validateEveryToJSON (Proxy :: Proxy Api)
@@ -189,7 +203,7 @@ spec = do
         \existing path in the specification" $
         validateEveryPath (Proxy :: Proxy Api)
 
-    describe "verify parsing failures too" $ do
+    describe "verify JSON parsing failures too" $ do
         it "ApiT Address" $ do
             let msg = "Error in $: Unable to decode Address: \
                     \expected Base58 encoding"
@@ -261,8 +275,137 @@ spec = do
         it "ApiT (Hash \"Tx\")" $ do
             let msg = "Error in $: Unable to decode (Hash \"Tx\"): \
                     \expected Base16 encoding"
-            Aeson.parseEither parseJSON [aesonQQ|"-----"|]
-                `shouldBe` (Left @String @(ApiT (Hash "Tx")) msg)
+            Aeson.parseEither parseJSON [aesonQQ|
+                "-----"
+            |] `shouldBe` (Left @String @(ApiT (Hash "Tx")) msg)
+
+        it "ApiT WalletId" $ do
+            let msg = "Error in $: wallet id should be an hex-encoded \
+                    \string of 40 characters"
+            Aeson.parseEither parseJSON [aesonQQ|
+                "invalid-id"
+            |] `shouldBe` (Left @String @(ApiT WalletId) msg)
+
+        it "AddressAmount (too small)" $ do
+            let msg = "Error in $.amount.quantity: expected Natural, \
+                    \encountered negative number -14"
+            Aeson.parseEither parseJSON [aesonQQ|
+                { "address": "Ae2tdPwUPEZLSqQN7XNJ"
+                , "amount": {"unit":"lovelace","quantity":-14}
+                }
+            |] `shouldBe` (Left @String @AddressAmount msg)
+
+        it "AddressAmount (too big)" $ do
+            let msg = "Error in $: invalid coin value: value has to be lower \
+                    \than or equal to " <> show (getCoin maxBound)
+                    <> " lovelace."
+            Aeson.parseEither parseJSON [aesonQQ|
+                { "address": "Ae2tdPwUPEZLSqQN7XNJ"
+                , "amount":
+                    { "unit":"lovelace"
+                    ,"quantity":#{getCoin maxBound + 1}
+                    }
+                }
+            |] `shouldBe` (Left @String @AddressAmount msg)
+
+    describe "verify HttpApiData parsing failures too" $ do
+        it "ApiT WalletId" $ do
+            let msg = "wallet id should be an hex-encoded string of 40 characters"
+            parseUrlPiece "invalid-id"
+                `shouldBe` (Left @Text @(ApiT WalletId) msg)
+
+        it "ApiT AddressState" $ do
+            let msg = "Unable to decode address state: it's neither \"used\" \
+                    \nor \"unused\""
+            parseUrlPiece "patate"
+                `shouldBe` (Left @Text @(ApiT AddressState) msg)
+
+    describe "pointless tests to trigger coverage for record accessors" $ do
+        it "ApiAddress" $ property $ \x ->
+            let
+                x' = ApiAddress
+                    { id = id (x :: ApiAddress)
+                    , state = state (x :: ApiAddress)
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "ApiWallet" $ property $ \x ->
+            let
+                x' = ApiWallet
+                    { id = id (x :: ApiWallet)
+                    , addressPoolGap = addressPoolGap (x :: ApiWallet)
+                    , balance = balance (x :: ApiWallet)
+                    , delegation = delegation (x :: ApiWallet)
+                    , name = name (x :: ApiWallet)
+                    , passphrase = passphrase (x :: ApiWallet)
+                    , state = state (x :: ApiWallet)
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "WalletPostData" $ property $ \x ->
+            let
+                x' = WalletPostData
+                    { addressPoolGap = addressPoolGap (x :: WalletPostData)
+                    , mnemonicSentence = mnemonicSentence (x :: WalletPostData)
+                    , mnemonicSecondFactor = mnemonicSecondFactor (x :: WalletPostData)
+                    , name = name (x :: WalletPostData)
+                    , passphrase = passphrase (x :: WalletPostData)
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "WalletPutData" $ property $ \x ->
+            let
+                x' = WalletPutData
+                    { name = name (x :: WalletPutData)
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "WalletPutPassphraseData" $ property $ \x ->
+            let
+                x' = WalletPutPassphraseData
+                    { oldPassphrase = oldPassphrase (x :: WalletPutPassphraseData)
+                    , newPassphrase = newPassphrase (x :: WalletPutPassphraseData)
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "PostTransactionData" $ property $ \x ->
+            let
+                x' = PostTransactionData
+                    { targets = targets (x :: PostTransactionData)
+                    , passphrase = passphrase (x :: PostTransactionData)
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "ApiTransaction" $ property $ \x ->
+            let
+                x' = ApiTransaction
+                    { id = id (x :: ApiTransaction)
+                    , amount = amount (x :: ApiTransaction)
+                    , insertedAt = insertedAt (x :: ApiTransaction)
+                    , depth = depth (x :: ApiTransaction)
+                    , direction = direction (x :: ApiTransaction)
+                    , inputs = inputs (x :: ApiTransaction)
+                    , outputs = outputs (x :: ApiTransaction)
+                    , status = status (x :: ApiTransaction)
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "AddressAmount" $ property $ \x ->
+            let
+                x' = AddressAmount
+                    { address = address (x :: AddressAmount)
+                    , amount = amount (x :: AddressAmount)
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "ApiBlockData" $ property $ \x ->
+            let
+                x' = ApiBlockData
+                    { time = time (x :: ApiBlockData)
+                    , block = block (x :: ApiBlockData)
+                    }
+            in
+                x' === x .&&. show x' === show x
 
 -- Golden tests files are generated automatically on first run. On later runs
 -- we check that the format stays the same. The golden files should be tracked
@@ -290,6 +433,34 @@ jsonRoundtripAndGolden = roundtripAndGoldenSpecsWithSettings settings
             False
         , sampleSize = 10
         }
+
+-- Perform roundtrip tests for FromHttpApiData & ToHttpApiData instances
+httpApiDataRountrip
+    :: forall a.
+        ( Arbitrary a
+        , FromHttpApiData a
+        , ToHttpApiData a
+        , Typeable a
+        , Eq a
+        , Show a
+        )
+    => Proxy a
+    -> Spec
+httpApiDataRountrip proxy =
+    it ("URL encoding of " <> cons (typeRep proxy)) $ property $ \(x :: a) -> do
+        let bytes = toUrlPiece x
+        let x' = parseUrlPiece bytes
+        x' `shouldBe` Right x
+  where
+    cons rep =
+        let
+            (c, args) = splitTyConApp rep
+        in
+            case args of
+                [] ->
+                    tyConName c
+                xs ->
+                    "(" <> tyConName c <> " " <> unwords (cons <$> xs) <> ")"
 
 {-------------------------------------------------------------------------------
                               Arbitrary Instances
