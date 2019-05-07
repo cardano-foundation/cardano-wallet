@@ -37,7 +37,7 @@ module Cardano.Wallet.Api.Types
     , PostTransactionData (..)
     , ApiBlockData (..)
     , ApiTransaction (..)
-    , ApiCoins (..)
+    , AddressAmount (..)
 
     -- * Polymorphic Types
     , ApiT (..)
@@ -149,7 +149,7 @@ data WalletPutPassphraseData = WalletPutPassphraseData
     } deriving (Eq, Generic, Show)
 
 data PostTransactionData = PostTransactionData
-    { targets :: !(NonEmpty ApiCoins)
+    { targets :: !(NonEmpty AddressAmount)
     , passphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
 
@@ -159,12 +159,12 @@ data ApiTransaction = ApiTransaction
     , insertedAt :: !(Maybe ApiBlockData)
     , depth :: !(Quantity "block" Natural)
     , direction :: !(ApiT Direction)
-    , inputs :: !(NonEmpty ApiCoins)
-    , outputs :: !(NonEmpty ApiCoins)
+    , inputs :: !(NonEmpty AddressAmount)
+    , outputs :: !(NonEmpty AddressAmount)
     , status :: !(ApiT TxStatus)
     } deriving (Eq, Generic, Show)
 
-data ApiCoins = ApiCoins
+data AddressAmount = AddressAmount
     { address :: !(ApiT Address)
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
@@ -324,9 +324,9 @@ instance FromJSON ApiBlockData where
 instance ToJSON ApiBlockData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON ApiCoins where
+instance FromJSON AddressAmount where
     parseJSON bytes = do
-        v@(ApiCoins _ (Quantity c)) <-
+        v@(AddressAmount _ (Quantity c)) <-
             genericParseJSON defaultRecordTypeOptions bytes
         if isValidCoin (Coin $ fromIntegral c)
             then return v
@@ -334,7 +334,7 @@ instance FromJSON ApiCoins where
                 "invalid coin value: value has to be lower than or equal to "
                 <> show (getCoin maxBound) <> " lovelace."
 
-instance ToJSON ApiCoins where
+instance ToJSON AddressAmount where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiTransaction where
