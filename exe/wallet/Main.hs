@@ -1,7 +1,9 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
@@ -43,10 +45,6 @@ import Control.Applicative
     ( many )
 import Control.Arrow
     ( second )
-import Control.Monad
-    ( void )
-import Data.Aeson
-    ( ToJSON )
 import Data.FileEmbed
     ( embedFile )
 import Data.Function
@@ -57,14 +55,18 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
     ( FromText (..), ToText (..) )
+import Data.Typeable
+    ( Typeable, tyConName, typeRep, typeRepTyCon )
 import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
+import Network.HTTP.Types.Status
+    ( status404, status409 )
 import Servant
     ( (:<|>) (..), (:>), serve )
 import Servant.Client
     ( BaseUrl (..), ClientM, Scheme (..), client, mkClientEnv, runClientM )
 import Servant.Client.Core
-    ( ServantError (..), responseBody )
+    ( ServantError (..), responseBody, responseStatusCode )
 import System.Console.Docopt
     ( Arguments
     , Docopt
@@ -152,11 +154,11 @@ exec manager args
         execGenerateMnemonic n
 
     | args `isPresent` command "wallet" && args `isPresent` command "list" = do
-        runClient listWallets
+        runClient @Wallet Aeson.encodePretty listWallets
 
     | args `isPresent` command "wallet" && args `isPresent` command "get" = do
         wId <- args `parseArg` argument "wallet-id"
-        runClient $ getWallet $ ApiT wId
+        runClient @Wallet Aeson.encodePretty $ getWallet $ ApiT wId
 
     | args `isPresent` command "wallet" && args `isPresent` command "create" = do
         wName <- args `parseArg` longOption "name"
@@ -177,7 +179,7 @@ exec manager args
             let prompt = "Please enter a passphrase: "
             let parser = fromText @(Passphrase "encryption")
             getSensitiveLine prompt Nothing parser
-        runClient $ postWallet $ WalletPostData
+        runClient @Wallet Aeson.encodePretty $ postWallet $ WalletPostData
             (Just $ ApiT wGap)
             (ApiMnemonicT . second T.words $ wSeed)
             (ApiMnemonicT . second T.words <$> wSndFactor)
@@ -187,12 +189,12 @@ exec manager args
     | args `isPresent` command "wallet" && args `isPresent` command "update" = do
         wId <- args `parseArg` argument "wallet-id"
         wName <- args `parseArg` longOption "name"
-        runClient $ putWallet (ApiT wId) $ WalletPutData
+        runClient @Wallet Aeson.encodePretty $ putWallet (ApiT wId) $ WalletPutData
             (Just $ ApiT wName)
 
     | args `isPresent` command "wallet" && args `isPresent` command "delete" = do
         wId <- args `parseArg` argument "wallet-id"
-        runClient $ void $ deleteWallet (ApiT wId)
+        runClient @Wallet (const "") $ deleteWallet (ApiT wId)
 
     | args `isPresent` longOption "version" = do
         let cabal = B8.unpack $(embedFile "cardano-wallet.cabal")
@@ -225,20 +227,43 @@ exec manager args
         )
         = client (Proxy @("v2" :> Api))
 
-    runClient :: ToJSON a => ClientM a -> IO ()
-    runClient cmd = do
+    -- | 'runClient' requires a type-application to carry a particular
+    -- namespace and adjust error messages accordingly. For instances, when
+    -- running commands from the 'cardano-wallet wallet' namespace, one should
+    -- do:
+    --
+    -- @
+    -- runClient @Wallet ...
+    -- @
+    runClient
+        :: forall b a. Typeable b
+        => (a -> BL.ByteString)
+        -> ClientM a
+        -> IO ()
+    runClient encode cmd = do
         port <- args `parseArg` longOption "port"
         let env = mkClientEnv manager (BaseUrl Http "localhost" port "")
         res <- runClientM cmd env
         case res of
+            Left (FailureResponse r) | responseStatusCode r == status404 -> do
+                let typ = T.pack $ tyConName $ typeRepTyCon $ typeRep $ Proxy @b
+                putErrLn $ typ <> " not found."
+            Left (FailureResponse r) | responseStatusCode r == status409 -> do
+                let typ = T.pack $ tyConName $ typeRepTyCon $ typeRep $ Proxy @b
+                putErrLn $ typ <> " already exists."
             Left (FailureResponse r) ->
                 putErrLn $ T.decodeUtf8 $ BL.toStrict $ responseBody r
             Left (ConnectionError t) ->
                 putErrLn t
             Left e ->
                 putErrLn $ T.pack $ show e
-            Right a ->
-                BL8.putStrLn $ Aeson.encodePretty a
+            Right a -> do
+                TIO.putStrLn "Ok."
+                BL8.putStrLn (encode a)
+
+-- | Namespaces for commands. Only 'Wallet' for now, 'Address' & 'Transaction'
+-- later.
+data Wallet deriving (Typeable)
 
 -- | Start a web-server to serve the wallet backend API on the given port.
 execServer :: Port "wallet" -> Port "bridge" -> IO ()
