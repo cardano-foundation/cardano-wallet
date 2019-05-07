@@ -100,11 +100,11 @@ active server and can be ran "offline" (e.g. 'generate mnemonic')
 
 Usage:
   cardano-wallet server [--port=INT] [--bridge-port=INT]
-  cardano-wallet generate mnemonic [--size=INT]
-  cardano-wallet list wallets [--port=INT]
-  cardano-wallet get wallet --wallet-id=STRING [--port=INT]
-  cardano-wallet create wallet --name=STRING [--address-pool-gap=INT] [--port=INT]
-  cardano-wallet delete wallet --id=STRING
+  cardano-wallet mnemonic generate [--size=INT]
+  cardano-wallet wallet list [--port=INT]
+  cardano-wallet wallet get [--port=INT] --wallet-id=STRING
+  cardano-wallet wallet create [--port=INT] --name=STRING [--address-pool-gap=INT]
+  cardano-wallet wallet delete [--port=INT] --id=STRING
   cardano-wallet -h | --help
   cardano-wallet --version
 
@@ -139,7 +139,7 @@ exec manager args
         n <- args `parseArg` longOption "size"
         execGenerateMnemonic n
 
-    | args `isPresent` command "wallets" && args `isPresent` command "list" = do
+    | args `isPresent` command "wallet" && args `isPresent` command "list" = do
         runClient listWallets
 
     | args `isPresent` command "wallet" && args `isPresent` command "get" = do
