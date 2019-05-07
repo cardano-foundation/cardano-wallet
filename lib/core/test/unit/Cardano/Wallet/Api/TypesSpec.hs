@@ -107,7 +107,7 @@ import Data.Swagger
 import Data.Swagger.Declare
     ( Declare )
 import Data.Typeable
-    ( Typeable )
+    ( Typeable, splitTyConApp, tyConName, typeRep )
 import Data.Word
     ( Word8 )
 import GHC.TypeLits
@@ -136,12 +136,15 @@ import Test.QuickCheck
     , arbitraryPrintableChar
     , choose
     , frequency
+    , property
     , vectorOf
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Instances.Time
     ()
+import Web.HttpApiData
+    ( FromHttpApiData (..), ToHttpApiData (..) )
 
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteArray as BA
@@ -179,6 +182,11 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletName)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletPassphraseInfo)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletState)
+
+    describe
+        "can perform roundtrip HttpApiData serialization & deserialization" $ do
+            httpApiDataRountrip $ Proxy @(ApiT WalletId)
+            httpApiDataRountrip $ Proxy @(ApiT AddressState)
 
     describe
         "verify that every type used with JSON content type in a servant API \
@@ -321,6 +329,34 @@ jsonRoundtripAndGolden = roundtripAndGoldenSpecsWithSettings settings
             False
         , sampleSize = 10
         }
+
+-- Perform roundtrip tests for FromHttpApiData & ToHttpApiData instances
+httpApiDataRountrip
+    :: forall a.
+        ( Arbitrary a
+        , FromHttpApiData a
+        , ToHttpApiData a
+        , Typeable a
+        , Eq a
+        , Show a
+        )
+    => Proxy a
+    -> Spec
+httpApiDataRountrip proxy =
+    it ("URL encoding of " <> cons (typeRep proxy)) $ property $ \(x :: a) -> do
+        let bytes = toUrlPiece x
+        let x' = parseUrlPiece bytes
+        x' `shouldBe` Right x
+  where
+    cons rep =
+        let
+            (c, args) = splitTyConApp rep
+        in
+            case args of
+                [] ->
+                    tyConName c
+                xs ->
+                    "(" <> tyConName c <> " " <> unwords (cons <$> xs) <> ")"
 
 {-------------------------------------------------------------------------------
                               Arbitrary Instances
