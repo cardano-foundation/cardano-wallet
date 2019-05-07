@@ -68,8 +68,8 @@ import System.IO
     , hPutChar
     , hSetBuffering
     , hSetEcho
+    , stderr
     , stdin
-    , stdout
     )
 
 import qualified Data.Text as T
@@ -114,9 +114,9 @@ hPutErrLn :: Handle -> Text -> IO ()
 hPutErrLn h msg = withSGR h (SetColor Foreground Vivid Red) $ do
     TIO.hPutStrLn h msg
 
--- | Like 'hPutErrLn' but with provided default _stdout_ 'Handle'
+-- | Like 'hPutErrLn' but with provided default 'Handle'
 putErrLn :: Text -> IO ()
-putErrLn = hPutErrLn stdout
+putErrLn = hPutErrLn stderr
 
 {-------------------------------------------------------------------------------
                          Processing of Sensitive Data
@@ -129,15 +129,15 @@ hGetLine
     -> Text
     -> (Text -> Either e a)
     -> IO (a, Text)
-hGetLine (hstdin, hstdout) prompt fromT = do
-    TIO.hPutStr hstdout prompt
+hGetLine (hstdin, hstderr) prompt fromT = do
+    TIO.hPutStr hstderr prompt
     txt <- TIO.hGetLine hstdin
     case fromT txt of
         Right a ->
             return (a, txt)
         Left e -> do
-            hPutErrLn hstdout (pretty e)
-            hGetLine (hstdin, hstdout) prompt fromT
+            hPutErrLn hstderr (pretty e)
+            hGetLine (hstdin, hstderr) prompt fromT
 
 -- | Like 'hGetLine' but with default handles
 getLine
@@ -145,7 +145,7 @@ getLine
     => Text
     -> (Text -> Either e a)
     -> IO (a, Text)
-getLine = hGetLine (stdin, stdout)
+getLine = hGetLine (stdin, stderr)
 
 -- | Gather user inputs until a newline is met, hiding what's typed with a
 -- placeholder character.
@@ -155,18 +155,18 @@ hGetSensitiveLine
     -> Text
     -> (Text -> Either e a)
     -> IO (a, Text)
-hGetSensitiveLine (hstdin, hstdout) prompt fromT =
-    withBuffering hstdout NoBuffering $
+hGetSensitiveLine (hstdin, hstderr) prompt fromT =
+    withBuffering hstderr NoBuffering $
     withBuffering hstdin NoBuffering $
     withEcho hstdin False $ do
-        TIO.hPutStr hstdout prompt
+        TIO.hPutStr hstderr prompt
         txt <- getLineProtected '*'
         case fromT txt of
             Right a ->
                 return (a, txt)
             Left e -> do
-                hPutErrLn hstdout (pretty e)
-                hGetSensitiveLine (hstdin, hstdout) prompt fromT
+                hPutErrLn hstderr (pretty e)
+                hGetSensitiveLine (hstdin, hstderr) prompt fromT
   where
     getLineProtected :: Char -> IO Text
     getLineProtected placeholder =
@@ -176,21 +176,21 @@ hGetSensitiveLine (hstdin, hstdout) prompt fromT =
         getLineProtected' line = do
             hGetChar hstdin >>= \case
                 '\n' -> do
-                    hPutChar hstdout '\n'
+                    hPutChar hstderr '\n'
                     return line
                 c | c == backspace ->
                     if T.null line
                         then getLineProtected' line
                         else do
-                            hCursorBackward hstdout  1
-                            hPutChar hstdout ' '
-                            hCursorBackward hstdout 1
+                            hCursorBackward hstderr  1
+                            hPutChar hstderr ' '
+                            hCursorBackward hstderr 1
                             getLineProtected' (T.init line)
                 c -> do
-                    hPutChar hstdout placeholder
+                    hPutChar hstderr placeholder
                     getLineProtected' (line <> T.singleton c)
 
--- | Like 'hGetSensitiveLine' but with default stdin and stdout handles
+-- | Like 'hGetSensitiveLine' but with default handles
 getSensitiveLine
     :: Buildable e
     => Text
@@ -198,7 +198,7 @@ getSensitiveLine
     -> (Text -> Either e a)
     -- ^ An explicit parser from 'Text'
     -> IO (a, Text)
-getSensitiveLine = hGetSensitiveLine (stdin, stdout)
+getSensitiveLine = hGetSensitiveLine (stdin, stderr)
 
 {-------------------------------------------------------------------------------
                                 Internals

@@ -87,7 +87,7 @@ import System.Environment
 import System.Exit
     ( exitFailure )
 import System.IO
-    ( BufferMode (NoBuffering), hSetBuffering, stdout )
+    ( BufferMode (NoBuffering), hSetBuffering, stderr, stdout )
 import Text.Regex.Applicative
     ( anySym, few, match, string, sym )
 
@@ -135,6 +135,7 @@ Options:
 main :: IO ()
 main = do
     hSetBuffering stdout NoBuffering
+    hSetBuffering stderr NoBuffering
     manager <- newManager defaultManagerSettings
     getArgs >>= parseArgsOrExit cli >>= exec manager
 
@@ -268,7 +269,7 @@ exec manager args
             Left e ->
                 putErrLn $ T.pack $ show e
             Right a -> do
-                TIO.putStrLn "Ok."
+                TIO.hPutStrLn stderr "Ok."
                 BL8.putStrLn (encode a)
 
 -- | Namespaces for commands. Only 'Wallet' for now, 'Address' & 'Transaction'
@@ -287,8 +288,8 @@ execServer (Port port) (Port bridgePort) = do
   where
     settings = Warp.defaultSettings
         & Warp.setPort port
-        & Warp.setBeforeMainLoop (do
-            TIO.putStrLn $ "Wallet backend server listening on: " <> toText port
+        & Warp.setBeforeMainLoop (TIO.hPutStrLn stderr $
+            "Wallet backend server listening on: " <> toText port
         )
 
 -- | Generate a random mnemonic of the given size 'n' (n = number of words),
@@ -302,7 +303,9 @@ execGenerateMnemonic n = do
         18 -> mnemonicToText @18 . entropyToMnemonic <$> genEntropy
         21 -> mnemonicToText @21 . entropyToMnemonic <$> genEntropy
         24 -> mnemonicToText @24 . entropyToMnemonic <$> genEntropy
-        _  -> fail "Invalid mnemonic size. Expected one of: 9,12,15,18,21,24"
+        _  -> do
+            putErrLn "Invalid mnemonic size. Expected one of: 9,12,15,18,21,24"
+            exitFailure
     TIO.putStrLn $ T.unwords m
 
 {-------------------------------------------------------------------------------
