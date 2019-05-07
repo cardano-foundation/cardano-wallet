@@ -18,7 +18,7 @@ module Cardano.Wallet.Compatibility.HttpBridge
 import Prelude
 
 import Cardano.Environment
-    ( Network (Local, Mainnet, Staging, Testnet), network, protocolMagic )
+    ( Network (Mainnet, Staging, Testnet), network, protocolMagic )
 import Cardano.Wallet.Binary.HttpBridge
     ( encodeAddress, encodeProtocolMagic, encodeTx )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -66,7 +66,6 @@ instance KeyToAddress HttpBridge where
             Mainnet -> emptyAttributes
             Staging -> emptyAttributes
             Testnet -> attributesWithProtocolMagic (protocolMagic network)
-            Local -> attributesWithProtocolMagic (protocolMagic network)
 
         attributesWithProtocolMagic pm = mempty
             <> CBOR.encodeMapLen 1

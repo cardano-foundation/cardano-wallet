@@ -187,7 +187,6 @@ newTransactionLayer = TransactionLayer
         Mainnet -> 1 + 43 + sizeOfCoin c
         Staging -> 1 + 43 + sizeOfCoin c
         Testnet -> 1 + 50 + sizeOfCoin c
-        Local -> 1 + 50 + sizeOfCoin c
 
     -- tx ------------------------------------- 6 + Σs(i) + ls(o) + Σs(c)
     --  | list len 3                  -- 1

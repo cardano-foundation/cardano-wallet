@@ -196,15 +196,11 @@ spec = do
 
 requireTestnet :: Spec -> Spec
 requireTestnet prop = case network of
-        Testnet -> prop
-        Mainnet -> notDefinedFor network
-        Staging -> notDefinedFor network
-        Local -> notDefinedFor network
-
+    Testnet -> prop
+    Mainnet -> notDefinedFor network
+    Staging -> notDefinedFor network
   where
     notDefinedFor n =
         it ("defined for NETWORK=testnet, not NETWORK=" ++ toStr n) False
-
     toStr
         = T.unpack . toText
-

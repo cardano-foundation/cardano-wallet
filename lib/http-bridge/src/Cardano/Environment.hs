@@ -71,7 +71,7 @@ instance Show ErrMissingOrInvalidEnvVar where
 --     ENV[NETWORK] = patate
 --                     |
 --                     |
---                     *--> patate is neither "mainnet", "testnet", "staging" nor "local".
+--                     *--> patate is neither "mainnet", "testnet" nor "staging"
 --
 -- @
 --
@@ -129,9 +129,8 @@ unsafeLookupEnv k = unsafePerformIO $ do
                                  Environment
 -------------------------------------------------------------------------------}
 
--- | Available network options. 'Local' means a local cluster running on the
--- host machine.
-data Network = Mainnet | Testnet | Staging | Local
+-- | Available network options.
+data Network = Mainnet | Testnet | Staging
     deriving (Generic, Show, Eq, Enum)
 
 instance FromText Network where
@@ -139,16 +138,14 @@ instance FromText Network where
         "mainnet" -> Right Mainnet
         "testnet" -> Right Testnet
         "staging" -> Right Staging
-        "local" -> Right Local
         s -> Left $ TextDecodingError $ T.unpack s
-            <> " is neither \"mainnet\", \"testnet\", \"staging\" nor \"local\"."
+            <> " is neither \"mainnet\", \"testnet\" nor \"staging\"."
 
 instance ToText Network where
     toText = \case
         Mainnet -> "mainnet"
         Testnet -> "testnet"
         Staging -> "staging"
-        Local -> "local"
 
 -- | Get the current target 'Network' from the Environment.
 --
@@ -162,11 +159,8 @@ newtype ProtocolMagic = ProtocolMagic Int32
     deriving (Generic, Show)
 
 -- | Get the 'ProtocolMagic' corresponding to a given 'Network'.
---
--- Note that the 'ProtocolMagic' for 'Local' and 'Testnet' are the same.
 protocolMagic :: Network -> ProtocolMagic
 protocolMagic = \case
     Mainnet -> ProtocolMagic 764824073
     Staging -> ProtocolMagic 633343913
     Testnet -> ProtocolMagic 1097911063
-    Local   -> ProtocolMagic 1097911063

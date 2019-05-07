@@ -147,11 +147,13 @@ test-suite integration
     , http-api-data
     , http-types
     , process
+    , servant-server
     , template-haskell
     , text
     , text-class
     , time
     , transformers
+    , warp
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
@@ -159,6 +161,7 @@ test-suite integration
   main-is:
       Main.hs
   other-modules:
+      Cardano.LauncherSpec
       Cardano.WalletSpec
       Cardano.Wallet.Network.HttpBridgeSpec
       Test.Integration.Framework.DSL
