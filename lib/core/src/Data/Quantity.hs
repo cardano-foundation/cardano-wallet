@@ -52,18 +52,32 @@ import GHC.TypeLits
 import qualified Data.Text as T
 
 
--- | Represents a value that has an associated unit of measure, based on some
---   underlying type.
+-- | @Quantity (u :: Symbol) a@ is a primitive @a@  multiplied by an unit @u@.
 --
--- >>> newtype Amount = Amount (Quantity "lovelace" Word32)
+-- Example:
+--
+-- Instead of providing the unit implicitly as a comment, or a part of a name
+--
+-- >>> a :: Word32 -- in lovelace
+--
+-- we can write
+--
+-- >>> a :: Quantity "lovelace" Word32
+--
+-- which now has a different type from
+--
+-- >>> b :: Quantity "lovelace/byte" Word32
+--
+-- so mixing them up is more difficult.
+--
+-- The unit is mostly a phantom type, but it is also included in the
+-- @ToJSON@/@FromJSON@ instances.
 newtype Quantity (u :: Symbol) a = Quantity a
     deriving stock (Generic, Show, Eq, Ord)
     deriving newtype (Bounded, Enum)
 
 instance NFData a => NFData (Quantity u a)
 
--- | Encode to JSON delegating the
---
 -- >>> Aeson.encode $ Quantity @"lovelace" 14
 -- {"unit":"lovelace","quantity":14}
 instance (KnownSymbol u, ToJSON a) => ToJSON (Quantity u a) where
