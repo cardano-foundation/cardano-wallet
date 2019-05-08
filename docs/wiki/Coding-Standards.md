@@ -20,6 +20,11 @@ Each proposal should start with a section justifying the standard with rational 
     * [We use explicit imports by default, and favor qualified imports for ambiguous functions](#we-use-explicit-imports-by-default-and-favor-qualified-imports-for-ambiguous-functions)
     * [All modules begin with a helpful documentation comment](#all-modules-begin-with-a-helpful-documentation-comment)
     * [[PROPOSAL] Use `cardano-prelude` for all modules, enable `NoImplicitPrelude`](#proposal-use-cardano-prelude-for-all-modules-enable-noimplicitprelude)
+    * [[PROPOSAL] Avoid wildcard when pattern-matching on ADTs](#proposal-avoid-wildcard-when-pattern-matching-on-adts)
+
+* [Testing](#testing)
+    * [Test files are separated and self-contained](#test-files-are-separated-and-self-contained)
+    * [Unit test files names match their corresponding module](#unit-test-files-names-match-their-corresponding-module)
 
 # Code Formatting
 
@@ -664,3 +669,113 @@ It is based upon Stephen Diehl's
   import Universum
   ```
 </details>
+
+
+## [PROPOSAL] Avoid wildcard when pattern-matching on ADTs
+
+> **Why**
+>
+> When pattern-matching on ADTs it is tempting to handling a few similar cases
+> using a wildcard `_`. However, this often lead to undesirable behavior when 
+> adding new branches to an ADT. Compilers won't trigger any warnings and, as 
+> developers, we might miss some necessary logic updates in existing pattern
+> matches.
+
+When pattern-matching on ADTs or, finite structures, we avoid as much as possible
+the use of wildcard `_` and favor an explicit handling of all branches. This way,
+we get compiler errors when extending the underlying ADT's and avoid silently 
+handling (probably wrong) some of the new branches.
+
+<details>
+  <summary>See examples</summary>
+
+  ```hs
+  -- GOOD
+  isPositive = \case
+    InLedger -> True
+    Pending -> False
+    Invalidated -> False
+
+  -- BAD
+  isPositive = \case
+    InLedger -> True
+    _ -> False
+
+  -- BAD
+  handleErr = \case
+    ErrWalletNotFound -> {- ... -}
+    _ -> ErrUnknown
+  ```
+</details>
+
+# Testing
+
+## Test files are separated and self-contained
+
+> **Why**
+> 
+> It is really easy to make the testing code more complex than the actual code
+> it's initially testing. Limiting the interaction between test modules helps 
+> keeping a good maintainability and a rather low overhead when it comes to 
+> extend, modify, read or comprehend some tests. Also, in many cases, we do 
+> actually want to have different arbitrary generators for different test cases
+> so sharing instances is risky and cumbersome.
+
+Test files do not import other test files. Arbitrary instances are not shared
+across test files and are defined locally. If we do observe a recurring pattern
+in tests (like for instance, testing roundtrips), we may consider making this a
+library that test can import. 
+
+## Unit test files names match their corresponding module
+
+> **Why** 
+>
+> It is much easier to find the corresponding test to a module if they share 
+> a same name. Also, this gives consistency and a clear pattern for naming
+> tests in order to avoid chaos.
+
+Every module from a library has a corresponding test file, within the same
+folder architecture, and, sharing a same name prefix. Test files are postfixed
+with 'Spec' to distinguish them from their corresponding sources. 
+
+<details>
+  <summary>See examples</summary>
+
+  ```
+  src/
+  ├── Cardano
+  │   ├── Environment.hs
+  │   └── Wallet
+  │       ├── Binary
+  │       │   └── HttpBridge.hs
+  │       ├── Compatibility
+  │       │   └── HttpBridge.hs
+  │       ├── Network
+  │       │   ├── HttpBridge
+  │       │   │   └── Api.hs
+  │       │   └── HttpBridge.hs
+  │       └── Transaction
+  │           └── HttpBridge.hs
+  ├── Data
+  │   └── Packfile.hs
+  └── Servant
+      └── Extra
+          └── ContentTypes.hs
+  test/unit/
+  ├── Cardano
+  │   ├── EnvironmentSpec.hs
+  │   └── Wallet
+  │       ├── Binary
+  │       │   └── HttpBridgeSpec.hs
+  │       ├── Network
+  │       │   ├── HttpBridge
+  │       │   │   └── ApiSpec.hs
+  │       │   └── HttpBridgeSpec.hs
+  │       └── Transaction
+  │           └── HttpBridgeSpec.hs
+  ├── Data
+  │   └── PackfileSpec.hs
+  └── Servant
+      └── Extra
+          └── ContentTypesSpec.hs
+  ```
