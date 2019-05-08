@@ -31,7 +31,12 @@ spec = do
         it "toText -14" $
             toText @Int (-14) === "-14"
         it "fromText \"patate\"" $
-            let err = "input does not start with a digit"
+            let err =
+                    "Int is an integer number between "
+                    <> show (minBound @Int)
+                    <> " and "
+                    <> show (maxBound @Int)
+                    <> "."
             in fromText @Int "patate" === Left (TextDecodingError err)
         it "fromText . toText === pure"
             $ property $ \(i :: Int) -> (fromText . toText) i === pure i

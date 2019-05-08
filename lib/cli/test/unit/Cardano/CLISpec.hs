@@ -53,8 +53,12 @@ spec = do
             { prompt = "Prompt: "
             , input = "patate\n14\n"
             , expectedStdout =
-                "Prompt: input does not start with a digit\n\
-                \Prompt: "
+                "Prompt: Int is an \
+                \integer number between "
+                <> T.pack (show $ minBound @Int)
+                <> " and "
+                <> T.pack (show $ maxBound @Int)
+                <> ".\nPrompt: "
             , expectedResult = 14 :: Int
             }
 
@@ -70,8 +74,12 @@ spec = do
             { prompt = "Prompt: "
             , input = "patate\n14\n"
             , expectedStdout =
-                "Prompt: ******\ninput does not \
-                \start with a digit\nPrompt: **\n"
+                "Prompt: ******\nInt is an \
+                \integer number between "
+                <> T.pack (show $ minBound @Int)
+                <> " and "
+                <> T.pack (show $ maxBound @Int)
+                <> ".\nPrompt: **\n"
             , expectedResult = 14 :: Int
             }
 

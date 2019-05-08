@@ -1,5 +1,6 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -17,8 +18,10 @@ module Data.Text.Class
 
 import Prelude
 
+import Control.Monad
+    ( unless )
 import Data.Bifunctor
-    ( bimap )
+    ( first )
 import Data.Text
     ( Text )
 import Data.Text.Read
@@ -51,7 +54,17 @@ instance ToText Text where
     toText = id
 
 instance FromText Int where
-    fromText = bimap TextDecodingError fst . signed decimal
+    fromText t = do
+        (parsedValue, unconsumedInput) <- first (const err) $ signed decimal t
+        unless (T.null unconsumedInput) $ Left err
+        pure parsedValue
+      where
+        err = TextDecodingError $
+            "Int is an integer number between "
+                <> show (minBound @Int)
+                <> " and "
+                <> show (maxBound @Int)
+                <> "."
 
 instance ToText Int where
     toText = T.pack . show
