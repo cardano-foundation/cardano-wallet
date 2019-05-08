@@ -35,6 +35,9 @@ The good thing with the rust node is that, we don't need a full cluster anymore.
  - make wallet backend server introduce itself in the HTTP header server (and make CLI to check for that value and put some warning/error if it don't match)
  - `create wallet` wizard to be a whole responsive/prompt CLI
  - different levels of `--help`, e.g.:
->cardano-wallet --help
->cardano-wallet wallet --help
->cardano-wallet wallet list --help
+
+`cardano-wallet --help`
+
+`cardano-wallet wallet --help`
+
+`cardano-wallet wallet list --help`
