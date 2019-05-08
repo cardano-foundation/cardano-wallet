@@ -2,7 +2,7 @@ The team follows a methodology known as [extreme programming][xp] which can be s
 
 ## Planning
 
-- The project is divided into iterations of 1 week
+- The project is divided into iterations of 2 weeks
 - Releases are small and occur often (every 4 weeks at most)
 - User stories are specified, understood, estimated and agreed upon upfront during a release planning
 - An iteration planning starts each iteration:
@@ -34,16 +34,9 @@ The team follows a methodology known as [extreme programming][xp] which can be s
 - Code is following an agreed [standard and style][styleguide]
 - Code is integrated and tested daily to the main branch (`master`) through PR
 - The main branch should be _releasable_ at any time and not contain broken features
-- Any user-facing change (API change, Documentation, New Feature) should have be integrated with a corresponding entry in the CHANGELOG 
 - No unplanned optimizations, features or unneeded abstractions are implemented
 - We favor simple unbloated code and use refactoring techniques to add features 
-- We favor test-driven and type-driven development 
-    - High-level code API is written first with dummy or placeholder implementation
-    - Tests are written using the API, ajusting when necessary and iterating until satisfaction
-    - Tests fail (it's important to see test failing, to make sure they're actually testing something) 
-    - The source implementation is completed 
-    - Tests pass (giving confidence that we have useful tests with a correct implementation)
-
+- We test chunks of codes as we submit and integrate them, maintaining a high code coverage at all time
 
 ## QA 
 
@@ -57,19 +50,14 @@ The team follows a methodology known as [extreme programming][xp] which can be s
 
 - We have daily written, asynchronous, stand-up on Slack on a separate channel
 - A [blackboard page][blackboard] on our Wiki is dedicated to keep track of ideas and thoughts
-- We have a weekly meeting every Friday to plan the next iteration
-- We have release meetings between release to
-    - Plan the next release (i.e. create or refine User Stories)
-    - Retrospect on the previous release looking at past User Stories 
-    - Discuss idea an thoughts gathered on the blackboard 
+- We have a bi-monthly meeting every other Wednesday to plan the next iteration
 - Discussions happen on Slack, decisions are documented on GitHub as comments on issues
 - Our GitHub wiki can be extended at any time with insights and details about the software
 - Reports and metrics about the project are available to anyone
-- A report is produced as a result of each iteration which contains:
+- Every week, we produce a technical & non-technical report (see [weekly-reports](https://github.com/input-output-hk/cardano-wallet/tree/weekly-reports)) containing:
     - A brief non-technical summary of the week overview
     - A list of the completed user stories and their business value
     - A list of known issues or debt accumulated during the iteration
-
 
 ## Resources
 
