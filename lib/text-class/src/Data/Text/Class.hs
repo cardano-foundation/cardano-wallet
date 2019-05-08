@@ -61,9 +61,9 @@ instance FromText Int where
       where
         err = TextDecodingError $
             "Int is an integer number between "
-                <> show (fromEnum $ minBound @Int)
+                <> show (minBound @Int)
                 <> " and "
-                <> show (fromEnum $ maxBound @Int)
+                <> show (maxBound @Int)
                 <> "."
 
 instance ToText Int where
