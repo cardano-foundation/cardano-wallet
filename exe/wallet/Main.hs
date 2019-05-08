@@ -135,7 +135,7 @@ Usage:
   cardano-wallet wallet get [--port=INT] <wallet-id>
   cardano-wallet wallet update [--port=INT] <wallet-id> --name=STRING
   cardano-wallet wallet delete [--port=INT] <wallet-id>
-  cardano-wallet create transaction [--port=INT] --wallet-id=STRING --target=STRING...
+  cardano-wallet transaction create [--port=INT] --wallet-id=STRING --payment=STRING...
   cardano-wallet -h | --help
   cardano-wallet --version
 
@@ -144,7 +144,7 @@ Options:
   --bridge-port <INT>         port used for communicating with the http-bridge [default: 8080]
   --address-pool-gap <INT>    number of unused consecutive addresses to keep track of [default: 20]
   --size <INT>                number of mnemonic words to generate [default: 15]
-  --target <STRING>           address to send to and amount to send separated by @: '<amount>@<address>'
+  --payment <STRING>           address to send to and amount to send separated by @: '<amount>@<address>'
 |]
 
 main :: IO ()
@@ -226,7 +226,7 @@ exec manager args
 
     | args `isPresent` command "transaction" && args `isPresent` command "create" = do
         wId <- args `parseArg` longOption "wallet-id"
-        ts <- args `parseAllArgs` longOption "target"
+        ts <- args `parseAllArgs` longOption "payment"
         wPwd <- getPassphrase
         runClient @Transaction Aeson.encodePretty $ createTransaction (ApiT wId) $ PostTransactionData
             -- NOTE: we are sure this will be non-empty

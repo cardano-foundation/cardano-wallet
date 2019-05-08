@@ -205,7 +205,7 @@ createTransaction
 createTransaction w (ApiT wid) body = do
     -- FIXME Compute the options based on the transaction's size / inputs
     let opts = CoinSelectionOptions { maximumNumberOfInputs = 10 }
-    let outs = coerceCoin <$> (body ^. #targets)
+    let outs = coerceCoin <$> (body ^. #payments)
     let pwd = getApiT $ body ^. #passphrase
     selection <- liftHandler $ W.createUnsignedTx w wid opts outs
     (tx, meta, wit) <- liftHandler $ W.signTx w wid pwd selection

@@ -380,7 +380,7 @@ spec = do
         it "PostTransactionData" $ property $ \x ->
             let
                 x' = PostTransactionData
-                    { targets = targets (x :: PostTransactionData)
+                    { payments = payments (x :: PostTransactionData)
                     , passphrase = passphrase (x :: PostTransactionData)
                     }
             in

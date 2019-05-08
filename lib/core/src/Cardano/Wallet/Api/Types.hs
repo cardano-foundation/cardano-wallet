@@ -149,7 +149,7 @@ data WalletPutPassphraseData = WalletPutPassphraseData
     } deriving (Eq, Generic, Show)
 
 data PostTransactionData = PostTransactionData
-    { targets :: !(NonEmpty AddressAmount)
+    { payments :: !(NonEmpty AddressAmount)
     , passphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
 
