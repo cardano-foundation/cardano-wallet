@@ -396,9 +396,9 @@ instance FromText AddressAmount where
             \'<amount>@<address>' but got '" <> show text <> "'"
         case split (=='@') text of
             [] -> err
-            _:[] -> err
+            [_] -> err
             -- TODO: more user friendly message
-            l:r:[] -> AddressAmount . ApiT <$> fromText r <*> fromText l
+            [l, r] -> AddressAmount . ApiT <$> fromText r <*> fromText l
             _ -> err
 
 instance ToText AddressAmount where
