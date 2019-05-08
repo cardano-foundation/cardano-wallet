@@ -14,10 +14,10 @@
 -- This module parses command line arguments for the wallet and executes
 -- corresponding commands.
 --
--- In essence, it's a proxy to the wallet server which is required for most
--- commands. Those Commands are turned into corresponding API calls, and
--- submitted to an up-and-running server. Some other commands do not require an
--- active server and can be ran "offline"
+-- In essence, it's a proxy to the wallet server, which is required for most
+-- commands. Commands are turned into corresponding API calls, and submitted
+-- to an up-and-running server. Some commands do not require an active server
+-- and can be run "offline".
 
 module Main where
 
@@ -107,10 +107,10 @@ import qualified Network.Wai.Handler.Warp as Warp
 cli :: Docopt
 cli = [docopt|Cardano Wallet CLI.
 
-In essence, it's a proxy to the wallet server which is required for most
-commands. Those Commands are turned into corresponding API calls, and
-submitted to an up-and-running server. Some other commands do not require an
-active server and can be ran "offline" (e.g. 'generate mnemonic')
+The CLI is a proxy to the wallet server, which is required for most
+commands. Commands are turned into corresponding API calls, and submitted
+to an up-and-running server. Some commands do not require an active server
+and can be run "offline". (e.g. 'generate mnemonic')
 
     ⚠️  Options are positional (--a --b is not equivalent to --b --a) ! ⚠️
 
