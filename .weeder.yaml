@@ -34,3 +34,13 @@
       - name: Module not compiled
       - module: Cardano.Launcher.Windows
 
+- package:
+  - name: cardano-wallet-jormungandr
+  - section:
+    - name: test:unit
+    - message:
+      - name: Weeds exported
+      - module:
+        - name: Spec
+        - identifier: main
+

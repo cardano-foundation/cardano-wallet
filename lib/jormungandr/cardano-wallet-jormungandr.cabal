@@ -1,0 +1,81 @@
+name:                cardano-wallet-jormungandr
+version:             2019.5.8
+synopsis:            Wallet backend protocol-specific bits implemented using Jörmungandr
+description:         Please see README.md
+homepage:            https://github.com/input-output-hk/cardano-wallet
+author:              IOHK Engineering Team
+maintainer:          operations@iohk.io
+copyright:           2019 IOHK
+license:             MIT
+license-file:        LICENSE
+category:            Web
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+flag development
+    description: Disable `-Werror`
+    default: False
+    manual: True
+
+library
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -Wall
+      -Wcompat
+      -fwarn-redundant-constraints
+  if (!flag(development))
+    ghc-options:
+      -Werror
+  build-depends:
+      base
+    , cardano-wallet-core
+    , fmt
+--    , binary
+--    , bytestring
+--    , cardano-crypto
+--    , cryptonite
+--    , digest
+    , text
+    , text-class
+  hs-source-dirs:
+      src
+  exposed-modules:
+      Cardano.Environment
+      Cardano.Wallet.Binary.Jormungandr
+      Cardano.Wallet.Compatibility.Jormungandr
+      Cardano.Wallet.Transaction.Jormungandr
+
+test-suite unit
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+      -O2
+  if (!flag(development))
+    ghc-options:
+      -Werror
+  build-depends:
+      base
+    , bytestring
+    , cardano-wallet-core
+    , cardano-wallet-jormungandr
+    , memory
+    , hspec
+  type:
+     exitcode-stdio-1.0
+  hs-source-dirs:
+      test/unit
+  main-is:
+      Main.hs
+  other-modules:
+      Cardano.Wallet.Binary.JormungandrSpec
+      Spec
