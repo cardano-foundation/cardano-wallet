@@ -52,9 +52,10 @@ import Test.Hspec
     ( Spec, SpecWith, describe, it, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Confidence (..)
     , Gen
     , Property
-    , checkCoverage
+    , checkCoverageWith
     , choose
     , cover
     , generate
@@ -75,11 +76,14 @@ spec :: Spec
 spec = do
     describe "shuffle" $ do
         it "every non-empty list can be shuffled, ultimately"
-            (checkCoverage prop_shuffleCanShuffle)
+            (checkCoverageWith lowerConfidence prop_shuffleCanShuffle)
         it "shuffle is non-deterministic"
-            (checkCoverage prop_shuffleNotDeterministic)
+            (checkCoverageWith lowerConfidence prop_shuffleNotDeterministic)
         it "sort (shuffled xs) == sort xs"
-            (checkCoverage prop_shufflePreserveElements)
+            (checkCoverageWith lowerConfidence prop_shufflePreserveElements)
+  where
+    lowerConfidence :: Confidence
+    lowerConfidence = Confidence (10^(6 :: Integer)) 0.75
 
 {-------------------------------------------------------------------------------
                                  Properties
