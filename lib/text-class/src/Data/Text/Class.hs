@@ -55,9 +55,9 @@ instance ToText Text where
 
 instance FromText Int where
     fromText t = do
-        (g, txt) <- first (const err) $ signed decimal t
-        unless (T.null txt) $ Left err
-        pure g
+        (parsedValue, unconsumedInput) <- first (const err) $ signed decimal t
+        unless (T.null unconsumedInput) $ Left err
+        pure parsedValue
       where
         err = TextDecodingError $
             "Int is an integer number between "
