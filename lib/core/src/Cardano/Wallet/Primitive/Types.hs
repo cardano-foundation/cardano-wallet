@@ -401,6 +401,19 @@ instance Buildable TxStatus where
         InLedger -> "in ledger"
         Invalidated -> "invalidated"
 
+instance FromText TxStatus where
+    fromText txt = case txt of
+        "Pending" -> Right Pending
+        "InLedger" -> Right InLedger
+        "Invalidated" -> Right Invalidated
+        _ ->
+            Left . TextDecodingError $ "not a valid value: " <> show txt
+
+instance ToText TxStatus where
+    toText Pending = "Pending"
+    toText InLedger = "InLedger"
+    toText Invalidated = "Invalidated"
+
 -- | The flow of funds in to or out of a wallet.
 data Direction
     = Outgoing -- ^ Funds exit the wallet.
