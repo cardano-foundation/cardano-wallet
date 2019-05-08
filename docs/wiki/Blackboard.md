@@ -28,3 +28,13 @@ We are now running unit tests against both `mainnet` and `testnet` enviromnet. I
 
 For now we will wait after the integration with the rust node, and do it with the rust node directly.
 The good thing with the rust node is that, we don't need a full cluster anymore. A single node is sufficient and can "emulate" delegation within itself, like an identity crisis.
+
+## Improvements to the CLI
+
+ - if the passphrases don't match - prompt user to put them again twice
+ - make wallet backend server introduce itself in the HTTP header server (and make CLI to check for that value and put some warning/error if it don't match)
+ - `create wallet` wizard to be a whole responsive/prompt CLI
+ - different levels of `--help`, e.g.:
+>cardano-wallet --help
+>cardano-wallet wallet --help
+>cardano-wallet wallet list --help
