@@ -1,50 +1,52 @@
-#
-# The defaul.nix file. This will generate targets for all
-# buildables (see release.nix for nomenclature, excluding
-# the "build machine" last part, specific to release.nix), eg.:
-#
-# - nix build -f default.nix nix-tools.tests.iohk-monitoring # All `iohk-monitoring` tests
-# - nix build -f default.nix nix-tools.tests.iohk-monitoring.tests
-# - nix build -f default.nix nix-tools.exes.iohk-monitoring # All `iohk-monitoring` executables
-# - nix build -f default.nix nix-tools.cexes.iohk-monitoring.example-simple
-#
-# Generated targets include anything from stack.yaml (via
-# nix-tools:stack-to-nix and the nix/regenerate.sh script)
-# or cabal.project (via nix-tools:plan-to-nix), including all
-# version overrides specified there.
-#
-# Nix-tools stack-to-nix will generate the `nix/.stack-pkgs.nix`
-# file which is imported from the `nix/pkgs.nix` where further
-# customizations outside of the ones in stack.yaml/cabal.project
-# can be specified as needed for nix/ci.
-#
-# Please run `nix/regenerate.sh` after modifying stack.yaml
-# or relevant part of cabal configuration files.
-# When switching to recent stackage or hackage package version,
-# you might also need to update the iohk-nix common lib. You
-# can do so by running the `nix/update-iohk-nix.sh` script.
-#
-# More information about iohk-nix and nix-tools is available at:
-# https://github.com/input-output-hk/iohk-nix/blob/master/docs/nix-toolification.org#for-a-stackage-project
-#
+{ system ? builtins.currentSystem
+, crossSystem ? null
+, config ? {}
+# Import IOHK common nix lib
+, iohkLib ? import ./nix/iohk-common.nix { inherit system crossSystem config; }
+# Use nixpkgs pin from iohkLib
+, pkgs ? iohkLib.pkgs
+}:
 
+with import ./nix/util.nix { inherit pkgs; };
 
-# We will need to import the iohk-nix common lib, which includes
-# the nix-tools tooling.
 let
-  commonLib = import ./nix/iohk-common.nix;
-in
-# This file needs to export a function that takes
-# the arguments it is passed and forwards them to
-# the default-nix template from iohk-nix. This is
-# important so that the release.nix file can properly
-# parameterize this file when targetting different
-# hosts.
-{ ... }@args:
-# We will instantiate the default-nix template with the
-# nix/pkgs.nix file...
-commonLib.nix-tools.default-nix ./nix/pkgs.nix args
-# ... and add additional non-haskell packages we want to build on CI:
-// {
-  cardano-http-bridge = import ./nix/cardano-http-bridge.nix { inherit (commonLib) pkgs; };
+  haskell = iohkLib.nix-tools.haskell { inherit pkgs; };
+  src = iohkLib.cleanSourceHaskell ./.;
+
+  inherit (iohkLib.rust-packages.pkgs) jormungandr;
+  cardano-http-bridge = iohkLib.rust-packages.pkgs.callPackage
+    ./nix/cardano-http-bridge.nix { inherit pkgs; };
+  cardano-sl-node = import ./nix/cardano-sl-node.nix { inherit pkgs; };
+
+  haskellPackages = import ./nix/default.nix {
+    inherit pkgs haskell src;
+    inherit cardano-http-bridge cardano-sl-node jormungandr;
+    inherit (iohkLib.nix-tools) iohk-extras iohk-module;
+  };
+
+in {
+  inherit pkgs iohkLib src haskellPackages;
+  inherit cardano-http-bridge cardano-sl-node jormungandr;
+  inherit (haskellPackages.cardano-wallet.identifier) version;
+
+  cardano-wallet = haskellPackages.cardano-wallet.components.exes.cardano-wallet;
+  cardano-wallet-launcher = haskellPackages.cardano-wallet.components.exes.cardano-wallet-launcher;
+  tests = collectComponents "tests" isCardanoWallet haskellPackages;
+  benchmarks = collectComponents "benchmarks" isCardanoWallet haskellPackages;
+
+  shell = haskellPackages.shellFor {
+    name = "cardano-wallet-shell";
+    packages = ps: with ps; [
+      cardano-wallet
+      cardano-wallet-cli
+      cardano-wallet-core
+      cardano-wallet-http-bridge
+      cardano-wallet-launcher
+      bech32
+      text-class
+    ];
+    buildInputs =
+      with pkgs.haskellPackages; [ cabal-install hlint stylish-haskell weeder ghcid ]
+      ++ [ cardano-http-bridge jormungandr cardano-sl-node pkgs.pkgconfig pkgs.sqlite-interactive ];
+  };
 }
