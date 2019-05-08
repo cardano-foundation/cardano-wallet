@@ -411,7 +411,20 @@ instance Buildable TxStatus where
         InLedger -> "in ledger"
         Invalidated -> "invalidated"
 
--- | The effect of a @Transaction@ on the wallet balance.
+instance FromText TxStatus where
+    fromText txt = case txt of
+        "pending" -> Right Pending
+        "in_ledger" -> Right InLedger
+        "invalidated" -> Right Invalidated
+        _ ->
+            Left . TextDecodingError $ show txt
+                <> " is neither \"pending\", \"in_ledger\", nor \"invalidated\""
+
+instance ToText TxStatus where
+    toText Pending = "pending"
+    toText InLedger = "in_ledger"
+    toText Invalidated = "invalidated"
+
 data Direction
     = Outgoing -- ^ The wallet balance decreases.
     | Incoming -- ^ The wallet balance increases or stays the same.
