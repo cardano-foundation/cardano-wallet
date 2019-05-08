@@ -71,8 +71,11 @@ spec = do
             , input = "patate\n14\n"
             , expectedStdout =
                 "Prompt: ******\nInt is an \
-                \integer number between -9223372036854775808 \
-                \and 9223372036854775807.\nPrompt: **\n"
+                \integer number between "
+                <> T.pack (show $ minBound @Int)
+                <> " and "
+                <> T.pack (show $ maxBound @Int)
+                <> ".\nPrompt: **\n"
             , expectedResult = 14 :: Int
             }
 
