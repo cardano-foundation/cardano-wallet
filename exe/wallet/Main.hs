@@ -168,18 +168,22 @@ exec manager args
         bridgePort <- args `parseArg` longOption "bridge-port"
         execServer walletPort bridgePort
 
-    | args `isPresent` command "generate" && args `isPresent` command "mnemonic" = do
+    | args `isPresent` command "generate" &&
+      args `isPresent` command "mnemonic" = do
         n <- args `parseArg` longOption "size"
         execGenerateMnemonic n
 
-    | args `isPresent` command "wallet" && args `isPresent` command "list" = do
+    | args `isPresent` command "wallet" &&
+      args `isPresent` command "list" = do
         runClient @Wallet Aeson.encodePretty listWallets
 
-    | args `isPresent` command "wallet" && args `isPresent` command "get" = do
+    | args `isPresent` command "wallet" &&
+      args `isPresent` command "get" = do
         wId <- args `parseArg` argument "wallet-id"
         runClient @Wallet Aeson.encodePretty $ getWallet $ ApiT wId
 
-    | args `isPresent` command "wallet" && args `isPresent` command "create" = do
+    | args `isPresent` command "wallet" &&
+      args `isPresent` command "create" = do
         wName <- args `parseArg` longOption "name"
         wGap <- args `parseArg` longOption "address-pool-gap"
         wSeed <- do
@@ -202,13 +206,15 @@ exec manager args
             (ApiT wName)
             (ApiT wPwd)
 
-    | args `isPresent` command "wallet" && args `isPresent` command "update" = do
+    | args `isPresent` command "wallet" &&
+      args `isPresent` command "update" = do
         wId <- args `parseArg` argument "wallet-id"
         wName <- args `parseArg` longOption "name"
         runClient @Wallet Aeson.encodePretty $ putWallet (ApiT wId) $ WalletPutData
             (Just $ ApiT wName)
 
-    | args `isPresent` command "wallet" && args `isPresent` command "delete" = do
+    | args `isPresent` command "wallet" &&
+      args `isPresent` command "delete" = do
         wId <- args `parseArg` argument "wallet-id"
         runClient @Wallet (const "") $ deleteWallet (ApiT wId)
 
@@ -224,14 +230,16 @@ exec manager args
             Just version -> do
                 TIO.putStrLn $ T.pack version
 
-    | args `isPresent` command "transaction" && args `isPresent` command "create" = do
+    | args `isPresent` command "transaction" &&
+      args `isPresent` command "create" = do
         wId <- args `parseArg` longOption "wallet-id"
         ts <- args `parseAllArgs` longOption "payment"
         wPwd <- getPassphrase
-        runClient @Transaction Aeson.encodePretty $ createTransaction (ApiT wId) $ PostTransactionData
-            -- NOTE: we are sure this will be non-empty
-            (fromList ts)
-            (ApiT wPwd)
+        runClient @Transaction Aeson.encodePretty $ createTransaction (ApiT wId) $
+            PostTransactionData
+                -- NOTE: we are sure this will be non-empty
+                (fromList ts)
+                (ApiT wPwd)
 
     | otherwise =
         exitWithUsage cli
