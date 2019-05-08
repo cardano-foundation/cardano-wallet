@@ -64,6 +64,8 @@ module Cardano.Wallet.Primitive.Types
     -- * Slotting
     , SlotId (..)
     , slotRatio
+    , flatSlot
+    , fromFlatSlot
 
     -- * Wallet Metadata
     , WalletMetadata(..)
@@ -591,7 +593,7 @@ restrictedTo (UTxO utxo) outs =
 data SlotId = SlotId
   { epochNumber :: !Word64
   , slotNumber :: !Word16
-  } deriving stock (Show, Eq, Ord, Generic)
+  } deriving stock (Show, Read, Eq, Ord, Generic)
 
 instance NFData SlotId
 
@@ -607,17 +609,29 @@ slotRatio
     -> SlotId
         -- ^ Denominator
     -> Quantity "percent" Percentage
-slotRatio (SlotId ep0 sl0) (SlotId ep1 sl1) =
+slotRatio a b =
     let
-        n0 = flat ep0 sl0
-        n1 = flat ep1 sl1
+        n0 = flatSlot a
+        n1 = flatSlot b
         tolerance = 5
     in if distance n0 n1 < tolerance || n0 >= n1 then
         maxBound
     else
         Quantity $ toEnum $ fromIntegral $ (100 * n0) `div` n1
+
+-- | Convert a 'SlotId' to the number of slots since genesis.
+flatSlot :: SlotId -> Word64
+flatSlot (SlotId e s) = epochLength * e + fromIntegral s
+
+-- | Convert a 'flatSlot' index to 'SlotId'.
+fromFlatSlot :: Word64 -> SlotId
+fromFlatSlot n = SlotId e (fromIntegral s)
   where
-    flat e s = 21600 * e + fromIntegral s
+    e = n `div` epochLength
+    s = n `mod` epochLength
+
+epochLength :: Integral a => a
+epochLength = 21600
 
 {-------------------------------------------------------------------------------
                                Polymorphic Types
