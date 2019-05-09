@@ -546,10 +546,10 @@ definitions:
   PostTransactionData: &PostTransactionData
     type: object
     required:
-      - targets
+      - payments
       - passphrase
     properties:
-      targets: *transactionOutputs
+      payments: *transactionOutputs
       passphrase:
         <<: *walletPassphrase
         description: The wallet's master passphrase.
@@ -585,9 +585,9 @@ parametersStakePoolId: &parametersStakePoolId
 parametersPostTransactionFee: &parametersPostTransactionFee
   type: object
   required:
-    - targets
+    - payments
   properties:
-    targets: *transactionOutputs
+    payments: *transactionOutputs
 
 parametersJoinStakePool: &parametersJoinStakePool
   type: object

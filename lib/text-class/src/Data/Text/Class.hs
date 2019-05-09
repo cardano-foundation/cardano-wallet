@@ -28,6 +28,8 @@ import Data.Text.Read
     ( decimal, signed )
 import Fmt
     ( Buildable )
+import Numeric.Natural
+    ( Natural )
 
 import qualified Data.Text as T
 
@@ -67,4 +69,15 @@ instance FromText Int where
                 <> "."
 
 instance ToText Int where
+    toText = T.pack . show
+
+instance FromText Natural where
+    fromText t = do
+        (parsedValue, unconsumedInput) <- first (const err) $ decimal t
+        unless (T.null unconsumedInput) $ Left err
+        pure parsedValue
+      where
+        err = TextDecodingError "Expecting natural number"
+
+instance ToText Natural where
     toText = T.pack . show

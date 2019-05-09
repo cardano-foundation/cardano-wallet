@@ -12,6 +12,8 @@ import Prelude
 
 import Data.Quantity
     ( MkPercentageError (..), Percentage, Quantity (..), mkPercentage )
+import Data.Text.Class
+    ( FromText (..), ToText (..) )
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
@@ -38,6 +40,8 @@ spec = do
             Aeson.eitherDecode "{\"unit\":\"patate\",\"quantity\":14}"
                 `shouldBe`
                 (Left @String @(Quantity "bytes" Int) msg)
+        it "fromText . toText === pure"
+            $ property $ \(i :: Int) -> (fromText . toText) i === pure i
 
     describe "Percentage" $ do
         it "fail to percent from JSON when out of bounds" $ do

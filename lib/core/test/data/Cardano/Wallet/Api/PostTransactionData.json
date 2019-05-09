@@ -3,7 +3,7 @@
     "samples": [
         {
             "passphrase": "pAiX䄯rK',2?)*Kd5f[<1q!vf3(s+kt&B,F\"}i$p4Goe|VlX[EIh\"d6aPp#K뺗𥟞.}g~wvMeLpQ?xk|dl{A82MV;L=(ryVXsQ]uc.*)o.\\{𨼽  }*H0[ꝎhBv%_7oi|L8v|5Jv\\%DfDY<M3F-LrvAkzx5NeK𣿠1T3㢔\\j%8`yZ曆𪔎P,(pkc<*8,t=Jy",
-            "targets": [
+            "payments": [
                 {
                     "amount": {
                         "quantity": 55,
@@ -71,7 +71,7 @@
         },
         {
             "passphrase": "BD3tNa634\\p\"TCF_*(,H_#oCP4~\"Fm𦔶7OMDlꪲobdqaq+.1Xq+!앁C+8QQ^1TA0,KVR)?7W[Pv6dj5~ABS%<uX92xZ3!{;%Tlg#Mb,7b\" /EqcFHthY!/kqcY<+p\"9x<<JpTH!]'qm_௫Ia6Td`KfC#dSBYKttMHrI|/UlzlB.KYP3Jx%%bk쐴Jhxn/20(Ljh;p^",
-            "targets": [
+            "payments": [
                 {
                     "amount": {
                         "quantity": 58,
@@ -188,7 +188,7 @@
         },
         {
             "passphrase": "}#n?v㮀M8.m3𡆅yEwi",
-            "targets": [
+            "payments": [
                 {
                     "amount": {
                         "quantity": 54,
@@ -354,7 +354,7 @@
         },
         {
             "passphrase": "H⁶j#'X6qn\"El~1s.qNi`bi`Om`;}PৢGPiAa.BMRO%n~hY9!.R𑂃VEtnDG'&𨛒*)Kg<w,90}]9q[}wf.?𣴷q!$cZ0Z%՚ er7xHM)POow`f4.2{R@ $%:]yqu0(6Kkm$*qUQ\"+O;&wE_|n1[~q",
-            "targets": [
+            "payments": [
                 {
                     "amount": {
                         "quantity": 41,
@@ -366,7 +366,7 @@
         },
         {
             "passphrase": ")5Rf)|d*wIg/C_K3o@XNF0=Q}a#4 =Y!1KU35iN#lwONMNn^]WkR\\Azq:l&&Y$J䰼im hWuobKxLd훑N9[𢻔bp)$4+nYf&Q/PkqGPeP*qy_mDug|'.Dv,|𧶒5#fx45`':t$@hXfnm~@~SE+q",
-            "targets": [
+            "payments": [
                 {
                     "amount": {
                         "quantity": 31,
@@ -462,7 +462,7 @@
         },
         {
             "passphrase": "\"s9E)66=3v.닮?垑V[W~tOm@Q'ycaX!8LT3\"4j[\\'Ikj,𢟪-J|2T;BJ\"%-_𤜤<nᓔ/9Q$5b;yLMfd11qGRWLB+i;C\\j5DpE@U{\"\\*]C3lBt%,@jFp`l]%+TiuvFP7B'v>!",
-            "targets": [
+            "payments": [
                 {
                     "amount": {
                         "quantity": 110,
@@ -509,7 +509,7 @@
         },
         {
             "passphrase": " mHjH2'L;JA3V𡒋JHw'FUY1*fn.hiS{yNi==춴E]Y$fur&mwNg9~ky+sA`nFSQ$F_-@1d{(R~xY6lZ)-YbDNN^K=^F,_UOTI!啧HM]9p0#'qcNVPp𨲜xrQw|2VV6P?[𣏒裓 @6Hl.mdJ09!!~='Mp82ka2F=yed{`卿f𠳼gDgO*",
-            "targets": [
+            "payments": [
                 {
                     "amount": {
                         "quantity": 5,
@@ -717,7 +717,7 @@
         },
         {
             "passphrase": "-BPN#=Tj  'O.x{WhdXn8KUsKx𧇠cOo)bIKYTD|!=\\X`eJXF79)4^}01𡂢^3<H\\C1gU!,n*xbN_HZVm6hn<𡬯H`𝞧>OJY/k4qiW;<\"b[eW\"aA;-N𣱻YE_])`iY<,\\26el",
-            "targets": [
+            "payments": [
                 {
                     "amount": {
                         "quantity": 167,
@@ -918,7 +918,7 @@
         },
         {
             "passphrase": "-K.<O\"Efat8@-W",
-            "targets": [
+            "payments": [
                 {
                     "amount": {
                         "quantity": 91,
@@ -1119,7 +1119,7 @@
         },
         {
             "passphrase": "0CN.a9q^KV78Vd|rJn>1^gYFaDT^?Sh骢髣8oI\"1𫚱Q0l*a5<xq-SsdA>[)Dhq,`I8V6o=}zQ;\"MO}DaiP/ii2=JdzZ+i]J6A?yzsRGjgs4𧷺^O^F,_r1*?ke/g>`E*$o$\"{Li$qs\\Rs~'C(w'F`F술qa:o/0}}?bsQ>[jM1#^^(I`@UESn|`^\"nHẃC𐜵_,Go&iR7+𧟍QJ3>UHG!<*mX\\2diz!`]U!>o}𨲻Q)`RP𤁿mwzGK!/QOP-\\",
-            "targets": [
+            "payments": [
                 {
                     "amount": {
                         "quantity": 43,

@@ -92,9 +92,9 @@ import Data.List.NonEmpty
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
-    ( Text )
+    ( Text, split )
 import Data.Text.Class
-    ( FromText (..), ToText (..) )
+    ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Time
     ( UTCTime )
 import Fmt
@@ -149,7 +149,7 @@ data WalletPutPassphraseData = WalletPutPassphraseData
     } deriving (Eq, Generic, Show)
 
 data PostTransactionData = PostTransactionData
-    { targets :: !(NonEmpty AddressAmount)
+    { payments :: !(NonEmpty AddressAmount)
     , passphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
 
@@ -385,6 +385,24 @@ walletStateOptions = taggedSumTypeOptions $ TaggedObjectOptions
     { _tagFieldName = "status"
     , _contentsFieldName = "progress"
     }
+
+{-------------------------------------------------------------------------------
+                             FromText/ToText instances
+-------------------------------------------------------------------------------}
+
+instance FromText AddressAmount where
+    fromText text = do
+        let err = Left . TextDecodingError $ "Parse error. Expecting format \
+            \\"<amount>@<address>\" but got " <> show text
+        case split (=='@') text of
+            [] -> err
+            [_] -> err
+            [l, r] -> AddressAmount . ApiT <$> fromText r <*> fromText l
+            _ -> err
+
+instance ToText AddressAmount where
+    toText (AddressAmount (ApiT addr) coins) =
+        toText coins <> "@" <> toText addr
 
 {-------------------------------------------------------------------------------
                              HTTPApiData instances

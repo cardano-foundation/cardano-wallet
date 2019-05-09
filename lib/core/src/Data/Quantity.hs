@@ -44,6 +44,8 @@ import Data.Aeson.Types
     ( Parser )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Text.Class
+    ( FromText (..), ToText (..) )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
@@ -102,6 +104,11 @@ instance (KnownSymbol unit, FromJSON a) => FromJSON (Quantity unit a) where
           where
             u = symbolVal proxy
 
+instance FromText b => FromText (Quantity sym b) where
+    fromText = fmap Quantity . fromText
+
+instance ToText b => ToText (Quantity sym b) where
+    toText (Quantity b) = toText b
 
 {-------------------------------------------------------------------------------
                                 Percentage

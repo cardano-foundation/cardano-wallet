@@ -22,6 +22,7 @@ module Cardano.CLI
 
     -- * Parsing Arguments
     , parseArgWith
+    , parseAllArgsWith
 
     -- * Working with Sensitive Data
     , getLine
@@ -37,6 +38,7 @@ import Control.Exception
     ( bracket )
 import Data.Functor
     ( (<$) )
+import qualified Data.List.NonEmpty as NE
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -56,7 +58,13 @@ import System.Console.ANSI
     , hSetSGR
     )
 import System.Console.Docopt
-    ( Arguments, Docopt, Option, getArgOrExitWith )
+    ( Arguments
+    , Docopt
+    , Option
+    , exitWithUsageMessage
+    , getAllArgs
+    , getArgOrExitWith
+    )
 import System.Exit
     ( exitFailure )
 import System.IO
@@ -97,14 +105,34 @@ instance ToText (Port tag) where
 parseArgWith :: FromText a => Docopt -> Arguments -> Option -> IO a
 parseArgWith cli args option = do
     (fromText . T.pack <$> args `getArgOrExit` option) >>= \case
-        Right a -> do
-            return a
+        Right a -> return a
         Left e -> do
             putErrLn $ T.pack $ getTextDecodingError e
             exitFailure
   where
     getArgOrExit :: Arguments -> Option -> IO String
     getArgOrExit = getArgOrExitWith cli
+
+parseAllArgsWith :: FromText a => Docopt -> Arguments -> Option -> IO (NE.NonEmpty a)
+parseAllArgsWith cli args option = do
+    (mapM (fromText . T.pack) <$> args `getAllArgsOrExit` option) >>= \case
+        Right a -> return a
+        Left e -> do
+            putErrLn $ T.pack $ getTextDecodingError e
+            exitFailure
+  where
+    getAllArgsOrExit :: Arguments -> Option -> IO (NE.NonEmpty String)
+    getAllArgsOrExit = getAllArgsOrExitWith cli
+
+-- | Same as 'getAllArgs', but 'exitWithUsage' if empty list.
+--
+--   As in 'getAllArgs', if your usage pattern required the option,
+--   'getAllArgsOrExitWith' will not exit.
+getAllArgsOrExitWith :: Docopt -> Arguments -> Option -> IO (NE.NonEmpty String)
+getAllArgsOrExitWith doc args opt =
+    maybe err pure . NE.nonEmpty $ getAllArgs args opt
+  where
+    err = exitWithUsageMessage doc $ "argument expected for: " ++ show opt
 
 {-------------------------------------------------------------------------------
                             ANSI Terminal Helpers
