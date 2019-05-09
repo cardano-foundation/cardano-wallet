@@ -21,13 +21,16 @@ module Cardano.Wallet
     (
     -- * Interface
       WalletLayer (..)
+    , PassphraseUpdate (..)
 
     -- * Errors
-    , ErrNoSuchWallet(..)
-    , ErrWalletAlreadyExists(..)
-    , ErrSignTx(..)
-    , ErrSubmitTx(..)
-    , ErrCreateUnsignedTx(..)
+    , ErrCreateUnsignedTx (..)
+    , ErrNoSuchWallet (..)
+    , ErrSignTx (..)
+    , ErrSubmitTx (..)
+    , ErrUpdatePassphrase (..)
+    , ErrWalletAlreadyExists (..)
+    , ErrWithRootKey (..)
 
     -- * Construction
     , mkWalletLayer
@@ -113,6 +116,8 @@ import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.IO.Class
     ( liftIO )
+import Control.Monad.Trans.Class
+    ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.Maybe
@@ -161,6 +166,12 @@ data WalletLayer s t = WalletLayer
         -> (WalletMetadata -> WalletMetadata)
         -> ExceptT ErrNoSuchWallet IO ()
         -- ^ Update the wallet metadata with the given update function.
+
+    , updateWalletPassphrase
+        :: WalletId
+        -> PassphraseUpdate
+        -> ExceptT ErrNoSuchWallet IO ()
+        -- ^ Change the wallet passphrase to the given passphrase
 
     , listWallets
         :: IO [WalletId]
@@ -217,6 +228,7 @@ data WalletLayer s t = WalletLayer
         -- ^ Attach a given private key to a wallet. The private key is
         -- necessary for some operations like signing transactions or,
         -- generating new accounts.
+
     }
 
 -- | Errors occuring when creating an unsigned transaction
@@ -229,12 +241,28 @@ data ErrCreateUnsignedTx
 data ErrSignTx
     = ErrSignTx ErrMkStdTx
     | ErrSignTxNoSuchWallet ErrNoSuchWallet
-    | ErrSignTxWrongPassphrase ErrWrongPassphrase
+    | ErrSignTxWithRootKey ErrWithRootKey
 
 -- | Errors occuring when submitting a signed transaction to the network
 data ErrSubmitTx
     = ErrSubmitTxNetwork ErrPostTx
     | ErrSubmitTxNoSuchWallet ErrNoSuchWallet
+
+-- | Errors occuring when trying to change a wallet's passphrase
+data ErrUpdatePassphrase
+    = ErrUpdatePassphraseNoSuchWallet ErrNoSuchWallet
+    | ErrUpdatePassphraseWithRootKey ErrWithRootKey
+
+-- | Errors occuring when trying to perform an operation on a wallet which
+-- requires a private key, but none is attached to the wallet
+data ErrWithRootKey
+    = ErrWithRootKeyNoRootKey WalletId
+    | ErrWithRootKeyWrongPassphrase ErrWrongPassphrase
+
+data PassphraseUpdate = PassphraseUpdate
+    { oldPassphrase :: Passphrase "encryption"
+    , newPassphrase :: Passphrase "encryption"
+    }
 
 {-------------------------------------------------------------------------------
                                  Construction
@@ -269,6 +297,9 @@ mkWalletLayer db nw tl = WalletLayer
     , updateWallet = \wid modify -> DB.withLock db $ do
         (_, meta) <- _readWallet wid
         DB.putWalletMeta db (PrimaryKey wid) (modify meta)
+
+    , updateWalletPassphrase = \wid modify -> DB.withLock db $ do
+        undefined
 
     , listWallets = fmap (\(PrimaryKey wid) -> wid) <$> DB.listWallets db
 
@@ -307,7 +338,7 @@ mkWalletLayer db nw tl = WalletLayer
                 addr <- state genChange
                 return $ TxOut addr c
         allShuffledOuts <- liftIO $ shuffle (outs ++ changeOuts)
-        withRootKey wid pwd ErrSignTxWrongPassphrase $ \xprv -> do
+        withRootKey wid pwd ErrSignTxWithRootKey $ \xprv -> do
             let keyFrom = isOwned (getState w) (xprv, pwd)
             case mkStdTx tl keyFrom ins allShuffledOuts of
                 Right (tx, wit) -> do
@@ -359,15 +390,18 @@ mkWalletLayer db nw tl = WalletLayer
         :: forall e a. ()
         => WalletId
         -> Passphrase "encryption"
-        -> (ErrWrongPassphrase -> e)
+        -> (ErrWithRootKey -> e)
         -> (Key 'RootK XPrv -> ExceptT e IO a)
         -> ExceptT e IO a
     withRootKey wid pwd embed action = do
         xprv <- withExceptT embed $ do
-            (xprv, hpwd) <- liftIO $ DB.readPrivateKey db (PrimaryKey wid) >>= \case
-                Nothing -> unsafeRunExceptT $ throwE $ ErrNoSuchWallet wid
-                Just a  -> return a
-            ExceptT $ return ((\() -> xprv) <$> checkPassphrase pwd hpwd)
+            lift (DB.readPrivateKey db (PrimaryKey wid)) >>= \case
+                Nothing ->
+                    throwE $ ErrWithRootKeyNoRootKey wid
+                Just (xprv, hpwd) -> do
+                    withExceptT ErrWithRootKeyWrongPassphrase $ ExceptT $
+                        return $ checkPassphrase pwd hpwd
+                    return xprv
         action xprv
 
     -- | Infinite restoration loop. We drain the whole available chain and try
