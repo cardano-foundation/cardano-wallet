@@ -38,6 +38,7 @@ import Control.Exception
     ( bracket )
 import Data.Functor
     ( (<$) )
+import qualified Data.List.NonEmpty as NE
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -112,7 +113,7 @@ parseArgWith cli args option = do
     getArgOrExit :: Arguments -> Option -> IO String
     getArgOrExit = getArgOrExitWith cli
 
-parseAllArgsWith :: FromText a => Docopt -> Arguments -> Option -> IO [a]
+parseAllArgsWith :: FromText a => Docopt -> Arguments -> Option -> IO (NE.NonEmpty a)
 parseAllArgsWith cli args option = do
     (mapM (fromText . T.pack) <$> args `getAllArgsOrExit` option) >>= \case
         Right a -> return a
@@ -120,20 +121,18 @@ parseAllArgsWith cli args option = do
             putErrLn $ T.pack $ getTextDecodingError e
             exitFailure
   where
-    getAllArgsOrExit :: Arguments -> Option -> IO [String]
+    getAllArgsOrExit :: Arguments -> Option -> IO (NE.NonEmpty String)
     getAllArgsOrExit = getAllArgsOrExitWith cli
 
 -- | Same as 'getAllArgs', but 'exitWithUsage' if empty list.
 --
 --   As in 'getAllArgs', if your usage pattern required the option,
 --   'getAllArgsOrExitWith' will not exit.
-getAllArgsOrExitWith :: Docopt -> Arguments -> Option -> IO [String]
-getAllArgsOrExitWith doc args opt = exitIfEmpty $ getAllArgs args opt
+getAllArgsOrExitWith :: Docopt -> Arguments -> Option -> IO (NE.NonEmpty String)
+getAllArgsOrExitWith doc args opt =
+    maybe err pure . NE.nonEmpty $ getAllArgs args opt
   where
-    exitIfEmpty
-      a | null a =
-            exitWithUsageMessage doc $ "argument expected for: " ++ show opt
-        | otherwise = pure a
+    err = exitWithUsageMessage doc $ "argument expected for: " ++ show opt
 
 {-------------------------------------------------------------------------------
                             ANSI Terminal Helpers

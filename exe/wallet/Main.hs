@@ -201,7 +201,7 @@ exec manager args
             getLine prompt parser <&> \case
                 (Nothing, _) -> Nothing
                 (Just a, t) -> Just (a, t)
-        wPwd <- getPassphrase
+        wPwd <- getPassphraseWithConfirm
         runClient @Wallet Aeson.encodePretty $ postWallet $ WalletPostData
             (Just $ ApiT wGap)
             (ApiMnemonicT . second T.words $ wSeed)
@@ -240,8 +240,7 @@ exec manager args
         wPwd <- getPassphrase
         runClient @Transaction Aeson.encodePretty $ createTransaction (ApiT wId) $
             PostTransactionData
-                -- NOTE: we are sure this will be non-empty
-                (NE.fromList ts)
+                ts
                 (ApiT wPwd)
 
     | otherwise =
@@ -249,14 +248,16 @@ exec manager args
   where
     parseArg :: FromText a => Arguments -> Option -> IO a
     parseArg = parseArgWith cli
-    parseAllArgs :: FromText a => Arguments -> Option -> IO [a]
+    parseAllArgs :: FromText a => Arguments -> Option -> IO (NE.NonEmpty a)
     parseAllArgs = parseAllArgsWith cli
     getPassphrase :: IO (Passphrase "encryption")
     getPassphrase = do
-        (wPwd, _) <- do
-            let prompt = "Please enter a passphrase: "
-            let parser = fromText @(Passphrase "encryption")
-            getSensitiveLine prompt parser
+        let prompt = "Please enter a passphrase: "
+        let parser = fromText @(Passphrase "encryption")
+        fst <$> getSensitiveLine prompt parser
+    getPassphraseWithConfirm :: IO (Passphrase "encryption")
+    getPassphraseWithConfirm = do
+        wPwd <- getPassphrase
         (wPwd', _) <- do
             let prompt = "Enter the passphrase a second time: "
             let parser = fromText @(Passphrase "encryption")
