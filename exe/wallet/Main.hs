@@ -146,8 +146,10 @@ Options:
   --payment <PAYMENT>         address to send to and amount to send separated by @: '<amount>@<address>'
 
 Examples:
-  cardano-wallet transaction create --wallet-id 2512a00e9653fe49a44a5886202e24d77eeb998f --payment 22@2cWKMJemoBam7gg1y5K2aFDhAm5L8fVc96NfxgcGhdLMFTsToNAU9t5HVdBBQKy4iDswL # Create a transaction and send 22 lovelace from wallet-id to specified addres
-
+  # Create a transaction and send 22 lovelace from wallet-id to specified addres
+  cardano-wallet transaction create \
+    --wallet-id 2512a00e9653fe49a44a5886202e24d77eeb998f \
+    --payment 22@Ae2tdPwUPEZ...nRtbfw6EHRv1D
 |]
 
 main :: IO ()
