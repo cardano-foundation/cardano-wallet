@@ -2,7 +2,7 @@ module Main where
 
 import Prelude
 
-import Cardano.Environment
+import Cardano.Environment.HttpBridge
     ( network )
 import Test.Hspec.Runner
     ( hspecWith )

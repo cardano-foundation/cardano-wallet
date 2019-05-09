@@ -9,7 +9,7 @@ module Cardano.Wallet.Transaction.HttpBridge
 
 import Prelude
 
-import Cardano.Environment
+import Cardano.Environment.HttpBridge
     ( Network (..), ProtocolMagic (..), network, protocolMagic )
 import Cardano.Wallet.Binary.HttpBridge
     ( toByteString )

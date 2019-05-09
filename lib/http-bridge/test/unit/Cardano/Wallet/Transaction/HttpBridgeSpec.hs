@@ -14,7 +14,7 @@ module Cardano.Wallet.Transaction.HttpBridgeSpec
 
 import Prelude
 
-import Cardano.Environment
+import Cardano.Environment.HttpBridge
     ( Network (..), network )
 import Cardano.Wallet.Binary.HttpBridge
     ( encodeSignedTx, toByteString )

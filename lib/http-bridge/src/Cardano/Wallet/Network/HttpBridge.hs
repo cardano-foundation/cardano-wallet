@@ -21,7 +21,7 @@ module Cardano.Wallet.Network.HttpBridge
 
 import Prelude
 
-import Cardano.Environment
+import Cardano.Environment.HttpBridge
     ( network )
 import Cardano.Wallet.Network
     ( ErrNetworkTip (..)

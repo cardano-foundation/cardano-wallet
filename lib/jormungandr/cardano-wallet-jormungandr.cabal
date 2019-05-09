@@ -45,7 +45,7 @@ library
   hs-source-dirs:
       src
   exposed-modules:
-      Cardano.Environment
+      Cardano.Environment.Jormungandr
       Cardano.Wallet.Binary.Jormungandr
       Cardano.Wallet.Compatibility.Jormungandr
       Cardano.Wallet.Transaction.Jormungandr

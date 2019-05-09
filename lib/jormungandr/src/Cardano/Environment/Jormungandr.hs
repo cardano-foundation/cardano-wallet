@@ -16,7 +16,7 @@
 -- rely on a `.env` file to bundle configuration settings together for a given
 -- target environment.
 
-module Cardano.Environment
+module Cardano.Environment.Jormungandr
     (
     -- * Networking
       Network(..)
@@ -130,22 +130,20 @@ unsafeLookupEnv k = unsafePerformIO $ do
 -------------------------------------------------------------------------------}
 
 -- | Available network options.
-data Network = Mainnet | Testnet | Staging
+data Network = Mainnet | Testnet
     deriving (Generic, Show, Eq, Enum)
 
 instance FromText Network where
     fromText = \case
         "mainnet" -> Right Mainnet
         "testnet" -> Right Testnet
-        "staging" -> Right Staging
         s -> Left $ TextDecodingError $ T.unpack s
-            <> " is neither \"mainnet\", \"testnet\" nor \"staging\"."
+            <> " is neither \"mainnet\" nor \"testnet\""
 
 instance ToText Network where
     toText = \case
         Mainnet -> "mainnet"
         Testnet -> "testnet"
-        Staging -> "staging"
 
 -- | Get the current target 'Network' from the Environment.
 --
@@ -162,5 +160,4 @@ newtype ProtocolMagic = ProtocolMagic Int32
 protocolMagic :: Network -> ProtocolMagic
 protocolMagic = \case
     Mainnet -> ProtocolMagic 764824073
-    Staging -> ProtocolMagic 633343913
     Testnet -> ProtocolMagic 1097911063

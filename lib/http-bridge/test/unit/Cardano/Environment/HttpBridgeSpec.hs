@@ -3,11 +3,11 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.EnvironmentSpec where
+module Cardano.Environment.HttpBridgeSpec where
 
 import Prelude
 
-import Cardano.Environment
+import Cardano.Environment.HttpBridge
     ( ErrMissingOrInvalidEnvVar (..), Network, unsafeLookupEnv )
 import Data.Maybe
     ( isNothing )

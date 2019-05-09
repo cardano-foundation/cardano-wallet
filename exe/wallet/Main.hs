@@ -32,7 +32,7 @@ import Cardano.CLI
     , parseArgWith
     , putErrLn
     )
-import Cardano.Environment
+import Cardano.Environment.HttpBridge
     ( network )
 import Cardano.Wallet
     ( mkWalletLayer )

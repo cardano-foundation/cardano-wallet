@@ -43,7 +43,7 @@ import Prelude
 
 import Cardano.Crypto.Wallet
     ( ChainCode (..), XPub (..) )
-import Cardano.Environment
+import Cardano.Environment.HttpBridge
     ( ProtocolMagic (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)

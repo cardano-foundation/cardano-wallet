@@ -16,7 +16,7 @@
 -- rely on a `.env` file to bundle configuration settings together for a given
 -- target environment.
 
-module Cardano.Environment
+module Cardano.Environment.HttpBridge
     (
     -- * Networking
       Network(..)
