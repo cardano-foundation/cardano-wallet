@@ -41,3 +41,9 @@ The good thing with the rust node is that, we don't need a full cluster anymore.
 `cardano-wallet wallet --help`
 
 `cardano-wallet wallet list --help`
+
+ - Improve error msg for `FromText AddressAmount`
+```haskell
+            [l, r] -> AddressAmount . ApiT <$> fromText r <*> fromText l
+```
+    if `fromText r` or `fromText l` fails we will get generic failure that won't tell user the info that parsing of payment `<amount>@<address>` have failed
