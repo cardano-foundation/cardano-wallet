@@ -29,7 +29,7 @@ import Data.Word
 
 import qualified Data.Array as Arr
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as BSC
+import qualified Data.ByteString.Char8 as B8
 
 type HRP = BS.ByteString
 type Data = [Word8]
@@ -109,7 +109,7 @@ bech32Encode hrp dat = do
     guard $ checkHRP hrp
     let dat' = dat ++ bech32CreateChecksum hrp dat
         rest = map (charset Arr.!) dat'
-        result = BSC.concat [BSC.map toLower hrp, BSC.pack "1", BSC.pack rest]
+        result = B8.concat [B8.map toLower hrp, B8.pack "1", B8.pack rest]
     guard $ BS.length result <= 90
     return result
 
@@ -121,12 +121,12 @@ checkHRP hrp =
 bech32Decode :: BS.ByteString -> Maybe (HRP, [Word5])
 bech32Decode bech32 = do
     guard $ BS.length bech32 <= 90
-    guard $ BSC.map toUpper bech32 == bech32 || BSC.map toLower bech32 == bech32
-    let (hrp, dat) = BSC.breakEnd (== '1') $ BSC.map toLower bech32
+    guard $ B8.map toUpper bech32 == bech32 || B8.map toLower bech32 == bech32
+    let (hrp, dat) = B8.breakEnd (== '1') $ B8.map toLower bech32
     guard $ BS.length dat >= 6
-    hrp' <- BSC.stripSuffix (BSC.pack "1") hrp
+    hrp' <- B8.stripSuffix (B8.pack "1") hrp
     guard $ checkHRP hrp'
-    dat' <- mapM charsetMap $ BSC.unpack dat
+    dat' <- mapM charsetMap $ B8.unpack dat
     guard $ bech32VerifyChecksum hrp' dat'
     return (hrp', take (BS.length dat - 6) dat')
 
