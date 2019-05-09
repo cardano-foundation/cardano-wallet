@@ -148,7 +148,7 @@ noPadding frombits bits padValue result = do
 -- smaller than the size of Word. Every value in dat must be strictly smaller
 -- than 2^frombits.
 convertBits :: Functor f => [Word] -> Int -> Int -> Pad f -> f [Word]
-convertBits dat frombits tobits pad = fmap (concat . reverse) $ go dat 0 0 []
+convertBits dat frombits tobits pad = concat . reverse <$> go dat 0 0 []
   where
     go [] acc bits result =
         let padValue = (acc .<<. (tobits - bits)) .&. maxv
@@ -170,7 +170,7 @@ toBase32 dat =
 
 toBase256 :: [Word5] -> Maybe [Word8]
 toBase256 dat =
-    fmap (map fromIntegral) $ convertBits (map fromWord5 dat) 5 8 noPadding
+    map fromIntegral <$> convertBits (map fromWord5 dat) 5 8 noPadding
 
 segwitCheck :: Word8 -> Data -> Bool
 segwitCheck witver witprog =
