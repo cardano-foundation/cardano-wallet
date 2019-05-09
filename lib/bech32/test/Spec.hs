@@ -2,17 +2,26 @@ module Main where
 
 import Prelude
 
-import Control.Monad (forM_)
-import Data.Bits (xor)
+import Codec.Binary.Bech32
+    ( bech32Decode, bech32Encode, segwitDecode, segwitEncode, word5 )
+import Control.Monad
+    ( forM_ )
+import Data.Bits
+    ( xor )
+import Data.Char
+    ( toLower )
+import Data.Maybe
+    ( isJust, isNothing )
+import Data.Word
+    ( Word8 )
+import Test.Tasty
+    ( TestTree, defaultMain, testGroup )
+import Test.Tasty.HUnit
+    ( assertBool, assertEqual, assertFailure, testCase )
+
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base16 as B16
 import qualified Data.ByteString.Char8 as BSC
-import Data.Char (toLower)
-import Data.Maybe (isNothing, isJust)
-import Data.Word (Word8)
-import Codec.Binary.Bech32 (bech32Encode, bech32Decode, segwitEncode, segwitDecode, word5)
-import Test.Tasty
-import Test.Tasty.HUnit
 
 main :: IO ()
 main = defaultMain tests
