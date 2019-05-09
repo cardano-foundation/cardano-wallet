@@ -127,7 +127,8 @@ parseAllArgsWith cli args option = do
 
 -- | Same as 'getAllArgs', but 'exitWithUsage' if empty list.
 --
---   As in 'getAllArgs', if your usage pattern required the option, 'getAllArgsOrExitWith' will not exit.
+--   As in 'getAllArgs', if your usage pattern required the option,
+--   'getAllArgsOrExitWith' will not exit.
 getAllArgsOrExitWith :: Docopt -> Arguments -> Option -> IO [String]
 getAllArgsOrExitWith doc args opt = exitIfEmpty $ getAllArgs args opt
   where exitIfEmpty a | null a =
