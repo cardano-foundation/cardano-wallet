@@ -18,11 +18,16 @@ import Data.Bifunctor
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
-    ( Quantity (..), mkPercentage )
+    ( Quantity (..), getPercentage, mkPercentage )
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( FromText (..), ToText (..), fromTextMaybe, getTextDecodingError )
+    ( FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    , fromTextMaybe
+    , getTextDecodingError
+    )
 import Data.Word
     ( Word64, Word8 )
 import Database.Persist.Sqlite
@@ -62,7 +67,7 @@ aesonFromText what = withText what $ either (fail . show) pure . fromText
 instance PersistField Direction where
     toPersistValue = toPersistValue . directionToBool
     fromPersistValue pv = do
-        let err = T.pack $ "not a valid value: " <> show pv
+        let err = "not a valid value: " <> T.pack (show pv)
         bimap (const err) directionFromBool (fromPersistValue pv)
 
 instance PersistFieldSql Direction where
@@ -86,7 +91,7 @@ instance PersistField WalletId where
         a <- fromText <$> fromPersistValue pv
         case a of
              Left _     ->
-                 Left . T.pack $ "not a valid value: " <> show pv
+                 Left $ "not a valid value: " <> T.pack (show pv)
              Right txid ->
                  pure txid
 
@@ -116,24 +121,30 @@ instance PathPiece WalletId where
 ----------------------------------------------------------------------------
 -- AddressScheme
 
-data AddressScheme = Sequential | Random deriving (Show, Eq, Generic)
+data AddressScheme = Sequential | Random | Any deriving (Show, Eq, Generic)
 
 instance PersistField AddressScheme where
-    toPersistValue = toPersistValue . schemeToBool
+    toPersistValue = toPersistValue . toText
     fromPersistValue pv = do
-        let err = T.pack $ "not a valid value: " <> show pv
-        bimap (const err) schemeFromBool (fromPersistValue pv)
+        let err = "not a valid value: " <> T.pack (show pv)
+        first (const err) (fromPersistValue pv)
 
 instance PersistFieldSql AddressScheme where
-    sqlType _ = sqlType (Proxy @Bool)
+    sqlType _ = sqlType (Proxy @Text)
 
-schemeToBool :: AddressScheme -> Bool
-schemeToBool Sequential = True
-schemeToBool Random = False
+instance FromText AddressScheme where
+    fromText txt = case txt of
+        "sequential" -> Right Sequential
+        "random" -> Right Random
+        "any" -> Right Any
+        _ ->
+            Left . TextDecodingError $ show txt
+                   <> " is neither \"sequential\", \"random\", nor \"any\""
 
-schemeFromBool :: Bool -> AddressScheme
-schemeFromBool True = Sequential
-schemeFromBool False = Random
+instance ToText AddressScheme where
+    toText Sequential = "sequential"
+    toText Random = "random"
+    toText Any = "any"
 
 ----------------------------------------------------------------------------
 -- TxId
@@ -147,7 +158,7 @@ instance PersistField TxId where
         a <- fromText <$> fromPersistValue pv
         case a of
              Left _     ->
-                 Left . T.pack $ "not a valid value: " <> show pv
+                 Left $ "not a valid value: " <> T.pack (show pv)
              Right txid ->
                  pure (TxId txid)
 
@@ -194,8 +205,8 @@ instance FromJSON SlotId where
 
 walletStateNum :: WalletState -> Word8
 walletStateNum Ready = 100
-walletStateNum (Restoring (Quantity pc)) = n
-    where Just n = decode (encode pc) -- fixme: naff
+walletStateNum (Restoring (Quantity pc)) =
+    fromIntegral $ getPercentage pc
 
 walletStateFromNum :: Word8 -> WalletState
 walletStateFromNum n | n < 100 = Restoring (Quantity pc)
@@ -212,20 +223,14 @@ instance PersistFieldSql WalletState where
 instance Read WalletState where
     readsPrec _ = error "readsPrec stub needed for persistent"
 
-instance ToJSON WalletState where
-    toJSON = genericToJSON defaultOptions
-
-instance FromJSON WalletState where
-    parseJSON = genericParseJSON defaultOptions
-
 ----------------------------------------------------------------------------
 -- TxStatus
+
 instance PersistField TxStatus where
     toPersistValue =
         toPersistValue . toText
     fromPersistValue pv = first (const err) (fromPersistValue pv)
-        where err = T.pack $ "not a valid value: " <> show pv
-
+        where err = "not a valid value: " <> T.pack (show pv)
 
 instance PersistFieldSql TxStatus where
     sqlType _ = sqlType (Proxy @Text)

@@ -25,6 +25,7 @@ module Data.Quantity
     , Percentage
     , MkPercentageError(..)
     , mkPercentage
+    , getPercentage
     ) where
 
 import Prelude
@@ -115,7 +116,8 @@ instance ToText b => ToText (Quantity sym b) where
 -------------------------------------------------------------------------------}
 
 -- | Opaque Haskell type to represent values between 0 and 100 (incl).
-newtype Percentage = Percentage Word
+newtype Percentage = Percentage
+    { getPercentage :: Word }
     deriving stock (Generic, Show, Eq)
     deriving newtype (ToJSON)
 
