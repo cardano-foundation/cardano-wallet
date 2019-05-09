@@ -1,20 +1,24 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.EnvironmentSpec where
+module Cardano.EnvironmentSpec
+    ( spec
+    ) where
 
 import Prelude
 
 import Cardano.Environment
-    ( ErrMissingOrInvalidEnvVar (..), Network, unsafeLookupEnv )
+    ( ErrMissingOrInvalidEnvVar (..), unsafeLookupEnv )
 import Data.Maybe
     ( isNothing )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Text.Class
-    ( TextDecodingError (..) )
+    ( FromText (..), TextDecodingError (..), ToText (..) )
+import GHC.Generics
+    ( Generic )
 import System.Environment
     ( setEnv, unsetEnv )
 import Test.Hspec
@@ -23,14 +27,11 @@ import Test.QuickCheck
     ( Arbitrary (..) )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
-import Test.Text.Roundtrip
-    ( textRoundtrip )
+
+import qualified Data.Text as T
 
 spec :: Spec
 spec = do
-    describe "Can perform roundtrip textual encoding & decoding" $ do
-        textRoundtrip $ Proxy @Network
-
     describe "ErrMissingOrInvalidEnvVar (Show / displayException)" $ do
         let errNoAdditionalContext = ErrMissingOrInvalidEnvVar
                 { name = "PATATE"
@@ -72,9 +73,26 @@ spec = do
             io `shouldThrow` selector
 
 {-------------------------------------------------------------------------------
-                               Arbitrary Instances
+                              Types
 -------------------------------------------------------------------------------}
+
+data Network = Mainnet | Testnet | Staging
+    deriving Generic
 
 instance Arbitrary Network where
     arbitrary = genericArbitrary
     shrink = genericShrink
+
+instance FromText Network where
+    fromText = \case
+        "mainnet" -> Right Mainnet
+        "testnet" -> Right Testnet
+        "staging" -> Right Staging
+        s -> Left $ TextDecodingError $ T.unpack s
+            <> " is neither \"mainnet\", \"testnet\" nor \"staging\"."
+
+instance ToText Network where
+    toText = \case
+        Mainnet -> "mainnet"
+        Testnet -> "testnet"
+        Staging -> "staging"

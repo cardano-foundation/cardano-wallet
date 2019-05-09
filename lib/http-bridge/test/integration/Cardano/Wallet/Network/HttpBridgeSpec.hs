@@ -7,7 +7,7 @@ module Cardano.Wallet.Network.HttpBridgeSpec
 
 import Prelude
 
-import Cardano.Environment
+import Cardano.Environment.HttpBridge
     ( Network (..), network )
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )

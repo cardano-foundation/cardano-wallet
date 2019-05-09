@@ -63,6 +63,7 @@ library
       Cardano.Wallet.Api.Types
       Cardano.Wallet.DB
       Cardano.Wallet.DB.MVar
+      Cardano.Environment
       Cardano.Wallet.Network
       Cardano.Wallet.Primitive.AddressDerivation
       Cardano.Wallet.Primitive.AddressDiscovery
@@ -130,6 +131,7 @@ test-suite unit
       Cardano.Wallet.ApiSpec
       Cardano.Wallet.DB.MVarSpec
       Cardano.Wallet.DBSpec
+      Cardano.EnvironmentSpec
       Cardano.Wallet.NetworkSpec
       Cardano.Wallet.Primitive.AddressDerivationSpec
       Cardano.Wallet.Primitive.AddressDiscoverySpec

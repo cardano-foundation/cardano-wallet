@@ -6,6 +6,7 @@ packages:
 - lib/launcher
 - lib/text-class
 - lib/http-bridge
+- lib/jormungandr
 
 extra-deps:
 - base58-bytestring-0.1.0

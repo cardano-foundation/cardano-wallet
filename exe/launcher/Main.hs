@@ -7,7 +7,7 @@ import Prelude
 
 import Cardano.CLI
     ( Port, parseArgWith )
-import Cardano.Environment
+import Cardano.Environment.HttpBridge
     ( Network, network )
 import Cardano.Launcher
     ( Command (Command)
