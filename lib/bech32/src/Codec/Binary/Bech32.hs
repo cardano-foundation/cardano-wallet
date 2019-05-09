@@ -1,27 +1,35 @@
 module Codec.Binary.Bech32
-  ( bech32Encode
-  , bech32Decode
-  , toBase32
-  , toBase256
-  , segwitEncode
-  , segwitDecode
-  , Word5()
-  , word5
-  , fromWord5
-  ) where
+    ( bech32Encode
+    , bech32Decode
+    , toBase32
+    , toBase256
+    , segwitEncode
+    , segwitDecode
+    , Word5 ()
+    , word5
+    , fromWord5
+    ) where
 
 import Prelude
 
-import Control.Monad (guard)
+import Control.Monad
+    ( guard )
+import Data.Bits
+    ( Bits, testBit, unsafeShiftL, unsafeShiftR, xor, (.&.), (.|.) )
+import Data.Char
+    ( toLower, toUpper )
+import Data.Foldable
+    ( foldl' )
+import Data.Functor.Identity
+    ( Identity, runIdentity )
+import Data.Ix
+    ( Ix (..) )
+import Data.Word
+    ( Word8 )
+
 import qualified Data.Array as Arr
-import Data.Bits (Bits, unsafeShiftL, unsafeShiftR, (.&.), (.|.), xor, testBit)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC
-import Data.Char (toLower, toUpper)
-import Data.Foldable (foldl')
-import Data.Functor.Identity (Identity, runIdentity)
-import Data.Ix (Ix(..))
-import Data.Word (Word8)
 
 type HRP = BS.ByteString
 type Data = [Word8]
