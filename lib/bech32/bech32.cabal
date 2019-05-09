@@ -36,3 +36,23 @@ library
       src
   exposed-modules:
       Codec.Binary.Bech32
+
+test-suite bech32-test
+  type:
+      exitcode-stdio-1.0
+  hs-source-dirs:
+      test
+  main-is:
+      Spec.hs
+  build-depends:
+      base
+    , bech32
+    , tasty
+    , tasty-hunit
+    , bytestring
+    , base16-bytestring
+    , criterion
+  ghc-options:
+      -Wall -Werror -O2 -threaded -rtsopts -with-rtsopts=-N
+  default-language:
+      Haskell2010
