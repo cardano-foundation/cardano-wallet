@@ -218,7 +218,7 @@ instance PersistField WalletState where
     fromPersistValue = fmap walletStateFromNum . fromPersistValue
 
 instance PersistFieldSql WalletState where
-    sqlType _ = sqlType (Proxy @Text)
+    sqlType _ = sqlType (Proxy @Word8)
 
 instance Read WalletState where
     readsPrec _ = error "readsPrec stub needed for persistent"
