@@ -49,10 +49,12 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , WalletName (..)
     )
+import Control.Concurrent
+    ( threadDelay )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
-    ( forM_, replicateM )
+    ( forM_, replicateM, void )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -66,7 +68,7 @@ import Data.Coerce
 import Data.Either
     ( isLeft, isRight )
 import Data.Maybe
-    ( isJust )
+    ( isJust, isNothing )
 import GHC.Generics
     ( Generic )
 import Test.Hspec
@@ -118,6 +120,8 @@ spec = do
             (property walletUpdatePassphraseWrong)
         it "Can't change passphrase if wallet doesn't exist"
             (property walletUpdatePassphraseNoSuchWallet)
+        it "Passphrase info is up-to-date after wallet passphrase update"
+            (property walletUpdatePassphraseDate)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -240,6 +244,26 @@ walletUpdatePassphraseNoSuchWallet wallet@(wid', _, _) wid (old, new) =
         attempt <- runExceptT $ updateWalletPassphrase wl wid (old, new)
         let err = ErrUpdatePassphraseWithRootKey (ErrWithRootKeyNoRootKey wid)
         attempt `shouldBe` Left err
+
+walletUpdatePassphraseDate
+    :: (WalletId, WalletName, DummyState)
+    -> (Key 'RootK XPrv, Passphrase "encryption")
+    -> Property
+walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
+    (WalletLayerFixture _ wl [wid]) <- liftIO $ setupFixture wallet
+    let infoShouldSatisfy predicate = do
+            info <- (passphraseInfo . snd) <$> unsafeRunExceptT (readWallet wl wid)
+            info `shouldSatisfy` predicate
+            return info
+
+    void $ infoShouldSatisfy isNothing
+    unsafeRunExceptT $ attachPrivateKey wl wid (xprv, pwd)
+    info <- infoShouldSatisfy isJust
+    pause
+    unsafeRunExceptT $ updateWalletPassphrase wl wid (coerce pwd, coerce pwd)
+    void $ infoShouldSatisfy (\info' -> isJust info' && info' > info)
+  where
+    pause = threadDelay 500
 
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
