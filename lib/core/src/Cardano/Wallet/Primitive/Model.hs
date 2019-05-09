@@ -136,7 +136,7 @@ import qualified Data.Set as Set
 data Wallet s t where
     Wallet :: (IsOurs s, NFData s, Show s, TxId t)
         => UTxO -- Unspent tx outputs belonging to this wallet
-        -> Set Tx -- Pending transactions
+        -> Set Tx -- Pending outgoing transactions
         -> SlotId -- Latest applied block (current tip)
         -> s -- Address discovery state
         -> Wallet s t
