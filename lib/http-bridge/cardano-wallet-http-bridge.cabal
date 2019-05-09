@@ -42,7 +42,6 @@ library
     , cryptonite
     , digest
     , exceptions
-    , fmt
     , http-api-data
     , http-client
     , http-media

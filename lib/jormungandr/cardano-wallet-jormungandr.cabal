@@ -34,7 +34,6 @@ library
   build-depends:
       base
     , cardano-wallet-core
-    , fmt
 --    , binary
 --    , bytestring
 --    , cardano-crypto
@@ -68,8 +67,11 @@ test-suite unit
     , bytestring
     , cardano-wallet-core
     , cardano-wallet-jormungandr
+    , generic-arbitrary
     , memory
+    , text-class
     , hspec
+    , QuickCheck
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
@@ -78,4 +80,5 @@ test-suite unit
       Main.hs
   other-modules:
       Cardano.Wallet.Binary.JormungandrSpec
+      Cardano.Environment.JormungandrSpec
       Spec
