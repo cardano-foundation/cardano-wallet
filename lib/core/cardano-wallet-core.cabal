@@ -47,6 +47,10 @@ library
     , http-api-data
     , http-media
     , memory
+    , path-pieces
+    , persistent
+    , persistent-sqlite
+    , persistent-template
     , servant
     , servant-server
     , text
@@ -54,6 +58,7 @@ library
     , time
     , transformers
     , vector
+
   hs-source-dirs:
       src
   exposed-modules:
@@ -63,6 +68,8 @@ library
       Cardano.Wallet.Api.Types
       Cardano.Wallet.DB
       Cardano.Wallet.DB.MVar
+      Cardano.Wallet.DB.SqliteTypes
+      Cardano.Wallet.DB.Sqlite
       Cardano.Wallet.Network
       Cardano.Wallet.Primitive.AddressDerivation
       Cardano.Wallet.Primitive.AddressDiscovery
@@ -119,6 +126,11 @@ test-suite unit
     , text-class
     , transformers
     , yaml
+    , persistent
+    , persistent-sqlite
+    , conduit
+    , monad-logger
+    , mtl
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
@@ -129,6 +141,7 @@ test-suite unit
       Cardano.Wallet.Api.TypesSpec
       Cardano.Wallet.ApiSpec
       Cardano.Wallet.DB.MVarSpec
+      Cardano.Wallet.DB.SqliteSpec
       Cardano.Wallet.DBSpec
       Cardano.Wallet.NetworkSpec
       Cardano.Wallet.Primitive.AddressDerivationSpec
