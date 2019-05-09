@@ -1,6 +1,7 @@
 resolver: lts-13.8
 packages:
 - .
+- lib/bech32
 - lib/core
 - lib/cli
 - lib/launcher

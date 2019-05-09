@@ -1,0 +1,38 @@
+name:          bech32
+version:       2019.5.8
+synopsis:      Implementation of the Bech32 segwit address format (BIP 0173).
+homepage:      https://github.com/input-output-hk/cardano-wallet
+author:        IOHK Engineering Team
+maintainer:    operations@iohk.io
+copyright:     2017 Marko Bencun, 2019 IOHK
+license:       MIT
+category:      Web
+build-type:    Simple
+cabal-version: >=1.10
+
+flag development
+    description: Disable `-Werror`
+    default: False
+    manual: True
+
+library
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -Wall
+      -Wcompat
+      -fwarn-redundant-constraints
+  if (!flag(development))
+    ghc-options:
+      -Werror
+  build-depends:
+      array
+    , base
+    , bytestring
+  hs-source-dirs:
+      src
+  exposed-modules:
+      Codec.Binary.Bech32
