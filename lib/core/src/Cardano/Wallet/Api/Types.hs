@@ -48,7 +48,11 @@ module Cardano.Wallet.Api.Types
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( FromMnemonic (..), Passphrase (..) )
+    ( FromMnemonic (..)
+    , Passphrase (..)
+    , PassphraseMaxLength (..)
+    , PassphraseMinLength (..)
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
@@ -144,8 +148,8 @@ newtype WalletPutData = WalletPutData
     } deriving (Eq, Generic, Show)
 
 data WalletPutPassphraseData = WalletPutPassphraseData
-    { oldPassphrase :: !(ApiT (Passphrase "encryption"))
-    , newPassphrase :: !(ApiT (Passphrase "encryption"))
+    { oldPassphrase :: !(ApiT (Passphrase "encryption-old"))
+    , newPassphrase :: !(ApiT (Passphrase "encryption-new"))
     } deriving (Eq, Generic, Show)
 
 data PostTransactionData = PostTransactionData
@@ -253,9 +257,10 @@ instance FromJSON WalletPutPassphraseData where
 instance ToJSON  WalletPutPassphraseData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON (ApiT (Passphrase "encryption")) where
+instance (PassphraseMaxLength purpose, PassphraseMinLength purpose)
+    => FromJSON (ApiT (Passphrase purpose)) where
     parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText
-instance ToJSON (ApiT (Passphrase "encryption")) where
+instance ToJSON (ApiT (Passphrase purpose)) where
     toJSON = toJSON . toText . getApiT
 
 instance FromMnemonic sizes purpose => FromJSON (ApiMnemonicT sizes purpose)

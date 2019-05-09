@@ -22,6 +22,7 @@ import Cardano.Wallet
     , ErrNoSuchWallet (..)
     , ErrSignTx (..)
     , ErrSubmitTx (..)
+    , ErrUpdatePassphrase (..)
     , ErrWalletAlreadyExists (..)
     , WalletLayer
     )
@@ -182,8 +183,10 @@ putWalletPassphrase
     -> ApiT WalletId
     -> WalletPutPassphraseData
     -> Handler NoContent
-putWalletPassphrase _ _ _ =
-    throwM err501
+putWalletPassphrase w (ApiT wid) body = do
+    let (WalletPutPassphraseData (ApiT old) (ApiT new)) = body
+    liftHandler $ W.updateWalletPassphrase w wid (old, new)
+    return NoContent
 
 {-------------------------------------------------------------------------------
                                     Addresses
@@ -274,7 +277,12 @@ instance LiftHandler ErrSignTx where
     handler = \case
         ErrSignTx _ -> err500
         ErrSignTxNoSuchWallet _ -> err410
-        ErrSignTxWrongPassphrase _ -> err403
+        ErrSignTxWithRootKey _ -> err403
 
 instance LiftHandler ErrSubmitTx where
     handler _ = err500
+
+instance LiftHandler ErrUpdatePassphrase where
+    handler = \case
+        ErrUpdatePassphraseNoSuchWallet _ -> err404
+        ErrUpdatePassphraseWithRootKey _ -> err403

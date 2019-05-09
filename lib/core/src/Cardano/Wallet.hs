@@ -21,7 +21,6 @@ module Cardano.Wallet
     (
     -- * Interface
       WalletLayer (..)
-    , PassphraseUpdate (..)
 
     -- * Errors
     , ErrCreateUnsignedTx (..)
@@ -124,6 +123,10 @@ import Control.Monad.Trans.Maybe
     ( MaybeT (..), maybeToExceptT )
 import Control.Monad.Trans.State
     ( runState, state )
+import Data.Bifunctor
+    ( bimap )
+import Data.Coerce
+    ( coerce )
 import Data.Functor
     ( ($>) )
 import Data.Generics.Internal.VL.Lens
@@ -169,9 +172,9 @@ data WalletLayer s t = WalletLayer
 
     , updateWalletPassphrase
         :: WalletId
-        -> PassphraseUpdate
-        -> ExceptT ErrNoSuchWallet IO ()
-        -- ^ Change the wallet passphrase to the given passphrase
+        -> (Passphrase "encryption-old", Passphrase "encryption-new")
+        -> ExceptT ErrUpdatePassphrase IO ()
+        -- ^ Change the wallet passphrase to the given passphrase.
 
     , listWallets
         :: IO [WalletId]
@@ -259,11 +262,6 @@ data ErrWithRootKey
     = ErrWithRootKeyNoRootKey WalletId
     | ErrWithRootKeyWrongPassphrase ErrWrongPassphrase
 
-data PassphraseUpdate = PassphraseUpdate
-    { oldPassphrase :: Passphrase "encryption"
-    , newPassphrase :: Passphrase "encryption"
-    }
-
 {-------------------------------------------------------------------------------
                                  Construction
 -------------------------------------------------------------------------------}
@@ -295,11 +293,19 @@ mkWalletLayer db nw tl = WalletLayer
     , readWallet = _readWallet
 
     , updateWallet = \wid modify -> DB.withLock db $ do
-        (_, meta) <- _readWallet wid
+        meta <- _readWalletMeta wid
         DB.putWalletMeta db (PrimaryKey wid) (modify meta)
 
-    , updateWalletPassphrase = \wid modify -> DB.withLock db $ do
-        undefined
+    , updateWalletPassphrase = \wid pwds -> DB.withLock db $ do
+        meta <- withExceptT ErrUpdatePassphraseNoSuchWallet $ _readWalletMeta wid
+        let (old, new) = bimap coerce coerce pwds
+        withRootKey wid old ErrUpdatePassphraseWithRootKey $ \xprv ->
+            withExceptT ErrUpdatePassphraseNoSuchWallet $
+                _attachPrivateKey wid (xprv, new)
+        now <- liftIO getCurrentTime
+        let modify x = x { passphraseInfo = WalletPassphraseInfo now }
+        withExceptT ErrUpdatePassphraseNoSuchWallet $
+            DB.putWalletMeta db (PrimaryKey wid) (modify meta)
 
     , listWallets = fmap (\(PrimaryKey wid) -> wid) <$> DB.listWallets db
 
@@ -372,18 +378,35 @@ mkWalletLayer db nw tl = WalletLayer
                                      Keystore
     ---------------------------------------------------------------------------}
 
-    , attachPrivateKey = \wid (xprv, pwd) -> do
-        hpwd <- liftIO $ encryptPassphrase pwd
-        DB.putPrivateKey db (PrimaryKey wid) (xprv, hpwd)
+    , attachPrivateKey = _attachPrivateKey
     }
   where
     _readWallet
         :: WalletId
         -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)
-    _readWallet wid = maybeToExceptT (ErrNoSuchWallet wid) $ do
-        cp <- MaybeT $ DB.readCheckpoint db (PrimaryKey wid)
-        meta <- MaybeT $ DB.readWalletMeta db (PrimaryKey wid)
-        return (cp, meta)
+    _readWallet wid = (,)
+        <$> _readWalletCheckpoint wid
+        <*> _readWalletMeta wid
+
+    _readWalletMeta
+        :: WalletId
+        -> ExceptT ErrNoSuchWallet IO WalletMetadata
+    _readWalletMeta wid = maybeToExceptT (ErrNoSuchWallet wid) $
+        MaybeT $ DB.readWalletMeta db (PrimaryKey wid)
+
+    _readWalletCheckpoint
+        :: WalletId
+        -> ExceptT ErrNoSuchWallet IO (Wallet s t)
+    _readWalletCheckpoint wid = maybeToExceptT (ErrNoSuchWallet wid) $ do
+        MaybeT $ DB.readCheckpoint db (PrimaryKey wid)
+
+    _attachPrivateKey
+        :: WalletId
+        -> (Key 'RootK XPrv, Passphrase "encryption")
+        -> ExceptT ErrNoSuchWallet IO ()
+    _attachPrivateKey wid (xprv, pwd) = do
+        hpwd <- liftIO $ encryptPassphrase pwd
+        DB.putPrivateKey db (PrimaryKey wid) (xprv, hpwd)
 
     -- | Execute an action which requires holding a root XPrv
     withRootKey
