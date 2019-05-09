@@ -46,4 +46,4 @@ The good thing with the rust node is that, we don't need a full cluster anymore.
 ```haskell
             [l, r] -> AddressAmount . ApiT <$> fromText r <*> fromText l
 ```
-    if `fromText r` or `fromText l` fails we will get generic failure that won't tell user the info that parsing of payment `<amount>@<address>` have failed
+if `fromText r` or `fromText l` fails we will get generic failure that won't tell user the info that parsing of payment `<amount>@<address>` have failed
