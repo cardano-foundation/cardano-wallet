@@ -657,6 +657,7 @@ responseErr423: &responsesErr423
     schema: *responsesErr
 
 responsesListWallets: &responsesListWallets
+  <<: *responsesErr406
   200:
     description: Ok
     schema:
@@ -681,7 +682,6 @@ responsesPostWallet: &responsesPostWallet
     schema: *ApiWallet
 
 responsesGetWallet: &responsesGetWallet
-  <<: *responsesErr400
   <<: *responsesErr404
   <<: *responsesErr406
   200:
@@ -689,10 +689,8 @@ responsesGetWallet: &responsesGetWallet
     schema: *ApiWallet
 
 responsesDeleteWallet: &responsesDeleteWallet
-  <<: *responsesErr400
   <<: *responsesErr404
   <<: *responsesErr406
-  <<: *responsesErr423
   204:
     description: No Content
 
