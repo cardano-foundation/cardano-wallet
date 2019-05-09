@@ -156,6 +156,12 @@ data WalletLayer s t = WalletLayer
         -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)
         -- ^ Retrieve the wallet state for the wallet with the given ID.
 
+    , updateWallet
+        :: WalletId
+        -> (WalletMetadata -> WalletMetadata)
+        -> ExceptT ErrNoSuchWallet IO ()
+        -- ^ Update the wallet metadata with the given update function.
+
     , listWallets
         :: IO [WalletId]
         -- ^ Retrieve a list of known wallets IDs.
@@ -259,6 +265,10 @@ mkWalletLayer db nw tl = WalletLayer
         DB.createWallet db (PrimaryKey wid) checkpoint metadata $> wid
 
     , readWallet = _readWallet
+
+    , updateWallet = \wid modify -> DB.withLock db $ do
+        (_, meta) <- _readWallet wid
+        DB.putWalletMeta db (PrimaryKey wid) (modify meta)
 
     , listWallets = fmap (\(PrimaryKey wid) -> wid) <$> DB.listWallets db
 
