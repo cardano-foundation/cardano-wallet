@@ -31,6 +31,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , balance
     , excluding
+    , flatSlot
+    , fromFlatSlot
     , isSubsetOf
     , isValidCoin
     , restrictedBy
@@ -144,6 +146,11 @@ spec = do
     describe "slotRatio" $ do
         it "works for any two slots" $ property $ \sl0 sl1 ->
             slotRatio sl0 sl1 `deepseq` ()
+    describe "flatSlot" $ do
+        it "flatSlot . fromFlatSlot == id" $ property $ \sl ->
+            fromFlatSlot (flatSlot sl) === sl
+        it "fromFlatSlot . flatSlot == id" $ property $ \n ->
+            flatSlot (fromFlatSlot n) === n
 
     describe "Negative cases for types decoding" $ do
         it "fail fromText @Address \"0000\"" $ do
