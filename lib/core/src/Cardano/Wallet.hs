@@ -239,28 +239,33 @@ data ErrCreateUnsignedTx
     = ErrCreateUnsignedTxNoSuchWallet ErrNoSuchWallet
     | ErrCreateUnsignedTxCoinSelection CoinSelectionError
     | ErrCreateUnsignedTxFee ErrAdjustForFee
+    deriving (Show, Eq)
 
 -- | Errors occuring when signing a transaction
 data ErrSignTx
     = ErrSignTx ErrMkStdTx
     | ErrSignTxNoSuchWallet ErrNoSuchWallet
     | ErrSignTxWithRootKey ErrWithRootKey
+    deriving (Show, Eq)
 
 -- | Errors occuring when submitting a signed transaction to the network
 data ErrSubmitTx
     = ErrSubmitTxNetwork ErrPostTx
     | ErrSubmitTxNoSuchWallet ErrNoSuchWallet
+    deriving (Show, Eq)
 
 -- | Errors occuring when trying to change a wallet's passphrase
 data ErrUpdatePassphrase
     = ErrUpdatePassphraseNoSuchWallet ErrNoSuchWallet
     | ErrUpdatePassphraseWithRootKey ErrWithRootKey
+    deriving (Show, Eq)
 
 -- | Errors occuring when trying to perform an operation on a wallet which
 -- requires a private key, but none is attached to the wallet
 data ErrWithRootKey
     = ErrWithRootKeyNoRootKey WalletId
     | ErrWithRootKeyWrongPassphrase ErrWrongPassphrase
+    deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
                                  Construction

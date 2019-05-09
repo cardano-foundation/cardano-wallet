@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -13,26 +14,55 @@ module Cardano.WalletSpec
 
 import Prelude
 
+import Cardano.Crypto.Wallet
+    ( unXPrv )
 import Cardano.Wallet
-    ( WalletLayer (..), mkWalletLayer )
+    ( ErrCreateUnsignedTx (..)
+    , ErrSignTx (..)
+    , ErrSubmitTx (..)
+    , ErrUpdatePassphrase (..)
+    , ErrWithRootKey (..)
+    , ErrWithRootKey (..)
+    , WalletLayer (..)
+    , mkWalletLayer
+    , unsafeRunExceptT
+    )
 import Cardano.Wallet.DB
-    ( DBLayer, PrimaryKey (..) )
+    ( DBLayer, ErrNoSuchWallet (..), PrimaryKey (..) )
 import Cardano.Wallet.DB.MVar
     ( newDBLayer )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Depth (..)
+    , ErrWrongPassphrase (..)
+    , Key
+    , Passphrase (..)
+    , XPrv
+    , generateKeyFromSeed
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( GenChange (..), IsOurs (..), IsOwned (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Hash (..), TxId (..), WalletId (..), WalletName (..) )
+    ( Address (..)
+    , Hash (..)
+    , TxId (..)
+    , WalletId (..)
+    , WalletMetadata (..)
+    , WalletName (..)
+    )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
-    ( replicateM )
+    ( forM_, replicateM )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Crypto.Hash
     ( hash )
+import Data.ByteString
+    ( ByteString )
+import Data.Coerce
+    ( coerce )
 import Data.Either
     ( isLeft, isRight )
 import Data.Maybe
@@ -42,19 +72,29 @@ import GHC.Generics
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldNotBe, shouldSatisfy )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, elements, property )
+    ( Arbitrary (..), Property, elements, property, (==>) )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
 import qualified Cardano.Wallet.DB as DB
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 
 spec :: Spec
 spec = do
+    describe "Pointless tests to cover 'Show' instances for errors" $ do
+        let errNoSuchWallet =
+                ErrNoSuchWallet (WalletId (hash @ByteString "arbitrary"))
+        it (show $ ErrCreateUnsignedTxNoSuchWallet errNoSuchWallet) True
+        it (show $ ErrSignTxNoSuchWallet errNoSuchWallet) True
+        it (show $ ErrSubmitTxNoSuchWallet errNoSuchWallet) True
+        it (show $ ErrUpdatePassphraseNoSuchWallet errNoSuchWallet) True
+        it (show $ ErrWithRootKeyWrongPassphrase ErrWrongPassphrase) True
+
     describe "WalletLayer works as expected" $ do
         it "Wallet upon creation is written down in db"
             (property walletCreationProp)
@@ -68,7 +108,16 @@ spec = do
             (property walletIdDeterministic)
         it "Two wallets with different mnemonic have a different public id"
             (property walletIdInjective)
-
+        it "Wallet has name corresponding to its last update"
+            (property walletUpdateName)
+        it "Can't change name if wallet doesn't exist"
+            (property walletUpdateNameNoSuchWallet)
+        it "Can change passphrase of the last private key attached, if any"
+            (property walletUpdatePassphrase)
+        it "Can't change passphrase with a wrong old passphrase"
+            (property walletUpdatePassphraseWrong)
+        it "Can't change passphrase if wallet doesn't exist"
+            (property walletUpdatePassphraseNoSuchWallet)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -121,6 +170,76 @@ walletIdInjective (walletA, walletB) = monadicIO $ liftIO $ do
     (WalletLayerFixture _ _ widsA) <- liftIO $ setupFixture walletA
     (WalletLayerFixture _ _ widsB) <- liftIO $ setupFixture walletB
     widsA `shouldNotBe` widsB
+
+walletUpdateName
+    :: (WalletId, WalletName, DummyState)
+    -> [WalletName]
+    -> Property
+walletUpdateName wallet@(_, wName0, _) names = monadicIO $ liftIO $ do
+    (WalletLayerFixture _ wl [wid]) <- liftIO $ setupFixture wallet
+    unsafeRunExceptT $ forM_ names $ \wName ->
+        updateWallet wl wid (\x -> x { name = wName })
+    wName <- fmap (name . snd) <$> unsafeRunExceptT $ readWallet wl wid
+    wName `shouldBe` last (wName0 : names)
+
+walletUpdateNameNoSuchWallet
+    :: (WalletId, WalletName, DummyState)
+    -> WalletId
+    -> WalletName
+    -> Property
+walletUpdateNameNoSuchWallet wallet@(wid', _, _) wid wName =
+    wid /= wid' ==> monadicIO $ liftIO $ do
+        (WalletLayerFixture _ wl _) <- liftIO $ setupFixture wallet
+        attempt <- runExceptT $ updateWallet wl wid (\x -> x { name = wName })
+        attempt `shouldBe` Left (ErrNoSuchWallet wid)
+
+walletUpdatePassphrase
+    :: (WalletId, WalletName, DummyState)
+    -> Passphrase "encryption-new"
+    -> Maybe (Key 'RootK XPrv, Passphrase "encryption")
+    -> Property
+walletUpdatePassphrase wallet new mxprv = monadicIO $ liftIO $ do
+    (WalletLayerFixture _ wl [wid]) <- liftIO $ setupFixture wallet
+    case mxprv of
+        Nothing -> prop_withoutPrivateKey wl wid
+        Just (xprv, pwd) -> prop_withPrivateKey wl wid (xprv, pwd)
+  where
+    prop_withoutPrivateKey wl wid = do
+        attempt <- runExceptT $ updateWalletPassphrase wl wid (coerce new, new)
+        let err = ErrUpdatePassphraseWithRootKey $ ErrWithRootKeyNoRootKey wid
+        attempt `shouldBe` Left err
+
+    prop_withPrivateKey wl wid (xprv, pwd) = do
+        unsafeRunExceptT $ attachPrivateKey wl wid (xprv, pwd)
+        attempt <- runExceptT $ updateWalletPassphrase wl wid (coerce pwd, new)
+        attempt `shouldBe` Right ()
+
+walletUpdatePassphraseWrong
+    :: (WalletId, WalletName, DummyState)
+    -> (Key 'RootK XPrv, Passphrase "encryption")
+    -> (Passphrase "encryption-old", Passphrase "encryption-new")
+    -> Property
+walletUpdatePassphraseWrong wallet (xprv, pwd) (old, new) =
+    pwd /= coerce old ==> monadicIO $ liftIO $ do
+        (WalletLayerFixture _ wl [wid]) <- liftIO $ setupFixture wallet
+        unsafeRunExceptT $ attachPrivateKey wl wid (xprv, pwd)
+        attempt <- runExceptT $ updateWalletPassphrase wl wid (old, new)
+        let err = ErrUpdatePassphraseWithRootKey
+                $ ErrWithRootKeyWrongPassphrase
+                ErrWrongPassphrase
+        attempt `shouldBe` Left err
+
+walletUpdatePassphraseNoSuchWallet
+    :: (WalletId, WalletName, DummyState)
+    -> WalletId
+    -> (Passphrase "encryption-old", Passphrase "encryption-new")
+    -> Property
+walletUpdatePassphraseNoSuchWallet wallet@(wid', _, _) wid (old, new) =
+    wid /= wid' ==> monadicIO $ liftIO $ do
+        (WalletLayerFixture _ wl _) <- liftIO $ setupFixture wallet
+        attempt <- runExceptT $ updateWalletPassphrase wl wid (old, new)
+        let err = ErrUpdatePassphraseNoSuchWallet (ErrNoSuchWallet wid)
+        attempt `shouldBe` Left err
 
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
@@ -181,3 +300,19 @@ instance Arbitrary WalletName where
         [ WalletName "My Wallet"
         , WalletName mempty
         ]
+
+instance Arbitrary (Passphrase purpose) where
+    shrink _ = []
+    arbitrary =
+        Passphrase . BA.convert . BS.pack <$> replicateM 16 arbitrary
+
+instance {-# OVERLAPS #-} Arbitrary (Key 'RootK XPrv, Passphrase "encryption") where
+    shrink _ = []
+    arbitrary = do
+        seed <- Passphrase . BA.convert . BS.pack <$> replicateM 32 arbitrary
+        pwd <- arbitrary
+        let key = generateKeyFromSeed (seed, mempty) pwd
+        return (key, pwd)
+
+instance Show XPrv where
+    show = show . unXPrv
