@@ -146,6 +146,8 @@ instance GHC.Enum.Enum Data.Quantity.Percentage
 instance Control.DeepSeq.NFData a => Control.DeepSeq.NFData (Data.Quantity.Quantity unit a)
 instance (GHC.TypeLits.KnownSymbol unit, Data.Aeson.Types.ToJSON.ToJSON a) => Data.Aeson.Types.ToJSON.ToJSON (Data.Quantity.Quantity unit a)
 instance (GHC.TypeLits.KnownSymbol unit, Data.Aeson.Types.FromJSON.FromJSON a) => Data.Aeson.Types.FromJSON.FromJSON (Data.Quantity.Quantity unit a)
+instance Data.Text.Class.FromText b => Data.Text.Class.FromText (Data.Quantity.Quantity sym b)
+instance Data.Text.Class.ToText b => Data.Text.Class.ToText (Data.Quantity.Quantity sym b)
 
 
 -- | This module contains the core primitive of a Wallet. This is roughly a
@@ -1374,7 +1376,7 @@ WalletPutPassphraseData :: !ApiT (Passphrase "encryption") -> !ApiT (Passphrase 
 [$sel:newPassphrase:WalletPutPassphraseData] :: WalletPutPassphraseData -> !ApiT (Passphrase "encryption")
 data PostTransactionData
 PostTransactionData :: !NonEmpty AddressAmount -> !ApiT (Passphrase "encryption") -> PostTransactionData
-[$sel:targets:PostTransactionData] :: PostTransactionData -> !NonEmpty AddressAmount
+[$sel:payments:PostTransactionData] :: PostTransactionData -> !NonEmpty AddressAmount
 [$sel:passphrase:PostTransactionData] :: PostTransactionData -> !ApiT (Passphrase "encryption")
 data ApiBlockData
 ApiBlockData :: UTCTime -> !ApiT SlotId -> ApiBlockData
@@ -1480,6 +1482,8 @@ instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.ApiTransact
 instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiTransaction
 instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.AddressAmount
 instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.AddressAmount
+instance Data.Text.Class.FromText Cardano.Wallet.Api.Types.AddressAmount
+instance Data.Text.Class.ToText Cardano.Wallet.Api.Types.AddressAmount
 instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.ApiBlockData
 instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiBlockData
 instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.AddressState)

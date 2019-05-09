@@ -22,6 +22,7 @@ putErrLn :: Text -> IO ()
 -- | Print an error message in red
 hPutErrLn :: Handle -> Text -> IO ()
 parseArgWith :: FromText a => Docopt -> Arguments -> Option -> IO a
+parseAllArgsWith :: FromText a => Docopt -> Arguments -> Option -> IO (NonEmpty a)
 
 -- | Like <a>hGetLine</a> but with default handles
 getLine :: Buildable e => Text -> (Text -> Either e a) -> IO (a, Text)
