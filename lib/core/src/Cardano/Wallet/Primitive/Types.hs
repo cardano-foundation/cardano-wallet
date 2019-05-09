@@ -150,7 +150,7 @@ data WalletMetadata = WalletMetadata
     { name
         :: !WalletName
     , passphraseInfo
-        :: !WalletPassphraseInfo
+        :: !(Maybe WalletPassphraseInfo)
     , status
         :: !WalletState
     , delegation

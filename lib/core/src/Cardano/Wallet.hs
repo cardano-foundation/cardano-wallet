@@ -123,8 +123,6 @@ import Control.Monad.Trans.Maybe
     ( MaybeT (..), maybeToExceptT )
 import Control.Monad.Trans.State
     ( runState, state )
-import Data.Bifunctor
-    ( bimap )
 import Data.Coerce
     ( coerce )
 import Data.Functor
@@ -286,10 +284,9 @@ mkWalletLayer db nw tl = WalletLayer
 
     { createWallet = \wid wname s -> do
         let checkpoint = initWallet s
-        now <- liftIO getCurrentTime
         let metadata = WalletMetadata
                 { name = wname
-                , passphraseInfo = WalletPassphraseInfo now
+                , passphraseInfo = Nothing
                 , status = Restoring minBound
                 , delegation = NotDelegating
                 }
@@ -301,16 +298,10 @@ mkWalletLayer db nw tl = WalletLayer
         meta <- _readWalletMeta wid
         DB.putWalletMeta db (PrimaryKey wid) (modify meta)
 
-    , updateWalletPassphrase = \wid pwds -> DB.withLock db $ do
-        meta <- withExceptT ErrUpdatePassphraseNoSuchWallet $ _readWalletMeta wid
-        let (old, new) = bimap coerce coerce pwds
-        withRootKey wid old ErrUpdatePassphraseWithRootKey $ \xprv ->
+    , updateWalletPassphrase = \wid (old, new) -> do
+        withRootKey wid (coerce old) ErrUpdatePassphraseWithRootKey $ \xprv ->
             withExceptT ErrUpdatePassphraseNoSuchWallet $
-                _attachPrivateKey wid (xprv, new)
-        now <- liftIO getCurrentTime
-        let modify x = x { passphraseInfo = WalletPassphraseInfo now }
-        withExceptT ErrUpdatePassphraseNoSuchWallet $
-            DB.putWalletMeta db (PrimaryKey wid) (modify meta)
+                _attachPrivateKey wid (xprv, coerce new)
 
     , listWallets = fmap (\(PrimaryKey wid) -> wid) <$> DB.listWallets db
 
@@ -412,6 +403,11 @@ mkWalletLayer db nw tl = WalletLayer
     _attachPrivateKey wid (xprv, pwd) = do
         hpwd <- liftIO $ encryptPassphrase pwd
         DB.putPrivateKey db (PrimaryKey wid) (xprv, hpwd)
+        DB.withLock db $ do
+            meta <- _readWalletMeta wid
+            now <- liftIO getCurrentTime
+            let modify x = x { passphraseInfo = Just (WalletPassphraseInfo now) }
+            DB.putWalletMeta db (PrimaryKey wid) (modify meta)
 
     -- | Execute an action which requires holding a root XPrv
     withRootKey

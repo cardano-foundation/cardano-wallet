@@ -135,7 +135,7 @@ getWallet w (ApiT wid) = do
         , name =
             ApiT $ meta ^. #name
         , passphrase =
-            ApiT $ meta ^. #passphraseInfo
+            ApiT <$> meta ^. #passphraseInfo
         , state =
             ApiT $ meta ^. #status
         }

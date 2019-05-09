@@ -87,8 +87,6 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
-import Data.Time
-    ( UTCTime )
 import GHC.TypeLits
     ( Symbol )
 import Language.Haskell.TH.Quote
@@ -260,15 +258,16 @@ delegation =
         -> s
     _set (s, v) = set typed (ApiT v ) s
 
-passphraseLastUpdate :: HasType (ApiT WalletPassphraseInfo) s => Lens' s Text
+passphraseLastUpdate
+    :: HasType (Maybe (ApiT WalletPassphraseInfo)) s
+    => Lens' s (Maybe Text)
 passphraseLastUpdate =
     lens _get _set
   where
-    _get :: HasType (ApiT WalletPassphraseInfo) s => s -> Text
-    _get = T.pack . show . lastUpdatedAt . getApiT . view typed
-    _set :: HasType (ApiT WalletPassphraseInfo) s => (s, Text) -> s
-    _set (s, v) =
-        set typed (ApiT $ WalletPassphraseInfo ((read $ T.unpack v) :: UTCTime)) s
+    _get :: HasType (Maybe (ApiT WalletPassphraseInfo)) s => s -> Maybe Text
+    _get = fmap (T.pack . show . lastUpdatedAt . getApiT) . view typed
+    _set :: HasType (Maybe (ApiT WalletPassphraseInfo)) s => (s, Maybe Text) -> s
+    _set (s, v) = set typed (ApiT . WalletPassphraseInfo . read . T.unpack <$> v) s
 
 state :: HasType (ApiT WalletState) s => Lens' s WalletState
 state =

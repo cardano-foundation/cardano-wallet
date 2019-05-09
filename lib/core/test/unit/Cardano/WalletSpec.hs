@@ -238,7 +238,7 @@ walletUpdatePassphraseNoSuchWallet wallet@(wid', _, _) wid (old, new) =
     wid /= wid' ==> monadicIO $ liftIO $ do
         (WalletLayerFixture _ wl _) <- liftIO $ setupFixture wallet
         attempt <- runExceptT $ updateWalletPassphrase wl wid (old, new)
-        let err = ErrUpdatePassphraseNoSuchWallet (ErrNoSuchWallet wid)
+        let err = ErrUpdatePassphraseWithRootKey (ErrWithRootKeyNoRootKey wid)
         attempt `shouldBe` Left err
 
 {-------------------------------------------------------------------------------

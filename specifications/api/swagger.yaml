@@ -461,7 +461,6 @@ definitions:
       - balance
       - delegation
       - name
-      - passphrase
       - state
     properties:
       id: *walletId

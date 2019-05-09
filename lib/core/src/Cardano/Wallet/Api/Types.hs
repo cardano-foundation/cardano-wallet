@@ -131,7 +131,7 @@ data ApiWallet = ApiWallet
     , balance :: !(ApiT WalletBalance)
     , delegation :: !(ApiT (WalletDelegation (ApiT PoolId)))
     , name :: !(ApiT WalletName)
-    , passphrase :: !(ApiT WalletPassphraseInfo)
+    , passphrase :: !(Maybe (ApiT WalletPassphraseInfo))
     , state :: !(ApiT WalletState)
     } deriving (Eq, Generic, Show)
 
