@@ -47,3 +47,5 @@ The good thing with the rust node is that, we don't need a full cluster anymore.
             [l, r] -> AddressAmount . ApiT <$> fromText r <*> fromText l
 ```
 if `fromText r` or `fromText l` fails we will get generic failure that won't tell user the info that parsing of payment `<amount>@<address>` have failed
+
+ - chose a better name for CLI option `transaction create`. Currently we use it to do all three steps: coin selection, sign, submit. See discussion https://github.com/input-output-hk/cardano-wallet/pull/225#discussion_r281454697
