@@ -19,8 +19,8 @@ Each proposal should start with a section justifying the standard with rational 
     * [HLint is used for hints and general code style](#hlint-is-used-for-hints-and-general-code-style)
     * [We use explicit imports by default, and favor qualified imports for ambiguous functions](#we-use-explicit-imports-by-default-and-favor-qualified-imports-for-ambiguous-functions)
     * [All modules begin with a helpful documentation comment](#all-modules-begin-with-a-helpful-documentation-comment)
+    * [Avoid wildcard when pattern-matching on ADTs](#avoid-wildcard-when-pattern-matching-on-adts)
     * [[PROPOSAL] Use `cardano-prelude` for all modules, enable `NoImplicitPrelude`](#proposal-use-cardano-prelude-for-all-modules-enable-noimplicitprelude)
-    * [[PROPOSAL] Avoid wildcard when pattern-matching on ADTs](#proposal-avoid-wildcard-when-pattern-matching-on-adts)
 
 * [Testing](#testing)
     * [Test files are separated and self-contained](#test-files-are-separated-and-self-contained)
@@ -671,7 +671,7 @@ It is based upon Stephen Diehl's
 </details>
 
 
-## [PROPOSAL] Avoid wildcard when pattern-matching on ADTs
+## Avoid wildcard when pattern-matching on ADTs
 
 > **Why**
 >
