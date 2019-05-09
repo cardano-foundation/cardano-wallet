@@ -19,7 +19,7 @@
 --   Prior to starting, the wallet is expected to have a few configuration
 --   parameter available. One may rely on a `.env` file to bundle
 --   configuration settings together for a given target environment.
-module Cardano.Environment
+module Cardano.Environment.HttpBridge
 
 -- | Available network options.
 data Network
@@ -36,27 +36,14 @@ ProtocolMagic :: Int32 -> ProtocolMagic
 
 -- | Get the <a>ProtocolMagic</a> corresponding to a given <a>Network</a>.
 protocolMagic :: Network -> ProtocolMagic
-
--- | Fatal exception thrown when a required ENV var is missing upon
---   start-up.
-data ErrMissingOrInvalidEnvVar
-ErrMissingOrInvalidEnvVar :: String -> String -> Maybe (String, TextDecodingError) -> ErrMissingOrInvalidEnvVar
-[name] :: ErrMissingOrInvalidEnvVar -> String
-[command] :: ErrMissingOrInvalidEnvVar -> String
-[additionalContext] :: ErrMissingOrInvalidEnvVar -> Maybe (String, TextDecodingError)
-
--- | Lookup the environment for a given variable
-unsafeLookupEnv :: FromText a => String -> a
-instance GHC.Show.Show Cardano.Environment.ProtocolMagic
-instance GHC.Generics.Generic Cardano.Environment.ProtocolMagic
-instance GHC.Enum.Enum Cardano.Environment.Network
-instance GHC.Classes.Eq Cardano.Environment.Network
-instance GHC.Show.Show Cardano.Environment.Network
-instance GHC.Generics.Generic Cardano.Environment.Network
-instance Data.Text.Class.FromText Cardano.Environment.Network
-instance Data.Text.Class.ToText Cardano.Environment.Network
-instance GHC.Show.Show Cardano.Environment.ErrMissingOrInvalidEnvVar
-instance GHC.Exception.Type.Exception Cardano.Environment.ErrMissingOrInvalidEnvVar
+instance GHC.Show.Show Cardano.Environment.HttpBridge.ProtocolMagic
+instance GHC.Generics.Generic Cardano.Environment.HttpBridge.ProtocolMagic
+instance GHC.Enum.Enum Cardano.Environment.HttpBridge.Network
+instance GHC.Classes.Eq Cardano.Environment.HttpBridge.Network
+instance GHC.Show.Show Cardano.Environment.HttpBridge.Network
+instance GHC.Generics.Generic Cardano.Environment.HttpBridge.Network
+instance Data.Text.Class.FromText Cardano.Environment.HttpBridge.Network
+instance Data.Text.Class.ToText Cardano.Environment.HttpBridge.Network
 
 
 -- | These are (partial) CBOR decoders for blocks and block headers. Note

@@ -9,6 +9,26 @@
 @version 2019.5.8
 
 
+-- | Helpers for reading ENV vars using <a>unsafePerformIO</a> with
+--   readable error messages.
+--   
+--   Copyright: © 2018-2019 IOHK License: MIT
+module Cardano.Environment
+
+-- | Fatal exception thrown when a required ENV var is missing upon
+--   start-up.
+data ErrMissingOrInvalidEnvVar
+ErrMissingOrInvalidEnvVar :: String -> String -> Maybe (String, TextDecodingError) -> ErrMissingOrInvalidEnvVar
+[name] :: ErrMissingOrInvalidEnvVar -> String
+[command] :: ErrMissingOrInvalidEnvVar -> String
+[additionalContext] :: ErrMissingOrInvalidEnvVar -> Maybe (String, TextDecodingError)
+
+-- | Lookup the environment for a given variable
+unsafeLookupEnv :: FromText a => String -> a
+instance GHC.Show.Show Cardano.Environment.ErrMissingOrInvalidEnvVar
+instance GHC.Exception.Type.Exception Cardano.Environment.ErrMissingOrInvalidEnvVar
+
+
 -- | This module provides mnemonic (backup phrase) creation, and conversion
 --   of a mnemonic to seed for wallet restoration.
 module Cardano.Wallet.Primitive.Mnemonic
