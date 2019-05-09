@@ -23,8 +23,13 @@ import Database.Persist.Sqlite
 import Test.Hspec
     ( Spec, describe, it, shouldReturn )
 
-runSqlite' :: (MonadUnliftIO m) => Text -> ReaderT SqlBackend (LoggingT (ResourceT m)) a -> m a
-runSqlite' connstr = runResourceT . runStderrLoggingT . withSqliteConn connstr . runSqlConn
+runSqlite'
+    :: (MonadUnliftIO m)
+    => Text
+    -> ReaderT SqlBackend (LoggingT (ResourceT m)) a
+    -> m a
+runSqlite' connstr =
+    runResourceT . runStderrLoggingT . withSqliteConn connstr . runSqlConn
 
 testMigrate :: IO ()
 testMigrate = runSqlite' ":memory:" $ do
