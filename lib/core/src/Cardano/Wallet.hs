@@ -272,7 +272,7 @@ mkWalletLayer db nw tl = WalletLayer
 
     , listWallets = fmap (\(PrimaryKey wid) -> wid) <$> DB.listWallets db
 
-    , removeWallet = DB.removeWallet db . PrimaryKey
+    , removeWallet = DB.withLock db . DB.removeWallet db . PrimaryKey
 
     , restoreWallet = \wid -> do
         (w, _) <- _readWallet wid
@@ -419,24 +419,26 @@ mkWalletLayer db nw tl = WalletLayer
         liftIO $ TIO.putStrLn $
             "[INFO] Applying blocks ["+| inf |+" ... "+| sup |+"]"
 
-        (cp, meta) <- _readWallet wid
-        -- NOTE
-        -- We only process non-empty blocks, though we still keep the last block
-        -- of the list, even if empty, so that we correctly update the current
-        -- tip of the wallet state.
-        let nonEmpty = not . null . transactions
-        let (h,q) = first (filter nonEmpty) $ splitAt (length blocks - 1) blocks
-        let (txs, cp') = applyBlocks (h ++ q) cp
-        let progress = slotRatio sup tip
-        let status' = if progress == maxBound then Ready else Restoring progress
-        let meta' = meta { status = status' } :: WalletMetadata
-        liftIO $ TIO.putStrLn $
-            "[INFO] Tx History: " +|| length txs ||+ ""
         -- NOTE
         -- Not as good as a transaction, but, with the lock, nothing can make
         -- the wallet disappear within these calls, so either the wallet is
         -- there and they all succeed, or it's not and they all fail.
         DB.withLock db $ do
+            (cp, meta) <- _readWallet wid
+            -- NOTE
+            -- We only process non-empty blocks, though we still keep the last
+            -- block of the list, even if empty, so that we correctly update the
+            -- current tip of the wallet state.
+            let nonEmpty = not . null . transactions
+            let (h,q) = first (filter nonEmpty) $ splitAt (length blocks - 1) blocks
+            let (txs, cp') = applyBlocks (h ++ q) cp
+            let progress = slotRatio sup tip
+            let status' = if progress == maxBound
+                    then Ready
+                    else Restoring progress
+            let meta' = meta { status = status' } :: WalletMetadata
+            liftIO $ TIO.putStrLn $
+                "[INFO] Tx History: " +|| length txs ||+ ""
             DB.putCheckpoint db (PrimaryKey wid) cp'
             DB.putTxHistory db (PrimaryKey wid) txs
             DB.putWalletMeta db (PrimaryKey wid) meta'
