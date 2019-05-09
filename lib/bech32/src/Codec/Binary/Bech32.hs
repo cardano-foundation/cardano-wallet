@@ -39,12 +39,12 @@ type Data = [Word8]
 (.<<.) = unsafeShiftL
 
 newtype Word5 = UnsafeWord5 Word8
-              deriving (Eq, Ord)
+    deriving (Eq, Ord)
 
 instance Ix Word5 where
-  range (UnsafeWord5 m, UnsafeWord5 n) = map UnsafeWord5 $ range (m, n)
-  index (UnsafeWord5 m, UnsafeWord5 n) (UnsafeWord5 i) = index (m, n) i
-  inRange (m,n) i = m <= i && i <= n
+    range (UnsafeWord5 m, UnsafeWord5 n) = map UnsafeWord5 $ range (m, n)
+    index (UnsafeWord5 m, UnsafeWord5 n) (UnsafeWord5 i) = index (m, n) i
+    inRange (m,n) i = m <= i && i <= n
 
 word5 :: Integral a => a -> Word5
 word5 x = UnsafeWord5 ((fromIntegral x) .&. 31)
@@ -57,32 +57,49 @@ fromWord5 (UnsafeWord5 x) = fromIntegral x
 {-# SPECIALIZE INLINE fromWord5 :: Word5 -> Word8 #-}
 
 charset :: Arr.Array Word5 Char
-charset = Arr.listArray (UnsafeWord5 0, UnsafeWord5 31) "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+charset =
+    Arr.listArray
+        (UnsafeWord5 0, UnsafeWord5 31)
+        "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 
 charsetMap :: Char -> Maybe Word5
-charsetMap c | inRange (Arr.bounds inv) upperC = inv Arr.! upperC
-             | otherwise = Nothing
+charsetMap c
+    | inRange (Arr.bounds inv) upperC = inv Arr.! upperC
+    | otherwise = Nothing
   where
     upperC = toUpper c
-    inv = Arr.listArray ('0', 'Z') (repeat Nothing) Arr.// (map swap (Arr.assocs charset))
     swap (a, b) = (toUpper b, Just a)
+    inv =
+        Arr.listArray ('0', 'Z') (repeat Nothing)
+        Arr.//
+        (map swap (Arr.assocs charset))
 
 bech32Polymod :: [Word5] -> Word
 bech32Polymod values = foldl' go 1 values .&. 0x3fffffff
   where
-    go chk value = foldl' xor chk' [g | (g, i) <- zip generator [25..], testBit chk i]
+    go chk value =
+        foldl' xor chk' [g | (g, i) <- zip generator [25 ..], testBit chk i]
       where
-        generator = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3]
         chk' = chk .<<. 5 `xor` (fromWord5 value)
+        generator =
+            [ 0x3b6a57b2
+            , 0x26508e6d
+            , 0x1ea119fa
+            , 0x3d4233dd
+            , 0x2a1462b3 ]
 
 bech32HRPExpand :: HRP -> [Word5]
-bech32HRPExpand hrp = map (UnsafeWord5 . (.>>. 5)) (BS.unpack hrp) ++ [UnsafeWord5 0] ++ map word5 (BS.unpack hrp)
+bech32HRPExpand hrp =
+    map (UnsafeWord5 . (.>>. 5)) (BS.unpack hrp)
+    ++ [UnsafeWord5 0]
+    ++ map word5 (BS.unpack hrp)
 
 bech32CreateChecksum :: HRP -> [Word5] -> [Word5]
-bech32CreateChecksum hrp dat = [word5 (polymod .>>. i) | i <- [25,20..0]]
+bech32CreateChecksum hrp dat = [word5 (polymod .>>. i) | i <- [25, 20 .. 0]]
   where
     values = bech32HRPExpand hrp ++ dat
-    polymod = bech32Polymod (values ++ map UnsafeWord5 [0, 0, 0, 0, 0, 0]) `xor` 1
+    polymod =
+        bech32Polymod (values ++ map UnsafeWord5 [0, 0, 0, 0, 0, 0]) `xor` 1
 
 bech32VerifyChecksum :: HRP -> [Word5] -> Bool
 bech32VerifyChecksum hrp dat = bech32Polymod (bech32HRPExpand hrp ++ dat) == 1
@@ -97,7 +114,9 @@ bech32Encode hrp dat = do
     return result
 
 checkHRP :: BS.ByteString -> Bool
-checkHRP hrp = not (BS.null hrp) && BS.all (\char -> char >= 33 && char <= 126) hrp
+checkHRP hrp =
+    not (BS.null hrp)
+    && BS.all (\char -> char >= 33 && char <= 126) hrp
 
 bech32Decode :: BS.ByteString -> Maybe (HRP, [Word5])
 bech32Decode bech32 = do
@@ -125,27 +144,33 @@ noPadding frombits bits padValue result = do
 {-# INLINE noPadding #-}
 
 -- Big endian conversion of a bytestring from base 2^frombits to base 2^tobits.
--- frombits and twobits must be positive and 2^frombits and 2^tobits must be smaller than the size of Word.
--- Every value in dat must be strictly smaller than 2^frombits.
+-- frombits and twobits must be positive and 2^frombits and 2^tobits must be
+-- smaller than the size of Word. Every value in dat must be strictly smaller
+-- than 2^frombits.
 convertBits :: Functor f => [Word] -> Int -> Int -> Pad f -> f [Word]
 convertBits dat frombits tobits pad = fmap (concat . reverse) $ go dat 0 0 []
   where
     go [] acc bits result =
         let padValue = (acc .<<. (tobits - bits)) .&. maxv
         in pad frombits bits padValue result
-    go (value:dat') acc bits result = go dat' acc' (bits' `rem` tobits) (result':result)
+    go (value:dat') acc bits result =
+        go dat' acc' (bits' `rem` tobits) (result' : result)
       where
         acc' = (acc .<<. frombits) .|. fromIntegral value
         bits' = bits + frombits
-        result' = [(acc' .>>. b) .&. maxv | b <- [bits'-tobits,bits'-2*tobits..0]]
+        result' =
+            [ (acc' .>>. b) .&. maxv
+            | b <- [bits' - tobits, bits' - 2 * tobits .. 0] ]
     maxv = (1 .<<. tobits) - 1
 {-# INLINE convertBits #-}
 
 toBase32 :: [Word8] -> [Word5]
-toBase32 dat = map word5 $ runIdentity $ convertBits (map fromIntegral dat) 8 5 yesPadding
+toBase32 dat =
+    map word5 $ runIdentity $ convertBits (map fromIntegral dat) 8 5 yesPadding
 
 toBase256 :: [Word5] -> Maybe [Word8]
-toBase256 dat = fmap (map fromIntegral) $ convertBits (map fromWord5 dat) 5 8 noPadding
+toBase256 dat =
+    fmap (map fromIntegral) $ convertBits (map fromWord5 dat) 5 8 noPadding
 
 segwitCheck :: Word8 -> Data -> Bool
 segwitCheck witver witprog =
