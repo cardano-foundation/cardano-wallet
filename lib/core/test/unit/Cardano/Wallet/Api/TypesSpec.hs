@@ -192,9 +192,12 @@ spec = do
 
     describe "AddressAmount" $ do
         it "fromText . toText === pure"
-            $ property $ \(i :: AddressAmount) -> (fromText . toText) i === pure i
+            $ property
+            $ \(i :: AddressAmount) -> (fromText . toText) i === pure i
         it "fromText \"22323\"" $
-            let err = "Parse error. Expecting format'<amount>@<address>' but got '\"22323\"'"
+            let err =
+                    "Parse error. " <>
+                    "Expecting format \"<amount>@<address>\" but got \"22323\""
             in fromText @AddressAmount "22323" === Left (TextDecodingError err)
 
     describe

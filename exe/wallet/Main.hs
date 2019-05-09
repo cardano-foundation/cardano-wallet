@@ -65,8 +65,7 @@ import Data.Function
     ( (&) )
 import Data.Functor
     ( (<&>) )
-import Data.List.NonEmpty
-    ( fromList )
+import qualified Data.List.NonEmpty as NE
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
@@ -135,7 +134,7 @@ Usage:
   cardano-wallet wallet get [--port=INT] <wallet-id>
   cardano-wallet wallet update [--port=INT] <wallet-id> --name=STRING
   cardano-wallet wallet delete [--port=INT] <wallet-id>
-  cardano-wallet transaction create [--port=INT] --wallet-id=STRING --payment=STRING...
+  cardano-wallet transaction create [--port=INT] --wallet-id=STRING --payment=PAYMENT...
   cardano-wallet -h | --help
   cardano-wallet --version
 
@@ -144,7 +143,11 @@ Options:
   --bridge-port <INT>         port used for communicating with the http-bridge [default: 8080]
   --address-pool-gap <INT>    number of unused consecutive addresses to keep track of [default: 20]
   --size <INT>                number of mnemonic words to generate [default: 15]
-  --payment <STRING>           address to send to and amount to send separated by @: '<amount>@<address>'
+  --payment <PAYMENT>         address to send to and amount to send separated by @: '<amount>@<address>'
+
+Examples:
+  cardano-wallet transaction create --wallet-id 2512a00e9653fe49a44a5886202e24d77eeb998f --payment 22@2cWKMJemoBam7gg1y5K2aFDhAm5L8fVc96NfxgcGhdLMFTsToNAU9t5HVdBBQKy4iDswL # Create archive.tar from files foo and bar.
+
 |]
 
 main :: IO ()
@@ -238,7 +241,7 @@ exec manager args
         runClient @Transaction Aeson.encodePretty $ createTransaction (ApiT wId) $
             PostTransactionData
                 -- NOTE: we are sure this will be non-empty
-                (fromList ts)
+                (NE.fromList ts)
                 (ApiT wPwd)
 
     | otherwise =

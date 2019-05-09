@@ -104,8 +104,7 @@ instance ToText (Port tag) where
 parseArgWith :: FromText a => Docopt -> Arguments -> Option -> IO a
 parseArgWith cli args option = do
     (fromText . T.pack <$> args `getArgOrExit` option) >>= \case
-        Right a -> do
-            return a
+        Right a -> return a
         Left e -> do
             putErrLn $ T.pack $ getTextDecodingError e
             exitFailure
@@ -116,8 +115,7 @@ parseArgWith cli args option = do
 parseAllArgsWith :: FromText a => Docopt -> Arguments -> Option -> IO [a]
 parseAllArgsWith cli args option = do
     (mapM (fromText . T.pack) <$> args `getAllArgsOrExit` option) >>= \case
-        Right a -> do
-            return a
+        Right a -> return a
         Left e -> do
             putErrLn $ T.pack $ getTextDecodingError e
             exitFailure
@@ -131,9 +129,11 @@ parseAllArgsWith cli args option = do
 --   'getAllArgsOrExitWith' will not exit.
 getAllArgsOrExitWith :: Docopt -> Arguments -> Option -> IO [String]
 getAllArgsOrExitWith doc args opt = exitIfEmpty $ getAllArgs args opt
-  where exitIfEmpty a | null a =
+  where
+    exitIfEmpty
+      a | null a =
             exitWithUsageMessage doc $ "argument expected for: " ++ show opt
-                      | otherwise = pure a
+        | otherwise = pure a
 
 {-------------------------------------------------------------------------------
                             ANSI Terminal Helpers

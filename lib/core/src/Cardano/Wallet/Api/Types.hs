@@ -392,12 +392,11 @@ walletStateOptions = taggedSumTypeOptions $ TaggedObjectOptions
 
 instance FromText AddressAmount where
     fromText text = do
-        let err = Left . TextDecodingError $ "Parse error. Expecting format\
-            \'<amount>@<address>' but got '" <> show text <> "'"
+        let err = Left . TextDecodingError $ "Parse error. Expecting format \
+            \\"<amount>@<address>\" but got " <> show text
         case split (=='@') text of
             [] -> err
             [_] -> err
-            -- TODO: more user friendly message
             [l, r] -> AddressAmount . ApiT <$> fromText r <*> fromText l
             _ -> err
 
