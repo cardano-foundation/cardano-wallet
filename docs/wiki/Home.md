@@ -18,3 +18,4 @@
 - [About Address Derivation](https://github.com/input-output-hk/cardano-wallet/wiki/About-Address-Derivation)
 - [About Coin Selection](https://github.com/input-output-hk/cardano-wallet/wiki/About-Coin-Selection)
 - [Prototype](https://github.com/KtorZ/wallet-prototype)
+- [Wallet CLI](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface)
