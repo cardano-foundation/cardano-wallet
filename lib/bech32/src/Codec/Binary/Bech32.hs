@@ -5,7 +5,7 @@ module Codec.Binary.Bech32
     , toBase256
     , segwitEncode
     , segwitDecode
-    , Word5 ()
+    , Word5
     , word5
     , fromWord5
     ) where
@@ -38,28 +38,28 @@ type Data = [Word8]
 (.>>.) = unsafeShiftR
 (.<<.) = unsafeShiftL
 
-newtype Word5 = UnsafeWord5 Word8
+newtype Word5 = Word5 Word8
     deriving (Eq, Ord)
 
 instance Ix Word5 where
-    range (UnsafeWord5 m, UnsafeWord5 n) = map UnsafeWord5 $ range (m, n)
-    index (UnsafeWord5 m, UnsafeWord5 n) (UnsafeWord5 i) = index (m, n) i
+    range (Word5 m, Word5 n) = map Word5 $ range (m, n)
+    index (Word5 m, Word5 n) (Word5 i) = index (m, n) i
     inRange (m,n) i = m <= i && i <= n
 
 word5 :: Integral a => a -> Word5
-word5 x = UnsafeWord5 ((fromIntegral x) .&. 31)
+word5 x = Word5 ((fromIntegral x) .&. 31)
 {-# INLINE word5 #-}
 {-# SPECIALIZE INLINE word5 :: Word8 -> Word5 #-}
 
 fromWord5 :: Integral a => Word5 -> a
-fromWord5 (UnsafeWord5 x) = fromIntegral x
+fromWord5 (Word5 x) = fromIntegral x
 {-# INLINE fromWord5 #-}
 {-# SPECIALIZE INLINE fromWord5 :: Word5 -> Word8 #-}
 
 charset :: Arr.Array Word5 Char
 charset =
     Arr.listArray
-        (UnsafeWord5 0, UnsafeWord5 31)
+        (Word5 0, Word5 31)
         "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 
 charsetMap :: Char -> Maybe Word5
@@ -90,8 +90,8 @@ bech32Polymod values = foldl' go 1 values .&. 0x3fffffff
 
 bech32HRPExpand :: HRP -> [Word5]
 bech32HRPExpand hrp =
-    map (UnsafeWord5 . (.>>. 5)) (BS.unpack hrp)
-    ++ [UnsafeWord5 0]
+    map (Word5 . (.>>. 5)) (BS.unpack hrp)
+    ++ [Word5 0]
     ++ map word5 (BS.unpack hrp)
 
 bech32CreateChecksum :: HRP -> [Word5] -> [Word5]
@@ -99,7 +99,7 @@ bech32CreateChecksum hrp dat = [word5 (polymod .>>. i) | i <- [25, 20 .. 0]]
   where
     values = bech32HRPExpand hrp ++ dat
     polymod =
-        bech32Polymod (values ++ map UnsafeWord5 [0, 0, 0, 0, 0, 0]) `xor` 1
+        bech32Polymod (values ++ map Word5 [0, 0, 0, 0, 0, 0]) `xor` 1
 
 bech32VerifyChecksum :: HRP -> [Word5] -> Bool
 bech32VerifyChecksum hrp dat = bech32Polymod (bech32HRPExpand hrp ++ dat) == 1
@@ -183,7 +183,7 @@ segwitDecode :: HRP -> BS.ByteString -> Maybe (Word8, Data)
 segwitDecode hrp addr = do
     (hrp', dat) <- bech32Decode addr
     guard $ (hrp == hrp') && not (null dat)
-    let (UnsafeWord5 witver : datBase32) = dat
+    let (Word5 witver : datBase32) = dat
     decoded <- toBase256 datBase32
     guard $ segwitCheck witver decoded
     return (witver, decoded)
@@ -191,5 +191,5 @@ segwitDecode hrp addr = do
 segwitEncode :: HRP -> Word8 -> Data -> Maybe BS.ByteString
 segwitEncode hrp witver witprog = do
     guard $ segwitCheck witver witprog
-    bech32Encode hrp $ UnsafeWord5 witver : toBase32 witprog
+    bech32Encode hrp $ Word5 witver : toBase32 witprog
 
