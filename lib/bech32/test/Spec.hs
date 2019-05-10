@@ -91,7 +91,7 @@ hexDecode s =
 
 segwitScriptPubkey :: Word8 -> [Word8] -> BS.ByteString
 segwitScriptPubkey witver witprog =
-    BS.pack $ witver' : (fromIntegral $ length witprog) : witprog
+    BS.pack $ witver' : fromIntegral (length witprog) : witprog
   where
     witver' = if witver == 0 then 0 else witver + 0x50
 
