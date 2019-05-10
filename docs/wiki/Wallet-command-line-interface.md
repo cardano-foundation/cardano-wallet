@@ -22,7 +22,7 @@ $ cardano-http-bridge start --template testnet --port=8080
 Then you should launch the API with:
 
 ```
-$ NETWORK=testnet stack exec -- cardano-wallet server --bridge-port 8080
+$ NETWORK=testnet cardano-wallet server --bridge-port 8080
 Wallet backend server listening on: 8090
 ```
 
@@ -33,7 +33,7 @@ This will launch the API
 Generates mnemonic words
 
 ```
-$ stack exec -- cardano-wallet mnemonic generate
+$ cardano-wallet mnemonic generate
 ```
 
 These words will be used to create a wallet later.
@@ -51,7 +51,7 @@ $ cardano-wallet wallet list
 Create a new wallet. This is an interactive command that will prompt you for mnemonic words and password.
 
 ```
-$ stack exec -- cardano-wallet wallet create --name=foo
+$ cardano-wallet wallet create --name=foo
 Please enter a 15–24 word mnemonic sentence: <enter generated mnemonic words here>
 (Enter a blank line if you do not wish to use a second factor.)
 Please enter a 9–12 word mnemonic second factor: <skip or enter new mnemonic words here>
@@ -66,7 +66,7 @@ after this your new wallet will be created
 Fetches the wallet with specified wallet id:
 
 ```
-$ stack exec -- cardano-wallet wallet get 2512a00e9653fe49a44a5886202e24d77eeb998f
+$ cardano-wallet wallet get 2512a00e9653fe49a44a5886202e24d77eeb998f
 ```
 
 ## wallet update
