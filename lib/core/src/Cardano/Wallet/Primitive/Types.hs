@@ -150,7 +150,7 @@ data WalletMetadata = WalletMetadata
     { name
         :: !WalletName
     , passphraseInfo
-        :: !WalletPassphraseInfo
+        :: !(Maybe WalletPassphraseInfo)
     , status
         :: !WalletState
     , delegation
@@ -225,7 +225,7 @@ instance NFData poolId => NFData (WalletDelegation poolId)
 
 newtype WalletPassphraseInfo = WalletPassphraseInfo
     { lastUpdatedAt :: UTCTime }
-    deriving (Generic, Eq, Show)
+    deriving (Generic, Eq, Ord, Show)
 
 instance NFData WalletPassphraseInfo
 

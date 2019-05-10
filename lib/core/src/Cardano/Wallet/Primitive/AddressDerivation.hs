@@ -7,6 +7,7 @@
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -220,6 +221,8 @@ newtype Passphrase (purpose :: Symbol) = Passphrase ScrubbedBytes
     deriving stock (Eq, Show)
     deriving newtype (Semigroup, Monoid)
 
+type role Passphrase phantom
+
 class PassphraseMinLength (purpose :: Symbol) where
     -- | Minimal Length for a passphrase, for lack of better validations
     passphraseMinLength :: Proxy purpose -> Int
@@ -230,6 +233,14 @@ class PassphraseMaxLength (purpose :: Symbol) where
 
 instance PassphraseMinLength "encryption" where passphraseMinLength _ = 10
 instance PassphraseMaxLength "encryption" where passphraseMaxLength _ = 255
+instance PassphraseMinLength "encryption-old" where
+    passphraseMinLength _ = passphraseMinLength (Proxy @"encryption")
+instance PassphraseMaxLength "encryption-old" where
+    passphraseMaxLength _ = passphraseMaxLength (Proxy @"encryption")
+instance PassphraseMinLength "encryption-new" where
+    passphraseMinLength _ = passphraseMinLength (Proxy @"encryption")
+instance PassphraseMaxLength "encryption-new" where
+    passphraseMaxLength _ = passphraseMaxLength (Proxy @"encryption")
 
 instance
     ( PassphraseMaxLength purpose

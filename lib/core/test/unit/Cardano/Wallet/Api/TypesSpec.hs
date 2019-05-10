@@ -540,12 +540,13 @@ instance Arbitrary WalletName where
         | T.length t <= walletNameMinLength = []
         | otherwise = [WalletName $ T.take walletNameMinLength t]
 
-instance Arbitrary (Passphrase "encryption") where
+instance (PassphraseMaxLength purpose, PassphraseMinLength purpose) =>
+    Arbitrary (Passphrase purpose) where
     arbitrary = do
         n <- choose (passphraseMinLength p, passphraseMaxLength p)
         bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
         return $ Passphrase $ BA.convert bytes
-      where p = Proxy :: Proxy "encryption"
+      where p = Proxy :: Proxy purpose
     shrink (Passphrase bytes)
         | BA.length bytes <= passphraseMinLength p = []
         | otherwise =
@@ -553,7 +554,7 @@ instance Arbitrary (Passphrase "encryption") where
             $ BA.convert
             $ B8.take (passphraseMinLength p)
             $ BA.convert bytes ]
-      where p = Proxy :: Proxy "encryption"
+      where p = Proxy :: Proxy purpose
 
 instance Arbitrary WalletPassphraseInfo where
     arbitrary = genericArbitrary

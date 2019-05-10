@@ -22,6 +22,7 @@ import Cardano.Wallet
     , ErrNoSuchWallet (..)
     , ErrSignTx (..)
     , ErrSubmitTx (..)
+    , ErrUpdatePassphrase (..)
     , ErrWalletAlreadyExists (..)
     , WalletLayer
     )
@@ -49,7 +50,13 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.Model
     ( availableBalance, getState, totalBalance )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, Coin (..), TxId (..), TxOut (..), WalletId (..) )
+    ( AddressState
+    , Coin (..)
+    , TxId (..)
+    , TxOut (..)
+    , WalletId (..)
+    , WalletMetadata (..)
+    )
 import Control.Monad.Catch
     ( throwM )
 import Control.Monad.IO.Class
@@ -128,7 +135,7 @@ getWallet w (ApiT wid) = do
         , name =
             ApiT $ meta ^. #name
         , passphrase =
-            ApiT $ meta ^. #passphraseInfo
+            ApiT <$> meta ^. #passphraseInfo
         , state =
             ApiT $ meta ^. #status
         }
@@ -150,7 +157,7 @@ postWallet w body = do
     let secondFactor = maybe mempty getApiMnemonicT (body ^. #mnemonicSecondFactor)
     let pwd = getApiT (body ^. #passphrase)
     let rootXPrv = generateKeyFromSeed (seed, secondFactor) pwd
-    let g = maybe defaultAddressPoolGap getApiT (body ^.  #addressPoolGap)
+    let g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
     let s = mkSeqState (rootXPrv, pwd) g
     let wid = WalletId $ digest $ publicKey rootXPrv
     _ <- liftHandler $ W.createWallet w wid (getApiT (body ^. #name)) s
@@ -163,16 +170,23 @@ putWallet
     -> ApiT WalletId
     -> WalletPutData
     -> Handler ApiWallet
-putWallet _ _ _ =
-    throwM err501
+putWallet w (ApiT wid) body = do
+    case body ^. #name of
+        Nothing ->
+            return ()
+        Just (ApiT wName) ->
+            liftHandler $ W.updateWallet w wid (\meta -> meta { name = wName })
+    getWallet w (ApiT wid)
 
 putWalletPassphrase
     :: WalletLayer (SeqState t) t
     -> ApiT WalletId
     -> WalletPutPassphraseData
     -> Handler NoContent
-putWalletPassphrase _ _ _ =
-    throwM err501
+putWalletPassphrase w (ApiT wid) body = do
+    let (WalletPutPassphraseData (ApiT old) (ApiT new)) = body
+    liftHandler $ W.updateWalletPassphrase w wid (old, new)
+    return NoContent
 
 {-------------------------------------------------------------------------------
                                     Addresses
@@ -263,7 +277,12 @@ instance LiftHandler ErrSignTx where
     handler = \case
         ErrSignTx _ -> err500
         ErrSignTxNoSuchWallet _ -> err410
-        ErrSignTxWrongPassphrase _ -> err403
+        ErrSignTxWithRootKey _ -> err403
 
 instance LiftHandler ErrSubmitTx where
     handler _ = err500
+
+instance LiftHandler ErrUpdatePassphrase where
+    handler = \case
+        ErrUpdatePassphraseNoSuchWallet _ -> err404
+        ErrUpdatePassphraseWithRootKey _ -> err403

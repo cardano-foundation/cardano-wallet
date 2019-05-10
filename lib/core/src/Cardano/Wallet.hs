@@ -23,11 +23,13 @@ module Cardano.Wallet
       WalletLayer (..)
 
     -- * Errors
-    , ErrNoSuchWallet(..)
-    , ErrWalletAlreadyExists(..)
-    , ErrSignTx(..)
-    , ErrSubmitTx(..)
-    , ErrCreateUnsignedTx(..)
+    , ErrCreateUnsignedTx (..)
+    , ErrNoSuchWallet (..)
+    , ErrSignTx (..)
+    , ErrSubmitTx (..)
+    , ErrUpdatePassphrase (..)
+    , ErrWalletAlreadyExists (..)
+    , ErrWithRootKey (..)
 
     -- * Construction
     , mkWalletLayer
@@ -113,12 +115,16 @@ import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.IO.Class
     ( liftIO )
+import Control.Monad.Trans.Class
+    ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), maybeToExceptT )
 import Control.Monad.Trans.State
     ( runState, state )
+import Data.Coerce
+    ( coerce )
 import Data.Functor
     ( ($>) )
 import Data.Generics.Internal.VL.Lens
@@ -155,6 +161,18 @@ data WalletLayer s t = WalletLayer
         :: WalletId
         -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)
         -- ^ Retrieve the wallet state for the wallet with the given ID.
+
+    , updateWallet
+        :: WalletId
+        -> (WalletMetadata -> WalletMetadata)
+        -> ExceptT ErrNoSuchWallet IO ()
+        -- ^ Update the wallet metadata with the given update function.
+
+    , updateWalletPassphrase
+        :: WalletId
+        -> (Passphrase "encryption-old", Passphrase "encryption-new")
+        -> ExceptT ErrUpdatePassphrase IO ()
+        -- ^ Change the wallet passphrase to the given passphrase.
 
     , listWallets
         :: IO [WalletId]
@@ -211,6 +229,7 @@ data WalletLayer s t = WalletLayer
         -- ^ Attach a given private key to a wallet. The private key is
         -- necessary for some operations like signing transactions or,
         -- generating new accounts.
+
     }
 
 -- | Errors occuring when creating an unsigned transaction
@@ -218,17 +237,33 @@ data ErrCreateUnsignedTx
     = ErrCreateUnsignedTxNoSuchWallet ErrNoSuchWallet
     | ErrCreateUnsignedTxCoinSelection CoinSelectionError
     | ErrCreateUnsignedTxFee ErrAdjustForFee
+    deriving (Show, Eq)
 
 -- | Errors occuring when signing a transaction
 data ErrSignTx
     = ErrSignTx ErrMkStdTx
     | ErrSignTxNoSuchWallet ErrNoSuchWallet
-    | ErrSignTxWrongPassphrase ErrWrongPassphrase
+    | ErrSignTxWithRootKey ErrWithRootKey
+    deriving (Show, Eq)
 
 -- | Errors occuring when submitting a signed transaction to the network
 data ErrSubmitTx
     = ErrSubmitTxNetwork ErrPostTx
     | ErrSubmitTxNoSuchWallet ErrNoSuchWallet
+    deriving (Show, Eq)
+
+-- | Errors occuring when trying to change a wallet's passphrase
+data ErrUpdatePassphrase
+    = ErrUpdatePassphraseNoSuchWallet ErrNoSuchWallet
+    | ErrUpdatePassphraseWithRootKey ErrWithRootKey
+    deriving (Show, Eq)
+
+-- | Errors occuring when trying to perform an operation on a wallet which
+-- requires a private key, but none is attached to the wallet
+data ErrWithRootKey
+    = ErrWithRootKeyNoRootKey WalletId
+    | ErrWithRootKeyWrongPassphrase ErrWrongPassphrase
+    deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
                                  Construction
@@ -249,10 +284,9 @@ mkWalletLayer db nw tl = WalletLayer
 
     { createWallet = \wid wname s -> do
         let checkpoint = initWallet s
-        now <- liftIO getCurrentTime
         let metadata = WalletMetadata
                 { name = wname
-                , passphraseInfo = WalletPassphraseInfo now
+                , passphraseInfo = Nothing
                 , status = Restoring minBound
                 , delegation = NotDelegating
                 }
@@ -260,9 +294,18 @@ mkWalletLayer db nw tl = WalletLayer
 
     , readWallet = _readWallet
 
+    , updateWallet = \wid modify -> DB.withLock db $ do
+        meta <- _readWalletMeta wid
+        DB.putWalletMeta db (PrimaryKey wid) (modify meta)
+
+    , updateWalletPassphrase = \wid (old, new) -> do
+        withRootKey wid (coerce old) ErrUpdatePassphraseWithRootKey $ \xprv ->
+            withExceptT ErrUpdatePassphraseNoSuchWallet $
+                _attachPrivateKey wid (xprv, coerce new)
+
     , listWallets = fmap (\(PrimaryKey wid) -> wid) <$> DB.listWallets db
 
-    , removeWallet = DB.removeWallet db . PrimaryKey
+    , removeWallet = DB.withLock db . DB.removeWallet db . PrimaryKey
 
     , restoreWallet = \wid -> do
         (w, _) <- _readWallet wid
@@ -297,7 +340,7 @@ mkWalletLayer db nw tl = WalletLayer
                 addr <- state genChange
                 return $ TxOut addr c
         allShuffledOuts <- liftIO $ shuffle (outs ++ changeOuts)
-        withRootKey wid pwd ErrSignTxWrongPassphrase $ \xprv -> do
+        withRootKey wid pwd ErrSignTxWithRootKey $ \xprv -> do
             let keyFrom = isOwned (getState w) (xprv, pwd)
             case mkStdTx tl keyFrom ins allShuffledOuts of
                 Right (tx, wit) -> do
@@ -331,33 +374,58 @@ mkWalletLayer db nw tl = WalletLayer
                                      Keystore
     ---------------------------------------------------------------------------}
 
-    , attachPrivateKey = \wid (xprv, pwd) -> do
-        hpwd <- liftIO $ encryptPassphrase pwd
-        DB.putPrivateKey db (PrimaryKey wid) (xprv, hpwd)
+    , attachPrivateKey = _attachPrivateKey
     }
   where
     _readWallet
         :: WalletId
         -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)
-    _readWallet wid = maybeToExceptT (ErrNoSuchWallet wid) $ do
-        cp <- MaybeT $ DB.readCheckpoint db (PrimaryKey wid)
-        meta <- MaybeT $ DB.readWalletMeta db (PrimaryKey wid)
-        return (cp, meta)
+    _readWallet wid = (,)
+        <$> _readWalletCheckpoint wid
+        <*> _readWalletMeta wid
+
+    _readWalletMeta
+        :: WalletId
+        -> ExceptT ErrNoSuchWallet IO WalletMetadata
+    _readWalletMeta wid = maybeToExceptT (ErrNoSuchWallet wid) $
+        MaybeT $ DB.readWalletMeta db (PrimaryKey wid)
+
+    _readWalletCheckpoint
+        :: WalletId
+        -> ExceptT ErrNoSuchWallet IO (Wallet s t)
+    _readWalletCheckpoint wid = maybeToExceptT (ErrNoSuchWallet wid) $ do
+        MaybeT $ DB.readCheckpoint db (PrimaryKey wid)
+
+    _attachPrivateKey
+        :: WalletId
+        -> (Key 'RootK XPrv, Passphrase "encryption")
+        -> ExceptT ErrNoSuchWallet IO ()
+    _attachPrivateKey wid (xprv, pwd) = do
+        hpwd <- liftIO $ encryptPassphrase pwd
+        DB.putPrivateKey db (PrimaryKey wid) (xprv, hpwd)
+        DB.withLock db $ do
+            meta <- _readWalletMeta wid
+            now <- liftIO getCurrentTime
+            let modify x = x { passphraseInfo = Just (WalletPassphraseInfo now) }
+            DB.putWalletMeta db (PrimaryKey wid) (modify meta)
 
     -- | Execute an action which requires holding a root XPrv
     withRootKey
         :: forall e a. ()
         => WalletId
         -> Passphrase "encryption"
-        -> (ErrWrongPassphrase -> e)
+        -> (ErrWithRootKey -> e)
         -> (Key 'RootK XPrv -> ExceptT e IO a)
         -> ExceptT e IO a
     withRootKey wid pwd embed action = do
         xprv <- withExceptT embed $ do
-            (xprv, hpwd) <- liftIO $ DB.readPrivateKey db (PrimaryKey wid) >>= \case
-                Nothing -> unsafeRunExceptT $ throwE $ ErrNoSuchWallet wid
-                Just a  -> return a
-            ExceptT $ return ((\() -> xprv) <$> checkPassphrase pwd hpwd)
+            lift (DB.readPrivateKey db (PrimaryKey wid)) >>= \case
+                Nothing ->
+                    throwE $ ErrWithRootKeyNoRootKey wid
+                Just (xprv, hpwd) -> do
+                    withExceptT ErrWithRootKeyWrongPassphrase $ ExceptT $
+                        return $ checkPassphrase pwd hpwd
+                    return xprv
         action xprv
 
     -- | Infinite restoration loop. We drain the whole available chain and try
@@ -409,24 +477,26 @@ mkWalletLayer db nw tl = WalletLayer
         liftIO $ TIO.putStrLn $
             "[INFO] Applying blocks ["+| inf |+" ... "+| sup |+"]"
 
-        (cp, meta) <- _readWallet wid
-        -- NOTE
-        -- We only process non-empty blocks, though we still keep the last block
-        -- of the list, even if empty, so that we correctly update the current
-        -- tip of the wallet state.
-        let nonEmpty = not . null . transactions
-        let (h,q) = first (filter nonEmpty) $ splitAt (length blocks - 1) blocks
-        let (txs, cp') = applyBlocks (h ++ q) cp
-        let progress = slotRatio sup tip
-        let status' = if progress == maxBound then Ready else Restoring progress
-        let meta' = meta { status = status' } :: WalletMetadata
-        liftIO $ TIO.putStrLn $
-            "[INFO] Tx History: " +|| length txs ||+ ""
         -- NOTE
         -- Not as good as a transaction, but, with the lock, nothing can make
         -- the wallet disappear within these calls, so either the wallet is
         -- there and they all succeed, or it's not and they all fail.
         DB.withLock db $ do
+            (cp, meta) <- _readWallet wid
+            -- NOTE
+            -- We only process non-empty blocks, though we still keep the last
+            -- block of the list, even if empty, so that we correctly update the
+            -- current tip of the wallet state.
+            let nonEmpty = not . null . transactions
+            let (h,q) = first (filter nonEmpty) $ splitAt (length blocks - 1) blocks
+            let (txs, cp') = applyBlocks (h ++ q) cp
+            let progress = slotRatio sup tip
+            let status' = if progress == maxBound
+                    then Ready
+                    else Restoring progress
+            let meta' = meta { status = status' } :: WalletMetadata
+            liftIO $ TIO.putStrLn $
+                "[INFO] Tx History: " +|| length txs ||+ ""
             DB.putCheckpoint db (PrimaryKey wid) cp'
             DB.putTxHistory db (PrimaryKey wid) txs
             DB.putWalletMeta db (PrimaryKey wid) meta'
