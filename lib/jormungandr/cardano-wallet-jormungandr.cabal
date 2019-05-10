@@ -34,11 +34,7 @@ library
   build-depends:
       base
     , cardano-wallet-core
---    , binary
---    , bytestring
---    , cardano-crypto
---    , cryptonite
---    , digest
+    , binary
     , text
     , text-class
   hs-source-dirs:
