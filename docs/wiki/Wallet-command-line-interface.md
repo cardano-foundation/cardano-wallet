@@ -1,11 +1,16 @@
 Wallet command line interface (CLI) is a small executable which makes sending requests to wallet backend and node an easy task to do. Over the time CLI will support the whole API https://input-output-hk.github.io/cardano-wallet/api/ . For now, these commands are supported:
- * server
- * mnemonic generate
- * wallet list
- * wallet create
- * wallet update
- * wallet delete
- * transaction create
+ 
+* [server](#server)
+* mnemonic 
+    * [generate](#mnemonic-generate)
+* wallet 
+    * [create](#wallet-create)
+    * [read](#wallet-read)
+    * [update](#wallet-update)
+    * [delete](#wallet-delete)
+    * [list](#wallet-list)
+* transaction 
+    * [create](#transaction-create)
 
 In the next section we will give examples of these commands.
 
@@ -28,7 +33,7 @@ Wallet backend server listening on: 8090
 
 This will launch the API
 
-## mnemonic
+## mnemonic generate
 
 Generates mnemonic words
 
@@ -36,14 +41,10 @@ Generates mnemonic words
 $ cardano-wallet mnemonic generate
 ```
 
-These words will be used to create a wallet later.
-
-## wallet list
-
-Lists all our wallets
+These words will be used to create a wallet later. You may also ask for a specific number of words using the `--size` option:
 
 ```
-$ cardano-wallet wallet list
+$ cardano-wallet mnemonic generate --size 21
 ```
 
 ## wallet create
@@ -61,8 +62,7 @@ Enter the passphrase a second time: ****************
 
 after this your new wallet will be created
 
-## wallet get
-
+## wallet read
 Fetches the wallet with specified wallet id:
 
 ```
@@ -86,6 +86,14 @@ Deletes wallet with specified wallet id:
 $ cardano-wallet wallet delete 2512a00e9653fe49a44a5886202e24d77eeb998f
 ```
 
+## wallet list
+
+Lists all your wallets:
+
+```
+$ cardano-wallet wallet list
+```
+
 ## transaction create
 
 Creates and submits a new transaction:
@@ -97,4 +105,3 @@ cardano-wallet transaction create 2512a00e9653fe49a44a5886202e24d77eeb998f \
 ```
 
 This creates a transaction that sends 22 lovelace to `Ae2tdPwUPEZ...nRtbfw6EHRv1D` and 5 lovelace to `Ae2tdPwUPEZ7...pVwEPhKwseVvf` from wallet 2512a00e9653fe49a44a5886202e24d77eeb998f .
-
