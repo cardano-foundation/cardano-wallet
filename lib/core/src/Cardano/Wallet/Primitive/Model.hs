@@ -44,6 +44,7 @@ module Cardano.Wallet.Primitive.Model
     , totalBalance
     , totalUTxO
     , availableUTxO
+    , getPending
     ) where
 
 import Prelude
@@ -243,6 +244,10 @@ availableUTxO (Wallet utxo pending _ _) =
 totalUTxO :: forall s t. Wallet s t -> UTxO
 totalUTxO wallet@(Wallet _ pending _ s) =
     availableUTxO wallet <> changeUTxO (Proxy @t) pending s
+
+-- | Get the set of pending transactions
+getPending :: Wallet s t -> Set Tx
+getPending (Wallet _ pending _ _) = pending
 
 {-------------------------------------------------------------------------------
                                Internals
