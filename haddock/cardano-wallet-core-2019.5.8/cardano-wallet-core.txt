@@ -188,14 +188,14 @@ BlockHeader :: SlotId -> !Hash "BlockHeader" -> BlockHeader
 data Tx
 Tx :: ![TxIn] -> ![TxOut] -> Tx
 
--- | Order of inputs matters in the transaction representation. The
+-- | NOTE: Order of inputs matters in the transaction representation. The
 --   transaction id is computed from the binary representation of a tx, for
 --   which inputs are serialized in a specific order.
 [$sel:inputs:Tx] :: Tx -> ![TxIn]
 
--- | Order of outputs matter in the transaction representations. Outputs
---   are used as inputs for next transactions which refer to them using
---   their indexes. It matters also for serialization.
+-- | NOTE: Order of outputs matter in the transaction representations.
+--   Outputs are used as inputs for next transactions which refer to them
+--   using their indexes. It matters also for serialization.
 [$sel:outputs:Tx] :: Tx -> ![TxOut]
 
 -- | An abstraction for computing transaction id. The <tt>target</tt> is an
@@ -233,21 +233,32 @@ TxMeta :: !TxStatus -> !Direction -> !SlotId -> !Quantity "lovelace" Natural -> 
 [$sel:slotId:TxMeta] :: TxMeta -> !SlotId
 [$sel:amount:TxMeta] :: TxMeta -> !Quantity "lovelace" Natural
 
--- | The flow of funds in to or out of a wallet.
+-- | The effect of a <tt>Transaction</tt> on the wallet balance.
 data Direction
 
--- | Funds exit the wallet.
+-- | The wallet balance decreases.
 Outgoing :: Direction
 
--- | Funds enter the wallet.
+-- | The wallet balance increases or stays the same.
 Incoming :: Direction
 data TxStatus
 Pending :: TxStatus
 InLedger :: TxStatus
 Invalidated :: TxStatus
+
+-- | <tt>TxWitness</tt> is proof that transaction inputs are allowed to be
+--   spent
 data TxWitness
+
+-- | A signature of a transaction by the owner of the address of an input.
+--   
+--   TODO: Use the <tt>XPub</tt> type instead of <tt>ByteString</tt>
 PublicKeyWitness :: ByteString -> Hash "signature" -> TxWitness
+
+-- | Related to Plutus
 ScriptWitness :: ByteString -> TxWitness
+
+-- | Used to redeem ADA from the pre-sale
 RedeemWitness :: ByteString -> TxWitness
 txIns :: Set Tx -> Set TxIn
 
@@ -269,6 +280,10 @@ txIns :: Set Tx -> Set TxIn
 newtype Address
 Address :: ByteString -> Address
 [$sel:getAddress:Address] :: Address -> ByteString
+
+-- | Denotes if an address has been previously used or not... whether that
+--   be in the output of a transaction on the blockchain or one in our
+--   pending set.
 data AddressState
 Used :: AddressState
 Unused :: AddressState
@@ -304,6 +319,13 @@ restrictedBy :: UTxO -> Set TxIn -> UTxO
 
 -- | u ⊳ outs
 restrictedTo :: UTxO -> Set TxOut -> UTxO
+
+-- | Allows us to define the "domain" of any type — <tt>UTxO</tt> in
+--   particular — and use <a>dom</a> to refer to the <i>inputs</i> of an
+--   <i>utxo</i>.
+--   
+--   This is the terminology used in the <a>Formal Specification for a
+--   Cardano Wallet</a> uses.
 class Dom a where {
     type family DomElem a :: *;
 }
@@ -319,6 +341,17 @@ SlotId :: !Word64 -> !Word16 -> SlotId
 --   approximation for a few reasons, one of them being that we hard code
 --   the epoch length as a static number whereas it may vary in practice.
 slotRatio :: SlotId -> SlotId -> Quantity "percent" Percentage
+
+-- | Additional information about a wallet that can't simply be derived
+--   from the blockchain like <tt>Wallet s t</tt> is.
+--   
+--   Whereas <tt>Wallet s t</tt> in <a>Primitive</a> can be updated using
+--   <tt>applyBlock</tt>, <tt>WalletMetadata</tt> is not*.
+--   
+--   <ul>
+--   <li>) Except for possibly <a>WalletMetadata</a> and
+--   <a>$sel:delegation:WalletMetadata</a>...</li>
+--   </ul>
 data WalletMetadata
 WalletMetadata :: !WalletName -> !Maybe WalletPassphraseInfo -> !WalletState -> !WalletDelegation PoolId -> WalletMetadata
 [$sel:name:WalletMetadata] :: WalletMetadata -> !WalletName
@@ -328,10 +361,16 @@ WalletMetadata :: !WalletName -> !Maybe WalletPassphraseInfo -> !WalletState -> 
 newtype WalletId
 WalletId :: Digest Blake2b_160 -> WalletId
 [$sel:getWalletId:WalletId] :: WalletId -> Digest Blake2b_160
+
+-- | Length-restricted name of a wallet
 newtype WalletName
 WalletName :: Text -> WalletName
 [$sel:getWalletName:WalletName] :: WalletName -> Text
+
+-- | Calling 'fromText @WalletName' on shorter longer string will fail.
 walletNameMinLength :: Int
+
+-- | Calling 'fromText @WalletName' on a longer string will fail.
 walletNameMaxLength :: Int
 data WalletState
 Ready :: WalletState
