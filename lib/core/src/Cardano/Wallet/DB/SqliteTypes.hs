@@ -9,7 +9,8 @@ module Cardano.Wallet.DB.SqliteTypes where
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..)
+    ( Address (..)
+    , Coin (..)
     , Direction (..)
     , Hash (..)
     , SlotId (..)
@@ -250,3 +251,13 @@ instance PersistField Coin where
 
 instance PersistFieldSql Coin where
     sqlType _ = sqlType (Proxy @Word64)
+
+----------------------------------------------------------------------------
+-- Address
+
+instance PersistField Address where
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql Address where
+    sqlType _ = sqlType (Proxy @Text)
