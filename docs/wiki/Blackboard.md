@@ -51,3 +51,5 @@ if `fromText r` or `fromText l` fails we will get generic failure that won't tel
  - chose a better name for CLI option `transaction create`. Currently we use it to do all three steps: coin selection, sign, submit. See discussion https://github.com/input-output-hk/cardano-wallet/pull/225#discussion_r281454697
 
  - `Qualtity "lovelace" Natural` is used to parse number of lovelace/coins from CLI. This is defined in `FromText (Quantity sym b)` https://github.com/input-output-hk/cardano-wallet/pull/225/files/fff43a4e5a70ed93bf028217ebdc90429252be2d#diff-27d87fed0f151afbb3b4e829fb315ba3R107 . We might want to use more fine grained parser for coins and parse "20lovelace" and "20ada" differently (and do coin conversion autimatically) and default "20" to lovelace
+
+ - imoprove password validation in API and CLI which validate for strong passwords (passwords should have enough entropy)
