@@ -74,7 +74,8 @@ $ cardano-wallet wallet get 2512a00e9653fe49a44a5886202e24d77eeb998f
 Updates name of a wallet given wallet id:
 
 ```
-$ stack exec -- cardano-wallet wallet update 2512a00e9653fe49a44a5886202e24d77eeb998f --name NewName
+$ cardano-wallet wallet update 2512a00e9653fe49a44a5886202e24d77eeb998f \
+    --name NewName
 ```
 
 ## wallet delete
@@ -82,7 +83,7 @@ $ stack exec -- cardano-wallet wallet update 2512a00e9653fe49a44a5886202e24d77ee
 Deletes wallet with specified wallet id:
 
 ```
-$ stack exec -- cardano-wallet wallet delete 2512a00e9653fe49a44a5886202e24d77eeb998f
+$ cardano-wallet wallet delete 2512a00e9653fe49a44a5886202e24d77eeb998f
 ```
 
 ## transaction create
@@ -90,7 +91,9 @@ $ stack exec -- cardano-wallet wallet delete 2512a00e9653fe49a44a5886202e24d77ee
 Creates and submits a new transaction:
 
 ```
-cardano-wallet transaction create 2512a00e9653fe49a44a5886202e24d77eeb998f --payment 22@Ae2tdPwUPEZ...nRtbfw6EHRv1D --payment 5@Ae2tdPwUPEZ7...pVwEPhKwseVvf
+cardano-wallet transaction create 2512a00e9653fe49a44a5886202e24d77eeb998f \
+    --payment 22@Ae2tdPwUPEZ...nRtbfw6EHRv1D \
+    --payment 5@Ae2tdPwUPEZ7...pVwEPhKwseVvf
 ```
 
 This creates a transaction that sends 22 lovelace to `Ae2tdPwUPEZ...nRtbfw6EHRv1D` and 5 lovelace to `Ae2tdPwUPEZ7...pVwEPhKwseVvf` from wallet 2512a00e9653fe49a44a5886202e24d77eeb998f .
