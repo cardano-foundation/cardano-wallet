@@ -51,7 +51,7 @@ word5 x = UnsafeWord5 ((fromIntegral x) .&. 31)
 {-# INLINE word5 #-}
 {-# SPECIALIZE INLINE word5 :: Word8 -> Word5 #-}
 
-fromWord5 :: Num a => Word5 -> a
+fromWord5 :: Integral a => Word5 -> a
 fromWord5 (UnsafeWord5 x) = fromIntegral x
 {-# INLINE fromWord5 #-}
 {-# SPECIALIZE INLINE fromWord5 :: Word5 -> Word8 #-}
