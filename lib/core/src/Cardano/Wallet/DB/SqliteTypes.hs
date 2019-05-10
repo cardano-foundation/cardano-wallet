@@ -31,7 +31,7 @@ import Data.Text.Class
 import Data.Word
     ( Word64, Word8 )
 import Database.Persist.Sqlite
-    ( PersistField (..), PersistFieldSql (..) )
+    ( PersistField (..), PersistFieldSql (..), PersistValue )
 import GHC.Generics
     ( Generic )
 import Web.HttpApiData
@@ -55,11 +55,18 @@ import Cardano.Wallet.Primitive.Types
 ----------------------------------------------------------------------------
 -- Helper functions
 
-parseUrlPieceFromText :: FromText a => Text -> Either Text a
-parseUrlPieceFromText = first (T.pack . getTextDecodingError) . fromText
+-- | 'fromText' but with a simpler error type.
+fromText' :: FromText a => Text -> Either Text a
+fromText' = first (T.pack . getTextDecodingError) . fromText
 
+-- | Aeson parser defined in terms of 'fromText'
 aesonFromText :: FromText a => String -> Value -> Parser a
 aesonFromText what = withText what $ either (fail . show) pure . fromText
+
+-- | 'fromPersistValue' defined in terms of 'fromText'
+fromPersistValueFromText :: FromText a => PersistValue -> Either Text a
+fromPersistValueFromText = fromPersistValue >=> fromTextWithErr
+    where fromTextWithErr = first ("not a valid value: " <>) . fromText'
 
 ----------------------------------------------------------------------------
 -- Direction
@@ -85,15 +92,8 @@ directionFromBool False = Outgoing
 -- WalletId
 
 instance PersistField WalletId where
-    toPersistValue =
-        toPersistValue . toText
-    fromPersistValue pv = do
-        a <- fromText <$> fromPersistValue pv
-        case a of
-             Left _     ->
-                 Left $ "not a valid value: " <> T.pack (show pv)
-             Right txid ->
-                 pure txid
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
 
 instance PersistFieldSql WalletId where
     sqlType _ = sqlType (Proxy @Text)
@@ -105,7 +105,7 @@ instance ToHttpApiData WalletId where
     toUrlPiece = toText
 
 instance FromHttpApiData WalletId where
-    parseUrlPiece = parseUrlPieceFromText
+    parseUrlPiece = fromText'
 
 instance ToJSON WalletId where
     toJSON = String . toText
@@ -125,9 +125,7 @@ data AddressScheme = Sequential | Random | Any deriving (Show, Eq, Generic)
 
 instance PersistField AddressScheme where
     toPersistValue = toPersistValue . toText
-    fromPersistValue pv = do
-        let err = "not a valid value: " <> T.pack (show pv)
-        first (const err) (fromPersistValue pv)
+    fromPersistValue = fromPersistValueFromText
 
 instance PersistFieldSql AddressScheme where
     sqlType _ = sqlType (Proxy @Text)
@@ -154,13 +152,7 @@ newtype TxId = TxId { getTxId :: Hash "Tx" } deriving (Show, Eq, Ord, Generic)
 
 instance PersistField TxId where
     toPersistValue = toPersistValue . toText . getTxId
-    fromPersistValue pv = do
-        a <- fromText <$> fromPersistValue pv
-        case a of
-             Left _     ->
-                 Left $ "not a valid value: " <> T.pack (show pv)
-             Right txid ->
-                 pure (TxId txid)
+    fromPersistValue = fmap TxId <$> fromPersistValueFromText
 
 instance PersistFieldSql TxId where
     sqlType _ = sqlType (Proxy @Text)
@@ -178,7 +170,7 @@ instance ToHttpApiData TxId where
     toUrlPiece = toText . getTxId
 
 instance FromHttpApiData TxId where
-    parseUrlPiece = fmap TxId . parseUrlPieceFromText
+    parseUrlPiece = fmap TxId . fromText'
 
 instance PathPiece TxId where
     toPathPiece = toText . getTxId
