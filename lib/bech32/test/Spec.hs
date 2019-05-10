@@ -21,13 +21,13 @@ import Test.Tasty.HUnit
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base16 as B16
-import qualified Data.ByteString.Char8 as BSC
+import qualified Data.ByteString.Char8 as B8
 
 main :: IO ()
 main = defaultMain tests
 
 validChecksums :: [BS.ByteString]
-validChecksums = map BSC.pack
+validChecksums = map B8.pack
     [ "A12UEL5L"
     , "an83characterlonghumanreadablepartthatcontain\
       \sthenumber1andtheexcludedcharactersbio1tt5tgs"
@@ -38,7 +38,7 @@ validChecksums = map BSC.pack
     ]
 
 invalidChecksums :: [BS.ByteString]
-invalidChecksums = map BSC.pack
+invalidChecksums = map B8.pack
     [ " 1nwldj5"
     , "\DEL1axkwrx"
     , "an84characterslonghumanreadablepartthatcontain\
@@ -67,10 +67,10 @@ validAddresses = map mapTuple
       , "0020000000c4a5cad46221b2a187905e5266362b99d5e91c6ce24d165dab93e86433" )
     ]
   where
-    mapTuple (a, b) = (BSC.pack a, BSC.pack b)
+    mapTuple (a, b) = (B8.pack a, B8.pack b)
 
 invalidAddresses :: [BS.ByteString]
-invalidAddresses = map BSC.pack
+invalidAddresses = map B8.pack
     [ "tc1qw508d6qejxtdg4y5r3zarvary0c5xw7kg3g4ty"
     , "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5"
     , "BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2"
@@ -103,7 +103,7 @@ tests = testGroup "Tests"
             Nothing -> assertFailure (show checksum)
             Just (resultHRP, resultData) -> do
                 -- test that a corrupted checksum fails decoding.
-                let (hrp, rest) = BSC.breakEnd (== '1') checksum
+                let (hrp, rest) = B8.breakEnd (== '1') checksum
                     Just (first, rest') = BS.uncons rest
                     checksumCorrupted =
                         (hrp `BS.snoc` (first `xor` 1)) `BS.append` rest'
@@ -112,7 +112,7 @@ tests = testGroup "Tests"
                 -- test that re-encoding the decoded checksum results in
                 -- the same checksum.
                 let checksumEncoded = bech32Encode resultHRP resultData
-                    expectedChecksum = Just $ BSC.map toLower checksum
+                    expectedChecksum = Just $ B8.map toLower checksum
                 assertEqual
                     (show checksum ++ " re-encode")
                     expectedChecksum
@@ -123,8 +123,8 @@ tests = testGroup "Tests"
             assertBool (show checksum) (isNothing $ bech32Decode checksum)
 
     , testCase "Addresses" $ forM_ validAddresses $ \(address, hexscript) -> do
-        let address' = BSC.map toLower address
-            hrp = BSC.take 2 address'
+        let address' = B8.map toLower address
+            hrp = B8.take 2 address'
         case segwitDecode hrp address of
             Nothing -> assertFailure "decode failed"
             Just (witver, witprog) -> do
@@ -140,28 +140,28 @@ tests = testGroup "Tests"
     , testCase "Invalid Addresses" $ forM_ invalidAddresses $ \address -> do
         assertBool
             (show address)
-            (isNothing $ segwitDecode (BSC.pack "bc") address)
+            (isNothing $ segwitDecode (B8.pack "bc") address)
         assertBool
             (show address)
-            (isNothing $ segwitDecode (BSC.pack "tb") address)
+            (isNothing $ segwitDecode (B8.pack "tb") address)
 
     , testCase "More Encoding/Decoding Cases" $ do
         assertBool "length > 90" $ isNothing $
-            bech32Encode (BSC.pack "bc") (replicate 82 (word5 (1 :: Word8)))
+            bech32Encode (B8.pack "bc") (replicate 82 (word5 (1 :: Word8)))
         assertBool "segwit version bounds" $ isNothing $
-            segwitEncode (BSC.pack "bc") 17 []
+            segwitEncode (B8.pack "bc") 17 []
         assertBool "segwit prog len version 0" $ isNothing $
-            segwitEncode (BSC.pack "bc") 0 (replicate 30 1)
+            segwitEncode (B8.pack "bc") 0 (replicate 30 1)
         assertBool "segwit prog len version != 0" $ isJust $
-            segwitEncode (BSC.pack "bc") 1 (replicate 30 1)
+            segwitEncode (B8.pack "bc") 1 (replicate 30 1)
         assertBool "segwit prog len version != 0" $ isNothing $
-            segwitEncode (BSC.pack "bc") 1 (replicate 41 1)
+            segwitEncode (B8.pack "bc") 1 (replicate 41 1)
         assertBool "empty HRP encode" $
-            isNothing $ bech32Encode (BSC.pack "") []
+            isNothing $ bech32Encode (B8.pack "") []
         assertBool "empty HRP decode" $
-            isNothing $ bech32Decode (BSC.pack "10a06t8")
+            isNothing $ bech32Decode (B8.pack "10a06t8")
         assertEqual "hrp lowercased"
-            (Just $ BSC.pack "hrp1g9xj8m")
-            (bech32Encode (BSC.pack "HRP") [])
+            (Just $ B8.pack "hrp1g9xj8m")
+            (bech32Encode (B8.pack "HRP") [])
     ]
 
