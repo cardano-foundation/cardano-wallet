@@ -130,11 +130,11 @@ Usage:
   cardano-wallet server [--port=INT] [--bridge-port=INT]
   cardano-wallet mnemonic generate [--size=INT]
   cardano-wallet wallet list [--port=INT]
-  cardano-wallet wallet create [--port=INT] --name=STRING [--address-pool-gap=INT]
+  cardano-wallet wallet create [--port=INT] <name> [--address-pool-gap=INT]
   cardano-wallet wallet get [--port=INT] <wallet-id>
   cardano-wallet wallet update [--port=INT] <wallet-id> --name=STRING
   cardano-wallet wallet delete [--port=INT] <wallet-id>
-  cardano-wallet transaction create [--port=INT] --wallet-id=STRING --payment=PAYMENT...
+  cardano-wallet transaction create [--port=INT] <wallet-id> --payment=PAYMENT...
   cardano-wallet -h | --help
   cardano-wallet --version
 
@@ -189,7 +189,7 @@ exec manager args
 
     | args `isPresent` command "wallet" &&
       args `isPresent` command "create" = do
-        wName <- args `parseArg` longOption "name"
+        wName <- args `parseArg` argument "name"
         wGap <- args `parseArg` longOption "address-pool-gap"
         wSeed <- do
             let prompt = "Please enter a 15–24 word mnemonic sentence: "
@@ -237,7 +237,7 @@ exec manager args
 
     | args `isPresent` command "transaction" &&
       args `isPresent` command "create" = do
-        wId <- args `parseArg` longOption "wallet-id"
+        wId <- args `parseArg` argument "wallet-id"
         ts <- args `parseAllArgs` longOption "payment"
         wPwd <- getPassphrase
         runClient @Transaction Aeson.encodePretty $ createTransaction (ApiT wId) $
