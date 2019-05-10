@@ -146,6 +146,13 @@ import qualified Data.Text.Encoding as T
                              Wallet Metadata
 -------------------------------------------------------------------------------}
 
+-- | Additional information about a wallet that can't simply be derived from
+-- the blockchain like @Wallet s t@ is.
+--
+-- Whereas @Wallet s t@ in 'Cardano.Wallet.Primitive' can be updated using
+-- @applyBlock@, @WalletMetadata@ is not*.
+--
+-- *) Except for possibly 'status' and 'delegation'...
 data WalletMetadata = WalletMetadata
     { name
         :: !WalletName
@@ -159,6 +166,7 @@ data WalletMetadata = WalletMetadata
 
 instance NFData WalletMetadata
 
+-- | Length-restricted name of a wallet
 newtype WalletName = WalletName { getWalletName ::  Text }
     deriving (Generic, Eq, Show)
 
@@ -180,9 +188,11 @@ instance FromText WalletName where
 instance ToText WalletName where
     toText = getWalletName
 
+-- | Calling 'fromText @WalletName' on shorter longer string will fail.
 walletNameMinLength :: Int
 walletNameMinLength = 1
 
+-- | Calling 'fromText @WalletName' on a longer string will fail.
 walletNameMaxLength :: Int
 walletNameMaxLength = 255
 
@@ -291,12 +301,12 @@ instance Buildable BlockHeader where
 data Tx = Tx
     { inputs
         :: ![TxIn]
-        -- ^ Order of inputs matters in the transaction representation. The
+        -- ^ NOTE: Order of inputs matters in the transaction representation. The
         -- transaction id is computed from the binary representation of a tx,
         -- for which inputs are serialized in a specific order.
     , outputs
         :: ![TxOut]
-        -- ^ Order of outputs matter in the transaction representations. Outputs
+        -- ^ NOTE: Order of outputs matter in the transaction representations. Outputs
         -- are used as inputs for next transactions which refer to them using
         -- their indexes. It matters also for serialization.
     } deriving (Show, Generic, Ord, Eq)
@@ -399,10 +409,10 @@ instance Buildable TxStatus where
         InLedger -> "in ledger"
         Invalidated -> "invalidated"
 
--- | The flow of funds in to or out of a wallet.
+-- | The effect of a @Transaction@ on the wallet balance.
 data Direction
-    = Outgoing -- ^ Funds exit the wallet.
-    | Incoming -- ^ Funds enter the wallet.
+    = Outgoing -- ^ The wallet balance decreases.
+    | Incoming -- ^ The wallet balance increases or stays the same.
     deriving (Show, Eq, Ord, Generic)
 
 instance NFData Direction
@@ -412,10 +422,16 @@ instance Buildable Direction where
         Outgoing -> "outgoing"
         Incoming -> "incoming"
 
+-- | @TxWitness@ is proof that transaction inputs are allowed to be spent
 data TxWitness
     = PublicKeyWitness ByteString (Hash "signature")
+      -- ^ A signature of a transaction by the owner of the address of an input.
+      --
+      -- TODO: Use the @XPub@ type instead of @ByteString@
     | ScriptWitness ByteString
+      -- ^ Related to Plutus
     | RedeemWitness ByteString
+      -- ^ Used to redeem ADA from the pre-sale
     deriving (Eq, Show)
 
 {-------------------------------------------------------------------------------
@@ -452,6 +468,9 @@ instance FromText Address where
 instance ToText Address where
     toText = T.decodeUtf8 . encodeBase58 bitcoinAlphabet . getAddress
 
+
+-- | Denotes if an address has been previously used or not... whether that be
+-- in the output of a transaction on the blockchain or one in our pending set.
 data AddressState = Used | Unused
     deriving (Eq, Generic, Show)
 
@@ -604,6 +623,11 @@ slotRatio (SlotId ep0 sl0) (SlotId ep1 sl1) =
                                Polymorphic Types
 -------------------------------------------------------------------------------}
 
+-- | Allows us to define the "domain" of any type — @UTxO@ in particular — and
+-- use 'dom' to refer to the /inputs/ of an /utxo/.
+--
+-- This is the terminology used in the [Formal Specification for a Cardano Wallet](https://github.com/input-output-hk/cardano-wallet/blob/master/specifications/wallet/formal-specification-for-a-cardano-wallet.pdf)
+-- uses.
 class Dom a where
     type DomElem a :: *
     dom :: a -> Set (DomElem a)
