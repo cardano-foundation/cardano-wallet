@@ -22,6 +22,13 @@ import Data.Time.Clock
 import Data.Word
     ( Word32 )
 import Database.Persist.TH
+    ( mkMigrate
+    , mkPersist
+    , mpsPrefixFields
+    , persistLowerCase
+    , share
+    , sqlSettings
+    )
 import GHC.Generics
     ( Generic (..) )
 
@@ -62,7 +69,7 @@ PrivateKey                               sql=private_key
 -- blocks).
 --
 -- TxMeta is specific to a wallet because multiple wallets may have the same
--- transaction with different metdata values. The associated inputs and outputs
+-- transaction with different metadata values. The associated inputs and outputs
 -- of the transaction are in the TxIn and TxOut tables.
 TxMeta
     txMetaTableTxId       TxId         sql=tx_id

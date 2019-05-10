@@ -8,9 +8,29 @@ module Cardano.Wallet.DB.SqliteTypes where
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Types
+    ( Coin (..)
+    , Direction (..)
+    , Hash (..)
+    , SlotId (..)
+    , TxStatus (..)
+    , WalletId (..)
+    , WalletState (..)
+    , flatSlot
+    , fromFlatSlot
+    , isValidCoin
+    )
 import Control.Monad
     ( (>=>) )
 import Data.Aeson
+    ( FromJSON (..)
+    , ToJSON (..)
+    , Value (..)
+    , defaultOptions
+    , genericParseJSON
+    , genericToJSON
+    , withText
+    )
 import Data.Aeson.Types
     ( Parser )
 import Data.Bifunctor
@@ -35,22 +55,11 @@ import Database.Persist.Sqlite
 import GHC.Generics
     ( Generic )
 import Web.HttpApiData
+    ( FromHttpApiData (..), ToHttpApiData (..) )
 import Web.PathPieces
+    ( PathPiece (..) )
 
 import qualified Data.Text as T
-
-import Cardano.Wallet.Primitive.Types
-    ( Coin (..)
-    , Direction (..)
-    , Hash (..)
-    , SlotId (..)
-    , TxStatus (..)
-    , WalletId (..)
-    , WalletState (..)
-    , flatSlot
-    , fromFlatSlot
-    , isValidCoin
-    )
 
 ----------------------------------------------------------------------------
 -- Helper functions
@@ -117,7 +126,6 @@ instance PathPiece WalletId where
     fromPathPiece = fromTextMaybe
     toPathPiece = toText
 
-
 ----------------------------------------------------------------------------
 -- AddressScheme
 
@@ -137,7 +145,7 @@ instance FromText AddressScheme where
         "any" -> Right Any
         _ ->
             Left . TextDecodingError $ show txt
-                   <> " is neither \"sequential\", \"random\", nor \"any\""
+                <> " is neither \"sequential\", \"random\", nor \"any\""
 
 instance ToText AddressScheme where
     toText Sequential = "sequential"
@@ -231,8 +239,9 @@ instance PersistFieldSql TxStatus where
 -- Coin
 
 mkCoin :: Word64 -> Either Text Coin
-mkCoin n | isValidCoin c = Right c
-         | otherwise = Left . T.pack $ "not a valid coin: " <> show n
+mkCoin n
+    | isValidCoin c = Right c
+    | otherwise = Left . T.pack $ "not a valid coin: " <> show n
     where c = Coin n
 
 instance PersistField Coin where
