@@ -431,6 +431,7 @@ instance ToText TxStatus where
     toText InLedger = "in_ledger"
     toText Invalidated = "invalidated"
 
+-- | The effect of a @Transaction@ on the wallet balance.
 data Direction
     = Outgoing -- ^ The wallet balance decreases.
     | Incoming -- ^ The wallet balance increases or stays the same.
@@ -455,6 +456,7 @@ instance ToText Direction where
     toText Outgoing = "outgoing"
     toText Incoming = "incoming"
 
+-- | @TxWitness@ is proof that transaction inputs are allowed to be spent
 data TxWitness
     = PublicKeyWitness ByteString (Hash "signature")
       -- ^ A signature of a transaction by the owner of the address of an input.
