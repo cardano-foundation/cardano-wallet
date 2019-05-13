@@ -830,6 +830,196 @@ spec = do
             let endpoint = "v2/wallets" </> (getFromResponse walletId r)
             rl <- request @ApiWallet ctx ("DELETE", endpoint) headers Empty
             verify rl expectations
+
+    it "WALLETS_UPDATE_01 - Updated wallet name is available" $ \ctx -> do
+
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
+        let passLastUpdateValue = getFromResponse passphraseLastUpdate r
+        let newName = updateNamePayload "New great name"
+        let walId = getFromResponse walletId r
+        let expectations = [ expectResponseCode @IO HTTP.status200
+                    , expectFieldEqual walletName "New great name"
+                    , expectFieldEqual addressPoolGap 20
+                    , expectFieldEqual balanceAvailable 0
+                    , expectFieldEqual balanceTotal 0
+                    , expectFieldEqual state (Restoring (Quantity minBound))
+                    , expectFieldEqual delegation (NotDelegating)
+                    , expectFieldEqual walletId walId
+                    , expectFieldEqual passphraseLastUpdate passLastUpdateValue
+                    ]
+        ru <- request @ApiWallet ctx ("PUT", "v2/wallets" </> walId) Default newName
+        verify ru expectations
+        rg <- request @ApiWallet ctx ("GET", "v2/wallets" </> walId) Default Empty
+        verify rg expectations
+        rl <- request @[ApiWallet] ctx ("GET", "v2/wallets") Default Empty
+        verify rl
+            [ expectResponseCode @IO HTTP.status200
+            , expectListSizeEqual 1
+            , expectListItemFieldEqual 0 walletName "New great name"
+            , expectListItemFieldEqual 0 addressPoolGap 20
+            , expectListItemFieldEqual 0 balanceAvailable 0
+            , expectListItemFieldEqual 0 balanceTotal 0
+            , expectListItemFieldEqual 0 state (Restoring (Quantity minBound))
+            , expectListItemFieldEqual 0 delegation (NotDelegating)
+            , expectListItemFieldEqual 0 walletId walId
+            , expectListItemFieldEqual 0 passphraseLastUpdate passLastUpdateValue
+            ]
+
+    describe "WALLETS_UPDATE_02 - Various names" $ do
+        let walNameMax = T.pack (replicate walletNameMaxLength 'ą')
+        let matrix =
+                [ ( show walletNameMinLength ++ " char long", "1"
+                  , [ expectResponseCode @IO HTTP.status200
+                    , expectFieldEqual walletName "1"
+                    ]
+                  )
+                , ( show walletNameMaxLength ++ " char long", walNameMax
+                  , [ expectResponseCode @IO HTTP.status200
+                    , expectFieldEqual walletName walNameMax
+                    ]
+                  )
+                , ( show (walletNameMaxLength + 1) ++ " char long"
+                  , T.pack (replicate (walletNameMaxLength + 1) 'ę')
+                  , [ expectResponseCode @IO HTTP.status400
+                    , expectErrorMessage "name is too long: expected at\
+                            \ most 255 characters"
+                    ]
+                  )
+                , ( "Empty name", ""
+                   , [ expectResponseCode @IO HTTP.status400
+                     , expectErrorMessage "name is too short: expected at\
+                            \ least 1 character"
+                     ]
+                  )
+                , ( "Russian name", russianWalletName
+                  , [ expectResponseCode @IO HTTP.status200
+                    , expectFieldEqual walletName russianWalletName
+                    ]
+                  )
+                , ( "Polish name", polishWalletName
+                  , [ expectResponseCode @IO HTTP.status200
+                    , expectFieldEqual walletName polishWalletName
+                    ]
+                  )
+                , ( "Kanji name", kanjiWalletName
+                  , [ expectResponseCode @IO HTTP.status200
+                    , expectFieldEqual walletName kanjiWalletName
+                    ]
+                  )
+                , ( "Arabic name", arabicWalletName
+                  , [ expectResponseCode @IO HTTP.status200
+                    , expectFieldEqual walletName arabicWalletName
+                    ]
+                  )
+                , ( "Wildcards name", wildcardsWalletName
+                  , [ expectResponseCode @IO HTTP.status200
+                    , expectFieldEqual walletName wildcardsWalletName
+                    ]
+                  )
+                ]
+        forM_ matrix $ \(title, walName, expectations) -> it title $ \ctx -> do
+            r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
+            let newName = updateNamePayload walName
+            let endpoint = "v2/wallets" </> (getFromResponse walletId r)
+            ru <- request @ApiWallet ctx ("PUT", endpoint) Default newName
+            verify ru expectations
+
+    it "WALLETS_UPDATE_02 - [] as name -> fail" $ \ctx -> do
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
+        let walId = getFromResponse walletId r
+        let payload = Json [json| {
+                "name": []
+                } |]
+        ru <- request @ApiWallet ctx ("PUT", "v2/wallets" </> walId) Default payload
+        verify ru
+            [ expectResponseCode @IO HTTP.status400
+            , expectErrorMessage "expected Text, encountered Array"
+            ]
+
+    it "WALLETS_UPDATE_02 - Num as name -> fail" $ \ctx -> do
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
+        let walId = getFromResponse walletId r
+        let payload = Json [json| {
+                "name": 123
+                } |]
+        ru <- request @ApiWallet ctx ("PUT", "v2/wallets" </> walId) Default payload
+        verify ru
+            [ expectResponseCode @IO HTTP.status400
+            , expectErrorMessage "expected Text, encountered Number"
+            ]
+
+    it "WALLETS_UPDATE_02 - Name param missing -> OK" $ \ctx -> do
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
+        let walId = getFromResponse walletId r
+        let payload = Json [json| {  } |]
+        ru <- request @ApiWallet ctx ("PUT", "v2/wallets" </> walId) Default payload
+        verify ru
+            [ expectResponseCode @IO HTTP.status200
+            , expectFieldEqual walletName "Secure Wallet"
+            ]
+
+    it "WALLETS_UPDATE_02 - No payload -> fail" $ \ctx -> do
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
+        let walId = getFromResponse walletId r
+        ru <- request @ApiWallet ctx ("PUT", "v2/wallets" </> walId) Default Empty
+        verify ru
+            [ expectResponseCode @IO HTTP.status400
+            , expectErrorMessage "not enough input"
+            ]
+
+    describe "WALLETS_UPDATE_03 - non-existing wallets" $  do
+        forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
+            let newName = updateNamePayload "new name"
+            let endpoint = "v2/wallets" </> walId
+            ru <- request @ApiWallet ctx ("PUT", endpoint) Default newName
+            expectResponseCode @IO HTTP.status404 ru
+
+    it "WALLETS_UPDATE_03 - 'almost' valid walletId" $ \ctx -> do
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
+        let newName = updateNamePayload "new name"
+        let endpoint = "v2/wallets" </> (T.append (getFromResponse walletId r) "0")
+        ru <- request @ApiWallet ctx ("PUT", endpoint) Default newName
+        expectResponseCode @IO HTTP.status404 ru
+
+    it "WALLETS_UPDATE_03 - Deleted wallet cannot be updated (404)" $ \ctx -> do
+        r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
+        let endpoint = "v2/wallets" </> (getFromResponse walletId r)
+        _ <- request @ApiWallet ctx ("DELETE", endpoint) Default Empty
+
+        let newName = updateNamePayload "new name"
+        ru <- request @ApiWallet ctx ("GET", endpoint) Default newName
+        expectResponseCode @IO HTTP.status404 ru
+
+    describe "WALLETS_UPDATE_04 - HTTP headers" $ do
+        let matrix =
+                  [ ( "No HTTP headers -> 415", None
+                    , [expectResponseCode @IO HTTP.status415] )
+                  , ( "Accept: text/plain -> 406"
+                    , Headers
+                          [ ("Content-Type", "application/json")
+                          , ("Accept", "text/plain") ]
+                    , [expectResponseCode @IO HTTP.status406]
+                    )
+                  , ( "No Accept -> 200"
+                    , Headers [ ("Content-Type", "application/json") ]
+                    , [expectResponseCode @IO HTTP.status200]
+                    )
+                  , ( "No Content-Type -> 415"
+                    , Headers [ ("Accept", "application/json") ]
+                    , [expectResponseCode @IO HTTP.status415]
+                    )
+                  , ( "Content-Type: text/plain -> 415"
+                    , Headers [ ("Content-Type", "text/plain") ]
+                    , [expectResponseCode @IO HTTP.status415]
+                    )
+                  ]
+        forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> do
+            r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
+            let newName = updateNamePayload "new name"
+            let endpoint = "v2/wallets" </> (getFromResponse walletId r)
+            ru <- request @ApiWallet ctx ("PUT", endpoint) headers newName
+            verify ru expectations
+
  where
     falseWalletIds =
             [ ("40 chars hex", replicate 40 '1')
@@ -874,6 +1064,11 @@ spec = do
             "mnemonic_sentence": #{mnemonics21},
             "passphrase": "Secure passphrase"
             } |]
+
+    updateNamePayload :: Text -> Payload
+    updateNamePayload name = Json [json| {
+             "name": #{name}
+             } |]
 
     mnemonics3 :: [Text]
     mnemonics3 = ["diamond", "flee", "window"]
