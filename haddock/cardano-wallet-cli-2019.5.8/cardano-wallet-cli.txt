@@ -16,6 +16,11 @@ module Cardano.CLI
 newtype Port (tag :: Symbol)
 Port :: Int -> Port
 
+-- | Override the system output encoding setting. This is needed because
+--   the CLI prints UTF-8 characters regardless of the <tt>LANG</tt>
+--   environment variable.
+setUtf8Encoding :: IO ()
+
 -- | Like <a>hPutErrLn</a> but with provided default <a>Handle</a>
 putErrLn :: Text -> IO ()
 
