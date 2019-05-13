@@ -50,6 +50,7 @@ import qualified Cardano.Wallet.Network.HttpBridgeSpec as HttpBridge
 import qualified Cardano.Wallet.Transaction.HttpBridge as HttpBridge
 import qualified Cardano.WalletSpec as Wallet
 import qualified Network.Wai.Handler.Warp as Warp
+import qualified Test.Integration.Scenario.Transactions as Transactions
 import qualified Test.Integration.Scenario.Wallets as Wallets
 
 main :: IO ()
@@ -65,6 +66,7 @@ main = do
         describe "Cardano.Wallet.Network.HttpBridgeSpec" HttpBridge.spec
         beforeAll startCluster $ afterAll killCluster $ after tearDown $ do
             describe "Wallets API endpoint tests" Wallets.spec
+            describe "Transactions API endpoint tests" Transactions.spec
   where
     clusterWarmUpDelay :: Int
     clusterWarmUpDelay = 20 * 1000 * 1000 -- 20 seconds in microseconds
