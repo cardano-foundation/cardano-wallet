@@ -14,6 +14,7 @@ module Data.Text.Class
     ( ToText (..)
     , FromText (..)
     , TextDecodingError(..)
+    , fromTextMaybe
     ) where
 
 import Prelude
@@ -81,3 +82,7 @@ instance FromText Natural where
 
 instance ToText Natural where
     toText = T.pack . show
+
+-- | Decode the specified text with a 'Maybe' result type.
+fromTextMaybe :: FromText a => Text -> Maybe a
+fromTextMaybe = either (const Nothing) Just . fromText

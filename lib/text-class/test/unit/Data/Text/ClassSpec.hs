@@ -8,14 +8,26 @@ module Data.Text.ClassSpec
 
 import Prelude
 
+import Data.Foldable
+    ( toList )
+import Data.Maybe
+    ( isNothing )
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( FromText (..), TextDecodingError (..), ToText (..), fromTextMaybe )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
-    ( Arbitrary (..), UnicodeString (..), property, (===) )
+    ( Arbitrary (..)
+    , UnicodeString (..)
+    , choose
+    , classify
+    , elements
+    , property
+    , vectorOf
+    , (===)
+    )
 
 import qualified Data.Text as T
 
@@ -40,6 +52,11 @@ spec = do
             in fromText @Int "patate" === Left (TextDecodingError err)
         it "fromText . toText === pure"
             $ property $ \(i :: Int) -> (fromText . toText) i === pure i
+        it "fromText ~ fromTextMaybe" $
+            property $ \(Digits t) ->
+                classify (isNothing (fromTextMaybe @Int t)) "invalid" $
+                classify ((compare 0 <$> fromTextMaybe @Int t) == Just GT) "valid negative" $
+                toList (fromTextMaybe @Int t) === toList (fromText t)
 
     describe "Text" $ do
         it "fromText \"patate\"" $
@@ -56,3 +73,13 @@ spec = do
 instance Arbitrary Text where
     shrink = map (T.pack . getUnicodeString) . shrink . UnicodeString . T.unpack
     arbitrary = T.pack . getUnicodeString <$> arbitrary
+
+newtype Digits = Digits { getDigits :: Text } deriving Show
+
+instance Arbitrary Digits where
+    shrink = map (Digits . T.pack) . shrink . T.unpack . getDigits
+    arbitrary = Digits . T.pack <$> do
+        n <- choose (0,10)
+        str <- vectorOf n (elements ('x':['0'..'9']))
+        sign <- elements ["", "-", "+"]
+        pure (sign ++ str)
