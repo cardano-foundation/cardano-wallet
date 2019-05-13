@@ -31,6 +31,7 @@ import Cardano.CLI
     , parseAllArgsWith
     , parseArgWith
     , putErrLn
+    , setUtf8Encoding
     )
 import Cardano.Environment.HttpBridge
     ( network )
@@ -156,6 +157,7 @@ main :: IO ()
 main = do
     hSetBuffering stdout NoBuffering
     hSetBuffering stderr NoBuffering
+    setUtf8Encoding
     manager <- newManager defaultManagerSettings
     getArgs >>= parseArgsOrExit cli >>= exec manager
 
