@@ -4,6 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -30,11 +31,21 @@ import Cardano.Wallet.Network
     , NetworkLayer (..)
     )
 import Cardano.Wallet.Network.HttpBridge.Api
-    ( ApiT (..), EpochIndex (..), NetworkName (..), api )
+    ( ApiT (..)
+    , EpochIndex (..)
+    , GetBlockByHash
+    , GetEpochById
+    , GetTipBlockHeader
+    , NetworkName (..)
+    , PostSignedTx
+    , api
+    )
 import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..), Hash (..), SlotId (..), Tx, TxWitness )
 import Control.Arrow
     ( left )
+import Control.Exception
+    ( Exception )
 import Control.Monad
     ( void )
 import Control.Monad.Catch
@@ -47,6 +58,8 @@ import Crypto.Hash
     ( HashAlgorithm, digestFromByteString )
 import Data.ByteArray
     ( convert )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Word
@@ -63,6 +76,8 @@ import Servant.Client.Core
     ( ServantError (..), responseBody, responseStatusCode )
 import Servant.Extra.ContentTypes
     ( WithHash (..) )
+import Servant.Links
+    ( Link, safeLink )
 
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text.Encoding as T
@@ -163,25 +178,40 @@ data HttpBridge m = HttpBridge
         :: (Tx, [TxWitness]) -> ExceptT ErrPostTx m ()
     }
 
+-- | Exception thrown when an unexpected failure occurs. It's basically a
+-- 'ServantError' enriched with some information about the request that was
+-- made.
+data ErrUnexpectedNetworkFailure
+    = ErrUnexpectedNetworkFailure Link ServantError
+    deriving (Show)
+
+instance Exception ErrUnexpectedNetworkFailure
+
 -- | Construct a new network layer
 mkHttpBridge
     :: Manager -> BaseUrl -> NetworkName -> HttpBridge IO
 mkHttpBridge mgr baseUrl networkName = HttpBridge
     { getBlock = \hash -> ExceptT $ do
         hash' <- hashToApi' hash
-        run (getApiT <$> cGetBlock networkName hash') >>= defaultHandler
+        let ctx = safeLink api (Proxy @GetBlockByHash) networkName hash'
+        run (getApiT <$> cGetBlock networkName hash') >>= defaultHandler ctx
 
     , getEpoch = \ep -> ExceptT $ do
-        run (map getApiT <$> cGetEpoch networkName (EpochIndex ep)) >>= \case
+        let ep' = EpochIndex ep
+        run (map getApiT <$> cGetEpoch networkName ep') >>= \case
             Left (FailureResponse e) | responseStatusCode e == status404 ->
                 return $ Right []
-            x -> defaultHandler x
+            x -> do
+                let ctx = safeLink api (Proxy @GetEpochById) networkName ep'
+                defaultHandler ctx x
 
     , getNetworkTip = ExceptT $ do
         run (blockHeaderHash <$> cGetNetworkTip networkName) >>= \case
             Left (FailureResponse e) | responseStatusCode e == status404 ->
               return $ Left ErrNetworkTipNotFound
-            x -> left ErrNetworkTipNetworkUnreachable <$> defaultHandler x
+            x -> do
+                let ctx = safeLink api (Proxy @GetTipBlockHeader) networkName
+                left ErrNetworkTipNetworkUnreachable <$> defaultHandler ctx x
 
     , postSignedTx = \tx -> void $ ExceptT $ do
         let e0 = "Failed to send to peers: Blockchain protocol error"
@@ -194,16 +224,19 @@ mkHttpBridge mgr baseUrl networkName = HttpBridge
                 | responseStatusCode e == status500 && responseBody e == e0 -> do
                     let msg = T.decodeUtf8 $ BL.toStrict $ responseBody e
                     return $ Left $ ErrPostTxProtocolFailure msg
-            x -> left ErrPostTxNetworkUnreachable <$> defaultHandler x
+            x -> do
+                let ctx = safeLink api (Proxy @PostSignedTx) networkName
+                left ErrPostTxNetworkUnreachable <$> defaultHandler ctx x
     }
   where
     run :: ClientM a -> IO (Either ServantError a)
     run query = runClientM query (mkClientEnv mgr baseUrl)
 
     defaultHandler
-        :: Either ServantError a
+        :: Link
+        -> Either ServantError a
         -> IO (Either ErrNetworkUnreachable a)
-    defaultHandler = \case
+    defaultHandler ctx = \case
         Right c -> return $ Right c
 
         -- The node has not started yet or has exited.
@@ -214,8 +247,8 @@ mkHttpBridge mgr baseUrl networkName = HttpBridge
 
         -- Other errors (status code, decode failure, invalid content type
         -- headers). These are considered to be programming errors, so crash.
-        Left e ->
-            throwM e
+        Left e -> do
+            throwM (ErrUnexpectedNetworkFailure ctx e)
 
     cGetBlock
         :<|> cGetEpoch

@@ -676,6 +676,14 @@ newtype Hash (tag :: Symbol) = Hash
 
 instance NFData (Hash tag)
 
+instance Buildable (Hash "BlockHeader") where
+    build h = mempty
+        <> prefixF 8 builder
+        <> "..."
+        <> suffixF 8 builder
+      where
+        builder = T.decodeUtf8 . convertToBase Base16 . getHash $ h
+
 instance Buildable (Hash "Tx") where
     build h = mempty
         <> prefixF 8 builder

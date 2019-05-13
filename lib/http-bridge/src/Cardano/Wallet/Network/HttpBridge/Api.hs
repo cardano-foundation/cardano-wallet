@@ -9,6 +9,10 @@
 -- An API specification for the Cardano HTTP Bridge.
 module Cardano.Wallet.Network.HttpBridge.Api
     ( Api
+    , GetBlockByHash
+    , GetTipBlockHeader
+    , GetEpochById
+    , PostSignedTx
     , api
     , ApiT(..)
     , EpochIndex (..)
