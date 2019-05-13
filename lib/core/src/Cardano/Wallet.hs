@@ -110,7 +110,7 @@ import Control.Concurrent
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( forM, void, (>=>) )
+    ( forM, unless, void, (>=>) )
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.IO.Class
@@ -138,7 +138,7 @@ import Data.Quantity
 import Data.Time.Clock
     ( getCurrentTime )
 import Fmt
-    ( (+|), (+||), (|+), (||+) )
+    ( blockListF, pretty, (+|), (+||), (|+), (||+) )
 
 import qualified Cardano.Wallet.DB as DB
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
@@ -497,6 +497,8 @@ mkWalletLayer db nw tl = WalletLayer
             let meta' = meta { status = status' } :: WalletMetadata
             liftIO $ TIO.putStrLn $
                 "[INFO] Tx History: " +|| length txs ||+ ""
+            unless (null txs) $ liftIO $ TIO.putStrLn $ pretty $
+                "[DEBUG] :\n" <> blockListF (snd <$> Map.elems txs)
             DB.putCheckpoint db (PrimaryKey wid) cp'
             DB.putTxHistory db (PrimaryKey wid) txs
             DB.putWalletMeta db (PrimaryKey wid) meta'
