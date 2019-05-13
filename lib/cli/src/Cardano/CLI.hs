@@ -16,6 +16,9 @@ module Cardano.CLI
     -- * Types
       Port(..)
 
+    -- * Unicode Terminal Helpers
+    , setUtf8Encoding
+
     -- * ANSI Terminal Helpers
     , putErrLn
     , hPutErrLn
@@ -77,8 +80,11 @@ import System.IO
     , hPutChar
     , hSetBuffering
     , hSetEcho
+    , hSetEncoding
     , stderr
     , stdin
+    , stdout
+    , utf8
     )
 
 import qualified Data.Text as T
@@ -133,6 +139,17 @@ getAllArgsOrExitWith doc args opt =
     maybe err pure . NE.nonEmpty $ getAllArgs args opt
   where
     err = exitWithUsageMessage doc $ "argument expected for: " ++ show opt
+
+{-------------------------------------------------------------------------------
+                            Unicode Terminal Helpers
+-------------------------------------------------------------------------------}
+
+-- | Override the system output encoding setting. This is needed because the CLI
+-- prints UTF-8 characters regardless of the @LANG@ environment variable.
+setUtf8Encoding :: IO ()
+setUtf8Encoding = do
+    hSetEncoding stdout utf8
+    hSetEncoding stderr utf8
 
 {-------------------------------------------------------------------------------
                             ANSI Terminal Helpers
