@@ -1,20 +1,20 @@
 default: &default
   core: &default_core
-    requiresNetworkMagic: RequiresNoMagic
+    requiresNetworkMagic: RequiresMagic
     dbSerializeVersion: 0
 
     genesis: &default_core_genesis
       spec: &default_core_genesis_spec
         initializer:
           testBalance:
-            poors:        0
+            poors:        1
             richmen:      4
             richmenShare: 0.90
             useHDAddresses: True
             totalBalance: 1000000000000000000
           fakeAvvmBalance:
-            count: 100
-            oneBalance: 1000000000000
+            count: 0
+            oneBalance: 1
           avvmBalanceFactor: 1
           useHeavyDlg: True
           seed: 0
@@ -41,7 +41,7 @@ default: &default
           unlockStakeEpoch: 18446744073709551615 # last epoch (maxBound @Word64)
         protocolConstants: &default_core_genesis_spec_protocolConstants
           k: 2160
-          protocolMagic: 42
+          protocolMagic: 1097911063
           vssMinTTL: 2
           vssMaxTTL: 6
         ftsSeed: "kmFzYSBvcGFzYSBza292b3JvZGEgR2d1cmRhIGJvcm9kYSBwcm92b2Rh"
