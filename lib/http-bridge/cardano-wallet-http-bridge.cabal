@@ -133,10 +133,13 @@ test-suite integration
     , aeson-qq
     , async
     , bytestring
+    , cardano-crypto
     , cardano-wallet-core
     , cardano-wallet-http-bridge
     , cardano-wallet-launcher
+    , cborg
     , cryptonite
+    , directory
     , exceptions
     , generic-lens
     , hspec
@@ -145,6 +148,7 @@ test-suite integration
     , http-client
     , http-api-data
     , http-types
+    , memory
     , process
     , servant-server
     , template-haskell
@@ -163,8 +167,10 @@ test-suite integration
       Cardano.LauncherSpec
       Cardano.WalletSpec
       Cardano.Wallet.Network.HttpBridgeSpec
+      Test.Integration.Faucet
       Test.Integration.Framework.DSL
       Test.Integration.Framework.Request
+      Test.Integration.Scenario.Transactions
       Test.Integration.Scenario.Wallets
 
 benchmark restore
