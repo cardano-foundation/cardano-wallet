@@ -147,6 +147,7 @@ PercentageOutOfBoundsError :: MkPercentageError
 
 -- | Safe constructor for <a>Percentage</a>
 mkPercentage :: Integral i => i -> Either MkPercentageError Percentage
+getPercentage :: Percentage -> Word
 instance GHC.Classes.Eq Data.Quantity.MkPercentageError
 instance GHC.Show.Show Data.Quantity.MkPercentageError
 instance Data.Aeson.Types.ToJSON.ToJSON Data.Quantity.Percentage
@@ -232,8 +233,6 @@ TxMeta :: !TxStatus -> !Direction -> !SlotId -> !Quantity "lovelace" Natural -> 
 [$sel:direction:TxMeta] :: TxMeta -> !Direction
 [$sel:slotId:TxMeta] :: TxMeta -> !SlotId
 [$sel:amount:TxMeta] :: TxMeta -> !Quantity "lovelace" Natural
-
--- | The effect of a <tt>Transaction</tt> on the wallet balance.
 data Direction
 
 -- | The wallet balance decreases.
@@ -245,9 +244,6 @@ data TxStatus
 Pending :: TxStatus
 InLedger :: TxStatus
 Invalidated :: TxStatus
-
--- | <tt>TxWitness</tt> is proof that transaction inputs are allowed to be
---   spent
 data TxWitness
 
 -- | A signature of a transaction by the owner of the address of an input.
@@ -341,6 +337,12 @@ SlotId :: !Word64 -> !Word16 -> SlotId
 --   approximation for a few reasons, one of them being that we hard code
 --   the epoch length as a static number whereas it may vary in practice.
 slotRatio :: SlotId -> SlotId -> Quantity "percent" Percentage
+
+-- | Convert a <a>SlotId</a> to the number of slots since genesis.
+flatSlot :: SlotId -> Word64
+
+-- | Convert a <a>flatSlot</a> index to <a>SlotId</a>.
+fromFlatSlot :: Word64 -> SlotId
 
 -- | Additional information about a wallet that can't simply be derived
 --   from the blockchain like <tt>Wallet s t</tt> is.
@@ -453,6 +455,7 @@ instance GHC.Show.Show Cardano.Wallet.Primitive.Types.TxMeta
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.SlotId
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.SlotId
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.SlotId
+instance GHC.Read.Read Cardano.Wallet.Primitive.Types.SlotId
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.SlotId
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.TxOut
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.TxOut
@@ -540,8 +543,12 @@ instance Data.Text.Class.FromText Cardano.Wallet.Primitive.Types.Address
 instance Data.Text.Class.ToText Cardano.Wallet.Primitive.Types.Address
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.Direction
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.Direction
+instance Data.Text.Class.FromText Cardano.Wallet.Primitive.Types.Direction
+instance Data.Text.Class.ToText Cardano.Wallet.Primitive.Types.Direction
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.TxStatus
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.TxStatus
+instance Data.Text.Class.FromText Cardano.Wallet.Primitive.Types.TxStatus
+instance Data.Text.Class.ToText Cardano.Wallet.Primitive.Types.TxStatus
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.WalletMetadata
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.PoolId
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.WalletPassphraseInfo
@@ -1396,6 +1403,235 @@ instance GHC.Show.Show Cardano.Wallet.Primitive.Fee.TxSizeLinear
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Fee.TxSizeLinear
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.Fee.Fee
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Fee.Fee
+
+module Cardano.Wallet.DB.SqliteTypes
+
+-- | <a>fromText</a> but with a simpler error type.
+fromText' :: FromText a => Text -> Either Text a
+
+-- | Aeson parser defined in terms of <a>fromText</a>
+aesonFromText :: FromText a => String -> Value -> Parser a
+
+-- | <a>fromPersistValue</a> defined in terms of <a>fromText</a>
+fromPersistValueFromText :: FromText a => PersistValue -> Either Text a
+directionToBool :: Direction -> Bool
+directionFromBool :: Bool -> Direction
+data AddressScheme
+Sequential :: AddressScheme
+Random :: AddressScheme
+Any :: AddressScheme
+newtype TxId
+TxId :: Hash "Tx" -> TxId
+[getTxId] :: TxId -> Hash "Tx"
+walletStateNum :: WalletState -> Word8
+walletStateFromNum :: Word8 -> WalletState
+mkCoin :: Word64 -> Either Text Coin
+instance GHC.Generics.Generic Cardano.Wallet.DB.SqliteTypes.TxId
+instance GHC.Classes.Ord Cardano.Wallet.DB.SqliteTypes.TxId
+instance GHC.Classes.Eq Cardano.Wallet.DB.SqliteTypes.TxId
+instance GHC.Show.Show Cardano.Wallet.DB.SqliteTypes.TxId
+instance GHC.Generics.Generic Cardano.Wallet.DB.SqliteTypes.AddressScheme
+instance GHC.Classes.Eq Cardano.Wallet.DB.SqliteTypes.AddressScheme
+instance GHC.Show.Show Cardano.Wallet.DB.SqliteTypes.AddressScheme
+instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.DB.SqliteTypes.TxId
+instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.DB.SqliteTypes.TxId
+instance GHC.Read.Read Cardano.Wallet.DB.SqliteTypes.TxId
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.DB.SqliteTypes.TxId
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.DB.SqliteTypes.TxId
+instance Web.Internal.HttpApiData.ToHttpApiData Cardano.Wallet.DB.SqliteTypes.TxId
+instance Web.Internal.HttpApiData.FromHttpApiData Cardano.Wallet.DB.SqliteTypes.TxId
+instance Web.PathPieces.PathPiece Cardano.Wallet.DB.SqliteTypes.TxId
+instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.DB.SqliteTypes.AddressScheme
+instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.DB.SqliteTypes.AddressScheme
+instance Data.Text.Class.FromText Cardano.Wallet.DB.SqliteTypes.AddressScheme
+instance Data.Text.Class.ToText Cardano.Wallet.DB.SqliteTypes.AddressScheme
+instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.Primitive.Types.Direction
+instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.Primitive.Types.Direction
+instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.Primitive.Types.WalletId
+instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.Primitive.Types.WalletId
+instance GHC.Read.Read Cardano.Wallet.Primitive.Types.WalletId
+instance Web.Internal.HttpApiData.ToHttpApiData Cardano.Wallet.Primitive.Types.WalletId
+instance Web.Internal.HttpApiData.FromHttpApiData Cardano.Wallet.Primitive.Types.WalletId
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Primitive.Types.WalletId
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Primitive.Types.WalletId
+instance Web.PathPieces.PathPiece Cardano.Wallet.Primitive.Types.WalletId
+instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.Primitive.Types.SlotId
+instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.Primitive.Types.SlotId
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Primitive.Types.SlotId
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Primitive.Types.SlotId
+instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.Primitive.Types.WalletState
+instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.Primitive.Types.WalletState
+instance GHC.Read.Read Cardano.Wallet.Primitive.Types.WalletState
+instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.Primitive.Types.TxStatus
+instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.Primitive.Types.TxStatus
+instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.Primitive.Types.Coin
+instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.Primitive.Types.Coin
+
+module Cardano.Wallet.DB.Sqlite
+data Wallet
+Wallet :: !WalletId -> !Text -> !UTCTime -> !WalletState -> !Maybe Text -> !AddressScheme -> Wallet
+[walTableId] :: Wallet -> !WalletId
+[walTableName] :: Wallet -> !Text
+[walTablePassphraseLastUpdatedAt] :: Wallet -> !UTCTime
+[walTableStatus] :: Wallet -> !WalletState
+[walTableDelegation] :: Wallet -> !Maybe Text
+[walTableAddressScheme] :: Wallet -> !AddressScheme
+type WalletId = Key Wallet
+data PrivateKey
+PrivateKey :: !WalletId -> !Text -> PrivateKey
+[privateKeyTableWalletId] :: PrivateKey -> !WalletId
+[privateKeyTableKey] :: PrivateKey -> !Text
+type PrivateKeyId = Key PrivateKey
+data TxMeta
+TxMeta :: !TxId -> !WalletId -> !TxStatus -> !Direction -> !SlotId -> !Coin -> TxMeta
+[txMetaTableTxId] :: TxMeta -> !TxId
+[txMetaTableWalletId] :: TxMeta -> !WalletId
+[txMetaTableStatus] :: TxMeta -> !TxStatus
+[txMetaTableDirection] :: TxMeta -> !Direction
+[txMetaTableSlotId] :: TxMeta -> !SlotId
+[txMetaTableAmount] :: TxMeta -> !Coin
+type TxMetaId = Key TxMeta
+data TxIn
+TxIn :: !TxId -> !WalletId -> !TxId -> !Word32 -> TxIn
+[txInputTableTxId] :: TxIn -> !TxId
+[txInputTableWalletId] :: TxIn -> !WalletId
+[txInputTableSourceTxId] :: TxIn -> !TxId
+[txInputTableSourceIndex] :: TxIn -> !Word32
+type TxInId = Key TxIn
+data TxOut
+TxOut :: !TxId -> !WalletId -> !Word32 -> !Text -> !Coin -> TxOut
+[txOutputTableTxId] :: TxOut -> !TxId
+[txOutputTableWalletId] :: TxOut -> !WalletId
+[txOutputTableIndex] :: TxOut -> !Word32
+[txOutputTableAddress] :: TxOut -> !Text
+[txOutputTableAmount] :: TxOut -> !Coin
+type TxOutId = Key TxOut
+data Checkpoint
+Checkpoint :: !WalletId -> !SlotId -> Checkpoint
+[checkpointTableWalletId] :: Checkpoint -> !WalletId
+[checkpointTableWalletSlot] :: Checkpoint -> !SlotId
+type CheckpointId = Key Checkpoint
+data UTxO
+UTxO :: !WalletId -> !SlotId -> !TxId -> !Word32 -> !TxId -> !Word32 -> UTxO
+[utxoTableWalletId] :: UTxO -> !WalletId
+[utxoTableWalletSlot] :: UTxO -> !SlotId
+[utxoTableInputId] :: UTxO -> !TxId
+[utxoTableInputIndex] :: UTxO -> !Word32
+[utxoTableOutputId] :: UTxO -> !TxId
+[utxoTableOutputIndex] :: UTxO -> !Word32
+type UTxOId = Key UTxO
+migrateAll :: Migration
+fk_checkpoint_utxo :: UTxO -> Key Checkpoint
+fk_wallet_checkpoint :: Checkpoint -> Key Wallet
+fk_tx_meta_tx_out :: TxOut -> Key TxMeta
+fk_tx_meta_tx_in :: TxIn -> Key TxMeta
+fk_wallet_tx_meta :: TxMeta -> Key Wallet
+fk_wallet_private_key :: PrivateKey -> Key Wallet
+instance GHC.Generics.Generic Cardano.Wallet.DB.Sqlite.UTxO
+instance GHC.Show.Show Cardano.Wallet.DB.Sqlite.UTxO
+instance GHC.Generics.Generic Cardano.Wallet.DB.Sqlite.Checkpoint
+instance GHC.Show.Show Cardano.Wallet.DB.Sqlite.Checkpoint
+instance GHC.Generics.Generic Cardano.Wallet.DB.Sqlite.TxOut
+instance GHC.Show.Show Cardano.Wallet.DB.Sqlite.TxOut
+instance GHC.Generics.Generic Cardano.Wallet.DB.Sqlite.TxIn
+instance GHC.Show.Show Cardano.Wallet.DB.Sqlite.TxIn
+instance GHC.Generics.Generic Cardano.Wallet.DB.Sqlite.TxMeta
+instance GHC.Show.Show Cardano.Wallet.DB.Sqlite.TxMeta
+instance GHC.Generics.Generic Cardano.Wallet.DB.Sqlite.PrivateKey
+instance GHC.Show.Show Cardano.Wallet.DB.Sqlite.PrivateKey
+instance GHC.Generics.Generic Cardano.Wallet.DB.Sqlite.Wallet
+instance GHC.Show.Show Cardano.Wallet.DB.Sqlite.Wallet
+instance Data.Aeson.Types.FromJSON.FromJSON (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.Wallet)
+instance Data.Aeson.Types.ToJSON.ToJSON (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.Wallet)
+instance Database.Persist.Sql.Class.PersistFieldSql (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.Wallet)
+instance Database.Persist.Class.PersistField.PersistField (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.Wallet)
+instance Web.Internal.HttpApiData.FromHttpApiData (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.Wallet)
+instance Web.Internal.HttpApiData.ToHttpApiData (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.Wallet)
+instance Web.PathPieces.PathPiece (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.Wallet)
+instance GHC.Classes.Ord (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.Wallet)
+instance GHC.Classes.Eq (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.Wallet)
+instance GHC.Read.Read (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.Wallet)
+instance GHC.Show.Show (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.Wallet)
+instance Data.Aeson.Types.FromJSON.FromJSON (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.PrivateKey)
+instance Data.Aeson.Types.ToJSON.ToJSON (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.PrivateKey)
+instance Database.Persist.Sql.Class.PersistFieldSql (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.PrivateKey)
+instance Database.Persist.Class.PersistField.PersistField (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.PrivateKey)
+instance Web.Internal.HttpApiData.FromHttpApiData (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.PrivateKey)
+instance Web.Internal.HttpApiData.ToHttpApiData (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.PrivateKey)
+instance Web.PathPieces.PathPiece (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.PrivateKey)
+instance GHC.Classes.Ord (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.PrivateKey)
+instance GHC.Classes.Eq (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.PrivateKey)
+instance GHC.Read.Read (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.PrivateKey)
+instance GHC.Show.Show (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.PrivateKey)
+instance GHC.Generics.Generic (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxMeta)
+instance GHC.Classes.Ord (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxMeta)
+instance GHC.Classes.Eq (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxMeta)
+instance GHC.Read.Read (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxMeta)
+instance GHC.Show.Show (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxMeta)
+instance GHC.Generics.Generic (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxIn)
+instance GHC.Classes.Ord (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxIn)
+instance GHC.Classes.Eq (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxIn)
+instance GHC.Read.Read (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxIn)
+instance GHC.Show.Show (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxIn)
+instance GHC.Generics.Generic (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxOut)
+instance GHC.Classes.Ord (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxOut)
+instance GHC.Classes.Eq (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxOut)
+instance GHC.Read.Read (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxOut)
+instance GHC.Show.Show (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxOut)
+instance GHC.Generics.Generic (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.Checkpoint)
+instance GHC.Classes.Ord (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.Checkpoint)
+instance GHC.Classes.Eq (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.Checkpoint)
+instance GHC.Read.Read (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.Checkpoint)
+instance GHC.Show.Show (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.Checkpoint)
+instance Data.Aeson.Types.FromJSON.FromJSON (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.UTxO)
+instance Data.Aeson.Types.ToJSON.ToJSON (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.UTxO)
+instance Database.Persist.Sql.Class.PersistFieldSql (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.UTxO)
+instance Database.Persist.Class.PersistField.PersistField (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.UTxO)
+instance Web.Internal.HttpApiData.FromHttpApiData (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.UTxO)
+instance Web.Internal.HttpApiData.ToHttpApiData (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.UTxO)
+instance Web.PathPieces.PathPiece (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.UTxO)
+instance GHC.Classes.Ord (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.UTxO)
+instance GHC.Classes.Eq (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.UTxO)
+instance GHC.Read.Read (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.UTxO)
+instance GHC.Show.Show (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.UTxO)
+instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.DB.Sqlite.UTxO
+instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.DB.Sqlite.UTxO
+instance Database.Persist.Class.PersistEntity.PersistEntity Cardano.Wallet.DB.Sqlite.UTxO
+instance Database.Persist.Class.PersistStore.ToBackendKey Database.Persist.Sql.Types.Internal.SqlBackend Cardano.Wallet.DB.Sqlite.UTxO
+instance Database.Persist.Class.PersistEntity.PersistEntity Cardano.Wallet.DB.Sqlite.Checkpoint
+instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.DB.Sqlite.Checkpoint
+instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.DB.Sqlite.Checkpoint
+instance Database.Persist.Class.PersistField.PersistField (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.Checkpoint)
+instance Database.Persist.Sql.Class.PersistFieldSql (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.Checkpoint)
+instance Data.Aeson.Types.ToJSON.ToJSON (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.Checkpoint)
+instance Data.Aeson.Types.FromJSON.FromJSON (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.Checkpoint)
+instance Database.Persist.Class.PersistEntity.PersistEntity Cardano.Wallet.DB.Sqlite.TxOut
+instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.DB.Sqlite.TxOut
+instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.DB.Sqlite.TxOut
+instance Database.Persist.Class.PersistField.PersistField (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxOut)
+instance Database.Persist.Sql.Class.PersistFieldSql (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxOut)
+instance Data.Aeson.Types.ToJSON.ToJSON (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxOut)
+instance Data.Aeson.Types.FromJSON.FromJSON (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxOut)
+instance Database.Persist.Class.PersistEntity.PersistEntity Cardano.Wallet.DB.Sqlite.TxIn
+instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.DB.Sqlite.TxIn
+instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.DB.Sqlite.TxIn
+instance Database.Persist.Class.PersistField.PersistField (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxIn)
+instance Database.Persist.Sql.Class.PersistFieldSql (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxIn)
+instance Data.Aeson.Types.ToJSON.ToJSON (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxIn)
+instance Data.Aeson.Types.FromJSON.FromJSON (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxIn)
+instance Database.Persist.Class.PersistEntity.PersistEntity Cardano.Wallet.DB.Sqlite.TxMeta
+instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.DB.Sqlite.TxMeta
+instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.DB.Sqlite.TxMeta
+instance Database.Persist.Class.PersistField.PersistField (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxMeta)
+instance Database.Persist.Sql.Class.PersistFieldSql (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxMeta)
+instance Data.Aeson.Types.ToJSON.ToJSON (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxMeta)
+instance Data.Aeson.Types.FromJSON.FromJSON (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxMeta)
+instance Database.Persist.Class.PersistEntity.PersistEntity Cardano.Wallet.DB.Sqlite.PrivateKey
+instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.DB.Sqlite.PrivateKey
+instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.DB.Sqlite.PrivateKey
+instance Database.Persist.Class.PersistEntity.PersistEntity Cardano.Wallet.DB.Sqlite.Wallet
+instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.DB.Sqlite.Wallet
+instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.DB.Sqlite.Wallet
 
 
 -- | API type representations of various types. We define here pretty much

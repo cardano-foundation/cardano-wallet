@@ -30,6 +30,9 @@ fromText :: FromText a => Text -> Either TextDecodingError a
 newtype TextDecodingError
 TextDecodingError :: String -> TextDecodingError
 [getTextDecodingError] :: TextDecodingError -> String
+
+-- | Decode the specified text with a <a>Maybe</a> result type.
+fromTextMaybe :: FromText a => Text -> Maybe a
 instance Formatting.Buildable.Buildable Data.Text.Class.TextDecodingError
 instance GHC.Show.Show Data.Text.Class.TextDecodingError
 instance GHC.Classes.Eq Data.Text.Class.TextDecodingError
