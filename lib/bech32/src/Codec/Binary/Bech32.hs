@@ -1,3 +1,8 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
+
 -- |
 -- Copyright: © 2017 Marko Bencun, 2018-2019 IOHK
 -- License: MIT
@@ -8,15 +13,15 @@
 -- [sipa/bech32](https://github.com/sipa/bech32/tree/bdc264f84014c234e908d72026b7b780122be11f/ref/haskell)
 
 module Codec.Binary.Bech32
-    ( bech32Encode
-    , bech32Decode
-    , toBase32
-    , toBase256
-    , segwitEncode
-    , segwitDecode
-    , Word5
-    , word5
-    , fromWord5
+    (
+      -- * Encoder & Decoder
+      encode
+    , decode
+
+      -- * Human-Readable Part
+    , HumanReadablePart
+    , mkHumanReadablePart
+    , humanReadablePartToBytes
     ) where
 
 import Prelude
@@ -27,6 +32,8 @@ import Data.Array
     ( Array )
 import Data.Bits
     ( Bits, testBit, unsafeShiftL, unsafeShiftR, xor, (.&.), (.|.) )
+import Data.ByteString
+    ( ByteString )
 import Data.Char
     ( toLower, toUpper )
 import Data.Foldable
@@ -42,15 +49,48 @@ import qualified Data.Array as Arr
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 
-type HRP = BS.ByteString
-type Data = [Word8]
+newtype HumanReadablePart = HumanReadablePart ByteString
+    deriving (Show, Eq)
+
+mkHumanReadablePart :: ByteString -> Maybe HumanReadablePart
+mkHumanReadablePart hrp = do
+    guard $ not (BS.null hrp) && BS.all (\c -> c >= 33 && c <= 126) hrp
+    return (HumanReadablePart hrp)
+
+humanReadablePartToBytes :: HumanReadablePart -> ByteString
+humanReadablePartToBytes (HumanReadablePart bytes) = bytes
+
+encode :: HumanReadablePart -> ByteString -> Maybe ByteString
+encode hrp@(HumanReadablePart hrpBytes) payload = do
+    let payload5 = toBase32 (BS.unpack payload)
+    let payload' = payload5 ++ bech32CreateChecksum hrp payload5
+    let rest = map (charset Arr.!) payload'
+    let output = B8.map toLower hrpBytes <> B8.pack "1" <> B8.pack rest
+    guard (BS.length output <= 90)
+    return output
+
+decode :: ByteString -> Maybe (HumanReadablePart, ByteString)
+decode bech32 = do
+    guard $ BS.length bech32 <= 90
+    guard $ B8.map toUpper bech32 == bech32 || B8.map toLower bech32 == bech32
+    let (hrp, dat) = B8.breakEnd (== '1') $ B8.map toLower bech32
+    guard $ BS.length dat >= 6
+    hrp' <- B8.stripSuffix (B8.pack "1") hrp >>= mkHumanReadablePart
+    dat' <- mapM charsetMap $ B8.unpack dat
+    guard $ bech32VerifyChecksum hrp' dat'
+    result <- toBase256 (take (BS.length dat - 6) dat')
+    return (hrp', BS.pack result)
+
+{-------------------------------------------------------------------------------
+                                   Internal
+-------------------------------------------------------------------------------}
 
 (.>>.), (.<<.) :: Bits a => a -> Int -> a
 (.>>.) = unsafeShiftR
 (.<<.) = unsafeShiftL
 
 newtype Word5 = Word5 Word8
-    deriving (Show, Eq, Ord)
+    deriving (Eq, Ord)
 
 instance Ix Word5 where
     range (Word5 m, Word5 n) = map Word5 $ range (m, n)
@@ -99,47 +139,21 @@ bech32Polymod values = foldl' go 1 values .&. 0x3fffffff
             , 0x3d4233dd
             , 0x2a1462b3 ]
 
-bech32HRPExpand :: HRP -> [Word5]
-bech32HRPExpand hrp =
+bech32HRPExpand :: HumanReadablePart -> [Word5]
+bech32HRPExpand (HumanReadablePart hrp) =
     map (Word5 . (.>>. 5)) (BS.unpack hrp)
     ++ [Word5 0]
     ++ map word5 (BS.unpack hrp)
 
-bech32CreateChecksum :: HRP -> [Word5] -> [Word5]
+bech32CreateChecksum :: HumanReadablePart -> [Word5] -> [Word5]
 bech32CreateChecksum hrp dat = [word5 (polymod .>>. i) | i <- [25, 20 .. 0]]
   where
     values = bech32HRPExpand hrp ++ dat
     polymod =
         bech32Polymod (values ++ map Word5 [0, 0, 0, 0, 0, 0]) `xor` 1
 
-bech32VerifyChecksum :: HRP -> [Word5] -> Bool
+bech32VerifyChecksum :: HumanReadablePart -> [Word5] -> Bool
 bech32VerifyChecksum hrp dat = bech32Polymod (bech32HRPExpand hrp ++ dat) == 1
-
-bech32Encode :: HRP -> [Word5] -> Maybe BS.ByteString
-bech32Encode hrp dat = do
-    guard $ checkHRP hrp
-    let dat' = dat ++ bech32CreateChecksum hrp dat
-        rest = map (charset Arr.!) dat'
-        result = B8.concat [B8.map toLower hrp, B8.pack "1", B8.pack rest]
-    guard $ BS.length result <= 90
-    return result
-
-checkHRP :: BS.ByteString -> Bool
-checkHRP hrp =
-    not (BS.null hrp)
-    && BS.all (\char -> char >= 33 && char <= 126) hrp
-
-bech32Decode :: BS.ByteString -> Maybe (HRP, [Word5])
-bech32Decode bech32 = do
-    guard $ BS.length bech32 <= 90
-    guard $ B8.map toUpper bech32 == bech32 || B8.map toLower bech32 == bech32
-    let (hrp, dat) = B8.breakEnd (== '1') $ B8.map toLower bech32
-    guard $ BS.length dat >= 6
-    hrp' <- B8.stripSuffix (B8.pack "1") hrp
-    guard $ checkHRP hrp'
-    dat' <- mapM charsetMap $ B8.unpack dat
-    guard $ bech32VerifyChecksum hrp' dat'
-    return (hrp', take (BS.length dat - 6) dat')
 
 type Pad f = Int -> Int -> Word -> [[Word]] -> f [[Word]]
 
@@ -182,25 +196,3 @@ toBase32 dat =
 toBase256 :: [Word5] -> Maybe [Word8]
 toBase256 dat =
     map fromIntegral <$> convertBits (map fromWord5 dat) 5 8 noPadding
-
-segwitCheck :: Word8 -> Data -> Bool
-segwitCheck witver witprog =
-    witver <= 16 &&
-    if witver == 0
-    then length witprog == 20 || length witprog == 32
-    else length witprog >= 2 && length witprog <= 40
-
-segwitDecode :: HRP -> BS.ByteString -> Maybe (Word8, Data)
-segwitDecode hrp addr = do
-    (hrp', dat) <- bech32Decode addr
-    guard $ (hrp == hrp') && not (null dat)
-    let (Word5 witver : datBase32) = dat
-    decoded <- toBase256 datBase32
-    guard $ segwitCheck witver decoded
-    return (witver, decoded)
-
-segwitEncode :: HRP -> Word8 -> Data -> Maybe BS.ByteString
-segwitEncode hrp witver witprog = do
-    guard $ segwitCheck witver witprog
-    bech32Encode hrp $ Word5 witver : toBase32 witprog
-
