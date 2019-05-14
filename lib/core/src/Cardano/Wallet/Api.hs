@@ -30,6 +30,7 @@ import Servant.API
     , NoContent
     , PostAccepted
     , Put
+    , PutNoContent
     , QueryParam
     , ReqBody
     )
@@ -96,7 +97,7 @@ type PutWalletPassphrase = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "passphrase"
     :> ReqBody '[JSON] WalletPutPassphraseData
-    :> Put '[Any] NoContent
+    :> PutNoContent '[Any] NoContent
 
 {-------------------------------------------------------------------------------
                                   Transactions
