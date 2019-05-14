@@ -1,22 +1,46 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Test.Integration.Faucet
-    ( mkRedeemTx
+    ( Faucet
+    , initFaucet
+    , nextWallet
     ) where
 
 import Prelude
 
 import Cardano.Environment.HttpBridge
     ( ProtocolMagic (..), network, protocolMagic )
+import Cardano.Wallet
+    ( unsafeRunExceptT )
 import Cardano.Wallet.Binary.HttpBridge
     ( toByteString )
 import Cardano.Wallet.Compatibility.HttpBridge
     ( HttpBridge )
+import Cardano.Wallet.Network
+    ( NetworkLayer (postTx) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Passphrase (..), XPrv )
+    ( ChangeChain (..)
+    , KeyToAddress (..)
+    , Passphrase (..)
+    , XPrv
+    , deriveAccountPrivateKey
+    , deriveAddressPrivateKey
+    , generateKeyFromSeed
+    , publicKey
+    )
+import Cardano.Wallet.Primitive.Mnemonic
+    ( Mnemonic
+    , entropyToBytes
+    , entropyToMnemonic
+    , genEntropy
+    , mnemonicToEntropy
+    )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , Coin (..)
     , Hash (..)
     , Tx (..)
     , TxId (..)
@@ -24,10 +48,16 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , TxWitness (..)
     )
+import Control.Concurrent.MVar
+    ( MVar, newMVar, putMVar, takeMVar )
+import Control.Monad
+    ( replicateM )
 import Data.ByteArray.Encoding
     ( Base (..), convertFromBase )
 import Data.ByteString
     ( ByteString )
+import Data.Functor
+    ( (<$) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -38,6 +68,46 @@ import Data.Word
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Codec.CBOR.Encoding as CBOR
 
+-- | An opaque 'Faucet' type from which one can get a wallet with funds
+newtype Faucet = Faucet (MVar [Mnemonic 15])
+
+-- | Get the next faucet wallet. Requires the 'initFaucet' to be called in order
+-- to get a hand on a 'Faucet'.
+nextWallet :: Faucet -> IO (Mnemonic 15)
+nextWallet (Faucet mvar) = do
+    takeMVar mvar >>= \case
+        [] -> fail "nextWallet: Awe crap! No more faucet wallet available!"
+        (h:q) -> h <$ putMVar mvar q
+
+-- | Initialize a bunch of faucet wallets and make them available for the
+-- integration tests scenarios.
+initFaucet :: NetworkLayer IO -> IO Faucet
+initFaucet nl = do
+    wallets <- replicateM 100 genMnemonic
+    let outs = uncurry TxOut . (,Coin 1000000000000) . firstAddress <$> wallets
+    unsafeRunExceptT $ postTx nl (mkRedeemTx outs)
+    Faucet <$> newMVar wallets
+  where
+    genMnemonic :: IO (Mnemonic 15)
+    genMnemonic = entropyToMnemonic <$> genEntropy
+    firstAddress :: Mnemonic 15 -> Address
+    firstAddress mw =
+        let
+            (seed, pwd) =
+                (Passphrase $ entropyToBytes $ mnemonicToEntropy mw, mempty)
+            rootXPrv =
+                generateKeyFromSeed (seed, mempty) pwd
+            accXPrv =
+                deriveAccountPrivateKey pwd rootXPrv minBound
+            addrXPrv =
+                deriveAddressPrivateKey pwd accXPrv ExternalChain minBound
+        in
+            keyToAddress @HttpBridge (publicKey addrXPrv)
+
+{-------------------------------------------------------------------------------
+                                    Internal
+-------------------------------------------------------------------------------}
+
 -- | Redeem funds from an address, to the given outputs. The corresponding
 -- private keys are known by the redeem function and will be looked up
 -- for the given address.
@@ -46,16 +116,16 @@ import qualified Codec.CBOR.Encoding as CBOR
 -- with the 'TransactionLayer' although the list contains a single element.
 --
 -- NOTE (2): This is a one-time call only. There's no change output generated.
--- However, we can put here as many outputs as we want / can (8kb transaction
--- means that we can add up to ~145 outputs before needing two transactions...).
+-- However, we can put here as many outputs as we want / can (64kb transaction
+-- means that we can add up to ~1K outputs before needing two transactions...).
 --
--- NOTE (3): There is a total of `4 500 000 000 ADA` available in the faucet.
+-- NOTE (3): There is a total of `4 500 000 000 ADA` available in the genesis.
 mkRedeemTx
     :: [TxOut]
     -> (Tx, [TxWitness])
 mkRedeemTx outs =
     let
-        (txin, _, xprv, pwd) = faucet
+        (txin, _, xprv, pwd) = genesis
         tx = Tx [txin] outs
         witness = mkWitness (txId @HttpBridge tx) (xprv, pwd)
     in
@@ -75,12 +145,12 @@ mkRedeemTx outs =
             <> toByteString (CBOR.encodeInt32 pm)
             <> toByteString (CBOR.encodeBytes tx)
 
--- | A faucet / genesis UTxO generate from the configuration.yaml.
+-- | A genesis UTxO generated from the configuration.yaml.
 -- The secret key can be generated using `cardano-keygen`, and then, using
--- `deriveForstHDAddress` from cardano-sl to get the corresponding address key.
+-- `deriveFirstHDAddress` from cardano-sl to get the corresponding address key.
 --
 -- A peek in the node's database / UTxO will also yield the initial "fake"
--- transaction id and input index to use as a an entry. Funds available to the
+-- transaction id and input index to use as an entry. Funds available to the
 -- address depends on:
 --
 -- - `genesis.spec.initializer.testBalance.totalBalance`
@@ -88,8 +158,8 @@ mkRedeemTx outs =
 -- - `genesis.spec.initializer.testBalance.richmenShare`
 --
 -- If funds were to miss for the integration tests, increase the `totalBalance`.
-faucet :: (TxIn, Address, XPrv, Passphrase "encryption")
-faucet =
+genesis :: (TxIn, Address, XPrv, Passphrase "encryption")
+genesis =
     ( unsafeTxIn 0
         "ad348750ba0673f5829ac2c73e1ddf59ae4219222ee5703b05a5af5457981c17"
     , unsafeAddress

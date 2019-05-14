@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -41,6 +42,7 @@ module Test.Integration.Framework.DSL
     , getFromResponse
     , json
     , tearDown
+    , fixtureWallet
     ) where
 
 import Prelude hiding
@@ -50,6 +52,8 @@ import Cardano.Wallet.Api.Types
     ( ApiT (..), ApiWallet )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap, getAddressPoolGap, mkAddressPoolGap )
+import Cardano.Wallet.Primitive.Mnemonic
+    ( mnemonicToText )
 import Cardano.Wallet.Primitive.Types
     ( PoolId (..)
     , WalletBalance (..)
@@ -60,7 +64,9 @@ import Cardano.Wallet.Primitive.Types
     , WalletState (..)
     )
 import Control.Monad
-    ( forM_ )
+    ( forM_, unless )
+import Control.Monad.Catch
+    ( MonadCatch )
 import Control.Monad.Fail
     ( MonadFail (..) )
 import Control.Monad.IO.Class
@@ -95,6 +101,8 @@ import Numeric.Natural
     ( Natural )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain, shouldNotBe )
+import Test.Integration.Faucet
+    ( nextWallet )
 import Test.Integration.Framework.Request
     ( Context (..)
     , Headers (..)
@@ -201,6 +209,27 @@ expectListSizeEqual l (_, res) = case res of
     Left e   -> wantedSuccessButError e
     Right xs -> length (toList xs) `shouldBe` l
 
+-- | Expects wallet from the request to eventually reach the given state or
+-- beyond
+expectEventually
+    :: (MonadIO m, MonadCatch m, MonadFail m, Show a, Ord a)
+    => Context
+    -> Lens' ApiWallet a
+    -> a
+    -> (HTTP.Status, Either RequestException ApiWallet)
+    -> m ()
+expectEventually ctx getter target (_, res) = case res of
+    Left e -> wantedSuccessButError e
+    Right s -> loopUntilRestore (s ^. walletId)
+
+  where
+    loopUntilRestore :: (MonadIO m, MonadCatch m) => Text -> m ()
+    loopUntilRestore wid = do
+        r <- request @ApiWallet ctx ("GET", "v2/wallets/" <> wid) Default Empty
+        let target' = getFromResponse getter r
+        unless (target' >= target) $ loopUntilRestore wid
+
+
 -- | Apply 'a' to all actions in sequence
 verify :: (Monad m) => a -> [a -> m ()] -> m ()
 verify a = mapM_ (a &)
@@ -295,9 +324,27 @@ walletId =
     _get = T.pack . show . getWalletId . getApiT . view typed
     _set :: HasType (ApiT WalletId) s => (s, Text) -> s
     _set (s, v) = set typed (ApiT $ WalletId (unsafeCreateDigest v)) s
+
 --
 -- Helpers
 --
+
+-- | Restore a faucet and wait until funds are available.
+fixtureWallet
+    :: Context
+    -> IO ApiWallet
+fixtureWallet ctx@(Context _ _ _ faucet) = do
+    mnemonics <- mnemonicToText <$> nextWallet faucet
+    let payload = Json [aesonQQ| {
+            "name": "Faucet Wallet",
+            "mnemonic_sentence": #{mnemonics},
+            "passphrase": "cardano-wallet"
+            } |]
+    r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+    expectEventually ctx state Ready r
+    let wid = getFromResponse walletId r
+    r' <- request @ApiWallet ctx ("GET", "v2/wallets/" <> wid) Default Empty
+    return $ getFromResponse id r'
 
 fromQuantity :: Quantity (u :: Symbol) a -> a
 fromQuantity (Quantity a) = a

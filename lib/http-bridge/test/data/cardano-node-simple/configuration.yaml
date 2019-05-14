@@ -23,7 +23,7 @@ default: &default
           slotDuration:      10000
           maxBlockSize:      2000000
           maxHeaderSize:     2000000
-          maxTxSize:         4096 # 4 Kb
+          maxTxSize:         65536 # 64 Kb
           maxProposalSize:   700 # 700 bytes
           mpcThd:            0.01 # 1% of stake
           heavyDelThd:       0.005 # 0.5% of stake

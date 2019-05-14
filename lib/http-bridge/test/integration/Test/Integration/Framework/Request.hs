@@ -47,6 +47,8 @@ import Network.HTTP.Types.Status
     ( status500 )
 import System.IO
     ( Handle )
+import Test.Integration.Faucet
+    ( Faucet )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Text as T
@@ -65,6 +67,11 @@ data Context = Context
     , _logs
         :: Handle
         -- ^ A file 'Handle' to the launcher log output
+
+    , _faucet
+        :: Faucet
+        -- ^ A 'Faucet' handle in to have access to funded wallets in
+        -- integration tests.
     }
 
 -- | The result when 'request' fails.
@@ -105,7 +112,7 @@ request
     -> Payload
         -- ^ Request body
     -> m (HTTP.Status, Either RequestException a)
-request (Context _ (base, manager) _) (verb, path) reqHeaders body = do
+request (Context _ (base, manager) _ _) (verb, path) reqHeaders body = do
     req <- parseRequest $ T.unpack $ base <> path
     handleResponse <$> liftIO (httpLbs (prepareReq req) manager)
   where
