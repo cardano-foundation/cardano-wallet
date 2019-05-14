@@ -120,6 +120,7 @@ test-suite unit
     , deepseq
     , file-embed
     , fmt
+    , foldl
     , generic-arbitrary
     , hspec
     , hspec-golden-aeson
@@ -128,6 +129,8 @@ test-suite unit
     , memory
     , QuickCheck
     , quickcheck-instances
+    , quickcheck-state-machine >= 0.6.0
+    , random
     , servant-server
     , servant-swagger
     , swagger2
@@ -135,6 +138,7 @@ test-suite unit
     , text-class
     , time
     , transformers
+    , tree-diff
     , yaml
   type:
      exitcode-stdio-1.0
@@ -146,6 +150,7 @@ test-suite unit
       Cardano.Wallet.Api.TypesSpec
       Cardano.Wallet.ApiSpec
       Cardano.Wallet.DB.MVarSpec
+      Cardano.Wallet.DB.StateMachine
       Cardano.Wallet.DB.SqliteSpec
       Cardano.Wallet.DBSpec
       Cardano.Wallet.EnvironmentSpec

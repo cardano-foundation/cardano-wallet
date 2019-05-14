@@ -120,6 +120,8 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , InfiniteList (..)
+    , NonEmptyList (..)
+    , Positive (..)
     , Property
     , arbitraryBoundedEnum
     , checkCoverage
@@ -147,6 +149,10 @@ import qualified Data.Map.Strict as Map
 
 spec :: Spec
 spec = return ()
+
+-- | Clean a database by removing all wallets.
+cleanDB :: Monad m => DBLayer m s t -> m ()
+cleanDB db = listWallets db >>= mapM_ (runExceptT . removeWallet db)
 
 {-------------------------------------------------------------------------------
                     Cross DB Specs Shared Arbitrary Instances
@@ -267,14 +273,20 @@ ourAddresses cc =
         <$> [minBound..maxBound]
 
 instance Arbitrary (Hash "Tx") where
-    shrink _ = []
-    arbitrary = do
-        k <- choose (0, 10)
-        return $ Hash (B8.pack ("TX" <> show @Int k))
+    shrink _ = [] -- no way to shrink a hash
+    arbitrary = Hash . B8.pack <$> replicateM 32 hex
+        where hex = elements $ ['0'..'9'] ++ ['a'..'f']
 
 instance Arbitrary Tx where
-    shrink _ = []
-    arbitrary = return $ Tx mempty mempty
+    shrink (Tx ins outs) =
+        [Tx ins' outs | ins' <- shrinkList ins ] ++
+        [Tx ins outs' | outs' <- shrinkList outs ]
+      where
+        shrinkList xs  = filter (not . null)
+            [ take n xs | Positive n <- shrink (Positive $ length xs) ]
+
+    arbitrary = Tx <$> fmap (L.nub . getNonEmpty) arbitrary
+                   <*> fmap getNonEmpty arbitrary
 
 instance Arbitrary TxMeta where
     shrink _ = []
@@ -303,7 +315,9 @@ instance Arbitrary Coin where
     arbitrary = Coin <$> choose (1, 100000)
 
 instance Arbitrary TxIn where
-    -- No Shrinking
+    -- TxIns need to be unique, chances are pretty good that the arbitrary
+    -- hashes won't collide.
+    -- There is no shrinking of a TxIn.
     arbitrary = TxIn
         <$> arbitrary
         <*> scale (`mod` 3) arbitrary -- No need for a high indexes
