@@ -220,6 +220,17 @@ instance Servant.API.ContentTypes.Accept Servant.Extra.ContentTypes.CBOR
 -- | An API specification for the Cardano HTTP Bridge.
 module Cardano.Wallet.Network.HttpBridge.Api
 type Api = GetBlockByHash :<|> GetEpochById :<|> GetTipBlockHeader :<|> PostSignedTx
+
+-- | Retrieve a block identified by the unique hash of its header.
+type GetBlockByHash = Capture "networkName" NetworkName :> "block" :> Capture "blockHeaderHash" (Hash Blake2b_256 (ApiT BlockHeader)) :> Get '[CBOR] (ApiT Block)
+
+-- | Retrieve the header of the latest known block.
+type GetTipBlockHeader = Capture "networkName" NetworkName :> "tip" :> Get '[ComputeHash Blake2b_256 CBOR] (WithHash Blake2b_256 (ApiT BlockHeader))
+
+-- | Retrieve all the blocks for the epoch identified by the given integer
+--   ID.
+type GetEpochById = Capture "networkName" NetworkName :> "epoch" :> Capture "epochId" EpochIndex :> Get '[Packed CBOR] [ApiT Block]
+type PostSignedTx = Capture "networkName" NetworkName :> "txs" :> "signed" :> ReqBody '[JSON] (ApiT (Tx, [TxWitness])) :> Post '[NoContent] NoContent
 api :: Proxy Api
 newtype ApiT a
 ApiT :: a -> ApiT a
@@ -268,3 +279,5 @@ newNetworkLayer :: Int -> IO (NetworkLayer IO)
 
 -- | Construct a new network layer
 mkHttpBridge :: Manager -> BaseUrl -> NetworkName -> HttpBridge IO
+instance GHC.Show.Show Cardano.Wallet.Network.HttpBridge.ErrUnexpectedNetworkFailure
+instance GHC.Exception.Type.Exception Cardano.Wallet.Network.HttpBridge.ErrUnexpectedNetworkFailure
