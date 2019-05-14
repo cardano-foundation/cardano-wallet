@@ -228,6 +228,12 @@ data WalletState
 
 instance NFData WalletState
 
+instance Ord WalletState where
+    Ready <= Ready = True
+    Ready <= Restoring _ = False
+    Restoring _ <= Ready = True
+    Restoring a <= Restoring b = a <= b
+
 data WalletDelegation poolId
     = NotDelegating
     | Delegating !poolId
@@ -675,6 +681,14 @@ newtype Hash (tag :: Symbol) = Hash
     } deriving (Show, Generic, Eq, Ord)
 
 instance NFData (Hash tag)
+
+instance Buildable (Hash "BlockHeader") where
+    build h = mempty
+        <> prefixF 8 builder
+        <> "..."
+        <> suffixF 8 builder
+      where
+        builder = T.decodeUtf8 . convertToBase Base16 . getHash $ h
 
 instance Buildable (Hash "Tx") where
     build h = mempty

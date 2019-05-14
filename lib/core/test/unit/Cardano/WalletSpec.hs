@@ -24,7 +24,7 @@ import Cardano.Wallet
     , ErrWithRootKey (..)
     , ErrWithRootKey (..)
     , WalletLayer (..)
-    , mkWalletLayer
+    , newWalletLayer
     , unsafeRunExceptT
     )
 import Cardano.Wallet.DB
@@ -282,7 +282,7 @@ setupFixture (wid, wname, wstate) = do
     db <- newDBLayer
     let nl = error "NetworkLayer"
     let tl = error "TransactionLayer"
-    let wl = mkWalletLayer @_ @DummyTarget db nl tl
+    wl <- newWalletLayer @_ @DummyTarget db nl tl
     res <- runExceptT $ createWallet wl wid wname wstate
     let wal = case res of
             Left _ -> []
