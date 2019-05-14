@@ -38,21 +38,26 @@ library
       Codec.Binary.Bech32
 
 test-suite bech32-test
+  default-language:
+      Haskell2010
   type:
       exitcode-stdio-1.0
   hs-source-dirs:
       test
-  main-is:
-      Spec.hs
+  ghc-options:
+      -threaded -rtsopts -with-rtsopts=-N
+      -O2
+      -Wall
+  if (!flag(development))
+    ghc-options:
+      -Werror
   build-depends:
       base
     , bech32
-    , tasty
-    , tasty-hunit
+    , hspec
     , bytestring
-    , base16-bytestring
-    , criterion
-  ghc-options:
-      -Wall -Werror -O2 -threaded -rtsopts -with-rtsopts=-N
-  default-language:
-      Haskell2010
+    , memory
+  main-is:
+      Main.hs
+  other-modules:
+      Codec.Binary.Bech32Spec

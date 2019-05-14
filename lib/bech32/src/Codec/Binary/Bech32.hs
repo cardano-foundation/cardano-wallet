@@ -50,7 +50,7 @@ type Data = [Word8]
 (.<<.) = unsafeShiftL
 
 newtype Word5 = Word5 Word8
-    deriving (Eq, Ord)
+    deriving (Show, Eq, Ord)
 
 instance Ix Word5 where
     range (Word5 m, Word5 n) = map Word5 $ range (m, n)
