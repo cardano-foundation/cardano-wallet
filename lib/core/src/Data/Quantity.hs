@@ -118,7 +118,7 @@ instance ToText b => ToText (Quantity sym b) where
 -- | Opaque Haskell type to represent values between 0 and 100 (incl).
 newtype Percentage = Percentage
     { getPercentage :: Word }
-    deriving stock (Generic, Show, Eq)
+    deriving stock (Generic, Show, Eq, Ord)
     deriving newtype (ToJSON)
 
 instance NFData Percentage

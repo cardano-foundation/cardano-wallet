@@ -228,6 +228,12 @@ data WalletState
 
 instance NFData WalletState
 
+instance Ord WalletState where
+    Ready <= Ready = True
+    Ready <= Restoring _ = False
+    Restoring _ <= Ready = True
+    Restoring a <= Restoring b = a <= b
+
 data WalletDelegation poolId
     = NotDelegating
     | Delegating !poolId
