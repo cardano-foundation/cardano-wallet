@@ -56,7 +56,7 @@ test-suite bech32-test
     , bech32
     , hspec
     , bytestring
-    , memory
+    , QuickCheck
   main-is:
       Main.hs
   other-modules:
