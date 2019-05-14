@@ -276,13 +276,31 @@ mkWalletLayer
     -> NetworkLayer IO
     -> TransactionLayer
     -> WalletLayer s t
-mkWalletLayer db nw tl = WalletLayer
-
+mkWalletLayer db nw tl =
+    WalletLayer
+        { createWallet = _createWallet
+        , readWallet = _readWallet
+        , updateWallet = _updateWallet
+        , updateWalletPassphrase = _updateWalletPassphrase
+        , listWallets = _listWallets
+        , removeWallet = _removeWallet
+        , restoreWallet = _restoreWallet
+        , createUnsignedTx = _createUnsignedTx
+        , signTx = _signTx
+        , submitTx = _submitTx
+        , attachPrivateKey = _attachPrivateKey
+        }
+  where
     {---------------------------------------------------------------------------
                                        Wallets
     ---------------------------------------------------------------------------}
 
-    { createWallet = \wid wname s -> do
+    _createWallet
+        :: WalletId
+        -> WalletName
+        -> s
+        -> ExceptT ErrWalletAlreadyExists IO WalletId
+    _createWallet wid wname s = do
         let checkpoint = initWallet s
         let metadata = WalletMetadata
                 { name = wname
@@ -292,91 +310,6 @@ mkWalletLayer db nw tl = WalletLayer
                 }
         DB.createWallet db (PrimaryKey wid) checkpoint metadata $> wid
 
-    , readWallet = _readWallet
-
-    , updateWallet = \wid modify -> DB.withLock db $ do
-        meta <- _readWalletMeta wid
-        DB.putWalletMeta db (PrimaryKey wid) (modify meta)
-
-    , updateWalletPassphrase = \wid (old, new) -> do
-        withRootKey wid (coerce old) ErrUpdatePassphraseWithRootKey $ \xprv ->
-            withExceptT ErrUpdatePassphraseNoSuchWallet $
-                _attachPrivateKey wid (xprv, coerce new)
-
-    , listWallets = fmap (\(PrimaryKey wid) -> wid) <$> DB.listWallets db
-
-    , removeWallet = DB.withLock db . DB.removeWallet db . PrimaryKey
-
-    , restoreWallet = \wid -> do
-        (w, _) <- _readWallet wid
-        void $ liftIO $ forkIO $ do
-            runExceptT (networkTip nw) >>= \case
-                Left e -> do
-                    TIO.putStrLn $ "[ERROR] restoreSleep: " +|| e ||+ ""
-                    restoreSleep wid (currentTip w)
-                Right (_, tip) -> do
-                    restoreStep wid (currentTip w, tip ^. #slotId)
-
-    {---------------------------------------------------------------------------
-                                    Transactions
-    ---------------------------------------------------------------------------}
-
-    , createUnsignedTx = \wid opts recipients -> do
-        (w, _) <- withExceptT ErrCreateUnsignedTxNoSuchWallet
-            (_readWallet wid)
-        let utxo = availableUTxO w
-        (sel, utxo') <- withExceptT ErrCreateUnsignedTxCoinSelection $
-            CoinSelection.random opts recipients utxo
-        withExceptT ErrCreateUnsignedTxFee $ do
-            let feeOpts = FeeOptions
-                    { estimate = computeFee cardanoPolicy . estimateSize tl
-                    , dustThreshold = minBound
-                    }
-            adjustForFee feeOpts utxo' sel
-
-    , signTx = \wid pwd (CoinSelection ins outs chgs) -> DB.withLock db $ do
-        (w, _) <- withExceptT ErrSignTxNoSuchWallet $ _readWallet wid
-        let (changeOuts, s') = flip runState (getState w) $ forM chgs $ \c -> do
-                addr <- state genChange
-                return $ TxOut addr c
-        allShuffledOuts <- liftIO $ shuffle (outs ++ changeOuts)
-        withRootKey wid pwd ErrSignTxWithRootKey $ \xprv -> do
-            let keyFrom = isOwned (getState w) (xprv, pwd)
-            case mkStdTx tl keyFrom ins allShuffledOuts of
-                Right (tx, wit) -> do
-                    -- Safe because we have a lock and we already fetched the
-                    -- wallet within this context.
-                    liftIO . unsafeRunExceptT $
-                        DB.putCheckpoint db (PrimaryKey wid) (updateState s' w)
-                    let amtChng = fromIntegral $
-                            sum (getCoin <$> chgs)
-                    let amtInps = fromIntegral $
-                            sum (getCoin . coin . snd <$> ins)
-                    let meta = TxMeta
-                            { status = Pending
-                            , direction = Outgoing
-                            , slotId = currentTip w
-                            , amount = Quantity (amtInps - amtChng)
-                            }
-                    return (tx, meta, wit)
-                Left e ->
-                    throwE $ ErrSignTx e
-
-    , submitTx = \wid (tx, meta, wit) -> do
-        withExceptT ErrSubmitTxNetwork $ postTx nw (tx, wit)
-        DB.withLock db $ withExceptT ErrSubmitTxNoSuchWallet $ do
-            (w, _) <- _readWallet wid
-            let history = Map.fromList [(txId @t tx, (tx, meta))]
-            DB.putCheckpoint db (PrimaryKey wid) (newPending tx w)
-            DB.putTxHistory db (PrimaryKey wid) history
-
-    {---------------------------------------------------------------------------
-                                     Keystore
-    ---------------------------------------------------------------------------}
-
-    , attachPrivateKey = _attachPrivateKey
-    }
-  where
     _readWallet
         :: WalletId
         -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)
@@ -396,44 +329,58 @@ mkWalletLayer db nw tl = WalletLayer
     _readWalletCheckpoint wid = maybeToExceptT (ErrNoSuchWallet wid) $ do
         MaybeT $ DB.readCheckpoint db (PrimaryKey wid)
 
-    _attachPrivateKey
-        :: WalletId
-        -> (Key 'RootK XPrv, Passphrase "encryption")
-        -> ExceptT ErrNoSuchWallet IO ()
-    _attachPrivateKey wid (xprv, pwd) = do
-        hpwd <- liftIO $ encryptPassphrase pwd
-        DB.putPrivateKey db (PrimaryKey wid) (xprv, hpwd)
-        DB.withLock db $ do
-            meta <- _readWalletMeta wid
-            now <- liftIO getCurrentTime
-            let modify x = x { passphraseInfo = Just (WalletPassphraseInfo now) }
-            DB.putWalletMeta db (PrimaryKey wid) (modify meta)
 
-    -- | Execute an action which requires holding a root XPrv
-    withRootKey
-        :: forall e a. ()
-        => WalletId
-        -> Passphrase "encryption"
-        -> (ErrWithRootKey -> e)
-        -> (Key 'RootK XPrv -> ExceptT e IO a)
-        -> ExceptT e IO a
-    withRootKey wid pwd embed action = do
-        xprv <- withExceptT embed $ do
-            lift (DB.readPrivateKey db (PrimaryKey wid)) >>= \case
-                Nothing ->
-                    throwE $ ErrWithRootKeyNoRootKey wid
-                Just (xprv, hpwd) -> do
-                    withExceptT ErrWithRootKeyWrongPassphrase $ ExceptT $
-                        return $ checkPassphrase pwd hpwd
-                    return xprv
-        action xprv
+    _updateWallet
+        :: WalletId
+        -> (WalletMetadata -> WalletMetadata)
+        -> ExceptT ErrNoSuchWallet IO ()
+    _updateWallet wid modify = DB.withLock db $ do
+      meta <- _readWalletMeta wid
+      DB.putWalletMeta db (PrimaryKey wid) (modify meta)
+
+    _updateWalletPassphrase
+        :: WalletId
+        -> (Passphrase "encryption-old", Passphrase "encryption-new")
+        -> ExceptT ErrUpdatePassphrase IO ()
+    _updateWalletPassphrase wid (old, new) = do
+      withRootKey wid (coerce old) ErrUpdatePassphraseWithRootKey $ \xprv ->
+          withExceptT ErrUpdatePassphraseNoSuchWallet $
+              _attachPrivateKey wid (xprv, coerce new)
+
+    _listWallets
+        :: IO [WalletId]
+    _listWallets =
+        fmap (\(PrimaryKey wid) -> wid) <$> DB.listWallets db
+
+
+    _removeWallet
+        :: WalletId
+        -> ExceptT ErrNoSuchWallet IO ()
+    _removeWallet =
+      DB.withLock db . DB.removeWallet db . PrimaryKey
+
+    _restoreWallet
+        :: WalletId
+        -> ExceptT ErrNoSuchWallet IO ()
+    _restoreWallet wid = do
+      (w, _) <- _readWallet wid
+      void $ liftIO $ forkIO $ do
+          runExceptT (networkTip nw) >>= \case
+              Left e -> do
+                  TIO.putStrLn $ "[ERROR] restoreSleep: " +|| e ||+ ""
+                  restoreSleep wid (currentTip w)
+              Right (_, tip) -> do
+                  restoreStep wid (currentTip w, tip ^. #slotId)
 
     -- | Infinite restoration loop. We drain the whole available chain and try
     -- to catch up with the node. In case of error, we log it and wait a bit
     -- before retrying.
     --
     -- The function only terminates if the wallet has disappeared from the DB.
-    restoreStep :: WalletId -> (SlotId, SlotId) -> IO ()
+    restoreStep
+        :: WalletId
+        -> (SlotId, SlotId)
+        -> IO ()
     restoreStep wid (slot, tip) = do
         runExceptT (nextBlocks nw slot) >>= \case
             Left e -> do
@@ -444,15 +391,18 @@ mkWalletLayer db nw tl = WalletLayer
             Right blocks -> do
                 let next = view #slotId . header . last $ blocks
                 runExceptT (restoreBlocks wid blocks tip) >>= \case
-                    Left (ErrNoSuchWallet _) -> do
-                        TIO.putStrLn $ "[ERROR] restoreStep: wallet " +| wid |+ "is gone!"
+                    Left (ErrNoSuchWallet _) -> TIO.putStrLn $
+                        "[ERROR] restoreStep: wallet " +| wid |+ " is gone!"
                     Right () -> do
                         restoreStep wid (next, tip)
 
     -- | Wait a short delay before querying for blocks again. We do take this
     -- opportunity to also refresh the chain tip as it has probably increased
     -- in order to refine our syncing status.
-    restoreSleep :: WalletId -> SlotId -> IO ()
+    restoreSleep
+        :: WalletId
+        -> SlotId
+        -> IO ()
     restoreSleep wid slot = do
         let tenSeconds = 10000000 in threadDelay tenSeconds
         runExceptT (networkTip nw) >>= \case
@@ -502,6 +452,109 @@ mkWalletLayer db nw tl = WalletLayer
             DB.putCheckpoint db (PrimaryKey wid) cp'
             DB.putTxHistory db (PrimaryKey wid) txs
             DB.putWalletMeta db (PrimaryKey wid) meta'
+
+    {---------------------------------------------------------------------------
+                                    Transactions
+    ---------------------------------------------------------------------------}
+
+    _createUnsignedTx
+        :: WalletId
+        -> CoinSelectionOptions
+        -> NonEmpty TxOut
+        -> ExceptT ErrCreateUnsignedTx IO CoinSelection
+    _createUnsignedTx wid opts recipients = do
+      (w, _) <- withExceptT ErrCreateUnsignedTxNoSuchWallet
+          (_readWallet wid)
+      let utxo = availableUTxO w
+      (sel, utxo') <- withExceptT ErrCreateUnsignedTxCoinSelection $
+          CoinSelection.random opts recipients utxo
+      withExceptT ErrCreateUnsignedTxFee $ do
+          let feeOpts = FeeOptions
+                  { estimate = computeFee cardanoPolicy . estimateSize tl
+                  , dustThreshold = minBound
+                  }
+          adjustForFee feeOpts utxo' sel
+
+    _signTx
+        :: WalletId
+        -> Passphrase "encryption"
+        -> CoinSelection
+        -> ExceptT ErrSignTx IO (Tx, TxMeta, [TxWitness])
+    _signTx wid pwd (CoinSelection ins outs chgs) = DB.withLock db $ do
+      (w, _) <- withExceptT ErrSignTxNoSuchWallet $ _readWallet wid
+      let (changeOuts, s') = flip runState (getState w) $ forM chgs $ \c -> do
+              addr <- state genChange
+              return $ TxOut addr c
+      allShuffledOuts <- liftIO $ shuffle (outs ++ changeOuts)
+      withRootKey wid pwd ErrSignTxWithRootKey $ \xprv -> do
+          let keyFrom = isOwned (getState w) (xprv, pwd)
+          case mkStdTx tl keyFrom ins allShuffledOuts of
+              Right (tx, wit) -> do
+                  -- Safe because we have a lock and we already fetched the
+                  -- wallet within this context.
+                  liftIO . unsafeRunExceptT $
+                      DB.putCheckpoint db (PrimaryKey wid) (updateState s' w)
+                  let amtChng = fromIntegral $
+                          sum (getCoin <$> chgs)
+                  let amtInps = fromIntegral $
+                          sum (getCoin . coin . snd <$> ins)
+                  let meta = TxMeta
+                          { status = Pending
+                          , direction = Outgoing
+                          , slotId = currentTip w
+                          , amount = Quantity (amtInps - amtChng)
+                          }
+                  return (tx, meta, wit)
+              Left e ->
+                  throwE $ ErrSignTx e
+
+    _submitTx
+        :: WalletId
+        -> (Tx, TxMeta, [TxWitness])
+        -> ExceptT ErrSubmitTx IO ()
+    _submitTx wid (tx, meta, wit) = do
+      withExceptT ErrSubmitTxNetwork $ postTx nw (tx, wit)
+      DB.withLock db $ withExceptT ErrSubmitTxNoSuchWallet $ do
+          (w, _) <- _readWallet wid
+          let history = Map.fromList [(txId @t tx, (tx, meta))]
+          DB.putCheckpoint db (PrimaryKey wid) (newPending tx w)
+          DB.putTxHistory db (PrimaryKey wid) history
+
+    {---------------------------------------------------------------------------
+                                     Keystore
+    ---------------------------------------------------------------------------}
+
+    _attachPrivateKey
+        :: WalletId
+        -> (Key 'RootK XPrv, Passphrase "encryption")
+        -> ExceptT ErrNoSuchWallet IO ()
+    _attachPrivateKey wid (xprv, pwd) = do
+        hpwd <- liftIO $ encryptPassphrase pwd
+        DB.putPrivateKey db (PrimaryKey wid) (xprv, hpwd)
+        DB.withLock db $ do
+            meta <- _readWalletMeta wid
+            now <- liftIO getCurrentTime
+            let modify x = x { passphraseInfo = Just (WalletPassphraseInfo now) }
+            DB.putWalletMeta db (PrimaryKey wid) (modify meta)
+
+    -- | Execute an action which requires holding a root XPrv
+    withRootKey
+        :: forall e a. ()
+        => WalletId
+        -> Passphrase "encryption"
+        -> (ErrWithRootKey -> e)
+        -> (Key 'RootK XPrv -> ExceptT e IO a)
+        -> ExceptT e IO a
+    withRootKey wid pwd embed action = do
+        xprv <- withExceptT embed $ do
+            lift (DB.readPrivateKey db (PrimaryKey wid)) >>= \case
+                Nothing ->
+                    throwE $ ErrWithRootKeyNoRootKey wid
+                Just (xprv, hpwd) -> do
+                    withExceptT ErrWithRootKeyWrongPassphrase $ ExceptT $
+                        return $ checkPassphrase pwd hpwd
+                    return xprv
+        action xprv
 
 {-------------------------------------------------------------------------------
                                  Helpers
