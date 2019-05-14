@@ -8,6 +8,8 @@ import Control.Monad
     ( forM_ )
 import Data.Bits
     ( xor )
+import Data.ByteString
+    ( ByteString )
 import Data.Char
     ( toLower )
 import Data.Maybe
@@ -26,7 +28,7 @@ import qualified Data.ByteString.Char8 as B8
 main :: IO ()
 main = defaultMain tests
 
-validChecksums :: [BS.ByteString]
+validChecksums :: [ByteString]
 validChecksums = map B8.pack
     [ "A12UEL5L"
     , "an83characterlonghumanreadablepartthatcontain\
@@ -37,7 +39,7 @@ validChecksums = map B8.pack
     , "split1checkupstagehandshakeupstreamerranterredcaperred2y9e3w"
     ]
 
-invalidChecksums :: [BS.ByteString]
+invalidChecksums :: [ByteString]
 invalidChecksums = map B8.pack
     [ " 1nwldj5"
     , "\DEL1axkwrx"
@@ -50,7 +52,7 @@ invalidChecksums = map B8.pack
     , "de1lg7wt\xFF"
     ]
 
-validAddresses :: [(BS.ByteString, BS.ByteString)]
+validAddresses :: [(ByteString, ByteString)]
 validAddresses = map mapTuple
     [ ( "BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4"
       , "0014751e76e8199196d454941c45d1b3a323f1433bd6" )
@@ -69,7 +71,7 @@ validAddresses = map mapTuple
   where
     mapTuple (a, b) = (B8.pack a, B8.pack b)
 
-invalidAddresses :: [BS.ByteString]
+invalidAddresses :: [ByteString]
 invalidAddresses = map B8.pack
     [ "tc1qw508d6qejxtdg4y5r3zarvary0c5xw7kg3g4ty"
     , "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5"
@@ -84,12 +86,12 @@ invalidAddresses = map B8.pack
     , "bc1gmk9yu"
     ]
 
-hexDecode :: BS.ByteString -> BS.ByteString
+hexDecode :: ByteString -> ByteString
 hexDecode s =
     let (ret, rest) = B16.decode s in
     if BS.null rest then ret else undefined
 
-segwitScriptPubkey :: Word8 -> [Word8] -> BS.ByteString
+segwitScriptPubkey :: Word8 -> [Word8] -> ByteString
 segwitScriptPubkey witver witprog =
     BS.pack $ witver' : fromIntegral (length witprog) : witprog
   where

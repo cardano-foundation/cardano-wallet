@@ -1,3 +1,12 @@
+-- |
+-- Copyright: © 2017 Marko Bencun, 2018-2019 IOHK
+-- License: MIT
+--
+-- Implementaion of the [Bech32](https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki)
+-- sigwit address format. From an original implementation by Marko Bencun:
+--
+-- [sipa/bech32](https://github.com/sipa/bech32/tree/bdc264f84014c234e908d72026b7b780122be11f/ref/haskell)
+
 module Codec.Binary.Bech32
     ( bech32Encode
     , bech32Decode
@@ -14,6 +23,8 @@ import Prelude
 
 import Control.Monad
     ( guard )
+import Data.Array
+    ( Array )
 import Data.Bits
     ( Bits, testBit, unsafeShiftL, unsafeShiftR, xor, (.&.), (.|.) )
 import Data.Char
@@ -56,7 +67,7 @@ fromWord5 (Word5 x) = fromIntegral x
 {-# INLINE fromWord5 #-}
 {-# SPECIALIZE INLINE fromWord5 :: Word5 -> Word8 #-}
 
-charset :: Arr.Array Word5 Char
+charset :: Array Word5 Char
 charset =
     Arr.listArray
         (Word5 0, Word5 31)
