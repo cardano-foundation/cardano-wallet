@@ -11,7 +11,7 @@ import Cardano.Environment.HttpBridge
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
-    ( mkWalletLayer )
+    ( newWalletLayer )
 import Cardano.Wallet.Api
     ( Api )
 import Cardano.Wallet.Api.Server
@@ -154,6 +154,6 @@ main = do
     cardanoWalletServer nl serverPort = void $ forkIO $ do
         db <- MVar.newDBLayer
         let tl = HttpBridge.newTransactionLayer
-        let wallet = mkWalletLayer @_ @HttpBridge db nl tl
+        wallet <- newWalletLayer @_ @HttpBridge db nl tl
         let settings = Warp.defaultSettings & Warp.setPort serverPort
         Warp.runSettings settings (serve (Proxy @("v2" :> Api)) (server wallet))

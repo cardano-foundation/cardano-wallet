@@ -12,7 +12,7 @@ import Cardano.Environment.HttpBridge
 import Cardano.Launcher
     ( Command (Command), StdStream (..), installSignalHandlers, launch )
 import Cardano.Wallet
-    ( WalletLayer (..), mkWalletLayer, unsafeRunExceptT )
+    ( WalletLayer (..), newWalletLayer, unsafeRunExceptT )
 import Cardano.Wallet.Compatibility.HttpBridge
     ( HttpBridge )
 import Cardano.Wallet.Network
@@ -159,7 +159,7 @@ bench_restoration (wid, wname, s) = withHttpBridge $ \port -> do
     let transactionLayer = newTransactionLayer
     (_, bh) <- unsafeRunExceptT $ networkTip networkLayer
     sayErr . fmt $ network ||+ " tip is at " +|| (bh ^. #slotId) ||+ ""
-    let w = mkWalletLayer @_ @HttpBridge dbLayer networkLayer transactionLayer
+    w <- newWalletLayer @_ @HttpBridge dbLayer networkLayer transactionLayer
     wallet <- unsafeRunExceptT $ createWallet w wid wname s
     unsafeRunExceptT $ restoreWallet w wallet
     waitForWalletSync w wallet

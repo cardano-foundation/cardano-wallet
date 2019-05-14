@@ -13,7 +13,7 @@ import Cardano.Environment.HttpBridge
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
-    ( WalletLayer (..), mkWalletLayer, unsafeRunExceptT )
+    ( WalletLayer (..), newWalletLayer, unsafeRunExceptT )
 import Cardano.Wallet.Compatibility.HttpBridge
     ( HttpBridge )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -73,7 +73,7 @@ spec = do
                 Inherit
             ]
         threadDelay 1000000
-        (handle,) <$> (mkWalletLayer @_ @HttpBridge
-            <$> MVar.newDBLayer
-            <*> HttpBridge.newNetworkLayer port
-            <*> pure HttpBridge.newTransactionLayer)
+        db <- MVar.newDBLayer
+        nl <- HttpBridge.newNetworkLayer port
+        let tl = HttpBridge.newTransactionLayer
+        (handle,) <$> (newWalletLayer @_ @HttpBridge db nl tl)

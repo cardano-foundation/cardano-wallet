@@ -32,7 +32,7 @@ module Cardano.Wallet
     , ErrWithRootKey (..)
 
     -- * Construction
-    , mkWalletLayer
+    , newWalletLayer
 
     -- * Helpers
     , unsafeRunExceptT
@@ -106,11 +106,13 @@ import Cardano.Wallet.Transaction
 import Control.Arrow
     ( first )
 import Control.Concurrent
-    ( forkIO, threadDelay )
+    ( ThreadId, forkIO, killThread, threadDelay )
+import Control.Concurrent.MVar
+    ( MVar, modifyMVar_, newMVar )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( forM, unless, void, (>=>) )
+    ( forM, unless, (>=>) )
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.IO.Class
@@ -133,6 +135,8 @@ import Data.Generics.Labels
     ()
 import Data.List.NonEmpty
     ( NonEmpty )
+import Data.Map.Strict
+    ( Map )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Time.Clock
@@ -265,26 +269,55 @@ data ErrWithRootKey
     | ErrWithRootKeyWrongPassphrase ErrWrongPassphrase
     deriving (Show, Eq)
 
+
+{-------------------------------------------------------------------------------
+                                Worker Registry
+-------------------------------------------------------------------------------}
+
+-- | A simple registry to keep track of worker threads created for wallet
+-- restoration. This way, we can clean-up workers threads early and don't have
+-- to wait for them to fail with a an error message about the wallet being gone.
+newtype WorkerRegistry = WorkerRegistry (MVar (Map WalletId ThreadId))
+
+newRegistry :: IO WorkerRegistry
+newRegistry = WorkerRegistry <$> newMVar mempty
+
+registerWorker :: WorkerRegistry -> (WalletId, ThreadId) -> IO ()
+registerWorker (WorkerRegistry mvar) (wid, threadId) =
+    modifyMVar_ mvar (pure . Map.insert wid threadId)
+
+cancelWorker :: WorkerRegistry -> WalletId -> IO ()
+cancelWorker (WorkerRegistry mvar) wid =
+    modifyMVar_ mvar (Map.alterF alterF wid)
+  where
+    alterF = \case
+        Nothing -> pure Nothing
+        Just threadId -> do
+            -- NOTE: It is safe to kill a thread that is already dead.
+            killThread threadId
+            return Nothing
+
 {-------------------------------------------------------------------------------
                                  Construction
 -------------------------------------------------------------------------------}
 
 -- | Create a new instance of the wallet layer.
-mkWalletLayer
+newWalletLayer
     :: forall s t. (IsOwned s, GenChange s, NFData s, Show s, TxId t)
     => DBLayer IO s t
     -> NetworkLayer IO
     -> TransactionLayer
-    -> WalletLayer s t
-mkWalletLayer db nw tl =
-    WalletLayer
+    -> IO (WalletLayer s t)
+newWalletLayer db nw tl = do
+    registry <- newRegistry
+    return WalletLayer
         { createWallet = _createWallet
         , readWallet = _readWallet
         , updateWallet = _updateWallet
         , updateWalletPassphrase = _updateWalletPassphrase
         , listWallets = _listWallets
-        , removeWallet = _removeWallet
-        , restoreWallet = _restoreWallet
+        , removeWallet = _removeWallet registry
+        , restoreWallet = _restoreWallet registry
         , createUnsignedTx = _createUnsignedTx
         , signTx = _signTx
         , submitTx = _submitTx
@@ -335,17 +368,17 @@ mkWalletLayer db nw tl =
         -> (WalletMetadata -> WalletMetadata)
         -> ExceptT ErrNoSuchWallet IO ()
     _updateWallet wid modify = DB.withLock db $ do
-      meta <- _readWalletMeta wid
-      DB.putWalletMeta db (PrimaryKey wid) (modify meta)
+        meta <- _readWalletMeta wid
+        DB.putWalletMeta db (PrimaryKey wid) (modify meta)
 
     _updateWalletPassphrase
         :: WalletId
         -> (Passphrase "encryption-old", Passphrase "encryption-new")
         -> ExceptT ErrUpdatePassphrase IO ()
     _updateWalletPassphrase wid (old, new) = do
-      withRootKey wid (coerce old) ErrUpdatePassphraseWithRootKey $ \xprv ->
-          withExceptT ErrUpdatePassphraseNoSuchWallet $
-              _attachPrivateKey wid (xprv, coerce new)
+        withRootKey wid (coerce old) ErrUpdatePassphraseWithRootKey $ \xprv ->
+            withExceptT ErrUpdatePassphraseNoSuchWallet $
+                _attachPrivateKey wid (xprv, coerce new)
 
     _listWallets
         :: IO [WalletId]
@@ -354,23 +387,27 @@ mkWalletLayer db nw tl =
 
 
     _removeWallet
-        :: WalletId
+        :: WorkerRegistry
+        -> WalletId
         -> ExceptT ErrNoSuchWallet IO ()
-    _removeWallet =
-      DB.withLock db . DB.removeWallet db . PrimaryKey
+    _removeWallet re wid = do
+        DB.withLock db . DB.removeWallet db . PrimaryKey $ wid
+        liftIO $ cancelWorker re wid
 
     _restoreWallet
-        :: WalletId
+        :: WorkerRegistry
+        -> WalletId
         -> ExceptT ErrNoSuchWallet IO ()
-    _restoreWallet wid = do
-      (w, _) <- _readWallet wid
-      void $ liftIO $ forkIO $ do
-          runExceptT (networkTip nw) >>= \case
-              Left e -> do
-                  TIO.putStrLn $ "[ERROR] restoreSleep: " +|| e ||+ ""
-                  restoreSleep wid (currentTip w)
-              Right (_, tip) -> do
-                  restoreStep wid (currentTip w, tip ^. #slotId)
+    _restoreWallet re wid = do
+        (w, _) <- _readWallet wid
+        worker <- liftIO $ forkIO $ do
+            runExceptT (networkTip nw) >>= \case
+                Left e -> do
+                    TIO.putStrLn $ "[ERROR] restoreSleep: " +|| e ||+ ""
+                    restoreSleep wid (currentTip w)
+                Right (_, tip) -> do
+                    restoreStep wid (currentTip w, tip ^. #slotId)
+        liftIO $ registerWorker re (wid, worker)
 
     -- | Infinite restoration loop. We drain the whole available chain and try
     -- to catch up with the node. In case of error, we log it and wait a bit
@@ -463,17 +500,17 @@ mkWalletLayer db nw tl =
         -> NonEmpty TxOut
         -> ExceptT ErrCreateUnsignedTx IO CoinSelection
     _createUnsignedTx wid opts recipients = do
-      (w, _) <- withExceptT ErrCreateUnsignedTxNoSuchWallet
-          (_readWallet wid)
-      let utxo = availableUTxO w
-      (sel, utxo') <- withExceptT ErrCreateUnsignedTxCoinSelection $
-          CoinSelection.random opts recipients utxo
-      withExceptT ErrCreateUnsignedTxFee $ do
-          let feeOpts = FeeOptions
-                  { estimate = computeFee cardanoPolicy . estimateSize tl
-                  , dustThreshold = minBound
-                  }
-          adjustForFee feeOpts utxo' sel
+        (w, _) <- withExceptT ErrCreateUnsignedTxNoSuchWallet
+            (_readWallet wid)
+        let utxo = availableUTxO w
+        (sel, utxo') <- withExceptT ErrCreateUnsignedTxCoinSelection $
+            CoinSelection.random opts recipients utxo
+        withExceptT ErrCreateUnsignedTxFee $ do
+            let feeOpts = FeeOptions
+                    { estimate = computeFee cardanoPolicy . estimateSize tl
+                    , dustThreshold = minBound
+                    }
+            adjustForFee feeOpts utxo' sel
 
     _signTx
         :: WalletId
@@ -481,44 +518,44 @@ mkWalletLayer db nw tl =
         -> CoinSelection
         -> ExceptT ErrSignTx IO (Tx, TxMeta, [TxWitness])
     _signTx wid pwd (CoinSelection ins outs chgs) = DB.withLock db $ do
-      (w, _) <- withExceptT ErrSignTxNoSuchWallet $ _readWallet wid
-      let (changeOuts, s') = flip runState (getState w) $ forM chgs $ \c -> do
-              addr <- state genChange
-              return $ TxOut addr c
-      allShuffledOuts <- liftIO $ shuffle (outs ++ changeOuts)
-      withRootKey wid pwd ErrSignTxWithRootKey $ \xprv -> do
-          let keyFrom = isOwned (getState w) (xprv, pwd)
-          case mkStdTx tl keyFrom ins allShuffledOuts of
-              Right (tx, wit) -> do
-                  -- Safe because we have a lock and we already fetched the
-                  -- wallet within this context.
-                  liftIO . unsafeRunExceptT $
-                      DB.putCheckpoint db (PrimaryKey wid) (updateState s' w)
-                  let amtChng = fromIntegral $
-                          sum (getCoin <$> chgs)
-                  let amtInps = fromIntegral $
-                          sum (getCoin . coin . snd <$> ins)
-                  let meta = TxMeta
-                          { status = Pending
-                          , direction = Outgoing
-                          , slotId = currentTip w
-                          , amount = Quantity (amtInps - amtChng)
-                          }
-                  return (tx, meta, wit)
-              Left e ->
-                  throwE $ ErrSignTx e
+        (w, _) <- withExceptT ErrSignTxNoSuchWallet $ _readWallet wid
+        let (changeOuts, s') = flip runState (getState w) $ forM chgs $ \c -> do
+                addr <- state genChange
+                return $ TxOut addr c
+        allShuffledOuts <- liftIO $ shuffle (outs ++ changeOuts)
+        withRootKey wid pwd ErrSignTxWithRootKey $ \xprv -> do
+            let keyFrom = isOwned (getState w) (xprv, pwd)
+            case mkStdTx tl keyFrom ins allShuffledOuts of
+                Right (tx, wit) -> do
+                    -- Safe because we have a lock and we already fetched the
+                    -- wallet within this context.
+                    liftIO . unsafeRunExceptT $
+                        DB.putCheckpoint db (PrimaryKey wid) (updateState s' w)
+                    let amtChng = fromIntegral $
+                            sum (getCoin <$> chgs)
+                    let amtInps = fromIntegral $
+                            sum (getCoin . coin . snd <$> ins)
+                    let meta = TxMeta
+                            { status = Pending
+                            , direction = Outgoing
+                            , slotId = currentTip w
+                            , amount = Quantity (amtInps - amtChng)
+                            }
+                    return (tx, meta, wit)
+                Left e ->
+                    throwE $ ErrSignTx e
 
     _submitTx
         :: WalletId
         -> (Tx, TxMeta, [TxWitness])
         -> ExceptT ErrSubmitTx IO ()
     _submitTx wid (tx, meta, wit) = do
-      withExceptT ErrSubmitTxNetwork $ postTx nw (tx, wit)
-      DB.withLock db $ withExceptT ErrSubmitTxNoSuchWallet $ do
-          (w, _) <- _readWallet wid
-          let history = Map.fromList [(txId @t tx, (tx, meta))]
-          DB.putCheckpoint db (PrimaryKey wid) (newPending tx w)
-          DB.putTxHistory db (PrimaryKey wid) history
+        withExceptT ErrSubmitTxNetwork $ postTx nw (tx, wit)
+        DB.withLock db $ withExceptT ErrSubmitTxNoSuchWallet $ do
+            (w, _) <- _readWallet wid
+            let history = Map.fromList [(txId @t tx, (tx, meta))]
+            DB.putCheckpoint db (PrimaryKey wid) (newPending tx w)
+            DB.putTxHistory db (PrimaryKey wid) history
 
     {---------------------------------------------------------------------------
                                      Keystore
@@ -560,9 +597,9 @@ mkWalletLayer db nw tl =
                                  Helpers
 -------------------------------------------------------------------------------}
 
--- | Run an ExcepT and throws the error if any. This makes sense only if called
--- after checking for an invariant or, after ensuring that preconditions for
--- meeting the underlying error have been discarded.
+-- | Run an 'ExceptT' and throws the error if any. This makes sense only if
+-- called after checking for an invariant or, after ensuring that preconditions
+-- for meeting the underlying error have been discarded.
 unsafeRunExceptT :: (MonadFail m, Show e) => ExceptT e m a -> m a
 unsafeRunExceptT = runExceptT >=> \case
     Left e ->
