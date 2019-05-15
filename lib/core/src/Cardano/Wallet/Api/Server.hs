@@ -24,6 +24,8 @@ import Cardano.Wallet
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
     , ErrWalletAlreadyExists (..)
+    , ErrWithRootKey (..)
+    , ErrWrongPassphrase (..)
     , WalletLayer
     )
 import Cardano.Wallet.Api
@@ -267,6 +269,11 @@ instance LiftHandler ErrWalletAlreadyExists where
     handler = \case
         ErrWalletAlreadyExists _ -> err409
 
+instance LiftHandler ErrWithRootKey where
+    handler = \case
+        ErrWithRootKeyNoRootKey _ -> err404
+        ErrWithRootKeyWrongPassphrase ErrWrongPassphrase -> err403
+
 instance LiftHandler ErrCreateUnsignedTx where
     handler = \case
         ErrCreateUnsignedTxNoSuchWallet _ -> err404
@@ -277,7 +284,7 @@ instance LiftHandler ErrSignTx where
     handler = \case
         ErrSignTx _ -> err500
         ErrSignTxNoSuchWallet _ -> err410
-        ErrSignTxWithRootKey _ -> err403
+        ErrSignTxWithRootKey e -> handler e
 
 instance LiftHandler ErrSubmitTx where
     handler _ = err500
@@ -285,4 +292,4 @@ instance LiftHandler ErrSubmitTx where
 instance LiftHandler ErrUpdatePassphrase where
     handler = \case
         ErrUpdatePassphraseNoSuchWallet _ -> err404
-        ErrUpdatePassphraseWithRootKey _ -> err403
+        ErrUpdatePassphraseWithRootKey e -> handler e
