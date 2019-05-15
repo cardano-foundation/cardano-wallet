@@ -14,9 +14,11 @@
 
 module Codec.Binary.Bech32
     (
-      -- * Encoder & Decoder
+      -- * Encoding & Decoding
       encode
     , decode
+    , checksumLength
+    , maxEncodedStringLength
 
       -- * Human-Readable Part
     , HumanReadablePart
@@ -95,20 +97,30 @@ encode hrp@(HumanReadablePart hrpBytes) payload = do
     let payload' = payload5 ++ bech32CreateChecksum hrp payload5
     let rest = map (charset Arr.!) payload'
     let output = B8.map toLower hrpBytes <> B8.pack "1" <> B8.pack rest
-    guard (BS.length output <= 90)
+    guard (BS.length output <= maxEncodedStringLength)
     return output
 
 decode :: ByteString -> Maybe (HumanReadablePart, ByteString)
 decode bech32 = do
-    guard $ BS.length bech32 <= 90
+    guard $ BS.length bech32 <= maxEncodedStringLength
     guard $ B8.map toUpper bech32 == bech32 || B8.map toLower bech32 == bech32
     let (hrp, dat) = B8.breakEnd (== '1') $ B8.map toLower bech32
-    guard $ BS.length dat >= 6
+    guard $ BS.length dat >= checksumLength
     hrp' <- B8.stripSuffix (B8.pack "1") hrp >>= mkHumanReadablePart
     dat' <- mapM charsetMap $ B8.unpack dat
     guard $ bech32VerifyChecksum hrp' dat'
-    result <- toBase256 (take (BS.length dat - 6) dat')
+    result <- toBase256 (take (BS.length dat - checksumLength) dat')
     return (hrp', BS.pack result)
+
+-- | The length of the checksum portion of an encoded string, in bytes.
+checksumLength :: Int
+checksumLength = 6
+
+-- | The maximum length of an encoded string, in bytes. This length includes the
+--   human-readable part, the separator character, the encoded data portion,
+--   and the checksum.
+maxEncodedStringLength :: Int
+maxEncodedStringLength = 90
 
 {-------------------------------------------------------------------------------
                                    Internal

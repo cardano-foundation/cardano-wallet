@@ -68,10 +68,17 @@ spec = do
             Bech32.decode checksum `shouldSatisfy` isNothing
 
     describe "More Encoding/Decoding Cases" $ do
-        it "length > 90" $ do
-            let (Just hrp) = mkHumanReadablePart (B8.pack "ca")
-            Bech32.encode hrp (BS.pack (replicate 82 1))
+        it "length > maximum" $ do
+            let hrpUnpacked = "ca"
+            let hrpLength = length hrpUnpacked
+            let (Just hrp) = mkHumanReadablePart (B8.pack hrpUnpacked)
+            let separatorLength = 1
+            let maxDataLength =
+                    Bech32.maxEncodedStringLength
+                    - Bech32.checksumLength - separatorLength - hrpLength
+            Bech32.encode hrp (BS.pack (replicate (maxDataLength + 1) 1))
                 `shouldSatisfy` isNothing
+
         it "hrp lowercased" $ do
             let (Just hrp) = mkHumanReadablePart (B8.pack "HRP")
             Bech32.encode hrp mempty
