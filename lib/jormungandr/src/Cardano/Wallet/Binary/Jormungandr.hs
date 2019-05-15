@@ -163,27 +163,17 @@ data ConfigParam
     | ProposalExpiration Word32
     deriving (Eq, Show)
 
--- | @TagLen@ contains the tag/type of a @ConfigParam@ as well as its length
--- in number of bytes.
---
--- This information is stored in a /single/ @Word16@ in the binary format.
--- (@getTagLen@)
-data TagLen = TagLen
-    { tag :: Int -- | The kind of @ConfigParam@
-    , len :: Int -- | The length of the encoded @ConfigParam@ in bytes
-    }
-
-getTagLen :: Get TagLen
-getTagLen = do
-    w <- getWord16be
-    return $ TagLen
-        { tag = fromIntegral $ w `shift` (-6)
-        , len = fromIntegral $ w .&. (63) -- 0b111111
-        }
-
 getConfigParam :: Get ConfigParam
 getConfigParam = do
-    TagLen tag len <- getTagLen
+    -- The tag and the size/length of the config param is stored in a single
+    -- @Word16@.
+    --
+    -- 6 least-significant bits: length
+    -- 12 most-significant bits: tag
+    taglen <- getWord16be
+    let tag = taglen `shift` (-6)
+    let len = fromIntegral $ taglen .&. (63) -- 0b111111
+
     isolate len $ case tag of
         1 -> ConfigDiscrimination <$> getDiscrimination
         2 -> Block0Date <$> getWord64be
