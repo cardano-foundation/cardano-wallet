@@ -209,10 +209,10 @@ noPadding frombits bits padValue result = do
     return result
 {-# INLINE noPadding #-}
 
--- Big endian conversion of a bytestring from base 2^frombits to base 2^tobits.
--- frombits and twobits must be positive and 2^frombits and 2^tobits must be
--- smaller than the size of Word. Every value in dat must be strictly smaller
--- than 2^frombits.
+-- Big-endian conversion of a word string from base 2^frombits to base 2^tobits.
+-- The frombits and twobits parameters must be positive, while 2^frombits and
+-- 2^tobits must be smaller than the size of Word. Every value in dat must be
+-- strictly smaller than 2^frombits.
 convertBits :: Functor f => [Word] -> Int -> Int -> Pad f -> f [Word]
 convertBits dat frombits tobits pad = concat . reverse <$> go dat 0 0 []
   where
