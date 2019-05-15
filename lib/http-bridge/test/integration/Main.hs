@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -21,9 +22,13 @@ import Cardano.Wallet.Compatibility.HttpBridge
 import Control.Concurrent
     ( forkIO, threadDelay )
 import Control.Concurrent.Async
-    ( async, cancel, link )
+    ( async, cancel, link, race )
+import Control.Exception
+    ( throwIO )
 import Control.Monad
-    ( void )
+    ( forM, void )
+import Data.Aeson
+    ( Value (..), (.:) )
 import Data.Function
     ( (&) )
 import Data.Proxy
@@ -35,7 +40,7 @@ import Network.HTTP.Client
 import Servant
     ( (:>), serve )
 import System.Directory
-    ( removePathForcibly )
+    ( createDirectoryIfMissing, removePathForcibly )
 import System.IO
     ( IOMode (..), hClose, openFile )
 import Test.Hspec
@@ -44,6 +49,8 @@ import Test.Integration.Faucet
     ( initFaucet )
 import Test.Integration.Framework.DSL
     ( Context (..), tearDown )
+import Test.Integration.Framework.Request
+    ( Headers (Default), Payload (Empty), request )
 
 import qualified Cardano.LauncherSpec as Launcher
 import qualified Cardano.Wallet.DB.MVar as MVar
@@ -51,6 +58,8 @@ import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
 import qualified Cardano.Wallet.Network.HttpBridgeSpec as HttpBridge
 import qualified Cardano.Wallet.Transaction.HttpBridge as HttpBridge
 import qualified Cardano.WalletSpec as Wallet
+import qualified Data.Aeson.Types as Aeson
+import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Test.Integration.Scenario.Transactions as Transactions
 import qualified Test.Integration.Scenario.Wallets as Wallets
@@ -70,24 +79,17 @@ main = do
             describe "Wallets API endpoint tests" Wallets.spec
             describe "Transactions API endpoint tests" Transactions.spec
   where
-    clusterWarmUpDelay :: Int
-    clusterWarmUpDelay = 20 * 1000 * 1000 -- 20 seconds in microseconds
+    oneSecond :: Int
+    oneSecond = 1 * 1000 * 1000 -- 1 second in microseconds
 
-    bridgeWarmUpDelay :: Int
-    bridgeWarmUpDelay = 1 * 1000 * 1000 -- 1 second in microseconds
-
-    walletWarmUpDelay :: Int
-    walletWarmUpDelay = 1 * 1000 * 1000 -- 1 second in microseconds
-
-    humanReadable :: Int -> String
-    humanReadable d =
-        show (d `div` (1000 * 1000)) <> "s"
-
-    wait :: (String, Int) -> IO ()
-    wait (component, delay) = do
-        putStrLn $ "Waiting " <> humanReadable delay
-            <> " for " <> component <> " to warm-up..."
-        threadDelay delay
+    wait :: String -> IO () -> IO ()
+    wait component action = do
+        putStrLn $ "Waiting for " <> component <> " to warm-up..."
+        race (threadDelay (60*oneSecond)) action >>= \case
+            Left _ ->
+                fail $ "Waited too long for " <> component <> " to start."
+            Right _ ->
+                return ()
 
     -- Run a local cluster of cardano-sl nodes, a cardano-http-bridge on top and
     -- a cardano wallet server connected to the bridge.
@@ -96,24 +98,36 @@ main = do
         let stateDir = "./test/data/cardano-node-simple"
         let networkDir = "/tmp/cardano-http-bridge/networks"
         let bridgePort = 8080
+        let nodeApiAddress = "127.0.0.1:3101"
         removePathForcibly (networkDir <> "/local")
+        createDirectoryIfMissing True "/tmp/cardano-node-simple"
         handle <-
             openFile "/tmp/cardano-wallet-launcher" WriteMode
-        systemStart <-
-            formatTime defaultTimeLocale "%s" . addUTCTime 5 <$> getCurrentTime
-        cluster <- async $ void $ launch
-            [ cardanoNodeSimple stateDir systemStart ("core0", "127.0.0.1:3000")
-            , cardanoNodeSimple stateDir systemStart ("core1", "127.0.0.1:3001")
-            , cardanoNodeSimple stateDir systemStart ("core2", "127.0.0.1:3002")
-            , cardanoNodeSimple stateDir systemStart ("relay", "127.0.0.1:3100")
-            , cardanoHttpBridge bridgePort"local" networkDir handle
+        start <-
+            formatTime defaultTimeLocale "%s" . addUTCTime 2 <$> getCurrentTime
+        [h0, h1, h2, h3] <- forM ["core0", "core1", "core2", "relay"] $ \x -> do
+            openFile ("/tmp/cardano-node-simple/" <> x) WriteMode
+        cluster <- async $ throwIO =<< launch
+            [ cardanoNodeSimple stateDir start ("core0", "127.0.0.1:3000") h0 []
+            , cardanoNodeSimple stateDir start ("core1", "127.0.0.1:3001") h1 []
+            , cardanoNodeSimple stateDir start ("core2", "127.0.0.1:3002") h2 []
+            , cardanoNodeSimple stateDir start ("relay", "127.0.0.1:3100") h3
+                [ "--node-api-address", nodeApiAddress
+                , "--node-doc-address", "127.0.0.1:3102"
+                , "--tlscert", "/dev/null"
+                , "--tlskey", "/dev/null"
+                , "--tlsca", "/dev/null"
+                , "--no-tls"
+                ]
+            , cardanoHttpBridge bridgePort "local" networkDir handle
+                (waitForCluster nodeApiAddress)
             ]
         link cluster
-        wait ("cluster", clusterWarmUpDelay)
-        wait ("cardano-http-bridge", bridgeWarmUpDelay)
+        wait "cardano-node-simple" (waitForCluster nodeApiAddress)
+        wait "cardano-http-bridge" (threadDelay oneSecond)
         nl <- HttpBridge.newNetworkLayer bridgePort
         cardanoWalletServer nl 1337
-        wait ("cardano-wallet", walletWarmUpDelay)
+        wait "cardano-wallet" (threadDelay oneSecond)
         let baseURL = "http://localhost:1337/"
         manager <- newManager defaultManagerSettings
         faucet <- putStrLn "Creating money out of thin air..." *> initFaucet nl
@@ -124,9 +138,9 @@ main = do
         cancel cluster
         hClose handle
 
-    cardanoNodeSimple stateDir systemStart (nodeId, nodeAddr) = Command
+    cardanoNodeSimple stateDir sysStart (nodeId, nodeAddr) h extra = Command
         "cardano-node-simple"
-        [ "--system-start", systemStart
+        ([ "--system-start", sysStart
         , "--node-id", nodeId
         , "--keyfile", stateDir <> "/keys/" <> nodeId <> ".sk"
         , "--configuration-file", stateDir <> "/configuration.yaml"
@@ -136,17 +150,22 @@ main = do
         , "--listen", nodeAddr
         , "--log-config", stateDir <> "/logs/" <> nodeId <> "/config.json"
         , "--rebuild-db"
-        ] (pure ())
-        NoStream
+        ] ++ extra) (pure ())
+        -- NOTE Ideally, we would give `NoStream` as a handle but if we do, the
+        -- process never terminates on failure (probably because of some
+        -- internal handler waiting for the stdout or stderr to be closed even
+        -- though they're already closed... So, we just redirect the output to
+        -- some places where it's less annoying.
+        (UseHandle h)
 
-    cardanoHttpBridge port template dir handle = Command
+    cardanoHttpBridge port template dir h before = Command
         "cardano-http-bridge"
         [ "start"
         , "--template", template
         , "--port", show port
         , "--networks-dir", dir
-        ] (threadDelay clusterWarmUpDelay)
-        (UseHandle handle)
+        ] before
+        (UseHandle h)
 
     -- NOTE
     -- We start the wallet server in the same process such that we get
@@ -157,3 +176,28 @@ main = do
         wallet <- newWalletLayer @_ @HttpBridge db nl tl
         let settings = Warp.defaultSettings & Warp.setPort serverPort
         Warp.runSettings settings (serve (Proxy @("v2" :> Api)) (server wallet))
+
+    waitForCluster :: String -> IO ()
+    waitForCluster addr = do
+        manager <- newManager defaultManagerSettings
+        let ctx = Context
+                { _cluster = undefined
+                , _logs = undefined
+                , _faucet = undefined
+                , _manager = ("http://" <> T.pack addr, manager)
+                }
+        let err =  "waitForCluster: unexpected positive response from Api"
+        request @Value ctx ("GET", "/api/v1/node-info") Default Empty >>= \case
+            (_, Left _) ->
+                threadDelay oneSecond *> waitForCluster addr
+            (_, Right (Object m)) -> do
+                let parseHeight m0 = do
+                        m1 <- m0 .: "data"
+                        m2 <- m1 .: "localBlockchainHeight"
+                        m2 .: "quantity"
+                case Aeson.parseMaybe @_ @Int parseHeight m of
+                    Just q | q > 0 -> return ()
+                    Just _ -> threadDelay oneSecond *> waitForCluster addr
+                    Nothing -> fail err
+            (_, Right _) ->
+                fail err

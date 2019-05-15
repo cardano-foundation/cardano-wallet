@@ -7,18 +7,25 @@
       - module:
         - name: Test.Integration.Framework.DSL
         - identifier:
-          - </>
           - expectError
+          - expectEventually
           - expectSuccess
-          - getFromResponse
       - module:
         - name: Test.Integration.Framework.Request
         - identifier:
           - ClientError
           - DecodeFailure
-          - NonJson
-          - None
+          - HttpException
           - unsafeRequest
+  - section:
+    - name: test:unit
+    - message:
+      - name: Weeds exported
+      - module:
+        - name: Spec
+        - identifier: main
+- package:
+  - name: cardano-wallet-jormungandr
   - section:
     - name: test:unit
     - message:
@@ -33,14 +40,4 @@
     - message:
       - name: Module not compiled
       - module: Cardano.Launcher.Windows
-
-- package:
-  - name: cardano-wallet-jormungandr
-  - section:
-    - name: test:unit
-    - message:
-      - name: Weeds exported
-      - module:
-        - name: Spec
-        - identifier: main
 
