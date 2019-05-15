@@ -33,8 +33,10 @@ library
       -Werror
   build-depends:
       base
-    , cardano-wallet-core
     , binary
+    , bytestring
+    , cardano-wallet-core
+    , memory
     , text
     , text-class
   hs-source-dirs:

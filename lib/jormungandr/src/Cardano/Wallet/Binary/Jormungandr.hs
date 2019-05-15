@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 
@@ -12,7 +13,13 @@ module Cardano.Wallet.Binary.Jormungandr
     ( getBlockHeader
     , getBlock
     , Message (..)
+    , Block (..)
     , BlockHeader (..)
+    , ConfigParam (..)
+    , Discrimination (..)
+    , LeaderId (..)
+    , LinearFee (..)
+    , Milli (..)
 
      -- * Re-export
     , runGet
@@ -23,19 +30,26 @@ import Prelude
 
 import Cardano.Wallet.Primitive.Types
     ( Hash (..), SlotId (..) )
+import Control.Monad
+    ( replicateM )
 import Data.Binary.Get
     ( Get
     , getByteString
     , getWord16be
     , getWord32be
+    , getWord64be
     , getWord8
     , isEmpty
     , isolate
     , runGet
     , skip
     )
+import Data.Bits
+    ( shift, (.&.) )
+import Data.ByteString
+    ( ByteString )
 import Data.Word
-    ( Word16, Word32 )
+    ( Word16, Word32, Word64, Word8 )
 
 
 -- | Messages are what the block body consists of.
@@ -52,7 +66,7 @@ data Message
     | UpdateProposal SignedUpdateProposal
     | UpdateVote SignedVote
     | UnimplementedMessage Int -- For development. Remove later.
-    deriving Show
+    deriving (Eq, Show)
 
 
 data BlockHeader = BlockHeader
@@ -65,16 +79,21 @@ data BlockHeader = BlockHeader
     } deriving (Show, Eq)
 
 data Block = Block BlockHeader [Message]
-    deriving Show
+    deriving (Eq, Show)
 
 data SignedUpdateProposal = SignedUpdateProposal
-    deriving Show
+    deriving (Eq, Show)
 data TODO = TODO
-    deriving Show
+    deriving (Eq, Show)
 data SignedVote = SignedVote
-    deriving Show
-data ConfigParam = ConfigParam
-    deriving Show
+    deriving (Eq, Show)
+newtype Milli = Milli Word64
+    deriving (Eq, Show)
+newtype LeaderId = LeaderId ByteString
+    deriving (Eq, Show)
+data LinearFee = LinearFee Word64 Word64 Word64
+    deriving (Eq, Show)
+
 
 {-# ANN getBlockHeader ("HLint: ignore Use <$>" :: String) #-}
 getBlockHeader :: Get BlockHeader
@@ -113,13 +132,101 @@ getMessage = do
     let remaining = size - 1
     let unimpl = skip remaining >> return (UnimplementedMessage contentType)
     isolate remaining $ case contentType of
-        0 -> unimpl
+        0 -> Initial <$> getInitial
         1 -> unimpl
         2 -> unimpl
         3 -> unimpl
         4 -> unimpl
         5 -> unimpl
         other -> fail $ "Unexpected content type tag " ++ show other
+
+
+{-------------------------------------------------------------------------------
+                            Config Parameters
+-------------------------------------------------------------------------------}
+
+data ConfigParam
+    -- Seconds elapsed since 1-Jan-1970 (unix time)
+    = Block0Date Word64
+    | ConfigDiscrimination Discrimination
+    | ConsensusVersion Word16 -- ?
+    | SlotsPerEpoch Word32
+    | SlotDuration Word8
+    | EpochStabilityDepth Word32
+    | ConsensusGenesisPraosActiveSlotsCoeff Milli
+    | MaxNumberOfTransactionsPerBlock Word32
+    | BftSlotsRatio Milli
+    | AddBftLeader LeaderId
+    | RemoveBftLeader LeaderId
+    | AllowAccountCreation Bool
+    | ConfigLinearFee LinearFee
+    | ProposalExpiration Word32
+    deriving (Eq, Show)
+
+-- | @TagLen@ contains the tag/type of a @ConfigParam@ as well as the length
+-- in number of bytes.
+--
+-- This information is stored in a /single/ @Word16@ in the binary format.
+-- (@getTagLen@)
+{-# ANN len ("HLint: ignore Defined but not used" :: String) #-}
+{-# ANN tag ("HLint: ignore Defined but not used" :: String) #-}
+data TagLen = TagLen { tag :: Int, len :: Int}
+
+getTagLen :: Get TagLen
+getTagLen = do
+    w <- getWord16be
+    return $ TagLen
+        { tag = fromIntegral $ w `shift` (-6)
+        , len = fromIntegral $ w .&. (63) -- 0b111111
+        }
+
+
+getInitial :: Get [ConfigParam]
+getInitial = do
+    len <- fromIntegral <$> getWord16be
+    replicateM len getConfigParam
+
+getConfigParam :: Get ConfigParam
+getConfigParam = do
+    TagLen tag len <- getTagLen
+    isolate len $ case tag of
+        1 -> ConfigDiscrimination <$> getDiscrimination
+        2 -> Block0Date <$> getWord64be
+        3 -> ConsensusVersion <$> getWord16be -- ?
+        4 -> SlotsPerEpoch <$> getWord32be
+        5 -> SlotDuration <$> getWord8
+        6 -> EpochStabilityDepth <$> getWord32be
+        8 -> ConsensusGenesisPraosActiveSlotsCoeff <$> getMilli
+        9 -> MaxNumberOfTransactionsPerBlock <$> getWord32be
+        10 -> BftSlotsRatio <$> getMilli
+        11 -> AddBftLeader <$> getLeaderId
+        12 -> RemoveBftLeader <$> getLeaderId
+        13 -> AllowAccountCreation <$> getBool
+        14 -> ConfigLinearFee <$> getLinearFee
+        15 -> ProposalExpiration <$> getWord32be
+        a -> fail $ "Invalid config param with tag " ++ show a
+  where
+    getBool = getWord8 >>= \case
+        1 -> return True
+        0 -> return False
+        other -> fail $ "Unexpected boolean integer: " ++ show other
+
+    getLinearFee = LinearFee <$> getWord64be <*> getWord64be <*> getWord64be
+
+data Discrimination = Production | Test
+    deriving (Eq, Show)
+
+getDiscrimination :: Get Discrimination
+getDiscrimination = getWord8 >>= \case
+    1 -> return Production
+    2 -> return Test
+    a -> fail $ "Invalid discrimination value: " ++ show a
+
+getMilli :: Get Milli
+getMilli = Milli <$> getWord64be
+
+getLeaderId :: Get LeaderId
+getLeaderId = LeaderId <$> getByteString 32
 
 {-------------------------------------------------------------------------------
                               Helpers
