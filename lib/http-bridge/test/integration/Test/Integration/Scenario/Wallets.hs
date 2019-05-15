@@ -19,8 +19,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Control.Monad
     ( forM_ )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Test.Hspec
@@ -34,6 +32,7 @@ import Test.Integration.Framework.DSL
     , balanceTotal
     , delegation
     , expectErrorMessage
+    , expectEventually
     , expectFieldEqual
     , expectFieldNotEqual
     , expectListItemFieldEqual
@@ -70,7 +69,7 @@ spec = do
             , expectFieldEqual addressPoolGap 30
             , expectFieldEqual balanceAvailable 0
             , expectFieldEqual balanceTotal 0
-            , expectFieldEqual state (Restoring (Quantity minBound))
+            , expectEventually ctx state Ready
             , expectFieldEqual delegation (NotDelegating)
             , expectFieldEqual walletId "2cf060fe53e4e0593f145f22b858dfc60676d4ab"
             , expectFieldNotEqual passphraseLastUpdate Nothing
@@ -703,7 +702,7 @@ spec = do
             , expectFieldEqual addressPoolGap 20
             , expectFieldEqual balanceAvailable 0
             , expectFieldEqual balanceTotal 0
-            , expectFieldEqual state (Restoring (Quantity minBound))
+            , expectEventually ctx state Ready
             , expectFieldEqual delegation (NotDelegating)
             , expectFieldEqual walletId walId
             , expectFieldNotEqual passphraseLastUpdate Nothing
@@ -753,7 +752,6 @@ spec = do
             , expectListItemFieldEqual 0 addressPoolGap 20
             , expectListItemFieldEqual 0 balanceAvailable 0
             , expectListItemFieldEqual 0 balanceTotal 0
-            , expectListItemFieldEqual 0 state (Restoring (Quantity minBound))
             , expectListItemFieldEqual 0 delegation (NotDelegating)
             , expectListItemFieldEqual 0 walletId "dfe87fcf0560fb57937a6468ea51e860672fad79"
             ]
@@ -842,7 +840,7 @@ spec = do
                     , expectFieldEqual addressPoolGap 20
                     , expectFieldEqual balanceAvailable 0
                     , expectFieldEqual balanceTotal 0
-                    , expectFieldEqual state (Restoring (Quantity minBound))
+                    , expectEventually ctx state Ready
                     , expectFieldEqual delegation (NotDelegating)
                     , expectFieldEqual walletId walId
                     , expectFieldEqual passphraseLastUpdate passLastUpdateValue
@@ -859,7 +857,6 @@ spec = do
             , expectListItemFieldEqual 0 addressPoolGap 20
             , expectListItemFieldEqual 0 balanceAvailable 0
             , expectListItemFieldEqual 0 balanceTotal 0
-            , expectListItemFieldEqual 0 state (Restoring (Quantity minBound))
             , expectListItemFieldEqual 0 delegation (NotDelegating)
             , expectListItemFieldEqual 0 walletId walId
             , expectListItemFieldEqual 0 passphraseLastUpdate passLastUpdateValue
