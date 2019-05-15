@@ -1207,20 +1207,16 @@ spec = do
         let payload = updatePassPayload "Secure passphrase" "Secure passphrase2"
         let delEndp = "v2/wallets" </> (getFromResponse walletId r)
         _ <- request @ApiWallet ctx ("DELETE", delEndp) Default Empty
-
         let updEndp = delEndp </> ("passphrase" :: Text)
         rup <- request @ApiWallet ctx ("PUT", updEndp) Default payload
-        expectResponseCode @IO HTTP.status403 rup
+        expectResponseCode @IO HTTP.status404 rup
 
     describe "WALLETS_UPDATE_PASS_04 - non-existing wallets" $  do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
             let payload = updatePassPayload "Secure passphrase" "Secure passphrase2"
             let endpoint = "v2/wallets" </> T.pack walId </> ("passphrase" :: Text)
             rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
-            if (title == "40 chars hex") then
-                expectResponseCode @IO HTTP.status403 rup
-            else
-                expectResponseCode @IO HTTP.status404 rup
+            expectResponseCode @IO HTTP.status404 rup
 
     it "WALLETS_UPDATE_PASS_04 - 'almost' valid walletId" $ \ctx -> do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
