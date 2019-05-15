@@ -697,7 +697,6 @@ responsesPutWallet: &responsesPutWallet
   <<: *responsesErr400
   <<: *responsesErr404
   <<: *responsesErr406
-  <<: *responsesErr410
   <<: *responsesErr415
   200:
     description: Ok
@@ -708,7 +707,6 @@ responsesPutWalletPassphrase: &responsesPutWalletPassphrase
   <<: *responsesErr403
   <<: *responsesErr404
   <<: *responsesErr406
-  <<: *responsesErr410
   <<: *responsesErr415
   204:
     description: No Content
