@@ -23,8 +23,10 @@ import Control.Concurrent
     ( forkIO, threadDelay )
 import Control.Concurrent.Async
     ( async, cancel, link, race )
+import Control.Exception
+    ( throwIO )
 import Control.Monad
-    ( void )
+    ( forM, void )
 import Data.Aeson
     ( Value (..), (.:) )
 import Data.Function
@@ -38,7 +40,7 @@ import Network.HTTP.Client
 import Servant
     ( (:>), serve )
 import System.Directory
-    ( removePathForcibly )
+    ( createDirectoryIfMissing, removePathForcibly )
 import System.IO
     ( IOMode (..), hClose, openFile )
 import Test.Hspec
@@ -98,15 +100,18 @@ main = do
         let bridgePort = 8080
         let nodeApiAddress = "127.0.0.1:3101"
         removePathForcibly (networkDir <> "/local")
+        createDirectoryIfMissing True "/tmp/cardano-node-simple"
         handle <-
             openFile "/tmp/cardano-wallet-launcher" WriteMode
-        sysStart <-
+        start <-
             formatTime defaultTimeLocale "%s" . addUTCTime 2 <$> getCurrentTime
-        cluster <- async $ void $ launch
-            [ cardanoNodeSimple stateDir sysStart ("core0", "127.0.0.1:3000") []
-            , cardanoNodeSimple stateDir sysStart ("core1", "127.0.0.1:3001") []
-            , cardanoNodeSimple stateDir sysStart ("core2", "127.0.0.1:3002") []
-            , cardanoNodeSimple stateDir sysStart ("relay", "127.0.0.1:3100")
+        [h0, h1, h2, h3] <- forM ["core0", "core1", "core2", "relay"] $ \x -> do
+            openFile ("/tmp/cardano-node-simple/" <> x) WriteMode
+        cluster <- async $ throwIO =<< launch
+            [ cardanoNodeSimple stateDir start ("core0", "127.0.0.1:3000") h0 []
+            , cardanoNodeSimple stateDir start ("core1", "127.0.0.1:3001") h1 []
+            , cardanoNodeSimple stateDir start ("core2", "127.0.0.1:3002") h2 []
+            , cardanoNodeSimple stateDir start ("relay", "127.0.0.1:3100") h3
                 [ "--node-api-address", nodeApiAddress
                 , "--node-doc-address", "127.0.0.1:3102"
                 , "--tlscert", "/dev/null"
@@ -133,9 +138,9 @@ main = do
         cancel cluster
         hClose handle
 
-    cardanoNodeSimple stateDir systemStart (nodeId, nodeAddr) extra = Command
+    cardanoNodeSimple stateDir sysStart (nodeId, nodeAddr) h extra = Command
         "cardano-node-simple"
-        ([ "--system-start", systemStart
+        ([ "--system-start", sysStart
         , "--node-id", nodeId
         , "--keyfile", stateDir <> "/keys/" <> nodeId <> ".sk"
         , "--configuration-file", stateDir <> "/configuration.yaml"
@@ -146,16 +151,21 @@ main = do
         , "--log-config", stateDir <> "/logs/" <> nodeId <> "/config.json"
         , "--rebuild-db"
         ] ++ extra) (pure ())
-        NoStream
+        -- NOTE Ideally, we would give `NoStream` as a handle but if we do, the
+        -- process never terminates on failure (probably because of some
+        -- internal handler waiting for the stdout or stderr to be closed even
+        -- though they're already closed... So, we just redirect the output to
+        -- some places where it's less annoying.
+        (UseHandle h)
 
-    cardanoHttpBridge port template dir handle before = Command
+    cardanoHttpBridge port template dir h before = Command
         "cardano-http-bridge"
         [ "start"
         , "--template", template
         , "--port", show port
         , "--networks-dir", dir
         ] before
-        (UseHandle handle)
+        (UseHandle h)
 
     -- NOTE
     -- We start the wallet server in the same process such that we get
