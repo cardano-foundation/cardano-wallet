@@ -9,7 +9,7 @@ module Codec.Binary.Bech32Spec
 
 import Prelude
 
-import Codec.Binary.Bech32
+import Codec.Binary.Bech32.Internal
     ( HumanReadablePart, humanReadablePartToBytes, mkHumanReadablePart )
 import Control.Monad
     ( forM_ )
@@ -39,7 +39,7 @@ import Test.QuickCheck
     , (==>)
     )
 
-import qualified Codec.Binary.Bech32 as Bech32
+import qualified Codec.Binary.Bech32.Internal as Bech32
 import qualified Data.Array as Arr
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8

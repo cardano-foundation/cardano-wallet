@@ -36,6 +36,7 @@ library
       src
   exposed-modules:
       Codec.Binary.Bech32
+      Codec.Binary.Bech32.Internal
 
 test-suite bech32-test
   default-language:
