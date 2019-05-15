@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -13,11 +14,13 @@ import Codec.Binary.Bech32
 import Control.Monad
     ( forM_ )
 import Data.Bits
-    ( xor )
+    ( xor, (.&.) )
 import Data.ByteString
     ( ByteString )
 import Data.Char
     ( toLower, toUpper )
+import Data.Functor.Identity
+    ( runIdentity )
 import Data.Maybe
     ( catMaybes, isJust, isNothing )
 import Data.Word
@@ -25,10 +28,19 @@ import Data.Word
 import Test.Hspec
     ( Spec, describe, expectationFailure, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck
-    ( Arbitrary (..), choose, elements, property, vectorOf, (===), (==>) )
+    ( Arbitrary (..)
+    , Positive (..)
+    , choose
+    , elements
+    , property
+    , vectorOf
+    , (.&&.)
+    , (===)
+    , (==>)
+    )
 
-import qualified Data.Array as Arr
 import qualified Codec.Binary.Bech32 as Bech32
+import qualified Data.Array as Arr
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 
@@ -87,6 +99,35 @@ spec = do
         it "can perform roundtrip character set conversion (upper-case)" $
             property $ \w ->
                 Bech32.charsetMap (toUpper (Bech32.charset Arr.! w)) === Just w
+
+    describe "Conversion of word string from one word size to another" $ do
+
+        it "With identical word sizes, conversion is the identity transform" $
+            property $ \inputWordsUnmasked -> do
+                size <- choose (1, 16)
+                let mask (Positive w) = w .&. (2 ^ size - 1)
+                let inputWords = mask <$> inputWordsUnmasked
+                pure $ inputWords === runIdentity
+                    (Bech32.convertBits inputWords size size Bech32.yesPadding)
+
+        it "With different word sizes, roundtripping preserves data" $
+            property $ \inputWordsUnmasked -> do
+                sourceSize <- choose (1, 16)
+                targetSize <- choose (1, 16)
+                let mask size (Positive w) = w .&. (2 ^ size - 1)
+                let inputWords = mask sourceSize <$> inputWordsUnmasked
+                let convert s0 s1 inputData =
+                        runIdentity $
+                            Bech32.convertBits inputData s0 s1 Bech32.yesPadding
+                let outputWords =
+                        convert targetSize sourceSize $
+                        convert sourceSize targetSize inputWords
+                let outputWordsPrefix = take (length inputWords) outputWords
+                let outputWordsSuffix = drop (length inputWords) outputWords
+                pure $
+                    (inputWords === outputWordsPrefix)
+                    .&&.
+                    (outputWordsSuffix `shouldSatisfy` all (== 0))
 
     describe "Pointless test to trigger coverage on derived instances" $ do
         it (show $ mkHumanReadablePart $ B8.pack "ca") True

@@ -26,6 +26,11 @@ module Codec.Binary.Bech32
       -- * Low-Level Word Manipulation
     , Word5
     , word5
+
+    , convertBits
+    , noPadding
+    , yesPadding
+
     , getWord5
     , toBase32
     , toBase256
