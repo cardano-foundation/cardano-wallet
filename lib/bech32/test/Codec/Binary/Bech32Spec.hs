@@ -160,7 +160,11 @@ instance Arbitrary HumanReadablePart where
     shrink hrp = catMaybes
         (mkHumanReadablePart <$> shrink (humanReadablePartToBytes hrp))
     arbitrary = do
-        bytes <- choose (1, 10) >>= \n -> vectorOf n (choose (33, 126))
+        let range =
+                ( Bech32.humanReadableCharsetMinBound
+                , Bech32.humanReadableCharsetMaxBound )
+        bytes <-
+            choose (1, 10) >>= \n -> vectorOf n (choose range)
         let (Just hrp) = mkHumanReadablePart (B8.map toLower $ BS.pack bytes)
         return hrp
 

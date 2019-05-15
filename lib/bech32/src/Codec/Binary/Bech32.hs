@@ -22,6 +22,8 @@ module Codec.Binary.Bech32
     , HumanReadablePart
     , mkHumanReadablePart
     , humanReadablePartToBytes
+    , humanReadableCharsetMinBound
+    , humanReadableCharsetMaxBound
 
       -- * Low-Level Word Manipulation
     , Word5
@@ -71,8 +73,18 @@ newtype HumanReadablePart = HumanReadablePart ByteString
 
 mkHumanReadablePart :: ByteString -> Maybe HumanReadablePart
 mkHumanReadablePart hrp = do
-    guard $ not (BS.null hrp) && BS.all (\c -> c >= 33 && c <= 126) hrp
+    guard $ not (BS.null hrp) && BS.all valid hrp
     return (HumanReadablePart hrp)
+  where
+    valid c =
+        c >= humanReadableCharsetMinBound &&
+        c <= humanReadableCharsetMaxBound
+
+humanReadableCharsetMinBound :: Word8
+humanReadableCharsetMinBound = 33
+
+humanReadableCharsetMaxBound :: Word8
+humanReadableCharsetMaxBound = 126
 
 humanReadablePartToBytes :: HumanReadablePart -> ByteString
 humanReadablePartToBytes (HumanReadablePart bytes) = bytes
