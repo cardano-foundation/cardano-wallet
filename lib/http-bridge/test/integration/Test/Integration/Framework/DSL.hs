@@ -142,9 +142,12 @@ expectErrorMessage
     -> (s, Either RequestException a)
     -> m ()
 expectErrorMessage want (_, res) = case res of
-    Left (DecodeFailure msg)  -> BL8.unpack msg `shouldContain` want
-    Left (ClientError _)  -> fail "expectErrorMessage: asserting ClientError not\
-                             \ supported yet"
+    Left (DecodeFailure msg)  ->
+        BL8.unpack msg `shouldContain` want
+    Left (ClientError _)  ->
+        fail "expectErrorMessage: asserting ClientError not supported yet"
+    Left (HttpException _) ->
+        fail "expectErrorMessage: asserting HttpException not supported yet"
     Right a -> wantedErrorButSuccess a
 
 -- | Expect a successful response, without any further assumptions

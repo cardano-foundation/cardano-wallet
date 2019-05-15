@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -19,7 +20,7 @@ import Prelude
 import Control.Concurrent.Async
     ( Async )
 import Control.Monad.Catch
-    ( Exception (..), MonadCatch (..), MonadThrow, throwM )
+    ( Exception (..), MonadCatch (..), throwM )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Data.Aeson
@@ -29,7 +30,9 @@ import Data.ByteString.Lazy
 import Data.Text
     ( Text )
 import Network.HTTP.Client
-    ( Manager
+    ( HttpException (..)
+    , HttpExceptionContent
+    , Manager
     , RequestBody (..)
     , httpLbs
     , method
@@ -80,6 +83,8 @@ data RequestException
       -- ^ JSON decoding the given response data failed.
     | ClientError Aeson.Value
       -- ^ The HTTP response status code indicated failure.
+    | HttpException HttpExceptionContent
+      -- ^ A wild exception upon sending the request
     deriving (Show)
 
 instance Exception RequestException
@@ -101,7 +106,6 @@ request
     :: forall a m.
         ( FromJSON a
         , MonadIO m
-        , MonadThrow m
         , MonadCatch m
         )
     => Context
@@ -114,7 +118,8 @@ request
     -> m (HTTP.Status, Either RequestException a)
 request (Context _ (base, manager) _ _) (verb, path) reqHeaders body = do
     req <- parseRequest $ T.unpack $ base <> path
-    handleResponse <$> liftIO (httpLbs (prepareReq req) manager)
+    let io = handleResponse <$> liftIO (httpLbs (prepareReq req) manager)
+    catch io handleException
   where
     prepareReq :: HTTP.Request -> HTTP.Request
     prepareReq req = req
@@ -143,6 +148,12 @@ request (Context _ (base, manager) _ _) (verb, path) reqHeaders body = do
         -- TODO: decode API error responses into ClientError
         s -> (s, Left $ decodeFailure res)
 
+    handleException = \case
+        e@InvalidUrlException{} ->
+            throwM e
+        HttpExceptionRequest _ e ->
+            return (status500, Left (HttpException e))
+
     decodeFailure :: HTTP.Response ByteString -> RequestException
     decodeFailure res = DecodeFailure $ responseBody res
 
@@ -151,7 +162,6 @@ unsafeRequest
     :: forall a m.
         ( FromJSON a
         , MonadIO m
-        , MonadThrow m
         , MonadCatch m
         )
     => Context
