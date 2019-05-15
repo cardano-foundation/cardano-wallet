@@ -52,7 +52,8 @@ test-suite bech32-test
     ghc-options:
       -Werror
   build-depends:
-      base
+      array
+    , base
     , bech32
     , hspec
     , bytestring

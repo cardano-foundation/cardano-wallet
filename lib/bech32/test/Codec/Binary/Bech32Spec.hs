@@ -17,7 +17,7 @@ import Data.Bits
 import Data.ByteString
     ( ByteString )
 import Data.Char
-    ( toLower )
+    ( toLower, toUpper )
 import Data.Maybe
     ( catMaybes, isJust, isNothing )
 import Data.Word
@@ -27,6 +27,7 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..), choose, elements, property, vectorOf, (===), (==>) )
 
+import qualified Data.Array as Arr
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -76,6 +77,16 @@ spec = do
         it "Can perform roundtrip base conversion" $ property $ \ws ->
             isJust (Bech32.toBase256 ws) ==>
                 (Bech32.toBase32 <$> Bech32.toBase256 ws) === Just ws
+
+    describe "Roundtrip (charsetMap . charset)" $ do
+        it "can perform roundtrip character set conversion (lower-case)" $
+            property $ \w ->
+                Bech32.charsetMap (toLower (Bech32.charset Arr.! w)) === Just w
+
+    describe "Roundtrip (charsetMap . charset)" $ do
+        it "can perform roundtrip character set conversion (upper-case)" $
+            property $ \w ->
+                Bech32.charsetMap (toUpper (Bech32.charset Arr.! w)) === Just w
 
     describe "Pointless test to trigger coverage on derived instances" $ do
         it (show $ mkHumanReadablePart $ B8.pack "ca") True

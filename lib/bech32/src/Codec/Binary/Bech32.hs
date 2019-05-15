@@ -29,6 +29,11 @@ module Codec.Binary.Bech32
     , getWord5
     , toBase32
     , toBase256
+
+      -- * Low-Level Character Set Manipulation
+    , charset
+    , charsetMap
+
     ) where
 
 import Prelude
