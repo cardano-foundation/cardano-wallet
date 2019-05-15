@@ -1957,6 +1957,10 @@ data ErrWithRootKey
 ErrWithRootKeyNoRootKey :: WalletId -> ErrWithRootKey
 ErrWithRootKeyWrongPassphrase :: ErrWrongPassphrase -> ErrWithRootKey
 
+-- | Indicate a failure when checking for a given <a>Passphrase</a> match
+data ErrWrongPassphrase
+ErrWrongPassphrase :: ErrWrongPassphrase
+
 -- | Create a new instance of the wallet layer.
 newWalletLayer :: forall s t. (IsOwned s, GenChange s, NFData s, Show s, TxId t) => DBLayer IO s t -> NetworkLayer IO -> TransactionLayer -> IO (WalletLayer s t)
 
@@ -1984,6 +1988,7 @@ module Cardano.Wallet.Api.Server
 server :: (TxId t, KeyToAddress t) => WalletLayer (SeqState t) t -> Server Api
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.DB.ErrNoSuchWallet
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.DB.ErrWalletAlreadyExists
+instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrWithRootKey
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrCreateUnsignedTx
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrSignTx
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrSubmitTx
