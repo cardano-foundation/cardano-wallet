@@ -58,7 +58,20 @@ genesisHeader = BlockHeader
 
 genesisBlock :: Block
 genesisBlock = Block genesisHeader
-    [ Initial [Block0Date 1556202057,ConfigDiscrimination Test,ConsensusVersion 1,SlotsPerEpoch 2160,SlotDuration 15,EpochStabilityDepth 10,AddBftLeader (LeaderId "0\166\148\184\r\187\162\209\184\164\181VR\176=\150\&1\\\132\DC4\176T\250stE\172-*\134\\v"),ConsensusGenesisPraosActiveSlotsCoeff (Milli 220),MaxNumberOfTransactionsPerBlock 255,BftSlotsRatio (Milli 220),AllowAccountCreation True,ConfigLinearFee (LinearFee 0 0 0)]
+    [ Initial
+        [ Block0Date 1556202057
+        , ConfigDiscrimination Test
+        , ConsensusVersion 1
+        , SlotsPerEpoch 2160
+        , SlotDuration 15
+        , EpochStabilityDepth 10
+        , AddBftLeader (LeaderId "0\166\148\184\r\187\162\209\184\164\181VR\176=\150\&1\\\132\DC4\176T\250stE\172-*\134\\v")
+        , ConsensusGenesisPraosActiveSlotsCoeff (Milli 220)
+        , MaxNumberOfTransactionsPerBlock 255
+        , BftSlotsRatio (Milli 220)
+        , AllowAccountCreation True
+        , ConfigLinearFee (LinearFee 0 0 0)
+        ]
     , UnimplementedMessage 2
     , UnimplementedMessage 1
     , UnimplementedMessage 3
