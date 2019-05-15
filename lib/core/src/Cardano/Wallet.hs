@@ -30,6 +30,7 @@ module Cardano.Wallet
     , ErrUpdatePassphrase (..)
     , ErrWalletAlreadyExists (..)
     , ErrWithRootKey (..)
+    , ErrWrongPassphrase(..)
 
     -- * Construction
     , newWalletLayer
