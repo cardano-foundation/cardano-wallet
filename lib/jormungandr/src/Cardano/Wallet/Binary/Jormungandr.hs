@@ -51,24 +51,6 @@ import Data.ByteString
 import Data.Word
     ( Word16, Word32, Word64, Word8 )
 
-
--- | Messages are what the block body consists of.
---
--- Every message is prefixed with a message header.
---
---  Following, as closely as possible:
--- https://github.com/input-output-hk/rust-cardano/blob/e0616f13bebd6b908320bddb1c1502dea0d3305a/chain-impl-mockchain/src/message/mod.rs#L22-L29
-data Message
-    = Initial [ConfigParam]
-    | OldUtxoDeclaration TODO
-    | Transaction TODO
-    | Certificate TODO
-    | UpdateProposal SignedUpdateProposal
-    | UpdateVote SignedVote
-    | UnimplementedMessage Int -- For development. Remove later.
-    deriving (Eq, Show)
-
-
 data BlockHeader = BlockHeader
     { version :: Word16
     , contentSize :: Word32
@@ -86,12 +68,6 @@ data SignedUpdateProposal = SignedUpdateProposal
 data TODO = TODO
     deriving (Eq, Show)
 data SignedVote = SignedVote
-    deriving (Eq, Show)
-newtype Milli = Milli Word64
-    deriving (Eq, Show)
-newtype LeaderId = LeaderId ByteString
-    deriving (Eq, Show)
-data LinearFee = LinearFee Word64 Word64 Word64
     deriving (Eq, Show)
 
 
@@ -125,6 +101,26 @@ getBlock = do
         $ whileM (not <$> isEmpty) getMessage
     return $ Block header msgs
 
+{-------------------------------------------------------------------------------
+                           Messages
+-------------------------------------------------------------------------------}
+
+-- | Messages are what the block body consists of.
+--
+-- Every message is prefixed with a message header.
+--
+--  Following, as closely as possible:
+-- https://github.com/input-output-hk/rust-cardano/blob/e0616f13bebd6b908320bddb1c1502dea0d3305a/chain-impl-mockchain/src/message/mod.rs#L22-L29
+data Message
+    = Initial [ConfigParam]
+    | OldUtxoDeclaration TODO
+    | Transaction TODO
+    | Certificate TODO
+    | UpdateProposal SignedUpdateProposal
+    | UpdateVote SignedVote
+    | UnimplementedMessage Int -- For development. Remove later.
+    deriving (Eq, Show)
+
 getMessage :: Get Message
 getMessage = do
     size <- fromIntegral <$> getWord16be
@@ -140,6 +136,10 @@ getMessage = do
         5 -> unimpl
         other -> fail $ "Unexpected content type tag " ++ show other
 
+getInitial :: Get [ConfigParam]
+getInitial = do
+    len <- fromIntegral <$> getWord16be
+    replicateM len getConfigParam
 
 {-------------------------------------------------------------------------------
                             Config Parameters
@@ -180,12 +180,6 @@ getTagLen = do
         , len = fromIntegral $ w .&. (63) -- 0b111111
         }
 
-
-getInitial :: Get [ConfigParam]
-getInitial = do
-    len <- fromIntegral <$> getWord16be
-    replicateM len getConfigParam
-
 getConfigParam :: Get ConfigParam
 getConfigParam = do
     TagLen tag len <- getTagLen
@@ -205,16 +199,19 @@ getConfigParam = do
         14 -> ConfigLinearFee <$> getLinearFee
         15 -> ProposalExpiration <$> getWord32be
         a -> fail $ "Invalid config param with tag " ++ show a
-  where
-    getBool = getWord8 >>= \case
-        1 -> return True
-        0 -> return False
-        other -> fail $ "Unexpected boolean integer: " ++ show other
-
-    getLinearFee = LinearFee <$> getWord64be <*> getWord64be <*> getWord64be
 
 data Discrimination = Production | Test
     deriving (Eq, Show)
+
+newtype Milli = Milli Word64
+    deriving (Eq, Show)
+
+newtype LeaderId = LeaderId ByteString
+    deriving (Eq, Show)
+
+data LinearFee = LinearFee Word64 Word64 Word64
+    deriving (Eq, Show)
+
 
 getDiscrimination :: Get Discrimination
 getDiscrimination = getWord8 >>= \case
@@ -227,6 +224,15 @@ getMilli = Milli <$> getWord64be
 
 getLeaderId :: Get LeaderId
 getLeaderId = LeaderId <$> getByteString 32
+
+getLinearFee :: Get LinearFee
+getLinearFee = LinearFee <$> getWord64be <*> getWord64be <*> getWord64be
+
+getBool :: Get Bool
+getBool = getWord8 >>= \case
+    1 -> return True
+    0 -> return False
+    other -> fail $ "Unexpected boolean integer: " ++ show other
 
 {-------------------------------------------------------------------------------
                               Helpers
