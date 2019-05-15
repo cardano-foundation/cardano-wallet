@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
@@ -21,6 +22,7 @@ module Test.Integration.Framework.DSL
     , expectListItemFieldEqual
     , expectListSizeEqual
     , expectResponseCode
+    , expectEventually
     , verify
     , Headers(..)
     , Payload(..)
@@ -63,6 +65,10 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     )
+import Control.Concurrent
+    ( threadDelay )
+import Control.Concurrent.Async
+    ( race )
 import Control.Monad
     ( forM_, unless )
 import Control.Monad.Catch
@@ -143,7 +149,7 @@ expectErrorMessage want (_, res) = case res of
 
 -- | Expect a successful response, without any further assumptions
 expectSuccess
-    :: (MonadIO m, MonadFail m, Show a)
+    :: (MonadIO m, MonadFail m)
     => (s, Either RequestException a)
     -> m ()
 expectSuccess (_, res) = case res of
@@ -152,7 +158,7 @@ expectSuccess (_, res) = case res of
 
 -- | Expect a given response code on the response
 expectResponseCode
-    :: (MonadIO m, MonadFail m)
+    :: (MonadIO m)
     => HTTP.Status
     -> (HTTP.Status, a)
     -> m ()
@@ -212,7 +218,7 @@ expectListSizeEqual l (_, res) = case res of
 -- | Expects wallet from the request to eventually reach the given state or
 -- beyond
 expectEventually
-    :: (MonadIO m, MonadCatch m, MonadFail m, Show a, Ord a)
+    :: (MonadIO m, MonadCatch m, MonadFail m, Ord a)
     => Context
     -> Lens' ApiWallet a
     -> a
@@ -341,17 +347,25 @@ fixtureWallet ctx@(Context _ _ _ faucet) = do
             "passphrase": "cardano-wallet"
             } |]
     r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
-    expectEventually ctx state Ready r
     let wid = getFromResponse walletId r
-    r' <- request @ApiWallet ctx ("GET", "v2/wallets/" <> wid) Default Empty
-    return $ getFromResponse id r'
+    race (threadDelay sixtySeconds) (checkBalance wid) >>= \case
+        Left _ -> fail "fixtureWallet: waited too long for initial transaction"
+        Right a -> return a
+  where
+    oneSecond = 1*1000*1000
+    sixtySeconds = 60*oneSecond
+    checkBalance :: Text -> IO ApiWallet
+    checkBalance wid = do
+        r <- request @ApiWallet ctx ("GET", "v2/wallets/" <> wid) Default Empty
+        if getFromResponse balanceAvailable r > 0
+            then return (getFromResponse id r)
+            else threadDelay oneSecond *> checkBalance wid
 
 fromQuantity :: Quantity (u :: Symbol) a -> a
 fromQuantity (Quantity a) = a
 
 getFromResponse
-    :: (Show a, Eq a)
-    => Lens' s a
+    :: Lens' s a
     -> (HTTP.Status, Either RequestException s)
     -> a
 getFromResponse getter (_, res) = case res of
