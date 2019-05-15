@@ -163,14 +163,15 @@ data ConfigParam
     | ProposalExpiration Word32
     deriving (Eq, Show)
 
--- | @TagLen@ contains the tag/type of a @ConfigParam@ as well as the length
+-- | @TagLen@ contains the tag/type of a @ConfigParam@ as well as its length
 -- in number of bytes.
 --
 -- This information is stored in a /single/ @Word16@ in the binary format.
 -- (@getTagLen@)
-{-# ANN len ("HLint: ignore Defined but not used" :: String) #-}
-{-# ANN tag ("HLint: ignore Defined but not used" :: String) #-}
-data TagLen = TagLen { tag :: Int, len :: Int}
+data TagLen = TagLen
+    { tag :: Int -- | The kind of @ConfigParam@
+    , len :: Int -- | The length of the encoded @ConfigParam@ in bytes
+    }
 
 getTagLen :: Get TagLen
 getTagLen = do
@@ -211,7 +212,6 @@ newtype LeaderId = LeaderId ByteString
 
 data LinearFee = LinearFee Word64 Word64 Word64
     deriving (Eq, Show)
-
 
 getDiscrimination :: Get Discrimination
 getDiscrimination = getWord8 >>= \case
