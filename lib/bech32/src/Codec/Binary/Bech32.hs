@@ -22,6 +22,13 @@ module Codec.Binary.Bech32
     , HumanReadablePart
     , mkHumanReadablePart
     , humanReadablePartToBytes
+
+      -- * Low-Level Word Manipulation
+    , Word5
+    , word5
+    , getWord5
+    , toBase32
+    , toBase256
     ) where
 
 import Prelude
@@ -89,8 +96,8 @@ decode bech32 = do
 (.>>.) = unsafeShiftR
 (.<<.) = unsafeShiftL
 
-newtype Word5 = Word5 Word8
-    deriving (Eq, Ord)
+newtype Word5 = Word5 { getWord5 :: Word8 }
+    deriving (Eq, Ord, Show)
 
 instance Ix Word5 where
     range (Word5 m, Word5 n) = map Word5 $ range (m, n)

@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Codec.Binary.Bech32Spec
@@ -18,11 +19,13 @@ import Data.ByteString
 import Data.Char
     ( toLower )
 import Data.Maybe
-    ( catMaybes, isNothing )
+    ( catMaybes, isJust, isNothing )
+import Data.Word
+    ( Word8 )
 import Test.Hspec
     ( Spec, describe, expectationFailure, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck
-    ( Arbitrary (..), choose, elements, property, vectorOf, (===) )
+    ( Arbitrary (..), choose, elements, property, vectorOf, (===), (==>) )
 
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.ByteString as BS
@@ -64,6 +67,15 @@ spec = do
     describe "Roundtrip (encode . decode)" $ do
         it "Can perform roundtrip for valid data" $ property $ \(hrp, bytes) ->
             (Bech32.encode hrp bytes >>= Bech32.decode) === Just (hrp, bytes)
+
+    describe "Roundtrip (toBase256 . toBase32)" $ do
+        it "Can perform roundtrip base conversion" $ property $ \ws ->
+            (Bech32.toBase256 . Bech32.toBase32) ws === Just ws
+
+    describe "Roundtrip (toBase32 . toBase256)" $ do
+        it "Can perform roundtrip base conversion" $ property $ \ws ->
+            isJust (Bech32.toBase256 ws) ==>
+                (Bech32.toBase32 <$> Bech32.toBase256 ws) === Just ws
 
     describe "Pointless test to trigger coverage on derived instances" $ do
         it (show $ mkHumanReadablePart $ B8.pack "ca") True
@@ -110,3 +122,7 @@ instance Arbitrary ByteString where
         let alphabet = B8.unpack "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
         bytes <- choose (0, 10) >>= \n -> vectorOf n (elements alphabet)
         return (B8.pack bytes)
+
+instance Arbitrary Bech32.Word5 where
+    arbitrary = Bech32.word5 @Word8 <$> arbitrary
+    shrink w = Bech32.word5 <$> shrink (Bech32.getWord5 w)
