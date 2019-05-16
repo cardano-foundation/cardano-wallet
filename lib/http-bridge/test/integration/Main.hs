@@ -61,6 +61,7 @@ import qualified Cardano.WalletSpec as Wallet
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
+import qualified Test.Integration.Scenario.CLISpec as CLI
 import qualified Test.Integration.Scenario.Transactions as Transactions
 import qualified Test.Integration.Scenario.Wallets as Wallets
 
@@ -75,9 +76,11 @@ main = do
         describe "Cardano.LauncherSpec" Launcher.spec
         describe "Cardano.WalletSpec" Wallet.spec
         describe "Cardano.Wallet.Network.HttpBridgeSpec" HttpBridge.spec
+        describe "CLI commands not requiring bridge" CLI.specNoCluster
         beforeAll startCluster $ afterAll killCluster $ after tearDown $ do
             describe "Wallets API endpoint tests" Wallets.spec
             describe "Transactions API endpoint tests" Transactions.spec
+            describe "CLI integration tests" CLI.specWithCluster
   where
     oneSecond :: Int
     oneSecond = 1 * 1000 * 1000 -- 1 second in microseconds

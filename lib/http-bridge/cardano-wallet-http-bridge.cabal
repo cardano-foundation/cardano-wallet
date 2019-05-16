@@ -137,6 +137,7 @@ test-suite integration
     , cardano-wallet-core
     , cardano-wallet-http-bridge
     , cardano-wallet-launcher
+    , command
     , cborg
     , cryptonite
     , directory
@@ -172,6 +173,7 @@ test-suite integration
       Test.Integration.Framework.Request
       Test.Integration.Scenario.Transactions
       Test.Integration.Scenario.Wallets
+      Test.Integration.Scenario.CLISpec
 
 benchmark restore
   default-language:

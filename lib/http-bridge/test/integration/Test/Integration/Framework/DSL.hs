@@ -4,6 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Test.Integration.Framework.DSL
@@ -23,6 +24,7 @@ module Test.Integration.Framework.DSL
     , expectListSizeEqual
     , expectResponseCode
     , expectEventually
+    , expectValidJSON
     , verify
     , Headers(..)
     , Payload(..)
@@ -80,7 +82,7 @@ import Control.Monad.IO.Class
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString )
 import Data.Aeson
-    ( Value )
+    ( FromJSON, Value )
 import Data.Aeson.QQ
     ( aesonQQ )
 import Data.Foldable
@@ -95,6 +97,8 @@ import Data.List
     ( (!!) )
 import Data.Maybe
     ( fromMaybe )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -120,6 +124,7 @@ import Test.Integration.Framework.Request
 import Web.HttpApiData
     ( ToHttpApiData (..) )
 
+import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text as T
@@ -238,6 +243,17 @@ expectEventually ctx getter target (_, res) = case res of
         let target' = getFromResponse getter r
         unless (target' >= target) $ loopUntilRestore wid
 
+-- | Expects a given string to be a valid JSON output corresponding to some
+-- given data-type 'a'
+expectValidJSON
+    :: forall m a. (MonadFail m, FromJSON a)
+    => Proxy a
+    -> String
+    -> m ()
+expectValidJSON _ str =
+    case Aeson.eitherDecode @a (BL8.pack str) of
+        Left e -> fail $ "expected valid JSON but failed decoding: " <> show e
+        Right _ -> return ()
 
 -- | Apply 'a' to all actions in sequence
 verify :: (Monad m) => a -> [a -> m ()] -> m ()

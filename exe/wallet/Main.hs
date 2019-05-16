@@ -28,6 +28,7 @@ import Cardano.CLI
     ( Port (..)
     , getLine
     , getSensitiveLine
+    , help
     , parseAllArgsWith
     , parseArgWith
     , putErrLn
@@ -149,7 +150,7 @@ Options:
 Examples:
   # Create a transaction and send 22 lovelace from wallet-id to specified addres
   cardano-wallet transaction create \
-    --wallet-id 2512a00e9653fe49a44a5886202e24d77eeb998f \
+    2512a00e9653fe49a44a5886202e24d77eeb998f \
     --payment 22@Ae2tdPwUPEZ...nRtbfw6EHRv1D
 |]
 
@@ -167,8 +168,7 @@ main = do
 
 exec :: Manager -> Arguments -> IO ()
 exec manager args
-    | args `isPresent` (longOption "help") = do
-        exitWithUsage cli
+    | args `isPresent` (longOption "help") = help cli
 
     | args `isPresent` command "server" = do
         walletPort <- args `parseArg` longOption "port"

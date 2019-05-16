@@ -75,6 +75,7 @@ jobs:
     - stack --no-terminal build --only-dependencies
     - stack --no-terminal build --test --no-run-tests --bench --no-run-benchmarks --coverage --haddock --no-haddock-deps
     - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
+    - stack --no-terminal install
 
   - stage: checks 🔬
     name: "HLint"
@@ -132,7 +133,6 @@ jobs:
     name: "Executables"
     script:
     - tar xzf $STACK_WORK_CACHE
-    - stack --no-terminal install
     - sha256sum $WALLET_CLI | head -c 64 > $WALLET_CLI_CHECKSUM
     - ls $WALLET_CLI
     - ls $WALLET_CLI_CHECKSUM
