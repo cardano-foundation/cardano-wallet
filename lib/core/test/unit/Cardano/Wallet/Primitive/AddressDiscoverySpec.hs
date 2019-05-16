@@ -1,8 +1,11 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -30,6 +33,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPool
     , AddressPoolGap
+    , CompareDiscovery (..)
     , GenChange (..)
     , IsOurs (..)
     , IsOwned (..)
@@ -163,6 +167,12 @@ spec = do
         it "Any discovered address has a corresponding private key!" $ do
             (property prop_lookupDiscovered)
 
+    describe "CompareDiscovery" $ do
+        it "Known addresses are always lesser than unknown ones" $ do
+            (checkCoverage prop_compareKnownUnknown)
+        it "compareDiscovery is anti-symmetric" $ do
+            (checkCoverage prop_compareAntiSymmetric)
+
 {-------------------------------------------------------------------------------
                         Properties for AddressPoolGap
 -------------------------------------------------------------------------------}
@@ -240,8 +250,7 @@ prop_roundtripMkAddressPool pool =
 
 -- | A pool always contains a number of addresses at least equal to its gap
 prop_poolAtLeastGapAddresses
-    :: (Typeable chain)
-    => AddressPool DummyTarget chain
+    :: AddressPool DummyTarget chain
     -> Property
 prop_poolAtLeastGapAddresses pool =
     property prop
@@ -313,6 +322,32 @@ prop_lookupDiscovered (s0, addr) =
 
 
 {-------------------------------------------------------------------------------
+                        Properties for CompareDiscovery
+-------------------------------------------------------------------------------}
+
+prop_compareKnownUnknown
+    :: (SeqState DummyTarget, ShowFmt Address, ShowFmt Address)
+    -> Property
+prop_compareKnownUnknown (s, ShowFmt known, ShowFmt addr) =
+    case (fst $ isOurs known s, fst $ isOurs addr s) of
+        (True, False) -> cover 10 True "known-unknown" $ prop LT
+        _ -> property True
+  where
+    prop ordering = compareDiscovery s known addr === ordering
+
+prop_compareAntiSymmetric
+    :: (SeqState DummyTarget, ShowFmt Address, ShowFmt Address)
+    -> Property
+prop_compareAntiSymmetric (s, ShowFmt a1, ShowFmt a2) =
+    cover 90 (a1 /= a2) "a1 /= a2" prop
+  where
+    prop = compareDiscovery s a1 a2 === sym (compareDiscovery s a2 a1)
+    sym = \case
+        EQ -> EQ
+        LT -> GT
+        GT -> LT
+
+{-------------------------------------------------------------------------------
                                 Arbitrary Instances
 -------------------------------------------------------------------------------}
 
@@ -341,6 +376,8 @@ data DummyTarget
 
 instance KeyToAddress DummyTarget where
     keyToAddress = Address . unXPub . getKey
+
+deriving instance Arbitrary a => Arbitrary (ShowFmt a)
 
 instance Arbitrary AddressPoolGap where
     shrink _ = []
