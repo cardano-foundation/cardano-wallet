@@ -38,15 +38,18 @@ library
     , basement
     , bytestring
     , cardano-crypto
+    , conduit
     , containers
     , cryptonite
     , deepseq
     , exceptions
+    , fast-logger
     , fmt
     , generic-lens
     , http-api-data
     , http-media
     , memory
+    , monad-logger
     , path-pieces
     , persistent
     , persistent-sqlite
