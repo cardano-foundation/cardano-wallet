@@ -15,21 +15,37 @@
 --   
 --   <a>sipa/bech32</a>
 module Codec.Binary.Bech32.Internal
-encode :: HumanReadablePart -> ByteString -> Maybe ByteString
-decode :: ByteString -> Maybe (HumanReadablePart, ByteString)
+encode :: HumanReadablePart -> ByteString -> Either EncodingError ByteString
+data EncodingError
+EncodedStringTooLong :: EncodingError
+decode :: ByteString -> Either DecodingError (HumanReadablePart, ByteString)
 
 -- | The length of the checksum portion of an encoded string, in bytes.
 checksumLength :: Int
 
+-- | The length of the separator portion of an encoded string, in bytes.
+separatorLength :: Int
+
 -- | The maximum length of an encoded string, in bytes. This length
 --   includes the human-readable part, the separator character, the encoded
 --   data portion, and the checksum.
-maxEncodedStringLength :: Int
+encodedStringMaxLength :: Int
+
+-- | The minimum length of an encoded string, in bytes. This length
+--   includes the human-readable part, the separator character, the encoded
+--   data portion, and the checksum.
+encodedStringMinLength :: Int
 data HumanReadablePart
-mkHumanReadablePart :: ByteString -> Maybe HumanReadablePart
+data HumanReadablePartError
+HumanReadablePartTooShort :: HumanReadablePartError
+HumanReadablePartTooLong :: HumanReadablePartError
+HumanReadablePartContainsInvalidChar :: CharPosition -> HumanReadablePartError
+mkHumanReadablePart :: ByteString -> Either HumanReadablePartError HumanReadablePart
 humanReadablePartToBytes :: HumanReadablePart -> ByteString
 humanReadableCharsetMinBound :: Word8
 humanReadableCharsetMaxBound :: Word8
+humanReadablePartMinLength :: Int
+humanReadablePartMaxLength :: Int
 convertBits :: Functor f => [Word] -> Int -> Int -> Pad f -> f [Word]
 data Word5
 word5 :: Integral a => a -> Word5
@@ -43,6 +59,14 @@ charsetMap :: Char -> Maybe Word5
 instance GHC.Show.Show Codec.Binary.Bech32.Internal.Word5
 instance GHC.Classes.Ord Codec.Binary.Bech32.Internal.Word5
 instance GHC.Classes.Eq Codec.Binary.Bech32.Internal.Word5
+instance GHC.Show.Show Codec.Binary.Bech32.Internal.HumanReadablePartError
+instance GHC.Classes.Eq Codec.Binary.Bech32.Internal.HumanReadablePartError
+instance GHC.Show.Show Codec.Binary.Bech32.Internal.DecodingError
+instance GHC.Classes.Eq Codec.Binary.Bech32.Internal.DecodingError
+instance GHC.Show.Show Codec.Binary.Bech32.Internal.CharPosition
+instance GHC.Classes.Eq Codec.Binary.Bech32.Internal.CharPosition
+instance GHC.Show.Show Codec.Binary.Bech32.Internal.EncodingError
+instance GHC.Classes.Eq Codec.Binary.Bech32.Internal.EncodingError
 instance GHC.Classes.Eq Codec.Binary.Bech32.Internal.HumanReadablePart
 instance GHC.Show.Show Codec.Binary.Bech32.Internal.HumanReadablePart
 instance GHC.Arr.Ix Codec.Binary.Bech32.Internal.Word5
@@ -54,8 +78,8 @@ instance GHC.Arr.Ix Codec.Binary.Bech32.Internal.Word5
 --   
 --   <a>sipa/bech32</a>
 module Codec.Binary.Bech32
-encode :: HumanReadablePart -> ByteString -> Maybe ByteString
-decode :: ByteString -> Maybe (HumanReadablePart, ByteString)
+encode :: HumanReadablePart -> ByteString -> Either EncodingError ByteString
+decode :: ByteString -> Either DecodingError (HumanReadablePart, ByteString)
 data HumanReadablePart
-mkHumanReadablePart :: ByteString -> Maybe HumanReadablePart
+mkHumanReadablePart :: ByteString -> Either HumanReadablePartError HumanReadablePart
 humanReadablePartToBytes :: HumanReadablePart -> ByteString
