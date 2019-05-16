@@ -10,6 +10,8 @@ module Cardano.Wallet.Primitive.AddressDerivationSpec
 
 import Prelude
 
+import Cardano.Crypto.Wallet
+    ( unXPrv )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( ChangeChain (..)
     , Depth (..)
@@ -18,17 +20,23 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , FromMnemonic (..)
     , FromMnemonicError (..)
     , Index
+    , Key
     , Passphrase (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
+    , XPrv
     , checkPassphrase
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
     , deriveAddressPublicKey
+    , deserializeXPrv
+    , deserializeXPub
     , encryptPassphrase
     , generateKeyFromSeed
     , getIndex
     , publicKey
+    , serializeXPrv
+    , serializeXPub
     , unsafeGenerateKeyFromSeed
     )
 import Cardano.Wallet.Primitive.Types
@@ -45,6 +53,7 @@ import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Gen
     , InfiniteList (..)
     , Property
     , arbitraryBoundedEnum
@@ -182,6 +191,11 @@ spec = do
                         ]
             res `shouldSatisfy` isRight
 
+    describe "Keys storing and retrieving roundtrips" $ do
+        it "XPriv" (property prop_roundtripXPriv)
+        it "XPub" (property prop_roundtripXPub)
+
+
 {-------------------------------------------------------------------------------
                                Properties
 -------------------------------------------------------------------------------}
@@ -219,6 +233,22 @@ prop_roundtripEnumIndexHard ix =
 prop_roundtripEnumIndexSoft :: Index 'Soft 'AddressK -> Property
 prop_roundtripEnumIndexSoft ix =
     (toEnum . fromEnum) ix === ix .&&. (toEnum . fromEnum . getIndex) ix === ix
+
+prop_roundtripXPriv
+    :: (Key 'RootK XPrv, Hash "encryption")
+    -> Property
+prop_roundtripXPriv xpriv = do
+    let xpriv' = (deserializeXPrv . serializeXPrv) xpriv
+    xpriv' === Right xpriv
+
+prop_roundtripXPub
+    :: Key 'RootK XPrv
+    -> Property
+prop_roundtripXPub xpriv = do
+    let xpub = publicKey xpriv
+    let xpub' = (deserializeXPub . serializeXPub) xpub
+    xpub' === Right xpub
+
 
 -- | Deriving address public key should be equal to deriving address
 -- private key and extracting public key from it (works only for non-hardened
@@ -313,3 +343,35 @@ instance {-# OVERLAPS #-} Arbitrary (Passphrase "encryption") where
 instance Arbitrary ChangeChain where
     shrink _ = []
     arbitrary = elements [InternalChain, ExternalChain]
+
+instance Arbitrary (Hash "encryption") where
+    shrink _ = []
+    arbitrary = do
+        InfiniteList bytes _ <- arbitrary
+        return $ Hash $ BS.pack $ take 32 bytes
+
+-- Necessary unsound Show instance for QuickCheck failure reporting
+instance Show XPrv where
+    show = show . unXPrv
+
+-- Necessary unsound Eq instance for QuickCheck properties
+instance Eq XPrv where
+    a == b = unXPrv a == unXPrv b
+
+instance Arbitrary (Key 'RootK XPrv) where
+    shrink _ = []
+    arbitrary = genRootKeys
+
+genRootKeys :: Gen (Key 'RootK XPrv)
+genRootKeys = do
+    (s, g, e) <- (,,)
+        <$> genPassphrase @"seed" (16, 32)
+        <*> genPassphrase @"generation" (0, 16)
+        <*> genPassphrase @"encryption" (0, 16)
+    return $ generateKeyFromSeed (s, g) e
+  where
+    genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
+    genPassphrase range = do
+        n <- choose range
+        InfiniteList bytes _ <- arbitrary
+        return $ Passphrase $ BA.convert $ BS.pack $ take n bytes

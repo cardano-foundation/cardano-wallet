@@ -58,6 +58,12 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
     , deriveAddressPublicKey
+
+    -- * Storing and retrieving keys
+    , serializeXPrv
+    , deserializeXPrv
+    , serializeXPub
+    , deserializeXPub
     ) where
 
 import Prelude
@@ -70,7 +76,10 @@ import Cardano.Crypto.Wallet
     , deriveXPub
     , generateNew
     , toXPub
+    , unXPrv
     , unXPub
+    , xprv
+    , xpub
     )
 import Cardano.Wallet.Primitive.Mnemonic
     ( CheckSumBits
@@ -91,7 +100,7 @@ import Control.Arrow
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( unless )
+    ( unless, (<=<) )
 import Crypto.Hash
     ( Digest, HashAlgorithm, hash )
 import Crypto.KDF.PBKDF2
@@ -102,6 +111,8 @@ import Data.Bifunctor
     ( first )
 import Data.ByteArray
     ( ScrubbedBytes )
+import Data.ByteArray.Encoding
+    ( Base (..), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.List
@@ -200,16 +211,16 @@ data DerivationType = Hardened | Soft
 publicKey
     :: Key level XPrv
     -> Key level XPub
-publicKey (Key xprv) =
-    Key (toXPub xprv)
+publicKey (Key k) =
+    Key (toXPub k)
 
 -- | Hash a public key to some other representation.
 digest
     :: HashAlgorithm a
     => Key level XPub
     -> Digest a
-digest (Key xpub) =
-    hash (unXPub xpub)
+digest (Key k) =
+    hash (unXPub k)
 
 {-------------------------------------------------------------------------------
                                  Passphrases
@@ -564,6 +575,47 @@ deriveAddressPublicKey (Key accXPub) changeChain (Index addrIx) =
 -- applications. See also 'TxId'.
 class KeyToAddress target where
     keyToAddress :: Key 'AddressK XPub -> Address
+
+{-------------------------------------------------------------------------------
+                          Storing and retrieving keys
+-------------------------------------------------------------------------------}
+
+fromHexText :: ByteString -> Either String ByteString
+fromHexText = convertFromBase Base16
+
+toHexText :: ByteString -> ByteString
+toHexText = convertToBase Base16
+
+-- | Convert a private key and its password hash into hexadecimal strings
+-- suitable for storing in a text file or database column.
+serializeXPrv
+    :: (Key purpose XPrv, Hash "encryption")
+    -> (ByteString, ByteString)
+serializeXPrv (k, h) =
+    ( toHexText . unXPrv . getKey $ k
+    , toHexText . getHash $ h )
+
+-- | The reverse of 'serializeXPrv'. This may fail if the inputs are not valid
+-- hexadecimal strings, or if the key is of the wrong length.
+deserializeXPrv
+    :: (ByteString, ByteString)
+       -- ^ Hexadecimal encoded private key and password hash
+    -> Either String (Key purpose XPrv, Hash "encryption")
+deserializeXPrv (k, h) = (,)
+    <$> fmap Key (xprvFromText k)
+    <*> fmap Hash (fromHexText h)
+  where
+    xprvFromText = xprv <=< fromHexText
+
+-- | Convert a public key into a hexadecimal string suitable for storing in a
+-- text file or database column.
+serializeXPub :: Key purpose XPub -> ByteString
+serializeXPub = toHexText . unXPub . getKey
+
+-- | The reverse of 'serializeXPub'. This will fail if the input is not a valid
+-- hexadecimal string of the correct length.
+deserializeXPub :: ByteString -> Either String (Key purpose XPub)
+deserializeXPub = fmap Key . (xpub <=< fromHexText)
 
 -- $use
 -- 'Key' and 'Index' allow for representing public keys, private keys, hardened
