@@ -71,7 +71,7 @@ import Data.Functor.Identity
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Percentage, Quantity (..), mkPercentage )
 import Data.Word
     ( Word32 )
 import GHC.Generics
@@ -95,6 +95,7 @@ import Test.QuickCheck
     , oneof
     , property
     , scale
+    , suchThat
     , vectorOf
     )
 import Test.QuickCheck.Instances.Time
@@ -174,12 +175,17 @@ instance Arbitrary TxMeta where
         <*> (SlotId <$> arbitrary <*> choose (0, 21600))
         <*> fmap (Quantity . fromIntegral) (arbitrary @Word32)
 
+customizedGen :: Gen Percentage
+customizedGen = do
+    let (Right upperBound) = mkPercentage @Int 100
+    arbitraryBoundedEnum `suchThat` (/= upperBound)
+
 instance Arbitrary WalletMetadata where
     shrink _ = []
     arbitrary =  WalletMetadata
         <$> (WalletName <$> elements ["bulbazaur", "charmander", "squirtle"])
         <*> (fmap WalletPassphraseInfo <$> arbitrary)
-        <*> oneof [pure Ready, Restoring . Quantity <$> arbitraryBoundedEnum]
+        <*> oneof [pure Ready, Restoring . Quantity <$> customizedGen]
         <*> pure NotDelegating
 
 instance Arbitrary Address where
