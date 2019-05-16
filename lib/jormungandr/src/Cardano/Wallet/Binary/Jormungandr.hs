@@ -17,7 +17,6 @@ module Cardano.Wallet.Binary.Jormungandr
     , Block (..)
     , BlockHeader (..)
     , ConfigParam (..)
-    , Discrimination (..)
     , LeaderId (..)
     , LinearFee (..)
     , Milli (..)
@@ -29,6 +28,8 @@ module Cardano.Wallet.Binary.Jormungandr
 
 import Prelude
 
+import Cardano.Environment.Jormungandr
+    ( Network (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -217,10 +218,10 @@ getTokenTransfer = do
     kindValue :: Word8 -> Word8
     kindValue = (.&. 0b01111111)
 
-    discriminationValue :: Word8 -> Discrimination
+    discriminationValue :: Word8 -> Network
     discriminationValue b = case b .&. 0b10000000 of
-        0 -> Production
-        _ -> Test
+        0 -> Mainnet
+        _ -> Testnet
 
 {-------------------------------------------------------------------------------
                             Config Parameters
@@ -229,7 +230,7 @@ getTokenTransfer = do
 data ConfigParam
     -- Seconds elapsed since 1-Jan-1970 (unix time)
     = Block0Date Word64
-    | ConfigDiscrimination Discrimination
+    | ConfigDiscrimination Network
     | ConsensusVersion Word16 -- ?
     | SlotsPerEpoch Word32
     | SlotDuration Word8
@@ -256,7 +257,7 @@ getConfigParam = do
     let len = fromIntegral $ taglen .&. (63) -- 0b111111
 
     isolate len $ case tag of
-        1 -> ConfigDiscrimination <$> getDiscrimination
+        1 -> ConfigDiscrimination <$> getNetwork
         2 -> Block0Date <$> getWord64be
         3 -> ConsensusVersion <$> getWord16be -- ?
         4 -> SlotsPerEpoch <$> getWord32be
@@ -272,9 +273,6 @@ getConfigParam = do
         15 -> ProposalExpiration <$> getWord32be
         a -> fail $ "Invalid config param with tag " ++ show a
 
-data Discrimination = Production | Test
-    deriving (Eq, Show)
-
 newtype Milli = Milli Word64
     deriving (Eq, Show)
 
@@ -284,11 +282,11 @@ newtype LeaderId = LeaderId ByteString
 data LinearFee = LinearFee Word64 Word64 Word64
     deriving (Eq, Show)
 
-getDiscrimination :: Get Discrimination
-getDiscrimination = getWord8 >>= \case
-    1 -> return Production
-    2 -> return Test
-    a -> fail $ "Invalid discrimination value: " ++ show a
+getNetwork :: Get Network
+getNetwork = getWord8 >>= \case
+    1 -> return Mainnet
+    2 -> return Testnet
+    a -> fail $ "Invalid network/discrimination value: " ++ show a
 
 getMilli :: Get Milli
 getMilli = Milli <$> getWord64be

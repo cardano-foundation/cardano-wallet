@@ -6,11 +6,12 @@ module Cardano.Wallet.Binary.JormungandrSpec (spec) where
 
 import Prelude
 
+import Cardano.Environment.Jormungandr
+    ( Network (..) )
 import Cardano.Wallet.Binary.Jormungandr
     ( Block (..)
     , BlockHeader (..)
     , ConfigParam (..)
-    , Discrimination (..)
     , LeaderId (..)
     , LinearFee (..)
     , Message (..)
@@ -60,7 +61,7 @@ genesisBlock :: Block
 genesisBlock = Block genesisHeader
     [ Initial
         [ Block0Date 1556202057
-        , ConfigDiscrimination Test
+        , ConfigDiscrimination Testnet
         , ConsensusVersion 1
         , SlotsPerEpoch 2160
         , SlotDuration 15
