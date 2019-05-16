@@ -56,3 +56,9 @@ if `fromText r` or `fromText l` fails we will get generic failure that won't tel
 
 ## Better error reporting in the API
 For instance `GET v2/wallets/{wallet-id}` always reports `404` for any - valid (but not existing) and non-valid wallet id. For non-valid wallet id it should be reporting `400`. This can be implemented probably after next Servant release, see -> https://github.com/input-output-hk/cardano-wallet/pull/252#discussion_r282786569.
+
+## Verify Size of "seed" in various generators
+
+When using `unsafeGenerateKeyFromSeed` or `generateKeyFromSeed` from the `Cardano.Wallet.Primitive.AddressDerivation` module, the length of the seed should be at least 16-bytes (cf: [cardano-crypto@Cardano/Crypto/Wallet.hs#L119-L124](https://github.com/input-output-hk/cardano-crypto/blob/3c5db489c71a4d70ee43f5f9b979fcde3c797f2a/src/Cardano/Crypto/Wallet.hs#L119-L124))
+
+It's probably a good idea to add a proper disclaimer in the corresponding function documentation on our side and, to check various generators or method using them and make sure they actually always generate seed of at least 16-bytes.
