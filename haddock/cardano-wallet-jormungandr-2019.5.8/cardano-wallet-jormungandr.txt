@@ -65,6 +65,8 @@ Certificate :: TODO -> Message
 UpdateProposal :: SignedUpdateProposal -> Message
 UpdateVote :: SignedVote -> Message
 UnimplementedMessage :: Int -> Message
+data Block
+Block :: BlockHeader -> [Message] -> Block
 data BlockHeader
 BlockHeader :: Word16 -> Word32 -> SlotId -> Word32 -> Hash "content" -> Hash "parentHeader" -> BlockHeader
 [version] :: BlockHeader -> Word16
@@ -73,17 +75,55 @@ BlockHeader :: Word16 -> Word32 -> SlotId -> Word32 -> Hash "content" -> Hash "p
 [chainLength] :: BlockHeader -> Word32
 [contentHash] :: BlockHeader -> Hash "content"
 [parentHeaderHash] :: BlockHeader -> Hash "parentHeader"
+data ConfigParam
+Block0Date :: Word64 -> ConfigParam
+ConfigDiscrimination :: Discrimination -> ConfigParam
+ConsensusVersion :: Word16 -> ConfigParam
+SlotsPerEpoch :: Word32 -> ConfigParam
+SlotDuration :: Word8 -> ConfigParam
+EpochStabilityDepth :: Word32 -> ConfigParam
+ConsensusGenesisPraosActiveSlotsCoeff :: Milli -> ConfigParam
+MaxNumberOfTransactionsPerBlock :: Word32 -> ConfigParam
+BftSlotsRatio :: Milli -> ConfigParam
+AddBftLeader :: LeaderId -> ConfigParam
+RemoveBftLeader :: LeaderId -> ConfigParam
+AllowAccountCreation :: Bool -> ConfigParam
+ConfigLinearFee :: LinearFee -> ConfigParam
+ProposalExpiration :: Word32 -> ConfigParam
+data Discrimination
+Production :: Discrimination
+Test :: Discrimination
+newtype LeaderId
+LeaderId :: ByteString -> LeaderId
+data LinearFee
+LinearFee :: Word64 -> Word64 -> Word64 -> LinearFee
+newtype Milli
+Milli :: Word64 -> Milli
 
 -- | The simplest interface to run a <a>Get</a> decoder. If the decoder
 --   runs into an error, calls <a>fail</a>, or runs out of input, it will
 --   call <a>error</a>.
 runGet :: () => Get a -> ByteString -> a
 instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.Block
+instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.Block
 instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.Message
+instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.Message
 instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.ConfigParam
+instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.ConfigParam
+instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.LinearFee
+instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.LinearFee
+instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.LeaderId
+instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.LeaderId
+instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.Milli
+instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.Milli
+instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.Discrimination
+instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.Discrimination
 instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.SignedVote
+instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.SignedVote
 instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.TODO
+instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.TODO
 instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.SignedUpdateProposal
+instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.SignedUpdateProposal
 instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.BlockHeader
 instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.BlockHeader
 
