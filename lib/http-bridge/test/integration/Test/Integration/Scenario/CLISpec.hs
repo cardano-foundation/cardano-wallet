@@ -18,7 +18,7 @@ import Data.List
 import Data.Text
     ( Text )
 import System.Command
-    ( Exit (..), Stdout (..), command )
+    ( Exit (..), Stderr (..), Stdout (..), command )
 import System.Exit
     ( ExitCode (..) )
 import Test.Hspec
@@ -74,31 +74,35 @@ specWithCluster :: SpecWith Context
 specWithCluster = do
     it "CLI - Can get a wallet" $ \ctx -> do
         walId <- createWallet ctx "1st CLI Wallet" mnemonics15
-        (Exit c, Stdout out) <- command [] "cardano-wallet"
+        (Exit c, Stdout out, Stderr err) <- command [] "cardano-wallet"
             ["wallet", "get", "--port", "1337", walId ]
         out `shouldContain` "1st CLI Wallet"
+        err `shouldBe` "Ok.\n"
         c `shouldBe` ExitSuccess
 
     it "CLI - Can list wallets" $ \ctx -> do
         _ <- createWallet ctx "1st CLI Wallet" mnemonics15
         _ <- createWallet ctx "2nd CLI Wallet" mnemonics18
-        (Exit c, Stdout out) <- command [] "cardano-wallet"
+        (Exit c, Stdout out, Stderr err) <- command [] "cardano-wallet"
             ["wallet", "list", "--port", "1337"]
+        err `shouldBe` "Ok.\n"
         out `shouldContain` "1st CLI Wallet"
         out `shouldContain` "2nd CLI Wallet"
         c `shouldBe` ExitSuccess
 
     it "CLI - Can update wallet name" $ \ctx -> do
         walId <- createWallet ctx "1st CLI Wallet" mnemonics15
-        (Exit c, Stdout out) <- command [] "cardano-wallet"
+        (Exit c, Stdout out, Stderr err) <- command [] "cardano-wallet"
            ["wallet", "update", "--port", "1337", walId , "--name", "new name" ]
+        err `shouldBe` "Ok.\n"
         out `shouldContain` "new name"
         c `shouldBe` ExitSuccess
 
     it "CLI - Can delete wallet" $ \ctx -> do
         walId <- createWallet ctx "CLI Wallet" mnemonics15
-        (Exit c, Stdout out) <- command [] "cardano-wallet"
+        (Exit c, Stdout out, Stderr err) <- command [] "cardano-wallet"
             ["wallet", "delete", "--port", "1337", walId ]
+        err `shouldBe` "Ok.\n"
         out `shouldNotContain` "CLI Wallet"
         c `shouldBe` ExitSuccess
   where
