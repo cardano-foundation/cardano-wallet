@@ -8,7 +8,6 @@
         - name: Test.Integration.Framework.DSL
         - identifier:
           - expectError
-          - expectEventually
           - expectSuccess
       - module:
         - name: Test.Integration.Framework.Request
