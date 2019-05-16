@@ -22,14 +22,15 @@ import Data.Time.Clock
 import Data.Word
     ( Word32 )
 import Database.Persist.TH
-    ( mkMigrate, mkPersist, persistLowerCase, share )
+    ( mkDeleteCascade, mkMigrate, mkPersist, persistLowerCase, share )
 import GHC.Generics
     ( Generic (..) )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 
 share
-    [ mkPersist sqlSettings { mpsPrefixFields = False }
+    [ mkPersist sqlSettings'
+    , mkDeleteCascade sqlSettings'
     , mkMigrate "migrateAll"
     ]
     [persistLowerCase|
