@@ -59,8 +59,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     , WalletMetadata (..)
     )
-import Control.Monad.Catch
-    ( throwM )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -80,7 +78,6 @@ import Servant
     , err409
     , err410
     , err500
-    , err501
     )
 import Servant.Server
     ( Handler (..), ServantErr (..) )
@@ -202,8 +199,11 @@ listAddresses
     -> ApiT WalletId
     -> Maybe (ApiT AddressState)
     -> Handler [ApiAddress]
-listAddresses _ _ _ =
-    throwM err501
+listAddresses w (ApiT wid) _ = do
+    addrs <- liftHandler $ W.listAddresses w wid
+    return $ coerceAddress <$> addrs
+  where
+    coerceAddress (a, s) = ApiAddress (ApiT a) (ApiT s)
 
 {-------------------------------------------------------------------------------
                                     Transactions
