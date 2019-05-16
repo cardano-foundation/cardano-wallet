@@ -3,7 +3,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -14,20 +13,7 @@
 module Cardano.Wallet.DBSpec
     ( spec
     , DummyTarget
-    , DummyStateMVar (..)
-    , lrp
-    , unions
-    , readTxHistoryF
-    , prop_createListWallet
-    , prop_readAfterDelete
-    , prop_createWalletTwice
-    , prop_removeWalletTwice
-    , prop_readAfterPut
-    , prop_readAfterPutBoundary
-    , prop_putBeforeInit
-    , prop_sequentialPut
-    , prop_isolation
-    , prop_parallelPut
+    , dbPropertyTests
     ) where
 
 import Prelude
@@ -47,7 +33,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, initWallet )
+    ( Wallet )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -85,7 +71,7 @@ import Data.Functor.Identity
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
-    ( Percentage, Quantity (..), mkPercentage )
+    ( Quantity (..) )
 import Data.Word
     ( Word32 )
 import GHC.Generics
@@ -93,21 +79,22 @@ import GHC.Generics
 import System.IO.Unsafe
     ( unsafePerformIO )
 import Test.Hspec
-    ( Spec, shouldBe, shouldReturn )
+    ( Spec, before, describe, it, shouldBe, shouldReturn )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , InfiniteList (..)
     , Property
     , arbitraryBoundedEnum
+    , checkCoverage
     , choose
     , cover
     , elements
     , generate
     , genericShrink
     , oneof
+    , property
     , scale
-    , suchThat
     , vectorOf
     )
 import Test.QuickCheck.Instances.Time
@@ -161,22 +148,6 @@ data DummyTarget
 instance TxId DummyTarget where
     txId = Hash . B8.pack . show
 
-newtype DummyStateMVar = DummyStateMVar Int
-    deriving (Show, Eq)
-
-instance Arbitrary DummyStateMVar where
-    shrink _ = []
-    arbitrary = DummyStateMVar <$> arbitrary
-
-deriving instance NFData DummyStateMVar
-
-instance IsOurs DummyStateMVar where
-    isOurs _ num = (True, num)
-
-instance Arbitrary (Wallet DummyStateMVar DummyTarget) where
-    shrink _ = []
-    arbitrary = initWallet <$> arbitrary
-
 instance Arbitrary (PrimaryKey WalletId) where
     shrink _ = []
     arbitrary = do
@@ -203,17 +174,12 @@ instance Arbitrary TxMeta where
         <*> (SlotId <$> arbitrary <*> choose (0, 21600))
         <*> fmap (Quantity . fromIntegral) (arbitrary @Word32)
 
-customizedGen :: Gen Percentage
-customizedGen = do
-    let (Right upperBound) = mkPercentage @Int 100
-    arbitraryBoundedEnum `suchThat` (/= upperBound)
-
 instance Arbitrary WalletMetadata where
     shrink _ = []
     arbitrary =  WalletMetadata
         <$> (WalletName <$> elements ["bulbazaur", "charmander", "squirtle"])
         <*> (fmap WalletPassphraseInfo <$> arbitrary)
-        <*> oneof [pure Ready, Restoring . Quantity <$> customizedGen]
+        <*> oneof [pure Ready, Restoring . Quantity <$> arbitraryBoundedEnum]
         <*> pure NotDelegating
 
 instance Arbitrary Address where
@@ -381,40 +347,6 @@ prop_readAfterPut putOp readOp dbLayer (key, a) =
         unsafeRunExceptT $ putOp db key a
         res <- readOp db key
         res `shouldBe` pure a
-
--- | Checks that a given resource can be read after having been inserted in DB for
---   boundary condition of Restoring . Quantity 100
-prop_readAfterPutBoundary
-    :: ( Show (f WalletMetadata), Eq (f WalletMetadata), Applicative f
-       , Show s, Eq s, IsOurs s, NFData s, Arbitrary (Wallet s DummyTarget))
-    => (  DBLayer IO s DummyTarget
-       -> PrimaryKey WalletId
-       -> WalletMetadata
-       -> ExceptT ErrNoSuchWallet IO ()
-       ) -- ^ Put Operation
-    -> (  DBLayer IO s DummyTarget
-       -> PrimaryKey WalletId
-       -> IO (f WalletMetadata)
-       ) -- ^ Read Operation
-    -> DBLayer IO s DummyTarget
-    -> (PrimaryKey WalletId, WalletMetadata)
-        -- ^ Property arguments
-    -> Property
-prop_readAfterPutBoundary putOp readOp dbLayer (key, (WalletMetadata wmName wmPass _ wmDel)) = do
-    monadicIO (setup >>= prop)
-  where
-    meta p = WalletMetadata wmName wmPass (Restoring $ Quantity p) wmDel
-    metaReady = WalletMetadata wmName wmPass Ready wmDel
-    setup = do
-        cp <- pick arbitrary
-        let (Right upper) =  mkPercentage @Int 100
-        liftIO $ unsafeRunExceptT $ createWallet dbLayer key cp (meta upper)
-        return dbLayer
-    prop db = liftIO $ do
-        let (Right upper) =  mkPercentage @Int 100
-        unsafeRunExceptT $ putOp db key (meta upper)
-        res <- readOp db key
-        res `shouldBe` pure metaReady
 
 -- | Can't put resource before a wallet has been initialized
 prop_putBeforeInit
@@ -598,3 +530,97 @@ prop_parallelPut putOp readOp resolve dbLayer (KeyValPairs pairs) =
         forConcurrently_ pairs $ unsafeRunExceptT . uncurry (putOp db)
         res <- once pairs (readOp db . fst)
         length res `shouldBe` resolve pairs
+
+dbPropertyTests
+    :: (Arbitrary (Wallet s DummyTarget), Show s, Eq s, IsOurs s, NFData s)
+    => IO (DBLayer IO s DummyTarget)
+    -> Spec
+dbPropertyTests dbLayer = do
+    before dbLayer $
+        describe "Extra Properties about DB initialization" $ do
+        it "createWallet . listWallets yields expected results"
+            (property . prop_createListWallet)
+        it "creating same wallet twice yields an error"
+            (property . prop_createWalletTwice)
+        it "removing the same wallet twice yields an error"
+            (property . prop_removeWalletTwice)
+
+    before dbLayer $
+        describe "put . read yields a result" $ do
+        it "Checkpoint"
+            (property . (prop_readAfterPut putCheckpoint readCheckpoint))
+        it "Wallet Metadata"
+            (property . (prop_readAfterPut putWalletMeta readWalletMeta))
+        it "Tx History"
+            (property . (prop_readAfterPut putTxHistory readTxHistoryF))
+        it "Private Key"
+            (property . (prop_readAfterPut putPrivateKey readPrivateKey))
+
+    before dbLayer $
+        describe "can't put before wallet exists" $ do
+        it "Checkpoint"
+            (property . (prop_putBeforeInit putCheckpoint readCheckpoint Nothing))
+        it "Wallet Metadata"
+            (property . (prop_putBeforeInit putWalletMeta readWalletMeta Nothing))
+        it "Tx History"
+            (property . (prop_putBeforeInit putTxHistory readTxHistoryF (pure mempty)))
+        it "Private Key"
+            (property . (prop_putBeforeInit putPrivateKey readPrivateKey Nothing))
+
+    before dbLayer $
+        describe "put doesn't affect other resources" $ do
+        it "Checkpoint vs Wallet Metadata & Tx History & Private Key"
+            (property . (prop_isolation putCheckpoint
+                readWalletMeta
+                readTxHistoryF
+                readPrivateKey)
+            )
+        it "Wallet Metadata vs Tx History & Checkpoint & Private Key"
+            (property . (prop_isolation putWalletMeta
+                readTxHistoryF
+                readCheckpoint
+                readPrivateKey)
+            )
+        it "Tx History vs Checkpoint & Wallet Metadata & Private Key"
+            (property . (prop_isolation putTxHistory
+                readCheckpoint
+                readWalletMeta
+                readPrivateKey)
+            )
+
+    before dbLayer $
+        describe "can't read after delete" $ do
+        it "Checkpoint"
+            (property . (prop_readAfterDelete readCheckpoint Nothing))
+        it "Wallet Metadata"
+            (property . (prop_readAfterDelete readWalletMeta Nothing))
+        it "Tx History"
+            (property . (prop_readAfterDelete readTxHistoryF (pure mempty)))
+        it "Private Key"
+            (property . (prop_readAfterDelete readPrivateKey Nothing))
+
+    before dbLayer $
+        describe "sequential puts replace values in order" $ do
+        it "Checkpoint"
+            (checkCoverage . (prop_sequentialPut putCheckpoint readCheckpoint lrp))
+        it "Wallet Metadata"
+            (checkCoverage . (prop_sequentialPut putWalletMeta readWalletMeta lrp))
+        it "Tx History"
+            (checkCoverage . (prop_sequentialPut putTxHistory readTxHistoryF unions))
+        it "Private Key"
+            (checkCoverage . (prop_sequentialPut putPrivateKey readPrivateKey lrp))
+
+    before dbLayer $
+        describe "parallel puts replace values in _any_ order" $ do
+        it "Checkpoint"
+            (checkCoverage . (prop_parallelPut putCheckpoint readCheckpoint
+                (length . lrp @Maybe)))
+        it "Wallet Metadata"
+            (checkCoverage . (prop_parallelPut putWalletMeta readWalletMeta
+                (length . lrp @Maybe)))
+        it "Tx History"
+            (checkCoverage . (prop_parallelPut putTxHistory readTxHistoryF
+                (length . unions @(Map (Hash "Tx") (Tx, TxMeta)))))
+        it "Private Key"
+            (checkCoverage . (prop_parallelPut putPrivateKey readPrivateKey
+                (length . lrp @Maybe)))
