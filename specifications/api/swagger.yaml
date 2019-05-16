@@ -723,7 +723,7 @@ responsesListTransactions: &responsesListTransactions
         example: inserted-at 20190227T160329Z-20190101T042557Z/42
     schema:
       type: array
-      items: &ApiTransaction
+      items: *ApiTransaction
 
 responsesPostTransaction: &responsesPostTransaction
   <<: *responsesErr400
@@ -733,7 +733,7 @@ responsesPostTransaction: &responsesPostTransaction
   <<: *responsesErr415
   202:
     description: Accepted
-    schema: &ApiTransaction
+    schema: *ApiTransaction
 
 responsesPostTransactionFee: &responsesPostTransactionFee
   <<: *responsesErr400
@@ -774,7 +774,7 @@ responsesJoinStakePool: &responsesJoinStakePool
   <<: *responsesErr415
   202:
     description: Accepted
-    schema: &ApiTransaction
+    schema: *ApiTransaction
 
 responsesQuitStakePool: &responsesQuitStakePool
   <<: *responsesJoinStakePool
