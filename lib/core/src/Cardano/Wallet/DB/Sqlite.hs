@@ -338,9 +338,8 @@ mkWalletEntity :: W.WalletId -> W.WalletMetadata -> Wallet
 mkWalletEntity wid meta = Wallet
     { walTableId = wid
     , walTableName = meta ^. #name . coerce
-    , walTablePassphraseLastUpdatedAt = case meta ^. #passphraseInfo of
-            Nothing -> Nothing
-            Just (W.WalletPassphraseInfo passInfo) -> Just passInfo
+    , walTablePassphraseLastUpdatedAt =
+        W.lastUpdatedAt <$> meta ^. #passphraseInfo
     , walTableStatus = meta ^. #status
     , walTableDelegation = delegationToText $ meta ^. #delegation
     , walTableAddressScheme = Sequential
@@ -349,9 +348,8 @@ mkWalletEntity wid meta = Wallet
 mkWalletMetadataUpdate :: W.WalletMetadata -> [Update Wallet]
 mkWalletMetadataUpdate meta =
     [ WalTableName =. meta ^. #name . coerce
-    , WalTablePassphraseLastUpdatedAt =. case meta ^. #passphraseInfo of
-            Nothing -> Nothing
-            Just (W.WalletPassphraseInfo passInfo) -> Just passInfo
+    , WalTablePassphraseLastUpdatedAt =.
+        W.lastUpdatedAt <$> meta ^. #passphraseInfo
     , WalTableStatus =. meta ^. #status
     , WalTableDelegation =. delegationToText (meta ^. #delegation)
     ]
@@ -359,9 +357,8 @@ mkWalletMetadataUpdate meta =
 metadataFromEntity :: Wallet -> W.WalletMetadata
 metadataFromEntity wal = W.WalletMetadata
     { name = W.WalletName (walTableName wal)
-    , passphraseInfo = case walTablePassphraseLastUpdatedAt wal of
-            Just time -> Just $ W.WalletPassphraseInfo time
-            Nothing -> Nothing
+    , passphraseInfo = W.WalletPassphraseInfo <$>
+        walTablePassphraseLastUpdatedAt wal
     , status = walTableStatus wal
     , delegation = delegationFromText (walTableDelegation wal)
     }
