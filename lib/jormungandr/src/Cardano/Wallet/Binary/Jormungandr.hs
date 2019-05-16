@@ -1,3 +1,4 @@
+{-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -29,7 +30,15 @@ module Cardano.Wallet.Binary.Jormungandr
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), SlotId (..) )
+    ( Address (..)
+    , Coin (..)
+    , Hash (..)
+    , SlotId (..)
+    , Tx (..)
+    , TxIn (..)
+    , TxOut (..)
+    , TxWitness (..)
+    )
 import Control.Monad
     ( replicateM )
 import Data.Binary.Get
@@ -70,8 +79,9 @@ data TODO = TODO
 data SignedVote = SignedVote
     deriving (Eq, Show)
 
+-- Do-notation is favoured over applicative syntax for readability:
+{-# ANN module ("HLint: ignore Use <$>" :: String) #-}
 
-{-# ANN getBlockHeader ("HLint: ignore Use <$>" :: String) #-}
 getBlockHeader :: Get BlockHeader
 getBlockHeader =  (fromIntegral <$> getWord16be) >>= \s -> isolate s $ do
     version <- getWord16be
@@ -114,7 +124,7 @@ getBlock = do
 data Message
     = Initial [ConfigParam]
     | OldUtxoDeclaration TODO
-    | Transaction TODO
+    | Transaction Tx
     | Certificate TODO
     | UpdateProposal SignedUpdateProposal
     | UpdateVote SignedVote
@@ -130,7 +140,7 @@ getMessage = do
     isolate remaining $ case contentType of
         0 -> Initial <$> getInitial
         1 -> unimpl
-        2 -> unimpl
+        2 -> Transaction <$> getTransaction
         3 -> unimpl
         4 -> unimpl
         5 -> unimpl
@@ -140,6 +150,77 @@ getInitial :: Get [ConfigParam]
 getInitial = do
     len <- fromIntegral <$> getWord16be
     replicateM len getConfigParam
+
+getTransaction :: Get Tx
+getTransaction = isolate 43 $ do
+    (ins, outs) <- getTokenTransfer
+
+    let witnessCount = length ins
+    _wits <- replicateM witnessCount getWitness
+
+    return $ Tx ins outs
+  where
+    getWitness = do
+        tag <- getWord8
+        case tag of
+            1 -> isolate 128 $ do
+                -- Old address witness scheme
+                xpub <- getByteString 64
+                sig <- Hash <$> getByteString 64
+                return $ PublicKeyWitness xpub sig
+
+            2 -> isolate 64 $ do
+                _sig <- Hash <$> getByteString 64
+                error "unimplemented: New address witness scheme"
+
+            3 -> isolate 68 $ do
+                error "unimplemented: Account witness"
+            other -> fail $ "Invalid witness type: " ++ show other
+
+
+{-------------------------------------------------------------------------------
+                            Common Structure
+-------------------------------------------------------------------------------}
+
+getTokenTransfer :: Get ([TxIn], [TxOut])
+getTokenTransfer = do
+    inCount <- fromIntegral <$> getWord8
+    outCount <- fromIntegral <$> getWord8
+    ins <- replicateM inCount getInput
+    outs <- replicateM outCount getOutput
+    return (ins, outs)
+  where
+    getInput = isolate 41 $ do
+        -- NOTE: special value 0xff indicates account spending
+        index <- fromIntegral <$> getWord8
+        tx <- Hash <$> getByteString 32
+
+        return $ TxIn tx index
+
+    getOutput = do
+        addr <- getAddress
+        value <- Coin <$> getWord64be
+        return $ TxOut addr value
+
+    getAddress = do
+        headerByte <- getWord8
+        let kind = kindValue headerByte
+        let _discrimination = discriminationValue headerByte
+        case kind of
+            -- Single Address
+            0x3 -> Address <$> getByteString 32
+            0x4 -> error "unimplemented group address decoder"
+            0x5 -> error "unimplemented account address decoder"
+            0x6 -> error "unimplemented multisig address decoder"
+            other -> fail $ "Invalid address type: " ++ show other
+
+    kindValue :: Word8 -> Word8
+    kindValue = (.&. 0b01111111)
+
+    discriminationValue :: Word8 -> Discrimination
+    discriminationValue b = case b .&. 0b10000000 of
+        0 -> Production
+        _ -> Test
 
 {-------------------------------------------------------------------------------
                             Config Parameters
