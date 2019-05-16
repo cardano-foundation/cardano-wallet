@@ -15,6 +15,8 @@ import Control.Monad
     ( forM_ )
 import Data.List
     ( length )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Text
     ( Text )
 import System.Command
@@ -30,6 +32,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , expectResponseCode
+    , expectValidJSON
     , getFromResponse
     , json
     , request
@@ -76,8 +79,9 @@ specWithCluster = do
         walId <- createWallet ctx "1st CLI Wallet" mnemonics15
         (Exit c, Stdout out, Stderr err) <- command [] "cardano-wallet"
             ["wallet", "get", "--port", "1337", walId ]
-        out `shouldContain` "1st CLI Wallet"
         err `shouldBe` "Ok.\n"
+        expectValidJSON (Proxy @ApiWallet) out
+        out `shouldContain` "1st CLI Wallet"
         c `shouldBe` ExitSuccess
 
     it "CLI - Can list wallets" $ \ctx -> do
@@ -86,6 +90,7 @@ specWithCluster = do
         (Exit c, Stdout out, Stderr err) <- command [] "cardano-wallet"
             ["wallet", "list", "--port", "1337"]
         err `shouldBe` "Ok.\n"
+        expectValidJSON (Proxy @[ApiWallet]) out
         out `shouldContain` "1st CLI Wallet"
         out `shouldContain` "2nd CLI Wallet"
         c `shouldBe` ExitSuccess
@@ -95,6 +100,7 @@ specWithCluster = do
         (Exit c, Stdout out, Stderr err) <- command [] "cardano-wallet"
            ["wallet", "update", "--port", "1337", walId , "--name", "new name" ]
         err `shouldBe` "Ok.\n"
+        expectValidJSON (Proxy @ApiWallet) out
         out `shouldContain` "new name"
         c `shouldBe` ExitSuccess
 
