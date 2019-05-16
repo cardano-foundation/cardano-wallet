@@ -235,10 +235,8 @@ instance Read WalletState where
 -- TxStatus
 
 instance PersistField TxStatus where
-    toPersistValue =
-        toPersistValue . toText
-    fromPersistValue pv = first (const err) (fromPersistValue pv)
-        where err = "not a valid value: " <> T.pack (show pv)
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
 
 instance PersistFieldSql TxStatus where
     sqlType _ = sqlType (Proxy @Text)
