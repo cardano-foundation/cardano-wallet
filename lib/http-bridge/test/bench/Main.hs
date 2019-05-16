@@ -22,7 +22,14 @@ import Cardano.Wallet.Network.HttpBridge
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..), digest, generateKeyFromSeed, publicKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( GenChange, IsOwned, SeqState, defaultAddressPoolGap, mkSeqState )
+    ( CompareDiscovery
+    , GenChange
+    , IsOwned
+    , KnownAddresses
+    , SeqState
+    , defaultAddressPoolGap
+    , mkSeqState
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery.Any
     ( AnyAddressState, initAnyState )
 import Cardano.Wallet.Primitive.Model
@@ -150,7 +157,7 @@ overrideEnvironment _ =
 
 {-# ANN bench_restoration ("HLint: ignore Use camelCase" :: String) #-}
 bench_restoration
-    :: (IsOwned s, GenChange s, NFData s, Show s)
+    :: (IsOwned s, GenChange s, NFData s, Show s, CompareDiscovery s, KnownAddresses s)
     => (WalletId, WalletName, s)
     -> IO ()
 bench_restoration (wid, wname, s) = withHttpBridge $ \port -> do

@@ -59,7 +59,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , encryptPassphrase
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( GenChange (..), IsOwned (..) )
+    ( CompareDiscovery (..)
+    , GenChange (..)
+    , IsOurs (..)
+    , IsOwned (..)
+    , KnownAddresses (..)
+    )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..)
     , CoinSelectionError (..)
@@ -84,11 +89,13 @@ import Cardano.Wallet.Primitive.Model
     , updateState
     )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..)
+    ( Address (..)
+    , AddressState (..)
+    , Block (..)
     , Coin (..)
     , Direction (..)
     , SlotId (..)
-    , Tx
+    , Tx (..)
     , TxId (..)
     , TxMeta (..)
     , TxOut (..)
@@ -138,6 +145,8 @@ import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Strict
     ( Map )
+import Data.Maybe
+    ( mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Time.Clock
@@ -147,7 +156,9 @@ import Fmt
 
 import qualified Cardano.Wallet.DB as DB
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
+import qualified Data.List as L
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import qualified Data.Text.IO as TIO
 
 {-------------------------------------------------------------------------------
@@ -199,6 +210,12 @@ data WalletLayer s t = WalletLayer
         -- It returns immediately and fail if the wallet is already beyond the
         -- given tip. It starts a worker in background which will fetch and
         -- apply remaining blocks until failure or, the target slot is reached.
+
+    , listAddresses
+        :: WalletId
+        -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]
+        -- ^ List all addresses of a wallet with their metadata. Addresses
+        -- are ordered from the most recently discovered to the oldest known.
 
     , createUnsignedTx
         :: WalletId
@@ -304,7 +321,15 @@ cancelWorker (WorkerRegistry mvar) wid =
 
 -- | Create a new instance of the wallet layer.
 newWalletLayer
-    :: forall s t. (IsOwned s, GenChange s, NFData s, Show s, TxId t)
+    :: forall s t.
+        ( IsOwned s
+        , GenChange s
+        , KnownAddresses s
+        , CompareDiscovery s
+        , NFData s
+        , Show s
+        , TxId t
+        )
     => DBLayer IO s t
     -> NetworkLayer IO
     -> TransactionLayer
@@ -319,6 +344,7 @@ newWalletLayer db nw tl = do
         , listWallets = _listWallets
         , removeWallet = _removeWallet registry
         , restoreWallet = _restoreWallet registry
+        , listAddresses = _listAddresses
         , createUnsignedTx = _createUnsignedTx
         , signTx = _signTx
         , submitTx = _submitTx
@@ -363,7 +389,6 @@ newWalletLayer db nw tl = do
     _readWalletCheckpoint wid = maybeToExceptT (ErrNoSuchWallet wid) $ do
         MaybeT $ DB.readCheckpoint db (PrimaryKey wid)
 
-
     _updateWallet
         :: WalletId
         -> (WalletMetadata -> WalletMetadata)
@@ -385,7 +410,6 @@ newWalletLayer db nw tl = do
         :: IO [WalletId]
     _listWallets =
         fmap (\(PrimaryKey wid) -> wid) <$> DB.listWallets db
-
 
     _removeWallet
         :: WorkerRegistry
@@ -490,6 +514,32 @@ newWalletLayer db nw tl = do
             DB.putCheckpoint db (PrimaryKey wid) cp'
             DB.putTxHistory db (PrimaryKey wid) txs
             DB.putWalletMeta db (PrimaryKey wid) meta'
+
+    {---------------------------------------------------------------------------
+                                     Addresses
+    ---------------------------------------------------------------------------}
+
+    -- NOTE
+    -- This implementation is rather inneficient and not intented for frequent
+    -- use, in particular for exchanges or "big-players".
+    _listAddresses
+        :: WalletId
+        -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]
+    _listAddresses wid = do
+        (s, txs) <- DB.withLock db $ (,)
+            <$> (getState <$> _readWalletCheckpoint wid)
+            <*> liftIO (DB.readTxHistory db (PrimaryKey wid))
+        let maybeIsOurs (TxOut a _) = if fst (isOurs a s)
+                then Just a
+                else Nothing
+        let usedAddrs =
+                Set.fromList $ concatMap (mapMaybe maybeIsOurs . outputs') txs
+              where outputs' (tx, _) = outputs (tx :: Tx)
+        let knownAddrs =
+                L.sortBy (compareDiscovery s) (knownAddresses s)
+        let withAddressState addr =
+                (addr, if addr `Set.member` usedAddrs then Used else Unused)
+        return $ withAddressState <$> knownAddrs
 
     {---------------------------------------------------------------------------
                                     Transactions

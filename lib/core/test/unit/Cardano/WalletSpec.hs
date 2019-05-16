@@ -40,7 +40,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , generateKeyFromSeed
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( GenChange (..), IsOurs (..), IsOwned (..) )
+    ( CompareDiscovery (..)
+    , GenChange (..)
+    , IsOurs (..)
+    , IsOwned (..)
+    , KnownAddresses (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Hash (..)
@@ -311,6 +316,12 @@ instance IsOwned DummyState where
 
 instance GenChange DummyState where
     genChange s = (Address "dummy", s)
+
+instance CompareDiscovery DummyState where
+    compareDiscovery _ _ _ = EQ
+
+instance KnownAddresses DummyState where
+    knownAddresses _ = []
 
 instance Arbitrary WalletId where
     shrink _ = []
