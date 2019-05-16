@@ -26,6 +26,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery
     , IsOwned(..)
     , GenChange(..)
     , CompareDiscovery(..)
+    , KnownAddresses(..)
 
     -- * Sequential Derivation
     -- ** Address Pool Gap
@@ -179,6 +180,16 @@ class CompareDiscovery s where
         -> Address
         -> Address
         -> Ordering
+
+-- | Extract the list of all known addresses.
+--
+-- NOTE: Change addresses aren't considered "known" until they've been used. The
+-- rationale is that, we don't want users or consumers of the wallet to be using
+-- change addresses prematurely.
+class KnownAddresses s where
+    knownAddresses
+        :: s
+        -> [Address]
 
 {-------------------------------------------------------------------------------
                           Sequential Derivation
@@ -542,3 +553,16 @@ instance KeyToAddress t => CompareDiscovery (SeqState t) where
                 (Nothing, Just _)  -> GT
                 (Just _, Nothing)  -> LT
                 (Just i1, Just i2) -> compare i1 i2
+
+instance KnownAddresses (SeqState t) where
+    knownAddresses s =
+        let
+            (PendingIxs ixs) =
+                pendingChangeIxs s
+            internalGap =
+                fromEnum . getAddressPoolGap . gap . internalPool $ s
+            discardUndiscoveredChange xs =
+                take (length ixs) $ drop (length xs - internalGap) xs
+        in
+            addresses (externalPool s)
+            <> discardUndiscoveredChange (addresses $ internalPool s)

@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
@@ -32,11 +33,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPool
-    , AddressPoolGap
+    , AddressPoolGap (..)
     , CompareDiscovery (..)
     , GenChange (..)
     , IsOurs (..)
     , IsOwned (..)
+    , KnownAddresses (..)
     , MkAddressPoolGapError (..)
     , SeqState (..)
     , accountPubKey
@@ -62,7 +64,7 @@ import Control.Monad.Trans.State.Strict
 import Data.List
     ( elemIndex, (\\) )
 import Data.Maybe
-    ( isJust )
+    ( isJust, isNothing )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
@@ -81,6 +83,7 @@ import Test.QuickCheck
     , checkCoverage
     , choose
     , conjoin
+    , counterexample
     , cover
     , elements
     , expectFailure
@@ -172,6 +175,14 @@ spec = do
             (checkCoverage prop_compareKnownUnknown)
         it "compareDiscovery is anti-symmetric" $ do
             (checkCoverage prop_compareAntiSymmetric)
+
+    describe "KnownAddresses" $ do
+        it "Any known address is ours" $ do
+            (property prop_knownAddressesAreOurs)
+        it "There are at least gap known addresses" $ do
+            (property prop_atLeastKnownAddresses)
+        it "Change is only known after generation" $ do
+            (property prop_changeIsOnlyKnownAfterGeneration)
 
 {-------------------------------------------------------------------------------
                         Properties for AddressPoolGap
@@ -348,6 +359,51 @@ prop_compareAntiSymmetric (s, ShowFmt a1, ShowFmt a2) =
         GT -> LT
 
 {-------------------------------------------------------------------------------
+                        Properties for KnownAddresses
+-------------------------------------------------------------------------------}
+
+prop_knownAddressesAreOurs
+    :: SeqState DummyTarget
+    -> Property
+prop_knownAddressesAreOurs s =
+    map (\x -> (ShowFmt x, fst (isOurs x s))) (knownAddresses s)
+    ===
+    map (\x -> (ShowFmt x, True)) (knownAddresses s)
+
+prop_atLeastKnownAddresses
+    :: SeqState DummyTarget
+    -> Property
+prop_atLeastKnownAddresses s =
+    property $ length (knownAddresses s) >= g (externalPool s)
+  where
+    g = fromEnum . getAddressPoolGap . gap
+
+prop_changeIsOnlyKnownAfterGeneration
+    :: ( AddressPool DummyTarget 'InternalChain
+       , AddressPool DummyTarget 'ExternalChain
+       )
+    -> Property
+prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
+    let
+        s0 = SeqState intPool extPool emptyPendingIxs
+        addrs0 = knownAddresses s0
+        (change, s1) = genChange s0
+        addrs1 = knownAddresses s1
+    in conjoin
+        [ prop_addrsNotInInternalPool addrs0
+        , prop_changeAddressIsKnown change addrs1
+        ]
+  where
+    prop_addrsNotInInternalPool addrs =
+        map (\x -> (ShowFmt x, isNothing $ fst $ lookupAddress x intPool)) addrs
+        ===
+        map (\x -> (ShowFmt x, True)) addrs
+    prop_changeAddressIsKnown addr addrs =
+        counterexample
+            (show (ShowFmt addr) <> " not in " <> show (ShowFmt <$> addrs))
+            (property (addr `elem` addrs))
+
+{-------------------------------------------------------------------------------
                                 Arbitrary Instances
 -------------------------------------------------------------------------------}
 
@@ -421,7 +477,8 @@ instance Typeable chain => Arbitrary (AddressPool DummyTarget chain) where
                 , mkAddressPool key g (take (k - (fromEnum g `div` 5)) addrs)
                 ]
     arbitrary = do
-        g <- arbitrary
+        g <- unsafeMkAddressPoolGap <$> choose
+            (getAddressPoolGap minBound, 2 * getAddressPoolGap minBound)
         n <- choose (0, 2 * fromEnum g)
         let addrs = take n (ourAddresses (changeChain @chain))
         return $ mkAddressPool ourAccount g addrs
@@ -433,3 +490,8 @@ instance Arbitrary (SeqState DummyTarget) where
         intPool <- arbitrary
         extPool <- arbitrary
         return $ SeqState intPool extPool emptyPendingIxs
+
+unsafeMkAddressPoolGap :: (Integral a, Show a) => a -> AddressPoolGap
+unsafeMkAddressPoolGap g = case (mkAddressPoolGap $ fromIntegral g) of
+    Right a -> a
+    Left _ -> error $ "unsafeMkAddressPoolGap: bad argument: " <> show g
