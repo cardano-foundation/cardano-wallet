@@ -19,12 +19,14 @@ import Data.ByteString
     ( ByteString )
 import Data.Char
     ( toLower, toUpper )
+import Data.Either
+    ( isLeft )
 import Data.Either.Extra
     ( eitherToMaybe )
 import Data.Functor.Identity
     ( runIdentity )
 import Data.Maybe
-    ( catMaybes, isJust, isNothing )
+    ( catMaybes, isJust )
 import Data.Word
     ( Word8 )
 import Test.Hspec
@@ -50,15 +52,15 @@ spec :: Spec
 spec = do
     describe "Valid Checksums" $ forM_ validChecksums $ \checksum ->
         it (B8.unpack checksum) $ case Bech32.decode checksum of
-            Nothing ->
+            Left _ ->
                 expectationFailure (show checksum)
-            Just (resultHRP, resultData) -> do
+            Right (resultHRP, resultData) -> do
                 -- test that a corrupted checksum fails decoding.
                 let (hrp, rest) = B8.breakEnd (== '1') checksum
                 let Just (first, rest') = BS.uncons rest
                 let checksumCorrupted =
                         (hrp `BS.snoc` (first `xor` 1)) `BS.append` rest'
-                (Bech32.decode checksumCorrupted) `shouldSatisfy` isNothing
+                (Bech32.decode checksumCorrupted) `shouldSatisfy` isLeft
                 -- test that re-encoding the decoded checksum results in
                 -- the same checksum.
                 let checksumEncoded = Bech32.encode resultHRP resultData
@@ -67,7 +69,7 @@ spec = do
 
     describe "Invalid Checksums" $ forM_ invalidChecksums $ \checksum ->
         it (B8.unpack checksum) $
-            Bech32.decode checksum `shouldSatisfy` isNothing
+            Bech32.decode checksum `shouldSatisfy` isLeft
 
     describe "More Encoding/Decoding Cases" $ do
         it "length > maximum" $ do
@@ -88,7 +90,7 @@ spec = do
     describe "Roundtrip (encode . decode)" $ do
         it "Can perform roundtrip for valid data" $ property $ \(hrp, bytes) ->
             (eitherToMaybe (Bech32.encode hrp bytes)
-                >>= Bech32.decode) === Just (hrp, bytes)
+                >>= eitherToMaybe . Bech32.decode) === Just (hrp, bytes)
 
     describe "Roundtrip (toBase256 . toBase32)" $ do
         it "Can perform roundtrip base conversion" $ property $ \ws ->

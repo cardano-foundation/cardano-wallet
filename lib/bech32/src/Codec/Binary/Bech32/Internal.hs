@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -58,20 +59,24 @@ import Control.Monad
     ( guard )
 import Data.Array
     ( Array )
+import Data.Bifunctor
+    ( first )
 import Data.Bits
     ( Bits, testBit, unsafeShiftL, unsafeShiftR, xor, (.&.), (.|.) )
 import Data.ByteString
     ( ByteString )
 import Data.Char
-    ( toLower, toUpper )
+    ( ord, toLower, toUpper )
 import Data.Either.Extra
-    ( eitherToMaybe )
+    ( maybeToEither )
 import Data.Foldable
     ( foldl' )
 import Data.Functor.Identity
     ( Identity, runIdentity )
 import Data.Ix
     ( Ix (..) )
+import Data.Maybe
+    ( isJust )
 import Data.Word
     ( Word8 )
 
@@ -141,18 +146,59 @@ encode hrp@(HumanReadablePart hrpBytes) payload = do
 data EncodingError = EncodedStringTooLong
     deriving (Eq, Show)
 
-decode :: ByteString -> Maybe (HumanReadablePart, ByteString)
+decode :: ByteString -> Either DecodingError (HumanReadablePart, ByteString)
 decode bech32 = do
-    guard $ BS.length bech32 <= encodedStringMaxLength
-    guard $ B8.map toUpper bech32 == bech32 || B8.map toLower bech32 == bech32
-    let (hrp, dat) = B8.breakEnd (== '1') $ B8.map toLower bech32
-    guard $ BS.length dat >= checksumLength
-    hrp' <-
-        B8.stripSuffix (B8.pack "1") hrp >>= eitherToMaybe . mkHumanReadablePart
-    dat' <- mapM charsetMap $ B8.unpack dat
-    guard $ bech32VerifyChecksum hrp' dat'
-    result <- toBase256 (take (BS.length dat - checksumLength) dat')
-    return (hrp', BS.pack result)
+    (hrpUnparsed , dcpUnparsed) <-
+        maybeToEither StringToDecodeMissingSeparatorChar $
+            splitAtLastOccurrence separatorChar $ B8.map toLower bech32
+    hrp <- first hrpError $ mkHumanReadablePart hrpUnparsed
+    dcp <- first
+        (\(CharPosition p) -> StringToDecodeContainsInvalidChar $
+            CharPosition $ p + BS.length hrpUnparsed + separatorLength)
+        (parseDataPart $ B8.unpack dcpUnparsed)
+    guardE (BS.length bech32 <= encodedStringMaxLength)
+        StringToDecodeTooLong
+    guardE (BS.length bech32 >= encodedStringMinLength)
+        StringToDecodeTooShort
+    guardE (B8.map toUpper bech32 == bech32 || B8.map toLower bech32 == bech32)
+        StringToDecodeHasMixedCase
+    guardE (length dcp >= checksumLength)
+        StringToDecodeTooShort
+    guardE (bech32VerifyChecksum hrp dcp)
+        StringToDecodeContainsInvalidChars
+    dp <- maybeToEither StringToDecodeContainsInvalidChars $
+        toBase256 (take (length dcp - checksumLength) dcp)
+    return (hrp, BS.pack dp)
+  where
+    parseDataPart :: String -> Either CharPosition [Word5]
+    parseDataPart dpUnparsed =
+        case mapM charsetMap dpUnparsed of
+            Just dp -> pure dp
+            Nothing -> Left $ CharPosition $ length $
+                takeWhile isJust (charsetMap <$> dpUnparsed)
+    hrpError = \case
+        HumanReadablePartTooLong ->
+            StringToDecodeContainsInvalidChar $ CharPosition
+                humanReadablePartMaxLength
+        HumanReadablePartTooShort ->
+            StringToDecodeContainsInvalidChar $ CharPosition $
+                humanReadablePartMinLength - 1
+        HumanReadablePartContainsInvalidChar p ->
+            StringToDecodeContainsInvalidChar p
+
+data DecodingError
+    = StringToDecodeTooLong
+    | StringToDecodeTooShort
+    | StringToDecodeHasMixedCase
+    | StringToDecodeMissingSeparatorChar
+    | StringToDecodeContainsInvalidChar CharPosition
+    | StringToDecodeContainsInvalidChars
+    deriving (Eq, Show)
+
+-- | The separator character. This character appears immediately after the
+-- human-readable part and before the data part.
+separatorChar :: Word8
+separatorChar = fromIntegral $ ord '1'
 
 -- | The length of the checksum portion of an encoded string, in bytes.
 checksumLength :: Int
@@ -305,3 +351,11 @@ toBase256 dat =
 
 guardE :: Bool -> e -> Either e ()
 guardE b e = if b then Right () else Left e
+
+-- | Splits the given 'ByteString' into a prefix and a suffix using the last
+-- occurrence of the specified separator character as a splitting point.
+-- Evaluates to 'Nothing' if the 'ByteString` does not contain the separator
+-- character.
+splitAtLastOccurrence :: Word8 -> ByteString -> Maybe (ByteString, ByteString)
+splitAtLastOccurrence w s =
+    (\i -> (BS.take i s, BS.drop (i + 1) s)) <$> BS.elemIndexEnd w s
