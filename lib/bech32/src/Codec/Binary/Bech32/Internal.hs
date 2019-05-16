@@ -19,9 +19,12 @@ module Codec.Binary.Bech32.Internal
     (
       -- * Encoding & Decoding
       encode
+    , EncodingError (..)
     , decode
     , checksumLength
-    , maxEncodedStringLength
+    , separatorLength
+    , encodedStringMaxLength
+    , encodedStringMinLength
 
       -- * Human-Readable Parts
     , HumanReadablePart
@@ -126,18 +129,21 @@ humanReadablePartMaxLength = 83
                             Encoding & Decoding
 -------------------------------------------------------------------------------}
 
-encode :: HumanReadablePart -> ByteString -> Maybe ByteString
+encode :: HumanReadablePart -> ByteString -> Either EncodingError ByteString
 encode hrp@(HumanReadablePart hrpBytes) payload = do
     let payload5 = toBase32 (BS.unpack payload)
     let payload' = payload5 ++ bech32CreateChecksum hrp payload5
     let rest = map (charset Arr.!) payload'
     let output = B8.map toLower hrpBytes <> B8.pack "1" <> B8.pack rest
-    guard (BS.length output <= maxEncodedStringLength)
+    guardE (BS.length output <= encodedStringMaxLength) EncodedStringTooLong
     return output
+
+data EncodingError = EncodedStringTooLong
+    deriving (Eq, Show)
 
 decode :: ByteString -> Maybe (HumanReadablePart, ByteString)
 decode bech32 = do
-    guard $ BS.length bech32 <= maxEncodedStringLength
+    guard $ BS.length bech32 <= encodedStringMaxLength
     guard $ B8.map toUpper bech32 == bech32 || B8.map toLower bech32 == bech32
     let (hrp, dat) = B8.breakEnd (== '1') $ B8.map toLower bech32
     guard $ BS.length dat >= checksumLength
@@ -152,11 +158,22 @@ decode bech32 = do
 checksumLength :: Int
 checksumLength = 6
 
+-- | The length of the separator portion of an encoded string, in bytes.
+separatorLength :: Int
+separatorLength = 1
+
 -- | The maximum length of an encoded string, in bytes. This length includes the
 --   human-readable part, the separator character, the encoded data portion,
 --   and the checksum.
-maxEncodedStringLength :: Int
-maxEncodedStringLength = 90
+encodedStringMaxLength :: Int
+encodedStringMaxLength = 90
+
+-- | The minimum length of an encoded string, in bytes. This length includes the
+--   human-readable part, the separator character, the encoded data portion,
+--   and the checksum.
+encodedStringMinLength :: Int
+encodedStringMinLength =
+    humanReadablePartMinLength + separatorLength + checksumLength
 
 {-------------------------------------------------------------------------------
                             Character Manipulation
@@ -282,3 +299,9 @@ toBase256 :: [Word5] -> Maybe [Word8]
 toBase256 dat =
     map fromIntegral <$> convertBits (map fromWord5 dat) 5 8 noPadding
 
+{-------------------------------------------------------------------------------
+                                   Utilities
+-------------------------------------------------------------------------------}
+
+guardE :: Bool -> e -> Either e ()
+guardE b e = if b then Right () else Left e

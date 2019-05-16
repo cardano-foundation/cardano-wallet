@@ -62,7 +62,7 @@ spec = do
                 -- test that re-encoding the decoded checksum results in
                 -- the same checksum.
                 let checksumEncoded = Bech32.encode resultHRP resultData
-                let expectedChecksum = Just $ B8.map toLower checksum
+                let expectedChecksum = Right $ B8.map toLower checksum
                 checksumEncoded `shouldBe` expectedChecksum
 
     describe "Invalid Checksums" $ forM_ invalidChecksums $ \checksum ->
@@ -74,21 +74,21 @@ spec = do
             let hrpUnpacked = "ca"
             let hrpLength = length hrpUnpacked
             let (Right hrp) = mkHumanReadablePart (B8.pack hrpUnpacked)
-            let separatorLength = 1
             let maxDataLength =
-                    Bech32.maxEncodedStringLength
-                    - Bech32.checksumLength - separatorLength - hrpLength
+                    Bech32.encodedStringMaxLength
+                    - Bech32.checksumLength - Bech32.separatorLength - hrpLength
             Bech32.encode hrp (BS.pack (replicate (maxDataLength + 1) 1))
-                `shouldSatisfy` isNothing
+                `shouldBe` Left Bech32.EncodedStringTooLong
 
         it "hrp lowercased" $ do
             let (Right hrp) = mkHumanReadablePart (B8.pack "HRP")
             Bech32.encode hrp mempty
-                `shouldBe` Just (B8.pack "hrp1g9xj8m")
+                `shouldBe` Right (B8.pack "hrp1g9xj8m")
 
     describe "Roundtrip (encode . decode)" $ do
         it "Can perform roundtrip for valid data" $ property $ \(hrp, bytes) ->
-            (Bech32.encode hrp bytes >>= Bech32.decode) === Just (hrp, bytes)
+            (eitherToMaybe (Bech32.encode hrp bytes)
+                >>= Bech32.decode) === Just (hrp, bytes)
 
     describe "Roundtrip (toBase256 . toBase32)" $ do
         it "Can perform roundtrip base conversion" $ property $ \ws ->
