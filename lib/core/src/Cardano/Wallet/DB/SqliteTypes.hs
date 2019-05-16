@@ -53,6 +53,8 @@ import Data.Word
     ( Word64, Word8 )
 import Database.Persist.Sqlite
     ( PersistField (..), PersistFieldSql (..), PersistValue )
+import Database.Persist.TH
+    ( MkPersistSettings (..), sqlSettings )
 import GHC.Generics
     ( Generic )
 import Web.HttpApiData
@@ -61,6 +63,11 @@ import Web.PathPieces
     ( PathPiece (..) )
 
 import qualified Data.Text as T
+
+----------------------------------------------------------------------------
+
+sqlSettings' :: MkPersistSettings
+sqlSettings' = sqlSettings { mpsPrefixFields = False }
 
 ----------------------------------------------------------------------------
 -- Helper functions
