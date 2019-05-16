@@ -82,13 +82,6 @@ specNoCluster = do
         length (words out) `shouldBe` 15
         c `shouldBe` ExitSuccess
 
-    it "CLI - It can't generate mnemonics with an invalid size" $ do
-        (Exit c, Stdout out, Stderr err) <- command [] "cardano-wallet"
-            ["mnemonic", "generate", "--size", "14"]
-        c `shouldBe` ExitFailure 1
-        err `shouldBe` "Invalid mnemonic size. Expected one of: 9,12,15,18,21,24\n"
-        out `shouldBe` mempty
-
     describe "CLI - Can generate mnemonics with different sizes" $ do
         let test size = it ("--size=" <> show size) $ do
                 (Exit c, Stdout out) <- command [] "cardano-wallet"
@@ -96,6 +89,17 @@ specNoCluster = do
                 length (words out) `shouldBe` size
                 c `shouldBe` ExitSuccess
         forM_ [9, 12, 15, 18, 21, 24] test
+
+    describe "CLI - It can't generate mnemonics with an invalid size" $ do
+        let sizes = ["15.5", "3", "6", "14", "abc", "👌", "0"
+                , "~!@#%" , "-1000", "1000"]
+        forM_ sizes $ \(size) -> it ("--size=" <> size) $ do
+            (Exit c, Stdout out, Stderr err) <- command [] "cardano-wallet"
+                ["mnemonic", "generate", "--size", size]
+            c `shouldBe` ExitFailure 1
+            err `shouldBe` "Invalid mnemonic size. Expected one of:\
+            \ 9,12,15,18,21,24\n"
+            out `shouldBe` mempty
 
 specWithCluster :: SpecWith Context
 specWithCluster = do

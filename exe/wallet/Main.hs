@@ -70,6 +70,8 @@ import Data.Functor
 import qualified Data.List.NonEmpty as NE
 import Data.Proxy
     ( Proxy (..) )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( FromText (..), ToText (..) )
 import Data.Typeable
@@ -345,15 +347,15 @@ execServer (Port port) (Port bridgePort) = do
 
 -- | Generate a random mnemonic of the given size 'n' (n = number of words),
 -- and print it to stdout.
-execGenerateMnemonic :: Int -> IO ()
+execGenerateMnemonic :: Text -> IO ()
 execGenerateMnemonic n = do
     m <- case n of
-        9  -> mnemonicToText @9 . entropyToMnemonic <$> genEntropy
-        12 -> mnemonicToText @12 . entropyToMnemonic <$> genEntropy
-        15 -> mnemonicToText @15 . entropyToMnemonic <$> genEntropy
-        18 -> mnemonicToText @18 . entropyToMnemonic <$> genEntropy
-        21 -> mnemonicToText @21 . entropyToMnemonic <$> genEntropy
-        24 -> mnemonicToText @24 . entropyToMnemonic <$> genEntropy
+        "9"  -> mnemonicToText @9 . entropyToMnemonic <$> genEntropy
+        "12" -> mnemonicToText @12 . entropyToMnemonic <$> genEntropy
+        "15" -> mnemonicToText @15 . entropyToMnemonic <$> genEntropy
+        "18" -> mnemonicToText @18 . entropyToMnemonic <$> genEntropy
+        "21" -> mnemonicToText @21 . entropyToMnemonic <$> genEntropy
+        "24" -> mnemonicToText @24 . entropyToMnemonic <$> genEntropy
         _  -> do
             putErrLn "Invalid mnemonic size. Expected one of: 9,12,15,18,21,24"
             exitFailure
