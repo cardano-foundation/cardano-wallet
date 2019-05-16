@@ -19,6 +19,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Char
     ( toLower, toUpper )
+import Data.Either.Extra
+    ( eitherToMaybe )
 import Data.Functor.Identity
     ( runIdentity )
 import Data.Maybe
@@ -71,7 +73,7 @@ spec = do
         it "length > maximum" $ do
             let hrpUnpacked = "ca"
             let hrpLength = length hrpUnpacked
-            let (Just hrp) = mkHumanReadablePart (B8.pack hrpUnpacked)
+            let (Right hrp) = mkHumanReadablePart (B8.pack hrpUnpacked)
             let separatorLength = 1
             let maxDataLength =
                     Bech32.maxEncodedStringLength
@@ -80,7 +82,7 @@ spec = do
                 `shouldSatisfy` isNothing
 
         it "hrp lowercased" $ do
-            let (Just hrp) = mkHumanReadablePart (B8.pack "HRP")
+            let (Right hrp) = mkHumanReadablePart (B8.pack "HRP")
             Bech32.encode hrp mempty
                 `shouldBe` Just (B8.pack "hrp1g9xj8m")
 
@@ -164,15 +166,15 @@ invalidChecksums = map B8.pack
     ]
 
 instance Arbitrary HumanReadablePart where
-    shrink hrp = catMaybes
-        (mkHumanReadablePart <$> shrink (humanReadablePartToBytes hrp))
+    shrink hrp = catMaybes $ eitherToMaybe .
+        mkHumanReadablePart <$> shrink (humanReadablePartToBytes hrp)
     arbitrary = do
         let range =
                 ( Bech32.humanReadableCharsetMinBound
                 , Bech32.humanReadableCharsetMaxBound )
         bytes <-
             choose (1, 10) >>= \n -> vectorOf n (choose range)
-        let (Just hrp) = mkHumanReadablePart (B8.map toLower $ BS.pack bytes)
+        let (Right hrp) = mkHumanReadablePart (B8.map toLower $ BS.pack bytes)
         return hrp
 
 instance Arbitrary ByteString where

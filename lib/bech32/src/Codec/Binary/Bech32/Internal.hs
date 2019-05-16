@@ -25,10 +25,13 @@ module Codec.Binary.Bech32.Internal
 
       -- * Human-Readable Parts
     , HumanReadablePart
+    , HumanReadablePartError (..)
     , mkHumanReadablePart
     , humanReadablePartToBytes
     , humanReadableCharsetMinBound
     , humanReadableCharsetMaxBound
+    , humanReadablePartMinLength
+    , humanReadablePartMaxLength
 
       -- * Bit Manipulation
     , convertBits
@@ -58,6 +61,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Char
     ( toLower, toUpper )
+import Data.Either.Extra
+    ( eitherToMaybe )
 import Data.Foldable
     ( foldl' )
 import Data.Functor.Identity
@@ -78,14 +83,29 @@ import qualified Data.ByteString.Char8 as B8
 newtype HumanReadablePart = HumanReadablePart ByteString
     deriving (Show, Eq)
 
-mkHumanReadablePart :: ByteString -> Maybe HumanReadablePart
-mkHumanReadablePart hrp = do
-    guard $ not (BS.null hrp) && BS.all valid hrp
-    return (HumanReadablePart hrp)
+mkHumanReadablePart
+    :: ByteString -> Either HumanReadablePartError HumanReadablePart
+mkHumanReadablePart hrp
+    | BS.length hrp < humanReadablePartMinLength =
+        Left HumanReadablePartTooShort
+    | BS.length hrp > humanReadablePartMaxLength =
+        Left HumanReadablePartTooLong
+    | BS.length invalidPortion > 0 =
+        Left $ HumanReadablePartContainsInvalidChar $ CharPosition $
+            BS.length validPortion
+    | otherwise =
+        Right $ HumanReadablePart hrp
   where
+    (validPortion, invalidPortion) = BS.break (not . valid) hrp
     valid c =
         c >= humanReadableCharsetMinBound &&
         c <= humanReadableCharsetMaxBound
+
+data HumanReadablePartError
+    = HumanReadablePartTooShort
+    | HumanReadablePartTooLong
+    | HumanReadablePartContainsInvalidChar CharPosition
+    deriving (Eq, Show)
 
 humanReadableCharsetMinBound :: Word8
 humanReadableCharsetMinBound = 33
@@ -95,6 +115,12 @@ humanReadableCharsetMaxBound = 126
 
 humanReadablePartToBytes :: HumanReadablePart -> ByteString
 humanReadablePartToBytes (HumanReadablePart bytes) = bytes
+
+humanReadablePartMinLength :: Int
+humanReadablePartMinLength = 1
+
+humanReadablePartMaxLength :: Int
+humanReadablePartMaxLength = 83
 
 {-------------------------------------------------------------------------------
                             Encoding & Decoding
@@ -115,7 +141,8 @@ decode bech32 = do
     guard $ B8.map toUpper bech32 == bech32 || B8.map toLower bech32 == bech32
     let (hrp, dat) = B8.breakEnd (== '1') $ B8.map toLower bech32
     guard $ BS.length dat >= checksumLength
-    hrp' <- B8.stripSuffix (B8.pack "1") hrp >>= mkHumanReadablePart
+    hrp' <-
+        B8.stripSuffix (B8.pack "1") hrp >>= eitherToMaybe . mkHumanReadablePart
     dat' <- mapM charsetMap $ B8.unpack dat
     guard $ bech32VerifyChecksum hrp' dat'
     result <- toBase256 (take (BS.length dat - checksumLength) dat')
@@ -132,7 +159,7 @@ maxEncodedStringLength :: Int
 maxEncodedStringLength = 90
 
 {-------------------------------------------------------------------------------
-                          Character Set Manipulation
+                            Character Manipulation
 -------------------------------------------------------------------------------}
 
 charset :: Array Word5 Char
@@ -152,6 +179,10 @@ charsetMap c
         Arr.listArray ('0', 'Z') (repeat Nothing)
         Arr.//
         (map swap (Arr.assocs charset))
+
+-- | The zero-based position of a character in a string, counting from the left.
+newtype CharPosition = CharPosition Int
+    deriving (Eq, Show)
 
 {-------------------------------------------------------------------------------
                               Bit Manipulation
