@@ -44,15 +44,31 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 specNoCluster :: SpecWith ()
 specNoCluster = do
-    it "CLI - Shows help on bad argument" $  do
+
+    it "CLI - cardano-wallet-launcher shows help on bad argument" $  do
+        (Exit c, Stdout out) <- command [] "cardano-wallet-launcher" ["--bad arg"]
+        out `shouldContain` "cardano-wallet-launcher"
+        c `shouldBe` ExitFailure 1
+
+    describe "CLI - cardano-wallet-launcher shows help with" $  do
+        let test option = it option $ do
+                (Exit c, Stdout out) <- command [] "cardano-wallet-launcher"
+                    [option]
+                out `shouldContain` "cardano-wallet-launcher"
+                c `shouldBe` ExitSuccess
+        forM_ ["-h", "--help"] test
+
+    it "CLI - cardano-wallet shows help on bad argument" $  do
         (Exit c, Stdout out) <- command [] "cardano-wallet" ["--bad arg"]
         out `shouldContain` "Cardano Wallet CLI"
         c `shouldBe` ExitFailure 1
 
-    it "CLI - Shows help with --help" $  do
-        (Exit c, Stdout out) <- command [] "cardano-wallet" ["--help"]
-        out `shouldContain` "Cardano Wallet CLI"
-        c `shouldBe` ExitSuccess
+    describe "CLI - cardano-wallet shows help with" $  do
+        let test option = it option $ do
+                (Exit c, Stdout out) <- command [] "cardano-wallet" [option]
+                out `shouldContain` "Cardano Wallet CLI"
+                c `shouldBe` ExitSuccess
+        forM_ ["-h", "--help"] test
 
     it "CLI - Shows version" $  do
         (Exit c, Stdout out) <- command [] "cardano-wallet" ["--version"]

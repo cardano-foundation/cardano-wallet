@@ -95,6 +95,7 @@ import System.Console.Docopt
     , isPresent
     , longOption
     , parseArgsOrExit
+    , shortOption
     )
 import System.Environment
     ( getArgs )
@@ -170,6 +171,7 @@ main = do
 exec :: Manager -> Arguments -> IO ()
 exec manager args
     | args `isPresent` (longOption "help") = help cli
+    | args `isPresent` (shortOption 'h') = help cli
 
     | args `isPresent` command "server" = do
         walletPort <- args `parseArg` longOption "port"
