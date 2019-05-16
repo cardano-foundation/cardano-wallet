@@ -12,6 +12,7 @@ import Cardano.Wallet.Binary.Jormungandr
     ( Block (..)
     , BlockHeader (..)
     , ConfigParam (..)
+    , ConsensusVersion (..)
     , LeaderId (..)
     , LinearFee (..)
     , Message (..)
@@ -26,6 +27,8 @@ import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase )
 import Data.ByteString
     ( ByteString )
+import Data.Quantity
+    ( Quantity (..) )
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
 
@@ -61,17 +64,17 @@ genesisBlock :: Block
 genesisBlock = Block genesisHeader
     [ Initial
         [ Block0Date 1556202057
-        , ConfigDiscrimination Testnet
-        , ConsensusVersion 1
-        , SlotsPerEpoch 2160
-        , SlotDuration 15
-        , EpochStabilityDepth 10
+        , Discrimination Testnet
+        , Consensus BFT
+        , SlotsPerEpoch (Quantity 2160)
+        , SlotDuration (Quantity 15)
+        , EpochStabilityDepth (Quantity 10)
         , AddBftLeader (LeaderId "0\166\148\184\r\187\162\209\184\164\181VR\176=\150\&1\\\132\DC4\176T\250stE\172-*\134\\v")
-        , ConsensusGenesisPraosActiveSlotsCoeff (Milli 220)
+        , ConsensusGenesisPraosParamF (Milli 220)
         , MaxNumberOfTransactionsPerBlock 255
         , BftSlotsRatio (Milli 220)
         , AllowAccountCreation True
-        , ConfigLinearFee (LinearFee 0 0 0)
+        , ConfigLinearFee $ LinearFee (Quantity 0) (Quantity 0) (Quantity 0)
         ]
     , Transaction $ Tx
         { inputs = []
