@@ -6,7 +6,7 @@ module Main where
 import Prelude
 
 import Cardano.CLI
-    ( Port, parseArgWith )
+    ( Port, help, parseArgWith )
 import Cardano.Environment.HttpBridge
     ( Network, network )
 import Cardano.Launcher
@@ -31,7 +31,6 @@ import System.Console.Docopt
     , Docopt
     , Option
     , docopt
-    , exitWithUsage
     , isPresent
     , longOption
     , parseArgsOrExit
@@ -68,7 +67,7 @@ Options:
 main :: IO ()
 main = do
     args <- parseArgsOrExit cli =<< getArgs
-    when (args `isPresent` (longOption "help")) $ exitWithUsage cli
+    when (args `isPresent` (longOption "help")) $ help cli
 
     bridgePort <- args `parseArg` longOption "http-bridge-port"
     walletPort <- args `parseArg` longOption "wallet-server-port"

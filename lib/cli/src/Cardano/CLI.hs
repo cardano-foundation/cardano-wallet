@@ -26,6 +26,7 @@ module Cardano.CLI
     -- * Parsing Arguments
     , parseArgWith
     , parseAllArgsWith
+    , help
 
     -- * Working with Sensitive Data
     , getLine
@@ -67,9 +68,10 @@ import System.Console.Docopt
     , exitWithUsageMessage
     , getAllArgs
     , getArgOrExitWith
+    , usage
     )
 import System.Exit
-    ( exitFailure )
+    ( exitFailure, exitSuccess )
 import System.IO
     ( BufferMode (..)
     , Handle
@@ -139,6 +141,13 @@ getAllArgsOrExitWith doc args opt =
     maybe err pure . NE.nonEmpty $ getAllArgs args opt
   where
     err = exitWithUsageMessage doc $ "argument expected for: " ++ show opt
+
+-- | Like 'exitWithUsage', but with a success exit code
+help :: Docopt -> IO ()
+help cli = do
+    TIO.putStrLn $ T.pack $ usage cli
+    exitSuccess
+
 
 {-------------------------------------------------------------------------------
                             Unicode Terminal Helpers

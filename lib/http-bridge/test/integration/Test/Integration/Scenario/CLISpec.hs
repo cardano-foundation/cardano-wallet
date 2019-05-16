@@ -17,10 +17,10 @@ import Data.List
     ( length )
 import Data.Text
     ( Text )
-import System.Exit
-    ( ExitCode (..))
 import System.Command
     ( Exit (..), Stdout (..), command )
+import System.Exit
+    ( ExitCode (..) )
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Hspec.Expectations.Lifted
@@ -41,7 +41,6 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 specNoCluster :: SpecWith ()
 specNoCluster = do
-
     it "CLI - Shows help on bad argument" $  do
         (Exit c, Stdout out) <- command [] "cardano-wallet" ["--bad arg"]
         out `shouldContain` "Cardano Wallet CLI"
@@ -50,12 +49,12 @@ specNoCluster = do
     it "CLI - Shows help with --help" $  do
         (Exit c, Stdout out) <- command [] "cardano-wallet" ["--help"]
         out `shouldContain` "Cardano Wallet CLI"
-        c `shouldBe` ExitFailure 1
+        c `shouldBe` ExitSuccess
 
     it "CLI - Shows version" $  do
         (Exit c, Stdout out) <- command [] "cardano-wallet" ["--version"]
         cabal <- readFile "../../cardano-wallet.cabal"
-        let cabalVersion =  ( words $ (lines cabal) !! 1 ) !! 1
+        let cabalVersion =  words ((lines cabal) !! 1 ) !! 1
         let returnedVersion = T.unpack $ T.dropEnd 1 (T.pack out)
         returnedVersion `shouldBe` cabalVersion
         c `shouldBe` ExitSuccess
@@ -74,7 +73,6 @@ specNoCluster = do
 
 specWithCluster :: SpecWith Context
 specWithCluster = do
-
     it "CLI - Can get a wallet" $ \ctx -> do
         walId <- createWallet ctx "1st CLI Wallet" mnemonics15
         (Exit c, Stdout out) <- command [] "cardano-wallet"

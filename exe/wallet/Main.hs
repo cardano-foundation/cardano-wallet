@@ -28,6 +28,7 @@ import Cardano.CLI
     ( Port (..)
     , getLine
     , getSensitiveLine
+    , help
     , parseAllArgsWith
     , parseArgWith
     , putErrLn
@@ -167,8 +168,7 @@ main = do
 
 exec :: Manager -> Arguments -> IO ()
 exec manager args
-    | args `isPresent` (longOption "help") = do
-        exitWithUsage cli
+    | args `isPresent` (longOption "help") = help cli
 
     | args `isPresent` command "server" = do
         walletPort <- args `parseArg` longOption "port"
