@@ -19,10 +19,14 @@ import Data.ByteString
     ( ByteString )
 import Data.Char
     ( toLower, toUpper )
+import Data.Either
+    ( isLeft )
+import Data.Either.Extra
+    ( eitherToMaybe )
 import Data.Functor.Identity
     ( runIdentity )
 import Data.Maybe
-    ( catMaybes, isJust, isNothing )
+    ( catMaybes, isJust )
 import Data.Word
     ( Word8 )
 import Test.Hspec
@@ -48,45 +52,45 @@ spec :: Spec
 spec = do
     describe "Valid Checksums" $ forM_ validChecksums $ \checksum ->
         it (B8.unpack checksum) $ case Bech32.decode checksum of
-            Nothing ->
+            Left _ ->
                 expectationFailure (show checksum)
-            Just (resultHRP, resultData) -> do
+            Right (resultHRP, resultData) -> do
                 -- test that a corrupted checksum fails decoding.
                 let (hrp, rest) = B8.breakEnd (== '1') checksum
                 let Just (first, rest') = BS.uncons rest
                 let checksumCorrupted =
                         (hrp `BS.snoc` (first `xor` 1)) `BS.append` rest'
-                (Bech32.decode checksumCorrupted) `shouldSatisfy` isNothing
+                (Bech32.decode checksumCorrupted) `shouldSatisfy` isLeft
                 -- test that re-encoding the decoded checksum results in
                 -- the same checksum.
                 let checksumEncoded = Bech32.encode resultHRP resultData
-                let expectedChecksum = Just $ B8.map toLower checksum
+                let expectedChecksum = Right $ B8.map toLower checksum
                 checksumEncoded `shouldBe` expectedChecksum
 
     describe "Invalid Checksums" $ forM_ invalidChecksums $ \checksum ->
         it (B8.unpack checksum) $
-            Bech32.decode checksum `shouldSatisfy` isNothing
+            Bech32.decode checksum `shouldSatisfy` isLeft
 
     describe "More Encoding/Decoding Cases" $ do
         it "length > maximum" $ do
             let hrpUnpacked = "ca"
             let hrpLength = length hrpUnpacked
-            let (Just hrp) = mkHumanReadablePart (B8.pack hrpUnpacked)
-            let separatorLength = 1
+            let (Right hrp) = mkHumanReadablePart (B8.pack hrpUnpacked)
             let maxDataLength =
-                    Bech32.maxEncodedStringLength
-                    - Bech32.checksumLength - separatorLength - hrpLength
+                    Bech32.encodedStringMaxLength
+                    - Bech32.checksumLength - Bech32.separatorLength - hrpLength
             Bech32.encode hrp (BS.pack (replicate (maxDataLength + 1) 1))
-                `shouldSatisfy` isNothing
+                `shouldBe` Left Bech32.EncodedStringTooLong
 
         it "hrp lowercased" $ do
-            let (Just hrp) = mkHumanReadablePart (B8.pack "HRP")
+            let (Right hrp) = mkHumanReadablePart (B8.pack "HRP")
             Bech32.encode hrp mempty
-                `shouldBe` Just (B8.pack "hrp1g9xj8m")
+                `shouldBe` Right (B8.pack "hrp1g9xj8m")
 
     describe "Roundtrip (encode . decode)" $ do
         it "Can perform roundtrip for valid data" $ property $ \(hrp, bytes) ->
-            (Bech32.encode hrp bytes >>= Bech32.decode) === Just (hrp, bytes)
+            (eitherToMaybe (Bech32.encode hrp bytes)
+                >>= eitherToMaybe . Bech32.decode) === Just (hrp, bytes)
 
     describe "Roundtrip (toBase256 . toBase32)" $ do
         it "Can perform roundtrip base conversion" $ property $ \ws ->
@@ -164,15 +168,15 @@ invalidChecksums = map B8.pack
     ]
 
 instance Arbitrary HumanReadablePart where
-    shrink hrp = catMaybes
-        (mkHumanReadablePart <$> shrink (humanReadablePartToBytes hrp))
+    shrink hrp = catMaybes $ eitherToMaybe .
+        mkHumanReadablePart <$> shrink (humanReadablePartToBytes hrp)
     arbitrary = do
         let range =
                 ( Bech32.humanReadableCharsetMinBound
                 , Bech32.humanReadableCharsetMaxBound )
         bytes <-
             choose (1, 10) >>= \n -> vectorOf n (choose range)
-        let (Just hrp) = mkHumanReadablePart (B8.map toLower $ BS.pack bytes)
+        let (Right hrp) = mkHumanReadablePart (B8.map toLower $ BS.pack bytes)
         return hrp
 
 instance Arbitrary ByteString where

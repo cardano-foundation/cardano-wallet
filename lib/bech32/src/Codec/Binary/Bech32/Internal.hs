@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -19,16 +20,22 @@ module Codec.Binary.Bech32.Internal
     (
       -- * Encoding & Decoding
       encode
+    , EncodingError (..)
     , decode
     , checksumLength
-    , maxEncodedStringLength
+    , separatorLength
+    , encodedStringMaxLength
+    , encodedStringMinLength
 
       -- * Human-Readable Parts
     , HumanReadablePart
+    , HumanReadablePartError (..)
     , mkHumanReadablePart
     , humanReadablePartToBytes
     , humanReadableCharsetMinBound
     , humanReadableCharsetMaxBound
+    , humanReadablePartMinLength
+    , humanReadablePartMaxLength
 
       -- * Bit Manipulation
     , convertBits
@@ -52,18 +59,24 @@ import Control.Monad
     ( guard )
 import Data.Array
     ( Array )
+import Data.Bifunctor
+    ( first )
 import Data.Bits
     ( Bits, testBit, unsafeShiftL, unsafeShiftR, xor, (.&.), (.|.) )
 import Data.ByteString
     ( ByteString )
 import Data.Char
-    ( toLower, toUpper )
+    ( ord, toLower, toUpper )
+import Data.Either.Extra
+    ( maybeToEither )
 import Data.Foldable
     ( foldl' )
 import Data.Functor.Identity
     ( Identity, runIdentity )
 import Data.Ix
     ( Ix (..) )
+import Data.Maybe
+    ( isJust )
 import Data.Word
     ( Word8 )
 
@@ -78,14 +91,29 @@ import qualified Data.ByteString.Char8 as B8
 newtype HumanReadablePart = HumanReadablePart ByteString
     deriving (Show, Eq)
 
-mkHumanReadablePart :: ByteString -> Maybe HumanReadablePart
-mkHumanReadablePart hrp = do
-    guard $ not (BS.null hrp) && BS.all valid hrp
-    return (HumanReadablePart hrp)
+mkHumanReadablePart
+    :: ByteString -> Either HumanReadablePartError HumanReadablePart
+mkHumanReadablePart hrp
+    | BS.length hrp < humanReadablePartMinLength =
+        Left HumanReadablePartTooShort
+    | BS.length hrp > humanReadablePartMaxLength =
+        Left HumanReadablePartTooLong
+    | BS.length invalidPortion > 0 =
+        Left $ HumanReadablePartContainsInvalidChar $ CharPosition $
+            BS.length validPortion
+    | otherwise =
+        Right $ HumanReadablePart hrp
   where
+    (validPortion, invalidPortion) = BS.break (not . valid) hrp
     valid c =
         c >= humanReadableCharsetMinBound &&
         c <= humanReadableCharsetMaxBound
+
+data HumanReadablePartError
+    = HumanReadablePartTooShort
+    | HumanReadablePartTooLong
+    | HumanReadablePartContainsInvalidChar CharPosition
+    deriving (Eq, Show)
 
 humanReadableCharsetMinBound :: Word8
 humanReadableCharsetMinBound = 33
@@ -96,43 +124,105 @@ humanReadableCharsetMaxBound = 126
 humanReadablePartToBytes :: HumanReadablePart -> ByteString
 humanReadablePartToBytes (HumanReadablePart bytes) = bytes
 
+humanReadablePartMinLength :: Int
+humanReadablePartMinLength = 1
+
+humanReadablePartMaxLength :: Int
+humanReadablePartMaxLength = 83
+
 {-------------------------------------------------------------------------------
                             Encoding & Decoding
 -------------------------------------------------------------------------------}
 
-encode :: HumanReadablePart -> ByteString -> Maybe ByteString
+encode :: HumanReadablePart -> ByteString -> Either EncodingError ByteString
 encode hrp@(HumanReadablePart hrpBytes) payload = do
     let payload5 = toBase32 (BS.unpack payload)
     let payload' = payload5 ++ bech32CreateChecksum hrp payload5
     let rest = map (charset Arr.!) payload'
     let output = B8.map toLower hrpBytes <> B8.pack "1" <> B8.pack rest
-    guard (BS.length output <= maxEncodedStringLength)
+    guardE (BS.length output <= encodedStringMaxLength) EncodedStringTooLong
     return output
 
-decode :: ByteString -> Maybe (HumanReadablePart, ByteString)
+data EncodingError = EncodedStringTooLong
+    deriving (Eq, Show)
+
+decode :: ByteString -> Either DecodingError (HumanReadablePart, ByteString)
 decode bech32 = do
-    guard $ BS.length bech32 <= maxEncodedStringLength
-    guard $ B8.map toUpper bech32 == bech32 || B8.map toLower bech32 == bech32
-    let (hrp, dat) = B8.breakEnd (== '1') $ B8.map toLower bech32
-    guard $ BS.length dat >= checksumLength
-    hrp' <- B8.stripSuffix (B8.pack "1") hrp >>= mkHumanReadablePart
-    dat' <- mapM charsetMap $ B8.unpack dat
-    guard $ bech32VerifyChecksum hrp' dat'
-    result <- toBase256 (take (BS.length dat - checksumLength) dat')
-    return (hrp', BS.pack result)
+    (hrpUnparsed , dcpUnparsed) <-
+        maybeToEither StringToDecodeMissingSeparatorChar $
+            splitAtLastOccurrence separatorChar $ B8.map toLower bech32
+    hrp <- first hrpError $ mkHumanReadablePart hrpUnparsed
+    dcp <- first
+        (\(CharPosition p) -> StringToDecodeContainsInvalidChar $
+            CharPosition $ p + BS.length hrpUnparsed + separatorLength)
+        (parseDataPart $ B8.unpack dcpUnparsed)
+    guardE (BS.length bech32 <= encodedStringMaxLength)
+        StringToDecodeTooLong
+    guardE (BS.length bech32 >= encodedStringMinLength)
+        StringToDecodeTooShort
+    guardE (B8.map toUpper bech32 == bech32 || B8.map toLower bech32 == bech32)
+        StringToDecodeHasMixedCase
+    guardE (length dcp >= checksumLength)
+        StringToDecodeTooShort
+    guardE (bech32VerifyChecksum hrp dcp)
+        StringToDecodeContainsInvalidChars
+    dp <- maybeToEither StringToDecodeContainsInvalidChars $
+        toBase256 (take (length dcp - checksumLength) dcp)
+    return (hrp, BS.pack dp)
+  where
+    parseDataPart :: String -> Either CharPosition [Word5]
+    parseDataPart dpUnparsed =
+        case mapM charsetMap dpUnparsed of
+            Just dp -> pure dp
+            Nothing -> Left $ CharPosition $ length $
+                takeWhile isJust (charsetMap <$> dpUnparsed)
+    hrpError = \case
+        HumanReadablePartTooLong ->
+            StringToDecodeContainsInvalidChar $ CharPosition
+                humanReadablePartMaxLength
+        HumanReadablePartTooShort ->
+            StringToDecodeContainsInvalidChar $ CharPosition $
+                humanReadablePartMinLength - 1
+        HumanReadablePartContainsInvalidChar p ->
+            StringToDecodeContainsInvalidChar p
+
+data DecodingError
+    = StringToDecodeTooLong
+    | StringToDecodeTooShort
+    | StringToDecodeHasMixedCase
+    | StringToDecodeMissingSeparatorChar
+    | StringToDecodeContainsInvalidChar CharPosition
+    | StringToDecodeContainsInvalidChars
+    deriving (Eq, Show)
+
+-- | The separator character. This character appears immediately after the
+-- human-readable part and before the data part.
+separatorChar :: Word8
+separatorChar = fromIntegral $ ord '1'
 
 -- | The length of the checksum portion of an encoded string, in bytes.
 checksumLength :: Int
 checksumLength = 6
 
+-- | The length of the separator portion of an encoded string, in bytes.
+separatorLength :: Int
+separatorLength = 1
+
 -- | The maximum length of an encoded string, in bytes. This length includes the
 --   human-readable part, the separator character, the encoded data portion,
 --   and the checksum.
-maxEncodedStringLength :: Int
-maxEncodedStringLength = 90
+encodedStringMaxLength :: Int
+encodedStringMaxLength = 90
+
+-- | The minimum length of an encoded string, in bytes. This length includes the
+--   human-readable part, the separator character, the encoded data portion,
+--   and the checksum.
+encodedStringMinLength :: Int
+encodedStringMinLength =
+    humanReadablePartMinLength + separatorLength + checksumLength
 
 {-------------------------------------------------------------------------------
-                          Character Set Manipulation
+                            Character Manipulation
 -------------------------------------------------------------------------------}
 
 charset :: Array Word5 Char
@@ -152,6 +242,10 @@ charsetMap c
         Arr.listArray ('0', 'Z') (repeat Nothing)
         Arr.//
         (map swap (Arr.assocs charset))
+
+-- | The zero-based position of a character in a string, counting from the left.
+newtype CharPosition = CharPosition Int
+    deriving (Eq, Show)
 
 {-------------------------------------------------------------------------------
                               Bit Manipulation
@@ -251,3 +345,17 @@ toBase256 :: [Word5] -> Maybe [Word8]
 toBase256 dat =
     map fromIntegral <$> convertBits (map fromWord5 dat) 5 8 noPadding
 
+{-------------------------------------------------------------------------------
+                                   Utilities
+-------------------------------------------------------------------------------}
+
+guardE :: Bool -> e -> Either e ()
+guardE b e = if b then Right () else Left e
+
+-- | Splits the given 'ByteString' into a prefix and a suffix using the last
+-- occurrence of the specified separator character as a splitting point.
+-- Evaluates to 'Nothing' if the 'ByteString` does not contain the separator
+-- character.
+splitAtLastOccurrence :: Word8 -> ByteString -> Maybe (ByteString, ByteString)
+splitAtLastOccurrence w s =
+    (\i -> (BS.take i s, BS.drop (i + 1) s)) <$> BS.elemIndexEnd w s
