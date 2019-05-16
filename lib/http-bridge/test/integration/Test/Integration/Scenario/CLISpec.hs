@@ -53,10 +53,8 @@ specNoCluster = do
 
     it "CLI - Shows version" $  do
         (Exit c, Stdout out) <- command [] "cardano-wallet" ["--version"]
-        cabal <- readFile "../../cardano-wallet.cabal"
-        let cabalVersion =  words ((lines cabal) !! 1 ) !! 1
-        let returnedVersion = T.unpack $ T.dropEnd 1 (T.pack out)
-        returnedVersion `shouldBe` cabalVersion
+        let v = T.dropWhileEnd (== '\n') (T.pack out)
+        v `shouldBe` "2019.5.8"
         c `shouldBe` ExitSuccess
 
     it "CLI - Can generate mnemonics with default size" $  do
