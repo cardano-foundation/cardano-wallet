@@ -10,7 +10,7 @@ module Test.Integration.Scenario.CLISpec
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiWallet )
+    ( ApiAddress, ApiWallet )
 import Control.Monad
     ( forM_ )
 import Data.List
@@ -118,6 +118,14 @@ specWithCluster = do
             ["wallet", "delete", "--port", "1337", walId ]
         err `shouldBe` "Ok.\n"
         out `shouldNotContain` "CLI Wallet"
+        c `shouldBe` ExitSuccess
+
+    it "CLI - Can list addresses" $ \ctx -> do
+        walId <- createWallet ctx "CLI Wallet" mnemonics15
+        (Exit c, Stdout out, Stderr err) <- command [] "cardano-wallet"
+            ["address", "list", "--port", "1337", walId]
+        err `shouldBe` "Ok.\n"
+        expectValidJSON (Proxy @[ApiAddress]) out
         c `shouldBe` ExitSuccess
   where
     createWallet :: Context -> Text -> [Text] -> IO String

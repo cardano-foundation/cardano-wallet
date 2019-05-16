@@ -171,6 +171,7 @@ test-suite integration
       Test.Integration.Faucet
       Test.Integration.Framework.DSL
       Test.Integration.Framework.Request
+      Test.Integration.Scenario.Addresses
       Test.Integration.Scenario.Transactions
       Test.Integration.Scenario.Wallets
       Test.Integration.Scenario.CLISpec
