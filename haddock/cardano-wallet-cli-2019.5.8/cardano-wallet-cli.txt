@@ -29,6 +29,9 @@ hPutErrLn :: Handle -> Text -> IO ()
 parseArgWith :: FromText a => Docopt -> Arguments -> Option -> IO a
 parseAllArgsWith :: FromText a => Docopt -> Arguments -> Option -> IO (NonEmpty a)
 
+-- | Like <tt>exitWithUsage</tt>, but with a success exit code
+help :: Docopt -> IO ()
+
 -- | Like <a>hGetLine</a> but with default handles
 getLine :: Buildable e => Text -> (Text -> Either e a) -> IO (a, Text)
 
