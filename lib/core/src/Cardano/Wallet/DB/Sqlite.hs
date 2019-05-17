@@ -14,6 +14,12 @@
 
 {-# OPTIONS_GHC -fno-warn-unused-top-binds #-}
 
+-- |
+-- Copyright: © 2018-2019 IOHK
+-- License: MIT
+--
+-- An implementation of the DBLayer which uses Persistent and SQLite.
+
 module Cardano.Wallet.DB.Sqlite
     ( newDBLayer
     ) where

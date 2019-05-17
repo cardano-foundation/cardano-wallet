@@ -4,6 +4,18 @@
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
+-- |
+-- Copyright: © 2018-2019 IOHK
+-- License: MIT
+--
+-- This module contains instances and types necessary for storing wallets in a
+-- SQL database with Persistent.
+--
+-- It's in a separate module due to the GHC stage restriction.
+--
+-- The ToJSON/FromJSON and Read instance orphans exist due to class constraints
+-- on Persistent functions.
+
 module Cardano.Wallet.DB.SqliteTypes where
 
 import Prelude
@@ -66,6 +78,7 @@ import qualified Data.Text as T
 
 ----------------------------------------------------------------------------
 
+-- | Settings for generating the Persistent types.
 sqlSettings' :: MkPersistSettings
 sqlSettings' = sqlSettings { mpsPrefixFields = False }
 
