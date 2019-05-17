@@ -47,24 +47,9 @@ instance Data.Text.Class.ToText Cardano.Environment.Jormungandr.Network
 
 -- | The format is for the Shelley era as implemented by the Jörmungandr
 --   node.
+--   
+--   It is described <a>here</a>
 module Cardano.Wallet.Binary.Jormungandr
-getBlockHeader :: Get BlockHeader
-getBlock :: Get Block
-
--- | Messages are what the block body consists of.
---   
---   Every message is prefixed with a message header.
---   
---   Following, as closely as possible:
---   <a>https://github.com/input-output-hk/rust-cardano/blob/e0616f13bebd6b908320bddb1c1502dea0d3305a/chain-impl-mockchain/src/message/mod.rs#L22-L29</a>
-data Message
-Initial :: [ConfigParam] -> Message
-OldUtxoDeclaration :: TODO -> Message
-Transaction :: Tx -> Message
-Certificate :: TODO -> Message
-UpdateProposal :: SignedUpdateProposal -> Message
-UpdateVote :: SignedVote -> Message
-UnimplementedMessage :: Int -> Message
 data Block
 Block :: BlockHeader -> [Message] -> Block
 data BlockHeader
@@ -75,25 +60,83 @@ BlockHeader :: Word16 -> Word32 -> SlotId -> Word32 -> Hash "content" -> Hash "p
 [chainLength] :: BlockHeader -> Word32
 [contentHash] :: BlockHeader -> Hash "content"
 [parentHeaderHash] :: BlockHeader -> Hash "parentHeader"
+
+-- | The block-body consists of messages. There are several types of
+--   messages.
+--   
+--   Following, as closely as possible:
+--   <a>https://github.com/input-output-hk/rust-cardano/blob/e0616f13bebd6b908320bddb1c1502dea0d3305a/chain-impl-mockchain/src/message/mod.rs#L22-L29</a>
+data Message
+
+-- | Found in the genesis block. | OldUtxoDeclaration UtxoDeclaration
+Initial :: [ConfigParam] -> Message
+Transaction :: Tx -> Message
+UnimplementedMessage :: Int -> Message
+getBlockHeader :: Get BlockHeader
+getBlock :: Get Block
 data ConfigParam
+
+-- | The official start time of the blockchain, in seconds since the Unix
+--   epoch.
 Block0Date :: Word64 -> ConfigParam
-ConfigDiscrimination :: Network -> ConfigParam
-ConsensusVersion :: Word16 -> ConfigParam
-SlotsPerEpoch :: Word32 -> ConfigParam
-SlotDuration :: Word8 -> ConfigParam
-EpochStabilityDepth :: Word32 -> ConfigParam
-ConsensusGenesisPraosActiveSlotsCoeff :: Milli -> ConfigParam
+
+-- | Address discrimination. Testnet / Mainnet.
+Discrimination :: Network -> ConfigParam
+
+-- | Consensus version. BFT / Genesis Praos.
+Consensus :: ConsensusVersion -> ConfigParam
+
+-- | Number of slots in an epoch.
+SlotsPerEpoch :: Quantity "slot/epoch" Word32 -> ConfigParam
+
+-- | Slot duration in seconds.
+SlotDuration :: Quantity "second/slot" Word8 -> ConfigParam
+
+-- | The length of the suffix of the chain (in blocks) considered unstable.
+EpochStabilityDepth :: Quantity "block" Word32 -> ConfigParam
+
+-- | Determines maximum probability of a stakeholder being elected as
+--   leader in a slot.
+ConsensusGenesisPraosParamF :: Milli -> ConfigParam
+
+-- | Maximum number of transactions in a block.
 MaxNumberOfTransactionsPerBlock :: Word32 -> ConfigParam
+
+-- | Fraction of blocks to be created by BFT leaders.
 BftSlotsRatio :: Milli -> ConfigParam
+
+-- | Add a BFT Leader
 AddBftLeader :: LeaderId -> ConfigParam
+
+-- | Remove a BFT Leader
 RemoveBftLeader :: LeaderId -> ConfigParam
+
+-- | Enable/disable account creation.
 AllowAccountCreation :: Bool -> ConfigParam
+
+-- | Coefficients for fee calculations.
 ConfigLinearFee :: LinearFee -> ConfigParam
-ProposalExpiration :: Word32 -> ConfigParam
+
+-- | Number of epochs until an update proposal expires.
+ProposalExpiration :: Quantity "epoch" Word32 -> ConfigParam
+
+-- | Maximum number of seconds per update for KES keys known by the system
+--   after start time.
+KesUpdateSpeed :: Quantity "second/update" Word32 -> ConfigParam
+data ConsensusVersion
+BFT :: ConsensusVersion
+GenesisPraos :: ConsensusVersion
 newtype LeaderId
 LeaderId :: ByteString -> LeaderId
 data LinearFee
-LinearFee :: Word64 -> Word64 -> Word64 -> LinearFee
+LinearFee :: Quantity "lovelace" Word64 -> Quantity "lovelace/byte" Word64 -> Quantity "lovelace/cert" Word64 -> LinearFee
+[const] :: LinearFee -> Quantity "lovelace" Word64
+[perByte] :: LinearFee -> Quantity "lovelace/byte" Word64
+[perCert] :: LinearFee -> Quantity "lovelace/cert" Word64
+
+-- | Used to represent (&gt;= 0) rational numbers as (&gt;= 0) integers, by
+--   just multiplying by 1000. For instance: '3.141592' is represented as
+--   'Milli 3142'.
 newtype Milli
 Milli :: Word64 -> Milli
 
@@ -107,6 +150,8 @@ instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.Message
 instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.Message
 instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.ConfigParam
 instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.ConfigParam
+instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.ConsensusVersion
+instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.ConsensusVersion
 instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.LinearFee
 instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.LinearFee
 instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.LeaderId
