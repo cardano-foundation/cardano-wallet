@@ -60,7 +60,7 @@ import Data.Word
 import Database.Persist.Sql
     ( LogFunc
     , Update (..)
-    , deleteWhereCount
+    , deleteCascadeWhere
     , entityVal
     , insert_
     , runMigration
@@ -270,11 +270,10 @@ newDBLayer fp = do
             insert_ (mkWalletEntity wid meta)
 
         , removeWallet = \(PrimaryKey wid) ->
-            ExceptT $ runQuery conn $ do
-                n <- deleteWhereCount [WalTableId ==. wid]
-                pure $ if n == 0
-                       then Left (ErrNoSuchWallet wid)
-                       else Right ()
+            ExceptT $ runQuery conn $
+            selectWallet wid >>= \case
+                Just _ -> Right <$> deleteCascadeWhere [WalTableId ==. wid]
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
         , listWallets = runQuery conn $
             map (PrimaryKey . unWalletKey) <$> selectKeysList [] []

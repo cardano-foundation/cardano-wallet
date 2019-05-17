@@ -25,6 +25,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     )
+import Control.Monad
+    ( mapM_ )
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Crypto.Hash
@@ -34,28 +36,28 @@ import Data.ByteString
 import Data.Time.Clock
     ( getCurrentTime )
 import Test.Hspec
-    ( Spec, describe, it, shouldReturn )
+    ( Spec, beforeAll, beforeWith, describe, it, shouldReturn )
 
 spec :: Spec
-spec = do
+spec = beforeAll (newDBLayer Nothing) $ beforeWith cleanDB $ do
     describe "Wallet table" $ do
-        it "create and list works" $ do
-            db <- newDBLayer Nothing
-            unsafeRunExceptT (createWallet db testPk undefined testMetadata)
+        it "create and list works" $ \db -> do
+            unsafeRunExceptT $ createWallet db testPk undefined testMetadata
             listWallets db `shouldReturn` [testPk]
 
-        it "create and get meta works" $ do
-            db <- newDBLayer Nothing
+        it "create and get meta works" $ \db -> do
             now <- getCurrentTime
             let md = testMetadata { passphraseInfo = Just $ WalletPassphraseInfo now }
-            unsafeRunExceptT (createWallet db testPk undefined md)
+            unsafeRunExceptT $ createWallet db testPk undefined md
             readWalletMeta db testPk `shouldReturn` Just md
 
-        it "create twice is handled" $ do
-            db <- newDBLayer Nothing
+        it "create twice is handled" $ \db -> do
             let create' = createWallet db testPk undefined testMetadata
             runExceptT create' `shouldReturn` (Right ())
             runExceptT create' `shouldReturn` (Left (ErrWalletAlreadyExists testWid))
+
+cleanDB :: Monad m => DBLayer m s t -> m (DBLayer m s t)
+cleanDB db = listWallets db >>= mapM_ (runExceptT . removeWallet db) >> pure db
 
 testMetadata :: WalletMetadata
 testMetadata = WalletMetadata
