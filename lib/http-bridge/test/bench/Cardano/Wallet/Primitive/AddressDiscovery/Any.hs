@@ -18,7 +18,12 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Any
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( GenChange (..), IsOurs (..), IsOwned (..) )
+    ( CompareDiscovery (..)
+    , GenChange (..)
+    , IsOurs (..)
+    , IsOwned (..)
+    , KnownAddresses (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), WalletId (..), WalletName (..) )
 import Control.DeepSeq
@@ -60,6 +65,16 @@ instance IsOwned AnyAddressState where
 instance GenChange AnyAddressState where
     genChange _ = error
         "GenChange.genChange: trying to generate change for \
+        \an incompatible scheme 'AnyAddressState'. Please don't."
+
+instance CompareDiscovery AnyAddressState where
+    compareDiscovery _ _ _ = error
+        "CompareDiscovery.compareDiscovery: trying to generate change for \
+        \an incompatible scheme 'AnyAddressState'. Please don't."
+
+instance KnownAddresses AnyAddressState where
+    knownAddresses _ = error
+        "KnownAddresses.knownAddresses: trying to generate change for \
         \an incompatible scheme 'AnyAddressState'. Please don't."
 
 initAnyState :: Text -> Double -> (WalletId, WalletName, AnyAddressState)

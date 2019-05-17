@@ -137,6 +137,7 @@ Usage:
   cardano-wallet wallet update [--port=INT] <wallet-id> --name=STRING
   cardano-wallet wallet delete [--port=INT] <wallet-id>
   cardano-wallet transaction create [--port=INT] <wallet-id> --payment=PAYMENT...
+  cardano-wallet address list [--port=INT] <wallet-id>
   cardano-wallet -h | --help
   cardano-wallet --version
 
@@ -225,6 +226,21 @@ exec manager args
         wId <- args `parseArg` argument "wallet-id"
         runClient @Wallet (const "") $ deleteWallet (ApiT wId)
 
+    | args `isPresent` command "transaction" &&
+      args `isPresent` command "create" = do
+        wId <- args `parseArg` argument "wallet-id"
+        ts <- args `parseAllArgs` longOption "payment"
+        wPwd <- getPassphrase
+        runClient @Wallet Aeson.encodePretty $ createTransaction (ApiT wId) $
+            PostTransactionData
+                ts
+                (ApiT wPwd)
+
+    | args `isPresent` command "address" &&
+      args `isPresent` command "list" = do
+        wId <- args `parseArg` argument "wallet-id"
+        runClient @Wallet Aeson.encodePretty $ listAddresses (ApiT wId) Nothing
+
     | args `isPresent` longOption "version" = do
         let cabal = B8.unpack $(embedFile "cardano-wallet.cabal")
         let re = few anySym
@@ -236,16 +252,6 @@ exec manager args
                 exitFailure
             Just version -> do
                 TIO.putStrLn $ T.pack version
-
-    | args `isPresent` command "transaction" &&
-      args `isPresent` command "create" = do
-        wId <- args `parseArg` argument "wallet-id"
-        ts <- args `parseAllArgs` longOption "payment"
-        wPwd <- getPassphrase
-        runClient @Transaction Aeson.encodePretty $ createTransaction (ApiT wId) $
-            PostTransactionData
-                ts
-                (ApiT wPwd)
 
     | otherwise =
         exitWithUsage cli
@@ -271,7 +277,7 @@ exec manager args
             exitFailure
         pure wPwd
 
-    _ :<|> -- List Address
+    listAddresses :<|> -- List Address
         ( deleteWallet
         :<|> getWallet
         :<|> listWallets
@@ -318,7 +324,6 @@ exec manager args
 
 -- | Namespaces for commands.
 data Wallet deriving (Typeable)
-data Transaction deriving (Typeable)
 
 -- | Start a web-server to serve the wallet backend API on the given port.
 execServer :: Port "wallet" -> Port "bridge" -> IO ()

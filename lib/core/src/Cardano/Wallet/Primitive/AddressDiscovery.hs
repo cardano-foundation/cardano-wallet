@@ -25,6 +25,8 @@ module Cardano.Wallet.Primitive.AddressDiscovery
       IsOurs(..)
     , IsOwned(..)
     , GenChange(..)
+    , CompareDiscovery(..)
+    , KnownAddresses(..)
 
     -- * Sequential Derivation
     -- ** Address Pool Gap
@@ -155,6 +157,39 @@ class GenChange s where
         -> (Address, s)
         -- ^ Generate a new change address for the given scheme. The rules for
         -- generating a new change address depends on the underlying scheme.
+
+-- | Ordering addresses by discovery date.
+--
+-- If `a1` has been discovered before `a2`, then the following equation holds:
+--
+-- @
+-- compareDiscovery s a1 a2 == LT
+-- @
+--
+-- If `a1` has been discovered after `a2`, then the following equation holds:
+--
+-- @
+-- compareDiscovery s a1 a2 == GT
+-- @
+--
+-- Note that, if an address isn't known it is considered not discovered and
+-- therefore, is always _greater than_ any known address.
+class CompareDiscovery s where
+    compareDiscovery
+        :: s
+        -> Address
+        -> Address
+        -> Ordering
+
+-- | Extract the list of all known addresses.
+--
+-- NOTE: Change addresses aren't considered "known" until they've been used. The
+-- rationale is that, we don't want users or consumers of the wallet to be using
+-- change addresses prematurely.
+class KnownAddresses s where
+    knownAddresses
+        :: s
+        -> [Address]
 
 {-------------------------------------------------------------------------------
                           Sequential Derivation
@@ -507,3 +542,27 @@ instance KeyToAddress t => IsOwned (SeqState t) where
                 cc = changeChain @chain
             in
                 deriveAddressPrivateKey pwd accountPrv cc <$> addrIx
+
+instance KeyToAddress t => CompareDiscovery (SeqState t) where
+    compareDiscovery (SeqState !s1 !s2 _) a1 a2 =
+        let
+            ix a = fst . lookupAddress a
+        in
+            case (ix a1 s1 <|> ix a1 s2, ix a2 s1 <|> ix a2 s2) of
+                (Nothing, Nothing) -> EQ
+                (Nothing, Just _)  -> GT
+                (Just _, Nothing)  -> LT
+                (Just i1, Just i2) -> compare i1 i2
+
+instance KnownAddresses (SeqState t) where
+    knownAddresses s =
+        let
+            (PendingIxs ixs) =
+                pendingChangeIxs s
+            internalGap =
+                fromEnum . getAddressPoolGap . gap . internalPool $ s
+            discardUndiscoveredChange xs =
+                take (length ixs) $ drop (length xs - internalGap) xs
+        in
+            addresses (externalPool s)
+            <> discardUndiscoveredChange (addresses $ internalPool s)

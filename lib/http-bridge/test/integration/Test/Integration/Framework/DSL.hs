@@ -7,6 +7,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
+{-# OPTIONS_GHC -fno-warn-simplifiable-class-constraints #-}
+
 module Test.Integration.Framework.DSL
     ( Context(..)
 
@@ -65,7 +67,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
-    , WalletState (..)
     )
 import Control.Concurrent
     ( threadDelay )
@@ -91,6 +92,8 @@ import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( Lens', lens, set, view, (^.) )
+import Data.Generics.Product.Fields
+    ( HasField', getField, setField )
 import Data.Generics.Product.Typed
     ( HasType, typed )
 import Data.List
@@ -323,14 +326,14 @@ passphraseLastUpdate =
     _set :: HasType (Maybe (ApiT WalletPassphraseInfo)) s => (s, Maybe Text) -> s
     _set (s, v) = set typed (ApiT . WalletPassphraseInfo . read . T.unpack <$> v) s
 
-state :: HasType (ApiT WalletState) s => Lens' s WalletState
+state :: HasField' "state" s (ApiT t) => Lens' s t
 state =
     lens _get _set
   where
-    _get :: HasType (ApiT WalletState) s => s -> WalletState
-    _get = getApiT . view typed
-    _set :: HasType (ApiT WalletState) s => (s, WalletState) -> s
-    _set (s, v) = set typed (ApiT v ) s
+    _get :: HasField' "state" s (ApiT t) => s -> t
+    _get = getApiT . getField @"state"
+    _set :: HasField' "state" s (ApiT t) => (s, t) -> s
+    _set (s, v) = setField @"state" (ApiT v) s
 
 walletName :: HasType (ApiT WalletName) s => Lens' s Text
 walletName =
