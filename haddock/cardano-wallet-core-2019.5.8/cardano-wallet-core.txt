@@ -234,6 +234,8 @@ TxMeta :: !TxStatus -> !Direction -> !SlotId -> !Quantity "lovelace" Natural -> 
 [$sel:direction:TxMeta] :: TxMeta -> !Direction
 [$sel:slotId:TxMeta] :: TxMeta -> !SlotId
 [$sel:amount:TxMeta] :: TxMeta -> !Quantity "lovelace" Natural
+
+-- | The effect of a <tt>Transaction</tt> on the wallet balance.
 data Direction
 
 -- | The wallet balance decreases.
@@ -245,6 +247,9 @@ data TxStatus
 Pending :: TxStatus
 InLedger :: TxStatus
 Invalidated :: TxStatus
+
+-- | <tt>TxWitness</tt> is proof that transaction inputs are allowed to be
+--   spent
 data TxWitness
 
 -- | A signature of a transaction by the owner of the address of an input.
@@ -972,6 +977,35 @@ isOwned :: IsOwned s => s -> (Key  'RootK XPrv, Passphrase "encryption") -> Addr
 class GenChange s
 genChange :: GenChange s => s -> (Address, s)
 
+-- | Ordering addresses by discovery date.
+--   
+--   If <tt>a1</tt> has been discovered before <tt>a2</tt>, then the
+--   following equation holds:
+--   
+--   <pre>
+--   compareDiscovery s a1 a2 == LT
+--   </pre>
+--   
+--   If <tt>a1</tt> has been discovered after <tt>a2</tt>, then the
+--   following equation holds:
+--   
+--   <pre>
+--   compareDiscovery s a1 a2 == GT
+--   </pre>
+--   
+--   Note that, if an address isn't known it is considered not discovered
+--   and therefore, is always _greater than_ any known address.
+class CompareDiscovery s
+compareDiscovery :: CompareDiscovery s => s -> Address -> Address -> Ordering
+
+-- | Extract the list of all known addresses.
+--   
+--   NOTE: Change addresses aren't considered "known" until they've been
+--   used. The rationale is that, we don't want users or consumers of the
+--   wallet to be using change addresses prematurely.
+class KnownAddresses s
+knownAddresses :: KnownAddresses s => s -> [Address]
+
 -- | Maximum number of consecutive undiscovered addresses allowed
 data AddressPoolGap
 
@@ -1091,6 +1125,8 @@ instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDiscovery.SeqSt
 instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t => Cardano.Wallet.Primitive.AddressDiscovery.IsOurs (Cardano.Wallet.Primitive.AddressDiscovery.SeqState t)
 instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t => Cardano.Wallet.Primitive.AddressDiscovery.GenChange (Cardano.Wallet.Primitive.AddressDiscovery.SeqState t)
 instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t => Cardano.Wallet.Primitive.AddressDiscovery.IsOwned (Cardano.Wallet.Primitive.AddressDiscovery.SeqState t)
+instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t => Cardano.Wallet.Primitive.AddressDiscovery.CompareDiscovery (Cardano.Wallet.Primitive.AddressDiscovery.SeqState t)
+instance Cardano.Wallet.Primitive.AddressDiscovery.KnownAddresses (Cardano.Wallet.Primitive.AddressDiscovery.SeqState t)
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.PendingIxs
 instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDiscovery.AddressPool target chain)
 instance Data.Text.Class.FromText Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
@@ -1230,6 +1266,9 @@ totalUTxO :: forall s t. Wallet s t -> UTxO
 
 -- | Available UTxO = <tt>pending ⋪ utxo</tt>
 availableUTxO :: Wallet s t -> UTxO
+
+-- | Get the set of pending transactions
+getPending :: Wallet s t -> Set Tx
 instance GHC.Show.Show (Cardano.Wallet.Primitive.Model.Wallet s t)
 instance GHC.Classes.Eq s => GHC.Classes.Eq (Cardano.Wallet.Primitive.Model.Wallet s t)
 instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.Model.Wallet s t)
@@ -1423,7 +1462,18 @@ instance GHC.Classes.Eq Cardano.Wallet.Primitive.Fee.TxSizeLinear
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.Fee.Fee
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Fee.Fee
 
+
+-- | This module contains instances and types necessary for storing wallets
+--   in a SQL database with Persistent.
+--   
+--   It's in a separate module due to the GHC stage restriction.
+--   
+--   The ToJSON/FromJSON and Read instance orphans exist due to class
+--   constraints on Persistent functions.
 module Cardano.Wallet.DB.SqliteTypes
+
+-- | Settings for generating the Persistent types.
+sqlSettings' :: MkPersistSettings
 
 -- | <a>fromText</a> but with a simpler error type.
 fromText' :: FromText a => Text -> Either Text a
@@ -1435,10 +1485,6 @@ aesonFromText :: FromText a => String -> Value -> Parser a
 fromPersistValueFromText :: FromText a => PersistValue -> Either Text a
 directionToBool :: Direction -> Bool
 directionFromBool :: Bool -> Direction
-data AddressScheme
-Sequential :: AddressScheme
-Random :: AddressScheme
-Any :: AddressScheme
 newtype TxId
 TxId :: Hash "Tx" -> TxId
 [getTxId] :: TxId -> Hash "Tx"
@@ -1449,9 +1495,6 @@ instance GHC.Generics.Generic Cardano.Wallet.DB.SqliteTypes.TxId
 instance GHC.Classes.Ord Cardano.Wallet.DB.SqliteTypes.TxId
 instance GHC.Classes.Eq Cardano.Wallet.DB.SqliteTypes.TxId
 instance GHC.Show.Show Cardano.Wallet.DB.SqliteTypes.TxId
-instance GHC.Generics.Generic Cardano.Wallet.DB.SqliteTypes.AddressScheme
-instance GHC.Classes.Eq Cardano.Wallet.DB.SqliteTypes.AddressScheme
-instance GHC.Show.Show Cardano.Wallet.DB.SqliteTypes.AddressScheme
 instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.DB.SqliteTypes.TxId
 instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.DB.SqliteTypes.TxId
 instance GHC.Read.Read Cardano.Wallet.DB.SqliteTypes.TxId
@@ -1460,10 +1503,6 @@ instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.DB.SqliteTypes.TxId
 instance Web.Internal.HttpApiData.ToHttpApiData Cardano.Wallet.DB.SqliteTypes.TxId
 instance Web.Internal.HttpApiData.FromHttpApiData Cardano.Wallet.DB.SqliteTypes.TxId
 instance Web.PathPieces.PathPiece Cardano.Wallet.DB.SqliteTypes.TxId
-instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.DB.SqliteTypes.AddressScheme
-instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.DB.SqliteTypes.AddressScheme
-instance Data.Text.Class.FromText Cardano.Wallet.DB.SqliteTypes.AddressScheme
-instance Data.Text.Class.ToText Cardano.Wallet.DB.SqliteTypes.AddressScheme
 instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.Primitive.Types.Direction
 instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.Primitive.Types.Direction
 instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.Primitive.Types.WalletId
@@ -1485,67 +1524,20 @@ instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.Primiti
 instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.Primitive.Types.TxStatus
 instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.Primitive.Types.Coin
 instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.Primitive.Types.Coin
+instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.Primitive.Types.Address
+instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.Primitive.Types.Address
 
+
+-- | An implementation of the DBLayer which uses Persistent and SQLite.
 module Cardano.Wallet.DB.Sqlite
-data Wallet
-Wallet :: !WalletId -> !Text -> !UTCTime -> !WalletState -> !Maybe Text -> !AddressScheme -> Wallet
-[walTableId] :: Wallet -> !WalletId
-[walTableName] :: Wallet -> !Text
-[walTablePassphraseLastUpdatedAt] :: Wallet -> !UTCTime
-[walTableStatus] :: Wallet -> !WalletState
-[walTableDelegation] :: Wallet -> !Maybe Text
-[walTableAddressScheme] :: Wallet -> !AddressScheme
-type WalletId = Key Wallet
-data PrivateKey
-PrivateKey :: !WalletId -> !Text -> PrivateKey
-[privateKeyTableWalletId] :: PrivateKey -> !WalletId
-[privateKeyTableKey] :: PrivateKey -> !Text
-type PrivateKeyId = Key PrivateKey
-data TxMeta
-TxMeta :: !TxId -> !WalletId -> !TxStatus -> !Direction -> !SlotId -> !Coin -> TxMeta
-[txMetaTableTxId] :: TxMeta -> !TxId
-[txMetaTableWalletId] :: TxMeta -> !WalletId
-[txMetaTableStatus] :: TxMeta -> !TxStatus
-[txMetaTableDirection] :: TxMeta -> !Direction
-[txMetaTableSlotId] :: TxMeta -> !SlotId
-[txMetaTableAmount] :: TxMeta -> !Coin
-type TxMetaId = Key TxMeta
-data TxIn
-TxIn :: !TxId -> !WalletId -> !TxId -> !Word32 -> TxIn
-[txInputTableTxId] :: TxIn -> !TxId
-[txInputTableWalletId] :: TxIn -> !WalletId
-[txInputTableSourceTxId] :: TxIn -> !TxId
-[txInputTableSourceIndex] :: TxIn -> !Word32
-type TxInId = Key TxIn
-data TxOut
-TxOut :: !TxId -> !WalletId -> !Word32 -> !Text -> !Coin -> TxOut
-[txOutputTableTxId] :: TxOut -> !TxId
-[txOutputTableWalletId] :: TxOut -> !WalletId
-[txOutputTableIndex] :: TxOut -> !Word32
-[txOutputTableAddress] :: TxOut -> !Text
-[txOutputTableAmount] :: TxOut -> !Coin
-type TxOutId = Key TxOut
-data Checkpoint
-Checkpoint :: !WalletId -> !SlotId -> Checkpoint
-[checkpointTableWalletId] :: Checkpoint -> !WalletId
-[checkpointTableWalletSlot] :: Checkpoint -> !SlotId
-type CheckpointId = Key Checkpoint
-data UTxO
-UTxO :: !WalletId -> !SlotId -> !TxId -> !Word32 -> !TxId -> !Word32 -> UTxO
-[utxoTableWalletId] :: UTxO -> !WalletId
-[utxoTableWalletSlot] :: UTxO -> !SlotId
-[utxoTableInputId] :: UTxO -> !TxId
-[utxoTableInputIndex] :: UTxO -> !Word32
-[utxoTableOutputId] :: UTxO -> !TxId
-[utxoTableOutputIndex] :: UTxO -> !Word32
-type UTxOId = Key UTxO
-migrateAll :: Migration
-fk_checkpoint_utxo :: UTxO -> Key Checkpoint
-fk_wallet_checkpoint :: Checkpoint -> Key Wallet
-fk_tx_meta_tx_out :: TxOut -> Key TxMeta
-fk_tx_meta_tx_in :: TxIn -> Key TxMeta
-fk_wallet_tx_meta :: TxMeta -> Key Wallet
-fk_wallet_private_key :: PrivateKey -> Key Wallet
+
+-- | Sets up a connection to the SQLite database.
+--   
+--   Database migrations are run to create tables if necessary.
+--   
+--   If the given file path does not exist, it will be created by the
+--   sqlite library.
+newDBLayer :: Maybe FilePath -> IO (DBLayer IO s t)
 instance GHC.Generics.Generic Cardano.Wallet.DB.Sqlite.UTxO
 instance GHC.Show.Show Cardano.Wallet.DB.Sqlite.UTxO
 instance GHC.Generics.Generic Cardano.Wallet.DB.Sqlite.Checkpoint
@@ -1617,6 +1609,7 @@ instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.DB.Sqli
 instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.DB.Sqlite.UTxO
 instance Database.Persist.Class.PersistEntity.PersistEntity Cardano.Wallet.DB.Sqlite.UTxO
 instance Database.Persist.Class.PersistStore.ToBackendKey Database.Persist.Sql.Types.Internal.SqlBackend Cardano.Wallet.DB.Sqlite.UTxO
+instance (Database.Persist.Class.PersistQuery backend, Database.Persist.Class.PersistEntity.PersistEntityBackend Cardano.Wallet.DB.Sqlite.UTxO Data.Type.Equality.~ Database.Persist.Class.PersistStore.BaseBackend backend) => Database.Persist.Class.DeleteCascade.DeleteCascade Cardano.Wallet.DB.Sqlite.UTxO backend
 instance Database.Persist.Class.PersistEntity.PersistEntity Cardano.Wallet.DB.Sqlite.Checkpoint
 instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.DB.Sqlite.Checkpoint
 instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.DB.Sqlite.Checkpoint
@@ -1624,6 +1617,7 @@ instance Database.Persist.Class.PersistField.PersistField (Database.Persist.Clas
 instance Database.Persist.Sql.Class.PersistFieldSql (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.Checkpoint)
 instance Data.Aeson.Types.ToJSON.ToJSON (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.Checkpoint)
 instance Data.Aeson.Types.FromJSON.FromJSON (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.Checkpoint)
+instance (Database.Persist.Class.PersistQuery backend, Database.Persist.Class.PersistEntity.PersistEntityBackend Cardano.Wallet.DB.Sqlite.Checkpoint Data.Type.Equality.~ Database.Persist.Class.PersistStore.BaseBackend backend) => Database.Persist.Class.DeleteCascade.DeleteCascade Cardano.Wallet.DB.Sqlite.Checkpoint backend
 instance Database.Persist.Class.PersistEntity.PersistEntity Cardano.Wallet.DB.Sqlite.TxOut
 instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.DB.Sqlite.TxOut
 instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.DB.Sqlite.TxOut
@@ -1631,6 +1625,7 @@ instance Database.Persist.Class.PersistField.PersistField (Database.Persist.Clas
 instance Database.Persist.Sql.Class.PersistFieldSql (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxOut)
 instance Data.Aeson.Types.ToJSON.ToJSON (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxOut)
 instance Data.Aeson.Types.FromJSON.FromJSON (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxOut)
+instance (Database.Persist.Class.PersistQuery backend, Database.Persist.Class.PersistEntity.PersistEntityBackend Cardano.Wallet.DB.Sqlite.TxOut Data.Type.Equality.~ Database.Persist.Class.PersistStore.BaseBackend backend) => Database.Persist.Class.DeleteCascade.DeleteCascade Cardano.Wallet.DB.Sqlite.TxOut backend
 instance Database.Persist.Class.PersistEntity.PersistEntity Cardano.Wallet.DB.Sqlite.TxIn
 instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.DB.Sqlite.TxIn
 instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.DB.Sqlite.TxIn
@@ -1638,6 +1633,7 @@ instance Database.Persist.Class.PersistField.PersistField (Database.Persist.Clas
 instance Database.Persist.Sql.Class.PersistFieldSql (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxIn)
 instance Data.Aeson.Types.ToJSON.ToJSON (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxIn)
 instance Data.Aeson.Types.FromJSON.FromJSON (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxIn)
+instance (Database.Persist.Class.PersistQuery backend, Database.Persist.Class.PersistEntity.PersistEntityBackend Cardano.Wallet.DB.Sqlite.TxIn Data.Type.Equality.~ Database.Persist.Class.PersistStore.BaseBackend backend) => Database.Persist.Class.DeleteCascade.DeleteCascade Cardano.Wallet.DB.Sqlite.TxIn backend
 instance Database.Persist.Class.PersistEntity.PersistEntity Cardano.Wallet.DB.Sqlite.TxMeta
 instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.DB.Sqlite.TxMeta
 instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.DB.Sqlite.TxMeta
@@ -1645,12 +1641,15 @@ instance Database.Persist.Class.PersistField.PersistField (Database.Persist.Clas
 instance Database.Persist.Sql.Class.PersistFieldSql (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxMeta)
 instance Data.Aeson.Types.ToJSON.ToJSON (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxMeta)
 instance Data.Aeson.Types.FromJSON.FromJSON (Database.Persist.Class.PersistEntity.Key Cardano.Wallet.DB.Sqlite.TxMeta)
+instance (Database.Persist.Class.PersistQuery backend, Database.Persist.Class.PersistEntity.PersistEntityBackend Cardano.Wallet.DB.Sqlite.TxMeta Data.Type.Equality.~ Database.Persist.Class.PersistStore.BaseBackend backend) => Database.Persist.Class.DeleteCascade.DeleteCascade Cardano.Wallet.DB.Sqlite.TxMeta backend
 instance Database.Persist.Class.PersistEntity.PersistEntity Cardano.Wallet.DB.Sqlite.PrivateKey
 instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.DB.Sqlite.PrivateKey
 instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.DB.Sqlite.PrivateKey
+instance (Database.Persist.Class.PersistQuery backend, Database.Persist.Class.PersistEntity.PersistEntityBackend Cardano.Wallet.DB.Sqlite.PrivateKey Data.Type.Equality.~ Database.Persist.Class.PersistStore.BaseBackend backend) => Database.Persist.Class.DeleteCascade.DeleteCascade Cardano.Wallet.DB.Sqlite.PrivateKey backend
 instance Database.Persist.Class.PersistEntity.PersistEntity Cardano.Wallet.DB.Sqlite.Wallet
 instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.DB.Sqlite.Wallet
 instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.DB.Sqlite.Wallet
+instance (Database.Persist.Class.PersistQuery backend, Database.Persist.Class.PersistEntity.PersistEntityBackend Cardano.Wallet.DB.Sqlite.Wallet Data.Type.Equality.~ Database.Persist.Class.PersistStore.BaseBackend backend) => Database.Persist.Class.DeleteCascade.DeleteCascade Cardano.Wallet.DB.Sqlite.Wallet backend
 
 
 -- | API type representations of various types. We define here pretty much
@@ -1886,7 +1885,7 @@ instance Servant.API.ContentTypes.Accept Cardano.Wallet.Api.Any
 --   to realize its role as being intermediary between the three.
 module Cardano.Wallet
 data WalletLayer s t
-WalletLayer :: (WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)) -> (WalletId -> (WalletMetadata -> WalletMetadata) -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> (Passphrase "encryption-old", Passphrase "encryption-new") -> ExceptT ErrUpdatePassphrase IO ()) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection) -> (WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx, TxMeta, [TxWitness])) -> (WalletId -> (Tx, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()) -> WalletLayer s t
+WalletLayer :: (WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)) -> (WalletId -> (WalletMetadata -> WalletMetadata) -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> (Passphrase "encryption-old", Passphrase "encryption-new") -> ExceptT ErrUpdatePassphrase IO ()) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]) -> (WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection) -> (WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx, TxMeta, [TxWitness])) -> (WalletId -> (Tx, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()) -> WalletLayer s t
 
 -- | Initialise and store a new wallet, returning its Id.
 [$sel:createWallet:WalletLayer] :: WalletLayer s t -> WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId
@@ -1915,6 +1914,10 @@ WalletLayer :: (WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO
 --   given tip. It starts a worker in background which will fetch and apply
 --   remaining blocks until failure or, the target slot is reached.
 [$sel:restoreWallet:WalletLayer] :: WalletLayer s t -> WalletId -> ExceptT ErrNoSuchWallet IO ()
+
+-- | List all addresses of a wallet with their metadata. Addresses are
+--   ordered from the most recently discovered to the oldest known.
+[$sel:listAddresses:WalletLayer] :: WalletLayer s t -> WalletId -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]
 
 -- | Prepare a transaction and automatically select inputs from the wallet
 --   to cover the requested outputs. Note that this only run the coin
@@ -1978,7 +1981,7 @@ data ErrWrongPassphrase
 ErrWrongPassphrase :: ErrWrongPassphrase
 
 -- | Create a new instance of the wallet layer.
-newWalletLayer :: forall s t. (IsOwned s, GenChange s, NFData s, Show s, TxId t) => DBLayer IO s t -> NetworkLayer IO -> TransactionLayer -> IO (WalletLayer s t)
+newWalletLayer :: forall s t. (IsOwned s, GenChange s, KnownAddresses s, CompareDiscovery s, NFData s, Show s, TxId t) => DBLayer IO s t -> NetworkLayer IO -> TransactionLayer -> IO (WalletLayer s t)
 
 -- | Run an <a>ExceptT</a> and throws the error if any. This makes sense
 --   only if called after checking for an invariant or, after ensuring that
