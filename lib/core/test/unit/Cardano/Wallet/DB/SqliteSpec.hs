@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE StandaloneDeriving #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -17,6 +16,8 @@ import Cardano.Wallet.DB
     ( DBLayer (..), ErrWalletAlreadyExists (..), PrimaryKey (..) )
 import Cardano.Wallet.DB.Sqlite
     ( newDBLayer )
+import Cardano.Wallet.DBSpec
+    ( cleanDB )
 import Cardano.Wallet.Primitive.Types
     ( WalletDelegation (..)
     , WalletId (..)
@@ -25,8 +26,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     )
-import Control.Monad
-    ( mapM_ )
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Crypto.Hash
@@ -56,9 +55,6 @@ spec = beforeAll (newDBLayer Nothing) $ beforeWith cleanDB $ do
             runExceptT create' `shouldReturn` (Right ())
             runExceptT create' `shouldReturn` (Left (ErrWalletAlreadyExists testWid))
 
-cleanDB :: Monad m => DBLayer m s t -> m (DBLayer m s t)
-cleanDB db = listWallets db >>= mapM_ (runExceptT . removeWallet db) >> pure db
-
 testMetadata :: WalletMetadata
 testMetadata = WalletMetadata
     { name = WalletName "test wallet"
@@ -72,5 +68,3 @@ testWid = WalletId (hash ("test" :: ByteString))
 
 testPk :: PrimaryKey WalletId
 testPk = PrimaryKey testWid
-
-deriving instance Show (PrimaryKey WalletId)
