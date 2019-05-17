@@ -57,6 +57,7 @@ module Test.Integration.Framework.DSL
     , createWalletViaCLI
     , deleteWalletViaCLI
     , getWalletViaCLI
+    , listAddressesViaCLI
     , listWalletsViaCLI
     , updateWalletViaCLI
     ) where
@@ -501,6 +502,10 @@ deleteWalletViaCLI walId = cardanoWalletCLI ["wallet", "delete", "--port",
 getWalletViaCLI :: CmdResult r => String -> IO r
 getWalletViaCLI walId = cardanoWalletCLI ["wallet", "get", "--port", "1337"
     , walId ]
+
+listAddressesViaCLI :: CmdResult r => String -> IO r
+listAddressesViaCLI walId = cardanoWalletCLI ["address", "list", "--port",
+    "1337", walId]
 
 listWalletsViaCLI :: CmdResult r => IO r
 listWalletsViaCLI = cardanoWalletCLI ["wallet", "list", "--port", "1337" ]

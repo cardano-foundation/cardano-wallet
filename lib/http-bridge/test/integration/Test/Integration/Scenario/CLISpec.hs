@@ -41,6 +41,7 @@ import Test.Integration.Framework.DSL
     , getFromResponse
     , getWalletViaCLI
     , json
+    , listAddressesViaCLI
     , listWalletsViaCLI
     , request
     , updateWalletViaCLI
@@ -216,8 +217,7 @@ specWithCluster = do
 
     it "CLI - Can list addresses" $ \ctx -> do
         walId <- createWallet ctx "CLI Wallet" mnemonics15
-        (Exit c, Stdout out, Stderr err) <- command [] "cardano-wallet"
-            ["address", "list", "--port", "1337", walId]
+        (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI walId
         err `shouldBe` "Ok.\n"
         expectValidJSON (Proxy @[ApiAddress]) out
         c `shouldBe` ExitSuccess
