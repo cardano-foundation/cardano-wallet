@@ -9,14 +9,18 @@
 -- License: MIT
 --
 -- The format is for the Shelley era as implemented by the Jörmungandr node.
+--
+-- It is described [here](https://github.com/input-output-hk/rust-cardano/blob/master/chain-impl-mockchain/doc/format.md)
 
 module Cardano.Wallet.Binary.Jormungandr
-    ( getBlockHeader
-    , getBlock
-    , Message (..)
-    , Block (..)
+    ( Block (..)
     , BlockHeader (..)
+    , Message (..)
+    , getBlockHeader
+    , getBlock
+
     , ConfigParam (..)
+    , ConsensusVersion (..)
     , LeaderId (..)
     , LinearFee (..)
     , Milli (..)
@@ -58,6 +62,8 @@ import Data.Bits
     ( shift, (.&.) )
 import Data.ByteString
     ( ByteString )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Word
     ( Word16, Word32, Word64, Word8 )
 
@@ -116,22 +122,22 @@ getBlock = do
                            Messages
 -------------------------------------------------------------------------------}
 
--- | Messages are what the block body consists of.
---
--- Every message is prefixed with a message header.
+-- | The block-body consists of messages. There are several types of messages.
 --
 --  Following, as closely as possible:
 -- https://github.com/input-output-hk/rust-cardano/blob/e0616f13bebd6b908320bddb1c1502dea0d3305a/chain-impl-mockchain/src/message/mod.rs#L22-L29
 data Message
     = Initial [ConfigParam]
-    | OldUtxoDeclaration TODO
+    -- ^ Found in the genesis block.
+--  | OldUtxoDeclaration UtxoDeclaration
     | Transaction Tx
-    | Certificate TODO
-    | UpdateProposal SignedUpdateProposal
-    | UpdateVote SignedVote
+--  | Certificate (Tx with Extra=Certificate)
+--  | UpdateProposal SignedUpdateProposal
+--  | UpdateVote SignedVote
     | UnimplementedMessage Int -- For development. Remove later.
     deriving (Eq, Show)
 
+-- | Decode a message (header + contents).
 getMessage :: Get Message
 getMessage = do
     size <- fromIntegral <$> getWord16be
@@ -147,11 +153,13 @@ getMessage = do
         5 -> unimpl
         other -> fail $ "Unexpected content type tag " ++ show other
 
+-- | Decode the contents of a @Initial@-message.
 getInitial :: Get [ConfigParam]
 getInitial = do
     len <- fromIntegral <$> getWord16be
     replicateM len getConfigParam
 
+-- | Decode the contents of a @Transaction@-message.
 getTransaction :: Get Tx
 getTransaction = isolate 43 $ do
     (ins, outs) <- getTokenTransfer
@@ -228,21 +236,39 @@ getTokenTransfer = do
 -------------------------------------------------------------------------------}
 
 data ConfigParam
-    -- Seconds elapsed since 1-Jan-1970 (unix time)
     = Block0Date Word64
-    | ConfigDiscrimination Network
-    | ConsensusVersion Word16 -- ?
-    | SlotsPerEpoch Word32
-    | SlotDuration Word8
-    | EpochStabilityDepth Word32
-    | ConsensusGenesisPraosActiveSlotsCoeff Milli
+    -- ^ The official start time of the blockchain, in seconds since the Unix
+    -- epoch.
+    | Discrimination Network
+    -- ^ Address discrimination. Testnet / Mainnet.
+    | Consensus ConsensusVersion
+    -- ^ Consensus version. BFT / Genesis Praos.
+    | SlotsPerEpoch (Quantity "slot/epoch" Word32)
+    -- ^ Number of slots in an epoch.
+    | SlotDuration (Quantity "second/slot" Word8)
+    -- ^ Slot duration in seconds.
+    | EpochStabilityDepth (Quantity "block" Word32)
+    -- ^ The length of the suffix of the chain (in blocks) considered unstable.
+    | ConsensusGenesisPraosParamF Milli
+    -- ^ Determines maximum probability of a stakeholder being elected as leader
+    -- in a slot.
     | MaxNumberOfTransactionsPerBlock Word32
+    -- ^ Maximum number of transactions in a block.
     | BftSlotsRatio Milli
+    -- ^ Fraction of blocks to be created by BFT leaders.
     | AddBftLeader LeaderId
+    -- ^ Add a BFT Leader
     | RemoveBftLeader LeaderId
+    -- ^ Remove a BFT Leader
     | AllowAccountCreation Bool
+    -- ^ Enable/disable account creation.
     | ConfigLinearFee LinearFee
-    | ProposalExpiration Word32
+    -- ^ Coefficients for fee calculations.
+    | ProposalExpiration (Quantity "epoch" Word32)
+    -- ^ Number of epochs until an update proposal expires.
+    | KesUpdateSpeed (Quantity "second/update" Word32)
+    -- ^ Maximum number of seconds per update for KES keys known by the system
+    -- after start time.
     deriving (Eq, Show)
 
 getConfigParam :: Get ConfigParam
@@ -257,36 +283,51 @@ getConfigParam = do
     let len = fromIntegral $ taglen .&. (63) -- 0b111111
 
     isolate len $ case tag of
-        1 -> ConfigDiscrimination <$> getNetwork
+        1 -> Discrimination <$> getNetwork
         2 -> Block0Date <$> getWord64be
-        3 -> ConsensusVersion <$> getWord16be -- ?
-        4 -> SlotsPerEpoch <$> getWord32be
-        5 -> SlotDuration <$> getWord8
-        6 -> EpochStabilityDepth <$> getWord32be
-        8 -> ConsensusGenesisPraosActiveSlotsCoeff <$> getMilli
+        3 -> Consensus <$> getConsensusVersion
+        4 -> SlotsPerEpoch . Quantity <$> getWord32be
+        5 -> SlotDuration . Quantity <$> getWord8
+        6 -> EpochStabilityDepth . Quantity <$> getWord32be
+        8 -> ConsensusGenesisPraosParamF <$> getMilli
         9 -> MaxNumberOfTransactionsPerBlock <$> getWord32be
         10 -> BftSlotsRatio <$> getMilli
         11 -> AddBftLeader <$> getLeaderId
         12 -> RemoveBftLeader <$> getLeaderId
         13 -> AllowAccountCreation <$> getBool
         14 -> ConfigLinearFee <$> getLinearFee
-        15 -> ProposalExpiration <$> getWord32be
-        a -> fail $ "Invalid config param with tag " ++ show a
+        15 -> ProposalExpiration . Quantity <$> getWord32be
+        16 -> KesUpdateSpeed . Quantity <$> getWord32be
+        other -> fail $ "Invalid config param with tag " ++ show other
 
+-- | Used to represent (>= 0) rational numbers as (>= 0) integers, by just
+-- multiplying by 1000. For instance: '3.141592' is represented as 'Milli 3142'.
 newtype Milli = Milli Word64
     deriving (Eq, Show)
 
 newtype LeaderId = LeaderId ByteString
     deriving (Eq, Show)
 
-data LinearFee = LinearFee Word64 Word64 Word64
+data LinearFee = LinearFee
+    { const :: Quantity "lovelace" Word64
+    , perByte :: Quantity "lovelace/byte" Word64
+    , perCert :: Quantity "lovelace/cert" Word64
+    } deriving (Eq, Show)
+
+data ConsensusVersion = BFT | GenesisPraos
     deriving (Eq, Show)
+
+getConsensusVersion :: Get ConsensusVersion
+getConsensusVersion = getWord16be >>= \case
+    1 -> return BFT
+    2 -> return GenesisPraos
+    other -> fail $ "Unknown consensus version: " ++ show other
 
 getNetwork :: Get Network
 getNetwork = getWord8 >>= \case
     1 -> return Mainnet
     2 -> return Testnet
-    a -> fail $ "Invalid network/discrimination value: " ++ show a
+    other -> fail $ "Invalid network/discrimination value: " ++ show other
 
 getMilli :: Get Milli
 getMilli = Milli <$> getWord64be
@@ -295,13 +336,19 @@ getLeaderId :: Get LeaderId
 getLeaderId = LeaderId <$> getByteString 32
 
 getLinearFee :: Get LinearFee
-getLinearFee = LinearFee <$> getWord64be <*> getWord64be <*> getWord64be
+getLinearFee = do
+    const' <- Quantity <$> getWord64be
+    perByte <- Quantity <$> getWord64be
+    perCert <- Quantity <$> getWord64be
+    return $ LinearFee const' perByte perCert
+
 
 getBool :: Get Bool
 getBool = getWord8 >>= \case
     1 -> return True
     0 -> return False
-    other -> fail $ "Unexpected boolean integer: " ++ show other
+    other -> fail $ "Unexpected integer: " ++ show other
+                ++ ". Expected a boolean 0 or 1."
 
 {-------------------------------------------------------------------------------
                               Helpers
