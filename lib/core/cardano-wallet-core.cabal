@@ -131,11 +131,6 @@ test-suite unit
     , time
     , transformers
     , yaml
-    , persistent
-    , persistent-sqlite
-    , conduit
-    , monad-logger
-    , mtl
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
