@@ -19,7 +19,10 @@ import Prelude
 
 import Cardano.Wallet
     ( ErrCreateUnsignedTx (..)
+    , ErrMkStdTx (..)
+    , ErrNetworkUnreachable (..)
     , ErrNoSuchWallet (..)
+    , ErrPostTx (..)
     , ErrSignTx (..)
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
@@ -69,6 +72,8 @@ import Data.Generics.Labels
     ()
 import Data.Quantity
     ( Quantity (..) )
+import Fmt
+    ( pretty )
 import Servant
     ( (:<|>) (..)
     , NoContent (..)
@@ -282,12 +287,33 @@ instance LiftHandler ErrCreateUnsignedTx where
 
 instance LiftHandler ErrSignTx where
     handler = \case
-        ErrSignTx _ -> err500
+        ErrSignTx (KeyNotFoundForAddress addr) -> err403
+            { errBody =
+                "Error signing transaction: corresponding private key for the \
+                \following output address was not found: " <> pretty addr
+            }
         ErrSignTxNoSuchWallet _ -> err410
         ErrSignTxWithRootKey e -> handler e
 
 instance LiftHandler ErrSubmitTx where
-    handler _ = err500
+    handler = \case
+        ErrSubmitTxNetwork e -> case e of
+            ErrPostTxNetworkUnreachable (ErrNetworkUnreachable err) -> err500
+                { errBody =
+                    "Err submitting transaction: network is unreachable: "
+                    <> pretty err
+                }
+            ErrPostTxBadRequest err -> err500
+                { errBody =
+                    "Err submitting transaction: request rejected by node: "
+                    <> pretty err
+                }
+            ErrPostTxProtocolFailure err -> err500
+                { errBody =
+                    "Err submitting transaction: protocol failure: "
+                    <> pretty err
+                }
+        ErrSubmitTxNoSuchWallet _ -> err404
 
 instance LiftHandler ErrUpdatePassphrase where
     handler = \case
