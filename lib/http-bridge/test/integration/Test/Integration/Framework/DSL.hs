@@ -49,6 +49,17 @@ module Test.Integration.Framework.DSL
     , json
     , tearDown
     , fixtureWallet
+
+    -- * CLI
+    , cardanoWalletCLI
+    , cardanoWalletLauncherCLI
+    , generateMnemonicsViaCLI
+    , createWalletViaCLI
+    , deleteWalletViaCLI
+    , getWalletViaCLI
+    , listAddressesViaCLI
+    , listWalletsViaCLI
+    , updateWalletViaCLI
     ) where
 
 import Prelude hiding
@@ -112,6 +123,19 @@ import Language.Haskell.TH.Quote
     ( QuasiQuoter )
 import Numeric.Natural
     ( Natural )
+import System.Command
+    ( CmdResult, command )
+import System.Exit
+    ( ExitCode (..) )
+import System.IO
+    ( hClose, hFlush, hPutStr )
+import System.Process
+    ( CreateProcess (..)
+    , StdStream (..)
+    , proc
+    , waitForProcess
+    , withCreateProcess
+    )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain, shouldNotBe )
 import Test.Integration.Faucet
@@ -438,3 +462,54 @@ wantedErrorButSuccess
     -> m void
 wantedErrorButSuccess =
     fail . ("expected an error but got a successful response: " <>) . show
+
+
+---
+--- CLI
+---
+cardanoWalletLauncherCLI :: CmdResult r => [String] -> IO r
+cardanoWalletLauncherCLI = command [] "cardano-wallet-launcher"
+
+cardanoWalletCLI :: CmdResult r => [String] -> IO r
+cardanoWalletCLI = command [] "cardano-wallet"
+
+generateMnemonicsViaCLI :: CmdResult r => [String] -> IO r
+generateMnemonicsViaCLI args = cardanoWalletCLI (["mnemonic", "generate"] ++ args)
+
+createWalletViaCLI :: [String] -> String -> String -> String -> IO ExitCode
+createWalletViaCLI args mnemonics mnemonics2 passphrase = do
+    let fullArgs = ["wallet", "create", "--port", "1337"] ++ args
+    let process = (proc "cardano-wallet" fullArgs)
+            { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
+    withCreateProcess process $ \stdIn _ _ h -> do
+        case stdIn of
+            Nothing -> return ()
+            Just i -> do
+                hPutStr i mnemonics
+                hPutStr i mnemonics2
+                hPutStr i (passphrase ++ "\n")
+                hPutStr i (passphrase ++ "\n")
+                hFlush i
+                hClose i
+
+        waitForProcess h
+
+
+deleteWalletViaCLI :: CmdResult r => String -> IO r
+deleteWalletViaCLI walId = cardanoWalletCLI ["wallet", "delete", "--port",
+    "1337", walId ]
+
+getWalletViaCLI :: CmdResult r => String -> IO r
+getWalletViaCLI walId = cardanoWalletCLI ["wallet", "get", "--port", "1337"
+    , walId ]
+
+listAddressesViaCLI :: CmdResult r => String -> IO r
+listAddressesViaCLI walId = cardanoWalletCLI ["address", "list", "--port",
+    "1337", walId]
+
+listWalletsViaCLI :: CmdResult r => IO r
+listWalletsViaCLI = cardanoWalletCLI ["wallet", "list", "--port", "1337" ]
+
+updateWalletViaCLI :: CmdResult r => [String] -> IO r
+updateWalletViaCLI args = cardanoWalletCLI (["wallet", "update", "--port",
+    "1337"] ++ args)

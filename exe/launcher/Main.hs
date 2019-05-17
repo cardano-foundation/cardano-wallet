@@ -34,6 +34,7 @@ import System.Console.Docopt
     , isPresent
     , longOption
     , parseArgsOrExit
+    , shortOption
     )
 import System.Environment
     ( getArgs )
@@ -57,7 +58,7 @@ in the directory.
 
 Usage:
   cardano-wallet-launcher [options]
-  cardano-wallet-launcher --help
+  cardano-wallet-launcher -h | --help
 
 Options:
   --wallet-server-port <PORT>  port used for serving the wallet API [default: 8090]
@@ -68,6 +69,7 @@ main :: IO ()
 main = do
     args <- parseArgsOrExit cli =<< getArgs
     when (args `isPresent` (longOption "help")) $ help cli
+    when (args `isPresent` (shortOption 'h')) $ help cli
 
     bridgePort <- args `parseArg` longOption "http-bridge-port"
     walletPort <- args `parseArg` longOption "wallet-server-port"
