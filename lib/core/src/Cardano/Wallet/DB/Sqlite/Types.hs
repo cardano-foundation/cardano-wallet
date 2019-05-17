@@ -16,7 +16,7 @@
 -- The ToJSON/FromJSON and Read instance orphans exist due to class constraints
 -- on Persistent functions.
 
-module Cardano.Wallet.DB.SqliteTypes where
+module Cardano.Wallet.DB.Sqlite.Types where
 
 import Prelude
 
