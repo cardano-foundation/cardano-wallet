@@ -44,7 +44,7 @@ import Control.Monad.Catch
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Logger
-    ( runNoLoggingT )
+    ( LogLevel (..), runNoLoggingT )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Data.Coerce
@@ -221,8 +221,12 @@ createSqliteBackend fp logFunc = do
 sqliteConnStr :: Maybe FilePath -> Text
 sqliteConnStr = maybe ":memory:" T.pack
 
-logStderr :: LogFunc
-logStderr _ _ _ str = B8.hPutStrLn stderr (fromLogStr str)
+dbLogs :: [LogLevel] -> LogFunc
+dbLogs levels _ _ level str =
+    if level `elem` levels then
+        B8.hPutStrLn stderr (fromLogStr str)
+    else
+        pure ()
 
 -- | Run a query without error handling. There will be exceptions thrown if it
 -- fails.
@@ -255,7 +259,7 @@ newDBLayer
        -- ^ Database file location, or Nothing for in-memory database
     -> IO (DBLayer IO s t)
 newDBLayer fp = do
-    conn <- createSqliteBackend fp logStderr
+    conn <- createSqliteBackend fp (dbLogs [LevelError])
     runQuery conn $ runMigration migrateAll
     return $ DBLayer
 
