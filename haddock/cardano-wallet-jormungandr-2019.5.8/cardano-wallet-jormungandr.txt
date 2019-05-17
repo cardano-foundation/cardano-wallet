@@ -60,7 +60,7 @@ getBlock :: Get Block
 data Message
 Initial :: [ConfigParam] -> Message
 OldUtxoDeclaration :: TODO -> Message
-Transaction :: TODO -> Message
+Transaction :: Tx -> Message
 Certificate :: TODO -> Message
 UpdateProposal :: SignedUpdateProposal -> Message
 UpdateVote :: SignedVote -> Message
@@ -77,7 +77,7 @@ BlockHeader :: Word16 -> Word32 -> SlotId -> Word32 -> Hash "content" -> Hash "p
 [parentHeaderHash] :: BlockHeader -> Hash "parentHeader"
 data ConfigParam
 Block0Date :: Word64 -> ConfigParam
-ConfigDiscrimination :: Discrimination -> ConfigParam
+ConfigDiscrimination :: Network -> ConfigParam
 ConsensusVersion :: Word16 -> ConfigParam
 SlotsPerEpoch :: Word32 -> ConfigParam
 SlotDuration :: Word8 -> ConfigParam
@@ -90,9 +90,6 @@ RemoveBftLeader :: LeaderId -> ConfigParam
 AllowAccountCreation :: Bool -> ConfigParam
 ConfigLinearFee :: LinearFee -> ConfigParam
 ProposalExpiration :: Word32 -> ConfigParam
-data Discrimination
-Production :: Discrimination
-Test :: Discrimination
 newtype LeaderId
 LeaderId :: ByteString -> LeaderId
 data LinearFee
@@ -116,8 +113,6 @@ instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.LeaderId
 instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.LeaderId
 instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.Milli
 instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.Milli
-instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.Discrimination
-instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.Discrimination
 instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.SignedVote
 instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.SignedVote
 instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.TODO

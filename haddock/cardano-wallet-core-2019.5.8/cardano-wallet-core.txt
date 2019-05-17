@@ -825,6 +825,22 @@ deriveAddressPrivateKey :: Passphrase "encryption" -> Key  'AccountK XPrv -> Cha
 --   This is the preferred way of deriving new sequential address public
 --   keys.
 deriveAddressPublicKey :: Key  'AccountK XPub -> ChangeChain -> Index  'Soft  'AddressK -> Key  'AddressK XPub
+
+-- | Convert a private key and its password hash into hexadecimal strings
+--   suitable for storing in a text file or database column.
+serializeXPrv :: (Key purpose XPrv, Hash "encryption") -> (ByteString, ByteString)
+
+-- | The reverse of <a>serializeXPrv</a>. This may fail if the inputs are
+--   not valid hexadecimal strings, or if the key is of the wrong length.
+deserializeXPrv :: (ByteString, ByteString) -> Either String (Key purpose XPrv, Hash "encryption")
+
+-- | Convert a public key into a hexadecimal string suitable for storing in
+--   a text file or database column.
+serializeXPub :: Key purpose XPub -> ByteString
+
+-- | The reverse of <a>serializeXPub</a>. This will fail if the input is
+--   not a valid hexadecimal string of the correct length.
+deserializeXPub :: ByteString -> Either String (Key purpose XPub)
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
 instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDerivation.ChangeChain
