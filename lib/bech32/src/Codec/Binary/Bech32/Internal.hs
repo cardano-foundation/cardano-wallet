@@ -156,7 +156,7 @@ decode bech32 = do
     dcp <- first
         (\(CharPosition p) -> StringToDecodeContainsInvalidChar $
             CharPosition $ p + BS.length hrpUnparsed + separatorLength)
-        (parseDataPart $ B8.unpack dcpUnparsed)
+        (parseDataWithChecksumPart $ B8.unpack dcpUnparsed)
     guardE (BS.length bech32 <= encodedStringMaxLength)
         StringToDecodeTooLong
     guardE (BS.length bech32 >= encodedStringMinLength)
@@ -171,12 +171,12 @@ decode bech32 = do
         toBase256 (take (length dcp - checksumLength) dcp)
     return (hrp, BS.pack dp)
   where
-    parseDataPart :: String -> Either CharPosition [Word5]
-    parseDataPart dpUnparsed =
-        case mapM charsetMap dpUnparsed of
+    parseDataWithChecksumPart :: String -> Either CharPosition [Word5]
+    parseDataWithChecksumPart dcpUnparsed =
+        case mapM charsetMap dcpUnparsed of
             Just dp -> pure dp
             Nothing -> Left $ CharPosition $ length $
-                takeWhile isJust (charsetMap <$> dpUnparsed)
+                takeWhile isJust (charsetMap <$> dcpUnparsed)
     hrpError = \case
         HumanReadablePartTooLong ->
             StringToDecodeContainsInvalidChar $ CharPosition
