@@ -58,7 +58,6 @@ version = "2019.5.8"
 
 specNoCluster :: SpecWith ()
 specNoCluster = do
-
     it "CLI - Shows version" $  do
         (Exit c, Stdout out) <- cardanoWalletCLI ["--version"]
         let v = T.dropWhileEnd (== '\n') (T.pack out)
@@ -96,24 +95,25 @@ specNoCluster = do
 
     describe "CLI - Can generate mnemonics with different sizes" $ do
         let test size = it ("--size=" <> show size) $ do
-                (Exit c, Stdout out) <- generateMnemonicsViaCLI ["--size", show size]
+                (Exit c, Stdout out) <-
+                    generateMnemonicsViaCLI ["--size", show size]
                 length (words out) `shouldBe` size
                 c `shouldBe` ExitSuccess
         forM_ [9, 12, 15, 18, 21, 24] test
 
     describe "CLI - It can't generate mnemonics with an invalid size" $ do
-        let sizes = ["15.5", "3", "6", "14", "abc", "👌", "0", "~!@#%" , "-1000"
-                , "1000"]
+        let sizes =
+                ["15.5", "3", "6", "14", "abc", "👌", "0", "~!@#%" , "-1000", "1000"]
         forM_ sizes $ \(size) -> it ("--size=" <> size) $ do
-            (Exit c, Stdout out, Stderr err) <- generateMnemonicsViaCLI ["--size", size]
+            (Exit c, Stdout out, Stderr err) <-
+                generateMnemonicsViaCLI ["--size", size]
             c `shouldBe` ExitFailure 1
-            err `shouldBe` "Invalid mnemonic size. Expected one of:\
-            \ 9,12,15,18,21,24\n"
+            err `shouldBe`
+                "Invalid mnemonic size. Expected one of: 9,12,15,18,21,24\n"
             out `shouldBe` mempty
 
 specWithCluster :: SpecWith Context
 specWithCluster = do
-
     describe "CLI1 - Can create wallet with different mnemonic sizes" $ do
         forM_ ["15", "18", "21", "24"] $ \(size) -> it size $ \_ -> do
             let walletName = "Wallet created via CLI"
@@ -188,7 +188,6 @@ specWithCluster = do
             else
                 c `shouldBe` ExitFailure 1
 
-
     it "CLI - Can list wallets" $ \ctx -> do
         _ <- createWallet ctx "1st CLI Wallet" mnemonics15
         _ <- createWallet ctx "2nd CLI Wallet" mnemonics18
@@ -222,7 +221,6 @@ specWithCluster = do
         expectValidJSON (Proxy @[ApiAddress]) out
         c `shouldBe` ExitSuccess
   where
-
     createWallet :: Context -> Text -> [Text] -> IO String
     createWallet ctx name mnemonics = do
        let payload = Json [json| {

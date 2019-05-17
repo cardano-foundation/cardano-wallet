@@ -463,53 +463,57 @@ wantedErrorButSuccess
 wantedErrorButSuccess =
     fail . ("expected an error but got a successful response: " <>) . show
 
-
 ---
 --- CLI
 ---
-cardanoWalletLauncherCLI :: CmdResult r => [String] -> IO r
-cardanoWalletLauncherCLI = command [] "cardano-wallet-launcher"
 
+-- | Run a command using the 'cardano-wallet-launcher' executable. We run it
+-- through stack as we intend to also get code-coverage from running these
+-- commands!
+cardanoWalletLauncherCLI :: CmdResult r => [String] -> IO r
+cardanoWalletLauncherCLI args = command [] "stack"
+    (["exec", "--", "cardano-wallet-launcher"] ++ args)
+
+-- | Run a command using the 'cardano-wallet' executable. We run it through
+-- stack as we intend to also get code-coverage from running these commands!
 cardanoWalletCLI :: CmdResult r => [String] -> IO r
-cardanoWalletCLI = command [] "cardano-wallet"
+cardanoWalletCLI args = command [] "stack"
+    (["exec", "--", "cardano-wallet"] ++ args)
 
 generateMnemonicsViaCLI :: CmdResult r => [String] -> IO r
-generateMnemonicsViaCLI args = cardanoWalletCLI (["mnemonic", "generate"] ++ args)
+generateMnemonicsViaCLI args = cardanoWalletCLI
+    (["mnemonic", "generate"] ++ args)
 
 createWalletViaCLI :: [String] -> String -> String -> String -> IO ExitCode
-createWalletViaCLI args mnemonics mnemonics2 passphrase = do
+createWalletViaCLI args mnemonics secondFactor passphrase = do
     let fullArgs = ["wallet", "create", "--port", "1337"] ++ args
     let process = (proc "cardano-wallet" fullArgs)
             { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
-    withCreateProcess process $ \stdIn _ _ h -> do
-        case stdIn of
-            Nothing -> return ()
-            Just i -> do
-                hPutStr i mnemonics
-                hPutStr i mnemonics2
-                hPutStr i (passphrase ++ "\n")
-                hPutStr i (passphrase ++ "\n")
-                hFlush i
-                hClose i
-
+    withCreateProcess process $ \(Just stdin) _ _ h -> do
+        hPutStr stdin mnemonics
+        hPutStr stdin secondFactor
+        hPutStr stdin (passphrase ++ "\n")
+        hPutStr stdin (passphrase ++ "\n")
+        hFlush stdin
+        hClose stdin
         waitForProcess h
 
-
 deleteWalletViaCLI :: CmdResult r => String -> IO r
-deleteWalletViaCLI walId = cardanoWalletCLI ["wallet", "delete", "--port",
-    "1337", walId ]
+deleteWalletViaCLI walId = cardanoWalletCLI
+    ["wallet", "delete", "--port", "1337", walId ]
 
 getWalletViaCLI :: CmdResult r => String -> IO r
-getWalletViaCLI walId = cardanoWalletCLI ["wallet", "get", "--port", "1337"
-    , walId ]
+getWalletViaCLI walId = cardanoWalletCLI
+    ["wallet", "get", "--port", "1337" , walId ]
 
 listAddressesViaCLI :: CmdResult r => String -> IO r
-listAddressesViaCLI walId = cardanoWalletCLI ["address", "list", "--port",
-    "1337", walId]
+listAddressesViaCLI walId = cardanoWalletCLI
+    ["address", "list", "--port", "1337", walId]
 
 listWalletsViaCLI :: CmdResult r => IO r
-listWalletsViaCLI = cardanoWalletCLI ["wallet", "list", "--port", "1337" ]
+listWalletsViaCLI = cardanoWalletCLI
+    ["wallet", "list", "--port", "1337" ]
 
 updateWalletViaCLI :: CmdResult r => [String] -> IO r
-updateWalletViaCLI args = cardanoWalletCLI (["wallet", "update", "--port",
-    "1337"] ++ args)
+updateWalletViaCLI args = cardanoWalletCLI
+    (["wallet", "update", "--port", "1337"] ++ args)

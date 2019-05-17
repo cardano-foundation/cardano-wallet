@@ -61,7 +61,7 @@ spec = do
     port = 1337
     closeBridge (handle, _) = do
         cancel handle
-        threadDelay 500000
+        threadDelay 1000000
     startBridge = do
         handle <- async $ launch
             [ Command "cardano-http-bridge"
