@@ -148,32 +148,6 @@ instance PathPiece WalletId where
     toPathPiece = toText
 
 ----------------------------------------------------------------------------
--- AddressScheme
-
-data AddressScheme = Sequential | Random | Any deriving (Show, Eq, Generic)
-
-instance PersistField AddressScheme where
-    toPersistValue = toPersistValue . toText
-    fromPersistValue = fromPersistValueFromText
-
-instance PersistFieldSql AddressScheme where
-    sqlType _ = sqlType (Proxy @Text)
-
-instance FromText AddressScheme where
-    fromText txt = case txt of
-        "sequential" -> Right Sequential
-        "random" -> Right Random
-        "any" -> Right Any
-        _ ->
-            Left . TextDecodingError $ show txt
-                <> " is neither \"sequential\", \"random\", nor \"any\""
-
-instance ToText AddressScheme where
-    toText Sequential = "sequential"
-    toText Random = "random"
-    toText Any = "any"
-
-----------------------------------------------------------------------------
 -- TxId
 
 -- Wraps Hash "Tx" because the persistent dsl doesn't like (Hash "Tx")

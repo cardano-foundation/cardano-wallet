@@ -34,7 +34,7 @@ import Cardano.Wallet.DB
     , PrimaryKey (..)
     )
 import Cardano.Wallet.DB.SqliteTypes
-    ( AddressScheme (..), TxId, sqlSettings' )
+    ( TxId, sqlSettings' )
 import Conduit
     ( runResourceT )
 import Control.Monad
@@ -105,7 +105,6 @@ Wallet
     walTablePassphraseLastUpdatedAt  UTCTime Maybe  sql=passphrase_last_updated_at
     walTableStatus             W.WalletState  sql=status
     walTableDelegation         Text Maybe     sql=delegation
-    walTableAddressScheme      AddressScheme  sql=address_discovery
 
     Primary walTableId
     deriving Show Generic
@@ -347,7 +346,6 @@ mkWalletEntity wid meta = Wallet
         W.lastUpdatedAt <$> meta ^. #passphraseInfo
     , walTableStatus = meta ^. #status
     , walTableDelegation = delegationToText $ meta ^. #delegation
-    , walTableAddressScheme = Sequential
     }
 
 mkWalletMetadataUpdate :: W.WalletMetadata -> [Update Wallet]
