@@ -22,10 +22,11 @@ module Codec.Binary.Bech32.Internal
       encode
     , EncodingError (..)
     , decode
+    , DecodingError (..)
     , checksumLength
-    , separatorLength
     , encodedStringMaxLength
     , encodedStringMinLength
+    , separatorLength
 
       -- * Human-Readable Parts
     , HumanReadablePart
