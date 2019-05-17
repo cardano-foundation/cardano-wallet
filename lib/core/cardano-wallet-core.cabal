@@ -72,8 +72,9 @@ library
       Cardano.Wallet.Api.Types
       Cardano.Wallet.DB
       Cardano.Wallet.DB.MVar
-      Cardano.Wallet.DB.SqliteTypes
       Cardano.Wallet.DB.Sqlite
+      Cardano.Wallet.DB.Sqlite.TH
+      Cardano.Wallet.DB.Sqlite.Types
       Cardano.Wallet.Network
       Cardano.Wallet.Primitive.AddressDerivation
       Cardano.Wallet.Primitive.AddressDiscovery
