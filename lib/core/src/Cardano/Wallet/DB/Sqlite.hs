@@ -31,10 +31,10 @@ import Cardano.Wallet.DB.SqliteTypes
     ( AddressScheme (..), TxId, sqlSettings' )
 import Conduit
     ( runResourceT )
-import Control.Exception
-    ( try )
 import Control.Monad
     ( void )
+import Control.Monad.Catch
+    ( MonadCatch (..), handleJust )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Logger
@@ -69,6 +69,8 @@ import Database.Persist.Sqlite
     ( SqlBackend, SqlPersistM, SqlPersistT, wrapConnection )
 import Database.Persist.TH
     ( mkDeleteCascade, mkMigrate, mkPersist, persistLowerCase, share )
+import Database.Sqlite
+    ( Error (ErrorConstraint), SqliteException (SqliteException) )
 import GHC.Generics
     ( Generic (..) )
 import Numeric.Natural
@@ -217,19 +219,22 @@ sqliteConnStr = maybe ":memory:" T.pack
 logStderr :: LogFunc
 logStderr _ _ _ str = B8.hPutStrLn stderr (fromLogStr str)
 
--- | Run a query without error handling. There will be exceptions thrown.
-unsafeRunQuery
-    :: SqlBackend
-    -> SqlPersistM a
-    -> IO a
-unsafeRunQuery conn = runResourceT . runNoLoggingT . flip runSqlConn conn
-
+-- | Run a query without error handling. There will be exceptions thrown if it
+-- fails.
 runQuery
     :: SqlBackend
     -> SqlPersistM a
-    -> ExceptT Sqlite.SqliteException IO a
-runQuery conn = ExceptT . try . runResourceT . runNoLoggingT . flip runSqlConn conn
+    -> IO a
+runQuery conn = runResourceT . runNoLoggingT . flip runSqlConn conn
 
+-- | Run an action, and convert any Sqlite constraints exception into the given
+-- error result. No other exceptions are handled.
+handleConstraint :: MonadCatch m => e -> m a -> m (Either e a)
+handleConstraint e = handleJust select handler . fmap Right
+  where
+    select (SqliteException ErrorConstraint _ _) = Just ()
+    select _ = Nothing
+    handler = const . pure  . Left $ e
 
 ----------------------------------------------------------------------------
 -- Database layer methods
@@ -246,7 +251,7 @@ newDBLayer
     -> IO (DBLayer IO s t)
 newDBLayer fp = do
     conn <- createSqliteBackend fp logStderr
-    unsafeRunQuery conn $ runMigration migrateAll
+    runQuery conn $ runMigration migrateAll
     return $ DBLayer
 
         {-----------------------------------------------------------------------
@@ -254,21 +259,18 @@ newDBLayer fp = do
         -----------------------------------------------------------------------}
 
         { createWallet = \(PrimaryKey wid) _cp meta ->
-            ExceptT $ unsafeRunQuery conn $
-            selectWallet wid >>= \case
-                Just _ ->
-                    pure $ Left $ ErrWalletAlreadyExists wid
-                Nothing -> Right <$> do
-                    insert_ (mkWalletEntity wid meta)
+            ExceptT $ runQuery conn $
+            handleConstraint (ErrWalletAlreadyExists wid) $
+            insert_ (mkWalletEntity wid meta)
 
         , removeWallet = \(PrimaryKey wid) ->
-            ExceptT $ unsafeRunQuery conn $ do
+            ExceptT $ runQuery conn $ do
                 n <- deleteWhereCount [WalTableId ==. wid]
                 pure $ if n == 0
                        then Left (ErrNoSuchWallet wid)
                        else Right ()
 
-        , listWallets = unsafeRunQuery conn $
+        , listWallets = runQuery conn $
             map (PrimaryKey . unWalletKey) <$> selectKeysList [] []
 
         {-----------------------------------------------------------------------
@@ -284,7 +286,7 @@ newDBLayer fp = do
         -----------------------------------------------------------------------}
 
         , putWalletMeta = \(PrimaryKey wid) meta ->
-            ExceptT $ unsafeRunQuery conn $
+            ExceptT $ runQuery conn $
             selectWallet wid >>= \case
                 Just _ -> do
                     updateWhere [WalTableId ==. wid]
@@ -293,7 +295,7 @@ newDBLayer fp = do
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
         , readWalletMeta = \(PrimaryKey wid) ->
-            unsafeRunQuery conn $
+            runQuery conn $
             fmap (metadataFromEntity . entityVal) <$>
             selectFirst [WalTableId ==. wid] []
 
