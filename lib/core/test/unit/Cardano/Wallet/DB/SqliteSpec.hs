@@ -14,7 +14,7 @@ import Prelude
 import Cardano.Wallet
     ( unsafeRunExceptT )
 import Cardano.Wallet.DB
-    ( DBLayer (..), PrimaryKey (..) )
+    ( DBLayer (..), ErrWalletAlreadyExists (..), PrimaryKey (..) )
 import Cardano.Wallet.DB.Sqlite
     ( newDBLayer )
 import Cardano.Wallet.Primitive.Types
@@ -25,6 +25,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     )
+import Control.Monad.Trans.Except
+    ( runExceptT )
 import Crypto.Hash
     ( hash )
 import Data.ByteString
@@ -39,28 +41,34 @@ spec = do
     describe "Wallet table" $ do
         it "create and list works" $ do
             db <- newDBLayer Nothing
-            now <- getCurrentTime
-            let wid = PrimaryKey (WalletId (hash ("test" :: ByteString)))
-                md = WalletMetadata
-                    { name = WalletName "test wallet"
-                    , passphraseInfo = Just $ WalletPassphraseInfo now
-                    , status = Ready
-                    , delegation = NotDelegating
-                    }
-            unsafeRunExceptT (createWallet db wid undefined md) `shouldReturn` ()
-            listWallets db `shouldReturn` [wid]
+            unsafeRunExceptT (createWallet db testPk undefined testMetadata)
+            listWallets db `shouldReturn` [testPk]
 
         it "create and get meta works" $ do
             db <- newDBLayer Nothing
             now <- getCurrentTime
-            let wid = PrimaryKey (WalletId (hash ("test" :: ByteString)))
-                md = WalletMetadata
-                    { name = WalletName "test wallet"
-                    , passphraseInfo = Just $ WalletPassphraseInfo now
-                    , status = Ready
-                    , delegation = NotDelegating
-                    }
-            unsafeRunExceptT (createWallet db wid undefined md) `shouldReturn` ()
-            readWalletMeta db wid `shouldReturn` Just md
+            let md = testMetadata { passphraseInfo = Just $ WalletPassphraseInfo now }
+            unsafeRunExceptT (createWallet db testPk undefined md)
+            readWalletMeta db testPk `shouldReturn` Just md
+
+        it "create twice is handled" $ do
+            db <- newDBLayer Nothing
+            let create' = createWallet db testPk undefined testMetadata
+            runExceptT create' `shouldReturn` (Right ())
+            runExceptT create' `shouldReturn` (Left (ErrWalletAlreadyExists testWid))
+
+testMetadata :: WalletMetadata
+testMetadata = WalletMetadata
+    { name = WalletName "test wallet"
+    , passphraseInfo = Nothing
+    , status = Ready
+    , delegation = NotDelegating
+    }
+
+testWid :: WalletId
+testWid = WalletId (hash ("test" :: ByteString))
+
+testPk :: PrimaryKey WalletId
+testPk = PrimaryKey testWid
 
 deriving instance Show (PrimaryKey WalletId)
