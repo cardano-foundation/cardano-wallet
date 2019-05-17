@@ -6,11 +6,12 @@ module Cardano.Wallet.Binary.JormungandrSpec (spec) where
 
 import Prelude
 
+import Cardano.Environment.Jormungandr
+    ( Network (..) )
 import Cardano.Wallet.Binary.Jormungandr
     ( Block (..)
     , BlockHeader (..)
     , ConfigParam (..)
-    , Discrimination (..)
     , LeaderId (..)
     , LinearFee (..)
     , Message (..)
@@ -20,7 +21,7 @@ import Cardano.Wallet.Binary.Jormungandr
     , runGet
     )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), SlotId (..) )
+    ( Address (..), Coin (..), Hash (..), SlotId (..), Tx (..), TxOut (..) )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase )
 import Data.ByteString
@@ -60,7 +61,7 @@ genesisBlock :: Block
 genesisBlock = Block genesisHeader
     [ Initial
         [ Block0Date 1556202057
-        , ConfigDiscrimination Test
+        , ConfigDiscrimination Testnet
         , ConsensusVersion 1
         , SlotsPerEpoch 2160
         , SlotDuration 15
@@ -72,7 +73,15 @@ genesisBlock = Block genesisHeader
         , AllowAccountCreation True
         , ConfigLinearFee (LinearFee 0 0 0)
         ]
-    , UnimplementedMessage 2
+    , Transaction $ Tx
+        { inputs = []
+        , outputs =
+            [ TxOut
+                { address = Address "3$\195xi\193\"h\154\&5\145}\245:O\"\148\163\165/h^\ENQ\245\248\229;\135\231\234E/"
+                , coin = Coin 14
+                }
+            ]
+        }
     , UnimplementedMessage 1
     , UnimplementedMessage 3
     ]
