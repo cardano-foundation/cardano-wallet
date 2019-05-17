@@ -14,6 +14,7 @@ module Cardano.Wallet.DBSpec
     ( spec
     , DummyTarget
     , dbPropertyTests
+    , cleanDB
     ) where
 
 import Prelude
@@ -79,7 +80,7 @@ import GHC.Generics
 import System.IO.Unsafe
     ( unsafePerformIO )
 import Test.Hspec
-    ( Spec, before, describe, it, shouldBe, shouldReturn )
+    ( Spec, beforeAll, beforeWith, describe, it, shouldBe, shouldReturn )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -542,7 +543,7 @@ dbPropertyTests
     => IO (DBLayer IO s DummyTarget)
     -> Spec
 dbPropertyTests dbLayer = do
-    before dbLayer $
+    beforeAll dbLayer $ beforeWith cleanDB $
         describe "Extra Properties about DB initialization" $ do
         it "createWallet . listWallets yields expected results"
             (property . prop_createListWallet)
@@ -551,7 +552,7 @@ dbPropertyTests dbLayer = do
         it "removing the same wallet twice yields an error"
             (property . prop_removeWalletTwice)
 
-    before dbLayer $
+    beforeAll dbLayer $ beforeWith cleanDB $
         describe "put . read yields a result" $ do
         it "Checkpoint"
             (property . (prop_readAfterPut putCheckpoint readCheckpoint))
@@ -562,7 +563,7 @@ dbPropertyTests dbLayer = do
         it "Private Key"
             (property . (prop_readAfterPut putPrivateKey readPrivateKey))
 
-    before dbLayer $
+    beforeAll dbLayer $ beforeWith cleanDB $
         describe "can't put before wallet exists" $ do
         it "Checkpoint"
             (property . (prop_putBeforeInit putCheckpoint readCheckpoint Nothing))
@@ -573,7 +574,7 @@ dbPropertyTests dbLayer = do
         it "Private Key"
             (property . (prop_putBeforeInit putPrivateKey readPrivateKey Nothing))
 
-    before dbLayer $
+    beforeAll dbLayer $ beforeWith cleanDB $
         describe "put doesn't affect other resources" $ do
         it "Checkpoint vs Wallet Metadata & Tx History & Private Key"
             (property . (prop_isolation putCheckpoint
@@ -594,7 +595,7 @@ dbPropertyTests dbLayer = do
                 readPrivateKey)
             )
 
-    before dbLayer $
+    beforeAll dbLayer $ beforeWith cleanDB $
         describe "can't read after delete" $ do
         it "Checkpoint"
             (property . (prop_readAfterDelete readCheckpoint Nothing))
@@ -605,7 +606,7 @@ dbPropertyTests dbLayer = do
         it "Private Key"
             (property . (prop_readAfterDelete readPrivateKey Nothing))
 
-    before dbLayer $
+    beforeAll dbLayer $ beforeWith cleanDB $
         describe "sequential puts replace values in order" $ do
         it "Checkpoint"
             (checkCoverage . (prop_sequentialPut putCheckpoint readCheckpoint lrp))
@@ -616,7 +617,7 @@ dbPropertyTests dbLayer = do
         it "Private Key"
             (checkCoverage . (prop_sequentialPut putPrivateKey readPrivateKey lrp))
 
-    before dbLayer $
+    beforeAll dbLayer $ beforeWith cleanDB $
         describe "parallel puts replace values in _any_ order" $ do
         it "Checkpoint"
             (checkCoverage . (prop_parallelPut putCheckpoint readCheckpoint
@@ -630,3 +631,6 @@ dbPropertyTests dbLayer = do
         it "Private Key"
             (checkCoverage . (prop_parallelPut putPrivateKey readPrivateKey
                 (length . lrp @Maybe)))
+
+cleanDB :: Monad m => DBLayer m s t -> m (DBLayer m s t)
+cleanDB db = listWallets db >>= mapM_ (runExceptT . removeWallet db) >> pure db

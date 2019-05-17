@@ -2,41 +2,69 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
 
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Cardano.Wallet.DB.SqliteSpec
     ( spec
     ) where
 
 import Prelude
 
+import Cardano.Wallet
+    ( unsafeRunExceptT )
+import Cardano.Wallet.DB
+    ( DBLayer (..), ErrWalletAlreadyExists (..), PrimaryKey (..) )
 import Cardano.Wallet.DB.Sqlite
-    ( migrateAll )
-import Conduit
-    ( MonadUnliftIO, ResourceT, runResourceT )
-import Control.Monad.Logger
-    ( LoggingT, runStderrLoggingT )
-import Control.Monad.Reader
-    ( ReaderT )
-import Data.Text
-    ( Text )
-import Database.Persist.Sqlite
-    ( SqlBackend, runMigration, runSqlConn, withSqliteConn )
+    ( newDBLayer )
+import Cardano.Wallet.DBSpec
+    ( cleanDB )
+import Cardano.Wallet.Primitive.Types
+    ( WalletDelegation (..)
+    , WalletId (..)
+    , WalletMetadata (..)
+    , WalletName (..)
+    , WalletPassphraseInfo (..)
+    , WalletState (..)
+    )
+import Control.Monad.Trans.Except
+    ( runExceptT )
+import Crypto.Hash
+    ( hash )
+import Data.ByteString
+    ( ByteString )
+import Data.Time.Clock
+    ( getCurrentTime )
 import Test.Hspec
-    ( Spec, describe, it, shouldReturn )
-
-runSqlite'
-    :: (MonadUnliftIO m)
-    => Text
-    -> ReaderT SqlBackend (LoggingT (ResourceT m)) a
-    -> m a
-runSqlite' connstr =
-    runResourceT . runStderrLoggingT . withSqliteConn connstr . runSqlConn
-
-testMigrate :: IO ()
-testMigrate = runSqlite' ":memory:" $ do
-    runMigration migrateAll
+    ( Spec, beforeAll, beforeWith, describe, it, shouldReturn )
 
 spec :: Spec
-spec = do
-    describe "Generated SQL schema" $ do
-        it "looks like SQL" $ do
-            testMigrate `shouldReturn` ()
+spec = beforeAll (newDBLayer Nothing) $ beforeWith cleanDB $ do
+    describe "Wallet table" $ do
+        it "create and list works" $ \db -> do
+            unsafeRunExceptT $ createWallet db testPk undefined testMetadata
+            listWallets db `shouldReturn` [testPk]
+
+        it "create and get meta works" $ \db -> do
+            now <- getCurrentTime
+            let md = testMetadata { passphraseInfo = Just $ WalletPassphraseInfo now }
+            unsafeRunExceptT $ createWallet db testPk undefined md
+            readWalletMeta db testPk `shouldReturn` Just md
+
+        it "create twice is handled" $ \db -> do
+            let create' = createWallet db testPk undefined testMetadata
+            runExceptT create' `shouldReturn` (Right ())
+            runExceptT create' `shouldReturn` (Left (ErrWalletAlreadyExists testWid))
+
+testMetadata :: WalletMetadata
+testMetadata = WalletMetadata
+    { name = WalletName "test wallet"
+    , passphraseInfo = Nothing
+    , status = Ready
+    , delegation = NotDelegating
+    }
+
+testWid :: WalletId
+testWid = WalletId (hash ("test" :: ByteString))
+
+testPk :: PrimaryKey WalletId
+testPk = PrimaryKey testWid

@@ -38,15 +38,18 @@ library
     , basement
     , bytestring
     , cardano-crypto
+    , conduit
     , containers
     , cryptonite
     , deepseq
     , exceptions
+    , fast-logger
     , fmt
     , generic-lens
     , http-api-data
     , http-media
     , memory
+    , monad-logger
     , path-pieces
     , persistent
     , persistent-sqlite
@@ -125,13 +128,9 @@ test-suite unit
     , swagger2
     , text
     , text-class
+    , time
     , transformers
     , yaml
-    , persistent
-    , persistent-sqlite
-    , conduit
-    , monad-logger
-    , mtl
   type:
      exitcode-stdio-1.0
   hs-source-dirs:

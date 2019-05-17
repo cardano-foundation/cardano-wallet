@@ -4,12 +4,25 @@
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
+-- |
+-- Copyright: © 2018-2019 IOHK
+-- License: MIT
+--
+-- This module contains instances and types necessary for storing wallets in a
+-- SQL database with Persistent.
+--
+-- It's in a separate module due to the GHC stage restriction.
+--
+-- The ToJSON/FromJSON and Read instance orphans exist due to class constraints
+-- on Persistent functions.
+
 module Cardano.Wallet.DB.SqliteTypes where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..)
+    ( Address (..)
+    , Coin (..)
     , Direction (..)
     , Hash (..)
     , SlotId (..)
@@ -52,6 +65,8 @@ import Data.Word
     ( Word64, Word8 )
 import Database.Persist.Sqlite
     ( PersistField (..), PersistFieldSql (..), PersistValue )
+import Database.Persist.TH
+    ( MkPersistSettings (..), sqlSettings )
 import GHC.Generics
     ( Generic )
 import Web.HttpApiData
@@ -60,6 +75,12 @@ import Web.PathPieces
     ( PathPiece (..) )
 
 import qualified Data.Text as T
+
+----------------------------------------------------------------------------
+
+-- | Settings for generating the Persistent types.
+sqlSettings' :: MkPersistSettings
+sqlSettings' = sqlSettings { mpsPrefixFields = False }
 
 ----------------------------------------------------------------------------
 -- Helper functions
@@ -127,32 +148,6 @@ instance PathPiece WalletId where
     toPathPiece = toText
 
 ----------------------------------------------------------------------------
--- AddressScheme
-
-data AddressScheme = Sequential | Random | Any deriving (Show, Eq, Generic)
-
-instance PersistField AddressScheme where
-    toPersistValue = toPersistValue . toText
-    fromPersistValue = fromPersistValueFromText
-
-instance PersistFieldSql AddressScheme where
-    sqlType _ = sqlType (Proxy @Text)
-
-instance FromText AddressScheme where
-    fromText txt = case txt of
-        "sequential" -> Right Sequential
-        "random" -> Right Random
-        "any" -> Right Any
-        _ ->
-            Left . TextDecodingError $ show txt
-                <> " is neither \"sequential\", \"random\", nor \"any\""
-
-instance ToText AddressScheme where
-    toText Sequential = "sequential"
-    toText Random = "random"
-    toText Any = "any"
-
-----------------------------------------------------------------------------
 -- TxId
 
 -- Wraps Hash "Tx" because the persistent dsl doesn't like (Hash "Tx")
@@ -218,7 +213,7 @@ instance PersistField WalletState where
     fromPersistValue = fmap walletStateFromNum . fromPersistValue
 
 instance PersistFieldSql WalletState where
-    sqlType _ = sqlType (Proxy @Text)
+    sqlType _ = sqlType (Proxy @Word8)
 
 instance Read WalletState where
     readsPrec _ = error "readsPrec stub needed for persistent"
@@ -227,10 +222,8 @@ instance Read WalletState where
 -- TxStatus
 
 instance PersistField TxStatus where
-    toPersistValue =
-        toPersistValue . toText
-    fromPersistValue pv = first (const err) (fromPersistValue pv)
-        where err = "not a valid value: " <> T.pack (show pv)
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
 
 instance PersistFieldSql TxStatus where
     sqlType _ = sqlType (Proxy @Text)
@@ -250,3 +243,13 @@ instance PersistField Coin where
 
 instance PersistFieldSql Coin where
     sqlType _ = sqlType (Proxy @Word64)
+
+----------------------------------------------------------------------------
+-- Address
+
+instance PersistField Address where
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql Address where
+    sqlType _ = sqlType (Proxy @Text)
