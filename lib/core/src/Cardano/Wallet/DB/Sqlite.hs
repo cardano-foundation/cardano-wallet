@@ -138,7 +138,6 @@ TxMeta
 -- not the wallet. txInputTableTxId is referred to by TxMeta and PendingTx
 TxIn
     txInputTableTxId         TxId        sql=tx_id
-    txInputTableWalletId     W.WalletId  sql=wallet_id
     txInputTableSourceTxId   TxId        sql=source_id
     txInputTableSourceIndex  Word32      sql=source_index
 
@@ -151,7 +150,6 @@ TxIn
 -- not the wallet. txOutputTableTxId is referred to by TxMeta and PendingTx
 TxOut
     txOutputTableTxId     TxId        sql=tx_id
-    txOutputTableWalletId W.WalletId  sql=wallet_id
     txOutputTableIndex    Word32      sql=index
     txOutputTableAddress  W.Address   sql=address
     txOutputTableAmount   W.Coin      sql=amount
