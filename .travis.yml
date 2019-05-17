@@ -16,7 +16,7 @@ env:
     - WALLET_LAUNCHER_CHECKSUM=$HOME/.local/bin/cardano-wallet-launcher.sha256
     - STACK_WORK_CACHE=$HOME/.local/stack-work.tar.gz
     - PATH=$PATH:$HOME/.cargo/bin:$HOME/.local/bin
-
+    - LOCAL_MIX_DIR=.stack-work/dist/x86_64-linux/Cabal-2.4.0.1/hpc/
 
 # Use the Travis Rust build tools for cardano-http-bridge.
 language: rust
@@ -104,7 +104,7 @@ jobs:
     - travis_retry curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-http-bridge/hermes-testnet.tar.gz
     - tar xzf hermes-testnet.tar.gz -C $HOME
     - stack --no-terminal test --coverage
-    - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
+    - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work lib/**/*.tix
 
   - stage: deploy 🚀
     if: type = push AND branch = master
@@ -124,15 +124,25 @@ jobs:
     script:
     - tar xzf $STACK_WORK_CACHE
     - export LTS=$(cat stack.yaml | grep resolver) # Extract the LTS from the stack.yaml
-    - git clone https://github.com/rubik/stack-hpc-coveralls && cd stack-hpc-coveralls && git checkout 3d8352d5642ab214a7a574bd797880ae39595a44 && echo $LTS > stack.yaml
-    - stack --no-terminal install
-    - cd - && shc combined all
+    - git clone https://github.com/rubik/stack-hpc-coveralls && cd stack-hpc-coveralls && git checkout 3d8352d5642ab214a7a574bd797880ae39595a44 && echo $LTS > stack.yaml && cd -
+    - stack --no-terminal install hpc
+    # Ignore modules that are full of Template Haskell auto-generated code
+    - cd lib/core
+    - find $LOCAL_MIX_DIR -type f -name "Cardano.Wallet.DB.Sqlite.TH.mix" > overlay.hpc
+    - 'sed -i "s/.*hpc\/\(.*\).mix/module \"\1\" {}/" overlay.hpc'
+    - stack exec -- hpc overlay --hpcdir $LOCAL_MIX_DIR overlay.hpc > Cardano.Wallet.DB.Sqlite.TH.tix
+    - 'sed -i "s/0,/1,/g" Cardano.Wallet.DB.Sqlite.TH.tix'
+    - cd -
+    # Re-build the coverage report taking .tix from executables running outside of the test suites
+    - stack hpc report --all lib/**/*.tix
+    - shc combined custom
 
   - stage: deploy 🚀
     if: tag =~ ^v
     name: "Executables"
     script:
     - tar xzf $STACK_WORK_CACHE
+    - stack --no-terminal install
     - sha256sum $WALLET_CLI | head -c 64 > $WALLET_CLI_CHECKSUM
     - ls $WALLET_CLI
     - ls $WALLET_CLI_CHECKSUM
