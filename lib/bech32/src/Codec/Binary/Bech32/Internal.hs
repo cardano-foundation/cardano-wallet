@@ -92,9 +92,13 @@ import qualified Data.ByteString.Char8 as B8
                           Human Readable Parts
 -------------------------------------------------------------------------------}
 
+-- | Represents the human-readable part of a Bech32 string, as defined here:
+--   https://git.io/fj8FS
 newtype HumanReadablePart = HumanReadablePart ByteString
     deriving (Show, Eq)
 
+-- | Parses the human-readable part of a Bech32 string, as defined here:
+--   https://git.io/fj8FS
 mkHumanReadablePart
     :: ByteString -> Either HumanReadablePartError HumanReadablePart
 mkHumanReadablePart hrp
@@ -113,24 +117,35 @@ mkHumanReadablePart hrp
         c >= humanReadableCharsetMinBound &&
         c <= humanReadableCharsetMaxBound
 
+-- | Represents the set of error conditions that may occur while parsing the
+--   human-readable part of a Bech32 string.
 data HumanReadablePartError
     = HumanReadablePartTooShort
     | HumanReadablePartTooLong
     | HumanReadablePartContainsInvalidChars [CharPosition]
     deriving (Eq, Show)
 
+-- | The lower bound of the set of characters permitted to appear within the
+--   human-readable part of a Bech32 string.
 humanReadableCharsetMinBound :: Word8
 humanReadableCharsetMinBound = 33
 
+-- | The upper bound of the set of characters permitted to appear within the
+--   human-readable part of a Bech32 string.
 humanReadableCharsetMaxBound :: Word8
 humanReadableCharsetMaxBound = 126
 
+-- | Get the raw bytes of the human-readable part of a Bech32 string.
 humanReadablePartToBytes :: HumanReadablePart -> ByteString
 humanReadablePartToBytes (HumanReadablePart bytes) = bytes
 
+-- | The shortest length permitted for the human-readable part of a Bech32
+--   string.
 humanReadablePartMinLength :: Int
 humanReadablePartMinLength = 1
 
+-- | The longest length permitted for the human-readable part of a Bech32
+--   string.
 humanReadablePartMaxLength :: Int
 humanReadablePartMaxLength = 83
 
@@ -148,6 +163,8 @@ encode hrp@(HumanReadablePart hrpBytes) payload = do
     guardE (BS.length output <= encodedStringMaxLength) EncodedStringTooLong
     return output
 
+-- | Represents the set of error conditions that may occur while encoding a
+--   Bech32 string.
 data EncodingError = EncodedStringTooLong
     deriving (Eq, Show)
 
@@ -263,15 +280,24 @@ encodedStringMinLength =
                             Character Manipulation
 -------------------------------------------------------------------------------}
 
+-- | The set of characters that are permitted to appear within the data part of
+--   a Bech32 string. See here for more details: https://git.io/fj8FS
 charset :: String
 charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 
+-- | Encodes a function that maps every 'Word5' value onto a unique
+--   corresponding character value. The codomain of this function is the set
+--   of characters permitted to appear within the data part of a Bech32 string.
 word5ToChar :: Array Word5 Char
 word5ToChar =
     Arr.listArray
         (Word5 0, Word5 31)
         charset
 
+-- | If the specified character is permitted to appear within the data part
+--   of a Bech32 string, this function returns that character's corresponding
+--   'Word5' value. If the specified character is not permitted, returns
+--   'Nothing'. This function is case-insensitive.
 charToWord5 :: Char -> Maybe Word5
 charToWord5 c
     | inRange (Arr.bounds inv) upperC = inv Arr.! upperC
@@ -357,10 +383,10 @@ noPadding frombits bits padValue result = do
     return result
 {-# INLINE noPadding #-}
 
--- Big-endian conversion of a word string from base 2^frombits to base 2^tobits.
--- The frombits and twobits parameters must be positive, while 2^frombits and
--- 2^tobits must be smaller than the size of Word. Every value in dat must be
--- strictly smaller than 2^frombits.
+-- | Big-endian conversion of a word string from base '2^frombits' to base
+-- '2^tobits'. The 'frombits' and 'twobits' parameters must be positive, while
+-- '2^frombits' and '2^tobits' must be smaller than the size of 'Word'. Every
+-- value in 'dat' must be strictly smaller than '2^frombits'.
 convertBits :: Functor f => [Word] -> Int -> Int -> Pad f -> f [Word]
 convertBits dat frombits tobits pad = concat . reverse <$> go dat 0 0 []
   where
