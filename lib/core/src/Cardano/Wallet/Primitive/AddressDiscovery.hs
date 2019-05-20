@@ -45,8 +45,11 @@ module Cardano.Wallet.Primitive.AddressDiscovery
     , mkAddressPool
     , lookupAddress
 
+    , indexedAddresses -- fixme: internal
+
     -- * Pending Change Indexes
     , PendingIxs
+      (..) -- fixme: internal
     , emptyPendingIxs
 
     -- ** State

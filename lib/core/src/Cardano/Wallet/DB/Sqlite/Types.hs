@@ -20,6 +20,12 @@ module Cardano.Wallet.DB.Sqlite.Types where
 
 import Prelude
 
+import Cardano.Crypto.Wallet
+    ( XPub )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Depth (..), Key, deserializeXPub, serializeXPub )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( AddressPoolGap (..), getAddressPoolGap, mkAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -74,6 +80,7 @@ import Web.HttpApiData
 import Web.PathPieces
     ( PathPiece (..) )
 
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
 
 ----------------------------------------------------------------------------
@@ -253,3 +260,34 @@ instance PersistField Address where
 
 instance PersistFieldSql Address where
     sqlType _ = sqlType (Proxy @Text)
+
+----------------------------------------------------------------------------
+-- AddressPoolGap
+
+instance PersistField AddressPoolGap where
+    toPersistValue = toPersistValue . getAddressPoolGap
+    fromPersistValue pv = fromPersistValue >=> mkAddressPoolGap' $ pv
+      where
+        mkAddressPoolGap' :: Word8 -> Either Text AddressPoolGap
+        mkAddressPoolGap' = first msg . mkAddressPoolGap . fromIntegral
+        msg e = T.pack $ "not a valid value: " <> show pv <> ": " <> show e
+
+instance PersistFieldSql AddressPoolGap where
+    sqlType _ = sqlType (Proxy @Word8)
+
+----------------------------------------------------------------------------
+-- XPub for sequential address discovery
+
+newtype AddressPoolXPub = AddressPoolXPub
+    { getAddressPoolXPub :: Key 'AccountK XPub }
+    deriving (Show, Eq, Generic)
+
+instance PersistField AddressPoolXPub where
+    toPersistValue = toPersistValue . serializeXPub . getAddressPoolXPub
+    fromPersistValue pv = fromPersistValue >=> deserializeXPub' $ pv
+      where
+        deserializeXPub' = bimap msg AddressPoolXPub . deserializeXPub
+        msg e = T.pack $ "not a valid XPub: " <> show pv <> ": " <> e
+
+instance PersistFieldSql AddressPoolXPub where
+    sqlType _ = sqlType (Proxy @B8.ByteString)

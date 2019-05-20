@@ -1,7 +1,10 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -23,10 +26,14 @@ import Cardano.Wallet.DB
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
     )
+import Cardano.Wallet.DB.Sqlite.Types
+    ( AddressPoolXPub (..), TxId (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), deserializeXPrv, serializeXPrv )
 import Conduit
     ( runResourceT )
+import Control.DeepSeq
+    ( NFData )
 import Control.Monad
     ( void )
 import Control.Monad.Catch
@@ -35,26 +42,43 @@ import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Logger
     ( LogLevel (..), runNoLoggingT )
+import Control.Monad.Trans.Class
+    ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
+import Control.Monad.Trans.Maybe
+    ( MaybeT (..) )
+import Data.Bifunctor
+    ( bimap )
 import Data.Coerce
     ( coerce )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Typeable
+    ( Typeable )
 import Database.Persist.Sql
-    ( LogFunc
+    ( Entity (..)
+    , LogFunc
+    , SelectOpt (..)
     , Update (..)
     , deleteCascadeWhere
     , deleteWhere
-    , entityVal
+    , insert
+    , insertMany_
     , insert_
+    , putMany
     , runMigration
     , runSqlConn
     , selectFirst
     , selectKeysList
+    , selectList
     , updateWhere
+    , (/<-.)
+    , (<-.)
     , (=.)
     , (==.)
     )
@@ -70,8 +94,12 @@ import System.Log.FastLogger
 import Cardano.Wallet.DB.Sqlite.TH
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
+import qualified Cardano.Wallet.Primitive.AddressDiscovery as W
+import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Database.Sqlite as Sqlite
 
@@ -122,7 +150,8 @@ handleConstraint e = handleJust select handler . fmap Right
 -- If the given file path does not exist, it will be created by the sqlite
 -- library.
 newDBLayer
-    :: Maybe FilePath
+    :: forall s t. (W.IsOurs s, NFData s, Show s, PersistState s, W.TxId t)
+    => Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
     -> IO (DBLayer IO s t)
 newDBLayer fp = do
@@ -134,15 +163,21 @@ newDBLayer fp = do
                                       Wallets
         -----------------------------------------------------------------------}
 
-        { createWallet = \(PrimaryKey wid) _cp meta ->
+        { createWallet = \(PrimaryKey wid) cp meta ->
             ExceptT $ runQuery conn $
-            handleConstraint (ErrWalletAlreadyExists wid) $
-            insert_ (mkWalletEntity wid meta)
+            handleConstraint (ErrWalletAlreadyExists wid) $ do
+                insert_ (mkWalletEntity wid meta)
+                insertCheckpoint wid cp
 
         , removeWallet = \(PrimaryKey wid) ->
             ExceptT $ runQuery conn $
             selectWallet wid >>= \case
-                Just _ -> Right <$> deleteCascadeWhere [WalTableId ==. wid]
+                Just _ -> Right <$> do
+                    -- fixme: deleteCascade is not working with persistent-sqlite.
+                    -- Therefore we need to delete related entities as well.
+                    deleteCheckpoints @s wid
+                    deleteLooseTransactions wid
+                    deleteCascadeWhere [WalTableId ==. wid]
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
         , listWallets = runQuery conn $
@@ -152,9 +187,22 @@ newDBLayer fp = do
                                     Checkpoints
         -----------------------------------------------------------------------}
 
-        , putCheckpoint = \(PrimaryKey _wid) _cp -> error "unimplemented"
+        , putCheckpoint = \(PrimaryKey wid) cp ->
+            ExceptT $ runQuery conn $ Right <$> do
+                deleteCheckpoints @s wid -- clear out all checkpoints
+                deleteLooseTransactions wid -- clear transactions
+                insertCheckpoint wid cp -- add this checkpoint
 
-        , readCheckpoint = \(PrimaryKey _wid) -> error "unimplemented"
+        , readCheckpoint = \(PrimaryKey wid) ->
+            runQuery conn $
+            selectLatestCheckpoint wid >>= \case
+                Just cp -> do
+                    utxo <- selectUTxO cp
+                    pendings <- selectPending cp
+                    (ins, outs) <- selectTxs pendings
+                    s <- selectState (checkpointId cp)
+                    pure (checkpointFromEntity cp utxo ins outs <$> s)
+                Nothing -> pure Nothing
 
         {-----------------------------------------------------------------------
                                    Wallet Metadata
@@ -178,9 +226,19 @@ newDBLayer fp = do
                                      Tx History
         -----------------------------------------------------------------------}
 
-        , putTxHistory = \(PrimaryKey _wid) _txs -> error "unimplemented"
+        , putTxHistory = \(PrimaryKey wid) txs ->
+            ExceptT $ runQuery conn $
+            selectWallet wid >>= \case
+                Just _ -> do
+                    let (metas, txins, txouts) = mkTxHistory wid txs
+                    putMany metas
+                    putMany txins
+                    putMany txouts
+                    pure $ Right ()
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
-        , readTxHistory = \(PrimaryKey _wid) -> error "unimplemented"
+        , readTxHistory = \(PrimaryKey wid) -> runQuery conn $
+            selectTxHistory wid
 
         {-----------------------------------------------------------------------
                                        Keystore
@@ -264,8 +322,313 @@ privateKeyFromEntity
     -> Either String (W.Key 'RootK XPrv, W.Hash "encryption")
 privateKeyFromEntity (PrivateKey _ k h) = deserializeXPrv (k, h)
 
+mkCheckpointEntity
+    :: forall s t. W.TxId t
+    => W.WalletId
+    -> W.Wallet s t
+    -> (Checkpoint, [UTxO], [PendingTx], [TxIn], [TxOut])
+mkCheckpointEntity wid wal =
+    ( cp, utxo, map (pendingTx . fst) pending
+    , concatMap (dist pendingTxIn . fmap W.inputs) pending
+    , concatMap (dist pendingTxOut . fmap (zip [0..] . W.outputs)) pending )
+  where
+    pending = [(TxId (W.txId @t tx), tx) | tx <- Set.toList (W.getPending wal)]
+    sl = W.currentTip wal
+    cp = Checkpoint
+        { checkpointTableWalletId = wid
+        , checkpointTableSlot = sl
+        }
+    pendingTx tid = PendingTx
+        { pendingTxTableWalletId = wid
+        , pendingTxTableCheckpointSlot = sl
+        , pendingTxTableId2 = tid
+        }
+    pendingTxIn tid txIn = TxIn
+        { txInputTableTxId = tid
+        , txInputTableSourceTxId = TxId (W.inputId txIn)
+        , txInputTableSourceIndex = W.inputIx txIn
+        }
+    pendingTxOut tid (ix, txOut) = TxOut
+        { txOutputTableTxId = tid
+        , txOutputTableIndex = ix
+        , txOutputTableAddress = W.address txOut
+        , txOutputTableAmount = W.coin txOut
+        }
+    utxo = [ UTxO wid sl (TxId input) ix addr coin
+           | (W.TxIn input ix, W.TxOut addr coin) <- utxoMap ]
+    utxoMap = Map.assocs (W.getUTxO (W.totalUTxO wal))
+
+-- inputs and outputs must be sorted by txid, then ix
+checkpointFromEntity
+    :: forall s t. (W.IsOurs s, NFData s, Show s, W.TxId t)
+    => Checkpoint
+    -> [UTxO]
+    -> [TxIn]
+    -> [TxOut]
+    -> s
+    -> W.Wallet s t
+checkpointFromEntity (Checkpoint _ tip) utxo ins outs =
+    W.Wallet utxo' pending tip
+  where
+    utxo' = W.UTxO . Map.fromList $
+        [ (W.TxIn input ix, W.TxOut addr coin)
+        | UTxO _ _ (TxId input) ix addr coin <- utxo ]
+    ins' = [(txid, W.TxIn src ix) | TxIn txid (TxId src) ix <- ins]
+    outs' = [ (txid, W.TxOut addr amt)
+            | TxOut txid _ix addr amt <- outs ]
+    txids = Set.fromList $ map fst ins' ++ map fst outs'
+    pending = flip Set.map txids $ \txid -> W.Tx
+        { W.inputs = lookupTx txid ins'
+        , W.outputs = lookupTx txid outs'
+        }
+    lookupTx txid = map snd . filter ((== txid) . fst)
+
+mkTxHistory
+    :: W.WalletId
+    -> Map.Map (W.Hash "Tx") (W.Tx, W.TxMeta)
+    -> ([TxMeta], [TxIn], [TxOut])
+mkTxHistory wid txs =
+    ( map (uncurry (mkTxMetaEntity wid)) metas
+    , concatMap (dist mkTxIn . fmap W.inputs) hist
+    , concatMap (dist mkTxOut . fmap (zip [0..] . W.outputs)) hist )
+  where
+    pairs = Map.toList txs
+    metas = fmap snd <$> pairs
+    hist = bimap TxId fst <$> pairs
+    mkTxIn tid txIn = TxIn
+        { txInputTableTxId = tid
+        , txInputTableSourceTxId = TxId (W.inputId txIn)
+        , txInputTableSourceIndex = W.inputIx txIn
+        }
+    mkTxOut tid (ix, txOut) = TxOut
+        { txOutputTableTxId = tid
+        , txOutputTableIndex = ix
+        , txOutputTableAddress = W.address txOut
+        , txOutputTableAmount = W.coin txOut
+        }
+
+mkTxMetaEntity :: W.WalletId -> W.Hash "Tx" -> W.TxMeta -> TxMeta
+mkTxMetaEntity wid txid meta = TxMeta
+    { txMetaTableTxId = TxId txid
+    , txMetaTableWalletId = wid
+    , txMetaTableStatus = meta ^. #status
+    , txMetaTableDirection = meta ^. #direction
+    , txMetaTableSlotId = meta ^. #slotId
+    , txMetaTableAmount = getAmount (meta ^. #amount)
+    }
+    where getAmount (Quantity n) = n
+
+-- note: TxOut records must already be sorted by index
+txHistoryFromEntity
+    :: [TxMeta]
+    -> [TxIn]
+    -> [TxOut]
+    -> Map.Map (W.Hash "Tx") (W.Tx, W.TxMeta)
+txHistoryFromEntity metas ins outs = Map.fromList
+    [ (getTxId (txMetaTableTxId m), (mkTx (txMetaTableTxId m), mkTxMeta m))
+    | m <- metas ]
+  where
+    mkTx txid = W.Tx
+        { W.inputs = map mkTxIn $ filter ((== txid) . txInputTableTxId) ins
+        , W.outputs = map mkTxOut $ filter ((== txid) . txOutputTableTxId) outs
+        }
+    mkTxIn tx = W.TxIn
+        { W.inputId = getTxId (txInputTableSourceTxId tx)
+        , W.inputIx = txInputTableSourceIndex tx
+        }
+    mkTxOut tx = W.TxOut
+        { W.address = txOutputTableAddress tx
+        , W.coin = txOutputTableAmount tx
+        }
+    mkTxMeta m = W.TxMeta
+        { W.status = txMetaTableStatus m
+        , W.direction = txMetaTableDirection m
+        , W.slotId = txMetaTableSlotId m
+        , W.amount = Quantity (txMetaTableAmount m)
+        }
+
 ----------------------------------------------------------------------------
 -- DB Queries
 
 selectWallet :: MonadIO m => W.WalletId -> SqlPersistT m (Maybe Wallet)
 selectWallet wid = fmap entityVal <$> selectFirst [WalTableId ==. wid] []
+
+insertCheckpoint
+    :: (PersistState s, W.TxId t)
+    => W.WalletId
+    -> W.Wallet s t
+    -> SqlPersistM ()
+insertCheckpoint wid cp = do
+    let (cp', utxo, pendings, ins, outs) = mkCheckpointEntity wid cp
+    insert_ cp'
+    insertMany_ ins
+    insertMany_ outs
+    insertMany_ pendings
+    insertMany_ utxo
+    insertState (wid, W.currentTip cp) (W.getState cp)
+
+-- | Delete all checkpoints associated with a wallet.
+deleteCheckpoints
+    :: forall s. PersistState s
+    => W.WalletId
+    -> SqlPersistM ()
+deleteCheckpoints wid = do
+    deleteWhere [UtxoTableWalletId ==. wid]
+    deleteWhere [PendingTxTableWalletId ==. wid]
+    deleteWhere [CheckpointTableWalletId ==. wid]
+    deleteState @s wid -- clear state
+
+-- | Delete transactions that belong to a wallet and aren't referred to by
+-- either Pending or TxMeta.
+deleteLooseTransactions
+    :: W.WalletId
+    -> SqlPersistM ()
+deleteLooseTransactions wid = do
+    pendingTxId <- fmap (pendingTxTableId2 . entityVal) <$>
+        selectList [PendingTxTableWalletId ==. wid] []
+    metaTxId <- fmap (txMetaTableTxId . entityVal) <$>
+        selectList [TxMetaTableWalletId ==. wid] []
+    deleteWhere [ TxInputTableTxId /<-. pendingTxId
+                , TxInputTableTxId /<-. metaTxId ]
+    deleteWhere [ TxOutputTableTxId /<-. pendingTxId
+                , TxOutputTableTxId /<-. metaTxId ]
+
+selectLatestCheckpoint
+    :: W.WalletId
+    -> SqlPersistM (Maybe Checkpoint)
+selectLatestCheckpoint wid = fmap entityVal <$>
+    selectFirst [CheckpointTableWalletId ==. wid]
+    [LimitTo 1, Desc CheckpointTableSlot]
+
+selectUTxO
+    :: Checkpoint
+    -> SqlPersistM [UTxO]
+selectUTxO (Checkpoint wid sl) = fmap entityVal <$>
+    selectList [UtxoTableWalletId ==. wid, UtxoTableCheckpointSlot ==. sl] []
+
+selectPending
+    :: Checkpoint
+    -> SqlPersistM [TxId]
+selectPending (Checkpoint wid sl) = fmap (pendingTxTableId2 . entityVal) <$>
+    selectList [ PendingTxTableWalletId ==. wid
+               , PendingTxTableCheckpointSlot ==. sl ] []
+
+selectTxs
+    :: [TxId]
+    -> SqlPersistM ([TxIn], [TxOut])
+selectTxs txids = do
+    ins <- fmap entityVal <$> selectList [TxInputTableTxId <-. txids]
+        [Asc TxInputTableTxId, Asc TxInputTableSourceIndex]
+    outs <- fmap entityVal <$> selectList [TxOutputTableTxId <-. txids]
+        [Asc TxOutputTableTxId, Asc TxOutputTableIndex]
+    pure (ins, outs)
+
+selectTxHistory
+    :: W.WalletId
+    -> SqlPersistM (Map.Map (W.Hash "Tx") (W.Tx, W.TxMeta))
+selectTxHistory wid = do
+    metas <- fmap entityVal <$> selectList [TxMetaTableWalletId ==. wid] []
+    let txids = map txMetaTableTxId metas
+    ins <- fmap entityVal <$> selectList [TxInputTableTxId <-. txids]
+        [Asc TxInputTableTxId, Asc TxInputTableSourceIndex]
+    outs <- fmap entityVal <$> selectList [TxOutputTableTxId <-. txids]
+        [Asc TxOutputTableTxId, Asc TxOutputTableIndex]
+    pure $ txHistoryFromEntity metas ins outs
+
+---------------------------------------------------------------------------
+-- DB queries for address discovery state
+
+-- | Get a @(WalletId, SlotId)@ pair from the checkpoint table, for use with
+-- 'insertState' and 'selectState'.
+checkpointId :: Checkpoint -> (W.WalletId, W.SlotId)
+checkpointId cp = (checkpointTableWalletId cp, checkpointTableSlot cp)
+
+-- | Functions for saving/loading the wallet's address discovery state into
+-- SQLite.
+class PersistState s where
+    -- | Store the state for a checkpoint.
+    insertState :: (W.WalletId, W.SlotId) -> s -> SqlPersistM ()
+    -- | Load the state for a checkpoint.
+    selectState :: (W.WalletId, W.SlotId) -> SqlPersistM (Maybe s)
+    -- | Remove the state for all checkpoints of a wallet.
+    deleteState :: W.WalletId -> SqlPersistM ()
+
+instance W.KeyToAddress t => PersistState (W.SeqState t) where
+    insertState (wid, sl) st = do
+        ssid <- insert (SeqState wid sl)
+        intApId <- insertAddressPool $ W.internalPool st
+        extApId <- insertAddressPool $ W.externalPool st
+        insert_ $ SeqStateInternalPool ssid intApId
+        insert_ $ SeqStateExternalPool ssid extApId
+        insertMany_ $ mkSeqStatePendingIxs ssid $ W.pendingChangeIxs st
+
+    selectState (wid, sl) = runMaybeT $ do
+        ssid <- MaybeT $ fmap entityKey <$>
+            selectFirst [ SeqStateTableWalletId ==. wid
+                        , SeqStateTableCheckpointSlot ==. sl ] []
+        intApId <- MaybeT $
+            fmap (seqStateInternalPoolAddressPool . entityVal) <$>
+            selectFirst [ SeqStateInternalPoolSeqStateId ==. ssid ] []
+        extApId <- MaybeT $
+            fmap (seqStateExternalPoolAddressPool . entityVal) <$>
+            selectFirst [ SeqStateExternalPoolSeqStateId ==. ssid ] []
+        internalPool <- MaybeT $ selectAddressPool intApId
+        externalPool <- MaybeT $ selectAddressPool extApId
+        pendingChangeIxs <- lift $ selectSeqStatePendingIxs ssid
+        pure $ W.SeqState internalPool externalPool pendingChangeIxs
+
+    deleteState wid = do
+        -- fixme: cascading delete not working with persistent-sqlite
+        deleteCascadeWhere [SeqStateTableWalletId ==. wid]
+
+insertAddressPool
+    :: W.AddressPool t c
+    -> SqlPersistM AddressPoolId
+insertAddressPool ap = do
+    let ap' = AddressPool (AddressPoolXPub $ W.accountPubKey ap) (W.gap ap)
+    apid <- insert ap'
+    insertMany_ [ AddressPoolIndex apid a (W.getIndex i)
+                | (a, i) <- Map.toList (W.indexedAddresses ap) ]
+    pure apid
+
+mkSeqStatePendingIxs :: SeqStateId -> W.PendingIxs -> [SeqStatePendingIx]
+mkSeqStatePendingIxs ssid (W.PendingIxs ixs) =
+    [SeqStatePendingIx ssid i (W.getIndex ix) | (i, ix) <- zip [0..] ixs]
+
+selectAddressPool
+    :: forall t chain. (W.KeyToAddress t, Typeable chain)
+    => AddressPoolId
+    -> SqlPersistM (Maybe (W.AddressPool t chain))
+selectAddressPool apid = do
+    ix <- fmap entityVal <$> selectList [IndexAddressPool ==. apid]
+        [Asc IndexNumber]
+    ap <- fmap entityVal <$> selectFirst [AddressPoolId ==. apid] []
+    pure $ addressPoolFromEntity ix <$> ap
+  where
+    addressPoolFromEntity
+        :: [AddressPoolIndex]
+        -> AddressPool
+        -> W.AddressPool t chain
+    addressPoolFromEntity ixs (AddressPool (AddressPoolXPub pubKey) gap) =
+        ap { W.indexedAddresses = addrs }
+      where
+        ap = W.mkAddressPool @t @chain pubKey gap []
+        addrs = Map.fromList
+            [(addr, W.Index ix) | AddressPoolIndex _ addr ix <- ixs]
+
+selectSeqStatePendingIxs :: SeqStateId -> SqlPersistM W.PendingIxs
+selectSeqStatePendingIxs ssid =
+    fromRes <$> selectList
+        [SeqStatePendingIxSeqStateId ==. ssid]
+        [Asc SeqStatePendingIxPos]
+  where
+    fromRes = W.PendingIxs . fmap (W.Index . seqStatePendingIxIndex . entityVal)
+
+----------------------------------------------------------------------------
+-- Utilities
+
+-- | Distribute `a` accross many `b`s using the given function.
+-- >>> dist TxOut (addr, [Coin 1, Coin 42, Coin 14])
+-- [TxOut addr (Coin 1), TxOut addr (Coin 42), TxOut addr (Coin 14)]
+dist :: (a -> b -> c) -> (a, [b]) -> [c]
+dist f (a, bs) = [f a b | b <- bs]
