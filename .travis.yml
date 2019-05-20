@@ -18,8 +18,8 @@ env:
     - PATH=$PATH:$HOME/.cargo/bin:$HOME/.local/bin
     - LOCAL_MIX_DIR=.stack-work/dist/x86_64-linux/Cabal-2.4.0.1/hpc/
 
-# Use the Travis Rust build tools for cardano-http-bridge.
-language: rust
+# We use an hybrid setup with Rust and Haskell, so we handle the compilation ourselves
+language: generic
 
 # Deactivate builds on branches but `master` (CI is still triggered by PRs).
 # We do also CI to kick in when pushing a tag `git push --tags` for releases.
@@ -29,13 +29,16 @@ if: (branch = master) OR (tag =~ ^v)
 cache:
   timeout: 1337
   directories:
-  - $HOME/.stack
   - $HOME/.local
-  - $HOME/.ghc
-  - $HOME/.cargo
+  - $HOME/.stack
 
 before_cache:
-  - rm -rf $HOME/.cargo/registry # Don't cache cargo's registry
+  - rm -rf $HOME/.stack/programs/x86_64-linux/ghc-*.tar.*
+  - rm -rf $HOME/.stack/indices/Hackage/00-index.tar ~/.stack/indices/Hackage/00-index.tar.gz
+  - find $HOME/.stack/programs/x86_64-linux/ghc-*/lib/ghc-* -type f -name *_p.a -delete
+
+before_install:
+  - tar xzf $STACK_WORK_CACHE || echo "no .stack-work yet"
 
 # Ensure necessary system libraries are present:
 addons:
@@ -47,6 +50,7 @@ addons:
 # Define custom set of stages
 stages:
 - build dependencies 🔩
+- cache 💾
 - build project 🔨
 - checks 🔬
 - deploy 🚀
@@ -54,69 +58,160 @@ stages:
 jobs:
   fast_finish: true
   include:
-  - stage: build dependencies 🔩
-    name: "Compiling dependencies"
-    script:
-    - mkdir -p ~/.local/bin
-    - travis_retry curl -L -o cardano-node-simple.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-node-simple/cardano-node-simple-3.0.1.tar.gz
-    - tar xzf cardano-node-simple.tar.gz -C $HOME/.local/bin
-    - cardano-node-simple --version
-    - test "$(cardano-http-bridge --version)" = "cardano-http-bridge 0.0.2" || travis_retry cargo install --force --branch cardano-wallet-integration --git https://github.com/KtorZ/cardano-http-bridge.git
-    - test "$(jormungandr --version)" = "jormungandr 0.0.1" || travis_retry cargo install --force jormungandr --git https://github.com/input-output-hk/jormungandr.git
-    - cardano-http-bridge --version
-
-  - stage: build dependencies 🔩
-    name: "Stylish-Haskell"
-    env: NO_CACHE=True
-    script:
-    - curl -sSL https://raw.github.com/jaspervdj/stylish-haskell/master/scripts/latest.sh | sh -s $(find . -type f -name "*.hs" ! -path "*.stack-work*") -i
-    - git diff --exit-code # Exit if Stylish-Haskell yields any diff
-
+  ################################################################################
+  #
+  # PR
+  #
+  # Pipeline we run on each PR. Slightly different from the pipeline we run when
+  # stuff get merged into `master`. In this setup, we do want a quick feedback, and
+  # we therefore parallelize as much as we can using many different jobs. We also
+  # avoid options like `--coverage` or `--haddock` on each build since those take
+  # needless time.
+  #
+  ################################################################################
   - stage: build project 🔨
-    name: "Compiling project"
+    if: type = pull_request
+    name: "Compiling Project"
     script:
-    - mkdir -p ~/.local/bin
-    - travis_retry curl -L https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
-    - stack --no-terminal setup
-    - stack --no-terminal build --only-snapshot
-    - stack --no-terminal build --only-dependencies
-    - stack --no-terminal build --test --no-run-tests --bench --no-run-benchmarks --coverage --haddock --no-haddock-deps
+    - stack clean
+    - stack --no-terminal build --fast --bench --no-run-benchmarks
     - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
 
   - stage: checks 🔬
+    if: type = pull_request
+    name: "Stylish-Haskell"
+    env: NO_CACHE=True
+    script:
+    - travis_retry curl -sSL https://raw.github.com/jaspervdj/stylish-haskell/master/scripts/latest.sh | sh -s $(find . -type f -name "*.hs" ! -path "*.stack-work*") -i
+    - git diff --exit-code
+
+  - stage: checks 🔬
+    if: type = pull_request
     name: "HLint"
     script:
-    - tar xzf $STACK_WORK_CACHE
-    - curl -sSL https://raw.github.com/ndmitchell/hlint/master/misc/run.sh | sh -s .
+    - travis_retry curl -sSL https://raw.github.com/ndmitchell/hlint/master/misc/run.sh | sh -s .
 
   - stage: checks 🔬
+    if: type = pull_request
     name: "Weeder"
     script:
-    - tar xzf $STACK_WORK_CACHE
-    - curl -sSL https://raw.github.com/ndmitchell/weeder/master/misc/travis.sh | sh -s .
+    - travis_retry curl -sSL https://raw.github.com/ndmitchell/weeder/master/misc/travis.sh | sh -s .
 
   - stage: checks 🔬
-    name: "Tests (mainnet)"
+    if: type = pull_request
+    name: "Haddock"
+    script:
+    - stack --no-terminal build --haddock --no-haddock-deps --fast
+
+  - stage: checks 🔬
+    if: type = pull_request
+    name: "Tests: core, launcher, cli, bech32 & text-class"
+    script:
+    - stack --no-terminal test cardano-wallet-core cardano-wallet-launcher cardano-wallet-cli text-class bech32 --fast
+
+  - stage: checks 🔬
+    if: type = pull_request
+    name: "Tests: http-bridge (mainnet)"
     script:
     - export NETWORK=mainnet
-    - tar xzf $STACK_WORK_CACHE
-    - stack --no-terminal test cardano-wallet-http-bridge:unit
+    - stack --no-terminal test http-bridge:unit --fast
 
   - stage: checks 🔬
-    name: "Tests (testnet)"
+    if: type = pull_request
+    name: "Tests: http-bridge (testnet)"
     script:
     - export NETWORK=testnet
-    - tar xzf $STACK_WORK_CACHE
+    - travis_retry curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-http-bridge/hermes-testnet.tar.gz
+    - tar xzf hermes-testnet.tar.gz -C $HOME
+    - stack --no-terminal test cardano-wallet-http-bridge --fast
+
+  - stage: checks 🔬
+    if: type = pull_request
+    name: "Tests: jormungandr (testnet)"
+    script:
+    - export NETWORK=testnet
+    - stack --no-terminal test cardano-wallet-jormungandr --fast
+
+  ################################################################################
+  #
+  # Push / Cron / Api
+  #
+  # This runs for other type of build (non PR) and are slightly heavier since they
+  # also compute coverage and documentation. This is also the only way to rebuild
+  # an initial default cache and re-inject 3rd-party dependencies like:
+  #
+  # - cardano-node-simple
+  # - cardano-http-bridge
+  # - jormungandr
+  # - jcli
+  #
+  ################################################################################
+  - stage: build dependencies 🔩
+    if: type != pull_request AND branch = master
+    name: "Compiling dependencies"
+    script:
+    - mkdir -p ~/.local/bin
+    - travis_retry curl -L -sSf https://build.travis-ci.org/files/rustup-init.sh | sh -s -- --default-toolchain=1.34.2 -y
+    - travis_retry curl -L -o cardano-node-simple.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-node-simple/cardano-node-simple-3.0.1.tar.gz
+    - tar xzf cardano-node-simple.tar.gz -C $HOME/.local/bin
+    - cardano-node-simple --version
+    - test "$(jormungandr --version)" = "jormungandr 0.0.1" || travis_retry cargo install --force --root $HOME/.local jormungandr --git https://github.com/input-output-hk/jormungandr.git
+    - jcli --version
+    - jormungandr --version
+    - test "$(cardano-http-bridge --version)" = "cardano-http-bridge 0.0.2" || travis_retry cargo install --force --root $HOME/.local --branch cardano-wallet-integration --git https://github.com/KtorZ/cardano-http-bridge.git
+    - cardano-http-bridge --version
+
+  - stage: cache 💾
+    if: type != pull_request AND branch = master
+    name: "Caching Dependencies"
+    script:
+    - travis_retry curl -L https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+    - travis_retry stack --no-terminal setup
+    - stack --no-terminal build --fast --only-snapshot
+    - stack --no-terminal build --fast --only-dependencies
+    - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
+
+  - stage: build project 🔨
+    if: type != pull_request AND branch = master
+    name: "Compiling Project"
+    script:
+    - stack --no-terminal build --fast --test --no-run-tests --bench --no-run-benchmarks --haddock --no-haddock-deps --coverage
+    - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
+
+  - stage: checks 🔬
+    if: type != pull_request AND branch = master
+    name: "Stylish-Haskell"
+    env: NO_CACHE=True
+    script:
+    - travis_retry curl -sSL https://raw.github.com/jaspervdj/stylish-haskell/master/scripts/latest.sh | sh -s $(find . -type f -name "*.hs" ! -path "*.stack-work*") -i
+    - git diff --exit-code # Exit if Stylish-Haskell yields any diff
+
+  - stage: checks 🔬
+    if: type != pull_request AND branch = master
+    name: "HLint"
+    script:
+    - travis_retry curl -sSL https://raw.github.com/ndmitchell/hlint/master/misc/run.sh | sh -s .
+
+  - stage: checks 🔬
+    if: type != pull_request AND branch = master
+    name: "Weeder"
+    script:
+    - travis_retry curl -sSL https://raw.github.com/ndmitchell/weeder/master/misc/travis.sh | sh -s .
+
+  - stage: checks 🔬
+    if: type != pull_request AND branch = master
+    name: "Tests"
+    script:
+    - export NETWORK=testnet
     - travis_retry curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-http-bridge/hermes-testnet.tar.gz
     - tar xzf hermes-testnet.tar.gz -C $HOME
     - stack --no-terminal test --coverage
     - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work lib/**/*.tix
 
   - stage: deploy 🚀
-    if: type = push AND branch = master
+    if: type != pull_request AND branch = master
     name: "Haddock"
     script:
-    - tar xzf $STACK_WORK_CACHE
     - cp -Rv specifications/api api
     - mkdir -p haddock && mv $(stack path --local-doc-root)/* haddock
     - git checkout --orphan gh-pages-deploy && git reset
@@ -125,12 +220,12 @@ jobs:
     - git push -f -q https://WilliamKingNoel-Bot:$GITHUB_ACCESS_TOKEN@github.com/input-output-hk/cardano-wallet gh-pages &>/dev/null
 
   - stage: deploy 🚀
-    if: type = push AND branch = master
+    if: type != pull_request AND branch = master
     name: "Coveralls"
     script:
-    - tar xzf $STACK_WORK_CACHE
     - export LTS=$(cat stack.yaml | grep resolver) # Extract the LTS from the stack.yaml
-    - git clone https://github.com/rubik/stack-hpc-coveralls && cd stack-hpc-coveralls && git checkout 3d8352d5642ab214a7a574bd797880ae39595a44 && echo $LTS > stack.yaml && cd -
+    - git clone https://github.com/rubik/stack-hpc-coveralls && cd stack-hpc-coveralls && git checkout 3d8352d5642ab214a7a574bd797880ae39595a44 && echo $LTS > stack.yaml
+    - stack --no-terminal install && cd -
     - stack --no-terminal install hpc
     # Ignore modules that are full of Template Haskell auto-generated code
     - cd lib/core
@@ -143,11 +238,16 @@ jobs:
     - stack hpc report --all lib/**/*.tix
     - shc combined custom
 
+  ################################################################################
+  #
+  # Deployment
+  #
+  # Only when a tag is present, we do install and deploy the software.
+  ################################################################################
   - stage: deploy 🚀
     if: tag =~ ^v
     name: "Executables"
     script:
-    - tar xzf $STACK_WORK_CACHE
     - stack --no-terminal install
     - sha256sum $WALLET_CLI | head -c 64 > $WALLET_CLI_CHECKSUM
     - ls $WALLET_CLI
