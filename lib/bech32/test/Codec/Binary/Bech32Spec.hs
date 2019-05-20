@@ -74,9 +74,9 @@ spec = do
                 let expectedChecksum = Right $ B8.map toLower checksum
                 checksumEncoded `shouldBe` expectedChecksum
 
-    describe "Invalid Checksums" $ forM_ invalidChecksums $ \checksum ->
+    describe "Invalid Checksums" $ forM_ invalidChecksums $ \(checksum, expect) ->
         it (B8.unpack checksum) $
-            Bech32.decode checksum `shouldSatisfy` isLeft
+            Bech32.decode checksum `shouldBe` (Left expect)
 
     describe "More Encoding/Decoding Cases" $ do
         it "length > maximum" $ do
@@ -273,17 +273,32 @@ validChecksums = map B8.pack
     , "split1checkupstagehandshakeupstreamerranterredcaperred2y9e3w"
     ]
 
-invalidChecksums :: [ByteString]
-invalidChecksums = map B8.pack
-    [ " 1nwldj5"
-    , "\DEL1axkwrx"
-    , "an84characterslonghumanreadablepartthatcontain\
-      \sthenumber1andtheexcludedcharactersbio1569pvx"
-    , "pzry9x0s0muk"
-    , "1pzry9x0s0muk"
-    , "x1b4n0q5v"
-    , "li1dgmt3"
-    , "de1lg7wt\xFF"
+invalidChecksums :: [(ByteString, Bech32.DecodingError)]
+invalidChecksums =
+    [ ( " 1nwldj5"
+      , Bech32.StringToDecodeContainsInvalidChars [Bech32.CharPosition 0] )
+    , ( "\DEL1axkwrx"
+      , Bech32.StringToDecodeContainsInvalidChars [Bech32.CharPosition 0] )
+    , ( "an84characterslonghumanreadablepartthatcontain\
+        \sthenumber1andtheexcludedcharactersbio1569pvx"
+      , Bech32.StringToDecodeTooLong)
+    , ( "pzry9x0s0muk", Bech32.StringToDecodeMissingSeparatorChar )
+    , ( "1pzry9x0s0muk"
+      , Bech32.StringToDecodeContainsInvalidChars [Bech32.CharPosition 0] )
+    , ( "x1b4n0q5v"
+      , Bech32.StringToDecodeContainsInvalidChars [Bech32.CharPosition 2] )
+    , ( "x1n4n0q5v"
+      , Bech32.StringToDecodeContainsInvalidChars [] )
+    , ( "11111111111111111111111111111111111111111111111111111111111111\
+        \1111111111111111111111111111"
+       , Bech32.StringToDecodeContainsInvalidChars [Bech32.CharPosition 83] )
+    , ( "li1dgmt3"
+      , Bech32.StringToDecodeTooShort )
+    , ( "", Bech32.StringToDecodeTooShort )
+    , ( "de1lg7wt\xFF"
+      , Bech32.StringToDecodeContainsInvalidChars [Bech32.CharPosition 8] )
+    , ( "aBcdef1qpzry9x8gf2tvDw0s3jn54khce6mua7lmqqqXw"
+      , Bech32.StringToDecodeHasMixedCase )
     ]
 
 newtype ValidBech32Char = ValidBech32Char
