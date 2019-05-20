@@ -50,7 +50,8 @@ module Codec.Binary.Bech32.Internal
 
       -- * Character Set Manipulation
     , charset
-    , charsetMap
+    , word5ToChar
+    , charToWord5
 
     ) where
 
@@ -142,7 +143,7 @@ encode :: HumanReadablePart -> ByteString -> Either EncodingError ByteString
 encode hrp@(HumanReadablePart hrpBytes) payload = do
     let payload5 = toBase32 (BS.unpack payload)
     let payload' = payload5 ++ bech32CreateChecksum hrp payload5
-    let rest = map (charset Arr.!) payload'
+    let rest = map (word5ToChar Arr.!) payload'
     let output = B8.map toLower hrpBytes <> B8.pack "1" <> B8.pack rest
     guardE (BS.length output <= encodedStringMaxLength) EncodedStringTooLong
     return output
@@ -196,13 +197,13 @@ decode bech32 = do
 -- supported character set, return the list of illegal character positions.
 parseDataWithChecksumPart :: ByteString -> Either [CharPosition] [Word5]
 parseDataWithChecksumPart dcpUnparsed =
-    case mapM charsetMap $ B8.unpack dcpUnparsed of
+    case mapM charToWord5 $ B8.unpack dcpUnparsed of
         Nothing -> Left invalidCharPositions
         Just dcp -> Right dcp
   where
     invalidCharPositions =
         CharPosition . fst <$> filter (isNothing . snd)
-            ([0 .. ] `zip` (charsetMap <$> B8.unpack dcpUnparsed))
+            ([0 .. ] `zip` (charToWord5 <$> B8.unpack dcpUnparsed))
 
 -- | Convert an error encountered while parsing a human-readable part into a
 -- general decoding error.
@@ -262,14 +263,17 @@ encodedStringMinLength =
                             Character Manipulation
 -------------------------------------------------------------------------------}
 
-charset :: Array Word5 Char
-charset =
+charset :: String
+charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+
+word5ToChar :: Array Word5 Char
+word5ToChar =
     Arr.listArray
         (Word5 0, Word5 31)
-        "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+        charset
 
-charsetMap :: Char -> Maybe Word5
-charsetMap c
+charToWord5 :: Char -> Maybe Word5
+charToWord5 c
     | inRange (Arr.bounds inv) upperC = inv Arr.! upperC
     | otherwise = Nothing
   where
@@ -278,7 +282,7 @@ charsetMap c
     inv =
         Arr.listArray ('0', 'Z') (repeat Nothing)
         Arr.//
-        (map swap (Arr.assocs charset))
+        (map swap (Arr.assocs word5ToChar))
 
 -- | The zero-based position of a character in a string, counting from the left.
 newtype CharPosition = CharPosition Int

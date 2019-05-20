@@ -101,15 +101,17 @@ spec = do
             isJust (Bech32.toBase256 ws) ==>
                 (Bech32.toBase32 <$> Bech32.toBase256 ws) === Just ws
 
-    describe "Roundtrip (charsetMap . charset)" $ do
+    describe "Roundtrip (charToWord5 . word5ToChar)" $ do
         it "can perform roundtrip character set conversion (lower-case)" $
             property $ \w ->
-                Bech32.charsetMap (toLower (Bech32.charset Arr.! w)) === Just w
+                Bech32.charToWord5 (toLower (Bech32.word5ToChar Arr.! w))
+                    === Just w
 
-    describe "Roundtrip (charsetMap . charset)" $ do
+    describe "Roundtrip (charToWord5 . word5ToChar)" $ do
         it "can perform roundtrip character set conversion (upper-case)" $
             property $ \w ->
-                Bech32.charsetMap (toUpper (Bech32.charset Arr.! w)) === Just w
+                Bech32.charToWord5 (toUpper (Bech32.word5ToChar Arr.! w))
+                    === Just w
 
     describe "Conversion of word string from one word size to another" $ do
 
@@ -186,8 +188,7 @@ instance Arbitrary ByteString where
         , BS.drop 1 bytes
         ]
     arbitrary = do
-        let alphabet = B8.unpack "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
-        bytes <- choose (0, 10) >>= \n -> vectorOf n (elements alphabet)
+        bytes <- choose (0, 10) >>= \n -> vectorOf n (elements Bech32.charset)
         return (B8.pack bytes)
 
 instance Arbitrary Bech32.Word5 where
