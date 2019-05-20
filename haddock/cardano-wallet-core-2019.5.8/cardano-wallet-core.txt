@@ -2046,6 +2046,22 @@ ErrWithRootKeyWrongPassphrase :: ErrWrongPassphrase -> ErrWithRootKey
 data ErrWrongPassphrase
 ErrWrongPassphrase :: ErrWrongPassphrase
 
+-- | Possible signing error
+newtype ErrMkStdTx
+
+-- | We tried to sign a transaction with inputs that are unknown to us?
+KeyNotFoundForAddress :: Address -> ErrMkStdTx
+
+-- | Error while trying to send a transaction
+data ErrPostTx
+ErrPostTxNetworkUnreachable :: ErrNetworkUnreachable -> ErrPostTx
+ErrPostTxBadRequest :: Text -> ErrPostTx
+ErrPostTxProtocolFailure :: Text -> ErrPostTx
+
+-- | Network is not reachable
+newtype ErrNetworkUnreachable
+ErrNetworkUnreachable :: Text -> ErrNetworkUnreachable
+
 -- | Create a new instance of the wallet layer.
 newWalletLayer :: forall s t. (IsOwned s, GenChange s, KnownAddresses s, CompareDiscovery s, NFData s, Show s, TxId t) => DBLayer IO s t -> NetworkLayer IO -> TransactionLayer -> IO (WalletLayer s t)
 
