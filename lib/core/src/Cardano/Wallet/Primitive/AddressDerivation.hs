@@ -31,7 +31,8 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , getKey
     , Depth (..)
     , Index
-    , getIndex
+      (..) -- fixme: internal constructor
+    -- , getIndex
     , DerivationType (..)
     , publicKey
     , digest

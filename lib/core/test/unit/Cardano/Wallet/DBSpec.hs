@@ -30,7 +30,13 @@ import Cardano.Wallet.DB
     , PrimaryKey (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Key, Passphrase (..), XPrv, generateKeyFromSeed )
+    ( Depth (..)
+    , Key
+    , KeyToAddress (..)
+    , Passphrase (..)
+    , XPrv
+    , generateKeyFromSeed
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Model
@@ -149,6 +155,9 @@ data DummyTarget
 
 instance TxId DummyTarget where
     txId = Hash . B8.pack . show
+
+instance KeyToAddress DummyTarget where
+    keyToAddress _ = Address ""
 
 instance Arbitrary (PrimaryKey WalletId) where
     shrink _ = []

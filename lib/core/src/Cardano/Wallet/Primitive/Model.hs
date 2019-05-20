@@ -29,6 +29,7 @@ module Cardano.Wallet.Primitive.Model
     (
     -- * Type
       Wallet
+        (..) -- fixme: internal
 
     -- * Construction & Modification
     , initWallet
