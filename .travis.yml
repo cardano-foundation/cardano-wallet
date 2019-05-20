@@ -21,9 +21,10 @@ env:
 # We use an hybrid setup with Rust and Haskell, so we handle the compilation ourselves
 language: generic
 
-# Deactivate builds on branches but `master` (CI is still triggered by PRs).
+# Deactivate builds on branches but `master` and the bors branches.
+# CI is still triggered by PRs).
 # We do also CI to kick in when pushing a tag `git push --tags` for releases.
-if: (branch = master) OR (tag =~ ^v)
+if: "(branch IN (master, bors/staging, bors/trying)) OR (tag =~ ^v)"
 
 # Caching so the next build will be fast too:
 cache:
@@ -74,7 +75,7 @@ jobs:
     name: "Compiling Project"
     script:
     - stack clean
-    - stack --no-terminal build --fast --bench --no-run-benchmarks
+    - stack --no-terminal build --fast --test --no-run-tests --bench --no-run-benchmarks
     - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
 
   - stage: checks 🔬
@@ -114,7 +115,7 @@ jobs:
     name: "Tests: http-bridge (mainnet)"
     script:
     - export NETWORK=mainnet
-    - stack --no-terminal test http-bridge:unit --fast
+    - stack --no-terminal test cardano-wallet-http-bridge:unit --fast
 
   - stage: checks 🔬
     if: type = pull_request

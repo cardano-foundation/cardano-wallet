@@ -1,6 +1,6 @@
 status = [
   # Bors will merge if/when Travis succeeds.
-  "continuous-integration/travis-ci/pr",
+  "continuous-integration/travis-ci/push",
 ]
 timeout_sec = 3600
 required_approvals = 1
