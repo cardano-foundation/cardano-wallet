@@ -169,7 +169,7 @@ jobs:
     - travis_retry stack --no-terminal setup
     - stack --no-terminal build --fast --only-snapshot
     - stack --no-terminal build --fast --only-dependencies
-    - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
+    - tar czf $STACK_WORK_CACHE .stack-work
 
   - stage: build project 🔨
     if: type != pull_request AND branch = master
