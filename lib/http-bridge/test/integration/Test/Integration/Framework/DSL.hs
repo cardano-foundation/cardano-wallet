@@ -41,6 +41,9 @@ module Test.Integration.Framework.DSL
     , walletId
     , walletName
     , state
+    , amount
+    , direction
+    , status
 
     -- * Helpers
     , (</>)
@@ -72,7 +75,9 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.Mnemonic
     ( mnemonicToText )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId (..)
+    ( Direction (..)
+    , PoolId (..)
+    , TxStatus (..)
     , WalletBalance (..)
     , WalletDelegation (..)
     , WalletId (..)
@@ -376,6 +381,33 @@ walletId =
     _get = T.pack . show . getWalletId . getApiT . view typed
     _set :: HasType (ApiT WalletId) s => (s, Text) -> s
     _set (s, v) = set typed (ApiT $ WalletId (unsafeCreateDigest v)) s
+
+amount :: HasType (Quantity "lovelace" Natural) s => Lens' s Int
+amount =
+    lens _get _set
+  where
+    _get :: HasType (Quantity "lovelace" Natural) s => s -> Int
+    _get = fromIntegral . fromQuantity @"lovelace" @Natural . view typed
+    _set :: HasType (Quantity "lovelace" Natural) s => (s, Int) -> s
+    _set (s, v) = set typed (Quantity @"lovelace" @Natural $ fromIntegral v) s
+
+direction :: HasType (ApiT Direction) s => Lens' s Direction
+direction =
+    lens _get _set
+  where
+    _get :: HasType (ApiT Direction) s => s -> Direction
+    _get = getApiT . view typed
+    _set :: HasType (ApiT Direction) s => (s, Direction) -> s
+    _set (s, v) = set typed (ApiT v) s
+
+status :: HasType (ApiT TxStatus) s => Lens' s TxStatus
+status =
+    lens _get _set
+  where
+    _get :: HasType (ApiT TxStatus) s => s -> TxStatus
+    _get = getApiT . view typed
+    _set :: HasType (ApiT TxStatus) s => (s, TxStatus) -> s
+    _set (s, v) = set typed (ApiT v) s
 
 --
 -- Helpers

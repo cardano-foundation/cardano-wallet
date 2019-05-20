@@ -30,7 +30,10 @@ module Cardano.Wallet
     , ErrUpdatePassphrase (..)
     , ErrWalletAlreadyExists (..)
     , ErrWithRootKey (..)
-    , ErrWrongPassphrase(..)
+    , ErrWrongPassphrase (..)
+    , ErrMkStdTx (..)
+    , ErrPostTx (..)
+    , ErrNetworkUnreachable (..)
 
     -- * Construction
     , newWalletLayer
@@ -48,7 +51,7 @@ import Cardano.Wallet.DB
     , PrimaryKey (..)
     )
 import Cardano.Wallet.Network
-    ( ErrPostTx (..), NetworkLayer (..) )
+    ( ErrNetworkUnreachable (..), ErrPostTx (..), NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (RootK)
     , ErrWrongPassphrase (..)
@@ -110,7 +113,7 @@ import Cardano.Wallet.Primitive.Types
     , slotRatio
     )
 import Cardano.Wallet.Transaction
-    ( ErrMkStdTx, TransactionLayer (..) )
+    ( ErrMkStdTx (..), TransactionLayer (..) )
 import Control.Arrow
     ( first )
 import Control.Concurrent

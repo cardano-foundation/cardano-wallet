@@ -199,7 +199,7 @@ newTransactionLayer = TransactionLayer
     --  | break                       -- 1
     --  | empty attributes            -- 1
     sizeOfTx :: Int -> [TxOut] -> [Coin] -> Int
-    sizeOfTx n outs chngs = 6
+    sizeOfTx n outs chngs = 7
         + sum (map sizeOfTxIn [0..n-1])
         + sum (map sizeOfTxOut outs)
         + sum (map sizeOfChange chngs)
