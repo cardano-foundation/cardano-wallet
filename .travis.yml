@@ -21,9 +21,10 @@ env:
 # We use an hybrid setup with Rust and Haskell, so we handle the compilation ourselves
 language: generic
 
-# Deactivate builds on branches but `master` (CI is still triggered by PRs).
+# Deactivate builds on branches but `master` and the bors branches.
+# CI is still triggered by PRs).
 # We do also CI to kick in when pushing a tag `git push --tags` for releases.
-if: (branch = master) OR (tag =~ ^v)
+if: "(branch IN (master, bors/staging, bors/trying)) OR (tag =~ ^v)"
 
 # Caching so the next build will be fast too:
 cache:
