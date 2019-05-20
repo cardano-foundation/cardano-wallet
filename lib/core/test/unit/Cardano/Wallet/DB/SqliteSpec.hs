@@ -18,6 +18,8 @@ import Cardano.Wallet.DB.Sqlite
     ( newDBLayer )
 import Cardano.Wallet.DBSpec
     ( cleanDB )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( encryptPassphrase, unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.Types
     ( WalletDelegation (..)
     , WalletId (..)
@@ -32,6 +34,10 @@ import Crypto.Hash
     ( hash )
 import Data.ByteString
     ( ByteString )
+import Data.Coerce
+    ( coerce )
+import Data.Text.Class
+    ( FromText (..) )
 import Data.Time.Clock
     ( getCurrentTime )
 import Test.Hspec
@@ -54,6 +60,15 @@ spec = beforeAll (newDBLayer Nothing) $ beforeWith cleanDB $ do
             let create' = createWallet db testPk undefined testMetadata
             runExceptT create' `shouldReturn` (Right ())
             runExceptT create' `shouldReturn` (Left (ErrWalletAlreadyExists testWid))
+
+        it "create and get private key" $ \db -> do
+            unsafeRunExceptT $ createWallet db testPk undefined testMetadata
+            readPrivateKey db testPk `shouldReturn` Nothing
+            let Right phr = fromText "aaaaaaaaaa"
+                k = unsafeGenerateKeyFromSeed (coerce phr, coerce phr) phr
+            h <- encryptPassphrase phr
+            unsafeRunExceptT (putPrivateKey db testPk (k, h))
+            readPrivateKey db testPk `shouldReturn` Just (k, h)
 
 testMetadata :: WalletMetadata
 testMetadata = WalletMetadata

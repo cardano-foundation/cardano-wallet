@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -14,12 +15,16 @@ module Cardano.Wallet.DB.Sqlite
 
 import Prelude
 
+import Cardano.Crypto.Wallet
+    ( XPrv )
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchWallet (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
     )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Depth (..), deserializeXPrv, serializeXPrv )
 import Conduit
     ( runResourceT )
 import Control.Monad
@@ -42,6 +47,7 @@ import Database.Persist.Sql
     ( LogFunc
     , Update (..)
     , deleteCascadeWhere
+    , deleteWhere
     , entityVal
     , insert_
     , runMigration
@@ -63,6 +69,7 @@ import System.Log.FastLogger
 
 import Cardano.Wallet.DB.Sqlite.TH
 
+import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
@@ -93,10 +100,7 @@ dbLogs levels _ _ level str =
 
 -- | Run a query without error handling. There will be exceptions thrown if it
 -- fails.
-runQuery
-    :: SqlBackend
-    -> SqlPersistM a
-    -> IO a
+runQuery :: SqlBackend -> SqlPersistM a -> IO a
 runQuery conn = runResourceT . runNoLoggingT . flip runSqlConn conn
 
 -- | Run an action, and convert any Sqlite constraints exception into the given
@@ -182,9 +186,19 @@ newDBLayer fp = do
                                        Keystore
         -----------------------------------------------------------------------}
 
-        , putPrivateKey = \(PrimaryKey _wid) _key -> error "unimplemented"
+        , putPrivateKey = \(PrimaryKey wid) key ->
+            ExceptT $ runQuery conn $
+            selectWallet wid >>= \case
+                Just _ -> Right <$> do
+                    deleteWhere [PrivateKeyTableWalletId ==. wid]
+                    insert_ (mkPrivateKeyEntity wid key)
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
-        , readPrivateKey = \(PrimaryKey _wid) -> error "unimplemented"
+        , readPrivateKey = \(PrimaryKey wid) ->
+            runQuery conn $ let
+                keys = selectFirst [PrivateKeyTableWalletId ==. wid] []
+                toMaybe = either (const Nothing) Just
+            in (>>= toMaybe . privateKeyFromEntity . entityVal) <$> keys
 
         {-----------------------------------------------------------------------
                                        Lock
@@ -232,6 +246,23 @@ metadataFromEntity wal = W.WalletMetadata
     , status = walTableStatus wal
     , delegation = delegationFromText (walTableDelegation wal)
     }
+
+mkPrivateKeyEntity
+    :: W.WalletId
+    -> (W.Key 'RootK XPrv, W.Hash "encryption")
+    -> PrivateKey
+mkPrivateKeyEntity wid kh = PrivateKey
+    { privateKeyTableWalletId = wid
+    , privateKeyTableRootKey = root
+    , privateKeyTableHash = hash
+    }
+  where
+    (root, hash) = serializeXPrv kh
+
+privateKeyFromEntity
+    :: PrivateKey
+    -> Either String (W.Key 'RootK XPrv, W.Hash "encryption")
+privateKeyFromEntity (PrivateKey _ k h) = deserializeXPrv (k, h)
 
 ----------------------------------------------------------------------------
 -- DB Queries
