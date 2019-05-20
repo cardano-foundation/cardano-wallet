@@ -14,8 +14,8 @@
 --
 -- From an original implementation by Marko Bencun:
 --
--- [sipa/bech32](https://github.com/sipa/bech32/tree/bdc264f84014c234e908d72026b7b780122be11f/ref/haskell)
-
+-- [sipa/bech32](https://git.io/fj8FV)
+--
 module Codec.Binary.Bech32.Internal
     (
       -- * Encoding & Decoding
@@ -225,6 +225,11 @@ data DecodingError
     | StringToDecodeHasMixedCase
     | StringToDecodeMissingSeparatorChar
     | StringToDecodeContainsInvalidChars [CharPosition]
+      -- ^ In cases where it is possible to determine the exact locations of
+      -- erroneous characters, this list will encode those locations. Clients
+      -- can use this information to provide user feedback. In cases where it
+      -- isn't possible to reliably determine the locations of erroneous
+      -- characters, this list will be empty.
     deriving (Eq, Show)
 
 -- | The separator character. This character appears immediately after the
@@ -381,6 +386,8 @@ toBase256 dat =
                            Error Location Detection
 -------------------------------------------------------------------------------}
 
+-- | This lookup table is a Haskell translation of the reference JavaScript
+--   implementation here: https://git.io/fj8FR
 gf_1024_exp :: Array Int Int
 gf_1024_exp = Arr.listArray (0, 1023) [
     1, 303, 635, 446, 997, 640, 121, 142, 959, 420, 350, 438, 166, 39, 543,
@@ -454,6 +461,8 @@ gf_1024_exp = Arr.listArray (0, 1023) [
     433, 610, 116, 855, 180, 479, 910, 1014, 599, 915, 905, 306, 516, 731,
     626, 978, 825, 344, 605, 654, 209 ]
 
+-- | This lookup table is a Haskell translation of the reference JavaScript
+--   implementation here: https://git.io/fj8FE
 gf_1024_log :: Array Int Int
 gf_1024_log = Arr.listArray (0, 1023) [
     -1, 0, 99, 363, 198, 726, 462, 132, 297, 495, 825, 528, 561, 693, 231,
@@ -527,6 +536,8 @@ gf_1024_log = Arr.listArray (0, 1023) [
     575, 992, 463, 983, 243, 360, 970, 350, 267, 615, 766, 494, 31, 1009,
     452, 710, 552, 128, 612, 600, 275, 322, 193 ]
 
+-- | This function is a Haskell translation of the reference JavaScript
+--   implementation here: https://git.io/fj8Fu
 syndrome :: (Bits a, Num a) => a -> a
 syndrome residue = low
     `xor` (low `unsafeShiftL` 10)
@@ -559,10 +570,19 @@ syndrome residue = low
   where
     low = residue .&. 0x1f
 
--- | For a given Bech32 string residue and Bech32 string length, report the
--- positions detectably erroneous characters in the original Bech32 string.
+-- | For a given Bech32 string residue and Bech32 string length, reports the
+-- positions of detectably erroneous characters in the original Bech32 string.
+--
 -- The reported character positions are zero-based, counting from right to left
--- within the original string, but omitting the separation character.
+-- within the original string, but omitting the separation character (which is
+-- not counted).
+--
+-- Returns the empty list if it is not possible to reliably determine the
+-- locations of errors.
+--
+-- This function is a Haskell translation of the reference JavaScript
+-- implementation here: https://git.io/fj8Fz
+--
 locateErrors :: Int -> Int -> [Int]
 locateErrors residue len
     | residue == 0 = []
