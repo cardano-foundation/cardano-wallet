@@ -12,7 +12,12 @@ module Codec.Binary.Bech32Spec
 import Prelude
 
 import Codec.Binary.Bech32.Internal
-    ( HumanReadablePart, humanReadablePartToBytes, mkHumanReadablePart )
+    ( CharPosition (..)
+    , DecodingError (..)
+    , HumanReadablePart
+    , humanReadablePartToBytes
+    , mkHumanReadablePart
+    )
 import Control.Monad
     ( forM_ )
 import Data.Bits
@@ -42,6 +47,7 @@ import Test.QuickCheck
     , property
     , vectorOf
     , (.&&.)
+    , (.||.)
     , (===)
     , (==>)
     )
@@ -154,9 +160,15 @@ spec = do
                 return $
                     index /= separatorIndex ==>
                     recombinedString /= validString ==>
-                        (BS.length recombinedString === BS.length validString)
-                        .&&.
-                        (Bech32.decode recombinedString `shouldSatisfy` isLeft)
+                    BS.length recombinedString == BS.length validString ==> (
+                        -- error location detection is best effort:
+                        (Bech32.decode recombinedString `shouldBe`
+                            Left (StringToDecodeContainsInvalidChars
+                                [CharPosition index]))
+                         .||.
+                        (Bech32.decode recombinedString `shouldBe`
+                            Left (StringToDecodeContainsInvalidChars []))
+                    )
 
         it "Decoding fails for an upper-case string with a lower-case \
            \character." $

@@ -48,10 +48,11 @@ module Codec.Binary.Bech32.Internal
     , noPadding
     , yesPadding
 
-      -- * Character Set Manipulation
+      -- * Character Manipulation
+    , CharPosition (..)
     , charset
-    , word5ToChar
     , charToWord5
+    , word5ToChar
 
     ) where
 
