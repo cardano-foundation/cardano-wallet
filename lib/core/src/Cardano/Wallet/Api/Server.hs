@@ -18,7 +18,9 @@ module Cardano.Wallet.Api.Server
 import Prelude
 
 import Cardano.Wallet
-    ( ErrCreateUnsignedTx (..)
+    ( ErrAdjustForFee (..)
+    , ErrCoinSelection (..)
+    , ErrCreateUnsignedTx (..)
     , ErrMkStdTx (..)
     , ErrNetworkUnreachable (..)
     , ErrNoSuchWallet (..)
@@ -36,6 +38,7 @@ import Cardano.Wallet.Api
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)
+    , ApiErrorCode (..)
     , ApiT (..)
     , ApiTransaction (..)
     , ApiWallet (..)
@@ -66,12 +69,18 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT, withExceptT )
+import Data.Aeson
+    ( (.=) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
     ()
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text
+    ( Text )
+import Data.Text.Class
+    ( toText )
 import Fmt
     ( pretty )
 import Servant
@@ -83,12 +92,15 @@ import Servant
     , err409
     , err410
     , err500
+    , err503
     )
 import Servant.Server
     ( Handler (..), ServantErr (..) )
 
 import qualified Cardano.Wallet as W
+import qualified Data.Aeson as Aeson
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Text as T
 
 
 -- | A Servant server for our wallet API
@@ -266,56 +278,142 @@ class LiftHandler e where
 -- In practice, we want to create nice error messages giving as much details as
 -- we can.
 
+apiError :: ServantErr -> ApiErrorCode -> Text -> ServantErr
+apiError err code message = err
+    { errBody = Aeson.encode $ Aeson.object
+        [ "code" .= code
+        , "message" .= T.replace "\n" " " message
+        ]
+    }
+
+-- | Small helper to easy show things to Text
+showT :: Show a => a -> Text
+showT = T.pack . show
+
 instance LiftHandler ErrNoSuchWallet where
     handler = \case
-        ErrNoSuchWallet _ -> err404
+        ErrNoSuchWallet wid ->
+            apiError err404 NoSuchWallet $ mconcat
+                [ "I couldn't find a wallet with the given id: "
+                , toText wid
+                ]
 
 instance LiftHandler ErrWalletAlreadyExists where
     handler = \case
-        ErrWalletAlreadyExists _ -> err409
+        ErrWalletAlreadyExists wid ->
+            apiError err409 WalletAlreadyExists $ mconcat
+                [ "This operation would yield a wallet with the following id: "
+                , toText wid, " However, I already know a wallet with such id"
+                ]
 
 instance LiftHandler ErrWithRootKey where
     handler = \case
-        ErrWithRootKeyNoRootKey _ -> err404
-        ErrWithRootKeyWrongPassphrase ErrWrongPassphrase -> err403
+        ErrWithRootKeyNoRootKey wid ->
+            apiError err404 NoRootKey $ mconcat
+                [ "I couldn't find any root private key for the given wallet: "
+                , toText wid, " This operation however requires that I do hold "
+                , "one. Either there's no such wallet, or I don't fully own it."
+                ]
+        ErrWithRootKeyWrongPassphrase wid ErrWrongPassphrase ->
+            apiError err403 WrongEncryptionPassphrase $ mconcat
+                [ "The given encryption passphrase doesn't match the one I use "
+                , "to encrypt the root private key of the given wallet: "
+                , toText wid
+                ]
+
+instance LiftHandler ErrCoinSelection where
+    handler = \case
+        ErrNotEnoughMoney utxo payment ->
+            apiError err403 NotEnoughMoney $ mconcat
+                [ "I can't accomodate such payment because there's not enough "
+                , "available UTxO in the wallet. The total UTxO sums up to "
+                , showT utxo, " Lovelace, but I need ", showT payment
+                , " Lovelace (fee included) in order to proceed with the "
+                , "payment."
+                ]
+
+        ErrUtxoNotEnoughFragmented nUtxo nOuts ->
+            apiError err403 UtxoNotEnoughFragmented $ mconcat
+                [ "There's a restriction in the way I can construct "
+                , "transactions: I do not re-use a same UTxO for different "
+                , "outputs. Here, I only have ", showT nUtxo, "available but "
+                , "there are ", showT nOuts, " outputs."
+                ]
+        ErrMaximumInputsReached n ->
+            apiError err403 TransactionIsTooBig $ mconcat
+                [ "I had to select as many as ", showT n, " inputs to construct "
+                , "the requested transaction. This would create a transaction "
+                , "that is too big and would be rejected by a core node. Try "
+                , "sending a smaller amount."
+                ]
+
+instance LiftHandler ErrAdjustForFee where
+    handler = \case
+        ErrCannotCoverFee missing ->
+            apiError err403 CannotCoverFee $ mconcat
+                [ "I can't adjust the given transaction to cover for fee! "
+                , "In order to do so, I'd have to select some additional inputs "
+                , "but I can't without increasing the size of the transaction "
+                , "out of an acceptable limit. Note that I am only missing "
+                , showT missing, " Lovelace."
+                ]
 
 instance LiftHandler ErrCreateUnsignedTx where
     handler = \case
-        ErrCreateUnsignedTxNoSuchWallet _ -> err404
-        ErrCreateUnsignedTxCoinSelection _ -> err403
-        ErrCreateUnsignedTxFee _ -> err403
+        ErrCreateUnsignedTxNoSuchWallet e -> handler e
+        ErrCreateUnsignedTxCoinSelection e -> handler e
+        ErrCreateUnsignedTxFee e -> handler e
 
 instance LiftHandler ErrSignTx where
     handler = \case
-        ErrSignTx (KeyNotFoundForAddress addr) -> err403
-            { errBody =
-                "Error signing transaction: corresponding private key for the \
-                \following output address was not found: " <> pretty addr
+        ErrSignTx (ErrKeyNotFoundForAddress addr) ->
+            apiError err403 KeyNotFoundForAddress $ mconcat
+                [ "I couldn't sign the given transaction: I didn't found the "
+                , "corresponding private key for the following output address: "
+                , pretty addr, ". Are you sure this address belongs to a known "
+                , "wallet?"
+                ]
+        ErrSignTxNoSuchWallet e -> (handler e)
+            { errHTTPCode = 410
+            , errReasonPhrase = errReasonPhrase err410
             }
-        ErrSignTxNoSuchWallet _ -> err410
-        ErrSignTxWithRootKey e -> handler e
+        ErrSignTxWithRootKey e@ErrWithRootKeyNoRootKey{} -> (handler e)
+            { errHTTPCode = 410
+            , errReasonPhrase = errReasonPhrase err410
+            }
+        ErrSignTxWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> handler e
 
 instance LiftHandler ErrSubmitTx where
     handler = \case
         ErrSubmitTxNetwork e -> case e of
-            ErrPostTxNetworkUnreachable (ErrNetworkUnreachable err) -> err500
-                { errBody =
-                    "Err submitting transaction: network is unreachable: "
-                    <> pretty err
-                }
-            ErrPostTxBadRequest err -> err500
-                { errBody =
-                    "Err submitting transaction: request rejected by node: "
-                    <> pretty err
-                }
-            ErrPostTxProtocolFailure err -> err500
-                { errBody =
-                    "Err submitting transaction: protocol failure: "
-                    <> pretty err
-                }
-        ErrSubmitTxNoSuchWallet _ -> err404
+            ErrPostTxNetworkUnreachable (ErrNetworkUnreachable err) ->
+                apiError err503 NetworkUnreachable $ mconcat
+                    [ "Aw crap! I couldn't submit the transaction: the network "
+                    , "is unreachable: ", pretty err, " Trying again in a bit "
+                    , "might work."
+                    ]
+            ErrPostTxBadRequest err ->
+                apiError err500 CreatedInvalidTransaction $ mconcat
+                    [ "That is embarassing. It looks like I have created an "
+                    , "invalid transaction which failed to be parsed by the "
+                    , "node. Here's perhaps an error message that will help "
+                    , "debugging: ", pretty err
+                    ]
+            ErrPostTxProtocolFailure err ->
+                apiError err500 RejectedByCoreNode $ mconcat
+                    [ "I successfully submitted a transaction but it was "
+                    , "rejected by a relay. This could be because there was not "
+                    , "enough fee, because it now conflicts with another "
+                    , "transactions using some identical inputs or because of "
+                    , "another reason. "
+                    , "Here's a hint: ", pretty err
+                    ]
+        ErrSubmitTxNoSuchWallet e@ErrNoSuchWallet{} -> (handler e)
+            { errHTTPCode = 410
+            , errReasonPhrase = errReasonPhrase err410
+            }
 
 instance LiftHandler ErrUpdatePassphrase where
     handler = \case
-        ErrUpdatePassphraseNoSuchWallet _ -> err404
-        ErrUpdatePassphraseWithRootKey e -> handler e
+        ErrUpdatePassphraseNoSuchWallet e -> handler e
+        ErrUpdatePassphraseWithRootKey e  -> handler e
