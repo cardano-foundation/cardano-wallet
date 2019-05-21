@@ -30,14 +30,12 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( AddressPoolXPub (..), TxId (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), deserializeXPrv, serializeXPrv )
-import Control.Monad.Trans.Resource
-    ( runResourceT )
 import Control.Concurrent.MVar
     ( newMVar, withMVar )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( void, mapM_ )
+    ( mapM_, void )
 import Control.Monad.Catch
     ( MonadCatch (..), handleJust )
 import Control.Monad.IO.Class
@@ -50,6 +48,8 @@ import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..) )
+import Control.Monad.Trans.Resource
+    ( runResourceT )
 import Data.Bifunctor
     ( bimap )
 import Data.Coerce
