@@ -71,63 +71,40 @@ jobs:
   #
   ################################################################################
   - stage: build project 🔨
-    if: type = pull_request
+    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
     name: "Compiling Project"
     script:
     - stack clean
-    - stack --no-terminal build --fast --test --no-run-tests --bench --no-run-benchmarks
+    - stack --no-terminal build --fast --test --no-run-tests --bench --no-run-benchmarks --haddock --no-haddock-deps
     - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
 
   - stage: checks 🔬
-    if: type = pull_request
-    name: "Stylish-Haskell"
-    env: NO_CACHE=True
+    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
+    name: "Code Style"
     script:
     - travis_retry curl -sSL https://raw.github.com/jaspervdj/stylish-haskell/master/scripts/latest.sh | sh -s $(find . -type f -name "*.hs" ! -path "*.stack-work*") -i
     - git diff --exit-code
-
-  - stage: checks 🔬
-    if: type = pull_request
-    name: "HLint"
-    script:
     - travis_retry curl -sSL https://raw.github.com/ndmitchell/hlint/master/misc/run.sh | sh -s .
-
-  - stage: checks 🔬
-    if: type = pull_request
-    name: "Weeder"
-    script:
     - travis_retry curl -sSL https://raw.github.com/ndmitchell/weeder/master/misc/travis.sh | sh -s .
 
   - stage: checks 🔬
-    if: type = pull_request
-    name: "Haddock"
-    script:
-    - stack --no-terminal build --haddock --no-haddock-deps --fast
-
-  - stage: checks 🔬
-    if: type = pull_request
-    name: "Tests: core, launcher, cli, bech32 & text-class"
-    script:
-    - stack --no-terminal test cardano-wallet-core cardano-wallet-launcher cardano-wallet-cli text-class bech32 --fast
-
-  - stage: checks 🔬
-    if: type = pull_request
+    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
     name: "Tests: http-bridge (mainnet)"
     script:
     - export NETWORK=mainnet
     - stack --no-terminal test cardano-wallet-http-bridge:unit --fast
 
   - stage: checks 🔬
-    if: type = pull_request
+    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
     name: "Tests: http-bridge (testnet)"
     script:
     - export NETWORK=testnet
     - travis_retry curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-http-bridge/hermes-testnet.tar.gz
     - tar xzf hermes-testnet.tar.gz -C $HOME
-    - stack --no-terminal test cardano-wallet-http-bridge --fast
+    - stack --no-terminal test cardano-wallet-core cardano-wallet-launcher cardano-wallet-cli text-class bech32 cardano-wallet-http-bridge --fast
 
   - stage: checks 🔬
-    if: type = pull_request
+    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
     name: "Tests: jormungandr (testnet)"
     script:
     - export NETWORK=testnet
