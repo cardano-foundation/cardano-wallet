@@ -38,7 +38,6 @@ library
     , basement
     , bytestring
     , cardano-crypto
-    , conduit
     , containers
     , cryptonite
     , deepseq
@@ -54,6 +53,7 @@ library
     , persistent
     , persistent-sqlite
     , persistent-template
+    , resourcet
     , servant
     , servant-server
     , text

@@ -30,7 +30,7 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( AddressPoolXPub (..), TxId (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), deserializeXPrv, serializeXPrv )
-import Conduit
+import Control.Monad.Trans.Resource
     ( runResourceT )
 import Control.DeepSeq
     ( NFData )
