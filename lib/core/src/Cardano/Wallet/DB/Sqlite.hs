@@ -35,7 +35,7 @@ import Conduit
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( void )
+    ( void, mapM_ )
 import Control.Monad.Catch
     ( MonadCatch (..), handleJust )
 import Control.Monad.IO.Class
@@ -71,6 +71,7 @@ import Database.Persist.Sql
     , insertMany_
     , insert_
     , putMany
+    , rawExecute
     , runMigration
     , runSqlConn
     , selectFirst
@@ -157,6 +158,7 @@ newDBLayer
 newDBLayer fp = do
     conn <- createSqliteBackend fp (dbLogs [LevelError])
     runQuery conn $ runMigration migrateAll
+    runQuery conn addIndexes
     return $ DBLayer
 
         {-----------------------------------------------------------------------
@@ -265,6 +267,19 @@ newDBLayer fp = do
         , withLock = \_action -> error "withLock to be implemented"
 
         }
+
+----------------------------------------------------------------------------
+-- SQLite database setup
+
+addIndexes :: SqlPersistM ()
+addIndexes = mapM_ (`rawExecute` [])
+    [ createIndex "pending_tx_wallet_id" "pending_tx (wallet_id)"
+    , createIndex "tx_meta_wallet_id" "tx_meta (wallet_id)"
+    , createIndex "tx_in_tx_id" "tx_in (tx_id)"
+    , createIndex "tx_out_tx_id" "tx_out (tx_id)"
+    ]
+  where
+    createIndex name on = "CREATE INDEX IF NOT EXISTS " <> name <> " ON " <> on
 
 ----------------------------------------------------------------------------
 -- Conversion between Persistent table types and wallet types
