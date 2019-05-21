@@ -5,8 +5,6 @@
 
 module Codec.Binary.Bech32Spec
     ( spec
-    , ValidBech32Char (..)
-    , ValidBech32String (..)
     ) where
 
 import Prelude
