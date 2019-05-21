@@ -24,7 +24,7 @@
 </span><a name="line-24"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Prelude</span><span>
 </span><a name="line-25"></a><span>
 </span><a name="line-26"></a><span class="hs-keyword">import</span><span> </span><a href="Cardano.Wallet.DB.Sqlite.Types.html"><span class="hs-identifier">Cardano.Wallet.DB.Sqlite.Types</span></a><span>
-</span><a name="line-27"></a><span>    </span><span class="hs-special">(</span><span> </span><a href="Cardano.Wallet.DB.Sqlite.Types.html#TxId"><span class="hs-identifier hs-type">TxId</span></a><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.DB.Sqlite.Types.html#sqlSettings%27"><span class="hs-identifier hs-var">sqlSettings'</span></a><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-27"></a><span>    </span><span class="hs-special">(</span><span> </span><a href="Cardano.Wallet.DB.Sqlite.Types.html#AddressPoolXPub"><span class="hs-identifier hs-type">AddressPoolXPub</span></a><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.DB.Sqlite.Types.html#TxId"><span class="hs-identifier hs-type">TxId</span></a><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.DB.Sqlite.Types.html#sqlSettings%27"><span class="hs-identifier hs-var">sqlSettings'</span></a><span> </span><span class="hs-special">)</span><span>
 </span><a name="line-28"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Text</span><span>
 </span><a name="line-29"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Text</span><span> </span><span class="hs-special">)</span><span>
 </span><a name="line-30"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Time.Clock</span><span>
@@ -38,15 +38,16 @@
 </span><a name="line-38"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Numeric.Natural</span><span>
 </span><a name="line-39"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Natural</span><span> </span><span class="hs-special">)</span><span>
 </span><a name="line-40"></a><span>
-</span><a name="line-41"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><a href="Cardano.Wallet.Primitive.Types.html"><span class="hs-identifier">Cardano.Wallet.Primitive.Types</span></a><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">W</span><span>
-</span><a name="line-42"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.ByteString.Char8</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">B8</span><span>
-</span><a name="line-43"></a><span>
-</span><a name="line-44"></a><span class="hs-identifier hs-var">share</span><span>
-</span><a name="line-45"></a><span>    </span><span class="hs-special">[</span><span> </span><span class="hs-identifier hs-var">mkPersist</span><span> </span><span class="hs-identifier hs-var">sqlSettings'</span><span>
-</span><a name="line-46"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mkDeleteCascade</span><span> </span><span class="hs-identifier hs-var">sqlSettings'</span><span>
-</span><a name="line-47"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mkMigrate</span><span> </span><span class="hs-string">&quot;migrateAll&quot;</span><span>
-</span><a name="line-48"></a><span>    </span><span class="hs-special">]</span><span>
-</span><a name="line-49"></a><span>    </span><span class="">[persistLowerCase|
+</span><a name="line-41"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><a href="Cardano.Wallet.Primitive.AddressDiscovery.html"><span class="hs-identifier">Cardano.Wallet.Primitive.AddressDiscovery</span></a><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">W</span><span>
+</span><a name="line-42"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><a href="Cardano.Wallet.Primitive.Types.html"><span class="hs-identifier">Cardano.Wallet.Primitive.Types</span></a><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">W</span><span>
+</span><a name="line-43"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.ByteString.Char8</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">B8</span><span>
+</span><a name="line-44"></a><span>
+</span><a name="line-45"></a><span class="hs-identifier hs-var">share</span><span>
+</span><a name="line-46"></a><span>    </span><span class="hs-special">[</span><span> </span><span class="hs-identifier hs-var">mkPersist</span><span> </span><span class="hs-identifier hs-var">sqlSettings'</span><span>
+</span><a name="line-47"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mkDeleteCascade</span><span> </span><span class="hs-identifier hs-var">sqlSettings'</span><span>
+</span><a name="line-48"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mkMigrate</span><span> </span><span class="hs-string">&quot;migrateAll&quot;</span><span>
+</span><a name="line-49"></a><span>    </span><span class="hs-special">]</span><span>
+</span><a name="line-50"></a><span>    </span><span class="">[persistLowerCase|
 
 -- Wallet IDs, address discovery state, and metadata.
 Wallet
@@ -152,5 +153,71 @@ UTxO                                     sql=utxo
 
     Foreign Checkpoint fk_checkpoint_utxo utxoTableWalletId utxoTableCheckpointSlot
     deriving Show Generic
+
+-- The pending transactions for a wallet checkpoint.
+PendingTx
+
+    -- The wallet checkpoint (wallet_id, slot)
+    pendingTxTableWalletId        W.WalletId  sql=wallet_id
+    pendingTxTableCheckpointSlot  W.SlotId    sql=slot
+
+    -- Transaction TxIn and TxOut
+    pendingTxTableId2             TxId        sql=tx_id
+
+    Primary pendingTxTableWalletId pendingTxTableCheckpointSlot pendingTxTableId2
+    Foreign Checkpoint fk_pending_tx pendingTxTableWalletId pendingTxTableCheckpointSlot
+    deriving Show Generic
+
+-- State for sequential scheme address discovery
+SeqState
+
+    -- The wallet checkpoint (wallet_id, slot)
+    seqStateTableWalletId        W.WalletId  sql=wallet_id
+    seqStateTableCheckpointSlot  W.SlotId    sql=slot
+
+    UniqueSeqState seqStateTableWalletId seqStateTableCheckpointSlot
+    Foreign Checkpoint fk_checkpoint_seq_state seqStateTableWalletId seqStateTableCheckpointSlot
+    deriving Show Generic
+
+-- Address pool attributes.
+AddressPool
+    addressPoolAccountPubKey        AddressPoolXPub
+    addressPoolGap                  W.AddressPoolGap
+
+    deriving Show Generic
+
+-- Mapping of pool addresses to indices.
+AddressPoolIndex
+    indexAddressPool   AddressPoolId
+    indexAddress       W.Address
+    indexNumber        Word32
+
+    deriving Show Generic
+
+-- Sequential address discovery scheme -- internal address pool
+-- associated with state record.
+SeqStateInternalPool
+    seqStateInternalPoolSeqStateId   SeqStateId
+    seqStateInternalPoolAddressPool  AddressPoolId
+    UniqueSeqStateInternalPool seqStateInternalPoolSeqStateId seqStateInternalPoolAddressPool
+    Primary seqStateInternalPoolSeqStateId
+    deriving Show Generic
+
+-- Sequential address discovery scheme -- external address pool
+-- associated with state record.
+SeqStateExternalPool
+    seqStateExternalPoolSeqStateId   SeqStateId
+    seqStateExternalPoolAddressPool  AddressPoolId
+    UniqueSeqStateExternalPool seqStateExternalPoolSeqStateId seqStateExternalPoolAddressPool
+    Primary seqStateExternalPoolSeqStateId
+    deriving Show Generic
+
+-- Sequential address discovery scheme -- pending change indexes
+SeqStatePendingIx
+    seqStatePendingIxSeqStateId     SeqStateId
+    seqStatePendingIxIndex          Word32
+
+    Primary seqStatePendingIxSeqStateId seqStatePendingIxIndex
+    deriving Show Generic
 |]</span><span>
-</span><a name="line-156"></a></pre></body></html>
+</span><a name="line-223"></a></pre></body></html>
