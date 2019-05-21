@@ -13,10 +13,6 @@ import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
     ( newWalletLayer )
-import Cardano.Wallet.Api
-    ( Api )
-import Cardano.Wallet.Api.Server
-    ( server )
 import Cardano.Wallet.Compatibility.HttpBridge
     ( HttpBridge )
 import Control.Concurrent
@@ -31,14 +27,10 @@ import Data.Aeson
     ( Value (..), (.:) )
 import Data.Function
     ( (&) )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Time
     ( addUTCTime, defaultTimeLocale, formatTime, getCurrentTime )
 import Network.HTTP.Client
     ( defaultManagerSettings, newManager )
-import Servant
-    ( (:>), serve )
 import System.Directory
     ( createDirectoryIfMissing, removePathForcibly )
 import System.IO
@@ -53,6 +45,7 @@ import Test.Integration.Framework.Request
     ( Headers (Default), Payload (Empty), request )
 
 import qualified Cardano.LauncherSpec as Launcher
+import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
 import qualified Cardano.Wallet.Network.HttpBridgeSpec as HttpBridge
@@ -180,7 +173,7 @@ main = do
         let tl = HttpBridge.newTransactionLayer
         wallet <- newWalletLayer @_ @HttpBridge db nl tl
         let settings = Warp.defaultSettings & Warp.setPort serverPort
-        Warp.runSettings settings (serve (Proxy @("v2" :> Api)) (server wallet))
+        Server.start settings wallet
 
     waitForCluster :: String -> IO ()
     waitForCluster addr = do

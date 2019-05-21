@@ -1,8 +1,10 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeOperators #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -12,8 +14,7 @@
 -- endpoints reachable through HTTP.
 
 module Cardano.Wallet.Api.Server
-    ( server
-    , middlewares
+    ( start
     ) where
 
 import Prelude
@@ -90,12 +91,12 @@ import Network.HTTP.Media.RenderHeader
     ( renderHeader )
 import Network.HTTP.Types.Header
     ( hContentType )
-import Network.Wai
-    ( Middleware )
 import Network.Wai.Middleware.ServantError
     ( handleRawError )
 import Servant
     ( (:<|>) (..)
+    , (:>)
+    , Application
     , JSON
     , NoContent (..)
     , Server
@@ -106,6 +107,7 @@ import Servant
     , err410
     , err500
     , err503
+    , serve
     )
 import Servant.Server
     ( Handler (..), ServantErr (..) )
@@ -116,16 +118,24 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Network.Wai.Handler.Warp as Warp
 
--- | A Servant server for our wallet API
-server :: (TxId t, KeyToAddress t) => WalletLayer (SeqState t) t -> Server Api
-server w =
-    addresses w :<|> wallets w :<|> transactions w
+-- | Start the application server
+start
+    :: (TxId t, KeyToAddress t)
+    => Warp.Settings
+    -> WalletLayer (SeqState t) t
+    -> IO ()
+start settings wl = Warp.runSettings settings
+    $ handleRawError handler
+    application
+  where
+    -- | A Servant server for our wallet API
+    server :: Server Api
+    server = addresses wl :<|> wallets wl :<|> transactions wl
 
--- | A list of additional middlewares running on top of our server
-middlewares :: [Middleware]
-middlewares =
-    [ handleRawError handler ]
+    application :: Application
+    application = serve (Proxy @("v2" :> Api)) server
 
 {-------------------------------------------------------------------------------
                                     Wallets

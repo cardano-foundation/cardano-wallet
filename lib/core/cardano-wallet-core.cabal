@@ -64,6 +64,7 @@ library
     , transformers
     , vector
     , wai
+    , warp
 
   hs-source-dirs:
       src
