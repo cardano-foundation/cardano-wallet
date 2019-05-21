@@ -32,6 +32,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), deserializeXPrv, serializeXPrv )
 import Conduit
     ( runResourceT )
+import Control.Concurrent.MVar
+    ( newMVar, withMVar )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -45,7 +47,7 @@ import Control.Monad.Logger
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..) )
+    ( ExceptT (..), runExceptT )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..) )
 import Data.Bifunctor
@@ -155,6 +157,7 @@ newDBLayer
        -- ^ Database file location, or Nothing for in-memory database
     -> IO (DBLayer IO s t)
 newDBLayer fp = do
+    lock <- newMVar ()
     conn <- createSqliteBackend fp (dbLogs [LevelError])
     runQuery conn $ runMigration migrateAll
     return $ DBLayer
@@ -262,8 +265,8 @@ newDBLayer fp = do
                                        Lock
         -----------------------------------------------------------------------}
 
-        , withLock = \_action -> error "withLock to be implemented"
-
+        , withLock = \action ->
+            ExceptT $ withMVar lock $ \() -> runExceptT action
         }
 
 ----------------------------------------------------------------------------
