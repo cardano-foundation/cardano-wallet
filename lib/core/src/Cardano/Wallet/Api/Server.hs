@@ -13,6 +13,7 @@
 
 module Cardano.Wallet.Api.Server
     ( server
+    , middlewares
     ) where
 
 import Prelude
@@ -75,6 +76,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
     ()
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -83,10 +86,20 @@ import Data.Text.Class
     ( toText )
 import Fmt
     ( pretty )
+import Network.HTTP.Media.RenderHeader
+    ( renderHeader )
+import Network.HTTP.Types.Header
+    ( hContentType )
+import Network.Wai
+    ( Middleware )
+import Network.Wai.Middleware.ServantError
+    ( handleRawError )
 import Servant
     ( (:<|>) (..)
+    , JSON
     , NoContent (..)
     , Server
+    , contentType
     , err403
     , err404
     , err409
@@ -99,14 +112,20 @@ import Servant.Server
 
 import qualified Cardano.Wallet as W
 import qualified Data.Aeson as Aeson
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
-
+import qualified Data.Text.Encoding as T
 
 -- | A Servant server for our wallet API
 server :: (TxId t, KeyToAddress t) => WalletLayer (SeqState t) t -> Server Api
 server w =
     addresses w :<|> wallets w :<|> transactions w
+
+-- | A list of additional middlewares running on top of our server
+middlewares :: [Middleware]
+middlewares =
+    [ handleRawError handler ]
 
 {-------------------------------------------------------------------------------
                                     Wallets
@@ -272,12 +291,6 @@ class LiftHandler e where
     liftHandler action = Handler (withExceptT handler action)
     handler :: e -> ServantErr
 
--- FIXME
---
--- For now, just "dumb" mapping from our internal errors to servant errors.
--- In practice, we want to create nice error messages giving as much details as
--- we can.
-
 apiError :: ServantErr -> ApiErrorCode -> Text -> ServantErr
 apiError err code message = err
     { errBody = Aeson.encode $ Aeson.object
@@ -417,3 +430,42 @@ instance LiftHandler ErrUpdatePassphrase where
     handler = \case
         ErrUpdatePassphraseNoSuchWallet e -> handler e
         ErrUpdatePassphraseWithRootKey e  -> handler e
+
+instance LiftHandler ServantErr where
+    handler err@(ServantErr code _ body headers) = case code of
+        400 -> apiError err' BadRequest (utf8 body)
+        404 -> apiError err' NotFound $ mconcat
+            [ "I couldn't find the requested endpoint? If the endpoint contains "
+            , "path parameters, make sure they are well-formed otherwise I "
+            , "won't be able to route them correctly."
+            ]
+        405 -> apiError err' MethodNotAllowed $ mconcat
+            [ "You've reached a known endpoint but I don't know how to handle "
+            , "this HTTP method for it. Please double-check both the endpoint "
+            , "and the method used: one of them is likely incorrect (e.g. POST "
+            , "instead of PUT, or GET instead of POST...)."
+            ]
+        406 -> apiError err' NotAcceptable $ mconcat
+            [ "It seems like you don't accept 'application/json' however, I "
+            , "only speak 'application/json'! Please, double-check your "
+            , "'Accept' request header and make sure it's set to "
+            , "'application/json'."
+            ]
+        415 -> apiError err' UnsupportedMediaType $ mconcat
+            [ "I am sorry but I only speak 'application/json' and I need you to "
+            , "tell me what you're speaking before I can comprehend it. Please, "
+            , "double-check your 'Content-Type' request header and make sure "
+            , "it's set to 'application/json'."
+            ]
+        _ -> apiError err' UnexpectedError $ mconcat
+            [ "Looks like something went wrong and I wasn't ready for this. "
+            , "Here is a hint about what happened: ", utf8 body
+            ]
+      where
+        utf8 = T.decodeUtf8 . BL.toStrict
+        err' = err
+            { errHeaders =
+                ( hContentType
+                , renderHeader $ contentType $ Proxy @JSON
+                ) : headers
+            }
