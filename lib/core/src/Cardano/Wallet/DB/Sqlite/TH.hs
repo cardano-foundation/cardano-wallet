@@ -215,9 +215,8 @@ SeqStateExternalPool
 -- Sequential address discovery scheme -- pending change indexes
 SeqStatePendingIx
     seqStatePendingIxSeqStateId     SeqStateId
-    seqStatePendingIxPos            Word32
     seqStatePendingIxIndex          Word32
 
-    Primary seqStatePendingIxSeqStateId seqStatePendingIxPos
+    Primary seqStatePendingIxSeqStateId seqStatePendingIxIndex
     deriving Show Generic
 |]

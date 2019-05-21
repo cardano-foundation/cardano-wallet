@@ -592,9 +592,8 @@ insertAddressPool ap = do
     pure apid
 
 mkSeqStatePendingIxs :: SeqStateId -> W.PendingIxs -> [SeqStatePendingIx]
-mkSeqStatePendingIxs ssid ixs =
-    [ SeqStatePendingIx ssid i (W.getIndex ix)
-    | (i, ix) <- zip [0..] (W.pendingIxsToList ixs) ]
+mkSeqStatePendingIxs ssid =
+    fmap (SeqStatePendingIx ssid . W.getIndex) . W.pendingIxsToList
 
 selectAddressPool
     :: forall t chain. (W.KeyToAddress t, Typeable chain)
@@ -617,7 +616,7 @@ selectSeqStatePendingIxs :: SeqStateId -> SqlPersistM W.PendingIxs
 selectSeqStatePendingIxs ssid =
     W.pendingIxsFromList . fromRes <$> selectList
         [SeqStatePendingIxSeqStateId ==. ssid]
-        [Asc SeqStatePendingIxPos]
+        [Desc SeqStatePendingIxIndex]
   where
     fromRes = fmap (W.Index . seqStatePendingIxIndex . entityVal)
 
