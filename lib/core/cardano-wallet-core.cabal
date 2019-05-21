@@ -36,6 +36,7 @@ library
     , base
     , base58-bytestring
     , basement
+    , binary
     , bytestring
     , cardano-crypto
     , containers
@@ -45,6 +46,7 @@ library
     , fast-logger
     , fmt
     , generic-lens
+    , http-types
     , http-api-data
     , http-media
     , memory
@@ -61,6 +63,7 @@ library
     , time
     , transformers
     , vector
+    , wai
 
   hs-source-dirs:
       src
@@ -87,6 +90,7 @@ library
       Cardano.Wallet.Primitive.Types
       Cardano.Wallet.Transaction
       Data.Quantity
+      Network.Wai.Middleware.ServantError
   other-modules:
       Paths_cardano_wallet_core
 
