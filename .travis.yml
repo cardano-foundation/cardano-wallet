@@ -71,7 +71,7 @@ jobs:
   #
   ################################################################################
   - stage: build project 🔨
-    if: type = pull_request
+    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
     name: "Compiling Project"
     script:
     - stack clean
@@ -79,7 +79,7 @@ jobs:
     - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
 
   - stage: checks 🔬
-    if: type = pull_request
+    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
     name: "Code Style"
     script:
     - travis_retry curl -sSL https://raw.github.com/jaspervdj/stylish-haskell/master/scripts/latest.sh | sh -s $(find . -type f -name "*.hs" ! -path "*.stack-work*") -i
@@ -88,14 +88,14 @@ jobs:
     - travis_retry curl -sSL https://raw.github.com/ndmitchell/weeder/master/misc/travis.sh | sh -s .
 
   - stage: checks 🔬
-    if: type = pull_request
+    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
     name: "Tests: http-bridge (mainnet)"
     script:
     - export NETWORK=mainnet
     - stack --no-terminal test cardano-wallet-http-bridge:unit --fast
 
   - stage: checks 🔬
-    if: type = pull_request
+    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
     name: "Tests: http-bridge (testnet)"
     script:
     - export NETWORK=testnet
@@ -104,7 +104,7 @@ jobs:
     - stack --no-terminal test cardano-wallet-core cardano-wallet-launcher cardano-wallet-cli text-class bech32 cardano-wallet-http-bridge --fast
 
   - stage: checks 🔬
-    if: type = pull_request
+    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
     name: "Tests: jormungandr (testnet)"
     script:
     - export NETWORK=testnet
