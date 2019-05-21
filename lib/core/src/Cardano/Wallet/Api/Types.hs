@@ -193,6 +193,12 @@ data ApiErrorCode
     | NetworkUnreachable
     | CreatedInvalidTransaction
     | RejectedByCoreNode
+    | BadRequest
+    | NotFound
+    | MethodNotAllowed
+    | NotAcceptable
+    | UnsupportedMediaType
+    | UnexpectedError
     deriving (Eq, Generic, Show)
 
 {-------------------------------------------------------------------------------
