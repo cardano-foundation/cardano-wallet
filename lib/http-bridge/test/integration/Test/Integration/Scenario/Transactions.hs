@@ -76,10 +76,21 @@ spec = do
             , expectFieldEqual status Pending
             ]
 
-        r' <- request @ApiWallet ctx ("GET", getWallet wb) Default payload
-        verify r'
+        ra <- request @ApiWallet ctx ("GET", getWallet wa) Default payload
+        verify ra
+            [ expectSuccess
+            , expectFieldEqual balanceTotal 999999831346
+            , expectFieldEqual balanceAvailable 0
+            ]
+
+        rb <- request @ApiWallet ctx ("GET", getWallet wb) Default payload
+        verify rb
             [ expectSuccess
             , expectEventually ctx balanceAvailable (oneMillionAda + 1)
+            ]
+
+        verify ra
+            [ expectEventually ctx balanceAvailable 999999831346
             ]
   where
     oneMillionAda =
