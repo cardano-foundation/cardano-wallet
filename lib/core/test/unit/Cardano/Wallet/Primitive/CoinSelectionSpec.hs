@@ -54,6 +54,7 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Confidence (..)
     , Gen
+    , NonEmptyList (..)
     , Property
     , checkCoverageWith
     , choose
@@ -62,7 +63,6 @@ import Test.QuickCheck
     , oneof
     , scale
     , vectorOf
-    , (==>)
     )
 import Test.QuickCheck.Monadic
     ( monadicIO )
@@ -90,21 +90,19 @@ spec = do
 -------------------------------------------------------------------------------}
 
 prop_shuffleCanShuffle
-    :: [Int]
+    :: NonEmptyList Int
     -> Property
-prop_shuffleCanShuffle xs =
-    length xs > 1 ==> monadicIO $ liftIO $ do
-        xs' <- shuffle xs
-        return $ cover 90 (xs /= xs') "shuffled" ()
+prop_shuffleCanShuffle (NonEmpty xs) = monadicIO $ liftIO $ do
+    xs' <- shuffle xs
+    return $ cover 90 (xs /= xs') "shuffled" ()
 
 prop_shuffleNotDeterministic
-    :: [Int]
+    :: NonEmptyList Int
     -> Property
-prop_shuffleNotDeterministic xs =
-    length xs > 1 ==> monadicIO $ liftIO $ do
-        xs1 <- shuffle xs
-        xs2 <- shuffle xs
-        return $ cover 90 (xs1 /= xs2) "not deterministic" ()
+prop_shuffleNotDeterministic (NonEmpty xs) = monadicIO $ liftIO $ do
+    xs1 <- shuffle xs
+    xs2 <- shuffle xs
+    return $ cover 90 (xs1 /= xs2) "not deterministic" ()
 
 prop_shufflePreserveElements
     :: [Int]
