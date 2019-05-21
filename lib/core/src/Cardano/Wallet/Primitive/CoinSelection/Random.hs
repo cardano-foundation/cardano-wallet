@@ -17,7 +17,7 @@ module Cardano.Wallet.Primitive.CoinSelection.Random
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..), CoinSelectionError (..), CoinSelectionOptions (..) )
+    ( CoinSelection (..), CoinSelectionOptions (..), ErrCoinSelection (..) )
 import Cardano.Wallet.Primitive.CoinSelection.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.Primitive.Types
@@ -105,7 +105,7 @@ random
     => CoinSelectionOptions
     -> NonEmpty TxOut
     -> UTxO
-    -> ExceptT CoinSelectionError m (CoinSelection, UTxO)
+    -> ExceptT ErrCoinSelection m (CoinSelection, UTxO)
 random opt outs utxo = do
     let descending = NE.toList . NE.sortBy (flip $ comparing coin)
     randomMaybe <- lift $ runMaybeT $ foldM

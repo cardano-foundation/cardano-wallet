@@ -112,7 +112,7 @@ spec = do
                           )
                         ]
                     outs = []
-            res `shouldBe` Left (KeyNotFoundForAddress addr)
+            res `shouldBe` Left (ErrKeyNotFoundForAddress addr)
 
     describe "Golden Tests - Cardano-SL - signed tx" $ case network of
         Mainnet -> do

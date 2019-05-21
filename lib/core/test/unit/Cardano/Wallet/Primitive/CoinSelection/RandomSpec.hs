@@ -9,7 +9,7 @@ module Cardano.Wallet.Primitive.CoinSelection.RandomSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..), CoinSelectionError (..), CoinSelectionOptions (..) )
+    ( CoinSelection (..), CoinSelectionOptions (..), ErrCoinSelection (..) )
 import Cardano.Wallet.Primitive.CoinSelection.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.Primitive.CoinSelection.Random
@@ -128,25 +128,29 @@ spec = do
                 , txOutputs = 3 :| []
                 })
 
-        coinSelectionUnitTest random "" (Left $ MaximumInputsReached 2) $ CoinSelectionFixture
+        coinSelectionUnitTest random "" (Left $ ErrMaximumInputsReached 2) $
+            CoinSelectionFixture
             { maxNumOfInputs = 2
             , utxoInputs = [1,1,1,1,1,1]
             , txOutputs = 3 :| []
             }
 
-        coinSelectionUnitTest random "" (Left $ NotEnoughMoney 39 40) $ CoinSelectionFixture
+        coinSelectionUnitTest random "" (Left $ ErrNotEnoughMoney 39 40) $
+            CoinSelectionFixture
             { maxNumOfInputs = 100
             , utxoInputs = [12,10,17]
             , txOutputs = 40 :| []
             }
 
-        coinSelectionUnitTest random "" (Left $ NotEnoughMoney 39 43) $ CoinSelectionFixture
+        coinSelectionUnitTest random "" (Left $ ErrNotEnoughMoney 39 43) $
+            CoinSelectionFixture
             { maxNumOfInputs = 100
             , utxoInputs = [12,10,17]
             , txOutputs = 40 :| [1,1,1]
             }
 
-        coinSelectionUnitTest random "" (Left $ UtxoNotEnoughFragmented 3 4) $ CoinSelectionFixture
+        coinSelectionUnitTest random "" (Left $ ErrUtxoNotEnoughFragmented 3 4) $
+            CoinSelectionFixture
             { maxNumOfInputs = 100
             , utxoInputs = [12,20,17]
             , txOutputs = 40 :| [1,1,1]

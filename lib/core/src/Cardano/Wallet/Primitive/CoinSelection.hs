@@ -16,7 +16,7 @@ module Cardano.Wallet.Primitive.CoinSelection
     (
       -- * Coin Selection
       CoinSelectionOptions (..)
-    , CoinSelectionError(..)
+    , ErrCoinSelection (..)
     , CoinSelection(..)
 
     -- * Helpers
@@ -52,16 +52,16 @@ newtype CoinSelectionOptions = CoinSelectionOptions
         :: Word64
     } deriving (Generic)
 
-data CoinSelectionError =
-    NotEnoughMoney Word64 Word64
+data ErrCoinSelection
+    = ErrNotEnoughMoney Word64 Word64
     -- ^ UTxO exhausted during input selection
     -- We record the balance of the UTxO as well as the size of the payment
     -- we tried to make.
-    | UtxoNotEnoughFragmented Word64 Word64
+    | ErrUtxoNotEnoughFragmented Word64 Word64
     -- ^ UTxO is not enough fragmented for the number of transaction outputs
     -- We record the number of UTxO entries as well as the number of the
     -- outputs of the transaction.
-    | MaximumInputsReached Word64
+    | ErrMaximumInputsReached Word64
     -- ^ When trying to construct a transaction, the max number of allowed
     -- inputs was reached.
     deriving (Show, Eq)

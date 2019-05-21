@@ -34,6 +34,8 @@ module Cardano.Wallet
     , ErrMkStdTx (..)
     , ErrPostTx (..)
     , ErrNetworkUnreachable (..)
+    , ErrCoinSelection (..)
+    , ErrAdjustForFee (..)
 
     -- * Construction
     , newWalletLayer
@@ -70,12 +72,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..)
-    , CoinSelectionError (..)
     , CoinSelectionOptions
+    , ErrCoinSelection (..)
     , shuffle
     )
 import Cardano.Wallet.Primitive.Fee
-    ( ErrAdjustForFee
+    ( ErrAdjustForFee (..)
     , FeeOptions (..)
     , adjustForFee
     , cardanoPolicy
@@ -260,7 +262,7 @@ data WalletLayer s t = WalletLayer
 -- | Errors occuring when creating an unsigned transaction
 data ErrCreateUnsignedTx
     = ErrCreateUnsignedTxNoSuchWallet ErrNoSuchWallet
-    | ErrCreateUnsignedTxCoinSelection CoinSelectionError
+    | ErrCreateUnsignedTxCoinSelection ErrCoinSelection
     | ErrCreateUnsignedTxFee ErrAdjustForFee
     deriving (Show, Eq)
 
@@ -287,7 +289,7 @@ data ErrUpdatePassphrase
 -- requires a private key, but none is attached to the wallet
 data ErrWithRootKey
     = ErrWithRootKeyNoRootKey WalletId
-    | ErrWithRootKeyWrongPassphrase ErrWrongPassphrase
+    | ErrWithRootKeyWrongPassphrase WalletId ErrWrongPassphrase
     deriving (Show, Eq)
 
 
@@ -642,7 +644,7 @@ newWalletLayer db nw tl = do
                 Nothing ->
                     throwE $ ErrWithRootKeyNoRootKey wid
                 Just (xprv, hpwd) -> do
-                    withExceptT ErrWithRootKeyWrongPassphrase $ ExceptT $
+                    withExceptT (ErrWithRootKeyWrongPassphrase wid) $ ExceptT $
                         return $ checkPassphrase pwd hpwd
                     return xprv
         action xprv
