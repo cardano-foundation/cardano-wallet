@@ -472,7 +472,7 @@ instance LiftHandler ServantErr where
             , "Here is a hint about what happened: ", utf8 body
             ]
       where
-        utf8 = T.decodeUtf8 . BL.toStrict
+        utf8 = T.replace "\"" "'" . T.decodeUtf8 . BL.toStrict
         err' = err
             { errHeaders =
                 ( hContentType
