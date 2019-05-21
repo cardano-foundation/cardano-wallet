@@ -48,6 +48,8 @@ module Cardano.Wallet.Primitive.AddressDiscovery
     -- * Pending Change Indexes
     , PendingIxs
     , emptyPendingIxs
+    , pendingIxsToList
+    , pendingIxsFromList
 
     -- ** State
     , SeqState (..)
@@ -395,7 +397,8 @@ nextAddresses _ !key (AddressPoolGap !g) !cc !fromIx =
 -------------------------------------------------------------------------------}
 
 -- | An ordered set of pending indexes. This keep track of indexes used
-newtype PendingIxs = PendingIxs [Index 'Soft 'AddressK]
+newtype PendingIxs = PendingIxs
+    { pendingIxsToList :: [Index 'Soft 'AddressK] }
     deriving stock (Generic, Show)
 instance NFData PendingIxs
 
@@ -419,6 +422,11 @@ updatePendingIxs
     -> PendingIxs
 updatePendingIxs ix (PendingIxs ixs) =
     PendingIxs $ L.filter (> ix) ixs
+
+-- | Construct a 'PendingIxs' from a list, ensuring that it is a set of indexes
+-- in descending order.
+pendingIxsFromList :: [Index 'Soft 'AddressK] -> PendingIxs
+pendingIxsFromList = PendingIxs . reverse . map head . L.group . L.sort
 
 -- | Get the next change index; If every available indexes have already been
 -- taken, we'll rotate the pending set and re-use already provided indexes.

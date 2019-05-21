@@ -36,6 +36,7 @@ module Cardano.Wallet.Primitive.Model
     , applyBlock
     , applyBlocks
     , newPending
+    , unsafeInitWallet
 
     -- * Accessors
     , currentTip
@@ -212,6 +213,24 @@ newPending
     -> Wallet s t
 newPending !tx (Wallet !utxo !pending !tip !s) =
     Wallet utxo (Set.insert tx pending) tip s
+
+-- | Constructs a wallet from the exact given state. Using this function instead
+-- of 'initWallet' and 'applyBlock' allows the wallet invariants to be
+-- broken. Therefore it should only be used in the special case of loading
+-- wallet checkpoints from the database (where it is assumed a valid wallet was
+-- stored into the database).
+unsafeInitWallet
+    :: (IsOurs s, NFData s, Show s, TxId t)
+    => UTxO
+       -- ^ Unspent tx outputs belonging to this wallet
+    -> Set Tx
+    -- ^ Pending outgoing transactions
+    -> SlotId
+    -- ^ Latest applied block (current tip)
+    -> s
+    -- ^Address discovery state
+    -> Wallet s t
+unsafeInitWallet = Wallet
 
 {-------------------------------------------------------------------------------
                                    Accessors

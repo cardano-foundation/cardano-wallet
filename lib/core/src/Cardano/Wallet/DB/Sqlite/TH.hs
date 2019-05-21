@@ -24,7 +24,7 @@ module Cardano.Wallet.DB.Sqlite.TH where
 import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Types
-    ( TxId, sqlSettings' )
+    ( AddressPoolXPub, TxId, sqlSettings' )
 import Data.Text
     ( Text )
 import Data.Time.Clock
@@ -38,6 +38,7 @@ import GHC.Generics
 import Numeric.Natural
     ( Natural )
 
+import qualified Cardano.Wallet.Primitive.AddressDiscovery as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteString.Char8 as B8
 
@@ -151,5 +152,71 @@ UTxO                                     sql=utxo
         utxoTableOutputCoin
 
     Foreign Checkpoint fk_checkpoint_utxo utxoTableWalletId utxoTableCheckpointSlot
+    deriving Show Generic
+
+-- The pending transactions for a wallet checkpoint.
+PendingTx
+
+    -- The wallet checkpoint (wallet_id, slot)
+    pendingTxTableWalletId        W.WalletId  sql=wallet_id
+    pendingTxTableCheckpointSlot  W.SlotId    sql=slot
+
+    -- Transaction TxIn and TxOut
+    pendingTxTableId2             TxId        sql=tx_id
+
+    Primary pendingTxTableWalletId pendingTxTableCheckpointSlot pendingTxTableId2
+    Foreign Checkpoint fk_pending_tx pendingTxTableWalletId pendingTxTableCheckpointSlot
+    deriving Show Generic
+
+-- State for sequential scheme address discovery
+SeqState
+
+    -- The wallet checkpoint (wallet_id, slot)
+    seqStateTableWalletId        W.WalletId  sql=wallet_id
+    seqStateTableCheckpointSlot  W.SlotId    sql=slot
+
+    UniqueSeqState seqStateTableWalletId seqStateTableCheckpointSlot
+    Foreign Checkpoint fk_checkpoint_seq_state seqStateTableWalletId seqStateTableCheckpointSlot
+    deriving Show Generic
+
+-- Address pool attributes.
+AddressPool
+    addressPoolAccountPubKey        AddressPoolXPub
+    addressPoolGap                  W.AddressPoolGap
+
+    deriving Show Generic
+
+-- Mapping of pool addresses to indices.
+AddressPoolIndex
+    indexAddressPool   AddressPoolId
+    indexAddress       W.Address
+    indexNumber        Word32
+
+    deriving Show Generic
+
+-- Sequential address discovery scheme -- internal address pool
+-- associated with state record.
+SeqStateInternalPool
+    seqStateInternalPoolSeqStateId   SeqStateId
+    seqStateInternalPoolAddressPool  AddressPoolId
+    UniqueSeqStateInternalPool seqStateInternalPoolSeqStateId seqStateInternalPoolAddressPool
+    Primary seqStateInternalPoolSeqStateId
+    deriving Show Generic
+
+-- Sequential address discovery scheme -- external address pool
+-- associated with state record.
+SeqStateExternalPool
+    seqStateExternalPoolSeqStateId   SeqStateId
+    seqStateExternalPoolAddressPool  AddressPoolId
+    UniqueSeqStateExternalPool seqStateExternalPoolSeqStateId seqStateExternalPoolAddressPool
+    Primary seqStateExternalPoolSeqStateId
+    deriving Show Generic
+
+-- Sequential address discovery scheme -- pending change indexes
+SeqStatePendingIx
+    seqStatePendingIxSeqStateId     SeqStateId
+    seqStatePendingIxIndex          Word32
+
+    Primary seqStatePendingIxSeqStateId seqStatePendingIxIndex
     deriving Show Generic
 |]
