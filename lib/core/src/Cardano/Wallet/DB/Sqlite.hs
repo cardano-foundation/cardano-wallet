@@ -368,7 +368,7 @@ checkpointFromEntity
     -> s
     -> W.Wallet s t
 checkpointFromEntity (Checkpoint _ tip) utxo ins outs =
-    W.Wallet utxo' pending tip
+    W.unsafeInitWallet utxo' pending tip
   where
     utxo' = W.UTxO . Map.fromList $
         [ (W.TxIn input ix, W.TxOut addr coin)
@@ -587,13 +587,14 @@ insertAddressPool
 insertAddressPool ap = do
     let ap' = AddressPool (AddressPoolXPub $ W.accountPubKey ap) (W.gap ap)
     apid <- insert ap'
-    insertMany_ [ AddressPoolIndex apid a (W.getIndex i)
-                | (a, i) <- Map.toList (W.indexedAddresses ap) ]
+    insertMany_ [ AddressPoolIndex apid a i
+                | (i, a) <- zip [0..] (W.addresses ap) ]
     pure apid
 
 mkSeqStatePendingIxs :: SeqStateId -> W.PendingIxs -> [SeqStatePendingIx]
-mkSeqStatePendingIxs ssid (W.PendingIxs ixs) =
-    [SeqStatePendingIx ssid i (W.getIndex ix) | (i, ix) <- zip [0..] ixs]
+mkSeqStatePendingIxs ssid ixs =
+    [ SeqStatePendingIx ssid i (W.getIndex ix)
+    | (i, ix) <- zip [0..] (W.pendingIxsToList ixs) ]
 
 selectAddressPool
     :: forall t chain. (W.KeyToAddress t, Typeable chain)
@@ -610,19 +611,15 @@ selectAddressPool apid = do
         -> AddressPool
         -> W.AddressPool t chain
     addressPoolFromEntity ixs (AddressPool (AddressPoolXPub pubKey) gap) =
-        ap { W.indexedAddresses = addrs }
-      where
-        ap = W.mkAddressPool @t @chain pubKey gap []
-        addrs = Map.fromList
-            [(addr, W.Index ix) | AddressPoolIndex _ addr ix <- ixs]
+        W.mkAddressPool @t @chain pubKey gap (map indexAddress ixs)
 
 selectSeqStatePendingIxs :: SeqStateId -> SqlPersistM W.PendingIxs
 selectSeqStatePendingIxs ssid =
-    fromRes <$> selectList
+    W.pendingIxsFromList . fromRes <$> selectList
         [SeqStatePendingIxSeqStateId ==. ssid]
         [Asc SeqStatePendingIxPos]
   where
-    fromRes = W.PendingIxs . fmap (W.Index . seqStatePendingIxIndex . entityVal)
+    fromRes = fmap (W.Index . seqStatePendingIxIndex . entityVal)
 
 ----------------------------------------------------------------------------
 -- Utilities
