@@ -75,8 +75,6 @@ import Control.Monad
     ( foldM, forM )
 import Control.Monad.Trans.State.Strict
     ( State, evalState, runState, state )
-import Data.Foldable
-    ( fold )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
@@ -329,10 +327,8 @@ changeUTxO
     -> Set Tx
     -> s
     -> UTxO
-changeUTxO proxy pending = evalState $ do
-    ourUtxo <- mapM (state . utxoOurs proxy) (Set.toList pending)
-    let ins = txIns pending
-    return $ fold ourUtxo `restrictedBy` ins
+changeUTxO proxy pending = evalState $
+    mconcat <$> mapM (state . utxoOurs proxy) (Set.toList pending)
 
 -- | Construct our _next_ UTxO (possible empty) from a transaction by selecting
 -- outputs that are ours. It is important for the transaction outputs to be
