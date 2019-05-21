@@ -77,6 +77,10 @@ import Test.Integration.Framework.TestData
     , specMnemonicSecondFactor
     , specMnemonicSentence
     , wildcardsWalletName
+    , payloadWith
+    , simplePayload
+    , updateNamePayload
+    , updatePassPayload
     )
 
 import qualified Data.Text as T
@@ -1312,28 +1316,3 @@ spec = do
                 , [expectResponseCode @IO HTTP.status200]
                 )
               ]
-
-    payloadWith :: Text -> [Text] -> Payload
-    payloadWith name mnemonics = Json [json| {
-             "name": #{name},
-             "mnemonic_sentence": #{mnemonics},
-             "passphrase": "Secure passphrase"
-             } |]
-
-    simplePayload :: Payload
-    simplePayload = Json [json| {
-            "name": "Secure Wallet",
-            "mnemonic_sentence": #{mnemonics21},
-            "passphrase": "Secure passphrase"
-            } |]
-
-    updateNamePayload :: Text -> Payload
-    updateNamePayload name = Json [json| {
-             "name": #{name}
-             } |]
-
-    updatePassPayload :: Text -> Text -> Payload
-    updatePassPayload oldPass newPass = Json [json| {
-            "old_passphrase": #{oldPass},
-            "new_passphrase": #{newPass}
-              } |]

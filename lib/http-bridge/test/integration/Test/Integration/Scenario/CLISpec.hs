@@ -29,29 +29,22 @@ import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain, shouldNotContain )
 import Test.Integration.Framework.DSL
     ( Context (..)
-    , Headers (..)
-    , Payload (..)
     , cardanoWalletCLI
     , cardanoWalletLauncherCLI
+    , createWallet
     , createWalletViaCLI
     , deleteWalletViaCLI
-    , expectResponseCode
     , expectValidJSON
     , generateMnemonicsViaCLI
-    , getFromResponse
     , getWalletViaCLI
-    , json
     , listAddressesViaCLI
     , listWalletsViaCLI
-    , request
     , updateWalletViaCLI
-    , walletId
     )
 import Test.Integration.Framework.TestData
     ( falseWalletIds, mnemonics15, mnemonics18 )
 
 import qualified Data.Text as T
-import qualified Network.HTTP.Types.Status as HTTP
 
 version :: Text
 version = "2019.5.8"
@@ -166,7 +159,7 @@ specWithCluster = do
             outList `shouldNotContain` walletName
 
     it "CLI - Can get a wallet" $ \ctx -> do
-        walId <- createWallet ctx "1st CLI Wallet" mnemonics15
+        walId <- createWalletViaApi ctx "1st CLI Wallet" mnemonics15
         (Exit c, Stdout out, Stderr err) <- getWalletViaCLI walId
         err `shouldBe` "Ok.\n"
         expectValidJSON (Proxy @ApiWallet) out
@@ -190,8 +183,8 @@ specWithCluster = do
                 c `shouldBe` ExitFailure 1
 
     it "CLI - Can list wallets" $ \ctx -> do
-        _ <- createWallet ctx "1st CLI Wallet" mnemonics15
-        _ <- createWallet ctx "2nd CLI Wallet" mnemonics18
+        _ <- createWalletViaApi ctx "1st CLI Wallet" mnemonics15
+        _ <- createWalletViaApi ctx "2nd CLI Wallet" mnemonics18
         (Exit c, Stdout out, Stderr err) <- listWalletsViaCLI
         err `shouldBe` "Ok.\n"
         expectValidJSON (Proxy @[ApiWallet]) out
@@ -200,7 +193,7 @@ specWithCluster = do
         c `shouldBe` ExitSuccess
 
     it "CLI - Can update wallet name" $ \ctx -> do
-        walId <- createWallet ctx "1st CLI Wallet" mnemonics15
+        walId <- createWalletViaApi ctx "1st CLI Wallet" mnemonics15
         let args = [walId, "--name", "new name"]
         (Exit c, Stdout out, Stderr err) <- updateWalletViaCLI args
         err `shouldBe` "Ok.\n"
@@ -209,26 +202,20 @@ specWithCluster = do
         c `shouldBe` ExitSuccess
 
     it "CLI - Can delete wallet" $ \ctx -> do
-        walId <- createWallet ctx "CLI Wallet" mnemonics15
+        walId <- createWalletViaApi ctx "CLI Wallet" mnemonics15
         (Exit c, Stdout out, Stderr err) <- deleteWalletViaCLI walId
         err `shouldBe` "Ok.\n"
         out `shouldNotContain` "CLI Wallet"
         c `shouldBe` ExitSuccess
 
     it "CLI - Can list addresses" $ \ctx -> do
-        walId <- createWallet ctx "CLI Wallet" mnemonics15
+        walId <- createWalletViaApi ctx "CLI Wallet" mnemonics15
         (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI walId
         err `shouldBe` "Ok.\n"
         expectValidJSON (Proxy @[ApiAddress]) out
         c `shouldBe` ExitSuccess
   where
-    createWallet :: Context -> Text -> [Text] -> IO String
-    createWallet ctx name mnemonics = do
-       let payload = Json [json| {
-               "name": #{name},
-               "mnemonic_sentence": #{mnemonics},
-               "passphrase": "Secure Passphrase"
-               } |]
-       r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
-       expectResponseCode @IO HTTP.status202 r
-       return (T.unpack $ getFromResponse walletId r)
+    createWalletViaApi :: Context -> Text -> [Text] -> IO String
+    createWalletViaApi ctx name mnemonics = do
+        wid <- createWallet ctx name mnemonics
+        return $ T.unpack $ wid

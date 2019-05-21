@@ -49,6 +49,7 @@ module Test.Integration.Framework.DSL
     -- * Helpers
     , (</>)
     , (!!)
+    , createWallet
     , getFromResponse
     , json
     , tearDown
@@ -414,6 +415,18 @@ status =
 --
 -- Helpers
 --
+
+-- | Simply create a wallet and get id
+createWallet :: Context -> Text -> [Text] -> IO Text
+createWallet ctx name mnemonics = do
+   let payload = Json [aesonQQ| {
+           "name": #{name},
+           "mnemonic_sentence": #{mnemonics},
+           "passphrase": "Secure Passphrase"
+           } |]
+   r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+   expectResponseCode @IO HTTP.status202 r
+   return (getFromResponse walletId r)
 
 -- | Restore a faucet and wait until funds are available.
 fixtureWallet
