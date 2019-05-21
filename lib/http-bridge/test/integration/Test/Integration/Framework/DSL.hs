@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -52,6 +53,7 @@ module Test.Integration.Framework.DSL
     , json
     , tearDown
     , fixtureWallet
+    , oneMillionAda
 
     -- * CLI
     , cardanoWalletCLI
@@ -382,14 +384,14 @@ walletId =
     _set :: HasType (ApiT WalletId) s => (s, Text) -> s
     _set (s, v) = set typed (ApiT $ WalletId (unsafeCreateDigest v)) s
 
-amount :: HasType (Quantity "lovelace" Natural) s => Lens' s Int
+amount :: HasType (Quantity "lovelace" Natural) s => Lens' s Natural
 amount =
     lens _get _set
   where
-    _get :: HasType (Quantity "lovelace" Natural) s => s -> Int
-    _get = fromIntegral . fromQuantity @"lovelace" @Natural . view typed
-    _set :: HasType (Quantity "lovelace" Natural) s => (s, Int) -> s
-    _set (s, v) = set typed (Quantity @"lovelace" @Natural $ fromIntegral v) s
+    _get :: HasType (Quantity "lovelace" Natural) s => s -> Natural
+    _get = fromQuantity @"lovelace" @Natural . view typed
+    _set :: HasType (Quantity "lovelace" Natural) s => (s, Natural) -> s
+    _set (s, v) = set typed (Quantity @"lovelace" @Natural v) s
 
 direction :: HasType (ApiT Direction) s => Lens' s Direction
 direction =
@@ -430,7 +432,7 @@ fixtureWallet ctx@(Context _ _ _ faucet) = do
         Left _ -> fail "fixtureWallet: waited too long for initial transaction"
         Right a -> return a
   where
-    oneSecond = 1*1000*1000
+    oneSecond = 1_000_000
     sixtySeconds = 60*oneSecond
     checkBalance :: Text -> IO ApiWallet
     checkBalance wid = do
@@ -438,6 +440,12 @@ fixtureWallet ctx@(Context _ _ _ faucet) = do
         if getFromResponse balanceAvailable r > 0
             then return (getFromResponse id r)
             else threadDelay oneSecond *> checkBalance wid
+
+-- | One million ADA, in Lovelace, just like this.
+oneMillionAda :: Natural
+oneMillionAda = ada (1_000_000)
+  where
+    ada = (*) (1_000_000)
 
 fromQuantity :: Quantity (u :: Symbol) a -> a
 fromQuantity (Quantity a) = a

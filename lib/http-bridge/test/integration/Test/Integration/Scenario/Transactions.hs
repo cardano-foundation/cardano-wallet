@@ -32,6 +32,7 @@ import Test.Integration.Framework.DSL
     , expectSuccess
     , fixtureWallet
     , json
+    , oneMillionAda
     , request
     , status
     , unsafeRequest
@@ -55,23 +56,25 @@ spec = do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
         (_, addrs) <-
             unsafeRequest @[ApiAddress] ctx ("GET", getAddresses wb) Empty
+        let amt = 1
         let destination = (addrs !! 1) ^. #id
         let payload = Json [json|{
                 "payments": [{
                     "address": #{destination},
                     "amount": {
-                        "quantity": 1,
+                        "quantity": #{amt},
                         "unit": "lovelace"
                     }
                 }],
                 "passphrase": "cardano-wallet"
             }|]
+        let fee = 168653
 
         r <- request @ApiTransaction ctx ("POST", postTx wa) Default payload
         verify r
             [ expectSuccess
             , expectResponseCode HTTP.status202
-            , expectFieldEqual amount 168654
+            , expectFieldEqual amount (fee + amt)
             , expectFieldEqual direction Outgoing
             , expectFieldEqual status Pending
             ]
@@ -79,22 +82,20 @@ spec = do
         ra <- request @ApiWallet ctx ("GET", getWallet wa) Default payload
         verify ra
             [ expectSuccess
-            , expectFieldEqual balanceTotal 999999831346
+            , expectFieldEqual balanceTotal (oneMillionAda - fee - amt)
             , expectFieldEqual balanceAvailable 0
             ]
 
         rb <- request @ApiWallet ctx ("GET", getWallet wb) Default payload
         verify rb
             [ expectSuccess
-            , expectEventually ctx balanceAvailable (oneMillionAda + 1)
+            , expectEventually ctx balanceAvailable (oneMillionAda + amt)
             ]
 
         verify ra
-            [ expectEventually ctx balanceAvailable 999999831346
+            [ expectEventually ctx balanceAvailable (oneMillionAda - fee - amt)
             ]
   where
-    oneMillionAda =
-        1 * 1000 * 1000 * 1000 * 1000
     getAddresses (w :: ApiWallet) =
         "v2/wallets/" <> w ^. walletId <> "/addresses"
     postTx (w :: ApiWallet) =
