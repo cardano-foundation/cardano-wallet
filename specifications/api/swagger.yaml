@@ -798,16 +798,21 @@ paths:
       tags: ["Wallets"]
       summary: List
       description: |
-        Priority [Very High]
+        <p align="right">status: <strong>incomplete¹</strong></p>
 
         Return a list of known wallets, ordered from oldest to newest.
+
+        > (1) Wallets are currently returned without any particular ordering.
       responses: *responsesListWallets
 
     post:
       operationId: postWallet
       tags: ["Wallets"]
       summary: Create / Restore
-      description: Priority [Very High]
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Create and restore a wallet from a mnemonic sentence.
       parameters:
         - <<: *parametersBody
           schema: *WalletPostData
@@ -818,7 +823,8 @@ paths:
       operationId: getWallet
       tags: ["Wallets"]
       summary: Get
-      description: Priority [High]
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
       parameters:
         - *parametersWalletId
       responses: *responsesGetWallet
@@ -827,7 +833,8 @@ paths:
       operationId: deleteWallet
       tags: ["Wallets"]
       summary: Delete
-      description: Priority [Low]
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
       parameters:
         - *parametersWalletId
       responses: *responsesDeleteWallet
@@ -836,7 +843,8 @@ paths:
       operationId: putWallet
       tags: ["Wallets"]
       summary: Update Metadata
-      description: Priority [Low]
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
       parameters:
         - *parametersWalletId
         - <<: *parametersBody
@@ -849,7 +857,7 @@ paths:
       tags: ["Wallets"]
       summary: UTxO Statistics
       description: |
-        Piority [Low]
+        <p align="right">status: <strong>not implemented</strong></p>
 
         Return the UTxOs distribution across the whole wallet, in the form of a histogram.
 
@@ -876,6 +884,8 @@ paths:
       operationId: putWalletPassphrase
       tags: ["Wallets"]
       summary: Update Passphrase
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
       parameters:
         - *parametersWalletId
         - <<: *parametersBody
@@ -887,7 +897,8 @@ paths:
       operationId: listTransactions
       tags: ["Transactions"]
       summary: List
-      description: Priority [High]
+      description: |
+        <p align="right">status: <strong>not implemented</strong></p>
       parameters:
         - in: header
           name: Range
@@ -904,7 +915,8 @@ paths:
       operationId: postTransaction
       tags: ["Transactions"]
       summary: Create
-      description: Priority [High]
+      description: |
+        <p align="right">status: <strong>experimental</strong></p>
       parameters:
         - *parametersWalletId
         - <<: *parametersBody
@@ -916,7 +928,8 @@ paths:
       operationId: postTransactionFee
       tags: ["Transactions"]
       summary: Estimate
-      description: Priority [Medium]
+      description: |
+        <p align="right">status: <strong>not implemented</strong></p>
       parameters:
         - *parametersWalletId
         - <<: *parametersBody
@@ -929,9 +942,11 @@ paths:
       tags: ["Addresses"]
       summary: List
       description: |
-        Priority [High]
+        <p align="right">status: <strong>incomplete¹</strong></p>
 
         Return a list of known addresses, ordered from newest to oldest
+
+        > (1) The query parameter `state` isn't yet supported.
       parameters:
         - *parametersWalletId
         - in: query
@@ -948,7 +963,8 @@ paths:
       operationId: listStakePools
       tags: ["Stake Pools"]
       summary: List
-      description: Priority [High]
+      description: |
+        <p align="right">status: <strong>not implemented</strong></p>
       responses: *responsesListStakePools
 
   /stake-pools/{stakePoolId}/wallets/{walletId}:
@@ -956,7 +972,8 @@ paths:
       operationId: joinStakePool
       tags: ["Stake Pools"]
       summary: Join
-      description: Priority [High]
+      description: |
+        <p align="right">status: <strong>not implemented</strong></p>
       parameters:
         - *parametersStakePoolId
         - *parametersWalletId
@@ -968,7 +985,8 @@ paths:
       operationId: quitStakePool
       tags: ["Stake Pools"]
       summary: Quit
-      description: Priority [High]
+      description: |
+        <p align="right">status: <strong>not implemented</strong></p>
       parameters:
         - *parametersStakePoolId
         - *parametersWalletId
@@ -981,5 +999,6 @@ paths:
         operationId: getNetworkInformation
         tags: ["Network"]
         summary: Information
-        description: Priority [Low]
+        description: |
+          <p align="right">status: <strong>not implemented</strong></p>
         responses: *responsesGetNetworkInformation
