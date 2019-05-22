@@ -12,9 +12,8 @@
 
 module Cardano.Wallet.DBSpec
     ( spec
-    , DummyTarget
     , dbPropertyTests
-    , cleanDB
+    , withDB
     ) where
 
 import Prelude
@@ -30,20 +29,15 @@ import Cardano.Wallet.DB
     , PrimaryKey (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , Key
-    , KeyToAddress (..)
-    , Passphrase (..)
-    , XPrv
-    , generateKeyFromSeed
-    )
+    ( Depth (..), Key, Passphrase (..), XPrv, generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs (..) )
+    ( IsOurs (..), SeqState (..) )
+import Cardano.Wallet.Primitive.AddressDiscoverySpec
+    ( DummyTarget )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet )
+    ( Wallet, initWallet )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
-    , Coin (..)
+    ( Coin (..)
     , Direction (..)
     , Hash (..)
     , SlotId (..)
@@ -86,7 +80,15 @@ import GHC.Generics
 import System.IO.Unsafe
     ( unsafePerformIO )
 import Test.Hspec
-    ( Spec, beforeAll, beforeWith, describe, it, shouldBe, shouldReturn )
+    ( Spec
+    , SpecWith
+    , beforeAll
+    , beforeWith
+    , describe
+    , it
+    , shouldBe
+    , shouldReturn
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -151,13 +153,8 @@ instance (Arbitrary k, Arbitrary v) => Arbitrary (KeyValPairs k v) where
         pairs <- choose (10, 50) >>= flip vectorOf arbitrary
         pure $ KeyValPairs pairs
 
-data DummyTarget
-
 instance TxId DummyTarget where
     txId = Hash . B8.pack . show
-
-instance KeyToAddress DummyTarget where
-    keyToAddress _ = Address ""
 
 instance Arbitrary (PrimaryKey WalletId) where
     shrink _ = []
@@ -197,14 +194,6 @@ instance Arbitrary WalletMetadata where
         <*> (fmap WalletPassphraseInfo <$> arbitrary)
         <*> oneof [pure Ready, Restoring . Quantity <$> customizedGen]
         <*> pure NotDelegating
-
-instance Arbitrary Address where
-    -- No Shrinking
-    arbitrary = oneof
-        [ pure $ Address "ADDR01"
-        , pure $ Address "ADDR02"
-        , pure $ Address "ADDR03"
-        ]
 
 instance Arbitrary Coin where
     -- No Shrinking
@@ -549,11 +538,9 @@ prop_parallelPut putOp readOp resolve dbLayer (KeyValPairs pairs) =
 
 dbPropertyTests
     :: (Arbitrary (Wallet s DummyTarget), Show s, Eq s, IsOurs s, NFData s)
-    => IO (DBLayer IO s DummyTarget)
-    -> Spec
-dbPropertyTests dbLayer = do
-    beforeAll dbLayer $ beforeWith cleanDB $
-        describe "Extra Properties about DB initialization" $ do
+    => SpecWith (DBLayer IO s DummyTarget)
+dbPropertyTests = do
+    describe "Extra Properties about DB initialization" $ do
         it "createWallet . listWallets yields expected results"
             (property . prop_createListWallet)
         it "creating same wallet twice yields an error"
@@ -561,8 +548,7 @@ dbPropertyTests dbLayer = do
         it "removing the same wallet twice yields an error"
             (property . prop_removeWalletTwice)
 
-    beforeAll dbLayer $ beforeWith cleanDB $
-        describe "put . read yields a result" $ do
+    describe "put . read yields a result" $ do
         it "Checkpoint"
             (property . (prop_readAfterPut putCheckpoint readCheckpoint))
         it "Wallet Metadata"
@@ -572,8 +558,7 @@ dbPropertyTests dbLayer = do
         it "Private Key"
             (property . (prop_readAfterPut putPrivateKey readPrivateKey))
 
-    beforeAll dbLayer $ beforeWith cleanDB $
-        describe "can't put before wallet exists" $ do
+    describe "can't put before wallet exists" $ do
         it "Checkpoint"
             (property . (prop_putBeforeInit putCheckpoint readCheckpoint Nothing))
         it "Wallet Metadata"
@@ -583,8 +568,7 @@ dbPropertyTests dbLayer = do
         it "Private Key"
             (property . (prop_putBeforeInit putPrivateKey readPrivateKey Nothing))
 
-    beforeAll dbLayer $ beforeWith cleanDB $
-        describe "put doesn't affect other resources" $ do
+    describe "put doesn't affect other resources" $ do
         it "Checkpoint vs Wallet Metadata & Tx History & Private Key"
             (property . (prop_isolation putCheckpoint
                 readWalletMeta
@@ -604,8 +588,7 @@ dbPropertyTests dbLayer = do
                 readPrivateKey)
             )
 
-    beforeAll dbLayer $ beforeWith cleanDB $
-        describe "can't read after delete" $ do
+    describe "can't read after delete" $ do
         it "Checkpoint"
             (property . (prop_readAfterDelete readCheckpoint Nothing))
         it "Wallet Metadata"
@@ -615,8 +598,7 @@ dbPropertyTests dbLayer = do
         it "Private Key"
             (property . (prop_readAfterDelete readPrivateKey Nothing))
 
-    beforeAll dbLayer $ beforeWith cleanDB $
-        describe "sequential puts replace values in order" $ do
+    describe "sequential puts replace values in order" $ do
         it "Checkpoint"
             (checkCoverage . (prop_sequentialPut putCheckpoint readCheckpoint lrp))
         it "Wallet Metadata"
@@ -626,8 +608,7 @@ dbPropertyTests dbLayer = do
         it "Private Key"
             (checkCoverage . (prop_sequentialPut putPrivateKey readPrivateKey lrp))
 
-    beforeAll dbLayer $ beforeWith cleanDB $
-        describe "parallel puts replace values in _any_ order" $ do
+    describe "parallel puts replace values in _any_ order" $ do
         it "Checkpoint"
             (checkCoverage . (prop_parallelPut putCheckpoint readCheckpoint
                 (length . lrp @Maybe)))
@@ -641,5 +622,18 @@ dbPropertyTests dbLayer = do
             (checkCoverage . (prop_parallelPut putPrivateKey readPrivateKey
                 (length . lrp @Maybe)))
 
+-- | Clean a database by removing all wallets.
 cleanDB :: Monad m => DBLayer m s t -> m (DBLayer m s t)
 cleanDB db = listWallets db >>= mapM_ (runExceptT . removeWallet db) >> pure db
+
+-- | Provide a DBLayer to a Spec that requires it. The database is initialised
+-- once, and cleared with 'cleanDB' before each test.
+withDB :: IO (DBLayer IO s t) -> SpecWith (DBLayer IO s t) -> Spec
+withDB create = beforeAll create . beforeWith cleanDB
+
+instance Arbitrary (Wallet (SeqState DummyTarget) DummyTarget) where
+    shrink _ = []
+    arbitrary = initWallet <$> arbitrary
+
+instance Eq (SeqState DummyTarget) where
+    _ == _ = True

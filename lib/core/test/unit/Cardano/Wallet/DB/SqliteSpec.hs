@@ -18,7 +18,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Sqlite
     ( newDBLayer )
 import Cardano.Wallet.DBSpec
-    ( DummyTarget, cleanDB )
+    ( dbPropertyTests, withDB )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..)
     , encryptPassphrase
@@ -26,7 +26,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , unsafeGenerateKeyFromSeed
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( SeqState, defaultAddressPoolGap, mkSeqState )
+    ( SeqState (..), defaultAddressPoolGap, mkSeqState )
+import Cardano.Wallet.Primitive.AddressDiscoverySpec
+    ( DummyTarget )
 import Cardano.Wallet.Primitive.Mnemonic
     ( EntropySize, entropyToBytes, genEntropy )
 import Cardano.Wallet.Primitive.Model
@@ -66,12 +68,17 @@ import Data.Time.Clock
 import System.IO.Unsafe
     ( unsafePerformIO )
 import Test.Hspec
-    ( Spec, beforeAll, beforeWith, describe, it, shouldReturn )
+    ( Spec, describe, it, shouldReturn )
 
 import qualified Data.Map as Map
 
 spec :: Spec
-spec = beforeAll newMemoryDBLayer $ beforeWith cleanDB $ do
+spec = do
+    describe "Simple tests" simpleSpec
+    describe "Sqlite Property tests" $ withDB newMemoryDBLayer dbPropertyTests
+
+simpleSpec :: Spec
+simpleSpec = withDB newMemoryDBLayer $ do
     describe "Wallet table" $ do
         it "create and list works" $ \db -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
