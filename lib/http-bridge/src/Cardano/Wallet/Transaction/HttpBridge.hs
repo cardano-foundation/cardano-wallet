@@ -25,6 +25,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , Tx (..)
     , TxId (..)
+    , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
     )
@@ -63,7 +64,7 @@ newTransactionLayer = TransactionLayer
         --  | list len n              -- 1-2 (assuming n < 255)
         --  | n * sizeOf(witness)     -- n * 139
         1
-        + sizeOfTx n outs chngs
+        + sizeOfTx (fst <$> inps) outs chngs
         + sizeOf (CBOR.encodeListLen $ fromIntegral n)
         + n * sizeOfTxWitness
     }
@@ -109,8 +110,8 @@ newTransactionLayer = TransactionLayer
     --  |   | list len 2  -- 1
     --  |   | bytes       -- 2 + 32
     --  |   | word32      -- 1|2|3|5
-    sizeOfTxIn :: Int -> Int
-    sizeOfTxIn ix =
+    sizeOfTxIn :: TxIn -> Int
+    sizeOfTxIn (TxIn _ ix) =
         41 + sizeOf (CBOR.encodeWord32 $ fromIntegral ix)
 
     -- SEQ + MAINNET
@@ -198,9 +199,9 @@ newTransactionLayer = TransactionLayer
     --  | sizeOf(chngs)               -- Σ sizeOf(chng)
     --  | break                       -- 1
     --  | empty attributes            -- 1
-    sizeOfTx :: Int -> [TxOut] -> [Coin] -> Int
-    sizeOfTx n outs chngs = 7
-        + sum (map sizeOfTxIn [0..n-1])
+    sizeOfTx :: [TxIn] -> [TxOut] -> [Coin] -> Int
+    sizeOfTx inps outs chngs = 6
+        + sum (map sizeOfTxIn inps)
         + sum (map sizeOfTxOut outs)
         + sum (map sizeOfChange chngs)
 
