@@ -17,8 +17,6 @@ import Control.Monad
     ( guard )
 import Data.ByteString.Lazy
     ( ByteString )
-import Network.HTTP.Types.Header
-    ( ResponseHeaders )
 import Network.HTTP.Types.Status
     ( statusCode, statusMessage )
 import Network.Wai
@@ -30,7 +28,6 @@ import Servant.Server.Internal.ServantErr
 
 import qualified Data.Binary.Builder as Binary
 import qualified Data.ByteString.Char8 as B8
-import qualified Network.HTTP.Types.Status as HTTP
 
 -- | Make sure every error is converted to a suitable application-level error.
 --
@@ -72,16 +69,7 @@ eitherRawError res =
             (Right res)
             (Left . flip (ServantErr code reason) headers)
     in
-        maybeToEither $ guard (isRawError status headers) *> body
-
--- | Raw 'Servant' errors don't have any Content-Type. This is a lean predicate
--- but for lack of any better way of identifying them, that's a best effort.
-isRawError
-    :: HTTP.Status
-    -> ResponseHeaders
-    -> Bool
-isRawError status headers =
-    statusCode status >= 400 && null headers
+        maybeToEither $ guard (code >= 400) *> body
 
 -- | Extract raw body of a response, only if it suitables for transformation.
 -- Servant doesn't return files or streams by default, so if one of the two is
