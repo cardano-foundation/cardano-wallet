@@ -20,4 +20,9 @@ For now we will wait after the integration with the rust node, and do it with th
 The good thing with the rust node is that, we don't need a full cluster anymore. A single node is sufficient and can "emulate" delegation within itself, like an identity crisis.
 
 ## Better error reporting in the API
+
+> Reviewed on **week 21**:
+>
+> Still waiting for a new release for servant. 
+
 For instance `GET v2/wallets/{wallet-id}` always reports `404` for any - valid (but not existing) and non-valid wallet id. For non-valid wallet id it should be reporting `400`. This can be implemented probably after next Servant release, see -> https://github.com/input-output-hk/cardano-wallet/pull/252#discussion_r282786569.
