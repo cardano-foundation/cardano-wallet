@@ -34,8 +34,9 @@ import Control.Concurrent.MVar
     ( newMVar, withMVar )
 import Control.DeepSeq
     ( NFData )
+import Data.Either (isRight)
 import Control.Monad
-    ( mapM_, void )
+    ( mapM_, void, when )
 import Control.Monad.Catch
     ( MonadCatch (..), handleJust )
 import Control.Monad.IO.Class
@@ -169,19 +170,21 @@ newDBLayer fp = do
         -----------------------------------------------------------------------}
 
         { createWallet = \(PrimaryKey wid) cp meta ->
-            ExceptT $ runQuery conn $
-            handleConstraint (ErrWalletAlreadyExists wid) $ do
-                insert_ (mkWalletEntity wid meta)
-                insertCheckpoint wid cp
+            ExceptT $ runQuery conn $ do
+                res <- handleConstraint (ErrWalletAlreadyExists wid) $
+                    insert_ (mkWalletEntity wid meta)
+                when (isRight res) $
+                    insertCheckpoint wid cp
+                pure res
 
         , removeWallet = \(PrimaryKey wid) ->
             ExceptT $ runQuery conn $
             selectWallet wid >>= \case
                 Just _ -> Right <$> do
-                    -- fixme: deleteCascade is not working with persistent-sqlite.
-                    -- Therefore we need to delete related entities as well.
                     deleteCheckpoints @s wid
+                    deleteTxHistory wid []
                     deleteLooseTransactions wid
+                    deleteWhere [PrivateKeyTableWalletId ==. wid]
                     deleteCascadeWhere [WalTableId ==. wid]
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
@@ -193,10 +196,13 @@ newDBLayer fp = do
         -----------------------------------------------------------------------}
 
         , putCheckpoint = \(PrimaryKey wid) cp ->
-            ExceptT $ runQuery conn $ Right <$> do
-                deleteCheckpoints @s wid -- clear out all checkpoints
-                deleteLooseTransactions wid -- clear transactions
-                insertCheckpoint wid cp -- add this checkpoint
+            ExceptT $ runQuery conn $
+            selectWallet wid >>= \case
+                Just _ -> Right <$> do
+                    deleteCheckpoints @s wid -- clear out all checkpoints
+                    deleteLooseTransactions wid -- clear unused transaction data
+                    insertCheckpoint wid cp -- add this checkpoint
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
         , readCheckpoint = \(PrimaryKey wid) ->
             runQuery conn $
@@ -236,6 +242,8 @@ newDBLayer fp = do
             selectWallet wid >>= \case
                 Just _ -> do
                     let (metas, txins, txouts) = mkTxHistory wid txs
+                    deleteTxHistory wid metas
+                    deleteLooseTransactions wid
                     putMany metas
                     putMany txins
                     putMany txouts
@@ -496,6 +504,16 @@ deleteCheckpoints wid = do
     deleteWhere [CheckpointTableWalletId ==. wid]
     deleteState @s wid -- clear state
 
+-- | Delete unused TxMeta values for a wallet.
+deleteTxHistory
+    :: W.WalletId
+    -> [TxMeta]
+       -- ^ The TxMeta entries to keep
+    -> SqlPersistM ()
+deleteTxHistory wid inUse = deleteWhere
+    [ TxMetaTableWalletId ==. wid
+    , TxMetaTableTxId /<-. map txMetaTableTxId inUse ]
+
 -- | Delete transactions that belong to a wallet and aren't referred to by
 -- either Pending or TxMeta.
 deleteLooseTransactions
@@ -596,7 +614,13 @@ instance W.KeyToAddress t => PersistState (W.SeqState t) where
         pure $ W.SeqState internalPool externalPool pendingChangeIxs
 
     deleteState wid = do
-        -- fixme: cascading delete not working with persistent-sqlite
+        ssid <- fmap entityKey <$> selectList [ SeqStateTableWalletId ==. wid ] []
+        intApId <- fmap (seqStateInternalPoolAddressPool . entityVal) <$>
+            selectList [ SeqStateInternalPoolSeqStateId <-. ssid ] []
+        extApId <- fmap (seqStateExternalPoolAddressPool . entityVal) <$>
+            selectList [ SeqStateExternalPoolSeqStateId <-. ssid ] []
+        deleteCascadeWhere [AddressPoolId <-. intApId]
+        deleteCascadeWhere [AddressPoolId <-. extApId]
         deleteCascadeWhere [SeqStateTableWalletId ==. wid]
 
 insertAddressPool
