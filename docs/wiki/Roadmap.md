@@ -81,6 +81,18 @@ _items below are more-or-less prioritized_
 - Check Pool Status and sanity check to prevent user from making mistakes
 - Make Sure The Staking Status is available in the wallet representation
 
+## Improvements to the CLI
+
+A few ideas to make the CLI better. It'd be nice to already get feedback on the existing one and see what people external to the project would have to say. A few ideas already:
+
+ - if the passphrases don't match - prompt user to put them again twice
+ - make wallet backend server introduce itself in the HTTP header server (and make CLI to check for that value and put some warning/error if it don't match)
+ - `create wallet` wizard to be a whole responsive/prompt CLI
+ - Different levels of `--help`, e.g.: `cardano-wallet --help`, `cardano-wallet wallet --help` etc..
+ - Improve error msg for `FromText AddressAmount`
+ - Chose a better name for CLI option `transaction create`. Currently we use it to do all three steps: coin selection, sign, submit. See discussion https://github.com/input-output-hk/cardano-wallet/pull/225#discussion_r281454697
+ - `Qualtity "lovelace" Natural` is used to parse number of lovelace/coins from CLI. This is defined in `FromText (Quantity sym b)` https://github.com/input-output-hk/cardano-wallet/pull/225/files/fff43a4e5a70ed93bf028217ebdc90429252be2d#diff-27d87fed0f151afbb3b4e829fb315ba3R107 . We might want to use more fine grained parser for coins and parse "20lovelace" and "20ada" differently (and do coin conversion autimatically) and default "20" to lovelace
+ - Improve password validation in API and CLI which validate for strong passwords (passwords should have enough entropy)
 
 ### Make Protocol Settings Available
 
@@ -113,12 +125,23 @@ _items below are more-or-less prioritized_
 - Track of list of account or address public keys
 - Manual change address selection
 
-
-### Ada Redemption External Tools
+### Ada Redemption External Tools (?)
 
 - Dedicated certificate redemption standalone software 
 - Construct a redemption transaction and submit it to the chain
 - ADA are tracked in the wallet backend afterward, like any other blocks
+
+### Better Restoration Stress Benchmark
+
+Existing chain data doesn't necessarily include "extreme" cases that might occur in the future
+
+- Make data generators which set up transactions for wallets of various sizes.
+- Use the [weigh](https://www.fpcomplete.com/blog/2016/05/weigh-package) package to measure and display the GHC heap usage of test scenarios.
+- Figure out a way of generating semi-realistic transactions in blocks
+- Use a mock network layer to feed generated blocks to wallet layer
+- Set up a test case which checks heap usage after applying a certain number of transactions in a certain number of blocks.
+- Also measure how long it took to apply those blocks/transactions.
+- Automatically check benchmark results and compare them against some baseline with threshold
 
 
 ### Better supervision of child processes in launcher
