@@ -191,7 +191,7 @@ jobs:
     name: "Haddock"
     script:
     - mkdir -p haddock/edge api/edge
-    - cp -Rv specifications/api api/edge
+    - cp -Rv specifications/api/* api/edge
     - mv $(stack path --local-doc-root)/* haddock/edge
     - git checkout --orphan gh-pages-deploy && git reset
     - git add api haddock && git commit -m $TRAVIS_COMMIT
@@ -238,7 +238,7 @@ jobs:
 
     # Deploy documentation snapshot
     - mkdir -p haddock/$TRAVIS_TAG api/$TRAVIS_TAG
-    - cp -Rv specifications/api api/$TRAVIS_TAG
+    - cp -Rv specifications/api/* api/$TRAVIS_TAG
     - mv $(stack path --local-doc-root)/* haddock/$TRAVIS_TAG
     - git checkout --orphan gh-pages-deploy && git reset
     - git add api haddock && git commit -m $TRAVIS_COMMIT
