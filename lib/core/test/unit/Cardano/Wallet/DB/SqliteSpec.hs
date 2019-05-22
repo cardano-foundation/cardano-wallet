@@ -109,6 +109,11 @@ simpleSpec = withDB newMemoryDBLayer $ do
             runExceptT (putTxHistory db testPk testTxs) `shouldReturn` Right ()
             readTxHistory db testPk `shouldReturn` testTxs
 
+        it "put and read checkpoint" $ \db -> do
+            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+            runExceptT (putCheckpoint db testPk testCp) `shouldReturn` Right ()
+            readCheckpoint db testPk `shouldReturn` Just testCp
+
 newMemoryDBLayer :: IO (DBLayer IO (SeqState DummyTarget) DummyTarget)
 newMemoryDBLayer = newDBLayer Nothing
 
