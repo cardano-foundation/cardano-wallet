@@ -356,7 +356,7 @@ instance LiftHandler ErrCoinSelection where
                 [ "I can't process this payment because there's not enough "
                 , "UTxO available in the wallet. The total UTxO sums up to "
                 , showT utxo, " Lovelace, but I need ", showT payment
-                , " Lovelace (inclusive of fee amount) in order to proceed "
+                , " Lovelace (excluding fee amount) in order to proceed "
                 , " with the payment."
                 ]
 

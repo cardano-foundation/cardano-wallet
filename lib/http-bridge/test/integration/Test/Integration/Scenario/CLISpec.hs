@@ -178,7 +178,8 @@ specWithCluster = do
             (Exit c, Stdout out, Stderr err) <- getWalletViaCLI walId
             out `shouldBe` ""
             if (title == "40 chars hex") then
-                err `shouldBe` "Wallet not found.\n"
+                err `shouldBe` "I couldn't find a wallet with the given id:\
+                    \ 1111111111111111111111111111111111111111\n"
             else
                 err `shouldBe` "wallet id should be an hex-encoded string of\
                     \ 40 characters\n"
