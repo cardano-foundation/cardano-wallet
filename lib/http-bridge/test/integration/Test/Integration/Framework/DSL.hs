@@ -55,7 +55,8 @@ module Test.Integration.Framework.DSL
     , json
     , tearDown
     , fixtureWallet
-    , oneMillionAda
+    , faucetAmt
+    , faucetUtxoAmt
 
     -- * CLI
     , cardanoWalletCLI
@@ -465,9 +466,14 @@ fixtureWallet ctx@(Context _ _ _ faucet) = do
             then return (getFromResponse id r)
             else threadDelay oneSecond *> checkBalance wid
 
--- | One million ADA, in Lovelace, just like this.
-oneMillionAda :: Natural
-oneMillionAda = ada (1_000_000)
+-- | Total amount on each faucet wallet
+faucetAmt :: Natural
+faucetAmt = 10 * faucetUtxoAmt
+
+-- | Each faucet wallet is composed of 10 times a single faucet UTxO of 100_000
+-- Ada.
+faucetUtxoAmt :: Natural
+faucetUtxoAmt = ada 100_000
   where
     ada = (*) (1_000_000)
 

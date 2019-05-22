@@ -30,12 +30,14 @@ import Test.Integration.Framework.DSL
     , createWallet
     , direction
     , expectEventually
+    , expectFieldBetween
     , expectFieldEqual
     , expectResponseCode
     , expectSuccess
+    , faucetAmt
+    , faucetUtxoAmt
     , fixtureWallet
     , json
-    , oneMillionAda
     , request
     , status
     , unsafeRequest
@@ -53,8 +55,8 @@ spec = do
         wid <- view walletId <$> fixtureWallet ctx
         r' <- request @ApiWallet ctx ("GET", "v2/wallets/" <> wid) Default Empty
         verify r'
-            [ expectFieldEqual balanceTotal oneMillionAda
-            , expectFieldEqual balanceAvailable oneMillionAda
+            [ expectFieldEqual balanceTotal faucetAmt
+            , expectFieldEqual balanceAvailable faucetAmt
             ]
 
     it "TRANS_CREATE_01 - Single Output Transaction" $ \ctx -> do
@@ -73,13 +75,13 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        let fee = 168653
+        let (feeMin, feeMax) = (168653, 168829)
 
         r <- request @ApiTransaction ctx ("POST", postTx wa) Default payload
         verify r
             [ expectSuccess
             , expectResponseCode HTTP.status202
-            , expectFieldEqual amount (fee + amt)
+            , expectFieldBetween amount (feeMin + amt, feeMax + amt)
             , expectFieldEqual direction Outgoing
             , expectFieldEqual status Pending
             ]
@@ -87,26 +89,28 @@ spec = do
         ra <- request @ApiWallet ctx ("GET", getWallet wa) Default Empty
         verify ra
             [ expectSuccess
-            , expectFieldEqual balanceTotal (oneMillionAda - fee - amt)
-            , expectFieldEqual balanceAvailable 0
+            , expectFieldBetween balanceTotal
+                ( faucetAmt - feeMax - amt
+                , faucetAmt - feeMin - amt
+                )
+            , expectFieldEqual balanceAvailable (faucetAmt - faucetUtxoAmt)
             ]
 
         rb <- request @ApiWallet ctx ("GET", getWallet wb) Default Empty
         verify rb
             [ expectSuccess
-            , expectEventually ctx balanceAvailable (oneMillionAda + amt)
+            , expectEventually ctx balanceAvailable (faucetAmt + amt)
             ]
 
         verify ra
-            [ expectEventually ctx balanceAvailable (oneMillionAda - fee - amt)
+            [ expectEventually ctx balanceAvailable (faucetAmt - feeMax - amt)
             ]
 
     it "TRANS_CREATE_02 - Multiple Output Transaction to single wallet" $ \ctx -> do
-        widSrc <- view walletId <$> fixtureWallet ctx
-        widDest <- createWallet ctx "Test dest1" mnemonics18
+        wSrc <- fixtureWallet ctx
+        wDest <- createWallet ctx "Test dest1" mnemonics18
         (_, addrs1) <-
-            unsafeRequest @[ApiAddress] ctx
-                ("GET", "v2/wallets/" <> widDest <> "/addresses") Empty
+            unsafeRequest @[ApiAddress] ctx ("GET", getAddresses wDest) Empty
 
         let amt = 1
         let destination1 = (addrs1 !! 1) ^. #id
@@ -128,30 +132,26 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        let fee = 168653
+        let (feeMin, feeMax) = (181488, 181840)
 
-        --post transaction
-        r <- request @ApiTransaction ctx
-            ("POST", "v2/wallets/" <> widSrc <> "/transactions")
-            Default payload
+        r <- request @ApiTransaction ctx ("POST", postTx wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldEqual amount (fee + amt + amt)
+            , expectFieldBetween amount (feeMin + amt, feeMax + amt)
             , expectFieldEqual direction Outgoing
             , expectFieldEqual status Pending
             ]
 
-        --check immediate balanceTotal and balanceAvailable on source wallet
-        ra <- request @ApiWallet ctx ("GET", "v2/wallets/" <> widSrc)
-            Default Empty
+        ra <- request @ApiWallet ctx ("GET", getWallet wSrc) Default Empty
         verify ra
-            [ expectFieldEqual balanceTotal (oneMillionAda - fee - amt - amt)
-            , expectFieldEqual balanceAvailable 0
+            [ expectFieldBetween balanceTotal
+                ( faucetAmt - feeMax - amt
+                , faucetAmt - feeMin - amt
+                )
+            , expectFieldEqual balanceAvailable (faucetAmt - 2 * faucetUtxoAmt)
             ]
 
-        --check balanceTotal and balanceAvailable on destination wallet
-        rd <- request @ApiWallet ctx ("GET", "v2/wallets/" <> widDest)
-            Default payload
+        rd <- request @ApiWallet ctx ("GET", getWallet wDest) Default payload
         verify rd
             [ expectEventually ctx balanceAvailable (2*amt)
             , expectEventually ctx balanceTotal (2*amt)
@@ -159,15 +159,13 @@ spec = do
 
     it "TRANS_CREATE_02 - Multiple Output Transaction to different wallets"
         $ \ctx -> do
-        wa <- fixtureWallet ctx
-        widDest1 <- createWallet ctx "Test dest1" mnemonics18
-        widDest2 <- createWallet ctx "Test dest2" mnemonics21
+        wSrc <- fixtureWallet ctx
+        wDest1 <- createWallet ctx "Test dest1" mnemonics18
+        wDest2 <- createWallet ctx "Test dest2" mnemonics21
         (_, addrs1) <-
-            unsafeRequest @[ApiAddress] ctx
-                ("GET", "v2/wallets/" <> widDest1 <> "/addresses") Empty
+            unsafeRequest @[ApiAddress] ctx ("GET", getAddresses wDest1) Empty
         (_, addrs2) <-
-            unsafeRequest @[ApiAddress] ctx
-                ("GET", "v2/wallets/" <> widDest2 <> "/addresses") Empty
+            unsafeRequest @[ApiAddress] ctx ("GET", getAddresses wDest2) Empty
 
         let amt = 1
         let destination1 = (addrs1 !! 1) ^. #id
@@ -191,28 +189,27 @@ spec = do
                 ],
                 "passphrase": "cardano-wallet"
             }|]
-        let fee = 168653
+        let (feeMin, feeMax) = (181488, 181840)
 
-        --post transaction
-        r <- request @ApiTransaction ctx ("POST", postTx wa) Default payload
+        r <- request @ApiTransaction ctx ("POST", postTx wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldEqual amount (fee + amt + amt)
+            , expectFieldBetween amount (feeMin + amt, feeMax + amt)
             , expectFieldEqual direction Outgoing
             , expectFieldEqual status Pending
             ]
 
-        --check immediate balanceTotal and balanceAvailable on source wallet
-        ra <- request @ApiWallet ctx ("GET", getWallet wa) Default Empty
+        ra <- request @ApiWallet ctx ("GET", getWallet wSrc) Default Empty
         verify ra
-            [ expectFieldEqual balanceTotal (oneMillionAda - fee - amt - amt)
-            , expectFieldEqual balanceAvailable 0
+            [ expectFieldBetween balanceTotal
+                ( faucetAmt - feeMax - amt
+                , faucetAmt - feeMin - amt
+                )
+            , expectFieldEqual balanceAvailable (faucetAmt - 2 * faucetUtxoAmt)
             ]
 
-        --check balanceTotal and balanceAvailable on destination wallets
-        forM_ [widDest1, widDest2] $ \walId -> do
-            rd <- request @ApiWallet ctx ("GET", "v2/wallets/" <> walId)
-                Default payload
+        forM_ [wDest1, wDest2] $ \wDest -> do
+            rd <- request @ApiWallet ctx ("GET", getWallet wDest) Default payload
             verify rd
                 [ expectSuccess
                 , expectEventually ctx balanceAvailable amt
