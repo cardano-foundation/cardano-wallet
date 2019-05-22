@@ -23,6 +23,7 @@ module Test.Integration.Framework.DSL
     , expectErrorMessage
     , expectFieldEqual
     , expectFieldNotEqual
+    , expectFieldBetween
     , expectListItemFieldEqual
     , expectListSizeEqual
     , expectResponseCode
@@ -145,7 +146,7 @@ import System.Process
     , withCreateProcess
     )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain, shouldNotBe )
+    ( shouldBe, shouldContain, shouldNotBe, shouldSatisfy )
 import Test.Integration.Faucet
     ( nextWallet )
 import Test.Integration.Framework.Request
@@ -217,6 +218,16 @@ expectFieldEqual
 expectFieldEqual getter a (_, res) = case res of
     Left e  -> wantedSuccessButError e
     Right s -> (view getter s) `shouldBe` a
+
+expectFieldBetween
+    :: (MonadIO m, MonadFail m, Show a, Ord a)
+    => Lens' s a
+    -> (a, a)
+    -> (HTTP.Status, Either RequestException s)
+    -> m ()
+expectFieldBetween getter (aMin, aMax) (_, res) = case res of
+    Left e  -> wantedSuccessButError e
+    Right s -> (view getter s) `shouldSatisfy` (\x -> x >= aMin && x <= aMax)
 
 expectFieldNotEqual
     :: (MonadIO m, MonadFail m, Show a, Eq a)
