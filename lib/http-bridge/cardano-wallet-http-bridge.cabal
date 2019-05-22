@@ -151,7 +151,6 @@ test-suite integration
     , http-types
     , memory
     , process
-    , servant-server
     , template-haskell
     , text
     , text-class

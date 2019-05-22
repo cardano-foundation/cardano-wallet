@@ -210,7 +210,7 @@ spec = do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
         verify r
             [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "key \"name\" not present"
+            , expectErrorMessage "key 'name' not present"
             ]
 
     describe "WALLETS_CREATE_05 - Mnemonics" $ do
@@ -336,7 +336,7 @@ spec = do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
         verify r
             [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "key \"mnemonic_sentence\" not present"
+            , expectErrorMessage "key 'mnemonic_sentence' not present"
             ]
 
     describe "WALLETS_CREATE_06 - Mnemonics second factor" $ do
@@ -525,7 +525,7 @@ spec = do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
         verify r
             [ expectResponseCode @IO HTTP.status400
-            , expectErrorMessage "key \"passphrase\" not present"
+            , expectErrorMessage "key 'passphrase' not present"
             ]
 
     describe "WALLETS_CREATE_08 - address_pool_gap" $ do
@@ -1212,14 +1212,14 @@ spec = do
                       "new_passphrase": "Secure passphrase"
                          } |]
                    , [ expectResponseCode @IO HTTP.status400
-                     , expectErrorMessage "key \"old_passphrase\" not present" ]
+                     , expectErrorMessage "key 'old_passphrase' not present" ]
                    )
                  , ( "Missing new passphrase"
                    , Json [json| {
                       "old_passphrase": "Secure passphrase"
                          } |]
                    , [ expectResponseCode @IO HTTP.status400
-                     , expectErrorMessage "key \"new_passphrase\" not present" ]
+                     , expectErrorMessage "key 'new_passphrase' not present" ]
                   )
                 ]
         forM_ matrix $ \(title, payload, expectations) -> it title $ \ctx -> do

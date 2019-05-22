@@ -16,7 +16,7 @@ module Cardano.Wallet.Primitive.CoinSelection.LargestFirst (
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..), CoinSelectionError (..), CoinSelectionOptions (..) )
+    ( CoinSelection (..), CoinSelectionOptions (..), ErrCoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
     ( Coin (..), TxIn, TxOut (..), UTxO (..), balance )
 import Control.Monad
@@ -39,7 +39,7 @@ largestFirst
     => CoinSelectionOptions
     -> NonEmpty TxOut
     -> UTxO
-    -> ExceptT CoinSelectionError m (CoinSelection, UTxO)
+    -> ExceptT ErrCoinSelection m (CoinSelection, UTxO)
 largestFirst opt outs utxo = do
     let descending = NE.toList . NE.sortBy (flip $ comparing coin)
     let n = fromIntegral $ maximumNumberOfInputs opt
@@ -51,16 +51,16 @@ largestFirst opt outs utxo = do
         Nothing -> do
             let moneyRequested = sum $ (getCoin . coin) <$> (descending outs)
             let utxoBalance = fromIntegral $ balance utxo
-            let numberOfUtxoEntries = fromIntegral $ L.length $ (Map.toList . getUTxO) utxo
-            let numberOfTransactionOutputs = fromIntegral $ NE.length outs
+            let nUtxo = fromIntegral $ L.length $ (Map.toList . getUTxO) utxo
+            let nOuts = fromIntegral $ NE.length outs
 
             when (utxoBalance < moneyRequested)
-                $ throwE $ NotEnoughMoney utxoBalance moneyRequested
+                $ throwE $ ErrNotEnoughMoney utxoBalance moneyRequested
 
-            when (numberOfUtxoEntries < numberOfTransactionOutputs)
-                $ throwE $ UtxoNotEnoughFragmented numberOfUtxoEntries numberOfTransactionOutputs
+            when (nUtxo < nOuts)
+                $ throwE $ ErrUtxoNotEnoughFragmented nUtxo nOuts
 
-            throwE $ MaximumInputsReached (fromIntegral n)
+            throwE $ ErrMaximumInputsReached (fromIntegral n)
 
 
 -- Selecting coins to cover at least the specified value

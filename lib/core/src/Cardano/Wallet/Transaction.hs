@@ -61,6 +61,6 @@ data TransactionLayer = TransactionLayer
 
 -- | Possible signing error
 newtype ErrMkStdTx
-    = KeyNotFoundForAddress Address
+    = ErrKeyNotFoundForAddress Address
     -- ^ We tried to sign a transaction with inputs that are unknown to us?
     deriving (Eq, Show)

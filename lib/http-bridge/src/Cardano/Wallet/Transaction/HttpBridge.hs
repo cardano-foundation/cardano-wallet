@@ -51,7 +51,7 @@ newTransactionLayer = TransactionLayer
         let tx = Tx ins outs
         let txSigData = txId @HttpBridge tx
         txWitnesses <- forM inps $ \(_in, TxOut addr _c) -> mkWitness txSigData
-            <$> withEither (KeyNotFoundForAddress addr) (keyFrom addr)
+            <$> withEither (ErrKeyNotFoundForAddress addr) (keyFrom addr)
         return (tx, txWitnesses)
 
     , estimateSize = \(CoinSelection inps outs chngs) -> let n = length inps in

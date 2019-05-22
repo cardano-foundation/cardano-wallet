@@ -94,13 +94,12 @@ import qualified Data.List as L
 spec :: Spec
 spec = do
     describe "Pointless tests to cover 'Show' instances for errors" $ do
-        let errNoSuchWallet =
-                ErrNoSuchWallet (WalletId (hash @ByteString "arbitrary"))
-        it (show $ ErrCreateUnsignedTxNoSuchWallet errNoSuchWallet) True
-        it (show $ ErrSignTxNoSuchWallet errNoSuchWallet) True
-        it (show $ ErrSubmitTxNoSuchWallet errNoSuchWallet) True
-        it (show $ ErrUpdatePassphraseNoSuchWallet errNoSuchWallet) True
-        it (show $ ErrWithRootKeyWrongPassphrase ErrWrongPassphrase) True
+        let wid = WalletId (hash @ByteString "arbitrary")
+        it (show $ ErrCreateUnsignedTxNoSuchWallet (ErrNoSuchWallet wid)) True
+        it (show $ ErrSignTxNoSuchWallet (ErrNoSuchWallet wid)) True
+        it (show $ ErrSubmitTxNoSuchWallet (ErrNoSuchWallet wid)) True
+        it (show $ ErrUpdatePassphraseNoSuchWallet (ErrNoSuchWallet wid)) True
+        it (show $ ErrWithRootKeyWrongPassphrase wid ErrWrongPassphrase) True
 
     describe "WalletLayer works as expected" $ do
         it "Wallet upon creation is written down in db"
@@ -234,7 +233,7 @@ walletUpdatePassphraseWrong wallet (xprv, pwd) (old, new) =
         unsafeRunExceptT $ attachPrivateKey wl wid (xprv, pwd)
         attempt <- runExceptT $ updateWalletPassphrase wl wid (old, new)
         let err = ErrUpdatePassphraseWithRootKey
-                $ ErrWithRootKeyWrongPassphrase
+                $ ErrWithRootKeyWrongPassphrase wid
                 ErrWrongPassphrase
         attempt `shouldBe` Left err
 

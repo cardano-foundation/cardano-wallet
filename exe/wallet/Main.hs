@@ -7,6 +7,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
+
 -- |
 -- Copyright: © 2018-2019 IOHK
 -- License: MIT
@@ -40,8 +41,6 @@ import Cardano.Wallet
     ( newWalletLayer )
 import Cardano.Wallet.Api
     ( Api )
-import Cardano.Wallet.Api.Server
-    ( server )
 import Cardano.Wallet.Api.Types
     ( ApiMnemonicT (..)
     , ApiT (..)
@@ -81,7 +80,7 @@ import Network.HTTP.Client
 import Network.HTTP.Types.Status
     ( status404, status409 )
 import Servant
-    ( (:<|>) (..), (:>), serve )
+    ( (:<|>) (..), (:>) )
 import Servant.Client
     ( BaseUrl (..), ClientM, Scheme (..), client, mkClientEnv, runClientM )
 import Servant.Client.Core
@@ -108,6 +107,7 @@ import System.IO
 import Text.Regex.Applicative
     ( anySym, few, match, string, sym )
 
+import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
 import qualified Cardano.Wallet.Transaction.HttpBridge as HttpBridge
@@ -337,7 +337,7 @@ execServer (Port port) (Port bridgePort) = do
     nw <- HttpBridge.newNetworkLayer bridgePort
     let tl = HttpBridge.newTransactionLayer
     wallet <- newWalletLayer @_ @HttpBridge db nw tl
-    Warp.runSettings settings (serve (Proxy @("v2" :> Api)) (server wallet))
+    Server.start settings wallet
   where
     settings = Warp.defaultSettings
         & Warp.setPort port

@@ -9,7 +9,7 @@ module Cardano.Wallet.Primitive.CoinSelection.LargestFirstSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..), CoinSelectionError (..), CoinSelectionOptions (..) )
+    ( CoinSelection (..), CoinSelectionOptions (..), ErrCoinSelection (..) )
 import Cardano.Wallet.Primitive.CoinSelection.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.Primitive.CoinSelectionSpec
@@ -106,7 +106,7 @@ spec = do
         coinSelectionUnitTest
             largestFirst
             "not enough coins"
-            (Left $ NotEnoughMoney 39 40)
+            (Left $ ErrNotEnoughMoney 39 40)
             $ CoinSelectionFixture
                 { maxNumOfInputs = 100
                 , utxoInputs = [12,10,17]
@@ -116,7 +116,7 @@ spec = do
         coinSelectionUnitTest
             largestFirst
             "not enough coin & not fragmented enough"
-            (Left $ NotEnoughMoney 39 43)
+            (Left $ ErrNotEnoughMoney 39 43)
             $ CoinSelectionFixture
                 { maxNumOfInputs = 100
                 , utxoInputs = [12,10,17]
@@ -126,7 +126,7 @@ spec = do
         coinSelectionUnitTest
             largestFirst
             "enough coins, but not fragmented enough"
-            (Left $ UtxoNotEnoughFragmented 3 4)
+            (Left $ ErrUtxoNotEnoughFragmented 3 4)
             $ CoinSelectionFixture
                 { maxNumOfInputs = 100
                 , utxoInputs = [12,20,17]
@@ -136,7 +136,7 @@ spec = do
         coinSelectionUnitTest
             largestFirst
             "enough coins but, strict maximumNumberOfInputs"
-            (Left $ MaximumInputsReached 2)
+            (Left $ ErrMaximumInputsReached 2)
             $ CoinSelectionFixture
                 { maxNumOfInputs = 2
                 , utxoInputs = [1,2,10,6,5]

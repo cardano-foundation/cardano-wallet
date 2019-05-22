@@ -121,8 +121,8 @@ data FeeOptions = FeeOptions
       -- removes output equal to 0
     } deriving (Generic)
 
-newtype ErrAdjustForFee =
-    CannotCoverFee Word64
+newtype ErrAdjustForFee
+    = ErrCannotCoverFee Word64
     -- ^ UTxO exhausted during fee covering
     -- We record what amount missed to cover the fee
     deriving (Show, Eq)
@@ -231,7 +231,7 @@ coverRemainingFee (Fee fee) = go [] where
                 Just entry ->
                     go (entry : acc)
                 Nothing -> do
-                    lift $ throwE $ CannotCoverFee (fee - balance' acc)
+                    lift $ throwE $ ErrCannotCoverFee (fee - balance' acc)
 
 -- | Reduce the given change outputs by the total fee, returning the remainig
 -- change outputs if any are left, or the remaining fee otherwise

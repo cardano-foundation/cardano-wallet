@@ -23,8 +23,8 @@ import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..)
-    , CoinSelectionError (..)
     , CoinSelectionOptions (..)
+    , ErrCoinSelection (..)
     , shuffle
     )
 import Cardano.Wallet.Primitive.Types
@@ -151,10 +151,10 @@ coinSelectionUnitTest
     :: ( CoinSelectionOptions
          -> NonEmpty TxOut
          -> UTxO
-         -> ExceptT CoinSelectionError IO (CoinSelection, UTxO)
+         -> ExceptT ErrCoinSelection IO (CoinSelection, UTxO)
        )
     -> String
-    -> Either CoinSelectionError CoinSelectionResult
+    -> Either ErrCoinSelection CoinSelectionResult
     -> CoinSelectionFixture
     -> SpecWith ()
 coinSelectionUnitTest run lbl expected (CoinSelectionFixture n utxoF outsF) =

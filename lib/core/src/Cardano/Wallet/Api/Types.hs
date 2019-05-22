@@ -38,6 +38,7 @@ module Cardano.Wallet.Api.Types
     , ApiBlockData (..)
     , ApiTransaction (..)
     , AddressAmount (..)
+    , ApiErrorCode (..)
 
     -- * Polymorphic Types
     , ApiT (..)
@@ -178,6 +179,27 @@ data ApiBlockData = ApiBlockData
     , block :: !(ApiT SlotId)
     } deriving (Eq, Generic, Show)
 
+-- | Error codes returned by the API, in the form of snake_cased strings
+data ApiErrorCode
+    = NoSuchWallet
+    | WalletAlreadyExists
+    | NoRootKey
+    | WrongEncryptionPassphrase
+    | KeyNotFoundForAddress
+    | NotEnoughMoney
+    | UtxoNotEnoughFragmented
+    | TransactionIsTooBig
+    | CannotCoverFee
+    | NetworkUnreachable
+    | CreatedInvalidTransaction
+    | RejectedByCoreNode
+    | BadRequest
+    | NotFound
+    | MethodNotAllowed
+    | NotAcceptable
+    | UnsupportedMediaType
+    | UnexpectedError
+    deriving (Eq, Generic, Show)
 
 {-------------------------------------------------------------------------------
                               Polymorphic Types
@@ -361,6 +383,9 @@ instance FromJSON (ApiT TxStatus) where
     parseJSON = fmap ApiT . genericParseJSON defaultSumTypeOptions
 instance ToJSON (ApiT TxStatus) where
     toJSON = genericToJSON defaultSumTypeOptions . getApiT
+
+instance ToJSON ApiErrorCode where
+    toJSON = genericToJSON defaultSumTypeOptions
 
 -- | Options for encoding wallet delegation settings. It can be serialized to
 -- and from JSON as follows:
