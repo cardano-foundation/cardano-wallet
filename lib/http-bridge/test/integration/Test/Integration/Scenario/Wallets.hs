@@ -72,15 +72,15 @@ import Test.Integration.Framework.TestData
     , mnemonics9
     , passphraseMaxLength
     , passphraseMinLength
+    , payloadWith
     , polishWalletName
     , russianWalletName
+    , simplePayload
     , specMnemonicSecondFactor
     , specMnemonicSentence
-    , wildcardsWalletName
-    , payloadWith
-    , simplePayload
     , updateNamePayload
     , updatePassPayload
+    , wildcardsWalletName
     )
 
 import qualified Data.Text as T
