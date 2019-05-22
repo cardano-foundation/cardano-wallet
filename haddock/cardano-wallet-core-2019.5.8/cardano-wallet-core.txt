@@ -580,20 +580,20 @@ module Cardano.Wallet.Primitive.CoinSelection
 newtype CoinSelectionOptions
 CoinSelectionOptions :: Word64 -> CoinSelectionOptions
 [maximumNumberOfInputs] :: CoinSelectionOptions -> Word64
-data CoinSelectionError
+data ErrCoinSelection
 
 -- | UTxO exhausted during input selection We record the balance of the
 --   UTxO as well as the size of the payment we tried to make.
-NotEnoughMoney :: Word64 -> Word64 -> CoinSelectionError
+ErrNotEnoughMoney :: Word64 -> Word64 -> ErrCoinSelection
 
 -- | UTxO is not enough fragmented for the number of transaction outputs We
 --   record the number of UTxO entries as well as the number of the outputs
 --   of the transaction.
-UtxoNotEnoughFragmented :: Word64 -> Word64 -> CoinSelectionError
+ErrUtxoNotEnoughFragmented :: Word64 -> Word64 -> ErrCoinSelection
 
 -- | When trying to construct a transaction, the max number of allowed
 --   inputs was reached.
-MaximumInputsReached :: Word64 -> CoinSelectionError
+ErrMaximumInputsReached :: Word64 -> ErrCoinSelection
 data CoinSelection
 CoinSelection :: [(TxIn, TxOut)] -> [TxOut] -> [Coin] -> CoinSelection
 
@@ -616,8 +616,8 @@ shuffle :: [a] -> IO [a]
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.CoinSelection.CoinSelection
 instance GHC.Show.Show Cardano.Wallet.Primitive.CoinSelection.CoinSelection
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.CoinSelection.CoinSelection
-instance GHC.Classes.Eq Cardano.Wallet.Primitive.CoinSelection.CoinSelectionError
-instance GHC.Show.Show Cardano.Wallet.Primitive.CoinSelection.CoinSelectionError
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.CoinSelection.ErrCoinSelection
+instance GHC.Show.Show Cardano.Wallet.Primitive.CoinSelection.ErrCoinSelection
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.CoinSelection.CoinSelectionOptions
 instance GHC.Base.Semigroup Cardano.Wallet.Primitive.CoinSelection.CoinSelection
 instance GHC.Base.Monoid Cardano.Wallet.Primitive.CoinSelection.CoinSelection
@@ -629,7 +629,7 @@ instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.CoinSelection.C
 module Cardano.Wallet.Primitive.CoinSelection.LargestFirst
 
 -- | Largest-first input selection policy
-largestFirst :: forall m. Monad m => CoinSelectionOptions -> NonEmpty TxOut -> UTxO -> ExceptT CoinSelectionError m (CoinSelection, UTxO)
+largestFirst :: forall m. Monad m => CoinSelectionOptions -> NonEmpty TxOut -> UTxO -> ExceptT ErrCoinSelection m (CoinSelection, UTxO)
 
 
 -- | This module contains the implementation of random input selection
@@ -676,7 +676,7 @@ module Cardano.Wallet.Primitive.CoinSelection.Random
 --   that a randomly chosen UTxO entry will push the total above the upper bound
 --   we set.
 --   </pre>
-random :: forall m. MonadRandom m => CoinSelectionOptions -> NonEmpty TxOut -> UTxO -> ExceptT CoinSelectionError m (CoinSelection, UTxO)
+random :: forall m. MonadRandom m => CoinSelectionOptions -> NonEmpty TxOut -> UTxO -> ExceptT ErrCoinSelection m (CoinSelection, UTxO)
 
 
 -- | Primitives for performing address derivation for some given schemes.
@@ -926,7 +926,7 @@ TransactionLayer :: ((Address -> Maybe (Key  'AddressK XPrv, Passphrase "encrypt
 newtype ErrMkStdTx
 
 -- | We tried to sign a transaction with inputs that are unknown to us?
-KeyNotFoundForAddress :: Address -> ErrMkStdTx
+ErrKeyNotFoundForAddress :: Address -> ErrMkStdTx
 instance GHC.Show.Show Cardano.Wallet.Transaction.ErrMkStdTx
 instance GHC.Classes.Eq Cardano.Wallet.Transaction.ErrMkStdTx
 
@@ -1441,7 +1441,7 @@ newtype ErrAdjustForFee
 
 -- | UTxO exhausted during fee covering We record what amount missed to
 --   cover the fee
-CannotCoverFee :: Word64 -> ErrAdjustForFee
+ErrCannotCoverFee :: Word64 -> ErrAdjustForFee
 
 -- | Given the coin selection result from a policy run, adjust the outputs
 --   for fees, potentially returning additional inputs that we need to
@@ -1962,6 +1962,27 @@ AddressAmount :: !ApiT Address -> !Quantity "lovelace" Natural -> AddressAmount
 [$sel:address:AddressAmount] :: AddressAmount -> !ApiT Address
 [$sel:amount:AddressAmount] :: AddressAmount -> !Quantity "lovelace" Natural
 
+-- | Error codes returned by the API, in the form of snake_cased strings
+data ApiErrorCode
+NoSuchWallet :: ApiErrorCode
+WalletAlreadyExists :: ApiErrorCode
+NoRootKey :: ApiErrorCode
+WrongEncryptionPassphrase :: ApiErrorCode
+KeyNotFoundForAddress :: ApiErrorCode
+NotEnoughMoney :: ApiErrorCode
+UtxoNotEnoughFragmented :: ApiErrorCode
+TransactionIsTooBig :: ApiErrorCode
+CannotCoverFee :: ApiErrorCode
+NetworkUnreachable :: ApiErrorCode
+CreatedInvalidTransaction :: ApiErrorCode
+RejectedByCoreNode :: ApiErrorCode
+BadRequest :: ApiErrorCode
+NotFound :: ApiErrorCode
+MethodNotAllowed :: ApiErrorCode
+NotAcceptable :: ApiErrorCode
+UnsupportedMediaType :: ApiErrorCode
+UnexpectedError :: ApiErrorCode
+
 -- | Polymorphic wrapper type to put around primitive types and, 3rd party
 --   lib types to avoid defining orphan instances and/or, undesirable
 --   instances on primitive types. It helps to keep a nice separation of
@@ -2029,6 +2050,9 @@ instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiBlockData
 instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.Wallet.Api.Types.ApiT a)
 instance GHC.Show.Show a => GHC.Show.Show (Cardano.Wallet.Api.Types.ApiT a)
 instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.ApiT a)
+instance GHC.Show.Show Cardano.Wallet.Api.Types.ApiErrorCode
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.ApiErrorCode
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiErrorCode
 instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletPostData
 instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletPostData
 instance Cardano.Wallet.Primitive.AddressDerivation.FromMnemonic sizes purpose => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
@@ -2083,6 +2107,7 @@ instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Carda
 instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.TxStatus)
 instance Data.Text.Class.FromText a => Web.Internal.HttpApiData.FromHttpApiData (Cardano.Wallet.Api.Types.ApiT a)
 instance Data.Text.Class.ToText a => Web.Internal.HttpApiData.ToHttpApiData (Cardano.Wallet.Api.Types.ApiT a)
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiErrorCode
 
 module Cardano.Wallet.Api
 type Api = Addresses :<|> Wallets :<|> Transactions
@@ -2190,7 +2215,7 @@ WalletLayer :: (WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO
 -- | Errors occuring when creating an unsigned transaction
 data ErrCreateUnsignedTx
 ErrCreateUnsignedTxNoSuchWallet :: ErrNoSuchWallet -> ErrCreateUnsignedTx
-ErrCreateUnsignedTxCoinSelection :: CoinSelectionError -> ErrCreateUnsignedTx
+ErrCreateUnsignedTxCoinSelection :: ErrCoinSelection -> ErrCreateUnsignedTx
 ErrCreateUnsignedTxFee :: ErrAdjustForFee -> ErrCreateUnsignedTx
 
 -- | Can't perform given operation because there's no wallet
@@ -2221,7 +2246,7 @@ ErrWalletAlreadyExists :: WalletId -> ErrWalletAlreadyExists
 --   requires a private key, but none is attached to the wallet
 data ErrWithRootKey
 ErrWithRootKeyNoRootKey :: WalletId -> ErrWithRootKey
-ErrWithRootKeyWrongPassphrase :: ErrWrongPassphrase -> ErrWithRootKey
+ErrWithRootKeyWrongPassphrase :: WalletId -> ErrWrongPassphrase -> ErrWithRootKey
 
 -- | Indicate a failure when checking for a given <a>Passphrase</a> match
 data ErrWrongPassphrase
@@ -2231,7 +2256,7 @@ ErrWrongPassphrase :: ErrWrongPassphrase
 newtype ErrMkStdTx
 
 -- | We tried to sign a transaction with inputs that are unknown to us?
-KeyNotFoundForAddress :: Address -> ErrMkStdTx
+ErrKeyNotFoundForAddress :: Address -> ErrMkStdTx
 
 -- | Error while trying to send a transaction
 data ErrPostTx
@@ -2242,6 +2267,25 @@ ErrPostTxProtocolFailure :: Text -> ErrPostTx
 -- | Network is not reachable
 newtype ErrNetworkUnreachable
 ErrNetworkUnreachable :: Text -> ErrNetworkUnreachable
+data ErrCoinSelection
+
+-- | UTxO exhausted during input selection We record the balance of the
+--   UTxO as well as the size of the payment we tried to make.
+ErrNotEnoughMoney :: Word64 -> Word64 -> ErrCoinSelection
+
+-- | UTxO is not enough fragmented for the number of transaction outputs We
+--   record the number of UTxO entries as well as the number of the outputs
+--   of the transaction.
+ErrUtxoNotEnoughFragmented :: Word64 -> Word64 -> ErrCoinSelection
+
+-- | When trying to construct a transaction, the max number of allowed
+--   inputs was reached.
+ErrMaximumInputsReached :: Word64 -> ErrCoinSelection
+newtype ErrAdjustForFee
+
+-- | UTxO exhausted during fee covering We record what amount missed to
+--   cover the fee
+ErrCannotCoverFee :: Word64 -> ErrAdjustForFee
 
 -- | Create a new instance of the wallet layer.
 newWalletLayer :: forall s t. (IsOwned s, GenChange s, KnownAddresses s, CompareDiscovery s, NFData s, Show s, TxId t) => DBLayer IO s t -> NetworkLayer IO -> TransactionLayer -> IO (WalletLayer s t)
@@ -2262,16 +2306,44 @@ instance GHC.Classes.Eq Cardano.Wallet.ErrCreateUnsignedTx
 instance GHC.Show.Show Cardano.Wallet.ErrCreateUnsignedTx
 
 
+-- | Middleware between Wai <a>-</a> Servant to accomodate raw error
+--   responses returned by servant. See also <a>handleRawError</a>.
+module Network.Wai.Middleware.ServantError
+
+-- | Make sure every error is converted to a suitable application-level
+--   error.
+--   
+--   There are many cases where Servant will handle errors itself and reply
+--   to a client without even disturbing the application. This is both
+--   handy and clunky since our application return errors in a specific
+--   format (e.g. JSON, XML ...).
+--   
+--   This is the case for instance if the client hits a non-exiting
+--   endpoint of the API, or if the client requests an invalid
+--   content-type, etc ...
+--   
+--   Ideally, we would like clients to be able to expect one and only one
+--   format, so this middleware allows for manipulating the response
+--   returned by a Wai application (what servant boils down to) and adjust
+--   the response when necessary. So, any response with or without payload
+--   but no content-type will trigger the <tt>convert</tt> function and
+--   offer the caller to adjust the response as needed.
+handleRawError :: (ServantErr -> ServantErr) -> Middleware
+
+
 -- | API handlers and server using the underlying wallet layer to provide
 --   endpoints reachable through HTTP.
 module Cardano.Wallet.Api.Server
 
--- | A Servant server for our wallet API
-server :: (TxId t, KeyToAddress t) => WalletLayer (SeqState t) t -> Server Api
+-- | Start the application server
+start :: (TxId t, KeyToAddress t) => Settings -> WalletLayer (SeqState t) t -> IO ()
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.DB.ErrNoSuchWallet
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.DB.ErrWalletAlreadyExists
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrWithRootKey
+instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.Primitive.CoinSelection.ErrCoinSelection
+instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.Primitive.Fee.ErrAdjustForFee
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrCreateUnsignedTx
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrSignTx
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrSubmitTx
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrUpdatePassphrase
+instance Cardano.Wallet.Api.Server.LiftHandler Servant.Server.Internal.ServantErr.ServantErr
