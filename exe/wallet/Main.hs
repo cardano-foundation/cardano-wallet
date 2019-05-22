@@ -60,6 +60,8 @@ import Control.Arrow
     ( second )
 import Control.Monad
     ( when )
+import Data.Aeson
+    ( (.:) )
 import Data.FileEmbed
     ( embedFile )
 import Data.Function
@@ -67,24 +69,22 @@ import Data.Function
 import Data.Functor
     ( (<&>) )
 import qualified Data.List.NonEmpty as NE
+import Data.Maybe
+    ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), ToText (..) )
-import Data.Typeable
-    ( Typeable, tyConName, typeRep, typeRepTyCon )
 import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
-import Network.HTTP.Types.Status
-    ( status404, status409 )
 import Servant
     ( (:<|>) (..), (:>) )
 import Servant.Client
     ( BaseUrl (..), ClientM, Scheme (..), client, mkClientEnv, runClientM )
 import Servant.Client.Core
-    ( ServantError (..), responseBody, responseStatusCode )
+    ( ServantError (..), responseBody )
 import System.Console.Docopt
     ( Arguments
     , Docopt
@@ -111,7 +111,9 @@ import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
 import qualified Cardano.Wallet.Transaction.HttpBridge as HttpBridge
+import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
+import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
@@ -187,12 +189,12 @@ exec manager args
 
     | args `isPresent` command "wallet" &&
       args `isPresent` command "list" = do
-        runClient @Wallet Aeson.encodePretty listWallets
+        runClient Aeson.encodePretty listWallets
 
     | args `isPresent` command "wallet" &&
       args `isPresent` command "get" = do
         wId <- args `parseArg` argument "wallet-id"
-        runClient @Wallet Aeson.encodePretty $ getWallet $ ApiT wId
+        runClient Aeson.encodePretty $ getWallet $ ApiT wId
 
     | args `isPresent` command "wallet" &&
       args `isPresent` command "create" = do
@@ -211,7 +213,7 @@ exec manager args
                 (Nothing, _) -> Nothing
                 (Just a, t) -> Just (a, t)
         wPwd <- getPassphraseWithConfirm
-        runClient @Wallet Aeson.encodePretty $ postWallet $ WalletPostData
+        runClient Aeson.encodePretty $ postWallet $ WalletPostData
             (Just $ ApiT wGap)
             (ApiMnemonicT . second T.words $ wSeed)
             (ApiMnemonicT . second T.words <$> wSndFactor)
@@ -222,20 +224,20 @@ exec manager args
       args `isPresent` command "update" = do
         wId <- args `parseArg` argument "wallet-id"
         wName <- args `parseArg` longOption "name"
-        runClient @Wallet Aeson.encodePretty $ putWallet (ApiT wId) $ WalletPutData
+        runClient Aeson.encodePretty $ putWallet (ApiT wId) $ WalletPutData
             (Just $ ApiT wName)
 
     | args `isPresent` command "wallet" &&
       args `isPresent` command "delete" = do
         wId <- args `parseArg` argument "wallet-id"
-        runClient @Wallet (const "") $ deleteWallet (ApiT wId)
+        runClient (const "") $ deleteWallet (ApiT wId)
 
     | args `isPresent` command "transaction" &&
       args `isPresent` command "create" = do
         wId <- args `parseArg` argument "wallet-id"
         ts <- args `parseAllArgs` longOption "payment"
         wPwd <- getPassphrase
-        runClient @Wallet Aeson.encodePretty $ createTransaction (ApiT wId) $
+        runClient Aeson.encodePretty $ createTransaction (ApiT wId) $
             PostTransactionData
                 ts
                 (ApiT wPwd)
@@ -243,7 +245,7 @@ exec manager args
     | args `isPresent` command "address" &&
       args `isPresent` command "list" = do
         wId <- args `parseArg` argument "wallet-id"
-        runClient @Wallet Aeson.encodePretty $ listAddresses (ApiT wId) Nothing
+        runClient Aeson.encodePretty $ listAddresses (ApiT wId) Nothing
 
     | args `isPresent` longOption "version" = do
         let cabal = B8.unpack $(embedFile "cardano-wallet.cabal")
@@ -301,7 +303,7 @@ exec manager args
     -- runClient @Wallet ...
     -- @
     runClient
-        :: forall b a. Typeable b
+        :: forall a. ()
         => (a -> BL.ByteString)
         -> ClientM a
         -> IO ()
@@ -310,24 +312,19 @@ exec manager args
         let env = mkClientEnv manager (BaseUrl Http "localhost" port "")
         res <- runClientM cmd env
         case res of
-            Left (FailureResponse r) | responseStatusCode r == status404 -> do
-                let typ = T.pack $ tyConName $ typeRepTyCon $ typeRep $ Proxy @b
-                putErrLn $ typ <> " not found."
-            Left (FailureResponse r) | responseStatusCode r == status409 -> do
-                let typ = T.pack $ tyConName $ typeRepTyCon $ typeRep $ Proxy @b
-                putErrLn $ typ <> " already exists."
-            Left (FailureResponse r) ->
-                putErrLn $ T.decodeUtf8 $ BL.toStrict $ responseBody r
-            Left (ConnectionError t) ->
-                putErrLn t
-            Left e ->
-                putErrLn $ T.pack $ show e
             Right a -> do
                 TIO.hPutStrLn stderr "Ok."
                 BL8.putStrLn (encode a)
-
--- | Namespaces for commands.
-data Wallet deriving (Typeable)
+            Left e -> do
+                let msg = case e of
+                        FailureResponse r -> fromMaybe
+                            (T.decodeUtf8 $ BL.toStrict $ responseBody r)
+                            (decodeError $ responseBody r)
+                        ConnectionError t ->
+                            t
+                        _ ->
+                            T.pack $ show e
+                putErrLn msg
 
 -- | Start a web-server to serve the wallet backend API on the given port.
 execServer :: Port "wallet" -> Port "bridge" -> IO ()
@@ -374,3 +371,11 @@ optional
 optional parse = \case
     m | m == mempty -> Right Nothing
     m  -> Just <$> parse m
+
+-- | Decode API error messages and extract the corresponding message.
+decodeError
+    :: BL.ByteString
+    -> Maybe Text
+decodeError bytes = do
+    obj <- Aeson.decode bytes
+    Aeson.parseMaybe (Aeson.withObject "Error" (.: "message")) obj
