@@ -50,12 +50,12 @@ See [Wiki - Testing](https://github.com/input-output-hk/cardano-wallet/wiki/Test
 
 ## Documentation
 
-| Link                                                                               | Audience                                                     |
-| ---                                                                                | ---                                                          |
-| [API Documentation](https://input-output-hk.github.io/cardano-wallet/api/)         | Users of the Cardano Wallet API                              |
-| [Haddock Documentation](https://input-output-hk.github.io/cardano-wallet/haddock/) | Haskell Developers using the `cardano-wallet` as a library   |
-| [Wiki](https://github.com/input-output-hk/cardano-wallet/wiki)                     | Anyone interested in the project and our development process |
-| [CLI Manual](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface)         | Users of the Cardano Wallet API |
+| Link                                                                                               | Audience                                                     |
+| ---                                                                                                | ---                                                          |
+| [API Documentation](https://input-output-hk.github.io/cardano-wallet/api/edge)                     | Users of the Cardano Wallet API                              |
+| [Haddock Documentation](https://input-output-hk.github.io/cardano-wallet/haddock/edge)             | Haskell Developers using the `cardano-wallet` as a library   |
+| [Wiki](https://github.com/input-output-hk/cardano-wallet/wiki)                                     | Anyone interested in the project and our development process |
+| [CLI Manual](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface) | Users of the Cardano Wallet API                              |
 
 <hr/>
 
