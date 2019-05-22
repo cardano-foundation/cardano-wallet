@@ -428,7 +428,7 @@ status =
 --
 
 -- | Simply create a wallet and get id
-createWallet :: Context -> Text -> [Text] -> IO Text
+createWallet :: Context -> Text -> [Text] -> IO ApiWallet
 createWallet ctx name mnemonics = do
    let payload = Json [aesonQQ| {
            "name": #{name},
@@ -437,7 +437,7 @@ createWallet ctx name mnemonics = do
            } |]
    r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
    expectResponseCode @IO HTTP.status202 r
-   return (getFromResponse walletId r)
+   return (getFromResponse id r)
 
 -- | Restore a faucet and wait until funds are available.
 fixtureWallet

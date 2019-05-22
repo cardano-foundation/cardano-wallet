@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Test.Integration.Scenario.CLISpec
@@ -13,6 +12,8 @@ import Cardano.Wallet.Api.Types
     ( ApiAddress, ApiWallet )
 import Control.Monad
     ( forM_ )
+import Data.Generics.Internal.VL.Lens
+    ( view )
 import Data.List
     ( length )
 import Data.Proxy
@@ -40,6 +41,7 @@ import Test.Integration.Framework.DSL
     , listAddressesViaCLI
     , listWalletsViaCLI
     , updateWalletViaCLI
+    , walletId
     )
 import Test.Integration.Framework.TestData
     ( falseWalletIds, mnemonics15, mnemonics18 )
@@ -217,5 +219,5 @@ specWithCluster = do
   where
     createWalletViaApi :: Context -> Text -> [Text] -> IO String
     createWalletViaApi ctx name mnemonics = do
-        wid <- createWallet ctx name mnemonics
-        return $ T.unpack $ wid
+        wid <- view walletId <$> createWallet ctx name mnemonics
+        return $ T.unpack wid
