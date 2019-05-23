@@ -1,4 +1,4 @@
-# Cardano Wallet CLI.
+# Cardano Wallet CLI
 
 The CLI is a proxy to the wallet server, which is required for most commands. Commands are turned into corresponding API calls, and submitted to an up-and-running server. Some commands do not require an active server and can be run "offline". (e.g. 'generate mnemonic')
 
