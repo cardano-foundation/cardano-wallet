@@ -1,18 +1,25 @@
-Wallet command line interface (CLI) is a small executable which makes sending requests to wallet backend and node an easy task to do. Over the time CLI will support the whole API https://input-output-hk.github.io/cardano-wallet/api/ . For now, these commands are supported:
- 
-* [server](#server)
-* mnemonic 
-    * [generate](#mnemonic-generate)
-* wallet 
-    * [create](#wallet-create)
-    * [read](#wallet-read)
-    * [update](#wallet-update)
-    * [delete](#wallet-delete)
-    * [list](#wallet-list)
-* transaction 
-    * [create](#transaction-create)
+# Cardano Wallet CLI.
 
-In the next section we will give examples of these commands.
+The CLI is a proxy to the wallet server, which is required for most commands. Commands are turned into corresponding API calls, and submitted to an up-and-running server. Some commands do not require an active server and can be run "offline". (e.g. 'generate mnemonic')
+
+> :warning: Options are positional (--a --b is not equivalent to --b --a) ! :warning:
+
+<pre>
+Usage:
+  cardano-wallet <a href="#server">server</a> [--port=INT] [--bridge-port=INT]
+  cardano-wallet <a href="#mnemonic-generate">mnemonic generate</a> [--size=INT]
+  cardano-wallet <a href="#wallet-list">wallet list</a> [--port=INT]
+  cardano-wallet <a href="#wallet-create">wallet create</a> [--port=INT] <name> [--address-pool-gap=INT]
+  cardano-wallet <a href="#wallet-get">wallet get</a> [--port=INT] <wallet-id>
+  cardano-wallet <a href="#wallet-update">wallet update</a> [--port=INT] <wallet-id> --name=STRING
+  cardano-wallet <a href="#wallet-delete">wallet delete</a> [--port=INT] <wallet-id>
+  cardano-wallet <a href="#transaction-create">transaction create</a> [--port=INT] <wallet-id> --payment=PAYMENT...
+  cardano-wallet <a href="#address-list">address list</a> [--port=INT] <wallet-id>
+  cardano-wallet -h | --help
+  cardano-wallet --version
+</pre> 
+
+> :information_source: The CLI commands for `wallet`, `transaction` and `address` only output valid JSON on `stdout`. So you may redirect the output to a file with `>` or pipe it into utility softwares like `jq`!
 
 # Commands
 
@@ -45,6 +52,14 @@ These words will be used to create a wallet later. You may also ask for a specif
 
 ```
 $ cardano-wallet mnemonic generate --size 21
+```
+
+## wallet list
+
+Lists all your wallets:
+
+```
+$ cardano-wallet wallet list
 ```
 
 ## wallet create
@@ -86,22 +101,22 @@ Deletes wallet with specified wallet id:
 $ cardano-wallet wallet delete 2512a00e9653fe49a44a5886202e24d77eeb998f
 ```
 
-## wallet list
-
-Lists all your wallets:
-
-```
-$ cardano-wallet wallet list
-```
-
 ## transaction create
 
 Creates and submits a new transaction:
 
 ```
-cardano-wallet transaction create 2512a00e9653fe49a44a5886202e24d77eeb998f \
+$ cardano-wallet transaction create 2512a00e9653fe49a44a5886202e24d77eeb998f \
     --payment 22@Ae2tdPwUPEZ...nRtbfw6EHRv1D \
     --payment 5@Ae2tdPwUPEZ7...pVwEPhKwseVvf
 ```
 
-This creates a transaction that sends 22 lovelace to `Ae2tdPwUPEZ...nRtbfw6EHRv1D` and 5 lovelace to `Ae2tdPwUPEZ7...pVwEPhKwseVvf` from wallet 2512a00e9653fe49a44a5886202e24d77eeb998f .
+This creates a transaction that sends 22 lovelace to `Ae2tdPwUPEZ...nRtbfw6EHRv1D` and 5 lovelace to `Ae2tdPwUPEZ7...pVwEPhKwseVvf` from wallet with id 2512a00e9653fe49a44a5886202e24d77eeb998f.
+
+## address list
+
+List all known (used or not) addresses and their corresponding status.
+
+```
+$ cardano-wallet list addresses 2512a00e9653fe49a44a5886202e24d77eeb998f
+```
