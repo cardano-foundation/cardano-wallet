@@ -75,6 +75,7 @@ module Test.Integration.Framework.DSL
     , listAddressesViaCLI
     , listWalletsViaCLI
     , updateWalletViaCLI
+    , postTransactionViaCLI
     ) where
 
 import Prelude hiding
@@ -174,6 +175,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 import qualified Network.HTTP.Types.Status as HTTP
 
 
@@ -633,8 +635,11 @@ generateMnemonicsViaCLI args = cardanoWalletCLI
 
 createWalletViaCLI :: [String] -> String -> String -> String -> IO ExitCode
 createWalletViaCLI args mnemonics secondFactor passphrase = do
-    let fullArgs = ["wallet", "create", "--port", "1337"] ++ args
-    let process = (proc "cardano-wallet" fullArgs)
+    let fullArgs =
+            [ "exec", "--", "cardano-wallet"
+            , "wallet", "create", "--port", "1337"
+            ] ++ args
+    let process = (proc "stack" fullArgs)
             { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
     withCreateProcess process $ \(Just stdin) _ _ h -> do
         hPutStr stdin mnemonics
@@ -664,3 +669,20 @@ listWalletsViaCLI = cardanoWalletCLI
 updateWalletViaCLI :: CmdResult r => [String] -> IO r
 updateWalletViaCLI args = cardanoWalletCLI
     (["wallet", "update", "--port", "1337"] ++ args)
+
+postTransactionViaCLI :: String -> [String] ->  IO (ExitCode, String, Text)
+postTransactionViaCLI passphrase args = do
+    let fullArgs =
+            [ "exec", "--", "cardano-wallet"
+            , "transaction", "create", "--port", "1337"
+            ] ++ args
+    let process = (proc "stack" fullArgs)
+            { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
+    withCreateProcess process $ \(Just stdin) (Just stdout) (Just stderr) h -> do
+        hPutStr stdin (passphrase ++ "\n")
+        hFlush stdin
+        hClose stdin
+        c <- waitForProcess h
+        out <- TIO.hGetContents stdout
+        err <- TIO.hGetContents stderr
+        return (c, T.unpack out, err)

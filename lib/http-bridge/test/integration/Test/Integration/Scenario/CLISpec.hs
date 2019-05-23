@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Test.Integration.Scenario.CLISpec
@@ -9,19 +10,21 @@ module Test.Integration.Scenario.CLISpec
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress, ApiWallet )
+    ( ApiAddress, ApiTransaction, ApiWallet, getApiT )
 import Control.Monad
     ( forM_ )
 import Data.Functor
     ( ($>) )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view, (^.) )
 import Data.List
     ( length )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( toText )
 import System.Command
     ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit
@@ -32,16 +35,21 @@ import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain, shouldNotContain )
 import Test.Integration.Framework.DSL
     ( Context (..)
+    , Payload (..)
     , cardanoWalletCLI
     , cardanoWalletLauncherCLI
     , createWalletViaCLI
     , deleteWalletViaCLI
     , emptyWallet
     , expectValidJSON
+    , fixtureWallet
     , generateMnemonicsViaCLI
+    , getAddresses
     , getWalletViaCLI
     , listAddressesViaCLI
     , listWalletsViaCLI
+    , postTransactionViaCLI
+    , unsafeRequest
     , updateWalletViaCLI
     , walletId
     )
@@ -215,6 +223,19 @@ specWithCluster = do
         (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI walId
         err `shouldBe` "Ok.\n"
         expectValidJSON (Proxy @[ApiAddress]) out
+        c `shouldBe` ExitSuccess
+
+    it "CLI - Can create transaction" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        wDest <- emptyWallet ctx
+        (_, addr:_) <- unsafeRequest @[ApiAddress] ctx (getAddresses wDest) Empty
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", "14@" <> toText (getApiT $ addr ^. #id)
+                ]
+        (c, out, err) <- postTransactionViaCLI "cardano-wallet" args
+        err `shouldBe` "Please enter a passphrase: **************\nOk.\n"
+        expectValidJSON (Proxy @ApiTransaction) out
         c `shouldBe` ExitSuccess
   where
     emptyWallet' :: Context -> IO String
