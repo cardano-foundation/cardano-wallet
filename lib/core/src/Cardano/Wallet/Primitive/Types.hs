@@ -45,6 +45,10 @@ module Cardano.Wallet.Primitive.Types
     -- * Address
     , Address (..)
     , AddressState (..)
+    , EncodeAddress (..)
+    , DecodeAddress (..)
+    , toBase58
+    , fromBase58
 
     -- * Coin
     , Coin (..)
@@ -98,6 +102,8 @@ import Crypto.Number.Generate
     ( generateBetween )
 import Crypto.Random.Types
     ( MonadRandom )
+import Data.Bifunctor
+    ( bimap )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
@@ -106,6 +112,8 @@ import Data.ByteString.Base58
     ( bitcoinAlphabet, decodeBase58, encodeBase58 )
 import Data.Map.Strict
     ( Map )
+import Data.Proxy
+    ( Proxy )
 import Data.Quantity
     ( Percentage, Quantity (..) )
 import Data.Set
@@ -491,17 +499,45 @@ instance NFData Address
 instance Buildable Address where
     build = build . toText
 
-instance FromText Address where
-    fromText x = maybe
-        (Left $ TextDecodingError err)
-        (pure . Address)
-        (decodeBase58 bitcoinAlphabet $ T.encodeUtf8 x)
-      where
-        err = "Unable to decode Address: expected Base58 encoding"
-
 instance ToText Address where
-    toText = T.decodeUtf8 . encodeBase58 bitcoinAlphabet . getAddress
+    toText = T.decodeUtf8
+        . convertToBase Base16
+        . getAddress
 
+instance FromText Address where
+    fromText = bimap textDecodingError Address
+        . convertFromBase Base16
+        . T.encodeUtf8
+      where
+        textDecodingError = TextDecodingError . show
+
+-- | An abstract class to allow encoding of addresses depending on the target
+-- backend used.
+class EncodeAddress t where
+    encodeAddress :: Proxy t -> Address -> Text
+
+-- | An abstract class to allow decoding of addresses depending on the target
+-- backend used.
+class DecodeAddress t where
+    decodeAddress :: Proxy t -> Text -> Either TextDecodingError Address
+
+-- | Encode an address to [Base58](https://en.wikipedia.org/wiki/Base58)
+--
+-- >>> toBase58 <TODO>
+toBase58 :: Address -> Text
+toBase58 = T.decodeUtf8 . encodeBase58 bitcoinAlphabet . getAddress
+
+-- | Decode a [Base58](https://en.wikipedia.org/wiki/Base58) text string to an
+-- 'Address'
+--
+-- >>> fromBase58 <TODO>
+fromBase58 :: Text -> Either TextDecodingError Address
+fromBase58 x = maybe
+    (Left $ TextDecodingError err)
+    (pure . Address)
+    (decodeBase58 bitcoinAlphabet $ T.encodeUtf8 x)
+  where
+      err = "Unable to decode Address: expected Base58 encoding"
 
 -- | Denotes if an address has been previously used or not... whether that be
 -- in the output of a transaction on the blockchain or one in our pending set.
@@ -708,7 +744,6 @@ instance FromText (Hash "Tx") where
       where
         err = "Unable to decode (Hash \"Tx\"): \
                     \expected Base16 encoding"
-
 
 instance ToText (Hash "Tx") where
     toText = T.decodeUtf8 . convertToBase Base16 . getHash
