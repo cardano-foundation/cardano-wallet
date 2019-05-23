@@ -77,6 +77,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
     ()
+import Data.Maybe
+    ( isJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -354,7 +356,7 @@ instance LiftHandler ErrCoinSelection where
                 [ "I can't process this payment because there's not enough "
                 , "UTxO available in the wallet. The total UTxO sums up to "
                 , showT utxo, " Lovelace, but I need ", showT payment
-                , " Lovelace (inclusive of fee amount) in order to proceed "
+                , " Lovelace (excluding fee amount) in order to proceed "
                 , " with the payment."
                 ]
 
@@ -447,7 +449,8 @@ instance LiftHandler ErrUpdatePassphrase where
         ErrUpdatePassphraseWithRootKey e  -> handler e
 
 instance LiftHandler ServantErr where
-    handler err@(ServantErr code _ body headers) = case code of
+    handler err@(ServantErr code _ body headers)
+      | not (isJSON body) = case code of
         400 -> apiError err' BadRequest (utf8 body)
         404 -> apiError err' NotFound $ mconcat
             [ "I couldn't find the requested endpoint. If the endpoint "
@@ -478,8 +481,10 @@ instance LiftHandler ServantErr where
             , "don't yet know how to handle this type of situation. Here's "
             , "some information about what happened: ", utf8 body
             ]
+      | otherwise = err
       where
         utf8 = T.replace "\"" "'" . T.decodeUtf8 . BL.toStrict
+        isJSON = isJust . Aeson.decode @Aeson.Value
         err' = err
             { errHeaders =
                 ( hContentType
