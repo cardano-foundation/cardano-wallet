@@ -62,6 +62,8 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Types
     ( AddressState
     , Coin (..)
+    , DecodeAddress (..)
+    , EncodeAddress (..)
     , TxId (..)
     , TxOut (..)
     , WalletId (..)
@@ -124,7 +126,7 @@ import qualified Network.Wai.Handler.Warp as Warp
 
 -- | Start the application server
 start
-    :: (TxId t, KeyToAddress t)
+    :: forall t. (TxId t, KeyToAddress t, EncodeAddress t, DecodeAddress t)
     => Warp.Settings
     -> WalletLayer (SeqState t) t
     -> IO ()
@@ -133,11 +135,11 @@ start settings wl = Warp.runSettings settings
     application
   where
     -- | A Servant server for our wallet API
-    server :: Server Api
+    server :: Server (Api t)
     server = addresses wl :<|> wallets wl :<|> transactions wl
 
     application :: Application
-    application = serve (Proxy @("v2" :> Api)) server
+    application = serve (Proxy @("v2" :> Api t)) server
 
 {-------------------------------------------------------------------------------
                                     Wallets
@@ -240,33 +242,34 @@ putWalletPassphrase w (ApiT wid) body = do
                                     Addresses
 -------------------------------------------------------------------------------}
 
-addresses :: WalletLayer (SeqState t) t -> Server Addresses
+addresses :: WalletLayer (SeqState t) t -> Server (Addresses t)
 addresses = listAddresses
 
 listAddresses
-    :: WalletLayer (SeqState t) t
+    :: forall t. ()
+    => WalletLayer (SeqState t) t
     -> ApiT WalletId
     -> Maybe (ApiT AddressState)
-    -> Handler [ApiAddress]
+    -> Handler [ApiAddress t]
 listAddresses w (ApiT wid) _ = do
     addrs <- liftHandler $ W.listAddresses w wid
     return $ coerceAddress <$> addrs
   where
-    coerceAddress (a, s) = ApiAddress (ApiT a) (ApiT s)
+    coerceAddress (a, s) = ApiAddress (ApiT a, Proxy @t) (ApiT s)
 
 {-------------------------------------------------------------------------------
                                     Transactions
 -------------------------------------------------------------------------------}
 
-transactions :: TxId t => WalletLayer (SeqState t) t -> Server Transactions
+transactions :: TxId t => WalletLayer (SeqState t) t -> Server (Transactions t)
 transactions = createTransaction
 
 createTransaction
     :: forall t. (TxId t)
     => WalletLayer (SeqState t) t
     -> ApiT WalletId
-    -> PostTransactionData
-    -> Handler ApiTransaction
+    -> PostTransactionData t
+    -> Handler (ApiTransaction t)
 createTransaction w (ApiT wid) body = do
     -- FIXME Compute the options based on the transaction's size / inputs
     let opts = CoinSelectionOptions { maximumNumberOfInputs = 10 }
@@ -286,12 +289,12 @@ createTransaction w (ApiT wid) body = do
         , status = ApiT (meta ^. #status)
         }
   where
-    coerceCoin :: AddressAmount -> TxOut
-    coerceCoin (AddressAmount (ApiT addr) (Quantity c)) =
+    coerceCoin :: AddressAmount t -> TxOut
+    coerceCoin (AddressAmount (ApiT addr, _) (Quantity c)) =
         TxOut addr (Coin $ fromIntegral c)
-    coerceTxOut :: TxOut -> AddressAmount
+    coerceTxOut :: TxOut -> AddressAmount t
     coerceTxOut (TxOut addr (Coin c)) =
-        AddressAmount (ApiT addr) (Quantity $ fromIntegral c)
+        AddressAmount (ApiT addr, Proxy @t) (Quantity $ fromIntegral c)
 
 {-------------------------------------------------------------------------------
                                 Error Handling
