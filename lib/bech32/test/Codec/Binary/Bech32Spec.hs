@@ -82,9 +82,10 @@ spec = do
                 let expectedChecksum = Right $ B8.map toLower checksum
                 checksumEncoded `shouldBe` expectedChecksum
 
-    describe "Invalid Checksums" $ forM_ invalidChecksums $ \(checksum, expect) ->
-        it (B8.unpack checksum) $
-            Bech32.decode checksum `shouldBe` (Left expect)
+    describe "Invalid Checksums" $ forM_ invalidChecksums $
+        \(checksum, expect) ->
+            it (B8.unpack checksum) $
+                Bech32.decode checksum `shouldBe` (Left expect)
 
     describe "More Encoding/Decoding Cases" $ do
         it "length > maximum" $ do
