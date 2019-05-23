@@ -40,7 +40,7 @@ module Codec.Binary.Bech32.Internal
       -- * Human-Readable Part
     , HumanReadablePart
     , HumanReadablePartError (..)
-    , mkHumanReadablePart
+    , humanReadablePartFromBytes
     , humanReadablePartToBytes
     , humanReadableCharsetMinBound
     , humanReadableCharsetMaxBound
@@ -179,9 +179,9 @@ newtype HumanReadablePart = HumanReadablePart ByteString
 
 -- | Parses the human-readable part of a Bech32 string, as defined here:
 --   https://git.io/fj8FS
-mkHumanReadablePart
+humanReadablePartFromBytes
     :: ByteString -> Either HumanReadablePartError HumanReadablePart
-mkHumanReadablePart hrp
+humanReadablePartFromBytes hrp
     | BS.length hrp < humanReadablePartMinLength =
         Left HumanReadablePartTooShort
     | BS.length hrp > humanReadablePartMaxLength =
@@ -258,7 +258,7 @@ decode bech32 = do
     (hrpUnparsed, dcpUnparsed) <-
         maybeToEither StringToDecodeMissingSeparatorChar $
             splitAtLastOccurrence separatorChar $ B8.map toLower bech32
-    hrp <- first humanReadablePartError $ mkHumanReadablePart hrpUnparsed
+    hrp <- first humanReadablePartError $ humanReadablePartFromBytes hrpUnparsed
     dcp <- first
         (StringToDecodeContainsInvalidChars . fmap
             (\(CharPosition p) ->

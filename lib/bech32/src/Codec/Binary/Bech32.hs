@@ -23,7 +23,7 @@ module Codec.Binary.Bech32
 
       -- * Human-Readable Part
     , HumanReadablePart
-    , mkHumanReadablePart
+    , humanReadablePartFromBytes
     , humanReadablePartToBytes
 
     ) where

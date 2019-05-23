@@ -14,8 +14,8 @@ import Codec.Binary.Bech32.Internal
     , DataPart (..)
     , DecodingError (..)
     , HumanReadablePart
+    , humanReadablePartFromBytes
     , humanReadablePartToBytes
-    , mkHumanReadablePart
     )
 import Control.Monad
     ( forM_, replicateM )
@@ -90,7 +90,7 @@ spec = do
         it "length > maximum" $ do
             let hrpUnpacked = "ca"
             let hrpLength = length hrpUnpacked
-            let (Right hrp) = mkHumanReadablePart (B8.pack hrpUnpacked)
+            let (Right hrp) = humanReadablePartFromBytes (B8.pack hrpUnpacked)
             let maxDataLength =
                     Bech32.encodedStringMaxLength
                     - Bech32.checksumLength - Bech32.separatorLength - hrpLength
@@ -100,7 +100,7 @@ spec = do
                 `shouldBe` Left Bech32.EncodedStringTooLong
 
         it "hrp lowercased" $ do
-            let (Right hrp) = mkHumanReadablePart (B8.pack "HRP")
+            let (Right hrp) = humanReadablePartFromBytes (B8.pack "HRP")
             Bech32.encode hrp mempty
                 `shouldBe` Right (B8.pack "hrp1g9xj8m")
 
@@ -282,7 +282,7 @@ spec = do
                     (outputWordsSuffix `shouldSatisfy` all (== 0))
 
     describe "Pointless test to trigger coverage on derived instances" $ do
-        it (show $ mkHumanReadablePart $ B8.pack "ca") True
+        it (show $ humanReadablePartFromBytes $ B8.pack "ca") True
 
 -- Taken from the BIP 0173 specification: https://git.io/fjBIN
 validBech32Strings :: [ByteString]
@@ -395,14 +395,15 @@ instance Arbitrary DataPart where
 
 instance Arbitrary HumanReadablePart where
     shrink hrp = catMaybes $ eitherToMaybe .
-        mkHumanReadablePart <$> shrink (humanReadablePartToBytes hrp)
+        humanReadablePartFromBytes <$> shrink (humanReadablePartToBytes hrp)
     arbitrary = do
         let range =
                 ( Bech32.humanReadableCharsetMinBound
                 , Bech32.humanReadableCharsetMaxBound )
         bytes <-
             choose (1, 10) >>= \n -> vectorOf n (choose range)
-        let (Right hrp) = mkHumanReadablePart (B8.map toLower $ BS.pack bytes)
+        let (Right hrp) = humanReadablePartFromBytes $
+                B8.map toLower $ BS.pack bytes
         return hrp
 
 instance Arbitrary ByteString where
