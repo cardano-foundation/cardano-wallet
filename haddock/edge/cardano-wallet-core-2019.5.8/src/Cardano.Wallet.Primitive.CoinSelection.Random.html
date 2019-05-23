@@ -64,9 +64,9 @@
 </span><a name="line-64"></a><span class="hs-comment">-- | Random-Improve Algorithm</span><span>
 </span><a name="line-65"></a><span class="hs-comment">--</span><span>
 </span><a name="line-66"></a><span class="hs-comment">-- 1. Randomly select outputs from the UTxO until the payment value is covered.</span><span>
-</span><a name="line-67"></a><span class="hs-comment">--    (In the rare case that this fails because the maximum number of transaction</span><span>
-</span><a name="line-68"></a><span class="hs-comment">--    inputs has been exceeded, fall-back on the largest-first algorithm for this</span><span>
-</span><a name="line-69"></a><span class="hs-comment">--    step.)</span><span>
+</span><a name="line-67"></a><span class="hs-comment">--    (In the rare case that this fails because the maximum number of</span><span>
+</span><a name="line-68"></a><span class="hs-comment">--    transaction inputs has been exceeded, fall back on the largest-first</span><span>
+</span><a name="line-69"></a><span class="hs-comment">--    algorithm for this step.)</span><span>
 </span><a name="line-70"></a><span class="hs-comment">--</span><span>
 </span><a name="line-71"></a><span class="hs-comment">-- 2. Randomly select outputs from the UTxO, considering for each output if that</span><span>
 </span><a name="line-72"></a><span class="hs-comment">--    output is animprovement. If it is, add it to the transaction, and keep</span><span>
