@@ -1,0 +1,17 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><a name="line-2"></a><span>
+</span><a name="line-3"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Aeson.Compat</span><span>
+</span><a name="line-4"></a><span>  </span><span class="hs-special">(</span><span>
+</span><a name="line-5"></a><span>    </span><a href="Data.Aeson.Compat.html#fromStrict"><span class="hs-identifier hs-var">fromStrict</span></a><span>
+</span><a name="line-6"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-7"></a><span>
+</span><a name="line-8"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.ByteString</span><span>      </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">S</span><span>
+</span><a name="line-9"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.ByteString.Lazy</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">L</span><span>
+</span><a name="line-10"></a><span>
+</span><a name="line-11"></a><span class="hs-identifier">fromStrict</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">S.ByteString</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">L.ByteString</span><span>
+</span><a name="line-12"></a><span class="hs-cpp">#if MIN_VERSION_bytestring(0, 9, 2)
+</span><a name="fromStrict"><a href="Data.Aeson.Compat.html#fromStrict"><span class="hs-identifier">fromStrict</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">L.fromChunks</span><span> </span><span class="hs-operator hs-var">.</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">:</span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><a name="line-14"></a><span class="hs-cpp">#else
+</span><span class="hs-identifier">fromStrict</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">L.fromStrict</span><span>
+</span><a name="line-16"></a><span class="hs-cpp">#endif
+</span></pre></body></html>

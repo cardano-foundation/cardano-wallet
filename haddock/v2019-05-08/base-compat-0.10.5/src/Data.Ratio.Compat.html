@@ -1,0 +1,33 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP, NoImplicitPrelude #-}</span><span>
+</span><a name="line-2"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Ratio.Compat</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-3"></a><span>  </span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Base</span><span>
+</span><a name="line-4"></a><span class="hs-cpp">#if MIN_VERSION_base(4,4,0) &amp;&amp; !(MIN_VERSION_base(4,9,0))
+</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">denominator</span><span>
+</span><a name="line-6"></a><span class="hs-special">,</span><span> </span><span class="hs-identifier">numerator</span><span>
+</span><a name="line-7"></a><span class="hs-cpp">#endif
+</span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-9"></a><span>
+</span><a name="line-10"></a><span class="hs-cpp">#if !(MIN_VERSION_base(4,4,0)) || MIN_VERSION_base(4,9,0)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Ratio</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">Base</span><span>
+</span><a name="line-12"></a><span class="hs-cpp">#else
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Ratio</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">Base</span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-14"></a><span>    </span><span class="hs-identifier">denominator</span><span>
+</span><a name="line-15"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">numerator</span><span>
+</span><a name="line-16"></a><span>  </span><span class="hs-special">)</span><span>
+</span><a name="line-17"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.Real</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Ratio</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-18"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-20"></a><span class="hs-cpp">#if MIN_VERSION_base(4,4,0) &amp;&amp; !(MIN_VERSION_base(4,9,0))
+</span><span class="hs-comment">-- | Extract the numerator of the ratio in reduced form:</span><span>
+</span><a name="line-22"></a><span class="hs-comment">-- the numerator and denominator have no common factor and the denominator</span><span>
+</span><a name="line-23"></a><span class="hs-comment">-- is positive.</span><span>
+</span><a name="line-24"></a><span class="hs-identifier">numerator</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">Ratio</span><span> </span><span class="hs-identifier">a</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">a</span><span>
+</span><a name="line-25"></a><span class="hs-identifier">numerator</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">x</span><span> </span><span class="hs-operator">:%</span><span> </span><span class="hs-identifier">_</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">x</span><span>
+</span><a name="line-26"></a><span>
+</span><a name="line-27"></a><span class="hs-comment">-- | Extract the denominator of the ratio in reduced form:</span><span>
+</span><a name="line-28"></a><span class="hs-comment">-- the numerator and denominator have no common factor and the denominator</span><span>
+</span><a name="line-29"></a><span class="hs-comment">-- is positive.</span><span>
+</span><a name="line-30"></a><span class="hs-identifier">denominator</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">Ratio</span><span> </span><span class="hs-identifier">a</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">a</span><span>
+</span><a name="line-31"></a><span class="hs-identifier">denominator</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">_</span><span> </span><span class="hs-operator">:%</span><span> </span><span class="hs-identifier">y</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>  </span><span class="hs-identifier">y</span><span>
+</span><a name="line-32"></a><span class="hs-cpp">#endif
+</span></pre></body></html>

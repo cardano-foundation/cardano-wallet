@@ -1,0 +1,80 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE AllowAmbiguousTypes    #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE FlexibleInstances      #-}</span><span>
+</span><a name="line-3"></a><span class="hs-pragma">{-# LANGUAGE FunctionalDependencies #-}</span><span>
+</span><a name="line-4"></a><span class="hs-pragma">{-# LANGUAGE MonoLocalBinds         #-}</span><span>
+</span><a name="line-5"></a><span class="hs-pragma">{-# LANGUAGE MultiParamTypeClasses  #-}</span><span>
+</span><a name="line-6"></a><span class="hs-pragma">{-# LANGUAGE PolyKinds              #-}</span><span>
+</span><a name="line-7"></a><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables    #-}</span><span>
+</span><a name="line-8"></a><span class="hs-pragma">{-# LANGUAGE TypeApplications       #-}</span><span>
+</span><a name="line-9"></a><span class="hs-pragma">{-# LANGUAGE TypeFamilies           #-}</span><span>
+</span><a name="line-10"></a><span class="hs-pragma">{-# LANGUAGE UndecidableInstances   #-}</span><span>
+</span><a name="line-11"></a><span>
+</span><a name="line-12"></a><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><a name="line-13"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-14"></a><span class="hs-comment">-- Module      :  Data.Generics.Product.Any</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- Copyright   :  (C) 2018 Csongor Kiss</span><span>
+</span><a name="line-16"></a><span class="hs-comment">-- License     :  BSD3</span><span>
+</span><a name="line-17"></a><span class="hs-comment">-- Maintainer  :  Csongor Kiss &lt;kiss.csongor.kiss@gmail.com&gt;</span><span>
+</span><a name="line-18"></a><span class="hs-comment">-- Stability   :  experimental</span><span>
+</span><a name="line-19"></a><span class="hs-comment">-- Portability :  non-portable</span><span>
+</span><a name="line-20"></a><span class="hs-comment">--</span><span>
+</span><a name="line-21"></a><span class="hs-comment">-- Derive a variety of lenses generically.</span><span>
+</span><a name="line-22"></a><span class="hs-comment">--</span><span>
+</span><a name="line-23"></a><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><a name="line-24"></a><span>
+</span><a name="line-25"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Generics.Product.Any</span><span>
+</span><a name="line-26"></a><span>  </span><span class="hs-special">(</span><span> </span><span class="hs-comment">-- *Lenses</span><span>
+</span><a name="line-27"></a><span>    </span><span class="hs-comment">--</span><span>
+</span><a name="line-28"></a><span>    </span><span class="hs-comment">-- $setup</span><span>
+</span><a name="line-29"></a><span>    </span><a href="Data.Generics.Product.Any.html#HasAny"><span class="hs-identifier hs-type">HasAny</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-30"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-31"></a><span>
+</span><a name="line-32"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Generics.Internal.VL.Lens.html"><span class="hs-identifier">Data.Generics.Internal.VL.Lens</span></a><span>
+</span><a name="line-33"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Generics.Product.Fields.html"><span class="hs-identifier">Data.Generics.Product.Fields</span></a><span>
+</span><a name="line-34"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Generics.Product.Positions.html"><span class="hs-identifier">Data.Generics.Product.Positions</span></a><span>
+</span><a name="line-35"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Generics.Product.Typed.html"><span class="hs-identifier">Data.Generics.Product.Typed</span></a><span>
+</span><a name="line-36"></a><span>
+</span><a name="line-37"></a><span class="hs-comment">-- $setup</span><span>
+</span><a name="line-38"></a><span class="hs-comment">-- == /Running example:/</span><span>
+</span><a name="line-39"></a><span class="hs-comment">--</span><span>
+</span><a name="line-40"></a><span class="hs-comment">-- &gt;&gt;&gt; :set -XTypeApplications</span><span>
+</span><a name="line-41"></a><span class="hs-comment">-- &gt;&gt;&gt; :set -XDataKinds</span><span>
+</span><a name="line-42"></a><span class="hs-comment">-- &gt;&gt;&gt; :set -XDeriveGeneric</span><span>
+</span><a name="line-43"></a><span class="hs-comment">-- &gt;&gt;&gt; import GHC.Generics</span><span>
+</span><a name="line-44"></a><span class="hs-comment">-- &gt;&gt;&gt; :m +Data.Generics.Internal.VL.Lens</span><span>
+</span><a name="line-45"></a><span class="hs-comment">-- &gt;&gt;&gt; :{</span><span>
+</span><a name="line-46"></a><span class="hs-comment">-- data Human = Human</span><span>
+</span><a name="line-47"></a><span class="hs-comment">--   { name    :: String</span><span>
+</span><a name="line-48"></a><span class="hs-comment">--   , age     :: Int</span><span>
+</span><a name="line-49"></a><span class="hs-comment">--   , address :: String</span><span>
+</span><a name="line-50"></a><span class="hs-comment">--   }</span><span>
+</span><a name="line-51"></a><span class="hs-comment">--   deriving (Generic, Show)</span><span>
+</span><a name="line-52"></a><span class="hs-comment">-- human :: Human</span><span>
+</span><a name="line-53"></a><span class="hs-comment">-- human = Human &quot;Tunyasz&quot; 50 &quot;London&quot;</span><span>
+</span><a name="line-54"></a><span class="hs-comment">-- :}</span><span>
+</span><a name="line-55"></a><span>
+</span><a name="line-56"></a><span class="hs-keyword">class</span><span> </span><a name="HasAny"><a href="Data.Generics.Product.Any.html#HasAny"><span class="hs-identifier">HasAny</span></a></a><span> </span><span class="hs-special">(</span><a name="local-6989586621679073685"><a href="#local-6989586621679073685"><span class="hs-identifier">sel</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><a href="#local-6989586621679073684"><span class="hs-identifier hs-type">k</span></a><span class="hs-special">)</span><span> </span><a name="local-6989586621679073686"><a href="#local-6989586621679073686"><span class="hs-identifier">s</span></a></a><span> </span><a name="local-6989586621679073687"><a href="#local-6989586621679073687"><span class="hs-identifier">t</span></a></a><span> </span><a name="local-6989586621679073688"><a href="#local-6989586621679073688"><span class="hs-identifier">a</span></a></a><span> </span><a name="local-6989586621679073689"><a href="#local-6989586621679073689"><span class="hs-identifier">b</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><span class="hs-identifier">s</span><span> </span><span class="hs-identifier">sel</span><span> </span><span class="hs-identifier">k</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">a</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-57"></a><span>  </span><span class="hs-comment">-- |A lens that focuses on a part of a product as identified by some</span><span>
+</span><a name="line-58"></a><span>  </span><span class="hs-comment">--  selector. Currently supported selectors are field names, positions and</span><span>
+</span><a name="line-59"></a><span>  </span><span class="hs-comment">--  unique types. Compatible with the lens package's 'Control.Lens.Lens'</span><span>
+</span><a name="line-60"></a><span>  </span><span class="hs-comment">--  type.</span><span>
+</span><a name="line-61"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-62"></a><span>  </span><span class="hs-comment">--  &gt;&gt;&gt; human ^. the @Int</span><span>
+</span><a name="line-63"></a><span>  </span><span class="hs-comment">--  50</span><span>
+</span><a name="line-64"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-65"></a><span>  </span><span class="hs-comment">--  &gt;&gt;&gt; human ^. the @&quot;name&quot;</span><span>
+</span><a name="line-66"></a><span>  </span><span class="hs-comment">--  &quot;Tunyasz&quot;</span><span>
+</span><a name="line-67"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-68"></a><span>  </span><span class="hs-comment">--  &gt;&gt;&gt; human ^. the @3</span><span>
+</span><a name="line-69"></a><span>  </span><span class="hs-comment">--  &quot;London&quot;</span><span>
+</span><a name="line-70"></a><span>  </span><a name="the"><a href="Data.Generics.Product.Any.html#the"><span class="hs-identifier">the</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><a href="Data.Generics.Internal.VL.Lens.html#Lens"><span class="hs-identifier hs-type">Lens</span></a><span> </span><a href="#local-6989586621679073686"><span class="hs-identifier hs-type">s</span></a><span> </span><a href="#local-6989586621679073687"><span class="hs-identifier hs-type">t</span></a><span> </span><a href="#local-6989586621679073688"><span class="hs-identifier hs-type">a</span></a><span> </span><a href="#local-6989586621679073689"><span class="hs-identifier hs-type">b</span></a><span>
+</span><a name="line-71"></a><span>
+</span><a name="line-72"></a><span class="hs-keyword">instance</span><span> </span><a href="Data.Generics.Product.Positions.html#HasPosition"><span class="hs-identifier hs-type">HasPosition</span></a><span> </span><a href="#local-6989586621679073699"><span class="hs-identifier hs-type">i</span></a><span> </span><a href="#local-6989586621679073700"><span class="hs-identifier hs-type">s</span></a><span> </span><a href="#local-6989586621679073701"><span class="hs-identifier hs-type">t</span></a><span> </span><a href="#local-6989586621679073702"><span class="hs-identifier hs-type">a</span></a><span> </span><a href="#local-6989586621679073703"><span class="hs-identifier hs-type">b</span></a><span> </span><span class="hs-glyph">=&gt;</span><span> </span><a href="Data.Generics.Product.Any.html#HasAny"><span class="hs-identifier hs-type">HasAny</span></a><span> </span><a href="#local-6989586621679073699"><span class="hs-identifier hs-type">i</span></a><span> </span><a href="#local-6989586621679073700"><span class="hs-identifier hs-type">s</span></a><span> </span><a href="#local-6989586621679073701"><span class="hs-identifier hs-type">t</span></a><span> </span><a href="#local-6989586621679073702"><span class="hs-identifier hs-type">a</span></a><span> </span><a href="#local-6989586621679073703"><span class="hs-identifier hs-type">b</span></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-73"></a><span>  </span><a name="local-8214565720323848594"><a href="Data.Generics.Product.Any.html#the"><span class="hs-identifier">the</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Data.Generics.Product.Positions.html#position"><span class="hs-identifier hs-var">position</span></a><span> </span><span class="hs-glyph">@</span><a href="#local-6989586621679073699"><span class="hs-identifier hs-type">i</span></a><span>
+</span><a name="line-74"></a><span>
+</span><a name="line-75"></a><span class="hs-keyword">instance</span><span> </span><a href="Data.Generics.Product.Fields.html#HasField"><span class="hs-identifier hs-type">HasField</span></a><span> </span><a href="#local-6989586621679073694"><span class="hs-identifier hs-type">field</span></a><span> </span><a href="#local-6989586621679073695"><span class="hs-identifier hs-type">s</span></a><span> </span><a href="#local-6989586621679073696"><span class="hs-identifier hs-type">t</span></a><span> </span><a href="#local-6989586621679073697"><span class="hs-identifier hs-type">a</span></a><span> </span><a href="#local-6989586621679073698"><span class="hs-identifier hs-type">b</span></a><span> </span><span class="hs-glyph">=&gt;</span><span> </span><a href="Data.Generics.Product.Any.html#HasAny"><span class="hs-identifier hs-type">HasAny</span></a><span> </span><a href="#local-6989586621679073694"><span class="hs-identifier hs-type">field</span></a><span> </span><a href="#local-6989586621679073695"><span class="hs-identifier hs-type">s</span></a><span> </span><a href="#local-6989586621679073696"><span class="hs-identifier hs-type">t</span></a><span> </span><a href="#local-6989586621679073697"><span class="hs-identifier hs-type">a</span></a><span> </span><a href="#local-6989586621679073698"><span class="hs-identifier hs-type">b</span></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-76"></a><span>  </span><a name="local-8214565720323848594"><a href="Data.Generics.Product.Any.html#the"><span class="hs-identifier">the</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Data.Generics.Product.Fields.html#field"><span class="hs-identifier hs-var">field</span></a><span> </span><span class="hs-glyph">@</span><a href="#local-6989586621679073694"><span class="hs-identifier hs-type">field</span></a><span>
+</span><a name="line-77"></a><span>
+</span><a name="line-78"></a><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><a href="Data.Generics.Product.Typed.html#HasType"><span class="hs-identifier hs-type">HasType</span></a><span> </span><a href="#local-6989586621679073690"><span class="hs-identifier hs-type">a</span></a><span> </span><a href="#local-6989586621679073691"><span class="hs-identifier hs-type">s</span></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">t</span><span> </span><span class="hs-glyph">~</span><span> </span><a href="#local-6989586621679073691"><span class="hs-identifier hs-type">s</span></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">a</span><span> </span><span class="hs-glyph">~</span><span> </span><a href="#local-6989586621679073693"><span class="hs-identifier hs-type">b</span></a><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><a href="Data.Generics.Product.Any.html#HasAny"><span class="hs-identifier hs-type">HasAny</span></a><span> </span><a href="#local-6989586621679073690"><span class="hs-identifier hs-type">a</span></a><span> </span><a href="#local-6989586621679073691"><span class="hs-identifier hs-type">s</span></a><span> </span><a href="#local-6989586621679073692"><span class="hs-identifier hs-type">t</span></a><span> </span><a href="#local-6989586621679073690"><span class="hs-identifier hs-type">a</span></a><span> </span><a href="#local-6989586621679073693"><span class="hs-identifier hs-type">b</span></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-79"></a><span>  </span><a name="local-8214565720323848594"><a href="Data.Generics.Product.Any.html#the"><span class="hs-identifier">the</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Data.Generics.Product.Typed.html#typed"><span class="hs-identifier hs-var">typed</span></a><span> </span><span class="hs-glyph">@</span><a href="#local-6989586621679073690"><span class="hs-identifier hs-type">a</span></a><span>
+</span><a name="line-80"></a></pre></body></html>

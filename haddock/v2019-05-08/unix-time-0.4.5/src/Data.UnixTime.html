@@ -1,0 +1,32 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.UnixTime</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-2"></a><span>  </span><span class="hs-comment">-- * Data structure</span><span>
+</span><a name="line-3"></a><span>    </span><a href="Data.UnixTime.Types.html#UnixTime"><span class="hs-identifier hs-type">UnixTime</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-4"></a><span>  </span><span class="hs-comment">-- * Getting time</span><span>
+</span><a name="line-5"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.UnixTime.Sys.html#getUnixTime"><span class="hs-identifier hs-var">getUnixTime</span></a><span>
+</span><a name="line-6"></a><span>  </span><span class="hs-comment">-- * Parsing and formatting time</span><span>
+</span><a name="line-7"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.UnixTime.Conv.html#parseUnixTime"><span class="hs-identifier hs-var">parseUnixTime</span></a><span>
+</span><a name="line-8"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.UnixTime.Conv.html#parseUnixTimeGMT"><span class="hs-identifier hs-var">parseUnixTimeGMT</span></a><span>
+</span><a name="line-9"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.UnixTime.Conv.html#formatUnixTime"><span class="hs-identifier hs-var">formatUnixTime</span></a><span>
+</span><a name="line-10"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.UnixTime.Conv.html#formatUnixTimeGMT"><span class="hs-identifier hs-var">formatUnixTimeGMT</span></a><span>
+</span><a name="line-11"></a><span>  </span><span class="hs-comment">-- * Format</span><span>
+</span><a name="line-12"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.UnixTime.Types.html#Format"><span class="hs-identifier hs-type">Format</span></a><span>
+</span><a name="line-13"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.UnixTime.Conv.html#webDateFormat"><span class="hs-identifier hs-var">webDateFormat</span></a><span>
+</span><a name="line-14"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.UnixTime.Conv.html#mailDateFormat"><span class="hs-identifier hs-var">mailDateFormat</span></a><span>
+</span><a name="line-15"></a><span>  </span><span class="hs-comment">-- * Difference time</span><span>
+</span><a name="line-16"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.UnixTime.Types.html#UnixDiffTime"><span class="hs-identifier hs-type">UnixDiffTime</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-17"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.UnixTime.Diff.html#diffUnixTime"><span class="hs-identifier hs-var">diffUnixTime</span></a><span>
+</span><a name="line-18"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.UnixTime.Diff.html#addUnixDiffTime"><span class="hs-identifier hs-var">addUnixDiffTime</span></a><span>
+</span><a name="line-19"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.UnixTime.Diff.html#secondsToUnixDiffTime"><span class="hs-identifier hs-var">secondsToUnixDiffTime</span></a><span>
+</span><a name="line-20"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.UnixTime.Diff.html#microSecondsToUnixDiffTime"><span class="hs-identifier hs-var">microSecondsToUnixDiffTime</span></a><span>
+</span><a name="line-21"></a><span>  </span><span class="hs-comment">-- * Translating time</span><span>
+</span><a name="line-22"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.UnixTime.Conv.html#fromEpochTime"><span class="hs-identifier hs-var">fromEpochTime</span></a><span>
+</span><a name="line-23"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.UnixTime.Conv.html#toEpochTime"><span class="hs-identifier hs-var">toEpochTime</span></a><span>
+</span><a name="line-24"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.UnixTime.Conv.html#fromClockTime"><span class="hs-identifier hs-var">fromClockTime</span></a><span>
+</span><a name="line-25"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.UnixTime.Conv.html#toClockTime"><span class="hs-identifier hs-var">toClockTime</span></a><span>
+</span><a name="line-26"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-27"></a><span>
+</span><a name="line-28"></a><span class="hs-keyword">import</span><span> </span><a href="Data.UnixTime.Conv.html"><span class="hs-identifier">Data.UnixTime.Conv</span></a><span>
+</span><a name="line-29"></a><span class="hs-keyword">import</span><span> </span><a href="Data.UnixTime.Sys.html"><span class="hs-identifier">Data.UnixTime.Sys</span></a><span>
+</span><a name="line-30"></a><span class="hs-keyword">import</span><span> </span><a href="Data.UnixTime.Types.html"><span class="hs-identifier">Data.UnixTime.Types</span></a><span>
+</span><a name="line-31"></a><span class="hs-keyword">import</span><span> </span><a href="Data.UnixTime.Diff.html"><span class="hs-identifier">Data.UnixTime.Diff</span></a><span>
+</span><a name="line-32"></a></pre></body></html>

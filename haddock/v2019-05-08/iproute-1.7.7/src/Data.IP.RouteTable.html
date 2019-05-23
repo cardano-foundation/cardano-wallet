@@ -1,0 +1,29 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">{-|
+  IP routing table is a tree of 'IPRange'
+  to search one of them on the longest
+  match base. It is a kind of TRIE with one
+  way branching removed. Both IPv4 and IPv6
+  are supported.
+
+  For more information, see:
+      &lt;http://www.mew.org/~kazu/proj/iproute/&gt;
+-}</span><span>
+</span><a name="line-11"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.IP.RouteTable</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-12"></a><span>  </span><span class="hs-comment">-- * Documentation</span><span>
+</span><a name="line-13"></a><span>  </span><span class="hs-comment">-- ** Routable class</span><span>
+</span><a name="line-14"></a><span>    </span><a href="Data.IP.RouteTable.Internal.html#Routable"><span class="hs-identifier hs-type">Routable</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-15"></a><span>  </span><span class="hs-comment">-- ** Type for IP routing table</span><span>
+</span><a name="line-16"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.IP.RouteTable.Internal.html#IPRTable"><span class="hs-identifier hs-type">IPRTable</span></a><span>
+</span><a name="line-17"></a><span>  </span><span class="hs-comment">-- ** Functions to manipulate an IP routing table</span><span>
+</span><a name="line-18"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.IP.RouteTable.Internal.html#empty"><span class="hs-identifier hs-var">empty</span></a><span class="hs-special">,</span><span> </span><a href="Data.IP.RouteTable.Internal.html#insert"><span class="hs-identifier hs-var">insert</span></a><span class="hs-special">,</span><span> </span><a href="Data.IP.RouteTable.Internal.html#delete"><span class="hs-identifier hs-var">delete</span></a><span>
+</span><a name="line-19"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.IP.RouteTable.Internal.html#lookup"><span class="hs-identifier hs-var">I.lookup</span></a><span>
+</span><a name="line-20"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.IP.RouteTable.Internal.html#lookupKeyValue"><span class="hs-identifier hs-var">I.lookupKeyValue</span></a><span>
+</span><a name="line-21"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.IP.RouteTable.Internal.html#lookupAll"><span class="hs-identifier hs-var">I.lookupAll</span></a><span>
+</span><a name="line-22"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.IP.RouteTable.Internal.html#findMatch"><span class="hs-identifier hs-var">findMatch</span></a><span>
+</span><a name="line-23"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.IP.RouteTable.Internal.html#fromList"><span class="hs-identifier hs-var">fromList</span></a><span class="hs-special">,</span><span> </span><a href="Data.IP.RouteTable.Internal.html#toList"><span class="hs-identifier hs-var">toList</span></a><span>
+</span><a name="line-24"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.IP.RouteTable.Internal.html#foldlWithKey"><span class="hs-identifier hs-var">foldlWithKey</span></a><span>
+</span><a name="line-25"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.IP.RouteTable.Internal.html#foldrWithKey"><span class="hs-identifier hs-var">foldrWithKey</span></a><span>
+</span><a name="line-26"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-27"></a><span>
+</span><a name="line-28"></a><span class="hs-keyword">import</span><span> </span><a href="Data.IP.RouteTable.Internal.html"><span class="hs-identifier">Data.IP.RouteTable.Internal</span></a><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">I</span><span>
+</span><a name="line-29"></a></pre></body></html>

@@ -1,0 +1,117 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">1</span><span> </span><span class="hs-pragma">&quot;src/System/PosixCompat/Files.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><a name="line-3"></a><span>
+</span><a name="line-4"></a><span class="hs-comment">{-|
+This module makes the operations exported by @System.Posix.Files@
+available on all platforms. On POSIX systems it re-exports operations from
+@System.Posix.Files@. On other platforms it emulates the operations as far
+as possible.
+
+/NOTE: the portable implementations are not well tested, in some cases
+functions are only stubs./
+-}</span><span>
+</span><a name="line-13"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">System.PosixCompat.Files</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-14"></a><span>    </span><span class="hs-comment">-- * File modes</span><span>
+</span><a name="line-15"></a><span>    </span><span class="hs-comment">-- FileMode exported by System.Posix.Types</span><span>
+</span><a name="line-16"></a><span>      </span><span class="hs-identifier">unionFileModes</span><span>
+</span><a name="line-17"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">intersectFileModes</span><span>
+</span><a name="line-18"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">nullFileMode</span><span>
+</span><a name="line-19"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">ownerReadMode</span><span>
+</span><a name="line-20"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">ownerWriteMode</span><span>
+</span><a name="line-21"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">ownerExecuteMode</span><span>
+</span><a name="line-22"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">ownerModes</span><span>
+</span><a name="line-23"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">groupReadMode</span><span>
+</span><a name="line-24"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">groupWriteMode</span><span>
+</span><a name="line-25"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">groupExecuteMode</span><span>
+</span><a name="line-26"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">groupModes</span><span>
+</span><a name="line-27"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">otherReadMode</span><span>
+</span><a name="line-28"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">otherWriteMode</span><span>
+</span><a name="line-29"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">otherExecuteMode</span><span>
+</span><a name="line-30"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">otherModes</span><span>
+</span><a name="line-31"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">setUserIDMode</span><span>
+</span><a name="line-32"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">setGroupIDMode</span><span>
+</span><a name="line-33"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">stdFileMode</span><span>
+</span><a name="line-34"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">accessModes</span><span>
+</span><a name="line-35"></a><span>
+</span><a name="line-36"></a><span>    </span><span class="hs-comment">-- ** Setting file modes</span><span>
+</span><a name="line-37"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">setFileMode</span><span>
+</span><a name="line-38"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">setFdMode</span><span>
+</span><a name="line-39"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">setFileCreationMask</span><span>
+</span><a name="line-40"></a><span>
+</span><a name="line-41"></a><span>    </span><span class="hs-comment">-- ** Checking file existence and permissions</span><span>
+</span><a name="line-42"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">fileAccess</span><span>
+</span><a name="line-43"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">fileExist</span><span>
+</span><a name="line-44"></a><span>
+</span><a name="line-45"></a><span>    </span><span class="hs-comment">-- * File status</span><span>
+</span><a name="line-46"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">FileStatus</span><span>
+</span><a name="line-47"></a><span>    </span><span class="hs-comment">-- ** Obtaining file status</span><span>
+</span><a name="line-48"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">getFileStatus</span><span>
+</span><a name="line-49"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">getFdStatus</span><span>
+</span><a name="line-50"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">getSymbolicLinkStatus</span><span>
+</span><a name="line-51"></a><span>    </span><span class="hs-comment">-- ** Querying file status</span><span>
+</span><a name="line-52"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">deviceID</span><span>
+</span><a name="line-53"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">fileID</span><span>
+</span><a name="line-54"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">fileMode</span><span>
+</span><a name="line-55"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">linkCount</span><span>
+</span><a name="line-56"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">fileOwner</span><span>
+</span><a name="line-57"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">fileGroup</span><span>
+</span><a name="line-58"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">specialDeviceID</span><span>
+</span><a name="line-59"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">fileSize</span><span>
+</span><a name="line-60"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">accessTime</span><span>
+</span><a name="line-61"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">modificationTime</span><span>
+</span><a name="line-62"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">statusChangeTime</span><span>
+</span><a name="line-63"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">isBlockDevice</span><span>
+</span><a name="line-64"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">isCharacterDevice</span><span>
+</span><a name="line-65"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">isNamedPipe</span><span>
+</span><a name="line-66"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">isRegularFile</span><span>
+</span><a name="line-67"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">isDirectory</span><span>
+</span><a name="line-68"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">isSymbolicLink</span><span>
+</span><a name="line-69"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">isSocket</span><span>
+</span><a name="line-70"></a><span>
+</span><a name="line-71"></a><span>    </span><span class="hs-comment">-- * Creation</span><span>
+</span><a name="line-72"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">createNamedPipe</span><span>
+</span><a name="line-73"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">createDevice</span><span>
+</span><a name="line-74"></a><span>
+</span><a name="line-75"></a><span>    </span><span class="hs-comment">-- * Hard links</span><span>
+</span><a name="line-76"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">createLink</span><span>
+</span><a name="line-77"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">removeLink</span><span>
+</span><a name="line-78"></a><span>
+</span><a name="line-79"></a><span>    </span><span class="hs-comment">-- * Symbolic links</span><span>
+</span><a name="line-80"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">createSymbolicLink</span><span>
+</span><a name="line-81"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">readSymbolicLink</span><span>
+</span><a name="line-82"></a><span>
+</span><a name="line-83"></a><span>    </span><span class="hs-comment">-- * Renaming files</span><span>
+</span><a name="line-84"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">rename</span><span>
+</span><a name="line-85"></a><span>
+</span><a name="line-86"></a><span>    </span><span class="hs-comment">-- * Changing file ownership</span><span>
+</span><a name="line-87"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">setOwnerAndGroup</span><span>
+</span><a name="line-88"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">setFdOwnerAndGroup</span><span>
+</span><a name="line-89"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">setSymbolicLinkOwnerAndGroup</span><span>
+</span><a name="line-90"></a><span>
+</span><a name="line-91"></a><span>    </span><span class="hs-comment">-- * Changing file timestamps</span><span>
+</span><a name="line-92"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">setFileTimes</span><span>
+</span><a name="line-93"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">touchFile</span><span>
+</span><a name="line-94"></a><span>
+</span><a name="line-95"></a><span>    </span><span class="hs-comment">-- * Setting file sizes</span><span>
+</span><a name="line-96"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">setFileSize</span><span>
+</span><a name="line-97"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">setFdSize</span><span>
+</span><a name="line-98"></a><span>
+</span><a name="line-99"></a><span>    </span><span class="hs-comment">-- * Find system-specific limits for a file</span><span>
+</span><a name="line-100"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">PathVar</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-101"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">getPathVar</span><span>
+</span><a name="line-102"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">getFdPathVar</span><span>
+</span><a name="line-103"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-104"></a><span>
+</span><a name="line-105"></a><span>
+</span><a name="line-106"></a><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">105</span><span> </span><span class="hs-pragma">&quot;src/System/PosixCompat/Files.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-107"></a><span>
+</span><a name="line-108"></a><span>
+</span><a name="line-109"></a><span>
+</span><a name="line-110"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">System.Posix.Files</span><span>
+</span><a name="line-111"></a><span>
+</span><a name="line-112"></a><span>
+</span><a name="line-113"></a><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">116</span><span> </span><span class="hs-pragma">&quot;src/System/PosixCompat/Files.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-114"></a><span>
+</span><a name="line-115"></a><span>
+</span><a name="line-116"></a><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">498</span><span> </span><span class="hs-pragma">&quot;src/System/PosixCompat/Files.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-117"></a></pre></body></html>

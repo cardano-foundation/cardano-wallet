@@ -1,0 +1,38 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP, NoImplicitPrelude #-}</span><span>
+</span><a name="line-2"></a><span class="hs-cpp">#if __GLASGOW_HASKELL__ &gt;= 702
+</span><span class="hs-pragma">{-# LANGUAGE Trustworthy #-}</span><span>
+</span><a name="line-4"></a><span class="hs-cpp">#endif
+</span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Foreign.ForeignPtr.Safe.Compat</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-6"></a><span>        </span><span class="hs-comment">-- * Finalised data pointers</span><span>
+</span><a name="line-7"></a><span>          </span><span class="hs-identifier hs-type">ForeignPtr</span><span>
+</span><a name="line-8"></a><span>        </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">FinalizerPtr</span><span>
+</span><a name="line-9"></a><span class="hs-cpp">#if defined(__HUGS__) || defined(__GLASGOW_HASKELL__)
+</span><span>        </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">FinalizerEnvPtr</span><span>
+</span><a name="line-11"></a><span class="hs-cpp">#endif
+</span><span>        </span><span class="hs-comment">-- ** Basic operations</span><span>
+</span><a name="line-13"></a><span>        </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">newForeignPtr</span><span>
+</span><a name="line-14"></a><span>        </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">newForeignPtr_</span><span>
+</span><a name="line-15"></a><span>        </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">addForeignPtrFinalizer</span><span>
+</span><a name="line-16"></a><span class="hs-cpp">#if defined(__HUGS__) || defined(__GLASGOW_HASKELL__)
+</span><span>        </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">newForeignPtrEnv</span><span>
+</span><a name="line-18"></a><span>        </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">addForeignPtrFinalizerEnv</span><span>
+</span><a name="line-19"></a><span class="hs-cpp">#endif
+</span><span>        </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">withForeignPtr</span><span>
+</span><a name="line-21"></a><span>
+</span><a name="line-22"></a><span class="hs-cpp">#ifdef __GLASGOW_HASKELL__
+</span><span>        </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">finalizeForeignPtr</span><span>
+</span><a name="line-24"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-26"></a><span>        </span><span class="hs-comment">-- ** Low-level operations</span><span>
+</span><a name="line-27"></a><span>        </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">touchForeignPtr</span><span>
+</span><a name="line-28"></a><span>        </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">castForeignPtr</span><span>
+</span><a name="line-29"></a><span>
+</span><a name="line-30"></a><span>        </span><span class="hs-comment">-- ** Allocating managed memory</span><span>
+</span><a name="line-31"></a><span>        </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mallocForeignPtr</span><span>
+</span><a name="line-32"></a><span>        </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mallocForeignPtrBytes</span><span>
+</span><a name="line-33"></a><span>        </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mallocForeignPtrArray</span><span>
+</span><a name="line-34"></a><span>        </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mallocForeignPtrArray0</span><span>
+</span><a name="line-35"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-36"></a><span>
+</span><a name="line-37"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Foreign.ForeignPtr</span><span>
+</span><a name="line-38"></a></pre></body></html>

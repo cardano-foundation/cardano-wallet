@@ -1,0 +1,79 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP, NoImplicitPrelude #-}</span><span>
+</span><a name="line-2"></a><span class="hs-comment">-- | This backports the modern &quot;Data.Semigroup&quot; interface back to</span><span>
+</span><a name="line-3"></a><span class="hs-comment">-- @base-4.9@/GHC 8.0.</span><span>
+</span><a name="line-4"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.List.NonEmpty.Compat</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-5"></a><span class="hs-cpp">#if MIN_VERSION_base(4,9,0)
+</span><span>  </span><span class="hs-comment">-- * The type of non-empty streams</span><span>
+</span><a name="line-7"></a><span>    </span><span class="hs-identifier hs-type">NonEmpty</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-8"></a><span>
+</span><a name="line-9"></a><span>  </span><span class="hs-comment">-- * Non-empty stream transformations</span><span>
+</span><a name="line-10"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">map</span><span>
+</span><a name="line-11"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">intersperse</span><span>
+</span><a name="line-12"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">scanl</span><span>
+</span><a name="line-13"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">scanr</span><span>
+</span><a name="line-14"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">scanl1</span><span>
+</span><a name="line-15"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">scanr1</span><span>
+</span><a name="line-16"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">transpose</span><span>
+</span><a name="line-17"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">sortBy</span><span>
+</span><a name="line-18"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">sortWith</span><span>
+</span><a name="line-19"></a><span>  </span><span class="hs-comment">-- * Basic functions</span><span>
+</span><a name="line-20"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">length</span><span>
+</span><a name="line-21"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">head</span><span>
+</span><a name="line-22"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">tail</span><span>
+</span><a name="line-23"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">last</span><span>
+</span><a name="line-24"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">init</span><span>
+</span><a name="line-25"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="hs-operator hs-var">&lt;|</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">cons</span><span>
+</span><a name="line-26"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">uncons</span><span>
+</span><a name="line-27"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">unfoldr</span><span>
+</span><a name="line-28"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">sort</span><span>
+</span><a name="line-29"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">reverse</span><span>
+</span><a name="line-30"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">inits</span><span>
+</span><a name="line-31"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">tails</span><span>
+</span><a name="line-32"></a><span>  </span><span class="hs-comment">-- * Building streams</span><span>
+</span><a name="line-33"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">iterate</span><span>
+</span><a name="line-34"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">repeat</span><span>
+</span><a name="line-35"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">cycle</span><span>
+</span><a name="line-36"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">unfold</span><span>
+</span><a name="line-37"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">insert</span><span>
+</span><a name="line-38"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">some1</span><span>
+</span><a name="line-39"></a><span>  </span><span class="hs-comment">-- * Extracting sublists</span><span>
+</span><a name="line-40"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">take</span><span>
+</span><a name="line-41"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">drop</span><span>
+</span><a name="line-42"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">splitAt</span><span>
+</span><a name="line-43"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">takeWhile</span><span>
+</span><a name="line-44"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">dropWhile</span><span>
+</span><a name="line-45"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">span</span><span>
+</span><a name="line-46"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">break</span><span>
+</span><a name="line-47"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">filter</span><span>
+</span><a name="line-48"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">partition</span><span>
+</span><a name="line-49"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">group</span><span>
+</span><a name="line-50"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">groupBy</span><span>
+</span><a name="line-51"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">groupWith</span><span>
+</span><a name="line-52"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">groupAllWith</span><span>
+</span><a name="line-53"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">group1</span><span>
+</span><a name="line-54"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">groupBy1</span><span>
+</span><a name="line-55"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">groupWith1</span><span>
+</span><a name="line-56"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">groupAllWith1</span><span>
+</span><a name="line-57"></a><span>  </span><span class="hs-comment">-- * Sublist predicates</span><span>
+</span><a name="line-58"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">isPrefixOf</span><span>
+</span><a name="line-59"></a><span>  </span><span class="hs-comment">-- * \&quot;Set\&quot; operations</span><span>
+</span><a name="line-60"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">nub</span><span>
+</span><a name="line-61"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">nubBy</span><span>
+</span><a name="line-62"></a><span>  </span><span class="hs-comment">-- * Indexing streams</span><span>
+</span><a name="line-63"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="hs-operator hs-var">!!</span><span class="hs-special">)</span><span>
+</span><a name="line-64"></a><span>  </span><span class="hs-comment">-- * Zipping and unzipping streams</span><span>
+</span><a name="line-65"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">zip</span><span>
+</span><a name="line-66"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">zipWith</span><span>
+</span><a name="line-67"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">unzip</span><span>
+</span><a name="line-68"></a><span>  </span><span class="hs-comment">-- * Converting to and from a list</span><span>
+</span><a name="line-69"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">fromList</span><span>
+</span><a name="line-70"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">toList</span><span>
+</span><a name="line-71"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">nonEmpty</span><span>
+</span><a name="line-72"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">xor</span><span>
+</span><a name="line-73"></a><span class="hs-cpp">#endif
+</span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-75"></a><span>
+</span><a name="line-76"></a><span class="hs-cpp">#if MIN_VERSION_base(4,9,0)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.List.NonEmpty</span><span>
+</span><a name="line-78"></a><span class="hs-cpp">#endif
+</span></pre></body></html>

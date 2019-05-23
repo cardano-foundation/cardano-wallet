@@ -1,0 +1,20 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE PolyKinds #-}</span><span>
+</span><a name="line-2"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Generics.Internal.Void</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-3"></a><span>
+</span><a name="line-4"></a><span class="hs-comment">{-
+  Note [Uncluttering type signatures]
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  Because the various instances in the library always match (the Has* classes
+  are essentially glorified constraint synonyms), they get replaced with
+  their constraints, resulting in large, unreadable types.
+
+  Writing an (overlapping instance) for this Void type means that the original
+  instance might not be the one selected, thus GHC leaves the constraints in
+  place until further information is provided, at which point the type
+  machinery has sufficient information to reduce to sensible types.
+-}</span><span>
+</span><a name="line-17"></a><span class="hs-keyword">data</span><span> </span><a name="Void"><a href="Data.Generics.Internal.Void.html#Void"><span class="hs-identifier">Void</span></a></a><span>
+</span><a name="line-18"></a><span class="hs-keyword">data</span><span> </span><a name="Void1"><a href="Data.Generics.Internal.Void.html#Void1"><span class="hs-identifier">Void1</span></a></a><span> </span><a name="local-6989586621679050451"><a href="#local-6989586621679050451"><span class="hs-identifier">a</span></a></a><span>
+</span><a name="line-19"></a><span class="hs-keyword">data</span><span> </span><a name="Void2"><a href="Data.Generics.Internal.Void.html#Void2"><span class="hs-identifier">Void2</span></a></a><span> </span><a name="local-6989586621679050449"><a href="#local-6989586621679050449"><span class="hs-identifier">a</span></a></a><span> </span><a name="local-6989586621679050450"><a href="#local-6989586621679050450"><span class="hs-identifier">b</span></a></a><span>
+</span><a name="line-20"></a></pre></body></html>

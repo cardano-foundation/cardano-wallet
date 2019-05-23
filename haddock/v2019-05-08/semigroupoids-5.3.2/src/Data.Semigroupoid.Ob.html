@@ -1,0 +1,43 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><a name="line-2"></a><span class="hs-cpp">#if __GLASGOW_HASKELL__ &gt;= 706
+</span><span class="hs-pragma">{-# LANGUAGE PolyKinds #-}</span><span>
+</span><a name="line-4"></a><span class="hs-cpp">#endif
+</span><span class="hs-pragma">{-# LANGUAGE FlexibleContexts #-}</span><span>
+</span><a name="line-6"></a><span class="hs-pragma">{-# LANGUAGE FlexibleInstances #-}</span><span>
+</span><a name="line-7"></a><span class="hs-pragma">{-# LANGUAGE MultiParamTypeClasses #-}</span><span>
+</span><a name="line-8"></a><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><a name="line-9"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-10"></a><span class="hs-comment">-- Copyright   :  (C) 2011-2015 Edward Kmett</span><span>
+</span><a name="line-11"></a><span class="hs-comment">-- License     :  BSD-style (see the file LICENSE)</span><span>
+</span><a name="line-12"></a><span class="hs-comment">--</span><span>
+</span><a name="line-13"></a><span class="hs-comment">-- Maintainer  :  Edward Kmett &lt;ekmett@gmail.com&gt;</span><span>
+</span><a name="line-14"></a><span class="hs-comment">-- Stability   :  experimental</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- Portability :  non-portable (flexible MPTCs)</span><span>
+</span><a name="line-16"></a><span class="hs-comment">--</span><span>
+</span><a name="line-17"></a><span class="hs-comment">----------------------------------------------------------------------------</span><span>
+</span><a name="line-18"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Semigroupoid.Ob</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-19"></a><span>
+</span><a name="line-20"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Semigroupoid.html"><span class="hs-identifier">Data.Semigroupoid</span></a><span>
+</span><a name="line-21"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Functor.Bind.html"><span class="hs-identifier">Data.Functor.Bind</span></a><span>
+</span><a name="line-22"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Arrow</span><span>
+</span><a name="line-23"></a><span>
+</span><a name="line-24"></a><span>
+</span><a name="line-25"></a><span class="hs-cpp">#ifdef MIN_VERSION_comonad
+</span><span class="hs-keyword">import</span><span> </span><a href="Data.Functor.Extend.html"><span class="hs-identifier">Data.Functor.Extend</span></a><span>
+</span><a name="line-27"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Comonad</span><span>
+</span><a name="line-28"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-30"></a><span class="hs-keyword">class</span><span> </span><a href="Data.Semigroupoid.html#Semigroupoid"><span class="hs-identifier hs-type">Semigroupoid</span></a><span> </span><a href="#local-6989586621679095306"><span class="hs-identifier hs-type">k</span></a><span> </span><span class="hs-glyph">=&gt;</span><span> </span><a name="Ob"><a href="Data.Semigroupoid.Ob.html#Ob"><span class="hs-identifier">Ob</span></a></a><span> </span><a name="local-6989586621679095306"><a href="#local-6989586621679095306"><span class="hs-identifier">k</span></a></a><span> </span><a name="local-6989586621679095307"><a href="#local-6989586621679095307"><span class="hs-identifier">a</span></a></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-31"></a><span>  </span><a name="semiid"><a href="Data.Semigroupoid.Ob.html#semiid"><span class="hs-identifier">semiid</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><a href="#local-6989586621679095306"><span class="hs-identifier hs-type">k</span></a><span> </span><a href="#local-6989586621679095307"><span class="hs-identifier hs-type">a</span></a><span> </span><a href="#local-6989586621679095307"><span class="hs-identifier hs-type">a</span></a><span>
+</span><a name="line-32"></a><span>
+</span><a name="line-33"></a><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><a href="Data.Functor.Bind.Class.html#Bind"><span class="hs-identifier hs-type">Bind</span></a><span> </span><a href="#local-6989586621679095311"><span class="hs-identifier hs-type">m</span></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Monad</span><span> </span><a href="#local-6989586621679095311"><span class="hs-identifier hs-type">m</span></a><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><a href="Data.Semigroupoid.Ob.html#Ob"><span class="hs-identifier hs-type">Ob</span></a><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Kleisli</span><span> </span><a href="#local-6989586621679095311"><span class="hs-identifier hs-type">m</span></a><span class="hs-special">)</span><span> </span><a href="#local-6989586621679095312"><span class="hs-identifier hs-type">a</span></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-34"></a><span>  </span><a name="local-8214565720323870216"><a href="Data.Semigroupoid.Ob.html#semiid"><span class="hs-identifier">semiid</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">Kleisli</span><span> </span><span class="hs-identifier hs-var">return</span><span>
+</span><a name="line-35"></a><span>
+</span><a name="line-36"></a><span class="hs-cpp">#ifdef MIN_VERSION_comonad
+</span><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><a href="Data.Functor.Extend.html#Extend"><span class="hs-identifier hs-type">Extend</span></a><span> </span><a href="#local-6989586621679095309"><span class="hs-identifier hs-type">w</span></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Comonad</span><span> </span><a href="#local-6989586621679095309"><span class="hs-identifier hs-type">w</span></a><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><a href="Data.Semigroupoid.Ob.html#Ob"><span class="hs-identifier hs-type">Ob</span></a><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Cokleisli</span><span> </span><a href="#local-6989586621679095309"><span class="hs-identifier hs-type">w</span></a><span class="hs-special">)</span><span> </span><a href="#local-6989586621679095310"><span class="hs-identifier hs-type">a</span></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-38"></a><span>  </span><a name="local-8214565720323870216"><a href="Data.Semigroupoid.Ob.html#semiid"><span class="hs-identifier">semiid</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">Cokleisli</span><span> </span><span class="hs-identifier hs-var">extract</span><span>
+</span><a name="line-39"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-41"></a><span class="hs-keyword">instance</span><span> </span><a href="Data.Semigroupoid.Ob.html#Ob"><span class="hs-identifier hs-type">Ob</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">-&gt;</span><span class="hs-special">)</span><span> </span><a href="#local-6989586621679095308"><span class="hs-identifier hs-type">a</span></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-42"></a><span>  </span><a name="local-8214565720323870216"><a href="Data.Semigroupoid.Ob.html#semiid"><span class="hs-identifier">semiid</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">id</span><span>
+</span><a name="line-43"></a></pre></body></html>

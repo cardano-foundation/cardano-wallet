@@ -1,0 +1,11 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Network.Sendfile.Types</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-2"></a><span>
+</span><a name="line-3"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-4"></a><span class="hs-comment">--  File range for 'sendfile'.</span><span>
+</span><a name="line-5"></a><span>
+</span><a name="line-6"></a><span class="hs-keyword">data</span><span> </span><a name="FileRange"><a href="Network.Sendfile.Types.html#FileRange"><span class="hs-identifier">FileRange</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a name="EntireFile"><a href="Network.Sendfile.Types.html#EntireFile"><span class="hs-identifier">EntireFile</span></a></a><span>
+</span><a name="line-7"></a><span>               </span><span class="hs-glyph">|</span><span> </span><a name="PartOfFile"><a href="Network.Sendfile.Types.html#PartOfFile"><span class="hs-identifier">PartOfFile</span></a></a><span> </span><span class="hs-special">{</span><span>
+</span><a name="line-8"></a><span>                   </span><a name="rangeOffset"><a href="Network.Sendfile.Types.html#rangeOffset"><span class="hs-identifier">rangeOffset</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Integer</span><span>
+</span><a name="line-9"></a><span>                 </span><span class="hs-special">,</span><span> </span><a name="rangeLength"><a href="Network.Sendfile.Types.html#rangeLength"><span class="hs-identifier">rangeLength</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Integer</span><span>
+</span><a name="line-10"></a><span>                 </span><span class="hs-special">}</span><span>
+</span><a name="line-11"></a></pre></body></html>

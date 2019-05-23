@@ -1,0 +1,150 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- | Examples of how to use @cryptonite@.</span><span>
+</span><a name="line-2"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Crypto.Tutorial</span><span>
+</span><a name="line-3"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-comment">-- * API design</span><span>
+</span><a name="line-4"></a><span>      </span><span class="hs-comment">-- $api_design</span><span>
+</span><a name="line-5"></a><span>
+</span><a name="line-6"></a><span>      </span><span class="hs-comment">-- * Hash algorithms</span><span>
+</span><a name="line-7"></a><span>      </span><span class="hs-comment">-- $hash_algorithms</span><span>
+</span><a name="line-8"></a><span>
+</span><a name="line-9"></a><span>      </span><span class="hs-comment">-- * Symmetric block ciphers</span><span>
+</span><a name="line-10"></a><span>      </span><span class="hs-comment">-- $symmetric_block_ciphers</span><span>
+</span><a name="line-11"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-12"></a><span>
+</span><a name="line-13"></a><span class="hs-comment">-- $api_design</span><span>
+</span><a name="line-14"></a><span class="hs-comment">--</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- APIs in cryptonite are often based on type classes from package</span><span>
+</span><a name="line-16"></a><span class="hs-comment">-- &lt;https://hackage.haskell.org/package/memory memory&gt;, notably</span><span>
+</span><a name="line-17"></a><span class="hs-comment">-- 'Data.ByteArray.ByteArrayAccess' and 'Data.ByteArray.ByteArray'.</span><span>
+</span><a name="line-18"></a><span class="hs-comment">-- Module &quot;Data.ByteArray&quot; provides many primitives that are useful to</span><span>
+</span><a name="line-19"></a><span class="hs-comment">-- work with cryptonite types.  For example function 'Data.ByteArray.convert'</span><span>
+</span><a name="line-20"></a><span class="hs-comment">-- can transform one 'Data.ByteArray.ByteArrayAccess' concrete type like</span><span>
+</span><a name="line-21"></a><span class="hs-comment">-- 'Crypto.Hash.Digest' to a 'Data.ByteString.ByteString'.</span><span>
+</span><a name="line-22"></a><span class="hs-comment">--</span><span>
+</span><a name="line-23"></a><span class="hs-comment">-- Algorithms and functions needing random bytes are based on type class</span><span>
+</span><a name="line-24"></a><span class="hs-comment">-- 'Crypto.Random.Types.MonadRandom'.  Implementation 'IO' uses a system source</span><span>
+</span><a name="line-25"></a><span class="hs-comment">-- of entropy.  It is also possible to use a 'Crypto.Random.Types.DRG' with</span><span>
+</span><a name="line-26"></a><span class="hs-comment">-- 'Crypto.Random.Types.MonadPseudoRandom'</span><span>
+</span><a name="line-27"></a><span class="hs-comment">--</span><span>
+</span><a name="line-28"></a><span class="hs-comment">-- Error conditions are returned with data type 'Crypto.Error.CryptoFailable'.</span><span>
+</span><a name="line-29"></a><span class="hs-comment">-- Functions in module &quot;Crypto.Error&quot; can convert those values to runtime</span><span>
+</span><a name="line-30"></a><span class="hs-comment">-- exceptions, 'Maybe' or 'Either' values.</span><span>
+</span><a name="line-31"></a><span>
+</span><a name="line-32"></a><span class="hs-comment">-- $hash_algorithms</span><span>
+</span><a name="line-33"></a><span class="hs-comment">--</span><span>
+</span><a name="line-34"></a><span class="hs-comment">-- Hashing a complete message:</span><span>
+</span><a name="line-35"></a><span class="hs-comment">--</span><span>
+</span><a name="line-36"></a><span class="hs-comment">-- &gt; import Crypto.Hash</span><span>
+</span><a name="line-37"></a><span class="hs-comment">-- &gt;</span><span>
+</span><a name="line-38"></a><span class="hs-comment">-- &gt; import Data.ByteString (ByteString)</span><span>
+</span><a name="line-39"></a><span class="hs-comment">-- &gt;</span><span>
+</span><a name="line-40"></a><span class="hs-comment">-- &gt; exampleHashWith :: ByteString -&gt; IO ()</span><span>
+</span><a name="line-41"></a><span class="hs-comment">-- &gt; exampleHashWith msg = do</span><span>
+</span><a name="line-42"></a><span class="hs-comment">-- &gt;     putStrLn $ &quot;  sha1(&quot; ++ show msg ++ &quot;) = &quot; ++ show (hashWith SHA1   msg)</span><span>
+</span><a name="line-43"></a><span class="hs-comment">-- &gt;     putStrLn $ &quot;sha256(&quot; ++ show msg ++ &quot;) = &quot; ++ show (hashWith SHA256 msg)</span><span>
+</span><a name="line-44"></a><span class="hs-comment">--</span><span>
+</span><a name="line-45"></a><span class="hs-comment">-- Hashing incrementally, with intermediate context allocations:</span><span>
+</span><a name="line-46"></a><span class="hs-comment">--</span><span>
+</span><a name="line-47"></a><span class="hs-comment">-- &gt; {-# LANGUAGE OverloadedStrings #-}</span><span>
+</span><a name="line-48"></a><span class="hs-comment">-- &gt;</span><span>
+</span><a name="line-49"></a><span class="hs-comment">-- &gt; import Crypto.Hash</span><span>
+</span><a name="line-50"></a><span class="hs-comment">-- &gt;</span><span>
+</span><a name="line-51"></a><span class="hs-comment">-- &gt; import Data.ByteString (ByteString)</span><span>
+</span><a name="line-52"></a><span class="hs-comment">-- &gt;</span><span>
+</span><a name="line-53"></a><span class="hs-comment">-- &gt; exampleIncrWithAllocs :: IO ()</span><span>
+</span><a name="line-54"></a><span class="hs-comment">-- &gt; exampleIncrWithAllocs = do</span><span>
+</span><a name="line-55"></a><span class="hs-comment">-- &gt;     let ctx0 = hashInitWith SHA3_512</span><span>
+</span><a name="line-56"></a><span class="hs-comment">-- &gt;         ctx1 = hashUpdate ctx0 (&quot;The &quot;   :: ByteString)</span><span>
+</span><a name="line-57"></a><span class="hs-comment">-- &gt;         ctx2 = hashUpdate ctx1 (&quot;quick &quot; :: ByteString)</span><span>
+</span><a name="line-58"></a><span class="hs-comment">-- &gt;         ctx3 = hashUpdate ctx2 (&quot;brown &quot; :: ByteString)</span><span>
+</span><a name="line-59"></a><span class="hs-comment">-- &gt;         ctx4 = hashUpdate ctx3 (&quot;fox &quot;   :: ByteString)</span><span>
+</span><a name="line-60"></a><span class="hs-comment">-- &gt;         ctx5 = hashUpdate ctx4 (&quot;jumps &quot; :: ByteString)</span><span>
+</span><a name="line-61"></a><span class="hs-comment">-- &gt;         ctx6 = hashUpdate ctx5 (&quot;over &quot;  :: ByteString)</span><span>
+</span><a name="line-62"></a><span class="hs-comment">-- &gt;         ctx7 = hashUpdate ctx6 (&quot;the &quot;   :: ByteString)</span><span>
+</span><a name="line-63"></a><span class="hs-comment">-- &gt;         ctx8 = hashUpdate ctx7 (&quot;lazy &quot;  :: ByteString)</span><span>
+</span><a name="line-64"></a><span class="hs-comment">-- &gt;         ctx9 = hashUpdate ctx8 (&quot;dog&quot;    :: ByteString)</span><span>
+</span><a name="line-65"></a><span class="hs-comment">-- &gt;     print (hashFinalize ctx9)</span><span>
+</span><a name="line-66"></a><span class="hs-comment">--</span><span>
+</span><a name="line-67"></a><span class="hs-comment">-- Hashing incrementally, updating context in place:</span><span>
+</span><a name="line-68"></a><span class="hs-comment">--</span><span>
+</span><a name="line-69"></a><span class="hs-comment">-- &gt; {-# LANGUAGE OverloadedStrings #-}</span><span>
+</span><a name="line-70"></a><span class="hs-comment">-- &gt;</span><span>
+</span><a name="line-71"></a><span class="hs-comment">-- &gt; import Crypto.Hash.Algorithms</span><span>
+</span><a name="line-72"></a><span class="hs-comment">-- &gt; import Crypto.Hash.IO</span><span>
+</span><a name="line-73"></a><span class="hs-comment">-- &gt;</span><span>
+</span><a name="line-74"></a><span class="hs-comment">-- &gt; import Data.ByteString (ByteString)</span><span>
+</span><a name="line-75"></a><span class="hs-comment">-- &gt;</span><span>
+</span><a name="line-76"></a><span class="hs-comment">-- &gt; exampleIncrInPlace :: IO ()</span><span>
+</span><a name="line-77"></a><span class="hs-comment">-- &gt; exampleIncrInPlace = do</span><span>
+</span><a name="line-78"></a><span class="hs-comment">-- &gt;     ctx &lt;- hashMutableInitWith SHA3_512</span><span>
+</span><a name="line-79"></a><span class="hs-comment">-- &gt;     hashMutableUpdate ctx (&quot;The &quot;   :: ByteString)</span><span>
+</span><a name="line-80"></a><span class="hs-comment">-- &gt;     hashMutableUpdate ctx (&quot;quick &quot; :: ByteString)</span><span>
+</span><a name="line-81"></a><span class="hs-comment">-- &gt;     hashMutableUpdate ctx (&quot;brown &quot; :: ByteString)</span><span>
+</span><a name="line-82"></a><span class="hs-comment">-- &gt;     hashMutableUpdate ctx (&quot;fox &quot;   :: ByteString)</span><span>
+</span><a name="line-83"></a><span class="hs-comment">-- &gt;     hashMutableUpdate ctx (&quot;jumps &quot; :: ByteString)</span><span>
+</span><a name="line-84"></a><span class="hs-comment">-- &gt;     hashMutableUpdate ctx (&quot;over &quot;  :: ByteString)</span><span>
+</span><a name="line-85"></a><span class="hs-comment">-- &gt;     hashMutableUpdate ctx (&quot;the &quot;   :: ByteString)</span><span>
+</span><a name="line-86"></a><span class="hs-comment">-- &gt;     hashMutableUpdate ctx (&quot;lazy &quot;  :: ByteString)</span><span>
+</span><a name="line-87"></a><span class="hs-comment">-- &gt;     hashMutableUpdate ctx (&quot;dog&quot;    :: ByteString)</span><span>
+</span><a name="line-88"></a><span class="hs-comment">-- &gt;     hashMutableFinalize ctx &gt;&gt;= print</span><span>
+</span><a name="line-89"></a><span>
+</span><a name="line-90"></a><span class="hs-comment">-- $symmetric_block_ciphers</span><span>
+</span><a name="line-91"></a><span class="hs-comment">--</span><span>
+</span><a name="line-92"></a><span class="hs-comment">-- &gt; {-# LANGUAGE OverloadedStrings #-}</span><span>
+</span><a name="line-93"></a><span class="hs-comment">-- &gt; {-# LANGUAGE ScopedTypeVariables #-}</span><span>
+</span><a name="line-94"></a><span class="hs-comment">-- &gt; {-# LANGUAGE GADTs #-}</span><span>
+</span><a name="line-95"></a><span class="hs-comment">-- &gt;</span><span>
+</span><a name="line-96"></a><span class="hs-comment">-- &gt; import           Crypto.Cipher.AES (AES256)</span><span>
+</span><a name="line-97"></a><span class="hs-comment">-- &gt; import           Crypto.Cipher.Types (BlockCipher(..), Cipher(..), nullIV, KeySizeSpecifier(..), IV, makeIV)</span><span>
+</span><a name="line-98"></a><span class="hs-comment">-- &gt; import           Crypto.Error (CryptoFailable(..), CryptoError(..))</span><span>
+</span><a name="line-99"></a><span class="hs-comment">-- &gt;</span><span>
+</span><a name="line-100"></a><span class="hs-comment">-- &gt; import qualified Crypto.Random.Types as CRT</span><span>
+</span><a name="line-101"></a><span class="hs-comment">-- &gt;</span><span>
+</span><a name="line-102"></a><span class="hs-comment">-- &gt; import           Data.ByteArray (ByteArray)</span><span>
+</span><a name="line-103"></a><span class="hs-comment">-- &gt; import           Data.ByteString (ByteString)</span><span>
+</span><a name="line-104"></a><span class="hs-comment">-- &gt;</span><span>
+</span><a name="line-105"></a><span class="hs-comment">-- &gt; -- | Not required, but most general implementation</span><span>
+</span><a name="line-106"></a><span class="hs-comment">-- &gt; data Key c a where</span><span>
+</span><a name="line-107"></a><span class="hs-comment">-- &gt;   Key :: (BlockCipher c, ByteArray a) =&gt; a -&gt; Key c a</span><span>
+</span><a name="line-108"></a><span class="hs-comment">-- &gt;</span><span>
+</span><a name="line-109"></a><span class="hs-comment">-- &gt; -- | Generates a string of bytes (key) of a specific length for a given block cipher</span><span>
+</span><a name="line-110"></a><span class="hs-comment">-- &gt; genSecretKey :: forall m c a. (CRT.MonadRandom m, BlockCipher c, ByteArray a) =&gt; c -&gt; Int -&gt; m (Key c a)</span><span>
+</span><a name="line-111"></a><span class="hs-comment">-- &gt; genSecretKey _ = fmap Key . CRT.getRandomBytes</span><span>
+</span><a name="line-112"></a><span class="hs-comment">-- &gt;</span><span>
+</span><a name="line-113"></a><span class="hs-comment">-- &gt; -- | Generate a random initialization vector for a given block cipher</span><span>
+</span><a name="line-114"></a><span class="hs-comment">-- &gt; genRandomIV :: forall m c. (CRT.MonadRandom m, BlockCipher c) =&gt; c -&gt; m (Maybe (IV c))</span><span>
+</span><a name="line-115"></a><span class="hs-comment">-- &gt; genRandomIV _ = do</span><span>
+</span><a name="line-116"></a><span class="hs-comment">-- &gt;   bytes :: ByteString &lt;- CRT.getRandomBytes $ blockSize (undefined :: c)</span><span>
+</span><a name="line-117"></a><span class="hs-comment">-- &gt;   return $ makeIV bytes</span><span>
+</span><a name="line-118"></a><span class="hs-comment">-- &gt;</span><span>
+</span><a name="line-119"></a><span class="hs-comment">-- &gt; -- | Initialize a block cipher</span><span>
+</span><a name="line-120"></a><span class="hs-comment">-- &gt; initCipher :: (BlockCipher c, ByteArray a) =&gt; Key c a -&gt; Either CryptoError c</span><span>
+</span><a name="line-121"></a><span class="hs-comment">-- &gt; initCipher (Key k) = case cipherInit k of</span><span>
+</span><a name="line-122"></a><span class="hs-comment">-- &gt;   CryptoFailed e -&gt; Left e</span><span>
+</span><a name="line-123"></a><span class="hs-comment">-- &gt;   CryptoPassed a -&gt; Right a</span><span>
+</span><a name="line-124"></a><span class="hs-comment">-- &gt;</span><span>
+</span><a name="line-125"></a><span class="hs-comment">-- &gt; encrypt :: (BlockCipher c, ByteArray a) =&gt; Key c a -&gt; IV c -&gt; a -&gt; Either CryptoError a</span><span>
+</span><a name="line-126"></a><span class="hs-comment">-- &gt; encrypt secretKey initIV msg =</span><span>
+</span><a name="line-127"></a><span class="hs-comment">-- &gt;   case initCipher secretKey of</span><span>
+</span><a name="line-128"></a><span class="hs-comment">-- &gt;     Left e -&gt; Left e</span><span>
+</span><a name="line-129"></a><span class="hs-comment">-- &gt;     Right c -&gt; Right $ ctrCombine c initIV msg</span><span>
+</span><a name="line-130"></a><span class="hs-comment">-- &gt;</span><span>
+</span><a name="line-131"></a><span class="hs-comment">-- &gt; decrypt :: (BlockCipher c, ByteArray a) =&gt; Key c a -&gt; IV c -&gt; a -&gt; Either CryptoError a</span><span>
+</span><a name="line-132"></a><span class="hs-comment">-- &gt; decrypt = encrypt</span><span>
+</span><a name="line-133"></a><span class="hs-comment">-- &gt;</span><span>
+</span><a name="line-134"></a><span class="hs-comment">-- &gt; exampleAES256 :: ByteString -&gt; IO ()</span><span>
+</span><a name="line-135"></a><span class="hs-comment">-- &gt; exampleAES256 msg = do</span><span>
+</span><a name="line-136"></a><span class="hs-comment">-- &gt;   -- secret key needs 256 bits (32 * 8)</span><span>
+</span><a name="line-137"></a><span class="hs-comment">-- &gt;   secretKey &lt;- genSecretKey (undefined :: AES256) 32</span><span>
+</span><a name="line-138"></a><span class="hs-comment">-- &gt;   mInitIV &lt;- genRandomIV (undefined :: AES256)</span><span>
+</span><a name="line-139"></a><span class="hs-comment">-- &gt;   case mInitIV of</span><span>
+</span><a name="line-140"></a><span class="hs-comment">-- &gt;     Nothing -&gt; error &quot;Failed to generate and initialization vector.&quot;</span><span>
+</span><a name="line-141"></a><span class="hs-comment">-- &gt;     Just initIV -&gt; do</span><span>
+</span><a name="line-142"></a><span class="hs-comment">-- &gt;       let encryptedMsg = encrypt secretKey initIV msg</span><span>
+</span><a name="line-143"></a><span class="hs-comment">-- &gt;           decryptedMsg = decrypt secretKey initIV =&lt;&lt; encryptedMsg</span><span>
+</span><a name="line-144"></a><span class="hs-comment">-- &gt;       case (,) &lt;$&gt; encryptedMsg &lt;*&gt; decryptedMsg of</span><span>
+</span><a name="line-145"></a><span class="hs-comment">-- &gt;         Left err -&gt; error $ show err</span><span>
+</span><a name="line-146"></a><span class="hs-comment">-- &gt;         Right (eMsg, dMsg) -&gt; do</span><span>
+</span><a name="line-147"></a><span class="hs-comment">-- &gt;           putStrLn $ &quot;Original Message: &quot; ++ show msg</span><span>
+</span><a name="line-148"></a><span class="hs-comment">-- &gt;           putStrLn $ &quot;Message after encryption: &quot; ++ show eMsg</span><span>
+</span><a name="line-149"></a><span class="hs-comment">-- &gt;           putStrLn $ &quot;Message after decryption: &quot; ++ show dMsg</span><span>
+</span><a name="line-150"></a></pre></body></html>

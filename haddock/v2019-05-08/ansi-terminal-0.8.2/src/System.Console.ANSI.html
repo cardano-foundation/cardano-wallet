@@ -1,0 +1,122 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- | Through this module, this library provides platform-independent support</span><span>
+</span><a name="line-2"></a><span class="hs-comment">-- for control character sequences following the \'ANSI\' standards (see further</span><span>
+</span><a name="line-3"></a><span class="hs-comment">-- below) for terminal software that supports those sequences, running on a</span><span>
+</span><a name="line-4"></a><span class="hs-comment">-- Unix-like operating system or Windows.</span><span>
+</span><a name="line-5"></a><span class="hs-comment">--</span><span>
+</span><a name="line-6"></a><span class="hs-comment">-- The sequences of control characters (also referred to as \'escape\' sequences</span><span>
+</span><a name="line-7"></a><span class="hs-comment">-- or codes) provide a rich range of functionality for terminal control, which</span><span>
+</span><a name="line-8"></a><span class="hs-comment">-- includes:</span><span>
+</span><a name="line-9"></a><span class="hs-comment">--</span><span>
+</span><a name="line-10"></a><span class="hs-comment">--  * Colored text output, with control over both foreground and background</span><span>
+</span><a name="line-11"></a><span class="hs-comment">--    colors</span><span>
+</span><a name="line-12"></a><span class="hs-comment">--</span><span>
+</span><a name="line-13"></a><span class="hs-comment">--  * Clearing parts of a line or the screen</span><span>
+</span><a name="line-14"></a><span class="hs-comment">--</span><span>
+</span><a name="line-15"></a><span class="hs-comment">--  * Hiding or showing the cursor</span><span>
+</span><a name="line-16"></a><span class="hs-comment">--</span><span>
+</span><a name="line-17"></a><span class="hs-comment">--  * Moving the cursor around</span><span>
+</span><a name="line-18"></a><span class="hs-comment">--</span><span>
+</span><a name="line-19"></a><span class="hs-comment">--  * Reporting the position of the cursor</span><span>
+</span><a name="line-20"></a><span class="hs-comment">--</span><span>
+</span><a name="line-21"></a><span class="hs-comment">--  * Scrolling the screen up or down</span><span>
+</span><a name="line-22"></a><span class="hs-comment">--</span><span>
+</span><a name="line-23"></a><span class="hs-comment">--  * Changing the title of the terminal</span><span>
+</span><a name="line-24"></a><span class="hs-comment">--</span><span>
+</span><a name="line-25"></a><span class="hs-comment">-- The functions moving the cursor to an absolute position are 0-based (the</span><span>
+</span><a name="line-26"></a><span class="hs-comment">-- top-left corner is considered to be at row 0 column 0) (see</span><span>
+</span><a name="line-27"></a><span class="hs-comment">-- 'setCursorPosition') and so is 'getCursorPosition0'. The \'ANSI\' standards</span><span>
+</span><a name="line-28"></a><span class="hs-comment">-- themselves are 1-based (that is, the top-left corner is considered to be at</span><span>
+</span><a name="line-29"></a><span class="hs-comment">-- row 1 column 1) and some functions reporting the position of the cursor are</span><span>
+</span><a name="line-30"></a><span class="hs-comment">-- too (see 'reportCursorPosition').</span><span>
+</span><a name="line-31"></a><span class="hs-comment">--</span><span>
+</span><a name="line-32"></a><span class="hs-comment">-- The native terminal software on Windows is \'Command Prompt\' or</span><span>
+</span><a name="line-33"></a><span class="hs-comment">-- \`PowerShell\`. Before Windows 10 version 1511 (known as the \'November</span><span>
+</span><a name="line-34"></a><span class="hs-comment">-- [2015] Update\' or \'Threshold 2\') that software did not support such</span><span>
+</span><a name="line-35"></a><span class="hs-comment">-- control sequences. For that software, this library also provides support for</span><span>
+</span><a name="line-36"></a><span class="hs-comment">-- such sequences by using emulation.</span><span>
+</span><a name="line-37"></a><span class="hs-comment">--</span><span>
+</span><a name="line-38"></a><span class="hs-comment">-- Terminal software other than the native software exists for Windows. One</span><span>
+</span><a name="line-39"></a><span class="hs-comment">-- example is the \'mintty\' terminal emulator for \'Cygwin\', \'MSYS\' or</span><span>
+</span><a name="line-40"></a><span class="hs-comment">-- \'MSYS2\', and dervied projects, and for \'WSL\' (Windows Subsystem for</span><span>
+</span><a name="line-41"></a><span class="hs-comment">-- Linux).</span><span>
+</span><a name="line-42"></a><span class="hs-comment">--</span><span>
+</span><a name="line-43"></a><span class="hs-comment">-- The \'ANSI\' standards refer to (1) standard ECMA-48 \`Control Functions for</span><span>
+</span><a name="line-44"></a><span class="hs-comment">-- Coded Character Sets\' (5th edition, 1991); (2) extensions in ITU-T</span><span>
+</span><a name="line-45"></a><span class="hs-comment">-- Recommendation (previously CCITT Recommendation) T.416 (03/93) \'Information</span><span>
+</span><a name="line-46"></a><span class="hs-comment">-- Technology &#8211; Open Document Architecture (ODA) and Interchange Format:</span><span>
+</span><a name="line-47"></a><span class="hs-comment">-- Character Content Architectures\` (also published as ISO/IEC International</span><span>
+</span><a name="line-48"></a><span class="hs-comment">-- Standard 8613-6); and (3) further extensions used by \'XTerm\', a terminal</span><span>
+</span><a name="line-49"></a><span class="hs-comment">-- emulator for the X Window System. The escape codes are described in a</span><span>
+</span><a name="line-50"></a><span class="hs-comment">-- Wikipedia article at &lt;http://en.wikipedia.org/wiki/ANSI_escape_code&gt; and</span><span>
+</span><a name="line-51"></a><span class="hs-comment">-- those codes supported on current versions of Windows at</span><span>
+</span><a name="line-52"></a><span class="hs-comment">-- &lt;https://docs.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences&gt;.</span><span>
+</span><a name="line-53"></a><span class="hs-comment">--</span><span>
+</span><a name="line-54"></a><span class="hs-comment">-- The whole of the \'ANSI\' standards are not supported by this library but</span><span>
+</span><a name="line-55"></a><span class="hs-comment">-- most (if not all) of the parts that are popular and well-supported by</span><span>
+</span><a name="line-56"></a><span class="hs-comment">-- terminal software are supported. Every function exported by this module comes</span><span>
+</span><a name="line-57"></a><span class="hs-comment">-- in three variants, namely:</span><span>
+</span><a name="line-58"></a><span class="hs-comment">--</span><span>
+</span><a name="line-59"></a><span class="hs-comment">--  * A variant that has an @IO ()@ type and doesn't take a @Handle@ (for</span><span>
+</span><a name="line-60"></a><span class="hs-comment">--    example, @clearScreen :: IO ()@). This variant just outputs the \`ANSI\`</span><span>
+</span><a name="line-61"></a><span class="hs-comment">--    command directly to the standard output channel ('stdout') and any</span><span>
+</span><a name="line-62"></a><span class="hs-comment">--    terminal corresponding to it. Commands issued like this should work as you</span><span>
+</span><a name="line-63"></a><span class="hs-comment">--    expect on both Unix-like operating systems and Windows.</span><span>
+</span><a name="line-64"></a><span class="hs-comment">--</span><span>
+</span><a name="line-65"></a><span class="hs-comment">--  * An \'@h@...\' variant that has an @IO ()@ type but takes a @Handle@ (for</span><span>
+</span><a name="line-66"></a><span class="hs-comment">--    example, @hClearScreen :: Handle -&gt; IO ()@). This variant outputs the</span><span>
+</span><a name="line-67"></a><span class="hs-comment">--    \`ANSI\` command to the supplied handle and any terminal corresponding to</span><span>
+</span><a name="line-68"></a><span class="hs-comment">--    it. Commands issued like this should also work as you expect on both</span><span>
+</span><a name="line-69"></a><span class="hs-comment">--    Unix-like operating systems and Windows.</span><span>
+</span><a name="line-70"></a><span class="hs-comment">--</span><span>
+</span><a name="line-71"></a><span class="hs-comment">--  * A \'...@Code@\' variant that has a @String@ type (for example,</span><span>
+</span><a name="line-72"></a><span class="hs-comment">--    @clearScreenCode :: String@). This variant outputs the sequence of control</span><span>
+</span><a name="line-73"></a><span class="hs-comment">--    characters as a 'String', which can be added to any other bit of text</span><span>
+</span><a name="line-74"></a><span class="hs-comment">--    before being output. The use of these codes is generally discouraged</span><span>
+</span><a name="line-75"></a><span class="hs-comment">--    because they will not work on legacy versions of Windows where the</span><span>
+</span><a name="line-76"></a><span class="hs-comment">--    terminal in use is not ANSI-enabled (see further above). On Windows, where</span><span>
+</span><a name="line-77"></a><span class="hs-comment">--    emulation has been necessary, these variants will always output the empty</span><span>
+</span><a name="line-78"></a><span class="hs-comment">--    string. That is done so that it is possible to use them portably; for</span><span>
+</span><a name="line-79"></a><span class="hs-comment">--    example, coloring console output on the understanding that you will see</span><span>
+</span><a name="line-80"></a><span class="hs-comment">--    colors only if you are running on a Unix-like operating system or a</span><span>
+</span><a name="line-81"></a><span class="hs-comment">--    version of Windows where emulation has not been necessary. If the control</span><span>
+</span><a name="line-82"></a><span class="hs-comment">--    characters are always required, see module &quot;System.Console.ANSI.Codes&quot;.</span><span>
+</span><a name="line-83"></a><span class="hs-comment">--</span><span>
+</span><a name="line-84"></a><span class="hs-comment">-- Example:</span><span>
+</span><a name="line-85"></a><span class="hs-comment">--</span><span>
+</span><a name="line-86"></a><span class="hs-comment">-- &gt; module Main where</span><span>
+</span><a name="line-87"></a><span class="hs-comment">-- &gt;</span><span>
+</span><a name="line-88"></a><span class="hs-comment">-- &gt; import System.Console.ANSI</span><span>
+</span><a name="line-89"></a><span class="hs-comment">-- &gt;</span><span>
+</span><a name="line-90"></a><span class="hs-comment">-- &gt; -- Set colors and write some text in those colors.</span><span>
+</span><a name="line-91"></a><span class="hs-comment">-- &gt; main = do</span><span>
+</span><a name="line-92"></a><span class="hs-comment">-- &gt;   setSGR [SetColor Foreground Vivid Red]</span><span>
+</span><a name="line-93"></a><span class="hs-comment">-- &gt;   setSGR [SetColor Background Vivid Blue]</span><span>
+</span><a name="line-94"></a><span class="hs-comment">-- &gt;   putStrLn &quot;Red-On-Blue&quot;</span><span>
+</span><a name="line-95"></a><span class="hs-comment">-- &gt;   setSGR [Reset]  -- Reset to default colour scheme</span><span>
+</span><a name="line-96"></a><span class="hs-comment">-- &gt;   putStrLn &quot;Default colors.&quot;</span><span>
+</span><a name="line-97"></a><span class="hs-comment">--</span><span>
+</span><a name="line-98"></a><span class="hs-comment">-- For many more examples, see the project's extensive</span><span>
+</span><a name="line-99"></a><span class="hs-comment">-- &lt;https://github.com/feuerbach/ansi-terminal/blob/master/app/Example.hs Example.hs&gt; file.</span><span>
+</span><a name="line-100"></a><span class="hs-cpp">#if defined(WINDOWS)
+</span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">System.Console.ANSI</span><span>
+</span><a name="line-102"></a><span>  </span><span class="hs-special">(</span><span>
+</span><a name="line-103"></a><span>    </span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">System.Console.ANSI.Windows</span><span>
+</span><a name="line-104"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-105"></a><span>
+</span><a name="line-106"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">System.Console.ANSI.Windows</span><span>
+</span><a name="line-107"></a><span>
+</span><a name="line-108"></a><span class="hs-cpp">#elif defined(UNIX)
+</span><span>
+</span><a name="line-110"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">System.Console.ANSI</span><span>
+</span><a name="line-111"></a><span>  </span><span class="hs-special">(</span><span>
+</span><a name="line-112"></a><span>    </span><span class="hs-keyword">module</span><span> </span><a href="System.Console.ANSI.Unix.html"><span class="hs-identifier">System.Console.ANSI.Unix</span></a><span>
+</span><a name="line-113"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-114"></a><span>
+</span><a name="line-115"></a><span class="hs-keyword">import</span><span> </span><a href="System.Console.ANSI.Unix.html"><span class="hs-identifier">System.Console.ANSI.Unix</span></a><span>
+</span><a name="line-116"></a><span>
+</span><a name="line-117"></a><span class="hs-cpp">#else
+</span><span>
+</span><a name="line-119"></a><span class="hs-cpp">#error Unsupported platform for the ansi-terminal package
+</span><span>
+</span><a name="line-121"></a><span class="hs-cpp">#endif
+</span></pre></body></html>

@@ -1,0 +1,102 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><a name="line-2"></a><span class="hs-cpp">#if defined(__GLASGOW_HASKELL__) &amp;&amp; __GLASGOW_HASKELL__ &gt;= 702
+</span><span class="hs-pragma">{-# LANGUAGE Trustworthy #-}</span><span>
+</span><a name="line-4"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-6"></a><span class="hs-comment">------------------------------------------------------------------------</span><span>
+</span><a name="line-7"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-8"></a><span class="hs-comment">-- Module      :  Data.Hashable.Lifted</span><span>
+</span><a name="line-9"></a><span class="hs-comment">-- Copyright   :  (c) Milan Straka 2010</span><span>
+</span><a name="line-10"></a><span class="hs-comment">--                (c) Johan Tibell 2011</span><span>
+</span><a name="line-11"></a><span class="hs-comment">--                (c) Bryan O'Sullivan 2011, 2012</span><span>
+</span><a name="line-12"></a><span class="hs-comment">-- License     :  BSD-style</span><span>
+</span><a name="line-13"></a><span class="hs-comment">-- Maintainer  :  johan.tibell@gmail.com</span><span>
+</span><a name="line-14"></a><span class="hs-comment">-- Stability   :  provisional</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- Portability :  portable</span><span>
+</span><a name="line-16"></a><span class="hs-comment">--</span><span>
+</span><a name="line-17"></a><span class="hs-comment">-- Lifting of the 'Hashable' class to unary and binary type constructors.</span><span>
+</span><a name="line-18"></a><span class="hs-comment">-- These classes are needed to express the constraints on arguments of</span><span>
+</span><a name="line-19"></a><span class="hs-comment">-- types that are parameterized by type constructors. Fixed-point data</span><span>
+</span><a name="line-20"></a><span class="hs-comment">-- types and monad transformers are such types.</span><span>
+</span><a name="line-21"></a><span>
+</span><a name="line-22"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Hashable.Lifted</span><span>
+</span><a name="line-23"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-comment">-- * Type Classes</span><span>
+</span><a name="line-24"></a><span>      </span><a href="Data.Hashable.Class.html#Hashable1"><span class="hs-identifier hs-type">Hashable1</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-25"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Hashable.Class.html#Hashable2"><span class="hs-identifier hs-type">Hashable2</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-26"></a><span>      </span><span class="hs-comment">-- * Auxiliary Functions</span><span>
+</span><a name="line-27"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Hashable.Class.html#hashWithSalt1"><span class="hs-identifier hs-var">hashWithSalt1</span></a><span>
+</span><a name="line-28"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Hashable.Class.html#hashWithSalt2"><span class="hs-identifier hs-var">hashWithSalt2</span></a><span>
+</span><a name="line-29"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Hashable.Class.html#defaultLiftHashWithSalt"><span class="hs-identifier hs-var">defaultLiftHashWithSalt</span></a><span>
+</span><a name="line-30"></a><span>      </span><span class="hs-comment">-- * Motivation</span><span>
+</span><a name="line-31"></a><span>      </span><span class="hs-comment">-- $motivation</span><span>
+</span><a name="line-32"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-33"></a><span>
+</span><a name="line-34"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Hashable.Class.html"><span class="hs-identifier">Data.Hashable.Class</span></a><span>
+</span><a name="line-35"></a><span>
+</span><a name="line-36"></a><span class="hs-comment">-- $motivation</span><span>
+</span><a name="line-37"></a><span class="hs-comment">--</span><span>
+</span><a name="line-38"></a><span class="hs-comment">-- This type classes provided in this module are used to express constraints</span><span>
+</span><a name="line-39"></a><span class="hs-comment">-- on type constructors in a Haskell98-compatible fashion. As an example, consider</span><span>
+</span><a name="line-40"></a><span class="hs-comment">-- the following two types (Note that these instances are not actually provided</span><span>
+</span><a name="line-41"></a><span class="hs-comment">-- because @hashable@ does not have @transformers@ or @free@ as a dependency):</span><span>
+</span><a name="line-42"></a><span class="hs-comment">--</span><span>
+</span><a name="line-43"></a><span class="hs-comment">-- &gt; newtype WriterT w m a = WriterT { runWriterT :: m (a, w) }</span><span>
+</span><a name="line-44"></a><span class="hs-comment">-- &gt; data Free f a = Pure a | Free (f (Free f a))</span><span>
+</span><a name="line-45"></a><span class="hs-comment">--</span><span>
+</span><a name="line-46"></a><span class="hs-comment">-- The 'Hashable1' instances for @WriterT@ and @Free@ could be written as:</span><span>
+</span><a name="line-47"></a><span class="hs-comment">--</span><span>
+</span><a name="line-48"></a><span class="hs-comment">-- &gt; instance (Hashable w, Hashable1 m) =&gt; Hashable1 (WriterT w m) where</span><span>
+</span><a name="line-49"></a><span class="hs-comment">-- &gt;     liftHashWithSalt h s (WriterT m) =</span><span>
+</span><a name="line-50"></a><span class="hs-comment">-- &gt;         liftHashWithSalt (liftHashWithSalt2 h hashWithSalt) s m</span><span>
+</span><a name="line-51"></a><span class="hs-comment">-- &gt; instance Hashable1 f =&gt; Hashable1 (Free f) where</span><span>
+</span><a name="line-52"></a><span class="hs-comment">-- &gt;     liftHashWithSalt h = go where</span><span>
+</span><a name="line-53"></a><span class="hs-comment">-- &gt;         go s x = case x of</span><span>
+</span><a name="line-54"></a><span class="hs-comment">-- &gt;             Pure a -&gt; h s a</span><span>
+</span><a name="line-55"></a><span class="hs-comment">-- &gt;             Free p -&gt; liftHashWithSalt go s p</span><span>
+</span><a name="line-56"></a><span class="hs-comment">--</span><span>
+</span><a name="line-57"></a><span class="hs-comment">-- The 'Hashable' instances for these types can be trivially recovered with</span><span>
+</span><a name="line-58"></a><span class="hs-comment">-- 'hashWithSalt1':</span><span>
+</span><a name="line-59"></a><span class="hs-comment">--</span><span>
+</span><a name="line-60"></a><span class="hs-comment">-- &gt; instance (Hashable w, Hashable1 m, Hashable a) =&gt; Hashable (WriterT w m a) where</span><span>
+</span><a name="line-61"></a><span class="hs-comment">-- &gt;     hashWithSalt = hashWithSalt1</span><span>
+</span><a name="line-62"></a><span class="hs-comment">-- &gt; instance (Hashable1 f, Hashable a) =&gt; Hashable (Free f a) where</span><span>
+</span><a name="line-63"></a><span class="hs-comment">-- &gt;     hashWithSalt = hashWithSalt1</span><span>
+</span><a name="line-64"></a><span>
+</span><a name="line-65"></a><span class="hs-comment">--</span><span>
+</span><a name="line-66"></a><span class="hs-comment">-- $discussion</span><span>
+</span><a name="line-67"></a><span class="hs-comment">--</span><span>
+</span><a name="line-68"></a><span class="hs-comment">-- Regardless of whether 'hashWithSalt1' is used to provide an implementation</span><span>
+</span><a name="line-69"></a><span class="hs-comment">-- of 'hashWithSalt', they should produce the same hash when called with</span><span>
+</span><a name="line-70"></a><span class="hs-comment">-- the same arguments. This is the only law that 'Hashable1' and 'Hashable2'</span><span>
+</span><a name="line-71"></a><span class="hs-comment">-- are expected to follow.</span><span>
+</span><a name="line-72"></a><span class="hs-comment">--</span><span>
+</span><a name="line-73"></a><span class="hs-comment">-- The typeclasses in this module only provide lifting for 'hashWithSalt', not</span><span>
+</span><a name="line-74"></a><span class="hs-comment">-- for 'hash'. This is because such liftings cannot be defined in a way that</span><span>
+</span><a name="line-75"></a><span class="hs-comment">-- would satisfy the @liftHash@ variant of the above law. As an illustration</span><span>
+</span><a name="line-76"></a><span class="hs-comment">-- of the problem we run into, let us assume that 'Hashable1' were</span><span>
+</span><a name="line-77"></a><span class="hs-comment">-- given a 'liftHash' method:</span><span>
+</span><a name="line-78"></a><span class="hs-comment">--</span><span>
+</span><a name="line-79"></a><span class="hs-comment">-- &gt; class Hashable1 t where</span><span>
+</span><a name="line-80"></a><span class="hs-comment">-- &gt;     liftHash :: (Int -&gt; a) -&gt; t a -&gt; Int</span><span>
+</span><a name="line-81"></a><span class="hs-comment">-- &gt;     liftHashWithSalt :: (Int -&gt; a -&gt; Int) -&gt; Int -&gt; t a -&gt; Int</span><span>
+</span><a name="line-82"></a><span class="hs-comment">--</span><span>
+</span><a name="line-83"></a><span class="hs-comment">-- Even for a type as simple as 'Maybe', the problem manifests itself. The</span><span>
+</span><a name="line-84"></a><span class="hs-comment">-- 'Hashable' instance for 'Maybe' is:</span><span>
+</span><a name="line-85"></a><span class="hs-comment">--</span><span>
+</span><a name="line-86"></a><span class="hs-comment">-- &gt; distinguisher :: Int</span><span>
+</span><a name="line-87"></a><span class="hs-comment">-- &gt; distinguisher = ...</span><span>
+</span><a name="line-88"></a><span class="hs-comment">-- &gt;</span><span>
+</span><a name="line-89"></a><span class="hs-comment">-- &gt; instance Hashable a =&gt; Hashable (Maybe a) where</span><span>
+</span><a name="line-90"></a><span class="hs-comment">-- &gt;     hash Nothing = 0</span><span>
+</span><a name="line-91"></a><span class="hs-comment">-- &gt;     hash (Just a) = distinguisher `hashWithSalt` a</span><span>
+</span><a name="line-92"></a><span class="hs-comment">-- &gt;     hashWithSalt s Nothing = ...</span><span>
+</span><a name="line-93"></a><span class="hs-comment">-- &gt;     hashWithSalt s (Just a) = ...</span><span>
+</span><a name="line-94"></a><span class="hs-comment">--</span><span>
+</span><a name="line-95"></a><span class="hs-comment">-- The implementation of 'hash' calls 'hashWithSalt' on @a@. The hypothetical</span><span>
+</span><a name="line-96"></a><span class="hs-comment">-- @liftHash@ defined earlier only accepts an argument that corresponds to</span><span>
+</span><a name="line-97"></a><span class="hs-comment">-- the implementation of 'hash' for @a@. Consequently, this formulation of</span><span>
+</span><a name="line-98"></a><span class="hs-comment">-- @liftHash@ would not provide a way to match the current behavior of 'hash'</span><span>
+</span><a name="line-99"></a><span class="hs-comment">-- for 'Maybe'. This problem gets worse when 'Either' and @[]@ are considered.</span><span>
+</span><a name="line-100"></a><span class="hs-comment">-- The solution adopted in this library is to omit @liftHash@ entirely.</span><span>
+</span><a name="line-101"></a><span>
+</span><a name="line-102"></a></pre></body></html>

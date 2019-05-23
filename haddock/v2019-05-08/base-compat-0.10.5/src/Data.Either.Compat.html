@@ -1,0 +1,64 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP, NoImplicitPrelude #-}</span><span>
+</span><a name="line-2"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Either.Compat</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-3"></a><span>  </span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Base</span><span>
+</span><a name="line-4"></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">isLeft</span><span>
+</span><a name="line-5"></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">isRight</span><span>
+</span><a name="line-6"></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">fromLeft</span><span>
+</span><a name="line-7"></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">fromRight</span><span>
+</span><a name="line-8"></a><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-9"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Either</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">Base</span><span>
+</span><a name="line-10"></a><span>
+</span><a name="line-11"></a><span class="hs-cpp">#if !(MIN_VERSION_base(4,7,0))
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Bool</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Bool</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-13"></a><span>
+</span><a name="line-14"></a><span class="hs-comment">-- | Return `True` if the given value is a `Left`-value, `False` otherwise.</span><span>
+</span><a name="line-15"></a><span class="hs-comment">--</span><span>
+</span><a name="line-16"></a><span class="hs-comment">-- /Since: 4.7.0.0/</span><span>
+</span><a name="line-17"></a><span class="hs-identifier">isLeft</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">Either</span><span> </span><span class="hs-identifier">a</span><span> </span><span class="hs-identifier">b</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">Bool</span><span>
+</span><a name="line-18"></a><span class="hs-identifier">isLeft</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Left</span><span>  </span><span class="hs-identifier">_</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">True</span><span>
+</span><a name="line-19"></a><span class="hs-identifier">isLeft</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Right</span><span> </span><span class="hs-identifier">_</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">False</span><span>
+</span><a name="line-20"></a><span>
+</span><a name="line-21"></a><span class="hs-comment">-- | Return `True` if the given value is a `Right`-value, `False` otherwise.</span><span>
+</span><a name="line-22"></a><span class="hs-comment">--</span><span>
+</span><a name="line-23"></a><span class="hs-comment">-- /Since: 4.7.0.0/</span><span>
+</span><a name="line-24"></a><span class="hs-identifier">isRight</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">Either</span><span> </span><span class="hs-identifier">a</span><span> </span><span class="hs-identifier">b</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">Bool</span><span>
+</span><a name="line-25"></a><span class="hs-identifier">isRight</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Left</span><span>  </span><span class="hs-identifier">_</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">False</span><span>
+</span><a name="line-26"></a><span class="hs-identifier">isRight</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Right</span><span> </span><span class="hs-identifier">_</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">True</span><span>
+</span><a name="line-27"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-29"></a><span class="hs-cpp">#if !(MIN_VERSION_base(4,10,0))
+</span><span class="hs-comment">-- | Return the contents of a 'Left'-value or a default value otherwise.</span><span>
+</span><a name="line-31"></a><span class="hs-comment">--</span><span>
+</span><a name="line-32"></a><span class="hs-comment">-- /Since: 4.10.0.0/</span><span>
+</span><a name="line-33"></a><span class="hs-comment">--</span><span>
+</span><a name="line-34"></a><span class="hs-comment">-- ==== __Examples__</span><span>
+</span><a name="line-35"></a><span class="hs-comment">--</span><span>
+</span><a name="line-36"></a><span class="hs-comment">-- Basic usage:</span><span>
+</span><a name="line-37"></a><span class="hs-comment">--</span><span>
+</span><a name="line-38"></a><span class="hs-comment">-- &gt;&gt;&gt; fromLeft 1 (Left 3)</span><span>
+</span><a name="line-39"></a><span class="hs-comment">-- 3</span><span>
+</span><a name="line-40"></a><span class="hs-comment">-- &gt;&gt;&gt; fromLeft 1 (Right &quot;foo&quot;)</span><span>
+</span><a name="line-41"></a><span class="hs-comment">-- 1</span><span>
+</span><a name="line-42"></a><span class="hs-comment">--</span><span>
+</span><a name="line-43"></a><span class="hs-identifier">fromLeft</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">a</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">Either</span><span> </span><span class="hs-identifier">a</span><span> </span><span class="hs-identifier">b</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">a</span><span>
+</span><a name="line-44"></a><span class="hs-identifier">fromLeft</span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Left</span><span> </span><span class="hs-identifier">a</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">a</span><span>
+</span><a name="line-45"></a><span class="hs-identifier">fromLeft</span><span> </span><span class="hs-identifier">a</span><span> </span><span class="hs-identifier">_</span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">a</span><span>
+</span><a name="line-46"></a><span>
+</span><a name="line-47"></a><span class="hs-comment">-- | Return the contents of a 'Right'-value or a default value otherwise.</span><span>
+</span><a name="line-48"></a><span class="hs-comment">--</span><span>
+</span><a name="line-49"></a><span class="hs-comment">-- /Since: 4.10.0.0/</span><span>
+</span><a name="line-50"></a><span class="hs-comment">--</span><span>
+</span><a name="line-51"></a><span class="hs-comment">-- ==== __Examples__</span><span>
+</span><a name="line-52"></a><span class="hs-comment">--</span><span>
+</span><a name="line-53"></a><span class="hs-comment">-- Basic usage:</span><span>
+</span><a name="line-54"></a><span class="hs-comment">--</span><span>
+</span><a name="line-55"></a><span class="hs-comment">-- &gt;&gt;&gt; fromRight 1 (Right 3)</span><span>
+</span><a name="line-56"></a><span class="hs-comment">-- 3</span><span>
+</span><a name="line-57"></a><span class="hs-comment">-- &gt;&gt;&gt; fromRight 1 (Left &quot;foo&quot;)</span><span>
+</span><a name="line-58"></a><span class="hs-comment">-- 1</span><span>
+</span><a name="line-59"></a><span class="hs-comment">--</span><span>
+</span><a name="line-60"></a><span class="hs-identifier">fromRight</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">b</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">Either</span><span> </span><span class="hs-identifier">a</span><span> </span><span class="hs-identifier">b</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">b</span><span>
+</span><a name="line-61"></a><span class="hs-identifier">fromRight</span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Right</span><span> </span><span class="hs-identifier">b</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">b</span><span>
+</span><a name="line-62"></a><span class="hs-identifier">fromRight</span><span> </span><span class="hs-identifier">b</span><span> </span><span class="hs-identifier">_</span><span>         </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">b</span><span>
+</span><a name="line-63"></a><span class="hs-cpp">#endif
+</span></pre></body></html>

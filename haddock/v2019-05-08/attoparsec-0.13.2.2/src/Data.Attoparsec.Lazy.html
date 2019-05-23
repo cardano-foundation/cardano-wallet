@@ -1,0 +1,30 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><a name="line-2"></a><span class="hs-comment">-- Module      :  Data.Attoparsec.Lazy</span><span>
+</span><a name="line-3"></a><span class="hs-comment">-- Copyright   :  Bryan O'Sullivan 2007-2015</span><span>
+</span><a name="line-4"></a><span class="hs-comment">-- License     :  BSD3</span><span>
+</span><a name="line-5"></a><span class="hs-comment">--</span><span>
+</span><a name="line-6"></a><span class="hs-comment">-- Maintainer  :  bos@serpentine.com</span><span>
+</span><a name="line-7"></a><span class="hs-comment">-- Stability   :  experimental</span><span>
+</span><a name="line-8"></a><span class="hs-comment">-- Portability :  unknown</span><span>
+</span><a name="line-9"></a><span class="hs-comment">--</span><span>
+</span><a name="line-10"></a><span class="hs-comment">-- Simple, efficient combinator parsing for lazy 'ByteString'</span><span>
+</span><a name="line-11"></a><span class="hs-comment">-- strings, loosely based on the Parsec library.</span><span>
+</span><a name="line-12"></a><span class="hs-comment">--</span><span>
+</span><a name="line-13"></a><span class="hs-comment">-- This is essentially the same code as in the 'Data.Attoparsec'</span><span>
+</span><a name="line-14"></a><span class="hs-comment">-- module, only with a 'parse' function that can consume a lazy</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- 'ByteString' incrementally, and a 'Result' type that does not allow</span><span>
+</span><a name="line-16"></a><span class="hs-comment">-- more input to be fed in.  Think of this as suitable for use with a</span><span>
+</span><a name="line-17"></a><span class="hs-comment">-- lazily read file, e.g. via 'L.readFile' or 'L.hGetContents'.</span><span>
+</span><a name="line-18"></a><span class="hs-comment">--</span><span>
+</span><a name="line-19"></a><span class="hs-comment">-- Behind the scenes, strict 'B.ByteString' values are still used</span><span>
+</span><a name="line-20"></a><span class="hs-comment">-- internally to store parser input and manipulate it efficiently.</span><span>
+</span><a name="line-21"></a><span class="hs-comment">-- High-performance parsers such as 'string' still expect strict</span><span>
+</span><a name="line-22"></a><span class="hs-comment">-- 'B.ByteString' parameters.</span><span>
+</span><a name="line-23"></a><span>
+</span><a name="line-24"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Attoparsec.Lazy</span><span>
+</span><a name="line-25"></a><span>    </span><span class="hs-special">(</span><span>
+</span><a name="line-26"></a><span>      </span><span class="hs-keyword">module</span><span> </span><a href="Data.Attoparsec.ByteString.Lazy.html"><span class="hs-identifier">Data.Attoparsec.ByteString.Lazy</span></a><span>
+</span><a name="line-27"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-28"></a><span>
+</span><a name="line-29"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Attoparsec.ByteString.Lazy.html"><span class="hs-identifier">Data.Attoparsec.ByteString.Lazy</span></a><span>
+</span><a name="line-30"></a></pre></body></html>

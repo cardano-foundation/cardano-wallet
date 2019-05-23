@@ -1,0 +1,81 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- | HUnit is a unit testing framework for Haskell, inspired by the JUnit tool</span><span>
+</span><a name="line-2"></a><span class="hs-comment">-- for Java. This guide describes how to use HUnit, assuming you are familiar</span><span>
+</span><a name="line-3"></a><span class="hs-comment">-- with Haskell, though not necessarily with JUnit.</span><span>
+</span><a name="line-4"></a><span class="hs-comment">--</span><span>
+</span><a name="line-5"></a><span class="hs-comment">-- In the Haskell module where your tests will reside, import module</span><span>
+</span><a name="line-6"></a><span class="hs-comment">-- @Test.HUnit@:</span><span>
+</span><a name="line-7"></a><span class="hs-comment">--</span><span>
+</span><a name="line-8"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-9"></a><span class="hs-comment">--    import Test.HUnit</span><span>
+</span><a name="line-10"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-11"></a><span class="hs-comment">--</span><span>
+</span><a name="line-12"></a><span class="hs-comment">--  Define test cases as appropriate:</span><span>
+</span><a name="line-13"></a><span class="hs-comment">--</span><span>
+</span><a name="line-14"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-15"></a><span class="hs-comment">--    test1 = TestCase (assertEqual &quot;for (foo 3),&quot; (1,2) (foo 3))</span><span>
+</span><a name="line-16"></a><span class="hs-comment">--    test2 = TestCase (do (x,y) &lt;- partA 3</span><span>
+</span><a name="line-17"></a><span class="hs-comment">--                         assertEqual &quot;for the first result of partA,&quot; 5 x</span><span>
+</span><a name="line-18"></a><span class="hs-comment">--                         b &lt;- partB y</span><span>
+</span><a name="line-19"></a><span class="hs-comment">--                         assertBool (&quot;(partB &quot; ++ show y ++ &quot;) failed&quot;) b)</span><span>
+</span><a name="line-20"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-21"></a><span class="hs-comment">--</span><span>
+</span><a name="line-22"></a><span class="hs-comment">-- Name the test cases and group them together:</span><span>
+</span><a name="line-23"></a><span class="hs-comment">--</span><span>
+</span><a name="line-24"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-25"></a><span class="hs-comment">--    tests = TestList [TestLabel &quot;test1&quot; test1, TestLabel &quot;test2&quot; test2]</span><span>
+</span><a name="line-26"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-27"></a><span class="hs-comment">--</span><span>
+</span><a name="line-28"></a><span class="hs-comment">-- Run the tests as a group. At a Haskell interpreter prompt, apply the function</span><span>
+</span><a name="line-29"></a><span class="hs-comment">-- @runTestTT@ to the collected tests. (The /TT/ suggests /T/ext orientation</span><span>
+</span><a name="line-30"></a><span class="hs-comment">-- with output to the /T/erminal.)</span><span>
+</span><a name="line-31"></a><span class="hs-comment">--</span><span>
+</span><a name="line-32"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-33"></a><span class="hs-comment">--    \&gt; runTestTT tests</span><span>
+</span><a name="line-34"></a><span class="hs-comment">--    Cases: 2  Tried: 2  Errors: 0  Failures: 0</span><span>
+</span><a name="line-35"></a><span class="hs-comment">--    \&gt;</span><span>
+</span><a name="line-36"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-37"></a><span class="hs-comment">--</span><span>
+</span><a name="line-38"></a><span class="hs-comment">-- If the tests are proving their worth, you might see:</span><span>
+</span><a name="line-39"></a><span class="hs-comment">--</span><span>
+</span><a name="line-40"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-41"></a><span class="hs-comment">--    \&gt; runTestTT tests</span><span>
+</span><a name="line-42"></a><span class="hs-comment">--    ### Failure in: 0:test1</span><span>
+</span><a name="line-43"></a><span class="hs-comment">--    for (foo 3),</span><span>
+</span><a name="line-44"></a><span class="hs-comment">--    expected: (1,2)</span><span>
+</span><a name="line-45"></a><span class="hs-comment">--     but got: (1,3)</span><span>
+</span><a name="line-46"></a><span class="hs-comment">--    Cases: 2  Tried: 2  Errors: 0  Failures: 1</span><span>
+</span><a name="line-47"></a><span class="hs-comment">--    \&gt;</span><span>
+</span><a name="line-48"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-49"></a><span class="hs-comment">--</span><span>
+</span><a name="line-50"></a><span class="hs-comment">-- You can specify tests even more succinctly using operators and overloaded</span><span>
+</span><a name="line-51"></a><span class="hs-comment">-- functions that HUnit provides:</span><span>
+</span><a name="line-52"></a><span class="hs-comment">--</span><span>
+</span><a name="line-53"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-54"></a><span class="hs-comment">--    tests = test [ &quot;test1&quot; ~: &quot;(foo 3)&quot; ~: (1,2) ~=? (foo 3),</span><span>
+</span><a name="line-55"></a><span class="hs-comment">--                   &quot;test2&quot; ~: do (x, y) &lt;- partA 3</span><span>
+</span><a name="line-56"></a><span class="hs-comment">--                                 assertEqual &quot;for the first result of partA,&quot; 5 x</span><span>
+</span><a name="line-57"></a><span class="hs-comment">--                                 partB y \@? &quot;(partB &quot; ++ show y ++ &quot;) failed&quot; ]</span><span>
+</span><a name="line-58"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-59"></a><span class="hs-comment">--</span><span>
+</span><a name="line-60"></a><span class="hs-comment">-- Assuming the same test failures as before, you would see:</span><span>
+</span><a name="line-61"></a><span class="hs-comment">--</span><span>
+</span><a name="line-62"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-63"></a><span class="hs-comment">--    \&gt; runTestTT tests</span><span>
+</span><a name="line-64"></a><span class="hs-comment">--    ### Failure in: 0:test1:(foo 3)</span><span>
+</span><a name="line-65"></a><span class="hs-comment">--    expected: (1,2)</span><span>
+</span><a name="line-66"></a><span class="hs-comment">--     but got: (1,3)</span><span>
+</span><a name="line-67"></a><span class="hs-comment">--    Cases: 2  Tried: 2  Errors: 0  Failures: 1</span><span>
+</span><a name="line-68"></a><span class="hs-comment">--    \&gt;</span><span>
+</span><a name="line-69"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-70"></a><span>
+</span><a name="line-71"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Test.HUnit</span><span>
+</span><a name="line-72"></a><span class="hs-special">(</span><span>
+</span><a name="line-73"></a><span>  </span><span class="hs-keyword">module</span><span> </span><a href="Test.HUnit.Base.html"><span class="hs-identifier">Test.HUnit.Base</span></a><span class="hs-special">,</span><span>
+</span><a name="line-74"></a><span>  </span><span class="hs-keyword">module</span><span> </span><a href="Test.HUnit.Text.html"><span class="hs-identifier">Test.HUnit.Text</span></a><span>
+</span><a name="line-75"></a><span class="hs-special">)</span><span>
+</span><a name="line-76"></a><span class="hs-keyword">where</span><span>
+</span><a name="line-77"></a><span>
+</span><a name="line-78"></a><span class="hs-keyword">import</span><span> </span><a href="Test.HUnit.Base.html"><span class="hs-identifier">Test.HUnit.Base</span></a><span>
+</span><a name="line-79"></a><span class="hs-keyword">import</span><span> </span><a href="Test.HUnit.Text.html"><span class="hs-identifier">Test.HUnit.Text</span></a><span>
+</span><a name="line-80"></a><span>
+</span><a name="line-81"></a></pre></body></html>

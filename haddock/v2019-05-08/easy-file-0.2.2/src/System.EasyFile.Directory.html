@@ -1,0 +1,204 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables #-}</span><span>
+</span><a name="line-3"></a><span>
+</span><a name="line-4"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">System.EasyFile.Directory</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-5"></a><span>    </span><span class="hs-keyword">module</span><span> </span><a href="System.EasyFile.Directory.html"><span class="hs-identifier">System.EasyFile.Directory</span></a><span>
+</span><a name="line-6"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">System.Directory</span><span>
+</span><a name="line-7"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-8"></a><span>
+</span><a name="line-9"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">System.Directory</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-10"></a><span>    </span><span class="hs-identifier hs-var">createDirectory</span><span>
+</span><a name="line-11"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">createDirectoryIfMissing</span><span>
+</span><a name="line-12"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">removeDirectory</span><span>
+</span><a name="line-13"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">removeDirectoryRecursive</span><span>
+</span><a name="line-14"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">renameDirectory</span><span>
+</span><a name="line-15"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">getDirectoryContents</span><span>
+</span><a name="line-16"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">setCurrentDirectory</span><span>
+</span><a name="line-17"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">removeFile</span><span>
+</span><a name="line-18"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">renameFile</span><span>
+</span><a name="line-19"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">copyFile</span><span>
+</span><a name="line-20"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">canonicalizePath</span><span>
+</span><a name="line-21"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">doesFileExist</span><span>
+</span><a name="line-22"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">doesDirectoryExist</span><span>
+</span><a name="line-23"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Permissions</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-24"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">getPermissions</span><span>
+</span><a name="line-25"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">setPermissions</span><span>
+</span><a name="line-26"></a><span>  </span><span class="hs-special">)</span><span>
+</span><a name="line-27"></a><span>
+</span><a name="line-28"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">System.Directory</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">D</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-29"></a><span>    </span><span class="hs-identifier hs-var">getCurrentDirectory</span><span>
+</span><a name="line-30"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">getHomeDirectory</span><span>
+</span><a name="line-31"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">getAppUserDataDirectory</span><span>
+</span><a name="line-32"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">getUserDocumentsDirectory</span><span>
+</span><a name="line-33"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">getTemporaryDirectory</span><span>
+</span><a name="line-34"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">copyPermissions</span><span>
+</span><a name="line-35"></a><span>  </span><span class="hs-special">)</span><span>
+</span><a name="line-36"></a><span>
+</span><a name="line-37"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Applicative</span><span>
+</span><a name="line-38"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Control.Exception</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">E</span><span>
+</span><a name="line-39"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">System.Environment</span><span>
+</span><a name="line-40"></a><span>
+</span><a name="line-41"></a><span class="hs-comment">----------------------------------------------------------------</span><span>
+</span><a name="line-42"></a><span>
+</span><a name="line-43"></a><span class="hs-comment">{- |If the operating system has a notion of current directories,
+'getCurrentDirectory' returns an absolute path to the
+current directory of the calling process.
+
+The operation may fail with:
+
+* 'HardwareFault'
+A physical I\/O error has occurred.
+@[EIO]@
+
+* 'isDoesNotExistError' \/ 'NoSuchThing'
+There is no path referring to the current directory.
+@[EPERM, ENOENT, ESTALE...]@
+
+* 'isPermissionError' \/ 'PermissionDenied'
+The process has insufficient privileges to perform the operation.
+@[EACCES]@
+
+* 'ResourceExhausted'
+Insufficient resources are available to perform the operation.
+
+* 'UnsupportedOperation'
+The operating system has no notion of current directory.
+
+-}</span><span>
+</span><a name="line-68"></a><span class="hs-identifier">getCurrentDirectory</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">IO</span><span> </span><span class="hs-identifier hs-type">FilePath</span><span>
+</span><a name="line-69"></a><a name="getCurrentDirectory"><a href="System.EasyFile.Directory.html#getCurrentDirectory"><span class="hs-identifier">getCurrentDirectory</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="System.EasyFile.Directory.html#fixPath"><span class="hs-identifier hs-var">fixPath</span></a><span> </span><span class="hs-operator hs-var">&lt;$&gt;</span><span> </span><span class="hs-identifier hs-var">D.getCurrentDirectory</span><span>
+</span><a name="line-70"></a><span>
+</span><a name="line-71"></a><span class="hs-comment">{- | Returns the current user's home directory.
+
+The directory returned is expected to be writable by the current user,
+but note that it isn't generally considered good practice to store
+application-specific data here; use 'getAppUserDataDirectory'
+instead.
+
+On Unix, 'getHomeDirectory' returns the value of the @HOME@
+environment variable.  On Windows, the system is queried for a
+suitable path; a typical path might be
+@C:/Documents And Settings/user@.
+
+The operation may fail with:
+
+* 'UnsupportedOperation'
+The operating system has no notion of home directory.
+
+* 'isDoesNotExistError'
+The home directory for the current user does not exist, or
+cannot be found.
+-}</span><span>
+</span><a name="line-92"></a><span class="hs-identifier">getHomeDirectory</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">IO</span><span> </span><span class="hs-identifier hs-type">FilePath</span><span>
+</span><a name="line-93"></a><a name="getHomeDirectory"><a href="System.EasyFile.Directory.html#getHomeDirectory"><span class="hs-identifier">getHomeDirectory</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="System.EasyFile.Directory.html#fixPath"><span class="hs-identifier hs-var">fixPath</span></a><span> </span><span class="hs-operator hs-var">&lt;$&gt;</span><span> </span><span class="hs-identifier hs-var">D.getHomeDirectory</span><span>
+</span><a name="line-94"></a><span>
+</span><a name="line-95"></a><span class="hs-comment">{- | Returns the current user's home directory from
+the @HOME@ environment variable.
+-}</span><span>
+</span><a name="line-98"></a><span>
+</span><a name="line-99"></a><span class="hs-identifier">getHomeDirectory2</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">IO</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Maybe</span><span> </span><span class="hs-identifier hs-type">FilePath</span><span class="hs-special">)</span><span>
+</span><a name="line-100"></a><a name="getHomeDirectory2"><a href="System.EasyFile.Directory.html#getHomeDirectory2"><span class="hs-identifier">getHomeDirectory2</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">Just</span><span> </span><span class="hs-operator hs-var">.</span><span> </span><a href="System.EasyFile.Directory.html#fixPath"><span class="hs-identifier hs-var">fixPath</span></a><span> </span><span class="hs-operator hs-var">&lt;$&gt;</span><span> </span><span class="hs-identifier hs-var">getEnv</span><span> </span><span class="hs-string">&quot;HOME&quot;</span><span class="hs-special">)</span><span> </span><span class="hs-special">`</span><span class="hs-identifier hs-var">E.catch</span><span class="hs-special">`</span><span>
+</span><a name="line-101"></a><span>                    </span><span class="hs-glyph">\</span><span class="hs-special">(</span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">E.IOException</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-var">return</span><span> </span><span class="hs-identifier hs-var">Nothing</span><span>
+</span><a name="line-102"></a><span>
+</span><a name="line-103"></a><span class="hs-comment">{- | Returns the pathname of a directory in which application-specific
+data for the current user can be stored.  The result of
+'getAppUserDataDirectory' for a given application is specific to
+the current user.
+
+The argument should be the name of the application, which will be used
+to construct the pathname (so avoid using unusual characters that
+might result in an invalid pathname).
+
+Note: the directory may not actually exist, and may need to be created
+first.  It is expected that the parent directory exists and is
+writable.
+
+On Unix, this function returns @$HOME\/.appName@.  On Windows, a
+typical path might be
+
+&gt; C:/Documents And Settings/user/Application Data/appName
+
+The operation may fail with:
+
+* 'UnsupportedOperation'
+The operating system has no notion of application-specific data directory.
+
+* 'isDoesNotExistError'
+The home directory for the current user does not exist, or
+cannot be found.
+-}</span><span>
+</span><a name="line-130"></a><span>
+</span><a name="line-131"></a><span class="hs-identifier">getAppUserDataDirectory</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">String</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">IO</span><span> </span><span class="hs-identifier hs-type">FilePath</span><span>
+</span><a name="line-132"></a><a name="getAppUserDataDirectory"><a href="System.EasyFile.Directory.html#getAppUserDataDirectory"><span class="hs-identifier">getAppUserDataDirectory</span></a></a><span> </span><a name="local-6989586621679024194"><a href="#local-6989586621679024194"><span class="hs-identifier">x</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="System.EasyFile.Directory.html#fixPath"><span class="hs-identifier hs-var">fixPath</span></a><span> </span><span class="hs-operator hs-var">&lt;$&gt;</span><span> </span><span class="hs-identifier hs-var">D.getAppUserDataDirectory</span><span> </span><a href="#local-6989586621679024194"><span class="hs-identifier hs-var">x</span></a><span>
+</span><a name="line-133"></a><span>
+</span><a name="line-134"></a><span class="hs-comment">{- | Returns the current user's document directory.
+
+The directory returned is expected to be writable by the current user,
+but note that it isn't generally considered good practice to store
+application-specific data here; use 'getAppUserDataDirectory'
+instead.
+
+On Unix, 'getUserDocumentsDirectory' returns the value of the @HOME@
+environment variable.  On Windows, the system is queried for a
+suitable path; a typical path might be
+@C:\/Documents and Settings\/user\/My Documents@.
+
+The operation may fail with:
+
+* 'UnsupportedOperation'
+The operating system has no notion of document directory.
+
+* 'isDoesNotExistError'
+The document directory for the current user does not exist, or
+cannot be found.
+-}</span><span>
+</span><a name="line-155"></a><span class="hs-identifier">getUserDocumentsDirectory</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">IO</span><span> </span><span class="hs-identifier hs-type">FilePath</span><span>
+</span><a name="line-156"></a><a name="getUserDocumentsDirectory"><a href="System.EasyFile.Directory.html#getUserDocumentsDirectory"><span class="hs-identifier">getUserDocumentsDirectory</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="System.EasyFile.Directory.html#fixPath"><span class="hs-identifier hs-var">fixPath</span></a><span> </span><span class="hs-operator hs-var">&lt;$&gt;</span><span> </span><span class="hs-identifier hs-var">D.getUserDocumentsDirectory</span><span>
+</span><a name="line-157"></a><span>
+</span><a name="line-158"></a><span class="hs-comment">{- | Returns the current directory for temporary files.
+
+On Unix, 'getTemporaryDirectory' returns the value of the @TMPDIR@
+environment variable or \&quot;\/tmp\&quot; if the variable isn\'t defined.
+On Windows, the function checks for the existence of environment variables in
+the following order and uses the first path found:
+
+* TMP environment variable.
+
+* TEMP environment variable.
+
+* USERPROFILE environment variable.
+
+* The Windows directory
+
+The operation may fail with:
+
+* 'UnsupportedOperation'
+The operating system has no notion of temporary directory.
+
+The function doesn\'t verify whether the path exists.
+-}</span><span>
+</span><a name="line-180"></a><span>
+</span><a name="line-181"></a><span class="hs-identifier">getTemporaryDirectory</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">IO</span><span> </span><span class="hs-identifier hs-type">FilePath</span><span>
+</span><a name="line-182"></a><a name="getTemporaryDirectory"><a href="System.EasyFile.Directory.html#getTemporaryDirectory"><span class="hs-identifier">getTemporaryDirectory</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="System.EasyFile.Directory.html#fixPath"><span class="hs-identifier hs-var">fixPath</span></a><span> </span><span class="hs-operator hs-var">&lt;$&gt;</span><span> </span><span class="hs-identifier hs-var">D.getTemporaryDirectory</span><span>
+</span><a name="line-183"></a><span>
+</span><a name="line-184"></a><span class="hs-comment">----------------------------------------------------------------</span><span>
+</span><a name="line-185"></a><span>
+</span><a name="line-186"></a><span class="hs-identifier">fixPath</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">FilePath</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">FilePath</span><span>
+</span><a name="line-187"></a><span class="hs-cpp">#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
+</span><span class="hs-identifier">fixPath</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><a name="line-189"></a><span class="hs-identifier">fixPath</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">c</span><span class="hs-glyph">:</span><span class="hs-identifier">cs</span><span class="hs-special">)</span><span>
+</span><a name="line-190"></a><span> </span><span class="hs-glyph">|</span><span> </span><span class="hs-identifier">c</span><span> </span><span class="hs-operator">==</span><span> </span><span class="hs-char">'\\'</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-char">'/'</span><span> </span><span class="hs-glyph">:</span><span> </span><span class="hs-identifier">fixPath</span><span> </span><span class="hs-identifier">cs</span><span>
+</span><a name="line-191"></a><span> </span><span class="hs-glyph">|</span><span> </span><span class="hs-identifier">otherwise</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">c</span><span>   </span><span class="hs-glyph">:</span><span> </span><span class="hs-identifier">fixPath</span><span> </span><span class="hs-identifier">cs</span><span>
+</span><a name="line-192"></a><span class="hs-cpp">#else
+</span><a name="fixPath"><a href="System.EasyFile.Directory.html#fixPath"><span class="hs-identifier">fixPath</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">id</span><span>
+</span><a name="line-194"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-196"></a><span class="hs-comment">----------------------------------------------------------------</span><span>
+</span><a name="line-197"></a><span class="hs-comment">-- Just adding documentation.</span><span>
+</span><a name="line-198"></a><span>
+</span><a name="line-199"></a><span class="hs-comment">{-|
+  This function copy the permission of the first file to the second.
+-}</span><span>
+</span><a name="line-202"></a><span class="hs-identifier">copyPermissions</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">FilePath</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">FilePath</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">IO</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><a name="line-203"></a><a name="copyPermissions"><a href="System.EasyFile.Directory.html#copyPermissions"><span class="hs-identifier">copyPermissions</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">D.copyPermissions</span><span>
+</span><a name="line-204"></a></pre></body></html>

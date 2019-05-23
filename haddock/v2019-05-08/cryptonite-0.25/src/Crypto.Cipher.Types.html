@@ -1,0 +1,40 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><a name="line-2"></a><span class="hs-comment">-- Module      : Crypto.Cipher.Types</span><span>
+</span><a name="line-3"></a><span class="hs-comment">-- License     : BSD-style</span><span>
+</span><a name="line-4"></a><span class="hs-comment">-- Maintainer  : Vincent Hanquez &lt;vincent@snarc.org&gt;</span><span>
+</span><a name="line-5"></a><span class="hs-comment">-- Stability   : Stable</span><span>
+</span><a name="line-6"></a><span class="hs-comment">-- Portability : Excellent</span><span>
+</span><a name="line-7"></a><span class="hs-comment">--</span><span>
+</span><a name="line-8"></a><span class="hs-comment">-- Symmetric cipher basic types</span><span>
+</span><a name="line-9"></a><span class="hs-comment">--</span><span>
+</span><a name="line-10"></a><span class="hs-pragma">{-# LANGUAGE DeriveDataTypeable #-}</span><span>
+</span><a name="line-11"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Crypto.Cipher.Types</span><span>
+</span><a name="line-12"></a><span>    </span><span class="hs-special">(</span><span>
+</span><a name="line-13"></a><span>    </span><span class="hs-comment">-- * Cipher classes</span><span>
+</span><a name="line-14"></a><span>      </span><a href="Crypto.Cipher.Types.Base.html#Cipher"><span class="hs-identifier hs-type">Cipher</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-15"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Crypto.Cipher.Types.Block.html#BlockCipher"><span class="hs-identifier hs-type">BlockCipher</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-16"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Crypto.Cipher.Types.Block.html#BlockCipher128"><span class="hs-identifier hs-type">BlockCipher128</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-17"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Crypto.Cipher.Types.Stream.html#StreamCipher"><span class="hs-identifier hs-type">StreamCipher</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-18"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Crypto.Cipher.Types.Base.html#DataUnitOffset"><span class="hs-identifier hs-type">DataUnitOffset</span></a><span>
+</span><a name="line-19"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Crypto.Cipher.Types.Base.html#KeySizeSpecifier"><span class="hs-identifier hs-type">KeySizeSpecifier</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-20"></a><span>    </span><span class="hs-comment">-- , cfb8Encrypt</span><span>
+</span><a name="line-21"></a><span>    </span><span class="hs-comment">-- , cfb8Decrypt</span><span>
+</span><a name="line-22"></a><span>    </span><span class="hs-comment">-- * AEAD functions</span><span>
+</span><a name="line-23"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Crypto.Cipher.Types.Base.html#AEADMode"><span class="hs-identifier hs-type">AEADMode</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-24"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Crypto.Cipher.Types.Base.html#CCM_M"><span class="hs-identifier hs-type">CCM_M</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-25"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Crypto.Cipher.Types.Base.html#CCM_L"><span class="hs-identifier hs-type">CCM_L</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-26"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><a href="Crypto.Cipher.Types.AEAD.html"><span class="hs-identifier">Crypto.Cipher.Types.AEAD</span></a><span>
+</span><a name="line-27"></a><span>    </span><span class="hs-comment">-- * Initial Vector type and constructor</span><span>
+</span><a name="line-28"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Crypto.Cipher.Types.Block.html#IV"><span class="hs-identifier hs-type">IV</span></a><span>
+</span><a name="line-29"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Crypto.Cipher.Types.Block.html#makeIV"><span class="hs-identifier hs-var">makeIV</span></a><span>
+</span><a name="line-30"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Crypto.Cipher.Types.Block.html#nullIV"><span class="hs-identifier hs-var">nullIV</span></a><span>
+</span><a name="line-31"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Crypto.Cipher.Types.Block.html#ivAdd"><span class="hs-identifier hs-var">ivAdd</span></a><span>
+</span><a name="line-32"></a><span>    </span><span class="hs-comment">-- * Authentification Tag</span><span>
+</span><a name="line-33"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Crypto.Cipher.Types.Base.html#AuthTag"><span class="hs-identifier hs-type">AuthTag</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-34"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-35"></a><span>
+</span><a name="line-36"></a><span class="hs-keyword">import</span><span> </span><a href="Crypto.Cipher.Types.Base.html"><span class="hs-identifier">Crypto.Cipher.Types.Base</span></a><span>
+</span><a name="line-37"></a><span class="hs-keyword">import</span><span> </span><a href="Crypto.Cipher.Types.Block.html"><span class="hs-identifier">Crypto.Cipher.Types.Block</span></a><span>
+</span><a name="line-38"></a><span class="hs-keyword">import</span><span> </span><a href="Crypto.Cipher.Types.Stream.html"><span class="hs-identifier">Crypto.Cipher.Types.Stream</span></a><span>
+</span><a name="line-39"></a><span class="hs-keyword">import</span><span> </span><a href="Crypto.Cipher.Types.AEAD.html"><span class="hs-identifier">Crypto.Cipher.Types.AEAD</span></a><span>
+</span><a name="line-40"></a></pre></body></html>

@@ -1,0 +1,124 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP, MagicHash #-}</span><span>
+</span><a name="line-2"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-3"></a><span class="hs-comment">-- Module      : Data.Primitive.MachDeps</span><span>
+</span><a name="line-4"></a><span class="hs-comment">-- Copyright   : (c) Roman Leshchinskiy 2009-2012</span><span>
+</span><a name="line-5"></a><span class="hs-comment">-- License     : BSD-style</span><span>
+</span><a name="line-6"></a><span class="hs-comment">--</span><span>
+</span><a name="line-7"></a><span class="hs-comment">-- Maintainer  : Roman Leshchinskiy &lt;rl@cse.unsw.edu.au&gt;</span><span>
+</span><a name="line-8"></a><span class="hs-comment">-- Portability : non-portable</span><span>
+</span><a name="line-9"></a><span class="hs-comment">--</span><span>
+</span><a name="line-10"></a><span class="hs-comment">-- Machine-dependent constants</span><span>
+</span><a name="line-11"></a><span class="hs-comment">--</span><span>
+</span><a name="line-12"></a><span>
+</span><a name="line-13"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Primitive.MachDeps</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-14"></a><span>
+</span><a name="line-15"></a><span class="hs-cpp">#include &quot;MachDeps.h&quot;
+</span><span>
+</span><a name="line-17"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.Prim</span><span>
+</span><a name="line-18"></a><span>
+</span><a name="line-19"></a><span class="hs-identifier">sIZEOF_CHAR</span><span class="hs-special">,</span><span>
+</span><a name="line-20"></a><span> </span><span class="hs-identifier">aLIGNMENT_CHAR</span><span class="hs-special">,</span><span>
+</span><a name="line-21"></a><span>
+</span><a name="line-22"></a><span> </span><span class="hs-identifier">sIZEOF_INT</span><span class="hs-special">,</span><span>
+</span><a name="line-23"></a><span> </span><span class="hs-identifier">aLIGNMENT_INT</span><span class="hs-special">,</span><span>
+</span><a name="line-24"></a><span>
+</span><a name="line-25"></a><span> </span><span class="hs-identifier">sIZEOF_WORD</span><span class="hs-special">,</span><span>
+</span><a name="line-26"></a><span> </span><span class="hs-identifier">aLIGNMENT_WORD</span><span class="hs-special">,</span><span>
+</span><a name="line-27"></a><span>
+</span><a name="line-28"></a><span> </span><span class="hs-identifier">sIZEOF_DOUBLE</span><span class="hs-special">,</span><span>
+</span><a name="line-29"></a><span> </span><span class="hs-identifier">aLIGNMENT_DOUBLE</span><span class="hs-special">,</span><span>
+</span><a name="line-30"></a><span>
+</span><a name="line-31"></a><span> </span><span class="hs-identifier">sIZEOF_FLOAT</span><span class="hs-special">,</span><span>
+</span><a name="line-32"></a><span> </span><span class="hs-identifier">aLIGNMENT_FLOAT</span><span class="hs-special">,</span><span>
+</span><a name="line-33"></a><span>
+</span><a name="line-34"></a><span> </span><span class="hs-identifier">sIZEOF_PTR</span><span class="hs-special">,</span><span>
+</span><a name="line-35"></a><span> </span><span class="hs-identifier">aLIGNMENT_PTR</span><span class="hs-special">,</span><span>
+</span><a name="line-36"></a><span>
+</span><a name="line-37"></a><span> </span><span class="hs-identifier">sIZEOF_FUNPTR</span><span class="hs-special">,</span><span>
+</span><a name="line-38"></a><span> </span><span class="hs-identifier">aLIGNMENT_FUNPTR</span><span class="hs-special">,</span><span>
+</span><a name="line-39"></a><span>
+</span><a name="line-40"></a><span> </span><span class="hs-identifier">sIZEOF_STABLEPTR</span><span class="hs-special">,</span><span>
+</span><a name="line-41"></a><span> </span><span class="hs-identifier">aLIGNMENT_STABLEPTR</span><span class="hs-special">,</span><span>
+</span><a name="line-42"></a><span>
+</span><a name="line-43"></a><span> </span><span class="hs-identifier">sIZEOF_INT8</span><span class="hs-special">,</span><span>
+</span><a name="line-44"></a><span> </span><span class="hs-identifier">aLIGNMENT_INT8</span><span class="hs-special">,</span><span>
+</span><a name="line-45"></a><span>
+</span><a name="line-46"></a><span> </span><span class="hs-identifier">sIZEOF_WORD8</span><span class="hs-special">,</span><span>
+</span><a name="line-47"></a><span> </span><span class="hs-identifier">aLIGNMENT_WORD8</span><span class="hs-special">,</span><span>
+</span><a name="line-48"></a><span>
+</span><a name="line-49"></a><span> </span><span class="hs-identifier">sIZEOF_INT16</span><span class="hs-special">,</span><span>
+</span><a name="line-50"></a><span> </span><span class="hs-identifier">aLIGNMENT_INT16</span><span class="hs-special">,</span><span>
+</span><a name="line-51"></a><span>
+</span><a name="line-52"></a><span> </span><span class="hs-identifier">sIZEOF_WORD16</span><span class="hs-special">,</span><span>
+</span><a name="line-53"></a><span> </span><span class="hs-identifier">aLIGNMENT_WORD16</span><span class="hs-special">,</span><span>
+</span><a name="line-54"></a><span>
+</span><a name="line-55"></a><span> </span><span class="hs-identifier">sIZEOF_INT32</span><span class="hs-special">,</span><span>
+</span><a name="line-56"></a><span> </span><span class="hs-identifier">aLIGNMENT_INT32</span><span class="hs-special">,</span><span>
+</span><a name="line-57"></a><span>
+</span><a name="line-58"></a><span> </span><span class="hs-identifier">sIZEOF_WORD32</span><span class="hs-special">,</span><span>
+</span><a name="line-59"></a><span> </span><span class="hs-identifier">aLIGNMENT_WORD32</span><span class="hs-special">,</span><span>
+</span><a name="line-60"></a><span>
+</span><a name="line-61"></a><span> </span><span class="hs-identifier">sIZEOF_INT64</span><span class="hs-special">,</span><span>
+</span><a name="line-62"></a><span> </span><span class="hs-identifier">aLIGNMENT_INT64</span><span class="hs-special">,</span><span>
+</span><a name="line-63"></a><span>
+</span><a name="line-64"></a><span> </span><span class="hs-identifier">sIZEOF_WORD64</span><span class="hs-special">,</span><span>
+</span><a name="line-65"></a><span> </span><span class="hs-identifier">aLIGNMENT_WORD64</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int</span><span>
+</span><a name="line-66"></a><span>
+</span><a name="line-67"></a><span>
+</span><a name="line-68"></a><a name="sIZEOF_CHAR"><a href="Data.Primitive.MachDeps.html#sIZEOF_CHAR"><span class="hs-identifier">sIZEOF_CHAR</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">SIZEOF_HSCHAR</span><span>
+</span><a name="line-69"></a><a name="aLIGNMENT_CHAR"><a href="Data.Primitive.MachDeps.html#aLIGNMENT_CHAR"><span class="hs-identifier">aLIGNMENT_CHAR</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">ALIGNMENT_HSCHAR</span><span>
+</span><a name="line-70"></a><span>
+</span><a name="line-71"></a><a name="sIZEOF_INT"><a href="Data.Primitive.MachDeps.html#sIZEOF_INT"><span class="hs-identifier">sIZEOF_INT</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">SIZEOF_HSINT</span><span>
+</span><a name="line-72"></a><a name="aLIGNMENT_INT"><a href="Data.Primitive.MachDeps.html#aLIGNMENT_INT"><span class="hs-identifier">aLIGNMENT_INT</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">ALIGNMENT_HSINT</span><span>
+</span><a name="line-73"></a><span>
+</span><a name="line-74"></a><a name="sIZEOF_WORD"><a href="Data.Primitive.MachDeps.html#sIZEOF_WORD"><span class="hs-identifier">sIZEOF_WORD</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">SIZEOF_HSWORD</span><span>
+</span><a name="line-75"></a><a name="aLIGNMENT_WORD"><a href="Data.Primitive.MachDeps.html#aLIGNMENT_WORD"><span class="hs-identifier">aLIGNMENT_WORD</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">ALIGNMENT_HSWORD</span><span>
+</span><a name="line-76"></a><span>
+</span><a name="line-77"></a><a name="sIZEOF_DOUBLE"><a href="Data.Primitive.MachDeps.html#sIZEOF_DOUBLE"><span class="hs-identifier">sIZEOF_DOUBLE</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">SIZEOF_HSDOUBLE</span><span>
+</span><a name="line-78"></a><a name="aLIGNMENT_DOUBLE"><a href="Data.Primitive.MachDeps.html#aLIGNMENT_DOUBLE"><span class="hs-identifier">aLIGNMENT_DOUBLE</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">ALIGNMENT_HSDOUBLE</span><span>
+</span><a name="line-79"></a><span>
+</span><a name="line-80"></a><a name="sIZEOF_FLOAT"><a href="Data.Primitive.MachDeps.html#sIZEOF_FLOAT"><span class="hs-identifier">sIZEOF_FLOAT</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">SIZEOF_HSFLOAT</span><span>
+</span><a name="line-81"></a><a name="aLIGNMENT_FLOAT"><a href="Data.Primitive.MachDeps.html#aLIGNMENT_FLOAT"><span class="hs-identifier">aLIGNMENT_FLOAT</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">ALIGNMENT_HSFLOAT</span><span>
+</span><a name="line-82"></a><span>
+</span><a name="line-83"></a><a name="sIZEOF_PTR"><a href="Data.Primitive.MachDeps.html#sIZEOF_PTR"><span class="hs-identifier">sIZEOF_PTR</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">SIZEOF_HSPTR</span><span>
+</span><a name="line-84"></a><a name="aLIGNMENT_PTR"><a href="Data.Primitive.MachDeps.html#aLIGNMENT_PTR"><span class="hs-identifier">aLIGNMENT_PTR</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">ALIGNMENT_HSPTR</span><span>
+</span><a name="line-85"></a><span>
+</span><a name="line-86"></a><a name="sIZEOF_FUNPTR"><a href="Data.Primitive.MachDeps.html#sIZEOF_FUNPTR"><span class="hs-identifier">sIZEOF_FUNPTR</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">SIZEOF_HSFUNPTR</span><span>
+</span><a name="line-87"></a><a name="aLIGNMENT_FUNPTR"><a href="Data.Primitive.MachDeps.html#aLIGNMENT_FUNPTR"><span class="hs-identifier">aLIGNMENT_FUNPTR</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">ALIGNMENT_HSFUNPTR</span><span>
+</span><a name="line-88"></a><span>
+</span><a name="line-89"></a><a name="sIZEOF_STABLEPTR"><a href="Data.Primitive.MachDeps.html#sIZEOF_STABLEPTR"><span class="hs-identifier">sIZEOF_STABLEPTR</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">SIZEOF_HSSTABLEPTR</span><span>
+</span><a name="line-90"></a><a name="aLIGNMENT_STABLEPTR"><a href="Data.Primitive.MachDeps.html#aLIGNMENT_STABLEPTR"><span class="hs-identifier">aLIGNMENT_STABLEPTR</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">ALIGNMENT_HSSTABLEPTR</span><span>
+</span><a name="line-91"></a><span>
+</span><a name="line-92"></a><a name="sIZEOF_INT8"><a href="Data.Primitive.MachDeps.html#sIZEOF_INT8"><span class="hs-identifier">sIZEOF_INT8</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">SIZEOF_INT8</span><span>
+</span><a name="line-93"></a><a name="aLIGNMENT_INT8"><a href="Data.Primitive.MachDeps.html#aLIGNMENT_INT8"><span class="hs-identifier">aLIGNMENT_INT8</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">ALIGNMENT_INT8</span><span>
+</span><a name="line-94"></a><span>
+</span><a name="line-95"></a><a name="sIZEOF_WORD8"><a href="Data.Primitive.MachDeps.html#sIZEOF_WORD8"><span class="hs-identifier">sIZEOF_WORD8</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">SIZEOF_WORD8</span><span>
+</span><a name="line-96"></a><a name="aLIGNMENT_WORD8"><a href="Data.Primitive.MachDeps.html#aLIGNMENT_WORD8"><span class="hs-identifier">aLIGNMENT_WORD8</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">ALIGNMENT_WORD8</span><span>
+</span><a name="line-97"></a><span>
+</span><a name="line-98"></a><a name="sIZEOF_INT16"><a href="Data.Primitive.MachDeps.html#sIZEOF_INT16"><span class="hs-identifier">sIZEOF_INT16</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">SIZEOF_INT16</span><span>
+</span><a name="line-99"></a><a name="aLIGNMENT_INT16"><a href="Data.Primitive.MachDeps.html#aLIGNMENT_INT16"><span class="hs-identifier">aLIGNMENT_INT16</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">ALIGNMENT_INT16</span><span>
+</span><a name="line-100"></a><span>
+</span><a name="line-101"></a><a name="sIZEOF_WORD16"><a href="Data.Primitive.MachDeps.html#sIZEOF_WORD16"><span class="hs-identifier">sIZEOF_WORD16</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">SIZEOF_WORD16</span><span>
+</span><a name="line-102"></a><a name="aLIGNMENT_WORD16"><a href="Data.Primitive.MachDeps.html#aLIGNMENT_WORD16"><span class="hs-identifier">aLIGNMENT_WORD16</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">ALIGNMENT_WORD16</span><span>
+</span><a name="line-103"></a><span>
+</span><a name="line-104"></a><a name="sIZEOF_INT32"><a href="Data.Primitive.MachDeps.html#sIZEOF_INT32"><span class="hs-identifier">sIZEOF_INT32</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">SIZEOF_INT32</span><span>
+</span><a name="line-105"></a><a name="aLIGNMENT_INT32"><a href="Data.Primitive.MachDeps.html#aLIGNMENT_INT32"><span class="hs-identifier">aLIGNMENT_INT32</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">ALIGNMENT_INT32</span><span>
+</span><a name="line-106"></a><span>
+</span><a name="line-107"></a><a name="sIZEOF_WORD32"><a href="Data.Primitive.MachDeps.html#sIZEOF_WORD32"><span class="hs-identifier">sIZEOF_WORD32</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">SIZEOF_WORD32</span><span>
+</span><a name="line-108"></a><a name="aLIGNMENT_WORD32"><a href="Data.Primitive.MachDeps.html#aLIGNMENT_WORD32"><span class="hs-identifier">aLIGNMENT_WORD32</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">ALIGNMENT_WORD32</span><span>
+</span><a name="line-109"></a><span>
+</span><a name="line-110"></a><a name="sIZEOF_INT64"><a href="Data.Primitive.MachDeps.html#sIZEOF_INT64"><span class="hs-identifier">sIZEOF_INT64</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">SIZEOF_INT64</span><span>
+</span><a name="line-111"></a><a name="aLIGNMENT_INT64"><a href="Data.Primitive.MachDeps.html#aLIGNMENT_INT64"><span class="hs-identifier">aLIGNMENT_INT64</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">ALIGNMENT_INT64</span><span>
+</span><a name="line-112"></a><span>
+</span><a name="line-113"></a><a name="sIZEOF_WORD64"><a href="Data.Primitive.MachDeps.html#sIZEOF_WORD64"><span class="hs-identifier">sIZEOF_WORD64</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">SIZEOF_WORD64</span><span>
+</span><a name="line-114"></a><a name="aLIGNMENT_WORD64"><a href="Data.Primitive.MachDeps.html#aLIGNMENT_WORD64"><span class="hs-identifier">aLIGNMENT_WORD64</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">ALIGNMENT_WORD64</span><span>
+</span><a name="line-115"></a><span>
+</span><a name="line-116"></a><span class="hs-cpp">#if WORD_SIZE_IN_BITS == 32
+</span><span class="hs-keyword">type</span><span> </span><span class="hs-identifier">Word64_#</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">Word64#</span><span>
+</span><a name="line-118"></a><span class="hs-keyword">type</span><span> </span><span class="hs-identifier">Int64_#</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">Int64#</span><span>
+</span><a name="line-119"></a><span class="hs-cpp">#else
+</span><span class="hs-keyword">type</span><span> </span><a name="Word64_%23"><a href="Data.Primitive.MachDeps.html#Word64_%23"><span class="hs-identifier">Word64_#</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-type">Word#</span><span>
+</span><a name="line-121"></a><span class="hs-keyword">type</span><span> </span><a name="Int64_%23"><a href="Data.Primitive.MachDeps.html#Int64_%23"><span class="hs-identifier">Int64_#</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-type">Int#</span><span>
+</span><a name="line-122"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-124"></a></pre></body></html>

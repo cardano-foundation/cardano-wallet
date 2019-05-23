@@ -1,0 +1,42 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE DeriveDataTypeable #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE DeriveGeneric      #-}</span><span>
+</span><a name="line-3"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Servant.API.IsSecure</span><span>
+</span><a name="line-4"></a><span>  </span><span class="hs-special">(</span><span> </span><span class="hs-comment">-- $issecure</span><span>
+</span><a name="line-5"></a><span>    </span><a href="Servant.API.IsSecure.html#IsSecure"><span class="hs-identifier hs-type">IsSecure</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-6"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-7"></a><span>
+</span><a name="line-8"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Data.Typeable</span><span>
+</span><a name="line-9"></a><span>                 </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Typeable</span><span class="hs-special">)</span><span>
+</span><a name="line-10"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">GHC.Generics</span><span>
+</span><a name="line-11"></a><span>                 </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Generic</span><span class="hs-special">)</span><span>
+</span><a name="line-12"></a><span>
+</span><a name="line-13"></a><span class="hs-comment">-- | Was this request made over an SSL connection?</span><span>
+</span><a name="line-14"></a><span class="hs-comment">--</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- Note that this value will not tell you if the client originally</span><span>
+</span><a name="line-16"></a><span class="hs-comment">-- made this request over SSL, but rather whether the current</span><span>
+</span><a name="line-17"></a><span class="hs-comment">-- connection is SSL. The distinction lies with reverse proxies.</span><span>
+</span><a name="line-18"></a><span class="hs-comment">-- In many cases, the client will connect to a load balancer over SSL,</span><span>
+</span><a name="line-19"></a><span class="hs-comment">-- but connect to the WAI handler without SSL. In such a case,</span><span>
+</span><a name="line-20"></a><span class="hs-comment">-- the handlers would get 'NotSecure', but from a user perspective,</span><span>
+</span><a name="line-21"></a><span class="hs-comment">-- there is a secure connection.</span><span>
+</span><a name="line-22"></a><span class="hs-keyword">data</span><span> </span><a name="IsSecure"><a href="Servant.API.IsSecure.html#IsSecure"><span class="hs-identifier">IsSecure</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a name="Secure"><a href="Servant.API.IsSecure.html#Secure"><span class="hs-identifier">Secure</span></a></a><span>    </span><span class="hs-comment">-- ^ the connection to the server</span><span>
+</span><a name="line-23"></a><span>                          </span><span class="hs-comment">--   is secure (HTTPS)</span><span>
+</span><a name="line-24"></a><span>              </span><span class="hs-glyph">|</span><span> </span><a name="NotSecure"><a href="Servant.API.IsSecure.html#NotSecure"><span class="hs-identifier">NotSecure</span></a></a><span> </span><span class="hs-comment">-- ^ the connection to the server</span><span>
+</span><a name="line-25"></a><span>                          </span><span class="hs-comment">--   is not secure (HTTP)</span><span>
+</span><a name="line-26"></a><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Eq</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Show</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Read</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Generic</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Ord</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Typeable</span><span class="hs-special">)</span><span>
+</span><a name="line-27"></a><span>
+</span><a name="line-28"></a><span class="hs-comment">-- $issecure</span><span>
+</span><a name="line-29"></a><span class="hs-comment">--</span><span>
+</span><a name="line-30"></a><span class="hs-comment">-- | Use 'IsSecure' whenever your request handlers need to know whether</span><span>
+</span><a name="line-31"></a><span class="hs-comment">--   the connection to the server is secure or not.</span><span>
+</span><a name="line-32"></a><span class="hs-comment">--   This would make the request handlers receive an argument of type 'IsSecure',</span><span>
+</span><a name="line-33"></a><span class="hs-comment">--   whose value can be one of 'Secure' (HTTPS) or 'NotSecure' (HTTP).</span><span>
+</span><a name="line-34"></a><span class="hs-comment">--</span><span>
+</span><a name="line-35"></a><span class="hs-comment">-- Example:</span><span>
+</span><a name="line-36"></a><span class="hs-comment">--</span><span>
+</span><a name="line-37"></a><span class="hs-comment">-- &gt;&gt;&gt; type API = &quot;sensitive-data&quot; :&gt; IsSecure :&gt; Get '[JSON] NationSecrets</span><span>
+</span><a name="line-38"></a><span>
+</span><a name="line-39"></a><span class="hs-comment">-- $setup</span><span>
+</span><a name="line-40"></a><span class="hs-comment">-- &gt;&gt;&gt; import Servant.API</span><span>
+</span><a name="line-41"></a><span class="hs-comment">-- &gt;&gt;&gt; data NationSecrets</span><span>
+</span><a name="line-42"></a></pre></body></html>

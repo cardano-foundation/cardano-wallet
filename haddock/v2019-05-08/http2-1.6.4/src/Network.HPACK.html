@@ -1,0 +1,59 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><a name="line-2"></a><span>
+</span><a name="line-3"></a><span class="hs-comment">-- | HPACK(&lt;https://tools.ietf.org/html/rfc7541&gt;) encoding and decoding a header list.</span><span>
+</span><a name="line-4"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Network.HPACK</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-5"></a><span>  </span><span class="hs-comment">-- * Encoding and decoding</span><span>
+</span><a name="line-6"></a><span>    </span><a href="Network.HPACK.HeaderBlock.Encode.html#encodeHeader"><span class="hs-identifier hs-var">encodeHeader</span></a><span>
+</span><a name="line-7"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.HeaderBlock.Decode.html#decodeHeader"><span class="hs-identifier hs-var">decodeHeader</span></a><span>
+</span><a name="line-8"></a><span>  </span><span class="hs-comment">-- * Encoding and decoding with token</span><span>
+</span><a name="line-9"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.HeaderBlock.Encode.html#encodeTokenHeader"><span class="hs-identifier hs-var">encodeTokenHeader</span></a><span>
+</span><a name="line-10"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.HeaderBlock.Decode.html#decodeTokenHeader"><span class="hs-identifier hs-var">decodeTokenHeader</span></a><span>
+</span><a name="line-11"></a><span>  </span><span class="hs-comment">-- * DynamicTable</span><span>
+</span><a name="line-12"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Dynamic.html#DynamicTable"><span class="hs-identifier hs-type">DynamicTable</span></a><span>
+</span><a name="line-13"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.html#defaultDynamicTableSize"><span class="hs-identifier hs-var">defaultDynamicTableSize</span></a><span>
+</span><a name="line-14"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Dynamic.html#newDynamicTableForEncoding"><span class="hs-identifier hs-var">newDynamicTableForEncoding</span></a><span>
+</span><a name="line-15"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Dynamic.html#newDynamicTableForDecoding"><span class="hs-identifier hs-var">newDynamicTableForDecoding</span></a><span>
+</span><a name="line-16"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Dynamic.html#clearDynamicTable"><span class="hs-identifier hs-var">clearDynamicTable</span></a><span>
+</span><a name="line-17"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Dynamic.html#withDynamicTableForEncoding"><span class="hs-identifier hs-var">withDynamicTableForEncoding</span></a><span>
+</span><a name="line-18"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Dynamic.html#withDynamicTableForDecoding"><span class="hs-identifier hs-var">withDynamicTableForDecoding</span></a><span>
+</span><a name="line-19"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Dynamic.html#setLimitForEncoding"><span class="hs-identifier hs-var">setLimitForEncoding</span></a><span>
+</span><a name="line-20"></a><span>  </span><span class="hs-comment">-- * Strategy for encoding</span><span>
+</span><a name="line-21"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Types.html#CompressionAlgo"><span class="hs-identifier hs-type">CompressionAlgo</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-22"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Types.html#EncodeStrategy"><span class="hs-identifier hs-type">EncodeStrategy</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-23"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Types.html#defaultEncodeStrategy"><span class="hs-identifier hs-var">defaultEncodeStrategy</span></a><span>
+</span><a name="line-24"></a><span>  </span><span class="hs-comment">-- * Errors</span><span>
+</span><a name="line-25"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Types.html#DecodeError"><span class="hs-identifier hs-type">DecodeError</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-26"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Types.html#BufferOverrun"><span class="hs-identifier hs-type">BufferOverrun</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-27"></a><span>  </span><span class="hs-comment">-- * Headers</span><span>
+</span><a name="line-28"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Types.html#HeaderList"><span class="hs-identifier hs-type">HeaderList</span></a><span>
+</span><a name="line-29"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Types.html#Header"><span class="hs-identifier hs-type">Header</span></a><span>
+</span><a name="line-30"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Types.html#HeaderName"><span class="hs-identifier hs-type">HeaderName</span></a><span>
+</span><a name="line-31"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Types.html#HeaderValue"><span class="hs-identifier hs-type">HeaderValue</span></a><span>
+</span><a name="line-32"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Types.html#TokenHeaderList"><span class="hs-identifier hs-type">TokenHeaderList</span></a><span>
+</span><a name="line-33"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Types.html#TokenHeader"><span class="hs-identifier hs-type">TokenHeader</span></a><span>
+</span><a name="line-34"></a><span>  </span><span class="hs-comment">-- * Value table</span><span>
+</span><a name="line-35"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.HeaderBlock.Decode.html#ValueTable"><span class="hs-identifier hs-type">ValueTable</span></a><span>
+</span><a name="line-36"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.HeaderBlock.Decode.html#getHeaderValue"><span class="hs-identifier hs-var">getHeaderValue</span></a><span>
+</span><a name="line-37"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.HeaderBlock.Decode.html#toHeaderTable"><span class="hs-identifier hs-var">toHeaderTable</span></a><span>
+</span><a name="line-38"></a><span>  </span><span class="hs-comment">-- * Basic types</span><span>
+</span><a name="line-39"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Entry.html#Size"><span class="hs-identifier hs-type">Size</span></a><span>
+</span><a name="line-40"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Types.html#Index"><span class="hs-identifier hs-type">Index</span></a><span>
+</span><a name="line-41"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Types.html#Buffer"><span class="hs-identifier hs-type">Buffer</span></a><span>
+</span><a name="line-42"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Types.html#BufferSize"><span class="hs-identifier hs-type">BufferSize</span></a><span>
+</span><a name="line-43"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-44"></a><span>
+</span><a name="line-45"></a><span class="hs-cpp">#if __GLASGOW_HASKELL__ &lt; 709
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Applicative</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-operator">&lt;$&gt;</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-47"></a><span class="hs-cpp">#endif
+</span><span class="hs-keyword">import</span><span> </span><a href="Network.HPACK.HeaderBlock.html"><span class="hs-identifier">Network.HPACK.HeaderBlock</span></a><span>
+</span><a name="line-49"></a><span class="hs-keyword">import</span><span> </span><a href="Network.HPACK.Table.html"><span class="hs-identifier">Network.HPACK.Table</span></a><span>
+</span><a name="line-50"></a><span class="hs-keyword">import</span><span> </span><a href="Network.HPACK.Types.html"><span class="hs-identifier">Network.HPACK.Types</span></a><span>
+</span><a name="line-51"></a><span>
+</span><a name="line-52"></a><span class="hs-comment">-- | Default dynamic table size.</span><span>
+</span><a name="line-53"></a><span class="hs-comment">--   The value is 4,096 bytes: an array has 128 entries.</span><span>
+</span><a name="line-54"></a><span class="hs-comment">--</span><span>
+</span><a name="line-55"></a><span class="hs-comment">-- &gt;&gt;&gt; defaultDynamicTableSize</span><span>
+</span><a name="line-56"></a><span class="hs-comment">-- 4096</span><span>
+</span><a name="line-57"></a><span class="hs-identifier">defaultDynamicTableSize</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int</span><span>
+</span><a name="line-58"></a><a name="defaultDynamicTableSize"><a href="Network.HPACK.html#defaultDynamicTableSize"><span class="hs-identifier">defaultDynamicTableSize</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-number">4096</span><span>
+</span><a name="line-59"></a></pre></body></html>

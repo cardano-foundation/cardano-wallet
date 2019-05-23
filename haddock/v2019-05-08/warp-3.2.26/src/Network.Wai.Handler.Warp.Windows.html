@@ -1,0 +1,28 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><a name="line-2"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Network.Wai.Handler.Warp.Windows</span><span>
+</span><a name="line-3"></a><span>  </span><span class="hs-special">(</span><span> </span><a href="Network.Wai.Handler.Warp.Windows.html#windowsThreadBlockHack"><span class="hs-identifier hs-var">windowsThreadBlockHack</span></a><span>
+</span><a name="line-4"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-5"></a><span>
+</span><a name="line-6"></a><span class="hs-cpp">#if WINDOWS
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Exception</span><span>
+</span><a name="line-8"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Concurrent.MVar</span><span>
+</span><a name="line-9"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Concurrent</span><span>
+</span><a name="line-10"></a><span>
+</span><a name="line-11"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Network.Wai.Handler.Warp.Imports</span><span>
+</span><a name="line-12"></a><span>
+</span><a name="line-13"></a><span class="hs-comment">-- | Allow main socket listening thread to be interrupted on Windows platform</span><span>
+</span><a name="line-14"></a><span class="hs-comment">--</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- @since 3.2.17</span><span>
+</span><a name="line-16"></a><span class="hs-identifier">windowsThreadBlockHack</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">IO</span><span> </span><span class="hs-identifier">a</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">IO</span><span> </span><span class="hs-identifier">a</span><span>
+</span><a name="line-17"></a><span class="hs-identifier">windowsThreadBlockHack</span><span> </span><span class="hs-identifier">act</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><a name="line-18"></a><span>    </span><span class="hs-identifier">var</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-identifier">newEmptyMVar</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">IO</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">MVar</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Either</span><span> </span><span class="hs-identifier">SomeException</span><span> </span><span class="hs-identifier">a</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-19"></a><span>    </span><span class="hs-identifier">void</span><span> </span><span class="hs-operator">.</span><span> </span><span class="hs-identifier">forkIO</span><span> </span><span class="hs-operator">$</span><span> </span><span class="hs-identifier">try</span><span> </span><span class="hs-identifier">act</span><span> </span><span class="hs-operator">&gt;&gt;=</span><span> </span><span class="hs-identifier">putMVar</span><span> </span><span class="hs-identifier">var</span><span>
+</span><a name="line-20"></a><span>    </span><span class="hs-identifier">res</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-identifier">takeMVar</span><span> </span><span class="hs-identifier">var</span><span>
+</span><a name="line-21"></a><span>    </span><span class="hs-keyword">case</span><span> </span><span class="hs-identifier">res</span><span> </span><span class="hs-keyword">of</span><span>
+</span><a name="line-22"></a><span>      </span><span class="hs-identifier">Left</span><span>  </span><span class="hs-identifier">e</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">throwIO</span><span> </span><span class="hs-identifier">e</span><span>
+</span><a name="line-23"></a><span>      </span><span class="hs-identifier">Right</span><span> </span><span class="hs-identifier">r</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">return</span><span> </span><span class="hs-identifier">r</span><span>
+</span><a name="line-24"></a><span class="hs-cpp">#else
+</span><span class="hs-identifier">windowsThreadBlockHack</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">IO</span><span> </span><a href="#local-6989586621679084009"><span class="hs-identifier hs-type">a</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">IO</span><span> </span><a href="#local-6989586621679084009"><span class="hs-identifier hs-type">a</span></a><span>
+</span><a name="line-26"></a><a name="windowsThreadBlockHack"><a href="Network.Wai.Handler.Warp.Windows.html#windowsThreadBlockHack"><span class="hs-identifier">windowsThreadBlockHack</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">id</span><span>
+</span><a name="line-27"></a><span class="hs-cpp">#endif
+</span></pre></body></html>

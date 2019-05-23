@@ -1,0 +1,259 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><a name="line-2"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-3"></a><span class="hs-comment">-- Module:      Blaze.ByteString.Builder.Int</span><span>
+</span><a name="line-4"></a><span class="hs-comment">-- Copyright:   (c) 2013 Leon P Smith</span><span>
+</span><a name="line-5"></a><span class="hs-comment">-- License:     BSD3</span><span>
+</span><a name="line-6"></a><span class="hs-comment">-- Maintainer:  Leon P Smith &lt;leon@melding-monads.com&gt;</span><span>
+</span><a name="line-7"></a><span class="hs-comment">-- Stability:   experimental</span><span>
+</span><a name="line-8"></a><span class="hs-comment">--</span><span>
+</span><a name="line-9"></a><span class="hs-comment">-- 'Write's and 'Builder's for serializing integers.</span><span>
+</span><a name="line-10"></a><span class="hs-comment">--</span><span>
+</span><a name="line-11"></a><span class="hs-comment">-- See &quot;Blaze.ByteString.Builder.Word&quot; for information about how to best write several</span><span>
+</span><a name="line-12"></a><span class="hs-comment">-- integers at once.</span><span>
+</span><a name="line-13"></a><span class="hs-comment">--</span><span>
+</span><a name="line-14"></a><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><a name="line-15"></a><span>
+</span><a name="line-16"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Blaze.ByteString.Builder.Int</span><span>
+</span><a name="line-17"></a><span>    </span><span class="hs-special">(</span><span>
+</span><a name="line-18"></a><span>    </span><span class="hs-comment">-- * Writing integers to a buffer</span><span>
+</span><a name="line-19"></a><span>
+</span><a name="line-20"></a><span>      </span><a href="Blaze.ByteString.Builder.Int.html#writeInt8"><span class="hs-identifier hs-var">writeInt8</span></a><span>
+</span><a name="line-21"></a><span>
+</span><a name="line-22"></a><span>    </span><span class="hs-comment">-- ** Big-endian writes</span><span>
+</span><a name="line-23"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#writeInt16be"><span class="hs-identifier hs-var">writeInt16be</span></a><span>           </span><span class="hs-comment">-- :: Int16 -&gt; Write</span><span>
+</span><a name="line-24"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#writeInt32be"><span class="hs-identifier hs-var">writeInt32be</span></a><span>           </span><span class="hs-comment">-- :: Int32 -&gt; Write</span><span>
+</span><a name="line-25"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#writeInt64be"><span class="hs-identifier hs-var">writeInt64be</span></a><span>           </span><span class="hs-comment">-- :: Int64 -&gt; Write</span><span>
+</span><a name="line-26"></a><span>
+</span><a name="line-27"></a><span>    </span><span class="hs-comment">-- ** Little-endian writes</span><span>
+</span><a name="line-28"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#writeInt16le"><span class="hs-identifier hs-var">writeInt16le</span></a><span>           </span><span class="hs-comment">-- :: Int16 -&gt; Write</span><span>
+</span><a name="line-29"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#writeInt32le"><span class="hs-identifier hs-var">writeInt32le</span></a><span>           </span><span class="hs-comment">-- :: Int32 -&gt; Write</span><span>
+</span><a name="line-30"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#writeInt64le"><span class="hs-identifier hs-var">writeInt64le</span></a><span>           </span><span class="hs-comment">-- :: Int64 -&gt; Write</span><span>
+</span><a name="line-31"></a><span>
+</span><a name="line-32"></a><span>    </span><span class="hs-comment">-- ** Host-endian writes</span><span>
+</span><a name="line-33"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#writeInthost"><span class="hs-identifier hs-var">writeInthost</span></a><span>           </span><span class="hs-comment">-- :: Int -&gt; Write</span><span>
+</span><a name="line-34"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#writeInt16host"><span class="hs-identifier hs-var">writeInt16host</span></a><span>         </span><span class="hs-comment">-- :: Int16 -&gt; Write</span><span>
+</span><a name="line-35"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#writeInt32host"><span class="hs-identifier hs-var">writeInt32host</span></a><span>         </span><span class="hs-comment">-- :: Int32 -&gt; Write</span><span>
+</span><a name="line-36"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#writeInt64host"><span class="hs-identifier hs-var">writeInt64host</span></a><span>         </span><span class="hs-comment">-- :: Int64 -&gt; Write</span><span>
+</span><a name="line-37"></a><span>
+</span><a name="line-38"></a><span>    </span><span class="hs-comment">-- * Creating builders from integers</span><span>
+</span><a name="line-39"></a><span>
+</span><a name="line-40"></a><span>    </span><span class="hs-comment">-- | We provide serialization functions both for singleton integers as well as</span><span>
+</span><a name="line-41"></a><span>    </span><span class="hs-comment">-- for lists of integers. Using these list serialization functions is /much/ faster</span><span>
+</span><a name="line-42"></a><span>    </span><span class="hs-comment">-- than using @mconcat . map fromInt/&lt;n/&gt;@, as the list serialization</span><span>
+</span><a name="line-43"></a><span>    </span><span class="hs-comment">-- functions use a tighter inner loop.</span><span>
+</span><a name="line-44"></a><span>
+</span><a name="line-45"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#fromInt8"><span class="hs-identifier hs-var">fromInt8</span></a><span>
+</span><a name="line-46"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#fromInt8s"><span class="hs-identifier hs-var">fromInt8s</span></a><span>
+</span><a name="line-47"></a><span>
+</span><a name="line-48"></a><span>    </span><span class="hs-comment">-- ** Big-endian serialization</span><span>
+</span><a name="line-49"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#fromInt16be"><span class="hs-identifier hs-var">fromInt16be</span></a><span>            </span><span class="hs-comment">-- :: Int16   -&gt; Builder</span><span>
+</span><a name="line-50"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#fromInt32be"><span class="hs-identifier hs-var">fromInt32be</span></a><span>            </span><span class="hs-comment">-- :: Int32   -&gt; Builder</span><span>
+</span><a name="line-51"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#fromInt64be"><span class="hs-identifier hs-var">fromInt64be</span></a><span>            </span><span class="hs-comment">-- :: Int64   -&gt; Builder</span><span>
+</span><a name="line-52"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#fromInt32sbe"><span class="hs-identifier hs-var">fromInt32sbe</span></a><span>           </span><span class="hs-comment">-- :: [Int32] -&gt; Builder</span><span>
+</span><a name="line-53"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#fromInt16sbe"><span class="hs-identifier hs-var">fromInt16sbe</span></a><span>           </span><span class="hs-comment">-- :: [Int16] -&gt; Builder</span><span>
+</span><a name="line-54"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#fromInt64sbe"><span class="hs-identifier hs-var">fromInt64sbe</span></a><span>           </span><span class="hs-comment">-- :: [Int64] -&gt; Builder</span><span>
+</span><a name="line-55"></a><span>
+</span><a name="line-56"></a><span>    </span><span class="hs-comment">-- ** Little-endian serialization</span><span>
+</span><a name="line-57"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#fromInt16le"><span class="hs-identifier hs-var">fromInt16le</span></a><span>            </span><span class="hs-comment">-- :: Int16   -&gt; Builder</span><span>
+</span><a name="line-58"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#fromInt32le"><span class="hs-identifier hs-var">fromInt32le</span></a><span>            </span><span class="hs-comment">-- :: Int32   -&gt; Builder</span><span>
+</span><a name="line-59"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#fromInt64le"><span class="hs-identifier hs-var">fromInt64le</span></a><span>            </span><span class="hs-comment">-- :: Int64   -&gt; Builder</span><span>
+</span><a name="line-60"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#fromInt16sle"><span class="hs-identifier hs-var">fromInt16sle</span></a><span>           </span><span class="hs-comment">-- :: [Int16] -&gt; Builder</span><span>
+</span><a name="line-61"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#fromInt32sle"><span class="hs-identifier hs-var">fromInt32sle</span></a><span>           </span><span class="hs-comment">-- :: [Int32] -&gt; Builder</span><span>
+</span><a name="line-62"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#fromInt64sle"><span class="hs-identifier hs-var">fromInt64sle</span></a><span>           </span><span class="hs-comment">-- :: [Int64] -&gt; Builder</span><span>
+</span><a name="line-63"></a><span>
+</span><a name="line-64"></a><span>    </span><span class="hs-comment">-- ** Host-endian serialization</span><span>
+</span><a name="line-65"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#fromInthost"><span class="hs-identifier hs-var">fromInthost</span></a><span>            </span><span class="hs-comment">-- :: Int     -&gt; Builder</span><span>
+</span><a name="line-66"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#fromInt16host"><span class="hs-identifier hs-var">fromInt16host</span></a><span>          </span><span class="hs-comment">-- :: Int16   -&gt; Builder</span><span>
+</span><a name="line-67"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#fromInt32host"><span class="hs-identifier hs-var">fromInt32host</span></a><span>          </span><span class="hs-comment">-- :: Int32   -&gt; Builder</span><span>
+</span><a name="line-68"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#fromInt64host"><span class="hs-identifier hs-var">fromInt64host</span></a><span>          </span><span class="hs-comment">-- :: Int64   -&gt; Builder</span><span>
+</span><a name="line-69"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#fromIntshost"><span class="hs-identifier hs-var">fromIntshost</span></a><span>           </span><span class="hs-comment">-- :: [Int]   -&gt; Builder</span><span>
+</span><a name="line-70"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#fromInt16shost"><span class="hs-identifier hs-var">fromInt16shost</span></a><span>         </span><span class="hs-comment">-- :: [Int16] -&gt; Builder</span><span>
+</span><a name="line-71"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#fromInt32shost"><span class="hs-identifier hs-var">fromInt32shost</span></a><span>         </span><span class="hs-comment">-- :: [Int32] -&gt; Builder</span><span>
+</span><a name="line-72"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Int.html#fromInt64shost"><span class="hs-identifier hs-var">fromInt64shost</span></a><span>         </span><span class="hs-comment">-- :: [Int64] -&gt; Builder</span><span>
+</span><a name="line-73"></a><span>
+</span><a name="line-74"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-75"></a><span>
+</span><a name="line-76"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Int</span><span>
+</span><a name="line-77"></a><span class="hs-keyword">import</span><span> </span><a href="Blaze.ByteString.Builder.Compat.Write.html"><span class="hs-identifier">Blaze.ByteString.Builder.Compat.Write</span></a><span> </span><span class="hs-special">(</span><span> </span><a href="Blaze.ByteString.Builder.Internal.Write.html#Write"><span class="hs-identifier hs-type">Write</span></a><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Compat.Write.html#writePrimFixed"><span class="hs-identifier hs-var">writePrimFixed</span></a><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-78"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.ByteString.Builder</span><span> </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Builder</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-79"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.ByteString.Builder</span><span>       </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">B</span><span>
+</span><a name="line-80"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.ByteString.Builder.Extra</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">B</span><span>
+</span><a name="line-81"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.ByteString.Builder.Prim</span><span>  </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">P</span><span>
+</span><a name="line-82"></a><span>
+</span><a name="line-83"></a><span class="hs-comment">-- | Write a single signed byte.</span><span>
+</span><a name="line-84"></a><span class="hs-comment">--</span><span>
+</span><a name="line-85"></a><span class="hs-identifier">writeInt8</span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int8</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Blaze.ByteString.Builder.Internal.Write.html#Write"><span class="hs-identifier hs-type">Write</span></a><span>
+</span><a name="line-86"></a><a name="writeInt8"><a href="Blaze.ByteString.Builder.Int.html#writeInt8"><span class="hs-identifier">writeInt8</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Blaze.ByteString.Builder.Compat.Write.html#writePrimFixed"><span class="hs-identifier hs-var">writePrimFixed</span></a><span> </span><span class="hs-identifier hs-var">P.int8</span><span>
+</span><a name="line-87"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">writeInt8</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-88"></a><span>
+</span><a name="line-89"></a><span class="hs-comment">-- | Write an 'Int16' in big endian format.</span><span>
+</span><a name="line-90"></a><span class="hs-identifier">writeInt16be</span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int16</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Blaze.ByteString.Builder.Internal.Write.html#Write"><span class="hs-identifier hs-type">Write</span></a><span>
+</span><a name="line-91"></a><a name="writeInt16be"><a href="Blaze.ByteString.Builder.Int.html#writeInt16be"><span class="hs-identifier">writeInt16be</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Blaze.ByteString.Builder.Compat.Write.html#writePrimFixed"><span class="hs-identifier hs-var">writePrimFixed</span></a><span> </span><span class="hs-identifier hs-var">P.int16BE</span><span>
+</span><a name="line-92"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">writeInt16be</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-93"></a><span>
+</span><a name="line-94"></a><span class="hs-comment">-- | Write an 'Int32' in big endian format.</span><span>
+</span><a name="line-95"></a><span class="hs-identifier">writeInt32be</span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int32</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Blaze.ByteString.Builder.Internal.Write.html#Write"><span class="hs-identifier hs-type">Write</span></a><span>
+</span><a name="line-96"></a><a name="writeInt32be"><a href="Blaze.ByteString.Builder.Int.html#writeInt32be"><span class="hs-identifier">writeInt32be</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Blaze.ByteString.Builder.Compat.Write.html#writePrimFixed"><span class="hs-identifier hs-var">writePrimFixed</span></a><span> </span><span class="hs-identifier hs-var">P.int32BE</span><span>
+</span><a name="line-97"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">writeInt32be</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-98"></a><span>
+</span><a name="line-99"></a><span class="hs-comment">-- | Write an 'Int64' in big endian format.</span><span>
+</span><a name="line-100"></a><span class="hs-identifier">writeInt64be</span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int64</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Blaze.ByteString.Builder.Internal.Write.html#Write"><span class="hs-identifier hs-type">Write</span></a><span>
+</span><a name="line-101"></a><a name="writeInt64be"><a href="Blaze.ByteString.Builder.Int.html#writeInt64be"><span class="hs-identifier">writeInt64be</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Blaze.ByteString.Builder.Compat.Write.html#writePrimFixed"><span class="hs-identifier hs-var">writePrimFixed</span></a><span> </span><span class="hs-identifier hs-var">P.int64BE</span><span>
+</span><a name="line-102"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">writeInt64be</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-103"></a><span>
+</span><a name="line-104"></a><span class="hs-comment">-- | Write an 'Int16' in little endian format.</span><span>
+</span><a name="line-105"></a><span class="hs-identifier">writeInt16le</span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int16</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Blaze.ByteString.Builder.Internal.Write.html#Write"><span class="hs-identifier hs-type">Write</span></a><span>
+</span><a name="line-106"></a><a name="writeInt16le"><a href="Blaze.ByteString.Builder.Int.html#writeInt16le"><span class="hs-identifier">writeInt16le</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Blaze.ByteString.Builder.Compat.Write.html#writePrimFixed"><span class="hs-identifier hs-var">writePrimFixed</span></a><span> </span><span class="hs-identifier hs-var">P.int16LE</span><span>
+</span><a name="line-107"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">writeInt16le</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-108"></a><span>
+</span><a name="line-109"></a><span class="hs-comment">-- | Write an 'Int32' in little endian format.</span><span>
+</span><a name="line-110"></a><span class="hs-identifier">writeInt32le</span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int32</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Blaze.ByteString.Builder.Internal.Write.html#Write"><span class="hs-identifier hs-type">Write</span></a><span>
+</span><a name="line-111"></a><a name="writeInt32le"><a href="Blaze.ByteString.Builder.Int.html#writeInt32le"><span class="hs-identifier">writeInt32le</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Blaze.ByteString.Builder.Compat.Write.html#writePrimFixed"><span class="hs-identifier hs-var">writePrimFixed</span></a><span> </span><span class="hs-identifier hs-var">P.int32LE</span><span>
+</span><a name="line-112"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">writeInt32le</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-113"></a><span>
+</span><a name="line-114"></a><span class="hs-comment">-- | Write an 'Int64' in little endian format.</span><span>
+</span><a name="line-115"></a><span class="hs-identifier">writeInt64le</span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int64</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Blaze.ByteString.Builder.Internal.Write.html#Write"><span class="hs-identifier hs-type">Write</span></a><span>
+</span><a name="line-116"></a><a name="writeInt64le"><a href="Blaze.ByteString.Builder.Int.html#writeInt64le"><span class="hs-identifier">writeInt64le</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Blaze.ByteString.Builder.Compat.Write.html#writePrimFixed"><span class="hs-identifier hs-var">writePrimFixed</span></a><span> </span><span class="hs-identifier hs-var">P.int64LE</span><span>
+</span><a name="line-117"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">writeInt64le</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-118"></a><span>
+</span><a name="line-119"></a><span class="hs-comment">-- | Write a single native machine 'Int'. The 'Int' is written in host order,</span><span>
+</span><a name="line-120"></a><span class="hs-comment">-- host endian form, for the machine you're on. On a 64 bit machine the 'Int'</span><span>
+</span><a name="line-121"></a><span class="hs-comment">-- is an 8 byte value, on a 32 bit machine, 4 bytes. Values written this way</span><span>
+</span><a name="line-122"></a><span class="hs-comment">-- are not portable to different endian or integer sized machines, without</span><span>
+</span><a name="line-123"></a><span class="hs-comment">-- conversion.</span><span>
+</span><a name="line-124"></a><span class="hs-comment">--</span><span>
+</span><a name="line-125"></a><span class="hs-identifier">writeInthost</span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Blaze.ByteString.Builder.Internal.Write.html#Write"><span class="hs-identifier hs-type">Write</span></a><span>
+</span><a name="line-126"></a><a name="writeInthost"><a href="Blaze.ByteString.Builder.Int.html#writeInthost"><span class="hs-identifier">writeInthost</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Blaze.ByteString.Builder.Compat.Write.html#writePrimFixed"><span class="hs-identifier hs-var">writePrimFixed</span></a><span> </span><span class="hs-identifier hs-var">P.intHost</span><span>
+</span><a name="line-127"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">writeInthost</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-128"></a><span>
+</span><a name="line-129"></a><span class="hs-comment">-- | Write an 'Int16' in native host order and host endianness.</span><span>
+</span><a name="line-130"></a><span class="hs-identifier">writeInt16host</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int16</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Blaze.ByteString.Builder.Internal.Write.html#Write"><span class="hs-identifier hs-type">Write</span></a><span>
+</span><a name="line-131"></a><a name="writeInt16host"><a href="Blaze.ByteString.Builder.Int.html#writeInt16host"><span class="hs-identifier">writeInt16host</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Blaze.ByteString.Builder.Compat.Write.html#writePrimFixed"><span class="hs-identifier hs-var">writePrimFixed</span></a><span> </span><span class="hs-identifier hs-var">P.int16Host</span><span>
+</span><a name="line-132"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">writeInt16host</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-133"></a><span>
+</span><a name="line-134"></a><span class="hs-comment">-- | Write an 'Int32' in native host order and host endianness.</span><span>
+</span><a name="line-135"></a><span class="hs-identifier">writeInt32host</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int32</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Blaze.ByteString.Builder.Internal.Write.html#Write"><span class="hs-identifier hs-type">Write</span></a><span>
+</span><a name="line-136"></a><a name="writeInt32host"><a href="Blaze.ByteString.Builder.Int.html#writeInt32host"><span class="hs-identifier">writeInt32host</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Blaze.ByteString.Builder.Compat.Write.html#writePrimFixed"><span class="hs-identifier hs-var">writePrimFixed</span></a><span> </span><span class="hs-identifier hs-var">P.int32Host</span><span>
+</span><a name="line-137"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">writeInt32host</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-138"></a><span>
+</span><a name="line-139"></a><span class="hs-comment">-- | Write an 'Int64' in native host order and host endianness.</span><span>
+</span><a name="line-140"></a><span class="hs-identifier">writeInt64host</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int64</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Blaze.ByteString.Builder.Internal.Write.html#Write"><span class="hs-identifier hs-type">Write</span></a><span>
+</span><a name="line-141"></a><a name="writeInt64host"><a href="Blaze.ByteString.Builder.Int.html#writeInt64host"><span class="hs-identifier">writeInt64host</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Blaze.ByteString.Builder.Compat.Write.html#writePrimFixed"><span class="hs-identifier hs-var">writePrimFixed</span></a><span> </span><span class="hs-identifier hs-var">P.int64Host</span><span>
+</span><a name="line-142"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">writeInt64host</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-143"></a><span>
+</span><a name="line-144"></a><span class="hs-comment">-- | Serialize a single byte.</span><span>
+</span><a name="line-145"></a><span class="hs-identifier">fromInt8</span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int8</span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Builder</span><span>
+</span><a name="line-146"></a><a name="fromInt8"><a href="Blaze.ByteString.Builder.Int.html#fromInt8"><span class="hs-identifier">fromInt8</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">B.int8</span><span>
+</span><a name="line-147"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromInt8</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-148"></a><span>
+</span><a name="line-149"></a><span class="hs-comment">-- | Serialize a list of bytes.</span><span>
+</span><a name="line-150"></a><span class="hs-identifier">fromInt8s</span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-identifier hs-type">Int8</span><span class="hs-special">]</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Builder</span><span>
+</span><a name="line-151"></a><a name="fromInt8s"><a href="Blaze.ByteString.Builder.Int.html#fromInt8s"><span class="hs-identifier">fromInt8s</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">P.primMapListFixed</span><span> </span><span class="hs-identifier hs-var">P.int8</span><span>
+</span><a name="line-152"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromInt8s</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-153"></a><span>
+</span><a name="line-154"></a><span class="hs-comment">-- | Serialize an 'Int16' in big endian format.</span><span>
+</span><a name="line-155"></a><span class="hs-identifier">fromInt16be</span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int16</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Builder</span><span>
+</span><a name="line-156"></a><a name="fromInt16be"><a href="Blaze.ByteString.Builder.Int.html#fromInt16be"><span class="hs-identifier">fromInt16be</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">B.int16BE</span><span>
+</span><a name="line-157"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromInt16be</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-158"></a><span>
+</span><a name="line-159"></a><span class="hs-comment">-- | Serialize an 'Int32' in big endian format.</span><span>
+</span><a name="line-160"></a><span class="hs-identifier">fromInt32be</span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int32</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Builder</span><span>
+</span><a name="line-161"></a><a name="fromInt32be"><a href="Blaze.ByteString.Builder.Int.html#fromInt32be"><span class="hs-identifier">fromInt32be</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">B.int32BE</span><span>
+</span><a name="line-162"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromInt32be</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-163"></a><span>
+</span><a name="line-164"></a><span class="hs-comment">-- | Serialize an 'Int64' in big endian format.</span><span>
+</span><a name="line-165"></a><span class="hs-identifier">fromInt64be</span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int64</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Builder</span><span>
+</span><a name="line-166"></a><a name="fromInt64be"><a href="Blaze.ByteString.Builder.Int.html#fromInt64be"><span class="hs-identifier">fromInt64be</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">B.int64BE</span><span>
+</span><a name="line-167"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromInt64be</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-168"></a><span>
+</span><a name="line-169"></a><span class="hs-comment">-- | Serialize a list of 'Int32's in big endian format.</span><span>
+</span><a name="line-170"></a><span class="hs-identifier">fromInt32sbe</span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-identifier hs-type">Int32</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Builder</span><span>
+</span><a name="line-171"></a><a name="fromInt32sbe"><a href="Blaze.ByteString.Builder.Int.html#fromInt32sbe"><span class="hs-identifier">fromInt32sbe</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">P.primMapListFixed</span><span> </span><span class="hs-identifier hs-var">P.int32BE</span><span>
+</span><a name="line-172"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromInt32sbe</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-173"></a><span>
+</span><a name="line-174"></a><span class="hs-comment">-- | Serialize a list of 'Int16's in big endian format.</span><span>
+</span><a name="line-175"></a><span class="hs-identifier">fromInt16sbe</span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-identifier hs-type">Int16</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Builder</span><span>
+</span><a name="line-176"></a><a name="fromInt16sbe"><a href="Blaze.ByteString.Builder.Int.html#fromInt16sbe"><span class="hs-identifier">fromInt16sbe</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">P.primMapListFixed</span><span> </span><span class="hs-identifier hs-var">P.int16BE</span><span>
+</span><a name="line-177"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromInt16sbe</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-178"></a><span>
+</span><a name="line-179"></a><span class="hs-comment">-- | Serialize a list of 'Int64's in big endian format.</span><span>
+</span><a name="line-180"></a><span class="hs-identifier">fromInt64sbe</span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-identifier hs-type">Int64</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Builder</span><span>
+</span><a name="line-181"></a><a name="fromInt64sbe"><a href="Blaze.ByteString.Builder.Int.html#fromInt64sbe"><span class="hs-identifier">fromInt64sbe</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">P.primMapListFixed</span><span> </span><span class="hs-identifier hs-var">P.int64BE</span><span>
+</span><a name="line-182"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromInt64sbe</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-183"></a><span>
+</span><a name="line-184"></a><span class="hs-comment">-- | Serialize an 'Int16' in little endian format.</span><span>
+</span><a name="line-185"></a><span class="hs-identifier">fromInt16le</span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int16</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Builder</span><span>
+</span><a name="line-186"></a><a name="fromInt16le"><a href="Blaze.ByteString.Builder.Int.html#fromInt16le"><span class="hs-identifier">fromInt16le</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">B.int16LE</span><span>
+</span><a name="line-187"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromInt16le</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-188"></a><span>
+</span><a name="line-189"></a><span class="hs-comment">-- | Serialize an 'Int32' in little endian format.</span><span>
+</span><a name="line-190"></a><span class="hs-identifier">fromInt32le</span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int32</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Builder</span><span>
+</span><a name="line-191"></a><a name="fromInt32le"><a href="Blaze.ByteString.Builder.Int.html#fromInt32le"><span class="hs-identifier">fromInt32le</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">B.int32LE</span><span>
+</span><a name="line-192"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromInt32le</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-193"></a><span>
+</span><a name="line-194"></a><span class="hs-comment">-- | Serialize an 'Int64' in little endian format.</span><span>
+</span><a name="line-195"></a><span class="hs-identifier">fromInt64le</span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int64</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Builder</span><span>
+</span><a name="line-196"></a><a name="fromInt64le"><a href="Blaze.ByteString.Builder.Int.html#fromInt64le"><span class="hs-identifier">fromInt64le</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">B.int64LE</span><span>
+</span><a name="line-197"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromInt64le</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-198"></a><span>
+</span><a name="line-199"></a><span class="hs-comment">-- | Serialize a list of 'Int16's in little endian format.</span><span>
+</span><a name="line-200"></a><span class="hs-identifier">fromInt16sle</span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-identifier hs-type">Int16</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Builder</span><span>
+</span><a name="line-201"></a><a name="fromInt16sle"><a href="Blaze.ByteString.Builder.Int.html#fromInt16sle"><span class="hs-identifier">fromInt16sle</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">P.primMapListFixed</span><span> </span><span class="hs-identifier hs-var">P.int16LE</span><span>
+</span><a name="line-202"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromInt16sle</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-203"></a><span>
+</span><a name="line-204"></a><span class="hs-comment">-- | Serialize a list of 'Int32's in little endian format.</span><span>
+</span><a name="line-205"></a><span class="hs-identifier">fromInt32sle</span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-identifier hs-type">Int32</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Builder</span><span>
+</span><a name="line-206"></a><a name="fromInt32sle"><a href="Blaze.ByteString.Builder.Int.html#fromInt32sle"><span class="hs-identifier">fromInt32sle</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">P.primMapListFixed</span><span> </span><span class="hs-identifier hs-var">P.int32LE</span><span>
+</span><a name="line-207"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromInt32sle</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-208"></a><span>
+</span><a name="line-209"></a><span class="hs-comment">-- | Serialize a list of 'Int64's in little endian format.</span><span>
+</span><a name="line-210"></a><span class="hs-identifier">fromInt64sle</span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-identifier hs-type">Int64</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Builder</span><span>
+</span><a name="line-211"></a><a name="fromInt64sle"><a href="Blaze.ByteString.Builder.Int.html#fromInt64sle"><span class="hs-identifier">fromInt64sle</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">P.primMapListFixed</span><span> </span><span class="hs-identifier hs-var">P.int64LE</span><span>
+</span><a name="line-212"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromInt64sle</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-213"></a><span>
+</span><a name="line-214"></a><span class="hs-comment">-- | Serialize a single native machine 'Int'. The 'Int' is serialized in host</span><span>
+</span><a name="line-215"></a><span class="hs-comment">-- order, host endian form, for the machine you're on. On a 64 bit machine the</span><span>
+</span><a name="line-216"></a><span class="hs-comment">-- 'Int' is an 8 byte value, on a 32 bit machine, 4 bytes. Values written this</span><span>
+</span><a name="line-217"></a><span class="hs-comment">-- way are not portable to different endian or integer sized machines, without</span><span>
+</span><a name="line-218"></a><span class="hs-comment">-- conversion.</span><span>
+</span><a name="line-219"></a><span class="hs-comment">--</span><span>
+</span><a name="line-220"></a><span class="hs-identifier">fromInthost</span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int</span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Builder</span><span>
+</span><a name="line-221"></a><a name="fromInthost"><a href="Blaze.ByteString.Builder.Int.html#fromInthost"><span class="hs-identifier">fromInthost</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">B.intHost</span><span>
+</span><a name="line-222"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromInthost</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-223"></a><span>
+</span><a name="line-224"></a><span class="hs-comment">-- | Write an 'Int16' in native host order and host endianness.</span><span>
+</span><a name="line-225"></a><span class="hs-identifier">fromInt16host</span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int16</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Builder</span><span>
+</span><a name="line-226"></a><a name="fromInt16host"><a href="Blaze.ByteString.Builder.Int.html#fromInt16host"><span class="hs-identifier">fromInt16host</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">B.int16Host</span><span>
+</span><a name="line-227"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromInt16host</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-228"></a><span>
+</span><a name="line-229"></a><span class="hs-comment">-- | Write an 'Int32' in native host order and host endianness.</span><span>
+</span><a name="line-230"></a><span class="hs-identifier">fromInt32host</span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int32</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Builder</span><span>
+</span><a name="line-231"></a><a name="fromInt32host"><a href="Blaze.ByteString.Builder.Int.html#fromInt32host"><span class="hs-identifier">fromInt32host</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">B.int32Host</span><span>
+</span><a name="line-232"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromInt32host</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-233"></a><span>
+</span><a name="line-234"></a><span class="hs-comment">-- | Write an 'Int64' in native host order and host endianness.</span><span>
+</span><a name="line-235"></a><span class="hs-identifier">fromInt64host</span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int64</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Builder</span><span>
+</span><a name="line-236"></a><a name="fromInt64host"><a href="Blaze.ByteString.Builder.Int.html#fromInt64host"><span class="hs-identifier">fromInt64host</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">B.int64Host</span><span>
+</span><a name="line-237"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromInt64host</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-238"></a><span>
+</span><a name="line-239"></a><span class="hs-comment">-- | Serialize a list of 'Int's.</span><span>
+</span><a name="line-240"></a><span class="hs-comment">-- See 'fromInthost' for usage considerations.</span><span>
+</span><a name="line-241"></a><span class="hs-identifier">fromIntshost</span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-identifier hs-type">Int</span><span class="hs-special">]</span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Builder</span><span>
+</span><a name="line-242"></a><a name="fromIntshost"><a href="Blaze.ByteString.Builder.Int.html#fromIntshost"><span class="hs-identifier">fromIntshost</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">P.primMapListFixed</span><span> </span><span class="hs-identifier hs-var">P.intHost</span><span>
+</span><a name="line-243"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromIntshost</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-244"></a><span>
+</span><a name="line-245"></a><span class="hs-comment">-- | Write a list of 'Int16's in native host order and host endianness.</span><span>
+</span><a name="line-246"></a><span class="hs-identifier">fromInt16shost</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-identifier hs-type">Int16</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Builder</span><span>
+</span><a name="line-247"></a><a name="fromInt16shost"><a href="Blaze.ByteString.Builder.Int.html#fromInt16shost"><span class="hs-identifier">fromInt16shost</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">P.primMapListFixed</span><span> </span><span class="hs-identifier hs-var">P.int16Host</span><span>
+</span><a name="line-248"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromInt16shost</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-249"></a><span>
+</span><a name="line-250"></a><span class="hs-comment">-- | Write a list of 'Int32's in native host order and host endianness.</span><span>
+</span><a name="line-251"></a><span class="hs-identifier">fromInt32shost</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-identifier hs-type">Int32</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Builder</span><span>
+</span><a name="line-252"></a><a name="fromInt32shost"><a href="Blaze.ByteString.Builder.Int.html#fromInt32shost"><span class="hs-identifier">fromInt32shost</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">P.primMapListFixed</span><span> </span><span class="hs-identifier hs-var">P.int32Host</span><span>
+</span><a name="line-253"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromInt32shost</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-254"></a><span>
+</span><a name="line-255"></a><span class="hs-comment">-- | Write a list of 'Int64's in native host order and host endianness.</span><span>
+</span><a name="line-256"></a><span class="hs-identifier">fromInt64shost</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-identifier hs-type">Int64</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Builder</span><span>
+</span><a name="line-257"></a><a name="fromInt64shost"><a href="Blaze.ByteString.Builder.Int.html#fromInt64shost"><span class="hs-identifier">fromInt64shost</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">P.primMapListFixed</span><span> </span><span class="hs-identifier hs-var">P.int64Host</span><span>
+</span><a name="line-258"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromInt64shost</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-259"></a></pre></body></html>

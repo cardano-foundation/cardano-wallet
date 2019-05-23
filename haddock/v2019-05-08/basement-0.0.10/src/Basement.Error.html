@@ -1,0 +1,42 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE MagicHash #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE PolyKinds #-}</span><span>
+</span><a name="line-3"></a><span class="hs-pragma">{-# LANGUAGE ImplicitParams #-}</span><span>
+</span><a name="line-4"></a><span class="hs-pragma">{-# LANGUAGE ExistentialQuantification #-}</span><span>
+</span><a name="line-5"></a><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><a name="line-6"></a><span class="hs-cpp">#if __GLASGOW_HASKELL__ &gt;= 800
+</span><span class="hs-pragma">{-# LANGUAGE TypeInType #-}</span><span>
+</span><a name="line-8"></a><span class="hs-cpp">#endif
+</span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Basement.Error</span><span>
+</span><a name="line-10"></a><span>    </span><span class="hs-special">(</span><span> </span><a href="Basement.Error.html#error"><span class="hs-identifier hs-var">error</span></a><span>
+</span><a name="line-11"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-12"></a><span>
+</span><a name="line-13"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">GHC.Prim</span><span>
+</span><a name="line-14"></a><span class="hs-keyword">import</span><span>           </span><a href="Basement.UTF8.Base.html"><span class="hs-identifier">Basement.UTF8.Base</span></a><span>
+</span><a name="line-15"></a><span class="hs-keyword">import</span><span>           </span><a href="Basement.Compat.CallStack.html"><span class="hs-identifier">Basement.Compat.CallStack</span></a><span>
+</span><a name="line-16"></a><span>
+</span><a name="line-17"></a><span class="hs-cpp">#if MIN_VERSION_base(4,9,0)
+</span><span>
+</span><a name="line-19"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">GHC.Types</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">RuntimeRep</span><span class="hs-special">)</span><span>
+</span><a name="line-20"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">GHC.Exception</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">errorCallWithCallStackException</span><span class="hs-special">)</span><span>
+</span><a name="line-21"></a><span>
+</span><a name="line-22"></a><span class="hs-comment">-- | stop execution and displays an error message</span><span>
+</span><a name="line-23"></a><span class="hs-identifier">error</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span class="hs-special">(</span><a name="local-6989586621679143230"><a href="#local-6989586621679143230"><span class="hs-identifier">r</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">RuntimeRep</span><span class="hs-special">)</span><span> </span><span class="hs-operator">.</span><span> </span><span class="hs-keyword">forall</span><span> </span><span class="hs-special">(</span><a name="local-6989586621679143231"><a href="#local-6989586621679143231"><span class="hs-identifier">a</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">TYPE</span><span> </span><a href="#local-6989586621679143230"><span class="hs-identifier hs-type">r</span></a><span class="hs-special">)</span><span> </span><span class="hs-operator">.</span><span> </span><span class="hs-identifier hs-type">HasCallStack</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><a href="Basement.UTF8.Base.html#String"><span class="hs-identifier hs-type">String</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="#local-6989586621679143231"><span class="hs-identifier hs-type">a</span></a><span>
+</span><a name="line-24"></a><a name="error"><a href="Basement.Error.html#error"><span class="hs-identifier">error</span></a></a><span> </span><a name="local-6989586621679143232"><a href="#local-6989586621679143232"><span class="hs-identifier">s</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">raise#</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">errorCallWithCallStackException</span><span> </span><span class="hs-special">(</span><a href="Basement.UTF8.Base.html#sToList"><span class="hs-identifier hs-var">sToList</span></a><span> </span><a href="#local-6989586621679143232"><span class="hs-identifier hs-var">s</span></a><span class="hs-special">)</span><span> </span><span class="">?callstack</span><span class="hs-special">)</span><span>
+</span><a name="line-25"></a><span>
+</span><a name="line-26"></a><span class="hs-cpp">#elif MIN_VERSION_base(4,7,0)
+</span><span>
+</span><a name="line-28"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">GHC.Exception</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">errorCallException</span><span class="hs-special">)</span><span>
+</span><a name="line-29"></a><span>
+</span><a name="line-30"></a><span class="hs-identifier">error</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">String</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">a</span><span>
+</span><a name="line-31"></a><span class="hs-identifier">error</span><span> </span><span class="hs-identifier">s</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">raise#</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">errorCallException</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">sToList</span><span> </span><span class="hs-identifier">s</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-32"></a><span>
+</span><a name="line-33"></a><span class="hs-cpp">#else
+</span><span>
+</span><a name="line-35"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">GHC.Types</span><span>
+</span><a name="line-36"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">GHC.Exception</span><span>
+</span><a name="line-37"></a><span>
+</span><a name="line-38"></a><span class="hs-identifier">error</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">String</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">a</span><span>
+</span><a name="line-39"></a><span class="hs-identifier">error</span><span> </span><span class="hs-identifier">s</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">throw</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">ErrorCall</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">sToList</span><span> </span><span class="hs-identifier">s</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-40"></a><span>
+</span><a name="line-41"></a><span class="hs-cpp">#endif
+</span></pre></body></html>

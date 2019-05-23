@@ -1,0 +1,208 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE OverloadedStrings #-}</span><span>
+</span><a name="line-2"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Network.HTTP.Types</span><span>
+</span><a name="line-3"></a><span class="hs-special">(</span><span>
+</span><a name="line-4"></a><span>  </span><span class="hs-comment">-- * Methods</span><span>
+</span><a name="line-5"></a><span>  </span><a href="Network.HTTP.Types.Method.html#Method"><span class="hs-identifier hs-type">Method</span></a><span>
+</span><a name="line-6"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Method.html#methodGet"><span class="hs-identifier hs-var">methodGet</span></a><span>
+</span><a name="line-7"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Method.html#methodPost"><span class="hs-identifier hs-var">methodPost</span></a><span>
+</span><a name="line-8"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Method.html#methodHead"><span class="hs-identifier hs-var">methodHead</span></a><span>
+</span><a name="line-9"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Method.html#methodPut"><span class="hs-identifier hs-var">methodPut</span></a><span>
+</span><a name="line-10"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Method.html#methodDelete"><span class="hs-identifier hs-var">methodDelete</span></a><span>
+</span><a name="line-11"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Method.html#methodTrace"><span class="hs-identifier hs-var">methodTrace</span></a><span>
+</span><a name="line-12"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Method.html#methodConnect"><span class="hs-identifier hs-var">methodConnect</span></a><span>
+</span><a name="line-13"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Method.html#methodOptions"><span class="hs-identifier hs-var">methodOptions</span></a><span>
+</span><a name="line-14"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Method.html#methodPatch"><span class="hs-identifier hs-var">methodPatch</span></a><span>
+</span><a name="line-15"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Method.html#StdMethod"><span class="hs-identifier hs-type">StdMethod</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-16"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Method.html#parseMethod"><span class="hs-identifier hs-var">parseMethod</span></a><span>
+</span><a name="line-17"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Method.html#renderMethod"><span class="hs-identifier hs-var">renderMethod</span></a><span>
+</span><a name="line-18"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Method.html#renderStdMethod"><span class="hs-identifier hs-var">renderStdMethod</span></a><span>
+</span><a name="line-19"></a><span>  </span><span class="hs-comment">-- * Versions</span><span>
+</span><a name="line-20"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Version.html#HttpVersion"><span class="hs-identifier hs-type">HttpVersion</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-21"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Version.html#http09"><span class="hs-identifier hs-var">http09</span></a><span>
+</span><a name="line-22"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Version.html#http10"><span class="hs-identifier hs-var">http10</span></a><span>
+</span><a name="line-23"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Version.html#http11"><span class="hs-identifier hs-var">http11</span></a><span>
+</span><a name="line-24"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Version.html#http20"><span class="hs-identifier hs-var">http20</span></a><span>
+</span><a name="line-25"></a><span class="hs-comment">-- * Status</span><span>
+</span><a name="line-26"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#Status"><span class="hs-identifier hs-type">Status</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-27"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#mkStatus"><span class="hs-identifier hs-var">mkStatus</span></a><span>
+</span><a name="line-28"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status100"><span class="hs-identifier hs-var">status100</span></a><span>
+</span><a name="line-29"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#continue100"><span class="hs-identifier hs-var">continue100</span></a><span>
+</span><a name="line-30"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status101"><span class="hs-identifier hs-var">status101</span></a><span>
+</span><a name="line-31"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#switchingProtocols101"><span class="hs-identifier hs-var">switchingProtocols101</span></a><span>
+</span><a name="line-32"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status200"><span class="hs-identifier hs-var">status200</span></a><span>
+</span><a name="line-33"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#ok200"><span class="hs-identifier hs-var">ok200</span></a><span>
+</span><a name="line-34"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status201"><span class="hs-identifier hs-var">status201</span></a><span>
+</span><a name="line-35"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#created201"><span class="hs-identifier hs-var">created201</span></a><span>
+</span><a name="line-36"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status202"><span class="hs-identifier hs-var">status202</span></a><span>
+</span><a name="line-37"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#accepted202"><span class="hs-identifier hs-var">accepted202</span></a><span>
+</span><a name="line-38"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status203"><span class="hs-identifier hs-var">status203</span></a><span>
+</span><a name="line-39"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#nonAuthoritative203"><span class="hs-identifier hs-var">nonAuthoritative203</span></a><span>
+</span><a name="line-40"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status204"><span class="hs-identifier hs-var">status204</span></a><span>
+</span><a name="line-41"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#noContent204"><span class="hs-identifier hs-var">noContent204</span></a><span>
+</span><a name="line-42"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status205"><span class="hs-identifier hs-var">status205</span></a><span>
+</span><a name="line-43"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#resetContent205"><span class="hs-identifier hs-var">resetContent205</span></a><span>
+</span><a name="line-44"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status206"><span class="hs-identifier hs-var">status206</span></a><span>
+</span><a name="line-45"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#partialContent206"><span class="hs-identifier hs-var">partialContent206</span></a><span>
+</span><a name="line-46"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status300"><span class="hs-identifier hs-var">status300</span></a><span>
+</span><a name="line-47"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#multipleChoices300"><span class="hs-identifier hs-var">multipleChoices300</span></a><span>
+</span><a name="line-48"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status301"><span class="hs-identifier hs-var">status301</span></a><span>
+</span><a name="line-49"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#movedPermanently301"><span class="hs-identifier hs-var">movedPermanently301</span></a><span>
+</span><a name="line-50"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status302"><span class="hs-identifier hs-var">status302</span></a><span>
+</span><a name="line-51"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#found302"><span class="hs-identifier hs-var">found302</span></a><span>
+</span><a name="line-52"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status303"><span class="hs-identifier hs-var">status303</span></a><span>
+</span><a name="line-53"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#seeOther303"><span class="hs-identifier hs-var">seeOther303</span></a><span>
+</span><a name="line-54"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status304"><span class="hs-identifier hs-var">status304</span></a><span>
+</span><a name="line-55"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#notModified304"><span class="hs-identifier hs-var">notModified304</span></a><span>
+</span><a name="line-56"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status305"><span class="hs-identifier hs-var">status305</span></a><span>
+</span><a name="line-57"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#useProxy305"><span class="hs-identifier hs-var">useProxy305</span></a><span>
+</span><a name="line-58"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status307"><span class="hs-identifier hs-var">status307</span></a><span>
+</span><a name="line-59"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#temporaryRedirect307"><span class="hs-identifier hs-var">temporaryRedirect307</span></a><span>
+</span><a name="line-60"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status308"><span class="hs-identifier hs-var">status308</span></a><span>
+</span><a name="line-61"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#permanentRedirect308"><span class="hs-identifier hs-var">permanentRedirect308</span></a><span>
+</span><a name="line-62"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status400"><span class="hs-identifier hs-var">status400</span></a><span>
+</span><a name="line-63"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#badRequest400"><span class="hs-identifier hs-var">badRequest400</span></a><span>
+</span><a name="line-64"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status401"><span class="hs-identifier hs-var">status401</span></a><span>
+</span><a name="line-65"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#unauthorized401"><span class="hs-identifier hs-var">unauthorized401</span></a><span>
+</span><a name="line-66"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status402"><span class="hs-identifier hs-var">status402</span></a><span>
+</span><a name="line-67"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#paymentRequired402"><span class="hs-identifier hs-var">paymentRequired402</span></a><span>
+</span><a name="line-68"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status403"><span class="hs-identifier hs-var">status403</span></a><span>
+</span><a name="line-69"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#forbidden403"><span class="hs-identifier hs-var">forbidden403</span></a><span>
+</span><a name="line-70"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status404"><span class="hs-identifier hs-var">status404</span></a><span>
+</span><a name="line-71"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#notFound404"><span class="hs-identifier hs-var">notFound404</span></a><span>
+</span><a name="line-72"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status405"><span class="hs-identifier hs-var">status405</span></a><span>
+</span><a name="line-73"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#methodNotAllowed405"><span class="hs-identifier hs-var">methodNotAllowed405</span></a><span>
+</span><a name="line-74"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status406"><span class="hs-identifier hs-var">status406</span></a><span>
+</span><a name="line-75"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#notAcceptable406"><span class="hs-identifier hs-var">notAcceptable406</span></a><span>
+</span><a name="line-76"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status407"><span class="hs-identifier hs-var">status407</span></a><span>
+</span><a name="line-77"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#proxyAuthenticationRequired407"><span class="hs-identifier hs-var">proxyAuthenticationRequired407</span></a><span>
+</span><a name="line-78"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status408"><span class="hs-identifier hs-var">status408</span></a><span>
+</span><a name="line-79"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#requestTimeout408"><span class="hs-identifier hs-var">requestTimeout408</span></a><span>
+</span><a name="line-80"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status409"><span class="hs-identifier hs-var">status409</span></a><span>
+</span><a name="line-81"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#conflict409"><span class="hs-identifier hs-var">conflict409</span></a><span>
+</span><a name="line-82"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status410"><span class="hs-identifier hs-var">status410</span></a><span>
+</span><a name="line-83"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#gone410"><span class="hs-identifier hs-var">gone410</span></a><span>
+</span><a name="line-84"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status411"><span class="hs-identifier hs-var">status411</span></a><span>
+</span><a name="line-85"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#lengthRequired411"><span class="hs-identifier hs-var">lengthRequired411</span></a><span>
+</span><a name="line-86"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status412"><span class="hs-identifier hs-var">status412</span></a><span>
+</span><a name="line-87"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#preconditionFailed412"><span class="hs-identifier hs-var">preconditionFailed412</span></a><span>
+</span><a name="line-88"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status413"><span class="hs-identifier hs-var">status413</span></a><span>
+</span><a name="line-89"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#requestEntityTooLarge413"><span class="hs-identifier hs-var">requestEntityTooLarge413</span></a><span>
+</span><a name="line-90"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status414"><span class="hs-identifier hs-var">status414</span></a><span>
+</span><a name="line-91"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#requestURITooLong414"><span class="hs-identifier hs-var">requestURITooLong414</span></a><span>
+</span><a name="line-92"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status415"><span class="hs-identifier hs-var">status415</span></a><span>
+</span><a name="line-93"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#unsupportedMediaType415"><span class="hs-identifier hs-var">unsupportedMediaType415</span></a><span>
+</span><a name="line-94"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status416"><span class="hs-identifier hs-var">status416</span></a><span>
+</span><a name="line-95"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#requestedRangeNotSatisfiable416"><span class="hs-identifier hs-var">requestedRangeNotSatisfiable416</span></a><span>
+</span><a name="line-96"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status417"><span class="hs-identifier hs-var">status417</span></a><span>
+</span><a name="line-97"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#expectationFailed417"><span class="hs-identifier hs-var">expectationFailed417</span></a><span>
+</span><a name="line-98"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status418"><span class="hs-identifier hs-var">status418</span></a><span>
+</span><a name="line-99"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#imATeapot418"><span class="hs-identifier hs-var">imATeapot418</span></a><span>
+</span><a name="line-100"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status422"><span class="hs-identifier hs-var">status422</span></a><span>
+</span><a name="line-101"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#unprocessableEntity422"><span class="hs-identifier hs-var">unprocessableEntity422</span></a><span>
+</span><a name="line-102"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status428"><span class="hs-identifier hs-var">status428</span></a><span>
+</span><a name="line-103"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#preconditionRequired428"><span class="hs-identifier hs-var">preconditionRequired428</span></a><span>
+</span><a name="line-104"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status429"><span class="hs-identifier hs-var">status429</span></a><span>
+</span><a name="line-105"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#tooManyRequests429"><span class="hs-identifier hs-var">tooManyRequests429</span></a><span>
+</span><a name="line-106"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status431"><span class="hs-identifier hs-var">status431</span></a><span>
+</span><a name="line-107"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#requestHeaderFieldsTooLarge431"><span class="hs-identifier hs-var">requestHeaderFieldsTooLarge431</span></a><span>
+</span><a name="line-108"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status500"><span class="hs-identifier hs-var">status500</span></a><span>
+</span><a name="line-109"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#internalServerError500"><span class="hs-identifier hs-var">internalServerError500</span></a><span>
+</span><a name="line-110"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status501"><span class="hs-identifier hs-var">status501</span></a><span>
+</span><a name="line-111"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#notImplemented501"><span class="hs-identifier hs-var">notImplemented501</span></a><span>
+</span><a name="line-112"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status502"><span class="hs-identifier hs-var">status502</span></a><span>
+</span><a name="line-113"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#badGateway502"><span class="hs-identifier hs-var">badGateway502</span></a><span>
+</span><a name="line-114"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status503"><span class="hs-identifier hs-var">status503</span></a><span>
+</span><a name="line-115"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#serviceUnavailable503"><span class="hs-identifier hs-var">serviceUnavailable503</span></a><span>
+</span><a name="line-116"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status504"><span class="hs-identifier hs-var">status504</span></a><span>
+</span><a name="line-117"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#gatewayTimeout504"><span class="hs-identifier hs-var">gatewayTimeout504</span></a><span>
+</span><a name="line-118"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status505"><span class="hs-identifier hs-var">status505</span></a><span>
+</span><a name="line-119"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#httpVersionNotSupported505"><span class="hs-identifier hs-var">httpVersionNotSupported505</span></a><span>
+</span><a name="line-120"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#status511"><span class="hs-identifier hs-var">status511</span></a><span>
+</span><a name="line-121"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#networkAuthenticationRequired511"><span class="hs-identifier hs-var">networkAuthenticationRequired511</span></a><span>
+</span><a name="line-122"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#statusIsInformational"><span class="hs-identifier hs-var">statusIsInformational</span></a><span>
+</span><a name="line-123"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#statusIsSuccessful"><span class="hs-identifier hs-var">statusIsSuccessful</span></a><span>
+</span><a name="line-124"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#statusIsRedirection"><span class="hs-identifier hs-var">statusIsRedirection</span></a><span>
+</span><a name="line-125"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#statusIsClientError"><span class="hs-identifier hs-var">statusIsClientError</span></a><span>
+</span><a name="line-126"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Status.html#statusIsServerError"><span class="hs-identifier hs-var">statusIsServerError</span></a><span>
+</span><a name="line-127"></a><span>  </span><span class="hs-comment">-- * Headers</span><span>
+</span><a name="line-128"></a><span>  </span><span class="hs-comment">-- ** Types</span><span>
+</span><a name="line-129"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#Header"><span class="hs-identifier hs-type">Header</span></a><span>
+</span><a name="line-130"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#HeaderName"><span class="hs-identifier hs-type">HeaderName</span></a><span>
+</span><a name="line-131"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#RequestHeaders"><span class="hs-identifier hs-type">RequestHeaders</span></a><span>
+</span><a name="line-132"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#ResponseHeaders"><span class="hs-identifier hs-type">ResponseHeaders</span></a><span>
+</span><a name="line-133"></a><span>  </span><span class="hs-comment">-- ** Common headers</span><span>
+</span><a name="line-134"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#hAccept"><span class="hs-identifier hs-var">hAccept</span></a><span>
+</span><a name="line-135"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#hAcceptLanguage"><span class="hs-identifier hs-var">hAcceptLanguage</span></a><span>
+</span><a name="line-136"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#hAuthorization"><span class="hs-identifier hs-var">hAuthorization</span></a><span>
+</span><a name="line-137"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#hCacheControl"><span class="hs-identifier hs-var">hCacheControl</span></a><span>
+</span><a name="line-138"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#hCookie"><span class="hs-identifier hs-var">hCookie</span></a><span>
+</span><a name="line-139"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#hConnection"><span class="hs-identifier hs-var">hConnection</span></a><span>
+</span><a name="line-140"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#hContentEncoding"><span class="hs-identifier hs-var">hContentEncoding</span></a><span>
+</span><a name="line-141"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#hContentLength"><span class="hs-identifier hs-var">hContentLength</span></a><span>
+</span><a name="line-142"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#hContentMD5"><span class="hs-identifier hs-var">hContentMD5</span></a><span>
+</span><a name="line-143"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#hContentType"><span class="hs-identifier hs-var">hContentType</span></a><span>
+</span><a name="line-144"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#hDate"><span class="hs-identifier hs-var">hDate</span></a><span>
+</span><a name="line-145"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#hIfModifiedSince"><span class="hs-identifier hs-var">hIfModifiedSince</span></a><span>
+</span><a name="line-146"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#hIfRange"><span class="hs-identifier hs-var">hIfRange</span></a><span>
+</span><a name="line-147"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#hLastModified"><span class="hs-identifier hs-var">hLastModified</span></a><span>
+</span><a name="line-148"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#hLocation"><span class="hs-identifier hs-var">hLocation</span></a><span>
+</span><a name="line-149"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#hRange"><span class="hs-identifier hs-var">hRange</span></a><span>
+</span><a name="line-150"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#hReferer"><span class="hs-identifier hs-var">hReferer</span></a><span>
+</span><a name="line-151"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#hServer"><span class="hs-identifier hs-var">hServer</span></a><span>
+</span><a name="line-152"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#hUserAgent"><span class="hs-identifier hs-var">hUserAgent</span></a><span>
+</span><a name="line-153"></a><span>  </span><span class="hs-comment">-- ** Byte ranges</span><span>
+</span><a name="line-154"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#ByteRange"><span class="hs-identifier hs-type">ByteRange</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-155"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#renderByteRangeBuilder"><span class="hs-identifier hs-var">renderByteRangeBuilder</span></a><span>
+</span><a name="line-156"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#renderByteRange"><span class="hs-identifier hs-var">renderByteRange</span></a><span>
+</span><a name="line-157"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#ByteRanges"><span class="hs-identifier hs-type">ByteRanges</span></a><span>
+</span><a name="line-158"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#renderByteRangesBuilder"><span class="hs-identifier hs-var">renderByteRangesBuilder</span></a><span>
+</span><a name="line-159"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#renderByteRanges"><span class="hs-identifier hs-var">renderByteRanges</span></a><span>
+</span><a name="line-160"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.Header.html#parseByteRanges"><span class="hs-identifier hs-var">parseByteRanges</span></a><span>
+</span><a name="line-161"></a><span>  </span><span class="hs-comment">-- * URI</span><span>
+</span><a name="line-162"></a><span>  </span><span class="hs-comment">-- ** Query string</span><span>
+</span><a name="line-163"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#QueryItem"><span class="hs-identifier hs-type">QueryItem</span></a><span>
+</span><a name="line-164"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#Query"><span class="hs-identifier hs-type">Query</span></a><span>
+</span><a name="line-165"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#SimpleQueryItem"><span class="hs-identifier hs-type">SimpleQueryItem</span></a><span>
+</span><a name="line-166"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#SimpleQuery"><span class="hs-identifier hs-type">SimpleQuery</span></a><span>
+</span><a name="line-167"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#simpleQueryToQuery"><span class="hs-identifier hs-var">simpleQueryToQuery</span></a><span>
+</span><a name="line-168"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#renderQuery"><span class="hs-identifier hs-var">renderQuery</span></a><span>
+</span><a name="line-169"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#renderQueryBuilder"><span class="hs-identifier hs-var">renderQueryBuilder</span></a><span>
+</span><a name="line-170"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#renderSimpleQuery"><span class="hs-identifier hs-var">renderSimpleQuery</span></a><span>
+</span><a name="line-171"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#parseQuery"><span class="hs-identifier hs-var">parseQuery</span></a><span>
+</span><a name="line-172"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#parseSimpleQuery"><span class="hs-identifier hs-var">parseSimpleQuery</span></a><span>
+</span><a name="line-173"></a><span>  </span><span class="hs-comment">-- **Escape only parts</span><span>
+</span><a name="line-174"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#renderQueryPartialEscape"><span class="hs-identifier hs-var">renderQueryPartialEscape</span></a><span>
+</span><a name="line-175"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#renderQueryBuilderPartialEscape"><span class="hs-identifier hs-var">renderQueryBuilderPartialEscape</span></a><span>
+</span><a name="line-176"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#EscapeItem"><span class="hs-identifier hs-type">EscapeItem</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-177"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#PartialEscapeQueryItem"><span class="hs-identifier hs-type">PartialEscapeQueryItem</span></a><span>
+</span><a name="line-178"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#PartialEscapeQuery"><span class="hs-identifier hs-type">PartialEscapeQuery</span></a><span>
+</span><a name="line-179"></a><span>  </span><span class="hs-comment">-- *** Text query string (UTF8 encoded)</span><span>
+</span><a name="line-180"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#QueryText"><span class="hs-identifier hs-type">QueryText</span></a><span>
+</span><a name="line-181"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#queryTextToQuery"><span class="hs-identifier hs-var">queryTextToQuery</span></a><span>
+</span><a name="line-182"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#queryToQueryText"><span class="hs-identifier hs-var">queryToQueryText</span></a><span>
+</span><a name="line-183"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#renderQueryText"><span class="hs-identifier hs-var">renderQueryText</span></a><span>
+</span><a name="line-184"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#parseQueryText"><span class="hs-identifier hs-var">parseQueryText</span></a><span>
+</span><a name="line-185"></a><span>  </span><span class="hs-comment">-- ** Generalized query types</span><span>
+</span><a name="line-186"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.QueryLike.html#QueryLike"><span class="hs-identifier hs-type">QueryLike</span></a><span class="hs-special">(</span><a href="Network.HTTP.Types.QueryLike.html#toQuery"><span class="hs-identifier hs-var">toQuery</span></a><span class="hs-special">)</span><span>
+</span><a name="line-187"></a><span>  </span><span class="hs-comment">-- ** Path segments</span><span>
+</span><a name="line-188"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#encodePathSegments"><span class="hs-identifier hs-var">encodePathSegments</span></a><span>
+</span><a name="line-189"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#decodePathSegments"><span class="hs-identifier hs-var">decodePathSegments</span></a><span>
+</span><a name="line-190"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#encodePathSegmentsRelative"><span class="hs-identifier hs-var">encodePathSegmentsRelative</span></a><span>
+</span><a name="line-191"></a><span>  </span><span class="hs-comment">-- ** Path (segments + query string)</span><span>
+</span><a name="line-192"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#extractPath"><span class="hs-identifier hs-var">extractPath</span></a><span>
+</span><a name="line-193"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#encodePath"><span class="hs-identifier hs-var">encodePath</span></a><span>
+</span><a name="line-194"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#decodePath"><span class="hs-identifier hs-var">decodePath</span></a><span>
+</span><a name="line-195"></a><span>  </span><span class="hs-comment">-- ** URL encoding / decoding</span><span>
+</span><a name="line-196"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#urlEncodeBuilder"><span class="hs-identifier hs-var">urlEncodeBuilder</span></a><span>
+</span><a name="line-197"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#urlEncode"><span class="hs-identifier hs-var">urlEncode</span></a><span>
+</span><a name="line-198"></a><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Types.URI.html#urlDecode"><span class="hs-identifier hs-var">urlDecode</span></a><span>
+</span><a name="line-199"></a><span class="hs-special">)</span><span>
+</span><a name="line-200"></a><span class="hs-keyword">where</span><span>
+</span><a name="line-201"></a><span>
+</span><a name="line-202"></a><span class="hs-keyword">import</span><span> </span><a href="Network.HTTP.Types.Header.html"><span class="hs-identifier">Network.HTTP.Types.Header</span></a><span>
+</span><a name="line-203"></a><span class="hs-keyword">import</span><span> </span><a href="Network.HTTP.Types.Method.html"><span class="hs-identifier">Network.HTTP.Types.Method</span></a><span>
+</span><a name="line-204"></a><span class="hs-keyword">import</span><span> </span><a href="Network.HTTP.Types.QueryLike.html"><span class="hs-identifier">Network.HTTP.Types.QueryLike</span></a><span>
+</span><a name="line-205"></a><span class="hs-keyword">import</span><span> </span><a href="Network.HTTP.Types.Status.html"><span class="hs-identifier">Network.HTTP.Types.Status</span></a><span>
+</span><a name="line-206"></a><span class="hs-keyword">import</span><span> </span><a href="Network.HTTP.Types.URI.html"><span class="hs-identifier">Network.HTTP.Types.URI</span></a><span>
+</span><a name="line-207"></a><span class="hs-keyword">import</span><span> </span><a href="Network.HTTP.Types.Version.html"><span class="hs-identifier">Network.HTTP.Types.Version</span></a><span>
+</span><a name="line-208"></a></pre></body></html>

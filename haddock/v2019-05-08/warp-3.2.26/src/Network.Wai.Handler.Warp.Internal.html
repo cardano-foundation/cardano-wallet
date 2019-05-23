@@ -1,0 +1,86 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -fno-warn-deprecations #-}</span><span>
+</span><a name="line-2"></a><span>
+</span><a name="line-3"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Network.Wai.Handler.Warp.Internal</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-4"></a><span>    </span><span class="hs-comment">-- * Settings</span><span>
+</span><a name="line-5"></a><span>    </span><a href="Network.Wai.Handler.Warp.Settings.html#Settings"><span class="hs-identifier hs-type">Settings</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-6"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Settings.html#ProxyProtocol"><span class="hs-identifier hs-type">ProxyProtocol</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-7"></a><span>    </span><span class="hs-comment">-- * Low level run functions</span><span>
+</span><a name="line-8"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Run.html#runSettingsConnection"><span class="hs-identifier hs-var">runSettingsConnection</span></a><span>
+</span><a name="line-9"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Run.html#runSettingsConnectionMaker"><span class="hs-identifier hs-var">runSettingsConnectionMaker</span></a><span>
+</span><a name="line-10"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Run.html#runSettingsConnectionMakerSecure"><span class="hs-identifier hs-var">runSettingsConnectionMakerSecure</span></a><span>
+</span><a name="line-11"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Types.html#Transport"><span class="hs-identifier hs-type">Transport</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-12"></a><span>    </span><span class="hs-comment">-- * Connection</span><span>
+</span><a name="line-13"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Types.html#Connection"><span class="hs-identifier hs-type">Connection</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-14"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Run.html#socketConnection"><span class="hs-identifier hs-var">socketConnection</span></a><span>
+</span><a name="line-15"></a><span>    </span><span class="hs-comment">-- ** Receive</span><span>
+</span><a name="line-16"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Types.html#Recv"><span class="hs-identifier hs-type">Recv</span></a><span>
+</span><a name="line-17"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Types.html#RecvBuf"><span class="hs-identifier hs-type">RecvBuf</span></a><span>
+</span><a name="line-18"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Recv.html#makePlainReceiveN"><span class="hs-identifier hs-var">makePlainReceiveN</span></a><span>
+</span><a name="line-19"></a><span>    </span><span class="hs-comment">-- ** Buffer</span><span>
+</span><a name="line-20"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Types.html#Buffer"><span class="hs-identifier hs-type">Buffer</span></a><span>
+</span><a name="line-21"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Types.html#BufSize"><span class="hs-identifier hs-type">BufSize</span></a><span>
+</span><a name="line-22"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Buffer.html#bufferSize"><span class="hs-identifier hs-var">bufferSize</span></a><span>
+</span><a name="line-23"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Buffer.html#allocateBuffer"><span class="hs-identifier hs-var">allocateBuffer</span></a><span>
+</span><a name="line-24"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Buffer.html#freeBuffer"><span class="hs-identifier hs-var">freeBuffer</span></a><span>
+</span><a name="line-25"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Buffer.html#copy"><span class="hs-identifier hs-var">copy</span></a><span>
+</span><a name="line-26"></a><span>    </span><span class="hs-comment">-- ** Sendfile</span><span>
+</span><a name="line-27"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Types.html#FileId"><span class="hs-identifier hs-type">FileId</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-28"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Types.html#SendFile"><span class="hs-identifier hs-type">SendFile</span></a><span>
+</span><a name="line-29"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.SendFile.html#sendFile"><span class="hs-identifier hs-var">sendFile</span></a><span>
+</span><a name="line-30"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.SendFile.html#readSendFile"><span class="hs-identifier hs-var">readSendFile</span></a><span>
+</span><a name="line-31"></a><span>    </span><span class="hs-comment">-- * Version</span><span>
+</span><a name="line-32"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Response.html#warpVersion"><span class="hs-identifier hs-var">warpVersion</span></a><span>
+</span><a name="line-33"></a><span>    </span><span class="hs-comment">-- * Data types</span><span>
+</span><a name="line-34"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Types.html#InternalInfo"><span class="hs-identifier hs-type">InternalInfo</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-35"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Types.html#HeaderValue"><span class="hs-identifier hs-type">HeaderValue</span></a><span>
+</span><a name="line-36"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Header.html#IndexedHeader"><span class="hs-identifier hs-type">IndexedHeader</span></a><span>
+</span><a name="line-37"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Header.html#requestMaxIndex"><span class="hs-identifier hs-var">requestMaxIndex</span></a><span>
+</span><a name="line-38"></a><span>    </span><span class="hs-comment">-- * Time out manager</span><span>
+</span><a name="line-39"></a><span>    </span><span class="hs-comment">-- |</span><span>
+</span><a name="line-40"></a><span>    </span><span class="hs-comment">--</span><span>
+</span><a name="line-41"></a><span>    </span><span class="hs-comment">-- In order to provide slowloris protection, Warp provides timeout handlers. We</span><span>
+</span><a name="line-42"></a><span>    </span><span class="hs-comment">-- follow these rules:</span><span>
+</span><a name="line-43"></a><span>    </span><span class="hs-comment">--</span><span>
+</span><a name="line-44"></a><span>    </span><span class="hs-comment">-- * A timeout is created when a connection is opened.</span><span>
+</span><a name="line-45"></a><span>    </span><span class="hs-comment">--</span><span>
+</span><a name="line-46"></a><span>    </span><span class="hs-comment">-- * When all request headers are read, the timeout is tickled.</span><span>
+</span><a name="line-47"></a><span>    </span><span class="hs-comment">--</span><span>
+</span><a name="line-48"></a><span>    </span><span class="hs-comment">-- * Every time at least the slowloris size settings number of bytes of the request</span><span>
+</span><a name="line-49"></a><span>    </span><span class="hs-comment">--   body are read, the timeout is tickled.</span><span>
+</span><a name="line-50"></a><span>    </span><span class="hs-comment">--</span><span>
+</span><a name="line-51"></a><span>    </span><span class="hs-comment">-- * The timeout is paused while executing user code. This will apply to both</span><span>
+</span><a name="line-52"></a><span>    </span><span class="hs-comment">--   the application itself, and a ResponseSource response. The timeout is</span><span>
+</span><a name="line-53"></a><span>    </span><span class="hs-comment">--   resumed as soon as we return from user code.</span><span>
+</span><a name="line-54"></a><span>    </span><span class="hs-comment">--</span><span>
+</span><a name="line-55"></a><span>    </span><span class="hs-comment">-- * Every time data is successfully sent to the client, the timeout is tickled.</span><span>
+</span><a name="line-56"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><a href="Network.Wai.Handler.Warp.Timeout.html"><span class="hs-identifier">Network.Wai.Handler.Warp.Timeout</span></a><span>
+</span><a name="line-57"></a><span>    </span><span class="hs-comment">-- * File descriptor cache</span><span>
+</span><a name="line-58"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><a href="Network.Wai.Handler.Warp.FdCache.html"><span class="hs-identifier">Network.Wai.Handler.Warp.FdCache</span></a><span>
+</span><a name="line-59"></a><span>    </span><span class="hs-comment">-- * File information cache</span><span>
+</span><a name="line-60"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><a href="Network.Wai.Handler.Warp.FileInfoCache.html"><span class="hs-identifier">Network.Wai.Handler.Warp.FileInfoCache</span></a><span>
+</span><a name="line-61"></a><span>    </span><span class="hs-comment">-- * Date</span><span>
+</span><a name="line-62"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><a href="Network.Wai.Handler.Warp.Date.html"><span class="hs-identifier">Network.Wai.Handler.Warp.Date</span></a><span>
+</span><a name="line-63"></a><span>    </span><span class="hs-comment">-- * Request and response</span><span>
+</span><a name="line-64"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Types.html#Source"><span class="hs-identifier hs-type">Source</span></a><span>
+</span><a name="line-65"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Request.html#recvRequest"><span class="hs-identifier hs-var">recvRequest</span></a><span>
+</span><a name="line-66"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Response.html#sendResponse"><span class="hs-identifier hs-var">sendResponse</span></a><span>
+</span><a name="line-67"></a><span>    </span><span class="hs-comment">-- * Platform dependent helper functions</span><span>
+</span><a name="line-68"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Run.html#setSocketCloseOnExec"><span class="hs-identifier hs-var">setSocketCloseOnExec</span></a><span>
+</span><a name="line-69"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Wai.Handler.Warp.Windows.html#windowsThreadBlockHack"><span class="hs-identifier hs-var">windowsThreadBlockHack</span></a><span>
+</span><a name="line-70"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-71"></a><span>
+</span><a name="line-72"></a><span class="hs-keyword">import</span><span> </span><a href="Network.Wai.Handler.Warp.Buffer.html"><span class="hs-identifier">Network.Wai.Handler.Warp.Buffer</span></a><span>
+</span><a name="line-73"></a><span class="hs-keyword">import</span><span> </span><a href="Network.Wai.Handler.Warp.Date.html"><span class="hs-identifier">Network.Wai.Handler.Warp.Date</span></a><span>
+</span><a name="line-74"></a><span class="hs-keyword">import</span><span> </span><a href="Network.Wai.Handler.Warp.FdCache.html"><span class="hs-identifier">Network.Wai.Handler.Warp.FdCache</span></a><span>
+</span><a name="line-75"></a><span class="hs-keyword">import</span><span> </span><a href="Network.Wai.Handler.Warp.FileInfoCache.html"><span class="hs-identifier">Network.Wai.Handler.Warp.FileInfoCache</span></a><span>
+</span><a name="line-76"></a><span class="hs-keyword">import</span><span> </span><a href="Network.Wai.Handler.Warp.Header.html"><span class="hs-identifier">Network.Wai.Handler.Warp.Header</span></a><span>
+</span><a name="line-77"></a><span class="hs-keyword">import</span><span> </span><a href="Network.Wai.Handler.Warp.Recv.html"><span class="hs-identifier">Network.Wai.Handler.Warp.Recv</span></a><span>
+</span><a name="line-78"></a><span class="hs-keyword">import</span><span> </span><a href="Network.Wai.Handler.Warp.Request.html"><span class="hs-identifier">Network.Wai.Handler.Warp.Request</span></a><span>
+</span><a name="line-79"></a><span class="hs-keyword">import</span><span> </span><a href="Network.Wai.Handler.Warp.Response.html"><span class="hs-identifier">Network.Wai.Handler.Warp.Response</span></a><span>
+</span><a name="line-80"></a><span class="hs-keyword">import</span><span> </span><a href="Network.Wai.Handler.Warp.Run.html"><span class="hs-identifier">Network.Wai.Handler.Warp.Run</span></a><span>
+</span><a name="line-81"></a><span class="hs-keyword">import</span><span> </span><a href="Network.Wai.Handler.Warp.SendFile.html"><span class="hs-identifier">Network.Wai.Handler.Warp.SendFile</span></a><span>
+</span><a name="line-82"></a><span class="hs-keyword">import</span><span> </span><a href="Network.Wai.Handler.Warp.Settings.html"><span class="hs-identifier">Network.Wai.Handler.Warp.Settings</span></a><span>
+</span><a name="line-83"></a><span class="hs-keyword">import</span><span> </span><a href="Network.Wai.Handler.Warp.Timeout.html"><span class="hs-identifier">Network.Wai.Handler.Warp.Timeout</span></a><span>
+</span><a name="line-84"></a><span class="hs-keyword">import</span><span> </span><a href="Network.Wai.Handler.Warp.Types.html"><span class="hs-identifier">Network.Wai.Handler.Warp.Types</span></a><span>
+</span><a name="line-85"></a><span class="hs-keyword">import</span><span> </span><a href="Network.Wai.Handler.Warp.Windows.html"><span class="hs-identifier">Network.Wai.Handler.Warp.Windows</span></a><span>
+</span><a name="line-86"></a></pre></body></html>

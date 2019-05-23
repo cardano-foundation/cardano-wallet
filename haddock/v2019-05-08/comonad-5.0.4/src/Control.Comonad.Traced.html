@@ -1,0 +1,38 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><a name="line-2"></a><span class="hs-cpp">#if __GLASGOW_HASKELL__ &gt;= 704
+</span><span class="hs-pragma">{-# LANGUAGE Safe #-}</span><span>
+</span><a name="line-4"></a><span class="hs-cpp">#elif __GLASGOW_HASKELL__ &gt;= 702
+</span><span class="hs-pragma">{-# LANGUAGE Trustworthy #-}</span><span>
+</span><a name="line-6"></a><span class="hs-cpp">#endif
+</span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><a name="line-8"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-9"></a><span class="hs-comment">-- Module      :  Control.Comonad.Traced</span><span>
+</span><a name="line-10"></a><span class="hs-comment">-- Copyright   :  (C) 2008-2014 Edward Kmett</span><span>
+</span><a name="line-11"></a><span class="hs-comment">-- License     :  BSD-style (see the file LICENSE)</span><span>
+</span><a name="line-12"></a><span class="hs-comment">--</span><span>
+</span><a name="line-13"></a><span class="hs-comment">-- Maintainer  :  Edward Kmett &lt;ekmett@gmail.com&gt;</span><span>
+</span><a name="line-14"></a><span class="hs-comment">-- Stability   :  experimental</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- Portability :  non-portable (fundeps, MPTCs)</span><span>
+</span><a name="line-16"></a><span class="hs-comment">----------------------------------------------------------------------------</span><span>
+</span><a name="line-17"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Control.Comonad.Traced</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-18"></a><span>  </span><span class="hs-comment">-- * ComonadTraced class</span><span>
+</span><a name="line-19"></a><span>    </span><a href="Control.Comonad.Traced.Class.html#ComonadTraced"><span class="hs-identifier hs-type">ComonadTraced</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-20"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Control.Comonad.Traced.Class.html#traces"><span class="hs-identifier hs-var">traces</span></a><span>
+</span><a name="line-21"></a><span>  </span><span class="hs-comment">-- * The Traced comonad</span><span>
+</span><a name="line-22"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Control.Comonad.Trans.Traced.html#Traced"><span class="hs-identifier hs-type">Traced</span></a><span>
+</span><a name="line-23"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Control.Comonad.Trans.Traced.html#traced"><span class="hs-identifier hs-var">traced</span></a><span>
+</span><a name="line-24"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Control.Comonad.Trans.Traced.html#runTraced"><span class="hs-identifier hs-var">runTraced</span></a><span>
+</span><a name="line-25"></a><span>  </span><span class="hs-comment">-- * The TracedT comonad transformer</span><span>
+</span><a name="line-26"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Control.Comonad.Trans.Traced.html#TracedT"><span class="hs-identifier hs-type">TracedT</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-27"></a><span>  </span><span class="hs-comment">-- * Re-exported modules</span><span>
+</span><a name="line-28"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><a href="Control.Comonad.html"><span class="hs-identifier">Control.Comonad</span></a><span>
+</span><a name="line-29"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><a href="Control.Comonad.Trans.Class.html"><span class="hs-identifier">Control.Comonad.Trans.Class</span></a><span>
+</span><a name="line-30"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Monoid</span><span>
+</span><a name="line-31"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-32"></a><span>
+</span><a name="line-33"></a><span class="hs-keyword">import</span><span> </span><a href="Control.Comonad.html"><span class="hs-identifier">Control.Comonad</span></a><span>
+</span><a name="line-34"></a><span class="hs-keyword">import</span><span> </span><a href="Control.Comonad.Traced.Class.html"><span class="hs-identifier">Control.Comonad.Traced.Class</span></a><span> </span><span class="hs-special">(</span><a href="Control.Comonad.Traced.Class.html#ComonadTraced"><span class="hs-identifier hs-type">ComonadTraced</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><a href="Control.Comonad.Traced.Class.html#traces"><span class="hs-identifier hs-var">traces</span></a><span class="hs-special">)</span><span>
+</span><a name="line-35"></a><span class="hs-keyword">import</span><span> </span><a href="Control.Comonad.Trans.Class.html"><span class="hs-identifier">Control.Comonad.Trans.Class</span></a><span>
+</span><a name="line-36"></a><span class="hs-keyword">import</span><span> </span><a href="Control.Comonad.Trans.Traced.html"><span class="hs-identifier">Control.Comonad.Trans.Traced</span></a><span> </span><span class="hs-special">(</span><a href="Control.Comonad.Trans.Traced.html#Traced"><span class="hs-identifier hs-type">Traced</span></a><span class="hs-special">,</span><span> </span><a href="Control.Comonad.Trans.Traced.html#traced"><span class="hs-identifier hs-var">traced</span></a><span class="hs-special">,</span><span> </span><a href="Control.Comonad.Trans.Traced.html#runTraced"><span class="hs-identifier hs-var">runTraced</span></a><span class="hs-special">,</span><span> </span><a href="Control.Comonad.Trans.Traced.html#TracedT"><span class="hs-identifier hs-type">TracedT</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><a href="Control.Comonad.Trans.Traced.html#runTracedT"><span class="hs-identifier hs-var">runTracedT</span></a><span class="hs-special">)</span><span>
+</span><a name="line-37"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Monoid</span><span>
+</span><a name="line-38"></a></pre></body></html>

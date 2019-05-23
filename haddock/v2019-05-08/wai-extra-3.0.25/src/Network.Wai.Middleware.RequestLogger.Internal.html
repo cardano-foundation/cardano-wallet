@@ -1,0 +1,34 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><a name="line-2"></a><span class="hs-comment">-- | A module for containing some CPPed code, due to:</span><span>
+</span><a name="line-3"></a><span class="hs-comment">--</span><span>
+</span><a name="line-4"></a><span class="hs-comment">-- https://github.com/yesodweb/wai/issues/192</span><span>
+</span><a name="line-5"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Network.Wai.Middleware.RequestLogger.Internal</span><span>
+</span><a name="line-6"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-keyword">module</span><span> </span><a href="Network.Wai.Middleware.RequestLogger.Internal.html"><span class="hs-identifier">Network.Wai.Middleware.RequestLogger.Internal</span></a><span>
+</span><a name="line-7"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-8"></a><span>
+</span><a name="line-9"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.ByteString</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">ByteString</span><span class="hs-special">)</span><span>
+</span><a name="line-10"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Network.Wai.Logger</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">clockDateCacher</span><span class="hs-special">)</span><span>
+</span><a name="line-11"></a><span class="hs-cpp">#if !MIN_VERSION_wai_logger(2, 2, 0)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Concurrent</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">forkIO</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">threadDelay</span><span class="hs-special">)</span><span>
+</span><a name="line-13"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Monad</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">forever</span><span class="hs-special">)</span><span>
+</span><a name="line-14"></a><span class="hs-cpp">#endif
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">System.Log.FastLogger</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">LogStr</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">fromLogStr</span><span class="hs-special">)</span><span>
+</span><a name="line-16"></a><span>
+</span><a name="line-17"></a><span class="hs-identifier">logToByteString</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">LogStr</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">ByteString</span><span>
+</span><a name="line-18"></a><a name="logToByteString"><a href="Network.Wai.Middleware.RequestLogger.Internal.html#logToByteString"><span class="hs-identifier">logToByteString</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">fromLogStr</span><span>
+</span><a name="line-19"></a><span>
+</span><a name="line-20"></a><span class="hs-identifier">getDateGetter</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">IO</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- ^ flusher</span><span>
+</span><a name="line-21"></a><span>              </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">IO</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">IO</span><span> </span><span class="hs-identifier hs-type">ByteString</span><span class="hs-special">)</span><span>
+</span><a name="line-22"></a><span class="hs-cpp">#if !MIN_VERSION_wai_logger(2, 2, 0)
+</span><span class="hs-identifier">getDateGetter</span><span> </span><span class="hs-identifier">flusher</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><a name="line-24"></a><span>    </span><span class="hs-special">(</span><span class="hs-identifier">getter</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">updater</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-identifier">clockDateCacher</span><span>
+</span><a name="line-25"></a><span>    </span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-identifier">forkIO</span><span> </span><span class="hs-operator">$</span><span> </span><span class="hs-identifier">forever</span><span> </span><span class="hs-operator">$</span><span> </span><span class="hs-keyword">do</span><span>
+</span><a name="line-26"></a><span>        </span><span class="hs-identifier">threadDelay</span><span> </span><span class="hs-number">1000000</span><span>
+</span><a name="line-27"></a><span>        </span><span class="hs-identifier">updater</span><span>
+</span><a name="line-28"></a><span>        </span><span class="hs-identifier">flusher</span><span>
+</span><a name="line-29"></a><span class="hs-cpp">#else
+</span><a name="getDateGetter"><a href="Network.Wai.Middleware.RequestLogger.Internal.html#getDateGetter"><span class="hs-identifier">getDateGetter</span></a></a><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><a name="line-31"></a><span>    </span><span class="hs-special">(</span><a name="local-6989586621679075761"><a href="#local-6989586621679075761"><span class="hs-identifier">getter</span></a></a><span class="hs-special">,</span><span> </span><span class="hs-identifier">_</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-identifier hs-var">clockDateCacher</span><span>
+</span><a name="line-32"></a><span class="hs-cpp">#endif
+</span><span>    </span><span class="hs-identifier hs-var">return</span><span> </span><a href="#local-6989586621679075761"><span class="hs-identifier hs-var">getter</span></a><span>
+</span><a name="line-34"></a></pre></body></html>

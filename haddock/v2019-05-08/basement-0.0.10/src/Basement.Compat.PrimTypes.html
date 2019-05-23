@@ -1,0 +1,37 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><a name="line-2"></a><span class="hs-comment">-- Module      : Basement.Compat.PrimTypes</span><span>
+</span><a name="line-3"></a><span class="hs-comment">-- License     : BSD-style</span><span>
+</span><a name="line-4"></a><span class="hs-comment">-- Maintainer  : Vincent Hanquez &lt;vincent@snarc.org&gt;</span><span>
+</span><a name="line-5"></a><span class="hs-comment">-- Stability   : experimental</span><span>
+</span><a name="line-6"></a><span class="hs-comment">-- Portability : portable</span><span>
+</span><a name="line-7"></a><span class="hs-comment">--</span><span>
+</span><a name="line-8"></a><span class="hs-pragma">{-# LANGUAGE MagicHash #-}</span><span>
+</span><a name="line-9"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Basement.Compat.PrimTypes</span><span>
+</span><a name="line-10"></a><span>    </span><span class="hs-special">(</span><span> </span><a href="Basement.Compat.PrimTypes.html#FileSize%23"><span class="hs-identifier hs-type">FileSize#</span></a><span>
+</span><a name="line-11"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Basement.Compat.PrimTypes.html#Offset%23"><span class="hs-identifier hs-type">Offset#</span></a><span>
+</span><a name="line-12"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Basement.Compat.PrimTypes.html#CountOf%23"><span class="hs-identifier hs-type">CountOf#</span></a><span>
+</span><a name="line-13"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Basement.Compat.PrimTypes.html#Bool%23"><span class="hs-identifier hs-type">Bool#</span></a><span>
+</span><a name="line-14"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Basement.Compat.PrimTypes.html#Pinned%23"><span class="hs-identifier hs-type">Pinned#</span></a><span>
+</span><a name="line-15"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-16"></a><span>
+</span><a name="line-17"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.Prim</span><span>
+</span><a name="line-18"></a><span>
+</span><a name="line-19"></a><span class="hs-comment">-- | File size in bytes</span><span>
+</span><a name="line-20"></a><span class="hs-keyword">type</span><span> </span><a name="FileSize%23"><a href="Basement.Compat.PrimTypes.html#FileSize%23"><span class="hs-identifier">FileSize#</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-type">Word64#</span><span>
+</span><a name="line-21"></a><span>
+</span><a name="line-22"></a><span class="hs-comment">-- | Offset in a bytearray, string, type alias</span><span>
+</span><a name="line-23"></a><span class="hs-comment">--</span><span>
+</span><a name="line-24"></a><span class="hs-comment">-- for code documentation purpose only, just a simple type alias on Int#</span><span>
+</span><a name="line-25"></a><span class="hs-keyword">type</span><span> </span><a name="Offset%23"><a href="Basement.Compat.PrimTypes.html#Offset%23"><span class="hs-identifier">Offset#</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-type">Int#</span><span>
+</span><a name="line-26"></a><span>
+</span><a name="line-27"></a><span class="hs-comment">-- | CountOf in bytes type alias</span><span>
+</span><a name="line-28"></a><span class="hs-comment">--</span><span>
+</span><a name="line-29"></a><span class="hs-comment">-- for code documentation purpose only, just a simple type alias on Int#</span><span>
+</span><a name="line-30"></a><span class="hs-keyword">type</span><span> </span><a name="CountOf%23"><a href="Basement.Compat.PrimTypes.html#CountOf%23"><span class="hs-identifier">CountOf#</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-type">Int#</span><span>
+</span><a name="line-31"></a><span>
+</span><a name="line-32"></a><span class="hs-comment">-- | Lowlevel Boolean</span><span>
+</span><a name="line-33"></a><span class="hs-keyword">type</span><span> </span><a name="Bool%23"><a href="Basement.Compat.PrimTypes.html#Bool%23"><span class="hs-identifier">Bool#</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-type">Int#</span><span>
+</span><a name="line-34"></a><span>
+</span><a name="line-35"></a><span class="hs-comment">-- | Pinning status</span><span>
+</span><a name="line-36"></a><span class="hs-keyword">type</span><span> </span><a name="Pinned%23"><a href="Basement.Compat.PrimTypes.html#Pinned%23"><span class="hs-identifier">Pinned#</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Basement.Compat.PrimTypes.html#Bool%23"><span class="hs-identifier hs-type">Bool#</span></a><span>
+</span><a name="line-37"></a></pre></body></html>

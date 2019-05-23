@@ -1,0 +1,106 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE OverloadedStrings #-}</span><span>
+</span><a name="line-2"></a><span>
+</span><a name="line-3"></a><span class="hs-comment">-- | Framing in HTTP\/2(&lt;https://tools.ietf.org/html/rfc7540&gt;).</span><span>
+</span><a name="line-4"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Network.HTTP2</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-5"></a><span>  </span><span class="hs-comment">-- * Frame</span><span>
+</span><a name="line-6"></a><span>    </span><a href="Network.HTTP2.Types.html#Frame"><span class="hs-identifier hs-type">Frame</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-7"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#FrameHeader"><span class="hs-identifier hs-type">FrameHeader</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-8"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#FramePayload"><span class="hs-identifier hs-type">FramePayload</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-9"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#HeaderBlockFragment"><span class="hs-identifier hs-type">HeaderBlockFragment</span></a><span>
+</span><a name="line-10"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#Padding"><span class="hs-identifier hs-type">Padding</span></a><span>
+</span><a name="line-11"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#isPaddingDefined"><span class="hs-identifier hs-var">isPaddingDefined</span></a><span>
+</span><a name="line-12"></a><span>  </span><span class="hs-comment">-- * Encoding</span><span>
+</span><a name="line-13"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Encode.html#encodeFrame"><span class="hs-identifier hs-var">encodeFrame</span></a><span>
+</span><a name="line-14"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Encode.html#encodeFrameChunks"><span class="hs-identifier hs-var">encodeFrameChunks</span></a><span>
+</span><a name="line-15"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Encode.html#encodeFrameHeader"><span class="hs-identifier hs-var">encodeFrameHeader</span></a><span>
+</span><a name="line-16"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Encode.html#encodeFrameHeaderBuf"><span class="hs-identifier hs-var">encodeFrameHeaderBuf</span></a><span>
+</span><a name="line-17"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Encode.html#encodeFramePayload"><span class="hs-identifier hs-var">encodeFramePayload</span></a><span>
+</span><a name="line-18"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Encode.html#EncodeInfo"><span class="hs-identifier hs-type">EncodeInfo</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-19"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Encode.html#encodeInfo"><span class="hs-identifier hs-var">encodeInfo</span></a><span>
+</span><a name="line-20"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><a href="Network.HTTP2.Decode.html"><span class="hs-identifier">Network.HTTP2.Decode</span></a><span>
+</span><a name="line-21"></a><span>  </span><span class="hs-comment">-- * Frame type ID</span><span>
+</span><a name="line-22"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#FrameTypeId"><span class="hs-identifier hs-type">FrameTypeId</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-23"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#framePayloadToFrameTypeId"><span class="hs-identifier hs-var">framePayloadToFrameTypeId</span></a><span>
+</span><a name="line-24"></a><span>  </span><span class="hs-comment">-- * Frame type</span><span>
+</span><a name="line-25"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#FrameType"><span class="hs-identifier hs-type">FrameType</span></a><span>
+</span><a name="line-26"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#fromFrameTypeId"><span class="hs-identifier hs-var">fromFrameTypeId</span></a><span>
+</span><a name="line-27"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#toFrameTypeId"><span class="hs-identifier hs-var">toFrameTypeId</span></a><span>
+</span><a name="line-28"></a><span>  </span><span class="hs-comment">-- * Priority</span><span>
+</span><a name="line-29"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#Priority"><span class="hs-identifier hs-type">Priority</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-30"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#Weight"><span class="hs-identifier hs-type">Weight</span></a><span>
+</span><a name="line-31"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#defaultPriority"><span class="hs-identifier hs-var">defaultPriority</span></a><span>
+</span><a name="line-32"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#highestPriority"><span class="hs-identifier hs-var">highestPriority</span></a><span>
+</span><a name="line-33"></a><span>  </span><span class="hs-comment">-- * Stream identifier</span><span>
+</span><a name="line-34"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#StreamId"><span class="hs-identifier hs-type">StreamId</span></a><span>
+</span><a name="line-35"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#isControl"><span class="hs-identifier hs-var">isControl</span></a><span>
+</span><a name="line-36"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#isRequest"><span class="hs-identifier hs-var">isRequest</span></a><span>
+</span><a name="line-37"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#isResponse"><span class="hs-identifier hs-var">isResponse</span></a><span>
+</span><a name="line-38"></a><span>  </span><span class="hs-comment">-- * Stream identifier related</span><span>
+</span><a name="line-39"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#testExclusive"><span class="hs-identifier hs-var">testExclusive</span></a><span>
+</span><a name="line-40"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#setExclusive"><span class="hs-identifier hs-var">setExclusive</span></a><span>
+</span><a name="line-41"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#clearExclusive"><span class="hs-identifier hs-var">clearExclusive</span></a><span>
+</span><a name="line-42"></a><span>  </span><span class="hs-comment">-- * Flags</span><span>
+</span><a name="line-43"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#FrameFlags"><span class="hs-identifier hs-type">FrameFlags</span></a><span>
+</span><a name="line-44"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#defaultFlags"><span class="hs-identifier hs-var">defaultFlags</span></a><span>
+</span><a name="line-45"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#testEndStream"><span class="hs-identifier hs-var">testEndStream</span></a><span>
+</span><a name="line-46"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#testAck"><span class="hs-identifier hs-var">testAck</span></a><span>
+</span><a name="line-47"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#testEndHeader"><span class="hs-identifier hs-var">testEndHeader</span></a><span>
+</span><a name="line-48"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#testPadded"><span class="hs-identifier hs-var">testPadded</span></a><span>
+</span><a name="line-49"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#testPriority"><span class="hs-identifier hs-var">testPriority</span></a><span>
+</span><a name="line-50"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#setEndStream"><span class="hs-identifier hs-var">setEndStream</span></a><span>
+</span><a name="line-51"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#setAck"><span class="hs-identifier hs-var">setAck</span></a><span>
+</span><a name="line-52"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#setEndHeader"><span class="hs-identifier hs-var">setEndHeader</span></a><span>
+</span><a name="line-53"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#setPadded"><span class="hs-identifier hs-var">setPadded</span></a><span>
+</span><a name="line-54"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#setPriority"><span class="hs-identifier hs-var">setPriority</span></a><span>
+</span><a name="line-55"></a><span>  </span><span class="hs-comment">-- * SettingsList</span><span>
+</span><a name="line-56"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#SettingsList"><span class="hs-identifier hs-type">SettingsList</span></a><span>
+</span><a name="line-57"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#SettingsKeyId"><span class="hs-identifier hs-type">SettingsKeyId</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-58"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#SettingsValue"><span class="hs-identifier hs-type">SettingsValue</span></a><span>
+</span><a name="line-59"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#fromSettingsKeyId"><span class="hs-identifier hs-var">fromSettingsKeyId</span></a><span>
+</span><a name="line-60"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#toSettingsKeyId"><span class="hs-identifier hs-var">toSettingsKeyId</span></a><span>
+</span><a name="line-61"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#checkSettingsList"><span class="hs-identifier hs-var">checkSettingsList</span></a><span>
+</span><a name="line-62"></a><span>  </span><span class="hs-comment">-- * Settings</span><span>
+</span><a name="line-63"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#Settings"><span class="hs-identifier hs-type">Settings</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-64"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#defaultSettings"><span class="hs-identifier hs-var">defaultSettings</span></a><span>
+</span><a name="line-65"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#updateSettings"><span class="hs-identifier hs-var">updateSettings</span></a><span>
+</span><a name="line-66"></a><span>  </span><span class="hs-comment">-- * Window</span><span>
+</span><a name="line-67"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#WindowSize"><span class="hs-identifier hs-type">WindowSize</span></a><span>
+</span><a name="line-68"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#defaultInitialWindowSize"><span class="hs-identifier hs-var">defaultInitialWindowSize</span></a><span>
+</span><a name="line-69"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#maxWindowSize"><span class="hs-identifier hs-var">maxWindowSize</span></a><span>
+</span><a name="line-70"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#isWindowOverflow"><span class="hs-identifier hs-var">isWindowOverflow</span></a><span>
+</span><a name="line-71"></a><span>  </span><span class="hs-comment">-- * Error code</span><span>
+</span><a name="line-72"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#ErrorCode"><span class="hs-identifier hs-type">ErrorCode</span></a><span>
+</span><a name="line-73"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#ErrorCodeId"><span class="hs-identifier hs-type">ErrorCodeId</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-74"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#fromErrorCodeId"><span class="hs-identifier hs-var">fromErrorCodeId</span></a><span>
+</span><a name="line-75"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#toErrorCodeId"><span class="hs-identifier hs-var">toErrorCodeId</span></a><span>
+</span><a name="line-76"></a><span>  </span><span class="hs-comment">-- * Error</span><span>
+</span><a name="line-77"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#HTTP2Error"><span class="hs-identifier hs-type">HTTP2Error</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-78"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#errorCodeId"><span class="hs-identifier hs-var">errorCodeId</span></a><span>
+</span><a name="line-79"></a><span>  </span><span class="hs-comment">-- * Predefined values</span><span>
+</span><a name="line-80"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.html#connectionPreface"><span class="hs-identifier hs-var">connectionPreface</span></a><span>
+</span><a name="line-81"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.html#connectionPrefaceLength"><span class="hs-identifier hs-var">connectionPrefaceLength</span></a><span>
+</span><a name="line-82"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#frameHeaderLength"><span class="hs-identifier hs-var">frameHeaderLength</span></a><span>
+</span><a name="line-83"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#maxPayloadLength"><span class="hs-identifier hs-var">maxPayloadLength</span></a><span>
+</span><a name="line-84"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP2.Types.html#recommendedConcurrency"><span class="hs-identifier hs-var">recommendedConcurrency</span></a><span>
+</span><a name="line-85"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-86"></a><span>
+</span><a name="line-87"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.ByteString</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">ByteString</span><span class="hs-special">)</span><span>
+</span><a name="line-88"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.ByteString</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">BS</span><span>
+</span><a name="line-89"></a><span class="hs-keyword">import</span><span> </span><a href="Network.HTTP2.Decode.html"><span class="hs-identifier">Network.HTTP2.Decode</span></a><span>
+</span><a name="line-90"></a><span class="hs-keyword">import</span><span> </span><a href="Network.HTTP2.Encode.html"><span class="hs-identifier">Network.HTTP2.Encode</span></a><span>
+</span><a name="line-91"></a><span class="hs-keyword">import</span><span> </span><a href="Network.HTTP2.Types.html"><span class="hs-identifier">Network.HTTP2.Types</span></a><span>
+</span><a name="line-92"></a><span>
+</span><a name="line-93"></a><span class="hs-comment">-- | The preface of HTTP\/2.</span><span>
+</span><a name="line-94"></a><span class="hs-comment">--</span><span>
+</span><a name="line-95"></a><span class="hs-comment">-- &gt;&gt;&gt; connectionPreface</span><span>
+</span><a name="line-96"></a><span class="hs-comment">-- &quot;PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n&quot;</span><span>
+</span><a name="line-97"></a><span class="hs-identifier">connectionPreface</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">ByteString</span><span>
+</span><a name="line-98"></a><a name="connectionPreface"><a href="Network.HTTP2.html#connectionPreface"><span class="hs-identifier">connectionPreface</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-string">&quot;PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n&quot;</span><span>
+</span><a name="line-99"></a><span>
+</span><a name="line-100"></a><span class="hs-comment">-- | Length of the preface.</span><span>
+</span><a name="line-101"></a><span class="hs-comment">--</span><span>
+</span><a name="line-102"></a><span class="hs-comment">-- &gt;&gt;&gt; connectionPrefaceLength</span><span>
+</span><a name="line-103"></a><span class="hs-comment">-- 24</span><span>
+</span><a name="line-104"></a><span class="hs-identifier">connectionPrefaceLength</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int</span><span>
+</span><a name="line-105"></a><a name="connectionPrefaceLength"><a href="Network.HTTP2.html#connectionPrefaceLength"><span class="hs-identifier">connectionPrefaceLength</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">BS.length</span><span> </span><a href="Network.HTTP2.html#connectionPreface"><span class="hs-identifier hs-var">connectionPreface</span></a><span>
+</span><a name="line-106"></a></pre></body></html>

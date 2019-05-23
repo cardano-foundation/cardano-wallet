@@ -1,0 +1,105 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE ConstraintKinds #-}</span><span>
+</span><a name="line-3"></a><span class="hs-pragma">{-# LANGUAGE FlexibleContexts #-}</span><span>
+</span><a name="line-4"></a><span class="hs-pragma">{-# LANGUAGE FlexibleInstances #-}</span><span>
+</span><a name="line-5"></a><span class="hs-pragma">{-# LANGUAGE GADTs #-}</span><span>
+</span><a name="line-6"></a><span class="hs-pragma">{-# LANGUAGE MultiParamTypeClasses #-}</span><span>
+</span><a name="line-7"></a><span class="hs-pragma">{-# LANGUAGE NoImplicitPrelude #-}</span><span>
+</span><a name="line-8"></a><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables #-}</span><span>
+</span><a name="line-9"></a><span class="hs-pragma">{-# LANGUAGE TypeSynonymInstances #-}</span><span>
+</span><a name="line-10"></a><span>
+</span><a name="line-11"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-12"></a><span class="hs-comment">-- Module:      Data.Aeson.Types.Class</span><span>
+</span><a name="line-13"></a><span class="hs-comment">-- Copyright:   (c) 2011-2016 Bryan O'Sullivan</span><span>
+</span><a name="line-14"></a><span class="hs-comment">--              (c) 2011 MailRank, Inc.</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- License:     BSD3</span><span>
+</span><a name="line-16"></a><span class="hs-comment">-- Maintainer:  Bryan O'Sullivan &lt;bos@serpentine.com&gt;</span><span>
+</span><a name="line-17"></a><span class="hs-comment">-- Stability:   experimental</span><span>
+</span><a name="line-18"></a><span class="hs-comment">-- Portability: portable</span><span>
+</span><a name="line-19"></a><span class="hs-comment">--</span><span>
+</span><a name="line-20"></a><span class="hs-comment">-- Types for working with JSON data.</span><span>
+</span><a name="line-21"></a><span>
+</span><a name="line-22"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Aeson.Types.Class</span><span>
+</span><a name="line-23"></a><span>    </span><span class="hs-special">(</span><span>
+</span><a name="line-24"></a><span>    </span><span class="hs-comment">-- * Core JSON classes</span><span>
+</span><a name="line-25"></a><span>      </span><a href="Data.Aeson.Types.FromJSON.html#FromJSON"><span class="hs-identifier hs-type">FromJSON</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-26"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.ToJSON.html#ToJSON"><span class="hs-identifier hs-type">ToJSON</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-27"></a><span>    </span><span class="hs-comment">-- * Liftings to unary and binary type constructors</span><span>
+</span><a name="line-28"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#FromJSON1"><span class="hs-identifier hs-type">FromJSON1</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-29"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#parseJSON1"><span class="hs-identifier hs-var">parseJSON1</span></a><span>
+</span><a name="line-30"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#FromJSON2"><span class="hs-identifier hs-type">FromJSON2</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-31"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#parseJSON2"><span class="hs-identifier hs-var">parseJSON2</span></a><span>
+</span><a name="line-32"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.ToJSON.html#ToJSON1"><span class="hs-identifier hs-type">ToJSON1</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-33"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.ToJSON.html#toJSON1"><span class="hs-identifier hs-var">toJSON1</span></a><span>
+</span><a name="line-34"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.ToJSON.html#toEncoding1"><span class="hs-identifier hs-var">toEncoding1</span></a><span>
+</span><a name="line-35"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.ToJSON.html#ToJSON2"><span class="hs-identifier hs-type">ToJSON2</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-36"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.ToJSON.html#toJSON2"><span class="hs-identifier hs-var">toJSON2</span></a><span>
+</span><a name="line-37"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.ToJSON.html#toEncoding2"><span class="hs-identifier hs-var">toEncoding2</span></a><span>
+</span><a name="line-38"></a><span>    </span><span class="hs-comment">-- * Generic JSON classes</span><span>
+</span><a name="line-39"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#GFromJSON"><span class="hs-identifier hs-type">GFromJSON</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-40"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#FromArgs"><span class="hs-identifier hs-type">FromArgs</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-41"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.Class.html#GToJSON"><span class="hs-identifier hs-type">GToJSON</span></a><span>
+</span><a name="line-42"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.Class.html#GToEncoding"><span class="hs-identifier hs-type">GToEncoding</span></a><span>
+</span><a name="line-43"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.ToJSON.html#ToArgs"><span class="hs-identifier hs-type">ToArgs</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-44"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.Generic.html#Zero"><span class="hs-identifier hs-type">Zero</span></a><span>
+</span><a name="line-45"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.Generic.html#One"><span class="hs-identifier hs-type">One</span></a><span>
+</span><a name="line-46"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.ToJSON.html#genericToJSON"><span class="hs-identifier hs-var">genericToJSON</span></a><span>
+</span><a name="line-47"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.ToJSON.html#genericLiftToJSON"><span class="hs-identifier hs-var">genericLiftToJSON</span></a><span>
+</span><a name="line-48"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.ToJSON.html#genericToEncoding"><span class="hs-identifier hs-var">genericToEncoding</span></a><span>
+</span><a name="line-49"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.ToJSON.html#genericLiftToEncoding"><span class="hs-identifier hs-var">genericLiftToEncoding</span></a><span>
+</span><a name="line-50"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#genericParseJSON"><span class="hs-identifier hs-var">genericParseJSON</span></a><span>
+</span><a name="line-51"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#genericLiftParseJSON"><span class="hs-identifier hs-var">genericLiftParseJSON</span></a><span>
+</span><a name="line-52"></a><span>    </span><span class="hs-comment">-- * Classes and types for map keys</span><span>
+</span><a name="line-53"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.ToJSON.html#ToJSONKey"><span class="hs-identifier hs-type">ToJSONKey</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-54"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.ToJSON.html#ToJSONKeyFunction"><span class="hs-identifier hs-type">ToJSONKeyFunction</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-55"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.ToJSON.html#toJSONKeyText"><span class="hs-identifier hs-var">toJSONKeyText</span></a><span>
+</span><a name="line-56"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.ToJSON.html#contramapToJSONKeyFunction"><span class="hs-identifier hs-var">contramapToJSONKeyFunction</span></a><span>
+</span><a name="line-57"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#FromJSONKey"><span class="hs-identifier hs-type">FromJSONKey</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-58"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#FromJSONKeyFunction"><span class="hs-identifier hs-type">FromJSONKeyFunction</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-59"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#fromJSONKeyCoerce"><span class="hs-identifier hs-var">fromJSONKeyCoerce</span></a><span>
+</span><a name="line-60"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#coerceFromJSONKeyFunction"><span class="hs-identifier hs-var">coerceFromJSONKeyFunction</span></a><span>
+</span><a name="line-61"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#mapFromJSONKeyFunction"><span class="hs-identifier hs-var">mapFromJSONKeyFunction</span></a><span>
+</span><a name="line-62"></a><span>    </span><span class="hs-comment">-- * Object key-value pairs</span><span>
+</span><a name="line-63"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.ToJSON.html#KeyValue"><span class="hs-identifier hs-type">KeyValue</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-64"></a><span>
+</span><a name="line-65"></a><span>    </span><span class="hs-comment">-- * List functions</span><span>
+</span><a name="line-66"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.ToJSON.html#listEncoding"><span class="hs-identifier hs-var">listEncoding</span></a><span>
+</span><a name="line-67"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.ToJSON.html#listValue"><span class="hs-identifier hs-var">listValue</span></a><span>
+</span><a name="line-68"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#listParser"><span class="hs-identifier hs-var">listParser</span></a><span>
+</span><a name="line-69"></a><span>
+</span><a name="line-70"></a><span>      </span><span class="hs-comment">-- * Inspecting @'Value's@</span><span>
+</span><a name="line-71"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#withObject"><span class="hs-identifier hs-var">withObject</span></a><span>
+</span><a name="line-72"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#withText"><span class="hs-identifier hs-var">withText</span></a><span>
+</span><a name="line-73"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#withArray"><span class="hs-identifier hs-var">withArray</span></a><span>
+</span><a name="line-74"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#withScientific"><span class="hs-identifier hs-var">withScientific</span></a><span>
+</span><a name="line-75"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#withBool"><span class="hs-identifier hs-var">withBool</span></a><span>
+</span><a name="line-76"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#withEmbeddedJSON"><span class="hs-identifier hs-var">withEmbeddedJSON</span></a><span>
+</span><a name="line-77"></a><span>
+</span><a name="line-78"></a><span>    </span><span class="hs-comment">-- * Functions</span><span>
+</span><a name="line-79"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#fromJSON"><span class="hs-identifier hs-var">fromJSON</span></a><span>
+</span><a name="line-80"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#ifromJSON"><span class="hs-identifier hs-var">ifromJSON</span></a><span>
+</span><a name="line-81"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#typeMismatch"><span class="hs-identifier hs-var">typeMismatch</span></a><span>
+</span><a name="line-82"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#parseField"><span class="hs-identifier hs-var">parseField</span></a><span>
+</span><a name="line-83"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#parseFieldMaybe"><span class="hs-identifier hs-var">parseFieldMaybe</span></a><span>
+</span><a name="line-84"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#parseFieldMaybe%27"><span class="hs-identifier hs-var">parseFieldMaybe'</span></a><span>
+</span><a name="line-85"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#explicitParseField"><span class="hs-identifier hs-var">explicitParseField</span></a><span>
+</span><a name="line-86"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#explicitParseFieldMaybe"><span class="hs-identifier hs-var">explicitParseFieldMaybe</span></a><span>
+</span><a name="line-87"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.FromJSON.html#explicitParseFieldMaybe%27"><span class="hs-identifier hs-var">explicitParseFieldMaybe'</span></a><span>
+</span><a name="line-88"></a><span>    </span><span class="hs-comment">-- ** Operators</span><span>
+</span><a name="line-89"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><a href="Data.Aeson.Types.FromJSON.html#.%3A"><span class="hs-operator hs-var">.:</span></a><span class="hs-special">)</span><span>
+</span><a name="line-90"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><a href="Data.Aeson.Types.FromJSON.html#.%3A%3F"><span class="hs-operator hs-var">.:?</span></a><span class="hs-special">)</span><span>
+</span><a name="line-91"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><a href="Data.Aeson.Types.FromJSON.html#.%3A%21"><span class="hs-operator hs-var">.:!</span></a><span class="hs-special">)</span><span>
+</span><a name="line-92"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><a href="Data.Aeson.Types.FromJSON.html#.%21%3D"><span class="hs-operator hs-var">.!=</span></a><span class="hs-special">)</span><span>
+</span><a name="line-93"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-94"></a><span>
+</span><a name="line-95"></a><span>
+</span><a name="line-96"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Aeson.Types.FromJSON.html"><span class="hs-identifier">Data.Aeson.Types.FromJSON</span></a><span>
+</span><a name="line-97"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Aeson.Types.Generic.html"><span class="hs-identifier">Data.Aeson.Types.Generic</span></a><span> </span><span class="hs-special">(</span><a href="Data.Aeson.Types.Generic.html#One"><span class="hs-identifier hs-type">One</span></a><span class="hs-special">,</span><span> </span><a href="Data.Aeson.Types.Generic.html#Zero"><span class="hs-identifier hs-type">Zero</span></a><span class="hs-special">)</span><span>
+</span><a name="line-98"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Aeson.Types.ToJSON.html"><span class="hs-identifier">Data.Aeson.Types.ToJSON</span></a><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><a href="Data.Aeson.Types.ToJSON.html#GToJSON"><span class="hs-identifier hs-type">GToJSON</span></a><span class="hs-special">)</span><span>
+</span><a name="line-99"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><a href="Data.Aeson.Types.ToJSON.html"><span class="hs-identifier">Data.Aeson.Types.ToJSON</span></a><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">ToJSON</span><span>
+</span><a name="line-100"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Aeson.Types.Internal.html"><span class="hs-identifier">Data.Aeson.Types.Internal</span></a><span> </span><span class="hs-special">(</span><a href="Data.Aeson.Types.Internal.html#Value"><span class="hs-identifier hs-type">Value</span></a><span class="hs-special">)</span><span>
+</span><a name="line-101"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Aeson.Encoding.html"><span class="hs-identifier">Data.Aeson.Encoding</span></a><span> </span><span class="hs-special">(</span><a href="Data.Aeson.Encoding.Internal.html#Encoding"><span class="hs-identifier hs-type">Encoding</span></a><span class="hs-special">)</span><span>
+</span><a name="line-102"></a><span>
+</span><a name="line-103"></a><span class="hs-keyword">type</span><span> </span><a name="GToJSON"><a href="Data.Aeson.Types.Class.html#GToJSON"><span class="hs-identifier">GToJSON</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Data.Aeson.Types.ToJSON.html#GToJSON"><span class="hs-identifier hs-type">ToJSON.GToJSON</span></a><span> </span><a href="Data.Aeson.Types.Internal.html#Value"><span class="hs-identifier hs-type">Value</span></a><span>
+</span><a name="line-104"></a><span class="hs-keyword">type</span><span> </span><a name="GToEncoding"><a href="Data.Aeson.Types.Class.html#GToEncoding"><span class="hs-identifier">GToEncoding</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Data.Aeson.Types.ToJSON.html#GToJSON"><span class="hs-identifier hs-type">ToJSON.GToJSON</span></a><span> </span><a href="Data.Aeson.Encoding.Internal.html#Encoding"><span class="hs-identifier hs-type">Encoding</span></a><span>
+</span><a name="line-105"></a></pre></body></html>

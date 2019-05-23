@@ -1,0 +1,102 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE ForeignFunctionInterface #-}</span><span>
+</span><a name="line-3"></a><span>
+</span><a name="line-4"></a><span class="hs-comment">{-|
+This module makes the operations exported by @System.Posix.Unistd@
+available on all platforms. On POSIX systems it re-exports operations from
+@System.Posix.Unistd@, on other platforms it emulates the operations as far
+as possible.
+-}</span><span>
+</span><a name="line-10"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">System.PosixCompat.Unistd</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-11"></a><span>    </span><span class="hs-comment">-- * System environment</span><span>
+</span><a name="line-12"></a><span>      </span><span class="hs-identifier hs-type">SystemID</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-13"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">getSystemID</span><span>
+</span><a name="line-14"></a><span>    </span><span class="hs-comment">-- * Sleeping</span><span>
+</span><a name="line-15"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">sleep</span><span>
+</span><a name="line-16"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">usleep</span><span>
+</span><a name="line-17"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">nanosleep</span><span>
+</span><a name="line-18"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-19"></a><span>
+</span><a name="line-20"></a><span class="hs-cpp">#ifndef mingw32_HOST_OS
+</span><span>
+</span><a name="line-22"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">System.Posix.Unistd</span><span>
+</span><a name="line-23"></a><span>
+</span><a name="line-24"></a><span class="hs-cpp">#else
+</span><span>
+</span><a name="line-26"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Concurrent</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">threadDelay</span><span class="hs-special">)</span><span>
+</span><a name="line-27"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Foreign.C.String</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">CString</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">peekCString</span><span class="hs-special">)</span><span>
+</span><a name="line-28"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Foreign.C.Types</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">CInt</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">CSize</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-29"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Foreign.Marshal.Array</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">allocaArray</span><span class="hs-special">)</span><span>
+</span><a name="line-30"></a><span>
+</span><a name="line-31"></a><span class="hs-keyword">data</span><span> </span><span class="hs-identifier">SystemID</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">SystemID</span><span> </span><span class="hs-special">{</span><span>
+</span><a name="line-32"></a><span>      </span><span class="hs-identifier">systemName</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">String</span><span>
+</span><a name="line-33"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">nodeName</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">String</span><span>
+</span><a name="line-34"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">release</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">String</span><span>
+</span><a name="line-35"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">version</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">String</span><span>
+</span><a name="line-36"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">machine</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">String</span><span>
+</span><a name="line-37"></a><span>    </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Eq</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">Read</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">Show</span><span class="hs-special">)</span><span>
+</span><a name="line-38"></a><span>
+</span><a name="line-39"></a><span class="hs-identifier">getSystemID</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">IO</span><span> </span><span class="hs-identifier">SystemID</span><span>
+</span><a name="line-40"></a><span class="hs-identifier">getSystemID</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><a name="line-41"></a><span>  </span><span class="hs-keyword">let</span><span> </span><span class="hs-identifier">bufSize</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-number">256</span><span>
+</span><a name="line-42"></a><span>  </span><span class="hs-keyword">let</span><span> </span><span class="hs-identifier">call</span><span> </span><span class="hs-identifier">f</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">allocaArray</span><span> </span><span class="hs-identifier">bufSize</span><span> </span><span class="hs-operator">$</span><span> </span><span class="hs-glyph">\</span><span class="hs-identifier">buf</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><a name="line-43"></a><span>        </span><span class="hs-identifier">ok</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-identifier">f</span><span> </span><span class="hs-identifier">buf</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">fromIntegral</span><span> </span><span class="hs-identifier">bufSize</span><span class="hs-special">)</span><span>
+</span><a name="line-44"></a><span>        </span><span class="hs-keyword">if</span><span> </span><span class="hs-identifier">ok</span><span> </span><span class="hs-operator">==</span><span> </span><span class="hs-number">1</span><span>
+</span><a name="line-45"></a><span>          </span><span class="hs-keyword">then</span><span> </span><span class="hs-identifier">peekCString</span><span> </span><span class="hs-identifier">buf</span><span>
+</span><a name="line-46"></a><span>          </span><span class="hs-keyword">else</span><span> </span><span class="hs-identifier">return</span><span> </span><span class="hs-string">&quot;&quot;</span><span>
+</span><a name="line-47"></a><span>  </span><span class="hs-identifier">display</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-identifier">call</span><span> </span><span class="hs-identifier">c_os_display_string</span><span>
+</span><a name="line-48"></a><span>  </span><span class="hs-identifier">vers</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-identifier">call</span><span> </span><span class="hs-identifier">c_os_version_string</span><span>
+</span><a name="line-49"></a><span>  </span><span class="hs-identifier">arch</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-identifier">call</span><span> </span><span class="hs-identifier">c_os_arch_string</span><span>
+</span><a name="line-50"></a><span>  </span><span class="hs-identifier">node</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-identifier">call</span><span> </span><span class="hs-identifier">c_os_node_name</span><span>
+</span><a name="line-51"></a><span>  </span><span class="hs-identifier">return</span><span> </span><span class="hs-identifier">SystemID</span><span> </span><span class="hs-special">{</span><span>
+</span><a name="line-52"></a><span>           </span><span class="hs-identifier">systemName</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-string">&quot;Windows&quot;</span><span>
+</span><a name="line-53"></a><span>         </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">nodeName</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">node</span><span>
+</span><a name="line-54"></a><span>         </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">release</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">display</span><span>
+</span><a name="line-55"></a><span>         </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">version</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">vers</span><span>
+</span><a name="line-56"></a><span>         </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">machine</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">arch</span><span>
+</span><a name="line-57"></a><span>         </span><span class="hs-special">}</span><span>
+</span><a name="line-58"></a><span>
+</span><a name="line-59"></a><span class="hs-comment">-- | Sleep for the specified duration (in seconds). Returns the time</span><span>
+</span><a name="line-60"></a><span class="hs-comment">-- remaining (if the sleep was interrupted by a signal, for example).</span><span>
+</span><a name="line-61"></a><span class="hs-comment">--</span><span>
+</span><a name="line-62"></a><span class="hs-comment">-- On non-Unix systems, this is implemented in terms of</span><span>
+</span><a name="line-63"></a><span class="hs-comment">-- 'Control.Concurrent.threadDelay'.</span><span>
+</span><a name="line-64"></a><span class="hs-comment">--</span><span>
+</span><a name="line-65"></a><span class="hs-comment">-- GHC Note: the comment for 'usleep' also applies here.</span><span>
+</span><a name="line-66"></a><span class="hs-identifier">sleep</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">Int</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">IO</span><span> </span><span class="hs-identifier">Int</span><span>
+</span><a name="line-67"></a><span class="hs-identifier">sleep</span><span> </span><span class="hs-identifier">secs</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">threadDelay</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">secs</span><span> </span><span class="hs-operator">*</span><span> </span><span class="hs-number">1000000</span><span class="hs-special">)</span><span> </span><span class="hs-operator">&gt;&gt;</span><span> </span><span class="hs-identifier">return</span><span> </span><span class="hs-number">0</span><span>
+</span><a name="line-68"></a><span>
+</span><a name="line-69"></a><span class="hs-comment">-- | Sleep for the specified duration (in microseconds).</span><span>
+</span><a name="line-70"></a><span class="hs-comment">--</span><span>
+</span><a name="line-71"></a><span class="hs-comment">-- On non-Unix systems, this is implemented in terms of</span><span>
+</span><a name="line-72"></a><span class="hs-comment">-- 'Control.Concurrent.threadDelay'.</span><span>
+</span><a name="line-73"></a><span class="hs-comment">--</span><span>
+</span><a name="line-74"></a><span class="hs-comment">-- GHC Note: 'Control.Concurrent.threadDelay' is a better</span><span>
+</span><a name="line-75"></a><span class="hs-comment">-- choice. Without the @-threaded@ option, 'usleep' will block all other</span><span>
+</span><a name="line-76"></a><span class="hs-comment">-- user threads. Even with the @-threaded@ option, 'usleep' requires a</span><span>
+</span><a name="line-77"></a><span class="hs-comment">-- full OS thread to itself. 'Control.Concurrent.threadDelay' has</span><span>
+</span><a name="line-78"></a><span class="hs-comment">-- neither of these shortcomings.</span><span>
+</span><a name="line-79"></a><span class="hs-identifier">usleep</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">Int</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">IO</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><a name="line-80"></a><span class="hs-identifier">usleep</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">threadDelay</span><span>
+</span><a name="line-81"></a><span>
+</span><a name="line-82"></a><span class="hs-comment">-- | Sleep for the specified duration (in nanoseconds).</span><span>
+</span><a name="line-83"></a><span class="hs-comment">--</span><span>
+</span><a name="line-84"></a><span class="hs-comment">-- On non-Unix systems, this is implemented in terms of</span><span>
+</span><a name="line-85"></a><span class="hs-comment">-- 'Control.Concurrent.threadDelay'.</span><span>
+</span><a name="line-86"></a><span class="hs-identifier">nanosleep</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">Integer</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">IO</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><a name="line-87"></a><span class="hs-identifier">nanosleep</span><span> </span><span class="hs-identifier">nsecs</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">threadDelay</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">round</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">fromIntegral</span><span> </span><span class="hs-identifier">nsecs</span><span> </span><span class="hs-operator">/</span><span> </span><span class="hs-number">1000</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">Double</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-88"></a><span>
+</span><a name="line-89"></a><span class="hs-keyword">foreign</span><span> </span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">ccall</span><span> </span><span class="hs-string">&quot;unixcompat_os_display_string&quot;</span><span>
+</span><a name="line-90"></a><span>    </span><span class="hs-identifier">c_os_display_string</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">CString</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">CSize</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">IO</span><span> </span><span class="hs-identifier">CInt</span><span>
+</span><a name="line-91"></a><span>
+</span><a name="line-92"></a><span class="hs-keyword">foreign</span><span> </span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">ccall</span><span> </span><span class="hs-string">&quot;unixcompat_os_version_string&quot;</span><span>
+</span><a name="line-93"></a><span>    </span><span class="hs-identifier">c_os_version_string</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">CString</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">CSize</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">IO</span><span> </span><span class="hs-identifier">CInt</span><span>
+</span><a name="line-94"></a><span>
+</span><a name="line-95"></a><span class="hs-keyword">foreign</span><span> </span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">ccall</span><span> </span><span class="hs-string">&quot;unixcompat_os_arch_string&quot;</span><span>
+</span><a name="line-96"></a><span>    </span><span class="hs-identifier">c_os_arch_string</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">CString</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">CSize</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">IO</span><span> </span><span class="hs-identifier">CInt</span><span>
+</span><a name="line-97"></a><span>
+</span><a name="line-98"></a><span class="hs-keyword">foreign</span><span> </span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">ccall</span><span> </span><span class="hs-string">&quot;unixcompat_os_node_name&quot;</span><span>
+</span><a name="line-99"></a><span>    </span><span class="hs-identifier">c_os_node_name</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">CString</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">CSize</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">IO</span><span> </span><span class="hs-identifier">CInt</span><span>
+</span><a name="line-100"></a><span>
+</span><a name="line-101"></a><span class="hs-cpp">#endif
+</span></pre></body></html>

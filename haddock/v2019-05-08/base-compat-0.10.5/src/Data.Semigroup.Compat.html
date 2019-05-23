@@ -1,0 +1,40 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP, NoImplicitPrelude #-}</span><span>
+</span><a name="line-2"></a><span class="hs-comment">-- | This backports the modern &quot;Data.Semigroup&quot; interface back to</span><span>
+</span><a name="line-3"></a><span class="hs-comment">-- @base-4.9@/GHC 8.0.</span><span>
+</span><a name="line-4"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Semigroup.Compat</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-5"></a><span class="hs-cpp">#if MIN_VERSION_base(4,9,0)
+</span><span>    </span><span class="hs-identifier hs-type">Semigroup</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-7"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">stimesMonoid</span><span>
+</span><a name="line-8"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">stimesIdempotent</span><span>
+</span><a name="line-9"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">stimesIdempotentMonoid</span><span>
+</span><a name="line-10"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mtimesDefault</span><span>
+</span><a name="line-11"></a><span>  </span><span class="hs-comment">-- * Semigroups</span><span>
+</span><a name="line-12"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Min</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-13"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Max</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-14"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">First</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-15"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Last</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-16"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">WrappedMonoid</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-17"></a><span>  </span><span class="hs-comment">-- * Re-exported monoids from Data.Monoid</span><span>
+</span><a name="line-18"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Dual</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-19"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Endo</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-20"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">All</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-21"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Any</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-22"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Sum</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-23"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Product</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-24"></a><span>  </span><span class="hs-comment">-- * A better monoid for Maybe</span><span>
+</span><a name="line-25"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Option</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-26"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">option</span><span>
+</span><a name="line-27"></a><span>  </span><span class="hs-comment">-- * Difference lists of a semigroup</span><span>
+</span><a name="line-28"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">diff</span><span>
+</span><a name="line-29"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">cycle1</span><span>
+</span><a name="line-30"></a><span>  </span><span class="hs-comment">-- * ArgMin, ArgMax</span><span>
+</span><a name="line-31"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Arg</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-32"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">ArgMin</span><span>
+</span><a name="line-33"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">ArgMax</span><span>
+</span><a name="line-34"></a><span class="hs-cpp">#endif
+</span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-36"></a><span>
+</span><a name="line-37"></a><span class="hs-cpp">#if MIN_VERSION_base(4,9,0)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Semigroup</span><span>
+</span><a name="line-39"></a><span class="hs-cpp">#endif
+</span></pre></body></html>

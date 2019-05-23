@@ -1,0 +1,35 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE DataKinds             #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE FlexibleContexts      #-}</span><span>
+</span><a name="line-3"></a><span class="hs-pragma">{-# LANGUAGE FlexibleInstances     #-}</span><span>
+</span><a name="line-4"></a><span class="hs-pragma">{-# LANGUAGE KindSignatures        #-}</span><span>
+</span><a name="line-5"></a><span class="hs-pragma">{-# LANGUAGE MultiParamTypeClasses #-}</span><span>
+</span><a name="line-6"></a><span class="hs-pragma">{-# LANGUAGE TypeFamilies          #-}</span><span>
+</span><a name="line-7"></a><span class="hs-pragma">{-# LANGUAGE TypeOperators         #-}</span><span>
+</span><a name="line-8"></a><span>
+</span><a name="line-9"></a><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><a name="line-10"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-11"></a><span class="hs-comment">-- Module      :  Data.Generics.Internal.Families</span><span>
+</span><a name="line-12"></a><span class="hs-comment">-- Copyright   :  (C) 2018 Csongor Kiss</span><span>
+</span><a name="line-13"></a><span class="hs-comment">-- License     :  BSD3</span><span>
+</span><a name="line-14"></a><span class="hs-comment">-- Maintainer  :  Csongor Kiss &lt;kiss.csongor.kiss@gmail.com&gt;</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- Stability   :  experimental</span><span>
+</span><a name="line-16"></a><span class="hs-comment">-- Portability :  non-portable</span><span>
+</span><a name="line-17"></a><span class="hs-comment">--</span><span>
+</span><a name="line-18"></a><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><a name="line-19"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Generics.Internal.Families</span><span>
+</span><a name="line-20"></a><span>  </span><span class="hs-special">(</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Families</span><span>
+</span><a name="line-21"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Generics.Internal.Families.html#ShowSymbols"><span class="hs-identifier hs-type">ShowSymbols</span></a><span>
+</span><a name="line-22"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-23"></a><span>
+</span><a name="line-24"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Generics.Internal.Families.Collect.html"><span class="hs-identifier">Data.Generics.Internal.Families.Collect</span></a><span>   </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">Families</span><span>
+</span><a name="line-25"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Generics.Internal.Families.Has.html"><span class="hs-identifier">Data.Generics.Internal.Families.Has</span></a><span>       </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">Families</span><span>
+</span><a name="line-26"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Generics.Internal.Families.Changing.html"><span class="hs-identifier">Data.Generics.Internal.Families.Changing</span></a><span>  </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">Families</span><span>
+</span><a name="line-27"></a><span>
+</span><a name="line-28"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.TypeLits</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">ErrorMessage</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Symbol</span><span class="hs-special">)</span><span>
+</span><a name="line-29"></a><span>
+</span><a name="line-30"></a><span class="hs-keyword">type</span><span> </span><span class="hs-keyword">family</span><span> </span><a name="ShowSymbols"><a href="Data.Generics.Internal.Families.html#ShowSymbols"><span class="hs-identifier">ShowSymbols</span></a></a><span> </span><span class="hs-special">(</span><a name="local-6989586621679067866"><a href="#local-6989586621679067866"><span class="hs-identifier">ctors</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-identifier hs-type">Symbol</span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">ErrorMessage</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-31"></a><span>  </span><span class="hs-identifier">ShowSymbols</span><span> </span><span class="hs-special">'</span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><a name="line-32"></a><span>    </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">'</span><span class="hs-identifier hs-type">Text</span><span> </span><span class="hs-string">&quot;&quot;</span><span>
+</span><a name="line-33"></a><span>  </span><span class="hs-identifier">ShowSymbols</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">c</span><span> </span><span class="hs-special">'</span><span class="hs-glyph">:</span><span> </span><a href="#local-6989586621679067868"><span class="hs-identifier hs-type">cs</span></a><span class="hs-special">)</span><span>
+</span><a name="line-34"></a><span>    </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">'</span><span class="hs-identifier hs-type">Text</span><span> </span><span class="hs-string">&quot;&#8226; &quot;</span><span> </span><span class="hs-special">'</span><span class="hs-operator hs-type">:&lt;&gt;:</span><span> </span><span class="hs-special">'</span><span class="hs-identifier hs-type">Text</span><span> </span><a href="#local-6989586621679067867"><span class="hs-identifier hs-type">c</span></a><span> </span><span class="hs-special">'</span><span class="hs-operator">:$$:</span><span> </span><a href="Data.Generics.Internal.Families.html#ShowSymbols"><span class="hs-identifier hs-type">ShowSymbols</span></a><span> </span><a href="#local-6989586621679067868"><span class="hs-identifier hs-type">cs</span></a><span>
+</span><a name="line-35"></a></pre></body></html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><a name="line-2"></a><span>
+</span><a name="line-3"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-4"></a><span class="hs-comment">-- Module      : Network.Socket.ByteString.Lazy</span><span>
+</span><a name="line-5"></a><span class="hs-comment">-- Copyright   : (c) Bryan O'Sullivan 2009</span><span>
+</span><a name="line-6"></a><span class="hs-comment">-- License     : BSD-style</span><span>
+</span><a name="line-7"></a><span class="hs-comment">--</span><span>
+</span><a name="line-8"></a><span class="hs-comment">-- Maintainer  : bos@serpentine.com</span><span>
+</span><a name="line-9"></a><span class="hs-comment">-- Stability   : experimental</span><span>
+</span><a name="line-10"></a><span class="hs-comment">-- Portability : POSIX, GHC</span><span>
+</span><a name="line-11"></a><span class="hs-comment">--</span><span>
+</span><a name="line-12"></a><span class="hs-comment">-- This module provides access to the BSD /socket/ interface.  This</span><span>
+</span><a name="line-13"></a><span class="hs-comment">-- module is generally more efficient than the 'String' based network</span><span>
+</span><a name="line-14"></a><span class="hs-comment">-- functions in 'Network.Socket'.  For detailed documentation, consult</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- your favorite POSIX socket reference. All functions communicate</span><span>
+</span><a name="line-16"></a><span class="hs-comment">-- failures by converting the error number to 'System.IO.IOError'.</span><span>
+</span><a name="line-17"></a><span class="hs-comment">--</span><span>
+</span><a name="line-18"></a><span class="hs-comment">-- This module is made to be imported with 'Network.Socket' like so:</span><span>
+</span><a name="line-19"></a><span class="hs-comment">--</span><span>
+</span><a name="line-20"></a><span class="hs-comment">-- &gt; import Network.Socket hiding (send, sendTo, recv, recvFrom)</span><span>
+</span><a name="line-21"></a><span class="hs-comment">-- &gt; import Network.Socket.ByteString.Lazy</span><span>
+</span><a name="line-22"></a><span class="hs-comment">-- &gt; import Prelude hiding (getContents)</span><span>
+</span><a name="line-23"></a><span class="hs-comment">--</span><span>
+</span><a name="line-24"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Network.Socket.ByteString.Lazy</span><span>
+</span><a name="line-25"></a><span>    </span><span class="hs-special">(</span><span>
+</span><a name="line-26"></a><span>    </span><span class="hs-comment">-- * Send data to a socket</span><span>
+</span><a name="line-27"></a><span>      </span><a href="Network.Socket.ByteString.Lazy.Posix.html#send"><span class="hs-identifier hs-var">send</span></a><span>
+</span><a name="line-28"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Network.Socket.ByteString.Lazy.Posix.html#sendAll"><span class="hs-identifier hs-var">sendAll</span></a><span>
+</span><a name="line-29"></a><span>    </span><span class="hs-special">,</span><span>
+</span><a name="line-30"></a><span>
+</span><a name="line-31"></a><span>    </span><span class="hs-comment">-- * Receive data from a socket</span><span>
+</span><a name="line-32"></a><span>      </span><a href="Network.Socket.ByteString.Lazy.html#getContents"><span class="hs-identifier hs-var">getContents</span></a><span>
+</span><a name="line-33"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Network.Socket.ByteString.Lazy.html#recv"><span class="hs-identifier hs-var">recv</span></a><span>
+</span><a name="line-34"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-35"></a><span>
+</span><a name="line-36"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Monad</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">liftM</span><span class="hs-special">)</span><span>
+</span><a name="line-37"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.ByteString.Lazy.Internal</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">ByteString</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">defaultChunkSize</span><span class="hs-special">)</span><span>
+</span><a name="line-38"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Int</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Int64</span><span class="hs-special">)</span><span>
+</span><a name="line-39"></a><span class="hs-keyword">import</span><span> </span><a href="Network.Socket.html"><span class="hs-identifier">Network.Socket</span></a><span> </span><span class="hs-special">(</span><a href="Network.Socket.Types.html#Socket"><span class="hs-identifier hs-type">Socket</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><a href="Network.Socket.html#ShutdownCmd"><span class="hs-identifier hs-type">ShutdownCmd</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><a href="Network.Socket.html#shutdown"><span class="hs-identifier hs-var">shutdown</span></a><span class="hs-special">)</span><span>
+</span><a name="line-40"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Prelude</span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">getContents</span><span class="hs-special">)</span><span>
+</span><a name="line-41"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">System.IO.Unsafe</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">unsafeInterleaveIO</span><span class="hs-special">)</span><span>
+</span><a name="line-42"></a><span>
+</span><a name="line-43"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.ByteString</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">S</span><span>
+</span><a name="line-44"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><a href="Network.Socket.ByteString.html"><span class="hs-identifier">Network.Socket.ByteString</span></a><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">N</span><span>
+</span><a name="line-45"></a><span>
+</span><a name="line-46"></a><span class="hs-cpp">#if defined(mingw32_HOST_OS)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Network.Socket.ByteString.Lazy.Windows</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">send</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">sendAll</span><span class="hs-special">)</span><span>
+</span><a name="line-48"></a><span class="hs-cpp">#else
+</span><span class="hs-keyword">import</span><span> </span><a href="Network.Socket.ByteString.Lazy.Posix.html"><span class="hs-identifier">Network.Socket.ByteString.Lazy.Posix</span></a><span> </span><span class="hs-special">(</span><a href="Network.Socket.ByteString.Lazy.Posix.html#send"><span class="hs-identifier hs-var">send</span></a><span class="hs-special">,</span><span> </span><a href="Network.Socket.ByteString.Lazy.Posix.html#sendAll"><span class="hs-identifier hs-var">sendAll</span></a><span class="hs-special">)</span><span>
+</span><a name="line-50"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-52"></a><span class="hs-comment">-- -----------------------------------------------------------------------------</span><span>
+</span><a name="line-53"></a><span class="hs-comment">-- Receiving</span><span>
+</span><a name="line-54"></a><span>
+</span><a name="line-55"></a><span class="hs-comment">-- | Receive data from the socket.  The socket must be in a connected</span><span>
+</span><a name="line-56"></a><span class="hs-comment">-- state.  Data is received on demand, in chunks; each chunk will be</span><span>
+</span><a name="line-57"></a><span class="hs-comment">-- sized to reflect the amount of data received by individual 'recv'</span><span>
+</span><a name="line-58"></a><span class="hs-comment">-- calls.</span><span>
+</span><a name="line-59"></a><span class="hs-comment">--</span><span>
+</span><a name="line-60"></a><span class="hs-comment">-- All remaining data from the socket is consumed.  When there is no</span><span>
+</span><a name="line-61"></a><span class="hs-comment">-- more data to be received, the receiving side of the socket is shut</span><span>
+</span><a name="line-62"></a><span class="hs-comment">-- down.  If there is an error and an exception is thrown, the socket</span><span>
+</span><a name="line-63"></a><span class="hs-comment">-- is not shut down.</span><span>
+</span><a name="line-64"></a><span class="hs-identifier">getContents</span><span> </span><span class="hs-glyph">::</span><span> </span><a href="Network.Socket.Types.html#Socket"><span class="hs-identifier hs-type">Socket</span></a><span>         </span><span class="hs-comment">-- ^ Connected socket</span><span>
+</span><a name="line-65"></a><span>            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">IO</span><span> </span><span class="hs-identifier hs-type">ByteString</span><span>  </span><span class="hs-comment">-- ^ Data received</span><span>
+</span><a name="line-66"></a><a name="getContents"><a href="Network.Socket.ByteString.Lazy.html#getContents"><span class="hs-identifier">getContents</span></a></a><span> </span><a name="local-6989586621679055542"><a href="#local-6989586621679055542"><span class="hs-identifier">sock</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="#local-6989586621679055543"><span class="hs-identifier hs-var">loop</span></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-67"></a><span>  </span><a name="local-6989586621679055543"><a href="#local-6989586621679055543"><span class="hs-identifier">loop</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">unsafeInterleaveIO</span><span> </span><span class="hs-operator hs-var">$</span><span> </span><span class="hs-keyword">do</span><span>
+</span><a name="line-68"></a><span>    </span><a name="local-6989586621679055544"><a href="#local-6989586621679055544"><span class="hs-identifier">s</span></a></a><span> </span><span class="hs-glyph">&lt;-</span><span> </span><a href="Network.Socket.ByteString.html#recv"><span class="hs-identifier hs-var">N.recv</span></a><span> </span><a href="#local-6989586621679055542"><span class="hs-identifier hs-var">sock</span></a><span> </span><span class="hs-identifier hs-var">defaultChunkSize</span><span>
+</span><a name="line-69"></a><span>    </span><span class="hs-keyword">if</span><span> </span><span class="hs-identifier hs-var">S.null</span><span> </span><a href="#local-6989586621679055544"><span class="hs-identifier hs-var">s</span></a><span>
+</span><a name="line-70"></a><span>      </span><span class="hs-keyword">then</span><span> </span><a href="Network.Socket.html#shutdown"><span class="hs-identifier hs-var">shutdown</span></a><span> </span><a href="#local-6989586621679055542"><span class="hs-identifier hs-var">sock</span></a><span> </span><a href="Network.Socket.html#ShutdownReceive"><span class="hs-identifier hs-var">ShutdownReceive</span></a><span> </span><span class="hs-operator hs-var">&gt;&gt;</span><span> </span><span class="hs-identifier hs-var">return</span><span> </span><span class="hs-identifier hs-var">Empty</span><span>
+</span><a name="line-71"></a><span>      </span><span class="hs-keyword">else</span><span> </span><span class="hs-identifier hs-var">Chunk</span><span> </span><a href="#local-6989586621679055544"><span class="hs-identifier hs-var">s</span></a><span> </span><span class="hs-special">`</span><span class="hs-identifier hs-var">liftM</span><span class="hs-special">`</span><span> </span><a href="#local-6989586621679055543"><span class="hs-identifier hs-var">loop</span></a><span>
+</span><a name="line-72"></a><span>
+</span><a name="line-73"></a><span class="hs-comment">-- | Receive data from the socket.  The socket must be in a connected</span><span>
+</span><a name="line-74"></a><span class="hs-comment">-- state.  This function may return fewer bytes than specified.  If</span><span>
+</span><a name="line-75"></a><span class="hs-comment">-- the received data is longer than the specified length, it may be</span><span>
+</span><a name="line-76"></a><span class="hs-comment">-- discarded depending on the type of socket.  This function may block</span><span>
+</span><a name="line-77"></a><span class="hs-comment">-- until a message arrives.</span><span>
+</span><a name="line-78"></a><span class="hs-comment">--</span><span>
+</span><a name="line-79"></a><span class="hs-comment">-- If there is no more data to be received, returns an empty 'ByteString'.</span><span>
+</span><a name="line-80"></a><span class="hs-comment">--</span><span>
+</span><a name="line-81"></a><span class="hs-comment">-- Receiving data from closed socket may lead to undefined behaviour.</span><span>
+</span><a name="line-82"></a><span class="hs-identifier">recv</span><span> </span><span class="hs-glyph">::</span><span> </span><a href="Network.Socket.Types.html#Socket"><span class="hs-identifier hs-type">Socket</span></a><span>         </span><span class="hs-comment">-- ^ Connected socket</span><span>
+</span><a name="line-83"></a><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Int64</span><span>          </span><span class="hs-comment">-- ^ Maximum number of bytes to receive</span><span>
+</span><a name="line-84"></a><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">IO</span><span> </span><span class="hs-identifier hs-type">ByteString</span><span>  </span><span class="hs-comment">-- ^ Data received</span><span>
+</span><a name="line-85"></a><a name="recv"><a href="Network.Socket.ByteString.Lazy.html#recv"><span class="hs-identifier">recv</span></a></a><span> </span><a name="local-6989586621679055545"><a href="#local-6989586621679055545"><span class="hs-identifier">sock</span></a></a><span> </span><a name="local-6989586621679055546"><a href="#local-6989586621679055546"><span class="hs-identifier">nbytes</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="#local-6989586621679055547"><span class="hs-identifier hs-var">chunk</span></a><span> </span><span class="hs-special">`</span><span class="hs-identifier hs-var">liftM</span><span class="hs-special">`</span><span> </span><a href="Network.Socket.ByteString.html#recv"><span class="hs-identifier hs-var">N.recv</span></a><span> </span><a href="#local-6989586621679055545"><span class="hs-identifier hs-var">sock</span></a><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">fromIntegral</span><span> </span><a href="#local-6989586621679055546"><span class="hs-identifier hs-var">nbytes</span></a><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-86"></a><span>  </span><a name="local-6989586621679055547"><a href="#local-6989586621679055547"><span class="hs-identifier">chunk</span></a></a><span> </span><a name="local-6989586621679055548"><a href="#local-6989586621679055548"><span class="hs-identifier">k</span></a></a><span>
+</span><a name="line-87"></a><span>    </span><span class="hs-glyph">|</span><span> </span><span class="hs-identifier hs-var">S.null</span><span> </span><a href="#local-6989586621679055548"><span class="hs-identifier hs-var">k</span></a><span>  </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">Empty</span><span>
+</span><a name="line-88"></a><span>    </span><span class="hs-glyph">|</span><span> </span><span class="hs-identifier hs-var">otherwise</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">Chunk</span><span> </span><a href="#local-6989586621679055548"><span class="hs-identifier hs-var">k</span></a><span> </span><span class="hs-identifier hs-var">Empty</span><span>
+</span><a name="line-89"></a></pre></body></html>

@@ -1,0 +1,68 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- | This module provides backend-agnostic functionality for generating clients</span><span>
+</span><a name="line-2"></a><span class="hs-comment">-- from @servant@ APIs. By &quot;backend,&quot; we mean something that concretely</span><span>
+</span><a name="line-3"></a><span class="hs-comment">-- executes the request, such as:</span><span>
+</span><a name="line-4"></a><span class="hs-comment">--</span><span>
+</span><a name="line-5"></a><span class="hs-comment">--  * The @http-client@ library</span><span>
+</span><a name="line-6"></a><span class="hs-comment">--  * The @haxl@ library</span><span>
+</span><a name="line-7"></a><span class="hs-comment">--  * GHCJS via FFI</span><span>
+</span><a name="line-8"></a><span class="hs-comment">--</span><span>
+</span><a name="line-9"></a><span class="hs-comment">-- etc.</span><span>
+</span><a name="line-10"></a><span class="hs-comment">--</span><span>
+</span><a name="line-11"></a><span class="hs-comment">-- Each backend is encapsulated in a monad that is an instance of the</span><span>
+</span><a name="line-12"></a><span class="hs-comment">-- 'RunClient' class.</span><span>
+</span><a name="line-13"></a><span class="hs-comment">--</span><span>
+</span><a name="line-14"></a><span class="hs-comment">-- This library is primarily of interest to backend-writers and</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- combinator-writers. For more information, see the README.md</span><span>
+</span><a name="line-16"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Servant.Client.Core</span><span>
+</span><a name="line-17"></a><span>  </span><span class="hs-special">(</span><span>
+</span><a name="line-18"></a><span>  </span><span class="hs-comment">-- * Client generation</span><span>
+</span><a name="line-19"></a><span>    </span><a href="Servant.Client.Core.Internal.HasClient.html#clientIn"><span class="hs-identifier hs-var">clientIn</span></a><span>
+</span><a name="line-20"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.HasClient.html#HasClient"><span class="hs-identifier hs-type">HasClient</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-21"></a><span>
+</span><a name="line-22"></a><span>  </span><span class="hs-comment">-- * Request</span><span>
+</span><a name="line-23"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.Request.html#Request"><span class="hs-identifier hs-type">Request</span></a><span>
+</span><a name="line-24"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.Request.html#RequestF"><span class="hs-identifier hs-type">RequestF</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-25"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.Request.html#defaultRequest"><span class="hs-identifier hs-var">defaultRequest</span></a><span>
+</span><a name="line-26"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.Request.html#RequestBody"><span class="hs-identifier hs-type">RequestBody</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-27"></a><span>
+</span><a name="line-28"></a><span>  </span><span class="hs-comment">-- * Authentication</span><span>
+</span><a name="line-29"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.Auth.html#mkAuthenticatedRequest"><span class="hs-identifier hs-var">mkAuthenticatedRequest</span></a><span>
+</span><a name="line-30"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.BasicAuth.html#basicAuthReq"><span class="hs-identifier hs-var">basicAuthReq</span></a><span>
+</span><a name="line-31"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.Auth.html#AuthenticatedRequest"><span class="hs-identifier hs-type">AuthenticatedRequest</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-32"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.Auth.html#AuthClientData"><span class="hs-identifier hs-type">AuthClientData</span></a><span>
+</span><a name="line-33"></a><span>
+</span><a name="line-34"></a><span>  </span><span class="hs-comment">-- * Generic Client</span><span>
+</span><a name="line-35"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.Generic.html#ClientLike"><span class="hs-identifier hs-type">ClientLike</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-36"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.Generic.html#genericMkClientL"><span class="hs-identifier hs-var">genericMkClientL</span></a><span>
+</span><a name="line-37"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.Generic.html#genericMkClientP"><span class="hs-identifier hs-var">genericMkClientP</span></a><span>
+</span><a name="line-38"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.Request.html#ServantError"><span class="hs-identifier hs-type">ServantError</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-39"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.HasClient.html#EmptyClient"><span class="hs-identifier hs-type">EmptyClient</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-40"></a><span>
+</span><a name="line-41"></a><span>
+</span><a name="line-42"></a><span>  </span><span class="hs-comment">-- * Response</span><span>
+</span><a name="line-43"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.Request.html#Response"><span class="hs-identifier hs-type">Response</span></a><span>
+</span><a name="line-44"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.Request.html#GenResponse"><span class="hs-identifier hs-type">GenResponse</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-45"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.RunClient.html#RunClient"><span class="hs-identifier hs-type">RunClient</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-46"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><a href="Servant.Client.Core.Internal.BaseUrl.html"><span class="hs-identifier">Servant.Client.Core.Internal.BaseUrl</span></a><span>
+</span><a name="line-47"></a><span>  </span><span class="hs-comment">-- ** Streaming</span><span>
+</span><a name="line-48"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.RunClient.html#RunStreamingClient"><span class="hs-identifier hs-type">RunStreamingClient</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-49"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.Request.html#StreamingResponse"><span class="hs-identifier hs-type">StreamingResponse</span></a><span>
+</span><a name="line-50"></a><span>
+</span><a name="line-51"></a><span>  </span><span class="hs-comment">-- * Writing HasClient instances</span><span>
+</span><a name="line-52"></a><span>  </span><span class="hs-comment">-- | These functions need not be re-exported by backend libraries.</span><span>
+</span><a name="line-53"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.Request.html#addHeader"><span class="hs-identifier hs-var">addHeader</span></a><span>
+</span><a name="line-54"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.Request.html#appendToQueryString"><span class="hs-identifier hs-var">appendToQueryString</span></a><span>
+</span><a name="line-55"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.Request.html#appendToPath"><span class="hs-identifier hs-var">appendToPath</span></a><span>
+</span><a name="line-56"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.Request.html#setRequestBodyLBS"><span class="hs-identifier hs-var">setRequestBodyLBS</span></a><span>
+</span><a name="line-57"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.Request.html#setRequestBody"><span class="hs-identifier hs-var">setRequestBody</span></a><span>
+</span><a name="line-58"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-59"></a><span class="hs-keyword">import</span><span>           </span><a href="Servant.Client.Core.Internal.Auth.html"><span class="hs-identifier">Servant.Client.Core.Internal.Auth</span></a><span>
+</span><a name="line-60"></a><span class="hs-keyword">import</span><span>           </span><a href="Servant.Client.Core.Internal.BaseUrl.html"><span class="hs-identifier">Servant.Client.Core.Internal.BaseUrl</span></a><span>
+</span><a name="line-61"></a><span>                 </span><span class="hs-special">(</span><a href="Servant.Client.Core.Internal.BaseUrl.html#BaseUrl"><span class="hs-identifier hs-type">BaseUrl</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.BaseUrl.html#InvalidBaseUrlException"><span class="hs-identifier hs-type">InvalidBaseUrlException</span></a><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.BaseUrl.html#Scheme"><span class="hs-identifier hs-type">Scheme</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><a name="line-62"></a><span>                 </span><a href="Servant.Client.Core.Internal.BaseUrl.html#parseBaseUrl"><span class="hs-identifier hs-var">parseBaseUrl</span></a><span class="hs-special">,</span><span> </span><a href="Servant.Client.Core.Internal.BaseUrl.html#showBaseUrl"><span class="hs-identifier hs-var">showBaseUrl</span></a><span class="hs-special">)</span><span>
+</span><a name="line-63"></a><span class="hs-keyword">import</span><span>           </span><a href="Servant.Client.Core.Internal.BasicAuth.html"><span class="hs-identifier">Servant.Client.Core.Internal.BasicAuth</span></a><span>
+</span><a name="line-64"></a><span class="hs-keyword">import</span><span>           </span><a href="Servant.Client.Core.Internal.Generic.html"><span class="hs-identifier">Servant.Client.Core.Internal.Generic</span></a><span>
+</span><a name="line-65"></a><span class="hs-keyword">import</span><span>           </span><a href="Servant.Client.Core.Internal.HasClient.html"><span class="hs-identifier">Servant.Client.Core.Internal.HasClient</span></a><span>
+</span><a name="line-66"></a><span class="hs-keyword">import</span><span>           </span><a href="Servant.Client.Core.Internal.Request.html"><span class="hs-identifier">Servant.Client.Core.Internal.Request</span></a><span>
+</span><a name="line-67"></a><span class="hs-keyword">import</span><span>           </span><a href="Servant.Client.Core.Internal.RunClient.html"><span class="hs-identifier">Servant.Client.Core.Internal.RunClient</span></a><span>
+</span><a name="line-68"></a></pre></body></html>

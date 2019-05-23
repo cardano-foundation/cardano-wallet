@@ -1,0 +1,52 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><a name="line-2"></a><span class="hs-comment">-- Convert Haskell values to and from @application/xxx-form-urlencoded@ format.</span><span>
+</span><a name="line-3"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Web.FormUrlEncoded</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-4"></a><span>  </span><span class="hs-comment">-- * Classes</span><span>
+</span><a name="line-5"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#ToForm"><span class="hs-identifier hs-type">ToForm</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><a name="line-6"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#FromForm"><span class="hs-identifier hs-type">FromForm</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><a name="line-7"></a><span>
+</span><a name="line-8"></a><span>  </span><span class="hs-comment">-- ** Keys for 'Form' entries</span><span>
+</span><a name="line-9"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#ToFormKey"><span class="hs-identifier hs-type">ToFormKey</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><a name="line-10"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#FromFormKey"><span class="hs-identifier hs-type">FromFormKey</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><a name="line-11"></a><span>
+</span><a name="line-12"></a><span>  </span><span class="hs-comment">-- * 'Form' type</span><span>
+</span><a name="line-13"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#Form"><span class="hs-identifier hs-type">Form</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><a name="line-14"></a><span>
+</span><a name="line-15"></a><span>  </span><span class="hs-comment">-- * Encoding and decoding @'Form'@s</span><span>
+</span><a name="line-16"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#urlEncodeAsForm"><span class="hs-identifier hs-var">urlEncodeAsForm</span></a><span class="hs-special">,</span><span>
+</span><a name="line-17"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#urlEncodeAsFormStable"><span class="hs-identifier hs-var">urlEncodeAsFormStable</span></a><span class="hs-special">,</span><span>
+</span><a name="line-18"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#urlDecodeAsForm"><span class="hs-identifier hs-var">urlDecodeAsForm</span></a><span class="hs-special">,</span><span>
+</span><a name="line-19"></a><span>
+</span><a name="line-20"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#urlEncodeForm"><span class="hs-identifier hs-var">urlEncodeForm</span></a><span class="hs-special">,</span><span>
+</span><a name="line-21"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#urlEncodeFormStable"><span class="hs-identifier hs-var">urlEncodeFormStable</span></a><span class="hs-special">,</span><span>
+</span><a name="line-22"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#urlDecodeForm"><span class="hs-identifier hs-var">urlDecodeForm</span></a><span class="hs-special">,</span><span>
+</span><a name="line-23"></a><span>
+</span><a name="line-24"></a><span>  </span><span class="hs-comment">-- * 'Generic's</span><span>
+</span><a name="line-25"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#genericToForm"><span class="hs-identifier hs-var">genericToForm</span></a><span class="hs-special">,</span><span>
+</span><a name="line-26"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#genericFromForm"><span class="hs-identifier hs-var">genericFromForm</span></a><span class="hs-special">,</span><span>
+</span><a name="line-27"></a><span>
+</span><a name="line-28"></a><span>  </span><span class="hs-comment">-- ** Encoding options</span><span>
+</span><a name="line-29"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#FormOptions"><span class="hs-identifier hs-type">FormOptions</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><a name="line-30"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#defaultFormOptions"><span class="hs-identifier hs-var">defaultFormOptions</span></a><span class="hs-special">,</span><span>
+</span><a name="line-31"></a><span>
+</span><a name="line-32"></a><span>  </span><span class="hs-comment">-- * Helpers</span><span>
+</span><a name="line-33"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#toListStable"><span class="hs-identifier hs-var">toListStable</span></a><span class="hs-special">,</span><span>
+</span><a name="line-34"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#toEntriesByKey"><span class="hs-identifier hs-var">toEntriesByKey</span></a><span class="hs-special">,</span><span>
+</span><a name="line-35"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#toEntriesByKeyStable"><span class="hs-identifier hs-var">toEntriesByKeyStable</span></a><span class="hs-special">,</span><span>
+</span><a name="line-36"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#fromEntriesByKey"><span class="hs-identifier hs-var">fromEntriesByKey</span></a><span class="hs-special">,</span><span>
+</span><a name="line-37"></a><span>
+</span><a name="line-38"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#lookupAll"><span class="hs-identifier hs-var">lookupAll</span></a><span class="hs-special">,</span><span>
+</span><a name="line-39"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#lookupMaybe"><span class="hs-identifier hs-var">lookupMaybe</span></a><span class="hs-special">,</span><span>
+</span><a name="line-40"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#lookupUnique"><span class="hs-identifier hs-var">lookupUnique</span></a><span class="hs-special">,</span><span>
+</span><a name="line-41"></a><span>
+</span><a name="line-42"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#parseAll"><span class="hs-identifier hs-var">parseAll</span></a><span class="hs-special">,</span><span>
+</span><a name="line-43"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#parseMaybe"><span class="hs-identifier hs-var">parseMaybe</span></a><span class="hs-special">,</span><span>
+</span><a name="line-44"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#parseUnique"><span class="hs-identifier hs-var">parseUnique</span></a><span class="hs-special">,</span><span>
+</span><a name="line-45"></a><span>
+</span><a name="line-46"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#urlEncodeParams"><span class="hs-identifier hs-var">urlEncodeParams</span></a><span class="hs-special">,</span><span>
+</span><a name="line-47"></a><span>  </span><a href="Web.Internal.FormUrlEncoded.html#urlDecodeParams"><span class="hs-identifier hs-var">urlDecodeParams</span></a><span class="hs-special">,</span><span>
+</span><a name="line-48"></a><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-49"></a><span>
+</span><a name="line-50"></a><span class="hs-keyword">import</span><span>           </span><a href="Web.Internal.FormUrlEncoded.html"><span class="hs-identifier">Web.Internal.FormUrlEncoded</span></a><span>
+</span><a name="line-51"></a><span>
+</span><a name="line-52"></a></pre></body></html>

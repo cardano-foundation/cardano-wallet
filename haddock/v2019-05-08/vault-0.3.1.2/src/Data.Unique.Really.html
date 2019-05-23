@@ -1,0 +1,67 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- | An abstract interface to a unique symbol generator.</span><span>
+</span><a name="line-2"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Unique.Really</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-3"></a><span>    </span><a href="Data.Unique.Really.html#Unique"><span class="hs-identifier hs-type">Unique</span></a><span class="hs-special">,</span><span> </span><a href="Data.Unique.Really.html#newUnique"><span class="hs-identifier hs-var">newUnique</span></a><span class="hs-special">,</span><span> </span><a href="Data.Unique.Really.html#hashUnique"><span class="hs-identifier hs-var">hashUnique</span></a><span class="hs-special">,</span><span>
+</span><a name="line-4"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-5"></a><span>
+</span><a name="line-6"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Applicative</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-operator hs-var">&lt;$&gt;</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-7"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Hashable</span><span>
+</span><a name="line-8"></a><span>
+</span><a name="line-9"></a><span class="hs-cpp">#if UseGHC
+</span><span>
+</span><a name="line-11"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Exception</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">evaluate</span><span class="hs-special">)</span><span>
+</span><a name="line-12"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.Unique</span><span>
+</span><a name="line-13"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">System.Mem.StableName</span><span>
+</span><a name="line-14"></a><span>
+</span><a name="line-15"></a><span class="hs-comment">-- | An abstract unique value.</span><span>
+</span><a name="line-16"></a><span class="hs-comment">-- Values of type 'Unique' may be compared for equality</span><span>
+</span><a name="line-17"></a><span class="hs-comment">-- and hashed into Int.</span><span>
+</span><a name="line-18"></a><span class="hs-comment">--</span><span>
+</span><a name="line-19"></a><span class="hs-comment">-- Note: Unlike the symbols from &quot;Data.Unique&quot;, the symbols from this</span><span>
+</span><a name="line-20"></a><span class="hs-comment">-- module do not become equal after reloads in the GHC interpreter!</span><span>
+</span><a name="line-21"></a><span class="hs-keyword">newtype</span><span> </span><a name="Unique"><a href="Data.Unique.Really.html#Unique"><span class="hs-identifier">Unique</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a name="Unique"><a href="Data.Unique.Really.html#Unique"><span class="hs-identifier">Unique</span></a></a><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">StableName</span><span> </span><span class="hs-identifier hs-type">Data.Unique.Unique</span><span class="hs-special">)</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Eq</span><span class="hs-special">)</span><span>
+</span><a name="line-22"></a><span>
+</span><a name="line-23"></a><a name="newUnique"><a href="Data.Unique.Really.html#newUnique"><span class="hs-identifier">newUnique</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><a name="line-24"></a><span>    </span><a name="local-6989586621679028704"><a href="#local-6989586621679028704"><span class="hs-identifier">x</span></a></a><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-identifier hs-var">Data.Unique.newUnique</span><span>
+</span><a name="line-25"></a><span>    </span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-identifier hs-var">evaluate</span><span> </span><a href="#local-6989586621679028704"><span class="hs-identifier hs-var">x</span></a><span>
+</span><a name="line-26"></a><span>    </span><a href="Data.Unique.Really.html#Unique"><span class="hs-identifier hs-var">Unique</span></a><span> </span><span class="hs-operator hs-var">&lt;$&gt;</span><span> </span><span class="hs-identifier hs-var">makeStableName</span><span> </span><a href="#local-6989586621679028704"><span class="hs-identifier hs-var">x</span></a><span>
+</span><a name="line-27"></a><span>
+</span><a name="line-28"></a><a name="hashUnique"><a href="Data.Unique.Really.html#hashUnique"><span class="hs-identifier">hashUnique</span></a></a><span> </span><span class="hs-special">(</span><a href="Data.Unique.Really.html#Unique"><span class="hs-identifier hs-var">Unique</span></a><span> </span><a name="local-6989586621679028852"><a href="#local-6989586621679028852"><span class="hs-identifier">s</span></a></a><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">hashStableName</span><span> </span><a href="#local-6989586621679028852"><span class="hs-identifier hs-var">s</span></a><span>
+</span><a name="line-29"></a><span>
+</span><a name="line-30"></a><span class="hs-cpp">#else
+</span><span>
+</span><a name="line-32"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.IORef</span><span>
+</span><a name="line-33"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">System.IO.Unsafe</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">unsafePerformIO</span><span class="hs-special">)</span><span>
+</span><a name="line-34"></a><span>
+</span><a name="line-35"></a><span class="hs-pragma">{-# NOINLINE</span><span> </span><span class="hs-pragma">refNumber</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-36"></a><span class="hs-identifier">refNumber</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">IORef</span><span> </span><span class="hs-identifier">Integer</span><span>
+</span><a name="line-37"></a><span class="hs-identifier">refNumber</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">unsafePerformIO</span><span> </span><span class="hs-operator">$</span><span> </span><span class="hs-identifier">newIORef</span><span> </span><span class="hs-number">0</span><span>
+</span><a name="line-38"></a><span>
+</span><a name="line-39"></a><span class="hs-identifier">newNumber</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">atomicModifyIORef'</span><span> </span><span class="hs-identifier">refNumber</span><span> </span><span class="hs-operator">$</span><span> </span><span class="hs-glyph">\</span><span class="hs-identifier">x</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">let</span><span> </span><span class="hs-identifier">x'</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">x</span><span class="hs-operator">+</span><span class="hs-number">1</span><span> </span><span class="hs-keyword">in</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">x'</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">x'</span><span class="hs-special">)</span><span>
+</span><a name="line-40"></a><span>
+</span><a name="line-41"></a><span class="hs-comment">-- | An abstract unique value.</span><span>
+</span><a name="line-42"></a><span class="hs-comment">-- Values of type 'Unique' may be compared for equality</span><span>
+</span><a name="line-43"></a><span class="hs-comment">-- and hashed into Int.</span><span>
+</span><a name="line-44"></a><span class="hs-comment">--</span><span>
+</span><a name="line-45"></a><span class="hs-comment">-- NOTE: You haven't compiled this module with GHC.</span><span>
+</span><a name="line-46"></a><span class="hs-comment">-- The functionality will be identitcal to &quot;Data.Unique&quot;.</span><span>
+</span><a name="line-47"></a><span class="hs-keyword">newtype</span><span> </span><span class="hs-identifier">Unique</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">Unique</span><span> </span><span class="hs-identifier">Integer</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Eq</span><span class="hs-special">,</span><span class="hs-identifier">Ord</span><span class="hs-special">)</span><span>
+</span><a name="line-48"></a><span>
+</span><a name="line-49"></a><span class="hs-identifier">newUnique</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">Unique</span><span> </span><span class="hs-operator">&lt;$&gt;</span><span> </span><span class="hs-identifier">newNumber</span><span>
+</span><a name="line-50"></a><span class="hs-identifier">hashUnique</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Unique</span><span> </span><span class="hs-identifier">s</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">fromIntegral</span><span> </span><span class="hs-identifier">s</span><span>
+</span><a name="line-51"></a><span>
+</span><a name="line-52"></a><span>
+</span><a name="line-53"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-55"></a><span class="hs-comment">-- | Creates a new object of type 'Unique'.</span><span>
+</span><a name="line-56"></a><span class="hs-comment">-- The value returned will not compare equal to any other</span><span>
+</span><a name="line-57"></a><span class="hs-comment">-- value of type 'Unique' returned by previous calls to 'newUnique'.</span><span>
+</span><a name="line-58"></a><span class="hs-comment">-- There is no limit on the number of times you may call this function.</span><span>
+</span><a name="line-59"></a><span class="hs-identifier">newUnique</span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">IO</span><span> </span><a href="Data.Unique.Really.html#Unique"><span class="hs-identifier hs-type">Unique</span></a><span>
+</span><a name="line-60"></a><span>
+</span><a name="line-61"></a><span class="hs-comment">-- | Hashes a 'Unique' into an 'Int'.</span><span>
+</span><a name="line-62"></a><span class="hs-comment">-- Two Uniques may hash to the same value, although in practice this is unlikely.</span><span>
+</span><a name="line-63"></a><span class="hs-comment">-- The 'Int' returned makes a good hash key.</span><span>
+</span><a name="line-64"></a><span class="hs-identifier">hashUnique</span><span> </span><span class="hs-glyph">::</span><span> </span><a href="Data.Unique.Really.html#Unique"><span class="hs-identifier hs-type">Unique</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Int</span><span>
+</span><a name="line-65"></a><span>
+</span><a name="line-66"></a><span class="hs-keyword">instance</span><span> </span><span class="hs-identifier hs-type">Hashable</span><span> </span><a href="Data.Unique.Really.html#Unique"><span class="hs-identifier hs-type">Unique</span></a><span> </span><span class="hs-keyword">where</span><span> </span><a name="local-8214565720323793127"><span class="hs-identifier">hashWithSalt</span></a><span> </span><a name="local-6989586621679026862"><a href="#local-6989586621679026862"><span class="hs-identifier">s</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">hashWithSalt</span><span> </span><a href="#local-6989586621679026862"><span class="hs-identifier hs-var">s</span></a><span> </span><span class="hs-operator hs-var">.</span><span> </span><a href="Data.Unique.Really.html#hashUnique"><span class="hs-identifier hs-var">hashUnique</span></a><span>
+</span><a name="line-67"></a></pre></body></html>

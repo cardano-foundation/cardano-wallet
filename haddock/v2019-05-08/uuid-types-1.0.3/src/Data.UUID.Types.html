@@ -1,0 +1,40 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">{- |
+Module      : Data.UUID.Types
+Copyright   : (c) 2008,2012 Antoine Latter
+
+License     : BSD-style
+
+Maintainer  : aslatter@gmail.com
+Stability   : experimental
+Portability : portable
+
+
+This library is useful for comparing, parsing and
+printing Universally Unique Identifiers.
+See &lt;http://en.wikipedia.org/wiki/UUID&gt; for the general idea.
+See &lt;http://tools.ietf.org/html/rfc4122&gt; for the specification.
+
+-}</span><span>
+</span><a name="line-18"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.UUID.Types</span><span class="hs-special">(</span><a href="Data.UUID.Types.Internal.html#UUID"><span class="hs-identifier hs-type">UUID</span></a><span>
+</span><a name="line-19"></a><span>                </span><span class="hs-special">,</span><a href="Data.UUID.Types.Internal.html#toString"><span class="hs-identifier hs-var">toString</span></a><span>
+</span><a name="line-20"></a><span>                </span><span class="hs-special">,</span><a href="Data.UUID.Types.Internal.html#fromString"><span class="hs-identifier hs-var">fromString</span></a><span>
+</span><a name="line-21"></a><span>                </span><span class="hs-special">,</span><a href="Data.UUID.Types.Internal.html#toText"><span class="hs-identifier hs-var">toText</span></a><span>
+</span><a name="line-22"></a><span>                </span><span class="hs-special">,</span><a href="Data.UUID.Types.Internal.html#fromText"><span class="hs-identifier hs-var">fromText</span></a><span>
+</span><a name="line-23"></a><span>                </span><span class="hs-special">,</span><a href="Data.UUID.Types.Internal.html#toASCIIBytes"><span class="hs-identifier hs-var">toASCIIBytes</span></a><span>
+</span><a name="line-24"></a><span>                </span><span class="hs-special">,</span><a href="Data.UUID.Types.Internal.html#fromASCIIBytes"><span class="hs-identifier hs-var">fromASCIIBytes</span></a><span>
+</span><a name="line-25"></a><span>                </span><span class="hs-special">,</span><a href="Data.UUID.Types.Internal.html#toLazyASCIIBytes"><span class="hs-identifier hs-var">toLazyASCIIBytes</span></a><span>
+</span><a name="line-26"></a><span>                </span><span class="hs-special">,</span><a href="Data.UUID.Types.Internal.html#fromLazyASCIIBytes"><span class="hs-identifier hs-var">fromLazyASCIIBytes</span></a><span>
+</span><a name="line-27"></a><span>                </span><span class="hs-special">,</span><a href="Data.UUID.Types.Internal.html#toByteString"><span class="hs-identifier hs-var">toByteString</span></a><span>
+</span><a name="line-28"></a><span>                </span><span class="hs-special">,</span><a href="Data.UUID.Types.Internal.html#fromByteString"><span class="hs-identifier hs-var">fromByteString</span></a><span>
+</span><a name="line-29"></a><span>                </span><span class="hs-special">,</span><a href="Data.UUID.Types.Internal.html#toWords"><span class="hs-identifier hs-var">toWords</span></a><span>
+</span><a name="line-30"></a><span>                </span><span class="hs-special">,</span><a href="Data.UUID.Types.Internal.html#fromWords"><span class="hs-identifier hs-var">fromWords</span></a><span>
+</span><a name="line-31"></a><span>                </span><span class="hs-special">,</span><a href="Data.UUID.Types.Internal.html#null"><span class="hs-identifier hs-var">null</span></a><span>
+</span><a name="line-32"></a><span>                </span><span class="hs-special">,</span><a href="Data.UUID.Types.Internal.html#nil"><span class="hs-identifier hs-var">nil</span></a><span>
+</span><a name="line-33"></a><span>                </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-34"></a><span>
+</span><a name="line-35"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Prelude</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- we need to hide Prelude.null</span><span>
+</span><a name="line-36"></a><span class="hs-keyword">import</span><span> </span><a href="Data.UUID.Types.Internal.html"><span class="hs-identifier">Data.UUID.Types.Internal</span></a><span>
+</span><a name="line-37"></a><span>
+</span><a name="line-38"></a><span class="hs-comment">-- Everything is really implemented in Data.UUID.Types.Internal, but I</span><span>
+</span><a name="line-39"></a><span class="hs-comment">-- don't want to export the constructors out of the package.</span><span>
+</span><a name="line-40"></a></pre></body></html>

@@ -1,0 +1,315 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">{-|
+The &lt;http://www.cse.chalmers.se/~rjmh/QuickCheck/manual.html QuickCheck manual&gt;
+gives detailed information about using QuickCheck effectively.
+You can also try &lt;https://begriffs.com/posts/2017-01-14-design-use-quickcheck.html&gt;,
+a tutorial written by a user of QuickCheck.
+
+To start using QuickCheck, write down your property as a function returning @Bool@.
+For example, to check that reversing a list twice gives back the same list you can write:
+
+@
+import Test.QuickCheck
+
+prop_reverse :: [Int] -&gt; Bool
+prop_reverse xs = reverse (reverse xs) == xs
+@
+
+You can then use QuickCheck to test @prop_reverse@ on 100 random lists:
+
+&gt;&gt;&gt; quickCheck prop_reverse
++++ OK, passed 100 tests.
+
+To run more tests you can use the 'withMaxSuccess' combinator:
+
+&gt;&gt;&gt; quickCheck (withMaxSuccess 10000 prop_reverse)
++++ OK, passed 10000 tests.
+
+To use QuickCheck on your own data types you will need to write 'Arbitrary'
+instances for those types. See the
+&lt;http://www.cse.chalmers.se/~rjmh/QuickCheck/manual.html QuickCheck manual&gt; for
+details about how to do that.
+-}</span><span>
+</span><a name="line-32"></a><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><a name="line-33"></a><span class="hs-cpp">#ifndef NO_SAFE_HASKELL
+</span><span class="hs-pragma">{-# LANGUAGE Safe #-}</span><span>
+</span><a name="line-35"></a><span class="hs-cpp">#endif
+#if defined(__GLASGOW_HASKELL__) &amp;&amp; __GLASGOW_HASKELL__ &gt;= 708
+</span><span class="hs-pragma">{-# LANGUAGE PatternSynonyms #-}</span><span>
+</span><a name="line-38"></a><span class="hs-cpp">#endif
+</span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Test.QuickCheck</span><span>
+</span><a name="line-40"></a><span>  </span><span class="hs-special">(</span><span>
+</span><a name="line-41"></a><span>    </span><span class="hs-comment">-- * Running tests</span><span>
+</span><a name="line-42"></a><span>    </span><a href="Test.QuickCheck.Test.html#quickCheck"><span class="hs-identifier hs-var">quickCheck</span></a><span>
+</span><a name="line-43"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Test.html#Args"><span class="hs-identifier hs-type">Args</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Test.html#Result"><span class="hs-identifier hs-type">Result</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-44"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Test.html#stdArgs"><span class="hs-identifier hs-var">stdArgs</span></a><span>
+</span><a name="line-45"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Test.html#quickCheckWith"><span class="hs-identifier hs-var">quickCheckWith</span></a><span>
+</span><a name="line-46"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Test.html#quickCheckWithResult"><span class="hs-identifier hs-var">quickCheckWithResult</span></a><span>
+</span><a name="line-47"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Test.html#quickCheckResult"><span class="hs-identifier hs-var">quickCheckResult</span></a><span>
+</span><a name="line-48"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Test.html#isSuccess"><span class="hs-identifier hs-var">isSuccess</span></a><span>
+</span><a name="line-49"></a><span>    </span><span class="hs-comment">-- ** Running tests verbosely</span><span>
+</span><a name="line-50"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Test.html#verboseCheck"><span class="hs-identifier hs-var">verboseCheck</span></a><span>
+</span><a name="line-51"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Test.html#verboseCheckWith"><span class="hs-identifier hs-var">verboseCheckWith</span></a><span>
+</span><a name="line-52"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Test.html#verboseCheckWithResult"><span class="hs-identifier hs-var">verboseCheckWithResult</span></a><span>
+</span><a name="line-53"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Test.html#verboseCheckResult"><span class="hs-identifier hs-var">verboseCheckResult</span></a><span>
+</span><a name="line-54"></a><span class="hs-cpp">#ifndef NO_TEMPLATE_HASKELL
+</span><span>    </span><span class="hs-comment">-- ** Testing all properties in a module</span><span>
+</span><a name="line-56"></a><span>
+</span><a name="line-57"></a><span>    </span><span class="hs-comment">-- | These functions test all properties in the current module, using</span><span>
+</span><a name="line-58"></a><span>    </span><span class="hs-comment">-- Template Haskell. You need to have a @{-\# LANGUAGE TemplateHaskell \#-}@</span><span>
+</span><a name="line-59"></a><span>    </span><span class="hs-comment">-- pragma in your module for any of these to work.</span><span>
+</span><a name="line-60"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.All.html#quickCheckAll"><span class="hs-identifier hs-var">quickCheckAll</span></a><span>
+</span><a name="line-61"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.All.html#verboseCheckAll"><span class="hs-identifier hs-var">verboseCheckAll</span></a><span>
+</span><a name="line-62"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.All.html#forAllProperties"><span class="hs-identifier hs-var">forAllProperties</span></a><span>
+</span><a name="line-63"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.All.html#allProperties"><span class="hs-identifier hs-var">allProperties</span></a><span>
+</span><a name="line-64"></a><span>    </span><span class="hs-comment">-- ** Testing polymorphic properties</span><span>
+</span><a name="line-65"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.All.html#polyQuickCheck"><span class="hs-identifier hs-var">polyQuickCheck</span></a><span>
+</span><a name="line-66"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.All.html#polyVerboseCheck"><span class="hs-identifier hs-var">polyVerboseCheck</span></a><span>
+</span><a name="line-67"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.All.html#monomorphic"><span class="hs-identifier hs-var">monomorphic</span></a><span>
+</span><a name="line-68"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-70"></a><span>    </span><span class="hs-comment">-- * The 'Arbitrary' typeclass: generation of random values</span><span>
+</span><a name="line-71"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#Arbitrary"><span class="hs-identifier hs-type">Arbitrary</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-72"></a><span>    </span><span class="hs-comment">-- ** Helper functions for implementing 'shrink'</span><span>
+</span><a name="line-73"></a><span class="hs-cpp">#ifndef NO_GENERICS
+</span><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#genericShrink"><span class="hs-identifier hs-var">genericShrink</span></a><span>
+</span><a name="line-75"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#subterms"><span class="hs-identifier hs-var">subterms</span></a><span>
+</span><a name="line-76"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#recursivelyShrink"><span class="hs-identifier hs-var">recursivelyShrink</span></a><span>
+</span><a name="line-77"></a><span class="hs-cpp">#endif
+</span><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#shrinkNothing"><span class="hs-identifier hs-var">shrinkNothing</span></a><span>
+</span><a name="line-79"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#shrinkList"><span class="hs-identifier hs-var">shrinkList</span></a><span>
+</span><a name="line-80"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#shrinkMap"><span class="hs-identifier hs-var">shrinkMap</span></a><span>
+</span><a name="line-81"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#shrinkMapBy"><span class="hs-identifier hs-var">shrinkMapBy</span></a><span>
+</span><a name="line-82"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#shrinkIntegral"><span class="hs-identifier hs-var">shrinkIntegral</span></a><span>
+</span><a name="line-83"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#shrinkRealFrac"><span class="hs-identifier hs-var">shrinkRealFrac</span></a><span>
+</span><a name="line-84"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#shrinkDecimal"><span class="hs-identifier hs-var">shrinkDecimal</span></a><span>
+</span><a name="line-85"></a><span>
+</span><a name="line-86"></a><span>    </span><span class="hs-comment">-- ** Lifting of 'Arbitrary' to unary and binary type constructors</span><span>
+</span><a name="line-87"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#Arbitrary1"><span class="hs-identifier hs-type">Arbitrary1</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-88"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#arbitrary1"><span class="hs-identifier hs-var">arbitrary1</span></a><span>
+</span><a name="line-89"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#shrink1"><span class="hs-identifier hs-var">shrink1</span></a><span>
+</span><a name="line-90"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#Arbitrary2"><span class="hs-identifier hs-type">Arbitrary2</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-91"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#arbitrary2"><span class="hs-identifier hs-var">arbitrary2</span></a><span>
+</span><a name="line-92"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#shrink2"><span class="hs-identifier hs-var">shrink2</span></a><span>
+</span><a name="line-93"></a><span>
+</span><a name="line-94"></a><span>    </span><span class="hs-comment">-- * The 'Gen' monad: combinators for building random generators</span><span>
+</span><a name="line-95"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Gen.html#Gen"><span class="hs-identifier hs-type">Gen</span></a><span>
+</span><a name="line-96"></a><span>    </span><span class="hs-comment">-- ** Generator combinators</span><span>
+</span><a name="line-97"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Gen.html#choose"><span class="hs-identifier hs-var">choose</span></a><span>
+</span><a name="line-98"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Gen.html#oneof"><span class="hs-identifier hs-var">oneof</span></a><span>
+</span><a name="line-99"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Gen.html#frequency"><span class="hs-identifier hs-var">frequency</span></a><span>
+</span><a name="line-100"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Gen.html#elements"><span class="hs-identifier hs-var">elements</span></a><span>
+</span><a name="line-101"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Gen.html#growingElements"><span class="hs-identifier hs-var">growingElements</span></a><span>
+</span><a name="line-102"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Gen.html#sized"><span class="hs-identifier hs-var">sized</span></a><span>
+</span><a name="line-103"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Gen.html#getSize"><span class="hs-identifier hs-var">getSize</span></a><span>
+</span><a name="line-104"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Gen.html#resize"><span class="hs-identifier hs-var">resize</span></a><span>
+</span><a name="line-105"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Gen.html#scale"><span class="hs-identifier hs-var">scale</span></a><span>
+</span><a name="line-106"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Gen.html#suchThat"><span class="hs-identifier hs-var">suchThat</span></a><span>
+</span><a name="line-107"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Gen.html#suchThatMap"><span class="hs-identifier hs-var">suchThatMap</span></a><span>
+</span><a name="line-108"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Gen.html#suchThatMaybe"><span class="hs-identifier hs-var">suchThatMaybe</span></a><span>
+</span><a name="line-109"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#applyArbitrary2"><span class="hs-identifier hs-var">applyArbitrary2</span></a><span>
+</span><a name="line-110"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#applyArbitrary3"><span class="hs-identifier hs-var">applyArbitrary3</span></a><span>
+</span><a name="line-111"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#applyArbitrary4"><span class="hs-identifier hs-var">applyArbitrary4</span></a><span>
+</span><a name="line-112"></a><span>    </span><span class="hs-comment">-- ** Generators for lists</span><span>
+</span><a name="line-113"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Gen.html#listOf"><span class="hs-identifier hs-var">listOf</span></a><span>
+</span><a name="line-114"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Gen.html#listOf1"><span class="hs-identifier hs-var">listOf1</span></a><span>
+</span><a name="line-115"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Gen.html#vectorOf"><span class="hs-identifier hs-var">vectorOf</span></a><span>
+</span><a name="line-116"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#vector"><span class="hs-identifier hs-var">vector</span></a><span>
+</span><a name="line-117"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Gen.html#infiniteListOf"><span class="hs-identifier hs-var">infiniteListOf</span></a><span>
+</span><a name="line-118"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#infiniteList"><span class="hs-identifier hs-var">infiniteList</span></a><span>
+</span><a name="line-119"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Gen.html#shuffle"><span class="hs-identifier hs-var">shuffle</span></a><span>
+</span><a name="line-120"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Gen.html#sublistOf"><span class="hs-identifier hs-var">sublistOf</span></a><span>
+</span><a name="line-121"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#orderedList"><span class="hs-identifier hs-var">orderedList</span></a><span>
+</span><a name="line-122"></a><span>    </span><span class="hs-comment">-- ** Generators for particular types</span><span>
+</span><a name="line-123"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#arbitrarySizedIntegral"><span class="hs-identifier hs-var">arbitrarySizedIntegral</span></a><span>
+</span><a name="line-124"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#arbitrarySizedNatural"><span class="hs-identifier hs-var">arbitrarySizedNatural</span></a><span>
+</span><a name="line-125"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#arbitrarySizedFractional"><span class="hs-identifier hs-var">arbitrarySizedFractional</span></a><span>
+</span><a name="line-126"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#arbitrarySizedBoundedIntegral"><span class="hs-identifier hs-var">arbitrarySizedBoundedIntegral</span></a><span>
+</span><a name="line-127"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#arbitraryBoundedIntegral"><span class="hs-identifier hs-var">arbitraryBoundedIntegral</span></a><span>
+</span><a name="line-128"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#arbitraryBoundedRandom"><span class="hs-identifier hs-var">arbitraryBoundedRandom</span></a><span>
+</span><a name="line-129"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#arbitraryBoundedEnum"><span class="hs-identifier hs-var">arbitraryBoundedEnum</span></a><span>
+</span><a name="line-130"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#arbitraryUnicodeChar"><span class="hs-identifier hs-var">arbitraryUnicodeChar</span></a><span>
+</span><a name="line-131"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#arbitraryASCIIChar"><span class="hs-identifier hs-var">arbitraryASCIIChar</span></a><span>
+</span><a name="line-132"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#arbitraryPrintableChar"><span class="hs-identifier hs-var">arbitraryPrintableChar</span></a><span>
+</span><a name="line-133"></a><span>    </span><span class="hs-comment">-- ** Running generators</span><span>
+</span><a name="line-134"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Gen.html#generate"><span class="hs-identifier hs-var">generate</span></a><span>
+</span><a name="line-135"></a><span>    </span><span class="hs-comment">-- ** Debugging generators</span><span>
+</span><a name="line-136"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Gen.html#sample"><span class="hs-identifier hs-var">sample</span></a><span>
+</span><a name="line-137"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Gen.html#sample%27"><span class="hs-identifier hs-var">sample'</span></a><span>
+</span><a name="line-138"></a><span>
+</span><a name="line-139"></a><span>    </span><span class="hs-comment">-- * The 'Function' typeclass: generation of random shrinkable, showable functions</span><span>
+</span><a name="line-140"></a><span>
+</span><a name="line-141"></a><span>    </span><span class="hs-comment">-- | Example of use:</span><span>
+</span><a name="line-142"></a><span>    </span><span class="hs-comment">--</span><span>
+</span><a name="line-143"></a><span>    </span><span class="hs-comment">-- &gt;&gt;&gt; :{</span><span>
+</span><a name="line-144"></a><span>    </span><span class="hs-comment">-- &gt;&gt;&gt; let prop :: Fun String Integer -&gt; Bool</span><span>
+</span><a name="line-145"></a><span>    </span><span class="hs-comment">-- &gt;&gt;&gt;     prop (Fun _ f) = f &quot;monkey&quot; == f &quot;banana&quot; || f &quot;banana&quot; == f &quot;elephant&quot;</span><span>
+</span><a name="line-146"></a><span>    </span><span class="hs-comment">-- &gt;&gt;&gt; :}</span><span>
+</span><a name="line-147"></a><span>    </span><span class="hs-comment">-- &gt;&gt;&gt; quickCheck prop</span><span>
+</span><a name="line-148"></a><span>    </span><span class="hs-comment">-- *** Failed! Falsifiable (after 3 tests and 134 shrinks):</span><span>
+</span><a name="line-149"></a><span>    </span><span class="hs-comment">-- {&quot;elephant&quot;-&gt;1, &quot;monkey&quot;-&gt;1, _-&gt;0}</span><span>
+</span><a name="line-150"></a><span>    </span><span class="hs-comment">--</span><span>
+</span><a name="line-151"></a><span>    </span><span class="hs-comment">-- To generate random values of type @'Fun' a b@,</span><span>
+</span><a name="line-152"></a><span>    </span><span class="hs-comment">-- you must have an instance @'Function' a@.</span><span>
+</span><a name="line-153"></a><span>    </span><span class="hs-comment">-- If your type has a 'Show' instance, you can use 'functionShow' to write the instance; otherwise,</span><span>
+</span><a name="line-154"></a><span>    </span><span class="hs-comment">-- use 'functionMap' to give a bijection between your type and a type that is already an instance of 'Function'.</span><span>
+</span><a name="line-155"></a><span>    </span><span class="hs-comment">-- See the @'Function' [a]@ instance for an example of the latter.</span><span>
+</span><a name="line-156"></a><span>    </span><span class="hs-comment">--</span><span>
+</span><a name="line-157"></a><span>    </span><span class="hs-comment">-- For more information, see the paper \&quot;Shrinking and showing functions\&quot; by Koen Claessen.</span><span>
+</span><a name="line-158"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Function.html#Fun"><span class="hs-identifier hs-type">Fun</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-159"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Function.html#applyFun"><span class="hs-identifier hs-var">applyFun</span></a><span>
+</span><a name="line-160"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Function.html#applyFun2"><span class="hs-identifier hs-var">applyFun2</span></a><span>
+</span><a name="line-161"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Function.html#applyFun3"><span class="hs-identifier hs-var">applyFun3</span></a><span>
+</span><a name="line-162"></a><span class="hs-cpp">#if defined(__GLASGOW_HASKELL__) &amp;&amp; __GLASGOW_HASKELL__ &gt;= 708
+</span><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">pattern</span><span> </span><a href="Test.QuickCheck.Function.html#Fn"><span class="hs-identifier hs-var">Fn</span></a><span>
+</span><a name="line-164"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">pattern</span><span> </span><a href="Test.QuickCheck.Function.html#Fn2"><span class="hs-identifier hs-var">Fn2</span></a><span>
+</span><a name="line-165"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">pattern</span><span> </span><a href="Test.QuickCheck.Function.html#Fn3"><span class="hs-identifier hs-var">Fn3</span></a><span>
+</span><a name="line-166"></a><span class="hs-cpp">#endif
+</span><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Function.html#Function"><span class="hs-identifier hs-type">Function</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-168"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Function.html#functionMap"><span class="hs-identifier hs-var">functionMap</span></a><span>
+</span><a name="line-169"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Function.html#functionShow"><span class="hs-identifier hs-var">functionShow</span></a><span>
+</span><a name="line-170"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Function.html#functionIntegral"><span class="hs-identifier hs-var">functionIntegral</span></a><span>
+</span><a name="line-171"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Function.html#functionRealFrac"><span class="hs-identifier hs-var">functionRealFrac</span></a><span>
+</span><a name="line-172"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Function.html#functionBoundedEnum"><span class="hs-identifier hs-var">functionBoundedEnum</span></a><span>
+</span><a name="line-173"></a><span>
+</span><a name="line-174"></a><span>    </span><span class="hs-comment">-- * The 'CoArbitrary' typeclass: generation of functions the old-fashioned way</span><span>
+</span><a name="line-175"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#CoArbitrary"><span class="hs-identifier hs-type">CoArbitrary</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-176"></a><span class="hs-cpp">#ifndef NO_GENERICS
+</span><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#genericCoarbitrary"><span class="hs-identifier hs-var">genericCoarbitrary</span></a><span>
+</span><a name="line-178"></a><span class="hs-cpp">#endif
+</span><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Gen.html#variant"><span class="hs-identifier hs-var">variant</span></a><span>
+</span><a name="line-180"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#coarbitraryIntegral"><span class="hs-identifier hs-var">coarbitraryIntegral</span></a><span>
+</span><a name="line-181"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#coarbitraryReal"><span class="hs-identifier hs-var">coarbitraryReal</span></a><span>
+</span><a name="line-182"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#coarbitraryShow"><span class="hs-identifier hs-var">coarbitraryShow</span></a><span>
+</span><a name="line-183"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Arbitrary.html#coarbitraryEnum"><span class="hs-identifier hs-var">coarbitraryEnum</span></a><span>
+</span><a name="line-184"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><a href="Test.QuickCheck.Arbitrary.html#%3E%3C"><span class="hs-operator hs-var">&gt;&lt;</span></a><span class="hs-special">)</span><span>
+</span><a name="line-185"></a><span>
+</span><a name="line-186"></a><span>    </span><span class="hs-comment">-- * Type-level modifiers for changing generator behavior</span><span>
+</span><a name="line-187"></a><span>
+</span><a name="line-188"></a><span>    </span><span class="hs-comment">-- | These types do things such as restricting the kind of test data that can be generated.</span><span>
+</span><a name="line-189"></a><span>    </span><span class="hs-comment">-- They can be pattern-matched on in properties as a stylistic</span><span>
+</span><a name="line-190"></a><span>    </span><span class="hs-comment">-- alternative to using explicit quantification.</span><span>
+</span><a name="line-191"></a><span>    </span><span class="hs-comment">--</span><span>
+</span><a name="line-192"></a><span>    </span><span class="hs-comment">-- Examples:</span><span>
+</span><a name="line-193"></a><span>    </span><span class="hs-comment">--</span><span>
+</span><a name="line-194"></a><span>    </span><span class="hs-comment">-- @</span><span>
+</span><a name="line-195"></a><span>    </span><span class="hs-comment">-- -- Functions cannot be shown (but see 'Function')</span><span>
+</span><a name="line-196"></a><span>    </span><span class="hs-comment">-- prop_TakeDropWhile ('Blind' p) (xs :: ['A']) =</span><span>
+</span><a name="line-197"></a><span>    </span><span class="hs-comment">--   takeWhile p xs ++ dropWhile p xs == xs</span><span>
+</span><a name="line-198"></a><span>    </span><span class="hs-comment">-- @</span><span>
+</span><a name="line-199"></a><span>    </span><span class="hs-comment">--</span><span>
+</span><a name="line-200"></a><span>    </span><span class="hs-comment">-- @</span><span>
+</span><a name="line-201"></a><span>    </span><span class="hs-comment">-- prop_TakeDrop ('NonNegative' n) (xs :: ['A']) =</span><span>
+</span><a name="line-202"></a><span>    </span><span class="hs-comment">--   take n xs ++ drop n xs == xs</span><span>
+</span><a name="line-203"></a><span>    </span><span class="hs-comment">-- @</span><span>
+</span><a name="line-204"></a><span>    </span><span class="hs-comment">--</span><span>
+</span><a name="line-205"></a><span>    </span><span class="hs-comment">-- @</span><span>
+</span><a name="line-206"></a><span>    </span><span class="hs-comment">-- -- cycle does not work for empty lists</span><span>
+</span><a name="line-207"></a><span>    </span><span class="hs-comment">-- prop_Cycle ('NonNegative' n) ('NonEmpty' (xs :: ['A'])) =</span><span>
+</span><a name="line-208"></a><span>    </span><span class="hs-comment">--   take n (cycle xs) == take n (xs ++ cycle xs)</span><span>
+</span><a name="line-209"></a><span>    </span><span class="hs-comment">-- @</span><span>
+</span><a name="line-210"></a><span>    </span><span class="hs-comment">--</span><span>
+</span><a name="line-211"></a><span>    </span><span class="hs-comment">-- @</span><span>
+</span><a name="line-212"></a><span>    </span><span class="hs-comment">-- -- Instead of 'forAll' 'orderedList'</span><span>
+</span><a name="line-213"></a><span>    </span><span class="hs-comment">-- prop_Sort ('Ordered' (xs :: ['OrdA'])) =</span><span>
+</span><a name="line-214"></a><span>    </span><span class="hs-comment">--   sort xs == xs</span><span>
+</span><a name="line-215"></a><span>    </span><span class="hs-comment">-- @</span><span>
+</span><a name="line-216"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Modifiers.html#Blind"><span class="hs-identifier hs-type">Blind</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-217"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Modifiers.html#Fixed"><span class="hs-identifier hs-type">Fixed</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-218"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Modifiers.html#OrderedList"><span class="hs-identifier hs-type">OrderedList</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-219"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Modifiers.html#NonEmptyList"><span class="hs-identifier hs-type">NonEmptyList</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-220"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Modifiers.html#InfiniteList"><span class="hs-identifier hs-type">InfiniteList</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-221"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Modifiers.html#SortedList"><span class="hs-identifier hs-type">SortedList</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-222"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Modifiers.html#Positive"><span class="hs-identifier hs-type">Positive</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-223"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Modifiers.html#NonZero"><span class="hs-identifier hs-type">NonZero</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-224"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Modifiers.html#NonNegative"><span class="hs-identifier hs-type">NonNegative</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-225"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Modifiers.html#Large"><span class="hs-identifier hs-type">Large</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-226"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Modifiers.html#Small"><span class="hs-identifier hs-type">Small</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-227"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Modifiers.html#Smart"><span class="hs-identifier hs-type">Smart</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-228"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Modifiers.html#Shrink2"><span class="hs-identifier hs-type">Shrink2</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-229"></a><span class="hs-cpp">#ifndef NO_MULTI_PARAM_TYPE_CLASSES
+</span><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Modifiers.html#Shrinking"><span class="hs-identifier hs-type">Shrinking</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-231"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Modifiers.html#ShrinkState"><span class="hs-identifier hs-type">ShrinkState</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-232"></a><span class="hs-cpp">#endif
+</span><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Modifiers.html#ASCIIString"><span class="hs-identifier hs-type">ASCIIString</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-234"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Modifiers.html#UnicodeString"><span class="hs-identifier hs-type">UnicodeString</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-235"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Modifiers.html#PrintableString"><span class="hs-identifier hs-type">PrintableString</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-236"></a><span>
+</span><a name="line-237"></a><span>    </span><span class="hs-comment">-- * Property combinators</span><span>
+</span><a name="line-238"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#Property"><span class="hs-identifier hs-type">Property</span></a><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#Testable"><span class="hs-identifier hs-type">Testable</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-239"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#forAll"><span class="hs-identifier hs-var">forAll</span></a><span>
+</span><a name="line-240"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#forAllShrink"><span class="hs-identifier hs-var">forAllShrink</span></a><span>
+</span><a name="line-241"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#forAllShow"><span class="hs-identifier hs-var">forAllShow</span></a><span>
+</span><a name="line-242"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#forAllShrinkShow"><span class="hs-identifier hs-var">forAllShrinkShow</span></a><span>
+</span><a name="line-243"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#forAllBlind"><span class="hs-identifier hs-var">forAllBlind</span></a><span>
+</span><a name="line-244"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#forAllShrinkBlind"><span class="hs-identifier hs-var">forAllShrinkBlind</span></a><span>
+</span><a name="line-245"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#shrinking"><span class="hs-identifier hs-var">shrinking</span></a><span>
+</span><a name="line-246"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><a href="Test.QuickCheck.Property.html#%3D%3D%3E"><span class="hs-operator hs-var">==&gt;</span></a><span class="hs-special">)</span><span>
+</span><a name="line-247"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#Discard"><span class="hs-identifier hs-type">Discard</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-248"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Exception.html#discard"><span class="hs-identifier hs-var">discard</span></a><span>
+</span><a name="line-249"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><a href="Test.QuickCheck.Property.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a><span class="hs-special">)</span><span>
+</span><a name="line-250"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><a href="Test.QuickCheck.Property.html#%3D%2F%3D"><span class="hs-operator hs-var">=/=</span></a><span class="hs-special">)</span><span>
+</span><a name="line-251"></a><span class="hs-cpp">#ifndef NO_DEEPSEQ
+</span><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#total"><span class="hs-identifier hs-var">total</span></a><span>
+</span><a name="line-253"></a><span class="hs-cpp">#endif
+</span><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#ioProperty"><span class="hs-identifier hs-var">ioProperty</span></a><span>
+</span><a name="line-255"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#idempotentIOProperty"><span class="hs-identifier hs-var">idempotentIOProperty</span></a><span>
+</span><a name="line-256"></a><span>    </span><span class="hs-comment">-- ** Controlling property execution</span><span>
+</span><a name="line-257"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#verbose"><span class="hs-identifier hs-var">verbose</span></a><span>
+</span><a name="line-258"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#verboseShrinking"><span class="hs-identifier hs-var">verboseShrinking</span></a><span>
+</span><a name="line-259"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#noShrinking"><span class="hs-identifier hs-var">noShrinking</span></a><span>
+</span><a name="line-260"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#withMaxSuccess"><span class="hs-identifier hs-var">withMaxSuccess</span></a><span>
+</span><a name="line-261"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#within"><span class="hs-identifier hs-var">within</span></a><span>
+</span><a name="line-262"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#once"><span class="hs-identifier hs-var">once</span></a><span>
+</span><a name="line-263"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#again"><span class="hs-identifier hs-var">again</span></a><span>
+</span><a name="line-264"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#mapSize"><span class="hs-identifier hs-var">mapSize</span></a><span>
+</span><a name="line-265"></a><span>    </span><span class="hs-comment">-- ** Conjunction and disjunction</span><span>
+</span><a name="line-266"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><a href="Test.QuickCheck.Property.html#.%26."><span class="hs-operator hs-var">.&amp;.</span></a><span class="hs-special">)</span><span>
+</span><a name="line-267"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><a href="Test.QuickCheck.Property.html#.%26%26."><span class="hs-operator hs-var">.&amp;&amp;.</span></a><span class="hs-special">)</span><span>
+</span><a name="line-268"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#conjoin"><span class="hs-identifier hs-var">conjoin</span></a><span>
+</span><a name="line-269"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><a href="Test.QuickCheck.Property.html#.%7C%7C."><span class="hs-operator hs-var">.||.</span></a><span class="hs-special">)</span><span>
+</span><a name="line-270"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#disjoin"><span class="hs-identifier hs-var">disjoin</span></a><span>
+</span><a name="line-271"></a><span>    </span><span class="hs-comment">-- ** What to do on failure</span><span>
+</span><a name="line-272"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#counterexample"><span class="hs-identifier hs-var">counterexample</span></a><span>
+</span><a name="line-273"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#printTestCase"><span class="hs-identifier hs-var">printTestCase</span></a><span>
+</span><a name="line-274"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#whenFail"><span class="hs-identifier hs-var">whenFail</span></a><span>
+</span><a name="line-275"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#whenFail%27"><span class="hs-identifier hs-var">whenFail'</span></a><span>
+</span><a name="line-276"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#expectFailure"><span class="hs-identifier hs-var">expectFailure</span></a><span>
+</span><a name="line-277"></a><span>    </span><span class="hs-comment">-- * Analysing test case distribution</span><span>
+</span><a name="line-278"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#label"><span class="hs-identifier hs-var">label</span></a><span>
+</span><a name="line-279"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#collect"><span class="hs-identifier hs-var">collect</span></a><span>
+</span><a name="line-280"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#classify"><span class="hs-identifier hs-var">classify</span></a><span>
+</span><a name="line-281"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#tabulate"><span class="hs-identifier hs-var">tabulate</span></a><span>
+</span><a name="line-282"></a><span>    </span><span class="hs-comment">-- ** Checking test case distribution</span><span>
+</span><a name="line-283"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#cover"><span class="hs-identifier hs-var">cover</span></a><span>
+</span><a name="line-284"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#coverTable"><span class="hs-identifier hs-var">coverTable</span></a><span>
+</span><a name="line-285"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#checkCoverage"><span class="hs-identifier hs-var">checkCoverage</span></a><span>
+</span><a name="line-286"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#checkCoverageWith"><span class="hs-identifier hs-var">checkCoverageWith</span></a><span>
+</span><a name="line-287"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.State.html#Confidence"><span class="hs-identifier hs-type">Confidence</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-288"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Property.html#stdConfidence"><span class="hs-identifier hs-var">stdConfidence</span></a><span>
+</span><a name="line-289"></a><span>    </span><span class="hs-comment">-- ** Generating example test cases</span><span>
+</span><a name="line-290"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Features.html#labelledExamples"><span class="hs-identifier hs-var">labelledExamples</span></a><span>
+</span><a name="line-291"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Features.html#labelledExamplesWith"><span class="hs-identifier hs-var">labelledExamplesWith</span></a><span>
+</span><a name="line-292"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Features.html#labelledExamplesWithResult"><span class="hs-identifier hs-var">labelledExamplesWithResult</span></a><span>
+</span><a name="line-293"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Test.QuickCheck.Features.html#labelledExamplesResult"><span class="hs-identifier hs-var">labelledExamplesResult</span></a><span>
+</span><a name="line-294"></a><span>  </span><span class="hs-special">)</span><span>
+</span><a name="line-295"></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-296"></a><span>
+</span><a name="line-297"></a><span class="hs-comment">--------------------------------------------------------------------------</span><span>
+</span><a name="line-298"></a><span class="hs-comment">-- imports</span><span>
+</span><a name="line-299"></a><span>
+</span><a name="line-300"></a><span class="hs-keyword">import</span><span> </span><a href="Test.QuickCheck.Gen.html"><span class="hs-identifier">Test.QuickCheck.Gen</span></a><span>
+</span><a name="line-301"></a><span class="hs-keyword">import</span><span> </span><a href="Test.QuickCheck.Arbitrary.html"><span class="hs-identifier">Test.QuickCheck.Arbitrary</span></a><span>
+</span><a name="line-302"></a><span class="hs-keyword">import</span><span> </span><a href="Test.QuickCheck.Modifiers.html"><span class="hs-identifier">Test.QuickCheck.Modifiers</span></a><span>
+</span><a name="line-303"></a><span class="hs-keyword">import</span><span> </span><a href="Test.QuickCheck.Property.html"><span class="hs-identifier">Test.QuickCheck.Property</span></a><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span> </span><a href="Test.QuickCheck.Property.html#Result"><span class="hs-identifier hs-type">Result</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-304"></a><span class="hs-keyword">import</span><span> </span><a href="Test.QuickCheck.Test.html"><span class="hs-identifier">Test.QuickCheck.Test</span></a><span>
+</span><a name="line-305"></a><span class="hs-keyword">import</span><span> </span><a href="Test.QuickCheck.Exception.html"><span class="hs-identifier">Test.QuickCheck.Exception</span></a><span>
+</span><a name="line-306"></a><span class="hs-keyword">import</span><span> </span><a href="Test.QuickCheck.Function.html"><span class="hs-identifier">Test.QuickCheck.Function</span></a><span>
+</span><a name="line-307"></a><span class="hs-keyword">import</span><span> </span><a href="Test.QuickCheck.Features.html"><span class="hs-identifier">Test.QuickCheck.Features</span></a><span>
+</span><a name="line-308"></a><span class="hs-keyword">import</span><span> </span><a href="Test.QuickCheck.State.html"><span class="hs-identifier">Test.QuickCheck.State</span></a><span>
+</span><a name="line-309"></a><span class="hs-cpp">#ifndef NO_TEMPLATE_HASKELL
+</span><span class="hs-keyword">import</span><span> </span><a href="Test.QuickCheck.All.html"><span class="hs-identifier">Test.QuickCheck.All</span></a><span>
+</span><a name="line-311"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-313"></a><span class="hs-comment">--------------------------------------------------------------------------</span><span>
+</span><a name="line-314"></a><span class="hs-comment">-- the end.</span><span>
+</span><a name="line-315"></a></pre></body></html>

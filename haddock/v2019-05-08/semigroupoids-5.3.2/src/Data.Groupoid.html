@@ -1,0 +1,50 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE FlexibleInstances #-}</span><span>
+</span><a name="line-3"></a><span class="hs-pragma">{-# LANGUAGE GADTs #-}</span><span>
+</span><a name="line-4"></a><span class="hs-cpp">#if __GLASGOW_HASKELL__ &gt;= 706
+</span><span class="hs-pragma">{-# LANGUAGE PolyKinds #-}</span><span>
+</span><a name="line-6"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-8"></a><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><a name="line-9"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-10"></a><span class="hs-comment">-- Copyright   :  (C) 2011-2015 Edward Kmett</span><span>
+</span><a name="line-11"></a><span class="hs-comment">-- License     :  BSD-style (see the file LICENSE)</span><span>
+</span><a name="line-12"></a><span class="hs-comment">--</span><span>
+</span><a name="line-13"></a><span class="hs-comment">-- Maintainer  :  Edward Kmett &lt;ekmett@gmail.com&gt;</span><span>
+</span><a name="line-14"></a><span class="hs-comment">-- Stability   :  provisional</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- Portability :  polykinds</span><span>
+</span><a name="line-16"></a><span class="hs-comment">--</span><span>
+</span><a name="line-17"></a><span class="hs-comment">----------------------------------------------------------------------------</span><span>
+</span><a name="line-18"></a><span>
+</span><a name="line-19"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Groupoid</span><span>
+</span><a name="line-20"></a><span>  </span><span class="hs-special">(</span><span> </span><a href="Data.Groupoid.html#Groupoid"><span class="hs-identifier hs-type">Groupoid</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-21"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-22"></a><span>
+</span><a name="line-23"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Semigroupoid.html"><span class="hs-identifier">Data.Semigroupoid</span></a><span>
+</span><a name="line-24"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Semigroupoid.Dual.html"><span class="hs-identifier">Data.Semigroupoid.Dual</span></a><span>
+</span><a name="line-25"></a><span>
+</span><a name="line-26"></a><span class="hs-cpp">#if MIN_VERSION_base(4,7,0)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.Type.Coercion</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">Co</span><span>
+</span><a name="line-28"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.Type.Equality</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">Eq</span><span>
+</span><a name="line-29"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-31"></a><span class="hs-comment">-- | semigroupoid with inverses. This technically should be a category with inverses, except we need to use Ob to define the valid objects for the category</span><span>
+</span><a name="line-32"></a><span class="hs-keyword">class</span><span> </span><a href="Data.Semigroupoid.html#Semigroupoid"><span class="hs-identifier hs-type">Semigroupoid</span></a><span> </span><a href="#local-6989586621679094905"><span class="hs-identifier hs-type">k</span></a><span> </span><span class="hs-glyph">=&gt;</span><span> </span><a name="Groupoid"><a href="Data.Groupoid.html#Groupoid"><span class="hs-identifier">Groupoid</span></a></a><span> </span><a name="local-6989586621679094905"><a href="#local-6989586621679094905"><span class="hs-identifier">k</span></a></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-33"></a><span>  </span><a name="inv"><a href="Data.Groupoid.html#inv"><span class="hs-identifier">inv</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><a href="#local-6989586621679094905"><span class="hs-identifier hs-type">k</span></a><span> </span><a href="#local-6989586621679094906"><span class="hs-identifier hs-type">a</span></a><span> </span><a href="#local-6989586621679094907"><span class="hs-identifier hs-type">b</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="#local-6989586621679094905"><span class="hs-identifier hs-type">k</span></a><span> </span><a href="#local-6989586621679094907"><span class="hs-identifier hs-type">b</span></a><span> </span><a href="#local-6989586621679094906"><span class="hs-identifier hs-type">a</span></a><span>
+</span><a name="line-34"></a><span>
+</span><a name="line-35"></a><span class="hs-keyword">instance</span><span> </span><a href="Data.Groupoid.html#Groupoid"><span class="hs-identifier hs-type">Groupoid</span></a><span> </span><a href="#local-6989586621679094908"><span class="hs-identifier hs-type">k</span></a><span> </span><span class="hs-glyph">=&gt;</span><span> </span><a href="Data.Groupoid.html#Groupoid"><span class="hs-identifier hs-type">Groupoid</span></a><span> </span><span class="hs-special">(</span><a href="Data.Semigroupoid.Dual.html#Dual"><span class="hs-identifier hs-type">Dual</span></a><span> </span><a href="#local-6989586621679094908"><span class="hs-identifier hs-type">k</span></a><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-36"></a><span>  </span><a name="local-8214565720323869815"><a href="Data.Groupoid.html#inv"><span class="hs-identifier">inv</span></a></a><span> </span><span class="hs-special">(</span><a href="Data.Semigroupoid.Dual.html#Dual"><span class="hs-identifier hs-var">Dual</span></a><span> </span><a name="local-6989586621679094909"><a href="#local-6989586621679094909"><span class="hs-identifier">k</span></a></a><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><a href="Data.Semigroupoid.Dual.html#Dual"><span class="hs-identifier hs-var">Dual</span></a><span> </span><span class="hs-special">(</span><a href="Data.Groupoid.html#inv"><span class="hs-identifier hs-var">inv</span></a><span> </span><a href="#local-6989586621679094909"><span class="hs-identifier hs-var">k</span></a><span class="hs-special">)</span><span>
+</span><a name="line-37"></a><span>
+</span><a name="line-38"></a><span class="hs-cpp">#if MIN_VERSION_base(4,7,0)
+</span><span class="hs-keyword">instance</span><span> </span><a href="Data.Groupoid.html#Groupoid"><span class="hs-identifier hs-type">Groupoid</span></a><span> </span><span class="hs-identifier hs-type">Co.Coercion</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-40"></a><span>  </span><a name="local-8214565720323869815"><a href="Data.Groupoid.html#inv"><span class="hs-identifier">inv</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">Co.sym</span><span>
+</span><a name="line-41"></a><span>
+</span><a name="line-42"></a><span class="hs-keyword">instance</span><span> </span><a href="Data.Groupoid.html#Groupoid"><span class="hs-identifier hs-type">Groupoid</span></a><span> </span><span class="hs-special">(</span><span class="hs-operator hs-type">Eq.:~:</span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-43"></a><span>  </span><a name="local-8214565720323869815"><a href="Data.Groupoid.html#inv"><span class="hs-identifier">inv</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">Eq.sym</span><span>
+</span><a name="line-44"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-46"></a><span class="hs-cpp">#if MIN_VERSION_base(4,10,0)
+</span><span class="hs-keyword">instance</span><span> </span><a href="Data.Groupoid.html#Groupoid"><span class="hs-identifier hs-type">Groupoid</span></a><span> </span><span class="hs-special">(</span><span class="hs-operator hs-type">Eq.:~~:</span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-48"></a><span>  </span><a name="local-8214565720323869815"><a href="Data.Groupoid.html#inv"><span class="hs-identifier">inv</span></a></a><span> </span><span class="hs-identifier hs-var">Eq.HRefl</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">Eq.HRefl</span><span>
+</span><a name="line-49"></a><span class="hs-cpp">#endif
+</span></pre></body></html>

@@ -1,0 +1,15 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP             #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE ConstraintKinds #-}</span><span>
+</span><a name="line-3"></a><span class="hs-comment">-- a compat module for ghc &lt; 7.10 to handle the AMP change smoothly</span><span>
+</span><a name="line-4"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Basement.Compat.AMP</span><span>
+</span><a name="line-5"></a><span>    </span><span class="hs-special">(</span><span> </span><a href="Basement.Compat.AMP.html#AMPMonad"><span class="hs-identifier hs-type">AMPMonad</span></a><span>
+</span><a name="line-6"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-7"></a><span>
+</span><a name="line-8"></a><span class="hs-keyword">import</span><span> </span><a href="Basement.Compat.Base.html"><span class="hs-identifier">Basement.Compat.Base</span></a><span>
+</span><a name="line-9"></a><span>
+</span><a name="line-10"></a><span class="hs-cpp">#if MIN_VERSION_base(4,8,0)
+</span><span class="hs-keyword">type</span><span> </span><a name="AMPMonad"><a href="Basement.Compat.AMP.html#AMPMonad"><span class="hs-identifier">AMPMonad</span></a></a><span> </span><a name="local-6989586621679044655"><a href="#local-6989586621679044655"><span class="hs-identifier">m</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-type">Monad</span><span> </span><a href="#local-6989586621679044655"><span class="hs-identifier hs-type">m</span></a><span>
+</span><a name="line-12"></a><span class="hs-cpp">#else
+</span><span class="hs-keyword">type</span><span> </span><span class="hs-identifier">AMPMonad</span><span> </span><span class="hs-identifier">m</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Functor</span><span> </span><span class="hs-identifier">m</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">Applicative</span><span> </span><span class="hs-identifier">m</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">Monad</span><span> </span><span class="hs-identifier">m</span><span class="hs-special">)</span><span>
+</span><a name="line-14"></a><span class="hs-cpp">#endif
+</span></pre></body></html>

@@ -1,0 +1,78 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP, NoImplicitPrelude #-}</span><span>
+</span><a name="line-2"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Debug.Trace.Compat</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-3"></a><span>  </span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Base</span><span>
+</span><a name="line-4"></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">traceId</span><span>
+</span><a name="line-5"></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">traceShowId</span><span>
+</span><a name="line-6"></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">traceM</span><span>
+</span><a name="line-7"></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">traceShowM</span><span>
+</span><a name="line-8"></a><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-9"></a><span>
+</span><a name="line-10"></a><span class="hs-cpp">#if !(MIN_VERSION_base(4,7,0)) || MIN_VERSION_base(4,9,0)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Debug.Trace</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">Base</span><span>
+</span><a name="line-12"></a><span class="hs-cpp">#else
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Debug.Trace</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">Base</span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-14"></a><span>    </span><span class="hs-identifier">traceM</span><span>
+</span><a name="line-15"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">traceShowM</span><span>
+</span><a name="line-16"></a><span>  </span><span class="hs-special">)</span><span>
+</span><a name="line-17"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-19"></a><span class="hs-cpp">#if !(MIN_VERSION_base(4,9,0))
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Prelude.Compat</span><span>
+</span><a name="line-21"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-23"></a><span class="hs-cpp">#if !(MIN_VERSION_base(4,7,0))
+</span><span class="hs-comment">{-|
+Like 'trace' but returns the message instead of a third value.
+
+/Since: 4.7.0.0/
+-}</span><span>
+</span><a name="line-29"></a><span class="hs-identifier">traceId</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">String</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">String</span><span>
+</span><a name="line-30"></a><span class="hs-identifier">traceId</span><span> </span><span class="hs-identifier">a</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">trace</span><span> </span><span class="hs-identifier">a</span><span> </span><span class="hs-identifier">a</span><span>
+</span><a name="line-31"></a><span>
+</span><a name="line-32"></a><span class="hs-comment">{-|
+Like 'traceShow' but returns the shown value instead of a third value.
+
+/Since: 4.7.0.0/
+-}</span><span>
+</span><a name="line-37"></a><span class="hs-identifier">traceShowId</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Show</span><span> </span><span class="hs-identifier">a</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-identifier">a</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">a</span><span>
+</span><a name="line-38"></a><span class="hs-identifier">traceShowId</span><span> </span><span class="hs-identifier">a</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">trace</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">show</span><span> </span><span class="hs-identifier">a</span><span class="hs-special">)</span><span> </span><span class="hs-identifier">a</span><span>
+</span><a name="line-39"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-41"></a><span class="hs-cpp">#if !(MIN_VERSION_base(4,9,0))
+</span><span class="hs-comment">{-|
+Like 'trace' but returning unit in an arbitrary 'Applicative' context. Allows
+for convenient use in do-notation.
+
+Note that the application of 'traceM' is not an action in the 'Applicative'
+context, as 'traceIO' is in the 'IO' type. While the fresh bindings in the
+following example will force the 'traceM' expressions to be reduced every time
+the @do@-block is executed, @traceM &quot;not crashed&quot;@ would only be reduced once,
+and the message would only be printed once.  If your monad is in 'MonadIO',
+@liftIO . traceIO@ may be a better option.
+
+&gt; ... = do
+&gt;   x &lt;- ...
+&gt;   traceM $ &quot;x: &quot; ++ show x
+&gt;   y &lt;- ...
+&gt;   traceM $ &quot;y: &quot; ++ show y
+
+/Since: 4.7.0.0/
+-}</span><span>
+</span><a name="line-61"></a><span class="hs-identifier">traceM</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Applicative</span><span> </span><span class="hs-identifier">f</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-identifier">String</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">f</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><a name="line-62"></a><span class="hs-identifier">traceM</span><span> </span><span class="hs-identifier">string</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">trace</span><span> </span><span class="hs-identifier">string</span><span> </span><span class="hs-operator">$</span><span> </span><span class="hs-identifier">pure</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><a name="line-63"></a><span>
+</span><a name="line-64"></a><span class="hs-comment">{-|
+Like 'traceM', but uses 'show' on the argument to convert it to a 'String'.
+
+&gt; ... = do
+&gt;   x &lt;- ...
+&gt;   traceShowM $ x
+&gt;   y &lt;- ...
+&gt;   traceShowM $ x + y
+
+/Since: 4.7.0.0/
+-}</span><span>
+</span><a name="line-75"></a><span class="hs-identifier">traceShowM</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Show</span><span> </span><span class="hs-identifier">a</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">Applicative</span><span> </span><span class="hs-identifier">f</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-identifier">a</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">f</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><a name="line-76"></a><span class="hs-identifier">traceShowM</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">traceM</span><span> </span><span class="hs-operator">.</span><span> </span><span class="hs-identifier">show</span><span>
+</span><a name="line-77"></a><span class="hs-cpp">#endif
+</span></pre></body></html>

@@ -1,0 +1,38 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE TupleSections, CPP #-}</span><span>
+</span><a name="line-2"></a><span>
+</span><a name="line-3"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Network.HPACK.Table</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-4"></a><span>  </span><span class="hs-comment">-- * dynamic table</span><span>
+</span><a name="line-5"></a><span>    </span><a href="Network.HPACK.Table.Dynamic.html#DynamicTable"><span class="hs-identifier hs-type">DynamicTable</span></a><span>
+</span><a name="line-6"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Dynamic.html#newDynamicTableForEncoding"><span class="hs-identifier hs-var">newDynamicTableForEncoding</span></a><span>
+</span><a name="line-7"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Dynamic.html#newDynamicTableForDecoding"><span class="hs-identifier hs-var">newDynamicTableForDecoding</span></a><span>
+</span><a name="line-8"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Dynamic.html#clearDynamicTable"><span class="hs-identifier hs-var">clearDynamicTable</span></a><span>
+</span><a name="line-9"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Dynamic.html#withDynamicTableForEncoding"><span class="hs-identifier hs-var">withDynamicTableForEncoding</span></a><span>
+</span><a name="line-10"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Dynamic.html#withDynamicTableForDecoding"><span class="hs-identifier hs-var">withDynamicTableForDecoding</span></a><span>
+</span><a name="line-11"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Dynamic.html#huffmanDecoder"><span class="hs-identifier hs-var">huffmanDecoder</span></a><span>
+</span><a name="line-12"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Dynamic.html#renewDynamicTable"><span class="hs-identifier hs-var">renewDynamicTable</span></a><span>
+</span><a name="line-13"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Dynamic.html#printDynamicTable"><span class="hs-identifier hs-var">printDynamicTable</span></a><span>
+</span><a name="line-14"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Dynamic.html#isDynamicTableEmpty"><span class="hs-identifier hs-var">isDynamicTableEmpty</span></a><span>
+</span><a name="line-15"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Dynamic.html#isSuitableSize"><span class="hs-identifier hs-var">isSuitableSize</span></a><span>
+</span><a name="line-16"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Dynamic.html#TableSizeAction"><span class="hs-identifier hs-type">TableSizeAction</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-17"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Dynamic.html#needChangeTableSize"><span class="hs-identifier hs-var">needChangeTableSize</span></a><span>
+</span><a name="line-18"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Dynamic.html#setLimitForEncoding"><span class="hs-identifier hs-var">setLimitForEncoding</span></a><span>
+</span><a name="line-19"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Dynamic.html#resetLimitForEncoding"><span class="hs-identifier hs-var">resetLimitForEncoding</span></a><span>
+</span><a name="line-20"></a><span>  </span><span class="hs-comment">-- * Insertion</span><span>
+</span><a name="line-21"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Dynamic.html#insertEntry"><span class="hs-identifier hs-var">insertEntry</span></a><span>
+</span><a name="line-22"></a><span>  </span><span class="hs-comment">-- * Entry</span><span>
+</span><a name="line-23"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><a href="Network.HPACK.Table.Entry.html"><span class="hs-identifier">Network.HPACK.Table.Entry</span></a><span>
+</span><a name="line-24"></a><span>  </span><span class="hs-comment">-- * Reverse index</span><span>
+</span><a name="line-25"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Dynamic.html#getRevIndex"><span class="hs-identifier hs-var">getRevIndex</span></a><span>
+</span><a name="line-26"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><a href="Network.HPACK.Table.RevIndex.html"><span class="hs-identifier">Network.HPACK.Table.RevIndex</span></a><span>
+</span><a name="line-27"></a><span>  </span><span class="hs-comment">-- * Index to entry</span><span>
+</span><a name="line-28"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Dynamic.html#toIndexedEntry"><span class="hs-identifier hs-var">toIndexedEntry</span></a><span>
+</span><a name="line-29"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.HPACK.Table.Dynamic.html#fromHIndexToIndex"><span class="hs-identifier hs-var">fromHIndexToIndex</span></a><span>
+</span><a name="line-30"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-31"></a><span>
+</span><a name="line-32"></a><span class="hs-cpp">#if __GLASGOW_HASKELL__ &lt; 709
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Applicative</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-operator">&lt;$&gt;</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-34"></a><span class="hs-cpp">#endif
+</span><span class="hs-keyword">import</span><span> </span><a href="Network.HPACK.Table.Dynamic.html"><span class="hs-identifier">Network.HPACK.Table.Dynamic</span></a><span>
+</span><a name="line-36"></a><span class="hs-keyword">import</span><span> </span><a href="Network.HPACK.Table.Entry.html"><span class="hs-identifier">Network.HPACK.Table.Entry</span></a><span>
+</span><a name="line-37"></a><span class="hs-keyword">import</span><span> </span><a href="Network.HPACK.Table.RevIndex.html"><span class="hs-identifier">Network.HPACK.Table.RevIndex</span></a><span>
+</span><a name="line-38"></a></pre></body></html>

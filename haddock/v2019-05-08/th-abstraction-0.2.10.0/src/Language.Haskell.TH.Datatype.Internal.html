@@ -1,0 +1,29 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><a name="line-2"></a><span>
+</span><a name="line-3"></a><span class="hs-comment">{-|
+Module      : Language.Haskell.TH.Datatype.Internal
+Description : Backwards-compatible interface to reified information about datatypes.
+Copyright   : Eric Mertens 2017
+License     : ISC
+Maintainer  : emertens@gmail.com
+
+Internal Template Haskell 'Name's.
+
+-}</span><span>
+</span><a name="line-13"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Language.Haskell.TH.Datatype.Internal</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-14"></a><span>
+</span><a name="line-15"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Language.Haskell.TH.Syntax</span><span>
+</span><a name="line-16"></a><span>
+</span><a name="line-17"></a><span class="hs-identifier">eqTypeName</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Name</span><span>
+</span><a name="line-18"></a><span class="hs-cpp">#if MIN_VERSION_base(4,9,0) &amp;&amp; __GLASGOW_HASKELL__ &lt; 807
+</span><span>  </span><span class="hs-comment">-- TODO: Replace __GLASGOW_HASKELL__ &lt; 807 with</span><span>
+</span><a name="line-20"></a><span>  </span><span class="hs-comment">-- !(MIN_VERSION_base(4,13,0)) once base-4.13 exists</span><span>
+</span><a name="line-21"></a><a name="eqTypeName"><a href="Language.Haskell.TH.Datatype.Internal.html#eqTypeName"><span class="hs-identifier">eqTypeName</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">mkNameG_tc</span><span> </span><span class="hs-string">&quot;base&quot;</span><span> </span><span class="hs-string">&quot;Data.Type.Equality&quot;</span><span> </span><span class="hs-string">&quot;~&quot;</span><span>
+</span><a name="line-22"></a><span class="hs-cpp">#else
+</span><span class="hs-identifier">eqTypeName</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">mkNameG_tc</span><span> </span><span class="hs-string">&quot;ghc-prim&quot;</span><span> </span><span class="hs-string">&quot;GHC.Types&quot;</span><span> </span><span class="hs-string">&quot;~&quot;</span><span>
+</span><a name="line-24"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-26"></a><span class="hs-comment">-- This is only needed for GHC 7.6-specific bug</span><span>
+</span><a name="line-27"></a><span class="hs-identifier">starKindName</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Name</span><span>
+</span><a name="line-28"></a><a name="starKindName"><a href="Language.Haskell.TH.Datatype.Internal.html#starKindName"><span class="hs-identifier">starKindName</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">mkNameG_tc</span><span> </span><span class="hs-string">&quot;ghc-prim&quot;</span><span> </span><span class="hs-string">&quot;GHC.Prim&quot;</span><span> </span><span class="hs-string">&quot;*&quot;</span><span>
+</span><a name="line-29"></a></pre></body></html>

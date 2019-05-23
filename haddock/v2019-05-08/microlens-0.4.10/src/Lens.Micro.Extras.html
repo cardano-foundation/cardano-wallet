@@ -1,0 +1,59 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE Trustworthy #-}</span><span>
+</span><a name="line-2"></a><span>
+</span><a name="line-3"></a><span>
+</span><a name="line-4"></a><span class="hs-comment">{- |
+Module      :  Lens.Micro.Extras
+Copyright   :  (C) 2013-2016 Edward Kmett, 2015-2016 Artyom Kazak, 2018 Monadfix
+License     :  BSD-style (see the file LICENSE)
+-}</span><span>
+</span><a name="line-9"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Lens.Micro.Extras</span><span>
+</span><a name="line-10"></a><span class="hs-special">(</span><span>
+</span><a name="line-11"></a><span>  </span><a href="Lens.Micro.Extras.html#view"><span class="hs-identifier hs-var">view</span></a><span class="hs-special">,</span><span>
+</span><a name="line-12"></a><span>  </span><a href="Lens.Micro.Extras.html#preview"><span class="hs-identifier hs-var">preview</span></a><span class="hs-special">,</span><span>
+</span><a name="line-13"></a><span class="hs-special">)</span><span>
+</span><a name="line-14"></a><span class="hs-keyword">where</span><span>
+</span><a name="line-15"></a><span>
+</span><a name="line-16"></a><span>
+</span><a name="line-17"></a><span class="hs-keyword">import</span><span> </span><a href="Lens.Micro.html"><span class="hs-identifier">Lens.Micro</span></a><span>
+</span><a name="line-18"></a><span class="hs-keyword">import</span><span> </span><a href="Lens.Micro.Internal.html"><span class="hs-identifier">Lens.Micro.Internal</span></a><span>
+</span><a name="line-19"></a><span>
+</span><a name="line-20"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Applicative</span><span>
+</span><a name="line-21"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Monoid</span><span>
+</span><a name="line-22"></a><span>
+</span><a name="line-23"></a><span>
+</span><a name="line-24"></a><span class="hs-comment">{- |
+'view' is a synonym for ('^.'):
+
+&gt;&gt;&gt; view _1 (1, 2)
+1
+
+The reason it's not in &quot;Lens.Micro&quot; is that @view@ in lens has a more general signature:
+
+@
+view :: MonadReader s m =&gt; Getting a s a -&gt; m a
+@
+
+So, you would be able to use this 'view' with functions, but not in various reader monads. For most people this shouldn't be an issue; if it is for you, use @view@ from &lt;http://hackage.haskell.org/package/microlens-mtl microlens-mtl&gt;.
+-}</span><span>
+</span><a name="line-38"></a><span class="hs-identifier">view</span><span> </span><span class="hs-glyph">::</span><span> </span><a href="Lens.Micro.Type.html#Getting"><span class="hs-identifier hs-type">Getting</span></a><span> </span><a href="#local-6989586621679043714"><span class="hs-identifier hs-type">a</span></a><span> </span><a href="#local-6989586621679043715"><span class="hs-identifier hs-type">s</span></a><span> </span><a href="#local-6989586621679043714"><span class="hs-identifier hs-type">a</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="#local-6989586621679043715"><span class="hs-identifier hs-type">s</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="#local-6989586621679043714"><span class="hs-identifier hs-type">a</span></a><span>
+</span><a name="line-39"></a><a name="view"><a href="Lens.Micro.Extras.html#view"><span class="hs-identifier">view</span></a></a><span> </span><a name="local-6989586621679043716"><a href="#local-6989586621679043716"><span class="hs-identifier">l</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">getConst</span><span> </span><a href="Lens.Micro.Internal.html#%23."><span class="hs-operator hs-var">#.</span></a><span> </span><a href="#local-6989586621679043716"><span class="hs-identifier hs-var">l</span></a><span> </span><span class="hs-identifier hs-var">Const</span><span>
+</span><a name="line-40"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">view</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-41"></a><span>
+</span><a name="line-42"></a><span class="hs-comment">{- |
+'preview' is a synonym for ('^?'):
+
+&gt;&gt;&gt; preview _head [1,2,3]
+Just 1
+
+The reason it's not in &quot;Lens.Micro&quot; is that @preview@ in lens has a more general signature:
+
+@
+preview :: MonadReader s m =&gt; Getting (First a) s a -&gt; m (Maybe a)
+@
+
+Just like with 'view', you would be able to use this 'preview' with functions, but not in reader monads; if this is an issue for you, use @preview@ from &lt;http://hackage.haskell.org/package/microlens-mtl microlens-mtl&gt;.
+-}</span><span>
+</span><a name="line-56"></a><span class="hs-identifier">preview</span><span> </span><span class="hs-glyph">::</span><span> </span><a href="Lens.Micro.Type.html#Getting"><span class="hs-identifier hs-type">Getting</span></a><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">First</span><span> </span><a href="#local-6989586621679043712"><span class="hs-identifier hs-type">a</span></a><span class="hs-special">)</span><span> </span><a href="#local-6989586621679043713"><span class="hs-identifier hs-type">s</span></a><span> </span><a href="#local-6989586621679043712"><span class="hs-identifier hs-type">a</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="#local-6989586621679043713"><span class="hs-identifier hs-type">s</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Maybe</span><span> </span><a href="#local-6989586621679043712"><span class="hs-identifier hs-type">a</span></a><span>
+</span><a name="line-57"></a><a name="preview"><a href="Lens.Micro.Extras.html#preview"><span class="hs-identifier">preview</span></a></a><span> </span><a name="local-6989586621679043717"><a href="#local-6989586621679043717"><span class="hs-identifier">l</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">getFirst</span><span> </span><a href="Lens.Micro.Internal.html#%23."><span class="hs-operator hs-var">#.</span></a><span> </span><a href="Lens.Micro.Internal.html#foldMapOf"><span class="hs-identifier hs-var">foldMapOf</span></a><span> </span><a href="#local-6989586621679043717"><span class="hs-identifier hs-var">l</span></a><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">First</span><span> </span><a href="Lens.Micro.Internal.html#%23."><span class="hs-operator hs-var">#.</span></a><span> </span><span class="hs-identifier hs-var">Just</span><span class="hs-special">)</span><span>
+</span><a name="line-58"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">preview</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-59"></a></pre></body></html>

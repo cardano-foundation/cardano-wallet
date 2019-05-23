@@ -1,0 +1,38 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><a name="line-2"></a><span class="hs-comment">-- | The standard @openFile@ call on Windows causing problematic file locking</span><span>
+</span><a name="line-3"></a><span class="hs-comment">-- in some cases. This module provides a cross-platform file reading API</span><span>
+</span><a name="line-4"></a><span class="hs-comment">-- without the file locking problems on Windows.</span><span>
+</span><a name="line-5"></a><span class="hs-comment">--</span><span>
+</span><a name="line-6"></a><span class="hs-comment">-- This module /always/ opens files in binary mode.</span><span>
+</span><a name="line-7"></a><span class="hs-comment">--</span><span>
+</span><a name="line-8"></a><span class="hs-comment">-- @readChunk@ will return an empty @ByteString@ on EOF.</span><span>
+</span><a name="line-9"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Streaming.FileRead</span><span>
+</span><a name="line-10"></a><span>    </span><span class="hs-special">(</span><span> </span><a href="Data.Streaming.FileRead.html#ReadHandle"><span class="hs-identifier hs-type">ReadHandle</span></a><span>
+</span><a name="line-11"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Streaming.FileRead.html#openFile"><span class="hs-identifier hs-var">openFile</span></a><span>
+</span><a name="line-12"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Streaming.FileRead.html#closeFile"><span class="hs-identifier hs-var">closeFile</span></a><span>
+</span><a name="line-13"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.Streaming.FileRead.html#readChunk"><span class="hs-identifier hs-var">readChunk</span></a><span>
+</span><a name="line-14"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-15"></a><span>
+</span><a name="line-16"></a><span class="hs-cpp">#if WINDOWS
+</span><span>
+</span><a name="line-18"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">System.Win32File</span><span>
+</span><a name="line-19"></a><span>
+</span><a name="line-20"></a><span class="hs-cpp">#else
+</span><span>
+</span><a name="line-22"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">System.IO</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">IO</span><span>
+</span><a name="line-23"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.ByteString</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">S</span><span>
+</span><a name="line-24"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.ByteString.Lazy.Internal</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">defaultChunkSize</span><span class="hs-special">)</span><span>
+</span><a name="line-25"></a><span>
+</span><a name="line-26"></a><span class="hs-keyword">newtype</span><span> </span><a name="ReadHandle"><a href="Data.Streaming.FileRead.html#ReadHandle"><span class="hs-identifier">ReadHandle</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a name="ReadHandle"><a href="Data.Streaming.FileRead.html#ReadHandle"><span class="hs-identifier">ReadHandle</span></a></a><span> </span><span class="hs-identifier hs-type">IO.Handle</span><span>
+</span><a name="line-27"></a><span>
+</span><a name="line-28"></a><span class="hs-identifier">openFile</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">FilePath</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">IO</span><span> </span><a href="Data.Streaming.FileRead.html#ReadHandle"><span class="hs-identifier hs-type">ReadHandle</span></a><span>
+</span><a name="line-29"></a><a name="openFile"><a href="Data.Streaming.FileRead.html#openFile"><span class="hs-identifier">openFile</span></a></a><span> </span><a name="local-6989586621679034828"><a href="#local-6989586621679034828"><span class="hs-identifier">fp</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Data.Streaming.FileRead.html#ReadHandle"><span class="hs-identifier hs-var">ReadHandle</span></a><span> </span><span class="hs-special">`</span><span class="hs-identifier hs-var">fmap</span><span class="hs-special">`</span><span> </span><span class="hs-identifier hs-var">IO.openBinaryFile</span><span> </span><a href="#local-6989586621679034828"><span class="hs-identifier hs-var">fp</span></a><span> </span><span class="hs-identifier hs-var">IO.ReadMode</span><span>
+</span><a name="line-30"></a><span>
+</span><a name="line-31"></a><span class="hs-identifier">closeFile</span><span> </span><span class="hs-glyph">::</span><span> </span><a href="Data.Streaming.FileRead.html#ReadHandle"><span class="hs-identifier hs-type">ReadHandle</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">IO</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><a name="line-32"></a><a name="closeFile"><a href="Data.Streaming.FileRead.html#closeFile"><span class="hs-identifier">closeFile</span></a></a><span> </span><span class="hs-special">(</span><a href="Data.Streaming.FileRead.html#ReadHandle"><span class="hs-identifier hs-var">ReadHandle</span></a><span> </span><a name="local-6989586621679035120"><a href="#local-6989586621679035120"><span class="hs-identifier">h</span></a></a><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">IO.hClose</span><span> </span><a href="#local-6989586621679035120"><span class="hs-identifier hs-var">h</span></a><span>
+</span><a name="line-33"></a><span>
+</span><a name="line-34"></a><span class="hs-identifier">readChunk</span><span> </span><span class="hs-glyph">::</span><span> </span><a href="Data.Streaming.FileRead.html#ReadHandle"><span class="hs-identifier hs-type">ReadHandle</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">IO</span><span> </span><span class="hs-identifier hs-type">S.ByteString</span><span>
+</span><a name="line-35"></a><a name="readChunk"><a href="Data.Streaming.FileRead.html#readChunk"><span class="hs-identifier">readChunk</span></a></a><span> </span><span class="hs-special">(</span><a href="Data.Streaming.FileRead.html#ReadHandle"><span class="hs-identifier hs-var">ReadHandle</span></a><span> </span><a name="local-6989586621679035420"><a href="#local-6989586621679035420"><span class="hs-identifier">h</span></a></a><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">S.hGetSome</span><span> </span><a href="#local-6989586621679035420"><span class="hs-identifier hs-var">h</span></a><span> </span><span class="hs-identifier hs-var">defaultChunkSize</span><span>
+</span><a name="line-36"></a><span>
+</span><a name="line-37"></a><span class="hs-cpp">#endif
+</span></pre></body></html>

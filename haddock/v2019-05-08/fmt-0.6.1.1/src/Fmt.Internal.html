@@ -1,0 +1,105 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE OverloadedStrings #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE UndecidableInstances #-}</span><span>
+</span><a name="line-3"></a><span class="hs-pragma">{-# LANGUAGE FlexibleInstances #-}</span><span>
+</span><a name="line-4"></a><span>
+</span><a name="line-5"></a><span>
+</span><a name="line-6"></a><span class="hs-comment">{- | A module providing access to internals (in case you really need them).
+Can change at any time, though probably won't.
+-}</span><span>
+</span><a name="line-9"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Fmt.Internal</span><span>
+</span><a name="line-10"></a><span class="hs-special">(</span><span>
+</span><a name="line-11"></a><span>  </span><span class="hs-comment">-- * Classes</span><span>
+</span><a name="line-12"></a><span>  </span><a href="Fmt.Internal.html#FormatAsHex"><span class="hs-identifier hs-type">FormatAsHex</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><a name="line-13"></a><span>  </span><a href="Fmt.Internal.html#FormatAsBase64"><span class="hs-identifier hs-type">FormatAsBase64</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><a name="line-14"></a><span>
+</span><a name="line-15"></a><span>  </span><span class="hs-comment">-- * Reexports</span><span>
+</span><a name="line-16"></a><span>  </span><span class="hs-keyword">module</span><span> </span><a href="Fmt.Internal.Core.html"><span class="hs-identifier">Fmt.Internal.Core</span></a><span class="hs-special">,</span><span>
+</span><a name="line-17"></a><span>  </span><span class="hs-keyword">module</span><span> </span><a href="Fmt.Internal.Formatters.html"><span class="hs-identifier">Fmt.Internal.Formatters</span></a><span class="hs-special">,</span><span>
+</span><a name="line-18"></a><span>  </span><span class="hs-keyword">module</span><span> </span><a href="Fmt.Internal.Template.html"><span class="hs-identifier">Fmt.Internal.Template</span></a><span class="hs-special">,</span><span>
+</span><a name="line-19"></a><span>  </span><span class="hs-keyword">module</span><span> </span><a href="Fmt.Internal.Tuple.html"><span class="hs-identifier">Fmt.Internal.Tuple</span></a><span class="hs-special">,</span><span>
+</span><a name="line-20"></a><span>  </span><span class="hs-keyword">module</span><span> </span><a href="Fmt.Internal.Numeric.html"><span class="hs-identifier">Fmt.Internal.Numeric</span></a><span class="hs-special">,</span><span>
+</span><a name="line-21"></a><span>  </span><span class="hs-keyword">module</span><span> </span><a href="Fmt.Internal.Generic.html"><span class="hs-identifier">Fmt.Internal.Generic</span></a><span class="hs-special">,</span><span>
+</span><a name="line-22"></a><span class="hs-special">)</span><span>
+</span><a name="line-23"></a><span class="hs-keyword">where</span><span>
+</span><a name="line-24"></a><span>
+</span><a name="line-25"></a><span>
+</span><a name="line-26"></a><span class="hs-comment">-- Text</span><span>
+</span><a name="line-27"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.Text.Encoding</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">T</span><span>
+</span><a name="line-28"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.Text.Lazy.Encoding</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">TL</span><span>
+</span><a name="line-29"></a><span class="hs-comment">-- 'Buildable' and raw 'Builder' formatters</span><span>
+</span><a name="line-30"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Formatting.Internal.Raw</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">F</span><span>
+</span><a name="line-31"></a><span class="hs-comment">-- Text 'Builder'</span><span>
+</span><a name="line-32"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Data.Text.Lazy.Builder</span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">fromString</span><span class="hs-special">)</span><span>
+</span><a name="line-33"></a><span class="hs-comment">-- Bytestring</span><span>
+</span><a name="line-34"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.ByteString</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">BS</span><span>
+</span><a name="line-35"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.ByteString.Lazy</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">BSL</span><span>
+</span><a name="line-36"></a><span class="hs-comment">-- Formatting bytestrings</span><span>
+</span><a name="line-37"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.ByteString.Builder</span><span>         </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">BB</span><span>
+</span><a name="line-38"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.ByteString.Base64</span><span>          </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">B64</span><span>
+</span><a name="line-39"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.ByteString.Base64.Lazy</span><span>     </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">B64L</span><span>
+</span><a name="line-40"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.ByteString.Base64.URL</span><span>      </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">B64U</span><span>
+</span><a name="line-41"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.ByteString.Base64.URL.Lazy</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">B64UL</span><span>
+</span><a name="line-42"></a><span>
+</span><a name="line-43"></a><span class="hs-keyword">import</span><span> </span><a href="Fmt.Internal.Core.html"><span class="hs-identifier">Fmt.Internal.Core</span></a><span>
+</span><a name="line-44"></a><span class="hs-keyword">import</span><span> </span><a href="Fmt.Internal.Formatters.html"><span class="hs-identifier">Fmt.Internal.Formatters</span></a><span>
+</span><a name="line-45"></a><span class="hs-keyword">import</span><span> </span><a href="Fmt.Internal.Template.html"><span class="hs-identifier">Fmt.Internal.Template</span></a><span>
+</span><a name="line-46"></a><span class="hs-keyword">import</span><span> </span><a href="Fmt.Internal.Tuple.html"><span class="hs-identifier">Fmt.Internal.Tuple</span></a><span>
+</span><a name="line-47"></a><span class="hs-keyword">import</span><span> </span><a href="Fmt.Internal.Numeric.html"><span class="hs-identifier">Fmt.Internal.Numeric</span></a><span>
+</span><a name="line-48"></a><span class="hs-keyword">import</span><span> </span><a href="Fmt.Internal.Generic.html"><span class="hs-identifier">Fmt.Internal.Generic</span></a><span>
+</span><a name="line-49"></a><span>
+</span><a name="line-50"></a><span class="hs-comment">-- $setup</span><span>
+</span><a name="line-51"></a><span class="hs-comment">-- &gt;&gt;&gt; import Fmt</span><span>
+</span><a name="line-52"></a><span>
+</span><a name="line-53"></a><span class="hs-comment">----------------------------------------------------------------------------</span><span>
+</span><a name="line-54"></a><span class="hs-comment">-- Hex</span><span>
+</span><a name="line-55"></a><span class="hs-comment">----------------------------------------------------------------------------</span><span>
+</span><a name="line-56"></a><span>
+</span><a name="line-57"></a><span class="hs-keyword">class</span><span> </span><a name="FormatAsHex"><a href="Fmt.Internal.html#FormatAsHex"><span class="hs-identifier">FormatAsHex</span></a></a><span> </span><a name="local-6989586621679061490"><a href="#local-6989586621679061490"><span class="hs-identifier">a</span></a></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-58"></a><span>  </span><span class="hs-comment">{- |
+Format a number or bytestring as hex:
+
+&gt;&gt;&gt; hexF 3635
+&quot;e33&quot;
+&gt;&gt;&gt; hexF (&quot;\0\50\63\80&quot; :: BS.ByteString)
+&quot;00323f50&quot;
+  -}</span><span>
+</span><a name="line-66"></a><span>  </span><a name="hexF"><a href="Fmt.Internal.html#hexF"><span class="hs-identifier">hexF</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><a href="#local-6989586621679061490"><span class="hs-identifier hs-type">a</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Builder</span><span>
+</span><a name="line-67"></a><span>
+</span><a name="line-68"></a><span class="hs-keyword">instance</span><span> </span><a href="Fmt.Internal.html#FormatAsHex"><span class="hs-identifier hs-type">FormatAsHex</span></a><span> </span><span class="hs-identifier hs-type">BS.ByteString</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-69"></a><span>  </span><a name="local-8214565720323836399"><a href="Fmt.Internal.html#hexF"><span class="hs-identifier">hexF</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">fromLazyText</span><span> </span><span class="hs-operator hs-var">.</span><span> </span><span class="hs-identifier hs-var">TL.decodeLatin1</span><span> </span><span class="hs-operator hs-var">.</span><span> </span><span class="hs-identifier hs-var">BB.toLazyByteString</span><span> </span><span class="hs-operator hs-var">.</span><span> </span><span class="hs-identifier hs-var">BB.byteStringHex</span><span>
+</span><a name="line-70"></a><span>
+</span><a name="line-71"></a><span class="hs-keyword">instance</span><span> </span><a href="Fmt.Internal.html#FormatAsHex"><span class="hs-identifier hs-type">FormatAsHex</span></a><span> </span><span class="hs-identifier hs-type">BSL.ByteString</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-72"></a><span>  </span><a name="local-8214565720323836399"><a href="Fmt.Internal.html#hexF"><span class="hs-identifier">hexF</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">fromLazyText</span><span> </span><span class="hs-operator hs-var">.</span><span> </span><span class="hs-identifier hs-var">TL.decodeLatin1</span><span> </span><span class="hs-operator hs-var">.</span><span> </span><span class="hs-identifier hs-var">BB.toLazyByteString</span><span> </span><span class="hs-operator hs-var">.</span><span> </span><span class="hs-identifier hs-var">BB.lazyByteStringHex</span><span>
+</span><a name="line-73"></a><span>
+</span><a name="line-74"></a><span class="hs-keyword">instance</span><span> </span><span class="hs-pragma">{-# OVERLAPPABLE</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="hs-identifier hs-type">Integral</span><span> </span><a href="#local-6989586621679061491"><span class="hs-identifier hs-type">a</span></a><span> </span><span class="hs-glyph">=&gt;</span><span> </span><a href="Fmt.Internal.html#FormatAsHex"><span class="hs-identifier hs-type">FormatAsHex</span></a><span> </span><a href="#local-6989586621679061491"><span class="hs-identifier hs-type">a</span></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-75"></a><span>  </span><a name="local-8214565720323836399"><a href="Fmt.Internal.html#hexF"><span class="hs-identifier">hexF</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">F.hex</span><span>
+</span><a name="line-76"></a><span>
+</span><a name="line-77"></a><span class="hs-comment">----------------------------------------------------------------------------</span><span>
+</span><a name="line-78"></a><span class="hs-comment">-- Base64</span><span>
+</span><a name="line-79"></a><span class="hs-comment">----------------------------------------------------------------------------</span><span>
+</span><a name="line-80"></a><span>
+</span><a name="line-81"></a><span class="hs-keyword">class</span><span> </span><a name="FormatAsBase64"><a href="Fmt.Internal.html#FormatAsBase64"><span class="hs-identifier">FormatAsBase64</span></a></a><span> </span><a name="local-6989586621679061489"><a href="#local-6989586621679061489"><span class="hs-identifier">a</span></a></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-82"></a><span>  </span><span class="hs-comment">{- |
+Convert a bytestring to base64:
+
+&gt;&gt;&gt; base64F (&quot;\0\50\63\80&quot; :: BS.ByteString)
+&quot;ADI/UA==&quot;
+  -}</span><span>
+</span><a name="line-88"></a><span>  </span><a name="base64F"><a href="Fmt.Internal.html#base64F"><span class="hs-identifier">base64F</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><a href="#local-6989586621679061489"><span class="hs-identifier hs-type">a</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Builder</span><span>
+</span><a name="line-89"></a><span>  </span><span class="hs-comment">{- |
+Convert a bytestring to base64url (a variant of base64 which omits @\/@ and
+thus can be used in URLs):
+
+&gt;&gt;&gt; base64UrlF (&quot;\0\50\63\80&quot; :: BS.ByteString)
+&quot;ADI_UA==&quot;
+  -}</span><span>
+</span><a name="line-96"></a><span>  </span><a name="base64UrlF"><a href="Fmt.Internal.html#base64UrlF"><span class="hs-identifier">base64UrlF</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><a href="#local-6989586621679061489"><span class="hs-identifier hs-type">a</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Builder</span><span>
+</span><a name="line-97"></a><span>
+</span><a name="line-98"></a><span class="hs-keyword">instance</span><span> </span><a href="Fmt.Internal.html#FormatAsBase64"><span class="hs-identifier hs-type">FormatAsBase64</span></a><span> </span><span class="hs-identifier hs-type">BS.ByteString</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-99"></a><span>  </span><a name="local-8214565720323836396"><a href="Fmt.Internal.html#base64F"><span class="hs-identifier">base64F</span></a></a><span>    </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">fromText</span><span> </span><span class="hs-operator hs-var">.</span><span> </span><span class="hs-identifier hs-var">T.decodeLatin1</span><span> </span><span class="hs-operator hs-var">.</span><span> </span><span class="hs-identifier hs-var">B64.encode</span><span>
+</span><a name="line-100"></a><span>  </span><a name="local-8214565720323836397"><a href="Fmt.Internal.html#base64UrlF"><span class="hs-identifier">base64UrlF</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">fromText</span><span> </span><span class="hs-operator hs-var">.</span><span> </span><span class="hs-identifier hs-var">T.decodeLatin1</span><span> </span><span class="hs-operator hs-var">.</span><span> </span><span class="hs-identifier hs-var">B64U.encode</span><span>
+</span><a name="line-101"></a><span>
+</span><a name="line-102"></a><span class="hs-keyword">instance</span><span> </span><a href="Fmt.Internal.html#FormatAsBase64"><span class="hs-identifier hs-type">FormatAsBase64</span></a><span> </span><span class="hs-identifier hs-type">BSL.ByteString</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-103"></a><span>  </span><a name="local-8214565720323836396"><a href="Fmt.Internal.html#base64F"><span class="hs-identifier">base64F</span></a></a><span>    </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">fromLazyText</span><span> </span><span class="hs-operator hs-var">.</span><span> </span><span class="hs-identifier hs-var">TL.decodeLatin1</span><span> </span><span class="hs-operator hs-var">.</span><span> </span><span class="hs-identifier hs-var">B64L.encode</span><span>
+</span><a name="line-104"></a><span>  </span><a name="local-8214565720323836397"><a href="Fmt.Internal.html#base64UrlF"><span class="hs-identifier">base64UrlF</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">fromLazyText</span><span> </span><span class="hs-operator hs-var">.</span><span> </span><span class="hs-identifier hs-var">TL.decodeLatin1</span><span> </span><span class="hs-operator hs-var">.</span><span> </span><span class="hs-identifier hs-var">B64UL.encode</span><span>
+</span><a name="line-105"></a></pre></body></html>

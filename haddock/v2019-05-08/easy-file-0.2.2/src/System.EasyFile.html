@@ -1,0 +1,91 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">{-|
+This is a module of cross-platform file handling for Unix\/Mac\/Windows.
+
+The standard module &quot;System.Directory&quot; and &quot;System.FilePath&quot; have
+following shortcomings:
+
+* getModificationTime exists in &quot;System.Directory&quot;. But getAccessTime,
+  getChangeTime, getCreationTime do not exist.
+
+* getModificationTime returns obsoleted type, 'ClockTime'. It should
+  return modern type, 'UTCTime', I believe.
+
+* Some file functions are missing. A function to tell the link counter,
+  for instance.
+
+* Path separator is not unified. Even though Windows accepts \'\/\' as a
+  file separator, getCurrentDirectory in &quot;System.Directory&quot; returns \'\\\'
+  as a file separator. So, we need to specify regular expression like
+  this: \&quot;[\/\\\\]foo[\/\\\\]bar[\/\\\\]baz\&quot;.
+
+* getHomeDirectory returns @HOMEDRIVE@\/@HOMEPATH@ instead of the @HOME@
+  environment variable on Windows.
+
+This module aims to resolve these problems and provides:
+
+* 'getModificationTime', 'getAccessTime', 'getChangeTime', and
+  'getCreationTime'. They return 'UTCTime'.
+
+* 'isSymlink', 'getLinkCount', and 'hasSubDirectories'.
+
+* \'\/\' as the single 'pathSeparator'. For instance,
+  'getCurrentDirectory' returns a path whose separator is \'\/\'
+  even on Windows.
+
+* 'getHomeDirectory2' which refers the @HOME@ environment variable.
+
+* Necessary functions in &quot;System.Directory&quot; and &quot;System.FilePath&quot;.
+
+-}</span><span>
+</span><a name="line-40"></a><span>
+</span><a name="line-41"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">System.EasyFile</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-42"></a><span>  </span><span class="hs-comment">-- * Actions on directories</span><span>
+</span><a name="line-43"></a><span>    </span><span class="hs-identifier hs-var">createDirectory</span><span>
+</span><a name="line-44"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">createDirectoryIfMissing</span><span>
+</span><a name="line-45"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">removeDirectory</span><span>
+</span><a name="line-46"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">removeDirectoryRecursive</span><span>
+</span><a name="line-47"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">renameDirectory</span><span>
+</span><a name="line-48"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">getDirectoryContents</span><span>
+</span><a name="line-49"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="System.EasyFile.Directory.html#getCurrentDirectory"><span class="hs-identifier hs-var">getCurrentDirectory</span></a><span>
+</span><a name="line-50"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">setCurrentDirectory</span><span>
+</span><a name="line-51"></a><span>  </span><span class="hs-comment">-- * Pre-defined directories</span><span>
+</span><a name="line-52"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="System.EasyFile.Directory.html#getHomeDirectory"><span class="hs-identifier hs-var">getHomeDirectory</span></a><span>
+</span><a name="line-53"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="System.EasyFile.Directory.html#getHomeDirectory2"><span class="hs-identifier hs-var">getHomeDirectory2</span></a><span> </span><span class="hs-comment">-- missing</span><span>
+</span><a name="line-54"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="System.EasyFile.Directory.html#getAppUserDataDirectory"><span class="hs-identifier hs-var">getAppUserDataDirectory</span></a><span>
+</span><a name="line-55"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="System.EasyFile.Directory.html#getUserDocumentsDirectory"><span class="hs-identifier hs-var">getUserDocumentsDirectory</span></a><span>
+</span><a name="line-56"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="System.EasyFile.Directory.html#getTemporaryDirectory"><span class="hs-identifier hs-var">getTemporaryDirectory</span></a><span>
+</span><a name="line-57"></a><span>  </span><span class="hs-comment">-- * Actions on files</span><span>
+</span><a name="line-58"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">removeFile</span><span>
+</span><a name="line-59"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">renameFile</span><span>
+</span><a name="line-60"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">copyFile</span><span>
+</span><a name="line-61"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">canonicalizePath</span><span>
+</span><a name="line-62"></a><span class="hs-comment">--   , makeRelativeToCurrentDirectory -- xxx</span><span>
+</span><a name="line-63"></a><span class="hs-comment">--   , findExecutable -- xxx</span><span>
+</span><a name="line-64"></a><span>  </span><span class="hs-comment">-- * Existence tests</span><span>
+</span><a name="line-65"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">doesFileExist</span><span>
+</span><a name="line-66"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">doesDirectoryExist</span><span>
+</span><a name="line-67"></a><span>  </span><span class="hs-comment">-- * Permissions</span><span>
+</span><a name="line-68"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Permissions</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-69"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">getPermissions</span><span>
+</span><a name="line-70"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">setPermissions</span><span>
+</span><a name="line-71"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="System.EasyFile.Directory.html#copyPermissions"><span class="hs-identifier hs-var">copyPermissions</span></a><span>
+</span><a name="line-72"></a><span>  </span><span class="hs-comment">-- * Timestamps</span><span>
+</span><a name="line-73"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="System.EasyFile.Missing.html#getCreationTime"><span class="hs-identifier hs-var">getCreationTime</span></a><span>
+</span><a name="line-74"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="System.EasyFile.Missing.html#getChangeTime"><span class="hs-identifier hs-var">getChangeTime</span></a><span>
+</span><a name="line-75"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="System.EasyFile.Missing.html#getModificationTime"><span class="hs-identifier hs-var">getModificationTime</span></a><span>
+</span><a name="line-76"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="System.EasyFile.Missing.html#getAccessTime"><span class="hs-identifier hs-var">getAccessTime</span></a><span>
+</span><a name="line-77"></a><span>  </span><span class="hs-comment">-- * Size</span><span>
+</span><a name="line-78"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="System.EasyFile.Missing.html#getFileSize"><span class="hs-identifier hs-var">getFileSize</span></a><span>
+</span><a name="line-79"></a><span>  </span><span class="hs-comment">-- * File\/directory information</span><span>
+</span><a name="line-80"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="System.EasyFile.Missing.html#isSymlink"><span class="hs-identifier hs-var">isSymlink</span></a><span>
+</span><a name="line-81"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="System.EasyFile.Missing.html#getLinkCount"><span class="hs-identifier hs-var">getLinkCount</span></a><span>
+</span><a name="line-82"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="System.EasyFile.Missing.html#hasSubDirectories"><span class="hs-identifier hs-var">hasSubDirectories</span></a><span>
+</span><a name="line-83"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><a href="System.EasyFile.FilePath.html"><span class="hs-identifier">System.EasyFile.FilePath</span></a><span>
+</span><a name="line-84"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-85"></a><span>
+</span><a name="line-86"></a><span class="hs-comment">----------------------------------------------------------------</span><span>
+</span><a name="line-87"></a><span>
+</span><a name="line-88"></a><span class="hs-keyword">import</span><span> </span><a href="System.EasyFile.Directory.html"><span class="hs-identifier">System.EasyFile.Directory</span></a><span>
+</span><a name="line-89"></a><span class="hs-keyword">import</span><span> </span><a href="System.EasyFile.FilePath.html"><span class="hs-identifier">System.EasyFile.FilePath</span></a><span>
+</span><a name="line-90"></a><span class="hs-keyword">import</span><span> </span><a href="System.EasyFile.Missing.html"><span class="hs-identifier">System.EasyFile.Missing</span></a><span>
+</span><a name="line-91"></a></pre></body></html>

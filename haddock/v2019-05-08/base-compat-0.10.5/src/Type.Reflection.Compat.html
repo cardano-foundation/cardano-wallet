@@ -1,0 +1,38 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP, NoImplicitPrelude #-}</span><span>
+</span><a name="line-2"></a><span class="hs-cpp">#if __GLASGOW_HASKELL__ &gt;= 702
+</span><span class="hs-pragma">{-# LANGUAGE Trustworthy #-}</span><span>
+</span><a name="line-4"></a><span class="hs-cpp">#endif
+#if MIN_VERSION_base(4,10,0) &amp;&amp; !(MIN_VERSION_base(4,11,0))
+</span><span class="hs-pragma">{-# LANGUAGE RankNTypes #-}</span><span>
+</span><a name="line-7"></a><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables #-}</span><span>
+</span><a name="line-8"></a><span class="hs-pragma">{-# LANGUAGE TypeInType #-}</span><span>
+</span><a name="line-9"></a><span class="hs-cpp">#endif
+</span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Type.Reflection.Compat</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-11"></a><span class="hs-cpp">#if MIN_VERSION_base(4,10,0)
+</span><span>  </span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Base</span><span>
+</span><a name="line-13"></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">withTypeable</span><span>
+</span><a name="line-14"></a><span class="hs-cpp">#endif
+</span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-16"></a><span>
+</span><a name="line-17"></a><span class="hs-cpp">#if MIN_VERSION_base(4,11,0)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Type.Reflection</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">Base</span><span>
+</span><a name="line-19"></a><span class="hs-cpp">#elif MIN_VERSION_base(4,10,0)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Type.Reflection</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">Base</span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">withTypeable</span><span class="hs-special">)</span><span>
+</span><a name="line-21"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-23"></a><span class="hs-cpp">#if MIN_VERSION_base(4,10,0) &amp;&amp; !(MIN_VERSION_base(4,11,0))
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.Exts</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">TYPE</span><span class="hs-special">)</span><span>
+</span><a name="line-25"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Type.Reflection</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Typeable</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">TypeRep</span><span class="hs-special">)</span><span>
+</span><a name="line-26"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Unsafe.Coerce</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">unsafeCoerce</span><span class="hs-special">)</span><span>
+</span><a name="line-27"></a><span>
+</span><a name="line-28"></a><span class="hs-comment">-- | Use a 'TypeRep' as 'Typeable' evidence.</span><span>
+</span><a name="line-29"></a><span class="hs-identifier">withTypeable</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">forall</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">a</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">k</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">r</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">TYPE</span><span> </span><span class="hs-identifier">rep</span><span class="hs-special">)</span><span class="hs-operator">.</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><a name="line-30"></a><span>             </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-identifier">TypeRep</span><span> </span><span class="hs-identifier">a</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Typeable</span><span> </span><span class="hs-identifier">a</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-identifier">r</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">r</span><span>
+</span><a name="line-31"></a><span class="hs-identifier">withTypeable</span><span> </span><span class="hs-identifier">rep</span><span> </span><span class="hs-identifier">k</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">unsafeCoerce</span><span> </span><span class="hs-identifier">k'</span><span> </span><span class="hs-identifier">rep</span><span>
+</span><a name="line-32"></a><span>  </span><span class="hs-keyword">where</span><span> </span><span class="hs-identifier">k'</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">Gift</span><span> </span><span class="hs-identifier">a</span><span> </span><span class="hs-identifier">r</span><span>
+</span><a name="line-33"></a><span>        </span><span class="hs-identifier">k'</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">Gift</span><span> </span><span class="hs-identifier">k</span><span>
+</span><a name="line-34"></a><span>
+</span><a name="line-35"></a><span class="hs-comment">-- | A helper to satisfy the type checker in 'withTypeable'.</span><span>
+</span><a name="line-36"></a><span class="hs-keyword">newtype</span><span> </span><span class="hs-identifier">Gift</span><span> </span><span class="hs-identifier">a</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">r</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">TYPE</span><span> </span><span class="hs-identifier">rep</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">Gift</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Typeable</span><span> </span><span class="hs-identifier">a</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-identifier">r</span><span class="hs-special">)</span><span>
+</span><a name="line-37"></a><span class="hs-cpp">#endif
+</span></pre></body></html>

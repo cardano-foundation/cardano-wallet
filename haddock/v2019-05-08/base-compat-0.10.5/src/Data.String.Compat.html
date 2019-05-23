@@ -1,0 +1,16 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP, NoImplicitPrelude #-}</span><span>
+</span><a name="line-2"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.String.Compat</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-3"></a><span>  </span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Base</span><span>
+</span><a name="line-4"></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">String</span><span>
+</span><a name="line-5"></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">lines</span><span>
+</span><a name="line-6"></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">words</span><span>
+</span><a name="line-7"></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">unlines</span><span>
+</span><a name="line-8"></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">unwords</span><span>
+</span><a name="line-9"></a><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-10"></a><span>
+</span><a name="line-11"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.String</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">Base</span><span>
+</span><a name="line-12"></a><span>
+</span><a name="line-13"></a><span class="hs-cpp">#if !(MIN_VERSION_base(4,4,0))
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Prelude</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">String</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">lines</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">words</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">unlines</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">unwords</span><span class="hs-special">)</span><span>
+</span><a name="line-15"></a><span class="hs-cpp">#endif
+</span></pre></body></html>

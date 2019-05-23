@@ -1,0 +1,113 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE UnicodeSyntax #-}</span><span>
+</span><a name="line-3"></a><span class="hs-pragma">{-# LANGUAGE MultiParamTypeClasses #-}</span><span>
+</span><a name="line-4"></a><span class="hs-pragma">{-# LANGUAGE FunctionalDependencies #-}</span><span>
+</span><a name="line-5"></a><span class="hs-pragma">{-# LANGUAGE FlexibleInstances #-}</span><span>
+</span><a name="line-6"></a><span class="hs-pragma">{-# LANGUAGE UndecidableInstances #-}</span><span>
+</span><a name="line-7"></a><span>
+</span><a name="line-8"></a><span class="hs-cpp">#if MIN_VERSION_base(4,4,0)
+</span><span class="hs-pragma">{-# LANGUAGE Safe #-}</span><span>
+</span><a name="line-10"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-12"></a><span class="hs-cpp">#if MIN_VERSION_transformers(0,4,0)
+</span><span class="hs-comment">-- Hide warnings for the deprecated ErrorT transformer:</span><span>
+</span><a name="line-14"></a><span class="hs-pragma">{-# OPTIONS_GHC -fno-warn-warnings-deprecations #-}</span><span>
+</span><a name="line-15"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-17"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Control.Monad.Base</span><span>
+</span><a name="line-18"></a><span>  </span><span class="hs-special">(</span><span> </span><a href="Control.Monad.Base.html#MonadBase"><span class="hs-identifier hs-type">MonadBase</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-19"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Control.Monad.Base.html#liftBaseDefault"><span class="hs-identifier hs-var">liftBaseDefault</span></a><span>
+</span><a name="line-20"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-21"></a><span>
+</span><a name="line-22"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Functor.Identity</span><span>
+</span><a name="line-23"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Monad.Trans.Class</span><span>
+</span><a name="line-24"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Monad.Trans.Identity</span><span>
+</span><a name="line-25"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Monad.Trans.Maybe</span><span>
+</span><a name="line-26"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Monad.Trans.List</span><span>
+</span><a name="line-27"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Monad.Trans.Reader</span><span>
+</span><a name="line-28"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Control.Monad.Trans.Writer.Lazy</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">L</span><span>
+</span><a name="line-29"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Control.Monad.Trans.Writer.Strict</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">S</span><span>
+</span><a name="line-30"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Control.Monad.Trans.State.Lazy</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">L</span><span>
+</span><a name="line-31"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Control.Monad.Trans.State.Strict</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">S</span><span>
+</span><a name="line-32"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Control.Monad.Trans.RWS.Lazy</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">L</span><span>
+</span><a name="line-33"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Control.Monad.Trans.RWS.Strict</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">S</span><span>
+</span><a name="line-34"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Monad.Trans.Error</span><span>
+</span><a name="line-35"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Monad.Trans.Cont</span><span>
+</span><a name="line-36"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Monad.Trans.Except</span><span>
+</span><a name="line-37"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Monad.Trans.Accum</span><span>
+</span><a name="line-38"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Monad.Trans.Select</span><span>
+</span><a name="line-39"></a><span class="hs-cpp">#if !MIN_VERSION_base(4,8,0)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Monoid</span><span>
+</span><a name="line-41"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Applicative</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Applicative</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-42"></a><span class="hs-cpp">#endif
+#if !MIN_VERSION_base(4,4,0) &amp;&amp; HS_TRANSFORMERS_BASE__ORPHANS
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Control.Monad.ST.Lazy</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">L</span><span>
+</span><a name="line-45"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Control.Monad.ST.Strict</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">S</span><span>
+</span><a name="line-46"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Orphans</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><a name="line-47"></a><span class="hs-cpp">#endif
+#if MIN_VERSION_base(4,4,0)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Control.Monad.ST.Lazy.Safe</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">L</span><span>
+</span><a name="line-50"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Control.Monad.ST.Safe</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">S</span><span>
+</span><a name="line-51"></a><span class="hs-cpp">#endif
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Monad.STM</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">STM</span><span class="hs-special">)</span><span>
+</span><a name="line-53"></a><span>
+</span><a name="line-54"></a><span class="hs-keyword">class</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Applicative</span><span> </span><a href="#local-6989586621679029138"><span class="hs-identifier hs-type">b</span></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Applicative</span><span> </span><a href="#local-6989586621679029139"><span class="hs-identifier hs-type">m</span></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Monad</span><span> </span><a href="#local-6989586621679029138"><span class="hs-identifier hs-type">b</span></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Monad</span><span> </span><a href="#local-6989586621679029139"><span class="hs-identifier hs-type">m</span></a><span class="hs-special">)</span><span>
+</span><a name="line-55"></a><span>      </span><span class="hs-glyph">&#8658;</span><span> </span><a name="MonadBase"><a href="Control.Monad.Base.html#MonadBase"><span class="hs-identifier">MonadBase</span></a></a><span> </span><a name="local-6989586621679029138"><a href="#local-6989586621679029138"><span class="hs-identifier">b</span></a></a><span> </span><a name="local-6989586621679029139"><a href="#local-6989586621679029139"><span class="hs-identifier">m</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><span class="hs-identifier">m</span><span> </span><span class="hs-glyph">&#8594;</span><span> </span><span class="hs-identifier">b</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-56"></a><span>  </span><span class="hs-comment">-- | Lift a computation from the base monad</span><span>
+</span><a name="line-57"></a><span>  </span><a name="liftBase"><a href="Control.Monad.Base.html#liftBase"><span class="hs-identifier">liftBase</span></a></a><span> </span><span class="hs-glyph">&#8759;</span><span> </span><a href="#local-6989586621679029138"><span class="hs-identifier hs-type">b</span></a><span> </span><a href="#local-6989586621679029140"><span class="hs-identifier hs-type">&#945;</span></a><span> </span><span class="hs-glyph">&#8594;</span><span> </span><a href="#local-6989586621679029139"><span class="hs-identifier hs-type">m</span></a><span> </span><a href="#local-6989586621679029140"><span class="hs-identifier hs-type">&#945;</span></a><span>
+</span><a name="line-58"></a><span>
+</span><a name="line-59"></a><span class="hs-cpp">#define BASE(M) \
+instance MonadBase (M) (M) where liftBase = id
+</span><span>
+</span><a name="line-62"></a><span class="hs-identifier">BASE</span><span class="hs-special">(</span><span class="hs-identifier">IO</span><span class="hs-special">)</span><span>
+</span><a name="line-63"></a><span class="hs-identifier">BASE</span><span class="hs-special">(</span><span class="hs-identifier">Maybe</span><span class="hs-special">)</span><span>
+</span><a name="line-64"></a><span class="hs-identifier">BASE</span><span class="hs-special">(</span><span class="hs-identifier">Either</span><span> </span><a href="Control.Monad.Base.html#MonadBase"><span class="hs-identifier hs-type">e</span></a><span class="hs-special">)</span><span>
+</span><a name="line-65"></a><span class="hs-identifier">BASE</span><span class="hs-special">(</span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><a name="line-66"></a><span class="hs-identifier">BASE</span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-glyph">&#8594;</span><span class="hs-special">)</span><span> </span><a href="Control.Monad.Base.html#MonadBase"><span class="hs-identifier hs-type">r</span></a><span class="hs-special">)</span><span>
+</span><a name="line-67"></a><span class="hs-identifier">BASE</span><span class="hs-special">(</span><span class="hs-identifier">Identity</span><span class="hs-special">)</span><span>
+</span><a name="line-68"></a><span>
+</span><a name="line-69"></a><span class="hs-identifier">BASE</span><span class="hs-special">(</span><span class="hs-identifier">STM</span><span class="hs-special">)</span><span>
+</span><a name="line-70"></a><span>
+</span><a name="line-71"></a><span class="hs-cpp">#if !MIN_VERSION_base(4,4,0) &amp;&amp; HS_TRANSFORMERS_BASE__ORPHANS
+</span><span class="hs-identifier">BASE</span><span class="hs-special">(</span><span class="hs-identifier">L.ST</span><span> </span><span class="hs-identifier">s</span><span class="hs-special">)</span><span>
+</span><a name="line-73"></a><span class="hs-identifier">BASE</span><span class="hs-special">(</span><span class="hs-identifier">S.ST</span><span> </span><span class="hs-identifier">s</span><span class="hs-special">)</span><span>
+</span><a name="line-74"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-76"></a><span class="hs-cpp">#if MIN_VERSION_base(4,4,0)
+</span><span class="hs-identifier">BASE</span><span class="hs-special">(</span><span class="hs-identifier">L.ST</span><span> </span><a href="Control.Monad.Base.html#MonadBase"><span class="hs-identifier hs-type">s</span></a><span class="hs-special">)</span><span>
+</span><a name="line-78"></a><span class="hs-identifier">BASE</span><span class="hs-special">(</span><span class="hs-identifier">S.ST</span><span> </span><a href="Control.Monad.Base.html#MonadBase"><span class="hs-identifier hs-type">s</span></a><span class="hs-special">)</span><span>
+</span><a name="line-79"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-81"></a><span class="hs-cpp">#undef BASE
+</span><span>
+</span><a name="line-83"></a><span class="hs-comment">-- | Can be used as a default implementation for 'liftBase'.</span><span>
+</span><a name="line-84"></a><span class="hs-comment">--</span><span>
+</span><a name="line-85"></a><span class="hs-comment">-- Note that: @liftBaseDefault = 'lift' . 'liftBase'@</span><span>
+</span><a name="line-86"></a><span class="hs-identifier">liftBaseDefault</span><span> </span><span class="hs-glyph">&#8759;</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">MonadTrans</span><span> </span><a href="#local-6989586621679029191"><span class="hs-identifier hs-type">t</span></a><span class="hs-special">,</span><span> </span><a href="Control.Monad.Base.html#MonadBase"><span class="hs-identifier hs-type">MonadBase</span></a><span> </span><a href="#local-6989586621679029192"><span class="hs-identifier hs-type">b</span></a><span> </span><a href="#local-6989586621679029193"><span class="hs-identifier hs-type">m</span></a><span class="hs-special">)</span><span> </span><span class="hs-glyph">&#8658;</span><span> </span><a href="#local-6989586621679029192"><span class="hs-identifier hs-type">b</span></a><span> </span><a href="#local-6989586621679029194"><span class="hs-identifier hs-type">&#945;</span></a><span> </span><span class="hs-glyph">&#8594;</span><span> </span><a href="#local-6989586621679029191"><span class="hs-identifier hs-type">t</span></a><span> </span><a href="#local-6989586621679029193"><span class="hs-identifier hs-type">m</span></a><span> </span><a href="#local-6989586621679029194"><span class="hs-identifier hs-type">&#945;</span></a><span>
+</span><a name="line-87"></a><a name="liftBaseDefault"><a href="Control.Monad.Base.html#liftBaseDefault"><span class="hs-identifier">liftBaseDefault</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">lift</span><span> </span><span class="hs-operator hs-var">.</span><span> </span><a href="Control.Monad.Base.html#liftBase"><span class="hs-identifier hs-var">liftBase</span></a><span>
+</span><a name="line-88"></a><span>
+</span><a name="line-89"></a><span class="hs-cpp">#define TRANS(T) \
+instance (MonadBase b m) &#8658; MonadBase b (T m) where liftBase = liftBaseDefault
+</span><span>
+</span><a name="line-92"></a><span class="hs-identifier">TRANS</span><span class="hs-special">(</span><span class="hs-identifier">IdentityT</span><span class="hs-special">)</span><span>
+</span><a name="line-93"></a><span class="hs-identifier">TRANS</span><span class="hs-special">(</span><span class="hs-identifier">MaybeT</span><span class="hs-special">)</span><span>
+</span><a name="line-94"></a><span class="hs-identifier">TRANS</span><span class="hs-special">(</span><span class="hs-identifier">ListT</span><span class="hs-special">)</span><span>
+</span><a name="line-95"></a><span class="hs-identifier">TRANS</span><span class="hs-special">(</span><span class="hs-identifier">ReaderT</span><span> </span><a href="Control.Monad.Base.html#MonadBase"><span class="hs-identifier hs-type">r</span></a><span class="hs-special">)</span><span>
+</span><a name="line-96"></a><span class="hs-identifier">TRANS</span><span class="hs-special">(</span><span class="hs-identifier">L.StateT</span><span> </span><a href="Control.Monad.Base.html#MonadBase"><span class="hs-identifier hs-type">s</span></a><span class="hs-special">)</span><span>
+</span><a name="line-97"></a><span class="hs-identifier">TRANS</span><span class="hs-special">(</span><span class="hs-identifier">S.StateT</span><span> </span><a href="Control.Monad.Base.html#MonadBase"><span class="hs-identifier hs-type">s</span></a><span class="hs-special">)</span><span>
+</span><a name="line-98"></a><span class="hs-identifier">TRANS</span><span class="hs-special">(</span><span class="hs-identifier">ContT</span><span> </span><a href="Control.Monad.Base.html#MonadBase"><span class="hs-identifier hs-type">r</span></a><span class="hs-special">)</span><span>
+</span><a name="line-99"></a><span class="hs-identifier">TRANS</span><span class="hs-special">(</span><span class="hs-identifier">ExceptT</span><span> </span><a href="Control.Monad.Base.html#MonadBase"><span class="hs-identifier hs-type">e</span></a><span class="hs-special">)</span><span>
+</span><a name="line-100"></a><span class="hs-identifier">TRANS</span><span class="hs-special">(</span><span class="hs-identifier">SelectT</span><span> </span><a href="Control.Monad.Base.html#MonadBase"><span class="hs-identifier hs-type">r</span></a><span class="hs-special">)</span><span>
+</span><a name="line-101"></a><span class="hs-cpp">#undef TRANS
+</span><span>
+</span><a name="line-103"></a><span class="hs-cpp">#define TRANS_CTX(CTX, T) \
+instance (CTX, MonadBase b m) &#8658; MonadBase b (T m) where liftBase = liftBaseDefault
+</span><span>
+</span><a name="line-106"></a><span class="hs-identifier">TRANS_CTX</span><span class="hs-special">(</span><span class="hs-identifier hs-type">Monoid</span><span> </span><a href="#local-6989586621679029160"><span class="hs-identifier hs-type">w</span></a><span class="hs-special">,</span><span> </span><a href="Control.Monad.Base.html#MonadBase"><span class="hs-identifier hs-type">L.WriterT</span></a><span> </span><a href="#local-6989586621679029161"><span class="hs-identifier hs-type">w</span></a><span class="hs-special">)</span><span>
+</span><a name="line-107"></a><span class="hs-identifier">TRANS_CTX</span><span class="hs-special">(</span><span class="hs-identifier hs-type">Monoid</span><span> </span><a href="#local-6989586621679029157"><span class="hs-identifier hs-type">w</span></a><span class="hs-special">,</span><span> </span><a href="Control.Monad.Base.html#MonadBase"><span class="hs-identifier hs-type">S.WriterT</span></a><span> </span><a href="#local-6989586621679029158"><span class="hs-identifier hs-type">w</span></a><span class="hs-special">)</span><span>
+</span><a name="line-108"></a><span class="hs-identifier">TRANS_CTX</span><span class="hs-special">(</span><span class="hs-identifier hs-type">Monoid</span><span> </span><a href="#local-6989586621679029152"><span class="hs-identifier hs-type">w</span></a><span class="hs-special">,</span><span> </span><a href="Control.Monad.Base.html#MonadBase"><span class="hs-identifier hs-type">L.RWST</span></a><span> </span><a href="Control.Monad.Base.html#MonadBase"><span class="hs-identifier hs-type">r</span></a><span> </span><span class="hs-identifier">w</span><span> </span><span class="hs-identifier">s</span><span class="hs-special">)</span><span>
+</span><a name="line-109"></a><span class="hs-identifier">TRANS_CTX</span><span class="hs-special">(</span><span class="hs-identifier hs-type">Monoid</span><span> </span><a href="#local-6989586621679029147"><span class="hs-identifier hs-type">w</span></a><span class="hs-special">,</span><span> </span><a href="Control.Monad.Base.html#MonadBase"><span class="hs-identifier hs-type">S.RWST</span></a><span> </span><a href="Control.Monad.Base.html#MonadBase"><span class="hs-identifier hs-type">r</span></a><span> </span><span class="hs-identifier">w</span><span> </span><span class="hs-identifier">s</span><span class="hs-special">)</span><span>
+</span><a name="line-110"></a><span class="hs-identifier">TRANS_CTX</span><span class="hs-special">(</span><span class="hs-identifier hs-type">Error</span><span> </span><a href="#local-6989586621679029144"><span class="hs-identifier hs-type">e</span></a><span class="hs-special">,</span><span>  </span><a href="Control.Monad.Base.html#MonadBase"><span class="hs-identifier hs-type">ErrorT</span></a><span> </span><a href="Control.Monad.Base.html#MonadBase"><span class="hs-identifier hs-type">e</span></a><span class="hs-special">)</span><span>
+</span><a name="line-111"></a><span class="hs-identifier">TRANS_CTX</span><span class="hs-special">(</span><span class="hs-identifier hs-type">Monoid</span><span> </span><a href="#local-6989586621679029141"><span class="hs-identifier hs-type">w</span></a><span class="hs-special">,</span><span> </span><a href="Control.Monad.Base.html#MonadBase"><span class="hs-identifier hs-type">AccumT</span></a><span> </span><a href="Control.Monad.Base.html#MonadBase"><span class="hs-identifier hs-type">w</span></a><span class="hs-special">)</span><span>
+</span><a name="line-112"></a><span class="hs-cpp">#undef TRANS_CTX
+</span></pre></body></html>

@@ -1,0 +1,92 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_HADDOCK hide #-}</span><span>
+</span><a name="line-2"></a><span class="hs-comment">-- | QuickCheck's internal state. Internal QuickCheck module.</span><span>
+</span><a name="line-3"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Test.QuickCheck.State</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-4"></a><span>
+</span><a name="line-5"></a><span class="hs-keyword">import</span><span> </span><a href="Test.QuickCheck.Text.html"><span class="hs-identifier">Test.QuickCheck.Text</span></a><span>
+</span><a name="line-6"></a><span class="hs-keyword">import</span><span> </span><a href="Test.QuickCheck.Random.html"><span class="hs-identifier">Test.QuickCheck.Random</span></a><span>
+</span><a name="line-7"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Map</span><span class="hs-special">(</span><span class="hs-identifier hs-type">Map</span><span class="hs-special">)</span><span>
+</span><a name="line-8"></a><span>
+</span><a name="line-9"></a><span class="hs-comment">--------------------------------------------------------------------------</span><span>
+</span><a name="line-10"></a><span class="hs-comment">-- State</span><span>
+</span><a name="line-11"></a><span>
+</span><a name="line-12"></a><span class="hs-comment">-- | State represents QuickCheck's internal state while testing a property.</span><span>
+</span><a name="line-13"></a><span class="hs-comment">-- The state is made visible to callback functions.</span><span>
+</span><a name="line-14"></a><span class="hs-keyword">data</span><span> </span><a name="State"><a href="Test.QuickCheck.State.html#State"><span class="hs-identifier">State</span></a></a><span>
+</span><a name="line-15"></a><span>  </span><span class="hs-glyph">=</span><span> </span><a name="MkState"><a href="Test.QuickCheck.State.html#MkState"><span class="hs-identifier">MkState</span></a></a><span>
+</span><a name="line-16"></a><span>  </span><span class="hs-comment">-- static</span><span>
+</span><a name="line-17"></a><span>  </span><span class="hs-special">{</span><span> </span><a name="terminal"><a href="Test.QuickCheck.State.html#terminal"><span class="hs-identifier">terminal</span></a></a><span>                  </span><span class="hs-glyph">::</span><span> </span><a href="Test.QuickCheck.Text.html#Terminal"><span class="hs-identifier hs-type">Terminal</span></a><span>
+</span><a name="line-18"></a><span>    </span><span class="hs-comment">-- ^ the current terminal</span><span>
+</span><a name="line-19"></a><span>  </span><span class="hs-special">,</span><span> </span><a name="maxSuccessTests"><a href="Test.QuickCheck.State.html#maxSuccessTests"><span class="hs-identifier">maxSuccessTests</span></a></a><span>           </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int</span><span>
+</span><a name="line-20"></a><span>    </span><span class="hs-comment">-- ^ maximum number of successful tests needed</span><span>
+</span><a name="line-21"></a><span>  </span><span class="hs-special">,</span><span> </span><a name="maxDiscardedRatio"><a href="Test.QuickCheck.State.html#maxDiscardedRatio"><span class="hs-identifier">maxDiscardedRatio</span></a></a><span>         </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int</span><span>
+</span><a name="line-22"></a><span>    </span><span class="hs-comment">-- ^ maximum number of discarded tests per successful test</span><span>
+</span><a name="line-23"></a><span>  </span><span class="hs-special">,</span><span> </span><a name="coverageConfidence"><a href="Test.QuickCheck.State.html#coverageConfidence"><span class="hs-identifier">coverageConfidence</span></a></a><span>        </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Maybe</span><span> </span><a href="Test.QuickCheck.State.html#Confidence"><span class="hs-identifier hs-type">Confidence</span></a><span>
+</span><a name="line-24"></a><span>    </span><span class="hs-comment">-- ^ required coverage confidence</span><span>
+</span><a name="line-25"></a><span>  </span><span class="hs-special">,</span><span> </span><a name="computeSize"><a href="Test.QuickCheck.State.html#computeSize"><span class="hs-identifier">computeSize</span></a></a><span>               </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Int</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Int</span><span>
+</span><a name="line-26"></a><span>    </span><span class="hs-comment">-- ^ how to compute the size of test cases from</span><span>
+</span><a name="line-27"></a><span>    </span><span class="hs-comment">--   #tests and #discarded tests</span><span>
+</span><a name="line-28"></a><span>  </span><span class="hs-special">,</span><span> </span><a name="numTotMaxShrinks"><a href="Test.QuickCheck.State.html#numTotMaxShrinks"><span class="hs-identifier">numTotMaxShrinks</span></a></a><span>          </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-identifier hs-type">Int</span><span>
+</span><a name="line-29"></a><span>    </span><span class="hs-comment">-- ^ How many shrinks to try before giving up</span><span>
+</span><a name="line-30"></a><span>
+</span><a name="line-31"></a><span>    </span><span class="hs-comment">-- dynamic</span><span>
+</span><a name="line-32"></a><span>  </span><span class="hs-special">,</span><span> </span><a name="numSuccessTests"><a href="Test.QuickCheck.State.html#numSuccessTests"><span class="hs-identifier">numSuccessTests</span></a></a><span>           </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-identifier hs-type">Int</span><span>
+</span><a name="line-33"></a><span>    </span><span class="hs-comment">-- ^ the current number of tests that have succeeded</span><span>
+</span><a name="line-34"></a><span>  </span><span class="hs-special">,</span><span> </span><a name="numDiscardedTests"><a href="Test.QuickCheck.State.html#numDiscardedTests"><span class="hs-identifier">numDiscardedTests</span></a></a><span>         </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-identifier hs-type">Int</span><span>
+</span><a name="line-35"></a><span>    </span><span class="hs-comment">-- ^ the current number of discarded tests</span><span>
+</span><a name="line-36"></a><span>  </span><span class="hs-special">,</span><span> </span><a name="numRecentlyDiscardedTests"><a href="Test.QuickCheck.State.html#numRecentlyDiscardedTests"><span class="hs-identifier">numRecentlyDiscardedTests</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-identifier hs-type">Int</span><span>
+</span><a name="line-37"></a><span>    </span><span class="hs-comment">-- ^ the number of discarded tests since the last successful test</span><span>
+</span><a name="line-38"></a><span>  </span><span class="hs-special">,</span><span> </span><a name="labels"><a href="Test.QuickCheck.State.html#labels"><span class="hs-identifier">labels</span></a></a><span>                    </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-special">(</span><span class="hs-identifier hs-type">Map</span><span> </span><span class="hs-special">[</span><span class="hs-identifier hs-type">String</span><span class="hs-special">]</span><span> </span><span class="hs-identifier hs-type">Int</span><span class="hs-special">)</span><span>
+</span><a name="line-39"></a><span>    </span><span class="hs-comment">-- ^ counts for each combination of labels (label/collect)</span><span>
+</span><a name="line-40"></a><span>  </span><span class="hs-special">,</span><span> </span><a name="classes"><a href="Test.QuickCheck.State.html#classes"><span class="hs-identifier">classes</span></a></a><span>                   </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-special">(</span><span class="hs-identifier hs-type">Map</span><span> </span><span class="hs-identifier hs-type">String</span><span> </span><span class="hs-identifier hs-type">Int</span><span class="hs-special">)</span><span>
+</span><a name="line-41"></a><span>    </span><span class="hs-comment">-- ^ counts for each class of test case (classify/cover)</span><span>
+</span><a name="line-42"></a><span>  </span><span class="hs-special">,</span><span> </span><a name="tables"><a href="Test.QuickCheck.State.html#tables"><span class="hs-identifier">tables</span></a></a><span>                    </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-special">(</span><span class="hs-identifier hs-type">Map</span><span> </span><span class="hs-identifier hs-type">String</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Map</span><span> </span><span class="hs-identifier hs-type">String</span><span> </span><span class="hs-identifier hs-type">Int</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-43"></a><span>    </span><span class="hs-comment">-- ^ tables collected using tabulate</span><span>
+</span><a name="line-44"></a><span>  </span><span class="hs-special">,</span><span> </span><a name="requiredCoverage"><a href="Test.QuickCheck.State.html#requiredCoverage"><span class="hs-identifier">requiredCoverage</span></a></a><span>          </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-special">(</span><span class="hs-identifier hs-type">Map</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Maybe</span><span> </span><span class="hs-identifier hs-type">String</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">String</span><span class="hs-special">)</span><span> </span><span class="hs-identifier hs-type">Double</span><span class="hs-special">)</span><span>
+</span><a name="line-45"></a><span>    </span><span class="hs-comment">-- ^ coverage requirements</span><span>
+</span><a name="line-46"></a><span>  </span><span class="hs-special">,</span><span> </span><a name="expected"><a href="Test.QuickCheck.State.html#expected"><span class="hs-identifier">expected</span></a></a><span>                  </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-identifier hs-type">Bool</span><span>
+</span><a name="line-47"></a><span>    </span><span class="hs-comment">-- ^ indicates the expected result of the property</span><span>
+</span><a name="line-48"></a><span>  </span><span class="hs-special">,</span><span> </span><a name="randomSeed"><a href="Test.QuickCheck.State.html#randomSeed"><span class="hs-identifier">randomSeed</span></a></a><span>                </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><a href="Test.QuickCheck.Random.html#QCGen"><span class="hs-identifier hs-type">QCGen</span></a><span>
+</span><a name="line-49"></a><span>    </span><span class="hs-comment">-- ^ the current random seed</span><span>
+</span><a name="line-50"></a><span>
+</span><a name="line-51"></a><span>    </span><span class="hs-comment">-- shrinking</span><span>
+</span><a name="line-52"></a><span>  </span><span class="hs-special">,</span><span> </span><a name="numSuccessShrinks"><a href="Test.QuickCheck.State.html#numSuccessShrinks"><span class="hs-identifier">numSuccessShrinks</span></a></a><span>         </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-identifier hs-type">Int</span><span>
+</span><a name="line-53"></a><span>    </span><span class="hs-comment">-- ^ number of successful shrinking steps so far</span><span>
+</span><a name="line-54"></a><span>  </span><span class="hs-special">,</span><span> </span><a name="numTryShrinks"><a href="Test.QuickCheck.State.html#numTryShrinks"><span class="hs-identifier">numTryShrinks</span></a></a><span>             </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-identifier hs-type">Int</span><span>
+</span><a name="line-55"></a><span>    </span><span class="hs-comment">-- ^ number of failed shrinking steps since the last successful shrink</span><span>
+</span><a name="line-56"></a><span>  </span><span class="hs-special">,</span><span> </span><a name="numTotTryShrinks"><a href="Test.QuickCheck.State.html#numTotTryShrinks"><span class="hs-identifier">numTotTryShrinks</span></a></a><span>          </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-identifier hs-type">Int</span><span>
+</span><a name="line-57"></a><span>    </span><span class="hs-comment">-- ^ total number of failed shrinking steps</span><span>
+</span><a name="line-58"></a><span>  </span><span class="hs-special">}</span><span>
+</span><a name="line-59"></a><span>
+</span><a name="line-60"></a><span class="hs-comment">-- | The statistical parameters used by 'checkCoverage'.</span><span>
+</span><a name="line-61"></a><span class="hs-keyword">data</span><span> </span><a name="Confidence"><a href="Test.QuickCheck.State.html#Confidence"><span class="hs-identifier">Confidence</span></a></a><span> </span><span class="hs-glyph">=</span><span>
+</span><a name="line-62"></a><span>  </span><a name="Confidence"><a href="Test.QuickCheck.State.html#Confidence"><span class="hs-identifier">Confidence</span></a></a><span> </span><span class="hs-special">{</span><span>
+</span><a name="line-63"></a><span>    </span><a name="certainty"><a href="Test.QuickCheck.State.html#certainty"><span class="hs-identifier">certainty</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Integer</span><span class="hs-special">,</span><span>
+</span><a name="line-64"></a><span>    </span><span class="hs-comment">-- ^ How certain 'checkCoverage' must be before the property fails.</span><span>
+</span><a name="line-65"></a><span>    </span><span class="hs-comment">-- If the coverage requirement is met, and the certainty parameter is @n@,</span><span>
+</span><a name="line-66"></a><span>    </span><span class="hs-comment">-- then you should get a false positive at most one in @n@ runs of QuickCheck.</span><span>
+</span><a name="line-67"></a><span>    </span><span class="hs-comment">-- The default value is @10^9@.</span><span>
+</span><a name="line-68"></a><span>    </span><span class="hs-comment">-- </span><span>
+</span><a name="line-69"></a><span>    </span><span class="hs-comment">-- Lower values will speed up 'checkCoverage' at the cost of false</span><span>
+</span><a name="line-70"></a><span>    </span><span class="hs-comment">-- positives.</span><span>
+</span><a name="line-71"></a><span>    </span><span class="hs-comment">--</span><span>
+</span><a name="line-72"></a><span>    </span><span class="hs-comment">-- If you are using 'checkCoverage' as part of a test suite, you should</span><span>
+</span><a name="line-73"></a><span>    </span><span class="hs-comment">-- be careful not to set @certainty@ too low. If you want, say, a 1% chance</span><span>
+</span><a name="line-74"></a><span>    </span><span class="hs-comment">-- of a false positive during a project's lifetime, then @certainty@ should</span><span>
+</span><a name="line-75"></a><span>    </span><span class="hs-comment">-- be set to at least @100 * m * n@, where @m@ is the number of uses of</span><span>
+</span><a name="line-76"></a><span>    </span><span class="hs-comment">-- 'cover' in the test suite, and @n@ is the number of times you expect the</span><span>
+</span><a name="line-77"></a><span>    </span><span class="hs-comment">-- test suite to be run during the project's lifetime. The default value</span><span>
+</span><a name="line-78"></a><span>    </span><span class="hs-comment">-- is chosen to be big enough for most projects.</span><span>
+</span><a name="line-79"></a><span>    </span><a name="tolerance"><a href="Test.QuickCheck.State.html#tolerance"><span class="hs-identifier">tolerance</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Double</span><span>
+</span><a name="line-80"></a><span>    </span><span class="hs-comment">-- ^ For statistical reasons, 'checkCoverage' will not reject coverage</span><span>
+</span><a name="line-81"></a><span>    </span><span class="hs-comment">-- levels that are only slightly below the required levels.</span><span>
+</span><a name="line-82"></a><span>    </span><span class="hs-comment">-- If the required level is @p@ then an actual level of @tolerance * p@</span><span>
+</span><a name="line-83"></a><span>    </span><span class="hs-comment">-- will be accepted. The default value is @0.9@.</span><span>
+</span><a name="line-84"></a><span>    </span><span class="hs-comment">--</span><span>
+</span><a name="line-85"></a><span>    </span><span class="hs-comment">-- Lower values will speed up 'checkCoverage' at the cost of not detecting</span><span>
+</span><a name="line-86"></a><span>    </span><span class="hs-comment">-- minor coverage violations.</span><span>
+</span><a name="line-87"></a><span>    </span><span class="hs-special">}</span><span>
+</span><a name="line-88"></a><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-identifier hs-type">Show</span><span>
+</span><a name="line-89"></a><span>
+</span><a name="line-90"></a><span class="hs-comment">--------------------------------------------------------------------------</span><span>
+</span><a name="line-91"></a><span class="hs-comment">-- the end.</span><span>
+</span><a name="line-92"></a></pre></body></html>

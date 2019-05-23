@@ -1,0 +1,29 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE FlexibleContexts #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE ConstraintKinds #-}</span><span>
+</span><a name="line-3"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Test.Hspec.QuickCheck</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-4"></a><span class="hs-comment">-- * Params</span><span>
+</span><a name="line-5"></a><span>  </span><span class="hs-identifier hs-var">modifyArgs</span><span>
+</span><a name="line-6"></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">modifyMaxSuccess</span><span>
+</span><a name="line-7"></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">modifyMaxDiscardRatio</span><span>
+</span><a name="line-8"></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">modifyMaxSize</span><span>
+</span><a name="line-9"></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">modifyMaxShrinks</span><span>
+</span><a name="line-10"></a><span>
+</span><a name="line-11"></a><span class="hs-comment">-- * Shortcuts</span><span>
+</span><a name="line-12"></a><span class="hs-special">,</span><span> </span><a href="Test.Hspec.QuickCheck.html#prop"><span class="hs-identifier hs-var">prop</span></a><span>
+</span><a name="line-13"></a><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-14"></a><span>
+</span><a name="line-15"></a><span class="hs-keyword">import</span><span>           </span><a href="Test.Hspec.html"><span class="hs-identifier">Test.Hspec</span></a><span>
+</span><a name="line-16"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Test.QuickCheck</span><span>
+</span><a name="line-17"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Test.Hspec.Core.QuickCheck</span><span>
+</span><a name="line-18"></a><span>
+</span><a name="line-19"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-20"></a><span class="hs-comment">-- &gt; prop &quot;..&quot; $</span><span>
+</span><a name="line-21"></a><span class="hs-comment">-- &gt;   ..</span><span>
+</span><a name="line-22"></a><span class="hs-comment">--</span><span>
+</span><a name="line-23"></a><span class="hs-comment">-- is a shortcut for</span><span>
+</span><a name="line-24"></a><span class="hs-comment">--</span><span>
+</span><a name="line-25"></a><span class="hs-comment">-- &gt; it &quot;..&quot; $ property $</span><span>
+</span><a name="line-26"></a><span class="hs-comment">-- &gt;   ..</span><span>
+</span><a name="line-27"></a><span class="hs-identifier">prop</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">HasCallStack</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Testable</span><span> </span><a href="#local-6989586621679044504"><span class="hs-identifier hs-type">prop</span></a><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-identifier hs-type">String</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="#local-6989586621679044504"><span class="hs-identifier hs-type">prop</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Spec</span><span>
+</span><a name="line-28"></a><a name="prop"><a href="Test.Hspec.QuickCheck.html#prop"><span class="hs-identifier">prop</span></a></a><span> </span><a name="local-6989586621679045045"><a href="#local-6989586621679045045"><span class="hs-identifier">s</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">it</span><span> </span><a href="#local-6989586621679045045"><span class="hs-identifier hs-var">s</span></a><span> </span><span class="hs-operator hs-var">.</span><span> </span><span class="hs-identifier hs-var">property</span><span>
+</span><a name="line-29"></a></pre></body></html>

@@ -1,0 +1,55 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><a name="line-2"></a><span class="hs-comment">-- Module      : Foundation.Format.CSV</span><span>
+</span><a name="line-3"></a><span class="hs-comment">-- License     : BSD-style</span><span>
+</span><a name="line-4"></a><span class="hs-comment">-- Maintainer  : Foundation</span><span>
+</span><a name="line-5"></a><span class="hs-comment">-- Stability   : experimental</span><span>
+</span><a name="line-6"></a><span class="hs-comment">-- Portability : portable</span><span>
+</span><a name="line-7"></a><span class="hs-comment">--</span><span>
+</span><a name="line-8"></a><span class="hs-comment">-- Provies the support for Comma Separated Value</span><span>
+</span><a name="line-9"></a><span>
+</span><a name="line-10"></a><span class="hs-pragma">{-# LANGUAGE FlexibleContexts           #-}</span><span>
+</span><a name="line-11"></a><span class="hs-pragma">{-# LANGUAGE GeneralizedNewtypeDeriving #-}</span><span>
+</span><a name="line-12"></a><span class="hs-pragma">{-# LANGUAGE OverloadedStrings          #-}</span><span>
+</span><a name="line-13"></a><span class="hs-pragma">{-# LANGUAGE FlexibleInstances          #-}</span><span>
+</span><a name="line-14"></a><span>
+</span><a name="line-15"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Foundation.Format.CSV</span><span>
+</span><a name="line-16"></a><span>    </span><span class="hs-special">(</span><span class="hs-comment">-- * CSV</span><span>
+</span><a name="line-17"></a><span>      </span><a href="Foundation.Format.CSV.Types.html#CSV"><span class="hs-identifier hs-type">CSV</span></a><span>
+</span><a name="line-18"></a><span>
+</span><a name="line-19"></a><span>    </span><span class="hs-comment">-- ** Builder</span><span>
+</span><a name="line-20"></a><span>    </span><span class="hs-comment">-- *** String Bulider</span><span>
+</span><a name="line-21"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Foundation.Format.CSV.Builder.html#csvStringBuilder"><span class="hs-identifier hs-var">csvStringBuilder</span></a><span>
+</span><a name="line-22"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Foundation.Format.CSV.Builder.html#rowStringBuilder"><span class="hs-identifier hs-var">rowStringBuilder</span></a><span>
+</span><a name="line-23"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Foundation.Format.CSV.Builder.html#fieldStringBuilder"><span class="hs-identifier hs-var">fieldStringBuilder</span></a><span>
+</span><a name="line-24"></a><span>    </span><span class="hs-comment">-- *** Block Builder</span><span>
+</span><a name="line-25"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Foundation.Format.CSV.Builder.html#csvBlockBuilder"><span class="hs-identifier hs-var">csvBlockBuilder</span></a><span>
+</span><a name="line-26"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Foundation.Format.CSV.Builder.html#rowBlockBuilder"><span class="hs-identifier hs-var">rowBlockBuilder</span></a><span>
+</span><a name="line-27"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Foundation.Format.CSV.Builder.html#fieldBlockBuilder"><span class="hs-identifier hs-var">fieldBlockBuilder</span></a><span>
+</span><a name="line-28"></a><span>    </span><span class="hs-comment">-- ** Conduit</span><span>
+</span><a name="line-29"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Foundation.Format.CSV.Builder.html#rowC"><span class="hs-identifier hs-var">rowC</span></a><span>
+</span><a name="line-30"></a><span>
+</span><a name="line-31"></a><span>    </span><span class="hs-comment">-- ** Parser</span><span>
+</span><a name="line-32"></a><span>    </span><span class="hs-comment">-- *** String Bulider</span><span>
+</span><a name="line-33"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Foundation.Format.CSV.Parser.html#file"><span class="hs-identifier hs-var">file</span></a><span>
+</span><a name="line-34"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Foundation.Format.CSV.Parser.html#record"><span class="hs-identifier hs-var">record</span></a><span>
+</span><a name="line-35"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Foundation.Format.CSV.Parser.html#record_"><span class="hs-identifier hs-var">record_</span></a><span>
+</span><a name="line-36"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Foundation.Format.CSV.Parser.html#field"><span class="hs-identifier hs-var">field</span></a><span>
+</span><a name="line-37"></a><span>    </span><span class="hs-comment">-- ** Conduit</span><span>
+</span><a name="line-38"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Foundation.Format.CSV.Parser.html#recordC"><span class="hs-identifier hs-var">recordC</span></a><span>
+</span><a name="line-39"></a><span>    </span><span class="hs-comment">-- * Row</span><span>
+</span><a name="line-40"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Foundation.Format.CSV.Types.html#Row"><span class="hs-identifier hs-type">Row</span></a><span>
+</span><a name="line-41"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Foundation.Format.CSV.Types.html#Record"><span class="hs-identifier hs-type">Record</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-42"></a><span>    </span><span class="hs-comment">-- * Field</span><span>
+</span><a name="line-43"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Foundation.Format.CSV.Types.html#Field"><span class="hs-identifier hs-type">Field</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-44"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Foundation.Format.CSV.Types.html#Escaping"><span class="hs-identifier hs-type">Escaping</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-45"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Foundation.Format.CSV.Types.html#IsField"><span class="hs-identifier hs-type">IsField</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-46"></a><span>    </span><span class="hs-comment">-- ** helpers</span><span>
+</span><a name="line-47"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Foundation.Format.CSV.Types.html#integral"><span class="hs-identifier hs-var">integral</span></a><span>
+</span><a name="line-48"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Foundation.Format.CSV.Types.html#float"><span class="hs-identifier hs-var">float</span></a><span>
+</span><a name="line-49"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Foundation.Format.CSV.Types.html#string"><span class="hs-identifier hs-var">string</span></a><span>
+</span><a name="line-50"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-51"></a><span>
+</span><a name="line-52"></a><span class="hs-keyword">import</span><span> </span><a href="Foundation.Format.CSV.Types.html"><span class="hs-identifier">Foundation.Format.CSV.Types</span></a><span>
+</span><a name="line-53"></a><span class="hs-keyword">import</span><span> </span><a href="Foundation.Format.CSV.Builder.html"><span class="hs-identifier">Foundation.Format.CSV.Builder</span></a><span>
+</span><a name="line-54"></a><span class="hs-keyword">import</span><span> </span><a href="Foundation.Format.CSV.Parser.html"><span class="hs-identifier">Foundation.Format.CSV.Parser</span></a><span>
+</span><a name="line-55"></a></pre></body></html>

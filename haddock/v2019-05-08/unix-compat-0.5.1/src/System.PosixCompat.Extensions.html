@@ -1,0 +1,62 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">1</span><span> </span><span class="hs-pragma">&quot;src/System/PosixCompat/Extensions.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><a name="line-3"></a><span class="hs-pragma">{-# LANGUAGE ForeignFunctionInterface #-}</span><span>
+</span><a name="line-4"></a><span>
+</span><a name="line-5"></a><span class="hs-comment">-- | This module provides some functions not present in the unix package.</span><span>
+</span><a name="line-6"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">System.PosixCompat.Extensions</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-7"></a><span>    </span><span class="hs-comment">-- * Device IDs.</span><span>
+</span><a name="line-8"></a><span>      </span><span class="hs-identifier">CMajor</span><span>
+</span><a name="line-9"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">CMinor</span><span>
+</span><a name="line-10"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">deviceMajor</span><span>
+</span><a name="line-11"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">deviceMinor</span><span>
+</span><a name="line-12"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">makeDeviceID</span><span>
+</span><a name="line-13"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-14"></a><span>
+</span><a name="line-15"></a><span>
+</span><a name="line-16"></a><span>
+</span><a name="line-17"></a><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">16</span><span> </span><span class="hs-pragma">&quot;src/System/PosixCompat/Extensions.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-18"></a><span>
+</span><a name="line-19"></a><span>
+</span><a name="line-20"></a><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">18</span><span> </span><span class="hs-pragma">&quot;src/System/PosixCompat/Extensions.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-21"></a><span>
+</span><a name="line-22"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Foreign.C.Types</span><span>
+</span><a name="line-23"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">System.PosixCompat.Types</span><span>
+</span><a name="line-24"></a><span>
+</span><a name="line-25"></a><span>
+</span><a name="line-26"></a><span class="hs-keyword">type</span><span> </span><span class="hs-identifier">CMajor</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">CUInt</span><span>
+</span><a name="line-27"></a><span class="hs-keyword">type</span><span> </span><span class="hs-identifier">CMinor</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">CUInt</span><span>
+</span><a name="line-28"></a><span>
+</span><a name="line-29"></a><span class="hs-comment">-- | Gets the major number from a 'DeviceID' for a device file.</span><span>
+</span><a name="line-30"></a><span class="hs-comment">--</span><span>
+</span><a name="line-31"></a><span class="hs-comment">-- The portable implementation always returns @0@.</span><span>
+</span><a name="line-32"></a><span class="hs-identifier">deviceMajor</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">DeviceID</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">CMajor</span><span>
+</span><a name="line-33"></a><span>
+</span><a name="line-34"></a><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">33</span><span> </span><span class="hs-pragma">&quot;src/System/PosixCompat/Extensions.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-35"></a><span class="hs-identifier">deviceMajor</span><span> </span><span class="hs-identifier">dev</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">unix_major</span><span> </span><span class="hs-identifier">dev</span><span>
+</span><a name="line-36"></a><span>
+</span><a name="line-37"></a><span class="hs-keyword">foreign</span><span> </span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">ccall</span><span> </span><span class="hs-keyword">unsafe</span><span> </span><span class="hs-string">&quot;unix_major&quot;</span><span> </span><span class="hs-identifier">unix_major</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">CDev</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">CUInt</span><span>
+</span><a name="line-38"></a><span>
+</span><a name="line-39"></a><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">37</span><span> </span><span class="hs-pragma">&quot;src/System/PosixCompat/Extensions.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-40"></a><span>
+</span><a name="line-41"></a><span class="hs-comment">-- | Gets the minor number from a 'DeviceID' for a device file.</span><span>
+</span><a name="line-42"></a><span class="hs-comment">--</span><span>
+</span><a name="line-43"></a><span class="hs-comment">-- The portable implementation always returns @0@.</span><span>
+</span><a name="line-44"></a><span class="hs-identifier">deviceMinor</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">DeviceID</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">CMinor</span><span>
+</span><a name="line-45"></a><span>
+</span><a name="line-46"></a><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">45</span><span> </span><span class="hs-pragma">&quot;src/System/PosixCompat/Extensions.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-47"></a><span class="hs-identifier">deviceMinor</span><span> </span><span class="hs-identifier">dev</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">unix_minor</span><span> </span><span class="hs-identifier">dev</span><span>
+</span><a name="line-48"></a><span>
+</span><a name="line-49"></a><span class="hs-keyword">foreign</span><span> </span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">ccall</span><span> </span><span class="hs-keyword">unsafe</span><span> </span><span class="hs-string">&quot;unix_minor&quot;</span><span> </span><span class="hs-identifier">unix_minor</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">CDev</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">CUInt</span><span>
+</span><a name="line-50"></a><span>
+</span><a name="line-51"></a><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">49</span><span> </span><span class="hs-pragma">&quot;src/System/PosixCompat/Extensions.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-52"></a><span>
+</span><a name="line-53"></a><span class="hs-comment">-- | Creates a 'DeviceID' for a device file given a major and minor number.</span><span>
+</span><a name="line-54"></a><span class="hs-identifier">makeDeviceID</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">CMajor</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">CMinor</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">DeviceID</span><span>
+</span><a name="line-55"></a><span>
+</span><a name="line-56"></a><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">55</span><span> </span><span class="hs-pragma">&quot;src/System/PosixCompat/Extensions.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-57"></a><span class="hs-identifier">makeDeviceID</span><span> </span><span class="hs-identifier">ma</span><span> </span><span class="hs-identifier">mi</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">unix_makedev</span><span> </span><span class="hs-identifier">ma</span><span> </span><span class="hs-identifier">mi</span><span>
+</span><a name="line-58"></a><span>
+</span><a name="line-59"></a><span class="hs-keyword">foreign</span><span> </span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">ccall</span><span> </span><span class="hs-keyword">unsafe</span><span> </span><span class="hs-string">&quot;unix_makedev&quot;</span><span> </span><span class="hs-identifier">unix_makedev</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">CUInt</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">CUInt</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">CDev</span><span>
+</span><a name="line-60"></a><span>
+</span><a name="line-61"></a><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">59</span><span> </span><span class="hs-pragma">&quot;src/System/PosixCompat/Extensions.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-62"></a></pre></body></html>

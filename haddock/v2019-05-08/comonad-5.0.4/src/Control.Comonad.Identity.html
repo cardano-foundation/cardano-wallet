@@ -1,0 +1,26 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><a name="line-2"></a><span class="hs-cpp">#if __GLASGOW_HASKELL__ &gt;= 704
+</span><span class="hs-pragma">{-# LANGUAGE Safe #-}</span><span>
+</span><a name="line-4"></a><span class="hs-cpp">#elif __GLASGOW_HASKELL__ &gt;= 702
+</span><span class="hs-pragma">{-# LANGUAGE Trustworthy #-}</span><span>
+</span><a name="line-6"></a><span class="hs-cpp">#endif
+</span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><a name="line-8"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-9"></a><span class="hs-comment">-- Module      :  Control.Comonad.Identity</span><span>
+</span><a name="line-10"></a><span class="hs-comment">-- Copyright   :  (C) 2008-2014 Edward Kmett</span><span>
+</span><a name="line-11"></a><span class="hs-comment">-- License     :  BSD-style (see the file LICENSE)</span><span>
+</span><a name="line-12"></a><span class="hs-comment">--</span><span>
+</span><a name="line-13"></a><span class="hs-comment">-- Maintainer  :  Edward Kmett &lt;ekmett@gmail.com&gt;</span><span>
+</span><a name="line-14"></a><span class="hs-comment">-- Stability   :  experimental</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- Portability :  non-portable (fundeps, MPTCs)</span><span>
+</span><a name="line-16"></a><span class="hs-comment">----------------------------------------------------------------------------</span><span>
+</span><a name="line-17"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Control.Comonad.Identity</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-18"></a><span>    </span><span class="hs-keyword">module</span><span> </span><a href="Control.Comonad.html"><span class="hs-identifier">Control.Comonad</span></a><span>
+</span><a name="line-19"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Functor.Identity</span><span>
+</span><a name="line-20"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><a href="Control.Comonad.Trans.Identity.html"><span class="hs-identifier">Control.Comonad.Trans.Identity</span></a><span>
+</span><a name="line-21"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-22"></a><span>
+</span><a name="line-23"></a><span class="hs-keyword">import</span><span> </span><a href="Control.Comonad.html"><span class="hs-identifier">Control.Comonad</span></a><span>
+</span><a name="line-24"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Functor.Identity</span><span>
+</span><a name="line-25"></a><span class="hs-keyword">import</span><span> </span><a href="Control.Comonad.Trans.Identity.html"><span class="hs-identifier">Control.Comonad.Trans.Identity</span></a><span>
+</span><a name="line-26"></a></pre></body></html>

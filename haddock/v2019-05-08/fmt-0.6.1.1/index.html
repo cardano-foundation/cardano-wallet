@@ -1,0 +1,25 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>fmt-0.6.1.1: A new formatting library</title><link href="ocean.css" rel="stylesheet" type="text/css" title="Ocean" /><link rel="stylesheet" type="text/css" href="quick-jump.css" /><script src="haddock-bundle.min.js" async="async" type="text/javascript"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script></head><body><div id="package-header"><ul class="links" id="page-menu"><li><a href="index.html">Contents</a></li><li><a href="doc-index.html">Index</a></li></ul><p class="caption">fmt-0.6.1.1: A new formatting library</p></div><div id="content"><div id="description"><h1>fmt-0.6.1.1: A new formatting library</h1><div class="doc"><p>A new formatting library that tries to be simple to understand while still
+being powerful and providing more convenience features than other libraries
+(like functions for pretty-printing maps and lists, or a function for
+printing arbitrary datatypes using generics).</p><p>A comparison with other libraries:</p><ul><li><code>printf</code> (from <code>Text.Printf</code>) takes a formatting string and uses some
+type tricks to accept the rest of the arguments polyvariadically. It's
+very concise, but there are some drawbacks &#8211; it can't produce <code>Text</code>
+(you'd have to <code>T.pack</code> it every time) and it doesn't warn you at
+compile-time if you pass wrong arguments or not enough of them.</li><li><a href="https://hackage.haskell.org/package/text-format">text-format</a> takes a
+formatting string with curly braces denoting places where arguments
+would be substituted (the arguments themselves are provided via a
+tuple). If you want to apply formatting to some of the arguments, you
+have to use one of the provided formatters. Like <code>printf</code>, it can fail at
+runtime, but at least the formatters are first-class (and you can add new
+ones).</li><li><a href="https://hackage.haskell.org/package/formatting">formatting</a> takes a
+formatting template consisting of pieces of strings interleaved with
+formatters; this ensures that arguments always match their placeholders.
+<code>formatting</code> provides lots of formatters and generally seems to be the
+most popular formatting library here. Unfortunately, at least in my
+experience writing new formatters can be awkward and people sometimes
+have troubles understanding how <code>formatting</code> works.</li><li><a href="https://hackage.haskell.org/package/fmt">fmt</a> (i.e. this library)
+provides formatters that are ordinary functions, and a bunch of operators
+for concatenating formatted strings; those operators also do automatic
+conversion. There are some convenience formatters which aren't present in
+<code>formatting</code> (like ones for formatting maps, lists, converting to base64,
+etc). Some find the operator syntax annoying, while others like it.</li></ul></div></div><div id="module-list"><p class="caption">Signatures</p></div><div id="module-list"><p class="caption">Modules</p><ul><li><span class="module"><span class="details-toggle-control details-toggle" data-details-id="n.1">&nbsp;</span><a href="Fmt.html">Fmt</a></span><details id="n.1" open="open"><summary class="hide-when-js-enabled">Submodules</summary><ul><li><span class="module"><span class="details-toggle-control details-toggle" data-details-id="n.1.1">&nbsp;</span><a href="Fmt-Internal.html">Fmt.Internal</a></span><details id="n.1.1" open="open"><summary class="hide-when-js-enabled">Submodules</summary><ul><li><span class="module"><a href="Fmt-Internal-Core.html">Fmt.Internal.Core</a></span></li><li><span class="module"><a href="Fmt-Internal-Formatters.html">Fmt.Internal.Formatters</a></span></li><li><span class="module"><a href="Fmt-Internal-Generic.html">Fmt.Internal.Generic</a></span></li><li><span class="module"><a href="Fmt-Internal-Numeric.html">Fmt.Internal.Numeric</a></span></li><li><span class="module"><a href="Fmt-Internal-Template.html">Fmt.Internal.Template</a></span></li><li><span class="module"><a href="Fmt-Internal-Tuple.html">Fmt.Internal.Tuple</a></span></li></ul></details></li><li><span class="module"><a href="Fmt-Time.html">Fmt.Time</a></span></li></ul></details></li></ul></div></div><div id="footer"><p>Produced by <a href="http://www.haskell.org/haddock/">Haddock</a> version 2.22.0</p></div></body></html>

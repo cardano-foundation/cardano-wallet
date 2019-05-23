@@ -1,0 +1,142 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><a name="line-2"></a><span>
+</span><a name="line-3"></a><span class="hs-cpp">#if __GLASGOW_HASKELL__ &gt;= 706
+</span><span class="hs-pragma">{-# LANGUAGE ExplicitNamespaces #-}</span><span>
+</span><a name="line-5"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-7"></a><span class="hs-pragma">{-# OPTIONS_GHC -fno-warn-deprecations #-}</span><span>
+</span><a name="line-8"></a><span>
+</span><a name="line-9"></a><span class="hs-comment">{-|
+Exports modules that Data.Orphans needs. Because Data.Orphans uses several modules
+that only need to be in scope for certain versions of GHC, exporting all of the modules
+separately eliminates the need to use CPP pragmas for GHC-version-specific imports.
+This makes it much easier to be -Wall-compliant.
+
+Note that this module does not export any modules that could introduce name clashes.
+-}</span><span>
+</span><a name="line-17"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Orphans.Prelude</span><span>
+</span><a name="line-18"></a><span class="hs-cpp">#if MIN_VERSION_base(4,12,0)
+</span><span>    </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-20"></a><span class="hs-cpp">#else
+</span><span>    </span><span class="hs-special">(</span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">realPart</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">imagPart</span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-22"></a><span>
+</span><a name="line-23"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Applicative</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-24"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Arrow</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">first</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">loop</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">second</span><span class="hs-special">)</span><span>
+</span><a name="line-25"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Category</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-operator">.</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">id</span><span class="hs-special">)</span><span>
+</span><a name="line-26"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Concurrent.QSem</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-27"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Monad</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">mapM</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">sequence</span><span class="hs-special">)</span><span>
+</span><a name="line-28"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Monad.Fix</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-29"></a><span>
+</span><a name="line-30"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Bits</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-31"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Char</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-32"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Complex</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Complex</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-33"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Data</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Data</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">Constr</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">DataType</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">mkConstr</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">mkDataType</span><span class="hs-special">)</span><span>
+</span><a name="line-34"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Fixed</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-35"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Int</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-36"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Ix</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-37"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.List</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">genericLength</span><span class="hs-special">)</span><span>
+</span><a name="line-38"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Monoid</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-39"></a><span>  </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span> </span><span class="hs-identifier">Any</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-40"></a><span class="hs-cpp"># if MIN_VERSION_base(4,5,0)
+</span><span>         </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="hs-operator">&lt;&gt;</span><span class="hs-special">)</span><span>
+</span><a name="line-42"></a><span class="hs-cpp"># endif
+</span><span>         </span><span class="hs-special">)</span><span>
+</span><a name="line-44"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.String</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">IsString</span><span class="hs-special">)</span><span>
+</span><a name="line-45"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Version</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-46"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Word</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-47"></a><span>
+</span><a name="line-48"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Foreign.C.Error</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-49"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Foreign.C.Types</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-50"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Foreign.Marshal.Pool</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-51"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Foreign.Ptr</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-52"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Foreign.Storable</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-53"></a><span>
+</span><a name="line-54"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.Base</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-55"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.Conc</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-56"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.Desugar</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">AnnotationWrapper</span><span class="hs-special">)</span><span>
+</span><a name="line-57"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.ForeignPtr</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-58"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.IO.Buffer</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-59"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.IO.BufferedIO</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">BufferedIO</span><span class="hs-special">)</span><span>
+</span><a name="line-60"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.IO.Device</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">IODevice</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">IODeviceType</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">RawIO</span><span class="hs-special">)</span><span>
+</span><a name="line-61"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.IO.Encoding</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-62"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.IO.Handle</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-63"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.IO.Handle.Types</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-64"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.Real</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Ratio</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="hs-operator">%</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-65"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.ST</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-66"></a><span>
+</span><a name="line-67"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Numeric</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">showHex</span><span class="hs-special">)</span><span>
+</span><a name="line-68"></a><span>
+</span><a name="line-69"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">System.Console.GetOpt</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-70"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">System.IO</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-71"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">System.Posix.Internals</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-72"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">System.Posix.Types</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-73"></a><span>
+</span><a name="line-74"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Text.Printf</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-75"></a><span>
+</span><a name="line-76"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Unsafe.Coerce</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">unsafeCoerce</span><span class="hs-special">)</span><span>
+</span><a name="line-77"></a><span>
+</span><a name="line-78"></a><span class="hs-cpp"># if defined(mingw32_HOST_OS)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.IO.Encoding.CodePage.Table</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-80"></a><span class="hs-cpp"># endif
+</span><span>
+</span><a name="line-82"></a><span class="hs-cpp"># if MIN_VERSION_base(4,4,0)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Monad.Zip</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-84"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.Fingerprint</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-85"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.IO.Encoding.Failure</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-86"></a><span>
+</span><a name="line-87"></a><span class="hs-cpp">#  if !defined(mingw32_HOST_OS) &amp;&amp; !defined(__GHCJS__)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.Event</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-89"></a><span class="hs-cpp">#  endif
+</span><span>
+</span><a name="line-91"></a><span class="hs-cpp"># if !(MIN_VERSION_base(4,10,0))
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Typeable.Internal</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-93"></a><span class="hs-cpp"># endif
+# endif
+</span><span>
+</span><a name="line-96"></a><span class="hs-cpp"># if MIN_VERSION_base(4,5,0)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.Stack</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-98"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.Stats</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-99"></a><span class="hs-cpp"># endif
+</span><span>
+</span><a name="line-101"></a><span class="hs-cpp"># if MIN_VERSION_base(4,6,0)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Ord</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Down</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-103"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.GHCi</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-104"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.TypeLits</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="hs-keyword">type</span><span> </span><span class="hs-special">(</span><span class="hs-operator">*</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-105"></a><span class="hs-cpp"># else
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.Exts</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Down</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-107"></a><span class="hs-cpp"># endif
+</span><span>
+</span><a name="line-109"></a><span class="hs-cpp"># if MIN_VERSION_base(4,6,0) &amp;&amp; !(MIN_VERSION_base(4,8,2))
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.IP</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-111"></a><span class="hs-cpp"># endif
+</span><span>
+</span><a name="line-113"></a><span class="hs-cpp"># if MIN_VERSION_base(4,7,0)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Proxy</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-115"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Type.Coercion</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Coercion</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">TestCoercion</span><span class="hs-special">)</span><span>
+</span><a name="line-116"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Type.Equality</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-operator">:~:</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">TestEquality</span><span class="hs-special">)</span><span>
+</span><a name="line-117"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Text.Read.Lex</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Number</span><span class="hs-special">)</span><span>
+</span><a name="line-118"></a><span class="hs-cpp"># else
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Concurrent.SampleVar</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-120"></a><span class="hs-cpp"># endif
+</span><span>
+</span><a name="line-122"></a><span class="hs-cpp"># if MIN_VERSION_base(4,8,0)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Bifunctor</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-124"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Functor.Identity</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-125"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-127"></a><span class="hs-cpp"># if MIN_VERSION_base(4,9,0)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Functor.Classes</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span>
+</span><a name="line-129"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.List.NonEmpty</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">NonEmpty</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-130"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Semigroup</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">OrphansPrelude</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Semigroup</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">stimesMonoid</span><span class="hs-special">)</span><span>
+</span><a name="line-131"></a><span class="hs-cpp"># endif
+</span><span>
+</span><a name="line-133"></a><span class="hs-cpp"># if MIN_VERSION_base(4,4,0)
+</span><span class="hs-identifier">realPart</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">imagPart</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">Complex</span><span> </span><span class="hs-identifier">a</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">a</span><span>
+</span><a name="line-135"></a><span class="hs-cpp">#else
+</span><span class="hs-identifier">realPart</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">imagPart</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">RealFloat</span><span> </span><span class="hs-identifier">a</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-identifier">Complex</span><span> </span><span class="hs-identifier">a</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">a</span><span>
+</span><a name="line-137"></a><span class="hs-cpp">#endif
+</span><span class="hs-identifier">realPart</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">x</span><span> </span><span class="hs-operator">:+</span><span> </span><span class="hs-identifier">_</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">x</span><span>
+</span><a name="line-139"></a><span class="hs-identifier">imagPart</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">_</span><span> </span><span class="hs-operator">:+</span><span> </span><span class="hs-identifier">y</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">y</span><span>
+</span><a name="line-140"></a><span>
+</span><a name="line-141"></a><span class="hs-cpp">#endif
+</span></pre></body></html>

@@ -1,0 +1,123 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE FlexibleContexts      #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE FlexibleInstances     #-}</span><span>
+</span><a name="line-3"></a><span class="hs-pragma">{-# LANGUAGE MonoLocalBinds        #-}</span><span>
+</span><a name="line-4"></a><span class="hs-pragma">{-# LANGUAGE MultiParamTypeClasses #-}</span><span>
+</span><a name="line-5"></a><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables   #-}</span><span>
+</span><a name="line-6"></a><span class="hs-pragma">{-# LANGUAGE TypeApplications      #-}</span><span>
+</span><a name="line-7"></a><span class="hs-pragma">{-# LANGUAGE TypeOperators         #-}</span><span>
+</span><a name="line-8"></a><span class="hs-pragma">{-# LANGUAGE TypeSynonymInstances  #-}</span><span>
+</span><a name="line-9"></a><span class="hs-pragma">{-# LANGUAGE UndecidableInstances  #-}</span><span>
+</span><a name="line-10"></a><span>
+</span><a name="line-11"></a><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><a name="line-12"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-13"></a><span class="hs-comment">-- Module      :  Data.Generics.Sum.Subtype</span><span>
+</span><a name="line-14"></a><span class="hs-comment">-- Copyright   :  (C) 2018 Csongor Kiss</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- License     :  BSD3</span><span>
+</span><a name="line-16"></a><span class="hs-comment">-- Maintainer  :  Csongor Kiss &lt;kiss.csongor.kiss@gmail.com&gt;</span><span>
+</span><a name="line-17"></a><span class="hs-comment">-- Stability   :  experimental</span><span>
+</span><a name="line-18"></a><span class="hs-comment">-- Portability :  non-portable</span><span>
+</span><a name="line-19"></a><span class="hs-comment">--</span><span>
+</span><a name="line-20"></a><span class="hs-comment">-- Structural subtype relationships between sum types.</span><span>
+</span><a name="line-21"></a><span class="hs-comment">--</span><span>
+</span><a name="line-22"></a><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><a name="line-23"></a><span>
+</span><a name="line-24"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Generics.Sum.Subtype</span><span>
+</span><a name="line-25"></a><span>  </span><span class="hs-special">(</span><span> </span><span class="hs-comment">-- *Prisms</span><span>
+</span><a name="line-26"></a><span>    </span><span class="hs-comment">--</span><span>
+</span><a name="line-27"></a><span>    </span><span class="hs-comment">-- $setup</span><span>
+</span><a name="line-28"></a><span>    </span><a href="Data.Generics.Sum.Subtype.html#AsSubtype"><span class="hs-identifier hs-type">AsSubtype</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-29"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-30"></a><span>
+</span><a name="line-31"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Generics.Internal.Void.html"><span class="hs-identifier">Data.Generics.Internal.Void</span></a><span>
+</span><a name="line-32"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Generics.Sum.Internal.Subtype.html"><span class="hs-identifier">Data.Generics.Sum.Internal.Subtype</span></a><span>
+</span><a name="line-33"></a><span>
+</span><a name="line-34"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.Generics</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Generic</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">Rep</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-35"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Generics.Internal.VL.Prism.html"><span class="hs-identifier">Data.Generics.Internal.VL.Prism</span></a><span>
+</span><a name="line-36"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Generics.Internal.Profunctor.Iso.html"><span class="hs-identifier">Data.Generics.Internal.Profunctor.Iso</span></a><span>
+</span><a name="line-37"></a><span>
+</span><a name="line-38"></a><span class="hs-comment">-- $setup</span><span>
+</span><a name="line-39"></a><span class="hs-comment">-- == /Running example:/</span><span>
+</span><a name="line-40"></a><span class="hs-comment">--</span><span>
+</span><a name="line-41"></a><span class="hs-comment">-- &gt;&gt;&gt; :set -XTypeApplications</span><span>
+</span><a name="line-42"></a><span class="hs-comment">-- &gt;&gt;&gt; :set -XDataKinds</span><span>
+</span><a name="line-43"></a><span class="hs-comment">-- &gt;&gt;&gt; :set -XDeriveGeneric</span><span>
+</span><a name="line-44"></a><span class="hs-comment">-- &gt;&gt;&gt; import GHC.Generics</span><span>
+</span><a name="line-45"></a><span class="hs-comment">-- &gt;&gt;&gt; :m +Data.Generics.Internal.VL.Prism</span><span>
+</span><a name="line-46"></a><span class="hs-comment">-- &gt;&gt;&gt; :{</span><span>
+</span><a name="line-47"></a><span class="hs-comment">-- data Animal</span><span>
+</span><a name="line-48"></a><span class="hs-comment">--   = Dog Dog</span><span>
+</span><a name="line-49"></a><span class="hs-comment">--   | Cat Name Age</span><span>
+</span><a name="line-50"></a><span class="hs-comment">--   | Duck Age</span><span>
+</span><a name="line-51"></a><span class="hs-comment">--   deriving (Generic, Show)</span><span>
+</span><a name="line-52"></a><span class="hs-comment">-- data FourLeggedAnimal</span><span>
+</span><a name="line-53"></a><span class="hs-comment">--   = Dog4 Dog</span><span>
+</span><a name="line-54"></a><span class="hs-comment">--   | Cat4 Name Age</span><span>
+</span><a name="line-55"></a><span class="hs-comment">--   deriving (Generic, Show)</span><span>
+</span><a name="line-56"></a><span class="hs-comment">-- data Dog = MkDog</span><span>
+</span><a name="line-57"></a><span class="hs-comment">--   { name :: Name</span><span>
+</span><a name="line-58"></a><span class="hs-comment">--   , age  :: Age</span><span>
+</span><a name="line-59"></a><span class="hs-comment">--   }</span><span>
+</span><a name="line-60"></a><span class="hs-comment">--   deriving (Generic, Show)</span><span>
+</span><a name="line-61"></a><span class="hs-comment">-- type Name = String</span><span>
+</span><a name="line-62"></a><span class="hs-comment">-- type Age  = Int</span><span>
+</span><a name="line-63"></a><span class="hs-comment">-- dog, cat, duck :: Animal</span><span>
+</span><a name="line-64"></a><span class="hs-comment">-- dog = Dog (MkDog &quot;Shep&quot; 3)</span><span>
+</span><a name="line-65"></a><span class="hs-comment">-- cat = Cat &quot;Mog&quot; 5</span><span>
+</span><a name="line-66"></a><span class="hs-comment">-- duck = Duck 2</span><span>
+</span><a name="line-67"></a><span class="hs-comment">-- dog4, cat4 :: FourLeggedAnimal</span><span>
+</span><a name="line-68"></a><span class="hs-comment">-- dog4 = Dog4 (MkDog &quot;Snowy&quot; 4)</span><span>
+</span><a name="line-69"></a><span class="hs-comment">-- cat4 = Cat4 &quot;Garfield&quot; 6</span><span>
+</span><a name="line-70"></a><span class="hs-comment">-- :}</span><span>
+</span><a name="line-71"></a><span>
+</span><a name="line-72"></a><span class="hs-comment">-- |Structural subtyping between sums. A sum 'Sub' is a subtype of another sum</span><span>
+</span><a name="line-73"></a><span class="hs-comment">--  'Sup' if a value of 'Sub' can be given (modulo naming of constructors)</span><span>
+</span><a name="line-74"></a><span class="hs-comment">--  whenever a value of 'Sup' is expected. In the running example for instance,</span><span>
+</span><a name="line-75"></a><span class="hs-comment">--  'FourLeggedAnimal` is a subtype of 'Animal' since a value of the former can</span><span>
+</span><a name="line-76"></a><span class="hs-comment">--  be given as a value of the latter (renaming 'Dog4' to 'Dog' and 'Cat4' to</span><span>
+</span><a name="line-77"></a><span class="hs-comment">--  'Cat').</span><span>
+</span><a name="line-78"></a><span class="hs-keyword">class</span><span> </span><a name="AsSubtype"><a href="Data.Generics.Sum.Subtype.html#AsSubtype"><span class="hs-identifier">AsSubtype</span></a></a><span> </span><a name="local-6989586621679080960"><a href="#local-6989586621679080960"><span class="hs-identifier">sub</span></a></a><span> </span><a name="local-6989586621679080961"><a href="#local-6989586621679080961"><span class="hs-identifier">sup</span></a></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-79"></a><span>  </span><span class="hs-comment">-- |A prism that captures structural subtyping. Allows a substructure to be</span><span>
+</span><a name="line-80"></a><span>  </span><span class="hs-comment">--  injected (upcast) into a superstructure or a superstructure to be downcast</span><span>
+</span><a name="line-81"></a><span>  </span><span class="hs-comment">--  into a substructure (which may fail).</span><span>
+</span><a name="line-82"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-83"></a><span>  </span><span class="hs-comment">--  &gt;&gt;&gt; _Sub # dog4 :: Animal</span><span>
+</span><a name="line-84"></a><span>  </span><span class="hs-comment">--  Dog (MkDog {name = &quot;Snowy&quot;, age = 4})</span><span>
+</span><a name="line-85"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-86"></a><span>  </span><span class="hs-comment">--  &gt;&gt;&gt; cat ^? _Sub :: Maybe FourLeggedAnimal</span><span>
+</span><a name="line-87"></a><span>  </span><span class="hs-comment">--  Just (Cat4 &quot;Mog&quot; 5)</span><span>
+</span><a name="line-88"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-89"></a><span>  </span><span class="hs-comment">--  &gt;&gt;&gt; duck ^? _Sub :: Maybe FourLeggedAnimal</span><span>
+</span><a name="line-90"></a><span>  </span><span class="hs-comment">--  Nothing</span><span>
+</span><a name="line-91"></a><span>  </span><a name="_Sub"><a href="Data.Generics.Sum.Subtype.html#_Sub"><span class="hs-identifier">_Sub</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><a href="Data.Generics.Internal.VL.Prism.html#Prism%27"><span class="hs-identifier hs-type">Prism'</span></a><span> </span><a href="#local-6989586621679080961"><span class="hs-identifier hs-type">sup</span></a><span> </span><a href="#local-6989586621679080960"><span class="hs-identifier hs-type">sub</span></a><span>
+</span><a name="line-92"></a><span>  </span><a name="local-8214565720323855868"><a href="Data.Generics.Sum.Subtype.html#_Sub"><span class="hs-identifier">_Sub</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Data.Generics.Internal.VL.Prism.html#prism"><span class="hs-identifier hs-var">prism</span></a><span> </span><a href="Data.Generics.Sum.Subtype.html#injectSub"><span class="hs-identifier hs-var">injectSub</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><a name="local-6989586621679080962"><a href="#local-6989586621679080962"><span class="hs-identifier">i</span></a></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-var">maybe</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">Left</span><span> </span><a href="#local-6989586621679080962"><span class="hs-identifier hs-var">i</span></a><span class="hs-special">)</span><span> </span><span class="hs-identifier hs-var">Right</span><span> </span><span class="hs-special">(</span><a href="Data.Generics.Sum.Subtype.html#projectSub"><span class="hs-identifier hs-var">projectSub</span></a><span> </span><a href="#local-6989586621679080962"><span class="hs-identifier hs-var">i</span></a><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-93"></a><span>  </span><span class="hs-pragma">{-# INLINE</span><span class="hs-pragma">[</span><span class="hs-pragma">2</span><span class="hs-pragma">]</span><span> </span><span class="hs-pragma">_Sub</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-94"></a><span>
+</span><a name="line-95"></a><span>  </span><span class="hs-comment">-- |Injects a subtype into a supertype (upcast).</span><span>
+</span><a name="line-96"></a><span>  </span><a name="injectSub"><a href="Data.Generics.Sum.Subtype.html#injectSub"><span class="hs-identifier">injectSub</span></a></a><span>  </span><span class="hs-glyph">::</span><span> </span><a href="#local-6989586621679080960"><span class="hs-identifier hs-type">sub</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="#local-6989586621679080961"><span class="hs-identifier hs-type">sup</span></a><span>
+</span><a name="line-97"></a><span>  </span><a name="local-8214565720323855869"><a href="Data.Generics.Sum.Subtype.html#injectSub"><span class="hs-identifier">injectSub</span></a></a><span>
+</span><a name="line-98"></a><span>    </span><span class="hs-glyph">=</span><span> </span><a href="Data.Generics.Internal.VL.Prism.html#build"><span class="hs-identifier hs-var">build</span></a><span> </span><span class="hs-special">(</span><a href="Data.Generics.Sum.Subtype.html#_Sub"><span class="hs-identifier hs-var">_Sub</span></a><span> </span><span class="hs-glyph">@</span><a href="#local-6989586621679080960"><span class="hs-identifier hs-type">sub</span></a><span> </span><span class="hs-glyph">@</span><a href="#local-6989586621679080961"><span class="hs-identifier hs-type">sup</span></a><span class="hs-special">)</span><span>
+</span><a name="line-99"></a><span>
+</span><a name="line-100"></a><span>  </span><span class="hs-comment">-- |Projects a subtype from a supertype (downcast).</span><span>
+</span><a name="line-101"></a><span>  </span><a name="projectSub"><a href="Data.Generics.Sum.Subtype.html#projectSub"><span class="hs-identifier">projectSub</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><a href="#local-6989586621679080961"><span class="hs-identifier hs-type">sup</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Maybe</span><span> </span><a href="#local-6989586621679080960"><span class="hs-identifier hs-type">sub</span></a><span>
+</span><a name="line-102"></a><span>  </span><a name="local-8214565720323855870"><a href="Data.Generics.Sum.Subtype.html#projectSub"><span class="hs-identifier">projectSub</span></a></a><span>
+</span><a name="line-103"></a><span>    </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">either</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">const</span><span> </span><span class="hs-identifier hs-var">Nothing</span><span class="hs-special">)</span><span> </span><span class="hs-identifier hs-var">Just</span><span> </span><span class="hs-operator hs-var">.</span><span> </span><a href="Data.Generics.Internal.VL.Prism.html#match"><span class="hs-identifier hs-var">match</span></a><span> </span><span class="hs-special">(</span><a href="Data.Generics.Sum.Subtype.html#_Sub"><span class="hs-identifier hs-var">_Sub</span></a><span> </span><span class="hs-glyph">@</span><a href="#local-6989586621679080960"><span class="hs-identifier hs-type">sub</span></a><span> </span><span class="hs-glyph">@</span><a href="#local-6989586621679080961"><span class="hs-identifier hs-type">sup</span></a><span class="hs-special">)</span><span>
+</span><a name="line-104"></a><span>
+</span><a name="line-105"></a><span>  </span><span class="hs-pragma">{-# MINIMAL</span><span> </span><span class="hs-pragma">(</span><span class="hs-pragma">injectSub</span><span class="hs-pragma">,</span><span> </span><span class="hs-pragma">projectSub</span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">|</span><span> </span><span class="hs-pragma">_Sub</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-106"></a><span>
+</span><a name="line-107"></a><span class="hs-keyword">instance</span><span>
+</span><a name="line-108"></a><span>  </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Generic</span><span> </span><a href="#local-6989586621679080989"><span class="hs-identifier hs-type">sub</span></a><span>
+</span><a name="line-109"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Generic</span><span> </span><a href="#local-6989586621679080990"><span class="hs-identifier hs-type">sup</span></a><span>
+</span><a name="line-110"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Generics.Sum.Internal.Subtype.html#GAsSubtype"><span class="hs-identifier hs-type">GAsSubtype</span></a><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Rep</span><span> </span><a href="#local-6989586621679080989"><span class="hs-identifier hs-type">sub</span></a><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Rep</span><span> </span><a href="#local-6989586621679080990"><span class="hs-identifier hs-type">sup</span></a><span class="hs-special">)</span><span>
+</span><a name="line-111"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><a href="Data.Generics.Sum.Subtype.html#AsSubtype"><span class="hs-identifier hs-type">AsSubtype</span></a><span> </span><a href="#local-6989586621679080989"><span class="hs-identifier hs-type">sub</span></a><span> </span><a href="#local-6989586621679080990"><span class="hs-identifier hs-type">sup</span></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-112"></a><span>
+</span><a name="line-113"></a><span>  </span><a name="local-8214565720323855868"><a href="Data.Generics.Sum.Subtype.html#_Sub"><span class="hs-identifier">_Sub</span></a></a><span> </span><a name="local-6989586621679080991"><a href="#local-6989586621679080991"><span class="hs-identifier">f</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Data.Generics.Internal.VL.Prism.html#prismRavel"><span class="hs-identifier hs-var">prismRavel</span></a><span> </span><span class="hs-special">(</span><a href="Data.Generics.Internal.Profunctor.Iso.html#repIso"><span class="hs-identifier hs-var">repIso</span></a><span> </span><span class="hs-operator hs-var">.</span><span> </span><a href="Data.Generics.Sum.Internal.Subtype.html#_GSub"><span class="hs-identifier hs-var">_GSub</span></a><span> </span><span class="hs-operator hs-var">.</span><span> </span><a href="Data.Generics.Internal.Profunctor.Iso.html#fromIso"><span class="hs-identifier hs-var">fromIso</span></a><span> </span><a href="Data.Generics.Internal.Profunctor.Iso.html#repIso"><span class="hs-identifier hs-var">repIso</span></a><span class="hs-special">)</span><span> </span><a href="#local-6989586621679080991"><span class="hs-identifier hs-var">f</span></a><span>
+</span><a name="line-114"></a><span>  </span><span class="hs-pragma">{-# INLINE</span><span class="hs-pragma">[</span><span class="hs-pragma">2</span><span class="hs-pragma">]</span><span> </span><span class="hs-pragma">_Sub</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-115"></a><span>
+</span><a name="line-116"></a><span class="hs-comment">-- See Note [Uncluttering type signatures]</span><span>
+</span><a name="line-117"></a><span class="hs-keyword">instance</span><span> </span><span class="hs-pragma">{-# OVERLAPPING</span><span> </span><span class="hs-pragma">#-}</span><span> </span><a href="Data.Generics.Sum.Subtype.html#AsSubtype"><span class="hs-identifier hs-type">AsSubtype</span></a><span> </span><a href="#local-6989586621679080988"><span class="hs-identifier hs-type">a</span></a><span> </span><a href="Data.Generics.Internal.Void.html#Void"><span class="hs-identifier hs-type">Void</span></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-118"></a><span>  </span><a name="local-8214565720323855869"><a href="Data.Generics.Sum.Subtype.html#injectSub"><span class="hs-identifier">injectSub</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">undefined</span><span>
+</span><a name="line-119"></a><span>  </span><a name="local-8214565720323855870"><a href="Data.Generics.Sum.Subtype.html#projectSub"><span class="hs-identifier">projectSub</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">undefined</span><span>
+</span><a name="line-120"></a><span class="hs-keyword">instance</span><span> </span><span class="hs-pragma">{-# OVERLAPPING</span><span> </span><span class="hs-pragma">#-}</span><span> </span><a href="Data.Generics.Sum.Subtype.html#AsSubtype"><span class="hs-identifier hs-type">AsSubtype</span></a><span> </span><a href="Data.Generics.Internal.Void.html#Void"><span class="hs-identifier hs-type">Void</span></a><span> </span><a href="#local-6989586621679080987"><span class="hs-identifier hs-type">a</span></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-121"></a><span>  </span><a name="local-8214565720323855869"><a href="Data.Generics.Sum.Subtype.html#injectSub"><span class="hs-identifier">injectSub</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">undefined</span><span>
+</span><a name="line-122"></a><span>  </span><a name="local-8214565720323855870"><a href="Data.Generics.Sum.Subtype.html#projectSub"><span class="hs-identifier">projectSub</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">undefined</span><span>
+</span><a name="line-123"></a></pre></body></html>

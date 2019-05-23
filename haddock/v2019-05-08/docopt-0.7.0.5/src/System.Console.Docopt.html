@@ -1,0 +1,50 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- | Example:</span><span>
+</span><a name="line-2"></a><span class="hs-comment">--</span><span>
+</span><a name="line-3"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-4"></a><span class="hs-comment">-- {-\# LANGUAGE QuasiQuotes \#-}</span><span>
+</span><a name="line-5"></a><span class="hs-comment">-- module Main where</span><span>
+</span><a name="line-6"></a><span class="hs-comment">--</span><span>
+</span><a name="line-7"></a><span class="hs-comment">-- import Control.Monad (when)</span><span>
+</span><a name="line-8"></a><span class="hs-comment">-- import Data.Char (toUpper)</span><span>
+</span><a name="line-9"></a><span class="hs-comment">-- import System.Environment (getArgs)</span><span>
+</span><a name="line-10"></a><span class="hs-comment">-- import System.Console.Docopt</span><span>
+</span><a name="line-11"></a><span class="hs-comment">--</span><span>
+</span><a name="line-12"></a><span class="hs-comment">-- patterns :: Docopt</span><span>
+</span><a name="line-13"></a><span class="hs-comment">-- patterns = [docopt|</span><span>
+</span><a name="line-14"></a><span class="hs-comment">-- docopt-sample version 0.1.0</span><span>
+</span><a name="line-15"></a><span class="hs-comment">--</span><span>
+</span><a name="line-16"></a><span class="hs-comment">-- Usage:</span><span>
+</span><a name="line-17"></a><span class="hs-comment">--   docopt-sample cat \&lt;file\&gt;</span><span>
+</span><a name="line-18"></a><span class="hs-comment">--   docopt-sample echo [--caps] \&lt;string\&gt;</span><span>
+</span><a name="line-19"></a><span class="hs-comment">--</span><span>
+</span><a name="line-20"></a><span class="hs-comment">-- Options:</span><span>
+</span><a name="line-21"></a><span class="hs-comment">--   -c, --caps    Caps-lock the echoed argument</span><span>
+</span><a name="line-22"></a><span class="hs-comment">-- |]</span><span>
+</span><a name="line-23"></a><span class="hs-comment">--</span><span>
+</span><a name="line-24"></a><span class="hs-comment">-- getArgOrExit = getArgOrExitWith patterns</span><span>
+</span><a name="line-25"></a><span class="hs-comment">--</span><span>
+</span><a name="line-26"></a><span class="hs-comment">-- main :: IO ()</span><span>
+</span><a name="line-27"></a><span class="hs-comment">-- main = do</span><span>
+</span><a name="line-28"></a><span class="hs-comment">--   args &lt;- parseArgsOrExit patterns =&lt;&lt; getArgs</span><span>
+</span><a name="line-29"></a><span class="hs-comment">--</span><span>
+</span><a name="line-30"></a><span class="hs-comment">--   when (args \`isPresent\` (command \&quot;cat\&quot;)) $ do</span><span>
+</span><a name="line-31"></a><span class="hs-comment">--     file &lt;- args \`getArgOrExit\` (argument \&quot;file\&quot;)</span><span>
+</span><a name="line-32"></a><span class="hs-comment">--     putStr =&lt;&lt; readFile file</span><span>
+</span><a name="line-33"></a><span class="hs-comment">--</span><span>
+</span><a name="line-34"></a><span class="hs-comment">--   when (args \`isPresent\` (command \&quot;echo\&quot;)) $ do</span><span>
+</span><a name="line-35"></a><span class="hs-comment">--     let charTransform = if args \`isPresent\` (longOption \&quot;caps\&quot;)</span><span>
+</span><a name="line-36"></a><span class="hs-comment">--                         then toUpper</span><span>
+</span><a name="line-37"></a><span class="hs-comment">--                         else id</span><span>
+</span><a name="line-38"></a><span class="hs-comment">--     string &lt;- args \`getArgOrExit\` (argument \&quot;string\&quot;)</span><span>
+</span><a name="line-39"></a><span class="hs-comment">--     putStrLn $ map charTransform string</span><span>
+</span><a name="line-40"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-41"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">System.Console.Docopt</span><span>
+</span><a name="line-42"></a><span>  </span><span class="hs-special">(</span><span>
+</span><a name="line-43"></a><span>    </span><span class="hs-keyword">module</span><span> </span><a href="System.Console.Docopt.QQ.html"><span class="hs-identifier">System.Console.Docopt.QQ</span></a><span class="hs-special">,</span><span>
+</span><a name="line-44"></a><span>    </span><span class="hs-keyword">module</span><span> </span><a href="System.Console.Docopt.Public.html"><span class="hs-identifier">System.Console.Docopt.Public</span></a><span>
+</span><a name="line-45"></a><span>  </span><span class="hs-special">)</span><span>
+</span><a name="line-46"></a><span>  </span><span class="hs-keyword">where</span><span>
+</span><a name="line-47"></a><span>
+</span><a name="line-48"></a><span class="hs-keyword">import</span><span> </span><a href="System.Console.Docopt.QQ.html"><span class="hs-identifier">System.Console.Docopt.QQ</span></a><span>
+</span><a name="line-49"></a><span class="hs-keyword">import</span><span> </span><a href="System.Console.Docopt.Public.html"><span class="hs-identifier">System.Console.Docopt.Public</span></a><span>
+</span><a name="line-50"></a></pre></body></html>

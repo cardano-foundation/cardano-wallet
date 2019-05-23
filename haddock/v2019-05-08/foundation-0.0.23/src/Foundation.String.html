@@ -1,0 +1,44 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><a name="line-2"></a><span class="hs-comment">-- Module      : Foundation.String</span><span>
+</span><a name="line-3"></a><span class="hs-comment">-- License     : BSD-style</span><span>
+</span><a name="line-4"></a><span class="hs-comment">-- Maintainer  : Vincent Hanquez &lt;vincent@snarc.org&gt;</span><span>
+</span><a name="line-5"></a><span class="hs-comment">-- Stability   : experimental</span><span>
+</span><a name="line-6"></a><span class="hs-comment">-- Portability : portable</span><span>
+</span><a name="line-7"></a><span class="hs-comment">--</span><span>
+</span><a name="line-8"></a><span class="hs-comment">-- Opaque packed String encoded in UTF8.</span><span>
+</span><a name="line-9"></a><span class="hs-comment">--</span><span>
+</span><a name="line-10"></a><span class="hs-comment">-- The type is an instance of IsString and IsList, which allow OverloadedStrings</span><span>
+</span><a name="line-11"></a><span class="hs-comment">-- for string literal, and 'fromList' to convert a [Char] (Prelude String) to a packed</span><span>
+</span><a name="line-12"></a><span class="hs-comment">-- representation</span><span>
+</span><a name="line-13"></a><span class="hs-comment">--</span><span>
+</span><a name="line-14"></a><span class="hs-comment">-- &gt; {-# LANGUAGE OverloadedStrings #-}</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- &gt; s = &quot;Hello World&quot; :: String</span><span>
+</span><a name="line-16"></a><span class="hs-comment">--</span><span>
+</span><a name="line-17"></a><span class="hs-comment">-- &gt; s = fromList (&quot;Hello World&quot; :: Prelude.String) :: String</span><span>
+</span><a name="line-18"></a><span class="hs-comment">--</span><span>
+</span><a name="line-19"></a><span class="hs-comment">-- Each unicode code point is represented by a variable encoding of 1 to 4 bytes,</span><span>
+</span><a name="line-20"></a><span class="hs-comment">--</span><span>
+</span><a name="line-21"></a><span class="hs-comment">-- For more information about UTF8: &lt;https://en.wikipedia.org/wiki/UTF-8&gt;</span><span>
+</span><a name="line-22"></a><span class="hs-comment">--</span><span>
+</span><a name="line-23"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Foundation.String</span><span>
+</span><a name="line-24"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">String</span><span>
+</span><a name="line-25"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Encoding</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-26"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">fromBytes</span><span>
+</span><a name="line-27"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">fromBytesLenient</span><span>
+</span><a name="line-28"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">fromBytesUnsafe</span><span>
+</span><a name="line-29"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">toBytes</span><span>
+</span><a name="line-30"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">ValidationFailure</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-31"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">lines</span><span>
+</span><a name="line-32"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">words</span><span>
+</span><a name="line-33"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">upper</span><span>
+</span><a name="line-34"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">lower</span><span>
+</span><a name="line-35"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">replace</span><span>
+</span><a name="line-36"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">indices</span><span>
+</span><a name="line-37"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">toBase64</span><span>
+</span><a name="line-38"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">toBase64URL</span><span>
+</span><a name="line-39"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">toBase64OpenBSD</span><span>
+</span><a name="line-40"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">breakLine</span><span>
+</span><a name="line-41"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-42"></a><span>
+</span><a name="line-43"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Basement.String</span><span>
+</span><a name="line-44"></a></pre></body></html>

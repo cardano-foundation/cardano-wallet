@@ -1,0 +1,129 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><a name="line-2"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-3"></a><span class="hs-comment">-- Module:      Blaze.ByteString.Builder.ByteString</span><span>
+</span><a name="line-4"></a><span class="hs-comment">-- Copyright:   (c) 2013 Leon P Smith</span><span>
+</span><a name="line-5"></a><span class="hs-comment">-- License:     BSD3</span><span>
+</span><a name="line-6"></a><span class="hs-comment">-- Maintainer:  Leon P Smith &lt;leon@melding-monads.com&gt;</span><span>
+</span><a name="line-7"></a><span class="hs-comment">-- Stability:   experimental</span><span>
+</span><a name="line-8"></a><span class="hs-comment">--</span><span>
+</span><a name="line-9"></a><span class="hs-comment">-- 'Write's and 'B.Builder's for strict and lazy bytestrings.</span><span>
+</span><a name="line-10"></a><span class="hs-comment">--</span><span>
+</span><a name="line-11"></a><span class="hs-comment">-- We assume the following qualified imports in order to differentiate between</span><span>
+</span><a name="line-12"></a><span class="hs-comment">-- strict and lazy bytestrings in the code examples.</span><span>
+</span><a name="line-13"></a><span class="hs-comment">--</span><span>
+</span><a name="line-14"></a><span class="hs-comment">-- &gt; import qualified Data.ByteString      as S</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- &gt; import qualified Data.ByteString.Lazy as L</span><span>
+</span><a name="line-16"></a><span class="hs-comment">--</span><span>
+</span><a name="line-17"></a><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><a name="line-18"></a><span>
+</span><a name="line-19"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Blaze.ByteString.Builder.ByteString</span><span>
+</span><a name="line-20"></a><span>    </span><span class="hs-special">(</span><span>
+</span><a name="line-21"></a><span>    </span><span class="hs-comment">-- * Strict bytestrings</span><span>
+</span><a name="line-22"></a><span>      </span><a href="Blaze.ByteString.Builder.ByteString.html#writeByteString"><span class="hs-identifier hs-var">writeByteString</span></a><span>
+</span><a name="line-23"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.ByteString.html#fromByteString"><span class="hs-identifier hs-var">fromByteString</span></a><span>
+</span><a name="line-24"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.ByteString.html#fromByteStringWith"><span class="hs-identifier hs-var">fromByteStringWith</span></a><span>
+</span><a name="line-25"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.ByteString.html#copyByteString"><span class="hs-identifier hs-var">copyByteString</span></a><span>
+</span><a name="line-26"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.ByteString.html#insertByteString"><span class="hs-identifier hs-var">insertByteString</span></a><span>
+</span><a name="line-27"></a><span>
+</span><a name="line-28"></a><span>    </span><span class="hs-comment">-- * Lazy bytestrings</span><span>
+</span><a name="line-29"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.ByteString.html#fromLazyByteString"><span class="hs-identifier hs-var">fromLazyByteString</span></a><span>
+</span><a name="line-30"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.ByteString.html#fromLazyByteStringWith"><span class="hs-identifier hs-var">fromLazyByteStringWith</span></a><span>
+</span><a name="line-31"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.ByteString.html#copyLazyByteString"><span class="hs-identifier hs-var">copyLazyByteString</span></a><span>
+</span><a name="line-32"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.ByteString.html#insertLazyByteString"><span class="hs-identifier hs-var">insertLazyByteString</span></a><span>
+</span><a name="line-33"></a><span>
+</span><a name="line-34"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-35"></a><span>
+</span><a name="line-36"></a><span>
+</span><a name="line-37"></a><span class="hs-keyword">import</span><span> </span><a href="Blaze.ByteString.Builder.Internal.Write.html"><span class="hs-identifier">Blaze.ByteString.Builder.Internal.Write</span></a><span> </span><span class="hs-special">(</span><span> </span><a href="Blaze.ByteString.Builder.Internal.Write.html#Write"><span class="hs-identifier hs-type">Write</span></a><span class="hs-special">,</span><span> </span><a href="Blaze.ByteString.Builder.Internal.Write.html#exactWrite"><span class="hs-identifier hs-var">exactWrite</span></a><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-38"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Foreign</span><span>
+</span><a name="line-39"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.ByteString.Builder</span><span>       </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">B</span><span>
+</span><a name="line-40"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.ByteString.Builder.Extra</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">B</span><span>
+</span><a name="line-41"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.ByteString</span><span>               </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">S</span><span>
+</span><a name="line-42"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.ByteString.Internal</span><span>      </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">S</span><span>
+</span><a name="line-43"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.ByteString.Lazy</span><span>          </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">L</span><span>
+</span><a name="line-44"></a><span>
+</span><a name="line-45"></a><span>
+</span><a name="line-46"></a><span class="hs-comment">-- | Write a strict 'S.ByteString' to a buffer.</span><span>
+</span><a name="line-47"></a><span class="hs-identifier">writeByteString</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">S.ByteString</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Blaze.ByteString.Builder.Internal.Write.html#Write"><span class="hs-identifier hs-type">Write</span></a><span>
+</span><a name="line-48"></a><a name="writeByteString"><a href="Blaze.ByteString.Builder.ByteString.html#writeByteString"><span class="hs-identifier">writeByteString</span></a></a><span> </span><a name="local-6989586621679040782"><a href="#local-6989586621679040782"><span class="hs-identifier">bs</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Blaze.ByteString.Builder.Internal.Write.html#exactWrite"><span class="hs-identifier hs-var">exactWrite</span></a><span> </span><a href="#local-6989586621679040785"><span class="hs-identifier hs-var">l</span></a><span> </span><a href="#local-6989586621679040786"><span class="hs-identifier hs-var">io</span></a><span>
+</span><a name="line-49"></a><span>  </span><span class="hs-keyword">where</span><span>
+</span><a name="line-50"></a><span>  </span><span class="hs-special">(</span><a name="local-6989586621679040783"><a href="#local-6989586621679040783"><span class="hs-identifier">fptr</span></a></a><span class="hs-special">,</span><span> </span><a name="local-6989586621679040784"><a href="#local-6989586621679040784"><span class="hs-identifier">o</span></a></a><span class="hs-special">,</span><span> </span><a name="local-6989586621679040785"><a href="#local-6989586621679040785"><span class="hs-identifier">l</span></a></a><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">S.toForeignPtr</span><span> </span><a href="#local-6989586621679040782"><span class="hs-identifier hs-var">bs</span></a><span>
+</span><a name="line-51"></a><span>  </span><a name="local-6989586621679040786"><a href="#local-6989586621679040786"><span class="hs-identifier">io</span></a></a><span> </span><a name="local-6989586621679040787"><a href="#local-6989586621679040787"><span class="hs-identifier">pf</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">withForeignPtr</span><span> </span><a href="#local-6989586621679040783"><span class="hs-identifier hs-var">fptr</span></a><span> </span><span class="hs-operator hs-var">$</span><span> </span><span class="hs-glyph">\</span><a name="local-6989586621679040822"><a href="#local-6989586621679040822"><span class="hs-identifier">p</span></a></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-var">copyBytes</span><span> </span><a href="#local-6989586621679040787"><span class="hs-identifier hs-var">pf</span></a><span> </span><span class="hs-special">(</span><a href="#local-6989586621679040822"><span class="hs-identifier hs-var">p</span></a><span> </span><span class="hs-special">`</span><span class="hs-identifier hs-var">plusPtr</span><span class="hs-special">`</span><span> </span><a href="#local-6989586621679040784"><span class="hs-identifier hs-var">o</span></a><span class="hs-special">)</span><span> </span><a href="#local-6989586621679040785"><span class="hs-identifier hs-var">l</span></a><span>
+</span><a name="line-52"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">writeByteString</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-53"></a><span>
+</span><a name="line-54"></a><span class="hs-comment">-- | Create a 'B.Builder' denoting the same sequence of bytes as a strict</span><span>
+</span><a name="line-55"></a><span class="hs-comment">-- 'S.ByteString'.</span><span>
+</span><a name="line-56"></a><span class="hs-comment">-- The 'B.Builder' inserts large 'S.ByteString's directly, but copies small ones</span><span>
+</span><a name="line-57"></a><span class="hs-comment">-- to ensure that the generated chunks are large on average.</span><span>
+</span><a name="line-58"></a><span class="hs-identifier">fromByteString</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">S.ByteString</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">B.Builder</span><span>
+</span><a name="line-59"></a><a name="fromByteString"><a href="Blaze.ByteString.Builder.ByteString.html#fromByteString"><span class="hs-identifier">fromByteString</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">B.byteString</span><span>
+</span><a name="line-60"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromByteString</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-61"></a><span>
+</span><a name="line-62"></a><span>
+</span><a name="line-63"></a><span class="hs-comment">-- | Construct a 'B.Builder' that copies the strict 'S.ByteString's, if it is</span><span>
+</span><a name="line-64"></a><span class="hs-comment">-- smaller than the treshold, and inserts it directly otherwise.</span><span>
+</span><a name="line-65"></a><span class="hs-comment">--</span><span>
+</span><a name="line-66"></a><span class="hs-comment">-- For example, @fromByteStringWith 1024@ copies strict 'S.ByteString's whose size</span><span>
+</span><a name="line-67"></a><span class="hs-comment">-- is less or equal to 1kb, and inserts them directly otherwise. This implies</span><span>
+</span><a name="line-68"></a><span class="hs-comment">-- that the average chunk-size of the generated lazy 'L.ByteString' may be as</span><span>
+</span><a name="line-69"></a><span class="hs-comment">-- low as 513 bytes, as there could always be just a single byte between the</span><span>
+</span><a name="line-70"></a><span class="hs-comment">-- directly inserted 1025 byte, strict 'S.ByteString's.</span><span>
+</span><a name="line-71"></a><span class="hs-comment">--</span><span>
+</span><a name="line-72"></a><span class="hs-identifier">fromByteStringWith</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int</span><span>          </span><span class="hs-comment">-- ^ Maximal number of bytes to copy.</span><span>
+</span><a name="line-73"></a><span>                   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">S.ByteString</span><span> </span><span class="hs-comment">-- ^ Strict 'S.ByteString' to serialize.</span><span>
+</span><a name="line-74"></a><span>                   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">B.Builder</span><span>    </span><span class="hs-comment">-- ^ Resulting 'B.Builder'.</span><span>
+</span><a name="line-75"></a><a name="fromByteStringWith"><a href="Blaze.ByteString.Builder.ByteString.html#fromByteStringWith"><span class="hs-identifier">fromByteStringWith</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">B.byteStringThreshold</span><span>
+</span><a name="line-76"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromByteStringWith</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-77"></a><span>
+</span><a name="line-78"></a><span class="hs-comment">-- | Construct a 'B.Builder' that copies the strict 'S.ByteString'.</span><span>
+</span><a name="line-79"></a><span class="hs-comment">--</span><span>
+</span><a name="line-80"></a><span class="hs-comment">-- Use this function to create 'B.Builder's from smallish (@&lt;= 4kb@)</span><span>
+</span><a name="line-81"></a><span class="hs-comment">-- 'S.ByteString's or if you need to guarantee that the 'S.ByteString' is not</span><span>
+</span><a name="line-82"></a><span class="hs-comment">-- shared with the chunks generated by the 'B.Builder'.</span><span>
+</span><a name="line-83"></a><span class="hs-comment">--</span><span>
+</span><a name="line-84"></a><span class="hs-identifier">copyByteString</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">S.ByteString</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">B.Builder</span><span>
+</span><a name="line-85"></a><a name="copyByteString"><a href="Blaze.ByteString.Builder.ByteString.html#copyByteString"><span class="hs-identifier">copyByteString</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">B.byteStringCopy</span><span>
+</span><a name="line-86"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">copyByteString</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-87"></a><span>
+</span><a name="line-88"></a><span class="hs-comment">-- | Construct a 'B.Builder' that always inserts the strict 'S.ByteString'</span><span>
+</span><a name="line-89"></a><span class="hs-comment">-- directly as a chunk.</span><span>
+</span><a name="line-90"></a><span class="hs-comment">--</span><span>
+</span><a name="line-91"></a><span class="hs-comment">-- This implies flushing the output buffer, even if it contains just</span><span>
+</span><a name="line-92"></a><span class="hs-comment">-- a single byte. You should therefore use 'insertByteString' only for large</span><span>
+</span><a name="line-93"></a><span class="hs-comment">-- (@&gt; 8kb@) 'S.ByteString's. Otherwise, the generated chunks are too</span><span>
+</span><a name="line-94"></a><span class="hs-comment">-- fragmented to be processed efficiently afterwards.</span><span>
+</span><a name="line-95"></a><span class="hs-comment">--</span><span>
+</span><a name="line-96"></a><span class="hs-identifier">insertByteString</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">S.ByteString</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">B.Builder</span><span>
+</span><a name="line-97"></a><a name="insertByteString"><a href="Blaze.ByteString.Builder.ByteString.html#insertByteString"><span class="hs-identifier">insertByteString</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">B.byteStringInsert</span><span>
+</span><a name="line-98"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">insertByteString</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-99"></a><span>
+</span><a name="line-100"></a><span class="hs-comment">-- | Create a 'B.Builder' denoting the same sequence of bytes as a lazy</span><span>
+</span><a name="line-101"></a><span class="hs-comment">-- 'S.ByteString'.</span><span>
+</span><a name="line-102"></a><span class="hs-comment">-- The 'B.Builder' inserts large chunks of the lazy 'L.ByteString' directly,</span><span>
+</span><a name="line-103"></a><span class="hs-comment">-- but copies small ones to ensure that the generated chunks are large on</span><span>
+</span><a name="line-104"></a><span class="hs-comment">-- average.</span><span>
+</span><a name="line-105"></a><span class="hs-comment">--</span><span>
+</span><a name="line-106"></a><span class="hs-identifier">fromLazyByteString</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">L.ByteString</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">B.Builder</span><span>
+</span><a name="line-107"></a><a name="fromLazyByteString"><a href="Blaze.ByteString.Builder.ByteString.html#fromLazyByteString"><span class="hs-identifier">fromLazyByteString</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">B.lazyByteString</span><span>
+</span><a name="line-108"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromLazyByteString</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-109"></a><span>
+</span><a name="line-110"></a><span class="hs-comment">-- | Construct a 'B.Builder' that uses the thresholding strategy of 'fromByteStringWith'</span><span>
+</span><a name="line-111"></a><span class="hs-comment">-- for each chunk of the lazy 'L.ByteString'.</span><span>
+</span><a name="line-112"></a><span class="hs-comment">--</span><span>
+</span><a name="line-113"></a><span class="hs-identifier">fromLazyByteStringWith</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">L.ByteString</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">B.Builder</span><span>
+</span><a name="line-114"></a><a name="fromLazyByteStringWith"><a href="Blaze.ByteString.Builder.ByteString.html#fromLazyByteStringWith"><span class="hs-identifier">fromLazyByteStringWith</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">B.lazyByteStringThreshold</span><span>
+</span><a name="line-115"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">fromLazyByteStringWith</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-116"></a><span>
+</span><a name="line-117"></a><span class="hs-comment">-- | Construct a 'B.Builder' that copies the lazy 'L.ByteString'.</span><span>
+</span><a name="line-118"></a><span class="hs-comment">--</span><span>
+</span><a name="line-119"></a><span class="hs-identifier">copyLazyByteString</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">L.ByteString</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">B.Builder</span><span>
+</span><a name="line-120"></a><a name="copyLazyByteString"><a href="Blaze.ByteString.Builder.ByteString.html#copyLazyByteString"><span class="hs-identifier">copyLazyByteString</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">B.lazyByteStringCopy</span><span>
+</span><a name="line-121"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">copyLazyByteString</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-122"></a><span>
+</span><a name="line-123"></a><span class="hs-comment">-- | Construct a 'B.Builder' that inserts all chunks of the lazy 'L.ByteString'</span><span>
+</span><a name="line-124"></a><span class="hs-comment">-- directly.</span><span>
+</span><a name="line-125"></a><span class="hs-comment">--</span><span>
+</span><a name="line-126"></a><span class="hs-identifier">insertLazyByteString</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">L.ByteString</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">B.Builder</span><span>
+</span><a name="line-127"></a><a name="insertLazyByteString"><a href="Blaze.ByteString.Builder.ByteString.html#insertLazyByteString"><span class="hs-identifier">insertLazyByteString</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">B.lazyByteStringInsert</span><span>
+</span><a name="line-128"></a><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">insertLazyByteString</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-129"></a></pre></body></html>

@@ -1,0 +1,20 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><a name="line-2"></a><span class="hs-comment">-- | Defines the 'Language' accept header with an 'Accept' instance for use in</span><span>
+</span><a name="line-3"></a><span class="hs-comment">-- language negotiation.</span><span>
+</span><a name="line-4"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Network.HTTP.Media.Language</span><span>
+</span><a name="line-5"></a><span>    </span><span class="hs-special">(</span><span> </span><a href="Network.HTTP.Media.Language.Internal.html#Language"><span class="hs-identifier hs-type">Language</span></a><span>
+</span><a name="line-6"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Network.HTTP.Media.Language.html#toParts"><span class="hs-identifier hs-var">toParts</span></a><span>
+</span><a name="line-7"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-8"></a><span>
+</span><a name="line-9"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Data.ByteString</span><span>                      </span><span class="hs-special">(</span><span class="hs-identifier hs-type">ByteString</span><span class="hs-special">)</span><span>
+</span><a name="line-10"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Data.CaseInsensitive</span><span>                 </span><span class="hs-special">(</span><span class="hs-identifier hs-type">CI</span><span class="hs-special">)</span><span>
+</span><a name="line-11"></a><span>
+</span><a name="line-12"></a><span class="hs-keyword">import</span><span>           </span><a href="Network.HTTP.Media.Language.Internal.html"><span class="hs-identifier">Network.HTTP.Media.Language.Internal</span></a><span>
+</span><a name="line-13"></a><span>
+</span><a name="line-14"></a><span>
+</span><a name="line-15"></a><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><a name="line-16"></a><span class="hs-comment">-- | Converts 'Language' to a list of its language parts. The wildcard</span><span>
+</span><a name="line-17"></a><span class="hs-comment">-- produces an empty list.</span><span>
+</span><a name="line-18"></a><span class="hs-identifier">toParts</span><span> </span><span class="hs-glyph">::</span><span> </span><a href="Network.HTTP.Media.Language.Internal.html#Language"><span class="hs-identifier hs-type">Language</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-identifier hs-type">CI</span><span> </span><span class="hs-identifier hs-type">ByteString</span><span class="hs-special">]</span><span>
+</span><a name="line-19"></a><a name="toParts"><a href="Network.HTTP.Media.Language.html#toParts"><span class="hs-identifier">toParts</span></a></a><span> </span><span class="hs-special">(</span><a href="Network.HTTP.Media.Language.Internal.html#Language"><span class="hs-identifier hs-var">Language</span></a><span> </span><a name="local-6989586621679039569"><a href="#local-6989586621679039569"><span class="hs-identifier">l</span></a></a><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><a href="#local-6989586621679039569"><span class="hs-identifier hs-var">l</span></a><span>
+</span><a name="line-20"></a></pre></body></html>

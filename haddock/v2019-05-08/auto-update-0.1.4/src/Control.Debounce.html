@@ -1,0 +1,95 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables #-}</span><span>
+</span><a name="line-2"></a><span class="hs-comment">-- | Debounce an action, ensuring it doesn't occur more than once for a given</span><span>
+</span><a name="line-3"></a><span class="hs-comment">-- period of time.</span><span>
+</span><a name="line-4"></a><span class="hs-comment">--</span><span>
+</span><a name="line-5"></a><span class="hs-comment">-- This is useful as an optimization, for example to ensure that logs are only</span><span>
+</span><a name="line-6"></a><span class="hs-comment">-- flushed to disk at most once per second.</span><span>
+</span><a name="line-7"></a><span class="hs-comment">--</span><span>
+</span><a name="line-8"></a><span class="hs-comment">-- Example usage:</span><span>
+</span><a name="line-9"></a><span class="hs-comment">--</span><span>
+</span><a name="line-10"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-11"></a><span class="hs-comment">-- printString &lt;- 'mkDebounce' 'defaultDebounceSettings'</span><span>
+</span><a name="line-12"></a><span class="hs-comment">--                  { 'debounceAction' = putStrLn &quot;Running action&quot;</span><span>
+</span><a name="line-13"></a><span class="hs-comment">--                  , 'debounceFreq' = 5000000 -- 5 seconds</span><span>
+</span><a name="line-14"></a><span class="hs-comment">--                  }</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-16"></a><span class="hs-comment">--</span><span>
+</span><a name="line-17"></a><span class="hs-comment">-- &gt;&gt;&gt; printString</span><span>
+</span><a name="line-18"></a><span class="hs-comment">-- Running action</span><span>
+</span><a name="line-19"></a><span class="hs-comment">-- &gt;&gt;&gt; printString</span><span>
+</span><a name="line-20"></a><span class="hs-comment">-- &lt;Wait five seconds&gt;</span><span>
+</span><a name="line-21"></a><span class="hs-comment">-- Running action</span><span>
+</span><a name="line-22"></a><span class="hs-comment">--</span><span>
+</span><a name="line-23"></a><span class="hs-comment">-- See the fast-logger package (&quot;System.Log.FastLogger&quot;) for real-world usage.</span><span>
+</span><a name="line-24"></a><span class="hs-comment">--</span><span>
+</span><a name="line-25"></a><span class="hs-comment">-- @since 0.1.2</span><span>
+</span><a name="line-26"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Control.Debounce</span><span>
+</span><a name="line-27"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-comment">-- * Type</span><span>
+</span><a name="line-28"></a><span>      </span><a href="Control.Debounce.html#DebounceSettings"><span class="hs-identifier hs-type">DebounceSettings</span></a><span>
+</span><a name="line-29"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Control.Debounce.html#defaultDebounceSettings"><span class="hs-identifier hs-var">defaultDebounceSettings</span></a><span>
+</span><a name="line-30"></a><span>      </span><span class="hs-comment">-- * Accessors</span><span>
+</span><a name="line-31"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Control.Debounce.html#debounceFreq"><span class="hs-identifier hs-var">debounceFreq</span></a><span>
+</span><a name="line-32"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Control.Debounce.html#debounceAction"><span class="hs-identifier hs-var">debounceAction</span></a><span>
+</span><a name="line-33"></a><span>      </span><span class="hs-comment">-- * Creation</span><span>
+</span><a name="line-34"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Control.Debounce.html#mkDebounce"><span class="hs-identifier hs-var">mkDebounce</span></a><span>
+</span><a name="line-35"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-36"></a><span>
+</span><a name="line-37"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Control.Concurrent</span><span>      </span><span class="hs-special">(</span><span class="hs-identifier hs-var">forkIO</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">threadDelay</span><span class="hs-special">)</span><span>
+</span><a name="line-38"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Control.Concurrent.MVar</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">newEmptyMVar</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">takeMVar</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">tryPutMVar</span><span class="hs-special">)</span><span>
+</span><a name="line-39"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Control.Exception</span><span>       </span><span class="hs-special">(</span><span class="hs-identifier hs-type">SomeException</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">handle</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mask_</span><span class="hs-special">)</span><span>
+</span><a name="line-40"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Control.Monad</span><span>           </span><span class="hs-special">(</span><span class="hs-identifier hs-var">forever</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">void</span><span class="hs-special">)</span><span>
+</span><a name="line-41"></a><span>
+</span><a name="line-42"></a><span class="hs-comment">-- | Settings to control how debouncing should work.</span><span>
+</span><a name="line-43"></a><span class="hs-comment">--</span><span>
+</span><a name="line-44"></a><span class="hs-comment">-- This should be constructed using 'defaultDebounceSettings' and record</span><span>
+</span><a name="line-45"></a><span class="hs-comment">-- update syntax, e.g.:</span><span>
+</span><a name="line-46"></a><span class="hs-comment">--</span><span>
+</span><a name="line-47"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-48"></a><span class="hs-comment">-- let settings = 'defaultDebounceSettings' { 'debounceAction' = flushLog }</span><span>
+</span><a name="line-49"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-50"></a><span class="hs-comment">--</span><span>
+</span><a name="line-51"></a><span class="hs-comment">-- @since 0.1.2</span><span>
+</span><a name="line-52"></a><span class="hs-keyword">data</span><span> </span><a name="DebounceSettings"><a href="Control.Debounce.html#DebounceSettings"><span class="hs-identifier">DebounceSettings</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a name="DebounceSettings"><a href="Control.Debounce.html#DebounceSettings"><span class="hs-identifier">DebounceSettings</span></a></a><span>
+</span><a name="line-53"></a><span>    </span><span class="hs-special">{</span><span> </span><a name="debounceFreq"><a href="Control.Debounce.html#debounceFreq"><span class="hs-identifier">debounceFreq</span></a></a><span>   </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Int</span><span>
+</span><a name="line-54"></a><span>    </span><span class="hs-comment">-- ^ Microseconds lag required between subsequence calls to the debounced</span><span>
+</span><a name="line-55"></a><span>    </span><span class="hs-comment">-- action.</span><span>
+</span><a name="line-56"></a><span>    </span><span class="hs-comment">--</span><span>
+</span><a name="line-57"></a><span>    </span><span class="hs-comment">-- Default: 1 second (1000000)</span><span>
+</span><a name="line-58"></a><span>    </span><span class="hs-comment">--</span><span>
+</span><a name="line-59"></a><span>    </span><span class="hs-comment">-- @since 0.1.2</span><span>
+</span><a name="line-60"></a><span>    </span><span class="hs-special">,</span><span> </span><a name="debounceAction"><a href="Control.Debounce.html#debounceAction"><span class="hs-identifier">debounceAction</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">IO</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><a name="line-61"></a><span>    </span><span class="hs-comment">-- ^ Action to be performed.</span><span>
+</span><a name="line-62"></a><span>    </span><span class="hs-comment">--</span><span>
+</span><a name="line-63"></a><span>    </span><span class="hs-comment">-- Note: all exceptions thrown by this action will be silently discarded.</span><span>
+</span><a name="line-64"></a><span>    </span><span class="hs-comment">--</span><span>
+</span><a name="line-65"></a><span>    </span><span class="hs-comment">-- Default: does nothing.</span><span>
+</span><a name="line-66"></a><span>    </span><span class="hs-comment">--</span><span>
+</span><a name="line-67"></a><span>    </span><span class="hs-comment">-- @since 0.1.2</span><span>
+</span><a name="line-68"></a><span>    </span><span class="hs-special">}</span><span>
+</span><a name="line-69"></a><span>
+</span><a name="line-70"></a><span class="hs-comment">-- | Default value for creating a 'DebounceSettings'.</span><span>
+</span><a name="line-71"></a><span class="hs-comment">--</span><span>
+</span><a name="line-72"></a><span class="hs-comment">-- @since 0.1.2</span><span>
+</span><a name="line-73"></a><span class="hs-identifier">defaultDebounceSettings</span><span> </span><span class="hs-glyph">::</span><span> </span><a href="Control.Debounce.html#DebounceSettings"><span class="hs-identifier hs-type">DebounceSettings</span></a><span>
+</span><a name="line-74"></a><a name="defaultDebounceSettings"><a href="Control.Debounce.html#defaultDebounceSettings"><span class="hs-identifier">defaultDebounceSettings</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Control.Debounce.html#DebounceSettings"><span class="hs-identifier hs-var">DebounceSettings</span></a><span>
+</span><a name="line-75"></a><span>    </span><span class="hs-special">{</span><span> </span><span class="hs-identifier">debounceFreq</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-number">1000000</span><span>
+</span><a name="line-76"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">debounceAction</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">return</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><a name="line-77"></a><span>    </span><span class="hs-special">}</span><span>
+</span><a name="line-78"></a><span>
+</span><a name="line-79"></a><span class="hs-comment">-- | Generate an action which will trigger the debounced action to be</span><span>
+</span><a name="line-80"></a><span class="hs-comment">-- performed. The action will either be performed immediately, or after the</span><span>
+</span><a name="line-81"></a><span class="hs-comment">-- current cooldown period has expired.</span><span>
+</span><a name="line-82"></a><span class="hs-comment">--</span><span>
+</span><a name="line-83"></a><span class="hs-comment">-- @since 0.1.2</span><span>
+</span><a name="line-84"></a><span class="hs-identifier">mkDebounce</span><span> </span><span class="hs-glyph">::</span><span> </span><a href="Control.Debounce.html#DebounceSettings"><span class="hs-identifier hs-type">DebounceSettings</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">IO</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">IO</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-85"></a><a name="mkDebounce"><a href="Control.Debounce.html#mkDebounce"><span class="hs-identifier">mkDebounce</span></a></a><span> </span><span class="hs-special">(</span><a href="Control.Debounce.html#DebounceSettings"><span class="hs-identifier hs-var">DebounceSettings</span></a><span> </span><a name="local-6989586621679027960"><a href="#local-6989586621679027960"><span class="hs-identifier">freq</span></a></a><span> </span><a name="local-6989586621679027961"><a href="#local-6989586621679027961"><span class="hs-identifier">action</span></a></a><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><a name="line-86"></a><span>    </span><a name="local-6989586621679027962"><a href="#local-6989586621679027962"><span class="hs-identifier">baton</span></a></a><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-identifier hs-var">newEmptyMVar</span><span>
+</span><a name="line-87"></a><span>    </span><span class="hs-identifier hs-var">mask_</span><span> </span><span class="hs-operator hs-var">$</span><span> </span><span class="hs-identifier hs-var">void</span><span> </span><span class="hs-operator hs-var">$</span><span> </span><span class="hs-identifier hs-var">forkIO</span><span> </span><span class="hs-operator hs-var">$</span><span> </span><span class="hs-identifier hs-var">forever</span><span> </span><span class="hs-operator hs-var">$</span><span> </span><span class="hs-keyword">do</span><span>
+</span><a name="line-88"></a><span>        </span><span class="hs-identifier hs-var">takeMVar</span><span> </span><a href="#local-6989586621679027962"><span class="hs-identifier hs-var">baton</span></a><span>
+</span><a name="line-89"></a><span>        </span><a href="Control.Debounce.html#ignoreExc"><span class="hs-identifier hs-var">ignoreExc</span></a><span> </span><a href="#local-6989586621679027961"><span class="hs-identifier hs-var">action</span></a><span>
+</span><a name="line-90"></a><span>        </span><span class="hs-identifier hs-var">threadDelay</span><span> </span><a href="#local-6989586621679027960"><span class="hs-identifier hs-var">freq</span></a><span>
+</span><a name="line-91"></a><span>    </span><span class="hs-identifier hs-var">return</span><span> </span><span class="hs-operator hs-var">$</span><span> </span><span class="hs-identifier hs-var">void</span><span> </span><span class="hs-operator hs-var">$</span><span> </span><span class="hs-identifier hs-var">tryPutMVar</span><span> </span><a href="#local-6989586621679027962"><span class="hs-identifier hs-var">baton</span></a><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><a name="line-92"></a><span>
+</span><a name="line-93"></a><span class="hs-identifier">ignoreExc</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">IO</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">IO</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><a name="line-94"></a><a name="ignoreExc"><a href="Control.Debounce.html#ignoreExc"><span class="hs-identifier">ignoreExc</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">handle</span><span> </span><span class="hs-operator hs-var">$</span><span> </span><span class="hs-glyph">\</span><span class="hs-special">(</span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">SomeException</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-var">return</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><a name="line-95"></a></pre></body></html>

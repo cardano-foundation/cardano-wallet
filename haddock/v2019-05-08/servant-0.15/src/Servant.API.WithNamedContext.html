@@ -1,0 +1,22 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE DataKinds      #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE KindSignatures #-}</span><span>
+</span><a name="line-3"></a><span>
+</span><a name="line-4"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Servant.API.WithNamedContext</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-5"></a><span>
+</span><a name="line-6"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">GHC.TypeLits</span><span>
+</span><a name="line-7"></a><span>
+</span><a name="line-8"></a><span class="hs-comment">-- | 'WithNamedContext' names a specific tagged context to use for the</span><span>
+</span><a name="line-9"></a><span class="hs-comment">-- combinators in the API. (See also in @servant-server@,</span><span>
+</span><a name="line-10"></a><span class="hs-comment">-- @Servant.Server.Context@.) For example:</span><span>
+</span><a name="line-11"></a><span class="hs-comment">--</span><span>
+</span><a name="line-12"></a><span class="hs-comment">-- &gt; type UseNamedContextAPI = WithNamedContext &quot;myContext&quot; '[String] (</span><span>
+</span><a name="line-13"></a><span class="hs-comment">-- &gt;     ReqBody '[JSON] Int :&gt; Get '[JSON] Int)</span><span>
+</span><a name="line-14"></a><span class="hs-comment">--</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- Both the 'ReqBody' and 'Get' combinators will use the 'WithNamedContext' with</span><span>
+</span><a name="line-16"></a><span class="hs-comment">-- type tag &quot;myContext&quot; as their context.</span><span>
+</span><a name="line-17"></a><span class="hs-comment">--</span><span>
+</span><a name="line-18"></a><span class="hs-comment">-- 'Context's are only relevant for @servant-server@.</span><span>
+</span><a name="line-19"></a><span class="hs-comment">--</span><span>
+</span><a name="line-20"></a><span class="hs-comment">-- For more information, see the tutorial.</span><span>
+</span><a name="line-21"></a><span class="hs-keyword">data</span><span> </span><a name="WithNamedContext"><a href="Servant.API.WithNamedContext.html#WithNamedContext"><span class="hs-identifier">WithNamedContext</span></a></a><span> </span><span class="hs-special">(</span><a name="local-6989586621679106754"><a href="#local-6989586621679106754"><span class="hs-identifier">name</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Symbol</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><a name="local-6989586621679106755"><a href="#local-6989586621679106755"><span class="hs-identifier">subContext</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-operator">*</span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><a name="local-6989586621679106756"><a href="#local-6989586621679106756"><span class="hs-identifier">subApi</span></a></a><span>
+</span><a name="line-22"></a></pre></body></html>

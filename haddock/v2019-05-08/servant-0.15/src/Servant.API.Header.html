@@ -1,0 +1,33 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE DataKinds          #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE DeriveDataTypeable #-}</span><span>
+</span><a name="line-3"></a><span class="hs-pragma">{-# LANGUAGE PolyKinds          #-}</span><span>
+</span><a name="line-4"></a><span class="hs-pragma">{-# OPTIONS_HADDOCK not-home    #-}</span><span>
+</span><a name="line-5"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Servant.API.Header</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-6"></a><span>    </span><a href="Servant.API.Header.html#Header"><span class="hs-identifier hs-type">Header</span></a><span class="hs-special">,</span><span> </span><a href="Servant.API.Header.html#Header%27"><span class="hs-identifier hs-type">Header'</span></a><span class="hs-special">,</span><span>
+</span><a name="line-7"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-8"></a><span>
+</span><a name="line-9"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Data.Typeable</span><span>
+</span><a name="line-10"></a><span>                 </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Typeable</span><span class="hs-special">)</span><span>
+</span><a name="line-11"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">GHC.TypeLits</span><span>
+</span><a name="line-12"></a><span>                 </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Symbol</span><span class="hs-special">)</span><span>
+</span><a name="line-13"></a><span class="hs-keyword">import</span><span>           </span><a href="Servant.API.Modifiers.html"><span class="hs-identifier">Servant.API.Modifiers</span></a><span>
+</span><a name="line-14"></a><span>
+</span><a name="line-15"></a><span class="hs-comment">-- | Extract the given header's value as a value of type @a@.</span><span>
+</span><a name="line-16"></a><span class="hs-comment">-- I.e. header sent by client, parsed by server.</span><span>
+</span><a name="line-17"></a><span class="hs-comment">--</span><span>
+</span><a name="line-18"></a><span class="hs-comment">-- Example:</span><span>
+</span><a name="line-19"></a><span class="hs-comment">--</span><span>
+</span><a name="line-20"></a><span class="hs-comment">-- &gt;&gt;&gt; newtype Referer = Referer Text deriving (Eq, Show)</span><span>
+</span><a name="line-21"></a><span class="hs-comment">-- &gt;&gt;&gt;</span><span>
+</span><a name="line-22"></a><span class="hs-comment">-- &gt;&gt;&gt;            -- GET /view-my-referer</span><span>
+</span><a name="line-23"></a><span class="hs-comment">-- &gt;&gt;&gt; type MyApi = &quot;view-my-referer&quot; :&gt; Header &quot;from&quot; Referer :&gt; Get '[JSON] Referer</span><span>
+</span><a name="line-24"></a><span class="hs-keyword">type</span><span> </span><a name="Header"><a href="Servant.API.Header.html#Header"><span class="hs-identifier">Header</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Servant.API.Header.html#Header%27"><span class="hs-identifier hs-type">Header'</span></a><span> </span><span class="hs-special">'</span><span class="hs-special">[</span><a href="Servant.API.Modifiers.html#Optional"><span class="hs-identifier hs-type">Optional</span></a><span class="hs-special">,</span><span> </span><a href="Servant.API.Modifiers.html#Strict"><span class="hs-identifier hs-type">Strict</span></a><span class="hs-special">]</span><span>
+</span><a name="line-25"></a><span>
+</span><a name="line-26"></a><span class="hs-keyword">data</span><span> </span><a name="Header%27"><a href="Servant.API.Header.html#Header%27"><span class="hs-identifier">Header'</span></a></a><span> </span><span class="hs-special">(</span><a name="local-6989586621679098796"><a href="#local-6989586621679098796"><span class="hs-identifier">mods</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-operator">*</span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><a name="local-6989586621679098797"><a href="#local-6989586621679098797"><span class="hs-identifier">sym</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Symbol</span><span class="hs-special">)</span><span> </span><a name="local-6989586621679098798"><a href="#local-6989586621679098798"><span class="hs-identifier">a</span></a></a><span>
+</span><a name="line-27"></a><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-identifier hs-type">Typeable</span><span>
+</span><a name="line-28"></a><span>
+</span><a name="line-29"></a><span class="hs-comment">-- $setup</span><span>
+</span><a name="line-30"></a><span class="hs-comment">-- &gt;&gt;&gt; import Servant.API</span><span>
+</span><a name="line-31"></a><span class="hs-comment">-- &gt;&gt;&gt; import Data.Aeson</span><span>
+</span><a name="line-32"></a><span class="hs-comment">-- &gt;&gt;&gt; import Data.Text</span><span>
+</span><a name="line-33"></a></pre></body></html>

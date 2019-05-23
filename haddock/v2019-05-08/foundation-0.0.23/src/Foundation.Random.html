@@ -1,0 +1,41 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><a name="line-2"></a><span class="hs-comment">-- Module      : Foundation.Random</span><span>
+</span><a name="line-3"></a><span class="hs-comment">-- License     : BSD-style</span><span>
+</span><a name="line-4"></a><span class="hs-comment">-- Stability   : experimental</span><span>
+</span><a name="line-5"></a><span class="hs-comment">-- Portability : Good</span><span>
+</span><a name="line-6"></a><span class="hs-comment">--</span><span>
+</span><a name="line-7"></a><span class="hs-comment">-- This module deals with the random subsystem abstractions.</span><span>
+</span><a name="line-8"></a><span class="hs-comment">--</span><span>
+</span><a name="line-9"></a><span class="hs-comment">-- It provide 2 different set of abstractions:</span><span>
+</span><a name="line-10"></a><span class="hs-comment">--</span><span>
+</span><a name="line-11"></a><span class="hs-comment">-- * The first abstraction that allow a monad to generate random</span><span>
+</span><a name="line-12"></a><span class="hs-comment">--   through the 'MonadRandom' class.</span><span>
+</span><a name="line-13"></a><span class="hs-comment">--</span><span>
+</span><a name="line-14"></a><span class="hs-comment">-- * The second abstraction to make generic random generator 'RandomGen'</span><span>
+</span><a name="line-15"></a><span class="hs-comment">--   and a small State monad like wrapper 'MonadRandomState' to</span><span>
+</span><a name="line-16"></a><span class="hs-comment">--   abstract a generator.</span><span>
+</span><a name="line-17"></a><span class="hs-comment">--</span><span>
+</span><a name="line-18"></a><span class="hs-pragma">{-# LANGUAGE ForeignFunctionInterface #-}</span><span>
+</span><a name="line-19"></a><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables      #-}</span><span>
+</span><a name="line-20"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Foundation.Random</span><span>
+</span><a name="line-21"></a><span>    </span><span class="hs-special">(</span><span> </span><a href="Foundation.Random.Class.html#MonadRandom"><span class="hs-identifier hs-type">MonadRandom</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-22"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Foundation.Random.DRG.html#RandomGen"><span class="hs-identifier hs-type">RandomGen</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-23"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Foundation.Random.DRG.html#MonadRandomState"><span class="hs-identifier hs-type">MonadRandomState</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-24"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Foundation.Random.DRG.html#withRandomGenerator"><span class="hs-identifier hs-var">withRandomGenerator</span></a><span>
+</span><a name="line-25"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Foundation.Random.html#RNG"><span class="hs-identifier hs-type">RNG</span></a><span>
+</span><a name="line-26"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Foundation.Random.html#RNGv1"><span class="hs-identifier hs-type">RNGv1</span></a><span>
+</span><a name="line-27"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-28"></a><span>
+</span><a name="line-29"></a><span class="hs-keyword">import</span><span>           </span><a href="Foundation.Random.Class.html"><span class="hs-identifier">Foundation.Random.Class</span></a><span>
+</span><a name="line-30"></a><span class="hs-keyword">import</span><span>           </span><a href="Foundation.Random.DRG.html"><span class="hs-identifier">Foundation.Random.DRG</span></a><span>
+</span><a name="line-31"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><a href="Foundation.Random.ChaChaDRG.html"><span class="hs-identifier">Foundation.Random.ChaChaDRG</span></a><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">ChaChaDRG</span><span>
+</span><a name="line-32"></a><span>
+</span><a name="line-33"></a><span class="hs-comment">-- | An alias to the default choice of deterministic random number generator</span><span>
+</span><a name="line-34"></a><span class="hs-comment">--</span><span>
+</span><a name="line-35"></a><span class="hs-comment">-- Unless, you want to have the stability of a specific random number generator,</span><span>
+</span><a name="line-36"></a><span class="hs-comment">-- e.g. for tests purpose, it's recommended to use this alias so that you would</span><span>
+</span><a name="line-37"></a><span class="hs-comment">-- keep up to date with possible bugfixes, or change of algorithms.</span><span>
+</span><a name="line-38"></a><span class="hs-keyword">type</span><span> </span><a name="RNG"><a href="Foundation.Random.html#RNG"><span class="hs-identifier">RNG</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Foundation.Random.html#RNGv1"><span class="hs-identifier hs-type">RNGv1</span></a><span>
+</span><a name="line-39"></a><span>
+</span><a name="line-40"></a><span class="hs-keyword">type</span><span> </span><a name="RNGv1"><a href="Foundation.Random.html#RNGv1"><span class="hs-identifier">RNGv1</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a href="Foundation.Random.ChaChaDRG.html#State"><span class="hs-identifier hs-type">ChaChaDRG.State</span></a><span>
+</span><a name="line-41"></a></pre></body></html>

@@ -1,0 +1,408 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE PolyKinds, UndecidableInstances #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# OPTIONS_GHC -fno-warn-unused-binds #-}</span><span>
+</span><a name="line-3"></a><span class="hs-comment">-- | Main module of @generics-sop@</span><span>
+</span><a name="line-4"></a><span class="hs-comment">--</span><span>
+</span><a name="line-5"></a><span class="hs-comment">-- In most cases, you will probably want to import just this module,</span><span>
+</span><a name="line-6"></a><span class="hs-comment">-- and possibly &quot;Generics.SOP.TH&quot; if you want to use Template Haskell</span><span>
+</span><a name="line-7"></a><span class="hs-comment">-- to generate 'Generic' instances for you.</span><span>
+</span><a name="line-8"></a><span class="hs-comment">--</span><span>
+</span><a name="line-9"></a><span class="hs-comment">-- = Generic programming with sums of products</span><span>
+</span><a name="line-10"></a><span class="hs-comment">--</span><span>
+</span><a name="line-11"></a><span class="hs-comment">-- You need this library if you want to define your own generic functions</span><span>
+</span><a name="line-12"></a><span class="hs-comment">-- in the sum-of-products SOP style. Generic programming in the SOP style</span><span>
+</span><a name="line-13"></a><span class="hs-comment">-- follows the following idea:</span><span>
+</span><a name="line-14"></a><span class="hs-comment">--</span><span>
+</span><a name="line-15"></a><span class="hs-comment">--   1.  A large class of datatypes can be viewed in a uniform, structured</span><span>
+</span><a name="line-16"></a><span class="hs-comment">--       way: the choice between constructors is represented using an n-ary</span><span>
+</span><a name="line-17"></a><span class="hs-comment">--       sum (called 'NS'), and the arguments of each constructor are</span><span>
+</span><a name="line-18"></a><span class="hs-comment">--       represented using an n-ary product (called 'NP').</span><span>
+</span><a name="line-19"></a><span class="hs-comment">--</span><span>
+</span><a name="line-20"></a><span class="hs-comment">--   2.  The library captures the notion of a datatype being representable</span><span>
+</span><a name="line-21"></a><span class="hs-comment">--       in the following way. There is a class 'Generic', which for a given</span><span>
+</span><a name="line-22"></a><span class="hs-comment">--       datatype @A@, associates the isomorphic SOP representation with</span><span>
+</span><a name="line-23"></a><span class="hs-comment">--       the original type under the name @'Rep' A@. The class also provides</span><span>
+</span><a name="line-24"></a><span class="hs-comment">--       functions 'from' and 'to' that convert between @A@ and @'Rep' A@ and</span><span>
+</span><a name="line-25"></a><span class="hs-comment">--       witness the isomorphism.</span><span>
+</span><a name="line-26"></a><span class="hs-comment">--</span><span>
+</span><a name="line-27"></a><span class="hs-comment">--   3.  Since all 'Rep' types are sums of products, you can define</span><span>
+</span><a name="line-28"></a><span class="hs-comment">--       functions over them by performing induction on the structure, of</span><span>
+</span><a name="line-29"></a><span class="hs-comment">--       by using predefined combinators that the library provides. Such</span><span>
+</span><a name="line-30"></a><span class="hs-comment">--       functions then work for all 'Rep' types.</span><span>
+</span><a name="line-31"></a><span class="hs-comment">--</span><span>
+</span><a name="line-32"></a><span class="hs-comment">--   4.  By combining the conversion functions 'from' and 'to' with the</span><span>
+</span><a name="line-33"></a><span class="hs-comment">--       function that works on 'Rep' types, we obtain a function that works</span><span>
+</span><a name="line-34"></a><span class="hs-comment">--       on all types that are in the 'Generic' class.</span><span>
+</span><a name="line-35"></a><span class="hs-comment">--</span><span>
+</span><a name="line-36"></a><span class="hs-comment">--   5.  Most types can very easily be made an instance of 'Generic'. For</span><span>
+</span><a name="line-37"></a><span class="hs-comment">--       example, if the datatype can be represented using GHC's built-in</span><span>
+</span><a name="line-38"></a><span class="hs-comment">--       approach to generic programming and has an instance for the</span><span>
+</span><a name="line-39"></a><span class="hs-comment">--       'GHC.Generics.Generic' class from module &quot;GHC.Generics&quot;, then an</span><span>
+</span><a name="line-40"></a><span class="hs-comment">--       instance of the SOP 'Generic' can automatically be derived. There</span><span>
+</span><a name="line-41"></a><span class="hs-comment">--       is also Template Haskell code in &quot;Generics.SOP.TH&quot; that allows to</span><span>
+</span><a name="line-42"></a><span class="hs-comment">--       auto-generate an instance of 'Generic' for most types.</span><span>
+</span><a name="line-43"></a><span class="hs-comment">--</span><span>
+</span><a name="line-44"></a><span class="hs-comment">-- = Example</span><span>
+</span><a name="line-45"></a><span class="hs-comment">--</span><span>
+</span><a name="line-46"></a><span class="hs-comment">-- == Instantiating a datatype for use with SOP generics</span><span>
+</span><a name="line-47"></a><span class="hs-comment">--</span><span>
+</span><a name="line-48"></a><span class="hs-comment">-- Let's assume we have the datatypes:</span><span>
+</span><a name="line-49"></a><span class="hs-comment">--</span><span>
+</span><a name="line-50"></a><span class="hs-comment">-- &gt; data A   = C Bool | D A Int | E (B ())</span><span>
+</span><a name="line-51"></a><span class="hs-comment">-- &gt; data B a = F | G a Char Bool</span><span>
+</span><a name="line-52"></a><span class="hs-comment">--</span><span>
+</span><a name="line-53"></a><span class="hs-comment">-- To create 'Generic' instances for @A@ and @B@ via &quot;GHC.Generics&quot;, we say</span><span>
+</span><a name="line-54"></a><span class="hs-comment">--</span><span>
+</span><a name="line-55"></a><span class="hs-comment">-- &gt; {-# LANGUAGE DeriveGeneric #-}</span><span>
+</span><a name="line-56"></a><span class="hs-comment">-- &gt;</span><span>
+</span><a name="line-57"></a><span class="hs-comment">-- &gt; import qualified GHC.Generics as GHC</span><span>
+</span><a name="line-58"></a><span class="hs-comment">-- &gt; import Generics.SOP</span><span>
+</span><a name="line-59"></a><span class="hs-comment">-- &gt;</span><span>
+</span><a name="line-60"></a><span class="hs-comment">-- &gt; data A   = C Bool | D A Int | E (B ())</span><span>
+</span><a name="line-61"></a><span class="hs-comment">-- &gt;   deriving (Show, GHC.Generic)</span><span>
+</span><a name="line-62"></a><span class="hs-comment">-- &gt; data B a = F | G a Char Bool</span><span>
+</span><a name="line-63"></a><span class="hs-comment">-- &gt;   deriving (Show, GHC.Generic)</span><span>
+</span><a name="line-64"></a><span class="hs-comment">-- &gt;</span><span>
+</span><a name="line-65"></a><span class="hs-comment">-- &gt; instance Generic A     -- empty</span><span>
+</span><a name="line-66"></a><span class="hs-comment">-- &gt; instance Generic (B a) -- empty</span><span>
+</span><a name="line-67"></a><span class="hs-comment">--</span><span>
+</span><a name="line-68"></a><span class="hs-comment">-- Now we can convert between @A@ and @'Rep' A@ (and between @B@ and @'Rep' B@).</span><span>
+</span><a name="line-69"></a><span class="hs-comment">-- For example,</span><span>
+</span><a name="line-70"></a><span class="hs-comment">--</span><span>
+</span><a name="line-71"></a><span class="hs-comment">-- &gt;&gt;&gt; from (D (C True) 3) :: Rep A</span><span>
+</span><a name="line-72"></a><span class="hs-comment">-- SOP (S (Z (I (C True) :* I 3 :* Nil)))</span><span>
+</span><a name="line-73"></a><span class="hs-comment">-- &gt;&gt;&gt; to it :: A</span><span>
+</span><a name="line-74"></a><span class="hs-comment">-- D (C True) 3</span><span>
+</span><a name="line-75"></a><span class="hs-comment">--</span><span>
+</span><a name="line-76"></a><span class="hs-comment">-- Note that the transformation is shallow: In @D (C True) 3@, the</span><span>
+</span><a name="line-77"></a><span class="hs-comment">-- inner value @C True@ of type @A@ is not affected by the</span><span>
+</span><a name="line-78"></a><span class="hs-comment">-- transformation.</span><span>
+</span><a name="line-79"></a><span class="hs-comment">--</span><span>
+</span><a name="line-80"></a><span class="hs-comment">-- For more details about @'Rep' A@, have a look at the</span><span>
+</span><a name="line-81"></a><span class="hs-comment">-- &quot;Generics.SOP.Universe&quot; module.</span><span>
+</span><a name="line-82"></a><span class="hs-comment">--</span><span>
+</span><a name="line-83"></a><span class="hs-comment">-- == Defining a generic function</span><span>
+</span><a name="line-84"></a><span class="hs-comment">--</span><span>
+</span><a name="line-85"></a><span class="hs-comment">-- As an example of a generic function, let us define a generic</span><span>
+</span><a name="line-86"></a><span class="hs-comment">-- version of 'Control.DeepSeq.rnf' from the @deepseq@ package.</span><span>
+</span><a name="line-87"></a><span class="hs-comment">--</span><span>
+</span><a name="line-88"></a><span class="hs-comment">-- The type of 'Control.DeepSeq.rnf' is</span><span>
+</span><a name="line-89"></a><span class="hs-comment">--</span><span>
+</span><a name="line-90"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-91"></a><span class="hs-comment">-- NFData a =&gt; a -&gt; ()</span><span>
+</span><a name="line-92"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-93"></a><span class="hs-comment">--</span><span>
+</span><a name="line-94"></a><span class="hs-comment">-- and the idea is that for a term @x@ of type @a@ in the</span><span>
+</span><a name="line-95"></a><span class="hs-comment">-- 'Control.DeepSeq.NFData' class, @rnf x@ forces complete evaluation</span><span>
+</span><a name="line-96"></a><span class="hs-comment">-- of @x@ (i.e., evaluation to /normal form/), and returns @()@.</span><span>
+</span><a name="line-97"></a><span class="hs-comment">--</span><span>
+</span><a name="line-98"></a><span class="hs-comment">-- We call the generic version of this function @grnf@. A direct</span><span>
+</span><a name="line-99"></a><span class="hs-comment">-- definition in SOP style, making use of structural recursion on the</span><span>
+</span><a name="line-100"></a><span class="hs-comment">-- sums and products, looks as follows:</span><span>
+</span><a name="line-101"></a><span class="hs-comment">--</span><span>
+</span><a name="line-102"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-103"></a><span class="hs-comment">-- grnf :: ('Generic' a, 'All2' NFData ('Code' a)) =&gt; a -&gt; ()</span><span>
+</span><a name="line-104"></a><span class="hs-comment">-- grnf x = grnfS ('from' x)</span><span>
+</span><a name="line-105"></a><span class="hs-comment">--</span><span>
+</span><a name="line-106"></a><span class="hs-comment">-- grnfS :: ('All2' NFData xss) =&gt; 'SOP' 'I' xss -&gt; ()</span><span>
+</span><a name="line-107"></a><span class="hs-comment">-- grnfS ('SOP' ('Z' xs))  = grnfP xs</span><span>
+</span><a name="line-108"></a><span class="hs-comment">-- grnfS ('SOP' ('S' xss)) = grnfS ('SOP' xss)</span><span>
+</span><a name="line-109"></a><span class="hs-comment">--</span><span>
+</span><a name="line-110"></a><span class="hs-comment">-- grnfP :: ('All' NFData xs) =&gt; 'NP' 'I' xs -&gt; ()</span><span>
+</span><a name="line-111"></a><span class="hs-comment">-- grnfP 'Nil'         = ()</span><span>
+</span><a name="line-112"></a><span class="hs-comment">-- grnfP ('I' x ':*' xs) = x \`deepseq\` (grnfP xs)</span><span>
+</span><a name="line-113"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-114"></a><span class="hs-comment">--</span><span>
+</span><a name="line-115"></a><span class="hs-comment">-- The @grnf@ function performs the conversion between @a@ and @'Rep' a@</span><span>
+</span><a name="line-116"></a><span class="hs-comment">-- by applying 'from' and then applies @grnfS@. The type of @grnf@</span><span>
+</span><a name="line-117"></a><span class="hs-comment">-- indicates that @a@ must be in the 'Generic' class so that we can</span><span>
+</span><a name="line-118"></a><span class="hs-comment">-- apply 'from', and that all the components of @a@ (i.e., all the types</span><span>
+</span><a name="line-119"></a><span class="hs-comment">-- that occur as constructor arguments) must be in the 'NFData' class</span><span>
+</span><a name="line-120"></a><span class="hs-comment">-- ('All2').</span><span>
+</span><a name="line-121"></a><span class="hs-comment">--</span><span>
+</span><a name="line-122"></a><span class="hs-comment">-- The function @grnfS@ traverses the outer sum structure of the</span><span>
+</span><a name="line-123"></a><span class="hs-comment">-- sum of products (note that @'Rep' a = 'SOP' 'I' ('Code' a)@). It</span><span>
+</span><a name="line-124"></a><span class="hs-comment">-- encodes which constructor was used to construct the original</span><span>
+</span><a name="line-125"></a><span class="hs-comment">-- argument of type @a@. Once we've found the constructor in question</span><span>
+</span><a name="line-126"></a><span class="hs-comment">-- ('Z'), we traverse the arguments of that constructor using @grnfP@.</span><span>
+</span><a name="line-127"></a><span class="hs-comment">--</span><span>
+</span><a name="line-128"></a><span class="hs-comment">-- The function @grnfP@ traverses the product structure of the</span><span>
+</span><a name="line-129"></a><span class="hs-comment">-- constructor arguments. Each argument is evaluated using the</span><span>
+</span><a name="line-130"></a><span class="hs-comment">-- 'Control.DeepSeq.deepseq' function from the 'Control.DeepSeq.NFData'</span><span>
+</span><a name="line-131"></a><span class="hs-comment">-- class. This requires that all components of the product must be</span><span>
+</span><a name="line-132"></a><span class="hs-comment">-- in the 'NFData' class ('All') and triggers the corresponding</span><span>
+</span><a name="line-133"></a><span class="hs-comment">-- constraints on the other functions. Once the end of the product</span><span>
+</span><a name="line-134"></a><span class="hs-comment">-- is reached ('Nil'), we return @()@.</span><span>
+</span><a name="line-135"></a><span class="hs-comment">--</span><span>
+</span><a name="line-136"></a><span class="hs-comment">-- == Defining a generic function using combinators</span><span>
+</span><a name="line-137"></a><span class="hs-comment">--</span><span>
+</span><a name="line-138"></a><span class="hs-comment">-- In many cases, generic functions can be written in a much more</span><span>
+</span><a name="line-139"></a><span class="hs-comment">-- concise way by avoiding the explicit structural recursion and</span><span>
+</span><a name="line-140"></a><span class="hs-comment">-- resorting to the powerful combinators provided by this library</span><span>
+</span><a name="line-141"></a><span class="hs-comment">-- instead.</span><span>
+</span><a name="line-142"></a><span class="hs-comment">--</span><span>
+</span><a name="line-143"></a><span class="hs-comment">-- For example, the @grnf@ function can also be defined as a one-liner</span><span>
+</span><a name="line-144"></a><span class="hs-comment">-- as follows:</span><span>
+</span><a name="line-145"></a><span class="hs-comment">--</span><span>
+</span><a name="line-146"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-147"></a><span class="hs-comment">-- grnf :: ('Generic' a, 'All2' NFData ('Code' a)) =&gt; a -&gt; ()</span><span>
+</span><a name="line-148"></a><span class="hs-comment">-- grnf = 'rnf' . 'hcollapse' . 'hcmap' ('Proxy' :: 'Proxy' NFData) ('mapIK' rnf) . 'from'</span><span>
+</span><a name="line-149"></a><span class="hs-comment">-- @</span><span>
+</span><a name="line-150"></a><span class="hs-comment">--</span><span>
+</span><a name="line-151"></a><span class="hs-comment">-- 'mapIK' and friends ('mapII', 'mapKI', etc.) are small helpers for working</span><span>
+</span><a name="line-152"></a><span class="hs-comment">-- with 'I' and 'K' functors, for example 'mapIK' is defined as</span><span>
+</span><a name="line-153"></a><span class="hs-comment">-- @'mapIK' f = \\ ('I' x) -&gt; 'K' (f x)@</span><span>
+</span><a name="line-154"></a><span class="hs-comment">--</span><span>
+</span><a name="line-155"></a><span class="hs-comment">-- The following interaction should provide an idea of the individual</span><span>
+</span><a name="line-156"></a><span class="hs-comment">-- transformation steps:</span><span>
+</span><a name="line-157"></a><span class="hs-comment">--</span><span>
+</span><a name="line-158"></a><span class="hs-comment">-- &gt;&gt;&gt; let x = G 2.5 'A' False :: B Double</span><span>
+</span><a name="line-159"></a><span class="hs-comment">-- &gt;&gt;&gt; from x</span><span>
+</span><a name="line-160"></a><span class="hs-comment">-- SOP (S (Z (I 2.5 :* I 'A' :* I False :* Nil)))</span><span>
+</span><a name="line-161"></a><span class="hs-comment">-- &gt;&gt;&gt; hcmap (Proxy :: Proxy NFData) (mapIK rnf) it</span><span>
+</span><a name="line-162"></a><span class="hs-comment">-- SOP (S (Z (K () :* K () :* K () :* Nil)))</span><span>
+</span><a name="line-163"></a><span class="hs-comment">-- &gt;&gt;&gt; hcollapse it</span><span>
+</span><a name="line-164"></a><span class="hs-comment">-- [(),(),()]</span><span>
+</span><a name="line-165"></a><span class="hs-comment">-- &gt;&gt;&gt; rnf it</span><span>
+</span><a name="line-166"></a><span class="hs-comment">-- ()</span><span>
+</span><a name="line-167"></a><span class="hs-comment">--</span><span>
+</span><a name="line-168"></a><span class="hs-comment">-- The 'from' call converts into the structural representation.</span><span>
+</span><a name="line-169"></a><span class="hs-comment">-- Via 'hcmap', we apply 'rnf' to all the components. The result</span><span>
+</span><a name="line-170"></a><span class="hs-comment">-- is a sum of products of the same shape, but the components are</span><span>
+</span><a name="line-171"></a><span class="hs-comment">-- no longer heterogeneous ('I'), but homogeneous (@'K' ()@). A</span><span>
+</span><a name="line-172"></a><span class="hs-comment">-- homogeneous structure can be collapsed ('hcollapse') into a</span><span>
+</span><a name="line-173"></a><span class="hs-comment">-- normal Haskell list. Finally, 'rnf' actually forces evaluation</span><span>
+</span><a name="line-174"></a><span class="hs-comment">-- of this list (and thereby actually drives the evaluation of all</span><span>
+</span><a name="line-175"></a><span class="hs-comment">-- the previous steps) and produces the final result.</span><span>
+</span><a name="line-176"></a><span class="hs-comment">--</span><span>
+</span><a name="line-177"></a><span class="hs-comment">-- == Using a generic function</span><span>
+</span><a name="line-178"></a><span class="hs-comment">--</span><span>
+</span><a name="line-179"></a><span class="hs-comment">-- We can directly invoke 'grnf' on any type that is an instance of</span><span>
+</span><a name="line-180"></a><span class="hs-comment">-- class 'Generic'.</span><span>
+</span><a name="line-181"></a><span class="hs-comment">--</span><span>
+</span><a name="line-182"></a><span class="hs-comment">-- &gt;&gt;&gt; grnf (G 2.5 'A' False)</span><span>
+</span><a name="line-183"></a><span class="hs-comment">-- ()</span><span>
+</span><a name="line-184"></a><span class="hs-comment">-- &gt;&gt;&gt; grnf (G 2.5 undefined False)</span><span>
+</span><a name="line-185"></a><span class="hs-comment">-- *** Exception: Prelude.undefined</span><span>
+</span><a name="line-186"></a><span class="hs-comment">-- ...</span><span>
+</span><a name="line-187"></a><span class="hs-comment">--</span><span>
+</span><a name="line-188"></a><span class="hs-comment">-- Note that the type of 'grnf' requires that all components of the</span><span>
+</span><a name="line-189"></a><span class="hs-comment">-- type are in the 'Control.DeepSeq.NFData' class. For a recursive</span><span>
+</span><a name="line-190"></a><span class="hs-comment">-- datatype such as @B@, this means that we have to make @A@</span><span>
+</span><a name="line-191"></a><span class="hs-comment">-- (and in this case, also @B@) an instance of 'Control.DeepSeq.NFData'</span><span>
+</span><a name="line-192"></a><span class="hs-comment">-- in order to be able to use the 'grnf' function. But we can use 'grnf'</span><span>
+</span><a name="line-193"></a><span class="hs-comment">-- to supply the instance definitions:</span><span>
+</span><a name="line-194"></a><span class="hs-comment">--</span><span>
+</span><a name="line-195"></a><span class="hs-comment">-- &gt; instance NFData A where rnf = grnf</span><span>
+</span><a name="line-196"></a><span class="hs-comment">-- &gt; instance NFData a =&gt; NFData (B a) where rnf = grnf</span><span>
+</span><a name="line-197"></a><span class="hs-comment">--</span><span>
+</span><a name="line-198"></a><span class="hs-comment">-- = More examples</span><span>
+</span><a name="line-199"></a><span class="hs-comment">--</span><span>
+</span><a name="line-200"></a><span class="hs-comment">-- The best way to learn about how to define generic functions in the SOP style</span><span>
+</span><a name="line-201"></a><span class="hs-comment">-- is to look at a few simple examples. Examples are provided by the following</span><span>
+</span><a name="line-202"></a><span class="hs-comment">-- packages:</span><span>
+</span><a name="line-203"></a><span class="hs-comment">--</span><span>
+</span><a name="line-204"></a><span class="hs-comment">--   * @&lt;http://hackage.haskell.org/package/basic-sop basic-sop&gt;@ basic examples,</span><span>
+</span><a name="line-205"></a><span class="hs-comment">--   * @&lt;http://hackage.haskell.org/package/pretty-sop pretty-sop&gt;@ generic pretty printing,</span><span>
+</span><a name="line-206"></a><span class="hs-comment">--   * @&lt;http://hackage.haskell.org/package/lens-sop lens-sop&gt;@ generically computed lenses,</span><span>
+</span><a name="line-207"></a><span class="hs-comment">--   * @&lt;http://hackage.haskell.org/package/json-sop json-sop&gt;@ generic JSON conversions.</span><span>
+</span><a name="line-208"></a><span class="hs-comment">--</span><span>
+</span><a name="line-209"></a><span class="hs-comment">-- The generic functions in these packages use a wide variety of the combinators</span><span>
+</span><a name="line-210"></a><span class="hs-comment">-- that are offered by the library.</span><span>
+</span><a name="line-211"></a><span class="hs-comment">--</span><span>
+</span><a name="line-212"></a><span class="hs-comment">-- = Paper</span><span>
+</span><a name="line-213"></a><span class="hs-comment">--</span><span>
+</span><a name="line-214"></a><span class="hs-comment">-- A detailed description of the ideas behind this library is provided by</span><span>
+</span><a name="line-215"></a><span class="hs-comment">-- the paper:</span><span>
+</span><a name="line-216"></a><span class="hs-comment">--</span><span>
+</span><a name="line-217"></a><span class="hs-comment">--   * Edsko de Vries and Andres L&#246;h.</span><span>
+</span><a name="line-218"></a><span class="hs-comment">--     &lt;http://www.andres-loeh.de/TrueSumsOfProducts True Sums of Products&gt;.</span><span>
+</span><a name="line-219"></a><span class="hs-comment">--     Workshop on Generic Programming (WGP) 2014.</span><span>
+</span><a name="line-220"></a><span class="hs-comment">--</span><span>
+</span><a name="line-221"></a><span class="hs-comment">--</span><span>
+</span><a name="line-222"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Generics.SOP</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-223"></a><span>    </span><span class="hs-comment">-- * Codes and interpretations</span><span>
+</span><a name="line-224"></a><span>    </span><a href="Generics.SOP.Universe.html#Generic"><span class="hs-identifier hs-type">Generic</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-225"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Generics.SOP.Universe.html#Rep"><span class="hs-identifier hs-type">Rep</span></a><span>
+</span><a name="line-226"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Generics.SOP.Universe.html#IsProductType"><span class="hs-identifier hs-type">IsProductType</span></a><span>
+</span><a name="line-227"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Generics.SOP.Universe.html#IsEnumType"><span class="hs-identifier hs-type">IsEnumType</span></a><span>
+</span><a name="line-228"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Generics.SOP.Universe.html#IsWrappedType"><span class="hs-identifier hs-type">IsWrappedType</span></a><span>
+</span><a name="line-229"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Generics.SOP.Universe.html#IsNewtype"><span class="hs-identifier hs-type">IsNewtype</span></a><span>
+</span><a name="line-230"></a><span>    </span><span class="hs-comment">-- * n-ary datatypes</span><span>
+</span><a name="line-231"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">NP</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-232"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">NS</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-233"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">SOP</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-234"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">unSOP</span><span>
+</span><a name="line-235"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">POP</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-236"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">unPOP</span><span>
+</span><a name="line-237"></a><span>    </span><span class="hs-comment">-- * Metadata</span><span>
+</span><a name="line-238"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Generics.SOP.Metadata.html#DatatypeInfo"><span class="hs-identifier hs-type">DatatypeInfo</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-239"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Generics.SOP.Metadata.html#moduleName"><span class="hs-identifier hs-var">moduleName</span></a><span>
+</span><a name="line-240"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Generics.SOP.Metadata.html#datatypeName"><span class="hs-identifier hs-var">datatypeName</span></a><span>
+</span><a name="line-241"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Generics.SOP.Metadata.html#constructorInfo"><span class="hs-identifier hs-var">constructorInfo</span></a><span>
+</span><a name="line-242"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Generics.SOP.Metadata.html#ConstructorInfo"><span class="hs-identifier hs-type">ConstructorInfo</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-243"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Generics.SOP.Metadata.html#constructorName"><span class="hs-identifier hs-var">constructorName</span></a><span>
+</span><a name="line-244"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Generics.SOP.Metadata.html#FieldInfo"><span class="hs-identifier hs-type">FieldInfo</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-245"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Generics.SOP.Metadata.html#fieldName"><span class="hs-identifier hs-var">fieldName</span></a><span>
+</span><a name="line-246"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Generics.SOP.Universe.html#HasDatatypeInfo"><span class="hs-identifier hs-type">HasDatatypeInfo</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-247"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Generics.SOP.Metadata.html#DatatypeName"><span class="hs-identifier hs-type">DatatypeName</span></a><span>
+</span><a name="line-248"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Generics.SOP.Metadata.html#ModuleName"><span class="hs-identifier hs-type">ModuleName</span></a><span>
+</span><a name="line-249"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Generics.SOP.Metadata.html#ConstructorName"><span class="hs-identifier hs-type">ConstructorName</span></a><span>
+</span><a name="line-250"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Generics.SOP.Metadata.html#FieldName"><span class="hs-identifier hs-type">FieldName</span></a><span>
+</span><a name="line-251"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Associativity</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-252"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Generics.SOP.Metadata.html#Fixity"><span class="hs-identifier hs-type">Fixity</span></a><span>
+</span><a name="line-253"></a><span>    </span><span class="hs-comment">-- * Combinators</span><span>
+</span><a name="line-254"></a><span>    </span><span class="hs-comment">-- ** Constructing products</span><span>
+</span><a name="line-255"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">HPure</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-256"></a><span>    </span><span class="hs-comment">-- ** Destructing products</span><span>
+</span><a name="line-257"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">hd</span><span>
+</span><a name="line-258"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">tl</span><span>
+</span><a name="line-259"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Projection</span><span>
+</span><a name="line-260"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">projections</span><span>
+</span><a name="line-261"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">shiftProjection</span><span>
+</span><a name="line-262"></a><span>    </span><span class="hs-comment">-- ** Application</span><span>
+</span><a name="line-263"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">type</span><span> </span><span class="hs-special">(</span><span class="hs-operator hs-type">-.-&gt;</span><span class="hs-special">)</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-264"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">fn</span><span>
+</span><a name="line-265"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">fn_2</span><span>
+</span><a name="line-266"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">fn_3</span><span>
+</span><a name="line-267"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">fn_4</span><span>
+</span><a name="line-268"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Prod</span><span>
+</span><a name="line-269"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">HAp</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-270"></a><span>    </span><span class="hs-comment">-- ** Lifting / mapping</span><span>
+</span><a name="line-271"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">hliftA</span><span>
+</span><a name="line-272"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">hliftA2</span><span>
+</span><a name="line-273"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">hliftA3</span><span>
+</span><a name="line-274"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">hcliftA</span><span>
+</span><a name="line-275"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">hcliftA2</span><span>
+</span><a name="line-276"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">hcliftA3</span><span>
+</span><a name="line-277"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">hmap</span><span>
+</span><a name="line-278"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">hzipWith</span><span>
+</span><a name="line-279"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">hzipWith3</span><span>
+</span><a name="line-280"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">hcmap</span><span>
+</span><a name="line-281"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">hczipWith</span><span>
+</span><a name="line-282"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">hczipWith3</span><span>
+</span><a name="line-283"></a><span>    </span><span class="hs-comment">-- ** Constructing sums</span><span>
+</span><a name="line-284"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Injection</span><span>
+</span><a name="line-285"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">injections</span><span>
+</span><a name="line-286"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">shift</span><span>
+</span><a name="line-287"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">shiftInjection</span><span>
+</span><a name="line-288"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">UnProd</span><span>
+</span><a name="line-289"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">HApInjs</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-290"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">apInjs_NP</span><span>  </span><span class="hs-comment">-- deprecated export</span><span>
+</span><a name="line-291"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">apInjs_POP</span><span> </span><span class="hs-comment">-- deprecated export</span><span>
+</span><a name="line-292"></a><span>    </span><span class="hs-comment">-- ** Destructing sums</span><span>
+</span><a name="line-293"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">unZ</span><span>
+</span><a name="line-294"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">HIndex</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-295"></a><span>    </span><span class="hs-comment">-- ** Dealing with @'All' c@</span><span>
+</span><a name="line-296"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">hcliftA'</span><span>
+</span><a name="line-297"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">hcliftA2'</span><span>
+</span><a name="line-298"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">hcliftA3'</span><span>
+</span><a name="line-299"></a><span>    </span><span class="hs-comment">-- ** Comparison</span><span>
+</span><a name="line-300"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">compare_NS</span><span>
+</span><a name="line-301"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">ccompare_NS</span><span>
+</span><a name="line-302"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">compare_SOP</span><span>
+</span><a name="line-303"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">ccompare_SOP</span><span>
+</span><a name="line-304"></a><span>    </span><span class="hs-comment">-- ** Collapsing</span><span>
+</span><a name="line-305"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">CollapseTo</span><span>
+</span><a name="line-306"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">HCollapse</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-307"></a><span>    </span><span class="hs-comment">-- ** Folding and sequencing</span><span>
+</span><a name="line-308"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">HTraverse_</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-309"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">hcfoldMap</span><span>
+</span><a name="line-310"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">hcfor_</span><span>
+</span><a name="line-311"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">HSequence</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-312"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">hsequence</span><span>
+</span><a name="line-313"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">hsequenceK</span><span>
+</span><a name="line-314"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">hctraverse</span><span>
+</span><a name="line-315"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">hcfor</span><span>
+</span><a name="line-316"></a><span>    </span><span class="hs-comment">-- ** Expanding sums to products</span><span>
+</span><a name="line-317"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">HExpand</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-318"></a><span>    </span><span class="hs-comment">-- ** Transformation of index lists and coercions</span><span>
+</span><a name="line-319"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">HTrans</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-320"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">hfromI</span><span>
+</span><a name="line-321"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">htoI</span><span>
+</span><a name="line-322"></a><span>    </span><span class="hs-comment">-- ** Partial operations</span><span>
+</span><a name="line-323"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">fromList</span><span>
+</span><a name="line-324"></a><span>    </span><span class="hs-comment">-- * Utilities</span><span>
+</span><a name="line-325"></a><span>    </span><span class="hs-comment">-- ** Basic functors</span><span>
+</span><a name="line-326"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">K</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-327"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">unK</span><span>
+</span><a name="line-328"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">I</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-329"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">unI</span><span>
+</span><a name="line-330"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="hs-operator hs-type">:.:</span><span class="hs-special">)</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-331"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">unComp</span><span>
+</span><a name="line-332"></a><span>    </span><span class="hs-comment">-- *** Mapping functions</span><span>
+</span><a name="line-333"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mapII</span><span>
+</span><a name="line-334"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mapIK</span><span>
+</span><a name="line-335"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mapKI</span><span>
+</span><a name="line-336"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mapKK</span><span>
+</span><a name="line-337"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mapIII</span><span>
+</span><a name="line-338"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mapIIK</span><span>
+</span><a name="line-339"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mapIKI</span><span>
+</span><a name="line-340"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mapIKK</span><span>
+</span><a name="line-341"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mapKII</span><span>
+</span><a name="line-342"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mapKIK</span><span>
+</span><a name="line-343"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mapKKI</span><span>
+</span><a name="line-344"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mapKKK</span><span>
+</span><a name="line-345"></a><span>    </span><span class="hs-comment">-- ** Mapping constraints</span><span>
+</span><a name="line-346"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">All</span><span>
+</span><a name="line-347"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">All2</span><span>
+</span><a name="line-348"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">cpara_SList</span><span>
+</span><a name="line-349"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">ccase_SList</span><span>
+</span><a name="line-350"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">AllZip</span><span>
+</span><a name="line-351"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">AllZip2</span><span>
+</span><a name="line-352"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">AllN</span><span>
+</span><a name="line-353"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">AllZipN</span><span>
+</span><a name="line-354"></a><span>    </span><span class="hs-comment">-- ** Other constraints</span><span>
+</span><a name="line-355"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Compose</span><span>
+</span><a name="line-356"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">And</span><span>
+</span><a name="line-357"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Top</span><span>
+</span><a name="line-358"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">LiftedCoercible</span><span>
+</span><a name="line-359"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">SameShapeAs</span><span>
+</span><a name="line-360"></a><span>    </span><span class="hs-comment">-- ** Singletons</span><span>
+</span><a name="line-361"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">SList</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-362"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">SListI</span><span>
+</span><a name="line-363"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">SListI2</span><span>
+</span><a name="line-364"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">sList</span><span>
+</span><a name="line-365"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">para_SList</span><span>
+</span><a name="line-366"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">case_SList</span><span>
+</span><a name="line-367"></a><span>    </span><span class="hs-comment">-- *** Shape of type-level lists</span><span>
+</span><a name="line-368"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Shape</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-369"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">shape</span><span>
+</span><a name="line-370"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">lengthSList</span><span>
+</span><a name="line-371"></a><span>    </span><span class="hs-comment">-- ** Re-exports</span><span>
+</span><a name="line-372"></a><span>
+</span><a name="line-373"></a><span class="hs-comment">-- Workaround for lack of MIN_TOOL_VERSION macro in Cabal 1.18, see:</span><span>
+</span><a name="line-374"></a><span class="hs-comment">-- https://github.com/well-typed/generics-sop/issues/3</span><span>
+</span><a name="line-375"></a><span class="hs-cpp">#ifndef MIN_TOOL_VERSION_haddock
+#define MIN_TOOL_VERSION_haddock(x,y,z) 0
+#endif
+</span><span>
+</span><a name="line-379"></a><span class="hs-cpp">#if !(defined(__HADDOCK_VERSION__)) || MIN_TOOL_VERSION_haddock(2,14,0)
+</span><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Proxy</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- hidden from old Haddock versions, because it triggers an internal error</span><span>
+</span><a name="line-381"></a><span class="hs-cpp">#endif
+</span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-383"></a><span>
+</span><a name="line-384"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Proxy</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Proxy</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-385"></a><span>
+</span><a name="line-386"></a><span class="hs-keyword">import</span><span> </span><a href="Generics.SOP.BasicFunctors.html"><span class="hs-identifier">Generics.SOP.BasicFunctors</span></a><span>
+</span><a name="line-387"></a><span class="hs-keyword">import</span><span> </span><a href="Generics.SOP.Classes.html"><span class="hs-identifier">Generics.SOP.Classes</span></a><span>
+</span><a name="line-388"></a><span class="hs-keyword">import</span><span> </span><a href="Generics.SOP.Constraint.html"><span class="hs-identifier">Generics.SOP.Constraint</span></a><span>
+</span><a name="line-389"></a><span class="hs-keyword">import</span><span> </span><a href="Generics.SOP.Instances.html"><span class="hs-identifier">Generics.SOP.Instances</span></a><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><a name="line-390"></a><span class="hs-keyword">import</span><span> </span><a href="Generics.SOP.Metadata.html"><span class="hs-identifier">Generics.SOP.Metadata</span></a><span>
+</span><a name="line-391"></a><span class="hs-keyword">import</span><span> </span><a href="Generics.SOP.NP.html"><span class="hs-identifier">Generics.SOP.NP</span></a><span>
+</span><a name="line-392"></a><span class="hs-keyword">import</span><span> </span><a href="Generics.SOP.NS.html"><span class="hs-identifier">Generics.SOP.NS</span></a><span>
+</span><a name="line-393"></a><span class="hs-keyword">import</span><span> </span><a href="Generics.SOP.Universe.html"><span class="hs-identifier">Generics.SOP.Universe</span></a><span>
+</span><a name="line-394"></a><span class="hs-keyword">import</span><span> </span><a href="Generics.SOP.Sing.html"><span class="hs-identifier">Generics.SOP.Sing</span></a><span>
+</span><a name="line-395"></a><span>
+</span><a name="line-396"></a><span class="hs-comment">-- $setup</span><span>
+</span><a name="line-397"></a><span class="hs-comment">--</span><span>
+</span><a name="line-398"></a><span class="hs-comment">-- &gt;&gt;&gt; :set -XDeriveGeneric</span><span>
+</span><a name="line-399"></a><span class="hs-comment">-- &gt;&gt;&gt; import qualified GHC.Generics as GHC</span><span>
+</span><a name="line-400"></a><span class="hs-comment">-- &gt;&gt;&gt; import Generics.SOP</span><span>
+</span><a name="line-401"></a><span class="hs-comment">-- &gt;&gt;&gt; import Control.DeepSeq</span><span>
+</span><a name="line-402"></a><span class="hs-comment">-- &gt;&gt;&gt; data B a = F | G a Char Bool deriving (Show, GHC.Generic)</span><span>
+</span><a name="line-403"></a><span class="hs-comment">-- &gt;&gt;&gt; data A   = C Bool | D A Int | E (B ()) deriving (Show, GHC.Generic)</span><span>
+</span><a name="line-404"></a><span class="hs-comment">-- &gt;&gt;&gt; instance Generic A     -- empty</span><span>
+</span><a name="line-405"></a><span class="hs-comment">-- &gt;&gt;&gt; instance Generic (B a) -- empty</span><span>
+</span><a name="line-406"></a><span class="hs-comment">--</span><span>
+</span><a name="line-407"></a><span class="hs-comment">-- &gt;&gt;&gt; let grnf = rnf . hcollapse . hcmap (Proxy :: Proxy NFData) (\ (I x) -&gt; K (rnf x)) . from</span><span>
+</span><a name="line-408"></a></pre></body></html>

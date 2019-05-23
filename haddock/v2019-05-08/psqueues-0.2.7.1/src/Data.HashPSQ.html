@@ -1,0 +1,59 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- | A 'HashPSQ' offers very similar performance to 'IntPSQ'. In case of</span><span>
+</span><a name="line-2"></a><span class="hs-comment">-- collisions, it uses an 'OrdPSQ' locally to solve those.</span><span>
+</span><a name="line-3"></a><span class="hs-comment">--</span><span>
+</span><a name="line-4"></a><span class="hs-comment">-- This means worst case complexity is usually given by /O(min(n,W), log n)/,</span><span>
+</span><a name="line-5"></a><span class="hs-comment">-- where /W/ is the number of bits in an 'Int'. This simplifies to /O(min(n,W))/</span><span>
+</span><a name="line-6"></a><span class="hs-comment">-- since /log n/ is always smaller than /W/ on current machines.</span><span>
+</span><a name="line-7"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.HashPSQ</span><span>
+</span><a name="line-8"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-comment">-- * Type</span><span>
+</span><a name="line-9"></a><span>      </span><a href="Data.HashPSQ.Internal.html#HashPSQ"><span class="hs-identifier hs-type">HashPSQ</span></a><span>
+</span><a name="line-10"></a><span>
+</span><a name="line-11"></a><span>      </span><span class="hs-comment">-- * Query</span><span>
+</span><a name="line-12"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#null"><span class="hs-identifier hs-var">null</span></a><span>
+</span><a name="line-13"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#size"><span class="hs-identifier hs-var">size</span></a><span>
+</span><a name="line-14"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#member"><span class="hs-identifier hs-var">member</span></a><span>
+</span><a name="line-15"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#lookup"><span class="hs-identifier hs-var">lookup</span></a><span>
+</span><a name="line-16"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#findMin"><span class="hs-identifier hs-var">findMin</span></a><span>
+</span><a name="line-17"></a><span>
+</span><a name="line-18"></a><span>      </span><span class="hs-comment">-- * Construction</span><span>
+</span><a name="line-19"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#empty"><span class="hs-identifier hs-var">empty</span></a><span>
+</span><a name="line-20"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#singleton"><span class="hs-identifier hs-var">singleton</span></a><span>
+</span><a name="line-21"></a><span>
+</span><a name="line-22"></a><span>      </span><span class="hs-comment">-- * Insertion</span><span>
+</span><a name="line-23"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#insert"><span class="hs-identifier hs-var">insert</span></a><span>
+</span><a name="line-24"></a><span>
+</span><a name="line-25"></a><span>      </span><span class="hs-comment">-- * Delete/update</span><span>
+</span><a name="line-26"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#delete"><span class="hs-identifier hs-var">delete</span></a><span>
+</span><a name="line-27"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#deleteMin"><span class="hs-identifier hs-var">deleteMin</span></a><span>
+</span><a name="line-28"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#alter"><span class="hs-identifier hs-var">alter</span></a><span>
+</span><a name="line-29"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#alterMin"><span class="hs-identifier hs-var">alterMin</span></a><span>
+</span><a name="line-30"></a><span>
+</span><a name="line-31"></a><span>      </span><span class="hs-comment">-- * Lists</span><span>
+</span><a name="line-32"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#fromList"><span class="hs-identifier hs-var">fromList</span></a><span>
+</span><a name="line-33"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#toList"><span class="hs-identifier hs-var">toList</span></a><span>
+</span><a name="line-34"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#keys"><span class="hs-identifier hs-var">keys</span></a><span>
+</span><a name="line-35"></a><span>
+</span><a name="line-36"></a><span>      </span><span class="hs-comment">-- * Views</span><span>
+</span><a name="line-37"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#insertView"><span class="hs-identifier hs-var">insertView</span></a><span>
+</span><a name="line-38"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#deleteView"><span class="hs-identifier hs-var">deleteView</span></a><span>
+</span><a name="line-39"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#minView"><span class="hs-identifier hs-var">minView</span></a><span>
+</span><a name="line-40"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#atMostView"><span class="hs-identifier hs-var">atMostView</span></a><span>
+</span><a name="line-41"></a><span>
+</span><a name="line-42"></a><span>      </span><span class="hs-comment">-- * Traversal</span><span>
+</span><a name="line-43"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#map"><span class="hs-identifier hs-var">map</span></a><span>
+</span><a name="line-44"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#unsafeMapMonotonic"><span class="hs-identifier hs-var">unsafeMapMonotonic</span></a><span>
+</span><a name="line-45"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#fold%27"><span class="hs-identifier hs-var">fold'</span></a><span>
+</span><a name="line-46"></a><span>
+</span><a name="line-47"></a><span>      </span><span class="hs-comment">-- * Unsafe operations</span><span>
+</span><a name="line-48"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#unsafeLookupIncreasePriority"><span class="hs-identifier hs-var">unsafeLookupIncreasePriority</span></a><span>
+</span><a name="line-49"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#unsafeInsertIncreasePriority"><span class="hs-identifier hs-var">unsafeInsertIncreasePriority</span></a><span>
+</span><a name="line-50"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#unsafeInsertIncreasePriorityView"><span class="hs-identifier hs-var">unsafeInsertIncreasePriorityView</span></a><span>
+</span><a name="line-51"></a><span>
+</span><a name="line-52"></a><span>      </span><span class="hs-comment">-- * Validity check</span><span>
+</span><a name="line-53"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.HashPSQ.Internal.html#valid"><span class="hs-identifier hs-var">valid</span></a><span>
+</span><a name="line-54"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-55"></a><span>
+</span><a name="line-56"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Prelude</span><span>               </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">foldr</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">lookup</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">map</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">null</span><span class="hs-special">)</span><span>
+</span><a name="line-57"></a><span>
+</span><a name="line-58"></a><span class="hs-keyword">import</span><span>           </span><a href="Data.HashPSQ.Internal.html"><span class="hs-identifier">Data.HashPSQ.Internal</span></a><span>
+</span><a name="line-59"></a></pre></body></html>

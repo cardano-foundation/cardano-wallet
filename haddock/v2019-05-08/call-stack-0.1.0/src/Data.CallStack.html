@@ -1,0 +1,38 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE ConstraintKinds #-}</span><span>
+</span><a name="line-3"></a><span class="hs-pragma">{-# LANGUAGE KindSignatures #-}</span><span>
+</span><a name="line-4"></a><span class="hs-pragma">{-# LANGUAGE ImplicitParams #-}</span><span>
+</span><a name="line-5"></a><span>
+</span><a name="line-6"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.CallStack</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-7"></a><span>  </span><span class="hs-identifier hs-type">HasCallStack</span><span>
+</span><a name="line-8"></a><span class="hs-special">,</span><span> </span><a href="Data.CallStack.html#CallStack"><span class="hs-identifier hs-type">CallStack</span></a><span>
+</span><a name="line-9"></a><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">SrcLoc</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-10"></a><span class="hs-special">,</span><span> </span><a href="Data.CallStack.html#callStack"><span class="hs-identifier hs-var">callStack</span></a><span>
+</span><a name="line-11"></a><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-12"></a><span>
+</span><a name="line-13"></a><span class="hs-keyword">import</span><span> </span><a href="Data.SrcLoc.html"><span class="hs-identifier">Data.SrcLoc</span></a><span>
+</span><a name="line-14"></a><span>
+</span><a name="line-15"></a><span class="hs-cpp">#if MIN_VERSION_base(4,8,1)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">GHC.Stack</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">GHC</span><span>
+</span><a name="line-17"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-19"></a><span class="hs-cpp">#if MIN_VERSION_base(4,9,0)
+</span><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">GHC.Stack</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">HasCallStack</span><span class="hs-special">)</span><span>
+</span><a name="line-21"></a><span class="hs-cpp">#elif MIN_VERSION_base(4,8,1)
+</span><span class="hs-keyword">type</span><span> </span><span class="hs-identifier">HasCallStack</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="">?callStack</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">GHC.CallStack</span><span class="hs-special">)</span><span>
+</span><a name="line-23"></a><span class="hs-cpp">#else
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.Exts</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Constraint</span><span class="hs-special">)</span><span>
+</span><a name="line-25"></a><span class="hs-keyword">type</span><span> </span><span class="hs-identifier">HasCallStack</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">Constraint</span><span class="hs-special">)</span><span>
+</span><a name="line-26"></a><span class="hs-cpp">#endif
+</span><span>
+</span><a name="line-28"></a><span class="hs-keyword">type</span><span> </span><a name="CallStack"><a href="Data.CallStack.html#CallStack"><span class="hs-identifier">CallStack</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="hs-identifier hs-type">String</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">SrcLoc</span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><a name="line-29"></a><span>
+</span><a name="line-30"></a><span class="hs-identifier">callStack</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">HasCallStack</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><a href="Data.CallStack.html#CallStack"><span class="hs-identifier hs-type">CallStack</span></a><span>
+</span><a name="line-31"></a><span class="hs-cpp">#if MIN_VERSION_base(4,9,0)
+</span><a name="callStack"><a href="Data.CallStack.html#callStack"><span class="hs-identifier">callStack</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">drop</span><span> </span><span class="hs-number">1</span><span> </span><span class="hs-operator hs-var">$</span><span> </span><span class="hs-identifier hs-var">GHC.getCallStack</span><span> </span><span class="hs-identifier hs-var">GHC.callStack</span><span>
+</span><a name="line-33"></a><span class="hs-cpp">#elif MIN_VERSION_base(4,8,1)
+</span><span class="hs-identifier">callStack</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">drop</span><span> </span><span class="hs-number">2</span><span> </span><span class="hs-operator">$</span><span> </span><span class="hs-identifier">GHC.getCallStack</span><span> </span><span class="">?callStack</span><span>
+</span><a name="line-35"></a><span class="hs-cpp">#else
+</span><span class="hs-identifier">callStack</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><a name="line-37"></a><span class="hs-cpp">#endif
+</span></pre></body></html>

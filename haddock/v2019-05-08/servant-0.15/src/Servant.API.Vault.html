@@ -1,0 +1,22 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Servant.API.Vault</span><span>
+</span><a name="line-2"></a><span>  </span><span class="hs-special">(</span><span> </span><span class="hs-comment">-- $vault</span><span>
+</span><a name="line-3"></a><span>    </span><span class="hs-identifier hs-type">Vault</span><span>
+</span><a name="line-4"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-5"></a><span>
+</span><a name="line-6"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Data.Vault.Lazy</span><span>
+</span><a name="line-7"></a><span>                 </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Vault</span><span class="hs-special">)</span><span>
+</span><a name="line-8"></a><span>
+</span><a name="line-9"></a><span class="hs-comment">-- $vault</span><span>
+</span><a name="line-10"></a><span class="hs-comment">--</span><span>
+</span><a name="line-11"></a><span class="hs-comment">-- | Use 'Vault' in your API types to provide access to the 'Vault'</span><span>
+</span><a name="line-12"></a><span class="hs-comment">--   of the request, which is a location shared by middlewares and applications</span><span>
+</span><a name="line-13"></a><span class="hs-comment">--   to store arbitrary data. See &lt;https://hackage.haskell.org/package/vault vault&gt;</span><span>
+</span><a name="line-14"></a><span class="hs-comment">--   for more details on how to actually use the vault in your handlers</span><span>
+</span><a name="line-15"></a><span class="hs-comment">--</span><span>
+</span><a name="line-16"></a><span class="hs-comment">-- Example:</span><span>
+</span><a name="line-17"></a><span class="hs-comment">--</span><span>
+</span><a name="line-18"></a><span class="hs-comment">-- &gt;&gt;&gt; type API = Vault :&gt; Get '[JSON] String</span><span>
+</span><a name="line-19"></a><span>
+</span><a name="line-20"></a><span class="hs-comment">-- $setup</span><span>
+</span><a name="line-21"></a><span class="hs-comment">-- &gt;&gt;&gt; import Servant.API</span><span>
+</span><a name="line-22"></a></pre></body></html>

@@ -1,0 +1,30 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><a name="line-2"></a><span>
+</span><a name="line-3"></a><span class="hs-comment">{-|
+  Cross platform library for the sendfile system call.
+  This library tries to call minimum system calls which
+  are the bottleneck of web servers.
+-}</span><span>
+</span><a name="line-8"></a><span>
+</span><a name="line-9"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Network.Sendfile</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-10"></a><span>    </span><a href="Network.Sendfile.Linux.html#sendfile"><span class="hs-identifier hs-var">sendfile</span></a><span>
+</span><a name="line-11"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Sendfile.Linux.html#sendfileWithHeader"><span class="hs-identifier hs-var">sendfileWithHeader</span></a><span>
+</span><a name="line-12"></a><span class="hs-cpp">#if OS_BSD || OS_MacOS || OS_Linux
+</span><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Sendfile.Linux.html#sendfileFd"><span class="hs-identifier hs-var">sendfileFd</span></a><span>
+</span><a name="line-14"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Sendfile.Linux.html#sendfileFdWithHeader"><span class="hs-identifier hs-var">sendfileFdWithHeader</span></a><span>
+</span><a name="line-15"></a><span class="hs-cpp">#endif
+</span><span>  </span><span class="hs-special">,</span><span> </span><a href="Network.Sendfile.Types.html#FileRange"><span class="hs-identifier hs-type">FileRange</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-17"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-18"></a><span>
+</span><a name="line-19"></a><span class="hs-keyword">import</span><span> </span><a href="Network.Sendfile.Types.html"><span class="hs-identifier">Network.Sendfile.Types</span></a><span>
+</span><a name="line-20"></a><span>
+</span><a name="line-21"></a><span class="hs-cpp">#ifdef OS_BSD
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Network.Sendfile.BSD</span><span>
+</span><a name="line-23"></a><span class="hs-cpp">#elif  OS_MacOS
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Network.Sendfile.BSD</span><span>
+</span><a name="line-25"></a><span class="hs-cpp">#elif  OS_Linux
+</span><span class="hs-keyword">import</span><span> </span><a href="Network.Sendfile.Linux.html"><span class="hs-identifier">Network.Sendfile.Linux</span></a><span>
+</span><a name="line-27"></a><span class="hs-cpp">#else
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Network.Sendfile.Fallback</span><span>
+</span><a name="line-29"></a><span class="hs-cpp">#endif
+</span></pre></body></html>

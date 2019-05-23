@@ -1,0 +1,90 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">1</span><span> </span><span class="hs-pragma">&quot;Data/UnixTime/Types.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-2"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.UnixTime.Types</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-3"></a><span>
+</span><a name="line-4"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Applicative</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-operator">&lt;$&gt;</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="hs-operator">&lt;*&gt;</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-5"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.ByteString</span><span>
+</span><a name="line-6"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.ByteString.Char8</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><a name="line-7"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Int</span><span>
+</span><a name="line-8"></a><span>
+</span><a name="line-9"></a><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">10</span><span> </span><span class="hs-pragma">&quot;Data/UnixTime/Types.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-10"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Foreign.C.Types</span><span>
+</span><a name="line-11"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Foreign.Storable</span><span>
+</span><a name="line-12"></a><span>
+</span><a name="line-13"></a><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">13</span><span> </span><span class="hs-pragma">&quot;Data/UnixTime/Types.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-14"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Binary</span><span>
+</span><a name="line-15"></a><span>
+</span><a name="line-16"></a><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">15</span><span> </span><span class="hs-pragma">&quot;Data/UnixTime/Types.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-17"></a><span>
+</span><a name="line-18"></a><span>
+</span><a name="line-19"></a><span>
+</span><a name="line-20"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-21"></a><span class="hs-comment">-- Data structure for Unix time.</span><span>
+</span><a name="line-22"></a><span class="hs-comment">--</span><span>
+</span><a name="line-23"></a><span class="hs-comment">-- Please note that this uses GHC-derived 'Eq' and 'Ord' instances.</span><span>
+</span><a name="line-24"></a><span class="hs-comment">-- Notably</span><span>
+</span><a name="line-25"></a><span class="hs-comment">--</span><span>
+</span><a name="line-26"></a><span class="hs-comment">-- &gt;&gt;&gt; UnixTime 1 0 &gt; UnixTime 0 999999999</span><span>
+</span><a name="line-27"></a><span class="hs-comment">-- True</span><span>
+</span><a name="line-28"></a><span class="hs-comment">--</span><span>
+</span><a name="line-29"></a><span class="hs-comment">-- You should instead use 'UnixDiffTime' along with its helpers such</span><span>
+</span><a name="line-30"></a><span class="hs-comment">-- as 'Data.UnixTime.microSecondsToUnixDiffTime' which will ensure</span><span>
+</span><a name="line-31"></a><span class="hs-comment">-- that such unusual values are never created.</span><span>
+</span><a name="line-32"></a><span class="hs-keyword">data</span><span> </span><span class="hs-identifier">UnixTime</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">UnixTime</span><span> </span><span class="hs-special">{</span><span>
+</span><a name="line-33"></a><span>    </span><span class="hs-comment">-- | Seconds from 1st Jan 1970</span><span>
+</span><a name="line-34"></a><span>    </span><span class="hs-identifier">utSeconds</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-pragma">{-# UNPACK</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="hs-glyph">!</span><span class="hs-identifier">CTime</span><span>
+</span><a name="line-35"></a><span>    </span><span class="hs-comment">-- | Micro seconds (i.e. 10^(-6))</span><span>
+</span><a name="line-36"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">utMicroSeconds</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-pragma">{-# UNPACK</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="hs-glyph">!</span><span class="hs-identifier">Int32</span><span>
+</span><a name="line-37"></a><span>  </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Eq</span><span class="hs-special">,</span><span class="hs-identifier">Ord</span><span class="hs-special">,</span><span class="hs-identifier">Show</span><span class="hs-special">)</span><span>
+</span><a name="line-38"></a><span>
+</span><a name="line-39"></a><span class="hs-keyword">instance</span><span> </span><span class="hs-identifier">Storable</span><span> </span><span class="hs-identifier">UnixTime</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-40"></a><span>    </span><span class="hs-identifier">sizeOf</span><span> </span><span class="hs-identifier">_</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-number">16</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-41"></a><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">39</span><span> </span><span class="hs-pragma">&quot;Data/UnixTime/Types.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-42"></a><span>    </span><span class="hs-identifier">alignment</span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-number">8</span><span class="hs-special">)</span><span>
+</span><a name="line-43"></a><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">40</span><span> </span><span class="hs-pragma">&quot;Data/UnixTime/Types.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-44"></a><span>
+</span><a name="line-45"></a><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">64</span><span> </span><span class="hs-pragma">&quot;Data/UnixTime/Types.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-46"></a><span>    </span><span class="hs-identifier">peek</span><span> </span><span class="hs-identifier">ptr</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">UnixTime</span><span>
+</span><a name="line-47"></a><span>            </span><span class="hs-operator">&lt;$&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-identifier">hsc_ptr</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">peekByteOff</span><span> </span><span class="hs-identifier">hsc_ptr</span><span> </span><span class="hs-number">0</span><span class="hs-special">)</span><span class="hs-special">)</span><span>  </span><span class="hs-identifier">ptr</span><span>
+</span><a name="line-48"></a><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">66</span><span> </span><span class="hs-pragma">&quot;Data/UnixTime/Types.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-49"></a><span>            </span><span class="hs-operator">&lt;*&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-identifier">hsc_ptr</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">peekByteOff</span><span> </span><span class="hs-identifier">hsc_ptr</span><span> </span><span class="hs-number">8</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-identifier">ptr</span><span>
+</span><a name="line-50"></a><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">67</span><span> </span><span class="hs-pragma">&quot;Data/UnixTime/Types.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-51"></a><span>    </span><span class="hs-identifier">poke</span><span> </span><span class="hs-identifier">ptr</span><span> </span><span class="hs-identifier">ut</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><a name="line-52"></a><span>            </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-identifier">hsc_ptr</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">pokeByteOff</span><span> </span><span class="hs-identifier">hsc_ptr</span><span> </span><span class="hs-number">0</span><span class="hs-special">)</span><span class="hs-special">)</span><span>  </span><span class="hs-identifier">ptr</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">utSeconds</span><span> </span><span class="hs-identifier">ut</span><span class="hs-special">)</span><span>
+</span><a name="line-53"></a><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">69</span><span> </span><span class="hs-pragma">&quot;Data/UnixTime/Types.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-54"></a><span>            </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-identifier">hsc_ptr</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">pokeByteOff</span><span> </span><span class="hs-identifier">hsc_ptr</span><span> </span><span class="hs-number">8</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-identifier">ptr</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">utMicroSeconds</span><span> </span><span class="hs-identifier">ut</span><span class="hs-special">)</span><span>
+</span><a name="line-55"></a><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">70</span><span> </span><span class="hs-pragma">&quot;Data/UnixTime/Types.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-56"></a><span>
+</span><a name="line-57"></a><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">71</span><span> </span><span class="hs-pragma">&quot;Data/UnixTime/Types.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-58"></a><span>
+</span><a name="line-59"></a><span>
+</span><a name="line-60"></a><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">73</span><span> </span><span class="hs-pragma">&quot;Data/UnixTime/Types.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-61"></a><span class="hs-keyword">instance</span><span> </span><span class="hs-identifier">Binary</span><span> </span><span class="hs-identifier">UnixTime</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-62"></a><span>        </span><span class="hs-identifier">put</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">UnixTime</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">CTime</span><span> </span><span class="hs-identifier">sec</span><span class="hs-special">)</span><span> </span><span class="hs-identifier">msec</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><a name="line-63"></a><span>            </span><span class="hs-identifier">put</span><span> </span><span class="hs-identifier">sec</span><span>
+</span><a name="line-64"></a><span>            </span><span class="hs-identifier">put</span><span> </span><span class="hs-identifier">msec</span><span>
+</span><a name="line-65"></a><span>        </span><span class="hs-identifier">get</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">UnixTime</span><span> </span><span class="hs-operator">&lt;$&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">CTime</span><span> </span><span class="hs-special">`</span><span class="hs-identifier">fmap</span><span class="hs-special">`</span><span> </span><span class="hs-identifier">get</span><span class="hs-special">)</span><span> </span><span class="hs-operator">&lt;*&gt;</span><span> </span><span class="hs-identifier">get</span><span>
+</span><a name="line-66"></a><span>
+</span><a name="line-67"></a><span class="hs-pragma">{-# LINE</span><span> </span><span class="hs-pragma">79</span><span> </span><span class="hs-pragma">&quot;Data/UnixTime/Types.hsc&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-68"></a><span>
+</span><a name="line-69"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-70"></a><span class="hs-comment">-- Format of the strptime()/strftime() style.</span><span>
+</span><a name="line-71"></a><span class="hs-keyword">type</span><span> </span><span class="hs-identifier">Format</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">ByteString</span><span>
+</span><a name="line-72"></a><span>
+</span><a name="line-73"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-74"></a><span class="hs-comment">-- Data structure for UnixTime diff.</span><span>
+</span><a name="line-75"></a><span class="hs-comment">--</span><span>
+</span><a name="line-76"></a><span class="hs-comment">-- It is up to the user to ensure that @'udtMicroSeconds' &lt; 1000000@.</span><span>
+</span><a name="line-77"></a><span class="hs-comment">-- Helpers such as 'Data.UnixTime.microSecondsToUnixDiffTime' can help</span><span>
+</span><a name="line-78"></a><span class="hs-comment">-- you to create valid values. For example, it's a mistake to use</span><span>
+</span><a name="line-79"></a><span class="hs-comment">-- 'Data.Text.addUnixDiffTime' with a value @UnixDiffTime 0 9999999@</span><span>
+</span><a name="line-80"></a><span class="hs-comment">-- as it will produce an incorrect value back. You should instead use</span><span>
+</span><a name="line-81"></a><span class="hs-comment">-- functions such as 'Data.UnixTime.microSecondsToUnixDiffTime' to</span><span>
+</span><a name="line-82"></a><span class="hs-comment">-- create values that are in-range. This avoids any gotchas when then</span><span>
+</span><a name="line-83"></a><span class="hs-comment">-- doing comparisons.</span><span>
+</span><a name="line-84"></a><span class="hs-keyword">data</span><span> </span><span class="hs-identifier">UnixDiffTime</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">UnixDiffTime</span><span> </span><span class="hs-special">{</span><span>
+</span><a name="line-85"></a><span>    </span><span class="hs-comment">-- | Seconds from 1st Jan 1970</span><span>
+</span><a name="line-86"></a><span>    </span><span class="hs-identifier">udtSeconds</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-pragma">{-# UNPACK</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="hs-glyph">!</span><span class="hs-identifier">CTime</span><span>
+</span><a name="line-87"></a><span>    </span><span class="hs-comment">-- | Micro seconds (i.e. 10^(-6))</span><span>
+</span><a name="line-88"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-identifier">udtMicroSeconds</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-pragma">{-# UNPACK</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="hs-glyph">!</span><span class="hs-identifier">Int32</span><span>
+</span><a name="line-89"></a><span>  </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Eq</span><span class="hs-special">,</span><span class="hs-identifier">Ord</span><span class="hs-special">,</span><span class="hs-identifier">Show</span><span class="hs-special">)</span><span>
+</span><a name="line-90"></a></pre></body></html>

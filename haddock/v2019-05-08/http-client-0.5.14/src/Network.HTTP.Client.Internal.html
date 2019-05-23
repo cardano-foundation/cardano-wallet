@@ -1,0 +1,42 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_HADDOCK not-home #-}</span><span>
+</span><a name="line-2"></a><span class="hs-comment">-- | Note that this is essentially the \&quot;kitchen sink\&quot; export module,</span><span>
+</span><a name="line-3"></a><span class="hs-comment">-- including many functions intended only to be used internally by this</span><span>
+</span><a name="line-4"></a><span class="hs-comment">-- package. No API stability is guaranteed for this module. If you see</span><span>
+</span><a name="line-5"></a><span class="hs-comment">-- functions here which you believe should be promoted to a stable API, please</span><span>
+</span><a name="line-6"></a><span class="hs-comment">-- contact the author.</span><span>
+</span><a name="line-7"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Network.HTTP.Client.Internal</span><span>
+</span><a name="line-8"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-comment">-- * Low-level response body handling</span><span>
+</span><a name="line-9"></a><span>      </span><span class="hs-keyword">module</span><span> </span><a href="Network.HTTP.Client.Body.html"><span class="hs-identifier">Network.HTTP.Client.Body</span></a><span>
+</span><a name="line-10"></a><span>      </span><span class="hs-comment">-- * Raw connection handling</span><span>
+</span><a name="line-11"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><a href="Network.HTTP.Client.Connection.html"><span class="hs-identifier">Network.HTTP.Client.Connection</span></a><span>
+</span><a name="line-12"></a><span>      </span><span class="hs-comment">-- * Cookies</span><span>
+</span><a name="line-13"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><a href="Network.HTTP.Client.Cookies.html"><span class="hs-identifier">Network.HTTP.Client.Cookies</span></a><span>
+</span><a name="line-14"></a><span>      </span><span class="hs-comment">-- * Performing requests</span><span>
+</span><a name="line-15"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><a href="Network.HTTP.Client.Core.html"><span class="hs-identifier">Network.HTTP.Client.Core</span></a><span>
+</span><a name="line-16"></a><span>      </span><span class="hs-comment">-- * Parse response headers</span><span>
+</span><a name="line-17"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><a href="Network.HTTP.Client.Headers.html"><span class="hs-identifier">Network.HTTP.Client.Headers</span></a><span>
+</span><a name="line-18"></a><span>      </span><span class="hs-comment">-- * Request helper functions</span><span>
+</span><a name="line-19"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><a href="Network.HTTP.Client.Request.html"><span class="hs-identifier">Network.HTTP.Client.Request</span></a><span>
+</span><a name="line-20"></a><span>      </span><span class="hs-comment">-- * Low-level response body handling</span><span>
+</span><a name="line-21"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><a href="Network.HTTP.Client.Response.html"><span class="hs-identifier">Network.HTTP.Client.Response</span></a><span>
+</span><a name="line-22"></a><span>      </span><span class="hs-comment">-- * Manager</span><span>
+</span><a name="line-23"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><a href="Network.HTTP.Client.Manager.html"><span class="hs-identifier">Network.HTTP.Client.Manager</span></a><span>
+</span><a name="line-24"></a><span>      </span><span class="hs-comment">-- * All types</span><span>
+</span><a name="line-25"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><a href="Network.HTTP.Client.Types.html"><span class="hs-identifier">Network.HTTP.Client.Types</span></a><span>
+</span><a name="line-26"></a><span>      </span><span class="hs-comment">-- * Various utilities</span><span>
+</span><a name="line-27"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><a href="Network.HTTP.Client.Util.html"><span class="hs-identifier">Network.HTTP.Client.Util</span></a><span>
+</span><a name="line-28"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Data.KeyedPool.html#dummyManaged"><span class="hs-identifier hs-var">dummyManaged</span></a><span>
+</span><a name="line-29"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-30"></a><span>
+</span><a name="line-31"></a><span class="hs-keyword">import</span><span> </span><a href="Network.HTTP.Client.Body.html"><span class="hs-identifier">Network.HTTP.Client.Body</span></a><span>
+</span><a name="line-32"></a><span class="hs-keyword">import</span><span> </span><a href="Network.HTTP.Client.Connection.html"><span class="hs-identifier">Network.HTTP.Client.Connection</span></a><span>
+</span><a name="line-33"></a><span class="hs-keyword">import</span><span> </span><a href="Network.HTTP.Client.Cookies.html"><span class="hs-identifier">Network.HTTP.Client.Cookies</span></a><span>
+</span><a name="line-34"></a><span class="hs-keyword">import</span><span> </span><a href="Network.HTTP.Client.Core.html"><span class="hs-identifier">Network.HTTP.Client.Core</span></a><span>
+</span><a name="line-35"></a><span class="hs-keyword">import</span><span> </span><a href="Network.HTTP.Client.Headers.html"><span class="hs-identifier">Network.HTTP.Client.Headers</span></a><span>
+</span><a name="line-36"></a><span class="hs-keyword">import</span><span> </span><a href="Network.HTTP.Client.Manager.html"><span class="hs-identifier">Network.HTTP.Client.Manager</span></a><span>
+</span><a name="line-37"></a><span class="hs-keyword">import</span><span> </span><a href="Network.HTTP.Client.Request.html"><span class="hs-identifier">Network.HTTP.Client.Request</span></a><span>
+</span><a name="line-38"></a><span class="hs-keyword">import</span><span> </span><a href="Network.HTTP.Client.Response.html"><span class="hs-identifier">Network.HTTP.Client.Response</span></a><span>
+</span><a name="line-39"></a><span class="hs-keyword">import</span><span> </span><a href="Network.HTTP.Client.Types.html"><span class="hs-identifier">Network.HTTP.Client.Types</span></a><span>
+</span><a name="line-40"></a><span class="hs-keyword">import</span><span> </span><a href="Network.HTTP.Client.Util.html"><span class="hs-identifier">Network.HTTP.Client.Util</span></a><span>
+</span><a name="line-41"></a><span class="hs-keyword">import</span><span> </span><a href="Data.KeyedPool.html"><span class="hs-identifier">Data.KeyedPool</span></a><span> </span><span class="hs-special">(</span><a href="Data.KeyedPool.html#dummyManaged"><span class="hs-identifier hs-var">dummyManaged</span></a><span class="hs-special">)</span><span>
+</span><a name="line-42"></a></pre></body></html>

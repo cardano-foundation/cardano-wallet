@@ -1,0 +1,21 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Servant.API.HttpVersion</span><span>
+</span><a name="line-2"></a><span>  </span><span class="hs-special">(</span><span> </span><span class="hs-comment">-- $httpversion</span><span>
+</span><a name="line-3"></a><span>    </span><span class="hs-identifier hs-type">HttpVersion</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-4"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-5"></a><span>
+</span><a name="line-6"></a><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Network.HTTP.Types</span><span>
+</span><a name="line-7"></a><span>                 </span><span class="hs-special">(</span><span class="hs-identifier hs-type">HttpVersion</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><a name="line-8"></a><span>
+</span><a name="line-9"></a><span class="hs-comment">-- $httpversion</span><span>
+</span><a name="line-10"></a><span class="hs-comment">--</span><span>
+</span><a name="line-11"></a><span class="hs-comment">-- | You can directly use the 'HttpVersion' type from @Network.HTTP.Types@</span><span>
+</span><a name="line-12"></a><span class="hs-comment">--   if your request handlers need it to compute a response. This would</span><span>
+</span><a name="line-13"></a><span class="hs-comment">--   make the request handlers take an argument of type 'HttpVersion'.</span><span>
+</span><a name="line-14"></a><span class="hs-comment">--</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- Example:</span><span>
+</span><a name="line-16"></a><span class="hs-comment">--</span><span>
+</span><a name="line-17"></a><span class="hs-comment">-- &gt;&gt;&gt; type API = HttpVersion :&gt; Get '[JSON] String</span><span>
+</span><a name="line-18"></a><span>
+</span><a name="line-19"></a><span class="hs-comment">-- $setup</span><span>
+</span><a name="line-20"></a><span class="hs-comment">-- &gt;&gt;&gt; import Servant.API</span><span>
+</span><a name="line-21"></a></pre></body></html>

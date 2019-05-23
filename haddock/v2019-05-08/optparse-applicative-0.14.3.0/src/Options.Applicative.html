@@ -1,0 +1,236 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Options.Applicative</span><span> </span><span class="hs-special">(</span><span>
+</span><a name="line-2"></a><span>  </span><span class="hs-comment">-- * Applicative option parsers</span><span>
+</span><a name="line-3"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-4"></a><span>  </span><span class="hs-comment">-- | This module exports all one should need for defining and using</span><span>
+</span><a name="line-5"></a><span>  </span><span class="hs-comment">-- optparse-applicative command line option parsers.</span><span>
+</span><a name="line-6"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-7"></a><span>  </span><span class="hs-comment">-- See &lt;https://github.com/pcapriotti/optparse-applicative&gt; for a tutorial,</span><span>
+</span><a name="line-8"></a><span>  </span><span class="hs-comment">-- and a general introduction to applicative option parsers.</span><span>
+</span><a name="line-9"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-10"></a><span>  </span><span class="hs-comment">-- See the sections below for more detail</span><span>
+</span><a name="line-11"></a><span>
+</span><a name="line-12"></a><span>  </span><span class="hs-comment">-- * Exported modules</span><span>
+</span><a name="line-13"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-14"></a><span>  </span><span class="hs-comment">-- | The standard @Applicative@ module is re-exported here for convenience.</span><span>
+</span><a name="line-15"></a><span>  </span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Control.Applicative</span><span class="hs-special">,</span><span>
+</span><a name="line-16"></a><span>
+</span><a name="line-17"></a><span>  </span><span class="hs-comment">-- * Option Parsers</span><span>
+</span><a name="line-18"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-19"></a><span>  </span><span class="hs-comment">-- | A 'Parser' is the core type in optparse-applicative. A value of type</span><span>
+</span><a name="line-20"></a><span>  </span><span class="hs-comment">-- @Parser a@ represents a specification for a set of options, which will</span><span>
+</span><a name="line-21"></a><span>  </span><span class="hs-comment">-- yield a value of type a when the command line arguments are successfully</span><span>
+</span><a name="line-22"></a><span>  </span><span class="hs-comment">-- parsed.</span><span>
+</span><a name="line-23"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-24"></a><span>  </span><span class="hs-comment">-- There are several types of primitive 'Parser'.</span><span>
+</span><a name="line-25"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-26"></a><span>  </span><span class="hs-comment">-- * Flags: simple no-argument options. When a flag is encountered on the</span><span>
+</span><a name="line-27"></a><span>  </span><span class="hs-comment">-- command line, its value is returned.</span><span>
+</span><a name="line-28"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-29"></a><span>  </span><span class="hs-comment">-- * Options: options with an argument. An option can define a /reader/,</span><span>
+</span><a name="line-30"></a><span>  </span><span class="hs-comment">-- which converts its argument from String to the desired value, or throws a</span><span>
+</span><a name="line-31"></a><span>  </span><span class="hs-comment">-- parse error if the argument does not validate correctly.</span><span>
+</span><a name="line-32"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-33"></a><span>  </span><span class="hs-comment">-- * Arguments: positional arguments, validated in the same way as option</span><span>
+</span><a name="line-34"></a><span>  </span><span class="hs-comment">-- arguments.</span><span>
+</span><a name="line-35"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-36"></a><span>  </span><span class="hs-comment">-- * Commands. A command defines a completely independent sub-parser. When a</span><span>
+</span><a name="line-37"></a><span>  </span><span class="hs-comment">-- command is encountered, the whole command line is passed to the</span><span>
+</span><a name="line-38"></a><span>  </span><span class="hs-comment">-- corresponding parser.</span><span>
+</span><a name="line-39"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-40"></a><span>  </span><span class="hs-comment">-- See the &quot;Parser Builders&quot; section for how to construct and customise</span><span>
+</span><a name="line-41"></a><span>  </span><span class="hs-comment">-- these parsers.</span><span>
+</span><a name="line-42"></a><span>  </span><a href="Options.Applicative.Types.html#Parser"><span class="hs-identifier hs-type">Parser</span></a><span class="hs-special">,</span><span>
+</span><a name="line-43"></a><span>
+</span><a name="line-44"></a><span>  </span><span class="hs-comment">-- ** Parser builders</span><span>
+</span><a name="line-45"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-46"></a><span>  </span><span class="hs-comment">-- | This section contains utility functions and combinators to create parsers</span><span>
+</span><a name="line-47"></a><span>  </span><span class="hs-comment">-- for individual options.</span><span>
+</span><a name="line-48"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-49"></a><span>  </span><span class="hs-comment">-- Each parser builder takes an option modifier. A modifier can be created by</span><span>
+</span><a name="line-50"></a><span>  </span><span class="hs-comment">-- composing the basic modifiers provided by here using the 'Monoid' operations</span><span>
+</span><a name="line-51"></a><span>  </span><span class="hs-comment">-- 'mempty' and 'mappend', or their aliases 'idm' and '&lt;&gt;'.</span><span>
+</span><a name="line-52"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-53"></a><span>  </span><span class="hs-comment">-- For example:</span><span>
+</span><a name="line-54"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-55"></a><span>  </span><span class="hs-comment">-- &gt; out = strOption</span><span>
+</span><a name="line-56"></a><span>  </span><span class="hs-comment">-- &gt;     ( long &quot;output&quot;</span><span>
+</span><a name="line-57"></a><span>  </span><span class="hs-comment">-- &gt;    &lt;&gt; short 'o'</span><span>
+</span><a name="line-58"></a><span>  </span><span class="hs-comment">-- &gt;    &lt;&gt; metavar &quot;FILENAME&quot; )</span><span>
+</span><a name="line-59"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-60"></a><span>  </span><span class="hs-comment">-- creates a parser for an option called \&quot;output\&quot;.</span><span>
+</span><a name="line-61"></a><span>  </span><a href="Options.Applicative.Builder.html#flag"><span class="hs-identifier hs-var">flag</span></a><span class="hs-special">,</span><span>
+</span><a name="line-62"></a><span>  </span><a href="Options.Applicative.Builder.html#flag%27"><span class="hs-identifier hs-var">flag'</span></a><span class="hs-special">,</span><span>
+</span><a name="line-63"></a><span>  </span><a href="Options.Applicative.Builder.html#switch"><span class="hs-identifier hs-var">switch</span></a><span class="hs-special">,</span><span>
+</span><a name="line-64"></a><span>
+</span><a name="line-65"></a><span>  </span><a href="Options.Applicative.Builder.html#strOption"><span class="hs-identifier hs-var">strOption</span></a><span class="hs-special">,</span><span>
+</span><a name="line-66"></a><span>  </span><a href="Options.Applicative.Builder.html#option"><span class="hs-identifier hs-var">option</span></a><span class="hs-special">,</span><span>
+</span><a name="line-67"></a><span>
+</span><a name="line-68"></a><span>  </span><a href="Options.Applicative.Builder.html#strArgument"><span class="hs-identifier hs-var">strArgument</span></a><span class="hs-special">,</span><span>
+</span><a name="line-69"></a><span>  </span><a href="Options.Applicative.Builder.html#argument"><span class="hs-identifier hs-var">argument</span></a><span class="hs-special">,</span><span>
+</span><a name="line-70"></a><span>
+</span><a name="line-71"></a><span>  </span><a href="Options.Applicative.Builder.html#subparser"><span class="hs-identifier hs-var">subparser</span></a><span class="hs-special">,</span><span>
+</span><a name="line-72"></a><span>  </span><a href="Options.Applicative.Extra.html#hsubparser"><span class="hs-identifier hs-var">hsubparser</span></a><span class="hs-special">,</span><span>
+</span><a name="line-73"></a><span>
+</span><a name="line-74"></a><span>  </span><a href="Options.Applicative.Builder.html#abortOption"><span class="hs-identifier hs-var">abortOption</span></a><span class="hs-special">,</span><span>
+</span><a name="line-75"></a><span>  </span><a href="Options.Applicative.Builder.html#infoOption"><span class="hs-identifier hs-var">infoOption</span></a><span class="hs-special">,</span><span>
+</span><a name="line-76"></a><span>  </span><a href="Options.Applicative.Extra.html#helper"><span class="hs-identifier hs-var">helper</span></a><span class="hs-special">,</span><span>
+</span><a name="line-77"></a><span>
+</span><a name="line-78"></a><span>  </span><span class="hs-comment">-- ** Modifiers</span><span>
+</span><a name="line-79"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-80"></a><span>  </span><span class="hs-comment">-- | 'Parser' builders take a modifier, which represents a modification of the</span><span>
+</span><a name="line-81"></a><span>  </span><span class="hs-comment">-- properties of an option, and can be composed as a monoid.</span><span>
+</span><a name="line-82"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-83"></a><span>  </span><span class="hs-comment">-- Contraints are often used to ensure that the modifiers can be sensibly applied.</span><span>
+</span><a name="line-84"></a><span>  </span><span class="hs-comment">-- For example, positional arguments can't be specified by long or short names,</span><span>
+</span><a name="line-85"></a><span>  </span><span class="hs-comment">-- so the 'HasName' constraint is used to ensure we have a flag or option.</span><span>
+</span><a name="line-86"></a><span>  </span><a href="Options.Applicative.Builder.Internal.html#Mod"><span class="hs-identifier hs-type">Mod</span></a><span class="hs-special">,</span><span>
+</span><a name="line-87"></a><span>
+</span><a name="line-88"></a><span>  </span><a href="Options.Applicative.Builder.html#short"><span class="hs-identifier hs-var">short</span></a><span class="hs-special">,</span><span>
+</span><a name="line-89"></a><span>  </span><a href="Options.Applicative.Builder.html#long"><span class="hs-identifier hs-var">long</span></a><span class="hs-special">,</span><span>
+</span><a name="line-90"></a><span>  </span><a href="Options.Applicative.Builder.html#help"><span class="hs-identifier hs-var">help</span></a><span class="hs-special">,</span><span>
+</span><a name="line-91"></a><span>  </span><a href="Options.Applicative.Builder.html#helpDoc"><span class="hs-identifier hs-var">helpDoc</span></a><span class="hs-special">,</span><span>
+</span><a name="line-92"></a><span>  </span><a href="Options.Applicative.Builder.html#value"><span class="hs-identifier hs-var">value</span></a><span class="hs-special">,</span><span>
+</span><a name="line-93"></a><span>  </span><a href="Options.Applicative.Builder.html#showDefaultWith"><span class="hs-identifier hs-var">showDefaultWith</span></a><span class="hs-special">,</span><span>
+</span><a name="line-94"></a><span>  </span><a href="Options.Applicative.Builder.html#showDefault"><span class="hs-identifier hs-var">showDefault</span></a><span class="hs-special">,</span><span>
+</span><a name="line-95"></a><span>  </span><a href="Options.Applicative.Builder.html#metavar"><span class="hs-identifier hs-var">metavar</span></a><span class="hs-special">,</span><span>
+</span><a name="line-96"></a><span>  </span><a href="Options.Applicative.Builder.html#noArgError"><span class="hs-identifier hs-var">noArgError</span></a><span class="hs-special">,</span><span>
+</span><a name="line-97"></a><span>  </span><a href="Options.Applicative.Builder.html#hidden"><span class="hs-identifier hs-var">hidden</span></a><span class="hs-special">,</span><span>
+</span><a name="line-98"></a><span>  </span><a href="Options.Applicative.Builder.Internal.html#internal"><span class="hs-identifier hs-var">internal</span></a><span class="hs-special">,</span><span>
+</span><a name="line-99"></a><span>  </span><a href="Options.Applicative.Builder.html#style"><span class="hs-identifier hs-var">style</span></a><span class="hs-special">,</span><span>
+</span><a name="line-100"></a><span>  </span><a href="Options.Applicative.Builder.html#command"><span class="hs-identifier hs-var">command</span></a><span class="hs-special">,</span><span>
+</span><a name="line-101"></a><span>  </span><a href="Options.Applicative.Builder.html#commandGroup"><span class="hs-identifier hs-var">commandGroup</span></a><span class="hs-special">,</span><span>
+</span><a name="line-102"></a><span>  </span><a href="Options.Applicative.Builder.html#completeWith"><span class="hs-identifier hs-var">completeWith</span></a><span class="hs-special">,</span><span>
+</span><a name="line-103"></a><span>  </span><a href="Options.Applicative.Builder.html#action"><span class="hs-identifier hs-var">action</span></a><span class="hs-special">,</span><span>
+</span><a name="line-104"></a><span>  </span><a href="Options.Applicative.Builder.html#completer"><span class="hs-identifier hs-var">completer</span></a><span class="hs-special">,</span><span>
+</span><a name="line-105"></a><span>  </span><a href="Options.Applicative.Builder.html#idm"><span class="hs-identifier hs-var">idm</span></a><span class="hs-special">,</span><span>
+</span><a name="line-106"></a><span>  </span><span class="hs-identifier hs-var">mappend</span><span class="hs-special">,</span><span>
+</span><a name="line-107"></a><span>
+</span><a name="line-108"></a><span>  </span><a href="Options.Applicative.Builder.Internal.html#OptionFields"><span class="hs-identifier hs-type">OptionFields</span></a><span class="hs-special">,</span><span>
+</span><a name="line-109"></a><span>  </span><a href="Options.Applicative.Builder.Internal.html#FlagFields"><span class="hs-identifier hs-type">FlagFields</span></a><span class="hs-special">,</span><span>
+</span><a name="line-110"></a><span>  </span><a href="Options.Applicative.Builder.Internal.html#ArgumentFields"><span class="hs-identifier hs-type">ArgumentFields</span></a><span class="hs-special">,</span><span>
+</span><a name="line-111"></a><span>  </span><a href="Options.Applicative.Builder.Internal.html#CommandFields"><span class="hs-identifier hs-type">CommandFields</span></a><span class="hs-special">,</span><span>
+</span><a name="line-112"></a><span>
+</span><a name="line-113"></a><span>  </span><a href="Options.Applicative.Builder.Internal.html#HasName"><span class="hs-identifier hs-type">HasName</span></a><span class="hs-special">,</span><span>
+</span><a name="line-114"></a><span>  </span><a href="Options.Applicative.Builder.Internal.html#HasCompleter"><span class="hs-identifier hs-type">HasCompleter</span></a><span class="hs-special">,</span><span>
+</span><a name="line-115"></a><span>  </span><a href="Options.Applicative.Builder.Internal.html#HasValue"><span class="hs-identifier hs-type">HasValue</span></a><span class="hs-special">,</span><span>
+</span><a name="line-116"></a><span>  </span><a href="Options.Applicative.Builder.Internal.html#HasMetavar"><span class="hs-identifier hs-type">HasMetavar</span></a><span class="hs-special">,</span><span>
+</span><a name="line-117"></a><span>  </span><span class="hs-comment">-- ** Readers</span><span>
+</span><a name="line-118"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-119"></a><span>  </span><span class="hs-comment">-- | A reader is used by the 'option' and 'argument' builders to parse</span><span>
+</span><a name="line-120"></a><span>  </span><span class="hs-comment">-- the data passed by the user on the command line into a data type.</span><span>
+</span><a name="line-121"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-122"></a><span>  </span><span class="hs-comment">-- The most common are 'str' which is used for 'String' like types,</span><span>
+</span><a name="line-123"></a><span>  </span><span class="hs-comment">-- including 'ByteString' and 'Text'; and 'auto', which uses the 'Read'</span><span>
+</span><a name="line-124"></a><span>  </span><span class="hs-comment">-- typeclass, and is good for simple types like 'Int' or 'Double'.</span><span>
+</span><a name="line-125"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-126"></a><span>  </span><span class="hs-comment">-- More complex types can use the 'eitherReader' or 'maybeReader'</span><span>
+</span><a name="line-127"></a><span>  </span><span class="hs-comment">-- functions to pattern match or use a more expressive parser like a</span><span>
+</span><a name="line-128"></a><span>  </span><span class="hs-comment">-- member of the 'Parsec' family.</span><span>
+</span><a name="line-129"></a><span>  </span><a href="Options.Applicative.Types.html#ReadM"><span class="hs-identifier hs-type">ReadM</span></a><span class="hs-special">,</span><span>
+</span><a name="line-130"></a><span>
+</span><a name="line-131"></a><span>  </span><a href="Options.Applicative.Builder.html#auto"><span class="hs-identifier hs-var">auto</span></a><span class="hs-special">,</span><span>
+</span><a name="line-132"></a><span>  </span><a href="Options.Applicative.Builder.html#str"><span class="hs-identifier hs-var">str</span></a><span class="hs-special">,</span><span>
+</span><a name="line-133"></a><span>  </span><a href="Options.Applicative.Builder.html#maybeReader"><span class="hs-identifier hs-var">maybeReader</span></a><span class="hs-special">,</span><span>
+</span><a name="line-134"></a><span>  </span><a href="Options.Applicative.Builder.html#eitherReader"><span class="hs-identifier hs-var">eitherReader</span></a><span class="hs-special">,</span><span>
+</span><a name="line-135"></a><span>  </span><a href="Options.Applicative.Builder.html#disabled"><span class="hs-identifier hs-var">disabled</span></a><span class="hs-special">,</span><span>
+</span><a name="line-136"></a><span>  </span><a href="Options.Applicative.Types.html#readerAbort"><span class="hs-identifier hs-var">readerAbort</span></a><span class="hs-special">,</span><span>
+</span><a name="line-137"></a><span>  </span><a href="Options.Applicative.Types.html#readerError"><span class="hs-identifier hs-var">readerError</span></a><span class="hs-special">,</span><span>
+</span><a name="line-138"></a><span>
+</span><a name="line-139"></a><span>  </span><span class="hs-comment">-- * Program descriptions</span><span>
+</span><a name="line-140"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-141"></a><span>  </span><span class="hs-comment">-- ** 'ParserInfo'</span><span>
+</span><a name="line-142"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-143"></a><span>  </span><span class="hs-comment">-- | A 'ParserInfo' describes a command line program, used to generate a help</span><span>
+</span><a name="line-144"></a><span>  </span><span class="hs-comment">-- screen. Two help modes are supported: brief and full. In brief mode, only</span><span>
+</span><a name="line-145"></a><span>  </span><span class="hs-comment">-- an option and argument summary is displayed, while in full mode each</span><span>
+</span><a name="line-146"></a><span>  </span><span class="hs-comment">-- available option and command, including hidden ones, is described.</span><span>
+</span><a name="line-147"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-148"></a><span>  </span><span class="hs-comment">-- A 'ParserInfo' should be created with the 'info' function and a set of</span><span>
+</span><a name="line-149"></a><span>  </span><span class="hs-comment">-- 'InfoMod' modifiers.</span><span>
+</span><a name="line-150"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-151"></a><span>  </span><a href="Options.Applicative.Builder.html#info"><span class="hs-identifier hs-var">info</span></a><span class="hs-special">,</span><span>
+</span><a name="line-152"></a><span>
+</span><a name="line-153"></a><span>  </span><a href="Options.Applicative.Types.html#ParserInfo"><span class="hs-identifier hs-type">ParserInfo</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><a name="line-154"></a><span>
+</span><a name="line-155"></a><span>  </span><a href="Options.Applicative.Builder.html#InfoMod"><span class="hs-identifier hs-type">InfoMod</span></a><span class="hs-special">,</span><span>
+</span><a name="line-156"></a><span>  </span><a href="Options.Applicative.Builder.html#fullDesc"><span class="hs-identifier hs-var">fullDesc</span></a><span class="hs-special">,</span><span>
+</span><a name="line-157"></a><span>  </span><a href="Options.Applicative.Builder.html#briefDesc"><span class="hs-identifier hs-var">briefDesc</span></a><span class="hs-special">,</span><span>
+</span><a name="line-158"></a><span>  </span><a href="Options.Applicative.Builder.html#header"><span class="hs-identifier hs-var">header</span></a><span class="hs-special">,</span><span>
+</span><a name="line-159"></a><span>  </span><a href="Options.Applicative.Builder.html#headerDoc"><span class="hs-identifier hs-var">headerDoc</span></a><span class="hs-special">,</span><span>
+</span><a name="line-160"></a><span>  </span><a href="Options.Applicative.Builder.html#footer"><span class="hs-identifier hs-var">footer</span></a><span class="hs-special">,</span><span>
+</span><a name="line-161"></a><span>  </span><a href="Options.Applicative.Builder.html#footerDoc"><span class="hs-identifier hs-var">footerDoc</span></a><span class="hs-special">,</span><span>
+</span><a name="line-162"></a><span>  </span><a href="Options.Applicative.Builder.html#progDesc"><span class="hs-identifier hs-var">progDesc</span></a><span class="hs-special">,</span><span>
+</span><a name="line-163"></a><span>  </span><a href="Options.Applicative.Builder.html#progDescDoc"><span class="hs-identifier hs-var">progDescDoc</span></a><span class="hs-special">,</span><span>
+</span><a name="line-164"></a><span>  </span><a href="Options.Applicative.Builder.html#failureCode"><span class="hs-identifier hs-var">failureCode</span></a><span class="hs-special">,</span><span>
+</span><a name="line-165"></a><span>  </span><a href="Options.Applicative.Builder.html#noIntersperse"><span class="hs-identifier hs-var">noIntersperse</span></a><span class="hs-special">,</span><span>
+</span><a name="line-166"></a><span>  </span><a href="Options.Applicative.Builder.html#forwardOptions"><span class="hs-identifier hs-var">forwardOptions</span></a><span class="hs-special">,</span><span>
+</span><a name="line-167"></a><span>
+</span><a name="line-168"></a><span>  </span><span class="hs-comment">-- * Running parsers</span><span>
+</span><a name="line-169"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-170"></a><span>  </span><span class="hs-comment">-- | The execParser family of functions are used to run parsers</span><span>
+</span><a name="line-171"></a><span>  </span><a href="Options.Applicative.Extra.html#execParser"><span class="hs-identifier hs-var">execParser</span></a><span class="hs-special">,</span><span>
+</span><a name="line-172"></a><span>  </span><a href="Options.Applicative.Extra.html#customExecParser"><span class="hs-identifier hs-var">customExecParser</span></a><span class="hs-special">,</span><span>
+</span><a name="line-173"></a><span>  </span><a href="Options.Applicative.Extra.html#execParserPure"><span class="hs-identifier hs-var">execParserPure</span></a><span class="hs-special">,</span><span>
+</span><a name="line-174"></a><span>
+</span><a name="line-175"></a><span>  </span><span class="hs-comment">-- ** Handling parser results manually</span><span>
+</span><a name="line-176"></a><span>  </span><a href="Options.Applicative.Extra.html#getParseResult"><span class="hs-identifier hs-var">getParseResult</span></a><span class="hs-special">,</span><span>
+</span><a name="line-177"></a><span>  </span><a href="Options.Applicative.Extra.html#handleParseResult"><span class="hs-identifier hs-var">handleParseResult</span></a><span class="hs-special">,</span><span>
+</span><a name="line-178"></a><span>  </span><a href="Options.Applicative.Extra.html#parserFailure"><span class="hs-identifier hs-var">parserFailure</span></a><span class="hs-special">,</span><span>
+</span><a name="line-179"></a><span>  </span><a href="Options.Applicative.Extra.html#renderFailure"><span class="hs-identifier hs-var">renderFailure</span></a><span class="hs-special">,</span><span>
+</span><a name="line-180"></a><span>  </span><a href="Options.Applicative.Types.html#overFailure"><span class="hs-identifier hs-var">overFailure</span></a><span class="hs-special">,</span><span>
+</span><a name="line-181"></a><span>
+</span><a name="line-182"></a><span>  </span><span class="hs-comment">-- ** 'ParserPrefs'</span><span>
+</span><a name="line-183"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-184"></a><span>  </span><span class="hs-comment">-- | A 'ParserPrefs' contains general preferences for all command-line</span><span>
+</span><a name="line-185"></a><span>  </span><span class="hs-comment">-- options, and should be built with the 'prefs' function.</span><span>
+</span><a name="line-186"></a><span>  </span><a href="Options.Applicative.Builder.html#prefs"><span class="hs-identifier hs-var">prefs</span></a><span class="hs-special">,</span><span>
+</span><a name="line-187"></a><span>
+</span><a name="line-188"></a><span>  </span><a href="Options.Applicative.Types.html#ParserPrefs"><span class="hs-identifier hs-type">ParserPrefs</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><a name="line-189"></a><span>
+</span><a name="line-190"></a><span>  </span><a href="Options.Applicative.Builder.html#PrefsMod"><span class="hs-identifier hs-type">PrefsMod</span></a><span class="hs-special">,</span><span>
+</span><a name="line-191"></a><span>  </span><a href="Options.Applicative.Builder.html#multiSuffix"><span class="hs-identifier hs-var">multiSuffix</span></a><span class="hs-special">,</span><span>
+</span><a name="line-192"></a><span>  </span><a href="Options.Applicative.Builder.html#disambiguate"><span class="hs-identifier hs-var">disambiguate</span></a><span class="hs-special">,</span><span>
+</span><a name="line-193"></a><span>  </span><a href="Options.Applicative.Builder.html#showHelpOnError"><span class="hs-identifier hs-var">showHelpOnError</span></a><span class="hs-special">,</span><span>
+</span><a name="line-194"></a><span>  </span><a href="Options.Applicative.Builder.html#showHelpOnEmpty"><span class="hs-identifier hs-var">showHelpOnEmpty</span></a><span class="hs-special">,</span><span>
+</span><a name="line-195"></a><span>  </span><a href="Options.Applicative.Builder.html#noBacktrack"><span class="hs-identifier hs-var">noBacktrack</span></a><span class="hs-special">,</span><span>
+</span><a name="line-196"></a><span>  </span><a href="Options.Applicative.Builder.html#columns"><span class="hs-identifier hs-var">columns</span></a><span class="hs-special">,</span><span>
+</span><a name="line-197"></a><span>  </span><a href="Options.Applicative.Builder.html#defaultPrefs"><span class="hs-identifier hs-var">defaultPrefs</span></a><span class="hs-special">,</span><span>
+</span><a name="line-198"></a><span>
+</span><a name="line-199"></a><span>  </span><span class="hs-comment">-- * Completions</span><span>
+</span><a name="line-200"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-201"></a><span>  </span><span class="hs-comment">-- | optparse-applicative supplies a rich completion system for bash,</span><span>
+</span><a name="line-202"></a><span>  </span><span class="hs-comment">-- zsh, and fish shells.</span><span>
+</span><a name="line-203"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-204"></a><span>  </span><span class="hs-comment">-- 'Completer' functions are used for option and argument to complete</span><span>
+</span><a name="line-205"></a><span>  </span><span class="hs-comment">-- their values.</span><span>
+</span><a name="line-206"></a><span>  </span><span class="hs-comment">--</span><span>
+</span><a name="line-207"></a><span>  </span><span class="hs-comment">-- Use the 'completer' builder to use these.</span><span>
+</span><a name="line-208"></a><span>  </span><span class="hs-comment">-- The 'action' and 'completeWith' builders are also provided for</span><span>
+</span><a name="line-209"></a><span>  </span><span class="hs-comment">-- convenience, to use 'bashCompleter' and 'listCompleter' as a 'Mod'.</span><span>
+</span><a name="line-210"></a><span>  </span><a href="Options.Applicative.Types.html#Completer"><span class="hs-identifier hs-type">Completer</span></a><span class="hs-special">,</span><span>
+</span><a name="line-211"></a><span>  </span><a href="Options.Applicative.Types.html#mkCompleter"><span class="hs-identifier hs-var">mkCompleter</span></a><span class="hs-special">,</span><span>
+</span><a name="line-212"></a><span>  </span><a href="Options.Applicative.Builder.Completer.html#listIOCompleter"><span class="hs-identifier hs-var">listIOCompleter</span></a><span class="hs-special">,</span><span>
+</span><a name="line-213"></a><span>
+</span><a name="line-214"></a><span>  </span><a href="Options.Applicative.Builder.Completer.html#listCompleter"><span class="hs-identifier hs-var">listCompleter</span></a><span class="hs-special">,</span><span>
+</span><a name="line-215"></a><span>  </span><a href="Options.Applicative.Builder.Completer.html#bashCompleter"><span class="hs-identifier hs-var">bashCompleter</span></a><span class="hs-special">,</span><span>
+</span><a name="line-216"></a><span>
+</span><a name="line-217"></a><span>  </span><span class="hs-comment">-- * Types</span><span>
+</span><a name="line-218"></a><span>  </span><a href="Options.Applicative.Types.html#ParseError"><span class="hs-identifier hs-type">ParseError</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><a name="line-219"></a><span>  </span><a href="Options.Applicative.Help.Types.html#ParserHelp"><span class="hs-identifier hs-type">ParserHelp</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><a name="line-220"></a><span>  </span><a href="Options.Applicative.Types.html#ParserFailure"><span class="hs-identifier hs-type">ParserFailure</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><a name="line-221"></a><span>  </span><a href="Options.Applicative.Types.html#ParserResult"><span class="hs-identifier hs-type">ParserResult</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><a name="line-222"></a><span>  </span><a href="Options.Applicative.Types.html#CompletionResult"><span class="hs-identifier hs-type">CompletionResult</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-223"></a><span>
+</span><a name="line-224"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-225"></a><span>
+</span><a name="line-226"></a><span class="hs-comment">-- reexport Applicative here for convenience</span><span>
+</span><a name="line-227"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Applicative</span><span>
+</span><a name="line-228"></a><span>
+</span><a name="line-229"></a><span class="hs-keyword">import</span><span> </span><a href="Options.Applicative.Common.html"><span class="hs-identifier">Options.Applicative.Common</span></a><span>
+</span><a name="line-230"></a><span class="hs-keyword">import</span><span> </span><a href="Options.Applicative.Builder.html"><span class="hs-identifier">Options.Applicative.Builder</span></a><span>
+</span><a name="line-231"></a><span class="hs-keyword">import</span><span> </span><a href="Options.Applicative.Builder.Completer.html"><span class="hs-identifier">Options.Applicative.Builder.Completer</span></a><span>
+</span><a name="line-232"></a><span class="hs-keyword">import</span><span> </span><a href="Options.Applicative.Extra.html"><span class="hs-identifier">Options.Applicative.Extra</span></a><span>
+</span><a name="line-233"></a><span class="hs-keyword">import</span><span> </span><a href="Options.Applicative.Types.html"><span class="hs-identifier">Options.Applicative.Types</span></a><span>
+</span><a name="line-234"></a><span>
+</span><a name="line-235"></a><span class="hs-pragma">{-# ANN</span><span> </span><span class="hs-pragma">module</span><span> </span><span class="hs-pragma">&quot;HLint: ignore Use import/export shortcut&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-236"></a></pre></body></html>

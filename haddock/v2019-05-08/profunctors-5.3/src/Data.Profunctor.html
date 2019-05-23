@@ -1,0 +1,49 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE TypeOperators #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE RankNTypes #-}</span><span>
+</span><a name="line-3"></a><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables #-}</span><span>
+</span><a name="line-4"></a><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><a name="line-5"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-6"></a><span class="hs-comment">-- Copyright   :  (C) 2011-2015 Edward Kmett,</span><span>
+</span><a name="line-7"></a><span class="hs-comment">-- License     :  BSD-style (see the file LICENSE)</span><span>
+</span><a name="line-8"></a><span class="hs-comment">--</span><span>
+</span><a name="line-9"></a><span class="hs-comment">-- Maintainer  :  Edward Kmett &lt;ekmett@gmail.com&gt;</span><span>
+</span><a name="line-10"></a><span class="hs-comment">-- Stability   :  provisional</span><span>
+</span><a name="line-11"></a><span class="hs-comment">-- Portability :  portable</span><span>
+</span><a name="line-12"></a><span class="hs-comment">--</span><span>
+</span><a name="line-13"></a><span class="hs-comment">-- For a good explanation of profunctors in Haskell see Dan Piponi's article:</span><span>
+</span><a name="line-14"></a><span class="hs-comment">--</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- &lt;http://blog.sigfpe.com/2011/07/profunctors-in-haskell.html&gt;</span><span>
+</span><a name="line-16"></a><span class="hs-comment">--</span><span>
+</span><a name="line-17"></a><span class="hs-comment">-- For more information on strength and costrength, see:</span><span>
+</span><a name="line-18"></a><span class="hs-comment">--</span><span>
+</span><a name="line-19"></a><span class="hs-comment">-- &lt;http://comonad.com/reader/2008/deriving-strength-from-laziness/&gt;</span><span>
+</span><a name="line-20"></a><span class="hs-comment">----------------------------------------------------------------------------</span><span>
+</span><a name="line-21"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Profunctor</span><span>
+</span><a name="line-22"></a><span>  </span><span class="hs-special">(</span><span>
+</span><a name="line-23"></a><span>  </span><span class="hs-comment">-- * Profunctors</span><span>
+</span><a name="line-24"></a><span>    </span><a href="Data.Profunctor.Unsafe.html#Profunctor"><span class="hs-identifier hs-type">Profunctor</span></a><span class="hs-special">(</span><a href="Data.Profunctor.Unsafe.html#dimap"><span class="hs-identifier hs-var">dimap</span></a><span class="hs-special">,</span><a href="Data.Profunctor.Unsafe.html#lmap"><span class="hs-identifier hs-var">lmap</span></a><span class="hs-special">,</span><a href="Data.Profunctor.Unsafe.html#rmap"><span class="hs-identifier hs-var">rmap</span></a><span class="hs-special">)</span><span>
+</span><a name="line-25"></a><span>  </span><span class="hs-comment">-- ** Profunctorial Strength</span><span>
+</span><a name="line-26"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Profunctor.Strong.html#Strong"><span class="hs-identifier hs-type">Strong</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-27"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Profunctor.Strong.html#uncurry%27"><span class="hs-identifier hs-var">uncurry'</span></a><span>
+</span><a name="line-28"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Profunctor.Choice.html#Choice"><span class="hs-identifier hs-type">Choice</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-29"></a><span>  </span><span class="hs-comment">-- ** Closed</span><span>
+</span><a name="line-30"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Profunctor.Closed.html#Closed"><span class="hs-identifier hs-type">Closed</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-31"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Profunctor.Closed.html#curry%27"><span class="hs-identifier hs-var">curry'</span></a><span>
+</span><a name="line-32"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Profunctor.Mapping.html#Mapping"><span class="hs-identifier hs-type">Mapping</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-33"></a><span>  </span><span class="hs-comment">-- ** Profunctorial Costrength</span><span>
+</span><a name="line-34"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Profunctor.Strong.html#Costrong"><span class="hs-identifier hs-type">Costrong</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-35"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Profunctor.Choice.html#Cochoice"><span class="hs-identifier hs-type">Cochoice</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-36"></a><span>  </span><span class="hs-comment">-- ** Common Profunctors</span><span>
+</span><a name="line-37"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Profunctor.Types.html#Star"><span class="hs-identifier hs-type">Star</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-38"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Profunctor.Types.html#Costar"><span class="hs-identifier hs-type">Costar</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-39"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Profunctor.Types.html#WrappedArrow"><span class="hs-identifier hs-type">WrappedArrow</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-40"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Data.Profunctor.Types.html#Forget"><span class="hs-identifier hs-type">Forget</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-41"></a><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><a href="Data.Profunctor.Types.html#%3A-%3E"><span class="hs-operator hs-type">:-&gt;</span></a><span class="hs-special">)</span><span>
+</span><a name="line-42"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-43"></a><span>
+</span><a name="line-44"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Profunctor.Choice.html"><span class="hs-identifier">Data.Profunctor.Choice</span></a><span>
+</span><a name="line-45"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Profunctor.Closed.html"><span class="hs-identifier">Data.Profunctor.Closed</span></a><span>
+</span><a name="line-46"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Profunctor.Mapping.html"><span class="hs-identifier">Data.Profunctor.Mapping</span></a><span>
+</span><a name="line-47"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Profunctor.Strong.html"><span class="hs-identifier">Data.Profunctor.Strong</span></a><span>
+</span><a name="line-48"></a><span class="hs-keyword">import</span><span> </span><a href="Data.Profunctor.Types.html"><span class="hs-identifier">Data.Profunctor.Types</span></a><span>
+</span><a name="line-49"></a></pre></body></html>

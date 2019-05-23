@@ -1,0 +1,43 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE RankNTypes #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE OverloadedStrings #-}</span><span>
+</span><a name="line-3"></a><span class="hs-pragma">{-# OPTIONS -Wall #-}</span><span>
+</span><a name="line-4"></a><span>
+</span><a name="line-5"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-6"></a><span class="hs-comment">-- Module      : Text.Format</span><span>
+</span><a name="line-7"></a><span class="hs-comment">-- Copyright   : (c) 2013 Chris Done, 2013 Shachaf Ben-Kiki</span><span>
+</span><a name="line-8"></a><span class="hs-comment">-- License     : BSD3</span><span>
+</span><a name="line-9"></a><span class="hs-comment">-- Maintainer  : chrisdone@gmail.com</span><span>
+</span><a name="line-10"></a><span class="hs-comment">-- Stability   : experimental</span><span>
+</span><a name="line-11"></a><span class="hs-comment">-- Portability : GHC</span><span>
+</span><a name="line-12"></a><span class="hs-comment">--</span><span>
+</span><a name="line-13"></a><span class="hs-comment">-- Combinator-based type-safe formatting (like printf() or FORMAT) for Text.</span><span>
+</span><a name="line-14"></a><span class="hs-comment">--</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- Example:</span><span>
+</span><a name="line-16"></a><span class="hs-comment">--</span><span>
+</span><a name="line-17"></a><span class="hs-comment">-- &gt;&gt;&gt; format (&quot;Person's name is &quot; % text % &quot;, age is &quot; % hex) &quot;Dave&quot; 54</span><span>
+</span><a name="line-18"></a><span class="hs-comment">--</span><span>
+</span><a name="line-19"></a><span class="hs-comment">-- See &quot;Formatting.Formatters&quot; for a complete list of formatting combinators.</span><span>
+</span><a name="line-20"></a><span>
+</span><a name="line-21"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Formatting</span><span>
+</span><a name="line-22"></a><span>  </span><span class="hs-special">(</span><span>
+</span><a name="line-23"></a><span>  </span><a href="Formatting.Internal.html#Format"><span class="hs-identifier hs-type">Format</span></a><span class="hs-special">,</span><span>
+</span><a name="line-24"></a><span>  </span><span class="hs-special">(</span><a href="Formatting.Internal.html#%25"><span class="hs-operator hs-var">%</span></a><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><a name="line-25"></a><span>  </span><span class="hs-special">(</span><a href="Formatting.Internal.html#%25."><span class="hs-operator hs-var">%.</span></a><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><a name="line-26"></a><span>  </span><a href="Formatting.Internal.html#now"><span class="hs-identifier hs-var">now</span></a><span class="hs-special">,</span><span>
+</span><a name="line-27"></a><span>  </span><a href="Formatting.Internal.html#later"><span class="hs-identifier hs-var">later</span></a><span class="hs-special">,</span><span>
+</span><a name="line-28"></a><span>  </span><a href="Formatting.Internal.html#mapf"><span class="hs-identifier hs-var">mapf</span></a><span class="hs-special">,</span><span>
+</span><a name="line-29"></a><span>  </span><span class="hs-comment">-- * Top-level functions</span><span>
+</span><a name="line-30"></a><span>  </span><a href="Formatting.Internal.html#runFormat"><span class="hs-identifier hs-var">runFormat</span></a><span class="hs-special">,</span><span>
+</span><a name="line-31"></a><span>  </span><a href="Formatting.Internal.html#format"><span class="hs-identifier hs-var">format</span></a><span class="hs-special">,</span><span>
+</span><a name="line-32"></a><span>  </span><a href="Formatting.Internal.html#sformat"><span class="hs-identifier hs-var">sformat</span></a><span class="hs-special">,</span><span>
+</span><a name="line-33"></a><span>  </span><a href="Formatting.Internal.html#bprint"><span class="hs-identifier hs-var">bprint</span></a><span class="hs-special">,</span><span>
+</span><a name="line-34"></a><span>  </span><a href="Formatting.Internal.html#fprint"><span class="hs-identifier hs-var">fprint</span></a><span class="hs-special">,</span><span>
+</span><a name="line-35"></a><span>  </span><a href="Formatting.Internal.html#hprint"><span class="hs-identifier hs-var">hprint</span></a><span class="hs-special">,</span><span>
+</span><a name="line-36"></a><span>  </span><a href="Formatting.Internal.html#formatToString"><span class="hs-identifier hs-var">formatToString</span></a><span class="hs-special">,</span><span>
+</span><a name="line-37"></a><span>  </span><span class="hs-comment">-- * Formatting library</span><span>
+</span><a name="line-38"></a><span>  </span><span class="hs-keyword">module</span><span> </span><a href="Formatting.Formatters.html"><span class="hs-identifier">Formatting.Formatters</span></a><span>
+</span><a name="line-39"></a><span> </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-40"></a><span>
+</span><a name="line-41"></a><span class="hs-keyword">import</span><span> </span><a href="Formatting.Formatters.html"><span class="hs-identifier">Formatting.Formatters</span></a><span>
+</span><a name="line-42"></a><span class="hs-keyword">import</span><span> </span><a href="Formatting.Internal.html"><span class="hs-identifier">Formatting.Internal</span></a><span>
+</span><a name="line-43"></a></pre></body></html>
