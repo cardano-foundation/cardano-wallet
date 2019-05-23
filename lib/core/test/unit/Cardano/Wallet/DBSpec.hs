@@ -179,7 +179,7 @@ instance Arbitrary TxMeta where
     arbitrary = TxMeta
         <$> elements [Pending, InLedger, Invalidated]
         <*> elements [Incoming, Outgoing]
-        <*> (SlotId <$> arbitrary <*> choose (0, 21600))
+        <*> (SlotId <$> choose (0, 1000) <*> choose (0, 21599))
         <*> fmap (Quantity . fromIntegral) (arbitrary @Word32)
 
 customizedGen :: Gen Percentage
