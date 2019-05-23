@@ -3,6 +3,7 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -50,13 +51,19 @@ module Test.Integration.Framework.DSL
     -- * Helpers
     , (</>)
     , (!!)
-    , createWallet
+    , emptyWallet
     , getFromResponse
     , json
     , tearDown
     , fixtureWallet
+    , fixtureWalletWith
     , faucetAmt
     , faucetUtxoAmt
+
+    -- * Endpoints
+    , getWallet
+    , getAddresses
+    , postTx
 
     -- * CLI
     , cardanoWalletCLI
@@ -74,11 +81,11 @@ import Prelude hiding
     ( fail )
 
 import Cardano.Wallet.Api.Types
-    ( ApiT (..), ApiWallet )
+    ( ApiAddress, ApiT (..), ApiTransaction, ApiWallet )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap, getAddressPoolGap, mkAddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
-    ( mnemonicToText )
+    ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
     ( Direction (..)
     , PoolId (..)
@@ -94,7 +101,7 @@ import Control.Concurrent
 import Control.Concurrent.Async
     ( race )
 import Control.Monad
-    ( forM_, unless )
+    ( forM_, unless, void )
 import Control.Monad.Catch
     ( MonadCatch )
 import Control.Monad.Fail
@@ -131,6 +138,8 @@ import GHC.TypeLits
     ( Symbol )
 import Language.Haskell.TH.Quote
     ( QuasiQuoter )
+import Network.HTTP.Types.Method
+    ( Method )
 import Numeric.Natural
     ( Natural )
 import System.Command
@@ -428,17 +437,18 @@ status =
 -- Helpers
 --
 
--- | Simply create a wallet and get id
-createWallet :: Context -> Text -> [Text] -> IO ApiWallet
-createWallet ctx name mnemonics = do
-   let payload = Json [aesonQQ| {
-           "name": #{name},
-           "mnemonic_sentence": #{mnemonics},
-           "passphrase": "Secure Passphrase"
-           } |]
-   r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
-   expectResponseCode @IO HTTP.status202 r
-   return (getFromResponse id r)
+-- | Create an empty wallet
+emptyWallet :: Context -> IO ApiWallet
+emptyWallet ctx = do
+    mnemonic <- (mnemonicToText . entropyToMnemonic) <$> genEntropy @160
+    let payload = Json [aesonQQ| {
+            "name": "Empty Wallet",
+            "mnemonic_sentence": #{mnemonic},
+            "passphrase": "Secure Passphrase"
+        }|]
+    r <- request @ApiWallet ctx postWallet Default payload
+    expectResponseCode @IO HTTP.status202 r
+    return (getFromResponse id r)
 
 -- | Restore a faucet and wait until funds are available.
 fixtureWallet
@@ -465,6 +475,39 @@ fixtureWallet ctx@(Context _ _ _ faucet) = do
         if getFromResponse balanceAvailable r > 0
             then return (getFromResponse id r)
             else threadDelay oneSecond *> checkBalance wid
+
+-- | Restore a wallet with the given UTxO distribution. Note that there's a
+-- limitation to what can be done here. We only have 10 UTxO available in each
+-- faucet and they "only" have 'faucetUtxoAmt = 100_000 Ada' in each.
+--
+-- This function makes no attempt at ensuring the request is valid, so be
+-- careful.
+fixtureWalletWith
+    :: Context
+    -> [Natural]
+    -> IO ApiWallet
+fixtureWalletWith ctx coins = do
+    wSrc <- fixtureWallet ctx
+    wUtxo <- emptyWallet ctx
+    (_, addrs) <- unsafeRequest @[ApiAddress] ctx (getAddresses wUtxo) Empty
+    let addrIds = view #id <$> addrs
+    let payments = flip map (zip coins addrIds) $ \(coin, addr) -> [aesonQQ|{
+            "address": #{addr},
+            "amount": {
+                "quantity": #{coin},
+                "unit": "lovelace"
+            }
+        }|]
+    let payload = Json [aesonQQ|{
+            "payments": #{payments :: [Value]},
+            "passphrase": "cardano-wallet"
+        }|]
+    request @ApiTransaction ctx (postTx wSrc) Default payload
+        >>= expectResponseCode HTTP.status202
+    r <- request @ApiWallet ctx (getWallet wUtxo) Default Empty
+    verify r [ expectEventually ctx balanceAvailable (sum coins) ]
+    void $ request @() ctx (deleteWallet wSrc) Default Empty
+    return (getFromResponse id r)
 
 -- | Total amount on each faucet wallet
 faucetAmt :: Natural
@@ -532,6 +575,40 @@ wantedErrorButSuccess
     -> m void
 wantedErrorButSuccess =
     fail . ("expected an error but got a successful response: " <>) . show
+
+---
+--- Endoints
+---
+
+postWallet :: (Method, Text)
+postWallet =
+    ( "POST"
+    , "v2/wallets"
+    )
+
+getWallet :: ApiWallet -> (Method, Text)
+getWallet w =
+    ( "GET"
+    , "v2/wallets/" <> w ^. walletId
+    )
+
+deleteWallet :: ApiWallet -> (Method, Text)
+deleteWallet w =
+    ( "DELETE"
+    , "v2/wallets/" <> w ^. walletId
+    )
+
+getAddresses :: ApiWallet -> (Method, Text)
+getAddresses w =
+    ( "GET"
+    , "v2/wallets/" <> w ^. walletId <> "/addresses"
+    )
+
+postTx :: ApiWallet -> (Method, Text)
+postTx w =
+    ( "POST"
+    , "v2/wallets/" <> w ^. walletId <> "/transactions"
+    )
 
 ---
 --- CLI

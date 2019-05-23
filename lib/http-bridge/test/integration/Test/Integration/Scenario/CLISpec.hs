@@ -12,6 +12,8 @@ import Cardano.Wallet.Api.Types
     ( ApiAddress, ApiWallet )
 import Control.Monad
     ( forM_ )
+import Data.Functor
+    ( ($>) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.List
@@ -32,9 +34,9 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , cardanoWalletCLI
     , cardanoWalletLauncherCLI
-    , createWallet
     , createWalletViaCLI
     , deleteWalletViaCLI
+    , emptyWallet
     , expectValidJSON
     , generateMnemonicsViaCLI
     , getWalletViaCLI
@@ -44,7 +46,7 @@ import Test.Integration.Framework.DSL
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( falseWalletIds, mnemonics15, mnemonics18 )
+    ( falseWalletIds )
 
 import qualified Data.Text as T
 
@@ -161,11 +163,11 @@ specWithCluster = do
             outList `shouldNotContain` walletName
 
     it "CLI - Can get a wallet" $ \ctx -> do
-        walId <- createWalletViaApi ctx "1st CLI Wallet" mnemonics15
+        walId <- emptyWallet' ctx
         (Exit c, Stdout out, Stderr err) <- getWalletViaCLI walId
         err `shouldBe` "Ok.\n"
         expectValidJSON (Proxy @ApiWallet) out
-        out `shouldContain` "1st CLI Wallet"
+        out `shouldContain` "Empty Wallet"
         c `shouldBe` ExitSuccess
 
     describe "CLI - Cannot get wallets with false ids" $ do
@@ -185,17 +187,15 @@ specWithCluster = do
                 c `shouldBe` ExitFailure 1
 
     it "CLI - Can list wallets" $ \ctx -> do
-        _ <- createWalletViaApi ctx "1st CLI Wallet" mnemonics15
-        _ <- createWalletViaApi ctx "2nd CLI Wallet" mnemonics18
+        emptyWallet' ctx $> () <* emptyWallet' ctx
         (Exit c, Stdout out, Stderr err) <- listWalletsViaCLI
         err `shouldBe` "Ok.\n"
         expectValidJSON (Proxy @[ApiWallet]) out
-        out `shouldContain` "1st CLI Wallet"
-        out `shouldContain` "2nd CLI Wallet"
+        out `shouldContain` "Empty Wallet"
         c `shouldBe` ExitSuccess
 
     it "CLI - Can update wallet name" $ \ctx -> do
-        walId <- createWalletViaApi ctx "1st CLI Wallet" mnemonics15
+        walId <- emptyWallet' ctx
         let args = [walId, "--name", "new name"]
         (Exit c, Stdout out, Stderr err) <- updateWalletViaCLI args
         err `shouldBe` "Ok.\n"
@@ -204,20 +204,18 @@ specWithCluster = do
         c `shouldBe` ExitSuccess
 
     it "CLI - Can delete wallet" $ \ctx -> do
-        walId <- createWalletViaApi ctx "CLI Wallet" mnemonics15
+        walId <- emptyWallet' ctx
         (Exit c, Stdout out, Stderr err) <- deleteWalletViaCLI walId
         err `shouldBe` "Ok.\n"
         out `shouldNotContain` "CLI Wallet"
         c `shouldBe` ExitSuccess
 
     it "CLI - Can list addresses" $ \ctx -> do
-        walId <- createWalletViaApi ctx "CLI Wallet" mnemonics15
+        walId <- emptyWallet' ctx
         (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI walId
         err `shouldBe` "Ok.\n"
         expectValidJSON (Proxy @[ApiAddress]) out
         c `shouldBe` ExitSuccess
   where
-    createWalletViaApi :: Context -> Text -> [Text] -> IO String
-    createWalletViaApi ctx name mnemonics = do
-        wid <- view walletId <$> createWallet ctx name mnemonics
-        return $ T.unpack wid
+    emptyWallet' :: Context -> IO String
+    emptyWallet' = fmap (T.unpack . view walletId) . emptyWallet
