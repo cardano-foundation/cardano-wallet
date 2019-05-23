@@ -26,6 +26,8 @@ Usage:
 
 > :information_source: The CLI commands for `wallet`, `transaction` and `address` only output valid JSON on `stdout`. So you may redirect the output to a file with `>` or pipe it into utility softwares like `jq`!
 
+> :gift_heart: For bash auto-completion, see [cardano-wallet.sh](https://gist.github.com/KtorZ/b4c6935a6412ac5287129078bef93b13).
+
 # Commands
 
 ## server
