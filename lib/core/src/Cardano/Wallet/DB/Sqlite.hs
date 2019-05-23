@@ -217,7 +217,8 @@ newDBLayer fp = do
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
         , listWallets = runQuery' $
-              map (PrimaryKey . unWalletKey) <$> selectKeysList [] []
+              map (PrimaryKey . unWalletKey) <$>
+              selectKeysList [] [Asc WalTableId]
 
         {-----------------------------------------------------------------------
                                     Checkpoints
