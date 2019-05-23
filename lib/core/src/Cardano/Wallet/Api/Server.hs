@@ -327,16 +327,18 @@ instance LiftHandler ErrWalletAlreadyExists where
         ErrWalletAlreadyExists wid ->
             apiError err409 WalletAlreadyExists $ mconcat
                 [ "This operation would yield a wallet with the following id: "
-                , toText wid, " However, I already know a wallet with such id"
+                , toText wid
+                , " However, I already know of a wallet with this id."
                 ]
 
 instance LiftHandler ErrWithRootKey where
     handler = \case
         ErrWithRootKeyNoRootKey wid ->
             apiError err404 NoRootKey $ mconcat
-                [ "I couldn't find any root private key for the given wallet: "
-                , toText wid, " This operation however requires that I do hold "
-                , "one. Either there's no such wallet, or I don't fully own it."
+                [ "I couldn't find a root private key for the given wallet: "
+                , toText wid, ". However, this operation requires that I do "
+                , "have such a key. Either there's no such wallet, or I don't "
+                , "fully own it."
                 ]
         ErrWithRootKeyWrongPassphrase wid ErrWrongPassphrase ->
             apiError err403 WrongEncryptionPassphrase $ mconcat
@@ -349,36 +351,37 @@ instance LiftHandler ErrCoinSelection where
     handler = \case
         ErrNotEnoughMoney utxo payment ->
             apiError err403 NotEnoughMoney $ mconcat
-                [ "I can't accomodate such payment because there's not enough "
-                , "available UTxO in the wallet. The total UTxO sums up to "
+                [ "I can't process this payment because there's not enough "
+                , "UTxO available in the wallet. The total UTxO sums up to "
                 , showT utxo, " Lovelace, but I need ", showT payment
-                , " Lovelace (fee included) in order to proceed with the "
-                , "payment."
+                , " Lovelace (inclusive of fee amount) in order to proceed "
+                , " with the payment."
                 ]
 
         ErrUtxoNotEnoughFragmented nUtxo nOuts ->
             apiError err403 UtxoNotEnoughFragmented $ mconcat
-                [ "There's a restriction in the way I can construct "
-                , "transactions: I do not re-use a same UTxO for different "
-                , "outputs. Here, I only have ", showT nUtxo, "available but "
-                , "there are ", showT nOuts, " outputs."
+                [ "When creating new transactions, I'm not able to re-use "
+                , "the same UTxO for different outputs. Here, I only have "
+                , showT nUtxo, " available, but there are ", showT nOuts
+                , " outputs."
                 ]
         ErrMaximumInputsReached n ->
             apiError err403 TransactionIsTooBig $ mconcat
-                [ "I had to select as many as ", showT n, " inputs to construct "
-                , "the requested transaction. This would create a transaction "
-                , "that is too big and would be rejected by a core node. Try "
-                , "sending a smaller amount."
+                [ "I had to select ", showT n, " inputs to construct the "
+                , "requested transaction. Unfortunately, this would create a "
+                , "transaction that is too big, and this would consequently "
+                , "be rejected by a core node. Try sending a smaller amount."
                 ]
 
 instance LiftHandler ErrAdjustForFee where
     handler = \case
         ErrCannotCoverFee missing ->
             apiError err403 CannotCoverFee $ mconcat
-                [ "I can't adjust the given transaction to cover for fee! "
-                , "In order to do so, I'd have to select some additional inputs "
-                , "but I can't without increasing the size of the transaction "
-                , "out of an acceptable limit. Note that I am only missing "
+                [ "I'm unable to adjust the given transaction to cover the "
+                , "associated fee! In order to do so, I'd have to select one "
+                , "or more additional inputs, but I can't do that without "
+                , "increasing the size of the transaction beyond the "
+                , "acceptable limit. Note that I am only missing "
                 , showT missing, " Lovelace."
                 ]
 
@@ -412,25 +415,26 @@ instance LiftHandler ErrSubmitTx where
         ErrSubmitTxNetwork e -> case e of
             ErrPostTxNetworkUnreachable (ErrNetworkUnreachable err) ->
                 apiError err503 NetworkUnreachable $ mconcat
-                    [ "Aw crap! I couldn't submit the transaction: the network "
-                    , "is unreachable: ", pretty err, " Trying again in a bit "
+                    [ "I couldn't submit the transaction: the network is "
+                    , "unreachable: ", pretty err, ". Trying again in a bit "
                     , "might work."
                     ]
             ErrPostTxBadRequest err ->
                 apiError err500 CreatedInvalidTransaction $ mconcat
-                    [ "That is embarassing. It looks like I have created an "
-                    , "invalid transaction which failed to be parsed by the "
-                    , "node. Here's perhaps an error message that will help "
+                    [ "That's embarassing. It looks like I've created an "
+                    , "invalid transaction that could not be parsed by the "
+                    , "node. Here's an error message that may help with "
                     , "debugging: ", pretty err
                     ]
             ErrPostTxProtocolFailure err ->
                 apiError err500 RejectedByCoreNode $ mconcat
-                    [ "I successfully submitted a transaction but it was "
-                    , "rejected by a relay. This could be because there was not "
-                    , "enough fee, because it now conflicts with another "
-                    , "transactions using some identical inputs or because of "
-                    , "another reason. "
-                    , "Here's a hint: ", pretty err
+                    [ "I successfully submitted a transaction, but "
+                    , "unfortunately it was rejected by a relay. This could be "
+                    , "because the fee was not large enough, or because the "
+                    , "transaction conflicts with another transaction that "
+                    , "uses one or more of the same inputs, or it may be due "
+                    , "to some other reason. Here's an error message that may "
+                    , "help with debugging: ", pretty err
                     ]
         ErrSubmitTxNoSuchWallet e@ErrNoSuchWallet{} -> (handler e)
             { errHTTPCode = 410
@@ -446,31 +450,33 @@ instance LiftHandler ServantErr where
     handler err@(ServantErr code _ body headers) = case code of
         400 -> apiError err' BadRequest (utf8 body)
         404 -> apiError err' NotFound $ mconcat
-            [ "I couldn't find the requested endpoint? If the endpoint contains "
-            , "path parameters, make sure they are well-formed otherwise I "
-            , "won't be able to route them correctly."
+            [ "I couldn't find the requested endpoint. If the endpoint "
+            , "contains path parameters, please ensure they are well-formed, "
+            , "otherwise I won't be able to route them correctly."
             ]
         405 -> apiError err' MethodNotAllowed $ mconcat
             [ "You've reached a known endpoint but I don't know how to handle "
-            , "this HTTP method for it. Please double-check both the endpoint "
-            , "and the method used: one of them is likely incorrect (e.g. POST "
-            , "instead of PUT, or GET instead of POST...)."
+            , "the HTTP method specified. Please double-check both the "
+            , "endpoint and the method: one of them is likely to be incorrect "
+            , "(for example: POST instead of PUT, or GET instead of POST...)."
             ]
         406 -> apiError err' NotAcceptable $ mconcat
-            [ "It seems like you don't accept 'application/json' however, I "
-            , "only speak 'application/json'! Please, double-check your "
-            , "'Accept' request header and make sure it's set to "
-            , "'application/json'."
+            [ "It seems as though you don't accept 'application/json', but "
+            , "unfortunately I only speak 'application/json'! Please "
+            , "double-check your 'Accept' request header and make sure it's "
+            , "set to 'application/json'."
             ]
         415 -> apiError err' UnsupportedMediaType $ mconcat
-            [ "I am sorry but I only speak 'application/json' and I need you to "
-            , "tell me what you're speaking before I can comprehend it. Please, "
-            , "double-check your 'Content-Type' request header and make sure "
-            , "it's set to 'application/json'."
+            [ "I'm really sorry but I only understand 'application/json'. I "
+            , "need you to tell me what language you're speaking in order for "
+            , "me to understand your message. Please double-check your "
+            , "'Content-Type' request header and make sure it's set to "
+            , "'application/json'."
             ]
         _ -> apiError err' UnexpectedError $ mconcat
-            [ "Looks like something went wrong and I wasn't ready for this. "
-            , "Here is a hint about what happened: ", utf8 body
+            [ "It looks like something unexpected went wrong. Unfortunately I "
+            , "don't yet know how to handle this type of situation. Here's "
+            , "some information about what happened: ", utf8 body
             ]
       where
         utf8 = T.replace "\"" "'" . T.decodeUtf8 . BL.toStrict
