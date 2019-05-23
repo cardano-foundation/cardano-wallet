@@ -11,13 +11,14 @@ import Prelude
 
 import Codec.Binary.Bech32.Internal
     ( CharPosition (..)
+    , DataPart (..)
     , DecodingError (..)
     , HumanReadablePart
     , humanReadablePartToBytes
     , mkHumanReadablePart
     )
 import Control.Monad
-    ( forM_ )
+    ( forM_, replicateM )
 import Data.Bits
     ( xor, (.&.) )
 import Data.ByteString
@@ -57,6 +58,11 @@ import qualified Data.ByteString.Char8 as B8
 
 spec :: Spec
 spec = do
+    describe "Valid Reference Strings" $
+        it "should always decode successfully" $
+            forM_ validBech32Strings $ \s ->
+                Bech32.decode s `shouldSatisfy` isRight
+
     describe "Valid Checksums" $ forM_ validChecksums $ \checksum ->
         it (B8.unpack checksum) $ case Bech32.decode checksum of
             Left _ ->
@@ -86,7 +92,9 @@ spec = do
             let maxDataLength =
                     Bech32.encodedStringMaxLength
                     - Bech32.checksumLength - Bech32.separatorLength - hrpLength
-            Bech32.encode hrp (BS.pack (replicate (maxDataLength + 1) 1))
+            Bech32.encode hrp
+                (DataPart (replicate (maxDataLength + 1)
+                    $ Bech32.word5 @Word8 1))
                 `shouldBe` Left Bech32.EncodedStringTooLong
 
         it "hrp lowercased" $ do
@@ -205,9 +213,13 @@ spec = do
                             else isLeft))
 
     describe "Roundtrip (encode . decode)" $ do
-        it "Can perform roundtrip for valid data" $ property $ \(hrp, bytes) ->
-            (eitherToMaybe (Bech32.encode hrp bytes)
-                >>= eitherToMaybe . Bech32.decode) === Just (hrp, bytes)
+        it "Can perform roundtrip for valid data" $ property $ \(hrp, dp) ->
+            (eitherToMaybe (Bech32.encode hrp dp)
+                >>= eitherToMaybe . Bech32.decode) === Just (hrp, dp)
+
+    describe "Roundtrip (dataPartToBytes . dataPartFromBytes)" $ do
+        it "Can perform roundtrip base conversion" $ property $ \bs ->
+            (Bech32.dataPartToBytes . Bech32.dataPartFromBytes) bs === Just bs
 
     describe "Roundtrip (toBase256 . toBase32)" $ do
         it "Can perform roundtrip base conversion" $ property $ \ws ->
@@ -261,6 +273,28 @@ spec = do
 
     describe "Pointless test to trigger coverage on derived instances" $ do
         it (show $ mkHumanReadablePart $ B8.pack "ca") True
+
+-- Taken from the BIP 0173 specification: https://git.io/fjBIN
+validBech32Strings :: [ByteString]
+validBech32Strings = map B8.pack
+    [ "A12UEL5L"
+    , "a12uel5l"
+    , "an83characterlonghumanreadablepartthatcontainsthenumber1andtheexcluded\
+      \charactersbio1tt5tgs"
+    , "abcdef1qpzry9x8gf2tvdw0s3jn54khce6mua7lmqqqxw"
+    , "11qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq\
+      \qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqc8247j"
+    , "split1checkupstagehandshakeupstreamerranterredcaperred2y9e3w"
+    , "?1ezyfcl"
+    , "BC1SW50QA3JX3S"
+    , "bc1zw508d6qejxtdg4y5r3zarvaryvg6kdaj"
+    , "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"
+    , "BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4"
+    , "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7"
+    , "tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy"
+    , "bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0\
+      \c5xw7k7grplx"
+    ]
 
 validChecksums :: [ByteString]
 validChecksums = map B8.pack
@@ -316,10 +350,10 @@ instance Arbitrary ValidBech32Char where
 data ValidBech32String = ValidBech32String
     { getValidBech32String :: ByteString
     , humanReadablePart :: HumanReadablePart
-    , unencodedDataPart :: ByteString
+    , unencodedDataPart :: DataPart
     } deriving (Eq, Show)
 
-mkValidBech32String :: HumanReadablePart -> ByteString -> ValidBech32String
+mkValidBech32String :: HumanReadablePart -> DataPart -> ValidBech32String
 mkValidBech32String hrp udp =
     ValidBech32String
         (fromRight (error "unable to make a valid Bech32 string.") $
@@ -337,6 +371,17 @@ instance Arbitrary ValidBech32String where
             [ (hrpShrunk, udpShrunk)
             , (hrpShrunk, udpOriginal)
             , (hrpOriginal, udpShrunk) ]
+
+instance Arbitrary DataPart where
+    arbitrary = do
+        len <- choose (0, 64)
+        DataPart <$> replicateM len arbitrary
+    shrink (DataPart dp)
+        | null dp   = []
+        | otherwise = DataPart <$>
+            [ take (length dp `div` 2) dp
+            , drop 1 dp
+            ]
 
 instance Arbitrary HumanReadablePart where
     shrink hrp = catMaybes $ eitherToMaybe .
@@ -357,7 +402,7 @@ instance Arbitrary ByteString where
         , BS.drop 1 bytes
         ]
     arbitrary = do
-        bytes <- choose (0, 10) >>= \n -> vectorOf n (elements Bech32.charset)
+        bytes <- choose (0, 32) >>= \n -> vectorOf n (elements Bech32.charset)
         return (B8.pack bytes)
 
 instance Arbitrary Bech32.Word5 where

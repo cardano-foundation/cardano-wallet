@@ -16,7 +16,12 @@ module Codec.Binary.Bech32
       encode
     , decode
 
-      -- * Human-Readable Parts
+      -- * Data Part
+    , DataPart
+    , dataPartFromBytes
+    , dataPartToBytes
+
+      -- * Human-Readable Part
     , HumanReadablePart
     , mkHumanReadablePart
     , humanReadablePartToBytes

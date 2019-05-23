@@ -1,4 +1,6 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -28,7 +30,12 @@ module Codec.Binary.Bech32.Internal
     , encodedStringMinLength
     , separatorLength
 
-      -- * Human-Readable Parts
+      -- * Data Part
+    , DataPart (..)
+    , dataPartFromBytes
+    , dataPartToBytes
+
+      -- * Human-Readable Part
     , HumanReadablePart
     , HumanReadablePartError (..)
     , mkHumanReadablePart
@@ -90,7 +97,39 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 
 {-------------------------------------------------------------------------------
-                          Human Readable Parts
+                                 Data Part
+-------------------------------------------------------------------------------}
+
+-- | Represents the data part of a Bech32 string, as defined here:
+--   https://git.io/fj8FS
+newtype DataPart = DataPart
+    { getDataPart :: [Word5] }
+    deriving newtype (Eq, Monoid, Semigroup)
+
+instance Show DataPart where
+    show (DataPart dp) = "DataPart " <> show ((word5ToChar Arr.!) <$> dp)
+
+-- | Constructs a 'DataPart' from a 'ByteString'.
+--
+-- This function encodes a 'ByteString' in such a way that guarantees it can be
+-- successfully decoded with the 'dataPartToBytes' function:
+--
+-- > dataPartToBytes (dataPartFromBytes b) == Just b
+--
+dataPartFromBytes :: ByteString -> DataPart
+dataPartFromBytes = DataPart . toBase32 . BS.unpack
+
+-- | Attempts to extract a 'ByteString' from a 'DataPart'.
+--
+-- This function guarantees to satisfy the following property:
+--
+-- > dataPartToBytes (dataPartFromBytes b) == Just b
+--
+dataPartToBytes :: DataPart -> Maybe ByteString
+dataPartToBytes = fmap BS.pack . toBase256 . getDataPart
+
+{-------------------------------------------------------------------------------
+                            Human Readable Part
 -------------------------------------------------------------------------------}
 
 -- | Represents the human-readable part of a Bech32 string, as defined here:
@@ -155,10 +194,9 @@ humanReadablePartMaxLength = 83
 -------------------------------------------------------------------------------}
 
 -- | Encode a human-readable string and data payload into a Bech32 string.
-encode :: HumanReadablePart -> ByteString -> Either EncodingError ByteString
-encode hrp@(HumanReadablePart hrpBytes) payload = do
-    let payload5 = toBase32 (BS.unpack payload)
-    let payload' = payload5 ++ bech32CreateChecksum hrp payload5
+encode :: HumanReadablePart -> DataPart -> Either EncodingError ByteString
+encode hrp@(HumanReadablePart hrpBytes) (DataPart payload) = do
+    let payload' = payload ++ bech32CreateChecksum hrp payload
     let rest = map (word5ToChar Arr.!) payload'
     let output = B8.map toLower hrpBytes <> B8.pack "1" <> B8.pack rest
     guardE (BS.length output <= encodedStringMaxLength) EncodedStringTooLong
@@ -170,7 +208,7 @@ data EncodingError = EncodedStringTooLong
     deriving (Eq, Show)
 
 -- | Decode a Bech32 string into a human-readable string and data payload.
-decode :: ByteString -> Either DecodingError (HumanReadablePart, ByteString)
+decode :: ByteString -> Either DecodingError (HumanReadablePart, DataPart)
 decode bech32 = do
 
     guardE (BS.length bech32 <= encodedStringMaxLength) StringToDecodeTooLong
@@ -189,9 +227,8 @@ decode bech32 = do
     guardE (length dcp >= checksumLength) StringToDecodeTooShort
     guardE (bech32VerifyChecksum hrp dcp) $
         StringToDecodeContainsInvalidChars $ findErrorPositions hrp dcp
-    dp <- maybeToEither (StringToDecodeContainsInvalidChars []) $
-        toBase256 (take (length dcp - checksumLength) dcp)
-    return (hrp, BS.pack dp)
+    let dp = DataPart $ take (length dcp - checksumLength) dcp
+    return (hrp, dp)
 
   where
 
