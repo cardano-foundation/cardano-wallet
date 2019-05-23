@@ -79,7 +79,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        let (feeMin, feeMax) = (168653, 168829)
+        let (feeMin, feeMax) = (168610, 168829)
 
         r <- request @ApiTransaction ctx (postTx wa) Default payload
         verify r
@@ -219,8 +219,8 @@ spec = do
                 , expectEventually ctx balanceTotal amt
                 ]
 
-    it "TRANS_CREATE_02 - Multiple Output Transactions don't work on single UTxO" $ \ctx -> do
-        wUtxo <- fixtureWalletWith ctx [200_000]
+    it "TRANS_CREATE_02 - Multiple Output Txs don't work on single UTxO" $ \ctx -> do
+        wSrc <- fixtureWalletWith ctx [200_000]
         wDest <- emptyWallet ctx
         (_, addrs) <-
             unsafeRequest @[ApiAddress] ctx (getAddresses wDest) Empty
@@ -247,7 +247,7 @@ spec = do
                 "passphrase": "Secure Passphrase"
             }|]
 
-        r <- request @ApiTransaction ctx (postTx wUtxo) Default payload
+        r <- request @ApiTransaction ctx (postTx wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
             , expectErrorMessage
@@ -255,3 +255,53 @@ spec = do
                 \same UTxO for different outputs. Here, I only have 1 \
                 \available, but there are 2 outputs."
            ]
+
+    it "TRANS_CREATE_02 - Can't cover fee" $ \ctx -> do
+        wSrc <- fixtureWalletWith ctx [100_000]
+        wDest <- emptyWallet ctx
+        (_, addr:_) <- unsafeRequest @[ApiAddress] ctx (getAddresses wDest) Empty
+        let destination = addr ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": 1,
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": "cardano-wallet"
+            }|]
+        r <- request @ApiTransaction ctx (postTx wSrc) Default payload
+        verify r
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage
+                "I'm unable to adjust the given transaction to cover the \
+                \associated fee! In order to do so, I'd have to select one or \
+                \more additional inputs, but I can't do that without increasing \
+                \the size of the transaction beyond the acceptable limit."
+            ]
+
+    it "TRANS_CREATE_02 - Not enough money" $ \ctx -> do
+        wSrc <- fixtureWalletWith ctx [100_000]
+        wDest <- emptyWallet ctx
+        (_, addr:_) <- unsafeRequest @[ApiAddress] ctx (getAddresses wDest) Empty
+        let destination = addr ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": 1000000,
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": "cardano-wallet"
+            }|]
+        r <- request @ApiTransaction ctx (postTx wSrc) Default payload
+        verify r
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage
+                "I can't process this payment because there's not enough \
+                \UTxO available in the wallet. The total UTxO sums up to \
+                \100000 Lovelace, but I need 1000000 Lovelace (excluding fee \
+                \amount) in order to proceed  with the payment."
+            ]
