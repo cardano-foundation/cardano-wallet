@@ -64,9 +64,9 @@ data TargetRange = TargetRange
 -- | Random-Improve Algorithm
 --
 -- 1. Randomly select outputs from the UTxO until the payment value is covered.
---    (In the rare case that this fails because the maximum number of transaction
---    inputs has been exceeded, fall-back on the largest-first algorithm for this
---    step.)
+--    (In the rare case that this fails because the maximum number of
+--    transaction inputs has been exceeded, fall back on the largest-first
+--    algorithm for this step.)
 --
 -- 2. Randomly select outputs from the UTxO, considering for each output if that
 --    output is animprovement. If it is, add it to the transaction, and keep

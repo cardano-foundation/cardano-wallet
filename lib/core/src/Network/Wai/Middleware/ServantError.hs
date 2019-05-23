@@ -4,8 +4,8 @@
 -- Copyright: © 2018-2019 IOHK
 -- License: MIT
 --
--- Middleware between Wai <-> Servant to accomodate raw error responses returned
--- by servant. See also 'handleRawError'.
+-- Middleware between Wai <-> Servant to accommodate raw error responses
+-- returned by servant. See also 'handleRawError'.
 
 module Network.Wai.Middleware.ServantError
     ( handleRawError
