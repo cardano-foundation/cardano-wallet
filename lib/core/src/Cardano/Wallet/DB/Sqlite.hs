@@ -34,7 +34,6 @@ import Control.Concurrent.MVar
     ( newMVar, withMVar )
 import Control.DeepSeq
     ( NFData )
-import Data.Either (isRight)
 import Control.Monad
     ( mapM_, void, when )
 import Control.Monad.Catch
@@ -55,6 +54,8 @@ import Data.Bifunctor
     ( bimap )
 import Data.Coerce
     ( coerce )
+import Data.Either
+    ( isRight )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Quantity
@@ -183,7 +184,7 @@ newDBLayer fp = do
                 Just _ -> Right <$> do
                     deleteCheckpoints @s wid
                     deleteTxHistory wid []
-                    deleteLooseTransactions wid
+                    deleteLooseTransactions
                     deleteWhere [PrivateKeyTableWalletId ==. wid]
                     deleteCascadeWhere [WalTableId ==. wid]
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
@@ -200,7 +201,7 @@ newDBLayer fp = do
             selectWallet wid >>= \case
                 Just _ -> Right <$> do
                     deleteCheckpoints @s wid -- clear out all checkpoints
-                    deleteLooseTransactions wid -- clear unused transaction data
+                    deleteLooseTransactions -- clear unused transaction data
                     insertCheckpoint wid cp -- add this checkpoint
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
@@ -243,10 +244,10 @@ newDBLayer fp = do
                 Just _ -> do
                     let (metas, txins, txouts) = mkTxHistory wid txs
                     deleteTxHistory wid metas
-                    deleteLooseTransactions wid
                     putMany metas
                     putMany txins
                     putMany txouts
+                    deleteLooseTransactions
                     pure $ Right ()
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
@@ -514,16 +515,12 @@ deleteTxHistory wid inUse = deleteWhere
     [ TxMetaTableWalletId ==. wid
     , TxMetaTableTxId /<-. map txMetaTableTxId inUse ]
 
--- | Delete transactions that belong to a wallet and aren't referred to by
--- either Pending or TxMeta.
-deleteLooseTransactions
-    :: W.WalletId
-    -> SqlPersistM ()
-deleteLooseTransactions wid = do
-    pendingTxId <- fmap (pendingTxTableId2 . entityVal) <$>
-        selectList [PendingTxTableWalletId ==. wid] []
-    metaTxId <- fmap (txMetaTableTxId . entityVal) <$>
-        selectList [TxMetaTableWalletId ==. wid] []
+-- | Delete transactions that aren't referred to by either Pending or TxMeta of
+-- any wallet.
+deleteLooseTransactions :: SqlPersistM ()
+deleteLooseTransactions = do
+    pendingTxId <- fmap (pendingTxTableId2 . entityVal) <$> selectList [] []
+    metaTxId <- fmap (txMetaTableTxId . entityVal) <$> selectList [] []
     deleteWhere [ TxInputTableTxId /<-. pendingTxId
                 , TxInputTableTxId /<-. metaTxId ]
     deleteWhere [ TxOutputTableTxId /<-. pendingTxId
