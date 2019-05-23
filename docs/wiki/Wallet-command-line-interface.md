@@ -4,17 +4,24 @@ The CLI is a proxy to the wallet server, which is required for most commands. Co
 
 > :warning: Options are positional (--a --b is not equivalent to --b --a) ! :warning:
 
+<!-- 
+ATTENTION:
+
+The left and right chevrons (`<` and `>`) aren't displayed in markdown, nor anything in between. So below, I am using
+special unicode characters that look alike: `ᐸ` and `ᐳ`
+-->
+
 <pre>
 Usage:
   cardano-wallet <a href="#server">server</a> [--port=INT] [--bridge-port=INT]
   cardano-wallet <a href="#mnemonic-generate">mnemonic generate</a> [--size=INT]
   cardano-wallet <a href="#wallet-list">wallet list</a> [--port=INT]
-  cardano-wallet <a href="#wallet-create">wallet create</a> [--port=INT] <name> [--address-pool-gap=INT]
-  cardano-wallet <a href="#wallet-get">wallet get</a> [--port=INT] <wallet-id>
-  cardano-wallet <a href="#wallet-update">wallet update</a> [--port=INT] <wallet-id> --name=STRING
-  cardano-wallet <a href="#wallet-delete">wallet delete</a> [--port=INT] <wallet-id>
-  cardano-wallet <a href="#transaction-create">transaction create</a> [--port=INT] <wallet-id> --payment=PAYMENT...
-  cardano-wallet <a href="#address-list">address list</a> [--port=INT] <wallet-id>
+  cardano-wallet <a href="#wallet-create">wallet create</a> [--port=INT] ᐸnameᐳ [--address-pool-gap=INT]
+  cardano-wallet <a href="#wallet-get">wallet get</a> [--port=INT] ᐸwallet-idᐳ
+  cardano-wallet <a href="#wallet-update">wallet update</a> [--port=INT] ᐸwallet-idᐳ --name=STRING
+  cardano-wallet <a href="#wallet-delete">wallet delete</a> [--port=INT] ᐸwallet-idᐳ
+  cardano-wallet <a href="#transaction-create">transaction create</a> [--port=INT] ᐸwallet-idᐳ --payment=PAYMENT...
+  cardano-wallet <a href="#address-list">address list</a> [--port=INT] ᐸwallet-idᐳ
   cardano-wallet -h | --help
   cardano-wallet --version
 </pre> 
@@ -24,6 +31,8 @@ Usage:
 # Commands
 
 ## server
+
+> `cardano-wallet server [--port=INT] [--bridge-port=INT]`
 
 Launches API that listens for commands/actions. Before launching user should build `cardano-http-bridge` https://github.com/input-output-hk/cardano-http-bridge/ (see details on the provided link). To run `cardano-http-bridge` do:
 
@@ -42,6 +51,8 @@ This will launch the API
 
 ## mnemonic generate
 
+> `cardano-wallet mnemonic generate [--size=INT]`
+
 Generates mnemonic words
 
 ```
@@ -56,6 +67,8 @@ $ cardano-wallet mnemonic generate --size 21
 
 ## wallet list
 
+> `cardano-wallet wallet list [--port=INT]`
+
 Lists all your wallets:
 
 ```
@@ -64,10 +77,12 @@ $ cardano-wallet wallet list
 
 ## wallet create
 
-Create a new wallet. This is an interactive command that will prompt you for mnemonic words and password.
+> `cardano-wallet wallet create [--port=INT] <name> [--address-pool-gap=INT]`
+
+Create a new wallet using a sequential address scheme. This is an interactive command that will prompt you for mnemonic words and password.
 
 ```
-$ cardano-wallet wallet create --name=foo
+$ cardano-wallet wallet create "My Wallet"
 Please enter a 15–24 word mnemonic sentence: <enter generated mnemonic words here>
 (Enter a blank line if you do not wish to use a second factor.)
 Please enter a 9–12 word mnemonic second factor: <skip or enter new mnemonic words here>
@@ -77,7 +92,10 @@ Enter the passphrase a second time: ****************
 
 after this your new wallet will be created
 
-## wallet read
+## wallet get
+
+> `cardano-wallet wallet get [--port=INT] <wallet-id>`
+
 Fetches the wallet with specified wallet id:
 
 ```
@@ -85,6 +103,8 @@ $ cardano-wallet wallet get 2512a00e9653fe49a44a5886202e24d77eeb998f
 ```
 
 ## wallet update
+
+> `cardano-wallet wallet update [--port=INT] <wallet-id> --name=STRING
 
 Updates name of a wallet given wallet id:
 
@@ -95,6 +115,8 @@ $ cardano-wallet wallet update 2512a00e9653fe49a44a5886202e24d77eeb998f \
 
 ## wallet delete
 
+> `cardano-wallet wallet delete [--port=INT] <wallet-id>` 
+
 Deletes wallet with specified wallet id:
 
 ```
@@ -102,6 +124,8 @@ $ cardano-wallet wallet delete 2512a00e9653fe49a44a5886202e24d77eeb998f
 ```
 
 ## transaction create
+
+> `cardano-wallet transaction create [--port=INT] <wallet-id> --payment=PAYMENT...`
 
 Creates and submits a new transaction:
 
@@ -114,6 +138,8 @@ $ cardano-wallet transaction create 2512a00e9653fe49a44a5886202e24d77eeb998f \
 This creates a transaction that sends 22 lovelace to `Ae2tdPwUPEZ...nRtbfw6EHRv1D` and 5 lovelace to `Ae2tdPwUPEZ7...pVwEPhKwseVvf` from wallet with id 2512a00e9653fe49a44a5886202e24d77eeb998f.
 
 ## address list
+
+> `cardano-wallet address list [--port=INT] <wallet-id>` 
 
 List all known (used or not) addresses and their corresponding status.
 
