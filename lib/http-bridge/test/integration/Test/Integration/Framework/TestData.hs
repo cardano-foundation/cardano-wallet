@@ -1,3 +1,5 @@
+{-# LANGUAGE QuasiQuotes #-}
+
 module Test.Integration.Framework.TestData
     ( -- * Mnemonics
       chineseMnemonics9
@@ -27,18 +29,23 @@ module Test.Integration.Framework.TestData
     , russianWalletName
     , wildcardsWalletName
 
-
     -- * Helpers
     , addressPoolGapMax
     , addressPoolGapMin
     , passphraseMaxLength
     , passphraseMinLength
+    , payloadWith
+    , simplePayload
+    , updateNamePayload
+    , updatePassPayload
     ) where
 
 import Prelude
 
 import Data.Text
     ( Text )
+import Test.Integration.Framework.DSL
+    ( Payload (..), json )
 
 falseWalletIds :: [(String, String)]
 falseWalletIds =
@@ -159,3 +166,28 @@ addressPoolGapMin = 10
 
 addressPoolGapMax :: Int
 addressPoolGapMax = 100
+
+payloadWith :: Text -> [Text] -> Payload
+payloadWith name mnemonics = Json [json| {
+     "name": #{name},
+     "mnemonic_sentence": #{mnemonics},
+     "passphrase": "Secure passphrase"
+     } |]
+
+simplePayload :: Payload
+simplePayload = Json [json| {
+    "name": "Secure Wallet",
+    "mnemonic_sentence": #{mnemonics21},
+    "passphrase": "Secure passphrase"
+    } |]
+
+updateNamePayload :: Text -> Payload
+updateNamePayload name = Json [json| {
+     "name": #{name}
+     } |]
+
+updatePassPayload :: Text -> Text -> Payload
+updatePassPayload oldPass newPass = Json [json| {
+    "old_passphrase": #{oldPass},
+    "new_passphrase": #{newPass}
+      } |]

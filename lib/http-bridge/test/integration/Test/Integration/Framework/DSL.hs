@@ -3,6 +3,7 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -23,6 +24,7 @@ module Test.Integration.Framework.DSL
     , expectErrorMessage
     , expectFieldEqual
     , expectFieldNotEqual
+    , expectFieldBetween
     , expectListItemFieldEqual
     , expectListSizeEqual
     , expectResponseCode
@@ -49,11 +51,19 @@ module Test.Integration.Framework.DSL
     -- * Helpers
     , (</>)
     , (!!)
+    , emptyWallet
     , getFromResponse
     , json
     , tearDown
     , fixtureWallet
-    , oneMillionAda
+    , fixtureWalletWith
+    , faucetAmt
+    , faucetUtxoAmt
+
+    -- * Endpoints
+    , getWallet
+    , getAddresses
+    , postTx
 
     -- * CLI
     , cardanoWalletCLI
@@ -65,17 +75,18 @@ module Test.Integration.Framework.DSL
     , listAddressesViaCLI
     , listWalletsViaCLI
     , updateWalletViaCLI
+    , postTransactionViaCLI
     ) where
 
 import Prelude hiding
     ( fail )
 
 import Cardano.Wallet.Api.Types
-    ( ApiT (..), ApiWallet )
+    ( ApiAddress, ApiT (..), ApiTransaction, ApiWallet )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap, getAddressPoolGap, mkAddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
-    ( mnemonicToText )
+    ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
     ( Direction (..)
     , PoolId (..)
@@ -91,7 +102,7 @@ import Control.Concurrent
 import Control.Concurrent.Async
     ( race )
 import Control.Monad
-    ( forM_, unless )
+    ( forM_, unless, void )
 import Control.Monad.Catch
     ( MonadCatch )
 import Control.Monad.Fail
@@ -128,6 +139,8 @@ import GHC.TypeLits
     ( Symbol )
 import Language.Haskell.TH.Quote
     ( QuasiQuoter )
+import Network.HTTP.Types.Method
+    ( Method )
 import Numeric.Natural
     ( Natural )
 import System.Command
@@ -144,7 +157,7 @@ import System.Process
     , withCreateProcess
     )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain, shouldNotBe )
+    ( shouldBe, shouldContain, shouldNotBe, shouldSatisfy )
 import Test.Integration.Faucet
     ( nextWallet )
 import Test.Integration.Framework.Request
@@ -162,6 +175,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 import qualified Network.HTTP.Types.Status as HTTP
 
 
@@ -216,6 +230,16 @@ expectFieldEqual
 expectFieldEqual getter a (_, res) = case res of
     Left e  -> wantedSuccessButError e
     Right s -> (view getter s) `shouldBe` a
+
+expectFieldBetween
+    :: (MonadIO m, MonadFail m, Show a, Ord a)
+    => Lens' s a
+    -> (a, a)
+    -> (HTTP.Status, Either RequestException s)
+    -> m ()
+expectFieldBetween getter (aMin, aMax) (_, res) = case res of
+    Left e  -> wantedSuccessButError e
+    Right s -> (view getter s) `shouldSatisfy` (\x -> x >= aMin && x <= aMax)
 
 expectFieldNotEqual
     :: (MonadIO m, MonadFail m, Show a, Eq a)
@@ -415,6 +439,19 @@ status =
 -- Helpers
 --
 
+-- | Create an empty wallet
+emptyWallet :: Context -> IO ApiWallet
+emptyWallet ctx = do
+    mnemonic <- (mnemonicToText . entropyToMnemonic) <$> genEntropy @160
+    let payload = Json [aesonQQ| {
+            "name": "Empty Wallet",
+            "mnemonic_sentence": #{mnemonic},
+            "passphrase": "Secure Passphrase"
+        }|]
+    r <- request @ApiWallet ctx postWallet Default payload
+    expectResponseCode @IO HTTP.status202 r
+    return (getFromResponse id r)
+
 -- | Restore a faucet and wait until funds are available.
 fixtureWallet
     :: Context
@@ -441,9 +478,47 @@ fixtureWallet ctx@(Context _ _ _ faucet) = do
             then return (getFromResponse id r)
             else threadDelay oneSecond *> checkBalance wid
 
--- | One million ADA, in Lovelace, just like this.
-oneMillionAda :: Natural
-oneMillionAda = ada (1_000_000)
+-- | Restore a wallet with the given UTxO distribution. Note that there's a
+-- limitation to what can be done here. We only have 10 UTxO available in each
+-- faucet and they "only" have 'faucetUtxoAmt = 100_000 Ada' in each.
+--
+-- This function makes no attempt at ensuring the request is valid, so be
+-- careful.
+fixtureWalletWith
+    :: Context
+    -> [Natural]
+    -> IO ApiWallet
+fixtureWalletWith ctx coins = do
+    wSrc <- fixtureWallet ctx
+    wUtxo <- emptyWallet ctx
+    (_, addrs) <- unsafeRequest @[ApiAddress] ctx (getAddresses wUtxo) Empty
+    let addrIds = view #id <$> addrs
+    let payments = flip map (zip coins addrIds) $ \(coin, addr) -> [aesonQQ|{
+            "address": #{addr},
+            "amount": {
+                "quantity": #{coin},
+                "unit": "lovelace"
+            }
+        }|]
+    let payload = Json [aesonQQ|{
+            "payments": #{payments :: [Value]},
+            "passphrase": "cardano-wallet"
+        }|]
+    request @ApiTransaction ctx (postTx wSrc) Default payload
+        >>= expectResponseCode HTTP.status202
+    r <- request @ApiWallet ctx (getWallet wUtxo) Default Empty
+    verify r [ expectEventually ctx balanceAvailable (sum coins) ]
+    void $ request @() ctx (deleteWallet wSrc) Default Empty
+    return (getFromResponse id r)
+
+-- | Total amount on each faucet wallet
+faucetAmt :: Natural
+faucetAmt = 10 * faucetUtxoAmt
+
+-- | Each faucet wallet is composed of 10 times a single faucet UTxO of 100_000
+-- Ada.
+faucetUtxoAmt :: Natural
+faucetUtxoAmt = ada 100_000
   where
     ada = (*) (1_000_000)
 
@@ -504,6 +579,40 @@ wantedErrorButSuccess =
     fail . ("expected an error but got a successful response: " <>) . show
 
 ---
+--- Endoints
+---
+
+postWallet :: (Method, Text)
+postWallet =
+    ( "POST"
+    , "v2/wallets"
+    )
+
+getWallet :: ApiWallet -> (Method, Text)
+getWallet w =
+    ( "GET"
+    , "v2/wallets/" <> w ^. walletId
+    )
+
+deleteWallet :: ApiWallet -> (Method, Text)
+deleteWallet w =
+    ( "DELETE"
+    , "v2/wallets/" <> w ^. walletId
+    )
+
+getAddresses :: ApiWallet -> (Method, Text)
+getAddresses w =
+    ( "GET"
+    , "v2/wallets/" <> w ^. walletId <> "/addresses"
+    )
+
+postTx :: ApiWallet -> (Method, Text)
+postTx w =
+    ( "POST"
+    , "v2/wallets/" <> w ^. walletId <> "/transactions"
+    )
+
+---
 --- CLI
 ---
 
@@ -526,8 +635,11 @@ generateMnemonicsViaCLI args = cardanoWalletCLI
 
 createWalletViaCLI :: [String] -> String -> String -> String -> IO ExitCode
 createWalletViaCLI args mnemonics secondFactor passphrase = do
-    let fullArgs = ["wallet", "create", "--port", "1337"] ++ args
-    let process = (proc "cardano-wallet" fullArgs)
+    let fullArgs =
+            [ "exec", "--", "cardano-wallet"
+            , "wallet", "create", "--port", "1337"
+            ] ++ args
+    let process = (proc "stack" fullArgs)
             { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
     withCreateProcess process $ \(Just stdin) _ _ h -> do
         hPutStr stdin mnemonics
@@ -557,3 +669,20 @@ listWalletsViaCLI = cardanoWalletCLI
 updateWalletViaCLI :: CmdResult r => [String] -> IO r
 updateWalletViaCLI args = cardanoWalletCLI
     (["wallet", "update", "--port", "1337"] ++ args)
+
+postTransactionViaCLI :: String -> [String] ->  IO (ExitCode, String, Text)
+postTransactionViaCLI passphrase args = do
+    let fullArgs =
+            [ "exec", "--", "cardano-wallet"
+            , "transaction", "create", "--port", "1337"
+            ] ++ args
+    let process = (proc "stack" fullArgs)
+            { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
+    withCreateProcess process $ \(Just stdin) (Just stdout) (Just stderr) h -> do
+        hPutStr stdin (passphrase ++ "\n")
+        hFlush stdin
+        hClose stdin
+        c <- waitForProcess h
+        out <- TIO.hGetContents stdout
+        err <- TIO.hGetContents stderr
+        return (c, T.unpack out, err)

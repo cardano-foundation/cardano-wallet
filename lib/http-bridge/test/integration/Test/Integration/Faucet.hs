@@ -84,8 +84,8 @@ nextWallet (Faucet mvar) = do
 initFaucet :: NetworkLayer IO -> IO Faucet
 initFaucet nl = do
     wallets <- replicateM 100 genMnemonic
-    let outs = uncurry TxOut . (,Coin 1000000000000) . firstAddress <$> wallets
-    unsafeRunExceptT $ postTx nl (mkRedeemTx outs)
+    let outs = uncurry TxOut . (,Coin 100000000000) . firstAddress <$> wallets
+    unsafeRunExceptT $ postTx nl (mkRedeemTx $ mconcat $ replicate 10 outs)
     Faucet <$> newMVar wallets
   where
     genMnemonic :: IO (Mnemonic 15)

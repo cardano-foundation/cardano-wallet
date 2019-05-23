@@ -359,7 +359,6 @@ instance LiftHandler ErrCoinSelection where
                 , " Lovelace (excluding fee amount) in order to proceed "
                 , " with the payment."
                 ]
-
         ErrUtxoNotEnoughFragmented nUtxo nOuts ->
             apiError err403 UtxoNotEnoughFragmented $ mconcat
                 [ "When creating new transactions, I'm not able to re-use "

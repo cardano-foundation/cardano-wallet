@@ -1,5 +1,5 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Test.Integration.Scenario.CLISpec
@@ -10,15 +10,21 @@ module Test.Integration.Scenario.CLISpec
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress, ApiWallet )
+    ( ApiAddress, ApiTransaction, ApiWallet, getApiT )
 import Control.Monad
     ( forM_ )
+import Data.Functor
+    ( ($>) )
+import Data.Generics.Internal.VL.Lens
+    ( view, (^.) )
 import Data.List
     ( length )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( toText )
 import System.Command
     ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit
@@ -29,29 +35,28 @@ import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain, shouldNotContain )
 import Test.Integration.Framework.DSL
     ( Context (..)
-    , Headers (..)
     , Payload (..)
     , cardanoWalletCLI
     , cardanoWalletLauncherCLI
     , createWalletViaCLI
     , deleteWalletViaCLI
-    , expectResponseCode
+    , emptyWallet
     , expectValidJSON
+    , fixtureWallet
     , generateMnemonicsViaCLI
-    , getFromResponse
+    , getAddresses
     , getWalletViaCLI
-    , json
     , listAddressesViaCLI
     , listWalletsViaCLI
-    , request
+    , postTransactionViaCLI
+    , unsafeRequest
     , updateWalletViaCLI
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( falseWalletIds, mnemonics15, mnemonics18 )
+    ( falseWalletIds )
 
 import qualified Data.Text as T
-import qualified Network.HTTP.Types.Status as HTTP
 
 version :: Text
 version = "2019.5.8"
@@ -166,11 +171,11 @@ specWithCluster = do
             outList `shouldNotContain` walletName
 
     it "CLI - Can get a wallet" $ \ctx -> do
-        walId <- createWallet ctx "1st CLI Wallet" mnemonics15
+        walId <- emptyWallet' ctx
         (Exit c, Stdout out, Stderr err) <- getWalletViaCLI walId
         err `shouldBe` "Ok.\n"
         expectValidJSON (Proxy @ApiWallet) out
-        out `shouldContain` "1st CLI Wallet"
+        out `shouldContain` "Empty Wallet"
         c `shouldBe` ExitSuccess
 
     describe "CLI - Cannot get wallets with false ids" $ do
@@ -190,17 +195,15 @@ specWithCluster = do
                 c `shouldBe` ExitFailure 1
 
     it "CLI - Can list wallets" $ \ctx -> do
-        _ <- createWallet ctx "1st CLI Wallet" mnemonics15
-        _ <- createWallet ctx "2nd CLI Wallet" mnemonics18
+        emptyWallet' ctx $> () <* emptyWallet' ctx
         (Exit c, Stdout out, Stderr err) <- listWalletsViaCLI
         err `shouldBe` "Ok.\n"
         expectValidJSON (Proxy @[ApiWallet]) out
-        out `shouldContain` "1st CLI Wallet"
-        out `shouldContain` "2nd CLI Wallet"
+        out `shouldContain` "Empty Wallet"
         c `shouldBe` ExitSuccess
 
     it "CLI - Can update wallet name" $ \ctx -> do
-        walId <- createWallet ctx "1st CLI Wallet" mnemonics15
+        walId <- emptyWallet' ctx
         let args = [walId, "--name", "new name"]
         (Exit c, Stdout out, Stderr err) <- updateWalletViaCLI args
         err `shouldBe` "Ok.\n"
@@ -209,26 +212,31 @@ specWithCluster = do
         c `shouldBe` ExitSuccess
 
     it "CLI - Can delete wallet" $ \ctx -> do
-        walId <- createWallet ctx "CLI Wallet" mnemonics15
+        walId <- emptyWallet' ctx
         (Exit c, Stdout out, Stderr err) <- deleteWalletViaCLI walId
         err `shouldBe` "Ok.\n"
         out `shouldNotContain` "CLI Wallet"
         c `shouldBe` ExitSuccess
 
     it "CLI - Can list addresses" $ \ctx -> do
-        walId <- createWallet ctx "CLI Wallet" mnemonics15
+        walId <- emptyWallet' ctx
         (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI walId
         err `shouldBe` "Ok.\n"
         expectValidJSON (Proxy @[ApiAddress]) out
         c `shouldBe` ExitSuccess
+
+    it "CLI - Can create transaction" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        wDest <- emptyWallet ctx
+        (_, addr:_) <- unsafeRequest @[ApiAddress] ctx (getAddresses wDest) Empty
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", "14@" <> toText (getApiT $ addr ^. #id)
+                ]
+        (c, out, err) <- postTransactionViaCLI "cardano-wallet" args
+        err `shouldBe` "Please enter a passphrase: **************\nOk.\n"
+        expectValidJSON (Proxy @ApiTransaction) out
+        c `shouldBe` ExitSuccess
   where
-    createWallet :: Context -> Text -> [Text] -> IO String
-    createWallet ctx name mnemonics = do
-       let payload = Json [json| {
-               "name": #{name},
-               "mnemonic_sentence": #{mnemonics},
-               "passphrase": "Secure Passphrase"
-               } |]
-       r <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
-       expectResponseCode @IO HTTP.status202 r
-       return (T.unpack $ getFromResponse walletId r)
+    emptyWallet' :: Context -> IO String
+    emptyWallet' = fmap (T.unpack . view walletId) . emptyWallet

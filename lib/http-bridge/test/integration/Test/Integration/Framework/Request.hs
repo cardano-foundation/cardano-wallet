@@ -94,12 +94,14 @@ data Payload
     = Json Aeson.Value
     | NonJson ByteString
     | Empty
+    deriving (Show)
 
 -- | The headers of the request
 data Headers
     = Headers RequestHeaders
     | Default
     | None
+    deriving (Show)
 
 -- | Makes a request to the API and decodes the response.
 request
