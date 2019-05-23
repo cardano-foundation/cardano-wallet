@@ -199,7 +199,8 @@ postWallet
     -> Handler ApiWallet
 postWallet w body = do
     let seed = getApiMnemonicT (body ^. #mnemonicSentence)
-    let secondFactor = maybe mempty getApiMnemonicT (body ^. #mnemonicSecondFactor)
+    let secondFactor =
+            maybe mempty getApiMnemonicT (body ^. #mnemonicSecondFactor)
     let pwd = getApiT (body ^. #passphrase)
     let rootXPrv = generateKeyFromSeed (seed, secondFactor) pwd
     let g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
