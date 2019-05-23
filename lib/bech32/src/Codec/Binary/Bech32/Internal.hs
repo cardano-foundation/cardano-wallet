@@ -236,7 +236,7 @@ humanReadablePartMaxLength = 83
 -- | Encode a human-readable string and data payload into a Bech32 string.
 encode :: HumanReadablePart -> DataPart -> Either EncodingError ByteString
 encode hrp@(HumanReadablePart hrpBytes) (DataPart payload) = do
-    let payload' = payload ++ bech32CreateChecksum hrp payload
+    let payload' = payload ++ createChecksum hrp payload
     let rest = map (word5ToChar Arr.!) payload'
     let output = B8.map toLower hrpBytes <> B8.pack "1" <> B8.pack rest
     guardE (BS.length output <= encodedStringMaxLength) EncodedStringTooLong
@@ -265,7 +265,7 @@ decode bech32 = do
                 CharPosition $ p + BS.length hrpUnparsed + separatorLength))
         (parseDataWithChecksumPart dcpUnparsed)
     guardE (length dcp >= checksumLength) StringToDecodeTooShort
-    guardE (bech32VerifyChecksum hrp dcp) $
+    guardE (verifyChecksum hrp dcp) $
         StringToDecodeContainsInvalidChars $ findErrorPositions hrp dcp
     let dp = DataPart $ take (length dcp - checksumLength) dcp
     return (hrp, dp)
@@ -279,7 +279,7 @@ decode bech32 = do
         | residue == 0 = []
         | otherwise = sort $ toCharPosition <$> errorPositionsIgnoringSeparator
       where
-        residue = bech32Polymod (bech32HRPExpand hrp ++ dcp) `xor` 1
+        residue = polymod (hrpExpand hrp ++ dcp) `xor` 1
         toCharPosition i
             | i < BS.length (humanReadablePartToBytes hrp) = CharPosition i
             | otherwise = CharPosition $ i + separatorLength
@@ -418,8 +418,8 @@ fromWord5 (Word5 x) = fromIntegral x
 {-# INLINE fromWord5 #-}
 {-# SPECIALIZE INLINE fromWord5 :: Word5 -> Word8 #-}
 
-bech32Polymod :: [Word5] -> Word
-bech32Polymod values = foldl' go 1 values .&. 0x3fffffff
+polymod :: [Word5] -> Word
+polymod values = foldl' go 1 values .&. 0x3fffffff
   where
     go chk value =
         foldl' xor chk' [g | (g, i) <- zip generator [25 ..], testBit chk i]
@@ -432,21 +432,21 @@ bech32Polymod values = foldl' go 1 values .&. 0x3fffffff
             , 0x3d4233dd
             , 0x2a1462b3 ]
 
-bech32HRPExpand :: HumanReadablePart -> [Word5]
-bech32HRPExpand (HumanReadablePart hrp) =
+hrpExpand :: HumanReadablePart -> [Word5]
+hrpExpand (HumanReadablePart hrp) =
     map (Word5 . (.>>. 5)) (BS.unpack hrp)
     ++ [Word5 0]
     ++ map word5 (BS.unpack hrp)
 
-bech32CreateChecksum :: HumanReadablePart -> [Word5] -> [Word5]
-bech32CreateChecksum hrp dat = [word5 (polymod .>>. i) | i <- [25, 20 .. 0]]
+createChecksum :: HumanReadablePart -> [Word5] -> [Word5]
+createChecksum hrp dat = [word5 (polymod' .>>. i) | i <- [25, 20 .. 0]]
   where
-    values = bech32HRPExpand hrp ++ dat
-    polymod =
-        bech32Polymod (values ++ map Word5 [0, 0, 0, 0, 0, 0]) `xor` 1
+    values = hrpExpand hrp ++ dat
+    polymod' =
+        polymod (values ++ map Word5 [0, 0, 0, 0, 0, 0]) `xor` 1
 
-bech32VerifyChecksum :: HumanReadablePart -> [Word5] -> Bool
-bech32VerifyChecksum hrp dat = bech32Polymod (bech32HRPExpand hrp ++ dat) == 1
+verifyChecksum :: HumanReadablePart -> [Word5] -> Bool
+verifyChecksum hrp dat = polymod (hrpExpand hrp ++ dat) == 1
 
 type Pad f = Int -> Int -> Word -> [[Word]] -> f [[Word]]
 
