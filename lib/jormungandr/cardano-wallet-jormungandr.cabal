@@ -36,6 +36,8 @@ library
     , binary
     , bytestring
     , cardano-wallet-core
+    , servant
+    , memory
     , text
     , text-class
   hs-source-dirs:
@@ -43,6 +45,7 @@ library
   exposed-modules:
       Cardano.Environment.Jormungandr
       Cardano.Wallet.Binary.Jormungandr
+      Cardano.Wallet.Network.Jormungandr.Api
       Cardano.Wallet.Compatibility.Jormungandr
       Cardano.Wallet.Transaction.Jormungandr
 
