@@ -1,0 +1,75 @@
+{
+    "seed": -1648854074368940312,
+    "samples": [
+        {
+            "amount": {
+                "quantity": 99,
+                "unit": "lovelace"
+            },
+            "address": "035ee700af2fb843576ceb3d70016e351b3e373925af35626a1f1e423a5c13180051fe29677b76104b25241cc2630f293fa3"
+        },
+        {
+            "amount": {
+                "quantity": 232,
+                "unit": "lovelace"
+            },
+            "address": "075e65b7505b4454101a01137722087e622a1be14c2f45482d5e2e56733c2d595ee5eb057a12c3ab4eb1771c36714b3b4f68"
+        },
+        {
+            "amount": {
+                "quantity": 56,
+                "unit": "lovelace"
+            },
+            "address": "18477f252374d70b411d782d4f364c537fe759915c763b927af9c7b25c652f67754f461a1d5b0156167fed2c4c094f730156"
+        },
+        {
+            "amount": {
+                "quantity": 107,
+                "unit": "lovelace"
+            },
+            "address": "73006f24666d3772746f2d5602461277006119241d1ca56a6e25120246715a1a1079020825cd367d7fd53f8d78687e13c792"
+        },
+        {
+            "amount": {
+                "quantity": 111,
+                "unit": "lovelace"
+            },
+            "address": "3e14f66e0d1f05dc1467677932155b6f000b224a406b66354c7b152671467a5c085730282492693f196c00de50c714280a13"
+        },
+        {
+            "amount": {
+                "quantity": 166,
+                "unit": "lovelace"
+            },
+            "address": "1e77532a097037be71572d4f1066137b3e361d2fca00574b30e35c56753f1a250e7c3169aa0c358a043d402a044a611c682c"
+        },
+        {
+            "amount": {
+                "quantity": 219,
+                "unit": "lovelace"
+            },
+            "address": "5247f06c251ecb2317dcc76b98601f07211733dd09b16413050625f95d0a240a394c1eec3a7d0514787d78214546717b3bcc"
+        },
+        {
+            "amount": {
+                "quantity": 102,
+                "unit": "lovelace"
+            },
+            "address": "44520335285e44112a2a0e2460032fc73f8e40132b1c40675d26266e621a2b43e22e5e2615150a3c6b02581ea842fb38633a"
+        },
+        {
+            "amount": {
+                "quantity": 65,
+                "unit": "lovelace"
+            },
+            "address": "0a630818714d48321db47a0b7a6e5c73530f6e0f17349f3472873bac712c1f6e3d795c4d707e7126b23a4c046c291678650e"
+        },
+        {
+            "amount": {
+                "quantity": 162,
+                "unit": "lovelace"
+            },
+            "address": "2b68786055291b25d769797862694d2e205b42190e001d79e963616557676c47b867241856314a3e172a7e34711cf35c7529"
+        }
+    ]
+}

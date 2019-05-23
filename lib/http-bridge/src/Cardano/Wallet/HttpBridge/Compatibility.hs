@@ -20,19 +20,34 @@ import Prelude
 import Cardano.Environment.HttpBridge
     ( Network (Mainnet, Staging, Testnet), network, protocolMagic )
 import Cardano.Wallet.HttpBridge.Binary
-    ( encodeAddress, encodeProtocolMagic, encodeTx )
+    ( decodeAddressPayload, encodeProtocolMagic, encodeTx )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..), getKey )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Hash (..), TxId (..) )
+    ( Address (..)
+    , DecodeAddress (..)
+    , EncodeAddress (..)
+    , Hash (..)
+    , TxId (..)
+    )
 import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
     ( Blake2b_256 )
+import Data.Bifunctor
+    ( bimap )
+import Data.ByteString.Base58
+    ( bitcoinAlphabet, decodeBase58, encodeBase58 )
+import Data.Text.Class
+    ( TextDecodingError (..) )
 
+import qualified Cardano.Wallet.HttpBridge.Binary as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
+import qualified Codec.CBOR.Read as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.Text.Encoding as T
 
 -- | A type representing the http-bridge as a network target. This has an
 -- influence on binary serializer & network primitives. See also 'TxId'
@@ -59,7 +74,9 @@ instance TxId HttpBridge where
 -- dubious CBOR serializations with no data attributes.
 instance KeyToAddress HttpBridge where
     keyToAddress key =
-        Address $ CBOR.toStrictByteString $ encodeAddress xpub encodeAttributes
+        Address
+            $ CBOR.toStrictByteString
+            $ CBOR.encodeAddress xpub encodeAttributes
       where
         xpub = getKey key
         encodeAttributes = case network of
@@ -74,3 +91,26 @@ instance KeyToAddress HttpBridge where
                 (CBOR.toStrictByteString $ encodeProtocolMagic pm)
 
         emptyAttributes = CBOR.encodeMapLen 0
+
+-- | Encode an 'Address' to a human-readable format, in this case
+--
+-- [Base58](https://en.wikipedia.org/wiki/Base58)
+instance EncodeAddress HttpBridge where
+    encodeAddress _ = T.decodeUtf8 . encodeBase58 bitcoinAlphabet . getAddress
+
+-- | Decode a [Base58](https://en.wikipedia.org/wiki/Base58) text string to an
+-- 'Address'.
+instance DecodeAddress HttpBridge where
+    decodeAddress _ x = do
+        bytes <- maybe
+            (Left $ TextDecodingError errBase58)
+            Right
+            (decodeBase58 bitcoinAlphabet $ T.encodeUtf8 x)
+        -- We at least try to decode the address payload, since we need at least
+        -- this to produce valid `TxOut` and whatnot when creating a transaction
+        bimap (TextDecodingError . errDecoding) (const ()) $
+            CBOR.deserialiseFromBytes decodeAddressPayload (BL.fromStrict bytes)
+        return $ Address bytes
+      where
+        errBase58 = "Unable to decode Address: expected Base58 encoding."
+        errDecoding _ = "Unable to decode Address: not a valid Byron address."

@@ -17,7 +17,7 @@ import Prelude
 import Cardano.Environment.HttpBridge
     ( Network (..), network )
 import Cardano.Wallet.HttpBridge.Binary
-    ( encodeSignedTx, toByteString )
+    ( encodeSignedTx )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.HttpBridge.Transaction
@@ -81,7 +81,6 @@ import Test.QuickCheck
     , (===)
     )
 
-import qualified Cardano.Wallet.HttpBridge.Binary as Binary
 import qualified Cardano.Wallet.Primitive.CoinSelection as CS
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -712,7 +711,7 @@ genAddress range = do
             , 88, fromIntegral n -- Bytes(n), n > 23 && n < 256
             ]
     payload <- BS.pack <$> vectorOf n arbitrary
-    let crc = Binary.toByteString (CBOR.encodeWord32 $ crc32 payload)
+    let crc = CBOR.toStrictByteString (CBOR.encodeWord32 $ crc32 payload)
     return $ Address (prefix <> payload <> crc)
 
 genUTxO :: [Coin] -> Gen UTxO
@@ -828,7 +827,10 @@ goldenTestSignedTx nOuts xprvs expected = it title $ do
     case res of
         Left e -> fail (show e)
         Right tx -> do
-            let bytes = convertToBase Base16 $ toByteString $ encodeSignedTx tx
+            let bytes = convertToBase Base16
+                    $ CBOR.toStrictByteString
+                    $ encodeSignedTx
+                    tx
             bytes `shouldBe` expected
   where
     title :: String

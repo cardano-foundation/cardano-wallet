@@ -22,12 +22,7 @@ module Cardano.Wallet.HttpBridge.Api
 import Prelude
 
 import Cardano.Wallet.HttpBridge.Binary
-    ( decodeBlock
-    , decodeBlockHeader
-    , decodeSignedTx
-    , encodeSignedTx
-    , toByteString
-    )
+    ( decodeBlock, decodeBlockHeader, decodeSignedTx, encodeSignedTx )
 import Cardano.Wallet.Primitive.Types
     ( Block, BlockHeader, Tx, TxWitness )
 import Crypto.Hash.Algorithms
@@ -59,6 +54,7 @@ import Servant.Extra.ContentTypes
     ( CBOR, ComputeHash, FromCBOR (..), Hash, Packed, WithHash )
 
 import qualified Codec.CBOR.Read as CBOR
+import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 
@@ -128,7 +124,7 @@ instance ToJSON (ApiT (Tx, [TxWitness])) where
     toJSON (ApiT (tx, wit))= object ["signedTx" .= base64 bytes]
       where
         bytes :: ByteString
-        bytes = toByteString $ encodeSignedTx (tx, wit)
+        bytes = CBOR.toStrictByteString $ encodeSignedTx (tx, wit)
         base64 :: ByteString -> String
         base64 = B8.unpack . convertToBase Base64
 

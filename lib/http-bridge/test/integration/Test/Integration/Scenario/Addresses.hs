@@ -9,6 +9,8 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiAddress )
+import Cardano.Wallet.HttpBridge.Compatibility
+    ( HttpBridge )
 import Cardano.Wallet.Primitive.Types
     ( AddressState (..) )
 import Data.Generics.Internal.VL.Lens
@@ -33,7 +35,7 @@ spec = do
     it "Can list known addresses on a default wallet" $ \ctx -> do
         wid <- view walletId <$> fixtureWallet ctx
         let endpoint = ("GET", "v2/wallets/" <> wid <> "/addresses")
-        r <- request @[ApiAddress] ctx endpoint Default Empty
+        r <- request @[ApiAddress HttpBridge] ctx endpoint Default Empty
         verify r
             [ expectListSizeEqual 21
             , expectListItemFieldEqual 0 state Used

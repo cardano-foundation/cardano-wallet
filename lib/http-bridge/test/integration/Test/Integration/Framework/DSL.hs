@@ -83,6 +83,8 @@ import Prelude hiding
 
 import Cardano.Wallet.Api.Types
     ( ApiAddress, ApiT (..), ApiTransaction, ApiWallet )
+import Cardano.Wallet.HttpBridge.Compatibility
+    ( HttpBridge )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap, getAddressPoolGap, mkAddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -498,7 +500,8 @@ fixtureWalletWith
 fixtureWalletWith ctx coins = do
     wSrc <- fixtureWallet ctx
     wUtxo <- emptyWallet ctx
-    (_, addrs) <- unsafeRequest @[ApiAddress] ctx (getAddresses wUtxo) Empty
+    (_, addrs) <-
+        unsafeRequest @[ApiAddress HttpBridge] ctx (getAddresses wUtxo) Empty
     let addrIds = view #id <$> addrs
     let payments = flip map (zip coins addrIds) $ \(coin, addr) -> [aesonQQ|{
             "address": #{addr},
@@ -511,7 +514,7 @@ fixtureWalletWith ctx coins = do
             "payments": #{payments :: [Value]},
             "passphrase": "cardano-wallet"
         }|]
-    request @ApiTransaction ctx (postTx wSrc) Default payload
+    request @(ApiTransaction HttpBridge) ctx (postTx wSrc) Default payload
         >>= expectResponseCode HTTP.status202
     r <- request @ApiWallet ctx (getWallet wUtxo) Default Empty
     verify r [ expectEventually ctx balanceAvailable (sum coins) ]

@@ -292,7 +292,7 @@ exec manager args
         :<|> _ -- Put Wallet Passphrase
         )
         :<|> createTransaction
-        = client (Proxy @("v2" :> Api))
+        = client (Proxy @("v2" :> Api HttpBridge))
 
     -- | 'runClient' requires a type-application to carry a particular
     -- namespace and adjust error messages accordingly. For instances, when

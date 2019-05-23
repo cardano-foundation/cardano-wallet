@@ -11,6 +11,10 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiAddress, ApiTransaction, ApiWallet, getApiT )
+import Cardano.Wallet.HttpBridge.Compatibility
+    ( HttpBridge )
+import Cardano.Wallet.Primitive.Types
+    ( encodeAddress )
 import Control.Monad
     ( forM_ )
 import Data.Functor
@@ -23,8 +27,6 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Text
     ( Text )
-import Data.Text.Class
-    ( toText )
 import System.Command
     ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit
@@ -222,20 +224,22 @@ specWithCluster = do
         walId <- emptyWallet' ctx
         (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI walId
         err `shouldBe` "Ok.\n"
-        expectValidJSON (Proxy @[ApiAddress]) out
+        expectValidJSON (Proxy @[ApiAddress HttpBridge]) out
         c `shouldBe` ExitSuccess
 
     it "CLI - Can create transaction" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
-        (_, addr:_) <- unsafeRequest @[ApiAddress] ctx (getAddresses wDest) Empty
+        (_, addr:_) <- unsafeRequest @[ApiAddress HttpBridge] ctx (getAddresses wDest) Empty
+        let addrStr =
+                encodeAddress (Proxy @HttpBridge) (getApiT $ fst $ addr ^. #id)
         let args = T.unpack <$>
                 [ wSrc ^. walletId
-                , "--payment", "14@" <> toText (getApiT $ addr ^. #id)
+                , "--payment", "14@" <> addrStr
                 ]
         (c, out, err) <- postTransactionViaCLI "cardano-wallet" args
         err `shouldBe` "Please enter a passphrase: **************\nOk.\n"
-        expectValidJSON (Proxy @ApiTransaction) out
+        expectValidJSON (Proxy @(ApiTransaction HttpBridge)) out
         c `shouldBe` ExitSuccess
   where
     emptyWallet' :: Context -> IO String

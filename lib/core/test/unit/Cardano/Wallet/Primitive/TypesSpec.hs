@@ -90,7 +90,6 @@ spec = do
         it "Arbitrary Coin" $ property isValidCoin
 
     describe "Can perform roundtrip textual encoding & decoding" $ do
-        textRoundtrip $ Proxy @Address
         textRoundtrip $ Proxy @AddressState
         textRoundtrip $ Proxy @WalletName
         textRoundtrip $ Proxy @WalletId
@@ -139,8 +138,8 @@ spec = do
                     }
             "dffc3506...6969a73b (14.19)\n\
             \    - ~> 1st c29d3ea0...13862214\n\
-            \      <~ 3823755953610 @ DdzFFzCq...bGuLgjCU\n\
-            \      <~ 19999800000 @ DdzFFzCq...UfLEFu1q\n"
+            \      <~ 3823755953610 @ 82d81858...aebb3709\n\
+            \      <~ 19999800000 @ 82d81858...37ce9c60\n"
                 === pretty @_ @Text block
 
     describe "slotRatio" $ do
@@ -153,9 +152,6 @@ spec = do
             flatSlot (fromFlatSlot n) === n
 
     describe "Negative cases for types decoding" $ do
-        it "fail fromText @Address \"0000\"" $ do
-            let err = "Unable to decode Address: expected Base58 encoding"
-            fromText @Address "0000" === Left (TextDecodingError err)
         it "fail fromText @AddressPoolGap \"unusedused\"" $ do
             let err = "Unable to decode address state: it's neither \"used\"\
                       \ nor \"unused\""

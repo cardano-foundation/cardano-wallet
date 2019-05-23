@@ -11,8 +11,6 @@ import Prelude
 
 import Cardano.Environment.HttpBridge
     ( Network (..), ProtocolMagic (..), network, protocolMagic )
-import Cardano.Wallet.HttpBridge.Binary
-    ( toByteString )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -96,11 +94,11 @@ newTransactionLayer = TransactionLayer
         signTag :: SignTag -> ByteString
         signTag = \case
             SignTx (Hash payload) ->
-                "\x01" <> pm <> toByteString (CBOR.encodeBytes payload)
+                "\x01" <> pm <> CBOR.toStrictByteString (CBOR.encodeBytes payload)
           where
             pm =
                 let ProtocolMagic x = protocolMagic network
-                in toByteString . CBOR.encodeInt32 $ x
+                in CBOR.toStrictByteString . CBOR.encodeInt32 $ x
 
     --input -------------------------------------- 41 + (1|2|3|5)
     --  | list len 2                  -- 1

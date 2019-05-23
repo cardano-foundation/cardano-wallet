@@ -26,8 +26,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , keyToAddress
     , publicKey
     )
-import Fmt
-    ( build, fmt )
+import Cardano.Wallet.Primitive.Types
+    ( encodeAddress )
+import Data.Proxy
+    ( Proxy (..) )
+import Data.Text
+    ( Text )
 import Test.Hspec
     ( Spec, describe, it, xit )
 import Test.QuickCheck
@@ -82,7 +86,7 @@ goldenYoroiAddr
     -> ChangeChain
     -> Index 'Hardened 'AccountK
     -> Index 'Soft 'AddressK
-    -> String
+    -> Text
     -> Property
 goldenYoroiAddr (seed, recPwd) cc accIx addrIx addr =
     let
@@ -90,5 +94,6 @@ goldenYoroiAddr (seed, recPwd) cc accIx addrIx addr =
         rootXPrv = generateKeyFromSeed (seed, recPwd) encPwd
         accXPrv = deriveAccountPrivateKey encPwd rootXPrv accIx
         addrXPrv = deriveAddressPrivateKey encPwd accXPrv cc addrIx
+        encode = encodeAddress (Proxy @HttpBridge)
     in
-        fmt (build $ keyToAddress @HttpBridge $ publicKey addrXPrv) === addr
+        encode (keyToAddress @HttpBridge $ publicKey addrXPrv) === addr
