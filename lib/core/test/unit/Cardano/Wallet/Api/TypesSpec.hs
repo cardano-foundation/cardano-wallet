@@ -82,7 +82,7 @@ import Data.Aeson
 import Data.Aeson.QQ
     ( aesonQQ )
 import Data.FileEmbed
-    ( embedFile )
+    ( embedFile, makeRelativeToProject )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
@@ -721,8 +721,11 @@ specification :: Swagger
 specification =
     unsafeDecode bytes
   where
-    bytes = $(embedFile "../../specifications/api/swagger.yaml")
-    unsafeDecode = either (error . (msg <>) . show) Prelude.id . Yaml.decodeEither'
+    bytes = $(makeRelativeToProject
+                "../../specifications/api/swagger.yaml"
+                >>= embedFile)
+    unsafeDecode =
+        either (error . (msg <>) . show) Prelude.id . Yaml.decodeEither'
     msg = "Whoops! Failed to parse or find the api specification document: "
 
 instance ToSchema ApiAddress where
