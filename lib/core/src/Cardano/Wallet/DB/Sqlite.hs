@@ -26,6 +26,27 @@ import Cardano.Wallet.DB
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
     )
+import Cardano.Wallet.DB.Sqlite.TH
+    ( AddressPool (..)
+    , AddressPoolId
+    , AddressPoolIndex (..)
+    , Checkpoint (..)
+    , EntityField (..)
+    , PendingTx (..)
+    , PrivateKey (..)
+    , SeqState (..)
+    , SeqStateExternalPool (..)
+    , SeqStateId
+    , SeqStateInternalPool (..)
+    , SeqStatePendingIx (..)
+    , TxIn (..)
+    , TxMeta (..)
+    , TxOut (..)
+    , UTxO (..)
+    , Wallet (..)
+    , migrateAll
+    , unWalletKey
+    )
 import Cardano.Wallet.DB.Sqlite.Types
     ( AddressPoolXPub (..), TxId (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -95,8 +116,6 @@ import System.IO
     ( stderr )
 import System.Log.FastLogger
     ( fromLogStr )
-
-import Cardano.Wallet.DB.Sqlite.TH
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery as W
@@ -183,7 +202,7 @@ newDBLayer fp = do
             selectWallet wid >>= \case
                 Just _ -> Right <$> do
                     deleteCheckpoints @s wid
-                    deleteTxHistory wid []
+                    deleteTxMetas wid
                     deleteLooseTransactions
                     deleteWhere [PrivateKeyTableWalletId ==. wid]
                     deleteCascadeWhere [WalTableId ==. wid]
@@ -243,8 +262,7 @@ newDBLayer fp = do
             selectWallet wid >>= \case
                 Just _ -> do
                     let (metas, txins, txouts) = mkTxHistory wid txs
-                    deleteTxHistory wid metas
-                    putMany metas
+                    putTxMetas wid metas
                     putMany txins
                     putMany txouts
                     deleteLooseTransactions
@@ -506,14 +524,21 @@ deleteCheckpoints wid = do
     deleteState @s wid -- clear state
 
 -- | Delete unused TxMeta values for a wallet.
-deleteTxHistory
+deleteTxMetas
+    :: W.WalletId
+    -> SqlPersistM ()
+deleteTxMetas wid = deleteWhere [ TxMetaTableWalletId ==. wid ]
+
+-- | Add new TxMeta rows, overwriting existing ones.
+putTxMetas
     :: W.WalletId
     -> [TxMeta]
-       -- ^ The TxMeta entries to keep
     -> SqlPersistM ()
-deleteTxHistory wid inUse = deleteWhere
-    [ TxMetaTableWalletId ==. wid
-    , TxMetaTableTxId /<-. map txMetaTableTxId inUse ]
+putTxMetas wid metas = do
+    deleteWhere
+        [ TxMetaTableWalletId ==. wid
+        , TxMetaTableTxId <-. map txMetaTableTxId metas ]
+    insertMany_ metas
 
 -- | Delete transactions that aren't referred to by either Pending or TxMeta of
 -- any wallet.
