@@ -17,15 +17,15 @@
 module Codec.Binary.Bech32.Internal
 
 -- | Encode a human-readable string and data payload into a Bech32 string.
-encode :: HumanReadablePart -> ByteString -> Either EncodingError ByteString
+encode :: HumanReadablePart -> DataPart -> Either EncodingError Text
 
 -- | Represents the set of error conditions that may occur while encoding a
 --   Bech32 string.
 data EncodingError
 EncodedStringTooLong :: EncodingError
 
--- | Decode a Bech32 string into a human-readable string and data payload.
-decode :: ByteString -> Either DecodingError (HumanReadablePart, ByteString)
+-- | Decode a Bech32 string into a human-readable part and data part.
+decode :: Text -> Either DecodingError (HumanReadablePart, DataPart)
 
 -- | Represents the set of errors that may occur while decoding a Bech32
 --   string with the <a>decode</a> function.
@@ -55,8 +55,72 @@ encodedStringMaxLength :: Int
 --   data portion, and the checksum.
 encodedStringMinLength :: Int
 
+-- | The separator character. This character appears immediately after the
+--   human-readable part and before the data part.
+separatorChar :: Char
+
 -- | The length of the separator portion of an encoded string, in bytes.
 separatorLength :: Int
+
+-- | Represents the data part of a Bech32 string, as defined here:
+--   <a>https://git.io/fj8FS</a>
+data DataPart
+
+-- | Constructs a <a>DataPart</a> from a <a>ByteString</a>.
+--   
+--   This function encodes a <a>ByteString</a> in such a way that
+--   guarantees it can be successfully decoded with the
+--   <a>dataPartToBytes</a> function:
+--   
+--   <pre>
+--   dataPartToBytes (dataPartFromBytes b) == Just b
+--   </pre>
+dataPartFromBytes :: ByteString -> DataPart
+
+-- | Constructs a <a>DataPart</a> from textual input. All characters in the
+--   input must be a member of <a>charset</a>, the Bech32 character set.
+--   
+--   Returns <a>Nothing</a> if any character in the input is not a member
+--   of the Bech32 character set.
+--   
+--   This function guarantees to satisfy the following property:
+--   
+--   <pre>
+--   dataPartFromText (dataPartToText d) == Just d
+--   </pre>
+dataPartFromText :: Text -> Maybe DataPart
+
+-- | Construct a <a>DataPart</a> directly from words.
+--   
+--   This function guarantees to satisfy the following properties:
+--   
+--   <pre>
+--   dataPartFromWords (dataPartToWords d) == d
+--   dataPartToWords (dataPartFromWords w) == w
+--   </pre>
+dataPartFromWords :: [Word5] -> DataPart
+
+-- | Attempts to extract a <a>ByteString</a> from a <a>DataPart</a>.
+--   
+--   This function guarantees to satisfy the following property:
+--   
+--   <pre>
+--   dataPartToBytes (dataPartFromBytes b) == Just b
+--   </pre>
+dataPartToBytes :: DataPart -> Maybe ByteString
+
+-- | Converts a <a>DataPart</a> to <a>Text</a>, using the Bech32 character
+--   set to render the data.
+--   
+--   This function guarantees to satisfy the following property:
+--   
+--   <pre>
+--   dataPartFromText (dataPartToText d) == Just d
+--   </pre>
+dataPartToText :: DataPart -> Text
+
+-- | Convert a <a>DataPart</a> into words.
+dataPartToWords :: DataPart -> [Word5]
 
 -- | Represents the human-readable part of a Bech32 string, as defined
 --   here: <a>https://git.io/fj8FS</a>
@@ -71,18 +135,11 @@ HumanReadablePartContainsInvalidChars :: [CharPosition] -> HumanReadablePartErro
 
 -- | Parses the human-readable part of a Bech32 string, as defined here:
 --   <a>https://git.io/fj8FS</a>
-mkHumanReadablePart :: ByteString -> Either HumanReadablePartError HumanReadablePart
+humanReadablePartFromText :: Text -> Either HumanReadablePartError HumanReadablePart
 
--- | Get the raw bytes of the human-readable part of a Bech32 string.
-humanReadablePartToBytes :: HumanReadablePart -> ByteString
-
--- | The lower bound of the set of characters permitted to appear within
---   the human-readable part of a Bech32 string.
-humanReadableCharsetMinBound :: Word8
-
--- | The upper bound of the set of characters permitted to appear within
---   the human-readable part of a Bech32 string.
-humanReadableCharsetMaxBound :: Word8
+-- | Get the raw text of the human-readable part of a Bech32 string.
+humanReadablePartToText :: HumanReadablePart -> Text
+humanReadablePartToWords :: HumanReadablePart -> [Word5]
 
 -- | The shortest length permitted for the human-readable part of a Bech32
 --   string.
@@ -91,6 +148,14 @@ humanReadablePartMinLength :: Int
 -- | The longest length permitted for the human-readable part of a Bech32
 --   string.
 humanReadablePartMaxLength :: Int
+
+-- | The lower bound of the set of characters permitted to appear within
+--   the human-readable part of a Bech32 string.
+humanReadableCharsetMinBound :: Char
+
+-- | The upper bound of the set of characters permitted to appear within
+--   the human-readable part of a Bech32 string.
+humanReadableCharsetMaxBound :: Char
 
 -- | Big-endian conversion of a word string from base '2^frombits' to base
 --   '2^tobits'. The <tt>frombits</tt> and <tt>twobits</tt> parameters must
@@ -127,6 +192,12 @@ charToWord5 :: Char -> Maybe Word5
 --   set of characters permitted to appear within the data part of a Bech32
 --   string.
 word5ToChar :: Array Word5 Char
+
+-- | Splits the given <a>Text</a> into a prefix and a suffix using the last
+--   occurrence of the specified separator character as a splitting point.
+--   Evaluates to <a>Nothing</a> if the <a>ByteString</a> does not contain
+--   the separator character.
+splitAtLastOccurrence :: Char -> Text -> Maybe (Text, Text)
 instance GHC.Show.Show Codec.Binary.Bech32.Internal.Word5
 instance GHC.Classes.Ord Codec.Binary.Bech32.Internal.Word5
 instance GHC.Classes.Eq Codec.Binary.Bech32.Internal.Word5
@@ -139,8 +210,12 @@ instance GHC.Classes.Ord Codec.Binary.Bech32.Internal.CharPosition
 instance GHC.Classes.Eq Codec.Binary.Bech32.Internal.CharPosition
 instance GHC.Show.Show Codec.Binary.Bech32.Internal.EncodingError
 instance GHC.Classes.Eq Codec.Binary.Bech32.Internal.EncodingError
-instance GHC.Classes.Eq Codec.Binary.Bech32.Internal.HumanReadablePart
 instance GHC.Show.Show Codec.Binary.Bech32.Internal.HumanReadablePart
+instance GHC.Classes.Eq Codec.Binary.Bech32.Internal.HumanReadablePart
+instance GHC.Show.Show Codec.Binary.Bech32.Internal.DataPart
+instance GHC.Base.Semigroup Codec.Binary.Bech32.Internal.DataPart
+instance GHC.Base.Monoid Codec.Binary.Bech32.Internal.DataPart
+instance GHC.Classes.Eq Codec.Binary.Bech32.Internal.DataPart
 instance GHC.Arr.Ix Codec.Binary.Bech32.Internal.Word5
 
 
@@ -152,10 +227,57 @@ instance GHC.Arr.Ix Codec.Binary.Bech32.Internal.Word5
 module Codec.Binary.Bech32
 
 -- | Encode a human-readable string and data payload into a Bech32 string.
-encode :: HumanReadablePart -> ByteString -> Either EncodingError ByteString
+encode :: HumanReadablePart -> DataPart -> Either EncodingError Text
 
--- | Decode a Bech32 string into a human-readable string and data payload.
-decode :: ByteString -> Either DecodingError (HumanReadablePart, ByteString)
+-- | Decode a Bech32 string into a human-readable part and data part.
+decode :: Text -> Either DecodingError (HumanReadablePart, DataPart)
+
+-- | Represents the data part of a Bech32 string, as defined here:
+--   <a>https://git.io/fj8FS</a>
+data DataPart
+
+-- | Constructs a <a>DataPart</a> from a <a>ByteString</a>.
+--   
+--   This function encodes a <a>ByteString</a> in such a way that
+--   guarantees it can be successfully decoded with the
+--   <a>dataPartToBytes</a> function:
+--   
+--   <pre>
+--   dataPartToBytes (dataPartFromBytes b) == Just b
+--   </pre>
+dataPartFromBytes :: ByteString -> DataPart
+
+-- | Constructs a <a>DataPart</a> from textual input. All characters in the
+--   input must be a member of <a>charset</a>, the Bech32 character set.
+--   
+--   Returns <a>Nothing</a> if any character in the input is not a member
+--   of the Bech32 character set.
+--   
+--   This function guarantees to satisfy the following property:
+--   
+--   <pre>
+--   dataPartFromText (dataPartToText d) == Just d
+--   </pre>
+dataPartFromText :: Text -> Maybe DataPart
+
+-- | Attempts to extract a <a>ByteString</a> from a <a>DataPart</a>.
+--   
+--   This function guarantees to satisfy the following property:
+--   
+--   <pre>
+--   dataPartToBytes (dataPartFromBytes b) == Just b
+--   </pre>
+dataPartToBytes :: DataPart -> Maybe ByteString
+
+-- | Converts a <a>DataPart</a> to <a>Text</a>, using the Bech32 character
+--   set to render the data.
+--   
+--   This function guarantees to satisfy the following property:
+--   
+--   <pre>
+--   dataPartFromText (dataPartToText d) == Just d
+--   </pre>
+dataPartToText :: DataPart -> Text
 
 -- | Represents the human-readable part of a Bech32 string, as defined
 --   here: <a>https://git.io/fj8FS</a>
@@ -163,7 +285,7 @@ data HumanReadablePart
 
 -- | Parses the human-readable part of a Bech32 string, as defined here:
 --   <a>https://git.io/fj8FS</a>
-mkHumanReadablePart :: ByteString -> Either HumanReadablePartError HumanReadablePart
+humanReadablePartFromText :: Text -> Either HumanReadablePartError HumanReadablePart
 
--- | Get the raw bytes of the human-readable part of a Bech32 string.
-humanReadablePartToBytes :: HumanReadablePart -> ByteString
+-- | Get the raw text of the human-readable part of a Bech32 string.
+humanReadablePartToText :: HumanReadablePart -> Text
