@@ -1,4 +1,6 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -26,17 +28,28 @@ module Codec.Binary.Bech32.Internal
     , checksumLength
     , encodedStringMaxLength
     , encodedStringMinLength
+    , separatorChar
     , separatorLength
 
-      -- * Human-Readable Parts
+      -- * Data Part
+    , DataPart
+    , dataPartFromBytes
+    , dataPartFromText
+    , dataPartFromWords
+    , dataPartToBytes
+    , dataPartToText
+    , dataPartToWords
+
+      -- * Human-Readable Part
     , HumanReadablePart
     , HumanReadablePartError (..)
-    , mkHumanReadablePart
-    , humanReadablePartToBytes
-    , humanReadableCharsetMinBound
-    , humanReadableCharsetMaxBound
+    , humanReadablePartFromText
+    , humanReadablePartToText
+    , humanReadablePartToWords
     , humanReadablePartMinLength
     , humanReadablePartMaxLength
+    , humanReadableCharsetMinBound
+    , humanReadableCharsetMaxBound
 
       -- * Bit Manipulation
     , convertBits
@@ -53,6 +66,7 @@ module Codec.Binary.Bech32.Internal
     , charset
     , charToWord5
     , word5ToChar
+    , splitAtLastOccurrence
 
     ) where
 
@@ -69,7 +83,7 @@ import Data.Bits
 import Data.ByteString
     ( ByteString )
 import Data.Char
-    ( ord, toLower, toUpper )
+    ( chr, ord, toLower, toUpper )
 import Data.Either.Extra
     ( maybeToEither )
 import Data.Foldable
@@ -81,39 +95,112 @@ import Data.Ix
 import Data.List
     ( sort )
 import Data.Maybe
-    ( isNothing )
+    ( isNothing, mapMaybe )
+import Data.Text
+    ( Text )
 import Data.Word
     ( Word8 )
 
 import qualified Data.Array as Arr
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as B8
+import qualified Data.Text as T
 
 {-------------------------------------------------------------------------------
-                          Human Readable Parts
+                                 Data Part
+-------------------------------------------------------------------------------}
+
+-- | Represents the data part of a Bech32 string, as defined here:
+--   https://git.io/fj8FS
+newtype DataPart = DataPart Text
+    deriving newtype (Eq, Monoid, Semigroup)
+    deriving stock Show
+
+-- | Constructs a 'DataPart' from a 'ByteString'.
+--
+-- This function encodes a 'ByteString' in such a way that guarantees it can be
+-- successfully decoded with the 'dataPartToBytes' function:
+--
+-- > dataPartToBytes (dataPartFromBytes b) == Just b
+--
+dataPartFromBytes :: ByteString -> DataPart
+dataPartFromBytes =
+    DataPart . T.pack . fmap (word5ToChar Arr.!) . toBase32 . BS.unpack
+
+-- | Attempts to extract a 'ByteString' from a 'DataPart'.
+--
+-- This function guarantees to satisfy the following property:
+--
+-- > dataPartToBytes (dataPartFromBytes b) == Just b
+--
+dataPartToBytes :: DataPart -> Maybe ByteString
+dataPartToBytes dp = BS.pack <$>
+    (toBase256 =<< traverse charToWord5 (T.unpack $ dataPartToText dp))
+
+-- | Constructs a 'DataPart' from textual input. All characters in the input
+--   must be a member of 'charset', the Bech32 character set.
+--
+-- Returns 'Nothing' if any character in the input is not a member of the Bech32
+-- character set.
+--
+-- This function guarantees to satisfy the following property:
+--
+-- > dataPartFromText (dataPartToText d) == Just d
+--
+dataPartFromText :: Text -> Maybe DataPart
+dataPartFromText t
+    | T.any (isNothing . charToWord5) t = Nothing
+    | otherwise = pure $ DataPart $ T.toLower t
+
+-- | Converts a 'DataPart' to 'Text', using the Bech32 character set to render
+--   the data.
+--
+-- This function guarantees to satisfy the following property:
+--
+-- > dataPartFromText (dataPartToText d) == Just d
+--
+dataPartToText :: DataPart -> Text
+dataPartToText (DataPart t) = t
+
+-- | Construct a 'DataPart' directly from words.
+--
+-- This function guarantees to satisfy the following properties:
+--
+-- > dataPartFromWords (dataPartToWords d) == d
+-- > dataPartToWords (dataPartFromWords w) == w
+--
+dataPartFromWords :: [Word5] -> DataPart
+dataPartFromWords = DataPart . T.pack . fmap (word5ToChar Arr.!)
+
+-- | Convert a 'DataPart' into words.
+--
+dataPartToWords :: DataPart -> [Word5]
+dataPartToWords = mapMaybe charToWord5 . T.unpack . dataPartToText
+
+{-------------------------------------------------------------------------------
+                            Human Readable Part
 -------------------------------------------------------------------------------}
 
 -- | Represents the human-readable part of a Bech32 string, as defined here:
 --   https://git.io/fj8FS
-newtype HumanReadablePart = HumanReadablePart ByteString
-    deriving (Show, Eq)
+newtype HumanReadablePart = HumanReadablePart Text
+    deriving (Eq, Show)
 
 -- | Parses the human-readable part of a Bech32 string, as defined here:
 --   https://git.io/fj8FS
-mkHumanReadablePart
-    :: ByteString -> Either HumanReadablePartError HumanReadablePart
-mkHumanReadablePart hrp
-    | BS.length hrp < humanReadablePartMinLength =
+humanReadablePartFromText
+    :: Text -> Either HumanReadablePartError HumanReadablePart
+humanReadablePartFromText hrp
+    | T.length hrp < humanReadablePartMinLength =
         Left HumanReadablePartTooShort
-    | BS.length hrp > humanReadablePartMaxLength =
+    | T.length hrp > humanReadablePartMaxLength =
         Left HumanReadablePartTooLong
     | not (null invalidCharPositions) =
         Left $ HumanReadablePartContainsInvalidChars invalidCharPositions
     | otherwise =
-        Right $ HumanReadablePart hrp
+        Right $ HumanReadablePart $ T.toLower hrp
   where
     invalidCharPositions = CharPosition . fst <$>
-        filter ((not . valid) . snd) ([0 .. ] `zip` BS.unpack hrp)
+        filter ((not . valid) . snd) ([0 .. ] `zip` T.unpack hrp)
     valid c =
         c >= humanReadableCharsetMinBound &&
         c <= humanReadableCharsetMaxBound
@@ -128,17 +215,23 @@ data HumanReadablePartError
 
 -- | The lower bound of the set of characters permitted to appear within the
 --   human-readable part of a Bech32 string.
-humanReadableCharsetMinBound :: Word8
-humanReadableCharsetMinBound = 33
+humanReadableCharsetMinBound :: Char
+humanReadableCharsetMinBound = chr 33
 
 -- | The upper bound of the set of characters permitted to appear within the
 --   human-readable part of a Bech32 string.
-humanReadableCharsetMaxBound :: Word8
-humanReadableCharsetMaxBound = 126
+humanReadableCharsetMaxBound :: Char
+humanReadableCharsetMaxBound = chr 126
 
--- | Get the raw bytes of the human-readable part of a Bech32 string.
-humanReadablePartToBytes :: HumanReadablePart -> ByteString
-humanReadablePartToBytes (HumanReadablePart bytes) = bytes
+-- | Get the raw text of the human-readable part of a Bech32 string.
+humanReadablePartToText :: HumanReadablePart -> Text
+humanReadablePartToText (HumanReadablePart t) = t
+
+humanReadablePartToWords :: HumanReadablePart -> [Word5]
+humanReadablePartToWords (HumanReadablePart hrp) =
+    map (Word5 . (.>>. 5)) (fromIntegral . ord <$> T.unpack hrp)
+        ++ [Word5 0]
+        ++ map word5 (ord <$> T.unpack hrp)
 
 -- | The shortest length permitted for the human-readable part of a Bech32
 --   string.
@@ -155,43 +248,43 @@ humanReadablePartMaxLength = 83
 -------------------------------------------------------------------------------}
 
 -- | Encode a human-readable string and data payload into a Bech32 string.
-encode :: HumanReadablePart -> ByteString -> Either EncodingError ByteString
-encode hrp@(HumanReadablePart hrpBytes) payload = do
-    let payload5 = toBase32 (BS.unpack payload)
-    let payload' = payload5 ++ bech32CreateChecksum hrp payload5
-    let rest = map (word5ToChar Arr.!) payload'
-    let output = B8.map toLower hrpBytes <> B8.pack "1" <> B8.pack rest
-    guardE (BS.length output <= encodedStringMaxLength) EncodedStringTooLong
-    return output
+encode :: HumanReadablePart -> DataPart -> Either EncodingError Text
+encode hrp dp
+    | T.length result > encodedStringMaxLength = Left EncodedStringTooLong
+    | otherwise = pure result
+  where
+    result = humanReadablePartToText hrp
+        <> T.singleton separatorChar
+        <> T.pack dcp
+    dcp = (word5ToChar Arr.!) <$> dataPartToWords dp <> createChecksum hrp dp
 
 -- | Represents the set of error conditions that may occur while encoding a
 --   Bech32 string.
 data EncodingError = EncodedStringTooLong
     deriving (Eq, Show)
 
--- | Decode a Bech32 string into a human-readable string and data payload.
-decode :: ByteString -> Either DecodingError (HumanReadablePart, ByteString)
+-- | Decode a Bech32 string into a human-readable part and data part.
+decode :: Text -> Either DecodingError (HumanReadablePart, DataPart)
 decode bech32 = do
 
-    guardE (BS.length bech32 <= encodedStringMaxLength) StringToDecodeTooLong
-    guardE (BS.length bech32 >= encodedStringMinLength) StringToDecodeTooShort
-    guardE (B8.map toUpper bech32 == bech32 || B8.map toLower bech32 == bech32)
+    guardE (T.length bech32 <= encodedStringMaxLength) StringToDecodeTooLong
+    guardE (T.length bech32 >= encodedStringMinLength) StringToDecodeTooShort
+    guardE (T.map toUpper bech32 == bech32 || T.map toLower bech32 == bech32)
         StringToDecodeHasMixedCase
     (hrpUnparsed, dcpUnparsed) <-
         maybeToEither StringToDecodeMissingSeparatorChar $
-            splitAtLastOccurrence separatorChar $ B8.map toLower bech32
-    hrp <- first humanReadablePartError $ mkHumanReadablePart hrpUnparsed
+            splitAtLastOccurrence separatorChar $ T.map toLower bech32
+    hrp <- first humanReadablePartError $ humanReadablePartFromText hrpUnparsed
     dcp <- first
         (StringToDecodeContainsInvalidChars . fmap
             (\(CharPosition p) ->
-                CharPosition $ p + BS.length hrpUnparsed + separatorLength))
+                CharPosition $ p + T.length hrpUnparsed + separatorLength))
         (parseDataWithChecksumPart dcpUnparsed)
     guardE (length dcp >= checksumLength) StringToDecodeTooShort
-    guardE (bech32VerifyChecksum hrp dcp) $
+    guardE (verifyChecksum hrp dcp) $
         StringToDecodeContainsInvalidChars $ findErrorPositions hrp dcp
-    dp <- maybeToEither (StringToDecodeContainsInvalidChars []) $
-        toBase256 (take (length dcp - checksumLength) dcp)
-    return (hrp, BS.pack dp)
+    let dp = dataPartFromWords $ take (length dcp - checksumLength) dcp
+    return (hrp, dp)
 
   where
 
@@ -202,26 +295,26 @@ decode bech32 = do
         | residue == 0 = []
         | otherwise = sort $ toCharPosition <$> errorPositionsIgnoringSeparator
       where
-        residue = bech32Polymod (bech32HRPExpand hrp ++ dcp) `xor` 1
+        residue = polymod (humanReadablePartToWords hrp ++ dcp) `xor` 1
         toCharPosition i
-            | i < BS.length (humanReadablePartToBytes hrp) = CharPosition i
+            | i < T.length (humanReadablePartToText hrp) = CharPosition i
             | otherwise = CharPosition $ i + separatorLength
         errorPositionsIgnoringSeparator =
-            (BS.length bech32 - separatorLength - 1 - ) <$>
-                locateErrors (fromIntegral residue) (BS.length bech32 - 1)
+            (T.length bech32 - separatorLength - 1 - ) <$>
+                locateErrors (fromIntegral residue) (T.length bech32 - 1)
 
 -- | Parse a data-with-checksum part, checking that each character is part
 -- of the supported character set. If one or more characters are not in the
 -- supported character set, return the list of illegal character positions.
-parseDataWithChecksumPart :: ByteString -> Either [CharPosition] [Word5]
+parseDataWithChecksumPart :: Text -> Either [CharPosition] [Word5]
 parseDataWithChecksumPart dcpUnparsed =
-    case mapM charToWord5 $ B8.unpack dcpUnparsed of
+    case mapM charToWord5 $ T.unpack dcpUnparsed of
         Nothing -> Left invalidCharPositions
         Just dcp -> Right dcp
   where
     invalidCharPositions =
         CharPosition . fst <$> filter (isNothing . snd)
-            ([0 .. ] `zip` (charToWord5 <$> B8.unpack dcpUnparsed))
+            ([0 .. ] `zip` (charToWord5 <$> T.unpack dcpUnparsed))
 
 -- | Convert an error encountered while parsing a human-readable part into a
 -- general decoding error.
@@ -253,8 +346,8 @@ data DecodingError
 
 -- | The separator character. This character appears immediately after the
 -- human-readable part and before the data part.
-separatorChar :: Word8
-separatorChar = fromIntegral $ ord '1'
+separatorChar :: Char
+separatorChar = '1'
 
 -- | The length of the checksum portion of an encoded string, in bytes.
 checksumLength :: Int
@@ -341,8 +434,8 @@ fromWord5 (Word5 x) = fromIntegral x
 {-# INLINE fromWord5 #-}
 {-# SPECIALIZE INLINE fromWord5 :: Word5 -> Word8 #-}
 
-bech32Polymod :: [Word5] -> Word
-bech32Polymod values = foldl' go 1 values .&. 0x3fffffff
+polymod :: [Word5] -> Word
+polymod values = foldl' go 1 values .&. 0x3fffffff
   where
     go chk value =
         foldl' xor chk' [g | (g, i) <- zip generator [25 ..], testBit chk i]
@@ -355,21 +448,15 @@ bech32Polymod values = foldl' go 1 values .&. 0x3fffffff
             , 0x3d4233dd
             , 0x2a1462b3 ]
 
-bech32HRPExpand :: HumanReadablePart -> [Word5]
-bech32HRPExpand (HumanReadablePart hrp) =
-    map (Word5 . (.>>. 5)) (BS.unpack hrp)
-    ++ [Word5 0]
-    ++ map word5 (BS.unpack hrp)
-
-bech32CreateChecksum :: HumanReadablePart -> [Word5] -> [Word5]
-bech32CreateChecksum hrp dat = [word5 (polymod .>>. i) | i <- [25, 20 .. 0]]
+createChecksum :: HumanReadablePart -> DataPart -> [Word5]
+createChecksum hrp dat = [word5 (polymod' .>>. i) | i <- [25, 20 .. 0]]
   where
-    values = bech32HRPExpand hrp ++ dat
-    polymod =
-        bech32Polymod (values ++ map Word5 [0, 0, 0, 0, 0, 0]) `xor` 1
+    values = humanReadablePartToWords hrp ++ dataPartToWords dat
+    polymod' =
+        polymod (values ++ map Word5 [0, 0, 0, 0, 0, 0]) `xor` 1
 
-bech32VerifyChecksum :: HumanReadablePart -> [Word5] -> Bool
-bech32VerifyChecksum hrp dat = bech32Polymod (bech32HRPExpand hrp ++ dat) == 1
+verifyChecksum :: HumanReadablePart -> [Word5] -> Bool
+verifyChecksum hrp dat = polymod (humanReadablePartToWords hrp ++ dat) == 1
 
 type Pad f = Int -> Int -> Word -> [[Word]] -> f [[Word]]
 
@@ -670,10 +757,14 @@ locateErrors residue len
 guardE :: Bool -> e -> Either e ()
 guardE b e = if b then Right () else Left e
 
--- | Splits the given 'ByteString' into a prefix and a suffix using the last
+-- | Splits the given 'Text' into a prefix and a suffix using the last
 -- occurrence of the specified separator character as a splitting point.
 -- Evaluates to 'Nothing' if the 'ByteString` does not contain the separator
 -- character.
-splitAtLastOccurrence :: Word8 -> ByteString -> Maybe (ByteString, ByteString)
-splitAtLastOccurrence w s =
-    (\i -> (BS.take i s, BS.drop (i + 1) s)) <$> BS.elemIndexEnd w s
+splitAtLastOccurrence :: Char -> Text -> Maybe (Text, Text)
+splitAtLastOccurrence c s
+    | isNothing (T.find (== c) s) = Nothing
+    | otherwise = pure (prefix, suffix)
+  where
+    (prefixPlusOne, suffix) = T.breakOnEnd (T.pack [c]) s
+    prefix = T.dropEnd 1 prefixPlusOne

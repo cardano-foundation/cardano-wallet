@@ -11,19 +11,23 @@ import Prelude
 
 import Codec.Binary.Bech32.Internal
     ( CharPosition (..)
+    , DataPart
     , DecodingError (..)
     , HumanReadablePart
-    , humanReadablePartToBytes
-    , mkHumanReadablePart
+    , dataPartFromWords
+    , dataPartToWords
+    , humanReadablePartFromText
+    , humanReadablePartToText
+    , separatorChar
     )
 import Control.Monad
-    ( forM_ )
+    ( forM_, replicateM )
 import Data.Bits
     ( xor, (.&.) )
 import Data.ByteString
     ( ByteString )
 import Data.Char
-    ( toLower, toUpper )
+    ( chr, ord, toLower, toUpper )
 import Data.Either
     ( fromRight, isLeft, isRight )
 import Data.Either.Extra
@@ -32,6 +36,8 @@ import Data.Functor.Identity
     ( runIdentity )
 import Data.Maybe
     ( catMaybes, fromMaybe, isJust )
+import Data.Text
+    ( Text )
 import Data.Word
     ( Word8 )
 import Test.Hspec
@@ -53,46 +59,55 @@ import Test.QuickCheck
 import qualified Codec.Binary.Bech32.Internal as Bech32
 import qualified Data.Array as Arr
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as B8
+import qualified Data.Text as T
 
 spec :: Spec
 spec = do
+    describe "Valid Reference Strings" $
+        it "should always decode successfully" $
+            forM_ validBech32Strings $ \s ->
+                Bech32.decode s `shouldSatisfy` isRight
+
     describe "Valid Checksums" $ forM_ validChecksums $ \checksum ->
-        it (B8.unpack checksum) $ case Bech32.decode checksum of
+        it (T.unpack checksum) $ case Bech32.decode checksum of
             Left _ ->
                 expectationFailure (show checksum)
             Right (resultHRP, resultData) -> do
                 -- test that a corrupted checksum fails decoding.
-                let (hrp, rest) = B8.breakEnd (== '1') checksum
-                let Just (first, rest') = BS.uncons rest
+                let (hrp, rest) =
+                        T.breakOnEnd (T.singleton separatorChar) checksum
+                let Just (first, rest') = T.uncons rest
                 let checksumCorrupted =
-                        (hrp `BS.snoc` (first `xor` 1)) `BS.append` rest'
+                        (hrp `T.snoc` (chr (ord first `xor` 1)))
+                        `T.append` rest'
                 (Bech32.decode checksumCorrupted) `shouldSatisfy` isLeft
                 -- test that re-encoding the decoded checksum results in
                 -- the same checksum.
                 let checksumEncoded = Bech32.encode resultHRP resultData
-                let expectedChecksum = Right $ B8.map toLower checksum
+                let expectedChecksum = Right $ T.map toLower checksum
                 checksumEncoded `shouldBe` expectedChecksum
 
-    describe "Invalid Checksums" $ forM_ invalidChecksums $ \(checksum, expect) ->
-        it (B8.unpack checksum) $
-            Bech32.decode checksum `shouldBe` (Left expect)
+    describe "Invalid Checksums" $ forM_ invalidChecksums $
+        \(checksum, expect) ->
+            it (T.unpack checksum) $
+                Bech32.decode checksum `shouldBe` (Left expect)
 
     describe "More Encoding/Decoding Cases" $ do
         it "length > maximum" $ do
             let hrpUnpacked = "ca"
             let hrpLength = length hrpUnpacked
-            let (Right hrp) = mkHumanReadablePart (B8.pack hrpUnpacked)
+            let (Right hrp) = humanReadablePartFromText (T.pack hrpUnpacked)
             let maxDataLength =
                     Bech32.encodedStringMaxLength
                     - Bech32.checksumLength - Bech32.separatorLength - hrpLength
-            Bech32.encode hrp (BS.pack (replicate (maxDataLength + 1) 1))
+            Bech32.encode hrp
+                (dataPartFromWords (replicate (maxDataLength + 1)
+                    $ Bech32.word5 @Word8 1))
                 `shouldBe` Left Bech32.EncodedStringTooLong
 
         it "hrp lowercased" $ do
-            let (Right hrp) = mkHumanReadablePart (B8.pack "HRP")
-            Bech32.encode hrp mempty
-                `shouldBe` Right (B8.pack "hrp1g9xj8m")
+            let (Right hrp) = humanReadablePartFromText "HRP"
+            Bech32.encode hrp mempty `shouldBe` Right "hrp1vhqs52"
 
     describe "Arbitrary ValidBech32String" $
 
@@ -106,14 +121,14 @@ spec = do
         it "Decoding fails when an adjacent pair of characters is swapped." $
             property $ \s -> do
                 let validString = getValidBech32String s
-                index <- choose (0, BS.length validString - 2)
-                let prefix = BS.take index validString
-                let suffix = BS.drop (index + 2) validString
-                let char0 = BS.singleton (BS.index validString index)
-                let char1 = BS.singleton (BS.index validString $ index + 1)
+                index <- choose (0, T.length validString - 2)
+                let prefix = T.take index validString
+                let suffix = T.drop (index + 2) validString
+                let char0 = T.singleton (T.index validString index)
+                let char1 = T.singleton (T.index validString $ index + 1)
                 let recombinedString = prefix <> char1 <> char0 <> suffix
                 return $
-                    (BS.length recombinedString ===  BS.length validString)
+                    (T.length recombinedString === T.length validString)
                     .&&.
                     (Bech32.decode recombinedString `shouldSatisfy`
                         (if char0 == char1 then isRight else isLeft))
@@ -121,12 +136,12 @@ spec = do
         it "Decoding fails when a character is omitted." $
             property $ \s -> do
                 let validString = getValidBech32String s
-                index <- choose (0, BS.length validString - 1)
-                let prefix = BS.take index validString
-                let suffix = BS.drop (index + 1) validString
+                index <- choose (0, T.length validString - 1)
+                let prefix = T.take index validString
+                let suffix = T.drop (index + 1) validString
                 let recombinedString = prefix <> suffix
                 return $
-                    (BS.length recombinedString === BS.length validString - 1)
+                    (T.length recombinedString === T.length validString - 1)
                     .&&.
                     (Bech32.decode recombinedString `shouldSatisfy` isLeft)
 
@@ -134,13 +149,13 @@ spec = do
             property $ \s c -> do
                 let validString = getValidBech32String s
                 let validChar = getValidBech32Char c
-                index <- choose (0, BS.length validString - 1)
-                let prefix = BS.take index validString
-                let suffix = BS.drop index validString
+                index <- choose (0, T.length validString - 1)
+                let prefix = T.take index validString
+                let suffix = T.drop index validString
                 let recombinedString =
-                        prefix <> B8.singleton validChar <> suffix
+                        prefix <> T.singleton validChar <> suffix
                 return $
-                    (BS.length recombinedString === BS.length validString + 1)
+                    (T.length recombinedString === T.length validString + 1)
                     .&&.
                     (Bech32.decode recombinedString `shouldSatisfy` isLeft)
 
@@ -148,17 +163,17 @@ spec = do
            property $ \s c -> do
                 let validString = getValidBech32String s
                 let validChar = getValidBech32Char c
-                let separatorIndex = BS.length $
-                        Bech32.humanReadablePartToBytes $ humanReadablePart s
-                index <- choose (0, BS.length validString - 1)
-                let prefix = BS.take index validString
-                let suffix = BS.drop (index + 1) validString
+                let separatorIndex = T.length $
+                        Bech32.humanReadablePartToText $ humanReadablePart s
+                index <- choose (0, T.length validString - 1)
+                let prefix = T.take index validString
+                let suffix = T.drop (index + 1) validString
                 let recombinedString =
-                        prefix <> B8.singleton validChar <> suffix
+                        prefix <> T.singleton validChar <> suffix
                 return $
                     index /= separatorIndex ==>
                     recombinedString /= validString ==>
-                    BS.length recombinedString == BS.length validString ==> (
+                    T.length recombinedString == T.length validString ==> (
                         -- error location detection is best effort:
                         (Bech32.decode recombinedString `shouldBe`
                             Left (StringToDecodeContainsInvalidChars
@@ -172,17 +187,17 @@ spec = do
            \character." $
             property $ \s -> do
                 let validString = getValidBech32String s
-                index <- choose (0, BS.length validString - 1)
-                let prefix = B8.map toUpper $ BS.take index validString
-                let suffix = B8.map toUpper $ BS.drop (index + 1) validString
-                let char = B8.singleton $ toLower $ B8.index validString index
+                index <- choose (0, T.length validString - 1)
+                let prefix = T.map toUpper $ T.take index validString
+                let suffix = T.map toUpper $ T.drop (index + 1) validString
+                let char = T.singleton $ toLower $ T.index validString index
                 let recombinedString = prefix <> char <> suffix
                 return $ counterexample
                     (show validString <> " : " <> show recombinedString) $
-                    (BS.length recombinedString === BS.length validString)
+                    (T.length recombinedString === T.length validString)
                     .&&.
                     (Bech32.decode recombinedString `shouldSatisfy`
-                        (if B8.map toUpper validString == recombinedString
+                        (if T.map toUpper validString == recombinedString
                             then isRight
                             else isLeft))
 
@@ -190,24 +205,45 @@ spec = do
            \character." $
             property $ \s -> do
                 let validString = getValidBech32String s
-                index <- choose (0, BS.length validString - 1)
-                let prefix = B8.map toLower $ BS.take index validString
-                let suffix = B8.map toLower $ BS.drop (index + 1) validString
-                let char = B8.singleton $ toUpper $ B8.index validString index
+                index <- choose (0, T.length validString - 1)
+                let prefix = T.map toLower $ T.take index validString
+                let suffix = T.map toLower $ T.drop (index + 1) validString
+                let char = T.singleton $ toUpper $ T.index validString index
                 let recombinedString = prefix <> char <> suffix
                 return $ counterexample
                     (show validString <> " : " <> show recombinedString) $
-                    (BS.length recombinedString === BS.length validString)
+                    (T.length recombinedString === T.length validString)
                     .&&.
                     (Bech32.decode recombinedString `shouldSatisfy`
-                        (if B8.map toLower validString == recombinedString
+                        (if T.map toLower validString == recombinedString
                             then isRight
                             else isLeft))
 
     describe "Roundtrip (encode . decode)" $ do
-        it "Can perform roundtrip for valid data" $ property $ \(hrp, bytes) ->
-            (eitherToMaybe (Bech32.encode hrp bytes)
-                >>= eitherToMaybe . Bech32.decode) === Just (hrp, bytes)
+        it "Can perform roundtrip for valid data" $ property $ \(hrp, dp) ->
+            (eitherToMaybe (Bech32.encode hrp dp)
+                >>= eitherToMaybe . Bech32.decode) === Just (hrp, dp)
+
+    describe "Roundtrip (dataPartToBytes . dataPartFromBytes)" $ do
+        it "Can perform roundtrip base conversion" $ property $ \bs ->
+            (Bech32.dataPartToBytes . Bech32.dataPartFromBytes) bs === Just bs
+
+    describe "Roundtrip (dataPartFromText . dataPartToText)" $ do
+        it "Can perform roundtrip conversion" $ property $ \dp ->
+            (Bech32.dataPartFromText . Bech32.dataPartToText) dp === Just dp
+
+    describe "Roundtrip (dataPartFromWords . dataPartToWords)" $ do
+        it "Can perform roundtrip conversion" $ property $ \dp ->
+            (Bech32.dataPartFromWords . Bech32.dataPartToWords) dp === dp
+
+    describe "Roundtrip (dataPartToWords . dataPartFromWords)" $ do
+        it "Can perform roundtrip conversion" $ property $ \ws ->
+            (Bech32.dataPartToWords . Bech32.dataPartFromWords) ws === ws
+
+    describe "Roundtrip (humanReadablePartFromText . humanReadablePartToText)" $
+        it "Can perform roundtrip conversion" $ property $ \hrp ->
+            (Bech32.humanReadablePartFromText . Bech32.humanReadablePartToText)
+                hrp === Right hrp
 
     describe "Roundtrip (toBase256 . toBase32)" $ do
         it "Can perform roundtrip base conversion" $ property $ \ws ->
@@ -260,10 +296,32 @@ spec = do
                     (outputWordsSuffix `shouldSatisfy` all (== 0))
 
     describe "Pointless test to trigger coverage on derived instances" $ do
-        it (show $ mkHumanReadablePart $ B8.pack "ca") True
+        it (show $ humanReadablePartFromText $ T.pack "ca") True
 
-validChecksums :: [ByteString]
-validChecksums = map B8.pack
+-- Taken from the BIP 0173 specification: https://git.io/fjBIN
+validBech32Strings :: [Text]
+validBech32Strings =
+    [ "A12UEL5L"
+    , "a12uel5l"
+    , "an83characterlonghumanreadablepartthatcontainsthenumber1andtheexcluded\
+      \charactersbio1tt5tgs"
+    , "abcdef1qpzry9x8gf2tvdw0s3jn54khce6mua7lmqqqxw"
+    , "11qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq\
+      \qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqc8247j"
+    , "split1checkupstagehandshakeupstreamerranterredcaperred2y9e3w"
+    , "?1ezyfcl"
+    , "BC1SW50QA3JX3S"
+    , "bc1zw508d6qejxtdg4y5r3zarvaryvg6kdaj"
+    , "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"
+    , "BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4"
+    , "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7"
+    , "tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy"
+    , "bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0\
+      \c5xw7k7grplx"
+    ]
+
+validChecksums :: [Text]
+validChecksums =
     [ "A12UEL5L"
     , "an83characterlonghumanreadablepartthatcontain\
       \sthenumber1andtheexcludedcharactersbio1tt5tgs"
@@ -273,7 +331,7 @@ validChecksums = map B8.pack
     , "split1checkupstagehandshakeupstreamerranterredcaperred2y9e3w"
     ]
 
-invalidChecksums :: [(ByteString, Bech32.DecodingError)]
+invalidChecksums :: [(Text, Bech32.DecodingError)]
 invalidChecksums =
     [ ( " 1nwldj5"
       , Bech32.StringToDecodeContainsInvalidChars [Bech32.CharPosition 0] )
@@ -314,12 +372,12 @@ instance Arbitrary ValidBech32Char where
                 (Bech32.charToWord5 c))
 
 data ValidBech32String = ValidBech32String
-    { getValidBech32String :: ByteString
+    { getValidBech32String :: Text
     , humanReadablePart :: HumanReadablePart
-    , unencodedDataPart :: ByteString
+    , unencodedDataPart :: DataPart
     } deriving (Eq, Show)
 
-mkValidBech32String :: HumanReadablePart -> ByteString -> ValidBech32String
+mkValidBech32String :: HumanReadablePart -> DataPart -> ValidBech32String
 mkValidBech32String hrp udp =
     ValidBech32String
         (fromRight (error "unable to make a valid Bech32 string.") $
@@ -338,16 +396,28 @@ instance Arbitrary ValidBech32String where
             , (hrpShrunk, udpOriginal)
             , (hrpOriginal, udpShrunk) ]
 
+instance Arbitrary DataPart where
+    arbitrary = do
+        len <- choose (0, 64)
+        dataPartFromWords <$> replicateM len arbitrary
+    shrink dp
+        | null ws = []
+        | otherwise = dataPartFromWords <$>
+            [ take (length ws `div` 2) ws
+            , drop 1 ws
+            ]
+      where
+        ws = dataPartToWords dp
+
 instance Arbitrary HumanReadablePart where
     shrink hrp = catMaybes $ eitherToMaybe .
-        mkHumanReadablePart <$> shrink (humanReadablePartToBytes hrp)
+        humanReadablePartFromText <$> shrink (humanReadablePartToText hrp)
     arbitrary = do
         let range =
                 ( Bech32.humanReadableCharsetMinBound
                 , Bech32.humanReadableCharsetMaxBound )
-        bytes <-
-            choose (1, 10) >>= \n -> vectorOf n (choose range)
-        let (Right hrp) = mkHumanReadablePart (B8.map toLower $ BS.pack bytes)
+        chars <- choose (1, 10) >>= \n -> vectorOf n (choose range)
+        let (Right hrp) = humanReadablePartFromText $ T.pack chars
         return hrp
 
 instance Arbitrary ByteString where
@@ -357,8 +427,18 @@ instance Arbitrary ByteString where
         , BS.drop 1 bytes
         ]
     arbitrary = do
-        bytes <- choose (0, 10) >>= \n -> vectorOf n (elements Bech32.charset)
-        return (B8.pack bytes)
+        count <- choose (0, 32)
+        BS.pack <$> replicateM count arbitrary
+
+instance Arbitrary Text where
+    shrink chars | T.null chars = []
+    shrink chars =
+        [ T.take (T.length chars `div` 2) chars
+        , T.drop 1 chars
+        ]
+    arbitrary = do
+        chars <- choose (0, 32) >>= \n -> vectorOf n (elements Bech32.charset)
+        return (T.pack chars)
 
 instance Arbitrary Bech32.Word5 where
     arbitrary = Bech32.word5 @Word8 <$> arbitrary

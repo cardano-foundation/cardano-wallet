@@ -33,6 +33,7 @@ library
     , base
     , bytestring
     , extra
+    , text
   hs-source-dirs:
       src
   exposed-modules:
@@ -61,6 +62,7 @@ test-suite bech32-test
     , hspec
     , bytestring
     , QuickCheck
+    , text
   main-is:
       Main.hs
   other-modules:
