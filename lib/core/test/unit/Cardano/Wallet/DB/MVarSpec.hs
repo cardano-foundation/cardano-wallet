@@ -17,11 +17,9 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.MVar
     ( newDBLayer )
 import Cardano.Wallet.DBSpec
-    ( dbPropertyTests, withDB )
+    ( DummyTarget, dbPropertyTests, withDB )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..), SeqState (..) )
-import Cardano.Wallet.Primitive.AddressDiscoverySpec
-    ( DummyTarget )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet )
 import Control.DeepSeq

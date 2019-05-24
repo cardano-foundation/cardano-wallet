@@ -13,7 +13,6 @@
 
 module Cardano.Wallet.Primitive.AddressDiscoverySpec
     ( spec
-    , DummyTarget
     ) where
 
 import Prelude

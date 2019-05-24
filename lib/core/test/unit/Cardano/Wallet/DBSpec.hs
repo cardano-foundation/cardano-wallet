@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -5,6 +6,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -14,12 +16,13 @@ module Cardano.Wallet.DBSpec
     ( spec
     , dbPropertyTests
     , withDB
+    , DummyTarget
     ) where
 
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( unXPrv )
+    ( unXPrv, unXPub )
 import Cardano.Wallet
     ( unsafeRunExceptT )
 import Cardano.Wallet.DB
@@ -29,15 +32,37 @@ import Cardano.Wallet.DB
     , PrimaryKey (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Key, Passphrase (..), XPrv, generateKeyFromSeed )
+    ( ChangeChain (..)
+    , Depth (..)
+    , Key
+    , KeyToAddress (..)
+    , Passphrase (..)
+    , XPrv
+    , XPub
+    , deriveAddressPublicKey
+    , generateKeyFromSeed
+    , getKey
+    , publicKey
+    , unsafeGenerateKeyFromSeed
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs (..), SeqState (..) )
-import Cardano.Wallet.Primitive.AddressDiscoverySpec
-    ( DummyTarget )
+    ( AddressPool
+    , AddressPoolGap (..)
+    , IsOurs (..)
+    , SeqState (..)
+    , accountPubKey
+    , addresses
+    , changeChain
+    , emptyPendingIxs
+    , gap
+    , mkAddressPool
+    , mkAddressPoolGap
+    )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet )
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..)
+    ( Address (..)
+    , Coin (..)
     , Direction (..)
     , Hash (..)
     , SlotId (..)
@@ -73,6 +98,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Quantity
     ( Percentage, Quantity (..), mkPercentage )
+import Data.Typeable
+    ( Typeable )
 import Data.Word
     ( Word32 )
 import GHC.Generics
@@ -153,6 +180,18 @@ instance (Arbitrary k, Arbitrary v) => Arbitrary (KeyValPairs k v) where
         pairs <- choose (10, 50) >>= flip vectorOf arbitrary
         pure $ KeyValPairs pairs
 
+data DummyTarget
+
+instance KeyToAddress DummyTarget where
+    keyToAddress = Address . unXPub . getKey
+
+instance Eq (SeqState DummyTarget) where
+    _ == _ = True
+
+instance Arbitrary (Wallet (SeqState DummyTarget) DummyTarget) where
+    shrink _ = []
+    arbitrary = initWallet <$> arbitrary
+
 instance TxId DummyTarget where
     txId = Hash . B8.pack . show
 
@@ -163,6 +202,70 @@ instance Arbitrary (PrimaryKey WalletId) where
         return $ PrimaryKey $ WalletId $ hash bytes
 
 deriving instance Show (PrimaryKey WalletId)
+
+instance Arbitrary Address where
+    -- No Shrinking
+    arbitrary = oneof
+        [ pure $ Address "ADDR01"
+        , pure $ Address "ADDR02"
+        , pure $ Address "ADDR03"
+        , pure $ Address "ADDR04"
+        , pure $ Address "ADDR05"
+        , pure $ Address "ADDR06"
+        , pure $ Address "ADDR07"
+        , pure $ Address "ADDR08"
+        , pure $ Address "ADDR09"
+        , pure $ Address "ADDR10"
+        ]
+
+instance Arbitrary (SeqState DummyTarget) where
+    shrink (SeqState intPool extPool ixs) =
+        (\(i, e) -> SeqState i e ixs) <$> shrink (intPool, extPool)
+    arbitrary = do
+        intPool <- arbitrary
+        extPool <- arbitrary
+        return $ SeqState intPool extPool emptyPendingIxs
+
+instance Typeable chain => Arbitrary (AddressPool DummyTarget chain) where
+    shrink pool =
+        let
+            key = accountPubKey pool
+            g = gap pool
+            addrs = addresses pool
+        in case length addrs of
+            k | k == fromEnum g && g == minBound ->
+                []
+            k | k == fromEnum g && g > minBound ->
+                [ mkAddressPool key minBound [] ]
+            k ->
+                [ mkAddressPool key minBound []
+                , mkAddressPool key g []
+                , mkAddressPool key g (take (k - (fromEnum g `div` 5)) addrs)
+                ]
+    arbitrary = do
+        g <- unsafeMkAddressPoolGap <$> choose
+            (getAddressPoolGap minBound, 2 * getAddressPoolGap minBound)
+        n <- choose (0, 2 * fromEnum g)
+        let addrs = take n (ourAddresses (changeChain @chain))
+        return $ mkAddressPool ourAccount g addrs
+
+unsafeMkAddressPoolGap :: (Integral a, Show a) => a -> AddressPoolGap
+unsafeMkAddressPoolGap g = case (mkAddressPoolGap $ fromIntegral g) of
+    Right a -> a
+    Left _ -> error $ "unsafeMkAddressPoolGap: bad argument: " <> show g
+
+ourAccount
+    :: Key 'AccountK XPub
+ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
+  where
+    seed = Passphrase $ BA.convert $ BS.replicate 32 0
+
+ourAddresses
+    :: ChangeChain
+    -> [Address]
+ourAddresses cc =
+    keyToAddress @DummyTarget . deriveAddressPublicKey ourAccount cc
+        <$> [minBound..maxBound]
 
 instance Arbitrary (Hash "Tx") where
     shrink _ = []
@@ -630,10 +733,3 @@ cleanDB db = listWallets db >>= mapM_ (runExceptT . removeWallet db) >> pure db
 -- once, and cleared with 'cleanDB' before each test.
 withDB :: IO (DBLayer IO s t) -> SpecWith (DBLayer IO s t) -> Spec
 withDB create = beforeAll create . beforeWith cleanDB
-
-instance Arbitrary (Wallet (SeqState DummyTarget) DummyTarget) where
-    shrink _ = []
-    arbitrary = initWallet <$> arbitrary
-
-instance Eq (SeqState DummyTarget) where
-    _ == _ = True

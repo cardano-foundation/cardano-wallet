@@ -18,7 +18,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Sqlite
     ( newDBLayer )
 import Cardano.Wallet.DBSpec
-    ( dbPropertyTests, withDB )
+    ( DummyTarget, dbPropertyTests, withDB )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..)
     , encryptPassphrase
@@ -27,8 +27,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( SeqState (..), defaultAddressPoolGap, mkSeqState )
-import Cardano.Wallet.Primitive.AddressDiscoverySpec
-    ( DummyTarget )
 import Cardano.Wallet.Primitive.Mnemonic
     ( EntropySize, entropyToBytes, genEntropy )
 import Cardano.Wallet.Primitive.Model
