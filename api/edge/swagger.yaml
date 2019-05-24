@@ -611,9 +611,15 @@ responsesErr: &responsesErr
   type: object
   required:
     - message
+    - code
   properties:
     message:
       type: string
+      description: A descriptive error message.
+    code:
+      type: string
+      description: A specific error code for this error, more precise than HTTP ones.
+      example: an_error_code
 
 responsesErr400: &responsesErr400
   400:
@@ -757,7 +763,7 @@ responsesListAddresses: &responsesListAddresses
     description: Ok
     schema:
       type: array
-      items: &ApiAddress
+      items: *ApiAddress
 
 responsesListStakePools: &responsesListStakePools
   200:
