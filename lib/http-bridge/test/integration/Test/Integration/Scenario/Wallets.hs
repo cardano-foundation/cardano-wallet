@@ -54,6 +54,13 @@ import Test.Integration.Framework.TestData
     , arabicWalletName
     , chineseMnemonics18
     , chineseMnemonics9
+    , errMsg403WrongPass
+    , errMsg404NoEndpoint
+    , errMsg404NoRootKey
+    , errMsg404NoWallet
+    , errMsg405
+    , errMsg406
+    , errMsg415
     , falseWalletIds
     , frenchMnemonics12
     , frenchMnemonics21
@@ -119,7 +126,12 @@ spec = do
         expectResponseCode @IO HTTP.status202 r1
 
         r2 <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
-        expectResponseCode @IO HTTP.status409 r2
+        verify r2
+            [ expectResponseCode @IO HTTP.status409
+            , expectErrorMessage ("This operation would yield a wallet with the\
+                \ following id: " ++ T.unpack (getFromResponse walletId r1) ++
+                " However, I already know of a wallet with this id.")
+            ]
 
     describe "WALLETS_CREATE_04 - Wallet name" $ do
         let walNameMax = T.pack (replicate walletNameMaxLength 'ą')
@@ -671,24 +683,29 @@ spec = do
     describe "WALLETS_CREATE_09 - HTTP headers" $ do
         let matrix =
                  [ ( "No HTTP headers -> 415", None
-                   , [expectResponseCode @IO HTTP.status415] )
+                   , [ expectResponseCode @IO HTTP.status415
+                     , expectErrorMessage errMsg415 ]
+                   )
                  , ( "Accept: text/plain -> 406"
                    , Headers
                          [ ("Content-Type", "application/json")
                          , ("Accept", "text/plain") ]
-                   , [expectResponseCode @IO HTTP.status406]
+                   , [ expectResponseCode @IO HTTP.status406
+                     , expectErrorMessage errMsg406 ]
                    )
                  , ( "No Accept -> 202"
                    , Headers [ ("Content-Type", "application/json") ]
-                   , [expectResponseCode @IO HTTP.status202]
+                   , [ expectResponseCode @IO HTTP.status202 ]
                    )
                  , ( "No Content-Type -> 415"
                    , Headers [ ("Accept", "application/json") ]
-                   , [expectResponseCode @IO HTTP.status415]
+                   , [ expectResponseCode @IO HTTP.status415
+                     , expectErrorMessage errMsg415 ]
                    )
                  , ( "Content-Type: text/plain -> 415"
                    , Headers [ ("Content-Type", "text/plain") ]
-                   , [expectResponseCode @IO HTTP.status415]
+                   , [ expectResponseCode @IO HTTP.status415
+                     , expectErrorMessage errMsg415 ]
                    )
                  ]
         forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> do
@@ -724,6 +741,7 @@ spec = do
         forM_ matrix $ \method -> it (show method) $ \ctx -> do
             r <- request @ApiWallet ctx (method, "v2/wallets") Default Empty
             expectResponseCode @IO HTTP.status405 r
+            expectErrorMessage errMsg405 r
 
     it "WALLETS_GET_01 - can get wallet detals" $ \ctx -> do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
@@ -744,23 +762,30 @@ spec = do
 
     it "WALLETS_GET_02, WALLETS_DELETE_01 - Deleted wallet is not available" $ \ctx -> do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
-        let endpoint = "v2/wallets" </> (getFromResponse walletId r)
+        let wid = getFromResponse walletId r
+        let endpoint = "v2/wallets" </> wid
         _ <- request @ApiWallet ctx ("DELETE", endpoint) Default Empty
 
         rg <- request @ApiWallet ctx ("GET", endpoint) Default Empty
         expectResponseCode @IO HTTP.status404 rg
+        expectErrorMessage (errMsg404NoWallet wid) rg
 
     describe "WALLETS_GET_03,04 - non-existing wallets" $  do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
             let endpoint = "v2/wallets" </> walId
             rg <- request @ApiWallet ctx ("GET", endpoint) Default Empty
             expectResponseCode @IO HTTP.status404 rg
+            if (title == "40 chars hex") then
+                expectErrorMessage (errMsg404NoWallet $ T.pack walId) rg
+            else
+                expectErrorMessage errMsg404NoEndpoint rg
 
     it "WALLETS_GET_03 - 'almost' valid walletId" $ \ctx -> do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
         let endpoint = "v2/wallets" </> (T.append (getFromResponse walletId r) "0")
         rg <- request @ApiWallet ctx ("GET", endpoint) Default Empty
         expectResponseCode @IO HTTP.status404 rg
+        expectErrorMessage errMsg404NoEndpoint rg
 
     describe "WALLETS_GET_05 - HTTP headers" $ do
         forM_ getHeaderCases $ \(title, headers, expectations) -> it title $ \ctx -> do
@@ -827,34 +852,40 @@ spec = do
             let endpoint = "v2/wallets" </> walId
             rg <- request @ApiWallet ctx ("DELETE", endpoint) Default Empty
             expectResponseCode @IO HTTP.status404 rg
+            if (title == "40 chars hex") then
+                expectErrorMessage (errMsg404NoWallet $ T.pack walId) rg
+            else
+                expectErrorMessage errMsg404NoEndpoint rg
 
     it "WALLETS_DELETE_02 - 'almost' valid walletId" $ \ctx -> do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
         let endpoint = "v2/wallets" </> (T.append (getFromResponse walletId r) "0")
         rg <- request @ApiWallet ctx ("DELETE", endpoint) Default Empty
         expectResponseCode @IO HTTP.status404 rg
+        expectErrorMessage errMsg404NoEndpoint rg
 
     describe "WALLETS_DELETE_03 - HTTP headers" $ do
         let matrix =
                   [ ( "No HTTP headers -> 204", None
-                    , [expectResponseCode @IO HTTP.status204] )
+                    , [ expectResponseCode @IO HTTP.status204 ] )
                   , ( "Accept: text/plain -> 406"
                     , Headers
                           [ ("Content-Type", "application/json")
                           , ("Accept", "text/plain") ]
-                    , [expectResponseCode @IO HTTP.status406]
+                    , [ expectResponseCode @IO HTTP.status406
+                      , expectErrorMessage errMsg406 ]
                     )
                   , ( "No Accept -> 204"
                     , Headers [ ("Content-Type", "application/json") ]
-                    , [expectResponseCode @IO HTTP.status204]
+                    , [ expectResponseCode @IO HTTP.status204 ]
                     )
                   , ( "No Content-Type -> 204"
                     , Headers [ ("Accept", "application/json") ]
-                    , [expectResponseCode @IO HTTP.status204]
+                    , [ expectResponseCode @IO HTTP.status204 ]
                     )
                   , ( "Content-Type: text/plain -> 204"
                     , Headers [ ("Content-Type", "text/plain") ]
-                    , [expectResponseCode @IO HTTP.status204]
+                    , [ expectResponseCode @IO HTTP.status204 ]
                     )
                   ]
         forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> do
@@ -1004,6 +1035,10 @@ spec = do
             let endpoint = "v2/wallets" </> walId
             ru <- request @ApiWallet ctx ("PUT", endpoint) Default newName
             expectResponseCode @IO HTTP.status404 ru
+            if (title == "40 chars hex") then
+                expectErrorMessage (errMsg404NoWallet $ T.pack walId) ru
+            else
+                expectErrorMessage errMsg404NoEndpoint ru
 
     it "WALLETS_UPDATE_03 - 'almost' valid walletId" $ \ctx -> do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
@@ -1011,37 +1046,45 @@ spec = do
         let endpoint = "v2/wallets" </> (T.append (getFromResponse walletId r) "0")
         ru <- request @ApiWallet ctx ("PUT", endpoint) Default newName
         expectResponseCode @IO HTTP.status404 ru
+        expectErrorMessage errMsg404NoEndpoint ru
 
     it "WALLETS_UPDATE_03 - Deleted wallet cannot be updated (404)" $ \ctx -> do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
-        let endpoint = "v2/wallets" </> (getFromResponse walletId r)
+        let wid = getFromResponse walletId r
+        let endpoint = "v2/wallets" </> wid
         _ <- request @ApiWallet ctx ("DELETE", endpoint) Default Empty
 
         let newName = updateNamePayload "new name"
         ru <- request @ApiWallet ctx ("GET", endpoint) Default newName
         expectResponseCode @IO HTTP.status404 ru
+        expectErrorMessage (errMsg404NoWallet wid) ru
 
     describe "WALLETS_UPDATE_04 - HTTP headers" $ do
         let matrix =
                   [ ( "No HTTP headers -> 415", None
-                    , [expectResponseCode @IO HTTP.status415] )
+                    , [ expectResponseCode @IO HTTP.status415
+                      , expectErrorMessage errMsg415 ]
+                    )
                   , ( "Accept: text/plain -> 406"
                     , Headers
                           [ ("Content-Type", "application/json")
                           , ("Accept", "text/plain") ]
-                    , [expectResponseCode @IO HTTP.status406]
+                    , [ expectResponseCode @IO HTTP.status406
+                      , expectErrorMessage errMsg406 ]
                     )
                   , ( "No Accept -> 200"
                     , Headers [ ("Content-Type", "application/json") ]
-                    , [expectResponseCode @IO HTTP.status200]
+                    , [ expectResponseCode @IO HTTP.status200 ]
                     )
                   , ( "No Content-Type -> 415"
                     , Headers [ ("Accept", "application/json") ]
-                    , [expectResponseCode @IO HTTP.status415]
+                    , [ expectResponseCode @IO HTTP.status415
+                      , expectErrorMessage errMsg415 ]
                     )
                   , ( "Content-Type: text/plain -> 415"
                     , Headers [ ("Content-Type", "text/plain") ]
-                    , [expectResponseCode @IO HTTP.status415]
+                    , [ expectResponseCode @IO HTTP.status415
+                      , expectErrorMessage errMsg415 ]
                     )
                   ]
         forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> do
@@ -1139,7 +1182,8 @@ spec = do
                             \ least 10 characters" ]
                   )
                 , ( "Incorrect old pass", "Incorrect passphrase"
-                  , [ expectResponseCode @IO HTTP.status403 ]
+                  , [ expectResponseCode @IO HTTP.status403
+                    , expectErrorMessage errMsg403WrongPass ]
                   )
                 ]
         forM_ matrix $ \(title, passphrase, expectations) -> it title $ \ctx -> do
@@ -1236,11 +1280,13 @@ spec = do
     it "WALLETS_UPDATE_PASS_04 - Deleted wallet is not available" $ \ctx -> do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
         let payload = updatePassPayload "Secure passphrase" "Secure passphrase2"
-        let delEndp = "v2/wallets" </> (getFromResponse walletId r)
+        let walId = getFromResponse walletId r
+        let delEndp = "v2/wallets" </> walId
         _ <- request @ApiWallet ctx ("DELETE", delEndp) Default Empty
         let updEndp = delEndp </> ("passphrase" :: Text)
         rup <- request @ApiWallet ctx ("PUT", updEndp) Default payload
         expectResponseCode @IO HTTP.status404 rup
+        expectErrorMessage (errMsg404NoRootKey walId) rup
 
     describe "WALLETS_UPDATE_PASS_04 - non-existing wallets" $  do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
@@ -1248,6 +1294,10 @@ spec = do
             let endpoint = "v2/wallets" </> T.pack walId </> ("passphrase" :: Text)
             rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
             expectResponseCode @IO HTTP.status404 rup
+            if (title == "40 chars hex") then
+                expectErrorMessage (errMsg404NoRootKey $ T.pack walId) rup
+            else
+                expectErrorMessage errMsg404NoEndpoint rup
 
     it "WALLETS_UPDATE_PASS_04 - 'almost' valid walletId" $ \ctx -> do
         r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
@@ -1258,28 +1308,34 @@ spec = do
                 </> ("passphrase" :: Text)
         rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
         expectResponseCode @IO HTTP.status404 rup
+        expectErrorMessage errMsg404NoEndpoint rup
 
     describe "WALLETS_UPDATE_PASS_07 - HTTP headers" $ do
         let matrix =
                   [ ( "No HTTP headers -> 415", None
-                    , [expectResponseCode @IO HTTP.status415] )
+                    , [ expectResponseCode @IO HTTP.status415
+                      , expectErrorMessage errMsg415 ]
+                    )
                   , ( "Accept: text/plain -> 406"
                     , Headers
                           [ ("Content-Type", "application/json")
                           , ("Accept", "text/plain") ]
-                    , [expectResponseCode @IO HTTP.status406]
+                    , [ expectResponseCode @IO HTTP.status406
+                      , expectErrorMessage errMsg406 ]
                     )
                   , ( "No Accept -> 204"
                     , Headers [ ("Content-Type", "application/json") ]
-                    , [expectResponseCode @IO HTTP.status204]
+                    , [ expectResponseCode @IO HTTP.status204 ]
                     )
                   , ( "No Content-Type -> 415"
                     , Headers [ ("Accept", "application/json") ]
-                    , [expectResponseCode @IO HTTP.status415]
+                    , [ expectResponseCode @IO HTTP.status415
+                      , expectErrorMessage errMsg415 ]
                     )
                   , ( "Content-Type: text/plain -> 415"
                     , Headers [ ("Content-Type", "text/plain") ]
-                    , [expectResponseCode @IO HTTP.status415]
+                    , [ expectResponseCode @IO HTTP.status415
+                      , expectErrorMessage errMsg415 ]
                     )
                   ]
         forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> do
@@ -1296,23 +1352,24 @@ spec = do
  where
     getHeaderCases =
               [ ( "No HTTP headers -> 200", None
-                , [expectResponseCode @IO HTTP.status200] )
+                , [ expectResponseCode @IO HTTP.status200 ] )
               , ( "Accept: text/plain -> 406"
                 , Headers
                       [ ("Content-Type", "application/json")
                       , ("Accept", "text/plain") ]
-                , [expectResponseCode @IO HTTP.status406]
+                , [ expectResponseCode @IO HTTP.status406
+                  , expectErrorMessage errMsg406 ]
                 )
               , ( "No Accept -> 200"
                 , Headers [ ("Content-Type", "application/json") ]
-                , [expectResponseCode @IO HTTP.status200]
+                , [ expectResponseCode @IO HTTP.status200 ]
                 )
               , ( "No Content-Type -> 200"
                 , Headers [ ("Accept", "application/json") ]
-                , [expectResponseCode @IO HTTP.status200]
+                , [ expectResponseCode @IO HTTP.status200 ]
                 )
               , ( "Content-Type: text/plain -> 200"
                 , Headers [ ("Content-Type", "text/plain") ]
-                , [expectResponseCode @IO HTTP.status200]
+                , [ expectResponseCode @IO HTTP.status200 ]
                 )
               ]
