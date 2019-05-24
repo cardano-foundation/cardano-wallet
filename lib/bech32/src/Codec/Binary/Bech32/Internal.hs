@@ -34,6 +34,8 @@ module Codec.Binary.Bech32.Internal
     , DataPart (..)
     , dataPartFromBytes
     , dataPartToBytes
+    , dataPartFromText
+    , dataPartToText
 
       -- * Human-Readable Part
     , HumanReadablePart
@@ -66,7 +68,7 @@ module Codec.Binary.Bech32.Internal
 import Prelude
 
 import Control.Monad
-    ( guard, join )
+    ( guard, join, void )
 import Data.Array
     ( Array )
 import Data.Bifunctor
@@ -89,12 +91,19 @@ import Data.List
     ( sort )
 import Data.Maybe
     ( isNothing )
+import Data.Text
+    ( Text )
 import Data.Word
     ( Word8 )
+import Text.Read
+    ( Read (..) )
 
 import qualified Data.Array as Arr
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.Text as T
+import qualified Text.ParserCombinators.ReadP as ReadP
+import qualified Text.ParserCombinators.ReadPrec as ReadPrec
 
 {-------------------------------------------------------------------------------
                                  Data Part
@@ -108,6 +117,14 @@ newtype DataPart = DataPart
 
 instance Show DataPart where
     show (DataPart dp) = "DataPart " <> show ((word5ToChar Arr.!) <$> dp)
+
+instance Read DataPart where
+    readPrec = ReadPrec.lift $ do
+        void $ ReadP.string "DataPart \""
+        string <- ReadP.get `ReadP.manyTill` ReadP.char '"'
+        case dataPartFromText (T.pack string) of
+            Nothing -> error "Unable to read DataPart"
+            Just ws -> pure ws
 
 -- | Constructs a 'DataPart' from a 'ByteString'.
 --
@@ -127,6 +144,29 @@ dataPartFromBytes = DataPart . toBase32 . BS.unpack
 --
 dataPartToBytes :: DataPart -> Maybe ByteString
 dataPartToBytes = fmap BS.pack . toBase256 . getDataPart
+
+-- | Constructs a 'DataPart' from textual input. All characters in the input
+--   must be a member of 'charset', the Bech32 character set.
+--
+-- Returns 'Nothing' if any character in the input is not a member of the Bech32
+-- character set.
+--
+-- This function guarantees to satisfy the following property:
+--
+-- > dataPartFromText (dataPartToText d) == Just d
+--
+dataPartFromText :: Text -> Maybe DataPart
+dataPartFromText = fmap DataPart . traverse charToWord5 . T.unpack
+
+-- | Converts a 'DataPart' to 'Text', using the Bech32 character set to render
+--   the data.
+--
+-- This function guarantees to satisfy the following property:
+--
+-- > dataPartFromText (dataPartToText d) == Just d
+--
+dataPartToText :: DataPart -> Text
+dataPartToText =  T.pack . fmap (word5ToChar Arr.!) . getDataPart
 
 {-------------------------------------------------------------------------------
                             Human Readable Part

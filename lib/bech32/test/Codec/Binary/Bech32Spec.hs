@@ -50,6 +50,8 @@ import Test.QuickCheck
     , (===)
     , (==>)
     )
+import Text.Read
+    ( readEither )
 
 import qualified Codec.Binary.Bech32.Internal as Bech32
 import qualified Data.Array as Arr
@@ -217,9 +219,17 @@ spec = do
             (eitherToMaybe (Bech32.encode hrp dp)
                 >>= eitherToMaybe . Bech32.decode) === Just (hrp, dp)
 
+    describe "Roundtrip (read . show)" $ do
+        it "For DataPart" $ property $ \(dp :: DataPart) ->
+            readEither (show dp) === Right dp
+
     describe "Roundtrip (dataPartToBytes . dataPartFromBytes)" $ do
         it "Can perform roundtrip base conversion" $ property $ \bs ->
             (Bech32.dataPartToBytes . Bech32.dataPartFromBytes) bs === Just bs
+
+    describe "Roundtrip (dataPartFromText . dataPartToText)" $ do
+        it "Can perform roundtrip conversion" $ property $ \dp ->
+            (Bech32.dataPartFromText . Bech32.dataPartToText) dp === Just dp
 
     describe "Roundtrip (toBase256 . toBase32)" $ do
         it "Can perform roundtrip base conversion" $ property $ \ws ->

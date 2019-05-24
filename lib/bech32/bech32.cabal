@@ -33,6 +33,7 @@ library
     , base
     , bytestring
     , extra
+    , text
   hs-source-dirs:
       src
   exposed-modules:
