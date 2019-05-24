@@ -38,12 +38,21 @@ module Test.Integration.Framework.TestData
     , simplePayload
     , updateNamePayload
     , updatePassPayload
+
+    -- * Error messages
+    , errMsg403WrongPass
+    , errMsg404NoEndpoint
+    , errMsg404NoRootKey
+    , errMsg404NoWallet
+    , errMsg405
+    , errMsg406
+    , errMsg415
     ) where
 
 import Prelude
 
 import Data.Text
-    ( Text )
+    ( Text, unpack )
 import Test.Integration.Framework.DSL
     ( Payload (..), json )
 
@@ -191,3 +200,41 @@ updatePassPayload oldPass newPass = Json [json| {
     "old_passphrase": #{oldPass},
     "new_passphrase": #{newPass}
       } |]
+
+  ---
+  --- Error messages
+  ---
+errMsg403WrongPass :: String
+errMsg403WrongPass = "The given encryption passphrase doesn't match the one\
+    \ I use to encrypt the root private key of the given wallet"
+
+errMsg404NoEndpoint :: String
+errMsg404NoEndpoint = "I couldn't find the requested endpoint. If the endpoint\
+    \ contains path parameters, please ensure they are well-formed, otherwise I\
+    \ won't be able to route them correctly."
+
+errMsg404NoRootKey :: Text -> String
+errMsg404NoRootKey wid = "I couldn't find a root private key for the given\
+    \ wallet: " ++ unpack wid ++ ". However, this operation requires that I do\
+    \ have such a key. Either there's no such wallet, or I don't fully own it."
+
+errMsg404NoWallet :: Text -> String
+errMsg404NoWallet wid =
+    "I couldn't find a wallet with the given id: " ++ unpack wid
+
+errMsg405 :: String
+errMsg405 = "You've reached a known endpoint but I don't know how to handle the\
+    \ HTTP method specified. Please double-check both the endpoint and the method:\
+    \ one of them is likely to be incorrect (for example: POST instead of PUT, or\
+    \ GET instead of POST...)."
+
+errMsg406 :: String
+errMsg406 = "It seems as though you don't accept 'application/json', but\
+    \ unfortunately I only speak 'application/json'! Please double-check your\
+    \ 'Accept' request header and make sure it's set to 'application/json'"
+
+errMsg415 :: String
+errMsg415 = "I'm really sorry but I only understand 'application/json'. I need\
+    \ you to tell me what language you're speaking in order for me to understand\
+    \ your message. Please double-check your 'Content-Type' request header and\
+    \ make sure it's set to 'application/json'"
