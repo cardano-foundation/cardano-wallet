@@ -6,7 +6,7 @@
 --   
 --   Implementation of the Bech32 segwit address format (BIP 0173).
 @package bech32
-@version 2019.5.8
+@version 2019.5.24
 
 
 -- | Implementation of the <a>Bech32</a> address format.

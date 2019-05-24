@@ -6,7 +6,7 @@
 --   
 --   Extra helpers to convert data-types to and from Text
 @package text-class
-@version 2019.5.8
+@version 2019.5.24
 
 
 -- | Extend the <a>Text</a> module with an extra abstraction to encode and
