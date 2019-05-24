@@ -318,6 +318,14 @@ validBech32Strings =
     , "tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy"
     , "bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0\
       \c5xw7k7grplx"
+    , "tc1qw508d6qejxtdg4y5r3zarvary0c5xw7kg3g4ty"
+    , "BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2"
+    , "bc1rw5uspcuh"
+    , "bc10w508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kw5rljs90"
+    , "BC1QR508D6QEJXTDG4Y5R3ZARVARYV98GJ9P"
+    , "bc1zw508d6qejxtdg4y5r3zarvaryvqyzf3du"
+    , "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3pjxtptv"
+    , "bc1gmk9yu"
     ]
 
 validChecksums :: [Text]
@@ -357,6 +365,13 @@ invalidChecksums =
       , Bech32.StringToDecodeContainsInvalidChars [Bech32.CharPosition 8] )
     , ( "aBcdef1qpzry9x8gf2tvDw0s3jn54khce6mua7lmqqqXw"
       , Bech32.StringToDecodeHasMixedCase )
+    , ( "A1G7SGD8", Bech32.StringToDecodeContainsInvalidChars [] )
+    , ( "10a06t8", Bech32.StringToDecodeTooShort )
+    , ( "1qzzfhee", Bech32.StringToDecodeContainsInvalidChars [CharPosition 0] )
+    , ( "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sL5k7"
+      , Bech32.StringToDecodeHasMixedCase )
+    , ( "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5"
+      , Bech32.StringToDecodeContainsInvalidChars [CharPosition 41] )
     ]
 
 newtype ValidBech32Char = ValidBech32Char
