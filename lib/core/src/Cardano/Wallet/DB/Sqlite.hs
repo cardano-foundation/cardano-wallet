@@ -180,16 +180,20 @@ newDBLayer
     -> IO (DBLayer IO s t)
 newDBLayer fp = do
     lock <- newMVar ()
+    writeLock <- newMVar ()
+    let withWriteLock = ExceptT . withMVar writeLock . const . runExceptT
+
     conn <- createSqliteBackend fp (dbLogs [LevelError])
     runQuery conn $ runMigration migrateAll
     runQuery conn addIndexes
+
     return $ DBLayer
 
         {-----------------------------------------------------------------------
                                       Wallets
         -----------------------------------------------------------------------}
 
-        { createWallet = \(PrimaryKey wid) cp meta ->
+        { createWallet = \(PrimaryKey wid) cp meta -> withWriteLock $
             ExceptT $ runQuery conn $ do
                 res <- handleConstraint (ErrWalletAlreadyExists wid) $
                     insert_ (mkWalletEntity wid meta)
@@ -197,7 +201,7 @@ newDBLayer fp = do
                     insertCheckpoint wid cp
                 pure res
 
-        , removeWallet = \(PrimaryKey wid) ->
+        , removeWallet = \(PrimaryKey wid) -> withWriteLock $
             ExceptT $ runQuery conn $
             selectWallet wid >>= \case
                 Just _ -> Right <$> do
@@ -215,7 +219,7 @@ newDBLayer fp = do
                                     Checkpoints
         -----------------------------------------------------------------------}
 
-        , putCheckpoint = \(PrimaryKey wid) cp ->
+        , putCheckpoint = \(PrimaryKey wid) cp -> withWriteLock $
             ExceptT $ runQuery conn $
             selectWallet wid >>= \case
                 Just _ -> Right <$> do
@@ -239,7 +243,7 @@ newDBLayer fp = do
                                    Wallet Metadata
         -----------------------------------------------------------------------}
 
-        , putWalletMeta = \(PrimaryKey wid) meta ->
+        , putWalletMeta = \(PrimaryKey wid) meta -> withWriteLock $
             ExceptT $ runQuery conn $
             selectWallet wid >>= \case
                 Just _ -> do
@@ -257,7 +261,7 @@ newDBLayer fp = do
                                      Tx History
         -----------------------------------------------------------------------}
 
-        , putTxHistory = \(PrimaryKey wid) txs ->
+        , putTxHistory = \(PrimaryKey wid) txs -> withWriteLock $
             ExceptT $ runQuery conn $
             selectWallet wid >>= \case
                 Just _ -> do
@@ -276,7 +280,7 @@ newDBLayer fp = do
                                        Keystore
         -----------------------------------------------------------------------}
 
-        , putPrivateKey = \(PrimaryKey wid) key ->
+        , putPrivateKey = \(PrimaryKey wid) key -> withWriteLock $
             ExceptT $ runQuery conn $
             selectWallet wid >>= \case
                 Just _ -> Right <$> do
