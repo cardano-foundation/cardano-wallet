@@ -157,7 +157,7 @@ import System.Process
     , withCreateProcess
     )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain, shouldNotBe, shouldSatisfy )
+    ( shouldBe, shouldContain, shouldNotBe )
 import Test.Integration.Faucet
     ( nextWallet )
 import Test.Integration.Framework.Request
@@ -239,7 +239,14 @@ expectFieldBetween
     -> m ()
 expectFieldBetween getter (aMin, aMax) (_, res) = case res of
     Left e  -> wantedSuccessButError e
-    Right s -> (view getter s) `shouldSatisfy` (\x -> x >= aMin && x <= aMax)
+    Right s ->
+        case view getter s of
+            a | a < aMin -> fail $
+                "expected " <> show a <> " >= " <> show aMin
+            a | a > aMax -> fail $
+                "expected " <> show a <> " <= " <> show aMax
+            _ ->
+                return ()
 
 expectFieldNotEqual
     :: (MonadIO m, MonadFail m, Show a, Eq a)
