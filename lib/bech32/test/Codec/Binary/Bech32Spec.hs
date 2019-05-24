@@ -107,7 +107,7 @@ spec = do
 
         it "hrp lowercased" $ do
             let (Right hrp) = humanReadablePartFromText "HRP"
-            Bech32.encode hrp mempty `shouldBe` Right "hrp1g9xj8m"
+            Bech32.encode hrp mempty `shouldBe` Right "hrp1vhqs52"
 
     describe "Arbitrary ValidBech32String" $
 
