@@ -185,8 +185,7 @@ data DummyTarget
 instance KeyToAddress DummyTarget where
     keyToAddress = Address . unXPub . getKey
 
-instance Eq (SeqState DummyTarget) where
-    _ == _ = True
+deriving instance Eq (SeqState DummyTarget)
 
 instance Arbitrary (Wallet (SeqState DummyTarget) DummyTarget) where
     shrink _ = []

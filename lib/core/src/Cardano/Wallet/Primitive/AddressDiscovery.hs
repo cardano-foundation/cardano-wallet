@@ -399,7 +399,7 @@ nextAddresses _ !key (AddressPoolGap !g) !cc !fromIx =
 -- | An ordered set of pending indexes. This keep track of indexes used
 newtype PendingIxs = PendingIxs
     { pendingIxsToList :: [Index 'Soft 'AddressK] }
-    deriving stock (Generic, Show)
+    deriving stock (Generic, Show, Eq)
 instance NFData PendingIxs
 
 -- | An empty pending set of change indexes.
