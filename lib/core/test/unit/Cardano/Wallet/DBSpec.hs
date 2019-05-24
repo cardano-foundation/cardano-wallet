@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -5,6 +6,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -12,15 +14,15 @@
 
 module Cardano.Wallet.DBSpec
     ( spec
-    , DummyTarget
     , dbPropertyTests
-    , cleanDB
+    , withDB
+    , DummyTarget
     ) where
 
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( unXPrv )
+    ( unXPrv, unXPub )
 import Cardano.Wallet
     ( unsafeRunExceptT )
 import Cardano.Wallet.DB
@@ -30,17 +32,34 @@ import Cardano.Wallet.DB
     , PrimaryKey (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
+    ( ChangeChain (..)
+    , Depth (..)
     , Key
     , KeyToAddress (..)
     , Passphrase (..)
     , XPrv
+    , XPub
+    , deriveAddressPublicKey
     , generateKeyFromSeed
+    , getKey
+    , publicKey
+    , unsafeGenerateKeyFromSeed
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs (..) )
+    ( AddressPool
+    , AddressPoolGap (..)
+    , IsOurs (..)
+    , SeqState (..)
+    , accountPubKey
+    , addresses
+    , changeChain
+    , emptyPendingIxs
+    , gap
+    , mkAddressPool
+    , mkAddressPoolGap
+    )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet )
+    ( Wallet, initWallet )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -79,6 +98,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Quantity
     ( Percentage, Quantity (..), mkPercentage )
+import Data.Typeable
+    ( Typeable )
 import Data.Word
     ( Word32 )
 import GHC.Generics
@@ -86,7 +107,15 @@ import GHC.Generics
 import System.IO.Unsafe
     ( unsafePerformIO )
 import Test.Hspec
-    ( Spec, beforeAll, beforeWith, describe, it, shouldBe, shouldReturn )
+    ( Spec
+    , SpecWith
+    , beforeAll
+    , beforeWith
+    , describe
+    , it
+    , shouldBe
+    , shouldReturn
+    )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -153,11 +182,17 @@ instance (Arbitrary k, Arbitrary v) => Arbitrary (KeyValPairs k v) where
 
 data DummyTarget
 
+instance KeyToAddress DummyTarget where
+    keyToAddress = Address . unXPub . getKey
+
+deriving instance Eq (SeqState DummyTarget)
+
+instance Arbitrary (Wallet (SeqState DummyTarget) DummyTarget) where
+    shrink _ = []
+    arbitrary = initWallet <$> arbitrary
+
 instance TxId DummyTarget where
     txId = Hash . B8.pack . show
-
-instance KeyToAddress DummyTarget where
-    keyToAddress _ = Address ""
 
 instance Arbitrary (PrimaryKey WalletId) where
     shrink _ = []
@@ -166,6 +201,70 @@ instance Arbitrary (PrimaryKey WalletId) where
         return $ PrimaryKey $ WalletId $ hash bytes
 
 deriving instance Show (PrimaryKey WalletId)
+
+instance Arbitrary Address where
+    -- No Shrinking
+    arbitrary = oneof
+        [ pure $ Address "ADDR01"
+        , pure $ Address "ADDR02"
+        , pure $ Address "ADDR03"
+        , pure $ Address "ADDR04"
+        , pure $ Address "ADDR05"
+        , pure $ Address "ADDR06"
+        , pure $ Address "ADDR07"
+        , pure $ Address "ADDR08"
+        , pure $ Address "ADDR09"
+        , pure $ Address "ADDR10"
+        ]
+
+instance Arbitrary (SeqState DummyTarget) where
+    shrink (SeqState intPool extPool ixs) =
+        (\(i, e) -> SeqState i e ixs) <$> shrink (intPool, extPool)
+    arbitrary = do
+        intPool <- arbitrary
+        extPool <- arbitrary
+        return $ SeqState intPool extPool emptyPendingIxs
+
+instance Typeable chain => Arbitrary (AddressPool DummyTarget chain) where
+    shrink pool =
+        let
+            key = accountPubKey pool
+            g = gap pool
+            addrs = addresses pool
+        in case length addrs of
+            k | k == fromEnum g && g == minBound ->
+                []
+            k | k == fromEnum g && g > minBound ->
+                [ mkAddressPool key minBound [] ]
+            k ->
+                [ mkAddressPool key minBound []
+                , mkAddressPool key g []
+                , mkAddressPool key g (take (k - (fromEnum g `div` 5)) addrs)
+                ]
+    arbitrary = do
+        g <- unsafeMkAddressPoolGap <$> choose
+            (getAddressPoolGap minBound, 2 * getAddressPoolGap minBound)
+        n <- choose (0, 2 * fromEnum g)
+        let addrs = take n (ourAddresses (changeChain @chain))
+        return $ mkAddressPool ourAccount g addrs
+
+unsafeMkAddressPoolGap :: (Integral a, Show a) => a -> AddressPoolGap
+unsafeMkAddressPoolGap g = case (mkAddressPoolGap $ fromIntegral g) of
+    Right a -> a
+    Left _ -> error $ "unsafeMkAddressPoolGap: bad argument: " <> show g
+
+ourAccount
+    :: Key 'AccountK XPub
+ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
+  where
+    seed = Passphrase $ BA.convert $ BS.replicate 32 0
+
+ourAddresses
+    :: ChangeChain
+    -> [Address]
+ourAddresses cc =
+    keyToAddress @DummyTarget . deriveAddressPublicKey ourAccount cc
+        <$> [minBound..maxBound]
 
 instance Arbitrary (Hash "Tx") where
     shrink _ = []
@@ -182,7 +281,7 @@ instance Arbitrary TxMeta where
     arbitrary = TxMeta
         <$> elements [Pending, InLedger, Invalidated]
         <*> elements [Incoming, Outgoing]
-        <*> (SlotId <$> arbitrary <*> choose (0, 21600))
+        <*> (SlotId <$> choose (0, 1000) <*> choose (0, 21599))
         <*> fmap (Quantity . fromIntegral) (arbitrary @Word32)
 
 customizedGen :: Gen Percentage
@@ -197,14 +296,6 @@ instance Arbitrary WalletMetadata where
         <*> (fmap WalletPassphraseInfo <$> arbitrary)
         <*> oneof [pure Ready, Restoring . Quantity <$> customizedGen]
         <*> pure NotDelegating
-
-instance Arbitrary Address where
-    -- No Shrinking
-    arbitrary = oneof
-        [ pure $ Address "ADDR01"
-        , pure $ Address "ADDR02"
-        , pure $ Address "ADDR03"
-        ]
 
 instance Arbitrary Coin where
     -- No Shrinking
@@ -549,11 +640,9 @@ prop_parallelPut putOp readOp resolve dbLayer (KeyValPairs pairs) =
 
 dbPropertyTests
     :: (Arbitrary (Wallet s DummyTarget), Show s, Eq s, IsOurs s, NFData s)
-    => IO (DBLayer IO s DummyTarget)
-    -> Spec
-dbPropertyTests dbLayer = do
-    beforeAll dbLayer $ beforeWith cleanDB $
-        describe "Extra Properties about DB initialization" $ do
+    => SpecWith (DBLayer IO s DummyTarget)
+dbPropertyTests = do
+    describe "Extra Properties about DB initialization" $ do
         it "createWallet . listWallets yields expected results"
             (property . prop_createListWallet)
         it "creating same wallet twice yields an error"
@@ -561,8 +650,7 @@ dbPropertyTests dbLayer = do
         it "removing the same wallet twice yields an error"
             (property . prop_removeWalletTwice)
 
-    beforeAll dbLayer $ beforeWith cleanDB $
-        describe "put . read yields a result" $ do
+    describe "put . read yields a result" $ do
         it "Checkpoint"
             (property . (prop_readAfterPut putCheckpoint readCheckpoint))
         it "Wallet Metadata"
@@ -572,8 +660,7 @@ dbPropertyTests dbLayer = do
         it "Private Key"
             (property . (prop_readAfterPut putPrivateKey readPrivateKey))
 
-    beforeAll dbLayer $ beforeWith cleanDB $
-        describe "can't put before wallet exists" $ do
+    describe "can't put before wallet exists" $ do
         it "Checkpoint"
             (property . (prop_putBeforeInit putCheckpoint readCheckpoint Nothing))
         it "Wallet Metadata"
@@ -583,8 +670,7 @@ dbPropertyTests dbLayer = do
         it "Private Key"
             (property . (prop_putBeforeInit putPrivateKey readPrivateKey Nothing))
 
-    beforeAll dbLayer $ beforeWith cleanDB $
-        describe "put doesn't affect other resources" $ do
+    describe "put doesn't affect other resources" $ do
         it "Checkpoint vs Wallet Metadata & Tx History & Private Key"
             (property . (prop_isolation putCheckpoint
                 readWalletMeta
@@ -604,8 +690,7 @@ dbPropertyTests dbLayer = do
                 readPrivateKey)
             )
 
-    beforeAll dbLayer $ beforeWith cleanDB $
-        describe "can't read after delete" $ do
+    describe "can't read after delete" $ do
         it "Checkpoint"
             (property . (prop_readAfterDelete readCheckpoint Nothing))
         it "Wallet Metadata"
@@ -615,8 +700,7 @@ dbPropertyTests dbLayer = do
         it "Private Key"
             (property . (prop_readAfterDelete readPrivateKey Nothing))
 
-    beforeAll dbLayer $ beforeWith cleanDB $
-        describe "sequential puts replace values in order" $ do
+    describe "sequential puts replace values in order" $ do
         it "Checkpoint"
             (checkCoverage . (prop_sequentialPut putCheckpoint readCheckpoint lrp))
         it "Wallet Metadata"
@@ -626,8 +710,7 @@ dbPropertyTests dbLayer = do
         it "Private Key"
             (checkCoverage . (prop_sequentialPut putPrivateKey readPrivateKey lrp))
 
-    beforeAll dbLayer $ beforeWith cleanDB $
-        describe "parallel puts replace values in _any_ order" $ do
+    describe "parallel puts replace values in _any_ order" $ do
         it "Checkpoint"
             (checkCoverage . (prop_parallelPut putCheckpoint readCheckpoint
                 (length . lrp @Maybe)))
@@ -641,5 +724,11 @@ dbPropertyTests dbLayer = do
             (checkCoverage . (prop_parallelPut putPrivateKey readPrivateKey
                 (length . lrp @Maybe)))
 
+-- | Clean a database by removing all wallets.
 cleanDB :: Monad m => DBLayer m s t -> m (DBLayer m s t)
 cleanDB db = listWallets db >>= mapM_ (runExceptT . removeWallet db) >> pure db
+
+-- | Provide a DBLayer to a Spec that requires it. The database is initialised
+-- once, and cleared with 'cleanDB' before each test.
+withDB :: IO (DBLayer IO s t) -> SpecWith (DBLayer IO s t) -> Spec
+withDB create = beforeAll create . beforeWith cleanDB

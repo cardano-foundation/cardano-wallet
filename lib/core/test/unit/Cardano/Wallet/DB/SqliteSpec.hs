@@ -18,7 +18,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Sqlite
     ( newDBLayer )
 import Cardano.Wallet.DBSpec
-    ( DummyTarget, cleanDB )
+    ( DummyTarget, dbPropertyTests, withDB )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..)
     , encryptPassphrase
@@ -26,7 +26,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , unsafeGenerateKeyFromSeed
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( SeqState, defaultAddressPoolGap, mkSeqState )
+    ( SeqState (..), defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.Mnemonic
     ( EntropySize, entropyToBytes, genEntropy )
 import Cardano.Wallet.Primitive.Model
@@ -66,12 +66,17 @@ import Data.Time.Clock
 import System.IO.Unsafe
     ( unsafePerformIO )
 import Test.Hspec
-    ( Spec, beforeAll, beforeWith, describe, it, shouldReturn )
+    ( Spec, describe, it, shouldReturn )
 
 import qualified Data.Map as Map
 
 spec :: Spec
-spec = beforeAll newMemoryDBLayer $ beforeWith cleanDB $ do
+spec = do
+    describe "Simple tests" simpleSpec
+    describe "Sqlite Property tests" $ withDB newMemoryDBLayer dbPropertyTests
+
+simpleSpec :: Spec
+simpleSpec = withDB newMemoryDBLayer $ do
     describe "Wallet table" $ do
         it "create and list works" $ \db -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
@@ -102,6 +107,18 @@ spec = beforeAll newMemoryDBLayer $ beforeWith cleanDB $ do
             runExceptT (putTxHistory db testPk testTxs) `shouldReturn` Right ()
             readTxHistory db testPk `shouldReturn` testTxs
 
+        it "put and read tx history - regression case" $ \db -> do
+            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+            unsafeRunExceptT $ createWallet db testPk1 testCp testMetadata
+            runExceptT (putTxHistory db testPk1 testTxs) `shouldReturn` Right ()
+            runExceptT (removeWallet db testPk) `shouldReturn` Right ()
+            readTxHistory db testPk1 `shouldReturn` testTxs
+
+        it "put and read checkpoint" $ \db -> do
+            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+            runExceptT (putCheckpoint db testPk testCp) `shouldReturn` Right ()
+            readCheckpoint db testPk `shouldReturn` Just testCp
+
 newMemoryDBLayer :: IO (DBLayer IO (SeqState DummyTarget) DummyTarget)
 newMemoryDBLayer = newDBLayer Nothing
 
@@ -125,8 +142,14 @@ testMetadata = WalletMetadata
 testWid :: WalletId
 testWid = WalletId (hash ("test" :: ByteString))
 
+testWid1 :: WalletId
+testWid1 = WalletId (hash ("test1" :: ByteString))
+
 testPk :: PrimaryKey WalletId
 testPk = PrimaryKey testWid
+
+testPk1 :: PrimaryKey WalletId
+testPk1 = PrimaryKey testWid1
 
 testTxs :: Map.Map (Hash "Tx") (Tx, TxMeta)
 testTxs = Map.fromList

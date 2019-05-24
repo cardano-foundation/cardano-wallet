@@ -17,20 +17,21 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.MVar
     ( newDBLayer )
 import Cardano.Wallet.DBSpec
-    ( DummyTarget, dbPropertyTests )
+    ( DummyTarget, dbPropertyTests, withDB )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs (..) )
+    ( IsOurs (..), SeqState (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet )
 import Control.DeepSeq
     ( NFData )
 import Test.Hspec
-    ( Spec )
+    ( Spec, describe )
 import Test.QuickCheck
     ( Arbitrary (..) )
 
 spec :: Spec
-spec = dbPropertyTests (newDBLayer :: IO (DBLayer IO DummyStateMVar DummyTarget))
+spec = withDB (newDBLayer :: IO (DBLayer IO (SeqState DummyTarget) DummyTarget)) $
+       describe "MVar" dbPropertyTests
 
 newtype DummyStateMVar = DummyStateMVar Int
     deriving (Show, Eq)
