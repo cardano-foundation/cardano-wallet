@@ -1116,6 +1116,7 @@ SeqState :: !AddressPool t  'InternalChain -> !AddressPool t  'ExternalChain -> 
 mkSeqState :: KeyToAddress t => (Key  'RootK XPrv, Passphrase "encryption") -> AddressPoolGap -> SeqState t
 instance GHC.Show.Show (Cardano.Wallet.Primitive.AddressDiscovery.SeqState t)
 instance GHC.Generics.Generic (Cardano.Wallet.Primitive.AddressDiscovery.SeqState t)
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDiscovery.PendingIxs
 instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.PendingIxs
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.PendingIxs
 instance GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDiscovery.AddressPool target chain)
