@@ -19,12 +19,14 @@ module Codec.Binary.Bech32
       -- * Data Part
     , DataPart
     , dataPartFromBytes
+    , dataPartFromText
     , dataPartToBytes
+    , dataPartToText
 
       -- * Human-Readable Part
     , HumanReadablePart
-    , humanReadablePartFromBytes
-    , humanReadablePartToBytes
+    , humanReadablePartFromText
+    , humanReadablePartToText
 
     ) where
 
