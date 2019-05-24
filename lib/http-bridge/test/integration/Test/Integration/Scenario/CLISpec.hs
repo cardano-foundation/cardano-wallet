@@ -59,7 +59,7 @@ import Test.Integration.Framework.TestData
 import qualified Data.Text as T
 
 version :: Text
-version = "2019.5.8"
+version = "2019.5.24"
 
 specNoCluster :: SpecWith ()
 specNoCluster = do
