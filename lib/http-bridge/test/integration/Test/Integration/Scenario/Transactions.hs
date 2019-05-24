@@ -12,7 +12,7 @@ module Test.Integration.Scenario.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress, ApiTransaction, ApiWallet )
+    ( ApiTransaction, ApiWallet )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.Primitive.Types
@@ -42,13 +42,12 @@ import Test.Integration.Framework.DSL
     , faucetUtxoAmt
     , fixtureWallet
     , fixtureWalletWith
-    , getAddresses
     , getWallet
     , json
+    , listAddresses
     , postTx
     , request
     , status
-    , unsafeRequest
     , verify
     , walletId
     )
@@ -67,8 +66,8 @@ spec = do
 
     it "TRANS_CREATE_01 - Single Output Transaction" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
-        (_, addrs) <-
-            unsafeRequest @[ApiAddress HttpBridge] ctx (getAddresses wb) Empty
+        addrs <- listAddresses ctx wb
+
         let amt = 1
         let destination = (addrs !! 1) ^. #id
         let payload = Json [json|{
@@ -115,12 +114,11 @@ spec = do
     it "TRANS_CREATE_02 - Multiple Output Tx to single wallet" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
-        (_, addrs1) <-
-            unsafeRequest @[ApiAddress HttpBridge] ctx (getAddresses wDest) Empty
+        addrs <- listAddresses ctx wDest
 
         let amt = 1
-        let destination1 = (addrs1 !! 1) ^. #id
-        let destination2 = (addrs1 !! 2) ^. #id
+        let destination1 = (addrs !! 1) ^. #id
+        let destination2 = (addrs !! 2) ^. #id
         let payload = Json [json|{
                 "payments": [{
                     "address": #{destination1},
@@ -167,10 +165,8 @@ spec = do
         wSrc <- fixtureWallet ctx
         wDest1 <- emptyWallet ctx
         wDest2 <- emptyWallet ctx
-        (_, addrs1) <-
-            unsafeRequest @[ApiAddress HttpBridge] ctx (getAddresses wDest1) Empty
-        (_, addrs2) <-
-            unsafeRequest @[ApiAddress HttpBridge] ctx (getAddresses wDest2) Empty
+        addrs1 <- listAddresses ctx wDest1
+        addrs2 <- listAddresses ctx wDest2
 
         let amt = 1
         let destination1 = (addrs1 !! 1) ^. #id
@@ -222,10 +218,10 @@ spec = do
                 ]
 
     it "TRANS_CREATE_02 - Multiple Output Txs don't work on single UTxO" $ \ctx -> do
-        wSrc <- fixtureWalletWith ctx [200_000]
+        wSrc <- fixtureWalletWith ctx [20_000_000]
         wDest <- emptyWallet ctx
-        (_, addrs) <-
-            unsafeRequest @[ApiAddress HttpBridge] ctx (getAddresses wDest) Empty
+        addrs <- listAddresses ctx wDest
+        print addrs
 
         let destination1 = (addrs !! 1) ^. #id
         let destination2 = (addrs !! 2) ^. #id
@@ -261,8 +257,8 @@ spec = do
     it "TRANS_CREATE_02 - Can't cover fee" $ \ctx -> do
         wSrc <- fixtureWalletWith ctx [100_000]
         wDest <- emptyWallet ctx
-        (_, addr:_) <-
-            unsafeRequest @[ApiAddress HttpBridge] ctx (getAddresses wDest) Empty
+        addr:_ <- listAddresses ctx wDest
+
         let destination = addr ^. #id
         let payload = Json [json|{
                 "payments": [{
@@ -287,8 +283,8 @@ spec = do
     it "TRANS_CREATE_02 - Not enough money" $ \ctx -> do
         wSrc <- fixtureWalletWith ctx [100_000]
         wDest <- emptyWallet ctx
-        (_, addr:_) <-
-            unsafeRequest @[ApiAddress HttpBridge] ctx (getAddresses wDest) Empty
+        addr:_ <- listAddresses ctx wDest
+
         let destination = addr ^. #id
         let payload = Json [json|{
                 "payments": [{

@@ -35,6 +35,7 @@ module Test.Integration.Framework.TestData
     , passphraseMaxLength
     , passphraseMinLength
     , payloadWith
+    , postTransPayload
     , simplePayload
     , updateNamePayload
     , updatePassPayload
@@ -51,6 +52,10 @@ module Test.Integration.Framework.TestData
 
 import Prelude
 
+import Cardano.Wallet.Api.Types
+    ( ApiT )
+import Cardano.Wallet.Primitive.Types
+    ( Address )
 import Data.Text
     ( Text, unpack )
 import Test.Integration.Framework.DSL
@@ -200,6 +205,19 @@ updatePassPayload oldPass newPass = Json [json| {
     "old_passphrase": #{oldPass},
     "new_passphrase": #{newPass}
       } |]
+
+postTransPayload :: Int -> ApiT Address -> Text -> Payload
+postTransPayload amount address pass =
+    Json [json|{
+            "payments": [{
+                "address": #{address},
+                "amount": {
+                    "quantity": #{amount},
+                    "unit": "lovelace"
+                }
+            }],
+            "passphrase": #{pass}
+        }|]
 
   ---
   --- Error messages

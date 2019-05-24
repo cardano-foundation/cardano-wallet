@@ -52,8 +52,10 @@ module Test.Integration.Framework.DSL
     , (</>)
     , (!!)
     , emptyWallet
+    , emptyWalletWith
     , getFromResponse
     , json
+    , listAddresses
     , tearDown
     , fixtureWallet
     , fixtureWalletWith
@@ -461,6 +463,20 @@ emptyWallet ctx = do
     expectResponseCode @IO HTTP.status202 r
     return (getFromResponse id r)
 
+-- | Create an empty wallet
+emptyWalletWith :: Context -> (Text, Text, Int) -> IO ApiWallet
+emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
+    mnemonic <- (mnemonicToText . entropyToMnemonic) <$> genEntropy @160
+    let payload = Json [aesonQQ| {
+            "name": #{name},
+            "mnemonic_sentence": #{mnemonic},
+            "passphrase": #{passphrase},
+            "address_pool_gap" : #{addrPoolGap}
+        }|]
+    r <- request @ApiWallet ctx postWallet Default payload
+    expectResponseCode @IO HTTP.status202 r
+    return (getFromResponse id r)
+
 -- | Restore a faucet and wait until funds are available.
 fixtureWallet
     :: Context
@@ -545,6 +561,11 @@ getFromResponse getter (_, res) = case res of
 
 json :: QuasiQuoter
 json = aesonQQ
+
+listAddresses :: Context -> ApiWallet -> IO [ApiAddress]
+listAddresses ctx w = do
+    (_, addrs) <- unsafeRequest @[ApiAddress] ctx (getAddresses w) Empty
+    return addrs
 
 infixr 5 </>
 (</>) :: ToHttpApiData a => Text -> a -> Text
