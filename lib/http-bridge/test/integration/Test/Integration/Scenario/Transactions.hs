@@ -79,7 +79,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        let (feeMin, feeMax) = (168610, 168829)
+        let (feeMin, feeMax) = (168609, 168785)
 
         r <- request @ApiTransaction ctx (postTx wa) Default payload
         verify r
@@ -136,7 +136,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        let (feeMin, feeMax) = (181488, 181840)
+        let (feeMin, feeMax) = (181487, 181839)
 
         r <- request @ApiTransaction ctx (postTx wSrc) Default payload
         verify r
@@ -192,7 +192,7 @@ spec = do
                 ],
                 "passphrase": "cardano-wallet"
             }|]
-        let (feeMin, feeMax) = (181488, 181840)
+        let (feeMin, feeMax) = (181487, 181839)
 
         r <- request @ApiTransaction ctx (postTx wSrc) Default payload
         verify r
