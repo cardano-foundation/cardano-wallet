@@ -39,15 +39,21 @@ library
     , bytestring
     , cardano-wallet-core
     , cborg
+    , exceptions
+    , http-client
     , memory
     , servant
+    , servant-client
+    , servant-client-core
     , text
     , text-class
+    , transformers
   hs-source-dirs:
       src
   exposed-modules:
       Cardano.Wallet.Jormungandr.Api
       Cardano.Wallet.Jormungandr.Binary
+      Cardano.Wallet.Jormungandr.Network
       Cardano.Wallet.Jormungandr.Compatibility
       Cardano.Wallet.Jormungandr.Environment
       Cardano.Wallet.Jormungandr.Transaction
