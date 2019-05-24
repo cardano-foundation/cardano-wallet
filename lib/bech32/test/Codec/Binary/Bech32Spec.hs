@@ -416,10 +416,8 @@ instance Arbitrary HumanReadablePart where
         let range =
                 ( Bech32.humanReadableCharsetMinBound
                 , Bech32.humanReadableCharsetMaxBound )
-        bytes <-
-            choose (1, 10) >>= \n -> vectorOf n (choose range)
-        let (Right hrp) = humanReadablePartFromText $
-                T.map toLower $ T.pack bytes
+        chars <- choose (1, 10) >>= \n -> vectorOf n (choose range)
+        let (Right hrp) = humanReadablePartFromText $ T.pack chars
         return hrp
 
 instance Arbitrary ByteString where
