@@ -125,7 +125,7 @@ jobs:
   #
   ################################################################################
   - stage: build dependencies 🔩
-    if: type != pull_request AND branch = master
+    if: (type != pull_request AND branch = master) OR (tag =~ ^v)
     name: "Compiling dependencies"
     script:
     - mkdir -p ~/.local/bin
@@ -140,7 +140,7 @@ jobs:
     - cardano-http-bridge --version
 
   - stage: cache 💾
-    if: type != pull_request AND branch = master
+    if: (type != pull_request AND branch = master) OR (tag =~ ^v)
     name: "Caching Dependencies"
     script:
     - travis_retry curl -L https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
@@ -150,14 +150,14 @@ jobs:
     - tar czf $STACK_WORK_CACHE .stack-work
 
   - stage: build project 🔨
-    if: type != pull_request AND branch = master
+    if: (type != pull_request AND branch = master) OR (tag =~ ^v)
     name: "Compiling Project"
     script:
     - stack --no-terminal build --fast --test --no-run-tests --bench --no-run-benchmarks --haddock --no-haddock-deps --coverage
     - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
 
   - stage: checks 🔬
-    if: type != pull_request AND branch = master
+    if: (type != pull_request AND branch = master) OR (tag =~ ^v)
     name: "Stylish-Haskell"
     env: NO_CACHE=True
     script:
@@ -165,19 +165,19 @@ jobs:
     - git diff --exit-code # Exit if Stylish-Haskell yields any diff
 
   - stage: checks 🔬
-    if: type != pull_request AND branch = master
+    if: (type != pull_request AND branch = master) OR (tag =~ ^v)
     name: "HLint"
     script:
     - travis_retry curl -sSL https://raw.github.com/ndmitchell/hlint/master/misc/run.sh | sh -s .
 
   - stage: checks 🔬
-    if: type != pull_request AND branch = master
+    if: (type != pull_request AND branch = master) OR (tag =~ ^v)
     name: "Weeder"
     script:
     - travis_retry curl -sSL https://raw.github.com/ndmitchell/weeder/master/misc/travis.sh | sh -s .
 
   - stage: checks 🔬
-    if: type != pull_request AND branch = master
+    if: (type != pull_request AND branch = master) OR (tag =~ ^v)
     name: "Tests"
     script:
     - export NETWORK=testnet
@@ -187,7 +187,7 @@ jobs:
     - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work lib/**/*.tix
 
   - stage: deploy 🚀
-    if: type != pull_request AND branch = master
+    if: (type != pull_request AND branch = master) OR (tag =~ ^v)
     name: "Haddock"
     script:
     - mkdir -p haddock/edge api/edge
@@ -199,7 +199,7 @@ jobs:
     - git push -f -q https://WilliamKingNoel-Bot:$GITHUB_ACCESS_TOKEN@github.com/input-output-hk/cardano-wallet gh-pages &>/dev/null
 
   - stage: deploy 🚀
-    if: type != pull_request AND branch = master
+    if: (type != pull_request AND branch = master) OR (tag =~ ^v)
     name: "Coveralls"
     script:
     - export LTS=$(cat stack.yaml | grep resolver) # Extract the LTS from the stack.yaml
