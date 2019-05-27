@@ -49,7 +49,7 @@ instance Data.Text.Class.ToText Cardano.Environment.Jormungandr.Network
 --   node.
 --   
 --   It is described <a>here</a>
-module Cardano.Wallet.Binary.Jormungandr
+module Cardano.Wallet.Jormungandr.Binary
 data Block
 Block :: BlockHeader -> [Message] -> Block
 data BlockHeader
@@ -147,49 +147,35 @@ get :: FromBinary a => Get a
 --   call <a>error</a>.
 runGet :: () => Get a -> ByteString -> a
 data Get a
-instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.Block
-instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.Block
-instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.Message
-instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.Message
-instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.ConfigParam
-instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.ConfigParam
-instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.ConsensusVersion
-instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.ConsensusVersion
-instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.LinearFee
-instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.LinearFee
-instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.LeaderId
-instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.LeaderId
-instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.Milli
-instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.Milli
-instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.SignedVote
-instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.SignedVote
-instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.TODO
-instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.TODO
-instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.SignedUpdateProposal
-instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.SignedUpdateProposal
-instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.BlockHeader
-instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.BlockHeader
-instance Cardano.Wallet.Binary.Jormungandr.FromBinary Cardano.Wallet.Binary.Jormungandr.Block
-instance Cardano.Wallet.Binary.Jormungandr.FromBinary Cardano.Wallet.Primitive.Types.Block
-instance Cardano.Wallet.Binary.Jormungandr.FromBinary a => Cardano.Wallet.Binary.Jormungandr.FromBinary [a]
-
-
--- | Contains various implementation decision that are specific to a
---   particular network / protocol. This allows us to easily select a
---   particular backend (Byron, Shelley-Rust, Shelley-Haskell) and isolate
---   the bits that vary between those backends.
-module Cardano.Wallet.Compatibility.Jormungandr
-
--- | A type representing the Jormungandr as a network target. This has an
---   influence on binary serializer &amp; network primitives. See also
---   <a>TxId</a>
-data Jormungandr
-instance Cardano.Wallet.Primitive.Types.TxId Cardano.Wallet.Compatibility.Jormungandr.Jormungandr
-instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress Cardano.Wallet.Compatibility.Jormungandr.Jormungandr
+instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.Block
+instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.Block
+instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.Message
+instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.Message
+instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.ConfigParam
+instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.ConfigParam
+instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.ConsensusVersion
+instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.ConsensusVersion
+instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.LinearFee
+instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.LinearFee
+instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.LeaderId
+instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.LeaderId
+instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.Milli
+instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.Milli
+instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.SignedVote
+instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.SignedVote
+instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.TODO
+instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.TODO
+instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.SignedUpdateProposal
+instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.SignedUpdateProposal
+instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.BlockHeader
+instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.BlockHeader
+instance Cardano.Wallet.Jormungandr.Binary.FromBinary Cardano.Wallet.Jormungandr.Binary.Block
+instance Cardano.Wallet.Jormungandr.Binary.FromBinary Cardano.Wallet.Primitive.Types.Block
+instance Cardano.Wallet.Jormungandr.Binary.FromBinary a => Cardano.Wallet.Jormungandr.Binary.FromBinary [a]
 
 
 -- | An specification for the Jörmungandr REST API.
-module Cardano.Wallet.Network.Jormungandr.Api
+module Cardano.Wallet.Jormungandr.Api
 type Api = GetBlock :<|> GetTipId :<|> GetBlockDecendantIds :<|> PostSignedTx
 
 -- | Retrieve a block by its id.
@@ -215,15 +201,29 @@ type PostSignedTx = "api" :> "v0" :> "transaction" :> ReqBody '[JormungandrBinar
 data BlockId
 api :: Proxy Api
 data SignedTx
-instance GHC.Show.Show Cardano.Wallet.Network.Jormungandr.Api.BlockId
-instance Servant.API.ContentTypes.MimeUnrender Cardano.Wallet.Network.Jormungandr.Api.Hex Cardano.Wallet.Network.Jormungandr.Api.BlockId
-instance Servant.API.ContentTypes.Accept Cardano.Wallet.Network.Jormungandr.Api.Hex
-instance Servant.API.ContentTypes.Accept Cardano.Wallet.Network.Jormungandr.Api.JormungandrBinary
-instance Cardano.Wallet.Binary.Jormungandr.FromBinary a => Servant.API.ContentTypes.MimeUnrender Cardano.Wallet.Network.Jormungandr.Api.JormungandrBinary a
-instance Web.Internal.HttpApiData.ToHttpApiData Cardano.Wallet.Network.Jormungandr.Api.BlockId
-instance Cardano.Wallet.Binary.Jormungandr.FromBinary Cardano.Wallet.Network.Jormungandr.Api.BlockId
+instance GHC.Show.Show Cardano.Wallet.Jormungandr.Api.BlockId
+instance Servant.API.ContentTypes.MimeUnrender Cardano.Wallet.Jormungandr.Api.Hex Cardano.Wallet.Jormungandr.Api.BlockId
+instance Servant.API.ContentTypes.Accept Cardano.Wallet.Jormungandr.Api.Hex
+instance Servant.API.ContentTypes.Accept Cardano.Wallet.Jormungandr.Api.JormungandrBinary
+instance Cardano.Wallet.Jormungandr.Binary.FromBinary a => Servant.API.ContentTypes.MimeUnrender Cardano.Wallet.Jormungandr.Api.JormungandrBinary a
+instance Web.Internal.HttpApiData.ToHttpApiData Cardano.Wallet.Jormungandr.Api.BlockId
+instance Cardano.Wallet.Jormungandr.Binary.FromBinary Cardano.Wallet.Jormungandr.Api.BlockId
 
-module Cardano.Wallet.Transaction.Jormungandr
+
+-- | Contains various implementation decision that are specific to a
+--   particular network / protocol. This allows us to easily select a
+--   particular backend (Byron, Shelley-Rust, Shelley-Haskell) and isolate
+--   the bits that vary between those backends.
+module Cardano.Wallet.Jormungandr.Compatibility
+
+-- | A type representing the Jormungandr as a network target. This has an
+--   influence on binary serializer &amp; network primitives. See also
+--   <a>TxId</a>
+data Jormungandr
+instance Cardano.Wallet.Primitive.Types.TxId Cardano.Wallet.Jormungandr.Compatibility.Jormungandr
+instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress Cardano.Wallet.Jormungandr.Compatibility.Jormungandr
+
+module Cardano.Wallet.Jormungandr.Transaction
 
 -- | Construct a <a>TransactionLayer</a> compatible with Shelley and
 --   <tt>Jörmungandr</tt>
