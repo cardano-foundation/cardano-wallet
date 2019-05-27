@@ -52,8 +52,8 @@ module Codec.Binary.Bech32.Internal
     , humanReadablePartToWords
     , humanReadablePartMinLength
     , humanReadablePartMaxLength
-    , humanReadableCharsetMinBound
-    , humanReadableCharsetMaxBound
+    , humanReadableCharMinBound
+    , humanReadableCharMaxBound
 
       -- * Bit Manipulation
     , convertBits
@@ -240,11 +240,8 @@ humanReadablePartFromText hrp
     | otherwise =
         Right $ HumanReadablePart $ T.toLower hrp
   where
-    invalidCharPositions = CharPosition . fst <$>
-        filter ((not . valid) . snd) ([0 .. ] `zip` T.unpack hrp)
-    valid c =
-        c >= humanReadableCharsetMinBound &&
-        c <= humanReadableCharsetMaxBound
+    invalidCharPositions = CharPosition . fst <$> filter
+        ((not . humanReadableCharIsValid) . snd) ([0 .. ] `zip` T.unpack hrp)
 
 -- | Represents the set of error conditions that may occur while parsing the
 --   human-readable part of a Bech32 string.
@@ -253,16 +250,6 @@ data HumanReadablePartError
     | HumanReadablePartTooLong
     | HumanReadablePartContainsInvalidChars [CharPosition]
     deriving (Eq, Show)
-
--- | The lower bound of the set of characters permitted to appear within the
---   human-readable part of a Bech32 string.
-humanReadableCharsetMinBound :: Char
-humanReadableCharsetMinBound = chr 33
-
--- | The upper bound of the set of characters permitted to appear within the
---   human-readable part of a Bech32 string.
-humanReadableCharsetMaxBound :: Char
-humanReadableCharsetMaxBound = chr 126
 
 -- | Get the raw text of the human-readable part of a Bech32 string.
 humanReadablePartToText :: HumanReadablePart -> Text
@@ -283,6 +270,23 @@ humanReadablePartMinLength = 1
 --   string.
 humanReadablePartMaxLength :: Int
 humanReadablePartMaxLength = 83
+
+-- | Returns true iff. the specified character is permitted to appear
+--   within the human-readable part of a Bech32 string.
+humanReadableCharIsValid :: Char -> Bool
+humanReadableCharIsValid c =
+    c >= humanReadableCharMinBound &&
+    c <= humanReadableCharMaxBound
+
+-- | The lower bound of the set of characters permitted to appear within the
+--   human-readable part of a Bech32 string.
+humanReadableCharMinBound :: Char
+humanReadableCharMinBound = chr 33
+
+-- | The upper bound of the set of characters permitted to appear within the
+--   human-readable part of a Bech32 string.
+humanReadableCharMaxBound :: Char
+humanReadableCharMaxBound = chr 126
 
 {-------------------------------------------------------------------------------
                             Encoding & Decoding

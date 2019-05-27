@@ -14,11 +14,13 @@ import Codec.Binary.Bech32.Internal
     , DataPart
     , DecodingError (..)
     , HumanReadablePart
-    , dataPartIsValid
     , dataPartFromBytes
     , dataPartFromText
     , dataPartFromWords
+    , dataPartIsValid
     , dataPartToWords
+    , humanReadableCharMaxBound
+    , humanReadableCharMinBound
     , humanReadablePartFromText
     , humanReadablePartToText
     , separatorChar
@@ -52,7 +54,6 @@ import Test.QuickCheck
     , counterexample
     , elements
     , property
-    , vectorOf
     , (.&&.)
     , (.||.)
     , (===)
@@ -398,6 +399,14 @@ instance Arbitrary DataChar where
                 (error "unable to shrink a Bech32 data character.")
                 (Bech32.dataCharToWord c))
 
+newtype HumanReadableChar = HumanReadableChar
+    { getHumanReadableChar :: Char
+    } deriving (Eq, Ord, Show)
+
+instance Arbitrary HumanReadableChar where
+    arbitrary = HumanReadableChar <$>
+        choose (humanReadableCharMinBound, humanReadableCharMaxBound)
+
 data ValidBech32String = ValidBech32String
     { getValidBech32String :: Text
     , humanReadablePart :: HumanReadablePart
@@ -440,11 +449,10 @@ instance Arbitrary HumanReadablePart where
     shrink hrp = catMaybes $ eitherToMaybe .
         humanReadablePartFromText <$> shrink (humanReadablePartToText hrp)
     arbitrary = do
-        let range =
-                ( Bech32.humanReadableCharsetMinBound
-                , Bech32.humanReadableCharsetMaxBound )
-        chars <- choose (1, 10) >>= \n -> vectorOf n (choose range)
-        let (Right hrp) = humanReadablePartFromText $ T.pack chars
+        len <- choose (1, 10)
+        chars <- replicateM len arbitrary
+        let (Right hrp) = humanReadablePartFromText $ T.pack $
+                getHumanReadableChar <$> chars
         return hrp
 
 instance Arbitrary ByteString where
