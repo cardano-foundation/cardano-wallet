@@ -8,7 +8,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Transaction.HttpBridgeSpec
+module Cardano.Wallet.HttpBridge.TransactionSpec
     ( spec
     ) where
 
@@ -16,10 +16,12 @@ import Prelude
 
 import Cardano.Environment.HttpBridge
     ( Network (..), network )
-import Cardano.Wallet.Binary.HttpBridge
+import Cardano.Wallet.HttpBridge.Binary
     ( encodeSignedTx, toByteString )
-import Cardano.Wallet.Compatibility.HttpBridge
+import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
+import Cardano.Wallet.HttpBridge.Transaction
+    ( newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , Key
@@ -46,8 +48,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Transaction
     ( ErrMkStdTx (..), TransactionLayer (..) )
-import Cardano.Wallet.Transaction.HttpBridge
-    ( newTransactionLayer )
 import Control.Arrow
     ( first )
 import Control.Monad.Trans.Except
@@ -81,7 +81,7 @@ import Test.QuickCheck
     , (===)
     )
 
-import qualified Cardano.Wallet.Binary.HttpBridge as Binary
+import qualified Cardano.Wallet.HttpBridge.Binary as Binary
 import qualified Cardano.Wallet.Primitive.CoinSelection as CS
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR

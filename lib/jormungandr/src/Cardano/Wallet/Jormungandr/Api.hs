@@ -10,7 +10,7 @@
 -- License: MIT
 --
 -- An specification for the Jörmungandr REST API.
-module Cardano.Wallet.Network.Jormungandr.Api
+module Cardano.Wallet.Jormungandr.Api
     ( Api
     , GetBlock
     , GetTipId
@@ -23,7 +23,7 @@ module Cardano.Wallet.Network.Jormungandr.Api
 
 import Prelude
 
-import Cardano.Wallet.Binary.Jormungandr
+import Cardano.Wallet.Jormungandr.Binary
     ( FromBinary (..), runGet )
 import Cardano.Wallet.Primitive.Types
     ( Block, Hash (..) )

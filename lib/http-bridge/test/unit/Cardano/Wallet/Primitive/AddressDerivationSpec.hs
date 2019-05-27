@@ -12,7 +12,7 @@ import Prelude
 
 import Cardano.Environment.HttpBridge
     ( Network (..), network )
-import Cardano.Wallet.Compatibility.HttpBridge
+import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( ChangeChain (..)

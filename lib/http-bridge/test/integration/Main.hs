@@ -13,7 +13,7 @@ import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
     ( newWalletLayer )
-import Cardano.Wallet.Compatibility.HttpBridge
+import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Control.Concurrent
     ( forkIO, threadDelay )
@@ -47,9 +47,9 @@ import Test.Integration.Framework.Request
 import qualified Cardano.LauncherSpec as Launcher
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.MVar as MVar
-import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
-import qualified Cardano.Wallet.Network.HttpBridgeSpec as HttpBridge
-import qualified Cardano.Wallet.Transaction.HttpBridge as HttpBridge
+import qualified Cardano.Wallet.HttpBridge.Network as HttpBridge
+import qualified Cardano.Wallet.HttpBridge.NetworkSpec as HttpBridge
+import qualified Cardano.Wallet.HttpBridge.Transaction as HttpBridge
 import qualified Cardano.WalletSpec as Wallet
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Text as T
@@ -69,7 +69,7 @@ main = do
     hspec $ do
         describe "Cardano.LauncherSpec" Launcher.spec
         describe "Cardano.WalletSpec" Wallet.spec
-        describe "Cardano.Wallet.Network.HttpBridgeSpec" HttpBridge.spec
+        describe "Cardano.Wallet.HttpBridge.NetworkSpec" HttpBridge.spec
         describe "CLI commands not requiring bridge" CLI.specNoCluster
         beforeAll startCluster $ afterAll killCluster $ after tearDown $ do
             describe "Wallets API endpoint tests" Wallets.spec

@@ -4,9 +4,9 @@ module Data.PackfileSpec
 
 import Prelude
 
-import Cardano.Wallet.Binary.HttpBridge
+import Cardano.Wallet.HttpBridge.Binary
     ( decodeBlock )
-import Cardano.Wallet.Binary.HttpBridgeSpec
+import Cardano.Wallet.HttpBridge.BinarySpec
     ( unsafeDeserialiseFromBytes )
 import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..), SlotId (..) )

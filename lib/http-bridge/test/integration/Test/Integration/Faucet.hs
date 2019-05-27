@@ -15,9 +15,9 @@ import Cardano.Environment.HttpBridge
     ( ProtocolMagic (..), network, protocolMagic )
 import Cardano.Wallet
     ( unsafeRunExceptT )
-import Cardano.Wallet.Binary.HttpBridge
+import Cardano.Wallet.HttpBridge.Binary
     ( toByteString )
-import Cardano.Wallet.Compatibility.HttpBridge
+import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.Network
     ( NetworkLayer (postTx) )

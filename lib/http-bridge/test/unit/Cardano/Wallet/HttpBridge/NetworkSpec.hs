@@ -1,13 +1,13 @@
-module Cardano.Wallet.Network.HttpBridgeSpec
+module Cardano.Wallet.HttpBridge.NetworkSpec
     ( spec
     ) where
 
 import Prelude
 
+import Cardano.Wallet.HttpBridge.Network
+    ( HttpBridge (..) )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
-import Cardano.Wallet.Network.HttpBridge
-    ( HttpBridge (..) )
 import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..), Hash (..), SlotId (..) )
 import Control.Monad.Trans.Class
@@ -19,7 +19,7 @@ import Data.Word
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy )
 
-import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
+import qualified Cardano.Wallet.HttpBridge.Network as HttpBridge
 import qualified Data.ByteString.Char8 as B8
 
 

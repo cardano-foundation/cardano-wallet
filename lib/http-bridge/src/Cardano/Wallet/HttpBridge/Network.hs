@@ -13,7 +13,7 @@
 -- This module contains the necessary logic to talk to implement the network
 -- layer using the cardano-http-bridge as a chain producer.
 
-module Cardano.Wallet.Network.HttpBridge
+module Cardano.Wallet.HttpBridge.Network
     ( HttpBridge(..)
     , mkNetworkLayer
     , newNetworkLayer
@@ -24,13 +24,7 @@ import Prelude
 
 import Cardano.Environment.HttpBridge
     ( network )
-import Cardano.Wallet.Network
-    ( ErrNetworkTip (..)
-    , ErrNetworkUnreachable (..)
-    , ErrPostTx (..)
-    , NetworkLayer (..)
-    )
-import Cardano.Wallet.Network.HttpBridge.Api
+import Cardano.Wallet.HttpBridge.Api
     ( ApiT (..)
     , EpochIndex (..)
     , GetBlockByHash
@@ -39,6 +33,12 @@ import Cardano.Wallet.Network.HttpBridge.Api
     , NetworkName (..)
     , PostSignedTx
     , api
+    )
+import Cardano.Wallet.Network
+    ( ErrNetworkTip (..)
+    , ErrNetworkUnreachable (..)
+    , ErrPostTx (..)
+    , NetworkLayer (..)
     )
 import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..), Hash (..), SlotId (..), Tx, TxWitness )

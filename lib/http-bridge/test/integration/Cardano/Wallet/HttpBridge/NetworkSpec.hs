@@ -1,7 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Cardano.Wallet.Network.HttpBridgeSpec
+module Cardano.Wallet.HttpBridge.NetworkSpec
     ( spec
     ) where
 
@@ -42,7 +42,7 @@ import Data.Text.Class
 import Test.Hspec
     ( Spec, afterAll, beforeAll, describe, it, shouldReturn, shouldSatisfy )
 
-import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
+import qualified Cardano.Wallet.HttpBridge.Network as HttpBridge
 import qualified Data.Text as T
 
 port :: Int

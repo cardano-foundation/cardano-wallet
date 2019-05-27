@@ -48,7 +48,7 @@ import Cardano.Wallet.Api.Types
     , WalletPostData (..)
     , WalletPutData (..)
     )
-import Cardano.Wallet.Compatibility.HttpBridge
+import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..), Passphrase (..) )
@@ -109,8 +109,8 @@ import Text.Regex.Applicative
 
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.MVar as MVar
-import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
-import qualified Cardano.Wallet.Transaction.HttpBridge as HttpBridge
+import qualified Cardano.Wallet.HttpBridge.Network as HttpBridge
+import qualified Cardano.Wallet.HttpBridge.Transaction as HttpBridge
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.Aeson.Types as Aeson

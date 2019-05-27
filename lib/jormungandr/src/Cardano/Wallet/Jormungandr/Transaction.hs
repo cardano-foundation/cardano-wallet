@@ -1,7 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE RankNTypes #-}
 
-module Cardano.Wallet.Transaction.Jormungandr
+module Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer
     ) where
 
