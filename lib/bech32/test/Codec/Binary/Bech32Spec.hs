@@ -266,18 +266,31 @@ spec = do
     describe "Constructors produce valid values" $ do
 
         it "dataPartFromBytes" $
-            property $ \bytes ->
-                dataPartIsValid (dataPartFromBytes bytes) === True
+            property $ \bytes -> do
+                let value = dataPartFromBytes bytes
+                let counterexampleText = mconcat
+                        [ "input:  ", show bytes, "\n"
+                        , "output: ", show value, "\n" ]
+                counterexample counterexampleText $
+                    dataPartIsValid value
 
         it "dataPartFromText" $
-            property $ \dataChars ->
-                fmap dataPartIsValid
-                    (dataPartFromText (T.pack $ getDataChar <$> dataChars))
-                        === Just True
+            property $ \chars -> do
+                let value = dataPartFromText (T.pack $ getDataChar <$> chars)
+                let counterexampleText = mconcat
+                        [ "input:  ", show chars, "\n"
+                        , "output: ", show value, "\n" ]
+                counterexample counterexampleText $
+                    fmap dataPartIsValid value === Just True
 
         it "dataPartFromWords" $
-            property $ \ws ->
-                dataPartIsValid (dataPartFromWords ws) === True
+            property $ \ws -> do
+                let value = dataPartFromWords ws
+                let counterexampleText = mconcat
+                        [ "input:  ", show ws   , "\n"
+                        , "output: ", show value, "\n" ]
+                counterexample counterexampleText $
+                    dataPartIsValid value
 
     describe "Conversion of word string from one word size to another" $ do
 
