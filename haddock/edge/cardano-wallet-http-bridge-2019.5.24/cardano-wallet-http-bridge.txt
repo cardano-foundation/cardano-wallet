@@ -62,6 +62,7 @@ decodeBlockHeader :: Decoder s BlockHeader
 decodeTx :: Decoder s Tx
 decodeTxWitness :: Decoder s TxWitness
 decodeSignedTx :: Decoder s (Tx, [TxWitness])
+decodeAddressPayload :: Decoder s ByteString
 encodeTx :: Tx -> Encoding
 
 -- | Encode a public key to a corresponding Cardano Address. The encoding
@@ -147,6 +148,8 @@ module Cardano.Wallet.HttpBridge.Compatibility
 data HttpBridge
 instance Cardano.Wallet.Primitive.Types.TxId Cardano.Wallet.HttpBridge.Compatibility.HttpBridge
 instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress Cardano.Wallet.HttpBridge.Compatibility.HttpBridge
+instance Cardano.Wallet.Primitive.Types.EncodeAddress Cardano.Wallet.HttpBridge.Compatibility.HttpBridge
+instance Cardano.Wallet.Primitive.Types.DecodeAddress Cardano.Wallet.HttpBridge.Compatibility.HttpBridge
 
 module Cardano.Wallet.HttpBridge.Transaction
 
