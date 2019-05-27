@@ -25,8 +25,13 @@ module Cardano.Wallet.Binary.Jormungandr
     , LinearFee (..)
     , Milli (..)
 
+     -- * Classes
+    , FromBinary (..)
+
+
      -- * Re-export
     , runGet
+    , Get
 
     ) where
 
@@ -67,13 +72,15 @@ import Data.Quantity
 import Data.Word
     ( Word16, Word32, Word64, Word8 )
 
+import qualified Cardano.Wallet.Primitive.Types as W
+
 data BlockHeader = BlockHeader
     { version :: Word16
     , contentSize :: Word32
     , slot :: SlotId
     , chainLength :: Word32
     , contentHash :: Hash "content"
-    , parentHeaderHash :: Hash "parentHeader"
+    , parentHeaderHash :: Hash "BlockHeader"
     } deriving (Show, Eq)
 
 data Block = Block BlockHeader [Message]
@@ -364,3 +371,33 @@ whileM cond next = go
             as <- go
             return (a : as)
         else return []
+
+
+{-------------------------------------------------------------------------------
+                              Classes
+-------------------------------------------------------------------------------}
+
+class FromBinary a where
+    get :: Get a
+
+instance FromBinary Block where
+    get = getBlock
+
+instance FromBinary W.Block where
+    get = convertBlock <$> getBlock
+      where
+        convertBlock  :: Block -> W.Block
+        convertBlock (Block h msgs) =
+            W.Block (convertHeader h) (convertMessages msgs)
+
+        convertHeader :: BlockHeader -> W.BlockHeader
+        convertHeader h = W.BlockHeader (slot h) (parentHeaderHash h)
+
+        convertMessages :: [Message] -> [Tx]
+        convertMessages msgs = msgs >>= \case
+            Initial _ -> []
+            Transaction tx -> return tx
+            UnimplementedMessage _ -> []
+
+instance FromBinary a => FromBinary [a] where
+    get = whileM (not <$> isEmpty) get
