@@ -73,8 +73,6 @@ import Control.Monad.Trans.Maybe
     ( MaybeT (..) )
 import Control.Monad.Trans.Resource
     ( runResourceT )
-import Data.Bifunctor
-    ( bimap )
 import Data.Coerce
     ( coerce )
 import Data.Either
@@ -386,11 +384,10 @@ mkCheckpointEntity
     -> W.Wallet s t
     -> (Checkpoint, [UTxO], [PendingTx], [TxIn], [TxOut])
 mkCheckpointEntity wid wal =
-    ( cp, utxo, map (pendingTx . fst) pending
-    , concatMap (dist pendingTxIn . fmap W.inputs) pending
-    , concatMap (dist pendingTxOut . fmap (zip [0..] . W.outputs)) pending )
+    (cp, utxo, map (pendingTx . TxId . fst) pending, ins, outs)
   where
-    pending = [(TxId (W.txId @t tx), tx) | tx <- Set.toList (W.getPending wal)]
+    pending = [(W.txId @t tx, tx) | tx <- Set.toList (W.getPending wal)]
+    (ins, outs) = mkTxInputsOutputs pending
     sl = W.currentTip wal
     cp = Checkpoint
         { checkpointTableWalletId = wid
@@ -401,22 +398,12 @@ mkCheckpointEntity wid wal =
         , pendingTxTableCheckpointSlot = sl
         , pendingTxTableId2 = tid
         }
-    pendingTxIn tid txIn = TxIn
-        { txInputTableTxId = tid
-        , txInputTableSourceTxId = TxId (W.inputId txIn)
-        , txInputTableSourceIndex = W.inputIx txIn
-        }
-    pendingTxOut tid (ix, txOut) = TxOut
-        { txOutputTableTxId = tid
-        , txOutputTableIndex = ix
-        , txOutputTableAddress = W.address txOut
-        , txOutputTableAmount = W.coin txOut
-        }
     utxo = [ UTxO wid sl (TxId input) ix addr coin
            | (W.TxIn input ix, W.TxOut addr coin) <- utxoMap ]
     utxoMap = Map.assocs (W.getUTxO (W.totalUTxO wal))
 
--- inputs and outputs must be sorted by txid, then ix
+-- note: TxIn records must already be sorted by order
+-- and TxOut records must already by sorted by index.
 checkpointFromEntity
     :: forall s t. (W.IsOurs s, NFData s, Show s, W.TxId t)
     => Checkpoint
@@ -431,7 +418,7 @@ checkpointFromEntity (Checkpoint _ tip) utxo ins outs =
     utxo' = W.UTxO . Map.fromList $
         [ (W.TxIn input ix, W.TxOut addr coin)
         | UTxO _ _ (TxId input) ix addr coin <- utxo ]
-    ins' = [(txid, W.TxIn src ix) | TxIn txid (TxId src) ix <- ins]
+    ins' = [(txid, W.TxIn src ix) | TxIn txid _ (TxId src) ix <- ins]
     outs' = [ (txid, W.TxOut addr amt)
             | TxOut txid _ix addr amt <- outs ]
     txids = Set.fromList $ map fst ins' ++ map fst outs'
@@ -445,25 +432,36 @@ mkTxHistory
     :: W.WalletId
     -> Map.Map (W.Hash "Tx") (W.Tx, W.TxMeta)
     -> ([TxMeta], [TxIn], [TxOut])
-mkTxHistory wid txs =
-    ( map (uncurry (mkTxMetaEntity wid)) metas
-    , concatMap (dist mkTxIn . fmap W.inputs) hist
-    , concatMap (dist mkTxOut . fmap (zip [0..] . W.outputs)) hist )
+mkTxHistory wid txs = (map (uncurry (mkTxMetaEntity wid)) metas, ins, outs)
   where
     pairs = Map.toList txs
     metas = fmap snd <$> pairs
-    hist = bimap TxId fst <$> pairs
-    mkTxIn tid txIn = TxIn
-        { txInputTableTxId = tid
+    hist = fmap fst <$> pairs
+    (ins, outs) = mkTxInputsOutputs hist
+
+mkTxInputsOutputs :: [(W.Hash "Tx", W.Tx)] -> ([TxIn], [TxOut])
+mkTxInputsOutputs txs =
+    ( concatMap (dist mkTxIn . ordered W.inputs) txs
+    , concatMap (dist mkTxOut . ordered W.outputs) txs )
+  where
+    mkTxIn tid (ix, txIn) = TxIn
+        { txInputTableTxId = TxId tid
+        , txInputTableOrder = ix
         , txInputTableSourceTxId = TxId (W.inputId txIn)
         , txInputTableSourceIndex = W.inputIx txIn
         }
     mkTxOut tid (ix, txOut) = TxOut
-        { txOutputTableTxId = tid
+        { txOutputTableTxId = TxId tid
         , txOutputTableIndex = ix
         , txOutputTableAddress = W.address txOut
         , txOutputTableAmount = W.coin txOut
         }
+    ordered f = fmap (zip [0..] . f)
+    -- | Distribute `a` accross many `b`s using the given function.
+    -- >>> dist TxOut (addr, [Coin 1, Coin 42, Coin 14])
+    -- [TxOut addr (Coin 1), TxOut addr (Coin 42), TxOut addr (Coin 14)]
+    dist :: (a -> b -> c) -> (a, [b]) -> [c]
+    dist f (a, bs) = [f a b | b <- bs]
 
 mkTxMetaEntity :: W.WalletId -> W.Hash "Tx" -> W.TxMeta -> TxMeta
 mkTxMetaEntity wid txid meta = TxMeta
@@ -476,7 +474,8 @@ mkTxMetaEntity wid txid meta = TxMeta
     }
     where getAmount (Quantity n) = n
 
--- note: TxOut records must already be sorted by index
+-- note: TxIn records must already be sorted by order
+-- and TxOut records must already be sorted by index
 txHistoryFromEntity
     :: [TxMeta]
     -> [TxIn]
@@ -589,7 +588,7 @@ selectTxs
     -> SqlPersistM ([TxIn], [TxOut])
 selectTxs txids = do
     ins <- fmap entityVal <$> selectList [TxInputTableTxId <-. txids]
-        [Asc TxInputTableTxId, Asc TxInputTableSourceIndex]
+        [Asc TxInputTableTxId, Asc TxInputTableOrder]
     outs <- fmap entityVal <$> selectList [TxOutputTableTxId <-. txids]
         [Asc TxOutputTableTxId, Asc TxOutputTableIndex]
     pure (ins, outs)
@@ -600,10 +599,7 @@ selectTxHistory
 selectTxHistory wid = do
     metas <- fmap entityVal <$> selectList [TxMetaTableWalletId ==. wid] []
     let txids = map txMetaTableTxId metas
-    ins <- fmap entityVal <$> selectList [TxInputTableTxId <-. txids]
-        [Asc TxInputTableTxId, Asc TxInputTableSourceIndex]
-    outs <- fmap entityVal <$> selectList [TxOutputTableTxId <-. txids]
-        [Asc TxOutputTableTxId, Asc TxOutputTableIndex]
+    (ins, outs) <- selectTxs txids
     pure $ txHistoryFromEntity metas ins outs
 
 ---------------------------------------------------------------------------
@@ -705,12 +701,3 @@ instance PersistState DummyState where
     selectState (wid, sl) = fmap (const DummyState) <$>
         selectFirst [SeqStateTableWalletId ==. wid, SeqStateTableCheckpointSlot ==. sl] []
     deleteState wid = deleteWhere [SeqStateTableWalletId ==. wid]
-
-----------------------------------------------------------------------------
--- Utilities
-
--- | Distribute `a` accross many `b`s using the given function.
--- >>> dist TxOut (addr, [Coin 1, Coin 42, Coin 14])
--- [TxOut addr (Coin 1), TxOut addr (Coin 42), TxOut addr (Coin 14)]
-dist :: (a -> b -> c) -> (a, [b]) -> [c]
-dist f (a, bs) = [f a b | b <- bs]
