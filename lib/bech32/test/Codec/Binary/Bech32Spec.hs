@@ -446,14 +446,20 @@ instance Arbitrary DataPart where
         ws = dataPartToWords dp
 
 instance Arbitrary HumanReadablePart where
-    shrink hrp = catMaybes $ eitherToMaybe .
-        humanReadablePartFromText <$> shrink (humanReadablePartToText hrp)
     arbitrary = do
         len <- choose (1, 10)
         chars <- replicateM len arbitrary
         let (Right hrp) = humanReadablePartFromText $ T.pack $
                 getHumanReadableChar <$> chars
         return hrp
+    shrink hrp
+        | T.null chars = []
+        | otherwise = catMaybes $ eitherToMaybe . humanReadablePartFromText <$>
+            [ T.take (T.length chars `div` 2) chars
+            , T.drop 1 chars
+            ]
+      where
+        chars = humanReadablePartToText hrp
 
 instance Arbitrary ByteString where
     shrink bytes | BS.null bytes = []
@@ -464,16 +470,6 @@ instance Arbitrary ByteString where
     arbitrary = do
         count <- choose (0, 32)
         BS.pack <$> replicateM count arbitrary
-
-instance Arbitrary Text where
-    shrink chars | T.null chars = []
-    shrink chars =
-        [ T.take (T.length chars `div` 2) chars
-        , T.drop 1 chars
-        ]
-    arbitrary = do
-        chars <- choose (0, 32) >>= \n -> vectorOf n (elements Bech32.charset)
-        return (T.pack chars)
 
 instance Arbitrary Bech32.Word5 where
     arbitrary = Bech32.word5 @Word8 <$> arbitrary
