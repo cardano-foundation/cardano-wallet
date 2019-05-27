@@ -183,7 +183,8 @@ dataPartToWords = mapMaybe charToWord5 . T.unpack . dataPartToText
 -- | Represents the human-readable part of a Bech32 string, as defined here:
 --   https://git.io/fj8FS
 newtype HumanReadablePart = HumanReadablePart Text
-    deriving (Eq, Show)
+    deriving newtype (Eq, Monoid, Semigroup)
+    deriving stock Show
 
 -- | Parses the human-readable part of a Bech32 string, as defined here:
 --   https://git.io/fj8FS
