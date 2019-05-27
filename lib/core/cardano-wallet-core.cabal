@@ -34,7 +34,6 @@ library
   build-depends:
       aeson
     , base
-    , base58-bytestring
     , basement
     , binary
     , bytestring
