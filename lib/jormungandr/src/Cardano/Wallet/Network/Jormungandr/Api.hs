@@ -2,9 +2,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
-
-{-#  OPTIONS_GHC -fno-warn-orphans #-} -- for content types
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -39,6 +38,7 @@ import Data.Text.Encoding
 import Servant.API
     ( (:<|>)
     , (:>)
+    , Accept (..)
     , Capture
     , Get
     , MimeUnrender (..)
@@ -48,10 +48,9 @@ import Servant.API
     , ReqBody
     , ToHttpApiData (..)
     )
-import Servant.API.ContentTypes
-    ( OctetStream, PlainText )
 
 import qualified Data.ByteString.Lazy as BL
+import qualified Servant.API.ContentTypes as Servant
 
 
 api :: Proxy Api
@@ -67,32 +66,38 @@ type GetBlock
     :> "v0"
     :> "block"
     :> Capture "blockHeaderHash" BlockId
-    :> Get '[OctetStream] Block
+    :> Get '[JormungandrBinary] Block
 
--- | Retrieve a list of 'n' block decendant ids, sorted from closest to
+-- | Retrieve 'n' decendants of a given block, sorted from closest to
 -- farthest.
 --
 -- There might also exist fewer than 'n' decendants.
+--
+-- For n=3 we might have:
+--
+-- > [genesis] ... -- [b] -- [b+1] -- [b+2] -- [b+3] -- ... -- [tip]
+-- >                   \       \                  \
+-- >                  parent    +--- decendants ---+
 type GetBlockDecendantIds
     = "api"
     :> "v0"
     :> "block"
     :> Capture "blockId" BlockId
     :> QueryParam "count" Int
-    :> Get '[OctetStream] [BlockId]
+    :> Get '[JormungandrBinary] [BlockId]
 
 -- | Retrieve the header of the latest known block.
 type GetTipId
     = "api"
     :> "v0"
     :> "tip"
-    :> Get '[PlainText] BlockId
+    :> Get '[Hex] BlockId
 
 type PostSignedTx
     = "api"
     :> "v0"
     :> "transaction"
-    :> ReqBody '[OctetStream] SignedTx
+    :> ReqBody '[JormungandrBinary] SignedTx
     :> Post '[NoContent] NoContent
 
 -- TODO: Replace SignedTx with something real
@@ -107,10 +112,27 @@ instance ToHttpApiData BlockId where
 instance FromBinary BlockId where
     get = BlockId . Hash <$> getByteString 32
 
-instance MimeUnrender PlainText BlockId where
+instance MimeUnrender Hex BlockId where
     mimeUnrender _ bs =
         BlockId . Hash <$> convertFromBase Base16 (BL.toStrict bs)
 
--- Orphan instance
-instance FromBinary a => MimeUnrender OctetStream a where
+
+{-------------------------------------------------------------------------------
+                            Content Types
+-------------------------------------------------------------------------------}
+
+-- | Represents the binary format of Jörmungandr.
+data JormungandrBinary
+
+instance Accept JormungandrBinary where
+    contentType _ = contentType $ Proxy @Servant.OctetStream
+
+instance FromBinary a => MimeUnrender JormungandrBinary a where
     mimeUnrender _ bs = Right $ runGet get bs
+
+
+data Hex
+
+-- | Represents data rendered to hexadecimal text.
+instance Accept Hex where
+    contentType _ = contentType $ Proxy @Servant.PlainText
