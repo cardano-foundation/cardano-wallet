@@ -255,6 +255,7 @@ data HumanReadablePartError
 humanReadablePartToText :: HumanReadablePart -> Text
 humanReadablePartToText (HumanReadablePart t) = t
 
+-- | Convert the specified human-readable part to a list of words.
 humanReadablePartToWords :: HumanReadablePart -> [Word5]
 humanReadablePartToWords (HumanReadablePart hrp) =
     map (Word5 . (.>>. 5)) (fromIntegral . ord <$> T.unpack hrp)
