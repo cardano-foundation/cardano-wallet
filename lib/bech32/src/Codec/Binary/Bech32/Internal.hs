@@ -206,7 +206,7 @@ dataCharToWord :: Char -> Maybe Word5
 dataCharToWord = (`Map.lookup` dataCharToWordMap)
 
 dataCharToWordMap :: Map Char Word5
-dataCharToWordMap = Map.fromList $ dataCharList `zip` (Word5 <$> [0 .. 31])
+dataCharToWordMap = Map.fromList $ dataCharList `zip` [minBound .. maxBound]
 
 -- | Maps the specified 'Word5' onto a character that is permitted to appear
 --   within the data part of a Bech32 string.
@@ -214,7 +214,7 @@ dataCharFromWord :: Word5 -> Char
 dataCharFromWord = (dataCharFromWordArray Arr.!)
 
 dataCharFromWordArray :: Array Word5 Char
-dataCharFromWordArray = Arr.listArray (Word5 0, Word5 31) dataCharList
+dataCharFromWordArray = Arr.listArray (minBound, maxBound) dataCharList
 
 {-------------------------------------------------------------------------------
                             Human Readable Part
@@ -434,6 +434,14 @@ newtype CharPosition = CharPosition Int
 
 newtype Word5 = Word5 { getWord5 :: Word8 }
     deriving (Eq, Ord, Show)
+
+instance Bounded Word5 where
+    minBound = Word5 0
+    maxBound = Word5 31
+
+instance Enum Word5 where
+    toEnum = word5
+    fromEnum = fromWord5
 
 instance Ix Word5 where
     range (Word5 m, Word5 n) = map Word5 $ range (m, n)

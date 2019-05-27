@@ -50,6 +50,7 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , Positive (..)
+    , arbitraryBoundedEnum
     , choose
     , counterexample
     , elements
@@ -485,5 +486,5 @@ instance Arbitrary ByteString where
         BS.pack <$> replicateM count arbitrary
 
 instance Arbitrary Bech32.Word5 where
-    arbitrary = Bech32.word5 @Word8 <$> arbitrary
+    arbitrary = arbitraryBoundedEnum
     shrink w = Bech32.word5 <$> shrink (Bech32.getWord5 w)
