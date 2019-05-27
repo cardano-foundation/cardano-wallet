@@ -33,12 +33,16 @@ module Codec.Binary.Bech32.Internal
 
       -- * Data Part
     , DataPart
+    , dataPartIsValid
     , dataPartFromBytes
     , dataPartFromText
     , dataPartFromWords
     , dataPartToBytes
     , dataPartToText
     , dataPartToWords
+    , dataCharToWord
+    , dataCharFromWord
+    , dataCharList
 
       -- * Human-Readable Part
     , HumanReadablePart
@@ -48,8 +52,8 @@ module Codec.Binary.Bech32.Internal
     , humanReadablePartToWords
     , humanReadablePartMinLength
     , humanReadablePartMaxLength
-    , humanReadableCharsetMinBound
-    , humanReadableCharsetMaxBound
+    , humanReadableCharMinBound
+    , humanReadableCharMaxBound
 
       -- * Bit Manipulation
     , convertBits
@@ -63,10 +67,6 @@ module Codec.Binary.Bech32.Internal
 
       -- * Character Manipulation
     , CharPosition (..)
-    , charset
-    , charToWord5
-    , word5ToChar
-    , splitAtLastOccurrence
 
     ) where
 
@@ -94,6 +94,8 @@ import Data.Ix
     ( Ix (..) )
 import Data.List
     ( sort )
+import Data.Map.Strict
+    ( Map )
 import Data.Maybe
     ( isNothing, mapMaybe )
 import Data.Text
@@ -103,6 +105,7 @@ import Data.Word
 
 import qualified Data.Array as Arr
 import qualified Data.ByteString as BS
+import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 
 {-------------------------------------------------------------------------------
@@ -115,6 +118,11 @@ newtype DataPart = DataPart Text
     deriving newtype (Eq, Monoid, Semigroup)
     deriving stock Show
 
+-- | Returns true iff. the specified 'DataPart' is valid.
+--
+dataPartIsValid :: DataPart -> Bool
+dataPartIsValid (DataPart dp) = T.all dataCharIsValid dp
+
 -- | Constructs a 'DataPart' from a 'ByteString'.
 --
 -- This function encodes a 'ByteString' in such a way that guarantees it can be
@@ -124,7 +132,7 @@ newtype DataPart = DataPart Text
 --
 dataPartFromBytes :: ByteString -> DataPart
 dataPartFromBytes =
-    DataPart . T.pack . fmap (word5ToChar Arr.!) . toBase32 . BS.unpack
+    DataPart . T.pack . fmap dataCharFromWord . toBase32 . BS.unpack
 
 -- | Attempts to extract a 'ByteString' from a 'DataPart'.
 --
@@ -134,22 +142,25 @@ dataPartFromBytes =
 --
 dataPartToBytes :: DataPart -> Maybe ByteString
 dataPartToBytes dp = BS.pack <$>
-    (toBase256 =<< traverse charToWord5 (T.unpack $ dataPartToText dp))
+    (toBase256 =<< traverse dataCharToWord (T.unpack $ dataPartToText dp))
 
 -- | Constructs a 'DataPart' from textual input. All characters in the input
---   must be a member of 'charset', the Bech32 character set.
+--   must be a member of 'dataCharList', the set of characters permitted to
+--   appear within the data part of a Bech32 string.
 --
--- Returns 'Nothing' if any character in the input is not a member of the Bech32
--- character set.
+-- Returns 'Nothing' if any character in the input is not a member of
+-- 'dataCharList'.
 --
 -- This function guarantees to satisfy the following property:
 --
 -- > dataPartFromText (dataPartToText d) == Just d
 --
 dataPartFromText :: Text -> Maybe DataPart
-dataPartFromText t
-    | T.any (isNothing . charToWord5) t = Nothing
-    | otherwise = pure $ DataPart $ T.toLower t
+dataPartFromText text
+    | T.any (not . dataCharIsValid) textLower = Nothing
+    | otherwise = pure $ DataPart textLower
+  where
+    textLower = T.toLower text
 
 -- | Converts a 'DataPart' to 'Text', using the Bech32 character set to render
 --   the data.
@@ -169,12 +180,41 @@ dataPartToText (DataPart t) = t
 -- > dataPartToWords (dataPartFromWords w) == w
 --
 dataPartFromWords :: [Word5] -> DataPart
-dataPartFromWords = DataPart . T.pack . fmap (word5ToChar Arr.!)
+dataPartFromWords = DataPart . T.pack . fmap dataCharFromWord
 
 -- | Convert a 'DataPart' into words.
 --
 dataPartToWords :: DataPart -> [Word5]
-dataPartToWords = mapMaybe charToWord5 . T.unpack . dataPartToText
+dataPartToWords = mapMaybe dataCharToWord . T.unpack . dataPartToText
+
+-- | Returns true iff. the specified character is permitted to appear within
+--   the data part of a Bech32 string.
+--   See here for more details: https://git.io/fj8FS
+dataCharIsValid :: Char -> Bool
+dataCharIsValid = (`Map.member` dataCharToWordMap)
+
+-- | A list of all characters that are permitted to appear within the data part
+--   of a Bech32 string. See here for more details: https://git.io/fj8FS
+dataCharList :: String
+dataCharList = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+
+-- | If the specified character is permitted to appear within the data part
+--   of a Bech32 string, this function returns that character's corresponding
+--   'Word5' value. If the specified character is not permitted, or if the
+--   specified character is upper-case, returns 'Nothing'.
+dataCharToWord :: Char -> Maybe Word5
+dataCharToWord = (`Map.lookup` dataCharToWordMap)
+
+dataCharToWordMap :: Map Char Word5
+dataCharToWordMap = Map.fromList $ dataCharList `zip` [minBound .. maxBound]
+
+-- | Maps the specified 'Word5' onto a character that is permitted to appear
+--   within the data part of a Bech32 string.
+dataCharFromWord :: Word5 -> Char
+dataCharFromWord = (dataCharFromWordArray Arr.!)
+
+dataCharFromWordArray :: Array Word5 Char
+dataCharFromWordArray = Arr.listArray (minBound, maxBound) dataCharList
 
 {-------------------------------------------------------------------------------
                             Human Readable Part
@@ -183,7 +223,8 @@ dataPartToWords = mapMaybe charToWord5 . T.unpack . dataPartToText
 -- | Represents the human-readable part of a Bech32 string, as defined here:
 --   https://git.io/fj8FS
 newtype HumanReadablePart = HumanReadablePart Text
-    deriving (Eq, Show)
+    deriving newtype (Eq, Monoid, Semigroup)
+    deriving stock Show
 
 -- | Parses the human-readable part of a Bech32 string, as defined here:
 --   https://git.io/fj8FS
@@ -199,11 +240,8 @@ humanReadablePartFromText hrp
     | otherwise =
         Right $ HumanReadablePart $ T.toLower hrp
   where
-    invalidCharPositions = CharPosition . fst <$>
-        filter ((not . valid) . snd) ([0 .. ] `zip` T.unpack hrp)
-    valid c =
-        c >= humanReadableCharsetMinBound &&
-        c <= humanReadableCharsetMaxBound
+    invalidCharPositions = CharPosition . fst <$> filter
+        ((not . humanReadableCharIsValid) . snd) ([0 .. ] `zip` T.unpack hrp)
 
 -- | Represents the set of error conditions that may occur while parsing the
 --   human-readable part of a Bech32 string.
@@ -213,20 +251,11 @@ data HumanReadablePartError
     | HumanReadablePartContainsInvalidChars [CharPosition]
     deriving (Eq, Show)
 
--- | The lower bound of the set of characters permitted to appear within the
---   human-readable part of a Bech32 string.
-humanReadableCharsetMinBound :: Char
-humanReadableCharsetMinBound = chr 33
-
--- | The upper bound of the set of characters permitted to appear within the
---   human-readable part of a Bech32 string.
-humanReadableCharsetMaxBound :: Char
-humanReadableCharsetMaxBound = chr 126
-
 -- | Get the raw text of the human-readable part of a Bech32 string.
 humanReadablePartToText :: HumanReadablePart -> Text
 humanReadablePartToText (HumanReadablePart t) = t
 
+-- | Convert the specified human-readable part to a list of words.
 humanReadablePartToWords :: HumanReadablePart -> [Word5]
 humanReadablePartToWords (HumanReadablePart hrp) =
     map (Word5 . (.>>. 5)) (fromIntegral . ord <$> T.unpack hrp)
@@ -243,6 +272,23 @@ humanReadablePartMinLength = 1
 humanReadablePartMaxLength :: Int
 humanReadablePartMaxLength = 83
 
+-- | Returns true iff. the specified character is permitted to appear
+--   within the human-readable part of a Bech32 string.
+humanReadableCharIsValid :: Char -> Bool
+humanReadableCharIsValid c =
+    c >= humanReadableCharMinBound &&
+    c <= humanReadableCharMaxBound
+
+-- | The lower bound of the set of characters permitted to appear within the
+--   human-readable part of a Bech32 string.
+humanReadableCharMinBound :: Char
+humanReadableCharMinBound = chr 33
+
+-- | The upper bound of the set of characters permitted to appear within the
+--   human-readable part of a Bech32 string.
+humanReadableCharMaxBound :: Char
+humanReadableCharMaxBound = chr 126
+
 {-------------------------------------------------------------------------------
                             Encoding & Decoding
 -------------------------------------------------------------------------------}
@@ -256,7 +302,7 @@ encode hrp dp
     result = humanReadablePartToText hrp
         <> T.singleton separatorChar
         <> T.pack dcp
-    dcp = (word5ToChar Arr.!) <$> dataPartToWords dp <> createChecksum hrp dp
+    dcp = dataCharFromWord <$> dataPartToWords dp <> createChecksum hrp dp
 
 -- | Represents the set of error conditions that may occur while encoding a
 --   Bech32 string.
@@ -308,13 +354,13 @@ decode bech32 = do
 -- supported character set, return the list of illegal character positions.
 parseDataWithChecksumPart :: Text -> Either [CharPosition] [Word5]
 parseDataWithChecksumPart dcpUnparsed =
-    case mapM charToWord5 $ T.unpack dcpUnparsed of
+    case mapM dataCharToWord $ T.unpack dcpUnparsed of
         Nothing -> Left invalidCharPositions
         Just dcp -> Right dcp
   where
     invalidCharPositions =
         CharPosition . fst <$> filter (isNothing . snd)
-            ([0 .. ] `zip` (charToWord5 <$> T.unpack dcpUnparsed))
+            ([0 .. ] `zip` (dataCharToWord <$> T.unpack dcpUnparsed))
 
 -- | Convert an error encountered while parsing a human-readable part into a
 -- general decoding error.
@@ -374,36 +420,6 @@ encodedStringMinLength =
                             Character Manipulation
 -------------------------------------------------------------------------------}
 
--- | The set of characters that are permitted to appear within the data part of
---   a Bech32 string. See here for more details: https://git.io/fj8FS
-charset :: String
-charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
-
--- | Encodes a function that maps every 'Word5' value onto a unique
---   corresponding character value. The codomain of this function is the set
---   of characters permitted to appear within the data part of a Bech32 string.
-word5ToChar :: Array Word5 Char
-word5ToChar =
-    Arr.listArray
-        (Word5 0, Word5 31)
-        charset
-
--- | If the specified character is permitted to appear within the data part
---   of a Bech32 string, this function returns that character's corresponding
---   'Word5' value. If the specified character is not permitted, returns
---   'Nothing'. This function is case-insensitive.
-charToWord5 :: Char -> Maybe Word5
-charToWord5 c
-    | inRange (Arr.bounds inv) upperC = inv Arr.! upperC
-    | otherwise = Nothing
-  where
-    upperC = toUpper c
-    swap (a, b) = (toUpper b, Just a)
-    inv =
-        Arr.listArray ('0', 'Z') (repeat Nothing)
-        Arr.//
-        (map swap (Arr.assocs word5ToChar))
-
 -- | The zero-based position of a character in a string, counting from the left.
 newtype CharPosition = CharPosition Int
     deriving (Eq, Ord, Show)
@@ -418,6 +434,14 @@ newtype CharPosition = CharPosition Int
 
 newtype Word5 = Word5 { getWord5 :: Word8 }
     deriving (Eq, Ord, Show)
+
+instance Bounded Word5 where
+    minBound = Word5 0
+    maxBound = Word5 31
+
+instance Enum Word5 where
+    toEnum = word5
+    fromEnum = fromWord5
 
 instance Ix Word5 where
     range (Word5 m, Word5 n) = map Word5 $ range (m, n)

@@ -14,8 +14,13 @@ import Codec.Binary.Bech32.Internal
     , DataPart
     , DecodingError (..)
     , HumanReadablePart
+    , dataPartFromBytes
+    , dataPartFromText
     , dataPartFromWords
+    , dataPartIsValid
     , dataPartToWords
+    , humanReadableCharMaxBound
+    , humanReadableCharMinBound
     , humanReadablePartFromText
     , humanReadablePartToText
     , separatorChar
@@ -45,11 +50,11 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , Positive (..)
+    , arbitraryBoundedEnum
     , choose
     , counterexample
     , elements
     , property
-    , vectorOf
     , (.&&.)
     , (.||.)
     , (===)
@@ -57,7 +62,6 @@ import Test.QuickCheck
     )
 
 import qualified Codec.Binary.Bech32.Internal as Bech32
-import qualified Data.Array as Arr
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
 
@@ -148,7 +152,7 @@ spec = do
         it "Decoding fails when a character is inserted." $
             property $ \s c -> do
                 let validString = getValidBech32String s
-                let validChar = getValidBech32Char c
+                let validChar = getDataChar c
                 index <- choose (0, T.length validString - 1)
                 let prefix = T.take index validString
                 let suffix = T.drop index validString
@@ -162,7 +166,7 @@ spec = do
         it "Decoding fails when a single character is mutated." $
            property $ \s c -> do
                 let validString = getValidBech32String s
-                let validChar = getValidBech32Char c
+                let validChar = getDataChar c
                 let separatorIndex = T.length $
                         Bech32.humanReadablePartToText $ humanReadablePart s
                 index <- choose (0, T.length validString - 1)
@@ -254,17 +258,40 @@ spec = do
             isJust (Bech32.toBase256 ws) ==>
                 (Bech32.toBase32 <$> Bech32.toBase256 ws) === Just ws
 
-    describe "Roundtrip (charToWord5 . word5ToChar)" $ do
-        it "can perform roundtrip character set conversion (lower-case)" $
+    describe "Roundtrip (dataCharToWord . dataCharFromWord)" $ do
+        it "can perform roundtrip character set conversion" $
             property $ \w ->
-                Bech32.charToWord5 (toLower (Bech32.word5ToChar Arr.! w))
+                Bech32.dataCharToWord (toLower (Bech32.dataCharFromWord w))
                     === Just w
 
-    describe "Roundtrip (charToWord5 . word5ToChar)" $ do
-        it "can perform roundtrip character set conversion (upper-case)" $
-            property $ \w ->
-                Bech32.charToWord5 (toUpper (Bech32.word5ToChar Arr.! w))
-                    === Just w
+    describe "Constructors produce valid values" $ do
+
+        it "dataPartFromBytes" $
+            property $ \bytes -> do
+                let value = dataPartFromBytes bytes
+                let counterexampleText = mconcat
+                        [ "input:  ", show bytes, "\n"
+                        , "output: ", show value, "\n" ]
+                counterexample counterexampleText $
+                    dataPartIsValid value
+
+        it "dataPartFromText" $
+            property $ \chars -> do
+                let value = dataPartFromText (T.pack $ getDataChar <$> chars)
+                let counterexampleText = mconcat
+                        [ "input:  ", show chars, "\n"
+                        , "output: ", show value, "\n" ]
+                counterexample counterexampleText $
+                    fmap dataPartIsValid value === Just True
+
+        it "dataPartFromWords" $
+            property $ \ws -> do
+                let value = dataPartFromWords ws
+                let counterexampleText = mconcat
+                        [ "input:  ", show ws   , "\n"
+                        , "output: ", show value, "\n" ]
+                counterexample counterexampleText $
+                    dataPartIsValid value
 
     describe "Conversion of word string from one word size to another" $ do
 
@@ -374,17 +401,25 @@ invalidChecksums =
       , Bech32.StringToDecodeContainsInvalidChars [CharPosition 41] )
     ]
 
-newtype ValidBech32Char = ValidBech32Char
-    { getValidBech32Char :: Char
+newtype DataChar = DataChar
+    { getDataChar :: Char
     } deriving (Eq, Ord, Show)
 
-instance Arbitrary ValidBech32Char where
-    arbitrary = ValidBech32Char <$> elements Bech32.charset
-    shrink (ValidBech32Char c) =
-        ValidBech32Char . (Bech32.word5ToChar Arr.!) <$> shrink
+instance Arbitrary DataChar where
+    arbitrary = DataChar <$> elements Bech32.dataCharList
+    shrink (DataChar c) =
+        DataChar . Bech32.dataCharFromWord <$> shrink
             (fromMaybe
-                (error "unable to shrink a Bech32 character.")
-                (Bech32.charToWord5 c))
+                (error "unable to shrink a Bech32 data character.")
+                (Bech32.dataCharToWord c))
+
+newtype HumanReadableChar = HumanReadableChar
+    { getHumanReadableChar :: Char
+    } deriving (Eq, Ord, Show)
+
+instance Arbitrary HumanReadableChar where
+    arbitrary = HumanReadableChar <$>
+        choose (humanReadableCharMinBound, humanReadableCharMaxBound)
 
 data ValidBech32String = ValidBech32String
     { getValidBech32String :: Text
@@ -425,15 +460,20 @@ instance Arbitrary DataPart where
         ws = dataPartToWords dp
 
 instance Arbitrary HumanReadablePart where
-    shrink hrp = catMaybes $ eitherToMaybe .
-        humanReadablePartFromText <$> shrink (humanReadablePartToText hrp)
     arbitrary = do
-        let range =
-                ( Bech32.humanReadableCharsetMinBound
-                , Bech32.humanReadableCharsetMaxBound )
-        chars <- choose (1, 10) >>= \n -> vectorOf n (choose range)
-        let (Right hrp) = humanReadablePartFromText $ T.pack chars
+        len <- choose (1, 10)
+        chars <- replicateM len arbitrary
+        let (Right hrp) = humanReadablePartFromText $ T.pack $
+                getHumanReadableChar <$> chars
         return hrp
+    shrink hrp
+        | T.null chars = []
+        | otherwise = catMaybes $ eitherToMaybe . humanReadablePartFromText <$>
+            [ T.take (T.length chars `div` 2) chars
+            , T.drop 1 chars
+            ]
+      where
+        chars = humanReadablePartToText hrp
 
 instance Arbitrary ByteString where
     shrink bytes | BS.null bytes = []
@@ -445,16 +485,6 @@ instance Arbitrary ByteString where
         count <- choose (0, 32)
         BS.pack <$> replicateM count arbitrary
 
-instance Arbitrary Text where
-    shrink chars | T.null chars = []
-    shrink chars =
-        [ T.take (T.length chars `div` 2) chars
-        , T.drop 1 chars
-        ]
-    arbitrary = do
-        chars <- choose (0, 32) >>= \n -> vectorOf n (elements Bech32.charset)
-        return (T.pack chars)
-
 instance Arbitrary Bech32.Word5 where
-    arbitrary = Bech32.word5 @Word8 <$> arbitrary
+    arbitrary = arbitraryBoundedEnum
     shrink w = Bech32.word5 <$> shrink (Bech32.getWord5 w)
