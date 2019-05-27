@@ -53,13 +53,13 @@ module Cardano.Wallet.Binary.Jormungandr
 data Block
 Block :: BlockHeader -> [Message] -> Block
 data BlockHeader
-BlockHeader :: Word16 -> Word32 -> SlotId -> Word32 -> Hash "content" -> Hash "parentHeader" -> BlockHeader
+BlockHeader :: Word16 -> Word32 -> SlotId -> Word32 -> Hash "content" -> Hash "BlockHeader" -> BlockHeader
 [version] :: BlockHeader -> Word16
 [contentSize] :: BlockHeader -> Word32
 [slot] :: BlockHeader -> SlotId
 [chainLength] :: BlockHeader -> Word32
 [contentHash] :: BlockHeader -> Hash "content"
-[parentHeaderHash] :: BlockHeader -> Hash "parentHeader"
+[parentHeaderHash] :: BlockHeader -> Hash "BlockHeader"
 
 -- | The block-body consists of messages. There are several types of
 --   messages.
@@ -139,11 +139,14 @@ LinearFee :: Quantity "lovelace" Word64 -> Quantity "lovelace/byte" Word64 -> Qu
 --   'Milli 3142'.
 newtype Milli
 Milli :: Word64 -> Milli
+class FromBinary a
+get :: FromBinary a => Get a
 
 -- | The simplest interface to run a <a>Get</a> decoder. If the decoder
 --   runs into an error, calls <a>fail</a>, or runs out of input, it will
 --   call <a>error</a>.
 runGet :: () => Get a -> ByteString -> a
+data Get a
 instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.Block
 instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.Block
 instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.Message
@@ -166,6 +169,9 @@ instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.SignedUpdateProposal
 instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.SignedUpdateProposal
 instance GHC.Classes.Eq Cardano.Wallet.Binary.Jormungandr.BlockHeader
 instance GHC.Show.Show Cardano.Wallet.Binary.Jormungandr.BlockHeader
+instance Cardano.Wallet.Binary.Jormungandr.FromBinary Cardano.Wallet.Binary.Jormungandr.Block
+instance Cardano.Wallet.Binary.Jormungandr.FromBinary Cardano.Wallet.Primitive.Types.Block
+instance Cardano.Wallet.Binary.Jormungandr.FromBinary a => Cardano.Wallet.Binary.Jormungandr.FromBinary [a]
 
 
 -- | Contains various implementation decision that are specific to a
@@ -180,6 +186,42 @@ module Cardano.Wallet.Compatibility.Jormungandr
 data Jormungandr
 instance Cardano.Wallet.Primitive.Types.TxId Cardano.Wallet.Compatibility.Jormungandr.Jormungandr
 instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress Cardano.Wallet.Compatibility.Jormungandr.Jormungandr
+
+
+-- | An specification for the Jörmungandr REST API.
+module Cardano.Wallet.Network.Jormungandr.Api
+type Api = GetBlock :<|> GetTipId :<|> GetBlockDecendantIds :<|> PostSignedTx
+
+-- | Retrieve a block by its id.
+type GetBlock = "api" :> "v0" :> "block" :> Capture "blockHeaderHash" BlockId :> Get '[JormungandrBinary] Block
+
+-- | Retrieve the header of the latest known block.
+type GetTipId = "api" :> "v0" :> "tip" :> Get '[Hex] BlockId
+
+-- | Retrieve <tt>n</tt> decendants of a given block, sorted from closest
+--   to farthest.
+--   
+--   There might also exist fewer than <tt>n</tt> decendants.
+--   
+--   For n=3 we might have:
+--   
+--   <pre>
+--   [genesis] ... -- [b] -- [b+1] -- [b+2] -- [b+3] -- ... -- [tip]
+--                     \       \                  \
+--                    parent    +--- decendants ---+
+--   </pre>
+type GetBlockDecendantIds = "api" :> "v0" :> "block" :> Capture "blockId" BlockId :> QueryParam "count" Int :> Get '[JormungandrBinary] [BlockId]
+type PostSignedTx = "api" :> "v0" :> "transaction" :> ReqBody '[JormungandrBinary] SignedTx :> Post '[NoContent] NoContent
+data BlockId
+api :: Proxy Api
+data SignedTx
+instance GHC.Show.Show Cardano.Wallet.Network.Jormungandr.Api.BlockId
+instance Servant.API.ContentTypes.MimeUnrender Cardano.Wallet.Network.Jormungandr.Api.Hex Cardano.Wallet.Network.Jormungandr.Api.BlockId
+instance Servant.API.ContentTypes.Accept Cardano.Wallet.Network.Jormungandr.Api.Hex
+instance Servant.API.ContentTypes.Accept Cardano.Wallet.Network.Jormungandr.Api.JormungandrBinary
+instance Cardano.Wallet.Binary.Jormungandr.FromBinary a => Servant.API.ContentTypes.MimeUnrender Cardano.Wallet.Network.Jormungandr.Api.JormungandrBinary a
+instance Web.Internal.HttpApiData.ToHttpApiData Cardano.Wallet.Network.Jormungandr.Api.BlockId
+instance Cardano.Wallet.Binary.Jormungandr.FromBinary Cardano.Wallet.Network.Jormungandr.Api.BlockId
 
 module Cardano.Wallet.Transaction.Jormungandr
 
