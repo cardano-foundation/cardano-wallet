@@ -7,7 +7,7 @@
 -- License: MIT
 --
 -- An API specification for the Cardano HTTP Bridge.
-module Cardano.Wallet.Network.HttpBridge.Api
+module Cardano.Wallet.HttpBridge.Api
     ( Api
     , GetBlockByHash
     , GetTipBlockHeader
@@ -21,7 +21,7 @@ module Cardano.Wallet.Network.HttpBridge.Api
 
 import Prelude
 
-import Cardano.Wallet.Binary.HttpBridge
+import Cardano.Wallet.HttpBridge.Binary
     ( decodeBlock
     , decodeBlockHeader
     , decodeSignedTx

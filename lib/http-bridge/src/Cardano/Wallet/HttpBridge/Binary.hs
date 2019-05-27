@@ -16,7 +16,7 @@
 -- of Cardano and will endure in the first stages of Shelley. They are also used
 -- by components like the Rust <https://github.com/input-output-hk/cardano-http-bridge cardano-http-bridge>.
 
-module Cardano.Wallet.Binary.HttpBridge
+module Cardano.Wallet.HttpBridge.Binary
     (
     -- * Decoding
       decodeBlock

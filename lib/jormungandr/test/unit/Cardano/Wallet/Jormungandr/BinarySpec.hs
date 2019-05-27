@@ -2,13 +2,13 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.Binary.JormungandrSpec (spec) where
+module Cardano.Wallet.Jormungandr.BinarySpec (spec) where
 
 import Prelude
 
 import Cardano.Environment.Jormungandr
     ( Network (..) )
-import Cardano.Wallet.Binary.Jormungandr
+import Cardano.Wallet.Jormungandr.Binary
     ( Block (..)
     , BlockHeader (..)
     , ConfigParam (..)

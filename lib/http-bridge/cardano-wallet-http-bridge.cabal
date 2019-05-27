@@ -57,11 +57,11 @@ library
       src
   exposed-modules:
       Cardano.Environment.HttpBridge
-      Cardano.Wallet.Binary.HttpBridge
-      Cardano.Wallet.Compatibility.HttpBridge
-      Cardano.Wallet.Network.HttpBridge
-      Cardano.Wallet.Network.HttpBridge.Api
-      Cardano.Wallet.Transaction.HttpBridge
+      Cardano.Wallet.HttpBridge.Binary
+      Cardano.Wallet.HttpBridge.Compatibility
+      Cardano.Wallet.HttpBridge.Network
+      Cardano.Wallet.HttpBridge.Api
+      Cardano.Wallet.HttpBridge.Transaction
       Data.Packfile
       Servant.Extra.ContentTypes
 
@@ -105,11 +105,11 @@ test-suite unit
       Main.hs
   other-modules:
       Cardano.Environment.HttpBridgeSpec
-      Cardano.Wallet.Binary.HttpBridgeSpec
-      Cardano.Wallet.Network.HttpBridge.ApiSpec
-      Cardano.Wallet.Network.HttpBridgeSpec
+      Cardano.Wallet.HttpBridge.BinarySpec
+      Cardano.Wallet.HttpBridge.ApiSpec
+      Cardano.Wallet.HttpBridge.NetworkSpec
       Cardano.Wallet.Primitive.AddressDerivationSpec
-      Cardano.Wallet.Transaction.HttpBridgeSpec
+      Cardano.Wallet.HttpBridge.TransactionSpec
       Data.PackfileSpec
       Servant.Extra.ContentTypesSpec
       Spec
@@ -166,7 +166,7 @@ test-suite integration
   other-modules:
       Cardano.LauncherSpec
       Cardano.WalletSpec
-      Cardano.Wallet.Network.HttpBridgeSpec
+      Cardano.Wallet.HttpBridge.NetworkSpec
       Test.Integration.Faucet
       Test.Integration.Framework.DSL
       Test.Integration.Framework.Request

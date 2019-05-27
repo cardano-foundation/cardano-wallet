@@ -13,12 +13,14 @@ import Cardano.Launcher
     ( Command (Command), StdStream (..), installSignalHandlers, launch )
 import Cardano.Wallet
     ( WalletLayer (..), newWalletLayer, unsafeRunExceptT )
-import Cardano.Wallet.Compatibility.HttpBridge
+import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
+import Cardano.Wallet.HttpBridge.Network
+    ( newNetworkLayer )
+import Cardano.Wallet.HttpBridge.Transaction
+    ( newTransactionLayer )
 import Cardano.Wallet.Network
     ( NetworkLayer (..), networkTip )
-import Cardano.Wallet.Network.HttpBridge
-    ( newNetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..), digest, generateKeyFromSeed, publicKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -41,8 +43,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletState (..)
     )
-import Cardano.Wallet.Transaction.HttpBridge
-    ( newTransactionLayer )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async

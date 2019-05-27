@@ -1,13 +1,13 @@
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Network.HttpBridge.ApiSpec
+module Cardano.Wallet.HttpBridge.ApiSpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.Wallet.Network.HttpBridge.Api
+import Cardano.Wallet.HttpBridge.Api
     ( ApiT (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
@@ -58,7 +58,7 @@ roundtripAndGolden = roundtripAndGoldenSpecsWithSettings settings
     settings :: Settings
     settings = defaultSettings
         { goldenDirectoryOption =
-            CustomDirectoryName "test/data/Cardano/Wallet/Network/HttpBridge"
+            CustomDirectoryName "test/data/Cardano.Wallet.HttpBridge.Network"
         , useModuleNameAsSubDirectory =
             False
         , sampleSize = 4

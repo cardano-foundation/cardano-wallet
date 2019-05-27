@@ -12,7 +12,7 @@
 --
 -- It is described [here](https://github.com/input-output-hk/rust-cardano/blob/master/chain-impl-mockchain/doc/format.md)
 
-module Cardano.Wallet.Binary.Jormungandr
+module Cardano.Wallet.Jormungandr.Binary
     ( Block (..)
     , BlockHeader (..)
     , Message (..)

@@ -7,7 +7,7 @@
 -- (Byron, Shelley-Rust, Shelley-Haskell) and isolate the bits that vary between
 -- those backends.
 
-module Cardano.Wallet.Compatibility.Jormungandr
+module Cardano.Wallet.Jormungandr.Compatibility
     ( -- * Target
       Jormungandr
     ) where

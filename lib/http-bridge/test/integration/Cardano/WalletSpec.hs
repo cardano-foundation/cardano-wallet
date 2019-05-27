@@ -14,7 +14,7 @@ import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
     ( WalletLayer (..), newWalletLayer, unsafeRunExceptT )
-import Cardano.Wallet.Compatibility.HttpBridge
+import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..), digest, generateKeyFromSeed, publicKey )
@@ -38,8 +38,8 @@ import Test.Hspec
     ( Spec, after, before, expectationFailure, it )
 
 import qualified Cardano.Wallet.DB.MVar as MVar
-import qualified Cardano.Wallet.Network.HttpBridge as HttpBridge
-import qualified Cardano.Wallet.Transaction.HttpBridge as HttpBridge
+import qualified Cardano.Wallet.HttpBridge.Network as HttpBridge
+import qualified Cardano.Wallet.HttpBridge.Transaction as HttpBridge
 import qualified Data.Text as T
 
 spec :: Spec

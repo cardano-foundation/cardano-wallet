@@ -44,10 +44,10 @@ library
       src
   exposed-modules:
       Cardano.Environment.Jormungandr
-      Cardano.Wallet.Binary.Jormungandr
-      Cardano.Wallet.Network.Jormungandr.Api
-      Cardano.Wallet.Compatibility.Jormungandr
-      Cardano.Wallet.Transaction.Jormungandr
+      Cardano.Wallet.Jormungandr.Binary
+      Cardano.Wallet.Jormungandr.Api
+      Cardano.Wallet.Jormungandr.Compatibility
+      Cardano.Wallet.Jormungandr.Transaction
 
 test-suite unit
   default-language:
@@ -79,7 +79,7 @@ test-suite unit
   main-is:
       Main.hs
   other-modules:
-      Cardano.Wallet.Binary.JormungandrSpec
+      Cardano.Wallet.Jormungandr.BinarySpec
       Cardano.Environment.JormungandrSpec
       Spec
 
