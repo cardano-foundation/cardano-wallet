@@ -14,6 +14,9 @@ import Codec.Binary.Bech32.Internal
     , DataPart
     , DecodingError (..)
     , HumanReadablePart
+    , dataPartIsValid
+    , dataPartFromBytes
+    , dataPartFromText
     , dataPartFromWords
     , dataPartToWords
     , humanReadablePartFromText
@@ -57,7 +60,6 @@ import Test.QuickCheck
     )
 
 import qualified Codec.Binary.Bech32.Internal as Bech32
-import qualified Data.Array as Arr
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
 
@@ -148,7 +150,7 @@ spec = do
         it "Decoding fails when a character is inserted." $
             property $ \s c -> do
                 let validString = getValidBech32String s
-                let validChar = getValidBech32Char c
+                let validChar = getDataChar c
                 index <- choose (0, T.length validString - 1)
                 let prefix = T.take index validString
                 let suffix = T.drop index validString
@@ -162,7 +164,7 @@ spec = do
         it "Decoding fails when a single character is mutated." $
            property $ \s c -> do
                 let validString = getValidBech32String s
-                let validChar = getValidBech32Char c
+                let validChar = getDataChar c
                 let separatorIndex = T.length $
                         Bech32.humanReadablePartToText $ humanReadablePart s
                 index <- choose (0, T.length validString - 1)
@@ -254,17 +256,27 @@ spec = do
             isJust (Bech32.toBase256 ws) ==>
                 (Bech32.toBase32 <$> Bech32.toBase256 ws) === Just ws
 
-    describe "Roundtrip (charToWord5 . word5ToChar)" $ do
-        it "can perform roundtrip character set conversion (lower-case)" $
+    describe "Roundtrip (dataCharToWord . dataCharFromWord)" $ do
+        it "can perform roundtrip character set conversion" $
             property $ \w ->
-                Bech32.charToWord5 (toLower (Bech32.word5ToChar Arr.! w))
+                Bech32.dataCharToWord (toLower (Bech32.dataCharFromWord w))
                     === Just w
 
-    describe "Roundtrip (charToWord5 . word5ToChar)" $ do
-        it "can perform roundtrip character set conversion (upper-case)" $
-            property $ \w ->
-                Bech32.charToWord5 (toUpper (Bech32.word5ToChar Arr.! w))
-                    === Just w
+    describe "Constructors produce valid values" $ do
+
+        it "dataPartFromBytes" $
+            property $ \bytes ->
+                dataPartIsValid (dataPartFromBytes bytes) === True
+
+        it "dataPartFromText" $
+            property $ \dataChars ->
+                fmap dataPartIsValid
+                    (dataPartFromText (T.pack $ getDataChar <$> dataChars))
+                        === Just True
+
+        it "dataPartFromWords" $
+            property $ \ws ->
+                dataPartIsValid (dataPartFromWords ws) === True
 
     describe "Conversion of word string from one word size to another" $ do
 
@@ -374,17 +386,17 @@ invalidChecksums =
       , Bech32.StringToDecodeContainsInvalidChars [CharPosition 41] )
     ]
 
-newtype ValidBech32Char = ValidBech32Char
-    { getValidBech32Char :: Char
+newtype DataChar = DataChar
+    { getDataChar :: Char
     } deriving (Eq, Ord, Show)
 
-instance Arbitrary ValidBech32Char where
-    arbitrary = ValidBech32Char <$> elements Bech32.charset
-    shrink (ValidBech32Char c) =
-        ValidBech32Char . (Bech32.word5ToChar Arr.!) <$> shrink
+instance Arbitrary DataChar where
+    arbitrary = DataChar <$> elements Bech32.dataCharList
+    shrink (DataChar c) =
+        DataChar . Bech32.dataCharFromWord <$> shrink
             (fromMaybe
-                (error "unable to shrink a Bech32 character.")
-                (Bech32.charToWord5 c))
+                (error "unable to shrink a Bech32 data character.")
+                (Bech32.dataCharToWord c))
 
 data ValidBech32String = ValidBech32String
     { getValidBech32String :: Text
