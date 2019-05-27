@@ -66,6 +66,9 @@ separatorLength :: Int
 --   <a>https://git.io/fj8FS</a>
 data DataPart
 
+-- | Returns true iff. the specified <a>DataPart</a> is valid.
+dataPartIsValid :: DataPart -> Bool
+
 -- | Constructs a <a>DataPart</a> from a <a>ByteString</a>.
 --   
 --   This function encodes a <a>ByteString</a> in such a way that
@@ -78,10 +81,11 @@ data DataPart
 dataPartFromBytes :: ByteString -> DataPart
 
 -- | Constructs a <a>DataPart</a> from textual input. All characters in the
---   input must be a member of <a>charset</a>, the Bech32 character set.
+--   input must be a member of <a>dataCharList</a>, the set of characters
+--   permitted to appear within the data part of a Bech32 string.
 --   
 --   Returns <a>Nothing</a> if any character in the input is not a member
---   of the Bech32 character set.
+--   of <a>dataCharList</a>.
 --   
 --   This function guarantees to satisfy the following property:
 --   
@@ -122,6 +126,22 @@ dataPartToText :: DataPart -> Text
 -- | Convert a <a>DataPart</a> into words.
 dataPartToWords :: DataPart -> [Word5]
 
+-- | If the specified character is permitted to appear within the data part
+--   of a Bech32 string, this function returns that character's
+--   corresponding <a>Word5</a> value. If the specified character is not
+--   permitted, or if the specified character is upper-case, returns
+--   <a>Nothing</a>.
+dataCharToWord :: Char -> Maybe Word5
+
+-- | Maps the specified <a>Word5</a> onto a character that is permitted to
+--   appear within the data part of a Bech32 string.
+dataCharFromWord :: Word5 -> Char
+
+-- | A list of all characters that are permitted to appear within the data
+--   part of a Bech32 string. See here for more details:
+--   <a>https://git.io/fj8FS</a>
+dataCharList :: String
+
 -- | Represents the human-readable part of a Bech32 string, as defined
 --   here: <a>https://git.io/fj8FS</a>
 data HumanReadablePart
@@ -139,6 +159,8 @@ humanReadablePartFromText :: Text -> Either HumanReadablePartError HumanReadable
 
 -- | Get the raw text of the human-readable part of a Bech32 string.
 humanReadablePartToText :: HumanReadablePart -> Text
+
+-- | Convert the specified human-readable part to a list of words.
 humanReadablePartToWords :: HumanReadablePart -> [Word5]
 
 -- | The shortest length permitted for the human-readable part of a Bech32
@@ -151,11 +173,11 @@ humanReadablePartMaxLength :: Int
 
 -- | The lower bound of the set of characters permitted to appear within
 --   the human-readable part of a Bech32 string.
-humanReadableCharsetMinBound :: Char
+humanReadableCharMinBound :: Char
 
 -- | The upper bound of the set of characters permitted to appear within
 --   the human-readable part of a Bech32 string.
-humanReadableCharsetMaxBound :: Char
+humanReadableCharMaxBound :: Char
 
 -- | Big-endian conversion of a word string from base '2^frombits' to base
 --   '2^tobits'. The <tt>frombits</tt> and <tt>twobits</tt> parameters must
@@ -175,29 +197,6 @@ yesPadding :: Pad Identity
 --   left.
 newtype CharPosition
 CharPosition :: Int -> CharPosition
-
--- | The set of characters that are permitted to appear within the data
---   part of a Bech32 string. See here for more details:
---   <a>https://git.io/fj8FS</a>
-charset :: String
-
--- | If the specified character is permitted to appear within the data part
---   of a Bech32 string, this function returns that character's
---   corresponding <a>Word5</a> value. If the specified character is not
---   permitted, returns <a>Nothing</a>. This function is case-insensitive.
-charToWord5 :: Char -> Maybe Word5
-
--- | Encodes a function that maps every <a>Word5</a> value onto a unique
---   corresponding character value. The codomain of this function is the
---   set of characters permitted to appear within the data part of a Bech32
---   string.
-word5ToChar :: Array Word5 Char
-
--- | Splits the given <a>Text</a> into a prefix and a suffix using the last
---   occurrence of the specified separator character as a splitting point.
---   Evaluates to <a>Nothing</a> if the <a>ByteString</a> does not contain
---   the separator character.
-splitAtLastOccurrence :: Char -> Text -> Maybe (Text, Text)
 instance GHC.Show.Show Codec.Binary.Bech32.Internal.Word5
 instance GHC.Classes.Ord Codec.Binary.Bech32.Internal.Word5
 instance GHC.Classes.Eq Codec.Binary.Bech32.Internal.Word5
@@ -211,11 +210,15 @@ instance GHC.Classes.Eq Codec.Binary.Bech32.Internal.CharPosition
 instance GHC.Show.Show Codec.Binary.Bech32.Internal.EncodingError
 instance GHC.Classes.Eq Codec.Binary.Bech32.Internal.EncodingError
 instance GHC.Show.Show Codec.Binary.Bech32.Internal.HumanReadablePart
+instance GHC.Base.Semigroup Codec.Binary.Bech32.Internal.HumanReadablePart
+instance GHC.Base.Monoid Codec.Binary.Bech32.Internal.HumanReadablePart
 instance GHC.Classes.Eq Codec.Binary.Bech32.Internal.HumanReadablePart
 instance GHC.Show.Show Codec.Binary.Bech32.Internal.DataPart
 instance GHC.Base.Semigroup Codec.Binary.Bech32.Internal.DataPart
 instance GHC.Base.Monoid Codec.Binary.Bech32.Internal.DataPart
 instance GHC.Classes.Eq Codec.Binary.Bech32.Internal.DataPart
+instance GHC.Enum.Bounded Codec.Binary.Bech32.Internal.Word5
+instance GHC.Enum.Enum Codec.Binary.Bech32.Internal.Word5
 instance GHC.Arr.Ix Codec.Binary.Bech32.Internal.Word5
 
 
@@ -248,10 +251,11 @@ data DataPart
 dataPartFromBytes :: ByteString -> DataPart
 
 -- | Constructs a <a>DataPart</a> from textual input. All characters in the
---   input must be a member of <a>charset</a>, the Bech32 character set.
+--   input must be a member of <a>dataCharList</a>, the set of characters
+--   permitted to appear within the data part of a Bech32 string.
 --   
 --   Returns <a>Nothing</a> if any character in the input is not a member
---   of the Bech32 character set.
+--   of <a>dataCharList</a>.
 --   
 --   This function guarantees to satisfy the following property:
 --   
