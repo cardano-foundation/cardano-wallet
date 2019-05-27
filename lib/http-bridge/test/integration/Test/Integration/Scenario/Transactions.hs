@@ -13,6 +13,8 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiAddress, ApiTransaction, ApiWallet )
+import Cardano.Wallet.HttpBridge.Compatibility
+    ( HttpBridge )
 import Cardano.Wallet.Primitive.Types
     ( Direction (..), TxStatus (..) )
 import Control.Monad
@@ -66,7 +68,7 @@ spec = do
     it "TRANS_CREATE_01 - Single Output Transaction" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
         (_, addrs) <-
-            unsafeRequest @[ApiAddress] ctx (getAddresses wb) Empty
+            unsafeRequest @[ApiAddress HttpBridge] ctx (getAddresses wb) Empty
         let amt = 1
         let destination = (addrs !! 1) ^. #id
         let payload = Json [json|{
@@ -81,7 +83,7 @@ spec = do
             }|]
         let (feeMin, feeMax) = (168609, 168785)
 
-        r <- request @ApiTransaction ctx (postTx wa) Default payload
+        r <- request @(ApiTransaction HttpBridge) ctx (postTx wa) Default payload
         verify r
             [ expectSuccess
             , expectResponseCode HTTP.status202
@@ -114,7 +116,7 @@ spec = do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
         (_, addrs1) <-
-            unsafeRequest @[ApiAddress] ctx (getAddresses wDest) Empty
+            unsafeRequest @[ApiAddress HttpBridge] ctx (getAddresses wDest) Empty
 
         let amt = 1
         let destination1 = (addrs1 !! 1) ^. #id
@@ -138,7 +140,7 @@ spec = do
             }|]
         let (feeMin, feeMax) = (181487, 181839)
 
-        r <- request @ApiTransaction ctx (postTx wSrc) Default payload
+        r <- request @(ApiTransaction HttpBridge) ctx (postTx wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
             , expectFieldBetween amount (feeMin + amt, feeMax + amt)
@@ -166,9 +168,9 @@ spec = do
         wDest1 <- emptyWallet ctx
         wDest2 <- emptyWallet ctx
         (_, addrs1) <-
-            unsafeRequest @[ApiAddress] ctx (getAddresses wDest1) Empty
+            unsafeRequest @[ApiAddress HttpBridge] ctx (getAddresses wDest1) Empty
         (_, addrs2) <-
-            unsafeRequest @[ApiAddress] ctx (getAddresses wDest2) Empty
+            unsafeRequest @[ApiAddress HttpBridge] ctx (getAddresses wDest2) Empty
 
         let amt = 1
         let destination1 = (addrs1 !! 1) ^. #id
@@ -194,7 +196,7 @@ spec = do
             }|]
         let (feeMin, feeMax) = (181487, 181839)
 
-        r <- request @ApiTransaction ctx (postTx wSrc) Default payload
+        r <- request @(ApiTransaction HttpBridge) ctx (postTx wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
             , expectFieldBetween amount (feeMin + amt, feeMax + amt)
@@ -223,7 +225,7 @@ spec = do
         wSrc <- fixtureWalletWith ctx [200_000]
         wDest <- emptyWallet ctx
         (_, addrs) <-
-            unsafeRequest @[ApiAddress] ctx (getAddresses wDest) Empty
+            unsafeRequest @[ApiAddress HttpBridge] ctx (getAddresses wDest) Empty
 
         let destination1 = (addrs !! 1) ^. #id
         let destination2 = (addrs !! 2) ^. #id
@@ -247,7 +249,7 @@ spec = do
                 "passphrase": "Secure Passphrase"
             }|]
 
-        r <- request @ApiTransaction ctx (postTx wSrc) Default payload
+        r <- request @(ApiTransaction HttpBridge) ctx (postTx wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
             , expectErrorMessage
@@ -259,7 +261,8 @@ spec = do
     it "TRANS_CREATE_02 - Can't cover fee" $ \ctx -> do
         wSrc <- fixtureWalletWith ctx [100_000]
         wDest <- emptyWallet ctx
-        (_, addr:_) <- unsafeRequest @[ApiAddress] ctx (getAddresses wDest) Empty
+        (_, addr:_) <-
+            unsafeRequest @[ApiAddress HttpBridge] ctx (getAddresses wDest) Empty
         let destination = addr ^. #id
         let payload = Json [json|{
                 "payments": [{
@@ -271,7 +274,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        r <- request @ApiTransaction ctx (postTx wSrc) Default payload
+        r <- request @(ApiTransaction HttpBridge) ctx (postTx wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
             , expectErrorMessage
@@ -284,7 +287,8 @@ spec = do
     it "TRANS_CREATE_02 - Not enough money" $ \ctx -> do
         wSrc <- fixtureWalletWith ctx [100_000]
         wDest <- emptyWallet ctx
-        (_, addr:_) <- unsafeRequest @[ApiAddress] ctx (getAddresses wDest) Empty
+        (_, addr:_) <-
+            unsafeRequest @[ApiAddress HttpBridge] ctx (getAddresses wDest) Empty
         let destination = addr ^. #id
         let payload = Json [json|{
                 "payments": [{
@@ -296,7 +300,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        r <- request @ApiTransaction ctx (postTx wSrc) Default payload
+        r <- request @(ApiTransaction HttpBridge) ctx (postTx wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
             , expectErrorMessage

@@ -35,7 +35,7 @@ import Servant.API
     , ReqBody
     )
 
-type Api = Addresses :<|> Wallets :<|> Transactions
+type Api t = Addresses t :<|> Wallets :<|> Transactions t
 
 {-------------------------------------------------------------------------------
                                   Addresses
@@ -43,15 +43,15 @@ type Api = Addresses :<|> Wallets :<|> Transactions
   See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Addresses
 -------------------------------------------------------------------------------}
 
-type Addresses =
-    ListAddresses
+type Addresses t =
+    ListAddresses t
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listAddresses
-type ListAddresses = "wallets"
+type ListAddresses t = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "addresses"
     :> QueryParam "state" (ApiT AddressState)
-    :> Get '[JSON] [ApiAddress]
+    :> Get '[JSON] [ApiAddress t]
 
 {-------------------------------------------------------------------------------
                                   Wallets
@@ -105,15 +105,15 @@ type PutWalletPassphrase = "wallets"
   See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Transactions
 -------------------------------------------------------------------------------}
 
-type Transactions =
-    CreateTransaction
+type Transactions t =
+    CreateTransaction t
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransaction
-type CreateTransaction = "wallets"
+type CreateTransaction t = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions"
-    :> ReqBody '[JSON] PostTransactionData
-    :> PostAccepted '[JSON] ApiTransaction
+    :> ReqBody '[JSON] (PostTransactionData t)
+    :> PostAccepted '[JSON] (ApiTransaction t)
 
 {-------------------------------------------------------------------------------
                                    Internals

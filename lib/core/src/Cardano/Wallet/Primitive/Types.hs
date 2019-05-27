@@ -45,6 +45,8 @@ module Cardano.Wallet.Primitive.Types
     -- * Address
     , Address (..)
     , AddressState (..)
+    , EncodeAddress (..)
+    , DecodeAddress (..)
 
     -- * Coin
     , Coin (..)
@@ -98,14 +100,16 @@ import Crypto.Number.Generate
     ( generateBetween )
 import Crypto.Random.Types
     ( MonadRandom )
+import Data.Bifunctor
+    ( bimap )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
-import Data.ByteString.Base58
-    ( bitcoinAlphabet, decodeBase58, encodeBase58 )
 import Data.Map.Strict
     ( Map )
+import Data.Proxy
+    ( Proxy )
 import Data.Quantity
     ( Percentage, Quantity (..) )
 import Data.Set
@@ -474,14 +478,47 @@ data TxWitness
 
 -- | Representation of Cardano addresses. Addresses are basically a
 -- human-friendly representation of public keys. Historically in Cardano, there
--- exists different sort of addresses, and new one are to come. So far, we can
+-- exists different sort of addresses, and new ones are to come. So far, we can
 -- distinguish between three types of addresses:
 --
 -- - Byron Random addresses, which holds a payload with derivation path details
 -- - Byron Sequential addresses, also known as Icarus'style addresses
 -- - Shelley base addresses, see also [implementation-decisions/address](https://github.com/input-output-hk/implementation-decisions/blob/master/text/0001-address.md)
 --
--- For more details, see [About Address Derivation](https://github.com/input-output-hk/cardano-wallet/wiki/About-Address-Derivation)
+-- For more details, see also [About Address Derivation](https://github.com/input-output-hk/cardano-wallet/wiki/About-Address-Derivation)
+--
+-- Shelley base addresses can be declined into two types:
+--
+-- - Single Addresses: which only holds a public spending key
+-- - Group Addresses: which hold both a spending and delegation keys
+--
+-- It'll therefore seem legitimate to represent addresses as:
+--
+-- @
+-- data Address
+--   = ByronAddress !ByteString
+--   | SingleAddress !XPub
+--   | GroupAddress !XPub XPub
+-- @
+--
+-- However, there's a major drawback to this approach:  we have to consider all
+-- three constructors everywhere, and make sure we test every function using
+-- them three despite having no need for such fine-grained representation.
+--
+-- Indeed, from the wallet core code, addresses are nothing more than an opaque
+-- bunch of bytes that can be compared with each others. When signing
+-- transactions, we have to lookup addresses anyway and therefore, can re-derive
+-- their corresponding public keys. The only moment the distinction between
+-- address type matters is when it comes to representing addresses at the edge
+-- of the application (the API layer). And here, this is precisely where we need
+-- to also what target backend we're connected to. Different backends use
+-- different encodings which may not be compatible.
+--
+-- Therefore, for simplicity, it's easier to consider addresses as "bytes", and
+-- only peak into these bytes whenever we need to do something with them. This
+-- makes it fairly clear that addresses are just an opaque string for the wallet
+-- layer and that the underlying encoding is rather agnostic to the underlying
+-- backend.
 newtype Address = Address
     { getAddress :: ByteString
     } deriving (Show, Generic, Eq, Ord)
@@ -491,17 +528,27 @@ instance NFData Address
 instance Buildable Address where
     build = build . toText
 
-instance FromText Address where
-    fromText x = maybe
-        (Left $ TextDecodingError err)
-        (pure . Address)
-        (decodeBase58 bitcoinAlphabet $ T.encodeUtf8 x)
-      where
-        err = "Unable to decode Address: expected Base58 encoding"
-
 instance ToText Address where
-    toText = T.decodeUtf8 . encodeBase58 bitcoinAlphabet . getAddress
+    toText = T.decodeUtf8
+        . convertToBase Base16
+        . getAddress
 
+instance FromText Address where
+    fromText = bimap textDecodingError Address
+        . convertFromBase Base16
+        . T.encodeUtf8
+      where
+        textDecodingError = TextDecodingError . show
+
+-- | An abstract class to allow encoding of addresses depending on the target
+-- backend used.
+class EncodeAddress t where
+    encodeAddress :: Proxy t -> Address -> Text
+
+-- | An abstract class to allow decoding of addresses depending on the target
+-- backend used.
+class DecodeAddress t where
+    decodeAddress :: Proxy t -> Text -> Either TextDecodingError Address
 
 -- | Denotes if an address has been previously used or not... whether that be
 -- in the output of a transaction on the blockchain or one in our pending set.
@@ -708,7 +755,6 @@ instance FromText (Hash "Tx") where
       where
         err = "Unable to decode (Hash \"Tx\"): \
                     \expected Base16 encoding"
-
 
 instance ToText (Hash "Tx") where
     toText = T.decodeUtf8 . convertToBase Base16 . getHash

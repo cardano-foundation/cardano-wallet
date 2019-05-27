@@ -34,6 +34,7 @@ library
   build-depends:
       aeson
     , base
+    , base58-bytestring
     , cardano-wallet-core
     , binary
     , bytestring
@@ -81,7 +82,6 @@ test-suite unit
   build-depends:
       base
     , aeson
-    , base58-bytestring
     , bytestring
     , cardano-crypto
     , cardano-wallet-core
@@ -89,12 +89,12 @@ test-suite unit
     , cborg
     , containers
     , digest
-    , fmt
     , generic-arbitrary
     , hspec
     , hspec-golden-aeson
     , memory
     , QuickCheck
+    , text
     , text-class
     , transformers
   type:
@@ -105,11 +105,12 @@ test-suite unit
       Main.hs
   other-modules:
       Cardano.Environment.HttpBridgeSpec
-      Cardano.Wallet.HttpBridge.BinarySpec
       Cardano.Wallet.HttpBridge.ApiSpec
+      Cardano.Wallet.HttpBridge.BinarySpec
+      Cardano.Wallet.HttpBridge.CompatibilitySpec
       Cardano.Wallet.HttpBridge.NetworkSpec
-      Cardano.Wallet.Primitive.AddressDerivationSpec
       Cardano.Wallet.HttpBridge.TransactionSpec
+      Cardano.Wallet.Primitive.AddressDerivationSpec
       Data.PackfileSpec
       Servant.Extra.ContentTypesSpec
       Spec

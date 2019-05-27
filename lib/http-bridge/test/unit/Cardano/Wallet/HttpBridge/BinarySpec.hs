@@ -35,15 +35,18 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxOut (..)
     , TxWitness (PublicKeyWitness)
+    , decodeAddress
     )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase )
 import Data.ByteString
     ( ByteString )
-import Data.ByteString.Base58
-    ( bitcoinAlphabet, decodeBase58 )
 import Data.Either
     ( isLeft )
+import Data.Proxy
+    ( Proxy (..) )
+import Data.Text
+    ( Text )
 import Test.Hspec
     ( Expectation, HasCallStack, Spec, describe, it, shouldBe, shouldSatisfy )
 
@@ -196,10 +199,10 @@ block2 = Block
         "da73001193ab3e6a43921385941c5f96b8f56de3908e78fae06f038b91dadd9d"
     inputId0 = hash16
         "60dbb2679ee920540c18195a3d92ee9be50aee6ed5f891d92d51db8a76b02cd2"
-    address0 = addr58
+    address0 = unsafeDecodeAddress
         "DdzFFzCqrhsug8jKBMV5Cr94hKY4DrbJtkUpqptoGEkovR2QSkcA\
         \cRgjnUyegE689qBX6b2kyxyNvCL6mfqiarzRB9TRq8zwJphR31pr"
-    address1 = addr58
+    address1 = unsafeDecodeAddress
         "DdzFFzCqrhsmxmuQpgjUrvRwF5ZKnyQ7pGrS4q53u5B516wcc26m\
         \aHz9M4myYAkQVc5m9E4DKJjRDjPxuDdK3ZsHb1Dnqf3XorZ1PnzX"
 
@@ -228,10 +231,10 @@ block3 = Block
         "6967e2b5c3ad5ae07a9bd8d888f1836195a04f7a1cb4b6d083261870068fab1b"
     inputId1 = hash16
         "7064addc0968bccd7d57d2e7aa1e9c2f666d8387042483fc1e87200cfb96c8f1"
-    address0 = addr58
+    address0 = unsafeDecodeAddress
         "37btjrVyb4KBsw2f3V76ntfwqDPgyf3QmmdsrTSmCnuTGYtS9JgVXzxeQ\
         \EsKjgWurKoyw9BDNEtLxWtU9znK49SC8bLTirk6YqcAESFxXJkSyXhQKL"
-    address1 = addr58
+    address1 = unsafeDecodeAddress
         "37btjrVyb4KD5Ne4yvGAHGbQuHUYQX1VPsXh85rBh3UrGSMWdRSFxBYQ9\
         \RQRHCMezN6AMLd3uYTC5hbeVTUiPzfQUTCEogg2HrSJKQUjAgsoYZHwT3"
 
@@ -286,18 +289,18 @@ block4 = Block
         "f4283844eb78ca6f6333b007f5a735d71499d6ce7cc816846a033a36784bd299"
     inputId0 = hash16
         "f91292301d4bb1b6e040cecdff4030959b49c95e7dae087782dd558bebb6668a"
-    addr0 = addr58
+    addr0 = unsafeDecodeAddress
         "DdzFFzCqrhss1h6EV6KqcSkJNoC2UdtnuP1gGsoxT5Gv8GPfsReX\
         \8QhVZWXeZLTidYPi3Fu5ZXG4gvfq3zbwD4nboD1HxoCPCFJLWpMc"
-    addr1 = addr58
+    addr1 = unsafeDecodeAddress
         "DdzFFzCqrhszy7cUVphbFGaPBG7yn5nNPzjGDYaPsPuEG84KRjtK\
         \RhhNhwjNENx8LT9XGbYfAJzptwotbp7ySho5LGeCc2ALq3cQX2JM"
     inputId1 = hash16
         "96e170491afb6ebd579fd57c76c684f22436f8cc3a912397ddb1c9c51b86fb53"
-    addr2 = addr58
+    addr2 = unsafeDecodeAddress
         "DdzFFzCqrht5ZoBwGocznhhpr4yXRWy1RaMqguNBPjVGhwZcNMnh\
         \sDUtEETzjQVVc1TBuL3en6yA8JcKVXx1cuoea5rozjcaFid3pkV7"
-    addr3 = addr58
+    addr3 = unsafeDecodeAddress
         "DdzFFzCqrhsoLchqT8AwxFH9srQzvH78dUAD1BwHneqGHvA7BV89\
         \Mj87XFPDSU2tJCMiWpi7vf1U5CqE835Xz2kpnyzFTuYQLkZev4qw"
 
@@ -310,9 +313,9 @@ hash16 = either bomb Hash . convertFromBase Base16
         bomb msg = error ("Could not decode test string: " <> msg)
 
 -- | Make an Address from a Base58 encoded string, without error handling.
-addr58 :: ByteString -> Address
-addr58 = maybe (error "addr58: Could not decode") Address
-    . decodeBase58 bitcoinAlphabet
+unsafeDecodeAddress :: Text -> Address
+unsafeDecodeAddress = either (error "unsafeDecodeAddress: Could not decode") id
+    . decodeAddress (Proxy @HttpBridge)
 
 -- | CBOR deserialise without error handling - handy for prototypes or testing.
 unsafeDeserialiseFromBytes :: (forall s. CBOR.Decoder s a) -> BL.ByteString -> a

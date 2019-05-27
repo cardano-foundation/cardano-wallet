@@ -24,6 +24,7 @@ module Cardano.Wallet.HttpBridge.Binary
     , decodeTx
     , decodeTxWitness
     , decodeSignedTx
+    , decodeAddressPayload
 
     -- * Encoding
     , encodeTx

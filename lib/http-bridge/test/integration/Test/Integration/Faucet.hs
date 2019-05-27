@@ -15,8 +15,6 @@ import Cardano.Environment.HttpBridge
     ( ProtocolMagic (..), network, protocolMagic )
 import Cardano.Wallet
     ( unsafeRunExceptT )
-import Cardano.Wallet.HttpBridge.Binary
-    ( toByteString )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.Network
@@ -67,6 +65,7 @@ import Data.Word
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Codec.CBOR.Encoding as CBOR
+import qualified Codec.CBOR.Write as CBOR
 
 -- | An opaque 'Faucet' type from which one can get a wallet with funds
 newtype Faucet = Faucet (MVar [Mnemonic 15])
@@ -142,8 +141,8 @@ mkRedeemTx outs =
         (ProtocolMagic pm) = protocolMagic network
         sig = Hash $ CC.unXSignature $ CC.sign pwd xprv $ mempty
             <> "\x01" -- Public Key Witness Tag
-            <> toByteString (CBOR.encodeInt32 pm)
-            <> toByteString (CBOR.encodeBytes tx)
+            <> CBOR.toStrictByteString (CBOR.encodeInt32 pm)
+            <> CBOR.toStrictByteString (CBOR.encodeBytes tx)
 
 -- | A genesis UTxO generated from the configuration.yaml.
 -- The secret key can be generated using `cardano-keygen`, and then, using
