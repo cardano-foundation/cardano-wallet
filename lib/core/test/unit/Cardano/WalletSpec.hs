@@ -14,8 +14,6 @@ module Cardano.WalletSpec
 
 import Prelude
 
-import Cardano.Crypto.Wallet
-    ( unXPrv )
 import Cardano.Wallet
     ( ErrCreateUnsignedTx (..)
     , ErrSignTx (..)
@@ -32,12 +30,19 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.MVar
     ( newDBLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
+    ( ChangeChain (..)
+    , Depth (..)
+    , DerivationType (..)
     , ErrWrongPassphrase (..)
+    , Index
     , Key
     , Passphrase (..)
     , XPrv
+    , deriveAccountPrivateKey
+    , deriveAddressPrivateKey
     , generateKeyFromSeed
+    , getKey
+    , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
@@ -46,20 +51,30 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , IsOwned (..)
     , KnownAddresses (..)
     )
+import Cardano.Wallet.Primitive.CoinSelection
+    ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , Coin (..)
     , Hash (..)
+    , Hash (..)
+    , Tx (..)
     , TxId (..)
+    , TxIn (..)
+    , TxOut (..)
+    , TxWitness (..)
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
     )
+import Cardano.Wallet.Transaction
+    ( ErrMkStdTx (..), TransactionLayer (..) )
 import Control.Concurrent
     ( threadDelay )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
-    ( forM_, replicateM, void )
+    ( forM, forM_, replicateM, void )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -72,6 +87,8 @@ import Data.Coerce
     ( coerce )
 import Data.Either
     ( isLeft, isRight )
+import Data.Map.Strict
+    ( Map )
 import Data.Maybe
     ( isJust, isNothing )
 import GHC.Generics
@@ -80,16 +97,16 @@ import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldNotBe, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..), Property, elements, property, (==>) )
-import Test.QuickCheck.Arbitrary.Generic
-    ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
+import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.DB as DB
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
+import qualified Data.Map.Strict as Map
 
 spec :: Spec
 spec = do
@@ -126,6 +143,8 @@ spec = do
             (property walletUpdatePassphraseNoSuchWallet)
         it "Passphrase info is up-to-date after wallet passphrase update"
             (property walletUpdatePassphraseDate)
+        it "Root key is re-encrypted with new passphrase"
+            (property walletKeyIsReencrypted)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -269,6 +288,30 @@ walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
   where
     pause = threadDelay 500
 
+walletKeyIsReencrypted
+    :: (WalletId, WalletName)
+    -> (Key 'RootK XPrv, Passphrase "encryption")
+    -> Passphrase "encryption-new"
+    -> Property
+walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
+    monadicIO $ liftIO $ do
+        let state = Map.insert (Address "source") minBound mempty
+        let wallet = (wid, wname, DummyState state)
+        (WalletLayerFixture _ wl _) <- liftIO $ setupFixture wallet
+        unsafeRunExceptT $ attachPrivateKey wl wid (xprv, pwd)
+        (_,_,[witOld]) <- unsafeRunExceptT $ signTx wl wid pwd selection
+        unsafeRunExceptT $ updateWalletPassphrase wl wid (coerce pwd, newPwd)
+        (_,_,[witNew]) <- unsafeRunExceptT $ signTx wl wid (coerce newPwd) selection
+        witOld `shouldBe` witNew
+  where
+    selection = CoinSelection
+        [ ( TxIn (Hash "eb4ab6028bd0ac971809d514c92db1") 1
+          , TxOut (Address "source") (Coin 42)
+          )
+        ]
+        [ TxOut (Address "destination") (Coin 14) ]
+        []
+
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
 -------------------------------------------------------------------------------}
@@ -285,7 +328,7 @@ setupFixture
 setupFixture (wid, wname, wstate) = do
     db <- newDBLayer
     let nl = error "NetworkLayer"
-    let tl = error "TransactionLayer"
+    let tl = dummyTransactionLayer
     wl <- newWalletLayer @_ @DummyTarget db nl tl
     res <- runExceptT $ createWallet wl wid wname wstate
     let wal = case res of
@@ -293,25 +336,52 @@ setupFixture (wid, wname, wstate) = do
             Right walletId -> [walletId]
     pure $ WalletLayerFixture db wl wal
 
+-- | A dummy transaction layer to see the effect of a root private key. It
+-- implements a fake signer that still produces sort of witnesses
+dummyTransactionLayer :: TransactionLayer
+dummyTransactionLayer = TransactionLayer
+    { mkStdTx = \keyFrom inps outs -> do
+        let tx = Tx (fmap fst inps) outs
+        wit <- forM inps $ \(_, TxOut addr _) -> do
+            (xprv, Passphrase pwd) <- withEither
+                (ErrKeyNotFoundForAddress addr) $ keyFrom addr
+            let (Hash sigData) = txId @DummyTarget tx
+            let sig = CC.unXSignature $ CC.sign pwd (getKey xprv) sigData
+            return $ PublicKeyWitness
+                (CC.unXPub $ getKey $ publicKey xprv)
+                (Hash sig)
+        return (tx, wit)
+    , estimateSize =
+        error "dummyTransactionLayer: estimateSize not implemented"
+    }
+  where
+    withEither :: e -> Maybe a -> Either e a
+    withEither e = maybe (Left e) Right
+
 data DummyTarget
 
 instance TxId DummyTarget where
     txId = Hash . B8.pack . show
 
-data DummyState = DummyState
+newtype DummyState
+    = DummyState (Map Address (Index 'Soft 'AddressK))
     deriving (Generic, Show, Eq)
 
 instance NFData DummyState
 
 instance Arbitrary DummyState where
-    shrink = genericShrink
-    arbitrary = genericArbitrary
+    shrink _ = []
+    arbitrary = return (DummyState mempty)
 
 instance IsOurs DummyState where
     isOurs _ s = (True, s)
 
 instance IsOwned DummyState where
-    isOwned _ _ _ = Nothing
+    isOwned (DummyState m) (rootK, pwd) addr = do
+        ix <- Map.lookup addr m
+        let accXPrv = deriveAccountPrivateKey pwd rootK minBound
+        let addrXPrv = deriveAddressPrivateKey pwd accXPrv ExternalChain ix
+        return (addrXPrv, pwd)
 
 instance GenChange DummyState where
     genChange s = (Address "dummy", s)
@@ -349,4 +419,4 @@ instance {-# OVERLAPS #-} Arbitrary (Key 'RootK XPrv, Passphrase "encryption") w
         return (key, pwd)
 
 instance Show XPrv where
-    show = show . unXPrv
+    show = show . CC.unXPrv
