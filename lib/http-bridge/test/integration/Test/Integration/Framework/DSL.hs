@@ -64,8 +64,10 @@ module Test.Integration.Framework.DSL
 
     -- * Endpoints
     , getWallet
+    , deleteWallet
     , getAddresses
     , postTx
+    , updateWalletPass
 
     -- * CLI
     , cardanoWalletCLI
@@ -643,6 +645,11 @@ postTx w =
     , "v2/wallets/" <> w ^. walletId <> "/transactions"
     )
 
+updateWalletPass :: ApiWallet -> (Method, Text)
+updateWalletPass w =
+    ( "PUT"
+    , "v2/wallets/" <> w ^. walletId <> "/passphrase"
+    )
 ---
 --- CLI
 ---

@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -10,7 +11,7 @@ module Test.Integration.Scenario.Wallets
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiWallet )
+    ( ApiTransaction, ApiWallet )
 import Cardano.Wallet.Primitive.Types
     ( WalletDelegation (..)
     , WalletState (..)
@@ -19,6 +20,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Control.Monad
     ( forM_ )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
 import Data.Text
     ( Text )
 import Test.Hspec
@@ -31,6 +34,7 @@ import Test.Integration.Framework.DSL
     , balanceAvailable
     , balanceTotal
     , delegation
+    , emptyWallet
     , expectErrorMessage
     , expectEventually
     , expectFieldEqual
@@ -38,11 +42,15 @@ import Test.Integration.Framework.DSL
     , expectListItemFieldEqual
     , expectListSizeEqual
     , expectResponseCode
+    , fixtureWallet
     , getFromResponse
     , json
+    , listAddresses
     , passphraseLastUpdate
+    , postTx
     , request
     , state
+    , updateWalletPass
     , verify
     , walletId
     , walletName
@@ -81,6 +89,7 @@ import Test.Integration.Framework.TestData
     , passphraseMinLength
     , payloadWith
     , polishWalletName
+    , postTransPayload
     , russianWalletName
     , simplePayload
     , specMnemonicSecondFactor
@@ -1309,6 +1318,27 @@ spec = do
         rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
         expectResponseCode @IO HTTP.status404 rup
         expectErrorMessage errMsg404NoEndpoint rup
+
+    describe "WALLETS_UPDATE_PASS_05,06 - Transaction after updating passphrase" $ do
+        let matrix = [ ("Old passphrase -> fail", "cardano-wallet"
+                       , [ expectResponseCode @IO HTTP.status403
+                         , expectErrorMessage errMsg403WrongPass ] )
+                     , ("New passphrase -> OK", "cardano-wallet2"
+                       , [ expectResponseCode @IO HTTP.status500 ] ) -- TODO update after # 326
+                     ]
+
+        forM_ matrix $ \(title, pass, expectations) -> it title $ \ctx -> do
+            wSrc <- fixtureWallet ctx
+            wDest <- emptyWallet ctx
+            let payloadUpdate = updatePassPayload "cardano-wallet" "cardano-wallet2"
+            rup <- request @ApiWallet ctx (updateWalletPass wSrc) Default payloadUpdate
+            expectResponseCode @IO HTTP.status204 rup
+
+            addrs <- listAddresses ctx wDest
+            let destination = (addrs !! 1) ^. #id
+            let payloadTrans = postTransPayload 1 destination pass
+            r <- request @ApiTransaction ctx (postTx wSrc) Default payloadTrans
+            verify r expectations
 
     describe "WALLETS_UPDATE_PASS_07 - HTTP headers" $ do
         let matrix =
