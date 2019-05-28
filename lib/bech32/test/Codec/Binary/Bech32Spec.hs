@@ -39,6 +39,8 @@ import Data.Either.Extra
     ( eitherToMaybe )
 import Data.Functor.Identity
     ( runIdentity )
+import Data.List
+    ( intercalate )
 import Data.Maybe
     ( catMaybes, fromMaybe, isJust )
 import Data.Text
@@ -124,104 +126,132 @@ spec = do
 
         it "Decoding fails when an adjacent pair of characters is swapped." $
             property $ \s -> do
-                let validString = getValidBech32String s
-                index <- choose (0, T.length validString - 2)
-                let prefix = T.take index validString
-                let suffix = T.drop (index + 2) validString
-                let char0 = T.singleton (T.index validString index)
-                let char1 = T.singleton (T.index validString $ index + 1)
-                let recombinedString = prefix <> char1 <> char0 <> suffix
-                return $
-                    (T.length recombinedString === T.length validString)
-                    .&&.
-                    (Bech32.decode recombinedString `shouldSatisfy`
-                        (if char0 == char1 then isRight else isLeft))
+                let originalString = getValidBech32String s
+                index <- choose (0, T.length originalString - 2)
+                let prefix = T.take index originalString
+                let suffix = T.drop (index + 2) originalString
+                let char1 = T.singleton (T.index originalString index)
+                let char2 = T.singleton (T.index originalString $ index + 1)
+                let corruptedString = prefix <> char2 <> char1 <> suffix
+                let description = intercalate "\n"
+                        [ "index of char #1: " <> show index
+                        , "index of char #2: " <> show (index + 1)
+                        , "         char #1: " <> show char1
+                        , "         char #2: " <> show char2
+                        , " original string: " <> show originalString
+                        , "corrupted string: " <> show corruptedString ]
+                return $ counterexample description $
+                    char1 /= char2 ==>
+                        (T.length corruptedString === T.length originalString)
+                        .&&.
+                        (Bech32.decode corruptedString `shouldSatisfy` isLeft)
 
         it "Decoding fails when a character is omitted." $
             property $ \s -> do
-                let validString = getValidBech32String s
-                index <- choose (0, T.length validString - 1)
-                let prefix = T.take index validString
-                let suffix = T.drop (index + 1) validString
-                let recombinedString = prefix <> suffix
-                return $
-                    (T.length recombinedString === T.length validString - 1)
+                let originalString = getValidBech32String s
+                index <- choose (0, T.length originalString - 1)
+                let char = T.index originalString index
+                let prefix = T.take index originalString
+                let suffix = T.drop (index + 1) originalString
+                let corruptedString = prefix <> suffix
+                let description = intercalate "\n"
+                        [ "index of omitted char: " <> show index
+                        , "         omitted char: " <> show char
+                        , "      original string: " <> show originalString
+                        , "     corrupted string: " <> show corruptedString ]
+                return $ counterexample description $
+                    (T.length corruptedString === T.length originalString - 1)
                     .&&.
-                    (Bech32.decode recombinedString `shouldSatisfy` isLeft)
+                    (Bech32.decode corruptedString `shouldSatisfy` isLeft)
 
         it "Decoding fails when a character is inserted." $
             property $ \s c -> do
-                let validString = getValidBech32String s
-                let validChar = getDataChar c
-                index <- choose (0, T.length validString - 1)
-                let prefix = T.take index validString
-                let suffix = T.drop index validString
-                let recombinedString =
-                        prefix <> T.singleton validChar <> suffix
-                return $
-                    (T.length recombinedString === T.length validString + 1)
+                let originalString = getValidBech32String s
+                let char = getDataChar c
+                index <- choose (0, T.length originalString - 1)
+                let prefix = T.take index originalString
+                let suffix = T.drop index originalString
+                let corruptedString = prefix <> T.singleton char <> suffix
+                let description = intercalate "\n"
+                        [ "index of inserted char: " <> show index
+                        , "         inserted char: " <> show char
+                        , "       original string: " <> show originalString
+                        , "      corrupted string: " <> show corruptedString ]
+                return $ counterexample description $
+                    (T.length corruptedString === T.length originalString + 1)
                     .&&.
-                    (Bech32.decode recombinedString `shouldSatisfy` isLeft)
+                    (Bech32.decode corruptedString `shouldSatisfy` isLeft)
 
         it "Decoding fails when a single character is mutated." $
            property $ \s c -> do
-                let validString = getValidBech32String s
-                let validChar = getDataChar c
-                let separatorIndex = T.length $
-                        Bech32.humanReadablePartToText $ humanReadablePart s
-                index <- choose (0, T.length validString - 1)
-                let prefix = T.take index validString
-                let suffix = T.drop (index + 1) validString
-                let recombinedString =
-                        prefix <> T.singleton validChar <> suffix
-                return $
-                    index /= separatorIndex ==>
-                    recombinedString /= validString ==>
-                    T.length recombinedString == T.length validString ==> (
-                        -- error location detection is best effort:
-                        (Bech32.decode recombinedString `shouldBe`
-                            Left (StringToDecodeContainsInvalidChars
+                let originalString = getValidBech32String s
+                index <- choose (0, T.length originalString - 1)
+                let originalChar = T.index originalString index
+                let replacementChar = getDataChar c
+                let prefix = T.take index originalString
+                let suffix = T.drop (index + 1) originalString
+                let corruptedString =
+                        prefix <> T.singleton replacementChar <> suffix
+                let description = intercalate "\n"
+                        [ "index of mutated char: " <> show index
+                        , "        original char: " <> show originalChar
+                        , "     replacement char: " <> show replacementChar
+                        , "      original string: " <> show originalString
+                        , "     corrupted string: " <> show corruptedString ]
+                let result = Bech32.decode corruptedString
+                return $ counterexample description $
+                    corruptedString /= originalString ==>
+                        (T.length corruptedString === T.length originalString)
+                        .&&.
+                        (result `shouldBe` Left
+                            StringToDecodeMissingSeparatorChar)
+                        .||.
+                        (result `shouldBe` Left
+                            (StringToDecodeContainsInvalidChars []))
+                        .||.
+                        (result `shouldBe` Left
+                            (StringToDecodeContainsInvalidChars
                                 [CharPosition index]))
-                         .||.
-                        (Bech32.decode recombinedString `shouldBe`
-                            Left (StringToDecodeContainsInvalidChars []))
-                    )
 
         it "Decoding fails for an upper-case string with a lower-case \
            \character." $
             property $ \s -> do
-                let validString = getValidBech32String s
-                index <- choose (0, T.length validString - 1)
-                let prefix = T.map toUpper $ T.take index validString
-                let suffix = T.map toUpper $ T.drop (index + 1) validString
-                let char = T.singleton $ toLower $ T.index validString index
-                let recombinedString = prefix <> char <> suffix
-                return $ counterexample
-                    (show validString <> " : " <> show recombinedString) $
-                    (T.length recombinedString === T.length validString)
-                    .&&.
-                    (Bech32.decode recombinedString `shouldSatisfy`
-                        (if T.map toUpper validString == recombinedString
-                            then isRight
-                            else isLeft))
+                let originalString = T.map toUpper $ getValidBech32String s
+                index <- choose (0, T.length originalString - 1)
+                let prefix = T.take index originalString
+                let suffix = T.drop (index + 1) originalString
+                let char = toLower $ T.index originalString index
+                let corruptedString = prefix <> T.singleton char <> suffix
+                let description = intercalate "\n"
+                        [ "index of mutated char: " <> show index
+                        , "      original string: " <> show originalString
+                        , "     corrupted string: " <> show corruptedString ]
+                return $ counterexample description $
+                    corruptedString /= originalString ==>
+                        (T.length corruptedString === T.length originalString)
+                        .&&.
+                        (Bech32.decode corruptedString `shouldBe` Left
+                            StringToDecodeHasMixedCase)
 
         it "Decoding fails for a lower-case string with an upper-case \
            \character." $
             property $ \s -> do
-                let validString = getValidBech32String s
-                index <- choose (0, T.length validString - 1)
-                let prefix = T.map toLower $ T.take index validString
-                let suffix = T.map toLower $ T.drop (index + 1) validString
-                let char = T.singleton $ toUpper $ T.index validString index
-                let recombinedString = prefix <> char <> suffix
-                return $ counterexample
-                    (show validString <> " : " <> show recombinedString) $
-                    (T.length recombinedString === T.length validString)
-                    .&&.
-                    (Bech32.decode recombinedString `shouldSatisfy`
-                        (if T.map toLower validString == recombinedString
-                            then isRight
-                            else isLeft))
+                let originalString = T.map toLower $ getValidBech32String s
+                index <- choose (0, T.length originalString - 1)
+                let prefix = T.take index originalString
+                let suffix = T.drop (index + 1) originalString
+                let char = toUpper $ T.index originalString index
+                let corruptedString = prefix <> T.singleton char <> suffix
+                let description = intercalate "\n"
+                        [ "index of mutated char: " <> show index
+                        , "      original string: " <> show originalString
+                        , "     corrupted string: " <> show corruptedString ]
+                return $ counterexample description $
+                    corruptedString /= originalString ==>
+                        (T.length corruptedString === T.length originalString)
+                        .&&.
+                        (Bech32.decode corruptedString `shouldBe` Left
+                            StringToDecodeHasMixedCase)
 
     describe "Roundtrip (encode . decode)" $ do
         it "Can perform roundtrip for valid data" $ property $ \(hrp, dp) ->
