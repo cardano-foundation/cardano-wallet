@@ -148,7 +148,7 @@ spec = do
                         (Bech32.decode corruptedString `shouldSatisfy` isLeft)
 
         it "Decoding fails when a character is omitted." $
-            property $ \s -> do
+            property $ withMaxSuccess 10000 $ \s -> do
                 let originalString = getValidBech32String s
                 index <- choose (0, T.length originalString - 1)
                 let char = T.index originalString index
@@ -164,6 +164,16 @@ spec = do
                     (T.length corruptedString === T.length originalString - 1)
                     .&&.
                     (Bech32.decode corruptedString `shouldSatisfy` isLeft)
+                    .||.
+                    -- In the case where the tail of a valid Bech32 string is
+                    -- composed of one or more consecutive 'q' characters
+                    -- followed by a single 'p' character, omitting any or all
+                    -- of the 'q' characters will still result in a valid
+                    -- Bech32 string:
+                    (T.length suffix > 0
+                        && T.last suffix == 'p'
+                        && char == 'q'
+                        && T.all (== 'q') (T.dropEnd 1 suffix))
 
         it "Decoding fails when a character is inserted." $
             property $ \s c -> do
