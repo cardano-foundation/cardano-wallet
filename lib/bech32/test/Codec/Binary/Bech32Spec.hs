@@ -39,6 +39,8 @@ import Data.Either.Extra
     ( eitherToMaybe )
 import Data.Functor.Identity
     ( runIdentity )
+import Data.List
+    ( intercalate )
 import Data.Maybe
     ( catMaybes, fromMaybe, isJust )
 import Data.Text
@@ -124,18 +126,25 @@ spec = do
 
         it "Decoding fails when an adjacent pair of characters is swapped." $
             property $ \s -> do
-                let validString = getValidBech32String s
-                index <- choose (0, T.length validString - 2)
-                let prefix = T.take index validString
-                let suffix = T.drop (index + 2) validString
-                let char0 = T.singleton (T.index validString index)
-                let char1 = T.singleton (T.index validString $ index + 1)
-                let recombinedString = prefix <> char1 <> char0 <> suffix
-                return $
-                    (T.length recombinedString === T.length validString)
-                    .&&.
-                    (Bech32.decode recombinedString `shouldSatisfy`
-                        (if char0 == char1 then isRight else isLeft))
+                let originalString = getValidBech32String s
+                index <- choose (0, T.length originalString - 2)
+                let prefix = T.take index originalString
+                let suffix = T.drop (index + 2) originalString
+                let char1 = T.singleton (T.index originalString index)
+                let char2 = T.singleton (T.index originalString $ index + 1)
+                let corruptedString = prefix <> char2 <> char1 <> suffix
+                let description = intercalate "\n"
+                        [ "index of char #1: " <> show index
+                        , "index of char #2: " <> show (index + 1)
+                        , "         char #1: " <> show char1
+                        , "         char #2: " <> show char2
+                        , " original string: " <> show originalString
+                        , "corrupted string: " <> show corruptedString ]
+                return $ counterexample description $
+                    char1 /= char2 ==>
+                        (T.length corruptedString === T.length originalString)
+                        .&&.
+                        (Bech32.decode corruptedString `shouldSatisfy` isLeft)
 
         it "Decoding fails when a character is omitted." $
             property $ \s -> do
