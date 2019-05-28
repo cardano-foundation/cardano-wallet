@@ -60,6 +60,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Key
     , Passphrase
     , XPrv
+    , changePassphrase
     , checkPassphrase
     , encryptPassphrase
     )
@@ -408,8 +409,9 @@ newWalletLayer db nw tl = do
         -> ExceptT ErrUpdatePassphrase IO ()
     _updateWalletPassphrase wid (old, new) = do
         withRootKey wid (coerce old) ErrUpdatePassphraseWithRootKey $ \xprv ->
-            withExceptT ErrUpdatePassphraseNoSuchWallet $
-                _attachPrivateKey wid (xprv, coerce new)
+            withExceptT ErrUpdatePassphraseNoSuchWallet $ do
+                let xprv' = changePassphrase old new xprv
+                _attachPrivateKey wid (xprv', coerce new)
 
     _listWallets
         :: IO [WalletId]
