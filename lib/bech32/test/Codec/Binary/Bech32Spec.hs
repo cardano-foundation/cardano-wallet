@@ -57,6 +57,7 @@ import Test.QuickCheck
     , counterexample
     , elements
     , property
+    , withMaxSuccess
     , (.&&.)
     , (.||.)
     , (===)
@@ -125,7 +126,7 @@ spec = do
     describe "Decoding a corrupted string should fail" $ do
 
         it "Decoding fails when an adjacent pair of characters is swapped." $
-            property $ \s -> do
+            property $ withMaxSuccess 10000 $ \s -> do
                 let originalString = getValidBech32String s
                 index <- choose (0, T.length originalString - 2)
                 let prefix = T.take index originalString
