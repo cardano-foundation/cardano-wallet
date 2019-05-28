@@ -124,11 +124,17 @@ spec = do
                     Right (humanReadablePart v, unencodedDataPart v)
 
     describe "Decoding a corrupted string should fail" $ do
+        let chooseWithinDataPart originalString = do
+                let sepIx = maybe
+                        (error "couldn't find separator in valid bech32 string")
+                        (\ix -> T.length originalString - ix - 1)
+                        (T.findIndex (== '1') (T.reverse originalString))
+                choose (sepIx + 1, T.length originalString - 2)
 
         it "Decoding fails when an adjacent pair of characters is swapped." $
             property $ withMaxSuccess 10000 $ \s -> do
                 let originalString = getValidBech32String s
-                index <- choose (0, T.length originalString - 2)
+                index <- chooseWithinDataPart originalString
                 let prefix = T.take index originalString
                 let suffix = T.drop (index + 2) originalString
                 let char1 = T.singleton (T.index originalString index)
@@ -150,7 +156,7 @@ spec = do
         it "Decoding fails when a character is omitted." $
             property $ withMaxSuccess 10000 $ \s -> do
                 let originalString = getValidBech32String s
-                index <- choose (0, T.length originalString - 1)
+                index <- chooseWithinDataPart originalString
                 let char = T.index originalString index
                 let prefix = T.take index originalString
                 let suffix = T.drop (index + 1) originalString
@@ -179,7 +185,7 @@ spec = do
             property $ withMaxSuccess 10000 $ \s c -> do
                 let originalString = getValidBech32String s
                 let char = getDataChar c
-                index <- choose (0, T.length originalString - 1)
+                index <- chooseWithinDataPart originalString
                 let prefix = T.take index originalString
                 let suffix = T.drop index originalString
                 let corruptedString = prefix <> T.singleton char <> suffix
@@ -203,9 +209,9 @@ spec = do
                         && T.all (== 'q') (T.dropEnd 1 suffix))
 
         it "Decoding fails when a single character is mutated." $
-           property $ \s c -> do
+           withMaxSuccess 10000 $ property $ \s c -> do
                 let originalString = getValidBech32String s
-                index <- choose (0, T.length originalString - 1)
+                index <- chooseWithinDataPart originalString
                 let originalChar = T.index originalString index
                 let replacementChar = getDataChar c
                 let prefix = T.take index originalString
@@ -235,9 +241,9 @@ spec = do
 
         it "Decoding fails for an upper-case string with a lower-case \
            \character." $
-            property $ \s -> do
+            withMaxSuccess 10000 $ property $ \s -> do
                 let originalString = T.map toUpper $ getValidBech32String s
-                index <- choose (0, T.length originalString - 1)
+                index <- chooseWithinDataPart originalString
                 let prefix = T.take index originalString
                 let suffix = T.drop (index + 1) originalString
                 let char = toLower $ T.index originalString index
@@ -255,9 +261,9 @@ spec = do
 
         it "Decoding fails for a lower-case string with an upper-case \
            \character." $
-            property $ \s -> do
+            withMaxSuccess 10000 $ property $ \s -> do
                 let originalString = T.map toLower $ getValidBech32String s
-                index <- choose (0, T.length originalString - 1)
+                index <- chooseWithinDataPart originalString
                 let prefix = T.take index originalString
                 let suffix = T.drop (index + 1) originalString
                 let char = toUpper $ T.index originalString index
