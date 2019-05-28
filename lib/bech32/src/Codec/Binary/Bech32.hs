@@ -14,8 +14,10 @@ module Codec.Binary.Bech32
     (
       -- * Encoding & Decoding
       encode
+    , encodeLenient
     , EncodingError (..)
     , decode
+    , decodeLenient
     , DecodingError (..)
 
       -- * Data Part
