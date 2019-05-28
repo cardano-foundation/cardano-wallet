@@ -14,12 +14,12 @@ module Cardano.Wallet.HttpBridge.TransactionSpec
 
 import Prelude
 
-import Cardano.Environment.HttpBridge
-    ( Network (..), network )
 import Cardano.Wallet.HttpBridge.Binary
     ( encodeSignedTx )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
+import Cardano.Wallet.HttpBridge.Environment
+    ( Network (..), network )
 import Cardano.Wallet.HttpBridge.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation

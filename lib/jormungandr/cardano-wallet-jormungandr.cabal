@@ -43,10 +43,10 @@ library
   hs-source-dirs:
       src
   exposed-modules:
-      Cardano.Environment.Jormungandr
-      Cardano.Wallet.Jormungandr.Binary
       Cardano.Wallet.Jormungandr.Api
+      Cardano.Wallet.Jormungandr.Binary
       Cardano.Wallet.Jormungandr.Compatibility
+      Cardano.Wallet.Jormungandr.Environment
       Cardano.Wallet.Jormungandr.Transaction
 
 test-suite unit
@@ -80,7 +80,7 @@ test-suite unit
       Main.hs
   other-modules:
       Cardano.Wallet.Jormungandr.BinarySpec
-      Cardano.Environment.JormungandrSpec
+      Cardano.Wallet.Jormungandr.EnvironmentSpec
       Spec
 
 test-suite integration

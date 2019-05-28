@@ -9,10 +9,10 @@ module Cardano.Wallet.HttpBridge.Transaction
 
 import Prelude
 
-import Cardano.Environment.HttpBridge
-    ( Network (..), ProtocolMagic (..), network, protocolMagic )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
+import Cardano.Wallet.HttpBridge.Environment
+    ( Network (..), ProtocolMagic (..), network, protocolMagic )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (AddressK), Key, Passphrase (..), XPrv, XPub, getKey, publicKey )
 import Cardano.Wallet.Primitive.CoinSelection

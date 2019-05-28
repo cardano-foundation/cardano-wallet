@@ -5,13 +5,13 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.EnvironmentSpec
+module Cardano.Wallet.EnvironmentSpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.Environment
+import Cardano.Wallet.Environment
     ( ErrMissingOrInvalidEnvVar (..), unsafeLookupEnv )
 import Data.Maybe
     ( isNothing )

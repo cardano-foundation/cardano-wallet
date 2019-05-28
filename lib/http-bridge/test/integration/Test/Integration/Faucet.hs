@@ -11,12 +11,12 @@ module Test.Integration.Faucet
 
 import Prelude
 
-import Cardano.Environment.HttpBridge
-    ( ProtocolMagic (..), network, protocolMagic )
 import Cardano.Wallet
     ( unsafeRunExceptT )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
+import Cardano.Wallet.HttpBridge.Environment
+    ( ProtocolMagic (..), network, protocolMagic )
 import Cardano.Wallet.Network
     ( NetworkLayer (postTx) )
 import Cardano.Wallet.Primitive.AddressDerivation

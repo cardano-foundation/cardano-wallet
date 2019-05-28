@@ -8,14 +8,14 @@ module Cardano.WalletSpec
 
 import Prelude
 
-import Cardano.Environment.HttpBridge
-    ( network )
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
     ( WalletLayer (..), newWalletLayer, unsafeRunExceptT )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
+import Cardano.Wallet.HttpBridge.Environment
+    ( network )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..), digest, generateKeyFromSeed, publicKey )
 import Cardano.Wallet.Primitive.AddressDiscovery

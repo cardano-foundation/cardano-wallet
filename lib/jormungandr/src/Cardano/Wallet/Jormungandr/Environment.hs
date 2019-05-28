@@ -14,7 +14,7 @@
 -- rely on a `.env` file to bundle configuration settings together for a given
 -- target environment.
 
-module Cardano.Environment.Jormungandr
+module Cardano.Wallet.Jormungandr.Environment
     (
     -- * Networking
       Network(..)
@@ -25,7 +25,7 @@ module Cardano.Environment.Jormungandr
 
 import Prelude
 
-import Cardano.Environment
+import Cardano.Wallet.Environment
     ( unsafeLookupEnv )
 import Data.Int
     ( Int32 )

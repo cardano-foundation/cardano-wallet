@@ -6,8 +6,6 @@ module Cardano.Wallet.Jormungandr.BinarySpec (spec) where
 
 import Prelude
 
-import Cardano.Environment.Jormungandr
-    ( Network (..) )
 import Cardano.Wallet.Jormungandr.Binary
     ( Block (..)
     , BlockHeader (..)
@@ -21,6 +19,8 @@ import Cardano.Wallet.Jormungandr.Binary
     , getBlockHeader
     , runGet
     )
+import Cardano.Wallet.Jormungandr.Environment
+    ( Network (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Coin (..), Hash (..), SlotId (..), Tx (..), TxOut (..) )
 import Data.ByteArray.Encoding

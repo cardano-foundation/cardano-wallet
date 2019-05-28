@@ -22,8 +22,6 @@ module Cardano.Wallet.HttpBridge.Network
 
 import Prelude
 
-import Cardano.Environment.HttpBridge
-    ( network )
 import Cardano.Wallet.HttpBridge.Api
     ( ApiT (..)
     , EpochIndex (..)
@@ -34,6 +32,8 @@ import Cardano.Wallet.HttpBridge.Api
     , PostSignedTx
     , api
     )
+import Cardano.Wallet.HttpBridge.Environment
+    ( network )
 import Cardano.Wallet.Network
     ( ErrNetworkTip (..)
     , ErrNetworkUnreachable (..)

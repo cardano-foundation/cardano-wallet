@@ -2,7 +2,7 @@ module Main where
 
 import Prelude
 
-import Cardano.Environment.Jormungandr
+import Cardano.Wallet.Jormungandr.Environment
     ( network )
 import Test.Hspec.Runner
     ( hspecWith )

@@ -17,10 +17,10 @@ module Cardano.Wallet.HttpBridge.Compatibility
 
 import Prelude
 
-import Cardano.Environment.HttpBridge
-    ( Network (Mainnet, Staging, Testnet), network, protocolMagic )
 import Cardano.Wallet.HttpBridge.Binary
     ( decodeAddressPayload, encodeProtocolMagic, encodeTx )
+import Cardano.Wallet.HttpBridge.Environment
+    ( Network (Mainnet, Staging, Testnet), network, protocolMagic )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..), getKey )
 import Cardano.Wallet.Primitive.Types

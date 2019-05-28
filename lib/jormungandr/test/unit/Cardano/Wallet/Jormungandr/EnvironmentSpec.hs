@@ -2,11 +2,11 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Environment.HttpBridgeSpec where
+module Cardano.Wallet.Jormungandr.EnvironmentSpec where
 
 import Prelude
 
-import Cardano.Environment.HttpBridge
+import Cardano.Wallet.Jormungandr.Environment
     ( Network )
 import Data.Proxy
     ( Proxy (..) )

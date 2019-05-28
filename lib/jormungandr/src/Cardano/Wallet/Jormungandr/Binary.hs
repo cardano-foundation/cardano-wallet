@@ -37,7 +37,7 @@ module Cardano.Wallet.Jormungandr.Binary
 
 import Prelude
 
-import Cardano.Environment.Jormungandr
+import Cardano.Wallet.Jormungandr.Environment
     ( Network (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
