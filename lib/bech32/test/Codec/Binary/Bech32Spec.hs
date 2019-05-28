@@ -166,17 +166,21 @@ spec = do
 
         it "Decoding fails when a character is inserted." $
             property $ \s c -> do
-                let validString = getValidBech32String s
-                let validChar = getDataChar c
-                index <- choose (0, T.length validString - 1)
-                let prefix = T.take index validString
-                let suffix = T.drop index validString
-                let recombinedString =
-                        prefix <> T.singleton validChar <> suffix
-                return $
-                    (T.length recombinedString === T.length validString + 1)
+                let originalString = getValidBech32String s
+                let char = getDataChar c
+                index <- choose (0, T.length originalString - 1)
+                let prefix = T.take index originalString
+                let suffix = T.drop index originalString
+                let corruptedString = prefix <> T.singleton char <> suffix
+                let description = intercalate "\n"
+                        [ "index of inserted char: " <> show index
+                        , "         inserted char: " <> show char
+                        , "       original string: " <> show originalString
+                        , "      corrupted string: " <> show corruptedString ]
+                return $ counterexample description $
+                    (T.length corruptedString === T.length originalString + 1)
                     .&&.
-                    (Bech32.decode recombinedString `shouldSatisfy` isLeft)
+                    (Bech32.decode corruptedString `shouldSatisfy` isLeft)
 
         it "Decoding fails when a single character is mutated." $
            property $ \s c -> do
