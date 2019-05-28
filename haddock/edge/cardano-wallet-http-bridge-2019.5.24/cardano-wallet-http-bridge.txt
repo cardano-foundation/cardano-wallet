@@ -19,7 +19,7 @@
 --   Prior to starting, the wallet is expected to have a few configuration
 --   parameter available. One may rely on a `.env` file to bundle
 --   configuration settings together for a given target environment.
-module Cardano.Environment.HttpBridge
+module Cardano.Wallet.HttpBridge.Environment
 
 -- | Available network options.
 data Network
@@ -36,14 +36,14 @@ ProtocolMagic :: Int32 -> ProtocolMagic
 
 -- | Get the <a>ProtocolMagic</a> corresponding to a given <a>Network</a>.
 protocolMagic :: Network -> ProtocolMagic
-instance GHC.Show.Show Cardano.Environment.HttpBridge.ProtocolMagic
-instance GHC.Generics.Generic Cardano.Environment.HttpBridge.ProtocolMagic
-instance GHC.Enum.Enum Cardano.Environment.HttpBridge.Network
-instance GHC.Classes.Eq Cardano.Environment.HttpBridge.Network
-instance GHC.Show.Show Cardano.Environment.HttpBridge.Network
-instance GHC.Generics.Generic Cardano.Environment.HttpBridge.Network
-instance Data.Text.Class.FromText Cardano.Environment.HttpBridge.Network
-instance Data.Text.Class.ToText Cardano.Environment.HttpBridge.Network
+instance GHC.Show.Show Cardano.Wallet.HttpBridge.Environment.ProtocolMagic
+instance GHC.Generics.Generic Cardano.Wallet.HttpBridge.Environment.ProtocolMagic
+instance GHC.Enum.Enum Cardano.Wallet.HttpBridge.Environment.Network
+instance GHC.Classes.Eq Cardano.Wallet.HttpBridge.Environment.Network
+instance GHC.Show.Show Cardano.Wallet.HttpBridge.Environment.Network
+instance GHC.Generics.Generic Cardano.Wallet.HttpBridge.Environment.Network
+instance Data.Text.Class.FromText Cardano.Wallet.HttpBridge.Environment.Network
+instance Data.Text.Class.ToText Cardano.Wallet.HttpBridge.Environment.Network
 
 
 -- | These are (partial) CBOR decoders for blocks and block headers. Note

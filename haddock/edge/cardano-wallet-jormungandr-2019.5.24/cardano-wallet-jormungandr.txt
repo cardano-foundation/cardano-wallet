@@ -9,6 +9,20 @@
 @version 2019.5.24
 
 
+-- | Contains various implementation decision that are specific to a
+--   particular network / protocol. This allows us to easily select a
+--   particular backend (Byron, Shelley-Rust, Shelley-Haskell) and isolate
+--   the bits that vary between those backends.
+module Cardano.Wallet.Jormungandr.Compatibility
+
+-- | A type representing the Jormungandr as a network target. This has an
+--   influence on binary serializer &amp; network primitives. See also
+--   <a>TxId</a>
+data Jormungandr
+instance Cardano.Wallet.Primitive.Types.TxId Cardano.Wallet.Jormungandr.Compatibility.Jormungandr
+instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress Cardano.Wallet.Jormungandr.Compatibility.Jormungandr
+
+
 -- | This module contains static configuration parameters. Rather than
 --   providing and carrying around a configuration file through the
 --   application, we resolve configuration data at runtime using the
@@ -19,7 +33,7 @@
 --   Prior to starting, the wallet is expected to have a few configuration
 --   parameter available. One may rely on a `.env` file to bundle
 --   configuration settings together for a given target environment.
-module Cardano.Environment.Jormungandr
+module Cardano.Wallet.Jormungandr.Environment
 
 -- | Available network options.
 data Network
@@ -35,14 +49,14 @@ ProtocolMagic :: Int32 -> ProtocolMagic
 
 -- | Get the <a>ProtocolMagic</a> corresponding to a given <a>Network</a>.
 protocolMagic :: Network -> ProtocolMagic
-instance GHC.Show.Show Cardano.Environment.Jormungandr.ProtocolMagic
-instance GHC.Generics.Generic Cardano.Environment.Jormungandr.ProtocolMagic
-instance GHC.Enum.Enum Cardano.Environment.Jormungandr.Network
-instance GHC.Classes.Eq Cardano.Environment.Jormungandr.Network
-instance GHC.Show.Show Cardano.Environment.Jormungandr.Network
-instance GHC.Generics.Generic Cardano.Environment.Jormungandr.Network
-instance Data.Text.Class.FromText Cardano.Environment.Jormungandr.Network
-instance Data.Text.Class.ToText Cardano.Environment.Jormungandr.Network
+instance GHC.Show.Show Cardano.Wallet.Jormungandr.Environment.ProtocolMagic
+instance GHC.Generics.Generic Cardano.Wallet.Jormungandr.Environment.ProtocolMagic
+instance GHC.Enum.Enum Cardano.Wallet.Jormungandr.Environment.Network
+instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Environment.Network
+instance GHC.Show.Show Cardano.Wallet.Jormungandr.Environment.Network
+instance GHC.Generics.Generic Cardano.Wallet.Jormungandr.Environment.Network
+instance Data.Text.Class.FromText Cardano.Wallet.Jormungandr.Environment.Network
+instance Data.Text.Class.ToText Cardano.Wallet.Jormungandr.Environment.Network
 
 
 -- | The format is for the Shelley era as implemented by the Jörmungandr
@@ -208,20 +222,6 @@ instance Servant.API.ContentTypes.Accept Cardano.Wallet.Jormungandr.Api.Jormunga
 instance Cardano.Wallet.Jormungandr.Binary.FromBinary a => Servant.API.ContentTypes.MimeUnrender Cardano.Wallet.Jormungandr.Api.JormungandrBinary a
 instance Web.Internal.HttpApiData.ToHttpApiData Cardano.Wallet.Jormungandr.Api.BlockId
 instance Cardano.Wallet.Jormungandr.Binary.FromBinary Cardano.Wallet.Jormungandr.Api.BlockId
-
-
--- | Contains various implementation decision that are specific to a
---   particular network / protocol. This allows us to easily select a
---   particular backend (Byron, Shelley-Rust, Shelley-Haskell) and isolate
---   the bits that vary between those backends.
-module Cardano.Wallet.Jormungandr.Compatibility
-
--- | A type representing the Jormungandr as a network target. This has an
---   influence on binary serializer &amp; network primitives. See also
---   <a>TxId</a>
-data Jormungandr
-instance Cardano.Wallet.Primitive.Types.TxId Cardano.Wallet.Jormungandr.Compatibility.Jormungandr
-instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress Cardano.Wallet.Jormungandr.Compatibility.Jormungandr
 
 module Cardano.Wallet.Jormungandr.Transaction
 

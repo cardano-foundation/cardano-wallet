@@ -13,7 +13,7 @@
 --   readable error messages.
 --   
 --   Copyright: © 2018-2019 IOHK License: MIT
-module Cardano.Environment
+module Cardano.Wallet.Environment
 
 -- | Fatal exception thrown when a required ENV var is missing upon
 --   start-up.
@@ -25,8 +25,8 @@ ErrMissingOrInvalidEnvVar :: String -> String -> Maybe (String, TextDecodingErro
 
 -- | Lookup the environment for a given variable
 unsafeLookupEnv :: FromText a => String -> a
-instance GHC.Show.Show Cardano.Environment.ErrMissingOrInvalidEnvVar
-instance GHC.Exception.Type.Exception Cardano.Environment.ErrMissingOrInvalidEnvVar
+instance GHC.Show.Show Cardano.Wallet.Environment.ErrMissingOrInvalidEnvVar
+instance GHC.Exception.Type.Exception Cardano.Wallet.Environment.ErrMissingOrInvalidEnvVar
 
 
 -- | This module provides mnemonic (backup phrase) creation, and conversion
@@ -831,6 +831,15 @@ encryptPassphrase :: MonadRandom m => Passphrase purpose -> m (Hash purpose)
 
 -- | Check whether a <a>Passphrase</a> matches with a stored <a>Hash</a>
 checkPassphrase :: Passphrase purpose -> Hash purpose -> Either ErrWrongPassphrase ()
+
+-- | Re-encrypt a private key using a different passphrase.
+--   
+--   <ul>
+--   <li>*Important**: This function doesn't check that the old passphrase
+--   is correct! Caller is expected to have already checked that. Using an
+--   incorrect passphrase here will lead to very bad thing.</li>
+--   </ul>
+changePassphrase :: Passphrase "encryption-old" -> Passphrase "encryption-new" -> Key purpose XPrv -> Key purpose XPrv
 
 -- | Marker for the change chain. In practice, change of a transaction goes
 --   onto the addresses generated on the internal chain, whereas the
