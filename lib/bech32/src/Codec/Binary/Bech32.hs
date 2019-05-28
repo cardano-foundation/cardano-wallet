@@ -14,7 +14,9 @@ module Codec.Binary.Bech32
     (
       -- * Encoding & Decoding
       encode
+    , EncodingError (..)
     , decode
+    , DecodingError (..)
 
       -- * Data Part
     , DataPart
@@ -25,9 +27,9 @@ module Codec.Binary.Bech32
 
       -- * Human-Readable Part
     , HumanReadablePart
+    , HumanReadablePartError (..)
     , humanReadablePartFromText
     , humanReadablePartToText
-
     ) where
 
 import Codec.Binary.Bech32.Internal
