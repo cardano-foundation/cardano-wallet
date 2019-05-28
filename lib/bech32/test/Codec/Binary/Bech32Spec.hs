@@ -216,20 +216,22 @@ spec = do
         it "Decoding fails for an upper-case string with a lower-case \
            \character." $
             property $ \s -> do
-                let validString = getValidBech32String s
-                index <- choose (0, T.length validString - 1)
-                let prefix = T.map toUpper $ T.take index validString
-                let suffix = T.map toUpper $ T.drop (index + 1) validString
-                let char = T.singleton $ toLower $ T.index validString index
-                let recombinedString = prefix <> char <> suffix
-                return $ counterexample
-                    (show validString <> " : " <> show recombinedString) $
-                    (T.length recombinedString === T.length validString)
-                    .&&.
-                    (Bech32.decode recombinedString `shouldSatisfy`
-                        (if T.map toUpper validString == recombinedString
-                            then isRight
-                            else isLeft))
+                let originalString = T.map toUpper $ getValidBech32String s
+                index <- choose (0, T.length originalString - 1)
+                let prefix = T.take index originalString
+                let suffix = T.drop (index + 1) originalString
+                let char = toLower $ T.index originalString index
+                let corruptedString = prefix <> T.singleton char <> suffix
+                let description = intercalate "\n"
+                        [ "index of mutated char: " <> show index
+                        , "      original string: " <> show originalString
+                        , "     corrupted string: " <> show corruptedString ]
+                return $ counterexample description $
+                    corruptedString /= originalString ==>
+                        (T.length corruptedString === T.length originalString)
+                        .&&.
+                        (Bech32.decode corruptedString `shouldBe` Left
+                            StringToDecodeHasMixedCase)
 
         it "Decoding fails for a lower-case string with an upper-case \
            \character." $
