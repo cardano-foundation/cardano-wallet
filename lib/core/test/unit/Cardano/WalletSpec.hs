@@ -96,7 +96,7 @@ import GHC.Generics
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldNotBe, shouldSatisfy )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, elements, property, (==>) )
+    ( Arbitrary (..), Property, elements, property, withMaxSuccess, (==>) )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
@@ -144,7 +144,7 @@ spec = do
         it "Passphrase info is up-to-date after wallet passphrase update"
             (property walletUpdatePassphraseDate)
         it "Root key is re-encrypted with new passphrase"
-            (property walletKeyIsReencrypted)
+            (withMaxSuccess 10 $ property walletKeyIsReencrypted)
 
 {-------------------------------------------------------------------------------
                                     Properties

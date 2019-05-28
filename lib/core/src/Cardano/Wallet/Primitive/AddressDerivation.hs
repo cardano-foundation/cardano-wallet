@@ -49,6 +49,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , ErrWrongPassphrase(..)
     , encryptPassphrase
     , checkPassphrase
+    , changePassphrase
 
     -- * Sequential Derivation
     , ChangeChain(..)
@@ -77,6 +78,7 @@ import Cardano.Crypto.Wallet
     , toXPub
     , unXPrv
     , unXPub
+    , xPrvChangePass
     , xprv
     , xpub
     )
@@ -392,6 +394,20 @@ checkPassphrase received stored = do
 -- | Indicate a failure when checking for a given 'Passphrase' match
 data ErrWrongPassphrase = ErrWrongPassphrase
     deriving stock (Show, Eq)
+
+-- | Re-encrypt a private key using a different passphrase.
+--
+-- **Important**:
+-- This function doesn't check that the old passphrase is correct! Caller is
+-- expected to have already checked that. Using an incorrect passphrase here
+-- will lead to very bad thing.
+changePassphrase
+    :: Passphrase "encryption-old"
+    -> Passphrase "encryption-new"
+    -> Key purpose XPrv
+    -> Key purpose XPrv
+changePassphrase (Passphrase oldPwd) (Passphrase newPwd) (Key prv) =
+    Key $ xPrvChangePass oldPwd newPwd prv
 
 -- | Little trick to be able to provide our own "random" salt in order to
 -- deterministically re-compute a passphrase hash from a known salt. Note that,
