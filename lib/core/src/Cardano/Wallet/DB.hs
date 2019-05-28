@@ -12,6 +12,7 @@ module Cardano.Wallet.DB
     ( -- * Interface
       DBLayer(..)
     , PrimaryKey(..)
+    , cleanDB
 
       -- * Errors
     , ErrNoSuchWallet(..)
@@ -27,7 +28,7 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Types
     ( Hash, Tx, TxMeta, WalletId, WalletMetadata )
 import Control.Monad.Trans.Except
-    ( ExceptT )
+    ( ExceptT, runExceptT )
 import Data.Map.Strict
     ( Map )
 
@@ -146,3 +147,7 @@ newtype ErrWalletAlreadyExists
 -- (like for instance, the last known network tip).
 newtype PrimaryKey key = PrimaryKey key
     deriving (Eq, Ord)
+
+-- | Clean a database by removing all wallets.
+cleanDB :: Monad m => DBLayer m s t -> m ()
+cleanDB db = listWallets db >>= mapM_ (runExceptT . removeWallet db)

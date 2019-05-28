@@ -30,6 +30,7 @@ import Cardano.Wallet.DB
     , ErrNoSuchWallet (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
+    , cleanDB
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( ChangeChain (..)
@@ -92,6 +93,8 @@ import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Crypto.Hash
     ( hash )
+import Data.Functor
+    ( ($>) )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Map.Strict
@@ -149,10 +152,6 @@ import qualified Data.Map.Strict as Map
 
 spec :: Spec
 spec = return ()
-
--- | Clean a database by removing all wallets.
-cleanDB :: Monad m => DBLayer m s t -> m ()
-cleanDB db = listWallets db >>= mapM_ (runExceptT . removeWallet db)
 
 {-------------------------------------------------------------------------------
                     Cross DB Specs Shared Arbitrary Instances
@@ -739,11 +738,7 @@ dbPropertyTests = do
             (checkCoverage . (prop_parallelPut putPrivateKey readPrivateKey
                 (length . lrp @Maybe)))
 
--- | Clean a database by removing all wallets.
-cleanDB :: Monad m => DBLayer m s t -> m (DBLayer m s t)
-cleanDB db = listWallets db >>= mapM_ (runExceptT . removeWallet db) >> pure db
-
 -- | Provide a DBLayer to a Spec that requires it. The database is initialised
 -- once, and cleared with 'cleanDB' before each test.
 withDB :: IO (DBLayer IO s t) -> SpecWith (DBLayer IO s t) -> Spec
-withDB create = beforeAll create . beforeWith cleanDB
+withDB create = beforeAll create . beforeWith (\db -> cleanDB db $> db)
