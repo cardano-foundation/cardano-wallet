@@ -164,3 +164,33 @@ test-suite unit
       Cardano.Wallet.Primitive.TypesSpec
       Cardano.WalletSpec
       Data.QuantitySpec
+
+benchmark db
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+      -O2
+  if (!flag(development))
+    ghc-options:
+      -Werror
+  build-depends:
+      base
+    , split
+    , bytestring
+    , criterion
+    , cardano-crypto
+    , cardano-wallet-core
+    , containers
+    , cryptonite
+    , deepseq
+  type:
+     exitcode-stdio-1.0
+  hs-source-dirs:
+      bench/db
+  main-is:
+      Main.hs
