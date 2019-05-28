@@ -564,9 +564,9 @@ getFromResponse getter (_, res) = case res of
 json :: QuasiQuoter
 json = aesonQQ
 
-listAddresses :: Context -> ApiWallet -> IO [ApiAddress]
+listAddresses :: Context -> ApiWallet -> IO [ApiAddress HttpBridge]
 listAddresses ctx w = do
-    (_, addrs) <- unsafeRequest @[ApiAddress] ctx (getAddresses w) Empty
+    (_, addrs) <- unsafeRequest @[ApiAddress HttpBridge] ctx (getAddresses w) Empty
     return addrs
 
 infixr 5 </>

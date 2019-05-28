@@ -12,6 +12,8 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiTransaction, ApiWallet )
+import Cardano.Wallet.HttpBridge.Compatibility
+    ( HttpBridge )
 import Cardano.Wallet.Primitive.Types
     ( WalletDelegation (..)
     , WalletState (..)
@@ -89,7 +91,6 @@ import Test.Integration.Framework.TestData
     , passphraseMinLength
     , payloadWith
     , polishWalletName
-    , postTransPayload
     , russianWalletName
     , simplePayload
     , specMnemonicSecondFactor
@@ -1320,24 +1321,35 @@ spec = do
         expectErrorMessage errMsg404NoEndpoint rup
 
     describe "WALLETS_UPDATE_PASS_05,06 - Transaction after updating passphrase" $ do
-        let matrix = [ ("Old passphrase -> fail", "cardano-wallet"
+        let oldPass = "cardano-wallet"
+        let newPass = "cardano-wallet2"
+        let matrix = [ ("Old passphrase -> fail", oldPass
                        , [ expectResponseCode @IO HTTP.status403
                          , expectErrorMessage errMsg403WrongPass ] )
-                     , ("New passphrase -> OK", "cardano-wallet2"
+                     , ("New passphrase -> OK", newPass
                        , [ expectResponseCode @IO HTTP.status500 ] ) -- TODO update after # 326
                      ]
 
         forM_ matrix $ \(title, pass, expectations) -> it title $ \ctx -> do
             wSrc <- fixtureWallet ctx
             wDest <- emptyWallet ctx
-            let payloadUpdate = updatePassPayload "cardano-wallet" "cardano-wallet2"
+            let payloadUpdate = updatePassPayload oldPass newPass
             rup <- request @ApiWallet ctx (updateWalletPass wSrc) Default payloadUpdate
             expectResponseCode @IO HTTP.status204 rup
 
             addrs <- listAddresses ctx wDest
             let destination = (addrs !! 1) ^. #id
-            let payloadTrans = postTransPayload 1 destination pass
-            r <- request @ApiTransaction ctx (postTx wSrc) Default payloadTrans
+            let payloadTrans = Json [json|{
+                    "payments": [{
+                        "address": #{destination},
+                        "amount": {
+                            "quantity": 1,
+                            "unit": "lovelace"
+                        }
+                    }],
+                    "passphrase": #{pass}
+                    }|]
+            r <- request @(ApiTransaction HttpBridge) ctx (postTx wSrc) Default payloadTrans
             verify r expectations
 
     describe "WALLETS_UPDATE_PASS_07 - HTTP headers" $ do

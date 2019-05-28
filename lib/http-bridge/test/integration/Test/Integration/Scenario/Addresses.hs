@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -10,7 +11,7 @@ module Test.Integration.Scenario.Addresses
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress, ApiTransactions, ApiWallet )
+    ( ApiAddress, ApiTransaction, ApiWallet )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.Primitive.Types
@@ -37,6 +38,7 @@ import Test.Integration.Framework.DSL
     , fixtureWallet
     , getAddresses
     , getWallet
+    , json
     , listAddresses
     , postTx
     , request
@@ -50,7 +52,6 @@ import Test.Integration.Framework.TestData
     , errMsg405
     , errMsg406
     , falseWalletIds
-    , postTransPayload
     )
 
 import qualified Data.Text as T
@@ -101,7 +102,17 @@ spec = do
         -- run 10 transactions to make all addresses `Used`
         forM_ [0..9] $ \addrNum -> do
             let destination = (addrs !! addrNum) ^. #id
-            let payload = postTransPayload 1 destination "cardano-wallet"
+            let payload = Json [json|{
+                    "payments": [{
+                        "address": #{destination},
+                        "amount": {
+                            "quantity": 1,
+                            "unit": "lovelace"
+                        }
+                    }],
+                    "passphrase": "cardano-wallet"
+                }|]
+
             rTrans <- request @(ApiTransaction HttpBridge) ctx (postTx wSrc) Default payload
             expectResponseCode @IO HTTP.status202 rTrans
 

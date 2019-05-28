@@ -221,7 +221,6 @@ spec = do
         wSrc <- fixtureWalletWith ctx [20_000_000]
         wDest <- emptyWallet ctx
         addrs <- listAddresses ctx wDest
-        print addrs
 
         let destination1 = (addrs !! 1) ^. #id
         let destination2 = (addrs !! 2) ^. #id
