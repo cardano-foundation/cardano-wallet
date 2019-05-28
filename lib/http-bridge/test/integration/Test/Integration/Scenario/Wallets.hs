@@ -1327,7 +1327,7 @@ spec = do
                        , [ expectResponseCode @IO HTTP.status403
                          , expectErrorMessage errMsg403WrongPass ] )
                      , ("New passphrase -> OK", newPass
-                       , [ expectResponseCode @IO HTTP.status500 ] ) -- TODO update after # 326
+                       , [ expectResponseCode @IO HTTP.status202 ] )
                      ]
 
         forM_ matrix $ \(title, pass, expectations) -> it title $ \ctx -> do
