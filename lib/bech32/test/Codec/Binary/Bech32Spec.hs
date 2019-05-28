@@ -184,27 +184,34 @@ spec = do
 
         it "Decoding fails when a single character is mutated." $
            property $ \s c -> do
-                let validString = getValidBech32String s
-                let validChar = getDataChar c
-                let separatorIndex = T.length $
-                        Bech32.humanReadablePartToText $ humanReadablePart s
-                index <- choose (0, T.length validString - 1)
-                let prefix = T.take index validString
-                let suffix = T.drop (index + 1) validString
-                let recombinedString =
-                        prefix <> T.singleton validChar <> suffix
-                return $
-                    index /= separatorIndex ==>
-                    recombinedString /= validString ==>
-                    T.length recombinedString == T.length validString ==> (
-                        -- error location detection is best effort:
-                        (Bech32.decode recombinedString `shouldBe`
-                            Left (StringToDecodeContainsInvalidChars
+                let originalString = getValidBech32String s
+                index <- choose (0, T.length originalString - 1)
+                let originalChar = T.index originalString index
+                let replacementChar = getDataChar c
+                let prefix = T.take index originalString
+                let suffix = T.drop (index + 1) originalString
+                let corruptedString =
+                        prefix <> T.singleton replacementChar <> suffix
+                let description = intercalate "\n"
+                        [ "index of mutated char: " <> show index
+                        , "        original char: " <> show originalChar
+                        , "     replacement char: " <> show replacementChar
+                        , "      original string: " <> show originalString
+                        , "     corrupted string: " <> show corruptedString ]
+                let result = Bech32.decode corruptedString
+                return $ counterexample description $
+                    corruptedString /= originalString ==>
+                        (T.length corruptedString === T.length originalString)
+                        .&&.
+                        (result `shouldBe` Left
+                            StringToDecodeMissingSeparatorChar)
+                        .||.
+                        (result `shouldBe` Left
+                            (StringToDecodeContainsInvalidChars []))
+                        .||.
+                        (result `shouldBe` Left
+                            (StringToDecodeContainsInvalidChars
                                 [CharPosition index]))
-                         .||.
-                        (Bech32.decode recombinedString `shouldBe`
-                            Left (StringToDecodeContainsInvalidChars []))
-                    )
 
         it "Decoding fails for an upper-case string with a lower-case \
            \character." $
