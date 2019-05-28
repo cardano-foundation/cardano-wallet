@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -8,7 +9,7 @@ module Cardano.Wallet.HttpBridge.CompatibilitySpec
 import Prelude
 
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge )
+    ( HttpBridge, Network (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), decodeAddress, encodeAddress )
 import Data.Digest.CRC32
@@ -39,8 +40,8 @@ spec = describe "Compatibility - HttpBridge" $ do
         let err = "Unable to decode Address: not a valid Byron address."
         decodeAddress' "EkxDbkPo" === Left (TextDecodingError err)
   where
-    decodeAddress' = decodeAddress (Proxy @HttpBridge)
-    encodeAddress' = encodeAddress (Proxy @HttpBridge)
+    decodeAddress' = decodeAddress (Proxy @(HttpBridge 'Testnet))
+    encodeAddress' = encodeAddress (Proxy @(HttpBridge 'Testnet))
 
 instance Arbitrary Address where
     arbitrary = genAddress (30, 100)

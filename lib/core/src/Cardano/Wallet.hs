@@ -338,7 +338,7 @@ newWalletLayer
         )
     => DBLayer IO s t
     -> NetworkLayer IO
-    -> TransactionLayer
+    -> TransactionLayer t
     -> IO (WalletLayer s t)
 newWalletLayer db nw tl = do
     registry <- newRegistry

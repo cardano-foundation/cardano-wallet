@@ -1,6 +1,8 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.HttpBridge.Transaction
@@ -43,12 +45,13 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 
 -- | Construct a 'TransactionLayer' compatible with Byron and the 'HttpBridge'
-newTransactionLayer :: TransactionLayer
+newTransactionLayer :: forall n . TransactionLayer (HttpBridge n)
 newTransactionLayer = TransactionLayer
     { mkStdTx = \keyFrom inps outs -> do
         let ins = (fmap fst inps)
         let tx = Tx ins outs
-        let txSigData = txId @HttpBridge tx
+        -- Not working, maybe we need to make TransactionLayer polymorphic
+        let txSigData = txId @(HttpBridge n) tx
         txWitnesses <- forM inps $ \(_in, TxOut addr _c) -> mkWitness txSigData
             <$> withEither (ErrKeyNotFoundForAddress addr) (keyFrom addr)
         return (tx, txWitnesses)

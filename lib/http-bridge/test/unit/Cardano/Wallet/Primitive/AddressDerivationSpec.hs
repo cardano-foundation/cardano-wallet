@@ -94,6 +94,6 @@ goldenYoroiAddr (seed, recPwd) cc accIx addrIx addr =
         rootXPrv = generateKeyFromSeed (seed, recPwd) encPwd
         accXPrv = deriveAccountPrivateKey encPwd rootXPrv accIx
         addrXPrv = deriveAddressPrivateKey encPwd accXPrv cc addrIx
-        encode = encodeAddress (Proxy @HttpBridge)
+        encode = encodeAddress (Proxy @(HttpBridge 'Testnet))
     in
-        encode (keyToAddress @HttpBridge $ publicKey addrXPrv) === addr
+        encode (keyToAddress @(HttpBridge 'Testnet) $ publicKey addrXPrv) === addr

@@ -22,6 +22,7 @@ module Cardano.Wallet.HttpBridge.Environment
     , network
     , ProtocolMagic(..)
     , protocolMagic
+    , KnownNetwork (..)
     ) where
 
 import Prelude
@@ -30,6 +31,8 @@ import Cardano.Wallet.Environment
     ( unsafeLookupEnv )
 import Data.Int
     ( Int32 )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import GHC.Generics
@@ -40,6 +43,10 @@ import qualified Data.Text as T
 -- | Available network options.
 data Network = Mainnet | Testnet | Staging
     deriving (Generic, Show, Eq, Enum)
+
+
+class KnownNetwork n where
+    demoteNetwork :: Proxy n -> Network
 
 instance FromText Network where
     fromText = \case

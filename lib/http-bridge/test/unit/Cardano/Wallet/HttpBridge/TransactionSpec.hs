@@ -101,7 +101,7 @@ spec = do
 
     describe "mkStdTx" $ do
         it "Unknown input address yields an error" $ do
-            let addr = keyToAddress @HttpBridge $ publicKey $ xprv "addr"
+            let addr = keyToAddress @(HttpBridge 'Testnet) $ publicKey $ xprv "addr"
             let res = mkStdTx tl keyFrom inps outs
                   where
                     tl = newTransactionLayer
@@ -818,7 +818,7 @@ goldenTestSignedTx
         -- ^ Expected result, in Base16
     -> SpecWith ()
 goldenTestSignedTx nOuts xprvs expected = it title $ do
-    let addrs = first (keyToAddress @HttpBridge . publicKey) <$> xprvs
+    let addrs = first (keyToAddress @(HttpBridge 'Testnet) . publicKey) <$> xprvs
     let s = Map.fromList (zip (fst <$> addrs) (fst <$> xprvs))
     let keyFrom a = (,mempty) <$> Map.lookup a s
     let inps = mkInput <$> zip addrs [0..]
