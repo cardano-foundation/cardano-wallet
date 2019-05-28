@@ -176,7 +176,7 @@ spec = do
                         && T.all (== 'q') (T.dropEnd 1 suffix))
 
         it "Decoding fails when a character is inserted." $
-            property $ \s c -> do
+            property $ withMaxSuccess 10000 $ \s c -> do
                 let originalString = getValidBech32String s
                 let char = getDataChar c
                 index <- choose (0, T.length originalString - 1)
@@ -192,6 +192,15 @@ spec = do
                     (T.length corruptedString === T.length originalString + 1)
                     .&&.
                     (Bech32.decode corruptedString `shouldSatisfy` isLeft)
+                    .||.
+                    -- In the case where the last character of a valid Bech32
+                    -- string is the character 'p', inserting any number of
+                    -- consecutive 'q' characters immediately before the 'p'
+                    -- will still result in a valid Bech32 string.
+                    (T.length suffix > 0
+                        && T.last suffix == 'p'
+                        && char == 'q'
+                        && T.all (== 'q') (T.dropEnd 1 suffix))
 
         it "Decoding fails when a single character is mutated." $
            property $ \s c -> do
