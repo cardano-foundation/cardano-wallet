@@ -148,15 +148,21 @@ spec = do
 
         it "Decoding fails when a character is omitted." $
             property $ \s -> do
-                let validString = getValidBech32String s
-                index <- choose (0, T.length validString - 1)
-                let prefix = T.take index validString
-                let suffix = T.drop (index + 1) validString
-                let recombinedString = prefix <> suffix
-                return $
-                    (T.length recombinedString === T.length validString - 1)
+                let originalString = getValidBech32String s
+                index <- choose (0, T.length originalString - 1)
+                let char = T.index originalString index
+                let prefix = T.take index originalString
+                let suffix = T.drop (index + 1) originalString
+                let corruptedString = prefix <> suffix
+                let description = intercalate "\n"
+                        [ "index of omitted char: " <> show index
+                        , "         omitted char: " <> show char
+                        , "      original string: " <> show originalString
+                        , "     corrupted string: " <> show corruptedString ]
+                return $ counterexample description $
+                    (T.length corruptedString === T.length originalString - 1)
                     .&&.
-                    (Bech32.decode recombinedString `shouldSatisfy` isLeft)
+                    (Bech32.decode corruptedString `shouldSatisfy` isLeft)
 
         it "Decoding fails when a character is inserted." $
             property $ \s c -> do
