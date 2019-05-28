@@ -57,7 +57,6 @@ import Control.Concurrent.MVar
     ( newMVar, withMVar )
 import Control.DeepSeq
     ( NFData )
-import GHC.Generics (Generic)
 import Control.Monad
     ( mapM_, void, when )
 import Control.Monad.Catch
@@ -100,7 +99,7 @@ import Database.Persist.Sql
     , insert_
     , putMany
     , rawExecute
-    , runMigration
+    , runMigrationSilent
     , runSqlConn
     , selectFirst
     , selectKeysList
@@ -115,6 +114,8 @@ import Database.Persist.Sqlite
     ( SqlBackend, SqlPersistM, SqlPersistT, wrapConnection )
 import Database.Sqlite
     ( Error (ErrorConstraint), SqliteException (SqliteException) )
+import GHC.Generics
+    ( Generic )
 import System.IO
     ( stderr )
 import System.Log.FastLogger
@@ -187,7 +188,7 @@ newDBLayer fp = do
     conn <- createSqliteBackend fp (dbLogs [LevelError])
     let runQuery' = withMVar bigLock . const . runQuery conn
 
-    runQuery' $ void $ runMigration migrateAll
+    runQuery' $ void $ runMigrationSilent migrateAll
     runQuery' addIndexes
 
     return $ DBLayer
