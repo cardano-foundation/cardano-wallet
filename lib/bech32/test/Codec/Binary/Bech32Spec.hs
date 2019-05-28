@@ -236,20 +236,22 @@ spec = do
         it "Decoding fails for a lower-case string with an upper-case \
            \character." $
             property $ \s -> do
-                let validString = getValidBech32String s
-                index <- choose (0, T.length validString - 1)
-                let prefix = T.map toLower $ T.take index validString
-                let suffix = T.map toLower $ T.drop (index + 1) validString
-                let char = T.singleton $ toUpper $ T.index validString index
-                let recombinedString = prefix <> char <> suffix
-                return $ counterexample
-                    (show validString <> " : " <> show recombinedString) $
-                    (T.length recombinedString === T.length validString)
-                    .&&.
-                    (Bech32.decode recombinedString `shouldSatisfy`
-                        (if T.map toLower validString == recombinedString
-                            then isRight
-                            else isLeft))
+                let originalString = T.map toLower $ getValidBech32String s
+                index <- choose (0, T.length originalString - 1)
+                let prefix = T.take index originalString
+                let suffix = T.drop (index + 1) originalString
+                let char = toUpper $ T.index originalString index
+                let corruptedString = prefix <> T.singleton char <> suffix
+                let description = intercalate "\n"
+                        [ "index of mutated char: " <> show index
+                        , "      original string: " <> show originalString
+                        , "     corrupted string: " <> show corruptedString ]
+                return $ counterexample description $
+                    corruptedString /= originalString ==>
+                        (T.length corruptedString === T.length originalString)
+                        .&&.
+                        (Bech32.decode corruptedString `shouldBe` Left
+                            StringToDecodeHasMixedCase)
 
     describe "Roundtrip (encode . decode)" $ do
         it "Can perform roundtrip for valid data" $ property $ \(hrp, dp) ->
