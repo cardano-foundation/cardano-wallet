@@ -10,10 +10,10 @@ module Cardano.Wallet.Primitive.AddressDerivationSpec
 
 import Prelude
 
-import Cardano.Environment.HttpBridge
-    ( Network (..), network )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
+import Cardano.Wallet.HttpBridge.Environment
+    ( Network (..), network )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( ChangeChain (..)
     , Depth (..)

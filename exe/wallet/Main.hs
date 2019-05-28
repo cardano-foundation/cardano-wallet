@@ -35,8 +35,6 @@ import Cardano.CLI
     , putErrLn
     , setUtf8Encoding
     )
-import Cardano.Environment.HttpBridge
-    ( network )
 import Cardano.Wallet
     ( newWalletLayer )
 import Cardano.Wallet.Api
@@ -50,6 +48,8 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
+import Cardano.Wallet.HttpBridge.Environment
+    ( network )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Mnemonic

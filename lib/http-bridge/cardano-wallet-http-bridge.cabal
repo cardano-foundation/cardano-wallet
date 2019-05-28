@@ -57,7 +57,7 @@ library
   hs-source-dirs:
       src
   exposed-modules:
-      Cardano.Environment.HttpBridge
+      Cardano.Wallet.HttpBridge.Environment
       Cardano.Wallet.HttpBridge.Binary
       Cardano.Wallet.HttpBridge.Compatibility
       Cardano.Wallet.HttpBridge.Network
@@ -104,7 +104,7 @@ test-suite unit
   main-is:
       Main.hs
   other-modules:
-      Cardano.Environment.HttpBridgeSpec
+      Cardano.Wallet.HttpBridge.EnvironmentSpec
       Cardano.Wallet.HttpBridge.ApiSpec
       Cardano.Wallet.HttpBridge.BinarySpec
       Cardano.Wallet.HttpBridge.CompatibilitySpec

@@ -15,7 +15,7 @@
 -- rely on a `.env` file to bundle configuration settings together for a given
 -- target environment.
 
-module Cardano.Environment.HttpBridge
+module Cardano.Wallet.HttpBridge.Environment
     (
     -- * Networking
       Network(..)
@@ -26,7 +26,7 @@ module Cardano.Environment.HttpBridge
 
 import Prelude
 
-import Cardano.Environment
+import Cardano.Wallet.Environment
     ( unsafeLookupEnv )
 import Data.Int
     ( Int32 )

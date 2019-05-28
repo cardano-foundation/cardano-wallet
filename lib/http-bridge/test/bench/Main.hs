@@ -7,14 +7,14 @@ module Main where
 
 import Prelude
 
-import Cardano.Environment.HttpBridge
-    ( network )
 import Cardano.Launcher
     ( Command (Command), StdStream (..), installSignalHandlers, launch )
 import Cardano.Wallet
     ( WalletLayer (..), newWalletLayer, unsafeRunExceptT )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
+import Cardano.Wallet.HttpBridge.Environment
+    ( network )
 import Cardano.Wallet.HttpBridge.Network
     ( newNetworkLayer )
 import Cardano.Wallet.HttpBridge.Transaction

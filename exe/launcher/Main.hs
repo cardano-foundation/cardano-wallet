@@ -7,8 +7,6 @@ import Prelude
 
 import Cardano.CLI
     ( Port, help, parseArgWith )
-import Cardano.Environment.HttpBridge
-    ( Network, network )
 import Cardano.Launcher
     ( Command (Command)
     , ProcessHasExited (ProcessHasExited)
@@ -16,6 +14,8 @@ import Cardano.Launcher
     , installSignalHandlers
     , launch
     )
+import Cardano.Wallet.HttpBridge.Environment
+    ( Network, network )
 import Control.Concurrent
     ( threadDelay )
 import Control.Monad

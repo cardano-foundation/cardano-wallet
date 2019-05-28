@@ -7,7 +7,7 @@
 -- Copyright: © 2018-2019 IOHK
 -- License: MIT
 --
-module Cardano.Environment
+module Cardano.Wallet.Environment
     (
       ErrMissingOrInvalidEnvVar(..)
     , unsafeLookupEnv
