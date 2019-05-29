@@ -22,8 +22,10 @@ module Codec.Binary.Bech32.Internal
     (
       -- * Encoding & Decoding
       encode
+    , encodeLenient
     , EncodingError (..)
     , decode
+    , decodeLenient
     , DecodingError (..)
     , checksumLength
     , encodedStringMaxLength
@@ -293,27 +295,40 @@ humanReadableCharMaxBound = chr 126
                             Encoding & Decoding
 -------------------------------------------------------------------------------}
 
+-- | Like 'encode' but allows output to be longer than 90 characters. This isn't
+-- ideal as the error detection becomes worse as string get longer but it's
+-- still acceptable.
+--
+-- From BIP-0173:
+--
+--     Even though the chosen code performs reasonably well up to 1023
+--     characters, other designs are preferable for lengths above 89
+--     characters (excluding the separator).
+--
+encodeLenient :: HumanReadablePart -> DataPart -> Text
+encodeLenient hrp dp = humanReadablePartToText hrp
+    <> T.singleton separatorChar
+    <> T.pack dcp
+  where
+    dcp = dataCharFromWord <$> dataPartToWords dp <> createChecksum hrp dp
+
 -- | Encode a human-readable string and data payload into a Bech32 string.
 encode :: HumanReadablePart -> DataPart -> Either EncodingError Text
 encode hrp dp
     | T.length result > encodedStringMaxLength = Left EncodedStringTooLong
     | otherwise = pure result
   where
-    result = humanReadablePartToText hrp
-        <> T.singleton separatorChar
-        <> T.pack dcp
-    dcp = dataCharFromWord <$> dataPartToWords dp <> createChecksum hrp dp
+    result = encodeLenient hrp dp
 
 -- | Represents the set of error conditions that may occur while encoding a
 --   Bech32 string.
 data EncodingError = EncodedStringTooLong
     deriving (Eq, Show)
 
--- | Decode a Bech32 string into a human-readable part and data part.
-decode :: Text -> Either DecodingError (HumanReadablePart, DataPart)
-decode bech32 = do
-
-    guardE (T.length bech32 <= encodedStringMaxLength) StringToDecodeTooLong
+-- | Like 'decode' but does not enforce a maximum length. See also
+-- 'encodeLenient' for details.
+decodeLenient :: Text -> Either DecodingError (HumanReadablePart, DataPart)
+decodeLenient bech32 = do
     guardE (T.length bech32 >= encodedStringMinLength) StringToDecodeTooShort
     guardE (T.map toUpper bech32 == bech32 || T.map toLower bech32 == bech32)
         StringToDecodeHasMixedCase
@@ -331,9 +346,7 @@ decode bech32 = do
         StringToDecodeContainsInvalidChars $ findErrorPositions hrp dcp
     let dp = dataPartFromWords $ take (length dcp - checksumLength) dcp
     return (hrp, dp)
-
   where
-
     -- Use properties of the checksum algorithm to find the locations of errors
     -- within the human-readable part and data-with-checksum part.
     findErrorPositions :: HumanReadablePart -> [Word5] -> [CharPosition]
@@ -348,6 +361,12 @@ decode bech32 = do
         errorPositionsIgnoringSeparator =
             (T.length bech32 - separatorLength - 1 - ) <$>
                 locateErrors (fromIntegral residue) (T.length bech32 - 1)
+
+-- | Decode a Bech32 string into a human-readable part and data part.
+decode :: Text -> Either DecodingError (HumanReadablePart, DataPart)
+decode bech32 = do
+    guardE (T.length bech32 <= encodedStringMaxLength) StringToDecodeTooLong
+    decodeLenient bech32
 
 -- | Parse a data-with-checksum part, checking that each character is part
 -- of the supported character set. If one or more characters are not in the

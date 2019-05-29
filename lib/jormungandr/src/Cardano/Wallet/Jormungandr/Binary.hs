@@ -25,11 +25,14 @@ module Cardano.Wallet.Jormungandr.Binary
     , LinearFee (..)
     , Milli (..)
 
-     -- * Classes
+      -- * Classes
     , FromBinary (..)
 
 
-     -- * Re-export
+      -- * Legacy Decoders
+    , decodeLegacyAddress
+
+      -- * Re-export
     , runGet
     , Get
 
@@ -73,6 +76,9 @@ import Data.Word
     ( Word16, Word32, Word64, Word8 )
 
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Codec.CBOR.Decoding as CBOR
+import qualified Codec.CBOR.Read as CBOR
+import qualified Data.ByteString.Lazy as BL
 
 data BlockHeader = BlockHeader
     { version :: Word16
@@ -401,3 +407,23 @@ instance FromBinary W.Block where
 
 instance FromBinary a => FromBinary [a] where
     get = whileM (not <$> isEmpty) get
+
+{-------------------------------------------------------------------------------
+                              Legacy Decoders
+-------------------------------------------------------------------------------}
+
+-- | Attempt decoding a 'ByteString' into an 'Address'. This merely checks that
+-- the underlying bytestring has a "valid" structure / format without doing much
+-- more.
+decodeLegacyAddress :: ByteString -> Maybe Address
+decodeLegacyAddress bytes =
+    case CBOR.deserialiseFromBytes addressPayloadDecoder (BL.fromStrict bytes) of
+        Right _ -> Just (Address bytes)
+        Left _ -> Nothing
+  where
+    addressPayloadDecoder :: CBOR.Decoder s ()
+    addressPayloadDecoder = ()
+        <$ CBOR.decodeListLenCanonicalOf 2 -- Declare 2-Tuple
+        <* CBOR.decodeTag -- CBOR Tag
+        <* CBOR.decodeBytes -- Payload
+        <* CBOR.decodeWord32 -- CRC

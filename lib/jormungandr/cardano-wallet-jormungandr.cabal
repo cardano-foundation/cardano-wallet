@@ -33,11 +33,14 @@ library
       -Werror
   build-depends:
       base
+    , base58-bytestring
+    , bech32
     , binary
     , bytestring
     , cardano-wallet-core
-    , servant
+    , cborg
     , memory
+    , servant
     , text
     , text-class
   hs-source-dirs:
@@ -68,10 +71,11 @@ test-suite unit
     , cardano-wallet-core
     , cardano-wallet-jormungandr
     , generic-arbitrary
-    , memory
-    , text-class
     , hspec
+    , memory
     , QuickCheck
+    , text
+    , text-class
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
@@ -81,6 +85,7 @@ test-suite unit
   other-modules:
       Cardano.Wallet.Jormungandr.BinarySpec
       Cardano.Wallet.Jormungandr.EnvironmentSpec
+      Cardano.Wallet.Jormungandr.CompatibilitySpec
       Spec
 
 test-suite integration
@@ -110,4 +115,3 @@ test-suite integration
       Main.hs
   other-modules:
       Cardano.LauncherSpec
-

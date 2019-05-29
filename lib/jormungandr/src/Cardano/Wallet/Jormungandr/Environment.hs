@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
+
 -- |
 -- Copyright: © 2018-2019 IOHK
 -- License: MIT
@@ -19,18 +20,23 @@ module Cardano.Wallet.Jormungandr.Environment
     -- * Networking
       Network(..)
     , network
-    , ProtocolMagic(..)
-    , protocolMagic
+
+    -- * Address Discrimination
+    , hrp
+    , single
+    , grouped
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Environment
     ( unsafeLookupEnv )
-import Data.Int
-    ( Int32 )
+import Codec.Binary.Bech32
+    ( HumanReadablePart, humanReadablePartFromText )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
+import Data.Word
+    ( Word8 )
 import GHC.Generics
     ( Generic )
 
@@ -60,11 +66,30 @@ network =
     unsafeLookupEnv "NETWORK"
 {-# NOINLINE network #-}
 
-newtype ProtocolMagic = ProtocolMagic Int32
-    deriving (Generic, Show)
+-- | Address discrimination Human-Readable Part (HRP).
+--
+-- - "ca" for 'Mainnet'
+-- - "ta" for 'Testnet'
+hrp :: HumanReadablePart
+hrp = case network of
+    Mainnet -> unsafeHumanReadablePart "ca"
+    Testnet -> unsafeHumanReadablePart "ta"
+  where
+    unsafeHumanReadablePart = either errUnsafe id . humanReadablePartFromText
+    errUnsafe _ =
+        error "Programmers hard-coded an invalid bech32 human-readable part?"
 
--- | Get the 'ProtocolMagic' corresponding to a given 'Network'.
-protocolMagic :: Network -> ProtocolMagic
-protocolMagic = \case
-    Mainnet -> ProtocolMagic 764824073
-    Testnet -> ProtocolMagic 1097911063
+-- | Address discriminant byte for single addresses, this is the first byte of
+-- every addresses using the Shelley format carrying only a spending key.
+single :: Word8
+single = case network of
+    Mainnet -> 0x03
+    Testnet -> 0x83
+
+-- | Address discriminant byte for grouped addresses, this is the first byte of
+-- every addresses using the Shelley format carrying both a spending and a
+-- delegation key.
+grouped :: Word8
+grouped = case network of
+    Mainnet -> 0x04
+    Testnet -> 0x84
