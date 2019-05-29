@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -10,7 +11,9 @@ module Test.Integration.Scenario.Wallets
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiWallet )
+    ( ApiTransaction, ApiWallet )
+import Cardano.Wallet.HttpBridge.Compatibility
+    ( HttpBridge )
 import Cardano.Wallet.Primitive.Types
     ( WalletDelegation (..)
     , WalletState (..)
@@ -19,8 +22,12 @@ import Cardano.Wallet.Primitive.Types
     )
 import Control.Monad
     ( forM_ )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
 import Data.Text
     ( Text )
+import System.Command
+    ( Stdout (..) )
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Integration.Framework.DSL
@@ -31,6 +38,8 @@ import Test.Integration.Framework.DSL
     , balanceAvailable
     , balanceTotal
     , delegation
+    , deleteWallet
+    , emptyWallet
     , expectErrorMessage
     , expectEventually
     , expectFieldEqual
@@ -38,11 +47,17 @@ import Test.Integration.Framework.DSL
     , expectListItemFieldEqual
     , expectListSizeEqual
     , expectResponseCode
+    , fixtureWallet
+    , generateMnemonicsViaCLI
     , getFromResponse
+    , getWallet
     , json
+    , listAddresses
     , passphraseLastUpdate
+    , postTx
     , request
     , state
+    , updateWalletPass
     , verify
     , walletId
     , walletName
@@ -114,6 +129,54 @@ spec = do
             , expectFieldEqual delegation (NotDelegating)
             , expectFieldEqual walletId "2cf060fe53e4e0593f145f22b858dfc60676d4ab"
             , expectFieldNotEqual passphraseLastUpdate Nothing
+            ]
+
+    it "WALLETS_CREATE_02 - Restored wallet preserves funds" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        -- create wallet
+        Stdout mnemonics <- generateMnemonicsViaCLI []
+        let payldCrt = payloadWith "!st created" (T.words $ T.pack mnemonics)
+        rInit <- request @ApiWallet ctx ("POST", "v2/wallets") Default payldCrt
+        verify rInit
+            [ expectResponseCode @IO HTTP.status202
+            , expectFieldEqual balanceAvailable 0
+            , expectFieldEqual balanceTotal 0
+            ]
+
+        --send funds
+        let wDest = getFromResponse id rInit
+        addrs <- listAddresses ctx wDest
+        let destination = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": 1,
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": "cardano-wallet"
+            }|]
+        rTrans <- request @(ApiTransaction HttpBridge) ctx (postTx wSrc)
+            Default payload
+        expectResponseCode @IO HTTP.status202 rTrans
+
+        rGet <- request @ApiWallet ctx (getWallet wDest) Default Empty
+        verify rGet
+            [ expectEventually ctx balanceTotal 1
+            , expectEventually ctx balanceAvailable 1
+            ]
+
+        -- delete wallet
+        rDel <- request @ApiWallet ctx (deleteWallet wDest) Default Empty
+        expectResponseCode @IO HTTP.status204 rDel
+
+        -- restore and make sure funds are there
+        rRestore <- request @ApiWallet ctx ("POST", "v2/wallets") Default payldCrt
+        verify rRestore
+            [ expectResponseCode @IO HTTP.status202
+            , expectEventually ctx balanceAvailable 1
+            , expectEventually ctx balanceTotal 1
             ]
 
     it "WALLETS_CREATE_03,09 - Cannot create wallet that exists" $ \ctx -> do
@@ -1309,6 +1372,38 @@ spec = do
         rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
         expectResponseCode @IO HTTP.status404 rup
         expectErrorMessage errMsg404NoEndpoint rup
+
+    describe "WALLETS_UPDATE_PASS_05,06 - Transaction after updating passphrase" $ do
+        let oldPass = "cardano-wallet"
+        let newPass = "cardano-wallet2"
+        let matrix = [ ("Old passphrase -> fail", oldPass
+                       , [ expectResponseCode @IO HTTP.status403
+                         , expectErrorMessage errMsg403WrongPass ] )
+                     , ("New passphrase -> OK", newPass
+                       , [ expectResponseCode @IO HTTP.status202 ] )
+                     ]
+
+        forM_ matrix $ \(title, pass, expectations) -> it title $ \ctx -> do
+            wSrc <- fixtureWallet ctx
+            wDest <- emptyWallet ctx
+            let payloadUpdate = updatePassPayload oldPass newPass
+            rup <- request @ApiWallet ctx (updateWalletPass wSrc) Default payloadUpdate
+            expectResponseCode @IO HTTP.status204 rup
+
+            addrs <- listAddresses ctx wDest
+            let destination = (addrs !! 1) ^. #id
+            let payloadTrans = Json [json|{
+                    "payments": [{
+                        "address": #{destination},
+                        "amount": {
+                            "quantity": 1,
+                            "unit": "lovelace"
+                        }
+                    }],
+                    "passphrase": #{pass}
+                    }|]
+            r <- request @(ApiTransaction HttpBridge) ctx (postTx wSrc) Default payloadTrans
+            verify r expectations
 
     describe "WALLETS_UPDATE_PASS_07 - HTTP headers" $ do
         let matrix =
