@@ -58,11 +58,13 @@ test-suite bech32-test
   build-depends:
       base
     , bech32
+    , containers
     , extra
     , hspec
     , bytestring
     , QuickCheck
     , text
+    , vector
   main-is:
       Main.hs
   other-modules:

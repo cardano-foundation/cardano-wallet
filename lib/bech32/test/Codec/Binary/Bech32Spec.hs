@@ -1,3 +1,5 @@
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -32,7 +34,7 @@ import Data.Bits
 import Data.ByteString
     ( ByteString )
 import Data.Char
-    ( chr, ord, toLower, toUpper )
+    ( chr, isUpper, ord, toLower, toUpper )
 import Data.Either
     ( fromRight, isLeft, isRight )
 import Data.Either.Extra
@@ -43,8 +45,12 @@ import Data.List
     ( intercalate )
 import Data.Maybe
     ( catMaybes, fromMaybe, isJust )
+import Data.Set
+    ( Set )
 import Data.Text
     ( Text )
+import Data.Vector
+    ( Vector )
 import Data.Word
     ( Word8 )
 import Test.Hspec
@@ -55,6 +61,7 @@ import Test.QuickCheck
     , arbitraryBoundedEnum
     , choose
     , counterexample
+    , cover
     , elements
     , property
     , withMaxSuccess
@@ -66,7 +73,9 @@ import Test.QuickCheck
 
 import qualified Codec.Binary.Bech32.Internal as Bech32
 import qualified Data.ByteString as BS
+import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified Data.Vector as V
 
 spec :: Spec
 spec = do
@@ -116,25 +125,36 @@ spec = do
             let (Right hrp) = humanReadablePartFromText "HRP"
             Bech32.encode hrp mempty `shouldBe` Right "hrp1vhqs52"
 
-    describe "Arbitrary ValidBech32String" $
+    describe "Arbitrary Bech32String" $
 
         it "Generation always produces a valid string that can be decoded." $
             property $ \v ->
-                Bech32.decode (getValidBech32String v) `shouldBe`
+                Bech32.decode (getBech32String v) `shouldBe`
                     Right (humanReadablePart v, unencodedDataPart v)
 
+    describe "Arbitrary Bech32Char" $ do
+
+        it "Generation always produces a valid character." $
+            property $ withMaxSuccess 10000 $ \c ->
+                let char = getBech32Char c in
+                cover 30 (      isDataChar char) "is a data character: TRUE"  $
+                cover 30 (not $ isDataChar char) "is a data character: FALSE" $
+                isBech32Char char
+
+        it "Shrinking always produces valid characters." $
+            property $ withMaxSuccess 10000 $ \c ->
+                all (isBech32Char . getBech32Char) $ shrink c
+
+        it "Shrinking always produces characters with codes that are smaller." $
+            property $ withMaxSuccess 10000 $ \c ->
+                all (< c) $ shrink (c :: Bech32Char)
+
     describe "Decoding a corrupted string should fail" $ do
-        let chooseWithinDataPart originalString = do
-                let sepIx = maybe
-                        (error "couldn't find separator in valid bech32 string")
-                        (\ix -> T.length originalString - ix - 1)
-                        (T.findIndex (== '1') (T.reverse originalString))
-                choose (sepIx + 1, T.length originalString - 2)
 
         it "Decoding fails when an adjacent pair of characters is swapped." $
             property $ withMaxSuccess 10000 $ \s -> do
-                let originalString = getValidBech32String s
-                index <- chooseWithinDataPart originalString
+                let originalString = getBech32String s
+                index <- choose (0, T.length originalString - 2)
                 let prefix = T.take index originalString
                 let suffix = T.drop (index + 2) originalString
                 let char1 = T.singleton (T.index originalString index)
@@ -155,8 +175,8 @@ spec = do
 
         it "Decoding fails when a character is omitted." $
             property $ withMaxSuccess 10000 $ \s -> do
-                let originalString = getValidBech32String s
-                index <- chooseWithinDataPart originalString
+                let originalString = getBech32String s
+                index <- choose (0, T.length originalString - 1)
                 let char = T.index originalString index
                 let prefix = T.take index originalString
                 let suffix = T.drop (index + 1) originalString
@@ -183,9 +203,9 @@ spec = do
 
         it "Decoding fails when a character is inserted." $
             property $ withMaxSuccess 10000 $ \s c -> do
-                let originalString = getValidBech32String s
-                let char = getDataChar c
-                index <- chooseWithinDataPart originalString
+                let originalString = getBech32String s
+                let char = getBech32Char c
+                index <- choose (0, T.length originalString)
                 let prefix = T.take index originalString
                 let suffix = T.drop index originalString
                 let corruptedString = prefix <> T.singleton char <> suffix
@@ -194,7 +214,14 @@ spec = do
                         , "         inserted char: " <> show char
                         , "       original string: " <> show originalString
                         , "      corrupted string: " <> show corruptedString ]
-                return $ counterexample description $
+                return $
+                    counterexample description $
+                    cover 2 (T.null prefix)
+                        "inserted before the start" $
+                    cover 2 (T.null suffix)
+                        "inserted after the end" $
+                    cover 10 (not (T.null prefix) && not (T.null suffix))
+                        "inserted into the middle" $
                     (T.length corruptedString === T.length originalString + 1)
                     .&&.
                     (Bech32.decode corruptedString `shouldSatisfy` isLeft)
@@ -210,10 +237,10 @@ spec = do
 
         it "Decoding fails when a single character is mutated." $
            withMaxSuccess 10000 $ property $ \s c -> do
-                let originalString = getValidBech32String s
-                index <- chooseWithinDataPart originalString
+                let originalString = getBech32String s
+                index <- choose (0, T.length originalString - 1)
                 let originalChar = T.index originalString index
-                let replacementChar = getDataChar c
+                let replacementChar = getBech32Char c
                 let prefix = T.take index originalString
                 let suffix = T.drop (index + 1) originalString
                 let corruptedString =
@@ -229,21 +256,13 @@ spec = do
                     corruptedString /= originalString ==>
                         (T.length corruptedString === T.length originalString)
                         .&&.
-                        (result `shouldBe` Left
-                            StringToDecodeMissingSeparatorChar)
-                        .||.
-                        (result `shouldBe` Left
-                            (StringToDecodeContainsInvalidChars []))
-                        .||.
-                        (result `shouldBe` Left
-                            (StringToDecodeContainsInvalidChars
-                                [CharPosition index]))
+                        (result `shouldSatisfy` isLeft)
 
         it "Decoding fails for an upper-case string with a lower-case \
            \character." $
             withMaxSuccess 10000 $ property $ \s -> do
-                let originalString = T.map toUpper $ getValidBech32String s
-                index <- chooseWithinDataPart originalString
+                let originalString = T.map toUpper $ getBech32String s
+                index <- choose (0, T.length originalString - 1)
                 let prefix = T.take index originalString
                 let suffix = T.drop (index + 1) originalString
                 let char = toLower $ T.index originalString index
@@ -253,7 +272,7 @@ spec = do
                         , "      original string: " <> show originalString
                         , "     corrupted string: " <> show corruptedString ]
                 return $ counterexample description $
-                    corruptedString /= originalString ==>
+                    isMixedCase corruptedString ==>
                         (T.length corruptedString === T.length originalString)
                         .&&.
                         (Bech32.decode corruptedString `shouldBe` Left
@@ -262,8 +281,8 @@ spec = do
         it "Decoding fails for a lower-case string with an upper-case \
            \character." $
             withMaxSuccess 10000 $ property $ \s -> do
-                let originalString = T.map toLower $ getValidBech32String s
-                index <- chooseWithinDataPart originalString
+                let originalString = T.map toLower $ getBech32String s
+                index <- choose (0, T.length originalString - 1)
                 let prefix = T.take index originalString
                 let suffix = T.drop (index + 1) originalString
                 let char = toUpper $ T.index originalString index
@@ -273,7 +292,7 @@ spec = do
                         , "      original string: " <> show originalString
                         , "     corrupted string: " <> show corruptedString ]
                 return $ counterexample description $
-                    corruptedString /= originalString ==>
+                    isMixedCase corruptedString ==>
                         (T.length corruptedString === T.length originalString)
                         .&&.
                         (Bech32.decode corruptedString `shouldBe` Left
@@ -457,6 +476,58 @@ invalidChecksums =
       , Bech32.StringToDecodeContainsInvalidChars [CharPosition 41] )
     ]
 
+-- | Represents a character that is permitted to appear within a Bech32 string.
+newtype Bech32Char = Bech32Char
+    { getBech32Char :: Char }
+    deriving newtype (Eq, Ord, Show)
+
+instance Arbitrary Bech32Char where
+    arbitrary =
+        Bech32Char . (bech32CharVector V.!) <$>
+            choose (0, V.length bech32CharVector - 1)
+    shrink (Bech32Char c) =
+        case sortedVectorElemIndex c bech32CharVector of
+            Nothing -> []
+            Just ci -> Bech32Char . (bech32CharVector V.!) <$> shrink ci
+
+-- | Returns true iff. the specified character is permitted to appear within
+--   a Bech32 string AND is not upper case.
+isBech32Char :: Char -> Bool
+isBech32Char c = Set.member c bech32CharSet
+
+-- | Returns true iff. the specified character is permitted to appear within
+--   the data portion of a Bech32 string AND is not upper case.
+isDataChar :: Char -> Bool
+isDataChar = isJust . Bech32.dataCharToWord
+
+-- | A vector containing all valid Bech32 characters in ascending sorted order.
+--   Upper-case characters are not included.
+bech32CharVector :: Vector Char
+bech32CharVector = V.fromList $ Set.toAscList bech32CharSet
+
+-- | The set of all valid Bech32 characters.
+--   Upper-case characters are not included.
+bech32CharSet :: Set Char
+bech32CharSet =
+    Set.filter (not . isUpper) $
+        Set.fromList [humanReadableCharMinBound .. humanReadableCharMaxBound]
+            `Set.union` (Set.singleton separatorChar)
+            `Set.union` (Set.fromList Bech32.dataCharList)
+
+-- | Find the index of an element in a sorted vector using simple binary search.
+sortedVectorElemIndex :: Ord a => a -> Vector a -> Maybe Int
+sortedVectorElemIndex a v = search 0 (V.length v - 1)
+  where
+    search l r
+        | l >  r    = Nothing
+        | a == b    = Just m
+        | a <  b    = search l (m - 1)
+        | a >  b    = search (m + 1) r
+        | otherwise = Nothing
+      where
+        b = v V.! m
+        m = (l + r) `div` 2
+
 newtype DataChar = DataChar
     { getDataChar :: Char
     } deriving (Eq, Ord, Show)
@@ -477,27 +548,29 @@ instance Arbitrary HumanReadableChar where
     arbitrary = HumanReadableChar <$>
         choose (humanReadableCharMinBound, humanReadableCharMaxBound)
 
-data ValidBech32String = ValidBech32String
-    { getValidBech32String :: Text
+data Bech32String = Bech32String
+    { getBech32String :: Text
     , humanReadablePart :: HumanReadablePart
     , unencodedDataPart :: DataPart
     } deriving (Eq, Show)
 
-mkValidBech32String :: HumanReadablePart -> DataPart -> ValidBech32String
-mkValidBech32String hrp udp =
-    ValidBech32String
-        (fromRight (error "unable to make a valid Bech32 string.") $
-            Bech32.encode hrp udp)
-        hrp udp
+mkBech32String :: HumanReadablePart -> DataPart -> Bech32String
+mkBech32String hrp udp = Bech32String
+    { getBech32String =
+        fromRight (error "unable to make a valid Bech32 string.") $
+            Bech32.encode hrp udp
+    , humanReadablePart = hrp
+    , unencodedDataPart = udp
+    }
 
-instance Arbitrary ValidBech32String where
-    arbitrary = mkValidBech32String <$> arbitrary <*> arbitrary
+instance Arbitrary Bech32String where
+    arbitrary = mkBech32String <$> arbitrary <*> arbitrary
     shrink v = do
         let hrpOriginal = humanReadablePart v
         let udpOriginal = unencodedDataPart v
         hrpShrunk <- take 3 $ shrink $ humanReadablePart v
         udpShrunk <- take 3 $ shrink $ unencodedDataPart v
-        uncurry mkValidBech32String <$>
+        uncurry mkBech32String <$>
             [ (hrpShrunk, udpShrunk)
             , (hrpShrunk, udpOriginal)
             , (hrpOriginal, udpShrunk) ]
@@ -544,3 +617,11 @@ instance Arbitrary ByteString where
 instance Arbitrary Bech32.Word5 where
     arbitrary = arbitraryBoundedEnum
     shrink w = Bech32.word5 <$> shrink (Bech32.getWord5 w)
+
+-- | Returns true iff. the given string has both lower-case and upper-case
+--   characters.
+--
+isMixedCase :: Text -> Bool
+isMixedCase t =
+    T.toUpper t /= t &&
+    T.toLower t /= t
