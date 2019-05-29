@@ -182,7 +182,7 @@ spec = do
         it "Decoding fails when a character is omitted." $
             property $ withMaxSuccess 10000 $ \s -> do
                 let originalString = getValidBech32String s
-                index <- chooseWithinDataPart originalString
+                index <- choose (0, T.length originalString - 1)
                 let char = T.index originalString index
                 let prefix = T.take index originalString
                 let suffix = T.drop (index + 1) originalString
