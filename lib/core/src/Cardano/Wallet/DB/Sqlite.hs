@@ -180,12 +180,12 @@ newDBLayer
     -> IO (DBLayer IO s t)
 newDBLayer fp = do
     lock <- newMVar ()
-    writeLock <- newMVar ()
-    let withWriteLock = ExceptT . withMVar writeLock . const . runExceptT
-
+    bigLock <- newMVar ()
     conn <- createSqliteBackend fp (dbLogs [LevelError])
-    runQuery conn $ runMigration migrateAll
-    runQuery conn addIndexes
+    let runQuery' = withMVar bigLock . const . runQuery conn
+
+    runQuery' $ void $ runMigration migrateAll
+    runQuery' addIndexes
 
     return $ DBLayer
 
@@ -193,16 +193,16 @@ newDBLayer fp = do
                                       Wallets
         -----------------------------------------------------------------------}
 
-        { createWallet = \(PrimaryKey wid) cp meta -> withWriteLock $
-              ExceptT $ runQuery conn $ do
+        { createWallet = \(PrimaryKey wid) cp meta ->
+              ExceptT $ runQuery' $ do
                   res <- handleConstraint (ErrWalletAlreadyExists wid) $
                       insert_ (mkWalletEntity wid meta)
                   when (isRight res) $
                       insertCheckpoint wid cp
                   pure res
 
-        , removeWallet = \(PrimaryKey wid) -> withWriteLock $
-              ExceptT $ runQuery conn $
+        , removeWallet = \(PrimaryKey wid) ->
+              ExceptT $ runQuery' $
               selectWallet wid >>= \case
                   Just _ -> Right <$> do
                       deleteCheckpoints @s wid
@@ -212,15 +212,15 @@ newDBLayer fp = do
                       deleteCascadeWhere [WalTableId ==. wid]
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
-        , listWallets = runQuery conn $
+        , listWallets = runQuery' $
               map (PrimaryKey . unWalletKey) <$> selectKeysList [] []
 
         {-----------------------------------------------------------------------
                                     Checkpoints
         -----------------------------------------------------------------------}
 
-        , putCheckpoint = \(PrimaryKey wid) cp -> withWriteLock $
-              ExceptT $ runQuery conn $
+        , putCheckpoint = \(PrimaryKey wid) cp ->
+              ExceptT $ runQuery' $
               selectWallet wid >>= \case
                   Just _ -> Right <$> do
                       deleteCheckpoints @s wid -- clear out all checkpoints
@@ -228,7 +228,8 @@ newDBLayer fp = do
                       insertCheckpoint wid cp -- add this checkpoint
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
-        , readCheckpoint = \(PrimaryKey wid) -> runQuery conn $
+        , readCheckpoint = \(PrimaryKey wid) ->
+              runQuery' $
               selectLatestCheckpoint wid >>= \case
                   Just cp -> do
                       utxo <- selectUTxO cp
@@ -242,8 +243,8 @@ newDBLayer fp = do
                                    Wallet Metadata
         -----------------------------------------------------------------------}
 
-        , putWalletMeta = \(PrimaryKey wid) meta -> withWriteLock $
-              ExceptT $ runQuery conn $
+        , putWalletMeta = \(PrimaryKey wid) meta ->
+              ExceptT $ runQuery' $
               selectWallet wid >>= \case
                   Just _ -> do
                       updateWhere [WalTableId ==. wid]
@@ -251,7 +252,8 @@ newDBLayer fp = do
                       pure $ Right ()
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
-        , readWalletMeta = \(PrimaryKey wid) -> runQuery conn $
+        , readWalletMeta = \(PrimaryKey wid) ->
+              runQuery' $
               fmap (metadataFromEntity . entityVal) <$>
               selectFirst [WalTableId ==. wid] []
 
@@ -259,8 +261,8 @@ newDBLayer fp = do
                                      Tx History
         -----------------------------------------------------------------------}
 
-        , putTxHistory = \(PrimaryKey wid) txs -> withWriteLock $
-              ExceptT $ runQuery conn $
+        , putTxHistory = \(PrimaryKey wid) txs ->
+              ExceptT $ runQuery' $
               selectWallet wid >>= \case
                   Just _ -> do
                       let (metas, txins, txouts) = mkTxHistory wid txs
@@ -271,22 +273,24 @@ newDBLayer fp = do
                       pure $ Right ()
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
-        , readTxHistory = \(PrimaryKey wid) -> runQuery conn $
+        , readTxHistory = \(PrimaryKey wid) ->
+              runQuery' $
               selectTxHistory wid
 
         {-----------------------------------------------------------------------
                                        Keystore
         -----------------------------------------------------------------------}
 
-        , putPrivateKey = \(PrimaryKey wid) key -> withWriteLock $
-                ExceptT $ runQuery conn $
+        , putPrivateKey = \(PrimaryKey wid) key ->
+                ExceptT $ runQuery' $
                 selectWallet wid >>= \case
                     Just _ -> Right <$> do
                         deleteWhere [PrivateKeyTableWalletId ==. wid]
                         insert_ (mkPrivateKeyEntity wid key)
                     Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
-        , readPrivateKey = \(PrimaryKey wid) -> runQuery conn $
+        , readPrivateKey = \(PrimaryKey wid) ->
+              runQuery' $
               let keys = selectFirst [PrivateKeyTableWalletId ==. wid] []
                   toMaybe = either (const Nothing) Just
               in (>>= toMaybe . privateKeyFromEntity . entityVal) <$> keys
