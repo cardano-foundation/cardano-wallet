@@ -244,9 +244,9 @@ spec = do
         it "Decoding fails when a single character is mutated." $
            withMaxSuccess 10000 $ property $ \s c -> do
                 let originalString = getValidBech32String s
-                index <- chooseWithinDataPart originalString
+                index <- choose (0, T.length originalString - 1)
                 let originalChar = T.index originalString index
-                let replacementChar = getDataChar c
+                let replacementChar = getBech32Char c
                 let prefix = T.take index originalString
                 let suffix = T.drop (index + 1) originalString
                 let corruptedString =
@@ -262,15 +262,7 @@ spec = do
                     corruptedString /= originalString ==>
                         (T.length corruptedString === T.length originalString)
                         .&&.
-                        (result `shouldBe` Left
-                            StringToDecodeMissingSeparatorChar)
-                        .||.
-                        (result `shouldBe` Left
-                            (StringToDecodeContainsInvalidChars []))
-                        .||.
-                        (result `shouldBe` Left
-                            (StringToDecodeContainsInvalidChars
-                                [CharPosition index]))
+                        (result `shouldSatisfy` isLeft)
 
         it "Decoding fails for an upper-case string with a lower-case \
            \character." $
