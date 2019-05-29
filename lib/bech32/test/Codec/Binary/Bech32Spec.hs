@@ -150,12 +150,6 @@ spec = do
                 all (< c) $ shrink (c :: Bech32Char)
 
     describe "Decoding a corrupted string should fail" $ do
-        let chooseWithinDataPart originalString = do
-                let sepIx = maybe
-                        (error "couldn't find separator in valid bech32 string")
-                        (\ix -> T.length originalString - ix - 1)
-                        (T.findIndex (== '1') (T.reverse originalString))
-                choose (sepIx + 1, T.length originalString - 2)
 
         it "Decoding fails when an adjacent pair of characters is swapped." $
             property $ withMaxSuccess 10000 $ \s -> do
