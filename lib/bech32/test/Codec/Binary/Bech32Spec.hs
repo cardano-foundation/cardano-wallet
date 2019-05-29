@@ -268,7 +268,7 @@ spec = do
            \character." $
             withMaxSuccess 10000 $ property $ \s -> do
                 let originalString = T.map toUpper $ getValidBech32String s
-                index <- chooseWithinDataPart originalString
+                index <- choose (0, T.length originalString - 1)
                 let prefix = T.take index originalString
                 let suffix = T.drop (index + 1) originalString
                 let char = toLower $ T.index originalString index
@@ -288,7 +288,7 @@ spec = do
            \character." $
             withMaxSuccess 10000 $ property $ \s -> do
                 let originalString = T.map toLower $ getValidBech32String s
-                index <- chooseWithinDataPart originalString
+                index <- choose (0, T.length originalString - 1)
                 let prefix = T.take index originalString
                 let suffix = T.drop (index + 1) originalString
                 let char = toUpper $ T.index originalString index
