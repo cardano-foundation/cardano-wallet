@@ -160,7 +160,7 @@ spec = do
         it "Decoding fails when an adjacent pair of characters is swapped." $
             property $ withMaxSuccess 10000 $ \s -> do
                 let originalString = getValidBech32String s
-                index <- chooseWithinDataPart originalString
+                index <- choose (0, T.length originalString - 2)
                 let prefix = T.take index originalString
                 let suffix = T.drop (index + 2) originalString
                 let char1 = T.singleton (T.index originalString index)
