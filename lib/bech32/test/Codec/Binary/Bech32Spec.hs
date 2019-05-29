@@ -253,7 +253,7 @@ spec = do
                         , "      original string: " <> show originalString
                         , "     corrupted string: " <> show corruptedString ]
                 return $ counterexample description $
-                    corruptedString /= originalString ==>
+                    isMixedCase corruptedString ==>
                         (T.length corruptedString === T.length originalString)
                         .&&.
                         (Bech32.decode corruptedString `shouldBe` Left
@@ -273,7 +273,7 @@ spec = do
                         , "      original string: " <> show originalString
                         , "     corrupted string: " <> show corruptedString ]
                 return $ counterexample description $
-                    corruptedString /= originalString ==>
+                    isMixedCase corruptedString ==>
                         (T.length corruptedString === T.length originalString)
                         .&&.
                         (Bech32.decode corruptedString `shouldBe` Left
@@ -544,3 +544,11 @@ instance Arbitrary ByteString where
 instance Arbitrary Bech32.Word5 where
     arbitrary = arbitraryBoundedEnum
     shrink w = Bech32.word5 <$> shrink (Bech32.getWord5 w)
+
+-- | Returns true iff. the given string has both lower-case and upper-case
+--   characters.
+--
+isMixedCase :: Text -> Bool
+isMixedCase t =
+    T.toUpper t /= t &&
+    T.toLower t /= t
