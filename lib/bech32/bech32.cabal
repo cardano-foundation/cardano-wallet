@@ -65,6 +65,8 @@ test-suite bech32-test
     , QuickCheck
     , text
     , vector
+  build-tools:
+      hspec-discover
   main-is:
       Main.hs
   other-modules:

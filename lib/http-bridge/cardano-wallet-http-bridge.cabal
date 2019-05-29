@@ -96,6 +96,8 @@ test-suite unit
     , text
     , text-class
     , transformers
+  build-tools:
+      hspec-discover
   type:
      exitcode-stdio-1.0
   hs-source-dirs:

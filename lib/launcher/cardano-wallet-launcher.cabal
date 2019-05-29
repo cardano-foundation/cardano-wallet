@@ -64,6 +64,8 @@ test-suite unit
     , fmt
     , hspec
     , text
+  build-tools:
+      hspec-discover
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
