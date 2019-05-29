@@ -225,7 +225,7 @@ spec = do
                 ]
 
     it "TRANS_CREATE_02 - Multiple Output Txs don't work on single UTxO" $ \ctx -> do
-        wSrc <- fixtureWalletWith ctx [20_000_000]
+        wSrc <- fixtureWalletWith ctx [2_124_333]
         wDest <- emptyWallet ctx
         addrs <- listAddresses ctx wDest
 
@@ -258,7 +258,7 @@ spec = do
                 "When creating new transactions, I'm not able to re-use the \
                 \same UTxO for different outputs. Here, I only have 1 \
                 \available, but there are 2 outputs."
-           ]
+            ]
 
     it "TRANS_CREATE_03 - 0 balance after transaction" $ \ctx -> do
         wSrc <- fixtureWalletWith ctx [168_434]
@@ -380,16 +380,16 @@ spec = do
         let longAddr = replicate 10000 '1'
         let byronErr = "Unable to decode Address: not a valid Byron address."
         let base58Err = "Unable to decode Address: expected Base58 encoding."
-        let matrix = [ ( "long hex", longAddr, byronErr )
-                     , ( "short hex", "1", byronErr )
-                     , ( "-1000", "-1000", base58Err )
-                     , ( "q", "q", byronErr )
-                     , ( "empty", "", byronErr )
-                     , ( "wildcards", T.unpack wildcardsWalletName, base58Err )
-                     , ( "arabic", T.unpack arabicWalletName, base58Err )
-                     , ( "kanji", T.unpack kanjiWalletName, base58Err )
-                     , ( "polish", T.unpack polishWalletName, base58Err )
-                     ]
+        let matrix =
+                [ ( "long hex", longAddr, byronErr )
+                , ( "short hex", "1", byronErr )
+                , ( "-1000", "-1000", base58Err ), ( "q", "q", byronErr )
+                , ( "empty", "", byronErr )
+                , ( "wildcards", T.unpack wildcardsWalletName, base58Err )
+                , ( "arabic", T.unpack arabicWalletName, base58Err )
+                , ( "kanji", T.unpack kanjiWalletName, base58Err )
+                , ( "polish", T.unpack polishWalletName, base58Err )
+                ]
         forM_ matrix $ \(title, addr, errMsg) -> it title $ \ctx -> do
             wSrc <- fixtureWallet ctx
             let payload = Json [json|{
@@ -464,90 +464,84 @@ spec = do
     describe "TRANS_CREATE_06 - Invalid amount" $ do
         let unitErr = "failed to parse quantified value. Expected value in\
             \ 'lovelace' (e.g. { 'unit': 'lovelace', 'quantity': ... }"
-        let matrix = [ ( "Quantity = 0"
-                       , [json|{"quantity": 0, "unit": "lovelace"}|]
-                       , [ expectResponseCode HTTP.status500
-                         , expectErrorMessage "That's embarassing. It looks\
-                            \ like I've created an invalid transaction that\
-                            \ could not be parsed by the node. Here's an error\
-                            \ message that may help with debugging:\
-                            \ Transaction failed verification: output with no\
-                            \ credited value" ]
-                       )
-                     , ( "Quantity = 1.5"
-                       , [json|{"quantity": 1.5, "unit": "lovelace"}|]
-                       , [ expectResponseCode HTTP.status400
-                         , expectErrorMessage "expected Natural, encountered\
-                            \ floating number 1.5" ]
-                       )
-                     , ( "Quantity = -1000"
-                       , [json|{"quantity": -1000, "unit": "lovelace"}|]
-                       , [ expectResponseCode HTTP.status400
-                         , expectErrorMessage "expected Natural, encountered\
-                            \ negative number -1000" ]
-                       )
-                     , ( "Quantity = \"-1000\""
-                       , [json|{"quantity": "-1000", "unit": "lovelace"}|]
-                       , [ expectResponseCode HTTP.status400
-                         , expectErrorMessage "expected Natural,\
-                            \ encountered String" ]
-                       )
-                     , ( "Quantity = []"
-                       , [json|{"quantity": [], "unit": "lovelace"}|]
-                       , [ expectResponseCode HTTP.status400
-                         , expectErrorMessage "expected Natural,\
-                            \ encountered Array" ]
-                       )
-                     , ( "Quantity = \"string with diacritics\""
-                       , [json|{"quantity": #{polishWalletName}
-                                , "unit": "lovelace"}|]
-                       , [ expectResponseCode HTTP.status400
-                         , expectErrorMessage "expected Natural,\
-                            \ encountered String" ]
-                       )
-                     , ( "Quantity = \"string with wildcards\""
-                       , [json|{"quantity": #{wildcardsWalletName}
-                                , "unit": "lovelace"}|]
-                       , [ expectResponseCode HTTP.status400
-                         , expectErrorMessage "expected Natural,\
-                            \ encountered String" ]
-                       )
-                     , ( "Quantity missing"
-                       , [json|{"unit": "lovelace"}|]
-                       , [ expectResponseCode HTTP.status400
-                         , expectErrorMessage "key 'quantity' not present" ]
-                       )
-                     , ( "Unit missing"
-                       , [json|{"quantity": 1}|]
-                       , [ expectResponseCode HTTP.status400
-                         , expectErrorMessage "key 'unit' not present" ]
-                       )
-                     , ( "Unit = [\"lovelace\"]"
-                       , [json|{"quantity": 1, "unit": ["lovelace"]}|]
-                       , [ expectResponseCode HTTP.status400
-                         , expectErrorMessage unitErr ]
-                       )
-                     , ( "Unit = -33"
-                       , [json|{"quantity": 1, "unit": -33}|]
-                       , [ expectResponseCode HTTP.status400
-                         , expectErrorMessage unitErr ]
-                       )
-                     , ( "Unit = 33"
-                       , [json|{"quantity": 1, "unit": 33}|]
-                       , [ expectResponseCode HTTP.status400
-                         , expectErrorMessage unitErr ]
-                       )
-                     , ( "Unit = \"LOVELACE\""
-                       , [json|{"quantity": 1, "unit": "LOVELACE"}|]
-                       , [ expectResponseCode HTTP.status400
-                         , expectErrorMessage unitErr ]
-                       )
-                     , ( "Unit = \"ada\""
-                       , [json|{"quantity": 1, "unit": "ada"}|]
-                       , [ expectResponseCode HTTP.status400
-                         , expectErrorMessage unitErr ]
-                       )
-                     ]
+        let matrix =
+                [ ( "Quantity = 0"
+                , [json|{"quantity": 0, "unit": "lovelace"}|]
+                , [ expectResponseCode HTTP.status500
+                  , expectErrorMessage "That's embarassing. It looks\
+                    \ like I've created an invalid transaction that\
+                    \ could not be parsed by the node. Here's an error\
+                    \ message that may help with debugging:\
+                    \ Transaction failed verification: output with no\
+                    \ credited value" ]
+                )
+                , ( "Quantity = 1.5"
+                , [json|{"quantity": 1.5, "unit": "lovelace"}|]
+                , [ expectResponseCode HTTP.status400
+                  , expectErrorMessage "expected Natural, encountered\
+                    \ floating number 1.5" ]
+                )
+                , ( "Quantity = -1000"
+                , [json|{"quantity": -1000, "unit": "lovelace"}|]
+                , [ expectResponseCode HTTP.status400
+                  , expectErrorMessage "expected Natural, encountered\
+                    \ negative number -1000" ]
+                )
+                , ( "Quantity = \"-1000\""
+                , [json|{"quantity": "-1000", "unit": "lovelace"}|]
+                , [ expectResponseCode HTTP.status400
+                  , expectErrorMessage "expected Natural, encountered String" ]
+                )
+                , ( "Quantity = []"
+                , [json|{"quantity": [], "unit": "lovelace"}|]
+                , [ expectResponseCode HTTP.status400
+                  , expectErrorMessage "expected Natural, encountered Array" ]
+                )
+                , ( "Quantity = \"string with diacritics\""
+                , [json|{"quantity": #{polishWalletName}
+                        , "unit": "lovelace"}|]
+                , [ expectResponseCode HTTP.status400
+                  , expectErrorMessage "expected Natural, encountered String" ]
+                )
+                , ( "Quantity = \"string with wildcards\""
+                , [json|{"quantity": #{wildcardsWalletName}
+                        , "unit": "lovelace"}|]
+                , [ expectResponseCode HTTP.status400
+                  , expectErrorMessage "expected Natural, encountered String" ]
+                )
+                , ( "Quantity missing"
+                , [json|{"unit": "lovelace"}|]
+                , [ expectResponseCode HTTP.status400
+                  , expectErrorMessage "key 'quantity' not present" ]
+                )
+                , ( "Unit missing"
+                , [json|{"quantity": 1}|]
+                , [ expectResponseCode HTTP.status400
+                  , expectErrorMessage "key 'unit' not present" ]
+                )
+                , ( "Unit = [\"lovelace\"]"
+                , [json|{"quantity": 1, "unit": ["lovelace"]}|]
+                , [ expectResponseCode HTTP.status400
+                  , expectErrorMessage unitErr ]
+                )
+                , ( "Unit = -33", [json|{"quantity": 1, "unit": -33}|]
+                , [ expectResponseCode HTTP.status400
+                  , expectErrorMessage unitErr ]
+                )
+                , ( "Unit = 33", [json|{"quantity": 1, "unit": 33}|]
+                , [ expectResponseCode HTTP.status400
+                  , expectErrorMessage unitErr ]
+                )
+                , ( "Unit = \"LOVELACE\""
+                , [json|{"quantity": 1, "unit": "LOVELACE"}|]
+                , [ expectResponseCode HTTP.status400
+                  , expectErrorMessage unitErr ]
+                )
+                , ( "Unit = \"ada\"", [json|{"quantity": 1, "unit": "ada"}|]
+                , [ expectResponseCode HTTP.status400
+                  , expectErrorMessage unitErr ]
+                )
+                ]
         forM_ matrix $ \(title, amt, expectations) -> it title $ \ctx -> do
             wSrc <- fixtureWallet ctx
             wDest <- emptyWallet ctx
