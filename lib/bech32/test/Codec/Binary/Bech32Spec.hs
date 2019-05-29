@@ -561,11 +561,13 @@ data ValidBech32String = ValidBech32String
     } deriving (Eq, Show)
 
 mkValidBech32String :: HumanReadablePart -> DataPart -> ValidBech32String
-mkValidBech32String hrp udp =
-    ValidBech32String
-        (fromRight (error "unable to make a valid Bech32 string.") $
-            Bech32.encode hrp udp)
-        hrp udp
+mkValidBech32String hrp udp = ValidBech32String
+    { getValidBech32String =
+        fromRight (error "unable to make a valid Bech32 string.") $
+            Bech32.encode hrp udp
+    , humanReadablePart = hrp
+    , unencodedDataPart = udp
+    }
 
 instance Arbitrary ValidBech32String where
     arbitrary = mkValidBech32String <$> arbitrary <*> arbitrary
