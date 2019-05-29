@@ -210,8 +210,8 @@ spec = do
         it "Decoding fails when a character is inserted." $
             property $ withMaxSuccess 10000 $ \s c -> do
                 let originalString = getValidBech32String s
-                let char = getDataChar c
-                index <- chooseWithinDataPart originalString
+                let char = getBech32Char c
+                index <- choose (0, T.length originalString)
                 let prefix = T.take index originalString
                 let suffix = T.drop index originalString
                 let corruptedString = prefix <> T.singleton char <> suffix
@@ -220,7 +220,14 @@ spec = do
                         , "         inserted char: " <> show char
                         , "       original string: " <> show originalString
                         , "      corrupted string: " <> show corruptedString ]
-                return $ counterexample description $
+                return $
+                    counterexample description $
+                    cover 2 (T.null prefix)
+                        "inserted before the start" $
+                    cover 2 (T.null suffix)
+                        "inserted after the end" $
+                    cover 10 (not (T.null prefix) && not (T.null suffix))
+                        "inserted into the middle" $
                     (T.length corruptedString === T.length originalString + 1)
                     .&&.
                     (Bech32.decode corruptedString `shouldSatisfy` isLeft)
