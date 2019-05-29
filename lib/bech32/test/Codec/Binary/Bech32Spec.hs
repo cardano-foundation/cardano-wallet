@@ -1,3 +1,5 @@
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -32,7 +34,7 @@ import Data.Bits
 import Data.ByteString
     ( ByteString )
 import Data.Char
-    ( chr, ord, toLower, toUpper )
+    ( chr, isUpper, ord, toLower, toUpper )
 import Data.Either
     ( fromRight, isLeft, isRight )
 import Data.Either.Extra
@@ -43,8 +45,12 @@ import Data.List
     ( intercalate )
 import Data.Maybe
     ( catMaybes, fromMaybe, isJust )
+import Data.Set
+    ( Set )
 import Data.Text
     ( Text )
+import Data.Vector
+    ( Vector )
 import Data.Word
     ( Word8 )
 import Test.Hspec
@@ -55,6 +61,7 @@ import Test.QuickCheck
     , arbitraryBoundedEnum
     , choose
     , counterexample
+    , cover
     , elements
     , property
     , withMaxSuccess
@@ -66,7 +73,9 @@ import Test.QuickCheck
 
 import qualified Codec.Binary.Bech32.Internal as Bech32
 import qualified Data.ByteString as BS
+import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified Data.Vector as V
 
 spec :: Spec
 spec = do
@@ -122,6 +131,23 @@ spec = do
             property $ \v ->
                 Bech32.decode (getValidBech32String v) `shouldBe`
                     Right (humanReadablePart v, unencodedDataPart v)
+
+    describe "Arbitrary Bech32Char" $ do
+
+        it "Generation always produces a valid character." $
+            property $ withMaxSuccess 10000 $ \c ->
+                let char = getBech32Char c in
+                cover 30 (      isDataChar char) "is a data character: TRUE"  $
+                cover 30 (not $ isDataChar char) "is a data character: FALSE" $
+                isBech32Char char
+
+        it "Shrinking always produces valid characters." $
+            property $ withMaxSuccess 10000 $ \c ->
+                all (isBech32Char . getBech32Char) $ shrink c
+
+        it "Shrinking always produces characters with codes that are smaller." $
+            property $ withMaxSuccess 10000 $ \c ->
+                all (< c) $ shrink (c :: Bech32Char)
 
     describe "Decoding a corrupted string should fail" $ do
         let chooseWithinDataPart originalString = do
@@ -456,6 +482,58 @@ invalidChecksums =
     , ( "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5"
       , Bech32.StringToDecodeContainsInvalidChars [CharPosition 41] )
     ]
+
+-- | Represents a character that is permitted to appear within a Bech32 string.
+newtype Bech32Char = Bech32Char
+    { getBech32Char :: Char }
+    deriving newtype (Eq, Ord, Show)
+
+instance Arbitrary Bech32Char where
+    arbitrary =
+        Bech32Char . (bech32CharVector V.!) <$>
+            choose (0, V.length bech32CharVector - 1)
+    shrink (Bech32Char c) =
+        case sortedVectorElemIndex c bech32CharVector of
+            Nothing -> []
+            Just ci -> Bech32Char . (bech32CharVector V.!) <$> shrink ci
+
+-- | Returns true iff. the specified character is permitted to appear within
+--   a Bech32 string AND is not upper case.
+isBech32Char :: Char -> Bool
+isBech32Char c = Set.member c bech32CharSet
+
+-- | Returns true iff. the specified character is permitted to appear within
+--   the data portion of a Bech32 string AND is not upper case.
+isDataChar :: Char -> Bool
+isDataChar = isJust . Bech32.dataCharToWord
+
+-- | A vector containing all valid Bech32 characters in ascending sorted order.
+--   Upper-case characters are not included.
+bech32CharVector :: Vector Char
+bech32CharVector = V.fromList $ Set.toAscList bech32CharSet
+
+-- | The set of all valid Bech32 characters.
+--   Upper-case characters are not included.
+bech32CharSet :: Set Char
+bech32CharSet =
+    Set.filter (not . isUpper) $
+        Set.fromList [humanReadableCharMinBound .. humanReadableCharMaxBound]
+            `Set.union` (Set.singleton separatorChar)
+            `Set.union` (Set.fromList Bech32.dataCharList)
+
+-- | Find the index of an element in a sorted vector using simple binary search.
+sortedVectorElemIndex :: Ord a => a -> Vector a -> Maybe Int
+sortedVectorElemIndex a v = search 0 (V.length v - 1)
+  where
+    search l r
+        | l >  r    = Nothing
+        | a == b    = Just m
+        | a <  b    = search l (m - 1)
+        | a >  b    = search (m + 1) r
+        | otherwise = Nothing
+      where
+        b = v V.! m
+        m = (l + r) `div` 2
 
 newtype DataChar = DataChar
     { getDataChar :: Char
