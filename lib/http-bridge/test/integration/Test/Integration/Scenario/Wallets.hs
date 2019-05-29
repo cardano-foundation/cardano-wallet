@@ -850,6 +850,15 @@ spec = do
         expectResponseCode @IO HTTP.status404 rg
         expectErrorMessage errMsg404NoEndpoint rg
 
+    describe "WALLETS_GET_05 - v2/wallets/{id} - Methods Not Allowed" $ do
+        let matrix = ["POST", "CONNECT", "TRACE", "OPTIONS"]
+        forM_ matrix $ \method -> it (show method) $ \ctx -> do
+            w <- emptyWallet ctx
+            r <- request @ApiWallet ctx (method, "v2/wallets/" <> w ^. walletId)
+                    Default Empty
+            expectResponseCode @IO HTTP.status405 r
+            expectErrorMessage errMsg405 r
+
     describe "WALLETS_GET_05 - HTTP headers" $ do
         forM_ getHeaderCases $ \(title, headers, expectations) -> it title $ \ctx -> do
             r <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload
@@ -1444,6 +1453,14 @@ spec = do
             rup <- request @ApiWallet ctx ("PUT", endpoint) headers payload
             verify rup expectations
 
+    describe "WALLETS_UPDATE_PASS_07 - v2/wallets/{id}/passphrase - Methods Not Allowed" $ do
+        let matrix = ["POST", "CONNECT", "TRACE", "OPTIONS", "GET", "DELETE"]
+        forM_ matrix $ \method -> it (show method) $ \ctx -> do
+            w <- emptyWallet ctx
+            let endpoint = "v2/wallets/" <> w ^. walletId <> "/passphrase"
+            r <- request @ApiWallet ctx (method, endpoint) Default Empty
+            expectResponseCode @IO HTTP.status405 r
+            expectErrorMessage errMsg405 r
  where
     getHeaderCases =
               [ ( "No HTTP headers -> 200", None

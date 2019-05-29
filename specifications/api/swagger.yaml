@@ -636,6 +636,11 @@ responsesErr404: &responsesErr404
     description: Not Found
     schema: *responsesErr
 
+responsesErr405: &responsesErr405
+  405:
+    description: Method Not Allowed
+    schema: *responsesErr
+
 responsesErr406: &responsesErr406
   406:
     description: Not Acceptable
@@ -662,6 +667,7 @@ responseErr423: &responsesErr423
     schema: *responsesErr
 
 responsesListWallets: &responsesListWallets
+  <<: *responsesErr405
   <<: *responsesErr406
   200:
     description: Ok
@@ -671,6 +677,7 @@ responsesListWallets: &responsesListWallets
 
 responsesGetUTxOsStatistics: &responsesGetUTxOsStatistics
   <<: *responsesErr404
+  <<: *responsesErr405
   <<: *responsesErr406
   <<: *responsesErr423
   200:
@@ -679,6 +686,7 @@ responsesGetUTxOsStatistics: &responsesGetUTxOsStatistics
 
 responsesPostWallet: &responsesPostWallet
   <<: *responsesErr400
+  <<: *responsesErr405
   <<: *responsesErr406
   <<: *responsesErr409
   <<: *responsesErr415
@@ -688,6 +696,7 @@ responsesPostWallet: &responsesPostWallet
 
 responsesGetWallet: &responsesGetWallet
   <<: *responsesErr404
+  <<: *responsesErr405
   <<: *responsesErr406
   200:
     description: Ok
@@ -695,6 +704,7 @@ responsesGetWallet: &responsesGetWallet
 
 responsesDeleteWallet: &responsesDeleteWallet
   <<: *responsesErr404
+  <<: *responsesErr405
   <<: *responsesErr406
   204:
     description: No Content
@@ -702,6 +712,7 @@ responsesDeleteWallet: &responsesDeleteWallet
 responsesPutWallet: &responsesPutWallet
   <<: *responsesErr400
   <<: *responsesErr404
+  <<: *responsesErr405
   <<: *responsesErr406
   <<: *responsesErr415
   200:
@@ -712,6 +723,7 @@ responsesPutWalletPassphrase: &responsesPutWalletPassphrase
   <<: *responsesErr400
   <<: *responsesErr403
   <<: *responsesErr404
+  <<: *responsesErr405
   <<: *responsesErr406
   <<: *responsesErr415
   204:
@@ -719,6 +731,7 @@ responsesPutWalletPassphrase: &responsesPutWalletPassphrase
 
 responsesListTransactions: &responsesListTransactions
   <<: *responsesErr404
+  <<: *responsesErr405
   <<: *responsesErr406
   200:
     description: Ok
@@ -735,6 +748,7 @@ responsesPostTransaction: &responsesPostTransaction
   <<: *responsesErr400
   <<: *responsesErr403
   <<: *responsesErr404
+  <<: *responsesErr405
   <<: *responsesErr406
   <<: *responsesErr415
   202:
@@ -744,6 +758,7 @@ responsesPostTransaction: &responsesPostTransaction
 responsesPostTransactionFee: &responsesPostTransactionFee
   <<: *responsesErr400
   <<: *responsesErr404
+  <<: *responsesErr405
   <<: *responsesErr406
   <<: *responsesErr415
   200:
@@ -758,6 +773,7 @@ responsesPostTransactionFee: &responsesPostTransactionFee
 responsesListAddresses: &responsesListAddresses
   <<: *responsesErr400
   <<: *responsesErr404
+  <<: *responsesErr405
   <<: *responsesErr406
   200:
     description: Ok
@@ -766,6 +782,7 @@ responsesListAddresses: &responsesListAddresses
       items: *ApiAddress
 
 responsesListStakePools: &responsesListStakePools
+  <<: *responsesErr405
   200:
     description: Ok
     schema:
@@ -776,6 +793,7 @@ responsesJoinStakePool: &responsesJoinStakePool
   <<: *responsesErr400
   <<: *responsesErr403
   <<: *responsesErr404
+  <<: *responsesErr405
   <<: *responsesErr406
   <<: *responsesErr415
   202:
@@ -786,6 +804,7 @@ responsesQuitStakePool: &responsesQuitStakePool
   <<: *responsesJoinStakePool
 
 responsesGetNetworkInformation: &responsesGetNetworkInformation
+  <<: *responsesErr405
   200:
     description: Ok
     schema: *networkInformation
