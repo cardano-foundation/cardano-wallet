@@ -28,8 +28,9 @@ spec = describe "cardano-wallet-launcher" $ do
         let fiveSeconds = 5000000
         winner <- race (threadDelay fiveSeconds) (wait handle)
         case winner of
-            Left _ ->
+            Left _ -> do
                 cancel handle
+                threadDelay 1000000
             Right _ ->
                 expectationFailure
                     "cardano-wallet-launcher isn't supposed to terminate. \
