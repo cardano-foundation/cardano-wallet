@@ -125,11 +125,11 @@ spec = do
             let (Right hrp) = humanReadablePartFromText "HRP"
             Bech32.encode hrp mempty `shouldBe` Right "hrp1vhqs52"
 
-    describe "Arbitrary ValidBech32String" $
+    describe "Arbitrary Bech32String" $
 
         it "Generation always produces a valid string that can be decoded." $
             property $ \v ->
-                Bech32.decode (getValidBech32String v) `shouldBe`
+                Bech32.decode (getBech32String v) `shouldBe`
                     Right (humanReadablePart v, unencodedDataPart v)
 
     describe "Arbitrary Bech32Char" $ do
@@ -153,7 +153,7 @@ spec = do
 
         it "Decoding fails when an adjacent pair of characters is swapped." $
             property $ withMaxSuccess 10000 $ \s -> do
-                let originalString = getValidBech32String s
+                let originalString = getBech32String s
                 index <- choose (0, T.length originalString - 2)
                 let prefix = T.take index originalString
                 let suffix = T.drop (index + 2) originalString
@@ -175,7 +175,7 @@ spec = do
 
         it "Decoding fails when a character is omitted." $
             property $ withMaxSuccess 10000 $ \s -> do
-                let originalString = getValidBech32String s
+                let originalString = getBech32String s
                 index <- choose (0, T.length originalString - 1)
                 let char = T.index originalString index
                 let prefix = T.take index originalString
@@ -203,7 +203,7 @@ spec = do
 
         it "Decoding fails when a character is inserted." $
             property $ withMaxSuccess 10000 $ \s c -> do
-                let originalString = getValidBech32String s
+                let originalString = getBech32String s
                 let char = getBech32Char c
                 index <- choose (0, T.length originalString)
                 let prefix = T.take index originalString
@@ -237,7 +237,7 @@ spec = do
 
         it "Decoding fails when a single character is mutated." $
            withMaxSuccess 10000 $ property $ \s c -> do
-                let originalString = getValidBech32String s
+                let originalString = getBech32String s
                 index <- choose (0, T.length originalString - 1)
                 let originalChar = T.index originalString index
                 let replacementChar = getBech32Char c
@@ -261,7 +261,7 @@ spec = do
         it "Decoding fails for an upper-case string with a lower-case \
            \character." $
             withMaxSuccess 10000 $ property $ \s -> do
-                let originalString = T.map toUpper $ getValidBech32String s
+                let originalString = T.map toUpper $ getBech32String s
                 index <- choose (0, T.length originalString - 1)
                 let prefix = T.take index originalString
                 let suffix = T.drop (index + 1) originalString
@@ -281,7 +281,7 @@ spec = do
         it "Decoding fails for a lower-case string with an upper-case \
            \character." $
             withMaxSuccess 10000 $ property $ \s -> do
-                let originalString = T.map toLower $ getValidBech32String s
+                let originalString = T.map toLower $ getBech32String s
                 index <- choose (0, T.length originalString - 1)
                 let prefix = T.take index originalString
                 let suffix = T.drop (index + 1) originalString
@@ -548,29 +548,29 @@ instance Arbitrary HumanReadableChar where
     arbitrary = HumanReadableChar <$>
         choose (humanReadableCharMinBound, humanReadableCharMaxBound)
 
-data ValidBech32String = ValidBech32String
-    { getValidBech32String :: Text
+data Bech32String = Bech32String
+    { getBech32String :: Text
     , humanReadablePart :: HumanReadablePart
     , unencodedDataPart :: DataPart
     } deriving (Eq, Show)
 
-mkValidBech32String :: HumanReadablePart -> DataPart -> ValidBech32String
-mkValidBech32String hrp udp = ValidBech32String
-    { getValidBech32String =
+mkBech32String :: HumanReadablePart -> DataPart -> Bech32String
+mkBech32String hrp udp = Bech32String
+    { getBech32String =
         fromRight (error "unable to make a valid Bech32 string.") $
             Bech32.encode hrp udp
     , humanReadablePart = hrp
     , unencodedDataPart = udp
     }
 
-instance Arbitrary ValidBech32String where
-    arbitrary = mkValidBech32String <$> arbitrary <*> arbitrary
+instance Arbitrary Bech32String where
+    arbitrary = mkBech32String <$> arbitrary <*> arbitrary
     shrink v = do
         let hrpOriginal = humanReadablePart v
         let udpOriginal = unencodedDataPart v
         hrpShrunk <- take 3 $ shrink $ humanReadablePart v
         udpShrunk <- take 3 $ shrink $ unencodedDataPart v
-        uncurry mkValidBech32String <$>
+        uncurry mkBech32String <$>
             [ (hrpShrunk, udpShrunk)
             , (hrpShrunk, udpOriginal)
             , (hrpOriginal, udpShrunk) ]
