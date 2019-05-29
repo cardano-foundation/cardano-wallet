@@ -4,6 +4,26 @@ This wiki page is a "blackboard" where anyone in the team can write ideas or sug
 
 # Ideas
 
+## Defer use of `IO` in the various layers
+
+We currently have a variety of interfaces that we bundle together in the `WalletLayer`, which is yet another interface. All these interfaces are parameterized over a monad `m`, although all the constructor we provide specialize it directly to `IO`. 
+
+As we know,`IO` is very powerful and allows for _any_ sort of effects to happen. It means that we don't leverage the compiler to help us making sure we aren't doing bad thing like throwing exceptions or doing unrelated sort of effects. When debugging comes, it is also much more complex to identify where a bug might come from by looking at some functions over `IO`. It's a rather opaque type.
+
+Instead, without going _too fancy_ with free effects and/or layers of transformers, we could simply leverage Haskell's class-constraint system and define some appropriate Monad to represent these effects; As a result, the constructor for the bridge network layer could become:
+
+```hs
+newHttpBridge
+   :: (MonadLogger m, MonadHttp m)
+   => Port
+   -> Manager
+   -> NetworkLayer m
+```
+
+Which makes it much easier to understand, from the type-system, where are the boundaries of a particular module.
+
+
+
 ## Run integration tests against mainnet
 
 > Reviewed on **week 21**:
