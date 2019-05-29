@@ -9,20 +9,6 @@
 @version 2019.5.24
 
 
--- | Contains various implementation decision that are specific to a
---   particular network / protocol. This allows us to easily select a
---   particular backend (Byron, Shelley-Rust, Shelley-Haskell) and isolate
---   the bits that vary between those backends.
-module Cardano.Wallet.Jormungandr.Compatibility
-
--- | A type representing the Jormungandr as a network target. This has an
---   influence on binary serializer &amp; network primitives. See also
---   <a>TxId</a>
-data Jormungandr
-instance Cardano.Wallet.Primitive.Types.TxId Cardano.Wallet.Jormungandr.Compatibility.Jormungandr
-instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress Cardano.Wallet.Jormungandr.Compatibility.Jormungandr
-
-
 -- | This module contains static configuration parameters. Rather than
 --   providing and carrying around a configuration file through the
 --   application, we resolve configuration data at runtime using the
@@ -44,13 +30,24 @@ Testnet :: Network
 --   
 --   Throws a runtime exception is the ENV var isn't set or, is invalid.
 network :: Network
-newtype ProtocolMagic
-ProtocolMagic :: Int32 -> ProtocolMagic
 
--- | Get the <a>ProtocolMagic</a> corresponding to a given <a>Network</a>.
-protocolMagic :: Network -> ProtocolMagic
-instance GHC.Show.Show Cardano.Wallet.Jormungandr.Environment.ProtocolMagic
-instance GHC.Generics.Generic Cardano.Wallet.Jormungandr.Environment.ProtocolMagic
+-- | Address discrimination Human-Readable Part (HRP).
+--   
+--   <ul>
+--   <li>"ca" for <a>Mainnet</a></li>
+--   <li>"ta" for <a>Testnet</a></li>
+--   </ul>
+hrp :: HumanReadablePart
+
+-- | Address discriminant byte for single addresses, this is the first byte
+--   of every addresses using the Shelley format carrying only a spending
+--   key.
+single :: Word8
+
+-- | Address discriminant byte for grouped addresses, this is the first
+--   byte of every addresses using the Shelley format carrying both a
+--   spending and a delegation key.
+grouped :: Word8
 instance GHC.Enum.Enum Cardano.Wallet.Jormungandr.Environment.Network
 instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Environment.Network
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Environment.Network
@@ -156,6 +153,11 @@ Milli :: Word64 -> Milli
 class FromBinary a
 get :: FromBinary a => Get a
 
+-- | Attempt decoding a <a>ByteString</a> into an <a>Address</a>. This
+--   merely checks that the underlying bytestring has a "valid" structure /
+--   format without doing much more.
+decodeLegacyAddress :: ByteString -> Maybe Address
+
 -- | The simplest interface to run a <a>Get</a> decoder. If the decoder
 --   runs into an error, calls <a>fail</a>, or runs out of input, it will
 --   call <a>error</a>.
@@ -186,6 +188,22 @@ instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.BlockHeader
 instance Cardano.Wallet.Jormungandr.Binary.FromBinary Cardano.Wallet.Jormungandr.Binary.Block
 instance Cardano.Wallet.Jormungandr.Binary.FromBinary Cardano.Wallet.Primitive.Types.Block
 instance Cardano.Wallet.Jormungandr.Binary.FromBinary a => Cardano.Wallet.Jormungandr.Binary.FromBinary [a]
+
+
+-- | Contains various implementation decision that are specific to a
+--   particular network / protocol. This allows us to easily select a
+--   particular backend (Byron, Shelley-Rust, Shelley-Haskell) and isolate
+--   the bits that vary between those backends.
+module Cardano.Wallet.Jormungandr.Compatibility
+
+-- | A type representing the Jormungandr as a network target. This has an
+--   influence on binary serializer &amp; network primitives. See also
+--   <a>TxId</a>
+data Jormungandr
+instance Cardano.Wallet.Primitive.Types.TxId Cardano.Wallet.Jormungandr.Compatibility.Jormungandr
+instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress Cardano.Wallet.Jormungandr.Compatibility.Jormungandr
+instance Cardano.Wallet.Primitive.Types.EncodeAddress Cardano.Wallet.Jormungandr.Compatibility.Jormungandr
+instance Cardano.Wallet.Primitive.Types.DecodeAddress Cardano.Wallet.Jormungandr.Compatibility.Jormungandr
 
 
 -- | An specification for the Jörmungandr REST API.

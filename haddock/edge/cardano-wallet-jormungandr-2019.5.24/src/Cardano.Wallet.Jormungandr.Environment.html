@@ -1,71 +1,96 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE DeriveGeneric #-}</span><span>
 </span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE LambdaCase #-}</span><span>
-</span><a name="line-3"></a><span class="hs-comment">-- |</span><span>
-</span><a name="line-4"></a><span class="hs-comment">-- Copyright: &#169; 2018-2019 IOHK</span><span>
-</span><a name="line-5"></a><span class="hs-comment">-- License: MIT</span><span>
-</span><a name="line-6"></a><span class="hs-comment">--</span><span>
-</span><a name="line-7"></a><span class="hs-comment">-- This module contains static configuration parameters. Rather than providing</span><span>
-</span><a name="line-8"></a><span class="hs-comment">-- and carrying around a configuration file through the application, we resolve</span><span>
-</span><a name="line-9"></a><span class="hs-comment">-- configuration data at runtime using the available environment.</span><span>
-</span><a name="line-10"></a><span class="hs-comment">--</span><span>
-</span><a name="line-11"></a><span class="hs-comment">-- This gives us a flexible and portable approach to software configuration, and</span><span>
-</span><a name="line-12"></a><span class="hs-comment">-- remove some pain from the development perspective. Prior to starting, the</span><span>
-</span><a name="line-13"></a><span class="hs-comment">-- wallet is expected to have a few configuration parameter available. One may</span><span>
-</span><a name="line-14"></a><span class="hs-comment">-- rely on a `.env` file to bundle configuration settings together for a given</span><span>
-</span><a name="line-15"></a><span class="hs-comment">-- target environment.</span><span>
-</span><a name="line-16"></a><span>
-</span><a name="line-17"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Cardano.Wallet.Jormungandr.Environment</span><span>
-</span><a name="line-18"></a><span>    </span><span class="hs-special">(</span><span>
-</span><a name="line-19"></a><span>    </span><span class="hs-comment">-- * Networking</span><span>
-</span><a name="line-20"></a><span>      </span><a href="Cardano.Wallet.Jormungandr.Environment.html#Network"><span class="hs-identifier hs-type">Network</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
-</span><a name="line-21"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.Jormungandr.Environment.html#network"><span class="hs-identifier hs-var">network</span></a><span>
-</span><a name="line-22"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.Jormungandr.Environment.html#ProtocolMagic"><span class="hs-identifier hs-type">ProtocolMagic</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
-</span><a name="line-23"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.Jormungandr.Environment.html#protocolMagic"><span class="hs-identifier hs-var">protocolMagic</span></a><span>
-</span><a name="line-24"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
-</span><a name="line-25"></a><span>
-</span><a name="line-26"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Prelude</span><span>
-</span><a name="line-27"></a><span>
-</span><a name="line-28"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Cardano.Wallet.Environment</span><span>
-</span><a name="line-29"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-var">unsafeLookupEnv</span><span> </span><span class="hs-special">)</span><span>
-</span><a name="line-30"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Int</span><span>
-</span><a name="line-31"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Int32</span><span> </span><span class="hs-special">)</span><span>
-</span><a name="line-32"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Text.Class</span><span>
-</span><a name="line-33"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">FromText</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">TextDecodingError</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">ToText</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
-</span><a name="line-34"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.Generics</span><span>
-</span><a name="line-35"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Generic</span><span> </span><span class="hs-special">)</span><span>
-</span><a name="line-36"></a><span>
-</span><a name="line-37"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.Text</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">T</span><span>
-</span><a name="line-38"></a><span>
-</span><a name="line-39"></a><span class="hs-comment">-- | Available network options.</span><span>
-</span><a name="line-40"></a><span class="hs-keyword">data</span><span> </span><a name="Network"><a href="Cardano.Wallet.Jormungandr.Environment.html#Network"><span class="hs-identifier">Network</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a name="Mainnet"><a href="Cardano.Wallet.Jormungandr.Environment.html#Mainnet"><span class="hs-identifier">Mainnet</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><a name="Testnet"><a href="Cardano.Wallet.Jormungandr.Environment.html#Testnet"><span class="hs-identifier">Testnet</span></a></a><span>
-</span><a name="line-41"></a><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Generic</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Show</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Eq</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Enum</span><span class="hs-special">)</span><span>
+</span><a name="line-3"></a><span>
+</span><a name="line-4"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-5"></a><span class="hs-comment">-- Copyright: &#169; 2018-2019 IOHK</span><span>
+</span><a name="line-6"></a><span class="hs-comment">-- License: MIT</span><span>
+</span><a name="line-7"></a><span class="hs-comment">--</span><span>
+</span><a name="line-8"></a><span class="hs-comment">-- This module contains static configuration parameters. Rather than providing</span><span>
+</span><a name="line-9"></a><span class="hs-comment">-- and carrying around a configuration file through the application, we resolve</span><span>
+</span><a name="line-10"></a><span class="hs-comment">-- configuration data at runtime using the available environment.</span><span>
+</span><a name="line-11"></a><span class="hs-comment">--</span><span>
+</span><a name="line-12"></a><span class="hs-comment">-- This gives us a flexible and portable approach to software configuration, and</span><span>
+</span><a name="line-13"></a><span class="hs-comment">-- remove some pain from the development perspective. Prior to starting, the</span><span>
+</span><a name="line-14"></a><span class="hs-comment">-- wallet is expected to have a few configuration parameter available. One may</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- rely on a `.env` file to bundle configuration settings together for a given</span><span>
+</span><a name="line-16"></a><span class="hs-comment">-- target environment.</span><span>
+</span><a name="line-17"></a><span>
+</span><a name="line-18"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Cardano.Wallet.Jormungandr.Environment</span><span>
+</span><a name="line-19"></a><span>    </span><span class="hs-special">(</span><span>
+</span><a name="line-20"></a><span>    </span><span class="hs-comment">-- * Networking</span><span>
+</span><a name="line-21"></a><span>      </span><a href="Cardano.Wallet.Jormungandr.Environment.html#Network"><span class="hs-identifier hs-type">Network</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-22"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.Jormungandr.Environment.html#network"><span class="hs-identifier hs-var">network</span></a><span>
+</span><a name="line-23"></a><span>
+</span><a name="line-24"></a><span>    </span><span class="hs-comment">-- * Address Discrimination</span><span>
+</span><a name="line-25"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.Jormungandr.Environment.html#hrp"><span class="hs-identifier hs-var">hrp</span></a><span>
+</span><a name="line-26"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.Jormungandr.Environment.html#single"><span class="hs-identifier hs-var">single</span></a><span>
+</span><a name="line-27"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.Jormungandr.Environment.html#grouped"><span class="hs-identifier hs-var">grouped</span></a><span>
+</span><a name="line-28"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-29"></a><span>
+</span><a name="line-30"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Prelude</span><span>
+</span><a name="line-31"></a><span>
+</span><a name="line-32"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Cardano.Wallet.Environment</span><span>
+</span><a name="line-33"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-var">unsafeLookupEnv</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-34"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Codec.Binary.Bech32</span><span>
+</span><a name="line-35"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">HumanReadablePart</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">humanReadablePartFromText</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-36"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Text.Class</span><span>
+</span><a name="line-37"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">FromText</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">TextDecodingError</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">ToText</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-38"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Word</span><span>
+</span><a name="line-39"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Word8</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-40"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.Generics</span><span>
+</span><a name="line-41"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Generic</span><span> </span><span class="hs-special">)</span><span>
 </span><a name="line-42"></a><span>
-</span><a name="line-43"></a><span class="hs-keyword">instance</span><span> </span><span class="hs-identifier hs-type">FromText</span><span> </span><a href="Cardano.Wallet.Jormungandr.Environment.html#Network"><span class="hs-identifier hs-type">Network</span></a><span> </span><span class="hs-keyword">where</span><span>
-</span><a name="line-44"></a><span>    </span><a name="local-8214565720323791494"><span class="hs-identifier">fromText</span></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
-</span><a name="line-45"></a><span>        </span><span class="hs-string">&quot;mainnet&quot;</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-var">Right</span><span> </span><a href="Cardano.Wallet.Jormungandr.Environment.html#Mainnet"><span class="hs-identifier hs-var">Mainnet</span></a><span>
-</span><a name="line-46"></a><span>        </span><span class="hs-string">&quot;testnet&quot;</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-var">Right</span><span> </span><a href="Cardano.Wallet.Jormungandr.Environment.html#Testnet"><span class="hs-identifier hs-var">Testnet</span></a><span>
-</span><a name="line-47"></a><span>        </span><a name="local-6989586621679043346"><a href="#local-6989586621679043346"><span class="hs-identifier">s</span></a></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-var">Left</span><span> </span><span class="hs-operator hs-var">$</span><span> </span><span class="hs-identifier hs-var">TextDecodingError</span><span> </span><span class="hs-operator hs-var">$</span><span> </span><span class="hs-identifier hs-var">T.unpack</span><span> </span><a href="#local-6989586621679043346"><span class="hs-identifier hs-var">s</span></a><span>
-</span><a name="line-48"></a><span>            </span><span class="hs-operator hs-var">&lt;&gt;</span><span> </span><span class="hs-string">&quot; is neither \&quot;mainnet\&quot; nor \&quot;testnet\&quot;&quot;</span><span>
-</span><a name="line-49"></a><span>
-</span><a name="line-50"></a><span class="hs-keyword">instance</span><span> </span><span class="hs-identifier hs-type">ToText</span><span> </span><a href="Cardano.Wallet.Jormungandr.Environment.html#Network"><span class="hs-identifier hs-type">Network</span></a><span> </span><span class="hs-keyword">where</span><span>
-</span><a name="line-51"></a><span>    </span><a name="local-8214565720323797507"><span class="hs-identifier">toText</span></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
-</span><a name="line-52"></a><span>        </span><a href="Cardano.Wallet.Jormungandr.Environment.html#Mainnet"><span class="hs-identifier hs-var">Mainnet</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-string">&quot;mainnet&quot;</span><span>
-</span><a name="line-53"></a><span>        </span><a href="Cardano.Wallet.Jormungandr.Environment.html#Testnet"><span class="hs-identifier hs-var">Testnet</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-string">&quot;testnet&quot;</span><span>
-</span><a name="line-54"></a><span>
-</span><a name="line-55"></a><span class="hs-comment">-- | Get the current target 'Network' from the Environment.</span><span>
-</span><a name="line-56"></a><span class="hs-comment">--</span><span>
-</span><a name="line-57"></a><span class="hs-comment">-- Throws a runtime exception is the ENV var isn't set or, is invalid.</span><span>
-</span><a name="line-58"></a><span class="hs-identifier">network</span><span> </span><span class="hs-glyph">::</span><span> </span><a href="Cardano.Wallet.Jormungandr.Environment.html#Network"><span class="hs-identifier hs-type">Network</span></a><span>
-</span><a name="line-59"></a><a name="network"><a href="Cardano.Wallet.Jormungandr.Environment.html#network"><span class="hs-identifier">network</span></a></a><span> </span><span class="hs-glyph">=</span><span>
-</span><a name="line-60"></a><span>    </span><span class="hs-identifier hs-var">unsafeLookupEnv</span><span> </span><span class="hs-string">&quot;NETWORK&quot;</span><span>
-</span><a name="line-61"></a><span class="hs-pragma">{-# NOINLINE</span><span> </span><span class="hs-pragma">network</span><span> </span><span class="hs-pragma">#-}</span><span>
-</span><a name="line-62"></a><span>
-</span><a name="line-63"></a><span class="hs-keyword">newtype</span><span> </span><a name="ProtocolMagic"><a href="Cardano.Wallet.Jormungandr.Environment.html#ProtocolMagic"><span class="hs-identifier">ProtocolMagic</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a name="ProtocolMagic"><a href="Cardano.Wallet.Jormungandr.Environment.html#ProtocolMagic"><span class="hs-identifier">ProtocolMagic</span></a></a><span> </span><span class="hs-identifier hs-type">Int32</span><span>
-</span><a name="line-64"></a><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Generic</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Show</span><span class="hs-special">)</span><span>
-</span><a name="line-65"></a><span>
-</span><a name="line-66"></a><span class="hs-comment">-- | Get the 'ProtocolMagic' corresponding to a given 'Network'.</span><span>
-</span><a name="line-67"></a><span class="hs-identifier">protocolMagic</span><span> </span><span class="hs-glyph">::</span><span> </span><a href="Cardano.Wallet.Jormungandr.Environment.html#Network"><span class="hs-identifier hs-type">Network</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Cardano.Wallet.Jormungandr.Environment.html#ProtocolMagic"><span class="hs-identifier hs-type">ProtocolMagic</span></a><span>
-</span><a name="line-68"></a><a name="protocolMagic"><a href="Cardano.Wallet.Jormungandr.Environment.html#protocolMagic"><span class="hs-identifier">protocolMagic</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
-</span><a name="line-69"></a><span>    </span><a href="Cardano.Wallet.Jormungandr.Environment.html#Mainnet"><span class="hs-identifier hs-var">Mainnet</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Cardano.Wallet.Jormungandr.Environment.html#ProtocolMagic"><span class="hs-identifier hs-var">ProtocolMagic</span></a><span> </span><span class="hs-number">764824073</span><span>
-</span><a name="line-70"></a><span>    </span><a href="Cardano.Wallet.Jormungandr.Environment.html#Testnet"><span class="hs-identifier hs-var">Testnet</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="Cardano.Wallet.Jormungandr.Environment.html#ProtocolMagic"><span class="hs-identifier hs-var">ProtocolMagic</span></a><span> </span><span class="hs-number">1097911063</span><span>
-</span><a name="line-71"></a></pre></body></html>
+</span><a name="line-43"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.Text</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">T</span><span>
+</span><a name="line-44"></a><span>
+</span><a name="line-45"></a><span class="hs-comment">-- | Available network options.</span><span>
+</span><a name="line-46"></a><span class="hs-keyword">data</span><span> </span><a name="Network"><a href="Cardano.Wallet.Jormungandr.Environment.html#Network"><span class="hs-identifier">Network</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a name="Mainnet"><a href="Cardano.Wallet.Jormungandr.Environment.html#Mainnet"><span class="hs-identifier">Mainnet</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><a name="Testnet"><a href="Cardano.Wallet.Jormungandr.Environment.html#Testnet"><span class="hs-identifier">Testnet</span></a></a><span>
+</span><a name="line-47"></a><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Generic</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Show</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Eq</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Enum</span><span class="hs-special">)</span><span>
+</span><a name="line-48"></a><span>
+</span><a name="line-49"></a><span class="hs-keyword">instance</span><span> </span><span class="hs-identifier hs-type">FromText</span><span> </span><a href="Cardano.Wallet.Jormungandr.Environment.html#Network"><span class="hs-identifier hs-type">Network</span></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-50"></a><span>    </span><a name="local-8214565720323791577"><span class="hs-identifier">fromText</span></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><a name="line-51"></a><span>        </span><span class="hs-string">&quot;mainnet&quot;</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-var">Right</span><span> </span><a href="Cardano.Wallet.Jormungandr.Environment.html#Mainnet"><span class="hs-identifier hs-var">Mainnet</span></a><span>
+</span><a name="line-52"></a><span>        </span><span class="hs-string">&quot;testnet&quot;</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-var">Right</span><span> </span><a href="Cardano.Wallet.Jormungandr.Environment.html#Testnet"><span class="hs-identifier hs-var">Testnet</span></a><span>
+</span><a name="line-53"></a><span>        </span><a name="local-6989586621679035771"><a href="#local-6989586621679035771"><span class="hs-identifier">s</span></a></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-var">Left</span><span> </span><span class="hs-operator hs-var">$</span><span> </span><span class="hs-identifier hs-var">TextDecodingError</span><span> </span><span class="hs-operator hs-var">$</span><span> </span><span class="hs-identifier hs-var">T.unpack</span><span> </span><a href="#local-6989586621679035771"><span class="hs-identifier hs-var">s</span></a><span>
+</span><a name="line-54"></a><span>            </span><span class="hs-operator hs-var">&lt;&gt;</span><span> </span><span class="hs-string">&quot; is neither \&quot;mainnet\&quot; nor \&quot;testnet\&quot;&quot;</span><span>
+</span><a name="line-55"></a><span>
+</span><a name="line-56"></a><span class="hs-keyword">instance</span><span> </span><span class="hs-identifier hs-type">ToText</span><span> </span><a href="Cardano.Wallet.Jormungandr.Environment.html#Network"><span class="hs-identifier hs-type">Network</span></a><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-57"></a><span>    </span><a name="local-8214565720323797589"><span class="hs-identifier">toText</span></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><a name="line-58"></a><span>        </span><a href="Cardano.Wallet.Jormungandr.Environment.html#Mainnet"><span class="hs-identifier hs-var">Mainnet</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-string">&quot;mainnet&quot;</span><span>
+</span><a name="line-59"></a><span>        </span><a href="Cardano.Wallet.Jormungandr.Environment.html#Testnet"><span class="hs-identifier hs-var">Testnet</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-string">&quot;testnet&quot;</span><span>
+</span><a name="line-60"></a><span>
+</span><a name="line-61"></a><span class="hs-comment">-- | Get the current target 'Network' from the Environment.</span><span>
+</span><a name="line-62"></a><span class="hs-comment">--</span><span>
+</span><a name="line-63"></a><span class="hs-comment">-- Throws a runtime exception is the ENV var isn't set or, is invalid.</span><span>
+</span><a name="line-64"></a><span class="hs-identifier">network</span><span> </span><span class="hs-glyph">::</span><span> </span><a href="Cardano.Wallet.Jormungandr.Environment.html#Network"><span class="hs-identifier hs-type">Network</span></a><span>
+</span><a name="line-65"></a><a name="network"><a href="Cardano.Wallet.Jormungandr.Environment.html#network"><span class="hs-identifier">network</span></a></a><span> </span><span class="hs-glyph">=</span><span>
+</span><a name="line-66"></a><span>    </span><span class="hs-identifier hs-var">unsafeLookupEnv</span><span> </span><span class="hs-string">&quot;NETWORK&quot;</span><span>
+</span><a name="line-67"></a><span class="hs-pragma">{-# NOINLINE</span><span> </span><span class="hs-pragma">network</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><a name="line-68"></a><span>
+</span><a name="line-69"></a><span class="hs-comment">-- | Address discrimination Human-Readable Part (HRP).</span><span>
+</span><a name="line-70"></a><span class="hs-comment">--</span><span>
+</span><a name="line-71"></a><span class="hs-comment">-- - &quot;ca&quot; for 'Mainnet'</span><span>
+</span><a name="line-72"></a><span class="hs-comment">-- - &quot;ta&quot; for 'Testnet'</span><span>
+</span><a name="line-73"></a><span class="hs-identifier">hrp</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">HumanReadablePart</span><span>
+</span><a name="line-74"></a><a name="hrp"><a href="Cardano.Wallet.Jormungandr.Environment.html#hrp"><span class="hs-identifier">hrp</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><a href="Cardano.Wallet.Jormungandr.Environment.html#network"><span class="hs-identifier hs-var">network</span></a><span> </span><span class="hs-keyword">of</span><span>
+</span><a name="line-75"></a><span>    </span><a href="Cardano.Wallet.Jormungandr.Environment.html#Mainnet"><span class="hs-identifier hs-var">Mainnet</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="#local-6989586621679036676"><span class="hs-identifier hs-var">unsafeHumanReadablePart</span></a><span> </span><span class="hs-string">&quot;ca&quot;</span><span>
+</span><a name="line-76"></a><span>    </span><a href="Cardano.Wallet.Jormungandr.Environment.html#Testnet"><span class="hs-identifier hs-var">Testnet</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><a href="#local-6989586621679036676"><span class="hs-identifier hs-var">unsafeHumanReadablePart</span></a><span> </span><span class="hs-string">&quot;ta&quot;</span><span>
+</span><a name="line-77"></a><span>  </span><span class="hs-keyword">where</span><span>
+</span><a name="line-78"></a><span>    </span><a name="local-6989586621679036676"><a href="#local-6989586621679036676"><span class="hs-identifier">unsafeHumanReadablePart</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">either</span><span> </span><a href="#local-6989586621679036677"><span class="hs-identifier hs-var">errUnsafe</span></a><span> </span><span class="hs-identifier hs-var">id</span><span> </span><span class="hs-operator hs-var">.</span><span> </span><span class="hs-identifier hs-var">humanReadablePartFromText</span><span>
+</span><a name="line-79"></a><span>    </span><a name="local-6989586621679036677"><a href="#local-6989586621679036677"><span class="hs-identifier">errUnsafe</span></a></a><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">=</span><span>
+</span><a name="line-80"></a><span>        </span><span class="hs-identifier hs-var">error</span><span> </span><span class="hs-string">&quot;Programmers hard-coded an invalid bech32 human-readable part?&quot;</span><span>
+</span><a name="line-81"></a><span>
+</span><a name="line-82"></a><span class="hs-comment">-- | Address discriminant byte for single addresses, this is the first byte of</span><span>
+</span><a name="line-83"></a><span class="hs-comment">-- every addresses using the Shelley format carrying only a spending key.</span><span>
+</span><a name="line-84"></a><span class="hs-identifier">single</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Word8</span><span>
+</span><a name="line-85"></a><a name="single"><a href="Cardano.Wallet.Jormungandr.Environment.html#single"><span class="hs-identifier">single</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><a href="Cardano.Wallet.Jormungandr.Environment.html#network"><span class="hs-identifier hs-var">network</span></a><span> </span><span class="hs-keyword">of</span><span>
+</span><a name="line-86"></a><span>    </span><a href="Cardano.Wallet.Jormungandr.Environment.html#Mainnet"><span class="hs-identifier hs-var">Mainnet</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-number">0x03</span><span>
+</span><a name="line-87"></a><span>    </span><a href="Cardano.Wallet.Jormungandr.Environment.html#Testnet"><span class="hs-identifier hs-var">Testnet</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-number">0x83</span><span>
+</span><a name="line-88"></a><span>
+</span><a name="line-89"></a><span class="hs-comment">-- | Address discriminant byte for grouped addresses, this is the first byte of</span><span>
+</span><a name="line-90"></a><span class="hs-comment">-- every addresses using the Shelley format carrying both a spending and a</span><span>
+</span><a name="line-91"></a><span class="hs-comment">-- delegation key.</span><span>
+</span><a name="line-92"></a><span class="hs-identifier">grouped</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Word8</span><span>
+</span><a name="line-93"></a><a name="grouped"><a href="Cardano.Wallet.Jormungandr.Environment.html#grouped"><span class="hs-identifier">grouped</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><a href="Cardano.Wallet.Jormungandr.Environment.html#network"><span class="hs-identifier hs-var">network</span></a><span> </span><span class="hs-keyword">of</span><span>
+</span><a name="line-94"></a><span>    </span><a href="Cardano.Wallet.Jormungandr.Environment.html#Mainnet"><span class="hs-identifier hs-var">Mainnet</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-number">0x04</span><span>
+</span><a name="line-95"></a><span>    </span><a href="Cardano.Wallet.Jormungandr.Environment.html#Testnet"><span class="hs-identifier hs-var">Testnet</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-number">0x84</span><span>
+</span><a name="line-96"></a></pre></body></html>

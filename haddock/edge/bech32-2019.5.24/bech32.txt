@@ -19,6 +19,17 @@ module Codec.Binary.Bech32.Internal
 -- | Encode a human-readable string and data payload into a Bech32 string.
 encode :: HumanReadablePart -> DataPart -> Either EncodingError Text
 
+-- | Like <a>encode</a> but allows output to be longer than 90 characters.
+--   This isn't ideal as the error detection becomes worse as string get
+--   longer but it's still acceptable.
+--   
+--   From BIP-0173:
+--   
+--   Even though the chosen code performs reasonably well up to 1023
+--   characters, other designs are preferable for lengths above 89
+--   characters (excluding the separator).
+encodeLenient :: HumanReadablePart -> DataPart -> Text
+
 -- | Represents the set of error conditions that may occur while encoding a
 --   Bech32 string.
 data EncodingError
@@ -26,6 +37,10 @@ EncodedStringTooLong :: EncodingError
 
 -- | Decode a Bech32 string into a human-readable part and data part.
 decode :: Text -> Either DecodingError (HumanReadablePart, DataPart)
+
+-- | Like <a>decode</a> but does not enforce a maximum length. See also
+--   <a>encodeLenient</a> for details.
+decodeLenient :: Text -> Either DecodingError (HumanReadablePart, DataPart)
 
 -- | Represents the set of errors that may occur while decoding a Bech32
 --   string with the <a>decode</a> function.
@@ -232,8 +247,43 @@ module Codec.Binary.Bech32
 -- | Encode a human-readable string and data payload into a Bech32 string.
 encode :: HumanReadablePart -> DataPart -> Either EncodingError Text
 
+-- | Like <a>encode</a> but allows output to be longer than 90 characters.
+--   This isn't ideal as the error detection becomes worse as string get
+--   longer but it's still acceptable.
+--   
+--   From BIP-0173:
+--   
+--   Even though the chosen code performs reasonably well up to 1023
+--   characters, other designs are preferable for lengths above 89
+--   characters (excluding the separator).
+encodeLenient :: HumanReadablePart -> DataPart -> Text
+
+-- | Represents the set of error conditions that may occur while encoding a
+--   Bech32 string.
+data EncodingError
+EncodedStringTooLong :: EncodingError
+
 -- | Decode a Bech32 string into a human-readable part and data part.
 decode :: Text -> Either DecodingError (HumanReadablePart, DataPart)
+
+-- | Like <a>decode</a> but does not enforce a maximum length. See also
+--   <a>encodeLenient</a> for details.
+decodeLenient :: Text -> Either DecodingError (HumanReadablePart, DataPart)
+
+-- | Represents the set of errors that may occur while decoding a Bech32
+--   string with the <a>decode</a> function.
+data DecodingError
+StringToDecodeTooLong :: DecodingError
+StringToDecodeTooShort :: DecodingError
+StringToDecodeHasMixedCase :: DecodingError
+StringToDecodeMissingSeparatorChar :: DecodingError
+
+-- | In cases where it is possible to determine the exact locations of
+--   erroneous characters, this list will encode those locations. Clients
+--   can use this information to provide user feedback. In cases where it
+--   isn't possible to reliably determine the locations of erroneous
+--   characters, this list will be empty.
+StringToDecodeContainsInvalidChars :: [CharPosition] -> DecodingError
 
 -- | Represents the data part of a Bech32 string, as defined here:
 --   <a>https://git.io/fj8FS</a>
@@ -286,6 +336,13 @@ dataPartToText :: DataPart -> Text
 -- | Represents the human-readable part of a Bech32 string, as defined
 --   here: <a>https://git.io/fj8FS</a>
 data HumanReadablePart
+
+-- | Represents the set of error conditions that may occur while parsing
+--   the human-readable part of a Bech32 string.
+data HumanReadablePartError
+HumanReadablePartTooShort :: HumanReadablePartError
+HumanReadablePartTooLong :: HumanReadablePartError
+HumanReadablePartContainsInvalidChars :: [CharPosition] -> HumanReadablePartError
 
 -- | Parses the human-readable part of a Bech32 string, as defined here:
 --   <a>https://git.io/fj8FS</a>
