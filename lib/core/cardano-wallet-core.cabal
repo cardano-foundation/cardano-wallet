@@ -154,6 +154,7 @@ test-suite unit
       Cardano.Wallet.DB.MVarSpec
       Cardano.Wallet.DB.StateMachine
       Cardano.Wallet.DB.SqliteSpec
+      Cardano.Wallet.DB.SqliteCorruptionSpec
       Cardano.Wallet.DBSpec
       Cardano.Wallet.NetworkSpec
       Cardano.Wallet.Primitive.AddressDerivationSpec

@@ -18,6 +18,7 @@ module Cardano.Wallet.DBSpec
     ( spec
     , dbPropertyTests
     , withDB
+    , cleanDB
     , DummyTarget
     , TxHistory
     , GenTxHistory (..)
