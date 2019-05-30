@@ -331,6 +331,7 @@ mkWalletEntity :: W.WalletId -> W.WalletMetadata -> Wallet
 mkWalletEntity wid meta = Wallet
     { walTableId = wid
     , walTableName = meta ^. #name . coerce
+    , walTableCreationTime = meta ^. #creationTime
     , walTablePassphraseLastUpdatedAt =
         W.lastUpdatedAt <$> meta ^. #passphraseInfo
     , walTableStatus = meta ^. #status
@@ -340,6 +341,7 @@ mkWalletEntity wid meta = Wallet
 mkWalletMetadataUpdate :: W.WalletMetadata -> [Update Wallet]
 mkWalletMetadataUpdate meta =
     [ WalTableName =. meta ^. #name . coerce
+    , WalTableCreationTime =. meta ^. #creationTime
     , WalTablePassphraseLastUpdatedAt =.
         W.lastUpdatedAt <$> meta ^. #passphraseInfo
     , WalTableStatus =. meta ^. #status
@@ -349,6 +351,7 @@ mkWalletMetadataUpdate meta =
 metadataFromEntity :: Wallet -> W.WalletMetadata
 metadataFromEntity wal = W.WalletMetadata
     { name = W.WalletName (walTableName wal)
+    , creationTime = walTableCreationTime wal
     , passphraseInfo = W.WalletPassphraseInfo <$>
         walTablePassphraseLastUpdatedAt wal
     , status = walTableStatus wal

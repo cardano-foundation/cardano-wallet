@@ -52,6 +52,7 @@ share
 -- Wallet IDs, address discovery state, and metadata.
 Wallet
     walTableId                 W.WalletId     sql=wallet_id
+    walTableCreationTime       UTCTime        sql=creation_time
     walTableName               Text           sql=name
     walTablePassphraseLastUpdatedAt  UTCTime Maybe  sql=passphrase_last_updated_at
     walTableStatus             W.WalletState  sql=status

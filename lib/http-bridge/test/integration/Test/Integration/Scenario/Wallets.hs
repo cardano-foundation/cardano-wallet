@@ -898,10 +898,9 @@ spec = do
         verify rl
             [ expectResponseCode @IO HTTP.status200
             , expectListSizeEqual 3
-            -- , expectListItemFieldEqual 0 walletName "1"
-            -- , expectListItemFieldEqual 1 walletName "2"
-            -- , expectListItemFieldEqual 2 walletName "3"
-            -- TODO uncomment after #250
+            , expectListItemFieldEqual 0 walletName "1"
+            , expectListItemFieldEqual 1 walletName "2"
+            , expectListItemFieldEqual 2 walletName "3"
             ]
 
     it "WALLETS_LIST_02 - Deleted wallet not listed" $ \ctx -> do

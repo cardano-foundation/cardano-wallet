@@ -293,6 +293,7 @@ instance Arbitrary WalletMetadata where
     shrink _ = []
     arbitrary =  WalletMetadata
         <$> (WalletName <$> elements ["bulbazaur", "charmander", "squirtle"])
+        <*> arbitrary
         <*> (fmap WalletPassphraseInfo <$> arbitrary)
         <*> oneof [pure Ready, Restoring . Quantity <$> customizedGen]
         <*> pure NotDelegating

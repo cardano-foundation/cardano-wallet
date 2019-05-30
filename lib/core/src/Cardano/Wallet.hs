@@ -368,8 +368,10 @@ newWalletLayer db nw tl = do
         -> ExceptT ErrWalletAlreadyExists IO WalletId
     _createWallet wid wname s = do
         let checkpoint = initWallet s
+        currentTime <- liftIO getCurrentTime
         let metadata = WalletMetadata
                 { name = wname
+                , creationTime = currentTime
                 , passphraseInfo = Nothing
                 , status = Restoring minBound
                 , delegation = NotDelegating
