@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -79,6 +80,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
     ()
+import Data.List
+    ( sortOn )
 import Data.Maybe
     ( isJust )
 import Data.Proxy
@@ -89,6 +92,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( toText )
+import Data.Time
+    ( UTCTime )
 import Fmt
     ( pretty )
 import Network.HTTP.Media.RenderHeader
@@ -166,9 +171,17 @@ getWallet
     :: WalletLayer (SeqState t) t
     -> ApiT WalletId
     -> Handler ApiWallet
-getWallet w (ApiT wid) = do
+getWallet w wid = fst <$> getWalletWithCreationTime w wid
+
+getWalletWithCreationTime
+    :: WalletLayer (SeqState t) t
+    -> ApiT WalletId
+    -> Handler (ApiWallet, UTCTime)
+getWalletWithCreationTime w (ApiT wid) = do
     (wallet, meta) <- liftHandler $ W.readWallet w wid
-    return ApiWallet
+    return (mkApiWallet wallet meta, meta ^. #creationTime)
+  where
+    mkApiWallet wallet meta = ApiWallet
         { id =
             ApiT wid
         , addressPoolGap =
@@ -194,7 +207,8 @@ listWallets
     -> Handler [ApiWallet]
 listWallets w = do
     wids <- liftIO $ W.listWallets w
-    mapM (getWallet w) (ApiT <$> wids)
+    fmap fst . sortOn snd <$>
+        mapM (getWalletWithCreationTime w) (ApiT <$> wids)
 
 postWallet
     :: KeyToAddress t
