@@ -270,9 +270,7 @@ newDBLayer fp = do
                   Just _ -> do
                       let (metas, txins, txouts) = mkTxHistory wid txs
                       putTxMetas wid metas
-                      putMany txins
-                      putMany txouts
-                      deleteLooseTransactions
+                      putTxs (TxId <$> Map.keys txs) txins txouts
                       pure $ Right ()
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
@@ -551,6 +549,14 @@ putTxMetas wid metas = do
         [ TxMetaTableWalletId ==. wid
         , TxMetaTableTxId <-. map txMetaTableTxId metas ]
     insertMany_ metas
+
+-- | Insert multiple transactions, removing old instances first.
+putTxs :: [TxId] -> [TxIn] -> [TxOut] -> SqlPersistM ()
+putTxs txIds txins txouts = do
+    deleteWhere [TxInputTableTxId <-. txIds]
+    putMany txins
+    deleteWhere [TxOutputTableTxId <-. txIds]
+    putMany txouts
 
 -- | Delete transactions that aren't referred to by either Pending or TxMeta of
 -- any wallet.
