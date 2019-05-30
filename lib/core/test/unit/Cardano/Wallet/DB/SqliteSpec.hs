@@ -68,7 +68,7 @@ import Data.Time.Clock
 import System.IO.Unsafe
     ( unsafePerformIO )
 import Test.Hspec
-    ( Spec, SpecWith, describe, it, shouldReturn )
+    ( Spec, SpecWith, describe, it, shouldReturn, xit )
 
 import qualified Data.Map as Map
 
@@ -78,7 +78,7 @@ spec = withDB newMemoryDBLayer $ do
     describe "Sqlite" dbPropertyTests
     describe "Sqlite State machine tests" $ do
         it "Sequential" prop_sequential
-        it "Parallel" prop_parallel
+        xit "Parallel" prop_parallel
 
 simpleSpec :: SpecWith (DBLayer IO (SeqState DummyTarget) DummyTarget)
 simpleSpec = do
