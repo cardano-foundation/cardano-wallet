@@ -10,6 +10,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -243,9 +244,19 @@ mReadWalletMeta wid m@(M _ meta _ _) = (Right (Map.lookup wid meta), m)
 
 mPutTxHistory :: MWid -> TxHistory -> MockOp ()
 mPutTxHistory wid txs' m@(M cp metas txs pk)
-    | wid `Map.member` cp = (Right (), M cp metas (Map.alter appendTxs wid txs) pk)
+    | wid `Map.member` cp = (Right (), M cp metas txs'' pk)
     | otherwise           = (Left (NoSuchWallet wid), m)
-    where appendTxs = Just . (<> txs') . fromMaybe mempty
+  where
+    -- Add tx history for the wallet, and then update any Tx in the mock
+    -- database that appeared in the given TxHistory.
+    txs'' = Map.mapWithKey updateTxs <$> Map.alter appendTxs wid txs
+
+    -- Add tx history, replacing entries with the same TxId
+    appendTxs = Just . (txs' <>) . fromMaybe mempty
+
+    -- Update a Tx of the given id, if it is in the given TxHistory.
+    updateTxs :: Hash "Tx" -> (Tx, TxMeta) -> (Tx, TxMeta)
+    updateTxs txid (tx, meta) = (maybe tx fst (Map.lookup txid txs'), meta)
 
 mReadTxHistory :: MWid -> MockOp TxHistory
 mReadTxHistory wid m@(M cp _ txs _)
@@ -521,7 +532,12 @@ instance Arbitrary GenTxHistory where
         shrinkOneTx :: (Tx, TxMeta) -> [(Tx, TxMeta)]
         shrinkOneTx (tx, meta) =
             [(tx', meta) | tx' <- shrink tx]
-    arbitrary = GenTxHistory <$> arbitrary
+
+    -- Ensure unique transaction IDs within a given batch of transactions to add
+    -- to the history.
+    arbitrary = GenTxHistory . Map.fromList <$> do
+        txids <- L.nub <$> arbitrary
+        mapM (\k -> (k,) <$> arbitrary) txids
 
 shrinker :: Model Symbolic -> Cmd :@ Symbolic -> [Cmd :@ Symbolic]
 shrinker (Model _ wids) (At cmd) = case cmd of

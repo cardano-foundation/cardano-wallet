@@ -273,8 +273,9 @@ ourAddresses cc =
 
 instance Arbitrary (Hash "Tx") where
     shrink _ = [] -- no way to shrink a hash
-    arbitrary = Hash . B8.pack <$> replicateM 32 hex
-        where hex = elements $ ['0'..'9'] ++ ['a'..'f']
+    arbitrary = do
+        k <- choose (0, 10)
+        return $ Hash (B8.pack ("TX" <> show @Int k))
 
 instance Arbitrary Tx where
     shrink (Tx ins outs) =
