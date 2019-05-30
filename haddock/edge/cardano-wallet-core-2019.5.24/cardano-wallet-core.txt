@@ -409,8 +409,9 @@ fromFlatSlot :: Word64 -> SlotId
 --   <a>$sel:delegation:WalletMetadata</a>...</li>
 --   </ul>
 data WalletMetadata
-WalletMetadata :: !WalletName -> !Maybe WalletPassphraseInfo -> !WalletState -> !WalletDelegation PoolId -> WalletMetadata
+WalletMetadata :: !WalletName -> !UTCTime -> !Maybe WalletPassphraseInfo -> !WalletState -> !WalletDelegation PoolId -> WalletMetadata
 [$sel:name:WalletMetadata] :: WalletMetadata -> !WalletName
+[$sel:creationTime:WalletMetadata] :: WalletMetadata -> !UTCTime
 [$sel:passphraseInfo:WalletMetadata] :: WalletMetadata -> !Maybe WalletPassphraseInfo
 [$sel:status:WalletMetadata] :: WalletMetadata -> !WalletState
 [$sel:delegation:WalletMetadata] :: WalletMetadata -> !WalletDelegation PoolId
@@ -1619,8 +1620,9 @@ instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.Primitive.Add
 --   module!
 module Cardano.Wallet.DB.Sqlite.TH
 data Wallet
-Wallet :: !WalletId -> !Text -> !Maybe UTCTime -> !WalletState -> !Maybe Text -> Wallet
+Wallet :: !WalletId -> !UTCTime -> !Text -> !Maybe UTCTime -> !WalletState -> !Maybe Text -> Wallet
 [walTableId] :: Wallet -> !WalletId
+[walTableCreationTime] :: Wallet -> !UTCTime
 [walTableName] :: Wallet -> !Text
 [walTablePassphraseLastUpdatedAt] :: Wallet -> !Maybe UTCTime
 [walTableStatus] :: Wallet -> !WalletState
