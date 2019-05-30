@@ -22,6 +22,7 @@ module Cardano.Wallet.DBSpec
     , DummyTarget
     , TxHistory
     , GenTxHistory (..)
+    , KeyValPairs (..)
     ) where
 
 import Prelude

@@ -18,7 +18,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Sqlite
     ( newDBLayer )
 import Cardano.Wallet.DBSpec
-    ( DummyTarget, cleanDB )
+    ( DummyTarget, KeyValPairs (..), cleanDB, withDB )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..)
     , encryptPassphrase
@@ -49,6 +49,10 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     )
+import Control.Monad
+    ( forM_ )
+import Control.Monad.IO.Class
+    ( liftIO )
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Crypto.Hash
@@ -67,16 +71,23 @@ import System.IO.Unsafe
     ( unsafePerformIO )
 import Test.Hspec
     ( Expectation, Spec, before, describe, it, shouldReturn )
+import Test.QuickCheck
+    ( Property, property )
+import Test.QuickCheck.Monadic
+    ( monadicIO )
 
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 spec :: Spec
-spec = before (readDBLayer >>= cleanDB) $ do
-    describe "Check db reading/writing from/to file and cleaning" $ do
+spec =  do
+    before (fileDBLayer >>= cleanDB) $
+        describe "Check db reading/writing from/to file and cleaning" $ do
+
         it "create and list wallet works" $ \db -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
             listWallets db `shouldReturn` [testPk]
-            db1 <- readDBLayer
+            db1 <- fileDBLayer
             runExceptT (createWallet db1 testPk testCp testMetadata)
                 `shouldReturn` (Left (ErrWalletAlreadyExists testWid))
             ( testOpeningCleaning
@@ -125,6 +136,11 @@ spec = before (readDBLayer >>= cleanDB) $ do
                 (Just testCp)
                 Nothing )
 
+    withDB inMemoryDBLayer $
+        describe "random walk property about writing to/reading from file " $ do
+        it "impose a number of operations in random batches"
+            (property . prop_randomWalk)
+
     where
         testOpeningCleaning
             :: (Show s, Eq s)
@@ -133,16 +149,48 @@ spec = before (readDBLayer >>= cleanDB) $ do
             -> s
             -> Expectation
         testOpeningCleaning call expectedAfterOpen expectedAfterClean = do
-            db1 <- readDBLayer
+            db1 <- fileDBLayer
             call db1 `shouldReturn` expectedAfterOpen
             _ <- cleanDB db1
             call db1 `shouldReturn` expectedAfterClean
-            db2 <- readDBLayer
+            db2 <- fileDBLayer
             call db2 `shouldReturn` expectedAfterClean
 
 
-readDBLayer :: IO (DBLayer IO (SeqState DummyTarget) DummyTarget)
-readDBLayer = newDBLayer (Just "backup/test.db")
+prop_randomWalk
+    :: DBLayer IO (SeqState DummyTarget) DummyTarget
+    -> KeyValPairs (PrimaryKey WalletId) (Wallet (SeqState DummyTarget) DummyTarget, WalletMetadata)
+    -> Property
+prop_randomWalk inMemoryDB (KeyValPairs pairs) =
+    monadicIO (pure inMemoryDB >>= prop)
+  where
+    prop dbM = liftIO $ do
+        dbF <- fileDBLayer
+        _ <- cleanDB dbF
+        forM_ pairs (writeState dbM dbF)
+        expectedWalIds <- Set.fromList <$> listWallets dbM
+        Set.fromList <$> listWallets dbF
+            `shouldReturn` expectedWalIds
+        forM_ expectedWalIds $ \walId -> do
+            expectedCps <- readCheckpoint dbM walId
+            readCheckpoint dbF walId
+                `shouldReturn` expectedCps
+    writeState dbMem dbFile kvs = do
+        realize dbMem kvs
+        realize dbFile kvs
+    realize db (k, (cp, meta)) = do
+        keys <- listWallets db
+        if k `elem` keys then do
+            runExceptT (putCheckpoint db k cp) `shouldReturn` Right ()
+        else do
+            unsafeRunExceptT $ createWallet db k cp meta
+            Set.fromList <$> listWallets db `shouldReturn` (Set.fromList $ k:keys)
+
+fileDBLayer :: IO (DBLayer IO (SeqState DummyTarget) DummyTarget)
+fileDBLayer = newDBLayer (Just "backup/test.db")
+
+inMemoryDBLayer :: IO (DBLayer IO (SeqState DummyTarget) DummyTarget)
+inMemoryDBLayer = newDBLayer Nothing
 
 testCp :: Wallet (SeqState DummyTarget) DummyTarget
 testCp = initWallet initDummyState
