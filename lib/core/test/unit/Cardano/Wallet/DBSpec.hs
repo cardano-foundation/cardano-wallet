@@ -17,6 +17,7 @@ module Cardano.Wallet.DBSpec
     , dbPropertyTests
     , withDB
     , DummyTarget
+    , SkipTests(..)
     ) where
 
 import Prelude
@@ -86,7 +87,7 @@ import Control.Concurrent.Async
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( forM, forM_, void )
+    ( forM, forM_, void, when )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -653,10 +654,16 @@ prop_parallelPut putOp readOp resolve dbLayer (KeyValPairs pairs) =
         res <- once pairs (readOp db . fst)
         length res `shouldBe` resolve pairs
 
+data SkipTests
+    = RunAllTests
+    | SkipTxHistoryReplaceTest
+    deriving (Show, Eq)
+
 dbPropertyTests
     :: (Arbitrary (Wallet s DummyTarget), Show s, Eq s, IsOurs s, NFData s)
-    => SpecWith (DBLayer IO s DummyTarget)
-dbPropertyTests = do
+    => SkipTests
+    -> SpecWith (DBLayer IO s DummyTarget)
+dbPropertyTests skip = do
     describe "Extra Properties about DB initialization" $ do
         it "createWallet . listWallets yields expected results"
             (property . prop_createListWallet)
@@ -720,7 +727,7 @@ dbPropertyTests = do
             (checkCoverage . (prop_sequentialPut putCheckpoint readCheckpoint lrp))
         it "Wallet Metadata"
             (checkCoverage . (prop_sequentialPut putWalletMeta readWalletMeta lrp))
-        it "Tx History"
+        when (skip == RunAllTests) $ it "Tx History"
             (checkCoverage . (prop_sequentialPut putTxHistory readTxHistoryF unions))
         it "Private Key"
             (checkCoverage . (prop_sequentialPut putPrivateKey readPrivateKey lrp))
