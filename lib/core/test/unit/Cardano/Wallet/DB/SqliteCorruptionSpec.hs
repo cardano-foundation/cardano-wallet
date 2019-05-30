@@ -14,7 +14,7 @@ import Prelude
 import Cardano.Wallet
     ( unsafeRunExceptT )
 import Cardano.Wallet.DB
-    ( DBLayer (..), PrimaryKey (..) )
+    ( DBLayer (..), ErrWalletAlreadyExists (..), PrimaryKey (..) )
 import Cardano.Wallet.DB.Sqlite
     ( newDBLayer )
 import Cardano.Wallet.DBSpec
@@ -76,6 +76,9 @@ spec = before (readDBLayer >>= cleanDB) $ do
         it "create and list wallet works" $ \db -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
             listWallets db `shouldReturn` [testPk]
+            db1 <- readDBLayer
+            runExceptT (createWallet db1 testPk testCp testMetadata)
+                `shouldReturn` (Left (ErrWalletAlreadyExists testWid))
             ( testOpeningCleaning
                 listWallets
                 [testPk]
