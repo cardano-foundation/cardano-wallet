@@ -162,6 +162,8 @@ import qualified Data.Text.Encoding as T
 data WalletMetadata = WalletMetadata
     { name
         :: !WalletName
+    , creationTime
+        :: !UTCTime
     , passphraseInfo
         :: !(Maybe WalletPassphraseInfo)
     , status

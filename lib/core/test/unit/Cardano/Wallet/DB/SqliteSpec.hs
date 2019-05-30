@@ -134,6 +134,7 @@ initDummyState = mkSeqState (xprv, mempty) defaultAddressPoolGap
 testMetadata :: WalletMetadata
 testMetadata = WalletMetadata
     { name = WalletName "test wallet"
+    , creationTime = unsafePerformIO getCurrentTime
     , passphraseInfo = Nothing
     , status = Ready
     , delegation = NotDelegating
