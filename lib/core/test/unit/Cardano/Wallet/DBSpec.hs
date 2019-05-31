@@ -316,9 +316,7 @@ instance Arbitrary Coin where
     arbitrary = Coin <$> choose (1, 100000)
 
 instance Arbitrary TxIn where
-    -- TxIns need to be unique, chances are pretty good that the arbitrary
-    -- hashes won't collide.
-    -- There is no shrinking of a TxIn.
+    -- No Shrinking
     arbitrary = TxIn
         <$> arbitrary
         <*> scale (`mod` 3) arbitrary -- No need for a high indexes
