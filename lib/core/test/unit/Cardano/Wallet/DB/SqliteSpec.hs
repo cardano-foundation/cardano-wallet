@@ -17,6 +17,8 @@ import Cardano.Wallet.DB
     ( DBLayer (..), ErrWalletAlreadyExists (..), PrimaryKey (..) )
 import Cardano.Wallet.DB.Sqlite
     ( newDBLayer )
+import Cardano.Wallet.DB.StateMachine
+    ( prop_parallel, prop_sequential )
 import Cardano.Wallet.DBSpec
     ( DummyTarget, dbPropertyTests, withDB )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -66,17 +68,20 @@ import Data.Time.Clock
 import System.IO.Unsafe
     ( unsafePerformIO )
 import Test.Hspec
-    ( Spec, describe, it, shouldReturn )
+    ( Spec, SpecWith, describe, it, shouldReturn, xit )
 
 import qualified Data.Map as Map
 
 spec :: Spec
-spec = do
-    describe "Simple tests" simpleSpec
-    describe "Sqlite Property tests" $ withDB newMemoryDBLayer dbPropertyTests
+spec = withDB newMemoryDBLayer $ do
+    describe "Sqlite Simple tests" simpleSpec
+    describe "Sqlite" dbPropertyTests
+    describe "Sqlite State machine tests" $ do
+        it "Sequential" prop_sequential
+        xit "Parallel" prop_parallel
 
-simpleSpec :: Spec
-simpleSpec = withDB newMemoryDBLayer $ do
+simpleSpec :: SpecWith (DBLayer IO (SeqState DummyTarget) DummyTarget)
+simpleSpec = do
     describe "Wallet table" $ do
         it "create and list works" $ \db -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata

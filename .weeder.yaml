@@ -39,4 +39,12 @@
     - message:
       - name: Module not compiled
       - module: Cardano.Launcher.Windows
-
+- package:
+  - name: cardano-wallet-core
+  - section:
+    - name: test:unit
+    - message:
+      - name: Weeds exported
+      - module:
+        - name: Cardano.Wallet.DB.StateMachine
+        - identifier: showLabelledExamples

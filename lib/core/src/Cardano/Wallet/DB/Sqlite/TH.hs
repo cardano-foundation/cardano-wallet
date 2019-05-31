@@ -97,6 +97,7 @@ TxMeta
 -- not the wallet. txInputTableTxId is referred to by TxMeta and PendingTx
 TxIn
     txInputTableTxId         TxId        sql=tx_id
+    txInputTableOrder        Int         sql=order
     txInputTableSourceTxId   TxId        sql=source_id
     txInputTableSourceIndex  Word32      sql=source_index
 

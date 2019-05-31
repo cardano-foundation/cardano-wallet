@@ -3,6 +3,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -12,10 +13,6 @@ module Cardano.Wallet.DB.MVarSpec
 
 import Prelude
 
-import Cardano.Wallet.DB
-    ( DBLayer (..) )
-import Cardano.Wallet.DB.MVar
-    ( newDBLayer )
 import Cardano.Wallet.DBSpec
     ( DummyTarget, dbPropertyTests, withDB )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -29,9 +26,11 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..) )
 
+import qualified Cardano.Wallet.DB.MVar as MVar
+
 spec :: Spec
-spec = withDB (newDBLayer :: IO (DBLayer IO (SeqState DummyTarget) DummyTarget)) $
-       describe "MVar" dbPropertyTests
+spec = withDB @(SeqState DummyTarget) MVar.newDBLayer $
+    describe "MVar" dbPropertyTests
 
 newtype DummyStateMVar = DummyStateMVar Int
     deriving (Show, Eq)
