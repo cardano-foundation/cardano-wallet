@@ -54,10 +54,14 @@ import qualified Cardano.WalletSpec as Wallet
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
-import qualified Test.Integration.Scenario.Addresses as Addresses
-import qualified Test.Integration.Scenario.CLISpec as CLI
-import qualified Test.Integration.Scenario.Transactions as Transactions
-import qualified Test.Integration.Scenario.Wallets as Wallets
+import qualified Test.Integration.Scenario.API.Addresses as Addresses
+import qualified Test.Integration.Scenario.API.Transactions as Transactions
+import qualified Test.Integration.Scenario.API.Wallets as Wallets
+import qualified Test.Integration.Scenario.CLI.Addresses as AddressesCLI
+import qualified Test.Integration.Scenario.CLI.Mnemonics as MnemonicsCLI
+import qualified Test.Integration.Scenario.CLI.Transactions as TransactionsCLI
+import qualified Test.Integration.Scenario.CLI.Wallets as WalletsCLI
+
 
 main :: IO ()
 main = do
@@ -70,12 +74,14 @@ main = do
         describe "Cardano.LauncherSpec" Launcher.spec
         describe "Cardano.WalletSpec" Wallet.spec
         describe "Cardano.Wallet.HttpBridge.NetworkSpec" HttpBridge.spec
-        describe "CLI commands not requiring bridge" CLI.specNoCluster
+        describe "CLI commands not requiring bridge" MnemonicsCLI.spec
         beforeAll startCluster $ afterAll killCluster $ after tearDown $ do
             describe "Wallets API endpoint tests" Wallets.spec
             describe "Transactions API endpoint tests" Transactions.spec
             describe "Addresses API endpoint tests" Addresses.spec
-            describe "CLI integration tests" CLI.specWithCluster
+            describe "Wallets CLI tests" WalletsCLI.spec
+            describe "Transactions CLI tests" TransactionsCLI.spec
+            describe "Addresses CLI tests" AddressesCLI.spec
   where
     oneSecond :: Int
     oneSecond = 1 * 1000 * 1000 -- 1 second in microseconds
