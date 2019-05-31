@@ -436,10 +436,11 @@ prop_createListWallet
     => DBLayer IO s DummyTarget
     -> KeyValPairs (PrimaryKey WalletId) (Wallet s DummyTarget, WalletMetadata)
     -> Property
-prop_createListWallet dbLayer (KeyValPairs pairs) =
-    monadicIO (pure dbLayer >>= prop)
+prop_createListWallet db (KeyValPairs pairs) =
+    monadicIO (setup >> prop)
   where
-    prop db = liftIO $ do
+    setup = liftIO (cleanDB db)
+    prop = liftIO $ do
         res <- once pairs $ \(k, (cp, meta)) ->
             unsafeRunExceptT $ createWallet db k cp meta
         (length <$> listWallets db) `shouldReturn` length res
@@ -453,10 +454,11 @@ prop_createWalletTwice
        , WalletMetadata
        )
     -> Property
-prop_createWalletTwice dbLayer (key@(PrimaryKey wid), cp, meta) =
-    monadicIO (pure dbLayer >>= prop)
+prop_createWalletTwice db (key@(PrimaryKey wid), cp, meta) =
+    monadicIO (setup >> prop)
   where
-    prop db = liftIO $ do
+    setup = liftIO (cleanDB db)
+    prop = liftIO $ do
         let err = ErrWalletAlreadyExists wid
         runExceptT (createWallet db key cp meta) `shouldReturn` Right ()
         runExceptT (createWallet db key cp meta) `shouldReturn` Left err
@@ -470,13 +472,13 @@ prop_removeWalletTwice
        , WalletMetadata
        )
     -> Property
-prop_removeWalletTwice dbLayer (key@(PrimaryKey wid), cp, meta) =
-    monadicIO (setup >>= prop)
+prop_removeWalletTwice db (key@(PrimaryKey wid), cp, meta) =
+    monadicIO (setup >> prop)
   where
     setup = liftIO $ do
-        unsafeRunExceptT $ createWallet dbLayer key cp meta
-        return dbLayer
-    prop db = liftIO $ do
+        cleanDB db
+        unsafeRunExceptT $ createWallet db key cp meta
+    prop = liftIO $ do
         let err = ErrNoSuchWallet wid
         runExceptT (removeWallet db key) `shouldReturn` Right ()
         runExceptT (removeWallet db key) `shouldReturn` Left err
@@ -498,14 +500,14 @@ prop_readAfterPut
     -> (PrimaryKey WalletId, a)
         -- ^ Property arguments
     -> Property
-prop_readAfterPut putOp readOp dbLayer (key, a) =
-    monadicIO (setup >>= prop)
+prop_readAfterPut putOp readOp db (key, a) =
+    monadicIO (setup >> prop)
   where
     setup = do
+        liftIO (cleanDB db)
         (cp, meta) <- pick arbitrary
-        liftIO $ unsafeRunExceptT $ createWallet dbLayer key cp meta
-        return dbLayer
-    prop db = liftIO $ do
+        liftIO $ unsafeRunExceptT $ createWallet db key cp meta
+    prop = liftIO $ do
         unsafeRunExceptT $ putOp db key a
         res <- readOp db key
         res `shouldBe` pure a
@@ -528,10 +530,11 @@ prop_putBeforeInit
     -> (PrimaryKey WalletId, a)
         -- ^ Property arguments
     -> Property
-prop_putBeforeInit putOp readOp empty dbLayer (key@(PrimaryKey wid), a) =
-    monadicIO (pure dbLayer >>= prop)
+prop_putBeforeInit putOp readOp empty db (key@(PrimaryKey wid), a) =
+    monadicIO (setup >> prop)
   where
-    prop db = liftIO $ do
+    setup = liftIO (cleanDB db)
+    prop = liftIO $ do
         runExceptT (putOp db key a) >>= \case
             Right _ ->
                 fail "expected put operation to fail but it succeeded!"
@@ -568,20 +571,21 @@ prop_isolation
     -> (PrimaryKey WalletId, a)
         -- ^ Properties arguments
     -> Property
-prop_isolation putA readB readC readD dbLayer (key, a) =
+prop_isolation putA readB readC readD db (key, a) =
     monadicIO (setup >>= prop)
   where
     setup = do
+        liftIO (cleanDB db)
         (cp, meta, GenTxHistory txs) <- pick arbitrary
-        liftIO $ unsafeRunExceptT $ createWallet dbLayer key cp meta
-        liftIO $ unsafeRunExceptT $ putTxHistory dbLayer key txs
+        liftIO $ unsafeRunExceptT $ createWallet db key cp meta
+        liftIO $ unsafeRunExceptT $ putTxHistory db key txs
         (b, c, d) <- liftIO $ (,,)
-            <$> readB dbLayer key
-            <*> readC dbLayer key
-            <*> readD dbLayer key
-        return (dbLayer, (b, c, d))
+            <$> readB db key
+            <*> readC db key
+            <*> readD db key
+        return (b, c, d)
 
-    prop (db, (b, c, d)) = liftIO $ do
+    prop (b, c, d) = liftIO $ do
         unsafeRunExceptT $ putA db key a
         readB db key `shouldReturn` b
         readC db key `shouldReturn` c
@@ -602,14 +606,14 @@ prop_readAfterDelete
     -> DBLayer IO s DummyTarget
     -> PrimaryKey WalletId
     -> Property
-prop_readAfterDelete readOp empty dbLayer key =
-    monadicIO (setup >>= prop)
+prop_readAfterDelete readOp empty db key =
+    monadicIO (setup >> prop)
   where
     setup = do
+        liftIO (cleanDB db)
         (cp, meta) <- pick arbitrary
-        liftIO $ unsafeRunExceptT $ createWallet dbLayer key cp meta
-        return dbLayer
-    prop db = liftIO $ do
+        liftIO $ unsafeRunExceptT $ createWallet db key cp meta
+    prop = liftIO $ do
         unsafeRunExceptT $ removeWallet db key
         readOp db key `shouldReturn` empty
 
@@ -634,8 +638,8 @@ prop_sequentialPut
     -> KeyValPairs (PrimaryKey WalletId) a
         -- ^ Property arguments
     -> Property
-prop_sequentialPut putOp readOp resolve dbLayer (KeyValPairs pairs) =
-    cover 25 cond "conflicting db entries" $ monadicIO (setup >>= prop)
+prop_sequentialPut putOp readOp resolve db (KeyValPairs pairs) =
+    cover 25 cond "conflicting db entries" $ monadicIO (setup >> prop)
   where
     -- Make sure that we have some conflicting insertion to actually test the
     -- semantic of the DB Layer.
@@ -673,8 +677,8 @@ prop_parallelPut
     -> KeyValPairs (PrimaryKey WalletId) a
         -- ^ Property arguments
     -> Property
-prop_parallelPut putOp readOp resolve dbLayer (KeyValPairs pairs) =
-    cover 25 cond "conflicting db entries" $ monadicIO (setup >>= prop)
+prop_parallelPut putOp readOp resolve db (KeyValPairs pairs) =
+    cover 25 cond "conflicting db entries" $ monadicIO (setup >> prop)
   where
     -- Make sure that we have some conflicting insertion to actually test the
     -- semantic of the DB Layer.
@@ -682,11 +686,11 @@ prop_parallelPut putOp readOp resolve dbLayer (KeyValPairs pairs) =
       where
         ids = map fst pairs
     setup = do
+        liftIO (cleanDB db)
         (cp, meta) <- pick arbitrary
         liftIO $ unsafeRunExceptT $ once_ pairs $ \(k, _) ->
-            createWallet dbLayer k cp meta
-        return dbLayer
-    prop db = liftIO $ do
+            createWallet db k cp meta
+    prop = liftIO $ do
         forConcurrently_ pairs $ unsafeRunExceptT . uncurry (putOp db)
         res <- once pairs (readOp db . fst)
         length res `shouldBe` resolve pairs
