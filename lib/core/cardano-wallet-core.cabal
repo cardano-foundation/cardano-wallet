@@ -190,6 +190,7 @@ benchmark db
     , containers
     , cryptonite
     , deepseq
+    , time
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
