@@ -53,7 +53,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPool
     , AddressPoolGap (..)
-    , IsOurs (..)
     , SeqState (..)
     , accountPubKey
     , addresses
@@ -87,8 +86,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Control.Concurrent.Async
     ( forConcurrently_ )
-import Control.DeepSeq
-    ( NFData )
 import Control.Monad
     ( forM, forM_, void )
 import Control.Monad.IO.Class
@@ -410,15 +407,14 @@ rootKeys = unsafePerformIO $ generate (vectorOf 10 genRootKeys)
 
 -- | Wrap the result of 'readTxHistory' in an arbitrary identity Applicative
 readTxHistoryF
-    :: (Monad m, IsOurs s, NFData s, Show s, TxId t)
+    :: Functor m
     => DBLayer m s t
     -> PrimaryKey WalletId
     -> m (Identity GenTxHistory)
 readTxHistoryF db = fmap (Identity . GenTxHistory) . readTxHistory db
 
 putTxHistoryF
-    :: (Monad m, IsOurs s, NFData s, Show s, TxId t)
-    => DBLayer m s t
+    :: DBLayer m s t
     -> PrimaryKey WalletId
     -> GenTxHistory
     -> ExceptT ErrNoSuchWallet m ()
@@ -432,8 +428,7 @@ putTxHistoryF db wid =
 
 -- | Can list created wallets
 prop_createListWallet
-    :: (Show s, Eq s, IsOurs s, NFData s)
-    => DBLayer IO s DummyTarget
+    :: DBLayer IO s DummyTarget
     -> KeyValPairs (PrimaryKey WalletId) (Wallet s DummyTarget, WalletMetadata)
     -> Property
 prop_createListWallet db (KeyValPairs pairs) =
@@ -447,8 +442,7 @@ prop_createListWallet db (KeyValPairs pairs) =
 
 -- | Trying to create a same wallet twice should yield an error
 prop_createWalletTwice
-    :: (Show s, Eq s, IsOurs s, NFData s)
-    => DBLayer IO s DummyTarget
+    :: DBLayer IO s DummyTarget
     -> ( PrimaryKey WalletId
        , Wallet s DummyTarget
        , WalletMetadata
@@ -465,8 +459,7 @@ prop_createWalletTwice db (key@(PrimaryKey wid), cp, meta) =
 
 -- | Trying to remove a same wallet twice should yield an error
 prop_removeWalletTwice
-    :: (Show s, Eq s, IsOurs s, NFData s)
-    => DBLayer IO s DummyTarget
+    :: DBLayer IO s DummyTarget
     -> ( PrimaryKey WalletId
        , Wallet s DummyTarget
        , WalletMetadata
@@ -486,7 +479,7 @@ prop_removeWalletTwice db (key@(PrimaryKey wid), cp, meta) =
 -- | Checks that a given resource can be read after having been inserted in DB.
 prop_readAfterPut
     :: ( Show (f a), Eq (f a), Applicative f
-       , Show s, Eq s, IsOurs s, NFData s, Arbitrary (Wallet s DummyTarget))
+       , Arbitrary (Wallet s DummyTarget))
     => (  DBLayer IO s DummyTarget
        -> PrimaryKey WalletId
        -> a
@@ -514,7 +507,7 @@ prop_readAfterPut putOp readOp db (key, a) =
 
 -- | Can't put resource before a wallet has been initialized
 prop_putBeforeInit
-    :: (Show (f a), Eq (f a), Applicative f, Show s, Eq s, IsOurs s, NFData s)
+    :: (Show (f a), Eq (f a))
     => (  DBLayer IO s DummyTarget
        -> PrimaryKey WalletId
        -> a
@@ -544,10 +537,9 @@ prop_putBeforeInit putOp readOp empty db (key@(PrimaryKey wid), a) =
 
 -- | Modifying one resource leaves the other untouched
 prop_isolation
-    :: ( Applicative f, Show (f b), Eq (f b)
-       , Applicative g, Show (g c), Eq (g c)
-       , Applicative h, Show (h d), Eq (h d)
-       , Show s, Eq s, IsOurs s, NFData s
+    :: ( Show (f b), Eq (f b)
+       , Show (g c), Eq (g c)
+       , Show (h d), Eq (h d)
        , Arbitrary (Wallet s DummyTarget)
        )
     => (  DBLayer IO s DummyTarget
@@ -593,10 +585,7 @@ prop_isolation putA readB readC readD db (key, a) =
 
 -- | Can't read back data after delete
 prop_readAfterDelete
-    :: ( Show (f a), Eq (f a), Applicative f
-       , Show s, Eq s, IsOurs s, NFData s
-       , Arbitrary (Wallet s DummyTarget)
-       )
+    :: (Show (f a), Eq (f a), Arbitrary (Wallet s DummyTarget))
     => (  DBLayer IO s DummyTarget
        -> PrimaryKey WalletId
        -> IO (f a)
@@ -619,10 +608,7 @@ prop_readAfterDelete readOp empty db key =
 
 -- | Check that the DB supports multiple sequential puts for a given resource
 prop_sequentialPut
-    :: ( Show (f a), Eq (f a), Applicative f
-       , Show s, Eq s, IsOurs s, NFData s
-       , Arbitrary (Wallet s DummyTarget)
-       )
+    :: (Show (f a), Eq (f a), Arbitrary (Wallet s DummyTarget))
     => (  DBLayer IO s DummyTarget
        -> PrimaryKey WalletId
        -> a
@@ -647,21 +633,18 @@ prop_sequentialPut putOp readOp resolve db (KeyValPairs pairs) =
       where
         ids = map fst pairs
     setup = do
+        liftIO (cleanDB db)
         (cp, meta) <- pick arbitrary
         liftIO $ unsafeRunExceptT $ once_ pairs $ \(k, _) ->
-            createWallet dbLayer k cp meta
-        return dbLayer
-    prop db = liftIO $ do
+            createWallet db k cp meta
+    prop = liftIO $ do
         unsafeRunExceptT $ forM_ pairs $ uncurry (putOp db)
         res <- once pairs (readOp db . fst)
         res `shouldBe` resolve pairs
 
 -- | Check that the DB supports multiple sequential puts for a given resource
 prop_parallelPut
-    :: ( Show (f a), Eq (f a), Applicative f
-       , Show s, Eq s, IsOurs s, NFData s
-       , Arbitrary (Wallet s DummyTarget)
-       )
+    :: (Arbitrary (Wallet s DummyTarget))
     => (  DBLayer IO s DummyTarget
        -> PrimaryKey WalletId
        -> a
@@ -696,7 +679,7 @@ prop_parallelPut putOp readOp resolve db (KeyValPairs pairs) =
         length res `shouldBe` resolve pairs
 
 dbPropertyTests
-    :: (Arbitrary (Wallet s DummyTarget), Show s, Eq s, IsOurs s, NFData s)
+    :: (Arbitrary (Wallet s DummyTarget), Eq s)
     => SpecWith (DBLayer IO s DummyTarget)
 dbPropertyTests = do
     describe "Extra Properties about DB initialization" $ do
