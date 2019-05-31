@@ -4,7 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Test.Integration.Scenario.Addresses
+module Test.Integration.Scenario.API.Addresses
     ( spec
     ) where
 

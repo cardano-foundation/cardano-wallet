@@ -5,7 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Test.Integration.Scenario.Transactions
+module Test.Integration.Scenario.API.Transactions
     ( spec
     ) where
 

@@ -4,7 +4,7 @@
 {-# LANGUAGE TypeApplications #-}
 
 
-module Test.Integration.Scenario.Wallets
+module Test.Integration.Scenario.API.Wallets
     ( spec
     ) where
 
