@@ -68,13 +68,13 @@ import Data.Text.Class
 import Data.Time.Clock
     ( getCurrentTime )
 import Database.Sqlite
-    ( Connection )
+    ( Connection, close )
 import System.IO.Unsafe
     ( unsafePerformIO )
 import Test.Hspec
     ( Expectation, Spec, before, describe, it, shouldReturn )
 import Test.QuickCheck
-    ( Property, choose, generate, property )
+    ( Property, choose, generate, property, (==>) )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
@@ -84,6 +84,15 @@ import qualified Data.Set as Set
 
 spec :: Spec
 spec =  do
+    describe "Check db opening/closing" $ do
+        it "opening and closing of db works" $ do
+            (conn, db) <- fileDBLayer
+            _ <- cleanDB db
+            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+            listWallets db `shouldReturn` [testPk]
+            close conn
+            forM_ [1..25] openCloseDB
+
     before ((snd <$> fileDBLayer) >>= cleanDB) $
         describe "Check db reading/writing from/to file and cleaning" $ do
 
@@ -159,17 +168,24 @@ spec =  do
             (_,db2) <- fileDBLayer
             call db2 `shouldReturn` expectedAfterClean
 
+        openCloseDB :: Int -> IO ()
+        openCloseDB _ = do
+            (conn, db) <- fileDBLayer
+            listWallets db `shouldReturn` [testPk]
+            close conn
+
 
 prop_randomOpChunks
     :: DBLayer IO (SeqState DummyTarget) DummyTarget
     -> KeyValPairs (PrimaryKey WalletId) (Wallet (SeqState DummyTarget) DummyTarget , WalletMetadata)
     -> Property
 prop_randomOpChunks inMemoryDB (KeyValPairs pairs) =
-    monadicIO (pure inMemoryDB >>= prop)
+    not (null pairs) ==> monadicIO (pure inMemoryDB >>= prop)
   where
     prop dbM = liftIO $ do
         (_, dbF) <- fileDBLayer
         _ <- cleanDB dbF
+        _ <- cleanDB inMemoryDB
 
         forM_ pairs (updateDB dbM)
         chunks <- cutRandomly [] pairs
