@@ -33,7 +33,7 @@ import Cardano.Wallet.DB
     , cleanDB
     )
 import Cardano.Wallet.DBSpec
-    ( DummyTarget )
+    ( DummyTarget, GenTxHistory (..), TxHistory )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Key, XPrv, deserializeXPrv )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -256,8 +256,6 @@ mReadPrivateKey wid m@(M cp _ _ pk)
 {-------------------------------------------------------------------------------
   Language
 -------------------------------------------------------------------------------}
-
-type TxHistory = Map (Hash "Tx") (Tx, TxMeta)
 
 data Cmd wid
     = CleanDB
@@ -493,32 +491,6 @@ generator (Model _ wids) = Just $ frequency $ concat
 
 isUnordered :: Ord x => [x] -> Bool
 isUnordered xs = xs /= L.sort xs
-
-newtype GenTxHistory = GenTxHistory { unGenTxHistory :: TxHistory }
-    deriving (Show, Eq)
-
-instance Arbitrary GenTxHistory where
-    shrink (GenTxHistory h) = map GenTxHistory (shrinkKeys h ++ shrinkTx h)
-      where
-        -- remove keys from the map
-        shrinkKeys :: TxHistory -> [TxHistory]
-        shrinkKeys txs =
-            [ Map.restrictKeys txs ks
-            | ks <- shrink (Set.fromList (Map.keys txs)) ]
-        -- make the transactions smaller
-        shrinkTx :: TxHistory -> [TxHistory]
-        shrinkTx txs =
-            [ Map.fromList [(k, v') | v' <- shrinkOneTx v]
-            | (k, v) <- Map.toList txs ]
-        shrinkOneTx :: (Tx, TxMeta) -> [(Tx, TxMeta)]
-        shrinkOneTx (tx, meta) =
-            [(tx', meta) | tx' <- shrink tx]
-
-    -- Ensure unique transaction IDs within a given batch of transactions to add
-    -- to the history.
-    arbitrary = GenTxHistory . Map.fromList <$> do
-        txids <- L.nub <$> arbitrary
-        mapM (\k -> (k,) <$> arbitrary) txids
 
 shrinker :: Model Symbolic -> Cmd :@ Symbolic -> [Cmd :@ Symbolic]
 shrinker (Model _ _) (At cmd) = case cmd of

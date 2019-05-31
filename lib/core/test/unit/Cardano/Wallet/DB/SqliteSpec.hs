@@ -20,7 +20,7 @@ import Cardano.Wallet.DB.Sqlite
 import Cardano.Wallet.DB.StateMachine
     ( prop_parallel, prop_sequential )
 import Cardano.Wallet.DBSpec
-    ( DummyTarget, SkipTests (..), dbPropertyTests, withDB )
+    ( DummyTarget, dbPropertyTests, withDB )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..)
     , encryptPassphrase
@@ -75,7 +75,7 @@ import qualified Data.Map as Map
 spec :: Spec
 spec = withDB newMemoryDBLayer $ do
     describe "Sqlite Simple tests" simpleSpec
-    describe "Sqlite" (dbPropertyTests SkipTxHistoryReplaceTest)
+    describe "Sqlite" dbPropertyTests
     describe "Sqlite State machine tests" $ do
         it "Sequential" prop_sequential
         xit "Parallel" prop_parallel

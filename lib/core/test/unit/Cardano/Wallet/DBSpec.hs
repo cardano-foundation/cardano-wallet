@@ -1,9 +1,11 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -17,7 +19,8 @@ module Cardano.Wallet.DBSpec
     , dbPropertyTests
     , withDB
     , DummyTarget
-    , SkipTests(..)
+    , TxHistory
+    , GenTxHistory (..)
     ) where
 
 import Prelude
@@ -87,7 +90,7 @@ import Control.Concurrent.Async
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( forM, forM_, void, when )
+    ( forM, forM_, void )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -137,6 +140,7 @@ import Test.QuickCheck
     , oneof
     , property
     , scale
+    , shrinkList
     , suchThat
     , vectorOf
     )
@@ -150,6 +154,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 spec :: Spec
 spec = return ()
@@ -157,6 +162,7 @@ spec = return ()
 {-------------------------------------------------------------------------------
                     Cross DB Specs Shared Arbitrary Instances
 -------------------------------------------------------------------------------}
+
 -- | Keep only the (L)ast (R)ecently (P)ut entry
 lrp :: (Applicative f, Ord k) => [(k, v)] -> [f v]
 lrp = Map.elems . foldl (\m (k, v) -> Map.insert k (pure v) m) mempty
@@ -176,6 +182,7 @@ once xs = forM (Map.toList (Map.fromList xs))
 once_ :: (Ord k, Monad m) => [(k,v)] -> ((k,v) -> m a) -> m ()
 once_ xs = void . once xs
 
+type TxHistory = Map (Hash "Tx") (Tx, TxMeta)
 
 newtype KeyValPairs k v = KeyValPairs [(k, v)]
     deriving (Generic, Show, Eq)
@@ -183,7 +190,7 @@ newtype KeyValPairs k v = KeyValPairs [(k, v)]
 instance (Arbitrary k, Arbitrary v) => Arbitrary (KeyValPairs k v) where
     shrink = genericShrink
     arbitrary = do
-        pairs <- choose (10, 50) >>= flip vectorOf arbitrary
+        pairs <- choose (1, 10) >>= flip vectorOf arbitrary
         pure $ KeyValPairs pairs
 
 data DummyTarget
@@ -272,22 +279,17 @@ ourAddresses cc =
     keyToAddress @DummyTarget . deriveAddressPublicKey ourAccount cc
         <$> [minBound..maxBound]
 
-instance Arbitrary (Hash "Tx") where
-    shrink _ = [] -- no way to shrink a hash
-    arbitrary = do
-        k <- choose (0, 10)
-        return $ Hash (B8.pack ("TX" <> show @Int k))
-
 instance Arbitrary Tx where
     shrink (Tx ins outs) =
-        [Tx ins' outs | ins' <- shrinkList ins ] ++
-        [Tx ins outs' | outs' <- shrinkList outs ]
+        [Tx ins' outs | ins' <- shrinkList' ins ] ++
+        [Tx ins outs' | outs' <- shrinkList' outs ]
       where
-        shrinkList xs  = filter (not . null)
+        shrinkList' xs  = filter (not . null)
             [ take n xs | Positive n <- shrink (Positive $ length xs) ]
 
-    arbitrary = Tx <$> fmap (L.nub . getNonEmpty) arbitrary
-                   <*> fmap getNonEmpty arbitrary
+    arbitrary = Tx
+        <$> fmap (L.nub . L.take 5 . getNonEmpty) arbitrary
+        <*> fmap (L.take 5 . getNonEmpty) arbitrary
 
 instance Arbitrary TxMeta where
     shrink _ = []
@@ -318,7 +320,7 @@ instance Arbitrary Coin where
 instance Arbitrary TxIn where
     -- No Shrinking
     arbitrary = TxIn
-        <$> arbitrary
+        <$> (Hash . B8.pack <$> vectorOf 32 arbitrary)
         <*> scale (`mod` 3) arbitrary -- No need for a high indexes
 
 instance Arbitrary TxOut where
@@ -326,6 +328,36 @@ instance Arbitrary TxOut where
     arbitrary = TxOut
         <$> arbitrary
         <*> arbitrary
+
+newtype GenTxHistory = GenTxHistory { unGenTxHistory :: TxHistory }
+    deriving stock (Show, Eq)
+    deriving newtype (Semigroup, Monoid)
+
+instance Arbitrary GenTxHistory where
+    shrink (GenTxHistory h) = map GenTxHistory (shrinkKeys h ++ shrinkTx h)
+      where
+        -- remove keys from the map
+        shrinkKeys :: TxHistory -> [TxHistory]
+        shrinkKeys txs =
+            [ Map.restrictKeys txs (Set.fromList ks)
+            | ks <- shrinkList (const []) (Map.keys txs) ]
+        -- make the transactions smaller
+        shrinkTx :: TxHistory -> [TxHistory]
+        shrinkTx txs =
+            [ Map.fromList [(k, v') | v' <- shrinkOneTx v]
+            | (k, v) <- Map.toList txs ]
+        shrinkOneTx :: (Tx, TxMeta) -> [(Tx, TxMeta)]
+        shrinkOneTx (tx, meta) =
+            [(tx', meta) | tx' <- shrink tx]
+
+    -- Ensure unique transaction IDs within a given batch of transactions to add
+    -- to the history.
+    arbitrary = GenTxHistory . Map.fromList <$> do
+        txs <- arbitrary
+        return $ (\(tx, meta) -> (mockTxId tx, (tx, meta))) <$> txs
+      where
+        mockTxId :: Tx -> Hash "Tx"
+        mockTxId = Hash . B8.pack . show
 
 instance Arbitrary UTxO where
     shrink (UTxO utxo) = UTxO <$> shrink utxo
@@ -381,8 +413,17 @@ readTxHistoryF
     :: (Monad m, IsOurs s, NFData s, Show s, TxId t)
     => DBLayer m s t
     -> PrimaryKey WalletId
-    -> m (Identity (Map (Hash "Tx") (Tx, TxMeta)))
-readTxHistoryF db = fmap Identity . readTxHistory db
+    -> m (Identity GenTxHistory)
+readTxHistoryF db = fmap (Identity . GenTxHistory) . readTxHistory db
+
+putTxHistoryF
+    :: (Monad m, IsOurs s, NFData s, Show s, TxId t)
+    => DBLayer m s t
+    -> PrimaryKey WalletId
+    -> GenTxHistory
+    -> ExceptT ErrNoSuchWallet m ()
+putTxHistoryF db wid =
+    putTxHistory db wid . unGenTxHistory
 
 
 {-------------------------------------------------------------------------------
@@ -531,7 +572,7 @@ prop_isolation putA readB readC readD dbLayer (key, a) =
     monadicIO (setup >>= prop)
   where
     setup = do
-        (cp, meta, txs) <- pick arbitrary
+        (cp, meta, GenTxHistory txs) <- pick arbitrary
         liftIO $ unsafeRunExceptT $ createWallet dbLayer key cp meta
         liftIO $ unsafeRunExceptT $ putTxHistory dbLayer key txs
         (b, c, d) <- liftIO $ (,,)
@@ -572,7 +613,6 @@ prop_readAfterDelete readOp empty dbLayer key =
         unsafeRunExceptT $ removeWallet db key
         readOp db key `shouldReturn` empty
 
-
 -- | Check that the DB supports multiple sequential puts for a given resource
 prop_sequentialPut
     :: ( Show (f a), Eq (f a), Applicative f
@@ -595,7 +635,7 @@ prop_sequentialPut
         -- ^ Property arguments
     -> Property
 prop_sequentialPut putOp readOp resolve dbLayer (KeyValPairs pairs) =
-    cover 90 cond "conflicting db entries" $ monadicIO (setup >>= prop)
+    cover 25 cond "conflicting db entries" $ monadicIO (setup >>= prop)
   where
     -- Make sure that we have some conflicting insertion to actually test the
     -- semantic of the DB Layer.
@@ -611,7 +651,6 @@ prop_sequentialPut putOp readOp resolve dbLayer (KeyValPairs pairs) =
         unsafeRunExceptT $ forM_ pairs $ uncurry (putOp db)
         res <- once pairs (readOp db . fst)
         res `shouldBe` resolve pairs
-
 
 -- | Check that the DB supports multiple sequential puts for a given resource
 prop_parallelPut
@@ -635,7 +674,7 @@ prop_parallelPut
         -- ^ Property arguments
     -> Property
 prop_parallelPut putOp readOp resolve dbLayer (KeyValPairs pairs) =
-    cover 90 cond "conflicting db entries" $ monadicIO (setup >>= prop)
+    cover 25 cond "conflicting db entries" $ monadicIO (setup >>= prop)
   where
     -- Make sure that we have some conflicting insertion to actually test the
     -- semantic of the DB Layer.
@@ -652,16 +691,10 @@ prop_parallelPut putOp readOp resolve dbLayer (KeyValPairs pairs) =
         res <- once pairs (readOp db . fst)
         length res `shouldBe` resolve pairs
 
-data SkipTests
-    = RunAllTests
-    | SkipTxHistoryReplaceTest
-    deriving (Show, Eq)
-
 dbPropertyTests
     :: (Arbitrary (Wallet s DummyTarget), Show s, Eq s, IsOurs s, NFData s)
-    => SkipTests
-    -> SpecWith (DBLayer IO s DummyTarget)
-dbPropertyTests skip = do
+    => SpecWith (DBLayer IO s DummyTarget)
+dbPropertyTests = do
     describe "Extra Properties about DB initialization" $ do
         it "createWallet . listWallets yields expected results"
             (property . prop_createListWallet)
@@ -676,7 +709,7 @@ dbPropertyTests skip = do
         it "Wallet Metadata"
             (property . (prop_readAfterPut putWalletMeta readWalletMeta))
         it "Tx History"
-            (property . (prop_readAfterPut putTxHistory readTxHistoryF))
+            (property . (prop_readAfterPut putTxHistoryF readTxHistoryF))
         it "Private Key"
             (property . (prop_readAfterPut putPrivateKey readPrivateKey))
 
@@ -686,7 +719,7 @@ dbPropertyTests skip = do
         it "Wallet Metadata"
             (property . (prop_putBeforeInit putWalletMeta readWalletMeta Nothing))
         it "Tx History"
-            (property . (prop_putBeforeInit putTxHistory readTxHistoryF (pure mempty)))
+            (property . (prop_putBeforeInit putTxHistoryF readTxHistoryF (pure mempty)))
         it "Private Key"
             (property . (prop_putBeforeInit putPrivateKey readPrivateKey Nothing))
 
@@ -704,7 +737,7 @@ dbPropertyTests skip = do
                 readPrivateKey)
             )
         it "Tx History vs Checkpoint & Wallet Metadata & Private Key"
-            (property . (prop_isolation putTxHistory
+            (property . (prop_isolation putTxHistoryF
                 readCheckpoint
                 readWalletMeta
                 readPrivateKey)
@@ -725,8 +758,8 @@ dbPropertyTests skip = do
             (checkCoverage . (prop_sequentialPut putCheckpoint readCheckpoint lrp))
         it "Wallet Metadata"
             (checkCoverage . (prop_sequentialPut putWalletMeta readWalletMeta lrp))
-        when (skip == RunAllTests) $ it "Tx History"
-            (checkCoverage . (prop_sequentialPut putTxHistory readTxHistoryF unions))
+        it "Tx History"
+            (checkCoverage . (prop_sequentialPut putTxHistoryF readTxHistoryF unions))
         it "Private Key"
             (checkCoverage . (prop_sequentialPut putPrivateKey readPrivateKey lrp))
 
@@ -738,8 +771,8 @@ dbPropertyTests skip = do
             (checkCoverage . (prop_parallelPut putWalletMeta readWalletMeta
                 (length . lrp @Maybe)))
         it "Tx History"
-            (checkCoverage . (prop_parallelPut putTxHistory readTxHistoryF
-                (length . unions @(Map (Hash "Tx") (Tx, TxMeta)))))
+            (checkCoverage . (prop_parallelPut putTxHistoryF readTxHistoryF
+                (length . unions @GenTxHistory)))
         it "Private Key"
             (checkCoverage . (prop_parallelPut putPrivateKey readPrivateKey
                 (length . lrp @Maybe)))
