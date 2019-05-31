@@ -59,7 +59,7 @@ import Data.Functor.Classes
 import Data.Map
     ( Map )
 import Data.Maybe
-    ( catMaybes, fromJust, fromMaybe, isJust, isNothing, mapMaybe )
+    ( catMaybes, fromJust, fromMaybe, isJust, isNothing )
 import Data.Set
     ( Set )
 import Data.TreeDiff
@@ -118,23 +118,6 @@ import qualified Test.StateMachine.Types.Rank2 as Rank2
 {-# ANN module ("HLint: ignore Unused LANGUAGE pragma" :: String) #-}
 
 {-------------------------------------------------------------------------------
-  WalletId expressions
--------------------------------------------------------------------------------}
-
-data Expr wid =
-    Val MWid
-  | Var wid
-  deriving (Show, Functor, Foldable, Traversable)
-
-eval :: Expr MWid -> MWid
-eval (Val wid) = wid
-eval (Var wid) = wid
-
-evalWalletId :: Expr WalletId -> WalletId
-evalWalletId (Val mwid) = unMockWid mwid
-evalWalletId (Var wid) = wid
-
-{-------------------------------------------------------------------------------
   Errors
 -------------------------------------------------------------------------------}
 
@@ -166,9 +149,6 @@ widPK = PrimaryKey . unMockWid
 -- | Convert a mock wallet ID to a real one by hashing it
 unMockWid :: MWid -> WalletId
 unMockWid (MWid wid) = WalletId . hash . B8.pack $ wid
-
-widPK' :: Expr WalletId -> PrimaryKey WalletId
-widPK' = PrimaryKey . evalWalletId
 
 -- | Represent (XPrv, Hash) as a string.
 type MPrivKey = String
@@ -282,16 +262,16 @@ type TxHistory = Map (Hash "Tx") (Tx, TxMeta)
 data Cmd wid
     = CleanDB
     | CreateWallet MWid MWallet WalletMetadata
-    | RemoveWallet (Expr wid)
+    | RemoveWallet wid
     | ListWallets
-    | PutCheckpoint (Expr wid) MWallet
-    | ReadCheckpoint (Expr wid)
-    | PutWalletMeta (Expr wid) WalletMetadata
-    | ReadWalletMeta (Expr wid)
-    | PutTxHistory (Expr wid) TxHistory
-    | ReadTxHistory (Expr wid)
-    | PutPrivateKey (Expr wid) MPrivKey
-    | ReadPrivateKey (Expr wid)
+    | PutCheckpoint wid MWallet
+    | ReadCheckpoint wid
+    | PutWalletMeta wid WalletMetadata
+    | ReadWalletMeta wid
+    | PutTxHistory wid TxHistory
+    | ReadTxHistory wid
+    | PutPrivateKey wid MPrivKey
+    | ReadPrivateKey wid
     deriving (Show, Functor, Foldable, Traversable)
 
 data Success wid
@@ -329,25 +309,25 @@ runMock = \case
     CreateWallet wid wal meta ->
         first (Resp . fmap (const (NewWallet wid))) . mCreateWallet wid wal meta
     RemoveWallet wid ->
-        first (Resp . fmap Unit) . mRemoveWallet (eval wid)
+        first (Resp . fmap Unit) . mRemoveWallet wid
     ListWallets ->
         first (Resp . fmap WalletIds) . mListWallets
     PutCheckpoint wid wal ->
-        first (Resp . fmap Unit) . mPutCheckpoint (eval wid) wal
+        first (Resp . fmap Unit) . mPutCheckpoint wid wal
     ReadCheckpoint wid ->
-        first (Resp . fmap Checkpoint) . mReadCheckpoint (eval wid)
+        first (Resp . fmap Checkpoint) . mReadCheckpoint wid
     PutWalletMeta wid meta ->
-        first (Resp . fmap Unit) . mPutWalletMeta (eval wid) meta
+        first (Resp . fmap Unit) . mPutWalletMeta wid meta
     ReadWalletMeta wid ->
-        first (Resp . fmap Metadata) . mReadWalletMeta (eval wid)
+        first (Resp . fmap Metadata) . mReadWalletMeta wid
     PutTxHistory wid txs ->
-        first (Resp . fmap Unit) . mPutTxHistory (eval wid) txs
+        first (Resp . fmap Unit) . mPutTxHistory wid txs
     ReadTxHistory wid ->
-        first (Resp . fmap TxHistory) . mReadTxHistory (eval wid)
+        first (Resp . fmap TxHistory) . mReadTxHistory wid
     PutPrivateKey wid pk ->
-        first (Resp . fmap Unit) . mPutPrivateKey (eval wid) pk
+        first (Resp . fmap Unit) . mPutPrivateKey wid pk
     ReadPrivateKey wid ->
-        first (Resp . fmap PrivateKey) . mReadPrivateKey (eval wid)
+        first (Resp . fmap PrivateKey) . mReadPrivateKey wid
 
 {-------------------------------------------------------------------------------
   Interpreter: real I/O
@@ -372,27 +352,27 @@ runIO db = fmap Resp . go
                 createWallet db (widPK wid) wal meta
         RemoveWallet wid ->
             catchNoSuchWallet Unit $
-                removeWallet db (widPK' wid)
+                removeWallet db (PrimaryKey wid)
         ListWallets ->
             Right . WalletIds . fmap unPrimaryKey <$> listWallets db
         PutCheckpoint wid wal ->
-            catchNoSuchWallet Unit $ putCheckpoint db (widPK' wid) wal
+            catchNoSuchWallet Unit $ putCheckpoint db (PrimaryKey wid) wal
         ReadCheckpoint wid ->
-            Right . Checkpoint <$> readCheckpoint db (widPK' wid)
+            Right . Checkpoint <$> readCheckpoint db (PrimaryKey wid)
         PutWalletMeta wid meta ->
-            catchNoSuchWallet Unit $ putWalletMeta db (widPK' wid) meta
+            catchNoSuchWallet Unit $ putWalletMeta db (PrimaryKey wid) meta
         ReadWalletMeta wid ->
-            Right . Metadata <$> readWalletMeta db (widPK' wid)
+            Right . Metadata <$> readWalletMeta db (PrimaryKey wid)
         PutTxHistory wid txs ->
-            catchNoSuchWallet Unit $ putTxHistory db (widPK' wid) txs
+            catchNoSuchWallet Unit $ putTxHistory db (PrimaryKey wid) txs
         ReadTxHistory wid ->
-            Right . TxHistory <$> readTxHistory db (widPK' wid)
+            Right . TxHistory <$> readTxHistory db (PrimaryKey wid)
         PutPrivateKey wid pk ->
             catchNoSuchWallet Unit $
-                putPrivateKey db (widPK' wid) (fromMockPrivKey pk)
+                putPrivateKey db (PrimaryKey wid) (fromMockPrivKey pk)
         ReadPrivateKey wid ->
             Right . PrivateKey . fmap toMockPrivKey
-                <$> readPrivateKey db (widPK' wid)
+                <$> readPrivateKey db (PrimaryKey wid)
 
     catchWalletAlreadyExists f =
         fmap (bimap errWalletAlreadyExists f) . runExceptT
@@ -505,7 +485,8 @@ generator (Model _ wids) = Just $ frequency $ concat
     genId :: Gen MWid
     genId = MWid <$> elements ["a", "b", "c"]
 
-    genId' = Val <$> genId
+    genId' :: Gen (Reference WalletId Symbolic)
+    genId' = QC.elements (map fst wids)
 
     genPrivKey :: Gen MPrivKey
     genPrivKey = elements ["pk1", "pk2", "pk3"]
@@ -540,46 +521,15 @@ instance Arbitrary GenTxHistory where
         mapM (\k -> (k,) <$> arbitrary) txids
 
 shrinker :: Model Symbolic -> Cmd :@ Symbolic -> [Cmd :@ Symbolic]
-shrinker (Model _ wids) (At cmd) = case cmd of
-    RemoveWallet (Val wid) ->
-        [ At $ RemoveWallet (Var r)
-        | r <- substWid wid ]
-    PutCheckpoint (Val wid) wal ->
-        [ At $ PutCheckpoint (Var r) wal'
-        | r <- substWid wid
-        , wal' <- shrink wal ]
-    ReadCheckpoint (Val wid) ->
-        [ At $ ReadCheckpoint (Var r)
-        | r <- substWid wid ]
-    PutWalletMeta (Val wid) meta ->
-        [ At $ PutWalletMeta (Var r) meta
-        | r <- substWid wid ]
-    ReadWalletMeta (Val wid) ->
-        [ At $ ReadWalletMeta (Var r)
-        | r <- substWid wid ]
-    PutTxHistory (Val wid) h ->
-        [ At $ PutTxHistory (Val wid) h'
+shrinker (Model _ _) (At cmd) = case cmd of
+    PutCheckpoint wid wal ->
+        [ At $ PutCheckpoint wid wal'
+        | wal' <- shrink wal ]
+    PutTxHistory wid h ->
+        [ At $ PutTxHistory wid h'
         | h' <- map unGenTxHistory . shrink . GenTxHistory $ h
-        ] ++
-        [ At $ PutTxHistory (Var r) h
-        | r <- substWid wid ]
-    ReadTxHistory (Val wid) ->
-        [ At $ ReadTxHistory (Var r)
-        | r <- substWid wid ]
-    PutPrivateKey (Val wid) pk ->
-        [ At $ PutPrivateKey (Var r) pk
-        | r <- substWid wid ]
-    ReadPrivateKey (Val wid) ->
-        [ At $ ReadPrivateKey (Var r)
-        | r <- substWid wid ]
+        ]
     _ -> []
-
-  where
-    matches :: Eq a => a -> (r, a) -> Maybe r
-    matches w (r, w')
-        | w == w'   = Just r
-        | otherwise = Nothing
-    substWid wid = mapMaybe (matches wid) wids
 
 {-------------------------------------------------------------------------------
   The state machine proper
@@ -745,8 +695,8 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
             case (isRead ev, cmd ev, mockResp ev, before ev) of
                 (Just wid, _, _, _) ->
                     Map.alter (fmap (+1)) wid created
-                (Nothing, At (RemoveWallet wid), Resp (Right _), model) ->
-                    Map.insert (evalWid model wid) 0 created
+                (Nothing, At (RemoveWallet wid), Resp (Right _), Model _ wids) ->
+                    Map.insert (wids ! wid) 0 created
                 _otherwise ->
                     created
 
@@ -756,8 +706,8 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
 
     isReadTxHistory :: Event Symbolic -> Maybe MWid
     isReadTxHistory ev = case (cmd ev, mockResp ev, before ev) of
-        (At (ReadTxHistory wid), Resp (Right (TxHistory _)), model)
-            -> Just (evalWid model wid)
+        (At (ReadTxHistory wid), Resp (Right (TxHistory _)), Model _ wids)
+            -> Just (wids ! wid)
         _otherwise
             -> Nothing
 
@@ -788,9 +738,9 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
     removeWalletTwice :: Fold (Event Symbolic) (Maybe Tag)
     removeWalletTwice = countAction RemoveWalletTwice (>= 2) match
       where
-        match ev = case (cmd ev, mockResp ev, before ev) of
-            (At (RemoveWallet wid), Resp _, m) ->
-                Just (evalWid m wid)
+        match ev = case (cmd ev, mockResp ev) of
+            (At (RemoveWallet wid), Resp _) ->
+                Just wid
             _otherwise ->
                 Nothing
 
@@ -815,8 +765,8 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
 
     isReadPrivateKeySuccess :: Event Symbolic -> Maybe MWid
     isReadPrivateKeySuccess ev = case (cmd ev, mockResp ev, before ev) of
-        (At (ReadPrivateKey wid), Resp (Right (PrivateKey (Just _))), model)
-            -> Just (evalWid model wid)
+        (At (ReadPrivateKey wid), Resp (Right (PrivateKey (Just _))), Model _ wids)
+            -> Just (wids ! wid)
         _otherwise
             -> Nothing
 
@@ -882,11 +832,6 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
                     False
     extractf :: a -> Bool -> Maybe a
     extractf a t = if t then Just a else Nothing
-
-    -- | Look up a walletId expression in the model.
-    evalWid :: Model Symbolic -> Expr (Reference WalletId Symbolic) -> MWid
-    evalWid (Model _ wids) (Var sym) = wids ! sym
-    evalWid _ (Val wid) = wid
 
 execCmd
     :: Model Symbolic
