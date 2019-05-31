@@ -44,9 +44,24 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Sqlite
     ( newDBLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress (..), Passphrase (..), generateKeyFromSeed, getKey )
+    ( Depth (..)
+    , Key
+    , KeyToAddress (..)
+    , Passphrase (..)
+    , XPub
+    , generateKeyFromSeed
+    , getKey
+    , publicKey
+    , unsafeGenerateKeyFromSeed
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( SeqState (..), defaultAddressPoolGap, mkSeqState )
+    ( AddressPool
+    , SeqState (..)
+    , defaultAddressPoolGap
+    , emptyPendingIxs
+    , mkAddressPool
+    , mkSeqState
+    )
 import Cardano.Wallet.Primitive.Mnemonic
     ( EntropySize, entropyToBytes, genEntropy )
 import Cardano.Wallet.Primitive.Model
@@ -87,8 +102,15 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Time.Clock.System
     ( SystemTime (..), systemToUTCTime )
+import Data.Typeable
+    ( Typeable )
 import System.IO.Unsafe
     ( unsafePerformIO )
+
+import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
+import qualified Data.Map.Strict as Map
 
 main :: IO ()
 main = defaultMain
@@ -123,20 +145,27 @@ main = defaultMain
     , withDB $ \db -> bgroup "putCheckpoint"
         -- The very max number of checkpoints we are likely to insert per wallet
         -- is k=2160.
-        -- A fragmented wallet will have a large number of UTxO. The coin
-        -- selection algorithm tries to prevent fragmentation
-        [ bench "1e2 x   0utxo" $ withCleanDB db $ benchPutCheckpoint   100   0
-        , bench "1e3 x   0utxo" $ withCleanDB db $ benchPutCheckpoint  1000   0
-        -- , bench "1e4" $ withCleanDB db $ benchPutCheckpoint 10000 0
-        , bench "1e1 x   10utxo" $ withCleanDB db $ benchPutCheckpoint    10   10
-        , bench "1e2 x   10utxo" $ withCleanDB db $ benchPutCheckpoint   100   10
-        , bench "1e3 x   10utxo" $ withCleanDB db $ benchPutCheckpoint  1000   10
-        , bench "1e1 x  100utxo" $ withCleanDB db $ benchPutCheckpoint    10  100
-        , bench "1e2 x  100utxo" $ withCleanDB db $ benchPutCheckpoint   100  100
-        , bench "1e3 x  100utxo" $ withCleanDB db $ benchPutCheckpoint  1000  100
-        , bench "1e1 x 1000utxo" $ withCleanDB db $ benchPutCheckpoint    10 1000
-        , bench "1e2 x 1000utxo" $ withCleanDB db $ benchPutCheckpoint   100 1000
-        , bench "1e3 x 1000utxo" $ withCleanDB db $ benchPutCheckpoint  1000 1000
+        [ bgroup "UTxO"
+            -- A fragmented wallet will have a large number of UTxO. The coin
+            -- selection algorithm tries to prevent fragmentation
+            [ bench "1e2 x   0utxo" $ withCleanDB db $ benchPutCheckpoint   100   0
+            , bench "1e3 x   0utxo" $ withCleanDB db $ benchPutCheckpoint  1000   0
+            -- , bench "1e4" $ withCleanDB db $ benchPutCheckpoint 10000 0
+            , bench "1e1 x   10utxo" $ withCleanDB db $ benchPutCheckpoint    10   10
+            , bench "1e2 x   10utxo" $ withCleanDB db $ benchPutCheckpoint   100   10
+            , bench "1e3 x   10utxo" $ withCleanDB db $ benchPutCheckpoint  1000   10
+            , bench "1e1 x  100utxo" $ withCleanDB db $ benchPutCheckpoint    10  100
+            , bench "1e2 x  100utxo" $ withCleanDB db $ benchPutCheckpoint   100  100
+            , bench "1e3 x  100utxo" $ withCleanDB db $ benchPutCheckpoint  1000  100
+            , bench "1e1 x 1000utxo" $ withCleanDB db $ benchPutCheckpoint    10 1000
+            , bench "1e2 x 1000utxo" $ withCleanDB db $ benchPutCheckpoint   100 1000
+            , bench "1e3 x 1000utxo" $ withCleanDB db $ benchPutCheckpoint  1000 1000
+            ]
+        , bgroup "SeqState"
+            [ bench "1e2 x   10addr" $ withCleanDB db $ benchPutSeqState 100   10
+            , bench "1e2 x  100addr" $ withCleanDB db $ benchPutSeqState 100  100
+            , bench "1e2 x 1000addr" $ withCleanDB db $ benchPutSeqState 100 1000
+            ]
         ]
     ]
 
@@ -146,7 +175,11 @@ main = defaultMain
 withDB :: (DBLayerBench -> Benchmark) -> Benchmark
 withDB = envWithCleanup (newDBLayer Nothing) (const (pure ()))
 
-withCleanDB :: NFData b => DBLayerBench -> (DBLayerBench -> IO b) -> Benchmarkable
+withCleanDB
+    :: NFData b
+    => DBLayerBench
+    -> (DBLayerBench -> IO b)
+    -> Benchmarkable
 withCleanDB db = perRunEnv $ do
     void $ cleanDB db
     unsafeRunExceptT $ createWallet db testPk testCp testMetadata
@@ -185,10 +218,30 @@ benchPutCheckpoint numCheckpoints utxoSize db = do
     unsafeRunExceptT $ mapM_ (putCheckpoint db testPk) cps
 
 mkCheckpoints :: Int -> Int -> [WalletBench]
-mkCheckpoints numCheckpoints utxoSize = [ cp i  | i <- [1..numCheckpoints]]
+mkCheckpoints numCheckpoints utxoSize = [ cp i | i <- [1..numCheckpoints]]
   where
-    cp i = unsafeInitWallet (UTxO utxo) mempty (fromFlatSlot $ fromIntegral i) initDummyState
+    cp i = unsafeInitWallet (UTxO utxo) mempty
+        (fromFlatSlot $ fromIntegral i)
+        initDummyState
     utxo = Map.fromList $ zip (mkInputs utxoSize) (mkOutputs utxoSize)
+
+----------------------------------------------------------------------------
+-- SeqState Address Discovery
+
+benchPutSeqState :: Int -> Int -> DBLayerBench -> IO ()
+benchPutSeqState numCheckpoints numAddrs db =
+    unsafeRunExceptT $ mapM_ (putCheckpoint db testPk)
+        [ initWallet $ SeqState (mkPool numAddrs i) (mkPool numAddrs i)
+          emptyPendingIxs | i <- [1..numCheckpoints] ]
+
+mkPool
+    :: forall t chain. (KeyToAddress t, Typeable chain)
+    => Int -> Int -> AddressPool t chain
+mkPool numAddrs i = mkAddressPool ourAccount defaultAddressPoolGap addrs
+  where
+    addrs =
+        [ Address (label "addr-" (show i ++ "-" ++ show j))
+        | j <- [1..numAddrs] ]
 
 ----------------------------------------------------------------------------
 -- Mock data to use for benchmarks
@@ -232,6 +285,10 @@ testWid = WalletId (hash ("test" :: ByteString))
 
 testPk :: PrimaryKey WalletId
 testPk = PrimaryKey testWid
+
+ourAccount :: Key 'AccountK XPub
+ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
+  where seed = Passphrase $ BA.convert $ BS.replicate 32 0
 
 -- | Make a prefixed bytestring for use as a Hash or Address.
 label :: Show n => B8.ByteString -> n -> B8.ByteString
