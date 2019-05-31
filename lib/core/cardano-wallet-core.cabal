@@ -129,6 +129,7 @@ test-suite unit
     , http-api-data
     , lens
     , memory
+    , persistent-sqlite
     , QuickCheck
     , quickcheck-instances
     , quickcheck-state-machine >= 0.6.0

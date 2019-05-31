@@ -144,11 +144,12 @@ enableForeignKeys :: Sqlite.Connection -> IO ()
 enableForeignKeys conn = stmt >>= void . Sqlite.step
     where stmt = Sqlite.prepare conn "PRAGMA foreign_keys = ON;"
 
-createSqliteBackend :: Maybe FilePath -> LogFunc -> IO SqlBackend
+createSqliteBackend :: Maybe FilePath -> LogFunc -> IO (Sqlite.Connection, SqlBackend)
 createSqliteBackend fp logFunc = do
     conn <- Sqlite.open (sqliteConnStr fp)
     enableForeignKeys conn
-    wrapConnection conn logFunc
+    backend <- wrapConnection conn logFunc
+    pure (conn, backend)
 
 sqliteConnStr :: Maybe FilePath -> Text
 sqliteConnStr = maybe ":memory:" T.pack
@@ -187,18 +188,19 @@ newDBLayer
     :: forall s t. (W.IsOurs s, NFData s, Show s, PersistState s, W.TxId t)
     => Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
-    -> IO (DBLayer IO s t)
+    -> IO (Sqlite.Connection, DBLayer IO s t)
 newDBLayer fp = do
     lock <- newMVar ()
     bigLock <- newMVar ()
-    conn <- createSqliteBackend fp (dbLogs [LevelError])
+
+    (conn, backend) <- createSqliteBackend fp (dbLogs [LevelError])
     let runQuery' :: SqlPersistM a -> IO a
-        runQuery' = withMVar bigLock . const . runQuery conn
+        runQuery' = withMVar bigLock . const . runQuery backend
 
     runQuery' $ void $ runMigrationSilent migrateAll
     runQuery' addIndexes
 
-    return $ DBLayer
+    return (conn, DBLayer
 
         {-----------------------------------------------------------------------
                                       Wallets
@@ -311,7 +313,7 @@ newDBLayer fp = do
 
         , withLock = \action ->
               ExceptT $ withMVar lock $ \() -> runExceptT action
-        }
+        })
 
 ----------------------------------------------------------------------------
 -- SQLite database setup
