@@ -97,6 +97,7 @@ TxMeta
 -- not the wallet. txInputTableTxId is referred to by TxMeta and PendingTx
 TxIn
     txInputTableTxId         TxId        sql=tx_id
+    txInputTableOrder        Int         sql=order
     txInputTableSourceTxId   TxId        sql=source_id
     txInputTableSourceIndex  Word32      sql=source_index
 
@@ -221,4 +222,4 @@ SeqStatePendingIx
     Primary seqStatePendingIxSeqStateId seqStatePendingIxIndex
     deriving Show Generic
 |]</span><span>
-</span><a name="line-224"></a></pre></body></html>
+</span><a name="line-225"></a></pre></body></html>

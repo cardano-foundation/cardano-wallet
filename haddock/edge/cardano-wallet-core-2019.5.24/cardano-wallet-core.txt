@@ -1428,6 +1428,9 @@ DBLayer :: (PrimaryKey WalletId -> Wallet s t -> WalletMetadata -> ExceptT ErrWa
 newtype PrimaryKey key
 PrimaryKey :: key -> PrimaryKey key
 
+-- | Clean a database by removing all wallets.
+cleanDB :: Monad m => DBLayer m s t -> m ()
+
 -- | Can't perform given operation because there's no wallet
 newtype ErrNoSuchWallet
 ErrNoSuchWallet :: WalletId -> ErrNoSuchWallet
@@ -1644,8 +1647,9 @@ TxMeta :: !TxId -> !WalletId -> !TxStatus -> !Direction -> !SlotId -> !Natural -
 [txMetaTableAmount] :: TxMeta -> !Natural
 type TxMetaId = Key TxMeta
 data TxIn
-TxIn :: !TxId -> !TxId -> !Word32 -> TxIn
+TxIn :: !TxId -> !Int -> !TxId -> !Word32 -> TxIn
 [txInputTableTxId] :: TxIn -> !TxId
+[txInputTableOrder] :: TxIn -> !Int
 [txInputTableSourceTxId] :: TxIn -> !TxId
 [txInputTableSourceIndex] :: TxIn -> !Word32
 type TxInId = Key TxIn
@@ -1956,6 +1960,12 @@ module Cardano.Wallet.DB.Sqlite
 --   If the given file path does not exist, it will be created by the
 --   sqlite library.
 newDBLayer :: forall s t. (IsOurs s, NFData s, Show s, PersistState s, TxId t) => Maybe FilePath -> IO (DBLayer IO s t)
+data DummyState
+DummyState :: DummyState
+instance GHC.Generics.Generic Cardano.Wallet.DB.Sqlite.DummyState
+instance GHC.Classes.Eq Cardano.Wallet.DB.Sqlite.DummyState
+instance GHC.Show.Show Cardano.Wallet.DB.Sqlite.DummyState
+instance Cardano.Wallet.DB.Sqlite.PersistState Cardano.Wallet.DB.Sqlite.DummyState
 instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t => Cardano.Wallet.DB.Sqlite.PersistState (Cardano.Wallet.Primitive.AddressDiscovery.SeqState t)
 
 
