@@ -1,5 +1,7 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.HttpBridge.NetworkSpec
     ( spec
@@ -10,7 +12,7 @@ import Prelude
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet.HttpBridge.Environment
-    ( Network (..), network )
+    ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Network
     ( ErrNetworkTip (..)
     , ErrNetworkUnreachable (..)
@@ -50,9 +52,7 @@ port = 1337
 
 spec :: Spec
 spec = do
-    describe "Happy paths"
-        $ requireTestnet
-        $ beforeAll startBridge $ afterAll closeBridge $ do
+    describe "Happy paths" $ beforeAll startBridge $ afterAll closeBridge $ do
         it "get from packed epochs" $ \(_, bridge) -> do
             let blocks = runExceptT $ nextBlocks bridge (SlotId 13 21599)
             (fmap length <$> blocks)
@@ -111,7 +111,6 @@ spec = do
             action `shouldReturn` ()
 
     describe "Submitting signed transactions"
-        $ requireTestnet
         $ beforeAll startBridge $ afterAll closeBridge $ do
         it "empty tx fails (1)" $ \(_, bridge) -> do
             let signed = (txEmpty, [])
@@ -170,13 +169,12 @@ spec = do
 
     txEmpty :: Tx
     txEmpty = Tx [] []
-
     networkTip' = withExceptT unwrap . networkTip
       where
         unwrap (ErrNetworkTipNetworkUnreachable e) = e
         unwrap ErrNetworkTipNotFound = ErrNetworkUnreachable "no tip"
     newNetworkLayer =
-        HttpBridge.newNetworkLayer port
+        HttpBridge.newNetworkLayer @'Testnet port
     closeBridge (handle, _) = do
         cancel handle
         threadDelay 1000000
@@ -185,7 +183,7 @@ spec = do
             [ Command "cardano-http-bridge"
                 [ "start"
                 , "--port", show port
-                , "--template", T.unpack (toText network)
+                , "--template", T.unpack (toText (networkVal @'Testnet))
                 ]
                 (return ())
                 Inherit
@@ -193,14 +191,3 @@ spec = do
         bridge <- newNetworkLayer
         threadDelay 1000000
         return (handle, bridge)
-
-requireTestnet :: Spec -> Spec
-requireTestnet prop = case network of
-    Testnet -> prop
-    Mainnet -> notDefinedFor network
-    Staging -> notDefinedFor network
-  where
-    notDefinedFor n =
-        it ("defined for NETWORK=testnet, not NETWORK=" ++ toStr n) False
-    toStr
-        = T.unpack . toText

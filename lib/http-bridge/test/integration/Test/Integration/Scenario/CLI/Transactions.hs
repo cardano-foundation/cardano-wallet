@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Test.Integration.Scenario.CLI.Transactions
@@ -10,10 +11,8 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiAddress, ApiTransaction, getApiT )
-import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge )
 import Cardano.Wallet.Primitive.Types
-    ( encodeAddress )
+    ( DecodeAddress (..), EncodeAddress (..) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Proxy
@@ -38,20 +37,19 @@ import Test.Integration.Framework.DSL
 
 import qualified Data.Text as T
 
-spec :: SpecWith Context
+spec :: forall t. (EncodeAddress t, DecodeAddress t) => SpecWith (Context t)
 spec = do
-
     it "CLI - Can create transaction" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
-        (_, addr:_) <- unsafeRequest @[ApiAddress HttpBridge] ctx (getAddresses wDest) Empty
+        (_, addr:_) <- unsafeRequest @[ApiAddress t] ctx (getAddresses wDest) Empty
         let addrStr =
-                encodeAddress (Proxy @HttpBridge) (getApiT $ fst $ addr ^. #id)
+                encodeAddress (Proxy @t) (getApiT $ fst $ addr ^. #id)
         let args = T.unpack <$>
                 [ wSrc ^. walletId
                 , "--payment", "14@" <> addrStr
                 ]
         (c, out, err) <- postTransactionViaCLI "cardano-wallet" args
         err `shouldBe` "Please enter a passphrase: **************\nOk.\n"
-        expectValidJSON (Proxy @(ApiTransaction HttpBridge)) out
+        expectValidJSON (Proxy @(ApiTransaction t)) out
         c `shouldBe` ExitSuccess

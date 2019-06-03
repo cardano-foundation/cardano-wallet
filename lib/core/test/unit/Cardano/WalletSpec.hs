@@ -339,7 +339,7 @@ setupFixture (wid, wname, wstate) = do
 -- | A dummy transaction layer to see the effect of a root private key. It
 -- implements a fake signer that still produces sort of witnesses
 dummyTransactionLayer :: TransactionLayer DummyTarget
-dummyTransactionLayer = TransactionLayer DummyTarget
+dummyTransactionLayer = TransactionLayer
     { mkStdTx = \keyFrom inps outs -> do
         let tx = Tx (fmap fst inps) outs
         wit <- forM inps $ \(_, TxOut addr _) -> do

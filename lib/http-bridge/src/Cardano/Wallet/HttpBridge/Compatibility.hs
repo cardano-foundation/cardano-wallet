@@ -81,7 +81,7 @@ instance TxId (HttpBridge network) where
 -- dubious CBOR serializations with no data attributes.
 instance KeyToAddress (HttpBridge 'Testnet) where
     keyToAddress = keyToAddressWith
-        $ attributesWithProtocolMagic (protocolMagic Testnet)
+        $ attributesWithProtocolMagic (protocolMagic @'Testnet)
 
 instance KeyToAddress (HttpBridge 'Staging) where
     keyToAddress = keyToAddressWith emptyAttributes
@@ -90,10 +90,9 @@ instance KeyToAddress (HttpBridge 'Mainnet) where
     keyToAddress = keyToAddressWith emptyAttributes
 
 keyToAddressWith :: CBOR.Encoding -> Key 'AddressK XPub -> Address
-keyToAddressWith attrs key =
-        Address
-            $ CBOR.toStrictByteString
-            $ CBOR.encodeAddress xpub attrs
+keyToAddressWith attrs key = Address
+    $ CBOR.toStrictByteString
+    $ CBOR.encodeAddress xpub attrs
   where
     xpub = getKey key
 
@@ -101,8 +100,7 @@ attributesWithProtocolMagic :: ProtocolMagic -> CBOR.Encoding
 attributesWithProtocolMagic pm = mempty
     <> CBOR.encodeMapLen 1
     <> CBOR.encodeWord 2
-    <> CBOR.encodeBytes
-        (CBOR.toStrictByteString $ encodeProtocolMagic pm)
+    <> CBOR.encodeBytes (CBOR.toStrictByteString $ encodeProtocolMagic pm)
 
 emptyAttributes :: CBOR.Encoding
 emptyAttributes = CBOR.encodeMapLen 0

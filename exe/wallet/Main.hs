@@ -50,7 +50,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.HttpBridge.Environment
-    ( Network (..), network )
+    ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..), KeyToAddress, Passphrase (..) )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -137,7 +137,7 @@ and can be run "offline". (e.g. 'generate mnemonic')
     ⚠️  Options are positional (--a --b is not equivalent to --b --a) ! ⚠️
 
 Usage:
-  cardano-wallet server [--port=INT] [--bridge-port=INT]
+  cardano-wallet server [--network=STRING] [--port=INT] [--bridge-port=INT]
   cardano-wallet mnemonic generate [--size=INT]
   cardano-wallet wallet list [--port=INT]
   cardano-wallet wallet create [--port=INT] <name> [--address-pool-gap=INT]
@@ -155,7 +155,7 @@ Options:
   --address-pool-gap <INT>    number of unused consecutive addresses to keep track of [default: 20]
   --size <INT>                number of mnemonic words to generate [default: 15]
   --payment <PAYMENT>         address to send to and amount to send separated by @: '<amount>@<address>'
-  --network <STRING>          testnet, staging, or mainnet
+  --network <STRING>          testnet, staging, or mainnet [default: testnet]
 
 Examples:
   # Create a transaction and send 22 lovelace from wallet-id to specified addres
@@ -182,7 +182,6 @@ exec' manager args = args `parseArg` longOption "network" >>= \case
     Testnet -> exec (execHttpBridge @'Testnet args) manager args
     Staging -> exec (execHttpBridge @'Staging args) manager args
     Mainnet -> exec (execHttpBridge @'Mainnet args) manager args
-
 
 exec
     :: forall t.
@@ -342,23 +341,23 @@ exec execServer manager args
                 putErrLn msg
 
 -- | Start a web-server to serve the wallet backend API on the given port.
-execHttpBridge :: forall n. (KeyToAddress (HttpBridge n)) => Arguments -> Proxy (HttpBridge n) -> IO ()
+execHttpBridge
+    :: forall n. (KeyToAddress (HttpBridge n), KnownNetwork n)
+    => Arguments -> Proxy (HttpBridge n) -> IO ()
 execHttpBridge args _ = do
     (walletPort :: Int)
         <- args `parseArg` longOption "port"
     (bridgePort :: Int)
         <- args `parseArg` longOption "bridge-port"
-    network `seq` return  () -- Force evaluation of ENV[network]
     db <- MVar.newDBLayer
-    nw <- HttpBridge.newNetworkLayer bridgePort
-    let tl = HttpBridge.newTransactionLayer
+    nw <- HttpBridge.newNetworkLayer @n bridgePort
+    let tl = HttpBridge.newTransactionLayer @n
     wallet <- newWalletLayer @_ @(HttpBridge n) db nw tl
-
     let settings = Warp.defaultSettings
-                        & Warp.setPort walletPort
-                        & Warp.setBeforeMainLoop (TIO.hPutStrLn stderr $
-                            "Wallet backend server listening on: " <> toText walletPort
-                        )
+            & Warp.setPort walletPort
+            & Warp.setBeforeMainLoop (TIO.hPutStrLn stderr $
+                "Wallet backend server listening on: " <> toText walletPort
+            )
     Server.start settings wallet
 
 -- | Generate a random mnemonic of the given size 'n' (n = number of words),

@@ -337,7 +337,7 @@ newWalletLayer
         , TxId t
         )
     => DBLayer IO s t
-    -> NetworkLayer IO
+    -> NetworkLayer t IO
     -> TransactionLayer t
     -> IO (WalletLayer s t)
 newWalletLayer db nw tl = do

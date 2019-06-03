@@ -1,4 +1,7 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 
 -- |
@@ -19,20 +22,14 @@ module Cardano.Wallet.HttpBridge.Environment
     (
     -- * Networking
       Network(..)
-    , network
-    , ProtocolMagic(..)
-    , protocolMagic
     , KnownNetwork (..)
+    , ProtocolMagic(..)
     ) where
 
 import Prelude
 
-import Cardano.Wallet.Environment
-    ( unsafeLookupEnv )
 import Data.Int
     ( Int32 )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import GHC.Generics
@@ -44,9 +41,25 @@ import qualified Data.Text as T
 data Network = Mainnet | Testnet | Staging
     deriving (Generic, Show, Eq, Enum)
 
+-- | Magic constant associated to a given network
+newtype ProtocolMagic = ProtocolMagic Int32
+    deriving (Generic, Show)
 
-class KnownNetwork n where
-    demoteNetwork :: Proxy n -> Network
+class KnownNetwork (n :: Network) where
+    networkVal :: Network
+    protocolMagic :: ProtocolMagic
+
+instance KnownNetwork 'Mainnet where
+    networkVal = Mainnet
+    protocolMagic = ProtocolMagic 764824073
+
+instance KnownNetwork 'Staging where
+    networkVal = Staging
+    protocolMagic = ProtocolMagic 633343913
+
+instance KnownNetwork 'Testnet where
+    networkVal = Testnet
+    protocolMagic = ProtocolMagic 1097911063
 
 instance FromText Network where
     fromText = \case
@@ -61,21 +74,3 @@ instance ToText Network where
         Mainnet -> "mainnet"
         Testnet -> "testnet"
         Staging -> "staging"
-
--- | Get the current target 'Network' from the Environment.
---
--- Throws a runtime exception is the ENV var isn't set or, is invalid.
-network :: Network
-network =
-    unsafeLookupEnv "NETWORK"
-{-# NOINLINE network #-}
-
-newtype ProtocolMagic = ProtocolMagic Int32
-    deriving (Generic, Show)
-
--- | Get the 'ProtocolMagic' corresponding to a given 'Network'.
-protocolMagic :: Network -> ProtocolMagic
-protocolMagic = \case
-    Mainnet -> ProtocolMagic 764824073
-    Staging -> ProtocolMagic 633343913
-    Testnet -> ProtocolMagic 1097911063

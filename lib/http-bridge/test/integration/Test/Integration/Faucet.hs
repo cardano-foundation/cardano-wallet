@@ -16,7 +16,7 @@ import Cardano.Wallet
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.HttpBridge.Environment
-    ( ProtocolMagic (..), network, protocolMagic )
+    ( KnownNetwork (..), Network (..), ProtocolMagic (..) )
 import Cardano.Wallet.Network
     ( NetworkLayer (postTx) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -80,7 +80,7 @@ nextWallet (Faucet mvar) = do
 
 -- | Initialize a bunch of faucet wallets and make them available for the
 -- integration tests scenarios.
-initFaucet :: NetworkLayer IO -> IO Faucet
+initFaucet :: NetworkLayer t IO -> IO Faucet
 initFaucet nl = do
     wallets <- replicateM 100 genMnemonic
     let outs = uncurry TxOut . (,Coin 100000000000) . firstAddress <$> wallets
@@ -101,7 +101,7 @@ initFaucet nl = do
             addrXPrv =
                 deriveAddressPrivateKey pwd accXPrv ExternalChain minBound
         in
-            keyToAddress @HttpBridge (publicKey addrXPrv)
+            keyToAddress @(HttpBridge 'Testnet) (publicKey addrXPrv)
 
 {-------------------------------------------------------------------------------
                                     Internal
@@ -126,7 +126,7 @@ mkRedeemTx outs =
     let
         (txin, _, xprv, pwd) = genesis
         tx = Tx [txin] outs
-        witness = mkWitness (txId @HttpBridge tx) (xprv, pwd)
+        witness = mkWitness (txId @(HttpBridge 'Testnet) tx) (xprv, pwd)
     in
         (tx, [witness])
   where
@@ -138,7 +138,7 @@ mkRedeemTx outs =
         PublicKeyWitness xpub sig
       where
         xpub = CC.unXPub $ CC.toXPub xprv
-        (ProtocolMagic pm) = protocolMagic network
+        (ProtocolMagic pm) = protocolMagic @'Testnet
         sig = Hash $ CC.unXSignature $ CC.sign pwd xprv $ mempty
             <> "\x01" -- Public Key Witness Tag
             <> CBOR.toStrictByteString (CBOR.encodeInt32 pm)

@@ -1,6 +1,9 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -14,10 +17,10 @@
 -- layer using the cardano-http-bridge as a chain producer.
 
 module Cardano.Wallet.HttpBridge.Network
-    ( HttpBridge(..)
+    ( HttpBridgeLayer(..)
     , mkNetworkLayer
     , newNetworkLayer
-    , mkHttpBridge
+    , mkHttpBridgeLayer
     ) where
 
 import Prelude
@@ -32,8 +35,10 @@ import Cardano.Wallet.HttpBridge.Api
     , PostSignedTx
     , api
     )
+import Cardano.Wallet.HttpBridge.Compatibility
+    ( HttpBridge )
 import Cardano.Wallet.HttpBridge.Environment
-    ( network )
+    ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Network
     ( ErrNetworkTip (..)
     , ErrNetworkUnreachable (..)
@@ -84,7 +89,7 @@ import qualified Data.Text.Encoding as T
 import qualified Servant.Extra.ContentTypes as Api
 
 -- | Constructs a network layer with the given cardano-http-bridge API.
-mkNetworkLayer :: Monad m => HttpBridge m -> NetworkLayer m
+mkNetworkLayer :: Monad m => HttpBridgeLayer m -> NetworkLayer t m
 mkNetworkLayer httpBridge = NetworkLayer
     { nextBlocks = rbNextBlocks httpBridge
     , networkTip = getNetworkTip httpBridge
@@ -94,8 +99,10 @@ mkNetworkLayer httpBridge = NetworkLayer
 -- | Creates a cardano-http-bridge 'NetworkLayer' using the given connection
 -- settings.
 newNetworkLayer
-    :: Int -> IO (NetworkLayer IO)
-newNetworkLayer port = mkNetworkLayer <$> newHttpBridge port
+    :: forall n. KnownNetwork (n :: Network)
+    => Int
+    -> IO (NetworkLayer (HttpBridge n) IO)
+newNetworkLayer port = mkNetworkLayer <$> newHttpBridgeLayer @n port
 
 -- | Retrieve a chunk of blocks from cardano-http-bridge.
 --
@@ -108,7 +115,7 @@ newNetworkLayer port = mkNetworkLayer <$> newHttpBridge port
 -- the chain through this method.
 rbNextBlocks
     :: Monad m
-    => HttpBridge m -- ^ http-bridge API
+    => HttpBridgeLayer m -- ^ http-bridge API
     -> SlotId -- ^ Starting point
     -> ExceptT ErrNetworkUnreachable m [Block]
 rbNextBlocks bridge start = maybeTip (getNetworkTip bridge) >>= \case
@@ -147,7 +154,7 @@ rbNextBlocks bridge start = maybeTip (getNetworkTip bridge) >>= \case
 -- Fetch blocks which are not in epoch pack files.
 fetchBlocksFromTip
     :: Monad m
-    => HttpBridge m
+    => HttpBridgeLayer m
     -> SlotId
     -> Hash "BlockHeader"
     -> ExceptT ErrNetworkUnreachable m [Block]
@@ -167,7 +174,7 @@ fetchBlocksFromTip bridge start tipHash =
 -------------------------------------------------------------------------------}
 
 -- | Endpoints of the cardano-http-bridge API.
-data HttpBridge m = HttpBridge
+data HttpBridgeLayer m = HttpBridgeLayer
     { getBlock
         :: Hash "BlockHeader" -> ExceptT ErrNetworkUnreachable m Block
     , getEpoch
@@ -188,9 +195,9 @@ data ErrUnexpectedNetworkFailure
 instance Exception ErrUnexpectedNetworkFailure
 
 -- | Construct a new network layer
-mkHttpBridge
-    :: Manager -> BaseUrl -> NetworkName -> HttpBridge IO
-mkHttpBridge mgr baseUrl networkName = HttpBridge
+mkHttpBridgeLayer
+    :: Manager -> BaseUrl -> NetworkName -> HttpBridgeLayer IO
+mkHttpBridgeLayer mgr baseUrl networkName = HttpBridgeLayer
     { getBlock = \hash -> ExceptT $ do
         hash' <- hashToApi' hash
         let ctx = safeLink api (Proxy @GetBlockByHash) networkName hash'
@@ -275,8 +282,8 @@ hashToApi' h = case hashToApi h of
     Nothing -> fail "hashToApi: Digest was of the wrong length"
 
 -- | Creates a cardano-http-bridge API with the given connection settings.
-newHttpBridge :: Int -> IO (HttpBridge IO)
-newHttpBridge port = do
+newHttpBridgeLayer :: forall n. KnownNetwork n => Int -> IO (HttpBridgeLayer IO)
+newHttpBridgeLayer port = do
     mgr <- newManager defaultManagerSettings
     let baseUrl = BaseUrl Http "localhost" port ""
-    pure $ mkHttpBridge mgr baseUrl (NetworkName $ toText network)
+    pure $ mkHttpBridgeLayer mgr baseUrl (NetworkName $ toText $ networkVal @n)

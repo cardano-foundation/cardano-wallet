@@ -43,7 +43,7 @@ import Test.Integration.Framework.TestData
 
 import qualified Data.Text as T
 
-spec :: SpecWith Context
+spec :: SpecWith (Context t)
 spec = do
     describe "CLI1 - Can create wallet with different mnemonic sizes" $ do
         forM_ ["15", "18", "21", "24"] $ \(size) -> it size $ \_ -> do
@@ -145,5 +145,5 @@ spec = do
         c `shouldBe` ExitSuccess
 
   where
-    emptyWallet' :: Context -> IO String
+    emptyWallet' :: Context t -> IO String
     emptyWallet' = fmap (T.unpack . view walletId) . emptyWallet

@@ -13,10 +13,8 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiTransaction, ApiWallet )
-import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge )
 import Cardano.Wallet.Primitive.Types
-    ( Direction (..), TxStatus (..) )
+    ( DecodeAddress (..), Direction (..), EncodeAddress (..), TxStatus (..) )
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
@@ -69,7 +67,7 @@ import Test.Integration.Framework.TestData
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: SpecWith Context
+spec :: forall t. (EncodeAddress t, DecodeAddress t) => SpecWith (Context t)
 spec = do
     it "TRANS_CREATE_01 - Single Output Transaction" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
@@ -89,7 +87,7 @@ spec = do
             }|]
         let (feeMin, feeMax) = (168609, 168785)
 
-        r <- request @(ApiTransaction HttpBridge) ctx (postTx wa) Default payload
+        r <- request @(ApiTransaction t) ctx (postTx wa) Default payload
         verify r
             [ expectSuccess
             , expectResponseCode HTTP.status202
@@ -145,7 +143,7 @@ spec = do
             }|]
         let (feeMin, feeMax) = (181487, 181839)
 
-        r <- request @(ApiTransaction HttpBridge) ctx (postTx wSrc) Default payload
+        r <- request @(ApiTransaction t) ctx (postTx wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
             , expectFieldBetween amount (feeMin + amt, feeMax + amt)
@@ -199,7 +197,7 @@ spec = do
             }|]
         let (feeMin, feeMax) = (181487, 181839)
 
-        r <- request @(ApiTransaction HttpBridge) ctx (postTx wSrc) Default payload
+        r <- request @(ApiTransaction t) ctx (postTx wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
             , expectFieldBetween amount (feeMin + amt, feeMax + amt)
@@ -251,7 +249,7 @@ spec = do
                 "passphrase": "Secure Passphrase"
             }|]
 
-        r <- request @(ApiTransaction HttpBridge) ctx (postTx wSrc) Default payload
+        r <- request @(ApiTransaction t) ctx (postTx wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
             , expectErrorMessage
@@ -276,7 +274,7 @@ spec = do
                 }],
                 "passphrase": "Secure Passphrase"
             }|]
-        r <- request @(ApiTransaction HttpBridge) ctx (postTx wSrc) Default payload
+        r <- request @(ApiTransaction t) ctx (postTx wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
             , expectFieldEqual amount 168434
@@ -318,7 +316,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        r <- request @(ApiTransaction HttpBridge) ctx (postTx wSrc) Default payload
+        r <- request @(ApiTransaction t) ctx (postTx wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
             , expectErrorMessage
@@ -344,7 +342,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        r <- request @(ApiTransaction HttpBridge) ctx (postTx wSrc) Default payload
+        r <- request @(ApiTransaction t) ctx (postTx wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
             , expectErrorMessage
@@ -370,7 +368,7 @@ spec = do
                 }],
                 "passphrase": "This password is wrong"
             }|]
-        r <- request @(ApiTransaction HttpBridge) ctx (postTx wSrc) Default payload
+        r <- request @(ApiTransaction t) ctx (postTx wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403WrongPass
@@ -402,7 +400,7 @@ spec = do
                     }],
                     "passphrase": "cardano-wallet"
                 }|]
-            r <- request @(ApiTransaction HttpBridge) ctx (postTx wSrc) Default payload
+            r <- request @(ApiTransaction t) ctx (postTx wSrc) Default payload
             verify r
                 [ expectResponseCode HTTP.status400
                 , expectErrorMessage errMsg
@@ -420,7 +418,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        r <- request @(ApiTransaction HttpBridge) ctx (postTx wSrc) Default payload
+        r <- request @(ApiTransaction t) ctx (postTx wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status400
             , expectErrorMessage "expected Text, encountered Array"
@@ -438,7 +436,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        r <- request @(ApiTransaction HttpBridge) ctx (postTx wSrc) Default payload
+        r <- request @(ApiTransaction t) ctx (postTx wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status400
             , expectErrorMessage "expected Text, encountered Num"
@@ -455,7 +453,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        r <- request @(ApiTransaction HttpBridge) ctx (postTx wSrc) Default payload
+        r <- request @(ApiTransaction t) ctx (postTx wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status400
             , expectErrorMessage "key 'address' not present"
@@ -555,7 +553,7 @@ spec = do
                     }],
                     "passphrase": "cardano-wallet"
                 }|]
-            r <- request @(ApiTransaction HttpBridge) ctx (postTx wSrc) Default payload
+            r <- request @(ApiTransaction t) ctx (postTx wSrc) Default payload
             verify r expectations
 
     describe "TRANS_CREATE_07 - False wallet ids" $ do
@@ -574,7 +572,7 @@ spec = do
                     "passphrase": "cardano-wallet"
                 }|]
             let endpoint = "v2/wallets/" <> walId <> "/transactions"
-            r <- request @(ApiTransaction HttpBridge) ctx ("POST", T.pack endpoint)
+            r <- request @(ApiTransaction t) ctx ("POST", T.pack endpoint)
                     Default payload
             expectResponseCode HTTP.status404 r
             if (title == "40 chars hex") then
@@ -600,7 +598,7 @@ spec = do
         let endpoint =
                 "v2/wallets" <> T.unpack (T.append (w ^. walletId) "0")
                 <> "/transactions"
-        r <- request @(ApiTransaction HttpBridge) ctx ("POST", T.pack endpoint)
+        r <- request @(ApiTransaction t) ctx ("POST", T.pack endpoint)
                 Default payload
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage errMsg404NoEndpoint r
@@ -621,7 +619,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        r <- request @(ApiTransaction HttpBridge) ctx (postTx w) Default payload
+        r <- request @(ApiTransaction t) ctx (postTx w) Default payload
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
@@ -643,7 +641,7 @@ spec = do
                     "passphrase": "cardano-wallet"
                 }|]
             let endpoint = "v2/wallets/" <> w ^. walletId <> "/transactions"
-            r <- request @(ApiTransaction HttpBridge) ctx (method, endpoint)
+            r <- request @(ApiTransaction t) ctx (method, endpoint)
                     Default payload
             expectResponseCode @IO HTTP.status405 r
             expectErrorMessage errMsg405 r
@@ -691,7 +689,7 @@ spec = do
                     }],
                     "passphrase": "cardano-wallet"
                 }|]
-            r <- request @(ApiTransaction HttpBridge) ctx (postTx w)
+            r <- request @(ApiTransaction t) ctx (postTx w)
                     headers payload
             verify r expectations
 
@@ -713,6 +711,6 @@ spec = do
         forM_ matrix $ \(name, nonJson) -> it name $ \ctx -> do
             w <- fixtureWallet ctx
             let payload = nonJson
-            r <- request @(ApiTransaction HttpBridge) ctx (postTx w)
+            r <- request @(ApiTransaction t) ctx (postTx w)
                     Default payload
             expectResponseCode @IO HTTP.status400 r
