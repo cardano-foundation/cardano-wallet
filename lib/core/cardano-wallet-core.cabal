@@ -193,6 +193,6 @@ benchmark db
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
-      bench/db
+      test/bench/db
   main-is:
       Main.hs
