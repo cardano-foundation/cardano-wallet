@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -74,7 +75,7 @@ import Cardano.Wallet.Primitive.Types
     , Tx (..)
     , TxId (..)
     , TxIn (..)
-    , TxMeta (TxMeta)
+    , TxMeta (..)
     , TxOut (..)
     , TxStatus (..)
     , UTxO (..)
@@ -90,14 +91,20 @@ import Control.DeepSeq
 import Control.Monad
     ( forM_, void )
 import Criterion.Main
+    ( Benchmark
+    , Benchmarkable
+    , bench
+    , bgroup
+    , defaultMain
+    , envWithCleanup
+    , perRunEnv
+    )
 import Crypto.Hash
     ( hash )
 import Data.ByteString
     ( ByteString )
-import qualified Data.ByteString.Char8 as B8
 import Data.List.Split
     ( chunksOf )
-import qualified Data.Map as Map
 import Data.Quantity
     ( Quantity (..) )
 import Data.Time.Clock.System
@@ -198,9 +205,14 @@ mkTxHistory :: Int -> Int -> Int -> [(Hash "Tx", (Tx, TxMeta))]
 mkTxHistory numTx numInputs numOutputs =
     [ ( Hash (label "tx-" i)
       , ( Tx (mkInputs numInputs) (mkOutputs numOutputs)
-        , TxMeta InLedger Incoming
-          (fromFlatSlot (fromIntegral i))
-          (Quantity (fromIntegral numOutputs))))
+        , TxMeta
+            { status = InLedger
+            , direction = Incoming
+            , slotId = fromFlatSlot (fromIntegral i)
+            , amount = Quantity (fromIntegral numOutputs)
+            }
+        )
+      )
     | i <- [1..numTx] ]
 
 mkInputs :: Int -> [TxIn]
@@ -266,10 +278,11 @@ testCp :: WalletBench
 testCp = initWallet initDummyState
 
 initDummyState :: SeqState DummyTarget
-initDummyState = mkSeqState (xprv, mempty) defaultAddressPoolGap
+initDummyState =
+    mkSeqState (xprv, mempty) defaultAddressPoolGap
   where
-      bytes = entropyToBytes <$> unsafePerformIO $ genEntropy @(EntropySize 15)
-      xprv = generateKeyFromSeed (Passphrase bytes, mempty) mempty
+    bytes = entropyToBytes <$> unsafePerformIO $ genEntropy @(EntropySize 15)
+    xprv = generateKeyFromSeed (Passphrase bytes, mempty) mempty
 
 testMetadata :: WalletMetadata
 testMetadata = WalletMetadata

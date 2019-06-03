@@ -31,8 +31,6 @@ import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Data.Map.Strict
     ( Map )
-import Control.Monad.Trans.Except
-    ( runExceptT )
 
 
 -- | A Database interface for storing various things in a DB. In practice,
