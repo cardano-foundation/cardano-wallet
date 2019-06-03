@@ -54,6 +54,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
+    , BlockId (..)
     , Direction (..)
     , Dom (..)
     , Hash (..)
@@ -235,7 +236,7 @@ unsafeInitWallet = Wallet
 -------------------------------------------------------------------------------}
 
 -- | Get the wallet current tip
-currentTip :: Wallet s t -> SlotId
+currentTip :: Wallet s t -> (SlotId, BlockId)
 currentTip (Wallet _ _ tip _) = tip
 
 -- | Get the wallet current state
