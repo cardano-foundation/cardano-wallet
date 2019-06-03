@@ -52,6 +52,10 @@ _items below are more-or-less prioritized_
 - Add time observations of various important actions. For example: node backend calls, database queries, wallet restore, block application.
 - Add space observations of important objects. For example: database size (records), UTxO distribution, number of addresses, number of transactions
 
+### Better Coin Selection
+
+The CS currently does this random + improvement procedure for all outputs, one output after the other. Instead, we could perform the random selection only for all outputs, *and then*, try to improve each output one after the other. This way, we can use our available inputs to cover requested outputs. And, once done, with the remaining available inputs, we try to improve each output one after the other. This should be much more resilient to multi-output transaction while still allowing a best-effort for cleaning up the UTxO as we make transactions. 
+
 ### Random Derivation Support
 
 - Finalize port of derivation for random addresses
