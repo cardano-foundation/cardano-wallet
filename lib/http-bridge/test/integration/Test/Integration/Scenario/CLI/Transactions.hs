@@ -39,7 +39,8 @@ import qualified Data.Text as T
 
 spec :: forall t. (EncodeAddress t, DecodeAddress t) => SpecWith (Context t)
 spec = do
-    it "CLI - Can create transaction" $ \ctx -> do
+
+    it "TRANS_CREATE_01 - Can create transaction" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
         (_, addr:_) <- unsafeRequest @[ApiAddress t] ctx (getAddresses wDest) Empty

@@ -45,7 +45,7 @@ import qualified Data.Text as T
 
 spec :: SpecWith (Context t)
 spec = do
-    describe "CLI1 - Can create wallet with different mnemonic sizes" $ do
+    describe "WALLETS_CREATE_05 - Can create wallet with different mnemonic sizes" $ do
         forM_ ["15", "18", "21", "24"] $ \(size) -> it size $ \_ -> do
             let walletName = "Wallet created via CLI"
             Stdout mnemonics <- generateMnemonicsViaCLI ["--size", size]
@@ -57,7 +57,20 @@ spec = do
             Stdout outList <- listWalletsViaCLI
             outList `shouldContain` walletName
 
-    describe "CLI1 - Can create wallet with different mnemonic snd factor sizes" $ do
+    describe "WALLETS_CREATE_05 - Can't create wallet with wrong size of mnemonic" $ do
+        forM_ ["9", "12"] $ \(size) -> it size $ \_ -> do
+            let walletName = "Wallet created via CLI"
+            Stdout mnemonics <- generateMnemonicsViaCLI ["--size", size]
+            Stdout mnemonics2 <- generateMnemonicsViaCLI ["--size", size]
+            let passphrase = "Secure passphrase"
+
+            c <- createWalletViaCLI [walletName] mnemonics mnemonics2 passphrase
+            c `shouldBe` (ExitFailure 1)
+
+            Stdout outList <- listWalletsViaCLI
+            outList `shouldNotContain` walletName
+
+    describe "WALLETS_CREATE_06 - Can create wallet with different mnemonic snd factor sizes" $ do
         forM_ ["9", "12"] $ \(size) -> it size $ \_ -> do
             let walletName = "Wallet created via CLI"
             Stdout mnemonics <- generateMnemonicsViaCLI []
@@ -70,20 +83,7 @@ spec = do
             Stdout outList <- listWalletsViaCLI
             outList `shouldContain` walletName
 
-    describe "CLI1 - Can't create wallet with wrong size of mnemonic" $ do
-        forM_ ["9", "12"] $ \(size) -> it size $ \_ -> do
-            let walletName = "Wallet created via CLI"
-            Stdout mnemonics <- generateMnemonicsViaCLI ["--size", size]
-            Stdout mnemonics2 <- generateMnemonicsViaCLI ["--size", size]
-            let passphrase = "Secure passphrase"
-
-            c <- createWalletViaCLI [walletName] mnemonics mnemonics2 passphrase
-            c `shouldBe` (ExitFailure 1)
-
-            Stdout outList <- listWalletsViaCLI
-            outList `shouldNotContain` walletName
-
-    describe "CLI1 - Can't create wallet with wrong size of mnemonic snd factor" $ do
+    describe "WALLETS_CREATE_06 - Can't create wallet with wrong size of mnemonic snd factor" $ do
         forM_ ["15", "18", "21", "24"] $ \(size) -> it size $ \_ -> do
             let walletName = "Wallet created via CLI"
             Stdout mnemonics <- generateMnemonicsViaCLI ["--size", size]
@@ -96,7 +96,7 @@ spec = do
             Stdout outList <- listWalletsViaCLI
             outList `shouldNotContain` walletName
 
-    it "CLI - Can get a wallet" $ \ctx -> do
+    it "WALLETS_GET_01 - Can get a wallet" $ \ctx -> do
         walId <- emptyWallet' ctx
         (Exit c, Stdout out, Stderr err) <- getWalletViaCLI walId
         err `shouldBe` "Ok.\n"
@@ -104,7 +104,7 @@ spec = do
         out `shouldContain` "Empty Wallet"
         c `shouldBe` ExitSuccess
 
-    describe "CLI - Cannot get wallets with false ids" $ do
+    describe "WALLETS_GET_03,04 - Cannot get wallets with false ids" $ do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \_ -> do
             (Exit c, Stdout out, Stderr err) <- getWalletViaCLI walId
             out `shouldBe` ""
@@ -120,7 +120,7 @@ spec = do
             else
                 c `shouldBe` ExitFailure 1
 
-    it "CLI - Can list wallets" $ \ctx -> do
+    it "WALLETS_LIST_01 - Can list wallets" $ \ctx -> do
         emptyWallet' ctx $> () <* emptyWallet' ctx
         (Exit c, Stdout out, Stderr err) <- listWalletsViaCLI
         err `shouldBe` "Ok.\n"
@@ -128,7 +128,7 @@ spec = do
         out `shouldContain` "Empty Wallet"
         c `shouldBe` ExitSuccess
 
-    it "CLI - Can update wallet name" $ \ctx -> do
+    it "WALLETS_UPDATE_01 - Can update wallet name" $ \ctx -> do
         walId <- emptyWallet' ctx
         let args = [walId, "--name", "new name"]
         (Exit c, Stdout out, Stderr err) <- updateWalletViaCLI args
@@ -137,7 +137,7 @@ spec = do
         out `shouldContain` "new name"
         c `shouldBe` ExitSuccess
 
-    it "CLI - Can delete wallet" $ \ctx -> do
+    it "WALLETS_DELETE_01 - Can delete wallet" $ \ctx -> do
         walId <- emptyWallet' ctx
         (Exit c, Stdout out, Stderr err) <- deleteWalletViaCLI walId
         err `shouldBe` "Ok.\n"

@@ -37,7 +37,8 @@ import qualified Data.Text as T
 
 spec :: forall t. (DecodeAddress t) => SpecWith (Context t)
 spec = do
-    it "CLI - Can list addresses" $ \ctx -> do
+
+    it "ADDRESS_LIST_01 - Can list addresses" $ \ctx -> do
         walId <- emptyWallet' ctx
         (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI walId
         err `shouldBe` "Ok.\n"
