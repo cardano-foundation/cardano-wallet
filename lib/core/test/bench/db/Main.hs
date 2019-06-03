@@ -124,14 +124,36 @@ main = defaultMain
     [ withDB $ \db -> bgroup "putTxHistory"
         [ bgroup "small transactions"
             [ bgroup "single call"
-                [ bench "1e2 x   1io"   $ withCleanDB db $ benchPutTxHistory 1   100 1 1
-                , bench "1e3 x   1io"   $ withCleanDB db $ benchPutTxHistory 1  1000 1 1
-                -- , bench "1e4"   $ withCleanDB db $ benchPutTxHistory 1 10000 1 1
+                [ bench "1e2 x 1io" $ withCleanDB db $ benchPutTxHistory $
+                    PutTxHistoryBench
+                        { _nBatches = 1
+                        , _batchSize = 100
+                        , _nOutputs = 1
+                        , _nInputs = 1
+                        }
+                , bench "1e3 x 1io" $ withCleanDB db $ benchPutTxHistory $
+                    PutTxHistoryBench
+                        { _nBatches = 1
+                        , _batchSize = 1000
+                        , _nOutputs = 1
+                        , _nInputs = 1
+                        }
                 ]
             , bgroup "batches of 10"
-                [ bench "1e2 x   1io"   $ withCleanDB db $ benchPutTxHistory   10 10 1 1
-                , bench "1e3 x   1io"   $ withCleanDB db $ benchPutTxHistory  100 10 1 1
-                -- , bench "1e3.6" $ withCleanDB db $ benchPutTxHistory  400 10 1 1
+                [ bench "1e2 x 1io" $ withCleanDB db $ benchPutTxHistory $
+                    PutTxHistoryBench
+                        { _nBatches = 10
+                        , _batchSize = 10
+                        , _nOutputs = 1
+                        , _nInputs = 1
+                        }
+                , bench "1e3 x 1io" $ withCleanDB db $ benchPutTxHistory $
+                    PutTxHistoryBench
+                        { _nBatches = 100
+                        , _batchSize = 10
+                        , _nOutputs = 1
+                        , _nInputs = 1
+                        }
                 ]
             ]
         , bgroup "large transactions"
@@ -140,12 +162,48 @@ main = defaultMain
             -- further than that.
             -- TODO: calculate/look up maximum number of transaction inputs/outputs
             [ bgroup "single call"
-                [ bench "1e2 x  10io" $ withCleanDB db $ benchPutTxHistory 1   100  10  10
-                , bench "1e3 x  10io" $ withCleanDB db $ benchPutTxHistory 1  1000  10  10
-                , bench "1e4 x  10io" $ withCleanDB db $ benchPutTxHistory 1 10000  10  10
-                , bench "1e2 x 100io" $ withCleanDB db $ benchPutTxHistory 1   100 100 100
-                , bench "1e3 x 100io" $ withCleanDB db $ benchPutTxHistory 1  1000 100 100
-                , bench "1e4 x 100io" $ withCleanDB db $ benchPutTxHistory 1 10000 100 100
+                [ bench "1e2 x 10io" $ withCleanDB db $ benchPutTxHistory $
+                    PutTxHistoryBench
+                        { _nBatches = 1
+                        , _batchSize = 100
+                        , _nOutputs = 10
+                        , _nInputs = 10
+                        }
+                , bench "1e3 x 10io" $ withCleanDB db $ benchPutTxHistory $
+                    PutTxHistoryBench
+                        { _nBatches = 1
+                        , _batchSize = 1000
+                        , _nOutputs = 10
+                        , _nInputs = 10
+                        }
+                , bench "1e4 x 10io" $ withCleanDB db $ benchPutTxHistory $
+                    PutTxHistoryBench
+                        { _nBatches = 1
+                        , _batchSize = 10000
+                        , _nOutputs = 10
+                        , _nInputs = 10
+                        }
+                , bench "1e2 x 100io" $ withCleanDB db $ benchPutTxHistory $
+                    PutTxHistoryBench
+                        { _nBatches = 1
+                        , _batchSize = 100
+                        , _nOutputs = 100
+                        , _nInputs = 100
+                        }
+                , bench "1e3 x 100io" $ withCleanDB db $ benchPutTxHistory $
+                    PutTxHistoryBench
+                        { _nBatches = 1
+                        , _batchSize = 1000
+                        , _nOutputs = 100
+                        , _nInputs = 100
+                        }
+                , bench "1e4 x 100io" $ withCleanDB db $ benchPutTxHistory $
+                    PutTxHistoryBench
+                        { _nBatches = 1
+                        , _batchSize = 10000
+                        , _nOutputs = 100
+                        , _nInputs = 100
+                        }
                 ]
             ]
         ]
@@ -157,7 +215,6 @@ main = defaultMain
             -- selection algorithm tries to prevent fragmentation
             [ bench "1e2 x   0utxo" $ withCleanDB db $ benchPutCheckpoint   100   0
             , bench "1e3 x   0utxo" $ withCleanDB db $ benchPutCheckpoint  1000   0
-            -- , bench "1e4" $ withCleanDB db $ benchPutCheckpoint 10000 0
             , bench "1e1 x   10utxo" $ withCleanDB db $ benchPutCheckpoint    10   10
             , bench "1e2 x   10utxo" $ withCleanDB db $ benchPutCheckpoint   100   10
             , bench "1e3 x   10utxo" $ withCleanDB db $ benchPutCheckpoint  1000   10
@@ -195,9 +252,20 @@ withCleanDB db = perRunEnv $ do
 ----------------------------------------------------------------------------
 -- TxHistory benchmarks
 
-benchPutTxHistory :: Int -> Int -> Int -> Int -> DBLayerBench -> IO ()
-benchPutTxHistory numBatches batchSize numInputs numOutputs db = do
-    let batches = mkTxHistory (numBatches*batchSize) numInputs numOutputs
+data PutTxHistoryBench = PutTxHistoryBench
+    { _nBatches :: Int
+        -- ^ Number of batches to insert
+    , _batchSize :: Int
+        -- ^ Number of transaction in each batch
+    , _nInputs :: Int
+        -- ^ Number of inputs for each transaction
+    , _nOutputs :: Int
+        -- ^ Number of outputs for each transaction
+    }
+
+benchPutTxHistory :: PutTxHistoryBench -> DBLayerBench -> IO ()
+benchPutTxHistory (PutTxHistoryBench nBatch batchSize nOuts nInps) db = do
+    let batches = mkTxHistory (nBatch*batchSize) nInps nOuts
     unsafeRunExceptT $ forM_ (chunksOf batchSize batches) $ \txs -> do
         putTxHistory db testPk (Map.fromList txs)
 
