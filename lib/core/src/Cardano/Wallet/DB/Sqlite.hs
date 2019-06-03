@@ -647,15 +647,19 @@ selectLatestCheckpoint wid = fmap entityVal <$>
 selectUTxO
     :: Checkpoint
     -> SqlPersistM [UTxO]
-selectUTxO (Checkpoint wid sl) = fmap entityVal <$>
-    selectList [UtxoTableWalletId ==. wid, UtxoTableCheckpointSlot ==. sl] []
+selectUTxO (Checkpoint wid sl bl) = fmap entityVal <$>
+    selectList [ UtxoTableWalletId ==. wid
+               , UtxoTableCheckpointSlot ==. sl
+               , UtxoTableCheckpointBlock ==. bl
+               ] []
 
 selectPending
     :: Checkpoint
     -> SqlPersistM [TxId]
-selectPending (Checkpoint wid sl) = fmap (pendingTxTableId2 . entityVal) <$>
+selectPending (Checkpoint wid sl bl) = fmap (pendingTxTableId2 . entityVal) <$>
     selectList [ PendingTxTableWalletId ==. wid
-               , PendingTxTableCheckpointSlot ==. sl ] []
+               , PendingTxTableCheckpointSlot ==. sl
+               , PendingTxTableCheckpointBlock ==. sl ] []
 
 selectTxs
     :: [TxId]
@@ -688,9 +692,9 @@ checkpointId cp = (checkpointTableWalletId cp, checkpointTableSlot cp)
 -- SQLite.
 class PersistState s where
     -- | Store the state for a checkpoint.
-    insertState :: (W.WalletId, W.SlotId) -> s -> SqlPersistM ()
+    insertState :: (W.WalletId, W.SlotId, W.BlockId) -> s -> SqlPersistM ()
     -- | Load the state for a checkpoint.
-    selectState :: (W.WalletId, W.SlotId) -> SqlPersistM (Maybe s)
+    selectState :: (W.WalletId, W.SlotId, W.BlockId) -> SqlPersistM (Maybe s)
     -- | Remove the state for all checkpoints of a wallet.
     deleteState :: W.WalletId -> SqlPersistM ()
 

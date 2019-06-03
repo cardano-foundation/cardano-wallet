@@ -176,6 +176,7 @@ SeqState
     -- The wallet checkpoint (wallet_id, slot)
     seqStateTableWalletId        W.WalletId  sql=wallet_id
     seqStateTableCheckpointSlot  W.SlotId    sql=slot
+    seqStateTableCheckpointBlock  W.BlockId sql=slot
 
     UniqueSeqState seqStateTableWalletId seqStateTableCheckpointSlot
     Foreign Checkpoint fk_checkpoint_seq_state seqStateTableWalletId seqStateTableCheckpointSlot

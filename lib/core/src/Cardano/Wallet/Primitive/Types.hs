@@ -30,6 +30,7 @@ module Cardano.Wallet.Primitive.Types
     -- * Block
       Block(..)
     , BlockHeader(..)
+    , BlockId (..)
 
     -- * Tx
     , Tx(..)
@@ -714,6 +715,10 @@ fromFlatSlot n = SlotId e (fromIntegral s)
 epochLength :: Integral a => a
 epochLength = 21600
 
+
+newtype BlockId = BlockId { getBlockId :: Hash "BlockHeader" }
+    deriving (Show, Eq)
+
 {-------------------------------------------------------------------------------
                                Polymorphic Types
 -------------------------------------------------------------------------------}
@@ -759,6 +764,19 @@ instance FromText (Hash "Tx") where
                     \expected Base16 encoding"
 
 instance ToText (Hash "Tx") where
+    toText = T.decodeUtf8 . convertToBase Base16 . getHash
+
+
+instance FromText (Hash "BlockHeader") where
+    fromText x = either
+        (const $ Left $ TextDecodingError err)
+        (pure . Hash)
+        (convertFromBase Base16 $ T.encodeUtf8 x)
+      where
+        err = "Unable to decode (Hash \"BlockHeader\"): \
+                    \expected Base16 encoding"
+
+instance ToText (Hash "BlockHeader") where
     toText = T.decodeUtf8 . convertToBase Base16 . getHash
 
 -- | A polymorphic wrapper type with a custom show instance to display data

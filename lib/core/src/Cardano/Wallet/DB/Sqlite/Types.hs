@@ -28,6 +28,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap (..), getAddressPoolGap, mkAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , BlockId (..)
     , Coin (..)
     , Direction (..)
     , Hash (..)
@@ -201,6 +202,38 @@ instance ToJSON SlotId where
 
 instance FromJSON SlotId where
     parseJSON = genericParseJSON defaultOptions
+
+
+----------------------------------------------------------------------------
+-- BlockId
+
+instance PersistField BlockId where
+    toPersistValue = toPersistValue . toText . getBlockId
+    fromPersistValue = fmap BlockId <$> fromPersistValueFromText
+
+instance PersistFieldSql BlockId where
+    sqlType _ = sqlType (Proxy @Text)
+
+instance Read BlockId where
+    readsPrec _ = error "readsPrec stub needed for persistent"
+
+instance ToJSON BlockId where
+    toJSON = String . toText . getBlockId
+
+instance FromJSON BlockId where
+    parseJSON = fmap BlockId . aesonFromText "WalletId"
+
+instance ToHttpApiData BlockId where
+    toUrlPiece = toText . getBlockId
+
+instance FromHttpApiData BlockId where
+    parseUrlPiece = fmap BlockId . fromText'
+
+instance PathPiece BlockId where
+    toPathPiece = toText . getBlockId
+    fromPathPiece = fmap BlockId . fromTextMaybe
+
+----------------------------------------------------------------------------
 
 ----------------------------------------------------------------------------
 -- WalletState
