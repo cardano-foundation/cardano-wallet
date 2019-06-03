@@ -1,4 +1,8 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -12,6 +16,7 @@
 module Cardano.Wallet.Jormungandr.Compatibility
     ( -- * Target
       Jormungandr
+    , Network (..)
     ) where
 
 import Prelude
@@ -19,7 +24,7 @@ import Prelude
 import Cardano.Wallet.Jormungandr.Binary
     ( decodeLegacyAddress )
 import Cardano.Wallet.Jormungandr.Environment
-    ( grouped, hrp, network, single )
+    ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..) )
 import Cardano.Wallet.Primitive.Types
@@ -44,12 +49,12 @@ import qualified Data.Text.Encoding as T
 
 -- | A type representing the Jormungandr as a network target. This has an
 -- influence on binary serializer & network primitives. See also 'TxId'
-data Jormungandr
+data Jormungandr (network :: Network)
 
-instance TxId Jormungandr where
+instance TxId (Jormungandr n) where
     txId = undefined
 
-instance KeyToAddress Jormungandr where
+instance KeyToAddress (Jormungandr n) where
     keyToAddress = undefined
 
 -- | Encode an 'Address' to a human-readable format. This produces two kinds of
@@ -62,12 +67,12 @@ instance KeyToAddress Jormungandr where
 --
 -- The right encoding is picked by looking at the raw 'Address' representation
 -- in order to figure out to which class the address belongs.
-instance EncodeAddress Jormungandr where
+instance KnownNetwork n => EncodeAddress (Jormungandr n) where
     encodeAddress _ (Address bytes) = do
         if isJust (decodeLegacyAddress bytes) then base58 else bech32
       where
         base58 = T.decodeUtf8 $ encodeBase58 bitcoinAlphabet bytes
-        bech32 = Bech32.encodeLenient hrp (dataPartFromBytes bytes)
+        bech32 = Bech32.encodeLenient (hrp @n) (dataPartFromBytes bytes)
 
 -- | Decode text string into an 'Address'. Jörmungandr recognizes two kind of
 -- addresses:
@@ -76,7 +81,7 @@ instance EncodeAddress Jormungandr where
 -- - Shelley addresses, encoded as `Bech32`
 --
 -- See also 'EncodeAddress Jormungandr'
-instance DecodeAddress Jormungandr where
+instance KnownNetwork n => DecodeAddress (Jormungandr n) where
     decodeAddress _ x =
         case (tryBech32, tryBase58) of
             (Just bytes, _) -> bech32 bytes
@@ -109,16 +114,16 @@ instance DecodeAddress Jormungandr where
             :: (HumanReadablePart, ByteString)
             -> Either TextDecodingError Address
         bech32 (hrp', bytes) = do
-            when (hrp /= hrp') $ Left $ TextDecodingError $
+            when (hrp @n /= hrp') $ Left $ TextDecodingError $
                 "This address belongs to another network. Network is: "
-                <> show network <> "."
+                <> show (networkVal @n) <> "."
             case BS.length bytes of
                 n | n == singleAddressLength ->
-                    when (BS.take 1 bytes /= BS.pack [single]) $
-                        Left (invalidFirstByte single)
+                    when (BS.take 1 bytes /= BS.pack [single @n]) $
+                        Left (invalidFirstByte (single @n))
                 n | n == groupedAddressLength ->
-                    when (BS.take 1 bytes /= BS.pack [grouped]) $
-                        Left (invalidFirstByte grouped)
+                    when (BS.take 1 bytes /= BS.pack [grouped @n]) $
+                        Left (invalidFirstByte (grouped @n))
                 _ ->
                     Left $ TextDecodingError $
                         "Invalid address length (" <> show (BS.length bytes)

@@ -1,4 +1,7 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 
 -- |
@@ -18,21 +21,16 @@
 module Cardano.Wallet.Jormungandr.Environment
     (
     -- * Networking
-      Network(..)
-    , network
-
-    -- * Address Discrimination
-    , hrp
-    , single
-    , grouped
+      Network (..)
+    , KnownNetwork (..)
     ) where
 
 import Prelude
 
-import Cardano.Wallet.Environment
-    ( unsafeLookupEnv )
 import Codec.Binary.Bech32
     ( HumanReadablePart, humanReadablePartFromText )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Word
@@ -46,6 +44,22 @@ import qualified Data.Text as T
 data Network = Mainnet | Testnet
     deriving (Generic, Show, Eq, Enum)
 
+-- | Embed some constants into a network type.
+class KnownNetwork (n :: Network) where
+    networkVal :: Network
+    hrp :: HumanReadablePart
+        -- ^ Address discrimination Human-Readable Part (HRP).
+        --
+        -- - "ca" for 'Mainnet'
+        -- - "ta" for 'Testnet'
+    single :: Word8
+        -- ^ Address discriminant byte for single addresses, this is the first byte of
+        -- every addresses using the Shelley format carrying only a spending key.
+    grouped :: Word8
+        -- ^ Address discriminant byte for grouped addresses, this is the first byte of
+        -- every addresses using the Shelley format carrying both a spending and a
+        -- delegation key.
+
 instance FromText Network where
     fromText = \case
         "mainnet" -> Right Mainnet
@@ -58,38 +72,20 @@ instance ToText Network where
         Mainnet -> "mainnet"
         Testnet -> "testnet"
 
--- | Get the current target 'Network' from the Environment.
---
--- Throws a runtime exception is the ENV var isn't set or, is invalid.
-network :: Network
-network =
-    unsafeLookupEnv "NETWORK"
-{-# NOINLINE network #-}
+instance KnownNetwork 'Mainnet where
+    networkVal = Mainnet
+    hrp = unsafeHumanReadablePart "ca"
+    single = 0x03
+    grouped = 0x04
 
--- | Address discrimination Human-Readable Part (HRP).
---
--- - "ca" for 'Mainnet'
--- - "ta" for 'Testnet'
-hrp :: HumanReadablePart
-hrp = case network of
-    Mainnet -> unsafeHumanReadablePart "ca"
-    Testnet -> unsafeHumanReadablePart "ta"
+instance KnownNetwork 'Testnet where
+    networkVal = Testnet
+    hrp = unsafeHumanReadablePart "ta"
+    single = 0x83
+    grouped = 0x84
+
+unsafeHumanReadablePart :: Text -> HumanReadablePart
+unsafeHumanReadablePart = either errUnsafe id . humanReadablePartFromText
   where
-    unsafeHumanReadablePart = either errUnsafe id . humanReadablePartFromText
     errUnsafe _ =
         error "Programmers hard-coded an invalid bech32 human-readable part?"
-
--- | Address discriminant byte for single addresses, this is the first byte of
--- every addresses using the Shelley format carrying only a spending key.
-single :: Word8
-single = case network of
-    Mainnet -> 0x03
-    Testnet -> 0x83
-
--- | Address discriminant byte for grouped addresses, this is the first byte of
--- every addresses using the Shelley format carrying both a spending and a
--- delegation key.
-grouped :: Word8
-grouped = case network of
-    Mainnet -> 0x04
-    Testnet -> 0x84
