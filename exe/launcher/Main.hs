@@ -6,7 +6,7 @@ module Main where
 import Prelude
 
 import Cardano.CLI
-    ( Port, help, parseArgWith )
+    ( Port, help, parseArgWith, showVersion )
 import Cardano.Launcher
     ( Command (Command)
     , ProcessHasExited (ProcessHasExited)
@@ -59,6 +59,7 @@ in the directory.
 Usage:
   cardano-wallet-launcher [options]
   cardano-wallet-launcher -h | --help
+  cardano-wallet-launcher --version
 
 Options:
   --network <STRING>           testnet, staging, or mainnet [default: testnet]
@@ -71,6 +72,7 @@ main = do
     args <- parseArgsOrExit cli =<< getArgs
     when (args `isPresent` (longOption "help")) $ help cli
     when (args `isPresent` (shortOption 'h')) $ help cli
+    when (args `isPresent` (longOption "version")) showVersion
 
     network <- args `parseArg` longOption "network"
     bridgePort <- args `parseArg` longOption "http-bridge-port"

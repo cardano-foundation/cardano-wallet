@@ -31,8 +31,14 @@ version = "2019.5.24"
 
 spec :: SpecWith ()
 spec = do
-    it "CLI_VERSION - Shows version" $  do
+    it "CLI_VERSION - cardano-wallet shows version" $  do
         (Exit c, Stdout out) <- cardanoWalletCLI ["--version"]
+        let v = T.dropWhileEnd (== '\n') (T.pack out)
+        v `shouldBe` version
+        c `shouldBe` ExitSuccess
+
+    it "CLI_VERSION - cardano-wallet-launcher shows version" $  do
+        (Exit c, Stdout out) <- cardanoWalletLauncherCLI ["--version"]
         let v = T.dropWhileEnd (== '\n') (T.pack out)
         v `shouldBe` version
         c `shouldBe` ExitSuccess

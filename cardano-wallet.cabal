@@ -38,9 +38,7 @@ executable cardano-wallet
     , cardano-wallet-core
     , cardano-wallet-http-bridge
     , docopt
-    , file-embed
     , http-client
-    , regex-applicative
     , servant-client
     , servant-client-core
     , servant-server

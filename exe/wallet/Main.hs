@@ -6,7 +6,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -35,6 +34,7 @@ import Cardano.CLI
     , parseArgWith
     , putErrLn
     , setUtf8Encoding
+    , showVersion
     )
 import Cardano.Wallet
     ( newWalletLayer )
@@ -67,8 +67,6 @@ import Control.Monad
     ( when )
 import Data.Aeson
     ( (.:) )
-import Data.FileEmbed
-    ( embedFile )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -109,8 +107,6 @@ import System.Exit
     ( exitFailure )
 import System.IO
     ( BufferMode (NoBuffering), hSetBuffering, stderr, stdout )
-import Text.Regex.Applicative
-    ( anySym, few, match, string, sym )
 
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.MVar as MVar
@@ -119,7 +115,6 @@ import qualified Cardano.Wallet.HttpBridge.Transaction as HttpBridge
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.Aeson.Types as Aeson
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text as T
@@ -267,17 +262,7 @@ exec execServer manager args
         wId <- args `parseArg` argument "wallet-id"
         runClient Aeson.encodePretty $ listAddresses (ApiT wId) Nothing
 
-    | args `isPresent` longOption "version" = do
-        let cabal = B8.unpack $(embedFile "cardano-wallet.cabal")
-        let re = few anySym
-                *> string "version:" *> many (sym ' ') *> few anySym
-                <* sym '\n' <* many anySym
-        case match re cabal of
-            Nothing -> do
-                putErrLn "Couldn't find program version!"
-                exitFailure
-            Just version -> do
-                TIO.putStrLn $ T.pack version
+    | args `isPresent` longOption "version" = showVersion
 
     | otherwise =
         exitWithUsage cli
