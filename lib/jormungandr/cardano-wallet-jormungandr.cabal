@@ -103,7 +103,6 @@ test-suite integration
   build-depends:
       async
     , base
-    , cardano-wallet-jormungandr
     , cardano-wallet-launcher
     , hspec
   type:
