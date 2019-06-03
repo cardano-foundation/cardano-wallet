@@ -89,25 +89,16 @@ jobs:
 
   - stage: checks 🔬
     if: type = pull_request OR (branch IN (bors/staging, bors/trying))
-    name: "Tests: http-bridge (mainnet)"
+    name: "Tests: http-bridge"
     script:
-    - export NETWORK=mainnet
-    - stack --no-terminal test cardano-wallet-http-bridge:unit --fast
-
-  - stage: checks 🔬
-    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
-    name: "Tests: http-bridge (testnet)"
-    script:
-    - export NETWORK=testnet
     - travis_retry curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-http-bridge/hermes-testnet.tar.gz
     - tar xzf hermes-testnet.tar.gz -C $HOME
     - stack --no-terminal test cardano-wallet-core cardano-wallet-launcher cardano-wallet-cli text-class bech32 cardano-wallet-http-bridge --fast
 
   - stage: checks 🔬
     if: type = pull_request OR (branch IN (bors/staging, bors/trying))
-    name: "Tests: jormungandr (testnet)"
+    name: "Tests: jormungandr"
     script:
-    - export NETWORK=testnet
     - stack --no-terminal test cardano-wallet-jormungandr --fast
 
   ################################################################################
@@ -180,7 +171,6 @@ jobs:
     if: (type != pull_request AND branch = master) OR (tag =~ ^v)
     name: "Tests"
     script:
-    - export NETWORK=testnet
     - travis_retry curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-http-bridge/hermes-testnet.tar.gz
     - tar xzf hermes-testnet.tar.gz -C $HOME
     - stack --no-terminal test --coverage
