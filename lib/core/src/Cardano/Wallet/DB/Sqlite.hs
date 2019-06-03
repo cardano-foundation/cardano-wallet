@@ -6,6 +6,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -85,10 +86,13 @@ import Data.Text
     ( Text )
 import Data.Typeable
     ( Typeable )
+import Database.Persist.Class
+    ( PersistField, PersistRecordBackend )
 import Database.Persist.Sql
     ( Entity (..)
     , LogFunc
     , SelectOpt (..)
+    , Filter
     , Update (..)
     , deleteCascadeWhere
     , deleteWhere
@@ -184,7 +188,8 @@ newDBLayer fp = do
     lock <- newMVar ()
     bigLock <- newMVar ()
     conn <- createSqliteBackend fp (dbLogs [LevelError])
-    let runQuery' = withMVar bigLock . const . runQuery conn
+    let runQuery' :: SqlPersistM a -> IO a
+        runQuery' = withMVar bigLock . const . runQuery conn
 
     runQuery' $ void $ runMigrationSilent migrateAll
     runQuery' addIndexes
@@ -545,17 +550,16 @@ putTxMetas
     -> [TxMeta]
     -> SqlPersistM ()
 putTxMetas wid metas = do
-    deleteWhere
-        [ TxMetaTableWalletId ==. wid
-        , TxMetaTableTxId <-. map txMetaTableTxId metas ]
+    let txids = map txMetaTableTxId metas
+    deleteMany [ TxMetaTableWalletId ==. wid ] TxMetaTableTxId txids
     insertMany_ metas
 
 -- | Insert multiple transactions, removing old instances first.
 putTxs :: [TxId] -> [TxIn] -> [TxOut] -> SqlPersistM ()
 putTxs txIds txins txouts = do
-    deleteWhere [TxInputTableTxId <-. txIds]
+    deleteMany [] TxInputTableTxId txIds
     putMany txins
-    deleteWhere [TxOutputTableTxId <-. txIds]
+    deleteMany [] TxOutputTableTxId txIds
     putMany txouts
 
 -- | Delete transactions that aren't referred to by either Pending or TxMeta of
@@ -568,6 +572,25 @@ deleteLooseTransactions = do
                 , TxInputTableTxId /<-. metaTxId ]
     deleteWhere [ TxOutputTableTxId /<-. pendingTxId
                 , TxOutputTableTxId /<-. metaTxId ]
+
+deleteMany
+    ::forall typ record. (PersistField typ, PersistRecordBackend record SqlBackend)
+    => [Filter record]
+    -> EntityField record typ
+    -> [typ]
+    -> SqlPersistM ()
+deleteMany filters entity types
+    -- SQLite max limit is at 999 variables. We may have other variables so,
+    -- we arbitrarily pick 500 which is way below 999. This should prevent the
+    -- infamous: too many SQL variables
+    | length types < sz =
+        deleteWhere ((entity <-. types):filters)
+    | otherwise = do
+        deleteWhere ((entity <-. take sz types):filters)
+        deleteMany filters entity (drop sz types)
+  where
+    sz = 500
+
 
 selectLatestCheckpoint
     :: W.WalletId
