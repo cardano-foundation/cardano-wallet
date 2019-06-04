@@ -702,7 +702,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
 
         extract :: Set MWid -> Maybe Tag
         extract created
-            | Set.size created >= 3 = Just CreateWalletTwice
+            | Set.size created >= 3 = Just CreateThreeWallets
             | otherwise = Nothing
 
     createWalletTwice :: Fold (Event Symbolic) (Maybe Tag)
