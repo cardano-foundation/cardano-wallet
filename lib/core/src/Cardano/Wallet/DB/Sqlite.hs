@@ -2,10 +2,13 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -34,6 +37,7 @@ import Cardano.Wallet.DB.Sqlite.TH
     , AddressPoolIndex (..)
     , Checkpoint (..)
     , EntityField (..)
+    , Key (..)
     , PendingTx (..)
     , PrivateKey (..)
     , SeqState (..)
@@ -79,14 +83,19 @@ import Data.Either
     ( isRight )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.List.Split
+    ( chunksOf )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Typeable
     ( Typeable )
+import Database.Persist.Class
+    ( DeleteCascade, PersistField, PersistRecordBackend )
 import Database.Persist.Sql
     ( Entity (..)
+    , Filter
     , LogFunc
     , SelectOpt (..)
     , Update (..)
@@ -95,15 +104,14 @@ import Database.Persist.Sql
     , insert
     , insertMany_
     , insert_
-    , putMany
     , rawExecute
+    , repsertMany
     , runMigrationSilent
     , runSqlConn
     , selectFirst
     , selectKeysList
     , selectList
     , updateWhere
-    , (/<-.)
     , (<-.)
     , (=.)
     , (==.)
@@ -184,7 +192,8 @@ newDBLayer fp = do
     lock <- newMVar ()
     bigLock <- newMVar ()
     conn <- createSqliteBackend fp (dbLogs [LevelError])
-    let runQuery' = withMVar bigLock . const . runQuery conn
+    let runQuery' :: SqlPersistM a -> IO a
+        runQuery' = withMVar bigLock . const . runQuery conn
 
     runQuery' $ void $ runMigrationSilent migrateAll
     runQuery' addIndexes
@@ -269,8 +278,8 @@ newDBLayer fp = do
               selectWallet wid >>= \case
                   Just _ -> do
                       let (metas, txins, txouts) = mkTxHistory wid txs
-                      putTxMetas wid metas
-                      putTxs (TxId <$> Map.keys txs) txins txouts
+                      putTxMetas metas
+                      putTxs txins txouts
                       pure $ Right ()
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
@@ -516,10 +525,10 @@ insertCheckpoint
 insertCheckpoint wid cp = do
     let (cp', utxo, pendings, ins, outs) = mkCheckpointEntity wid cp
     insert_ cp'
-    insertMany_ ins
-    insertMany_ outs
-    insertMany_ pendings
-    insertMany_ utxo
+    dbChunked insertMany_ ins
+    dbChunked insertMany_ outs
+    dbChunked insertMany_ pendings
+    dbChunked insertMany_ utxo
     insertState (wid, W.currentTip cp) (W.getState cp)
 
 -- | Delete all checkpoints associated with a wallet.
@@ -540,34 +549,93 @@ deleteTxMetas
 deleteTxMetas wid = deleteWhere [ TxMetaTableWalletId ==. wid ]
 
 -- | Add new TxMeta rows, overwriting existing ones.
-putTxMetas
-    :: W.WalletId
-    -> [TxMeta]
-    -> SqlPersistM ()
-putTxMetas wid metas = do
-    deleteWhere
-        [ TxMetaTableWalletId ==. wid
-        , TxMetaTableTxId <-. map txMetaTableTxId metas ]
-    insertMany_ metas
+putTxMetas :: [TxMeta] -> SqlPersistM ()
+putTxMetas metas = dbChunked repsertMany
+    [(TxMetaKey txMetaTableTxId txMetaTableWalletId, m) | m@TxMeta{..} <- metas]
 
 -- | Insert multiple transactions, removing old instances first.
-putTxs :: [TxId] -> [TxIn] -> [TxOut] -> SqlPersistM ()
-putTxs txIds txins txouts = do
-    deleteWhere [TxInputTableTxId <-. txIds]
-    putMany txins
-    deleteWhere [TxOutputTableTxId <-. txIds]
-    putMany txouts
+putTxs :: [TxIn] -> [TxOut] -> SqlPersistM ()
+putTxs txins txouts = do
+    dbChunked repsertMany
+        [ (TxInKey txInputTableTxId txInputTableSourceTxId txInputTableSourceIndex, i)
+        | i@TxIn{..} <- txins ]
+    dbChunked repsertMany
+        [ (TxOutKey txOutputTableTxId txOutputTableIndex, o)
+        | o@TxOut{..} <- txouts ]
+
+-- | Convert a single DB "updateMany" (or similar) query into multiple
+-- updateMany queries with smaller lists of values.
+--
+-- This is to prevent too many variables appearing in the SQL statement.
+-- SQLITE_MAX_VARIABLE_NUMBER is 999 by default, and we will get a
+-- "too many SQL variables" exception if that is exceeded.
+--
+-- We choose a conservative value 'chunkSize' << 999 because there can be
+-- multiple variables per row updated.
+dbChunked :: ([a] -> SqlPersistM b) -> [a] -> SqlPersistM ()
+dbChunked = chunkedM chunkSize
+
+-- | Given an action which takes a list of items, and a list of items, run that
+-- action multiple times with the input list cut into chunks.
+chunkedM
+    :: Monad m
+    => Int -- ^ Chunk size
+    -> ([a] -> m b) -- ^ Action to run on values
+    -> [a] -- ^ The values
+    -> m ()
+chunkedM n f = mapM_ f . chunksOf n
+
+-- | Size of chunks when inserting, updating or deleting many rows at once. We
+-- only act on `chunkSize` values at a time. See also 'dbChunked' and
+-- 'deleteMany'.
+chunkSize :: Int
+chunkSize = 100
+
+-- | Remove many entities from the database in chunks of fixed size.
+--
+-- This is to prevent too many variables appearing in the SQL statement.
+-- SQLITE_MAX_VARIABLE_NUMBER is 999 by default, and we will get a
+-- "too many SQL variables" exception if that is exceeded.
+--
+-- We choose a conservative value 'chunkSize' << 999 because there can be
+-- multiple variables per row updated.
+deleteMany
+    :: forall typ record.
+       ( PersistField typ
+       , DeleteCascade record SqlBackend
+       , PersistRecordBackend record SqlBackend )
+    => [Filter record]
+    -> EntityField record typ
+    -> [typ]
+    -> SqlPersistM ()
+deleteMany filters entity types
+    -- SQLite max limit is at 999 variables. We may have other variables so,
+    -- we arbitrarily pick 500 which is way below 999. This should prevent the
+    -- infamous: too many SQL variables
+    | length types < chunkSize =
+        deleteCascadeWhere ((entity <-. types):filters)
+    | otherwise = do
+        deleteCascadeWhere ((entity <-. take chunkSize types):filters)
+        deleteMany filters entity (drop chunkSize types)
 
 -- | Delete transactions that aren't referred to by either Pending or TxMeta of
 -- any wallet.
 deleteLooseTransactions :: SqlPersistM ()
 deleteLooseTransactions = do
-    pendingTxId <- fmap (pendingTxTableId2 . entityVal) <$> selectList [] []
-    metaTxId <- fmap (txMetaTableTxId . entityVal) <$> selectList [] []
-    deleteWhere [ TxInputTableTxId /<-. pendingTxId
-                , TxInputTableTxId /<-. metaTxId ]
-    deleteWhere [ TxOutputTableTxId /<-. pendingTxId
-                , TxOutputTableTxId /<-. metaTxId ]
+    deleteLoose "tx_in"
+    deleteLoose "tx_out"
+  where
+    -- Deletes all TxIn/TxOuts returned by the sub-select.
+    -- The sub-select outer joins PendingTx and TxMeta with TxIn/TxOut.
+    -- All rows of the join table with both PendingTx and TxMeta as NULL are
+    -- loose (unreferenced) transactions.
+    deleteLoose t = flip rawExecute [] $
+        "DELETE FROM "<> t <>" WHERE tx_id IN (" <>
+            "SELECT "<> t <>".tx_id FROM "<> t <>" " <>
+            "LEFT OUTER JOIN tx_meta ON tx_meta.tx_id = "<> t <>".tx_id " <>
+            "LEFT OUTER JOIN pending_tx ON pending_tx.tx_id = "<> t <>".tx_id " <>
+            "WHERE (tx_meta.tx_id IS NULL) AND (pending_tx.tx_id IS NULL))"
+
 
 selectLatestCheckpoint
     :: W.WalletId
@@ -656,8 +724,8 @@ instance W.KeyToAddress t => PersistState (W.SeqState t) where
             selectList [ SeqStateInternalPoolSeqStateId <-. ssid ] []
         extApId <- fmap (seqStateExternalPoolAddressPool . entityVal) <$>
             selectList [ SeqStateExternalPoolSeqStateId <-. ssid ] []
-        deleteCascadeWhere [AddressPoolId <-. intApId]
-        deleteCascadeWhere [AddressPoolId <-. extApId]
+        deleteMany [] AddressPoolId intApId
+        deleteMany [] AddressPoolId extApId
         deleteCascadeWhere [SeqStateTableWalletId ==. wid]
 
 insertAddressPool
@@ -666,8 +734,8 @@ insertAddressPool
 insertAddressPool ap = do
     let ap' = AddressPool (AddressPoolXPub $ W.accountPubKey ap) (W.gap ap)
     apid <- insert ap'
-    insertMany_ [ AddressPoolIndex apid a i
-                | (i, a) <- zip [0..] (W.addresses ap) ]
+    let ixs = [ AddressPoolIndex apid a i | (i, a) <- zip [0..] (W.addresses ap) ]
+    dbChunked insertMany_ ixs
     pure apid
 
 mkSeqStatePendingIxs :: SeqStateId -> W.PendingIxs -> [SeqStatePendingIx]
