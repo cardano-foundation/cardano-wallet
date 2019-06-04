@@ -456,28 +456,28 @@ lockstep m@(Model _ ws) c (At resp) = Event
 -- NOTE 'concat' reads better.
 {-# ANN generator ("HLint: ignore Use ++" :: String) #-}
 generator :: Model Symbolic -> Maybe (Gen (Cmd :@ Symbolic))
-generator (Model _ wids) = Just $ frequency $ concat
+generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
     [ withoutWid
     , if null wids then [] else withWid
     ]
   where
-    withoutWid :: [(Int, Gen (Cmd :@ Symbolic))]
+    withoutWid :: [(Int, Gen (Cmd (Reference WalletId Symbolic)))]
     withoutWid =
-        [ (5, fmap At $ CreateWallet <$> genId <*> arbitrary <*> arbitrary)
+        [ (5, CreateWallet <$> genId <*> arbitrary <*> arbitrary)
         ]
 
-    withWid :: [(Int, Gen (Cmd :@ Symbolic))]
+    withWid :: [(Int, Gen (Cmd (Reference WalletId Symbolic)))]
     withWid =
-        [ (3, fmap At $ RemoveWallet <$> genId')
-        , (5, pure (At ListWallets))
-        , (5, fmap At $ PutCheckpoint <$> genId' <*> arbitrary)
-        , (5, fmap At $ ReadCheckpoint <$> genId')
-        , (5, fmap At $ PutWalletMeta <$> genId' <*> arbitrary)
-        , (5, fmap At $ ReadWalletMeta <$> genId')
-        , (5, fmap At $ PutTxHistory <$> genId' <*> fmap unGenTxHistory arbitrary)
-        , (5, fmap At $ ReadTxHistory <$> genId')
-        , (3, fmap At $ PutPrivateKey <$> genId' <*> genPrivKey)
-        , (3, fmap At $ ReadPrivateKey <$> genId')
+        [ (3, RemoveWallet <$> genId')
+        , (5, pure ListWallets)
+        , (5, PutCheckpoint <$> genId' <*> arbitrary)
+        , (5, ReadCheckpoint <$> genId')
+        , (5, PutWalletMeta <$> genId' <*> arbitrary)
+        , (5, ReadWalletMeta <$> genId')
+        , (5, PutTxHistory <$> genId' <*> fmap unGenTxHistory arbitrary)
+        , (5, ReadTxHistory <$> genId')
+        , (3, PutPrivateKey <$> genId' <*> genPrivKey)
+        , (3, ReadPrivateKey <$> genId')
         ]
 
     genId :: Gen MWid
