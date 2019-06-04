@@ -100,37 +100,37 @@ import qualified Data.Set as Set
 spec :: Spec
 spec = do
     withFileDBLayer $ describe "Check db opening/closing" $ do
-        it "opening and closing of db works" $ \(conn, db) -> do
+        it "opening and closing of db works" $ \(FileDB db conn f) -> do
             cleanDB db
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
             listWallets db `shouldReturn` [testPk]
             close conn
-            replicateM_ 25 openCloseDB
+            replicateM_ 25 (openCloseDB f)
 
     withFileDBLayer $ describe "Check db reading/writing from/to file and cleaning" $ do
 
-        it "create and list wallet works" $ \(conn, db) -> do
+        it "create and list wallet works" $ \(FileDB db conn f) -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
             listWallets db `shouldReturn` [testPk]
-            (_, db1) <- fileDBLayer
+            db1 <- newDBLayer (Just f)
             runExceptT (createWallet db1 testPk testCp testMetadata)
                 `shouldReturn` (Left (ErrWalletAlreadyExists testWid))
-            ( testOpeningCleaning
+            ( testOpeningCleaning f
                 listWallets
                 [testPk]
                 [] )
 
-        it "create and get meta works" $ \(_, db) -> do
+        it "create and get meta works" $ \(FileDB db conn f) -> do
             now <- getCurrentTime
             let md = testMetadata { passphraseInfo = Just $ WalletPassphraseInfo now }
             unsafeRunExceptT $ createWallet db testPk testCp md
             readWalletMeta db testPk `shouldReturn` Just md
-            ( testOpeningCleaning
+            ( testOpeningCleaning f
                 (`readWalletMeta` testPk)
                 (Just md)
                 Nothing )
 
-        it "create and get private key" $ \(_, db) -> do
+        it "create and get private key" $ \(FileDB db conn f) -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
             readPrivateKey db testPk `shouldReturn` Nothing
             let Right phr = fromText "simplephrase"
@@ -138,25 +138,25 @@ spec = do
             h <- encryptPassphrase phr
             unsafeRunExceptT (putPrivateKey db testPk (k, h))
             readPrivateKey db testPk `shouldReturn` Just (k, h)
-            ( testOpeningCleaning
+            ( testOpeningCleaning f
                 (`readPrivateKey` testPk)
                 (Just (k, h))
                 Nothing )
 
-        it "put and read tx history" $ \(_, db) -> do
+        it "put and read tx history" $ \(FileDB db conn f) -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
             runExceptT (putTxHistory db testPk testTxs) `shouldReturn` Right ()
             readTxHistory db testPk `shouldReturn` testTxs
-            ( testOpeningCleaning
+            ( testOpeningCleaning f
                 (`readTxHistory` testPk)
                 testTxs
                 Map.empty )
 
-        it "put and read checkpoint" $ \(_, db) -> do
+        it "put and read checkpoint" $ \(FileDB db conn f) -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
             runExceptT (putCheckpoint db testPk testCp) `shouldReturn` Right ()
             readCheckpoint db testPk `shouldReturn` Just testCp
-            ( testOpeningCleaning
+            ( testOpeningCleaning f
                 (`readCheckpoint` testPk)
                 (Just testCp)
                 Nothing )
@@ -169,21 +169,22 @@ spec = do
     where
         testOpeningCleaning
             :: (Show s, Eq s)
-            => (DBLayer IO (SeqState DummyTarget) DummyTarget -> IO s)
+            => FilePath
+            -> (DBLayer IO (SeqState DummyTarget) DummyTarget -> IO s)
             -> s
             -> s
             -> Expectation
-        testOpeningCleaning call expectedAfterOpen expectedAfterClean = do
-            (_, db1) <- fileDBLayer
+        testOpeningCleaning f call expectedAfterOpen expectedAfterClean = do
+            db1 <- newDBLayer (Just f)
             call db1 `shouldReturn` expectedAfterOpen
-            _ <- cleanDB db1
+            cleanDB db1
             call db1 `shouldReturn` expectedAfterClean
-            (_,db2) <- fileDBLayer
+            db2 <- newDBLayer (Just f)
             call db2 `shouldReturn` expectedAfterClean
 
-        openCloseDB :: IO ()
-        openCloseDB = do
-            (conn, db) <- fileDBLayer
+        openCloseDB :: FilePath -> IO ()
+        openCloseDB f = do
+            (conn, db) <- newDBLayer' (Just f) :: IO (Connection, DBLayer IO (SeqState DummyTarget) DummyTarget)
             listWallets db `shouldReturn` [testPk]
             close conn
 
@@ -193,12 +194,13 @@ prop_randomOpChunks
     -> KeyValPairs (PrimaryKey WalletId) (Wallet (SeqState DummyTarget) DummyTarget , WalletMetadata)
     -> Property
 prop_randomOpChunks inMemoryDB (KeyValPairs pairs) =
-    not (null pairs) ==> monadicIO (pure inMemoryDB >>= prop)
+    not (null pairs) ==> monadicIO (prop inMemoryDB)
   where
     prop dbM = liftIO $ do
-        (_, dbF) <- fileDBLayer
-        _ <- cleanDB dbF
-        _ <- cleanDB inMemoryDB
+        -- fixme: withSystemTempFile
+        dbF <- newDBLayer (Just "prop_randomOpChunks.db")
+        cleanDB dbF
+        cleanDB inMemoryDB
 
         forM_ pairs (updateDB dbM)
         chunks <- cutRandomly [] pairs
@@ -215,7 +217,7 @@ prop_randomOpChunks inMemoryDB (KeyValPairs pairs) =
         else
             pure $ L.reverse (rest:acc)
     handleChunks chunk = do
-        (_, db) <- fileDBLayer
+        db <- newDBLayer (Just "prop_randomOpChunks.db")
         forM_ chunk (updateDB db)
     updateDB
         :: DBLayer IO s t
@@ -243,20 +245,21 @@ prop_randomOpChunks inMemoryDB (KeyValPairs pairs) =
             readWalletMeta db2 walId
                 `shouldReturn` expectedMetas
 
-withFileDBLayer
-    :: SpecWith (Connection, DBLayer IO (SeqState DummyTarget) DummyTarget)
-    -> Spec
-withFileDBLayer = beforeAll fileDBLayer' . beforeWith clean
-  where clean (f, (conn, db)) = cleanDB db $> (conn, db)
+data FileDB = FileDB
+    { dbLayer :: DBLayer IO (SeqState DummyTarget) DummyTarget
+    , dbConn :: Connection
+    , dbFileName :: FilePath
+    }
 
-fileDBLayer :: IO (Connection, DBLayer IO (SeqState DummyTarget) DummyTarget)
-fileDBLayer = snd <$> fileDBLayer'
+withFileDBLayer :: SpecWith FileDB -> Spec
+withFileDBLayer = beforeAll fileDBLayer . beforeWith clean
+  where clean dbf = cleanDB (dbLayer dbf) $> dbf
 
-fileDBLayer' :: IO (FilePath, (Connection, DBLayer IO (SeqState DummyTarget) DummyTarget))
-fileDBLayer' = do
-    f <- emptySystemTempFile "bench.db"
-    db <- newDBLayer' (Just f)
-    pure (f, db)
+fileDBLayer :: IO FileDB
+fileDBLayer = do
+    f <- emptySystemTempFile "unit.db"
+    (c, db) <- newDBLayer' (Just f)
+    pure $ FileDB db c f
 
 removeDB :: FilePath -> IO ()
 removeDB f = mapM_ remove [f, f <> "-shm", f <> "-wal"]
