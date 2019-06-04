@@ -138,7 +138,7 @@ data Wallet s t where
     Wallet :: (IsOurs s, NFData s, Show s, TxId t)
         => UTxO -- Unspent tx outputs belonging to this wallet
         -> Set Tx -- Pending outgoing transactions
-        -> SlotId -- Latest applied block (current tip)
+        -> (SlotId, BlockId) -- Latest applied block (current tip)
         -> s -- Address discovery state
         -> Wallet s t
 
@@ -160,7 +160,7 @@ initWallet
     :: (IsOurs s, NFData s, Show s, TxId t)
     => s
     -> Wallet s t
-initWallet = Wallet mempty mempty (SlotId 0 0)
+initWallet = Wallet mempty mempty (SlotId 0 0, error "todo: genesisHash")
 
 -- | Update the state of an existing Wallet model
 updateState
@@ -189,9 +189,10 @@ applyBlock !b (Wallet !utxo !pending _ s) =
         txs' = Map.fromList $ map
             (\(tx, meta) -> (txId @t tx, (tx, meta)))
             txs
+        h = b ^. #header
     in
         ( txs'
-        , Wallet utxo' pending' (b ^. #header . #slotId) s'
+        , Wallet utxo' pending' (slotId h, blockId h) s'
         )
 
 -- | Helper to apply multiple blocks in sequence to an existing wallet. It's

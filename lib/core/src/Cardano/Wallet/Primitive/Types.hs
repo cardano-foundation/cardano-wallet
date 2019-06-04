@@ -294,6 +294,8 @@ instance Buildable Block where
 data BlockHeader = BlockHeader
     { slotId
         :: SlotId
+    , blockId
+        :: BlockId
     , prevBlockHash
         :: !(Hash "BlockHeader")
     } deriving (Show, Eq, Ord, Generic)
@@ -301,7 +303,9 @@ data BlockHeader = BlockHeader
 instance NFData BlockHeader
 
 instance Buildable BlockHeader where
-    build (BlockHeader s prev) = mempty
+    build (BlockHeader s b prev) = mempty
+        <> prefixF 8 prevF
+        <> "..."
         <> prefixF 8 prevF
         <> "..."
         <> suffixF 8 prevF
@@ -717,7 +721,7 @@ epochLength = 21600
 
 
 newtype BlockId = BlockId { getBlockId :: Hash "BlockHeader" }
-    deriving (Show, Eq)
+    deriving (Show, Eq, NFData, Ord)
 
 {-------------------------------------------------------------------------------
                                Polymorphic Types
