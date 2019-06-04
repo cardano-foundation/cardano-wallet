@@ -123,52 +123,58 @@ import qualified Data.Map.Strict as Map
 
 main :: IO ()
 main = defaultMain
-    [ withDB benchPutCheckpoint
+    [ withDB bgroupUTxO
+    , withDB bgroupSeqState
     , withDB bgroupTxHistory
     ]
 
 ----------------------------------------------------------------------------
--- Checkpoint benchmarks (covers UTxO and SeqState)
+-- UTxO Benchmarks
 --
 -- The very max number of checkpoints we are likely to insert per wallet
 -- is k=2160.
 --
 -- Currently the DBLayer will only store a single checkpoint (no rollback), so
 -- the #Checkpoints axis is a bit meaningless.
-
-benchPutCheckpoint :: DBLayerBench -> Benchmark
-benchPutCheckpoint db = bgroup "putCheckpoint"
-    [ bgroup "UTxO"
-        -- A fragmented wallet will have a large number of UTxO. The coin
-        -- selection algorithm tries to prevent fragmentation.
-        --
-        --      #Checkpoints   UTxO Size
-        [ bUTxO          100           0
-        , bUTxO         1000           0
-        , bUTxO           10          10
-        , bUTxO          100          10
-        , bUTxO         1000          10
-        , bUTxO           10         100
-        , bUTxO          100         100
-        , bUTxO         1000         100
-        , bUTxO           10        1000
-        , bUTxO          100        1000
-        , bUTxO         1000        1000
-        ]
-    , bgroup "SeqState"
-        --      #Checkpoints  #Addresses
-        [ bSeqState      100          10
-        , bSeqState      100         100
-        , bSeqState      100        1000
-        , bSeqState     1000          10
-        , bSeqState     1000         100
-        ]
+bgroupUTxO :: DBLayerBench -> Benchmark
+bgroupUTxO db = bgroup "UTxO"
+    -- A fragmented wallet will have a large number of UTxO. The coin
+    -- selection algorithm tries to prevent fragmentation.
+    --
+    --      #Checkpoints   UTxO Size
+    [ bUTxO          100           0
+    , bUTxO         1000           0
+    , bUTxO           10          10
+    , bUTxO          100          10
+    , bUTxO         1000          10
+    , bUTxO           10         100
+    , bUTxO          100         100
+    , bUTxO         1000         100
+    , bUTxO           10        1000
+    , bUTxO          100        1000
+    , bUTxO         1000        1000
     ]
   where
     bUTxO n s = bench lbl $ withCleanDB db $ benchPutUTxO n s
-        where lbl = n|+"CP x "+|s|+"UTxO"
+        where lbl = n|+" CP x "+|s|+" UTxO"
+
+----------------------------------------------------------------------------
+-- Wallet State (Sequential Scheme) Benchmarks
+--
+-- Currently the DBLayer will only store a single checkpoint (no rollback), so
+-- the #Checkpoints axis is a bit meaningless.
+bgroupSeqState :: DBLayerBench -> Benchmark
+bgroupSeqState db = bgroup "SeqState"
+    --      #Checkpoints  #Addresses
+    [ bSeqState      100          10
+    , bSeqState      100         100
+    , bSeqState      100        1000
+    , bSeqState     1000          10
+    , bSeqState     1000         100
+    ]
+  where
     bSeqState n a = bench lbl $ withCleanDB db $ benchPutSeqState n a
-        where lbl = n|+"CP x "+|a|+"addr"
+        where lbl = n|+" CP x "+|a|+" addr"
 
 ----------------------------------------------------------------------------
 -- Tx history Benchmarks
