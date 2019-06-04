@@ -123,33 +123,8 @@ import qualified Data.Map.Strict as Map
 
 main :: IO ()
 main = defaultMain
-    [ withDB $ \db -> bgroup "putTxHistory"
-        [ bgroup "small transactions"
-            [ bgroup "single batch"
-                [ bench "1e2 x   1io"   $ withCleanDB db $ benchPutTxHistory 1   100 1 1
-                , bench "1e3 x   1io"   $ withCleanDB db $ benchPutTxHistory 1  1000 1 1
-                -- , bench "1e4"   $ withCleanDB db $ benchPutTxHistory 1 10000 1 1
-                ]
-            , bgroup "many batches of 10"
-                [ bench "1e2 x   1io"   $ withCleanDB db $ benchPutTxHistory   10 10 1 1
-                , bench "1e3 x   1io"   $ withCleanDB db $ benchPutTxHistory  100 10 1 1
-                -- , bench "1e3.6" $ withCleanDB db $ benchPutTxHistory  400 10 1 1
-                ]
-            ]
-        , bgroup "large transactions - single batch"
-            -- The number of inputs and outputs of a transaction is limited by
-            -- the maximum transaction size. So we don't need to benchmark
-            -- further than that.
-            -- TODO: calculate/look up maximum number of transaction inputs/outputs
-            [ bench "1e2 x  10io" $ withCleanDB db $ benchPutTxHistory 1   100  10  10
-            , bench "1e3 x  10io" $ withCleanDB db $ benchPutTxHistory 1  1000  10  10
-            , bench "1e4 x  10io" $ withCleanDB db $ benchPutTxHistory 1 10000  10  10
-            , bench "1e2 x 100io" $ withCleanDB db $ benchPutTxHistory 1   100 100 100
-            , bench "1e3 x 100io" $ withCleanDB db $ benchPutTxHistory 1  1000 100 100
-            , bench "1e4 x 100io" $ withCleanDB db $ benchPutTxHistory 1 10000 100 100
-            ]
-        ]
-    , withDB benchPutCheckpoint
+    [ withDB benchPutCheckpoint
+    , withDB bgroupTxHistory
     ]
 
 ----------------------------------------------------------------------------
@@ -194,6 +169,35 @@ benchPutCheckpoint db = bgroup "putCheckpoint"
         where lbl = n|+"CP x "+|s|+"UTxO"
     bSeqState n a = bench lbl $ withCleanDB db $ benchPutSeqState n a
         where lbl = n|+"CP x "+|a|+"addr"
+
+----------------------------------------------------------------------------
+-- Tx history Benchmarks
+--
+-- These benchmarks evaluate the time taken to insert many transactions in an
+-- empty database for batches, and transaction sizes of different order of
+-- magnitude.
+--
+-- The number of inputs and outputs of a transaction is limited by the maximum
+-- transaction size. So we don't need to benchmark further than that.
+-- TODO: calculate/look up maximum number of transaction inputs/outputs
+bgroupTxHistory :: DBLayerBench -> Benchmark
+bgroupTxHistory db = bgroup "TxHistory"
+    --           #NBatch  #BatchSize #NInputs #NOutputs
+    [ bTxHistory       1         100        1        1
+    , bTxHistory       1        1000        1        1
+    , bTxHistory      10          10        1        1
+    , bTxHistory     100          10        1        1
+    , bTxHistory       1         100       10       10
+    , bTxHistory       1        1000       10       10
+    , bTxHistory       1       10000       10       10
+    , bTxHistory       1         100      100      100
+    , bTxHistory       1        1000      100      100
+    , bTxHistory       1       10000      100      100
+    ]
+  where
+    bTxHistory nBatch bSize nInps nOuts =
+        bench lbl $ withCleanDB db $ benchPutTxHistory nBatch bSize nInps nOuts
+      where lbl = nBatch |+" x "+| bSize |+" w/ "+| nInps |+"i + "+| nOuts |+"o"
 
 ----------------------------------------------------------------------------
 -- Criterion env functions for database setup
