@@ -655,19 +655,16 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
     , txUnsorted outputs TxUnsortedOutputs
     , readCheckpoint isJust SuccessfulReadCheckpoint
     , readCheckpoint isNothing UnsuccessfulReadCheckpoint
-    , readAfterDelete isReadTxHistory ReadTxHistoryAfterDelete
+    , readAfterDelete
     , countAction SuccessfulReadPrivateKey (>= 1) isReadPrivateKeySuccess
     ]
   where
-    readAfterDelete
-        :: (Event Symbolic -> Maybe MWid)
-        -> Tag
-        -> Fold (Event Symbolic) (Maybe Tag)
-    readAfterDelete isRead res = Fold update mempty extract
+    readAfterDelete :: Fold (Event Symbolic) (Maybe Tag)
+    readAfterDelete = Fold update mempty extract
       where
         update :: Map MWid Int -> Event Symbolic -> Map MWid Int
         update created ev =
-            case (isRead ev, cmd ev, mockResp ev, before ev) of
+            case (isReadTxHistory ev, cmd ev, mockResp ev, before ev) of
                 (Just wid, _, _, _) ->
                     Map.alter (fmap (+1)) wid created
                 (Nothing
@@ -679,7 +676,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
                     created
 
         extract :: Map MWid Int -> Maybe Tag
-        extract created | any (> 0) created = Just res
+        extract created | any (> 0) created = Just ReadTxHistoryAfterDelete
                         | otherwise = Nothing
 
     isReadTxHistory :: Event Symbolic -> Maybe MWid
