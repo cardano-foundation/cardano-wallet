@@ -98,6 +98,7 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
     , Block (..)
+    , BlockId (..)
     , Coin (..)
     , Direction (..)
     , SlotId (..)
@@ -144,7 +145,7 @@ import Data.Coerce
 import Data.Functor
     ( ($>) )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view )
 import Data.Generics.Labels
     ()
 import Data.List.NonEmpty
@@ -439,8 +440,8 @@ newWalletLayer db nw tl = do
                 Left e -> do
                     TIO.putStrLn $ "[ERROR] restoreSleep: " +|| e ||+ ""
                     restoreSleep wid (currentTip w)
-                Right (_, tip) -> do
-                    restoreStep wid (currentTip w, tip ^. #slotId)
+                Right tip -> do
+                    restoreStep wid (currentTip w, tip)
         liftIO $ registerWorker re (wid, worker)
 
     -- | Infinite restoration loop. We drain the whole available chain and try
@@ -450,7 +451,7 @@ newWalletLayer db nw tl = do
     -- The function only terminates if the wallet has disappeared from the DB.
     restoreStep
         :: WalletId
-        -> (SlotId, SlotId)
+        -> ((SlotId, BlockId), (SlotId, BlockId))
         -> IO ()
     restoreStep wid (slot, tip) = do
         runExceptT (nextBlocks nw slot) >>= \case
@@ -461,18 +462,19 @@ newWalletLayer db nw tl = do
                 restoreSleep wid slot
             Right blocks -> do
                 let next = view #slotId . header . last $ blocks
+                let nextBlock = BlockId $ view #prevBlockHash. header . last $ blocks -- TODO: WRONG!! THIS IS PARENT!!!
                 runExceptT (restoreBlocks wid blocks tip) >>= \case
                     Left (ErrNoSuchWallet _) -> TIO.putStrLn $
                         "[ERROR] restoreStep: wallet " +| wid |+ " is gone!"
                     Right () -> do
-                        restoreStep wid (next, tip)
+                        restoreStep wid ((next, nextBlock), tip)
 
     -- | Wait a short delay before querying for blocks again. We do take this
     -- opportunity to also refresh the chain tip as it has probably increased
     -- in order to refine our syncing status.
     restoreSleep
         :: WalletId
-        -> SlotId
+        -> (SlotId, BlockId)
         -> IO ()
     restoreSleep wid slot = do
         let tenSeconds = 10000000 in threadDelay tenSeconds
@@ -480,15 +482,15 @@ newWalletLayer db nw tl = do
             Left e -> do
                 TIO.putStrLn $ "[ERROR] restoreSleep: " +|| e ||+ ""
                 restoreSleep wid slot
-            Right (_, tip) ->
-                restoreStep wid (slot, tip ^. #slotId)
+            Right tip -> do
+                restoreStep wid (slot, tip)
 
     -- | Apply the given blocks to the wallet and update the wallet state,
     -- transaction history and corresponding metadata.
     restoreBlocks
         :: WalletId
         -> [Block]
-        -> SlotId -- ^ Network tip
+        -> (SlotId, BlockId) -- ^ Network tip
         -> ExceptT ErrNoSuchWallet IO ()
     restoreBlocks wid blocks tip = do
         let (inf, sup) =
@@ -511,7 +513,7 @@ newWalletLayer db nw tl = do
             let nonEmpty = not . null . transactions
             let (h,q) = first (filter nonEmpty) $ splitAt (length blocks - 1) blocks
             let (txs, cp') = applyBlocks (h ++ q) cp
-            let progress = slotRatio sup tip
+            let progress = slotRatio sup (fst tip)
             let status' = if progress == maxBound
                     then Ready
                     else Restoring progress
@@ -598,7 +600,7 @@ newWalletLayer db nw tl = do
                     let meta = TxMeta
                             { status = Pending
                             , direction = Outgoing
-                            , slotId = currentTip w
+                            , slotId = fst $ currentTip w
                             , amount = Quantity (amtInps - amtChng)
                             }
                     return (tx, meta, wit)

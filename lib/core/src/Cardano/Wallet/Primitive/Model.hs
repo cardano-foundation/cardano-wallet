@@ -192,7 +192,7 @@ applyBlock !b (Wallet !utxo !pending _ s) =
         h = b ^. #header
     in
         ( txs'
-        , Wallet utxo' pending' (slotId h, blockId h) s'
+        , Wallet utxo' pending' (h ^. #slotId, BlockId (h ^. #prevBlockHash)) s'
         )
 
 -- | Helper to apply multiple blocks in sequence to an existing wallet. It's
@@ -225,7 +225,7 @@ unsafeInitWallet
        -- ^ Unspent tx outputs belonging to this wallet
     -> Set Tx
     -- ^ Pending outgoing transactions
-    -> SlotId
+    -> (SlotId, BlockId)
     -- ^ Latest applied block (current tip)
     -> s
     -- ^Address discovery state

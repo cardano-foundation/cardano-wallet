@@ -398,7 +398,8 @@ mkCheckpointEntity wid wal =
     sl = W.currentTip wal
     cp = Checkpoint
         { checkpointTableWalletId = wid
-        , checkpointTableSlot = sl
+        , checkpointTableSlot = fst sl
+        , checkpointTableBlock = snd sl
         }
     pendingTx tid = PendingTx
         { pendingTxTableWalletId = wid
