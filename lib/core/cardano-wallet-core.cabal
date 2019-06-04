@@ -189,8 +189,10 @@ benchmark db
     , containers
     , cryptonite
     , deepseq
+    , directory
     , fmt
     , memory
+    , temporary
     , time
   type:
      exitcode-stdio-1.0
