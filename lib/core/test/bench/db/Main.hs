@@ -215,6 +215,9 @@ main = defaultMain
 --
 -- The very max number of checkpoints we are likely to insert per wallet
 -- is k=2160.
+--
+-- Currently the DBLayer will only store a single checkpoint (no rollback), so
+-- the #Checkpoints axis is a bit meaningless.
 
 benchPutCheckpoint :: DBLayerBench -> Benchmark
 benchPutCheckpoint db = bgroup "putCheckpoint"
@@ -242,7 +245,6 @@ benchPutCheckpoint db = bgroup "putCheckpoint"
         , bSeqState      100        1000
         , bSeqState     1000          10
         , bSeqState     1000         100
-        , bSeqState     1000        1000
         ]
     ]
   where
