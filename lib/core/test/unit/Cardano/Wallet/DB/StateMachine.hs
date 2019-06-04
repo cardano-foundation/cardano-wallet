@@ -807,6 +807,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
                     check cp
                 _otherwise ->
                     False
+
     extractf :: a -> Bool -> Maybe a
     extractf a t = if t then Just a else Nothing
 
