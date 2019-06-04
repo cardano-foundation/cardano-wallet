@@ -659,7 +659,10 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
     , countAction SuccessfulReadPrivateKey (>= 1) isReadPrivateKeySuccess
     ]
   where
-    readAfterDelete :: (Event Symbolic -> Maybe MWid) -> Tag -> Fold (Event Symbolic) (Maybe Tag)
+    readAfterDelete
+        :: (Event Symbolic -> Maybe MWid)
+        -> Tag
+        -> Fold (Event Symbolic) (Maybe Tag)
     readAfterDelete isRead res = Fold update mempty extract
       where
         update :: Map MWid Int -> Event Symbolic -> Map MWid Int
@@ -667,8 +670,11 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
             case (isRead ev, cmd ev, mockResp ev, before ev) of
                 (Just wid, _, _, _) ->
                     Map.alter (fmap (+1)) wid created
-                (Nothing, At (RemoveWallet wid), Resp (Right _), Model _ wids) ->
-                    Map.insert (wids ! wid) 0 created
+                (Nothing
+                    , At (RemoveWallet wid)
+                    , Resp (Right _)
+                    , Model _ wids) ->
+                        Map.insert (wids ! wid) 0 created
                 _otherwise ->
                     created
 
@@ -737,8 +743,10 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
 
     isReadPrivateKeySuccess :: Event Symbolic -> Maybe MWid
     isReadPrivateKeySuccess ev = case (cmd ev, mockResp ev, before ev) of
-        (At (ReadPrivateKey wid), Resp (Right (PrivateKey (Just _))), Model _ wids)
-            -> Just (wids ! wid)
+        (At (ReadPrivateKey wid)
+            , Resp (Right (PrivateKey (Just _)))
+            , Model _ wids )
+                -> Just (wids ! wid)
         _otherwise
             -> Nothing
 
@@ -868,7 +876,9 @@ prop_parallel db =
 -- | The commands for parallel tests are run multiple times to detect
 -- concurrency problems. We need to clean the database before every run. The
 -- easiest way is to add a CleanDB command at the beginning of the prefix.
-addCleanDB :: ParallelCommands (At Cmd) (At Resp) -> ParallelCommands (At Cmd) (At Resp)
+addCleanDB
+    :: ParallelCommands (At Cmd) (At Resp)
+    -> ParallelCommands (At Cmd) (At Resp)
 addCleanDB (ParallelCommands p s) = ParallelCommands (clean <> p) s
   where
     clean = Commands [cmd resp mempty]

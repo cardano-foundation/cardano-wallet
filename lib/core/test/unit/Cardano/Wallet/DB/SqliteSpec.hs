@@ -89,14 +89,16 @@ simpleSpec = do
 
         it "create and get meta works" $ \db -> do
             now <- getCurrentTime
-            let md = testMetadata { passphraseInfo = Just $ WalletPassphraseInfo now }
+            let md = testMetadata
+                    { passphraseInfo = Just $ WalletPassphraseInfo now }
             unsafeRunExceptT $ createWallet db testPk testCp md
             readWalletMeta db testPk `shouldReturn` Just md
 
         it "create twice is handled" $ \db -> do
             let create' = createWallet db testPk testCp testMetadata
             runExceptT create' `shouldReturn` (Right ())
-            runExceptT create' `shouldReturn` (Left (ErrWalletAlreadyExists testWid))
+            runExceptT create' `shouldReturn`
+                (Left (ErrWalletAlreadyExists testWid))
 
         it "create and get private key" $ \db -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
