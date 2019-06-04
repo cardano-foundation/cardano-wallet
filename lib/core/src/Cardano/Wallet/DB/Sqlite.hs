@@ -525,10 +525,10 @@ insertCheckpoint
 insertCheckpoint wid cp = do
     let (cp', utxo, pendings, ins, outs) = mkCheckpointEntity wid cp
     insert_ cp'
-    insertMany_ ins
-    insertMany_ outs
-    insertMany_ pendings
-    insertMany_ utxo
+    dbChunked insertMany_ ins
+    dbChunked insertMany_ outs
+    dbChunked insertMany_ pendings
+    dbChunked insertMany_ utxo
     insertState (wid, W.currentTip cp) (W.getState cp)
 
 -- | Delete all checkpoints associated with a wallet.
@@ -570,10 +570,10 @@ putTxs txins txouts = do
 -- SQLITE_MAX_VARIABLE_NUMBER is 999 by default, and we will get a
 -- "too many SQL variables" exception if that is exceeded.
 --
--- We choose a conservative 100 because there can be multiple variables
--- per row updated.
+-- We choose a conservative value 'chunkSize' << 999 because there can be
+-- multiple variables per row updated.
 dbChunked :: ([a] -> SqlPersistM b) -> [a] -> SqlPersistM ()
-dbChunked = chunkedM 100
+dbChunked = chunkedM chunkSize
 
 -- | Given an action which takes a list of items, and a list of items, run that
 -- action multiple times with the input list cut into chunks.
@@ -585,20 +585,20 @@ chunkedM
     -> m ()
 chunkedM n f = mapM_ f . chunksOf n
 
--- | Delete transactions that aren't referred to by either Pending or TxMeta of
--- any wallet.
-deleteLooseTransactions :: SqlPersistM ()
-deleteLooseTransactions = do
-    deleteLoose "tx_in"
-    deleteLoose "tx_out"
-  where
-    -- Deletes all TxIn/TxOuts returned by the sub-select.
-    -- The sub-select outer joins PendingTx and TxMeta with TxIn/TxOut.
-    -- All rows of the join table with both PendingTx and TxMeta as NULL are
-    -- loose (unreferenced) transactions.
-    deleteLoose t = rawExecute ("DELETE FROM "<>t<>" where tx_id IN (SELECT "<>t<>".tx_id FROM "<>t<>" LEFT OUTER JOIN tx_meta ON tx_meta.tx_id = "<>t<>".tx_id LEFT OUTER JOIN pending_tx ON pending_tx.tx_id = "<>t<>".tx_id WHERE (tx_meta.tx_id IS NULL) AND (pending_tx.tx_id IS NULL))") []
+-- | Size of chunks when inserting, updating or deleting many rows at once. We
+-- only act on `chunkSize` values at a time. See also 'dbChunked' and
+-- 'deleteMany'.
+chunkSize :: Int
+chunkSize = 100
 
-
+-- | Remove many entities from the database in chunks of fixed size.
+--
+-- This is to prevent too many variables appearing in the SQL statement.
+-- SQLITE_MAX_VARIABLE_NUMBER is 999 by default, and we will get a
+-- "too many SQL variables" exception if that is exceeded.
+--
+-- We choose a conservative value 'chunkSize' << 999 because there can be
+-- multiple variables per row updated.
 deleteMany
     :: forall typ record.
        ( PersistField typ
@@ -612,13 +612,30 @@ deleteMany filters entity types
     -- SQLite max limit is at 999 variables. We may have other variables so,
     -- we arbitrarily pick 500 which is way below 999. This should prevent the
     -- infamous: too many SQL variables
-    | length types < sz =
+    | length types < chunkSize =
         deleteCascadeWhere ((entity <-. types):filters)
     | otherwise = do
-        deleteCascadeWhere ((entity <-. take sz types):filters)
-        deleteMany filters entity (drop sz types)
+        deleteCascadeWhere ((entity <-. take chunkSize types):filters)
+        deleteMany filters entity (drop chunkSize types)
+
+-- | Delete transactions that aren't referred to by either Pending or TxMeta of
+-- any wallet.
+deleteLooseTransactions :: SqlPersistM ()
+deleteLooseTransactions = do
+    deleteLoose "tx_in"
+    deleteLoose "tx_out"
   where
-    sz = 500
+    -- Deletes all TxIn/TxOuts returned by the sub-select.
+    -- The sub-select outer joins PendingTx and TxMeta with TxIn/TxOut.
+    -- All rows of the join table with both PendingTx and TxMeta as NULL are
+    -- loose (unreferenced) transactions.
+    deleteLoose t = flip rawExecute [] $
+        "DELETE FROM "<> t <>" WHERE tx_id IN (" <>
+            "SELECT "<> t <>".tx_id FROM "<> t <>" " <>
+            "LEFT OUTER JOIN tx_meta ON tx_meta.tx_id = "<> t <>".tx_id " <>
+            "LEFT OUTER JOIN pending_tx ON pending_tx.tx_id = "<> t <>".tx_id " <>
+            "WHERE (tx_meta.tx_id IS NULL) AND (pending_tx.tx_id IS NULL))"
+
 
 selectLatestCheckpoint
     :: W.WalletId
@@ -717,8 +734,8 @@ insertAddressPool
 insertAddressPool ap = do
     let ap' = AddressPool (AddressPoolXPub $ W.accountPubKey ap) (W.gap ap)
     apid <- insert ap'
-    insertMany_ [ AddressPoolIndex apid a i
-                | (i, a) <- zip [0..] (W.addresses ap) ]
+    let ixs = [ AddressPoolIndex apid a i | (i, a) <- zip [0..] (W.addresses ap) ]
+    dbChunked insertMany_ ixs
     pure apid
 
 mkSeqStatePendingIxs :: SeqStateId -> W.PendingIxs -> [SeqStatePendingIx]
