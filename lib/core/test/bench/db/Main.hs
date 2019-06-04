@@ -185,7 +185,44 @@ bgroupSeqState db = bgroup "SeqState"
 --
 -- The number of inputs and outputs of a transaction is limited by the maximum
 -- transaction size. So we don't need to benchmark further than that.
--- TODO: calculate/look up maximum number of transaction inputs/outputs
+--
+-- In Byron, the transaction max size is currently of 8kb.
+--
+-- A transaction size is roughly:
+--
+-- - headers & CBOR overhead: ~10 bytes
+-- - size of all the witnesses: 139 bytes * nInputs
+-- - size of all inputs: 42-43 bytes * nInputs
+-- - size of all outputs: 53-86 bytes * nOuts on mainnet
+--
+-- This means a transaction in Byron can't have more than (worst case):
+--
+-- - ~45 inputs
+-- - ~155 outputs
+--
+-- In Shelley with Jörmungandr, we have a soft max size of 8Kb (64Kb hard).
+--
+-- A transaction size is roughly:
+--
+-- - headers & binary overhead: ~10 bytes
+-- - size of all the witnesses: 64-128 byte * nInputs (depending on scheme)
+-- - size of all inputs: 41 bytes * nInputs
+-- - size of all outputs: 41 bytes * nOutputs
+--
+-- This means a transaction in Shelley can't have more than (worst case):
+--
+-- - ~78 inputs
+-- - ~200 outputs
+--
+-- The numbers above are really hard boundaries but, it is unrealistic to
+-- imagine a transaction with 1 inputs and 200 outputs because, the coin
+-- selection algorithm always try to consider output independently. So for
+-- 200 outputs, we know that 200 inputs (at least) would be necessary. There are
+-- the case for other softwares of course, but we may consider the following
+-- numbers as realistic benchmark higher bounds (in the worst case):
+--
+-- - 50 inputs
+-- - 100 outputs
 bgroupTxHistory :: DBLayerBench -> Benchmark
 bgroupTxHistory db = bgroup "TxHistory"
     --           #NBatch  #BatchSize #NInputs #NOutputs
@@ -196,9 +233,9 @@ bgroupTxHistory db = bgroup "TxHistory"
     , bTxHistory       1         100       10       10
     , bTxHistory       1        1000       10       10
     , bTxHistory       1       10000       10       10
-    , bTxHistory       1         100      100      100
-    , bTxHistory       1        1000      100      100
-    , bTxHistory       1       10000      100      100
+    , bTxHistory       1         100       50      100
+    , bTxHistory       1        1000       50      100
+    , bTxHistory       1       10000       50      100
     ]
   where
     bTxHistory nBatch bSize nInps nOuts =
