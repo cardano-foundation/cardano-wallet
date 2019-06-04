@@ -104,8 +104,8 @@ import Database.Persist.Sql
     , insert
     , insertMany_
     , insert_
-    , putMany
     , rawExecute
+    , repsertMany
     , runMigrationSilent
     , runSqlConn
     , selectFirst

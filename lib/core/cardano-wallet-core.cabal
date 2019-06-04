@@ -133,6 +133,7 @@ test-suite unit
     , random
     , servant-server
     , servant-swagger
+    , split
     , swagger2
     , text
     , text-class
