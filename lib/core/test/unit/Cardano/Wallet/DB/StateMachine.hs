@@ -550,24 +550,24 @@ sm db = QSM.StateMachine
 -------------------------------------------------------------------------------}
 
 instance CommandNames (At Cmd) where
-  cmdName (At CleanDB{}) = "CleanDB"
-  cmdName (At CreateWallet{}) = "CreateWallet"
-  cmdName (At RemoveWallet{}) = "RemoveWallet"
-  cmdName (At ListWallets{}) = "ListWallets"
-  cmdName (At PutCheckpoint{}) = "PutCheckpoint"
-  cmdName (At ReadCheckpoint{}) = "ReadCheckpoint"
-  cmdName (At PutWalletMeta{}) = "PutWalletMeta"
-  cmdName (At ReadWalletMeta{}) = "ReadWalletMeta"
-  cmdName (At PutTxHistory{}) = "PutTxHistory"
-  cmdName (At ReadTxHistory{}) = "ReadTxHistory"
-  cmdName (At PutPrivateKey{}) = "PutPrivateKey"
-  cmdName (At ReadPrivateKey{}) = "ReadPrivateKey"
-  cmdNames _ =
-    [ "CleanDB", "CreateWallet", "CreateWallet", "RemoveWallet"
-    , "ListWallets", "PutCheckpoint", "ReadCheckpoint", "PutWalletMeta"
-    , "ReadWalletMeta", "PutTxHistory", "ReadTxHistory", "PutPrivateKey"
-    , "ReadPrivateKey"
-    ]
+    cmdName (At CleanDB{}) = "CleanDB"
+    cmdName (At CreateWallet{}) = "CreateWallet"
+    cmdName (At RemoveWallet{}) = "RemoveWallet"
+    cmdName (At ListWallets{}) = "ListWallets"
+    cmdName (At PutCheckpoint{}) = "PutCheckpoint"
+    cmdName (At ReadCheckpoint{}) = "ReadCheckpoint"
+    cmdName (At PutWalletMeta{}) = "PutWalletMeta"
+    cmdName (At ReadWalletMeta{}) = "ReadWalletMeta"
+    cmdName (At PutTxHistory{}) = "PutTxHistory"
+    cmdName (At ReadTxHistory{}) = "ReadTxHistory"
+    cmdName (At PutPrivateKey{}) = "PutPrivateKey"
+    cmdName (At ReadPrivateKey{}) = "ReadPrivateKey"
+    cmdNames _ =
+        [ "CleanDB", "CreateWallet", "CreateWallet", "RemoveWallet"
+        , "ListWallets", "PutCheckpoint", "ReadCheckpoint", "PutWalletMeta"
+        , "ReadWalletMeta", "PutTxHistory", "ReadTxHistory", "PutPrivateKey"
+        , "ReadPrivateKey"
+        ]
 
 instance Functor f => Rank2.Functor (At f) where
     fmap = \f (At x) -> At $ fmap (lift f) x
