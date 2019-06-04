@@ -40,6 +40,9 @@ module Test.Integration.Framework.TestData
     , updatePassPayload
 
     -- * Error messages
+    , errMsg403Fee
+    , errMsg403NotEnoughMoney
+    , errMsg403UTxO
     , errMsg403WrongPass
     , errMsg404NoEndpoint
     , errMsg404NoRootKey
@@ -47,6 +50,7 @@ module Test.Integration.Framework.TestData
     , errMsg405
     , errMsg406
     , errMsg415
+    , errMsg500
     ) where
 
 import Prelude
@@ -204,6 +208,23 @@ updatePassPayload oldPass newPass = Json [json| {
   ---
   --- Error messages
   ---
+errMsg403Fee :: String
+errMsg403Fee = "I'm unable to adjust the given transaction to cover the\
+    \ associated fee! In order to do so, I'd have to select one or\
+    \ more additional inputs, but I can't do that without increasing\
+    \ the size of the transaction beyond the acceptable limit."
+
+errMsg403NotEnoughMoney :: Int -> Int -> String
+errMsg403NotEnoughMoney has needs = "I can't process this payment because there's\
+    \ not enough UTxO available in the wallet. The total UTxO sums up to\
+    \ " ++ show has ++ " Lovelace, but I need " ++ show needs ++ " Lovelace\
+    \ (excluding fee amount) in order to proceed  with the payment."
+
+errMsg403UTxO :: String
+errMsg403UTxO = "When creating new transactions, I'm not able to re-use the\
+    \ same UTxO for different outputs. Here, I only have 1\
+    \ available, but there are 2 outputs."
+
 errMsg403WrongPass :: String
 errMsg403WrongPass = "The given encryption passphrase doesn't match the one\
     \ I use to encrypt the root private key of the given wallet"
@@ -238,3 +259,9 @@ errMsg415 = "I'm really sorry but I only understand 'application/json'. I need\
     \ you to tell me what language you're speaking in order for me to understand\
     \ your message. Please double-check your 'Content-Type' request header and\
     \ make sure it's set to 'application/json'"
+
+errMsg500 :: String
+errMsg500 = "That's embarassing. It looks like I've created an invalid\
+    \ transaction that could not be parsed by the node. Here's an error\
+    \ message that may help with debugging: Transaction failed verification:\
+    \ output with no credited value"

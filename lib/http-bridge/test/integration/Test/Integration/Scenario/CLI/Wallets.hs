@@ -100,7 +100,7 @@ spec = do
         walId <- emptyWallet' ctx
         (Exit c, Stdout out, Stderr err) <- getWalletViaCLI walId
         err `shouldBe` "Ok.\n"
-        expectValidJSON (Proxy @ApiWallet) out
+        _ <- expectValidJSON (Proxy @ApiWallet) out
         out `shouldContain` "Empty Wallet"
         c `shouldBe` ExitSuccess
 
@@ -124,7 +124,7 @@ spec = do
         emptyWallet' ctx $> () <* emptyWallet' ctx
         (Exit c, Stdout out, Stderr err) <- listWalletsViaCLI
         err `shouldBe` "Ok.\n"
-        expectValidJSON (Proxy @[ApiWallet]) out
+        _ <- expectValidJSON (Proxy @[ApiWallet]) out
         out `shouldContain` "Empty Wallet"
         c `shouldBe` ExitSuccess
 
@@ -133,7 +133,7 @@ spec = do
         let args = [walId, "--name", "new name"]
         (Exit c, Stdout out, Stderr err) <- updateWalletViaCLI args
         err `shouldBe` "Ok.\n"
-        expectValidJSON (Proxy @ApiWallet) out
+        _ <- expectValidJSON (Proxy @ApiWallet) out
         out `shouldContain` "new name"
         c `shouldBe` ExitSuccess
 
