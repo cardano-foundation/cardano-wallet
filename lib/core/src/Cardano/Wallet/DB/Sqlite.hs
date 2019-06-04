@@ -403,10 +403,10 @@ mkCheckpointEntity wid wal =
         }
     pendingTx tid = PendingTx
         { pendingTxTableWalletId = wid
-        , pendingTxTableCheckpointSlot = sl
+        , pendingTxTableCheckpointSlot = fst sl
         , pendingTxTableId2 = tid
         }
-    utxo = [ UTxO wid sl (TxId input) ix addr coin
+    utxo = [ UTxO wid (fst sl) (TxId input) ix addr coin
            | (W.TxIn input ix, W.TxOut addr coin) <- utxoMap ]
     utxoMap = Map.assocs (W.getUTxO (W.totalUTxO wal))
 
@@ -420,8 +420,8 @@ checkpointFromEntity
     -> [TxOut]
     -> s
     -> W.Wallet s t
-checkpointFromEntity (Checkpoint _ tip) utxo ins outs =
-    W.unsafeInitWallet utxo' pending tip
+checkpointFromEntity (Checkpoint _ tip prevBlockId) utxo ins outs =
+    W.unsafeInitWallet utxo' pending (tip, prevBlockId)
   where
     utxo' = W.UTxO . Map.fromList $
         [ (W.TxIn input ix, W.TxOut addr coin)
@@ -649,19 +649,17 @@ selectLatestCheckpoint wid = fmap entityVal <$>
 selectUTxO
     :: Checkpoint
     -> SqlPersistM [UTxO]
-selectUTxO (Checkpoint wid sl bl) = fmap entityVal <$>
+selectUTxO (Checkpoint wid sl _bl) = fmap entityVal <$>
     selectList [ UtxoTableWalletId ==. wid
                , UtxoTableCheckpointSlot ==. sl
-               , UtxoTableCheckpointBlock ==. bl
                ] []
 
 selectPending
     :: Checkpoint
     -> SqlPersistM [TxId]
-selectPending (Checkpoint wid sl bl) = fmap (pendingTxTableId2 . entityVal) <$>
+selectPending (Checkpoint wid sl _) = fmap (pendingTxTableId2 . entityVal) <$>
     selectList [ PendingTxTableWalletId ==. wid
-               , PendingTxTableCheckpointSlot ==. sl
-               , PendingTxTableCheckpointBlock ==. sl ] []
+               , PendingTxTableCheckpointSlot ==. sl ] []
 
 selectTxs
     :: [TxId]
@@ -688,7 +686,7 @@ selectTxHistory wid = do
 -- | Get a @(WalletId, SlotId)@ pair from the checkpoint table, for use with
 -- 'insertState' and 'selectState'.
 checkpointId :: Checkpoint -> (W.WalletId, W.SlotId, W.BlockId)
-checkpointId cp = (checkpointTableWalletId cp, checkpointTableSlot cp)
+checkpointId cp = (checkpointTableWalletId cp, checkpointTableSlot cp, checkpointTableBlock cp)
 
 -- | Functions for saving/loading the wallet's address discovery state into
 -- SQLite.
@@ -701,7 +699,7 @@ class PersistState s where
     deleteState :: W.WalletId -> SqlPersistM ()
 
 instance W.KeyToAddress t => PersistState (W.SeqState t) where
-    insertState (wid, sl) st = do
+    insertState (wid, sl, _prevBlockId) st = do
         ssid <- insert (SeqState wid sl)
         intApId <- insertAddressPool $ W.internalPool st
         extApId <- insertAddressPool $ W.externalPool st
@@ -709,11 +707,10 @@ instance W.KeyToAddress t => PersistState (W.SeqState t) where
         insert_ $ SeqStateExternalPool ssid extApId
         insertMany_ $ mkSeqStatePendingIxs ssid $ W.pendingChangeIxs st
 
-    selectState (wid, sl, blockId) = runMaybeT $ do
+    selectState (wid, sl, _blockId) = runMaybeT $ do
         ssid <- MaybeT $ fmap entityKey <$>
             selectFirst [ SeqStateTableWalletId ==. wid
-                        , SeqStateTableCheckpointSlot ==. sl
-                        , SeqStateTableCheckpointBlock ==. blockId] []
+                        , SeqStateTableCheckpointSlot ==. sl ] []
         intApId <- MaybeT $
             fmap (seqStateInternalPoolAddressPool . entityVal) <$>
             selectFirst [ SeqStateInternalPoolSeqStateId ==. ssid ] []

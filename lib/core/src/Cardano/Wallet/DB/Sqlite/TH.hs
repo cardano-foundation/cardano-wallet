@@ -122,9 +122,9 @@ TxOut
 Checkpoint
     checkpointTableWalletId    W.WalletId  sql=wallet_id
     checkpointTableSlot        W.SlotId    sql=slot
-    checkpointTableBlock       W.BlockId   sql=block
+    checkpointTableBlock       W.BlockId sql=block
 
-    Primary checkpointTableWalletId checkpointTableSlot checkpointTableBlock
+    Primary checkpointTableWalletId checkpointTableSlot
     Foreign Wallet fk_wallet_checkpoint checkpointTableWalletId
 
     deriving Show Generic
@@ -137,7 +137,6 @@ UTxO                                     sql=utxo
     -- The wallet checkpoint (wallet_id, slot)
     utxoTableWalletId        W.WalletId  sql=wallet_id
     utxoTableCheckpointSlot  W.SlotId    sql=slot
-    utxoTableCheckpointBlock W.BlockId   sql=block
 
     -- TxIn
     utxoTableInputId         TxId        sql=input_tx_id
@@ -150,13 +149,12 @@ UTxO                                     sql=utxo
     Primary
         utxoTableWalletId
         utxoTableCheckpointSlot
-        utxoTableCheckpointBlock
         utxoTableInputId
         utxoTableInputIndex
         utxoTableOutputAddress
         utxoTableOutputCoin
 
-    Foreign Checkpoint fk_checkpoint_utxo utxoTableWalletId utxoTableCheckpointSlot utxoTableCheckpointBlock
+    Foreign Checkpoint fk_checkpoint_utxo utxoTableWalletId utxoTableCheckpointSlot
     deriving Show Generic
 
 -- The pending transactions for a wallet checkpoint.
@@ -165,13 +163,12 @@ PendingTx
     -- The wallet checkpoint (wallet_id, slot)
     pendingTxTableWalletId        W.WalletId  sql=wallet_id
     pendingTxTableCheckpointSlot  W.SlotId    sql=slot
-    pendingTxTableCheckpointBlock  W.BlockId    sql=block
 
     -- Transaction TxIn and TxOut
     pendingTxTableId2             TxId        sql=tx_id
 
     Primary pendingTxTableWalletId pendingTxTableCheckpointSlot pendingTxTableId2
-    Foreign Checkpoint fk_pending_tx pendingTxTableWalletId pendingTxTableCheckpointSlot pendingTxTableCheckpointBlock
+    Foreign Checkpoint fk_pending_tx pendingTxTableWalletId pendingTxTableCheckpointSlot
     deriving Show Generic
 
 -- State for sequential scheme address discovery
@@ -180,9 +177,8 @@ SeqState
     -- The wallet checkpoint (wallet_id, slot)
     seqStateTableWalletId        W.WalletId  sql=wallet_id
     seqStateTableCheckpointSlot  W.SlotId    sql=slot
-    seqStateTableCheckpointBlock  W.BlockId sql=block
 
-    UniqueSeqState seqStateTableWalletId seqStateTableCheckpointSlot seqStateTableCheckpointBlock
+    UniqueSeqState seqStateTableWalletId seqStateTableCheckpointSlot
     Foreign Checkpoint fk_checkpoint_seq_state seqStateTableWalletId seqStateTableCheckpointSlot
     deriving Show Generic
 
