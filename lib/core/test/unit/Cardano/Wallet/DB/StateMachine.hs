@@ -139,14 +139,14 @@ errWalletAlreadyExists (ErrWalletAlreadyExists wid) = WalletAlreadyExists wid
 -- | Shortcut for wallet type.
 type MWallet = Wallet (SeqState DummyTarget) DummyTarget
 
--- | Mock wallet ID -- simple and easy to read
+-- | Mock wallet ID -- simple and easy to read.
 newtype MWid = MWid String
     deriving (Show, Eq, Ord, Generic)
 
 widPK :: MWid -> PrimaryKey WalletId
 widPK = PrimaryKey . unMockWid
 
--- | Convert a mock wallet ID to a real one by hashing it
+-- | Convert a mock wallet ID to a real one by hashing it.
 unMockWid :: MWid -> WalletId
 unMockWid (MWid wid) = WalletId . hash . B8.pack $ wid
 
@@ -166,7 +166,7 @@ data Mock = M
     { checkpoints :: Map MWid MWallet
     , metas :: Map MWid WalletMetadata
     , txs :: Map MWid TxHistory
-    , privateKey :: Map MWid MPrivKey
+    , privateKeys :: Map MWid MPrivKey
     } deriving (Show, Generic)
 
 emptyMock :: Mock
@@ -178,7 +178,7 @@ mCleanDB :: MockOp ()
 mCleanDB _ = (Right (), emptyMock)
 
 mCreateWallet :: MWid -> MWallet -> WalletMetadata -> MockOp ()
-mCreateWallet wid wal meta m@(M cp metas txs pk)
+mCreateWallet wid wal meta m@(M cp metas txs pks)
     | wid `Map.member` cp = (Left (WalletAlreadyExists wid), m)
     | otherwise =
         ( Right ()
@@ -186,7 +186,7 @@ mCreateWallet wid wal meta m@(M cp metas txs pk)
             { checkpoints = Map.insert wid wal cp
             , metas = Map.insert wid meta metas
             , txs = txs
-            , privateKey = pk
+            , privateKeys = pks
             }
         )
 
@@ -198,7 +198,7 @@ mRemoveWallet wid m@(M cp metas txs pk)
             { checkpoints = Map.delete wid cp
             , metas = Map.delete wid metas
             , txs = Map.delete wid txs
-            , privateKey = Map.delete wid pk
+            , privateKeys = Map.delete wid pk
             }
         )
     | otherwise = (Left (NoSuchWallet wid), m)
@@ -231,7 +231,7 @@ mPutTxHistory wid txs' m@(M cp metas txs pk)
     -- database that appeared in the given TxHistory.
     txs'' = Map.mapWithKey updateTxs <$> Map.alter appendTxs wid txs
 
-    -- Add tx history, replacing entries with the same TxId
+    -- Add tx history, replacing entries with the same TxId.
     appendTxs = Just . (txs' <>) . fromMaybe mempty
 
     -- Update a Tx of the given id, if it is in the given TxHistory.
@@ -453,31 +453,30 @@ lockstep m@(Model _ ws) c (At resp) = Event
   Generator
 -------------------------------------------------------------------------------}
 
--- NOTE 'concat' reads better.
 {-# ANN generator ("HLint: ignore Use ++" :: String) #-}
 generator :: Model Symbolic -> Maybe (Gen (Cmd :@ Symbolic))
-generator (Model _ wids) = Just $ frequency $ concat
+generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
     [ withoutWid
     , if null wids then [] else withWid
     ]
   where
-    withoutWid :: [(Int, Gen (Cmd :@ Symbolic))]
+    withoutWid :: [(Int, Gen (Cmd (Reference WalletId Symbolic)))]
     withoutWid =
-        [ (5, fmap At $ CreateWallet <$> genId <*> arbitrary <*> arbitrary)
+        [ (5, CreateWallet <$> genId <*> arbitrary <*> arbitrary)
         ]
 
-    withWid :: [(Int, Gen (Cmd :@ Symbolic))]
+    withWid :: [(Int, Gen (Cmd (Reference WalletId Symbolic)))]
     withWid =
-        [ (3, fmap At $ RemoveWallet <$> genId')
-        , (5, pure (At ListWallets))
-        , (5, fmap At $ PutCheckpoint <$> genId' <*> arbitrary)
-        , (5, fmap At $ ReadCheckpoint <$> genId')
-        , (5, fmap At $ PutWalletMeta <$> genId' <*> arbitrary)
-        , (5, fmap At $ ReadWalletMeta <$> genId')
-        , (5, fmap At $ PutTxHistory <$> genId' <*> fmap unGenTxHistory arbitrary)
-        , (5, fmap At $ ReadTxHistory <$> genId')
-        , (3, fmap At $ PutPrivateKey <$> genId' <*> genPrivKey)
-        , (3, fmap At $ ReadPrivateKey <$> genId')
+        [ (3, RemoveWallet <$> genId')
+        , (5, pure ListWallets)
+        , (5, PutCheckpoint <$> genId' <*> arbitrary)
+        , (5, ReadCheckpoint <$> genId')
+        , (5, PutWalletMeta <$> genId' <*> arbitrary)
+        , (5, ReadWalletMeta <$> genId')
+        , (5, PutTxHistory <$> genId' <*> fmap unGenTxHistory arbitrary)
+        , (5, ReadTxHistory <$> genId')
+        , (3, PutPrivateKey <$> genId' <*> genPrivKey)
+        , (3, ReadPrivateKey <$> genId')
         ]
 
     genId :: Gen MWid
@@ -550,24 +549,24 @@ sm db = QSM.StateMachine
 -------------------------------------------------------------------------------}
 
 instance CommandNames (At Cmd) where
-  cmdName (At CleanDB{}) = "CleanDB"
-  cmdName (At CreateWallet{}) = "CreateWallet"
-  cmdName (At RemoveWallet{}) = "RemoveWallet"
-  cmdName (At ListWallets{}) = "ListWallets"
-  cmdName (At PutCheckpoint{}) = "PutCheckpoint"
-  cmdName (At ReadCheckpoint{}) = "ReadCheckpoint"
-  cmdName (At PutWalletMeta{}) = "PutWalletMeta"
-  cmdName (At ReadWalletMeta{}) = "ReadWalletMeta"
-  cmdName (At PutTxHistory{}) = "PutTxHistory"
-  cmdName (At ReadTxHistory{}) = "ReadTxHistory"
-  cmdName (At PutPrivateKey{}) = "PutPrivateKey"
-  cmdName (At ReadPrivateKey{}) = "ReadPrivateKey"
-  cmdNames _ =
-    [ "CleanDB", "CreateWallet", "CreateWallet", "RemoveWallet"
-    , "ListWallets", "PutCheckpoint", "ReadCheckpoint", "PutWalletMeta"
-    , "ReadWalletMeta", "PutTxHistory", "ReadTxHistory", "PutPrivateKey"
-    , "ReadPrivateKey"
-    ]
+    cmdName (At CleanDB{}) = "CleanDB"
+    cmdName (At CreateWallet{}) = "CreateWallet"
+    cmdName (At RemoveWallet{}) = "RemoveWallet"
+    cmdName (At ListWallets{}) = "ListWallets"
+    cmdName (At PutCheckpoint{}) = "PutCheckpoint"
+    cmdName (At ReadCheckpoint{}) = "ReadCheckpoint"
+    cmdName (At PutWalletMeta{}) = "PutWalletMeta"
+    cmdName (At ReadWalletMeta{}) = "ReadWalletMeta"
+    cmdName (At PutTxHistory{}) = "PutTxHistory"
+    cmdName (At ReadTxHistory{}) = "ReadTxHistory"
+    cmdName (At PutPrivateKey{}) = "PutPrivateKey"
+    cmdName (At ReadPrivateKey{}) = "ReadPrivateKey"
+    cmdNames _ =
+        [ "CleanDB", "CreateWallet", "CreateWallet", "RemoveWallet"
+        , "ListWallets", "PutCheckpoint", "ReadCheckpoint", "PutWalletMeta"
+        , "ReadWalletMeta", "PutTxHistory", "ReadTxHistory", "PutPrivateKey"
+        , "ReadPrivateKey"
+        ]
 
 instance Functor f => Rank2.Functor (At f) where
     fmap = \f (At x) -> At $ fmap (lift f) x
@@ -631,16 +630,16 @@ data Tag
     | SuccessfulReadTxHistory
     | UnsuccessfulReadTxHistory
     | TxUnsortedInputs
-      -- ^ Putting a transaction with unsorted inputs
+      -- ^ Putting a transaction with unsorted inputs.
     | TxUnsortedOutputs
     | SuccessfulReadCheckpoint
-      -- ^ Read the checkpoint of a wallet that's been created
+      -- ^ Read the checkpoint of a wallet that's been created.
     | UnsuccessfulReadCheckpoint
-      -- ^ No such wallet error
+      -- ^ No such wallet error.
     | SuccessfulReadPrivateKey
-      -- ^ Private key was writeen then read
+      -- ^ Private key was written then read.
     | ReadTxHistoryAfterDelete
-      -- ^ wallet deleted, then tx history read
+      -- ^ wallet deleted, then tx history read.
     deriving (Show)
 
 tag :: [Event Symbolic] -> [Tag]
@@ -655,25 +654,28 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
     , txUnsorted outputs TxUnsortedOutputs
     , readCheckpoint isJust SuccessfulReadCheckpoint
     , readCheckpoint isNothing UnsuccessfulReadCheckpoint
-    , readAfterDelete isReadTxHistory ReadTxHistoryAfterDelete
+    , readAfterDelete
     , countAction SuccessfulReadPrivateKey (>= 1) isReadPrivateKeySuccess
     ]
   where
-    readAfterDelete :: (Event Symbolic -> Maybe MWid) -> Tag -> Fold (Event Symbolic) (Maybe Tag)
-    readAfterDelete isRead res = Fold update mempty extract
+    readAfterDelete :: Fold (Event Symbolic) (Maybe Tag)
+    readAfterDelete = Fold update mempty extract
       where
         update :: Map MWid Int -> Event Symbolic -> Map MWid Int
         update created ev =
-            case (isRead ev, cmd ev, mockResp ev, before ev) of
+            case (isReadTxHistory ev, cmd ev, mockResp ev, before ev) of
                 (Just wid, _, _, _) ->
                     Map.alter (fmap (+1)) wid created
-                (Nothing, At (RemoveWallet wid), Resp (Right _), Model _ wids) ->
-                    Map.insert (wids ! wid) 0 created
+                (Nothing
+                    , At (RemoveWallet wid)
+                    , Resp (Right _)
+                    , Model _ wids) ->
+                        Map.insert (wids ! wid) 0 created
                 _otherwise ->
                     created
 
         extract :: Map MWid Int -> Maybe Tag
-        extract created | any (> 0) created = Just res
+        extract created | any (> 0) created = Just ReadTxHistoryAfterDelete
                         | otherwise = Nothing
 
     isReadTxHistory :: Event Symbolic -> Maybe MWid
@@ -696,7 +698,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
 
         extract :: Set MWid -> Maybe Tag
         extract created
-            | Set.size created >= 3 = Just CreateWalletTwice
+            | Set.size created >= 3 = Just CreateThreeWallets
             | otherwise = Nothing
 
     createWalletTwice :: Fold (Event Symbolic) (Maybe Tag)
@@ -737,8 +739,10 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
 
     isReadPrivateKeySuccess :: Event Symbolic -> Maybe MWid
     isReadPrivateKeySuccess ev = case (cmd ev, mockResp ev, before ev) of
-        (At (ReadPrivateKey wid), Resp (Right (PrivateKey (Just _))), Model _ wids)
-            -> Just (wids ! wid)
+        (At (ReadPrivateKey wid)
+            , Resp (Right (PrivateKey (Just _)))
+            , Model _ wids )
+                -> Just (wids ! wid)
         _otherwise
             -> Nothing
 
@@ -802,6 +806,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
                     check cp
                 _otherwise ->
                     False
+
     extractf :: a -> Bool -> Maybe a
     extractf a t = if t then Just a else Nothing
 
@@ -868,7 +873,9 @@ prop_parallel db =
 -- | The commands for parallel tests are run multiple times to detect
 -- concurrency problems. We need to clean the database before every run. The
 -- easiest way is to add a CleanDB command at the beginning of the prefix.
-addCleanDB :: ParallelCommands (At Cmd) (At Resp) -> ParallelCommands (At Cmd) (At Resp)
+addCleanDB
+    :: ParallelCommands (At Cmd) (At Resp)
+    -> ParallelCommands (At Cmd) (At Resp)
 addCleanDB (ParallelCommands p s) = ParallelCommands (clean <> p) s
   where
     clean = Commands [cmd resp mempty]
