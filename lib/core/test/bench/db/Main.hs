@@ -111,6 +111,8 @@ import Data.Time.Clock.System
     ( SystemTime (..), systemToUTCTime )
 import Data.Typeable
     ( Typeable )
+import Fmt
+    ( (+|), (|+) )
 import System.IO.Unsafe
     ( unsafePerformIO )
 
@@ -123,7 +125,7 @@ main :: IO ()
 main = defaultMain
     [ withDB $ \db -> bgroup "putTxHistory"
         [ bgroup "small transactions"
-            [ bgroup "single call"
+            [ bgroup "single batch"
                 [ bench "1e2 x 1io" $ withCleanDB db $ benchPutTxHistory $
                     PutTxHistoryBench
                         { _nBatches = 1
@@ -139,7 +141,7 @@ main = defaultMain
                         , _nInputs = 1
                         }
                 ]
-            , bgroup "batches of 10"
+            , bgroup "many batches of 10"
                 [ bench "1e2 x 1io" $ withCleanDB db $ benchPutTxHistory $
                     PutTxHistoryBench
                         { _nBatches = 10
@@ -156,82 +158,98 @@ main = defaultMain
                         }
                 ]
             ]
-        , bgroup "large transactions"
+        , bgroup "large transactions - single batch"
             -- The number of inputs and outputs of a transaction is limited by
             -- the maximum transaction size. So we don't need to benchmark
             -- further than that.
             -- TODO: calculate/look up maximum number of transaction inputs/outputs
-            [ bgroup "single call"
-                [ bench "1e2 x 10io" $ withCleanDB db $ benchPutTxHistory $
-                    PutTxHistoryBench
-                        { _nBatches = 1
-                        , _batchSize = 100
-                        , _nOutputs = 10
-                        , _nInputs = 10
-                        }
-                , bench "1e3 x 10io" $ withCleanDB db $ benchPutTxHistory $
-                    PutTxHistoryBench
-                        { _nBatches = 1
-                        , _batchSize = 1000
-                        , _nOutputs = 10
-                        , _nInputs = 10
-                        }
-                , bench "1e4 x 10io" $ withCleanDB db $ benchPutTxHistory $
-                    PutTxHistoryBench
-                        { _nBatches = 1
-                        , _batchSize = 10000
-                        , _nOutputs = 10
-                        , _nInputs = 10
-                        }
-                , bench "1e2 x 100io" $ withCleanDB db $ benchPutTxHistory $
-                    PutTxHistoryBench
-                        { _nBatches = 1
-                        , _batchSize = 100
-                        , _nOutputs = 100
-                        , _nInputs = 100
-                        }
-                , bench "1e3 x 100io" $ withCleanDB db $ benchPutTxHistory $
-                    PutTxHistoryBench
-                        { _nBatches = 1
-                        , _batchSize = 1000
-                        , _nOutputs = 100
-                        , _nInputs = 100
-                        }
-                , bench "1e4 x 100io" $ withCleanDB db $ benchPutTxHistory $
-                    PutTxHistoryBench
-                        { _nBatches = 1
-                        , _batchSize = 10000
-                        , _nOutputs = 100
-                        , _nInputs = 100
-                        }
-                ]
+            [ bench "1e2 x 10io" $ withCleanDB db $ benchPutTxHistory $
+                PutTxHistoryBench
+                    { _nBatches = 1
+                    , _batchSize = 100
+                    , _nOutputs = 10
+                    , _nInputs = 10
+                    }
+            , bench "1e3 x 10io" $ withCleanDB db $ benchPutTxHistory $
+                PutTxHistoryBench
+                    { _nBatches = 1
+                    , _batchSize = 1000
+                    , _nOutputs = 10
+                    , _nInputs = 10
+                    }
+            , bench "1e4 x 10io" $ withCleanDB db $ benchPutTxHistory $
+                PutTxHistoryBench
+                    { _nBatches = 1
+                    , _batchSize = 10000
+                    , _nOutputs = 10
+                    , _nInputs = 10
+                    }
+            , bench "1e2 x 100io" $ withCleanDB db $ benchPutTxHistory $
+                PutTxHistoryBench
+                    { _nBatches = 1
+                    , _batchSize = 100
+                    , _nOutputs = 100
+                    , _nInputs = 100
+                    }
+            , bench "1e3 x 100io" $ withCleanDB db $ benchPutTxHistory $
+                PutTxHistoryBench
+                    { _nBatches = 1
+                    , _batchSize = 1000
+                    , _nOutputs = 100
+                    , _nInputs = 100
+                    }
+            , bench "1e4 x 100io" $ withCleanDB db $ benchPutTxHistory $
+                PutTxHistoryBench
+                    { _nBatches = 1
+                    , _batchSize = 10000
+                    , _nOutputs = 100
+                    , _nInputs = 100
+                    }
             ]
         ]
-    , withDB $ \db -> bgroup "putCheckpoint"
-        -- The very max number of checkpoints we are likely to insert per wallet
-        -- is k=2160.
-        [ bgroup "UTxO"
-            -- A fragmented wallet will have a large number of UTxO. The coin
-            -- selection algorithm tries to prevent fragmentation
-            [ bench "1e2 x   0utxo" $ withCleanDB db $ benchPutCheckpoint   100   0
-            , bench "1e3 x   0utxo" $ withCleanDB db $ benchPutCheckpoint  1000   0
-            , bench "1e1 x   10utxo" $ withCleanDB db $ benchPutCheckpoint    10   10
-            , bench "1e2 x   10utxo" $ withCleanDB db $ benchPutCheckpoint   100   10
-            , bench "1e3 x   10utxo" $ withCleanDB db $ benchPutCheckpoint  1000   10
-            , bench "1e1 x  100utxo" $ withCleanDB db $ benchPutCheckpoint    10  100
-            , bench "1e2 x  100utxo" $ withCleanDB db $ benchPutCheckpoint   100  100
-            , bench "1e3 x  100utxo" $ withCleanDB db $ benchPutCheckpoint  1000  100
-            , bench "1e1 x 1000utxo" $ withCleanDB db $ benchPutCheckpoint    10 1000
-            , bench "1e2 x 1000utxo" $ withCleanDB db $ benchPutCheckpoint   100 1000
-            , bench "1e3 x 1000utxo" $ withCleanDB db $ benchPutCheckpoint  1000 1000
-            ]
-        , bgroup "SeqState"
-            [ bench "1e2 x   10addr" $ withCleanDB db $ benchPutSeqState 100   10
-            , bench "1e2 x  100addr" $ withCleanDB db $ benchPutSeqState 100  100
-            , bench "1e2 x 1000addr" $ withCleanDB db $ benchPutSeqState 100 1000
-            ]
+    , withDB benchPutCheckpoint
+    ]
+
+----------------------------------------------------------------------------
+-- Checkpoint benchmarks (covers UTxO and SeqState)
+--
+-- The very max number of checkpoints we are likely to insert per wallet
+-- is k=2160.
+
+benchPutCheckpoint :: DBLayerBench -> Benchmark
+benchPutCheckpoint db = bgroup "putCheckpoint"
+    [ bgroup "UTxO"
+        -- A fragmented wallet will have a large number of UTxO. The coin
+        -- selection algorithm tries to prevent fragmentation.
+        --
+        --      #Checkpoints   UTxO Size
+        [ bUTxO          100           0
+        , bUTxO         1000           0
+        , bUTxO           10          10
+        , bUTxO          100          10
+        , bUTxO         1000          10
+        , bUTxO           10         100
+        , bUTxO          100         100
+        , bUTxO         1000         100
+        , bUTxO           10        1000
+        , bUTxO          100        1000
+        , bUTxO         1000        1000
+        ]
+    , bgroup "SeqState"
+        --      #Checkpoints  #Addresses
+        [ bSeqState      100          10
+        , bSeqState      100         100
+        , bSeqState      100        1000
+        , bSeqState     1000          10
+        , bSeqState     1000         100
+        , bSeqState     1000        1000
         ]
     ]
+  where
+    bUTxO n s = bench lbl $ withCleanDB db $ benchPutUTxO n s
+        where lbl = n|+"CP x "+|s|+"UTxO"
+    bSeqState n a = bench lbl $ withCleanDB db $ benchPutSeqState n a
+        where lbl = n|+"CP x "+|a|+"addr"
 
 ----------------------------------------------------------------------------
 -- Criterion env functions for database setup
@@ -292,8 +310,8 @@ mkOutputs n = [TxOut (Address (label "addr" i)) (Coin 1) | i <- [1..n]]
 ----------------------------------------------------------------------------
 -- UTxO benchmarks
 
-benchPutCheckpoint :: Int -> Int -> DBLayerBench -> IO ()
-benchPutCheckpoint numCheckpoints utxoSize db = do
+benchPutUTxO :: Int -> Int -> DBLayerBench -> IO ()
+benchPutUTxO numCheckpoints utxoSize db = do
     let cps = mkCheckpoints numCheckpoints utxoSize
     unsafeRunExceptT $ mapM_ (putCheckpoint db testPk) cps
 
