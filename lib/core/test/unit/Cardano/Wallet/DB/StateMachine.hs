@@ -453,7 +453,6 @@ lockstep m@(Model _ ws) c (At resp) = Event
   Generator
 -------------------------------------------------------------------------------}
 
--- NOTE 'concat' reads better.
 {-# ANN generator ("HLint: ignore Use ++" :: String) #-}
 generator :: Model Symbolic -> Maybe (Gen (Cmd :@ Symbolic))
 generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
