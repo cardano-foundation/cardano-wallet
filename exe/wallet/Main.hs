@@ -51,6 +51,8 @@ import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
+import Cardano.Wallet.Network
+    ( defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..), KeyToAddress, Passphrase (..) )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -351,6 +353,7 @@ execHttpBridge args _ = do
         <- args `parseArg` longOption "bridge-port"
     db <- MVar.newDBLayer
     nw <- HttpBridge.newNetworkLayer @n bridgePort
+    waitForConnection nw defaultRetryPolicy
     let tl = HttpBridge.newTransactionLayer @n
     wallet <- newWalletLayer @_ @(HttpBridge n) db nw tl
     let settings = Warp.defaultSettings

@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -7,6 +8,10 @@ module Cardano.Wallet.Network
     (
     -- * Interface
       NetworkLayer (..)
+
+    -- * Helpers
+    , waitForConnection
+    , defaultRetryPolicy
 
     -- * Errors
     , ErrNetworkUnreachable(..)
@@ -19,13 +24,16 @@ import Prelude
 import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..), Hash (..), SlotId (..), Tx, TxWitness )
 import Control.Exception
-    ( Exception )
+    ( Exception, throwIO )
 import Control.Monad.Trans.Except
-    ( ExceptT )
+    ( ExceptT, runExceptT )
+import Control.Retry
 import Data.Text
     ( Text )
 import GHC.Generics
     ( Generic )
+
+import qualified Data.Text.IO as TIO
 
 data NetworkLayer t m = NetworkLayer
     { nextBlocks :: SlotId -> ExceptT ErrNetworkUnreachable m [Block]
@@ -67,3 +75,31 @@ data ErrPostTx
     deriving (Generic, Show, Eq)
 
 instance Exception ErrPostTx
+
+-- | Wait until 'networkTip networkLayer' succeeds according to a given
+-- retry policy. Throws an exception otherwise.
+waitForConnection
+    :: NetworkLayer t IO
+    -> RetryPolicyM IO
+    -> IO ()
+waitForConnection nw policy = do
+    r <- retrying policy shouldRetry (const $ runExceptT (networkTip nw))
+    case r of
+        Right _ -> return ()
+        Left e -> throwIO e
+  where
+
+    shouldRetry _ = \case
+        Right _ -> do
+            return False
+        Left (ErrNetworkTipNetworkUnreachable _) -> do
+             TIO.putStrLn "[INFO] waiting for connection to the node..."
+             return True
+        Left _ -> return True
+
+defaultRetryPolicy :: Monad m => RetryPolicyM m
+defaultRetryPolicy =
+    limitRetriesByCumulativeDelay (20 * second)
+        (constantDelay (1 * second))
+  where
+    second = 1000*1000

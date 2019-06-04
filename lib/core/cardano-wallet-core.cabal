@@ -55,6 +55,7 @@ library
     , persistent-sqlite
     , persistent-template
     , resourcet
+    , retry
     , servant
     , servant-server
     , split

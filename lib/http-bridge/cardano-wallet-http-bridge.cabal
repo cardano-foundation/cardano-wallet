@@ -151,6 +151,7 @@ test-suite integration
     , http-types
     , memory
     , process
+    , retry
     , template-haskell
     , text
     , text-class
