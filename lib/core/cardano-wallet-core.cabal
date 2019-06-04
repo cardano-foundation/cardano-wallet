@@ -57,6 +57,7 @@ library
     , resourcet
     , servant
     , servant-server
+    , split
     , text
     , text-class
     , time
