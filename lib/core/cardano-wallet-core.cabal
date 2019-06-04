@@ -188,6 +188,7 @@ benchmark db
     , containers
     , cryptonite
     , deepseq
+    , fmt
     , memory
     , time
   type:

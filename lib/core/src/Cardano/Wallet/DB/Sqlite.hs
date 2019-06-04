@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -90,9 +91,9 @@ import Database.Persist.Class
     ( PersistField, PersistRecordBackend )
 import Database.Persist.Sql
     ( Entity (..)
+    , Filter
     , LogFunc
     , SelectOpt (..)
-    , Filter
     , Update (..)
     , deleteCascadeWhere
     , deleteWhere
