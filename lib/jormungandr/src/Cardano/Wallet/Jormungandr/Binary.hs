@@ -40,7 +40,7 @@ module Cardano.Wallet.Jormungandr.Binary
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Environment
-    ( Network (..) )
+    ( Network (..), single )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -67,6 +67,8 @@ import Data.Binary.Get
     , runGet
     , skip
     )
+import Data.Binary.Put
+    ( Put, putByteString, putWord64be, putWord8 )
 import Data.Bits
     ( shift, (.&.) )
 import Data.ByteString
@@ -216,9 +218,50 @@ getTransaction = label "getTransaction" $ isolate 43 $ do
                 error "unimplemented: Account witness"
             other -> fail $ "Invalid witness type: " ++ show other
 
+
+putTransaction :: (Tx, [TxWitness]) -> Put
+putTransaction (tx, witnesses) = do
+    putTokenTransfer tx
+    mapM_ putWitness witnesses
+
+putWitness :: TxWitness -> Put
+putWitness witness =
+    case witness of
+        PublicKeyWitness xPub (Hash sig) -> do
+            putWord8 1
+            putByteString xPub
+            putByteString sig
+        -- TODO: note that we are missing new address type witness:
+        --  * https://github.com/input-output-hk/rust-cardano/blob/3524cfe138a10773caa6f0effacf69e792f915df/chain-impl-mockchain/doc/format.md#witnesses
+        --  * https://github.com/input-output-hk/rust-cardano/blob/e0616f13bebd6b908320bddb1c1502dea0d3305a/chain-impl-mockchain/src/transaction/witness.rs#L23
+        ScriptWitness _ -> error "unimplemented: serialize script witness"
+        RedeemWitness _ -> error "unimplemented: serialize redeem witness"
+
+
 {-------------------------------------------------------------------------------
                             Common Structure
 -------------------------------------------------------------------------------}
+
+putTokenTransfer :: Tx -> Put
+putTokenTransfer (Tx inputs outputs) = do
+    putWord8 $ fromIntegral $ length inputs
+    putWord8 $ fromIntegral $ length outputs
+    mapM_ putInput inputs
+    mapM_ putOutput outputs
+  where
+    putInput (TxIn inputId inputIx) = do
+        -- NOTE: special value 0xff indicates account spending
+        -- only old utxo/address scheme supported for now
+        putWord8 $ fromIntegral inputIx
+        putByteString $ getHash inputId
+    putOutput (TxOut address coin) = do
+        putAddress address
+        putWord64be $ getCoin coin
+    putAddress address = do
+        -- NOTE: only single address supported for now
+        putWord8 single
+        -- TODO(akegalj) this should be `encodeAddress (Proxy Jormungandr) address`
+        putByteString "addressBytestring" -- address
 
 getTokenTransfer :: Get ([TxIn], [TxOut])
 getTokenTransfer = label "getTokenTransfer" $ do
@@ -246,6 +289,7 @@ getTokenTransfer = label "getTokenTransfer" $ do
         let _discrimination = discriminationValue headerByte
         case kind of
             -- Single Address
+            -- TODO(akegalj) shouldn't this be `either fail id . decodeAddress (Proxy Jormungandr) <$> getByteString 32` ?
             0x3 -> Address <$> getByteString 32
             0x4 -> error "unimplemented group address decoder"
             0x5 -> error "unimplemented account address decoder"
@@ -259,6 +303,7 @@ getTokenTransfer = label "getTokenTransfer" $ do
     discriminationValue b = case b .&. 0b10000000 of
         0 -> Mainnet
         _ -> Testnet
+
 
 {-------------------------------------------------------------------------------
                             Config Parameters

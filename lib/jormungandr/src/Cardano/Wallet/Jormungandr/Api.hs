@@ -25,7 +25,7 @@ import Prelude
 import Cardano.Wallet.Jormungandr.Binary
     ( FromBinary (..), runGet )
 import Cardano.Wallet.Primitive.Types
-    ( Block, Hash (..) )
+    ( Block, Hash (..), Tx, TxWitness )
 import Data.Binary.Get
     ( getByteString )
 import Data.ByteArray.Encoding
@@ -91,12 +91,9 @@ type GetTipId
 
 type PostSignedTx
     = "v0"
-    :> "transaction"
-    :> ReqBody '[JormungandrBinary] SignedTx
+    :> "message"
+    :> ReqBody '[JormungandrBinary] (Tx, [TxWitness])
     :> Post '[NoContent] NoContent
-
--- TODO: Replace SignedTx with something real
-data SignedTx
 
 newtype BlockId = BlockId (Hash "BlockHeader")
     deriving (Eq, Show)
