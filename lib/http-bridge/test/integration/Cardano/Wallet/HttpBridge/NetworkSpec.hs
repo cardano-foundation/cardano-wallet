@@ -54,7 +54,7 @@ spec :: Spec
 spec = do
     describe "Happy paths" $ beforeAll startBridge $ afterAll closeBridge $ do
         it "get from packed epochs" $ \(_, bridge) -> do
-            let blocks = runExceptT $ nextBlocks bridge (SlotId 13 21599)
+            let blocks = runExceptT $ nextBlocks bridge (SlotId 13 21599, undefined)
             (fmap length <$> blocks)
                 `shouldReturn` pure 21600
             (fmap (prevBlockHash . header . head) <$> blocks)
@@ -64,7 +64,7 @@ spec = do
 
         it "get from packet epochs and filter by start slot"
                 $ \(_, bridge) -> do
-            let blocks = runExceptT $ nextBlocks bridge (SlotId 14 13999)
+            let blocks = runExceptT $ nextBlocks bridge (SlotId 14 13999, undefined)
             (fmap length <$> blocks)
                 `shouldReturn` pure 7600
             (fmap (prevBlockHash . header . head) <$> blocks)
@@ -74,9 +74,9 @@ spec = do
 
         it "get unstable blocks for the unstable epoch" $ \(_, bridge) -> do
             let action = runExceptT $ do
-                    (SlotId ep sl) <- (slotId . snd) <$> networkTip' bridge
+                    (SlotId ep sl) <- fst <$> networkTip' bridge
                     let sl' = if sl > 2 then sl - 2 else 0
-                    blocks <- nextBlocks bridge (SlotId ep sl')
+                    blocks <- nextBlocks bridge (SlotId ep sl', undefined)
                     lift $ blocks `shouldSatisfy` (\bs
                         -> length bs >= fromIntegral (sl - sl')
                         && length bs <= fromIntegral (sl - sl' + 1)
@@ -85,8 +85,8 @@ spec = do
 
         it "produce no blocks if start is after tip" $ \(_, bridge) -> do
             let action = runExceptT $ do
-                    SlotId ep sl <- (slotId . snd) <$> networkTip' bridge
-                    length <$> nextBlocks bridge (SlotId (ep + 1) sl)
+                    SlotId ep sl <- fst <$> networkTip' bridge
+                    length <$> nextBlocks bridge (SlotId (ep + 1) sl, undefined)
             action `shouldReturn` pure 0
 
     describe "Error paths" $ beforeAll newNetworkLayer $ do

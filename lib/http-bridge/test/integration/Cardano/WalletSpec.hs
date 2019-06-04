@@ -55,7 +55,7 @@ spec = do
             unsafeRunExceptT $ restoreWallet wallet wid
             threadDelay 2000000
             tip <- currentTip . fst <$> unsafeRunExceptT (readWallet wallet wid)
-            unless (tip > (SlotId 0 0)) $
+            unless (fst tip > (SlotId 0 0)) $
                 expectationFailure ("The wallet tip is still " ++ show tip)
   where
     port = 1337

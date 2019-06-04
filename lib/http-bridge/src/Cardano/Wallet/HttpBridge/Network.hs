@@ -46,7 +46,14 @@ import Cardano.Wallet.Network
     , NetworkLayer (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), Hash (..), SlotId (..), Tx, TxWitness )
+    ( Block (..)
+    , BlockHeader (..)
+    , BlockId (..)
+    , Hash (..)
+    , SlotId (..)
+    , Tx
+    , TxWitness
+    )
 import Control.Arrow
     ( left )
 import Control.Exception
@@ -91,8 +98,8 @@ import qualified Servant.Extra.ContentTypes as Api
 -- | Constructs a network layer with the given cardano-http-bridge API.
 mkNetworkLayer :: Monad m => HttpBridgeLayer m -> NetworkLayer t m
 mkNetworkLayer httpBridge = NetworkLayer
-    { nextBlocks = rbNextBlocks httpBridge
-    , networkTip = getNetworkTip httpBridge
+    { nextBlocks = \(sl, _) -> rbNextBlocks httpBridge sl
+    , networkTip = (\(hash, h) -> (slotId h, BlockId hash)) <$> getNetworkTip httpBridge
     , postTx = postSignedTx httpBridge
     }
 

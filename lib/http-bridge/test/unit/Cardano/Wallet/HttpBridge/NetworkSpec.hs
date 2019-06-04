@@ -31,7 +31,7 @@ spec = do
         let network = mockNetworkLayer noLog 105 (SlotId 106 1492)
 
         it "should get something from the latest epoch" $ do
-            blocks <- runExceptT $ nextBlocks network (SlotId 106 999)
+            blocks <- runExceptT $ nextBlocks network (SlotId 106 999, undefined)
             -- the number of blocks between slots 1000 and 1492 inclusive
             fmap length blocks `shouldBe` Right 493
             let hdrs = either (const []) (map (slotId . header)) blocks
@@ -39,38 +39,38 @@ spec = do
             map epochNumber hdrs `shouldSatisfy` all (== 106)
 
         it "should return all unstable blocks" $ do
-            blocks <- runExceptT $ nextBlocks network (SlotId 105 0)
+            blocks <- runExceptT $ nextBlocks network (SlotId 105 0, undefined)
             fmap length blocks `shouldBe` Right (21600 + 1492)
 
         it "should return unstable blocks after the start slot" $ do
-            blocks <- runExceptT $ nextBlocks network (SlotId 105 17000)
+            blocks <- runExceptT $ nextBlocks network (SlotId 105 17000, undefined)
             -- this will be all the blocks between 105.17000 and 106.1492
             fmap length blocks `shouldBe` Right 6092
 
         it "should return just the tip block" $ do
-            blocks <- runExceptT $ nextBlocks network (SlotId 106 1491)
+            blocks <- runExceptT $ nextBlocks network (SlotId 106 1491, undefined)
             fmap length blocks `shouldBe` Right 1
 
         it "should get from packed epochs" $ do
-            Right blocks <- runExceptT $ nextBlocks network (SlotId 100 0)
+            Right blocks <- runExceptT $ nextBlocks network (SlotId 100 0, undefined)
             -- an entire epoch's worth of blocks
             length blocks `shouldBe` 21599
             map (epochNumber . slotId . header) blocks
                 `shouldSatisfy` all (== 100)
 
         it "should get from packed epochs and filter by start slot" $ do
-            Right blocks <- runExceptT $ nextBlocks network (SlotId 104 10000)
+            Right blocks <- runExceptT $ nextBlocks network (SlotId 104 10000, undefined)
             -- the number of remaining blocks in epoch 104
             length blocks `shouldBe` 11599
             map (epochNumber . slotId . header) blocks
                 `shouldSatisfy` all (== 104)
 
         it "should produce no blocks if start slot is after tip" $ do
-            blocks <- runExceptT $ nextBlocks network (SlotId 107 0)
+            blocks <- runExceptT $ nextBlocks network (SlotId 107 0, undefined)
             blocks `shouldBe` Right []
 
         it "should work for the first epoch" $ do
-            Right blocks <- runExceptT $ nextBlocks network (SlotId 0 0)
+            Right blocks <- runExceptT $ nextBlocks network (SlotId 0 0, undefined)
             length blocks `shouldBe` 21599
 
 {-------------------------------------------------------------------------------
