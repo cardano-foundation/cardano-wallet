@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -36,6 +37,7 @@ import Cardano.Wallet.DB.Sqlite.TH
     , AddressPoolIndex (..)
     , Checkpoint (..)
     , EntityField (..)
+    , Key (..)
     , PendingTx (..)
     , PrivateKey (..)
     , SeqState (..)
@@ -81,6 +83,8 @@ import Data.Either
     ( isRight )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.List.Split
+    ( chunksOf )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -275,8 +279,8 @@ newDBLayer fp = do
               selectWallet wid >>= \case
                   Just _ -> do
                       let (metas, txins, txouts) = mkTxHistory wid txs
-                      putTxMetas wid metas
-                      putTxs (TxId <$> Map.keys txs) txins txouts
+                      putTxMetas metas
+                      putTxs txins txouts
                       pure $ Right ()
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
@@ -546,22 +550,41 @@ deleteTxMetas
 deleteTxMetas wid = deleteWhere [ TxMetaTableWalletId ==. wid ]
 
 -- | Add new TxMeta rows, overwriting existing ones.
-putTxMetas
-    :: W.WalletId
-    -> [TxMeta]
-    -> SqlPersistM ()
-putTxMetas wid metas = do
-    let txids = map txMetaTableTxId metas
-    deleteMany [ TxMetaTableWalletId ==. wid ] TxMetaTableTxId txids
-    insertMany_ metas
+putTxMetas :: [TxMeta] -> SqlPersistM ()
+putTxMetas metas = dbChunked repsertMany
+    [(TxMetaKey txMetaTableTxId txMetaTableWalletId, m) | m@TxMeta{..} <- metas]
 
 -- | Insert multiple transactions, removing old instances first.
-putTxs :: [TxId] -> [TxIn] -> [TxOut] -> SqlPersistM ()
-putTxs txIds txins txouts = do
-    deleteMany [] TxInputTableTxId txIds
-    putMany txins
-    deleteMany [] TxOutputTableTxId txIds
-    putMany txouts
+putTxs :: [TxIn] -> [TxOut] -> SqlPersistM ()
+putTxs txins txouts = do
+    dbChunked repsertMany
+        [ (TxInKey txInputTableTxId txInputTableSourceTxId txInputTableSourceIndex, i)
+        | i@TxIn{..} <- txins ]
+    dbChunked repsertMany
+        [ (TxOutKey txOutputTableTxId txOutputTableIndex, o)
+        | o@TxOut{..} <- txouts ]
+
+-- | Convert a single DB "updateMany" (or similar) query into multiple
+-- updateMany queries with smaller lists of values.
+--
+-- This is to prevent too many variables appearing in the SQL statement.
+-- SQLITE_MAX_VARIABLE_NUMBER is 999 by default, and we will get a
+-- "too many SQL variables" exception if that is exceeded.
+--
+-- We choose a conservative 100 because there can be multiple variables
+-- per row updated.
+dbChunked :: ([a] -> SqlPersistM b) -> [a] -> SqlPersistM ()
+dbChunked = chunkedM 100
+
+-- | Given an action which takes a list of items, and a list of items, run that
+-- action multiple times with the input list cut into chunks.
+chunkedM
+    :: Monad m
+    => Int -- ^ Chunk size
+    -> ([a] -> m b) -- ^ Action to run on values
+    -> [a] -- ^ The values
+    -> m ()
+chunkedM n f = mapM_ f . chunksOf n
 
 -- | Delete transactions that aren't referred to by either Pending or TxMeta of
 -- any wallet.
