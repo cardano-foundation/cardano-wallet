@@ -53,9 +53,6 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text.Encoding as T
 
-
-
-
 -- | A type representing the http-bridge as a network target. This has an
 -- influence on binary serializer & network primitives. See also 'TxId'
 data HttpBridge (network :: Network)

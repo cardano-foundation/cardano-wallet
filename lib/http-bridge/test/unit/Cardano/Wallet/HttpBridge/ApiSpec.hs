@@ -58,7 +58,7 @@ roundtripAndGolden = roundtripAndGoldenSpecsWithSettings settings
     settings :: Settings
     settings = defaultSettings
         { goldenDirectoryOption =
-            CustomDirectoryName "test/data/Cardano.Wallet.HttpBridge.Network"
+            CustomDirectoryName "test/data/Cardano/Wallet/HttpBridge/Api"
         , useModuleNameAsSubDirectory =
             False
         , sampleSize = 4
