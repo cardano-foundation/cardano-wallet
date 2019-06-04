@@ -92,7 +92,7 @@ import Data.Text
 import Data.Typeable
     ( Typeable )
 import Database.Persist.Class
-    ( PersistField, PersistRecordBackend )
+    ( DeleteCascade, PersistField, PersistRecordBackend )
 import Database.Persist.Sql
     ( Entity (..)
     , Filter
@@ -598,7 +598,10 @@ deleteLooseTransactions = do
                 , TxOutputTableTxId /<-. metaTxId ]
 
 deleteMany
-    ::forall typ record. (PersistField typ, PersistRecordBackend record SqlBackend)
+    :: forall typ record.
+       ( PersistField typ
+       , DeleteCascade record SqlBackend
+       , PersistRecordBackend record SqlBackend )
     => [Filter record]
     -> EntityField record typ
     -> [typ]
@@ -608,13 +611,12 @@ deleteMany filters entity types
     -- we arbitrarily pick 500 which is way below 999. This should prevent the
     -- infamous: too many SQL variables
     | length types < sz =
-        deleteWhere ((entity <-. types):filters)
+        deleteCascadeWhere ((entity <-. types):filters)
     | otherwise = do
-        deleteWhere ((entity <-. take sz types):filters)
+        deleteCascadeWhere ((entity <-. take sz types):filters)
         deleteMany filters entity (drop sz types)
   where
     sz = 500
-
 
 selectLatestCheckpoint
     :: W.WalletId
@@ -703,8 +705,8 @@ instance W.KeyToAddress t => PersistState (W.SeqState t) where
             selectList [ SeqStateInternalPoolSeqStateId <-. ssid ] []
         extApId <- fmap (seqStateExternalPoolAddressPool . entityVal) <$>
             selectList [ SeqStateExternalPoolSeqStateId <-. ssid ] []
-        deleteCascadeWhere [AddressPoolId <-. intApId]
-        deleteCascadeWhere [AddressPoolId <-. extApId]
+        deleteMany [] AddressPoolId intApId
+        deleteMany [] AddressPoolId extApId
         deleteCascadeWhere [SeqStateTableWalletId ==. wid]
 
 insertAddressPool
