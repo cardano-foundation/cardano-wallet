@@ -139,14 +139,14 @@ errWalletAlreadyExists (ErrWalletAlreadyExists wid) = WalletAlreadyExists wid
 -- | Shortcut for wallet type.
 type MWallet = Wallet (SeqState DummyTarget) DummyTarget
 
--- | Mock wallet ID -- simple and easy to read
+-- | Mock wallet ID -- simple and easy to read.
 newtype MWid = MWid String
     deriving (Show, Eq, Ord, Generic)
 
 widPK :: MWid -> PrimaryKey WalletId
 widPK = PrimaryKey . unMockWid
 
--- | Convert a mock wallet ID to a real one by hashing it
+-- | Convert a mock wallet ID to a real one by hashing it.
 unMockWid :: MWid -> WalletId
 unMockWid (MWid wid) = WalletId . hash . B8.pack $ wid
 
@@ -231,7 +231,7 @@ mPutTxHistory wid txs' m@(M cp metas txs pk)
     -- database that appeared in the given TxHistory.
     txs'' = Map.mapWithKey updateTxs <$> Map.alter appendTxs wid txs
 
-    -- Add tx history, replacing entries with the same TxId
+    -- Add tx history, replacing entries with the same TxId.
     appendTxs = Just . (txs' <>) . fromMaybe mempty
 
     -- Update a Tx of the given id, if it is in the given TxHistory.
@@ -631,16 +631,16 @@ data Tag
     | SuccessfulReadTxHistory
     | UnsuccessfulReadTxHistory
     | TxUnsortedInputs
-      -- ^ Putting a transaction with unsorted inputs
+      -- ^ Putting a transaction with unsorted inputs.
     | TxUnsortedOutputs
     | SuccessfulReadCheckpoint
-      -- ^ Read the checkpoint of a wallet that's been created
+      -- ^ Read the checkpoint of a wallet that's been created.
     | UnsuccessfulReadCheckpoint
-      -- ^ No such wallet error
+      -- ^ No such wallet error.
     | SuccessfulReadPrivateKey
-      -- ^ Private key was writeen then read
+      -- ^ Private key was written then read.
     | ReadTxHistoryAfterDelete
-      -- ^ wallet deleted, then tx history read
+      -- ^ wallet deleted, then tx history read.
     deriving (Show)
 
 tag :: [Event Symbolic] -> [Tag]
