@@ -77,7 +77,6 @@ library
       Cardano.Wallet.DB.Sqlite
       Cardano.Wallet.DB.Sqlite.TH
       Cardano.Wallet.DB.Sqlite.Types
-      Cardano.Wallet.Environment
       Cardano.Wallet.Network
       Cardano.Wallet.Primitive.AddressDerivation
       Cardano.Wallet.Primitive.AddressDiscovery
@@ -153,7 +152,6 @@ test-suite unit
       Cardano.Wallet.DB.StateMachine
       Cardano.Wallet.DB.SqliteSpec
       Cardano.Wallet.DBSpec
-      Cardano.Wallet.EnvironmentSpec
       Cardano.Wallet.NetworkSpec
       Cardano.Wallet.Primitive.AddressDerivationSpec
       Cardano.Wallet.Primitive.AddressDiscoverySpec

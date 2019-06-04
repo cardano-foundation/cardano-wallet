@@ -1,6 +1,8 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.HttpBridge.Transaction
@@ -12,7 +14,7 @@ import Prelude
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.HttpBridge.Environment
-    ( Network (..), ProtocolMagic (..), network, protocolMagic )
+    ( KnownNetwork (..), Network (..), ProtocolMagic (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (AddressK), Key, Passphrase (..), XPrv, XPub, getKey, publicKey )
 import Cardano.Wallet.Primitive.CoinSelection
@@ -43,12 +45,15 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 
 -- | Construct a 'TransactionLayer' compatible with Byron and the 'HttpBridge'
-newTransactionLayer :: TransactionLayer
+newTransactionLayer
+    :: forall n. KnownNetwork n
+    => TransactionLayer (HttpBridge n)
 newTransactionLayer = TransactionLayer
     { mkStdTx = \keyFrom inps outs -> do
         let ins = (fmap fst inps)
         let tx = Tx ins outs
-        let txSigData = txId @HttpBridge tx
+        -- Not working, maybe we need to make TransactionLayer polymorphic
+        let txSigData = txId @(HttpBridge n) tx
         txWitnesses <- forM inps $ \(_in, TxOut addr _c) -> mkWitness txSigData
             <$> withEither (ErrKeyNotFoundForAddress addr) (keyFrom addr)
         return (tx, txWitnesses)
@@ -97,7 +102,7 @@ newTransactionLayer = TransactionLayer
                 "\x01" <> pm <> CBOR.toStrictByteString (CBOR.encodeBytes payload)
           where
             pm =
-                let ProtocolMagic x = protocolMagic network
+                let ProtocolMagic x = protocolMagic @n
                 in CBOR.toStrictByteString . CBOR.encodeInt32 $ x
 
     --input -------------------------------------- 41 + (1|2|3|5)
@@ -182,7 +187,7 @@ newTransactionLayer = TransactionLayer
     -- the change which makes an address payload of `43` bytes for mainnet,
     -- and `50` bytes on testnet.
     sizeOfChange :: Coin -> Int
-    sizeOfChange c = case network of
+    sizeOfChange c = case networkVal @n of
         Mainnet -> 1 + 43 + sizeOfCoin c
         Staging -> 1 + 43 + sizeOfCoin c
         Testnet -> 1 + 50 + sizeOfCoin c

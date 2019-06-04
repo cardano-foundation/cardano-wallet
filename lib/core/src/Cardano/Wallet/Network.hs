@@ -27,7 +27,7 @@ import Data.Text
 import GHC.Generics
     ( Generic )
 
-data NetworkLayer m = NetworkLayer
+data NetworkLayer t m = NetworkLayer
     { nextBlocks :: SlotId -> ExceptT ErrNetworkUnreachable m [Block]
         -- ^ Gets some blocks from the node. It will not necessarily return all
         -- the blocks that the node has, but will receive a reasonable-sized

@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -8,7 +9,7 @@ module Cardano.Wallet.HttpBridge.CompatibilitySpec
 import Prelude
 
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge )
+    ( HttpBridge, Network (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), decodeAddress, encodeAddress )
 import Data.Digest.CRC32
@@ -27,20 +28,32 @@ import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
 
 spec :: Spec
-spec = describe "Compatibility - HttpBridge" $ do
-    it "decodeAddress . encodeAddress = pure" $
-        property $ \a -> decodeAddress' (encodeAddress' a) === Right a
+spec = do
+    describe "Compatibility - HttpBridge (Mainnet)" $ do
+        let proxy = Proxy @(HttpBridge 'Mainnet)
+        it "decodeAddress . encodeAddress = pure" $ property $ \a ->
+            decodeAddress proxy (encodeAddress proxy a) === Right a
 
-    it "decodeAddress failure \"0000\"" $ do
-        let err = "Unable to decode Address: expected Base58 encoding."
-        decodeAddress' "0000" === Left (TextDecodingError err)
+        it "decodeAddress failure \"0000\"" $ do
+            let err = "Unable to decode Address: expected Base58 encoding."
+            decodeAddress proxy "0000" === Left (TextDecodingError err)
 
-    it "decodeAddress failure \"EkxDbkPo\"" $ do
-        let err = "Unable to decode Address: not a valid Byron address."
-        decodeAddress' "EkxDbkPo" === Left (TextDecodingError err)
-  where
-    decodeAddress' = decodeAddress (Proxy @HttpBridge)
-    encodeAddress' = encodeAddress (Proxy @HttpBridge)
+        it "decodeAddress failure \"EkxDbkPo\"" $ do
+            let err = "Unable to decode Address: not a valid Byron address."
+            decodeAddress proxy "EkxDbkPo" === Left (TextDecodingError err)
+
+    describe "Compatibility - HttpBridge (Testnet)" $ do
+        let proxy = Proxy @(HttpBridge 'Testnet)
+        it "decodeAddress . encodeAddress = pure" $ property $ \a ->
+            decodeAddress proxy (encodeAddress proxy a) === Right a
+
+        it "decodeAddress failure \"0000\"" $ do
+            let err = "Unable to decode Address: expected Base58 encoding."
+            decodeAddress proxy "0000" === Left (TextDecodingError err)
+
+        it "decodeAddress failure \"EkxDbkPo\"" $ do
+            let err = "Unable to decode Address: not a valid Byron address."
+            decodeAddress proxy "EkxDbkPo" === Left (TextDecodingError err)
 
 instance Arbitrary Address where
     arbitrary = genAddress (30, 100)

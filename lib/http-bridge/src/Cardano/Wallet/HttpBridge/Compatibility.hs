@@ -1,3 +1,6 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -13,6 +16,7 @@
 module Cardano.Wallet.HttpBridge.Compatibility
     ( -- * Target
       HttpBridge
+    , Network (..)
     ) where
 
 import Prelude
@@ -20,9 +24,9 @@ import Prelude
 import Cardano.Wallet.HttpBridge.Binary
     ( decodeAddressPayload, encodeProtocolMagic, encodeTx )
 import Cardano.Wallet.HttpBridge.Environment
-    ( Network (Mainnet, Staging, Testnet), network, protocolMagic )
+    ( Network (Mainnet, Staging, Testnet), ProtocolMagic, protocolMagic )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress (..), getKey )
+    ( Depth (..), Key (..), KeyToAddress (..), XPub, getKey )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , DecodeAddress (..)
@@ -51,13 +55,13 @@ import qualified Data.Text.Encoding as T
 
 -- | A type representing the http-bridge as a network target. This has an
 -- influence on binary serializer & network primitives. See also 'TxId'
-data HttpBridge
+data HttpBridge (network :: Network)
 
 -- | Compute a transaction id; assumed to be effectively injective.
 -- It returns an hex-encoded 64-byte hash.
 --
 -- NOTE: This is a rather expensive operation
-instance TxId HttpBridge where
+instance TxId (HttpBridge network) where
     txId = blake2b256 . encodeTx
       where
         -- | Encode a value to a corresponding Hash.
@@ -72,35 +76,41 @@ instance TxId HttpBridge where
 
 -- | Encode a public key to a (Byron / Legacy) Cardano 'Address'. This is mostly
 -- dubious CBOR serializations with no data attributes.
-instance KeyToAddress HttpBridge where
-    keyToAddress key =
-        Address
-            $ CBOR.toStrictByteString
-            $ CBOR.encodeAddress xpub encodeAttributes
-      where
-        xpub = getKey key
-        encodeAttributes = case network of
-            Mainnet -> emptyAttributes
-            Staging -> emptyAttributes
-            Testnet -> attributesWithProtocolMagic (protocolMagic network)
+instance KeyToAddress (HttpBridge 'Testnet) where
+    keyToAddress = keyToAddressWith
+        $ attributesWithProtocolMagic (protocolMagic @'Testnet)
 
-        attributesWithProtocolMagic pm = mempty
-            <> CBOR.encodeMapLen 1
-            <> CBOR.encodeWord 2
-            <> CBOR.encodeBytes
-                (CBOR.toStrictByteString $ encodeProtocolMagic pm)
+instance KeyToAddress (HttpBridge 'Staging) where
+    keyToAddress = keyToAddressWith emptyAttributes
 
-        emptyAttributes = CBOR.encodeMapLen 0
+instance KeyToAddress (HttpBridge 'Mainnet) where
+    keyToAddress = keyToAddressWith emptyAttributes
+
+keyToAddressWith :: CBOR.Encoding -> Key 'AddressK XPub -> Address
+keyToAddressWith attrs key = Address
+    $ CBOR.toStrictByteString
+    $ CBOR.encodeAddress xpub attrs
+  where
+    xpub = getKey key
+
+attributesWithProtocolMagic :: ProtocolMagic -> CBOR.Encoding
+attributesWithProtocolMagic pm = mempty
+    <> CBOR.encodeMapLen 1
+    <> CBOR.encodeWord 2
+    <> CBOR.encodeBytes (CBOR.toStrictByteString $ encodeProtocolMagic pm)
+
+emptyAttributes :: CBOR.Encoding
+emptyAttributes = CBOR.encodeMapLen 0
 
 -- | Encode an 'Address' to a human-readable format, in this case
 --
 -- [Base58](https://en.wikipedia.org/wiki/Base58)
-instance EncodeAddress HttpBridge where
+instance EncodeAddress (HttpBridge (network :: Network)) where
     encodeAddress _ = T.decodeUtf8 . encodeBase58 bitcoinAlphabet . getAddress
 
 -- | Decode a [Base58](https://en.wikipedia.org/wiki/Base58) text string to an
 -- 'Address'.
-instance DecodeAddress HttpBridge where
+instance DecodeAddress (HttpBridge (network :: Network)) where
     decodeAddress _ x = do
         bytes <- maybe
             (Left $ TextDecodingError errBase58)

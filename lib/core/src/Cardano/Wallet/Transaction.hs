@@ -28,7 +28,7 @@ import Cardano.Wallet.Primitive.Types
 import Data.Quantity
     ( Quantity )
 
-data TransactionLayer = TransactionLayer
+data TransactionLayer t = TransactionLayer
     { mkStdTx
         :: (Address -> Maybe (Key 'AddressK XPrv, Passphrase "encryption"))
         -> [(TxIn, TxOut)]

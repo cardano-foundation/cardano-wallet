@@ -1,6 +1,8 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -26,8 +28,7 @@ import Prelude hiding
     ( getLine )
 
 import Cardano.CLI
-    ( Port (..)
-    , getLine
+    ( getLine
     , getSensitiveLine
     , help
     , parseAllArgsWith
@@ -49,11 +50,13 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.HttpBridge.Environment
-    ( network )
+    ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( FromMnemonic (..), Passphrase (..) )
+    ( FromMnemonic (..), KeyToAddress, Passphrase (..) )
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
+import Cardano.Wallet.Primitive.Types
+    ( DecodeAddress, EncodeAddress )
 import Control.Applicative
     ( many )
 import Control.Arrow
@@ -134,7 +137,7 @@ and can be run "offline". (e.g. 'generate mnemonic')
     ⚠️  Options are positional (--a --b is not equivalent to --b --a) ! ⚠️
 
 Usage:
-  cardano-wallet server [--port=INT] [--bridge-port=INT]
+  cardano-wallet server [--network=STRING] [--port=INT] [--bridge-port=INT]
   cardano-wallet mnemonic generate [--size=INT]
   cardano-wallet wallet list [--port=INT]
   cardano-wallet wallet create [--port=INT] <name> [--address-pool-gap=INT]
@@ -152,6 +155,7 @@ Options:
   --address-pool-gap <INT>    number of unused consecutive addresses to keep track of [default: 20]
   --size <INT>                number of mnemonic words to generate [default: 15]
   --payment <PAYMENT>         address to send to and amount to send separated by @: '<amount>@<address>'
+  --network <STRING>          testnet, staging, or mainnet [default: testnet]
 
 Examples:
   # Create a transaction and send 22 lovelace from wallet-id to specified addres
@@ -166,21 +170,35 @@ main = do
     hSetBuffering stderr NoBuffering
     setUtf8Encoding
     manager <- newManager defaultManagerSettings
-    getArgs >>= parseArgsOrExit cli >>= exec manager
+    getArgs >>= parseArgsOrExit cli >>= exec' manager
 
 {-------------------------------------------------------------------------------
                          Command and Argument Parsing
 -------------------------------------------------------------------------------}
 
-exec :: Manager -> Arguments -> IO ()
-exec manager args
+
+exec' :: Manager -> Arguments -> IO ()
+exec' manager args = args `parseArg` longOption "network" >>= \case
+    Testnet -> exec (execHttpBridge @'Testnet args) manager args
+    Staging -> exec (execHttpBridge @'Staging args) manager args
+    Mainnet -> exec (execHttpBridge @'Mainnet args) manager args
+
+exec
+    :: forall t.
+        ( DecodeAddress t
+        , EncodeAddress t
+        , KeyToAddress t
+        )
+    => (Proxy t -> IO ()) -- | Action to launch the wallet server
+    -> Manager
+    -> Arguments
+    -> IO ()
+exec execServer manager args
     | args `isPresent` (longOption "help") = help cli
     | args `isPresent` (shortOption 'h') = help cli
 
     | args `isPresent` command "server" = do
-        walletPort <- args `parseArg` longOption "port"
-        bridgePort <- args `parseArg` longOption "bridge-port"
-        execServer walletPort bridgePort
+        execServer Proxy
 
     | args `isPresent` command "generate" &&
       args `isPresent` command "mnemonic" = do
@@ -262,10 +280,6 @@ exec manager args
     | otherwise =
         exitWithUsage cli
   where
-    parseArg :: FromText a => Arguments -> Option -> IO a
-    parseArg = parseArgWith cli
-    parseAllArgs :: FromText a => Arguments -> Option -> IO (NE.NonEmpty a)
-    parseAllArgs = parseAllArgsWith cli
     getPassphrase :: IO (Passphrase "encryption")
     getPassphrase = do
         let prompt = "Please enter a passphrase: "
@@ -292,7 +306,7 @@ exec manager args
         :<|> _ -- Put Wallet Passphrase
         )
         :<|> createTransaction
-        = client (Proxy @("v2" :> Api HttpBridge))
+        = client (Proxy @("v2" :> Api t))
 
     -- | 'runClient' requires a type-application to carry a particular
     -- namespace and adjust error messages accordingly. For instances, when
@@ -327,20 +341,24 @@ exec manager args
                 putErrLn msg
 
 -- | Start a web-server to serve the wallet backend API on the given port.
-execServer :: Port "wallet" -> Port "bridge" -> IO ()
-execServer (Port port) (Port bridgePort) = do
-    network `seq` return  () -- Force evaluation of ENV[network]
+execHttpBridge
+    :: forall n. (KeyToAddress (HttpBridge n), KnownNetwork n)
+    => Arguments -> Proxy (HttpBridge n) -> IO ()
+execHttpBridge args _ = do
+    (walletPort :: Int)
+        <- args `parseArg` longOption "port"
+    (bridgePort :: Int)
+        <- args `parseArg` longOption "bridge-port"
     db <- MVar.newDBLayer
-    nw <- HttpBridge.newNetworkLayer bridgePort
-    let tl = HttpBridge.newTransactionLayer
-    wallet <- newWalletLayer @_ @HttpBridge db nw tl
+    nw <- HttpBridge.newNetworkLayer @n bridgePort
+    let tl = HttpBridge.newTransactionLayer @n
+    wallet <- newWalletLayer @_ @(HttpBridge n) db nw tl
+    let settings = Warp.defaultSettings
+            & Warp.setPort walletPort
+            & Warp.setBeforeMainLoop (TIO.hPutStrLn stderr $
+                "Wallet backend server listening on: " <> toText walletPort
+            )
     Server.start settings wallet
-  where
-    settings = Warp.defaultSettings
-        & Warp.setPort port
-        & Warp.setBeforeMainLoop (TIO.hPutStrLn stderr $
-            "Wallet backend server listening on: " <> toText port
-        )
 
 -- | Generate a random mnemonic of the given size 'n' (n = number of words),
 -- and print it to stdout.
@@ -379,3 +397,9 @@ decodeError
 decodeError bytes = do
     obj <- Aeson.decode bytes
     Aeson.parseMaybe (Aeson.withObject "Error" (.: "message")) obj
+
+parseArg :: FromText a => Arguments -> Option -> IO a
+parseArg = parseArgWith cli
+
+parseAllArgs :: FromText a => Arguments -> Option -> IO (NE.NonEmpty a)
+parseAllArgs = parseAllArgsWith cli

@@ -113,7 +113,6 @@ test-suite unit
       Cardano.Wallet.Primitive.AddressDerivationSpec
       Data.PackfileSpec
       Servant.Extra.ContentTypesSpec
-      Spec
 
 test-suite integration
   default-language:

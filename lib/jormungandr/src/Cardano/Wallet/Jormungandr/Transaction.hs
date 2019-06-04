@@ -12,7 +12,7 @@ import Cardano.Wallet.Transaction
 
 
 -- | Construct a 'TransactionLayer' compatible with Shelley and 'Jörmungandr'
-newTransactionLayer :: TransactionLayer
+newTransactionLayer :: TransactionLayer t
 newTransactionLayer = TransactionLayer
     { mkStdTx = error "TODO: See http-bridge as starting point"
     , estimateSize = error "TODO: See http-bridge as starting point"

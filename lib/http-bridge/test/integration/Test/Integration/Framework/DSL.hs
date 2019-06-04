@@ -87,14 +87,14 @@ import Prelude hiding
 
 import Cardano.Wallet.Api.Types
     ( ApiAddress, ApiT (..), ApiTransaction, ApiWallet )
-import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap, getAddressPoolGap, mkAddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
-    ( Direction (..)
+    ( DecodeAddress (..)
+    , Direction (..)
+    , EncodeAddress (..)
     , PoolId (..)
     , TxStatus (..)
     , WalletBalance (..)
@@ -298,7 +298,7 @@ expectListSizeEqual l (_, res) = case res of
 -- beyond
 expectEventually
     :: (MonadIO m, MonadCatch m, MonadFail m, Ord a)
-    => Context
+    => Context t
     -> Lens' ApiWallet a
     -> a
     -> (HTTP.Status, Either RequestException ApiWallet)
@@ -453,7 +453,7 @@ status =
 --
 
 -- | Create an empty wallet
-emptyWallet :: Context -> IO ApiWallet
+emptyWallet :: Context t -> IO ApiWallet
 emptyWallet ctx = do
     mnemonic <- (mnemonicToText . entropyToMnemonic) <$> genEntropy @160
     let payload = Json [aesonQQ| {
@@ -466,7 +466,7 @@ emptyWallet ctx = do
     return (getFromResponse id r)
 
 -- | Create an empty wallet
-emptyWalletWith :: Context -> (Text, Text, Int) -> IO ApiWallet
+emptyWalletWith :: Context t -> (Text, Text, Int) -> IO ApiWallet
 emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
     mnemonic <- (mnemonicToText . entropyToMnemonic) <$> genEntropy @160
     let payload = Json [aesonQQ| {
@@ -481,9 +481,9 @@ emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
 
 -- | Restore a faucet and wait until funds are available.
 fixtureWallet
-    :: Context
+    :: Context t
     -> IO ApiWallet
-fixtureWallet ctx@(Context _ _ _ faucet) = do
+fixtureWallet ctx@(Context _ _ _ faucet _) = do
     mnemonics <- mnemonicToText <$> nextWallet faucet
     let payload = Json [aesonQQ| {
             "name": "Faucet Wallet",
@@ -512,14 +512,15 @@ fixtureWallet ctx@(Context _ _ _ faucet) = do
 -- This function makes no attempt at ensuring the request is valid, so be
 -- careful.
 fixtureWalletWith
-    :: Context
+    :: forall t. (EncodeAddress t, DecodeAddress t)
+    => Context t
     -> [Natural]
     -> IO ApiWallet
 fixtureWalletWith ctx coins = do
     wSrc <- fixtureWallet ctx
     wUtxo <- emptyWallet ctx
     (_, addrs) <-
-        unsafeRequest @[ApiAddress HttpBridge] ctx (getAddresses wUtxo) Empty
+        unsafeRequest @[ApiAddress t] ctx (getAddresses wUtxo) Empty
     let addrIds = view #id <$> addrs
     let payments = flip map (zip coins addrIds) $ \(coin, addr) -> [aesonQQ|{
             "address": #{addr},
@@ -532,7 +533,7 @@ fixtureWalletWith ctx coins = do
             "payments": #{payments :: [Value]},
             "passphrase": "cardano-wallet"
         }|]
-    request @(ApiTransaction HttpBridge) ctx (postTx wSrc) Default payload
+    request @(ApiTransaction t) ctx (postTx wSrc) Default payload
         >>= expectResponseCode HTTP.status202
     r <- request @ApiWallet ctx (getWallet wUtxo) Default Empty
     verify r [ expectEventually ctx balanceAvailable (sum coins) ]
@@ -564,9 +565,13 @@ getFromResponse getter (_, res) = case res of
 json :: QuasiQuoter
 json = aesonQQ
 
-listAddresses :: Context -> ApiWallet -> IO [ApiAddress HttpBridge]
+listAddresses
+    :: forall t. DecodeAddress t
+    => Context t
+    -> ApiWallet
+    -> IO [ApiAddress t]
 listAddresses ctx w = do
-    (_, addrs) <- unsafeRequest @[ApiAddress HttpBridge] ctx (getAddresses w) Empty
+    (_, addrs) <- unsafeRequest @[ApiAddress t] ctx (getAddresses w) Empty
     return addrs
 
 infixr 5 </>
@@ -574,7 +579,7 @@ infixr 5 </>
 base </> next = mconcat [base, "/", toQueryParam next]
 
 -- | teardown after each test (currently only deleting all wallets)
-tearDown :: Context -> IO ()
+tearDown :: Context t -> IO ()
 tearDown ctx = do
     resp <- request @[ApiWallet] ctx ("GET", "v2/wallets") Default Empty
     forM_ (wallets (snd resp)) $ \wal -> do

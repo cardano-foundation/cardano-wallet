@@ -14,7 +14,9 @@ import Cardano.Wallet
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.HttpBridge.Environment
-    ( Network (..), network )
+    ( Network (..) )
+import Cardano.Wallet.Network
+    ( NetworkLayer (..) )
 import Control.Concurrent
     ( forkIO, threadDelay )
 import Control.Concurrent.Async
@@ -27,6 +29,8 @@ import Data.Aeson
     ( Value (..), (.:) )
 import Data.Function
     ( (&) )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Time
     ( addUTCTime, defaultTimeLocale, formatTime, getCurrentTime )
 import Network.HTTP.Client
@@ -62,26 +66,19 @@ import qualified Test.Integration.Scenario.CLI.Mnemonics as MnemonicsCLI
 import qualified Test.Integration.Scenario.CLI.Transactions as TransactionsCLI
 import qualified Test.Integration.Scenario.CLI.Wallets as WalletsCLI
 
-
 main :: IO ()
-main = do
-    case network of
-        Testnet ->
-            return ()
-        _ ->
-            fail $ "unsupported integration environment: " <> show network
-    hspec $ do
-        describe "Cardano.LauncherSpec" Launcher.spec
-        describe "Cardano.WalletSpec" Wallet.spec
-        describe "Cardano.Wallet.HttpBridge.NetworkSpec" HttpBridge.spec
-        describe "CLI commands not requiring bridge" MnemonicsCLI.spec
-        beforeAll startCluster $ afterAll killCluster $ after tearDown $ do
-            describe "Wallets API endpoint tests" Wallets.spec
-            describe "Transactions API endpoint tests" Transactions.spec
-            describe "Addresses API endpoint tests" Addresses.spec
-            describe "Wallets CLI tests" WalletsCLI.spec
-            describe "Transactions CLI tests" TransactionsCLI.spec
-            describe "Addresses CLI tests" AddressesCLI.spec
+main = hspec $ do
+    describe "Cardano.LauncherSpec" Launcher.spec
+    describe "Cardano.WalletSpec" Wallet.spec
+    describe "Cardano.Wallet.HttpBridge.NetworkSpec" HttpBridge.spec
+    describe "CLI commands not requiring bridge" MnemonicsCLI.spec
+    beforeAll startCluster $ afterAll killCluster $ after tearDown $ do
+        describe "Wallets API endpoint tests" Wallets.spec
+        describe "Transactions API endpoint tests" Transactions.spec
+        describe "Addresses API endpoint tests" Addresses.spec
+        describe "Wallets CLI tests" WalletsCLI.spec
+        describe "Transactions CLI tests" TransactionsCLI.spec
+        describe "Addresses CLI tests" AddressesCLI.spec
   where
     oneSecond :: Int
     oneSecond = 1 * 1000 * 1000 -- 1 second in microseconds
@@ -97,7 +94,7 @@ main = do
 
     -- Run a local cluster of cardano-sl nodes, a cardano-http-bridge on top and
     -- a cardano wallet server connected to the bridge.
-    startCluster :: IO Context
+    startCluster :: IO (Context (HttpBridge 'Testnet))
     startCluster = do
         let stateDir = "./test/data/cardano-node-simple"
         let networkDir = "/tmp/cardano-http-bridge/networks"
@@ -135,10 +132,10 @@ main = do
         let baseURL = "http://localhost:1337/"
         manager <- newManager defaultManagerSettings
         faucet <- putStrLn "Creating money out of thin air..." *> initFaucet nl
-        return $ Context cluster (baseURL, manager) handle faucet
+        return $ Context cluster (baseURL, manager) handle faucet Proxy
 
-    killCluster :: Context -> IO ()
-    killCluster (Context cluster _ handle _) = do
+    killCluster :: Context t -> IO ()
+    killCluster (Context cluster _ handle _ _) = do
         cancel cluster
         hClose handle
 
@@ -174,10 +171,14 @@ main = do
     -- NOTE
     -- We start the wallet server in the same process such that we get
     -- code coverage measures from running the scenarios on top of it!
+    cardanoWalletServer
+        :: NetworkLayer (HttpBridge 'Testnet) IO
+        -> Int
+        -> IO ()
     cardanoWalletServer nl serverPort = void $ forkIO $ do
         db <- MVar.newDBLayer
         let tl = HttpBridge.newTransactionLayer
-        wallet <- newWalletLayer @_ @HttpBridge db nl tl
+        wallet <- newWalletLayer db nl tl
         let settings = Warp.defaultSettings & Warp.setPort serverPort
         Server.start settings wallet
 
@@ -188,6 +189,7 @@ main = do
                 { _cluster = undefined
                 , _logs = undefined
                 , _faucet = undefined
+                , _target = undefined
                 , _manager = ("http://" <> T.pack addr, manager)
                 }
         let err =  "waitForCluster: unexpected positive response from Api"

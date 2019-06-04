@@ -1,6 +1,9 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Main where
@@ -14,7 +17,7 @@ import Cardano.Wallet
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.HttpBridge.Environment
-    ( network )
+    ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.HttpBridge.Network
     ( newNetworkLayer )
 import Cardano.Wallet.HttpBridge.Transaction
@@ -22,7 +25,12 @@ import Cardano.Wallet.HttpBridge.Transaction
 import Cardano.Wallet.Network
     ( NetworkLayer (..), networkTip )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Passphrase (..), digest, generateKeyFromSeed, publicKey )
+    ( KeyToAddress (..)
+    , Passphrase (..)
+    , digest
+    , generateKeyFromSeed
+    , publicKey
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery
     , GenChange
@@ -61,6 +69,8 @@ import Criterion.Measurement
     ( getTime, initializeTime, secs )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -74,7 +84,7 @@ import Fmt
 import Say
     ( sayErr )
 import System.Environment
-    ( getArgs, setEnv )
+    ( getArgs )
 import System.IO
     ( BufferMode (..), hSetBuffering, stderr, stdout )
 
@@ -91,16 +101,32 @@ main = do
     hSetBuffering stdout NoBuffering
     hSetBuffering stderr NoBuffering
     installSignalHandlers
-    getArgs >>= overrideEnvironment
-    prepareNode
-    runBenchmarks
-        [ bench ("restore " <> toText network <> " seq")
-            (bench_restoration walletSeq)
-        , bench ("restore " <> toText network <> " 10% ownership")
-            (bench_restoration wallet10p)
-        ]
+    network <- getArgs >>= parseNetwork
+    case network of
+        Testnet -> do
+            let proxy = Proxy @'Testnet
+            prepareNode proxy
+            runBenchmarks
+                [ bench ("restore " <> toText network <> " seq")
+                    (bench_restoration proxy (walletSeq @'Testnet))
+                , bench ("restore " <> toText network <> " 10% ownership")
+                    (bench_restoration proxy wallet10p)
+                ]
+        Mainnet -> do
+            let proxy = Proxy @'Mainnet
+            prepareNode proxy
+            runBenchmarks
+                [ bench ("restore " <> toText network <> " seq")
+                    (bench_restoration proxy (walletSeq @'Mainnet))
+                , bench ("restore " <> toText network <> " 10% ownership")
+                    (bench_restoration proxy wallet10p)
+                ]
+        Staging ->
+            return ()
   where
-    walletSeq :: (WalletId, WalletName, SeqState HttpBridge)
+    walletSeq
+        :: KeyToAddress (HttpBridge n)
+        => (WalletId, WalletName, SeqState (HttpBridge n))
     walletSeq =
         let
             seed = Passphrase
@@ -140,16 +166,16 @@ bench benchName action = do
 printResult :: Text -> Double -> IO ()
 printResult benchName dur = sayErr . fmt $ "  "+|benchName|+": "+|secs dur|+""
 
--- FIXME This only exists because somehow, in buildkite, we can't pass ENV var
--- to the haskell executable? There's probably some Nix magic going on and I
--- don't have time for this.
-overrideEnvironment :: [String] -> IO ()
-overrideEnvironment [ntwrk] =
-    setEnv "NETWORK" ntwrk
-overrideEnvironment [] =
-    return ()
-overrideEnvironment _ =
-    fail "benchmark expects only one argument to override the '$NETWORK' ENV var"
+parseNetwork :: MonadFail m => [String] -> m Network
+parseNetwork = \case
+    [] ->
+        return Testnet
+    ["testnet"] ->
+        return Testnet
+    ["mainnet"] ->
+        return Mainnet
+    _ ->
+        fail "invalid network provided to benchmark: not 'testnet' nor 'mainnet'."
 
 {-------------------------------------------------------------------------------
                                   Benchmarks
@@ -157,16 +183,25 @@ overrideEnvironment _ =
 
 {-# ANN bench_restoration ("HLint: ignore Use camelCase" :: String) #-}
 bench_restoration
-    :: (IsOwned s, GenChange s, NFData s, Show s, CompareDiscovery s, KnownAddresses s)
-    => (WalletId, WalletName, s)
+    :: forall (n :: Network) s.
+        ( IsOwned s
+        , GenChange s
+        , NFData s
+        , Show s
+        , CompareDiscovery s
+        , KnownAddresses s
+        , KnownNetwork n
+        )
+    => Proxy n
+    -> (WalletId, WalletName, s)
     -> IO ()
-bench_restoration (wid, wname, s) = withHttpBridge $ \port -> do
+bench_restoration _ (wid, wname, s) = withHttpBridge network $ \port -> do
     dbLayer <- MVar.newDBLayer
     networkLayer <- newNetworkLayer port
     let transactionLayer = newTransactionLayer
     (_, bh) <- unsafeRunExceptT $ networkTip networkLayer
     sayErr . fmt $ network ||+ " tip is at " +|| (bh ^. #slotId) ||+ ""
-    w <- newWalletLayer @_ @HttpBridge dbLayer networkLayer transactionLayer
+    w <- newWalletLayer @_ @(HttpBridge n) dbLayer networkLayer transactionLayer
     wallet <- unsafeRunExceptT $ createWallet w wid wname s
     unsafeRunExceptT $ restoreWallet w wallet
     waitForWalletSync w wallet
@@ -175,12 +210,14 @@ bench_restoration (wid, wname, s) = withHttpBridge $ \port -> do
     sayErr . fmt $ "Balance: " +|| totalBalance wallet' ||+ " lovelace"
     sayErr . fmt $ "UTxO: " +|| Map.size (getUTxO $ totalUTxO wallet') ||+ " entries"
     unsafeRunExceptT $ removeWallet w wid
+  where
+    network = networkVal @n
 
 logChunk :: SlotId -> IO ()
 logChunk slot = sayErr . fmt $ "Processing "+||slot||+""
 
-withHttpBridge :: (Int -> IO a) -> IO a
-withHttpBridge action = bracket start stop (const (action port))
+withHttpBridge :: Network -> (Int -> IO a) -> IO a
+withHttpBridge network action = bracket start stop (const (action port))
   where
     port = 8002
     start = do
@@ -199,13 +236,15 @@ withHttpBridge action = bracket start stop (const (action port))
         cancel handle
         threadDelay 1000000 -- wait for socket to be closed
 
-prepareNode :: IO ()
-prepareNode = do
+prepareNode :: forall n. KnownNetwork n => Proxy n -> IO ()
+prepareNode _ = do
     sayErr . fmt $ "Syncing "+|toText network|+" node... "
-    sl <- withHttpBridge $ \port -> do
-        bridge <- newNetworkLayer port
+    sl <- withHttpBridge network $ \port -> do
+        bridge <- newNetworkLayer @n port
         waitForNodeSync bridge (toText network) logQuiet
     sayErr . fmt $ "Completed sync of "+|toText network|+" up to "+||sl||+""
+  where
+    network = networkVal @n
 
 -- | Regularly poll the wallet to monitor it's syncing progress. Block until the
 -- wallet reaches 100%.
@@ -226,7 +265,7 @@ waitForWalletSync walletLayer wid = do
 -- | Poll the network tip until it reaches the slot corresponding to the current
 -- time.
 waitForNodeSync
-    :: NetworkLayer IO
+    :: NetworkLayer t IO
     -> Text
     -> (SlotId -> SlotId -> IO ())
     -> IO SlotId

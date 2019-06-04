@@ -86,7 +86,6 @@ test-suite unit
       Cardano.Wallet.Jormungandr.BinarySpec
       Cardano.Wallet.Jormungandr.EnvironmentSpec
       Cardano.Wallet.Jormungandr.CompatibilitySpec
-      Spec
 
 test-suite integration
   default-language:
@@ -104,7 +103,6 @@ test-suite integration
   build-depends:
       async
     , base
-    , cardano-wallet-jormungandr
     , cardano-wallet-launcher
     , hspec
   type:

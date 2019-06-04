@@ -15,7 +15,7 @@ import Cardano.Wallet
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.HttpBridge.Environment
-    ( network )
+    ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..), digest, generateKeyFromSeed, publicKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -51,7 +51,7 @@ spec = do
             wid <- unsafeRunExceptT $ createWallet wallet
                 (WalletId $ digest $ publicKey xprv)
                 (WalletName "My Wallet")
-                (mkSeqState @HttpBridge (xprv, mempty) minBound)
+                (mkSeqState @(HttpBridge 'Testnet) (xprv, mempty) minBound)
             unsafeRunExceptT $ restoreWallet wallet wid
             threadDelay 2000000
             tip <- currentTip . fst <$> unsafeRunExceptT (readWallet wallet wid)
@@ -67,13 +67,13 @@ spec = do
             [ Command "cardano-http-bridge"
                 [ "start"
                 , "--port", show port
-                , "--template", T.unpack (toText network)
+                , "--template", T.unpack (toText $ networkVal @'Testnet)
                 ]
                 (return ())
                 Inherit
             ]
         threadDelay 1000000
         db <- MVar.newDBLayer
-        nl <- HttpBridge.newNetworkLayer port
+        nl <- HttpBridge.newNetworkLayer @'Testnet port
         let tl = HttpBridge.newTransactionLayer
-        (handle,) <$> (newWalletLayer @_ @HttpBridge db nl tl)
+        (handle,) <$> (newWalletLayer @_ @(HttpBridge 'Testnet) db nl tl)

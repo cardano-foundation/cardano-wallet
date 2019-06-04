@@ -15,7 +15,7 @@ import Cardano.Launcher
     , launch
     )
 import Cardano.Wallet.HttpBridge.Environment
-    ( Network, network )
+    ( Network )
 import Control.Concurrent
     ( threadDelay )
 import Control.Monad
@@ -61,6 +61,7 @@ Usage:
   cardano-wallet-launcher -h | --help
 
 Options:
+  --network <STRING>           testnet, staging, or mainnet [default: testnet]
   --wallet-server-port <PORT>  port used for serving the wallet API [default: 8090]
   --http-bridge-port <PORT>    port used for communicating with the http-bridge [default: 8080]
 |]
@@ -71,6 +72,7 @@ main = do
     when (args `isPresent` (longOption "help")) $ help cli
     when (args `isPresent` (shortOption 'h')) $ help cli
 
+    network <- args `parseArg` longOption "network"
     bridgePort <- args `parseArg` longOption "http-bridge-port"
     walletPort <- args `parseArg` longOption "wallet-server-port"
 

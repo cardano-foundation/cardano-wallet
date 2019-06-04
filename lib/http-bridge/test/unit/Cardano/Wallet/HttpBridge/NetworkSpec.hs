@@ -4,8 +4,10 @@ module Cardano.Wallet.HttpBridge.NetworkSpec
 
 import Prelude
 
+import Cardano.Wallet.HttpBridge.Compatibility
+    ( HttpBridge )
 import Cardano.Wallet.HttpBridge.Network
-    ( HttpBridge (..) )
+    ( HttpBridgeLayer (..) )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Types
@@ -117,7 +119,7 @@ mockNetworkLayer
     => (String -> m ()) -- ^ logger function
     -> Word64 -- ^ make getEpoch fail for epochs after this
     -> SlotId -- ^ the tip block
-    -> NetworkLayer m
+    -> NetworkLayer (HttpBridge n) m
 mockNetworkLayer logLine firstUnstableEpoch tip =
     HttpBridge.mkNetworkLayer (mockHttpBridge logLine firstUnstableEpoch tip)
 
@@ -127,8 +129,8 @@ mockHttpBridge
     => (String -> m ()) -- ^ logger function
     -> Word64 -- ^ make getEpoch fail for epochs after this
     -> SlotId -- ^ the tip block
-    -> HttpBridge m
-mockHttpBridge logLine firstUnstableEpoch tip = HttpBridge
+    -> HttpBridgeLayer m
+mockHttpBridge logLine firstUnstableEpoch tip = HttpBridgeLayer
     { getBlock = \hash -> do
         lift $ logLine $ "mock getBlock " ++ show hash
         pure $ Block (mockHeaderFromHash hash) mempty

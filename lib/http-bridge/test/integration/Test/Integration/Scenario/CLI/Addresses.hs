@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Test.Integration.Scenario.CLI.Addresses
@@ -10,8 +11,8 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiAddress )
-import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge )
+import Cardano.Wallet.Primitive.Types
+    ( DecodeAddress (..) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Proxy
@@ -34,16 +35,15 @@ import Test.Integration.Framework.DSL
 
 import qualified Data.Text as T
 
-spec :: SpecWith Context
+spec :: forall t. (DecodeAddress t) => SpecWith (Context t)
 spec = do
-
     it "CLI - Can list addresses" $ \ctx -> do
         walId <- emptyWallet' ctx
         (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI walId
         err `shouldBe` "Ok.\n"
-        expectValidJSON (Proxy @[ApiAddress HttpBridge]) out
+        expectValidJSON (Proxy @[ApiAddress t]) out
         c `shouldBe` ExitSuccess
 
   where
-    emptyWallet' :: Context -> IO String
+    emptyWallet' :: Context t -> IO String
     emptyWallet' = fmap (T.unpack . view walletId) . emptyWallet

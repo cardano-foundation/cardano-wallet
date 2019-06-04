@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
@@ -11,6 +12,7 @@ module Cardano.Wallet.HttpBridge.BinarySpec
 
 import Prelude
 
+
 import Cardano.Wallet.HttpBridge.Binary
     ( decodeBlock
     , decodeBlockHeader
@@ -23,6 +25,8 @@ import Cardano.Wallet.HttpBridge.Binary
     )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
+import Cardano.Wallet.HttpBridge.Environment
+    ( Network (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
@@ -58,6 +62,7 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as L8
 
 {-# ANN spec ("HLint: ignore Use head" :: String) #-}
+
 spec :: Spec
 spec = do
     describe "Decoding blocks" $ do
@@ -113,19 +118,18 @@ spec = do
             roundTripTx (txs !! 1)
 
         it "should compute correct txId (1)" $ do
-            let hash = txId @HttpBridge (txs !! 0)
+            let hash = txId @(HttpBridge 'Testnet) (txs !! 0)
             let hash' = hash16
                     "c470563001e448e61ff1268c2a6eb458\
                     \ace1d04011a02cb262b6d709d66c23d0"
             hash `shouldBe` hash'
 
         it "should compute correct txId (2)" $ do
-            let hash = txId @HttpBridge (txs !! 1)
+            let hash = txId @(HttpBridge 'Testnet) (txs !! 1)
             let hash' = hash16
                     "d30d37f1f8674c6c33052826fdc5bc19\
                     \8e3e95c150364fd775d4bc663ae6a9e6"
             hash `shouldBe` hash'
-
 
     let pkWit = PublicKeyWitness "public key" (Hash "trust me")
 
@@ -143,7 +147,6 @@ spec = do
                 decodeSignedTx
                 encodeSignedTx
                 (txs !! 0, [pkWit])
-
 
 cborRoundtrip
     :: (HasCallStack, Show a, Eq a)
@@ -315,7 +318,7 @@ hash16 = either bomb Hash . convertFromBase Base16
 -- | Make an Address from a Base58 encoded string, without error handling.
 unsafeDecodeAddress :: Text -> Address
 unsafeDecodeAddress = either (error "unsafeDecodeAddress: Could not decode") id
-    . decodeAddress (Proxy @HttpBridge)
+    . decodeAddress (Proxy @(HttpBridge 'Testnet))
 
 -- | CBOR deserialise without error handling - handy for prototypes or testing.
 unsafeDeserialiseFromBytes :: (forall s. CBOR.Decoder s a) -> BL.ByteString -> a

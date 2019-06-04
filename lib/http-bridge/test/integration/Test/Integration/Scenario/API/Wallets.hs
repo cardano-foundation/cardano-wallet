@@ -1,8 +1,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-
 
 module Test.Integration.Scenario.API.Wallets
     ( spec
@@ -12,10 +12,10 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiTransaction, ApiWallet )
-import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge )
 import Cardano.Wallet.Primitive.Types
-    ( WalletDelegation (..)
+    ( DecodeAddress
+    , EncodeAddress
+    , WalletDelegation (..)
     , WalletState (..)
     , walletNameMaxLength
     , walletNameMinLength
@@ -108,7 +108,7 @@ import Test.Integration.Framework.TestData
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: SpecWith Context
+spec :: forall t. (EncodeAddress t, DecodeAddress t) => SpecWith (Context t)
 spec = do
     it "WALLETS_CREATE_01 - Create a wallet" $ \ctx -> do
         let payload = Json [json| {
@@ -157,7 +157,7 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        rTrans <- request @(ApiTransaction HttpBridge) ctx (postTx wSrc)
+        rTrans <- request @(ApiTransaction t) ctx (postTx wSrc)
             Default payload
         expectResponseCode @IO HTTP.status202 rTrans
 
@@ -1410,7 +1410,7 @@ spec = do
                     }],
                     "passphrase": #{pass}
                     }|]
-            r <- request @(ApiTransaction HttpBridge) ctx (postTx wSrc) Default payloadTrans
+            r <- request @(ApiTransaction t) ctx (postTx wSrc) Default payloadTrans
             verify r expectations
 
     describe "WALLETS_UPDATE_PASS_07 - HTTP headers" $ do

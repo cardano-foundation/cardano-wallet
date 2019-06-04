@@ -27,6 +27,8 @@ import Data.Aeson
     ( FromJSON )
 import Data.ByteString.Lazy
     ( ByteString )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Text
     ( Text )
 import Network.HTTP.Client
@@ -60,7 +62,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 
 -- | Running Context for our integration test
-data Context = Context
+data Context t = Context
     { _cluster
         :: Async ()
         -- ^ A handle to the running cluster / chain producer
@@ -70,11 +72,12 @@ data Context = Context
     , _logs
         :: Handle
         -- ^ A file 'Handle' to the launcher log output
-
     , _faucet
         :: Faucet
         -- ^ A 'Faucet' handle in to have access to funded wallets in
         -- integration tests.
+    , _target
+        :: Proxy t
     }
 
 -- | The result when 'request' fails.
@@ -105,12 +108,12 @@ data Headers
 
 -- | Makes a request to the API and decodes the response.
 request
-    :: forall a m.
+    :: forall a m t.
         ( FromJSON a
         , MonadIO m
         , MonadCatch m
         )
-    => Context
+    => Context t
     -> (Method, Text)
         -- ^ HTTP method and request path
     -> Headers
@@ -118,7 +121,7 @@ request
     -> Payload
         -- ^ Request body
     -> m (HTTP.Status, Either RequestException a)
-request (Context _ (base, manager) _ _) (verb, path) reqHeaders body = do
+request (Context _ (base, manager) _ _ _) (verb, path) reqHeaders body = do
     req <- parseRequest $ T.unpack $ base <> path
     let io = handleResponse <$> liftIO (httpLbs (prepareReq req) manager)
     catch io handleException
@@ -161,12 +164,12 @@ request (Context _ (base, manager) _ _) (verb, path) reqHeaders body = do
 
 -- | Makes a request to the API, but throws if it fails.
 unsafeRequest
-    :: forall a m.
+    :: forall a m t.
         ( FromJSON a
         , MonadIO m
         , MonadCatch m
         )
-    => Context
+    => Context t
     -> (Method, Text)
     -> Payload
     -> m (HTTP.Status, a)
