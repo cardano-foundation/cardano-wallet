@@ -166,7 +166,7 @@ data Mock = M
     { checkpoints :: Map MWid MWallet
     , metas :: Map MWid WalletMetadata
     , txs :: Map MWid TxHistory
-    , privateKey :: Map MWid MPrivKey
+    , privateKeys :: Map MWid MPrivKey
     } deriving (Show, Generic)
 
 emptyMock :: Mock
@@ -178,7 +178,7 @@ mCleanDB :: MockOp ()
 mCleanDB _ = (Right (), emptyMock)
 
 mCreateWallet :: MWid -> MWallet -> WalletMetadata -> MockOp ()
-mCreateWallet wid wal meta m@(M cp metas txs pk)
+mCreateWallet wid wal meta m@(M cp metas txs pks)
     | wid `Map.member` cp = (Left (WalletAlreadyExists wid), m)
     | otherwise =
         ( Right ()
@@ -186,7 +186,7 @@ mCreateWallet wid wal meta m@(M cp metas txs pk)
             { checkpoints = Map.insert wid wal cp
             , metas = Map.insert wid meta metas
             , txs = txs
-            , privateKey = pk
+            , privateKeys = pks
             }
         )
 
@@ -198,7 +198,7 @@ mRemoveWallet wid m@(M cp metas txs pk)
             { checkpoints = Map.delete wid cp
             , metas = Map.delete wid metas
             , txs = Map.delete wid txs
-            , privateKey = Map.delete wid pk
+            , privateKeys = Map.delete wid pk
             }
         )
     | otherwise = (Left (NoSuchWallet wid), m)
