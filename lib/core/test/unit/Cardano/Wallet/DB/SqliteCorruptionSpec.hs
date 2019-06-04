@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -16,7 +17,7 @@ import Cardano.Wallet
 import Cardano.Wallet.DB
     ( DBLayer (..), ErrWalletAlreadyExists (..), PrimaryKey (..) )
 import Cardano.Wallet.DB.Sqlite
-    ( newDBLayer )
+    ( newDBLayer, newDBLayer' )
 import Cardano.Wallet.DBSpec
     ( DummyTarget, KeyValPairs (..), cleanDB, withDB )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -50,7 +51,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletState (..)
     )
 import Control.Monad
-    ( forM_ )
+    ( forM_, replicateM_ )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -61,6 +62,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
+import Data.Functor
+    ( ($>) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
@@ -69,10 +72,22 @@ import Data.Time.Clock
     ( getCurrentTime )
 import Database.Sqlite
     ( Connection, close )
+import System.Directory
+    ( doesFileExist, removeFile )
+import System.IO.Temp
+    ( emptySystemTempFile )
 import System.IO.Unsafe
     ( unsafePerformIO )
 import Test.Hspec
-    ( Expectation, Spec, before, describe, it, shouldReturn )
+    ( Expectation
+    , Spec
+    , SpecWith
+    , beforeAll
+    , beforeWith
+    , describe
+    , it
+    , shouldReturn
+    )
 import Test.QuickCheck
     ( Property, choose, generate, property, (==>) )
 import Test.QuickCheck.Monadic
@@ -83,20 +98,18 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 spec :: Spec
-spec =  do
-    describe "Check db opening/closing" $ do
-        it "opening and closing of db works" $ do
-            (conn, db) <- fileDBLayer
-            _ <- cleanDB db
+spec = do
+    withFileDBLayer $ describe "Check db opening/closing" $ do
+        it "opening and closing of db works" $ \(conn, db) -> do
+            cleanDB db
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
             listWallets db `shouldReturn` [testPk]
             close conn
-            forM_ [1..25] openCloseDB
+            replicateM_ 25 openCloseDB
 
-    before ((snd <$> fileDBLayer) >>= cleanDB) $
-        describe "Check db reading/writing from/to file and cleaning" $ do
+    withFileDBLayer $ describe "Check db reading/writing from/to file and cleaning" $ do
 
-        it "create and list wallet works" $ \db -> do
+        it "create and list wallet works" $ \(conn, db) -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
             listWallets db `shouldReturn` [testPk]
             (_, db1) <- fileDBLayer
@@ -107,7 +120,7 @@ spec =  do
                 [testPk]
                 [] )
 
-        it "create and get meta works" $ \db -> do
+        it "create and get meta works" $ \(_, db) -> do
             now <- getCurrentTime
             let md = testMetadata { passphraseInfo = Just $ WalletPassphraseInfo now }
             unsafeRunExceptT $ createWallet db testPk testCp md
@@ -117,7 +130,7 @@ spec =  do
                 (Just md)
                 Nothing )
 
-        it "create and get private key" $ \db -> do
+        it "create and get private key" $ \(_, db) -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
             readPrivateKey db testPk `shouldReturn` Nothing
             let Right phr = fromText "simplephrase"
@@ -130,7 +143,7 @@ spec =  do
                 (Just (k, h))
                 Nothing )
 
-        it "put and read tx history" $ \db -> do
+        it "put and read tx history" $ \(_, db) -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
             runExceptT (putTxHistory db testPk testTxs) `shouldReturn` Right ()
             readTxHistory db testPk `shouldReturn` testTxs
@@ -139,7 +152,7 @@ spec =  do
                 testTxs
                 Map.empty )
 
-        it "put and read checkpoint" $ \db -> do
+        it "put and read checkpoint" $ \(_, db) -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
             runExceptT (putCheckpoint db testPk testCp) `shouldReturn` Right ()
             readCheckpoint db testPk `shouldReturn` Just testCp
@@ -168,8 +181,8 @@ spec =  do
             (_,db2) <- fileDBLayer
             call db2 `shouldReturn` expectedAfterClean
 
-        openCloseDB :: Int -> IO ()
-        openCloseDB _ = do
+        openCloseDB :: IO ()
+        openCloseDB = do
             (conn, db) <- fileDBLayer
             listWallets db `shouldReturn` [testPk]
             close conn
@@ -230,14 +243,30 @@ prop_randomOpChunks inMemoryDB (KeyValPairs pairs) =
             readWalletMeta db2 walId
                 `shouldReturn` expectedMetas
 
+withFileDBLayer
+    :: SpecWith (Connection, DBLayer IO (SeqState DummyTarget) DummyTarget)
+    -> Spec
+withFileDBLayer = beforeAll fileDBLayer' . beforeWith clean
+  where clean (f, (conn, db)) = cleanDB db $> (conn, db)
 
 fileDBLayer :: IO (Connection, DBLayer IO (SeqState DummyTarget) DummyTarget)
-fileDBLayer = newDBLayer (Just "backup/test.db")
+fileDBLayer = snd <$> fileDBLayer'
+
+fileDBLayer' :: IO (FilePath, (Connection, DBLayer IO (SeqState DummyTarget) DummyTarget))
+fileDBLayer' = do
+    f <- emptySystemTempFile "bench.db"
+    db <- newDBLayer' (Just f)
+    pure (f, db)
+
+removeDB :: FilePath -> IO ()
+removeDB f = mapM_ remove [f, f <> "-shm", f <> "-wal"]
+  where
+    remove f = doesFileExist f >>= \case
+        True -> removeFile f
+        False -> pure ()
 
 inMemoryDBLayer :: IO (DBLayer IO (SeqState DummyTarget) DummyTarget)
-inMemoryDBLayer = do
-    (_, db) <- newDBLayer Nothing
-    pure db
+inMemoryDBLayer = newDBLayer Nothing
 
 testCp :: Wallet (SeqState DummyTarget) DummyTarget
 testCp = initWallet initDummyState

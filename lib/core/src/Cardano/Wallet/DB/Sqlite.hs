@@ -18,6 +18,7 @@
 
 module Cardano.Wallet.DB.Sqlite
     ( newDBLayer
+    , newDBLayer'
     , DummyState(..)
     ) where
 
@@ -188,8 +189,16 @@ newDBLayer
     :: forall s t. (W.IsOurs s, NFData s, Show s, PersistState s, W.TxId t)
     => Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
+    -> IO (DBLayer IO s t)
+newDBLayer = fmap snd . newDBLayer'
+
+-- | Variant of 'newDBLayer' that also returns a handle to the database
+-- connection.
+newDBLayer'
+    :: forall s t. (W.IsOurs s, NFData s, Show s, PersistState s, W.TxId t)
+    => Maybe FilePath
     -> IO (Sqlite.Connection, DBLayer IO s t)
-newDBLayer fp = do
+newDBLayer' fp = do
     lock <- newMVar ()
     bigLock <- newMVar ()
 
