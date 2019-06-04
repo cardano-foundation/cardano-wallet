@@ -26,32 +26,18 @@ data Network
 Mainnet :: Network
 Testnet :: Network
 
--- | Get the current target <a>Network</a> from the Environment.
---   
---   Throws a runtime exception is the ENV var isn't set or, is invalid.
-network :: Network
-
--- | Address discrimination Human-Readable Part (HRP).
---   
---   <ul>
---   <li>"ca" for <a>Mainnet</a></li>
---   <li>"ta" for <a>Testnet</a></li>
---   </ul>
-hrp :: HumanReadablePart
-
--- | Address discriminant byte for single addresses, this is the first byte
---   of every addresses using the Shelley format carrying only a spending
---   key.
-single :: Word8
-
--- | Address discriminant byte for grouped addresses, this is the first
---   byte of every addresses using the Shelley format carrying both a
---   spending and a delegation key.
-grouped :: Word8
+-- | Embed some constants into a network type.
+class KnownNetwork (n :: Network)
+networkVal :: KnownNetwork n => Network
+hrp :: KnownNetwork n => HumanReadablePart
+single :: KnownNetwork n => Word8
+grouped :: KnownNetwork n => Word8
 instance GHC.Enum.Enum Cardano.Wallet.Jormungandr.Environment.Network
 instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Environment.Network
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Environment.Network
 instance GHC.Generics.Generic Cardano.Wallet.Jormungandr.Environment.Network
+instance Cardano.Wallet.Jormungandr.Environment.KnownNetwork 'Cardano.Wallet.Jormungandr.Environment.Mainnet
+instance Cardano.Wallet.Jormungandr.Environment.KnownNetwork 'Cardano.Wallet.Jormungandr.Environment.Testnet
 instance Data.Text.Class.FromText Cardano.Wallet.Jormungandr.Environment.Network
 instance Data.Text.Class.ToText Cardano.Wallet.Jormungandr.Environment.Network
 
@@ -199,11 +185,16 @@ module Cardano.Wallet.Jormungandr.Compatibility
 -- | A type representing the Jormungandr as a network target. This has an
 --   influence on binary serializer &amp; network primitives. See also
 --   <a>TxId</a>
-data Jormungandr
-instance Cardano.Wallet.Primitive.Types.TxId Cardano.Wallet.Jormungandr.Compatibility.Jormungandr
-instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress Cardano.Wallet.Jormungandr.Compatibility.Jormungandr
-instance Cardano.Wallet.Primitive.Types.EncodeAddress Cardano.Wallet.Jormungandr.Compatibility.Jormungandr
-instance Cardano.Wallet.Primitive.Types.DecodeAddress Cardano.Wallet.Jormungandr.Compatibility.Jormungandr
+data Jormungandr (network :: Network)
+
+-- | Available network options.
+data Network
+Mainnet :: Network
+Testnet :: Network
+instance Cardano.Wallet.Primitive.Types.TxId (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr n)
+instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr n)
+instance Cardano.Wallet.Jormungandr.Environment.KnownNetwork n => Cardano.Wallet.Primitive.Types.EncodeAddress (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr n)
+instance Cardano.Wallet.Jormungandr.Environment.KnownNetwork n => Cardano.Wallet.Primitive.Types.DecodeAddress (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr n)
 
 
 -- | An specification for the Jörmungandr REST API.
@@ -245,4 +236,4 @@ module Cardano.Wallet.Jormungandr.Transaction
 
 -- | Construct a <a>TransactionLayer</a> compatible with Shelley and
 --   <tt>Jörmungandr</tt>
-newTransactionLayer :: TransactionLayer
+newTransactionLayer :: TransactionLayer t

@@ -9,26 +9,6 @@
 @version 2019.5.24
 
 
--- | Helpers for reading ENV vars using <a>unsafePerformIO</a> with
---   readable error messages.
---   
---   Copyright: © 2018-2019 IOHK License: MIT
-module Cardano.Wallet.Environment
-
--- | Fatal exception thrown when a required ENV var is missing upon
---   start-up.
-data ErrMissingOrInvalidEnvVar
-ErrMissingOrInvalidEnvVar :: String -> String -> Maybe (String, TextDecodingError) -> ErrMissingOrInvalidEnvVar
-[name] :: ErrMissingOrInvalidEnvVar -> String
-[command] :: ErrMissingOrInvalidEnvVar -> String
-[additionalContext] :: ErrMissingOrInvalidEnvVar -> Maybe (String, TextDecodingError)
-
--- | Lookup the environment for a given variable
-unsafeLookupEnv :: FromText a => String -> a
-instance GHC.Show.Show Cardano.Wallet.Environment.ErrMissingOrInvalidEnvVar
-instance GHC.Exception.Type.Exception Cardano.Wallet.Environment.ErrMissingOrInvalidEnvVar
-
-
 -- | This module provides mnemonic (backup phrase) creation, and conversion
 --   of a mnemonic to seed for wallet restoration.
 module Cardano.Wallet.Primitive.Mnemonic
@@ -952,8 +932,8 @@ instance Control.DeepSeq.NFData key => Control.DeepSeq.NFData (Cardano.Wallet.Pr
 --   those operations from our wallet layer, keeping the implementation
 --   flexible to various backends.
 module Cardano.Wallet.Transaction
-data TransactionLayer
-TransactionLayer :: ((Address -> Maybe (Key  'AddressK XPrv, Passphrase "encryption")) -> [(TxIn, TxOut)] -> [TxOut] -> Either ErrMkStdTx (Tx, [TxWitness])) -> (CoinSelection -> Quantity "byte" Int) -> TransactionLayer
+data TransactionLayer t
+TransactionLayer :: ((Address -> Maybe (Key  'AddressK XPrv, Passphrase "encryption")) -> [(TxIn, TxOut)] -> [TxOut] -> Either ErrMkStdTx (Tx, [TxWitness])) -> (CoinSelection -> Quantity "byte" Int) -> TransactionLayer t
 
 -- | Construct a standard transaction
 --   
@@ -962,7 +942,7 @@ TransactionLayer :: ((Address -> Maybe (Key  'AddressK XPrv, Passphrase "encrypt
 --   
 --   This expects as a first argument a mean to compute or lookup private
 --   key corresponding to a particular address.
-[mkStdTx] :: TransactionLayer -> (Address -> Maybe (Key  'AddressK XPrv, Passphrase "encryption")) -> [(TxIn, TxOut)] -> [TxOut] -> Either ErrMkStdTx (Tx, [TxWitness])
+[mkStdTx] :: TransactionLayer t -> (Address -> Maybe (Key  'AddressK XPrv, Passphrase "encryption")) -> [(TxIn, TxOut)] -> [TxOut] -> Either ErrMkStdTx (Tx, [TxWitness])
 
 -- | Estimate the size of a <a>CoinSelection</a>, in bytes. This operation
 --   is seemingly coupled to the binary representation of a
@@ -978,7 +958,7 @@ TransactionLayer :: ((Address -> Maybe (Key  'AddressK XPrv, Passphrase "encrypt
 --   therefore always consider the worst-case scenario of a 5-byte crc. As
 --   a consequence, our estimate may be slightly bigger than the actual
 --   transaction fee (up-to 4 extra bytes per change output).
-[estimateSize] :: TransactionLayer -> CoinSelection -> Quantity "byte" Int
+[estimateSize] :: TransactionLayer t -> CoinSelection -> Quantity "byte" Int
 
 -- | Possible signing error
 newtype ErrMkStdTx
@@ -1201,21 +1181,21 @@ instance GHC.Enum.Bounded Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolG
 instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 
 module Cardano.Wallet.Network
-data NetworkLayer m
-NetworkLayer :: (SlotId -> ExceptT ErrNetworkUnreachable m [Block]) -> ExceptT ErrNetworkTip m (Hash "BlockHeader", BlockHeader) -> ((Tx, [TxWitness]) -> ExceptT ErrPostTx m ()) -> NetworkLayer m
+data NetworkLayer t m
+NetworkLayer :: (SlotId -> ExceptT ErrNetworkUnreachable m [Block]) -> ExceptT ErrNetworkTip m (Hash "BlockHeader", BlockHeader) -> ((Tx, [TxWitness]) -> ExceptT ErrPostTx m ()) -> NetworkLayer t m
 
 -- | Gets some blocks from the node. It will not necessarily return all the
 --   blocks that the node has, but will receive a reasonable-sized chunk.
 --   It will never return blocks from before the given slot. It may return
 --   an empty list if the node does not have any blocks from after the
 --   starting slot.
-[nextBlocks] :: NetworkLayer m -> SlotId -> ExceptT ErrNetworkUnreachable m [Block]
+[nextBlocks] :: NetworkLayer t m -> SlotId -> ExceptT ErrNetworkUnreachable m [Block]
 
 -- | Get the current network tip from the chain producer
-[networkTip] :: NetworkLayer m -> ExceptT ErrNetworkTip m (Hash "BlockHeader", BlockHeader)
+[networkTip] :: NetworkLayer t m -> ExceptT ErrNetworkTip m (Hash "BlockHeader", BlockHeader)
 
 -- | Broadcast a transaction to the chain producer
-[postTx] :: NetworkLayer m -> (Tx, [TxWitness]) -> ExceptT ErrPostTx m ()
+[postTx] :: NetworkLayer t m -> (Tx, [TxWitness]) -> ExceptT ErrPostTx m ()
 
 -- | Network is not reachable
 newtype ErrNetworkUnreachable
@@ -2358,7 +2338,7 @@ newtype ErrAdjustForFee
 ErrCannotCoverFee :: Word64 -> ErrAdjustForFee
 
 -- | Create a new instance of the wallet layer.
-newWalletLayer :: forall s t. (IsOwned s, GenChange s, KnownAddresses s, CompareDiscovery s, NFData s, Show s, TxId t) => DBLayer IO s t -> NetworkLayer IO -> TransactionLayer -> IO (WalletLayer s t)
+newWalletLayer :: forall s t. (IsOwned s, GenChange s, KnownAddresses s, CompareDiscovery s, NFData s, Show s, TxId t) => DBLayer IO s t -> NetworkLayer t IO -> TransactionLayer t -> IO (WalletLayer s t)
 
 -- | Run an <a>ExceptT</a> and throws the error if any. This makes sense
 --   only if called after checking for an invariant or, after ensuring that

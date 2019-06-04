@@ -26,22 +26,22 @@ data Network
 Mainnet :: Network
 Testnet :: Network
 Staging :: Network
+class KnownNetwork (n :: Network)
+networkVal :: KnownNetwork n => Network
+protocolMagic :: KnownNetwork n => ProtocolMagic
 
--- | Get the current target <a>Network</a> from the Environment.
---   
---   Throws a runtime exception is the ENV var isn't set or, is invalid.
-network :: Network
+-- | Magic constant associated to a given network
 newtype ProtocolMagic
 ProtocolMagic :: Int32 -> ProtocolMagic
-
--- | Get the <a>ProtocolMagic</a> corresponding to a given <a>Network</a>.
-protocolMagic :: Network -> ProtocolMagic
 instance GHC.Show.Show Cardano.Wallet.HttpBridge.Environment.ProtocolMagic
 instance GHC.Generics.Generic Cardano.Wallet.HttpBridge.Environment.ProtocolMagic
 instance GHC.Enum.Enum Cardano.Wallet.HttpBridge.Environment.Network
 instance GHC.Classes.Eq Cardano.Wallet.HttpBridge.Environment.Network
 instance GHC.Show.Show Cardano.Wallet.HttpBridge.Environment.Network
 instance GHC.Generics.Generic Cardano.Wallet.HttpBridge.Environment.Network
+instance Cardano.Wallet.HttpBridge.Environment.KnownNetwork 'Cardano.Wallet.HttpBridge.Environment.Mainnet
+instance Cardano.Wallet.HttpBridge.Environment.KnownNetwork 'Cardano.Wallet.HttpBridge.Environment.Staging
+instance Cardano.Wallet.HttpBridge.Environment.KnownNetwork 'Cardano.Wallet.HttpBridge.Environment.Testnet
 instance Data.Text.Class.FromText Cardano.Wallet.HttpBridge.Environment.Network
 instance Data.Text.Class.ToText Cardano.Wallet.HttpBridge.Environment.Network
 
@@ -145,17 +145,25 @@ module Cardano.Wallet.HttpBridge.Compatibility
 -- | A type representing the http-bridge as a network target. This has an
 --   influence on binary serializer &amp; network primitives. See also
 --   <a>TxId</a>
-data HttpBridge
-instance Cardano.Wallet.Primitive.Types.TxId Cardano.Wallet.HttpBridge.Compatibility.HttpBridge
-instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress Cardano.Wallet.HttpBridge.Compatibility.HttpBridge
-instance Cardano.Wallet.Primitive.Types.EncodeAddress Cardano.Wallet.HttpBridge.Compatibility.HttpBridge
-instance Cardano.Wallet.Primitive.Types.DecodeAddress Cardano.Wallet.HttpBridge.Compatibility.HttpBridge
+data HttpBridge (network :: Network)
+
+-- | Available network options.
+data Network
+Mainnet :: Network
+Testnet :: Network
+Staging :: Network
+instance Cardano.Wallet.Primitive.Types.TxId (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge network)
+instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge 'Cardano.Wallet.HttpBridge.Environment.Testnet)
+instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge 'Cardano.Wallet.HttpBridge.Environment.Staging)
+instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge 'Cardano.Wallet.HttpBridge.Environment.Mainnet)
+instance Cardano.Wallet.Primitive.Types.EncodeAddress (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge network)
+instance Cardano.Wallet.Primitive.Types.DecodeAddress (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge network)
 
 module Cardano.Wallet.HttpBridge.Transaction
 
 -- | Construct a <a>TransactionLayer</a> compatible with Byron and the
 --   <a>HttpBridge</a>
-newTransactionLayer :: TransactionLayer
+newTransactionLayer :: forall n. KnownNetwork n => TransactionLayer (HttpBridge n)
 
 
 -- | Decoder for the rust-cardano packfile format.
@@ -266,21 +274,21 @@ instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.HttpBridge.Api.ApiT 
 module Cardano.Wallet.HttpBridge.Network
 
 -- | Endpoints of the cardano-http-bridge API.
-data HttpBridge m
-HttpBridge :: (Hash "BlockHeader" -> ExceptT ErrNetworkUnreachable m Block) -> (Word64 -> ExceptT ErrNetworkUnreachable m [Block]) -> ExceptT ErrNetworkTip m (Hash "BlockHeader", BlockHeader) -> ((Tx, [TxWitness]) -> ExceptT ErrPostTx m ()) -> HttpBridge m
-[$sel:getBlock:HttpBridge] :: HttpBridge m -> Hash "BlockHeader" -> ExceptT ErrNetworkUnreachable m Block
-[$sel:getEpoch:HttpBridge] :: HttpBridge m -> Word64 -> ExceptT ErrNetworkUnreachable m [Block]
-[$sel:getNetworkTip:HttpBridge] :: HttpBridge m -> ExceptT ErrNetworkTip m (Hash "BlockHeader", BlockHeader)
-[$sel:postSignedTx:HttpBridge] :: HttpBridge m -> (Tx, [TxWitness]) -> ExceptT ErrPostTx m ()
+data HttpBridgeLayer m
+HttpBridgeLayer :: (Hash "BlockHeader" -> ExceptT ErrNetworkUnreachable m Block) -> (Word64 -> ExceptT ErrNetworkUnreachable m [Block]) -> ExceptT ErrNetworkTip m (Hash "BlockHeader", BlockHeader) -> ((Tx, [TxWitness]) -> ExceptT ErrPostTx m ()) -> HttpBridgeLayer m
+[$sel:getBlock:HttpBridgeLayer] :: HttpBridgeLayer m -> Hash "BlockHeader" -> ExceptT ErrNetworkUnreachable m Block
+[$sel:getEpoch:HttpBridgeLayer] :: HttpBridgeLayer m -> Word64 -> ExceptT ErrNetworkUnreachable m [Block]
+[$sel:getNetworkTip:HttpBridgeLayer] :: HttpBridgeLayer m -> ExceptT ErrNetworkTip m (Hash "BlockHeader", BlockHeader)
+[$sel:postSignedTx:HttpBridgeLayer] :: HttpBridgeLayer m -> (Tx, [TxWitness]) -> ExceptT ErrPostTx m ()
 
 -- | Constructs a network layer with the given cardano-http-bridge API.
-mkNetworkLayer :: Monad m => HttpBridge m -> NetworkLayer m
+mkNetworkLayer :: Monad m => HttpBridgeLayer m -> NetworkLayer t m
 
 -- | Creates a cardano-http-bridge <a>NetworkLayer</a> using the given
 --   connection settings.
-newNetworkLayer :: Int -> IO (NetworkLayer IO)
+newNetworkLayer :: forall n. KnownNetwork (n :: Network) => Int -> IO (NetworkLayer (HttpBridge n) IO)
 
 -- | Construct a new network layer
-mkHttpBridge :: Manager -> BaseUrl -> NetworkName -> HttpBridge IO
+mkHttpBridgeLayer :: Manager -> BaseUrl -> NetworkName -> HttpBridgeLayer IO
 instance GHC.Show.Show Cardano.Wallet.HttpBridge.Network.ErrUnexpectedNetworkFailure
 instance GHC.Exception.Type.Exception Cardano.Wallet.HttpBridge.Network.ErrUnexpectedNetworkFailure
