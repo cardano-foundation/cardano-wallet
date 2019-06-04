@@ -112,7 +112,6 @@ import Database.Persist.Sql
     , selectKeysList
     , selectList
     , updateWhere
-    , (/<-.)
     , (<-.)
     , (=.)
     , (==.)
@@ -590,12 +589,15 @@ chunkedM n f = mapM_ f . chunksOf n
 -- any wallet.
 deleteLooseTransactions :: SqlPersistM ()
 deleteLooseTransactions = do
-    pendingTxId <- fmap (pendingTxTableId2 . entityVal) <$> selectList [] []
-    metaTxId <- fmap (txMetaTableTxId . entityVal) <$> selectList [] []
-    deleteWhere [ TxInputTableTxId /<-. pendingTxId
-                , TxInputTableTxId /<-. metaTxId ]
-    deleteWhere [ TxOutputTableTxId /<-. pendingTxId
-                , TxOutputTableTxId /<-. metaTxId ]
+    deleteLoose "tx_in"
+    deleteLoose "tx_out"
+  where
+    -- Deletes all TxIn/TxOuts returned by the sub-select.
+    -- The sub-select outer joins PendingTx and TxMeta with TxIn/TxOut.
+    -- All rows of the join table with both PendingTx and TxMeta as NULL are
+    -- loose (unreferenced) transactions.
+    deleteLoose t = rawExecute ("DELETE FROM "<>t<>" where tx_id IN (SELECT "<>t<>".tx_id FROM "<>t<>" LEFT OUTER JOIN tx_meta ON tx_meta.tx_id = "<>t<>".tx_id LEFT OUTER JOIN pending_tx ON pending_tx.tx_id = "<>t<>".tx_id WHERE (tx_meta.tx_id IS NULL) AND (pending_tx.tx_id IS NULL))") []
+
 
 deleteMany
     :: forall typ record.
