@@ -66,7 +66,7 @@ newtype JormungandrLayer m = JormungandrLayer
 -- >>> mgr <- newManager defaultManagerSettings
 -- >>> j = mkJormungandrLayer mgr (BaseUrl Http "localhost" 8080 "")
 -- >>> runExceptT $ getTipId j
--- Right (BlockId (Hash {getHash = "26c640a3de09b74398c14ca0a137ec78"}))
+-- BlockId (Hash {getHash = "&\198@\163\222\t\183C\152\193L\160\161\&7\236x\245\229\EOT\175\177\167\131\190\b\b/\174\212\177:\179"})
 mkJormungandrLayer
     :: Manager -> BaseUrl -> JormungandrLayer IO
 mkJormungandrLayer mgr baseUrl = JormungandrLayer
