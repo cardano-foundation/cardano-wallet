@@ -24,33 +24,16 @@
 
 ### :hammer: [Jörmungandr High-level integration](https://github.com/input-output-hk/cardano-wallet/milestone/10)
 
+### :hammer: [Jörmungandr Integration Testing](https://github.com/input-output-hk/cardano-wallet/milestone/15)
+
+### :hammer: [Logging](https://github.com/input-output-hk/cardano-wallet/milestone/14)
+
+### :hammer: [List Addresses](https://github.com/input-output-hk/cardano-wallet/milestone/16)
 ---
 
 _items below are more-or-less prioritized_ 
 
 ---
-
-### List Available Addresses
-
-- In BIP-44, addresses aren't created by clients, but are rather sequentially discovered
-- This list can be known at any time
-- Addresses may have the following metadata:
-    - is used
-    - ~~is change address~~ --> not used and incorrect in the context of multi-account. Removed in 1.6 already.
-    - ~~ownership~~ --> already ambiguous and controversial in the current implementation. Not used.
-
-
-### Logging and monitoring
-
-- Choose a logging library ([iohk-monitoring-framework](https://input-output-hk.github.io/iohk-monitoring-framework/pres-20181204/html/index.html) seems like the logical choice).
-- Set up the logger using a very basic fixed config that writes to
-  stdout/stderr (can be improved upon later).
-- Adjust program structure so that a logging object can be passed
-  throughout the program.
-- Add debug, info and error logging at appropriate points in program,
-  remove `putStrLn`.
-- Add time observations of various important actions. For example: node backend calls, database queries, wallet restore, block application.
-- Add space observations of important objects. For example: database size (records), UTxO distribution, number of addresses, number of transactions
 
 ### Better Coin Selection
 
