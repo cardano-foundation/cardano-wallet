@@ -690,8 +690,8 @@ withReader :: () => (r' -> r) -> Reader r a -> Reader r' a
 --   The <a>return</a> function ignores the environment, while
 --   <tt>&gt;&gt;=</tt> passes the inherited environment to both
 --   subcomputations.
-newtype ReaderT r (m :: k -> Type) (a :: k) :: forall k. () => Type -> k -> Type -> k -> Type
-ReaderT :: (r -> m a) -> ReaderT r
+newtype ReaderT r (m :: Type -> Type) a
+ReaderT :: (r -> m a) -> ReaderT r a
 runReaderT :: ReaderT r m a -> r -> m a
 
 -- | Transform the computation inside a <tt>ReaderT</tt>.
