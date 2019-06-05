@@ -53,9 +53,11 @@ import Crypto.Hash
 import Data.Bifunctor
     ( bimap, first )
 import Data.Foldable
-    ( toList )
+    ( foldl', toList )
 import Data.Functor.Classes
     ( Eq1, Show1 )
+import Data.List.Extra
+    ( enumerate )
 import Data.Map
     ( Map )
 import Data.Maybe
@@ -640,7 +642,11 @@ data Tag
       -- ^ Private key was written then read.
     | ReadTxHistoryAfterDelete
       -- ^ wallet deleted, then tx history read.
-    deriving (Show)
+    deriving (Bounded, Enum, Eq, Ord, Show)
+
+-- | The list of all possible 'Tag' values.
+allTags :: [Tag]
+allTags = enumerate
 
 tag :: [Event Symbolic] -> [Tag]
 tag = Foldl.fold $ catMaybes <$> sequenceA
@@ -854,13 +860,24 @@ repeatedly = flip . L.foldl' . flip
 
 prop_sequential :: DBLayerTest -> Property
 prop_sequential db =
+    QC.checkCoverage $
     forAllCommands (sm dbLayerUnused) Nothing $ \cmds ->
     monadicIO $ do
         liftIO $ cleanDB db
         let sm' = sm db
         (hist, _model, res) <- runCommands sm' cmds
-        prettyCommands sm' hist $ res === Ok
+        prettyCommands sm' hist
+            $ measureTagCoverage cmds
+            $ res === Ok
+  where
+    measureTagCoverage :: Commands (At Cmd) (At Resp) -> Property -> Property
+    measureTagCoverage cmds prop = foldl' measureTag prop allTags
+      where
+        measureTag :: Property -> Tag -> Property
+        measureTag p t = QC.cover 5 (t `Set.member` matchedTags) (show t) p
 
+        matchedTags :: Set Tag
+        matchedTags = Set.fromList $ tag $ execCmds cmds
 
 prop_parallel :: DBLayerTest -> Property
 prop_parallel db =
