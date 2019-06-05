@@ -118,6 +118,7 @@ test-suite unit
     , containers
     , cryptonite
     , deepseq
+    , extra >= 1.6.17
     , file-embed
     , fmt
     , foldl
