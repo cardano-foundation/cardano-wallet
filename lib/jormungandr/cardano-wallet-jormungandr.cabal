@@ -41,6 +41,7 @@ library
     , cborg
     , exceptions
     , http-client
+    , http-types
     , memory
     , servant
     , servant-client
