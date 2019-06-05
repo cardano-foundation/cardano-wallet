@@ -20,6 +20,7 @@ Each proposal should start with a section justifying the standard with rational 
     * [We use explicit imports by default, and favor qualified imports for ambiguous functions](#we-use-explicit-imports-by-default-and-favor-qualified-imports-for-ambiguous-functions)
     * [All modules begin with a helpful documentation comment](#all-modules-begin-with-a-helpful-documentation-comment)
     * [Avoid wildcard when pattern-matching on ADTs](#avoid-wildcard-when-pattern-matching-on-adts)
+    * [[PROPOSAL] Prefer named constants over magic numbers](#proposal-prefer-named-constants-over-magic-numbers)
     * [[PROPOSAL] Use `cardano-prelude` for all modules, enable `NoImplicitPrelude`](#proposal-use-cardano-prelude-for-all-modules-enable-noimplicitprelude)
 
 * [Testing](#testing)
@@ -640,7 +641,7 @@ We should keep an eye out out-of-date comments. For instance when creating and r
 
 </details>
 
-## [PROPOSAL] Prefer named constants over of magic numbers
+## [PROPOSAL] Prefer named constants over magic numbers
 
 > **Why**
 >
