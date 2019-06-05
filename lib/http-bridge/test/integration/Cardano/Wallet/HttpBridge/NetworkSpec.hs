@@ -18,6 +18,8 @@ import Cardano.Wallet.Network
     , ErrNetworkUnreachable (..)
     , ErrPostTx (..)
     , NetworkLayer (..)
+    , defaultRetryPolicy
+    , waitForConnection
     )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
@@ -39,10 +41,20 @@ import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
     ( runExceptT, withExceptT )
+import Control.Retry
+    ( constantDelay, limitRetries )
 import Data.Text.Class
     ( toText )
 import Test.Hspec
-    ( Spec, afterAll, beforeAll, describe, it, shouldReturn, shouldSatisfy )
+    ( Spec
+    , afterAll
+    , beforeAll
+    , describe
+    , it
+    , shouldReturn
+    , shouldSatisfy
+    , shouldThrow
+    )
 
 import qualified Cardano.Wallet.HttpBridge.Network as HttpBridge
 import qualified Data.Text as T
@@ -143,6 +155,19 @@ spec = do
                     "Transaction failed verification: transaction has more \
                     \witnesses than inputs"
             runExceptT (postTx bridge signed) `shouldReturn` err
+
+    describe "waitForConnection" $ do
+        it "times out after a short while" $ do
+            nw <- newNetworkLayer
+            let policy = constantDelay (1 * second) <> limitRetries 2
+            waitForConnection nw policy `shouldThrow` \case
+                ErrNetworkTipNetworkUnreachable _ -> True
+                _ -> False
+
+        it "returns when the network becomes available" $ do
+            (handle, nw) <- startBridge
+            (waitForConnection nw defaultRetryPolicy) `shouldReturn` ()
+            closeBridge (handle, nw)
   where
     pkWitness :: TxWitness
     pkWitness = PublicKeyWitness "O\a\142a\166\180\SO\205\&3I8\160)\224F?\157\252\ACK\DC2\EOT\ESC\184\201\170\218\217\ETX\201\ESCn\SYN\206\179O\n\236\185\235T\163\190o\SI'r\228\241\150yL\218\NAK R2\162\211\144\209\129lr\225" $ Hash "Go%&7\248\149\194\202\231\210\143-\212f.\135\174\254\186\193^\212?\136\SO;\ACK\a\211\DC1\b\223\159\161\179&\189[\231\217\179\143JOW\194iv5\EMr\197\ETX\158p\DC4=\145\128\n/\255\NUL"
@@ -177,7 +202,7 @@ spec = do
         HttpBridge.newNetworkLayer @'Testnet port
     closeBridge (handle, _) = do
         cancel handle
-        threadDelay 1000000
+        threadDelay $ 1 * second
     startBridge = do
         handle <- async $ launch
             [ Command "cardano-http-bridge"
@@ -189,5 +214,6 @@ spec = do
                 Inherit
             ]
         bridge <- newNetworkLayer
-        threadDelay 1000000
+        threadDelay $ 1 * second
         return (handle, bridge)
+    second = 1000*1000

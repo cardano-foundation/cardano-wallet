@@ -14,11 +14,10 @@ module Cardano.Wallet.Jormungandr.Api
     ( Api
     , GetBlock
     , GetTipId
-    , GetBlockDecendantIds
+    , GetBlockDescendantIds
     , PostSignedTx
-    , BlockId
+    , BlockId (..)
     , api
-    , SignedTx
     ) where
 
 import Prelude
@@ -36,8 +35,7 @@ import Data.Proxy
 import Data.Text.Encoding
     ( decodeUtf8 )
 import Servant.API
-    ( (:<|>)
-    , (:>)
+    ( (:>)
     , Accept (..)
     , Capture
     , Get
@@ -56,8 +54,7 @@ import qualified Servant.API.ContentTypes as Servant
 api :: Proxy Api
 api = Proxy
 
-type Api =
-    GetBlock :<|> GetTipId :<|> GetBlockDecendantIds :<|> PostSignedTx
+type Api = GetTipId
 
 
 -- | Retrieve a block by its id.
@@ -68,21 +65,22 @@ type GetBlock
     :> Capture "blockHeaderHash" BlockId
     :> Get '[JormungandrBinary] Block
 
--- | Retrieve 'n' decendants of a given block, sorted from closest to
+-- | Retrieve 'n' descendants of a given block, sorted from closest to
 -- farthest.
 --
--- There might also exist fewer than 'n' decendants.
+-- There might also exist fewer than 'n' descendants.
 --
 -- For n=3 we might have:
 --
 -- > [genesis] ... -- [b] -- [b+1] -- [b+2] -- [b+3] -- ... -- [tip]
 -- >                   \       \                  \
--- >                  parent    +--- decendants ---+
-type GetBlockDecendantIds
+-- >                  parent    +--- descendants ---+
+type GetBlockDescendantIds
     = "api"
     :> "v0"
     :> "block"
     :> Capture "blockId" BlockId
+    :> "next_id"
     :> QueryParam "count" Int
     :> Get '[JormungandrBinary] [BlockId]
 
@@ -129,7 +127,6 @@ instance Accept JormungandrBinary where
 
 instance FromBinary a => MimeUnrender JormungandrBinary a where
     mimeUnrender _ bs = Right $ runGet get bs
-
 
 data Hex
 
