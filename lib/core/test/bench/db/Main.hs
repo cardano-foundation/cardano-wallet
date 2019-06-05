@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
@@ -89,7 +90,7 @@ import Cardano.Wallet.Primitive.Types
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
-    ( forM_, void )
+    ( forM_ )
 import Criterion.Main
     ( Benchmark
     , Benchmarkable
@@ -113,6 +114,10 @@ import Data.Typeable
     ( Typeable )
 import Fmt
     ( (+|), (|+) )
+import System.Directory
+    ( doesFileExist, removeFile )
+import System.IO.Temp
+    ( emptySystemTempFile )
 import System.IO.Unsafe
     ( unsafePerformIO )
 
@@ -245,16 +250,30 @@ bgroupTxHistory db = bgroup "TxHistory"
 ----------------------------------------------------------------------------
 -- Criterion env functions for database setup
 
+-- | Sets up a benchmark environment with the SQLite DBLayer using a file
+-- database in a temporary location.
 withDB :: (DBLayerBench -> Benchmark) -> Benchmark
-withDB = envWithCleanup (newDBLayer Nothing) (const (pure ()))
+withDB bm = envWithCleanup setup cleanup (\ ~(_, db) -> bm db)
+  where
+    setup = do
+        f <- emptySystemTempFile "bench.db"
+        db <- newDBLayer (Just f)
+        pure (f, db)
+    cleanup (f, _) = mapM_ remove [f, f <> "-shm", f <> "-wal"]
+    remove f = doesFileExist f >>= \case
+        True -> removeFile f
+        False -> pure ()
 
+-- | Cleans the database before running the benchmark.
+-- It also cleans the database after running the benchmark. That is just to
+-- exercise the delete functions.
 withCleanDB
     :: NFData b
     => DBLayerBench
     -> (DBLayerBench -> IO b)
     -> Benchmarkable
 withCleanDB db = perRunEnv $ do
-    void $ cleanDB db
+    cleanDB db
     unsafeRunExceptT $ createWallet db testPk testCp testMetadata
     pure db
 
