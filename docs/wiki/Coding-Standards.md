@@ -702,7 +702,7 @@ bech32CharSet =
     Set.filter (not . isUpper) $
         Set.fromList [humanReadableCharMinBound .. humanReadableCharMaxBound]
             `Set.union` (Set.singleton separatorChar)
-            `Set.union` (Set.fromList Bech32.dataCharList)
+            `Set.union` (Set.fromList dataCharList)
 
 instance Arbitrary HumanReadableChar where
     arbitrary = HumanReadableChar <$>
