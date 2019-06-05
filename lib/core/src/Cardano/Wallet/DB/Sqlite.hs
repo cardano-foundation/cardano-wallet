@@ -18,6 +18,7 @@
 
 module Cardano.Wallet.DB.Sqlite
     ( newDBLayer
+    , newDBLayer'
     , DummyState(..)
     ) where
 
@@ -112,6 +113,7 @@ import Database.Persist.Sql
     , selectKeysList
     , selectList
     , updateWhere
+    , withSqlConn
     , (<-.)
     , (=.)
     , (==.)
@@ -139,13 +141,21 @@ import qualified Database.Sqlite as Sqlite
 
 ----------------------------------------------------------------------------
 -- Sqlite connection set up
-
 enableForeignKeys :: Sqlite.Connection -> IO ()
-enableForeignKeys conn = stmt >>= void . Sqlite.step
-    where stmt = Sqlite.prepare conn "PRAGMA foreign_keys = ON;"
+enableForeignKeys conn = do
+    stmt <- Sqlite.prepare conn "PRAGMA foreign_keys = ON;"
+    _ <- Sqlite.step stmt
+    Sqlite.finalize stmt
 
-createSqliteBackend :: Maybe FilePath -> LogFunc -> IO SqlBackend
+createSqliteBackend :: Maybe FilePath -> LogFunc -> IO (Sqlite.Connection, SqlBackend)
 createSqliteBackend fp logFunc = do
+    conn <- Sqlite.open (sqliteConnStr fp)
+    enableForeignKeys conn
+    backend <- wrapConnection conn logFunc
+    pure (conn, backend)
+
+createSqliteBackend1 :: Maybe FilePath -> LogFunc -> IO SqlBackend
+createSqliteBackend1 fp logFunc = do
     conn <- Sqlite.open (sqliteConnStr fp)
     enableForeignKeys conn
     wrapConnection conn logFunc
@@ -176,6 +186,13 @@ handleConstraint e = handleJust select handler . fmap Right
 
 ----------------------------------------------------------------------------
 -- Database layer methods
+newDBLayer
+    :: forall s t. (W.IsOurs s, NFData s, Show s, PersistState s, W.TxId t)
+    => Maybe FilePath
+       -- ^ Database file location, or Nothing for in-memory database
+    -> IO (DBLayer IO s t)
+newDBLayer = fmap snd . newDBLayer'
+
 
 -- | Sets up a connection to the SQLite database.
 --
@@ -183,22 +200,29 @@ handleConstraint e = handleJust select handler . fmap Right
 --
 -- If the given file path does not exist, it will be created by the sqlite
 -- library.
-newDBLayer
+newDBLayer'
     :: forall s t. (W.IsOurs s, NFData s, Show s, PersistState s, W.TxId t)
     => Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
-    -> IO (DBLayer IO s t)
-newDBLayer fp = do
+    -> IO (Sqlite.Connection, DBLayer IO s t)
+newDBLayer' fp = do
     lock <- newMVar ()
     bigLock <- newMVar ()
-    conn <- createSqliteBackend fp (dbLogs [LevelError])
+    (conn, backend) <- createSqliteBackend fp (dbLogs [LevelError])
     let runQuery' :: SqlPersistM a -> IO a
-        runQuery' = withMVar bigLock . const . runQuery conn
+        runQuery' cmd = case fp of
+            Nothing ->
+                withMVar bigLock $ const $ runQuery backend cmd
+            _ ->
+                withMVar bigLock $ const $ runResourceT $ runNoLoggingT $ withSqlConn (createSqliteBackend1 fp)
+                (\b -> flip runSqlConn b $ do
+                        cmd
+                )
 
     runQuery' $ void $ runMigrationSilent migrateAll
     runQuery' addIndexes
 
-    return $ DBLayer
+    return (conn, DBLayer
 
         {-----------------------------------------------------------------------
                                       Wallets
@@ -311,7 +335,7 @@ newDBLayer fp = do
 
         , withLock = \action ->
               ExceptT $ withMVar lock $ \() -> runExceptT action
-        }
+        })
 
 ----------------------------------------------------------------------------
 -- SQLite database setup

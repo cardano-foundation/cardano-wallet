@@ -129,6 +129,7 @@ test-suite unit
     , http-api-data
     , lens
     , memory
+    , persistent-sqlite
     , QuickCheck
     , quickcheck-instances
     , quickcheck-state-machine >= 0.6.0
@@ -154,6 +155,7 @@ test-suite unit
       Cardano.Wallet.DB.MVarSpec
       Cardano.Wallet.DB.StateMachine
       Cardano.Wallet.DB.SqliteSpec
+      Cardano.Wallet.DB.SqliteFileModeSpec
       Cardano.Wallet.DBSpec
       Cardano.Wallet.NetworkSpec
       Cardano.Wallet.Primitive.AddressDerivationSpec
