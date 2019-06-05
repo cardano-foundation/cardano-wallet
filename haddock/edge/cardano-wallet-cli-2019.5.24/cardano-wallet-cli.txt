@@ -44,6 +44,7 @@ getSensitiveLine :: Buildable e => Text -> (Text -> Either e a) -> IO (a, Text)
 -- | Gather user inputs until a newline is met, hiding what's typed with a
 --   placeholder character.
 hGetSensitiveLine :: Buildable e => (Handle, Handle) -> Text -> (Text -> Either e a) -> IO (a, Text)
+showVersion :: IO ()
 instance GHC.Generics.Generic (Cardano.CLI.Port tag)
 instance GHC.Show.Show (Cardano.CLI.Port tag)
 instance GHC.Classes.Eq (Cardano.CLI.Port tag)
