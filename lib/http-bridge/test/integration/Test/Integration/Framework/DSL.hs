@@ -29,7 +29,10 @@ module Test.Integration.Framework.DSL
     , expectListSizeEqual
     , expectResponseCode
     , expectEventually
+    , expectEventually'
     , expectValidJSON
+    , expectCliFieldBetween
+    , expectCliFieldEqual
     , verify
     , Headers(..)
     , Payload(..)
@@ -184,6 +187,9 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Network.HTTP.Types.Status as HTTP
 
+--
+-- API response expectations
+--
 
 -- | Expect an errored response, without any further assumptions
 expectError
@@ -306,7 +312,6 @@ expectEventually
 expectEventually ctx getter target (_, res) = case res of
     Left e -> wantedSuccessButError e
     Right s -> loopUntilRestore (s ^. walletId)
-
   where
     loopUntilRestore :: (MonadIO m, MonadCatch m) => Text -> m ()
     loopUntilRestore wid = do
@@ -314,17 +319,55 @@ expectEventually ctx getter target (_, res) = case res of
         let target' = getFromResponse getter r
         unless (target' >= target) $ loopUntilRestore wid
 
+-- | Same as `expectEventually` but work directly on ApiWallet
+-- , not response from the API
+expectEventually'
+    :: (MonadIO m, MonadCatch m, MonadFail m, Ord a)
+    => Context t
+    -> Lens' ApiWallet a
+    -> a
+    -> ApiWallet
+    -> m ()
+expectEventually' ctx target value wallet = do
+    rb <- request @ApiWallet ctx (getWallet wallet) Default Empty
+    expectEventually ctx target value rb
+--
+-- CLI output expectations
+--
+
 -- | Expects a given string to be a valid JSON output corresponding to some
--- given data-type 'a'
+-- given data-type 'a'. Returns this type if successful.
 expectValidJSON
     :: forall m a. (MonadFail m, FromJSON a)
     => Proxy a
     -> String
-    -> m ()
+    -> m a
 expectValidJSON _ str =
     case Aeson.eitherDecode @a (BL8.pack str) of
         Left e -> fail $ "expected valid JSON but failed decoding: " <> show e
-        Right _ -> return ()
+        Right a -> return a
+
+expectCliFieldBetween
+    :: (MonadIO m, MonadFail m, Show a, Ord a)
+    => Lens' s a
+    -> (a, a)
+    -> s
+    -> m ()
+expectCliFieldBetween getter (aMin, aMax) s = case view getter s of
+            a | a < aMin -> fail $
+                "expected " <> show a <> " >= " <> show aMin
+            a | a > aMax -> fail $
+                "expected " <> show a <> " <= " <> show aMax
+            _ ->
+                return ()
+
+expectCliFieldEqual
+    :: (MonadIO m, MonadFail m, Show a, Eq a)
+    => Lens' s a
+    -> a
+    -> s
+    -> m ()
+expectCliFieldEqual getter a out = (view getter out) `shouldBe` a
 
 -- | Apply 'a' to all actions in sequence
 verify :: (Monad m) => a -> [a -> m ()] -> m ()

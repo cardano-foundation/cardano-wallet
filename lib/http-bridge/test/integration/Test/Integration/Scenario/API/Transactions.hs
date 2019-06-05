@@ -52,12 +52,16 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( arabicWalletName
+    , errMsg403Fee
+    , errMsg403NotEnoughMoney
+    , errMsg403UTxO
     , errMsg403WrongPass
     , errMsg404NoEndpoint
     , errMsg404NoWallet
     , errMsg405
     , errMsg406
     , errMsg415
+    , errMsg500
     , falseWalletIds
     , kanjiWalletName
     , polishWalletName
@@ -252,10 +256,7 @@ spec = do
         r <- request @(ApiTransaction t) ctx (postTx wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage
-                "When creating new transactions, I'm not able to re-use the \
-                \same UTxO for different outputs. Here, I only have 1 \
-                \available, but there are 2 outputs."
+            , expectErrorMessage errMsg403UTxO
             ]
 
     it "TRANS_CREATE_03 - 0 balance after transaction" $ \ctx -> do
@@ -319,11 +320,7 @@ spec = do
         r <- request @(ApiTransaction t) ctx (postTx wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage
-                "I'm unable to adjust the given transaction to cover the \
-                \associated fee! In order to do so, I'd have to select one or \
-                \more additional inputs, but I can't do that without increasing \
-                \the size of the transaction beyond the acceptable limit."
+            , expectErrorMessage errMsg403Fee
             ]
 
     it "TRANS_CREATE_04 - Not enough money" $ \ctx -> do
@@ -345,11 +342,7 @@ spec = do
         r <- request @(ApiTransaction t) ctx (postTx wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage
-                "I can't process this payment because there's not enough \
-                \UTxO available in the wallet. The total UTxO sums up to \
-                \100000 Lovelace, but I need 1000000 Lovelace (excluding fee \
-                \amount) in order to proceed  with the payment."
+            , expectErrorMessage (errMsg403NotEnoughMoney 100_000 1000_000)
             ]
 
     it "TRANS_CREATE_04 - Wrong password" $ \ctx -> do
@@ -466,12 +459,7 @@ spec = do
                 [ ( "Quantity = 0"
                 , [json|{"quantity": 0, "unit": "lovelace"}|]
                 , [ expectResponseCode HTTP.status500
-                  , expectErrorMessage "That's embarassing. It looks\
-                    \ like I've created an invalid transaction that\
-                    \ could not be parsed by the node. Here's an error\
-                    \ message that may help with debugging:\
-                    \ Transaction failed verification: output with no\
-                    \ credited value" ]
+                  , expectErrorMessage errMsg500 ] -- TODO change after #364
                 )
                 , ( "Quantity = 1.5"
                 , [json|{"quantity": 1.5, "unit": "lovelace"}|]
