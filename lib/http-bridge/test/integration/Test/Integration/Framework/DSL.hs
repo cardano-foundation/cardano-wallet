@@ -319,9 +319,11 @@ expectEventually ctx getter target (_, res) = case res of
         let target' = getFromResponse getter r
         unless (target' >= target) $ loopUntilRestore wid
 
+-- | Same as `expectEventually` but work directly on ApiWallet
+-- , not response from the API
 expectEventually'
     :: (MonadIO m, MonadCatch m, MonadFail m, Ord a)
-    => Context
+    => Context t
     -> Lens' ApiWallet a
     -> a
     -> ApiWallet
@@ -344,23 +346,6 @@ expectValidJSON _ str =
     case Aeson.eitherDecode @a (BL8.pack str) of
         Left e -> fail $ "expected valid JSON but failed decoding: " <> show e
         Right a -> return a
-
--- | Expects wallet from the request to eventually reach the given state or
--- beyond
--- expectCliEventually
---     :: (MonadIO m, MonadCatch m, MonadFail m, Ord a)
---     => Lens' ApiWallet a
---     -> a
---     -> ApiWallet
---     -> m ()
--- expectCliEventually getter target w = loopUntilRestore (w ^. walletId)
---   where
---     loopUntilRestore :: (MonadIO m, MonadCatch m) => Text -> IO ()
---     loopUntilRestore wid = do
---         Stdout out <- getWalletViaCLI (T.unpack wid)
---         outJson <- expectValidJSON (Proxy @ApiWallet) out
---         let target' = view getter outJson
---         unless (target' >= target) $ loopUntilRestore wid
 
 expectCliFieldBetween
     :: (MonadIO m, MonadFail m, Show a, Ord a)

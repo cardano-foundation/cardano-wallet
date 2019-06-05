@@ -59,8 +59,6 @@ import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
     ( DecodeAddress, EncodeAddress )
-import Control.Applicative
-    ( many )
 import Control.Arrow
     ( second )
 import Control.Monad

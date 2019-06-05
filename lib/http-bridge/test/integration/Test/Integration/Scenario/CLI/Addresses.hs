@@ -42,7 +42,7 @@ spec = do
         walId <- emptyWallet' ctx
         (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI walId
         err `shouldBe` "Ok.\n"
-        expectValidJSON (Proxy @[ApiAddress t]) out
+        _ <- expectValidJSON (Proxy @[ApiAddress t]) out
         c `shouldBe` ExitSuccess
 
   where
