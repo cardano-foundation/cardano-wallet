@@ -640,6 +640,22 @@ We should keep an eye out out-of-date comments. For instance when creating and r
 
 </details>
 
+## [PROPOSAL] Prefer named constants over of magic numbers
+
+> **Why**
+>
+> A **magic number** (or magic value) is a value that appears in source code without an accompanying explanation, which could (preferably) be replaced with a named constant.
+>
+> The use of an unnamed magic number often obscures the developer's intent in choosing that number, increases opportunities for subtle errors and makes it more difficult for the program to be adapted and extended in the future.
+
+> Replacing all significant magic numbers with named constants makes programs easier to read, understand and maintain. Named constants can also be reused in multiple places, making it obvious that the value is supposed to be the same across all places that its used.
+
+<details>
+  <summary>See examples</summary>
+
+</details>
+
+
 ## [PROPOSAL] Use `cardano-prelude` for all modules, enable `NoImplicitPrelude`
 
 > **Why**
