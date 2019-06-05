@@ -199,7 +199,7 @@ instance Cardano.Wallet.Jormungandr.Environment.KnownNetwork n => Cardano.Wallet
 
 -- | An specification for the Jörmungandr REST API.
 module Cardano.Wallet.Jormungandr.Api
-type Api = GetBlock :<|> GetTipId :<|> GetBlockDecendantIds :<|> PostSignedTx
+type Api = GetTipId
 
 -- | Retrieve a block by its id.
 type GetBlock = "api" :> "v0" :> "block" :> Capture "blockHeaderHash" BlockId :> Get '[JormungandrBinary] Block
@@ -207,23 +207,23 @@ type GetBlock = "api" :> "v0" :> "block" :> Capture "blockHeaderHash" BlockId :>
 -- | Retrieve the header of the latest known block.
 type GetTipId = "api" :> "v0" :> "tip" :> Get '[Hex] BlockId
 
--- | Retrieve <tt>n</tt> decendants of a given block, sorted from closest
+-- | Retrieve <tt>n</tt> descendants of a given block, sorted from closest
 --   to farthest.
 --   
---   There might also exist fewer than <tt>n</tt> decendants.
+--   There might also exist fewer than <tt>n</tt> descendants.
 --   
 --   For n=3 we might have:
 --   
 --   <pre>
 --   [genesis] ... -- [b] -- [b+1] -- [b+2] -- [b+3] -- ... -- [tip]
 --                     \       \                  \
---                    parent    +--- decendants ---+
+--                    parent    +--- descendants ---+
 --   </pre>
-type GetBlockDecendantIds = "api" :> "v0" :> "block" :> Capture "blockId" BlockId :> QueryParam "count" Int :> Get '[JormungandrBinary] [BlockId]
+type GetBlockDescendantIds = "api" :> "v0" :> "block" :> Capture "blockId" BlockId :> "next_id" :> QueryParam "count" Int :> Get '[JormungandrBinary] [BlockId]
 type PostSignedTx = "api" :> "v0" :> "transaction" :> ReqBody '[JormungandrBinary] SignedTx :> Post '[NoContent] NoContent
-data BlockId
+newtype BlockId
+BlockId :: Hash "block" -> BlockId
 api :: Proxy Api
-data SignedTx
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Api.BlockId
 instance Servant.API.ContentTypes.MimeUnrender Cardano.Wallet.Jormungandr.Api.Hex Cardano.Wallet.Jormungandr.Api.BlockId
 instance Servant.API.ContentTypes.Accept Cardano.Wallet.Jormungandr.Api.Hex
@@ -231,6 +231,43 @@ instance Servant.API.ContentTypes.Accept Cardano.Wallet.Jormungandr.Api.Jormunga
 instance Cardano.Wallet.Jormungandr.Binary.FromBinary a => Servant.API.ContentTypes.MimeUnrender Cardano.Wallet.Jormungandr.Api.JormungandrBinary a
 instance Web.Internal.HttpApiData.ToHttpApiData Cardano.Wallet.Jormungandr.Api.BlockId
 instance Cardano.Wallet.Jormungandr.Binary.FromBinary Cardano.Wallet.Jormungandr.Api.BlockId
+
+
+-- | This module allows the wallet to retrieve blocks from a known
+--   <tt>Jormungandr</tt> node. This is done by providing a
+--   <tt>NetworkLayer</tt> with some logic building on top of an underlying
+--   <tt>JormungandrLayer</tt> HTTP client.
+module Cardano.Wallet.Jormungandr.Network
+
+-- | Endpoints of the jormungandr REST API.
+newtype JormungandrLayer m
+JormungandrLayer :: ExceptT ErrNetworkUnreachable m BlockId -> JormungandrLayer m
+[$sel:getTipId:JormungandrLayer] :: JormungandrLayer m -> ExceptT ErrNetworkUnreachable m BlockId
+
+-- | Construct a <a>JormungandrLayer</a>-client
+--   
+--   <pre>
+--   &gt;&gt;&gt; mgr &lt;- newManager defaultManagerSettings
+--   
+--   &gt;&gt;&gt; j = mkJormungandrLayer mgr (BaseUrl Http "localhost" 8080 "")
+--   
+--   &gt;&gt;&gt; runExceptT $ getTipId j
+--   Right (BlockId (Hash {getHash = "26c640a3de09b74398c14ca0a137ec78"}))
+--   </pre>
+mkJormungandrLayer :: Manager -> BaseUrl -> JormungandrLayer IO
+data BaseUrl
+BaseUrl :: Scheme -> String -> Int -> String -> BaseUrl
+[baseUrlScheme] :: BaseUrl -> Scheme
+[baseUrlHost] :: BaseUrl -> String
+[baseUrlPort] :: BaseUrl -> Int
+[baseUrlPath] :: BaseUrl -> String
+newManager :: ManagerSettings -> IO Manager
+defaultManagerSettings :: ManagerSettings
+data Scheme
+Http :: Scheme
+Https :: Scheme
+instance GHC.Show.Show Cardano.Wallet.Jormungandr.Network.ErrUnexpectedNetworkFailure
+instance GHC.Exception.Type.Exception Cardano.Wallet.Jormungandr.Network.ErrUnexpectedNetworkFailure
 
 module Cardano.Wallet.Jormungandr.Transaction
 

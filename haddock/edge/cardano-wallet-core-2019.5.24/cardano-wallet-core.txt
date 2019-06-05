@@ -1197,6 +1197,11 @@ NetworkLayer :: (SlotId -> ExceptT ErrNetworkUnreachable m [Block]) -> ExceptT E
 -- | Broadcast a transaction to the chain producer
 [postTx] :: NetworkLayer t m -> (Tx, [TxWitness]) -> ExceptT ErrPostTx m ()
 
+-- | Wait until 'networkTip networkLayer' succeeds according to a given
+--   retry policy. Throws an exception otherwise.
+waitForConnection :: NetworkLayer t IO -> RetryPolicyM IO -> IO ()
+defaultRetryPolicy :: Monad m => RetryPolicyM m
+
 -- | Network is not reachable
 newtype ErrNetworkUnreachable
 ErrNetworkUnreachable :: Text -> ErrNetworkUnreachable
