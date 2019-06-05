@@ -654,6 +654,61 @@ We should keep an eye out out-of-date comments. For instance when creating and r
 <details>
   <summary>See examples</summary>
 
+### BAD
+```hs
+humanReadableCharIsValid :: Char -> Bool
+humanReadableCharIsValid c = c >= chr 33 && c <= chr 126
+
+bech32CharSet :: Set Char
+bech32CharSet =
+    Set.filter (not . isUpper) $
+        Set.fromList [chr 33 .. chr 126]
+            `Set.union` (Set.singleton '1')
+            `Set.union` (Set.fromList "qpzry9x8gf2tvdw0s3jn54khce6mua7l")
+
+instance Arbitrary HumanReadableChar where
+    arbitrary = HumanReadableChar <$>
+        choose (chr 33, chr 126)
+```
+### GOOD
+```hs
+-- | The lower bound of the set of characters permitted to appear within the
+--   human-readable part of a Bech32 string.
+humanReadableCharMinBound :: Char
+humanReadableCharMinBound = chr 33
+
+-- | The upper bound of the set of characters permitted to appear within the
+--   human-readable part of a Bech32 string.
+humanReadableCharMaxBound :: Char
+humanReadableCharMaxBound = chr 126
+
+-- | The separator character. This character appears immediately after the
+-- human-readable part and before the data part.
+separatorChar :: Char
+separatorChar = '1'
+
+-- | A list of all characters that are permitted to appear within the data part
+--   of a Bech32 string.
+dataCharList :: String
+dataCharList = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+
+humanReadableCharIsValid :: Char -> Bool
+humanReadableCharIsValid c =
+    c >= humanReadableCharMinBound &&
+    c <= humanReadableCharMaxBound
+
+bech32CharSet :: Set Char
+bech32CharSet =
+    Set.filter (not . isUpper) $
+        Set.fromList [humanReadableCharMinBound .. humanReadableCharMaxBound]
+            `Set.union` (Set.singleton separatorChar)
+            `Set.union` (Set.fromList Bech32.dataCharList)
+
+instance Arbitrary HumanReadableChar where
+    arbitrary = HumanReadableChar <$>
+        choose (humanReadableCharMinBound, humanReadableCharMaxBound)
+```
+
 </details>
 
 
