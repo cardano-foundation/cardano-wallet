@@ -94,6 +94,7 @@ import System.Console.Docopt
     , command
     , docopt
     , exitWithUsage
+    , getArg
     , isPresent
     , longOption
     , parseArgsOrExit
@@ -107,7 +108,7 @@ import System.IO
     ( BufferMode (NoBuffering), hSetBuffering, stderr, stdout )
 
 import qualified Cardano.Wallet.Api.Server as Server
-import qualified Cardano.Wallet.DB.MVar as MVar
+import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.HttpBridge.Network as HttpBridge
 import qualified Cardano.Wallet.HttpBridge.Transaction as HttpBridge
 import qualified Data.Aeson as Aeson
@@ -132,7 +133,7 @@ and can be run "offline". (e.g. 'generate mnemonic')
     ⚠️  Options are positional (--a --b is not equivalent to --b --a) ! ⚠️
 
 Usage:
-  cardano-wallet server [--network=STRING] [--port=INT] [--bridge-port=INT]
+  cardano-wallet server [--network=STRING] [--port=INT] [--bridge-port=INT] [--database=FILE]
   cardano-wallet mnemonic generate [--size=INT]
   cardano-wallet wallet list [--port=INT]
   cardano-wallet wallet create [--port=INT] <name> [--address-pool-gap=INT]
@@ -151,6 +152,7 @@ Options:
   --size <INT>                number of mnemonic words to generate [default: 15]
   --payment <PAYMENT>         address to send to and amount to send separated by @: '<amount>@<address>'
   --network <STRING>          testnet, staging, or mainnet [default: testnet]
+  --database <FILE>           use this file for storing wallet state
 
 Examples:
   # Create a transaction and send 22 lovelace from wallet-id to specified addres
@@ -334,7 +336,8 @@ execHttpBridge args _ = do
         <- args `parseArg` longOption "port"
     (bridgePort :: Int)
         <- args `parseArg` longOption "bridge-port"
-    db <- MVar.newDBLayer
+    let dbFile = args `getArg` longOption "database"
+    db <- Sqlite.newDBLayer dbFile
     nw <- HttpBridge.newNetworkLayer @n bridgePort
     waitForConnection nw defaultRetryPolicy
     let tl = HttpBridge.newTransactionLayer @n
