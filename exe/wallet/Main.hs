@@ -32,6 +32,7 @@ import Cardano.CLI
     , help
     , parseAllArgsWith
     , parseArgWith
+    , parseOptionalArg
     , putErrLn
     , setUtf8Encoding
     )
@@ -144,7 +145,7 @@ Usage:
   cardano-wallet wallet update [--port=INT] <wallet-id> --name=STRING
   cardano-wallet wallet delete [--port=INT] <wallet-id>
   cardano-wallet transaction create [--port=INT] <wallet-id> --payment=PAYMENT...
-  cardano-wallet address list [--port=INT] <wallet-id>
+  cardano-wallet address list [--port=INT] [--state=STRING] <wallet-id>
   cardano-wallet -h | --help
   cardano-wallet --version
 
@@ -156,6 +157,7 @@ Options:
   --payment <PAYMENT>         address to send to and amount to send separated by @: '<amount>@<address>'
   --network <STRING>          testnet, staging, or mainnet [default: testnet]
   --database <FILE>           use this file for storing wallet state
+  --state <STRING>            address state: either used or unused
 
 Examples:
   # Create a transaction and send 22 lovelace from wallet-id to specified address
@@ -263,7 +265,9 @@ exec execServer manager args
     | args `isPresent` command "address" &&
       args `isPresent` command "list" = do
         wId <- args `parseArg` argument "wallet-id"
-        runClient Aeson.encodePretty $ listAddresses (ApiT wId) Nothing
+        maybeState <- args `parseOptionalArg` longOption "state"
+        runClient Aeson.encodePretty
+            $ listAddresses (ApiT wId) (ApiT <$> maybeState)
 
     | args `isPresent` longOption "version" = do
         putStrLn (showVersion version)
