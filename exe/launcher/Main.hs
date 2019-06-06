@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE QuasiQuotes #-}
 
 module Main where
@@ -14,12 +15,12 @@ import Cardano.Launcher
     , installSignalHandlers
     , launch
     )
-import Cardano.Wallet.HttpBridge.Environment
-    ( Network )
 import Control.Concurrent
     ( threadDelay )
 import Control.Monad
     ( when )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Text.Class
     ( FromText (..), ToText (..) )
 import Data.Version
@@ -29,21 +30,26 @@ import Fmt
 import Paths_cardano_wallet
     ( version )
 import Say
-    ( sayErr )
+    ( sayErr, sayString )
 import System.Console.Docopt
     ( Arguments
     , Docopt
     , Option
     , docopt
+    , getArg
     , isPresent
     , longOption
     , parseArgsOrExit
     , shortOption
     )
+import System.Directory
+    ( createDirectory, doesDirectoryExist )
 import System.Environment
     ( getArgs )
 import System.Exit
     ( exitSuccess, exitWith )
+import System.FilePath
+    ( (</>) )
 
 import qualified Data.Text as T
 
@@ -66,9 +72,10 @@ Usage:
   cardano-wallet-launcher --version
 
 Options:
-  --network <STRING>           testnet, staging, or mainnet [default: testnet]
+  --network <STRING>           testnet, staging, mainnet, or local [default: testnet]
   --wallet-server-port <PORT>  port used for serving the wallet API [default: 8090]
   --http-bridge-port <PORT>    port used for communicating with the http-bridge [default: 8080]
+  --state-dir <DIR>            write wallet state (blockchain and database) to this directory
 |]
 
 main :: IO ()
@@ -80,15 +87,17 @@ main = do
         putStrLn (showVersion version)
         exitSuccess
 
-    network <- args `parseArg` longOption "network"
+    let stateDir = args `getArg` (longOption "state-dir")
+    let network = fromMaybe "testnet" $ args `getArg` (longOption "network")
     bridgePort <- args `parseArg` longOption "http-bridge-port"
     walletPort <- args `parseArg` longOption "wallet-server-port"
 
     sayErr "Starting..."
     installSignalHandlers
+    maybe (pure ()) setupStateDir stateDir
     let commands =
-            [ nodeHttpBridgeOn bridgePort network
-            , walletOn walletPort bridgePort
+            [ nodeHttpBridgeOn stateDir bridgePort network
+            , walletOn stateDir walletPort bridgePort network
             ]
     sayErr $ fmt $ blockListF commands
     (ProcessHasExited name code) <- launch commands
@@ -98,24 +107,33 @@ main = do
     parseArg :: FromText a => Arguments -> Option -> IO a
     parseArg = parseArgWith cli
 
-nodeHttpBridgeOn :: Port "Node" -> Network -> Command
-nodeHttpBridgeOn port net = Command
-    "cardano-http-bridge"
-    [ "start"
-    , "--port", T.unpack (toText port)
-    , "--template", T.unpack (toText net)
-    ]
-    (return ())
-    Inherit
-
-walletOn :: Port "Wallet" -> Port "Node" -> Command
-walletOn wp np = Command
-    "cardano-wallet"
-    [ "server"
-    , "--port", T.unpack (toText wp)
-    , "--bridge-port", T.unpack (toText np)
-    ]
-    (threadDelay oneSecond)
-    Inherit
+nodeHttpBridgeOn :: Maybe FilePath -> Port "Node" -> String -> Command
+nodeHttpBridgeOn stateDir port net =
+    Command "cardano-http-bridge" args (return ()) Inherit
   where
+    args =
+        [ "start"
+        , "--port", T.unpack (toText port)
+        , "--template", net
+        ] ++ networkArg
+    networkArg = maybe [] (\d -> ["--networks-dir", d]) stateDir
+
+walletOn :: Maybe FilePath -> Port "Wallet" -> Port "Node" -> String -> Command
+walletOn stateDir wp np net =
+    Command "cardano-wallet" args (threadDelay oneSecond) Inherit
+  where
+    args =
+        [ "server"
+        , "--network", if net == "local" then "testnet" else net
+        , "--port", T.unpack (toText wp)
+        , "--bridge-port", T.unpack (toText np)
+        ] ++ dbArg
+    dbArg = maybe [] (\d -> ["--database", d </> "wallet.db"]) stateDir
     oneSecond = 1000000
+
+setupStateDir :: FilePath -> IO ()
+setupStateDir dir = doesDirectoryExist dir >>= \case
+    True -> sayString $ "Using state directory: " ++ dir
+    False -> do
+        sayString $ "Creating state directory: " ++ dir
+        createDirectory dir
