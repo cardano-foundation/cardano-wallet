@@ -179,6 +179,7 @@ test-suite integration
       Test.Integration.Scenario.CLI.Mnemonics
       Test.Integration.Scenario.CLI.Transactions
       Test.Integration.Scenario.CLI.Wallets
+      Paths_cardano_wallet_http_bridge
 
 benchmark restore
   default-language:
