@@ -14,7 +14,11 @@ import Prelude
 import Cardano.Wallet
     ( unsafeRunExceptT )
 import Cardano.Wallet.DB
-    ( DBLayer (..), ErrWalletAlreadyExists (..), PrimaryKey (..) )
+    ( DBLayer (..)
+    , ErrNoSuchWallet (..)
+    , ErrWalletAlreadyExists (..)
+    , PrimaryKey (..)
+    )
 import Cardano.Wallet.DB.Sqlite
     ( newDBLayer )
 import Cardano.Wallet.DB.StateMachine
@@ -22,7 +26,10 @@ import Cardano.Wallet.DB.StateMachine
 import Cardano.Wallet.DBSpec
     ( DummyTarget, dbPropertyTests, withDB )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Passphrase (..)
+    ( Depth (..)
+    , Key
+    , Passphrase (..)
+    , XPrv
     , encryptPassphrase
     , generateKeyFromSeed
     , unsafeGenerateKeyFromSeed
@@ -51,6 +58,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     )
+import Control.Monad.IO.Class
+    ( liftIO )
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Crypto.Hash
@@ -100,14 +109,41 @@ simpleSpec = do
             runExceptT create' `shouldReturn`
                 (Left (ErrWalletAlreadyExists testWid))
 
+        it "create and remove" $ \db -> do
+            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+            unsafeRunExceptT $ putTxHistory db testPk testTxs
+            unsafeRunExceptT $ removeWallet db testPk
+
+            readCheckpoint db testPk `shouldReturn` Nothing
+            readWalletMeta db testPk `shouldReturn` Nothing
+            readTxHistory db testPk `shouldReturn` Map.empty
+            readPrivateKey db testPk `shouldReturn` Nothing
+            listWallets db `shouldReturn` []
+
+            runExceptT (putCheckpoint db testPk testCp) `shouldReturn`
+                (Left (ErrNoSuchWallet testWid))
+            runExceptT (putWalletMeta db testPk testMetadata) `shouldReturn`
+                (Left (ErrNoSuchWallet testWid))
+            runExceptT (putTxHistory db testPk testTxs) `shouldReturn`
+                (Left (ErrNoSuchWallet testWid))
+
+            (k,h) <- genPrivateKey
+            runExceptT (putPrivateKey db testPk (k, h)) `shouldReturn`
+                (Left (ErrNoSuchWallet testWid))
+
         it "create and get private key" $ \db -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
             readPrivateKey db testPk `shouldReturn` Nothing
-            let Right phr = fromText "aaaaaaaaaa"
-                k = unsafeGenerateKeyFromSeed (coerce phr, coerce phr) phr
-            h <- encryptPassphrase phr
+            (k,h) <- genPrivateKey
             unsafeRunExceptT (putPrivateKey db testPk (k, h))
             readPrivateKey db testPk `shouldReturn` Just (k, h)
+
+        it "put and read metadata" $ \db -> do
+            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+            let md = testMetadata
+                    { name = WalletName "test wallet updated now" }
+            runExceptT (putWalletMeta db testPk md) `shouldReturn` Right ()
+            readWalletMeta db testPk `shouldReturn` Just md
 
         it "put and read tx history" $ \db -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
@@ -118,13 +154,22 @@ simpleSpec = do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
             unsafeRunExceptT $ createWallet db testPk1 testCp testMetadata
             runExceptT (putTxHistory db testPk1 testTxs) `shouldReturn` Right ()
+            runExceptT (putTxHistory db testPk testTxs) `shouldReturn` Right ()
             runExceptT (removeWallet db testPk) `shouldReturn` Right ()
             readTxHistory db testPk1 `shouldReturn` testTxs
+            readTxHistory db testPk `shouldReturn` Map.empty
 
         it "put and read checkpoint" $ \db -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
             runExceptT (putCheckpoint db testPk testCp) `shouldReturn` Right ()
             readCheckpoint db testPk `shouldReturn` Just testCp
+
+genPrivateKey :: IO (Key 'RootK XPrv, Hash "encryption")
+genPrivateKey = do
+    let Right phr = fromText "aaaaaaaaaa"
+        k = unsafeGenerateKeyFromSeed (coerce phr, coerce phr) phr
+    h <- liftIO $ encryptPassphrase phr
+    return (k, h)
 
 newMemoryDBLayer :: IO (DBLayer IO (SeqState DummyTarget) DummyTarget)
 newMemoryDBLayer = snd <$> newDBLayer Nothing
