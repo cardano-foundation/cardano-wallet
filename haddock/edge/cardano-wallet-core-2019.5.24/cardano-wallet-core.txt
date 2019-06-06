@@ -1946,6 +1946,10 @@ module Cardano.Wallet.DB.Sqlite
 --   sqlite library.
 newDBLayer :: forall s t. (IsOurs s, NFData s, Show s, PersistState s, TxId t) => Maybe FilePath -> IO (SqlBackend, DBLayer IO s t)
 
+-- | Run a query without error handling. There will be exceptions thrown if
+--   it fails.
+runQuery :: SqlBackend -> SqlPersistM a -> IO a
+
 -- | Functions for saving/loading the wallet's address discovery state into
 --   SQLite.
 class PersistState s
