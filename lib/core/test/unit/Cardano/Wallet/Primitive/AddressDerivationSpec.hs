@@ -340,6 +340,13 @@ instance {-# OVERLAPS #-} Arbitrary (Passphrase "encryption") where
         bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
         return $ Passphrase $ BA.convert bytes
 
+instance {-# OVERLAPS #-} Arbitrary (Passphrase "seed") where
+    arbitrary = do
+        let p = Proxy :: Proxy "seed"
+        n <- choose (passphraseMinLength p, passphraseMaxLength p)
+        bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
+        return $ Passphrase $ BA.convert bytes
+
 instance Arbitrary ChangeChain where
     shrink _ = []
     arbitrary = elements [InternalChain, ExternalChain]
@@ -366,7 +373,7 @@ genRootKeys :: Gen (Key 'RootK XPrv)
 genRootKeys = do
     (s, g, e) <- (,,)
         <$> genPassphrase @"seed" (16, 32)
-        <*> genPassphrase @"generation" (0, 16)
+        <*> genPassphrase @"generation" (10, 16)
         <*> genPassphrase @"encryption" (0, 16)
     return $ generateKeyFromSeed (s, g) e
   where

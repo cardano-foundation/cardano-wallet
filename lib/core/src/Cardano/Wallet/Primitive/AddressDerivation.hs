@@ -253,6 +253,9 @@ instance PassphraseMinLength "encryption-new" where
     passphraseMinLength _ = passphraseMinLength (Proxy @"encryption")
 instance PassphraseMaxLength "encryption-new" where
     passphraseMaxLength _ = passphraseMaxLength (Proxy @"encryption")
+instance PassphraseMinLength "seed" where passphraseMinLength _ = 16
+instance PassphraseMaxLength "seed" where passphraseMaxLength _ = 255
+
 
 instance
     ( PassphraseMaxLength purpose
@@ -498,6 +501,7 @@ unsafeGenerateKeyFromSeed (Passphrase seed, Passphrase gen) (Passphrase pwd) =
     Key $ generateNew seed gen pwd
 
 -- | Generate a root key from a corresponding seed
+-- The seed should be at least 16 bytes
 generateKeyFromSeed
     :: (Passphrase "seed", Passphrase "generation")
         -- ^ The actual seed and its recovery / generation passphrase

@@ -387,8 +387,8 @@ instance Eq XPrv where
 genRootKeys :: Gen (Key 'RootK XPrv)
 genRootKeys = do
     (s, g, e) <- (,,)
-        <$> genPassphrase @"seed" (0, 32)
-        <*> genPassphrase @"generation" (0, 16)
+        <$> genPassphrase @"seed" (16, 32)
+        <*> genPassphrase @"generation" (10, 16)
         <*> genPassphrase @"encryption" (0, 16)
     return $ generateKeyFromSeed (s, g) e
   where
