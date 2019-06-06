@@ -17,6 +17,7 @@
 
 module Cardano.Wallet.DB.Sqlite
     ( newDBLayer
+    , runQuery
     , PersistState (..)
     ) where
 

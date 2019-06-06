@@ -17,6 +17,8 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Any
 
 import Prelude
 
+import Cardano.Wallet.DB.Sqlite
+    ( PersistState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -28,6 +30,8 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..), WalletId (..), WalletName (..) )
 import Control.DeepSeq
     ( NFData )
+import Control.Monad.Trans.Maybe
+    ( MaybeT (..) )
 import Crypto.Hash
     ( hash )
 import Data.Digest.CRC32
@@ -36,9 +40,12 @@ import Data.Text
     ( Text )
 import Data.Word
     ( Word32 )
+import Database.Persist.Sql
+    ( deleteWhere, entityVal, insert_, selectFirst, (==.) )
 import GHC.Generics
     ( Generic )
 
+import qualified Cardano.Wallet.Primitive.AddressDiscovery.Any.TH as DB
 import qualified Data.ByteString.Char8 as B8
 
 ----------------------------------------------------------------------------
@@ -76,6 +83,19 @@ instance KnownAddresses AnyAddressState where
     knownAddresses _ = error
         "KnownAddresses.knownAddresses: trying to generate change for \
         \an incompatible scheme 'AnyAddressState'. Please don't."
+
+instance PersistState AnyAddressState where
+    insertState (wid, sl) (AnyAddressState s) =
+        insert_ (DB.AnyAddressState wid sl s)
+    selectState (wid, sl) = runMaybeT $ do
+        DB.AnyAddressState _ _ s <- MaybeT $ fmap entityVal <$> selectFirst
+            [ DB.AnyAddressStateTableWalletId ==. wid
+            , DB.AnyAddressStateTableCheckpointSlot ==. sl
+            ] []
+        return (AnyAddressState s)
+
+    deleteState wid =
+        deleteWhere [ DB.AnyAddressStateTableWalletId ==. wid ]
 
 initAnyState :: Text -> Double -> (WalletId, WalletName, AnyAddressState)
 initAnyState wname p = (walletId cfg, WalletName wname, cfg)

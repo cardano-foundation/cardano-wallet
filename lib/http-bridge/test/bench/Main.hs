@@ -14,6 +14,8 @@ import Cardano.Launcher
     ( Command (Command), StdStream (..), installSignalHandlers, launch )
 import Cardano.Wallet
     ( WalletLayer (..), newWalletLayer, unsafeRunExceptT )
+import Cardano.Wallet.DB.Sqlite
+    ( PersistState )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.HttpBridge.Environment
@@ -42,6 +44,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Any
     ( AnyAddressState, initAnyState )
+import Cardano.Wallet.Primitive.AddressDiscovery.Any.TH
+    ( migrateAll )
 import Cardano.Wallet.Primitive.Model
     ( totalBalance, totalUTxO )
 import Cardano.Wallet.Primitive.Types
@@ -60,7 +64,7 @@ import Control.DeepSeq
 import Control.Exception
     ( bracket, evaluate, throwIO )
 import Control.Monad
-    ( forM, mapM_ )
+    ( forM, mapM_, void )
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.Trans.Except
@@ -79,6 +83,8 @@ import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock.POSIX
     ( POSIXTime, getPOSIXTime )
+import Database.Persist.Sql
+    ( runMigrationSilent )
 import Fmt
     ( fmt, (+|), (+||), (|+), (||+) )
 import Say
@@ -87,8 +93,10 @@ import System.Environment
     ( getArgs )
 import System.IO
     ( BufferMode (..), hSetBuffering, stderr, stdout )
+import System.IO.Temp
+    ( emptySystemTempFile )
 
-import qualified Cardano.Wallet.DB.MVar as MVar
+import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 
@@ -190,13 +198,15 @@ bench_restoration
         , Show s
         , CompareDiscovery s
         , KnownAddresses s
+        , PersistState s
         , KnownNetwork n
         )
     => Proxy n
     -> (WalletId, WalletName, s)
     -> IO ()
 bench_restoration _ (wid, wname, s) = withHttpBridge network $ \port -> do
-    dbLayer <- MVar.newDBLayer
+    (conn, dbLayer) <- emptySystemTempFile "bench.db" >>= Sqlite.newDBLayer . Just
+    Sqlite.runQuery conn (void $ runMigrationSilent migrateAll)
     networkLayer <- newNetworkLayer port
     let transactionLayer = newTransactionLayer
     (_, bh) <- unsafeRunExceptT $ networkTip networkLayer

@@ -208,8 +208,11 @@ benchmark restore
     , digest
     , fmt
     , generic-lens
+    , persistent
+    , persistent-template
     , process
     , say
+    , temporary
     , text
     , text-class
     , time
@@ -222,3 +225,4 @@ benchmark restore
       Main.hs
   other-modules:
       Cardano.Wallet.Primitive.AddressDiscovery.Any
+      Cardano.Wallet.Primitive.AddressDiscovery.Any.TH
