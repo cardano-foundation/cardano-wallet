@@ -1,45 +1,4 @@
 - package:
-  - name: cardano-wallet-http-bridge
-  - section:
-    - name: test:integration
-    - message:
-      - name: Weeds exported
-      - module:
-        - name: Test.Integration.Framework.DSL
-        - identifier:
-          - expectError
-          - expectSuccess
-      - module:
-        - name: Test.Integration.Framework.Request
-        - identifier:
-          - ClientError
-          - DecodeFailure
-          - HttpException
-          - unsafeRequest
-  - section:
-    - name: test:unit
-    - message:
-      - name: Weeds exported
-      - module:
-        - name: Spec
-        - identifier: main
-- package:
-  - name: cardano-wallet-jormungandr
-  - section:
-    - name: test:unit
-    - message:
-      - name: Weeds exported
-      - module:
-        - name: Spec
-        - identifier: main
-- package:
-  - name: cardano-wallet-launcher
-  - section:
-    - name: library
-    - message:
-      - name: Module not compiled
-      - module: Cardano.Launcher.Windows
-- package:
   - name: cardano-wallet-core
   - section:
     - name: test:unit
@@ -48,3 +7,38 @@
       - module:
         - name: Cardano.Wallet.DB.StateMachine
         - identifier: showLabelledExamples
+- package:
+  - name: cardano-wallet-http-bridge
+  - section:
+    - name: bench:restore
+    - message:
+      - name: Weeds exported
+      - module:
+        - name: Cardano.Wallet.Primitive.AddressDiscovery.Any.TH
+        - identifier:
+          - AnyAddressStateId
+          - AnyAddressStateKey
+          - AnyAddressStateTableProportion
+          - UniqueAnyAddressState
+  - section:
+    - name: test:integration
+    - message:
+      - name: Weeds exported
+      - module:
+        - name: Test.Integration.Framework.DSL
+        - identifier: expectError
+      - module:
+        - name: Test.Integration.Framework.Request
+        - identifier:
+          - ClientError
+          - DecodeFailure
+          - HttpException
+          - unsafeRequest
+- package:
+  - name: cardano-wallet-launcher
+  - section:
+    - name: library
+    - message:
+      - name: Module not compiled
+      - module: Cardano.Launcher.Windows
+
