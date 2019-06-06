@@ -31,12 +31,9 @@ library
       -Werror
   build-depends:
       base
-    , bytestring
     , ansi-terminal
     , docopt
-    , file-embed
     , fmt
-    , regex-applicative
     , text
     , text-class
   hs-source-dirs:

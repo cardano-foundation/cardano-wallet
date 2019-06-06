@@ -6,7 +6,7 @@ module Main where
 import Prelude
 
 import Cardano.CLI
-    ( Port, help, parseArgWith, showVersion )
+    ( Port, help, parseArgWith )
 import Cardano.Launcher
     ( Command (Command)
     , ProcessHasExited (ProcessHasExited)
@@ -22,8 +22,12 @@ import Control.Monad
     ( when )
 import Data.Text.Class
     ( FromText (..), ToText (..) )
+import Data.Version
+    ( showVersion )
 import Fmt
     ( blockListF, fmt )
+import Paths_cardano_wallet
+    ( version )
 import Say
     ( sayErr )
 import System.Console.Docopt
@@ -39,7 +43,7 @@ import System.Console.Docopt
 import System.Environment
     ( getArgs )
 import System.Exit
-    ( exitWith )
+    ( exitSuccess, exitWith )
 
 import qualified Data.Text as T
 
@@ -72,7 +76,9 @@ main = do
     args <- parseArgsOrExit cli =<< getArgs
     when (args `isPresent` (longOption "help")) $ help cli
     when (args `isPresent` (shortOption 'h')) $ help cli
-    when (args `isPresent` (longOption "version")) showVersion
+    when (args `isPresent` (longOption "version")) $ do
+        putStrLn (showVersion version)
+        exitSuccess
 
     network <- args `parseArg` longOption "network"
     bridgePort <- args `parseArg` longOption "http-bridge-port"

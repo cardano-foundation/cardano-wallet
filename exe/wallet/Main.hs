@@ -34,7 +34,6 @@ import Cardano.CLI
     , parseArgWith
     , putErrLn
     , setUtf8Encoding
-    , showVersion
     )
 import Cardano.Wallet
     ( newWalletLayer )
@@ -78,8 +77,12 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), ToText (..) )
+import Data.Version
+    ( showVersion )
 import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
+import Paths_cardano_wallet
+    ( version )
 import Servant
     ( (:<|>) (..), (:>) )
 import Servant.Client
@@ -102,7 +105,7 @@ import System.Console.Docopt
 import System.Environment
     ( getArgs )
 import System.Exit
-    ( exitFailure )
+    ( exitFailure, exitSuccess )
 import System.IO
     ( BufferMode (NoBuffering), hSetBuffering, stderr, stdout )
 
@@ -260,7 +263,9 @@ exec execServer manager args
         wId <- args `parseArg` argument "wallet-id"
         runClient Aeson.encodePretty $ listAddresses (ApiT wId) Nothing
 
-    | args `isPresent` longOption "version" = showVersion
+    | args `isPresent` longOption "version" = do
+        putStrLn (showVersion version)
+        exitSuccess
 
     | otherwise =
         exitWithUsage cli

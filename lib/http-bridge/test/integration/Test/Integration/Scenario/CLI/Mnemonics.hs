@@ -11,8 +11,10 @@ import Control.Monad
     ( forM_ )
 import Data.List
     ( length )
-import Data.Text
-    ( Text )
+import Data.Version
+    ( showVersion )
+import Paths_cardano_wallet_http_bridge
+    ( version )
 import System.Command
     ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit
@@ -24,23 +26,20 @@ import Test.Hspec.Expectations.Lifted
 import Test.Integration.Framework.DSL
     ( cardanoWalletCLI, cardanoWalletLauncherCLI, generateMnemonicsViaCLI )
 
-import qualified Data.Text as T
-
-version :: Text
-version = "2019.5.24"
+import qualified Data.List as L
 
 spec :: SpecWith ()
 spec = do
     it "CLI_VERSION - cardano-wallet shows version" $  do
         (Exit c, Stdout out) <- cardanoWalletCLI ["--version"]
-        let v = T.dropWhileEnd (== '\n') (T.pack out)
-        v `shouldBe` version
+        let v = L.dropWhileEnd (== '\n') out
+        v `shouldBe` (showVersion version)
         c `shouldBe` ExitSuccess
 
     it "CLI_VERSION - cardano-wallet-launcher shows version" $  do
         (Exit c, Stdout out) <- cardanoWalletLauncherCLI ["--version"]
-        let v = T.dropWhileEnd (== '\n') (T.pack out)
-        v `shouldBe` version
+        let v = L.dropWhileEnd (== '\n') out
+        v `shouldBe` (showVersion version)
         c `shouldBe` ExitSuccess
 
     it "CLI_HELP - cardano-wallet-launcher shows help on bad argument" $  do
