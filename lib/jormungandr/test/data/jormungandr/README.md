@@ -10,7 +10,7 @@ $ jcli genesis encode --input genesis.yaml --output block-0.bin
 
 
 ```bash
-$ jormungandr --genesis-block block-0.bin --config node.config --secret secret.yaml
+$ jormungandr --genesis-block block-0.bin --config config.yaml --secret secret.yaml
 ```
 
 ## How to generate keys (to put in genesis.yaml and secret.yaml)

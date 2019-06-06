@@ -21,7 +21,7 @@ spec = describe "cardano-wallet-launcher" $ do
         let jormungandrLauncher = Command
                 "jormungandr"
                 [ "--genesis-block", dir ++ "/block-0.bin"
-                , "--config", dir ++ "/node.config"
+                , "--config", dir ++ "/config.yaml"
                 , "--secret", dir ++ "/secret.yaml"
                 ] (return ())
                 Inherit

@@ -22,11 +22,11 @@ blockchain_configuration:
   block0_consensus: bft
 
   # Number of slots in each epoch
-  slots_per_epoch: 2160
+  slots_per_epoch: 500
 
   # The slot duration, in seconds, is the time between the creation
   # of 2 blocks
-  slot_duration: 15
+  slot_duration: 10
 
   # The number of blocks (*10) per epoch
   epoch_stability_depth: 10
@@ -34,7 +34,7 @@ blockchain_configuration:
   # A list of Ed25519 Extended PublicKey that represents the
   # BFT leaders encoded as bech32. The order in the list matters.
   consensus_leader_ids:
-    - ed25519e_pk1xznffwqdhw3drw9yk4t99vpajcc4epq5kp205um5gkkz625xt3mqn4z3mx
+    - ed25519_pk1kgtwuwy0cf2edn6rl09gzhzx8sma09tqhxzcqrpaduaq7k5h0ceqe4qqpv
 
   # Genesis praos parameter D
   bft_slots_ratio: 0.220
