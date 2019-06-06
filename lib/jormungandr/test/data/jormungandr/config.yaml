@@ -5,6 +5,7 @@ rest:
   prefix: "api"
 
 peer_2_peer:
+  trusted_peers: []
   topics_of_interests:
     messages: low
     blocks: normal
