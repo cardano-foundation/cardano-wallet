@@ -61,7 +61,8 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.Model
     ( availableBalance, getState, totalBalance )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState
+    ( Address
+    , AddressState
     , Coin (..)
     , DecodeAddress (..)
     , EncodeAddress (..)
@@ -265,10 +266,14 @@ listAddresses
     -> ApiT WalletId
     -> Maybe (ApiT AddressState)
     -> Handler [ApiAddress t]
-listAddresses w (ApiT wid) _ = do
+listAddresses w (ApiT wid) stateFilter = do
     addrs <- liftHandler $ W.listAddresses w wid
-    return $ coerceAddress <$> addrs
+    return $ coerceAddress <$> filter filterCondition addrs
   where
+    filterCondition :: (Address, AddressState) -> Bool
+    filterCondition = case stateFilter of
+        Nothing -> const True
+        Just (ApiT s) -> (== s) . snd
     coerceAddress (a, s) = ApiAddress (ApiT a, Proxy @t) (ApiT s)
 
 {-------------------------------------------------------------------------------
