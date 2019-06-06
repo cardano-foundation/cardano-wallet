@@ -199,7 +199,7 @@ instance Cardano.Wallet.Jormungandr.Environment.KnownNetwork n => Cardano.Wallet
 
 -- | An specification for the Jörmungandr REST API.
 module Cardano.Wallet.Jormungandr.Api
-type Api = GetTipId
+type Api = GetTipId :<|> GetBlock :<|> GetBlockDescendantIds
 
 -- | Retrieve a block by its id.
 type GetBlock = "api" :> "v0" :> "block" :> Capture "blockHeaderHash" BlockId :> Get '[JormungandrBinary] Block
@@ -219,12 +219,13 @@ type GetTipId = "api" :> "v0" :> "tip" :> Get '[Hex] BlockId
 --                     \       \                  \
 --                    parent    +--- descendants ---+
 --   </pre>
-type GetBlockDescendantIds = "api" :> "v0" :> "block" :> Capture "blockId" BlockId :> "next_id" :> QueryParam "count" Int :> Get '[JormungandrBinary] [BlockId]
+type GetBlockDescendantIds = "api" :> "v0" :> "block" :> Capture "blockId" BlockId :> "next_id" :> QueryParam "count" Word :> Get '[JormungandrBinary] [BlockId]
 type PostSignedTx = "api" :> "v0" :> "transaction" :> ReqBody '[JormungandrBinary] SignedTx :> Post '[NoContent] NoContent
 newtype BlockId
 BlockId :: Hash "block" -> BlockId
 api :: Proxy Api
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Api.BlockId
+instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Api.BlockId
 instance Servant.API.ContentTypes.MimeUnrender Cardano.Wallet.Jormungandr.Api.Hex Cardano.Wallet.Jormungandr.Api.BlockId
 instance Servant.API.ContentTypes.Accept Cardano.Wallet.Jormungandr.Api.Hex
 instance Servant.API.ContentTypes.Accept Cardano.Wallet.Jormungandr.Api.JormungandrBinary
@@ -240,9 +241,11 @@ instance Cardano.Wallet.Jormungandr.Binary.FromBinary Cardano.Wallet.Jormungandr
 module Cardano.Wallet.Jormungandr.Network
 
 -- | Endpoints of the jormungandr REST API.
-newtype JormungandrLayer m
-JormungandrLayer :: ExceptT ErrNetworkUnreachable m BlockId -> JormungandrLayer m
+data JormungandrLayer m
+JormungandrLayer :: ExceptT ErrNetworkUnreachable m BlockId -> (BlockId -> ExceptT ErrGetBlock m Block) -> (BlockId -> Word -> ExceptT ErrGetDescendants m [BlockId]) -> JormungandrLayer m
 [$sel:getTipId:JormungandrLayer] :: JormungandrLayer m -> ExceptT ErrNetworkUnreachable m BlockId
+[$sel:getBlock:JormungandrLayer] :: JormungandrLayer m -> BlockId -> ExceptT ErrGetBlock m Block
+[$sel:getDescendantIds:JormungandrLayer] :: JormungandrLayer m -> BlockId -> Word -> ExceptT ErrGetDescendants m [BlockId]
 
 -- | Construct a <a>JormungandrLayer</a>-client
 --   
@@ -250,9 +253,31 @@ JormungandrLayer :: ExceptT ErrNetworkUnreachable m BlockId -> JormungandrLayer 
 --   &gt;&gt;&gt; mgr &lt;- newManager defaultManagerSettings
 --   
 --   &gt;&gt;&gt; j = mkJormungandrLayer mgr (BaseUrl Http "localhost" 8080 "")
+--   </pre>
 --   
---   &gt;&gt;&gt; runExceptT $ getTipId j
---   Right (BlockId (Hash {getHash = "26c640a3de09b74398c14ca0a137ec78"}))
+--   <pre>
+--   &gt;&gt;&gt; (Right tip) &lt;- runExceptT $ getTipId j
+--   
+--   &gt;&gt;&gt; tip
+--   BlockId (Hash {getHash = "26c640a3de09b74398c14ca0a137ec78"})
+--   </pre>
+--   
+--   <pre>
+--   &gt;&gt;&gt; (Right block) &lt;- runExceptT $ getBlock j t
+--   
+--   &gt;&gt;&gt; block
+--   
+--   &gt;&gt;&gt; Block {header = BlockHeader {slotId = SlotId {epochNumber = 0, slotNumber = 0}, prevBlockHash = Hash {getHash = "\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL"}}, transactions = [Tx {inputs = [], outputs = [TxOut {address = Address {getAddress = "3$\195xi\193\"h\154\&amp;5\145}\245:O\"\148\163\165/h^\ENQ\245\248\229;\135\231\234E/"}, coin = Coin {getCoin = 14}}]}]}
+--   </pre>
+--   
+--   At the time of writing, we only have the genesis-block, but we should
+--   be able to get its descendants.
+--   
+--   <pre>
+--   &gt;&gt;&gt; let genesisHash = BlockId (Hash {getHash = "&amp;\198@\163\222\t\183C\152\193L\160\161\&amp;7\236x\245\229\EOT\175\177\167\131\190\b\b/\174\212\177:\179"})
+--   
+--   &gt;&gt;&gt; runExceptT $ getDescendantIds j t 4
+--   Right []
 --   </pre>
 mkJormungandrLayer :: Manager -> BaseUrl -> JormungandrLayer IO
 data BaseUrl
@@ -266,6 +291,10 @@ defaultManagerSettings :: ManagerSettings
 data Scheme
 Http :: Scheme
 Https :: Scheme
+instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Network.ErrGetBlock
+instance GHC.Show.Show Cardano.Wallet.Jormungandr.Network.ErrGetBlock
+instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Network.ErrGetDescendants
+instance GHC.Show.Show Cardano.Wallet.Jormungandr.Network.ErrGetDescendants
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Network.ErrUnexpectedNetworkFailure
 instance GHC.Exception.Type.Exception Cardano.Wallet.Jormungandr.Network.ErrUnexpectedNetworkFailure
 
