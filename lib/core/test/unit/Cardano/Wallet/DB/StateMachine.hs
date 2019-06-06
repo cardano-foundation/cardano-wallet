@@ -16,6 +16,26 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
+-- |
+-- Copyright: © 2018-2019 IOHK
+-- License: MIT
+--
+-- These are state machine model tests for the 'DBLayer' implementations.
+--
+-- The basic principle is to define the simplest possible model, without real
+-- types or crypto. Then generate a test case, which is a sequence of
+-- actions. Run the actions on both the model and the actual implementation, and
+-- check that they are "equivalent" at every step.
+--
+-- There is an excellent article about this testing method available at:
+--   https://iohk.io/blog/an-in-depth-look-at-quickcheck-state-machine/
+--
+-- The example code for the article is here:
+--   https://github.com/well-typed/qsm-in-depth
+--
+-- This module follows the article and example code (Version1.hs), pretty much
+-- exactly.
+
 module Cardano.Wallet.DB.StateMachine
     ( prop_sequential
     , prop_parallel
@@ -120,21 +140,6 @@ import qualified Test.StateMachine.Types.Rank2 as Rank2
 {-# ANN module ("HLint: ignore Unused LANGUAGE pragma" :: String) #-}
 
 {-------------------------------------------------------------------------------
-  Errors
--------------------------------------------------------------------------------}
-
-data Err wid
-    = NoSuchWallet wid
-    | WalletAlreadyExists wid
-    deriving (Show, Eq, Functor, Foldable, Traversable)
-
-errNoSuchWallet :: ErrNoSuchWallet -> Err WalletId
-errNoSuchWallet (ErrNoSuchWallet wid) = NoSuchWallet wid
-
-errWalletAlreadyExists :: ErrWalletAlreadyExists -> Err WalletId
-errWalletAlreadyExists (ErrWalletAlreadyExists wid) = WalletAlreadyExists wid
-
-{-------------------------------------------------------------------------------
   Mock implementation
 -------------------------------------------------------------------------------}
 
@@ -155,7 +160,7 @@ unMockWid (MWid wid) = WalletId . hash . B8.pack $ wid
 -- | Represent (XPrv, Hash) as a string.
 type MPrivKey = String
 
--- | Stuff a mock private key into the type used by DBLayer.
+-- | Stuff a mock private key into the type used by 'DBLayer'.
 fromMockPrivKey :: MPrivKey -> (Key purpose XPrv, Hash "encryption")
 fromMockPrivKey s = (k, Hash (B8.pack s))
     where Right (k, _) = deserializeXPrv (B8.replicate 256 '0', mempty)
@@ -164,6 +169,7 @@ fromMockPrivKey s = (k, Hash (B8.pack s))
 toMockPrivKey :: (Key purpose XPrv, Hash "encryption") -> MPrivKey
 toMockPrivKey (_, Hash h) = B8.unpack h
 
+-- | Mock representation of a 'DBLayer'
 data Mock = M
     { checkpoints :: Map MWid MWallet
     , metas :: Map MWid WalletMetadata
@@ -299,6 +305,21 @@ instance Traversable Resp where
     traverse f (Resp (Left e)) = Resp . Left <$> traverse f e
 
 {-------------------------------------------------------------------------------
+  Errors
+-------------------------------------------------------------------------------}
+
+data Err wid
+    = NoSuchWallet wid
+    | WalletAlreadyExists wid
+    deriving (Show, Eq, Functor, Foldable, Traversable)
+
+errNoSuchWallet :: ErrNoSuchWallet -> Err WalletId
+errNoSuchWallet (ErrNoSuchWallet wid) = NoSuchWallet wid
+
+errWalletAlreadyExists :: ErrWalletAlreadyExists -> Err WalletId
+errWalletAlreadyExists (ErrWalletAlreadyExists wid) = WalletAlreadyExists wid
+
+{-------------------------------------------------------------------------------
   Interpreter: mock implementation
 -------------------------------------------------------------------------------}
 
@@ -333,6 +354,10 @@ runMock = \case
   Interpreter: real I/O
 -------------------------------------------------------------------------------}
 
+-- | Type alias for the 'DBLayer', just to reduce noise in type signatures. This
+-- 'DBLayer' is specialized to a dummy node backend, but uses the real 'SeqState'
+-- , so that the functions to store/load SeqState are tested. Using concrete
+-- types avoids infecting all the types and functions with extra type parameters.
 type DBLayerTest = DBLayer IO (SeqState DummyTarget) DummyTarget
 
 runIO
@@ -386,6 +411,11 @@ runIO db = fmap Resp . go
   Working with references
 -------------------------------------------------------------------------------}
 
+-- | Shortcut for instantiating a Cmd/Resp with references to return values
+-- which are either Concrete or Symbolic. Concrete references are actual
+-- values. Symbolic references correspond to the return value of a command.
+-- The Functor f will be Cmd/Resp and reference type r will be
+-- Concrete/Symbolic.
 newtype At f r
     = At (f (Reference WalletId r))
 
