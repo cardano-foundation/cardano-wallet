@@ -1,6 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
@@ -19,7 +18,6 @@
 module Cardano.Wallet.DB.Sqlite
     ( newDBLayer
     , PersistState (..)
-    , DummyState(..)
     ) where
 
 import Prelude
@@ -121,8 +119,6 @@ import Database.Persist.Sqlite
     ( SqlBackend, SqlPersistM, SqlPersistT, wrapConnection )
 import Database.Sqlite
     ( Error (ErrorConstraint), SqliteException (SqliteException) )
-import GHC.Generics
-    ( Generic )
 import System.IO
     ( stderr )
 import System.Log.FastLogger
@@ -767,12 +763,3 @@ selectSeqStatePendingIxs ssid =
         [Desc SeqStatePendingIxIndex]
   where
     fromRes = fmap (W.Index . seqStatePendingIxIndex . entityVal)
-
-data DummyState = DummyState
-    deriving (Show, Eq, Generic)
-
-instance PersistState DummyState where
-    insertState (wid, sl) _ = insert_ (SeqState wid sl)
-    selectState (wid, sl) = fmap (const DummyState) <$>
-        selectFirst [SeqStateTableWalletId ==. wid, SeqStateTableCheckpointSlot ==. sl] []
-    deleteState wid = deleteWhere [SeqStateTableWalletId ==. wid]
