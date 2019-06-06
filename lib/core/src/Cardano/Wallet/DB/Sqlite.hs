@@ -18,7 +18,6 @@
 
 module Cardano.Wallet.DB.Sqlite
     ( newDBLayer
-    , newDBLayer'
     , DummyState(..)
     ) where
 
@@ -113,7 +112,6 @@ import Database.Persist.Sql
     , selectKeysList
     , selectList
     , updateWhere
-    , withSqlConn
     , (<-.)
     , (=.)
     , (==.)
@@ -141,21 +139,18 @@ import qualified Database.Sqlite as Sqlite
 
 ----------------------------------------------------------------------------
 -- Sqlite connection set up
+
 enableForeignKeys :: Sqlite.Connection -> IO ()
 enableForeignKeys conn = do
     stmt <- Sqlite.prepare conn "PRAGMA foreign_keys = ON;"
     _ <- Sqlite.step stmt
     Sqlite.finalize stmt
 
-createSqliteBackend :: Maybe FilePath -> LogFunc -> IO (Sqlite.Connection, SqlBackend)
+createSqliteBackend
+    :: Maybe FilePath
+    -> LogFunc
+    -> IO SqlBackend
 createSqliteBackend fp logFunc = do
-    conn <- Sqlite.open (sqliteConnStr fp)
-    enableForeignKeys conn
-    backend <- wrapConnection conn logFunc
-    pure (conn, backend)
-
-createSqliteBackend1 :: Maybe FilePath -> LogFunc -> IO SqlBackend
-createSqliteBackend1 fp logFunc = do
     conn <- Sqlite.open (sqliteConnStr fp)
     enableForeignKeys conn
     wrapConnection conn logFunc
@@ -184,45 +179,26 @@ handleConstraint e = handleJust select handler . fmap Right
       select _ = Nothing
       handler = const . pure  . Left $ e
 
-----------------------------------------------------------------------------
--- Database layer methods
-newDBLayer
-    :: forall s t. (W.IsOurs s, NFData s, Show s, PersistState s, W.TxId t)
-    => Maybe FilePath
-       -- ^ Database file location, or Nothing for in-memory database
-    -> IO (DBLayer IO s t)
-newDBLayer = fmap snd . newDBLayer'
-
-
 -- | Sets up a connection to the SQLite database.
 --
 -- Database migrations are run to create tables if necessary.
 --
 -- If the given file path does not exist, it will be created by the sqlite
 -- library.
-newDBLayer'
+newDBLayer
     :: forall s t. (W.IsOurs s, NFData s, Show s, PersistState s, W.TxId t)
     => Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
-    -> IO (Sqlite.Connection, DBLayer IO s t)
-newDBLayer' fp = do
+    -> IO (SqlBackend, DBLayer IO s t)
+newDBLayer fp = do
     lock <- newMVar ()
     bigLock <- newMVar ()
-    (conn, backend) <- createSqliteBackend fp (dbLogs [LevelError])
+    backend <- createSqliteBackend fp (dbLogs [LevelError])
     let runQuery' :: SqlPersistM a -> IO a
-        runQuery' cmd = case fp of
-            Nothing ->
-                withMVar bigLock $ const $ runQuery backend cmd
-            _ ->
-                withMVar bigLock $ const $ runResourceT $ runNoLoggingT $ withSqlConn (createSqliteBackend1 fp)
-                (\b -> flip runSqlConn b $ do
-                        cmd
-                )
-
+        runQuery' cmd = withMVar bigLock $ const $ runQuery backend cmd
     runQuery' $ void $ runMigrationSilent migrateAll
     runQuery' addIndexes
-
-    return (conn, DBLayer
+    return (backend, DBLayer
 
         {-----------------------------------------------------------------------
                                       Wallets
