@@ -68,7 +68,9 @@ executable cardano-wallet-launcher
     , cardano-wallet-cli
     , cardano-wallet-http-bridge
     , cardano-wallet-launcher
+    , directory
     , docopt
+    , filepath
     , fmt
     , process
     , say
