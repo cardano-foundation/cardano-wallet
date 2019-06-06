@@ -43,6 +43,8 @@ library
       src
   exposed-modules:
       Cardano.CLI
+  other-modules:
+      Paths_cardano_wallet_cli
 
 test-suite unit
   default-language:

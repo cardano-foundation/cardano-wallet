@@ -29,12 +29,12 @@ import Prelude hiding
 import Cardano.CLI
     ( getLine
     , getSensitiveLine
+    , getVersion
     , help
     , parseAllArgsWith
     , parseArgWith
     , putErrLn
     , setUtf8Encoding
-    , showVersion
     )
 import Cardano.Wallet
     ( newWalletLayer )
@@ -260,7 +260,7 @@ exec execServer manager args
         wId <- args `parseArg` argument "wallet-id"
         runClient Aeson.encodePretty $ listAddresses (ApiT wId) Nothing
 
-    | args `isPresent` longOption "version" = showVersion
+    | args `isPresent` longOption "version" = putStrLn getVersion
 
     | otherwise =
         exitWithUsage cli

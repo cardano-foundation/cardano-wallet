@@ -6,7 +6,7 @@ module Main where
 import Prelude
 
 import Cardano.CLI
-    ( Port, help, parseArgWith, showVersion )
+    ( Port, getVersion, help, parseArgWith )
 import Cardano.Launcher
     ( Command (Command)
     , ProcessHasExited (ProcessHasExited)
@@ -72,7 +72,7 @@ main = do
     args <- parseArgsOrExit cli =<< getArgs
     when (args `isPresent` (longOption "help")) $ help cli
     when (args `isPresent` (shortOption 'h')) $ help cli
-    when (args `isPresent` (longOption "version")) showVersion
+    when (args `isPresent` (longOption "version")) $ putStrLn getVersion
 
     network <- args `parseArg` longOption "network"
     bridgePort <- args `parseArg` longOption "http-bridge-port"

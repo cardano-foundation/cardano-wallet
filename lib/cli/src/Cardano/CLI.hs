@@ -4,7 +4,6 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -36,18 +35,14 @@ module Cardano.CLI
     , hGetSensitiveLine
 
     -- * Show version
-    , showVersion
+    , getVersion
     ) where
 
 import Prelude hiding
     ( getLine )
 
-import Control.Applicative
-    ( many )
 import Control.Exception
     ( bracket )
-import Data.FileEmbed
-    ( embedFile )
 import Data.Functor
     ( (<$) )
 import qualified Data.List.NonEmpty as NE
@@ -55,12 +50,16 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
+import Data.Version
+    ( showVersion )
 import Fmt
     ( Buildable, pretty )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( Symbol )
+import Paths_cardano_wallet_cli
+    ( version )
 import System.Console.ANSI
     ( Color (..)
     , ColorIntensity (..)
@@ -96,10 +95,7 @@ import System.IO
     , stdout
     , utf8
     )
-import Text.Regex.Applicative
-    ( anySym, few, match, string, sym )
 
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
@@ -270,19 +266,8 @@ getSensitiveLine = hGetSensitiveLine (stdin, stderr)
                                 Internals
 -------------------------------------------------------------------------------}
 
-showVersion :: IO ()
-showVersion = do
-    let cabal = B8.unpack $(embedFile "../../cardano-wallet.cabal")
-    let re = few anySym
-            *> string "version:" *> many (sym ' ') *> few anySym
-            <* sym '\n' <* many anySym
-    case match re cabal of
-        Nothing -> do
-            putErrLn "Couldn't find program version!"
-            exitFailure
-        Just version -> do
-            TIO.putStrLn $ T.pack version
-            exitSuccess
+getVersion :: String
+getVersion = showVersion version
 
 withBuffering :: Handle -> BufferMode -> IO a -> IO a
 withBuffering h buffering action = bracket aFirst aLast aBetween
