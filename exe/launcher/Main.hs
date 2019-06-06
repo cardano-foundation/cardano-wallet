@@ -43,7 +43,7 @@ import System.Console.Docopt
 import System.Environment
     ( getArgs )
 import System.Exit
-    ( exitWith )
+    ( exitSuccess, exitWith )
 
 import qualified Data.Text as T
 
@@ -76,8 +76,9 @@ main = do
     args <- parseArgsOrExit cli =<< getArgs
     when (args `isPresent` (longOption "help")) $ help cli
     when (args `isPresent` (shortOption 'h')) $ help cli
-    when (args `isPresent` (longOption "version")) $
+    when (args `isPresent` (longOption "version")) $ do
         putStrLn (showVersion version)
+        exitSuccess
 
     network <- args `parseArg` longOption "network"
     bridgePort <- args `parseArg` longOption "http-bridge-port"

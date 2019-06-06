@@ -105,7 +105,7 @@ import System.Console.Docopt
 import System.Environment
     ( getArgs )
 import System.Exit
-    ( exitFailure )
+    ( exitFailure, exitSuccess )
 import System.IO
     ( BufferMode (NoBuffering), hSetBuffering, stderr, stdout )
 
@@ -263,8 +263,9 @@ exec execServer manager args
         wId <- args `parseArg` argument "wallet-id"
         runClient Aeson.encodePretty $ listAddresses (ApiT wId) Nothing
 
-    | args `isPresent` longOption "version" =
+    | args `isPresent` longOption "version" = do
         putStrLn (showVersion version)
+        exitSuccess
 
     | otherwise =
         exitWithUsage cli
