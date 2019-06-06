@@ -1,6 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
@@ -18,7 +17,7 @@
 
 module Cardano.Wallet.DB.Sqlite
     ( newDBLayer
-    , DummyState(..)
+    , PersistState (..)
     ) where
 
 import Prelude
@@ -120,8 +119,6 @@ import Database.Persist.Sqlite
     ( SqlBackend, SqlPersistM, SqlPersistT, wrapConnection )
 import Database.Sqlite
     ( Error (ErrorConstraint), SqliteException (SqliteException) )
-import GHC.Generics
-    ( Generic )
 import System.IO
     ( stderr )
 import System.Log.FastLogger
@@ -141,10 +138,15 @@ import qualified Database.Sqlite as Sqlite
 -- Sqlite connection set up
 
 enableForeignKeys :: Sqlite.Connection -> IO ()
-enableForeignKeys conn = stmt >>= void . Sqlite.step
-    where stmt = Sqlite.prepare conn "PRAGMA foreign_keys = ON;"
+enableForeignKeys conn = do
+    stmt <- Sqlite.prepare conn "PRAGMA foreign_keys = ON;"
+    _ <- Sqlite.step stmt
+    Sqlite.finalize stmt
 
-createSqliteBackend :: Maybe FilePath -> LogFunc -> IO SqlBackend
+createSqliteBackend
+    :: Maybe FilePath
+    -> LogFunc
+    -> IO SqlBackend
 createSqliteBackend fp logFunc = do
     conn <- Sqlite.open (sqliteConnStr fp)
     enableForeignKeys conn
@@ -174,9 +176,6 @@ handleConstraint e = handleJust select handler . fmap Right
       select _ = Nothing
       handler = const . pure  . Left $ e
 
-----------------------------------------------------------------------------
--- Database layer methods
-
 -- | Sets up a connection to the SQLite database.
 --
 -- Database migrations are run to create tables if necessary.
@@ -187,18 +186,16 @@ newDBLayer
     :: forall s t. (W.IsOurs s, NFData s, Show s, PersistState s, W.TxId t)
     => Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
-    -> IO (DBLayer IO s t)
+    -> IO (SqlBackend, DBLayer IO s t)
 newDBLayer fp = do
     lock <- newMVar ()
     bigLock <- newMVar ()
-    conn <- createSqliteBackend fp (dbLogs [LevelError])
+    backend <- createSqliteBackend fp (dbLogs [LevelError])
     let runQuery' :: SqlPersistM a -> IO a
-        runQuery' = withMVar bigLock . const . runQuery conn
-
+        runQuery' cmd = withMVar bigLock $ const $ runQuery backend cmd
     runQuery' $ void $ runMigrationSilent migrateAll
     runQuery' addIndexes
-
-    return $ DBLayer
+    return (backend, DBLayer
 
         {-----------------------------------------------------------------------
                                       Wallets
@@ -311,7 +308,7 @@ newDBLayer fp = do
 
         , withLock = \action ->
               ExceptT $ withMVar lock $ \() -> runExceptT action
-        }
+        })
 
 ----------------------------------------------------------------------------
 -- SQLite database setup
@@ -766,12 +763,3 @@ selectSeqStatePendingIxs ssid =
         [Desc SeqStatePendingIxIndex]
   where
     fromRes = fmap (W.Index . seqStatePendingIxIndex . entityVal)
-
-data DummyState = DummyState
-    deriving (Show, Eq, Generic)
-
-instance PersistState DummyState where
-    insertState (wid, sl) _ = insert_ (SeqState wid sl)
-    selectState (wid, sl) = fmap (const DummyState) <$>
-        selectFirst [SeqStateTableWalletId ==. wid, SeqStateTableCheckpointSlot ==. sl] []
-    deleteState wid = deleteWhere [SeqStateTableWalletId ==. wid]
