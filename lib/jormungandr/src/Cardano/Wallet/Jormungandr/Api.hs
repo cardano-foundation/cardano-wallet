@@ -102,7 +102,7 @@ type PostSignedTx
 -- TODO: Replace SignedTx with something real
 data SignedTx
 
-newtype BlockId = BlockId (Hash "block")
+newtype BlockId = BlockId (Hash "BlockHeader")
     deriving (Eq, Show)
 
 instance ToHttpApiData BlockId where

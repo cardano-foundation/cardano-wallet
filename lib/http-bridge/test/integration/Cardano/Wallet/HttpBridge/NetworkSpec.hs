@@ -198,6 +198,7 @@ spec = do
       where
         unwrap (ErrNetworkTipNetworkUnreachable e) = e
         unwrap ErrNetworkTipNotFound = ErrNetworkUnreachable "no tip"
+        unwrap (ErrNetworkTipBlockNotFound _) = ErrNetworkUnreachable "no tip"
     newNetworkLayer =
         HttpBridge.newNetworkLayer @'Testnet port
     closeBridge (handle, _) = do

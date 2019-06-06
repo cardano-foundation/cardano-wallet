@@ -63,6 +63,8 @@ instance Exception ErrNetworkUnreachable
 data ErrNetworkTip
     = ErrNetworkTipNetworkUnreachable ErrNetworkUnreachable
     | ErrNetworkTipNotFound
+    | ErrNetworkTipBlockNotFound (Hash "BlockHeader")
+    -- ^ The tip-block wasn't found. This would be surprising.
     deriving (Generic, Show, Eq)
 
 instance Exception ErrNetworkTip

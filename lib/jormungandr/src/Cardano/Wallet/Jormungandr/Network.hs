@@ -19,6 +19,8 @@ module Cardano.Wallet.Jormungandr.Network
     ( JormungandrLayer (..)
     , mkJormungandrLayer
 
+    , mkNetworkLayer
+
     -- * Re-export
     , BaseUrl (..)
     , newManager
@@ -29,9 +31,9 @@ module Cardano.Wallet.Jormungandr.Network
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Api
-    ( BlockId, GetBlock, GetBlockDescendantIds, GetTipId, api )
+    ( BlockId (..), GetBlock, GetBlockDescendantIds, GetTipId, api )
 import Cardano.Wallet.Network
-    ( ErrNetworkUnreachable (..) )
+    ( ErrNetworkTip (..), ErrNetworkUnreachable (..), NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Types
     ( Block (..) )
 import Control.Arrow
@@ -41,7 +43,7 @@ import Control.Exception
 import Control.Monad.Catch
     ( throwM )
 import Control.Monad.Trans.Except
-    ( ExceptT (..) )
+    ( ExceptT (..), withExceptT )
 import Data.Proxy
     ( Proxy (..) )
 import Network.HTTP.Client
@@ -64,7 +66,24 @@ import Servant.Client.Core
 import Servant.Links
     ( Link, safeLink )
 
--- TODO: Implement a NetworkLayer
+mkNetworkLayer :: Monad m => JormungandrLayer m -> NetworkLayer t m
+mkNetworkLayer j = NetworkLayer
+    { networkTip = do
+        t@(BlockId hash) <- (getTipId j)
+            `mappingError` ErrNetworkTipNetworkUnreachable
+        b <- (getBlock j t)
+            `mappingError` \case
+            ErrGetBlockNotFound (BlockId h) ->
+                ErrNetworkTipBlockNotFound h
+            ErrGetBlockNetworkUnreachable e ->
+                ErrNetworkTipNetworkUnreachable e
+        return (hash, header b)
+
+    , nextBlocks = error "nextBlocks to be implemented"
+    , postTx = error "postTx to be implemented"
+    }
+  where
+    mappingError = flip withExceptT
 
 {-------------------------------------------------------------------------------
                             Jormungandr Client
