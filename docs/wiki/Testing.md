@@ -1,21 +1,9 @@
-> :warning: **Disclaimer** :warning: 
->
-> The library expects a global ENV variable 'NETWORK' to be available. Possible values for this variable are:
->
-> - mainnet
-> - testnet
-> - staging
-> - local
-> 
-> It indicates the target network for the library and has an influence on a few things like the address binary format,
-> the fee calculation and the underlying chain producer content.
-
-
 ## unit
 
 ```
 $ stack test cardano-wallet-core:unit
 $ stack test cardano-wallet-http-bridge:unit
+$ stack test cardano-wallet-jormungandr:unit
 ```
 
 Alternatively, one can run tests of a particular module by running:
@@ -60,6 +48,7 @@ $ tar xzf hermes-testnet.tar.gz -C $HOME && rm hermes-testnet.tar.gz
 
 ```
 $ stack test cardano-wallet-http-bridge:integration
+$ stack test cardano-wallet-jormungandr:integration
 ```
 
 ## benchmark
