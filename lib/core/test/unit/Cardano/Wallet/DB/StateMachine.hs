@@ -20,7 +20,7 @@
 -- Copyright: © 2018-2019 IOHK
 -- License: MIT
 --
--- These are state machine model tests for the DBLayer implementations.
+-- These are state machine model tests for the 'DBLayer' implementations.
 --
 -- The basic principle is to define the simplest possible model, without real
 -- types or crypto. Then generate a test case, which is a sequence of
@@ -160,7 +160,7 @@ unMockWid (MWid wid) = WalletId . hash . B8.pack $ wid
 -- | Represent (XPrv, Hash) as a string.
 type MPrivKey = String
 
--- | Stuff a mock private key into the type used by DBLayer.
+-- | Stuff a mock private key into the type used by 'DBLayer'.
 fromMockPrivKey :: MPrivKey -> (Key purpose XPrv, Hash "encryption")
 fromMockPrivKey s = (k, Hash (B8.pack s))
     where Right (k, _) = deserializeXPrv (B8.replicate 256 '0', mempty)
@@ -169,7 +169,7 @@ fromMockPrivKey s = (k, Hash (B8.pack s))
 toMockPrivKey :: (Key purpose XPrv, Hash "encryption") -> MPrivKey
 toMockPrivKey (_, Hash h) = B8.unpack h
 
--- | Mock representation of a DBLayer
+-- | Mock representation of a 'DBLayer'
 data Mock = M
     { checkpoints :: Map MWid MWallet
     , metas :: Map MWid WalletMetadata
@@ -354,10 +354,10 @@ runMock = \case
   Interpreter: real I/O
 -------------------------------------------------------------------------------}
 
--- | Type alias for the DBLayer, just to reduce noise in type signatures. This
--- DBLayer is specialized to a dummy node backend, but uses the real SeqState,
--- so that the functions to store/load SeqState are tested. Using concrete types
--- avoids infecting all the types and functions with extra type parameters.
+-- | Type alias for the 'DBLayer', just to reduce noise in type signatures. This
+-- 'DBLayer' is specialized to a dummy node backend, but uses the real 'SeqState'
+-- , so that the functions to store/load SeqState are tested. Using concrete
+-- types avoids infecting all the types and functions with extra type parameters.
 type DBLayerTest = DBLayer IO (SeqState DummyTarget) DummyTarget
 
 runIO
