@@ -1944,13 +1944,20 @@ module Cardano.Wallet.DB.Sqlite
 --   
 --   If the given file path does not exist, it will be created by the
 --   sqlite library.
-newDBLayer :: forall s t. (IsOurs s, NFData s, Show s, PersistState s, TxId t) => Maybe FilePath -> IO (DBLayer IO s t)
-data DummyState
-DummyState :: DummyState
-instance GHC.Generics.Generic Cardano.Wallet.DB.Sqlite.DummyState
-instance GHC.Classes.Eq Cardano.Wallet.DB.Sqlite.DummyState
-instance GHC.Show.Show Cardano.Wallet.DB.Sqlite.DummyState
-instance Cardano.Wallet.DB.Sqlite.PersistState Cardano.Wallet.DB.Sqlite.DummyState
+newDBLayer :: forall s t. (IsOurs s, NFData s, Show s, PersistState s, TxId t) => Maybe FilePath -> IO (SqlBackend, DBLayer IO s t)
+
+-- | Functions for saving/loading the wallet's address discovery state into
+--   SQLite.
+class PersistState s
+
+-- | Store the state for a checkpoint.
+insertState :: PersistState s => (WalletId, SlotId) -> s -> SqlPersistM ()
+
+-- | Load the state for a checkpoint.
+selectState :: PersistState s => (WalletId, SlotId) -> SqlPersistM (Maybe s)
+
+-- | Remove the state for all checkpoints of a wallet.
+deleteState :: PersistState s => WalletId -> SqlPersistM ()
 instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t => Cardano.Wallet.DB.Sqlite.PersistState (Cardano.Wallet.Primitive.AddressDiscovery.SeqState t)
 
 
