@@ -121,7 +121,8 @@ parseArgWith cli args option = do
     getArgOrExit :: Arguments -> Option -> IO String
     getArgOrExit = getArgOrExitWith cli
 
-parseAllArgsWith :: FromText a => Docopt -> Arguments -> Option -> IO (NE.NonEmpty a)
+parseAllArgsWith
+    :: FromText a => Docopt -> Arguments -> Option -> IO (NE.NonEmpty a)
 parseAllArgsWith cli args option = do
     (mapM (fromText . T.pack) <$> args `getAllArgsOrExit` option) >>= \case
         Right a -> return a
