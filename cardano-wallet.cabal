@@ -45,6 +45,8 @@ executable cardano-wallet
     , text
     , text-class
     , warp
+  other-modules:
+      Paths_cardano_wallet
   hs-source-dirs:
       exe/wallet
   main-is:
@@ -72,6 +74,8 @@ executable cardano-wallet-launcher
     , say
     , text
     , text-class
+  other-modules:
+      Paths_cardano_wallet
   hs-source-dirs:
       exe/launcher
   main-is:

@@ -33,9 +33,6 @@ module Cardano.CLI
     , hGetLine
     , getSensitiveLine
     , hGetSensitiveLine
-
-    -- * Show version
-    , getVersion
     ) where
 
 import Prelude hiding
@@ -50,16 +47,12 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
-import Data.Version
-    ( showVersion )
 import Fmt
     ( Buildable, pretty )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( Symbol )
-import Paths_cardano_wallet_cli
-    ( version )
 import System.Console.ANSI
     ( Color (..)
     , ColorIntensity (..)
@@ -265,9 +258,6 @@ getSensitiveLine = hGetSensitiveLine (stdin, stderr)
 {-------------------------------------------------------------------------------
                                 Internals
 -------------------------------------------------------------------------------}
-
-getVersion :: String
-getVersion = showVersion version
 
 withBuffering :: Handle -> BufferMode -> IO a -> IO a
 withBuffering h buffering action = bracket aFirst aLast aBetween
