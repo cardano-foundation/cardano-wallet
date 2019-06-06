@@ -14,7 +14,12 @@ import Prelude
 import Cardano.Wallet
     ( unsafeRunExceptT )
 import Cardano.Wallet.DB
-    ( DBLayer (..), ErrNoSuchWallet (..), PrimaryKey (..), cleanDB )
+    ( DBLayer (..)
+    , ErrNoSuchWallet (..)
+    , ErrWalletAlreadyExists (..)
+    , PrimaryKey (..)
+    , cleanDB
+    )
 import Cardano.Wallet.DB.Sqlite
     ( PersistState, newDBLayer )
 import Cardano.Wallet.DBSpec
@@ -59,7 +64,7 @@ import Control.Monad
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT )
+    ( ExceptT, runExceptT )
 import Crypto.Hash
     ( hash )
 import Data.ByteString
@@ -104,35 +109,89 @@ spec =  do
         describe "Check db reading/writing from/to file and cleaning" $ do
 
         it "create and list wallet works" $ \(conn, db) -> do
-            unsafeRunExceptT $ createWallet db testWid testCp testMetadata
+            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
             close' conn
-            testOpeningCleaning listWallets [testWid] []
+            testOpeningCleaning listWallets [testPk] []
 
         it "create and get meta works" $ \(conn, db) -> do
             now <- getCurrentTime
             let meta = testMetadata
                    { passphraseInfo = Just $ WalletPassphraseInfo now }
-            unsafeRunExceptT $ createWallet db testWid testCp meta
+            unsafeRunExceptT $ createWallet db testPk testCp meta
             close' conn
-            testOpeningCleaning (`readWalletMeta` testWid) (Just meta) Nothing
+            testOpeningCleaning (`readWalletMeta` testPk) (Just meta) Nothing
+
+        it "create twice is handled" $ \(conn, db) -> do
+            let create' = createWallet db testPk testCp testMetadata
+            runExceptT create' `shouldReturn` (Right ())
+            runExceptT create' `shouldReturn`
+                (Left (ErrWalletAlreadyExists testWid))
+            close' conn
+            testOpeningCleaning
+                (`readWalletMeta` testPk) (Just testMetadata) Nothing
+
+        it "create and remove" $ \(conn, db) -> do
+            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+            unsafeRunExceptT $ putTxHistory db testPk testTxs
+            unsafeRunExceptT $ removeWallet db testPk
+
+            readCheckpoint db testPk `shouldReturn` Nothing
+            readWalletMeta db testPk `shouldReturn` Nothing
+            readTxHistory db testPk `shouldReturn` Map.empty
+            readPrivateKey db testPk `shouldReturn` Nothing
+            listWallets db `shouldReturn` []
+
+            runExceptT (putCheckpoint db testPk testCp) `shouldReturn`
+                (Left (ErrNoSuchWallet testWid))
+            runExceptT (putWalletMeta db testPk testMetadata) `shouldReturn`
+                (Left (ErrNoSuchWallet testWid))
+            runExceptT (putTxHistory db testPk testTxs) `shouldReturn`
+                (Left (ErrNoSuchWallet testWid))
+
+            let Right pwd = fromText "aaaaaaaaaa"
+            let k = generateKeyFromSeed (coerce pwd, coerce pwd) pwd
+            h <- liftIO $ encryptPassphrase pwd
+            runExceptT (putPrivateKey db testPk (k, h)) `shouldReturn`
+                (Left (ErrNoSuchWallet testWid))
+            close' conn
+            testOpeningCleaning (`readWalletMeta` testPk) Nothing Nothing
 
         it "create and get private key" $ \(conn, db) -> do
-            unsafeRunExceptT $ createWallet db testWid testCp testMetadata
-            (k, h) <- unsafeRunExceptT $ attachPrivateKey db testWid
+            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+            (k, h) <- unsafeRunExceptT $ attachPrivateKey db testPk
             close' conn
-            testOpeningCleaning (`readPrivateKey` testWid) (Just (k, h)) Nothing
+            testOpeningCleaning (`readPrivateKey` testPk) (Just (k, h)) Nothing
+
+        it "put and read metadata" $ \(conn, db) -> do
+            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+            let md = testMetadata
+                    { name = WalletName "test wallet updated now" }
+            runExceptT (putWalletMeta db testPk md) `shouldReturn` Right ()
+            close' conn
+            testOpeningCleaning (`readWalletMeta` testPk) (Just md) Nothing
 
         it "put and read tx history" $ \(conn, db) -> do
-            unsafeRunExceptT $ createWallet db testWid testCp testMetadata
-            unsafeRunExceptT $ putTxHistory db testWid testTxs
+            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+            unsafeRunExceptT $ putTxHistory db testPk testTxs
             close' conn
-            testOpeningCleaning (`readTxHistory` testWid) testTxs Map.empty
+            testOpeningCleaning (`readTxHistory` testPk) testTxs Map.empty
+
+        it "put and read tx history - regression case" $ \(conn, db) -> do
+            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+            unsafeRunExceptT $ createWallet db testPk1 testCp testMetadata
+            runExceptT (putTxHistory db testPk1 testTxs) `shouldReturn` Right ()
+            runExceptT (putTxHistory db testPk testTxs) `shouldReturn` Right ()
+            runExceptT (removeWallet db testPk) `shouldReturn` Right ()
+            readTxHistory db testPk1 `shouldReturn` testTxs
+            readTxHistory db testPk `shouldReturn` (Map.empty)
+            close' conn
+            testOpeningCleaning (`readTxHistory` testPk1) testTxs Map.empty
 
         it "put and read checkpoint" $ \(conn, db) -> do
-            unsafeRunExceptT $ createWallet db testWid testCp testMetadata
-            unsafeRunExceptT $ putCheckpoint db testWid testCp
+            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+            unsafeRunExceptT $ putCheckpoint db testPk testCp
             close' conn
-            testOpeningCleaning (`readCheckpoint` testWid) (Just testCp) Nothing
+            testOpeningCleaning (`readCheckpoint` testPk) (Just testCp) Nothing
 
     describe "random operation chunks property" $ do
         it "realize a random batch of operations upon one db open"
@@ -276,8 +335,14 @@ testMetadata = WalletMetadata
     , delegation = NotDelegating
     }
 
-testWid :: PrimaryKey WalletId
-testWid = PrimaryKey (WalletId (hash @ByteString "test"))
+testWid :: WalletId
+testWid = WalletId (hash @ByteString "test")
+
+testPk :: PrimaryKey WalletId
+testPk = PrimaryKey testWid
+
+testPk1 :: PrimaryKey WalletId
+testPk1 = PrimaryKey (WalletId (hash @ByteString "test1"))
 
 testTxs :: Map.Map (Hash "Tx") (Tx, TxMeta)
 testTxs = Map.fromList
