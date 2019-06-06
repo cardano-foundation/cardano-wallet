@@ -14,19 +14,21 @@ import Prelude
 import Cardano.Wallet
     ( unsafeRunExceptT )
 import Cardano.Wallet.DB
-    ( DBLayer (..), ErrWalletAlreadyExists (..), PrimaryKey (..), cleanDB )
+    ( DBLayer (..), ErrNoSuchWallet (..), PrimaryKey (..), cleanDB )
 import Cardano.Wallet.DB.Sqlite
-    ( newDBLayer, newDBLayer' )
+    ( PersistState, newDBLayer )
 import Cardano.Wallet.DBSpec
-    ( DummyTarget, KeyValPairs (..), withDB )
+    ( DummyTarget, KeyValPairs (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Passphrase (..)
+    ( Depth (..)
+    , Key
+    , Passphrase (..)
+    , XPrv
     , encryptPassphrase
     , generateKeyFromSeed
-    , unsafeGenerateKeyFromSeed
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( SeqState (..), defaultAddressPoolGap, mkSeqState )
+    ( IsOurs, SeqState (..), defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.Mnemonic
     ( EntropySize, entropyToBytes, genEntropy )
 import Cardano.Wallet.Primitive.Model
@@ -38,6 +40,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , SlotId (..)
     , Tx (..)
+    , TxId
     , TxIn (..)
     , TxMeta (TxMeta)
     , TxOut (..)
@@ -49,32 +52,40 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     )
+import Control.DeepSeq
+    ( NFData )
 import Control.Monad
     ( forM_, replicateM_ )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( runExceptT )
+    ( ExceptT )
 import Crypto.Hash
     ( hash )
 import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
+import Data.Functor
+    ( ($>) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
     ( FromText (..) )
 import Data.Time.Clock
     ( getCurrentTime )
-import Database.Sqlite
-    ( Connection, close )
+import Database.Persist.Sql
+    ( close' )
+import Database.Persist.Sqlite
+    ( SqlBackend )
 import System.IO.Unsafe
     ( unsafePerformIO )
+import System.Random
+    ( randomRIO )
 import Test.Hspec
     ( Expectation, Spec, before, describe, it, shouldReturn )
 import Test.QuickCheck
-    ( Property, choose, generate, property, (==>) )
+    ( Property, property, (==>) )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
@@ -85,155 +96,88 @@ import qualified Data.Set as Set
 spec :: Spec
 spec =  do
     describe "Check db opening/closing" $ do
+        it "Opening and closing of db works" $ do
+            replicateM_ 25 $
+                fileDBLayer @(SeqState DummyTarget) @DummyTarget >>= close' . fst
 
-        it "opening and closing of db works" $ do
-            replicateM_ 25 openCloseDB
-
-    before (fileDBLayer >>= dbCleaned)$
+    before (fileDBLayer >>= cleanDB') $
         describe "Check db reading/writing from/to file and cleaning" $ do
 
         it "create and list wallet works" $ \(conn, db) -> do
-            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
-            listWallets db `shouldReturn` [testPk]
-            close conn
-            (conn1, db1) <- fileDBLayer
-            runExceptT (createWallet db1 testPk testCp testMetadata)
-                `shouldReturn` (Left (ErrWalletAlreadyExists testWid))
-            close conn1
-            ( testOpeningCleaning
-                listWallets
-                [testPk]
-                [] )
+            unsafeRunExceptT $ createWallet db testWid testCp testMetadata
+            close' conn
+            testOpeningCleaning listWallets [testWid] []
 
         it "create and get meta works" $ \(conn, db) -> do
             now <- getCurrentTime
-            let md = testMetadata { passphraseInfo = Just $ WalletPassphraseInfo now }
-            unsafeRunExceptT $ createWallet db testPk testCp md
-            readWalletMeta db testPk `shouldReturn` Just md
-            close conn
-            ( testOpeningCleaning
-                (`readWalletMeta` testPk)
-                (Just md)
-                Nothing )
+            let meta = testMetadata
+                   { passphraseInfo = Just $ WalletPassphraseInfo now }
+            unsafeRunExceptT $ createWallet db testWid testCp meta
+            close' conn
+            testOpeningCleaning (`readWalletMeta` testWid) (Just meta) Nothing
 
-        it "create and get private key" $ \(conn,db) -> do
-            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
-            readPrivateKey db testPk `shouldReturn` Nothing
-            let Right phr = fromText "simplephrase"
-                k = unsafeGenerateKeyFromSeed (coerce phr, coerce phr) phr
-            h <- encryptPassphrase phr
-            unsafeRunExceptT (putPrivateKey db testPk (k, h))
-            readPrivateKey db testPk `shouldReturn` Just (k, h)
-            close conn
-            ( testOpeningCleaning
-                (`readPrivateKey` testPk)
-                (Just (k, h))
-                Nothing )
+        it "create and get private key" $ \(conn, db) -> do
+            unsafeRunExceptT $ createWallet db testWid testCp testMetadata
+            (k, h) <- unsafeRunExceptT $ attachPrivateKey db testWid
+            close' conn
+            testOpeningCleaning (`readPrivateKey` testWid) (Just (k, h)) Nothing
 
-        it "put and read tx history" $ \(conn,db) -> do
-            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
-            runExceptT (putTxHistory db testPk testTxs) `shouldReturn` Right ()
-            readTxHistory db testPk `shouldReturn` testTxs
-            close conn
-            ( testOpeningCleaning
-                (`readTxHistory` testPk)
-                testTxs
-                Map.empty )
+        it "put and read tx history" $ \(conn, db) -> do
+            unsafeRunExceptT $ createWallet db testWid testCp testMetadata
+            unsafeRunExceptT $ putTxHistory db testWid testTxs
+            close' conn
+            testOpeningCleaning (`readTxHistory` testWid) testTxs Map.empty
 
-        it "put and read checkpoint" $ \(conn,db) -> do
-            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
-            runExceptT (putCheckpoint db testPk testCp) `shouldReturn` Right ()
-            readCheckpoint db testPk `shouldReturn` Just testCp
-            close conn
-            ( testOpeningCleaning
-                (`readCheckpoint` testPk)
-                (Just testCp)
-                Nothing )
+        it "put and read checkpoint" $ \(conn, db) -> do
+            unsafeRunExceptT $ createWallet db testWid testCp testMetadata
+            unsafeRunExceptT $ putCheckpoint db testWid testCp
+            close' conn
+            testOpeningCleaning (`readCheckpoint` testWid) (Just testCp) Nothing
 
-    withDB inMemoryDBLayer $
-        describe "random operation chunks property when writing to/reading from file" $ do
+    describe "random operation chunks property" $ do
         it "realize a random batch of operations upon one db open"
-            (property . prop_randomOpChunks)
+            (property $ prop_randomOpChunks @(SeqState DummyTarget) @DummyTarget)
 
-    where
-        testOpeningCleaning
-            :: (Show s, Eq s)
-            => (DBLayer IO (SeqState DummyTarget) DummyTarget -> IO s)
-            -> s
-            -> s
-            -> Expectation
-        testOpeningCleaning call expectedAfterOpen expectedAfterClean = do
-            (conn1, db1) <- fileDBLayer
-            call db1 `shouldReturn` expectedAfterOpen
-            _ <- cleanDB db1
-            call db1 `shouldReturn` expectedAfterClean
-            close conn1
-            (conn2,db2) <- fileDBLayer
-            call db2 `shouldReturn` expectedAfterClean
-            close conn2
-
-        openCloseDB :: IO ()
-        openCloseDB = do
-            (conn, _) <- fileDBLayer
-            close conn
-
-        dbCleaned
-            :: (Connection, DBLayer IO (SeqState DummyTarget) DummyTarget)
-            -> IO  (Connection, DBLayer IO (SeqState DummyTarget) DummyTarget)
-        dbCleaned (conn, db) = do
-            _ <- cleanDB db
-            pure (conn, db)
-
+{-------------------------------------------------------------------------------
+                              Tests and Properties
+-------------------------------------------------------------------------------}
 
 -- This property checks that executing series of wallet operations in a single
 -- SQLite session has the same effect as executing the same operations over
 -- multiple sessions.
 prop_randomOpChunks
-    :: DBLayer IO (SeqState DummyTarget) DummyTarget
-    -> KeyValPairs (PrimaryKey WalletId) (Wallet (SeqState DummyTarget) DummyTarget , WalletMetadata)
+    :: (Eq s, IsOurs s, NFData s, Show s, PersistState s, TxId t)
+    => KeyValPairs (PrimaryKey WalletId) (Wallet s t, WalletMetadata)
     -> Property
-prop_randomOpChunks inMemoryDB (KeyValPairs pairs) =
-    not (null pairs) ==> monadicIO (pure inMemoryDB >>= prop)
+prop_randomOpChunks (KeyValPairs pairs) =
+    not (null pairs) ==> monadicIO (liftIO prop)
   where
-    prop dbM = liftIO $ do
-        (conn, dbF) <- fileDBLayer
-        _ <- cleanDB dbF
-        _ <- cleanDB inMemoryDB
+    prop = do
+        (connF, dbF) <- fileDBLayer >>= cleanDB'
+        (connM, dbM) <- inMemoryDBLayer >>= cleanDB'
+        forM_ pairs (insertPair dbM)
+        cutRandomly pairs >>= mapM_ (\chunk -> do
+            (conn, db) <- fileDBLayer
+            forM_ chunk (insertPair db)
+            close' conn)
+        dbF `shouldBeConsistentWith` dbM
+        close' connF *> close' connM
 
-        forM_ pairs (updateDB dbM)
-        chunks <- cutRandomly [] pairs
-        forM_ chunks handleChunks
-
-        verify dbM dbF
-
-        close conn
-
-    cutRandomly :: [[a]] -> [a] -> IO [[a]]
-    cutRandomly acc rest =
-        if L.length rest > 1 then do
-            chunksNum <- generate $ choose (1, L.length rest)
-            let chunk = L.take chunksNum rest
-            cutRandomly (chunk:acc) (L.drop chunksNum rest)
-        else
-            pure $ L.reverse (rest:acc)
-    handleChunks chunk = do
-        (conn, db) <- fileDBLayer
-        forM_ chunk (updateDB db)
-        close conn
-    updateDB
+    insertPair
         :: DBLayer IO s t
         -> (PrimaryKey WalletId, (Wallet s t, WalletMetadata))
         -> IO ()
-    updateDB db (k, (cp, meta)) = do
+    insertPair db (k, (cp, meta)) = do
         keys <- listWallets db
         if k `elem` keys then do
-            runExceptT (putCheckpoint db k cp) `shouldReturn` Right ()
-            runExceptT (putWalletMeta db k meta) `shouldReturn` Right ()
+            unsafeRunExceptT $ putCheckpoint db k cp
+            unsafeRunExceptT $ putWalletMeta db k meta
         else do
             unsafeRunExceptT $ createWallet db k cp meta
             Set.fromList <$> listWallets db `shouldReturn` Set.fromList (k:keys)
-    verify :: (Eq s) => DBLayer IO s t -> DBLayer IO s t -> IO ()
-    verify db1 db2 = do
+
+    shouldBeConsistentWith :: (Eq s) => DBLayer IO s t -> DBLayer IO s t -> IO ()
+    shouldBeConsistentWith db1 db2 = do
         expectedWalIds <- Set.fromList <$> listWallets db1
         Set.fromList <$> listWallets db2
             `shouldReturn` expectedWalIds
@@ -247,20 +191,81 @@ prop_randomOpChunks inMemoryDB (KeyValPairs pairs) =
                 `shouldReturn` expectedMetas
 
 
-fileDBLayer :: IO (Connection, DBLayer IO (SeqState DummyTarget) DummyTarget)
-fileDBLayer = newDBLayer' (Just "backup/test.db")
+-- | Test that data is preserved between open / close of the same database and
+-- that cleaning up happens as expected.
+testOpeningCleaning
+    :: (Show s, Eq s)
+    => (DBLayer IO (SeqState DummyTarget) DummyTarget -> IO s)
+    -> s
+    -> s
+    -> Expectation
+testOpeningCleaning call expectedAfterOpen expectedAfterClean = do
+    (conn1, db1) <- fileDBLayer
+    call db1 `shouldReturn` expectedAfterOpen
+    _ <- cleanDB db1
+    call db1 `shouldReturn` expectedAfterClean
+    close' conn1
+    (conn2,db2) <- fileDBLayer
+    call db2 `shouldReturn` expectedAfterClean
+    close' conn2
 
-inMemoryDBLayer :: IO (DBLayer IO (SeqState DummyTarget) DummyTarget)
+{-------------------------------------------------------------------------------
+                                 Helpers
+-------------------------------------------------------------------------------}
+
+inMemoryDBLayer
+    :: (IsOurs s, NFData s, Show s, PersistState s, TxId t)
+    => IO (SqlBackend, DBLayer IO s t)
 inMemoryDBLayer = newDBLayer Nothing
+
+fileDBLayer
+    :: (IsOurs s, NFData s, Show s, PersistState s, TxId t)
+    => IO (SqlBackend, DBLayer IO s t)
+fileDBLayer = newDBLayer (Just "backup/test.db")
+
+-- | Clean the database
+cleanDB'
+    :: Monad m
+    => (SqlBackend, DBLayer m s t)
+    -> m (SqlBackend, DBLayer m s t)
+cleanDB' (conn, db) =
+    cleanDB db $> (conn, db)
+
+-- | Attach an arbitrary private key to a wallet
+attachPrivateKey
+    :: DBLayer IO s t
+    -> PrimaryKey WalletId
+    -> ExceptT ErrNoSuchWallet IO (Key 'RootK XPrv, Hash "encryption")
+attachPrivateKey db wid = do
+    let Right pwd = fromText "simplephrase"
+    let k = generateKeyFromSeed (coerce pwd, coerce pwd) pwd
+    h <- liftIO $ encryptPassphrase pwd
+    putPrivateKey db wid (k, h)
+    return (k, h)
+
+cutRandomly :: [a] -> IO [[a]]
+cutRandomly = iter []
+  where
+    iter acc rest
+        | L.length rest <= 1 =
+            pure $ L.reverse (rest:acc)
+        | otherwise = do
+            chunksNum <- randomRIO (1, L.length rest)
+            let chunk = L.take chunksNum rest
+            iter (chunk:acc) (L.drop chunksNum rest)
+
+{-------------------------------------------------------------------------------
+                           arbitrary / dummy test data
+-------------------------------------------------------------------------------}
 
 testCp :: Wallet (SeqState DummyTarget) DummyTarget
 testCp = initWallet initDummyState
-
-initDummyState :: SeqState DummyTarget
-initDummyState = mkSeqState (xprv, mempty) defaultAddressPoolGap
   where
-      bytes = entropyToBytes <$> unsafePerformIO $ genEntropy @(EntropySize 15)
-      xprv = generateKeyFromSeed (Passphrase bytes, mempty) mempty
+    initDummyState :: SeqState DummyTarget
+    initDummyState = mkSeqState (xprv, mempty) defaultAddressPoolGap
+      where
+        bytes = entropyToBytes <$> unsafePerformIO $ genEntropy @(EntropySize 15)
+        xprv = generateKeyFromSeed (Passphrase bytes, mempty) mempty
 
 testMetadata :: WalletMetadata
 testMetadata = WalletMetadata
@@ -271,14 +276,12 @@ testMetadata = WalletMetadata
     , delegation = NotDelegating
     }
 
-testWid :: WalletId
-testWid = WalletId (hash ("test" :: ByteString))
-
-testPk :: PrimaryKey WalletId
-testPk = PrimaryKey testWid
+testWid :: PrimaryKey WalletId
+testWid = PrimaryKey (WalletId (hash @ByteString "test"))
 
 testTxs :: Map.Map (Hash "Tx") (Tx, TxMeta)
 testTxs = Map.fromList
-    [ (Hash "tx2"
-      , (Tx [TxIn (Hash "tx1") 0] [TxOut (Address "addr") (Coin 1)]
-        , TxMeta InLedger Incoming (SlotId 14 0) (Quantity 1337144))) ]
+    [ (Hash "tx2", (Tx [TxIn (Hash "tx1") 0] [TxOut (Address "addr") (Coin 1)]
+      , TxMeta InLedger Incoming (SlotId 14 0) (Quantity 1337144))
+      )
+    ]

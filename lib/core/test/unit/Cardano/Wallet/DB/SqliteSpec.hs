@@ -127,7 +127,7 @@ simpleSpec = do
             readCheckpoint db testPk `shouldReturn` Just testCp
 
 newMemoryDBLayer :: IO (DBLayer IO (SeqState DummyTarget) DummyTarget)
-newMemoryDBLayer = newDBLayer Nothing
+newMemoryDBLayer = snd <$> newDBLayer Nothing
 
 testCp :: Wallet (SeqState DummyTarget) DummyTarget
 testCp = initWallet initDummyState
