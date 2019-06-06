@@ -35,7 +35,8 @@ import Data.Proxy
 import Data.Text.Encoding
     ( decodeUtf8 )
 import Servant.API
-    ( (:>)
+    ( (:<|>)
+    , (:>)
     , Accept (..)
     , Capture
     , Get
@@ -54,7 +55,7 @@ import qualified Servant.API.ContentTypes as Servant
 api :: Proxy Api
 api = Proxy
 
-type Api = GetTipId
+type Api = GetTipId :<|> GetBlock :<|> GetBlockDescendantIds
 
 
 -- | Retrieve a block by its id.
@@ -81,7 +82,7 @@ type GetBlockDescendantIds
     :> "block"
     :> Capture "blockId" BlockId
     :> "next_id"
-    :> QueryParam "count" Int
+    :> QueryParam "count" Word
     :> Get '[JormungandrBinary] [BlockId]
 
 -- | Retrieve the header of the latest known block.
@@ -102,7 +103,7 @@ type PostSignedTx
 data SignedTx
 
 newtype BlockId = BlockId (Hash "block")
-    deriving Show
+    deriving (Eq, Show)
 
 instance ToHttpApiData BlockId where
     toUrlPiece (BlockId (Hash bytes)) = decodeUtf8 $ convertToBase Base16 bytes
