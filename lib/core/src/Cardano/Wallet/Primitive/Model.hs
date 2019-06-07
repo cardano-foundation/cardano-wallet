@@ -58,6 +58,7 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , Dom (..)
     , Hash (..)
+    , SlotId (..)
     , Tx (..)
     , TxId (..)
     , TxIn (..)
@@ -161,7 +162,9 @@ initWallet
     -> Wallet s t
 initWallet = Wallet mempty mempty genesisBlockHeader
   where
-    genesisBlockHeader = undefined
+    genesisBlockHeader = BlockHeader
+        (SlotId 0 0)
+        (Hash "\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL")
 
 -- | Update the state of an existing Wallet model
 updateState
