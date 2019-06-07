@@ -10,7 +10,7 @@ module Cardano.Wallet.Primitive.TypesSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( digest, generateKeyFromSeed, publicKey )
+    ( Passphrase (..), digest, generateKeyFromSeed, publicKey )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
@@ -47,6 +47,8 @@ import Control.Monad
     ( replicateM )
 import Crypto.Hash
     ( hash )
+import Data.Coerce
+    ( coerce )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -96,9 +98,11 @@ spec = do
 
     describe "Buildable" $ do
         it "WalletId" $ do
-            let xprv = generateKeyFromSeed (mempty, mempty) mempty
+            let Right phr =
+                    fromText "abcdefghijklmnop" :: Either TextDecodingError (Passphrase "encryption")
+            let xprv = generateKeyFromSeed (coerce phr, mempty) mempty
             let wid = WalletId $ digest $ publicKey xprv
-            "bcfe3998...b5a0c04a" === pretty @_ @Text wid
+            "df5ef89e...51027b83" === pretty @_ @Text wid
         it "TxMeta (1)" $ do
             let txMeta = TxMeta Pending Outgoing (SlotId 14 42) (Quantity 1337)
             "-0.001337 pending since 14.42" === pretty @_ @Text txMeta

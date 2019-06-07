@@ -185,7 +185,6 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @WalletPutPassphraseData
             jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Tx"))
             jsonRoundtripAndGolden $ Proxy @(ApiT (Passphrase "encryption"))
-            jsonRoundtripAndGolden $ Proxy @(ApiT (Passphrase "seed"))
             jsonRoundtripAndGolden $ Proxy @(ApiT (WalletDelegation (ApiT PoolId)))
             jsonRoundtripAndGolden $ Proxy @(ApiT Address, Proxy DummyTarget)
             jsonRoundtripAndGolden $ Proxy @(ApiT AddressPoolGap)
@@ -247,21 +246,6 @@ spec = do
             Aeson.parseEither parseJSON [aesonQQ|
                 #{replicate (2*maxLength) '*'}
             |] `shouldBe` (Left @String @(ApiT (Passphrase "encryption")) msg)
-
-        it "ApiT (Passphrase \"seed\") (too short)" $ do
-            let minLength = passphraseMinLength (Proxy :: Proxy "seed")
-            let msg = "Error in $: passphrase is too short: \
-                    \expected at least " <> show minLength <> " characters"
-            Aeson.parseEither parseJSON [aesonQQ|"abcdefghijklmno"|]
-                `shouldBe` (Left @String @(ApiT (Passphrase "seed")) msg)
-
-        it "ApiT (Passphrase \"seed\") (too long)" $ do
-            let maxLength = passphraseMaxLength (Proxy :: Proxy "seed")
-            let msg = "Error in $: passphrase is too long: \
-                    \expected at most " <> show maxLength <> " characters"
-            Aeson.parseEither parseJSON [aesonQQ|
-                #{replicate (2*maxLength) '*'}
-            |] `shouldBe` (Left @String @(ApiT (Passphrase "seed")) msg)
 
         it "ApiT WalletName (too short)" $ do
             let msg = "Error in $: name is too short: \

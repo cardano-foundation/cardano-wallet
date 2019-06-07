@@ -62,6 +62,7 @@ import Test.QuickCheck
     , elements
     , expectFailure
     , property
+    , suchThat
     , (.&&.)
     , (===)
     , (==>)
@@ -342,9 +343,13 @@ instance {-# OVERLAPS #-} Arbitrary (Passphrase "encryption") where
 
 instance {-# OVERLAPS #-} Arbitrary (Passphrase "seed") where
     arbitrary = do
-        let p = Proxy :: Proxy "seed"
-        n <- choose (passphraseMinLength p, passphraseMaxLength p)
-        bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
+        n <- choose (5, 255)
+        bytes <-
+            T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
+            `suchThat`
+            (\bs ->
+                 let bsLength = (BS.length . T.encodeUtf8 . T.pack) bs
+                 in bsLength >= 16 &&  bsLength <= 255)
         return $ Passphrase $ BA.convert bytes
 
 instance Arbitrary ChangeChain where
@@ -373,7 +378,7 @@ genRootKeys :: Gen (Key 'RootK XPrv)
 genRootKeys = do
     (s, g, e) <- (,,)
         <$> genPassphrase @"seed" (16, 32)
-        <*> genPassphrase @"generation" (10, 16)
+        <*> genPassphrase @"generation" (0, 16)
         <*> genPassphrase @"encryption" (0, 16)
     return $ generateKeyFromSeed (s, g) e
   where

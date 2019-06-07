@@ -95,7 +95,7 @@ import Cardano.Wallet.Primitive.Mnemonic
     , mnemonicToEntropy
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Hash (..) )
+    ( Address (..), Hash (..), invariant )
 import Control.Arrow
     ( left )
 import Control.DeepSeq
@@ -253,9 +253,6 @@ instance PassphraseMinLength "encryption-new" where
     passphraseMinLength _ = passphraseMinLength (Proxy @"encryption")
 instance PassphraseMaxLength "encryption-new" where
     passphraseMaxLength _ = passphraseMaxLength (Proxy @"encryption")
-instance PassphraseMinLength "seed" where passphraseMinLength _ = 16
-instance PassphraseMaxLength "seed" where passphraseMaxLength _ = 255
-
 
 instance
     ( PassphraseMaxLength purpose
@@ -498,7 +495,12 @@ unsafeGenerateKeyFromSeed
     -> Passphrase "encryption"
     -> Key depth XPrv
 unsafeGenerateKeyFromSeed (Passphrase seed, Passphrase gen) (Passphrase pwd) =
-    Key $ generateNew seed gen pwd
+    let
+        seed' = invariant
+            ("seed length" <> show (BA.length seed) <> "in (Passphrase \"seed\") is not valid")
+            seed
+            (\s -> BA.length s >= 16 && BA.length s <= 255)
+    in Key $ generateNew seed' gen pwd
 
 -- | Generate a root key from a corresponding seed
 -- The seed should be at least 16 bytes
