@@ -24,7 +24,7 @@ module Cardano.Wallet.DB.Sqlite.TH where
 import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Types
-    ( AddressPoolXPub, TxId, sqlSettings' )
+    ( AddressPoolXPub, BlockId, TxId, sqlSettings' )
 import Data.Text
     ( Text )
 import Data.Time.Clock
@@ -122,6 +122,7 @@ TxOut
 Checkpoint
     checkpointTableWalletId    W.WalletId  sql=wallet_id
     checkpointTableSlot        W.SlotId    sql=slot
+    checkpointTableParent      BlockId   sql=parent
 
     Primary checkpointTableWalletId checkpointTableSlot
     Foreign Wallet fk_wallet_checkpoint checkpointTableWalletId

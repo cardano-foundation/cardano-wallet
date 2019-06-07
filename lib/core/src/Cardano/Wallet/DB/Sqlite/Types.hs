@@ -187,6 +187,41 @@ instance PathPiece TxId where
     fromPathPiece = fmap TxId . fromTextMaybe
 
 ----------------------------------------------------------------------------
+-- TxId
+
+-- Wraps Hash "Tx" because the persistent dsl doesn't like (Hash "Tx")
+newtype BlockId = BlockId { getBlockId :: Hash "BlockHeader" }
+    deriving (Show, Eq, Ord, Generic)
+
+instance PersistField BlockId where
+    toPersistValue = toPersistValue . toText . getBlockId
+    fromPersistValue = fmap BlockId <$> fromPersistValueFromText
+
+instance PersistFieldSql BlockId where
+    sqlType _ = sqlType (Proxy @Text)
+
+instance Read BlockId where
+    readsPrec _ = error "readsPrec stub needed for persistent"
+
+instance ToJSON BlockId where
+    toJSON = String . toText . getBlockId
+
+instance FromJSON BlockId where
+    parseJSON = fmap BlockId . aesonFromText "WalletId"
+
+instance ToHttpApiData BlockId where
+    toUrlPiece = toText . getBlockId
+
+instance FromHttpApiData BlockId where
+    parseUrlPiece = fmap BlockId . fromText'
+
+instance PathPiece BlockId where
+    toPathPiece = toText . getBlockId
+    fromPathPiece = fmap BlockId . fromTextMaybe
+
+
+
+----------------------------------------------------------------------------
 -- SlotId
 
 instance PersistFieldSql SlotId where
