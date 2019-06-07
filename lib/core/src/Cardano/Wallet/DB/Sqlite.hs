@@ -393,7 +393,7 @@ mkCheckpointEntity wid wal =
   where
     pending = [(W.txId @t tx, tx) | tx <- Set.toList (W.getPending wal)]
     (ins, outs) = mkTxInputsOutputs pending
-    sl = W.currentTip wal
+    sl = (W.currentTip wal) ^. #slotId
     cp = Checkpoint
         { checkpointTableWalletId = wid
         , checkpointTableSlot = sl
@@ -527,7 +527,7 @@ insertCheckpoint wid cp = do
     dbChunked insertMany_ outs
     dbChunked insertMany_ pendings
     dbChunked insertMany_ utxo
-    insertState (wid, W.currentTip cp) (W.getState cp)
+    insertState (wid, (W.currentTip cp) ^. #slotId) (W.getState cp)
 
 -- | Delete all checkpoints associated with a wallet.
 deleteCheckpoints
