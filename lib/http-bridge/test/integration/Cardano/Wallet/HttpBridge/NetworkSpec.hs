@@ -66,7 +66,8 @@ spec :: Spec
 spec = do
     describe "Happy paths" $ beforeAll startBridge $ afterAll closeBridge $ do
         it "get from packed epochs" $ \(_, bridge) -> do
-            let blocks = runExceptT $ nextBlocks bridge (SlotId 13 21599)
+            let blocks = runExceptT $ nextBlocks bridge
+                    (mkHeader $ SlotId 13 21599)
             (fmap length <$> blocks)
                 `shouldReturn` pure 21600
             (fmap (prevBlockHash . header . head) <$> blocks)
@@ -76,7 +77,8 @@ spec = do
 
         it "get from packet epochs and filter by start slot"
                 $ \(_, bridge) -> do
-            let blocks = runExceptT $ nextBlocks bridge (SlotId 14 13999)
+            let blocks = runExceptT $ nextBlocks bridge
+                    (mkHeader $ SlotId 14 13999)
             (fmap length <$> blocks)
                 `shouldReturn` pure 7600
             (fmap (prevBlockHash . header . head) <$> blocks)
@@ -86,9 +88,9 @@ spec = do
 
         it "get unstable blocks for the unstable epoch" $ \(_, bridge) -> do
             let action = runExceptT $ do
-                    (SlotId ep sl) <- (slotId . snd) <$> networkTip' bridge
+                    (SlotId ep sl) <- slotId <$> networkTip' bridge
                     let sl' = if sl > 2 then sl - 2 else 0
-                    blocks <- nextBlocks bridge (SlotId ep sl')
+                    blocks <- nextBlocks bridge (mkHeader $ SlotId ep sl')
                     lift $ blocks `shouldSatisfy` (\bs
                         -> length bs >= fromIntegral (sl - sl')
                         && length bs <= fromIntegral (sl - sl' + 1)
@@ -97,8 +99,8 @@ spec = do
 
         it "produce no blocks if start is after tip" $ \(_, bridge) -> do
             let action = runExceptT $ do
-                    SlotId ep sl <- (slotId . snd) <$> networkTip' bridge
-                    length <$> nextBlocks bridge (SlotId (ep + 1) sl)
+                    SlotId ep sl <- slotId <$> networkTip' bridge
+                    length <$> nextBlocks bridge (mkHeader $ SlotId (ep + 1) sl)
             action `shouldReturn` pure 0
 
     describe "Error paths" $ beforeAll newNetworkLayer $ do
@@ -217,3 +219,10 @@ spec = do
         threadDelay $ 1 * second
         return (handle, bridge)
     second = 1000*1000
+
+    -- The underlying HttpBridgeLayer is only needs the slot of the header.
+    mkHeader slot = BlockHeader
+        { slotId = slot
+        , prevBlockHash =
+            Hash "prevBlockHash is not used by the http-bridge NetworkLayer"
+        }

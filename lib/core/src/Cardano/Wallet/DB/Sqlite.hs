@@ -54,7 +54,7 @@ import Cardano.Wallet.DB.Sqlite.TH
     , unWalletKey
     )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( AddressPoolXPub (..), TxId (..) )
+    ( AddressPoolXPub (..), BlockId (..), TxId (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), deserializeXPrv, serializeXPrv )
 import Control.Concurrent.MVar
@@ -393,10 +393,13 @@ mkCheckpointEntity wid wal =
   where
     pending = [(W.txId @t tx, tx) | tx <- Set.toList (W.getPending wal)]
     (ins, outs) = mkTxInputsOutputs pending
-    sl = W.currentTip wal
+    header = (W.currentTip wal)
+    sl = header ^. #slotId
+    parent = header ^. #prevBlockHash
     cp = Checkpoint
         { checkpointTableWalletId = wid
         , checkpointTableSlot = sl
+        , checkpointTableParent = BlockId parent
         }
     pendingTx tid = PendingTx
         { pendingTxTableWalletId = wid
@@ -417,8 +420,8 @@ checkpointFromEntity
     -> [TxOut]
     -> s
     -> W.Wallet s t
-checkpointFromEntity (Checkpoint _ tip) utxo ins outs =
-    W.unsafeInitWallet utxo' pending tip
+checkpointFromEntity (Checkpoint _ slot (BlockId parentHeaderHash)) utxo ins outs =
+    W.unsafeInitWallet utxo' pending (W.BlockHeader slot parentHeaderHash)
   where
     utxo' = W.UTxO . Map.fromList $
         [ (W.TxIn input ix, W.TxOut addr coin)
@@ -527,7 +530,7 @@ insertCheckpoint wid cp = do
     dbChunked insertMany_ outs
     dbChunked insertMany_ pendings
     dbChunked insertMany_ utxo
-    insertState (wid, W.currentTip cp) (W.getState cp)
+    insertState (wid, (W.currentTip cp) ^. #slotId) (W.getState cp)
 
 -- | Delete all checkpoints associated with a wallet.
 deleteCheckpoints
@@ -645,13 +648,14 @@ selectLatestCheckpoint wid = fmap entityVal <$>
 selectUTxO
     :: Checkpoint
     -> SqlPersistM [UTxO]
-selectUTxO (Checkpoint wid sl) = fmap entityVal <$>
+selectUTxO (Checkpoint wid sl _parent) = fmap entityVal <$>
     selectList [UtxoTableWalletId ==. wid, UtxoTableCheckpointSlot ==. sl] []
 
 selectPending
     :: Checkpoint
     -> SqlPersistM [TxId]
-selectPending (Checkpoint wid sl) = fmap (pendingTxTableId2 . entityVal) <$>
+selectPending (Checkpoint wid sl _parent) = fmap (pendingTxTableId2 . entityVal)
+    <$>
     selectList [ PendingTxTableWalletId ==. wid
                , PendingTxTableCheckpointSlot ==. sl ] []
 

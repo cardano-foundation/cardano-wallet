@@ -22,7 +22,7 @@ module Cardano.Wallet.Network
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), Hash (..), SlotId (..), Tx, TxWitness )
+    ( Block (..), BlockHeader (..), Tx, TxWitness )
 import Control.Exception
     ( Exception, throwIO )
 import Control.Monad.Trans.Except
@@ -34,7 +34,7 @@ import GHC.Generics
     ( Generic )
 
 data NetworkLayer t m = NetworkLayer
-    { nextBlocks :: SlotId -> ExceptT ErrNetworkUnreachable m [Block]
+    { nextBlocks :: BlockHeader -> ExceptT ErrNetworkUnreachable m [Block]
         -- ^ Gets some blocks from the node. It will not necessarily return all
         -- the blocks that the node has, but will receive a reasonable-sized
         -- chunk. It will never return blocks from before the given slot. It
@@ -42,7 +42,7 @@ data NetworkLayer t m = NetworkLayer
         -- after the starting slot.
 
     , networkTip
-        :: ExceptT ErrNetworkTip m (Hash "BlockHeader", BlockHeader)
+        :: ExceptT ErrNetworkTip m BlockHeader
         -- ^ Get the current network tip from the chain producer
 
     , postTx

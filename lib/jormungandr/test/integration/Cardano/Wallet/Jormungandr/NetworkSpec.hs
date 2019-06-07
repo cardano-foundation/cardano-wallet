@@ -66,7 +66,7 @@ spec = do
         it "get network tip" $ \(_, nw) -> do
             resp <- runExceptT $ networkTip nw
             resp `shouldSatisfy` isRight
-            let (Right slot) = slotId . snd <$> resp
+            let (Right slot) = slotId <$> resp
             slot `shouldSatisfy` (>= SlotId 0 0)
 
     describe "Error paths" $ do

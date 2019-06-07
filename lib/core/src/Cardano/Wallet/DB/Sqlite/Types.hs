@@ -174,7 +174,7 @@ instance ToJSON TxId where
     toJSON = String . toText . getTxId
 
 instance FromJSON TxId where
-    parseJSON = fmap TxId . aesonFromText "WalletId"
+    parseJSON = fmap TxId . aesonFromText "TxId"
 
 instance ToHttpApiData TxId where
     toUrlPiece = toText . getTxId
@@ -185,6 +185,39 @@ instance FromHttpApiData TxId where
 instance PathPiece TxId where
     toPathPiece = toText . getTxId
     fromPathPiece = fmap TxId . fromTextMaybe
+
+----------------------------------------------------------------------------
+-- BlockId
+
+-- Wraps Hash "BlockHeader" because the persistent dsl doesn't like it raw.
+newtype BlockId = BlockId { getBlockId :: Hash "BlockHeader" }
+    deriving (Show, Eq, Ord, Generic)
+
+instance PersistField BlockId where
+    toPersistValue = toPersistValue . toText . getBlockId
+    fromPersistValue = fmap BlockId <$> fromPersistValueFromText
+
+instance PersistFieldSql BlockId where
+    sqlType _ = sqlType (Proxy @Text)
+
+instance Read BlockId where
+    readsPrec _ = error "readsPrec stub needed for persistent"
+
+instance ToJSON BlockId where
+    toJSON = String . toText . getBlockId
+
+instance FromJSON BlockId where
+    parseJSON = fmap BlockId . aesonFromText "BlockId"
+
+instance ToHttpApiData BlockId where
+    toUrlPiece = toText . getBlockId
+
+instance FromHttpApiData BlockId where
+    parseUrlPiece = fmap BlockId . fromText'
+
+instance PathPiece BlockId where
+    toPathPiece = toText . getBlockId
+    fromPathPiece = fmap BlockId . fromTextMaybe
 
 ----------------------------------------------------------------------------
 -- SlotId
