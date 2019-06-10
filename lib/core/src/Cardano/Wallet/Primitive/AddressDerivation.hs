@@ -497,7 +497,7 @@ unsafeGenerateKeyFromSeed
 unsafeGenerateKeyFromSeed (Passphrase seed, Passphrase gen) (Passphrase pwd) =
     let
         seed' = invariant
-            ("seed length" <> show (BA.length seed) <> "in (Passphrase \"seed\") is not valid")
+            ("seed length : " <> show (BA.length seed) <> " in (Passphrase \"seed\") is not valid")
             seed
             (\s -> BA.length s >= 16 && BA.length s <= 255)
     in Key $ generateNew seed' gen pwd
