@@ -35,6 +35,7 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , BlockHeader (..)
     , Coin (..)
     , Direction (..)
     , Hash (..)
@@ -130,13 +131,16 @@ newMemoryDBLayer :: IO (DBLayer IO (SeqState DummyTarget) DummyTarget)
 newMemoryDBLayer = snd <$> newDBLayer Nothing
 
 testCp :: Wallet (SeqState DummyTarget) DummyTarget
-testCp = initWallet initDummyState
+testCp = initWallet initDummyBlock0 initDummyState
 
 initDummyState :: SeqState DummyTarget
 initDummyState = mkSeqState (xprv, mempty) defaultAddressPoolGap
   where
       bytes = entropyToBytes <$> unsafePerformIO $ genEntropy @(EntropySize 15)
       xprv = generateKeyFromSeed (Passphrase bytes, mempty) mempty
+
+initDummyBlock0 :: BlockHeader
+initDummyBlock0 = BlockHeader (SlotId 0 0) (Hash "genesis")
 
 testMetadata :: WalletMetadata
 testMetadata = WalletMetadata

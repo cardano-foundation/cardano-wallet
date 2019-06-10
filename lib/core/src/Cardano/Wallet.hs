@@ -333,11 +333,13 @@ cancelWorker (WorkerRegistry mvar) wid =
 -- | Create a new instance of the wallet layer.
 newWalletLayer
     :: forall s t. ()
-    => DBLayer IO s t
+    => BlockHeader
+        -- ^ Very first block header for initialization
+    -> DBLayer IO s t
     -> NetworkLayer t IO
     -> TransactionLayer t
     -> IO (WalletLayer s t)
-newWalletLayer db nw tl = do
+newWalletLayer block0 db nw tl = do
     registry <- newRegistry
     return WalletLayer
         { createWallet = _createWallet
@@ -365,7 +367,7 @@ newWalletLayer db nw tl = do
         -> s
         -> ExceptT ErrWalletAlreadyExists IO WalletId
     _createWallet wid wname s = do
-        let checkpoint = initWallet s
+        let checkpoint = initWallet block0 s
         currentTime <- liftIO getCurrentTime
         let metadata = WalletMetadata
                 { name = wname

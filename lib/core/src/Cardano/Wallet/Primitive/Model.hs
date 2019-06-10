@@ -58,7 +58,6 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , Dom (..)
     , Hash (..)
-    , SlotId (..)
     , Tx (..)
     , TxId (..)
     , TxIn (..)
@@ -158,13 +157,11 @@ instance NFData (Wallet s t) where
 -- | Create an empty wallet from an initial state
 initWallet
     :: (IsOurs s, NFData s, Show s, TxId t)
-    => s
+    => BlockHeader
+    -- ^ Very first 'BlockHeader'
+    -> s
     -> Wallet s t
-initWallet = Wallet mempty mempty genesisBlockHeader
-  where
-    genesisBlockHeader = BlockHeader
-        (SlotId 0 0)
-        (Hash "\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL")
+initWallet = Wallet mempty mempty
 
 -- | Update the state of an existing Wallet model
 updateState

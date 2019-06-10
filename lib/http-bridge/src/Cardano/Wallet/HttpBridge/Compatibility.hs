@@ -17,6 +17,7 @@ module Cardano.Wallet.HttpBridge.Compatibility
     ( -- * Target
       HttpBridge
     , Network (..)
+    , block0
     ) where
 
 import Prelude
@@ -29,9 +30,11 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), Key (..), KeyToAddress (..), XPub, getKey )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , BlockHeader (..)
     , DecodeAddress (..)
     , EncodeAddress (..)
     , Hash (..)
+    , SlotId (..)
     , TxId (..)
     )
 import Crypto.Hash
@@ -121,3 +124,17 @@ instance DecodeAddress (HttpBridge (network :: Network)) where
       where
         errBase58 = "Unable to decode Address: expected Base58 encoding."
         errDecoding _ = "Unable to decode Address: not a valid Byron address."
+
+-- | An initial first block to initialize a chain using the http-bridge. We do
+-- not use the `blockHash` and, do only use the `prevBlockHash` to catch up with
+-- unstable epoch and therefore, the very first `prevBlockHash` matters not.
+--
+-- It isn't impossible to retrieve the 'blockHash' by computing a blake2b 256 of
+-- the CBOR-serialized full block header, but this requires us to write the full
+-- CBOR decoders (and encoders) for the all BlockHeader which is, for the
+-- http-brdige implementation, a waste of time at the moment.
+block0 :: BlockHeader
+block0 = BlockHeader
+    { slotId = SlotId 0 0
+    , prevBlockHash = Hash "genesis"
+    }

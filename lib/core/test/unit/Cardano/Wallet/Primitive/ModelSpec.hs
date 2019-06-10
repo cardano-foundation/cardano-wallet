@@ -142,7 +142,7 @@ prop_applyBlockBasic s =
     cond1 = not $ null $ (Set.fromList addresses) \\ (ourAddresses s)
     prop =
         let
-            cp0 = initWallet @_ @DummyTarget s
+            cp0 = initWallet @_ @DummyTarget block0 s
             wallet = foldl (\cp b -> snd $ applyBlock b cp) cp0 blockchain
             utxo = totalUTxO wallet
             utxo' = evalState (foldM (flip updateUTxO) mempty blockchain) s
@@ -157,7 +157,7 @@ prop_applyBlockTxHistoryIncoming :: WalletState -> Property
 prop_applyBlockTxHistoryIncoming s =
     property (outs (filter isIncoming txs) `overlaps` ourAddresses s')
   where
-    cp0 = initWallet @_ @DummyTarget s
+    cp0 = initWallet @_ @DummyTarget block0 s
     (txs, s') = bimap Map.elems getState $ applyBlocks blockchain cp0
     isIncoming (_, m) = direction m == Incoming
     outs = Set.fromList . concatMap (map address . outputs . fst)
@@ -170,7 +170,7 @@ prop_applyBlockCurrentTip :: ApplyBlock -> Property
 prop_applyBlockCurrentTip (ApplyBlock s _ b) =
     property $ currentTip wallet' > currentTip wallet
   where
-    wallet = initWallet @_ @DummyTarget s
+    wallet = initWallet @_ @DummyTarget block0 s
     wallet' = snd $ applyBlock b wallet
 
 {-------------------------------------------------------------------------------
@@ -306,6 +306,12 @@ addresses = map address
     $ concatMap outputs
     $ concatMap transactions
     blockchain
+
+block0 :: BlockHeader
+block0 = BlockHeader
+    { slotId = SlotId 0 0
+    , prevBlockHash = Hash "genesis"
+    }
 
 -- A excerpt of mainnet, epoch #14, first 20 blocks; plus a few previous blocks
 -- which contains transactions referred to in the former. This is useful to test

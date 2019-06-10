@@ -47,7 +47,7 @@ import Cardano.Wallet.Api.Types
     , WalletPutData (..)
     )
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge )
+    ( HttpBridge, block0 )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Network
@@ -345,7 +345,7 @@ execHttpBridge args _ = do
     nw <- HttpBridge.newNetworkLayer @n bridgePort
     waitForConnection nw defaultRetryPolicy
     let tl = HttpBridge.newTransactionLayer @n
-    wallet <- newWalletLayer @_ @(HttpBridge n) db nw tl
+    wallet <- newWalletLayer @_ @(HttpBridge n) block0 db nw tl
     let logStartup port = TIO.hPutStrLn stderr $
             "Wallet backend server listening on: " <> toText port
     Server.start logStartup walletPort wallet
