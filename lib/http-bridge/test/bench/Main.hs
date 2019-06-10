@@ -49,7 +49,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Any.TH
 import Cardano.Wallet.Primitive.Model
     ( totalBalance, totalUTxO )
 import Cardano.Wallet.Primitive.Types
-    ( SlotId (..)
+    ( BlockHeader (..)
+    , SlotId (..)
     , UTxO (..)
     , WalletId (..)
     , WalletName (..)
@@ -207,8 +208,8 @@ bench_restoration _ (wid, wname, s) = withHttpBridge network $ \port -> do
     Sqlite.runQuery conn (void $ runMigrationSilent migrateAll)
     networkLayer <- newNetworkLayer port
     let transactionLayer = newTransactionLayer
-    (_, bh) <- unsafeRunExceptT $ networkTip networkLayer
-    sayErr . fmt $ network ||+ " tip is at " +|| (bh ^. #slotId) ||+ ""
+    BlockHeader sl _ <- unsafeRunExceptT $ networkTip networkLayer
+    sayErr . fmt $ network ||+ " tip is at " +|| sl ||+ ""
     w <- newWalletLayer @_ @(HttpBridge n) dbLayer networkLayer transactionLayer
     wallet <- unsafeRunExceptT $ createWallet w wid wname s
     unsafeRunExceptT $ restoreWallet w wallet
@@ -281,8 +282,7 @@ waitForNodeSync bridge networkName logSlot = loop 10
   where
     loop :: Int -> IO SlotId
     loop retries = runExceptT (networkTip bridge) >>= \case
-        Right (_, hdr) -> do
-            let tipBlockSlot = hdr ^. #slotId
+        Right (BlockHeader tipBlockSlot _) -> do
             currentSlot <- getCurrentSlot networkName
             logSlot tipBlockSlot currentSlot
             if tipBlockSlot < currentSlot
