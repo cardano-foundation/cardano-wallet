@@ -762,13 +762,13 @@ instance ToText (Hash "Tx") where
     toText = T.decodeUtf8 . convertToBase Base16 . getHash
 
 instance FromText (Hash "BlockHeader") where
-        fromText x = either
-            (const $ Left $ TextDecodingError err)
-            (pure . Hash)
-            (convertFromBase Base16 $ T.encodeUtf8 x)
-          where
-            err = "Unable to decode (Hash \"BlockHeader\"): \
-                        \expected Base16 encoding"
+    fromText x = either
+        (const $ Left $ TextDecodingError err)
+        (pure . Hash)
+        (convertFromBase Base16 $ T.encodeUtf8 x)
+      where
+        err = "Unable to decode (Hash \"BlockHeader\"): \
+                    \expected Base16 encoding"
 
 instance ToText (Hash "BlockHeader") where
         toText = T.decodeUtf8 . convertToBase Base16 . getHash
