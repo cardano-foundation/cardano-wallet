@@ -62,7 +62,6 @@ import Test.QuickCheck
     , elements
     , expectFailure
     , property
-    , suchThat
     , (.&&.)
     , (===)
     , (==>)
@@ -339,17 +338,6 @@ instance {-# OVERLAPS #-} Arbitrary (Passphrase "encryption") where
         let p = Proxy :: Proxy "encryption"
         n <- choose (passphraseMinLength p, passphraseMaxLength p)
         bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
-        return $ Passphrase $ BA.convert bytes
-
-instance {-# OVERLAPS #-} Arbitrary (Passphrase "seed") where
-    arbitrary = do
-        n <- choose (5, 255)
-        bytes <-
-            T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
-            `suchThat`
-            (\bs ->
-                 let bsLength = (BS.length . T.encodeUtf8 . T.pack) bs
-                 in bsLength >= 16 &&  bsLength <= 255)
         return $ Passphrase $ BA.convert bytes
 
 instance Arbitrary ChangeChain where
