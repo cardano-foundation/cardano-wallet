@@ -25,7 +25,6 @@ module Cardano.Wallet.HttpBridge.Environment
 data Network
 Mainnet :: Network
 Testnet :: Network
-Staging :: Network
 class KnownNetwork (n :: Network)
 networkVal :: KnownNetwork n => Network
 protocolMagic :: KnownNetwork n => ProtocolMagic
@@ -40,7 +39,6 @@ instance GHC.Classes.Eq Cardano.Wallet.HttpBridge.Environment.Network
 instance GHC.Show.Show Cardano.Wallet.HttpBridge.Environment.Network
 instance GHC.Generics.Generic Cardano.Wallet.HttpBridge.Environment.Network
 instance Cardano.Wallet.HttpBridge.Environment.KnownNetwork 'Cardano.Wallet.HttpBridge.Environment.Mainnet
-instance Cardano.Wallet.HttpBridge.Environment.KnownNetwork 'Cardano.Wallet.HttpBridge.Environment.Staging
 instance Cardano.Wallet.HttpBridge.Environment.KnownNetwork 'Cardano.Wallet.HttpBridge.Environment.Testnet
 instance Data.Text.Class.FromText Cardano.Wallet.HttpBridge.Environment.Network
 instance Data.Text.Class.ToText Cardano.Wallet.HttpBridge.Environment.Network
@@ -151,10 +149,8 @@ data HttpBridge (network :: Network)
 data Network
 Mainnet :: Network
 Testnet :: Network
-Staging :: Network
 instance Cardano.Wallet.Primitive.Types.TxId (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge network)
 instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge 'Cardano.Wallet.HttpBridge.Environment.Testnet)
-instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge 'Cardano.Wallet.HttpBridge.Environment.Staging)
 instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge 'Cardano.Wallet.HttpBridge.Environment.Mainnet)
 instance Cardano.Wallet.Primitive.Types.EncodeAddress (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge network)
 instance Cardano.Wallet.Primitive.Types.DecodeAddress (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge network)
