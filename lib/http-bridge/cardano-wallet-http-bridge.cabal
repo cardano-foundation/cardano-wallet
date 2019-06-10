@@ -157,7 +157,6 @@ test-suite integration
     , text-class
     , time
     , transformers
-    , warp
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
