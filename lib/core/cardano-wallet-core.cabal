@@ -32,10 +32,12 @@ library
       -Werror
   build-depends:
       aeson
+    , async
     , base
     , basement
     , binary
     , bytestring
+    , Cabal
     , cardano-crypto
     , containers
     , cryptonite
@@ -76,6 +78,7 @@ library
       Cardano.Wallet.Api
       Cardano.Wallet.Api.Server
       Cardano.Wallet.Api.Types
+      Cardano.Wallet.DaedalusIPC
       Cardano.Wallet.DB
       Cardano.Wallet.DB.MVar
       Cardano.Wallet.DB.Sqlite
