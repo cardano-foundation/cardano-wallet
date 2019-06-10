@@ -95,7 +95,7 @@ import Cardano.Wallet.Primitive.Mnemonic
     , mnemonicToEntropy
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Hash (..) )
+    ( Address (..), Hash (..), invariant )
 import Control.Arrow
     ( left )
 import Control.DeepSeq
@@ -495,9 +495,15 @@ unsafeGenerateKeyFromSeed
     -> Passphrase "encryption"
     -> Key depth XPrv
 unsafeGenerateKeyFromSeed (Passphrase seed, Passphrase gen) (Passphrase pwd) =
-    Key $ generateNew seed gen pwd
+    let
+        seed' = invariant
+            ("seed length : " <> show (BA.length seed) <> " in (Passphrase \"seed\") is not valid")
+            seed
+            (\s -> BA.length s >= 16 && BA.length s <= 255)
+    in Key $ generateNew seed' gen pwd
 
 -- | Generate a root key from a corresponding seed
+-- The seed should be at least 16 bytes
 generateKeyFromSeed
     :: (Passphrase "seed", Passphrase "generation")
         -- ^ The actual seed and its recovery / generation passphrase

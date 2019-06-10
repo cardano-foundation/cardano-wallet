@@ -10,7 +10,7 @@ module Cardano.Wallet.Primitive.TypesSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( digest, generateKeyFromSeed, publicKey )
+    ( Passphrase (..), digest, generateKeyFromSeed, publicKey )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
@@ -47,6 +47,8 @@ import Control.Monad
     ( replicateM )
 import Crypto.Hash
     ( hash )
+import Data.ByteString
+    ( ByteString )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -79,6 +81,7 @@ import Test.QuickCheck.Arbitrary.Generic
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -96,9 +99,10 @@ spec = do
 
     describe "Buildable" $ do
         it "WalletId" $ do
-            let xprv = generateKeyFromSeed (mempty, mempty) mempty
+            let seed = Passphrase (BA.convert @ByteString "0000000000000000")
+            let xprv = generateKeyFromSeed (seed, mempty) mempty
             let wid = WalletId $ digest $ publicKey xprv
-            "bcfe3998...b5a0c04a" === pretty @_ @Text wid
+            "336c96f1...b8cac9ce" === pretty @_ @Text wid
         it "TxMeta (1)" $ do
             let txMeta = TxMeta Pending Outgoing (SlotId 14 42) (Quantity 1337)
             "-0.001337 pending since 14.42" === pretty @_ @Text txMeta

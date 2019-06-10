@@ -237,7 +237,7 @@ attachPrivateKey
     -> PrimaryKey WalletId
     -> ExceptT ErrNoSuchWallet IO (Key 'RootK XPrv, Hash "encryption")
 attachPrivateKey db wid = do
-    let Right pwd = fromText "simplephrase"
+    let Right pwd = fromText "simplevalidphrase"
     let k = generateKeyFromSeed (coerce pwd, coerce pwd) pwd
     h <- liftIO $ encryptPassphrase pwd
     putPrivateKey db wid (k, h)

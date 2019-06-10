@@ -103,7 +103,7 @@ simpleSpec = do
         it "create and get private key" $ \db -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
             readPrivateKey db testPk `shouldReturn` Nothing
-            let Right phr = fromText "aaaaaaaaaa"
+            let Right phr = fromText "abcdefghijklmnop"
                 k = unsafeGenerateKeyFromSeed (coerce phr, coerce phr) phr
             h <- encryptPassphrase phr
             unsafeRunExceptT (putPrivateKey db testPk (k, h))
