@@ -50,6 +50,7 @@ library
     , http-media
     , memory
     , monad-logger
+    , network
     , path-pieces
     , persistent
     , persistent-sqlite
@@ -59,6 +60,7 @@ library
     , servant
     , servant-server
     , split
+    , streaming-commons
     , text
     , text-class
     , time
