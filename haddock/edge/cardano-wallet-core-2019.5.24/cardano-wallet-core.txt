@@ -830,7 +830,8 @@ data ChangeChain
 InternalChain :: ChangeChain
 ExternalChain :: ChangeChain
 
--- | Generate a root key from a corresponding seed
+-- | Generate a root key from a corresponding seed The seed should be at
+--   least 16 bytes
 generateKeyFromSeed :: (Passphrase "seed", Passphrase "generation") -> Passphrase "encryption" -> Key  'RootK XPrv
 
 -- | Generate a new key from seed. Note that the <tt>depth</tt> is left
