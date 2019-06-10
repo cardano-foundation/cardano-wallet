@@ -164,6 +164,7 @@ initWallet = Wallet mempty mempty genesisBlockHeader
   where
     genesisBlockHeader = BlockHeader
         (SlotId 0 0)
+        (Hash "TODO")
         (Hash "\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL")
 
 -- | Update the state of an existing Wallet model

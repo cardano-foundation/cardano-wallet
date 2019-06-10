@@ -397,7 +397,10 @@ instance FromBinary W.Block where
             W.Block (convertHeader h) (convertMessages msgs)
 
         convertHeader :: BlockHeader -> W.BlockHeader
-        convertHeader h = W.BlockHeader (slot h) (parentHeaderHash h)
+        convertHeader h = W.BlockHeader
+            (slot h)
+            (Hash "TODO")
+            (parentHeaderHash h)
 
         convertMessages :: [Message] -> [Tx]
         convertMessages msgs = msgs >>= \case

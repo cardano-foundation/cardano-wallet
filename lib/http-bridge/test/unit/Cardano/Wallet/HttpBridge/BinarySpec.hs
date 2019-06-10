@@ -163,6 +163,7 @@ cborRoundtrip decode encode a = do
 blockHeader1 :: BlockHeader
 blockHeader1 = BlockHeader
     { slotId = SlotId 105 9520
+    , blockHash = Hash "http-bridge blockHash not implemented"
     , prevBlockHash = hash16
         "9f3c67b575bf2c5638291949694849d6ce5d29efa1f2eb3ed0beb6dac262e9e0"
     }
@@ -172,6 +173,7 @@ block1 :: Block
 block1 = Block
     { header = BlockHeader
         { slotId = SlotId 105 9519
+        , blockHash = Hash "http-bridge blockHash not implemented"
         , prevBlockHash = prevBlockHash0
         }
     , transactions = mempty
@@ -185,6 +187,7 @@ block2 :: Block
 block2 = Block
     { header = BlockHeader
         { slotId = SlotId 105 9876
+        , blockHash = Hash "http-bridge blockHash not implemented"
         , prevBlockHash = prevBlockHash0
         }
     , transactions =
@@ -214,6 +217,7 @@ block3 :: Block
 block3 = Block
     { header = BlockHeader
         { slotId = SlotId 30 9278
+        , blockHash = Hash "http-bridge blockHash not implemented"
         , prevBlockHash = prevBlockHash0
         }
     , transactions =
@@ -246,6 +250,7 @@ block4 :: Block
 block4 = Block
     { header = BlockHeader
         { slotId = SlotId 14 18
+        , blockHash = Hash "http-bridge blockHash not implemented"
         , prevBlockHash = prevBlockHash0
         }
     , transactions =

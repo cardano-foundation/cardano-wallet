@@ -221,4 +221,8 @@ spec = do
     second = 1000*1000
 
     -- The underlying HttpBridgeLayer is only needs the slot of the header.
-    mkHeader slot = BlockHeader { slotId = slot, prevBlockHash = undefined }
+    mkHeader slot = BlockHeader
+        { slotId = slot
+        , blockHash = Hash "http-bridge blockHash not implemented"
+        , prevBlockHash = Hash "prevBlockHash not needed"
+        }

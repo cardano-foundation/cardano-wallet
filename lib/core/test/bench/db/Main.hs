@@ -321,6 +321,7 @@ mkCheckpoints numCheckpoints utxoSize = [ cp i | i <- [1..numCheckpoints]]
     cp i = unsafeInitWallet (UTxO utxo) mempty
         (BlockHeader
             (fromFlatSlot $ fromIntegral i)
+            (Hash $ label "blockHash" i)
             (Hash $ label "prevBlockHash" i)
         )
         initDummyState

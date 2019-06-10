@@ -91,7 +91,7 @@ import qualified Servant.Extra.ContentTypes as Api
 -- | Constructs a network layer with the given cardano-http-bridge API.
 mkNetworkLayer :: Monad m => HttpBridgeLayer m -> NetworkLayer t m
 mkNetworkLayer httpBridge = NetworkLayer
-    { nextBlocks = \(BlockHeader sl _) -> rbNextBlocks httpBridge sl
+    { nextBlocks = \(BlockHeader sl _ _) -> rbNextBlocks httpBridge sl
     , networkTip = snd <$> getNetworkTip httpBridge
     , postTx = postSignedTx httpBridge
     }

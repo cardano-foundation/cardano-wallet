@@ -122,7 +122,8 @@ TxOut
 Checkpoint
     checkpointTableWalletId    W.WalletId  sql=wallet_id
     checkpointTableSlot        W.SlotId    sql=slot
-    checkpointTableParent      BlockId   sql=parent
+    checkpointTableBlockHash   BlockId     sql=block_hash
+    checkpointTableParentHash  BlockId     sql=parent_hash
 
     Primary checkpointTableWalletId checkpointTableSlot
     Foreign Wallet fk_wallet_checkpoint checkpointTableWalletId

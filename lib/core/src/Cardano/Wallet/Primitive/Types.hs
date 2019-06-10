@@ -293,6 +293,8 @@ instance Buildable Block where
 data BlockHeader = BlockHeader
     { slotId
         :: SlotId
+    , blockHash
+        :: !(Hash "BlockHeader")
     , prevBlockHash
         :: !(Hash "BlockHeader")
     } deriving (Show, Eq, Ord, Generic)
@@ -300,12 +302,17 @@ data BlockHeader = BlockHeader
 instance NFData BlockHeader
 
 instance Buildable BlockHeader where
-    build (BlockHeader s prev) = mempty
+    build (BlockHeader s h prev) = mempty
         <> prefixF 8 prevF
         <> "..."
         <> suffixF 8 prevF
+        <> " -> "
+        <> prefixF 8 hashF
+        <> "..."
+        <> prefixF 8 hashF
         <> " (" <> build s <> ")"
       where
+        hashF = build $ T.decodeUtf8 $ convertToBase Base16 $ getHash h
         prevF = build $ T.decodeUtf8 $ convertToBase Base16 $ getHash prev
 
 {-------------------------------------------------------------------------------
