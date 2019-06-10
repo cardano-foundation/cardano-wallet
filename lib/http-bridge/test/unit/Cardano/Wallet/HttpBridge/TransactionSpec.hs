@@ -720,8 +720,6 @@ isValidSelection (CoinSelection i o c) =
 --     | Mainnet | Sequential | 39,40,41 or 43 |
 --     | Testnet | Random     | 79,80,81 or 83 |
 --     | Testnet | Sequential | 46,47,48 or 50 |
---
--- The address format on 'Staging' is the same as 'Mainnet'.
 genAddress :: (Int, Int) -> Gen Address
 genAddress range = do
     n <- choose range
@@ -783,7 +781,6 @@ instance {-# OVERLAPS #-} Arbitrary (Network -> Address) where
         testnetA <- genAddress (40, 40)
         return $ \case
             Mainnet -> mainnetA
-            Staging -> mainnetA
             Testnet -> testnetA
 
 instance Arbitrary CoinSelection where

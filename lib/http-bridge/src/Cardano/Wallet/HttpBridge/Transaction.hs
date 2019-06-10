@@ -159,7 +159,7 @@ newTransactionLayer = TransactionLayer
     --  |  | word32             -- 1|2|3|5
     --  | word64                      -- 1|2|3|5|9
     --
-    -- RND + MAINNET
+    -- RND + TESTNET
     -- output ------------------------------------- 81-93
     --  | list len 2                  -- 1
     --  | address ---------------------- 79|80|81|83
@@ -189,7 +189,6 @@ newTransactionLayer = TransactionLayer
     sizeOfChange :: Coin -> Int
     sizeOfChange c = case networkVal @n of
         Mainnet -> 1 + 43 + sizeOfCoin c
-        Staging -> 1 + 43 + sizeOfCoin c
         Testnet -> 1 + 50 + sizeOfCoin c
 
     -- tx ------------------------------------- 6 + Σs(i) + ls(o) + Σs(c)

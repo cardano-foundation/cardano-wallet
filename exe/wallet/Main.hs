@@ -155,7 +155,7 @@ Options:
   --address-pool-gap <INT>    number of unused consecutive addresses to keep track of [default: 20]
   --size <INT>                number of mnemonic words to generate [default: 15]
   --payment <PAYMENT>         address to send to and amount to send separated by @: '<amount>@<address>'
-  --network <STRING>          testnet, staging, or mainnet [default: testnet]
+  --network <STRING>          testnet or mainnet [default: testnet]
   --database <FILE>           use this file for storing wallet state
   --state <STRING>            address state: either used or unused
 
@@ -182,7 +182,6 @@ main = do
 exec' :: Manager -> Arguments -> IO ()
 exec' manager args = args `parseArg` longOption "network" >>= \case
     Testnet -> exec (execHttpBridge @'Testnet args) manager args
-    Staging -> exec (execHttpBridge @'Staging args) manager args
     Mainnet -> exec (execHttpBridge @'Mainnet args) manager args
 
 exec

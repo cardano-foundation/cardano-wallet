@@ -24,7 +24,7 @@ import Prelude
 import Cardano.Wallet.HttpBridge.Binary
     ( decodeAddressPayload, encodeProtocolMagic, encodeTx )
 import Cardano.Wallet.HttpBridge.Environment
-    ( Network (Mainnet, Staging, Testnet), ProtocolMagic, protocolMagic )
+    ( Network (Mainnet, Testnet), ProtocolMagic, protocolMagic )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), Key (..), KeyToAddress (..), XPub, getKey )
 import Cardano.Wallet.Primitive.Types
@@ -79,9 +79,6 @@ instance TxId (HttpBridge network) where
 instance KeyToAddress (HttpBridge 'Testnet) where
     keyToAddress = keyToAddressWith
         $ attributesWithProtocolMagic (protocolMagic @'Testnet)
-
-instance KeyToAddress (HttpBridge 'Staging) where
-    keyToAddress = keyToAddressWith emptyAttributes
 
 instance KeyToAddress (HttpBridge 'Mainnet) where
     keyToAddress = keyToAddressWith emptyAttributes
