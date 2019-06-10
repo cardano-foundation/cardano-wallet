@@ -61,8 +61,13 @@
           depends = [
             (hsPkgs.async)
             (hsPkgs.base)
+            (hsPkgs.cardano-wallet-core)
+            (hsPkgs.cardano-wallet-jormungandr)
             (hsPkgs.cardano-wallet-launcher)
+            (hsPkgs.directory)
             (hsPkgs.hspec)
+            (hsPkgs.servant)
+            (hsPkgs.transformers)
             ];
           };
         };

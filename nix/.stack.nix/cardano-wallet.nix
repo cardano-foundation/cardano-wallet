@@ -27,6 +27,7 @@
             (hsPkgs.cardano-wallet-core)
             (hsPkgs.cardano-wallet-http-bridge)
             (hsPkgs.docopt)
+            (hsPkgs.iohk-monitoring)
             (hsPkgs.http-client)
             (hsPkgs.servant-client)
             (hsPkgs.servant-client-core)

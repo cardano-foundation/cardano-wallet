@@ -14,10 +14,20 @@ packages:
 extra-deps:
 - base58-bytestring-0.1.0
 - command-0.1.1
+- containers-0.5.11.0
+- ekg-prometheus-adapter-0.1.0.4
 - generic-lens-1.1.0.0
+- libsystemd-journal-1.4.4
+- prometheus-2.1.1
 - quickcheck-state-machine-0.6.0
+- time-units-1.0.0
 - git: https://github.com/input-output-hk/cardano-crypto
   commit: 3c5db489c71a4d70ee43f5f9b979fcde3c797f2a
+- git: https://github.com/input-output-hk/iohk-monitoring-framework
+  commit: b0ea8317ba5a887d46969e9b3040862a10e6efb3
+  subdirs:
+    - contra-tracer
+    - iohk-monitoring
 
 nix:
   shell-file: nix/stack-shell.nix

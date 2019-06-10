@@ -30,10 +30,11 @@
           depends = [
             (hsPkgs.base)
             (hsPkgs.bech32)
+            (hsPkgs.bytestring)
             (hsPkgs.containers)
+            (hsPkgs.deepseq)
             (hsPkgs.extra)
             (hsPkgs.hspec)
-            (hsPkgs.bytestring)
             (hsPkgs.QuickCheck)
             (hsPkgs.text)
             (hsPkgs.vector)

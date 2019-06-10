@@ -47,6 +47,7 @@ addons:
     packages:
       - libgmp-dev
       - librocksdb-dev
+      - libsystemd-dev
 
 # Define custom set of stages
 stages:

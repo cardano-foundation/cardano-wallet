@@ -4,8 +4,13 @@
       packages = {
         "base58-bytestring" = (((hackage.base58-bytestring)."0.1.0").revisions).default;
         "command" = (((hackage.command)."0.1.1").revisions).default;
+        "containers" = (((hackage.containers)."0.5.11.0").revisions).default;
+        "ekg-prometheus-adapter" = (((hackage.ekg-prometheus-adapter)."0.1.0.4").revisions).default;
         "generic-lens" = (((hackage.generic-lens)."1.1.0.0").revisions).default;
+        "libsystemd-journal" = (((hackage.libsystemd-journal)."1.4.4").revisions).default;
+        "prometheus" = (((hackage.prometheus)."2.1.1").revisions).default;
         "quickcheck-state-machine" = (((hackage.quickcheck-state-machine)."0.6.0").revisions).default;
+        "time-units" = (((hackage.time-units)."1.0.0").revisions).default;
         } // {
         cardano-wallet = ./cardano-wallet.nix;
         bech32 = ./bech32.nix;
@@ -16,6 +21,8 @@
         cardano-wallet-http-bridge = ./cardano-wallet-http-bridge.nix;
         cardano-wallet-jormungandr = ./cardano-wallet-jormungandr.nix;
         cardano-crypto = ./cardano-crypto.nix;
+        contra-tracer = ./contra-tracer.nix;
+        iohk-monitoring = ./iohk-monitoring.nix;
         };
       compiler.version = "8.6.5";
       compiler.nix-name = "ghc865";
