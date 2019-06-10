@@ -146,11 +146,11 @@ start
     -> Maybe Warp.Port
     -> WalletLayer (SeqState t) t
     -> IO ()
-start logStartup mport wl =
+start onStartup mport wl =
     withListeningSocket mport $ \(port, socket) -> do
         let settings = Warp.defaultSettings
                 & Warp.setPort port
-                & Warp.setBeforeMainLoop (logStartup port)
+                & Warp.setBeforeMainLoop (onStartup port)
         startOnSocket settings socket wl
 
 startOnSocket
