@@ -2402,7 +2402,7 @@ handleRawError :: (ServantErr -> ServantErr) -> Middleware
 module Cardano.Wallet.Api.Server
 
 -- | Start the application server
-start :: forall t. (TxId t, KeyToAddress t, EncodeAddress t, DecodeAddress t) => Settings -> WalletLayer (SeqState t) t -> IO ()
+start :: forall t. (TxId t, KeyToAddress t, EncodeAddress t, DecodeAddress t) => (Port -> IO ()) -> Maybe Port -> WalletLayer (SeqState t) t -> IO ()
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.DB.ErrNoSuchWallet
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.DB.ErrWalletAlreadyExists
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrWithRootKey

@@ -28,7 +28,6 @@ putErrLn :: Text -> IO ()
 hPutErrLn :: Handle -> Text -> IO ()
 parseArgWith :: FromText a => Docopt -> Arguments -> Option -> IO a
 parseAllArgsWith :: FromText a => Docopt -> Arguments -> Option -> IO (NonEmpty a)
-parseOptionalArg :: FromText a => Arguments -> Option -> IO (Maybe a)
 
 -- | Like <tt>exitWithUsage</tt>, but with a success exit code
 help :: Docopt -> IO ()
