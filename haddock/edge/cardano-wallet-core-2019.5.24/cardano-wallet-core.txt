@@ -2224,10 +2224,10 @@ instance Servant.API.ContentTypes.Accept Cardano.Wallet.Api.Any
 --   to realize its role as being intermediary between the three.
 module Cardano.Wallet
 data WalletLayer s t
-WalletLayer :: (WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)) -> (WalletId -> (WalletMetadata -> WalletMetadata) -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> (Passphrase "encryption-old", Passphrase "encryption-new") -> ExceptT ErrUpdatePassphrase IO ()) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]) -> (WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection) -> (WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx, TxMeta, [TxWitness])) -> (WalletId -> (Tx, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()) -> WalletLayer s t
+WalletLayer :: ((Show s, NFData s, IsOurs s, TxId t) => WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)) -> (WalletId -> (WalletMetadata -> WalletMetadata) -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> (Passphrase "encryption-old", Passphrase "encryption-new") -> ExceptT ErrUpdatePassphrase IO ()) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> ((IsOurs s, CompareDiscovery s, KnownAddresses s) => WalletId -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]) -> (WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection) -> ((Show s, NFData s, IsOwned s, GenChange s) => WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx, TxMeta, [TxWitness])) -> (TxId t => WalletId -> (Tx, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()) -> WalletLayer s t
 
 -- | Initialise and store a new wallet, returning its Id.
-[$sel:createWallet:WalletLayer] :: WalletLayer s t -> WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId
+[$sel:createWallet:WalletLayer] :: WalletLayer s t -> (Show s, NFData s, IsOurs s, TxId t) => WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId
 
 -- | Retrieve the wallet state for the wallet with the given ID.
 [$sel:readWallet:WalletLayer] :: WalletLayer s t -> WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)
@@ -2256,7 +2256,7 @@ WalletLayer :: (WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO
 
 -- | List all addresses of a wallet with their metadata. Addresses are
 --   ordered from the most recently discovered to the oldest known.
-[$sel:listAddresses:WalletLayer] :: WalletLayer s t -> WalletId -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]
+[$sel:listAddresses:WalletLayer] :: WalletLayer s t -> (IsOurs s, CompareDiscovery s, KnownAddresses s) => WalletId -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]
 
 -- | Prepare a transaction and automatically select inputs from the wallet
 --   to cover the requested outputs. Note that this only run the coin
@@ -2269,10 +2269,10 @@ WalletLayer :: (WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO
 --   private key. Note that this doesn't broadcast the transaction to the
 --   network. In order to do so, have a look at
 --   <a>$sel:submitTx:WalletLayer</a>.
-[$sel:signTx:WalletLayer] :: WalletLayer s t -> WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx, TxMeta, [TxWitness])
+[$sel:signTx:WalletLayer] :: WalletLayer s t -> (Show s, NFData s, IsOwned s, GenChange s) => WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx, TxMeta, [TxWitness])
 
 -- | Broadcast a (signed) transaction to the network.
-[$sel:submitTx:WalletLayer] :: WalletLayer s t -> WalletId -> (Tx, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()
+[$sel:submitTx:WalletLayer] :: WalletLayer s t -> TxId t => WalletId -> (Tx, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()
 
 -- | Attach a given private key to a wallet. The private key is necessary
 --   for some operations like signing transactions or, generating new
@@ -2355,7 +2355,7 @@ newtype ErrAdjustForFee
 ErrCannotCoverFee :: Word64 -> ErrAdjustForFee
 
 -- | Create a new instance of the wallet layer.
-newWalletLayer :: forall s t. (IsOwned s, GenChange s, KnownAddresses s, CompareDiscovery s, NFData s, Show s, TxId t) => DBLayer IO s t -> NetworkLayer t IO -> TransactionLayer t -> IO (WalletLayer s t)
+newWalletLayer :: forall s t. () => DBLayer IO s t -> NetworkLayer t IO -> TransactionLayer t -> IO (WalletLayer s t)
 
 -- | Run an <a>ExceptT</a> and throws the error if any. This makes sense
 --   only if called after checking for an invariant or, after ensuring that
