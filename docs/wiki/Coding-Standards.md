@@ -20,8 +20,7 @@ Each proposal should start with a section justifying the standard with rational 
     * [We use explicit imports by default, and favor qualified imports for ambiguous functions](#we-use-explicit-imports-by-default-and-favor-qualified-imports-for-ambiguous-functions)
     * [All modules begin with a helpful documentation comment](#all-modules-begin-with-a-helpful-documentation-comment)
     * [Avoid wildcard when pattern-matching on ADTs](#avoid-wildcard-when-pattern-matching-on-adts)
-    * [[PROPOSAL] Prefer named constants over magic numbers](#proposal-prefer-named-constants-over-magic-numbers)
-    * [[PROPOSAL] Use `cardano-prelude` for all modules, enable `NoImplicitPrelude`](#proposal-use-cardano-prelude-for-all-modules-enable-noimplicitprelude)
+    * [Prefer named constants over magic numbers](#prefer-named-constants-over-magic-numbers)
 
 * [Testing](#testing)
     * [Test files are separated and self-contained](#test-files-are-separated-and-self-contained)
@@ -641,7 +640,7 @@ We should keep an eye out out-of-date comments. For instance when creating and r
 
 </details>
 
-## [PROPOSAL] Prefer named constants over magic numbers
+## Prefer named constants over magic numbers
 
 > **Why**
 >
@@ -710,38 +709,6 @@ instance Arbitrary HumanReadableChar where
 ```
 
 </details>
-
-
-## [PROPOSAL] Use `cardano-prelude` for all modules, enable `NoImplicitPrelude`
-
-> **Why**
->
-> The default prelude has several known deficiencies, so a better one
-> should be chosen.
->
-> All modules in the project should use the same prelude to avoid
-> confusion.
-
-We can assume the core team know what they're doing with
-[`cardano-prelude`](https://github.com/input-output-hk/cardano-prelude/).
-It is based upon Stephen Diehl's
-[`protolude`](http://hackage.haskell.org/package/protolude).
-
-<details>
-  <summary>See examples</summary>
-
-  ```hs
-  -- GOOD
-  import Cardano.Prelude
-
-  -- BAD
-  import Prelude
-
-  -- WORSE
-  import Universum
-  ```
-</details>
-
 
 ## Avoid wildcard when pattern-matching on ADTs
 
