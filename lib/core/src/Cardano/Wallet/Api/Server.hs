@@ -189,7 +189,10 @@ withListeningSocket mport = bracket acquire release
                                     Wallets
 -------------------------------------------------------------------------------}
 
-wallets :: KeyToAddress t => WalletLayer (SeqState t) t -> Server Wallets
+wallets
+    :: (TxId t, KeyToAddress t)
+    => WalletLayer (SeqState t) t
+    -> Server Wallets
 wallets w =
     deleteWallet w
     :<|> getWallet w
@@ -250,7 +253,7 @@ listWallets w = do
         mapM (getWalletWithCreationTime w) (ApiT <$> wids)
 
 postWallet
-    :: KeyToAddress t
+    :: (KeyToAddress t, TxId t)
     => WalletLayer (SeqState t) t
     -> WalletPostData
     -> Handler ApiWallet
@@ -295,11 +298,14 @@ putWalletPassphrase w (ApiT wid) body = do
                                     Addresses
 -------------------------------------------------------------------------------}
 
-addresses :: WalletLayer (SeqState t) t -> Server (Addresses t)
+addresses
+    :: KeyToAddress t
+    => WalletLayer (SeqState t) t
+    -> Server (Addresses t)
 addresses = listAddresses
 
 listAddresses
-    :: forall t. ()
+    :: forall t. (KeyToAddress t)
     => WalletLayer (SeqState t) t
     -> ApiT WalletId
     -> Maybe (ApiT AddressState)
@@ -318,11 +324,14 @@ listAddresses w (ApiT wid) stateFilter = do
                                     Transactions
 -------------------------------------------------------------------------------}
 
-transactions :: TxId t => WalletLayer (SeqState t) t -> Server (Transactions t)
+transactions
+    :: (TxId t, KeyToAddress t)
+    => WalletLayer (SeqState t) t
+    -> Server (Transactions t)
 transactions = createTransaction
 
 createTransaction
-    :: forall t. (TxId t)
+    :: forall t. (TxId t, KeyToAddress t)
     => WalletLayer (SeqState t) t
     -> ApiT WalletId
     -> PostTransactionData t

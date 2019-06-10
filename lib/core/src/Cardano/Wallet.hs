@@ -173,7 +173,8 @@ import qualified Data.Text.IO as TIO
 
 data WalletLayer s t = WalletLayer
     { createWallet
-        :: WalletId
+        :: (Show s, NFData s, IsOurs s, TxId t)
+        => WalletId
         -> WalletName
         -> s
         -> ExceptT ErrWalletAlreadyExists IO WalletId
@@ -218,7 +219,8 @@ data WalletLayer s t = WalletLayer
         -- apply remaining blocks until failure or, the target slot is reached.
 
     , listAddresses
-        :: WalletId
+        :: (IsOurs s, CompareDiscovery s, KnownAddresses s)
+        => WalletId
         -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]
         -- ^ List all addresses of a wallet with their metadata. Addresses
         -- are ordered from the most recently discovered to the oldest known.
@@ -234,7 +236,8 @@ data WalletLayer s t = WalletLayer
         -- sign) an actual transaction, have a look at 'signTx'.
 
     , signTx
-        :: WalletId
+        :: (Show s, NFData s, IsOwned s, GenChange s)
+        => WalletId
         -> Passphrase "encryption"
         -> CoinSelection
         -> ExceptT ErrSignTx IO (Tx, TxMeta, [TxWitness])
@@ -245,7 +248,8 @@ data WalletLayer s t = WalletLayer
         -- 'submitTx'.
 
     , submitTx
-        :: WalletId
+        :: (TxId t)
+        => WalletId
         -> (Tx, TxMeta, [TxWitness])
         -> ExceptT ErrSubmitTx IO ()
         -- ^ Broadcast a (signed) transaction to the network.
@@ -327,15 +331,7 @@ cancelWorker (WorkerRegistry mvar) wid =
 
 -- | Create a new instance of the wallet layer.
 newWalletLayer
-    :: forall s t.
-        ( IsOwned s
-        , GenChange s
-        , KnownAddresses s
-        , CompareDiscovery s
-        , NFData s
-        , Show s
-        , TxId t
-        )
+    :: forall s t. ()
     => DBLayer IO s t
     -> NetworkLayer t IO
     -> TransactionLayer t
@@ -362,7 +358,8 @@ newWalletLayer db nw tl = do
     ---------------------------------------------------------------------------}
 
     _createWallet
-        :: WalletId
+        :: (Show s, NFData s, IsOurs s, TxId t)
+        => WalletId
         -> WalletName
         -> s
         -> ExceptT ErrWalletAlreadyExists IO WalletId
@@ -532,7 +529,8 @@ newWalletLayer db nw tl = do
     -- This implementation is rather inneficient and not intented for frequent
     -- use, in particular for exchanges or "big-players".
     _listAddresses
-        :: WalletId
+        :: (IsOurs s, CompareDiscovery s, KnownAddresses s)
+        => WalletId
         -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]
     _listAddresses wid = do
         (s, txs) <- DB.withLock db $ (,)
@@ -573,7 +571,8 @@ newWalletLayer db nw tl = do
             adjustForFee feeOpts utxo' sel
 
     _signTx
-        :: WalletId
+        :: (Show s, NFData s, IsOwned s, GenChange s)
+        => WalletId
         -> Passphrase "encryption"
         -> CoinSelection
         -> ExceptT ErrSignTx IO (Tx, TxMeta, [TxWitness])
@@ -606,7 +605,8 @@ newWalletLayer db nw tl = do
                     throwE $ ErrSignTx e
 
     _submitTx
-        :: WalletId
+        :: (TxId t)
+        => WalletId
         -> (Tx, TxMeta, [TxWitness])
         -> ExceptT ErrSubmitTx IO ()
     _submitTx wid (tx, meta, wit) = do
