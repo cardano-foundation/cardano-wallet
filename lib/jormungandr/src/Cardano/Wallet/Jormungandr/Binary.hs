@@ -28,7 +28,6 @@ module Cardano.Wallet.Jormungandr.Binary
       -- * Classes
     , FromBinary (..)
 
-
       -- * Legacy Decoders
     , decodeLegacyAddress
 
@@ -116,12 +115,12 @@ getBlockHeader =  (fromIntegral <$> getWord16be) >>= \s -> isolate s $ do
     -- TODO: Handle special case for Praos/Genesis
 
     return $ BlockHeader
-        { version = version
-        , contentSize = contentSize
+        { version
+        , contentSize
         , slot = (SlotId slotId slotEpoch)
-        , chainLength = chainLength
-        , contentHash = contentHash
-        , parentHeaderHash = parentHeaderHash
+        , chainLength
+        , contentHash
+        , parentHeaderHash
         }
 
 getBlock :: Get Block
@@ -198,7 +197,6 @@ getTransaction = isolate 43 $ do
             3 -> isolate 68 $ do
                 error "unimplemented: Account witness"
             other -> fail $ "Invalid witness type: " ++ show other
-
 
 {-------------------------------------------------------------------------------
                             Common Structure
@@ -322,7 +320,7 @@ newtype LeaderId = LeaderId ByteString
     deriving (Eq, Show)
 
 data LinearFee = LinearFee
-    { const :: Quantity "lovelace" Word64
+    { constant :: Quantity "lovelace" Word64
     , perByte :: Quantity "lovelace/byte" Word64
     , perCert :: Quantity "lovelace/cert" Word64
     } deriving (Eq, Show)
@@ -349,12 +347,10 @@ getLeaderId :: Get LeaderId
 getLeaderId = LeaderId <$> getByteString 32
 
 getLinearFee :: Get LinearFee
-getLinearFee = do
-    const' <- Quantity <$> getWord64be
-    perByte <- Quantity <$> getWord64be
-    perCert <- Quantity <$> getWord64be
-    return $ LinearFee const' perByte perCert
-
+getLinearFee = LinearFee
+    <$> (Quantity <$> getWord64be)
+    <*> (Quantity <$> getWord64be)
+    <*> (Quantity <$> getWord64be)
 
 getBool :: Get Bool
 getBool = getWord8 >>= \case
@@ -377,7 +373,6 @@ whileM cond next = go
             as <- go
             return (a : as)
         else return []
-
 
 {-------------------------------------------------------------------------------
                               Classes
