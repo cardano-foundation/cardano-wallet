@@ -174,7 +174,7 @@ instance ToJSON TxId where
     toJSON = String . toText . getTxId
 
 instance FromJSON TxId where
-    parseJSON = fmap TxId . aesonFromText "WalletId"
+    parseJSON = fmap TxId . aesonFromText "TxId"
 
 instance ToHttpApiData TxId where
     toUrlPiece = toText . getTxId
@@ -187,9 +187,9 @@ instance PathPiece TxId where
     fromPathPiece = fmap TxId . fromTextMaybe
 
 ----------------------------------------------------------------------------
--- TxId
+-- BlockId
 
--- Wraps Hash "Tx" because the persistent dsl doesn't like (Hash "Tx")
+-- Wraps Hash "BlockHeader" because the persistent dsl doesn't like it raw.
 newtype BlockId = BlockId { getBlockId :: Hash "BlockHeader" }
     deriving (Show, Eq, Ord, Generic)
 
@@ -207,7 +207,7 @@ instance ToJSON BlockId where
     toJSON = String . toText . getBlockId
 
 instance FromJSON BlockId where
-    parseJSON = fmap BlockId . aesonFromText "WalletId"
+    parseJSON = fmap BlockId . aesonFromText "BlockId"
 
 instance ToHttpApiData BlockId where
     toUrlPiece = toText . getBlockId
@@ -218,8 +218,6 @@ instance FromHttpApiData BlockId where
 instance PathPiece BlockId where
     toPathPiece = toText . getBlockId
     fromPathPiece = fmap BlockId . fromTextMaybe
-
-
 
 ----------------------------------------------------------------------------
 -- SlotId
