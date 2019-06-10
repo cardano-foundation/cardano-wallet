@@ -70,6 +70,7 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet, unsafeInitWallet )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , BlockHeader (..)
     , Coin (..)
     , Direction (..)
     , Hash (..)
@@ -318,7 +319,10 @@ mkCheckpoints :: Int -> Int -> [WalletBench]
 mkCheckpoints numCheckpoints utxoSize = [ cp i | i <- [1..numCheckpoints]]
   where
     cp i = unsafeInitWallet (UTxO utxo) mempty
-        (fromFlatSlot $ fromIntegral i)
+        (BlockHeader
+            (fromFlatSlot $ fromIntegral i)
+            (Hash $ label "prevBlockHash" i)
+        )
         initDummyState
     utxo = Map.fromList $ zip (mkInputs utxoSize) (mkOutputs utxoSize)
 
