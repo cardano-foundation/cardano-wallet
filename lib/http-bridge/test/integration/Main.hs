@@ -27,8 +27,6 @@ import Control.Monad
     ( forM, void )
 import Data.Aeson
     ( Value (..), (.:) )
-import Data.Function
-    ( (&) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Time
@@ -57,7 +55,6 @@ import qualified Cardano.Wallet.HttpBridge.Transaction as HttpBridge
 import qualified Cardano.WalletSpec as Wallet
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Text as T
-import qualified Network.Wai.Handler.Warp as Warp
 import qualified Test.Integration.Scenario.API.Addresses as Addresses
 import qualified Test.Integration.Scenario.API.Transactions as Transactions
 import qualified Test.Integration.Scenario.API.Wallets as Wallets
@@ -179,8 +176,7 @@ main = hspec $ do
         db <- MVar.newDBLayer
         let tl = HttpBridge.newTransactionLayer
         wallet <- newWalletLayer db nl tl
-        let settings = Warp.defaultSettings & Warp.setPort serverPort
-        Server.start settings wallet
+        Server.start (const $ pure ()) (Just serverPort) wallet
 
     waitForCluster :: String -> IO ()
     waitForCluster addr = do

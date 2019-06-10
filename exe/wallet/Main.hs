@@ -32,7 +32,6 @@ import Cardano.CLI
     , help
     , parseAllArgsWith
     , parseArgWith
-    , parseOptionalArg
     , putErrLn
     , setUtf8Encoding
     )
@@ -65,8 +64,6 @@ import Control.Monad
     ( when )
 import Data.Aeson
     ( (.:) )
-import Data.Function
-    ( (&) )
 import Data.Functor
     ( (<&>) )
 import qualified Data.List.NonEmpty as NE
@@ -123,7 +120,6 @@ import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
-import qualified Network.Wai.Handler.Warp as Warp
 
 
 cli :: Docopt
@@ -150,7 +146,7 @@ Usage:
   cardano-wallet --version
 
 Options:
-  --port <INT>                port used for serving the wallet API [default: 8090]
+  --port <INT>                port used for serving the wallet API
   --bridge-port <INT>         port used for communicating with the http-bridge [default: 8080]
   --address-pool-gap <INT>    number of unused consecutive addresses to keep track of [default: 20]
   --size <INT>                number of mnemonic words to generate [default: 15]
@@ -340,8 +336,8 @@ execHttpBridge
     :: forall n. (KeyToAddress (HttpBridge n), KnownNetwork n)
     => Arguments -> Proxy (HttpBridge n) -> IO ()
 execHttpBridge args _ = do
-    (walletPort :: Int)
-        <- args `parseArg` longOption "port"
+    (walletPort :: Maybe Int)
+        <- args `parseOptionalArg` longOption "port"
     (bridgePort :: Int)
         <- args `parseArg` longOption "bridge-port"
     let dbFile = args `getArg` longOption "database"
@@ -350,12 +346,9 @@ execHttpBridge args _ = do
     waitForConnection nw defaultRetryPolicy
     let tl = HttpBridge.newTransactionLayer @n
     wallet <- newWalletLayer @_ @(HttpBridge n) db nw tl
-    let settings = Warp.defaultSettings
-            & Warp.setPort walletPort
-            & Warp.setBeforeMainLoop (TIO.hPutStrLn stderr $
-                "Wallet backend server listening on: " <> toText walletPort
-            )
-    Server.start settings wallet
+    let logStartup port = TIO.hPutStrLn stderr $
+            "Wallet backend server listening on: " <> toText port
+    Server.start logStartup walletPort wallet
 
 -- | Generate a random mnemonic of the given size 'n' (n = number of words),
 -- and print it to stdout.
@@ -397,6 +390,11 @@ decodeError bytes = do
 
 parseArg :: FromText a => Arguments -> Option -> IO a
 parseArg = parseArgWith cli
+
+parseOptionalArg :: FromText a => Arguments -> Option -> IO (Maybe a)
+parseOptionalArg args option
+    | args `isPresent` option = Just <$> parseArg args option
+    | otherwise = pure Nothing
 
 parseAllArgs :: FromText a => Arguments -> Option -> IO (NE.NonEmpty a)
 parseAllArgs = parseAllArgsWith cli

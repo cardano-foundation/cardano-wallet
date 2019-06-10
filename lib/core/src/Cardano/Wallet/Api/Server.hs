@@ -4,6 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -71,12 +72,16 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     , WalletMetadata (..)
     )
+import Control.Exception
+    ( bracket )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT, withExceptT )
 import Data.Aeson
     ( (.=) )
+import Data.Function
+    ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
@@ -89,6 +94,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Streaming.Network
+    ( bindPortTCP, bindRandomPortTCP )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -101,6 +108,8 @@ import Network.HTTP.Media.RenderHeader
     ( renderHeader )
 import Network.HTTP.Types.Header
     ( hContentType )
+import Network.Socket
+    ( Socket, close )
 import Network.Wai.Middleware.ServantError
     ( handleRawError )
 import Servant
@@ -133,10 +142,24 @@ import qualified Network.Wai.Handler.Warp as Warp
 -- | Start the application server
 start
     :: forall t. (TxId t, KeyToAddress t, EncodeAddress t, DecodeAddress t)
-    => Warp.Settings
+    => (Warp.Port -> IO ())
+    -> Maybe Warp.Port
     -> WalletLayer (SeqState t) t
     -> IO ()
-start settings wl = Warp.runSettings settings
+start onStartup mport wl =
+    withListeningSocket mport $ \(port, socket) -> do
+        let settings = Warp.defaultSettings
+                & Warp.setPort port
+                & Warp.setBeforeMainLoop (onStartup port)
+        startOnSocket settings socket wl
+
+startOnSocket
+    :: forall t. (TxId t, KeyToAddress t, EncodeAddress t, DecodeAddress t)
+    => Warp.Settings
+    -> Socket
+    -> WalletLayer (SeqState t) t
+    -> IO ()
+startOnSocket settings socket wl = Warp.runSettingsSocket settings socket
     $ handleRawError handler
     application
   where
@@ -146,6 +169,21 @@ start settings wl = Warp.runSettings settings
 
     application :: Application
     application = serve (Proxy @("v2" :> Api t)) server
+
+-- | Run an action with a TCP socket bound to a port. If no port is specified,
+-- then an unused port will be selected at random.
+withListeningSocket
+    :: Maybe Warp.Port
+    -> ((Warp.Port, Socket) -> IO ())
+    -> IO ()
+withListeningSocket mport = bracket acquire release
+  where
+    acquire = case mport of
+        Just port -> (port,) <$> bindPortTCP port hostPreference
+        Nothing -> bindRandomPortTCP hostPreference
+    release (_, socket) = liftIO $ close socket
+    -- TODO: make configurable, default to secure for now.
+    hostPreference = "127.0.0.1"
 
 {-------------------------------------------------------------------------------
                                     Wallets

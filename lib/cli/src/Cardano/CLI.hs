@@ -26,7 +26,6 @@ module Cardano.CLI
     -- * Parsing Arguments
     , parseArgWith
     , parseAllArgsWith
-    , parseOptionalArg
     , help
 
     -- * Working with Sensitive Data
@@ -68,7 +67,6 @@ import System.Console.Docopt
     , Option
     , exitWithUsageMessage
     , getAllArgs
-    , getArg
     , getArgOrExitWith
     , usage
     )
@@ -134,15 +132,6 @@ parseAllArgsWith cli args option = do
   where
     getAllArgsOrExit :: Arguments -> Option -> IO (NE.NonEmpty String)
     getAllArgsOrExit = getAllArgsOrExitWith cli
-
-parseOptionalArg :: FromText a => Arguments -> Option -> IO (Maybe a)
-parseOptionalArg args option =
-    case fromText . T.pack <$> args `getArg` option of
-        Nothing -> pure Nothing
-        Just (Right a) -> pure $ pure a
-        Just (Left e) -> do
-            putErrLn $ T.pack $ getTextDecodingError e
-            exitFailure
 
 -- | Same as 'getAllArgs', but 'exitWithUsage' if empty list.
 --
