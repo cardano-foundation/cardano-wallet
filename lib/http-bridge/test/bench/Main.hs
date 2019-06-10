@@ -17,7 +17,7 @@ import Cardano.Wallet
 import Cardano.Wallet.DB.Sqlite
     ( PersistState )
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge )
+    ( HttpBridge, block0 )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.HttpBridge.Network
@@ -206,13 +206,12 @@ bench_restoration
     -> (WalletId, WalletName, s)
     -> IO ()
 bench_restoration _ (wid, wname, s) = withHttpBridge network $ \port -> do
-    (conn, dbLayer) <- emptySystemTempFile "bench.db" >>= Sqlite.newDBLayer . Just
+    (conn, db) <- emptySystemTempFile "bench.db" >>= Sqlite.newDBLayer . Just
     Sqlite.runQuery conn (void $ runMigrationSilent migrateAll)
-    networkLayer <- newNetworkLayer port
-    let transactionLayer = newTransactionLayer
-    BlockHeader sl _ _ <- unsafeRunExceptT $ networkTip networkLayer
+    nw <- newNetworkLayer port
+    BlockHeader sl _ _ <- unsafeRunExceptT $ networkTip nw
     sayErr . fmt $ network ||+ " tip is at " +|| sl ||+ ""
-    w <- newWalletLayer @_ @(HttpBridge n) dbLayer networkLayer transactionLayer
+    w <- newWalletLayer @_ @(HttpBridge n) block0 db nw newTransactionLayer
     wallet <- unsafeRunExceptT $ createWallet w wid wname s
     unsafeRunExceptT $ restoreWallet w wallet
     waitForWalletSync w wallet

@@ -47,7 +47,7 @@ import Cardano.Wallet.Api.Types
     , WalletPutData (..)
     )
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge )
+    ( HttpBridge, block0 )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Network
@@ -346,7 +346,7 @@ execHttpBridge args _ = do
     nw <- HttpBridge.newNetworkLayer @n bridgePort
     waitForConnection nw defaultRetryPolicy
     let tl = HttpBridge.newTransactionLayer @n
-    wallet <- newWalletLayer @_ @(HttpBridge n) db nw tl
+    wallet <- newWalletLayer @_ @(HttpBridge n) block0 db nw tl
     let settings = Warp.defaultSettings
             & Warp.setPort walletPort
             & Warp.setBeforeMainLoop (TIO.hPutStrLn stderr $

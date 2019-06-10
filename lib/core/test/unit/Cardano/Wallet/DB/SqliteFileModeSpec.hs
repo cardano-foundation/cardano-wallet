@@ -35,6 +35,7 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , BlockHeader (..)
     , Coin (..)
     , Direction (..)
     , Hash (..)
@@ -259,8 +260,10 @@ cutRandomly = iter []
 -------------------------------------------------------------------------------}
 
 testCp :: Wallet (SeqState DummyTarget) DummyTarget
-testCp = initWallet initDummyState
+testCp = initWallet initDummyBlock0 initDummyState
   where
+    initDummyBlock0 :: BlockHeader
+    initDummyBlock0 = BlockHeader (SlotId 0 0) (Hash "block0") (Hash "genesis")
     initDummyState :: SeqState DummyTarget
     initDummyState = mkSeqState (xprv, mempty) defaultAddressPoolGap
       where

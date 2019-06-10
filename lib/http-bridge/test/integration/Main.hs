@@ -12,7 +12,7 @@ import Cardano.Launcher
 import Cardano.Wallet
     ( newWalletLayer )
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge )
+    ( HttpBridge, block0 )
 import Cardano.Wallet.HttpBridge.Environment
     ( Network (..) )
 import Cardano.Wallet.Network
@@ -178,7 +178,7 @@ main = hspec $ do
     cardanoWalletServer nl serverPort = void $ forkIO $ do
         db <- MVar.newDBLayer
         let tl = HttpBridge.newTransactionLayer
-        wallet <- newWalletLayer db nl tl
+        wallet <- newWalletLayer block0 db nl tl
         let settings = Warp.defaultSettings & Warp.setPort serverPort
         Server.start settings wallet
 
