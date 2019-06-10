@@ -61,8 +61,8 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.State.Strict
     ( execState, state )
-import Data.Coerce
-    ( coerce )
+import Data.ByteString
+    ( ByteString )
 import Data.List
     ( elemIndex, (\\) )
 import Data.Maybe
@@ -295,9 +295,8 @@ prop_genChangeGap
 prop_genChangeGap g =
     property prop
   where
-    Right phr =
-        fromText "abcdefghijklmnop" :: Either TextDecodingError (Passphrase "encryption")
-    key = unsafeGenerateKeyFromSeed (coerce phr, mempty) mempty
+    seed = Passphrase (BA.convert @ByteString "0000000000000000")
+    key = unsafeGenerateKeyFromSeed (seed, mempty) mempty
     s0 = mkSeqState (key, mempty) g
     prop =
         length (fst $ changeAddresses [] s0) === fromEnum g

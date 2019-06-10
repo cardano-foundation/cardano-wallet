@@ -47,8 +47,8 @@ import Control.Monad
     ( replicateM )
 import Crypto.Hash
     ( hash )
-import Data.Coerce
-    ( coerce )
+import Data.ByteString
+    ( ByteString )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -81,6 +81,7 @@ import Test.QuickCheck.Arbitrary.Generic
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -98,11 +99,10 @@ spec = do
 
     describe "Buildable" $ do
         it "WalletId" $ do
-            let Right phr =
-                    fromText "abcdefghijklmnop" :: Either TextDecodingError (Passphrase "encryption")
-            let xprv = generateKeyFromSeed (coerce phr, mempty) mempty
+            let seed = Passphrase (BA.convert @ByteString "0000000000000000")
+            let xprv = generateKeyFromSeed (seed, mempty) mempty
             let wid = WalletId $ digest $ publicKey xprv
-            "df5ef89e...51027b83" === pretty @_ @Text wid
+            "336c96f1...b8cac9ce" === pretty @_ @Text wid
         it "TxMeta (1)" $ do
             let txMeta = TxMeta Pending Outgoing (SlotId 14 42) (Quantity 1337)
             "-0.001337 pending since 14.42" === pretty @_ @Text txMeta
