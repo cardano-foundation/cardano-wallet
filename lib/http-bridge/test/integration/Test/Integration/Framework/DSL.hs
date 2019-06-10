@@ -33,6 +33,7 @@ module Test.Integration.Framework.DSL
     , expectValidJSON
     , expectCliFieldBetween
     , expectCliFieldEqual
+    , expectCliListItemFieldEqual
     , verify
     , Headers(..)
     , Payload(..)
@@ -369,10 +370,19 @@ expectCliFieldEqual
     -> m ()
 expectCliFieldEqual getter a out = (view getter out) `shouldBe` a
 
--- | Apply 'a' to all actions in sequence
-verify :: (Monad m) => a -> [a -> m ()] -> m ()
-verify a = mapM_ (a &)
-
+-- | Same as 'expectListItemFieldEqual' but for CLI
+expectCliListItemFieldEqual
+    :: (MonadIO m, MonadFail m, Show a, Eq a)
+    => Int
+    -> Lens' s a
+    -> a
+    -> [s]
+    -> m ()
+expectCliListItemFieldEqual i getter a out
+        | length out > i = expectCliFieldEqual getter a (out !! i)
+        | otherwise = fail $
+            "expectCliListItemFieldEqual: trying to access the #" <> show i <>
+            " element from a list but there's none! "
 
 --
 -- Lenses
@@ -660,6 +670,10 @@ wantedErrorButSuccess
 wantedErrorButSuccess =
     fail . ("expected an error but got a successful response: " <>) . show
 
+-- | Apply 'a' to all actions in sequence
+verify :: (Monad m) => a -> [a -> m ()] -> m ()
+verify a = mapM_ (a &)
+
 ---
 --- Endoints
 ---
@@ -699,6 +713,7 @@ updateWalletPassEp w =
     ( "PUT"
     , "v2/wallets/" <> w ^. walletId <> "/passphrase"
     )
+
 ---
 --- CLI
 ---
