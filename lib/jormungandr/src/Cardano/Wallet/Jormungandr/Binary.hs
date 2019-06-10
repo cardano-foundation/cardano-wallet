@@ -3,6 +3,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -27,7 +28,6 @@ module Cardano.Wallet.Jormungandr.Binary
 
       -- * Classes
     , FromBinary (..)
-
 
       -- * Legacy Decoders
     , decodeLegacyAddress
@@ -54,6 +54,10 @@ import Cardano.Wallet.Primitive.Types
     )
 import Control.Monad
     ( replicateM )
+import Crypto.Hash
+    ( hash )
+import Crypto.Hash.Algorithms
+    ( Blake2b_256 )
 import Data.Binary.Get
     ( Get
     , getByteString
@@ -66,6 +70,8 @@ import Data.Binary.Get
     , runGet
     , skip
     )
+import Data.Binary.Put
+    ( Put, putByteString, putWord16be, putWord32be, runPut )
 import Data.Bits
     ( shift, (.&.) )
 import Data.ByteString
@@ -78,6 +84,7 @@ import Data.Word
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Lazy as BL
 
 data BlockHeader = BlockHeader
@@ -123,6 +130,16 @@ getBlockHeader =  (fromIntegral <$> getWord16be) >>= \s -> isolate s $ do
         , contentHash = contentHash
         , parentHeaderHash = parentHeaderHash
         }
+
+putBlockHeader :: BlockHeader -> Put
+putBlockHeader h = do
+    putWord16be (version h)
+    putWord32be (contentSize h)
+    putWord32be (fromIntegral $ epochNumber $ slot h)
+    putWord32be (fromIntegral $ slotNumber $ slot h)
+    putWord32be (chainLength h)
+    putByteString (getHash $ contentHash h)
+    putByteString (getHash $ parentHeaderHash h)
 
 getBlock :: Get Block
 getBlock = do
@@ -378,6 +395,10 @@ whileM cond next = go
             return (a : as)
         else return []
 
+-- | Compute a Blake2b 256 hash of a given binary data.
+blake2b256 :: Put -> Hash purpose
+blake2b256 =
+    Hash . BA.convert . hash @_ @Blake2b_256 . BL.toStrict . runPut
 
 {-------------------------------------------------------------------------------
                               Classes
@@ -399,7 +420,7 @@ instance FromBinary W.Block where
         convertHeader :: BlockHeader -> W.BlockHeader
         convertHeader h = W.BlockHeader
             (slot h)
-            (Hash "TODO")
+            (blake2b256 $ putBlockHeader h)
             (parentHeaderHash h)
 
         convertMessages :: [Message] -> [Tx]
