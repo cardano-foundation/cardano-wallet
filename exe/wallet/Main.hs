@@ -32,7 +32,6 @@ import Cardano.CLI
     , help
     , parseAllArgsWith
     , parseArgWith
-    , parseOptionalArg
     , putErrLn
     , setUtf8Encoding
     )
@@ -339,7 +338,7 @@ execHttpBridge
     => Arguments -> Proxy (HttpBridge n) -> IO ()
 execHttpBridge args _ = do
     (walletPort :: Maybe Int)
-        <- args `parseArgMaybe` longOption "port"
+        <- args `parseOptionalArg` longOption "port"
     (bridgePort :: Int)
         <- args `parseArg` longOption "bridge-port"
     let dbFile = args `getArg` longOption "database"
@@ -393,8 +392,8 @@ decodeError bytes = do
 parseArg :: FromText a => Arguments -> Option -> IO a
 parseArg = parseArgWith cli
 
-parseArgMaybe :: FromText a => Arguments -> Option -> IO (Maybe a)
-parseArgMaybe args option
+parseOptionalArg :: FromText a => Arguments -> Option -> IO (Maybe a)
+parseOptionalArg args option
     | args `isPresent` option = Just <$> parseArg args option
     | otherwise = pure Nothing
 
