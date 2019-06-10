@@ -31,7 +31,11 @@ spec = do
         let network = mockNetworkLayer noLog 105 (SlotId 106 1492)
 
         it "should get something from the latest epoch" $ do
-            blocks <- runExceptT $ nextBlocks network (SlotId 106 999)
+            let h = BlockHeader
+                    { slotId = SlotId 106 999
+                    , prevBlockHash = mockHash (SlotId 106 998)
+                    }
+            blocks <- runExceptT $ nextBlocks network h
             -- the number of blocks between slots 1000 and 1492 inclusive
             fmap length blocks `shouldBe` Right 493
             let hdrs = either (const []) (map (slotId . header)) blocks
@@ -39,38 +43,66 @@ spec = do
             map epochNumber hdrs `shouldSatisfy` all (== 106)
 
         it "should return all unstable blocks" $ do
-            blocks <- runExceptT $ nextBlocks network (SlotId 105 0)
+            let h = BlockHeader
+                    { slotId = SlotId 105 0
+                    , prevBlockHash = mockHash (SlotId 104 21599)
+                    }
+            blocks <- runExceptT $ nextBlocks network h
             fmap length blocks `shouldBe` Right (21600 + 1492)
 
         it "should return unstable blocks after the start slot" $ do
-            blocks <- runExceptT $ nextBlocks network (SlotId 105 17000)
+            let h = BlockHeader
+                    { slotId = SlotId 105 17000
+                    , prevBlockHash = mockHash (SlotId 105 16999)
+                    }
+            blocks <- runExceptT $ nextBlocks network h
             -- this will be all the blocks between 105.17000 and 106.1492
             fmap length blocks `shouldBe` Right 6092
 
         it "should return just the tip block" $ do
-            blocks <- runExceptT $ nextBlocks network (SlotId 106 1491)
+            let h = BlockHeader
+                    { slotId = SlotId 106 1491
+                    , prevBlockHash = mockHash (SlotId 106 1490)
+                    }
+            blocks <- runExceptT $ nextBlocks network h
             fmap length blocks `shouldBe` Right 1
 
         it "should get from packed epochs" $ do
-            Right blocks <- runExceptT $ nextBlocks network (SlotId 100 0)
+            let h = BlockHeader
+                    { slotId = SlotId 100 0
+                    , prevBlockHash = mockHash (SlotId 99 21599)
+                    }
+            Right blocks <- runExceptT $ nextBlocks network h
             -- an entire epoch's worth of blocks
             length blocks `shouldBe` 21599
             map (epochNumber . slotId . header) blocks
                 `shouldSatisfy` all (== 100)
 
         it "should get from packed epochs and filter by start slot" $ do
-            Right blocks <- runExceptT $ nextBlocks network (SlotId 104 10000)
+            let h = BlockHeader
+                    { slotId = SlotId 104 10000
+                    , prevBlockHash = mockHash (SlotId 104 9999)
+                    }
+            Right blocks <- runExceptT $ nextBlocks network h
             -- the number of remaining blocks in epoch 104
             length blocks `shouldBe` 11599
             map (epochNumber . slotId . header) blocks
                 `shouldSatisfy` all (== 104)
 
         it "should produce no blocks if start slot is after tip" $ do
-            blocks <- runExceptT $ nextBlocks network (SlotId 107 0)
+            let h = BlockHeader
+                    { slotId = SlotId 107 0
+                    , prevBlockHash = mockHash (SlotId 106 21599)
+                    }
+            blocks <- runExceptT $ nextBlocks network h
             blocks `shouldBe` Right []
 
         it "should work for the first epoch" $ do
-            Right blocks <- runExceptT $ nextBlocks network (SlotId 0 0)
+            let h = BlockHeader
+                    { slotId = SlotId 0 0
+                    , prevBlockHash = Hash "genesis"
+                    }
+            Right blocks <- runExceptT $ nextBlocks network h
             length blocks `shouldBe` 21599
 
 {-------------------------------------------------------------------------------
