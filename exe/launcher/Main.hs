@@ -72,7 +72,7 @@ Usage:
   cardano-wallet-launcher --version
 
 Options:
-  --network <STRING>           testnet, staging, mainnet, or local [default: testnet]
+  --network <STRING>           testnet, mainnet, or local [default: testnet]
   --wallet-server-port <PORT>  port used for serving the wallet API [default: 8090]
   --http-bridge-port <PORT>    port used for communicating with the http-bridge [default: 8080]
   --state-dir <DIR>            write wallet state (blockchain and database) to this directory

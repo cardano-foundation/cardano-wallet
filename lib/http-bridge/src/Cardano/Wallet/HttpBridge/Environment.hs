@@ -38,7 +38,7 @@ import GHC.Generics
 import qualified Data.Text as T
 
 -- | Available network options.
-data Network = Mainnet | Testnet | Staging
+data Network = Mainnet | Testnet
     deriving (Generic, Show, Eq, Enum)
 
 -- | Magic constant associated to a given network
@@ -53,10 +53,6 @@ instance KnownNetwork 'Mainnet where
     networkVal = Mainnet
     protocolMagic = ProtocolMagic 764824073
 
-instance KnownNetwork 'Staging where
-    networkVal = Staging
-    protocolMagic = ProtocolMagic 633343913
-
 instance KnownNetwork 'Testnet where
     networkVal = Testnet
     protocolMagic = ProtocolMagic 1097911063
@@ -65,12 +61,10 @@ instance FromText Network where
     fromText = \case
         "mainnet" -> Right Mainnet
         "testnet" -> Right Testnet
-        "staging" -> Right Staging
         s -> Left $ TextDecodingError $ T.unpack s
-            <> " is neither \"mainnet\", \"testnet\" nor \"staging\"."
+            <> " is neither \"mainnet\" nor \"testnet\"."
 
 instance ToText Network where
     toText = \case
         Mainnet -> "mainnet"
         Testnet -> "testnet"
-        Staging -> "staging"

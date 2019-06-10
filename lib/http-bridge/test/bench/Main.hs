@@ -129,8 +129,6 @@ main = do
                 , bench ("restore " <> toText network <> " 10% ownership")
                     (bench_restoration proxy wallet10p)
                 ]
-        Staging ->
-            return ()
   where
     walletSeq
         :: KeyToAddress (HttpBridge n)
@@ -315,7 +313,6 @@ getCurrentSlot net = calcSlot <$> startTime net <*> getPOSIXTime
 
     startTime :: MonadFail m => Text -> m POSIXTime
     startTime "mainnet" = pure 1506203091
-    startTime "staging" = pure 1506450213
     startTime "testnet" = pure 1537941600
     startTime n = fail $ "Unknown network name: " ++ T.unpack n
 
