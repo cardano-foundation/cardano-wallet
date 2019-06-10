@@ -59,7 +59,7 @@ spec :: forall t. (DecodeAddress t, EncodeAddress t) => SpecWith (Context t)
 spec = do
     it "ADDRESS_LIST_01 - Can list known addresses on a default wallet" $ \ctx -> do
         w <- fixtureWallet ctx
-        r <- request @[ApiAddress t] ctx (getAddressesEp w) Default Empty
+        r <- request @[ApiAddress t] ctx (getAddressesEp w "") Default Empty
         expectResponseCode @IO HTTP.status200 r
         expectListSizeEqual 21 r
         expectListItemFieldEqual 0 state Used r
@@ -69,7 +69,7 @@ spec = do
     it "ADDRESS_LIST_01 - Can list addresses with non-default pool gap"
         $ \ctx -> do
         w <- emptyWalletWith ctx ("Wallet", "cardano-wallet", 15)
-        r <- request @[ApiAddress t] ctx (getAddressesEp w) Default Empty
+        r <- request @[ApiAddress t] ctx (getAddressesEp w "") Default Empty
         expectResponseCode @IO HTTP.status200 r
         expectListSizeEqual 15 r
         forM_ [0..14] $ \addrNum -> do
@@ -77,18 +77,72 @@ spec = do
 
     it "ADDRESS_LIST_01 - Can list addresses with default pool gap" $ \ctx -> do
         w <- emptyWallet ctx
-        r <- request @[ApiAddress t] ctx (getAddressesEp w) Default Empty
+        r <- request @[ApiAddress t] ctx (getAddressesEp w "") Default Empty
         expectResponseCode @IO HTTP.status200 r
         expectListSizeEqual 20 r
         forM_ [0..19] $ \addrNum -> do
             expectListItemFieldEqual addrNum state Unused r
+
+    it "ADDRESS_LIST_02 - Can filter used and unused addresses" $ \ctx -> do
+        w <- fixtureWallet ctx
+        rUsed <- request @[ApiAddress t] ctx (getAddressesEp w "?state=used")
+                Default Empty
+        rUnused <- request @[ApiAddress t] ctx (getAddressesEp w "?state=unused")
+                Default Empty
+        expectResponseCode @IO HTTP.status200 rUsed
+        expectListSizeEqual 1 rUsed
+        expectListItemFieldEqual 0 state Used rUsed
+
+        expectResponseCode @IO HTTP.status200 rUnused
+        expectListSizeEqual 20 rUnused
+        forM_ [0..19] $ \addrNum -> do
+            expectListItemFieldEqual addrNum state Unused rUnused
+
+    it "ADDRESS_LIST_02 - Filters nothing when there is no used addresses"
+        $ \ctx -> do
+        w <- emptyWallet ctx
+        rUsed <- request @[ApiAddress t] ctx (getAddressesEp w "?state=used")
+                Default Empty
+        rUnused <- request @[ApiAddress t] ctx (getAddressesEp w "?state=unused")
+                Default Empty
+        expectResponseCode @IO HTTP.status200 rUsed
+        expectListSizeEqual 0 rUsed
+
+        expectResponseCode @IO HTTP.status200 rUnused
+        expectListSizeEqual 20 rUnused
+        forM_ [0..19] $ \addrNum -> do
+            expectListItemFieldEqual addrNum state Unused rUnused
+
+    describe "ADDRESS_LIST_02 - Invalid filters are bad requests" $ do
+        let filters = [ "?state=usedd"
+                      , "?state=uused"
+                      , "?state=unusedd"
+                      , "?state=uunused"
+                      , "?state=USED"
+                      , "?state=UNUSED"
+                      , "?state=-1000"
+                      , "?state=44444444"
+                      , "?state=*"
+                      ]
+
+        forM_ filters $ \fil -> it fil $ \ctx -> do
+            let stateFilter = T.pack fil
+            w <- emptyWallet ctx
+            r <- request @[ApiAddress t] ctx (getAddressesEp w stateFilter)
+                    Default Empty
+            verify r
+                [ expectResponseCode @IO HTTP.status400
+                , expectErrorMessage "Error parsing query parameter state\
+                    \ failed: Unable to decode address state: it's neither\
+                    \ 'used' nor 'unused'"
+                ]
 
     it "ADDRESS_LIST_03 - Generates new address pool gap" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWalletWith ctx ("Wallet", "cardano-wallet", 10)
 
         -- make sure all addresses in address_pool_gap are 'Unused'
-        r <- request @[ApiAddress t] ctx (getAddressesEp wDest) Default Empty
+        r <- request @[ApiAddress t] ctx (getAddressesEp wDest "") Default Empty
         verify r
             [ expectResponseCode @IO HTTP.status200
             , expectListSizeEqual 10
@@ -119,7 +173,7 @@ spec = do
         expectEventually ctx balanceAvailable 10 rb
 
         -- verify new address_pool_gap has been created
-        rAddr <- request @[ApiAddress t] ctx (getAddressesEp wDest) Default Empty
+        rAddr <- request @[ApiAddress t] ctx (getAddressesEp wDest "") Default Empty
         verify rAddr
             [ expectResponseCode @IO HTTP.status200
             , expectListSizeEqual 20
@@ -151,7 +205,7 @@ spec = do
     it "ADDRESS_LIST_04 - Deleted wallet" $ \ctx -> do
         w <- emptyWallet ctx
         _ <- request @ApiWallet ctx (deleteWalletEp w) Default Empty
-        r <- request @[ApiAddress t] ctx (getAddressesEp w) Default Empty
+        r <- request @[ApiAddress t] ctx (getAddressesEp w "") Default Empty
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
@@ -191,5 +245,5 @@ spec = do
                   ]
         forM_ headerCases $ \(title, headers, expectations) -> it title $ \ctx -> do
             w <- emptyWallet ctx
-            r <- request @[ApiAddress t] ctx (getAddressesEp w) headers Empty
+            r <- request @[ApiAddress t] ctx (getAddressesEp w "") headers Empty
             verify r expectations

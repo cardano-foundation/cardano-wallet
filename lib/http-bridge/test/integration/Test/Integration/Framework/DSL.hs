@@ -574,7 +574,7 @@ fixtureWalletWith ctx coins = do
     wSrc <- fixtureWallet ctx
     wUtxo <- emptyWallet ctx
     (_, addrs) <-
-        unsafeRequest @[ApiAddress t] ctx (getAddressesEp wUtxo) Empty
+        unsafeRequest @[ApiAddress t] ctx (getAddressesEp wUtxo "") Empty
     let addrIds = view #id <$> addrs
     let payments = flip map (zip coins addrIds) $ \(coin, addr) -> [aesonQQ|{
             "address": #{addr},
@@ -625,7 +625,7 @@ listAddresses
     -> ApiWallet
     -> IO [ApiAddress t]
 listAddresses ctx w = do
-    (_, addrs) <- unsafeRequest @[ApiAddress t] ctx (getAddressesEp w) Empty
+    (_, addrs) <- unsafeRequest @[ApiAddress t] ctx (getAddressesEp w "") Empty
     return addrs
 
 infixr 5 </>
@@ -696,10 +696,10 @@ deleteWalletEp w =
     , "v2/wallets/" <> w ^. walletId
     )
 
-getAddressesEp :: ApiWallet -> (Method, Text)
-getAddressesEp w =
+getAddressesEp :: ApiWallet -> Text -> (Method, Text)
+getAddressesEp w stateFilter =
     ( "GET"
-    , "v2/wallets/" <> w ^. walletId <> "/addresses"
+    , "v2/wallets/" <> w ^. walletId <> "/addresses" <> stateFilter
     )
 
 postTxEp :: ApiWallet -> (Method, Text)
