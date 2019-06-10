@@ -735,7 +735,12 @@ generateMnemonicsViaCLI :: CmdResult r => [String] -> IO r
 generateMnemonicsViaCLI args = cardanoWalletCLI
     (["mnemonic", "generate"] ++ args)
 
-createWalletViaCLI :: [String] -> String -> String -> String -> IO ExitCode
+createWalletViaCLI
+    :: [String]
+    -> String
+    -> String
+    -> String
+    -> IO (ExitCode, String, Text)
 createWalletViaCLI args mnemonics secondFactor passphrase = do
     let fullArgs =
             [ "exec", "--", "cardano-wallet"
@@ -743,14 +748,17 @@ createWalletViaCLI args mnemonics secondFactor passphrase = do
             ] ++ args
     let process = (proc "stack" fullArgs)
             { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
-    withCreateProcess process $ \(Just stdin) _ _ h -> do
+    withCreateProcess process $ \(Just stdin) (Just stdout) (Just stderr) h -> do
         hPutStr stdin mnemonics
         hPutStr stdin secondFactor
         hPutStr stdin (passphrase ++ "\n")
         hPutStr stdin (passphrase ++ "\n")
         hFlush stdin
         hClose stdin
-        waitForProcess h
+        c <- waitForProcess h
+        out <- TIO.hGetContents stdout
+        err <- TIO.hGetContents stderr
+        return (c, T.unpack out, err)
 
 deleteWalletViaCLI :: CmdResult r => String -> IO r
 deleteWalletViaCLI walId = cardanoWalletCLI

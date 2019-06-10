@@ -51,11 +51,10 @@ spec = do
             Stdout mnemonics <- generateMnemonicsViaCLI ["--size", size]
             let passphrase = "Secure passphrase"
 
-            c <- createWalletViaCLI [walletName] mnemonics "\n" passphrase
+            (c, out, err) <- createWalletViaCLI [walletName] mnemonics "\n" passphrase
             c `shouldBe` ExitSuccess
-
-            Stdout outList <- listWalletsViaCLI
-            outList `shouldContain` walletName
+            T.unpack err `shouldContain` "Ok.\n"
+            out `shouldContain` walletName
 
     describe "WALLETS_CREATE_05 - Can't create wallet with wrong size of mnemonic" $ do
         forM_ ["9", "12"] $ \(size) -> it size $ \_ -> do
@@ -64,9 +63,11 @@ spec = do
             Stdout mnemonics2 <- generateMnemonicsViaCLI ["--size", size]
             let passphrase = "Secure passphrase"
 
-            c <- createWalletViaCLI [walletName] mnemonics mnemonics2 passphrase
+            (c, out, err) <- createWalletViaCLI [walletName] mnemonics mnemonics2 passphrase
             c `shouldBe` (ExitFailure 1)
-
+            out `shouldBe` ""
+            T.unpack err `shouldContain` "Invalid number of words: 15, 18, 21\
+                \ or 24 words are expected."
             Stdout outList <- listWalletsViaCLI
             outList `shouldNotContain` walletName
 
@@ -77,11 +78,10 @@ spec = do
             Stdout mnemonics2 <- generateMnemonicsViaCLI ["--size", size]
             let passphrase = "Secure passphrase"
 
-            c <- createWalletViaCLI [walletName] mnemonics mnemonics2 passphrase
+            (c, out, err) <- createWalletViaCLI [walletName] mnemonics mnemonics2 passphrase
             c `shouldBe` ExitSuccess
-
-            Stdout outList <- listWalletsViaCLI
-            outList `shouldContain` walletName
+            T.unpack err `shouldContain` "Ok.\n"
+            out `shouldContain` walletName
 
     describe "WALLETS_CREATE_06 - Can't create wallet with wrong size of mnemonic snd factor" $ do
         forM_ ["15", "18", "21", "24"] $ \(size) -> it size $ \_ -> do
@@ -90,8 +90,11 @@ spec = do
             Stdout mnemonics2 <- generateMnemonicsViaCLI ["--size", size]
             let passphrase = "Secure passphrase"
 
-            c <- createWalletViaCLI [walletName] mnemonics mnemonics2 passphrase
+            (c, out, err) <- createWalletViaCLI [walletName] mnemonics mnemonics2 passphrase
             c `shouldBe` (ExitFailure 1)
+            out `shouldBe` ""
+            T.unpack err `shouldContain` "Invalid number of words: 9 or 12\
+                \ words are expected."
 
             Stdout outList <- listWalletsViaCLI
             outList `shouldNotContain` walletName
