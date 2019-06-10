@@ -172,7 +172,10 @@ startOnSocket settings socket wl = Warp.runSettingsSocket settings socket
 
 -- | Run an action with a TCP socket bound to a port. If no port is specified,
 -- then an unused port will be selected at random.
-withListeningSocket :: Maybe Warp.Port -> ((Warp.Port, Socket) -> IO ()) -> IO ()
+withListeningSocket
+    :: Maybe Warp.Port
+    -> ((Warp.Port, Socket) -> IO ())
+    -> IO ()
 withListeningSocket mport = bracket acquire release
   where
     acquire = case mport of
