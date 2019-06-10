@@ -66,11 +66,11 @@ module Test.Integration.Framework.DSL
     , faucetUtxoAmt
 
     -- * Endpoints
-    , getWallet
-    , deleteWallet
-    , getAddresses
-    , postTx
-    , updateWalletPass
+    , getWalletEp
+    , deleteWalletEp
+    , getAddressesEp
+    , postTxEp
+    , updateWalletPassEp
 
     -- * CLI
     , cardanoWalletCLI
@@ -329,7 +329,7 @@ expectEventually'
     -> ApiWallet
     -> m ()
 expectEventually' ctx target value wallet = do
-    rb <- request @ApiWallet ctx (getWallet wallet) Default Empty
+    rb <- request @ApiWallet ctx (getWalletEp wallet) Default Empty
     expectEventually ctx target value rb
 --
 -- CLI output expectations
@@ -372,6 +372,7 @@ expectCliFieldEqual getter a out = (view getter out) `shouldBe` a
 -- | Apply 'a' to all actions in sequence
 verify :: (Monad m) => a -> [a -> m ()] -> m ()
 verify a = mapM_ (a &)
+
 
 --
 -- Lenses
@@ -504,7 +505,7 @@ emptyWallet ctx = do
             "mnemonic_sentence": #{mnemonic},
             "passphrase": "Secure Passphrase"
         }|]
-    r <- request @ApiWallet ctx postWallet Default payload
+    r <- request @ApiWallet ctx postWalletEp Default payload
     expectResponseCode @IO HTTP.status202 r
     return (getFromResponse id r)
 
@@ -518,7 +519,7 @@ emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
             "passphrase": #{passphrase},
             "address_pool_gap" : #{addrPoolGap}
         }|]
-    r <- request @ApiWallet ctx postWallet Default payload
+    r <- request @ApiWallet ctx postWalletEp Default payload
     expectResponseCode @IO HTTP.status202 r
     return (getFromResponse id r)
 
@@ -563,7 +564,7 @@ fixtureWalletWith ctx coins = do
     wSrc <- fixtureWallet ctx
     wUtxo <- emptyWallet ctx
     (_, addrs) <-
-        unsafeRequest @[ApiAddress t] ctx (getAddresses wUtxo) Empty
+        unsafeRequest @[ApiAddress t] ctx (getAddressesEp wUtxo) Empty
     let addrIds = view #id <$> addrs
     let payments = flip map (zip coins addrIds) $ \(coin, addr) -> [aesonQQ|{
             "address": #{addr},
@@ -576,11 +577,11 @@ fixtureWalletWith ctx coins = do
             "payments": #{payments :: [Value]},
             "passphrase": "cardano-wallet"
         }|]
-    request @(ApiTransaction t) ctx (postTx wSrc) Default payload
+    request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
         >>= expectResponseCode HTTP.status202
-    r <- request @ApiWallet ctx (getWallet wUtxo) Default Empty
+    r <- request @ApiWallet ctx (getWalletEp wUtxo) Default Empty
     verify r [ expectEventually ctx balanceAvailable (sum coins) ]
-    void $ request @() ctx (deleteWallet wSrc) Default Empty
+    void $ request @() ctx (deleteWalletEp wSrc) Default Empty
     return (getFromResponse id r)
 
 -- | Total amount on each faucet wallet
@@ -614,7 +615,7 @@ listAddresses
     -> ApiWallet
     -> IO [ApiAddress t]
 listAddresses ctx w = do
-    (_, addrs) <- unsafeRequest @[ApiAddress t] ctx (getAddresses w) Empty
+    (_, addrs) <- unsafeRequest @[ApiAddress t] ctx (getAddressesEp w) Empty
     return addrs
 
 infixr 5 </>
@@ -663,38 +664,38 @@ wantedErrorButSuccess =
 --- Endoints
 ---
 
-postWallet :: (Method, Text)
-postWallet =
+postWalletEp :: (Method, Text)
+postWalletEp =
     ( "POST"
     , "v2/wallets"
     )
 
-getWallet :: ApiWallet -> (Method, Text)
-getWallet w =
+getWalletEp :: ApiWallet -> (Method, Text)
+getWalletEp w =
     ( "GET"
     , "v2/wallets/" <> w ^. walletId
     )
 
-deleteWallet :: ApiWallet -> (Method, Text)
-deleteWallet w =
+deleteWalletEp :: ApiWallet -> (Method, Text)
+deleteWalletEp w =
     ( "DELETE"
     , "v2/wallets/" <> w ^. walletId
     )
 
-getAddresses :: ApiWallet -> (Method, Text)
-getAddresses w =
+getAddressesEp :: ApiWallet -> (Method, Text)
+getAddressesEp w =
     ( "GET"
     , "v2/wallets/" <> w ^. walletId <> "/addresses"
     )
 
-postTx :: ApiWallet -> (Method, Text)
-postTx w =
+postTxEp :: ApiWallet -> (Method, Text)
+postTxEp w =
     ( "POST"
     , "v2/wallets/" <> w ^. walletId <> "/transactions"
     )
 
-updateWalletPass :: ApiWallet -> (Method, Text)
-updateWalletPass w =
+updateWalletPassEp :: ApiWallet -> (Method, Text)
+updateWalletPassEp w =
     ( "PUT"
     , "v2/wallets/" <> w ^. walletId <> "/passphrase"
     )

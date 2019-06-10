@@ -25,7 +25,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , balanceAvailable
-    , deleteWallet
+    , deleteWalletEp
     , emptyWallet
     , emptyWalletWith
     , expectErrorMessage
@@ -34,11 +34,11 @@ import Test.Integration.Framework.DSL
     , expectListSizeEqual
     , expectResponseCode
     , fixtureWallet
-    , getAddresses
-    , getWallet
+    , getAddressesEp
+    , getWalletEp
     , json
     , listAddresses
-    , postTx
+    , postTxEp
     , request
     , state
     , verify
@@ -59,7 +59,7 @@ spec :: forall t. (DecodeAddress t, EncodeAddress t) => SpecWith (Context t)
 spec = do
     it "ADDRESS_LIST_01 - Can list known addresses on a default wallet" $ \ctx -> do
         w <- fixtureWallet ctx
-        r <- request @[ApiAddress t] ctx (getAddresses w) Default Empty
+        r <- request @[ApiAddress t] ctx (getAddressesEp w) Default Empty
         expectResponseCode @IO HTTP.status200 r
         expectListSizeEqual 21 r
         expectListItemFieldEqual 0 state Used r
@@ -69,7 +69,7 @@ spec = do
     it "ADDRESS_LIST_01 - Can list addresses with non-default pool gap"
         $ \ctx -> do
         w <- emptyWalletWith ctx ("Wallet", "cardano-wallet", 15)
-        r <- request @[ApiAddress t] ctx (getAddresses w) Default Empty
+        r <- request @[ApiAddress t] ctx (getAddressesEp w) Default Empty
         expectResponseCode @IO HTTP.status200 r
         expectListSizeEqual 15 r
         forM_ [0..14] $ \addrNum -> do
@@ -77,7 +77,7 @@ spec = do
 
     it "ADDRESS_LIST_01 - Can list addresses with default pool gap" $ \ctx -> do
         w <- emptyWallet ctx
-        r <- request @[ApiAddress t] ctx (getAddresses w) Default Empty
+        r <- request @[ApiAddress t] ctx (getAddressesEp w) Default Empty
         expectResponseCode @IO HTTP.status200 r
         expectListSizeEqual 20 r
         forM_ [0..19] $ \addrNum -> do
@@ -88,7 +88,7 @@ spec = do
         wDest <- emptyWalletWith ctx ("Wallet", "cardano-wallet", 10)
 
         -- make sure all addresses in address_pool_gap are 'Unused'
-        r <- request @[ApiAddress t] ctx (getAddresses wDest) Default Empty
+        r <- request @[ApiAddress t] ctx (getAddressesEp wDest) Default Empty
         verify r
             [ expectResponseCode @IO HTTP.status200
             , expectListSizeEqual 10
@@ -111,15 +111,15 @@ spec = do
                     "passphrase": "cardano-wallet"
                 }|]
 
-            rTrans <- request @(ApiTransaction t) ctx (postTx wSrc) Default payload
+            rTrans <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
             expectResponseCode @IO HTTP.status202 rTrans
 
         -- make sure all transactions are in ledger
-        rb <- request @ApiWallet ctx (getWallet wDest) Default Empty
+        rb <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
         expectEventually ctx balanceAvailable 10 rb
 
         -- verify new address_pool_gap has been created
-        rAddr <- request @[ApiAddress t] ctx (getAddresses wDest) Default Empty
+        rAddr <- request @[ApiAddress t] ctx (getAddressesEp wDest) Default Empty
         verify rAddr
             [ expectResponseCode @IO HTTP.status200
             , expectListSizeEqual 20
@@ -150,8 +150,8 @@ spec = do
 
     it "ADDRESS_LIST_04 - Deleted wallet" $ \ctx -> do
         w <- emptyWallet ctx
-        _ <- request @ApiWallet ctx (deleteWallet w) Default Empty
-        r <- request @[ApiAddress t] ctx (getAddresses w) Default Empty
+        _ <- request @ApiWallet ctx (deleteWalletEp w) Default Empty
+        r <- request @[ApiAddress t] ctx (getAddressesEp w) Default Empty
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
@@ -191,5 +191,5 @@ spec = do
                   ]
         forM_ headerCases $ \(title, headers, expectations) -> it title $ \ctx -> do
             w <- emptyWallet ctx
-            r <- request @[ApiAddress t] ctx (getAddresses w) headers Empty
+            r <- request @[ApiAddress t] ctx (getAddressesEp w) headers Empty
             verify r expectations
