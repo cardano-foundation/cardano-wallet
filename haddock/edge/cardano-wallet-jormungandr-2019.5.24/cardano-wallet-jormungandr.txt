@@ -127,7 +127,7 @@ newtype LeaderId
 LeaderId :: ByteString -> LeaderId
 data LinearFee
 LinearFee :: Quantity "lovelace" Word64 -> Quantity "lovelace/byte" Word64 -> Quantity "lovelace/cert" Word64 -> LinearFee
-[const] :: LinearFee -> Quantity "lovelace" Word64
+[constant] :: LinearFee -> Quantity "lovelace" Word64
 [perByte] :: LinearFee -> Quantity "lovelace/byte" Word64
 [perCert] :: LinearFee -> Quantity "lovelace/cert" Word64
 
