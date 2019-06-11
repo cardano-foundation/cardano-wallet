@@ -33,6 +33,7 @@ executable cardano-wallet
       base
     , aeson
     , aeson-pretty
+    , async
     , bytestring
     , cardano-wallet-cli
     , cardano-wallet-core

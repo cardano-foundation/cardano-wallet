@@ -62,6 +62,8 @@ import Cardano.Wallet.Api.Types
     , WalletPostData (..)
     , WalletPutData (..)
     )
+import Cardano.Wallet.DaedalusIPC
+    ( daedalusIPC )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge, block0 )
 import Cardano.Wallet.HttpBridge.Environment
@@ -78,6 +80,8 @@ import Control.Arrow
     ( second )
 import Control.Concurrent
     ( threadDelay )
+import Control.Concurrent.Async
+    ( race_ )
 import Control.Monad
     ( when )
 import Data.Aeson
@@ -102,6 +106,8 @@ import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
 import Paths_cardano_wallet
     ( version )
+import Say
+    ( sayErr )
 import Servant
     ( (:<|>) (..), (:>) )
 import Servant.Client
@@ -410,7 +416,9 @@ execHttpBridge args _ = do
     wallet <- newWalletLayer @_ @(HttpBridge n) tracer block0 db nw tl
     let logStartup port = logInfo tracer $
             "Wallet backend server listening on: " <> toText port
-    Server.start logStartup walletListen wallet
+    Server.withListeningSocket walletPort $ \(port, socket) -> do
+        let settings = Server.mkWarpSettings logStartup port
+        race_ (daedalusIPC port) (Server.startOnSocket settings socket wallet)
 
 -- | Generate a random mnemonic of the given size 'n' (n = number of words),
 -- and print it to stdout.
