@@ -98,7 +98,7 @@ spec = do
         forM_ [0..19] $ \addrNum -> do
             expectListItemFieldEqual addrNum state Unused rUnused
 
-    it "ADDRESS_LIST_02 - Filters nothing when there is no used addresses"
+    it "ADDRESS_LIST_02 - Shows nothing when there are no used addresses"
         $ \ctx -> do
         w <- emptyWallet ctx
         rUsed <- request @[ApiAddress t] ctx (getAddressesEp w "?state=used")

@@ -768,9 +768,9 @@ getWalletViaCLI :: CmdResult r => String -> IO r
 getWalletViaCLI walId = cardanoWalletCLI
     ["wallet", "get", "--port", "1337" , walId ]
 
-listAddressesViaCLI :: CmdResult r => String -> IO r
-listAddressesViaCLI walId = cardanoWalletCLI
-    ["address", "list", "--port", "1337", walId]
+listAddressesViaCLI :: CmdResult r => [String] -> IO r
+listAddressesViaCLI args = cardanoWalletCLI
+    (["address", "list", "--port", "1337"] ++ args)
 
 listWalletsViaCLI :: CmdResult r => IO r
 listWalletsViaCLI = cardanoWalletCLI
