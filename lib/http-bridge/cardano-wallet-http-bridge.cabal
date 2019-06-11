@@ -65,7 +65,6 @@ library
       Cardano.Wallet.HttpBridge.Transaction
       Data.Packfile
       Servant.Extra.ContentTypes
-      Paths_cardano_wallet_http_bridge
 
 test-suite unit
   default-language:
@@ -131,21 +130,29 @@ test-suite integration
   build-depends:
       base
     , aeson
+    , aeson-qq
     , async
     , bytestring
     , cardano-crypto
     , cardano-wallet-core
-    , cardano-wallet-core-integration
     , cardano-wallet-http-bridge
     , cardano-wallet-launcher
+    , command
     , cborg
+    , cryptonite
     , directory
+    , exceptions
+    , generic-lens
     , hspec
     , hspec-core
+    , hspec-expectations-lifted
     , http-client
+    , http-api-data
+    , http-types
     , memory
     , process
     , retry
+    , template-haskell
     , text
     , text-class
     , time
@@ -153,7 +160,8 @@ test-suite integration
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
-      test/integration
+     test/integration
+     ../core/test/integration/src
   main-is:
       Main.hs
   other-modules:
@@ -161,6 +169,18 @@ test-suite integration
       Cardano.WalletSpec
       Cardano.Wallet.HttpBridge.NetworkSpec
       Cardano.Faucet
+      Test.Integration.Faucet
+      Test.Integration.Framework.DSL
+      Test.Integration.Framework.Request
+      Test.Integration.Framework.TestData
+      Test.Integration.Scenario.API.Addresses
+      Test.Integration.Scenario.API.Transactions
+      Test.Integration.Scenario.API.Wallets
+      Test.Integration.Scenario.CLI.Addresses
+      Test.Integration.Scenario.CLI.Mnemonics
+      Test.Integration.Scenario.CLI.Transactions
+      Test.Integration.Scenario.CLI.Wallets
+      Paths_cardano_wallet_http_bridge
 
 benchmark restore
   default-language:

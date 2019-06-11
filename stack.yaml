@@ -3,7 +3,6 @@ packages:
 - .
 - lib/bech32
 - lib/core
-- lib/core/test/integration
 - lib/cli
 - lib/launcher
 - lib/text-class
