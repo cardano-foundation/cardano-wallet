@@ -18,6 +18,9 @@
 module Cardano.Wallet.Jormungandr.Network
     ( newNetworkLayer
 
+    -- * Exception
+    , ErrUnexpectedNetworkFailure (..)
+
     -- * Re-export
     , BaseUrl (..)
     , newManager
