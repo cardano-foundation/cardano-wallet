@@ -16,8 +16,11 @@
 -- endpoints reachable through HTTP.
 
 module Cardano.Wallet.Api.Server
-    ( start
-    , Listen (..)
+    ( Listen (..)
+    , start
+    , startOnSocket
+    , mkWarpSettings
+    , withListeningSocket
     ) where
 
 import Prelude
@@ -159,14 +162,11 @@ start
     -> Listen
     -> WalletLayer (SeqState t) t
     -> IO ()
-start onStartup portOption wl =
-    void $ withListeningSocket portOption $ \(port, socket) -> do
-        let settings = Warp.defaultSettings
-                & Warp.setPort port
-                & Warp.setBeforeMainLoop (onStartup port)
-        startOnSocket settings socket wl
-        pure port
+start onStartup portOpt wl =
+    withListeningSocket portOpt $ \(port, socket) ->
+        startOnSocket (mkWarpSettings onStartup port) socket wl
 
+-- | Start the application server, using the given settings and a bound socket.
 startOnSocket
     :: forall t. (TxId t, KeyToAddress t, EncodeAddress t, DecodeAddress t)
     => Warp.Settings
@@ -184,11 +184,25 @@ startOnSocket settings socket wl = Warp.runSettingsSocket settings socket
     application :: Application
     application = serve (Proxy @("v2" :> Api t)) server
 
+-- | Create warp server settings.
+mkWarpSettings
+    :: (Warp.Port -> IO ())
+    -- ^ Function to run after the listening socket is bound, just before
+    -- Warp enters its event loop.
+    -> Warp.Port
+    -- ^ Port that socket will be listening on.
+    -> Warp.Settings
+mkWarpSettings onStartup port = Warp.defaultSettings
+    & Warp.setPort port
+    & Warp.setBeforeMainLoop (onStartup port)
+
 -- | Run an action with a TCP socket bound to a port specified by the `Listen`
 -- parameter.
 withListeningSocket
     :: Listen
+    -- ^ Whether to listen on a given port, or random port.
     -> ((Port, Socket) -> IO Port)
+    -- ^ Action to run with listening socket.
     -> IO Port
 withListeningSocket portOpt = bracket acquire release
   where
