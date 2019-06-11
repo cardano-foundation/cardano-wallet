@@ -148,8 +148,6 @@ rbNextBlocks bridge start = maybeTip (getNetworkTip bridge) >>= \case
 
     maybeTip = mapExceptT $ fmap $ \case
         Left (ErrNetworkTipNetworkUnreachable e) -> Left e
-        Left (ErrNetworkTipBlockNotFound _) -> Right Nothing
-        --  HttpBridge never throws ErrNetworkTipBlockNotFound.
         Left ErrNetworkTipNotFound -> Right Nothing
         Right tip -> Right (Just tip)
 

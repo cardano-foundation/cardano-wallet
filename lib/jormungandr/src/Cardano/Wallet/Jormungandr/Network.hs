@@ -70,11 +70,10 @@ mkNetworkLayer :: Monad m => JormungandrLayer m -> NetworkLayer t m
 mkNetworkLayer j = NetworkLayer
     { networkTip = do
         t@(BlockId hash) <- (getTipId j)
-            `mappingError` ErrNetworkTipNetworkUnreachable
         b <- (getBlock j t)
             `mappingError` \case
-            ErrGetBlockNotFound (BlockId h) ->
-                ErrNetworkTipBlockNotFound h
+            ErrGetBlockNotFound (BlockId _) ->
+                ErrNetworkTipNotFound
             ErrGetBlockNetworkUnreachable e ->
                 ErrNetworkTipNetworkUnreachable e
         return (hash, header b)
@@ -92,7 +91,7 @@ mkNetworkLayer j = NetworkLayer
 -- | Endpoints of the jormungandr REST API.
 data JormungandrLayer m = JormungandrLayer
     { getTipId
-        :: ExceptT ErrNetworkUnreachable m BlockId
+        :: ExceptT ErrNetworkTip m BlockId
     , getBlock
         :: BlockId -> ExceptT ErrGetBlock m Block
     , getDescendantIds
@@ -122,8 +121,13 @@ mkJormungandrLayer
     :: Manager -> BaseUrl -> JormungandrLayer IO
 mkJormungandrLayer mgr baseUrl = JormungandrLayer
     { getTipId = ExceptT $ do
-        let ctx = safeLink api (Proxy @GetTipId)
-        run cGetTipId >>= defaultHandler ctx
+        run cGetTipId >>= \case
+            Left (FailureResponse e) | responseStatusCode e == status404 ->
+                return $ Left ErrNetworkTipNotFound
+            x -> do
+                let ctx = safeLink api (Proxy @GetTipId)
+                left ErrNetworkTipNetworkUnreachable <$> defaultHandler ctx x
+
     , getBlock = \blockId -> ExceptT $ do
         run (cGetBlock blockId)  >>= \case
             Left (FailureResponse e) | responseStatusCode e == status404 ->
@@ -131,6 +135,7 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
             x -> do
                 let ctx = safeLink api (Proxy @GetBlock) blockId
                 left ErrGetBlockNetworkUnreachable <$> defaultHandler ctx x
+
     , getDescendantIds = \parentId count -> ExceptT $ do
         run (cGetBlockDescendantIds parentId (Just count))  >>= \case
             Left (FailureResponse e) | responseStatusCode e == status404 ->
@@ -142,7 +147,6 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
                         parentId
                         (Just count)
                 left ErrGetDescendantsNetworkUnreachable <$> defaultHandler ctx x
-
     }
   where
     run :: ClientM a -> IO (Either ServantError a)
