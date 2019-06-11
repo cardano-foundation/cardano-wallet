@@ -16,6 +16,8 @@ import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge, block0 )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
+import Cardano.Wallet.Logging
+    ( nullLogger )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..), digest, generateKeyFromSeed, publicKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -77,4 +79,6 @@ spec = do
         db <- MVar.newDBLayer
         nl <- HttpBridge.newNetworkLayer @'Testnet port
         let tl = HttpBridge.newTransactionLayer
-        (handle,) <$> (newWalletLayer @_ @(HttpBridge 'Testnet) block0 db nl tl)
+        (handle,) <$>
+            (newWalletLayer @_ @(HttpBridge 'Testnet)
+                nullLogger block0 db nl tl)

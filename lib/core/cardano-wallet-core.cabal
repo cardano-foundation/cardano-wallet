@@ -47,6 +47,7 @@ library
     , http-types
     , http-api-data
     , http-media
+    , iohk-monitoring
     , memory
     , monad-logger
     , network
@@ -80,6 +81,7 @@ library
       Cardano.Wallet.DB.Sqlite
       Cardano.Wallet.DB.Sqlite.TH
       Cardano.Wallet.DB.Sqlite.Types
+      Cardano.Wallet.Logging
       Cardano.Wallet.Network
       Cardano.Wallet.Primitive.AddressDerivation
       Cardano.Wallet.Primitive.AddressDiscovery

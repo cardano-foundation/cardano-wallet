@@ -24,6 +24,8 @@ import Cardano.Wallet.HttpBridge.Network
     ( newNetworkLayer )
 import Cardano.Wallet.HttpBridge.Transaction
     ( newTransactionLayer )
+import Cardano.Wallet.Logging
+    ( nullLogger )
 import Cardano.Wallet.Network
     ( NetworkLayer (..), networkTip )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -202,7 +204,7 @@ bench_restoration _ (wid, wname, s) = withHttpBridge network $ \port -> do
     let tl = newTransactionLayer
     BlockHeader sl _ <- unsafeRunExceptT $ networkTip nw
     sayErr . fmt $ network ||+ " tip is at " +|| sl ||+ ""
-    w <- newWalletLayer @_ @(HttpBridge n) block0 db nw tl
+    w <- newWalletLayer @_ @(HttpBridge n) nullLogger block0 db nw tl
     wallet <- unsafeRunExceptT $ createWallet w wid wname s
     unsafeRunExceptT $ restoreWallet w wallet
     waitForWalletSync w wallet

@@ -43,7 +43,8 @@ module Cardano.Wallet
     , unsafeRunExceptT
     ) where
 
-import Prelude
+import Prelude hiding
+    ( log )
 
 import Cardano.Wallet.DB
     ( DBLayer
@@ -51,6 +52,8 @@ import Cardano.Wallet.DB
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
     )
+import Cardano.Wallet.Logging
+    ( Logger (..) )
 import Cardano.Wallet.Network
     ( ErrNetworkUnreachable (..), ErrPostTx (..), NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -331,13 +334,14 @@ cancelWorker (WorkerRegistry mvar) wid =
 -- | Create a new instance of the wallet layer.
 newWalletLayer
     :: forall s t. ()
-    => BlockHeader
+    => Logger
+    -> BlockHeader
         -- ^ Very first block header for initialization
     -> DBLayer IO s t
     -> NetworkLayer t IO
     -> TransactionLayer t
     -> IO (WalletLayer s t)
-newWalletLayer block0 db nw tl = do
+newWalletLayer _ block0 db nw tl = do
     registry <- newRegistry
     return WalletLayer
         { createWallet = _createWallet
