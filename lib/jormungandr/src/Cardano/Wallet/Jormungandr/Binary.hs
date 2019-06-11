@@ -63,6 +63,7 @@ import Data.Binary.Get
     , getWord8
     , isEmpty
     , isolate
+    , label
     , runGet
     , skip
     )
@@ -103,44 +104,45 @@ data SignedVote = SignedVote
 {-# ANN module ("HLint: ignore Use <$>" :: String) #-}
 
 getBlockHeader :: Get BlockHeader
-getBlockHeader =  (fromIntegral <$> getWord16be) >>= \size -> isolate size $ do
-    -- Common structure.
-    version <- getWord16be
-    contentSize <- getWord32be
-    slotEpoch <- fromIntegral <$> getWord32be
-    slotId <- fromIntegral <$> getWord32be
-    chainLength <- getWord32be
-    contentHash <- Hash <$> getByteString 32 -- or 256 bits
-    parentHeaderHash <- Hash <$> getByteString 32
+getBlockHeader = label "getBlockHeader" $
+    (fromIntegral <$> getWord16be) >>= \size -> isolate size $ do
+        -- Common structure.
+        version <- getWord16be
+        contentSize <- getWord32be
+        slotEpoch <- fromIntegral <$> getWord32be
+        slotId <- fromIntegral <$> getWord32be
+        chainLength <- getWord32be
+        contentHash <- Hash <$> getByteString 32 -- or 256 bits
+        parentHeaderHash <- Hash <$> getByteString 32
 
-    -- Proof.
-    -- There are three different types of proofs:
-    -- 1. no proof (used for the genesis blockheader)
-    -- 2. BFT
-    -- 3. Praos / Genesis
+        -- Proof.
+        -- There are three different types of proofs:
+        -- 1. no proof (used for the genesis blockheader)
+        -- 2. BFT
+        -- 3. Praos / Genesis
 
-    -- We could make sure we get the right kind of proof, but we don't need to.
-    -- Just checking that the length is not totally wrong, is much simpler
-    -- and gives us sanity about the binary format being correct.
-    read' <- fromIntegral <$> bytesRead
-    let remaining = size - read'
-    case remaining of
-        0 -> skip remaining -- no proof
-        96 -> skip remaining -- BFT
-        616 -> skip remaining -- Praos/Genesis
-        _ -> fail $ "BlockHeader proof has unexpected size " <> (show remaining)
+        -- We could make sure we get the right kind of proof, but we don't need to.
+        -- Just checking that the length is not totally wrong, is much simpler
+        -- and gives us sanity about the binary format being correct.
+        read' <- fromIntegral <$> bytesRead
+        let remaining = size - read'
+        case remaining of
+            0 -> skip remaining -- no proof
+            96 -> skip remaining -- BFT
+            616 -> skip remaining -- Praos/Genesis
+            _ -> fail $ "BlockHeader proof has unexpected size " <> (show remaining)
 
-    return $ BlockHeader
-        { version
-        , contentSize
-        , slot = (SlotId slotId slotEpoch)
-        , chainLength
-        , contentHash
-        , parentHeaderHash
-        }
+        return $ BlockHeader
+            { version
+            , contentSize
+            , slot = (SlotId slotId slotEpoch)
+            , chainLength
+            , contentHash
+            , parentHeaderHash
+            }
 
 getBlock :: Get Block
-getBlock = do
+getBlock = label "getBlock" $ do
     header <- getBlockHeader
     msgs <- isolate (fromIntegral $ contentSize header)
         $ whileM (not <$> isEmpty) getMessage
@@ -167,7 +169,7 @@ data Message
 
 -- | Decode a message (header + contents).
 getMessage :: Get Message
-getMessage = do
+getMessage = label "getMessage" $ do
     size <- fromIntegral <$> getWord16be
     contentType <- fromIntegral <$> getWord8
     let remaining = size - 1
@@ -183,13 +185,13 @@ getMessage = do
 
 -- | Decode the contents of a @Initial@-message.
 getInitial :: Get [ConfigParam]
-getInitial = do
+getInitial = label "getInitial" $ do
     len <- fromIntegral <$> getWord16be
     replicateM len getConfigParam
 
 -- | Decode the contents of a @Transaction@-message.
 getTransaction :: Get Tx
-getTransaction = isolate 43 $ do
+getTransaction = label "getTransaction" $ isolate 43 $ do
     (ins, outs) <- getTokenTransfer
 
     let witnessCount = length ins
@@ -219,7 +221,7 @@ getTransaction = isolate 43 $ do
 -------------------------------------------------------------------------------}
 
 getTokenTransfer :: Get ([TxIn], [TxOut])
-getTokenTransfer = do
+getTokenTransfer = label "getTokenTransfer" $ do
     inCount <- fromIntegral <$> getWord8
     outCount <- fromIntegral <$> getWord8
     ins <- replicateM inCount getInput
@@ -299,7 +301,7 @@ data ConfigParam
     deriving (Eq, Show)
 
 getConfigParam :: Get ConfigParam
-getConfigParam = do
+getConfigParam = label "getConfigParam" $ do
     -- The tag and the size/length of the config param is stored in a single
     -- @Word16@.
     --
@@ -345,28 +347,29 @@ data ConsensusVersion = BFT | GenesisPraos
     deriving (Eq, Show)
 
 getConsensusVersion :: Get ConsensusVersion
-getConsensusVersion = getWord16be >>= \case
+getConsensusVersion = label "getConsensusVersion" $ getWord16be >>= \case
     1 -> return BFT
     2 -> return GenesisPraos
     other -> fail $ "Unknown consensus version: " ++ show other
 
 getNetwork :: Get Network
-getNetwork = getWord8 >>= \case
+getNetwork = label "getNetwork" $ getWord8 >>= \case
     1 -> return Mainnet
     2 -> return Testnet
     other -> fail $ "Invalid network/discrimination value: " ++ show other
 
 getMilli :: Get Milli
-getMilli = Milli <$> getWord64be
+getMilli = label "getMilli" $ Milli <$> getWord64be
 
 getLeaderId :: Get LeaderId
-getLeaderId = LeaderId <$> getByteString 32
+getLeaderId = label "getLeaderId" $ LeaderId <$> getByteString 32
 
 getLinearFee :: Get LinearFee
-getLinearFee = LinearFee
-    <$> (Quantity <$> getWord64be)
-    <*> (Quantity <$> getWord64be)
-    <*> (Quantity <$> getWord64be)
+getLinearFee = label "getLinearFee" $ do
+    const' <- Quantity <$> getWord64be
+    perByte <- Quantity <$> getWord64be
+    perCert <- Quantity <$> getWord64be
+    return $ LinearFee const' perByte perCert
 
 getBool :: Get Bool
 getBool = getWord8 >>= \case
