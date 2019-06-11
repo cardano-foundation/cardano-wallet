@@ -222,7 +222,7 @@ type GetTipId = "api" :> "v0" :> "tip" :> Get '[Hex] BlockId
 type GetBlockDescendantIds = "api" :> "v0" :> "block" :> Capture "blockId" BlockId :> "next_id" :> QueryParam "count" Word :> Get '[JormungandrBinary] [BlockId]
 type PostSignedTx = "api" :> "v0" :> "transaction" :> ReqBody '[JormungandrBinary] SignedTx :> Post '[NoContent] NoContent
 newtype BlockId
-BlockId :: Hash "block" -> BlockId
+BlockId :: Hash "BlockHeader" -> BlockId
 api :: Proxy Api
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Api.BlockId
 instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Api.BlockId
@@ -280,6 +280,7 @@ JormungandrLayer :: ExceptT ErrNetworkUnreachable m BlockId -> (BlockId -> Excep
 --   Right []
 --   </pre>
 mkJormungandrLayer :: Manager -> BaseUrl -> JormungandrLayer IO
+mkNetworkLayer :: Monad m => JormungandrLayer m -> NetworkLayer t m
 data BaseUrl
 BaseUrl :: Scheme -> String -> Int -> String -> BaseUrl
 [baseUrlScheme] :: BaseUrl -> Scheme

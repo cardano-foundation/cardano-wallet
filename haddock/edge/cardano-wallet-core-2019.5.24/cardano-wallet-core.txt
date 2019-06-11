@@ -1212,6 +1212,9 @@ data ErrNetworkTip
 ErrNetworkTipNetworkUnreachable :: ErrNetworkUnreachable -> ErrNetworkTip
 ErrNetworkTipNotFound :: ErrNetworkTip
 
+-- | The tip-block wasn't found. This would be surprising.
+ErrNetworkTipBlockNotFound :: Hash "BlockHeader" -> ErrNetworkTip
+
 -- | Error while trying to send a transaction
 data ErrPostTx
 ErrPostTxNetworkUnreachable :: ErrNetworkUnreachable -> ErrPostTx
