@@ -203,12 +203,12 @@ exec execServer manager args
 
     | args `isPresent` command "wallet" &&
       args `isPresent` command "list" = do
-        runClient Aeson.encodePretty listWallets
+        runClient Aeson.encodePretty listWallets False
 
     | args `isPresent` command "wallet" &&
       args `isPresent` command "get" = do
         wId <- args `parseArg` argument "wallet-id"
-        runClient Aeson.encodePretty $ getWallet $ ApiT wId
+        runClient Aeson.encodePretty (getWallet $ ApiT wId) False
 
     | args `isPresent` command "wallet" &&
       args `isPresent` command "create" = do
@@ -227,41 +227,45 @@ exec execServer manager args
                 (Nothing, _) -> Nothing
                 (Just a, t) -> Just (a, t)
         wPwd <- getPassphraseWithConfirm
-        runClient Aeson.encodePretty $ postWallet $ WalletPostData
+        runClient Aeson.encodePretty (postWallet $ WalletPostData
             (Just $ ApiT wGap)
             (ApiMnemonicT . second T.words $ wSeed)
             (ApiMnemonicT . second T.words <$> wSndFactor)
             (ApiT wName)
-            (ApiT wPwd)
+            (ApiT wPwd))
+            False
 
     | args `isPresent` command "wallet" &&
       args `isPresent` command "update" = do
         wId <- args `parseArg` argument "wallet-id"
         wName <- args `parseArg` longOption "name"
-        runClient Aeson.encodePretty $ putWallet (ApiT wId) $ WalletPutData
-            (Just $ ApiT wName)
+        runClient Aeson.encodePretty (putWallet (ApiT wId) $ WalletPutData
+            (Just $ ApiT wName)) False
 
     | args `isPresent` command "wallet" &&
       args `isPresent` command "delete" = do
         wId <- args `parseArg` argument "wallet-id"
-        runClient (const "") $ deleteWallet (ApiT wId)
+        runClient (const "") (deleteWallet (ApiT wId)) False
 
     | args `isPresent` command "transaction" &&
       args `isPresent` command "create" = do
         wId <- args `parseArg` argument "wallet-id"
         ts <- args `parseAllArgs` longOption "payment"
+        runClient Aeson.encodePretty (getWallet $ ApiT wId) True
         wPwd <- getPassphrase
-        runClient Aeson.encodePretty $ createTransaction (ApiT wId) $
+        runClient Aeson.encodePretty (createTransaction (ApiT wId) $
             PostTransactionData
                 ts
-                (ApiT wPwd)
+                (ApiT wPwd))
+            False
 
     | args `isPresent` command "address" &&
       args `isPresent` command "list" = do
         wId <- args `parseArg` argument "wallet-id"
         maybeState <- args `parseOptionalArg` longOption "state"
         runClient Aeson.encodePretty
-            $ listAddresses (ApiT wId) (ApiT <$> maybeState)
+            (listAddresses (ApiT wId) (ApiT <$> maybeState))
+            False
 
     | args `isPresent` longOption "version" = do
         putStrLn (showVersion version)
@@ -310,15 +314,19 @@ exec execServer manager args
         :: forall a. ()
         => (a -> BL.ByteString)
         -> ClientM a
+        -> Bool
         -> IO ()
-    runClient encode cmd = do
+    runClient encode cmd silentMode = do
         port <- args `parseArg` longOption "port"
         let env = mkClientEnv manager (BaseUrl Http "localhost" port "")
         res <- runClientM cmd env
         case res of
             Right a -> do
-                TIO.hPutStrLn stderr "Ok."
-                BL8.putStrLn (encode a)
+                if silentMode then
+                    TIO.hPutStr stderr ""
+                else do
+                    TIO.hPutStrLn stderr "Ok."
+                    BL8.putStrLn (encode a)
             Left e -> do
                 let msg = case e of
                         FailureResponse r -> fromMaybe
