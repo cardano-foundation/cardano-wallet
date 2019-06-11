@@ -238,7 +238,7 @@ newtype BlockHeader = BlockHeader
 
 > *Why* 
 >
-> Haskellers have a tendency to over-align everything vertically for the sake of readability. In practice, this is much more of an habit than a real gain in readability. Aligning content based on a function name, variable name or record field tends to create unnecessary long diffs and needless conflicts in version control systems when making a change to add an argument, variable or parameters. Favoring new-line and fixed-length alignment plays nicer with version control.
+> Haskellers have a tendency to over-align everything vertically for the sake of readability. In practice, this is much more of an habit than a real gain in readability. Aligning content based on a function name, variable name or record field tends to create unnecessarily long diffs and needless conflicts in version control systems when making a change to add an argument, variable or parameters. Favoring new-line and fixed-length alignment plays nicer with version control.
 
 Variables, arguments, fields and tokens in general shouldn't be aligned based on the length of a previous token. Rather, tokens should go over a new line and be indented one-level extra when it makes sense, or not be aligned at all. 
 
