@@ -121,7 +121,6 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 
-
 cli :: Docopt
 cli = [docopt|Cardano Wallet CLI.
 
@@ -330,6 +329,7 @@ exec execServer manager args
                         _ ->
                             T.pack $ show e
                 putErrLn msg
+                exitFailure
 
 -- | Start a web-server to serve the wallet backend API on the given port.
 execHttpBridge
