@@ -165,17 +165,12 @@ spec = do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \_ -> do
             (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI [walId]
             o `shouldBe` ""
-
+            c `shouldBe` ExitFailure 1
             if (title == "40 chars hex") then
                 e `shouldBe` errMsg404NoWallet "1111111111111111111111111111111111111111\n"
             else
                 e `shouldBe` "wallet id should be an hex-encoded string of\
                     \ 40 characters\n"
-
-            if (title == "40 chars hex") then
-                c `shouldBe` ExitSuccess
-            else
-                c `shouldBe` ExitFailure 1
 
     it "ADDRESS_LIST_04 - 'almost' valid walletId" $ \ctx -> do
         wid <- emptyWallet' ctx
@@ -192,7 +187,7 @@ spec = do
         (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI [wid]
         e `shouldBe` errMsg404NoWallet (T.pack wid <> "\n")
         o `shouldBe` ""
-        c `shouldBe` ExitSuccess
+        c `shouldBe` ExitFailure 1
 
   where
     emptyWallet' :: Context t -> IO String
