@@ -16,10 +16,7 @@
 -- node. This is done by providing a @NetworkLayer@ with some logic building on
 -- top of an underlying @JormungandrLayer@ HTTP client.
 module Cardano.Wallet.Jormungandr.Network
-    ( JormungandrLayer (..)
-    , mkJormungandrLayer
-
-    , mkNetworkLayer
+    ( newNetworkLayer
 
     -- * Re-export
     , BaseUrl (..)
@@ -32,6 +29,8 @@ import Prelude
 
 import Cardano.Wallet.Jormungandr.Api
     ( BlockId (..), GetBlock, GetBlockDescendantIds, GetTipId, api )
+import Cardano.Wallet.Jormungandr.Compatibility
+    ( Jormungandr )
 import Cardano.Wallet.Network
     ( ErrNetworkTip (..), ErrNetworkUnreachable (..), NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Types
@@ -66,12 +65,23 @@ import Servant.Client.Core
 import Servant.Links
     ( Link, safeLink )
 
+-- | Creates a new 'NetworkLayer' connecting to an underlying 'Jormungandr'
+-- backend target.
+newNetworkLayer
+    :: forall n. ()
+    => BaseUrl
+    -> IO (NetworkLayer (Jormungandr n) IO)
+newNetworkLayer url = do
+    mgr <- newManager defaultManagerSettings
+    return $ mkNetworkLayer $ mkJormungandrLayer mgr url
+
+-- | Wrap a Jormungandr client into a 'NetworkLayer' common interface.
 mkNetworkLayer :: Monad m => JormungandrLayer m -> NetworkLayer t m
 mkNetworkLayer j = NetworkLayer
     { networkTip = do
-        t@(BlockId hash) <- (getTipId j)
-        b <- (getBlock j t)
-            `mappingError` \case
+        t@(BlockId hash) <- (getTipId j) `mappingError`
+            ErrNetworkTipNetworkUnreachable
+        b <- (getBlock j t) `mappingError` \case
             ErrGetBlockNotFound (BlockId _) ->
                 ErrNetworkTipNotFound
             ErrGetBlockNetworkUnreachable e ->
@@ -91,7 +101,7 @@ mkNetworkLayer j = NetworkLayer
 -- | Endpoints of the jormungandr REST API.
 data JormungandrLayer m = JormungandrLayer
     { getTipId
-        :: ExceptT ErrNetworkTip m BlockId
+        :: ExceptT ErrNetworkUnreachable m BlockId
     , getBlock
         :: BlockId -> ExceptT ErrGetBlock m Block
     , getDescendantIds
@@ -121,12 +131,8 @@ mkJormungandrLayer
     :: Manager -> BaseUrl -> JormungandrLayer IO
 mkJormungandrLayer mgr baseUrl = JormungandrLayer
     { getTipId = ExceptT $ do
-        run cGetTipId >>= \case
-            Left (FailureResponse e) | responseStatusCode e == status404 ->
-                return $ Left ErrNetworkTipNotFound
-            x -> do
-                let ctx = safeLink api (Proxy @GetTipId)
-                left ErrNetworkTipNetworkUnreachable <$> defaultHandler ctx x
+        let ctx = safeLink api (Proxy @GetTipId)
+        run cGetTipId >>= defaultHandler ctx
 
     , getBlock = \blockId -> ExceptT $ do
         run (cGetBlock blockId)  >>= \case
