@@ -104,42 +104,42 @@ data SignedVote = SignedVote
 {-# ANN module ("HLint: ignore Use <$>" :: String) #-}
 
 getBlockHeader :: Get BlockHeader
-getBlockHeader = label "getBlockHeader"
-    $ (fromIntegral <$> getWord16be) >>= \size -> isolate size $ do
-    -- Common structure.
-    version <- getWord16be
-    contentSize <- getWord32be
-    slotEpoch <- fromIntegral <$> getWord32be
-    slotId <- fromIntegral <$> getWord32be
-    chainLength <- getWord32be
-    contentHash <- Hash <$> getByteString 32 -- or 256 bits
-    parentHeaderHash <- Hash <$> getByteString 32
+getBlockHeader = label "getBlockHeader" $
+    (fromIntegral <$> getWord16be) >>= \size -> isolate size $ do
+        -- Common structure.
+        version <- getWord16be
+        contentSize <- getWord32be
+        slotEpoch <- fromIntegral <$> getWord32be
+        slotId <- fromIntegral <$> getWord32be
+        chainLength <- getWord32be
+        contentHash <- Hash <$> getByteString 32 -- or 256 bits
+        parentHeaderHash <- Hash <$> getByteString 32
 
-    -- Proof.
-    -- There are three different types of proofs:
-    -- 1. no proof (used for the genesis blockheader)
-    -- 2. BFT
-    -- 3. Praos / Genesis
+        -- Proof.
+        -- There are three different types of proofs:
+        -- 1. no proof (used for the genesis blockheader)
+        -- 2. BFT
+        -- 3. Praos / Genesis
 
-    -- We could make sure we get the right kind of proof, but we don't need to.
-    -- Just checking that the length is not totally wrong, is much simpler
-    -- and gives us sanity about the binary format being correct.
-    read' <- fromIntegral <$> bytesRead
-    let remaining = size - read'
-    case remaining of
-        0 -> skip remaining -- no proof
-        96 -> skip remaining -- BFT
-        616 -> skip remaining -- Praos/Genesis
-        _ -> fail $ "BlockHeader proof has unexpected size " <> (show remaining)
+        -- We could make sure we get the right kind of proof, but we don't need to.
+        -- Just checking that the length is not totally wrong, is much simpler
+        -- and gives us sanity about the binary format being correct.
+        read' <- fromIntegral <$> bytesRead
+        let remaining = size - read'
+        case remaining of
+            0 -> skip remaining -- no proof
+            96 -> skip remaining -- BFT
+            616 -> skip remaining -- Praos/Genesis
+            _ -> fail $ "BlockHeader proof has unexpected size " <> (show remaining)
 
-    return $ BlockHeader
-        { version
-        , contentSize
-        , slot = (SlotId slotId slotEpoch)
-        , chainLength
-        , contentHash
-        , parentHeaderHash
-        }
+        return $ BlockHeader
+            { version
+            , contentSize
+            , slot = (SlotId slotId slotEpoch)
+            , chainLength
+            , contentHash
+            , parentHeaderHash
+            }
 
 getBlock :: Get Block
 getBlock = label "getBlock" $ do
