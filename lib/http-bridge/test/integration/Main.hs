@@ -7,6 +7,8 @@ module Main where
 
 import Prelude
 
+import Cardano.Faucet
+    ( initFaucet )
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
@@ -39,8 +41,6 @@ import System.IO
     ( IOMode (..), hClose, openFile )
 import Test.Hspec
     ( after, afterAll, beforeAll, describe, hspec )
-import Test.Integration.Faucet
-    ( initFaucet )
 import Test.Integration.Framework.DSL
     ( Context (..), tearDown )
 import Test.Integration.Framework.Request

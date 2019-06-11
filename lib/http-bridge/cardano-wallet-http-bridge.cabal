@@ -160,13 +160,14 @@ test-suite integration
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
-      test/integration
+     test/integration
   main-is:
       Main.hs
   other-modules:
       Cardano.LauncherSpec
       Cardano.WalletSpec
       Cardano.Wallet.HttpBridge.NetworkSpec
+      Cardano.Faucet
       Test.Integration.Faucet
       Test.Integration.Framework.DSL
       Test.Integration.Framework.Request
