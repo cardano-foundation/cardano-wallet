@@ -114,16 +114,9 @@ spec = do
             expectListItemFieldEqual addrNum state Unused rUnused
 
     describe "ADDRESS_LIST_02 - Invalid filters are bad requests" $ do
-        let filters = [ "?state=usedd"
-                      , "?state=uused"
-                      , "?state=unusedd"
-                      , "?state=uunused"
-                      , "?state=USED"
-                      , "?state=UNUSED"
-                      , "?state=-1000"
-                      , "?state=44444444"
-                      , "?state=*"
-                      ]
+        let filters = [ "?state=usedd", "?state=uused", "?state=unusedd"
+                , "?state=uunused", "?state=USED", "?state=UNUSED"
+                , "?state=-1000", "?state=44444444", "?state=*" ]
 
         forM_ filters $ \fil -> it fil $ \ctx -> do
             let stateFilter = T.pack fil

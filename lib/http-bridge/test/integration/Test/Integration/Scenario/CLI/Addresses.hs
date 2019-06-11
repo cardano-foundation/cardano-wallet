@@ -113,16 +113,8 @@ spec = do
             expectCliListItemFieldEqual addrNum state Unused j2
 
     describe "ADDRESS_LIST_02 - Invalid filters show error message" $ do
-        let filters = [ "usedd"
-                      , "uused"
-                      , "unusedd"
-                      , "uunused"
-                      , "USED"
-                      , "UNUSED"
-                      , "-1000"
-                      , "44444444"
-                      , "*"
-                      ]
+        let filters = [ "usedd", "uused", "unusedd", "uunused", "USED", "UNUSED"
+                , "-1000", "44444444", "*" ]
 
         forM_ filters $ \fil -> it ("--state=" <> fil) $ \ctx -> do
             walId <- emptyWallet' ctx
