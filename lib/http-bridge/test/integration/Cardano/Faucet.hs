@@ -1,12 +1,9 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Test.Integration.Faucet
-    ( Faucet
-    , initFaucet
-    , nextWallet
+module Cardano.Faucet
+    ( initFaucet
     ) where
 
 import Prelude
@@ -47,36 +44,26 @@ import Cardano.Wallet.Primitive.Types
     , TxWitness (..)
     )
 import Control.Concurrent.MVar
-    ( MVar, newMVar, putMVar, takeMVar )
+    ( newMVar )
 import Control.Monad
     ( replicateM )
 import Data.ByteArray.Encoding
     ( Base (..), convertFromBase )
 import Data.ByteString
     ( ByteString )
-import Data.Functor
-    ( (<$) )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..) )
 import Data.Word
     ( Word32 )
+import Test.Integration.Faucet
+    ( Faucet (..) )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 
--- | An opaque 'Faucet' type from which one can get a wallet with funds
-newtype Faucet = Faucet (MVar [Mnemonic 15])
-
--- | Get the next faucet wallet. Requires the 'initFaucet' to be called in order
--- to get a hand on a 'Faucet'.
-nextWallet :: Faucet -> IO (Mnemonic 15)
-nextWallet (Faucet mvar) = do
-    takeMVar mvar >>= \case
-        [] -> fail "nextWallet: Awe crap! No more faucet wallet available!"
-        (h:q) -> h <$ putMVar mvar q
 
 -- | Initialize a bunch of faucet wallets and make them available for the
 -- integration tests scenarios.

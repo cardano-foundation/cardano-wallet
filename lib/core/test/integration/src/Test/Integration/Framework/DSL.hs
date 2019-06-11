@@ -131,6 +131,8 @@ import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( Lens', lens, set, view, (^.) )
+import Data.Generics.Labels
+    ()
 import Data.Generics.Product.Fields
     ( HasField', getField, setField )
 import Data.Generics.Product.Typed
@@ -363,7 +365,7 @@ expectCliFieldBetween getter (aMin, aMax) s = case view getter s of
                 return ()
 
 expectCliFieldEqual
-    :: (MonadIO m, MonadFail m, Show a, Eq a)
+    :: (MonadIO m, Show a, Eq a)
     => Lens' s a
     -> a
     -> s
