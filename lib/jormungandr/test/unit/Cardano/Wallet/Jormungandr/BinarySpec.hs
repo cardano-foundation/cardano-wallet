@@ -30,13 +30,16 @@ import Data.ByteString
 import Data.Quantity
     ( Quantity (..) )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec, describe, it, runIO, shouldBe )
 
 import qualified Data.ByteString.Lazy as BL
 
 {-# ANN spec ("HLint: ignore Use head" :: String) #-}
 spec :: Spec
 spec = do
+    blockBinary <- runIO . BL.readFile $ testDir <>
+        "4d2324138a42a8d9e93a6b749bedeec80308ecfbc4d01383da8ac20df109e9bc.bin"
+
     describe "Decoding blocks" $ do
         it "should decode a genesis block header" $ do
             runGet getBlockHeader genesisBlockBinary
@@ -48,7 +51,19 @@ spec = do
             `shouldBe`
             genesisBlock
 
-
+        it "should decode a non-genesis BFT block" $ do
+            runGet getBlock blockBinary
+            `shouldBe`
+            Block
+                BlockHeader
+                    { version = 1
+                    , contentSize = 0
+                    , slot = SlotId {epochNumber = 212, slotNumber = 797}
+                    , chainLength = 143
+                    , contentHash = Hash {getHash = "\SOWQ\192&\229C\178\232\171.\176`\153\218\161\209\229\223Gw\143w\135\250\171E\205\241/\227\168"}
+                    , parentHeaderHash = Hash {getHash = "\216OY\rX\199\234\188.<O\\\244Y\211\210\254\224`i\216\DC3\167\132\139\154\216\161T\174\247\155"}
+                    }
+                []
 
 genesisHeader :: BlockHeader
 genesisHeader = BlockHeader
@@ -105,3 +120,6 @@ genesisBlockBinary = either error BL.fromStrict $ convertFromBase @ByteString Ba
     \27a799032729e08a624a4aafb7a4dde35e4742d258d04c5f3ec87e616b9bcb0cdc070b503fe634b\
     \46010040a856b8a6f8d18d588b5e1cfd3ea2e56ae45b80126bb25feb8ccde27fe61ebc7fd64deb7\
     \667ab1a79ca2448f56e60f3097c2fa657febdec19e7bd7abfb0ea4705"
+
+testDir :: FilePath
+testDir = "test/data/Cardano/Wallet/Jormungandr/"
