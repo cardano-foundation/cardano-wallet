@@ -27,7 +27,7 @@ import Data.Proxy
     ( Proxy (..) )
 import qualified Data.Text as T
 import System.Command
-    ( Exit (..), Stdout (..) )
+    ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit
     ( ExitCode (..) )
 import Test.Hspec
@@ -39,6 +39,7 @@ import Test.Integration.Framework.DSL
     , amount
     , balanceAvailable
     , balanceTotal
+    , cardanoWalletCLI
     , deleteWalletViaCLI
     , direction
     , emptyWallet
@@ -389,16 +390,17 @@ spec = do
             addrs:_ <- listAddresses ctx wDest
             let addr =
                     encodeAddress (Proxy @t) (getApiT $ fst $ addrs ^. #id)
-            let args = [ walId, "--payment", "12@" ++  (T.unpack addr) ]
-
-            (c, out, err) <- postTransactionViaCLI "Secure Passphrase" args
+            let args = [ "transaction", "create", "--port", "1337",
+                    walId, "--payment", "12@" ++  (T.unpack addr) ]
+            -- make sure CLI returns error before asking for passphrase
+            (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI args
             out `shouldBe` ""
             c `shouldBe` ExitFailure 1
             if (title == "40 chars hex") then
-                (T.unpack err) `shouldContain` "I couldn't find a wallet with \
+                err `shouldContain` "I couldn't find a wallet with \
                     \the given id: 1111111111111111111111111111111111111111"
             else
-                (T.unpack err) `shouldContain` "wallet id should be an \
+                err `shouldContain` "wallet id should be an \
                     \hex-encoded string of 40 characters"
 
     it "TRANSCLI_CREATE_07 - 'almost' valid walletId" $ \ctx -> do
@@ -408,10 +410,11 @@ spec = do
         let addr =
                 encodeAddress (Proxy @t) (getApiT $ fst $ addrs ^. #id)
         let args = T.unpack <$>
-                [ (T.append (wSrc ^. walletId) "0"), "--payment", "11@" <> addr ]
-
-        (c, out, err) <- postTransactionViaCLI "cardano-wallet" args
-        (T.unpack err) `shouldContain` "wallet id should be an hex-encoded\
+                [ "transaction", "create", "--port", "1337",
+                (T.append (wSrc ^. walletId) "0"), "--payment", "11@" <> addr ]
+        -- make sure CLI returns error before asking for passphrase
+        (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI args
+        err `shouldContain` "wallet id should be an hex-encoded\
             \ string of 40 characters"
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
@@ -425,10 +428,12 @@ spec = do
         addrs:_ <- listAddresses ctx wDest
         let addr =
                 encodeAddress (Proxy @t) (getApiT $ fst $ addrs ^. #id)
-        let args = T.unpack <$> [ wSrc ^. walletId, "--payment", "11@" <> addr ]
-
-        (c, out, err) <- postTransactionViaCLI "cardano-wallet" args
-        (T.unpack err) `shouldContain` "I couldn't find a wallet with \
+        let args = T.unpack <$>
+                [ "transaction", "create", "--port", "1337", wSrc ^. walletId,
+                "--payment", "11@" <> addr ]
+        -- make sure CLI returns error before asking for passphrase
+        (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI args
+        err `shouldContain` "I couldn't find a wallet with \
             \the given id: " ++ T.unpack ( wSrc ^. walletId )
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
