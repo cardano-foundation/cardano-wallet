@@ -38,7 +38,7 @@ import Test.Integration.Framework.DSL
     , balanceAvailable
     , balanceTotal
     , delegation
-    , deleteWallet
+    , deleteWalletEp
     , emptyWallet
     , expectErrorMessage
     , expectEventually
@@ -50,14 +50,14 @@ import Test.Integration.Framework.DSL
     , fixtureWallet
     , generateMnemonicsViaCLI
     , getFromResponse
-    , getWallet
+    , getWalletEp
     , json
     , listAddresses
     , passphraseLastUpdate
-    , postTx
+    , postTxEp
     , request
     , state
-    , updateWalletPass
+    , updateWalletPassEp
     , verify
     , walletId
     , walletName
@@ -157,18 +157,18 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        rTrans <- request @(ApiTransaction t) ctx (postTx wSrc)
+        rTrans <- request @(ApiTransaction t) ctx (postTxEp wSrc)
             Default payload
         expectResponseCode @IO HTTP.status202 rTrans
 
-        rGet <- request @ApiWallet ctx (getWallet wDest) Default Empty
+        rGet <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
         verify rGet
             [ expectEventually ctx balanceTotal 1
             , expectEventually ctx balanceAvailable 1
             ]
 
         -- delete wallet
-        rDel <- request @ApiWallet ctx (deleteWallet wDest) Default Empty
+        rDel <- request @ApiWallet ctx (deleteWalletEp wDest) Default Empty
         expectResponseCode @IO HTTP.status204 rDel
 
         -- restore and make sure funds are there
@@ -1395,7 +1395,7 @@ spec = do
             wSrc <- fixtureWallet ctx
             wDest <- emptyWallet ctx
             let payloadUpdate = updatePassPayload oldPass newPass
-            rup <- request @ApiWallet ctx (updateWalletPass wSrc) Default payloadUpdate
+            rup <- request @ApiWallet ctx (updateWalletPassEp wSrc) Default payloadUpdate
             expectResponseCode @IO HTTP.status204 rup
 
             addrs <- listAddresses ctx wDest
@@ -1410,7 +1410,7 @@ spec = do
                     }],
                     "passphrase": #{pass}
                     }|]
-            r <- request @(ApiTransaction t) ctx (postTx wSrc) Default payloadTrans
+            r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payloadTrans
             verify r expectations
 
     describe "WALLETS_UPDATE_PASS_07 - HTTP headers" $ do
