@@ -771,7 +771,7 @@ instance FromText (Hash "BlockHeader") where
                     \expected Base16 encoding"
 
 instance ToText (Hash "BlockHeader") where
-        toText = T.decodeUtf8 . convertToBase Base16 . getHash
+    toText = T.decodeUtf8 . convertToBase Base16 . getHash
 
 -- | A polymorphic wrapper type with a custom show instance to display data
 -- through 'Buildable' instances.

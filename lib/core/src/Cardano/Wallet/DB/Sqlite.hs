@@ -654,10 +654,12 @@ selectUTxO (Checkpoint wid sl _parent) = fmap entityVal <$>
 selectPending
     :: Checkpoint
     -> SqlPersistM [TxId]
-selectPending (Checkpoint wid sl _parent) = fmap (pendingTxTableId2 . entityVal)
-    <$>
-    selectList [ PendingTxTableWalletId ==. wid
-               , PendingTxTableCheckpointSlot ==. sl ] []
+selectPending (Checkpoint wid sl _parent) =
+    fmap (pendingTxTableId2 . entityVal)
+        <$> selectList
+            [ PendingTxTableWalletId ==. wid
+            , PendingTxTableCheckpointSlot ==. sl
+            ] []
 
 selectTxs
     :: [TxId]
