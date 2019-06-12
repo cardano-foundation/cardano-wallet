@@ -16,7 +16,6 @@
 -- "Cardano.Wallet.DB" and "Cardano.Wallet.Network" to realize its role as being
 -- intermediary between the three.
 
-
 module Cardano.Wallet
     (
     -- * Interface
@@ -297,7 +296,6 @@ data ErrWithRootKey
     = ErrWithRootKeyNoRootKey WalletId
     | ErrWithRootKeyWrongPassphrase WalletId ErrWrongPassphrase
     deriving (Show, Eq)
-
 
 {-------------------------------------------------------------------------------
                                 Worker Registry
