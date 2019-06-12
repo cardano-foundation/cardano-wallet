@@ -519,8 +519,7 @@ insertCheckpoint
 insertCheckpoint wid cp = do
     let (cp', utxo, ins, outs) = mkCheckpointEntity wid cp
     insert_ cp'
-    dbChunked insertMany_ ins
-    dbChunked insertMany_ outs
+    putTxs ins outs
     dbChunked insertMany_ utxo
     insertState (wid, (W.currentTip cp) ^. #slotId) (W.getState cp)
 
