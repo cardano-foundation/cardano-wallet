@@ -82,6 +82,7 @@ import qualified Test.Integration.Scenario.API.Wallets as Wallets
 import qualified Test.Integration.Scenario.CLI.Addresses as AddressesCLI
 import qualified Test.Integration.Scenario.CLI.Mnemonics as MnemonicsCLI
 import qualified Test.Integration.Scenario.CLI.Port as PortCLI
+import qualified Test.Integration.Scenario.CLI.Server as ServerCLI
 import qualified Test.Integration.Scenario.CLI.Transactions as TransactionsCLI
 import qualified Test.Integration.Scenario.CLI.Wallets as WalletsCLI
 
@@ -119,7 +120,10 @@ main = hspec $ do
         describe "Wallets CLI tests" WalletsCLI.spec
         describe "Transactions CLI tests" TransactionsCLI.spec
         describe "Addresses CLI tests" AddressesCLI.spec
-  where
+
+    describe "CLI Server" ServerCLI.spec
+
+where
     oneSecond :: Int
     oneSecond = 1 * 1000 * 1000 -- 1 second in microseconds
 
