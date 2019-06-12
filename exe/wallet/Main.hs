@@ -64,6 +64,8 @@ import Control.Monad
     ( when )
 import Data.Aeson
     ( (.:) )
+import Data.Either
+    ( isRight )
 import Data.Functor
     ( (<&>) )
 import qualified Data.List.NonEmpty as NE
@@ -203,12 +205,12 @@ exec execServer manager args
 
     | args `isPresent` command "wallet" &&
       args `isPresent` command "list" = do
-        runClient Aeson.encodePretty listWallets False
+        runClient Aeson.encodePretty listWallets
 
     | args `isPresent` command "wallet" &&
       args `isPresent` command "get" = do
         wId <- args `parseArg` argument "wallet-id"
-        runClient Aeson.encodePretty (getWallet $ ApiT wId) False
+        runClient Aeson.encodePretty $ getWallet $ ApiT wId
 
     | args `isPresent` command "wallet" &&
       args `isPresent` command "create" = do
@@ -227,37 +229,38 @@ exec execServer manager args
                 (Nothing, _) -> Nothing
                 (Just a, t) -> Just (a, t)
         wPwd <- getPassphraseWithConfirm
-        runClient Aeson.encodePretty (postWallet $ WalletPostData
+        runClient Aeson.encodePretty $ postWallet $ WalletPostData
             (Just $ ApiT wGap)
             (ApiMnemonicT . second T.words $ wSeed)
             (ApiMnemonicT . second T.words <$> wSndFactor)
             (ApiT wName)
-            (ApiT wPwd))
-            False
+            (ApiT wPwd)
 
     | args `isPresent` command "wallet" &&
       args `isPresent` command "update" = do
         wId <- args `parseArg` argument "wallet-id"
         wName <- args `parseArg` longOption "name"
-        runClient Aeson.encodePretty (putWallet (ApiT wId) $ WalletPutData
-            (Just $ ApiT wName)) False
+        runClient Aeson.encodePretty $ putWallet (ApiT wId) $ WalletPutData
+            (Just $ ApiT wName)
 
     | args `isPresent` command "wallet" &&
       args `isPresent` command "delete" = do
         wId <- args `parseArg` argument "wallet-id"
-        runClient (const "") (deleteWallet (ApiT wId)) False
+        runClient (const "") (deleteWallet (ApiT wId))
 
     | args `isPresent` command "transaction" &&
       args `isPresent` command "create" = do
         wId <- args `parseArg` argument "wallet-id"
         ts <- args `parseAllArgs` longOption "payment"
-        runClient Aeson.encodePretty (getWallet $ ApiT wId) True
-        wPwd <- getPassphrase
-        runClient Aeson.encodePretty (createTransaction (ApiT wId) $
-            PostTransactionData
-                ts
-                (ApiT wPwd))
-            False
+        res <- sendRequest $ getWallet $ ApiT wId
+        if (isRight res) then do
+            wPwd <- getPassphrase
+            runClient Aeson.encodePretty $ createTransaction (ApiT wId) $
+                PostTransactionData
+                    ts
+                    (ApiT wPwd)
+        else
+            handleResponse Aeson.encodePretty res
 
     | args `isPresent` command "address" &&
       args `isPresent` command "list" = do
@@ -265,7 +268,6 @@ exec execServer manager args
         maybeState <- args `parseOptionalArg` longOption "state"
         runClient Aeson.encodePretty
             (listAddresses (ApiT wId) (ApiT <$> maybeState))
-            False
 
     | args `isPresent` longOption "version" = do
         putStrLn (showVersion version)
@@ -314,19 +316,30 @@ exec execServer manager args
         :: forall a. ()
         => (a -> BL.ByteString)
         -> ClientM a
-        -> Bool
         -> IO ()
-    runClient encode cmd silentMode = do
+    runClient encode cmd = do
+        res <- sendRequest cmd
+        handleResponse encode res
+
+    sendRequest
+        :: forall a. ()
+        => ClientM a
+        -> IO (Either ServantError a)
+    sendRequest cmd = do
         port <- args `parseArg` longOption "port"
         let env = mkClientEnv manager (BaseUrl Http "localhost" port "")
-        res <- runClientM cmd env
+        runClientM cmd env
+
+    handleResponse
+        :: forall a. ()
+        => (a -> BL.ByteString)
+        -> Either ServantError a
+        -> IO ()
+    handleResponse encode res = do
         case res of
             Right a -> do
-                if silentMode then
-                    TIO.hPutStr stderr ""
-                else do
-                    TIO.hPutStrLn stderr "Ok."
-                    BL8.putStrLn (encode a)
+                TIO.hPutStrLn stderr "Ok."
+                BL8.putStrLn (encode a)
             Left e -> do
                 let msg = case e of
                         FailureResponse r -> fromMaybe
