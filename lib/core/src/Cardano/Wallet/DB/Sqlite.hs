@@ -625,7 +625,6 @@ deleteLooseTransactions = do
             "LEFT OUTER JOIN tx_meta ON tx_meta.tx_id = "<> t <>".tx_id " <>
             "WHERE (tx_meta.tx_id IS NULL))"
 
-
 selectLatestCheckpoint
     :: W.WalletId
     -> SqlPersistM (Maybe Checkpoint)

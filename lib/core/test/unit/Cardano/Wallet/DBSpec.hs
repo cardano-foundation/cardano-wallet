@@ -85,6 +85,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , WalletState (..)
+    , isPending
     )
 import Control.Concurrent.Async
     ( forConcurrently_ )
@@ -354,7 +355,11 @@ instance Arbitrary GenTxHistory where
     -- Ensure unique transaction IDs within a given batch of transactions to add
     -- to the history.
     arbitrary = GenTxHistory . Map.fromList <$> do
-        txs <- arbitrary
+        -- NOTE
+        -- We discard pending transaction from any 'GenTxHistory since,
+        -- inserting a pending transaction actually has an effect on the
+        -- checkpoint's pending transactions of the same wallet.
+        txs <- filter (not . isPending) <$> arbitrary
         return $ (\(tx, meta) -> (mockTxId tx, (tx, meta))) <$> txs
       where
         mockTxId :: Tx -> Hash "Tx"
@@ -728,7 +733,7 @@ dbPropertyTests = do
                 readPrivateKey)
             )
         it "Tx History vs Checkpoint & Wallet Metadata & Private Key"
-            (property . (prop_isolation putTxHistoryF
+            (property . discardPending (prop_isolation putTxHistoryF
                 readCheckpoint
                 readWalletMeta
                 readPrivateKey)
@@ -767,6 +772,19 @@ dbPropertyTests = do
         it "Private Key"
             (checkCoverage . (prop_parallelPut putPrivateKey readPrivateKey
                 (length . lrp @Maybe)))
+  where
+    -- NOTE
+    -- For the isolation property, we discard pending transaction since
+    -- inserting a pending transaction actually has an effect on the
+    -- checkpoint's pending transactions of a same wallet.
+    discardPending
+        :: (db -> (k, GenTxHistory) -> Property)
+        -> db
+        -> (k, GenTxHistory)
+        -> Property
+    discardPending prop db (wid, GenTxHistory txs) =
+        let txs' = Map.filter (not . isPending) txs
+        in prop db (wid, GenTxHistory txs')
 
 -- | Provide a DBLayer to a Spec that requires it. The database is initialised
 -- once, and cleared with 'cleanDB' before each test.

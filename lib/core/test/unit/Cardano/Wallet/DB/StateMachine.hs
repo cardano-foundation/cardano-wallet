@@ -59,9 +59,15 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( SeqState (..) )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet )
+    ( Wallet, currentTip, getPending, getState, unsafeInitWallet, utxo )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), Tx (..), TxMeta (..), WalletId (..), WalletMetadata (..) )
+    ( Hash (..)
+    , Tx (..)
+    , TxMeta (..)
+    , WalletId (..)
+    , WalletMetadata (..)
+    , isPending
+    )
 import Control.Foldl
     ( Fold (..) )
 import Control.Monad.IO.Class
@@ -220,7 +226,18 @@ mPutCheckpoint wid wal m@(M cp metas txs pk)
     | otherwise = (Left (NoSuchWallet wid), m)
 
 mReadCheckpoint :: MWid -> MockOp (Maybe MWallet)
-mReadCheckpoint wid m@(M cp _ _ _) = (Right (Map.lookup wid cp), m)
+mReadCheckpoint wid m@(M cp _ txs _) =
+    (Right (withPendingTxs <$> Map.lookup wid cp), m)
+  where
+    pending = maybe
+        mempty
+        (Set.fromList . fmap fst . Map.elems . Map.filter isPending)
+        (Map.lookup wid txs)
+    withPendingTxs c = unsafeInitWallet
+        (utxo c)
+        (getPending c <> pending)
+        (currentTip c)
+        (getState c)
 
 mPutWalletMeta :: MWid -> WalletMetadata -> MockOp ()
 mPutWalletMeta wid meta m@(M cp metas txs pk)
