@@ -8,6 +8,8 @@ module Cardano.WalletSpec
 
 import Prelude
 
+import Cardano.BM.Trace
+    ( nullTracer )
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
@@ -16,8 +18,6 @@ import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge, block0 )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
-import Cardano.Wallet.Logging
-    ( nullLogger )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..), digest, generateKeyFromSeed, publicKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -81,4 +81,4 @@ spec = do
         let tl = HttpBridge.newTransactionLayer
         (handle,) <$>
             (newWalletLayer @_ @(HttpBridge 'Testnet)
-                nullLogger block0 db nl tl)
+                nullTracer block0 db nl tl)

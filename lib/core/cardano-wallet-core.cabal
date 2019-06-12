@@ -81,7 +81,6 @@ library
       Cardano.Wallet.DB.Sqlite
       Cardano.Wallet.DB.Sqlite.TH
       Cardano.Wallet.DB.Sqlite.Types
-      Cardano.Wallet.Logging
       Cardano.Wallet.Network
       Cardano.Wallet.Primitive.AddressDerivation
       Cardano.Wallet.Primitive.AddressDiscovery
@@ -130,6 +129,7 @@ test-suite unit
     , hspec
     , hspec-golden-aeson
     , http-api-data
+    , iohk-monitoring
     , lens
     , memory
     , persistent

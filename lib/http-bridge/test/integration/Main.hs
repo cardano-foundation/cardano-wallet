@@ -7,6 +7,8 @@ module Main where
 
 import Prelude
 
+import Cardano.BM.Trace
+    ( nullTracer )
 import Cardano.Faucet
     ( initFaucet )
 import Cardano.Launcher
@@ -17,8 +19,6 @@ import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge, block0 )
 import Cardano.Wallet.HttpBridge.Environment
     ( Network (..) )
-import Cardano.Wallet.Logging
-    ( nullLogger )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Control.Concurrent
@@ -177,7 +177,7 @@ main = hspec $ do
     cardanoWalletServer nl serverPort = void $ forkIO $ do
         db <- MVar.newDBLayer
         let tl = HttpBridge.newTransactionLayer
-        wallet <- newWalletLayer nullLogger block0 db nl tl
+        wallet <- newWalletLayer nullTracer block0 db nl tl
         Server.start (const $ pure ()) (Just serverPort) wallet
 
     waitForCluster :: String -> IO ()

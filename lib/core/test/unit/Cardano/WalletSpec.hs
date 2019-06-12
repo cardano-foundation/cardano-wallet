@@ -14,6 +14,8 @@ module Cardano.WalletSpec
 
 import Prelude
 
+import Cardano.BM.Trace
+    ( nullTracer )
 import Cardano.Wallet
     ( ErrCreateUnsignedTx (..)
     , ErrSignTx (..)
@@ -29,8 +31,6 @@ import Cardano.Wallet.DB
     ( DBLayer, ErrNoSuchWallet (..), PrimaryKey (..) )
 import Cardano.Wallet.DB.MVar
     ( newDBLayer )
-import Cardano.Wallet.Logging
-    ( nullLogger )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( ChangeChain (..)
     , Depth (..)
@@ -341,7 +341,7 @@ setupFixture (wid, wname, wstate) = do
     db <- newDBLayer
     let nl = error "NetworkLayer"
     let tl = dummyTransactionLayer
-    wl <- newWalletLayer @_ @DummyTarget nullLogger block0 db nl tl
+    wl <- newWalletLayer @_ @DummyTarget nullTracer block0 db nl tl
     res <- runExceptT $ createWallet wl wid wname wstate
     let wal = case res of
             Left _ -> []

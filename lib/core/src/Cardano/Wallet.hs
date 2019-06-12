@@ -46,14 +46,14 @@ module Cardano.Wallet
 import Prelude hiding
     ( log )
 
+import Cardano.BM.Trace
+    ( Trace, logDebug, logError, logInfo )
 import Cardano.Wallet.DB
     ( DBLayer
     , ErrNoSuchWallet (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
     )
-import Cardano.Wallet.Logging
-    ( Logger (..), Severity (..) )
 import Cardano.Wallet.Network
     ( ErrNetworkUnreachable (..), ErrPostTx (..), NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -158,6 +158,8 @@ import Data.Maybe
     ( mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text
+    ( Text )
 import Data.Time.Clock
     ( getCurrentTime )
 import Fmt
@@ -333,14 +335,14 @@ cancelWorker (WorkerRegistry mvar) wid =
 -- | Create a new instance of the wallet layer.
 newWalletLayer
     :: forall s t. ()
-    => Logger
+    => Trace IO Text
     -> BlockHeader
         -- ^ Very first block header for initialization
     -> DBLayer IO s t
     -> NetworkLayer t IO
     -> TransactionLayer t
     -> IO (WalletLayer s t)
-newWalletLayer logger block0 db nw tl = do
+newWalletLayer tracer block0 db nw tl = do
     registry <- newRegistry
     return WalletLayer
         { createWallet = _createWallet
@@ -438,7 +440,7 @@ newWalletLayer logger block0 db nw tl = do
         worker <- liftIO $ forkIO $ do
             runExceptT (networkTip nw) >>= \case
                 Left e -> do
-                    logger `log` Error $ "restoreSleep: " +|| e ||+ ""
+                    logError tracer $ "restoreSleep: " +|| e ||+ ""
                     restoreSleep wid (currentTip w)
                 Right tip -> do
                     restoreStep wid (currentTip w, tip)
@@ -456,14 +458,14 @@ newWalletLayer logger block0 db nw tl = do
     restoreStep wid (slot, tip) = do
         runExceptT (nextBlocks nw slot) >>= \case
             Left e -> do
-                logger `log` Error $ "restoreStep: " +|| e ||+ ""
+                logError tracer $ "restoreStep: " +|| e ||+ ""
                 restoreSleep wid slot
             Right [] -> do
                 restoreSleep wid slot
             Right blocks -> do
                 let next = view #header . last $ blocks
                 runExceptT (restoreBlocks wid blocks (tip ^. #slotId)) >>= \case
-                    Left (ErrNoSuchWallet _) -> logger `log` Error $
+                    Left (ErrNoSuchWallet _) -> logError tracer $
                         "restoreStep: wallet " +| wid |+ " is gone!"
                     Right () -> do
                         restoreStep wid (next, tip)
@@ -479,7 +481,7 @@ newWalletLayer logger block0 db nw tl = do
         let tenSeconds = 10000000 in threadDelay tenSeconds
         runExceptT (networkTip nw) >>= \case
             Left e -> do
-                logger `log` Error $ "restoreSleep: " +|| e ||+ ""
+                logError tracer $ "restoreSleep: " +|| e ||+ ""
                 restoreSleep wid slot
             Right tip ->
                 restoreStep wid (slot, tip)
@@ -496,7 +498,7 @@ newWalletLayer logger block0 db nw tl = do
                 ( view #slotId . header . head $ blocks
                 , view #slotId . header . last $ blocks
                 )
-        liftIO $ logger `log` Info $
+        liftIO $ logInfo tracer $
             "Applying blocks ["+| inf |+" ... "+| sup |+"]"
 
         -- NOTE
@@ -518,9 +520,9 @@ newWalletLayer logger block0 db nw tl = do
                     then Ready
                     else Restoring progress
             let meta' = meta { status = status' } :: WalletMetadata
-            liftIO $ logger `log` Info $
+            liftIO $ logInfo tracer $
                 "Tx History: " +|| length txs ||+ ""
-            unless (null txs) $ liftIO $ logger `log` Debug $ pretty $
+            unless (null txs) $ liftIO $ logDebug tracer $ pretty $
                 blockListF (snd <$> Map.elems txs)
             DB.putCheckpoint db (PrimaryKey wid) cp'
             DB.putTxHistory db (PrimaryKey wid) txs

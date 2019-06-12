@@ -28,12 +28,10 @@ import Prelude hiding
 
 import Cardano.BM.Configuration.Static
     ( defaultConfigStdout )
-import Cardano.BM.Data.LogItem
-    ( PrivacyAnnotation (..) )
 import Cardano.BM.Setup
     ( setupTrace )
 import Cardano.BM.Trace
-    ( appendName, traceNamedItem )
+    ( Trace, appendName )
 import Cardano.CLI
     ( getLine
     , getSensitiveLine
@@ -58,8 +56,6 @@ import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge, block0 )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
-import Cardano.Wallet.Logging
-    ( Logger (..) )
 import Cardano.Wallet.Network
     ( defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -185,12 +181,11 @@ main = do
                                   Logging
 -------------------------------------------------------------------------------}
 
-initLogger :: IO Logger
-initLogger = do
+initTracer :: IO (Trace IO Text)
+initTracer = do
     c <- defaultConfigStdout
     tr <- setupTrace (Right c) "simple"
-    trText <- appendName "text" tr
-    pure $ Logger { log = traceNamedItem trText Public }
+    appendName "text" tr
 
 {-------------------------------------------------------------------------------
                          Command and Argument Parsing
@@ -379,7 +374,7 @@ execHttpBridge
     :: forall n. (KeyToAddress (HttpBridge n), KnownNetwork n)
     => Arguments -> Proxy (HttpBridge n) -> IO ()
 execHttpBridge args _ = do
-    logger <- initLogger
+    tracer <- initTracer
     (walletPort :: Maybe Int)
         <- args `parseOptionalArg` longOption "port"
     (bridgePort :: Int)
@@ -389,7 +384,7 @@ execHttpBridge args _ = do
     nw <- HttpBridge.newNetworkLayer @n bridgePort
     waitForConnection nw defaultRetryPolicy
     let tl = HttpBridge.newTransactionLayer @n
-    wallet <- newWalletLayer @_ @(HttpBridge n) logger block0 db nw tl
+    wallet <- newWalletLayer @_ @(HttpBridge n) tracer block0 db nw tl
     let logStartup port = TIO.hPutStrLn stderr $
             "Wallet backend server listening on: " <> toText port
     Server.start logStartup walletPort wallet
