@@ -401,7 +401,7 @@ mkCheckpointEntity wid wal =
         }
     utxo = [ UTxO wid sl (TxId input) ix addr coin
            | (W.TxIn input ix, W.TxOut addr coin) <- utxoMap ]
-    utxoMap = Map.assocs (W.getUTxO (W.totalUTxO wal))
+    utxoMap = Map.assocs (W.getUTxO (W.utxo wal))
 
 -- note: TxIn records must already be sorted by order
 -- and TxOut records must already by sorted by index.
