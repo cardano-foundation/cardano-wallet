@@ -137,7 +137,7 @@ import qualified Data.Set as Set
 data Wallet s t where
     Wallet :: (IsOurs s, NFData s, Show s, TxId t)
         => UTxO -- Unspent tx outputs belonging to this wallet
-        -> Set Tx -- Pending outgoing transactions
+        -> Set (Tx, TxMeta) -- Pending outgoing transactions
         -> BlockHeader -- Header of the latest applied block (current tip)
         -> s -- Address discovery state
         -> Wallet s t
@@ -209,7 +209,7 @@ applyBlocks blocks cp0 =
         let (txs', cp') = applyBlock b cp in (txs <> txs', cp')
 
 newPending
-    :: Tx
+    :: (Tx, TxMeta)
     -> Wallet s t
     -> Wallet s t
 newPending !tx (Wallet !u !pending !tip !s) =
@@ -224,7 +224,7 @@ unsafeInitWallet
     :: (IsOurs s, NFData s, Show s, TxId t)
     => UTxO
        -- ^ Unspent tx outputs belonging to this wallet
-    -> Set Tx
+    -> Set (Tx, TxMeta)
     -- ^ Pending outgoing transactions
     -> BlockHeader
     -- ^ Header of the latest applied block (current tip)
@@ -258,19 +258,19 @@ totalBalance =
 -- | Available UTxO = @pending ⋪ utxo@
 availableUTxO :: Wallet s t -> UTxO
 availableUTxO (Wallet u pending _ _) =
-    u  `excluding` txIns pending
+    u  `excluding` txIns (Set.map fst pending)
 
 -- | Total UTxO = 'availableUTxO' @<>@ 'changeUTxO'
 totalUTxO :: forall s t. Wallet s t -> UTxO
 totalUTxO wallet@(Wallet _ pending _ s) =
-    availableUTxO wallet <> changeUTxO (Proxy @t) pending s
+    availableUTxO wallet <> changeUTxO (Proxy @t) (Set.map fst pending) s
 
 -- | Actual utxo
 utxo :: Wallet s t -> UTxO
 utxo (Wallet u _ _ _) = u
 
 -- | Get the set of pending transactions
-getPending :: Wallet s t -> Set Tx
+getPending :: Wallet s t -> Set (Tx, TxMeta)
 getPending (Wallet _ pending _ _) = pending
 
 {-------------------------------------------------------------------------------
@@ -377,9 +377,9 @@ utxoOurs _ tx = runState $ toUtxo <$> forM (zip [0..] (outputs tx)) filterOut
 
 -- | Remove transactions from the pending set if their inputs appear in the
 -- given set.
-pendingExcluding :: Set Tx -> Set TxIn -> Set Tx
+pendingExcluding :: Set (Tx, TxMeta) -> Set TxIn -> Set (Tx, TxMeta)
 pendingExcluding txs discovered =
     Set.filter isStillPending txs
   where
     isStillPending =
-        Set.null . Set.intersection discovered . Set.fromList . inputs
+        Set.null . Set.intersection discovered . Set.fromList . inputs . fst

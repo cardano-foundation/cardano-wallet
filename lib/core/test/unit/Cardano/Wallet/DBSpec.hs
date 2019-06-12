@@ -733,7 +733,7 @@ dbPropertyTests = do
                 readPrivateKey)
             )
         it "Tx History vs Checkpoint & Wallet Metadata & Private Key"
-            (property . discardPending (prop_isolation putTxHistoryF
+            (property . (prop_isolation putTxHistoryF
                 readCheckpoint
                 readWalletMeta
                 readPrivateKey)
@@ -772,19 +772,6 @@ dbPropertyTests = do
         it "Private Key"
             (checkCoverage . (prop_parallelPut putPrivateKey readPrivateKey
                 (length . lrp @Maybe)))
-  where
-    -- NOTE
-    -- For the isolation property, we discard pending transaction since
-    -- inserting a pending transaction actually has an effect on the
-    -- checkpoint's pending transactions of a same wallet.
-    discardPending
-        :: (db -> (k, GenTxHistory) -> Property)
-        -> db
-        -> (k, GenTxHistory)
-        -> Property
-    discardPending prop db (wid, GenTxHistory txs) =
-        let txs' = Map.filter (not . isPending) txs
-        in prop db (wid, GenTxHistory txs')
 
 -- | Provide a DBLayer to a Spec that requires it. The database is initialised
 -- once, and cleared with 'cleanDB' before each test.
