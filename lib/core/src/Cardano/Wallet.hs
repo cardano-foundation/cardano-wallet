@@ -509,7 +509,8 @@ newWalletLayer block0 db nw tl = do
             -- block of the list, even if empty, so that we correctly update the
             -- current tip of the wallet state.
             let nonEmpty = not . null . transactions
-            let (h,q) = first (filter nonEmpty) $ splitAt (length blocks - 1) blocks
+            let (h,q) = first (filter nonEmpty) $
+                    splitAt (length blocks - 1) blocks
             let (txs, cp') = applyBlocks (h ++ q) cp
             let progress = slotRatio sup tip
             let status' = if progress == maxBound
@@ -634,7 +635,8 @@ newWalletLayer block0 db nw tl = do
         DB.withLock db $ do
             meta <- _readWalletMeta wid
             now <- liftIO getCurrentTime
-            let modify x = x { passphraseInfo = Just (WalletPassphraseInfo now) }
+            let modify x =
+                    x { passphraseInfo = Just (WalletPassphraseInfo now) }
             DB.putWalletMeta db (PrimaryKey wid) (modify meta)
 
     -- | Execute an action which requires holding a root XPrv

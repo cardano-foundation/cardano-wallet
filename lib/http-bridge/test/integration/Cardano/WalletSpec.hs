@@ -54,7 +54,8 @@ spec = do
                 (mkSeqState @(HttpBridge 'Testnet) (xprv, mempty) minBound)
             unsafeRunExceptT $ restoreWallet wallet wid
             threadDelay 2000000
-            tip <- slotId . currentTip . fst <$> unsafeRunExceptT (readWallet wallet wid)
+            tip <- slotId . currentTip . fst <$>
+                unsafeRunExceptT (readWallet wallet wid)
             unless (tip > (SlotId 0 0)) $
                 expectationFailure ("The wallet tip is still " ++ show tip)
   where

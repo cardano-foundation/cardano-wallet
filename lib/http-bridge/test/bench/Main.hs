@@ -175,7 +175,9 @@ parseNetwork = \case
     ["mainnet"] ->
         return Mainnet
     _ ->
-        fail "invalid network provided to benchmark: not 'testnet' nor 'mainnet'."
+        fail
+            "invalid network provided to benchmark: \
+            \not 'testnet' nor 'mainnet'."
 
 {-------------------------------------------------------------------------------
                                   Benchmarks
@@ -207,7 +209,8 @@ bench_restoration _ (wid, wname, s) = withHttpBridge network $ \port -> do
     (wallet', _) <- unsafeRunExceptT $ readWallet w wid
     sayErr "Wallet restored!"
     sayErr . fmt $ "Balance: " +|| totalBalance wallet' ||+ " lovelace"
-    sayErr . fmt $ "UTxO: " +|| Map.size (getUTxO $ totalUTxO wallet') ||+ " entries"
+    sayErr . fmt $
+        "UTxO: " +|| Map.size (getUTxO $ totalUTxO wallet') ||+ " entries"
     unsafeRunExceptT $ removeWallet w wid
   where
     network = networkVal @n

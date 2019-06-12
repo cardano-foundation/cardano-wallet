@@ -223,8 +223,10 @@ exec execServer manager args
         wSndFactor <- do
             let prompt =
                     "(Enter a blank line if you do not wish to use a second \
-                    \factor.)\nPlease enter a 9–12 word mnemonic second factor: "
-            let parser = optional (fromMnemonic @'[9,12] @"generation") . T.words
+                    \factor.)\n\
+                    \Please enter a 9–12 word mnemonic second factor: "
+            let parser =
+                    optional (fromMnemonic @'[9,12] @"generation") . T.words
             getLine prompt parser <&> \case
                 (Nothing, _) -> Nothing
                 (Just a, t) -> Just (a, t)
