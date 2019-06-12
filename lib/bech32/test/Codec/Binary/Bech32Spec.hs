@@ -1,5 +1,6 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -27,6 +28,8 @@ import Codec.Binary.Bech32.Internal
     , humanReadablePartToText
     , separatorChar
     )
+import Control.DeepSeq
+    ( deepseq )
 import Control.Monad
     ( forM_, replicateM )
 import Data.Bits
@@ -36,7 +39,7 @@ import Data.ByteString
 import Data.Char
     ( chr, isUpper, ord, toLower, toUpper )
 import Data.Either
-    ( fromRight, isLeft, isRight )
+    ( fromRight, isRight )
 import Data.Either.Extra
     ( eitherToMaybe )
 import Data.Functor.Identity
@@ -96,7 +99,7 @@ spec = do
                 let checksumCorrupted =
                         (hrp `T.snoc` (chr (ord first `xor` 1)))
                         `T.append` rest'
-                (Bech32.decode checksumCorrupted) `shouldSatisfy` isLeft
+                (Bech32.decode checksumCorrupted) `shouldSatisfy` isLeft'
                 -- test that re-encoding the decoded checksum results in
                 -- the same checksum.
                 let checksumEncoded = Bech32.encode resultHRP resultData
@@ -171,7 +174,7 @@ spec = do
                     char1 /= char2 ==>
                         (T.length corruptedString === T.length originalString)
                         .&&.
-                        (Bech32.decode corruptedString `shouldSatisfy` isLeft)
+                        (Bech32.decode corruptedString `shouldSatisfy` isLeft')
 
         it "Decoding fails when a character is omitted." $
             property $ withMaxSuccess 10000 $ \s -> do
@@ -189,7 +192,7 @@ spec = do
                 return $ counterexample description $
                     (T.length corruptedString === T.length originalString - 1)
                     .&&.
-                    (Bech32.decode corruptedString `shouldSatisfy` isLeft)
+                    (Bech32.decode corruptedString `shouldSatisfy` isLeft')
                     .||.
                     -- In the case where the tail of a valid Bech32 string is
                     -- composed of one or more consecutive 'q' characters
@@ -224,7 +227,7 @@ spec = do
                         "inserted into the middle" $
                     (T.length corruptedString === T.length originalString + 1)
                     .&&.
-                    (Bech32.decode corruptedString `shouldSatisfy` isLeft)
+                    (Bech32.decode corruptedString `shouldSatisfy` isLeft')
                     .||.
                     -- In the case where the last character of a valid Bech32
                     -- string is the character 'p', inserting any number of
@@ -256,7 +259,7 @@ spec = do
                     corruptedString /= originalString ==>
                         (T.length corruptedString === T.length originalString)
                         .&&.
-                        (result `shouldSatisfy` isLeft)
+                        (result `shouldSatisfy` isLeft')
 
         it "Decoding fails for an upper-case string with a lower-case \
            \character." $
@@ -625,3 +628,10 @@ isMixedCase :: Text -> Bool
 isMixedCase t =
     T.toUpper t /= t &&
     T.toLower t /= t
+
+-- | Strict `isLeft`, evaluate the left-side and return 'True' if 'Left'.
+-- 'False' otherwise.
+isLeft' :: Show e => Either e a -> Bool
+isLeft' = \case
+    Left e -> show e `deepseq` True
+    Right _ -> False

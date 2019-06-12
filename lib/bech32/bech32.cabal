@@ -58,10 +58,11 @@ test-suite bech32-test
   build-depends:
       base
     , bech32
+    , bytestring
     , containers
+    , deepseq
     , extra
     , hspec
-    , bytestring
     , QuickCheck
     , text
     , vector
