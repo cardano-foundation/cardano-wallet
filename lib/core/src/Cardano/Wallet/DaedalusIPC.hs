@@ -77,9 +77,9 @@ import qualified Data.Text as T
 ----------------------------------------------------------------------------
 -- Daedalus <-> Wallet child process port discovery protocol
 
-data MsgIn  = QueryPort | Ping
+data MsgIn  = QueryPort
     deriving (Show, Eq, Generic)
-data MsgOut = Started | Pong | ReplyPort Int | ParseError Text
+data MsgOut = Started | ReplyPort Int | ParseError Text
     deriving (Show, Eq, Generic)
 
 aesonOpts :: Options
@@ -104,7 +104,6 @@ daedalusIPC port = withNodeChannel (pure . msg) action >>= \case
     -- How to respond to an incoming message, or when there is an incoming
     -- message that couldn't be parsed.
     msg (Right QueryPort) = Just (ReplyPort port)
-    msg (Right Ping) = Just Pong
     msg (Left e) = Just (ParseError e)
 
     -- What to do in context of withNodeChannel
