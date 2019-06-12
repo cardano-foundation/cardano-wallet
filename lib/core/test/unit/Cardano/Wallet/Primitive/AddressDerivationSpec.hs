@@ -62,7 +62,7 @@ import Test.QuickCheck
     , elements
     , expectFailure
     , property
-    , suchThat
+    , vectorOf
     , (.&&.)
     , (===)
     , (==>)
@@ -343,13 +343,8 @@ instance {-# OVERLAPS #-} Arbitrary (Passphrase "encryption") where
 
 instance {-# OVERLAPS #-} Arbitrary (Passphrase "seed") where
     arbitrary = do
-        n <- choose (5, 255)
-        bytes <-
-            T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
-            `suchThat`
-            (\bs ->
-                 let bsLength = (BS.length . T.encodeUtf8 . T.pack) bs
-                 in bsLength >= 16 &&  bsLength <= 255)
+        n <- choose (16, 64)
+        bytes <- BS.pack <$> vectorOf n arbitrary
         return $ Passphrase $ BA.convert bytes
 
 instance Arbitrary ChangeChain where
