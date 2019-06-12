@@ -94,7 +94,7 @@ TxMeta
 -- A transaction input associated with TxMeta.
 --
 -- There is no wallet ID because these values depend only on the transaction,
--- not the wallet. txInputTableTxId is referred to by TxMeta and PendingTx
+-- not the wallet. txInputTableTxId is referred to by TxMeta
 TxIn
     txInputTableTxId         TxId        sql=tx_id
     txInputTableOrder        Int         sql=order
@@ -107,7 +107,7 @@ TxIn
 -- A transaction output associated with TxMeta.
 --
 -- There is no wallet ID because these values depend only on the transaction,
--- not the wallet. txOutputTableTxId is referred to by TxMeta and PendingTx
+-- not the wallet. txOutputTableTxId is referred to by TxMeta
 TxOut
     txOutputTableTxId     TxId        sql=tx_id
     txOutputTableIndex    Word32      sql=index
@@ -155,20 +155,6 @@ UTxO                                     sql=utxo
         utxoTableOutputCoin
 
     Foreign Checkpoint fk_checkpoint_utxo utxoTableWalletId utxoTableCheckpointSlot
-    deriving Show Generic
-
--- The pending transactions for a wallet checkpoint.
-PendingTx
-
-    -- The wallet checkpoint (wallet_id, slot)
-    pendingTxTableWalletId        W.WalletId  sql=wallet_id
-    pendingTxTableCheckpointSlot  W.SlotId    sql=slot
-
-    -- Transaction TxIn and TxOut
-    pendingTxTableId2             TxId        sql=tx_id
-
-    Primary pendingTxTableWalletId pendingTxTableCheckpointSlot pendingTxTableId2
-    Foreign Checkpoint fk_pending_tx pendingTxTableWalletId pendingTxTableCheckpointSlot
     deriving Show Generic
 
 -- State for sequential scheme address discovery

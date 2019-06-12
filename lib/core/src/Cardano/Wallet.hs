@@ -565,8 +565,7 @@ newWalletLayer tracer block0 db nw tl = do
         -> NonEmpty TxOut
         -> ExceptT ErrCreateUnsignedTx IO CoinSelection
     _createUnsignedTx wid opts recipients = do
-        (w, _) <- withExceptT ErrCreateUnsignedTxNoSuchWallet
-            (_readWallet wid)
+        (w, _) <- withExceptT ErrCreateUnsignedTxNoSuchWallet (_readWallet wid)
         let utxo = availableUTxO w
         (sel, utxo') <- withExceptT ErrCreateUnsignedTxCoinSelection $
             CoinSelection.random opts recipients utxo
