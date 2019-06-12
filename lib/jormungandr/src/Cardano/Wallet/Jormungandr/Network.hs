@@ -43,11 +43,13 @@ import Cardano.Wallet.Network
     , NetworkLayer (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), Hash (..) )
+    ( Block (..), BlockHeader (..), Hash (..) )
 import Control.Arrow
     ( left )
 import Control.Exception
     ( Exception )
+import Control.Monad
+    ( forM )
 import Control.Monad.Catch
     ( throwM )
 import Control.Monad.Trans.Except
@@ -85,7 +87,10 @@ newNetworkLayer url = do
     return $ mkNetworkLayer $ mkJormungandrLayer mgr url
 
 -- | Wrap a Jormungandr client into a 'NetworkLayer' common interface.
-mkNetworkLayer :: Monad m => JormungandrLayer m -> NetworkLayer t m
+mkNetworkLayer
+    :: Monad m
+    => JormungandrLayer m
+    -> NetworkLayer t m
 mkNetworkLayer j = NetworkLayer
     { networkTip = do
         t <- (getTipId j) `mappingError`
@@ -97,11 +102,26 @@ mkNetworkLayer j = NetworkLayer
                 ErrNetworkTipNetworkUnreachable e
         return $ header b
 
-    , nextBlocks = error "nextBlocks to be implemented"
+    , nextBlocks = \tip -> do
+        let count = 10000
+        -- Get the descendants of the tip's /parent/.
+        -- The first descendant is therefore the current tip itself. We need to
+        -- skip it. Hence the 'tail'.
+        ids <- tailOrEmpty <$> getDescendantIds j (prevBlockHash tip) count
+                `mappingError` \case
+            ErrGetDescendantsNetworkUnreachable e ->
+                ErrGetBlockNetworkUnreachable e
+            ErrGetDescendantsParentNotFound _ ->
+                ErrGetBlockNotFound (prevBlockHash tip)
+        forM ids (getBlock j)
+
     , postTx = error "postTx to be implemented"
     }
   where
     mappingError = flip withExceptT
+
+    tailOrEmpty [] = []
+    tailOrEmpty (_:xs) = xs
 
 {-------------------------------------------------------------------------------
                             Jormungandr Client
