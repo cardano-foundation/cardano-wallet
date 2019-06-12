@@ -114,7 +114,9 @@ data JormungandrLayer m = JormungandrLayer
     , getBlock
         :: Hash "BlockHeader" -> ExceptT ErrGetBlock m Block
     , getDescendantIds
-        :: BlockId -> Word -> ExceptT ErrGetDescendants m [BlockId]
+        :: Hash "BlockHeader"
+        -> Word
+        -> ExceptT ErrGetDescendants m [Hash "BlockHeader"]
     }
 
 -- | Construct a 'JormungandrLayer'-client
@@ -152,14 +154,14 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
                 left ErrGetBlockNetworkUnreachable <$> defaultHandler ctx x
 
     , getDescendantIds = \parentId count -> ExceptT $ do
-        run (cGetBlockDescendantIds parentId (Just count))  >>= \case
+        run (map getBlockId <$> cGetBlockDescendantIds (BlockId parentId) (Just count))  >>= \case
             Left (FailureResponse e) | responseStatusCode e == status404 ->
               return . Left $ ErrGetDescendantsParentNotFound parentId
             x -> do
                 let ctx = safeLink
                         api
                         (Proxy @GetBlockDescendantIds)
-                        parentId
+                        (BlockId parentId)
                         (Just count)
                 left ErrGetDescendantsNetworkUnreachable <$> defaultHandler ctx x
     }
@@ -198,5 +200,5 @@ instance Exception ErrUnexpectedNetworkFailure
 
 data ErrGetDescendants
     = ErrGetDescendantsNetworkUnreachable ErrNetworkUnreachable
-    | ErrGetDescendantsParentNotFound BlockId
+    | ErrGetDescendantsParentNotFound (Hash "BlockHeader")
     deriving (Show, Eq)
