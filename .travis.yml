@@ -18,7 +18,7 @@ env:
     - PATH=$PATH:$HOME/.cargo/bin:$HOME/.local/bin
     - LOCAL_MIX_DIR=.stack-work/dist/x86_64-linux/Cabal-2.4.0.1/hpc/
 
-# We use an hybrid setup with Rust and Haskell, so we handle the compilation ourselves
+# We use a hybrid setup with Rust and Haskell, so we handle the compilation ourselves
 language: generic
 
 # Deactivate builds on branches but `master` and the bors branches.
