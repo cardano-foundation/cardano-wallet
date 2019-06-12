@@ -13,9 +13,15 @@ import System.Exit
 import System.IO.Temp
     ( withSystemTempDirectory )
 import System.Process
-    ( CreateProcess, proc, withCreateProcess )
+    ( CreateProcess
+    , createProcess
+    , proc
+    , terminateProcess
+    , waitForProcess
+    , withCreateProcess
+    )
 import Test.Hspec
-    ( Spec, describe, it, shouldContain )
+    ( Spec, describe, it, shouldContain, shouldReturn )
 
 spec :: Spec
 spec = do
@@ -30,6 +36,11 @@ spec = do
             launcher d
             ls <- listDirectory d
             ls `shouldContain` ["wallet.db"]
+
+    describe "DaedalusIPC" $ do
+        it "should reply with the port when asked" $ do
+            (_, _, _, ph) <- createProcess (proc "test/integration/js/mock-daedalus.js" [])
+            waitForProcess ph `shouldReturn` ExitSuccess
 
 withTempDir :: (FilePath -> IO a) -> IO a
 withTempDir = withSystemTempDirectory "integration-state"
