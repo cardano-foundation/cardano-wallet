@@ -50,7 +50,7 @@ import Test.Integration.Framework.Request
 
 import qualified Cardano.LauncherSpec as Launcher
 import qualified Cardano.Wallet.Api.Server as Server
-import qualified Cardano.Wallet.DB.MVar as MVar
+import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.HttpBridge.Network as HttpBridge
 import qualified Cardano.Wallet.HttpBridge.NetworkSpec as HttpBridge
 import qualified Cardano.Wallet.HttpBridge.Transaction as HttpBridge
@@ -175,7 +175,7 @@ main = hspec $ do
         -> Int
         -> IO ()
     cardanoWalletServer nl serverPort = void $ forkIO $ do
-        db <- MVar.newDBLayer
+        (_, db) <- Sqlite.newDBLayer Nothing
         let tl = HttpBridge.newTransactionLayer
         wallet <- newWalletLayer nullTracer block0 db nl tl
         Server.start (const $ pure ()) (Just serverPort) wallet
