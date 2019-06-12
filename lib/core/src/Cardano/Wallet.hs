@@ -53,7 +53,7 @@ import Cardano.Wallet.DB
     , PrimaryKey (..)
     )
 import Cardano.Wallet.Logging
-    ( Logger (..) )
+    ( Logger (..), Severity (..) )
 import Cardano.Wallet.Network
     ( ErrNetworkUnreachable (..), ErrPostTx (..), NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -168,7 +168,6 @@ import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import qualified Data.Text.IO as TIO
 
 {-------------------------------------------------------------------------------
                                  Types
@@ -341,7 +340,7 @@ newWalletLayer
     -> NetworkLayer t IO
     -> TransactionLayer t
     -> IO (WalletLayer s t)
-newWalletLayer _ block0 db nw tl = do
+newWalletLayer logger block0 db nw tl = do
     registry <- newRegistry
     return WalletLayer
         { createWallet = _createWallet
@@ -439,7 +438,7 @@ newWalletLayer _ block0 db nw tl = do
         worker <- liftIO $ forkIO $ do
             runExceptT (networkTip nw) >>= \case
                 Left e -> do
-                    TIO.putStrLn $ "[ERROR] restoreSleep: " +|| e ||+ ""
+                    logger `log` Error $ "restoreSleep: " +|| e ||+ ""
                     restoreSleep wid (currentTip w)
                 Right tip -> do
                     restoreStep wid (currentTip w, tip)
@@ -457,15 +456,15 @@ newWalletLayer _ block0 db nw tl = do
     restoreStep wid (slot, tip) = do
         runExceptT (nextBlocks nw slot) >>= \case
             Left e -> do
-                TIO.putStrLn $ "[ERROR] restoreStep: " +|| e ||+ ""
+                logger `log` Error $ "restoreStep: " +|| e ||+ ""
                 restoreSleep wid slot
             Right [] -> do
                 restoreSleep wid slot
             Right blocks -> do
                 let next = view #header . last $ blocks
                 runExceptT (restoreBlocks wid blocks (tip ^. #slotId)) >>= \case
-                    Left (ErrNoSuchWallet _) -> TIO.putStrLn $
-                        "[ERROR] restoreStep: wallet " +| wid |+ " is gone!"
+                    Left (ErrNoSuchWallet _) -> logger `log` Error $
+                        "restoreStep: wallet " +| wid |+ " is gone!"
                     Right () -> do
                         restoreStep wid (next, tip)
 
@@ -480,7 +479,7 @@ newWalletLayer _ block0 db nw tl = do
         let tenSeconds = 10000000 in threadDelay tenSeconds
         runExceptT (networkTip nw) >>= \case
             Left e -> do
-                TIO.putStrLn $ "[ERROR] restoreSleep: " +|| e ||+ ""
+                logger `log` Error $ "restoreSleep: " +|| e ||+ ""
                 restoreSleep wid slot
             Right tip ->
                 restoreStep wid (slot, tip)
@@ -497,8 +496,8 @@ newWalletLayer _ block0 db nw tl = do
                 ( view #slotId . header . head $ blocks
                 , view #slotId . header . last $ blocks
                 )
-        liftIO $ TIO.putStrLn $
-            "[INFO] Applying blocks ["+| inf |+" ... "+| sup |+"]"
+        liftIO $ logger `log` Info $
+            "Applying blocks ["+| inf |+" ... "+| sup |+"]"
 
         -- NOTE
         -- Not as good as a transaction, but, with the lock, nothing can make
@@ -519,10 +518,10 @@ newWalletLayer _ block0 db nw tl = do
                     then Ready
                     else Restoring progress
             let meta' = meta { status = status' } :: WalletMetadata
-            liftIO $ TIO.putStrLn $
-                "[INFO] Tx History: " +|| length txs ||+ ""
-            unless (null txs) $ liftIO $ TIO.putStrLn $ pretty $
-                "[DEBUG] :\n" <> blockListF (snd <$> Map.elems txs)
+            liftIO $ logger `log` Info $
+                "Tx History: " +|| length txs ||+ ""
+            unless (null txs) $ liftIO $ logger `log` Debug $ pretty $
+                blockListF (snd <$> Map.elems txs)
             DB.putCheckpoint db (PrimaryKey wid) cp'
             DB.putTxHistory db (PrimaryKey wid) txs
             DB.putWalletMeta db (PrimaryKey wid) meta'
