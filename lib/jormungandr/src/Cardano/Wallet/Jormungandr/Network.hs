@@ -17,6 +17,8 @@
 -- top of an underlying @JormungandrLayer@ HTTP client.
 module Cardano.Wallet.Jormungandr.Network
     ( newNetworkLayer
+    , JormungandrLayer (..)
+    , mkJormungandrLayer
 
     -- * Exception
     , ErrUnexpectedNetworkFailure (..)
@@ -35,9 +37,13 @@ import Cardano.Wallet.Jormungandr.Api
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Network
-    ( ErrNetworkTip (..), ErrNetworkUnreachable (..), NetworkLayer (..) )
+    ( ErrGetBlock (..)
+    , ErrNetworkTip (..)
+    , ErrNetworkUnreachable (..)
+    , NetworkLayer (..)
+    )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..) )
+    ( Block (..), Hash (..) )
 import Control.Arrow
     ( left )
 import Control.Exception
@@ -85,7 +91,7 @@ mkNetworkLayer j = NetworkLayer
         t <- (getTipId j) `mappingError`
             ErrNetworkTipNetworkUnreachable
         b <- (getBlock j t) `mappingError` \case
-            ErrGetBlockNotFound (BlockId _) ->
+            ErrGetBlockNotFound _ ->
                 ErrNetworkTipNotFound
             ErrGetBlockNetworkUnreachable e ->
                 ErrNetworkTipNetworkUnreachable e
@@ -104,9 +110,9 @@ mkNetworkLayer j = NetworkLayer
 -- | Endpoints of the jormungandr REST API.
 data JormungandrLayer m = JormungandrLayer
     { getTipId
-        :: ExceptT ErrNetworkUnreachable m BlockId
+        :: ExceptT ErrNetworkUnreachable m (Hash "BlockHeader")
     , getBlock
-        :: BlockId -> ExceptT ErrGetBlock m Block
+        :: Hash "BlockHeader" -> ExceptT ErrGetBlock m Block
     , getDescendantIds
         :: BlockId -> Word -> ExceptT ErrGetDescendants m [BlockId]
     }
@@ -135,14 +141,14 @@ mkJormungandrLayer
 mkJormungandrLayer mgr baseUrl = JormungandrLayer
     { getTipId = ExceptT $ do
         let ctx = safeLink api (Proxy @GetTipId)
-        run cGetTipId >>= defaultHandler ctx
+        run (getBlockId <$> cGetTipId) >>= defaultHandler ctx
 
     , getBlock = \blockId -> ExceptT $ do
-        run (cGetBlock blockId)  >>= \case
+        run (cGetBlock (BlockId blockId))  >>= \case
             Left (FailureResponse e) | responseStatusCode e == status404 ->
-              return . Left $ ErrGetBlockNotFound blockId
+              return . Left . ErrGetBlockNotFound $ blockId
             x -> do
-                let ctx = safeLink api (Proxy @GetBlock) blockId
+                let ctx = safeLink api (Proxy @GetBlock) (BlockId blockId)
                 left ErrGetBlockNetworkUnreachable <$> defaultHandler ctx x
 
     , getDescendantIds = \parentId count -> ExceptT $ do
@@ -193,9 +199,4 @@ instance Exception ErrUnexpectedNetworkFailure
 data ErrGetDescendants
     = ErrGetDescendantsNetworkUnreachable ErrNetworkUnreachable
     | ErrGetDescendantsParentNotFound BlockId
-    deriving (Show, Eq)
-
-data ErrGetBlock
-    = ErrGetBlockNetworkUnreachable ErrNetworkUnreachable
-    | ErrGetBlockNotFound BlockId
     deriving (Show, Eq)

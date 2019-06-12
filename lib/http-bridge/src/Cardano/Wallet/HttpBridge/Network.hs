@@ -40,7 +40,8 @@ import Cardano.Wallet.HttpBridge.Compatibility
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Network
-    ( ErrNetworkTip (..)
+    ( ErrGetBlock (..)
+    , ErrNetworkTip (..)
     , ErrNetworkUnreachable (..)
     , ErrPostTx (..)
     , NetworkLayer (..)
@@ -58,7 +59,7 @@ import Control.Monad.Catch
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), mapExceptT )
+    ( ExceptT (..), mapExceptT, withExceptT )
 import Crypto.Hash
     ( HashAlgorithm, digestFromByteString )
 import Data.ByteArray
@@ -91,7 +92,8 @@ import qualified Servant.Extra.ContentTypes as Api
 -- | Constructs a network layer with the given cardano-http-bridge API.
 mkNetworkLayer :: Monad m => HttpBridgeLayer m -> NetworkLayer t m
 mkNetworkLayer httpBridge = NetworkLayer
-    { nextBlocks = \(BlockHeader sl _) -> rbNextBlocks httpBridge sl
+    { nextBlocks = \(BlockHeader sl _) ->
+        withExceptT ErrGetBlockNetworkUnreachable (rbNextBlocks httpBridge sl)
     , networkTip = snd <$> getNetworkTip httpBridge
     , postTx = postSignedTx httpBridge
     }

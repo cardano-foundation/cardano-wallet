@@ -14,15 +14,16 @@ module Cardano.Wallet.Network
     , defaultRetryPolicy
 
     -- * Errors
-    , ErrNetworkUnreachable(..)
-    , ErrNetworkTip(..)
-    , ErrPostTx(..)
+    , ErrNetworkUnreachable (..)
+    , ErrNetworkTip (..)
+    , ErrGetBlock (..)
+    , ErrPostTx (..)
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), Tx, TxWitness )
+    ( Block (..), BlockHeader (..), Hash (..), Tx, TxWitness )
 import Control.Exception
     ( Exception, throwIO )
 import Control.Monad.Trans.Except
@@ -34,7 +35,7 @@ import GHC.Generics
     ( Generic )
 
 data NetworkLayer t m = NetworkLayer
-    { nextBlocks :: BlockHeader -> ExceptT ErrNetworkUnreachable m [Block]
+    { nextBlocks :: BlockHeader -> ExceptT ErrGetBlock m [Block]
         -- ^ Gets some blocks from the node. It will not necessarily return all
         -- the blocks that the node has, but will receive a reasonable-sized
         -- chunk. It will never return blocks from before the given slot. It
@@ -64,6 +65,12 @@ data ErrNetworkTip
     deriving (Generic, Show, Eq)
 
 instance Exception ErrNetworkTip
+
+-- | Error while trying to get one or more blocks
+data ErrGetBlock
+    = ErrGetBlockNetworkUnreachable ErrNetworkUnreachable
+    | ErrGetBlockNotFound (Hash "BlockHeader")
+    deriving (Show, Eq)
 
 -- | Error while trying to send a transaction
 data ErrPostTx

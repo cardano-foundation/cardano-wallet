@@ -95,7 +95,7 @@ type PostSignedTx
     :> ReqBody '[JormungandrBinary] (Tx, [TxWitness])
     :> Post '[NoContent] NoContent
 
-newtype BlockId = BlockId (Hash "BlockHeader")
+newtype BlockId = BlockId { getBlockId :: Hash "BlockHeader" }
     deriving (Eq, Show)
 
 instance ToHttpApiData BlockId where
