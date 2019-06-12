@@ -330,6 +330,7 @@ exec execServer manager args
                         _ ->
                             T.pack $ show e
                 putErrLn msg
+                exitFailure
 
 -- | Start a web-server to serve the wallet backend API on the given port.
 execHttpBridge
