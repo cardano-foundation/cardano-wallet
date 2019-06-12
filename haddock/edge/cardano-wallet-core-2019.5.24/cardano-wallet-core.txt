@@ -562,6 +562,8 @@ instance Formatting.Buildable.Buildable (Cardano.Wallet.Primitive.Types.Hash "Bl
 instance Formatting.Buildable.Buildable (Cardano.Wallet.Primitive.Types.Hash "Tx")
 instance Data.Text.Class.FromText (Cardano.Wallet.Primitive.Types.Hash "Tx")
 instance Data.Text.Class.ToText (Cardano.Wallet.Primitive.Types.Hash "Tx")
+instance Data.Text.Class.FromText (Cardano.Wallet.Primitive.Types.Hash "BlockHeader")
+instance Data.Text.Class.ToText (Cardano.Wallet.Primitive.Types.Hash "BlockHeader")
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.TxMeta
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.TxMeta
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.SlotId
@@ -1183,17 +1185,17 @@ instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 
 module Cardano.Wallet.Network
 data NetworkLayer t m
-NetworkLayer :: (SlotId -> ExceptT ErrNetworkUnreachable m [Block]) -> ExceptT ErrNetworkTip m (Hash "BlockHeader", BlockHeader) -> ((Tx, [TxWitness]) -> ExceptT ErrPostTx m ()) -> NetworkLayer t m
+NetworkLayer :: (BlockHeader -> ExceptT ErrNetworkUnreachable m [Block]) -> ExceptT ErrNetworkTip m BlockHeader -> ((Tx, [TxWitness]) -> ExceptT ErrPostTx m ()) -> NetworkLayer t m
 
 -- | Gets some blocks from the node. It will not necessarily return all the
 --   blocks that the node has, but will receive a reasonable-sized chunk.
 --   It will never return blocks from before the given slot. It may return
 --   an empty list if the node does not have any blocks from after the
 --   starting slot.
-[nextBlocks] :: NetworkLayer t m -> SlotId -> ExceptT ErrNetworkUnreachable m [Block]
+[nextBlocks] :: NetworkLayer t m -> BlockHeader -> ExceptT ErrNetworkUnreachable m [Block]
 
 -- | Get the current network tip from the chain producer
-[networkTip] :: NetworkLayer t m -> ExceptT ErrNetworkTip m (Hash "BlockHeader", BlockHeader)
+[networkTip] :: NetworkLayer t m -> ExceptT ErrNetworkTip m BlockHeader
 
 -- | Broadcast a transaction to the chain producer
 [postTx] :: NetworkLayer t m -> (Tx, [TxWitness]) -> ExceptT ErrPostTx m ()
@@ -1202,8 +1204,8 @@ NetworkLayer :: (SlotId -> ExceptT ErrNetworkUnreachable m [Block]) -> ExceptT E
 --   retry policy. Throws an exception otherwise.
 waitForConnection :: NetworkLayer t IO -> RetryPolicyM IO -> IO ()
 
--- | A default <a>RetryPolicy</a> with a constant delay, but no longer than
---   20 seconds.
+-- | A default <a>RetryPolicy</a> with a constant delay, but retries for no
+--   longer than 20 seconds.
 defaultRetryPolicy :: Monad m => RetryPolicyM m
 
 -- | Network is not reachable
@@ -1287,7 +1289,7 @@ module Cardano.Wallet.Primitive.Model
 data Wallet s t
 
 -- | Create an empty wallet from an initial state
-initWallet :: (IsOurs s, NFData s, Show s, TxId t) => s -> Wallet s t
+initWallet :: (IsOurs s, NFData s, Show s, TxId t) => BlockHeader -> s -> Wallet s t
 
 -- | Update the state of an existing Wallet model
 updateState :: (IsOurs s, NFData s, Show s) => s -> Wallet s t -> Wallet s t
@@ -1308,10 +1310,10 @@ newPending :: Tx -> Wallet s t -> Wallet s t
 --   invariants to be broken. Therefore it should only be used in the
 --   special case of loading wallet checkpoints from the database (where it
 --   is assumed a valid wallet was stored into the database).
-unsafeInitWallet :: (IsOurs s, NFData s, Show s, TxId t) => UTxO -> Set Tx -> SlotId -> s -> Wallet s t
+unsafeInitWallet :: (IsOurs s, NFData s, Show s, TxId t) => UTxO -> Set Tx -> BlockHeader -> s -> Wallet s t
 
 -- | Get the wallet current tip
-currentTip :: Wallet s t -> SlotId
+currentTip :: Wallet s t -> BlockHeader
 
 -- | Get the wallet current state
 getState :: Wallet s t -> s
@@ -1552,6 +1554,9 @@ directionFromBool :: Bool -> Direction
 newtype TxId
 TxId :: Hash "Tx" -> TxId
 [getTxId] :: TxId -> Hash "Tx"
+newtype BlockId
+BlockId :: Hash "BlockHeader" -> BlockId
+[getBlockId] :: BlockId -> Hash "BlockHeader"
 walletStateNum :: WalletState -> Word8
 walletStateFromNum :: Word8 -> WalletState
 mkCoin :: Word64 -> Either Text Coin
@@ -1561,12 +1566,24 @@ AddressPoolXPub :: Key  'AccountK XPub -> AddressPoolXPub
 instance GHC.Generics.Generic Cardano.Wallet.DB.Sqlite.Types.AddressPoolXPub
 instance GHC.Classes.Eq Cardano.Wallet.DB.Sqlite.Types.AddressPoolXPub
 instance GHC.Show.Show Cardano.Wallet.DB.Sqlite.Types.AddressPoolXPub
+instance GHC.Generics.Generic Cardano.Wallet.DB.Sqlite.Types.BlockId
+instance GHC.Classes.Ord Cardano.Wallet.DB.Sqlite.Types.BlockId
+instance GHC.Classes.Eq Cardano.Wallet.DB.Sqlite.Types.BlockId
+instance GHC.Show.Show Cardano.Wallet.DB.Sqlite.Types.BlockId
 instance GHC.Generics.Generic Cardano.Wallet.DB.Sqlite.Types.TxId
 instance GHC.Classes.Ord Cardano.Wallet.DB.Sqlite.Types.TxId
 instance GHC.Classes.Eq Cardano.Wallet.DB.Sqlite.Types.TxId
 instance GHC.Show.Show Cardano.Wallet.DB.Sqlite.Types.TxId
 instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.DB.Sqlite.Types.AddressPoolXPub
 instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.DB.Sqlite.Types.AddressPoolXPub
+instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.DB.Sqlite.Types.BlockId
+instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.DB.Sqlite.Types.BlockId
+instance GHC.Read.Read Cardano.Wallet.DB.Sqlite.Types.BlockId
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.DB.Sqlite.Types.BlockId
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.DB.Sqlite.Types.BlockId
+instance Web.Internal.HttpApiData.ToHttpApiData Cardano.Wallet.DB.Sqlite.Types.BlockId
+instance Web.Internal.HttpApiData.FromHttpApiData Cardano.Wallet.DB.Sqlite.Types.BlockId
+instance Web.PathPieces.PathPiece Cardano.Wallet.DB.Sqlite.Types.BlockId
 instance Database.Persist.Class.PersistField.PersistField Cardano.Wallet.DB.Sqlite.Types.TxId
 instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.DB.Sqlite.Types.TxId
 instance GHC.Read.Read Cardano.Wallet.DB.Sqlite.Types.TxId
@@ -1650,9 +1667,10 @@ TxOut :: !TxId -> !Word32 -> !Address -> !Coin -> TxOut
 [txOutputTableAmount] :: TxOut -> !Coin
 type TxOutId = Key TxOut
 data Checkpoint
-Checkpoint :: !WalletId -> !SlotId -> Checkpoint
+Checkpoint :: !WalletId -> !SlotId -> !BlockId -> Checkpoint
 [checkpointTableWalletId] :: Checkpoint -> !WalletId
 [checkpointTableSlot] :: Checkpoint -> !SlotId
+[checkpointTableParent] :: Checkpoint -> !BlockId
 type CheckpointId = Key Checkpoint
 data UTxO
 UTxO :: !WalletId -> !SlotId -> !TxId -> !Word32 -> !Address -> !Coin -> UTxO
@@ -2358,7 +2376,7 @@ newtype ErrAdjustForFee
 ErrCannotCoverFee :: Word64 -> ErrAdjustForFee
 
 -- | Create a new instance of the wallet layer.
-newWalletLayer :: forall s t. () => DBLayer IO s t -> NetworkLayer t IO -> TransactionLayer t -> IO (WalletLayer s t)
+newWalletLayer :: forall s t. () => BlockHeader -> DBLayer IO s t -> NetworkLayer t IO -> TransactionLayer t -> IO (WalletLayer s t)
 
 -- | Run an <a>ExceptT</a> and throws the error if any. This makes sense
 --   only if called after checking for an invariant or, after ensuring that
