@@ -1201,6 +1201,9 @@ NetworkLayer :: (SlotId -> ExceptT ErrNetworkUnreachable m [Block]) -> ExceptT E
 -- | Wait until 'networkTip networkLayer' succeeds according to a given
 --   retry policy. Throws an exception otherwise.
 waitForConnection :: NetworkLayer t IO -> RetryPolicyM IO -> IO ()
+
+-- | A default <a>RetryPolicy</a> with a constant delay, but no longer than
+--   20 seconds.
 defaultRetryPolicy :: Monad m => RetryPolicyM m
 
 -- | Network is not reachable
@@ -1211,9 +1214,6 @@ ErrNetworkUnreachable :: Text -> ErrNetworkUnreachable
 data ErrNetworkTip
 ErrNetworkTipNetworkUnreachable :: ErrNetworkUnreachable -> ErrNetworkTip
 ErrNetworkTipNotFound :: ErrNetworkTip
-
--- | The tip-block wasn't found. This would be surprising.
-ErrNetworkTipBlockNotFound :: Hash "BlockHeader" -> ErrNetworkTip
 
 -- | Error while trying to send a transaction
 data ErrPostTx
