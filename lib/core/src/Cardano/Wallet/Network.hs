@@ -94,8 +94,8 @@ waitForConnection nw policy = do
         Left (ErrNetworkTipNetworkUnreachable _) ->
             return True
 
--- | A default 'RetryPolicy' with a constant delay, but no longer than 20
--- seconds.
+-- | A default 'RetryPolicy' with a constant delay, but retries for no longer
+-- than 20 seconds.
 defaultRetryPolicy :: Monad m => RetryPolicyM m
 defaultRetryPolicy =
     limitRetriesByCumulativeDelay (20 * second) (constantDelay (1 * second))
