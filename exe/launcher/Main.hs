@@ -67,13 +67,14 @@ https://github.com/input-output-hk/cardano-http-bridge, and run
 in the directory.
 
 Usage:
-  cardano-wallet-launcher [options]
+  cardano-wallet-launcher [options] (--wallet-server-random-port | --wallet-server-port=<PORT>)
   cardano-wallet-launcher -h | --help
   cardano-wallet-launcher --version
 
 Options:
   --network <STRING>           testnet, mainnet, or local [default: testnet]
   --wallet-server-port <PORT>  port used for serving the wallet API [default: 8090]
+  --wallet-server-random-port  serve wallet API on any available port
   --http-bridge-port <PORT>    port used for communicating with the http-bridge [default: 8080]
   --state-dir <DIR>            write wallet state (blockchain and database) to this directory
 |]
@@ -91,13 +92,17 @@ main = do
     let network = fromMaybe "testnet" $ args `getArg` (longOption "network")
     bridgePort <- args `parseArg` longOption "http-bridge-port"
     walletPort <- args `parseArg` longOption "wallet-server-port"
+    let mWalletPort =
+            if args `isPresent` longOption "wallet-server-random-port"
+            then Nothing
+            else Just walletPort
 
     sayErr "Starting..."
     installSignalHandlers
     maybe (pure ()) setupStateDir stateDir
     let commands =
             [ nodeHttpBridgeOn stateDir bridgePort network
-            , walletOn stateDir walletPort bridgePort network
+            , walletOn stateDir mWalletPort bridgePort network
             ]
     sayErr $ fmt $ blockListF commands
     (ProcessHasExited name code) <- launch commands
@@ -107,7 +112,11 @@ main = do
     parseArg :: FromText a => Arguments -> Option -> IO a
     parseArg = parseArgWith cli
 
-nodeHttpBridgeOn :: Maybe FilePath -> Port "Node" -> String -> Command
+nodeHttpBridgeOn
+    :: Maybe FilePath
+    -> Port "Node"
+    -> String
+    -> Command
 nodeHttpBridgeOn stateDir port net =
     Command "cardano-http-bridge" args (return ()) Inherit
   where
@@ -118,18 +127,25 @@ nodeHttpBridgeOn stateDir port net =
         ] ++ networkArg
     networkArg = maybe [] (\d -> ["--networks-dir", d]) stateDir
 
-walletOn :: Maybe FilePath -> Port "Wallet" -> Port "Node" -> String -> Command
+walletOn
+    :: Maybe FilePath
+    -> Maybe (Port "Wallet")
+    -> Port "Node"
+    -> String
+    -> Command
 walletOn stateDir wp np net =
     Command "cardano-wallet" args (threadDelay oneSecond) Inherit
   where
-    args =
-        [ "server"
-        , "--network", if net == "local" then "testnet" else net
-        , "--port", T.unpack (toText wp)
-        , "--bridge-port", T.unpack (toText np)
-        ] ++ dbArg
-    dbArg = maybe [] (\d -> ["--database", d </> "wallet.db"]) stateDir
     oneSecond = 1000000
+    args = mconcat
+        [ [ "server" ]
+        , [ "--network", if net == "local" then "testnet" else net ]
+        , maybe ["--random-port"] (\p -> ["--port", showT p]) wp
+        , [ "--bridge-port", showT np ]
+        , maybe [] (\d -> ["--database", d </> "wallet.db"]) stateDir
+        ]
+    showT :: ToText a => a -> String
+    showT = T.unpack . toText
 
 setupStateDir :: FilePath -> IO ()
 setupStateDir dir = doesDirectoryExist dir >>= \case

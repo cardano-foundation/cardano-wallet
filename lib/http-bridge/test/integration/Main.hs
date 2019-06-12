@@ -16,6 +16,8 @@ import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
     ( newWalletLayer )
+import Cardano.Wallet.Api.Server
+    ( Listen (..) )
 import Cardano.Wallet.DB
     ( DBLayer (..) )
 import Cardano.Wallet.HttpBridge.Compatibility
@@ -30,6 +32,8 @@ import Control.Concurrent
     ( forkIO, threadDelay )
 import Control.Concurrent.Async
     ( async, cancel, link, race )
+import Control.Concurrent.MVar
+    ( newEmptyMVar, putMVar, takeMVar )
 import Control.Exception
     ( throwIO )
 import Control.Monad
@@ -38,6 +42,8 @@ import Data.Aeson
     ( Value (..), (.:) )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Text.Class
+    ( ToText (..) )
 import Data.Time
     ( addUTCTime, defaultTimeLocale, formatTime, getCurrentTime )
 import Database.Persist.Sql
@@ -78,13 +84,19 @@ main = hspec $ do
     describe "Cardano.WalletSpec" Wallet.spec
     describe "Cardano.Wallet.HttpBridge.NetworkSpec" HttpBridge.spec
     describe "CLI commands not requiring bridge" MnemonicsCLI.spec
-    beforeAll startCluster $ afterAll killCluster $ after tearDown $ do
+    beforeAll (startCluster ListenOnRandomPort) $
+        afterAll killCluster $ after tearDown $ do
         describe "Wallets API endpoint tests" Wallets.spec
         describe "Transactions API endpoint tests" Transactions.spec
         describe "Addresses API endpoint tests" Addresses.spec
         describe "Wallets CLI tests" WalletsCLI.spec
         describe "Transactions CLI tests" TransactionsCLI.spec
         describe "Addresses CLI tests" AddressesCLI.spec
+
+    let defaultPort = 8090
+    beforeAll (startCluster (ListenOnPort defaultPort)) $
+        afterAll killCluster $ after tearDown $ do
+        describe "Port tests using wallets CLI" (WalletsCLI.specPorts defaultPort)
   where
     oneSecond :: Int
     oneSecond = 1 * 1000 * 1000 -- 1 second in microseconds
@@ -100,8 +112,8 @@ main = hspec $ do
 
     -- Run a local cluster of cardano-sl nodes, a cardano-http-bridge on top and
     -- a cardano wallet server connected to the bridge.
-    startCluster :: IO (Context (HttpBridge 'Testnet))
-    startCluster = do
+    startCluster :: Listen -> IO (Context (HttpBridge 'Testnet))
+    startCluster walletListen = do
         let stateDir = "./test/data/cardano-node-simple"
         let networkDir = "/tmp/cardano-http-bridge/networks"
         let bridgePort = 8080
@@ -134,9 +146,9 @@ main = hspec $ do
         wait "cardano-http-bridge" (threadDelay oneSecond)
         nl <- HttpBridge.newNetworkLayer bridgePort
         (conn, db) <- Sqlite.newDBLayer Nothing
-        cardanoWalletServer nl db 1337
+        port <- cardanoWalletServer nl db walletListen
         wait "cardano-wallet" (threadDelay oneSecond)
-        let baseURL = "http://localhost:1337/"
+        let baseURL = mkBaseUrl port
         manager <- newManager defaultManagerSettings
         faucet <- putStrLn "Creating money out of thin air..." *> initFaucet nl
         return $ Context cluster (baseURL, manager) handle faucet conn Proxy
@@ -167,6 +179,8 @@ main = hspec $ do
         -- some places where it's less annoying.
         (UseHandle h)
 
+    mkBaseUrl port = "http://localhost:" <> toText port <> "/"
+
     cardanoHttpBridge port template dir h before = Command
         "cardano-http-bridge"
         [ "start"
@@ -183,12 +197,15 @@ main = hspec $ do
         :: (network ~ HttpBridge 'Testnet)
         => NetworkLayer network IO
         -> DBLayer IO (SeqState network) network
-        -> Int
-        -> IO ()
-    cardanoWalletServer nl db serverPort = void $ forkIO $ do
-        let tl = HttpBridge.newTransactionLayer
-        wallet <- newWalletLayer nullTracer block0 db nl tl
-        Server.start (const $ pure ()) (Just serverPort) wallet
+        -> Listen
+        -> IO Int
+    cardanoWalletServer nl db listen = do
+        port <- newEmptyMVar
+        void . forkIO $ do
+            let tl = HttpBridge.newTransactionLayer
+            wallet <- newWalletLayer nullTracer block0 db nl tl
+            Server.start (putMVar port) listen wallet
+        takeMVar port
 
     waitForCluster :: String -> IO ()
     waitForCluster addr = do

@@ -17,6 +17,7 @@
 
 module Cardano.Wallet.Api.Server
     ( start
+    , Listen (..)
     ) where
 
 import Prelude
@@ -74,6 +75,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Control.Exception
     ( bracket )
+import Control.Monad
+    ( void )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -110,6 +113,8 @@ import Network.HTTP.Types.Header
     ( hContentType )
 import Network.Socket
     ( Socket, close )
+import Network.Wai.Handler.Warp
+    ( Port )
 import Network.Wai.Middleware.ServantError
     ( handleRawError )
 import Servant
@@ -139,19 +144,28 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.Wai.Handler.Warp as Warp
 
+-- | How the server should listen for incoming requests.
+data Listen
+    = ListenOnPort Port
+      -- ^ Listen on given TCP port
+    | ListenOnRandomPort
+      -- ^ Listen on an unused TCP port, selected at random
+    deriving (Show, Eq)
+
 -- | Start the application server
 start
     :: forall t. (TxId t, KeyToAddress t, EncodeAddress t, DecodeAddress t)
-    => (Warp.Port -> IO ())
-    -> Maybe Warp.Port
+    => (Port -> IO ())
+    -> Listen
     -> WalletLayer (SeqState t) t
     -> IO ()
-start onStartup mport wl =
-    withListeningSocket mport $ \(port, socket) -> do
+start onStartup portOption wl =
+    void $ withListeningSocket portOption $ \(port, socket) -> do
         let settings = Warp.defaultSettings
                 & Warp.setPort port
                 & Warp.setBeforeMainLoop (onStartup port)
         startOnSocket settings socket wl
+        pure port
 
 startOnSocket
     :: forall t. (TxId t, KeyToAddress t, EncodeAddress t, DecodeAddress t)
@@ -170,17 +184,17 @@ startOnSocket settings socket wl = Warp.runSettingsSocket settings socket
     application :: Application
     application = serve (Proxy @("v2" :> Api t)) server
 
--- | Run an action with a TCP socket bound to a port. If no port is specified,
--- then an unused port will be selected at random.
+-- | Run an action with a TCP socket bound to a port specified by the `Listen`
+-- parameter.
 withListeningSocket
-    :: Maybe Warp.Port
-    -> ((Warp.Port, Socket) -> IO ())
-    -> IO ()
-withListeningSocket mport = bracket acquire release
+    :: Listen
+    -> ((Port, Socket) -> IO Port)
+    -> IO Port
+withListeningSocket portOpt = bracket acquire release
   where
-    acquire = case mport of
-        Just port -> (port,) <$> bindPortTCP port hostPreference
-        Nothing -> bindRandomPortTCP hostPreference
+    acquire = case portOpt of
+        ListenOnPort port -> (port,) <$> bindPortTCP port hostPreference
+        ListenOnRandomPort -> bindRandomPortTCP hostPreference
     release (_, socket) = liftIO $ close socket
     -- TODO: make configurable, default to secure for now.
     hostPreference = "127.0.0.1"

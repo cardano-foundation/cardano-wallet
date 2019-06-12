@@ -742,12 +742,14 @@ createWalletViaCLI
     -> String
     -> String
     -> String
+    -> Maybe String
     -> IO (ExitCode, String, Text)
-createWalletViaCLI args mnemonics secondFactor passphrase = do
+createWalletViaCLI args mnemonics secondFactor passphrase portM = do
+    let portArg =
+            maybe [] (\p -> ["--port", p]) portM
     let fullArgs =
-            [ "exec", "--", "cardano-wallet"
-            , "wallet", "create", "--port", "1337"
-            ] ++ args
+            [ "exec", "--", "cardano-wallet", "wallet", "create" ]
+            ++ portArg ++ args
     let process = (proc "stack" fullArgs)
             { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
     withCreateProcess process $ \(Just stdin) (Just stdout) (Just stderr) h -> do
@@ -761,6 +763,8 @@ createWalletViaCLI args mnemonics secondFactor passphrase = do
         out <- TIO.hGetContents stdout
         err <- TIO.hGetContents stderr
         return (c, T.unpack out, err)
+
+
 
 deleteWalletViaCLI :: CmdResult r => String -> IO r
 deleteWalletViaCLI walId = cardanoWalletCLI
