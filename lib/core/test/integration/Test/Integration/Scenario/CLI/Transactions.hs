@@ -27,7 +27,7 @@ import Data.Proxy
     ( Proxy (..) )
 import qualified Data.Text as T
 import System.Command
-    ( Exit (..), Stdout (..) )
+    ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit
     ( ExitCode (..) )
 import Test.Hspec
@@ -39,6 +39,7 @@ import Test.Integration.Framework.DSL
     , amount
     , balanceAvailable
     , balanceTotal
+    , cardanoWalletCLI
     , deleteWalletViaCLI
     , direction
     , emptyWallet
@@ -237,7 +238,7 @@ spec = do
         (c, out, err) <- postTransactionViaCLI "cardano-wallet" args
         (T.unpack err) `shouldContain` errMsg403UTxO
         out `shouldBe` ""
-        c `shouldBe` ExitSuccess
+        c `shouldBe` ExitFailure 1
 
     it "TRANS_CREATE_03 - 0 balance after transaction" $ \ctx -> do
         let balance = 168434
@@ -292,7 +293,7 @@ spec = do
         (c, out, err) <- postTransactionViaCLI "Secure Passphrase" args
         (T.unpack err) `shouldContain` errMsg403Fee
         out `shouldBe` ""
-        c `shouldBe` ExitSuccess
+        c `shouldBe` ExitFailure 1
 
     it "TRANS_CREATE_04 - Not enough money" $ \ctx -> do
         wSrc <- fixtureWalletWith ctx [100_000, 1000]
@@ -308,7 +309,7 @@ spec = do
         (c, out, err) <- postTransactionViaCLI "Secure Passphrase" args
         (T.unpack err) `shouldContain` (errMsg403NotEnoughMoney 101_000 1000_000)
         out `shouldBe` ""
-        c `shouldBe` ExitSuccess
+        c `shouldBe` ExitFailure 1
 
     it "TRANS_CREATE_04 - Wrong password" $ \ctx -> do
         wSrc <- fixtureWallet ctx
@@ -324,7 +325,7 @@ spec = do
         (c, out, err) <- postTransactionViaCLI "This password is wrong" args
         (T.unpack err) `shouldContain` errMsg403WrongPass
         out `shouldBe` ""
-        c `shouldBe` ExitSuccess
+        c `shouldBe` ExitFailure 1
 
     describe "TRANS_CREATE_05 - Invalid addresses" $ do
         let longAddr = replicate 10000 '1'
@@ -354,7 +355,7 @@ spec = do
             (c, out, err) <- postTransactionViaCLI "Secure Passphrase" args
             (T.unpack err) `shouldContain` errMsg
             out `shouldBe` ""
-            c `shouldBe` (ExitFailure 1)
+            c `shouldBe` ExitFailure 1
 
     describe "TRANS_CREATE_06 - Invalid amount" $ do
         let errNum = "Expecting natural number"
@@ -381,10 +382,7 @@ spec = do
             (c, out, err) <- postTransactionViaCLI "cardano-wallet" args
             (T.unpack err) `shouldContain` errMsg
             out `shouldBe` ""
-            if (title == "0") then
-                c `shouldBe` ExitSuccess
-            else
-                c `shouldBe` (ExitFailure 1)
+            c `shouldBe` ExitFailure 1
 
     describe "TRANS_CREATE_07 - False wallet ids" $ do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
@@ -392,20 +390,18 @@ spec = do
             addrs:_ <- listAddresses ctx wDest
             let addr =
                     encodeAddress (Proxy @t) (getApiT $ fst $ addrs ^. #id)
-            let args = [ walId, "--payment", "12@" ++  (T.unpack addr) ]
-
-            (c, out, err) <- postTransactionViaCLI "Secure Passphrase" args
+            let args = [ "transaction", "create", "--port", "1337",
+                    walId, "--payment", "12@" ++  (T.unpack addr) ]
+            -- make sure CLI returns error before asking for passphrase
+            (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI args
             out `shouldBe` ""
+            c `shouldBe` ExitFailure 1
             if (title == "40 chars hex") then
-                (T.unpack err) `shouldContain` "I couldn't find a wallet with \
+                err `shouldContain` "I couldn't find a wallet with \
                     \the given id: 1111111111111111111111111111111111111111"
             else
-                (T.unpack err) `shouldContain` "wallet id should be an \
+                err `shouldContain` "wallet id should be an \
                     \hex-encoded string of 40 characters"
-            if (title == "40 chars hex") then
-                c `shouldBe` ExitSuccess
-            else
-                c `shouldBe` (ExitFailure 1)
 
     it "TRANSCLI_CREATE_07 - 'almost' valid walletId" $ \ctx -> do
         wSrc <- fixtureWallet ctx
@@ -414,13 +410,14 @@ spec = do
         let addr =
                 encodeAddress (Proxy @t) (getApiT $ fst $ addrs ^. #id)
         let args = T.unpack <$>
-                [ (T.append (wSrc ^. walletId) "0"), "--payment", "11@" <> addr ]
-
-        (c, out, err) <- postTransactionViaCLI "cardano-wallet" args
-        (T.unpack err) `shouldContain` "wallet id should be an hex-encoded\
+                [ "transaction", "create", "--port", "1337",
+                (T.append (wSrc ^. walletId) "0"), "--payment", "11@" <> addr ]
+        -- make sure CLI returns error before asking for passphrase
+        (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI args
+        err `shouldContain` "wallet id should be an hex-encoded\
             \ string of 40 characters"
         out `shouldBe` ""
-        c `shouldBe` (ExitFailure 1)
+        c `shouldBe` ExitFailure 1
 
     it "TRANS_CREATE_07 - Deleted wallet" $ \ctx -> do
         wSrc <- fixtureWallet ctx
@@ -431,10 +428,12 @@ spec = do
         addrs:_ <- listAddresses ctx wDest
         let addr =
                 encodeAddress (Proxy @t) (getApiT $ fst $ addrs ^. #id)
-        let args = T.unpack <$> [ wSrc ^. walletId, "--payment", "11@" <> addr ]
-
-        (c, out, err) <- postTransactionViaCLI "cardano-wallet" args
-        (T.unpack err) `shouldContain` "I couldn't find a wallet with \
+        let args = T.unpack <$>
+                [ "transaction", "create", "--port", "1337", wSrc ^. walletId,
+                "--payment", "11@" <> addr ]
+        -- make sure CLI returns error before asking for passphrase
+        (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI args
+        err `shouldContain` "I couldn't find a wallet with \
             \the given id: " ++ T.unpack ( wSrc ^. walletId )
         out `shouldBe` ""
-        c `shouldBe` ExitSuccess
+        c `shouldBe` ExitFailure 1

@@ -64,6 +64,8 @@ import Control.Monad
     ( when )
 import Data.Aeson
     ( (.:) )
+import Data.Either
+    ( isRight )
 import Data.Functor
     ( (<&>) )
 import qualified Data.List.NonEmpty as NE
@@ -120,7 +122,6 @@ import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
-
 
 cli :: Docopt
 cli = [docopt|Cardano Wallet CLI.
@@ -245,24 +246,28 @@ exec execServer manager args
     | args `isPresent` command "wallet" &&
       args `isPresent` command "delete" = do
         wId <- args `parseArg` argument "wallet-id"
-        runClient (const "") $ deleteWallet (ApiT wId)
+        runClient (const "") (deleteWallet (ApiT wId))
 
     | args `isPresent` command "transaction" &&
       args `isPresent` command "create" = do
         wId <- args `parseArg` argument "wallet-id"
         ts <- args `parseAllArgs` longOption "payment"
-        wPwd <- getPassphrase
-        runClient Aeson.encodePretty $ createTransaction (ApiT wId) $
-            PostTransactionData
-                ts
-                (ApiT wPwd)
+        res <- sendRequest $ getWallet $ ApiT wId
+        if (isRight res) then do
+            wPwd <- getPassphrase
+            runClient Aeson.encodePretty $ createTransaction (ApiT wId) $
+                PostTransactionData
+                    ts
+                    (ApiT wPwd)
+        else
+            handleResponse Aeson.encodePretty res
 
     | args `isPresent` command "address" &&
       args `isPresent` command "list" = do
         wId <- args `parseArg` argument "wallet-id"
         maybeState <- args `parseOptionalArg` longOption "state"
         runClient Aeson.encodePretty
-            $ listAddresses (ApiT wId) (ApiT <$> maybeState)
+            (listAddresses (ApiT wId) (ApiT <$> maybeState))
 
     | args `isPresent` longOption "version" = do
         putStrLn (showVersion version)
@@ -313,9 +318,24 @@ exec execServer manager args
         -> ClientM a
         -> IO ()
     runClient encode cmd = do
+        res <- sendRequest cmd
+        handleResponse encode res
+
+    sendRequest
+        :: forall a. ()
+        => ClientM a
+        -> IO (Either ServantError a)
+    sendRequest cmd = do
         port <- args `parseArg` longOption "port"
         let env = mkClientEnv manager (BaseUrl Http "localhost" port "")
-        res <- runClientM cmd env
+        runClientM cmd env
+
+    handleResponse
+        :: forall a. ()
+        => (a -> BL.ByteString)
+        -> Either ServantError a
+        -> IO ()
+    handleResponse encode res = do
         case res of
             Right a -> do
                 TIO.hPutStrLn stderr "Ok."
@@ -330,6 +350,7 @@ exec execServer manager args
                         _ ->
                             T.pack $ show e
                 putErrLn msg
+                exitFailure
 
 -- | Start a web-server to serve the wallet backend API on the given port.
 execHttpBridge

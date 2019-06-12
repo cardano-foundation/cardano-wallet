@@ -111,17 +111,13 @@ spec = do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \_ -> do
             (Exit c, Stdout out, Stderr err) <- getWalletViaCLI walId
             out `shouldBe` ""
+            c `shouldBe` ExitFailure 1
             if (title == "40 chars hex") then
                 err `shouldBe` "I couldn't find a wallet with the given id:\
                     \ 1111111111111111111111111111111111111111\n"
             else
                 err `shouldBe` "wallet id should be an hex-encoded string of\
                     \ 40 characters\n"
-
-            if (title == "40 chars hex") then
-                c `shouldBe` ExitSuccess
-            else
-                c `shouldBe` ExitFailure 1
 
     it "WALLETS_LIST_01 - Can list wallets" $ \ctx -> do
         emptyWallet' ctx $> () <* emptyWallet' ctx
