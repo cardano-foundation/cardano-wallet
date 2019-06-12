@@ -1,23 +1,24 @@
-{ nixpkgs ? fetchTarball channel:nixos-19.03
-, pkgs ? import nixpkgs {}
-}:
+{ rustPlatform
+, fetchFromGitHub
+, protobuf
+,  ... }:
 
-with pkgs;
 
-rustPlatform.buildRustPackage {
-  name = "cardano-http-bridge";
+rustPlatform.buildRustPackage rec {
+  name = "cardano-http-bridge-${version}";
 
+  version = "0.0.2";
   src = fetchFromGitHub {
-    owner = "input-output-hk";
+    owner = "rvl";
     repo = "cardano-http-bridge";
     fetchSubmodules = true;
-    rev = "b81c805e0fe62e6b8eacdc11fee573fa5668cbc8";
-    sha256 = "0vkg1hgcg9xqwzi9a1rap12sgyvc7ppnf89rqlf8pgsz3akzr4qd";
+    rev = "ba3e172b90f3b9ebabe1bcca4c71183c3118ebe8";
+    sha256 = "1dr920bx48agj83h5cn1jx9nygkb5c23qi58brvfar6aivsbvx4c";
   };
+  cargoSha256 = "0l6z1rsb8hw36w7kg6ms4l688klz17cw36q01pdb96ayhcacys49";
 
-  buildInputs = [ sqlite protobuf rustfmt ];
+  buildInputs = [ protobuf ];
 
   PROTOC = "${protobuf}/bin/protoc";
 
-  cargoSha256 = "19g5fy8af65vd9rl66058c67nlrz7r6mjd0cy83865d7q81hdl8r";
 }

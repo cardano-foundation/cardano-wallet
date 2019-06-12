@@ -6,7 +6,6 @@ author:              IOHK Engineering Team
 maintainer:          operations@iohk.io
 copyright:           2019 IOHK
 license:             MIT
-license-file:        LICENSE
 category:            Web
 build-type:          Simple
 cabal-version:       >=1.10
@@ -65,6 +64,8 @@ test-suite unit
     , fmt
     , hspec
     , text
+  build-tools:
+      hspec-discover
   type:
      exitcode-stdio-1.0
   hs-source-dirs:

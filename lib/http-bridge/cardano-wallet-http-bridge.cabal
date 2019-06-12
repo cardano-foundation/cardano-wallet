@@ -7,7 +7,6 @@ author:              IOHK Engineering Team
 maintainer:          operations@iohk.io
 copyright:           2019 IOHK
 license:             MIT
-license-file:        LICENSE
 category:            Web
 build-type:          Simple
 extra-source-files:  README.md
@@ -97,6 +96,8 @@ test-suite unit
     , text
     , text-class
     , transformers
+  build-tools:
+      hspec-discover
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
