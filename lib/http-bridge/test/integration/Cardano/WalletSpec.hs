@@ -13,7 +13,7 @@ import Cardano.Launcher
 import Cardano.Wallet
     ( WalletLayer (..), newWalletLayer, unsafeRunExceptT )
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge )
+    ( HttpBridge, block0 )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -25,7 +25,7 @@ import Cardano.Wallet.Primitive.Mnemonic
 import Cardano.Wallet.Primitive.Model
     ( currentTip )
 import Cardano.Wallet.Primitive.Types
-    ( SlotId (..), WalletId (..), WalletName (..) )
+    ( BlockHeader (..), SlotId (..), WalletId (..), WalletName (..) )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
@@ -54,7 +54,7 @@ spec = do
                 (mkSeqState @(HttpBridge 'Testnet) (xprv, mempty) minBound)
             unsafeRunExceptT $ restoreWallet wallet wid
             threadDelay 2000000
-            tip <- currentTip . fst <$> unsafeRunExceptT (readWallet wallet wid)
+            tip <- slotId . currentTip . fst <$> unsafeRunExceptT (readWallet wallet wid)
             unless (tip > (SlotId 0 0)) $
                 expectationFailure ("The wallet tip is still " ++ show tip)
   where
@@ -76,4 +76,4 @@ spec = do
         db <- MVar.newDBLayer
         nl <- HttpBridge.newNetworkLayer @'Testnet port
         let tl = HttpBridge.newTransactionLayer
-        (handle,) <$> (newWalletLayer @_ @(HttpBridge 'Testnet) db nl tl)
+        (handle,) <$> (newWalletLayer @_ @(HttpBridge 'Testnet) block0 db nl tl)

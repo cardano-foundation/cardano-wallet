@@ -82,14 +82,14 @@ newNetworkLayer url = do
 mkNetworkLayer :: Monad m => JormungandrLayer m -> NetworkLayer t m
 mkNetworkLayer j = NetworkLayer
     { networkTip = do
-        t@(BlockId hash) <- (getTipId j) `mappingError`
+        t <- (getTipId j) `mappingError`
             ErrNetworkTipNetworkUnreachable
         b <- (getBlock j t) `mappingError` \case
             ErrGetBlockNotFound (BlockId _) ->
                 ErrNetworkTipNotFound
             ErrGetBlockNetworkUnreachable e ->
                 ErrNetworkTipNetworkUnreachable e
-        return (hash, header b)
+        return $ header b
 
     , nextBlocks = error "nextBlocks to be implemented"
     , postTx = error "postTx to be implemented"

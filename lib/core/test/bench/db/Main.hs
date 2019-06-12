@@ -70,9 +70,11 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet, unsafeInitWallet )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , BlockHeader (..)
     , Coin (..)
     , Direction (..)
     , Hash (..)
+    , SlotId (..)
     , Tx (..)
     , TxId (..)
     , TxIn (..)
@@ -318,7 +320,10 @@ mkCheckpoints :: Int -> Int -> [WalletBench]
 mkCheckpoints numCheckpoints utxoSize = [ cp i | i <- [1..numCheckpoints]]
   where
     cp i = unsafeInitWallet (UTxO utxo) mempty
-        (fromFlatSlot $ fromIntegral i)
+        (BlockHeader
+            (fromFlatSlot $ fromIntegral i)
+            (Hash $ label "prevBlockHash" i)
+        )
         initDummyState
     utxo = Map.fromList $ zip (mkInputs utxoSize) (mkOutputs utxoSize)
 
@@ -328,8 +333,10 @@ mkCheckpoints numCheckpoints utxoSize = [ cp i | i <- [1..numCheckpoints]]
 benchPutSeqState :: Int -> Int -> DBLayerBench -> IO ()
 benchPutSeqState numCheckpoints numAddrs db =
     unsafeRunExceptT $ mapM_ (putCheckpoint db testPk)
-        [ initWallet $ SeqState (mkPool numAddrs i) (mkPool numAddrs i)
-          emptyPendingIxs | i <- [1..numCheckpoints] ]
+        [ initWallet initDummyBlock0 $
+            SeqState (mkPool numAddrs i) (mkPool numAddrs i) emptyPendingIxs
+        | i <- [1..numCheckpoints]
+        ]
 
 mkPool
     :: forall t chain. (KeyToAddress t, Typeable chain)
@@ -360,7 +367,11 @@ instance TxId DummyTarget where
     txId = Hash . B8.pack . show
 
 testCp :: WalletBench
-testCp = initWallet initDummyState
+testCp = initWallet initDummyBlock0 initDummyState
+
+initDummyBlock0 :: BlockHeader
+initDummyBlock0 =
+    BlockHeader (SlotId 0 0) (Hash "genesis")
 
 initDummyState :: SeqState DummyTarget
 initDummyState =

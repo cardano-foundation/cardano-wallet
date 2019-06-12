@@ -17,7 +17,7 @@ import Cardano.Wallet
 import Cardano.Wallet.DB.Sqlite
     ( PersistState )
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge )
+    ( HttpBridge, block0 )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.HttpBridge.Network
@@ -34,14 +34,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( CompareDiscovery
-    , GenChange
-    , IsOwned
-    , KnownAddresses
-    , SeqState
-    , defaultAddressPoolGap
-    , mkSeqState
-    )
+    ( IsOwned, SeqState, defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Any
     ( AnyAddressState, initAnyState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Any.TH
@@ -49,7 +42,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Any.TH
 import Cardano.Wallet.Primitive.Model
     ( totalBalance, totalUTxO )
 import Cardano.Wallet.Primitive.Types
-    ( SlotId (..)
+    ( BlockHeader (..)
+    , SlotId (..)
     , UTxO (..)
     , WalletId (..)
     , WalletName (..)
@@ -191,11 +185,8 @@ parseNetwork = \case
 bench_restoration
     :: forall (n :: Network) s.
         ( IsOwned s
-        , GenChange s
         , NFData s
         , Show s
-        , CompareDiscovery s
-        , KnownAddresses s
         , PersistState s
         , KnownNetwork n
         )
@@ -203,13 +194,13 @@ bench_restoration
     -> (WalletId, WalletName, s)
     -> IO ()
 bench_restoration _ (wid, wname, s) = withHttpBridge network $ \port -> do
-    (conn, dbLayer) <- emptySystemTempFile "bench.db" >>= Sqlite.newDBLayer . Just
+    (conn, db) <- emptySystemTempFile "bench.db" >>= Sqlite.newDBLayer . Just
     Sqlite.runQuery conn (void $ runMigrationSilent migrateAll)
-    networkLayer <- newNetworkLayer port
-    let transactionLayer = newTransactionLayer
-    (_, bh) <- unsafeRunExceptT $ networkTip networkLayer
-    sayErr . fmt $ network ||+ " tip is at " +|| (bh ^. #slotId) ||+ ""
-    w <- newWalletLayer @_ @(HttpBridge n) dbLayer networkLayer transactionLayer
+    nw <- newNetworkLayer port
+    let tl = newTransactionLayer
+    BlockHeader sl _ <- unsafeRunExceptT $ networkTip nw
+    sayErr . fmt $ network ||+ " tip is at " +|| sl ||+ ""
+    w <- newWalletLayer @_ @(HttpBridge n) block0 db nw tl
     wallet <- unsafeRunExceptT $ createWallet w wid wname s
     unsafeRunExceptT $ restoreWallet w wallet
     waitForWalletSync w wallet
@@ -281,8 +272,7 @@ waitForNodeSync bridge networkName logSlot = loop 10
   where
     loop :: Int -> IO SlotId
     loop retries = runExceptT (networkTip bridge) >>= \case
-        Right (_, hdr) -> do
-            let tipBlockSlot = hdr ^. #slotId
+        Right (BlockHeader tipBlockSlot _) -> do
             currentSlot <- getCurrentSlot networkName
             logSlot tipBlockSlot currentSlot
             if tipBlockSlot < currentSlot

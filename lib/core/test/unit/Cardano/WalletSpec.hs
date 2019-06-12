@@ -55,9 +55,10 @@ import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , BlockHeader (..)
     , Coin (..)
     , Hash (..)
-    , Hash (..)
+    , SlotId (..)
     , Tx (..)
     , TxId (..)
     , TxIn (..)
@@ -322,6 +323,12 @@ data WalletLayerFixture = WalletLayerFixture
     , _fixtureWallet :: [WalletId]
     }
 
+block0 :: BlockHeader
+block0 = BlockHeader
+    { slotId = SlotId 0 0
+    , prevBlockHash = Hash "genesis"
+    }
+
 setupFixture
     :: (WalletId, WalletName, DummyState)
     -> IO WalletLayerFixture
@@ -329,7 +336,7 @@ setupFixture (wid, wname, wstate) = do
     db <- newDBLayer
     let nl = error "NetworkLayer"
     let tl = dummyTransactionLayer
-    wl <- newWalletLayer @_ @DummyTarget db nl tl
+    wl <- newWalletLayer @_ @DummyTarget block0 db nl tl
     res <- runExceptT $ createWallet wl wid wname wstate
     let wal = case res of
             Left _ -> []
