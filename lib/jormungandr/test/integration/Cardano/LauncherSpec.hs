@@ -12,12 +12,15 @@ import Control.Concurrent.Async
     ( async, cancel, race, wait )
 import Control.Monad
     ( void )
+import System.Directory
+    ( removePathForcibly )
 import Test.Hspec
     ( Spec, describe, expectationFailure, it )
 
 spec :: Spec
 spec = describe "cardano-wallet-launcher" $ do
     it "Can start launcher against testnet" $ do
+        removePathForcibly "/tmp/cardano-wallet-jormungandr"
         let jormungandrLauncher = Command
                 "jormungandr"
                 [ "--genesis-block", dir ++ "/block-0.bin"
@@ -35,6 +38,5 @@ spec = describe "cardano-wallet-launcher" $ do
                 expectationFailure
                     "jormungandr isn't supposed to terminate. \
                     \Something went wrong."
-
   where
     dir = "test/data/jormungandr"

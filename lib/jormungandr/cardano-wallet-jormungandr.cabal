@@ -110,8 +110,13 @@ test-suite integration
   build-depends:
       async
     , base
+    , cardano-wallet-core
+    , cardano-wallet-jormungandr
     , cardano-wallet-launcher
+    , directory
     , hspec
+    , servant
+    , transformers
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
@@ -120,3 +125,4 @@ test-suite integration
       Main.hs
   other-modules:
       Cardano.LauncherSpec
+      Cardano.Wallet.Jormungandr.NetworkSpec

@@ -33,8 +33,6 @@ import Data.Text
 import GHC.Generics
     ( Generic )
 
-import qualified Data.Text.IO as TIO
-
 data NetworkLayer t m = NetworkLayer
     { nextBlocks :: SlotId -> ExceptT ErrNetworkUnreachable m [Block]
         -- ^ Gets some blocks from the node. It will not necessarily return all
@@ -63,8 +61,6 @@ instance Exception ErrNetworkUnreachable
 data ErrNetworkTip
     = ErrNetworkTipNetworkUnreachable ErrNetworkUnreachable
     | ErrNetworkTipNotFound
-    | ErrNetworkTipBlockNotFound (Hash "BlockHeader")
-    -- ^ The tip-block wasn't found. This would be surprising.
     deriving (Generic, Show, Eq)
 
 instance Exception ErrNetworkTip
@@ -90,18 +86,18 @@ waitForConnection nw policy = do
         Right _ -> return ()
         Left e -> throwIO e
   where
-
     shouldRetry _ = \case
-        Right _ -> do
+        Right _ ->
             return False
-        Left (ErrNetworkTipNetworkUnreachable _) -> do
-             TIO.putStrLn "[INFO] waiting for connection to the node..."
-             return True
-        Left _ -> return True
+        Left ErrNetworkTipNotFound ->
+            return True
+        Left (ErrNetworkTipNetworkUnreachable _) ->
+            return True
 
+-- | A default 'RetryPolicy' with a constant delay, but no longer than 20
+-- seconds.
 defaultRetryPolicy :: Monad m => RetryPolicyM m
 defaultRetryPolicy =
-    limitRetriesByCumulativeDelay (20 * second)
-        (constantDelay (1 * second))
+    limitRetriesByCumulativeDelay (20 * second) (constantDelay (1 * second))
   where
     second = 1000*1000
