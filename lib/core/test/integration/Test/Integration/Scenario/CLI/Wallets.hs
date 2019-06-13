@@ -93,7 +93,6 @@ spec = do
             out `shouldBe` ""
             T.unpack err `shouldContain` "Invalid number of words: 9 or 12\
                 \ words are expected."
-
             Stdout outList <- listWalletsViaCLI ctx
             outList `shouldNotContain` name
 

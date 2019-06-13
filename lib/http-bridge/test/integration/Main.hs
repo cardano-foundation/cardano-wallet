@@ -96,14 +96,20 @@ main = hspec $ do
             cardanoWalletServer Nothing
                 & beforeAll
                 $ afterAll killServer
-                $ describe "with default port" PortCLI.specWithDefaultPort
-            -- cardanoWalletServer (Just $ ListenOnPort defaultPort)
-            --     & beforeAll
-            --     $ afterAll killServer
-            --     $ describe "with specified port" Port.specWithSpecifiedPort
-            -- beforeAll (cardanoWalletServer $ Just ListenOnRandomPort)
-            --     $ afterAll killServer
-            --     $ describe "with default port" Port.specWithRandomPort
+                $ describe "with default port" $ do
+                    PortCLI.specCommon
+                    PortCLI.specWithDefaultPort
+            cardanoWalletServer (Just $ ListenOnPort defaultPort)
+                & beforeAll
+                $ afterAll killServer
+                $ describe "with specified port" $ do
+                    PortCLI.specCommon
+            cardanoWalletServer (Just ListenOnRandomPort)
+                & beforeAll
+                $ afterAll killServer
+                $ describe "with random port" $ do
+                    PortCLI.specCommon
+                    PortCLI.specWithRandomPort defaultPort
 
     beforeAll startCluster $
         afterAll killCluster $ after tearDown $ do
