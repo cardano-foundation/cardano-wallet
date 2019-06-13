@@ -17,6 +17,7 @@
 -- top of an underlying @JormungandrLayer@ HTTP client.
 module Cardano.Wallet.Jormungandr.Network
     ( newNetworkLayer
+    , mkNetworkLayer
     , JormungandrLayer (..)
     , mkJormungandrLayer
 
