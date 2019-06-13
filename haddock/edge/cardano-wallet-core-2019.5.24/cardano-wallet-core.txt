@@ -2376,7 +2376,7 @@ newtype ErrAdjustForFee
 ErrCannotCoverFee :: Word64 -> ErrAdjustForFee
 
 -- | Create a new instance of the wallet layer.
-newWalletLayer :: forall s t. () => BlockHeader -> DBLayer IO s t -> NetworkLayer t IO -> TransactionLayer t -> IO (WalletLayer s t)
+newWalletLayer :: forall s t. () => Trace IO Text -> BlockHeader -> DBLayer IO s t -> NetworkLayer t IO -> TransactionLayer t -> IO (WalletLayer s t)
 
 -- | Run an <a>ExceptT</a> and throws the error if any. This makes sense
 --   only if called after checking for an invariant or, after ensuring that
