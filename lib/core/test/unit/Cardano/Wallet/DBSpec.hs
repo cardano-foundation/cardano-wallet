@@ -85,6 +85,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , WalletState (..)
+    , isPending
     )
 import Control.Concurrent.Async
     ( forConcurrently_ )
@@ -354,7 +355,11 @@ instance Arbitrary GenTxHistory where
     -- Ensure unique transaction IDs within a given batch of transactions to add
     -- to the history.
     arbitrary = GenTxHistory . Map.fromList <$> do
-        txs <- arbitrary
+        -- NOTE
+        -- We discard pending transaction from any 'GenTxHistory since,
+        -- inserting a pending transaction actually has an effect on the
+        -- checkpoint's pending transactions of the same wallet.
+        txs <- filter (not . isPending) <$> arbitrary
         return $ (\(tx, meta) -> (mockTxId tx, (tx, meta))) <$> txs
       where
         mockTxId :: Tx -> Hash "Tx"

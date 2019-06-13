@@ -41,6 +41,7 @@ module Cardano.Wallet.Primitive.Types
     , TxStatus(..)
     , TxWitness (..)
     , txIns
+    , isPending
 
     -- * Address
     , Address (..)
@@ -473,6 +474,10 @@ data TxWitness
     | RedeemWitness ByteString
       -- ^ Used to redeem ADA from the pre-sale
     deriving (Eq, Show)
+
+-- | True if the given tuple refers to a pending transaction
+isPending :: (Tx, TxMeta) -> Bool
+isPending = (== Pending) . (status :: TxMeta -> TxStatus) . snd
 
 {-------------------------------------------------------------------------------
                                     Address

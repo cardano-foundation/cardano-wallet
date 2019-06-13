@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
 module Main where
@@ -15,12 +16,16 @@ import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
     ( newWalletLayer )
+import Cardano.Wallet.DB
+    ( DBLayer (..) )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge, block0 )
 import Cardano.Wallet.HttpBridge.Environment
     ( Network (..) )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( SeqState )
 import Control.Concurrent
     ( forkIO, threadDelay )
 import Control.Concurrent.Async
@@ -35,6 +40,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Time
     ( addUTCTime, defaultTimeLocale, formatTime, getCurrentTime )
+import Database.Persist.Sql
+    ( close' )
 import Network.HTTP.Client
     ( defaultManagerSettings, newManager )
 import System.Directory
@@ -50,7 +57,7 @@ import Test.Integration.Framework.Request
 
 import qualified Cardano.LauncherSpec as Launcher
 import qualified Cardano.Wallet.Api.Server as Server
-import qualified Cardano.Wallet.DB.MVar as MVar
+import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.HttpBridge.Network as HttpBridge
 import qualified Cardano.Wallet.HttpBridge.NetworkSpec as HttpBridge
 import qualified Cardano.Wallet.HttpBridge.Transaction as HttpBridge
@@ -126,17 +133,19 @@ main = hspec $ do
         wait "cardano-node-simple" (waitForCluster nodeApiAddress)
         wait "cardano-http-bridge" (threadDelay oneSecond)
         nl <- HttpBridge.newNetworkLayer bridgePort
-        cardanoWalletServer nl 1337
+        (conn, db) <- Sqlite.newDBLayer Nothing
+        cardanoWalletServer nl db 1337
         wait "cardano-wallet" (threadDelay oneSecond)
         let baseURL = "http://localhost:1337/"
         manager <- newManager defaultManagerSettings
         faucet <- putStrLn "Creating money out of thin air..." *> initFaucet nl
-        return $ Context cluster (baseURL, manager) handle faucet Proxy
+        return $ Context cluster (baseURL, manager) handle faucet conn Proxy
 
     killCluster :: Context t -> IO ()
-    killCluster (Context cluster _ handle _ _) = do
+    killCluster (Context cluster _ handle _ db _) = do
         cancel cluster
         hClose handle
+        close' db
 
     cardanoNodeSimple stateDir sysStart (nodeId, nodeAddr) h extra = Command
         "cardano-node-simple"
@@ -171,11 +180,12 @@ main = hspec $ do
     -- We start the wallet server in the same process such that we get
     -- code coverage measures from running the scenarios on top of it!
     cardanoWalletServer
-        :: NetworkLayer (HttpBridge 'Testnet) IO
+        :: (network ~ HttpBridge 'Testnet)
+        => NetworkLayer network IO
+        -> DBLayer IO (SeqState network) network
         -> Int
         -> IO ()
-    cardanoWalletServer nl serverPort = void $ forkIO $ do
-        db <- MVar.newDBLayer
+    cardanoWalletServer nl db serverPort = void $ forkIO $ do
         let tl = HttpBridge.newTransactionLayer
         wallet <- newWalletLayer nullTracer block0 db nl tl
         Server.start (const $ pure ()) (Just serverPort) wallet
@@ -188,6 +198,7 @@ main = hspec $ do
                 , _logs = undefined
                 , _faucet = undefined
                 , _target = undefined
+                , _db = undefined
                 , _manager = ("http://" <> T.pack addr, manager)
                 }
         let err =  "waitForCluster: unexpected positive response from Api"

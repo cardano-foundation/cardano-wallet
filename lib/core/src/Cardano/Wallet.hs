@@ -6,7 +6,6 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -565,8 +564,7 @@ newWalletLayer tracer block0 db nw tl = do
         -> NonEmpty TxOut
         -> ExceptT ErrCreateUnsignedTx IO CoinSelection
     _createUnsignedTx wid opts recipients = do
-        (w, _) <- withExceptT ErrCreateUnsignedTxNoSuchWallet
-            (_readWallet wid)
+        (w, _) <- withExceptT ErrCreateUnsignedTxNoSuchWallet (_readWallet wid)
         let utxo = availableUTxO w
         (sel, utxo') <- withExceptT ErrCreateUnsignedTxCoinSelection $
             CoinSelection.random opts recipients utxo
@@ -612,17 +610,14 @@ newWalletLayer tracer block0 db nw tl = do
                     throwE $ ErrSignTx e
 
     _submitTx
-        :: (TxId t)
-        => WalletId
+        :: WalletId
         -> (Tx, TxMeta, [TxWitness])
         -> ExceptT ErrSubmitTx IO ()
     _submitTx wid (tx, meta, wit) = do
         withExceptT ErrSubmitTxNetwork $ postTx nw (tx, wit)
         DB.withLock db $ withExceptT ErrSubmitTxNoSuchWallet $ do
             (w, _) <- _readWallet wid
-            let history = Map.fromList [(txId @t tx, (tx, meta))]
-            DB.putCheckpoint db (PrimaryKey wid) (newPending tx w)
-            DB.putTxHistory db (PrimaryKey wid) history
+            DB.putCheckpoint db (PrimaryKey wid) (newPending (tx, meta) w)
 
     {---------------------------------------------------------------------------
                                      Keystore

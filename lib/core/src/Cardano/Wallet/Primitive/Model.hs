@@ -45,6 +45,7 @@ module Cardano.Wallet.Primitive.Model
     , totalBalance
     , totalUTxO
     , availableUTxO
+    , utxo
     , getPending
     ) where
 
@@ -136,7 +137,7 @@ import qualified Data.Set as Set
 data Wallet s t where
     Wallet :: (IsOurs s, NFData s, Show s, TxId t)
         => UTxO -- Unspent tx outputs belonging to this wallet
-        -> Set Tx -- Pending outgoing transactions
+        -> Set (Tx, TxMeta) -- Pending outgoing transactions
         -> BlockHeader -- Header of the latest applied block (current tip)
         -> s -- Address discovery state
         -> Wallet s t
@@ -144,8 +145,8 @@ data Wallet s t where
 deriving instance Show (Wallet s t)
 deriving instance Eq s => Eq (Wallet s t)
 instance NFData (Wallet s t) where
-    rnf (Wallet utxo pending sl s) =
-        deepseq (rnf utxo) $
+    rnf (Wallet u pending sl s) =
+        deepseq (rnf u) $
         deepseq (rnf pending) $
         deepseq (rnf sl) $
         deepseq (rnf s) ()
@@ -179,10 +180,10 @@ applyBlock
     => Block
     -> Wallet s t
     -> (Map (Hash "Tx") (Tx, TxMeta), Wallet s t)
-applyBlock !b (Wallet !utxo !pending _ s) =
+applyBlock !b (Wallet !u !pending _ s) =
     let
         -- Prefilter Block / Update UTxO
-        ((txs, utxo'), s') = prefilterBlock (Proxy @t) b utxo s
+        ((txs, u'), s') = prefilterBlock (Proxy @t) b u s
         -- Update Pending
         newIns = txIns $ Set.fromList (map fst txs)
         pending' = pending `pendingExcluding` newIns
@@ -192,7 +193,7 @@ applyBlock !b (Wallet !utxo !pending _ s) =
             txs
     in
         ( txs'
-        , Wallet utxo' pending' (b ^. #header) s'
+        , Wallet u' pending' (b ^. #header) s'
         )
 
 -- | Helper to apply multiple blocks in sequence to an existing wallet. It's
@@ -208,11 +209,11 @@ applyBlocks blocks cp0 =
         let (txs', cp') = applyBlock b cp in (txs <> txs', cp')
 
 newPending
-    :: Tx
+    :: (Tx, TxMeta)
     -> Wallet s t
     -> Wallet s t
-newPending !tx (Wallet !utxo !pending !tip !s) =
-    Wallet utxo (Set.insert tx pending) tip s
+newPending !tx (Wallet !u !pending !tip !s) =
+    Wallet u (Set.insert tx pending) tip s
 
 -- | Constructs a wallet from the exact given state. Using this function instead
 -- of 'initWallet' and 'applyBlock' allows the wallet invariants to be
@@ -223,7 +224,7 @@ unsafeInitWallet
     :: (IsOurs s, NFData s, Show s, TxId t)
     => UTxO
        -- ^ Unspent tx outputs belonging to this wallet
-    -> Set Tx
+    -> Set (Tx, TxMeta)
     -- ^ Pending outgoing transactions
     -> BlockHeader
     -- ^ Header of the latest applied block (current tip)
@@ -256,16 +257,20 @@ totalBalance =
 
 -- | Available UTxO = @pending ⋪ utxo@
 availableUTxO :: Wallet s t -> UTxO
-availableUTxO (Wallet utxo pending _ _) =
-    utxo `excluding` txIns pending
+availableUTxO (Wallet u pending _ _) =
+    u  `excluding` txIns (Set.map fst pending)
 
 -- | Total UTxO = 'availableUTxO' @<>@ 'changeUTxO'
 totalUTxO :: forall s t. Wallet s t -> UTxO
 totalUTxO wallet@(Wallet _ pending _ s) =
-    availableUTxO wallet <> changeUTxO (Proxy @t) pending s
+    availableUTxO wallet <> changeUTxO (Proxy @t) (Set.map fst pending) s
+
+-- | Actual utxo
+utxo :: Wallet s t -> UTxO
+utxo (Wallet u _ _ _) = u
 
 -- | Get the set of pending transactions
-getPending :: Wallet s t -> Set Tx
+getPending :: Wallet s t -> Set (Tx, TxMeta)
 getPending (Wallet _ pending _ _) = pending
 
 {-------------------------------------------------------------------------------
@@ -300,9 +305,9 @@ prefilterBlock
     -> UTxO
     -> s
     -> (([(Tx, TxMeta)], UTxO), s)
-prefilterBlock proxy b utxo0 = runState $ do
-    (ourTxs, ourUtxo) <- foldM applyTx (mempty, utxo0) (transactions b)
-    return (ourTxs, ourUtxo)
+prefilterBlock proxy b u0 = runState $ do
+    (ourTxs, ourU) <- foldM applyTx (mempty, u0) (transactions b)
+    return (ourTxs, ourU)
   where
     mkTxMeta :: Natural -> Direction -> TxMeta
     mkTxMeta amt dir = TxMeta
@@ -315,25 +320,25 @@ prefilterBlock proxy b utxo0 = runState $ do
         :: ([(Tx, TxMeta)], UTxO)
         -> Tx
         -> State s ([(Tx, TxMeta)], UTxO)
-    applyTx (!txs, !utxo) tx = do
-        ourUtxo <- state $ utxoOurs proxy tx
-        let ourIns = Set.fromList (inputs tx) `Set.intersection` dom (utxo <> ourUtxo)
-        let utxo' = (utxo <> ourUtxo) `excluding` ourIns
-        let received = fromIntegral @_ @Integer $ balance ourUtxo
-        let spent = fromIntegral @_ @Integer $ balance (utxo `restrictedBy` ourIns)
+    applyTx (!txs, !u) tx = do
+        ourU <- state $ utxoOurs proxy tx
+        let ourIns = Set.fromList (inputs tx) `Set.intersection` dom (u <> ourU)
+        let u' = (u <> ourU) `excluding` ourIns
+        let received = fromIntegral @_ @Integer $ balance ourU
+        let spent = fromIntegral @_ @Integer $ balance (u `restrictedBy` ourIns)
         let amt = fromIntegral $ abs (received - spent)
         let hasKnownInput = ourIns /= mempty
-        let hasKnownOutput = ourUtxo /= mempty
+        let hasKnownOutput = ourU /= mempty
         return $ if hasKnownOutput && not hasKnownInput then
             ( (tx, mkTxMeta amt Incoming) : txs
-            , utxo'
+            , u'
             )
         else if hasKnownInput then
             ( (tx, mkTxMeta amt Outgoing) : txs
-            , utxo'
+            , u'
             )
         else
-            (txs, utxo)
+            (txs, u)
 
 -- | Get the change UTxO
 --
@@ -372,9 +377,9 @@ utxoOurs _ tx = runState $ toUtxo <$> forM (zip [0..] (outputs tx)) filterOut
 
 -- | Remove transactions from the pending set if their inputs appear in the
 -- given set.
-pendingExcluding :: Set Tx -> Set TxIn -> Set Tx
+pendingExcluding :: Set (Tx, TxMeta) -> Set TxIn -> Set (Tx, TxMeta)
 pendingExcluding txs discovered =
     Set.filter isStillPending txs
   where
     isStillPending =
-        Set.null . Set.intersection discovered . Set.fromList . inputs
+        Set.null . Set.intersection discovered . Set.fromList . inputs . fst
