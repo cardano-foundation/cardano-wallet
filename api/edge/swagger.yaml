@@ -12,7 +12,7 @@ info:
     <p align="right"><img style="position: relative; top: -10em; margin-bottom: -12em;" width="20%" src="https://cardanodocs.com/img/cardano.png"></img></p>
 externalDocs:
   description: Need more? Click here to access our API guide and walkthrough.
-  url: 'TODO'
+  url: https://github.com/input-output-hk/cardano-wallet/wiki
 consumes: ["application/json"]
 produces: ["application/json"]
 
@@ -22,12 +22,12 @@ produces: ["application/json"]
 #                                                                           #
 #############################################################################
 
-data: &date
+x-date: &date
   type: string
   format: iso-8601-date-and-time
   example: 2019-02-27T14:46:45Z
 
-numberOfSlots: &numberOfSlots
+x-numberOfSlots: &numberOfSlots
   type: object
   required:
     - quantity
@@ -43,7 +43,7 @@ numberOfSlots: &numberOfSlots
         - slot
       example: "slot"
 
-numberOfBlocks: &numberOfBlocks
+x-numberOfBlocks: &numberOfBlocks
   type: object
   required:
     - quantity
@@ -59,7 +59,7 @@ numberOfBlocks: &numberOfBlocks
         - block
       example: "block"
 
-percentage: &percentage
+x-percentage: &percentage
   type: object
   required:
     - quantity
@@ -75,7 +75,7 @@ percentage: &percentage
       enum:
         - percent
 
-amount: &amount
+x-amount: &amount
   description: Coins, in Lovelace
   type: object
   required:
@@ -91,18 +91,18 @@ amount: &amount
       enum:
         - lovelace
 
-addressId: &addressId
+x-addressId: &addressId
   type: string
   format: base58
   example: 2cWKMJemoBam7gg1y5K2aFDhAm5L8fVc96NfxgcGhdLMFTsToNAU9t5HVdBBQKy4iDswL
 
-addressState: &addressState
+x-addressState: &addressState
   type: string
   enum:
     - used
     - unused
 
-walletId: &walletId
+x-walletId: &walletId
   description: A unique identifier for the wallet
   type: string
   format: hex
@@ -110,13 +110,13 @@ walletId: &walletId
   minLength: 40
   example: 2512a00e9653fe49a44a5886202e24d77eeb998f
 
-walletName: &walletName
+x-walletName: &walletName
   type: string
   maxLength: 255
   minLength: 1
   example: Alan's Wallet
 
-walletMnemonicSentence: &walletMnemonicSentence
+x-walletMnemonicSentence: &walletMnemonicSentence
   description: A list of mnemonic words
   type: array
   minItems: 15
@@ -126,7 +126,7 @@ walletMnemonicSentence: &walletMnemonicSentence
     format: bip-0039-mnemonic-word{english}
   example: ["squirrel", "material", "silly", "twice", "direct", "slush", "pistol", "razor", "become", "junk", "kingdom", "flee", "squirrel", "silly", "twice"]
 
-walletSecondFactor: &walletSecondFactor
+x-walletSecondFactor: &walletSecondFactor
   description: An optional passphrase used to encrypt the mnemonic sentence.
   type: array
   minItems: 9
@@ -136,14 +136,14 @@ walletSecondFactor: &walletSecondFactor
     format: bip-0039-mnemonic-word{english}
   example: ["squirrel", "material", "silly", "twice", "direct", "slush", "pistol", "razor", "become"]
 
-walletPassphrase: &walletPassphrase
+x-walletPassphrase: &walletPassphrase
   description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds)
   type: string
   minLength: 10
   maxLength: 255
   example: Secure Passphrase
 
-walletAddressPoolGap: &walletAddressPoolGap
+x-walletAddressPoolGap: &walletAddressPoolGap
   description: Number of consecutive unused addresses allowed
   type: integer
   minimum: 10
@@ -151,7 +151,7 @@ walletAddressPoolGap: &walletAddressPoolGap
   example: 20
   default: 20
 
-walletState: &walletState
+x-walletState: &walletState
   description: Whether a wallet is ready to use or still syncing
   type: object
   required:
@@ -168,7 +168,7 @@ walletState: &walletState
   example:
     status: ready
 
-walletBalance: &walletBalance
+x-walletBalance: &walletBalance
   description: Wallet current balance(s)
   type: object
   required:
@@ -182,7 +182,7 @@ walletBalance: &walletBalance
       <<: *amount
       description: Total balance (available balance plus pending change)
 
-walletDelegation: &walletDelegation
+x-walletDelegation: &walletDelegation
   description: Delegation settings
   type: object
   required:
@@ -200,7 +200,7 @@ walletDelegation: &walletDelegation
     status: delegating
     target: 2cWKMJemoBam7gg1y5K2aFDhAm5L8fVc96NfxgcGhdLMFTsToNAU9t5HVdBBQKy4iDswL
 
-walletPassphraseInfo :: &walletPassphraseInfo
+x-walletPassphraseInfo :: &walletPassphraseInfo
   description: Information about the wallet's passphrase
   type: object
   required:
@@ -208,7 +208,7 @@ walletPassphraseInfo :: &walletPassphraseInfo
   properties:
     last_updated_at: *date
 
-transactionId: &transactionId
+x-transactionId: &transactionId
   description: A unique identifier for this transaction
   type: string
   format: hex
@@ -216,10 +216,10 @@ transactionId: &transactionId
   minLength: 64
   example: 1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1
 
-transactionAmount: &transactionAmount
+x-transactionAmount: &transactionAmount
   <<: *amount
 
-transactionInsertedAt: &transactionInsertedAt
+x-transactionInsertedAt: &transactionInsertedAt
   description: Absolute time the transaction was inserted in a block
   type: object
   required:
@@ -242,17 +242,17 @@ transactionInsertedAt: &transactionInsertedAt
           minimum: 0
           example: 14
 
-transactionDepth: &transactionDepth
+x-transactionDepth: &transactionDepth
   description: Current depth of the transaction in the local chain
   <<: *numberOfBlocks
 
-transactionDirection: &transactionDirection
+x-transactionDirection: &transactionDirection
   type: string
   enum:
     - outgoing
     - incoming
 
-transactionInputs: &transactionInputs
+x-transactionInputs: &transactionInputs
   description: A list of resolved inputs
   type: array
   minItems: 1
@@ -265,11 +265,11 @@ transactionInputs: &transactionInputs
       address: *addressId
       amount: *transactionAmount
 
-transactionOutputs: &transactionOutputs
+x-transactionOutputs: &transactionOutputs
   description: A list of target outputs
   <<: *transactionInputs
 
-transactionStatus: &transactionStatus
+x-transactionStatus: &transactionStatus
   description: |
     Current transaction status.
 
@@ -298,18 +298,18 @@ transactionStatus: &transactionStatus
     - in_ledger
     - invalidated
 
-stakePoolId: &stakePoolId
+x-stakePoolId: &stakePoolId
   <<: *addressId
   description: A unique identifier (i.e. its public key)
 
-stakePoolTicker: &stakePoolTicker
+x-stakePoolTicker: &stakePoolTicker
   type: string
   minLength: 3
   maxLength: 4
   description: A short human-readable identifier
   example: IOHK
 
-stakePoolMetrics: &stakePoolMetrics
+x-stakePoolMetrics: &stakePoolMetrics
   type: object
   required:
     - controlled_stake
@@ -325,20 +325,20 @@ stakePoolMetrics: &stakePoolMetrics
       <<: *numberOfBlocks
       description: Number of blocks correctly processed during the last epoch
 
-stakePoolProfitMargin: &stakePoolProfitMargin
+x-stakePoolProfitMargin: &stakePoolProfitMargin
   <<: *percentage
   description: What proportion of the reward is paid to the pool operator
 
-networkInformationSyncProgress: &networkInformationSyncProgress
+x-networkInformationSyncProgress: &networkInformationSyncProgress
   <<: *percentage
 
-networkInformationBlockchainHeight: &networkInformationBlockchainHeight
+x-networkInformationBlockchainHeight: &networkInformationBlockchainHeight
   <<: *numberOfSlots
 
-networkInformationLocalHeight: &networkInformationLocalHeight
+x-networkInformationLocalHeight: &networkInformationLocalHeight
   <<: *numberOfSlots
 
-networkInformationNtpStatus: &networkInformationNtpStatus
+x-networkInformationNtpStatus: &networkInformationNtpStatus
   type: object
   required:
     - status
@@ -364,7 +364,7 @@ networkInformationNtpStatus: &networkInformationNtpStatus
           enum:
             - microseconds
 
-networkInformationTip: &networkInformationTip
+x-networkInformationTip: &networkInformationTip
   description: Underlying node's network tip
   type: object
   required:
@@ -380,7 +380,7 @@ networkInformationTip: &networkInformationTip
       minimum: 0
       example: 14
 
-networkInformationSoftwareUpdate: &networkInformationSoftwareUpdate
+x-networkInformationSoftwareUpdate: &networkInformationSoftwareUpdate
   type: string
   enum:
     - up_to_date
@@ -403,7 +403,7 @@ definitions:
       id: *addressId
       state: *addressState
 
-  NetworkInformation: &networkInformation
+  ApiNetworkInformation: &ApiNetworkInformation
     type: object
     required:
       - blockchainHeight
@@ -420,7 +420,7 @@ definitions:
       syncProgress: *networkInformationSyncProgress
       tip: *networkInformationTip
 
-  StakePool: &stakePool
+  ApiStakePool: &ApiStakePool
     type: object
     required:
       - id
@@ -471,7 +471,7 @@ definitions:
       passphrase: *walletPassphraseInfo
       state: *walletState
 
-  WalletUTxOsStatistics: &walletUTxOsStatistics
+  ApiWalletUTxOsStatistics: &ApiWalletUTxOsStatistics
     type: object
     required:
       - total
@@ -511,7 +511,7 @@ definitions:
         10000000000000000: 0
         45000000000000000: 0
 
-  WalletPostData: &WalletPostData
+  ApiWalletPostData: &ApiWalletPostData
     type: object
     required:
       - name
@@ -524,12 +524,12 @@ definitions:
       passphrase: *walletPassphrase
       address_pool_gap: *walletAddressPoolGap
 
-  WalletPutData: &WalletPutData
+  ApiWalletPutData: &ApiWalletPutData
     type: object
     properties:
       name: *walletName
 
-  WalletPutPassphraseData: &WalletPutPassphraseData
+  ApiWalletPutPassphraseData: &ApiWalletPutPassphraseData
     type: object
     required:
       - old_passphrase
@@ -542,7 +542,7 @@ definitions:
         <<: *walletPassphrase
         description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds).
 
-  PostTransactionData: &PostTransactionData
+  ApiPostTransactionData: &ApiPostTransactionData
     type: object
     required:
       - payments
@@ -559,12 +559,12 @@ definitions:
 #                                                                           #
 #############################################################################
 
-parametersBody: &parametersBody
+x-parametersBody: &parametersBody
   in: body
   name: body
   required: true
 
-parametersWalletId: &parametersWalletId
+x-parametersWalletId: &parametersWalletId
   in: path
   name: walletId
   required: true
@@ -572,23 +572,22 @@ parametersWalletId: &parametersWalletId
   format: hex
   maxLength: 40
   minLength: 40
-  example: 2512a00e9653fe49a44a5886202e24d77eeb998f
 
-parametersStakePoolId: &parametersStakePoolId
+x-parametersStakePoolId: &parametersStakePoolId
   in: path
   name: stakePoolId
   required: true
   type: string
   format: base58
 
-parametersPostTransactionFee: &parametersPostTransactionFee
+x-parametersPostTransactionFee: &parametersPostTransactionFee
   type: object
   required:
     - payments
   properties:
     payments: *transactionOutputs
 
-parametersJoinStakePool: &parametersJoinStakePool
+x-parametersJoinStakePool: &parametersJoinStakePool
   type: object
   required:
     - passphrase
@@ -597,7 +596,7 @@ parametersJoinStakePool: &parametersJoinStakePool
       <<: *walletPassphrase
       description: The wallet's master passphrase.
 
-parametersQuitStakePool: &parametersQuitStakePool
+x-parametersQuitStakePool: &parametersQuitStakePool
   <<: *parametersJoinStakePool
 
 
@@ -607,7 +606,7 @@ parametersQuitStakePool: &parametersQuitStakePool
 #                                                                           #
 #############################################################################
 
-responsesErr: &responsesErr
+x-responsesErr: &responsesErr
   type: object
   required:
     - message
@@ -621,52 +620,52 @@ responsesErr: &responsesErr
       description: A specific error code for this error, more precise than HTTP ones.
       example: an_error_code
 
-responsesErr400: &responsesErr400
+x-responsesErr400: &responsesErr400
   400:
     description: Bad Request
     schema: *responsesErr
 
-responsesErr403: &responsesErr403
+x-responsesErr403: &responsesErr403
   403:
     description: Forbidden
     schema: *responsesErr
 
-responsesErr404: &responsesErr404
+x-responsesErr404: &responsesErr404
   404:
     description: Not Found
     schema: *responsesErr
 
-responsesErr405: &responsesErr405
+x-responsesErr405: &responsesErr405
   405:
     description: Method Not Allowed
     schema: *responsesErr
 
-responsesErr406: &responsesErr406
+x-responsesErr406: &responsesErr406
   406:
     description: Not Acceptable
     schema: *responsesErr
 
-responsesErr409: &responsesErr409
+x-responsesErr409: &responsesErr409
   409:
     description: Conflict
     schema: *responsesErr
 
-responsesErr410: &responsesErr410
+x-responsesErr410: &responsesErr410
   410:
     description: Gone
     schema: *responsesErr
 
-responsesErr415: &responsesErr415
+x-responsesErr415: &responsesErr415
   415:
     description: Unsupported Media Type
     schema: *responsesErr
 
-responseErr423: &responsesErr423
+x-responseErr423: &responsesErr423
   423:
     description: Locked
     schema: *responsesErr
 
-responsesListWallets: &responsesListWallets
+x-responsesListWallets: &responsesListWallets
   <<: *responsesErr405
   <<: *responsesErr406
   200:
@@ -675,16 +674,16 @@ responsesListWallets: &responsesListWallets
       type: array
       items: *ApiWallet
 
-responsesGetUTxOsStatistics: &responsesGetUTxOsStatistics
+x-responsesGetUTxOsStatistics: &responsesGetUTxOsStatistics
   <<: *responsesErr404
   <<: *responsesErr405
   <<: *responsesErr406
   <<: *responsesErr423
   200:
     description: Ok
-    schema: *walletUTxOsStatistics
+    schema: *ApiWalletUTxOsStatistics
 
-responsesPostWallet: &responsesPostWallet
+x-responsesPostWallet: &responsesPostWallet
   <<: *responsesErr400
   <<: *responsesErr405
   <<: *responsesErr406
@@ -694,7 +693,7 @@ responsesPostWallet: &responsesPostWallet
     description: Accepted
     schema: *ApiWallet
 
-responsesGetWallet: &responsesGetWallet
+x-responsesGetWallet: &responsesGetWallet
   <<: *responsesErr404
   <<: *responsesErr405
   <<: *responsesErr406
@@ -702,14 +701,14 @@ responsesGetWallet: &responsesGetWallet
     description: Ok
     schema: *ApiWallet
 
-responsesDeleteWallet: &responsesDeleteWallet
+x-responsesDeleteWallet: &responsesDeleteWallet
   <<: *responsesErr404
   <<: *responsesErr405
   <<: *responsesErr406
   204:
     description: No Content
 
-responsesPutWallet: &responsesPutWallet
+x-responsesPutWallet: &responsesPutWallet
   <<: *responsesErr400
   <<: *responsesErr404
   <<: *responsesErr405
@@ -719,7 +718,7 @@ responsesPutWallet: &responsesPutWallet
     description: Ok
     schema: *ApiWallet
 
-responsesPutWalletPassphrase: &responsesPutWalletPassphrase
+x-responsesPutWalletPassphrase: &responsesPutWalletPassphrase
   <<: *responsesErr400
   <<: *responsesErr403
   <<: *responsesErr404
@@ -729,7 +728,7 @@ responsesPutWalletPassphrase: &responsesPutWalletPassphrase
   204:
     description: No Content
 
-responsesListTransactions: &responsesListTransactions
+x-responsesListTransactions: &responsesListTransactions
   <<: *responsesErr404
   <<: *responsesErr405
   <<: *responsesErr406
@@ -739,12 +738,11 @@ responsesListTransactions: &responsesListTransactions
       Content-Range:
         type: string
         format: inserted-at {range-start}-{range-end}/{total}
-        example: inserted-at 20190227T160329Z-20190101T042557Z/42
     schema:
       type: array
       items: *ApiTransaction
 
-responsesPostTransaction: &responsesPostTransaction
+x-responsesPostTransaction: &responsesPostTransaction
   <<: *responsesErr400
   <<: *responsesErr403
   <<: *responsesErr404
@@ -755,7 +753,7 @@ responsesPostTransaction: &responsesPostTransaction
     description: Accepted
     schema: *ApiTransaction
 
-responsesPostTransactionFee: &responsesPostTransactionFee
+x-responsesPostTransactionFee: &responsesPostTransactionFee
   <<: *responsesErr400
   <<: *responsesErr404
   <<: *responsesErr405
@@ -770,7 +768,7 @@ responsesPostTransactionFee: &responsesPostTransactionFee
       properties:
         amount: *transactionAmount
 
-responsesListAddresses: &responsesListAddresses
+x-responsesListAddresses: &responsesListAddresses
   <<: *responsesErr400
   <<: *responsesErr404
   <<: *responsesErr405
@@ -781,15 +779,15 @@ responsesListAddresses: &responsesListAddresses
       type: array
       items: *ApiAddress
 
-responsesListStakePools: &responsesListStakePools
+x-responsesListStakePools: &responsesListStakePools
   <<: *responsesErr405
   200:
     description: Ok
     schema:
         type: array
-        items: *stakePool
+        items: *ApiStakePool
 
-responsesJoinStakePool: &responsesJoinStakePool
+x-responsesJoinStakePool: &responsesJoinStakePool
   <<: *responsesErr400
   <<: *responsesErr403
   <<: *responsesErr404
@@ -800,14 +798,14 @@ responsesJoinStakePool: &responsesJoinStakePool
     description: Accepted
     schema: *ApiTransaction
 
-responsesQuitStakePool: &responsesQuitStakePool
+x-responsesQuitStakePool: &responsesQuitStakePool
   <<: *responsesJoinStakePool
 
-responsesGetNetworkInformation: &responsesGetNetworkInformation
+x-responsesGetNetworkInformation: &responsesGetNetworkInformation
   <<: *responsesErr405
   200:
     description: Ok
-    schema: *networkInformation
+    schema: *ApiNetworkInformation
 
 
 #############################################################################
@@ -840,7 +838,7 @@ paths:
         Create and restore a wallet from a mnemonic sentence.
       parameters:
         - <<: *parametersBody
-          schema: *WalletPostData
+          schema: *ApiWalletPostData
       responses: *responsesPostWallet
 
   /wallets/{walletId}:
@@ -873,7 +871,7 @@ paths:
       parameters:
         - *parametersWalletId
         - <<: *parametersBody
-          schema: *WalletPutData
+          schema: *ApiWalletPutData
       responses: *responsesPutWallet
 
   /wallets/{walletId}/statistics/utxos:
@@ -914,7 +912,7 @@ paths:
       parameters:
         - *parametersWalletId
         - <<: *parametersBody
-          schema: *WalletPutPassphraseData
+          schema: *ApiWalletPutPassphraseData
       responses: *responsesPutWalletPassphrase
 
   /wallets/{walletId}/transactions:
@@ -925,15 +923,17 @@ paths:
       description: |
         <p align="right">status: <strong>not implemented</strong></p>
       parameters:
+        - *parametersWalletId
         - in: header
           name: Range
           type: string
           format: inserted_at={range-start}-{range-end}
-          example: inserted-at 20190227T160329Z-*
           description: |
             A range of date in ISO-8601 UTC format without symbols to retrieve. Note that
             the start joker symbol `*` can be used instead of a date to refer to a lower
             or upper boundary.
+
+            Example: `inserted-at 20190227T160329Z-*`
       responses: *responsesListTransactions
 
     post:
@@ -945,7 +945,7 @@ paths:
       parameters:
         - *parametersWalletId
         - <<: *parametersBody
-          schema: *PostTransactionData
+          schema: *ApiPostTransactionData
       responses: *responsesPostTransaction
 
   /wallets/{walletId}/transactions/fees:
