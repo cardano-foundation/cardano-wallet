@@ -765,16 +765,16 @@ instance ToSchema ApiWallet where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWallet"
 
 instance ToSchema WalletPostData where
-    declareNamedSchema _ = declareSchemaForDefinition "WalletPostData"
+    declareNamedSchema _ = declareSchemaForDefinition "ApiWalletPostData"
 
 instance ToSchema WalletPutData where
-    declareNamedSchema _ = declareSchemaForDefinition "WalletPutData"
+    declareNamedSchema _ = declareSchemaForDefinition "ApiWalletPutData"
 
 instance ToSchema WalletPutPassphraseData where
-    declareNamedSchema _ = declareSchemaForDefinition "WalletPutPassphraseData"
+    declareNamedSchema _ = declareSchemaForDefinition "ApiWalletPutPassphraseData"
 
 instance ToSchema (PostTransactionData t) where
-    declareNamedSchema _ = declareSchemaForDefinition "PostTransactionData"
+    declareNamedSchema _ = declareSchemaForDefinition "ApiPostTransactionData"
 
 instance ToSchema (ApiTransaction t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiTransaction"
