@@ -49,6 +49,9 @@ addons:
       - librocksdb-dev
       - libsystemd-dev
 
+service:
+  - docker
+
 # Define custom set of stages
 stages:
 - build dependencies 🔩
@@ -87,6 +90,14 @@ jobs:
     - git diff --exit-code
     - travis_retry curl -sSL https://raw.github.com/ndmitchell/hlint/master/misc/run.sh | sh -s .
     - travis_retry curl -sSL https://raw.github.com/ndmitchell/weeder/master/misc/travis.sh | sh -s .
+    # Somehow, we can't install open-spec-validator using `pip` directly in the travis VM.
+    # I've tried several things, including removing some existing conflicting packages, upgrading
+    # pip and using some more permissive options. In the end, I gave up and went for a container.
+    - cd specifications/api
+    - "echo -n 'FROM python:3.7-alpine\nRUN pip install openapi-spec-validator\nENTRYPOINT [\"openapi-spec-validator\"]' > Dockerfile"
+    - docker build -t openapi-spec-validator .
+    - docker run -v $PWD:/files openapi-spec-validator --schema 2.0 /files/swagger.yaml
+    - cd -
 
   - stage: checks 🔬
     if: type = pull_request OR (branch IN (bors/staging, bors/trying))
@@ -157,23 +168,20 @@ jobs:
 
   - stage: checks 🔬
     if: (type != pull_request AND branch = master) OR (tag =~ ^v)
-    name: "Stylish-Haskell"
-    env: NO_CACHE=True
+    name: "Code Style"
     script:
     - travis_retry curl -sSL https://raw.github.com/jaspervdj/stylish-haskell/master/scripts/latest.sh | sh -s $(find . -type f -name "*.hs" ! -path "*.stack-work*") -i
     - git diff --exit-code # Exit if Stylish-Haskell yields any diff
-
-  - stage: checks 🔬
-    if: (type != pull_request AND branch = master) OR (tag =~ ^v)
-    name: "HLint"
-    script:
     - travis_retry curl -sSL https://raw.github.com/ndmitchell/hlint/master/misc/run.sh | sh -s .
-
-  - stage: checks 🔬
-    if: (type != pull_request AND branch = master) OR (tag =~ ^v)
-    name: "Weeder"
-    script:
     - travis_retry curl -sSL https://raw.github.com/ndmitchell/weeder/master/misc/travis.sh | sh -s .
+    # Somehow, we can't install open-spec-validator using `pip` directly in the travis VM.
+    # I've tried several things, including removing some existing conflicting packages, upgrading
+    # pip and using some more permissive options. In the end, I gave up and went for a container.
+    - cd specifications/api
+    - "echo -n 'FROM python:3.7-alpine\nRUN pip install openapi-spec-validator\nENTRYPOINT [\"openapi-spec-validator\"]' > Dockerfile"
+    - docker build -t openapi-spec-validator .
+    - docker run -v $PWD:/files openapi-spec-validator --schema 2.0 /files/swagger.yaml
+    - cd -
 
   - stage: checks 🔬
     if: (type != pull_request AND branch = master) OR (tag =~ ^v)
