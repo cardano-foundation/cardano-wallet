@@ -57,6 +57,7 @@ import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , Block (..)
     , BlockHeader (..)
     , Coin (..)
     , Hash (..)
@@ -328,10 +329,13 @@ data WalletLayerFixture = WalletLayerFixture
     , _fixtureWallet :: [WalletId]
     }
 
-block0 :: BlockHeader
-block0 = BlockHeader
-    { slotId = SlotId 0 0
-    , prevBlockHash = Hash "genesis"
+block0 :: Block
+block0 = Block
+    { header = BlockHeader
+        { slotId = SlotId 0 0
+        , prevBlockHash = Hash "genesis"
+        }
+    , transactions = []
     }
 
 setupFixture

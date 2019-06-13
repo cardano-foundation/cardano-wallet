@@ -335,8 +335,8 @@ cancelWorker (WorkerRegistry mvar) wid =
 newWalletLayer
     :: forall s t. ()
     => Trace IO Text
-    -> BlockHeader
-        -- ^ Very first block header for initialization
+    -> Block
+        -- ^ Very first block
     -> DBLayer IO s t
     -> NetworkLayer t IO
     -> TransactionLayer t

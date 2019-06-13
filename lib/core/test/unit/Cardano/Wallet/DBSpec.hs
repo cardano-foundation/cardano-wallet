@@ -67,6 +67,7 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , Block (..)
     , BlockHeader (..)
     , Coin (..)
     , Direction (..)
@@ -204,7 +205,14 @@ instance Arbitrary (Wallet (SeqState DummyTarget) DummyTarget) where
     shrink _ = []
     arbitrary = initWallet block0 <$> arbitrary
       where
-        block0 = BlockHeader (SlotId 0 0) (Hash "genesis")
+        block0 :: Block
+        block0 = Block
+            { header = BlockHeader
+                { slotId = SlotId 0 0
+                , prevBlockHash = Hash "genesis"
+                }
+            , transactions = []
+            }
 
 instance TxId DummyTarget where
     txId = Hash . B8.pack . show
