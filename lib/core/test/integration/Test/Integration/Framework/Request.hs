@@ -31,6 +31,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Text
     ( Text )
+import Database.Persist.Sqlite
+    ( SqlBackend )
 import Network.HTTP.Client
     ( HttpException (..)
     , HttpExceptionContent
@@ -76,6 +78,8 @@ data Context t = Context
         :: Faucet
         -- ^ A 'Faucet' handle in to have access to funded wallets in
         -- integration tests.
+    , _db :: SqlBackend
+        -- ^ A database connection handle
     , _target
         :: Proxy t
     }
@@ -121,7 +125,7 @@ request
     -> Payload
         -- ^ Request body
     -> m (HTTP.Status, Either RequestException a)
-request (Context _ (base, manager) _ _ _) (verb, path) reqHeaders body = do
+request (Context _ (base, manager) _ _ _ _) (verb, path) reqHeaders body = do
     req <- parseRequest $ T.unpack $ base <> path
     let io = handleResponse <$> liftIO (httpLbs (prepareReq req) manager)
     catch io handleException

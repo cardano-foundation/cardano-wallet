@@ -539,7 +539,7 @@ emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
 fixtureWallet
     :: Context t
     -> IO ApiWallet
-fixtureWallet ctx@(Context _ _ _ faucet _) = do
+fixtureWallet ctx@(Context _ _ _ faucet _ _) = do
     mnemonics <- mnemonicToText <$> nextWallet faucet
     let payload = Json [aesonQQ| {
             "name": "Faucet Wallet",

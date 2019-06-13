@@ -152,6 +152,8 @@ test-suite integration
     , http-types
     , iohk-monitoring
     , memory
+    , persistent
+    , persistent-sqlite
     , process
     , retry
     , template-haskell
