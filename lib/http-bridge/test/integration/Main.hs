@@ -1,5 +1,7 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -16,32 +18,42 @@ import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
     ( newWalletLayer )
-import Cardano.Wallet.DB
-    ( DBLayer (..) )
+import Cardano.Wallet.Api.Server
+    ( Listen (..) )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge, block0 )
 import Cardano.Wallet.HttpBridge.Environment
     ( Network (..) )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( SeqState )
 import Control.Concurrent
-    ( forkIO, threadDelay )
+    ( ThreadId, forkIO, killThread, threadDelay )
 import Control.Concurrent.Async
     ( async, cancel, link, race )
+import Control.Concurrent.MVar
+    ( newEmptyMVar, putMVar, takeMVar )
 import Control.Exception
     ( throwIO )
 import Control.Monad
-    ( forM, void )
+    ( forM )
 import Data.Aeson
     ( Value (..), (.:) )
+import Data.Function
+    ( (&) )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
+import Data.Generics.Product.Typed
+    ( HasType, typed )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Text.Class
+    ( ToText (..) )
 import Data.Time
     ( addUTCTime, defaultTimeLocale, formatTime, getCurrentTime )
 import Database.Persist.Sql
-    ( close' )
+    ( SqlBackend, close' )
 import Network.HTTP.Client
     ( defaultManagerSettings, newManager )
 import System.Directory
@@ -69,6 +81,7 @@ import qualified Test.Integration.Scenario.API.Transactions as Transactions
 import qualified Test.Integration.Scenario.API.Wallets as Wallets
 import qualified Test.Integration.Scenario.CLI.Addresses as AddressesCLI
 import qualified Test.Integration.Scenario.CLI.Mnemonics as MnemonicsCLI
+import qualified Test.Integration.Scenario.CLI.Port as PortCLI
 import qualified Test.Integration.Scenario.CLI.Transactions as TransactionsCLI
 import qualified Test.Integration.Scenario.CLI.Wallets as WalletsCLI
 
@@ -77,8 +90,29 @@ main = hspec $ do
     describe "Cardano.LauncherSpec" Launcher.spec
     describe "Cardano.WalletSpec" Wallet.spec
     describe "Cardano.Wallet.HttpBridge.NetworkSpec" HttpBridge.spec
-    describe "CLI commands not requiring bridge" MnemonicsCLI.spec
-    beforeAll startCluster $ afterAll killCluster $ after tearDown $ do
+    describe "CLI commands not requiring bridge" $ do
+        describe "Mnemonics CLI tests" MnemonicsCLI.spec
+        describe "--port CLI tests" $ do
+            cardanoWalletServer Nothing
+                & beforeAll
+                $ afterAll killServer
+                $ describe "with default port" $ do
+                    PortCLI.specCommon
+                    PortCLI.specWithDefaultPort
+            cardanoWalletServer (Just $ ListenOnPort defaultPort)
+                & beforeAll
+                $ afterAll killServer
+                $ describe "with specified port" $ do
+                    PortCLI.specCommon
+            cardanoWalletServer (Just ListenOnRandomPort)
+                & beforeAll
+                $ afterAll killServer
+                $ describe "with random port" $ do
+                    PortCLI.specCommon
+                    PortCLI.specWithRandomPort defaultPort
+
+    beforeAll startCluster $
+        afterAll killCluster $ after tearDown $ do
         describe "Wallets API endpoint tests" Wallets.spec
         describe "Transactions API endpoint tests" Transactions.spec
         describe "Addresses API endpoint tests" Addresses.spec
@@ -88,6 +122,12 @@ main = hspec $ do
   where
     oneSecond :: Int
     oneSecond = 1 * 1000 * 1000 -- 1 second in microseconds
+
+    bridgePort :: Int
+    bridgePort = 8080
+
+    defaultPort :: Int
+    defaultPort = 8090
 
     wait :: String -> IO () -> IO ()
     wait component action = do
@@ -104,7 +144,6 @@ main = hspec $ do
     startCluster = do
         let stateDir = "./test/data/cardano-node-simple"
         let networkDir = "/tmp/cardano-http-bridge/networks"
-        let bridgePort = 8080
         let nodeApiAddress = "127.0.0.1:3101"
         removePathForcibly (networkDir <> "/local")
         createDirectoryIfMissing True "/tmp/cardano-node-simple"
@@ -132,20 +171,23 @@ main = hspec $ do
         link cluster
         wait "cardano-node-simple" (waitForCluster nodeApiAddress)
         wait "cardano-http-bridge" (threadDelay oneSecond)
-        nl <- HttpBridge.newNetworkLayer bridgePort
-        (conn, db) <- Sqlite.newDBLayer Nothing
-        cardanoWalletServer nl db 1337
+        (_, port, db, nl) <- cardanoWalletServer (Just ListenOnRandomPort)
         wait "cardano-wallet" (threadDelay oneSecond)
-        let baseURL = "http://localhost:1337/"
+        let baseURL = mkBaseUrl port
         manager <- newManager defaultManagerSettings
         faucet <- putStrLn "Creating money out of thin air..." *> initFaucet nl
-        return $ Context cluster (baseURL, manager) handle faucet conn Proxy
+        return $ Context cluster (baseURL, manager) port handle faucet db Proxy
 
     killCluster :: Context t -> IO ()
-    killCluster (Context cluster _ handle _ db _) = do
-        cancel cluster
-        hClose handle
-        close' db
+    killCluster ctx = do
+        cancel (_cluster ctx)
+        hClose (_logs ctx)
+        close' (_db ctx)
+
+    killServer :: (HasType ThreadId s, HasType SqlBackend s) => s -> IO ()
+    killServer ctx = do
+        close' (ctx ^. typed @SqlBackend)
+        killThread (ctx ^. typed @ThreadId)
 
     cardanoNodeSimple stateDir sysStart (nodeId, nodeAddr) h extra = Command
         "cardano-node-simple"
@@ -167,6 +209,8 @@ main = hspec $ do
         -- some places where it's less annoying.
         (UseHandle h)
 
+    mkBaseUrl port = "http://localhost:" <> toText port <> "/"
+
     cardanoHttpBridge port template dir h before = Command
         "cardano-http-bridge"
         [ "start"
@@ -181,14 +225,18 @@ main = hspec $ do
     -- code coverage measures from running the scenarios on top of it!
     cardanoWalletServer
         :: (network ~ HttpBridge 'Testnet)
-        => NetworkLayer network IO
-        -> DBLayer IO (SeqState network) network
-        -> Int
-        -> IO ()
-    cardanoWalletServer nl db serverPort = void $ forkIO $ do
-        let tl = HttpBridge.newTransactionLayer
-        wallet <- newWalletLayer nullTracer block0 db nl tl
-        Server.start (const $ pure ()) (Just serverPort) wallet
+        => Maybe Listen
+        -> IO (ThreadId, Int, SqlBackend, NetworkLayer network IO)
+    cardanoWalletServer mlisten = do
+        nl <- HttpBridge.newNetworkLayer bridgePort
+        (conn, db) <- Sqlite.newDBLayer Nothing
+        port <- newEmptyMVar
+        thread <- forkIO $ do
+            let tl = HttpBridge.newTransactionLayer
+            wallet <- newWalletLayer nullTracer block0 db nl tl
+            let listen = fromMaybe (ListenOnPort defaultPort) mlisten
+            Server.start (putMVar port) listen wallet
+        (thread,,conn,nl) <$> takeMVar port
 
     waitForCluster :: String -> IO ()
     waitForCluster addr = do
@@ -199,6 +247,7 @@ main = hspec $ do
                 , _faucet = undefined
                 , _target = undefined
                 , _db = undefined
+                , _port = undefined
                 , _manager = ("http://" <> T.pack addr, manager)
                 }
         let err =  "waitForCluster: unexpected positive response from Api"

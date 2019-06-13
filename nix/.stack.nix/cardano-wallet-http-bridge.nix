@@ -103,6 +103,7 @@
             (hsPkgs.text-class)
             (hsPkgs.time)
             (hsPkgs.transformers)
+            (hsPkgs.warp)
             ];
           };
         };

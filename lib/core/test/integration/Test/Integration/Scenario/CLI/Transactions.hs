@@ -23,9 +23,12 @@ import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Generics.Product.Typed
+    ( typed )
 import Data.Proxy
     ( Proxy (..) )
-import qualified Data.Text as T
+import Network.Wai.Handler.Warp
+    ( Port )
 import System.Command
     ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit
@@ -71,6 +74,8 @@ import Test.Integration.Framework.TestData
     , wildcardsWalletName
     )
 
+import qualified Data.Text as T
+
 spec :: forall t. (EncodeAddress t, DecodeAddress t) => SpecWith (Context t)
 spec = do
     it "TRANS_CREATE_01 - Can create transaction via CLI" $ \ctx -> do
@@ -87,7 +92,7 @@ spec = do
                 ]
 
         -- post transaction
-        (c, out, err) <- postTransactionViaCLI "cardano-wallet" args
+        (c, out, err) <- postTransactionViaCLI ctx "cardano-wallet" args
         err `shouldBe` "Please enter a passphrase: **************\nOk.\n"
         txJson <- expectValidJSON (Proxy @(ApiTransaction t)) out
         verify txJson
@@ -98,7 +103,7 @@ spec = do
         c `shouldBe` ExitSuccess
 
         -- verify balance on src wallet
-        Stdout gOutSrc <- getWalletViaCLI (T.unpack (wSrc ^. walletId))
+        Stdout gOutSrc <- getWalletViaCLI ctx (T.unpack (wSrc ^. walletId))
         gJson <- expectValidJSON (Proxy @ApiWallet) gOutSrc
         verify gJson
             [ expectCliFieldBetween balanceTotal
@@ -112,7 +117,7 @@ spec = do
         expectEventually' ctx balanceTotal amt wDest
 
         -- verify balance on dest wallet
-        Stdout gOutDest <- getWalletViaCLI (T.unpack (wDest ^. walletId))
+        Stdout gOutDest <- getWalletViaCLI ctx (T.unpack (wDest ^. walletId))
         destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
         verify destJson
             [ expectCliFieldEqual balanceAvailable amt
@@ -136,7 +141,7 @@ spec = do
                 ]
 
         -- post transaction
-        (c, out, err) <- postTransactionViaCLI "cardano-wallet" args
+        (c, out, err) <- postTransactionViaCLI ctx "cardano-wallet" args
         err `shouldBe` "Please enter a passphrase: **************\nOk.\n"
         txJson <- expectValidJSON (Proxy @(ApiTransaction t)) out
         verify txJson
@@ -147,7 +152,7 @@ spec = do
         c `shouldBe` ExitSuccess
 
         -- verify balance on src wallet
-        Stdout gOutSrc <- getWalletViaCLI (T.unpack (wSrc ^. walletId))
+        Stdout gOutSrc <- getWalletViaCLI ctx (T.unpack (wSrc ^. walletId))
         gJson <- expectValidJSON (Proxy @ApiWallet) gOutSrc
         verify gJson
             [ expectCliFieldBetween balanceTotal
@@ -161,7 +166,7 @@ spec = do
         expectEventually' ctx balanceTotal (2*amt) wDest
 
         -- verify balance on dest wallet
-        Stdout gOutDest <- getWalletViaCLI (T.unpack (wDest ^. walletId))
+        Stdout gOutDest <- getWalletViaCLI ctx (T.unpack (wDest ^. walletId))
         destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
         verify destJson
             [ expectCliFieldEqual balanceAvailable (2*amt)
@@ -187,7 +192,7 @@ spec = do
                 ]
 
         -- post transaction
-        (c, out, err) <- postTransactionViaCLI "cardano-wallet" args
+        (c, out, err) <- postTransactionViaCLI ctx "cardano-wallet" args
         err `shouldBe` "Please enter a passphrase: **************\nOk.\n"
         txJson <- expectValidJSON (Proxy @(ApiTransaction t)) out
         verify txJson
@@ -198,7 +203,7 @@ spec = do
         c `shouldBe` ExitSuccess
 
         -- verify balance on src wallet
-        Stdout gOutSrc <- getWalletViaCLI (T.unpack (wSrc ^. walletId))
+        Stdout gOutSrc <- getWalletViaCLI ctx (T.unpack (wSrc ^. walletId))
         gJson <- expectValidJSON (Proxy @ApiWallet) gOutSrc
         verify gJson
             [ expectCliFieldBetween balanceTotal
@@ -213,7 +218,7 @@ spec = do
             expectEventually' ctx balanceTotal amt wDest
 
             -- verify balance on dest wallets
-            Stdout gOutDest <- getWalletViaCLI (T.unpack (wDest ^. walletId))
+            Stdout gOutDest <- getWalletViaCLI ctx (T.unpack (wDest ^. walletId))
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
             verify destJson
                 [ expectCliFieldEqual balanceAvailable amt
@@ -235,7 +240,7 @@ spec = do
                 , "--payment", "4666@" <> addr2
                 ]
 
-        (c, out, err) <- postTransactionViaCLI "cardano-wallet" args
+        (c, out, err) <- postTransactionViaCLI ctx "cardano-wallet" args
         (T.unpack err) `shouldContain` errMsg403UTxO
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
@@ -252,7 +257,7 @@ spec = do
                 , "--payment", "1@" <> addr
                 ]
 
-        (c, out, err) <- postTransactionViaCLI "Secure Passphrase" args
+        (c, out, err) <- postTransactionViaCLI ctx "Secure Passphrase" args
         err `shouldBe` "Please enter a passphrase: *****************\nOk.\n"
         txJson <- expectValidJSON (Proxy @(ApiTransaction t)) out
         verify txJson
@@ -262,7 +267,7 @@ spec = do
             ]
         c `shouldBe` ExitSuccess
 
-        Stdout gOutSrc <- getWalletViaCLI (T.unpack (wSrc ^. walletId))
+        Stdout gOutSrc <- getWalletViaCLI ctx (T.unpack (wSrc ^. walletId))
         gJson <- expectValidJSON (Proxy @ApiWallet) gOutSrc
         verify gJson
             [ expectCliFieldEqual balanceTotal 0
@@ -272,7 +277,7 @@ spec = do
         expectEventually' ctx balanceAvailable 1 wDest
         expectEventually' ctx balanceTotal 1 wDest
 
-        Stdout gOutDest <- getWalletViaCLI (T.unpack (wDest ^. walletId))
+        Stdout gOutDest <- getWalletViaCLI ctx (T.unpack (wDest ^. walletId))
         destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
         verify destJson
             [ expectCliFieldEqual balanceAvailable 1
@@ -290,7 +295,7 @@ spec = do
                 , "--payment", "1@" <> addr
                 ]
 
-        (c, out, err) <- postTransactionViaCLI "Secure Passphrase" args
+        (c, out, err) <- postTransactionViaCLI ctx "Secure Passphrase" args
         (T.unpack err) `shouldContain` errMsg403Fee
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
@@ -306,7 +311,7 @@ spec = do
                 , "--payment", "1000000@" <> addr
                 ]
 
-        (c, out, err) <- postTransactionViaCLI "Secure Passphrase" args
+        (c, out, err) <- postTransactionViaCLI ctx "Secure Passphrase" args
         (T.unpack err) `shouldContain` (errMsg403NotEnoughMoney 101_000 1000_000)
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
@@ -322,7 +327,7 @@ spec = do
                 , "--payment", "14@" <> addr
                 ]
 
-        (c, out, err) <- postTransactionViaCLI "This password is wrong" args
+        (c, out, err) <- postTransactionViaCLI ctx "This password is wrong" args
         (T.unpack err) `shouldContain` errMsg403WrongPass
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
@@ -352,7 +357,7 @@ spec = do
                     , "--payment", "12@" <> (T.pack addr)
                     ]
 
-            (c, out, err) <- postTransactionViaCLI "Secure Passphrase" args
+            (c, out, err) <- postTransactionViaCLI ctx "Secure Passphrase" args
             (T.unpack err) `shouldContain` errMsg
             out `shouldBe` ""
             c `shouldBe` ExitFailure 1
@@ -379,7 +384,7 @@ spec = do
                     , "--payment", amt <> "@" <> addr
                     ]
 
-            (c, out, err) <- postTransactionViaCLI "cardano-wallet" args
+            (c, out, err) <- postTransactionViaCLI ctx "cardano-wallet" args
             (T.unpack err) `shouldContain` errMsg
             out `shouldBe` ""
             c `shouldBe` ExitFailure 1
@@ -388,10 +393,12 @@ spec = do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses ctx wDest
-            let addr =
-                    encodeAddress (Proxy @t) (getApiT $ fst $ addrs ^. #id)
-            let args = [ "transaction", "create", "--port", "1337",
-                    walId, "--payment", "12@" ++  (T.unpack addr) ]
+            let port = show $ ctx ^. typed @Port
+            let addr = encodeAddress (Proxy @t) (getApiT $ fst $ addrs ^. #id)
+            let args =
+                    [ "transaction", "create", "--port", port
+                    , walId, "--payment", "12@" ++  (T.unpack addr)
+                    ]
             -- make sure CLI returns error before asking for passphrase
             (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI args
             out `shouldBe` ""
@@ -407,11 +414,12 @@ spec = do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
         addrs:_ <- listAddresses ctx wDest
-        let addr =
-                encodeAddress (Proxy @t) (getApiT $ fst $ addrs ^. #id)
+        let port = T.pack $ show $ ctx ^. typed @Port
+        let addr = encodeAddress (Proxy @t) (getApiT $ fst $ addrs ^. #id)
         let args = T.unpack <$>
-                [ "transaction", "create", "--port", "1337",
-                (T.append (wSrc ^. walletId) "0"), "--payment", "11@" <> addr ]
+                [ "transaction", "create", "--port", port
+                , T.append (wSrc ^. walletId) "0", "--payment", "11@" <> addr
+                ]
         -- make sure CLI returns error before asking for passphrase
         (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI args
         err `shouldContain` "wallet id should be an hex-encoded\
@@ -421,16 +429,17 @@ spec = do
 
     it "TRANS_CREATE_07 - Deleted wallet" $ \ctx -> do
         wSrc <- fixtureWallet ctx
-        Exit ex <- deleteWalletViaCLI (T.unpack ( wSrc ^. walletId ))
+        Exit ex <- deleteWalletViaCLI ctx (T.unpack ( wSrc ^. walletId ))
         ex `shouldBe` ExitSuccess
 
         wDest <- emptyWallet ctx
         addrs:_ <- listAddresses ctx wDest
-        let addr =
-                encodeAddress (Proxy @t) (getApiT $ fst $ addrs ^. #id)
+        let addr = encodeAddress (Proxy @t) (getApiT $ fst $ addrs ^. #id)
+        let port = T.pack $ show $ ctx ^. typed @Port
         let args = T.unpack <$>
-                [ "transaction", "create", "--port", "1337", wSrc ^. walletId,
-                "--payment", "11@" <> addr ]
+                [ "transaction", "create", "--port", port
+                , wSrc ^. walletId, "--payment", "11@" <> addr
+                ]
         -- make sure CLI returns error before asking for passphrase
         (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI args
         err `shouldContain` "I couldn't find a wallet with \

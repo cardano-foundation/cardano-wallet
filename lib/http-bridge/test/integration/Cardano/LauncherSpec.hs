@@ -20,8 +20,7 @@ spec = describe "cardano-wallet-launcher" $ do
     it "Can start launcher against testnet" $ do
         let cardanoWalletLauncher = Command
                 "cardano-wallet-launcher"
-                [ "--wallet-server-port", "1337"
-                , "--http-bridge-port", "8080"
+                [ "--http-bridge-port", "8080"
                 ] (return ())
                 Inherit
         handle <- async $ void $ launch [cardanoWalletLauncher]

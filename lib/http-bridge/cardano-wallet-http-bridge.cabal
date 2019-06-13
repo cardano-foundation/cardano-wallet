@@ -161,6 +161,7 @@ test-suite integration
     , text-class
     , time
     , transformers
+    , warp
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
@@ -183,6 +184,7 @@ test-suite integration
       Test.Integration.Scenario.CLI.Mnemonics
       Test.Integration.Scenario.CLI.Transactions
       Test.Integration.Scenario.CLI.Wallets
+      Test.Integration.Scenario.CLI.Port
       Paths_cardano_wallet_http_bridge
 
 benchmark restore

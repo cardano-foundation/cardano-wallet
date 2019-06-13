@@ -73,7 +73,6 @@ Usage:
 
 Options:
   --network <STRING>           testnet, mainnet, or local [default: testnet]
-  --wallet-server-port <PORT>  port used for serving the wallet API [default: 8090]
   --http-bridge-port <PORT>    port used for communicating with the http-bridge [default: 8080]
   --state-dir <DIR>            write wallet state (blockchain and database) to this directory
 |]
@@ -90,14 +89,13 @@ main = do
     let stateDir = args `getArg` (longOption "state-dir")
     let network = fromMaybe "testnet" $ args `getArg` (longOption "network")
     bridgePort <- args `parseArg` longOption "http-bridge-port"
-    walletPort <- args `parseArg` longOption "wallet-server-port"
 
     sayErr "Starting..."
     installSignalHandlers
     maybe (pure ()) setupStateDir stateDir
     let commands =
             [ nodeHttpBridgeOn stateDir bridgePort network
-            , walletOn stateDir walletPort bridgePort network
+            , walletOn stateDir bridgePort network
             ]
     sayErr $ fmt $ blockListF commands
     (ProcessHasExited name code) <- launch commands
@@ -107,7 +105,11 @@ main = do
     parseArg :: FromText a => Arguments -> Option -> IO a
     parseArg = parseArgWith cli
 
-nodeHttpBridgeOn :: Maybe FilePath -> Port "Node" -> String -> Command
+nodeHttpBridgeOn
+    :: Maybe FilePath
+    -> Port "Node"
+    -> String
+    -> Command
 nodeHttpBridgeOn stateDir port net =
     Command "cardano-http-bridge" args (return ()) Inherit
   where
@@ -118,18 +120,24 @@ nodeHttpBridgeOn stateDir port net =
         ] ++ networkArg
     networkArg = maybe [] (\d -> ["--networks-dir", d]) stateDir
 
-walletOn :: Maybe FilePath -> Port "Wallet" -> Port "Node" -> String -> Command
-walletOn stateDir wp np net =
+walletOn
+    :: Maybe FilePath
+    -> Port "Node"
+    -> String
+    -> Command
+walletOn stateDir np net =
     Command "cardano-wallet" args (threadDelay oneSecond) Inherit
   where
-    args =
-        [ "server"
-        , "--network", if net == "local" then "testnet" else net
-        , "--port", T.unpack (toText wp)
-        , "--bridge-port", T.unpack (toText np)
-        ] ++ dbArg
-    dbArg = maybe [] (\d -> ["--database", d </> "wallet.db"]) stateDir
     oneSecond = 1000000
+    args = mconcat
+        [ [ "server" ]
+        , [ "--network", if net == "local" then "testnet" else net ]
+        , ["--random-port"]
+        , [ "--bridge-port", showT np ]
+        , maybe [] (\d -> ["--database", d </> "wallet.db"]) stateDir
+        ]
+    showT :: ToText a => a -> String
+    showT = T.unpack . toText
 
 setupStateDir :: FilePath -> IO ()
 setupStateDir dir = doesDirectoryExist dir >>= \case

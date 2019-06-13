@@ -31,7 +31,7 @@ import Cardano.BM.Configuration.Static
 import Cardano.BM.Setup
     ( setupTrace )
 import Cardano.BM.Trace
-    ( Trace, appendName )
+    ( Trace, appendName, logInfo )
 import Cardano.CLI
     ( getLine
     , getSensitiveLine
@@ -140,7 +140,7 @@ and can be run "offline". (e.g. 'generate mnemonic')
     ⚠️  Options are positional (--a --b is not equivalent to --b --a) ! ⚠️
 
 Usage:
-  cardano-wallet server [--network=STRING] [--port=INT] [--bridge-port=INT] [--database=FILE]
+  cardano-wallet server [--network=STRING] [(--port=INT | --random-port)] [--bridge-port=INT] [--database=FILE]
   cardano-wallet mnemonic generate [--size=INT]
   cardano-wallet wallet list [--port=INT]
   cardano-wallet wallet create [--port=INT] <name> [--address-pool-gap=INT]
@@ -153,7 +153,8 @@ Usage:
   cardano-wallet --version
 
 Options:
-  --port <INT>                port used for serving the wallet API
+  --port <INT>                port used for serving the wallet API [default: 8090]
+  --random-port               serve wallet API on any available port (conflicts with --port)
   --bridge-port <INT>         port used for communicating with the http-bridge [default: 8080]
   --address-pool-gap <INT>    number of unused consecutive addresses to keep track of [default: 20]
   --size <INT>                number of mnemonic words to generate [default: 15]
@@ -375,8 +376,7 @@ execHttpBridge
     => Arguments -> Proxy (HttpBridge n) -> IO ()
 execHttpBridge args _ = do
     tracer <- initTracer
-    (walletPort :: Maybe Int)
-        <- args `parseOptionalArg` longOption "port"
+    walletListen <- getWalletListen args
     (bridgePort :: Int)
         <- args `parseArg` longOption "bridge-port"
     let dbFile = args `getArg` longOption "database"
@@ -385,9 +385,17 @@ execHttpBridge args _ = do
     waitForConnection nw defaultRetryPolicy
     let tl = HttpBridge.newTransactionLayer @n
     wallet <- newWalletLayer @_ @(HttpBridge n) tracer block0 db nw tl
-    let logStartup port = TIO.hPutStrLn stderr $
+    let logStartup port = logInfo tracer $
             "Wallet backend server listening on: " <> toText port
-    Server.start logStartup walletPort wallet
+    Server.start logStartup walletListen wallet
+
+getWalletListen :: Arguments -> IO Server.Listen
+getWalletListen args = do
+    let useRandomPort = args `isPresent` longOption "random-port"
+    walletPort <- args `parseArg` longOption "port"
+    pure $ case (useRandomPort, walletPort) of
+        (True, _) -> Server.ListenOnRandomPort
+        (False, port) -> Server.ListenOnPort port
 
 -- | Generate a random mnemonic of the given size 'n' (n = number of words),
 -- and print it to stdout.
