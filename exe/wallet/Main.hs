@@ -140,7 +140,7 @@ and can be run "offline". (e.g. 'generate mnemonic')
     ⚠️  Options are positional (--a --b is not equivalent to --b --a) ! ⚠️
 
 Usage:
-  cardano-wallet server [--network=STRING] ([--port=INT] | [--random-port]) [--bridge-port=INT] [--database=FILE]
+  cardano-wallet server [--network=STRING] [(--port=INT | --random-port)] [--bridge-port=INT] [--database=FILE]
   cardano-wallet mnemonic generate [--size=INT]
   cardano-wallet wallet list [--port=INT]
   cardano-wallet wallet create [--port=INT] <name> [--address-pool-gap=INT]
