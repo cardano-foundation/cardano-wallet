@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
@@ -33,6 +34,8 @@ import Data.Text
     ( Text )
 import Database.Persist.Sqlite
     ( SqlBackend )
+import GHC.Generics
+    ( Generic )
 import Network.HTTP.Client
     ( HttpException (..)
     , HttpExceptionContent
@@ -52,6 +55,8 @@ import Network.HTTP.Types.Method
     ( Method )
 import Network.HTTP.Types.Status
     ( status500 )
+import Network.Wai.Handler.Warp
+    ( Port )
 import System.IO
     ( Handle )
 import Test.Integration.Faucet
@@ -71,6 +76,9 @@ data Context t = Context
     , _manager
         :: (Text, Manager)
         -- ^ The underlying BaseUrl and Manager used by the Wallet Client
+    , _port
+        :: Port
+        -- ^ Server TCP port
     , _logs
         :: Handle
         -- ^ A file 'Handle' to the launcher log output
@@ -82,7 +90,7 @@ data Context t = Context
         -- ^ A database connection handle
     , _target
         :: Proxy t
-    }
+    } deriving Generic
 
 -- | The result when 'request' fails.
 data RequestException
@@ -125,7 +133,8 @@ request
     -> Payload
         -- ^ Request body
     -> m (HTTP.Status, Either RequestException a)
-request (Context _ (base, manager) _ _ _ _) (verb, path) reqHeaders body = do
+request ctx (verb, path) reqHeaders body = do
+    let (base, manager) = _manager ctx
     req <- parseRequest $ T.unpack $ base <> path
     let io = handleResponse <$> liftIO (httpLbs (prepareReq req) manager)
     catch io handleException

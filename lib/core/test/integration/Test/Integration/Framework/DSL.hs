@@ -153,6 +153,8 @@ import Language.Haskell.TH.Quote
     ( QuasiQuoter )
 import Network.HTTP.Types.Method
     ( Method )
+import Network.Wai.Handler.Warp
+    ( Port )
 import Numeric.Natural
     ( Natural )
 import System.Command
@@ -539,8 +541,8 @@ emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
 fixtureWallet
     :: Context t
     -> IO ApiWallet
-fixtureWallet ctx@(Context _ _ _ faucet _ _) = do
-    mnemonics <- mnemonicToText <$> nextWallet faucet
+fixtureWallet ctx = do
+    mnemonics <- mnemonicToText <$> nextWallet (_faucet ctx)
     let payload = Json [aesonQQ| {
             "name": "Faucet Wallet",
             "mnemonic_sentence": #{mnemonics},
@@ -738,15 +740,16 @@ generateMnemonicsViaCLI args = cardanoWalletCLI
     (["mnemonic", "generate"] ++ args)
 
 createWalletViaCLI
-    :: [String]
+    :: HasType Port s
+    => s
+    -> [String]
     -> String
     -> String
     -> String
-    -> Maybe String
     -> IO (ExitCode, String, Text)
-createWalletViaCLI args mnemonics secondFactor passphrase portM = do
+createWalletViaCLI ctx args mnemonics secondFactor passphrase = do
     let portArg =
-            maybe [] (\p -> ["--port", p]) portM
+            [ "--port", show (ctx ^. typed @Port) ]
     let fullArgs =
             [ "exec", "--", "cardano-wallet", "wallet", "create" ]
             ++ portArg ++ args
@@ -764,33 +767,36 @@ createWalletViaCLI args mnemonics secondFactor passphrase portM = do
         err <- TIO.hGetContents stderr
         return (c, T.unpack out, err)
 
+deleteWalletViaCLI :: (CmdResult r, HasType Port s) => s -> String -> IO r
+deleteWalletViaCLI ctx walId = cardanoWalletCLI
+    ["wallet", "delete", "--port", show (ctx ^. typed @Port), walId ]
 
+getWalletViaCLI :: (CmdResult r, HasType Port s) => s -> String -> IO r
+getWalletViaCLI ctx walId = cardanoWalletCLI
+    ["wallet", "get", "--port", show (ctx ^. typed @Port) , walId ]
 
-deleteWalletViaCLI :: CmdResult r => String -> IO r
-deleteWalletViaCLI walId = cardanoWalletCLI
-    ["wallet", "delete", "--port", "1337", walId ]
+listAddressesViaCLI :: (CmdResult r, HasType Port s) => s -> [String] -> IO r
+listAddressesViaCLI ctx args = cardanoWalletCLI
+    (["address", "list", "--port", show (ctx ^. typed @Port)] ++ args)
 
-getWalletViaCLI :: CmdResult r => String -> IO r
-getWalletViaCLI walId = cardanoWalletCLI
-    ["wallet", "get", "--port", "1337" , walId ]
+listWalletsViaCLI :: (CmdResult r, HasType Port s) => s -> IO r
+listWalletsViaCLI ctx = cardanoWalletCLI
+    ["wallet", "list", "--port", show (ctx ^. typed @Port) ]
 
-listAddressesViaCLI :: CmdResult r => [String] -> IO r
-listAddressesViaCLI args = cardanoWalletCLI
-    (["address", "list", "--port", "1337"] ++ args)
+updateWalletViaCLI :: (CmdResult r, HasType Port s) => s -> [String] -> IO r
+updateWalletViaCLI ctx args = cardanoWalletCLI
+    (["wallet", "update", "--port", show (ctx ^. typed @Port)] ++ args)
 
-listWalletsViaCLI :: CmdResult r => IO r
-listWalletsViaCLI = cardanoWalletCLI
-    ["wallet", "list", "--port", "1337" ]
-
-updateWalletViaCLI :: CmdResult r => [String] -> IO r
-updateWalletViaCLI args = cardanoWalletCLI
-    (["wallet", "update", "--port", "1337"] ++ args)
-
-postTransactionViaCLI :: String -> [String] ->  IO (ExitCode, String, Text)
-postTransactionViaCLI passphrase args = do
+postTransactionViaCLI
+    :: HasType Port s
+    => s
+    -> String
+    -> [String]
+    -> IO (ExitCode, String, Text)
+postTransactionViaCLI ctx passphrase args = do
     let fullArgs =
             [ "exec", "--", "cardano-wallet"
-            , "transaction", "create", "--port", "1337"
+            , "transaction", "create", "--port", show (ctx ^. typed @Port)
             ] ++ args
     let process = (proc "stack" fullArgs)
             { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
