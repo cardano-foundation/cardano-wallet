@@ -2408,7 +2408,18 @@ handleRawError :: (ServantErr -> ServantErr) -> Middleware
 module Cardano.Wallet.Api.Server
 
 -- | Start the application server
-start :: forall t. (TxId t, KeyToAddress t, EncodeAddress t, DecodeAddress t) => (Port -> IO ()) -> Maybe Port -> WalletLayer (SeqState t) t -> IO ()
+start :: forall t. (TxId t, KeyToAddress t, EncodeAddress t, DecodeAddress t) => (Port -> IO ()) -> Listen -> WalletLayer (SeqState t) t -> IO ()
+
+-- | How the server should listen for incoming requests.
+data Listen
+
+-- | Listen on given TCP port
+ListenOnPort :: Port -> Listen
+
+-- | Listen on an unused TCP port, selected at random
+ListenOnRandomPort :: Listen
+instance GHC.Classes.Eq Cardano.Wallet.Api.Server.Listen
+instance GHC.Show.Show Cardano.Wallet.Api.Server.Listen
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.DB.ErrNoSuchWallet
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.DB.ErrWalletAlreadyExists
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrWithRootKey
