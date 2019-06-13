@@ -14,6 +14,8 @@ module Cardano.WalletSpec
 
 import Prelude
 
+import Cardano.BM.Trace
+    ( nullTracer )
 import Cardano.Wallet
     ( ErrCreateUnsignedTx (..)
     , ErrSignTx (..)
@@ -162,10 +164,11 @@ walletCreationProp newWallet = monadicIO $ liftIO $ do
 walletDoubleCreationProp
     :: (WalletId, WalletName, DummyState)
     -> Property
-walletDoubleCreationProp newWallet@(wid, wname, wstate) = monadicIO $ liftIO $ do
-    (WalletLayerFixture _db wl _walletIds) <- setupFixture newWallet
-    secondTrial <- runExceptT $ createWallet wl wid wname wstate
-    secondTrial `shouldSatisfy` isLeft
+walletDoubleCreationProp newWallet@(wid, wname, wstate) =
+    monadicIO $ liftIO $ do
+        (WalletLayerFixture _db wl _walletIds) <- setupFixture newWallet
+        secondTrial <- runExceptT $ createWallet wl wid wname wstate
+        secondTrial `shouldSatisfy` isLeft
 
 walletGetProp
     :: (WalletId, WalletName, DummyState)
@@ -276,7 +279,8 @@ walletUpdatePassphraseDate
 walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
     (WalletLayerFixture _ wl [wid]) <- liftIO $ setupFixture wallet
     let infoShouldSatisfy predicate = do
-            info <- (passphraseInfo . snd) <$> unsafeRunExceptT (readWallet wl wid)
+            info <- (passphraseInfo . snd) <$>
+                unsafeRunExceptT (readWallet wl wid)
             info `shouldSatisfy` predicate
             return info
 
@@ -302,7 +306,8 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
         unsafeRunExceptT $ attachPrivateKey wl wid (xprv, pwd)
         (_,_,[witOld]) <- unsafeRunExceptT $ signTx wl wid pwd selection
         unsafeRunExceptT $ updateWalletPassphrase wl wid (coerce pwd, newPwd)
-        (_,_,[witNew]) <- unsafeRunExceptT $ signTx wl wid (coerce newPwd) selection
+        (_,_,[witNew]) <-
+            unsafeRunExceptT $ signTx wl wid (coerce newPwd) selection
         witOld `shouldBe` witNew
   where
     selection = CoinSelection
@@ -336,7 +341,7 @@ setupFixture (wid, wname, wstate) = do
     db <- newDBLayer
     let nl = error "NetworkLayer"
     let tl = dummyTransactionLayer
-    wl <- newWalletLayer @_ @DummyTarget block0 db nl tl
+    wl <- newWalletLayer @_ @DummyTarget nullTracer block0 db nl tl
     res <- runExceptT $ createWallet wl wid wname wstate
     let wal = case res of
             Left _ -> []
@@ -417,7 +422,8 @@ instance Arbitrary (Passphrase purpose) where
     arbitrary =
         Passphrase . BA.convert . BS.pack <$> replicateM 16 arbitrary
 
-instance {-# OVERLAPS #-} Arbitrary (Key 'RootK XPrv, Passphrase "encryption") where
+instance {-# OVERLAPS #-} Arbitrary (Key 'RootK XPrv, Passphrase "encryption")
+  where
     shrink _ = []
     arbitrary = do
         seed <- Passphrase . BA.convert . BS.pack <$> replicateM 32 arbitrary

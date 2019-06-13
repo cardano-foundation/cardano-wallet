@@ -16,7 +16,6 @@
 -- "Cardano.Wallet.DB" and "Cardano.Wallet.Network" to realize its role as being
 -- intermediary between the three.
 
-
 module Cardano.Wallet
     (
     -- * Interface
@@ -44,8 +43,11 @@ module Cardano.Wallet
     , unsafeRunExceptT
     ) where
 
-import Prelude
+import Prelude hiding
+    ( log )
 
+import Cardano.BM.Trace
+    ( Trace, logDebug, logError, logInfo )
 import Cardano.Wallet.DB
     ( DBLayer
     , ErrNoSuchWallet (..)
@@ -156,6 +158,8 @@ import Data.Maybe
     ( mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text
+    ( Text )
 import Data.Time.Clock
     ( getCurrentTime )
 import Fmt
@@ -166,7 +170,6 @@ import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import qualified Data.Text.IO as TIO
 
 {-------------------------------------------------------------------------------
                                  Types
@@ -298,7 +301,6 @@ data ErrWithRootKey
     | ErrWithRootKeyWrongPassphrase WalletId ErrWrongPassphrase
     deriving (Show, Eq)
 
-
 {-------------------------------------------------------------------------------
                                 Worker Registry
 -------------------------------------------------------------------------------}
@@ -333,13 +335,14 @@ cancelWorker (WorkerRegistry mvar) wid =
 -- | Create a new instance of the wallet layer.
 newWalletLayer
     :: forall s t. ()
-    => BlockHeader
+    => Trace IO Text
+    -> BlockHeader
         -- ^ Very first block header for initialization
     -> DBLayer IO s t
     -> NetworkLayer t IO
     -> TransactionLayer t
     -> IO (WalletLayer s t)
-newWalletLayer block0 db nw tl = do
+newWalletLayer tracer block0 db nw tl = do
     registry <- newRegistry
     return WalletLayer
         { createWallet = _createWallet
@@ -437,7 +440,7 @@ newWalletLayer block0 db nw tl = do
         worker <- liftIO $ forkIO $ do
             runExceptT (networkTip nw) >>= \case
                 Left e -> do
-                    TIO.putStrLn $ "[ERROR] restoreSleep: " +|| e ||+ ""
+                    logError tracer $ "restoreSleep: " +|| e ||+ ""
                     restoreSleep wid (currentTip w)
                 Right tip -> do
                     restoreStep wid (currentTip w, tip)
@@ -455,15 +458,15 @@ newWalletLayer block0 db nw tl = do
     restoreStep wid (slot, tip) = do
         runExceptT (nextBlocks nw slot) >>= \case
             Left e -> do
-                TIO.putStrLn $ "[ERROR] restoreStep: " +|| e ||+ ""
+                logError tracer $ "restoreStep: " +|| e ||+ ""
                 restoreSleep wid slot
             Right [] -> do
                 restoreSleep wid slot
             Right blocks -> do
                 let next = view #header . last $ blocks
                 runExceptT (restoreBlocks wid blocks (tip ^. #slotId)) >>= \case
-                    Left (ErrNoSuchWallet _) -> TIO.putStrLn $
-                        "[ERROR] restoreStep: wallet " +| wid |+ " is gone!"
+                    Left (ErrNoSuchWallet _) -> logError tracer $
+                        "restoreStep: wallet " +| wid |+ " is gone!"
                     Right () -> do
                         restoreStep wid (next, tip)
 
@@ -478,7 +481,7 @@ newWalletLayer block0 db nw tl = do
         let tenSeconds = 10000000 in threadDelay tenSeconds
         runExceptT (networkTip nw) >>= \case
             Left e -> do
-                TIO.putStrLn $ "[ERROR] restoreSleep: " +|| e ||+ ""
+                logError tracer $ "restoreSleep: " +|| e ||+ ""
                 restoreSleep wid slot
             Right tip ->
                 restoreStep wid (slot, tip)
@@ -495,8 +498,8 @@ newWalletLayer block0 db nw tl = do
                 ( view #slotId . header . head $ blocks
                 , view #slotId . header . last $ blocks
                 )
-        liftIO $ TIO.putStrLn $
-            "[INFO] Applying blocks ["+| inf |+" ... "+| sup |+"]"
+        liftIO $ logInfo tracer $
+            "Applying blocks ["+| inf |+" ... "+| sup |+"]"
 
         -- NOTE
         -- Not as good as a transaction, but, with the lock, nothing can make
@@ -509,17 +512,18 @@ newWalletLayer block0 db nw tl = do
             -- block of the list, even if empty, so that we correctly update the
             -- current tip of the wallet state.
             let nonEmpty = not . null . transactions
-            let (h,q) = first (filter nonEmpty) $ splitAt (length blocks - 1) blocks
+            let (h,q) = first (filter nonEmpty) $
+                    splitAt (length blocks - 1) blocks
             let (txs, cp') = applyBlocks (h ++ q) cp
             let progress = slotRatio sup tip
             let status' = if progress == maxBound
                     then Ready
                     else Restoring progress
             let meta' = meta { status = status' } :: WalletMetadata
-            liftIO $ TIO.putStrLn $
-                "[INFO] Tx History: " +|| length txs ||+ ""
-            unless (null txs) $ liftIO $ TIO.putStrLn $ pretty $
-                "[DEBUG] :\n" <> blockListF (snd <$> Map.elems txs)
+            liftIO $ logInfo tracer $
+                "Tx History: " +|| length txs ||+ ""
+            unless (null txs) $ liftIO $ logDebug tracer $ pretty $
+                blockListF (snd <$> Map.elems txs)
             DB.putCheckpoint db (PrimaryKey wid) cp'
             DB.putTxHistory db (PrimaryKey wid) txs
             DB.putWalletMeta db (PrimaryKey wid) meta'
@@ -634,7 +638,8 @@ newWalletLayer block0 db nw tl = do
         DB.withLock db $ do
             meta <- _readWalletMeta wid
             now <- liftIO getCurrentTime
-            let modify x = x { passphraseInfo = Just (WalletPassphraseInfo now) }
+            let modify x =
+                    x { passphraseInfo = Just (WalletPassphraseInfo now) }
             DB.putWalletMeta db (PrimaryKey wid) (modify meta)
 
     -- | Execute an action which requires holding a root XPrv

@@ -38,6 +38,7 @@ executable cardano-wallet
     , cardano-wallet-core
     , cardano-wallet-http-bridge
     , docopt
+    , iohk-monitoring
     , http-client
     , servant-client
     , servant-client-core

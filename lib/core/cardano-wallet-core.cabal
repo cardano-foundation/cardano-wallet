@@ -47,6 +47,7 @@ library
     , http-types
     , http-api-data
     , http-media
+    , iohk-monitoring
     , memory
     , monad-logger
     , network
@@ -128,6 +129,7 @@ test-suite unit
     , hspec
     , hspec-golden-aeson
     , http-api-data
+    , iohk-monitoring
     , lens
     , memory
     , persistent

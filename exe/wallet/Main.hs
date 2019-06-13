@@ -26,6 +26,12 @@ module Main where
 import Prelude hiding
     ( getLine )
 
+import Cardano.BM.Configuration.Static
+    ( defaultConfigStdout )
+import Cardano.BM.Setup
+    ( setupTrace )
+import Cardano.BM.Trace
+    ( Trace, appendName )
 import Cardano.CLI
     ( getLine
     , getSensitiveLine
@@ -172,9 +178,18 @@ main = do
     getArgs >>= parseArgsOrExit cli >>= exec' manager
 
 {-------------------------------------------------------------------------------
-                         Command and Argument Parsing
+                                  Logging
 -------------------------------------------------------------------------------}
 
+initTracer :: IO (Trace IO Text)
+initTracer = do
+    c <- defaultConfigStdout
+    tr <- setupTrace (Right c) "simple"
+    appendName "text" tr
+
+{-------------------------------------------------------------------------------
+                         Command and Argument Parsing
+-------------------------------------------------------------------------------}
 
 exec' :: Manager -> Arguments -> IO ()
 exec' manager args = args `parseArg` longOption "network" >>= \case
@@ -223,8 +238,10 @@ exec execServer manager args
         wSndFactor <- do
             let prompt =
                     "(Enter a blank line if you do not wish to use a second \
-                    \factor.)\nPlease enter a 9–12 word mnemonic second factor: "
-            let parser = optional (fromMnemonic @'[9,12] @"generation") . T.words
+                    \factor.)\n\
+                    \Please enter a 9–12 word mnemonic second factor: "
+            let parser =
+                    optional (fromMnemonic @'[9,12] @"generation") . T.words
             getLine prompt parser <&> \case
                 (Nothing, _) -> Nothing
                 (Just a, t) -> Just (a, t)
@@ -357,6 +374,7 @@ execHttpBridge
     :: forall n. (KeyToAddress (HttpBridge n), KnownNetwork n)
     => Arguments -> Proxy (HttpBridge n) -> IO ()
 execHttpBridge args _ = do
+    tracer <- initTracer
     (walletPort :: Maybe Int)
         <- args `parseOptionalArg` longOption "port"
     (bridgePort :: Int)
@@ -366,7 +384,7 @@ execHttpBridge args _ = do
     nw <- HttpBridge.newNetworkLayer @n bridgePort
     waitForConnection nw defaultRetryPolicy
     let tl = HttpBridge.newTransactionLayer @n
-    wallet <- newWalletLayer @_ @(HttpBridge n) block0 db nw tl
+    wallet <- newWalletLayer @_ @(HttpBridge n) tracer block0 db nw tl
     let logStartup port = TIO.hPutStrLn stderr $
             "Wallet backend server listening on: " <> toText port
     Server.start logStartup walletPort wallet

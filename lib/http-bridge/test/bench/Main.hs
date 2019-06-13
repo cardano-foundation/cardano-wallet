@@ -10,6 +10,8 @@ module Main where
 
 import Prelude
 
+import Cardano.BM.Trace
+    ( nullTracer )
 import Cardano.Launcher
     ( Command (Command), StdStream (..), installSignalHandlers, launch )
 import Cardano.Wallet
@@ -175,7 +177,9 @@ parseNetwork = \case
     ["mainnet"] ->
         return Mainnet
     _ ->
-        fail "invalid network provided to benchmark: not 'testnet' nor 'mainnet'."
+        fail
+            "invalid network provided to benchmark: \
+            \not 'testnet' nor 'mainnet'."
 
 {-------------------------------------------------------------------------------
                                   Benchmarks
@@ -200,14 +204,15 @@ bench_restoration _ (wid, wname, s) = withHttpBridge network $ \port -> do
     let tl = newTransactionLayer
     BlockHeader sl _ <- unsafeRunExceptT $ networkTip nw
     sayErr . fmt $ network ||+ " tip is at " +|| sl ||+ ""
-    w <- newWalletLayer @_ @(HttpBridge n) block0 db nw tl
+    w <- newWalletLayer @_ @(HttpBridge n) nullTracer block0 db nw tl
     wallet <- unsafeRunExceptT $ createWallet w wid wname s
     unsafeRunExceptT $ restoreWallet w wallet
     waitForWalletSync w wallet
     (wallet', _) <- unsafeRunExceptT $ readWallet w wid
     sayErr "Wallet restored!"
     sayErr . fmt $ "Balance: " +|| totalBalance wallet' ||+ " lovelace"
-    sayErr . fmt $ "UTxO: " +|| Map.size (getUTxO $ totalUTxO wallet') ||+ " entries"
+    sayErr . fmt $
+        "UTxO: " +|| Map.size (getUTxO $ totalUTxO wallet') ||+ " entries"
     unsafeRunExceptT $ removeWallet w wid
   where
     network = networkVal @n
