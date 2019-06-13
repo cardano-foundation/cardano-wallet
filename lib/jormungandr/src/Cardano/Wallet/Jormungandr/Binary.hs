@@ -3,6 +3,8 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -18,6 +20,8 @@ module Cardano.Wallet.Jormungandr.Binary
     , Message (..)
     , getBlockHeader
     , getBlock
+
+    , putTransaction
 
     , ConfigParam (..)
     , ConsensusVersion (..)
@@ -40,7 +44,7 @@ module Cardano.Wallet.Jormungandr.Binary
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Environment
-    ( Network (..), single )
+    ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -73,6 +77,8 @@ import Data.Bits
     ( shift, (.&.) )
 import Data.ByteString
     ( ByteString )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
@@ -219,15 +225,19 @@ getTransaction = label "getTransaction" $ isolate 43 $ do
             other -> fail $ "Invalid witness type: " ++ show other
 
 
-putTransaction :: (Tx, [TxWitness]) -> Put
-putTransaction (tx, witnesses) = do
-    putTokenTransfer tx
+putTransaction :: forall n. KnownNetwork n => Proxy n -> (Tx, [TxWitness]) -> Put
+putTransaction _ (tx, witnesses) = do
+    putTokenTransfer (Proxy @n) tx
     mapM_ putWitness witnesses
 
 putWitness :: TxWitness -> Put
 putWitness witness =
     case witness of
         PublicKeyWitness xPub (Hash sig) -> do
+            -- Witness sum type:
+            --   * 1 for old address witnness scheme
+            --   * 2 for new address witness scheme
+            --   * 3 for account witness
             putWord8 1
             putByteString xPub
             putByteString sig
@@ -242,8 +252,8 @@ putWitness witness =
                             Common Structure
 -------------------------------------------------------------------------------}
 
-putTokenTransfer :: Tx -> Put
-putTokenTransfer (Tx inputs outputs) = do
+putTokenTransfer :: forall n. KnownNetwork n => Proxy n -> Tx -> Put
+putTokenTransfer _ (Tx inputs outputs) = do
     putWord8 $ fromIntegral $ length inputs
     putWord8 $ fromIntegral $ length outputs
     mapM_ putInput inputs
@@ -259,9 +269,8 @@ putTokenTransfer (Tx inputs outputs) = do
         putWord64be $ getCoin coin
     putAddress address = do
         -- NOTE: only single address supported for now
-        putWord8 single
-        -- TODO(akegalj) this should be `encodeAddress (Proxy Jormungandr) address`
-        putByteString "addressBytestring" -- address
+        putWord8 (single @n)
+        putByteString $ getAddress address
 
 getTokenTransfer :: Get ([TxIn], [TxOut])
 getTokenTransfer = label "getTokenTransfer" $ do
@@ -275,7 +284,6 @@ getTokenTransfer = label "getTokenTransfer" $ do
         -- NOTE: special value 0xff indicates account spending
         index <- fromIntegral <$> getWord8
         tx <- Hash <$> getByteString 32
-
         return $ TxIn tx index
 
     getOutput = do
@@ -289,7 +297,6 @@ getTokenTransfer = label "getTokenTransfer" $ do
         let _discrimination = discriminationValue headerByte
         case kind of
             -- Single Address
-            -- TODO(akegalj) shouldn't this be `either fail id . decodeAddress (Proxy Jormungandr) <$> getByteString 32` ?
             0x3 -> Address <$> getByteString 32
             0x4 -> error "unimplemented group address decoder"
             0x5 -> error "unimplemented account address decoder"
