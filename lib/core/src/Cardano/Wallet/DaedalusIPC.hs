@@ -53,8 +53,6 @@ import Data.Text
     ( Text )
 import Data.Word
     ( Word32, Word64 )
-import Distribution.System
-    ( OS (Windows), buildOS )
 import GHC.Generics
     ( Generic )
 import GHC.IO.Handle.FD
@@ -63,6 +61,8 @@ import Say
     ( sayErr, sayErrString )
 import System.Environment
     ( lookupEnv )
+import System.Info
+    ( arch )
 import System.IO
     ( Handle, hFlush, hGetLine, hSetNewlineMode, noNewlineTranslation, stdout )
 import System.IO.Error
@@ -181,9 +181,10 @@ ipcListener handle onMsg chan = do
       hFlush stdout
 
 readMessage :: Handle -> IO BL.ByteString
-readMessage
-    | buildOS == Windows = windowsReadMessage
-    | otherwise = posixReadMessage
+readMessage = if isWindows then windowsReadMessage else posixReadMessage
+
+isWindows :: Bool
+isWindows = arch == "windows"
 
 windowsReadMessage :: Handle -> IO BL.ByteString
 windowsReadMessage handle = do
@@ -209,12 +210,10 @@ posixReadMessage = fmap L8.pack . hGetLine
 sendMessage :: Handle -> BL.ByteString -> IO ()
 sendMessage handle msg = send handle msg >> hFlush handle
   where
-    send
-        | buildOS == Windows = sendWindowsMessage
-        | otherwise = sendLinuxMessage
+    send = if isWindows then sendMessageWindows else sendMessagePosix
 
-sendWindowsMessage :: Handle -> BL.ByteString -> IO ()
-sendWindowsMessage = sendWindowsMessage' 1 0
+sendMessageWindows :: Handle -> BL.ByteString -> IO ()
+sendMessageWindows = sendWindowsMessage' 1 0
 
 sendWindowsMessage' :: Word32 -> Word32 -> Handle -> BL.ByteString -> IO ()
 sendWindowsMessage' int1 int2 handle blob =
@@ -228,5 +227,5 @@ sendWindowsMessage' int1 int2 handle blob =
         , putLazyByteString blob'
         ]
 
-sendLinuxMessage :: Handle -> BL.ByteString -> IO ()
-sendLinuxMessage = L8.hPutStrLn
+sendMessagePosix :: Handle -> BL.ByteString -> IO ()
+sendMessagePosix = L8.hPutStrLn

@@ -37,7 +37,6 @@ library
     , basement
     , binary
     , bytestring
-    , Cabal
     , cardano-crypto
     , containers
     , cryptonite

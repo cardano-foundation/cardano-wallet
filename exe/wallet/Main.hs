@@ -106,8 +106,6 @@ import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
 import Paths_cardano_wallet
     ( version )
-import Say
-    ( sayErr )
 import Servant
     ( (:<|>) (..), (:>) )
 import Servant.Client
