@@ -18,6 +18,7 @@
       "library" = {
         depends = [
           (hsPkgs.aeson)
+          (hsPkgs.async)
           (hsPkgs.base)
           (hsPkgs.basement)
           (hsPkgs.binary)
@@ -51,6 +52,7 @@
           (hsPkgs.text-class)
           (hsPkgs.time)
           (hsPkgs.transformers)
+          (hsPkgs.unordered-containers)
           (hsPkgs.vector)
           (hsPkgs.wai)
           (hsPkgs.warp)

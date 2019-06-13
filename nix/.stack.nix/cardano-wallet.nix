@@ -22,6 +22,7 @@
             (hsPkgs.base)
             (hsPkgs.aeson)
             (hsPkgs.aeson-pretty)
+            (hsPkgs.async)
             (hsPkgs.bytestring)
             (hsPkgs.cardano-wallet-cli)
             (hsPkgs.cardano-wallet-core)
