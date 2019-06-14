@@ -414,9 +414,11 @@ execHttpBridge args _ = do
     wallet <- newWalletLayer @_ @(HttpBridge n) tracer block0 db nw tl
     let logStartup port = logInfo tracer $
             "Wallet backend server listening on: " <> toText port
-    Server.withListeningSocket walletPort $ \(port, socket) -> do
+    Server.withListeningSocket walletListen $ \(port, socket) -> do
         let settings = Server.mkWarpSettings logStartup port
-        race_ (daedalusIPC port) (Server.startOnSocket settings socket wallet)
+        tracer' <- appendName "DaedalusIPC" tracer
+        race_ (daedalusIPC tracer' port) $
+            Server.startOnSocket settings socket wallet
 
 -- | Generate a random mnemonic of the given size 'n' (n = number of words),
 -- and print it to stdout.
