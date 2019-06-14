@@ -236,8 +236,9 @@ exec execServe manager args
         let network = fromJust $ args `getArg` longOption "network"
         let stateDir = args `getArg` longOption "state-dir"
         bridgePort <- args `parseArg` longOption "bridge-port"
+        listen <- parseWalletListen args
         tracer <- initTracer "launch"
-        execLaunch tracer network stateDir bridgePort
+        execLaunch tracer network stateDir bridgePort listen
 
     | args `isPresent` command "generate" &&
       args `isPresent` command "mnemonic" = do
@@ -431,8 +432,9 @@ execLaunch
     -> String
     -> Maybe FilePath
     -> Port "Node"
+    -> Listen
     -> IO ()
-execLaunch tracer network stateDir bridgePort = do
+execLaunch tracer network stateDir bridgePort listen = do
     installSignalHandlers
     maybe (pure ()) (setupStateDir tracer) stateDir
     let commands = [ httpBridgeCmd, walletCmd ]
@@ -462,7 +464,9 @@ execLaunch tracer network stateDir bridgePort = do
         args = mconcat
             [ [ "serve" ]
             , [ "--network", if network == "local" then "testnet" else network ]
-            , ["--random-port"]
+            , case listen of
+                ListenOnRandomPort -> ["--random-port"]
+                ListenOnPort port  -> ["--port", showT port]
             , [ "--bridge-port", showT bridgePort ]
             , maybe [] (\d -> ["--database", d </> "wallet.db"]) stateDir
             ]
