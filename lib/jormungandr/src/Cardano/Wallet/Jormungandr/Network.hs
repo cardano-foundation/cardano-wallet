@@ -60,7 +60,7 @@ import Data.Proxy
 import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
 import Network.HTTP.Types.Status
-    ( status404 )
+    ( status400 )
 import Servant.API
     ( (:<|>) (..) )
 import Servant.Client
@@ -168,7 +168,7 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
 
     , getBlock = \blockId -> ExceptT $ do
         run (cGetBlock (BlockId blockId))  >>= \case
-            Left (FailureResponse e) | responseStatusCode e == status404 ->
+            Left (FailureResponse e) | responseStatusCode e == status400 ->
               return . Left . ErrGetBlockNotFound $ blockId
             x -> do
                 let ctx = safeLink api (Proxy @GetBlock) (BlockId blockId)
@@ -176,7 +176,7 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
 
     , getDescendantIds = \parentId count -> ExceptT $ do
         run (map getBlockId <$> cGetBlockDescendantIds (BlockId parentId) (Just count))  >>= \case
-            Left (FailureResponse e) | responseStatusCode e == status404 ->
+            Left (FailureResponse e) | responseStatusCode e == status400 ->
               return . Left $ ErrGetDescendantsParentNotFound parentId
             x -> do
                 let ctx = safeLink

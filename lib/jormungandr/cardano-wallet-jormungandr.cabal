@@ -112,11 +112,13 @@ test-suite integration
   build-depends:
       async
     , base
+    , bytestring
     , cardano-wallet-core
     , cardano-wallet-jormungandr
     , cardano-wallet-launcher
     , directory
     , hspec
+    , QuickCheck
     , retry
     , servant
     , transformers
