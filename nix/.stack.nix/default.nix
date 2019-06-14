@@ -3,6 +3,7 @@
     {
       packages = {
         "base58-bytestring" = (((hackage.base58-bytestring)."0.1.0").revisions).default;
+        "binary" = (((hackage.binary)."0.8.7.0").revisions).default;
         "command" = (((hackage.command)."0.1.1").revisions).default;
         "containers" = (((hackage.containers)."0.5.11.0").revisions).default;
         "ekg-prometheus-adapter" = (((hackage.ekg-prometheus-adapter)."0.1.0.4").revisions).default;
