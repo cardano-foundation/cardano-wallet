@@ -123,7 +123,7 @@ main = hspec $ do
 
     describe "CLI Server" ServerCLI.spec
 
-where
+  where
     oneSecond :: Int
     oneSecond = 1 * 1000 * 1000 -- 1 second in microseconds
 
