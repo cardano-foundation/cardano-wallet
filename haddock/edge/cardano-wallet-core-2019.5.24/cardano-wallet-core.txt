@@ -9,6 +9,33 @@
 @version 2019.5.24
 
 
+-- | Provides a mechanism for Daedalus to discover what port the
+--   cardano-wallet server is listening on.
+--   
+--   See
+--   <a>https://nodejs.org/api/child_process.html#child_process_child_process_spawn_command_args_options</a>
+--   for more information about the message protocol.
+module Cardano.Wallet.DaedalusIPC
+
+-- | Start up the Daedalus IPC process. It's called <a>daedalusIPC</a>, but
+--   this could be any nodejs program that needs to start cardano-wallet.
+--   All it does is reply with a port number when asked, using a very
+--   nodejs-specific IPC method.
+--   
+--   If the IPC channel was successfully set up, this function won't return
+--   until the parent process exits. Otherwise, it will return immediately.
+--   Before returning, it will log an message about why it has exited.
+daedalusIPC :: Trace IO Text -> Int -> IO ()
+instance GHC.Classes.Eq Cardano.Wallet.DaedalusIPC.NodeChannelError
+instance GHC.Show.Show Cardano.Wallet.DaedalusIPC.NodeChannelError
+instance GHC.Classes.Eq Cardano.Wallet.DaedalusIPC.MsgOut
+instance GHC.Show.Show Cardano.Wallet.DaedalusIPC.MsgOut
+instance GHC.Classes.Eq Cardano.Wallet.DaedalusIPC.MsgIn
+instance GHC.Show.Show Cardano.Wallet.DaedalusIPC.MsgIn
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.DaedalusIPC.MsgOut
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.DaedalusIPC.MsgIn
+
+
 -- | This module provides mnemonic (backup phrase) creation, and conversion
 --   of a mnemonic to seed for wallet restoration.
 module Cardano.Wallet.Primitive.Mnemonic
@@ -2407,9 +2434,6 @@ handleRawError :: (ServantErr -> ServantErr) -> Middleware
 --   endpoints reachable through HTTP.
 module Cardano.Wallet.Api.Server
 
--- | Start the application server
-start :: forall t. (TxId t, KeyToAddress t, EncodeAddress t, DecodeAddress t) => (Port -> IO ()) -> Listen -> WalletLayer (SeqState t) t -> IO ()
-
 -- | How the server should listen for incoming requests.
 data Listen
 
@@ -2418,6 +2442,20 @@ ListenOnPort :: Port -> Listen
 
 -- | Listen on an unused TCP port, selected at random
 ListenOnRandomPort :: Listen
+
+-- | Start the application server
+start :: forall t. (TxId t, KeyToAddress t, EncodeAddress t, DecodeAddress t) => (Port -> IO ()) -> Listen -> WalletLayer (SeqState t) t -> IO ()
+
+-- | Start the application server, using the given settings and a bound
+--   socket.
+startOnSocket :: forall t. (TxId t, KeyToAddress t, EncodeAddress t, DecodeAddress t) => Settings -> Socket -> WalletLayer (SeqState t) t -> IO ()
+
+-- | Create warp server settings.
+mkWarpSettings :: (Port -> IO ()) -> Port -> Settings
+
+-- | Run an action with a TCP socket bound to a port specified by the
+--   <a>Listen</a> parameter.
+withListeningSocket :: Listen -> ((Port, Socket) -> IO ()) -> IO ()
 instance GHC.Classes.Eq Cardano.Wallet.Api.Server.Listen
 instance GHC.Show.Show Cardano.Wallet.Api.Server.Listen
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.DB.ErrNoSuchWallet
