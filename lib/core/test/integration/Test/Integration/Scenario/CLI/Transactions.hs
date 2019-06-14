@@ -67,7 +67,6 @@ import Test.Integration.Framework.TestData
     , errMsg403NotEnoughMoney
     , errMsg403UTxO
     , errMsg403WrongPass
-    , errMsg500
     , falseWalletIds
     , kanjiWalletName
     , polishWalletName
@@ -366,8 +365,8 @@ spec = do
         let errNum = "Expecting natural number"
         let parseErr = "Parse error. Expecting format \"<amount>@<address>\""
         let matrix =
-                [ ("0", "0", errMsg500) -- TODO change after #364
-                , ("1.5", "1.5", errNum), ("-1000", "-1000", errNum)
+                [ ("1.5", "1.5", errNum)
+                , ("-1000", "-1000", errNum)
                 , ("[]", "[]", errNum)
                 , ("string with diacritics", polishWalletName, errNum)
                 , ("string with wildcards", wildcardsWalletName, parseErr)

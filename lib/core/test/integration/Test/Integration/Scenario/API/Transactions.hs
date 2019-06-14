@@ -61,7 +61,6 @@ import Test.Integration.Framework.TestData
     , errMsg405
     , errMsg406
     , errMsg415
-    , errMsg500
     , falseWalletIds
     , kanjiWalletName
     , polishWalletName
@@ -456,12 +455,7 @@ spec = do
         let unitErr = "failed to parse quantified value. Expected value in\
             \ 'lovelace' (e.g. { 'unit': 'lovelace', 'quantity': ... }"
         let matrix =
-                [ ( "Quantity = 0"
-                , [json|{"quantity": 0, "unit": "lovelace"}|]
-                , [ expectResponseCode HTTP.status500
-                  , expectErrorMessage errMsg500 ] -- TODO change after #364
-                )
-                , ( "Quantity = 1.5"
+                [ ( "Quantity = 1.5"
                 , [json|{"quantity": 1.5, "unit": "lovelace"}|]
                 , [ expectResponseCode HTTP.status400
                   , expectErrorMessage "expected Natural, encountered\
