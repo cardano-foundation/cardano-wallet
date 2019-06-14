@@ -4,8 +4,6 @@ module Test.Integration.Scenario.CLI.Server
 
 import Prelude
 
-import Control.Concurrent
-    ( threadDelay )
 import System.Directory
     ( listDirectory, removeDirectory )
 import System.Exit
@@ -13,7 +11,8 @@ import System.Exit
 import System.IO.Temp
     ( withSystemTempDirectory )
 import System.Process
-    ( CreateProcess
+    ( CreateProcess (..)
+    , StdStream (..)
     , createProcess
     , proc
     , terminateProcess
@@ -23,16 +22,18 @@ import System.Process
 import Test.Hspec
     ( Spec, describe, it, shouldContain, shouldReturn )
 
+import qualified Data.Text.IO as TIO
+
 spec :: Spec
 spec = do
     describe "Launcher should start the server with a database" $ do
         it "should create the database file" $ withTempDir $ \d -> do
-            removeDirectory d
             launcher d
             ls <- listDirectory d
             ls `shouldContain` ["wallet.db"]
 
         it "should work with empty state directory" $ withTempDir $ \d -> do
+            removeDirectory d
             launcher d
             ls <- listDirectory d
             ls `shouldContain` ["wallet.db"]
@@ -46,12 +47,9 @@ spec = do
 withTempDir :: (FilePath -> IO a) -> IO a
 withTempDir = withSystemTempDirectory "integration-state"
 
-waitForStartup :: IO ()
-waitForStartup = threadDelay (2 * 1000 * 1000)
-
 launcher :: FilePath -> IO ()
-launcher stateDir = withCreateProcess cmd $ \_ _ _ ph -> do
-    waitForStartup
+launcher stateDir = withCreateProcess cmd $ \_ _ (Just stderr) ph -> do
+    TIO.hGetContents stderr >>= TIO.putStrLn
     terminateProcess ph
   where
     cmd = proc' "cardano-wallet" ["launch", "--state-dir", stateDir]
@@ -68,4 +66,5 @@ launcher stateDir = withCreateProcess cmd $ \_ _ _ ph -> do
 --
 -- So one hacky way to work around it is by running programs under "stack exec".
 proc' :: FilePath -> [String] -> CreateProcess
-proc' cmd args = proc "stack" (["exec", cmd, "--"] ++ args)
+proc' cmd args = (proc "stack" (["exec", "--", cmd] ++ args))
+    { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
