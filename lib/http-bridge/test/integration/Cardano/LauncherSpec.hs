@@ -5,32 +5,53 @@ module Cardano.LauncherSpec
 import Prelude
 
 import Cardano.Launcher
-    ( Command (..), StdStream (..), launch )
-import Control.Concurrent
-    ( threadDelay )
-import Control.Concurrent.Async
-    ( async, cancel, race, wait )
+    ( Command (..), StdStream (..) )
 import Control.Monad
-    ( void )
+    ( when )
+import System.Directory
+    ( doesDirectoryExist, doesFileExist, removePathForcibly )
 import Test.Hspec
-    ( Spec, describe, expectationFailure, it )
+    ( Spec, after_, describe, it )
+import Test.Hspec.Expectations.Lifted
+    ( shouldBe )
+import Test.Integration.Framework.DSL
+    ( expectCmdStarts )
 
 spec :: Spec
-spec = describe "cardano-wallet launch" $ do
-    it "Can start launcher against testnet" $ do
-        let cardanoWalletLauncher = Command "stack"
-                [ "exec", "--", "cardano-wallet", "launch"
-                , "--bridge-port", "8080"
-                ] (return ())
-                Inherit
-        handle <- async $ void $ launch [cardanoWalletLauncher]
-        let fiveSeconds = 5000000
-        winner <- race (threadDelay fiveSeconds) (wait handle)
-        case winner of
-            Left _ -> do
-                cancel handle
-                threadDelay 1000000
-            Right _ ->
-                expectationFailure
-                    "cardano-wallet launch isn't supposed to terminate. \
-                    \Something went wrong."
+spec = after_ tearDown $ do
+    describe "LAUNCHER - cardano-wallet-launcher" $ do
+        it "LAUNCHER - Can start launcher against testnet" $ do
+            let cardanoWalletLauncher = Command "stack"
+                    [ "exec", "--", "cardano-wallet", "launch"
+                    , "--bridge-port", "8080"
+                    ] (return ())
+                    Inherit
+            expectCmdStarts cardanoWalletLauncher
+            d1 <- doesDirectoryExist stateDir
+            d1 `shouldBe` False
+
+        it "LAUNCHER - Can start launcher against testnet with --state-dir" $ do
+            let cardanoWalletLauncher = Command "stack"
+                    [ "exec", "--", "cardano-wallet", "launch"
+                    , "--bridge-port", "8080"
+                    ] (return ())
+                    Inherit
+            expectCmdStarts cardanoWalletLauncher
+
+            d1 <- doesDirectoryExist stateDir
+            d2 <- doesDirectoryExist (stateDir ++ "/testnet")
+            w1 <- doesFileExist (stateDir ++ "/wallet.db")
+            w2 <- doesFileExist (stateDir ++ "/wallet.db-shm")
+            w3 <- doesFileExist (stateDir ++ "/wallet.db-wal")
+
+            d1 `shouldBe` True
+            d2 `shouldBe` True
+            w1 `shouldBe` True
+            w2 `shouldBe` True
+            w3 `shouldBe` True
+
+ where
+     stateDir = "./test/data/tmpStateDir"
+     tearDown = do
+         d <- doesDirectoryExist stateDir
+         when d $ removePathForcibly stateDir
