@@ -117,6 +117,7 @@ test-suite integration
     , cardano-wallet-launcher
     , directory
     , hspec
+    , retry
     , servant
     , transformers
   type:

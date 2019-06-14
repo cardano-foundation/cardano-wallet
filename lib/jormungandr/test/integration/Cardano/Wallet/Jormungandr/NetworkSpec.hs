@@ -12,6 +12,8 @@ import Prelude
 
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
+import Cardano.Wallet
+    ( unsafeRunExceptT )
 import Cardano.Wallet.Jormungandr.Api
     ( GetTipId, api )
 import Cardano.Wallet.Jormungandr.Compatibility
@@ -36,6 +38,8 @@ import Control.Monad
     ( void )
 import Control.Monad.Trans.Except
     ( runExceptT )
+import Control.Retry
+    ( limitRetries, retrying )
 import Data.Either
     ( isRight )
 import Data.Functor
@@ -52,6 +56,7 @@ import Test.Hspec
     , beforeAll
     , describe
     , it
+    , shouldBe
     , shouldReturn
     , shouldSatisfy
     , shouldThrow
@@ -68,6 +73,26 @@ spec = do
             resp `shouldSatisfy` isRight
             let (Right slot) = slotId <$> resp
             slot `shouldSatisfy` (>= SlotId 0 0)
+
+        it "get some blocks from the genesis" $ \(_, nw) -> do
+            threadDelay (10 * second)
+            resp <- runExceptT $ nextBlocks nw genesis
+            resp `shouldSatisfy` isRight
+            resp `shouldSatisfy` (not . null)
+
+        it "no blocks after the tip" $ \(_, nw) -> do
+            let try = do
+                    tip <- unsafeRunExceptT $ networkTip nw
+                    runExceptT $ nextBlocks nw tip
+            let once = limitRetries 1
+            -- NOTE Retrying twice since between the moment we fetch the
+            -- tip and the moment we get the next blocks, one block may be
+            -- inserted.
+            -- Nevertheless, this can't happen twice within a slot time.
+            resp <- retrying once
+                (\_ x -> return $ fmap length x /= Right 0)
+                (const try)
+            resp `shouldBe` Right []
 
     describe "Error paths" $ do
         it "networkTip: ErrNetworkUnreachable" $ do
