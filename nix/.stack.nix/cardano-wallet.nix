@@ -40,6 +40,7 @@
           depends = [
             (hsPkgs.base)
             (hsPkgs.cardano-wallet-cli)
+            (hsPkgs.cardano-wallet-core)
             (hsPkgs.cardano-wallet-launcher)
             (hsPkgs.directory)
             (hsPkgs.docopt)

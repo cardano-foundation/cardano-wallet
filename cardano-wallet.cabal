@@ -66,6 +66,7 @@ executable cardano-wallet-launcher
   build-depends:
       base
     , cardano-wallet-cli
+    , cardano-wallet-core
     , cardano-wallet-launcher
     , directory
     , docopt

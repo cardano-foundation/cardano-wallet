@@ -51,8 +51,8 @@ import System.Exit
 import System.FilePath
     ( (</>) )
 
+import qualified Cardano.Wallet.Api.Server as ApiServer
 import qualified Data.Text as T
-
 
 -- | Command-Line Interface specification. See http://docopt.org/
 cli :: Docopt
@@ -72,6 +72,8 @@ Usage:
   cardano-wallet-launcher --version
 
 Options:
+  --api-server-port <INT>      port used for serving the wallet API [default: 8090]
+  --api-server-random-port     serve wallet API on any available port (conflicts with --api-server-port)
   --network <STRING>           testnet, mainnet, or local [default: testnet]
   --http-bridge-port <PORT>    port used for communicating with the http-bridge [default: 8080]
   --state-dir <DIR>            write wallet state (blockchain and database) to this directory
@@ -88,6 +90,13 @@ main = do
 
     let stateDir = args `getArg` (longOption "state-dir")
     let network = fromMaybe "testnet" $ args `getArg` (longOption "network")
+
+    apiServerPort <- args `parseArg` longOption "api-server-port"
+    let apiServerListen =
+            if args `isPresent` longOption "api-server-random-port"
+            then ApiServer.ListenOnRandomPort
+            else ApiServer.ListenOnPort apiServerPort
+
     bridgePort <- args `parseArg` longOption "http-bridge-port"
 
     sayErr "Starting..."
@@ -95,7 +104,7 @@ main = do
     maybe (pure ()) setupStateDir stateDir
     let commands =
             [ nodeHttpBridgeOn stateDir bridgePort network
-            , walletOn stateDir bridgePort network
+            , walletOn stateDir apiServerListen bridgePort network
             ]
     sayErr $ fmt $ blockListF commands
     (ProcessHasExited name code) <- launch commands
@@ -122,20 +131,26 @@ nodeHttpBridgeOn stateDir port net =
 
 walletOn
     :: Maybe FilePath
+    -> ApiServer.Listen
     -> Port "Node"
     -> String
     -> Command
-walletOn stateDir np net =
+walletOn stateDir apiListen np net =
     Command "cardano-wallet" args (threadDelay oneSecond) Inherit
   where
     oneSecond = 1000000
     args = mconcat
         [ [ "server" ]
         , [ "--network", if net == "local" then "testnet" else net ]
-        , ["--random-port"]
+        , apiServerPortArgument
         , [ "--bridge-port", showT np ]
         , maybe [] (\d -> ["--database", d </> "wallet.db"]) stateDir
         ]
+    apiServerPortArgument = case apiListen of
+        ApiServer.ListenOnPort p ->
+            [ "--port", showT p ]
+        ApiServer.ListenOnRandomPort ->
+            [ "--random-port" ]
     showT :: ToText a => a -> String
     showT = T.unpack . toText
 
