@@ -33,6 +33,8 @@ import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
     ( Async, async, cancel )
+import Control.DeepSeq
+    ( deepseq )
 import Control.Exception
     ( SomeException, bracket, catch )
 import Control.Monad
@@ -118,8 +120,10 @@ spec = do
             let action = do
                     res <- runExceptT $ networkTip nw
                     res `shouldSatisfy` \case
-                        Left (ErrNetworkTipNetworkUnreachable _) -> True
-                        _ -> error (msg res)
+                        Left (ErrNetworkTipNetworkUnreachable e) ->
+                            show e `deepseq` True
+                        _ ->
+                            error (msg res)
             action `shouldReturn` ()
 
         it "nextBlocks: ErrNetworkUnreachable" $ do
@@ -130,8 +134,10 @@ spec = do
             let action = do
                     res <- runExceptT $ nextBlocks nw genesis
                     res `shouldSatisfy` \case
-                        Left (ErrGetBlockNetworkUnreachable _) -> True
-                        _ -> error (msg res)
+                        Left (ErrGetBlockNetworkUnreachable e) ->
+                            show e `deepseq` True
+                        _ ->
+                            error (msg res)
             action `shouldReturn` ()
 
         it "networkTip: throws on invalid url" $ do
