@@ -45,6 +45,13 @@ The team follows a methodology known as [extreme programming][xp] which can be s
 - When a bug is found, tests are created to illustrate the failure, prior to fixing it
 - Tests are ran daily in a integration environment
 
+## Bugs
+
+- When a potential bug is found, a [Bug ticket](https://github.com/input-output-hk/cardano-wallet/blob/master/.github/ISSUE_TEMPLATE/bug.md) is created with a label `UNCONFIRMED`.
+- Corresponding sections of the ticket are filled-in (context, reproduction path, expected behavior...)
+- The ticket is discussed on Slack with the team to confirm that it's indeed a bug.
+- Once confirmed, the label `UNCONFIRMED` is changed to `CONFIRMED` and the bug is given a priority.
+- If dispelled, the bug ticket is closed without further ado.  
 
 ## Communication
 
