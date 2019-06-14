@@ -4,67 +4,60 @@ module Test.Integration.Scenario.CLI.Server
 
 import Prelude
 
+import Cardano.Launcher
+    ( Command (..), StdStream (..))
+import Test.Hspec.Expectations.Lifted
+    ( shouldBe )
+import Control.Monad
+    ( when )
 import System.Directory
-    ( listDirectory, removeDirectory )
-import System.Exit
-    ( ExitCode (..) )
-import System.IO.Temp
-    ( withSystemTempDirectory )
-import System.Process
-    ( CreateProcess (..)
-    , StdStream (..)
-    , createProcess
-    , proc
-    , terminateProcess
-    , waitForProcess
-    , withCreateProcess
-    )
+    ( doesFileExist, removePathForcibly )
 import Test.Hspec
-    ( Spec, describe, it, shouldContain, shouldReturn )
+    ( SpecWith, after_, describe, it )
+import Test.Integration.Framework.DSL
+    ( Context (..), expectCmdStarts )
 
-import qualified Data.Text.IO as TIO
+spec :: SpecWith (Context t)
+spec = after_ tearDown $ do
+    describe "SERVER - cardano-wallet server" $ do
+        it "SERVER - Can start cardano-wallet server without --database" $ \_ -> do
+            let cardanoWalletServer = Command
+                    "cardano-wallet"
+                    [ "server"
+                    , "--random-port"
+                    ] (return ())
+                    Inherit
+            expectCmdStarts cardanoWalletServer
 
-spec :: Spec
-spec = do
-    describe "Launcher should start the server with a database" $ do
-        it "should create the database file" $ withTempDir $ \d -> do
-            launcher d
-            ls <- listDirectory d
-            ls `shouldContain` ["wallet.db"]
+            w1 <- doesFileExist dbFile
+            w2 <- doesFileExist (dbFile ++ "-shm")
+            w3 <- doesFileExist (dbFile ++ "-wal")
+            w1 `shouldBe` False
+            w2 `shouldBe` False
+            w3 `shouldBe` False
 
-        it "should work with empty state directory" $ withTempDir $ \d -> do
-            removeDirectory d
-            launcher d
-            ls <- listDirectory d
-            ls `shouldContain` ["wallet.db"]
+        it "SERVER - Can start cardano-wallet server with --database" $ \_ -> do
+            let cardanoWalletServer = Command
+                    "cardano-wallet"
+                    [ "server"
+                    , "--random-port"
+                    , "--database", dbFile
+                    ] (return ())
+                    Inherit
+            expectCmdStarts cardanoWalletServer
 
-    describe "DaedalusIPC" $ do
-        it "should reply with the port when asked" $ do
-            (_, _, _, ph) <-
-                createProcess (proc "test/integration/js/mock-daedalus.js" [])
-            waitForProcess ph `shouldReturn` ExitSuccess
-
-withTempDir :: (FilePath -> IO a) -> IO a
-withTempDir = withSystemTempDirectory "integration-state"
-
-launcher :: FilePath -> IO ()
-launcher stateDir = withCreateProcess cmd $ \_ _ (Just stderr) ph -> do
-    TIO.hGetContents stderr >>= TIO.putStrLn
-    terminateProcess ph
-  where
-    cmd = proc' "cardano-wallet" ["launch", "--state-dir", stateDir]
-
--- There is a dependency cycle in the packages.
---
--- cardano-wallet-launcher depends on cardano-wallet-http-bridge so that it can
--- import the HttpBridge module.
---
--- This package (cardano-wallet-http-bridge) should have
--- build-tool-depends: cardano-wallet:cardano-wallet-launcher so that it can
--- run launcher in the tests. But that dependency can't be expressed in the
--- cabal file, because otherwise there would be a cycle.
---
--- So one hacky way to work around it is by running programs under "stack exec".
-proc' :: FilePath -> [String] -> CreateProcess
-proc' cmd args = (proc "stack" (["exec", "--", cmd] ++ args))
-    { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
+            w1 <- doesFileExist dbFile
+            w2 <- doesFileExist (dbFile ++ "-shm")
+            w3 <- doesFileExist (dbFile ++ "-wal")
+            w1 `shouldBe` True
+            w2 `shouldBe` True
+            w3 `shouldBe` True
+ where
+     dbFile = "./test/data/test-DB-File"
+     tearDown = do
+         f1 <- doesFileExist dbFile
+         f2 <- doesFileExist (dbFile ++ "-shm")
+         f3 <- doesFileExist (dbFile ++ "-wal")
+         when f1 $ removePathForcibly dbFile
+         when f2 $ removePathForcibly (dbFile ++ "-shm")
+         when f3 $ removePathForcibly (dbFile ++ "-wal")

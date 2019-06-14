@@ -19,6 +19,7 @@ module Test.Integration.Framework.DSL
     , unsafeRequest
 
     -- * Expectations
+    , expectCmdStarts
     , expectSuccess
     , expectError
     , expectErrorMessage
@@ -88,6 +89,8 @@ module Test.Integration.Framework.DSL
 import Prelude hiding
     ( fail )
 
+import Cardano.Launcher
+    ( Command (..), launch )
 import Cardano.Wallet.Api.Types
     ( ApiAddress, ApiT (..), ApiTransaction, ApiWallet )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -109,7 +112,7 @@ import Cardano.Wallet.Primitive.Types
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
-    ( race )
+    ( async, cancel, race, wait )
 import Control.Monad
     ( forM_, unless, void )
 import Control.Monad.Catch
@@ -169,6 +172,8 @@ import System.Process
     , waitForProcess
     , withCreateProcess
     )
+import Test.Hspec
+    ( expectationFailure )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain, shouldNotBe )
 import Test.Integration.Faucet
@@ -386,6 +391,27 @@ expectCliListItemFieldEqual i getter a out
         | otherwise = fail $
             "expectCliListItemFieldEqual: trying to access the #" <> show i <>
             " element from a list but there's none! "
+
+---
+--- Misc Expectations
+---
+
+-- | Expect command does not terminate
+-- this may be useful for testing if commands that suppose to act as processes
+-- do not terminate (e.g. cardano-wallet server)
+expectCmdStarts :: Command -> IO ()
+expectCmdStarts cmd = do
+    handle <- async $ void $ launch [cmd]
+    let fiveSeconds = 5000000
+    winner <- race (threadDelay fiveSeconds) (wait handle)
+    case winner of
+        Left _ -> do
+            cancel handle
+            threadDelay 1000000
+        Right _ ->
+            expectationFailure $
+                ( cmdName cmd ) ++ " isn't supposed to terminate. \
+                \Something went wrong."
 
 --
 -- Lenses

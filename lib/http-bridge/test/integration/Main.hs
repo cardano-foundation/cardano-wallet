@@ -120,7 +120,7 @@ main = hspec $ do
         describe "Wallets CLI tests" WalletsCLI.spec
         describe "Transactions CLI tests" TransactionsCLI.spec
         describe "Addresses CLI tests" AddressesCLI.spec
-
+        describe "Server CLI tests" ServerCLI.spec
   where
     oneSecond :: Int
     oneSecond = 1 * 1000 * 1000 -- 1 second in microseconds
