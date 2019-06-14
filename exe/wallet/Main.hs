@@ -31,7 +31,7 @@ import Cardano.BM.Configuration.Static
 import Cardano.BM.Setup
     ( setupTrace )
 import Cardano.BM.Trace
-    ( Trace, appendName, logInfo )
+    ( Trace, appendName, logAlert, logInfo )
 import Cardano.CLI
     ( Port
     , getLine
@@ -86,11 +86,8 @@ import Data.Either
     ( isRight )
 import Data.Functor
     ( (<&>) )
-import qualified Data.List.NonEmpty as NE
 import Data.Maybe
-    ( fromMaybe )
-import Data.Maybe
-    ( fromJust )
+    ( fromJust, fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -100,7 +97,7 @@ import Data.Text.Class
 import Data.Version
     ( showVersion )
 import Fmt
-    ( blockListF, fmt )
+    ( blockListF, fmt, nameF )
 import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
 import Paths_cardano_wallet
@@ -130,9 +127,7 @@ import System.Directory
 import System.Environment
     ( getArgs )
 import System.Exit
-    ( exitSuccess, exitWith )
-import System.Exit
-    ( exitFailure, exitSuccess )
+    ( exitFailure, exitSuccess, exitWith )
 import System.FilePath
     ( (</>) )
 import System.IO
@@ -147,6 +142,7 @@ import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
@@ -162,7 +158,7 @@ and can be run "offline". (e.g. 'generate mnemonic')
     ⚠️  Options are positional (--a --b is not equivalent to --b --a) ! ⚠️
 
 Usage:
-  cardano-wallet launch [--network=STRING] [(--port=INT | --random-port)] [--bridge-port=INT] [--state-dir=FILE]
+  cardano-wallet launch [--network=STRING] [(--port=INT | --random-port)] [--bridge-port=INT] [--state-dir=DIR]
   cardano-wallet serve [--network=STRING] [(--port=INT | --random-port)] [--bridge-port=INT] [--database=FILE]
   cardano-wallet mnemonic generate [--size=INT]
   cardano-wallet wallet list [--port=INT]
@@ -176,15 +172,16 @@ Usage:
   cardano-wallet --version
 
 Options:
+  --address-pool-gap <INT>    number of unused consecutive addresses to keep track of [default: 20]
+  --bridge-port <INT>         port used for communicating with the http-bridge [default: 8080]
+  --database <FILE>           use this file for storing wallet state
+  --network <STRING>          testnet or mainnet [default: testnet]
+  --payment <PAYMENT>         address to send to and amount to send separated by @: '<amount>@<address>'
   --port <INT>                port used for serving the wallet API [default: 8090]
   --random-port               serve wallet API on any available port (conflicts with --port)
-  --bridge-port <INT>         port used for communicating with the http-bridge [default: 8080]
-  --address-pool-gap <INT>    number of unused consecutive addresses to keep track of [default: 20]
   --size <INT>                number of mnemonic words to generate [default: 15]
-  --payment <PAYMENT>         address to send to and amount to send separated by @: '<amount>@<address>'
-  --network <STRING>          testnet or mainnet [default: testnet]
-  --database <FILE>           use this file for storing wallet state
   --state <STRING>            address state: either used or unused
+  --state-dir <DIR>           write wallet state (blockchain and database) to this directory
 
 Examples:
   # Create a transaction and send 22 lovelace from wallet-id to specified address
@@ -208,11 +205,10 @@ main = do
                                   Logging
 -------------------------------------------------------------------------------}
 
-initTracer :: IO (Trace IO Text)
-initTracer = do
+initTracer :: Text -> IO (Trace IO Text)
+initTracer cmd = do
     c <- defaultConfigStdout
-    tr <- setupTrace (Right c) "simple"
-    appendName "text" tr
+    setupTrace (Right c) "cardano-wallet" >>= appendName cmd
 
 {-------------------------------------------------------------------------------
                          Command and Argument Parsing
@@ -240,7 +236,8 @@ exec execServe manager args
         let network = fromJust $ args `getArg` longOption "network"
         let stateDir = args `getArg` longOption "state-dir"
         bridgePort <- args `parseArg` longOption "bridge-port"
-        execLaunch network stateDir bridgePort
+        tracer <- initTracer "launch"
+        execLaunch tracer network stateDir bridgePort
 
     | args `isPresent` command "generate" &&
       args `isPresent` command "mnemonic" = do
@@ -395,7 +392,7 @@ execHttpBridge
     :: forall n. (KeyToAddress (HttpBridge n), KnownNetwork n)
     => Arguments -> Proxy (HttpBridge n) -> IO ()
 execHttpBridge args _ = do
-    tracer <- initTracer
+    tracer <- initTracer "serve"
     walletListen <- parseWalletListen args
     (bridgePort :: Int)
         <- args `parseArg` longOption "bridge-port"
@@ -430,17 +427,18 @@ execGenerateMnemonic n = do
 -- processes and monitor both processes: if one terminates, then the other one
 -- is cancelled.
 execLaunch
-    :: String
+    :: Trace IO Text
+    -> String
     -> Maybe FilePath
     -> Port "Node"
     -> IO ()
-execLaunch network stateDir bridgePort = do
+execLaunch tracer network stateDir bridgePort = do
     installSignalHandlers
-    maybe (pure ()) setupStateDir stateDir
+    maybe (pure ()) (setupStateDir tracer) stateDir
     let commands = [ httpBridgeCmd, walletCmd ]
-    -- sayErr $ fmt $ blockListF commands
-    (ProcessHasExited _ code) <- launch commands
-    -- sayErr $ T.pack name <> " exited with code " <> T.pack (show code)
+    logInfo tracer $ fmt $ nameF "launch" $ blockListF commands
+    (ProcessHasExited pName code) <- launch commands
+    logAlert tracer $ T.pack pName <> " exited with code " <> T.pack (show code)
     exitWith code
   where
     -- | Launch a sub-process starting the http-bridge with the given options
@@ -462,7 +460,7 @@ execLaunch network stateDir bridgePort = do
       where
         oneSecond = 1000000
         args = mconcat
-            [ [ "server" ]
+            [ [ "serve" ]
             , [ "--network", if network == "local" then "testnet" else network ]
             , ["--random-port"]
             , [ "--bridge-port", showT bridgePort ]
@@ -518,9 +516,9 @@ parseWalletListen args = do
 
 -- | Initialize a state directory to store blockchain data such as blocks or
 -- the wallet database.
-setupStateDir :: FilePath -> IO ()
-setupStateDir dir = doesDirectoryExist dir >>= \case
-    True -> return () -- sayString $ "Using state directory: " ++ dir
+setupStateDir :: Trace IO Text -> FilePath -> IO ()
+setupStateDir tracer dir = doesDirectoryExist dir >>= \case
+    True -> logInfo tracer $ "Using state directory: " <> T.pack dir
     False -> do
-        -- sayString $ "Creating state directory: " ++ dir
+        logInfo tracer $ "Creating state directory: " <> T.pack dir
         createDirectory dir
