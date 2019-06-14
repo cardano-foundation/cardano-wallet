@@ -15,7 +15,7 @@ import Cardano.Launcher
 import Cardano.Wallet.Jormungandr.Api
     ( GetTipId, api )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr, Network (..) )
+    ( Jormungandr, Network (..), genesis )
 import Cardano.Wallet.Jormungandr.Network
     ( BaseUrl (..), ErrUnexpectedNetworkFailure (..), Scheme (..) )
 import Cardano.Wallet.Network

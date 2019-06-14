@@ -77,6 +77,7 @@ test-suite unit
     , cardano-wallet-core
     , cardano-wallet-jormungandr
     , generic-arbitrary
+    , generic-lens
     , hspec
     , memory
     , QuickCheck

@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -19,6 +20,8 @@ import Cardano.Wallet.Jormungandr.Binary
     , getBlockHeader
     , runGet
     )
+import Cardano.Wallet.Jormungandr.Compatibility
+    ( genesis )
 import Cardano.Wallet.Jormungandr.Environment
     ( Network (..) )
 import Cardano.Wallet.Primitive.Types
@@ -27,6 +30,10 @@ import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase )
 import Data.ByteString
     ( ByteString )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
+import Data.Generics.Labels
+    ()
 import Data.Quantity
     ( Quantity (..) )
 import Test.Hspec
@@ -69,10 +76,10 @@ genesisHeader :: BlockHeader
 genesisHeader = BlockHeader
     { version = 0
     , contentSize = 458
-    , slot = SlotId {epochNumber = 0 , slotNumber = 0}
+    , slot = genesis ^. #slotId
     , chainLength = 0
     , contentHash = Hash "\247\190\205\248\a\199\ACK\206\245N\196\131-*tu\145\195\242\DC4\GS\227\228\242\174\245\154\DC3\r\137\f\DC2"
-    , parentHeaderHash = Hash "\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL"
+    , parentHeaderHash = genesis ^. #prevBlockHash
     }
 
 genesisBlock :: Block
