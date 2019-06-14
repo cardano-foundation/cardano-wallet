@@ -20,16 +20,18 @@ module Cardano.Wallet.DaedalusIPC
 
 import Prelude
 
+import Cardano.BM.Trace
+    ( Trace, logError, logInfo, logNotice )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
-    ( race_ )
+    ( concurrently_, race )
 import Control.Concurrent.MVar
     ( MVar, newEmptyMVar, putMVar, takeMVar )
 import Control.Exception
     ( IOException, catch, tryJust )
 import Control.Monad
-    ( forever, when )
+    ( forever )
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
@@ -47,26 +49,28 @@ import Data.Binary.Get
     ( getWord32le, getWord64le, runGet )
 import Data.Binary.Put
     ( putLazyByteString, putWord32le, putWord64le, runPut )
+import Data.Functor
+    ( ($>) )
 import Data.Maybe
     ( fromMaybe )
 import Data.Text
     ( Text )
 import Data.Word
     ( Word32, Word64 )
+import Fmt
+    ( fmt, (+||), (||+) )
 import GHC.Generics
     ( Generic )
 import GHC.IO.Handle.FD
     ( fdToHandle )
-import Say
-    ( sayErr, sayErrString )
 import System.Environment
     ( lookupEnv )
 import System.Info
     ( arch )
 import System.IO
-    ( Handle, hFlush, hGetLine, hSetNewlineMode, noNewlineTranslation, stdout )
+    ( Handle, hFlush, hGetLine, hSetNewlineMode, noNewlineTranslation )
 import System.IO.Error
-    ( IOError, isEOFError )
+    ( IOError )
 import Text.Read
     ( readEither )
 
@@ -90,16 +94,33 @@ instance FromJSON MsgIn where
 instance ToJSON MsgOut where
     toEncoding = genericToEncoding aesonOpts
 
-daedalusIPC :: Int -> IO ()
-daedalusIPC port = withNodeChannel (pure . msg) action >>= \case
-    Right act -> do
-        sayErr "[INFO] Daedalus IPC server starting"
-        act
+-- | Start up the Daedalus IPC process. It's called 'daedalusIPC', but this
+-- could be any nodejs program that needs to start cardano-wallet. All it does
+-- is reply with a port number when asked, using a very nodejs-specific IPC
+-- method.
+--
+-- If the IPC channel was successfully set up, this function won't return until
+-- the parent process exits. Otherwise, it will return immediately. Before
+-- returning, it will log an message about why it has exited.
+daedalusIPC
+    :: Trace IO Text
+    -- ^ Logging object
+    -> Int
+    -- ^ Port number to send to Daedalus
+    -> IO ()
+daedalusIPC trace port = withNodeChannel (pure . msg) action >>= \case
+    Right runServer -> do
+        logInfo trace "Daedalus IPC server starting"
+        runServer >>= \case
+            Left (NodeChannelFinished err) ->
+                logNotice trace $ fmt $
+                "Daedalus IPC finished for this reason: "+||err||+""
+            Right () -> logError trace "Unreachable code"
     Left NodeChannelDisabled -> do
-        sayErr "[INFO] Daedalus IPC is not enabled"
+        logInfo trace $ "Daedalus IPC is not enabled."
         sleep
     Left (NodeChannelBadFD err) ->
-        sayErr $ "[ERROR] Starting Daedalus IPC: " <> err
+        logError trace $ fmt $ "Problem starting Daedalus IPC: "+||err||+""
   where
     -- How to respond to an incoming message, or when there is an incoming
     -- message that couldn't be parsed.
@@ -116,6 +137,7 @@ daedalusIPC port = withNodeChannel (pure . msg) action >>= \case
 -- NodeJS child_process IPC protocol
 -- https://nodejs.org/api/child_process.html#child_process_child_process_spawn_command_args_options
 
+-- | Possible reasons why the node channel can't be set up.
 data NodeChannelError
     = NodeChannelDisabled
       -- ^ This process has not been started as a nodejs @'ipc'@ child_process.
@@ -123,20 +145,33 @@ data NodeChannelError
       -- ^ The @NODE_CHANNEL_FD@ environment variable has an incorrect value.
     deriving (Show, Eq)
 
+-- | The only way a node channel finishes on its own is if there is some error
+-- reading or writing to its file descriptor.
+newtype NodeChannelFinished = NodeChannelFinished IOError
+
+-- | Communicate with a parent process using a NodeJS-specific protocol. This
+-- process must have been spawned with one of @stdio@ array entries set to
+-- @'ipc'@.
+--
+-- If the channel could be set up, then it returns a function for communicating
+-- with the parent process.
 withNodeChannel
     :: (FromJSON msgin, ToJSON msgout)
     => (Either Text msgin -> IO (Maybe msgout))
-       -- ^ Incoming message handler
+       -- ^ Handler for messages coming from the parent process. Left values are
+       -- for JSON parse errors. The handler can optionally return a reply
+       -- message.
     -> ((msgout -> IO ()) -> IO a)
-       -- ^ Action to run
-    -> IO (Either NodeChannelError (IO ()))
+       -- ^ Action to run with the channel. It is passed a function for sending
+       -- messages to the parent process.
+    -> IO (Either NodeChannelError (IO (Either NodeChannelFinished a)))
 withNodeChannel onMsg handleMsg = fmap setup <$> lookupNodeChannel
   where
     setup handle = do
         chan <- newEmptyMVar
         let ipc = ipcListener handle onMsg chan
             action' = handleMsg (putMVar chan)
-        race_ action' ipc
+        race ipc action'
 
 -- | Parse the NODE_CHANNEL_FD variable, if it's set, and convert to a
 -- 'System.IO.Handle'.
@@ -156,10 +191,10 @@ ipcListener
     => Handle
     -> (Either Text msgin -> IO (Maybe msgout))
     -> MVar msgout
-    -> IO ()
-ipcListener handle onMsg chan = do
+    -> IO NodeChannelFinished
+ipcListener handle onMsg chan = NodeChannelFinished <$> do
     hSetNewlineMode handle noNewlineTranslation
-    catch (race_ replyLoop sendLoop) onIOError
+    (concurrently_ replyLoop sendLoop $> unexpected) `catch` pure
   where
     sendLoop, replyLoop :: IO ()
     replyLoop = forever (recvMsg >>= onMsg >>= maybeSend)
@@ -174,11 +209,7 @@ ipcListener handle onMsg chan = do
     maybeSend :: Maybe msgout -> IO ()
     maybeSend = maybe (pure ()) (putMVar chan)
 
-    onIOError :: IOError -> IO ()
-    onIOError err = do
-      sayErrString $ "[ERROR] Exception caught in DaedalusIPC: " <> show err
-      when (isEOFError err) $ sayErr "[DEBUG] it's an eof"
-      hFlush stdout
+    unexpected = userError "ipcListener: unreachable code"
 
 readMessage :: Handle -> IO BL.ByteString
 readMessage = if isWindows then windowsReadMessage else posixReadMessage
