@@ -163,7 +163,7 @@ start
     -> WalletLayer (SeqState t) t
     -> IO ()
 start onStartup portOpt wl =
-    withListeningSocket portOpt $ \(port, socket) ->
+    void $ withListeningSocket portOpt $ \(port, socket) ->
         startOnSocket (mkWarpSettings onStartup port) socket wl
 
 -- | Start the application server, using the given settings and a bound socket.
@@ -201,9 +201,9 @@ mkWarpSettings onStartup port = Warp.defaultSettings
 withListeningSocket
     :: Listen
     -- ^ Whether to listen on a given port, or random port.
-    -> ((Port, Socket) -> IO Port)
+    -> ((Port, Socket) -> IO ())
     -- ^ Action to run with listening socket.
-    -> IO Port
+    -> IO ()
 withListeningSocket portOpt = bracket acquire release
   where
     acquire = case portOpt of
