@@ -339,7 +339,7 @@ exec execServe manager args
             exitFailure
         pure wPwd
 
-    listAddresses :<|> -- List Address
+    listAddresses :<|>
         ( deleteWallet
         :<|> getWallet
         :<|> listWallets
@@ -350,14 +350,6 @@ exec execServe manager args
         :<|> createTransaction
         = client (Proxy @("v2" :> Api t))
 
-    -- | 'runClient' requires a type-application to carry a particular
-    -- namespace and adjust error messages accordingly. For instances, when
-    -- running commands from the 'cardano-wallet wallet' namespace, one should
-    -- do:
-    --
-    -- @
-    -- runClient @Wallet ...
-    -- @
     runClient
         :: forall a. ()
         => (a -> BL.ByteString)
