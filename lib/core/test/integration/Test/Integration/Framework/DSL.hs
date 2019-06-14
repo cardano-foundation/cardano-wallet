@@ -75,7 +75,6 @@ module Test.Integration.Framework.DSL
 
     -- * CLI
     , cardanoWalletCLI
-    , cardanoWalletLauncherCLI
     , generateMnemonicsViaCLI
     , createWalletViaCLI
     , deleteWalletViaCLI
@@ -721,13 +720,6 @@ updateWalletPassEp w =
 ---
 --- CLI
 ---
-
--- | Run a command using the 'cardano-wallet-launcher' executable. We run it
--- through stack as we intend to also get code-coverage from running these
--- commands!
-cardanoWalletLauncherCLI :: CmdResult r => [String] -> IO r
-cardanoWalletLauncherCLI args = command [] "stack"
-    (["exec", "--", "cardano-wallet-launcher"] ++ args)
 
 -- | Run a command using the 'cardano-wallet' executable. We run it through
 -- stack as we intend to also get code-coverage from running these commands!

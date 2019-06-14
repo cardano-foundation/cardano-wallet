@@ -148,7 +148,7 @@ main = hspec $ do
         removePathForcibly (networkDir <> "/local")
         createDirectoryIfMissing True "/tmp/cardano-node-simple"
         handle <-
-            openFile "/tmp/cardano-wallet-launcher" WriteMode
+            openFile "/tmp/cardano-wallet-launch" WriteMode
         start <-
             formatTime defaultTimeLocale "%s" . addUTCTime 2 <$> getCurrentTime
         [h0, h1, h2, h3] <- forM ["core0", "core1", "core2", "relay"] $ \x -> do
