@@ -351,7 +351,7 @@ spec = do
                 , ( "address is space", " ", base58Err )
                 ]
         forM_ matrix $ \(title, addr, errMsg) -> it title $ \ctx -> do
-            wSrc <- fixtureWallet ctx
+            wSrc <- emptyWallet ctx
             let args = T.unpack <$>
                     [ wSrc ^. walletId
                     , "--payment", "12@" <> (T.pack addr)
@@ -374,7 +374,7 @@ spec = do
                 , ("no amount", "", errNum)
                 ]
         forM_ matrix $ \(title, amt, errMsg) -> it title $ \ctx -> do
-            wSrc <- fixtureWallet ctx
+            wSrc <- emptyWallet ctx
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses ctx wDest
             let addr =
@@ -411,7 +411,7 @@ spec = do
                     \hex-encoded string of 40 characters"
 
     it "TRANSCLI_CREATE_07 - 'almost' valid walletId" $ \ctx -> do
-        wSrc <- fixtureWallet ctx
+        wSrc <- emptyWallet ctx
         wDest <- emptyWallet ctx
         addrs:_ <- listAddresses ctx wDest
         let port = T.pack $ show $ ctx ^. typed @Port
@@ -428,7 +428,7 @@ spec = do
         c `shouldBe` ExitFailure 1
 
     it "TRANS_CREATE_07 - Deleted wallet" $ \ctx -> do
-        wSrc <- fixtureWallet ctx
+        wSrc <- emptyWallet ctx
         Exit ex <- deleteWalletViaCLI ctx (T.unpack ( wSrc ^. walletId ))
         ex `shouldBe` ExitSuccess
 
