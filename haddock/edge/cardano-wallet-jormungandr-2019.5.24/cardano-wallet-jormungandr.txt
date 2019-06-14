@@ -71,6 +71,7 @@ Transaction :: Tx -> Message
 UnimplementedMessage :: Int -> Message
 getBlockHeader :: Get BlockHeader
 getBlock :: Get Block
+putTransaction :: forall n. KnownNetwork n => Proxy n -> (Tx, [TxWitness]) -> Put
 data ConfigParam
 
 -- | The official start time of the blockchain, in seconds since the Unix
@@ -216,7 +217,7 @@ type GetTipId = "v0" :> "tip" :> Get '[Hex] BlockId
 --                    parent    +--- descendants ---+
 --   </pre>
 type GetBlockDescendantIds = "v0" :> "block" :> Capture "blockId" BlockId :> "next_id" :> QueryParam "count" Word :> Get '[JormungandrBinary] [BlockId]
-type PostSignedTx = "v0" :> "transaction" :> ReqBody '[JormungandrBinary] SignedTx :> Post '[NoContent] NoContent
+type PostSignedTx = "v0" :> "message" :> ReqBody '[JormungandrBinary] (Tx, [TxWitness]) :> Post '[NoContent] NoContent
 newtype BlockId
 BlockId :: Hash "BlockHeader" -> BlockId
 api :: Proxy Api
