@@ -184,9 +184,14 @@ Options:
   --state-dir <DIR>           write wallet state (blockchain and database) to this directory
 
 Examples:
+  # Launch and monitor a wallet server and its associated chain producer
+  cardano-wallet launch --network mainnet --random-port --state-dir .state-dir
+
+  # Start only a wallet server and connect it to an already existing chain producer
+  cardano-wallet serve --bridge-port 8080
+
   # Create a transaction and send 22 lovelace from wallet-id to specified address
-  cardano-wallet transaction create \
-    2512a00e9653fe49a44a5886202e24d77eeb998f \
+  cardano-wallet transaction create 2512a00e9653fe49a44a5886202e24d77eeb998f \
     --payment 22@Ae2tdPwUPEZ...nRtbfw6EHRv1D
 |]
 
