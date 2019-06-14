@@ -28,6 +28,9 @@
         - name: Test.Integration.Framework.DSL
         - identifier: expectError
       - module:
+        - name: Test.Integration.Framework.TestData
+        - identifier: errMsg500
+      - module:
         - name: Test.Integration.Framework.Request
         - identifier:
           - ClientError
