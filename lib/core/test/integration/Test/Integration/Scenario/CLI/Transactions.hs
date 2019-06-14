@@ -67,7 +67,6 @@ import Test.Integration.Framework.TestData
     , errMsg403NotEnoughMoney
     , errMsg403UTxO
     , errMsg403WrongPass
-    , errMsg500
     , falseWalletIds
     , kanjiWalletName
     , polishWalletName
@@ -351,7 +350,7 @@ spec = do
                 , ( "address is space", " ", base58Err )
                 ]
         forM_ matrix $ \(title, addr, errMsg) -> it title $ \ctx -> do
-            wSrc <- fixtureWallet ctx
+            wSrc <- emptyWallet ctx
             let args = T.unpack <$>
                     [ wSrc ^. walletId
                     , "--payment", "12@" <> (T.pack addr)
@@ -366,15 +365,15 @@ spec = do
         let errNum = "Expecting natural number"
         let parseErr = "Parse error. Expecting format \"<amount>@<address>\""
         let matrix =
-                [ ("0", "0", errMsg500) -- TODO change after #364
-                , ("1.5", "1.5", errNum), ("-1000", "-1000", errNum)
+                [ ("1.5", "1.5", errNum)
+                , ("-1000", "-1000", errNum)
                 , ("[]", "[]", errNum)
                 , ("string with diacritics", polishWalletName, errNum)
                 , ("string with wildcards", wildcardsWalletName, parseErr)
                 , ("no amount", "", errNum)
                 ]
         forM_ matrix $ \(title, amt, errMsg) -> it title $ \ctx -> do
-            wSrc <- fixtureWallet ctx
+            wSrc <- emptyWallet ctx
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses ctx wDest
             let addr =
@@ -411,7 +410,7 @@ spec = do
                     \hex-encoded string of 40 characters"
 
     it "TRANSCLI_CREATE_07 - 'almost' valid walletId" $ \ctx -> do
-        wSrc <- fixtureWallet ctx
+        wSrc <- emptyWallet ctx
         wDest <- emptyWallet ctx
         addrs:_ <- listAddresses ctx wDest
         let port = T.pack $ show $ ctx ^. typed @Port
@@ -428,7 +427,7 @@ spec = do
         c `shouldBe` ExitFailure 1
 
     it "TRANS_CREATE_07 - Deleted wallet" $ \ctx -> do
-        wSrc <- fixtureWallet ctx
+        wSrc <- emptyWallet ctx
         Exit ex <- deleteWalletViaCLI ctx (T.unpack ( wSrc ^. walletId ))
         ex `shouldBe` ExitSuccess
 

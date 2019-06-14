@@ -61,7 +61,6 @@ import Test.Integration.Framework.TestData
     , errMsg405
     , errMsg406
     , errMsg415
-    , errMsg500
     , falseWalletIds
     , kanjiWalletName
     , polishWalletName
@@ -382,7 +381,7 @@ spec = do
                 , ( "polish", T.unpack polishWalletName, base58Err )
                 ]
         forM_ matrix $ \(title, addr, errMsg) -> it title $ \ctx -> do
-            wSrc <- fixtureWallet ctx
+            wSrc <- emptyWallet ctx
             let payload = Json [json|{
                     "payments": [{
                         "address": #{addr},
@@ -400,7 +399,7 @@ spec = do
                 ]
 
     it "TRANS_CREATE_05 - [] as address" $ \ctx -> do
-        wSrc <- fixtureWallet ctx
+        wSrc <- emptyWallet ctx
         let payload = Json [json|{
                 "payments": [{
                     "address": [],
@@ -418,7 +417,7 @@ spec = do
             ]
 
     it "TRANS_CREATE_05 - Num as address" $ \ctx -> do
-        wSrc <- fixtureWallet ctx
+        wSrc <- emptyWallet ctx
         let payload = Json [json|{
                 "payments": [{
                     "address": 123123,
@@ -436,7 +435,7 @@ spec = do
             ]
 
     it "TRANS_CREATE_05 - address param missing" $ \ctx -> do
-        wSrc <- fixtureWallet ctx
+        wSrc <- emptyWallet ctx
         let payload = Json [json|{
                 "payments": [{
                     "amount": {
@@ -456,12 +455,7 @@ spec = do
         let unitErr = "failed to parse quantified value. Expected value in\
             \ 'lovelace' (e.g. { 'unit': 'lovelace', 'quantity': ... }"
         let matrix =
-                [ ( "Quantity = 0"
-                , [json|{"quantity": 0, "unit": "lovelace"}|]
-                , [ expectResponseCode HTTP.status500
-                  , expectErrorMessage errMsg500 ] -- TODO change after #364
-                )
-                , ( "Quantity = 1.5"
+                [ ( "Quantity = 1.5"
                 , [json|{"quantity": 1.5, "unit": "lovelace"}|]
                 , [ expectResponseCode HTTP.status400
                   , expectErrorMessage "expected Natural, encountered\
@@ -529,7 +523,7 @@ spec = do
                 )
                 ]
         forM_ matrix $ \(title, amt, expectations) -> it title $ \ctx -> do
-            wSrc <- fixtureWallet ctx
+            wSrc <- emptyWallet ctx
             wDest <- emptyWallet ctx
             addr:_ <- listAddresses ctx wDest
 
@@ -569,7 +563,7 @@ spec = do
                 expectErrorMessage errMsg404NoEndpoint r
 
     it "TRANS_CREATE_07 - 'almost' valid walletId" $ \ctx -> do
-        w <- fixtureWallet ctx
+        w <- emptyWallet ctx
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses ctx wDest
         let destination = addr ^. #id
@@ -592,7 +586,7 @@ spec = do
         expectErrorMessage errMsg404NoEndpoint r
 
     it "TRANS_CREATE_07 - Deleted wallet" $ \ctx -> do
-        w <- fixtureWallet ctx
+        w <- emptyWallet ctx
         _ <- request @ApiWallet ctx (deleteWalletEp w) Default Empty
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses ctx wDest
@@ -614,7 +608,7 @@ spec = do
     describe "TRANS_CREATE_08 - v2/wallets/{id}/transactions - Methods Not Allowed" $ do
         let matrix = ["PUT", "DELETE", "CONNECT", "TRACE", "OPTIONS", "GET"]
         forM_ matrix $ \method -> it (show method) $ \ctx -> do
-            w <- fixtureWallet ctx
+            w <- emptyWallet ctx
             wDest <- emptyWallet ctx
             addr:_ <- listAddresses ctx wDest
             let destination = addr ^. #id
@@ -647,10 +641,6 @@ spec = do
                    , [ expectResponseCode @IO HTTP.status406
                      , expectErrorMessage errMsg406 ]
                    )
-                 , ( "No Accept -> 202"
-                   , Headers [ ("Content-Type", "application/json") ]
-                   , [ expectResponseCode @IO HTTP.status202 ]
-                   )
                  , ( "No Content-Type -> 415"
                    , Headers [ ("Accept", "application/json") ]
                    , [ expectResponseCode @IO HTTP.status415
@@ -663,7 +653,7 @@ spec = do
                    )
                  ]
         forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> do
-            w <- fixtureWallet ctx
+            w <- emptyWallet ctx
             wDest <- emptyWallet ctx
             addr:_ <- listAddresses ctx wDest
             let destination = addr ^. #id
@@ -697,7 +687,7 @@ spec = do
                 ]
 
         forM_ matrix $ \(name, nonJson) -> it name $ \ctx -> do
-            w <- fixtureWallet ctx
+            w <- emptyWallet ctx
             let payload = nonJson
             r <- request @(ApiTransaction t) ctx (postTxEp w)
                     Default payload

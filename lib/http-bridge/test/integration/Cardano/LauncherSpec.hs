@@ -16,11 +16,11 @@ import Test.Hspec
     ( Spec, describe, expectationFailure, it )
 
 spec :: Spec
-spec = describe "cardano-wallet-launcher" $ do
+spec = describe "cardano-wallet launch" $ do
     it "Can start launcher against testnet" $ do
-        let cardanoWalletLauncher = Command
-                "cardano-wallet-launcher"
-                [ "--http-bridge-port", "8080"
+        let cardanoWalletLauncher = Command "stack"
+                [ "exec", "--", "cardano-wallet", "launch"
+                , "--bridge-port", "8080"
                 ] (return ())
                 Inherit
         handle <- async $ void $ launch [cardanoWalletLauncher]
@@ -32,5 +32,5 @@ spec = describe "cardano-wallet-launcher" $ do
                 threadDelay 1000000
             Right _ ->
                 expectationFailure
-                    "cardano-wallet-launcher isn't supposed to terminate. \
+                    "cardano-wallet launch isn't supposed to terminate. \
                     \Something went wrong."

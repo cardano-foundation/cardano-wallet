@@ -32,6 +32,7 @@ library
       -Werror
   build-depends:
       aeson
+    , async
     , base
     , basement
     , binary
@@ -65,6 +66,7 @@ library
     , text-class
     , time
     , transformers
+    , unordered-containers
     , vector
     , wai
     , warp
@@ -76,6 +78,7 @@ library
       Cardano.Wallet.Api
       Cardano.Wallet.Api.Server
       Cardano.Wallet.Api.Types
+      Cardano.Wallet.DaedalusIPC
       Cardano.Wallet.DB
       Cardano.Wallet.DB.MVar
       Cardano.Wallet.DB.Sqlite

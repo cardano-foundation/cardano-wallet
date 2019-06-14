@@ -82,6 +82,7 @@ import qualified Test.Integration.Scenario.API.Wallets as Wallets
 import qualified Test.Integration.Scenario.CLI.Addresses as AddressesCLI
 import qualified Test.Integration.Scenario.CLI.Mnemonics as MnemonicsCLI
 import qualified Test.Integration.Scenario.CLI.Port as PortCLI
+import qualified Test.Integration.Scenario.CLI.Server as ServerCLI
 import qualified Test.Integration.Scenario.CLI.Transactions as TransactionsCLI
 import qualified Test.Integration.Scenario.CLI.Wallets as WalletsCLI
 
@@ -92,6 +93,7 @@ main = hspec $ do
     describe "Cardano.Wallet.HttpBridge.NetworkSpec" HttpBridge.spec
     describe "CLI commands not requiring bridge" $ do
         describe "Mnemonics CLI tests" MnemonicsCLI.spec
+        describe "Server CLI tests" ServerCLI.spec
         describe "--port CLI tests" $ do
             cardanoWalletServer Nothing
                 & beforeAll
@@ -110,7 +112,6 @@ main = hspec $ do
                 $ describe "with random port" $ do
                     PortCLI.specCommon
                     PortCLI.specWithRandomPort defaultPort
-
     beforeAll startCluster $
         afterAll killCluster $ after tearDown $ do
         describe "Wallets API endpoint tests" Wallets.spec
@@ -119,6 +120,7 @@ main = hspec $ do
         describe "Wallets CLI tests" WalletsCLI.spec
         describe "Transactions CLI tests" TransactionsCLI.spec
         describe "Addresses CLI tests" AddressesCLI.spec
+
   where
     oneSecond :: Int
     oneSecond = 1 * 1000 * 1000 -- 1 second in microseconds
@@ -148,7 +150,7 @@ main = hspec $ do
         removePathForcibly (networkDir <> "/local")
         createDirectoryIfMissing True "/tmp/cardano-node-simple"
         handle <-
-            openFile "/tmp/cardano-wallet-launcher" WriteMode
+            openFile "/tmp/cardano-wallet-launch" WriteMode
         start <-
             formatTime defaultTimeLocale "%s" . addUTCTime 2 <$> getCurrentTime
         [h0, h1, h2, h3] <- forM ["core0", "core1", "core2", "relay"] $ \x -> do
