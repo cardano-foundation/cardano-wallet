@@ -26,27 +26,17 @@
             (hsPkgs.cardano-wallet-cli)
             (hsPkgs.cardano-wallet-core)
             (hsPkgs.cardano-wallet-http-bridge)
-            (hsPkgs.docopt)
-            (hsPkgs.iohk-monitoring)
-            (hsPkgs.http-client)
-            (hsPkgs.servant-client)
-            (hsPkgs.servant-client-core)
-            (hsPkgs.servant-server)
-            (hsPkgs.text)
-            (hsPkgs.text-class)
-            ];
-          };
-        "cardano-wallet-launcher" = {
-          depends = [
-            (hsPkgs.base)
-            (hsPkgs.cardano-wallet-cli)
             (hsPkgs.cardano-wallet-launcher)
             (hsPkgs.directory)
             (hsPkgs.docopt)
             (hsPkgs.filepath)
             (hsPkgs.fmt)
+            (hsPkgs.http-client)
+            (hsPkgs.iohk-monitoring)
             (hsPkgs.process)
-            (hsPkgs.say)
+            (hsPkgs.servant-client)
+            (hsPkgs.servant-client-core)
+            (hsPkgs.servant-server)
             (hsPkgs.text)
             (hsPkgs.text-class)
             ];
