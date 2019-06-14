@@ -39,7 +39,8 @@ spec = do
 
     describe "DaedalusIPC" $ do
         it "should reply with the port when asked" $ do
-            (_, _, _, ph) <- createProcess (proc "test/integration/js/mock-daedalus.js" [])
+            (_, _, _, ph) <-
+                createProcess (proc "test/integration/js/mock-daedalus.js" [])
             waitForProcess ph `shouldReturn` ExitSuccess
 
 withTempDir :: (FilePath -> IO a) -> IO a
@@ -53,7 +54,7 @@ launcher stateDir = withCreateProcess cmd $ \_ _ _ ph -> do
     waitForStartup
     terminateProcess ph
   where
-    cmd = proc' "cardano-wallet-launcher" ["--state-dir", stateDir]
+    cmd = proc' "cardano-wallet" ["launch", "--state-dir", stateDir]
 
 -- There is a dependency cycle in the packages.
 --
