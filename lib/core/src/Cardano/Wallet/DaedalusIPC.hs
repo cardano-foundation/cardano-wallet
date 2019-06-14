@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
@@ -35,14 +34,14 @@ import Control.Monad
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
-    , defaultOptions
+    , Value (..)
     , eitherDecode
     , encode
-    , genericParseJSON
-    , genericToEncoding
+    , object
+    , withObject
+    , (.:)
+    , (.=)
     )
-import Data.Aeson.Types
-    ( Options, SumEncoding (ObjectWithSingleField), sumEncoding )
 import Data.Bifunctor
     ( first )
 import Data.Binary.Get
@@ -59,8 +58,6 @@ import Data.Word
     ( Word32, Word64 )
 import Fmt
     ( fmt, (+||), (||+) )
-import GHC.Generics
-    ( Generic )
 import GHC.IO.Handle.FD
     ( fdToHandle )
 import System.Environment
@@ -81,18 +78,20 @@ import qualified Data.Text as T
 ----------------------------------------------------------------------------
 -- Daedalus <-> Wallet child process port discovery protocol
 
-data MsgIn  = QueryPort
-    deriving (Show, Eq, Generic)
+data MsgIn = QueryPort
+    deriving (Show, Eq)
 data MsgOut = Started | ReplyPort Int | ParseError Text
-    deriving (Show, Eq, Generic)
-
-aesonOpts :: Options
-aesonOpts = defaultOptions { sumEncoding = ObjectWithSingleField }
+    deriving (Show, Eq)
 
 instance FromJSON MsgIn where
-    parseJSON = genericParseJSON aesonOpts
+    parseJSON = withObject "MsgIn" $ \v -> do
+        (_ :: [()]) <- v .: "QueryPort"
+        pure QueryPort
+
 instance ToJSON MsgOut where
-    toEncoding = genericToEncoding aesonOpts
+    toJSON Started = object [ "Started" .= Array mempty ]
+    toJSON (ReplyPort p) = object [ "ReplyPort" .= p ]
+    toJSON (ParseError e) = object [ "ParseError" .= e ]
 
 -- | Start up the Daedalus IPC process. It's called 'daedalusIPC', but this
 -- could be any nodejs program that needs to start cardano-wallet. All it does

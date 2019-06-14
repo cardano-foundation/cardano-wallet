@@ -66,6 +66,7 @@ library
     , text-class
     , time
     , transformers
+    , unordered-containers
     , vector
     , wai
     , warp
