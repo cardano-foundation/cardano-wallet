@@ -33,7 +33,8 @@ import Cardano.BM.Setup
 import Cardano.BM.Trace
     ( Trace, appendName, logInfo )
 import Cardano.CLI
-    ( getLine
+    ( Port
+    , getLine
     , getSensitiveLine
     , help
     , parseAllArgsWith
@@ -41,10 +42,19 @@ import Cardano.CLI
     , putErrLn
     , setUtf8Encoding
     )
+import Cardano.Launcher
+    ( Command (Command)
+    , ProcessHasExited (ProcessHasExited)
+    , StdStream (..)
+    , installSignalHandlers
+    , launch
+    )
 import Cardano.Wallet
     ( newWalletLayer )
 import Cardano.Wallet.Api
     ( Api )
+import Cardano.Wallet.Api.Server
+    ( Listen (..) )
 import Cardano.Wallet.Api.Types
     ( ApiMnemonicT (..)
     , ApiT (..)
@@ -66,6 +76,8 @@ import Cardano.Wallet.Primitive.Types
     ( DecodeAddress, EncodeAddress )
 import Control.Arrow
     ( second )
+import Control.Concurrent
+    ( threadDelay )
 import Control.Monad
     ( when )
 import Data.Aeson
@@ -77,6 +89,8 @@ import Data.Functor
 import qualified Data.List.NonEmpty as NE
 import Data.Maybe
     ( fromMaybe )
+import Data.Maybe
+    ( fromJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -85,6 +99,8 @@ import Data.Text.Class
     ( FromText (..), ToText (..) )
 import Data.Version
     ( showVersion )
+import Fmt
+    ( blockListF, fmt )
 import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
 import Paths_cardano_wallet
@@ -109,10 +125,16 @@ import System.Console.Docopt
     , parseArgsOrExit
     , shortOption
     )
+import System.Directory
+    ( createDirectory, doesDirectoryExist )
 import System.Environment
     ( getArgs )
 import System.Exit
+    ( exitSuccess, exitWith )
+import System.Exit
     ( exitFailure, exitSuccess )
+import System.FilePath
+    ( (</>) )
 import System.IO
     ( BufferMode (NoBuffering), hSetBuffering, stderr, stdout )
 
@@ -140,7 +162,8 @@ and can be run "offline". (e.g. 'generate mnemonic')
     ⚠️  Options are positional (--a --b is not equivalent to --b --a) ! ⚠️
 
 Usage:
-  cardano-wallet server [--network=STRING] [(--port=INT | --random-port)] [--bridge-port=INT] [--database=FILE]
+  cardano-wallet launch [--network=STRING] [(--port=INT | --random-port)] [--bridge-port=INT] [--state-dir=FILE]
+  cardano-wallet serve [--network=STRING] [(--port=INT | --random-port)] [--bridge-port=INT] [--database=FILE]
   cardano-wallet mnemonic generate [--size=INT]
   cardano-wallet wallet list [--port=INT]
   cardano-wallet wallet create [--port=INT] <name> [--address-pool-gap=INT]
@@ -176,7 +199,10 @@ main = do
     hSetBuffering stderr NoBuffering
     setUtf8Encoding
     manager <- newManager defaultManagerSettings
-    getArgs >>= parseArgsOrExit cli >>= exec' manager
+    args <- getArgs >>= parseArgsOrExit cli
+    args `parseArg` longOption "network" >>= \case
+        Testnet -> exec (execHttpBridge @'Testnet args) manager args
+        Mainnet -> exec (execHttpBridge @'Mainnet args) manager args
 
 {-------------------------------------------------------------------------------
                                   Logging
@@ -192,11 +218,6 @@ initTracer = do
                          Command and Argument Parsing
 -------------------------------------------------------------------------------}
 
-exec' :: Manager -> Arguments -> IO ()
-exec' manager args = args `parseArg` longOption "network" >>= \case
-    Testnet -> exec (execHttpBridge @'Testnet args) manager args
-    Mainnet -> exec (execHttpBridge @'Mainnet args) manager args
-
 exec
     :: forall t.
         ( DecodeAddress t
@@ -207,12 +228,19 @@ exec
     -> Manager
     -> Arguments
     -> IO ()
-exec execServer manager args
+exec execServe manager args
     | args `isPresent` (longOption "help") = help cli
     | args `isPresent` (shortOption 'h') = help cli
 
-    | args `isPresent` command "server" = do
-        execServer Proxy
+    | args `isPresent` command "serve" = do
+        execServe Proxy
+
+    | args `isPresent` command "launch" = do
+        -- NOTE: 'fromJust' is safe because the network value has a default.
+        let network = fromJust $ args `getArg` longOption "network"
+        let stateDir = args `getArg` longOption "state-dir"
+        bridgePort <- args `parseArg` longOption "bridge-port"
+        execLaunch network stateDir bridgePort
 
     | args `isPresent` command "generate" &&
       args `isPresent` command "mnemonic" = do
@@ -376,7 +404,7 @@ execHttpBridge
     => Arguments -> Proxy (HttpBridge n) -> IO ()
 execHttpBridge args _ = do
     tracer <- initTracer
-    walletListen <- getWalletListen args
+    walletListen <- parseWalletListen args
     (bridgePort :: Int)
         <- args `parseArg` longOption "bridge-port"
     let dbFile = args `getArg` longOption "database"
@@ -388,14 +416,6 @@ execHttpBridge args _ = do
     let logStartup port = logInfo tracer $
             "Wallet backend server listening on: " <> toText port
     Server.start logStartup walletListen wallet
-
-getWalletListen :: Arguments -> IO Server.Listen
-getWalletListen args = do
-    let useRandomPort = args `isPresent` longOption "random-port"
-    walletPort <- args `parseArg` longOption "port"
-    pure $ case (useRandomPort, walletPort) of
-        (True, _) -> Server.ListenOnRandomPort
-        (False, port) -> Server.ListenOnPort port
 
 -- | Generate a random mnemonic of the given size 'n' (n = number of words),
 -- and print it to stdout.
@@ -413,9 +433,57 @@ execGenerateMnemonic n = do
             exitFailure
     TIO.putStrLn $ T.unwords m
 
+-- | Execute the 'launch' command. This differs from the 'serve' command as it
+-- takes care of also starting a node backend (http-bridge) in two separate
+-- processes and monitor both processes: if one terminates, then the other one
+-- is cancelled.
+execLaunch
+    :: String
+    -> Maybe FilePath
+    -> Port "Node"
+    -> IO ()
+execLaunch network stateDir bridgePort = do
+    installSignalHandlers
+    maybe (pure ()) setupStateDir stateDir
+    let commands = [ httpBridgeCmd, walletCmd ]
+    -- sayErr $ fmt $ blockListF commands
+    (ProcessHasExited _ code) <- launch commands
+    -- sayErr $ T.pack name <> " exited with code " <> T.pack (show code)
+    exitWith code
+  where
+    -- | Launch a sub-process starting the http-bridge with the given options
+    httpBridgeCmd :: Command
+    httpBridgeCmd =
+        Command "cardano-http-bridge" args (return ()) Inherit
+      where
+        args = mconcat
+            [ [ "start" ]
+            , [ "--port", showT bridgePort ]
+            , [ "--template", network ]
+            , maybe [] (\d -> ["--networks-dir", d]) stateDir
+            ]
+
+    -- | Launch a sub-process starting the wallet server with the given options
+    walletCmd :: Command
+    walletCmd =
+        Command "cardano-wallet" args (threadDelay oneSecond) Inherit
+      where
+        oneSecond = 1000000
+        args = mconcat
+            [ [ "server" ]
+            , [ "--network", if network == "local" then "testnet" else network ]
+            , ["--random-port"]
+            , [ "--bridge-port", showT bridgePort ]
+            , maybe [] (\d -> ["--database", d </> "wallet.db"]) stateDir
+            ]
+
 {-------------------------------------------------------------------------------
                                  Helpers
 -------------------------------------------------------------------------------}
+
+-- | Show a data-type through its 'ToText' instance
+showT :: ToText a => a -> String
+showT = T.unpack . toText
 
 -- | Make an existing parser optional. Returns 'Right Nothing' if the input is
 -- empty, without running the parser.
@@ -445,3 +513,22 @@ parseOptionalArg args option
 
 parseAllArgs :: FromText a => Arguments -> Option -> IO (NE.NonEmpty a)
 parseAllArgs = parseAllArgsWith cli
+
+-- | Parse and convert the `--port` or `--random-port` option into a 'Listen'
+-- data-type.
+parseWalletListen :: Arguments -> IO Listen
+parseWalletListen args = do
+    let useRandomPort = args `isPresent` longOption "random-port"
+    walletPort <- args `parseArg` longOption "port"
+    pure $ case (useRandomPort, walletPort) of
+        (True, _) -> ListenOnRandomPort
+        (False, port) -> ListenOnPort port
+
+-- | Initialize a state directory to store blockchain data such as blocks or
+-- the wallet database.
+setupStateDir :: FilePath -> IO ()
+setupStateDir dir = doesDirectoryExist dir >>= \case
+    True -> return () -- sayString $ "Using state directory: " ++ dir
+    False -> do
+        -- sayString $ "Creating state directory: " ++ dir
+        createDirectory dir
