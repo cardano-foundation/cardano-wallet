@@ -37,9 +37,14 @@ executable cardano-wallet
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-http-bridge
+    , cardano-wallet-launcher
+    , directory
     , docopt
-    , iohk-monitoring
+    , filepath
+    , fmt
     , http-client
+    , iohk-monitoring
+    , process
     , servant-client
     , servant-client-core
     , servant-server
@@ -51,33 +56,3 @@ executable cardano-wallet
       exe/wallet
   main-is:
       Main.hs
-
-executable cardano-wallet-launcher
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -threaded -rtsopts
-      -Wall
-      -Werror
-      -O2
-  build-depends:
-      base
-    , cardano-wallet-cli
-    , cardano-wallet-launcher
-    , directory
-    , docopt
-    , filepath
-    , fmt
-    , process
-    , say
-    , text
-    , text-class
-  other-modules:
-      Paths_cardano_wallet
-  hs-source-dirs:
-      exe/launcher
-  main-is:
-     Main.hs

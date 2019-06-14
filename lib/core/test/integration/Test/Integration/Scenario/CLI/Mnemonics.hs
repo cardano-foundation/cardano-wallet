@@ -24,7 +24,7 @@ import Test.Hspec
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain )
 import Test.Integration.Framework.DSL
-    ( cardanoWalletCLI, cardanoWalletLauncherCLI, generateMnemonicsViaCLI )
+    ( cardanoWalletCLI, generateMnemonicsViaCLI )
 
 import qualified Data.List as L
 
@@ -35,24 +35,6 @@ spec = do
         let v = L.dropWhileEnd (== '\n') out
         v `shouldBe` (showVersion version)
         c `shouldBe` ExitSuccess
-
-    it "CLI_VERSION - cardano-wallet-launcher shows version" $  do
-        (Exit c, Stdout out) <- cardanoWalletLauncherCLI ["--version"]
-        let v = L.dropWhileEnd (== '\n') out
-        v `shouldBe` (showVersion version)
-        c `shouldBe` ExitSuccess
-
-    it "CLI_HELP - cardano-wallet-launcher shows help on bad argument" $  do
-        (Exit c, Stdout out) <- cardanoWalletLauncherCLI ["--bad arg"]
-        out `shouldContain` "cardano-wallet-launcher"
-        c `shouldBe` ExitFailure 1
-
-    describe "CLI_HELP - cardano-wallet-launcher shows help with" $  do
-        let test option = it option $ do
-                (Exit c, Stdout out) <- cardanoWalletLauncherCLI [option]
-                out `shouldContain` "cardano-wallet-launcher"
-                c `shouldBe` ExitSuccess
-        forM_ ["-h", "--help"] test
 
     it "CLI_HELP - cardano-wallet shows help on bad argument" $  do
         (Exit c, Stdout out) <- cardanoWalletCLI ["--bad arg"]

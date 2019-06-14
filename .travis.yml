@@ -12,8 +12,6 @@ env:
   global:
     - WALLET_CLI=$HOME/.local/bin/cardano-wallet
     - WALLET_CLI_CHECKSUM=$HOME/.local/bin/cardano-wallet.sha256
-    - WALLET_LAUNCHER=$HOME/.local/bin/cardano-wallet-launcher
-    - WALLET_LAUNCHER_CHECKSUM=$HOME/.local/bin/cardano-wallet-launcher.sha256
     - STACK_WORK_CACHE=$HOME/.local/stack-work.tar.gz
     - PATH=$PATH:$HOME/.cargo/bin:$HOME/.local/bin
     - LOCAL_MIX_DIR=.stack-work/dist/x86_64-linux/Cabal-2.4.0.1/hpc/
@@ -238,9 +236,6 @@ jobs:
     - sha256sum $WALLET_CLI | head -c 64 > $WALLET_CLI_CHECKSUM
     - ls $WALLET_CLI
     - ls $WALLET_CLI_CHECKSUM
-    - sha256sum $WALLET_LAUNCHER | head -c 64 > $WALLET_LAUNCHER_CHECKSUM
-    - ls $WALLET_LAUNCHER
-    - ls $WALLET_LAUNCHER_CHECKSUM
 
     # Deploy documentation snapshot
     - mkdir -p haddock/$TRAVIS_TAG api/$TRAVIS_TAG
@@ -258,8 +253,6 @@ jobs:
       file:
         - $WALLET_CLI
         - $WALLET_CLI_CHECKSUM
-        - $WALLET_LAUNCHER
-        - $WALLET_LAUNCHER_CHECKSUM
       on:
         repo: input-output-hk/cardano-wallet
         branch: master
