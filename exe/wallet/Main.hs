@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -26,8 +27,12 @@ module Main where
 import Prelude hiding
     ( getLine )
 
+import Cardano.BM.Configuration.Model
+    ( setMinSeverity )
 import Cardano.BM.Configuration.Static
     ( defaultConfigStdout )
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
 import Cardano.BM.Setup
     ( setupTrace )
 import Cardano.BM.Trace
@@ -35,6 +40,7 @@ import Cardano.BM.Trace
 import Cardano.CLI
     ( Port
     , getLine
+    , getOptionValue
     , getSensitiveLine
     , help
     , parseAllArgsWith
@@ -162,8 +168,8 @@ and can be run "offline". (e.g. 'generate mnemonic')
     ⚠️  Options are positional (--a --b is not equivalent to --b --a) ! ⚠️
 
 Usage:
-  cardano-wallet launch [--network=STRING] [(--port=INT | --random-port)] [--bridge-port=INT] [--state-dir=DIR]
-  cardano-wallet serve [--network=STRING] [(--port=INT | --random-port)] [--bridge-port=INT] [--database=FILE]
+  cardano-wallet launch [--network=STRING] [(--port=INT | --random-port)] [--bridge-port=INT] [--state-dir=DIR] [--min-log-severity=SEVERITY]
+  cardano-wallet serve [--network=STRING] [(--port=INT | --random-port)] [--bridge-port=INT] [--database=FILE] [--min-log-severity=SEVERITY]
   cardano-wallet mnemonic generate [--size=INT]
   cardano-wallet wallet list [--port=INT]
   cardano-wallet wallet create [--port=INT] <name> [--address-pool-gap=INT]
@@ -176,16 +182,17 @@ Usage:
   cardano-wallet --version
 
 Options:
-  --address-pool-gap <INT>    number of unused consecutive addresses to keep track of [default: 20]
-  --bridge-port <INT>         port used for communicating with the http-bridge [default: 8080]
-  --database <FILE>           use this file for storing wallet state
-  --network <STRING>          testnet or mainnet [default: testnet]
-  --payment <PAYMENT>         address to send to and amount to send separated by @: '<amount>@<address>'
-  --port <INT>                port used for serving the wallet API [default: 8090]
-  --random-port               serve wallet API on any available port (conflicts with --port)
-  --size <INT>                number of mnemonic words to generate [default: 15]
-  --state <STRING>            address state: either used or unused
-  --state-dir <DIR>           write wallet state (blockchain and database) to this directory
+  --address-pool-gap <INT>        number of unused consecutive addresses to keep track of [default: 20]
+  --bridge-port <INT>             port used for communicating with the http-bridge [default: 8080]
+  --database <FILE>               use this file for storing wallet state
+  --min-log-severity <SEVERITY>   minimum severity level of entries to include in the log: one of {debug, info, notice, warning, error, critical, alert, emergency} [default: debug]
+  --network <STRING>              testnet or mainnet [default: testnet]
+  --payment <PAYMENT>             address to send to and amount to send separated by @: '<amount>@<address>'
+  --port <INT>                    port used for serving the wallet API [default: 8090]
+  --random-port                   serve wallet API on any available port (conflicts with --port)
+  --size <INT>                    number of mnemonic words to generate [default: 15]
+  --state <STRING>                address state: either used or unused
+  --state-dir <DIR>               write wallet state (blockchain and database) to this directory
 
 Examples:
   # Launch and monitor a wallet server and its associated chain producer
@@ -214,9 +221,10 @@ main = do
                                   Logging
 -------------------------------------------------------------------------------}
 
-initTracer :: Text -> IO (Trace IO Text)
-initTracer cmd = do
+initTracer :: Severity -> Text -> IO (Trace IO Text)
+initTracer minSeverity cmd = do
     c <- defaultConfigStdout
+    setMinSeverity c minSeverity
     setupTrace (Right c) "cardano-wallet" >>= appendName cmd
 
 {-------------------------------------------------------------------------------
@@ -246,7 +254,9 @@ exec execServe manager args
         let stateDir = args `getArg` longOption "state-dir"
         bridgePort <- args `parseArg` longOption "bridge-port"
         listen <- parseWalletListen args
-        tracer <- initTracer "launch"
+        minLogSeverity <- getOptionValue <$>
+            args `parseArg` longOption "min-log-severity"
+        tracer <- initTracer minLogSeverity "launch"
         execLaunch tracer network stateDir bridgePort listen
 
     | args `isPresent` command "generate" &&
@@ -402,7 +412,9 @@ execHttpBridge
     :: forall n. (KeyToAddress (HttpBridge n), KnownNetwork n)
     => Arguments -> Proxy (HttpBridge n) -> IO ()
 execHttpBridge args _ = do
-    tracer <- initTracer "serve"
+    minLogSeverity <- getOptionValue <$>
+        args `parseArg` longOption "min-log-severity"
+    tracer <- initTracer minLogSeverity "serve"
     walletListen <- parseWalletListen args
     (bridgePort :: Int)
         <- args `parseArg` longOption "bridge-port"

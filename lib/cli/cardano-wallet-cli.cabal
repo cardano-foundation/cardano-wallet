@@ -33,6 +33,7 @@ library
     , ansi-terminal
     , docopt
     , fmt
+    , iohk-monitoring
     , text
     , text-class
   hs-source-dirs:
@@ -58,6 +59,7 @@ test-suite unit
     , cardano-wallet-cli
     , generic-arbitrary
     , hspec
+    , iohk-monitoring
     , QuickCheck
     , text
     , text-class
