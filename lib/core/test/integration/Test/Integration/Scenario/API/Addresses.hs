@@ -12,6 +12,8 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiAddress, ApiTransaction, ApiWallet )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
     ( AddressState (..), DecodeAddress (..), EncodeAddress (..) )
 import Control.Monad
@@ -58,29 +60,22 @@ import qualified Network.HTTP.Types.Status as HTTP
 spec :: forall t. (DecodeAddress t, EncodeAddress t) => SpecWith (Context t)
 spec = do
     it "ADDRESS_LIST_01 - Can list known addresses on a default wallet" $ \ctx -> do
-        w <- fixtureWallet ctx
+        let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
+        w <- emptyWallet ctx
         r <- request @[ApiAddress t] ctx (getAddressesEp w "") Default Empty
         expectResponseCode @IO HTTP.status200 r
-        expectListSizeEqual 21 r
-        expectListItemFieldEqual 0 state Used r
-        forM_ [1..20] $ \addrNum -> do
+        expectListSizeEqual g r
+        forM_ [0..(g-1)] $ \addrNum -> do
             expectListItemFieldEqual addrNum state Unused r
 
     it "ADDRESS_LIST_01 - Can list addresses with non-default pool gap"
         $ \ctx -> do
-        w <- emptyWalletWith ctx ("Wallet", "cardano-wallet", 15)
+        let g = 15
+        w <- emptyWalletWith ctx ("Wallet", "cardano-wallet", g)
         r <- request @[ApiAddress t] ctx (getAddressesEp w "") Default Empty
         expectResponseCode @IO HTTP.status200 r
-        expectListSizeEqual 15 r
-        forM_ [0..14] $ \addrNum -> do
-            expectListItemFieldEqual addrNum state Unused r
-
-    it "ADDRESS_LIST_01 - Can list addresses with default pool gap" $ \ctx -> do
-        w <- emptyWallet ctx
-        r <- request @[ApiAddress t] ctx (getAddressesEp w "") Default Empty
-        expectResponseCode @IO HTTP.status200 r
-        expectListSizeEqual 20 r
-        forM_ [0..19] $ \addrNum -> do
+        expectListSizeEqual g r
+        forM_ [0..(g-1)] $ \addrNum -> do
             expectListItemFieldEqual addrNum state Unused r
 
     it "ADDRESS_LIST_02 - Can filter used and unused addresses" $ \ctx -> do
@@ -92,7 +87,6 @@ spec = do
         expectResponseCode @IO HTTP.status200 rUsed
         expectListSizeEqual 1 rUsed
         expectListItemFieldEqual 0 state Used rUsed
-
         expectResponseCode @IO HTTP.status200 rUnused
         expectListSizeEqual 20 rUnused
         forM_ [0..19] $ \addrNum -> do
@@ -107,17 +101,23 @@ spec = do
                 Default Empty
         expectResponseCode @IO HTTP.status200 rUsed
         expectListSizeEqual 0 rUsed
-
         expectResponseCode @IO HTTP.status200 rUnused
         expectListSizeEqual 20 rUnused
         forM_ [0..19] $ \addrNum -> do
             expectListItemFieldEqual addrNum state Unused rUnused
 
     describe "ADDRESS_LIST_02 - Invalid filters are bad requests" $ do
-        let filters = [ "?state=usedd", "?state=uused", "?state=unusedd"
-                , "?state=uunused", "?state=USED", "?state=UNUSED"
-                , "?state=-1000", "?state=44444444", "?state=*" ]
-
+        let filters =
+                [ "?state=usedd"
+                , "?state=uused"
+                , "?state=unusedd"
+                , "?state=uunused"
+                , "?state=USED"
+                , "?state=UNUSED"
+                , "?state=-1000"
+                , "?state=44444444"
+                , "?state=*"
+                ]
         forM_ filters $ \fil -> it fil $ \ctx -> do
             let stateFilter = T.pack fil
             w <- emptyWallet ctx
