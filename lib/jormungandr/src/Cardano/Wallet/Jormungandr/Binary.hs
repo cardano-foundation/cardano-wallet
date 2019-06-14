@@ -3,6 +3,8 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -18,6 +20,8 @@ module Cardano.Wallet.Jormungandr.Binary
     , Message (..)
     , getBlockHeader
     , getBlock
+
+    , putTransaction
 
     , ConfigParam (..)
     , ConsensusVersion (..)
@@ -40,7 +44,7 @@ module Cardano.Wallet.Jormungandr.Binary
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Environment
-    ( Network (..) )
+    ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -67,10 +71,14 @@ import Data.Binary.Get
     , runGet
     , skip
     )
+import Data.Binary.Put
+    ( Put, putByteString, putWord64be, putWord8 )
 import Data.Bits
     ( shift, (.&.) )
 import Data.ByteString
     ( ByteString )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
@@ -216,9 +224,53 @@ getTransaction = label "getTransaction" $ isolate 43 $ do
                 error "unimplemented: Account witness"
             other -> fail $ "Invalid witness type: " ++ show other
 
+
+putTransaction :: forall n. KnownNetwork n => Proxy n -> (Tx, [TxWitness]) -> Put
+putTransaction _ (tx, witnesses) = do
+    putTokenTransfer (Proxy @n) tx
+    mapM_ putWitness witnesses
+
+putWitness :: TxWitness -> Put
+putWitness witness =
+    case witness of
+        PublicKeyWitness xPub (Hash sig) -> do
+            -- Witness sum type:
+            --   * 1 for old address witnness scheme
+            --   * 2 for new address witness scheme
+            --   * 3 for account witness
+            putWord8 1
+            putByteString xPub
+            putByteString sig
+        -- TODO: note that we are missing new address type witness:
+        --  * https://github.com/input-output-hk/rust-cardano/blob/3524cfe138a10773caa6f0effacf69e792f915df/chain-impl-mockchain/doc/format.md#witnesses
+        --  * https://github.com/input-output-hk/rust-cardano/blob/e0616f13bebd6b908320bddb1c1502dea0d3305a/chain-impl-mockchain/src/transaction/witness.rs#L23
+        ScriptWitness _ -> error "unimplemented: serialize script witness"
+        RedeemWitness _ -> error "unimplemented: serialize redeem witness"
+
+
 {-------------------------------------------------------------------------------
                             Common Structure
 -------------------------------------------------------------------------------}
+
+putTokenTransfer :: forall n. KnownNetwork n => Proxy n -> Tx -> Put
+putTokenTransfer _ (Tx inputs outputs) = do
+    putWord8 $ fromIntegral $ length inputs
+    putWord8 $ fromIntegral $ length outputs
+    mapM_ putInput inputs
+    mapM_ putOutput outputs
+  where
+    putInput (TxIn inputId inputIx) = do
+        -- NOTE: special value 0xff indicates account spending
+        -- only old utxo/address scheme supported for now
+        putWord8 $ fromIntegral inputIx
+        putByteString $ getHash inputId
+    putOutput (TxOut address coin) = do
+        putAddress address
+        putWord64be $ getCoin coin
+    putAddress address = do
+        -- NOTE: only single address supported for now
+        putWord8 (single @n)
+        putByteString $ getAddress address
 
 getTokenTransfer :: Get ([TxIn], [TxOut])
 getTokenTransfer = label "getTokenTransfer" $ do
@@ -232,7 +284,6 @@ getTokenTransfer = label "getTokenTransfer" $ do
         -- NOTE: special value 0xff indicates account spending
         index <- fromIntegral <$> getWord8
         tx <- Hash <$> getByteString 32
-
         return $ TxIn tx index
 
     getOutput = do
@@ -259,6 +310,7 @@ getTokenTransfer = label "getTokenTransfer" $ do
     discriminationValue b = case b .&. 0b10000000 of
         0 -> Mainnet
         _ -> Testnet
+
 
 {-------------------------------------------------------------------------------
                             Config Parameters
