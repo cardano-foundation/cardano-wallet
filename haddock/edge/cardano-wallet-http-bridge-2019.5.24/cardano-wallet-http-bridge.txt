@@ -161,7 +161,7 @@ Testnet :: Network
 --   requires us to write the full CBOR decoders (and encoders) for the all
 --   BlockHeader which is, for the http-brdige implementation, a waste of
 --   time at the moment.
-block0 :: BlockHeader
+block0 :: Block
 instance Cardano.Wallet.Primitive.Types.TxId (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge network)
 instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge 'Cardano.Wallet.HttpBridge.Environment.Testnet)
 instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge 'Cardano.Wallet.HttpBridge.Environment.Mainnet)

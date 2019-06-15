@@ -1215,14 +1215,14 @@ instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap
 
 module Cardano.Wallet.Network
 data NetworkLayer t m
-NetworkLayer :: (BlockHeader -> ExceptT ErrNetworkUnreachable m [Block]) -> ExceptT ErrNetworkTip m BlockHeader -> ((Tx, [TxWitness]) -> ExceptT ErrPostTx m ()) -> NetworkLayer t m
+NetworkLayer :: (BlockHeader -> ExceptT ErrGetBlock m [Block]) -> ExceptT ErrNetworkTip m BlockHeader -> ((Tx, [TxWitness]) -> ExceptT ErrPostTx m ()) -> NetworkLayer t m
 
 -- | Gets some blocks from the node. It will not necessarily return all the
 --   blocks that the node has, but will receive a reasonable-sized chunk.
 --   It will never return blocks from before the given slot. It may return
 --   an empty list if the node does not have any blocks from after the
 --   starting slot.
-[nextBlocks] :: NetworkLayer t m -> BlockHeader -> ExceptT ErrNetworkUnreachable m [Block]
+[nextBlocks] :: NetworkLayer t m -> BlockHeader -> ExceptT ErrGetBlock m [Block]
 
 -- | Get the current network tip from the chain producer
 [networkTip] :: NetworkLayer t m -> ExceptT ErrNetworkTip m BlockHeader
@@ -1247,6 +1247,11 @@ data ErrNetworkTip
 ErrNetworkTipNetworkUnreachable :: ErrNetworkUnreachable -> ErrNetworkTip
 ErrNetworkTipNotFound :: ErrNetworkTip
 
+-- | Error while trying to get one or more blocks
+data ErrGetBlock
+ErrGetBlockNetworkUnreachable :: ErrNetworkUnreachable -> ErrGetBlock
+ErrGetBlockNotFound :: Hash "BlockHeader" -> ErrGetBlock
+
 -- | Error while trying to send a transaction
 data ErrPostTx
 ErrPostTxNetworkUnreachable :: ErrNetworkUnreachable -> ErrPostTx
@@ -1255,6 +1260,8 @@ ErrPostTxProtocolFailure :: Text -> ErrPostTx
 instance GHC.Classes.Eq Cardano.Wallet.Network.ErrPostTx
 instance GHC.Show.Show Cardano.Wallet.Network.ErrPostTx
 instance GHC.Generics.Generic Cardano.Wallet.Network.ErrPostTx
+instance GHC.Classes.Eq Cardano.Wallet.Network.ErrGetBlock
+instance GHC.Show.Show Cardano.Wallet.Network.ErrGetBlock
 instance GHC.Classes.Eq Cardano.Wallet.Network.ErrNetworkTip
 instance GHC.Show.Show Cardano.Wallet.Network.ErrNetworkTip
 instance GHC.Generics.Generic Cardano.Wallet.Network.ErrNetworkTip
@@ -1318,8 +1325,10 @@ module Cardano.Wallet.Primitive.Model
 --   </pre>
 data Wallet s t
 
--- | Create an empty wallet from an initial state
-initWallet :: (IsOurs s, NFData s, Show s, TxId t) => BlockHeader -> s -> Wallet s t
+-- | Create a an empty wallet and apply the given genesis block
+--   
+--   The wallet tip will be set to the header of the applied genesis block.
+initWallet :: forall s t. (IsOurs s, NFData s, Show s, TxId t) => Block -> s -> Wallet s t
 
 -- | Update the state of an existing Wallet model
 updateState :: (IsOurs s, NFData s, Show s) => s -> Wallet s t -> Wallet s t
@@ -2387,7 +2396,7 @@ newtype ErrAdjustForFee
 ErrCannotCoverFee :: Word64 -> ErrAdjustForFee
 
 -- | Create a new instance of the wallet layer.
-newWalletLayer :: forall s t. () => Trace IO Text -> BlockHeader -> DBLayer IO s t -> NetworkLayer t IO -> TransactionLayer t -> IO (WalletLayer s t)
+newWalletLayer :: forall s t. () => Trace IO Text -> Block -> DBLayer IO s t -> NetworkLayer t IO -> TransactionLayer t -> IO (WalletLayer s t)
 
 -- | Run an <a>ExceptT</a> and throws the error if any. This makes sense
 --   only if called after checking for an invariant or, after ensuring that

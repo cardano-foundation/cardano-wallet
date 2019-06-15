@@ -188,6 +188,9 @@ data Jormungandr (network :: Network)
 data Network
 Mainnet :: Network
 Testnet :: Network
+
+-- | Genesis block header, i.e. very first block header of the chain
+genesis :: BlockHeader
 instance Cardano.Wallet.Primitive.Types.TxId (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr n)
 instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr n)
 instance Cardano.Wallet.Jormungandr.Environment.KnownNetwork n => Cardano.Wallet.Primitive.Types.EncodeAddress (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr n)
@@ -220,6 +223,7 @@ type GetBlockDescendantIds = "v0" :> "block" :> Capture "blockId" BlockId :> "ne
 type PostSignedTx = "v0" :> "message" :> ReqBody '[JormungandrBinary] (Tx, [TxWitness]) :> Post '[NoContent] NoContent
 newtype BlockId
 BlockId :: Hash "BlockHeader" -> BlockId
+[getBlockId] :: BlockId -> Hash "BlockHeader"
 api :: Proxy Api
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Api.BlockId
 instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Api.BlockId
@@ -240,6 +244,50 @@ module Cardano.Wallet.Jormungandr.Network
 -- | Creates a new <a>NetworkLayer</a> connecting to an underlying
 --   <a>Jormungandr</a> backend target.
 newNetworkLayer :: forall n. () => BaseUrl -> IO (NetworkLayer (Jormungandr n) IO)
+
+-- | Wrap a Jormungandr client into a <a>NetworkLayer</a> common interface.
+mkNetworkLayer :: Monad m => JormungandrLayer m -> NetworkLayer t m
+
+-- | Endpoints of the jormungandr REST API.
+data JormungandrLayer m
+JormungandrLayer :: ExceptT ErrNetworkUnreachable m (Hash "BlockHeader") -> (Hash "BlockHeader" -> ExceptT ErrGetBlock m Block) -> (Hash "BlockHeader" -> Word -> ExceptT ErrGetDescendants m [Hash "BlockHeader"]) -> JormungandrLayer m
+[$sel:getTipId:JormungandrLayer] :: JormungandrLayer m -> ExceptT ErrNetworkUnreachable m (Hash "BlockHeader")
+[$sel:getBlock:JormungandrLayer] :: JormungandrLayer m -> Hash "BlockHeader" -> ExceptT ErrGetBlock m Block
+[$sel:getDescendantIds:JormungandrLayer] :: JormungandrLayer m -> Hash "BlockHeader" -> Word -> ExceptT ErrGetDescendants m [Hash "BlockHeader"]
+
+-- | Construct a <a>JormungandrLayer</a>-client
+--   
+--   <pre>
+--   &gt;&gt;&gt; mgr &lt;- newManager defaultManagerSettings
+--   
+--   &gt;&gt;&gt; j = mkJormungandrLayer mgr (BaseUrl Http "localhost" 8080 "")
+--   </pre>
+--   
+--   <pre>
+--   &gt;&gt;&gt; (Right tip) &lt;- runExceptT $ getTipId j
+--   
+--   &gt;&gt;&gt; tip
+--   BlockId (Hash {getHash = "26c640a3de09b74398c14ca0a137ec78"})
+--   </pre>
+--   
+--   <pre>
+--   &gt;&gt;&gt; (Right block) &lt;- runExceptT $ getBlock j t
+--   
+--   &gt;&gt;&gt; block
+--   
+--   &gt;&gt;&gt; Block {header = BlockHeader {slotId = SlotId {epochNumber = 0, slotNumber = 0}, prevBlockHash = Hash {getHash = "\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL"}}, transactions = [Tx {inputs = [], outputs = [TxOut {address = Address {getAddress = "3$\195xi\193\"h\154\&amp;5\145}\245:O\"\148\163\165/h^\ENQ\245\248\229;\135\231\234E/"}, coin = Coin {getCoin = 14}}]}]}
+--   </pre>
+--   
+--   At the time of writing, we only have the genesis-block, but we should
+--   be able to get its descendants.
+--   
+--   <pre>
+--   &gt;&gt;&gt; let genesisHash = BlockId (Hash {getHash = "&amp;\198@\163\222\t\183C\152\193L\160\161\&amp;7\236x\245\229\EOT\175\177\167\131\190\b\b/\174\212\177:\179"})
+--   
+--   &gt;&gt;&gt; runExceptT $ getDescendantIds j t 4
+--   Right []
+--   </pre>
+mkJormungandrLayer :: Manager -> BaseUrl -> JormungandrLayer IO
 data ErrUnexpectedNetworkFailure
 ErrUnexpectedNetworkFailure :: Link -> ServantError -> ErrUnexpectedNetworkFailure
 data BaseUrl
@@ -253,8 +301,6 @@ defaultManagerSettings :: ManagerSettings
 data Scheme
 Http :: Scheme
 Https :: Scheme
-instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Network.ErrGetBlock
-instance GHC.Show.Show Cardano.Wallet.Jormungandr.Network.ErrGetBlock
 instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Network.ErrGetDescendants
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Network.ErrGetDescendants
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Network.ErrUnexpectedNetworkFailure
