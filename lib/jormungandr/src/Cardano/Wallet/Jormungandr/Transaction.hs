@@ -12,6 +12,8 @@ import Prelude
 import Cardano.Wallet.Jormungandr.Compatibility
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (AddressK), Key, Passphrase (..), XPrv, getKey )
+import Cardano.Wallet.Primitive.CoinSelection
+    ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
     ( Hash (..), Tx (..), TxId (..), TxOut (..), TxWitness (..) )
 import Cardano.Wallet.Transaction
@@ -20,6 +22,8 @@ import Control.Monad
     ( forM )
 import Data.ByteString
     ( ByteString )
+import Data.Quantity
+    ( Quantity (..) )
 
 import qualified Cardano.Crypto.Wallet as CC
 
@@ -35,11 +39,29 @@ newTransactionLayer block0Hash = TransactionLayer
         txWitnesses <- forM inps $ \(_in, TxOut addr _c) -> mkWitness witData
             <$> withEither (ErrKeyNotFoundForAddress addr) (keyFrom addr)
         return (tx, txWitnesses)
-    , estimateSize = error "TODO: See http-bridge as starting point"
+    , estimateSize = \(CoinSelection inps outs chngs) ->
+        Quantity $
+        -- I have no idea now how this should be done properly.
+        2
+        + (length inps) * sizeOfInput
+        + (length outs + length chngs) * sizeOfOutput
+        + (length inps) * sizeOfTxWitness
     }
   where
     withEither :: e -> Maybe a -> Either e a
     withEither e = maybe (Left e) Right
+
+    sizeOfInput = 1 + sizeOfTxId
+    sizeOfOutput = sizeOfAddress + 8
+
+    -- TODO: There are different types of witnesses! Not just this one!
+    -- 1. Old witness scheme     128
+    -- 2. New witness scheme     64
+    -- 3. Account witness scheme 68
+    sizeOfTxWitness = 128
+
+    sizeOfTxId = 32
+    sizeOfAddress = 32
 
 
 newtype WitnessData = WitnessData ByteString
