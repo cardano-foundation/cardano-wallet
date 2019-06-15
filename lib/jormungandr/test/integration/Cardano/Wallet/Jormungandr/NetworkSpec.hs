@@ -12,30 +12,37 @@ import Prelude
 
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
+import Cardano.Wallet
+    ( unsafeRunExceptT )
 import Cardano.Wallet.Jormungandr.Api
     ( GetTipId, api )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr, Network (..) )
+    ( Jormungandr, Network (..), genesis )
 import Cardano.Wallet.Jormungandr.Network
     ( BaseUrl (..), ErrUnexpectedNetworkFailure (..), Scheme (..) )
 import Cardano.Wallet.Network
-    ( ErrNetworkTip (..)
+    ( ErrGetBlock (..)
+    , ErrNetworkTip (..)
     , NetworkLayer (..)
     , defaultRetryPolicy
     , waitForConnection
     )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), SlotId (..) )
+    ( BlockHeader (..), Hash (..), SlotId (..) )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
     ( Async, async, cancel )
+import Control.DeepSeq
+    ( deepseq )
 import Control.Exception
     ( SomeException, bracket, catch )
 import Control.Monad
     ( void )
 import Control.Monad.Trans.Except
     ( runExceptT )
+import Control.Retry
+    ( limitRetries, retrying )
 import Data.Either
     ( isRight )
 import Data.Functor
@@ -52,22 +59,57 @@ import Test.Hspec
     , beforeAll
     , describe
     , it
+    , shouldBe
     , shouldReturn
     , shouldSatisfy
     , shouldThrow
     )
+import Test.QuickCheck
+    ( arbitrary, generate, vectorOf )
 
 import qualified Cardano.Wallet.Jormungandr.Network as Jormungandr
+import qualified Data.ByteString as BS
 
 spec :: Spec
 spec = do
     let startNode' = startNode url (`waitForConnection` defaultRetryPolicy)
+    let once = limitRetries 1
     describe "Happy Paths" $ beforeAll startNode' $ afterAll killNode $ do
         it "get network tip" $ \(_, nw) -> do
             resp <- runExceptT $ networkTip nw
             resp `shouldSatisfy` isRight
             let (Right slot) = slotId <$> resp
             slot `shouldSatisfy` (>= SlotId 0 0)
+
+        it "get some blocks from the genesis" $ \(_, nw) -> do
+            threadDelay (10 * second)
+            resp <- runExceptT $ nextBlocks nw genesis
+            resp `shouldSatisfy` isRight
+            resp `shouldSatisfy` (not . null)
+
+        it "no blocks after the tip" $ \(_, nw) -> do
+            let try = do
+                    tip <- unsafeRunExceptT $ networkTip nw
+                    runExceptT $ nextBlocks nw tip
+            -- NOTE Retrying twice since between the moment we fetch the
+            -- tip and the moment we get the next blocks, one block may be
+            -- inserted.
+            -- Nevertheless, this can't happen twice within a slot time.
+            resp <- retrying once
+                (\_ x -> return $ fmap length x /= Right 0)
+                (const try)
+            resp `shouldBe` Right []
+
+        it "returns an error when the block header is unknown" $ \(_, nw) -> do
+            -- NOTE There's a very little chance of hash clash here. But,
+            -- for what it's worth, I didn't bother retrying.
+            bytes <- BS.pack <$> generate (vectorOf 32 arbitrary)
+            let block = BlockHeader
+                    { slotId = SlotId 42 14 -- Anything
+                    , prevBlockHash = Hash bytes
+                    }
+            resp <- runExceptT $ nextBlocks nw block
+            resp `shouldBe` Left (ErrGetBlockNotFound (Hash bytes))
 
     describe "Error paths" $ do
         it "networkTip: ErrNetworkUnreachable" $ do
@@ -78,8 +120,24 @@ spec = do
             let action = do
                     res <- runExceptT $ networkTip nw
                     res `shouldSatisfy` \case
-                        Left (ErrNetworkTipNetworkUnreachable _) -> True
-                        _ -> error (msg res)
+                        Left (ErrNetworkTipNetworkUnreachable e) ->
+                            show e `deepseq` True
+                        _ ->
+                            error (msg res)
+            action `shouldReturn` ()
+
+        it "nextBlocks: ErrNetworkUnreachable" $ do
+            nw <- Jormungandr.newNetworkLayer url
+            let msg x =
+                    "Expected a ErrNetworkUnreachable' failure but got "
+                    <> show x
+            let action = do
+                    res <- runExceptT $ nextBlocks nw genesis
+                    res `shouldSatisfy` \case
+                        Left (ErrGetBlockNetworkUnreachable e) ->
+                            show e `deepseq` True
+                        _ ->
+                            error (msg res)
             action `shouldReturn` ()
 
         it "networkTip: throws on invalid url" $ do

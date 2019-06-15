@@ -307,10 +307,13 @@ addresses = map address
     $ concatMap transactions
     blockchain
 
-block0 :: BlockHeader
-block0 = BlockHeader
-    { slotId = SlotId 0 0
-    , prevBlockHash = Hash "genesis"
+block0 :: Block
+block0 = Block
+    { header = BlockHeader
+            { slotId = SlotId 0 0
+            , prevBlockHash = Hash "genesis"
+            }
+    , transactions = []
     }
 
 -- A excerpt of mainnet, epoch #14, first 20 blocks; plus a few previous blocks

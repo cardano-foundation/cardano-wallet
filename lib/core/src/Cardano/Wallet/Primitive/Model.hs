@@ -155,14 +155,18 @@ instance NFData (Wallet s t) where
                           Construction & Modification
 -------------------------------------------------------------------------------}
 
--- | Create an empty wallet from an initial state
+-- | Create a an empty wallet and apply the given genesis block
+--
+-- The wallet tip will be set to the header of the applied genesis block.
 initWallet
-    :: (IsOurs s, NFData s, Show s, TxId t)
-    => BlockHeader
-    -- ^ Very first 'BlockHeader'
+    :: forall s t. (IsOurs s, NFData s, Show s, TxId t)
+    => Block
+    -- ^ The genesis block
     -> s
     -> Wallet s t
-initWallet = Wallet mempty mempty
+initWallet block s =
+    let ((txs, utxo'), s') = prefilterBlock (Proxy @t) block mempty s
+    in Wallet utxo' (Set.fromList txs) (header block) s'
 
 -- | Update the state of an existing Wallet model
 updateState

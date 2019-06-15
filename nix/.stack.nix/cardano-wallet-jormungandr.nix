@@ -47,6 +47,7 @@
             (hsPkgs.cardano-wallet-core)
             (hsPkgs.cardano-wallet-jormungandr)
             (hsPkgs.generic-arbitrary)
+            (hsPkgs.generic-lens)
             (hsPkgs.hspec)
             (hsPkgs.memory)
             (hsPkgs.QuickCheck)
@@ -61,11 +62,15 @@
           depends = [
             (hsPkgs.async)
             (hsPkgs.base)
+            (hsPkgs.bytestring)
             (hsPkgs.cardano-wallet-core)
             (hsPkgs.cardano-wallet-jormungandr)
             (hsPkgs.cardano-wallet-launcher)
+            (hsPkgs.deepseq)
             (hsPkgs.directory)
             (hsPkgs.hspec)
+            (hsPkgs.QuickCheck)
+            (hsPkgs.retry)
             (hsPkgs.servant)
             (hsPkgs.transformers)
             ];

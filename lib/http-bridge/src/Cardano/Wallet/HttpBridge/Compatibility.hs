@@ -30,6 +30,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), Key (..), KeyToAddress (..), XPub, getKey )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , Block (..)
     , BlockHeader (..)
     , DecodeAddress (..)
     , EncodeAddress (..)
@@ -133,8 +134,12 @@ instance DecodeAddress (HttpBridge (network :: Network)) where
 -- the CBOR-serialized full block header, but this requires us to write the full
 -- CBOR decoders (and encoders) for the all BlockHeader which is, for the
 -- http-brdige implementation, a waste of time at the moment.
-block0 :: BlockHeader
-block0 = BlockHeader
-    { slotId = SlotId 0 0
-    , prevBlockHash = Hash "genesis"
+block0 :: Block
+block0 = Block
+    { header = BlockHeader
+        { slotId = SlotId 0 0
+        , prevBlockHash = Hash "genesis"
+        }
+    , transactions = []
     }
+

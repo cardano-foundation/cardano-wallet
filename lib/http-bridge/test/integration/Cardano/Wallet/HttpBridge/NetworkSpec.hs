@@ -14,7 +14,8 @@ import Cardano.Launcher
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Network
-    ( ErrNetworkTip (..)
+    ( ErrGetBlock (..)
+    , ErrNetworkTip (..)
     , ErrNetworkUnreachable (..)
     , ErrPostTx (..)
     , NetworkLayer (..)
@@ -90,7 +91,7 @@ spec = do
             let action = runExceptT $ do
                     (SlotId ep sl) <- slotId <$> networkTip' bridge
                     let sl' = if sl > 2 then sl - 2 else 0
-                    blocks <- nextBlocks bridge (mkHeader $ SlotId ep sl')
+                    blocks <- nextBlocks' bridge (mkHeader $ SlotId ep sl')
                     lift $ blocks `shouldSatisfy` (\bs
                         -> length bs >= fromIntegral (sl - sl')
                         && length bs <= fromIntegral (sl - sl' + 1)
@@ -100,7 +101,7 @@ spec = do
         it "produce no blocks if start is after tip" $ \(_, bridge) -> do
             let action = runExceptT $ do
                     SlotId ep sl <- slotId <$> networkTip' bridge
-                    length <$> nextBlocks bridge (mkHeader $ SlotId (ep + 1) sl)
+                    length <$> nextBlocks' bridge (mkHeader $ SlotId (ep + 1) sl)
             action `shouldReturn` pure 0
 
     describe "Error paths" $ beforeAll newNetworkLayer $ do
@@ -200,6 +201,12 @@ spec = do
       where
         unwrap (ErrNetworkTipNetworkUnreachable e) = e
         unwrap ErrNetworkTipNotFound = ErrNetworkUnreachable "no tip"
+
+    nextBlocks' tip = withExceptT unwrap . nextBlocks tip
+      where
+        unwrap (ErrGetBlockNetworkUnreachable e) = e
+        unwrap (ErrGetBlockNotFound _) = ErrNetworkUnreachable "no block"
+
     newNetworkLayer =
         HttpBridge.newNetworkLayer @'Testnet port
     closeBridge (handle, _) = do

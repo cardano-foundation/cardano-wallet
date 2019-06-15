@@ -70,6 +70,7 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet, unsafeInitWallet )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
+    , Block (..)
     , BlockHeader (..)
     , Coin (..)
     , Direction (..)
@@ -369,9 +370,15 @@ instance TxId DummyTarget where
 testCp :: WalletBench
 testCp = initWallet initDummyBlock0 initDummyState
 
-initDummyBlock0 :: BlockHeader
-initDummyBlock0 =
-    BlockHeader (SlotId 0 0) (Hash "genesis")
+initDummyBlock0 :: Block
+initDummyBlock0 = Block
+    { header = BlockHeader
+        { slotId = SlotId 0 0
+        , prevBlockHash = Hash "genesis"
+        }
+    , transactions = []
+    }
+
 
 initDummyState :: SeqState DummyTarget
 initDummyState =

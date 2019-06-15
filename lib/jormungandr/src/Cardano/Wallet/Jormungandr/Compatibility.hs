@@ -17,6 +17,7 @@ module Cardano.Wallet.Jormungandr.Compatibility
     ( -- * Target
       Jormungandr
     , Network (..)
+    , genesis
     ) where
 
 import Prelude
@@ -28,7 +29,14 @@ import Cardano.Wallet.Jormungandr.Environment
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), DecodeAddress (..), EncodeAddress (..), TxId (..) )
+    ( Address (..)
+    , BlockHeader (..)
+    , DecodeAddress (..)
+    , EncodeAddress (..)
+    , Hash (..)
+    , SlotId (..)
+    , TxId (..)
+    )
 import Codec.Binary.Bech32
     ( HumanReadablePart, dataPartFromBytes, dataPartToBytes )
 import Control.Monad
@@ -50,6 +58,13 @@ import qualified Data.Text.Encoding as T
 -- | A type representing the Jormungandr as a network target. This has an
 -- influence on binary serializer & network primitives. See also 'TxId'
 data Jormungandr (network :: Network)
+
+-- | Genesis block header, i.e. very first block header of the chain
+genesis :: BlockHeader
+genesis = BlockHeader
+    { slotId = (SlotId 0 0)
+    , prevBlockHash = Hash (BS.replicate 32 0)
+    }
 
 instance TxId (Jormungandr n) where
     txId = undefined

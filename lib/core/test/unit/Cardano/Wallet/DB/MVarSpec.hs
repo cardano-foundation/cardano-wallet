@@ -20,7 +20,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), Hash (..), SlotId (..) )
+    ( Block (..), BlockHeader (..), Hash (..), SlotId (..) )
 import Control.DeepSeq
     ( NFData )
 import Test.Hspec
@@ -50,5 +50,11 @@ instance Arbitrary (Wallet DummyStateMVar DummyTarget) where
     shrink _ = []
     arbitrary = initWallet block0 <$> arbitrary
       where
-        block0 :: BlockHeader
-        block0 = BlockHeader (SlotId 0 0) (Hash "genesis")
+        block0 :: Block
+        block0 = Block
+            { header = BlockHeader
+                    { slotId = SlotId 0 0
+                    , prevBlockHash = Hash "genesis"
+                    }
+            , transactions = []
+            }

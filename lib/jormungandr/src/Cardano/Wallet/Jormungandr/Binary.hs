@@ -143,7 +143,7 @@ getBlockHeader = label "getBlockHeader" $
         return $ BlockHeader
             { version
             , contentSize
-            , slot = (SlotId slotId slotEpoch)
+            , slot = SlotId { epochNumber = slotEpoch, slotNumber = slotId }
             , chainLength
             , contentHash
             , parentHeaderHash
