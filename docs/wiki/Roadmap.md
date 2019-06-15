@@ -1,4 +1,4 @@
-### :heavy_check_mark: [Setup New `cardano-wallet` Repostiory & CI](https://github.com/input-output-hk/cardano-wallet/milestone/1)
+### :heavy_check_mark: [Setup New `cardano-wallet` Repository & CI](https://github.com/input-output-hk/cardano-wallet/milestone/1)
 
 ### :heavy_check_mark: [Receive And Process Blocks (via `cardano-http-bridge`)](https://github.com/input-output-hk/cardano-wallet/milestone/2)
 
