@@ -60,7 +60,7 @@ newTransactionLayer block0Hash = TransactionLayer
             -- We can't easily modify the TxWitness type. This is a temporary solution
             -- before we can decide on better abstractions. We might want to have
             -- different witness types for Jormungandr and http-bridge.
-            dummyXPub = error "The witness xPub should not be used for the new scheme."
+            dummyXPub = "The witness xPub should not be used for the new scheme."
         in PublicKeyWitness dummyXPub $ sign dat (xPrv, pwd)
 
     sign

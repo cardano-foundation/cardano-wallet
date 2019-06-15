@@ -121,7 +121,7 @@ genesisBlock = Block genesisHeader
         , AllowAccountCreation True
         , ConfigLinearFee $ LinearFee (Quantity 0) (Quantity 0) (Quantity 0)
         ]
-    , Transaction $ Tx
+    , Transaction $ (Tx
         { inputs = []
         , outputs =
             [ TxOut
@@ -129,7 +129,7 @@ genesisBlock = Block genesisHeader
                 , coin = Coin 14
                 }
             ]
-        }
+        }, [])
     , UnimplementedMessage 1
     , UnimplementedMessage 3
     ]

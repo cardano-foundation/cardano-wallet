@@ -21,8 +21,10 @@ module Cardano.Wallet.Jormungandr.Binary
     , Message (..)
     , getBlockHeader
     , getBlock
+    , getMessage
     , getTransaction
 
+    , putMessage
     , putTokenTransfer
     , putTxBody
     , putSignedTransaction
@@ -86,7 +88,14 @@ import Data.Binary.Get
     , skip
     )
 import Data.Binary.Put
-    ( Put, putByteString, putLazyByteString, putWord64be, putWord8, runPut )
+    ( Put
+    , putByteString
+    , putLazyByteString
+    , putWord16be
+    , putWord64be
+    , putWord8
+    , runPut
+    )
 import Data.Bits
     ( shift, (.&.) )
 import Data.ByteString
@@ -117,8 +126,6 @@ data Block = Block BlockHeader [Message]
     deriving (Eq, Show)
 
 data SignedUpdateProposal = SignedUpdateProposal
-    deriving (Eq, Show)
-data TODO = TODO
     deriving (Eq, Show)
 data SignedVote = SignedVote
     deriving (Eq, Show)
@@ -181,7 +188,7 @@ data Message
     = Initial [ConfigParam]
     -- ^ Found in the genesis block.
 --  | OldUtxoDeclaration UtxoDeclaration
-    | Transaction Tx
+    | Transaction (Tx, [TxWitness])
 --  | Certificate (Tx with Extra=Certificate)
 --  | UpdateProposal SignedUpdateProposal
 --  | UpdateVote SignedVote
@@ -204,6 +211,13 @@ getMessage = label "getMessage" $ do
         5 -> unimpl
         other -> fail $ "Unexpected content type tag " ++ show other
 
+putMessage :: Message -> Put
+putMessage m = withSizeHeader16be $ case m of
+    Transaction (tx, wits) -> do
+        putWord8 2
+        putSignedTransaction (tx, wits)
+    _ -> error "to be implemented"
+
 -- | Decode the contents of a @Initial@-message.
 getInitial :: Get [ConfigParam]
 getInitial = label "getInitial" $ do
@@ -211,12 +225,12 @@ getInitial = label "getInitial" $ do
     replicateM len getConfigParam
 
 -- | Decode the contents of a @Transaction@-message.
-getTransaction :: Get Tx
+getTransaction :: Get (Tx, [TxWitness])
 getTransaction = label "getTransaction" $ do
     (ins, outs) <- getTokenTransfer
     let witnessCount = length ins
-    _wits <- replicateM witnessCount getWitness
-    return $ Tx ins outs
+    wits <- replicateM witnessCount getWitness
+    return $ (Tx ins outs, wits)
   where
     getWitness = do
         tag <- getWord8
@@ -243,13 +257,13 @@ putSignedTransaction (tx, witnesses) = do
 putWitness :: TxWitness -> Put
 putWitness witness =
     case witness of
-        PublicKeyWitness xPub (Hash sig) -> do
+        PublicKeyWitness _xPub (Hash sig) -> do
             -- Witness sum type:
             --   * 1 for old address witnness scheme
             --   * 2 for new address witness scheme
             --   * 3 for account witness
             putWord8 1
-            putByteString xPub
+            --putByteString xPub
             putByteString sig
         -- TODO: note that we are missing new address type witness:
         --  * https://github.com/input-output-hk/rust-cardano/blob/3524cfe138a10773caa6f0effacf69e792f915df/chain-impl-mockchain/doc/format.md#witnesses
@@ -278,6 +292,7 @@ putTxBody (Tx inputs outputs) = do
         putWord8 $ fromIntegral inputIx
         putWord64be $ getCoin coin
         putByteString $ getHash inputId
+
     putOutput (TxOut address coin) = do
         putAddress address
         putWord64be $ getCoin coin
@@ -475,6 +490,12 @@ isolatePut l x = do
         ++ ", but expected to be "
         ++ (show l)
 
+withSizeHeader16be :: Put -> Put
+withSizeHeader16be x = do
+    let bs = BL.toStrict $ runPut x
+    putWord16be (fromIntegral $ BS.length bs)
+    putByteString bs
+
 whileM :: Monad m => m Bool -> m a -> m [a]
 whileM cond next = go
   where
@@ -509,11 +530,17 @@ instance FromBinary (W.Block Tx) where
         convertMessages :: [Message] -> [Tx]
         convertMessages msgs = msgs >>= \case
             Initial _ -> []
-            Transaction tx -> return tx
+            Transaction (tx, _wits) -> return tx
             UnimplementedMessage _ -> []
 
 instance FromBinary a => FromBinary [a] where
     get = whileM (not <$> isEmpty) get
+
+class ToBinary a where
+    put :: a -> Put
+
+instance ToBinary (Tx, [TxWitness]) where
+    put = putSignedTransaction
 
 {-------------------------------------------------------------------------------
                               Legacy Decoders

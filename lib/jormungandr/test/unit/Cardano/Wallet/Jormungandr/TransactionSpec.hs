@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
@@ -14,29 +15,51 @@ module Cardano.Wallet.Jormungandr.TransactionSpec
 
 import Prelude
 
+import Cardano.Wallet.Jormungandr.Binary
+    ( Message (Transaction), getMessage, putMessage, runGet, runPut )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( ChangeChain (..)
+    , Passphrase (..)
+    , deriveAccountPrivateKey
+    , deriveAddressPrivateKey
+    , generateKeyFromSeed
+    , keyToAddress
+    , publicKey
+    , serializeXPrv
+    )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.CoinSelection.LargestFirst
     ( largestFirst )
+import Cardano.Wallet.Primitive.Mnemonic
+    ( entropyToBytes, mkMnemonic, mnemonicToEntropy )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
+    , DecodeAddress (..)
+    , EncodeAddress (..)
     , Hash (..)
     , ShowFmt (..)
+    , Tx (..)
     , TxIn (..)
     , TxOut (..)
     , UTxO (..)
+    , txId
     )
 import Cardano.Wallet.Transaction
     ( TransactionLayer (..) )
 import Control.Monad.Trans.Except
     ( runExceptT )
+import Data.ByteArray.Encoding
+    ( Base (Base16), convertFromBase, convertToBase )
+import Data.ByteString
+    ( ByteString )
 import Data.Functor.Identity
     ( Identity (runIdentity) )
 import Data.List.NonEmpty
@@ -45,8 +68,10 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text
+    ( Text )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -59,6 +84,13 @@ import Test.QuickCheck
     , (===)
     )
 
+--import qualified Bech32
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
+
 import qualified Cardano.Wallet.Primitive.CoinSelection as CS
 import qualified Data.ByteString as BS
 import qualified Data.List.NonEmpty as NE
@@ -66,6 +98,11 @@ import qualified Data.Map as Map
 
 spec :: Spec
 spec = do
+    estimateSizeSpec
+    mkStdTxSpec
+
+estimateSizeSpec :: Spec
+estimateSizeSpec = do
     describe "estimateSize" $ do
         it "Estimated size is zero"
             (withMaxSuccess 2500 $ property $ propSizeEstimation $ Proxy @'Mainnet)
@@ -171,3 +208,89 @@ instance Arbitrary (Hash "Tx") where
     arbitrary = do
         bytes <- BS.pack <$> vectorOf 32 arbitrary
         pure $ Hash bytes
+
+{-------------------------------------------------------------------------------
+                               mkStdTx
+-------------------------------------------------------------------------------}
+
+
+mkStdTxSpec :: Spec
+mkStdTxSpec = do
+    describe "mkStdTx" $ do
+        it "should work" $
+            let
+                mw =
+                    either (error . show) id $ mkMnemonic @15 ["tattoo","potato","foil","mutual","slab","path","forward","pencil","suit","marble","hill","meat","close","garden","bird"]
+                (seed, pwd) =
+                    (Passphrase $ entropyToBytes $ mnemonicToEntropy mw, mempty)
+                rootXPrv =
+                    generateKeyFromSeed (seed, mempty) pwd
+                accXPrv =
+                    deriveAccountPrivateKey pwd rootXPrv minBound
+                addrXPrv =
+                    deriveAddressPrivateKey pwd accXPrv ExternalChain minBound
+                chngXPrv =
+                    deriveAddressPrivateKey pwd accXPrv InternalChain minBound
+                addr =
+                    keyToAddress @(Jormungandr 'Testnet) (publicKey addrXPrv)
+                chngAddr =
+                    keyToAddress @(Jormungandr 'Testnet) (publicKey chngXPrv)
+                keystore = \case
+                    x | x == addr -> Just (addrXPrv, pwd)
+                      | x == chngAddr -> Just (chngXPrv, pwd)
+                      | otherwise -> Nothing
+            in do
+
+                let block0TxId = Hash "fi\132\222\196\188\SI\241\136\139\233{\254\ACK\148\169k5\197\141\STXT\ENQ\234\213\GS\\\199*0\EM\244"
+
+                TIO.putStrLn $ "       Addr: " <> toBech32 addr
+                TIO.putStrLn $ "Change Addr: " <> toBech32 chngAddr
+                TIO.putStrLn $ "     Block0: " <> (toHex . getHash $ block0Hash)
+                TIO.putStrLn $ " block0txId: " <> (toHex . getHash $ block0TxId)
+                let h = fst . serializeXPrv $ (addrXPrv, Hash "")
+                TIO.putStrLn $ "len adrXPrv: " <> (T.pack . show $ BS.length h)
+                TIO.putStrLn $ " a  ddrXPrv: " <> (T.pack $ B8.unpack $ BS.take 128 $ h)
+
+                let tl = newTransactionLayer @'Testnet block0Hash
+
+                -- Same address
+                let ownedIns = [((TxIn block0TxId 1), TxOut addr $ Coin 1000000000000)]
+                let outs = [TxOut addr $ Coin 1000000000000 ]
+
+                let tx = Tx (map fst ownedIns) outs
+                let tid = txId @(Jormungandr 'Testnet) tx
+
+                TIO.putStrLn $ "       txId: " <> (toHex . getHash $ tid)
+
+                let (Right stx) = mkStdTx tl keystore ownedIns outs
+                let msg = (BL.toStrict . runPut $ putMessage $ Transaction stx)
+                --TIO.putStrLn $ "=> signedtx: " <> msg
+
+                print stx
+
+                msg `shouldBe` (fromHex "009602010101000000e8d4a51000666984dec4bc0ff1888be97bfe0694a96b35c58d025405ead51d5cc72a3019f483054bba3fcb7b5f2491861b6e2b8bf0a3f9257cdf2fdf41ca5af7072e77c70f3a000000e8d4a510000198e9d483b1228f0d92ca57da3948d981ddaccfdfca1698effbadac5108424158df7b7ad8c2ecc2f6acb7f83315ec04f15c6282824ef8a3d2924acc954accc106")
+                let ss = BL.fromStrict (fromHex "009602010101000000e8d4a51000666984dec4bc0ff1888be97bfe0694a96b35c58d025405ead51d5cc72a3019f483054bba3fcb7b5f2491861b6e2b8bf0a3f9257cdf2fdf41ca5af7072e77c70f3a000000e8d4a510000198e9d483b1228f0d92ca57da3948d981ddaccfdfca1698effbadac5108424158df7b7ad8c2ecc2f6acb7f83315ec04f15c6282824ef8a3d2924acc954accc106")
+                runGet getMessage ss `shouldBe` (Transaction stx)
+
+--  where
+--    toBech32Prv key = Bech32.dataPartFromBytes . fst . serializeXPrv $ (key, Hash "")
+
+block0Hash :: Hash "Block0Hash"
+block0Hash = Hash "\DC3\195\216\&5\197:\EM\143|\133\DC3\176M\153\238\178<t\\\ns6L/\SO\128/\163\142\236\157\186"
+
+toHex :: ByteString -> Text
+toHex =  T.pack . B8.unpack . convertToBase Base16
+
+fromHex :: Text -> ByteString
+fromHex = either (error . show) id
+    . convertFromBase Base16
+    . B8.pack
+    . T.unpack
+
+fromBech32 :: Text -> Address
+fromBech32 = either (error . show ) id
+    . decodeAddress (Proxy @(Jormungandr 'Testnet))
+
+toBech32 :: Address -> Text
+toBech32 = encodeAddress (Proxy @(Jormungandr 'Testnet))
+
