@@ -18,9 +18,11 @@
 
 ### :heavy_check_mark: [Initial Wallet Backend Server & Corresponding CLI](https://github.com/input-output-hk/cardano-wallet/milestone/7)
 
-### :hammer: [Integrate node.js IPC listener in the launcher](https://github.com/input-output-hk/cardano-wallet/milestone/8)
+### :heavy_check_mark: : [Integrate node.js IPC listener in the launcher](https://github.com/input-output-hk/cardano-wallet/milestone/8)
 
-### :hammer: [SQLite implementation for the database layer](https://github.com/input-output-hk/cardano-wallet/milestone/9)
+### :heavy_check_mark: : [SQLite implementation for the database layer](https://github.com/input-output-hk/cardano-wallet/milestone/9)
+
+### :heavy_check_mark: : [List Addresses](https://github.com/input-output-hk/cardano-wallet/milestone/16)
 
 ### :hammer: [Jörmungandr High-level integration](https://github.com/input-output-hk/cardano-wallet/milestone/10)
 
@@ -28,7 +30,6 @@
 
 ### :hammer: [Logging](https://github.com/input-output-hk/cardano-wallet/milestone/14)
 
-### :hammer: [List Addresses](https://github.com/input-output-hk/cardano-wallet/milestone/16)
 ---
 
 _items below are more-or-less prioritized_ 
