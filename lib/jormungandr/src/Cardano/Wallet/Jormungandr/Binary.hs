@@ -199,7 +199,7 @@ getInitial = label "getInitial" $ do
 
 -- | Decode the contents of a @Transaction@-message.
 getTransaction :: Get Tx
-getTransaction = label "getTransaction" $ isolate 43 $ do
+getTransaction = label "getTransaction" $ do
     (ins, outs) <- getTokenTransfer
 
     let witnessCount = length ins
