@@ -1,5 +1,6 @@
 {-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
@@ -32,6 +33,7 @@ module Cardano.Wallet.Jormungandr.Binary
 
       -- * Classes
     , FromBinary (..)
+    , ToBinary (..)
 
       -- * Legacy Decoders
     , decodeLegacyAddress
@@ -483,6 +485,13 @@ instance FromBinary W.Block where
 
 instance FromBinary a => FromBinary [a] where
     get = whileM (not <$> isEmpty) get
+
+
+class ToBinary a where
+    put :: a -> Put
+
+instance ToBinary (Tx, [TxWitness]) where
+    put = putTransaction
 
 {-------------------------------------------------------------------------------
                               Legacy Decoders

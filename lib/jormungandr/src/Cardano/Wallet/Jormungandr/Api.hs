@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -23,7 +24,7 @@ module Cardano.Wallet.Jormungandr.Api
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
-    ( FromBinary (..), runGet )
+    ( FromBinary (..), ToBinary (..), runGet, runPut )
 import Cardano.Wallet.Primitive.Types
     ( Block, Hash (..), Tx, TxWitness )
 import Data.Binary.Get
@@ -40,6 +41,7 @@ import Servant.API
     , Accept (..)
     , Capture
     , Get
+    , MimeRender (..)
     , MimeUnrender (..)
     , NoContent
     , Post
@@ -55,7 +57,7 @@ import qualified Servant.API.ContentTypes as Servant
 api :: Proxy Api
 api = Proxy
 
-type Api = GetTipId :<|> GetBlock :<|> GetBlockDescendantIds
+type Api = GetTipId :<|> GetBlock :<|> GetBlockDescendantIds :<|> PostSignedTx
 
 
 -- | Retrieve a block by its id.
@@ -121,6 +123,9 @@ instance Accept JormungandrBinary where
 
 instance FromBinary a => MimeUnrender JormungandrBinary a where
     mimeUnrender _ bs = Right $ runGet get bs
+
+instance forall a. ToBinary a => MimeRender JormungandrBinary a where
+    mimeRender _ a = runPut $ put a
 
 data Hex
 
