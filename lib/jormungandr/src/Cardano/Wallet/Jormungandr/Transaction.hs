@@ -69,6 +69,17 @@ newtype WitnessData = WitnessData ByteString
 witnessUtxoData :: Hash "Block0Hash" -> Hash "Tx" -> WitnessData
 witnessUtxoData (Hash block0) (Hash tx) = WitnessData (block0 <> tx)
 
+--witnessTagOldUtxo, witnessTagUtxo, witnessTagAccount, witnessTagMultisig :: Int
+--witnessTagOldUtxo = 0
+--witnessTagUtxo = 1
+--witnessTagAccount = 2
+--witnessTagMultisig = 3
+
+--------------------------------------------------------------------------------
+-- Signing
+----------------
+
+
 mkWitness
     :: WitnessData
     -> (Key 'AddressK XPrv, Passphrase "encryption")
