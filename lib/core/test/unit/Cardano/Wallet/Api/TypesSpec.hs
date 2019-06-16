@@ -495,7 +495,7 @@ instance Arbitrary (Proxy DummyTarget) where
     arbitrary = pure Proxy
 
 instance EncodeAddress DummyTarget where
-    encodeAddress _ = T.decodeUtf8 . convertToBase Base16 . getAddress
+    encodeAddress _ = T.decodeUtf8 . convertToBase Base16 . unAddress
 
 instance DecodeAddress DummyTarget where
     decodeAddress _ = bimap decodingError Address
