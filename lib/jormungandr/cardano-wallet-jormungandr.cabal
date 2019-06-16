@@ -37,6 +37,7 @@ library
     , binary
     , bytestring
     , cardano-wallet-core
+    , cardano-crypto
     , cborg
     , exceptions
     , http-client

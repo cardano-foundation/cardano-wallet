@@ -4,7 +4,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -20,6 +19,8 @@ module Cardano.Wallet.Jormungandr.Binary
     , Message (..)
     , getBlockHeader
     , getBlock
+    , getAddress
+    , getTransaction
 
     , putTransaction
 
@@ -44,7 +45,7 @@ module Cardano.Wallet.Jormungandr.Binary
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Environment
-    ( KnownNetwork (..), Network (..) )
+    ( Network (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -68,6 +69,7 @@ import Data.Binary.Get
     , isEmpty
     , isolate
     , label
+    , lookAhead
     , runGet
     , skip
     )
@@ -77,8 +79,6 @@ import Data.Bits
     ( shift, (.&.) )
 import Data.ByteString
     ( ByteString )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
@@ -87,6 +87,7 @@ import Data.Word
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 
 data BlockHeader = BlockHeader
@@ -224,10 +225,9 @@ getTransaction = label "getTransaction" $ isolate 43 $ do
                 error "unimplemented: Account witness"
             other -> fail $ "Invalid witness type: " ++ show other
 
-
-putTransaction :: forall n. KnownNetwork n => Proxy n -> (Tx, [TxWitness]) -> Put
-putTransaction _ (tx, witnesses) = do
-    putTokenTransfer (Proxy @n) tx
+putTransaction :: (Tx, [TxWitness]) -> Put
+putTransaction (tx, witnesses) = do
+    putTokenTransfer tx
     mapM_ putWitness witnesses
 
 putWitness :: TxWitness -> Put
@@ -252,8 +252,8 @@ putWitness witness =
                             Common Structure
 -------------------------------------------------------------------------------}
 
-putTokenTransfer :: forall n. KnownNetwork n => Proxy n -> Tx -> Put
-putTokenTransfer _ (Tx inputs outputs) = do
+putTokenTransfer :: Tx -> Put
+putTokenTransfer (Tx inputs outputs) = do
     putWord8 $ fromIntegral $ length inputs
     putWord8 $ fromIntegral $ length outputs
     mapM_ putInput inputs
@@ -267,10 +267,6 @@ putTokenTransfer _ (Tx inputs outputs) = do
     putOutput (TxOut address coin) = do
         putAddress address
         putWord64be $ getCoin coin
-    putAddress address = do
-        -- NOTE: only single address supported for now
-        putWord8 (single @n)
-        putByteString $ getAddress address
 
 getTokenTransfer :: Get ([TxIn], [TxOut])
 getTokenTransfer = label "getTokenTransfer" $ do
@@ -291,18 +287,23 @@ getTokenTransfer = label "getTokenTransfer" $ do
         value <- Coin <$> getWord64be
         return $ TxOut addr value
 
-    getAddress = do
-        headerByte <- getWord8
-        let kind = kindValue headerByte
-        let _discrimination = discriminationValue headerByte
-        case kind of
-            -- Single Address
-            0x3 -> Address <$> getByteString 32
-            0x4 -> error "unimplemented group address decoder"
-            0x5 -> error "unimplemented account address decoder"
-            0x6 -> error "unimplemented multisig address decoder"
-            other -> fail $ "Invalid address type: " ++ show other
 
+
+getAddress :: Get Address
+getAddress = do
+    -- We use 'lookAhead' to not consume the header, and let it
+    -- be included in the underlying Address ByteString.
+    headerByte <- label "address header" . lookAhead $ getWord8
+    let kind = kindValue headerByte
+    let _discrimination = discriminationValue headerByte
+    case kind of
+        -- Single Address
+        0x3 -> Address <$> getByteString 33
+        0x4 -> error "unimplemented group address decoder"
+        0x5 -> error "unimplemented account address decoder"
+        0x6 -> error "unimplemented multisig address decoder"
+        other -> fail $ "Invalid address type: " ++ show other
+  where
     kindValue :: Word8 -> Word8
     kindValue = (.&. 0b01111111)
 
@@ -311,6 +312,15 @@ getTokenTransfer = label "getTokenTransfer" $ do
         0 -> Mainnet
         _ -> Testnet
 
+putAddress :: Address -> Put
+putAddress addr@(Address bs)
+    | l == 33 = putByteString bs -- bootstrap or account addr
+    | l == 65 = putByteString bs -- delegation addr
+    | otherwise = fail
+        $ "Address have unexpected length "
+        ++ (show l)
+        ++ ": " ++ show addr
+  where l = BS.length bs
 
 {-------------------------------------------------------------------------------
                             Config Parameters

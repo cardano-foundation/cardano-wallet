@@ -102,7 +102,7 @@ genesisBlock = Block genesisHeader
         { inputs = []
         , outputs =
             [ TxOut
-                { address = Address "3$\195xi\193\"h\154\&5\145}\245:O\"\148\163\165/h^\ENQ\245\248\229;\135\231\234E/"
+                { address = Address "\131\&3$\195xi\193\"h\154\&5\145}\245:O\"\148\163\165/h^\ENQ\245\248\229;\135\231\234E/"
                 , coin = Coin 14
                 }
             ]
