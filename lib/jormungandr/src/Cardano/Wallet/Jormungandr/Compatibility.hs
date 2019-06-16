@@ -22,12 +22,14 @@ module Cardano.Wallet.Jormungandr.Compatibility
 
 import Prelude
 
+import Cardano.Crypto.Wallet
+    ( XPub (..), unXPub )
 import Cardano.Wallet.Jormungandr.Binary
     ( decodeLegacyAddress )
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress (..) )
+    ( KeyToAddress (..), getKey )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , BlockHeader (..)
@@ -41,6 +43,8 @@ import Codec.Binary.Bech32
     ( HumanReadablePart, dataPartFromBytes, dataPartToBytes )
 import Control.Monad
     ( when )
+import Data.Binary.Put
+    ( Put, putByteString, putWord8, runPut )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
@@ -53,6 +57,7 @@ import Data.Text.Class
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text.Encoding as T
 
 -- | A type representing the Jormungandr as a network target. This has an
@@ -69,8 +74,18 @@ genesis = BlockHeader
 instance TxId (Jormungandr n) where
     txId = undefined
 
-instance KeyToAddress (Jormungandr n) where
-    keyToAddress = undefined
+instance forall n. KnownNetwork n => KeyToAddress (Jormungandr n) where
+    keyToAddress key = Address
+        . BL.toStrict
+        . runPut
+        $ putSingleAddress (getKey key)
+      where
+        putSingleAddress :: XPub -> Put
+        putSingleAddress xpub = do
+        -- NOTE: only single address supported for now
+            putWord8 (single @n)
+            putByteString $ unXPub xpub
+
 
 -- | Encode an 'Address' to a human-readable format. This produces two kinds of
 -- encodings:
