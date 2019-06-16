@@ -41,6 +41,8 @@ module Cardano.Wallet.Jormungandr.Binary
       -- * Re-export
     , runGet
     , Get
+    , runPut
+    , Put
 
     ) where
 
@@ -76,7 +78,7 @@ import Data.Binary.Get
     , skip
     )
 import Data.Binary.Put
-    ( Put, putByteString, putWord64be, putWord8 )
+    ( Put, putByteString, putWord64be, putWord8, runPut )
 import Data.Bits
     ( shift, (.&.) )
 import Data.ByteString
