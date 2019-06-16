@@ -23,11 +23,11 @@ module Cardano.Wallet.Jormungandr.Compatibility
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
-    ( decodeLegacyAddress )
+    ( decodeLegacyAddress, singleAddressFromKey )
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress (..) )
+    ( KeyToAddress (..), getKey )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , BlockHeader (..)
@@ -47,6 +47,8 @@ import Data.ByteString.Base58
     ( bitcoinAlphabet, decodeBase58, encodeBase58 )
 import Data.Maybe
     ( isJust )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Text.Class
     ( TextDecodingError (..) )
 
@@ -69,8 +71,9 @@ genesis = BlockHeader
 instance TxId (Jormungandr n) where
     txId = undefined
 
-instance KeyToAddress (Jormungandr n) where
-    keyToAddress = undefined
+instance forall n. KnownNetwork n => KeyToAddress (Jormungandr n) where
+    keyToAddress key = singleAddressFromKey (Proxy @n) (getKey key)
+
 
 -- | Encode an 'Address' to a human-readable format. This produces two kinds of
 -- encodings:

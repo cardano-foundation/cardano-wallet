@@ -37,6 +37,7 @@ library
     , binary
     , bytestring
     , cardano-wallet-core
+    , cardano-crypto
     , cborg
     , exceptions
     , http-client
@@ -75,6 +76,7 @@ test-suite unit
       base
     , bytestring
     , cardano-wallet-core
+    , cardano-crypto
     , cardano-wallet-jormungandr
     , generic-arbitrary
     , generic-lens

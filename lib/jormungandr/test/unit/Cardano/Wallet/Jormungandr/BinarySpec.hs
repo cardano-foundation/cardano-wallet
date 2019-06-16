@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
@@ -7,6 +8,8 @@ module Cardano.Wallet.Jormungandr.BinarySpec (spec) where
 
 import Prelude
 
+import Cardano.Crypto.Wallet
+    ( ChainCode (..), XPub (..) )
 import Cardano.Wallet.Jormungandr.Binary
     ( Block (..)
     , BlockHeader (..)
@@ -19,6 +22,7 @@ import Cardano.Wallet.Jormungandr.Binary
     , getBlock
     , getBlockHeader
     , runGet
+    , singleAddressFromKey
     )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( genesis )
@@ -26,6 +30,8 @@ import Cardano.Wallet.Jormungandr.Environment
     ( Network (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Coin (..), Hash (..), SlotId (..), Tx (..), TxOut (..) )
+import Control.Exception
+    ( evaluate )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase )
 import Data.ByteString
@@ -34,11 +40,14 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
     ()
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Test.Hspec
-    ( Spec, describe, it, runIO, shouldBe )
+    ( Spec, anyErrorCall, describe, it, runIO, shouldBe, shouldThrow )
 
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 
 {-# ANN spec ("HLint: ignore Use head" :: String) #-}
@@ -71,6 +80,18 @@ spec = do
                     , parentHeaderHash = Hash {getHash = "\216OY\rX\199\234\188.<O\\\244Y\211\210\254\224`i\216\DC3\167\132\139\154\216\161T\174\247\155"}
                     }
                 []
+    describe "singleAddressFromKey" $ do
+        let pub = "3$\195xi\193\"h\154\&5\145}\245:O\"\148\163\165/h^\ENQ\245\248\229;\135\231\234E/"
+        let singleAddrOnMainnet = 0x3
+        it "encodes (network <> tag <> key) correctly into an address" $
+            singleAddressFromKey (Proxy @'Mainnet) (XPub pub cc)
+            `shouldBe`
+            Address (BS.pack [singleAddrOnMainnet] <> pub)
+        it "throws when length (key) != 32" $
+            evaluate (singleAddressFromKey (Proxy @'Mainnet) (XPub "\148" cc))
+            `shouldThrow` anyErrorCall
+  where
+    cc = ChainCode "<ChainCode is not used by singleAddressToKey>"
 
 genesisHeader :: BlockHeader
 genesisHeader = BlockHeader
@@ -102,7 +123,7 @@ genesisBlock = Block genesisHeader
         { inputs = []
         , outputs =
             [ TxOut
-                { address = Address "3$\195xi\193\"h\154\&5\145}\245:O\"\148\163\165/h^\ENQ\245\248\229;\135\231\234E/"
+                { address = Address "\131\&3$\195xi\193\"h\154\&5\145}\245:O\"\148\163\165/h^\ENQ\245\248\229;\135\231\234E/"
                 , coin = Coin 14
                 }
             ]
