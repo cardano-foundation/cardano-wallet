@@ -185,7 +185,7 @@ Options:
   --address-pool-gap <INT>        number of unused consecutive addresses to keep track of [default: 20]
   --bridge-port <INT>             port used for communicating with the http-bridge [default: 8080]
   --database <FILE>               use this file for storing wallet state
-  --min-log-severity <SEVERITY>   minimum severity level of entries to include in the log: one of {debug, info, notice, warning, error, critical, alert, emergency} [default: debug]
+  --min-log-severity <SEVERITY>   minimum log severity level, in ascending order: {debug, info, notice, warning, error, critical, alert, emergency} [default: debug]
   --network <STRING>              testnet or mainnet [default: testnet]
   --payment <PAYMENT>             address to send to and amount to send separated by @: '<amount>@<address>'
   --port <INT>                    port used for serving the wallet API [default: 8090]
