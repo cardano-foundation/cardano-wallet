@@ -20,7 +20,9 @@
           (hsPkgs.base)
           (hsPkgs.ansi-terminal)
           (hsPkgs.docopt)
+          (hsPkgs.extra)
           (hsPkgs.fmt)
+          (hsPkgs.iohk-monitoring)
           (hsPkgs.text)
           (hsPkgs.text-class)
           ];
@@ -32,6 +34,7 @@
             (hsPkgs.cardano-wallet-cli)
             (hsPkgs.generic-arbitrary)
             (hsPkgs.hspec)
+            (hsPkgs.iohk-monitoring)
             (hsPkgs.QuickCheck)
             (hsPkgs.text)
             (hsPkgs.text-class)
