@@ -93,7 +93,6 @@ main = hspec $ do
     describe "Cardano.Wallet.HttpBridge.NetworkSpec" HttpBridge.spec
     describe "CLI commands not requiring bridge" $ do
         describe "Mnemonics CLI tests" MnemonicsCLI.spec
-        describe "Server CLI tests" ServerCLI.spec
         describe "--port CLI tests" $ do
             cardanoWalletServer Nothing
                 & beforeAll
