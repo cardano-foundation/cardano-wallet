@@ -1,9 +1,10 @@
 #!/usr/bin/env nix-shell
-#!nix-shell -i bash -p nix-prefetch-git
+#!nix-shell -i bash -p nix-prefetch-git coreutils
 
 set -euo pipefail
 
-NIX_DIR=`dirname $0`
+nix_dir=$(dirname $0)
+json="$nix_dir/iohk-nix-src.json"
 
-nix-prefetch-git https://github.com/input-output-hk/iohk-nix \
-                 > $NIX_DIR/iohk-nix-src.json
+nix-prefetch-git --quiet --url https://github.com/input-output-hk/iohk-nix | tee "$json"
+echo "Updated $json"
