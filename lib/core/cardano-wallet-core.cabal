@@ -97,6 +97,7 @@ library
       Cardano.Wallet.Transaction
       Data.Quantity
       Network.Wai.Middleware.ServantError
+      Network.Wai.Middleware.Logging
   other-modules:
       Paths_cardano_wallet_core
 
