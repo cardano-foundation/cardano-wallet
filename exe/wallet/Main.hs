@@ -94,6 +94,8 @@ import Data.Aeson
     ( (.:) )
 import Data.Either
     ( isRight )
+import Data.Function
+    ( (&) )
 import Data.Functor
     ( (<&>) )
 import Data.Maybe
@@ -110,6 +112,10 @@ import Fmt
     ( blockListF, fmt, nameF )
 import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
+import Network.Wai.Handler.Warp
+    ( setBeforeMainLoop )
+import Network.Wai.Middleware.Logging
+    ( setRequestLogger )
 import Paths_cardano_wallet
     ( version )
 import Servant
@@ -156,6 +162,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
+import qualified Network.Wai.Handler.Warp as Warp
 
 cli :: Docopt
 cli = [docopt|Cardano Wallet CLI.
@@ -424,15 +431,15 @@ execHttpBridge args _ = do
     waitForConnection nw defaultRetryPolicy
     let tl = HttpBridge.newTransactionLayer @n
     wallet <- newWalletLayer @_ @(HttpBridge n) tracer block0 db nw tl
-    let logStartup port = logInfo tracer $
-            "Wallet backend server listening on: " <> toText port
     Server.withListeningSocket walletListen $ \(port, socket) -> do
         tracerIPC <- appendName "DaedalusIPC" tracer
         tracerLog <- appendName "api" tracer
-        let settings = Server.mkWarpSettings logStartup port
+        let beforeMainLoop = logInfo tracer $
+                "Wallet backend server listening on: " <> toText port
+        let settings = Warp.defaultSettings
                 & setRequestLogger tracerLog
-        race_ (daedalusIPC tracerIPC port) $
-            Server.startOnSocket settings socket wallet
+                & setBeforeMainLoop beforeMainLoop
+        race_ (daedalusIPC tracerIPC port) $ Server.start settings socket wallet
 
 -- | Generate a random mnemonic of the given size 'n' (n = number of words),
 -- and print it to stdout.

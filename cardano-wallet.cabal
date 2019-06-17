@@ -51,6 +51,7 @@ executable cardano-wallet
     , servant-server
     , text
     , text-class
+    , warp
   other-modules:
       Paths_cardano_wallet
   hs-source-dirs:

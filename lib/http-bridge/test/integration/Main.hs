@@ -56,6 +56,8 @@ import Database.Persist.Sql
     ( SqlBackend, close' )
 import Network.HTTP.Client
     ( defaultManagerSettings, newManager )
+import Network.Wai.Handler.Warp
+    ( setBeforeMainLoop )
 import System.Directory
     ( createDirectoryIfMissing, removePathForcibly )
 import System.IO
@@ -76,6 +78,7 @@ import qualified Cardano.Wallet.HttpBridge.Transaction as HttpBridge
 import qualified Cardano.WalletSpec as Wallet
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Text as T
+import qualified Network.Wai.Handler.Warp as Warp
 import qualified Test.Integration.Scenario.API.Addresses as Addresses
 import qualified Test.Integration.Scenario.API.Transactions as Transactions
 import qualified Test.Integration.Scenario.API.Wallets as Wallets
@@ -231,13 +234,16 @@ main = hspec $ do
     cardanoWalletServer mlisten = do
         nl <- HttpBridge.newNetworkLayer bridgePort
         (conn, db) <- Sqlite.newDBLayer Nothing
-        port <- newEmptyMVar
+        mvar <- newEmptyMVar
         thread <- forkIO $ do
             let tl = HttpBridge.newTransactionLayer
             wallet <- newWalletLayer nullTracer block0 db nl tl
             let listen = fromMaybe (ListenOnPort defaultPort) mlisten
-            Server.start (putMVar port) listen wallet
-        (thread,,conn,nl) <$> takeMVar port
+            Server.withListeningSocket listen $ \(port, socket) -> do
+                let settings = Warp.defaultSettings
+                        & setBeforeMainLoop (putMVar mvar port)
+                Server.start settings socket wallet
+        (thread,,conn,nl) <$> takeMVar mvar
 
     waitForCluster :: String -> IO ()
     waitForCluster addr = do
