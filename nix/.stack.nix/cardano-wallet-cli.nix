@@ -20,6 +20,7 @@
           (hsPkgs.base)
           (hsPkgs.ansi-terminal)
           (hsPkgs.docopt)
+          (hsPkgs.extra)
           (hsPkgs.fmt)
           (hsPkgs.iohk-monitoring)
           (hsPkgs.text)

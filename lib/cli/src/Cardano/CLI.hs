@@ -1,9 +1,11 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -45,6 +47,8 @@ import Control.Exception
     ( bracket )
 import Data.Functor
     ( (<$) )
+import Data.List.Extra
+    ( enumerate )
 import qualified Data.List.NonEmpty as NE
 import Data.Text
     ( Text )
@@ -109,6 +113,12 @@ instance FromText (Port tag) where
 instance ToText (Port tag) where
     toText (Port p) = toText p
 
+-- TODO: Remove this instance if `Severity` becomes an instance of `Bounded`:
+-- See: https://github.com/input-output-hk/iohk-monitoring-framework/pull/340
+instance Bounded (OptionValue Severity) where
+    minBound = OptionValue Debug
+    maxBound = OptionValue Emergency
+
 instance FromText (OptionValue Severity) where
     fromText t = case T.toLower t of
         "alert" ->
@@ -129,7 +139,13 @@ instance FromText (OptionValue Severity) where
             mk Warning
         _ -> Left $ TextDecodingError $ show (T.unpack t)
             <> " is not a recognized log severity level."
-      where mk = Right . OptionValue
+            <> " Please specify of the following values: "
+            <> T.unpack allValues
+            <> "."
+      where
+        mk = Right . OptionValue
+        allValues = T.intercalate ", " $ T.toLower . toText <$>
+            enumerate @(OptionValue Severity)
 
 instance ToText (OptionValue Severity) where
     toText = T.pack . show . getOptionValue
@@ -140,7 +156,7 @@ instance ToText (OptionValue Severity) where
 
 -- | A wrapper to avoid orphan instances for types defined externally.
 newtype OptionValue a = OptionValue { getOptionValue :: a }
-  deriving (Eq, Ord, Generic, Show)
+  deriving (Enum, Eq, Ord, Generic, Read, Show)
 
 parseArgWith :: FromText a => Docopt -> Arguments -> Option -> IO a
 parseArgWith cli args option = do
