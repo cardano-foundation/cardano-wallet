@@ -38,7 +38,7 @@ import Cardano.BM.Setup
 import Cardano.BM.Trace
     ( Trace, appendName, logAlert, logInfo )
 import Cardano.CLI
-    ( Port
+    ( Port (..)
     , getLine
     , getOptionValue
     , getSensitiveLine
@@ -381,7 +381,7 @@ exec execServe manager args
         => ClientM a
         -> IO (Either ServantError a)
     sendRequest cmd = do
-        port <- args `parseArg` longOption "port"
+        port <- getPort <$> args `parseArg` longOption "port"
         let env = mkClientEnv manager (BaseUrl Http "localhost" port "")
         runClientM cmd env
 
@@ -416,11 +416,10 @@ execHttpBridge args _ = do
         args `parseArg` longOption "min-log-severity"
     tracer <- initTracer minLogSeverity "serve"
     walletListen <- parseWalletListen args
-    (bridgePort :: Int)
-        <- args `parseArg` longOption "bridge-port"
+    bridgePort <- args `parseArg` longOption "bridge-port"
     let dbFile = args `getArg` longOption "database"
     (_, db) <- Sqlite.newDBLayer dbFile
-    nw <- HttpBridge.newNetworkLayer @n bridgePort
+    nw <- HttpBridge.newNetworkLayer @n (getPort bridgePort)
     waitForConnection nw defaultRetryPolicy
     let tl = HttpBridge.newTransactionLayer @n
     wallet <- newWalletLayer @_ @(HttpBridge n) tracer block0 db nw tl
@@ -541,7 +540,7 @@ parseWalletListen args = do
     walletPort <- args `parseArg` longOption "port"
     pure $ case (useRandomPort, walletPort) of
         (True, _) -> ListenOnRandomPort
-        (False, port) -> ListenOnPort port
+        (False, port) -> ListenOnPort (getPort port)
 
 -- | Initialize a state directory to store blockchain data such as blocks or
 -- the wallet database.

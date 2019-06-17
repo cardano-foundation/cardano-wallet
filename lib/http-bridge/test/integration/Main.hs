@@ -94,6 +94,7 @@ main = hspec $ do
     describe "CLI commands not requiring bridge" $ do
         describe "Mnemonics CLI tests" MnemonicsCLI.spec
         describe "--port CLI tests" $ do
+            PortCLI.specNegative
             cardanoWalletServer Nothing
                 & beforeAll
                 $ afterAll killServer
