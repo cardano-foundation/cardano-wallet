@@ -430,11 +430,10 @@ getAddress = do
     let kind = kindValue headerByte
     let _discrimination = discriminationValue headerByte
     case kind of
-        -- Single Address
-        0x3 -> Address <$> getByteString 33
-        0x4 -> error "unimplemented group address decoder"
-        0x5 -> error "unimplemented account address decoder"
-        0x6 -> error "unimplemented multisig address decoder"
+        0x3 -> Address <$> getByteString 33 -- single address
+        0x4 -> Address <$> getByteString 65 -- grouped address
+        0x5 -> Address <$> getByteString 65 -- account address
+        0x6 -> Address <$> getByteString 33 -- multisig address
         other -> fail $ "Invalid address type: " ++ show other
   where
     kindValue :: Word8 -> Word8
