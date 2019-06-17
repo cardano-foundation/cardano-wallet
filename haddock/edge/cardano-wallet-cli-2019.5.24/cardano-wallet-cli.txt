@@ -26,6 +26,11 @@ putErrLn :: Text -> IO ()
 
 -- | Print an error message in red
 hPutErrLn :: Handle -> Text -> IO ()
+
+-- | A wrapper to avoid orphan instances for types defined externally.
+newtype OptionValue a
+OptionValue :: a -> OptionValue a
+[getOptionValue] :: OptionValue a -> a
 parseArgWith :: FromText a => Docopt -> Arguments -> Option -> IO a
 parseAllArgsWith :: FromText a => Docopt -> Arguments -> Option -> IO (NonEmpty a)
 
@@ -44,8 +49,17 @@ getSensitiveLine :: Buildable e => Text -> (Text -> Either e a) -> IO (a, Text)
 -- | Gather user inputs until a newline is met, hiding what's typed with a
 --   placeholder character.
 hGetSensitiveLine :: Buildable e => (Handle, Handle) -> Text -> (Text -> Either e a) -> IO (a, Text)
+instance GHC.Show.Show a => GHC.Show.Show (Cardano.CLI.OptionValue a)
+instance GHC.Read.Read a => GHC.Read.Read (Cardano.CLI.OptionValue a)
+instance GHC.Generics.Generic (Cardano.CLI.OptionValue a)
+instance GHC.Classes.Ord a => GHC.Classes.Ord (Cardano.CLI.OptionValue a)
+instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.CLI.OptionValue a)
+instance GHC.Enum.Enum a => GHC.Enum.Enum (Cardano.CLI.OptionValue a)
 instance GHC.Generics.Generic (Cardano.CLI.Port tag)
 instance GHC.Show.Show (Cardano.CLI.Port tag)
 instance GHC.Classes.Eq (Cardano.CLI.Port tag)
+instance GHC.Enum.Bounded (Cardano.CLI.OptionValue Cardano.BM.Data.Severity.Severity)
+instance Data.Text.Class.FromText (Cardano.CLI.OptionValue Cardano.BM.Data.Severity.Severity)
+instance Data.Text.Class.ToText (Cardano.CLI.OptionValue Cardano.BM.Data.Severity.Severity)
 instance Data.Text.Class.FromText (Cardano.CLI.Port tag)
 instance Data.Text.Class.ToText (Cardano.CLI.Port tag)
