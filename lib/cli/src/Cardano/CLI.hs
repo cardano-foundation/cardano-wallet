@@ -5,7 +5,6 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -47,13 +46,17 @@ import Control.Exception
     ( bracket )
 import Data.Functor
     ( (<$) )
-import Data.List.Extra
-    ( enumerate )
 import qualified Data.List.NonEmpty as NE
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( CaseStyle (..)
+    , FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    , fromTextToBoundedEnum
+    , toTextFromBoundedEnum
+    )
 import Fmt
     ( Buildable, pretty )
 import GHC.Generics
@@ -114,35 +117,10 @@ instance ToText (Port tag) where
     toText (Port p) = toText p
 
 instance FromText (OptionValue Severity) where
-    fromText t = case T.toLower t of
-        "alert" ->
-            mk Alert
-        "critical" ->
-            mk Critical
-        "debug" ->
-            mk Debug
-        "emergency" ->
-            mk Emergency
-        "error" ->
-            mk Error
-        "info" ->
-            mk Info
-        "notice" ->
-            mk Notice
-        "warning" ->
-            mk Warning
-        _ -> Left $ TextDecodingError $ show (T.unpack t)
-            <> " is not a recognized log severity level."
-            <> " Please specify of the following values: "
-            <> T.unpack allValues
-            <> "."
-      where
-        mk = Right . OptionValue
-        allValues = T.intercalate ", " $ T.toLower . toText . OptionValue <$>
-            enumerate @Severity
+    fromText = fmap OptionValue . fromTextToBoundedEnum KebabLowerCase
 
 instance ToText (OptionValue Severity) where
-    toText = T.pack . show . getOptionValue
+    toText = toTextFromBoundedEnum KebabLowerCase . getOptionValue
 
 {-------------------------------------------------------------------------------
                              Parsing Arguments
