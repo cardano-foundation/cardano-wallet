@@ -18,6 +18,8 @@
       "library" = {
         depends = [
           (hsPkgs.base)
+          (hsPkgs.casing)
+          (hsPkgs.extra)
           (hsPkgs.fmt)
           (hsPkgs.text)
           (hsPkgs.hspec)
