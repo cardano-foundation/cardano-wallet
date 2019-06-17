@@ -11,7 +11,7 @@ import System.Directory
 import Test.Hspec
     ( SpecWith, after_, describe, it )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe )
+    ( shouldReturn )
 import Test.Integration.Framework.DSL
     ( Context (..), expectCmdStarts )
 
@@ -24,13 +24,9 @@ spec = after_ tearDown $ do
                     ] (return ())
                     Inherit
             expectCmdStarts cardanoWalletServer
-
-            w1 <- doesFileExist dbFile
-            w2 <- doesFileExist (dbFile ++ "-shm")
-            w3 <- doesFileExist (dbFile ++ "-wal")
-            w1 `shouldBe` False
-            w2 `shouldBe` False
-            w3 `shouldBe` False
+            doesFileExist dbFile `shouldReturn` False
+            doesFileExist (dbFile ++ "-shm") `shouldReturn` False
+            doesFileExist (dbFile ++ "-wal") `shouldReturn` False
 
         it "SERVER - Can start cardano-wallet serve with --database" $ \_ -> do
             let cardanoWalletServer = Command "stack"
@@ -39,13 +35,9 @@ spec = after_ tearDown $ do
                     ] (return ())
                     Inherit
             expectCmdStarts cardanoWalletServer
-
-            w1 <- doesFileExist dbFile
-            w2 <- doesFileExist (dbFile ++ "-shm")
-            w3 <- doesFileExist (dbFile ++ "-wal")
-            w1 `shouldBe` True
-            w2 `shouldBe` True
-            w3 `shouldBe` True
+            doesFileExist dbFile `shouldReturn` True
+            doesFileExist (dbFile ++ "-shm") `shouldReturn` True
+            doesFileExist (dbFile ++ "-wal") `shouldReturn` True
  where
      dbFile = "./test/data/test-DB-File"
      tearDown = do

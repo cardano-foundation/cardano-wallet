@@ -63,13 +63,8 @@ spec = after_ tearDown $ do
          removePathForcibly stateDir
 
      expectStateDirExists dir = do
-         d1 <- doesDirectoryExist dir
-         d2 <- doesDirectoryExist (dir ++ "/testnet")
-         w1 <- doesFileExist (dir ++ "/wallet.db")
-         w2 <- doesFileExist (dir ++ "/wallet.db-shm")
-         w3 <- doesFileExist (dir ++ "/wallet.db-wal")
-         d1 `shouldBe` True
-         d2 `shouldBe` True
-         w1 `shouldBe` True
-         w2 `shouldBe` True
-         w3 `shouldBe` True
+         doesDirectoryExist dir `shouldReturn` True
+         doesDirectoryExist (dir ++ "/testnet") `shouldReturn` True
+         doesFileExist (dir ++ "/wallet.db") `shouldReturn` True
+         doesFileExist (dir ++ "/wallet.db-shm") `shouldReturn` True
+         doesFileExist (dir ++ "/wallet.db-wal") `shouldReturn` True
