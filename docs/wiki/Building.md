@@ -73,13 +73,15 @@ new Haskell LTS version.
 To update iohk-nix, run the following command:
 
 ```
-nix-prefetch-git --quiet --url https://github.com/input-output-hk/iohk-nix | tee nix/iohk-nix-src.json
+./nix/update-iohk-nix.sh
 ```
 
-Then commit the updated JSON file.
+Then commit the updated
+[iohk-nix-src.json](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/iohk-nix-src.json)
+file.
 
 
-## Using Nix and Cabal
+## Cabal build with Nix
 
 Use the Cabal build if you want to develop with incremental builds,
 and have it automatically download all dependencies.
