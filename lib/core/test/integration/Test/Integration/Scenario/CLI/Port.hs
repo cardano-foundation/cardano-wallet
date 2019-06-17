@@ -59,13 +59,13 @@ specNegative =
     describe "PORT_04 - Fail nicely when port is out-of-bounds" $ do
         let tests =
                 [ ("serve", "--port", getPort minBound - 14)
-                , ("serve", "--port", getPort maxBound + 14)
-                , ("serve", "--bridge-port", getPort minBound - 14)
-                , ("serve", "--bridge-port", getPort maxBound + 14)
-                , ("launch", "--port", getPort minBound - 14)
-                , ("launch", "--port", getPort maxBound + 14)
-                , ("launch", "--bridge-port", getPort minBound - 14)
-                , ("launch", "--bridge-port", getPort maxBound + 14)
+                , ("serve", "--port", getPort maxBound + 42)
+                , ("serve", "--bridge-port", getPort minBound - 6)
+                , ("serve", "--bridge-port", getPort maxBound + 523)
+                , ("launch", "--port", getPort minBound - 1)
+                , ("launch", "--port", getPort maxBound + 59375)
+                , ("launch", "--bridge-port", getPort minBound - 5621)
+                , ("launch", "--bridge-port", getPort maxBound + 1)
                 ]
         forM_ tests $ \(cmd, opt, port) -> let args = [cmd, opt, show port] in
             it (unwords args) $ do
