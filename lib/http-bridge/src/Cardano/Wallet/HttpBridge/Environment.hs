@@ -2,7 +2,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE LambdaCase #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -31,15 +30,18 @@ import Prelude
 import Data.Int
     ( Int32 )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( CaseStyle (..)
+    , FromText (..)
+    , ToText (..)
+    , fromTextToBoundedEnum
+    , toTextFromBoundedEnum
+    )
 import GHC.Generics
     ( Generic )
 
-import qualified Data.Text as T
-
 -- | Available network options.
 data Network = Mainnet | Testnet
-    deriving (Generic, Show, Eq, Enum)
+    deriving (Generic, Show, Eq, Bounded, Enum)
 
 -- | Magic constant associated to a given network
 newtype ProtocolMagic = ProtocolMagic Int32
@@ -58,13 +60,7 @@ instance KnownNetwork 'Testnet where
     protocolMagic = ProtocolMagic 1097911063
 
 instance FromText Network where
-    fromText = \case
-        "mainnet" -> Right Mainnet
-        "testnet" -> Right Testnet
-        s -> Left $ TextDecodingError $ T.unpack s
-            <> " is neither \"mainnet\" nor \"testnet\"."
+    fromText = fromTextToBoundedEnum SnakeLowerCase
 
 instance ToText Network where
-    toText = \case
-        Mainnet -> "mainnet"
-        Testnet -> "testnet"
+    toText = toTextFromBoundedEnum SnakeLowerCase

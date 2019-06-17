@@ -2,7 +2,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE LambdaCase #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -32,17 +31,20 @@ import Codec.Binary.Bech32
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( CaseStyle (..)
+    , FromText (..)
+    , ToText (..)
+    , fromTextToBoundedEnum
+    , toTextFromBoundedEnum
+    )
 import Data.Word
     ( Word8 )
 import GHC.Generics
     ( Generic )
 
-import qualified Data.Text as T
-
 -- | Available network options.
 data Network = Mainnet | Testnet
-    deriving (Generic, Show, Eq, Enum)
+    deriving (Generic, Show, Eq, Bounded, Enum)
 
 -- | Embed some constants into a network type.
 class KnownNetwork (n :: Network) where
@@ -61,16 +63,10 @@ class KnownNetwork (n :: Network) where
         -- delegation key.
 
 instance FromText Network where
-    fromText = \case
-        "mainnet" -> Right Mainnet
-        "testnet" -> Right Testnet
-        s -> Left $ TextDecodingError $ T.unpack s
-            <> " is neither \"mainnet\" nor \"testnet\""
+    fromText = fromTextToBoundedEnum SnakeLowerCase
 
 instance ToText Network where
-    toText = \case
-        Mainnet -> "mainnet"
-        Testnet -> "testnet"
+    toText = toTextFromBoundedEnum SnakeLowerCase
 
 instance KnownNetwork 'Mainnet where
     networkVal = Mainnet

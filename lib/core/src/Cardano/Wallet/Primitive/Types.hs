@@ -6,7 +6,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -120,7 +119,13 @@ import Data.String
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( CaseStyle (..)
+    , FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    , fromTextToBoundedEnum
+    , toTextFromBoundedEnum
+    )
 import Data.Time
     ( UTCTime )
 import Data.Word
@@ -143,11 +148,11 @@ import GHC.TypeLits
 import Numeric.Natural
     ( Natural )
 
-import qualified Data.Char as Char
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Data.Text.Lazy.Builder as Builder
 
 {-------------------------------------------------------------------------------
                              Wallet Metadata
@@ -414,54 +419,35 @@ data TxStatus
     = Pending
     | InLedger
     | Invalidated
-    deriving (Show, Eq, Ord, Generic)
+    deriving (Show, Eq, Ord, Bounded, Enum, Generic)
 
 instance NFData TxStatus
 
 instance Buildable TxStatus where
-    build = \case
-        Pending -> "pending"
-        InLedger -> "in ledger"
-        Invalidated -> "invalidated"
+    build = Builder.fromText . toTextFromBoundedEnum SpacedLowerCase
 
 instance FromText TxStatus where
-    fromText txt = case txt of
-        "pending" -> Right Pending
-        "in_ledger" -> Right InLedger
-        "invalidated" -> Right Invalidated
-        _ ->
-            Left . TextDecodingError $ show txt
-                <> " is neither \"pending\", \"in_ledger\", nor \"invalidated\""
+    fromText = fromTextToBoundedEnum SnakeLowerCase
 
 instance ToText TxStatus where
-    toText Pending = "pending"
-    toText InLedger = "in_ledger"
-    toText Invalidated = "invalidated"
+    toText = toTextFromBoundedEnum SnakeLowerCase
 
 -- | The effect of a @Transaction@ on the wallet balance.
 data Direction
     = Outgoing -- ^ The wallet balance decreases.
     | Incoming -- ^ The wallet balance increases or stays the same.
-    deriving (Show, Eq, Ord, Generic)
+    deriving (Show, Bounded, Enum, Eq, Ord, Generic)
 
 instance NFData Direction
 
 instance Buildable Direction where
-    build = \case
-        Outgoing -> "outgoing"
-        Incoming -> "incoming"
+    build = Builder.fromText . toTextFromBoundedEnum SpacedLowerCase
 
 instance FromText Direction where
-    fromText txt = case txt of
-        "outgoing" -> Right Outgoing
-        "incoming" -> Right Incoming
-        _ ->
-            Left . TextDecodingError $ show txt
-                <> " is neither \"outgoing\", nor \"incoming\""
+    fromText = fromTextToBoundedEnum SnakeLowerCase
 
 instance ToText Direction where
-    toText Outgoing = "outgoing"
-    toText Incoming = "incoming"
+    toText = toTextFromBoundedEnum SnakeLowerCase
 
 -- | @TxWitness@ is proof that transaction inputs are allowed to be spent
 data TxWitness
@@ -560,20 +546,13 @@ class DecodeAddress t where
 -- | Denotes if an address has been previously used or not... whether that be
 -- in the output of a transaction on the blockchain or one in our pending set.
 data AddressState = Used | Unused
-    deriving (Eq, Generic, Show)
+    deriving (Bounded, Enum, Eq, Generic, Show)
 
 instance FromText AddressState where
-    fromText = \case
-        "used" ->
-            Right Used
-        "unused" ->
-            Right Unused
-        _ ->
-            Left $ TextDecodingError "Unable to decode address state: \
-            \it's neither \"used\" nor \"unused\""
+    fromText = fromTextToBoundedEnum SnakeLowerCase
 
 instance ToText AddressState where
-    toText = T.pack . (\(h:q) -> Char.toLower h : q) . show
+    toText = toTextFromBoundedEnum SnakeLowerCase
 
 {-------------------------------------------------------------------------------
                                      Coin
