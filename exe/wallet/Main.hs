@@ -415,6 +415,9 @@ execHttpBridge args _ = do
     minLogSeverity <- getOptionValue <$>
         args `parseArg` longOption "min-log-severity"
     tracer <- initTracer minLogSeverity "serve"
+    logInfo tracer $ "Wallet backend server starting. "
+        <> "Version "
+        <> T.pack (showVersion version)
     walletListen <- parseWalletListen args
     bridgePort <- args `parseArg` longOption "bridge-port"
     let dbFile = args `getArg` longOption "database"
