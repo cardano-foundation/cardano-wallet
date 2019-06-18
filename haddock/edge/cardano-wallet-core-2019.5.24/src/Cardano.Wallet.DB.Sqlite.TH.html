@@ -1,0 +1,212 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE DeriveGeneric #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE FlexibleInstances #-}</span><span>
+</span><a name="line-3"></a><span class="hs-pragma">{-# LANGUAGE GADTs #-}</span><span>
+</span><a name="line-4"></a><span class="hs-pragma">{-# LANGUAGE GeneralizedNewtypeDeriving #-}</span><span>
+</span><a name="line-5"></a><span class="hs-pragma">{-# LANGUAGE MultiParamTypeClasses #-}</span><span>
+</span><a name="line-6"></a><span class="hs-pragma">{-# LANGUAGE QuasiQuotes #-}</span><span>
+</span><a name="line-7"></a><span class="hs-pragma">{-# LANGUAGE TemplateHaskell #-}</span><span>
+</span><a name="line-8"></a><span class="hs-pragma">{-# LANGUAGE TypeFamilies #-}</span><span>
+</span><a name="line-9"></a><span>
+</span><a name="line-10"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-11"></a><span class="hs-comment">-- Copyright: &#169; 2018-2019 IOHK</span><span>
+</span><a name="line-12"></a><span class="hs-comment">-- License: MIT</span><span>
+</span><a name="line-13"></a><span class="hs-comment">--</span><span>
+</span><a name="line-14"></a><span class="hs-comment">-- Auto-generated Sqlite &amp; Persistent machinery via Template-Haskell. This has</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- been moved into a separate file so that we can treat it slightly differently</span><span>
+</span><a name="line-16"></a><span class="hs-comment">-- when computing code-coverage.</span><span>
+</span><a name="line-17"></a><span class="hs-comment">--</span><span>
+</span><a name="line-18"></a><span class="hs-comment">-- More than 6K lines end-up being generated from the instructions below! As a</span><span>
+</span><a name="line-19"></a><span class="hs-comment">-- result, we're going to ignore code-coverage on the following module and, no</span><span>
+</span><a name="line-20"></a><span class="hs-comment">-- hand-written functions should be written in this module!</span><span>
+</span><a name="line-21"></a><span>
+</span><a name="line-22"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Cardano.Wallet.DB.Sqlite.TH</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-23"></a><span>
+</span><a name="line-24"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Prelude</span><span>
+</span><a name="line-25"></a><span>
+</span><a name="line-26"></a><span class="hs-keyword">import</span><span> </span><a href="Cardano.Wallet.DB.Sqlite.Types.html"><span class="hs-identifier">Cardano.Wallet.DB.Sqlite.Types</span></a><span>
+</span><a name="line-27"></a><span>    </span><span class="hs-special">(</span><span> </span><a href="Cardano.Wallet.DB.Sqlite.Types.html#AddressPoolXPub"><span class="hs-identifier hs-type">AddressPoolXPub</span></a><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.DB.Sqlite.Types.html#BlockId"><span class="hs-identifier hs-type">BlockId</span></a><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.DB.Sqlite.Types.html#TxId"><span class="hs-identifier hs-type">TxId</span></a><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.DB.Sqlite.Types.html#sqlSettings%27"><span class="hs-identifier hs-var">sqlSettings'</span></a><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-28"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Text</span><span>
+</span><a name="line-29"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Text</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-30"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Time.Clock</span><span>
+</span><a name="line-31"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">UTCTime</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-32"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Word</span><span>
+</span><a name="line-33"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Word32</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-34"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Database.Persist.TH</span><span>
+</span><a name="line-35"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-var">mkDeleteCascade</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mkMigrate</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mkPersist</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">persistLowerCase</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">share</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-36"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.Generics</span><span>
+</span><a name="line-37"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Generic</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-38"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Numeric.Natural</span><span>
+</span><a name="line-39"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Natural</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-40"></a><span>
+</span><a name="line-41"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><a href="Cardano.Wallet.Primitive.AddressDiscovery.html"><span class="hs-identifier">Cardano.Wallet.Primitive.AddressDiscovery</span></a><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">W</span><span>
+</span><a name="line-42"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><a href="Cardano.Wallet.Primitive.Types.html"><span class="hs-identifier">Cardano.Wallet.Primitive.Types</span></a><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">W</span><span>
+</span><a name="line-43"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Data.ByteString.Char8</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">B8</span><span>
+</span><a name="line-44"></a><span>
+</span><a name="line-45"></a><span class="hs-identifier hs-var">share</span><span>
+</span><a name="line-46"></a><span>    </span><span class="hs-special">[</span><span> </span><span class="hs-identifier hs-var">mkPersist</span><span> </span><span class="hs-identifier hs-var">sqlSettings'</span><span>
+</span><a name="line-47"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mkDeleteCascade</span><span> </span><span class="hs-identifier hs-var">sqlSettings'</span><span>
+</span><a name="line-48"></a><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mkMigrate</span><span> </span><span class="hs-string">&quot;migrateAll&quot;</span><span>
+</span><a name="line-49"></a><span>    </span><span class="hs-special">]</span><span>
+</span><a name="line-50"></a><span>    </span><span class="">[persistLowerCase|
+
+-- Wallet IDs, address discovery state, and metadata.
+Wallet
+    walTableId                 W.WalletId     sql=wallet_id
+    walTableCreationTime       UTCTime        sql=creation_time
+    walTableName               Text           sql=name
+    walTablePassphraseLastUpdatedAt  UTCTime Maybe  sql=passphrase_last_updated_at
+    walTableStatus             W.WalletState  sql=status
+    walTableDelegation         Text Maybe     sql=delegation
+
+    Primary walTableId
+    deriving Show Generic
+
+-- The private key for each wallet. This is in a separate table simply so that
+-- &quot;SELECT * FROM wallet&quot; won't print keys.
+PrivateKey                                  sql=private_key
+    privateKeyTableWalletId  W.WalletId     sql=wallet_id
+    privateKeyTableRootKey   B8.ByteString  sql=root
+    privateKeyTableHash      B8.ByteString  sql=hash
+
+    Primary privateKeyTableWalletId
+    Foreign Wallet fk_wallet_private_key privateKeyTableWalletId
+
+    deriving Show Generic
+
+-- Maps a transaction ID to its metadata (which is calculated when applying
+-- blocks).
+--
+-- TxMeta is specific to a wallet because multiple wallets may have the same
+-- transaction with different metadata values. The associated inputs and outputs
+-- of the transaction are in the TxIn and TxOut tables.
+TxMeta
+    txMetaTableTxId       TxId         sql=tx_id
+    txMetaTableWalletId   W.WalletId   sql=wallet_id
+    txMetaTableStatus     W.TxStatus   sql=status
+    txMetaTableDirection  W.Direction  sql=direction
+    txMetaTableSlotId     W.SlotId     sql=slot
+    txMetaTableAmount     Natural      sql=amount
+
+    Primary txMetaTableTxId txMetaTableWalletId
+    Foreign Wallet fk_wallet_tx_meta txMetaTableWalletId
+    deriving Show Generic
+
+-- A transaction input associated with TxMeta.
+--
+-- There is no wallet ID because these values depend only on the transaction,
+-- not the wallet. txInputTableTxId is referred to by TxMeta
+TxIn
+    txInputTableTxId         TxId        sql=tx_id
+    txInputTableOrder        Int         sql=order
+    txInputTableSourceTxId   TxId        sql=source_id
+    txInputTableSourceIndex  Word32      sql=source_index
+
+    Primary txInputTableTxId txInputTableSourceTxId txInputTableSourceIndex
+    deriving Show Generic
+
+-- A transaction output associated with TxMeta.
+--
+-- There is no wallet ID because these values depend only on the transaction,
+-- not the wallet. txOutputTableTxId is referred to by TxMeta
+TxOut
+    txOutputTableTxId     TxId        sql=tx_id
+    txOutputTableIndex    Word32      sql=index
+    txOutputTableAddress  W.Address   sql=address
+    txOutputTableAmount   W.Coin      sql=amount
+
+    Primary txOutputTableTxId txOutputTableIndex
+    deriving Show Generic
+
+-- A checkpoint for a given wallet is referred to by (wallet_id, slot).
+-- Checkpoint data such as UTxO will refer to this table.
+Checkpoint
+    checkpointTableWalletId    W.WalletId  sql=wallet_id
+    checkpointTableSlot        W.SlotId    sql=slot
+    checkpointTableParent      BlockId     sql=parent
+
+    Primary checkpointTableWalletId checkpointTableSlot
+    Foreign Wallet fk_wallet_checkpoint checkpointTableWalletId
+
+    deriving Show Generic
+
+-- The UTxO for a given wallet checkpoint is a one-to-one mapping from TxIn -&gt;
+-- TxOut. This table does not need to refer to the TxIn or TxOut tables. All
+-- necessary information for the UTxO is in this table.
+UTxO                                     sql=utxo
+
+    -- The wallet checkpoint (wallet_id, slot)
+    utxoTableWalletId        W.WalletId  sql=wallet_id
+    utxoTableCheckpointSlot  W.SlotId    sql=slot
+
+    -- TxIn
+    utxoTableInputId         TxId        sql=input_tx_id
+    utxoTableInputIndex      Word32      sql=input_index
+
+    -- TxOut
+    utxoTableOutputAddress   W.Address   sql=output_address
+    utxoTableOutputCoin      W.Coin      sql=output_coin
+
+    Primary
+        utxoTableWalletId
+        utxoTableCheckpointSlot
+        utxoTableInputId
+        utxoTableInputIndex
+        utxoTableOutputAddress
+        utxoTableOutputCoin
+
+    Foreign Checkpoint fk_checkpoint_utxo utxoTableWalletId utxoTableCheckpointSlot
+    deriving Show Generic
+
+-- State for sequential scheme address discovery
+SeqState
+
+    -- The wallet checkpoint (wallet_id, slot)
+    seqStateTableWalletId        W.WalletId  sql=wallet_id
+    seqStateTableCheckpointSlot  W.SlotId    sql=slot
+
+    UniqueSeqState seqStateTableWalletId seqStateTableCheckpointSlot
+    Foreign Checkpoint fk_checkpoint_seq_state seqStateTableWalletId seqStateTableCheckpointSlot
+    deriving Show Generic
+
+-- Address pool attributes.
+AddressPool
+    addressPoolAccountPubKey        AddressPoolXPub
+    addressPoolGap                  W.AddressPoolGap
+
+    deriving Show Generic
+
+-- Mapping of pool addresses to indices.
+AddressPoolIndex
+    indexAddressPool   AddressPoolId
+    indexAddress       W.Address
+    indexNumber        Word32
+
+    deriving Show Generic
+
+-- Sequential address discovery scheme -- internal address pool
+-- associated with state record.
+SeqStateInternalPool
+    seqStateInternalPoolSeqStateId   SeqStateId
+    seqStateInternalPoolAddressPool  AddressPoolId
+    UniqueSeqStateInternalPool seqStateInternalPoolSeqStateId seqStateInternalPoolAddressPool
+    Primary seqStateInternalPoolSeqStateId
+    deriving Show Generic
+
+-- Sequential address discovery scheme -- external address pool
+-- associated with state record.
+SeqStateExternalPool
+    seqStateExternalPoolSeqStateId   SeqStateId
+    seqStateExternalPoolAddressPool  AddressPoolId
+    UniqueSeqStateExternalPool seqStateExternalPoolSeqStateId seqStateExternalPoolAddressPool
+    Primary seqStateExternalPoolSeqStateId
+    deriving Show Generic
+
+-- Sequential address discovery scheme -- pending change indexes
+SeqStatePendingIx
+    seqStatePendingIxSeqStateId     SeqStateId
+    seqStatePendingIxIndex          Word32
+
+    Primary seqStatePendingIxSeqStateId seqStatePendingIxIndex
+    deriving Show Generic
+|]</span><span>
+</span><a name="line-212"></a></pre></body></html>
