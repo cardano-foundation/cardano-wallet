@@ -15,6 +15,7 @@ module Cardano.CLI
 -- | Port number with a tag for describing what it is used for
 newtype Port (tag :: Symbol)
 Port :: Int -> Port
+[getPort] :: Port -> Int
 
 -- | Override the system output encoding setting. This is needed because
 --   the CLI prints UTF-8 characters regardless of the <tt>LANG</tt>
@@ -55,10 +56,13 @@ instance GHC.Generics.Generic (Cardano.CLI.OptionValue a)
 instance GHC.Classes.Ord a => GHC.Classes.Ord (Cardano.CLI.OptionValue a)
 instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.CLI.OptionValue a)
 instance GHC.Enum.Enum a => GHC.Enum.Enum (Cardano.CLI.OptionValue a)
+instance GHC.Classes.Ord (Cardano.CLI.Port tag)
+instance GHC.Enum.Enum (Cardano.CLI.Port tag)
 instance GHC.Generics.Generic (Cardano.CLI.Port tag)
 instance GHC.Show.Show (Cardano.CLI.Port tag)
 instance GHC.Classes.Eq (Cardano.CLI.Port tag)
 instance Data.Text.Class.FromText (Cardano.CLI.OptionValue Cardano.BM.Data.Severity.Severity)
 instance Data.Text.Class.ToText (Cardano.CLI.OptionValue Cardano.BM.Data.Severity.Severity)
+instance GHC.Enum.Bounded (Cardano.CLI.Port tag)
 instance Data.Text.Class.FromText (Cardano.CLI.Port tag)
 instance Data.Text.Class.ToText (Cardano.CLI.Port tag)
