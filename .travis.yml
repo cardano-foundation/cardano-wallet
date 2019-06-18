@@ -80,50 +80,50 @@ jobs:
   # needless time.
   #
   ################################################################################
-  #  - stage: build project 🔨
-  #    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
-  #    name: "Compiling Project"
-  #    script:
-  #    - stack clean
-  #    - stack --no-terminal build --fast --test --no-run-tests --bench --no-run-benchmarks --haddock --no-haddock-deps
-  #    - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
-  #
-  #  - stage: checks 🔬
-  #    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
-  #    name: "Code Style"
-  #    script:
-  #    - travis_retry curl -sSL https://raw.github.com/jaspervdj/stylish-haskell/master/scripts/latest.sh | sh -s $(find . -type f -name "*.hs" ! -path "*.stack-work*") -i
-  #    - git diff --exit-code
-  #    - travis_retry curl -sSL https://raw.github.com/ndmitchell/hlint/master/misc/run.sh | sh -s .
-  #    - travis_retry curl -sSL https://raw.github.com/ndmitchell/weeder/master/misc/travis.sh | sh -s .
-  #    # Somehow, we can't install open-spec-validator using `pip` directly in the travis VM.
-  #    # I've tried several things, including removing some existing conflicting packages, upgrading
-  #    # pip and using some more permissive options. In the end, I gave up and went for a container.
-  #    - cd specifications/api
-  #    - "echo -n 'FROM python:3.7-alpine\nRUN pip install openapi-spec-validator\nENTRYPOINT [\"openapi-spec-validator\"]' > Dockerfile"
-  #    - docker build -t openapi-spec-validator .
-  #    - docker run -v $PWD:/files openapi-spec-validator --schema 2.0 /files/swagger.yaml
-  #    - cd -
-  #
-  #  - stage: checks 🔬
-  #    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
-  #    name: "Tests: unit"
-  #    script:
-  #      - stack --no-terminal test --fast cardano-wallet-core cardano-wallet-launcher cardano-wallet-cli text-class bech32 cardano-wallet-http-bridge:unit cardano-wallet-jormungandr:unit
-  #
-  #  - stage: checks 🔬
-  #    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
-  #    name: "Tests: integration (http-bridge)"
-  #    script:
-  #    - travis_retry curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-http-bridge/hermes-testnet.tar.gz
-  #    - tar xzf hermes-testnet.tar.gz -C $HOME
-  #    - stack --no-terminal test --fast cardano-wallet-http-bridge:integration
-  #
-  #  - stage: checks 🔬
-  #    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
-  #    name: "Tests: integration (jormungandr)"
-  #    script:
-  #      - stack --no-terminal test --fast cardano-wallet-jormungandr:integration
+  - stage: build project 🔨
+    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
+    name: "Compiling Project"
+    script:
+    - stack clean
+    - stack --no-terminal build --fast --test --no-run-tests --bench --no-run-benchmarks --haddock --no-haddock-deps
+    - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
+
+  - stage: checks 🔬
+    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
+    name: "Code Style"
+    script:
+    - travis_retry curl -sSL https://raw.github.com/jaspervdj/stylish-haskell/master/scripts/latest.sh | sh -s $(find . -type f -name "*.hs" ! -path "*.stack-work*") -i
+    - git diff --exit-code
+    - travis_retry curl -sSL https://raw.github.com/ndmitchell/hlint/master/misc/run.sh | sh -s .
+    - travis_retry curl -sSL https://raw.github.com/ndmitchell/weeder/master/misc/travis.sh | sh -s .
+    # Somehow, we can't install open-spec-validator using `pip` directly in the travis VM.
+    # I've tried several things, including removing some existing conflicting packages, upgrading
+    # pip and using some more permissive options. In the end, I gave up and went for a container.
+    - cd specifications/api
+    - "echo -n 'FROM python:3.7-alpine\nRUN pip install openapi-spec-validator\nENTRYPOINT [\"openapi-spec-validator\"]' > Dockerfile"
+    - docker build -t openapi-spec-validator .
+    - docker run -v $PWD:/files openapi-spec-validator --schema 2.0 /files/swagger.yaml
+    - cd -
+
+  - stage: checks 🔬
+    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
+    name: "Tests: unit"
+    script:
+      - stack --no-terminal test --fast cardano-wallet-core cardano-wallet-launcher cardano-wallet-cli text-class bech32 cardano-wallet-http-bridge:unit cardano-wallet-jormungandr:unit
+
+  - stage: checks 🔬
+    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
+    name: "Tests: integration (http-bridge)"
+    script:
+    - travis_retry curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-http-bridge/hermes-testnet.tar.gz
+    - tar xzf hermes-testnet.tar.gz -C $HOME
+    - stack --no-terminal test --fast cardano-wallet-http-bridge:integration
+
+  - stage: checks 🔬
+    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
+    name: "Tests: integration (jormungandr)"
+    script:
+      - stack --no-terminal test --fast cardano-wallet-jormungandr:integration
 
   ################################################################################
   #
@@ -154,96 +154,96 @@ jobs:
     - stack --no-terminal build --fast --test --no-run-tests --bench --no-run-benchmarks --haddock --no-haddock-deps --coverage
     - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
 
-      #   - stage: checks 🔬
-      #     if: (type != pull_request AND branch = master) OR (tag =~ ^v)
-      #     name: "Code Style"
-      #     script:
-      #     - travis_retry curl -sSL https://raw.github.com/jaspervdj/stylish-haskell/master/scripts/latest.sh | sh -s $(find . -type f -name "*.hs" ! -path "*.stack-work*") -i
-      #     - git diff --exit-code # Exit if Stylish-Haskell yields any diff
-      #     - travis_retry curl -sSL https://raw.github.com/ndmitchell/hlint/master/misc/run.sh | sh -s .
-      #     - travis_retry curl -sSL https://raw.github.com/ndmitchell/weeder/master/misc/travis.sh | sh -s .
-      #     # Somehow, we can't install open-spec-validator using `pip` directly in the travis VM.
-      #     # I've tried several things, including removing some existing conflicting packages, upgrading
-      #     # pip and using some more permissive options. In the end, I gave up and went for a container.
-      #     - cd specifications/api
-      #     - "echo -n 'FROM python:3.7-alpine\nRUN pip install openapi-spec-validator\nENTRYPOINT [\"openapi-spec-validator\"]' > Dockerfile"
-      #     - docker build -t openapi-spec-validator .
-      #     - docker run -v $PWD:/files openapi-spec-validator --schema 2.0 /files/swagger.yaml
-      #     - cd -
-      #
-      #   - stage: checks 🔬
-      #     if: (type != pull_request AND branch = master) OR (tag =~ ^v)
-      #     name: "Tests"
-      #     script:
-      #     - travis_retry curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-http-bridge/hermes-testnet.tar.gz
-      #     - tar xzf hermes-testnet.tar.gz -C $HOME
-      #     - stack --no-terminal test --coverage
-      #     - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work lib/**/*.tix
-      #
-      #   - stage: deploy 🚀
-      #     if: (type != pull_request AND branch = master) OR (tag =~ ^v)
-      #     name: "Haddock"
-      #     script:
-      #     - mkdir -p haddock/edge api/edge
-      #     - cp -Rv specifications/api/* api/edge
-      #     - mv $(stack path --local-doc-root)/* haddock/edge
-      #     - git checkout --orphan gh-pages-deploy && git reset
-      #     - git add api haddock && git commit -m $TRAVIS_COMMIT
-      #     - git checkout gh-pages && git merge -X theirs --no-commit --no-ff --allow-unrelated-histories - && git commit --allow-empty --no-edit
-      #     - git push -f -q https://WilliamKingNoel-Bot:$GITHUB_ACCESS_TOKEN@github.com/input-output-hk/cardano-wallet gh-pages &>/dev/null
-      #
-      #   - stage: deploy 🚀
-      #     if: (type != pull_request AND branch = master) OR (tag =~ ^v)
-      #     name: "Coveralls"
-      #     script:
-      #     - export LTS=$(cat stack.yaml | grep resolver) # Extract the LTS from the stack.yaml
-      #     - git clone https://github.com/rubik/stack-hpc-coveralls && cd stack-hpc-coveralls && git checkout 3d8352d5642ab214a7a574bd797880ae39595a44 && echo $LTS > stack.yaml
-      #     - stack --no-terminal install && cd -
-      #     - stack --no-terminal install hpc
-      #     # Ignore modules that are full of Template Haskell auto-generated code
-      #     - cd lib/core
-      #     - find $LOCAL_MIX_DIR -type f -name "Cardano.Wallet.DB.Sqlite.TH.mix" > overlay.hpc
-      #     - 'sed -i "s/.*hpc\/\(.*\).mix/module \"\1\" {}/" overlay.hpc'
-      #     - stack exec -- hpc overlay --hpcdir $LOCAL_MIX_DIR overlay.hpc > Cardano.Wallet.DB.Sqlite.TH.tix
-      #     - 'sed -i "s/0,/1,/g" Cardano.Wallet.DB.Sqlite.TH.tix'
-      #     - cd -
-      #     # Re-build the coverage report taking .tix from executables running outside of the test suites
-      #     - stack hpc report --all lib/**/*.tix
-      #     - shc combined custom
-      #
-      #   ################################################################################
-      #   #
-      #   # Deployment
-      #   #
-      #   # Only when a tag is present, we do install and deploy the software.
-      #   ################################################################################
-      #   - stage: deploy 🚀
-      #     if: tag =~ ^v
-      #     name: "Executables"
-      #     script:
-      #     # Create binaries and checksums
-      #     - stack --no-terminal install
-      #     - sha256sum $WALLET_CLI | head -c 64 > $WALLET_CLI_CHECKSUM
-      #     - ls $WALLET_CLI
-      #     - ls $WALLET_CLI_CHECKSUM
-      #
-      #     # Deploy documentation snapshot
-      #     - mkdir -p haddock/$TRAVIS_TAG api/$TRAVIS_TAG
-      #     - cp -Rv specifications/api/* api/$TRAVIS_TAG
-      #     - mv $(stack path --local-doc-root)/* haddock/$TRAVIS_TAG
-      #     - git checkout --orphan gh-pages-deploy && git reset
-      #     - git add api haddock && git commit -m $TRAVIS_COMMIT
-      #     - git checkout gh-pages && git merge -X theirs --no-commit --no-ff --allow-unrelated-histories - && git commit --allow-empty --no-edit
-      #     - git push -f -q https://WilliamKingNoel-Bot:$GITHUB_ACCESS_TOKEN@github.com/input-output-hk/cardano-wallet gh-pages &>/dev/null
-      #     deploy:
-      #       provider: releases
-      #       api_key: $GITHUB_ACCESS_TOKEN
-      #       draft: true # Allow editing the release before publishing it officially on GitHub
-      #       skip_cleanup: true # Make sure that files from the previous stages aren't cleaned up
-      #       file:
-      #         - $WALLET_CLI
-      #         - $WALLET_CLI_CHECKSUM
-      #       on:
-      #         repo: input-output-hk/cardano-wallet
-      #         branch: master
-      #         tags: true # Only release when a tag is pushed
+  - stage: checks 🔬
+    if: (type != pull_request AND branch = master) OR (tag =~ ^v)
+    name: "Code Style"
+    script:
+    - travis_retry curl -sSL https://raw.github.com/jaspervdj/stylish-haskell/master/scripts/latest.sh | sh -s $(find . -type f -name "*.hs" ! -path "*.stack-work*") -i
+    - git diff --exit-code # Exit if Stylish-Haskell yields any diff
+    - travis_retry curl -sSL https://raw.github.com/ndmitchell/hlint/master/misc/run.sh | sh -s .
+    - travis_retry curl -sSL https://raw.github.com/ndmitchell/weeder/master/misc/travis.sh | sh -s .
+    # Somehow, we can't install open-spec-validator using `pip` directly in the travis VM.
+    # I've tried several things, including removing some existing conflicting packages, upgrading
+    # pip and using some more permissive options. In the end, I gave up and went for a container.
+    - cd specifications/api
+    - "echo -n 'FROM python:3.7-alpine\nRUN pip install openapi-spec-validator\nENTRYPOINT [\"openapi-spec-validator\"]' > Dockerfile"
+    - docker build -t openapi-spec-validator .
+    - docker run -v $PWD:/files openapi-spec-validator --schema 2.0 /files/swagger.yaml
+    - cd -
+
+  - stage: checks 🔬
+    if: (type != pull_request AND branch = master) OR (tag =~ ^v)
+    name: "Tests"
+    script:
+    - travis_retry curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-http-bridge/hermes-testnet.tar.gz
+    - tar xzf hermes-testnet.tar.gz -C $HOME
+    - stack --no-terminal test --coverage
+    - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work lib/**/*.tix
+
+  - stage: deploy 🚀
+    if: (type != pull_request AND branch = master) OR (tag =~ ^v)
+    name: "Haddock"
+    script:
+    - mkdir -p haddock/edge api/edge
+    - cp -Rv specifications/api/* api/edge
+    - mv $(stack path --local-doc-root)/* haddock/edge
+    - git checkout --orphan gh-pages-deploy && git reset
+    - git add api haddock && git commit -m $TRAVIS_COMMIT
+    - git checkout gh-pages && git merge -X theirs --no-commit --no-ff --allow-unrelated-histories - && git commit --allow-empty --no-edit
+    - git push -f -q https://WilliamKingNoel-Bot:$GITHUB_ACCESS_TOKEN@github.com/input-output-hk/cardano-wallet gh-pages &>/dev/null
+
+  - stage: deploy 🚀
+    if: (type != pull_request AND branch = master) OR (tag =~ ^v)
+    name: "Coveralls"
+    script:
+    - export LTS=$(cat stack.yaml | grep resolver) # Extract the LTS from the stack.yaml
+    - git clone https://github.com/rubik/stack-hpc-coveralls && cd stack-hpc-coveralls && git checkout 3d8352d5642ab214a7a574bd797880ae39595a44 && echo $LTS > stack.yaml
+    - stack --no-terminal install && cd -
+    - stack --no-terminal install hpc
+    # Ignore modules that are full of Template Haskell auto-generated code
+    - cd lib/core
+    - find $LOCAL_MIX_DIR -type f -name "Cardano.Wallet.DB.Sqlite.TH.mix" > overlay.hpc
+    - 'sed -i "s/.*hpc\/\(.*\).mix/module \"\1\" {}/" overlay.hpc'
+    - stack exec -- hpc overlay --hpcdir $LOCAL_MIX_DIR overlay.hpc > Cardano.Wallet.DB.Sqlite.TH.tix
+    - 'sed -i "s/0,/1,/g" Cardano.Wallet.DB.Sqlite.TH.tix'
+    - cd -
+    # Re-build the coverage report taking .tix from executables running outside of the test suites
+    - stack hpc report --all lib/**/*.tix
+    - shc combined custom
+
+  ################################################################################
+  #
+  # Deployment
+  #
+  # Only when a tag is present, we do install and deploy the software.
+  ################################################################################
+  - stage: deploy 🚀
+    if: tag =~ ^v
+    name: "Executables"
+    script:
+    # Create binaries and checksums
+    - stack --no-terminal install
+    - sha256sum $WALLET_CLI | head -c 64 > $WALLET_CLI_CHECKSUM
+    - ls $WALLET_CLI
+    - ls $WALLET_CLI_CHECKSUM
+
+    # Deploy documentation snapshot
+    - mkdir -p haddock/$TRAVIS_TAG api/$TRAVIS_TAG
+    - cp -Rv specifications/api/* api/$TRAVIS_TAG
+    - mv $(stack path --local-doc-root)/* haddock/$TRAVIS_TAG
+    - git checkout --orphan gh-pages-deploy && git reset
+    - git add api haddock && git commit -m $TRAVIS_COMMIT
+    - git checkout gh-pages && git merge -X theirs --no-commit --no-ff --allow-unrelated-histories - && git commit --allow-empty --no-edit
+    - git push -f -q https://WilliamKingNoel-Bot:$GITHUB_ACCESS_TOKEN@github.com/input-output-hk/cardano-wallet gh-pages &>/dev/null
+    deploy:
+      provider: releases
+      api_key: $GITHUB_ACCESS_TOKEN
+      draft: true # Allow editing the release before publishing it officially on GitHub
+      skip_cleanup: true # Make sure that files from the previous stages aren't cleaned up
+      file:
+        - $WALLET_CLI
+        - $WALLET_CLI_CHECKSUM
+      on:
+        repo: input-output-hk/cardano-wallet
+        branch: master
+        tags: true # Only release when a tag is pushed
