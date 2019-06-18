@@ -8,18 +8,27 @@
 {-# OPTIONS_GHC -fno-warn-deprecations #-}
 
 module Network.Wai.Middleware.Logging
-    ( ApiLoggerSettings (..)
-    , withApiLogger
+    ( -- * Middleware
+      withApiLogger
+
+      -- * Settings
+    , newApiLoggerSettings
+    , ApiLoggerSettings
+    , obfuscateKeys
     ) where
 
 import Prelude
 
+import Cardano.BM.Data.LogItem
+    ( LoggerName )
 import Cardano.BM.Trace
-    ( Trace, logDebug, logInfo )
+    ( Trace, logDebug, logInfo, modifyName )
 import Control.Applicative
     ( (<|>) )
 import Control.Arrow
     ( second )
+import Control.Concurrent.MVar
+    ( MVar, modifyMVar, newMVar )
 import Data.Aeson
     ( Value (..) )
 import Data.ByteString
@@ -49,13 +58,6 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
--- | API logger settings
-newtype ApiLoggerSettings = ApiLoggerSettings
-    { obfuscateKeys :: Request -> [Text]
-        -- ^ For a given request, obfuscate the values associated with the
-        -- given keys from a JSON object payload.
-    }
-
 -- | Installs a request & response logger on a Wai application.
 --
 -- The logger logs requests' and responses' bodies along with a few other
@@ -64,35 +66,50 @@ withApiLogger
     :: Trace IO Text
     -> ApiLoggerSettings
     -> Middleware
-withApiLogger t settings app req0 sendResponse = do
-    (req, reqBody) <- getRequestBody req0
-    logRequest req reqBody
+withApiLogger t0 settings app req0 sendResponse = do
     start <- getCurrentTime
+    (req, reqBody) <- getRequestBody req0
+    t <- nextRequestId settings >>= \rid -> modifyName (withRequestId rid) t0
+    logRequest t req reqBody
     app req $ \res -> do
         builderIO <- newIORef (Nothing, mempty)
         rcvd <- recordChunks builderIO res >>= sendResponse
         time <- flip diffUTCTime start <$> getCurrentTime
         readIORef builderIO >>=
-            uncurry (logResponse time) . second (BL.toStrict . B.toLazyByteString)
+            let fromBuilder = second (BL.toStrict . B.toLazyByteString)
+            in uncurry (logResponse t time) . fromBuilder
         return rcvd
   where
-    logRequest :: Request -> ByteString -> IO ()
-    logRequest req body = do
+    logRequest
+        :: Trace IO Text
+        -> Request
+        -> ByteString
+        -> IO ()
+    logRequest t req body = do
         let method = T.decodeUtf8 $ requestMethod req
         let path = T.decodeUtf8 $ rawPathInfo req
         let query = T.decodeUtf8 $ rawQueryString req
-        let keys = obfuscateKeys settings req
+        let keys = _obfuscateKeys settings req
         let safeBody = T.decodeUtf8 $ sanitize keys body
         logInfo t $ mconcat [ "[", method, "] ", path, query ]
         logDebug t safeBody
 
-    logResponse :: NominalDiffTime -> Maybe Status -> ByteString -> IO ()
-    logResponse time status body = do
+    logResponse
+        :: Trace IO Text
+        -> NominalDiffTime
+        -> Maybe Status
+        -> ByteString
+        -> IO ()
+    logResponse t time status body = do
         let code = maybe "???" (toText . statusCode) status
         let text = maybe "Status Unknown" (T.decodeUtf8 . statusMessage) status
         let tsec = T.pack $ show time
-        logInfo t $ mconcat [ code, " ", text, " in ", tsec ]
+        logInfo  t $ mconcat [ code, " ", text, " in ", tsec ]
         logDebug t $ T.decodeUtf8 body
+
+    withRequestId :: RequestId -> LoggerName -> LoggerName
+    withRequestId (RequestId rid) name = mconcat
+        [ name, "request-", T.pack $ show rid ]
 
     -- | Removes sensitive details from valid request payloads and completely
     -- obfuscate invalid payloads.
@@ -108,6 +125,39 @@ withApiLogger t settings app req0 sendResponse = do
         encode' = BL.toStrict . Aeson.encode
         decode' = Aeson.decode . BL.fromStrict
         obfuscate _ = String "*****"
+
+-- | API logger settings
+data ApiLoggerSettings = ApiLoggerSettings
+    { _obfuscateKeys :: Request -> [Text]
+        -- ^ For a given 'Request', obfuscate the values associated with the
+        -- given keys from a JSON object payload.
+
+    , _requestCounter :: MVar Integer
+        -- ^ A function to get a unique identifier from a 'Request'
+    }
+
+-- | Just a wrapper for readability
+newtype RequestId = RequestId Integer
+
+-- | Create a new opaque 'ApiLoggerSettings'
+newApiLoggerSettings :: IO ApiLoggerSettings
+newApiLoggerSettings = do
+    counter <- newMVar 0
+    return ApiLoggerSettings
+        { _obfuscateKeys = const []
+        , _requestCounter = counter
+        }
+
+-- | Define a set of top-level object keys that should be obfuscated for a given
+-- request in a JSON format.
+obfuscateKeys :: (Request -> [Text]) -> ApiLoggerSettings -> ApiLoggerSettings
+obfuscateKeys getKeys x =
+    x { _obfuscateKeys = getKeys }
+
+-- | Get the next request id, incrementing the request counter.
+nextRequestId :: ApiLoggerSettings -> IO RequestId
+nextRequestId settings =
+    modifyMVar (_requestCounter settings) (\n -> pure (n+1, RequestId n))
 
 {-------------------------------------------------------------------------------
                                   Internals
