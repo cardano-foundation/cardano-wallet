@@ -8,7 +8,7 @@
 
 module Cardano.Wallet.Jormungandr.CompatibilitySpec
     ( spec
-    ) where
+    )where
 
 import Prelude
 
@@ -22,9 +22,19 @@ import Cardano.Wallet.Jormungandr.Compatibility
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), DecodeAddress (..), EncodeAddress (..), ShowFmt (..) )
+    ( Address (..)
+    , Coin (..)
+    , DecodeAddress (..)
+    , EncodeAddress (..)
+    , Hash (..)
+    , ShowFmt (..)
+    , Tx (..)
+    , TxIn (..)
+    , TxOut (..)
+    , txId
+    )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase )
+    ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.Proxy
@@ -52,7 +62,38 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
 
 spec :: Spec
-spec = describe "EncodeAddress & DecodeAddress" $ do
+spec = do
+    txIdSpec
+    addrSpec
+
+txIdSpec :: Spec
+txIdSpec = do
+    describe "txId @(Jormungandr n)" $ do
+        it "(txId largeTx) should match golden" $ do
+            toHex . getHash .txId @(Jormungandr 'Mainnet) $ largeTx
+            `shouldBe`
+            "872c2b8596956591554698e3877ac778e5fce0ea420f4b572d5a4cebc2a1c784"
+
+        it "(txId oneInOneOutTx) should match golden" $ do
+            toHex . getHash .txId @(Jormungandr 'Mainnet) $ oneInOneOutTx
+            `shouldBe`
+            "3f0b51696fc0d86f9d9949d53185bb3da0f7fa0e0440287061dcb121a0205e98"
+  where
+    toHex = convertToBase @ByteString @ByteString Base16
+    fromHex = either (error . show) id .
+        convertFromBase @ByteString @ByteString Base16
+
+    largeTx :: Tx
+    largeTx = Tx {inputs = [], outputs = [TxOut {address = Address {unAddress = "\131\&3$\195xi\193\"h\154\&5\145}\245:O\"\148\163\165/h^\ENQ\245\248\229;\135\231\234E/"}, coin = Coin {getCoin = 14}},TxOut {address = Address {unAddress = "\131\ENQK\186?\203{_$\145\134\ESCn+\139\240\163\249%|\223/\223A\202Z\247\a.w\199\SI:"}, coin = Coin {getCoin = 100000000000}},TxOut {address = Address {unAddress = "\131\147\147\196i\217\199\156^\"~z\242\228\"\136*\142.\188!l\221o\158T\224`\242\&1[\196\DC4"}, coin = Coin {getCoin = 100000000000}},TxOut {address = Address {unAddress = "\131\206\155\217\224f}\246\230\174y^\139\ACK\177\154\152=!\157\184\192&\v\175\204\239\215\RS\204\254\195\219"}, coin = Coin {getCoin = 100000000000}},TxOut {address = Address {unAddress = "\131\STX\NUL^\t\129\243\223Q={0\155\193\&0\250_Z|\167\244I\ETX\166]\189\165\188\147u\131\218="}, coin = Coin {getCoin = 100000000000}},TxOut {address = Address {unAddress = "\131\140\164,\SI\STX\170\195\SOH\145\ENQ\206\164\172\186n\194G\228\133\147\251\ENQX3%(\230 ~\209\188%"}, coin = Coin {getCoin = 100000000000}},TxOut {address = Address {unAddress = "\131\175\217\146d[\t\133\238>\174s[\168W\193\177\141W\173\246B\255\177r\145\137\191[Q\230\176\187"}, coin = Coin {getCoin = 100000000000}},TxOut {address = Address {unAddress = "\131\FS|T#\209X\a\236>\143S\DC1\169Ok/\181y\176g\182\212\DEL\167p\v\ETX\SOH\195c\t\160"}, coin = Coin {getCoin = 100000000000}},TxOut {address = Address {unAddress = "\131#c\211\176a\143T\204 \168\&3y\193fGM\209\DC2\FSgM\250\131I~1\236\197\SUB\148V\209"}, coin = Coin {getCoin = 100000000000}},TxOut {address = Address {unAddress = "\131\252\229\169j*u.n\159\184\CAN\214\203C2><\a&\191\140\202\150M\176\255\175\DLEFxZ!"}, coin = Coin {getCoin = 100000000000}},TxOut {address = Address {unAddress = "\131=K\138f\DC3\188x\154\144\173\DEL\241T\166\161\141Y\195\176\156\134\237;\146\173\232\250\&2\215\ACK@\254"}, coin = Coin {getCoin = 100000000000}}]}
+
+    oneInOneOutTx :: Tx
+    oneInOneOutTx = Tx
+        [TxIn (Hash $ fromHex "773955f8211e6b9d4ea723c7cc3ad2be12718a769d786b5077b03187bb0ceaa7") 2 ]
+        [TxOut (Address "\ETX\ENQK\186?\203{_$\145\134\ESCn+\139\240\163\249%|\223/\223A\202Z\247\a.w\199\SI:") (Coin 14000000)]
+
+
+addrSpec :: Spec
+addrSpec = describe "EncodeAddress & DecodeAddress" $ do
     describe "Mainnet" $ do
         let proxy = Proxy @(Jormungandr 'Mainnet)
         let firstByteS = B8.unpack (BS.pack [single @'Mainnet])

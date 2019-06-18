@@ -23,7 +23,12 @@ module Cardano.Wallet.Jormungandr.Compatibility
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
-    ( decodeLegacyAddress, singleAddressFromKey )
+    ( Put
+    , decodeLegacyAddress
+    , putTokenTransfer
+    , runPut
+    , singleAddressFromKey
+    )
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -41,6 +46,10 @@ import Codec.Binary.Bech32
     ( HumanReadablePart, dataPartFromBytes, dataPartToBytes )
 import Control.Monad
     ( when )
+import Crypto.Hash
+    ( hash )
+import Crypto.Hash.Algorithms
+    ( Blake2b_256 )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
@@ -53,8 +62,10 @@ import Data.Text.Class
     ( TextDecodingError (..) )
 
 import qualified Codec.Binary.Bech32 as Bech32
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text.Encoding as T
 
 -- | A type representing the Jormungandr as a network target. This has an
@@ -68,8 +79,17 @@ genesis = BlockHeader
     , prevBlockHash = Hash (BS.replicate 32 0)
     }
 
+-- | Hash a transaction.
+--
+-- The corresponding rust implementation is:
+-- https://github.com/input-output-hk/rust-cardano/blob/e5d974f7bedeb00c9c9d688ac66094a34bf8f40d/chain-impl-mockchain/src/transaction/transaction.rs#L115-L119
 instance TxId (Jormungandr n) where
-    txId = undefined
+    txId = blake2b256 . putTokenTransfer
+      where
+        blake2b256 :: forall tag. Put -> Hash tag
+        blake2b256 =
+            Hash . BA.convert . hash @_ @Blake2b_256 . BL.toStrict . runPut
+
 
 instance forall n. KnownNetwork n => KeyToAddress (Jormungandr n) where
     keyToAddress key = singleAddressFromKey (Proxy @n) (getKey key)
