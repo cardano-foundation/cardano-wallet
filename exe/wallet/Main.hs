@@ -38,7 +38,8 @@ import Cardano.BM.Setup
 import Cardano.BM.Trace
     ( Trace, appendName, logAlert, logInfo )
 import Cardano.CLI
-    ( Port (..)
+    ( OptionValue (..)
+    , Port (..)
     , getLine
     , getOptionValue
     , getSensitiveLine
@@ -257,7 +258,7 @@ exec execServe manager args
         minLogSeverity <- getOptionValue <$>
             args `parseArg` longOption "min-log-severity"
         tracer <- initTracer minLogSeverity "launch"
-        execLaunch tracer network stateDir bridgePort listen
+        execLaunch tracer network stateDir bridgePort listen minLogSeverity
 
     | args `isPresent` command "generate" &&
       args `isPresent` command "mnemonic" = do
@@ -460,8 +461,9 @@ execLaunch
     -> Maybe FilePath
     -> Port "Node"
     -> Listen
+    -> Severity
     -> IO ()
-execLaunch tracer network stateDir bridgePort listen = do
+execLaunch tracer network stateDir bridgePort listen minLogSeverity = do
     installSignalHandlers
     maybe (pure ()) (setupStateDir tracer) stateDir
     let commands = [ httpBridgeCmd, walletCmd ]
@@ -496,6 +498,7 @@ execLaunch tracer network stateDir bridgePort listen = do
                 ListenOnPort port  -> ["--port", showT port]
             , [ "--bridge-port", showT bridgePort ]
             , maybe [] (\d -> ["--database", d </> "wallet.db"]) stateDir
+            , [ "--min-log-severity", showT $ OptionValue minLogSeverity ]
             ]
 
 {-------------------------------------------------------------------------------
