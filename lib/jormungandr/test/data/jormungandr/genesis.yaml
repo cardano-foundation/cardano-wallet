@@ -66,30 +66,34 @@ blockchain_configuration:
 
 # The initial deposits present in the blockchain.
 #
-# It can be UTxO addresses or account (if allow_account_creation is set).
+# The last 10 addresses come from 10 different wallets.
+# For the integration test's faucets to be of similar shape
+# with the one used with the http-bridge,
+# we need each wallet to have 10 UTxO available, hence the value for each
+# wallet is 10x bigger than what is ascribed to each UTxO.
 initial_funds:
   - address: ta1svejfsmcd8qjy6y6xkghmaf6fu3ffga99a59up04lrjnhpl8afzj7w4yyxw
     value: 14
   - address: ta1svz5hw3leda47fy3scdku2ut7z3ljftumuha7sw2ttmswtnhcu8n5nm0ynp
-    value: 100000000000
+    value: 1000000000000
   - address: ta1swfe83rfm8rech3z0ea09epz3q4gut4uy9kd6mu72nsxpu33t0zpg795k3y
-    value: 100000000000
+    value: 1000000000000
   - address: ta1s08fhk0qve7lde4w090gkp43n2vr6gvahrqzvza0enhaw8kvlmpakd7swne
-    value: 100000000000
+    value: 1000000000000
   - address: ta1svpqqhsfs8ea75fa0vcfhsfslf045l9873ys8fjahkjmeym4s0dr69g8lec
-    value: 100000000000
+    value: 1000000000000
   - address: ta1swx2gtq0q24vxqv3qh82ft96dmpy0ey9j0as2kpny55wvgr76x7z2u8kvzf
-    value: 100000000000
+    value: 1000000000000
   - address: ta1swhanynytvyctm374ee4h2zhcxcc64ad7ep0lvtjjxym7k63u6ctkfjeg2n
-    value: 100000000000
+    value: 1000000000000
   - address: ta1svw8c4pr69vq0mp73af3r220dvhm27dsv7mdgla8wq9sxqwrvvy6qhpq5c8
-    value: 100000000000
+    value: 1000000000000
   - address: ta1sv3k85asvx84fnpq4qehnstxgaxazysuvaxl4q6f0cc7e3g6j3tdzp2vjac
-    value: 100000000000
+    value: 1000000000000
   - address: ta1s07wt2t29f6jum5lhqvddj6rxglrcpexh7xv49jdkrl67yzx0pdzzc3wnmv
-    value: 100000000000
+    value: 1000000000000
   - address: ta1sv75hznxzw783x5s44llz49x5xx4nsasnjrw6wuj4h505vkhqeq0uq77d56
-    value: 100000000000
+    value: 1000000000000
 
 # The initial certificates.
 initial_certs:
