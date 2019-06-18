@@ -1,9 +1,9 @@
-# Logging guidelines
+<!-- --- title: Logging guidelines -->
 
 Draft for issue [#351](https://github.com/input-output-hk/cardano-wallet/issues/351)
 
-These logs are primarily for _users_ of the cardano-wallet, not its
-developers. Users could be:
+Logs are primarily for _users_ of the cardano-wallet, not its
+developers. Such users could be:
 
 - Engineers who will be running the cardano-wallet in production.
 - Developers integrating cardano-wallet into their own software.
@@ -64,7 +64,8 @@ interacts with other systems. Examples of DEBUG logs:
 ### Info
 
 Normal activity within the application. We do need to ensure that INFO
-logs are pertinent, and there is not pages of logs per block.
+logs are pertinent, and there are not pages and pages of logs per
+slot.
 
 Examples:
 - HTTP requests
@@ -160,8 +161,8 @@ subsystems of the wallet (such as network, database, api) should use
 
 ## Observables
 
-The following are examples of things which be easy and useful to log
-as micro-benchmarks.
+The following are examples of things which should be easy and useful
+to log as micro-benchmarks (`bracketObserveIO`).
 
 - Time taken for API to respond to request.
 - Time taken to execute SQL query.
