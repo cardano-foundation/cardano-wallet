@@ -30,19 +30,18 @@ cache:
   directories:
   - $HOME/.local/bin
   - $HOME/.stack
+  - $HOME/cache
 
 before_cache:
-  - ls -l $HOME/.local/bin
-  - chmod -x $HOME/.local/bin/*
-  - ls -l $HOME/.local/bin
+  - mkdir -p $HOME/cache
+  - mv $HOME/.local/bin/* $HOME/cache
   - rm -rf $HOME/.stack/programs/x86_64-linux/ghc-*.tar.*
   - rm -rf $HOME/.stack/indices/Hackage/00-index.tar $HOME/.stack/indices/Hackage/00-index.tar.gz
   - find $HOME/.stack/programs/x86_64-linux/ghc-*/lib/ghc-* -type f -name *_p.a -delete
 
 before_install:
-  - ls -l $HOME/.local/bin
-  - chmod --quiet +x $HOME/.local/bin/* || true
-  - ls -l $HOME/.local/bin
+  - mkdir -p $HOME/.local/bin
+  - mv $HOME/cache/* $HOME/.local/bin || true
   - tar xzf $STACK_WORK_CACHE || echo "no .stack-work yet"
 
 # Ensure necessary system libraries are present:
