@@ -14,10 +14,12 @@
 -- 'ToJSON' from 'Data.Aeson'.
 
 module Data.Text.Class
-    ( ToText (..)
+    ( -- * Producing and consuming text from arbitrary types
+      ToText (..)
     , FromText (..)
     , TextDecodingError(..)
     , fromTextMaybe
+      -- * Producing and consuming text from bounded enumeration types
     , CaseStyle (..)
     , toTextFromBoundedEnum
     , fromTextToBoundedEnum
