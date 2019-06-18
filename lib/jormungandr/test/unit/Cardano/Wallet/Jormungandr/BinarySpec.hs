@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Jormungandr.BinarySpec (spec) where
@@ -25,11 +26,18 @@ import Cardano.Wallet.Jormungandr.Binary
     , singleAddressFromKey
     )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( genesis )
+    ( Jormungandr, genesis )
 import Cardano.Wallet.Jormungandr.Environment
     ( Network (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Coin (..), Hash (..), SlotId (..), Tx (..), TxOut (..) )
+    ( Address (..)
+    , Coin (..)
+    , EncodeAddress (..)
+    , Hash (..)
+    , SlotId (..)
+    , Tx (..)
+    , TxOut (..)
+    )
 import Control.Exception
     ( evaluate )
 import Data.ByteArray.Encoding
@@ -44,11 +52,15 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text
+    ( Text )
 import Test.Hspec
     ( Spec, anyErrorCall, describe, it, runIO, shouldBe, shouldThrow )
 
+import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Text as T
 
 {-# ANN spec ("HLint: ignore Use head" :: String) #-}
 spec :: Spec
@@ -90,8 +102,59 @@ spec = do
         it "throws when length (key) != 32" $
             evaluate (singleAddressFromKey (Proxy @'Mainnet) (XPub "\148" cc))
             `shouldThrow` anyErrorCall
+    describe "keyToAddress is consistent with jcli" $ do
+        -- The goldens have been verified with jcli as follows:
+        -- $ jcli key generate --type=Ed25519 | jcli key to-public
+        -- ed25519_pk1yv0er3wlzvcauqj470tesdlcwy4dll9w7cvsvn4q30678gh44tnsxdh75c
+        -- $ jcli address single ed25519_pk1yv0er3wlzvcauqj470tesdlcwy4dll9w7cvsvn4q30678gh44tnsxdh75c --testing
+        -- ta1sv33lyw9mufnrhsz2hea0xphlpcj4hlu4mmpjpjw5z9ltcaz7k4wwywkd6j
+        -- $ jcli address single ed25519_pk1yv0er3wlzvcauqj470tesdlcwy4dll9w7cvsvn4q30678gh44tnsxdh75c
+        -- ca1qv33lyw9mufnrhsz2hea0xphlpcj4hlu4mmpjpjw5z9ltcaz7k4ww0xfchg
+
+        bech32KeyToAddrGolden
+            "ed25519_pk1yv0er3wlzvcauqj470tesdlcwy4dll9w7cvsvn4q30678gh44tnsxdh75c"
+            "ta1sv33lyw9mufnrhsz2hea0xphlpcj4hlu4mmpjpjw5z9ltcaz7k4wwywkd6j"
+            "ca1qv33lyw9mufnrhsz2hea0xphlpcj4hlu4mmpjpjw5z9ltcaz7k4ww0xfchg"
+
+        bech32KeyToAddrGolden
+            "ed25519_pk1gf85kgfspqzgz9mvmral4e8zatg6d64ep3gk223fla09parjm7zqf4xy3n"
+            "ta1sdpy7jepxqyqfqghdnv0h7hyut4drfh2hyx9zef298l4u585wt0cgmkm96t"
+            "ca1qdpy7jepxqyqfqghdnv0h7hyut4drfh2hyx9zef298l4u585wt0cgs7ysh3"
+
+        bech32KeyToAddrGolden
+            "ed25519_pk16cwyfh3jy6ls8ypfpen8pk55d3ufkp9793xc96u32rl83uuv89nsxsnnhg"
+            "ta1s0tpc3x7xgnt7qus9y8xvux6j3k83xcyhckymqhtj9g0u78n3sukwk7ku9u"
+            "ca1q0tpc3x7xgnt7qus9y8xvux6j3k83xcyhckymqhtj9g0u78n3sukwakffgx"
+
+bech32KeyToAddrGolden
+    :: Text
+    -- ^ public key ("ed25519_pk...")
+    -> Text
+    -- ^ corresponding testnet address ("ta...")
+    -> Text
+    -- ^ corresponding mainnet address ("ca...")
+    -> Spec
+bech32KeyToAddrGolden key testnetAddr mainnetAddr = it msg $ do
+    let xpub = XPub decodeBech32Key cc
+    encodeAddress (Proxy @(Jormungandr 'Testnet))
+        (singleAddressFromKey (Proxy @'Testnet) xpub) `shouldBe` testnetAddr
+    encodeAddress (Proxy @(Jormungandr 'Mainnet))
+        (singleAddressFromKey (Proxy @'Mainnet) xpub) `shouldBe` mainnetAddr
+
   where
-    cc = ChainCode "<ChainCode is not used by singleAddressToKey>"
+    msg = T.unpack key ++ " generates correct testnet and mainnet addresses"
+    decodeBech32Key :: ByteString
+    decodeBech32Key =
+        let
+            (hrp', dp) = either (error . show) id (Bech32.decodeLenient key)
+            hrp = T.unpack $ Bech32.humanReadablePartToText hrp'
+        in
+            if hrp == "ed25519_pk"
+            then maybe (error "invalid bech32") id (Bech32.dataPartToBytes dp)
+            else error $ "failed to decode key: " ++ hrp ++ " is not ed25519_pk"
+
+cc :: ChainCode
+cc = ChainCode "<ChainCode shouldn't be used by keyToAddress>"
 
 genesisHeader :: BlockHeader
 genesisHeader = BlockHeader
