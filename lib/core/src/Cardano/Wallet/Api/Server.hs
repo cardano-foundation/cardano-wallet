@@ -18,13 +18,13 @@
 module Cardano.Wallet.Api.Server
     ( Listen (..)
     , start
-    , startOnSocket
-    , mkWarpSettings
     , withListeningSocket
     ) where
 
 import Prelude
 
+import Cardano.BM.Trace
+    ( Trace )
 import Cardano.Wallet
     ( ErrAdjustForFee (..)
     , ErrCoinSelection (..)
@@ -78,16 +78,12 @@ import Cardano.Wallet.Primitive.Types
     )
 import Control.Exception
     ( bracket )
-import Control.Monad
-    ( void )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT, withExceptT )
 import Data.Aeson
     ( (.=) )
-import Data.Function
-    ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
@@ -118,6 +114,8 @@ import Network.Socket
     ( Socket, close )
 import Network.Wai.Handler.Warp
     ( Port )
+import Network.Wai.Middleware.Logging
+    ( ApiLoggerSettings (..), withApiLogger )
 import Network.Wai.Middleware.ServantError
     ( handleRawError )
 import Servant
@@ -155,27 +153,19 @@ data Listen
       -- ^ Listen on an unused TCP port, selected at random
     deriving (Show, Eq)
 
--- | Start the application server
+-- | Start the application server, using the given settings and a bound socket.
 start
     :: forall t. (TxId t, KeyToAddress t, EncodeAddress t, DecodeAddress t)
-    => (Port -> IO ())
-    -> Listen
-    -> WalletLayer (SeqState t) t
-    -> IO ()
-start onStartup portOpt wl =
-    void $ withListeningSocket portOpt $ \(port, socket) ->
-        startOnSocket (mkWarpSettings onStartup port) socket wl
-
--- | Start the application server, using the given settings and a bound socket.
-startOnSocket
-    :: forall t. (TxId t, KeyToAddress t, EncodeAddress t, DecodeAddress t)
     => Warp.Settings
+    -> Trace IO Text
     -> Socket
     -> WalletLayer (SeqState t) t
     -> IO ()
-startOnSocket settings socket wl = Warp.runSettingsSocket settings socket
-    $ handleRawError handler
-    application
+start settings trace socket wl =
+    Warp.runSettingsSocket settings socket
+        $ handleRawError handler
+        $ withApiLogger trace logSettings
+        application
   where
     -- | A Servant server for our wallet API
     server :: Server (Api t)
@@ -184,17 +174,16 @@ startOnSocket settings socket wl = Warp.runSettingsSocket settings socket
     application :: Application
     application = serve (Proxy @("v2" :> Api t)) server
 
--- | Create warp server settings.
-mkWarpSettings
-    :: (Warp.Port -> IO ())
-    -- ^ Function to run after the listening socket is bound, just before
-    -- Warp enters its event loop.
-    -> Warp.Port
-    -- ^ Port that socket will be listening on.
-    -> Warp.Settings
-mkWarpSettings onStartup port = Warp.defaultSettings
-    & Warp.setPort port
-    & Warp.setBeforeMainLoop (onStartup port)
+    logSettings :: ApiLoggerSettings
+    logSettings = ApiLoggerSettings
+        { obfuscateKeys = const
+            [ "passphrase"
+            , "old_passphrase"
+            , "new_passphrase"
+            , "mnemonic_sentence"
+            , "mnemonic_second_factor"
+            ]
+        }
 
 -- | Run an action with a TCP socket bound to a port specified by the `Listen`
 -- parameter.
