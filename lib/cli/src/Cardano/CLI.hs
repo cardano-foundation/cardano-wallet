@@ -113,12 +113,6 @@ instance FromText (Port tag) where
 instance ToText (Port tag) where
     toText (Port p) = toText p
 
--- TODO: Remove this instance if `Severity` becomes an instance of `Bounded`:
--- See: https://github.com/input-output-hk/iohk-monitoring-framework/pull/340
-instance Bounded (OptionValue Severity) where
-    minBound = OptionValue Debug
-    maxBound = OptionValue Emergency
-
 instance FromText (OptionValue Severity) where
     fromText t = case T.toLower t of
         "alert" ->
@@ -144,8 +138,8 @@ instance FromText (OptionValue Severity) where
             <> "."
       where
         mk = Right . OptionValue
-        allValues = T.intercalate ", " $ T.toLower . toText <$>
-            enumerate @(OptionValue Severity)
+        allValues = T.intercalate ", " $ T.toLower . toText . OptionValue <$>
+            enumerate @Severity
 
 instance ToText (OptionValue Severity) where
     toText = T.pack . show . getOptionValue
