@@ -30,7 +30,6 @@ in {
   inherit (haskellPackages.cardano-wallet.identifier) version;
 
   cardano-wallet = haskellPackages.cardano-wallet.components.exes.cardano-wallet;
-  cardano-wallet-launcher = haskellPackages.cardano-wallet.components.exes.cardano-wallet-launcher;
   tests = collectComponents "tests" isCardanoWallet haskellPackages;
   benchmarks = collectComponents "benchmarks" isCardanoWallet haskellPackages;
 
@@ -41,7 +40,6 @@ in {
       cardano-wallet-cli
       cardano-wallet-core
       cardano-wallet-http-bridge
-      cardano-wallet-launcher
       bech32
       text-class
     ];
