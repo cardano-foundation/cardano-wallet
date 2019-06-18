@@ -139,11 +139,11 @@ jobs:
   #
   ################################################################################
   - stage: cache 💾
-    if: (type != pull_request AND branch = master) OR (tag =~ ^v)
+    # if: (type != pull_request AND branch = master) OR (tag =~ ^v)
     name: "Caching Dependencies"
     script:
-    - stack --no-terminal build --fast --only-snapshot
-    - stack --no-terminal build --fast --only-dependencies
+    - stack --no-terminal build --fast --tests --no-run-tests --bench --no-run-benchmarks --only-snapshot
+    - stack --no-terminal build --fast --tests --no-run-tests --bench --no-run-benchmarks --only-dependencies
     - tar czf $STACK_WORK_CACHE .stack-work
 
   - stage: build project 🔨
