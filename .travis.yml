@@ -28,8 +28,12 @@ if: "(branch IN (master, bors/staging, bors/trying)) OR (tag =~ ^v)"
 cache:
   timeout: 1337
   directories:
-  - $HOME/.local/bin/*
-  - $HOME/.local/*
+  - $HOME/.local/bin/cardano-http-bridge
+  - $HOME/.local/bin/cardano-node-simple
+  - $HOME/.local/bin/jcli
+  - $HOME/.local/bin/jormungandr
+  - $HOME/.local/bin/stack
+  - $HOME/.local/stack-work.tar.gz
   - $HOME/.stack
 
 before_cache:
