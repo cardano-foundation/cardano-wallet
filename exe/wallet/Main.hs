@@ -114,8 +114,6 @@ import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
 import Network.Wai.Handler.Warp
     ( setBeforeMainLoop )
-import Network.Wai.Middleware.Logging
-    ( setRequestLogger )
 import Paths_cardano_wallet
     ( version )
 import Servant
@@ -433,13 +431,14 @@ execHttpBridge args _ = do
     wallet <- newWalletLayer @_ @(HttpBridge n) tracer block0 db nw tl
     Server.withListeningSocket walletListen $ \(port, socket) -> do
         tracerIPC <- appendName "DaedalusIPC" tracer
-        tracerLog <- appendName "api" tracer
+        tracerApi <- appendName "api" tracer
         let beforeMainLoop = logInfo tracer $
                 "Wallet backend server listening on: " <> toText port
         let settings = Warp.defaultSettings
-                & setRequestLogger tracerLog
                 & setBeforeMainLoop beforeMainLoop
-        race_ (daedalusIPC tracerIPC port) $ Server.start settings socket wallet
+        let ipcServer = daedalusIPC tracerIPC port
+        let apiServer = Server.start settings tracerApi socket wallet
+        race_ ipcServer apiServer
 
 -- | Generate a random mnemonic of the given size 'n' (n = number of words),
 -- and print it to stdout.

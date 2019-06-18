@@ -242,7 +242,7 @@ main = hspec $ do
             Server.withListeningSocket listen $ \(port, socket) -> do
                 let settings = Warp.defaultSettings
                         & setBeforeMainLoop (putMVar mvar port)
-                Server.start settings socket wallet
+                Server.start settings nullTracer socket wallet
         (thread,,conn,nl) <$> takeMVar mvar
 
     waitForCluster :: String -> IO ()

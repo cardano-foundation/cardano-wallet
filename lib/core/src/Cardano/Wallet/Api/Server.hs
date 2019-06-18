@@ -23,6 +23,8 @@ module Cardano.Wallet.Api.Server
 
 import Prelude
 
+import Cardano.BM.Trace
+    ( Trace )
 import Cardano.Wallet
     ( ErrAdjustForFee (..)
     , ErrCoinSelection (..)
@@ -112,6 +114,8 @@ import Network.Socket
     ( Socket, close )
 import Network.Wai.Handler.Warp
     ( Port )
+import Network.Wai.Middleware.Logging
+    ( ApiLoggerSettings (..), withApiLogger )
 import Network.Wai.Middleware.ServantError
     ( handleRawError )
 import Servant
@@ -153,11 +157,15 @@ data Listen
 start
     :: forall t. (TxId t, KeyToAddress t, EncodeAddress t, DecodeAddress t)
     => Warp.Settings
+    -> Trace IO Text
     -> Socket
     -> WalletLayer (SeqState t) t
     -> IO ()
-start settings socket wl =
-    Warp.runSettingsSocket settings socket $ handleRawError handler application
+start settings trace socket wl =
+    Warp.runSettingsSocket settings socket
+        $ handleRawError handler
+        $ withApiLogger trace logSettings
+        application
   where
     -- | A Servant server for our wallet API
     server :: Server (Api t)
@@ -166,17 +174,16 @@ start settings socket wl =
     application :: Application
     application = serve (Proxy @("v2" :> Api t)) server
 
--- -- | Create warp server settings.
--- mkWarpSettings
---     :: (Warp.Port -> IO ())
---     -- ^ Function to run after the listening socket is bound, just before
---     -- Warp enters its event loop.
---     -> Warp.Port
---     -- ^ Port that socket will be listening on.
---     -> Warp.Settings
--- mkWarpSettings onStartup port = Warp.defaultSettings
---     & Warp.setPort port
---     & Warp.setBeforeMainLoop (onStartup port)
+    logSettings :: ApiLoggerSettings
+    logSettings = ApiLoggerSettings
+        { obfuscateKeys = const
+            [ "passphrase"
+            , "old_passphrase"
+            , "new_passphrase"
+            , "mnemonic_sentence"
+            , "mnemonic_second_factor"
+            ]
+        }
 
 -- | Run an action with a TCP socket bound to a port specified by the `Listen`
 -- parameter.
