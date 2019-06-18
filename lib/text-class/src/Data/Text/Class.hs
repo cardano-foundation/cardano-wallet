@@ -4,6 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# OPTIONS_GHC -fno-warn-redundant-constraints #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -125,7 +126,9 @@ data CaseStyle
 --
 -- > fromTextToBoundedEnum s (toTextFromBoundedEnum s a) == Right a
 --
-toTextFromBoundedEnum :: Show a => CaseStyle -> a -> Text
+toTextFromBoundedEnum
+    :: forall a . (Bounded a, Enum a, Show a)
+    => CaseStyle -> a -> Text
 toTextFromBoundedEnum cs = T.pack . toCaseStyle cs . Casing.fromHumps . show
 
 -- | Parses the given text to a value, according to the specified 'CaseStyle'.
@@ -136,9 +139,7 @@ toTextFromBoundedEnum cs = T.pack . toCaseStyle cs . Casing.fromHumps . show
 --
 fromTextToBoundedEnum
     :: forall a . (Bounded a, Enum a, Show a)
-    => CaseStyle
-    -> Text
-    -> Either TextDecodingError a
+    => CaseStyle -> Text -> Either TextDecodingError a
 fromTextToBoundedEnum cs t =
     case matchingValue of
         Just mv -> Right mv
