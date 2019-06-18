@@ -49,17 +49,38 @@ use only the first 5.
 
 ### Debug
 
-Debug logging should never be enabled in production. Therefore, you
-should not log information relevant to production operations at this
-level.
+Debug logging will not be enabled by default in production. Therefore,
+you should not log information directly relevant to production
+operations at this level.
 
-It might be used to help debug program flow, but aim to remove this
-kind of debug logging once features are stable.
+However, the technical support desk may request users enable debug
+logging for certain components to get more detail while trying to
+diagnose problems in the field.
 
-It is however very useful to have logging of about how the wallet
-interacts with other systems. Examples of DEBUG logs:
+Such logging might contain:
+- Information about which program decisions were made and why.
+
+Don't debug log too much rubbish because somebody will need to read
+it. Don't log so much data that the program will malfunction if debug
+logging has been enabled.
+
+It is useful to have debug logging of about how the wallet
+interacts with other systems. Examples of such logs:
 - Network requests made to node backend.
 - SQL query logs -- log the queries but not the values.
+
+Note from Alexander Diemand:
+> Another feature that might help reduce logging volume:
+> monitoring can watch an observable and compare it to a set
+> threshold. Once this is exceeded it can create an action: i.e. an
+> alert message or change the severity filter of a named context or
+> globally. So one would start up the node with logging filter set to
+> "Warning" and only change it to "Info" when some monitored observable
+> has exceeded its threshold
+>
+> For an exchange that runs the node for ages: another monitor could
+> also restore the severity filter to e.g. "Warning" if the observed
+> values return into a normal behaviour range of values.
 
 ### Info
 
@@ -216,3 +237,11 @@ DEBUG messages):
  - The values used or returned by SQL queries.
  - Raw data sent to or received from the network backend.
  - Raw, un-filtered API request or response bodies.
+
+## Increasing logging detail
+
+[iohk-monitoring-framework][] provides a facility for adjusting log
+levels at runtime on a component by component basis.
+
+However it's probably OK for now to change log levels by restarting
+cardano-wallet with different command-line options.
