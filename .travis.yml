@@ -28,21 +28,20 @@ if: "(branch IN (master, bors/staging, bors/trying)) OR (tag =~ ^v)"
 cache:
   timeout: 1337
   directories:
-  - $HOME/.local/bin/cardano-http-bridge
-  - $HOME/.local/bin/cardano-node-simple
-  - $HOME/.local/bin/jcli
-  - $HOME/.local/bin/jormungandr
-  - $HOME/.local/bin/stack
-  - $HOME/.local/stack-work.tar.gz
+  - $HOME/.local/bin
   - $HOME/.stack
 
 before_cache:
+  - ls -l $HOME/.local/bin
+  - chmod -x $HOME/.local/bin/*
   - ls -l $HOME/.local/bin
   - rm -rf $HOME/.stack/programs/x86_64-linux/ghc-*.tar.*
   - rm -rf $HOME/.stack/indices/Hackage/00-index.tar $HOME/.stack/indices/Hackage/00-index.tar.gz
   - find $HOME/.stack/programs/x86_64-linux/ghc-*/lib/ghc-* -type f -name *_p.a -delete
 
 before_install:
+  - ls -l $HOME/.local/bin
+  - chmod --quiet +x $HOME/.local/bin/* || true
   - ls -l $HOME/.local/bin
   - tar xzf $STACK_WORK_CACHE || echo "no .stack-work yet"
 
