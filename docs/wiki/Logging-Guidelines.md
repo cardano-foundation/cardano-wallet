@@ -77,6 +77,8 @@ Examples:
   - Payment was received
 - Network-related events
   - Sync state
+- Information about the configuration, such as config file location,
+  or how the wallet was started.
 
 ### Notice
 
@@ -143,6 +145,14 @@ output location and format can be fully customised.
 If the log output file is not a terminal, do not output ANSI colour
 codes. These escape codes make it difficult to analyse log files.
 
+### JSON
+
+JSON (one object per line) is an OK format for log files, but it's
+pretty bad for printing the terminal. For example, consider how
+difficult it would be to read through JSON messages within `journalctl
+-u cardano-wallet.service`. Therefore, log messages to
+`stdout`/`stderr` should be formatted as text, unless otherwise
+configured by the user.
 
 ## Context
 
@@ -192,7 +202,7 @@ technical support desk with a reasonable assurance of privacy.
 
 ### Never log
 
-This information should not be included in log messages (including
+This information should _never_ be included in log messages (including
 DEBUG messages):
 
  - Private key material.
