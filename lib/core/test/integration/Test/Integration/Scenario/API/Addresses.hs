@@ -108,26 +108,27 @@ spec = do
 
     describe "ADDRESS_LIST_02 - Invalid filters are bad requests" $ do
         let filters =
-                [ "?state=usedd"
-                , "?state=uused"
-                , "?state=unusedd"
-                , "?state=uunused"
-                , "?state=USED"
-                , "?state=UNUSED"
-                , "?state=-1000"
-                , "?state=44444444"
-                , "?state=*"
+                [ "usedd"
+                , "uused"
+                , "unusedd"
+                , "uunused"
+                , "USED"
+                , "UNUSED"
+                , "-1000"
+                , "44444444"
+                , "*"
                 ]
         forM_ filters $ \fil -> it fil $ \ctx -> do
-            let stateFilter = T.pack fil
+            let stateFilter = "?state=" <> T.pack fil
             w <- emptyWallet ctx
             r <- request @[ApiAddress t] ctx (getAddressesEp w stateFilter)
                     Default Empty
             verify r
                 [ expectResponseCode @IO HTTP.status400
-                , expectErrorMessage "Error parsing query parameter state\
-                    \ failed: Unable to decode address state: it's neither\
-                    \ 'used' nor 'unused'"
+                , expectErrorMessage $
+                    "Error parsing query parameter state failed: Unable to\
+                    \ decode the given value: '" <> fil <> "'. Please specify\
+                    \ one of the following values: used, unused."
                 ]
 
     it "ADDRESS_LIST_03 - Generates new address pool gap" $ \ctx -> do

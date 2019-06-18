@@ -143,7 +143,7 @@ fromTextToBoundedEnum
 fromTextToBoundedEnum cs t =
     case matchingValue of
         Just mv -> Right mv
-        Nothing -> Left $ TextDecodingError $ "Error: "
+        Nothing -> Left $ TextDecodingError $ mempty
             <> "Unable to decode the given value: "
             <> show t
             <> ". Please specify one of the following values: "
