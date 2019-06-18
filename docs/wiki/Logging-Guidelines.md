@@ -200,6 +200,12 @@ technical support desk with a reasonable assurance of privacy.
  - Public key material.
  - Quantities of Ada.
 
+### Unknown
+
+Undecided about which category these fall into.
+
+ - Wallet name
+
 ### Never log
 
 This information should _never_ be included in log messages (including
