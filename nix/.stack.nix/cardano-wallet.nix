@@ -40,6 +40,7 @@
             (hsPkgs.servant-server)
             (hsPkgs.text)
             (hsPkgs.text-class)
+            (hsPkgs.warp)
             ];
           };
         };
