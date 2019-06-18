@@ -28,7 +28,8 @@ if: "(branch IN (master, bors/staging, bors/trying)) OR (tag =~ ^v)"
 cache:
   timeout: 1337
   directories:
-  - $HOME/.local/bin
+  - $HOME/.local/bin/*
+  - $HOME/.local/*
   - $HOME/.stack
 
 before_cache:
