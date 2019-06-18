@@ -12,8 +12,8 @@ env:
   global:
     - WALLET_CLI=$HOME/.local/bin/cardano-wallet
     - WALLET_CLI_CHECKSUM=$HOME/.local/bin/cardano-wallet.sha256
-    - STACK_WORK_CACHE=$HOME/.local/stack-work.tar.gz
-    - PATH=$PATH:$HOME/.cargo/bin:$HOME/.local/bin
+    - STACK_WORK_CACHE=$HOME/.stack/stack-work.tar.gz
+    - PATH=$PATH:$HOME/.local/bin
     - LOCAL_MIX_DIR=.stack-work/dist/x86_64-linux/Cabal-2.4.0.1/hpc/
 
 # We use a hybrid setup with Rust and Haskell, so we handle the compilation ourselves
@@ -28,21 +28,25 @@ if: "(branch IN (master, bors/staging, bors/trying)) OR (tag =~ ^v)"
 cache:
   timeout: 1337
   directories:
-  - $HOME/.local/bin
   - $HOME/.stack
-  - $HOME/cache
 
 before_cache:
-  - mkdir -p $HOME/cache
-  - mv $HOME/.local/bin/* $HOME/cache
   - rm -rf $HOME/.stack/programs/x86_64-linux/ghc-*.tar.*
   - rm -rf $HOME/.stack/indices/Hackage/00-index.tar $HOME/.stack/indices/Hackage/00-index.tar.gz
   - find $HOME/.stack/programs/x86_64-linux/ghc-*/lib/ghc-* -type f -name *_p.a -delete
 
 before_install:
   - mkdir -p $HOME/.local/bin
-  - mv $HOME/cache/* $HOME/.local/bin || true
   - tar xzf $STACK_WORK_CACHE || echo "no .stack-work yet"
+  - travis_retry curl -L https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-node-simple/cardano-node-simple-3.0.1.tar.gz | tar xz -C $HOME/.local/bin
+  - cardano-node-simple --version
+  # - travis_retry curl -L https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-http-bridge/cardano-http-bridge-cda833a8.tar.gz | tar xz -C $HOME/.local/bin
+  # - cardano-http-bridge --version
+  - travis_retry curl -L https://github.com/input-output-hk/jormungandr/releases/download/v0.1.0/jormungandr-v0.1.0-x86_64-unknown-linux-gnu.tar.gz | tar xz -C $HOME/.local/bin
+  - jcli --version && jormungandr --version
+  - travis_retry curl -L https://github.com/commercialhaskell/stack/releases/download/v1.9.3/stack-1.9.3-linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C $HOME/.local/bin '*/stack'
+  - travis_retry stack --no-terminal setup
+
 
 # Ensure necessary system libraries are present:
 addons:
@@ -57,7 +61,6 @@ service:
 
 # Define custom set of stages
 stages:
-- build dependencies 🔩
 - cache 💾
 - build project 🔨
 - checks 🔬
@@ -136,40 +139,21 @@ jobs:
   # - jcli
   #
   ################################################################################
-  - stage: build dependencies 🔩
-    # if: (type != pull_request AND branch = master) OR (tag =~ ^v)
-    name: "Compiling dependencies"
-    script:
-    - mkdir -p $HOME/.local/bin
-      # - travis_retry curl -L -sSf https://build.travis-ci.org/files/rustup-init.sh | sh -s -- --default-toolchain=1.34.2 -y
-    - travis_retry curl -L -o cardano-node-simple.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-node-simple/cardano-node-simple-3.0.1.tar.gz
-    - tar xzf cardano-node-simple.tar.gz -C $HOME/.local/bin
-    - cardano-node-simple --version
-    - travis_retry curl -L -o jormungandr.tar.gz https://github.com/input-output-hk/jormungandr/releases/download/v0.1.0/jormungandr-v0.1.0-x86_64-unknown-linux-gnu.tar.gz
-    - tar xzf jormungandr.tar.gz -C $HOME/.local/bin
-    - jcli --version
-    - jormungandr --version
-    # - test "$(cardano-http-bridge --version)" = "cardano-http-bridge 0.0.2" || travis_retry cargo install --force --root $HOME/.local --branch cardano-wallet-integration --git https://github.com/KtorZ/cardano-http-bridge.git
-    # - cardano-http-bridge --version
-
   - stage: cache 💾
     # if: (type != pull_request AND branch = master) OR (tag =~ ^v)
     name: "Caching Dependencies"
     script:
-    - cardano-node-simple --version
-    - travis_retry curl -L https://github.com/commercialhaskell/stack/releases/download/v1.9.3/stack-1.9.3-linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C $HOME/.local/bin '*/stack'
-    - travis_retry stack --no-terminal setup
     - stack --no-terminal build --fast --only-snapshot
     - stack --no-terminal build --fast --only-dependencies
     - tar czf $STACK_WORK_CACHE .stack-work
 
-      #   - stage: build project 🔨
-      #     if: (type != pull_request AND branch = master) OR (tag =~ ^v)
-      #     name: "Compiling Project"
-      #     script:
-      #     - stack --no-terminal build --fast --test --no-run-tests --bench --no-run-benchmarks --haddock --no-haddock-deps --coverage
-      #     - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
-      #
+  - stage: build project 🔨
+    # if: (type != pull_request AND branch = master) OR (tag =~ ^v)
+    name: "Compiling Project"
+    script:
+    - stack --no-terminal build --fast --test --no-run-tests --bench --no-run-benchmarks --haddock --no-haddock-deps --coverage
+    - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
+
       #   - stage: checks 🔬
       #     if: (type != pull_request AND branch = master) OR (tag =~ ^v)
       #     name: "Code Style"
