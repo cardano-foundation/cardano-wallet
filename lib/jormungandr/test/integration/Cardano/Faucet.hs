@@ -11,6 +11,8 @@ import Cardano.Wallet.Primitive.Mnemonic
     ( mkMnemonic )
 import Control.Concurrent.MVar
     ( newMVar )
+import Data.Text
+    ( Text )
 import Test.Integration.Faucet
     ( Faucet (..) )
 
@@ -19,7 +21,9 @@ import Test.Integration.Faucet
 -- integration tests scenarios.
 initFaucet :: IO Faucet
 initFaucet = do
-    wallets <- mkMnemonic @15 (map fst mnemonicsAdresses)
+    let wallets =
+            map (either (error "cannot retrieve mnemonics") id . mkMnemonic @15)
+            (map fst mnemonicsAdresses)
     Faucet <$> newMVar wallets
 
 mnemonicsAdresses :: [([Text], Text)]
