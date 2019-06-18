@@ -5,32 +5,68 @@ module Cardano.LauncherSpec
 import Prelude
 
 import Cardano.Launcher
-    ( Command (..), StdStream (..), launch )
-import Control.Concurrent
-    ( threadDelay )
-import Control.Concurrent.Async
-    ( async, cancel, race, wait )
-import Control.Monad
-    ( void )
+    ( Command (..), StdStream (..) )
+import System.Directory
+    ( doesDirectoryExist, doesFileExist, removeDirectory )
+import System.Exit
+    ( ExitCode (..) )
+import System.IO.Temp
+    ( withSystemTempDirectory )
+import System.Process
+    ( createProcess, proc, waitForProcess )
 import Test.Hspec
-    ( Spec, describe, expectationFailure, it )
+    ( Spec, describe, it )
+import Test.Hspec.Expectations.Lifted
+    ( shouldReturn )
+import Test.Integration.Framework.DSL
+    ( expectCmdStarts )
 
 spec :: Spec
-spec = describe "cardano-wallet launch" $ do
-    it "Can start launcher against testnet" $ do
-        let cardanoWalletLauncher = Command "stack"
-                [ "exec", "--", "cardano-wallet", "launch"
-                , "--bridge-port", "8080"
-                ] (return ())
-                Inherit
-        handle <- async $ void $ launch [cardanoWalletLauncher]
-        let fiveSeconds = 5000000
-        winner <- race (threadDelay fiveSeconds) (wait handle)
-        case winner of
-            Left _ -> do
-                cancel handle
-                threadDelay 1000000
-            Right _ ->
-                expectationFailure
-                    "cardano-wallet launch isn't supposed to terminate. \
-                    \Something went wrong."
+spec = do
+    describe "LAUNCH - cardano-wallet launch" $ do
+        it "LAUNCH - Can start launcher against testnet" $ withTempDir $ \d -> do
+            removeDirectory d
+            let cardanoWalletLauncher = Command "stack"
+                    [ "exec", "--", "cardano-wallet", "launch"
+                    , "--network", "testnet"
+                    ] (return ())
+                    Inherit
+            expectCmdStarts cardanoWalletLauncher
+            doesDirectoryExist d `shouldReturn` False
+
+        it "LAUNCH - Can start launcher with --state-dir" $ withTempDir $ \d -> do
+            let cardanoWalletLauncher = Command "stack"
+                    [ "exec", "--", "cardano-wallet", "launch"
+                    , "--state-dir", d
+                    ] (return ())
+                    Inherit
+            expectCmdStarts cardanoWalletLauncher
+            expectStateDirExists d
+
+        it "LAUNCH - Can start launcher with --state-dir <emptydir>"
+            $ withTempDir $ \d -> do
+            removeDirectory d
+            let cardanoWalletLauncher = Command "stack"
+                    [ "exec", "--", "cardano-wallet", "launch"
+                    , "--state-dir", d
+                    ] (return ())
+                    Inherit
+            expectCmdStarts cardanoWalletLauncher
+            expectStateDirExists d
+
+    describe "DaedalusIPC" $ do
+        it "should reply with the port when asked" $ do
+            (_, _, _, ph) <-
+             createProcess (proc "test/integration/js/mock-daedalus.js" [])
+            waitForProcess ph `shouldReturn` ExitSuccess
+
+expectStateDirExists :: FilePath -> IO ()
+expectStateDirExists dir = do
+    doesDirectoryExist dir `shouldReturn` True
+    doesDirectoryExist (dir ++ "/testnet") `shouldReturn` True
+    doesFileExist (dir ++ "/wallet.db") `shouldReturn` True
+    doesFileExist (dir ++ "/wallet.db-shm") `shouldReturn` True
+    doesFileExist (dir ++ "/wallet.db-wal") `shouldReturn` True
+
+withTempDir :: (FilePath -> IO a) -> IO a
+withTempDir = withSystemTempDirectory "integration-state"

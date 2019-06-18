@@ -93,7 +93,6 @@ main = hspec $ do
     describe "Cardano.Wallet.HttpBridge.NetworkSpec" HttpBridge.spec
     describe "CLI commands not requiring bridge" $ do
         describe "Mnemonics CLI tests" MnemonicsCLI.spec
-        describe "Server CLI tests" ServerCLI.spec
         describe "--port CLI tests" $ do
             cardanoWalletServer Nothing
                 & beforeAll
@@ -120,7 +119,7 @@ main = hspec $ do
         describe "Wallets CLI tests" WalletsCLI.spec
         describe "Transactions CLI tests" TransactionsCLI.spec
         describe "Addresses CLI tests" AddressesCLI.spec
-
+        describe "Server CLI tests" ServerCLI.spec
   where
     oneSecond :: Int
     oneSecond = 1 * 1000 * 1000 -- 1 second in microseconds
