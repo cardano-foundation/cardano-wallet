@@ -44,4 +44,6 @@
     - message:
       - name: Module not compiled
       - module: Cardano.Launcher.Windows
-
+- package:
+  - name: cardano-wallet-jormungandr
+  - section: test:integration
