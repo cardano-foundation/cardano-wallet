@@ -4,15 +4,18 @@
 {-# LANGUAGE TypeApplications #-}
 
 module Test.Integration.Scenario.CLI.Port
-    ( specCommon
+    ( specNegative
+    , specCommon
     , specWithDefaultPort
     , specWithRandomPort
     ) where
 
 import Prelude
 
+import Cardano.CLI
+    ( getPort )
 import Control.Monad
-    ( void )
+    ( forM_, void )
 import Data.Generics.Internal.VL.Lens
     ( over, (^.) )
 import Data.Generics.Product.Typed
@@ -22,7 +25,7 @@ import Network.Wai.Handler.Warp
 import System.Command
     ( Stderr (..), Stdout (..) )
 import System.Exit
-    ( ExitCode )
+    ( ExitCode (..) )
 import System.IO
     ( hClose, hFlush, hPutStr )
 import System.Process
@@ -33,9 +36,9 @@ import System.Process
     , withCreateProcess
     )
 import Test.Hspec
-    ( SpecWith, it )
+    ( SpecWith, describe, it )
 import Test.Hspec.Expectations.Lifted
-    ( shouldContain, shouldNotBe, shouldNotContain )
+    ( shouldBe, shouldContain, shouldNotBe, shouldNotContain )
 import Test.Integration.Framework.DSL
     ( cardanoWalletCLI
     , createWalletViaCLI
@@ -50,6 +53,30 @@ import Test.Integration.Framework.DSL
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
+
+specNegative :: SpecWith ()
+specNegative =
+    describe "PORT_04 - Fail nicely when port is out-of-bounds" $ do
+        let tests =
+                [ ("serve", "--port", getPort minBound - 14)
+                , ("serve", "--port", getPort maxBound + 42)
+                , ("serve", "--bridge-port", getPort minBound - 6)
+                , ("serve", "--bridge-port", getPort maxBound + 523)
+                , ("launch", "--port", getPort minBound - 1)
+                , ("launch", "--port", getPort maxBound + 59375)
+                , ("launch", "--bridge-port", getPort minBound - 5621)
+                , ("launch", "--bridge-port", getPort maxBound + 1)
+                ]
+        forM_ tests $ \(cmd, opt, port) -> let args = [cmd, opt, show port] in
+            it (unwords args) $ do
+                (exit, Stdout (_ :: String), Stderr err) <- cardanoWalletCLI args
+                exit `shouldBe` ExitFailure 1
+                err `shouldContain`
+                    (  "expected a TCP port number between "
+                    <> show (getPort minBound)
+                    <> " and "
+                    <> show (getPort maxBound)
+                    )
 
 specCommon :: HasType Port s => SpecWith s
 specCommon = do

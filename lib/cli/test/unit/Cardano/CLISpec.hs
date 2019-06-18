@@ -13,23 +13,31 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.CLI
-    ( OptionValue (..), Port, hGetLine, hGetSensitiveLine )
+    ( OptionValue (..), Port (..), hGetLine, hGetSensitiveLine )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, takeMVar )
+import Control.Monad
+    ( mapM_ )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError )
+    ( FromText (..), TextDecodingError (..), toText )
 import System.IO
     ( Handle, IOMode (..), hClose, openFile )
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
-    ( Arbitrary (..) )
+    ( Arbitrary (..)
+    , Large (..)
+    , arbitraryBoundedEnum
+    , checkCoverage
+    , cover
+    , (===)
+    )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.Text.Roundtrip
@@ -43,6 +51,32 @@ spec = do
     describe "Can perform roundtrip textual encoding & decoding" $ do
         textRoundtrip $ Proxy @(Port "test")
         textRoundtrip $ Proxy @(OptionValue Severity)
+
+    describe "Port decoding from text" $ do
+        let err = TextDecodingError
+                $ "expected a TCP port number between "
+                <> show (getPort minBound)
+                <> " and "
+                <> show (getPort maxBound)
+
+        it "decode valid numbers to TCP Port, fail otherwise" $ checkCoverage $
+            \(Large p) ->
+                let
+                    result :: Either TextDecodingError (Port "")
+                    result = fromText (toText p)
+                in
+                        if p >= getPort minBound && p <= getPort maxBound
+                            then cover 3 True "Right" $ result === Right (Port p)
+                            else cover 90 True "Left" $ result === Left err
+
+        mapM_ (\p -> it (T.unpack p) $ fromText @(Port "") p === Left err)
+            [ "not-a-int"
+            , "14.42"
+            , ""
+            , "[]"
+            , "0x1337"
+            , "0"
+            ]
 
     describe "getLine" $ do
         it "Normal usage" $ test hGetLine $ GetLineTest
@@ -147,8 +181,10 @@ test fn (GetLineTest prompt_ input_ output expected) = do
 -------------------------------------------------------------------------------}
 
 instance Arbitrary (Port "test") where
-    arbitrary = genericArbitrary
-    shrink = genericShrink
+    arbitrary = arbitraryBoundedEnum
+    shrink p
+        | p == minBound = []
+        | otherwise = [pred p]
 
 instance Arbitrary a => Arbitrary (OptionValue a) where
     arbitrary = genericArbitrary

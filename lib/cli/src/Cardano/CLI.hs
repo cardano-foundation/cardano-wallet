@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
@@ -43,8 +44,14 @@ import Prelude hiding
 
 import Cardano.BM.Data.Severity
     ( Severity (..) )
+import Control.Arrow
+    ( first )
 import Control.Exception
     ( bracket )
+import Control.Monad
+    ( unless )
+import Data.Bifunctor
+    ( bimap )
 import Data.Functor
     ( (<$) )
 import Data.List.Extra
@@ -54,6 +61,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
+import Data.Text.Read
+    ( decimal )
 import Fmt
     ( Buildable, pretty )
 import GHC.Generics
@@ -104,11 +113,32 @@ import qualified Data.Text.IO as TIO
 -------------------------------------------------------------------------------}
 
 -- | Port number with a tag for describing what it is used for
-newtype Port (tag :: Symbol) = Port Int
-    deriving (Eq, Show, Generic)
+newtype Port (tag :: Symbol) = Port { getPort :: Int }
+    deriving stock (Eq, Show, Generic)
+    deriving newtype (Enum, Ord)
+
+-- NOTE
+-- TCP port ranges from [[-1;65535]] \ {0}
+-- However, ports in [[-1; 1023]] \ {0} are well-known ports reserved
+-- and only "bindable" through root privileges.
+--
+-- Ports above 49151 are also reserved for ephemeral connections. This
+-- leaves us with a valid range of [[1024;49151]] for TCP ports.
+instance Bounded (Port tag) where
+    minBound = Port 1024
+    maxBound = Port 49151
 
 instance FromText (Port tag) where
-    fromText = fmap Port . fromText
+    fromText t = do
+        (p, unconsumed) <- bimap (const err) (first Port) (decimal t)
+        unless (T.null unconsumed && p >= minBound && p <= maxBound) $ Left err
+        return p
+      where
+        err = TextDecodingError
+            $ "expected a TCP port number between "
+            <> show (getPort minBound)
+            <> " and "
+            <> show (getPort maxBound)
 
 instance ToText (Port tag) where
     toText (Port p) = toText p

@@ -77,6 +77,7 @@
             (hsPkgs.async)
             (hsPkgs.bytestring)
             (hsPkgs.cardano-crypto)
+            (hsPkgs.cardano-wallet-cli)
             (hsPkgs.cardano-wallet-core)
             (hsPkgs.cardano-wallet-http-bridge)
             (hsPkgs.cardano-wallet-launcher)
