@@ -21,10 +21,13 @@ import Test.Integration.Faucet
 -- integration tests scenarios.
 initFaucet :: IO Faucet
 initFaucet = do
-    let wallets =
-            map (either (error "cannot retrieve mnemonics") id . mkMnemonic @15)
-            (map fst mnemonicsAdresses)
+    let wallets = unsafeMkMnemonic . fst <$> mnemonicsAdresses
     Faucet <$> newMVar wallets
+  where
+    unsafeMkMnemonic =
+        either (error "cannot retrieve mnemonics") id
+        . mkMnemonic @15
+
 
 mnemonicsAdresses :: [([Text], Text)]
 mnemonicsAdresses =
