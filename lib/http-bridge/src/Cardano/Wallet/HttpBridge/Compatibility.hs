@@ -107,7 +107,7 @@ emptyAttributes = CBOR.encodeMapLen 0
 --
 -- [Base58](https://en.wikipedia.org/wiki/Base58)
 instance EncodeAddress (HttpBridge (network :: Network)) where
-    encodeAddress _ = T.decodeUtf8 . encodeBase58 bitcoinAlphabet . getAddress
+    encodeAddress _ = T.decodeUtf8 . encodeBase58 bitcoinAlphabet . unAddress
 
 -- | Decode a [Base58](https://en.wikipedia.org/wiki/Base58) text string to an
 -- 'Address'.

@@ -527,7 +527,7 @@ isPending = (== Pending) . (status :: TxMeta -> TxStatus) . snd
 -- layer and that the underlying encoding is rather agnostic to the underlying
 -- backend.
 newtype Address = Address
-    { getAddress :: ByteString
+    { unAddress :: ByteString
     } deriving (Show, Generic, Eq, Ord)
 
 instance NFData Address
@@ -538,7 +538,7 @@ instance Buildable Address where
 instance ToText Address where
     toText = T.decodeUtf8
         . convertToBase Base16
-        . getAddress
+        . unAddress
 
 instance FromText Address where
     fromText = bimap textDecodingError Address
