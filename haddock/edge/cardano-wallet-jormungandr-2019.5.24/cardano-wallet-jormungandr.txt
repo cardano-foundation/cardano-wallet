@@ -71,7 +71,10 @@ Transaction :: Tx -> Message
 UnimplementedMessage :: Int -> Message
 getBlockHeader :: Get BlockHeader
 getBlock :: Get Block
-putTransaction :: forall n. KnownNetwork n => Proxy n -> (Tx, [TxWitness]) -> Put
+
+-- | Decode the contents of a <tt>Transaction</tt>-message.
+getTransaction :: Get Tx
+putTransaction :: (Tx, [TxWitness]) -> Put
 data ConfigParam
 
 -- | The official start time of the blockchain, in seconds since the Unix
@@ -137,6 +140,9 @@ LinearFee :: Quantity "lovelace" Word64 -> Quantity "lovelace/byte" Word64 -> Qu
 --   'Milli 3142'.
 newtype Milli
 Milli :: Word64 -> Milli
+putAddress :: Address -> Put
+getAddress :: Get Address
+singleAddressFromKey :: forall n. KnownNetwork n => Proxy n -> XPub -> Address
 class FromBinary a
 get :: FromBinary a => Get a
 
@@ -192,7 +198,7 @@ Testnet :: Network
 -- | Genesis block header, i.e. very first block header of the chain
 genesis :: BlockHeader
 instance Cardano.Wallet.Primitive.Types.TxId (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr n)
-instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr n)
+instance Cardano.Wallet.Jormungandr.Environment.KnownNetwork n => Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr n)
 instance Cardano.Wallet.Jormungandr.Environment.KnownNetwork n => Cardano.Wallet.Primitive.Types.EncodeAddress (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr n)
 instance Cardano.Wallet.Jormungandr.Environment.KnownNetwork n => Cardano.Wallet.Primitive.Types.DecodeAddress (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr n)
 
@@ -275,7 +281,7 @@ JormungandrLayer :: ExceptT ErrNetworkUnreachable m (Hash "BlockHeader") -> (Has
 --   
 --   &gt;&gt;&gt; block
 --   
---   &gt;&gt;&gt; Block {header = BlockHeader {slotId = SlotId {epochNumber = 0, slotNumber = 0}, prevBlockHash = Hash {getHash = "\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL"}}, transactions = [Tx {inputs = [], outputs = [TxOut {address = Address {getAddress = "3$\195xi\193\"h\154\&amp;5\145}\245:O\"\148\163\165/h^\ENQ\245\248\229;\135\231\234E/"}, coin = Coin {getCoin = 14}}]}]}
+--   &gt;&gt;&gt; Block {header = BlockHeader {slotId = SlotId {epochNumber = 0, slotNumber = 0}, prevBlockHash = Hash {getHash = "\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL"}}, transactions = [Tx {inputs = [], outputs = [TxOut {address = Address {unAddress = "3$\195xi\193\"h\154\&amp;5\145}\245:O\"\148\163\165/h^\ENQ\245\248\229;\135\231\234E/"}, coin = Coin {getCoin = 14}}]}]}
 --   </pre>
 --   
 --   At the time of writing, we only have the genesis-block, but we should

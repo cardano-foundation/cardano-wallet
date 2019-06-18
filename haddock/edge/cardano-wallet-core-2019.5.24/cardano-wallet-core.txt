@@ -329,7 +329,7 @@ isPending :: (Tx, TxMeta) -> Bool
 --   encoding is rather agnostic to the underlying backend.
 newtype Address
 Address :: ByteString -> Address
-[$sel:getAddress:Address] :: Address -> ByteString
+[$sel:unAddress:Address] :: Address -> ByteString
 
 -- | Denotes if an address has been previously used or not... whether that
 --   be in the output of a transaction on the blockchain or one in our
@@ -2413,6 +2413,22 @@ instance GHC.Show.Show Cardano.Wallet.ErrSubmitTx
 instance GHC.Classes.Eq Cardano.Wallet.ErrCreateUnsignedTx
 instance GHC.Show.Show Cardano.Wallet.ErrCreateUnsignedTx
 
+module Network.Wai.Middleware.Logging
+
+-- | API logger settings
+newtype ApiLoggerSettings
+ApiLoggerSettings :: (Request -> [Text]) -> ApiLoggerSettings
+
+-- | For a given request, obfuscate the values associated with the given
+--   keys from a JSON object payload.
+[obfuscateKeys] :: ApiLoggerSettings -> Request -> [Text]
+
+-- | Installs a request &amp; response logger on a Wai application.
+--   
+--   The logger logs requests' and responses' bodies along with a few other
+--   useful piece of information.
+withApiLogger :: Trace IO Text -> ApiLoggerSettings -> Middleware
+
 
 -- | Middleware between Wai <a>-</a> Servant to accommodate raw error
 --   responses returned by servant. See also <a>handleRawError</a>.
@@ -2452,15 +2468,9 @@ ListenOnPort :: Port -> Listen
 -- | Listen on an unused TCP port, selected at random
 ListenOnRandomPort :: Listen
 
--- | Start the application server
-start :: forall t. (TxId t, KeyToAddress t, EncodeAddress t, DecodeAddress t) => (Port -> IO ()) -> Listen -> WalletLayer (SeqState t) t -> IO ()
-
 -- | Start the application server, using the given settings and a bound
 --   socket.
-startOnSocket :: forall t. (TxId t, KeyToAddress t, EncodeAddress t, DecodeAddress t) => Settings -> Socket -> WalletLayer (SeqState t) t -> IO ()
-
--- | Create warp server settings.
-mkWarpSettings :: (Port -> IO ()) -> Port -> Settings
+start :: forall t. (TxId t, KeyToAddress t, EncodeAddress t, DecodeAddress t) => Settings -> Trace IO Text -> Socket -> WalletLayer (SeqState t) t -> IO ()
 
 -- | Run an action with a TCP socket bound to a port specified by the
 --   <a>Listen</a> parameter.
