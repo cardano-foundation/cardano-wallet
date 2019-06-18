@@ -32,6 +32,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( toText )
+import Data.Time.Clock
+    ( NominalDiffTime, diffUTCTime, getCurrentTime )
 import Network.HTTP.Types.Status
     ( Status (..) )
 import Network.Wai
@@ -44,6 +46,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Builder as B
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.HashMap.Strict as HM
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 -- | API logger settings
@@ -64,11 +67,13 @@ withApiLogger
 withApiLogger t settings app req0 sendResponse = do
     (req, reqBody) <- getRequestBody req0
     logRequest req reqBody
+    start <- getCurrentTime
     app req $ \res -> do
         builderIO <- newIORef (Nothing, mempty)
         rcvd <- recordChunks builderIO res >>= sendResponse
+        time <- flip diffUTCTime start <$> getCurrentTime
         readIORef builderIO >>=
-            uncurry logResponse . second (BL.toStrict . B.toLazyByteString)
+            uncurry (logResponse time) . second (BL.toStrict . B.toLazyByteString)
         return rcvd
   where
     logRequest :: Request -> ByteString -> IO ()
@@ -81,11 +86,12 @@ withApiLogger t settings app req0 sendResponse = do
         logInfo t $ mconcat [ "[", method, "] ", path, query ]
         logDebug t safeBody
 
-    logResponse :: Maybe Status -> ByteString -> IO ()
-    logResponse status body = do
+    logResponse :: NominalDiffTime -> Maybe Status -> ByteString -> IO ()
+    logResponse time status body = do
         let code = maybe "???" (toText . statusCode) status
         let text = maybe "Status Unknown" (T.decodeUtf8 . statusMessage) status
-        logInfo t $ mconcat [ code, " ", text ]
+        let tsec = T.pack $ show time
+        logInfo t $ mconcat [ code, " ", text, " in ", tsec ]
         logDebug t $ T.decodeUtf8 body
 
     -- | Removes sensitive details from valid request payloads and completely
