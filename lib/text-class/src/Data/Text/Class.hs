@@ -152,10 +152,11 @@ fromTextToBoundedEnum cs t =
   where
     allValuesInPascalCase = toTextFromBoundedEnum PascalCase <$> enumerate @a
     allValuesInRequiredCase = toTextFromBoundedEnum cs <$> enumerate @a
-    inputInPascalCase = T.pack $ Casing.toPascal $ fromCaseStyle cs $ T.unpack t
+    inputInPascalCase =
+        T.pack . Casing.toPascal <$> fromCaseStyle cs (T.unpack t)
     matchingValue = fmap (toEnum . snd) $ listToMaybe $
         filter ((== inputInPascalCase) . fst) $
-            allValuesInPascalCase `zip` [0 :: Int ..]
+            (Just <$> allValuesInPascalCase) `zip` [0 :: Int ..]
 
 toCaseStyle :: CaseStyle -> Casing.Identifier String -> String
 toCaseStyle = \case
@@ -166,11 +167,20 @@ toCaseStyle = \case
     SnakeUpperCase  -> Casing.toScreamingSnake
     SpacedLowerCase -> fmap C.toLower <$> Casing.toWords
 
-fromCaseStyle :: CaseStyle -> String -> Casing.Identifier String
+fromCaseStyle :: CaseStyle -> String -> Maybe (Casing.Identifier String)
 fromCaseStyle = \case
-    CamelCase       -> Casing.fromHumps
-    PascalCase      -> Casing.fromHumps
-    KebabLowerCase  -> Casing.fromKebab
-    SnakeLowerCase  -> Casing.fromSnake
-    SnakeUpperCase  -> Casing.fromSnake
-    SpacedLowerCase -> Casing.fromWords
+    CamelCase       -> fmap Casing.fromHumps . ensureFirstCharLowerCase
+    PascalCase      -> fmap Casing.fromHumps . ensureFirstCharUpperCase
+    KebabLowerCase  -> fmap Casing.fromKebab . ensureAllLowerCase
+    SnakeLowerCase  -> fmap Casing.fromSnake . ensureAllLowerCase
+    SnakeUpperCase  -> fmap Casing.fromSnake . ensureAllUpperCase
+    SpacedLowerCase -> fmap Casing.fromWords . ensureAllLowerCase
+  where
+    ensureAllLowerCase s =
+        if any C.isUpper s then Nothing else Just s
+    ensureAllUpperCase s =
+        if any C.isLower s then Nothing else Just s
+    ensureFirstCharLowerCase s =
+        (\c -> if C.isUpper c then Nothing else Just s) =<< listToMaybe s
+    ensureFirstCharUpperCase s =
+        (\c -> if C.isLower c then Nothing else Just s) =<< listToMaybe s
