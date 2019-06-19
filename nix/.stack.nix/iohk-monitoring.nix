@@ -8,8 +8,9 @@
       disable-gui = false;
       disable-monitoring = false;
       disable-observables = false;
-      disable-syslog = false;
+      disable-systemd = false;
       disable-examples = false;
+      performance-test-queue = false;
       };
     package = {
       specVersion = "1.10";
@@ -68,7 +69,7 @@
           then [ (hsPkgs.Win32) ]
           else [
             (hsPkgs.unix)
-            ])) ++ (pkgs.lib).optionals (system.isLinux && !flags.disable-syslog) [
+            ])) ++ (pkgs.lib).optionals (system.isLinux && !flags.disable-systemd) [
           (hsPkgs.hsyslog)
           (hsPkgs.libsystemd-journal)
           ];
@@ -100,6 +101,16 @@
             else [
               (hsPkgs.unix)
               ])) ++ (pkgs.lib).optional (system.isLinux) (hsPkgs.download);
+          };
+        "example-performance" = {
+          depends = [
+            (hsPkgs.base)
+            (hsPkgs.iohk-monitoring)
+            (hsPkgs.async)
+            (hsPkgs.criterion)
+            (hsPkgs.text)
+            (hsPkgs.unordered-containers)
+            ];
           };
         };
       tests = {
@@ -143,8 +154,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/iohk-monitoring-framework";
-      rev = "3395487ae1d6fe8a6370cdcc6ebc8121f221c7eb";
-      sha256 = "0hri6j0cxgj814c7mz7cl054c6ijwah2dq9xm92j90bzhp9z9rv9";
+      rev = "e2dc8b2160bb2ccd1ef9817a6498cda06ad36580";
+      sha256 = "1mp9fqva9lckbpx2fgakfzsyw85x3mmcb0mpszxyp55sbj3vyw1y";
       });
     postUnpack = "sourceRoot+=/iohk-monitoring; echo source root reset to \$sourceRoot";
     }
