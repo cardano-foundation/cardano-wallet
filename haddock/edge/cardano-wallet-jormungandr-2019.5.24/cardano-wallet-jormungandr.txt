@@ -33,6 +33,7 @@ hrp :: KnownNetwork n => HumanReadablePart
 single :: KnownNetwork n => Word8
 grouped :: KnownNetwork n => Word8
 instance GHC.Enum.Enum Cardano.Wallet.Jormungandr.Environment.Network
+instance GHC.Enum.Bounded Cardano.Wallet.Jormungandr.Environment.Network
 instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Environment.Network
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Environment.Network
 instance GHC.Generics.Generic Cardano.Wallet.Jormungandr.Environment.Network

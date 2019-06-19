@@ -33,6 +33,52 @@ TextDecodingError :: String -> TextDecodingError
 
 -- | Decode the specified text with a <a>Maybe</a> result type.
 fromTextMaybe :: FromText a => Text -> Maybe a
+
+-- | Represents a case style for multi-word strings.
+data CaseStyle
+
+-- | A string in the style of "doNotRepeatYourself"
+CamelCase :: CaseStyle
+
+-- | A string in the style of <a>DoNotRepeatYourself</a>
+PascalCase :: CaseStyle
+
+-- | A string in the style of "do-not-repeat-yourself"
+KebabLowerCase :: CaseStyle
+
+-- | A string in the style of "do_not_repeat_yourself"
+SnakeLowerCase :: CaseStyle
+
+-- | A string in the style of <a>DO_NOT_REPEAT_YOURSELF</a>
+SnakeUpperCase :: CaseStyle
+
+-- | A string in the style of "do not repeat yourself"
+SpacedLowerCase :: CaseStyle
+
+-- | Converts the given value to text, according to the specified
+--   <a>CaseStyle</a>.
+--   
+--   This function guarantees to satisfy the following property:
+--   
+--   <pre>
+--   fromTextToBoundedEnum s (toTextFromBoundedEnum s a) == Right a
+--   </pre>
+toTextFromBoundedEnum :: forall a. (Bounded a, Enum a, Show a) => CaseStyle -> a -> Text
+
+-- | Parses the given text to a value, according to the specified
+--   <a>CaseStyle</a>.
+--   
+--   This function guarantees to satisfy the following property:
+--   
+--   <pre>
+--   fromTextToBoundedEnum s (toTextFromBoundedEnum s a) == Right a
+--   </pre>
+fromTextToBoundedEnum :: forall a. (Bounded a, Enum a, Show a) => CaseStyle -> Text -> Either TextDecodingError a
+instance GHC.Show.Show Data.Text.Class.CaseStyle
+instance GHC.Generics.Generic Data.Text.Class.CaseStyle
+instance GHC.Classes.Eq Data.Text.Class.CaseStyle
+instance GHC.Enum.Enum Data.Text.Class.CaseStyle
+instance GHC.Enum.Bounded Data.Text.Class.CaseStyle
 instance Formatting.Buildable.Buildable Data.Text.Class.TextDecodingError
 instance GHC.Show.Show Data.Text.Class.TextDecodingError
 instance GHC.Classes.Eq Data.Text.Class.TextDecodingError

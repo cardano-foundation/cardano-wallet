@@ -533,6 +533,8 @@ instance GHC.Show.Show Cardano.Wallet.Primitive.Types.Coin
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.AddressState
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.AddressState
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.AddressState
+instance GHC.Enum.Enum Cardano.Wallet.Primitive.Types.AddressState
+instance GHC.Enum.Bounded Cardano.Wallet.Primitive.Types.AddressState
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.Address
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.Address
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.Address
@@ -540,8 +542,12 @@ instance GHC.Show.Show Cardano.Wallet.Primitive.Types.Address
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.Direction
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.Direction
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.Direction
+instance GHC.Enum.Enum Cardano.Wallet.Primitive.Types.Direction
+instance GHC.Enum.Bounded Cardano.Wallet.Primitive.Types.Direction
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.Direction
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.TxStatus
+instance GHC.Enum.Enum Cardano.Wallet.Primitive.Types.TxStatus
+instance GHC.Enum.Bounded Cardano.Wallet.Primitive.Types.TxStatus
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.TxStatus
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.TxStatus
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.TxStatus

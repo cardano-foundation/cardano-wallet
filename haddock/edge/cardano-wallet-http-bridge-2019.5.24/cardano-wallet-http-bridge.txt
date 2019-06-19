@@ -35,6 +35,7 @@ ProtocolMagic :: Int32 -> ProtocolMagic
 instance GHC.Show.Show Cardano.Wallet.HttpBridge.Environment.ProtocolMagic
 instance GHC.Generics.Generic Cardano.Wallet.HttpBridge.Environment.ProtocolMagic
 instance GHC.Enum.Enum Cardano.Wallet.HttpBridge.Environment.Network
+instance GHC.Enum.Bounded Cardano.Wallet.HttpBridge.Environment.Network
 instance GHC.Classes.Eq Cardano.Wallet.HttpBridge.Environment.Network
 instance GHC.Show.Show Cardano.Wallet.HttpBridge.Environment.Network
 instance GHC.Generics.Generic Cardano.Wallet.HttpBridge.Environment.Network
