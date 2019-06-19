@@ -10,6 +10,7 @@ module Cardano.Wallet.Jormungandr.Transaction
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Compatibility
+    ( Jormungandr )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (AddressK), Key, Passphrase (..), XPrv, getKey )
 import Cardano.Wallet.Primitive.Types
