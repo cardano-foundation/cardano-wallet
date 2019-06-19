@@ -84,6 +84,8 @@ import Control.Monad.Trans.Except
     ( ExceptT, withExceptT )
 import Data.Aeson
     ( (.=) )
+import Data.Functor
+    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
@@ -115,7 +117,7 @@ import Network.Socket
 import Network.Wai.Handler.Warp
     ( Port )
 import Network.Wai.Middleware.Logging
-    ( ApiLoggerSettings (..), withApiLogger )
+    ( newApiLoggerSettings, obfuscateKeys, withApiLogger )
 import Network.Wai.Middleware.ServantError
     ( handleRawError )
 import Servant
@@ -161,7 +163,8 @@ start
     -> Socket
     -> WalletLayer (SeqState t) t
     -> IO ()
-start settings trace socket wl =
+start settings trace socket wl = do
+    logSettings <- newApiLoggerSettings <&> obfuscateKeys (const sensitive)
     Warp.runSettingsSocket settings socket
         $ handleRawError handler
         $ withApiLogger trace logSettings
@@ -174,16 +177,14 @@ start settings trace socket wl =
     application :: Application
     application = serve (Proxy @("v2" :> Api t)) server
 
-    logSettings :: ApiLoggerSettings
-    logSettings = ApiLoggerSettings
-        { obfuscateKeys = const
-            [ "passphrase"
-            , "old_passphrase"
-            , "new_passphrase"
-            , "mnemonic_sentence"
-            , "mnemonic_second_factor"
-            ]
-        }
+    sensitive :: [Text]
+    sensitive =
+        [ "passphrase"
+        , "old_passphrase"
+        , "new_passphrase"
+        , "mnemonic_sentence"
+        , "mnemonic_second_factor"
+        ]
 
 -- | Run an action with a TCP socket bound to a port specified by the `Listen`
 -- parameter.
