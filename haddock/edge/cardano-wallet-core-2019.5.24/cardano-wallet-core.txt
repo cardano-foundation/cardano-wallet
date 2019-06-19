@@ -2493,3 +2493,12 @@ instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrSignTx
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrSubmitTx
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrUpdatePassphrase
 instance Cardano.Wallet.Api.Server.LiftHandler Servant.Server.Internal.ServantErr.ServantErr
+
+module Cardano.Wallet.Version
+version :: Version
+
+-- | Provides one possible concrete representation for <a>Version</a>. For
+--   a version with <a>versionBranch</a> <tt>= [1,2,3]</tt> and
+--   <a>versionTags</a> <tt>= ["tag1","tag2"]</tt>, the output will be
+--   <tt>1.2.3-tag1-tag2</tt>.
+showVersion :: Version -> String
