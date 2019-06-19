@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Jormungandr.Transaction
@@ -9,11 +10,8 @@ module Cardano.Wallet.Jormungandr.Transaction
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr )
-import Cardano.Wallet.Jormungandr.Environment
-    ( Network (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (AddressK), Key, Passphrase (..), XPrv, XPub, getKey, publicKey )
+    ( Depth (AddressK), Key, Passphrase (..), XPrv, getKey )
 import Cardano.Wallet.Primitive.Types
     ( Hash (..), Tx (..), TxId (..), TxOut (..), TxWitness (..) )
 import Cardano.Wallet.Transaction
@@ -29,13 +27,14 @@ import qualified Cardano.Crypto.Wallet as CC
 
 -- | Construct a 'TransactionLayer' compatible with Shelley and 'Jörmungandr'
 newTransactionLayer
-    :: TransactionLayer (Jormungandr 'Testnet)
-newTransactionLayer = TransactionLayer
+    :: forall n . Hash "Block0Hash"
+    -> TransactionLayer (Jormungandr n)
+newTransactionLayer block0Hash = TransactionLayer
     { mkStdTx = \keyFrom inps outs -> do
         let ins = (fmap fst inps)
         let tx = Tx ins outs
-        let txSigData = txId @(Jormungandr 'Testnet) tx
-        txWitnesses <- forM inps $ \(_in, TxOut addr _c) -> mkWitness txSigData
+        let witData = witnessUtxoData block0Hash (txId @(Jormungandr n) tx)
+        txWitnesses <- forM inps $ \(_in, TxOut addr _c) -> mkWitness witData
             <$> withEither (ErrKeyNotFoundForAddress addr) (keyFrom addr)
         return (tx, txWitnesses)
 
@@ -46,34 +45,26 @@ newTransactionLayer = TransactionLayer
     withEither :: e -> Maybe a -> Either e a
     withEither e = maybe (Left e) Right
 
+    witnessUtxoData :: Hash "Block0Hash" -> Hash "Tx" -> WitnessData
+    witnessUtxoData (Hash block0) (Hash tx) = WitnessData (block0 <> tx)
+
     mkWitness
-        :: Hash "Tx"
+        :: WitnessData
         -> (Key 'AddressK XPrv, Passphrase "encryption")
         -> TxWitness
-    mkWitness tx (xPrv, pwd) = PublicKeyWitness
-        (encodeXPub $ publicKey xPrv)
-        (sign (SignTx tx) (xPrv, pwd))
-
-    encodeXPub :: (Key level XPub) -> ByteString
-    encodeXPub = CC.xpubPublicKey . getKey
+    mkWitness (WitnessData dat) (xPrv, pwd) =
+        let
+            -- We can't easily modify the TxWitness type. This is a temporary solution
+            -- before we can decide on better abstractions. We might want to have
+            -- different witness types for Jormungandr and http-bridge.
+            dummyXPub = error "The witness xPub should not be used for the new scheme."
+        in PublicKeyWitness dummyXPub $ sign dat (xPrv, pwd)
 
     sign
-        :: SignTag
+        :: ByteString
         -> (Key 'AddressK XPrv, Passphrase "encryption")
         -> Hash "signature"
-    sign _tag (_key, (Passphrase _pwd)) = undefined
+    sign contents (key, (Passphrase pwd)) =
+        Hash . CC.unXSignature $ CC.sign pwd (getKey key) contents
 
--- | To protect agains replay attacks (i.e. when an attacker intercepts a
--- signed piece of data and later sends it again), we add a tag to all data
--- that we sign. This ensures that even if some bytestring can be
--- deserialized into two different types of messages (A and B), the attacker
--- can't take message A and send it as message B.
---
--- We also automatically add the network tag ('protocolMagic') whenever it
--- makes sense, to ensure that things intended for testnet won't work for
--- mainnet.
---
--- The wallet only cares about the 'SignTx' tag. In 'cardano-sl' there was
--- a lot more cases.
-newtype SignTag
-    = SignTx (Hash "Tx")
+newtype WitnessData = WitnessData ByteString
