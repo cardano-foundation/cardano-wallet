@@ -30,6 +30,8 @@ library
       -Werror
   build-depends:
       base
+    , casing
+    , extra
     , fmt
     , text
     , hspec

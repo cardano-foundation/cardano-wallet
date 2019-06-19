@@ -156,9 +156,9 @@ spec = do
             flatSlot (fromFlatSlot n) === n
 
     describe "Negative cases for types decoding" $ do
-        it "fail fromText @AddressPoolGap \"unusedused\"" $ do
-            let err = "Unable to decode address state: it's neither \"used\"\
-                      \ nor \"unused\""
+        it "fail fromText @AddressState \"unusedused\"" $ do
+            let err = "Unable to decode the given value: \"unusedused\".\
+                    \ Please specify one of the following values: used, unused."
             fromText @AddressState "unusedused" === Left (TextDecodingError err)
         it "fail fromText @WalletName \"\"" $ do
             let err = "name is too short: expected at least "

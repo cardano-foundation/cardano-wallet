@@ -128,8 +128,9 @@ spec = do
             walId <- emptyWallet' ctx
             (Exit c, Stdout o, Stderr e)
                 <- listAddressesViaCLI ctx ["--state", fil, walId]
-            e `shouldBe` "Unable to decode address state: it's neither\
-                \ \"used\" nor \"unused\"\n"
+            let err = "Unable to decode the given value: \"" <> fil <> "\". Please\
+                    \ specify one of the following values: used, unused.\n"
+            e `shouldBe` err
             c `shouldBe` ExitFailure 1
             o `shouldBe` ""
 

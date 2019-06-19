@@ -32,7 +32,6 @@ library
       base
     , ansi-terminal
     , docopt
-    , extra
     , fmt
     , iohk-monitoring
     , text
