@@ -45,9 +45,9 @@ library
     , fast-logger
     , fmt
     , generic-lens
-    , http-types
     , http-api-data
     , http-media
+    , http-types
     , iohk-monitoring
     , memory
     , monad-logger
@@ -133,17 +133,22 @@ test-suite unit
     , hspec
     , hspec-golden-aeson
     , http-api-data
+    , http-client
+    , http-types
     , iohk-monitoring
     , lens
     , memory
+    , network
     , persistent
     , persistent-sqlite
     , QuickCheck
     , quickcheck-instances
     , quickcheck-state-machine >= 0.6.0
     , random
+    , servant
     , servant-server
     , servant-swagger
+    , stm
     , swagger2
     , text
     , text-class
@@ -151,6 +156,7 @@ test-suite unit
     , transformers
     , tree-diff
     , yaml
+    , warp
   build-tools:
       hspec-discover
   type:
@@ -179,6 +185,7 @@ test-suite unit
       Cardano.Wallet.Primitive.TypesSpec
       Cardano.WalletSpec
       Data.QuantitySpec
+      Network.Wai.Middleware.LoggingSpec
 
 benchmark db
   default-language:
