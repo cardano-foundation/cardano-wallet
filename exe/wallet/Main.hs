@@ -83,6 +83,8 @@ import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
     ( DecodeAddress, EncodeAddress )
+import Cardano.Wallet.Version
+    ( showVersion, version )
 import Control.Arrow
     ( second )
 import Control.Concurrent
@@ -107,16 +109,12 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), ToText (..) )
-import Data.Version
-    ( showVersion )
 import Fmt
     ( blockListF, fmt, nameF )
 import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
 import Network.Wai.Handler.Warp
     ( setBeforeMainLoop )
-import Paths_cardano_wallet
-    ( version )
 import Servant
     ( (:<|>) (..), (:>) )
 import Servant.Client

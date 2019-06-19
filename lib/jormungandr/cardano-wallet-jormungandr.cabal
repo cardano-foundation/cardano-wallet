@@ -112,19 +112,37 @@ test-suite integration
     ghc-options:
       -Werror
   build-depends:
-      async
+      aeson
+    , aeson-qq
+    , async
     , base
     , bytestring
+    , cardano-wallet-cli
     , cardano-wallet-core
+    , cardano-wallet-http-bridge
     , cardano-wallet-jormungandr
     , cardano-wallet-launcher
+    , command
+    , cryptonite
     , deepseq
     , directory
+    , exceptions
+    , generic-lens
     , hspec
+    , hspec-expectations-lifted
+    , http-api-data
+    , http-client
+    , http-types
+    , persistent-sqlite
+    , process
     , QuickCheck
     , retry
     , servant
+    , template-haskell
+    , temporary
+    , text
     , transformers
+    , warp
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
@@ -132,5 +150,19 @@ test-suite integration
   main-is:
       Main.hs
   other-modules:
+      Cardano.Faucet
       Cardano.LauncherSpec
       Cardano.Wallet.Jormungandr.NetworkSpec
+      Test.Integration.Faucet
+      Test.Integration.Framework.DSL
+      Test.Integration.Framework.Request
+      Test.Integration.Framework.TestData
+      Test.Integration.Scenario.API.Addresses
+      Test.Integration.Scenario.API.Transactions
+      Test.Integration.Scenario.API.Wallets
+      Test.Integration.Scenario.CLI.Addresses
+      Test.Integration.Scenario.CLI.Mnemonics
+      Test.Integration.Scenario.CLI.Server
+      Test.Integration.Scenario.CLI.Transactions
+      Test.Integration.Scenario.CLI.Wallets
+      Test.Integration.Scenario.CLI.Port

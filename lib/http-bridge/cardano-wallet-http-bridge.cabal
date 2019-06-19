@@ -189,7 +189,6 @@ test-suite integration
       Test.Integration.Scenario.CLI.Wallets
       Test.Integration.Scenario.CLI.Port
       Test.Integration.Scenario.CLI.Server
-      Paths_cardano_wallet_http_bridge
 
 benchmark restore
   default-language:

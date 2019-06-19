@@ -62,19 +62,37 @@
           };
         "integration" = {
           depends = [
+            (hsPkgs.aeson)
+            (hsPkgs.aeson-qq)
             (hsPkgs.async)
             (hsPkgs.base)
             (hsPkgs.bytestring)
+            (hsPkgs.cardano-wallet-cli)
             (hsPkgs.cardano-wallet-core)
+            (hsPkgs.cardano-wallet-http-bridge)
             (hsPkgs.cardano-wallet-jormungandr)
             (hsPkgs.cardano-wallet-launcher)
+            (hsPkgs.command)
+            (hsPkgs.cryptonite)
             (hsPkgs.deepseq)
             (hsPkgs.directory)
+            (hsPkgs.exceptions)
+            (hsPkgs.generic-lens)
             (hsPkgs.hspec)
+            (hsPkgs.hspec-expectations-lifted)
+            (hsPkgs.http-api-data)
+            (hsPkgs.http-client)
+            (hsPkgs.http-types)
+            (hsPkgs.persistent-sqlite)
+            (hsPkgs.process)
             (hsPkgs.QuickCheck)
             (hsPkgs.retry)
             (hsPkgs.servant)
+            (hsPkgs.template-haskell)
+            (hsPkgs.temporary)
+            (hsPkgs.text)
             (hsPkgs.transformers)
+            (hsPkgs.warp)
             ];
           };
         };

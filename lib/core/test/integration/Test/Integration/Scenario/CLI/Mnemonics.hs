@@ -7,14 +7,12 @@ module Test.Integration.Scenario.CLI.Mnemonics
 
 import Prelude
 
+import Cardano.Wallet.Version
+    ( showVersion, version )
 import Control.Monad
     ( forM_ )
 import Data.List
     ( length )
-import Data.Version
-    ( showVersion )
-import Paths_cardano_wallet_http_bridge
-    ( version )
 import System.Command
     ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit
