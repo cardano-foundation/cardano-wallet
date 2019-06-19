@@ -2421,19 +2421,21 @@ instance GHC.Show.Show Cardano.Wallet.ErrCreateUnsignedTx
 
 module Network.Wai.Middleware.Logging
 
--- | API logger settings
-newtype ApiLoggerSettings
-ApiLoggerSettings :: (Request -> [Text]) -> ApiLoggerSettings
-
--- | For a given request, obfuscate the values associated with the given
---   keys from a JSON object payload.
-[obfuscateKeys] :: ApiLoggerSettings -> Request -> [Text]
-
 -- | Installs a request &amp; response logger on a Wai application.
 --   
 --   The logger logs requests' and responses' bodies along with a few other
 --   useful piece of information.
 withApiLogger :: Trace IO Text -> ApiLoggerSettings -> Middleware
+
+-- | Create a new opaque <a>ApiLoggerSettings</a>
+newApiLoggerSettings :: IO ApiLoggerSettings
+
+-- | API logger settings
+data ApiLoggerSettings
+
+-- | Define a set of top-level object keys that should be obfuscated for a
+--   given request in a JSON format.
+obfuscateKeys :: (Request -> [Text]) -> ApiLoggerSettings -> ApiLoggerSettings
 
 
 -- | Middleware between Wai <a>-</a> Servant to accommodate raw error
