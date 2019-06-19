@@ -12,6 +12,11 @@ module Cardano.Wallet.Jormungandr.CompatibilitySpec
 
 import Prelude
 
+
+import Cardano.Crypto.Wallet
+    ( ChainCode (..), XPub (..) )
+import Cardano.Wallet.Jormungandr.Binary
+    ( singleAddressFromKey )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Environment
@@ -165,8 +170,9 @@ goldenTest
 goldenTest proxy pubkeys expected = it ("golden test: " <> T.unpack expected) $ do
     case traverse (convertFromBase Base16) pubkeys of
         Right [spending] -> do
-            let payload = BS.pack [single @n] <> spending
-            let addr = encodeAddress proxy (Address payload)
+            let xpub = XPub spending chainCode
+            let rawAddr = singleAddressFromKey (Proxy @n) xpub
+            let addr = encodeAddress proxy rawAddr
             addr `shouldBe` expected
         Right [spending, delegation] -> do
             let payload = BS.pack [grouped @n] <> spending <> delegation
@@ -174,6 +180,8 @@ goldenTest proxy pubkeys expected = it ("golden test: " <> T.unpack expected) $ 
             addr `shouldBe` expected
         _ ->
             expectationFailure "goldenTest: provided invalid inputs public keys"
+  where
+    chainCode = ChainCode "<ChainCode is not used by singleAddressFromKey>"
 
 {-------------------------------------------------------------------------------
                              Arbitrary Instances
