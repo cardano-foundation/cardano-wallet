@@ -117,6 +117,7 @@ test-suite integration
     , async
     , base
     , bytestring
+    , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-http-bridge
     , cardano-wallet-jormungandr
