@@ -9,6 +9,8 @@ module Data.Text.ClassSpec
 
 import Prelude
 
+import Data.Either
+    ( isLeft )
 import Data.Foldable
     ( toList )
 import Data.Maybe
@@ -27,7 +29,7 @@ import Data.Text.Class
 import GHC.Generics
     ( Generic )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec, describe, it, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..)
     , UnicodeString (..)
@@ -39,6 +41,7 @@ import Test.QuickCheck
     , property
     , vectorOf
     , (===)
+    , (==>)
     )
 
 import qualified Data.Text as T
@@ -82,6 +85,11 @@ spec = do
         it "fromTextToBoundedEnum s (toTextFromBoundedEnum s a) == Right a" $
             property $ \(a :: TestBoundedEnum) (s :: CaseStyle) ->
                 fromTextToBoundedEnum s (toTextFromBoundedEnum s a) === Right a
+        it "fromTextToBoundedEnum t (toTextFromBoundedEnum s a) == Left _" $
+            property $ \(s :: CaseStyle) (t :: CaseStyle) ->
+                s /= t ==>
+                    fromTextToBoundedEnum @TestBoundedEnum t
+                        (toTextFromBoundedEnum s FooBar) `shouldSatisfy` isLeft
         it "CamelCase" $
             toTextFromBoundedEnum CamelCase FooBarBaz === "fooBarBaz"
         it "PascalCase" $
