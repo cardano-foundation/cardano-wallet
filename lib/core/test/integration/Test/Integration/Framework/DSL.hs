@@ -34,6 +34,7 @@ module Test.Integration.Framework.DSL
     , expectValidJSON
     , expectCliFieldBetween
     , expectCliFieldEqual
+    , expectCliFieldNotEqual
     , expectCliListItemFieldEqual
     , verify
     , Headers(..)
@@ -378,6 +379,14 @@ expectCliFieldEqual
     -> s
     -> m ()
 expectCliFieldEqual getter a out = (view getter out) `shouldBe` a
+
+expectCliFieldNotEqual
+    :: (MonadIO m, Show a, Eq a)
+    => Lens' s a
+    -> a
+    -> s
+    -> m ()
+expectCliFieldNotEqual getter a out = (view getter out) `shouldNotBe` a
 
 -- | Same as 'expectListItemFieldEqual' but for CLI
 expectCliListItemFieldEqual
