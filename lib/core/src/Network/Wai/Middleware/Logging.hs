@@ -22,7 +22,7 @@ import Prelude
 import Cardano.BM.Data.LogItem
     ( LoggerName )
 import Cardano.BM.Trace
-    ( Trace, logDebug, logInfo, modifyName )
+    ( Trace, logDebug, logError, logInfo, modifyName )
 import Control.Applicative
     ( (<|>) )
 import Control.Arrow
@@ -104,7 +104,10 @@ withApiLogger t0 settings app req0 sendResponse = do
         let code = maybe "???" (toText . statusCode) status
         let text = maybe "Status Unknown" (T.decodeUtf8 . statusMessage) status
         let tsec = T.pack $ show time
-        logInfo  t $ mconcat [ code, " ", text, " in ", tsec ]
+        let payload = mconcat [ code, " ", text, " in ", tsec ]
+        if maybe False ((>= 500) . statusCode) status
+            then logError t payload
+            else logInfo  t payload
         logDebug t $ T.decodeUtf8 body
 
     withRequestId :: RequestId -> LoggerName -> LoggerName
