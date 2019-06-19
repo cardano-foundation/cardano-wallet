@@ -29,6 +29,8 @@ import Control.Arrow
     ( second )
 import Control.Concurrent.MVar
     ( MVar, modifyMVar, newMVar )
+import Control.Monad
+    ( unless )
 import Data.Aeson
     ( Value (..) )
 import Data.ByteString
@@ -92,7 +94,7 @@ withApiLogger t0 settings app req0 sendResponse = do
         let keys = _obfuscateKeys settings req
         let safeBody = T.decodeUtf8 $ sanitize keys body
         logInfo t $ mconcat [ "[", method, "] ", path, query ]
-        logDebug t safeBody
+        unless (BS.null body) $ logDebug t safeBody
 
     logResponse
         :: Trace IO Text
@@ -108,7 +110,7 @@ withApiLogger t0 settings app req0 sendResponse = do
         if maybe False ((>= 500) . statusCode) status
             then logError t payload
             else logInfo  t payload
-        logDebug t $ T.decodeUtf8 body
+        unless (BS.null body) $ logDebug t (T.decodeUtf8 body)
 
     withRequestId :: RequestId -> LoggerName -> LoggerName
     withRequestId (RequestId rid) name = mconcat
