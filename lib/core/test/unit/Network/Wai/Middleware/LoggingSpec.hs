@@ -30,7 +30,7 @@ import Control.Monad
 import Control.Monad.STM
     ( atomically )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..), genericParseJSON, genericToJSON )
+    ( FromJSON (..), ToJSON (..) )
 import Data.ByteString
     ( ByteString )
 import Data.Function
@@ -253,21 +253,15 @@ data MkJson = MkJson
     { field :: String
     , sensitive :: Int
     } deriving Generic
-
-instance ToJSON MkJson where
-    toJSON = genericToJSON Aeson.defaultOptions
-instance FromJSON MkJson where
-    parseJSON = genericParseJSON Aeson.defaultOptions
+instance ToJSON MkJson
+instance FromJSON MkJson
 
 data ResponseJson = ResponseJson
     { status :: String
     , whatever :: Int
     } deriving Generic
-
-instance ToJSON ResponseJson where
-    toJSON = genericToJSON Aeson.defaultOptions
-instance FromJSON ResponseJson where
-    parseJSON = genericParseJSON Aeson.defaultOptions
+instance ToJSON ResponseJson
+instance FromJSON ResponseJson
 
 start
     :: ApiLoggerSettings
