@@ -1,5 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -19,6 +21,8 @@ import Cardano.Wallet.Api
     ( Any )
 import Cardano.Wallet.Api.Server
     ( Listen (..), withListeningSocket )
+import Control.Concurrent
+    ( threadDelay )
 import Control.Concurrent.Async
     ( Async, async, cancel, mapConcurrently )
 import Control.Concurrent.MVar
@@ -38,7 +42,9 @@ import Data.ByteString
 import Data.Function
     ( (&) )
 import Data.Functor
-    ( (<&>) )
+    ( ($>), (<&>) )
+import Data.Maybe
+    ( catMaybes )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -167,6 +173,20 @@ spec = describe "Logging Middleware"
             entries <- readTVarIO (logs ctx)
             let index = Map.fromList [ (loName l, l) | l <- entries ]
             Map.size index `shouldBe` n
+
+    it "correct time measures" $ \ctx -> property $ \(nReq, ix) ->
+        monadicIO $ liftIO $ do
+            let (NumberOfRequests n, RandomIndex i) = (nReq, ix)
+            let reqs = mconcat
+                    [ replicate i (get ctx "/get")
+                    , [ get ctx "/long" ]
+                    , replicate (n - i) (get ctx "/get")
+                    ]
+            void $ mapConcurrently id reqs
+            entries <- readTVarIO (logs ctx)
+            let index = Map.fromList
+                    $ catMaybes [ (loName l,) <$> captureTime l | l <- entries ]
+            Map.size (Map.filter (> (100*ms)) index) `shouldBe` 1
   where
     setup :: IO Context
     setup = do
@@ -245,18 +265,69 @@ expectLogs ctx expectations = do
 
     forM_ (zip entries expectations) $ \(l, (sev, str)) -> do
         (severity . loMeta $ l) `shouldBe` sev
-        case loContent l of
-            LogMessage txt ->
+        case logMessage l of
+            Just txt ->
                 T.unpack txt `shouldContain` str
-            _ ->
+            Nothing ->
                 fail $ "Given log object isn't a log message but: " <> show l
+
+-- | Extract the message from a 'LogObject'. Returns 'Nothing' if it's not
+-- a log message.
+logMessage :: LogObject Text -> Maybe Text
+logMessage l = case loContent l of
+    LogMessage txt ->
+        Just txt
+    _ ->
+        Nothing
+
+-- | Extract the execution time, in microseconds, from a log request.
+-- Returns 'Nothing' if the log line doesn't contain any time indication.
+captureTime :: LogObject Text -> Maybe Int
+captureTime l = case loContent l of
+    LogMessage txt -> let str = T.unpack txt in case words str of
+        ["200", "OK", "in", time] ->
+            Just $ round $ toMicro $ read @Double $ init time
+        _ ->
+            Nothing
+    _ ->
+        Nothing
+  where
+    toMicro = (* 1000000)
+
+-- | Number of microsecond in one millisecond
+ms :: Int
+ms = 1000
+
+{-------------------------------------------------------------------------------
+                            Arbitrary instances
+-------------------------------------------------------------------------------}
 
 newtype NumberOfRequests = NumberOfRequests Int deriving Show
 
 instance Arbitrary NumberOfRequests where
     shrink (NumberOfRequests n) =
         fmap NumberOfRequests $ filter (> 0) $ shrink n
-    arbitrary = NumberOfRequests <$> choose (50, 100)
+    arbitrary = NumberOfRequests <$> choose (1, 100)
+
+newtype RandomIndex = RandomIndex Int deriving Show
+
+-- | Give a random number of request 'n' and a random index 'i' such that:
+--
+--     0 <= i < n
+--
+-- This allows for crafting `n+1` requests where `n` requests are "fast" and one
+-- is "long", ensuring that the time is correctly measured for that long request,
+-- regardless of the interleaving.
+instance {-# OVERLAPS #-} Arbitrary (NumberOfRequests, RandomIndex) where
+    shrink (NumberOfRequests n, RandomIndex i) =
+        [ (NumberOfRequests n', RandomIndex i')
+        | n' <- shrink n, n' > 0
+        , i' <- shrink i, i' > 0 && i' < n'
+        ]
+    arbitrary = do
+        NumberOfRequests n <- arbitrary
+        i <- choose (0, n - 1)
+        return (NumberOfRequests n, RandomIndex i)
 
 {-------------------------------------------------------------------------------
                                 mock server
@@ -290,12 +361,20 @@ start logSettings warpSettings trace socket = do
     application :: Application
     application = serve (Proxy @Api) handler
     handler :: Server Api
-    handler = hGet :<|> hDelete :<|> hPost :<|> hJson :<|> hErr400 :<|> hErr500
+    handler =
+        hGet
+        :<|> hDelete
+        :<|> hPost
+        :<|> hJson
+        :<|> hLong
+        :<|> hErr400
+        :<|> hErr500
       where
         hGet = return 14 :: Handler Int
         hDelete = return NoContent :: Handler NoContent
         hPost _ = return (ResponseJson "ok" 42) :: Handler ResponseJson
         hJson = return "\NUL\NUL\NUL" :: Handler ByteString
+        hLong = liftIO (threadDelay $ 100*ms) $> 14 :: Handler Int
         hErr400 = throwError err400 :: Handler ()
         hErr500 = throwError err500 :: Handler ()
 
@@ -304,5 +383,6 @@ type Api =
     :<|> "delete" :> DeleteNoContent '[Any] NoContent
     :<|> "post" :> ReqBody '[JSON] MkJson :> PostCreated '[JSON] ResponseJson
     :<|> "not-json" :> Get '[OctetStream] ByteString
+    :<|> "long" :> Get '[JSON] Int
     :<|> "error400" :> Get '[JSON] ()
     :<|> "error500" :> Get '[JSON] ()
