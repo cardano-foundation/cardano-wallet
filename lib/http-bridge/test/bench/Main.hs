@@ -27,7 +27,7 @@ import Cardano.Wallet.HttpBridge.Network
 import Cardano.Wallet.HttpBridge.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..), networkTip )
+    ( NetworkLayer (..), defaultRetryPolicy, networkTip, waitForConnection )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..)
     , Passphrase (..)
@@ -201,6 +201,7 @@ bench_restoration _ (wid, wname, s) = withHttpBridge network $ \port -> do
     (conn, db) <- emptySystemTempFile "bench.db" >>= Sqlite.newDBLayer nullTracer . Just
     Sqlite.runQuery conn (void $ runMigrationSilent migrateAll)
     nw <- newNetworkLayer port
+    waitForConnection nw defaultRetryPolicy
     let tl = newTransactionLayer
     BlockHeader sl _ <- unsafeRunExceptT $ networkTip nw
     sayErr . fmt $ network ||+ " tip is at " +|| sl ||+ ""
