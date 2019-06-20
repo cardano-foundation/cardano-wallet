@@ -113,6 +113,9 @@ import qualified Codec.CBOR.Read as CBOR
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 
+-- Do-notation is favoured over applicative syntax for readability:
+{-# ANN module ("HLint: ignore Use <$>" :: String) #-}
+
 data BlockHeader = BlockHeader
     { version :: Word16
     , contentSize :: Word32
@@ -129,9 +132,6 @@ data SignedUpdateProposal = SignedUpdateProposal
     deriving (Eq, Show)
 data SignedVote = SignedVote
     deriving (Eq, Show)
-
--- Do-notation is favoured over applicative syntax for readability:
-{-# ANN module ("HLint: ignore Use <$>" :: String) #-}
 
 getBlockHeader :: Get BlockHeader
 getBlockHeader = label "getBlockHeader" $
@@ -259,9 +259,10 @@ putWitness witness =
     case witness of
         PublicKeyWitness _xPub (Hash sig) -> do
             -- Witness sum type:
-            --   * 1 for old address witnness scheme
-            --   * 2 for new address witness scheme
-            --   * 3 for account witness
+            --   * 0 for old address witnness scheme
+            --   * 1 for new address witness scheme
+            --   * 2 for account witness
+            --   * 3 for multisig
             putWord8 1
             --putByteString xPub
             putByteString sig
