@@ -425,7 +425,8 @@ execHttpBridge args _ = do
     walletListen <- parseWalletListen args
     bridgePort <- args `parseArg` longOption "bridge-port"
     let dbFile = args `getArg` longOption "database"
-    (_, db) <- Sqlite.newDBLayer dbFile
+    tracerDB <- appendName "DBLayer" tracer
+    (_, db) <- Sqlite.newDBLayer tracerDB dbFile
     nw <- HttpBridge.newNetworkLayer @n (getPort bridgePort)
     waitForConnection nw defaultRetryPolicy
     let tl = HttpBridge.newTransactionLayer @n

@@ -11,6 +11,8 @@ module Cardano.Wallet.DB.SqliteSpec
 
 import Prelude
 
+import Cardano.BM.Data.Tracer
+    ( nullTracer )
 import Cardano.Wallet
     ( unsafeRunExceptT )
 import Cardano.Wallet.DB
@@ -129,7 +131,7 @@ simpleSpec = do
             readCheckpoint db testPk `shouldReturn` Just testCp
 
 newMemoryDBLayer :: IO (DBLayer IO (SeqState DummyTarget) DummyTarget)
-newMemoryDBLayer = snd <$> newDBLayer Nothing
+newMemoryDBLayer = snd <$> newDBLayer nullTracer Nothing
 
 testCp :: Wallet (SeqState DummyTarget) DummyTarget
 testCp = initWallet initDummyBlock0 initDummyState

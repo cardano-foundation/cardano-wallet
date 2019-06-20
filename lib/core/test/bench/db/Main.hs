@@ -37,6 +37,8 @@
 
 import Prelude
 
+import Cardano.BM.Data.Tracer
+    ( nullTracer )
 import Cardano.Crypto.Wallet
     ( unXPub )
 import Cardano.Wallet
@@ -260,7 +262,7 @@ withDB bm = envWithCleanup setup cleanup (\ ~(_, db) -> bm db)
   where
     setup = do
         f <- emptySystemTempFile "bench.db"
-        (_, db) <- newDBLayer (Just f)
+        (_, db) <- newDBLayer nullTracer (Just f)
         pure (f, db)
     cleanup (f, _) = mapM_ remove [f, f <> "-shm", f <> "-wal"]
     remove f = doesFileExist f >>= \case

@@ -11,6 +11,8 @@ module Cardano.Wallet.DB.SqliteFileModeSpec
 
 import Prelude
 
+import Cardano.BM.Data.Tracer
+    ( nullTracer )
 import Cardano.Wallet
     ( unsafeRunExceptT )
 import Cardano.Wallet.DB
@@ -218,12 +220,12 @@ testOpeningCleaning call expectedAfterOpen expectedAfterClean = do
 inMemoryDBLayer
     :: (IsOurs s, NFData s, Show s, PersistState s, TxId t)
     => IO (SqlBackend, DBLayer IO s t)
-inMemoryDBLayer = newDBLayer Nothing
+inMemoryDBLayer = newDBLayer nullTracer Nothing
 
 fileDBLayer
     :: (IsOurs s, NFData s, Show s, PersistState s, TxId t)
     => IO (SqlBackend, DBLayer IO s t)
-fileDBLayer = newDBLayer (Just "backup/test.db")
+fileDBLayer = newDBLayer nullTracer (Just "backup/test.db")
 
 -- | Clean the database
 cleanDB'
