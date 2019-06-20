@@ -22,7 +22,8 @@ module Cardano.Wallet.Jormungandr.Binary
     , getBlock
     , getTransaction
 
-    , putTransaction
+    , putTokenTransfer
+    , putSignedTransaction
 
     , ConfigParam (..)
     , ConsensusVersion (..)
@@ -44,7 +45,8 @@ module Cardano.Wallet.Jormungandr.Binary
       -- * Re-export
     , runGet
     , Get
-
+    , runPut
+    , Put
     ) where
 
 import Prelude
@@ -234,8 +236,8 @@ getTransaction = label "getTransaction" $ do
                 error "unimplemented: Account witness"
             other -> fail $ "Invalid witness type: " ++ show other
 
-putTransaction :: (Tx, [TxWitness]) -> Put
-putTransaction (tx, witnesses) = do
+putSignedTransaction :: (Tx, [TxWitness]) -> Put
+putSignedTransaction (tx, witnesses) = do
     putTokenTransfer tx
     mapM_ putWitness witnesses
 

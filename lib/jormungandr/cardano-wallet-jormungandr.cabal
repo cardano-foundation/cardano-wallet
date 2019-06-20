@@ -39,6 +39,7 @@ library
     , cardano-wallet-core
     , cardano-crypto
     , cborg
+    , cryptonite
     , exceptions
     , http-client
     , http-types
