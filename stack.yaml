@@ -30,5 +30,15 @@ extra-deps:
     - contra-tracer
     - iohk-monitoring
 
+flags:
+  # Bring in less dependencies from iohk-monitoring
+  iohk-monitoring:
+    disable-ekg: true
+    disable-examples: true
+    disable-graylog: true
+    disable-gui: true
+    disable-prometheus: true
+    disable-syslog: true
+
 nix:
   shell-file: nix/stack-shell.nix
