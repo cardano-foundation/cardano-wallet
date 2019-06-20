@@ -317,4 +317,4 @@ module Cardano.Wallet.Jormungandr.Transaction
 
 -- | Construct a <a>TransactionLayer</a> compatible with Shelley and
 --   <tt>Jörmungandr</tt>
-newTransactionLayer :: TransactionLayer t
+newTransactionLayer :: forall n. Hash "Block0Hash" -> TransactionLayer (Jormungandr n)
