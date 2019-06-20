@@ -75,7 +75,8 @@ getBlock :: Get Block
 
 -- | Decode the contents of a <tt>Transaction</tt>-message.
 getTransaction :: Get Tx
-putTransaction :: (Tx, [TxWitness]) -> Put
+putTokenTransfer :: Tx -> Put
+putSignedTransaction :: (Tx, [TxWitness]) -> Put
 data ConfigParam
 
 -- | The official start time of the blockchain, in seconds since the Unix
@@ -153,6 +154,8 @@ get :: FromBinary a => Get a
 decodeLegacyAddress :: ByteString -> Maybe Address
 runGet :: () => Get a -> ByteString -> a
 data Get a
+runPut :: Put -> ByteString
+type Put = PutM ()
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.Block
 instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.Block
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.Message
