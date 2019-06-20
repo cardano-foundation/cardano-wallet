@@ -6,6 +6,8 @@ import Prelude
 
 import Cardano.Launcher
     ( Command (..), StdStream (..) )
+import Control.Monad
+    ( forM_ )
 import System.Directory
     ( doesDirectoryExist, doesFileExist, removeDirectory )
 import System.Exit
@@ -55,10 +57,17 @@ spec = do
             expectStateDirExists d
 
     describe "DaedalusIPC" $ do
-        it "should reply with the port when asked" $ do
-            (_, _, _, ph) <-
-             createProcess (proc "test/integration/js/mock-daedalus.js" [])
-            waitForProcess ph `shouldReturn` ExitSuccess
+        let tests =
+                [ ["--random-port"]
+                , ["--port", "8082"]
+                , []
+                ]
+        forM_ tests $ \args -> do
+            let title = "should reply with the port when asked " <> show args
+            it title $ do
+                let filepath = "test/integration/js/mock-daedalus.js"
+                (_, _, _, ph) <- createProcess (proc filepath args)
+                waitForProcess ph `shouldReturn` ExitSuccess
 
 expectStateDirExists :: FilePath -> IO ()
 expectStateDirExists dir = do
