@@ -222,8 +222,8 @@ errMsg403NotEnoughMoney has needs = "I can't process this payment because there'
     \ (excluding fee amount) in order to proceed  with the payment."
 
 errMsg403InvalidTransaction :: String
-errMsg403InvalidTransaction = "I can't process this payment because transactions\
-    \ with 0 amount are not supported in Byron."
+errMsg403InvalidTransaction = "I can't process this payment because it contains at least\
+    \ one payment output of value 0. This isn't supported by the current core nodes."
 
 errMsg403UTxO :: String
 errMsg403UTxO = "When creating new transactions, I'm not able to re-use the\
