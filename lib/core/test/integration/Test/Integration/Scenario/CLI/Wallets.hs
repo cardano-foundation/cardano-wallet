@@ -166,16 +166,7 @@ spec = do
             \However, I already know of a wallet with this id."
 
     describe "WALLETS_CREATE_04 - Wallet names" $ do
-        let walNameMax = replicate walletNameMaxLength 'ą'
-        let walNameMin = replicate walletNameMinLength 'ź'
-        let matrix =
-                [ ( show walletNameMinLength ++ " char long", walNameMin )
-                , ( show walletNameMaxLength ++ " char long", walNameMax )
-                , ( "Russian", "АаБбВвГгДдЕеЁёЖжЗз")
-                -- , ( "Polish", "aąbcćdeęfghijklłmnoóp" )
-                -- , ( "Kanji", "亜哀挨愛曖悪握圧扱宛嵐")
-                ]
-        forM_ matrix $ \(title, n) -> it title $ \ctx -> do
+        forM_ walletNames $ \(title, n) -> it title $ \ctx -> do
             Stdout m <- generateMnemonicsViaCLI ["--size", "18"]
             (c, o, e) <- createWalletViaCLI ctx [n] m "\n" "secure-passphrase"
             c `shouldBe` ExitSuccess
@@ -249,10 +240,14 @@ spec = do
 
     describe "WALLETS_CREATE_07 - Passphrase is valid" $ do
         let passphraseMax = replicate passphraseMaxLength 'ą'
+        let passBelowMax = replicate ( passphraseMaxLength - 1 ) 'ć'
         let passphraseMin = replicate passphraseMinLength 'ń'
+        let passAboveMin = replicate ( passphraseMinLength + 1 ) 'ę'
         let matrix =
-                [ ( show passphraseMinLength ++ " char long", passphraseMin )
-                , ( show passphraseMaxLength ++ " char long", passphraseMax )
+                [ ( "Pass min", passphraseMin )
+                , ( "Pass max", passphraseMax )
+                , ( "Pass max - 1", passBelowMax )
+                , ( "Pass min + 1", passAboveMin )
                 , ( "Russian", "АаБбВвГгДдЕеЁёЖжЗз")
                 , ( "Polish", "aąbcćdeęfghijklłmnoóp" )
                 , ( "Kanji", "亜哀挨愛曖悪握圧扱宛嵐")
@@ -294,8 +289,8 @@ spec = do
         let expectsErr c o e gap = do
                 c `shouldBe` ExitFailure 1
                 o `shouldNotContain` gap
-                e `shouldBe` "An address pool gap must be a natural number \
-                    \between 10 and 100.\n"
+                T.unpack e `shouldBe` "An address pool gap must be a natural number \
+                    \between " ++ show addressPoolGapMin ++ " and " ++ show addressPoolGapMax ++ ".\n"
 
         let matrix =
                 [ ( "Gap max", show addressPoolGapMax, expectsOk )
@@ -369,14 +364,15 @@ spec = do
             , expectCliListItemFieldEqual 2 walletId (T.pack w3)
             ]
 
-    it "WALLETS_UPDATE_01 - Can update wallet name" $ \ctx -> do
-        walId <- emptyWallet' ctx
-        let args = [walId, "--name", "new name"]
-        (Exit c, Stdout out, Stderr err) <- updateWalletViaCLI ctx args
-        c `shouldBe` ExitSuccess
-        err `shouldBe` cmdOk
-        j <- expectValidJSON (Proxy @ApiWallet) out
-        expectCliFieldEqual walletName "new name" j
+    describe "WALLETS_UPDATE_01,02 - Can update wallet name" $ do
+        forM_ walletNames $ \(title, n) -> it title $ \ctx -> do
+            wid <- emptyWallet' ctx
+            let args = [wid, "--name", n]
+            (Exit c, Stdout out, Stderr err) <- updateWalletViaCLI ctx args
+            c `shouldBe` ExitSuccess
+            err `shouldBe` cmdOk
+            _ <- expectValidJSON (Proxy @ApiWallet) out
+            out `shouldContain` n
 
     it "WALLETS_DELETE_01, WALLETS_LIST_02 - Can delete wallet" $ \ctx -> do
         walId <- emptyWallet' ctx
@@ -395,5 +391,16 @@ emptyWalletWith' :: Context t -> (Text, Text, Int) -> IO String
 emptyWalletWith' ctx (name, pass, pg) =
     fmap (T.unpack . view walletId) (emptyWalletWith ctx (name, pass, pg))
 
--- fixtureWallet' :: Context t -> IO String
--- fixtureWallet' = fmap (T.unpack . view walletId) . fixtureWallet
+walletNames :: [(String, String)]
+walletNames =
+        [ ( "Name min", replicate walletNameMinLength 'ź' )
+        , ( "Name max", replicate walletNameMaxLength 'ą' )
+        , ( "Name max - 1", replicate ( walletNameMaxLength - 1 ) 'ą' )
+        , ( "Name max + 1", replicate ( walletNameMinLength + 1 ) 'ź' )
+        , ( "Single space", " " )
+        , ( "Russian", "АаБбВвГгДдЕеЁёЖжЗз")
+        -- these names give error in automated tests which cannot be reproduced
+        -- by hand:
+        -- , ( "Polish", "aąbcćdeęfghijklłmnoóp" )
+        -- , ( "Kanji", "亜哀挨愛曖悪握圧扱宛嵐")
+        ]
