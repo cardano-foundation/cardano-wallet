@@ -28,6 +28,7 @@
           (hsPkgs.cardano-wallet-core)
           (hsPkgs.cardano-crypto)
           (hsPkgs.cborg)
+          (hsPkgs.cryptonite)
           (hsPkgs.exceptions)
           (hsPkgs.http-client)
           (hsPkgs.http-types)
