@@ -30,6 +30,7 @@
           (hsPkgs.cborg)
           (hsPkgs.cryptonite)
           (hsPkgs.digest)
+          (hsPkgs.either)
           (hsPkgs.exceptions)
           (hsPkgs.http-api-data)
           (hsPkgs.http-client)

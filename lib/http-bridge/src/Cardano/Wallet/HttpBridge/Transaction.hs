@@ -35,6 +35,8 @@ import Control.Monad
     ( forM, when )
 import Data.ByteString
     ( ByteString )
+import Data.Either.Combinators
+    ( maybeToRight )
 import Data.Quantity
     ( Quantity (..) )
 
@@ -57,7 +59,7 @@ newTransactionLayer = TransactionLayer
         -- Not working, maybe we need to make TransactionLayer polymorphic
         let txSigData = txId @(HttpBridge n) tx
         txWitnesses <- forM inps $ \(_in, TxOut addr _c) -> mkWitness txSigData
-            <$> withEither (ErrKeyNotFoundForAddress addr) (keyFrom addr)
+            <$> maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
         return (tx, txWitnesses)
 
     , estimateSize = \(CoinSelection inps outs chngs) -> let n = length inps in
@@ -74,9 +76,6 @@ newTransactionLayer = TransactionLayer
         + n * sizeOfTxWitness
     }
   where
-    withEither :: e -> Maybe a -> Either e a
-    withEither e = maybe (Left e) Right
-
     mkWitness
         :: Hash "Tx"
         -> (Key 'AddressK XPrv, Passphrase "encryption")

@@ -29,6 +29,7 @@
           (hsPkgs.cardano-crypto)
           (hsPkgs.cborg)
           (hsPkgs.cryptonite)
+          (hsPkgs.either)
           (hsPkgs.exceptions)
           (hsPkgs.http-client)
           (hsPkgs.http-types)

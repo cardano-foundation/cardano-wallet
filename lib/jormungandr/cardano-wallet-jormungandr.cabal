@@ -40,6 +40,7 @@ library
     , cardano-crypto
     , cborg
     , cryptonite
+    , either
     , exceptions
     , http-client
     , http-types
