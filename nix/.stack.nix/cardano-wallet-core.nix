@@ -118,6 +118,7 @@
             (hsPkgs.directory)
             (hsPkgs.fmt)
             (hsPkgs.memory)
+            (hsPkgs.iohk-monitoring)
             (hsPkgs.temporary)
             (hsPkgs.time)
             ];

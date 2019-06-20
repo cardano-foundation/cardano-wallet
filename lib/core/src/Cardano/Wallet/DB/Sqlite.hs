@@ -23,6 +23,12 @@ module Cardano.Wallet.DB.Sqlite
 
 import Prelude
 
+import Cardano.BM.Data.LogItem
+    ( PrivacyAnnotation (..) )
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Trace
+    ( Trace, appendName, logDebug, logNotice, traceNamedItem )
 import Cardano.Crypto.Wallet
     ( XPrv )
 import Cardano.Wallet.DB
@@ -61,7 +67,7 @@ import Control.Concurrent.MVar
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( mapM_, void, when )
+    ( mapM_, when )
 import Control.Monad.Catch
     ( MonadCatch (..), handleJust )
 import Control.Monad.IO.Class
@@ -121,8 +127,8 @@ import Database.Persist.Sqlite
     ( SqlBackend, SqlPersistM, SqlPersistT, wrapConnection )
 import Database.Sqlite
     ( Error (ErrorConstraint), SqliteException (SqliteException) )
-import System.IO
-    ( stderr )
+import Fmt
+    ( fmt, (+||), (||+) )
 import System.Log.FastLogger
     ( fromLogStr )
 
@@ -134,6 +140,7 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Database.Sqlite as Sqlite
 
 ----------------------------------------------------------------------------
@@ -146,23 +153,33 @@ enableForeignKeys conn = do
     Sqlite.finalize stmt
 
 createSqliteBackend
-    :: Maybe FilePath
+    :: Trace IO Text
+    -> Maybe FilePath
     -> LogFunc
     -> IO SqlBackend
-createSqliteBackend fp logFunc = do
-    conn <- Sqlite.open (sqliteConnStr fp)
+createSqliteBackend trace fp logFunc = do
+    let connStr = sqliteConnStr fp
+    logDebug trace $ "Using connection string: " <> connStr
+    conn <- Sqlite.open connStr
     enableForeignKeys conn
     wrapConnection conn logFunc
 
 sqliteConnStr :: Maybe FilePath -> Text
 sqliteConnStr = maybe ":memory:" T.pack
 
-dbLogs :: [LogLevel] -> LogFunc
-dbLogs levels _ _ level str =
-    if level `elem` levels then
-        B8.hPutStrLn stderr (fromLogStr str)
-    else
-        pure ()
+queryLogFunc :: Trace IO Text -> LogFunc
+queryLogFunc trace _loc _source level str = traceNamedItem trace Public sev msg
+  where
+    -- Filter out parameters which appear after the statement semicolon.
+    -- They will contain sensitive material that we don't want in the log.
+    stmt = B8.takeWhile (/= ';') $ fromLogStr str
+    msg = T.decodeUtf8 stmt
+    sev = case level of
+        LevelDebug -> Debug
+        LevelInfo -> Info
+        LevelWarn -> Warning
+        LevelError -> Error
+        LevelOther _ -> Warning
 
 -- | Run a query without error handling. There will be exceptions thrown if it
 -- fails.
@@ -186,16 +203,22 @@ handleConstraint e = handleJust select handler . fmap Right
 -- library.
 newDBLayer
     :: forall s t. (W.IsOurs s, NFData s, Show s, PersistState s, W.TxId t)
-    => Maybe FilePath
+    => Trace IO Text
+       -- ^ Logging object
+    -> Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
     -> IO (SqlBackend, DBLayer IO s t)
-newDBLayer fp = do
+newDBLayer trace fp = do
     lock <- newMVar ()
     bigLock <- newMVar ()
-    backend <- createSqliteBackend fp (dbLogs [LevelError])
+    traceQuery <- appendName "query" trace
+    backend <- createSqliteBackend trace fp (queryLogFunc traceQuery)
     let runQuery' :: SqlPersistM a -> IO a
         runQuery' cmd = withMVar bigLock $ const $ runQuery backend cmd
-    runQuery' $ void $ runMigrationSilent migrateAll
+    migrations <- runQuery' $ runMigrationSilent migrateAll
+    case length migrations of
+        0 -> logDebug trace "No database migrations were necessary."
+        n -> logNotice trace $ fmt $ ""+||n||+" migrations were applied to the database."
     runQuery' addIndexes
     return (backend, DBLayer
 

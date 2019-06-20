@@ -234,7 +234,7 @@ main = hspec $ do
         -> IO (ThreadId, Int, SqlBackend, NetworkLayer network IO)
     cardanoWalletServer mlisten = do
         nl <- HttpBridge.newNetworkLayer bridgePort
-        (conn, db) <- Sqlite.newDBLayer Nothing
+        (conn, db) <- Sqlite.newDBLayer nullTracer Nothing
         mvar <- newEmptyMVar
         thread <- forkIO $ do
             let tl = HttpBridge.newTransactionLayer

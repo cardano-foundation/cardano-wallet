@@ -198,7 +198,7 @@ bench_restoration
     -> (WalletId, WalletName, s)
     -> IO ()
 bench_restoration _ (wid, wname, s) = withHttpBridge network $ \port -> do
-    (conn, db) <- emptySystemTempFile "bench.db" >>= Sqlite.newDBLayer . Just
+    (conn, db) <- emptySystemTempFile "bench.db" >>= Sqlite.newDBLayer nullTracer . Just
     Sqlite.runQuery conn (void $ runMigrationSilent migrateAll)
     nw <- newNetworkLayer port
     let tl = newTransactionLayer

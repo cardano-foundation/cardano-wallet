@@ -206,6 +206,7 @@ benchmark db
     , directory
     , fmt
     , memory
+    , iohk-monitoring
     , temporary
     , time
   type:
