@@ -47,6 +47,7 @@ module Test.Integration.Framework.TestData
     , errMsg404NoEndpoint
     , errMsg404NoRootKey
     , errMsg404NoWallet
+    , errMsg403InvalidTransaction
     , errMsg405
     , errMsg406
     , errMsg415
@@ -219,6 +220,10 @@ errMsg403NotEnoughMoney has needs = "I can't process this payment because there'
     \ not enough UTxO available in the wallet. The total UTxO sums up to\
     \ " ++ show has ++ " Lovelace, but I need " ++ show needs ++ " Lovelace\
     \ (excluding fee amount) in order to proceed  with the payment."
+
+errMsg403InvalidTransaction :: String
+errMsg403InvalidTransaction = "I can't process this payment because transactions\
+    \ with 0 amount are not supported in Shelley."
 
 errMsg403UTxO :: String
 errMsg403UTxO = "When creating new transactions, I'm not able to re-use the\

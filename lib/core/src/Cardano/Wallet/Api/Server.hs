@@ -488,6 +488,11 @@ instance LiftHandler ErrSignTx where
                 , pretty addr, ". Are you sure this address belongs to a known "
                 , "wallet?"
                 ]
+        ErrSignTx ErrInvalidTx ->
+            apiError err403 CreatedInvalidTransaction $ mconcat
+                [ "I can't process this payment because transactions"
+                , " with 0 amount are not supported in Shelley."
+                ]
         ErrSignTxNoSuchWallet e -> (handler e)
             { errHTTPCode = 410
             , errReasonPhrase = errReasonPhrase err410
