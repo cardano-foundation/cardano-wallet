@@ -48,6 +48,7 @@
             (hsPkgs.cardano-wallet-core)
             (hsPkgs.cardano-crypto)
             (hsPkgs.cardano-wallet-jormungandr)
+            (hsPkgs.containers)
             (hsPkgs.generic-arbitrary)
             (hsPkgs.generic-lens)
             (hsPkgs.hspec)
@@ -55,6 +56,7 @@
             (hsPkgs.QuickCheck)
             (hsPkgs.text)
             (hsPkgs.text-class)
+            (hsPkgs.transformers)
             ];
           build-tools = [
             (hsPkgs.buildPackages.hspec-discover or (pkgs.buildPackages.hspec-discover))
