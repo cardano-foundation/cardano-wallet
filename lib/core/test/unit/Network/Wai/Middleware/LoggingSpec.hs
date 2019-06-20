@@ -27,6 +27,8 @@ import Control.Concurrent.STM.TVar
     ( TVar, newTVarIO, readTVarIO, writeTVar )
 import Control.Monad
     ( forM_, void, when )
+import Control.Monad.IO.Class
+    ( liftIO )
 import Control.Monad.STM
     ( atomically )
 import Data.Aeson
@@ -83,6 +85,10 @@ import Servant.Server
     ( Handler )
 import Test.Hspec
     ( Spec, after, afterAll, beforeAll, describe, it, shouldBe, shouldContain )
+import Test.QuickCheck
+    ( Arbitrary (..), choose, property )
+import Test.QuickCheck.Monadic
+    ( monadicIO )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Map.Strict as Map
@@ -155,12 +161,12 @@ spec = describe "Logging Middleware"
             , (Error, "500 Internal Server Error")
             ]
 
-    it "different request ids" $ \ctx -> do
-        let n = 100
-        void $ mapConcurrently (const (get ctx "/get")) (replicate n ())
-        entries <- readTVarIO (logs ctx)
-        let index = Map.fromList [ (loName l, l) | l <- entries ]
-        Map.size index `shouldBe` n
+    it "different request ids" $ \ctx -> property $ \(NumberOfRequests n) ->
+        monadicIO $ liftIO $ do
+            void $ mapConcurrently (const (get ctx "/get")) (replicate n ())
+            entries <- readTVarIO (logs ctx)
+            let index = Map.fromList [ (loName l, l) | l <- entries ]
+            Map.size index `shouldBe` n
   where
     setup :: IO Context
     setup = do
@@ -244,6 +250,13 @@ expectLogs ctx expectations = do
                 T.unpack txt `shouldContain` str
             _ ->
                 fail $ "Given log object isn't a log message but: " <> show l
+
+newtype NumberOfRequests = NumberOfRequests Int deriving Show
+
+instance Arbitrary NumberOfRequests where
+    shrink (NumberOfRequests n) =
+        fmap NumberOfRequests $ filter (> 0) $ shrink n
+    arbitrary = NumberOfRequests <$> choose (50, 100)
 
 {-------------------------------------------------------------------------------
                                 mock server
