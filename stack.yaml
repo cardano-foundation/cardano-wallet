@@ -21,6 +21,7 @@ extra-deps:
 - libsystemd-journal-1.4.4
 - prometheus-2.1.1
 - quickcheck-state-machine-0.6.0
+- streamly-0.6.1
 - time-units-1.0.0
 - git: https://github.com/input-output-hk/cardano-crypto
   commit: 3c5db489c71a4d70ee43f5f9b979fcde3c797f2a

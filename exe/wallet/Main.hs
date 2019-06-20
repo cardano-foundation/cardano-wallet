@@ -483,7 +483,7 @@ execLaunch tracer network stateDir bridgePort listen minLogSeverity = do
     -- | Launch a sub-process starting the http-bridge with the given options
     httpBridgeCmd :: Command
     httpBridgeCmd =
-        Command "cardano-http-bridge" args (return ()) Inherit
+        Command "cardano-http-bridge" args (return ()) CreatePipe
       where
         args = mconcat
             [ [ "start" ]
@@ -495,7 +495,7 @@ execLaunch tracer network stateDir bridgePort listen minLogSeverity = do
     -- | Launch a sub-process starting the wallet server with the given options
     walletCmd :: Command
     walletCmd =
-        Command "cardano-wallet" args (threadDelay oneSecond) Inherit
+        Command "cardano-wallet" args (threadDelay oneSecond) CreatePipe
       where
         oneSecond = 1000000
         args = mconcat
