@@ -491,7 +491,7 @@ instance LiftHandler ErrSignTx where
         ErrSignTx ErrInvalidTx ->
             apiError err403 CreatedInvalidTransaction $ mconcat
                 [ "I can't process this payment because transactions"
-                , " with 0 amount are not supported in Shelley."
+                , " with 0 amount are not supported in Byron."
                 ]
         ErrSignTxNoSuchWallet e -> (handler e)
             { errHTTPCode = 410

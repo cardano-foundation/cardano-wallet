@@ -32,7 +32,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Transaction
     ( ErrMkStdTx (..), TransactionLayer (..) )
 import Control.Monad
-    ( forM, when )
+    ( forM, unless )
 import Data.ByteString
     ( ByteString )
 import Data.Either.Combinators
@@ -54,7 +54,7 @@ newTransactionLayer = TransactionLayer
     { mkStdTx = \keyFrom inps outs -> do
         let ins = (fmap fst inps)
         let tx = Tx ins outs
-        when (not . null $ filter (\(TxOut _ c) -> c == Coin 0) outs)
+        unless (not (any (\ (TxOut _ c) -> c == Coin 0) outs))
             $ Left ErrInvalidTx
         -- Not working, maybe we need to make TransactionLayer polymorphic
         let txSigData = txId @(HttpBridge n) tx

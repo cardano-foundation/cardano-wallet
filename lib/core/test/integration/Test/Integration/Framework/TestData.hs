@@ -223,7 +223,7 @@ errMsg403NotEnoughMoney has needs = "I can't process this payment because there'
 
 errMsg403InvalidTransaction :: String
 errMsg403InvalidTransaction = "I can't process this payment because transactions\
-    \ with 0 amount are not supported in Shelley."
+    \ with 0 amount are not supported in Byron."
 
 errMsg403UTxO :: String
 errMsg403UTxO = "When creating new transactions, I'm not able to re-use the\
