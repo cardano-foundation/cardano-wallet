@@ -41,6 +41,7 @@ library
     , cborg
     , cryptonite
     , digest
+    , either
     , exceptions
     , http-api-data
     , http-client

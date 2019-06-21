@@ -60,7 +60,9 @@ data TransactionLayer t = TransactionLayer
     }
 
 -- | Possible signing error
-newtype ErrMkStdTx
+data ErrMkStdTx
     = ErrKeyNotFoundForAddress Address
     -- ^ We tried to sign a transaction with inputs that are unknown to us?
+    | ErrInvalidTx
+    -- ^ when transaction with 0 amount is tried (not valid in Byron)
     deriving (Eq, Show)

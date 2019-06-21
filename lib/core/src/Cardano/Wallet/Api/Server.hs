@@ -488,6 +488,11 @@ instance LiftHandler ErrSignTx where
                 , pretty addr, ". Are you sure this address belongs to a known "
                 , "wallet?"
                 ]
+        ErrSignTx ErrInvalidTx ->
+            apiError err403 CreatedInvalidTransaction $ mconcat
+                [ "I can't process this payment because it contains at least"
+                , " one payment output of value 0. This isn't supported by the current core nodes."
+                ]
         ErrSignTxNoSuchWallet e -> (handler e)
             { errHTTPCode = 410
             , errReasonPhrase = errReasonPhrase err410

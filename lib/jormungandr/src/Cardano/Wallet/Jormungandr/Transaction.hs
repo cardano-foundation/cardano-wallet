@@ -21,6 +21,8 @@ import Control.Monad
     ( forM )
 import Data.ByteString
     ( ByteString )
+import Data.Either.Combinators
+    ( maybeToRight )
 import Data.Quantity
     ( Quantity (..) )
 
@@ -36,16 +38,13 @@ newTransactionLayer block0Hash = TransactionLayer
         let tx = Tx ins outs
         let witData = witnessUtxoData block0Hash (txId @(Jormungandr n) tx)
         txWitnesses <- forM inps $ \(_in, TxOut addr _c) -> mkWitness witData
-            <$> withEither (ErrKeyNotFoundForAddress addr) (keyFrom addr)
+            <$> maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
         return (tx, txWitnesses)
 
     -- NOTE: at this point 'Jörmungandr' node does not support fee calculation
     , estimateSize = \_ -> Quantity 0
     }
   where
-    withEither :: e -> Maybe a -> Either e a
-    withEither e = maybe (Left e) Right
-
     witnessUtxoData :: Hash "Block0Hash" -> Hash "Tx" -> WitnessData
     witnessUtxoData (Hash block0) (Hash tx) = WitnessData (block0 <> tx)
 
