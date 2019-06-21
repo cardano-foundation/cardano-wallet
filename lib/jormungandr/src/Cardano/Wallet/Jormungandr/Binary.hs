@@ -35,14 +35,13 @@ module Cardano.Wallet.Jormungandr.Binary
     , LinearFee (..)
     , Milli (..)
 
+    -- * Coercion with business-domain
+    , coerceBlock
+
     -- * Addresses
     , putAddress
     , getAddress
     , singleAddressFromKey
-
-      -- * Classes
-    , FromBinary (..)
-    , ToBinary (..)
 
       -- * Legacy Decoders
     , decodeLegacyAddress
@@ -71,6 +70,8 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , TxWitness (..)
     )
+import Control.Applicative
+    ( many )
 import Control.Monad
     ( replicateM )
 import Data.Binary.Get
@@ -81,7 +82,6 @@ import Data.Binary.Get
     , getWord32be
     , getWord64be
     , getWord8
-    , isEmpty
     , isolate
     , label
     , lookAhead
@@ -150,7 +150,7 @@ getBlockHeader = label "getBlockHeader" $
         -- 1. no proof (used for the genesis blockheader)
         -- 2. BFT
         -- 3. Praos / Genesis
-
+        --
         -- We could make sure we get the right kind of proof, but we don't need to.
         -- Just checking that the length is not totally wrong, is much simpler
         -- and gives us sanity about the binary format being correct.
@@ -173,8 +173,7 @@ getBlockHeader = label "getBlockHeader" $
 getBlock :: Get Block
 getBlock = label "getBlock" $ do
     header <- getBlockHeader
-    msgs <- isolate (fromIntegral $ contentSize header)
-        $ whileM (not <$> isEmpty) getMessage
+    msgs <- isolate (fromIntegral $ contentSize header) (many getMessage)
     return $ Block header msgs
 
 {-------------------------------------------------------------------------------
@@ -484,51 +483,19 @@ withSizeHeader16be x = do
     putWord16be (fromIntegral $ BS.length bs)
     putByteString bs
 
-whileM :: Monad m => m Bool -> m a -> m [a]
-whileM cond next = go
-  where
-    go = do
-        c <- cond
-        if c then do
-            a <- next
-            as <- go
-            return (a : as)
-        else return []
-
 {-------------------------------------------------------------------------------
-                              Classes
+                                Conversions
 -------------------------------------------------------------------------------}
 
-class FromBinary a where
-    get :: Get a
-
-instance FromBinary Block where
-    get = getBlock
-
-instance FromBinary (W.Block Tx) where
-    get = convertBlock <$> getBlock
-      where
-        convertBlock  :: Block -> W.Block Tx
-        convertBlock (Block h msgs) =
-            W.Block (convertHeader h) (convertMessages msgs)
-
-        convertHeader :: BlockHeader -> W.BlockHeader
-        convertHeader h = W.BlockHeader (slot h) (parentHeaderHash h)
-
-        convertMessages :: [Message] -> [Tx]
-        convertMessages msgs = msgs >>= \case
-            Initial _ -> []
-            Transaction (tx, _wits) -> return tx
-            UnimplementedMessage _ -> []
-
-instance FromBinary a => FromBinary [a] where
-    get = whileM (not <$> isEmpty) get
-
-class ToBinary a where
-    put :: a -> Put
-
-instance ToBinary (Tx, [TxWitness]) where
-    put = putSignedTransaction
+coerceBlock  :: Block -> W.Block Tx
+coerceBlock (Block h msgs) =
+    W.Block coerceHeader coerceMessages
+  where
+    coerceHeader = W.BlockHeader (slot h) (parentHeaderHash h)
+    coerceMessages = msgs >>= \case
+        Initial _ -> []
+        Transaction (tx, _wits) -> return tx
+        UnimplementedMessage _ -> []
 
 {-------------------------------------------------------------------------------
                               Legacy Decoders

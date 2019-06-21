@@ -23,11 +23,13 @@ module Cardano.Wallet.Jormungandr.Api
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
-    ( FromBinary (..), runGet )
+    ( coerceBlock, getBlock, runGet )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx )
 import Cardano.Wallet.Primitive.Types
     ( Block, Hash (..), TxWitness )
+import Control.Applicative
+    ( many )
 import Data.Binary.Get
     ( getByteString )
 import Data.ByteArray.Encoding
@@ -58,7 +60,6 @@ api :: Proxy Api
 api = Proxy
 
 type Api = GetTipId :<|> GetBlock :<|> GetBlockDescendantIds
-
 
 -- | Retrieve a block by its id.
 type GetBlock
@@ -103,13 +104,13 @@ newtype BlockId = BlockId { getBlockId :: Hash "BlockHeader" }
 instance ToHttpApiData BlockId where
     toUrlPiece (BlockId (Hash bytes)) = decodeUtf8 $ convertToBase Base16 bytes
 
-instance FromBinary BlockId where
-    get = BlockId . Hash <$> getByteString 32
+instance MimeUnrender JormungandrBinary [BlockId] where
+    mimeUnrender _ =
+        pure . fmap (BlockId . Hash) . runGet (many $ getByteString 32)
 
 instance MimeUnrender Hex BlockId where
     mimeUnrender _ bs =
         BlockId . Hash <$> convertFromBase Base16 (BL.toStrict bs)
-
 
 {-------------------------------------------------------------------------------
                             Content Types
@@ -121,8 +122,8 @@ data JormungandrBinary
 instance Accept JormungandrBinary where
     contentType _ = contentType $ Proxy @Servant.OctetStream
 
-instance FromBinary a => MimeUnrender JormungandrBinary a where
-    mimeUnrender _ bs = Right $ runGet get bs
+instance MimeUnrender JormungandrBinary (Block Tx) where
+    mimeUnrender _ = pure . coerceBlock . runGet getBlock
 
 data Hex
 
