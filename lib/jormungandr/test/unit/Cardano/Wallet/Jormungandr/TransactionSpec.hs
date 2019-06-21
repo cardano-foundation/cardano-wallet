@@ -21,6 +21,8 @@ import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
+import Cardano.Wallet.Jormungandr.Primitive.Types
+    ( Tx (..) )
 import Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -42,11 +44,9 @@ import Cardano.Wallet.Primitive.Mnemonic
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
-    , DecodeAddress (..)
     , EncodeAddress (..)
     , Hash (..)
     , ShowFmt (..)
-    , Tx (..)
     , TxIn (..)
     , TxOut (..)
     , UTxO (..)
@@ -54,6 +54,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Transaction
     ( TransactionLayer (..) )
+import Control.Arrow
+    ( second )
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Data.ByteArray.Encoding
@@ -84,17 +86,14 @@ import Test.QuickCheck
     , (===)
     )
 
---import qualified Bech32
+import qualified Cardano.Wallet.Primitive.CoinSelection as CS
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.Text as T
-import qualified Data.Text.IO as TIO
-
-import qualified Cardano.Wallet.Primitive.CoinSelection as CS
-import qualified Data.ByteString as BS
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
+import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 
 spec :: Spec
 spec = do
@@ -249,7 +248,7 @@ mkStdTxSpec = do
                 TIO.putStrLn $ " block0txId: " <> (toHex . getHash $ block0TxId)
                 let h = fst . serializeXPrv $ (addrXPrv, Hash "")
                 TIO.putStrLn $ "len adrXPrv: " <> (T.pack . show $ BS.length h)
-                TIO.putStrLn $ " a  ddrXPrv: " <> (T.pack $ B8.unpack $ BS.take 128 $ h)
+                TIO.putStrLn $ " a  ddrXPrv: " <> T.pack (B8.unpack $ BS.take 128 h)
 
                 let tl = newTransactionLayer @'Testnet block0Hash
 
@@ -257,7 +256,7 @@ mkStdTxSpec = do
                 let ownedIns = [((TxIn block0TxId 1), TxOut addr $ Coin 1000000000000)]
                 let outs = [TxOut addr $ Coin 1000000000000 ]
 
-                let tx = Tx (map fst ownedIns) outs
+                let tx = Tx (map (second coin) ownedIns) outs
                 let tid = txId @(Jormungandr 'Testnet) tx
 
                 TIO.putStrLn $ "       txId: " <> (toHex . getHash $ tid)
@@ -272,9 +271,6 @@ mkStdTxSpec = do
                 let ss = BL.fromStrict (fromHex "009602010101000000e8d4a51000666984dec4bc0ff1888be97bfe0694a96b35c58d025405ead51d5cc72a3019f483054bba3fcb7b5f2491861b6e2b8bf0a3f9257cdf2fdf41ca5af7072e77c70f3a000000e8d4a510000198e9d483b1228f0d92ca57da3948d981ddaccfdfca1698effbadac5108424158df7b7ad8c2ecc2f6acb7f83315ec04f15c6282824ef8a3d2924acc954accc106")
                 runGet getMessage ss `shouldBe` (Transaction stx)
 
---  where
---    toBech32Prv key = Bech32.dataPartFromBytes . fst . serializeXPrv $ (key, Hash "")
-
 block0Hash :: Hash "Block0Hash"
 block0Hash = Hash "\DC3\195\216\&5\197:\EM\143|\133\DC3\176M\153\238\178<t\\\ns6L/\SO\128/\163\142\236\157\186"
 
@@ -287,10 +283,5 @@ fromHex = either (error . show) id
     . B8.pack
     . T.unpack
 
-fromBech32 :: Text -> Address
-fromBech32 = either (error . show ) id
-    . decodeAddress (Proxy @(Jormungandr 'Testnet))
-
 toBech32 :: Address -> Text
 toBech32 = encodeAddress (Proxy @(Jormungandr 'Testnet))
-

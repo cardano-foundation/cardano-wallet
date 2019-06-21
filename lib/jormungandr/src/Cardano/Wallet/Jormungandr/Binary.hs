@@ -42,6 +42,7 @@ module Cardano.Wallet.Jormungandr.Binary
 
       -- * Classes
     , FromBinary (..)
+    , ToBinary (..)
 
       -- * Legacy Decoders
     , decodeLegacyAddress
