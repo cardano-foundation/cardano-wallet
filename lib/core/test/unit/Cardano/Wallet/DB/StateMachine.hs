@@ -53,7 +53,9 @@ import Cardano.Wallet.DB
     , cleanDB
     )
 import Cardano.Wallet.DBSpec
-    ( DummyTarget, GenTxHistory (..), TxHistory )
+    ( GenTxHistory (..), TxHistory )
+import Cardano.Wallet.DummyTarget.Primitive.Types
+    ( DummyTarget, Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Key, XPrv, deserializeXPrv )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -61,7 +63,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), Tx (..), TxMeta (..), WalletId (..), WalletMetadata (..) )
+    ( Hash (..), TxMeta (..), WalletId (..), WalletMetadata (..) )
 import Control.Foldl
     ( Fold (..) )
 import Control.Monad.IO.Class

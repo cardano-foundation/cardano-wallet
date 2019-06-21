@@ -31,6 +31,8 @@ import Cardano.Wallet.DB
     ( DBLayer, ErrNoSuchWallet (..), PrimaryKey (..) )
 import Cardano.Wallet.DB.MVar
     ( newDBLayer )
+import Cardano.Wallet.DummyTarget.Primitive.Types
+    ( DummyTarget, Tx (..), block0 )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( ChangeChain (..)
     , Depth (..)
@@ -57,19 +59,15 @@ import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
-    , Block (..)
-    , BlockHeader (..)
     , Coin (..)
     , Hash (..)
-    , SlotId (..)
-    , Tx (..)
-    , TxId (..)
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
+    , txId
     )
 import Cardano.Wallet.Transaction
     ( ErrMkStdTx (..), TransactionLayer (..) )
@@ -108,7 +106,6 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.DB as DB
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 
@@ -329,15 +326,6 @@ data WalletLayerFixture = WalletLayerFixture
     , _fixtureWallet :: [WalletId]
     }
 
-block0 :: Block
-block0 = Block
-    { header = BlockHeader
-        { slotId = SlotId 0 0
-        , prevBlockHash = Hash "genesis"
-        }
-    , transactions = []
-    }
-
 setupFixture
     :: (WalletId, WalletName, DummyState)
     -> IO WalletLayerFixture
@@ -373,11 +361,6 @@ dummyTransactionLayer = TransactionLayer
   where
     withEither :: e -> Maybe a -> Either e a
     withEither e = maybe (Left e) Right
-
-data DummyTarget
-
-instance TxId DummyTarget where
-    txId = Hash . B8.pack . show
 
 newtype DummyState
     = DummyState (Map Address (Index 'Soft 'AddressK))

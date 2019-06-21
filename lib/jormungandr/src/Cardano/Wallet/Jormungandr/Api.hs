@@ -24,8 +24,10 @@ import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
     ( FromBinary (..), runGet )
+import Cardano.Wallet.Jormungandr.Primitive.Types
+    ( Tx )
 import Cardano.Wallet.Primitive.Types
-    ( Block, Hash (..), Tx, TxWitness )
+    ( Block, Hash (..), TxWitness )
 import Data.Binary.Get
     ( getByteString )
 import Data.ByteArray.Encoding
@@ -63,7 +65,7 @@ type GetBlock
     = "v0"
     :> "block"
     :> Capture "blockHeaderHash" BlockId
-    :> Get '[JormungandrBinary] Block
+    :> Get '[JormungandrBinary] (Block Tx)
 
 -- | Retrieve 'n' descendants of a given block, sorted from closest to
 -- farthest.

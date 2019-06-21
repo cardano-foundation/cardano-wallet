@@ -22,6 +22,8 @@ import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
+import Cardano.Wallet.HttpBridge.Primitive.Types
+    ( Tx (..) )
 import Cardano.Wallet.HttpBridge.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -42,7 +44,6 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Hash (..)
     , ShowFmt (..)
-    , Tx (..)
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)

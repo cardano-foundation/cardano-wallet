@@ -11,12 +11,16 @@ import Prelude
 
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
+import Cardano.Wallet.Jormungandr.Primitive.Types
+    ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (AddressK), Key, Passphrase (..), XPrv, getKey )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), Tx (..), TxId (..), TxOut (..), TxWitness (..) )
+    ( Hash (..), TxOut (..), TxWitness (..), txId )
 import Cardano.Wallet.Transaction
     ( ErrMkStdTx (..), TransactionLayer (..) )
+import Control.Arrow
+    ( second )
 import Control.Monad
     ( forM )
 import Data.ByteString
@@ -34,8 +38,7 @@ newTransactionLayer
     -> TransactionLayer (Jormungandr n)
 newTransactionLayer block0Hash = TransactionLayer
     { mkStdTx = \keyFrom inps outs -> do
-        let ins = (fmap fst inps)
-        let tx = Tx ins outs
+        let tx = Tx (fmap (second coin) inps) outs
         let witData = witnessUtxoData block0Hash (txId @(Jormungandr n) tx)
         txWitnesses <- forM inps $ \(_in, TxOut addr _c) -> mkWitness witData
             <$> maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)

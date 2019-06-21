@@ -70,8 +70,8 @@ import Cardano.Wallet.Primitive.Types
     , AddressState
     , Coin (..)
     , DecodeAddress (..)
+    , DefineTx (..)
     , EncodeAddress (..)
-    , TxId (..)
     , TxOut (..)
     , WalletId (..)
     , WalletMetadata (..)
@@ -140,6 +140,7 @@ import Servant.Server
     ( Handler (..), ServantErr (..) )
 
 import qualified Cardano.Wallet as W
+import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
@@ -157,7 +158,7 @@ data Listen
 
 -- | Start the application server, using the given settings and a bound socket.
 start
-    :: forall t. (TxId t, KeyToAddress t, EncodeAddress t, DecodeAddress t)
+    :: forall t. (DefineTx t, KeyToAddress t, EncodeAddress t, DecodeAddress t)
     => Warp.Settings
     -> Trace IO Text
     -> Socket
@@ -208,7 +209,7 @@ withListeningSocket portOpt = bracket acquire release
 -------------------------------------------------------------------------------}
 
 wallets
-    :: (TxId t, KeyToAddress t)
+    :: (DefineTx t, KeyToAddress t)
     => WalletLayer (SeqState t) t
     -> Server Wallets
 wallets w =
@@ -228,13 +229,15 @@ deleteWallet w (ApiT wid) = do
     return NoContent
 
 getWallet
-    :: WalletLayer (SeqState t) t
+    :: (DefineTx t)
+    => WalletLayer (SeqState t) t
     -> ApiT WalletId
     -> Handler ApiWallet
 getWallet w wid = fst <$> getWalletWithCreationTime w wid
 
 getWalletWithCreationTime
-    :: WalletLayer (SeqState t) t
+    :: (DefineTx t)
+    => WalletLayer (SeqState t) t
     -> ApiT WalletId
     -> Handler (ApiWallet, UTCTime)
 getWalletWithCreationTime w (ApiT wid) = do
@@ -263,7 +266,8 @@ getWalletWithCreationTime w (ApiT wid) = do
         }
 
 listWallets
-    :: WalletLayer (SeqState t) t
+    :: (DefineTx t)
+    => WalletLayer (SeqState t) t
     -> Handler [ApiWallet]
 listWallets w = do
     wids <- liftIO $ W.listWallets w
@@ -271,7 +275,7 @@ listWallets w = do
         mapM (getWalletWithCreationTime w) (ApiT <$> wids)
 
 postWallet
-    :: (KeyToAddress t, TxId t)
+    :: (KeyToAddress t, DefineTx t)
     => WalletLayer (SeqState t) t
     -> WalletPostData
     -> Handler ApiWallet
@@ -290,7 +294,8 @@ postWallet w body = do
     getWallet w (ApiT wid)
 
 putWallet
-    :: WalletLayer (SeqState t) t
+    :: (DefineTx t)
+    => WalletLayer (SeqState t) t
     -> ApiT WalletId
     -> WalletPutData
     -> Handler ApiWallet
@@ -317,13 +322,13 @@ putWalletPassphrase w (ApiT wid) body = do
 -------------------------------------------------------------------------------}
 
 addresses
-    :: KeyToAddress t
+    :: (DefineTx t, KeyToAddress t)
     => WalletLayer (SeqState t) t
     -> Server (Addresses t)
 addresses = listAddresses
 
 listAddresses
-    :: forall t. (KeyToAddress t)
+    :: forall t. (DefineTx t, KeyToAddress t)
     => WalletLayer (SeqState t) t
     -> ApiT WalletId
     -> Maybe (ApiT AddressState)
@@ -343,13 +348,13 @@ listAddresses w (ApiT wid) stateFilter = do
 -------------------------------------------------------------------------------}
 
 transactions
-    :: (TxId t, KeyToAddress t)
+    :: (DefineTx t, KeyToAddress t)
     => WalletLayer (SeqState t) t
     -> Server (Transactions t)
 transactions = createTransaction
 
 createTransaction
-    :: forall t. (TxId t, KeyToAddress t)
+    :: forall t. (DefineTx t, KeyToAddress t)
     => WalletLayer (SeqState t) t
     -> ApiT WalletId
     -> PostTransactionData t
@@ -369,7 +374,7 @@ createTransaction w (ApiT wid) body = do
         , depth = Quantity 0
         , direction = ApiT (meta ^. #direction)
         , inputs = NE.fromList (coerceTxOut . snd <$> selection ^. #inputs)
-        , outputs = NE.fromList (coerceTxOut <$> tx ^. #outputs)
+        , outputs = NE.fromList (coerceTxOut <$> W.outputs @t tx)
         , status = ApiT (meta ^. #status)
         }
   where

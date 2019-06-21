@@ -6,6 +6,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -101,10 +102,10 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , Coin (..)
+    , DefineTx (..)
     , Direction (..)
     , SlotId (..)
     , Tx (..)
-    , TxId (..)
     , TxMeta (..)
     , TxOut (..)
     , TxStatus (..)
@@ -166,6 +167,7 @@ import Fmt
 
 import qualified Cardano.Wallet.DB as DB
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
+import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -176,7 +178,7 @@ import qualified Data.Set as Set
 
 data WalletLayer s t = WalletLayer
     { createWallet
-        :: (Show s, NFData s, IsOurs s, TxId t)
+        :: (Show s, NFData s, IsOurs s, DefineTx t)
         => WalletId
         -> WalletName
         -> s
@@ -212,7 +214,8 @@ data WalletLayer s t = WalletLayer
         -- on the next tick when noticing that the corresponding wallet is gone.
 
     , restoreWallet
-        :: WalletId
+        :: (DefineTx t)
+        => WalletId
         -> ExceptT ErrNoSuchWallet IO ()
         -- ^ Restore a wallet from its current tip up to a given target
         -- (typically, the network tip).
@@ -222,14 +225,15 @@ data WalletLayer s t = WalletLayer
         -- apply remaining blocks until failure or, the target slot is reached.
 
     , listAddresses
-        :: (IsOurs s, CompareDiscovery s, KnownAddresses s)
+        :: (IsOurs s, CompareDiscovery s, KnownAddresses s, DefineTx t)
         => WalletId
         -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]
         -- ^ List all addresses of a wallet with their metadata. Addresses
         -- are ordered from the most recently discovered to the oldest known.
 
     , createUnsignedTx
-        :: WalletId
+        :: (DefineTx t)
+        => WalletId
         -> CoinSelectionOptions
         -> NonEmpty TxOut
         -> ExceptT ErrCreateUnsignedTx IO CoinSelection
@@ -243,7 +247,7 @@ data WalletLayer s t = WalletLayer
         => WalletId
         -> Passphrase "encryption"
         -> CoinSelection
-        -> ExceptT ErrSignTx IO (Tx, TxMeta, [TxWitness])
+        -> ExceptT ErrSignTx IO (Tx t, TxMeta, [TxWitness])
         -- ^ Produce witnesses and construct a transaction from a given
         -- selection. Requires the encryption passphrase in order to decrypt
         -- the root private key. Note that this doesn't broadcast the
@@ -251,9 +255,9 @@ data WalletLayer s t = WalletLayer
         -- 'submitTx'.
 
     , submitTx
-        :: (TxId t)
+        :: (DefineTx t)
         => WalletId
-        -> (Tx, TxMeta, [TxWitness])
+        -> (Tx t, TxMeta, [TxWitness])
         -> ExceptT ErrSubmitTx IO ()
         -- ^ Broadcast a (signed) transaction to the network.
 
@@ -264,7 +268,6 @@ data WalletLayer s t = WalletLayer
         -- ^ Attach a given private key to a wallet. The private key is
         -- necessary for some operations like signing transactions or,
         -- generating new accounts.
-
     }
 
 -- | Errors occuring when creating an unsigned transaction
@@ -335,7 +338,7 @@ cancelWorker (WorkerRegistry mvar) wid =
 newWalletLayer
     :: forall s t. ()
     => Trace IO Text
-    -> Block
+    -> Block (Tx t)
         -- ^ Very first block
     -> DBLayer IO s t
     -> NetworkLayer t IO
@@ -363,7 +366,7 @@ newWalletLayer tracer block0 db nw tl = do
     ---------------------------------------------------------------------------}
 
     _createWallet
-        :: (Show s, NFData s, IsOurs s, TxId t)
+        :: (Show s, NFData s, IsOurs s, DefineTx t)
         => WalletId
         -> WalletName
         -> s
@@ -431,7 +434,8 @@ newWalletLayer tracer block0 db nw tl = do
         liftIO $ cancelWorker re wid
 
     _restoreWallet
-        :: WorkerRegistry
+        :: (DefineTx t)
+        => WorkerRegistry
         -> WalletId
         -> ExceptT ErrNoSuchWallet IO ()
     _restoreWallet re wid = do
@@ -451,7 +455,8 @@ newWalletLayer tracer block0 db nw tl = do
     --
     -- The function only terminates if the wallet has disappeared from the DB.
     restoreStep
-        :: WalletId
+        :: (DefineTx t)
+        => WalletId
         -> (BlockHeader, BlockHeader)
         -> IO ()
     restoreStep wid (slot, tip) = do
@@ -473,7 +478,8 @@ newWalletLayer tracer block0 db nw tl = do
     -- opportunity to also refresh the chain tip as it has probably increased
     -- in order to refine our syncing status.
     restoreSleep
-        :: WalletId
+        :: (DefineTx t)
+        => WalletId
         -> BlockHeader
         -> IO ()
     restoreSleep wid slot = do
@@ -488,8 +494,9 @@ newWalletLayer tracer block0 db nw tl = do
     -- | Apply the given blocks to the wallet and update the wallet state,
     -- transaction history and corresponding metadata.
     restoreBlocks
-        :: WalletId
-        -> [Block]
+        :: (DefineTx t)
+        => WalletId
+        -> [Block (Tx t)]
         -> SlotId -- ^ Network tip
         -> ExceptT ErrNoSuchWallet IO ()
     restoreBlocks wid blocks tip = do
@@ -513,7 +520,7 @@ newWalletLayer tracer block0 db nw tl = do
             let nonEmpty = not . null . transactions
             let (h,q) = first (filter nonEmpty) $
                     splitAt (length blocks - 1) blocks
-            let (txs, cp') = applyBlocks (h ++ q) cp
+            let (txs, cp') = applyBlocks @s @t (h ++ q) cp
             let progress = slotRatio sup tip
             let status' = if progress == maxBound
                     then Ready
@@ -535,7 +542,7 @@ newWalletLayer tracer block0 db nw tl = do
     -- This implementation is rather inneficient and not intented for frequent
     -- use, in particular for exchanges or "big-players".
     _listAddresses
-        :: (IsOurs s, CompareDiscovery s, KnownAddresses s)
+        :: (IsOurs s, CompareDiscovery s, KnownAddresses s, DefineTx t)
         => WalletId
         -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]
     _listAddresses wid = do
@@ -547,7 +554,7 @@ newWalletLayer tracer block0 db nw tl = do
                 else Nothing
         let usedAddrs =
                 Set.fromList $ concatMap (mapMaybe maybeIsOurs . outputs') txs
-              where outputs' (tx, _) = outputs (tx :: Tx)
+              where outputs' (tx, _) = W.outputs @t tx
         let knownAddrs =
                 L.sortBy (compareDiscovery s) (knownAddresses s)
         let withAddressState addr =
@@ -559,13 +566,14 @@ newWalletLayer tracer block0 db nw tl = do
     ---------------------------------------------------------------------------}
 
     _createUnsignedTx
-        :: WalletId
+        :: DefineTx t
+        => WalletId
         -> CoinSelectionOptions
         -> NonEmpty TxOut
         -> ExceptT ErrCreateUnsignedTx IO CoinSelection
     _createUnsignedTx wid opts recipients = do
         (w, _) <- withExceptT ErrCreateUnsignedTxNoSuchWallet (_readWallet wid)
-        let utxo = availableUTxO w
+        let utxo = availableUTxO @s @t w
         (sel, utxo') <- withExceptT ErrCreateUnsignedTxCoinSelection $
             CoinSelection.random opts recipients utxo
         withExceptT ErrCreateUnsignedTxFee $ do
@@ -580,7 +588,7 @@ newWalletLayer tracer block0 db nw tl = do
         => WalletId
         -> Passphrase "encryption"
         -> CoinSelection
-        -> ExceptT ErrSignTx IO (Tx, TxMeta, [TxWitness])
+        -> ExceptT ErrSignTx IO (Tx t, TxMeta, [TxWitness])
     _signTx wid pwd (CoinSelection ins outs chgs) = DB.withLock db $ do
         (w, _) <- withExceptT ErrSignTxNoSuchWallet $ _readWallet wid
         let (changeOuts, s') = flip runState (getState w) $ forM chgs $ \c -> do
@@ -611,7 +619,7 @@ newWalletLayer tracer block0 db nw tl = do
 
     _submitTx
         :: WalletId
-        -> (Tx, TxMeta, [TxWitness])
+        -> (Tx t, TxMeta, [TxWitness])
         -> ExceptT ErrSubmitTx IO ()
     _submitTx wid (tx, meta, wit) = do
         withExceptT ErrSubmitTxNetwork $ postTx nw (tx, wit)

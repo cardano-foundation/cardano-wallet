@@ -37,6 +37,8 @@ import Cardano.Wallet.Jormungandr.Api
     ( BlockId (..), GetBlock, GetBlockDescendantIds, GetTipId, api )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
+import Cardano.Wallet.Jormungandr.Primitive.Types
+    ( Tx )
 import Cardano.Wallet.Network
     ( ErrGetBlock (..)
     , ErrNetworkTip (..)
@@ -91,7 +93,7 @@ newNetworkLayer url = do
 mkNetworkLayer
     :: Monad m
     => JormungandrLayer m
-    -> NetworkLayer t m
+    -> NetworkLayer (Jormungandr n) m
 mkNetworkLayer j = NetworkLayer
     { networkTip = do
         t <- (getTipId j) `mappingError`
@@ -133,7 +135,7 @@ data JormungandrLayer m = JormungandrLayer
     { getTipId
         :: ExceptT ErrNetworkUnreachable m (Hash "BlockHeader")
     , getBlock
-        :: Hash "BlockHeader" -> ExceptT ErrGetBlock m Block
+        :: Hash "BlockHeader" -> ExceptT ErrGetBlock m (Block Tx)
     , getDescendantIds
         :: Hash "BlockHeader"
         -> Word

@@ -163,16 +163,18 @@ test-suite unit
       exitcode-stdio-1.0
   hs-source-dirs:
       test/unit
+      test/shared
   main-is:
       Main.hs
   other-modules:
       Cardano.Wallet.Api.TypesSpec
       Cardano.Wallet.ApiSpec
       Cardano.Wallet.DB.MVarSpec
-      Cardano.Wallet.DB.StateMachine
-      Cardano.Wallet.DB.SqliteSpec
       Cardano.Wallet.DB.SqliteFileModeSpec
+      Cardano.Wallet.DB.SqliteSpec
+      Cardano.Wallet.DB.StateMachine
       Cardano.Wallet.DBSpec
+      Cardano.Wallet.DummyTarget.Primitive.Types
       Cardano.Wallet.NetworkSpec
       Cardano.Wallet.Primitive.AddressDerivationSpec
       Cardano.Wallet.Primitive.AddressDiscoverySpec
@@ -202,23 +204,28 @@ benchmark db
       -Werror
   build-depends:
       base
-    , split
     , bytestring
-    , criterion
     , cardano-crypto
     , cardano-wallet-core
     , containers
+    , criterion
     , cryptonite
     , deepseq
     , directory
     , fmt
-    , memory
     , iohk-monitoring
+    , memory
+    , split
     , temporary
+    , text
+    , text-class
     , time
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
       test/bench/db
+      test/shared
   main-is:
       Main.hs
+  other-modules:
+      Cardano.Wallet.DummyTarget.Primitive.Types

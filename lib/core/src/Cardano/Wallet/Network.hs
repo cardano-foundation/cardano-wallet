@@ -35,7 +35,7 @@ import GHC.Generics
     ( Generic )
 
 data NetworkLayer t m = NetworkLayer
-    { nextBlocks :: BlockHeader -> ExceptT ErrGetBlock m [Block]
+    { nextBlocks :: BlockHeader -> ExceptT ErrGetBlock m [Block (Tx t)]
         -- ^ Gets some blocks from the node. It will not necessarily return all
         -- the blocks that the node has, but will receive a reasonable-sized
         -- chunk. It will never return blocks from before the given slot. It
@@ -47,7 +47,7 @@ data NetworkLayer t m = NetworkLayer
         -- ^ Get the current network tip from the chain producer
 
     , postTx
-        :: (Tx, [TxWitness]) -> ExceptT ErrPostTx m ()
+        :: (Tx t, [TxWitness]) -> ExceptT ErrPostTx m ()
         -- ^ Broadcast a transaction to the chain producer
     }
 

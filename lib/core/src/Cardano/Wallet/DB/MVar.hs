@@ -44,7 +44,7 @@ import qualified Data.Map.Strict as Map
 data Database s t = Database
     { wallet :: !(Wallet s t)
     , metadata :: !WalletMetadata
-    , txHistory :: !(Map (Hash "Tx") (Tx, TxMeta))
+    , txHistory :: !(Map (Hash "Tx") (Tx t, TxMeta))
     , xprv :: !(Maybe (Key 'RootK XPrv, Hash "encryption"))
     }
 

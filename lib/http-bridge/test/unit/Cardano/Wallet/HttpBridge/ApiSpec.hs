@@ -9,11 +9,12 @@ import Prelude
 
 import Cardano.Wallet.HttpBridge.Api
     ( ApiT (..) )
+import Cardano.Wallet.HttpBridge.Primitive.Types
+    ( Tx (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
     , Hash (..)
-    , Tx (..)
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)

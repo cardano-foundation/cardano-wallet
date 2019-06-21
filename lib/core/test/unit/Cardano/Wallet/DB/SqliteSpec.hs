@@ -26,7 +26,9 @@ import Cardano.Wallet.DB.Sqlite
 import Cardano.Wallet.DB.StateMachine
     ( prop_parallel, prop_sequential )
 import Cardano.Wallet.DBSpec
-    ( DummyTarget, dbPropertyTests, withDB )
+    ( dbPropertyTests, withDB )
+import Cardano.Wallet.DummyTarget.Primitive.Types
+    ( DummyTarget, Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..)
     , encryptPassphrase
@@ -47,7 +49,6 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , Hash (..)
     , SlotId (..)
-    , Tx (..)
     , TxIn (..)
     , TxMeta (TxMeta)
     , TxOut (..)
@@ -204,7 +205,7 @@ initDummyState = mkSeqState (xprv, mempty) defaultAddressPoolGap
       bytes = entropyToBytes <$> unsafePerformIO $ genEntropy @(EntropySize 15)
       xprv = generateKeyFromSeed (Passphrase bytes, mempty) mempty
 
-initDummyBlock0 :: Block
+initDummyBlock0 :: Block Tx
 initDummyBlock0 = Block
     { header = BlockHeader
         { slotId = SlotId 0 0

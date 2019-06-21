@@ -33,7 +33,7 @@ data TransactionLayer t = TransactionLayer
         :: (Address -> Maybe (Key 'AddressK XPrv, Passphrase "encryption"))
         -> [(TxIn, TxOut)]
         -> [TxOut]
-        -> Either ErrMkStdTx (Tx, [TxWitness])
+        -> Either ErrMkStdTx (Tx t, [TxWitness])
         -- ^ Construct a standard transaction
         --
         -- " Standard " here refers to the fact that we do not deal with redemption,

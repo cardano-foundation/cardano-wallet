@@ -4,6 +4,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -31,8 +32,7 @@ module Cardano.Wallet.Primitive.Types
     , BlockHeader(..)
 
     -- * Tx
-    , Tx(..)
-    , TxId(..)
+    , DefineTx(..)
     , TxIn(..)
     , TxOut(..)
     , TxMeta(..)
@@ -280,21 +280,20 @@ instance NFData PoolId
                                     Block
 -------------------------------------------------------------------------------}
 
-data Block = Block
+data Block tx = Block
     { header
         :: !BlockHeader
     , transactions
-        :: ![Tx]
+        :: ![tx]
     } deriving (Show, Eq, Ord, Generic)
 
-instance NFData Block
+instance NFData tx => NFData (Block tx)
 
-instance Buildable Block where
+instance Buildable tx => Buildable (Block tx) where
     build (Block h txs) = mempty
         <> build h
         <> "\n"
         <> indentF 4 (blockListF txs)
-
 
 data BlockHeader = BlockHeader
     { slotId
@@ -318,49 +317,38 @@ instance Buildable BlockHeader where
                                       Tx
 -------------------------------------------------------------------------------}
 
-data Tx = Tx
-    { inputs
-        :: ![TxIn]
-        -- ^ NOTE: Order of inputs matters in the transaction representation. The
-        -- transaction id is computed from the binary representation of a tx,
-        -- for which inputs are serialized in a specific order.
-    , outputs
-        :: ![TxOut]
-        -- ^ NOTE: Order of outputs matter in the transaction representations. Outputs
-        -- are used as inputs for next transactions which refer to them using
-        -- their indexes. It matters also for serialization.
-    } deriving (Show, Generic, Ord, Eq)
-
-instance NFData Tx
-
-instance Buildable Tx where
-    build (Tx ins outs) = mempty
-        <> blockListF' "~>" build ins
-        <> blockListF' "<~" build outs
-
 -- | An abstraction for computing transaction id. The 'target' is an open-type
 -- that can be used to discriminate on. For instance:
 --
 -- @
--- instance TxId HttpBridge where
+-- instance DefineTx (HttpBridge network) where
 --   txId _ = {- ... -}
+--   ,,,
 -- @
 --
 -- Note that `txId` is ambiguous and requires therefore a type application.
 -- Likely, a corresponding target would be found in scope (requires however
 -- ScopedTypeVariables).
 --
--- For example, assuming there's a type 'target' in scope, one can simply do:
+-- For example, assuming there's a type 't' in scope, one can simply do:
 --
 -- @
--- txId @target tx
+-- txId @t tx
 -- @
-class TxId target where
-    txId :: Tx -> Hash "Tx"
+class (NFData (Tx t), Show (Tx t), Ord (Tx t)) => DefineTx t where
+    type Tx t :: *
+    txId :: Tx t -> Hash "Tx"
+    -- | Compute a transaction id; assumed to be effectively injective.
+    -- It returns an hex-encoded 64-byte hash.
+    --
+    -- NOTE: This is a rather expensive operation
+    inputs :: Tx t -> [TxIn]
+    -- | Get transaction's inputs, ordered
+    outputs :: Tx t -> [TxOut]
+    -- | Get transaction's outputs, ordered
 
-txIns :: Set Tx -> Set TxIn
-txIns =
-    foldMap (Set.fromList . inputs)
+txIns :: forall t. DefineTx t => Set (Tx t) -> Set TxIn
+txIns = foldMap (Set.fromList . inputs @t)
 
 data TxIn = TxIn
     { inputId
@@ -462,8 +450,8 @@ data TxWitness
     deriving (Eq, Show)
 
 -- | True if the given tuple refers to a pending transaction
-isPending :: (Tx, TxMeta) -> Bool
-isPending = (== Pending) . (status :: TxMeta -> TxStatus) . snd
+isPending :: TxMeta -> Bool
+isPending = (== Pending) . (status :: TxMeta -> TxStatus)
 
 {-------------------------------------------------------------------------------
                                     Address

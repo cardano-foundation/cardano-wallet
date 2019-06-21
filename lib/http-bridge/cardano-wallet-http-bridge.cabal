@@ -31,18 +31,20 @@ library
     ghc-options:
       -Werror
   build-depends:
-      aeson
-    , base
+      base
+    , aeson
     , base58-bytestring
-    , cardano-wallet-core
     , binary
     , bytestring
     , cardano-crypto
+    , cardano-wallet-core
     , cborg
     , cryptonite
+    , deepseq
     , digest
     , either
     , exceptions
+    , fmt
     , http-api-data
     , http-client
     , http-media
@@ -57,11 +59,12 @@ library
   hs-source-dirs:
       src
   exposed-modules:
-      Cardano.Wallet.HttpBridge.Environment
+      Cardano.Wallet.HttpBridge.Api
       Cardano.Wallet.HttpBridge.Binary
       Cardano.Wallet.HttpBridge.Compatibility
+      Cardano.Wallet.HttpBridge.Environment
       Cardano.Wallet.HttpBridge.Network
-      Cardano.Wallet.HttpBridge.Api
+      Cardano.Wallet.HttpBridge.Primitive.Types
       Cardano.Wallet.HttpBridge.Transaction
       Data.Packfile
       Servant.Extra.ContentTypes
@@ -89,6 +92,7 @@ test-suite unit
     , cborg
     , containers
     , digest
+    , fmt
     , generic-arbitrary
     , hspec
     , hspec-golden-aeson
@@ -106,13 +110,14 @@ test-suite unit
   main-is:
       Main.hs
   other-modules:
-      Cardano.Wallet.HttpBridge.EnvironmentSpec
       Cardano.Wallet.HttpBridge.ApiSpec
       Cardano.Wallet.HttpBridge.BinarySpec
       Cardano.Wallet.HttpBridge.CompatibilitySpec
+      Cardano.Wallet.HttpBridge.EnvironmentSpec
       Cardano.Wallet.HttpBridge.NetworkSpec
+      Cardano.Wallet.HttpBridge.Primitive.AddressDerivationSpec
+      Cardano.Wallet.HttpBridge.Primitive.TypesSpec
       Cardano.Wallet.HttpBridge.TransactionSpec
-      Cardano.Wallet.Primitive.AddressDerivationSpec
       Data.PackfileSpec
       Servant.Extra.ContentTypesSpec
 

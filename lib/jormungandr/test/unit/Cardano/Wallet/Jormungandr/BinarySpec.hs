@@ -28,8 +28,10 @@ import Cardano.Wallet.Jormungandr.Compatibility
     ( genesis )
 import Cardano.Wallet.Jormungandr.Environment
     ( Network (..) )
+import Cardano.Wallet.Jormungandr.Primitive.Types
+    ( Tx (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Coin (..), Hash (..), SlotId (..), Tx (..), TxOut (..) )
+    ( Address (..), Coin (..), Hash (..), SlotId (..), TxOut (..) )
 import Control.Exception
     ( evaluate )
 import Data.ByteArray.Encoding

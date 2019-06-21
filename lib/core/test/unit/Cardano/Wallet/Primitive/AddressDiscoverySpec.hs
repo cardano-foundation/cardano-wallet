@@ -17,8 +17,8 @@ module Cardano.Wallet.Primitive.AddressDiscoverySpec
 
 import Prelude
 
-import Cardano.Crypto.Wallet
-    ( unXPub )
+import Cardano.Wallet.DummyTarget.Primitive.Types
+    ( DummyTarget )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( ChangeChain (..)
     , Depth (..)
@@ -27,7 +27,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , XPub
     , deriveAddressPublicKey
-    , getKey
     , publicKey
     , unsafeGenerateKeyFromSeed
     )
@@ -430,11 +429,6 @@ changeAddresses
 changeAddresses as s =
     let (a, s') = genChange s
     in if a `elem` as then (as, s) else changeAddresses (a:as) s'
-
-data DummyTarget
-
-instance KeyToAddress DummyTarget where
-    keyToAddress = Address . unXPub . getKey
 
 deriving instance Arbitrary a => Arbitrary (ShowFmt a)
 

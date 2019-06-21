@@ -23,8 +23,10 @@ import Prelude
 
 import Cardano.Wallet.HttpBridge.Binary
     ( decodeBlock, decodeBlockHeader, decodeSignedTx, encodeSignedTx )
+import Cardano.Wallet.HttpBridge.Primitive.Types
+    ( Tx )
 import Cardano.Wallet.Primitive.Types
-    ( Block, BlockHeader, Tx, TxWitness )
+    ( Block, BlockHeader, TxWitness )
 import Crypto.Hash.Algorithms
     ( Blake2b_256 )
 import Data.Aeson
@@ -73,14 +75,14 @@ type GetBlockByHash
     =  Capture "networkName" NetworkName
     :> "block"
     :> Capture "blockHeaderHash" (Hash Blake2b_256 (ApiT BlockHeader))
-    :> Get '[CBOR] (ApiT Block)
+    :> Get '[CBOR] (ApiT (Block Tx))
 
 -- | Retrieve all the blocks for the epoch identified by the given integer ID.
 type GetEpochById
     =  Capture "networkName" NetworkName
     :> "epoch"
     :> Capture "epochId" EpochIndex
-    :> Get '[Packed CBOR] [ApiT Block]
+    :> Get '[Packed CBOR] [ApiT (Block Tx)]
 
 -- | Retrieve the header of the latest known block.
 type GetTipBlockHeader
@@ -98,7 +100,7 @@ type PostSignedTx
 
 newtype ApiT a = ApiT { getApiT :: a } deriving (Show)
 
-instance FromCBOR (ApiT Block) where
+instance FromCBOR (ApiT (Block Tx)) where
     fromCBOR = ApiT <$> decodeBlock
 
 instance FromCBOR (ApiT BlockHeader) where

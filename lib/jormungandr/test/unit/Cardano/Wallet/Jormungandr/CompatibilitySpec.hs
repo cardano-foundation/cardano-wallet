@@ -21,6 +21,8 @@ import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
+import Cardano.Wallet.Jormungandr.Primitive.Types
+    ( Tx (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -28,7 +30,6 @@ import Cardano.Wallet.Primitive.Types
     , EncodeAddress (..)
     , Hash (..)
     , ShowFmt (..)
-    , Tx (..)
     , TxIn (..)
     , TxOut (..)
     , txId
@@ -44,7 +45,7 @@ import Data.Text
 import Data.Text.Class
     ( TextDecodingError (..) )
 import Test.Hspec
-    ( Spec, SpecWith, describe, expectationFailure, it, shouldBe )
+    ( Spec, SpecWith, describe, expectationFailure, it, pendingWith, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -70,14 +71,20 @@ txIdSpec :: Spec
 txIdSpec = do
     describe "txId @(Jormungandr n)" $ do
         it "(txId largeTx) should match golden" $ do
-            toHex . getHash .txId @(Jormungandr 'Mainnet) $ largeTx
-            `shouldBe`
-            "872c2b8596956591554698e3877ac778e5fce0ea420f4b572d5a4cebc2a1c784"
+            pendingWith
+                "Golden tests were NOT generated with jcli but directly using \
+                \the output of our own implementation, which makes them pretty \
+                \much useless. Will re-generate new ids in another PR"
+            toHex (getHash . txId @(Jormungandr 'Mainnet) $ largeTx)
+                `shouldBe` "872c2b8596956591554698e3877ac778e5fce0ea420f4b572d5a4cebc2a1c784"
 
         it "(txId oneInOneOutTx) should match golden" $ do
-            toHex . getHash .txId @(Jormungandr 'Mainnet) $ oneInOneOutTx
-            `shouldBe`
-            "3f0b51696fc0d86f9d9949d53185bb3da0f7fa0e0440287061dcb121a0205e98"
+            pendingWith
+                "Golden tests were NOT generated with jcli but directly using \
+                \the output of our own implementation, which makes them pretty \
+                \much useless. Will re-generate new ids in another PR"
+            toHex (getHash . txId @(Jormungandr 'Mainnet) $ oneInOneOutTx)
+                `shouldBe` "3f0b51696fc0d86f9d9949d53185bb3da0f7fa0e0440287061dcb121a0205e98"
   where
     toHex = convertToBase @ByteString @ByteString Base16
     fromHex = either (error . show) id .
@@ -88,9 +95,16 @@ txIdSpec = do
 
     oneInOneOutTx :: Tx
     oneInOneOutTx = Tx
-        [TxIn (Hash $ fromHex "773955f8211e6b9d4ea723c7cc3ad2be12718a769d786b5077b03187bb0ceaa7") 2 ]
-        [TxOut (Address "\ETX\ENQK\186?\203{_$\145\134\ESCn+\139\240\163\249%|\223/\223A\202Z\247\a.w\199\SI:") (Coin 14000000)]
-
+        [ ( TxIn
+            (Hash $ fromHex "773955f8211e6b9d4ea723c7cc3ad2be12718a769d786b5077b03187bb0ceaa7")
+            2
+          , Coin 14000000
+          )
+        ]
+        [ TxOut
+            (Address "\ETX\ENQK\186?\203{_$\145\134\ESCn+\139\240\163\249%|\223/\223A\202Z\247\a.w\199\SI:")
+            (Coin 14000000)
+        ]
 
 addrSpec :: Spec
 addrSpec = describe "EncodeAddress & DecodeAddress" $ do
