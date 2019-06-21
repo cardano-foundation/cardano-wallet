@@ -38,7 +38,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , TxIn (..)
     , TxOut (..)
-    , TxWitness (PublicKeyWitness)
+    , TxWitness (..)
     , decodeAddress
     , txId
     )
@@ -132,7 +132,7 @@ spec = do
                     \8e3e95c150364fd775d4bc663ae6a9e6"
             hash `shouldBe` hash'
 
-    let pkWit = PublicKeyWitness "public key" (Hash "trust me")
+    let pkWit = TxWitness "trust me"
 
     describe "Encoding Tx Witness" $ do
         it "(encode . decode) = pure" $ do

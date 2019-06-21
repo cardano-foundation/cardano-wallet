@@ -188,12 +188,10 @@ getBlock = label "getBlock" $ do
 data Message
     = Initial [ConfigParam]
     -- ^ Found in the genesis block.
---  | OldUtxoDeclaration UtxoDeclaration
     | Transaction (Tx, [TxWitness])
---  | Certificate (Tx with Extra=Certificate)
---  | UpdateProposal SignedUpdateProposal
---  | UpdateVote SignedVote
-    | UnimplementedMessage Int -- For development. Remove later.
+    -- ^ A standard signed transaction
+    | UnimplementedMessage Int
+    -- Messages not yet supported go there.
     deriving (Eq, Show)
 
 -- | Decode a message (header + contents).
@@ -231,47 +229,33 @@ getTransaction = label "getTransaction" $ do
     (ins, outs) <- getTokenTransfer
     let witnessCount = length ins
     wits <- replicateM witnessCount getWitness
-    return $ (Tx ins outs, wits)
+    return (Tx ins outs, wits)
   where
     getWitness = do
         tag <- getWord8
         case tag of
-            1 -> isolate 128 $ do
-                -- Old address witness scheme
-                xpub <- getByteString 64
-                sig <- Hash <$> getByteString 64
-                return $ PublicKeyWitness xpub sig
+            0 -> -- Legacy UTxO
+                isolate 128 $ TxWitness <$> getByteString 128
+            1 -> -- UTxO
+                isolate 64 $ TxWitness <$> getByteString 64
 
-            2 -> isolate 64 $ do
-                _sig <- Hash <$> getByteString 64
-                error "unimplemented: New address witness scheme"
-
-            3 -> isolate 68 $ do
-                error "unimplemented: Account witness"
-            other -> fail $ "Invalid witness type: " ++ show other
+            2 -> -- Account
+                isolate 64 $ getByteString 64
+                    *> error "unimplemented: Account witness"
+            3 -> -- Multisig
+                isolate 68 $ getByteString 68
+                    *> error "unimplemented: Multisig witness"
+            other ->
+                fail $ "Invalid witness type: " ++ show other
 
 putSignedTransaction :: (Tx, [TxWitness]) -> Put
 putSignedTransaction (tx, witnesses) = do
     putTokenTransfer tx
     mapM_ putWitness witnesses
 
+-- Assumes the `TxWitness` has been faithfully constructed
 putWitness :: TxWitness -> Put
-putWitness witness =
-    case witness of
-        PublicKeyWitness _xPub (Hash sig) -> do
-            -- Witness sum type:
-            --   * 0 for old address witnness scheme
-            --   * 1 for new address witness scheme
-            --   * 2 for account witness
-            --   * 3 for multisig
-            putWord8 1
-            --putByteString xPub
-            putByteString sig
-        -- TODO: note that we are missing new address type witness:
-        --  * https://github.com/input-output-hk/rust-cardano/blob/3524cfe138a10773caa6f0effacf69e792f915df/chain-impl-mockchain/doc/format.md#witnesses
-        --  * https://github.com/input-output-hk/rust-cardano/blob/e0616f13bebd6b908320bddb1c1502dea0d3305a/chain-impl-mockchain/src/transaction/witness.rs#L23
-        ScriptWitness _ -> error "unimplemented: serialize script witness"
-        RedeemWitness _ -> error "unimplemented: serialize redeem witness"
+putWitness = putByteString . unWitness
 
 {-------------------------------------------------------------------------------
                             Common Structure
@@ -431,10 +415,12 @@ getLinearFee = label "getLinearFee" $ do
 
 getBool :: Get Bool
 getBool = getWord8 >>= \case
-    1 -> return True
-    0 -> return False
-    other -> fail $ "Unexpected integer: " ++ show other
-                ++ ". Expected a boolean 0 or 1."
+    1 ->
+        return True
+    0 ->
+        return False
+    other ->
+        fail $ "Unexpected integer: " ++ show other ++ ". Expected a boolean."
 
 {-------------------------------------------------------------------------------
                             Addresses
