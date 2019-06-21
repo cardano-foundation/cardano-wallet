@@ -97,6 +97,7 @@ test-suite unit
      exitcode-stdio-1.0
   hs-source-dirs:
       test/unit
+      test/shared
   main-is:
       Main.hs
   other-modules:
@@ -104,6 +105,7 @@ test-suite unit
       Cardano.Wallet.Jormungandr.EnvironmentSpec
       Cardano.Wallet.Jormungandr.CompatibilitySpec
       Cardano.Wallet.Jormungandr.TransactionSpec
+      Cardano.Wallet.Unsafe
 
 test-suite integration
   default-language:

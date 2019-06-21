@@ -33,6 +33,8 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , txId
     )
+import Cardano.Wallet.Unsafe
+    ( unsafeDecodeAddress, unsafeFromHex )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
@@ -292,19 +294,9 @@ goldenTestTxId
     -> ByteString
     -> SpecWith ()
 goldenTestTxId _ tx expected = it ("golden test: " <> show tx) $ do
-    toHex (getHash $ txId @t tx) `shouldBe` expected
-
-toHex :: ByteString -> ByteString
-toHex =
-    convertToBase @ByteString @ByteString Base16
-
-unsafeFromHex :: ByteString -> ByteString
-unsafeFromHex =
-    either (error . show) id . convertFromBase @ByteString @ByteString Base16
-
-unsafeDecodeAddress :: DecodeAddress t => Proxy t -> Text -> Address
-unsafeDecodeAddress proxy =
-    either (error . show ) id . decodeAddress proxy
+    hex (getHash $ txId @t tx) `shouldBe` expected
+  where
+    hex = convertToBase @ByteString @ByteString Base16
 
 {-------------------------------------------------------------------------------
                              Arbitrary Instances
