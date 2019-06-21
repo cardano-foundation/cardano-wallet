@@ -39,6 +39,7 @@ library
     , bytestring
     , cardano-crypto
     , containers
+    , contra-tracer
     , cryptonite
     , deepseq
     , exceptions
