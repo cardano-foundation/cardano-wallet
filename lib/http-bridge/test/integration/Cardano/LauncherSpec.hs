@@ -4,57 +4,60 @@ module Cardano.LauncherSpec
 
 import Prelude
 
-import Cardano.Launcher
-    ( Command (..), StdStream (..) )
 import Control.Monad
     ( forM_ )
 import System.Directory
-    ( doesDirectoryExist, doesFileExist, removeDirectory )
+    ( removeDirectory )
 import System.Exit
     ( ExitCode (..) )
 import System.IO.Temp
     ( withSystemTempDirectory )
 import System.Process
-    ( createProcess, proc, waitForProcess )
+    ( createProcess
+    , proc
+    , terminateProcess
+    , waitForProcess
+    , withCreateProcess
+    )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Expectations.Lifted
     ( shouldReturn )
 import Test.Integration.Framework.DSL
-    ( expectCmdStarts )
+    ( expectPathEventuallyExist, proc' )
+
+
+import qualified Data.Text.IO as TIO
 
 spec :: Spec
 spec = do
     describe "LAUNCH - cardano-wallet launch" $ do
-        it "LAUNCH - Can start launcher against testnet" $ withTempDir $ \d -> do
-            removeDirectory d
-            let cardanoWalletLauncher = Command "stack"
-                    [ "exec", "--", "cardano-wallet", "launch"
-                    , "--network", "testnet"
-                    ] (return ())
-                    Inherit
-            expectCmdStarts cardanoWalletLauncher
-            doesDirectoryExist d `shouldReturn` False
-
         it "LAUNCH - Can start launcher with --state-dir" $ withTempDir $ \d -> do
-            let cardanoWalletLauncher = Command "stack"
-                    [ "exec", "--", "cardano-wallet", "launch"
-                    , "--state-dir", d
-                    ] (return ())
-                    Inherit
-            expectCmdStarts cardanoWalletLauncher
-            expectStateDirExists d
+            let args = ["launch", "--network", "testnet", "--state-dir", d]
+            let process = proc' "cardano-wallet" args
+            withCreateProcess process $ \_ (Just o) (Just e) ph -> do
+                expectPathEventuallyExist d
+                expectPathEventuallyExist (d <> "/testnet")
+                expectPathEventuallyExist (d <> "/wallet.db")
+                expectPathEventuallyExist (d <> "/wallet.db-shm")
+                expectPathEventuallyExist (d <> "/wallet.db-wal")
+                terminateProcess ph
+                TIO.hGetContents o >>= TIO.putStrLn
+                TIO.hGetContents e >>= TIO.putStrLn
 
-        it "LAUNCH - Can start launcher with --state-dir <emptydir>"
-            $ withTempDir $ \d -> do
+        it "LAUNCH - Can start launcher with --state-dir (empty dir)" $ withTempDir $ \d -> do
             removeDirectory d
-            let cardanoWalletLauncher = Command "stack"
-                    [ "exec", "--", "cardano-wallet", "launch"
-                    , "--state-dir", d
-                    ] (return ())
-                    Inherit
-            expectCmdStarts cardanoWalletLauncher
-            expectStateDirExists d
+            let args = ["launch", "--network", "testnet", "--state-dir", d]
+            let process = proc' "cardano-wallet" args
+            withCreateProcess process $ \_ (Just o) (Just e) ph -> do
+                expectPathEventuallyExist d
+                expectPathEventuallyExist (d <> "/testnet")
+                expectPathEventuallyExist (d <> "/wallet.db")
+                expectPathEventuallyExist (d <> "/wallet.db-shm")
+                expectPathEventuallyExist (d <> "/wallet.db-wal")
+                terminateProcess ph
+                TIO.hGetContents o >>= TIO.putStrLn
+                TIO.hGetContents e >>= TIO.putStrLn
 
     describe "DaedalusIPC" $ do
         let tests =
@@ -68,14 +71,6 @@ spec = do
                 let filepath = "test/integration/js/mock-daedalus.js"
                 (_, _, _, ph) <- createProcess (proc filepath args)
                 waitForProcess ph `shouldReturn` ExitSuccess
-
-expectStateDirExists :: FilePath -> IO ()
-expectStateDirExists dir = do
-    doesDirectoryExist dir `shouldReturn` True
-    doesDirectoryExist (dir ++ "/testnet") `shouldReturn` True
-    doesFileExist (dir ++ "/wallet.db") `shouldReturn` True
-    doesFileExist (dir ++ "/wallet.db-shm") `shouldReturn` True
-    doesFileExist (dir ++ "/wallet.db-wal") `shouldReturn` True
 
 withTempDir :: (FilePath -> IO a) -> IO a
 withTempDir = withSystemTempDirectory "integration-state"

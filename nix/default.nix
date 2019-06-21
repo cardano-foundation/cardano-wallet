@@ -52,6 +52,15 @@ let
           integration.build-tools = [ jormungandr ];
           unit.build-tools = [ jormungandr ];
         };
+
+        packages.iohk-monitoring.flags = {
+          disable-ekg = true;
+          disable-examples = true;
+          disable-graylog = true;
+          disable-gui = true;
+          disable-prometheus = true;
+          disable-syslog = true;
+        };
       }
 
       # the iohk-module will supply us with the necessary

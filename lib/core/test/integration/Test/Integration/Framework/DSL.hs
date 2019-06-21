@@ -19,7 +19,7 @@ module Test.Integration.Framework.DSL
     , unsafeRequest
 
     -- * Expectations
-    , expectCmdStarts
+    , expectPathEventuallyExist
     , expectSuccess
     , expectError
     , expectErrorMessage
@@ -66,6 +66,7 @@ module Test.Integration.Framework.DSL
     , fixtureWalletWith
     , faucetAmt
     , faucetUtxoAmt
+    , proc'
 
     -- * Endpoints
     , getWalletEp
@@ -89,8 +90,6 @@ module Test.Integration.Framework.DSL
 import Prelude hiding
     ( fail )
 
-import Cardano.Launcher
-    ( Command (..), launch )
 import Cardano.Wallet.Api.Types
     ( ApiAddress, ApiT (..), ApiTransaction, ApiWallet )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -112,7 +111,7 @@ import Cardano.Wallet.Primitive.Types
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
-    ( async, cancel, race, wait )
+    ( async, race, wait )
 import Control.Monad
     ( forM_, unless, void )
 import Control.Monad.Catch
@@ -161,6 +160,8 @@ import Numeric.Natural
     ( Natural )
 import System.Command
     ( CmdResult, command )
+import System.Directory
+    ( doesPathExist )
 import System.Exit
     ( ExitCode (..) )
 import System.IO
@@ -392,26 +393,24 @@ expectCliListItemFieldEqual i getter a out
             "expectCliListItemFieldEqual: trying to access the #" <> show i <>
             " element from a list but there's none! "
 
----
---- Misc Expectations
----
-
--- | Expect command does not terminate
--- this may be useful for testing if commands that suppose to act as processes
--- do not terminate (e.g. cardano-wallet server)
-expectCmdStarts :: Command -> IO ()
-expectCmdStarts cmd = do
-    handle <- async $ void $ launch [cmd]
-    let fiveSeconds = 5000000
-    winner <- race (threadDelay fiveSeconds) (wait handle)
+-- | A file is eventually created on the given location
+expectPathEventuallyExist :: FilePath -> IO ()
+expectPathEventuallyExist filepath = do
+    handle <- async doesPathExistNow
+    winner <- race (threadDelay (10 * oneSecond)) (wait handle)
     case winner of
-        Left _ -> do
-            cancel handle
-            threadDelay 1000000
+        Left _ -> expectationFailure $
+            "waited more than 60s for " <> filepath <> " to be created!"
         Right _ ->
-            expectationFailure $
-                ( cmdName cmd ) ++ " isn't supposed to terminate. \
-                \Something went wrong."
+            return ()
+  where
+    oneSecond = 1_000_000
+    doesPathExistNow = do
+        doesPathExist filepath >>= \case
+            True ->
+                return ()
+            False ->
+                threadDelay (oneSecond `div` 2) >> doesPathExistNow
 
 --
 -- Lenses
@@ -766,13 +765,11 @@ createWalletViaCLI
     -> String
     -> IO (ExitCode, String, Text)
 createWalletViaCLI ctx args mnemonics secondFactor passphrase = do
-    let portArg =
+    let portArgs =
             [ "--port", show (ctx ^. typed @Port) ]
     let fullArgs =
-            [ "exec", "--", "cardano-wallet", "wallet", "create" ]
-            ++ portArg ++ args
-    let process = (proc "stack" fullArgs)
-            { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
+            [ "wallet", "create" ] ++ portArgs ++ args
+    let process = proc' "cardano-wallet" fullArgs
     withCreateProcess process $ \(Just stdin) (Just stdout) (Just stderr) h -> do
         hPutStr stdin mnemonics
         hPutStr stdin secondFactor
@@ -812,12 +809,11 @@ postTransactionViaCLI
     -> [String]
     -> IO (ExitCode, String, Text)
 postTransactionViaCLI ctx passphrase args = do
+    let portArgs =
+            ["--port", show (ctx ^. typed @Port)]
     let fullArgs =
-            [ "exec", "--", "cardano-wallet"
-            , "transaction", "create", "--port", show (ctx ^. typed @Port)
-            ] ++ args
-    let process = (proc "stack" fullArgs)
-            { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
+            ["transaction", "create"] ++ portArgs ++ args
+    let process = proc' "cardano-wallet" fullArgs
     withCreateProcess process $ \(Just stdin) (Just stdout) (Just stderr) h -> do
         hPutStr stdin (passphrase ++ "\n")
         hFlush stdin
@@ -826,3 +822,18 @@ postTransactionViaCLI ctx passphrase args = do
         out <- TIO.hGetContents stdout
         err <- TIO.hGetContents stderr
         return (c, T.unpack out, err)
+
+-- There is a dependency cycle in the packages.
+--
+-- cardano-wallet-launcher depends on cardano-wallet-http-bridge so that it can
+-- import the HttpBridge module.
+--
+-- This package (cardano-wallet-http-bridge) should have
+-- build-tool-depends: cardano-wallet:cardano-wallet-launcher so that it can
+-- run launcher in the tests. But that dependency can't be expressed in the
+-- cabal file, because otherwise there would be a cycle.
+--
+-- So one hacky way to work around it is by running programs under "stack exec".
+proc' :: FilePath -> [String] -> CreateProcess
+proc' cmd args = (proc "stack" (["exec", "--", cmd] ++ args))
+    { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }

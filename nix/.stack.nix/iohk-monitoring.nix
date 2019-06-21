@@ -3,10 +3,13 @@
     flags = {
       disable-aggregation = false;
       disable-ekg = false;
+      disable-graylog = false;
       disable-prometheus = false;
       disable-gui = false;
       disable-monitoring = false;
       disable-observables = false;
+      disable-syslog = false;
+      disable-examples = false;
       };
     package = {
       specVersion = "1.10";
@@ -23,7 +26,7 @@
       };
     components = {
       "library" = {
-        depends = (((([
+        depends = ((((([
           (hsPkgs.base)
           (hsPkgs.contra-tracer)
           (hsPkgs.aeson)
@@ -61,9 +64,11 @@
           (hsPkgs.ekg-prometheus-adapter)
           (hsPkgs.prometheus)
           (hsPkgs.warp)
-          ]) ++ (pkgs.lib).optional (!flags.disable-gui) (hsPkgs.threepenny-gui)) ++ (if system.isWindows
+          ]) ++ (pkgs.lib).optional (!flags.disable-graylog) (hsPkgs.network)) ++ (pkgs.lib).optional (!flags.disable-gui) (hsPkgs.threepenny-gui)) ++ (if system.isWindows
           then [ (hsPkgs.Win32) ]
-          else [ (hsPkgs.unix) ])) ++ (pkgs.lib).optionals (system.isLinux) [
+          else [
+            (hsPkgs.unix)
+            ])) ++ (pkgs.lib).optionals (system.isLinux && !flags.disable-syslog) [
           (hsPkgs.hsyslog)
           (hsPkgs.libsystemd-journal)
           ];
@@ -138,8 +143,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/iohk-monitoring-framework";
-      rev = "9727b415e4a18402cf8ac2b39024a0f0c2f71676";
-      sha256 = "077lvnyyk30iahcjkd2iikgjy0d80nazsk3kqy58xg9fkgz7mvwp";
+      rev = "eed4f878f1f03dfac0a4e5b94a1b945aa04ac164";
+      sha256 = "094ffy0qhvlxczknxymsgr95sb79zwmc15m32x1qqcchadjl31fb";
       });
     postUnpack = "sourceRoot+=/iohk-monitoring; echo source root reset to \$sourceRoot";
     }
