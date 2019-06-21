@@ -206,6 +206,10 @@ functions (e.g. `logInfoS`). These allow sensitive information to be
 logged into separate files. Then users may send their logs to the
 technical support desk with a reasonable assurance of privacy.
 
+**Note**: The privacy guidelines are under discussion. We are
+considering making it simpler and only having two classifications:
+"Log" or "Do Not Log".
+
 ### Public information
 
  - Wallet ID.
