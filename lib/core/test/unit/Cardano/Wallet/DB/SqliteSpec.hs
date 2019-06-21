@@ -11,12 +11,16 @@ module Cardano.Wallet.DB.SqliteSpec
 
 import Prelude
 
-import Cardano.BM.Data.Tracer
-    ( nullTracer )
+import Cardano.BM.Data.LogItem
+    ( LOContent (..), LOMeta (severity), LogObject (..) )
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Trace
+    ( traceInTVarIO )
 import Cardano.Wallet
     ( unsafeRunExceptT )
 import Cardano.Wallet.DB
-    ( DBLayer (..), ErrWalletAlreadyExists (..), PrimaryKey (..) )
+    ( DBLayer (..), ErrWalletAlreadyExists (..), PrimaryKey (..), cleanDB )
 import Cardano.Wallet.DB.Sqlite
     ( newDBLayer )
 import Cardano.Wallet.DB.StateMachine
@@ -55,6 +59,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     )
+import Control.Monad
+    ( unless )
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Crypto.Hash
@@ -63,26 +69,57 @@ import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
+import Data.Maybe
+    ( mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( FromText (..) )
 import Data.Time.Clock
     ( getCurrentTime )
+import GHC.Conc
+    ( TVar, atomically, newTVarIO, readTVarIO, writeTVar )
 import System.IO.Unsafe
     ( unsafePerformIO )
 import Test.Hspec
-    ( Spec, SpecWith, describe, it, shouldReturn, xit )
+    ( Expectation
+    , Spec
+    , SpecWith
+    , beforeAll
+    , beforeWith
+    , describe
+    , it
+    , shouldNotContain
+    , shouldReturn
+    , xit
+    )
 
 import qualified Data.Map as Map
+import qualified Data.Text as T
 
 spec :: Spec
-spec = withDB newMemoryDBLayer $ do
-    describe "Sqlite Simple tests" simpleSpec
-    describe "Sqlite" dbPropertyTests
-    describe "Sqlite State machine tests" $ do
-        it "Sequential" prop_sequential
-        xit "Parallel" prop_parallel
+spec = do
+    withDB (fst <$> newMemoryDBLayer) $ do
+        describe "Sqlite Simple tests" simpleSpec
+        describe "Sqlite" dbPropertyTests
+        describe "Sqlite State machine tests" $ do
+            it "Sequential" prop_sequential
+            xit "Parallel" prop_parallel
+
+    withLoggingDB $ do
+        describe "Sqlite logging" $ do
+            it "should log queries at DEBUG level" $ \(db, getLogs) -> do
+                unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+                logs <- logMessages <$> getLogs
+                logs `shouldHaveLog` (Debug, "INSERT")
+
+            it "should not log query parameters" $ \(db, getLogs) -> do
+                unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+                let walletName = T.unpack $ coerce $ name testMetadata
+                msgs <- T.unlines . map snd . logMessages <$> getLogs
+                T.unpack msgs `shouldNotContain` walletName
 
 simpleSpec :: SpecWith (DBLayer IO (SeqState DummyTarget) DummyTarget)
 simpleSpec = do
@@ -130,8 +167,33 @@ simpleSpec = do
             runExceptT (putCheckpoint db testPk testCp) `shouldReturn` Right ()
             readCheckpoint db testPk `shouldReturn` Just testCp
 
-newMemoryDBLayer :: IO (DBLayer IO (SeqState DummyTarget) DummyTarget)
-newMemoryDBLayer = snd <$> newDBLayer nullTracer Nothing
+
+newMemoryDBLayer :: IO (DBLayer IO (SeqState DummyTarget) DummyTarget, TVar [LogObject Text])
+newMemoryDBLayer = do
+    logs <- newTVarIO []
+    (_, db) <- newDBLayer (traceInTVarIO logs) Nothing
+    pure (db, logs)
+
+withLoggingDB :: SpecWith (DBLayer IO (SeqState DummyTarget) DummyTarget, IO [LogObject Text]) -> Spec
+withLoggingDB = beforeAll newMemoryDBLayer . beforeWith clean
+  where
+    clean (db, logs) = do
+        cleanDB db
+        atomically $ writeTVar logs []
+        pure (db, readTVarIO logs)
+
+logMessages :: [LogObject a] -> [(Severity, a)]
+logMessages = mapMaybe getMessage
+  where
+    getMessage (LogObject _ m (LogMessage a)) = Just (severity m, a)
+    getMessage _ = Nothing
+
+shouldHaveLog :: [(Severity, Text)] -> (Severity, Text) -> Expectation
+shouldHaveLog msgs (sev, str) = unless (any match msgs) $
+    fail $ "Did not find " ++ show sev ++ " log " ++
+        T.unpack str ++ " within " ++ show msgs
+  where
+    match (sev', msg) = sev' == sev && str `T.isInfixOf` msg
 
 testCp :: Wallet (SeqState DummyTarget) DummyTarget
 testCp = initWallet initDummyBlock0 initDummyState
