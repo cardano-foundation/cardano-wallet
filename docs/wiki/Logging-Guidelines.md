@@ -1,7 +1,5 @@
 <!-- --- title: Logging guidelines -->
 
-Draft for issue [#351](https://github.com/input-output-hk/cardano-wallet/issues/351)
-
 Logs are primarily for _users_ of the cardano-wallet, not its
 developers. Such users could be:
 
@@ -237,6 +235,7 @@ This information should _never_ be included in log messages (including
 DEBUG messages):
 
  - Private key material.
+ - Mnemonic sentences.
  - Passphrases.
  - The values used or returned by SQL queries.
  - Raw data sent to or received from the network backend.
