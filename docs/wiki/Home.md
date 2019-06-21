@@ -9,6 +9,7 @@
 - [Roadmap](https://github.com/input-output-hk/cardano-wallet/wiki/Roadmap)
 - [Building](https://github.com/input-output-hk/cardano-wallet/wiki/Building)
 - [Testing](https://github.com/input-output-hk/cardano-wallet/wiki/Testing)
+- [Logging Guidelines](https://github.com/input-output-hk/cardano-wallet/wiki/Logging-Guidelines)
 - [Blackboard - Ideas & Thoughts](https://github.com/input-output-hk/cardano-wallet/wiki/Blackboard)
 - [Release Checklist](https://github.com/input-output-hk/cardano-wallet/wiki/Release-Checklist)
 
