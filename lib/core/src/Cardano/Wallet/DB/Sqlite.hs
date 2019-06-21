@@ -33,6 +33,8 @@ import Cardano.BM.Data.LogItem
     ( LOContent (..), LogObject (..), PrivacyAnnotation (..) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
+import Cardano.BM.Observer.Monadic
+    ( bracketObserveIO )
 import Cardano.BM.Trace
     ( Trace, appendName, traceNamedItem )
 import Cardano.Crypto.Wallet
@@ -148,6 +150,8 @@ import GHC.Generics
 import System.Log.FastLogger
     ( fromLogStr )
 
+import qualified Cardano.BM.Configuration.Model as CM
+import qualified Cardano.BM.Data.BackendKind as CM
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery as W
 import qualified Cardano.Wallet.Primitive.Model as W
@@ -165,7 +169,7 @@ import qualified Database.Sqlite as Sqlite
 -- | Return type of 'startSqliteBackend'
 data Backend = Backend SqlBackend (forall a. SqlPersistM a -> IO a)
 
--- | Opens the SQLite database connection, sets up query logging,
+-- | Opens the SQLite database connection, sets up query logging and timing,
 -- runs schema migrations if necessary.
 startSqliteBackend
     :: Trace IO DBLog
@@ -177,7 +181,9 @@ startSqliteBackend trace fp = do
     lock <- newMVar ()
 
     let runQuery' :: SqlPersistM a -> IO a
-        runQuery' cmd = withMVar lock $ const $ runQuery backend cmd
+        runQuery' cmd = withMVar lock $ const $ observe $ runQuery backend cmd
+        observe :: IO a -> IO a
+        observe = bracketObserveIO c traceQuery Debug "runQuery"
 
     migrations <- runQuery' $ runMigrationSilent migrateAll
     dbLog trace $ MsgMigrations (length migrations)
@@ -219,6 +225,13 @@ queryLogFunc trace _loc _source level str = dbLog trace (MsgQuery msg sev)
         LevelWarn -> Warning
         LevelError -> Error
         LevelOther _ -> Warning
+
+observerConfig :: IO CM.Configuration
+observerConfig = do
+    c <- CM.empty
+    CM.setMinSeverity c Debug
+    CM.setSetupBackends c [CM.KatipBK, CM.AggregationBK]
+    pure c
 
 -- | Run a query without error handling. There will be exceptions thrown if it
 -- fails.
