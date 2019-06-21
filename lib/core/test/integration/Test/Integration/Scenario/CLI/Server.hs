@@ -4,41 +4,34 @@ module Test.Integration.Scenario.CLI.Server
 
 import Prelude
 
-import Cardano.Launcher
-    ( Command (..), StdStream (..) )
-import System.Directory
-    ( doesFileExist )
+import Control.Concurrent
+    ( threadDelay )
 import System.IO.Temp
     ( withSystemTempDirectory )
+import System.Process
+    ( terminateProcess, withCreateProcess )
 import Test.Hspec
     ( SpecWith, describe, it )
-import Test.Hspec.Expectations.Lifted
-    ( shouldReturn )
 import Test.Integration.Framework.DSL
-    ( Context (..), expectCmdStarts )
+    ( Context (..), expectPathEventuallyExist, proc' )
 
 spec :: SpecWith (Context t)
 spec = do
     describe "SERVER - cardano-wallet serve" $ do
-        it "SERVER - Can just start cardano-wallet serve" $ \_ -> do
-            let cardanoWalletServer = Command "stack"
-                    [ "exec", "--", "cardano-wallet", "serve"
-                    ] (return ())
-                    Inherit
-            expectCmdStarts cardanoWalletServer
-
         it "SERVER - Can start cardano-wallet serve --database" $ \_ -> do
             withTempDir $ \d -> do
-                let dbFile = d ++ "/db-file"
-                let cardanoWalletServer = Command "stack"
-                        [ "exec", "--", "cardano-wallet", "serve"
-                        , "--database", dbFile
-                        ] (return ())
-                        Inherit
-                expectCmdStarts cardanoWalletServer
-                doesFileExist dbFile `shouldReturn` True
-                doesFileExist (dbFile ++ "-shm") `shouldReturn` True
-                doesFileExist (dbFile ++ "-wal") `shouldReturn` True
+                let db = d ++ "/db-file"
+                let args = ["serve", "--database", db]
+                let process = proc' "cardano-wallet" args
+                withCreateProcess process $ \_ _ _ ph -> do
+                    expectPathEventuallyExist db
+                    expectPathEventuallyExist (db <> "-shm")
+                    expectPathEventuallyExist (db <> "-wal")
+                    terminateProcess ph
+            threadDelay oneSecond
+
+oneSecond :: Int
+oneSecond = 1000000
 
 withTempDir :: (FilePath -> IO a) -> IO a
 withTempDir = withSystemTempDirectory "integration-state"
