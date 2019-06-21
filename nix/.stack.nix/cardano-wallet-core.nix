@@ -113,19 +113,21 @@
         "db" = {
           depends = [
             (hsPkgs.base)
-            (hsPkgs.split)
             (hsPkgs.bytestring)
-            (hsPkgs.criterion)
             (hsPkgs.cardano-crypto)
             (hsPkgs.cardano-wallet-core)
             (hsPkgs.containers)
+            (hsPkgs.criterion)
             (hsPkgs.cryptonite)
             (hsPkgs.deepseq)
             (hsPkgs.directory)
             (hsPkgs.fmt)
-            (hsPkgs.memory)
             (hsPkgs.iohk-monitoring)
+            (hsPkgs.memory)
+            (hsPkgs.split)
             (hsPkgs.temporary)
+            (hsPkgs.text)
+            (hsPkgs.text-class)
             (hsPkgs.time)
             ];
           };
