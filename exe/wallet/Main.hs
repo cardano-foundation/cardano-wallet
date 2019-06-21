@@ -38,10 +38,8 @@ import Cardano.BM.Setup
 import Cardano.BM.Trace
     ( Trace, appendName, logAlert, logInfo )
 import Cardano.CLI
-    ( OptionValue (..)
-    , Port (..)
+    ( Port (..)
     , getLine
-    , getOptionValue
     , getSensitiveLine
     , help
     , parseAllArgsWith
@@ -172,8 +170,8 @@ and can be run "offline". (e.g. 'generate mnemonic')
     ⚠️  Options are positional (--a --b is not equivalent to --b --a) ! ⚠️
 
 Usage:
-  cardano-wallet launch [--network=STRING] [(--port=INT | --random-port)] [--bridge-port=INT] [--state-dir=DIR] [--min-log-severity=SEVERITY]
-  cardano-wallet serve [--network=STRING] [(--port=INT | --random-port)] [--bridge-port=INT] [--database=FILE] [--min-log-severity=SEVERITY]
+  cardano-wallet launch [--network=STRING] [(--port=INT | --random-port)] [--bridge-port=INT] [--state-dir=DIR] [(--quiet | --verbose )]
+  cardano-wallet serve  [--network=STRING] [(--port=INT | --random-port)] [--bridge-port=INT] [--database=FILE] [(--quiet | --verbose )]
   cardano-wallet mnemonic generate [--size=INT]
   cardano-wallet wallet list [--port=INT]
   cardano-wallet wallet create [--port=INT] <name> [--address-pool-gap=INT]
@@ -186,17 +184,18 @@ Usage:
   cardano-wallet --version
 
 Options:
-  --address-pool-gap <INT>        number of unused consecutive addresses to keep track of [default: 20]
-  --bridge-port <INT>             port used for communicating with the http-bridge [default: 8080]
-  --database <FILE>               use this file for storing wallet state
-  --min-log-severity <SEVERITY>   minimum log severity level, in ascending order: {debug, info, notice, warning, error, critical, alert, emergency} [default: debug]
-  --network <STRING>              testnet or mainnet [default: testnet]
-  --payment <PAYMENT>             address to send to and amount to send separated by @: '<amount>@<address>'
-  --port <INT>                    port used for serving the wallet API [default: 8090]
-  --random-port                   serve wallet API on any available port (conflicts with --port)
-  --size <INT>                    number of mnemonic words to generate [default: 15]
-  --state <STRING>                address state: either used or unused
-  --state-dir <DIR>               write wallet state (blockchain and database) to this directory
+  --address-pool-gap <INT>  number of unused consecutive addresses to keep track of [default: 20]
+  --bridge-port <INT>       port used for communicating with the http-bridge [default: 8080]
+  --database <FILE>         use this file for storing wallet state
+  --network <STRING>        testnet or mainnet [default: testnet]
+  --payment <PAYMENT>       address to send to and amount to send separated by @: '<amount>@<address>'
+  --port <INT>              port used for serving the wallet API [default: 8090]
+  --random-port             serve wallet API on any available port (conflicts with --port)
+  --size <INT>              number of mnemonic words to generate [default: 15]
+  --state <STRING>          address state: either used or unused
+  --state-dir <DIR>         write wallet state (blockchain and database) to this directory
+  --quiet                   suppress all log output apart from errors
+  --verbose                 display debugging information in the log output
 
 Examples:
   # Launch and monitor a wallet server and its associated chain producer
@@ -225,6 +224,45 @@ main = do
                                   Logging
 -------------------------------------------------------------------------------}
 
+-- | Controls how much information to include in log output.
+data Verbosity
+    = Default
+        -- ^ The default level of verbosity.
+    | Quiet
+        -- ^ Include less information in the log output.
+    | Verbose
+        -- ^ Include more information in the log output.
+    deriving (Eq, Show)
+
+-- | Determine the minimum 'Severity' level from the specified command line
+--   arguments.
+minSeverityFromArgs :: Arguments -> Severity
+minSeverityFromArgs = verbosityToMinSeverity . verbosityFromArgs
+
+-- | Determine the desired 'Verbosity' level from the specified command line
+--   arguments.
+verbosityFromArgs :: Arguments -> Verbosity
+verbosityFromArgs args
+    | args `isPresent` longOption "quiet"   = Quiet
+    | args `isPresent` longOption "verbose" = Verbose
+    | otherwise = Default
+
+-- | Convert a given 'Verbosity' level into a list of command line arguments
+--   that can be passed through to a sub-process.
+verbosityToArgs :: Verbosity -> [String]
+verbosityToArgs = \case
+    Default -> []
+    Quiet   -> ["--quiet"]
+    Verbose -> ["--verbose"]
+
+-- | Map a given 'Verbosity' level onto a 'Severity' level.
+verbosityToMinSeverity :: Verbosity -> Severity
+verbosityToMinSeverity = \case
+    Default -> Info
+    Quiet   -> Error
+    Verbose -> Debug
+
+-- | Initialize logging at the specified minimum 'Severity' level.
 initTracer :: Severity -> Text -> IO (Trace IO Text)
 initTracer minSeverity cmd = do
     c <- defaultConfigStdout
@@ -258,10 +296,9 @@ exec execServe manager args
         let stateDir = args `getArg` longOption "state-dir"
         bridgePort <- args `parseArg` longOption "bridge-port"
         listen <- parseWalletListen args
-        minLogSeverity <- getOptionValue <$>
-            args `parseArg` longOption "min-log-severity"
-        tracer <- initTracer minLogSeverity "launch"
-        execLaunch tracer network stateDir bridgePort listen minLogSeverity
+        tracer <- initTracer (minSeverityFromArgs args) "launch"
+        execLaunch
+            tracer (verbosityFromArgs args) network stateDir bridgePort listen
 
     | args `isPresent` command "generate" &&
       args `isPresent` command "mnemonic" = do
@@ -416,9 +453,7 @@ execHttpBridge
     :: forall n. (KeyToAddress (HttpBridge n), KnownNetwork n)
     => Arguments -> Proxy (HttpBridge n) -> IO ()
 execHttpBridge args _ = do
-    minLogSeverity <- getOptionValue <$>
-        args `parseArg` longOption "min-log-severity"
-    tracer <- initTracer minLogSeverity "serve"
+    tracer <- initTracer (minSeverityFromArgs args) "serve"
     logInfo tracer $ "Wallet backend server starting. "
         <> "Version "
         <> T.pack (showVersion version)
@@ -464,13 +499,13 @@ execGenerateMnemonic n = do
 -- is cancelled.
 execLaunch
     :: Trace IO Text
+    -> Verbosity
     -> String
     -> Maybe FilePath
     -> Port "Node"
     -> Listen
-    -> Severity
     -> IO ()
-execLaunch tracer network stateDir bridgePort listen minLogSeverity = do
+execLaunch tracer verbosity network stateDir bridgePort listen = do
     installSignalHandlers
     maybe (pure ()) (setupStateDir tracer) stateDir
     let commands = [ httpBridgeCmd, walletCmd ]
@@ -489,6 +524,7 @@ execLaunch tracer network stateDir bridgePort listen minLogSeverity = do
             , [ "--port", showT bridgePort ]
             , [ "--template", network ]
             , maybe [] (\d -> ["--networks-dir", d]) stateDir
+            , verbosityToArgs verbosity
             ]
 
     -- | Launch a sub-process starting the wallet server with the given options
@@ -505,7 +541,7 @@ execLaunch tracer network stateDir bridgePort listen minLogSeverity = do
                 ListenOnPort port  -> ["--port", showT port]
             , [ "--bridge-port", showT bridgePort ]
             , maybe [] (\d -> ["--database", d </> "wallet.db"]) stateDir
-            , [ "--min-log-severity", showT $ OptionValue minLogSeverity ]
+            , verbosityToArgs verbosity
             ]
 
 {-------------------------------------------------------------------------------
