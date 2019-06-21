@@ -1000,10 +1000,13 @@ TransactionLayer :: ((Address -> Maybe (Key  'AddressK XPrv, Passphrase "encrypt
 [estimateSize] :: TransactionLayer t -> CoinSelection -> Quantity "byte" Int
 
 -- | Possible signing error
-newtype ErrMkStdTx
+data ErrMkStdTx
 
 -- | We tried to sign a transaction with inputs that are unknown to us?
 ErrKeyNotFoundForAddress :: Address -> ErrMkStdTx
+
+-- | when transaction with 0 amount is tried (not valid in Byron)
+ErrInvalidTx :: ErrMkStdTx
 instance GHC.Show.Show Cardano.Wallet.Transaction.ErrMkStdTx
 instance GHC.Classes.Eq Cardano.Wallet.Transaction.ErrMkStdTx
 
@@ -2367,10 +2370,13 @@ data ErrWrongPassphrase
 ErrWrongPassphrase :: ErrWrongPassphrase
 
 -- | Possible signing error
-newtype ErrMkStdTx
+data ErrMkStdTx
 
 -- | We tried to sign a transaction with inputs that are unknown to us?
 ErrKeyNotFoundForAddress :: Address -> ErrMkStdTx
+
+-- | when transaction with 0 amount is tried (not valid in Byron)
+ErrInvalidTx :: ErrMkStdTx
 
 -- | Error while trying to send a transaction
 data ErrPostTx

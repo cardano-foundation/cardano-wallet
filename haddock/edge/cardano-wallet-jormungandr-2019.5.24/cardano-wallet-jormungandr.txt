@@ -152,9 +152,17 @@ get :: FromBinary a => Get a
 --   merely checks that the underlying bytestring has a "valid" structure /
 --   format without doing much more.
 decodeLegacyAddress :: ByteString -> Maybe Address
+
+-- | The simplest interface to run a <a>Get</a> decoder. If the decoder
+--   runs into an error, calls <a>fail</a>, or runs out of input, it will
+--   call <a>error</a>.
 runGet :: () => Get a -> ByteString -> a
 data Get a
+
+-- | Run the <a>PutM</a> monad with a serialiser
 runPut :: Put -> ByteString
+
+-- | Put merely lifts Builder into a Writer monad, applied to ().
 type Put = PutM ()
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.Block
 instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.Block
