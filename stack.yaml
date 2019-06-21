@@ -12,23 +12,23 @@ packages:
 - lib/jormungandr
 
 extra-deps:
+# Miscellaneous
 - base58-bytestring-0.1.0
-- binary-0.8.7.0
-- command-0.1.1
-- containers-0.5.11.0
-- ekg-prometheus-adapter-0.1.0.4
-- generic-lens-1.1.0.0
-- libsystemd-journal-1.4.4
-- prometheus-2.1.1
 - quickcheck-state-machine-0.6.0
-- time-units-1.0.0
+- command-0.1.1
+
+# cardano-crypto
 - git: https://github.com/input-output-hk/cardano-crypto
   commit: 3c5db489c71a4d70ee43f5f9b979fcde3c797f2a
+
+# iohk-monitoring-framework
 - git: https://github.com/input-output-hk/iohk-monitoring-framework
-  commit: 84182cec9d0bccd9d02b5590806112ac32e749c4
+  commit: eed4f878f1f03dfac0a4e5b94a1b945aa04ac164
   subdirs:
     - contra-tracer
     - iohk-monitoring
+- time-units-1.0.0
+- libsystemd-journal-1.4.4
 
 flags:
   # Bring in less dependencies from iohk-monitoring
@@ -38,7 +38,6 @@ flags:
     disable-graylog: true
     disable-gui: true
     disable-prometheus: true
-    disable-syslog: true
 
 nix:
   shell-file: nix/stack-shell.nix
