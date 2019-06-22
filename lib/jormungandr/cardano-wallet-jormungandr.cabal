@@ -126,6 +126,7 @@ test-suite integration
     , aeson-qq
     , async
     , base
+    , binary
     , bytestring
     , cardano-wallet-cli
     , cardano-wallet-core
@@ -143,6 +144,9 @@ test-suite integration
     , http-api-data
     , http-client
     , http-types
+    , iohk-monitoring
+    , memory
+    , persistent
     , persistent-sqlite
     , process
     , QuickCheck
@@ -157,12 +161,13 @@ test-suite integration
      exitcode-stdio-1.0
   hs-source-dirs:
       test/integration
+      test/shared
   main-is:
       Main.hs
   other-modules:
       Cardano.Faucet
-      Cardano.LauncherSpec
       Cardano.Wallet.Jormungandr.NetworkSpec
+      Cardano.Wallet.Unsafe
       Test.Integration.Faucet
       Test.Integration.Framework.DSL
       Test.Integration.Framework.Request

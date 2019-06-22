@@ -1,14 +1,173 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
+
 module Main where
 
 import Prelude
 
+import Cardano.BM.Trace
+    ( nullTracer )
+import Cardano.Faucet
+    ( initFaucet )
+import Cardano.Launcher
+    ( Command (..), StdStream (..), launch )
+import Cardano.Wallet
+    ( newWalletLayer, unsafeRunExceptT )
+import Cardano.Wallet.Api.Server
+    ( Listen (..) )
+import Cardano.Wallet.Api.Types
+    ( ApiWallet )
+import Cardano.Wallet.Jormungandr.Compatibility
+    ( Jormungandr, Network (..) )
+import Cardano.Wallet.Jormungandr.Network
+    ( BaseUrl (..), JormungandrLayer (..), Scheme (..), mkJormungandrLayer )
+import Cardano.Wallet.Jormungandr.Primitive.Types
+    ( Tx (..) )
+import Cardano.Wallet.Network
+    ( NetworkLayer (..), defaultRetryPolicy, waitForConnection )
+import Cardano.Wallet.Primitive.Types
+    ( Block (..), Hash (..) )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromHex )
+import Control.Concurrent
+    ( forkIO )
+import Control.Concurrent.Async
+    ( async, cancel )
+import Control.Concurrent.MVar
+    ( newEmptyMVar, putMVar, takeMVar )
+import Control.Monad
+    ( void )
+import Data.Coerce
+    ( coerce )
+import Data.Function
+    ( (&) )
+import Data.Proxy
+    ( Proxy (..) )
+import Database.Persist.Sql
+    ( SqlBackend, close' )
+import Network.HTTP.Client
+    ( defaultManagerSettings, newManager )
+import Network.Wai.Handler.Warp
+    ( setBeforeMainLoop )
+import System.Directory
+    ( removePathForcibly )
+import System.IO
+    ( IOMode (..), hClose, openFile )
 import Test.Hspec
-    ( describe, hspec )
+    ( SpecWith, after, afterAll, beforeAll, describe, hspec, it )
+import Test.Integration.Framework.DSL
+    ( Context (..)
+    , Headers (..)
+    , Payload (..)
+    , balanceAvailable
+    , balanceTotal
+    , expectFieldEqual
+    , expectResponseCode
+    , fixtureWallet
+    , getWalletEp
+    , request
+    , tearDown
+    , verify
+    )
 
-import qualified Cardano.LauncherSpec as Launcher
+import qualified Cardano.Wallet.Api.Server as Server
+import qualified Cardano.Wallet.DB.Sqlite as Sqlite
+import qualified Cardano.Wallet.Jormungandr.Network as Jormungandr
 import qualified Cardano.Wallet.Jormungandr.NetworkSpec as Network
+import qualified Cardano.Wallet.Jormungandr.Transaction as Jormungandr
+import qualified Data.Text as T
+import qualified Network.HTTP.Types.Status as HTTP
+import qualified Network.Wai.Handler.Warp as Warp
+
+-- | Temporary 'Spec' to illustrate that the integration scenario setup below
+-- works as expected.
+temporarySpec :: SpecWith (Context t)
+temporarySpec =
+    it "Temporary example spec for Jörmungandr integration" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        r <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
+        print r *> verify r
+            [ expectResponseCode @IO HTTP.status200
+            , expectFieldEqual balanceAvailable 100000000000
+            , expectFieldEqual balanceTotal 100000000000
+            ]
 
 main :: IO ()
 main = hspec $ do
-    describe "Cardano.LauncherSpec" Launcher.spec
     describe "Cardano.Wallet.NetworkSpec" Network.spec
+    beforeAll start $ afterAll cleanup $ after tearDown $ do
+        describe "Jörmungandr Temporary Spec" temporarySpec
+  where
+    start :: IO (Context (Jormungandr 'Testnet))
+    start = do
+        let dir = "./test/data/jormungandr"
+        removePathForcibly "/tmp/cardano-wallet-jormungandr"
+        logs <- openFile "/tmp/jormungandr" WriteMode
+        let jormungandrLauncher = Command
+                "jormungandr"
+                [ "--genesis-block", dir ++ "/block0.bin"
+                , "--config", dir ++ "/config.yaml"
+                , "--secret", dir ++ "/secret.yaml"
+                ] (return ())
+                (UseHandle logs)
+        handle <- async $ void $ launch [jormungandrLauncher]
+        (port, db) <- cardanoWalletServer
+        let baseUrl = "http://localhost:" <> T.pack (show port) <> "/"
+        manager <- newManager defaultManagerSettings
+        faucet <- initFaucet
+        return $ Context handle (baseUrl, manager) port logs faucet db Proxy
+
+    cleanup :: Context t -> IO ()
+    cleanup ctx = do
+        cancel (_cluster ctx)
+        hClose (_logs ctx)
+        close' (_db ctx)
+
+-- NOTE
+-- We start the wallet server in the same process such that we get
+-- code coverage measures from running the scenarios on top of it!
+cardanoWalletServer
+    :: forall network. (network ~ Jormungandr 'Testnet)
+    => IO (Int, SqlBackend)
+cardanoWalletServer = do
+    (nl, block0) <- newNetworkLayer jormungandrUrl block0H
+    (conn, db) <- Sqlite.newDBLayer @_ @network nullTracer Nothing
+    mvar <- newEmptyMVar
+    void $ forkIO $ do
+        let tl = Jormungandr.newTransactionLayer block0H
+        wallet <- newWalletLayer nullTracer block0 db nl tl
+        let listen = ListenOnRandomPort
+        Server.withListeningSocket listen $ \(port, socket) -> do
+            let settings = Warp.defaultSettings
+                    & setBeforeMainLoop (putMVar mvar port)
+            Server.start settings nullTracer socket wallet
+    (,conn) <$> takeMVar mvar
+  where
+    jormungandrUrl :: BaseUrl
+    jormungandrUrl = BaseUrl Http "localhost" 8081 "/api"
+    block0H = Hash $ unsafeFromHex
+        "24192c29893fe52edc26567263b028711334554b239bf562334bf4b8ca920da1"
+        -- ^ jcli genesis hash --input test/data/jormungandr/block0.bin
+
+-- Instantiate a new 'NetworkLayer' for 'Jormungandr', and fetches the
+-- genesis block for starting a 'WalletLayer'.
+newNetworkLayer
+    :: BaseUrl
+    -> Hash "Genesis"
+    -> IO (NetworkLayer (Jormungandr n) IO, Block Tx)
+newNetworkLayer url block0H = do
+    mgr <- newManager defaultManagerSettings
+    let jormungandr = mkJormungandrLayer mgr url
+    let nl = Jormungandr.mkNetworkLayer jormungandr
+    waitForConnection nl defaultRetryPolicy
+    block0 <- unsafeRunExceptT $ getBlock jormungandr (coerce block0H)
+    return (nl, block0)
+
+-- | One second in micro-seconds
+oneSecond :: Int
+oneSecond = 1000000
