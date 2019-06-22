@@ -18,7 +18,10 @@
 module Cardano.Wallet.DB.Sqlite
     ( newDBLayer
     , runQuery
+
+    -- * Interfaces
     , PersistState (..)
+    , PersistTx (..)
     ) where
 
 import Prelude
@@ -62,6 +65,10 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( AddressPoolXPub (..), BlockId (..), TxId (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), deserializeXPrv, serializeXPrv )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( IsOurs (..) )
+import Cardano.Wallet.Primitive.Types
+    ( DefineTx (..) )
 import Control.Concurrent.MVar
     ( newMVar, withMVar )
 import Control.DeepSeq
@@ -202,7 +209,7 @@ handleConstraint e = handleJust select handler . fmap Right
 -- If the given file path does not exist, it will be created by the sqlite
 -- library.
 newDBLayer
-    :: forall s t. (W.IsOurs s, NFData s, Show s, PersistState s, W.TxId t)
+    :: forall s t. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t)
     => Trace IO Text
        -- ^ Logging object
     -> Maybe FilePath
@@ -267,9 +274,9 @@ newDBLayer trace fp = do
               selectLatestCheckpoint wid >>= \case
                   Just cp -> do
                       utxo <- selectUTxO cp
-                      txs <- selectTxHistory wid [TxMetaTableStatus ==. W.Pending]
+                      txs <- selectTxHistory @t wid [TxMetaTableStatus ==. W.Pending]
                       s <- selectState (checkpointId cp)
-                      pure (checkpointFromEntity cp utxo txs <$> s)
+                      pure (checkpointFromEntity @s @t cp utxo txs <$> s)
                   Nothing -> pure Nothing
 
         {-----------------------------------------------------------------------
@@ -298,11 +305,11 @@ newDBLayer trace fp = do
               ExceptT $ runQuery' $
               selectWallet wid >>= \case
                   Just _ -> do
-                      let (metas, txins, txouts) = mkTxHistory wid $ W.invariant
+                      let (metas, txins, txouts) = mkTxHistory @t wid $ W.invariant
                               ("putTxHistory has been called with pending txs: "
                                 <> show txs)
                               txs
-                              (not . any W.isPending)
+                              (not . any (W.isPending . snd))
                       putTxMetas metas
                       putTxs txins txouts
                       pure $ Right ()
@@ -310,7 +317,7 @@ newDBLayer trace fp = do
 
         , readTxHistory = \(PrimaryKey wid) ->
               runQuery' $
-              selectTxHistory wid []
+              selectTxHistory @t wid []
 
         {-----------------------------------------------------------------------
                                        Keystore
@@ -410,7 +417,7 @@ privateKeyFromEntity
 privateKeyFromEntity (PrivateKey _ k h) = deserializeXPrv (k, h)
 
 mkCheckpointEntity
-    :: forall s t. W.TxId t
+    :: forall s t. PersistTx t
     => W.WalletId
     -> W.Wallet s t
     -> (Checkpoint, [UTxO], [TxIn], [TxOut], [TxMeta])
@@ -421,7 +428,7 @@ mkCheckpointEntity wid wal =
         [ (W.txId @t tx, (tx, meta))
         | (tx, meta) <- Set.toList (W.getPending wal)
         ]
-    (metas, ins, outs) = mkTxHistory wid (Map.fromList pending)
+    (metas, ins, outs) = mkTxHistory @t wid (Map.fromList pending)
     header = (W.currentTip wal)
     sl = header ^. #slotId
     parent = header ^. #prevBlockHash
@@ -437,10 +444,10 @@ mkCheckpointEntity wid wal =
 -- note: TxIn records must already be sorted by order
 -- and TxOut records must already by sorted by index.
 checkpointFromEntity
-    :: forall s t. (W.IsOurs s, NFData s, Show s, W.TxId t)
+    :: forall s t. (IsOurs s, NFData s, Show s, DefineTx t)
     => Checkpoint
     -> [UTxO]
-    -> Map (W.Hash "Tx") (W.Tx, W.TxMeta)
+    -> Map (W.Hash "Tx") (W.Tx t, W.TxMeta)
     -> s
     -> W.Wallet s t
 checkpointFromEntity (Checkpoint _ slot (BlockId parentHeaderHash)) utxo txs =
@@ -453,26 +460,31 @@ checkpointFromEntity (Checkpoint _ slot (BlockId parentHeaderHash)) utxo txs =
     pending = Set.fromList $ Map.elems txs
 
 mkTxHistory
-    :: W.WalletId
-    -> Map (W.Hash "Tx") (W.Tx, W.TxMeta)
+    :: forall t. PersistTx t
+    => W.WalletId
+    -> Map (W.Hash "Tx") (W.Tx t, W.TxMeta)
     -> ([TxMeta], [TxIn], [TxOut])
 mkTxHistory wid txs = (map (uncurry (mkTxMetaEntity wid)) metas, ins, outs)
   where
     pairs = Map.toList txs
     metas = fmap snd <$> pairs
     hist = fmap fst <$> pairs
-    (ins, outs) = mkTxInputsOutputs hist
+    (ins, outs) = mkTxInputsOutputs @t hist
 
-mkTxInputsOutputs :: [(W.Hash "Tx", W.Tx)] -> ([TxIn], [TxOut])
+mkTxInputsOutputs
+    :: forall t. PersistTx t
+    => [(W.Hash "Tx", W.Tx t)]
+    -> ([TxIn], [TxOut])
 mkTxInputsOutputs txs =
-    ( concatMap (dist mkTxIn . ordered W.inputs) txs
-    , concatMap (dist mkTxOut . ordered W.outputs) txs )
+    ( concatMap (dist mkTxIn . ordered (resolvedInputs @t)) txs
+    , concatMap (dist mkTxOut . ordered (W.outputs @t)) txs )
   where
-    mkTxIn tid (ix, txIn) = TxIn
+    mkTxIn tid (ix, (txIn, amt)) = TxIn
         { txInputTableTxId = TxId tid
         , txInputTableOrder = ix
         , txInputTableSourceTxId = TxId (W.inputId txIn)
         , txInputTableSourceIndex = W.inputIx txIn
+        , txInputTableSourceAmount = amt
         }
     mkTxOut tid (ix, txOut) = TxOut
         { txOutputTableTxId = TxId tid
@@ -501,22 +513,25 @@ mkTxMetaEntity wid txid meta = TxMeta
 -- note: TxIn records must already be sorted by order
 -- and TxOut records must already be sorted by index
 txHistoryFromEntity
-    :: [TxMeta]
+    :: forall t. PersistTx t
+    => [TxMeta]
     -> [TxIn]
     -> [TxOut]
-    -> Map (W.Hash "Tx") (W.Tx, W.TxMeta)
+    -> Map (W.Hash "Tx") (W.Tx t, W.TxMeta)
 txHistoryFromEntity metas ins outs = Map.fromList
-    [ (getTxId (txMetaTableTxId m), (mkTx (txMetaTableTxId m), mkTxMeta m))
+    [ (getTxId (txMetaTableTxId m), (mkTxWith (txMetaTableTxId m), mkTxMeta m))
     | m <- metas ]
   where
-    mkTx txid = W.Tx
-        { W.inputs = map mkTxIn $ filter ((== txid) . txInputTableTxId) ins
-        , W.outputs = map mkTxOut $ filter ((== txid) . txOutputTableTxId) outs
-        }
-    mkTxIn tx = W.TxIn
-        { W.inputId = getTxId (txInputTableSourceTxId tx)
-        , W.inputIx = txInputTableSourceIndex tx
-        }
+    mkTxWith txid = mkTx @t
+        (map mkTxIn $ filter ((== txid) . txInputTableTxId) ins)
+        (map mkTxOut $ filter ((== txid) . txOutputTableTxId) outs)
+    mkTxIn tx =
+        ( W.TxIn
+            { W.inputId = getTxId (txInputTableSourceTxId tx)
+            , W.inputIx = txInputTableSourceIndex tx
+            }
+        , txInputTableSourceAmount tx
+        )
     mkTxOut tx = W.TxOut
         { W.address = txOutputTableAddress tx
         , W.coin = txOutputTableAmount tx
@@ -535,7 +550,7 @@ selectWallet :: MonadIO m => W.WalletId -> SqlPersistT m (Maybe Wallet)
 selectWallet wid = fmap entityVal <$> selectFirst [WalTableId ==. wid] []
 
 insertCheckpoint
-    :: (PersistState s, W.TxId t)
+    :: (PersistState s, PersistTx t)
     => W.WalletId
     -> W.Wallet s t
     -> SqlPersistM ()
@@ -677,15 +692,16 @@ selectTxs txids = do
     pure (ins, outs)
 
 selectTxHistory
-    :: W.WalletId
+    :: forall t. PersistTx t
+    => W.WalletId
     -> [Filter TxMeta]
-    -> SqlPersistM (Map (W.Hash "Tx") (W.Tx, W.TxMeta))
+    -> SqlPersistM (Map (W.Hash "Tx") (W.Tx t, W.TxMeta))
 selectTxHistory wid conditions = do
     metas <- fmap entityVal <$> selectList
         ((TxMetaTableWalletId ==. wid) : conditions) []
     let txids = map txMetaTableTxId metas
     (ins, outs) <- selectTxs txids
-    pure $ txHistoryFromEntity metas ins outs
+    pure $ txHistoryFromEntity @t metas ins outs
 
 ---------------------------------------------------------------------------
 -- DB queries for address discovery state
@@ -704,6 +720,21 @@ class PersistState s where
     selectState :: (W.WalletId, W.SlotId) -> SqlPersistM (Maybe s)
     -- | Remove the state for all checkpoints of a wallet.
     deleteState :: W.WalletId -> SqlPersistM ()
+
+class DefineTx t => PersistTx t where
+    resolvedInputs :: Tx t -> [(W.TxIn, Maybe W.Coin)]
+    -- | Extract transaction resolved inputs. This slightly breaks the
+    -- abstraction boundary of 'DefineTx' which doesn't really force any
+    -- structure on the resolved inputs.
+    -- However, here in the DB-Layer, supporting arbitrary shape for the inputs
+    -- be much more complex and require quite a lot of work. So, we kinda force
+    -- the format here and only here, and leave the rest of the code with an
+    -- opaque 'ResolvedTxIn' type.
+
+    mkTx :: [(W.TxIn, Maybe W.Coin)] -> [W.TxOut] -> Tx t
+    -- | Re-construct a transaction from a set resolved inputs and
+    -- some outputs. Returns 'Nothing' if the transaction couldn't be
+    -- constructed.
 
 instance W.KeyToAddress t => PersistState (W.SeqState t) where
     insertState (wid, sl) st = do

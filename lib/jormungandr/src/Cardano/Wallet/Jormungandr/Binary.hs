@@ -1,5 +1,6 @@
 {-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
@@ -23,6 +24,7 @@ module Cardano.Wallet.Jormungandr.Binary
     , getTransaction
 
     , putTokenTransfer
+    , putTxBody
     , putSignedTransaction
 
     , ConfigParam (..)
@@ -55,12 +57,13 @@ import Cardano.Crypto.Wallet
     ( XPub (xpubPublicKey) )
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork, Network (..), single )
+import Cardano.Wallet.Jormungandr.Primitive.Types
+    ( Tx (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
     , Hash (..)
     , SlotId (..)
-    , Tx (..)
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
@@ -134,7 +137,6 @@ getBlockHeader = label "getBlockHeader" $
         chainLength <- getWord32be
         contentHash <- Hash <$> getByteString 32 -- or 256 bits
         parentHeaderHash <- Hash <$> getByteString 32
-
         -- Proof.
         -- There are three different types of proofs:
         -- 1. no proof (used for the genesis blockheader)
@@ -151,7 +153,6 @@ getBlockHeader = label "getBlockHeader" $
             96 -> skip remaining -- BFT
             616 -> skip remaining -- Praos/Genesis
             _ -> fail $ "BlockHeader proof has unexpected size " <> (show remaining)
-
         return $ BlockHeader
             { version
             , contentSize
@@ -213,10 +214,8 @@ getInitial = label "getInitial" $ do
 getTransaction :: Get Tx
 getTransaction = label "getTransaction" $ do
     (ins, outs) <- getTokenTransfer
-
     let witnessCount = length ins
     _wits <- replicateM witnessCount getWitness
-
     return $ Tx ins outs
   where
     getWitness = do
@@ -258,28 +257,32 @@ putWitness witness =
         ScriptWitness _ -> error "unimplemented: serialize script witness"
         RedeemWitness _ -> error "unimplemented: serialize redeem witness"
 
-
 {-------------------------------------------------------------------------------
                             Common Structure
 -------------------------------------------------------------------------------}
 
 putTokenTransfer :: Tx -> Put
-putTokenTransfer (Tx inputs outputs) = do
+putTokenTransfer tx@(Tx inputs outputs) = do
     putWord8 $ fromIntegral $ length inputs
     putWord8 $ fromIntegral $ length outputs
+    putTxBody tx
+
+putTxBody :: Tx -> Put
+putTxBody (Tx inputs outputs) = do
     mapM_ putInput inputs
     mapM_ putOutput outputs
   where
-    putInput (TxIn inputId inputIx) = do
+    putInput (TxIn inputId inputIx, coin) = do
         -- NOTE: special value 0xff indicates account spending
         -- only old utxo/address scheme supported for now
         putWord8 $ fromIntegral inputIx
+        putWord64be $ getCoin coin
         putByteString $ getHash inputId
     putOutput (TxOut address coin) = do
         putAddress address
         putWord64be $ getCoin coin
 
-getTokenTransfer :: Get ([TxIn], [TxOut])
+getTokenTransfer :: Get ([(TxIn, Coin)], [TxOut])
 getTokenTransfer = label "getTokenTransfer" $ do
     inCount <- fromIntegral <$> getWord8
     outCount <- fromIntegral <$> getWord8
@@ -290,16 +293,14 @@ getTokenTransfer = label "getTokenTransfer" $ do
     getInput = isolate 41 $ do
         -- NOTE: special value 0xff indicates account spending
         index <- fromIntegral <$> getWord8
+        coin <- Coin <$> getWord64be
         tx <- Hash <$> getByteString 32
-        return $ TxIn tx index
+        return (TxIn tx index, coin)
 
     getOutput = do
         addr <- getAddress
         value <- Coin <$> getWord64be
         return $ TxOut addr value
-
-
-
 
 {-------------------------------------------------------------------------------
                             Config Parameters
@@ -351,7 +352,6 @@ getConfigParam = label "getConfigParam" $ do
     taglen <- getWord16be
     let tag = taglen `shift` (-6)
     let len = fromIntegral $ taglen .&. (63) -- 0b111111
-
     isolate len $ case tag of
         1 -> Discrimination <$> getNetwork
         2 -> Block0Date <$> getWord64be
@@ -418,7 +418,6 @@ getBool = getWord8 >>= \case
     0 -> return False
     other -> fail $ "Unexpected integer: " ++ show other
                 ++ ". Expected a boolean 0 or 1."
-
 
 {-------------------------------------------------------------------------------
                             Addresses
@@ -497,10 +496,10 @@ class FromBinary a where
 instance FromBinary Block where
     get = getBlock
 
-instance FromBinary W.Block where
+instance FromBinary (W.Block Tx) where
     get = convertBlock <$> getBlock
       where
-        convertBlock  :: Block -> W.Block
+        convertBlock  :: Block -> W.Block Tx
         convertBlock (Block h msgs) =
             W.Block (convertHeader h) (convertMessages msgs)
 

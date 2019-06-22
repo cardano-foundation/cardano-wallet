@@ -18,9 +18,11 @@ import Cardano.Wallet
 import Cardano.Wallet.DB
     ( DBLayer (..), ErrNoSuchWallet (..), PrimaryKey (..), cleanDB )
 import Cardano.Wallet.DB.Sqlite
-    ( PersistState, newDBLayer )
+    ( PersistState, PersistTx, newDBLayer )
 import Cardano.Wallet.DBSpec
-    ( DummyTarget, KeyValPairs (..) )
+    ( KeyValPairs (..) )
+import Cardano.Wallet.DummyTarget.Primitive.Types
+    ( DummyTarget, Tx (..), block0 )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , Key
@@ -37,14 +39,10 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
-    , Block (..)
-    , BlockHeader (..)
     , Coin (..)
     , Direction (..)
     , Hash (..)
     , SlotId (..)
-    , Tx (..)
-    , TxId
     , TxIn (..)
     , TxMeta (TxMeta)
     , TxOut (..)
@@ -150,7 +148,7 @@ spec =  do
 -- SQLite session has the same effect as executing the same operations over
 -- multiple sessions.
 prop_randomOpChunks
-    :: (Eq s, IsOurs s, NFData s, Show s, PersistState s, TxId t)
+    :: (Eq s, IsOurs s, NFData s, Show s, PersistState s, PersistTx t)
     => KeyValPairs (PrimaryKey WalletId) (Wallet s t, WalletMetadata)
     -> Property
 prop_randomOpChunks (KeyValPairs pairs) =
@@ -218,12 +216,12 @@ testOpeningCleaning call expectedAfterOpen expectedAfterClean = do
 -------------------------------------------------------------------------------}
 
 inMemoryDBLayer
-    :: (IsOurs s, NFData s, Show s, PersistState s, TxId t)
+    :: (IsOurs s, NFData s, Show s, PersistState s, PersistTx t)
     => IO (SqlBackend, DBLayer IO s t)
 inMemoryDBLayer = newDBLayer nullTracer Nothing
 
 fileDBLayer
-    :: (IsOurs s, NFData s, Show s, PersistState s, TxId t)
+    :: (IsOurs s, NFData s, Show s, PersistState s, PersistTx t)
     => IO (SqlBackend, DBLayer IO s t)
 fileDBLayer = newDBLayer nullTracer (Just "backup/test.db")
 
@@ -263,16 +261,8 @@ cutRandomly = iter []
 -------------------------------------------------------------------------------}
 
 testCp :: Wallet (SeqState DummyTarget) DummyTarget
-testCp = initWallet initDummyBlock0 initDummyState
+testCp = initWallet block0 initDummyState
   where
-    initDummyBlock0 :: Block
-    initDummyBlock0 = Block
-        { header = BlockHeader
-            { slotId = SlotId 0 0
-            , prevBlockHash = Hash "genesis"
-            }
-        , transactions = []
-        }
     initDummyState :: SeqState DummyTarget
     initDummyState = mkSeqState (xprv, mempty) defaultAddressPoolGap
       where

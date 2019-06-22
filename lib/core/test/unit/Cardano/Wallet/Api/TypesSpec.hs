@@ -37,6 +37,8 @@ import Cardano.Wallet.Api.Types
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
     )
+import Cardano.Wallet.DummyTarget.Primitive.Types
+    ( DummyTarget )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..), PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -59,9 +61,7 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
     , Coin (..)
-    , DecodeAddress (..)
     , Direction (..)
-    , EncodeAddress (..)
     , Hash (..)
     , PoolId (..)
     , SlotId (..)
@@ -84,10 +84,6 @@ import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
 import Data.Aeson.QQ
     ( aesonQQ )
-import Data.Bifunctor
-    ( bimap )
-import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase, convertToBase )
 import Data.FileEmbed
     ( embedFile, makeRelativeToProject )
 import Data.List.NonEmpty
@@ -488,22 +484,9 @@ httpApiDataRountrip proxy =
                               Arbitrary Instances
 -------------------------------------------------------------------------------}
 
-data DummyTarget
-
 instance Arbitrary (Proxy DummyTarget) where
     shrink _ = []
     arbitrary = pure Proxy
-
-instance EncodeAddress DummyTarget where
-    encodeAddress _ = T.decodeUtf8 . convertToBase Base16 . unAddress
-
-instance DecodeAddress DummyTarget where
-    decodeAddress _ = bimap decodingError Address
-        . convertFromBase Base16
-        . T.encodeUtf8
-      where
-        decodingError _ = TextDecodingError
-            "Unable to decode Address: expected Base16 encoding"
 
 instance Arbitrary (ApiAddress t) where
     shrink _ = []

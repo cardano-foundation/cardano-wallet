@@ -26,7 +26,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
-    ( Hash, Tx, TxMeta, WalletId, WalletMetadata )
+    ( DefineTx (..), Hash, TxMeta, WalletId, WalletMetadata )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Data.Map.Strict
@@ -89,8 +89,9 @@ data DBLayer m s t = DBLayer
         -- Return 'Nothing' if there's no such wallet.
 
     , putTxHistory
-        :: PrimaryKey WalletId
-        -> Map (Hash "Tx") (Tx, TxMeta)
+        :: (DefineTx t)
+        => PrimaryKey WalletId
+        -> Map (Hash "Tx") (Tx t, TxMeta)
         -> ExceptT ErrNoSuchWallet m ()
         -- ^ Augments the transaction history for a known wallet.
         --
@@ -101,7 +102,7 @@ data DBLayer m s t = DBLayer
 
     , readTxHistory
         :: PrimaryKey WalletId
-        -> m (Map (Hash "Tx") (Tx, TxMeta))
+        -> m (Map (Hash "Tx") (Tx t, TxMeta))
         -- ^ Fetch the current transaction history of a known wallet.
         --
         -- Returns an empty map if the wallet isn't found.

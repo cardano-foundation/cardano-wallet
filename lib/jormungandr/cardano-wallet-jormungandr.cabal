@@ -36,10 +36,11 @@ library
     , bech32
     , binary
     , bytestring
-    , cardano-wallet-core
     , cardano-crypto
+    , cardano-wallet-core
     , cborg
     , cryptonite
+    , deepseq
     , either
     , exceptions
     , http-client
@@ -56,9 +57,10 @@ library
   exposed-modules:
       Cardano.Wallet.Jormungandr.Api
       Cardano.Wallet.Jormungandr.Binary
-      Cardano.Wallet.Jormungandr.Network
       Cardano.Wallet.Jormungandr.Compatibility
       Cardano.Wallet.Jormungandr.Environment
+      Cardano.Wallet.Jormungandr.Network
+      Cardano.Wallet.Jormungandr.Primitive.Types
       Cardano.Wallet.Jormungandr.Transaction
 
 test-suite unit

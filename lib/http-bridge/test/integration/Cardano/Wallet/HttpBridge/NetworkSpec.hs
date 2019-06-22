@@ -13,6 +13,8 @@ import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
+import Cardano.Wallet.HttpBridge.Primitive.Types
+    ( Tx (..) )
 import Cardano.Wallet.Network
     ( ErrGetBlock (..)
     , ErrNetworkTip (..)
@@ -29,7 +31,6 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Hash (..)
     , SlotId (..)
-    , Tx (..)
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)

@@ -6,7 +6,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Primitive.AddressDerivationSpec
+module Cardano.Wallet.HttpBridge.Primitive.AddressDerivationSpec
     ( spec
     ) where
 

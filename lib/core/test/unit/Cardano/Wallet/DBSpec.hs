@@ -11,6 +11,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -18,16 +19,15 @@ module Cardano.Wallet.DBSpec
     ( spec
     , dbPropertyTests
     , withDB
-    , KeyValPairs (..)
-    , DummyTarget
-    , TxHistory
     , GenTxHistory (..)
+    , KeyValPairs (..)
+    , TxHistory
     ) where
 
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( unXPrv, unXPub )
+    ( unXPrv )
 import Cardano.Wallet
     ( unsafeRunExceptT )
 import Cardano.Wallet.DB
@@ -37,17 +37,20 @@ import Cardano.Wallet.DB
     , PrimaryKey (..)
     , cleanDB
     )
+import Cardano.Wallet.DB.Sqlite
+    ( PersistTx (..) )
+import Cardano.Wallet.DummyTarget.Primitive.Types
+    ( DummyTarget, Tx (..), block0 )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( ChangeChain (..)
     , Depth (..)
     , Key
-    , KeyToAddress (..)
     , Passphrase (..)
     , XPrv
     , XPub
     , deriveAddressPublicKey
     , generateKeyFromSeed
-    , getKey
+    , keyToAddress
     , publicKey
     , unsafeGenerateKeyFromSeed
     )
@@ -67,14 +70,10 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
-    , Block (..)
-    , BlockHeader (..)
     , Coin (..)
     , Direction (..)
     , Hash (..)
     , SlotId (..)
-    , Tx (..)
-    , TxId (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -194,34 +193,15 @@ instance (Arbitrary k, Arbitrary v) => Arbitrary (KeyValPairs k v) where
         pairs <- choose (1, 10) >>= flip vectorOf arbitrary
         pure $ KeyValPairs pairs
 
-data DummyTarget
-
-instance KeyToAddress DummyTarget where
-    keyToAddress = Address . unXPub . getKey
-
-deriving instance Eq (SeqState DummyTarget)
-
-instance Arbitrary (Wallet (SeqState DummyTarget) DummyTarget) where
-    shrink _ = []
-    arbitrary = initWallet block0 <$> arbitrary
-      where
-        block0 :: Block
-        block0 = Block
-            { header = BlockHeader
-                { slotId = SlotId 0 0
-                , prevBlockHash = Hash "genesis"
-                }
-            , transactions = []
-            }
-
-instance TxId DummyTarget where
-    txId = Hash . B8.pack . show
-
 instance Arbitrary (PrimaryKey WalletId) where
     shrink _ = []
     arbitrary = do
         bytes <- B8.pack . pure <$> elements ['a'..'k']
         return $ PrimaryKey $ WalletId $ hash bytes
+
+instance Arbitrary (Wallet (SeqState DummyTarget) DummyTarget) where
+    shrink _ = []
+    arbitrary = initWallet block0 <$> arbitrary
 
 deriving instance Show (PrimaryKey WalletId)
 
@@ -288,6 +268,10 @@ ourAddresses
 ourAddresses cc =
     keyToAddress @DummyTarget . deriveAddressPublicKey ourAccount cc
         <$> [minBound..maxBound]
+
+instance PersistTx DummyTarget where
+    resolvedInputs = flip zip (repeat Nothing) . inputs
+    mkTx inps = Tx (fst <$> inps)
 
 instance Arbitrary Tx where
     shrink (Tx ins outs) =
@@ -367,7 +351,7 @@ instance Arbitrary GenTxHistory where
         -- We discard pending transaction from any 'GenTxHistory since,
         -- inserting a pending transaction actually has an effect on the
         -- checkpoint's pending transactions of the same wallet.
-        txs <- filter (not . isPending) <$> arbitrary
+        txs <- filter (not . isPending . snd) <$> arbitrary
         return $ (\(tx, meta) -> (mockTxId tx, (tx, meta))) <$> txs
       where
         mockTxId :: Tx -> Hash "Tx"
@@ -425,13 +409,13 @@ rootKeys = unsafePerformIO $ generate (vectorOf 10 genRootKeys)
 -- | Wrap the result of 'readTxHistory' in an arbitrary identity Applicative
 readTxHistoryF
     :: Functor m
-    => DBLayer m s t
+    => DBLayer m s DummyTarget
     -> PrimaryKey WalletId
     -> m (Identity GenTxHistory)
 readTxHistoryF db = fmap (Identity . GenTxHistory) . readTxHistory db
 
 putTxHistoryF
-    :: DBLayer m s t
+    :: DBLayer m s DummyTarget
     -> PrimaryKey WalletId
     -> GenTxHistory
     -> ExceptT ErrNoSuchWallet m ()

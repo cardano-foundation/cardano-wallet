@@ -8,6 +8,8 @@ import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.HttpBridge.Network
     ( HttpBridgeLayer (..) )
+import Cardano.Wallet.HttpBridge.Primitive.Types
+    ( Tx )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Types
@@ -138,7 +140,7 @@ mockHeaderFromHash h = BlockHeader slot prevHash
 
 -- | Generate an entire epoch's worth of mock blocks. There are no transactions
 -- generated.
-mockEpoch :: Word64 -> [Block]
+mockEpoch :: Word64 -> [Block Tx]
 mockEpoch ep =
     [ Block (mockHeaderFromHash (mockHash sl)) mempty
     | sl <- [ SlotId ep i | i <- epochs ]

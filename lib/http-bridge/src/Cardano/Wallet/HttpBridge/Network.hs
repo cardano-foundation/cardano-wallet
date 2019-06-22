@@ -39,6 +39,8 @@ import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
+import Cardano.Wallet.HttpBridge.Primitive.Types
+    ( Tx )
 import Cardano.Wallet.Network
     ( ErrGetBlock (..)
     , ErrNetworkTip (..)
@@ -47,7 +49,7 @@ import Cardano.Wallet.Network
     , NetworkLayer (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), Hash (..), SlotId (..), Tx, TxWitness )
+    ( Block (..), BlockHeader (..), Hash (..), SlotId (..), TxWitness )
 import Control.Arrow
     ( left )
 import Control.Exception
@@ -90,7 +92,7 @@ import qualified Data.Text.Encoding as T
 import qualified Servant.Extra.ContentTypes as Api
 
 -- | Constructs a network layer with the given cardano-http-bridge API.
-mkNetworkLayer :: Monad m => HttpBridgeLayer m -> NetworkLayer t m
+mkNetworkLayer :: Monad m => HttpBridgeLayer m -> NetworkLayer (HttpBridge n) m
 mkNetworkLayer httpBridge = NetworkLayer
     { nextBlocks = \(BlockHeader sl _) ->
         withExceptT ErrGetBlockNetworkUnreachable (rbNextBlocks httpBridge sl)
@@ -119,7 +121,7 @@ rbNextBlocks
     :: Monad m
     => HttpBridgeLayer m -- ^ http-bridge API
     -> SlotId -- ^ Starting point
-    -> ExceptT ErrNetworkUnreachable m [Block]
+    -> ExceptT ErrNetworkUnreachable m [Block Tx]
 rbNextBlocks bridge start = maybeTip (getNetworkTip bridge) >>= \case
     Just (tipHash, tipHdr) -> do
         epochBlocks <-
@@ -139,7 +141,7 @@ rbNextBlocks bridge start = maybeTip (getNetworkTip bridge) >>= \case
 
     -- Predicate returns true iff the block is from the given slot or a later
     -- one.
-    blockIsAfter :: SlotId -> Block -> Bool
+    blockIsAfter :: SlotId -> Block Tx -> Bool
     blockIsAfter s = (> s) . slotId . header
 
     -- Grab the remaining blocks which aren't packed in epoch files,
@@ -159,7 +161,7 @@ fetchBlocksFromTip
     => HttpBridgeLayer m
     -> SlotId
     -> Hash "BlockHeader"
-    -> ExceptT ErrNetworkUnreachable m [Block]
+    -> ExceptT ErrNetworkUnreachable m [Block Tx]
 fetchBlocksFromTip bridge start tipHash =
     reverse <$> workBackwards tipHash
   where
@@ -178,9 +180,9 @@ fetchBlocksFromTip bridge start tipHash =
 -- | Endpoints of the cardano-http-bridge API.
 data HttpBridgeLayer m = HttpBridgeLayer
     { getBlock
-        :: Hash "BlockHeader" -> ExceptT ErrNetworkUnreachable m Block
+        :: Hash "BlockHeader" -> ExceptT ErrNetworkUnreachable m (Block Tx)
     , getEpoch
-        :: Word64 -> ExceptT ErrNetworkUnreachable m [Block]
+        :: Word64 -> ExceptT ErrNetworkUnreachable m [(Block Tx)]
     , getNetworkTip
         :: ExceptT ErrNetworkTip m (Hash "BlockHeader", BlockHeader)
     , postSignedTx

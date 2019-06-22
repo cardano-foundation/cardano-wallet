@@ -14,7 +14,9 @@ module Cardano.Wallet.DB.MVarSpec
 import Prelude
 
 import Cardano.Wallet.DBSpec
-    ( DummyTarget, dbPropertyTests, withDB )
+    ( dbPropertyTests, withDB )
+import Cardano.Wallet.DummyTarget.Primitive.Types
+    ( DummyTarget, Tx )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..), SeqState (..) )
 import Cardano.Wallet.Primitive.Model
@@ -50,7 +52,7 @@ instance Arbitrary (Wallet DummyStateMVar DummyTarget) where
     shrink _ = []
     arbitrary = initWallet block0 <$> arbitrary
       where
-        block0 :: Block
+        block0 :: Block Tx
         block0 = Block
             { header = BlockHeader
                     { slotId = SlotId 0 0

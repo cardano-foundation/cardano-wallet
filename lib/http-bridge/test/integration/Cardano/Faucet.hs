@@ -14,6 +14,8 @@ import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..), ProtocolMagic (..) )
+import Cardano.Wallet.HttpBridge.Primitive.Types
+    ( Tx (..) )
 import Cardano.Wallet.Network
     ( NetworkLayer (postTx) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -37,11 +39,10 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
     , Hash (..)
-    , Tx (..)
-    , TxId (..)
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
+    , txId
     )
 import Control.Concurrent.MVar
     ( newMVar )
@@ -67,7 +68,7 @@ import qualified Codec.CBOR.Write as CBOR
 
 -- | Initialize a bunch of faucet wallets and make them available for the
 -- integration tests scenarios.
-initFaucet :: NetworkLayer t IO -> IO Faucet
+initFaucet :: NetworkLayer (HttpBridge n) IO -> IO Faucet
 initFaucet nl = do
     wallets <- replicateM 100 genMnemonic
     let outs = uncurry TxOut . (,Coin 100000000000) . firstAddress <$> wallets

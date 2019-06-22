@@ -1,8 +1,8 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -22,28 +22,30 @@ module Cardano.Wallet.Jormungandr.Compatibility
 
 import Prelude
 
+import Cardano.Wallet.DB.Sqlite
+    ( PersistTx (..) )
 import Cardano.Wallet.Jormungandr.Binary
-    ( Put
-    , decodeLegacyAddress
-    , putTokenTransfer
-    , runPut
-    , singleAddressFromKey
-    )
+    ( Put, decodeLegacyAddress, putTxBody, runPut, singleAddressFromKey )
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
+import Cardano.Wallet.Jormungandr.Primitive.Types
+    ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..), getKey )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , BlockHeader (..)
     , DecodeAddress (..)
+    , DefineTx
     , EncodeAddress (..)
     , Hash (..)
     , SlotId (..)
-    , TxId (..)
+    , invariant
     )
 import Codec.Binary.Bech32
     ( HumanReadablePart, dataPartFromBytes, dataPartToBytes )
+import Control.Arrow
+    ( second )
 import Control.Monad
     ( when )
 import Crypto.Hash
@@ -55,12 +57,13 @@ import Data.ByteString
 import Data.ByteString.Base58
     ( bitcoinAlphabet, decodeBase58, encodeBase58 )
 import Data.Maybe
-    ( isJust )
+    ( fromJust, isJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
     ( TextDecodingError (..) )
 
+import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -79,17 +82,28 @@ genesis = BlockHeader
     , prevBlockHash = Hash (BS.replicate 32 0)
     }
 
--- | Hash a transaction.
---
--- The corresponding rust implementation is:
--- https://github.com/input-output-hk/rust-cardano/blob/e5d974f7bedeb00c9c9d688ac66094a34bf8f40d/chain-impl-mockchain/src/transaction/transaction.rs#L115-L119
-instance TxId (Jormungandr n) where
-    txId = blake2b256 . putTokenTransfer
+instance DefineTx (Jormungandr network) where
+    type Tx (Jormungandr network) = Tx
+    inputs = fmap fst . inputs
+    outputs = outputs
+    -- The corresponding rust implementation is:
+    -- https://github.com/input-output-hk/rust-cardano/blob/e5d974f7bedeb00c9c9d688ac66094a34bf8f40d/chain-impl-mockchain/src/transaction/transaction.rs#L115-L119
+    txId = blake2b256 . putTxBody
       where
         blake2b256 :: forall tag. Put -> Hash tag
         blake2b256 =
             Hash . BA.convert . hash @_ @Blake2b_256 . BL.toStrict . runPut
 
+instance PersistTx (Jormungandr network) where
+    resolvedInputs = map (second Just) . inputs
+    mkTx inps = Tx ((second unsafeFromMaybe) <$> inps)
+      where
+        unsafeFromMaybe amt = fromJust $ invariant
+            ("PersistTx (Jormungandr network): invariant violation, tried to \
+            \reconstruct a 'Tx' from the database that has resolved inputs \
+            \without any amount: " <> show inps)
+            amt
+            isJust
 
 instance forall n. KnownNetwork n => KeyToAddress (Jormungandr n) where
     keyToAddress key = singleAddressFromKey (Proxy @n) (getKey key)

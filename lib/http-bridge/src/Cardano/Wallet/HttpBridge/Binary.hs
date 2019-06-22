@@ -46,6 +46,8 @@ import Cardano.Crypto.Wallet
     ( ChainCode (..), XPub (..) )
 import Cardano.Wallet.HttpBridge.Environment
     ( ProtocolMagic (..) )
+import Cardano.Wallet.HttpBridge.Primitive.Types
+    ( Tx (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
@@ -53,7 +55,6 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Hash (..)
     , SlotId (..)
-    , Tx (..)
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
@@ -118,7 +119,7 @@ decodeAttributes = do
     return ((), CBOR.encodeMapLen 0)
 
 {-# ANN decodeBlock ("HLint: ignore Use <$>" :: String) #-}
-decodeBlock :: CBOR.Decoder s Block
+decodeBlock :: CBOR.Decoder s (Block Tx)
 decodeBlock = do
     CBOR.decodeListLenCanonicalOf 2
     t <- CBOR.decodeWordCanonical

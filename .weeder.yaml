@@ -7,6 +7,10 @@
       - module:
         - name: Cardano.Wallet.DB.StateMachine
         - identifier: showLabelledExamples
+  - section:
+    - name: test:unit bench:db
+    - message:
+      - name: Module reused between components
 - package:
   - name: cardano-wallet-http-bridge
   - section:

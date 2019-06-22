@@ -1,8 +1,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -22,6 +22,8 @@ module Cardano.Wallet.HttpBridge.Compatibility
 
 import Prelude
 
+import Cardano.Wallet.DB.Sqlite
+    ( PersistTx (..) )
 import Cardano.Wallet.HttpBridge.Binary
     ( decodeAddressPayload, encodeProtocolMagic, encodeTx )
 import Cardano.Wallet.HttpBridge.Environment
@@ -33,10 +35,10 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , DecodeAddress (..)
+    , DefineTx (..)
     , EncodeAddress (..)
     , Hash (..)
     , SlotId (..)
-    , TxId (..)
     )
 import Crypto.Hash
     ( hash )
@@ -50,6 +52,7 @@ import Data.Text.Class
     ( TextDecodingError (..) )
 
 import qualified Cardano.Wallet.HttpBridge.Binary as CBOR
+import qualified Cardano.Wallet.HttpBridge.Primitive.Types as W
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -61,22 +64,19 @@ import qualified Data.Text.Encoding as T
 -- influence on binary serializer & network primitives. See also 'TxId'
 data HttpBridge (network :: Network)
 
--- | Compute a transaction id; assumed to be effectively injective.
--- It returns an hex-encoded 64-byte hash.
---
--- NOTE: This is a rather expensive operation
-instance TxId (HttpBridge network) where
+instance DefineTx (HttpBridge network) where
+    type Tx (HttpBridge network) = W.Tx
+    inputs = W.inputs
+    outputs = W.outputs
     txId = blake2b256 . encodeTx
       where
-        -- | Encode a value to a corresponding Hash.
-        --
-        -- @
-        --     txId :: Tx -> Hash "Tx"
-        --     txId = blake2b256 . encodeTx
-        -- @
         blake2b256 :: forall tag. CBOR.Encoding -> Hash tag
         blake2b256 =
             Hash . BA.convert . hash @_ @Blake2b_256 . CBOR.toStrictByteString
+
+instance PersistTx (HttpBridge network) where
+    resolvedInputs = flip zip (repeat Nothing) . W.inputs
+    mkTx inps = W.Tx (fst <$> inps)
 
 -- | Encode a public key to a (Byron / Legacy) Cardano 'Address'. This is mostly
 -- dubious CBOR serializations with no data attributes.
@@ -134,7 +134,7 @@ instance DecodeAddress (HttpBridge (network :: Network)) where
 -- the CBOR-serialized full block header, but this requires us to write the full
 -- CBOR decoders (and encoders) for the all BlockHeader which is, for the
 -- http-brdige implementation, a waste of time at the moment.
-block0 :: Block
+block0 :: Block W.Tx
 block0 = Block
     { header = BlockHeader
         { slotId = SlotId 0 0
@@ -142,4 +142,3 @@ block0 = Block
         }
     , transactions = []
     }
-

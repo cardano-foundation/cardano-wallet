@@ -3,7 +3,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -39,14 +38,14 @@ import Prelude
 
 import Cardano.BM.Data.Tracer
     ( nullTracer )
-import Cardano.Crypto.Wallet
-    ( unXPub )
 import Cardano.Wallet
     ( unsafeRunExceptT )
 import Cardano.Wallet.DB
     ( DBLayer (..), PrimaryKey (..), cleanDB )
 import Cardano.Wallet.DB.Sqlite
-    ( newDBLayer )
+    ( PersistTx (..), newDBLayer )
+import Cardano.Wallet.DummyTarget.Primitive.Types
+    ( DummyTarget, Tx (..), block0 )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , Key
@@ -54,7 +53,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , XPub
     , generateKeyFromSeed
-    , getKey
     , publicKey
     , unsafeGenerateKeyFromSeed
     )
@@ -72,14 +70,10 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet, unsafeInitWallet )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
-    , Block (..)
     , BlockHeader (..)
     , Coin (..)
     , Direction (..)
     , Hash (..)
-    , SlotId (..)
-    , Tx (..)
-    , TxId (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -336,7 +330,7 @@ mkCheckpoints numCheckpoints utxoSize = [ cp i | i <- [1..numCheckpoints]]
 benchPutSeqState :: Int -> Int -> DBLayerBench -> IO ()
 benchPutSeqState numCheckpoints numAddrs db =
     unsafeRunExceptT $ mapM_ (putCheckpoint db testPk)
-        [ initWallet initDummyBlock0 $
+        [ initWallet block0 $
             SeqState (mkPool numAddrs i) (mkPool numAddrs i) emptyPendingIxs
         | i <- [1..numCheckpoints]
         ]
@@ -353,34 +347,18 @@ mkPool numAddrs i = mkAddressPool ourAccount defaultAddressPoolGap addrs
 ----------------------------------------------------------------------------
 -- Mock data to use for benchmarks
 
-data DummyTarget
-
 type DBLayerBench = DBLayer IO (SeqState DummyTarget) DummyTarget
 type WalletBench = Wallet (SeqState DummyTarget) DummyTarget
 
 instance NFData (DBLayer m s t) where
     rnf _ = ()
 
-instance KeyToAddress DummyTarget where
-    keyToAddress = Address . unXPub . getKey
-
-deriving instance Eq (SeqState DummyTarget)
-
-instance TxId DummyTarget where
-    txId = Hash . B8.pack . show
+instance PersistTx DummyTarget where
+    resolvedInputs = flip zip (repeat Nothing) . inputs
+    mkTx inps = Tx (fst <$> inps)
 
 testCp :: WalletBench
-testCp = initWallet initDummyBlock0 initDummyState
-
-initDummyBlock0 :: Block
-initDummyBlock0 = Block
-    { header = BlockHeader
-        { slotId = SlotId 0 0
-        , prevBlockHash = Hash "genesis"
-        }
-    , transactions = []
-    }
-
+testCp = initWallet block0 initDummyState
 
 initDummyState :: SeqState DummyTarget
 initDummyState =

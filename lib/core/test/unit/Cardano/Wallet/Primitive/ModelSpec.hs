@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Primitive.ModelSpec
@@ -11,6 +12,8 @@ module Cardano.Wallet.Primitive.ModelSpec
 
 import Prelude
 
+import Cardano.Wallet.DummyTarget.Primitive.Types
+    ( DummyTarget, Tx (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Model
@@ -33,9 +36,6 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , ShowFmt (..)
     , SlotId (..)
-    , Tx (..)
-    , TxId (..)
-    , TxId (..)
     , TxIn (..)
     , TxMeta (direction)
     , TxOut (..)
@@ -44,6 +44,7 @@ import Cardano.Wallet.Primitive.Types
     , excluding
     , invariant
     , restrictedTo
+    , txId
     , txIns
     )
 import Control.DeepSeq
@@ -79,7 +80,6 @@ import Test.QuickCheck
     , (===)
     )
 
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -91,7 +91,6 @@ spec = do
         let block = blockchain !! 1
         let utxo = utxoFromTx $ head $ transactions block
         it (show $ ShowFmt utxo) True
-        it (show $ ShowFmt block) True
 
     describe "Compare Wallet impl. with Specification" $ do
         it "Lemma 3.2 - dom u ⋪ updateUTxO b u = new b"
@@ -126,7 +125,7 @@ prop_3_2 (ApplyBlock s utxo block) =
     new b = flip evalState s $ do
         let txs = Set.fromList $ transactions b
         utxo' <- (foldMap utxoFromTx txs `restrictedTo`) <$> state (txOutsOurs txs)
-        return $ utxo' `excluding` txIns txs
+        return $ utxo' `excluding` txIns @DummyTarget txs
     updateUTxO' b u = evalState (updateUTxO b u) s
 
 
@@ -188,13 +187,13 @@ prop_applyBlockCurrentTip (ApplyBlock s _ b) =
 -- Update UTxO as described in the formal specification, Fig 3. The basic model
 updateUTxO
     :: IsOurs s
-    => Block
+    => Block Tx
     -> UTxO
     -> State s UTxO
 updateUTxO !b utxo = do
     let txs = Set.fromList $ transactions b
     utxo' <- (foldMap utxoFromTx txs `restrictedTo`) <$> state (txOutsOurs txs)
-    return $ (utxo <> utxo') `excluding` txIns txs
+    return $ (utxo <> utxo') `excluding` txIns @DummyTarget txs
 
 -- | Return all transaction outputs that are ours. This plays well within a
 -- 'State' monad.
@@ -239,11 +238,6 @@ utxoFromTx tx@(Tx _ outs) =
 
 -------------------------------------------------------------------------------}
 
-data DummyTarget
-
-instance TxId DummyTarget where
-    txId = Hash . B8.pack . show
-
 -- | An arbitrary wallet state that can recognize some hard-coded addresses from
 -- our chain. This allows us to control that the UTxO gets updated accordingly
 -- for some arbitrary instances of that state.
@@ -285,7 +279,7 @@ instance Arbitrary (ShowFmt Address) where
 -- corresponding initial UTxO, instead, we take subset of our small valid
 -- blockchain and, reconstruct a valid initial UTxO by applying all the given
 -- blocks minus one. Then, we control the property when applying that very block
-data ApplyBlock = ApplyBlock WalletState UTxO Block
+data ApplyBlock = ApplyBlock WalletState UTxO (Block Tx)
     deriving Show
 
 instance Arbitrary ApplyBlock where
@@ -307,7 +301,7 @@ addresses = map address
     $ concatMap transactions
     blockchain
 
-block0 :: Block
+block0 :: Block Tx
 block0 = Block
     { header = BlockHeader
             { slotId = SlotId 0 0
@@ -319,7 +313,7 @@ block0 = Block
 -- A excerpt of mainnet, epoch #14, first 20 blocks; plus a few previous blocks
 -- which contains transactions referred to in the former. This is useful to test
 -- correct resolution of the tx history.
-blockchain :: [Block]
+blockchain :: [Block Tx]
 blockchain =
     [ Block
         { header = BlockHeader
