@@ -201,7 +201,6 @@ bench_restoration _ (wid, wname, s) = withHttpBridge network $ \port -> do
     (conn, db) <- emptySystemTempFile "bench.db" >>= Sqlite.newDBLayer nullTracer . Just
     Sqlite.runQuery conn (void $ runMigrationSilent migrateAll)
     nw <- newNetworkLayer port
-    waitForConnection nw defaultRetryPolicy
     let tl = newTransactionLayer
     BlockHeader sl _ <- unsafeRunExceptT $ networkTip nw
     sayErr . fmt $ network ||+ " tip is at " +|| sl ||+ ""
@@ -246,6 +245,7 @@ prepareNode _ = do
     sayErr . fmt $ "Syncing "+|toText network|+" node... "
     sl <- withHttpBridge network $ \port -> do
         bridge <- newNetworkLayer @n port
+        waitForConnection bridge defaultRetryPolicy
         waitForNodeSync bridge (toText network) logQuiet
     sayErr . fmt $ "Completed sync of "+|toText network|+" up to "+||sl||+""
   where
@@ -265,7 +265,6 @@ waitForWalletSync walletLayer wid = do
             sayErr . fmt $ "[INFO] restoring: "+||p||+"%"
             threadDelay 1000000
             waitForWalletSync walletLayer wid
-
 
 -- | Poll the network tip until it reaches the slot corresponding to the current
 -- time.
