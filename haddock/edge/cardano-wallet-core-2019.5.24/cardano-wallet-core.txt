@@ -257,18 +257,9 @@ Invalidated :: TxStatus
 
 -- | <tt>TxWitness</tt> is proof that transaction inputs are allowed to be
 --   spent
-data TxWitness
-
--- | A signature of a transaction by the owner of the address of an input.
---   
---   TODO: Use the <tt>XPub</tt> type instead of <tt>ByteString</tt>
-PublicKeyWitness :: ByteString -> Hash "signature" -> TxWitness
-
--- | Related to Plutus
-ScriptWitness :: ByteString -> TxWitness
-
--- | Used to redeem ADA from the pre-sale
-RedeemWitness :: ByteString -> TxWitness
+newtype TxWitness
+TxWitness :: ByteString -> TxWitness
+[$sel:unWitness:TxWitness] :: TxWitness -> ByteString
 txIns :: forall t. DefineTx t => Set (Tx t) -> Set TxIn
 
 -- | True if the given tuple refers to a pending transaction
@@ -503,8 +494,6 @@ instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.TxIn
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.TxIn
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.TxIn
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.TxIn
-instance GHC.Show.Show Cardano.Wallet.Primitive.Types.TxWitness
-instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.TxWitness
 instance GHC.Classes.Ord (Cardano.Wallet.Primitive.Types.Hash tag)
 instance GHC.Classes.Eq (Cardano.Wallet.Primitive.Types.Hash tag)
 instance GHC.Generics.Generic (Cardano.Wallet.Primitive.Types.Hash tag)
@@ -535,6 +524,8 @@ instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.Address
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.Address
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.Address
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.Address
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.TxWitness
+instance GHC.Show.Show Cardano.Wallet.Primitive.Types.TxWitness
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.Direction
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.Direction
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.Direction

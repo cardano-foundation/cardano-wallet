@@ -85,26 +85,6 @@ BlockHeader :: Word16 -> Word32 -> SlotId -> Word32 -> Hash "content" -> Hash "B
 [chainLength] :: BlockHeader -> Word32
 [contentHash] :: BlockHeader -> Hash "content"
 [parentHeaderHash] :: BlockHeader -> Hash "BlockHeader"
-
--- | The block-body consists of messages. There are several types of
---   messages.
---   
---   Following, as closely as possible:
---   <a>https://github.com/input-output-hk/rust-cardano/blob/e0616f13bebd6b908320bddb1c1502dea0d3305a/chain-impl-mockchain/src/message/mod.rs#L22-L29</a>
-data Message
-
--- | Found in the genesis block. | OldUtxoDeclaration UtxoDeclaration
-Initial :: [ConfigParam] -> Message
-Transaction :: Tx -> Message
-UnimplementedMessage :: Int -> Message
-getBlockHeader :: Get BlockHeader
-getBlock :: Get Block
-
--- | Decode the contents of a <tt>Transaction</tt>-message.
-getTransaction :: Get Tx
-putTokenTransfer :: Tx -> Put
-putTxBody :: Tx -> Put
-putSignedTransaction :: (Tx, [TxWitness]) -> Put
 data ConfigParam
 
 -- | The official start time of the blockchain, in seconds since the Unix
@@ -165,33 +145,56 @@ LinearFee :: Quantity "lovelace" Word64 -> Quantity "lovelace/byte" Word64 -> Qu
 [perByte] :: LinearFee -> Quantity "lovelace/byte" Word64
 [perCert] :: LinearFee -> Quantity "lovelace/cert" Word64
 
+-- | The block-body consists of messages. There are several types of
+--   messages.
+--   
+--   Following, as closely as possible:
+--   <a>https://github.com/input-output-hk/rust-cardano/blob/e0616f13bebd6b908320bddb1c1502dea0d3305a/chain-impl-mockchain/src/message/mod.rs#L22-L29</a>
+data Message
+
+-- | Found in the genesis block.
+Initial :: [ConfigParam] -> Message
+
+-- | A standard signed transaction
+Transaction :: (Tx, [TxWitness]) -> Message
+UnimplementedMessage :: Int -> Message
+
 -- | Used to represent (&gt;= 0) rational numbers as (&gt;= 0) integers, by
 --   just multiplying by 1000. For instance: '3.141592' is represented as
 --   'Milli 3142'.
 newtype Milli
 Milli :: Word64 -> Milli
+getBlock :: Get Block
+getBlockHeader :: Get BlockHeader
+
+-- | Decode a message (header + contents).
+getMessage :: Get Message
+
+-- | Decode the contents of a <tt>Transaction</tt>-message.
+getTransaction :: Get (Tx, [TxWitness])
+putSignedTx :: (Tx, [TxWitness]) -> Put
+putTx :: Tx -> Put
+coerceBlock :: Block -> Block Tx
 putAddress :: Address -> Put
 getAddress :: Get Address
 singleAddressFromKey :: forall n. KnownNetwork n => Proxy n -> XPub -> Address
-class FromBinary a
-get :: FromBinary a => Get a
 
 -- | Attempt decoding a <a>ByteString</a> into an <a>Address</a>. This
 --   merely checks that the underlying bytestring has a "valid" structure /
 --   format without doing much more.
 decodeLegacyAddress :: ByteString -> Maybe Address
+data Get a
 
 -- | The simplest interface to run a <a>Get</a> decoder. If the decoder
 --   runs into an error, calls <a>fail</a>, or runs out of input, it will
 --   call <a>error</a>.
 runGet :: () => Get a -> ByteString -> a
-data Get a
-
--- | Run the <a>PutM</a> monad with a serialiser
-runPut :: Put -> ByteString
 
 -- | Put merely lifts Builder into a Writer monad, applied to ().
 type Put = PutM ()
+
+-- | Run the <a>PutM</a> monad with a serialiser
+runPut :: Put -> ByteString
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.Block
 instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.Block
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.Message
@@ -206,17 +209,8 @@ instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.LeaderId
 instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.LeaderId
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.Milli
 instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.Milli
-instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.SignedVote
-instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.SignedVote
-instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.TODO
-instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.TODO
-instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.SignedUpdateProposal
-instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.SignedUpdateProposal
 instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.BlockHeader
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.BlockHeader
-instance Cardano.Wallet.Jormungandr.Binary.FromBinary Cardano.Wallet.Jormungandr.Binary.Block
-instance Cardano.Wallet.Jormungandr.Binary.FromBinary (Cardano.Wallet.Primitive.Types.Block Cardano.Wallet.Jormungandr.Primitive.Types.Tx)
-instance Cardano.Wallet.Jormungandr.Binary.FromBinary a => Cardano.Wallet.Jormungandr.Binary.FromBinary [a]
 
 
 -- | Contains various implementation decision that are specific to a
@@ -236,7 +230,10 @@ Mainnet :: Network
 Testnet :: Network
 
 -- | Genesis block header, i.e. very first block header of the chain
-genesis :: BlockHeader
+block0 :: BlockHeader
+
+-- | Genesis block header hash
+block0Hash :: Hash "Genesis"
 instance Cardano.Wallet.Primitive.Types.DefineTx (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr network)
 instance Cardano.Wallet.DB.Sqlite.PersistTx (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr network)
 instance Cardano.Wallet.Jormungandr.Environment.KnownNetwork n => Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr n)
@@ -272,14 +269,12 @@ newtype BlockId
 BlockId :: Hash "BlockHeader" -> BlockId
 [getBlockId] :: BlockId -> Hash "BlockHeader"
 api :: Proxy Api
-instance GHC.Show.Show Cardano.Wallet.Jormungandr.Api.BlockId
-instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Api.BlockId
 instance Servant.API.ContentTypes.MimeUnrender Cardano.Wallet.Jormungandr.Api.Hex Cardano.Wallet.Jormungandr.Api.BlockId
 instance Servant.API.ContentTypes.Accept Cardano.Wallet.Jormungandr.Api.Hex
+instance Servant.API.ContentTypes.MimeUnrender Cardano.Wallet.Jormungandr.Api.JormungandrBinary [Cardano.Wallet.Jormungandr.Api.BlockId]
 instance Servant.API.ContentTypes.Accept Cardano.Wallet.Jormungandr.Api.JormungandrBinary
-instance Cardano.Wallet.Jormungandr.Binary.FromBinary a => Servant.API.ContentTypes.MimeUnrender Cardano.Wallet.Jormungandr.Api.JormungandrBinary a
+instance Servant.API.ContentTypes.MimeUnrender Cardano.Wallet.Jormungandr.Api.JormungandrBinary (Cardano.Wallet.Primitive.Types.Block Cardano.Wallet.Jormungandr.Primitive.Types.Tx)
 instance Web.Internal.HttpApiData.ToHttpApiData Cardano.Wallet.Jormungandr.Api.BlockId
-instance Cardano.Wallet.Jormungandr.Binary.FromBinary Cardano.Wallet.Jormungandr.Api.BlockId
 
 
 -- | This module allows the wallet to retrieve blocks from a known
@@ -357,4 +352,4 @@ module Cardano.Wallet.Jormungandr.Transaction
 
 -- | Construct a <a>TransactionLayer</a> compatible with Shelley and
 --   <tt>Jörmungandr</tt>
-newTransactionLayer :: forall n. Hash "Block0Hash" -> TransactionLayer (Jormungandr n)
+newTransactionLayer :: Hash "Genesis" -> TransactionLayer (Jormungandr n)

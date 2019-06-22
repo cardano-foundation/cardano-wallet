@@ -120,6 +120,7 @@ encodeTx :: Tx -> Encoding
 --   </ul>
 encodeAddress :: XPub -> Encoding -> Encoding
 encodeTxWitness :: TxWitness -> Encoding
+encodePublicKeyWitness :: XPub -> Hash "signature" -> Encoding
 encodeSignedTx :: (Tx, [TxWitness]) -> Encoding
 encodeProtocolMagic :: ProtocolMagic -> Encoding
 
