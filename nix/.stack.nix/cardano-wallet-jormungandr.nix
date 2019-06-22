@@ -47,6 +47,7 @@
         "unit" = {
           depends = [
             (hsPkgs.base)
+            (hsPkgs.binary)
             (hsPkgs.bytestring)
             (hsPkgs.cardano-wallet-core)
             (hsPkgs.cardano-crypto)
