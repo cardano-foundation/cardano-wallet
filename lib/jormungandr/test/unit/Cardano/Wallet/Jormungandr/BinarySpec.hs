@@ -4,7 +4,9 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.Jormungandr.BinarySpec (spec) where
+module Cardano.Wallet.Jormungandr.BinarySpec
+    ( spec
+    ) where
 
 import Prelude
 
@@ -32,12 +34,10 @@ import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Coin (..), Hash (..), SlotId (..), TxOut (..) )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromHex )
 import Control.Exception
     ( evaluate )
-import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase )
-import Data.ByteString
-    ( ByteString )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
@@ -135,7 +135,7 @@ genesisBlock = Block genesisHeader
     ]
 
 genesisBlockBinary :: BL.ByteString
-genesisBlockBinary = either error BL.fromStrict $ convertFromBase @ByteString Base16
+genesisBlockBinary = BL.fromStrict $ unsafeFromHex
     "00520000000001ca000000000000000000000000f7becdf807c706cef54ec4832d2a747591c3f21\
     \41de3e4f2aef59a130d890c12000000000000000000000000000000000000000000000000000000\
     \0000000000007c00000c0088000000005cc1c24900410200c2000101040000087001410f0184000\
