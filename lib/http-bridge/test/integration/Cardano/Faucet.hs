@@ -62,6 +62,7 @@ import Test.Integration.Faucet
     ( Faucet (..) )
 
 import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Wallet.HttpBridge.Binary as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 
@@ -122,10 +123,10 @@ mkRedeemTx outs =
         :: Hash "Tx"
         -> (XPrv, Passphrase "encryption")
         -> TxWitness
-    mkWitness (Hash tx) (xprv, Passphrase pwd) =
-        PublicKeyWitness xpub sig
+    mkWitness (Hash tx) (xprv, Passphrase pwd) = TxWitness
+        $ CBOR.toStrictByteString
+        $ CBOR.encodePublicKeyWitness (CC.toXPub xprv) sig
       where
-        xpub = CC.unXPub $ CC.toXPub xprv
         (ProtocolMagic pm) = protocolMagic @'Testnet
         sig = Hash $ CC.unXSignature $ CC.sign pwd xprv $ mempty
             <> "\x01" -- Public Key Witness Tag

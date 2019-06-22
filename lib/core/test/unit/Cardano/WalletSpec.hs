@@ -351,9 +351,8 @@ dummyTransactionLayer = TransactionLayer
                 (ErrKeyNotFoundForAddress addr) $ keyFrom addr
             let (Hash sigData) = txId @DummyTarget tx
             let sig = CC.unXSignature $ CC.sign pwd (getKey xprv) sigData
-            return $ PublicKeyWitness
-                (CC.unXPub $ getKey $ publicKey xprv)
-                (Hash sig)
+            return $ TxWitness
+                (CC.unXPub (getKey $ publicKey xprv) <> sig)
         return (tx, wit)
     , estimateSize =
         error "dummyTransactionLayer: estimateSize not implemented"

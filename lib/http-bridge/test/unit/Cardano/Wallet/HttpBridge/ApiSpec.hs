@@ -97,10 +97,7 @@ instance Arbitrary Tx where
             return $ Address (prefix <> payload <> crc)
 
 instance Arbitrary TxWitness where
-    arbitrary = do
-        xpub <- genBytes 32
-        sig <- Hash <$> genBytes 32
-        return $ PublicKeyWitness xpub sig
+    arbitrary = TxWitness <$> genBytes 133
 
 instance Arbitrary a => Arbitrary (ApiT a) where
     arbitrary = ApiT <$> arbitrary

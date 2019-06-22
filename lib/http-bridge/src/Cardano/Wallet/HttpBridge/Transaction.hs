@@ -18,7 +18,7 @@ import Cardano.Wallet.HttpBridge.Environment
 import Cardano.Wallet.HttpBridge.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (AddressK), Key, Passphrase (..), XPrv, XPub, getKey, publicKey )
+    ( Depth (AddressK), Key, Passphrase (..), XPrv, getKey, publicKey )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
@@ -42,6 +42,7 @@ import Data.Quantity
     ( Quantity (..) )
 
 import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Wallet.HttpBridge.Binary as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
@@ -81,12 +82,10 @@ newTransactionLayer = TransactionLayer
         :: Hash "Tx"
         -> (Key 'AddressK XPrv, Passphrase "encryption")
         -> TxWitness
-    mkWitness tx (xPrv, pwd) = PublicKeyWitness
-        (encodeXPub $ publicKey xPrv)
-        (sign (SignTx tx) (xPrv, pwd))
-
-    encodeXPub :: (Key level XPub) -> ByteString
-    encodeXPub = CC.unXPub . getKey
+    mkWitness tx (xPrv, pwd) = TxWitness
+        $ CBOR.toStrictByteString
+        $ CBOR.encodePublicKeyWitness (getKey $ publicKey xPrv)
+        $ sign (SignTx tx) (xPrv, pwd)
 
     sign
         :: SignTag

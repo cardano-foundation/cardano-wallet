@@ -17,7 +17,8 @@ module Cardano.Wallet.Jormungandr.Compatibility
     ( -- * Target
       Jormungandr
     , Network (..)
-    , genesis
+    , block0
+    , block0Hash
     ) where
 
 import Prelude
@@ -25,7 +26,7 @@ import Prelude
 import Cardano.Wallet.DB.Sqlite
     ( PersistTx (..) )
 import Cardano.Wallet.Jormungandr.Binary
-    ( Put, decodeLegacyAddress, putTxBody, runPut, singleAddressFromKey )
+    ( Put, decodeLegacyAddress, putTx, runPut, singleAddressFromKey )
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Jormungandr.Primitive.Types
@@ -76,11 +77,15 @@ import qualified Data.Text.Encoding as T
 data Jormungandr (network :: Network)
 
 -- | Genesis block header, i.e. very first block header of the chain
-genesis :: BlockHeader
-genesis = BlockHeader
+block0 :: BlockHeader
+block0 = BlockHeader
     { slotId = (SlotId 0 0)
     , prevBlockHash = Hash (BS.replicate 32 0)
     }
+
+-- | Genesis block header hash
+block0Hash :: Hash "Genesis"
+block0Hash = Hash "todo"
 
 instance DefineTx (Jormungandr network) where
     type Tx (Jormungandr network) = Tx
@@ -88,7 +93,7 @@ instance DefineTx (Jormungandr network) where
     outputs = outputs
     -- The corresponding rust implementation is:
     -- https://github.com/input-output-hk/rust-cardano/blob/e5d974f7bedeb00c9c9d688ac66094a34bf8f40d/chain-impl-mockchain/src/transaction/transaction.rs#L115-L119
-    txId = blake2b256 . putTxBody
+    txId = blake2b256 . putTx
       where
         blake2b256 :: forall tag. Put -> Hash tag
         blake2b256 =

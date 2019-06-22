@@ -38,7 +38,7 @@ module Cardano.Wallet.Primitive.Types
     , TxMeta(..)
     , Direction(..)
     , TxStatus(..)
-    , TxWitness (..)
+    , TxWitness(..)
     , txIns
     , isPending
 
@@ -438,16 +438,8 @@ instance ToText Direction where
     toText = toTextFromBoundedEnum SnakeLowerCase
 
 -- | @TxWitness@ is proof that transaction inputs are allowed to be spent
-data TxWitness
-    = PublicKeyWitness ByteString (Hash "signature")
-      -- ^ A signature of a transaction by the owner of the address of an input.
-      --
-      -- TODO: Use the @XPub@ type instead of @ByteString@
-    | ScriptWitness ByteString
-      -- ^ Related to Plutus
-    | RedeemWitness ByteString
-      -- ^ Used to redeem ADA from the pre-sale
-    deriving (Eq, Show)
+newtype TxWitness = TxWitness { unWitness :: ByteString }
+    deriving (Show, Eq)
 
 -- | True if the given tuple refers to a pending transaction
 isPending :: TxMeta -> Bool

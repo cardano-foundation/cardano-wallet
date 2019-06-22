@@ -30,6 +30,7 @@ module Cardano.Wallet.HttpBridge.Binary
     , encodeTx
     , encodeAddress
     , encodeTxWitness
+    , encodePublicKeyWitness
     , encodeSignedTx
     , encodeProtocolMagic
 
@@ -43,7 +44,7 @@ module Cardano.Wallet.HttpBridge.Binary
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( ChainCode (..), XPub (..) )
+    ( ChainCode (..), XPub (..), unXPub )
 import Cardano.Wallet.HttpBridge.Environment
     ( ProtocolMagic (..) )
 import Cardano.Wallet.HttpBridge.Primitive.Types
@@ -425,21 +426,13 @@ decodeTxWitness :: CBOR.Decoder s TxWitness
 decodeTxWitness = do
     _ <- CBOR.decodeListLenCanonicalOf 2
     t <- CBOR.decodeWord8
+    _ <- CBOR.decodeTag
     case t of
-        0 -> do
-            _ <- CBOR.decodeTag
-            bs <- CBOR.decodeBytes
-            case CBOR.deserialiseFromBytes decodePKWitness (BL.fromStrict bs) of
-                Left err -> fail $ show err
-                Right (_, input) -> return input
-        1 -> CBOR.decodeTag *> (ScriptWitness <$> CBOR.decodeBytes)
-        2 -> CBOR.decodeTag *> (RedeemWitness <$> CBOR.decodeBytes)
+        0 -> TxWitness <$> CBOR.decodeBytes
+        1 -> TxWitness <$> CBOR.decodeBytes
+        2 -> TxWitness <$> CBOR.decodeBytes
         _ -> fail
             $ "decodeTxWitness: unknown tx witness constructor: " <> show t
-  where
-    decodePKWitness = do
-        _ <- CBOR.decodeListLenCanonicalOf 2
-        (PublicKeyWitness <$> CBOR.decodeBytes <*> (Hash <$> CBOR.decodeBytes))
 
 decodeUpdateProof :: CBOR.Decoder s ()
 decodeUpdateProof = do
@@ -512,25 +505,26 @@ encodeSignedTx (tx, witnesses) = mempty
     <> encodeList encodeTxWitness witnesses
 
 encodeTxWitness :: TxWitness -> CBOR.Encoding
-encodeTxWitness witness = mempty
+encodeTxWitness (TxWitness bytes) = mempty
     <> CBOR.encodeListLen 2
     <> CBOR.encodeWord8 tag
     <> CBOR.encodeTag 24
-    <> CBOR.encodeBytes contents
+    <> CBOR.encodeBytes bytes
   where
+    -- NOTE
+    -- We only support 'PublicKey' witness types at the moment. However,
+    -- Byron nodes support more:
+    --
+    --   * 0 for Public Key
+    --   * 1 for Script
+    --   * 2 for Redeem
+    tag = 0
 
-    tag = case witness of
-        PublicKeyWitness _ _ -> 0
-        ScriptWitness _ -> 1
-        RedeemWitness _ -> 2
-
-    contents = case witness of
-        PublicKeyWitness xPub (Hash sig) -> toByteString $
-            CBOR.encodeListLen 2
-            <> CBOR.encodeBytes xPub
-            <> CBOR.encodeBytes sig
-        ScriptWitness bs -> bs
-        RedeemWitness bs -> bs
+encodePublicKeyWitness :: XPub -> Hash "signature" -> CBOR.Encoding
+encodePublicKeyWitness xpub (Hash signData) = mempty
+    <> CBOR.encodeListLen 2
+    <> CBOR.encodeBytes (unXPub xpub)
+    <> CBOR.encodeBytes signData
 
 encodeTx :: Tx -> CBOR.Encoding
 encodeTx tx = mempty

@@ -18,37 +18,35 @@
 module Cardano.Wallet.Jormungandr.Binary
     ( Block (..)
     , BlockHeader (..)
-    , Message (..)
-    , getBlockHeader
-    , getBlock
-    , getTransaction
-
-    , putTokenTransfer
-    , putTxBody
-    , putSignedTransaction
-
     , ConfigParam (..)
     , ConsensusVersion (..)
     , LeaderId (..)
     , LinearFee (..)
+    , Message (..)
     , Milli (..)
+    , getBlock
+    , getBlockHeader
+    , getMessage
+    , getTransaction
+    , putSignedTx
+    , putTx
+
+    -- * Coercion with business-domain
+    , coerceBlock
 
     -- * Addresses
     , putAddress
     , getAddress
     , singleAddressFromKey
 
-      -- * Classes
-    , FromBinary (..)
-
       -- * Legacy Decoders
     , decodeLegacyAddress
 
       -- * Re-export
-    , runGet
     , Get
-    , runPut
+    , runGet
     , Put
+    , runPut
     ) where
 
 import Prelude
@@ -68,6 +66,8 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , TxWitness (..)
     )
+import Control.Applicative
+    ( many )
 import Control.Monad
     ( replicateM )
 import Data.Binary.Get
@@ -78,7 +78,6 @@ import Data.Binary.Get
     , getWord32be
     , getWord64be
     , getWord8
-    , isEmpty
     , isolate
     , label
     , lookAhead
@@ -86,7 +85,14 @@ import Data.Binary.Get
     , skip
     )
 import Data.Binary.Put
-    ( Put, putByteString, putLazyByteString, putWord64be, putWord8, runPut )
+    ( Put
+    , putByteString
+    , putLazyByteString
+    , putWord16be
+    , putWord64be
+    , putWord8
+    , runPut
+    )
 import Data.Bits
     ( shift, (.&.) )
 import Data.ByteString
@@ -104,6 +110,9 @@ import qualified Codec.CBOR.Read as CBOR
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 
+-- Do-notation is favoured over applicative syntax for readability:
+{-# ANN module ("HLint: ignore Use <$>" :: String) #-}
+
 data BlockHeader = BlockHeader
     { version :: Word16
     , contentSize :: Word32
@@ -115,16 +124,6 @@ data BlockHeader = BlockHeader
 
 data Block = Block BlockHeader [Message]
     deriving (Eq, Show)
-
-data SignedUpdateProposal = SignedUpdateProposal
-    deriving (Eq, Show)
-data TODO = TODO
-    deriving (Eq, Show)
-data SignedVote = SignedVote
-    deriving (Eq, Show)
-
--- Do-notation is favoured over applicative syntax for readability:
-{-# ANN module ("HLint: ignore Use <$>" :: String) #-}
 
 getBlockHeader :: Get BlockHeader
 getBlockHeader = label "getBlockHeader" $
@@ -142,7 +141,7 @@ getBlockHeader = label "getBlockHeader" $
         -- 1. no proof (used for the genesis blockheader)
         -- 2. BFT
         -- 3. Praos / Genesis
-
+        --
         -- We could make sure we get the right kind of proof, but we don't need to.
         -- Just checking that the length is not totally wrong, is much simpler
         -- and gives us sanity about the binary format being correct.
@@ -165,8 +164,7 @@ getBlockHeader = label "getBlockHeader" $
 getBlock :: Get Block
 getBlock = label "getBlock" $ do
     header <- getBlockHeader
-    msgs <- isolate (fromIntegral $ contentSize header)
-        $ whileM (not <$> isEmpty) getMessage
+    msgs <- isolate (fromIntegral $ contentSize header) (many getMessage)
     return $ Block header msgs
 
 {-------------------------------------------------------------------------------
@@ -180,12 +178,10 @@ getBlock = label "getBlock" $ do
 data Message
     = Initial [ConfigParam]
     -- ^ Found in the genesis block.
---  | OldUtxoDeclaration UtxoDeclaration
-    | Transaction Tx
---  | Certificate (Tx with Extra=Certificate)
---  | UpdateProposal SignedUpdateProposal
---  | UpdateVote SignedVote
-    | UnimplementedMessage Int -- For development. Remove later.
+    | Transaction (Tx, [TxWitness])
+    -- ^ A standard signed transaction
+    | UnimplementedMessage Int
+    -- Messages not yet supported go there.
     deriving (Eq, Show)
 
 -- | Decode a message (header + contents).
@@ -211,64 +207,70 @@ getInitial = label "getInitial" $ do
     replicateM len getConfigParam
 
 -- | Decode the contents of a @Transaction@-message.
-getTransaction :: Get Tx
+getTransaction :: Get (Tx, [TxWitness])
 getTransaction = label "getTransaction" $ do
     (ins, outs) <- getTokenTransfer
     let witnessCount = length ins
-    _wits <- replicateM witnessCount getWitness
-    return $ Tx ins outs
+    wits <- replicateM witnessCount getWitness
+    return (Tx ins outs, wits)
   where
     getWitness = do
         tag <- getWord8
         case tag of
-            1 -> isolate 128 $ do
-                -- Old address witness scheme
-                xpub <- getByteString 64
-                sig <- Hash <$> getByteString 64
-                return $ PublicKeyWitness xpub sig
+            0 -> -- Legacy UTxO
+                isolate 128 $ TxWitness <$> getByteString 128
+            1 -> -- UTxO
+                isolate 64 $ TxWitness <$> getByteString 64
 
-            2 -> isolate 64 $ do
-                _sig <- Hash <$> getByteString 64
-                error "unimplemented: New address witness scheme"
+            2 -> -- Account
+                isolate 64 $ getByteString 64
+                    *> error "unimplemented: Account witness"
+            3 -> -- Multisig
+                isolate 68 $ getByteString 68
+                    *> error "unimplemented: Multisig witness"
+            other ->
+                fail $ "Invalid witness type: " ++ show other
 
-            3 -> isolate 68 $ do
-                error "unimplemented: Account witness"
-            other -> fail $ "Invalid witness type: " ++ show other
+    getTokenTransfer :: Get ([(TxIn, Coin)], [TxOut])
+    getTokenTransfer = label "getTokenTransfer" $ do
+        inCount <- fromIntegral <$> getWord8
+        outCount <- fromIntegral <$> getWord8
+        ins <- replicateM inCount getInput
+        outs <- replicateM outCount getOutput
+        return (ins, outs)
+      where
+        getInput = isolate 41 $ do
+            -- NOTE: special value 0xff indicates account spending
+            index <- fromIntegral <$> getWord8
+            coin <- Coin <$> getWord64be
+            tx <- Hash <$> getByteString 32
+            return (TxIn tx index, coin)
 
-putSignedTransaction :: (Tx, [TxWitness]) -> Put
-putSignedTransaction (tx, witnesses) = do
-    putTokenTransfer tx
-    mapM_ putWitness witnesses
-
-putWitness :: TxWitness -> Put
-putWitness witness =
-    case witness of
-        PublicKeyWitness xPub (Hash sig) -> do
-            -- Witness sum type:
-            --   * 1 for old address witnness scheme
-            --   * 2 for new address witness scheme
-            --   * 3 for account witness
-            putWord8 1
-            putByteString xPub
-            putByteString sig
-        -- TODO: note that we are missing new address type witness:
-        --  * https://github.com/input-output-hk/rust-cardano/blob/3524cfe138a10773caa6f0effacf69e792f915df/chain-impl-mockchain/doc/format.md#witnesses
-        --  * https://github.com/input-output-hk/rust-cardano/blob/e0616f13bebd6b908320bddb1c1502dea0d3305a/chain-impl-mockchain/src/transaction/witness.rs#L23
-        ScriptWitness _ -> error "unimplemented: serialize script witness"
-        RedeemWitness _ -> error "unimplemented: serialize redeem witness"
+        getOutput = do
+            addr <- getAddress
+            value <- Coin <$> getWord64be
+            return $ TxOut addr value
 
 {-------------------------------------------------------------------------------
                             Common Structure
 -------------------------------------------------------------------------------}
 
-putTokenTransfer :: Tx -> Put
-putTokenTransfer tx@(Tx inputs outputs) = do
+putSignedTx :: (Tx, [TxWitness]) -> Put
+putSignedTx (tx@(Tx inputs outputs), witnesses) = withSizeHeader16be $ do
+    putWord8 2
     putWord8 $ fromIntegral $ length inputs
     putWord8 $ fromIntegral $ length outputs
-    putTxBody tx
+    putTx tx
+    mapM_ putWitness witnesses
+  where
+    -- Assumes the `TxWitness` has been faithfully constructed
+    putWitness :: TxWitness -> Put
+    putWitness (TxWitness bytes) = do
+        putWord8 1
+        putByteString bytes
 
-putTxBody :: Tx -> Put
-putTxBody (Tx inputs outputs) = do
+putTx :: Tx -> Put
+putTx (Tx inputs outputs) = do
     mapM_ putInput inputs
     mapM_ putOutput outputs
   where
@@ -278,29 +280,10 @@ putTxBody (Tx inputs outputs) = do
         putWord8 $ fromIntegral inputIx
         putWord64be $ getCoin coin
         putByteString $ getHash inputId
+
     putOutput (TxOut address coin) = do
         putAddress address
         putWord64be $ getCoin coin
-
-getTokenTransfer :: Get ([(TxIn, Coin)], [TxOut])
-getTokenTransfer = label "getTokenTransfer" $ do
-    inCount <- fromIntegral <$> getWord8
-    outCount <- fromIntegral <$> getWord8
-    ins <- replicateM inCount getInput
-    outs <- replicateM outCount getOutput
-    return (ins, outs)
-  where
-    getInput = isolate 41 $ do
-        -- NOTE: special value 0xff indicates account spending
-        index <- fromIntegral <$> getWord8
-        coin <- Coin <$> getWord64be
-        tx <- Hash <$> getByteString 32
-        return (TxIn tx index, coin)
-
-    getOutput = do
-        addr <- getAddress
-        value <- Coin <$> getWord64be
-        return $ TxOut addr value
 
 {-------------------------------------------------------------------------------
                             Config Parameters
@@ -414,10 +397,12 @@ getLinearFee = label "getLinearFee" $ do
 
 getBool :: Get Bool
 getBool = getWord8 >>= \case
-    1 -> return True
-    0 -> return False
-    other -> fail $ "Unexpected integer: " ++ show other
-                ++ ". Expected a boolean 0 or 1."
+    1 ->
+        return True
+    0 ->
+        return False
+    other ->
+        fail $ "Unexpected integer: " ++ show other ++ ". Expected a boolean."
 
 {-------------------------------------------------------------------------------
                             Addresses
@@ -429,7 +414,6 @@ getAddress = do
     -- be included in the underlying Address ByteString.
     headerByte <- label "address header" . lookAhead $ getWord8
     let kind = kindValue headerByte
-    let _discrimination = discriminationValue headerByte
     case kind of
         0x3 -> Address <$> getByteString 33 -- single address
         0x4 -> Address <$> getByteString 65 -- grouped address
@@ -440,17 +424,12 @@ getAddress = do
     kindValue :: Word8 -> Word8
     kindValue = (.&. 0b01111111)
 
-    discriminationValue :: Word8 -> Network
-    discriminationValue b = case b .&. 0b10000000 of
-        0 -> Mainnet
-        _ -> Testnet
-
 putAddress :: Address -> Put
 putAddress addr@(Address bs)
     | l == 33 = putByteString bs -- bootstrap or account addr
     | l == 65 = putByteString bs -- delegation addr
     | otherwise = fail
-        $ "Address have unexpected length "
+        $ "Address has unexpected length "
         ++ (show l)
         ++ ": " ++ show addr
   where l = BS.length bs
@@ -475,45 +454,25 @@ isolatePut l x = do
         ++ ", but expected to be "
         ++ (show l)
 
-whileM :: Monad m => m Bool -> m a -> m [a]
-whileM cond next = go
-  where
-    go = do
-        c <- cond
-        if c then do
-            a <- next
-            as <- go
-            return (a : as)
-        else return []
+withSizeHeader16be :: Put -> Put
+withSizeHeader16be x = do
+    let bs = BL.toStrict $ runPut x
+    putWord16be (fromIntegral $ BS.length bs)
+    putByteString bs
 
 {-------------------------------------------------------------------------------
-                              Classes
+                                Conversions
 -------------------------------------------------------------------------------}
 
-class FromBinary a where
-    get :: Get a
-
-instance FromBinary Block where
-    get = getBlock
-
-instance FromBinary (W.Block Tx) where
-    get = convertBlock <$> getBlock
-      where
-        convertBlock  :: Block -> W.Block Tx
-        convertBlock (Block h msgs) =
-            W.Block (convertHeader h) (convertMessages msgs)
-
-        convertHeader :: BlockHeader -> W.BlockHeader
-        convertHeader h = W.BlockHeader (slot h) (parentHeaderHash h)
-
-        convertMessages :: [Message] -> [Tx]
-        convertMessages msgs = msgs >>= \case
-            Initial _ -> []
-            Transaction tx -> return tx
-            UnimplementedMessage _ -> []
-
-instance FromBinary a => FromBinary [a] where
-    get = whileM (not <$> isEmpty) get
+coerceBlock  :: Block -> W.Block Tx
+coerceBlock (Block h msgs) =
+    W.Block coerceHeader coerceMessages
+  where
+    coerceHeader = W.BlockHeader (slot h) (parentHeaderHash h)
+    coerceMessages = msgs >>= \case
+        Initial _ -> []
+        Transaction (tx, _wits) -> return tx
+        UnimplementedMessage _ -> []
 
 {-------------------------------------------------------------------------------
                               Legacy Decoders
