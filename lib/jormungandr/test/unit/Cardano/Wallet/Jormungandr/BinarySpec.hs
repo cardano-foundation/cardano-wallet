@@ -27,7 +27,7 @@ import Cardano.Wallet.Jormungandr.Binary
     , singleAddressFromKey
     )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( genesis )
+    ( block0 )
 import Cardano.Wallet.Jormungandr.Environment
     ( Network (..) )
 import Cardano.Wallet.Jormungandr.Primitive.Types
@@ -99,10 +99,10 @@ genesisHeader :: BlockHeader
 genesisHeader = BlockHeader
     { version = 0
     , contentSize = 458
-    , slot = genesis ^. #slotId
+    , slot = block0 ^. #slotId
     , chainLength = 0
     , contentHash = Hash "\247\190\205\248\a\199\ACK\206\245N\196\131-*tu\145\195\242\DC4\GS\227\228\242\174\245\154\DC3\r\137\f\DC2"
-    , parentHeaderHash = genesis ^. #prevBlockHash
+    , parentHeaderHash = block0 ^. #prevBlockHash
     }
 
 genesisBlock :: Block

@@ -17,7 +17,7 @@ import Cardano.Wallet
 import Cardano.Wallet.Jormungandr.Api
     ( GetTipId, api )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr, Network (..), genesis )
+    ( Jormungandr, Network (..), block0 )
 import Cardano.Wallet.Jormungandr.Network
     ( BaseUrl (..), ErrUnexpectedNetworkFailure (..), Scheme (..) )
 import Cardano.Wallet.Network
@@ -83,7 +83,7 @@ spec = do
 
         it "get some blocks from the genesis" $ \(_, nw) -> do
             threadDelay (10 * second)
-            resp <- runExceptT $ nextBlocks nw genesis
+            resp <- runExceptT $ nextBlocks nw block0
             resp `shouldSatisfy` isRight
             resp `shouldSatisfy` (not . null)
 
@@ -132,7 +132,7 @@ spec = do
                     "Expected a ErrNetworkUnreachable' failure but got "
                     <> show x
             let action = do
-                    res <- runExceptT $ nextBlocks nw genesis
+                    res <- runExceptT $ nextBlocks nw block0
                     res `shouldSatisfy` \case
                         Left (ErrGetBlockNetworkUnreachable e) ->
                             show e `deepseq` True

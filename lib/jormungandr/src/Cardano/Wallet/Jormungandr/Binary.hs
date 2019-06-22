@@ -18,22 +18,18 @@
 module Cardano.Wallet.Jormungandr.Binary
     ( Block (..)
     , BlockHeader (..)
-    , Message (..)
-    , getBlockHeader
-    , getBlock
-    , getMessage
-    , getTransaction
-
-    , putMessage
-    , putTokenTransfer
-    , putTxBody
-    , putSignedTransaction
-
     , ConfigParam (..)
     , ConsensusVersion (..)
     , LeaderId (..)
     , LinearFee (..)
+    , Message (..)
     , Milli (..)
+    , getBlock
+    , getBlockHeader
+    , getMessage
+    , getTransaction
+    , putSignedTx
+    , putTx
 
     -- * Coercion with business-domain
     , coerceBlock
@@ -47,10 +43,10 @@ module Cardano.Wallet.Jormungandr.Binary
     , decodeLegacyAddress
 
       -- * Re-export
-    , runGet
     , Get
-    , runPut
+    , runGet
     , Put
+    , runPut
     ) where
 
 import Prelude
@@ -209,13 +205,6 @@ getMessage = label "getMessage" $ do
         5 -> unimpl
         other -> fail $ "Unexpected content type tag " ++ show other
 
-putMessage :: Message -> Put
-putMessage m = withSizeHeader16be $ case m of
-    Transaction (tx, wits) -> do
-        putWord8 2
-        putSignedTransaction (tx, wits)
-    _ -> error "to be implemented"
-
 -- | Decode the contents of a @Initial@-message.
 getInitial :: Get [ConfigParam]
 getInitial = label "getInitial" $ do
@@ -247,27 +236,46 @@ getTransaction = label "getTransaction" $ do
             other ->
                 fail $ "Invalid witness type: " ++ show other
 
-putSignedTransaction :: (Tx, [TxWitness]) -> Put
-putSignedTransaction (tx, witnesses) = do
-    putTokenTransfer tx
-    mapM_ putWitness witnesses
+    getTokenTransfer :: Get ([(TxIn, Coin)], [TxOut])
+    getTokenTransfer = label "getTokenTransfer" $ do
+        inCount <- fromIntegral <$> getWord8
+        outCount <- fromIntegral <$> getWord8
+        ins <- replicateM inCount getInput
+        outs <- replicateM outCount getOutput
+        return (ins, outs)
+      where
+        getInput = isolate 41 $ do
+            -- NOTE: special value 0xff indicates account spending
+            index <- fromIntegral <$> getWord8
+            coin <- Coin <$> getWord64be
+            tx <- Hash <$> getByteString 32
+            return (TxIn tx index, coin)
 
--- Assumes the `TxWitness` has been faithfully constructed
-putWitness :: TxWitness -> Put
-putWitness = putByteString . unWitness
+        getOutput = do
+            addr <- getAddress
+            value <- Coin <$> getWord64be
+            return $ TxOut addr value
 
 {-------------------------------------------------------------------------------
                             Common Structure
 -------------------------------------------------------------------------------}
 
-putTokenTransfer :: Tx -> Put
-putTokenTransfer tx@(Tx inputs outputs) = do
+putSignedTx :: (Tx, [TxWitness]) -> Put
+putSignedTx (tx@(Tx inputs outputs), witnesses) = withSizeHeader16be $ do
+    putWord8 2
     putWord8 $ fromIntegral $ length inputs
     putWord8 $ fromIntegral $ length outputs
-    putTxBody tx
+    putTx tx
+    mapM_ putWitness witnesses
+  where
+    -- Assumes the `TxWitness` has been faithfully constructed
+    putWitness :: TxWitness -> Put
+    putWitness (TxWitness bytes) = do
+        putWord8 1
+        putByteString bytes
 
-putTxBody :: Tx -> Put
-putTxBody (Tx inputs outputs) = do
+putTx :: Tx -> Put
+putTx (Tx inputs outputs) = do
     mapM_ putInput inputs
     mapM_ putOutput outputs
   where
@@ -281,26 +289,6 @@ putTxBody (Tx inputs outputs) = do
     putOutput (TxOut address coin) = do
         putAddress address
         putWord64be $ getCoin coin
-
-getTokenTransfer :: Get ([(TxIn, Coin)], [TxOut])
-getTokenTransfer = label "getTokenTransfer" $ do
-    inCount <- fromIntegral <$> getWord8
-    outCount <- fromIntegral <$> getWord8
-    ins <- replicateM inCount getInput
-    outs <- replicateM outCount getOutput
-    return (ins, outs)
-  where
-    getInput = isolate 41 $ do
-        -- NOTE: special value 0xff indicates account spending
-        index <- fromIntegral <$> getWord8
-        coin <- Coin <$> getWord64be
-        tx <- Hash <$> getByteString 32
-        return (TxIn tx index, coin)
-
-    getOutput = do
-        addr <- getAddress
-        value <- Coin <$> getWord64be
-        return $ TxOut addr value
 
 {-------------------------------------------------------------------------------
                             Config Parameters
