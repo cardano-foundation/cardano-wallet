@@ -99,7 +99,6 @@ type PostSignedTx
     :> Post '[NoContent] NoContent
 
 newtype BlockId = BlockId { getBlockId :: Hash "BlockHeader" }
-    deriving (Eq, Show)
 
 instance ToHttpApiData BlockId where
     toUrlPiece (BlockId (Hash bytes)) = decodeUtf8 $ convertToBase Base16 bytes

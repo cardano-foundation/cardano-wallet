@@ -125,11 +125,6 @@ data BlockHeader = BlockHeader
 data Block = Block BlockHeader [Message]
     deriving (Eq, Show)
 
-data SignedUpdateProposal = SignedUpdateProposal
-    deriving (Eq, Show)
-data SignedVote = SignedVote
-    deriving (Eq, Show)
-
 getBlockHeader :: Get BlockHeader
 getBlockHeader = label "getBlockHeader" $
     (fromIntegral <$> getWord16be) >>= \size -> isolate size $ do
@@ -419,7 +414,6 @@ getAddress = do
     -- be included in the underlying Address ByteString.
     headerByte <- label "address header" . lookAhead $ getWord8
     let kind = kindValue headerByte
-    let _discrimination = discriminationValue headerByte
     case kind of
         0x3 -> Address <$> getByteString 33 -- single address
         0x4 -> Address <$> getByteString 65 -- grouped address
@@ -429,11 +423,6 @@ getAddress = do
   where
     kindValue :: Word8 -> Word8
     kindValue = (.&. 0b01111111)
-
-    discriminationValue :: Word8 -> Network
-    discriminationValue b = case b .&. 0b10000000 of
-        0 -> Mainnet
-        _ -> Testnet
 
 putAddress :: Address -> Put
 putAddress addr@(Address bs)
