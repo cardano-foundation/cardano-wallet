@@ -96,10 +96,11 @@ TxMeta
 -- There is no wallet ID because these values depend only on the transaction,
 -- not the wallet. txInputTableTxId is referred to by TxMeta
 TxIn
-    txInputTableTxId         TxId        sql=tx_id
-    txInputTableOrder        Int         sql=order
-    txInputTableSourceTxId   TxId        sql=source_id
-    txInputTableSourceIndex  Word32      sql=source_index
+    txInputTableTxId           TxId          sql=tx_id
+    txInputTableOrder          Int           sql=order
+    txInputTableSourceTxId     TxId          sql=source_id
+    txInputTableSourceIndex    Word32        sql=source_index
+    txInputTableSourceAmount   W.Coin Maybe  sql=source_amount default=NULL
 
     Primary txInputTableTxId txInputTableSourceTxId txInputTableSourceIndex
     deriving Show Generic
@@ -209,4 +210,4 @@ SeqStatePendingIx
     Primary seqStatePendingIxSeqStateId seqStatePendingIxIndex
     deriving Show Generic
 |]</span><span>
-</span><a name="line-212"></a></pre></body></html>
+</span><a name="line-213"></a></pre></body></html>

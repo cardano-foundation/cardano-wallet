@@ -43,6 +43,33 @@ instance Data.Text.Class.FromText Cardano.Wallet.Jormungandr.Environment.Network
 instance Data.Text.Class.ToText Cardano.Wallet.Jormungandr.Environment.Network
 
 
+-- | Declaration of primitive types that are specific to a particular
+--   backend. Likely, the shape of all types is similar and will eventually
+--   converge to one unified design. Though, in the meantime, we have to
+--   support different primitive representations for some of them.
+--   
+--   In the case of <tt>Jormungandr</tt> at the moment, inputs also holds
+--   their corresponding resolved value as <a>Coin</a>.
+module Cardano.Wallet.Jormungandr.Primitive.Types
+data Tx
+Tx :: ![(TxIn, Coin)] -> ![TxOut] -> Tx
+
+-- | NOTE: Order of inputs matters in the transaction representation. The
+--   transaction id is computed from the binary representation of a tx, for
+--   which inputs are serialized in a specific order.
+[inputs] :: Tx -> ![(TxIn, Coin)]
+
+-- | NOTE: Order of outputs matter in the transaction representations.
+--   Outputs are used as inputs for next transactions which refer to them
+--   using their indexes. It matters also for serialization.
+[outputs] :: Tx -> ![TxOut]
+instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Primitive.Types.Tx
+instance GHC.Classes.Ord Cardano.Wallet.Jormungandr.Primitive.Types.Tx
+instance GHC.Generics.Generic Cardano.Wallet.Jormungandr.Primitive.Types.Tx
+instance GHC.Show.Show Cardano.Wallet.Jormungandr.Primitive.Types.Tx
+instance Control.DeepSeq.NFData Cardano.Wallet.Jormungandr.Primitive.Types.Tx
+
+
 -- | The format is for the Shelley era as implemented by the Jörmungandr
 --   node.
 --   
@@ -76,6 +103,7 @@ getBlock :: Get Block
 -- | Decode the contents of a <tt>Transaction</tt>-message.
 getTransaction :: Get Tx
 putTokenTransfer :: Tx -> Put
+putTxBody :: Tx -> Put
 putSignedTransaction :: (Tx, [TxWitness]) -> Put
 data ConfigParam
 
@@ -187,7 +215,7 @@ instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.SignedUpdateProposal
 instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.BlockHeader
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.BlockHeader
 instance Cardano.Wallet.Jormungandr.Binary.FromBinary Cardano.Wallet.Jormungandr.Binary.Block
-instance Cardano.Wallet.Jormungandr.Binary.FromBinary Cardano.Wallet.Primitive.Types.Block
+instance Cardano.Wallet.Jormungandr.Binary.FromBinary (Cardano.Wallet.Primitive.Types.Block Cardano.Wallet.Jormungandr.Primitive.Types.Tx)
 instance Cardano.Wallet.Jormungandr.Binary.FromBinary a => Cardano.Wallet.Jormungandr.Binary.FromBinary [a]
 
 
@@ -199,7 +227,7 @@ module Cardano.Wallet.Jormungandr.Compatibility
 
 -- | A type representing the Jormungandr as a network target. This has an
 --   influence on binary serializer &amp; network primitives. See also
---   <a>TxId</a>
+--   <tt>TxId</tt>
 data Jormungandr (network :: Network)
 
 -- | Available network options.
@@ -209,7 +237,8 @@ Testnet :: Network
 
 -- | Genesis block header, i.e. very first block header of the chain
 genesis :: BlockHeader
-instance Cardano.Wallet.Primitive.Types.TxId (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr n)
+instance Cardano.Wallet.Primitive.Types.DefineTx (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr network)
+instance Cardano.Wallet.DB.Sqlite.PersistTx (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr network)
 instance Cardano.Wallet.Jormungandr.Environment.KnownNetwork n => Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr n)
 instance Cardano.Wallet.Jormungandr.Environment.KnownNetwork n => Cardano.Wallet.Primitive.Types.EncodeAddress (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr n)
 instance Cardano.Wallet.Jormungandr.Environment.KnownNetwork n => Cardano.Wallet.Primitive.Types.DecodeAddress (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr n)
@@ -220,7 +249,7 @@ module Cardano.Wallet.Jormungandr.Api
 type Api = GetTipId :<|> GetBlock :<|> GetBlockDescendantIds
 
 -- | Retrieve a block by its id.
-type GetBlock = "v0" :> "block" :> Capture "blockHeaderHash" BlockId :> Get '[JormungandrBinary] Block
+type GetBlock = "v0" :> "block" :> Capture "blockHeaderHash" BlockId :> Get '[JormungandrBinary] (Block Tx)
 
 -- | Retrieve the header of the latest known block.
 type GetTipId = "v0" :> "tip" :> Get '[Hex] BlockId
@@ -264,13 +293,13 @@ module Cardano.Wallet.Jormungandr.Network
 newNetworkLayer :: forall n. () => BaseUrl -> IO (NetworkLayer (Jormungandr n) IO)
 
 -- | Wrap a Jormungandr client into a <a>NetworkLayer</a> common interface.
-mkNetworkLayer :: Monad m => JormungandrLayer m -> NetworkLayer t m
+mkNetworkLayer :: Monad m => JormungandrLayer m -> NetworkLayer (Jormungandr n) m
 
 -- | Endpoints of the jormungandr REST API.
 data JormungandrLayer m
-JormungandrLayer :: ExceptT ErrNetworkUnreachable m (Hash "BlockHeader") -> (Hash "BlockHeader" -> ExceptT ErrGetBlock m Block) -> (Hash "BlockHeader" -> Word -> ExceptT ErrGetDescendants m [Hash "BlockHeader"]) -> JormungandrLayer m
+JormungandrLayer :: ExceptT ErrNetworkUnreachable m (Hash "BlockHeader") -> (Hash "BlockHeader" -> ExceptT ErrGetBlock m (Block Tx)) -> (Hash "BlockHeader" -> Word -> ExceptT ErrGetDescendants m [Hash "BlockHeader"]) -> JormungandrLayer m
 [$sel:getTipId:JormungandrLayer] :: JormungandrLayer m -> ExceptT ErrNetworkUnreachable m (Hash "BlockHeader")
-[$sel:getBlock:JormungandrLayer] :: JormungandrLayer m -> Hash "BlockHeader" -> ExceptT ErrGetBlock m Block
+[$sel:getBlock:JormungandrLayer] :: JormungandrLayer m -> Hash "BlockHeader" -> ExceptT ErrGetBlock m (Block Tx)
 [$sel:getDescendantIds:JormungandrLayer] :: JormungandrLayer m -> Hash "BlockHeader" -> Word -> ExceptT ErrGetDescendants m [Hash "BlockHeader"]
 
 -- | Construct a <a>JormungandrLayer</a>-client
