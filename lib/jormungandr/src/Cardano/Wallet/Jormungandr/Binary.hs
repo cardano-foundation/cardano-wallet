@@ -429,7 +429,7 @@ putAddress addr@(Address bs)
     | l == 33 = putByteString bs -- bootstrap or account addr
     | l == 65 = putByteString bs -- delegation addr
     | otherwise = fail
-        $ "Address have unexpected length "
+        $ "Address has unexpected length "
         ++ (show l)
         ++ ": " ++ show addr
   where l = BS.length bs

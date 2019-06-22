@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Jormungandr.BinarySpec
@@ -22,6 +21,8 @@ import Cardano.Wallet.Jormungandr.Binary
     , Message (..)
     , Milli (..)
     , getBlock
+    , putAddress
+    , runPut
     , singleAddressFromKey
     )
 import Cardano.Wallet.Jormungandr.Compatibility
@@ -31,11 +32,11 @@ import Cardano.Wallet.Jormungandr.Environment
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..), Hash (..), SlotId (..), TxOut (..) )
+    ( Address (..), Coin (..), Hash (..), SlotId (..), TxOut (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeDecodeAddress, unsafeDecodeHex, unsafeFromHex )
 import Control.Exception
-    ( evaluate )
+    ( SomeException, evaluate )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
@@ -45,7 +46,7 @@ import Data.Proxy
 import Data.Quantity
     ( Quantity (..) )
 import Test.Hspec
-    ( Spec, anyErrorCall, describe, it, shouldBe, shouldThrow )
+    ( Spec, describe, it, shouldBe, shouldThrow )
 
 spec :: Spec
 spec = do
@@ -116,7 +117,45 @@ spec = do
             unsafeDecodeHex getBlock bytes `shouldBe` block
 
         it "should decode a genesis block (Mainnet)" $ do
-            return () :: IO ()
+            let bytes =
+                    "00520000000000810000000000000000000000005df3b1c19c1400a992\
+                    \5158ade2b7191374df85f6976fe81681f0aef2e0ddc2a3000000000000\
+                    \0000000000000000000000000000000000000000000000000000007f00\
+                    \000c0088000000005cc1c24900410100c200010104000001f401410a01\
+                    \840000000a02e0b216ee388fc25596cf43fbca815c463c37d79560b985\
+                    \800c3d6f3a0f5a977e32020800000000000000dc0244000000ff028800\
+                    \000000000000dc03980000000000000000000000000000000000000000\
+                    \00000000040400000010"
+            let block = Block
+                    BlockHeader
+                        { version = 0
+                        , contentSize = 129
+                        , slot = block0 ^. #slotId
+                        , chainLength = 0
+                        , contentHash = Hash $ unsafeFromHex
+                            "5df3b1c19c1400a9925158ade2b71913\
+                            \74df85f6976fe81681f0aef2e0ddc2a3"
+                        , parentHeaderHash = block0 ^. #prevBlockHash
+                        }
+                    [ Initial
+                        [ Block0Date 1556202057
+                        , Discrimination Mainnet
+                        , Consensus BFT
+                        , SlotsPerEpoch (Quantity 500)
+                        , SlotDuration (Quantity 10)
+                        , EpochStabilityDepth (Quantity 10)
+                        , AddBftLeader $ LeaderId $ unsafeFromHex
+                            "b216ee388fc25596cf43fbca815c463c\
+                            \37d79560b985800c3d6f3a0f5a977e32"
+                        , ConsensusGenesisPraosParamF (Milli 220)
+                        , MaxNumberOfTransactionsPerBlock 255
+                        , BftSlotsRatio (Milli 220)
+                        , ConfigLinearFee $ LinearFee
+                            (Quantity 0) (Quantity 0) (Quantity 0)
+                        , KesUpdateSpeed (Quantity 16)
+                        ]
+                    ]
+            unsafeDecodeHex getBlock bytes `shouldBe` block
 
         it "should decode a non-genesis BFT block (no transactions)" $ do
             let bytes =
@@ -148,10 +187,19 @@ spec = do
         let mainnet = Proxy @'Mainnet
         let testnet = Proxy @'Testnet
 
-        it "throws when encoding XPub of invalid length (Mainnet)" $
-            evaluate (singleAddressFromKey mainnet (XPub "\148" cc))
-                `shouldThrow` anyErrorCall
+        let userException str (e :: SomeException) = show e == str
 
-        it "throws when encoding XPub of invalid length (Testnet)" $
+        it "throws when encoding XPub of invalid length (Mainnet)" $ do
+            let msg = "length was 1, but expected to be 32"
+            evaluate (singleAddressFromKey mainnet (XPub "\148" cc))
+                `shouldThrow` userException msg
+
+        it "throws when encoding XPub of invalid length (Testnet)" $ do
+            let msg = "length was 1, but expected to be 32"
             evaluate (singleAddressFromKey testnet (XPub "\148" cc))
-                `shouldThrow` anyErrorCall
+                `shouldThrow` userException msg
+
+        it "throws when encoding an address of invalid length" $ do
+            let msg = "Address has unexpected length 1: Address {unAddress = \"0\"}"
+            evaluate (runPut $ putAddress $ Address "0")
+                `shouldThrow` userException msg
