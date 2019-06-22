@@ -165,7 +165,7 @@ spec = do
         let dir = "test/data/jormungandr"
         handle <- async $ void $ launch
             [ Command "jormungandr"
-                [ "--genesis-block", dir ++ "/block-0.bin"
+                [ "--genesis-block", dir ++ "/block0.bin"
                 , "--config", dir ++ "/config.yaml"
                 , "--secret", dir ++ "/secret.yaml"
                 ] (return ())
