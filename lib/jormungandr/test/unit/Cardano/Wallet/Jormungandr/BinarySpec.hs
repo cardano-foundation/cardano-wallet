@@ -22,20 +22,18 @@ import Cardano.Wallet.Jormungandr.Binary
     , Message (..)
     , Milli (..)
     , getBlock
-    , getBlockHeader
-    , runGet
     , singleAddressFromKey
     )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( block0 )
+    ( Jormungandr, block0 )
 import Cardano.Wallet.Jormungandr.Environment
     ( Network (..) )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Coin (..), Hash (..), SlotId (..), TxOut (..) )
+    ( Coin (..), Hash (..), SlotId (..), TxOut (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
+    ( unsafeDecodeAddress, unsafeDecodeHex, unsafeFromHex )
 import Control.Exception
     ( evaluate )
 import Data.Generics.Internal.VL.Lens
@@ -47,109 +45,113 @@ import Data.Proxy
 import Data.Quantity
     ( Quantity (..) )
 import Test.Hspec
-    ( Spec, anyErrorCall, describe, it, runIO, shouldBe, shouldThrow )
+    ( Spec, anyErrorCall, describe, it, shouldBe, shouldThrow )
 
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as BL
-
-{-# ANN spec ("HLint: ignore Use head" :: String) #-}
 spec :: Spec
 spec = do
-    blockBinary <- runIO . BL.readFile $ testDir <>
-        "4d2324138a42a8d9e93a6b749bedeec80308ecfbc4d01383da8ac20df109e9bc.bin"
+    describe "Decoding" $ do
+        it "should decode a genesis block (Testnet)" $ do
+            let proxy = Proxy @(Jormungandr 'Testnet)
+            let bytes =
+                    "00520000000001ca000000000000000000000000f7becdf807c706cef5\
+                    \4ec4832d2a747591c3f2141de3e4f2aef59a130d890c12000000000000\
+                    \0000000000000000000000000000000000000000000000000000007c00\
+                    \000c0088000000005cc1c24900410200c2000101040000087001410f01\
+                    \840000000a02e030a694b80dbba2d1b8a4b55652b03d96315c8414b054\
+                    \fa737445ac2d2a865c76020800000000000000dc0244000000ff028800\
+                    \000000000000dc03410103980000000000000000000000000000000000\
+                    \00000000000000002c020001833324c37869c122689a35917df53a4f22\
+                    \94a3a52f685e05f5f8e53b87e7ea452f000000000000000e0062010100\
+                    \0000000000007b005682d818584c83581c2ac3cc97bbec476496e84807\
+                    \f35df7349acfbaece200a24b7e26250ca20058208200581ca6d9aef475\
+                    \f3418967e87f7e93f20f99d8c7af406cba146affdb7191014645010203\
+                    \0405001a89a5937100b803000004000000000000000000000000000000\
+                    \d501d0fa7e180d33987d17f77cbf70e1463bce01d32d952ed6f9823f0d\
+                    \69eb37e35f931417c6075e0f3e5858198fe15831ba7fb51368fa2f0ac2\
+                    \7a799032729e08a624a4aafb7a4dde35e4742d258d04c5f3ec87e616b9\
+                    \bcb0cdc070b503fe634b46010040a856b8a6f8d18d588b5e1cfd3ea2e5\
+                    \6ae45b80126bb25feb8ccde27fe61ebc7fd64deb7667ab1a79ca2448f5\
+                    \6e60f3097c2fa657febdec19e7bd7abfb0ea4705"
+            let block = Block
+                    BlockHeader
+                        { version = 0
+                        , contentSize = 458
+                        , slot = block0 ^. #slotId
+                        , chainLength = 0
+                        , contentHash = Hash $ unsafeFromHex
+                            "f7becdf807c706cef54ec4832d2a7475\
+                            \91c3f2141de3e4f2aef59a130d890c12"
+                        , parentHeaderHash = block0 ^. #prevBlockHash
+                        }
+                    [ Initial
+                        [ Block0Date 1556202057
+                        , Discrimination Testnet
+                        , Consensus BFT
+                        , SlotsPerEpoch (Quantity 2160)
+                        , SlotDuration (Quantity 15)
+                        , EpochStabilityDepth (Quantity 10)
+                        , AddBftLeader $ LeaderId $ unsafeFromHex
+                            "30a694b80dbba2d1b8a4b55652b03d96\
+                            \315c8414b054fa737445ac2d2a865c76"
+                        , ConsensusGenesisPraosParamF (Milli 220)
+                        , MaxNumberOfTransactionsPerBlock 255
+                        , BftSlotsRatio (Milli 220)
+                        , AllowAccountCreation True
+                        , ConfigLinearFee $ LinearFee (Quantity 0) (Quantity 0) (Quantity 0)
+                        ]
+                    , Transaction (Tx
+                        { inputs = []
+                        , outputs =
+                            [ TxOut
+                                { address = unsafeDecodeAddress proxy
+                                    "ta1svejfsmcd8qjy6y6xkghmaf6fu3f\
+                                    \fga99a59up04lrjnhpl8afzj7w4yyxw"
+                                , coin = Coin 14
+                                }
+                            ]
+                        }, [])
+                    , UnimplementedMessage 1
+                    , UnimplementedMessage 3
+                    ]
+            unsafeDecodeHex getBlock bytes `shouldBe` block
 
-    describe "Decoding blocks" $ do
-        it "should decode a genesis block header" $ do
-            runGet getBlockHeader genesisBlockBinary
-            `shouldBe`
-            genesisHeader
+        it "should decode a genesis block (Mainnet)" $ do
+            return () :: IO ()
 
-        it "should decode a genesis block" $ do
-            runGet getBlock genesisBlockBinary
-            `shouldBe`
-            genesisBlock
+        it "should decode a non-genesis BFT block (no transactions)" $ do
+            let bytes =
+                    "00b20001000000000000031d000000d40000008f0e5751c026e543b2e8\
+                    \ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8d84f590d58c7\
+                    \eabc2e3c4f5cf459d3d2fee06069d813a7848b9ad8a154aef79bb216ee\
+                    \388fc25596cf43fbca815c463c37d79560b985800c3d6f3a0f5a977e32\
+                    \56818aa41fca8cbd5e18b6b1a97e8f6fc0fdfb209a14106e18088e8e40\
+                    \8f6262ae55c39accca704c1ac8c0dfffc66d4848c0b911202535bc33f6\
+                    \3d326cf9b504"
+            let block = Block
+                    BlockHeader
+                        { version = 1
+                        , contentSize = 0
+                        , slot = SlotId {epochNumber = 797, slotNumber = 212}
+                        , chainLength = 143
+                        , contentHash = Hash $ unsafeFromHex
+                            "0e5751c026e543b2e8ab2eb06099daa1\
+                            \d1e5df47778f7787faab45cdf12fe3a8"
+                        , parentHeaderHash = Hash $ unsafeFromHex
+                            "d84f590d58c7eabc2e3c4f5cf459d3d2\
+                            \fee06069d813a7848b9ad8a154aef79b"
+                        }
+                    []
+            unsafeDecodeHex getBlock bytes `shouldBe` block
 
-        it "should decode a non-genesis BFT block" $ do
-            runGet getBlock blockBinary
-            `shouldBe`
-            Block
-                BlockHeader
-                    { version = 1
-                    , contentSize = 0
-                    , slot = SlotId {epochNumber = 797, slotNumber = 212}
-                    , chainLength = 143
-                    , contentHash = Hash {getHash = "\SOWQ\192&\229C\178\232\171.\176`\153\218\161\209\229\223Gw\143w\135\250\171E\205\241/\227\168"}
-                    , parentHeaderHash = Hash {getHash = "\216OY\rX\199\234\188.<O\\\244Y\211\210\254\224`i\216\DC3\167\132\139\154\216\161T\174\247\155"}
-                    }
-                []
-    describe "singleAddressFromKey" $ do
-        let pub = "3$\195xi\193\"h\154\&5\145}\245:O\"\148\163\165/h^\ENQ\245\248\229;\135\231\234E/"
-        let singleAddrOnMainnet = 0x3
-        it "encodes (network <> tag <> key) correctly into an address" $
-            singleAddressFromKey (Proxy @'Mainnet) (XPub pub cc)
-            `shouldBe`
-            Address (BS.pack [singleAddrOnMainnet] <> pub)
-        it "throws when length (key) != 32" $
-            evaluate (singleAddressFromKey (Proxy @'Mainnet) (XPub "\148" cc))
-            `shouldThrow` anyErrorCall
-  where
-    cc = ChainCode "<ChainCode is not used by singleAddressToKey>"
+    describe "Encoding" $ do
+        let cc = ChainCode "<ChainCode is not used by singleAddressToKey>"
+        let mainnet = Proxy @'Mainnet
+        let testnet = Proxy @'Testnet
 
-genesisHeader :: BlockHeader
-genesisHeader = BlockHeader
-    { version = 0
-    , contentSize = 458
-    , slot = block0 ^. #slotId
-    , chainLength = 0
-    , contentHash = Hash "\247\190\205\248\a\199\ACK\206\245N\196\131-*tu\145\195\242\DC4\GS\227\228\242\174\245\154\DC3\r\137\f\DC2"
-    , parentHeaderHash = block0 ^. #prevBlockHash
-    }
+        it "throws when encoding XPub of invalid length (Mainnet)" $
+            evaluate (singleAddressFromKey mainnet (XPub "\148" cc))
+                `shouldThrow` anyErrorCall
 
-genesisBlock :: Block
-genesisBlock = Block genesisHeader
-    [ Initial
-        [ Block0Date 1556202057
-        , Discrimination Testnet
-        , Consensus BFT
-        , SlotsPerEpoch (Quantity 2160)
-        , SlotDuration (Quantity 15)
-        , EpochStabilityDepth (Quantity 10)
-        , AddBftLeader (LeaderId "0\166\148\184\r\187\162\209\184\164\181VR\176=\150\&1\\\132\DC4\176T\250stE\172-*\134\\v")
-        , ConsensusGenesisPraosParamF (Milli 220)
-        , MaxNumberOfTransactionsPerBlock 255
-        , BftSlotsRatio (Milli 220)
-        , AllowAccountCreation True
-        , ConfigLinearFee $ LinearFee (Quantity 0) (Quantity 0) (Quantity 0)
-        ]
-    , Transaction $ (Tx
-        { inputs = []
-        , outputs =
-            [ TxOut
-                { address = Address "\131\&3$\195xi\193\"h\154\&5\145}\245:O\"\148\163\165/h^\ENQ\245\248\229;\135\231\234E/"
-                , coin = Coin 14
-                }
-            ]
-        }, [])
-    , UnimplementedMessage 1
-    , UnimplementedMessage 3
-    ]
-
-genesisBlockBinary :: BL.ByteString
-genesisBlockBinary = BL.fromStrict $ unsafeFromHex
-    "00520000000001ca000000000000000000000000f7becdf807c706cef54ec4832d2a747591c3f21\
-    \41de3e4f2aef59a130d890c12000000000000000000000000000000000000000000000000000000\
-    \0000000000007c00000c0088000000005cc1c24900410200c2000101040000087001410f0184000\
-    \0000a02e030a694b80dbba2d1b8a4b55652b03d96315c8414b054fa737445ac2d2a865c76020800\
-    \000000000000dc0244000000ff028800000000000000dc034101039800000000000000000000000\
-    \0000000000000000000000000002c020001833324c37869c122689a35917df53a4f2294a3a52f68\
-    \5e05f5f8e53b87e7ea452f000000000000000e00620101000000000000007b005682d818584c835\
-    \81c2ac3cc97bbec476496e84807f35df7349acfbaece200a24b7e26250ca20058208200581ca6d9\
-    \aef475f3418967e87f7e93f20f99d8c7af406cba146affdb71910146450102030405001a89a5937\
-    \100b803000004000000000000000000000000000000d501d0fa7e180d33987d17f77cbf70e1463b\
-    \ce01d32d952ed6f9823f0d69eb37e35f931417c6075e0f3e5858198fe15831ba7fb51368fa2f0ac\
-    \27a799032729e08a624a4aafb7a4dde35e4742d258d04c5f3ec87e616b9bcb0cdc070b503fe634b\
-    \46010040a856b8a6f8d18d588b5e1cfd3ea2e56ae45b80126bb25feb8ccde27fe61ebc7fd64deb7\
-    \667ab1a79ca2448f56e60f3097c2fa657febdec19e7bd7abfb0ea4705"
-
-testDir :: FilePath
-testDir = "test/data/Cardano/Wallet/Jormungandr/"
+        it "throws when encoding XPub of invalid length (Testnet)" $
+            evaluate (singleAddressFromKey testnet (XPub "\148" cc))
+                `shouldThrow` anyErrorCall
