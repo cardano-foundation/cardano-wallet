@@ -217,9 +217,16 @@ mkHttpBridgeLayer mgr baseUrl networkName = HttpBridgeLayer
                 defaultHandler ctx x
 
     , getNetworkTip = ExceptT $ do
+        let e0 = "Couldn't find Tip"
         run (blockHeaderHash <$> cGetNetworkTip networkName) >>= \case
             Left (FailureResponse e) | responseStatusCode e == status404 ->
-              return $ Left ErrNetworkTipNotFound
+                return $ Left ErrNetworkTipNotFound
+            Left (FailureResponse e)
+                | responseStatusCode e == status500 && responseBody e == e0 ->
+                -- Sometimes during initialization, the bridge fails to fetch
+                -- the tip block from the storage. This looks like a race
+                -- condition but, the real cause is unclear.
+                return $ Left ErrNetworkTipNotFound
             x -> do
                 let ctx = safeLink api (Proxy @GetTipBlockHeader) networkName
                 left ErrNetworkTipNetworkUnreachable <$> defaultHandler ctx x
