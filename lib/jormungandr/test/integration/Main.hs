@@ -85,6 +85,8 @@ import qualified Cardano.Wallet.Jormungandr.Transaction as Jormungandr
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Network.Wai.Handler.Warp as Warp
+import qualified Test.Integration.Scenario.API.Addresses as Addresses
+import qualified Test.Integration.Scenario.API.Wallets as Wallets
 
 -- | Temporary 'Spec' to illustrate that the integration scenario setup below
 -- works as expected.
@@ -111,6 +113,8 @@ main = hspec $ do
     describe "Cardano.Wallet.NetworkSpec" Network.spec
     beforeAll start $ afterAll cleanup $ after tearDown $ do
         describe "Jörmungandr Temporary Spec" temporarySpec
+        describe "Wallets API endpoint tests" Wallets.spec
+        describe "Addresses API endpoint tests" Addresses.spec
   where
     start :: IO (Context (Jormungandr 'Testnet))
     start = do
