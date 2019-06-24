@@ -61,7 +61,7 @@ import Network.Wai.Handler.Warp
 import System.Directory
     ( createDirectoryIfMissing, removePathForcibly )
 import System.IO
-    ( IOMode (..), hClose, openFile )
+    ( IOMode (..), hClose, hSetEncoding, openFile, stderr, stdout, utf8 )
 import Test.Hspec
     ( after, afterAll, beforeAll, describe, hspec )
 import Test.Integration.Framework.DSL
@@ -90,40 +90,43 @@ import qualified Test.Integration.Scenario.CLI.Transactions as TransactionsCLI
 import qualified Test.Integration.Scenario.CLI.Wallets as WalletsCLI
 
 main :: IO ()
-main = hspec $ do
-    describe "Cardano.LauncherSpec" Launcher.spec
-    describe "Cardano.WalletSpec" Wallet.spec
-    describe "Cardano.Wallet.HttpBridge.NetworkSpec" HttpBridge.spec
-    describe "CLI commands not requiring bridge" $ do
-        describe "Mnemonics CLI tests" MnemonicsCLI.spec
-        describe "--port CLI tests" $ do
-            PortCLI.specNegative
-            cardanoWalletServer Nothing
-                & beforeAll
-                $ afterAll killServer
-                $ describe "with default port" $ do
-                    PortCLI.specCommon
-                    PortCLI.specWithDefaultPort
-            cardanoWalletServer (Just $ ListenOnPort defaultPort)
-                & beforeAll
-                $ afterAll killServer
-                $ describe "with specified port" $ do
-                    PortCLI.specCommon
-            cardanoWalletServer (Just ListenOnRandomPort)
-                & beforeAll
-                $ afterAll killServer
-                $ describe "with random port" $ do
-                    PortCLI.specCommon
-                    PortCLI.specWithRandomPort defaultPort
-    beforeAll startCluster $
-        afterAll killCluster $ after tearDown $ do
-        describe "Wallets API endpoint tests" Wallets.spec
-        describe "Transactions API endpoint tests" Transactions.spec
-        describe "Addresses API endpoint tests" Addresses.spec
-        describe "Wallets CLI tests" WalletsCLI.spec
-        describe "Transactions CLI tests" TransactionsCLI.spec
-        describe "Addresses CLI tests" AddressesCLI.spec
-        describe "Server CLI tests" ServerCLI.spec
+main = do
+    hSetEncoding stdout utf8
+    hSetEncoding stderr utf8
+    hspec $ do
+        describe "Cardano.LauncherSpec" Launcher.spec
+        describe "Cardano.WalletSpec" Wallet.spec
+        describe "Cardano.Wallet.HttpBridge.NetworkSpec" HttpBridge.spec
+        describe "CLI commands not requiring bridge" $ do
+            describe "Mnemonics CLI tests" MnemonicsCLI.spec
+            describe "--port CLI tests" $ do
+                PortCLI.specNegative
+                cardanoWalletServer Nothing
+                    & beforeAll
+                    $ afterAll killServer
+                    $ describe "with default port" $ do
+                        PortCLI.specCommon
+                        PortCLI.specWithDefaultPort
+                cardanoWalletServer (Just $ ListenOnPort defaultPort)
+                    & beforeAll
+                    $ afterAll killServer
+                    $ describe "with specified port" $ do
+                        PortCLI.specCommon
+                cardanoWalletServer (Just ListenOnRandomPort)
+                    & beforeAll
+                    $ afterAll killServer
+                    $ describe "with random port" $ do
+                        PortCLI.specCommon
+                        PortCLI.specWithRandomPort defaultPort
+        beforeAll startCluster $
+            afterAll killCluster $ after tearDown $ do
+            describe "Wallets API endpoint tests" Wallets.spec
+            describe "Transactions API endpoint tests" Transactions.spec
+            describe "Addresses API endpoint tests" Addresses.spec
+            describe "Wallets CLI tests" WalletsCLI.spec
+            describe "Transactions CLI tests" TransactionsCLI.spec
+            describe "Addresses CLI tests" AddressesCLI.spec
+            describe "Server CLI tests" ServerCLI.spec
   where
     oneSecond :: Int
     oneSecond = 1 * 1000 * 1000 -- 1 second in microseconds
