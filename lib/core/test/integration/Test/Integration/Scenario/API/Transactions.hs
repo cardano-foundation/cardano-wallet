@@ -717,7 +717,7 @@ spec = do
             ]
 
     it "TRANS_CREATE_09 - 0 amount transaction is forbidden on multi-output tx" $ \ctx -> do
-        wSrc <- fixtureWalletWith ctx [10_000_000, 12_000_000]
+        wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
         addrs <- listAddresses ctx wDest
 
@@ -738,7 +738,7 @@ spec = do
                         "unit": "lovelace"
                     }
                 }],
-                "passphrase": "Secure Passphrase"
+                "passphrase": "cardano-wallet"
             }|]
 
         r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload

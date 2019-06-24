@@ -465,7 +465,7 @@ spec = do
         c `shouldBe` ExitFailure 1
 
     it "TRANS_CREATE_09 - 0 amount transaction is forbidden on multi-output tx" $ \ctx -> do
-        wSrc <- fixtureWalletWith ctx [10_000_000, 10_000_000]
+        wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
         addrs <- listAddresses ctx wDest
         let addr1 =
@@ -478,7 +478,7 @@ spec = do
                 , "--payment", "15@" <> addr2
                 ]
 
-        (c, out, err) <- postTransactionViaCLI ctx "Secure Passphrase" args
+        (c, out, err) <- postTransactionViaCLI ctx "cardano-wallet" args
         (T.unpack err) `shouldContain` errMsg403InvalidTransaction
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
