@@ -397,7 +397,7 @@ expectCliListItemFieldEqual i getter a out
 expectPathEventuallyExist :: FilePath -> IO ()
 expectPathEventuallyExist filepath = do
     handle <- async doesPathExistNow
-    winner <- race (threadDelay (10 * oneSecond)) (wait handle)
+    winner <- race (threadDelay (60 * oneSecond)) (wait handle)
     case winner of
         Left _ -> expectationFailure $
             "waited more than 60s for " <> filepath <> " to be created!"
