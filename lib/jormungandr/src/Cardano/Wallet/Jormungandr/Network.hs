@@ -34,7 +34,13 @@ module Cardano.Wallet.Jormungandr.Network
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Api
-    ( BlockId (..), GetBlock, GetBlockDescendantIds, GetTipId, api )
+    ( BlockId (..)
+    , GetBlock
+    , GetBlockDescendantIds
+    , GetTipId
+    , PostMessage
+    , api
+    )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Primitive.Types
@@ -43,10 +49,11 @@ import Cardano.Wallet.Network
     ( ErrGetBlock (..)
     , ErrNetworkTip (..)
     , ErrNetworkUnreachable (..)
+    , ErrPostTx (..)
     , NetworkLayer (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), Hash (..) )
+    ( Block (..), BlockHeader (..), Hash (..), TxWitness (..) )
 import Control.Arrow
     ( left )
 import Control.Exception
@@ -71,6 +78,7 @@ import Servant.Client
     , Scheme (..)
     , client
     , mkClientEnv
+    , responseBody
     , responseStatusCode
     , runClientM
     )
@@ -78,6 +86,9 @@ import Servant.Client.Core
     ( ServantError (..) )
 import Servant.Links
     ( Link, safeLink )
+
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.Text.Encoding as T
 
 -- | Creates a new 'NetworkLayer' connecting to an underlying 'Jormungandr'
 -- backend target.
@@ -118,7 +129,7 @@ mkNetworkLayer j = NetworkLayer
                 ErrGetBlockNotFound (prevBlockHash tip)
         forM ids (getBlock j)
 
-    , postTx = error "postTx to be implemented"
+    , postTx = postMessage j
     }
   where
     mappingError = flip withExceptT
@@ -140,6 +151,9 @@ data JormungandrLayer m = JormungandrLayer
         :: Hash "BlockHeader"
         -> Word
         -> ExceptT ErrGetDescendants m [Hash "BlockHeader"]
+    , postMessage
+        :: (Tx, [TxWitness])
+        -> ExceptT ErrPostTx m ()
     }
 
 -- | Construct a 'JormungandrLayer'-client
@@ -187,6 +201,15 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
                         (BlockId parentId)
                         (Just count)
                 left ErrGetDescendantsNetworkUnreachable <$> defaultHandler ctx x
+    , postMessage = \tx -> ExceptT $ do
+        run (const () <$> cPostMessage tx) >>= \case
+            Left (FailureResponse e)
+                | responseStatusCode e == status400 -> do
+                    let msg = T.decodeUtf8 $ BL.toStrict $ responseBody e
+                    return $ Left $ ErrPostTxBadRequest msg
+            x -> do
+                let ctx = safeLink api (Proxy @PostMessage)
+                left ErrPostTxNetworkUnreachable <$> defaultHandler ctx x
     }
   where
     run :: ClientM a -> IO (Either ServantError a)
@@ -213,6 +236,7 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
     cGetTipId
         :<|> cGetBlock
         :<|> cGetBlockDescendantIds
+        :<|> cPostMessage
         = client api
 
 data ErrUnexpectedNetworkFailure
