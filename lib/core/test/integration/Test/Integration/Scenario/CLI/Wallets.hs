@@ -171,8 +171,8 @@ spec = do
             (c, o, e) <- createWalletViaCLI ctx [n] m "\n" "secure-passphrase"
             c `shouldBe` ExitSuccess
             T.unpack e `shouldContain` cmdOk
-            _ <- expectValidJSON (Proxy @ApiWallet) o
-            o `shouldContain` n
+            j <- expectValidJSON (Proxy @ApiWallet) o
+            expectCliFieldEqual walletName (T.pack n) j
 
     it "WALLETS_CREATE_04 - Cannot create wallet when name exceeds length" $ \ctx -> do
         let n = replicate (walletNameMaxLength + 1) 'ą'
@@ -371,8 +371,8 @@ spec = do
             (Exit c, Stdout out, Stderr err) <- updateWalletViaCLI ctx args
             c `shouldBe` ExitSuccess
             err `shouldBe` cmdOk
-            _ <- expectValidJSON (Proxy @ApiWallet) out
-            out `shouldContain` n
+            j <- expectValidJSON (Proxy @ApiWallet) out
+            expectCliFieldEqual walletName (T.pack n) j
 
     it "WALLETS_DELETE_01, WALLETS_LIST_02 - Can delete wallet" $ \ctx -> do
         walId <- emptyWallet' ctx
@@ -401,6 +401,6 @@ walletNames =
         , ( "Russian", "АаБбВвГгДдЕеЁёЖжЗз")
         -- these names give error in automated tests which cannot be reproduced
         -- by hand:
-        -- , ( "Polish", "aąbcćdeęfghijklłmnoóp" )
-        -- , ( "Kanji", "亜哀挨愛曖悪握圧扱宛嵐")
+        , ( "Polish", "aąbcćdeęfghijklłmnoóp" )
+        , ( "Kanji", "亜哀挨愛曖悪握圧扱宛嵐")
         ]
