@@ -11,7 +11,8 @@ special unicode characters that look alike: `ᐸ` and `ᐳ`
 
 <pre>
 Usage:
-  cardano-wallet <a href="#server">server</a> [--port=INT] [--bridge-port=INT]
+  cardano-wallet <a href="#launch">launch</a> [--network=STRING] [(--port=INT | --random-port)] [--bridge-port=INT] [--state-dir=DIR] [(--quiet | --verbose )]
+  cardano-wallet <a href="#serve">serve</a> [--network=STRING] [(--port=INT | --random-port)] [--bridge-port=INT] [--database=FILE] [(--quiet | --verbose )]
   cardano-wallet <a href="#mnemonic-generate">mnemonic generate</a> [--size=INT]
   cardano-wallet <a href="#wallet-list">wallet list</a> [--port=INT]
   cardano-wallet <a href="#wallet-create">wallet create</a> [--port=INT] ᐸnameᐳ [--address-pool-gap=INT]
@@ -19,7 +20,7 @@ Usage:
   cardano-wallet <a href="#wallet-update">wallet update</a> [--port=INT] ᐸwallet-idᐳ --name=STRING
   cardano-wallet <a href="#wallet-delete">wallet delete</a> [--port=INT] ᐸwallet-idᐳ
   cardano-wallet <a href="#transaction-create">transaction create</a> [--port=INT] ᐸwallet-idᐳ --payment=PAYMENT...
-  cardano-wallet <a href="#address-list">address list</a> [--port=INT] ᐸwallet-idᐳ
+  cardano-wallet <a href="#address-list">address list</a> [--port=INT] [--state=STRING] ᐸwallet-idᐳ
   cardano-wallet -h | --help
   cardano-wallet --version
 </pre> 
@@ -30,11 +31,26 @@ Usage:
 
 # Commands
 
-## server
+## launch
 
-> `cardano-wallet server [--port=INT] [--bridge-port=INT]`
+> cardano-wallet launch [--network=STRING] [(--port=INT | --random-port)] [--bridge-port=INT] [--state-dir=DIR] [(--quiet | --verbose )]`
 
-Launches API that listens for commands/actions. Before launching user should build `cardano-http-bridge` https://github.com/input-output-hk/cardano-http-bridge/ (see details on the provided link). To run `cardano-http-bridge` do:
+Launches and manages two sub-processes:
+
+- A wallet server (using `cardano-wallet serve`)
+- A corresponding node backend (e.g. `cardano-http-bridge`)
+
+This is a shortcut command for those looking into an _out-of-the-box_ solution for running the software.
+
+```
+$ cardano-wallet launch --network=testnet
+```
+
+## serve
+
+> `cardano-wallet serve [--network=STRING] [(--port=INT | --random-port)] [--bridge-port=INT] [--database=FILE] [(--quiet | --verbose )]`
+
+Serve API that listens for commands/actions. Before launching user should build `cardano-http-bridge` https://github.com/input-output-hk/cardano-http-bridge/ (see details on the provided link). To run `cardano-http-bridge` do:
 
 ```
 $ cardano-http-bridge start --template testnet --port=8080
@@ -43,11 +59,10 @@ $ cardano-http-bridge start --template testnet --port=8080
 Then you should launch the API with:
 
 ```
-$ NETWORK=testnet cardano-wallet server --bridge-port 8080
-Wallet backend server listening on: 8090
+$ cardano-wallet serve --network=testnet --bridge-port 8080
 ```
 
-This will launch the API
+This will launch the web server.
 
 ## mnemonic generate
 
@@ -139,7 +154,7 @@ This creates a transaction that sends 22 lovelace to `Ae2tdPwUPEZ...nRtbfw6EHRv1
 
 ## address list
 
-> `cardano-wallet address list [--port=INT] <wallet-id>` 
+> `cardano-wallet address list [--port=INT] [--state=STRING] <wallet-id>` 
 
 List all known (used or not) addresses and their corresponding status.
 
