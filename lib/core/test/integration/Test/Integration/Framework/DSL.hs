@@ -120,7 +120,7 @@ import Control.Monad.Catch
 import Control.Monad.Fail
     ( MonadFail (..) )
 import Control.Monad.IO.Class
-    ( MonadIO )
+    ( MonadIO, liftIO )
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString )
 import Data.Aeson
@@ -316,7 +316,7 @@ expectListSizeEqual l (_, res) = case res of
 -- | Expects wallet from the request to eventually reach the given state or
 -- beyond
 expectEventually
-    :: (MonadIO m, MonadCatch m, MonadFail m, Ord a)
+    :: (MonadIO m, MonadCatch m, MonadFail m, Ord a, Show a)
     => Context t
     -> Lens' ApiWallet a
     -> a
@@ -324,18 +324,27 @@ expectEventually
     -> m ()
 expectEventually ctx getter target (_, res) = case res of
     Left e -> wantedSuccessButError e
-    Right s -> loopUntilRestore (s ^. walletId)
+    Right s -> liftIO $ do
+        let wid = s ^. walletId
+        winner <- race (threadDelay $ 60 * oneSecond) (loopUntilRestore wid)
+        case winner of
+            Left _ -> expectationFailure $
+                "waited more than 60s for value to exceed " <> show target
+            Right _ ->
+                return ()
   where
-    loopUntilRestore :: (MonadIO m, MonadCatch m) => Text -> m ()
+    oneSecond = 1_000_000
+    loopUntilRestore :: Text -> IO ()
     loopUntilRestore wid = do
         r <- request @ApiWallet ctx ("GET", "v2/wallets/" <> wid) Default Empty
         let target' = getFromResponse getter r
-        unless (target' >= target) $ loopUntilRestore wid
+        unless (target' >= target) $
+            let ms = 1000 in threadDelay (500 * ms) *> loopUntilRestore wid
 
 -- | Same as `expectEventually` but work directly on ApiWallet
 -- , not response from the API
 expectEventually'
-    :: (MonadIO m, MonadCatch m, MonadFail m, Ord a)
+    :: (MonadIO m, MonadCatch m, MonadFail m, Ord a, Show a)
     => Context t
     -> Lens' ApiWallet a
     -> a

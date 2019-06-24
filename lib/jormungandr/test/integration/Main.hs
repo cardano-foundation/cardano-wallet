@@ -10,8 +10,16 @@ module Main where
 
 import Prelude
 
+import Cardano.BM.Configuration.Model
+    ( setMinSeverity )
+import Cardano.BM.Configuration.Static
+    ( defaultConfigStdout )
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Setup
+    ( setupTrace )
 import Cardano.BM.Trace
-    ( nullTracer )
+    ( Trace, appendName )
 import Cardano.Faucet
     ( initFaucet )
 import Cardano.Launcher
@@ -48,6 +56,8 @@ import Data.Function
     ( (&) )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Text
+    ( Text )
 import Database.Persist.Sql
     ( SqlBackend, close' )
 import Network.HTTP.Client
@@ -141,6 +151,13 @@ main = hspec $ do
         hClose (_logs ctx)
         close' (_db ctx)
 
+-- | Initialize logging at the specified minimum 'Severity' level.
+initTracer :: Severity -> Text -> IO (Trace IO Text)
+initTracer minSeverity cmd = do
+    c <- defaultConfigStdout
+    setMinSeverity c minSeverity
+    setupTrace (Right c) "cardano-wallet" >>= appendName cmd
+
 -- NOTE
 -- We start the wallet server in the same process such that we get
 -- code coverage measures from running the scenarios on top of it!
@@ -148,17 +165,18 @@ cardanoWalletServer
     :: forall network. (network ~ Jormungandr 'Testnet)
     => IO (Int, SqlBackend)
 cardanoWalletServer = do
+    tracer <- initTracer Info "serve"
     (nl, block0) <- newNetworkLayer jormungandrUrl block0H
-    (conn, db) <- Sqlite.newDBLayer @_ @network nullTracer Nothing
+    (conn, db) <- Sqlite.newDBLayer @_ @network tracer Nothing
     mvar <- newEmptyMVar
     void $ forkIO $ do
         let tl = Jormungandr.newTransactionLayer block0H
-        wallet <- newWalletLayer nullTracer block0 db nl tl
+        wallet <- newWalletLayer tracer block0 db nl tl
         let listen = ListenOnRandomPort
         Server.withListeningSocket listen $ \(port, socket) -> do
             let settings = Warp.defaultSettings
                     & setBeforeMainLoop (putMVar mvar port)
-            Server.start settings nullTracer socket wallet
+            Server.start settings tracer socket wallet
     (,conn) <$> takeMVar mvar
   where
     jormungandrUrl :: BaseUrl

@@ -59,7 +59,7 @@ import Control.Arrow
 import Control.Exception
     ( Exception )
 import Control.Monad
-    ( forM )
+    ( forM, void )
 import Control.Monad.Catch
     ( throwM )
 import Control.Monad.Trans.Except
@@ -201,8 +201,8 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
                         (BlockId parentId)
                         (Just count)
                 left ErrGetDescendantsNetworkUnreachable <$> defaultHandler ctx x
-    , postMessage = \tx -> ExceptT $ do
-        run (const () <$> cPostMessage tx) >>= \case
+    , postMessage = \tx -> void $ ExceptT $ do
+        run (cPostMessage tx) >>= \case
             Left (FailureResponse e)
                 | responseStatusCode e == status400 -> do
                     let msg = T.decodeUtf8 $ BL.toStrict $ responseBody e

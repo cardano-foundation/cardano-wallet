@@ -437,6 +437,7 @@ newWalletLayer tracer block0 db nw tl = do
         -> ExceptT ErrNoSuchWallet IO ()
     _restoreWallet re wid = do
         (w, _) <- _readWallet wid
+        liftIO $ logInfo tracer $ "restoring wallet: " +|| wid ||+ ""
         worker <- liftIO $ forkIO $ do
             runExceptT (networkTip nw) >>= \case
                 Left e -> do
