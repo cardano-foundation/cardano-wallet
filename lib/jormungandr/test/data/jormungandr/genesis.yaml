@@ -32,7 +32,7 @@ blockchain_configuration:
   # A list of Ed25519 Extended PublicKey that represents the
   # BFT leaders encoded as bech32. The order in the list matters.
   consensus_leader_ids:
-    - ed25519_pk1kgtwuwy0cf2edn6rl09gzhzx8sma09tqhxzcqrpaduaq7k5h0ceqe4qqpv
+    - ed25519_pk1haythczarvl75wt6y6fmq0gjz7j9xcyfatwchj523wdawechkd8qp735w5
 
   # Genesis praos parameter D
   bft_slots_ratio: 0.220

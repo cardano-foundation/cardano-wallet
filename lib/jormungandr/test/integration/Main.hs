@@ -151,7 +151,7 @@ cardanoWalletServer = do
     jormungandrUrl :: BaseUrl
     jormungandrUrl = BaseUrl Http "localhost" 8081 "/api"
     block0H = Hash $ unsafeFromHex
-        "24192c29893fe52edc26567263b028711334554b239bf562334bf4b8ca920da1"
+        "fa44a4165333474555346bf6133fd857f5f08cc2740f54504e471a157c86e398"
         -- ^ jcli genesis hash --input test/data/jormungandr/block0.bin
 
 -- Instantiate a new 'NetworkLayer' for 'Jormungandr', and fetches the
