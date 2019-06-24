@@ -11,8 +11,18 @@ special unicode characters that look alike: `ᐸ` and `ᐳ`
 
 <pre>
 Usage:
-  cardano-wallet <a href="#launch">launch</a> [--network=STRING] [(--port=INT | --random-port)] [--bridge-port=INT] [--state-dir=DIR] [(--quiet | --verbose )]
-  cardano-wallet <a href="#serve">serve</a> [--network=STRING] [(--port=INT | --random-port)] [--bridge-port=INT] [--database=FILE] [(--quiet | --verbose )]
+  cardano-wallet <a href="#launch">launch</a> 
+    [--network=STRING] 
+    [(--port=INT | --random-port)] 
+    [--bridge-port=INT] 
+    [--state-dir=DIR] 
+    [(--quiet | --verbose )]
+  cardano-wallet <a href="#serve">serve</a> 
+    [--network=STRING]
+    [(--port=INT | --random-port)]
+    [--bridge-port=INT] 
+    [--database=FILE] 
+    [(--quiet | --verbose )]
   cardano-wallet <a href="#mnemonic-generate">mnemonic generate</a> [--size=INT]
   cardano-wallet <a href="#wallet-list">wallet list</a> [--port=INT]
   cardano-wallet <a href="#wallet-create">wallet create</a> [--port=INT] ᐸnameᐳ [--address-pool-gap=INT]
