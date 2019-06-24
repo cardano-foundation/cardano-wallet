@@ -13,7 +13,7 @@ import Cardano.BM.Trace
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
-    ( WalletLayer (..), newWalletLayer, unsafeRunExceptT )
+    ( WalletLayer (..), newWalletLayer )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge, block0 )
 import Cardano.Wallet.HttpBridge.Environment
@@ -28,6 +28,8 @@ import Cardano.Wallet.Primitive.Model
     ( currentTip )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..), SlotId (..), WalletId (..), WalletName (..) )
+import Cardano.Wallet.Unsafe
+    ( unsafeRunExceptT )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async

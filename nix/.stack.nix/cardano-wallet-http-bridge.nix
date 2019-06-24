@@ -98,7 +98,6 @@
             (hsPkgs.http-api-data)
             (hsPkgs.http-types)
             (hsPkgs.iohk-monitoring)
-            (hsPkgs.memory)
             (hsPkgs.persistent)
             (hsPkgs.persistent-sqlite)
             (hsPkgs.process)

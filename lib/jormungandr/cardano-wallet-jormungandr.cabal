@@ -98,7 +98,6 @@ test-suite unit
      exitcode-stdio-1.0
   hs-source-dirs:
       test/unit
-      test/shared
   main-is:
       Main.hs
   other-modules:
@@ -106,7 +105,6 @@ test-suite unit
       Cardano.Wallet.Jormungandr.EnvironmentSpec
       Cardano.Wallet.Jormungandr.CompatibilitySpec
       Cardano.Wallet.Jormungandr.TransactionSpec
-      Cardano.Wallet.Unsafe
 
 test-suite integration
   default-language:
@@ -126,6 +124,7 @@ test-suite integration
     , aeson-qq
     , async
     , base
+    , binary
     , bytestring
     , cardano-wallet-cli
     , cardano-wallet-core
@@ -143,6 +142,9 @@ test-suite integration
     , http-api-data
     , http-client
     , http-types
+    , iohk-monitoring
+    , memory
+    , persistent
     , persistent-sqlite
     , process
     , QuickCheck
@@ -161,7 +163,6 @@ test-suite integration
       Main.hs
   other-modules:
       Cardano.Faucet
-      Cardano.LauncherSpec
       Cardano.Wallet.Jormungandr.NetworkSpec
       Test.Integration.Faucet
       Test.Integration.Framework.DSL

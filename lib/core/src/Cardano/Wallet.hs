@@ -38,9 +38,6 @@ module Cardano.Wallet
 
     -- * Construction
     , newWalletLayer
-
-    -- * Helpers
-    , unsafeRunExceptT
     ) where
 
 import Prelude hiding
@@ -120,6 +117,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Transaction
     ( ErrMkStdTx (..), TransactionLayer (..) )
+import Cardano.Wallet.Unsafe
+    ( unsafeRunExceptT )
 import Control.Arrow
     ( first )
 import Control.Concurrent
@@ -129,9 +128,7 @@ import Control.Concurrent.MVar
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( forM, unless, (>=>) )
-import Control.Monad.Fail
-    ( MonadFail )
+    ( forM, unless )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Class
@@ -663,17 +660,3 @@ newWalletLayer tracer block0 db nw tl = do
                         return $ checkPassphrase pwd hpwd
                     return xprv
         action xprv
-
-{-------------------------------------------------------------------------------
-                                 Helpers
--------------------------------------------------------------------------------}
-
--- | Run an 'ExceptT' and throws the error if any. This makes sense only if
--- called after checking for an invariant or, after ensuring that preconditions
--- for meeting the underlying error have been discarded.
-unsafeRunExceptT :: (MonadFail m, Show e) => ExceptT e m a -> m a
-unsafeRunExceptT = runExceptT >=> \case
-    Left e ->
-        fail $ "unexpected error: " <> show e
-    Right a ->
-        return a

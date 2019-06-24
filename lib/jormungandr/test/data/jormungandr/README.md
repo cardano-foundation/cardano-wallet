@@ -3,14 +3,14 @@
 ## How to generate a new genesis block 
 
 ```bash
-$ jcli genesis encode --input genesis.yaml --output block-0.bin
+$ jcli genesis encode --input genesis.yaml --output block0.bin
 ```
 
 ## How to launch jormungandr
 
 
 ```bash
-$ jormungandr --genesis-block block-0.bin --config config.yaml --secret secret.yaml
+$ jormungandr --genesis-block block0.bin --config config.yaml --secret secret.yaml
 ```
 
 ## How to generate keys (to put in genesis.yaml and secret.yaml)

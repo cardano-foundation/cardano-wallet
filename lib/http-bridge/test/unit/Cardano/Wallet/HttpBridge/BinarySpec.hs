@@ -30,8 +30,7 @@ import Cardano.Wallet.HttpBridge.Environment
 import Cardano.Wallet.HttpBridge.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
-    , Block (..)
+    ( Block (..)
     , BlockHeader (..)
     , Coin (..)
     , Hash (..)
@@ -39,19 +38,14 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
-    , decodeAddress
     , txId
     )
-import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase )
-import Data.ByteString
-    ( ByteString )
+import Cardano.Wallet.Unsafe
+    ( unsafeDecodeAddress, unsafeFromHex )
 import Data.Either
     ( isLeft )
 import Data.Proxy
     ( Proxy (..) )
-import Data.Text
-    ( Text )
 import Test.Hspec
     ( Expectation, HasCallStack, Spec, describe, it, shouldBe, shouldSatisfy )
 
@@ -120,14 +114,14 @@ spec = do
 
         it "should compute correct txId (1)" $ do
             let hash = txId @(HttpBridge 'Testnet) (txs !! 0)
-            let hash' = hash16
+            let hash' = Hash $ unsafeFromHex
                     "c470563001e448e61ff1268c2a6eb458\
                     \ace1d04011a02cb262b6d709d66c23d0"
             hash `shouldBe` hash'
 
         it "should compute correct txId (2)" $ do
             let hash = txId @(HttpBridge 'Testnet) (txs !! 1)
-            let hash' = hash16
+            let hash' = Hash $ unsafeFromHex
                     "d30d37f1f8674c6c33052826fdc5bc19\
                     \8e3e95c150364fd775d4bc663ae6a9e6"
             hash `shouldBe` hash'
@@ -164,7 +158,7 @@ cborRoundtrip decode encode a = do
 blockHeader1 :: BlockHeader
 blockHeader1 = BlockHeader
     { slotId = SlotId 105 9520
-    , prevBlockHash = hash16
+    , prevBlockHash = Hash $ unsafeFromHex
         "9f3c67b575bf2c5638291949694849d6ce5d29efa1f2eb3ed0beb6dac262e9e0"
     }
 
@@ -178,7 +172,7 @@ block1 = Block
     , transactions = mempty
     }
   where
-    prevBlockHash0 = hash16
+    prevBlockHash0 = Hash $ unsafeFromHex
         "4d97da40fb62bec847d6123762e82f9325f11d0c8e89deee0c7dbb598ed5f0cf"
 
 -- A mainnet block with a transaction
@@ -199,14 +193,14 @@ block2 = Block
         ]
     }
   where
-    prevBlockHash0 = hash16
+    prevBlockHash0 = Hash $ unsafeFromHex
         "da73001193ab3e6a43921385941c5f96b8f56de3908e78fae06f038b91dadd9d"
-    inputId0 = hash16
+    inputId0 = Hash $ unsafeFromHex
         "60dbb2679ee920540c18195a3d92ee9be50aee6ed5f891d92d51db8a76b02cd2"
-    address0 = unsafeDecodeAddress
+    address0 = unsafeDecodeAddress (Proxy @(HttpBridge 'Testnet))
         "DdzFFzCqrhsug8jKBMV5Cr94hKY4DrbJtkUpqptoGEkovR2QSkcA\
         \cRgjnUyegE689qBX6b2kyxyNvCL6mfqiarzRB9TRq8zwJphR31pr"
-    address1 = unsafeDecodeAddress
+    address1 = unsafeDecodeAddress (Proxy @(HttpBridge 'Testnet))
         "DdzFFzCqrhsmxmuQpgjUrvRwF5ZKnyQ7pGrS4q53u5B516wcc26m\
         \aHz9M4myYAkQVc5m9E4DKJjRDjPxuDdK3ZsHb1Dnqf3XorZ1PnzX"
 
@@ -229,16 +223,16 @@ block3 = Block
         ]
     }
   where
-    prevBlockHash0 = hash16
+    prevBlockHash0 = Hash $ unsafeFromHex
         "b065b5fe97bec5fd130e7a639189499c9d0b1fcf9348c5c19f7a22700da7a35e"
-    inputId0 = hash16
+    inputId0 = Hash $ unsafeFromHex
         "6967e2b5c3ad5ae07a9bd8d888f1836195a04f7a1cb4b6d083261870068fab1b"
-    inputId1 = hash16
+    inputId1 = Hash $ unsafeFromHex
         "7064addc0968bccd7d57d2e7aa1e9c2f666d8387042483fc1e87200cfb96c8f1"
-    address0 = unsafeDecodeAddress
+    address0 = unsafeDecodeAddress (Proxy @(HttpBridge 'Testnet))
         "37btjrVyb4KBsw2f3V76ntfwqDPgyf3QmmdsrTSmCnuTGYtS9JgVXzxeQ\
         \EsKjgWurKoyw9BDNEtLxWtU9znK49SC8bLTirk6YqcAESFxXJkSyXhQKL"
-    address1 = unsafeDecodeAddress
+    address1 = unsafeDecodeAddress (Proxy @(HttpBridge 'Testnet))
         "37btjrVyb4KD5Ne4yvGAHGbQuHUYQX1VPsXh85rBh3UrGSMWdRSFxBYQ9\
         \RQRHCMezN6AMLd3uYTC5hbeVTUiPzfQUTCEogg2HrSJKQUjAgsoYZHwT3"
 
@@ -289,37 +283,26 @@ block4 = Block
         ]
     }
   where
-    prevBlockHash0 = hash16
+    prevBlockHash0 = Hash $ unsafeFromHex
         "f4283844eb78ca6f6333b007f5a735d71499d6ce7cc816846a033a36784bd299"
-    inputId0 = hash16
+    inputId0 = Hash $ unsafeFromHex
         "f91292301d4bb1b6e040cecdff4030959b49c95e7dae087782dd558bebb6668a"
-    addr0 = unsafeDecodeAddress
+    addr0 = unsafeDecodeAddress (Proxy @(HttpBridge 'Testnet))
         "DdzFFzCqrhss1h6EV6KqcSkJNoC2UdtnuP1gGsoxT5Gv8GPfsReX\
         \8QhVZWXeZLTidYPi3Fu5ZXG4gvfq3zbwD4nboD1HxoCPCFJLWpMc"
-    addr1 = unsafeDecodeAddress
+    addr1 = unsafeDecodeAddress (Proxy @(HttpBridge 'Testnet))
         "DdzFFzCqrhszy7cUVphbFGaPBG7yn5nNPzjGDYaPsPuEG84KRjtK\
         \RhhNhwjNENx8LT9XGbYfAJzptwotbp7ySho5LGeCc2ALq3cQX2JM"
-    inputId1 = hash16
+    inputId1 = Hash $ unsafeFromHex
         "96e170491afb6ebd579fd57c76c684f22436f8cc3a912397ddb1c9c51b86fb53"
-    addr2 = unsafeDecodeAddress
+    addr2 = unsafeDecodeAddress (Proxy @(HttpBridge 'Testnet))
         "DdzFFzCqrht5ZoBwGocznhhpr4yXRWy1RaMqguNBPjVGhwZcNMnh\
         \sDUtEETzjQVVc1TBuL3en6yA8JcKVXx1cuoea5rozjcaFid3pkV7"
-    addr3 = unsafeDecodeAddress
+    addr3 = unsafeDecodeAddress (Proxy @(HttpBridge 'Testnet))
         "DdzFFzCqrhsoLchqT8AwxFH9srQzvH78dUAD1BwHneqGHvA7BV89\
         \Mj87XFPDSU2tJCMiWpi7vf1U5CqE835Xz2kpnyzFTuYQLkZev4qw"
 
 -- * Helpers
-
--- | Make a Hash from a Base16 encoded string, without error handling.
-hash16 :: ByteString -> Hash a
-hash16 = either bomb Hash . convertFromBase Base16
-    where
-        bomb msg = error ("Could not decode test string: " <> msg)
-
--- | Make an Address from a Base58 encoded string, without error handling.
-unsafeDecodeAddress :: Text -> Address
-unsafeDecodeAddress = either (error "unsafeDecodeAddress: Could not decode") id
-    . decodeAddress (Proxy @(HttpBridge 'Testnet))
 
 -- | CBOR deserialise without error handling - handy for prototypes or testing.
 unsafeDeserialiseFromBytes :: (forall s. CBOR.Decoder s a) -> BL.ByteString -> a

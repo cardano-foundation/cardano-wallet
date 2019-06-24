@@ -94,6 +94,7 @@ library
       Cardano.Wallet.Primitive.Model
       Cardano.Wallet.Primitive.Types
       Cardano.Wallet.Transaction
+      Cardano.Wallet.Unsafe
       Cardano.Wallet.Version
       Data.Quantity
       Network.Wai.Middleware.ServantError

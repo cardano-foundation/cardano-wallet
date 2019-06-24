@@ -18,7 +18,6 @@ module Cardano.Wallet.Jormungandr.Compatibility
       Jormungandr
     , Network (..)
     , block0
-    , block0Hash
     ) where
 
 import Prelude
@@ -82,10 +81,6 @@ block0 = BlockHeader
     { slotId = (SlotId 0 0)
     , prevBlockHash = Hash (BS.replicate 32 0)
     }
-
--- | Genesis block header hash
-block0Hash :: Hash "Genesis"
-block0Hash = Hash "todo"
 
 instance DefineTx (Jormungandr network) where
     type Tx (Jormungandr network) = Tx

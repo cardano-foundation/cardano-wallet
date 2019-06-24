@@ -2,8 +2,6 @@
 # of the blockchain that cannot be changed once the blockchain
 # is started.
 blockchain_configuration:
-  peer_2_peer: true
-
   # The block0-date defines the date the blockchain starts
   # expected value in seconds since UNIX_EPOCH
   block0_date: 1556202057
@@ -34,7 +32,7 @@ blockchain_configuration:
   # A list of Ed25519 Extended PublicKey that represents the
   # BFT leaders encoded as bech32. The order in the list matters.
   consensus_leader_ids:
-    - ed25519_pk1kgtwuwy0cf2edn6rl09gzhzx8sma09tqhxzcqrpaduaq7k5h0ceqe4qqpv
+    - ed25519_pk1haythczarvl75wt6y6fmq0gjz7j9xcyfatwchj523wdawechkd8qp735w5
 
   # Genesis praos parameter D
   bft_slots_ratio: 0.220
@@ -46,23 +44,16 @@ blockchain_configuration:
   # This is the max number of messages allowed in a given Block
   max_number_of_transactions_per_block: 255
 
-  # Allow the creation of accounts from the output of a transaction
-  #
-  # if set to false, account based wallet will not be created without
-  # publishing a stake certificate.
-  # if set to true, simply adding the account in the output of a transaction
-  # will allow the account to exist in the blockchain.
-  allow_account_creation: true
-
   # The fee calculations settings
   #
   # fee(num_bytes, has_certificate) = constant + num_bytes * coefficient + has_certificate * certificate
-  linear_fee:
+  linear_fees:
     constant: 0
     coefficient: 0
     certificate: 0
 
-  kes_update_speed: 16
+  # The speed to update the KES Key in seconds
+  kes_update_speed: 43200 # 12hours
 
 # The initial deposits present in the blockchain.
 #
@@ -70,216 +61,34 @@ blockchain_configuration:
 # test's faucets to be of similar shape with the one used with the http-bridge,
 # we want each wallet to have 10 UTxO available, hence the repetition for each
 # address.
-initial_funds:
-  - address: ta1svejfsmcd8qjy6y6xkghmaf6fu3ffga99a59up04lrjnhpl8afzj7w4yyxw
-    value: 14
-  - address: ta1svz5hw3leda47fy3scdku2ut7z3ljftumuha7sw2ttmswtnhcu8n5nm0ynp
-    value: 100000000000
-  - address: ta1svz5hw3leda47fy3scdku2ut7z3ljftumuha7sw2ttmswtnhcu8n5nm0ynp
-    value: 100000000000
-  - address: ta1svz5hw3leda47fy3scdku2ut7z3ljftumuha7sw2ttmswtnhcu8n5nm0ynp
-    value: 100000000000
-  - address: ta1svz5hw3leda47fy3scdku2ut7z3ljftumuha7sw2ttmswtnhcu8n5nm0ynp
-    value: 100000000000
-  - address: ta1svz5hw3leda47fy3scdku2ut7z3ljftumuha7sw2ttmswtnhcu8n5nm0ynp
-    value: 100000000000
-  - address: ta1svz5hw3leda47fy3scdku2ut7z3ljftumuha7sw2ttmswtnhcu8n5nm0ynp
-    value: 100000000000
-  - address: ta1svz5hw3leda47fy3scdku2ut7z3ljftumuha7sw2ttmswtnhcu8n5nm0ynp
-    value: 100000000000
-  - address: ta1svz5hw3leda47fy3scdku2ut7z3ljftumuha7sw2ttmswtnhcu8n5nm0ynp
-    value: 100000000000
-  - address: ta1svz5hw3leda47fy3scdku2ut7z3ljftumuha7sw2ttmswtnhcu8n5nm0ynp
-    value: 100000000000
-  - address: ta1svz5hw3leda47fy3scdku2ut7z3ljftumuha7sw2ttmswtnhcu8n5nm0ynp
-    value: 100000000000
-  - address: ta1swfe83rfm8rech3z0ea09epz3q4gut4uy9kd6mu72nsxpu33t0zpg795k3y
-    value: 100000000000
-  - address: ta1swfe83rfm8rech3z0ea09epz3q4gut4uy9kd6mu72nsxpu33t0zpg795k3y
-    value: 100000000000
-  - address: ta1swfe83rfm8rech3z0ea09epz3q4gut4uy9kd6mu72nsxpu33t0zpg795k3y
-    value: 100000000000
-  - address: ta1swfe83rfm8rech3z0ea09epz3q4gut4uy9kd6mu72nsxpu33t0zpg795k3y
-    value: 100000000000
-  - address: ta1swfe83rfm8rech3z0ea09epz3q4gut4uy9kd6mu72nsxpu33t0zpg795k3y
-    value: 100000000000
-  - address: ta1swfe83rfm8rech3z0ea09epz3q4gut4uy9kd6mu72nsxpu33t0zpg795k3y
-    value: 100000000000
-  - address: ta1swfe83rfm8rech3z0ea09epz3q4gut4uy9kd6mu72nsxpu33t0zpg795k3y
-    value: 100000000000
-  - address: ta1swfe83rfm8rech3z0ea09epz3q4gut4uy9kd6mu72nsxpu33t0zpg795k3y
-    value: 100000000000
-  - address: ta1swfe83rfm8rech3z0ea09epz3q4gut4uy9kd6mu72nsxpu33t0zpg795k3y
-    value: 100000000000
-  - address: ta1swfe83rfm8rech3z0ea09epz3q4gut4uy9kd6mu72nsxpu33t0zpg795k3y
-    value: 100000000000
-  - address: ta1s08fhk0qve7lde4w090gkp43n2vr6gvahrqzvza0enhaw8kvlmpakd7swne
-    value: 100000000000
-  - address: ta1s08fhk0qve7lde4w090gkp43n2vr6gvahrqzvza0enhaw8kvlmpakd7swne
-    value: 100000000000
-  - address: ta1s08fhk0qve7lde4w090gkp43n2vr6gvahrqzvza0enhaw8kvlmpakd7swne
-    value: 100000000000
-  - address: ta1s08fhk0qve7lde4w090gkp43n2vr6gvahrqzvza0enhaw8kvlmpakd7swne
-    value: 100000000000
-  - address: ta1s08fhk0qve7lde4w090gkp43n2vr6gvahrqzvza0enhaw8kvlmpakd7swne
-    value: 100000000000
-  - address: ta1s08fhk0qve7lde4w090gkp43n2vr6gvahrqzvza0enhaw8kvlmpakd7swne
-    value: 100000000000
-  - address: ta1s08fhk0qve7lde4w090gkp43n2vr6gvahrqzvza0enhaw8kvlmpakd7swne
-    value: 100000000000
-  - address: ta1s08fhk0qve7lde4w090gkp43n2vr6gvahrqzvza0enhaw8kvlmpakd7swne
-    value: 100000000000
-  - address: ta1s08fhk0qve7lde4w090gkp43n2vr6gvahrqzvza0enhaw8kvlmpakd7swne
-    value: 100000000000
-  - address: ta1s08fhk0qve7lde4w090gkp43n2vr6gvahrqzvza0enhaw8kvlmpakd7swne
-    value: 100000000000
-  - address: ta1svpqqhsfs8ea75fa0vcfhsfslf045l9873ys8fjahkjmeym4s0dr69g8lec
-    value: 100000000000
-  - address: ta1svpqqhsfs8ea75fa0vcfhsfslf045l9873ys8fjahkjmeym4s0dr69g8lec
-    value: 100000000000
-  - address: ta1svpqqhsfs8ea75fa0vcfhsfslf045l9873ys8fjahkjmeym4s0dr69g8lec
-    value: 100000000000
-  - address: ta1svpqqhsfs8ea75fa0vcfhsfslf045l9873ys8fjahkjmeym4s0dr69g8lec
-    value: 100000000000
-  - address: ta1svpqqhsfs8ea75fa0vcfhsfslf045l9873ys8fjahkjmeym4s0dr69g8lec
-    value: 100000000000
-  - address: ta1svpqqhsfs8ea75fa0vcfhsfslf045l9873ys8fjahkjmeym4s0dr69g8lec
-    value: 100000000000
-  - address: ta1svpqqhsfs8ea75fa0vcfhsfslf045l9873ys8fjahkjmeym4s0dr69g8lec
-    value: 100000000000
-  - address: ta1svpqqhsfs8ea75fa0vcfhsfslf045l9873ys8fjahkjmeym4s0dr69g8lec
-    value: 100000000000
-  - address: ta1svpqqhsfs8ea75fa0vcfhsfslf045l9873ys8fjahkjmeym4s0dr69g8lec
-    value: 100000000000
-  - address: ta1svpqqhsfs8ea75fa0vcfhsfslf045l9873ys8fjahkjmeym4s0dr69g8lec
-    value: 100000000000
-  - address: ta1swx2gtq0q24vxqv3qh82ft96dmpy0ey9j0as2kpny55wvgr76x7z2u8kvzf
-    value: 100000000000
-  - address: ta1swx2gtq0q24vxqv3qh82ft96dmpy0ey9j0as2kpny55wvgr76x7z2u8kvzf
-    value: 100000000000
-  - address: ta1swx2gtq0q24vxqv3qh82ft96dmpy0ey9j0as2kpny55wvgr76x7z2u8kvzf
-    value: 100000000000
-  - address: ta1swx2gtq0q24vxqv3qh82ft96dmpy0ey9j0as2kpny55wvgr76x7z2u8kvzf
-    value: 100000000000
-  - address: ta1swx2gtq0q24vxqv3qh82ft96dmpy0ey9j0as2kpny55wvgr76x7z2u8kvzf
-    value: 100000000000
-  - address: ta1swx2gtq0q24vxqv3qh82ft96dmpy0ey9j0as2kpny55wvgr76x7z2u8kvzf
-    value: 100000000000
-  - address: ta1swx2gtq0q24vxqv3qh82ft96dmpy0ey9j0as2kpny55wvgr76x7z2u8kvzf
-    value: 100000000000
-  - address: ta1swx2gtq0q24vxqv3qh82ft96dmpy0ey9j0as2kpny55wvgr76x7z2u8kvzf
-    value: 100000000000
-  - address: ta1swx2gtq0q24vxqv3qh82ft96dmpy0ey9j0as2kpny55wvgr76x7z2u8kvzf
-    value: 100000000000
-  - address: ta1swx2gtq0q24vxqv3qh82ft96dmpy0ey9j0as2kpny55wvgr76x7z2u8kvzf
-    value: 100000000000
-  - address: ta1swhanynytvyctm374ee4h2zhcxcc64ad7ep0lvtjjxym7k63u6ctkfjeg2n
-    value: 100000000000
-  - address: ta1swhanynytvyctm374ee4h2zhcxcc64ad7ep0lvtjjxym7k63u6ctkfjeg2n
-    value: 100000000000
-  - address: ta1swhanynytvyctm374ee4h2zhcxcc64ad7ep0lvtjjxym7k63u6ctkfjeg2n
-    value: 100000000000
-  - address: ta1swhanynytvyctm374ee4h2zhcxcc64ad7ep0lvtjjxym7k63u6ctkfjeg2n
-    value: 100000000000
-  - address: ta1swhanynytvyctm374ee4h2zhcxcc64ad7ep0lvtjjxym7k63u6ctkfjeg2n
-    value: 100000000000
-  - address: ta1swhanynytvyctm374ee4h2zhcxcc64ad7ep0lvtjjxym7k63u6ctkfjeg2n
-    value: 100000000000
-  - address: ta1swhanynytvyctm374ee4h2zhcxcc64ad7ep0lvtjjxym7k63u6ctkfjeg2n
-    value: 100000000000
-  - address: ta1swhanynytvyctm374ee4h2zhcxcc64ad7ep0lvtjjxym7k63u6ctkfjeg2n
-    value: 100000000000
-  - address: ta1swhanynytvyctm374ee4h2zhcxcc64ad7ep0lvtjjxym7k63u6ctkfjeg2n
-    value: 100000000000
-  - address: ta1swhanynytvyctm374ee4h2zhcxcc64ad7ep0lvtjjxym7k63u6ctkfjeg2n
-    value: 100000000000
-  - address: ta1svw8c4pr69vq0mp73af3r220dvhm27dsv7mdgla8wq9sxqwrvvy6qhpq5c8
-    value: 100000000000
-  - address: ta1svw8c4pr69vq0mp73af3r220dvhm27dsv7mdgla8wq9sxqwrvvy6qhpq5c8
-    value: 100000000000
-  - address: ta1svw8c4pr69vq0mp73af3r220dvhm27dsv7mdgla8wq9sxqwrvvy6qhpq5c8
-    value: 100000000000
-  - address: ta1svw8c4pr69vq0mp73af3r220dvhm27dsv7mdgla8wq9sxqwrvvy6qhpq5c8
-    value: 100000000000
-  - address: ta1svw8c4pr69vq0mp73af3r220dvhm27dsv7mdgla8wq9sxqwrvvy6qhpq5c8
-    value: 100000000000
-  - address: ta1svw8c4pr69vq0mp73af3r220dvhm27dsv7mdgla8wq9sxqwrvvy6qhpq5c8
-    value: 100000000000
-  - address: ta1svw8c4pr69vq0mp73af3r220dvhm27dsv7mdgla8wq9sxqwrvvy6qhpq5c8
-    value: 100000000000
-  - address: ta1svw8c4pr69vq0mp73af3r220dvhm27dsv7mdgla8wq9sxqwrvvy6qhpq5c8
-    value: 100000000000
-  - address: ta1svw8c4pr69vq0mp73af3r220dvhm27dsv7mdgla8wq9sxqwrvvy6qhpq5c8
-    value: 100000000000
-  - address: ta1svw8c4pr69vq0mp73af3r220dvhm27dsv7mdgla8wq9sxqwrvvy6qhpq5c8
-    value: 100000000000
-  - address: ta1sv3k85asvx84fnpq4qehnstxgaxazysuvaxl4q6f0cc7e3g6j3tdzp2vjac
-    value: 100000000000
-  - address: ta1sv3k85asvx84fnpq4qehnstxgaxazysuvaxl4q6f0cc7e3g6j3tdzp2vjac
-    value: 100000000000
-  - address: ta1sv3k85asvx84fnpq4qehnstxgaxazysuvaxl4q6f0cc7e3g6j3tdzp2vjac
-    value: 100000000000
-  - address: ta1sv3k85asvx84fnpq4qehnstxgaxazysuvaxl4q6f0cc7e3g6j3tdzp2vjac
-    value: 100000000000
-  - address: ta1sv3k85asvx84fnpq4qehnstxgaxazysuvaxl4q6f0cc7e3g6j3tdzp2vjac
-    value: 100000000000
-  - address: ta1sv3k85asvx84fnpq4qehnstxgaxazysuvaxl4q6f0cc7e3g6j3tdzp2vjac
-    value: 100000000000
-  - address: ta1sv3k85asvx84fnpq4qehnstxgaxazysuvaxl4q6f0cc7e3g6j3tdzp2vjac
-    value: 100000000000
-  - address: ta1sv3k85asvx84fnpq4qehnstxgaxazysuvaxl4q6f0cc7e3g6j3tdzp2vjac
-    value: 100000000000
-  - address: ta1sv3k85asvx84fnpq4qehnstxgaxazysuvaxl4q6f0cc7e3g6j3tdzp2vjac
-    value: 100000000000
-  - address: ta1sv3k85asvx84fnpq4qehnstxgaxazysuvaxl4q6f0cc7e3g6j3tdzp2vjac
-    value: 100000000000
-  - address: ta1s07wt2t29f6jum5lhqvddj6rxglrcpexh7xv49jdkrl67yzx0pdzzc3wnmv
-    value: 100000000000
-  - address: ta1s07wt2t29f6jum5lhqvddj6rxglrcpexh7xv49jdkrl67yzx0pdzzc3wnmv
-    value: 100000000000
-  - address: ta1s07wt2t29f6jum5lhqvddj6rxglrcpexh7xv49jdkrl67yzx0pdzzc3wnmv
-    value: 100000000000
-  - address: ta1s07wt2t29f6jum5lhqvddj6rxglrcpexh7xv49jdkrl67yzx0pdzzc3wnmv
-    value: 100000000000
-  - address: ta1s07wt2t29f6jum5lhqvddj6rxglrcpexh7xv49jdkrl67yzx0pdzzc3wnmv
-    value: 100000000000
-  - address: ta1s07wt2t29f6jum5lhqvddj6rxglrcpexh7xv49jdkrl67yzx0pdzzc3wnmv
-    value: 100000000000
-  - address: ta1s07wt2t29f6jum5lhqvddj6rxglrcpexh7xv49jdkrl67yzx0pdzzc3wnmv
-    value: 100000000000
-  - address: ta1s07wt2t29f6jum5lhqvddj6rxglrcpexh7xv49jdkrl67yzx0pdzzc3wnmv
-    value: 100000000000
-  - address: ta1s07wt2t29f6jum5lhqvddj6rxglrcpexh7xv49jdkrl67yzx0pdzzc3wnmv
-    value: 100000000000
-  - address: ta1s07wt2t29f6jum5lhqvddj6rxglrcpexh7xv49jdkrl67yzx0pdzzc3wnmv
-    value: 100000000000
-  - address: ta1sv75hznxzw783x5s44llz49x5xx4nsasnjrw6wuj4h505vkhqeq0uq77d56
-    value: 100000000000
-  - address: ta1sv75hznxzw783x5s44llz49x5xx4nsasnjrw6wuj4h505vkhqeq0uq77d56
-    value: 100000000000
-  - address: ta1sv75hznxzw783x5s44llz49x5xx4nsasnjrw6wuj4h505vkhqeq0uq77d56
-    value: 100000000000
-  - address: ta1sv75hznxzw783x5s44llz49x5xx4nsasnjrw6wuj4h505vkhqeq0uq77d56
-    value: 100000000000
-  - address: ta1sv75hznxzw783x5s44llz49x5xx4nsasnjrw6wuj4h505vkhqeq0uq77d56
-    value: 100000000000
-  - address: ta1sv75hznxzw783x5s44llz49x5xx4nsasnjrw6wuj4h505vkhqeq0uq77d56
-    value: 100000000000
-  - address: ta1sv75hznxzw783x5s44llz49x5xx4nsasnjrw6wuj4h505vkhqeq0uq77d56
-    value: 100000000000
-  - address: ta1sv75hznxzw783x5s44llz49x5xx4nsasnjrw6wuj4h505vkhqeq0uq77d56
-    value: 100000000000
-  - address: ta1sv75hznxzw783x5s44llz49x5xx4nsasnjrw6wuj4h505vkhqeq0uq77d56
-    value: 100000000000
-  - address: ta1sv75hznxzw783x5s44llz49x5xx4nsasnjrw6wuj4h505vkhqeq0uq77d56
-    value: 100000000000
-
-# The initial certificates.
-initial_certs:
-  - cert1qsqqqqqqqqqqqqqqqqqqqqqqqr2sr5860cvq6vuc05tlwl9lwrs5vw7wq8fjm9fw6mucy0cdd84n0c6ljv2p03s8tc8nukzcrx87zkp3hflm2ymglghs4sn60xgryu57pznzff92ldaymh34u36z6fvdqnzl8my8ucttn09sehq8pdgrle35k3spqpq2s44c5mudrr2c3d0pelf75tjk4ezmsqfxhvjlawxvmcnluc0tcl7kfh4hveatrfuu5fzg74hxpucf0sh6v4l7hhkpneaa02lmp6j8q5jqgzt4
-
-# the initial deposits present in the blockchain but utilising the
-# legacy cardano address format
-legacy_funds:
-  - address: 48mDfYyQn21iyEPzCfkATEHTwZBcZJqXhRJezmswfvc6Ne89u1axXsiazmgd7SwT8VbafbVnCvyXhBSMhSkPiCezMkqHC4dmxRahRC86SknFu6JF6hwSg8
-    value: 123
+initial:
+  - fund:
+      address: ta1svz5hw3leda47fy3scdku2ut7z3ljftumuha7sw2ttmswtnhcu8n5nm0ynp
+      value: 100000000000
+  - fund:
+      address: ta1swfe83rfm8rech3z0ea09epz3q4gut4uy9kd6mu72nsxpu33t0zpg795k3y
+      value: 100000000000
+  - fund:
+      address: ta1s08fhk0qve7lde4w090gkp43n2vr6gvahrqzvza0enhaw8kvlmpakd7swne
+      value: 100000000000
+  - fund:
+      address: ta1svpqqhsfs8ea75fa0vcfhsfslf045l9873ys8fjahkjmeym4s0dr69g8lec
+      value: 100000000000
+  - fund:
+      address: ta1swx2gtq0q24vxqv3qh82ft96dmpy0ey9j0as2kpny55wvgr76x7z2u8kvzf
+      value: 100000000000
+  - fund:
+      address: ta1swhanynytvyctm374ee4h2zhcxcc64ad7ep0lvtjjxym7k63u6ctkfjeg2n
+      value: 100000000000
+  - fund:
+      address: ta1svw8c4pr69vq0mp73af3r220dvhm27dsv7mdgla8wq9sxqwrvvy6qhpq5c8
+      value: 100000000000
+  - fund:
+      address: ta1sv3k85asvx84fnpq4qehnstxgaxazysuvaxl4q6f0cc7e3g6j3tdzp2vjac
+      value: 100000000000
+  - fund:
+      address: ta1s07wt2t29f6jum5lhqvddj6rxglrcpexh7xv49jdkrl67yzx0pdzzc3wnmv
+      value: 100000000000
+  - fund:
+      address: ta1sv75hznxzw783x5s44llz49x5xx4nsasnjrw6wuj4h505vkhqeq0uq77d56
+      value: 100000000000

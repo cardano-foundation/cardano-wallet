@@ -17,8 +17,6 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
     ( traceInTVarIO )
-import Cardano.Wallet
-    ( unsafeRunExceptT )
 import Cardano.Wallet.DB
     ( DBLayer (..), ErrWalletAlreadyExists (..), PrimaryKey (..), cleanDB )
 import Cardano.Wallet.DB.Sqlite
@@ -60,6 +58,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     )
+import Cardano.Wallet.Unsafe
+    ( unsafeRunExceptT )
 import Control.Monad
     ( unless )
 import Control.Monad.Trans.Except

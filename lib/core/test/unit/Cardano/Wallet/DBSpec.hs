@@ -28,8 +28,6 @@ import Prelude
 
 import Cardano.Crypto.Wallet
     ( unXPrv )
-import Cardano.Wallet
-    ( unsafeRunExceptT )
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchWallet (..)
@@ -87,6 +85,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletState (..)
     , isPending
     )
+import Cardano.Wallet.Unsafe
+    ( unsafeRunExceptT )
 import Control.Concurrent.Async
     ( forConcurrently_ )
 import Control.Monad

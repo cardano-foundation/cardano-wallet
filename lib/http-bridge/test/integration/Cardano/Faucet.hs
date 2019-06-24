@@ -8,8 +8,6 @@ module Cardano.Faucet
 
 import Prelude
 
-import Cardano.Wallet
-    ( unsafeRunExceptT )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.HttpBridge.Environment
@@ -44,20 +42,14 @@ import Cardano.Wallet.Primitive.Types
     , TxWitness (..)
     , txId
     )
+import Cardano.Wallet.Unsafe
+    ( unsafeDecodeAddress, unsafeFromHex, unsafeRunExceptT, unsafeXPrv )
 import Control.Concurrent.MVar
     ( newMVar )
 import Control.Monad
     ( replicateM )
-import Data.ByteArray.Encoding
-    ( Base (..), convertFromBase )
-import Data.ByteString
-    ( ByteString )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( FromText (..) )
-import Data.Word
-    ( Word32 )
+import Data.Proxy
+    ( Proxy (..) )
 import Test.Integration.Faucet
     ( Faucet (..) )
 
@@ -148,9 +140,9 @@ mkRedeemTx outs =
 -- If funds were to miss for the integration tests, increase the `totalBalance`.
 genesis :: (TxIn, Address, XPrv, Passphrase "encryption")
 genesis =
-    ( unsafeTxIn 0
+    ( flip TxIn 0 $ Hash $ unsafeFromHex
         "ad348750ba0673f5829ac2c73e1ddf59ae4219222ee5703b05a5af5457981c17"
-    , unsafeAddress
+    , unsafeDecodeAddress (Proxy @(HttpBridge 'Testnet))
         "37btjrVyb4KBW8ydTZxU2aX4nCeBTw8n1BW9ZgVFvqs8jguGK1udPXL2r\
         \4KmhSKPHxyjgnB7uRguYt6QmAog4vLPGzCuYPke9mXMzbeaxXdUy6TrJ1"
     , unsafeXPrv
@@ -161,23 +153,3 @@ genesis =
     , mempty
     )
 
--- | Build a 'TxIn' from a known index and hex-encoded bytestring
-unsafeTxIn :: Word32 -> ByteString -> TxIn
-unsafeTxIn ix hex =
-    case convertFromBase Base16 hex of
-        Left e -> error $ "unsafeHash: " <> e
-        Right a -> TxIn (Hash a) ix
-
--- | Build an 'Address' from a base58-encoded string
-unsafeAddress :: Text -> Address
-unsafeAddress txt =
-    case fromText txt of
-        Left e -> error $ "unsafeAddress: " <> show e
-        Right a -> a
-
--- | Build a 'XPrv' from an hex-encoded bytestring
-unsafeXPrv :: ByteString -> XPrv
-unsafeXPrv hex =
-    case convertFromBase @_ @ByteString Base16 hex >>= CC.xprv of
-        Left e -> error $ "unsafeXPrv: " <> e
-        Right a -> a
