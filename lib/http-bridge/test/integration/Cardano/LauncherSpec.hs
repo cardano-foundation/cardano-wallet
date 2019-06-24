@@ -33,7 +33,7 @@ spec :: Spec
 spec = do
     describe "LAUNCH - cardano-wallet launch" $ do
         it "LAUNCH - Can start launcher with --state-dir" $ withTempDir $ \d -> do
-            let args = ["launch", "--network", "testnet", "--state-dir", d]
+            let args = ["launch", "--network", "testnet", "--random-port", "--state-dir", d]
             let process = proc' "cardano-wallet" args
             withCreateProcess process $ \_ (Just o) (Just e) ph -> do
                 expectPathEventuallyExist d
@@ -47,7 +47,7 @@ spec = do
 
         it "LAUNCH - Can start launcher with --state-dir (empty dir)" $ withTempDir $ \d -> do
             removeDirectory d
-            let args = ["launch", "--network", "testnet", "--state-dir", d]
+            let args = ["launch", "--network", "testnet", "--random-port", "--state-dir", d]
             let process = proc' "cardano-wallet" args
             withCreateProcess process $ \_ (Just o) (Just e) ph -> do
                 expectPathEventuallyExist d
