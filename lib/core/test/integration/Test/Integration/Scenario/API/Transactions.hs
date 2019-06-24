@@ -694,7 +694,7 @@ spec = do
                     Default payload
             expectResponseCode @IO HTTP.status400 r
 
-    it "TRANS_CREATE_09 - 0 amount transaction is forbidden" $ \ctx -> do
+    it "TRANS_CREATE_09 - 0 amount transaction is forbidden on single output tx" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses ctx wDest
@@ -710,6 +710,37 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
+        r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        verify r
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403InvalidTransaction
+            ]
+
+    it "TRANS_CREATE_09 - 0 amount transaction is forbidden on multi-output tx" $ \ctx -> do
+        wSrc <- fixtureWalletWith ctx [10_000_000, 12_000_000]
+        wDest <- emptyWallet ctx
+        addrs <- listAddresses ctx wDest
+
+        let destination1 = (addrs !! 1) ^. #id
+        let destination2 = (addrs !! 2) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination1},
+                    "amount": {
+                        "quantity": 0,
+                        "unit": "lovelace"
+                    }
+                },
+                {
+                    "address": #{destination2},
+                    "amount": {
+                        "quantity": 23,
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": "Secure Passphrase"
+            }|]
+
         r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
