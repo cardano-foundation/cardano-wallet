@@ -912,6 +912,7 @@ spec = do
             [ expectResponseCode @IO HTTP.status200
             , expectListSizeEqual 0
             ]
+
     describe "WALLETS_LIST_03 - HTTP headers" $ do
         forM_ getHeaderCases $ \(title, headers, expectations) -> it title $ \ctx -> do
             _ <- request @ApiWallet ctx ("POST", "v2/wallets") Default simplePayload

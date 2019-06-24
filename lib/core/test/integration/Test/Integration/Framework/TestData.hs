@@ -32,6 +32,7 @@ module Test.Integration.Framework.TestData
     -- * Helpers
     , addressPoolGapMax
     , addressPoolGapMin
+    , cmdOk
     , passphraseMaxLength
     , passphraseMinLength
     , payloadWith
@@ -168,6 +169,13 @@ arabicWalletName = "ثم نفس سقطت وبالتحديد،, جزيرتي با
 wildcardsWalletName :: Text
 wildcardsWalletName = "`~`!@#$%^&*()_+-=<>,./?;':\"\"'{}[]\\|❤️ 💔 💌 💕 💞 \
 \💓 💗 💖 💘 💝 💟 💜 💛 💚 💙0️⃣ 1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣ 6️⃣ 7️⃣ 8️⃣ 9️⃣ 🔟🇺🇸🇷🇺🇸 🇦🇫🇦🇲🇸"
+
+---
+--- Helpers
+---
+
+cmdOk :: String
+cmdOk = "Ok.\n"
 
 passphraseMinLength :: Int
 passphraseMinLength = 10

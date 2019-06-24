@@ -34,6 +34,7 @@ module Test.Integration.Framework.DSL
     , expectValidJSON
     , expectCliFieldBetween
     , expectCliFieldEqual
+    , expectCliFieldNotEqual
     , expectCliListItemFieldEqual
     , verify
     , Headers(..)
@@ -192,8 +193,10 @@ import Web.HttpApiData
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 import qualified Network.HTTP.Types.Status as HTTP
 
@@ -353,7 +356,7 @@ expectValidJSON
     -> String
     -> m a
 expectValidJSON _ str =
-    case Aeson.eitherDecode @a (BL8.pack str) of
+    case Aeson.eitherDecode @a (BL.fromStrict $ T.encodeUtf8 $ T.pack str) of
         Left e -> fail $ "expected valid JSON but failed decoding: " <> show e
         Right a -> return a
 
@@ -378,6 +381,14 @@ expectCliFieldEqual
     -> s
     -> m ()
 expectCliFieldEqual getter a out = (view getter out) `shouldBe` a
+
+expectCliFieldNotEqual
+    :: (MonadIO m, Show a, Eq a)
+    => Lens' s a
+    -> a
+    -> s
+    -> m ()
+expectCliFieldNotEqual getter a out = (view getter out) `shouldNotBe` a
 
 -- | Same as 'expectListItemFieldEqual' but for CLI
 expectCliListItemFieldEqual
