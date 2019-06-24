@@ -59,7 +59,6 @@ let
           disable-graylog = true;
           disable-gui = true;
           disable-prometheus = true;
-          disable-syslog = true;
         };
       }
 
