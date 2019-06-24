@@ -43,7 +43,7 @@ Usage:
 
 ## launch
 
-> cardano-wallet launch [--network=STRING] [(--port=INT | --random-port)] [--bridge-port=INT] [--state-dir=DIR] [(--quiet | --verbose )]`
+> `cardano-wallet launch [--network=STRING] [(--port=INT | --random-port)] [--bridge-port=INT] [--state-dir=DIR] [(--quiet | --verbose )]`
 
 Launches and manages two sub-processes:
 
