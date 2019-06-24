@@ -186,7 +186,7 @@ spec = describe "Logging Middleware"
             entries <- readTVarIO (logs ctx)
             let index = Map.fromList
                     $ catMaybes [ (loName l,) <$> captureTime l | l <- entries ]
-            Map.size (Map.filter (> (100*ms)) index) `shouldBe` 1
+            Map.size (Map.filter (> (200*ms)) index) `shouldBe` 1
   where
     setup :: IO Context
     setup = do
@@ -325,7 +325,7 @@ instance {-# OVERLAPS #-} Arbitrary (NumberOfRequests, RandomIndex) where
         , i' <- shrink i, i' > 0 && i' < n'
         ]
     arbitrary = do
-        NumberOfRequests n <- arbitrary
+        n <- choose (1, 10)
         i <- choose (0, n - 1)
         return (NumberOfRequests n, RandomIndex i)
 
@@ -374,7 +374,7 @@ start logSettings warpSettings trace socket = do
         hDelete = return NoContent :: Handler NoContent
         hPost _ = return (ResponseJson "ok" 42) :: Handler ResponseJson
         hJson = return "\NUL\NUL\NUL" :: Handler ByteString
-        hLong = liftIO (threadDelay $ 100*ms) $> 14 :: Handler Int
+        hLong = liftIO (threadDelay $ 200*ms) $> 14 :: Handler Int
         hErr400 = throwError err400 :: Handler ()
         hErr500 = throwError err500 :: Handler ()
 
