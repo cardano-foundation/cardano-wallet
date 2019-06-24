@@ -12,8 +12,6 @@ import Prelude
 
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
-import Cardano.Wallet
-    ( unsafeRunExceptT )
 import Cardano.Wallet.Jormungandr.Api
     ( GetTipId, api )
 import Cardano.Wallet.Jormungandr.Compatibility
@@ -29,6 +27,8 @@ import Cardano.Wallet.Network
     )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..), Hash (..), SlotId (..) )
+import Cardano.Wallet.Unsafe
+    ( unsafeRunExceptT )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async

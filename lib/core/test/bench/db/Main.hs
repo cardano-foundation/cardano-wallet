@@ -38,8 +38,6 @@ import Prelude
 
 import Cardano.BM.Data.Tracer
     ( nullTracer )
-import Cardano.Wallet
-    ( unsafeRunExceptT )
 import Cardano.Wallet.DB
     ( DBLayer (..), PrimaryKey (..), cleanDB )
 import Cardano.Wallet.DB.Sqlite
@@ -86,6 +84,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletState (..)
     , fromFlatSlot
     )
+import Cardano.Wallet.Unsafe
+    ( unsafeRunExceptT )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad

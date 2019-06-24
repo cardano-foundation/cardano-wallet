@@ -17,7 +17,7 @@ import Cardano.Faucet
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
-    ( newWalletLayer, unsafeRunExceptT )
+    ( newWalletLayer )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.Api.Types
@@ -33,7 +33,7 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.Types
     ( Block (..), Hash (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
+    ( unsafeFromHex, unsafeRunExceptT )
 import Control.Concurrent
     ( forkIO )
 import Control.Concurrent.Async

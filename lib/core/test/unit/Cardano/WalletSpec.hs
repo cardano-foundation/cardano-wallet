@@ -25,7 +25,6 @@ import Cardano.Wallet
     , ErrWithRootKey (..)
     , WalletLayer (..)
     , newWalletLayer
-    , unsafeRunExceptT
     )
 import Cardano.Wallet.DB
     ( DBLayer, ErrNoSuchWallet (..), PrimaryKey (..) )
@@ -71,6 +70,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Transaction
     ( ErrMkStdTx (..), TransactionLayer (..) )
+import Cardano.Wallet.Unsafe
+    ( unsafeRunExceptT )
 import Control.Concurrent
     ( threadDelay )
 import Control.DeepSeq

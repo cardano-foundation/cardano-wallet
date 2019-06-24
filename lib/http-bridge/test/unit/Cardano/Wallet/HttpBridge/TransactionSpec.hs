@@ -51,12 +51,14 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Transaction
     ( ErrMkStdTx (..), TransactionLayer (..) )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromHex )
 import Control.Arrow
     ( first )
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Data.ByteArray.Encoding
-    ( Base (..), convertFromBase, convertToBase )
+    ( Base (..), convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.Digest.CRC32
@@ -862,8 +864,8 @@ goldenTestSignedTx _ nOuts xprvs expected = it title $ do
     -- | An arbitrary source transaction for inputs (see 'TxIn'). This could be
     -- anything in practice and isn't relevant to our signing code.
     faucetTx :: Hash "Tx"
-    faucetTx = either (\e -> error $ "faucetTx: " <> e) Hash $ convertFromBase
-        @ByteString Base16 "3B40265111D8BB3C3C608D95B3A0BF83461ACE32D79336579A1939B3AAD1C0B7"
+    faucetTx = Hash $ unsafeFromHex
+        "3B40265111D8BB3C3C608D95B3A0BF83461ACE32D79336579A1939B3AAD1C0B7"
 
 {- NOTE: The above golden tests were obtained from 'cardano-sl@3.0.1', using the
     following code:
