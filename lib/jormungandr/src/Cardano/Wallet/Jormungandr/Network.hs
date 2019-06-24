@@ -201,6 +201,11 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
                         (BlockId parentId)
                         (Just count)
                 left ErrGetDescendantsNetworkUnreachable <$> defaultHandler ctx x
+
+    -- Never returns 'Left ErrPostTxProtocolFailure'. Will currently return
+    -- 'Right ()' when submitting correctly formatted, but invalid transactions.
+    --
+    -- https://github.com/input-output-hk/jormungandr/blob/fe638a36d4be64e0c4b360ba1c041e8fa10ea024/jormungandr/src/rest/v0/message/post.rs#L25-L39
     , postMessage = \tx -> void $ ExceptT $ do
         run (cPostMessage tx) >>= \case
             Left (FailureResponse e)

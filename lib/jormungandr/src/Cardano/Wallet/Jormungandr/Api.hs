@@ -127,7 +127,7 @@ instance MimeUnrender JormungandrBinary (Block Tx) where
     mimeUnrender _ = pure . coerceBlock . runGet getBlock
 
 instance MimeRender JormungandrBinary (Tx, [TxWitness]) where
-    mimeRender _ a = runPut $ putSignedTx a
+    mimeRender _ = runPut . putSignedTx
 
 data Hex
 
