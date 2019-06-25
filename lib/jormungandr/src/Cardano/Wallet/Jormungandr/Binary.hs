@@ -437,7 +437,7 @@ putAddress addr@(Address bs)
 singleAddressFromKey :: forall n. KnownNetwork n => Proxy n -> XPub -> Address
 singleAddressFromKey _ xPub = Address $ BL.toStrict $ runPut $ do
     putWord8 (single @n)
-    isolatePut 32 $ putByteString (xpubPublicKey xPub )
+    isolatePut 32 $ putByteString (xpubPublicKey xPub)
 
 {-------------------------------------------------------------------------------
                               Helpers
