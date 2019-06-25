@@ -38,6 +38,8 @@ import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Network
     ( NetworkLayer (..), defaultRetryPolicy, waitForConnection )
+import Cardano.Wallet.Primitive.Fee
+    ( jormungandrPolicy )
 import Cardano.Wallet.Primitive.Types
     ( Block (..), DecodeAddress, Hash (..) )
 import Cardano.Wallet.Unsafe
@@ -171,7 +173,7 @@ cardanoWalletServer = do
     mvar <- newEmptyMVar
     void $ forkIO $ do
         let tl = Jormungandr.newTransactionLayer block0H
-        wallet <- newWalletLayer tracer block0 db nl tl
+        wallet <- newWalletLayer tracer block0 jormungandrPolicy db nl tl
         let listen = ListenOnRandomPort
         Server.withListeningSocket listen $ \(port, socket) -> do
             let settings = Warp.defaultSettings

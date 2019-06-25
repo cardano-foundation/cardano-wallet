@@ -22,6 +22,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..), digest, generateKeyFromSeed, publicKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( mkSeqState )
+import Cardano.Wallet.Primitive.Fee
+    ( cardanoPolicy )
 import Cardano.Wallet.Primitive.Mnemonic
     ( EntropySize, entropyToBytes, genEntropy )
 import Cardano.Wallet.Primitive.Model
@@ -83,4 +85,4 @@ spec = do
         let tl = HttpBridge.newTransactionLayer
         (handle,) <$>
             (newWalletLayer @_ @(HttpBridge 'Testnet)
-                nullTracer block0 db nl tl)
+                nullTracer block0 cardanoPolicy db nl tl)

@@ -79,8 +79,8 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.Fee
     ( ErrAdjustForFee (..)
     , FeeOptions (..)
+    , TxSizeLinear
     , adjustForFee
-    , cardanoPolicy
     , computeFee
     )
 import Cardano.Wallet.Primitive.Model
@@ -337,11 +337,12 @@ newWalletLayer
     => Trace IO Text
     -> Block (Tx t)
         -- ^ Very first block
+    -> TxSizeLinear
     -> DBLayer IO s t
     -> NetworkLayer t IO
     -> TransactionLayer t
     -> IO (WalletLayer s t)
-newWalletLayer tracer block0 db nw tl = do
+newWalletLayer tracer block0 feePolicy db nw tl = do
     registry <- newRegistry
     return WalletLayer
         { createWallet = _createWallet
@@ -576,7 +577,7 @@ newWalletLayer tracer block0 db nw tl = do
             CoinSelection.random opts recipients utxo
         withExceptT ErrCreateUnsignedTxFee $ do
             let feeOpts = FeeOptions
-                    { estimate = computeFee cardanoPolicy . estimateSize tl
+                    { estimate = computeFee feePolicy . estimateSize tl
                     , dustThreshold = minBound
                     }
             adjustForFee feeOpts utxo' sel

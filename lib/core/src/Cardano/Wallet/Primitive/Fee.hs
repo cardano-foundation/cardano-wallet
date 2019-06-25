@@ -20,6 +20,7 @@ module Cardano.Wallet.Primitive.Fee
       Fee (..)
     , TxSizeLinear
     , cardanoPolicy
+    , jormungandrPolicy
 
       -- * Fee Calculation
     , computeFee
@@ -81,6 +82,10 @@ data TxSizeLinear =
 -- | Hard-coded fee policy for Cardano
 cardanoPolicy :: TxSizeLinear
 cardanoPolicy = TxSizeLinear (Quantity 155381) (Quantity 43.946)
+
+-- | Hard-coded zero fee policy for Jormungandr
+jormungandrPolicy :: TxSizeLinear
+jormungandrPolicy = TxSizeLinear (Quantity 0) (Quantity 0)
 
 {-------------------------------------------------------------------------------
                                 Fee Calculation
