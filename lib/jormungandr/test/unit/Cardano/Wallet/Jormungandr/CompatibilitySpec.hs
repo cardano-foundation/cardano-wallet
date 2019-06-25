@@ -165,22 +165,22 @@ spec = do
                 (ShowFmt <$> decodeAddress proxy (encodeAddress proxy a))
                     === Right (ShowFmt a)
         negativeTest proxy "bc1qvqsyqcyq5rqwzqfpg9scrgyg0p0q"
-            ("This address belongs to another network. Network is: "
+            ("This Address belongs to another network. Network is: "
             <> show (networkVal @'Mainnet) <> ".")
         negativeTest proxy "EkxDbkPo"
-            "Unable to decode address: neither Bech32-encoded nor a valid Byron \
-            \address."
+            "Unable to decode Address: neither Bech32-encoded nor a valid Byron \
+            \Address."
         negativeTest proxy ".%14'"
-            ("Unable to decode address: encoding is neither Bech32 nor Base58.")
+            ("Unable to decode Address: encoding is neither Bech32 nor Base58.")
         negativeTest proxy "ca1qvqsyqcyq5rqwzqfpg9scrgk66qs0"
-            "Invalid address length (14): expected either 33 or 65 bytes."
+            "Invalid Address length (14): expected either 33 or 65 bytes."
         negativeTest proxy
             "ca1dvqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0jqscdket"
-            ("Invalid address first byte: k =/= " <> firstByteS <> ".")
+            ("Invalid Address first byte: k =/= " <> firstByteS <> ".")
         negativeTest proxy
             "ca1dvqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0jqqgzqvz\
             \q2ps8pqys5zcvp58q7yq3zgf3g9gkzuvpjxsmrsw3u8eqwxpnc0"
-            ("Invalid address first byte: k =/= " <> firstByteG <> ".")
+            ("Invalid Address first byte: k =/= " <> firstByteG <> ".")
         -- NOTE:
         -- Data below have been generated with [jcli](https://github.com/input-output-hk/jormungandr/tree/master/doc/jcli)
         -- as described in the annex at the end of the file.
@@ -215,22 +215,22 @@ spec = do
                 (ShowFmt <$> decodeAddress proxy (encodeAddress proxy a))
                     === Right (ShowFmt a)
         negativeTest proxy "bc1qvqsyqcyq5rqwzqfpg9scrgyg0p0q"
-            ("This address belongs to another network. Network is: "
+            ("This Address belongs to another network. Network is: "
             <> show (networkVal @'Testnet) <> ".")
         negativeTest proxy "EkxDbkPo"
-            "Unable to decode address: neither Bech32-encoded nor a valid Byron \
-            \address."
+            "Unable to decode Address: neither Bech32-encoded nor a valid Byron \
+            \Address."
         negativeTest proxy ".%14'"
-            ("Unable to decode address: encoding is neither Bech32 nor Base58.")
+            ("Unable to decode Address: encoding is neither Bech32 nor Base58.")
         negativeTest proxy "ta1dvqsyqcyq5rqwzqfpg9scrg5v76st"
-            "Invalid address length (14): expected either 33 or 65 bytes."
+            "Invalid Address length (14): expected either 33 or 65 bytes."
         negativeTest proxy
             "ta1dvqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0jq8ygppa"
-            ("Invalid address first byte: k =/= " <> firstByteS <> ".")
+            ("Invalid Address first byte: k =/= " <> firstByteS <> ".")
         negativeTest proxy
             "ta1dvqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0jqqgzqvz\
             \q2ps8pqys5zcvp58q7yq3zgf3g9gkzuvpjxsmrsw3u8eq9lcgc2"
-            ("Invalid address first byte: k =/= " <> firstByteG <> ".")
+            ("Invalid Address first byte: k =/= " <> firstByteG <> ".")
         goldenTestAddr proxy
             [ "7bd5386c31ac31ba7076856500cf26f85d4695b80f183c7a53e3f28419d6bde1"
             ]

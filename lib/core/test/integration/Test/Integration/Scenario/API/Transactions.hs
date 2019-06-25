@@ -381,17 +381,17 @@ spec = do
 
     describe "TRANS_CREATE_05 - Invalid addresses" $ do
         let longAddr = replicate 10000 '1'
-        let byronErr = "Unable to decode Address: not a valid Byron address."
-        let base58Err = "Unable to decode Address: expected Base58 encoding."
+        let encodeErr = "Unable to decode Address:"
         let matrix =
-                [ ( "long hex", longAddr, byronErr )
-                , ( "short hex", "1", byronErr )
-                , ( "-1000", "-1000", base58Err ), ( "q", "q", byronErr )
-                , ( "empty", "", byronErr )
-                , ( "wildcards", T.unpack wildcardsWalletName, base58Err )
-                , ( "arabic", T.unpack arabicWalletName, base58Err )
-                , ( "kanji", T.unpack kanjiWalletName, base58Err )
-                , ( "polish", T.unpack polishWalletName, base58Err )
+                [ ( "long hex", longAddr, encodeErr )
+                , ( "short hex", "1", encodeErr )
+                , ( "-1000", "-1000", encodeErr )
+                , ( "q", "q", encodeErr )
+                , ( "empty", "", encodeErr )
+                , ( "wildcards", T.unpack wildcardsWalletName, encodeErr )
+                , ( "arabic", T.unpack arabicWalletName, encodeErr )
+                , ( "kanji", T.unpack kanjiWalletName, encodeErr )
+                , ( "polish", T.unpack polishWalletName, encodeErr )
                 ]
         forM_ matrix $ \(title, addr, errMsg) -> it title $ \ctx -> do
             wSrc <- emptyWallet ctx
