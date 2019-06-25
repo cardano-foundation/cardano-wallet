@@ -641,6 +641,9 @@ unsafeRunExceptT :: (MonadFail m, Show e) => ExceptT e m a -> m a
 -- | Build a <a>XPrv</a> from an hex-encoded bytestring
 unsafeXPrv :: ByteString -> XPrv
 
+-- | Build <a>Mnemonic</a> from literals
+unsafeMkMnemonic :: forall mw n csz. (ConsistentEntropy n mw csz, EntropySize mw ~ n) => [Text] -> Mnemonic mw
+
 
 -- | Provides the API of Coin Selection algorithm and Fee Calculation This
 --   module contains the implementation of adjusting coin selection for a
