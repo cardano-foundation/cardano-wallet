@@ -214,7 +214,7 @@ BlockHeader :: SlotId -> !Hash "BlockHeader" -> BlockHeader
 --   <pre>
 --   txId @t tx
 --   </pre>
-class (NFData (Tx t), Show (Tx t), Ord (Tx t)) => DefineTx t where {
+class (NFData (Tx t), Show (Tx t), Ord (Tx t), Buildable (Tx t)) => DefineTx t where {
     type family Tx t :: *;
 }
 txId :: DefineTx t => Tx t -> Hash "Tx"
@@ -1526,6 +1526,9 @@ data TxSizeLinear
 -- | Hard-coded fee policy for Cardano
 cardanoPolicy :: TxSizeLinear
 
+-- | Hard-coded zero fee policy for Jormungandr
+jormungandrPolicy :: TxSizeLinear
+
 -- | Compute fee for a given payload of bytes. Fee follows a simple linear
 --   equation:
 --   
@@ -2427,7 +2430,7 @@ newtype ErrAdjustForFee
 ErrCannotCoverFee :: Word64 -> ErrAdjustForFee
 
 -- | Create a new instance of the wallet layer.
-newWalletLayer :: forall s t. () => Trace IO Text -> Block (Tx t) -> DBLayer IO s t -> NetworkLayer t IO -> TransactionLayer t -> IO (WalletLayer s t)
+newWalletLayer :: forall s t. () => Trace IO Text -> Block (Tx t) -> TxSizeLinear -> DBLayer IO s t -> NetworkLayer t IO -> TransactionLayer t -> IO (WalletLayer s t)
 instance GHC.Classes.Eq Cardano.Wallet.ErrSignTx
 instance GHC.Show.Show Cardano.Wallet.ErrSignTx
 instance GHC.Classes.Eq Cardano.Wallet.ErrUpdatePassphrase

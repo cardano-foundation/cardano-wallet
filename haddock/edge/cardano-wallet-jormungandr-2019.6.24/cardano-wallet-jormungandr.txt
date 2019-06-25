@@ -68,6 +68,7 @@ instance GHC.Classes.Ord Cardano.Wallet.Jormungandr.Primitive.Types.Tx
 instance GHC.Generics.Generic Cardano.Wallet.Jormungandr.Primitive.Types.Tx
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Primitive.Types.Tx
 instance Control.DeepSeq.NFData Cardano.Wallet.Jormungandr.Primitive.Types.Tx
+instance Formatting.Buildable.Buildable Cardano.Wallet.Jormungandr.Primitive.Types.Tx
 
 
 -- | The format is for the Shelley era as implemented by the Jörmungandr
@@ -240,7 +241,7 @@ instance Cardano.Wallet.Jormungandr.Environment.KnownNetwork n => Cardano.Wallet
 
 -- | An specification for the Jörmungandr REST API.
 module Cardano.Wallet.Jormungandr.Api
-type Api = GetTipId :<|> GetBlock :<|> GetBlockDescendantIds
+type Api = GetTipId :<|> GetBlock :<|> GetBlockDescendantIds :<|> PostMessage
 
 -- | Retrieve a block by its id.
 type GetBlock = "v0" :> "block" :> Capture "blockHeaderHash" BlockId :> Get '[JormungandrBinary] (Block Tx)
@@ -261,7 +262,7 @@ type GetTipId = "v0" :> "tip" :> Get '[Hex] BlockId
 --                    parent    +--- descendants ---+
 --   </pre>
 type GetBlockDescendantIds = "v0" :> "block" :> Capture "blockId" BlockId :> "next_id" :> QueryParam "count" Word :> Get '[JormungandrBinary] [BlockId]
-type PostSignedTx = "v0" :> "message" :> ReqBody '[JormungandrBinary] (Tx, [TxWitness]) :> Post '[NoContent] NoContent
+type PostMessage = "v0" :> "message" :> ReqBody '[JormungandrBinary] (Tx, [TxWitness]) :> Post '[NoContent] NoContent
 newtype BlockId
 BlockId :: Hash "BlockHeader" -> BlockId
 [getBlockId] :: BlockId -> Hash "BlockHeader"
@@ -271,6 +272,7 @@ instance Servant.API.ContentTypes.Accept Cardano.Wallet.Jormungandr.Api.Hex
 instance Servant.API.ContentTypes.MimeUnrender Cardano.Wallet.Jormungandr.Api.JormungandrBinary [Cardano.Wallet.Jormungandr.Api.BlockId]
 instance Servant.API.ContentTypes.Accept Cardano.Wallet.Jormungandr.Api.JormungandrBinary
 instance Servant.API.ContentTypes.MimeUnrender Cardano.Wallet.Jormungandr.Api.JormungandrBinary (Cardano.Wallet.Primitive.Types.Block Cardano.Wallet.Jormungandr.Primitive.Types.Tx)
+instance Servant.API.ContentTypes.MimeRender Cardano.Wallet.Jormungandr.Api.JormungandrBinary (Cardano.Wallet.Jormungandr.Primitive.Types.Tx, [Cardano.Wallet.Primitive.Types.TxWitness])
 instance Web.Internal.HttpApiData.ToHttpApiData Cardano.Wallet.Jormungandr.Api.BlockId
 
 
@@ -289,10 +291,11 @@ mkNetworkLayer :: Monad m => JormungandrLayer m -> NetworkLayer (Jormungandr n) 
 
 -- | Endpoints of the jormungandr REST API.
 data JormungandrLayer m
-JormungandrLayer :: ExceptT ErrNetworkUnreachable m (Hash "BlockHeader") -> (Hash "BlockHeader" -> ExceptT ErrGetBlock m (Block Tx)) -> (Hash "BlockHeader" -> Word -> ExceptT ErrGetDescendants m [Hash "BlockHeader"]) -> JormungandrLayer m
+JormungandrLayer :: ExceptT ErrNetworkUnreachable m (Hash "BlockHeader") -> (Hash "BlockHeader" -> ExceptT ErrGetBlock m (Block Tx)) -> (Hash "BlockHeader" -> Word -> ExceptT ErrGetDescendants m [Hash "BlockHeader"]) -> ((Tx, [TxWitness]) -> ExceptT ErrPostTx m ()) -> JormungandrLayer m
 [$sel:getTipId:JormungandrLayer] :: JormungandrLayer m -> ExceptT ErrNetworkUnreachable m (Hash "BlockHeader")
 [$sel:getBlock:JormungandrLayer] :: JormungandrLayer m -> Hash "BlockHeader" -> ExceptT ErrGetBlock m (Block Tx)
 [$sel:getDescendantIds:JormungandrLayer] :: JormungandrLayer m -> Hash "BlockHeader" -> Word -> ExceptT ErrGetDescendants m [Hash "BlockHeader"]
+[$sel:postMessage:JormungandrLayer] :: JormungandrLayer m -> (Tx, [TxWitness]) -> ExceptT ErrPostTx m ()
 
 -- | Construct a <a>JormungandrLayer</a>-client
 --   
