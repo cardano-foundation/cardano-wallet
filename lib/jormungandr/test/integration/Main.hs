@@ -28,8 +28,6 @@ import Cardano.Wallet
     ( newWalletLayer )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
-import Cardano.Wallet.Api.Types
-    ( ApiAddress, ApiWallet )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, Network (..) )
 import Cardano.Wallet.Jormungandr.Network
@@ -41,7 +39,7 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), DecodeAddress, Hash (..) )
+    ( Block (..), Hash (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeRunExceptT )
 import Control.Concurrent
@@ -71,23 +69,9 @@ import System.Directory
 import System.IO
     ( IOMode (..), hClose, openFile )
 import Test.Hspec
-    ( SpecWith, after, afterAll, beforeAll, describe, hspec, it )
+    ( after, afterAll, beforeAll, describe, hspec )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , Headers (..)
-    , Payload (..)
-    , balanceAvailable
-    , balanceTotal
-    , expectFieldEqual
-    , expectListSizeEqual
-    , expectResponseCode
-    , fixtureWallet
-    , getAddressesEp
-    , getWalletEp
-    , request
-    , tearDown
-    , verify
-    )
+    ( Context (..), tearDown )
 
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
@@ -95,36 +79,14 @@ import qualified Cardano.Wallet.Jormungandr.Network as Jormungandr
 import qualified Cardano.Wallet.Jormungandr.NetworkSpec as Network
 import qualified Cardano.Wallet.Jormungandr.Transaction as Jormungandr
 import qualified Data.Text as T
-import qualified Network.HTTP.Types.Status as HTTP
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Test.Integration.Scenario.API.Addresses as Addresses
 import qualified Test.Integration.Scenario.API.Wallets as Wallets
-
--- | Temporary 'Spec' to illustrate that the integration scenario setup below
--- works as expected.
-temporarySpec :: forall t. DecodeAddress t => SpecWith (Context t)
-temporarySpec =
-    it "Temporary example spec for Jörmungandr integration" $ \ctx -> do
-        wSrc <- fixtureWallet ctx
-        r <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
-        print r *> verify r
-            [ expectResponseCode HTTP.status200
-            , expectFieldEqual balanceAvailable 1000000000000
-            , expectFieldEqual balanceTotal 1000000000000
-            ]
-
-        let q = "?state=used"
-        r' <- request @[ApiAddress t] ctx (getAddressesEp wSrc q) Default Empty
-        print r' *> verify r'
-            [ expectResponseCode HTTP.status200
-            , expectListSizeEqual 10
-            ]
 
 main :: IO ()
 main = hspec $ do
     describe "Cardano.Wallet.NetworkSpec" Network.spec
     beforeAll start $ afterAll cleanup $ after tearDown $ do
-        describe "Jörmungandr Temporary Spec" temporarySpec
         describe "Wallets API endpoint tests" Wallets.spec
         describe "Addresses API endpoint tests" Addresses.spec
   where
