@@ -48,7 +48,7 @@ blockchain_configuration:
   #
   # fee(num_bytes, has_certificate) = constant + num_bytes * coefficient + has_certificate * certificate
   linear_fees:
-    constant: 0
+    constant: 42
     coefficient: 0
     certificate: 0
 

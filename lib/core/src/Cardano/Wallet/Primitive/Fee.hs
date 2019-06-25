@@ -39,6 +39,7 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , UTxO (..)
     , balance'
+    , invariant
     , isValidCoin
     , pickRandom
     )
@@ -156,15 +157,14 @@ adjustForFee
     -> UTxO
     -> CoinSelection
     -> ExceptT ErrAdjustForFee m CoinSelection
-adjustForFee opt utxo coinSel = do
+adjustForFee unsafeOpt utxo coinSel = do
+    let opt = invariant "adjustForFee: fee must be non-null" unsafeOpt (not . nullFee)
     CoinSelection inps' outs' chgs' <- senderPaysFee opt utxo coinSel
-    let neInps = case inps' of
-            []   -> error "adjustForFees: empty list of inputs"
-            inps -> inps
-    let neOuts = case outs' of
-            []   -> error "adjustForFees: empty list of outputs"
-            outs -> outs
+    let neInps = invariant "adjustForFee: empty list of inputs" inps' (not . null)
+    let neOuts = invariant "adjustForFee: empty list of outputs" outs' (not .  null)
     return $ CoinSelection neInps neOuts chgs'
+  where
+    nullFee opt = estimate opt coinSel == Fee 0
 
 -- | The sender pays fee in this scenario, so fees are removed from the change
 -- outputs, and new inputs are selected if necessary.
