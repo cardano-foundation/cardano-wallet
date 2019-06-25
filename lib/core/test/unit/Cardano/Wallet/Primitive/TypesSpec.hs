@@ -95,6 +95,7 @@ spec = do
         it "Arbitrary Coin" $ property isValidCoin
 
     describe "Can perform roundtrip textual encoding & decoding" $ do
+        textRoundtrip $ Proxy @Address
         textRoundtrip $ Proxy @AddressState
         textRoundtrip $ Proxy @Direction
         textRoundtrip $ Proxy @TxStatus
