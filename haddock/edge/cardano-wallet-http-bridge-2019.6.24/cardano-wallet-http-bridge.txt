@@ -189,6 +189,9 @@ Testnet :: Network
 --   BlockHeader which is, for the http-brdige implementation, a waste of
 --   time at the moment.
 block0 :: Block Tx
+
+-- | Hard-coded fee policy for Cardano on Byron
+byronFeePolicy :: FeePolicy
 instance Cardano.Wallet.Primitive.Types.DefineTx (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge network)
 instance Cardano.Wallet.DB.Sqlite.PersistTx (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge network)
 instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge 'Cardano.Wallet.HttpBridge.Environment.Testnet)

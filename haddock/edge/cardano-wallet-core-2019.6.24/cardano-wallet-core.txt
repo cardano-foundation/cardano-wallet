@@ -1518,26 +1518,22 @@ newtype Fee
 Fee :: Word64 -> Fee
 [getFee] :: Fee -> Word64
 
--- | A linear equation on the transaction size. Represents the <tt>s -&gt;
---   a + b*s</tt> function where <tt>s</tt> is the transaction size in
---   bytes, <tt>a</tt> and <tt>b</tt> are constant coefficients.
-data TxSizeLinear
+-- | A linear equation a free variable <tt>x</tt>. Represents the <tt>s
+--   -&gt; a + b*s</tt> function where <tt>s</tt> can be the transaction
+--   size in bytes or, a number of inputs + outputs.
+--   
+--   <tt>a</tt> and <tt>b</tt> are constant coefficients.
+data FeePolicy
+LinearFee :: Quantity "lovelace" Double -> Quantity "lovelace/x" Double -> FeePolicy
 
--- | Hard-coded fee policy for Cardano
-cardanoPolicy :: TxSizeLinear
-
--- | Hard-coded zero fee policy for Jormungandr
-jormungandrPolicy :: TxSizeLinear
-
--- | Compute fee for a given payload of bytes. Fee follows a simple linear
---   equation:
+-- | Compute fee for a given payload. Fee follows a simple linear equation:
 --   
 --   <pre>
 --   f = a + size * b
 --   </pre>
 --   
 --   where <tt>a</tt> &amp; <tt>b</tt> are values fixed by the protocol.
-computeFee :: TxSizeLinear -> Quantity "byte" Int -> Fee
+computeFee :: FeePolicy -> Quantity "byte" Int -> Fee
 data FeeOptions
 FeeOptions :: (CoinSelection -> Fee) -> Coin -> FeeOptions
 
@@ -1584,8 +1580,8 @@ adjustForFee :: MonadRandom m => FeeOptions -> UTxO -> CoinSelection -> ExceptT 
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Fee.ErrAdjustForFee
 instance GHC.Show.Show Cardano.Wallet.Primitive.Fee.ErrAdjustForFee
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Fee.FeeOptions
-instance GHC.Show.Show Cardano.Wallet.Primitive.Fee.TxSizeLinear
-instance GHC.Classes.Eq Cardano.Wallet.Primitive.Fee.TxSizeLinear
+instance GHC.Show.Show Cardano.Wallet.Primitive.Fee.FeePolicy
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Fee.FeePolicy
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.Fee.Fee
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Fee.Fee
 
@@ -2430,7 +2426,7 @@ newtype ErrAdjustForFee
 ErrCannotCoverFee :: Word64 -> ErrAdjustForFee
 
 -- | Create a new instance of the wallet layer.
-newWalletLayer :: forall s t. () => Trace IO Text -> Block (Tx t) -> TxSizeLinear -> DBLayer IO s t -> NetworkLayer t IO -> TransactionLayer t -> IO (WalletLayer s t)
+newWalletLayer :: forall s t. () => Trace IO Text -> Block (Tx t) -> FeePolicy -> DBLayer IO s t -> NetworkLayer t IO -> TransactionLayer t -> IO (WalletLayer s t)
 instance GHC.Classes.Eq Cardano.Wallet.ErrSignTx
 instance GHC.Show.Show Cardano.Wallet.ErrSignTx
 instance GHC.Classes.Eq Cardano.Wallet.ErrUpdatePassphrase

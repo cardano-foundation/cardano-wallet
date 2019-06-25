@@ -127,7 +127,7 @@ RemoveBftLeader :: LeaderId -> ConfigParam
 AllowAccountCreation :: Bool -> ConfigParam
 
 -- | Coefficients for fee calculations.
-ConfigLinearFee :: LinearFee -> ConfigParam
+ConfigLinearFee :: FeePolicy -> ConfigParam
 
 -- | Number of epochs until an update proposal expires.
 ProposalExpiration :: Quantity "epoch" Word32 -> ConfigParam
@@ -140,11 +140,6 @@ BFT :: ConsensusVersion
 GenesisPraos :: ConsensusVersion
 newtype LeaderId
 LeaderId :: ByteString -> LeaderId
-data LinearFee
-LinearFee :: Quantity "lovelace" Word64 -> Quantity "lovelace/byte" Word64 -> Quantity "lovelace/cert" Word64 -> LinearFee
-[constant] :: LinearFee -> Quantity "lovelace" Word64
-[perByte] :: LinearFee -> Quantity "lovelace/byte" Word64
-[perCert] :: LinearFee -> Quantity "lovelace/cert" Word64
 
 -- | The block-body consists of messages. There are several types of
 --   messages.
@@ -204,8 +199,6 @@ instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.ConfigParam
 instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.ConfigParam
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.ConsensusVersion
 instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.ConsensusVersion
-instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.LinearFee
-instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.LinearFee
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.LeaderId
 instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.LeaderId
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.Milli
@@ -244,7 +237,7 @@ module Cardano.Wallet.Jormungandr.Api
 type Api = GetTipId :<|> GetBlock :<|> GetBlockDescendantIds :<|> PostMessage
 
 -- | Retrieve a block by its id.
-type GetBlock = "v0" :> "block" :> Capture "blockHeaderHash" BlockId :> Get '[JormungandrBinary] (Block Tx)
+type GetBlock = "v0" :> "block" :> Capture "blockHeaderHash" BlockId :> Get '[JormungandrBinary] Block
 
 -- | Retrieve the header of the latest known block.
 type GetTipId = "v0" :> "tip" :> Get '[Hex] BlockId
@@ -271,7 +264,7 @@ instance Servant.API.ContentTypes.MimeUnrender Cardano.Wallet.Jormungandr.Api.He
 instance Servant.API.ContentTypes.Accept Cardano.Wallet.Jormungandr.Api.Hex
 instance Servant.API.ContentTypes.MimeUnrender Cardano.Wallet.Jormungandr.Api.JormungandrBinary [Cardano.Wallet.Jormungandr.Api.BlockId]
 instance Servant.API.ContentTypes.Accept Cardano.Wallet.Jormungandr.Api.JormungandrBinary
-instance Servant.API.ContentTypes.MimeUnrender Cardano.Wallet.Jormungandr.Api.JormungandrBinary (Cardano.Wallet.Primitive.Types.Block Cardano.Wallet.Jormungandr.Primitive.Types.Tx)
+instance Servant.API.ContentTypes.MimeUnrender Cardano.Wallet.Jormungandr.Api.JormungandrBinary Cardano.Wallet.Jormungandr.Binary.Block
 instance Servant.API.ContentTypes.MimeRender Cardano.Wallet.Jormungandr.Api.JormungandrBinary (Cardano.Wallet.Jormungandr.Primitive.Types.Tx, [Cardano.Wallet.Primitive.Types.TxWitness])
 instance Web.Internal.HttpApiData.ToHttpApiData Cardano.Wallet.Jormungandr.Api.BlockId
 
@@ -291,11 +284,12 @@ mkNetworkLayer :: Monad m => JormungandrLayer m -> NetworkLayer (Jormungandr n) 
 
 -- | Endpoints of the jormungandr REST API.
 data JormungandrLayer m
-JormungandrLayer :: ExceptT ErrNetworkUnreachable m (Hash "BlockHeader") -> (Hash "BlockHeader" -> ExceptT ErrGetBlock m (Block Tx)) -> (Hash "BlockHeader" -> Word -> ExceptT ErrGetDescendants m [Hash "BlockHeader"]) -> ((Tx, [TxWitness]) -> ExceptT ErrPostTx m ()) -> JormungandrLayer m
+JormungandrLayer :: ExceptT ErrNetworkUnreachable m (Hash "BlockHeader") -> (Hash "BlockHeader" -> ExceptT ErrGetBlock m (Block Tx)) -> (Hash "BlockHeader" -> Word -> ExceptT ErrGetDescendants m [Hash "BlockHeader"]) -> ((Tx, [TxWitness]) -> ExceptT ErrPostTx m ()) -> (Hash "Genesis" -> ExceptT ErrGetInitialFeePolicy m FeePolicy) -> JormungandrLayer m
 [$sel:getTipId:JormungandrLayer] :: JormungandrLayer m -> ExceptT ErrNetworkUnreachable m (Hash "BlockHeader")
 [$sel:getBlock:JormungandrLayer] :: JormungandrLayer m -> Hash "BlockHeader" -> ExceptT ErrGetBlock m (Block Tx)
 [$sel:getDescendantIds:JormungandrLayer] :: JormungandrLayer m -> Hash "BlockHeader" -> Word -> ExceptT ErrGetDescendants m [Hash "BlockHeader"]
 [$sel:postMessage:JormungandrLayer] :: JormungandrLayer m -> (Tx, [TxWitness]) -> ExceptT ErrPostTx m ()
+[$sel:getInitialFeePolicy:JormungandrLayer] :: JormungandrLayer m -> Hash "Genesis" -> ExceptT ErrGetInitialFeePolicy m FeePolicy
 
 -- | Construct a <a>JormungandrLayer</a>-client
 --   
@@ -343,6 +337,8 @@ defaultManagerSettings :: ManagerSettings
 data Scheme
 Http :: Scheme
 Https :: Scheme
+instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Network.ErrGetInitialFeePolicy
+instance GHC.Show.Show Cardano.Wallet.Jormungandr.Network.ErrGetInitialFeePolicy
 instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Network.ErrGetDescendants
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Network.ErrGetDescendants
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Network.ErrUnexpectedNetworkFailure
