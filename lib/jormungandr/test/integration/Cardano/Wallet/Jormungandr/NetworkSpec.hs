@@ -196,7 +196,9 @@ spec = do
 
         it "no input, one output" $ \(_, nw) -> do
             let tx = (Tx []
-                    [ (TxOut $ unsafeDecodeAddress proxy "ca1qwunuat6snw60g99ul6qvte98fjale2k0uu5mrymylqz2ntgzs6vs386wxd")
+                    [ (TxOut $ unsafeDecodeAddress proxy
+                        "ca1qwunuat6snw60g99ul6qvte98fja\
+                        \le2k0uu5mrymylqz2ntgzs6vs386wxd")
                       (Coin 1227362560)
                     ], [])
             runExceptT (postTx nw tx) `shouldReturn` Right ()
@@ -246,17 +248,23 @@ spec = do
     txNonEmpty = Tx
         { inputs =
             [ (TxIn
-                { inputId = Hash $ unsafeFromHex "666984dec4bc0ff1888be97bfe0694a96b35c58d025405ead51d5cc72a3019f4"
+                { inputId = Hash $ unsafeFromHex
+                    "666984dec4bc0ff1888be97bfe0694a9\
+                    \6b35c58d025405ead51d5cc72a3019f4"
                 , inputIx = 0
                 }, Coin 934864225351)
             ]
         , outputs =
             [ TxOut
-                { address = unsafeDecodeAddress proxy "ca1q0u7k6ltp3e52pch47rhdkld2gdvgu26rwyqh02csu3ah3384f2nvhlk7a6"
+                { address = unsafeDecodeAddress proxy
+                    "ca1q0u7k6ltp3e52pch47rhdkld2gdv\
+                    \gu26rwyqh02csu3ah3384f2nvhlk7a6"
                 , coin = Coin 933636862791
                 }
             , TxOut
-                { address = unsafeDecodeAddress proxy "ca1qwunuat6snw60g99ul6qvte98fjale2k0uu5mrymylqz2ntgzs6vs386wxd"
+                { address = unsafeDecodeAddress proxy
+                    "ca1qwunuat6snw60g99ul6qvte98fja\
+                    \le2k0uu5mrymylqz2ntgzs6vs386wxd"
                 , coin = Coin 1227362560
                 }
             ]
