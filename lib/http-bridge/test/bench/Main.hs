@@ -19,7 +19,7 @@ import Cardano.Wallet
 import Cardano.Wallet.DB.Sqlite
     ( PersistState )
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge, block0 )
+    ( HttpBridge, block0, byronFeePolicy )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.HttpBridge.Network
@@ -41,8 +41,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Any
     ( AnyAddressState, initAnyState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Any.TH
     ( migrateAll )
-import Cardano.Wallet.Primitive.Fee
-    ( cardanoPolicy )
 import Cardano.Wallet.Primitive.Model
     ( totalBalance, totalUTxO )
 import Cardano.Wallet.Primitive.Types
@@ -208,7 +206,7 @@ bench_restoration _ (wid, wname, s) = withHttpBridge network $ \port -> do
     let tl = newTransactionLayer
     BlockHeader sl _ <- unsafeRunExceptT $ networkTip nw
     sayErr . fmt $ network ||+ " tip is at " +|| sl ||+ ""
-    w <- newWalletLayer @_ @(HttpBridge n) nullTracer block0 cardanoPolicy db nw tl
+    w <- newWalletLayer @_ @(HttpBridge n) nullTracer block0 byronFeePolicy db nw tl
     wallet <- unsafeRunExceptT $ createWallet w wid wname s
     unsafeRunExceptT $ restoreWallet w wallet
     waitForWalletSync w wallet

@@ -19,7 +19,6 @@ module Cardano.Wallet.Primitive.Fee
       -- * Types
       Fee (..)
     , FeePolicy (..)
-    , cardanoPolicy
 
       -- * Fee Calculation
     , computeFee
@@ -79,10 +78,6 @@ newtype Fee = Fee { getFee :: Word64 }
 data FeePolicy =
     LinearFee (Quantity "lovelace" Double) (Quantity "lovelace/x" Double)
     deriving (Eq, Show)
-
--- | Hard-coded fee policy for Cardano
-cardanoPolicy :: FeePolicy
-cardanoPolicy = LinearFee (Quantity 155381) (Quantity 43.946)
 
 {-------------------------------------------------------------------------------
                                 Fee Calculation

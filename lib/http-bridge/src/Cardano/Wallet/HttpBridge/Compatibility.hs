@@ -18,6 +18,7 @@ module Cardano.Wallet.HttpBridge.Compatibility
       HttpBridge
     , Network (..)
     , block0
+    , byronFeePolicy
     ) where
 
 import Prelude
@@ -30,6 +31,8 @@ import Cardano.Wallet.HttpBridge.Environment
     ( Network (Mainnet, Testnet), ProtocolMagic, protocolMagic )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), Key (..), KeyToAddress (..), XPub, getKey )
+import Cardano.Wallet.Primitive.Fee
+    ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
@@ -48,6 +51,8 @@ import Data.Bifunctor
     ( bimap )
 import Data.ByteString.Base58
     ( bitcoinAlphabet, decodeBase58, encodeBase58 )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text.Class
     ( TextDecodingError (..) )
 
@@ -142,3 +147,8 @@ block0 = Block
         }
     , transactions = []
     }
+
+-- | Hard-coded fee policy for Cardano on Byron
+byronFeePolicy :: FeePolicy
+byronFeePolicy = LinearFee (Quantity 155381) (Quantity 43.946)
+
