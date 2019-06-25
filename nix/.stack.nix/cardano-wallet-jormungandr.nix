@@ -54,6 +54,7 @@
             (hsPkgs.cardano-crypto)
             (hsPkgs.cardano-wallet-jormungandr)
             (hsPkgs.containers)
+            (hsPkgs.generic-arbitrary)
             (hsPkgs.generic-lens)
             (hsPkgs.hspec)
             (hsPkgs.memory)

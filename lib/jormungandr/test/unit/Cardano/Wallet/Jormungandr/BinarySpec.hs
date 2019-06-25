@@ -1,7 +1,10 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Jormungandr.BinarySpec
     ( spec
@@ -19,8 +22,12 @@ import Cardano.Wallet.Jormungandr.Binary
     , LeaderId (..)
     , Message (..)
     , Milli (..)
+    , getAddress
     , getBlock
+    , getMessage
     , putAddress
+    , putSignedTx
+    , runGet
     , runPut
     , singleAddressFromKey
     )
@@ -33,11 +40,20 @@ import Cardano.Wallet.Jormungandr.Primitive.Types
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Coin (..), Hash (..), SlotId (..), TxOut (..) )
+    ( Address (..)
+    , Coin (..)
+    , Hash (..)
+    , SlotId (..)
+    , TxIn (..)
+    , TxOut (..)
+    , TxWitness (..)
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeDecodeAddress, unsafeDecodeHex, unsafeFromHex )
 import Control.Exception
-    ( SomeException, evaluate )
+    ( SomeException, evaluate, try )
+import Data.ByteString
+    ( ByteString )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
@@ -46,8 +62,28 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Word
+    ( Word8 )
+import GHC.Generics
+    ( Generic )
+import System.IO.Unsafe
+    ( unsafePerformIO )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldThrow )
+import Test.QuickCheck
+    ( Arbitrary (..)
+    , Gen
+    , Positive (..)
+    , choose
+    , oneof
+    , property
+    , vectorOf
+    , (===)
+    )
+import Test.QuickCheck.Arbitrary.Generic
+    ( genericArbitrary, genericShrink )
+
+import qualified Data.ByteString as BS
 
 spec :: Spec
 spec = do
@@ -200,6 +236,114 @@ spec = do
                 `shouldThrow` userException msg
 
         it "throws when encoding an address of invalid length" $ do
-            let msg = "Address has unexpected length 1: Address {unAddress = \"0\"}"
+            let msg = "Address has unexpected length 1: \
+                \Address {unAddress = \"0\"}"
             evaluate (runPut $ putAddress $ Address "0")
                 `shouldThrow` userException msg
+
+        it "decode (encode address) === address" $ property $ \addr -> do
+                let bytes = (runPut $ putAddress addr)
+                let addr' = try' $ runGet getAddress bytes
+                addr' === (Right addr)
+
+        it "decode (encode tx) === (validate tx)" $
+            property $ \(SignedTx signedTx) -> do
+                let bytes = try' (runPut $ putSignedTx signedTx)
+                let tx' = try' . unMessage . runGet getMessage =<< bytes
+                tx' === (Right signedTx)
+  where
+    unMessage :: Message -> (Tx, [TxWitness])
+    unMessage m = case m of
+        Transaction stx -> stx
+        _ -> error "expected a Transaction message"
+
+    try' :: a -> Either String a
+    try' = unsafePerformIO
+        . fmap (either (Left . show) Right)
+        . (try @SomeException) . evaluate
+
+
+-- Only generating single addresses!
+instance Arbitrary Address where
+    arbitrary = Address . prependTag 3 <$> genFixed 32
+    shrink (Address addr) = Address . prependTag 3
+        <$> shrinkFixedBS (BS.tail addr)
+
+-- Observation:
+-- genFixed and shrinkFixed would be nice candidates for DerivingVia.
+-- e.g.
+-- deriving instance Arbitrary Address via (ByteStringOfLength @33)
+genFixed :: Int -> Gen BS.ByteString
+genFixed n = BS.pack <$> (vectorOf n arbitrary)
+
+shrinkFixedBS :: ByteString -> [ByteString]
+shrinkFixedBS bs = [zeros | bs /= zeros]
+      where
+        len = BS.length bs
+        zeros = BS.pack (replicate len 0)
+
+instance Arbitrary (Hash "Tx") where
+    arbitrary = Hash <$> genFixed 32
+    shrink (Hash bytes) = Hash <$> shrinkFixedBS bytes
+
+instance Arbitrary Coin where
+    arbitrary = do
+        n <- choose (0, 100)
+        oneof [
+            return $ Coin n
+            , return $ Coin (getCoin (maxBound :: Coin) - n)
+            , Coin <$> choose (0, getCoin (maxBound :: Coin))
+            ]
+    shrink (Coin c) = map Coin (shrink c)
+
+instance Arbitrary TxIn where
+    arbitrary = TxIn
+        <$> arbitrary
+        <*> (fromIntegral <$> arbitrary @Word8)
+    shrink = genericShrink
+
+instance Arbitrary TxOut where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+newtype SignedTx = SignedTx (Tx, [TxWitness])
+    deriving (Eq, Show, Generic)
+
+instance Arbitrary SignedTx where
+    arbitrary = do
+        nIn <- fromIntegral <$> arbitrary @Word8
+        nOut <- fromIntegral <$> arbitrary @Word8
+        ins <- vectorOf nIn arbitrary
+        outs <- vectorOf nOut arbitrary
+        witnesses <- vectorOf nIn arbitrary
+        return $ SignedTx (Tx ins outs, witnesses)
+
+    shrink (SignedTx (Tx ins outs, wits)) =
+        [SignedTx (Tx ins' outs, wits')
+        | (ins', wits') <- unzip <$> shrinkList' (zip ins wits)] ++
+        [SignedTx (Tx ins outs', wits) | outs' <- shrinkList' outs ] ++
+        [ SignedTx (Tx ins' outs', wits')
+        | outs' <- shrinkAllOneStep shrink outs
+        , ins' <- shrinkAllOneStep shrink ins
+        , wits' <- shrinkAllOneStep shrink wits]
+
+      where
+        -- Shrink one step for each element in a list.
+        -- This is a very crude, unreliable way to do shrinking,
+        -- but it seems better than nothing.
+        shrinkAllOneStep :: (a -> [a]) -> [a] -> [[a]]
+        shrinkAllOneStep f l = maybe [] return $ foldl (\xs x ->
+            case f x of
+                (x':_) -> (x':) <$> xs
+                (_) -> Nothing
+            ) (Just []) l
+        shrinkList' xs  = filter (not . null)
+            [ take n xs | Positive n <- shrink (Positive $ length xs) ]
+
+-- | Only generates single address witnesses
+instance Arbitrary TxWitness where
+    arbitrary = TxWitness <$> genFixed 64
+    shrink (TxWitness bytes) = TxWitness <$> shrinkFixedBS bytes
+
+prependTag :: Int -> ByteString -> ByteString
+prependTag tag bs = BS.pack [fromIntegral tag] <> bs
