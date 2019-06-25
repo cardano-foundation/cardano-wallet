@@ -25,6 +25,7 @@ import Test.Integration.Framework.DSL
     ( Context
     , Headers (..)
     , Payload (..)
+    , TxDescription (..)
     , amount
     , balanceAvailable
     , balanceTotal
@@ -39,6 +40,7 @@ import Test.Integration.Framework.DSL
     , expectSuccess
     , faucetAmt
     , faucetUtxoAmt
+    , feeEstimator
     , fixtureWallet
     , fixtureWalletWith
     , getWalletEp
@@ -89,7 +91,10 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        let (feeMin, feeMax) = (168609, 168785)
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+                { nInputs = 1
+                , nOutputs = 1
+                }
 
         r <- request @(ApiTransaction t) ctx (postTxEp wa) Default payload
         verify r
@@ -145,25 +150,26 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        let (feeMin, feeMax) = (181487, 181839)
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+                { nInputs = 2
+                , nOutputs = 2
+                }
 
         r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        ra <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldBetween amount (feeMin + amt, feeMax + amt)
+            , expectFieldBetween amount (feeMin + (2*amt), feeMax + (2*amt))
             , expectFieldEqual direction Outgoing
             , expectFieldEqual status Pending
             ]
-
-        ra <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
         verify ra
             [ expectFieldBetween balanceTotal
-                ( faucetAmt - feeMax - amt
-                , faucetAmt - feeMin - amt
+                ( faucetAmt - feeMax - (2*amt)
+                , faucetAmt - feeMin - (2*amt)
                 )
             , expectFieldEqual balanceAvailable (faucetAmt - 2 * faucetUtxoAmt)
             ]
-
         rd <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
         verify rd
             [ expectEventually ctx balanceAvailable (2*amt)
@@ -199,25 +205,26 @@ spec = do
                 ],
                 "passphrase": "cardano-wallet"
             }|]
-        let (feeMin, feeMax) = (181487, 181839)
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+                { nInputs = 2
+                , nOutputs = 2
+                }
 
         r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        ra <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldBetween amount (feeMin + amt, feeMax + amt)
+            , expectFieldBetween amount (feeMin + (2*amt), feeMax + (2*amt))
             , expectFieldEqual direction Outgoing
             , expectFieldEqual status Pending
             ]
-
-        ra <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
         verify ra
             [ expectFieldBetween balanceTotal
-                ( faucetAmt - feeMax - amt
-                , faucetAmt - feeMin - amt
+                ( faucetAmt - feeMax - (2*amt)
+                , faucetAmt - feeMin - (2*amt)
                 )
             , expectFieldEqual balanceAvailable (faucetAmt - 2 * faucetUtxoAmt)
             ]
-
         forM_ [wDest1, wDest2] $ \wDest -> do
             rd <- request @ApiWallet ctx (getWalletEp wDest) Default payload
             verify rd
@@ -260,7 +267,9 @@ spec = do
             ]
 
     it "TRANS_CREATE_03 - 0 balance after transaction" $ \ctx -> do
-        wSrc <- fixtureWalletWith ctx [168_434]
+        let (feeMin, _) = ctx ^. feeEstimator $ TxDescription 1 1
+        let amt = 1
+        wSrc <- fixtureWalletWith ctx [feeMin+amt]
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses ctx wDest
 
@@ -269,7 +278,7 @@ spec = do
                 "payments": [{
                     "address": #{destination},
                     "amount": {
-                        "quantity": 1,
+                        "quantity": #{amt},
                         "unit": "lovelace"
                     }
                 }],
@@ -278,7 +287,7 @@ spec = do
         r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldEqual amount 168434
+            , expectFieldEqual amount (feeMin + amt)
             , expectFieldEqual direction Outgoing
             , expectFieldEqual status Pending
             ]
@@ -291,8 +300,8 @@ spec = do
 
         rd <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
         verify rd
-            [ expectEventually ctx balanceAvailable 1
-            , expectEventually ctx balanceTotal 1
+            [ expectEventually ctx balanceAvailable amt
+            , expectEventually ctx balanceTotal amt
             ]
 
         ra2 <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
@@ -302,7 +311,8 @@ spec = do
             ]
 
     it "TRANS_CREATE_04 - Can't cover fee" $ \ctx -> do
-        wSrc <- fixtureWalletWith ctx [100_000]
+        let (feeMin, _) = ctx ^. feeEstimator $ TxDescription 1 1
+        wSrc <- fixtureWalletWith ctx [feeMin `div` 2]
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses ctx wDest
 
@@ -324,7 +334,8 @@ spec = do
             ]
 
     it "TRANS_CREATE_04 - Not enough money" $ \ctx -> do
-        wSrc <- fixtureWalletWith ctx [100_000]
+        let (feeMin, _) = ctx ^. feeEstimator $ TxDescription 1 1
+        wSrc <- fixtureWalletWith ctx [feeMin]
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses ctx wDest
 
@@ -342,7 +353,8 @@ spec = do
         r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage (errMsg403NotEnoughMoney 100_000 1000_000)
+            , expectErrorMessage $
+                errMsg403NotEnoughMoney (fromIntegral feeMin) 1_000_000
             ]
 
     it "TRANS_CREATE_04 - Wrong password" $ \ctx -> do
