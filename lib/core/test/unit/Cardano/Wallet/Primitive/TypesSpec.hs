@@ -67,6 +67,7 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
+    , arbitraryBoundedEnum
     , arbitraryPrintableChar
     , checkCoverage
     , choose
@@ -95,6 +96,7 @@ spec = do
 
     describe "Can perform roundtrip textual encoding & decoding" $ do
         textRoundtrip $ Proxy @AddressState
+        textRoundtrip $ Proxy @Direction
         textRoundtrip $ Proxy @WalletName
         textRoundtrip $ Proxy @WalletId
 
@@ -297,6 +299,10 @@ prop_2_6_2 (ins, u) =
     structures that don't have much entropy and therefore, allow us to even test
     something when checking for intersections and set restrictions!
 -------------------------------------------------------------------------------}
+
+instance Arbitrary Direction where
+    arbitrary = arbitraryBoundedEnum
+    shrink = genericShrink
 
 instance Arbitrary (Hash "Tx") where
     -- No Shrinking
