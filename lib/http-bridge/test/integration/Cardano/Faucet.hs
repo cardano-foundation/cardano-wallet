@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Faucet
@@ -156,4 +155,3 @@ genesis =
         \5a79a468b440f002972c147600234a1bb04c46261eacb629be0cff3beccd705b"
     , mempty
     )
-
