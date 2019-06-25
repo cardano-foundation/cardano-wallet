@@ -64,14 +64,16 @@ import qualified Codec.CBOR.Write as CBOR
 initFaucet :: NetworkLayer (HttpBridge n) IO -> IO Faucet
 initFaucet nl = do
     wallets <- replicateM 100 genMnemonic
-    let outs = uncurry TxOut . (,Coin 100000000000) . firstAddress <$> wallets
-    unsafeRunExceptT $ postTx nl (mkRedeemTx $ mconcat $ replicate 10 outs)
+    let mkFaucet addr = TxOut addr (Coin 100000000000)
+    let outs = mconcat [ mkFaucet <$> take 10 (addresses w) | w <- wallets ]
+    unsafeRunExceptT $ postTx nl (mkRedeemTx outs)
     Faucet <$> newMVar wallets
   where
     genMnemonic :: IO (Mnemonic 15)
     genMnemonic = entropyToMnemonic <$> genEntropy
-    firstAddress :: Mnemonic 15 -> Address
-    firstAddress mw =
+
+    addresses :: Mnemonic 15 -> [Address]
+    addresses mw =
         let
             (seed, pwd) =
                 (Passphrase $ entropyToBytes $ mnemonicToEntropy mw, mempty)
@@ -80,9 +82,11 @@ initFaucet nl = do
             accXPrv =
                 deriveAccountPrivateKey pwd rootXPrv minBound
             addrXPrv =
-                deriveAddressPrivateKey pwd accXPrv ExternalChain minBound
+                deriveAddressPrivateKey pwd accXPrv ExternalChain
         in
-            keyToAddress @(HttpBridge 'Testnet) (publicKey addrXPrv)
+            [ keyToAddress @(HttpBridge 'Testnet) (publicKey $ addrXPrv ix)
+            | ix <- [minBound..maxBound]
+            ]
 
 {-------------------------------------------------------------------------------
                                     Internal
