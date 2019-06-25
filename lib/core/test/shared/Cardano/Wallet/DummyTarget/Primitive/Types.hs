@@ -37,6 +37,8 @@ import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
 import Data.Text.Class
     ( TextDecodingError (..) )
+import Fmt
+    ( Buildable (..), blockListF' )
 import GHC.Generics
     ( Generic )
 
@@ -74,6 +76,14 @@ instance DefineTx DummyTarget where
     txId = Hash . B8.pack . show
     inputs = inputs
     outputs = outputs
+
+instance Buildable DummyTarget where
+    build _ = mempty
+
+instance Buildable Tx where
+    build (Tx ins outs) = mempty
+        <> blockListF' "~>" build ins
+        <> blockListF' "<~" build outs
 
 block0 :: Block Tx
 block0 = Block

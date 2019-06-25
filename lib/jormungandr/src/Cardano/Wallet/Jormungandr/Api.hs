@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -15,7 +16,7 @@ module Cardano.Wallet.Jormungandr.Api
     , GetBlock
     , GetTipId
     , GetBlockDescendantIds
-    , PostSignedTx
+    , PostMessage
     , BlockId (..)
     , api
     ) where
@@ -23,7 +24,7 @@ module Cardano.Wallet.Jormungandr.Api
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
-    ( coerceBlock, getBlock, runGet )
+    ( coerceBlock, getBlock, putSignedTx, runGet, runPut )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx )
 import Cardano.Wallet.Primitive.Types
@@ -44,6 +45,7 @@ import Servant.API
     , Accept (..)
     , Capture
     , Get
+    , MimeRender (..)
     , MimeUnrender (..)
     , NoContent
     , Post
@@ -59,7 +61,7 @@ import qualified Servant.API.ContentTypes as Servant
 api :: Proxy Api
 api = Proxy
 
-type Api = GetTipId :<|> GetBlock :<|> GetBlockDescendantIds
+type Api = GetTipId :<|> GetBlock :<|> GetBlockDescendantIds :<|> PostMessage
 
 -- | Retrieve a block by its id.
 type GetBlock
@@ -92,7 +94,7 @@ type GetTipId
     :> "tip"
     :> Get '[Hex] BlockId
 
-type PostSignedTx
+type PostMessage
     = "v0"
     :> "message"
     :> ReqBody '[JormungandrBinary] (Tx, [TxWitness])
@@ -123,6 +125,9 @@ instance Accept JormungandrBinary where
 
 instance MimeUnrender JormungandrBinary (Block Tx) where
     mimeUnrender _ = pure . coerceBlock . runGet getBlock
+
+instance MimeRender JormungandrBinary (Tx, [TxWitness]) where
+    mimeRender _ a = runPut $ putSignedTx a
 
 data Hex
 

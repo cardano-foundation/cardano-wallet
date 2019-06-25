@@ -56,6 +56,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
+import Cardano.Wallet.Primitive.Fee
+    ( cardanoPolicy )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -334,7 +336,7 @@ setupFixture (wid, wname, wstate) = do
     db <- newDBLayer
     let nl = error "NetworkLayer"
     let tl = dummyTransactionLayer
-    wl <- newWalletLayer @_ @DummyTarget nullTracer block0 db nl tl
+    wl <- newWalletLayer @_ @DummyTarget nullTracer block0 cardanoPolicy db nl tl
     res <- runExceptT $ createWallet wl wid wname wstate
     let wal = case res of
             Left _ -> []

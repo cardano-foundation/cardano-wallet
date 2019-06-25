@@ -32,6 +32,7 @@
           (hsPkgs.deepseq)
           (hsPkgs.either)
           (hsPkgs.exceptions)
+          (hsPkgs.fmt)
           (hsPkgs.http-client)
           (hsPkgs.http-types)
           (hsPkgs.memory)

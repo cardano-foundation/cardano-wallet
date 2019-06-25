@@ -43,6 +43,7 @@ library
     , deepseq
     , either
     , exceptions
+    , fmt
     , http-client
     , http-types
     , memory

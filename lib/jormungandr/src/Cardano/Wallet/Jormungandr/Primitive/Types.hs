@@ -22,6 +22,8 @@ import Cardano.Wallet.Primitive.Types
     ( Coin, TxIn, TxOut )
 import Control.DeepSeq
     ( NFData (..) )
+import Fmt
+    ( Buildable (..), blockListF' )
 import GHC.Generics
     ( Generic )
 
@@ -39,3 +41,8 @@ data Tx = Tx
     } deriving (Show, Generic, Ord, Eq)
 
 instance NFData Tx
+
+instance Buildable Tx where
+    build (Tx ins outs) = mempty
+        <> blockListF' "~>" build (fst <$> ins)
+        <> blockListF' "<~" build outs

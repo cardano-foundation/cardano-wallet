@@ -64,9 +64,9 @@ mnemonics = unsafeMkMnemonic <$>
       , "square", "mail", "eager", "bless"
       ]
     ]
+
 {-
 import Prelude
-
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, Network (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -94,10 +94,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Text
     ( Text )
-
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
-
 -- | Generate faucets addresses and mnemonics, printing everything to stdout
 --
 -- >>> genFaucets 1
@@ -121,7 +119,6 @@ genFaucets n = do
   where
     surroundedBy :: Char -> Text -> Text
     surroundedBy c txt = T.singleton c <> txt <> T.singleton c
-
 addresses :: Mnemonic n -> [Address]
 addresses mw =
     let

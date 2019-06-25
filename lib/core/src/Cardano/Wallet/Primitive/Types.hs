@@ -335,7 +335,7 @@ instance Buildable BlockHeader where
 -- @
 -- txId @t tx
 -- @
-class (NFData (Tx t), Show (Tx t), Ord (Tx t)) => DefineTx t where
+class (NFData (Tx t), Show (Tx t), Ord (Tx t), Buildable (Tx t)) => DefineTx t where
     type Tx t :: *
     txId :: Tx t -> Hash "Tx"
     -- | Compute a transaction id; assumed to be effectively injective.
