@@ -64,6 +64,7 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( arabicWalletName
     , errMsg403Fee
+    , errMsg403InvalidTransaction
     , errMsg403NotEnoughMoney
     , errMsg403UTxO
     , errMsg403WrongPass
@@ -409,7 +410,7 @@ spec = do
                 err `shouldContain` "wallet id should be an \
                     \hex-encoded string of 40 characters"
 
-    it "TRANSCLI_CREATE_07 - 'almost' valid walletId" $ \ctx -> do
+    it "TRANS_CREATE_07 - 'almost' valid walletId" $ \ctx -> do
         wSrc <- emptyWallet ctx
         wDest <- emptyWallet ctx
         addrs:_ <- listAddresses ctx wDest
@@ -443,5 +444,41 @@ spec = do
         (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI args
         err `shouldContain` "I couldn't find a wallet with \
             \the given id: " ++ T.unpack ( wSrc ^. walletId )
+        out `shouldBe` ""
+        c `shouldBe` ExitFailure 1
+
+    it "TRANS_CREATE_09 - 0 amount transaction is forbidden on single output tx" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        wDest <- emptyWallet ctx
+        addrs:_ <- listAddresses ctx wDest
+        let addr =
+                encodeAddress (Proxy @t) (getApiT $ fst $ addrs ^. #id)
+        let amt = "0"
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", amt <> "@" <> addr
+                ]
+
+        (c, out, err) <- postTransactionViaCLI ctx "cardano-wallet" args
+        (T.unpack err) `shouldContain` errMsg403InvalidTransaction
+        out `shouldBe` ""
+        c `shouldBe` ExitFailure 1
+
+    it "TRANS_CREATE_09 - 0 amount transaction is forbidden on multi-output tx" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        wDest <- emptyWallet ctx
+        addrs <- listAddresses ctx wDest
+        let addr1 =
+                encodeAddress (Proxy @t) (getApiT $ fst $ addrs !! 1 ^. #id)
+        let addr2 =
+                encodeAddress (Proxy @t) (getApiT $ fst $ addrs !! 2 ^. #id)
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", "0@" <> addr1
+                , "--payment", "15@" <> addr2
+                ]
+
+        (c, out, err) <- postTransactionViaCLI ctx "cardano-wallet" args
+        (T.unpack err) `shouldContain` errMsg403InvalidTransaction
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
