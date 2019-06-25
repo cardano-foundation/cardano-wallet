@@ -15,6 +15,8 @@ import Data.Foldable
     ( toList )
 import Data.Maybe
     ( isNothing )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -43,6 +45,8 @@ import Test.QuickCheck
     , (===)
     , (==>)
     )
+import Test.Text.Roundtrip
+    ( textRoundtrip )
 
 import qualified Data.Text as T
 
@@ -80,6 +84,9 @@ spec = do
             toText @Text "patate" === "patate"
         it "fromText . toText === pure" $
             property $ \(t :: Text) -> (fromText . toText) t === pure t
+
+    describe "Can perform roundtrip textual encoding & decoding" $ do
+        textRoundtrip $ Proxy @String
 
     describe "BoundedEnum" $ do
         it "fromTextToBoundedEnum s (toTextFromBoundedEnum s a) == Right a" $

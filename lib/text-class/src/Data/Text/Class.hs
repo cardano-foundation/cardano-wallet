@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -66,6 +67,12 @@ newtype TextDecodingError = TextDecodingError
     { getTextDecodingError :: String }
     deriving stock (Eq, Show)
     deriving newtype Buildable
+
+instance FromText String where
+    fromText = pure . T.unpack
+
+instance ToText String where
+    toText = T.pack
 
 instance FromText Text where
     fromText = pure
