@@ -39,6 +39,7 @@ module Test.Integration.Framework.DSL
     , expectCliFieldEqual
     , expectCliFieldNotEqual
     , expectCliListItemFieldEqual
+    , expectProcStdOutHas
     , verify
     , Headers(..)
     , Payload(..)
@@ -64,6 +65,7 @@ module Test.Integration.Framework.DSL
     , emptyWallet
     , emptyWalletWith
     , getFromResponse
+    , getProcStream
     , json
     , listAddresses
     , tearDown
@@ -118,6 +120,10 @@ import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
     ( async, race, wait )
+import Control.Exception
+    ( SomeException (..), try )
+import Control.Exception.Extra
+    ( retry )
 import Control.Monad
     ( forM_, unless, void )
 import Control.Monad.Catch
@@ -175,11 +181,12 @@ import System.Directory
 import System.Exit
     ( ExitCode (..) )
 import System.IO
-    ( hClose, hFlush, hPutStr )
+    ( BufferMode (..), hClose, hFlush, hPutStr, hSetBuffering )
 import System.Process
     ( CreateProcess (..)
     , StdStream (..)
     , proc
+    , terminateProcess
     , waitForProcess
     , withCreateProcess
     )
@@ -445,6 +452,41 @@ expectPathEventuallyExist filepath = do
                 return ()
             False ->
                 threadDelay (oneSecond `div` 2) >> doesPathExistNow
+
+-- | Expect process eventually has given text on its stdOut
+expectProcStdOutHas :: CreateProcess -> Text -> IO ()
+expectProcStdOutHas procc out = do
+    let safeProc = procc { std_out = CreatePipe }
+    handle <- async (runProcUntil safeProc out)
+    winner <- race (threadDelay (60 * oneSecond)) (wait handle)
+    case winner of
+        Left _ -> expectationFailure $
+            "waited more than 60s for proccess to have in stdout = " ++ T.unpack out
+        Right _ ->
+            return ()
+  where
+    oneSecond = 1_000_000
+
+    runProcUntil :: CreateProcess -> Text -> IO ()
+    runProcUntil pr wants = withCreateProcess pr $ \_ (Just stdout) _ h -> do
+           hSetBuffering stdout LineBuffering
+           waitForIt stdout h
+     where
+         waitForIt stdout h = do
+             r <- try $ retry 60 (TIO.hGetLine stdout) :: IO (Either SomeException Text)
+             case r of
+                 Left e -> do
+                     terminateProcess h
+                     TIO.hGetContents stdout >>= TIO.putStrLn
+                     error $ "TIO.hGetLine failed to get line from proc stdout,\
+                        \ while trying to check if it contains: '" ++ T.unpack wants ++ "'\
+                        \ exception: " ++ show e
+                 Right is ->
+                     if wants `T.isInfixOf` is then do
+                         terminateProcess h
+                         TIO.hGetContents stdout >>= TIO.putStrLn
+                     else
+                         waitForIt stdout h
 
 --
 -- Lenses
@@ -716,7 +758,7 @@ tearDown ctx = do
          Left e -> error $ "deleteAllWallets: Cannot return wallets: " <> show e
          Right s -> s
 
--- | Wait a booting wallet server to has started. Wait up to 30s or fail.
+-- | Wait for a booting wallet server to start. Wait up to 30s or fail.
 waitForServer
     :: forall t ctx. (HasType Port ctx, KnownCommand t)
     => ctx
@@ -729,8 +771,6 @@ waitForServer ctx = void $ retrying
     -- quite noisy.
     (\_ (e, _ :: Stderr, _ :: Stdout) -> pure $ e == ExitFailure 1)
     (const $ listWalletsViaCLI @t ctx)
-  where
-    oneSecond = 1000000
 
 unsafeCreateDigest :: Text -> Digest Blake2b_160
 unsafeCreateDigest s = fromMaybe
@@ -924,3 +964,14 @@ postTransactionViaCLI ctx passphrase args = do
 proc' :: FilePath -> [String] -> CreateProcess
 proc' cmd args = (proc "stack" (["exec", "--", cmd] ++ args))
     { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
+
+-- | Get process out and err streams after n seconds of running and terminate
+getProcStream :: CreateProcess -> Int -> IO (String, String)
+getProcStream pr n = withCreateProcess pr $ \_ (Just stdout) (Just stderr) h -> do
+       threadDelay $ n*oneSecond
+       terminateProcess h
+       out <- TIO.hGetContents stdout
+       err <- TIO.hGetContents stderr
+       return (T.unpack out, T.unpack err)
+ where
+     oneSecond = 1_000_000

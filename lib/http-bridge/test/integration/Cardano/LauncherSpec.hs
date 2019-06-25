@@ -41,19 +41,24 @@ import System.Process
 import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Expectations.Lifted
-    ( shouldReturn )
+    ( shouldBe, shouldNotContain, shouldReturn )
 import Test.Integration.Framework.DSL
     ( KnownCommand
     , createWalletViaCLI
     , expectEventually'
     , expectPathEventuallyExist
+    , expectProcStdOutHas
     , expectValidJSON
     , generateMnemonicsViaCLI
+    , getProcStream
     , proc'
     , state
     , waitForServer
     )
+import Test.Integration.Framework.TestData
+    ( versionLine )
 
+import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
 spec :: forall t. (KnownCommand t) => Spec
@@ -120,6 +125,32 @@ spec = do
                 let filepath = "test/integration/js/mock-daedalus.js"
                 (_, _, _, ph) <- createProcess (proc filepath args)
                 waitForProcess ph `shouldReturn` ExitSuccess
+
+    describe "LOGGING - cardano-wallet launch logging" $ do
+        it "LOGGING - Can log --verbose" $ \_ -> do
+            let args = ["launch", "--verbose"]
+            let process = proc' "cardano-wallet" args
+            process `expectProcStdOutHas` versionLine
+            process `expectProcStdOutHas` "Debug"
+            process `expectProcStdOutHas` "Warning"
+            process `expectProcStdOutHas` "Notice"
+            process `expectProcStdOutHas` "Info"
+
+        it "LOGGING - --quiet logs Error only" $ \_ -> do
+            let args = ["launch", "--quiet"]
+            let process = proc' "cardano-wallet" args
+            (o, _) <- getProcStream process 10
+            T.pack o `shouldBe` ""
+
+        it "LOGGING - default logs Info" $ \_ -> do
+            let args = ["launch"]
+            let process = proc' "cardano-wallet" args
+            (o, _) <- getProcStream process 5
+            o `shouldNotContain` "Debug"
+            process `expectProcStdOutHas` versionLine
+            process `expectProcStdOutHas` "Warning"
+            process `expectProcStdOutHas` "Notice"
+            process `expectProcStdOutHas` "Info"
 
 withTempDir :: (FilePath -> IO a) -> IO a
 withTempDir = withSystemTempDirectory "integration-state"
