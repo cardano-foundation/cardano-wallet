@@ -349,4 +349,4 @@ module Cardano.Wallet.Jormungandr.Transaction
 
 -- | Construct a <a>TransactionLayer</a> compatible with Shelley and
 --   <tt>Jörmungandr</tt>
-newTransactionLayer :: Hash "Genesis" -> TransactionLayer (Jormungandr n)
+newTransactionLayer :: forall n. () => Hash "Genesis" -> TransactionLayer (Jormungandr n)
