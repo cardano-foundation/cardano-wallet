@@ -44,11 +44,13 @@ executable cardano-wallet
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-http-bridge
+    , cardano-wallet-jormungandr
     , cardano-wallet-launcher
     , directory
     , docopt
     , filepath
     , fmt
+    , heredoc
     , http-client
     , iohk-monitoring
     , process
