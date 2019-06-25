@@ -18,9 +18,8 @@ module Cardano.Wallet.Primitive.Fee
     (
       -- * Types
       Fee (..)
-    , TxSizeLinear
+    , FeePolicy (..)
     , cardanoPolicy
-    , jormungandrPolicy
 
       -- * Fee Calculation
     , computeFee
@@ -72,26 +71,24 @@ import qualified Data.List as L
 newtype Fee = Fee { getFee :: Word64 }
     deriving (Eq, Ord)
 
--- | A linear equation on the transaction size. Represents the @\s -> a + b*s@
--- function where @s@ is the transaction size in bytes, @a@ and @b@ are
--- constant coefficients.
-data TxSizeLinear =
-    TxSizeLinear (Quantity "lovelace" Double) (Quantity "lovelace/byte" Double)
+-- | A linear equation a free variable `x`. Represents the @\s -> a + b*s@
+-- function where @s@ can be the transaction size in bytes or, a number of
+-- inputs + outputs.
+--
+-- @a@ and @b@ are constant coefficients.
+data FeePolicy =
+    LinearFee (Quantity "lovelace" Double) (Quantity "lovelace/x" Double)
     deriving (Eq, Show)
 
 -- | Hard-coded fee policy for Cardano
-cardanoPolicy :: TxSizeLinear
-cardanoPolicy = TxSizeLinear (Quantity 155381) (Quantity 43.946)
-
--- | Hard-coded zero fee policy for Jormungandr
-jormungandrPolicy :: TxSizeLinear
-jormungandrPolicy = TxSizeLinear (Quantity 0) (Quantity 0)
+cardanoPolicy :: FeePolicy
+cardanoPolicy = LinearFee (Quantity 155381) (Quantity 43.946)
 
 {-------------------------------------------------------------------------------
                                 Fee Calculation
 -------------------------------------------------------------------------------}
 
--- | Compute fee for a given payload of bytes. Fee follows a simple linear
+-- | Compute fee for a given payload. Fee follows a simple linear
 -- equation:
 --
 -- @
@@ -100,13 +97,13 @@ jormungandrPolicy = TxSizeLinear (Quantity 0) (Quantity 0)
 --
 -- where @a@ & @b@ are values fixed by the protocol.
 computeFee
-    :: TxSizeLinear
+    :: FeePolicy
     -> Quantity "byte" Int
     -> Fee
 computeFee policy (Quantity sz) =
     Fee $ ceiling (a + b*fromIntegral sz)
   where
-    TxSizeLinear (Quantity a) (Quantity b) = policy
+    LinearFee (Quantity a) (Quantity b) = policy
 
 {-------------------------------------------------------------------------------
                                 Fee Adjustment

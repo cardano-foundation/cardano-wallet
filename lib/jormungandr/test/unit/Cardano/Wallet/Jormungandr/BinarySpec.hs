@@ -17,7 +17,6 @@ import Cardano.Wallet.Jormungandr.Binary
     , ConfigParam (..)
     , ConsensusVersion (..)
     , LeaderId (..)
-    , LinearFee (..)
     , Message (..)
     , Milli (..)
     , getBlock
@@ -31,6 +30,8 @@ import Cardano.Wallet.Jormungandr.Environment
     ( Network (..) )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
+import Cardano.Wallet.Primitive.Fee
+    ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Coin (..), Hash (..), SlotId (..), TxOut (..) )
 import Cardano.Wallet.Unsafe
@@ -98,7 +99,7 @@ spec = do
                         , MaxNumberOfTransactionsPerBlock 255
                         , BftSlotsRatio (Milli 220)
                         , AllowAccountCreation True
-                        , ConfigLinearFee $ LinearFee (Quantity 0) (Quantity 0) (Quantity 0)
+                        , ConfigLinearFee $ LinearFee (Quantity 0) (Quantity 0)
                         ]
                     , Transaction (Tx
                         { inputs = []
@@ -150,8 +151,7 @@ spec = do
                         , ConsensusGenesisPraosParamF (Milli 220)
                         , MaxNumberOfTransactionsPerBlock 255
                         , BftSlotsRatio (Milli 220)
-                        , ConfigLinearFee $ LinearFee
-                            (Quantity 0) (Quantity 0) (Quantity 0)
+                        , ConfigLinearFee $ LinearFee (Quantity 0) (Quantity 0)
                         , KesUpdateSpeed (Quantity 16)
                         ]
                     ]
