@@ -101,6 +101,7 @@ spec = do
         textRoundtrip $ Proxy @TxStatus
         textRoundtrip $ Proxy @WalletName
         textRoundtrip $ Proxy @WalletId
+        textRoundtrip $ Proxy @(Hash "Tx")
 
     describe "Buildable" $ do
         it "WalletId" $ do
