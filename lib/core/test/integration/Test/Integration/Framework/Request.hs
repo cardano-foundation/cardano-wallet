@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -14,6 +15,7 @@ module Test.Integration.Framework.Request
     , Payload(..)
     , RequestException(..)
     , Context(..)
+    , TxDescription(..)
     ) where
 
 import Prelude
@@ -57,6 +59,8 @@ import Network.HTTP.Types.Status
     ( status500 )
 import Network.Wai.Handler.Warp
     ( Port )
+import Numeric.Natural
+    ( Natural )
 import System.IO
     ( Handle )
 import Test.Integration.Faucet
@@ -88,9 +92,17 @@ data Context t = Context
         -- integration tests.
     , _db :: SqlBackend
         -- ^ A database connection handle
+    , _feeEstimator :: TxDescription -> (Natural, Natural)
+        -- ^ A fee estimator for the integration tests
     , _target
         :: Proxy t
     } deriving Generic
+
+-- | Describe a transaction in terms of its inputs and outputs
+data TxDescription = TxDescription
+    { nInputs :: Int
+    , nOutputs :: Int
+    } deriving (Show)
 
 -- | The result when 'request' fails.
 data RequestException
