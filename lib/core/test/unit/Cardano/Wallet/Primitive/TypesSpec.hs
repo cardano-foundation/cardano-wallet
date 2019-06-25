@@ -97,6 +97,7 @@ spec = do
     describe "Can perform roundtrip textual encoding & decoding" $ do
         textRoundtrip $ Proxy @AddressState
         textRoundtrip $ Proxy @Direction
+        textRoundtrip $ Proxy @TxStatus
         textRoundtrip $ Proxy @WalletName
         textRoundtrip $ Proxy @WalletId
 
@@ -340,6 +341,10 @@ instance Arbitrary TxIn where
     arbitrary = TxIn
         <$> arbitrary
         <*> scale (`mod` 3) arbitrary -- No need for a crazy high indexes
+
+instance Arbitrary TxStatus where
+    arbitrary = arbitraryBoundedEnum
+    shrink = genericShrink
 
 instance Arbitrary UTxO where
     shrink (UTxO utxo) = UTxO <$> shrink utxo
