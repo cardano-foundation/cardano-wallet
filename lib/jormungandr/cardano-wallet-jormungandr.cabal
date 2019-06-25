@@ -153,6 +153,7 @@ test-suite integration
     , template-haskell
     , temporary
     , text
+    , text-class
     , transformers
     , warp
   type:
