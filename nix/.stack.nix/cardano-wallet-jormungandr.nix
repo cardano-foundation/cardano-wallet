@@ -101,6 +101,7 @@
             (hsPkgs.template-haskell)
             (hsPkgs.temporary)
             (hsPkgs.text)
+            (hsPkgs.text-class)
             (hsPkgs.transformers)
             (hsPkgs.warp)
             ];
