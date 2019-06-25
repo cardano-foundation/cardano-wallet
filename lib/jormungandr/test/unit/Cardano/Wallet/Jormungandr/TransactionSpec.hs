@@ -238,15 +238,18 @@ mkStdTxSpec = do
                 , (addr2, (xprv2, pwd2))
                 ]
 
-        -- echo $XPRV0 \
-        --   | jcli key from-bytes --type ed25519Extended \
-        --   | jcli transaction make-witness $TXIN0 \
-        --      --genesis-block-hash $BLOCK0 --type utxo > wit0.bin
-        --
         -- jcli transaction new \
         --   | jcli transaction add-input $TXIN0 0 10000 \
         --   | jcli transaction add-output $ADDR1 14 \
         --   | jcli transaction finalize $ADDR2 \
+        --   > tx
+        --
+        -- echo $XPRV0 \
+        --   | jcli key from-bytes --type ed25519Extended \
+        --   | jcli transaction make-witness $(jcli transaction id --staging tx) \
+        --      --genesis-block-hash $BLOCK0 --type utxo > wit0.bin
+        --
+        -- cat tx \
         --   | jcli transaction add-witness wit0.bin \
         --   | jcli transaction seal \
         --   | jcli transaction to-message
@@ -258,18 +261,10 @@ mkStdTxSpec = do
             "00bf020102000000000000002710666984dec4bc0ff1888be97bfe0694a96b35c5\
             \8d025405ead51d5cc72a3019f403b2ddcfbf631000216a6e0410e64c20e6af91bb\
             \b2826276ad6bfda777e766b24b000000000000000e0302ada8baca6d3a889a893d\
-            \a29aa8a291460d7ec95b36404bf094c1a72f2775a60000000000002702011d6870\
-            \fa98199f5b826fa30a3d888334d84671ac62d8bad8afd3c2aa1ece4995db1015f5\
-            \9b3c1b784ef5a8c7f6aaa68eb814a19809da6d74b55168100b6ac901"
+            \a29aa8a291460d7ec95b36404bf094c1a72f2775a6000000000000270201bf524c\
+            \8f2be5b1adb7f4b6de2cfd90e226f48fa1d1943bda8e6f0140f8cf7f3a6f4b3797\
+            \649b2bc92fa7e3cb6c32f2299899ba7cbd18abb8252786cd212a6f08"
 
-        -- echo $XPRV0 \
-        --   | jcli key from-bytes --type ed25519Extended \
-        --   | jcli transaction make-witness $TXIN0 --genesis-block-hash $BLOCK0 --type utxo > wit0.bin
-        --
-        -- echo $XPRV1 \
-        --   | jcli key from-bytes --type ed25519Extended \
-        --   | jcli transaction make-witness $TXIN1 --genesis-block-hash $BLOCK0 --type utxo > wit1.bin
-        --
         -- jcli transaction new \
         --   | jcli transaction add-input $TXIN0 0 10000 \
         --   | jcli transaction add-input $TXIN1 1 999999999 \
@@ -277,6 +272,19 @@ mkStdTxSpec = do
         --   | jcli transaction add-output $ADDR1 42 \
         --   | jcli transaction add-output $ADDR2 1337 \
         --   | jcli transaction finalize \
+        --   > tx
+        --
+        -- echo $XPRV0 \
+        --   | jcli key from-bytes --type ed25519Extended \
+        --   | jcli transaction make-witness $(jcli transaction id --staging tx) \
+        --      --genesis-block-hash $BLOCK0 --type utxo > wit0.bin
+        --
+        -- echo $XPRV1 \
+        --   | jcli key from-bytes --type ed25519Extended \
+        --   | jcli transaction make-witness $(jcli transaction id --staging tx) \
+        --      --genesis-block-hash $BLOCK0 --type utxo > wit1.bin
+        --
+        -- cat tx \
         --   | jcli transaction add-witness wit0.bin \
         --   | jcli transaction add-witness wit1.bin \
         --   | jcli transaction seal \
@@ -295,11 +303,11 @@ mkStdTxSpec = do
             \6014ba0b626b1808e67e75dfa370c2dc5f581715fe000000000001869f03b2ddcf\
             \bf631000216a6e0410e64c20e6af91bbb2826276ad6bfda777e766b24b00000000\
             \0000002a0302ada8baca6d3a889a893da29aa8a291460d7ec95b36404bf094c1a7\
-            \2f2775a60000000000000539011d6870fa98199f5b826fa30a3d888334d84671ac\
-            \62d8bad8afd3c2aa1ece4995db1015f59b3c1b784ef5a8c7f6aaa68eb814a19809\
-            \da6d74b55168100b6ac901018d6e44b7d33951c1ba690388fd274c784eac9504f9\
-            \18d3df7b186cee7e4e593e8029953054f6da1f21e012bdce6eac708f4183052175\
-            \a5d933e8b719c53eed06"
+            \2f2775a600000000000005390141a47dc3e1246215cd4f78b82444a623c507a1de\
+            \d0eb74f641cc77879fc99d6464ac64b63c6ea3a678da99e0028e6de97ad72c5f92\
+            \19624f873c7ca4fdb15209012399890d409217c80744dd7a1409d5d53ca735e4bc\
+            \044b712c59e612858993b95b47ec7d94ded00044a34fdd9686fe3dea3a62bbf7eb\
+            \1ddc2a576bd5e1133207"
 
     describe "mkStdTx 'Testnet" $ do
         let proxy = Proxy @(Jormungandr 'Testnet)
@@ -326,9 +334,9 @@ mkStdTxSpec = do
             "00bf020102000000000000002710666984dec4bc0ff1888be97bfe0694a96b35c5\
             \8d025405ead51d5cc72a3019f483b2ddcfbf631000216a6e0410e64c20e6af91bb\
             \b2826276ad6bfda777e766b24b000000000000000e8302ada8baca6d3a889a893d\
-            \a29aa8a291460d7ec95b36404bf094c1a72f2775a60000000000002702011d6870\
-            \fa98199f5b826fa30a3d888334d84671ac62d8bad8afd3c2aa1ece4995db1015f5\
-            \9b3c1b784ef5a8c7f6aaa68eb814a19809da6d74b55168100b6ac901"
+            \a29aa8a291460d7ec95b36404bf094c1a72f2775a60000000000002702017eeb55\
+            \f63214db6bed534d2a623e2b6c2d9b8e54d68c8d77b0328d84d2e7de816046e3ae\
+            \56d252a9284f96b512159593f469b771e211348e1c1b4deee987b606"
 
         -- See 'Mainnet description
         goldenTestStdTx proxy keystore block0
@@ -345,11 +353,11 @@ mkStdTxSpec = do
             \6014ba0b626b1808e67e75dfa370c2dc5f581715fe000000000001869f83b2ddcf\
             \bf631000216a6e0410e64c20e6af91bbb2826276ad6bfda777e766b24b00000000\
             \0000002a8302ada8baca6d3a889a893da29aa8a291460d7ec95b36404bf094c1a7\
-            \2f2775a60000000000000539011d6870fa98199f5b826fa30a3d888334d84671ac\
-            \62d8bad8afd3c2aa1ece4995db1015f59b3c1b784ef5a8c7f6aaa68eb814a19809\
-            \da6d74b55168100b6ac901018d6e44b7d33951c1ba690388fd274c784eac9504f9\
-            \18d3df7b186cee7e4e593e8029953054f6da1f21e012bdce6eac708f4183052175\
-            \a5d933e8b719c53eed06"
+            \2f2775a60000000000000539012334a13af31af13490fa3da215f0aa14731ccac7\
+            \2573f28d0778525e847b3700824548dfa2cdddc0a71376de9b7a4867ac93a4dfcf\
+            \d51516e63cbf23fa59810c01ecad1eec04b45f8a0405b38e242f05868d339ca91d\
+            \9cebdc18021656f17413e35efed90cc701c5066ea423c16a2e2b85ad2fc314ad6b\
+            \ff21f5f9ebc2d2a5e201"
 
 goldenTestStdTx
     :: forall (n :: Network). ()

@@ -1,6 +1,8 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer
@@ -15,13 +17,15 @@ import Cardano.Wallet.Jormungandr.Primitive.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (AddressK), Key, Passphrase (..), XPrv, getKey )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), TxIn (..), TxOut (..), TxWitness (..) )
+    ( Hash (..), TxOut (..), TxWitness (..), txId )
 import Cardano.Wallet.Transaction
     ( ErrMkStdTx (..), TransactionLayer (..) )
 import Control.Arrow
     ( second )
 import Control.Monad
     ( forM )
+import Data.ByteString
+    ( ByteString )
 import Data.Either.Combinators
     ( maybeToRight )
 import Data.Quantity
@@ -31,12 +35,14 @@ import qualified Cardano.Crypto.Wallet as CC
 
 -- | Construct a 'TransactionLayer' compatible with Shelley and 'Jörmungandr'
 newTransactionLayer
-    :: Hash "Genesis"
+    :: forall n. ()
+    => Hash "Genesis"
     -> TransactionLayer (Jormungandr n)
 newTransactionLayer (Hash block0) = TransactionLayer
     { mkStdTx = \keyFrom inps outs -> do
         let tx = Tx (fmap (second coin) inps) outs
-        txWitnesses <- forM inps $ \(txin, TxOut addr _) -> sign txin
+        let bs = block0 <> getHash (txId @(Jormungandr n) tx)
+        txWitnesses <- forM inps $ \(_, TxOut addr _) -> sign bs
             <$> maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
         return (tx, txWitnesses)
 
@@ -45,8 +51,8 @@ newTransactionLayer (Hash block0) = TransactionLayer
     }
   where
     sign
-        :: TxIn
+        :: ByteString
         -> (Key 'AddressK XPrv, Passphrase "encryption")
         -> TxWitness
-    sign (TxIn (Hash tx) _) (key, (Passphrase pwd)) =
-        TxWitness . CC.unXSignature $ CC.sign pwd (getKey key) (block0 <> tx)
+    sign bytes (key, (Passphrase pwd)) =
+        TxWitness . CC.unXSignature $ CC.sign pwd (getKey key) bytes
