@@ -26,6 +26,8 @@ import Cardano.Wallet.HttpBridge.Environment
     ( Network (..) )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
+import Cardano.Wallet.Primitive.Fee
+    ( FeePolicy (..) )
 import Control.Concurrent
     ( ThreadId, forkIO, killThread, threadDelay )
 import Control.Concurrent.Async
@@ -48,6 +50,8 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Time
@@ -58,6 +62,8 @@ import Network.HTTP.Client
     ( defaultManagerSettings, newManager )
 import Network.Wai.Handler.Warp
     ( setBeforeMainLoop )
+import Numeric.Natural
+    ( Natural )
 import System.Directory
     ( createDirectoryIfMissing, removePathForcibly )
 import System.IO
@@ -65,7 +71,7 @@ import System.IO
 import Test.Hspec
     ( after, afterAll, beforeAll, describe, hspec )
 import Test.Integration.Framework.DSL
-    ( Context (..), tearDown )
+    ( Context (..), TxDescription (..), tearDown )
 import Test.Integration.Framework.Request
     ( Headers (Default), Payload (Empty), request )
 
@@ -182,9 +188,10 @@ main = do
         (_, port, db, nl) <- cardanoWalletServer (Just ListenOnRandomPort)
         wait "cardano-wallet" (threadDelay oneSecond)
         let baseURL = mkBaseUrl port
-        manager <- newManager defaultManagerSettings
+        manager <- (baseURL,) <$> newManager defaultManagerSettings
         faucet <- putStrLn "Creating money out of thin air..." *> initFaucet nl
-        return $ Context cluster (baseURL, manager) port handle faucet db Proxy
+        let estimator = mkFeeEstimator byronFeePolicy
+        return $ Context cluster manager port handle faucet db estimator Proxy
 
     killCluster :: Context t -> IO ()
     killCluster ctx = do
@@ -259,6 +266,7 @@ main = do
                 , _target = undefined
                 , _db = undefined
                 , _port = undefined
+                , _feeEstimator = undefined
                 , _manager = ("http://" <> T.pack addr, manager)
                 }
         let err =  "waitForCluster: unexpected positive response from Api"
@@ -276,3 +284,24 @@ main = do
                     Nothing -> fail err
             (_, Right _) ->
                 fail err
+
+mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)
+mkFeeEstimator policy (TxDescription nInps nOuts) =
+    let
+        LinearFee (Quantity a) (Quantity b) = policy
+        nChgs = nOuts
+        feeMin = a + b * double (12 + (181*nInps) + (52*nOuts) + (52*nChgs))
+            -- 12  bytes -- CBOR overhead for serializing a signed tx
+            -- 42  bytes -- per TxIn, index < 23
+            -- 52  bytes -- per TxOut, addr for testnet sequential, amount < 23
+            -- 139 bytes -- per TxIn (Witness)
+        feeMax = a + b * double (8 + (185*nInps) + (60*nOuts) + (60*nChgs))
+            -- 8   bytes -- CBOR overhead for serializing a signed tx
+            -- 46  bytes -- per TxIn, big index
+            -- 60  bytes -- per TxOut, addr for testnet sequential, big amounts
+            -- 139 bytes -- per TxIn (Witness)
+    in
+        (ceiling feeMin, ceiling feeMax)
+  where
+    double :: Int -> Double
+    double = fromRational . toRational
