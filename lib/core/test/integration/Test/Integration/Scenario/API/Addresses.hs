@@ -68,8 +68,7 @@ spec = do
         forM_ [0..(g-1)] $ \addrNum -> do
             expectListItemFieldEqual addrNum state Unused r
 
-    it "ADDRESS_LIST_01 - Can list addresses with non-default pool gap"
-        $ \ctx -> do
+    it "ADDRESS_LIST_01 - Can list addresses with non-default pool gap" $ \ctx -> do
         let g = 15
         w <- emptyWalletWith ctx ("Wallet", "cardano-wallet", g)
         r <- request @[ApiAddress t] ctx (getAddressesEp w "") Default Empty
@@ -79,17 +78,19 @@ spec = do
             expectListItemFieldEqual addrNum state Unused r
 
     it "ADDRESS_LIST_02 - Can filter used and unused addresses" $ \ctx -> do
+        let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
         w <- fixtureWallet ctx
         rUsed <- request @[ApiAddress t] ctx (getAddressesEp w "?state=used")
                 Default Empty
+        expectResponseCode @IO HTTP.status200 rUsed
+        expectListSizeEqual 10 rUsed
+        forM_ [0..9] $ \addrNum -> do
+            expectListItemFieldEqual addrNum state Used rUsed
         rUnused <- request @[ApiAddress t] ctx (getAddressesEp w "?state=unused")
                 Default Empty
-        expectResponseCode @IO HTTP.status200 rUsed
-        expectListSizeEqual 1 rUsed
-        expectListItemFieldEqual 0 state Used rUsed
         expectResponseCode @IO HTTP.status200 rUnused
-        expectListSizeEqual 20 rUnused
-        forM_ [0..19] $ \addrNum -> do
+        expectListSizeEqual g rUnused
+        forM_ [10..(g-1)] $ \addrNum -> do
             expectListItemFieldEqual addrNum state Unused rUnused
 
     it "ADDRESS_LIST_02 - Shows nothing when there are no used addresses"
