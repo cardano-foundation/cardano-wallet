@@ -85,6 +85,8 @@ import qualified Cardano.WalletSpec as Wallet
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
+import qualified Test.Integration.HttpBridge.Scenario.API.Transactions as TransactionsBridge
+import qualified Test.Integration.HttpBridge.Scenario.CLI.Transactions as TransactionsCLIBridge
 import qualified Test.Integration.Scenario.API.Addresses as Addresses
 import qualified Test.Integration.Scenario.API.Transactions as Transactions
 import qualified Test.Integration.Scenario.API.Wallets as Wallets
@@ -133,6 +135,10 @@ main = do
             describe "Transactions CLI tests" TransactionsCLI.spec
             describe "Addresses CLI tests" AddressesCLI.spec
             describe "Server CLI tests" ServerCLI.spec
+            describe "Transactions CLI tests (bridge specific)"
+                TransactionsCLIBridge.spec
+            describe "Transactions API endpoint tests (bridge specific)"
+                TransactionsBridge.spec
   where
     oneSecond :: Int
     oneSecond = 1 * 1000 * 1000 -- 1 second in microseconds

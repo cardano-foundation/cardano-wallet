@@ -193,6 +193,8 @@ test-suite integration
       Test.Integration.Scenario.CLI.Wallets
       Test.Integration.Scenario.CLI.Port
       Test.Integration.Scenario.CLI.Server
+      Test.Integration.HttpBridge.Scenario.API.Transactions
+      Test.Integration.HttpBridge.Scenario.CLI.Transactions
 
 benchmark restore
   default-language:
