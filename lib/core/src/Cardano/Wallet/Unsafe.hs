@@ -1,5 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.Unsafe
     ( unsafeFromHex
@@ -7,12 +9,15 @@ module Cardano.Wallet.Unsafe
     , unsafeDecodeHex
     , unsafeRunExceptT
     , unsafeXPrv
+    , unsafeMkMnemonic
     ) where
 
 import Prelude
 
 import Cardano.Crypto.Wallet
     ( XPrv )
+import Cardano.Wallet.Primitive.Mnemonic
+    ( ConsistentEntropy, EntropySize, Mnemonic, mkMnemonic )
 import Cardano.Wallet.Primitive.Types
     ( Address, DecodeAddress (..) )
 import Control.Monad
@@ -54,6 +59,16 @@ unsafeXPrv :: ByteString -> XPrv
 unsafeXPrv hex =
     case convertFromBase @_ @ByteString Base16 hex >>= CC.xprv of
         Left e -> error $ "unsafeXPrv: " <> e
+        Right a -> a
+
+-- | Build 'Mnemonic' from literals
+unsafeMkMnemonic
+    :: forall mw n csz. (ConsistentEntropy n mw csz, EntropySize mw ~ n)
+    => [Text]
+    -> Mnemonic mw
+unsafeMkMnemonic m =
+    case mkMnemonic m of
+        Left e -> error $ "unsafeMnemonic: " <> show e
         Right a -> a
 
 -- | Run an 'ExceptT' and throws the error if any. This makes sense only if

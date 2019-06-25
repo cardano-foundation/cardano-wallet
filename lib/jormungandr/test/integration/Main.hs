@@ -21,7 +21,7 @@ import Cardano.Wallet
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiWallet )
+    ( ApiAddress, ApiWallet )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, Network (..) )
 import Cardano.Wallet.Jormungandr.Network
@@ -31,7 +31,7 @@ import Cardano.Wallet.Jormungandr.Primitive.Types
 import Cardano.Wallet.Network
     ( NetworkLayer (..), defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), Hash (..) )
+    ( Block (..), DecodeAddress, Hash (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeRunExceptT )
 import Control.Concurrent
@@ -67,8 +67,10 @@ import Test.Integration.Framework.DSL
     , balanceAvailable
     , balanceTotal
     , expectFieldEqual
+    , expectListSizeEqual
     , expectResponseCode
     , fixtureWallet
+    , getAddressesEp
     , getWalletEp
     , request
     , tearDown
@@ -86,15 +88,22 @@ import qualified Network.Wai.Handler.Warp as Warp
 
 -- | Temporary 'Spec' to illustrate that the integration scenario setup below
 -- works as expected.
-temporarySpec :: SpecWith (Context t)
+temporarySpec :: forall t. DecodeAddress t => SpecWith (Context t)
 temporarySpec =
     it "Temporary example spec for Jörmungandr integration" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         r <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
         print r *> verify r
-            [ expectResponseCode @IO HTTP.status200
-            , expectFieldEqual balanceAvailable 100000000000
-            , expectFieldEqual balanceTotal 100000000000
+            [ expectResponseCode HTTP.status200
+            , expectFieldEqual balanceAvailable 1000000000000
+            , expectFieldEqual balanceTotal 1000000000000
+            ]
+
+        let q = "?state=used"
+        r' <- request @[ApiAddress t] ctx (getAddressesEp wSrc q) Default Empty
+        print r' *> verify r'
+            [ expectResponseCode HTTP.status200
+            , expectListSizeEqual 10
             ]
 
 main :: IO ()
@@ -151,7 +160,7 @@ cardanoWalletServer = do
     jormungandrUrl :: BaseUrl
     jormungandrUrl = BaseUrl Http "localhost" 8081 "/api"
     block0H = Hash $ unsafeFromHex
-        "fa44a4165333474555346bf6133fd857f5f08cc2740f54504e471a157c86e398"
+        "78e6f4e2c463bae5d6318b96b203e48625c3a45227c4b80ea4d0dfc887c23621"
         -- ^ jcli genesis hash --input test/data/jormungandr/block0.bin
 
 -- Instantiate a new 'NetworkLayer' for 'Jormungandr', and fetches the

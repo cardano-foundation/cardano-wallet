@@ -11,6 +11,8 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiAddress, getApiT )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
     ( AddressState (..), DecodeAddress (..), EncodeAddress (..) )
 import Control.Monad
@@ -53,13 +55,14 @@ spec :: forall t. (EncodeAddress t, DecodeAddress t) => SpecWith (Context t)
 spec = do
 
     it "ADDRESS_LIST_01 - Can list addresses - default poolGap" $ \ctx -> do
+        let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
         walId <- emptyWallet' ctx
         (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI ctx [walId]
         err `shouldBe` "Ok.\n"
         c `shouldBe` ExitSuccess
         json <- expectValidJSON (Proxy @[ApiAddress t]) out
-        length json `shouldBe` 20
-        forM_ [0..19] $ \addrNum -> do
+        length json `shouldBe` g
+        forM_ [0..(g-1)] $ \addrNum -> do
             expectCliListItemFieldEqual addrNum state Unused json
 
     it "ADDRESS_LIST_01 - Can list addresses - non-default poolGap" $ \ctx -> do
@@ -75,22 +78,23 @@ spec = do
             expectCliListItemFieldEqual addrNum state Unused json
 
     it "ADDRESS_LIST_02 - Can filter used and unused addresses" $ \ctx -> do
+        let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
         walId <- fixtureWallet' ctx
         (Exit c1, Stdout o1, Stderr e1)
             <- listAddressesViaCLI ctx ["--state", "used", walId]
         e1 `shouldBe` "Ok.\n"
         c1 `shouldBe` ExitSuccess
         j1 <- expectValidJSON (Proxy @[ApiAddress t]) o1
-        length j1 `shouldBe` 1
-        expectCliListItemFieldEqual 0 state Used j1
-
+        length j1 `shouldBe` 10
+        forM_ [0..9] $ \addrNum -> do
+            expectCliListItemFieldEqual addrNum state Used j1
         (Exit c2, Stdout o2, Stderr e2)
             <- listAddressesViaCLI ctx ["--state", "unused", walId]
         e2 `shouldBe` "Ok.\n"
         c2 `shouldBe` ExitSuccess
         j2 <- expectValidJSON (Proxy @[ApiAddress t]) o2
-        length j2 `shouldBe` 20
-        forM_ [0..19] $ \addrNum -> do
+        length j2 `shouldBe` g
+        forM_ [0..(g-10)] $ \addrNum -> do
             expectCliListItemFieldEqual addrNum state Unused j2
 
     it "ADDRESS_LIST_02 - Shows nothing when there are no used addresses"
