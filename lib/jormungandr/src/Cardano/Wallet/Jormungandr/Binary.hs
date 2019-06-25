@@ -21,7 +21,6 @@ module Cardano.Wallet.Jormungandr.Binary
     , ConfigParam (..)
     , ConsensusVersion (..)
     , LeaderId (..)
-    , LinearFee (..)
     , Message (..)
     , Milli (..)
     , getBlock
@@ -57,6 +56,8 @@ import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork, Network (..), single )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
+import Cardano.Wallet.Primitive.Fee
+    ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -316,7 +317,7 @@ data ConfigParam
     -- ^ Remove a BFT Leader
     | AllowAccountCreation Bool
     -- ^ Enable/disable account creation.
-    | ConfigLinearFee LinearFee
+    | ConfigLinearFee FeePolicy
     -- ^ Coefficients for fee calculations.
     | ProposalExpiration (Quantity "epoch" Word32)
     -- ^ Number of epochs until an update proposal expires.
@@ -361,12 +362,6 @@ newtype Milli = Milli Word64
 newtype LeaderId = LeaderId ByteString
     deriving (Eq, Show)
 
-data LinearFee = LinearFee
-    { constant :: Quantity "lovelace" Word64
-    , perByte :: Quantity "lovelace/byte" Word64
-    , perCert :: Quantity "lovelace/cert" Word64
-    } deriving (Eq, Show)
-
 data ConsensusVersion = BFT | GenesisPraos
     deriving (Eq, Show)
 
@@ -388,12 +383,14 @@ getMilli = label "getMilli" $ Milli <$> getWord64be
 getLeaderId :: Get LeaderId
 getLeaderId = label "getLeaderId" $ LeaderId <$> getByteString 32
 
-getLinearFee :: Get LinearFee
-getLinearFee = label "getLinearFee" $ do
-    const' <- Quantity <$> getWord64be
-    perByte <- Quantity <$> getWord64be
-    perCert <- Quantity <$> getWord64be
-    return $ LinearFee const' perByte perCert
+getLinearFee :: Get FeePolicy
+getLinearFee = label "getFeePolicy" $ do
+    a <- getWord64be
+    b <- getWord64be
+    _perCert <- getWord64be
+    return $ LinearFee (Quantity $ double a) (Quantity $ double b)
+  where
+    double = fromRational . toRational
 
 getBool :: Get Bool
 getBool = getWord8 >>= \case

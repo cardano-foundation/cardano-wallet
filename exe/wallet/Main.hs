@@ -69,15 +69,13 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.DaedalusIPC
     ( daedalusIPC )
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge, block0 )
+    ( HttpBridge, block0, byronFeePolicy )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Network
     ( defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..), KeyToAddress, Passphrase (..) )
-import Cardano.Wallet.Primitive.Fee
-    ( cardanoPolicy )
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
@@ -466,7 +464,7 @@ execHttpBridge args _ = do
     nw <- HttpBridge.newNetworkLayer @n (getPort bridgePort)
     waitForConnection nw defaultRetryPolicy
     let tl = HttpBridge.newTransactionLayer @n
-    wallet <- newWalletLayer @_ @(HttpBridge n) tracer block0 cardanoPolicy db nw tl
+    wallet <- newWalletLayer @_ @(HttpBridge n) tracer block0 byronFeePolicy db nw tl
     Server.withListeningSocket walletListen $ \(port, socket) -> do
         tracerIPC <- appendName "DaedalusIPC" tracer
         tracerApi <- appendName "api" tracer

@@ -79,7 +79,7 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.Fee
     ( ErrAdjustForFee (..)
     , FeeOptions (..)
-    , TxSizeLinear
+    , FeePolicy
     , adjustForFee
     , computeFee
     )
@@ -337,7 +337,7 @@ newWalletLayer
     => Trace IO Text
     -> Block (Tx t)
         -- ^ Very first block
-    -> TxSizeLinear
+    -> FeePolicy
     -> DBLayer IO s t
     -> NetworkLayer t IO
     -> TransactionLayer t

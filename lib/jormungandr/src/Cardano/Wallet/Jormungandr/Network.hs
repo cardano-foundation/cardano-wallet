@@ -41,6 +41,8 @@ import Cardano.Wallet.Jormungandr.Api
     , PostMessage
     , api
     )
+import Cardano.Wallet.Jormungandr.Binary
+    ( ConfigParam (..), Message (..), coerceBlock )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Primitive.Types
@@ -52,6 +54,8 @@ import Cardano.Wallet.Network
     , ErrPostTx (..)
     , NetworkLayer (..)
     )
+import Cardano.Wallet.Primitive.Fee
+    ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..), Hash (..), TxWitness (..) )
 import Control.Arrow
@@ -63,7 +67,11 @@ import Control.Monad
 import Control.Monad.Catch
     ( throwM )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), withExceptT )
+    ( ExceptT (..), throwE, withExceptT )
+import Data.Coerce
+    ( coerce )
+import Data.Maybe
+    ( mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Network.HTTP.Client
@@ -87,6 +95,7 @@ import Servant.Client.Core
 import Servant.Links
     ( Link, safeLink )
 
+import qualified Cardano.Wallet.Jormungandr.Binary as J
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text.Encoding as T
 
@@ -146,7 +155,8 @@ data JormungandrLayer m = JormungandrLayer
     { getTipId
         :: ExceptT ErrNetworkUnreachable m (Hash "BlockHeader")
     , getBlock
-        :: Hash "BlockHeader" -> ExceptT ErrGetBlock m (Block Tx)
+        :: Hash "BlockHeader"
+        -> ExceptT ErrGetBlock m (Block Tx)
     , getDescendantIds
         :: Hash "BlockHeader"
         -> Word
@@ -154,6 +164,9 @@ data JormungandrLayer m = JormungandrLayer
     , postMessage
         :: (Tx, [TxWitness])
         -> ExceptT ErrPostTx m ()
+    , getInitialFeePolicy
+        :: Hash "Genesis"
+        -> ExceptT ErrGetInitialFeePolicy m FeePolicy
     }
 
 -- | Construct a 'JormungandrLayer'-client
@@ -183,9 +196,9 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
         run (getBlockId <$> cGetTipId) >>= defaultHandler ctx
 
     , getBlock = \blockId -> ExceptT $ do
-        run (cGetBlock (BlockId blockId))  >>= \case
+        run (coerceBlock <$> cGetBlock (BlockId blockId)) >>= \case
             Left (FailureResponse e) | responseStatusCode e == status400 ->
-              return . Left . ErrGetBlockNotFound $ blockId
+                return . Left . ErrGetBlockNotFound $ blockId
             x -> do
                 let ctx = safeLink api (Proxy @GetBlock) (BlockId blockId)
                 left ErrGetBlockNetworkUnreachable <$> defaultHandler ctx x
@@ -193,7 +206,7 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
     , getDescendantIds = \parentId count -> ExceptT $ do
         run (map getBlockId <$> cGetBlockDescendantIds (BlockId parentId) (Just count))  >>= \case
             Left (FailureResponse e) | responseStatusCode e == status400 ->
-              return . Left $ ErrGetDescendantsParentNotFound parentId
+                return . Left $ ErrGetDescendantsParentNotFound parentId
             x -> do
                 let ctx = safeLink
                         api
@@ -215,6 +228,33 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
             x -> do
                 let ctx = safeLink api (Proxy @PostMessage)
                 left ErrPostTxNetworkUnreachable <$> defaultHandler ctx x
+
+    , getInitialFeePolicy = \block0 -> do
+        J.Block _ msgs <- ExceptT $ run (cGetBlock (BlockId $ coerce block0)) >>= \case
+            Left (FailureResponse e) | responseStatusCode e == status400 ->
+                return . Left . ErrGetInitialFeePolicyGenesisNotFound $ block0
+            x -> do
+                let ctx = safeLink api (Proxy @GetBlock) (BlockId $ coerce block0)
+                let networkUnreachable = ErrGetInitialFeePolicyNetworkUnreachable
+                left networkUnreachable <$> defaultHandler ctx x
+
+        let params = mconcat $ mapMaybe getConfigParameters msgs
+              where
+                getConfigParameters = \case
+                    Initial xs -> Just xs
+                    _ -> Nothing
+
+        let mpolicy = mapMaybe getFeePolicy params
+              where
+                getFeePolicy = \case
+                    ConfigLinearFee x -> Just x
+                    _ -> Nothing
+
+        case mpolicy of
+            [policy] ->
+                return policy
+            _ ->
+                throwE $ ErrGetInitialFeePolicyNoInitialPolicy params
     }
   where
     run :: ClientM a -> IO (Either ServantError a)
@@ -253,4 +293,10 @@ instance Exception ErrUnexpectedNetworkFailure
 data ErrGetDescendants
     = ErrGetDescendantsNetworkUnreachable ErrNetworkUnreachable
     | ErrGetDescendantsParentNotFound (Hash "BlockHeader")
+    deriving (Show, Eq)
+
+data ErrGetInitialFeePolicy
+    = ErrGetInitialFeePolicyNetworkUnreachable ErrNetworkUnreachable
+    | ErrGetInitialFeePolicyGenesisNotFound (Hash "Genesis")
+    | ErrGetInitialFeePolicyNoInitialPolicy [ConfigParam]
     deriving (Show, Eq)

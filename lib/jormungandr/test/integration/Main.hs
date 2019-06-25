@@ -39,7 +39,7 @@ import Cardano.Wallet.Jormungandr.Primitive.Types
 import Cardano.Wallet.Network
     ( NetworkLayer (..), defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.Fee
-    ( jormungandrPolicy )
+    ( FeePolicy )
 import Cardano.Wallet.Primitive.Types
     ( Block (..), DecodeAddress, Hash (..) )
 import Cardano.Wallet.Unsafe
@@ -168,12 +168,12 @@ cardanoWalletServer
     => IO (Int, SqlBackend)
 cardanoWalletServer = do
     tracer <- initTracer Info "serve"
-    (nl, block0) <- newNetworkLayer jormungandrUrl block0H
+    (nl, block0, feePolicy) <- newNetworkLayer jormungandrUrl block0H
     (conn, db) <- Sqlite.newDBLayer @_ @network tracer Nothing
     mvar <- newEmptyMVar
     void $ forkIO $ do
         let tl = Jormungandr.newTransactionLayer block0H
-        wallet <- newWalletLayer tracer block0 jormungandrPolicy db nl tl
+        wallet <- newWalletLayer tracer block0 feePolicy db nl tl
         let listen = ListenOnRandomPort
         Server.withListeningSocket listen $ \(port, socket) -> do
             let settings = Warp.defaultSettings
@@ -192,14 +192,17 @@ cardanoWalletServer = do
 newNetworkLayer
     :: BaseUrl
     -> Hash "Genesis"
-    -> IO (NetworkLayer (Jormungandr n) IO, Block Tx)
+    -> IO (NetworkLayer (Jormungandr n) IO, Block Tx, FeePolicy)
 newNetworkLayer url block0H = do
     mgr <- newManager defaultManagerSettings
     let jormungandr = mkJormungandrLayer mgr url
     let nl = Jormungandr.mkNetworkLayer jormungandr
     waitForConnection nl defaultRetryPolicy
-    block0 <- unsafeRunExceptT $ getBlock jormungandr (coerce block0H)
-    return (nl, block0)
+    block0 <- unsafeRunExceptT $
+        getBlock jormungandr (coerce block0H)
+    feePolicy <- unsafeRunExceptT $
+        getInitialFeePolicy jormungandr (coerce block0H)
+    return (nl, block0, feePolicy)
 
 -- | One second in micro-seconds
 oneSecond :: Int

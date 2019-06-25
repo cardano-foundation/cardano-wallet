@@ -24,11 +24,11 @@ module Cardano.Wallet.Jormungandr.Api
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
-    ( coerceBlock, getBlock, putSignedTx, runGet, runPut )
+    ( Block, getBlock, putSignedTx, runGet, runPut )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx )
 import Cardano.Wallet.Primitive.Types
-    ( Block, Hash (..), TxWitness )
+    ( Hash (..), TxWitness )
 import Control.Applicative
     ( many )
 import Data.Binary.Get
@@ -68,7 +68,7 @@ type GetBlock
     = "v0"
     :> "block"
     :> Capture "blockHeaderHash" BlockId
-    :> Get '[JormungandrBinary] (Block Tx)
+    :> Get '[JormungandrBinary] Block
 
 -- | Retrieve 'n' descendants of a given block, sorted from closest to
 -- farthest.
@@ -123,8 +123,8 @@ data JormungandrBinary
 instance Accept JormungandrBinary where
     contentType _ = contentType $ Proxy @Servant.OctetStream
 
-instance MimeUnrender JormungandrBinary (Block Tx) where
-    mimeUnrender _ = pure . coerceBlock . runGet getBlock
+instance MimeUnrender JormungandrBinary Block where
+    mimeUnrender _ = pure . runGet getBlock
 
 instance MimeRender JormungandrBinary (Tx, [TxWitness]) where
     mimeRender _ = runPut . putSignedTx

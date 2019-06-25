@@ -57,7 +57,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Fee
-    ( cardanoPolicy )
+    ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -96,6 +96,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( isJust, isNothing )
+import Data.Quantity
+    ( Quantity (..) )
 import GHC.Generics
     ( Generic )
 import Test.Hspec
@@ -336,12 +338,15 @@ setupFixture (wid, wname, wstate) = do
     db <- newDBLayer
     let nl = error "NetworkLayer"
     let tl = dummyTransactionLayer
-    wl <- newWalletLayer @_ @DummyTarget nullTracer block0 cardanoPolicy db nl tl
+    wl <- newWalletLayer @_ @DummyTarget nullTracer block0 dummyPolicy db nl tl
     res <- runExceptT $ createWallet wl wid wname wstate
     let wal = case res of
             Left _ -> []
             Right walletId -> [walletId]
     pure $ WalletLayerFixture db wl wal
+  where
+    dummyPolicy :: FeePolicy
+    dummyPolicy = LinearFee (Quantity 14) (Quantity 42)
 
 -- | A dummy transaction layer to see the effect of a root private key. It
 -- implements a fake signer that still produces sort of witnesses
