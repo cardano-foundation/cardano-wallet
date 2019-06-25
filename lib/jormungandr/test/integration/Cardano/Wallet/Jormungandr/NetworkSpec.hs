@@ -18,17 +18,28 @@ import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, Network (..), block0 )
 import Cardano.Wallet.Jormungandr.Network
     ( BaseUrl (..), ErrUnexpectedNetworkFailure (..), Scheme (..) )
+import Cardano.Wallet.Jormungandr.Primitive.Types
+    ( Tx (..) )
 import Cardano.Wallet.Network
     ( ErrGetBlock (..)
     , ErrNetworkTip (..)
+    , ErrPostTx (..)
     , NetworkLayer (..)
     , defaultRetryPolicy
     , waitForConnection
     )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), Hash (..), SlotId (..) )
+    ( Address (..)
+    , BlockHeader (..)
+    , Coin (..)
+    , Hash (..)
+    , SlotId (..)
+    , TxIn (..)
+    , TxOut (..)
+    , TxWitness (..)
+    )
 import Cardano.Wallet.Unsafe
-    ( unsafeRunExceptT )
+    ( unsafeDecodeAddress, unsafeFromHex, unsafeRunExceptT )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
@@ -59,6 +70,7 @@ import Test.Hspec
     , beforeAll
     , describe
     , it
+    , pendingWith
     , shouldBe
     , shouldReturn
     , shouldSatisfy
@@ -149,6 +161,52 @@ spec = do
                     shouldThrow io $ \(ErrUnexpectedNetworkFailure link _) ->
                         show link == show (safeLink api (Proxy @GetTipId))
             bracket (startNode wrongUrl wait) killNode test
+
+
+    -- NOTE: 'Right ()' just means that the format wasn't obviously wrong.
+    -- The tx may still be rejected.
+    describe "Submitting signed transactions (that are not obviously wrong)"
+        $ beforeAll startNode' $ afterAll killNode $ do
+
+        it "empty tx succeeds" $ \(_, nw) -> do
+            let signedEmpty = (Tx [] [], [])
+            runExceptT (postTx nw signedEmpty) `shouldReturn` Right ()
+
+        it "some tx succeeds" $ \(_, nw) -> do
+            let signed = (txNonEmpty, [pkWitness])
+            runExceptT (postTx nw signed) `shouldReturn` Right ()
+
+        it "more inputs than witnesses" $ \(_, nw) -> do
+            let signed = (txNonEmpty, [])
+            let err = Left $ ErrPostTxBadRequest ""
+            runExceptT (postTx nw signed) `shouldReturn` err
+
+        it "more witnesses than inputs - fine apparently" $ \(_, nw) -> do
+            -- Becase of how signed txs are encoded:
+            -- n                      :: Word8
+            -- m                      :: Word8
+            -- in_0 .. in_n           :: [TxIn]
+            -- out_0 .. out_m         :: [TxOut]
+            -- witness_0 .. witness_n :: [TxWitness]
+            --
+            -- this should in practice be like appending bytes to the end of
+            -- the message.
+            let signed = (txNonEmpty, [pkWitness, pkWitness, pkWitness])
+            runExceptT (postTx nw signed) `shouldReturn` Right ()
+
+        it "no input, one output" $ \(_, nw) -> do
+            let tx = (Tx []
+                    [ (TxOut $ unsafeDecodeAddress proxy "ca1qwunuat6snw60g99ul6qvte98fjale2k0uu5mrymylqz2ntgzs6vs386wxd")
+                      (Coin 1227362560)
+                    ], [])
+            runExceptT (postTx nw tx) `shouldReturn` Right ()
+
+        it "fails when addresses and hashes have wrong length" $ \(_, nw) -> do
+            pendingWith "We need to handle errors in Jormungandr.Binary"
+            let tx = (Tx [] [ TxOut (Address "<not an address>") (Coin 1227362560) ], [])
+            let err = Left $ ErrPostTxBadRequest ""
+            runExceptT (postTx nw tx) `shouldReturn` err
+
   where
     url :: BaseUrl
     url = BaseUrl Http "localhost" 8081 "/api"
@@ -178,3 +236,28 @@ spec = do
     killNode (h, _) = do
         cancel h
         threadDelay (1 * second)
+    pkWitness :: TxWitness
+    pkWitness = TxWitness $ BS.pack $ replicate 64 3
+
+    proxy :: Proxy (Jormungandr 'Mainnet)
+    proxy = Proxy
+
+    txNonEmpty :: Tx
+    txNonEmpty = Tx
+        { inputs =
+            [ (TxIn
+                { inputId = Hash $ unsafeFromHex "666984dec4bc0ff1888be97bfe0694a96b35c58d025405ead51d5cc72a3019f4"
+                , inputIx = 0
+                }, Coin 934864225351)
+            ]
+        , outputs =
+            [ TxOut
+                { address = unsafeDecodeAddress proxy "ca1q0u7k6ltp3e52pch47rhdkld2gdvgu26rwyqh02csu3ah3384f2nvhlk7a6"
+                , coin = Coin 933636862791
+                }
+            , TxOut
+                { address = unsafeDecodeAddress proxy "ca1qwunuat6snw60g99ul6qvte98fjale2k0uu5mrymylqz2ntgzs6vs386wxd"
+                , coin = Coin 1227362560
+                }
+            ]
+        }
