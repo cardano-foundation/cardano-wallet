@@ -585,6 +585,8 @@ instance Data.Text.Class.FromText (Cardano.Wallet.Primitive.Types.Hash "Tx")
 instance Data.Text.Class.ToText (Cardano.Wallet.Primitive.Types.Hash "Tx")
 instance Data.Text.Class.FromText (Cardano.Wallet.Primitive.Types.Hash "BlockHeader")
 instance Data.Text.Class.ToText (Cardano.Wallet.Primitive.Types.Hash "BlockHeader")
+instance Data.Text.Class.FromText (Cardano.Wallet.Primitive.Types.Hash "Genesis")
+instance Data.Text.Class.ToText (Cardano.Wallet.Primitive.Types.Hash "Genesis")
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.TxMeta
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.TxMeta
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.SlotId
