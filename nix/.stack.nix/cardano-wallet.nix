@@ -20,7 +20,6 @@
         "cardano-wallet" = {
           depends = [
             (hsPkgs.base)
-            (hsPkgs.aeson)
             (hsPkgs.aeson-pretty)
             (hsPkgs.async)
             (hsPkgs.bytestring)

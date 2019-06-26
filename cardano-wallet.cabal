@@ -31,7 +31,6 @@ executable cardano-wallet
       -O2
   build-depends:
       base
-    , aeson
     , aeson-pretty
     , async
     , bytestring

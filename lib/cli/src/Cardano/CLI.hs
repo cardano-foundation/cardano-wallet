@@ -34,6 +34,7 @@ module Cardano.CLI
 
     -- * Parsing Arguments
     , OptionValue (..)
+    , optional
     , parseArgWith
     , parseAllArgsWith
     , help
@@ -43,6 +44,10 @@ module Cardano.CLI
     , hGetLine
     , getSensitiveLine
     , hGetSensitiveLine
+
+    -- * Helpers
+    , decodeError
+    , showT
     ) where
 
 import Prelude hiding
@@ -64,6 +69,8 @@ import Control.Exception
     ( bracket )
 import Control.Monad
     ( unless )
+import Data.Aeson
+    ( (.:) )
 import Data.Bifunctor
     ( bimap )
 import Data.Functor
@@ -125,6 +132,9 @@ import System.IO
     , utf8
     )
 
+import qualified Data.Aeson as Aeson
+import qualified Data.Aeson.Types as Aeson
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
@@ -176,6 +186,16 @@ instance ToText (OptionValue Severity) where
 -- | A wrapper to avoid orphan instances for types defined externally.
 newtype OptionValue a = OptionValue { getOptionValue :: a }
   deriving (Enum, Eq, Ord, Generic, Read, Show)
+
+-- | Make an existing parser optional. Returns 'Right Nothing' if the input is
+-- empty, without running the parser.
+optional
+    :: (Monoid m, Eq m)
+    => (m -> Either e a)
+    -> (m -> Either e (Maybe a))
+optional parse = \case
+    m | m == mempty -> Right Nothing
+    m  -> Just <$> parse m
 
 parseArgWith :: FromText a => Docopt -> Arguments -> Option -> IO a
 parseArgWith cli args option = do
@@ -397,3 +417,20 @@ withSGR h sgr action = hIsTerminalDevice h >>= \case
     aFirst = ([] <$ hSetSGR h [sgr])
     aLast = hSetSGR h
     aBetween = const action
+
+{-------------------------------------------------------------------------------
+                                 Helpers
+-------------------------------------------------------------------------------}
+
+-- | Decode API error messages and extract the corresponding message.
+decodeError
+    :: BL.ByteString
+    -> Maybe Text
+decodeError bytes = do
+    obj <- Aeson.decode bytes
+    Aeson.parseMaybe (Aeson.withObject "Error" (.: "message")) obj
+
+-- | Show a data-type through its 'ToText' instance
+showT :: ToText a => a -> String
+showT = T.unpack . toText
+

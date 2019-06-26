@@ -31,15 +31,18 @@ import Cardano.BM.Trace
 import Cardano.CLI
     ( Port (..)
     , Verbosity (..)
+    , decodeError
     , getLine
     , getSensitiveLine
     , help
     , initTracer
     , minSeverityFromArgs
+    , optional
     , parseAllArgsWith
     , parseArgWith
     , putErrLn
     , setUtf8Encoding
+    , showT
     , verbosityFromArgs
     , verbosityToArgs
     )
@@ -87,8 +90,6 @@ import Control.Concurrent.Async
     ( race_ )
 import Control.Monad
     ( when )
-import Data.Aeson
-    ( (.:) )
 import Data.Either
     ( isRight )
 import Data.Function
@@ -144,9 +145,7 @@ import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.HttpBridge.Network as HttpBridge
 import qualified Cardano.Wallet.HttpBridge.Transaction as HttpBridge
-import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
-import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.List.NonEmpty as NE
@@ -494,28 +493,6 @@ execLaunch tracer verbosity network stateDir bridgePort listen = do
 {-------------------------------------------------------------------------------
                                  Helpers
 -------------------------------------------------------------------------------}
-
--- | Show a data-type through its 'ToText' instance
-showT :: ToText a => a -> String
-showT = T.unpack . toText
-
--- | Make an existing parser optional. Returns 'Right Nothing' if the input is
--- empty, without running the parser.
-optional
-    :: (Monoid m, Eq m)
-    => (m -> Either e a)
-    -> (m -> Either e (Maybe a))
-optional parse = \case
-    m | m == mempty -> Right Nothing
-    m  -> Just <$> parse m
-
--- | Decode API error messages and extract the corresponding message.
-decodeError
-    :: BL.ByteString
-    -> Maybe Text
-decodeError bytes = do
-    obj <- Aeson.decode bytes
-    Aeson.parseMaybe (Aeson.withObject "Error" (.: "message")) obj
 
 parseArg :: FromText a => Arguments -> Option -> IO a
 parseArg = parseArgWith cli
