@@ -38,7 +38,6 @@ executable cardano-wallet
       -Werror
   build-depends:
       base
-    , aeson
     , aeson-pretty
     , async
     , bytestring

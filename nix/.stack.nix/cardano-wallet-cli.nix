@@ -17,7 +17,9 @@
     components = {
       "library" = {
         depends = [
+          (hsPkgs.aeson)
           (hsPkgs.base)
+          (hsPkgs.bytestring)
           (hsPkgs.ansi-terminal)
           (hsPkgs.docopt)
           (hsPkgs.fmt)

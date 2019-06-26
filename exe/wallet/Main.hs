@@ -26,25 +26,25 @@ module Main where
 import Prelude hiding
     ( getLine )
 
-import Cardano.BM.Configuration.Model
-    ( setMinSeverity )
-import Cardano.BM.Configuration.Static
-    ( defaultConfigStdout )
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
-import Cardano.BM.Setup
-    ( setupTrace )
 import Cardano.BM.Trace
     ( Trace, appendName, logAlert, logInfo )
 import Cardano.CLI
     ( Port (..)
+    , Verbosity (..)
+    , decodeError
     , getLine
     , getSensitiveLine
     , help
+    , initTracer
+    , minSeverityFromArgs
+    , optional
     , parseAllArgsWith
     , parseArgWith
     , putErrLn
     , setUtf8Encoding
+    , showT
+    , verbosityFromArgs
+    , verbosityToArgs
     )
 import Cardano.Launcher
     ( Command (Command)
@@ -90,8 +90,6 @@ import Control.Concurrent.Async
     ( race_ )
 import Control.Monad
     ( when )
-import Data.Aeson
-    ( (.:) )
 import Data.Either
     ( isRight )
 import Data.Function
@@ -147,9 +145,7 @@ import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.HttpBridge.Network as HttpBridge
 import qualified Cardano.Wallet.HttpBridge.Transaction as HttpBridge
-import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
-import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.List.NonEmpty as NE
@@ -218,55 +214,6 @@ main = do
     args `parseArg` longOption "network" >>= \case
         Testnet -> exec (execHttpBridge @'Testnet args) manager args
         Mainnet -> exec (execHttpBridge @'Mainnet args) manager args
-
-{-------------------------------------------------------------------------------
-                                  Logging
--------------------------------------------------------------------------------}
-
--- | Controls how much information to include in log output.
-data Verbosity
-    = Default
-        -- ^ The default level of verbosity.
-    | Quiet
-        -- ^ Include less information in the log output.
-    | Verbose
-        -- ^ Include more information in the log output.
-    deriving (Eq, Show)
-
--- | Determine the minimum 'Severity' level from the specified command line
---   arguments.
-minSeverityFromArgs :: Arguments -> Severity
-minSeverityFromArgs = verbosityToMinSeverity . verbosityFromArgs
-
--- | Determine the desired 'Verbosity' level from the specified command line
---   arguments.
-verbosityFromArgs :: Arguments -> Verbosity
-verbosityFromArgs args
-    | args `isPresent` longOption "quiet"   = Quiet
-    | args `isPresent` longOption "verbose" = Verbose
-    | otherwise = Default
-
--- | Convert a given 'Verbosity' level into a list of command line arguments
---   that can be passed through to a sub-process.
-verbosityToArgs :: Verbosity -> [String]
-verbosityToArgs = \case
-    Default -> []
-    Quiet   -> ["--quiet"]
-    Verbose -> ["--verbose"]
-
--- | Map a given 'Verbosity' level onto a 'Severity' level.
-verbosityToMinSeverity :: Verbosity -> Severity
-verbosityToMinSeverity = \case
-    Default -> Info
-    Quiet   -> Error
-    Verbose -> Debug
-
--- | Initialize logging at the specified minimum 'Severity' level.
-initTracer :: Severity -> Text -> IO (Trace IO Text)
-initTracer minSeverity cmd = do
-    c <- defaultConfigStdout
-    setMinSeverity c minSeverity
-    setupTrace (Right c) "cardano-wallet" >>= appendName cmd
 
 {-------------------------------------------------------------------------------
                          Command and Argument Parsing
@@ -546,28 +493,6 @@ execLaunch tracer verbosity network stateDir bridgePort listen = do
 {-------------------------------------------------------------------------------
                                  Helpers
 -------------------------------------------------------------------------------}
-
--- | Show a data-type through its 'ToText' instance
-showT :: ToText a => a -> String
-showT = T.unpack . toText
-
--- | Make an existing parser optional. Returns 'Right Nothing' if the input is
--- empty, without running the parser.
-optional
-    :: (Monoid m, Eq m)
-    => (m -> Either e a)
-    -> (m -> Either e (Maybe a))
-optional parse = \case
-    m | m == mempty -> Right Nothing
-    m  -> Just <$> parse m
-
--- | Decode API error messages and extract the corresponding message.
-decodeError
-    :: BL.ByteString
-    -> Maybe Text
-decodeError bytes = do
-    obj <- Aeson.decode bytes
-    Aeson.parseMaybe (Aeson.withObject "Error" (.: "message")) obj
 
 parseArg :: FromText a => Arguments -> Option -> IO a
 parseArg = parseArgWith cli

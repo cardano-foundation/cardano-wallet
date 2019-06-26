@@ -29,7 +29,9 @@ library
     ghc-options:
       -Werror
   build-depends:
-      base
+      aeson
+    , base
+    , bytestring
     , ansi-terminal
     , docopt
     , fmt
