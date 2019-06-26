@@ -352,7 +352,6 @@ expectEventually ctx getter target (_, res) = case res of
             Right _ ->
                 return ()
   where
-    oneSecond = 1_000_000
     loopUntilRestore :: Text -> IO ()
     loopUntilRestore wid = do
         r <- request @ApiWallet ctx ("GET", "v2/wallets/" <> wid) Default Empty
@@ -445,7 +444,6 @@ expectPathEventuallyExist filepath = do
         Right _ ->
             return ()
   where
-    oneSecond = 1_000_000
     doesPathExistNow = do
         doesPathExist filepath >>= \case
             True ->
@@ -465,8 +463,6 @@ expectProcStdOutHas procc out = do
         Right _ ->
             return ()
   where
-    oneSecond = 1_000_000
-
     runProcUntil :: CreateProcess -> Text -> IO ()
     runProcUntil pr wants = withCreateProcess pr $ \_ (Just stdout) _ h -> do
            hSetBuffering stdout LineBuffering
@@ -662,7 +658,6 @@ fixtureWallet ctx = do
         Left _ -> fail "fixtureWallet: waited too long for initial transaction"
         Right a -> return a
   where
-    oneSecond = 1_000_000
     sixtySeconds = 60*oneSecond
     checkBalance :: Text -> IO ApiWallet
     checkBalance wid = do
@@ -973,5 +968,6 @@ getProcStream pr n = withCreateProcess pr $ \_ (Just stdout) (Just stderr) h -> 
        out <- TIO.hGetContents stdout
        err <- TIO.hGetContents stderr
        return (T.unpack out, T.unpack err)
- where
-     oneSecond = 1_000_000
+
+oneSecond :: Int
+oneSecond = 1_000_000
