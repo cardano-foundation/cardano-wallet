@@ -28,8 +28,6 @@ import Cardano.Wallet
     ( newWalletLayer )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
-import Cardano.Wallet.Api.Types
-    ( ApiAddress, ApiWallet )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, Network (..) )
 import Cardano.Wallet.Jormungandr.Network
@@ -39,9 +37,9 @@ import Cardano.Wallet.Jormungandr.Primitive.Types
 import Cardano.Wallet.Network
     ( NetworkLayer (..), defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.Fee
-    ( FeePolicy )
+    ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), DecodeAddress, Hash (..) )
+    ( Block (..), Hash (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeRunExceptT )
 import Control.Concurrent
@@ -58,6 +56,8 @@ import Data.Function
     ( (&) )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Database.Persist.Sql
@@ -66,28 +66,16 @@ import Network.HTTP.Client
     ( defaultManagerSettings, newManager )
 import Network.Wai.Handler.Warp
     ( setBeforeMainLoop )
+import Numeric.Natural
+    ( Natural )
 import System.Directory
     ( removePathForcibly )
 import System.IO
     ( IOMode (..), hClose, openFile )
 import Test.Hspec
-    ( SpecWith, after, afterAll, beforeAll, describe, hspec, it )
+    ( after, afterAll, beforeAll, describe, hspec )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , Headers (..)
-    , Payload (..)
-    , balanceAvailable
-    , balanceTotal
-    , expectFieldEqual
-    , expectListSizeEqual
-    , expectResponseCode
-    , fixtureWallet
-    , getAddressesEp
-    , getWalletEp
-    , request
-    , tearDown
-    , verify
-    )
+    ( Context (..), TxDescription (..), tearDown )
 
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
@@ -95,38 +83,18 @@ import qualified Cardano.Wallet.Jormungandr.Network as Jormungandr
 import qualified Cardano.Wallet.Jormungandr.NetworkSpec as Network
 import qualified Cardano.Wallet.Jormungandr.Transaction as Jormungandr
 import qualified Data.Text as T
-import qualified Network.HTTP.Types.Status as HTTP
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Test.Integration.Scenario.API.Addresses as Addresses
+import qualified Test.Integration.Scenario.API.Transactions as Transactions
 import qualified Test.Integration.Scenario.API.Wallets as Wallets
-
--- | Temporary 'Spec' to illustrate that the integration scenario setup below
--- works as expected.
-temporarySpec :: forall t. DecodeAddress t => SpecWith (Context t)
-temporarySpec =
-    it "Temporary example spec for Jörmungandr integration" $ \ctx -> do
-        wSrc <- fixtureWallet ctx
-        r <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
-        print r *> verify r
-            [ expectResponseCode HTTP.status200
-            , expectFieldEqual balanceAvailable 1000000000000
-            , expectFieldEqual balanceTotal 1000000000000
-            ]
-
-        let q = "?state=used"
-        r' <- request @[ApiAddress t] ctx (getAddressesEp wSrc q) Default Empty
-        print r' *> verify r'
-            [ expectResponseCode HTTP.status200
-            , expectListSizeEqual 10
-            ]
 
 main :: IO ()
 main = hspec $ do
     describe "Cardano.Wallet.NetworkSpec" Network.spec
     beforeAll start $ afterAll cleanup $ after tearDown $ do
-        describe "Jörmungandr Temporary Spec" temporarySpec
-        describe "Wallets API endpoint tests" Wallets.spec
         describe "Addresses API endpoint tests" Addresses.spec
+        describe "Transactions API endpoint tests" Transactions.spec
+        describe "Wallets API endpoint tests" Wallets.spec
   where
     start :: IO (Context (Jormungandr 'Testnet))
     start = do
@@ -141,11 +109,12 @@ main = hspec $ do
                 ] (return ())
                 (UseHandle logs)
         handle <- async $ void $ launch [jormungandrLauncher]
-        (port, db) <- cardanoWalletServer
+        (port, feePolicy, db) <- cardanoWalletServer
         let baseUrl = "http://localhost:" <> T.pack (show port) <> "/"
-        manager <- newManager defaultManagerSettings
+        manager <- (baseUrl,) <$> newManager defaultManagerSettings
         faucet <- initFaucet
-        return $ Context handle (baseUrl, manager) port logs faucet db Proxy
+        let estimator = mkFeeEstimator feePolicy
+        return $ Context handle manager port logs faucet db estimator Proxy
 
     cleanup :: Context t -> IO ()
     cleanup ctx = do
@@ -165,7 +134,7 @@ initTracer minSeverity cmd = do
 -- code coverage measures from running the scenarios on top of it!
 cardanoWalletServer
     :: forall network. (network ~ Jormungandr 'Testnet)
-    => IO (Int, SqlBackend)
+    => IO (Int, FeePolicy, SqlBackend)
 cardanoWalletServer = do
     tracer <- initTracer Info "serve"
     (nl, block0, feePolicy) <- newNetworkLayer jormungandrUrl block0H
@@ -179,12 +148,12 @@ cardanoWalletServer = do
             let settings = Warp.defaultSettings
                     & setBeforeMainLoop (putMVar mvar port)
             Server.start settings tracer socket wallet
-    (,conn) <$> takeMVar mvar
+    (,feePolicy,conn) <$> takeMVar mvar
   where
     jormungandrUrl :: BaseUrl
     jormungandrUrl = BaseUrl Http "localhost" 8081 "/api"
     block0H = Hash $ unsafeFromHex
-        "78e6f4e2c463bae5d6318b96b203e48625c3a45227c4b80ea4d0dfc887c23621"
+        "dba597bee5f0987efbf56f6bd7f44c38158a7770d0cb28a26b5eca40613a7ebd"
         -- ^ jcli genesis hash --input test/data/jormungandr/block0.bin
 
 -- Instantiate a new 'NetworkLayer' for 'Jormungandr', and fetches the
@@ -203,6 +172,28 @@ newNetworkLayer url block0H = do
     feePolicy <- unsafeRunExceptT $
         getInitialFeePolicy jormungandr (coerce block0H)
     return (nl, block0, feePolicy)
+
+mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)
+mkFeeEstimator policy (TxDescription nInps nOuts) =
+    let
+        LinearFee (Quantity a) (Quantity b) = policy
+        nChanges = nOuts
+        -- NOTE¹
+        -- We safely round BEFORE the multiplication because we know that
+        -- Jormungandr' fee are necessarily naturals constants. We carry doubles
+        -- here because of the legacy with Byron. In the end, it matters not
+        -- because in the spectrum of numbers we're going to deal with, naturals
+        -- can be represented without any rounding issue using 'Double' (or,
+        -- transactions have suddenly become overly expensive o_O)
+        fee = fromIntegral $ (round a) + (nInps + nOuts + nChanges) * (round b)
+    in
+        -- NOTE²
+        -- We use a range (min, max) and call it an "estimator" because for the
+        -- bridge (and probably cardano-node on Shelley), it's not possible to
+        -- compute the fee precisely by only knowing the number of inputs and
+        -- ouputs since the exact fee cost depends on the values of the
+        -- outputs and the values of the input indexes.
+        (fee, fee)
 
 -- | One second in micro-seconds
 oneSecond :: Int

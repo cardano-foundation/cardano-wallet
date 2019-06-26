@@ -22,6 +22,7 @@ module Cardano.Wallet.Primitive.Fee
 
       -- * Fee Calculation
     , computeFee
+    , divvyFee
 
       -- * Fee Adjustment
     , FeeOptions (..)
@@ -39,6 +40,7 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , UTxO (..)
     , balance'
+    , invariant
     , isValidCoin
     , pickRandom
     )
@@ -61,14 +63,13 @@ import GHC.Generics
 
 import qualified Data.List as L
 
-
 {-------------------------------------------------------------------------------
                                     Types
 -------------------------------------------------------------------------------}
 
 -- | A 'Fee', isomorph to 'Coin' but ease type-signatures and readability.
 newtype Fee = Fee { getFee :: Word64 }
-    deriving (Eq, Ord)
+    deriving (Eq, Ord, Show)
 
 -- | A linear equation a free variable `x`. Represents the @\s -> a + b*s@
 -- function where @s@ can be the transaction size in bytes or, a number of
@@ -156,15 +157,14 @@ adjustForFee
     -> UTxO
     -> CoinSelection
     -> ExceptT ErrAdjustForFee m CoinSelection
-adjustForFee opt utxo coinSel = do
+adjustForFee unsafeOpt utxo coinSel = do
+    let opt = invariant "adjustForFee: fee must be non-null" unsafeOpt (not . nullFee)
     CoinSelection inps' outs' chgs' <- senderPaysFee opt utxo coinSel
-    let neInps = case inps' of
-            []   -> error "adjustForFees: empty list of inputs"
-            inps -> inps
-    let neOuts = case outs' of
-            []   -> error "adjustForFees: empty list of outputs"
-            outs -> outs
+    let neInps = invariant "adjustForFee: empty list of inputs" inps' (not . null)
+    let neOuts = invariant "adjustForFee: empty list of outputs" outs' (not .  null)
     return $ CoinSelection neInps neOuts chgs'
+  where
+    nullFee opt = estimate opt coinSel == Fee 0
 
 -- | The sender pays fee in this scenario, so fees are removed from the change
 -- outputs, and new inputs are selected if necessary.
@@ -258,26 +258,24 @@ reduceSingleChange (Fee fee, Coin chng)
 -- Pre-condition 1: The given outputs list shouldn't be empty
 -- Pre-condition 2: None of the outputs should be null
 --
--- It returns the a list of pairs (fee, output). Note that in case of small
--- input and because of rounding issues, outputs may end up with slight more
--- fee than expected.
+-- It returns the a list of pairs (fee, output).
 divvyFee :: Fee -> [Coin] -> [(Fee, Coin)]
-divvyFee _ [] =
-    error "divvyFee: empty list"
 divvyFee _ outs | (Coin 0) `elem` outs =
     error "divvyFee: some outputs are null"
-divvyFee (Fee f) outs =
-    map (\a -> (fee a, a)) outs
+divvyFee (Fee f0) outs = go f0 [] outs
   where
-    -- | The ratio will be between 0 and 1 so cannot overflow
-    fee :: Coin -> Fee
-    fee (Coin c) =
+    total = (sum . map getCoin) outs
+    go _ _ [] =
+        error "divvyFee: empty list"
+    go fOut xs [out] =
+        -- The last one pays the rounding issues
+        reverse ((Fee fOut, out):xs)
+    go f xs ((Coin out):q) =
         let
-            t = (sum . map getCoin) outs
-            r = (fromIntegral c) / (fromIntegral t)
-            c' = ceiling @Double (r * fromIntegral f)
+            r = fromIntegral out / fromIntegral total
+            fOut = ceiling @Double (r * fromIntegral f)
         in
-            Fee c'
+            go (f - fOut) ((Fee fOut, Coin out):xs) q
 
 -- | Remove coins that are below a given threshold
 removeDust :: Coin -> [Coin] -> [Coin]

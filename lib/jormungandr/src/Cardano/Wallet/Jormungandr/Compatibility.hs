@@ -139,7 +139,7 @@ instance KnownNetwork n => DecodeAddress (Jormungandr n) where
             (Just bytes, _) -> bech32 bytes
             (_, Just bytes) -> base58 bytes
             (Nothing, Nothing) -> Left $ TextDecodingError
-                "Unable to decode address: encoding is neither Bech32 nor \
+                "Unable to decode Address: encoding is neither Bech32 nor \
                 \Base58."
       where
         -- | Attempt decoding a legacy 'Address' using a Base58 encoding.
@@ -152,8 +152,8 @@ instance KnownNetwork n => DecodeAddress (Jormungandr n) where
             decodeLegacyAddress bytes
           where
             errByron =
-                "Unable to decode address: neither Bech32-encoded nor a valid \
-                \Byron address."
+                "Unable to decode Address: neither Bech32-encoded nor a valid \
+                \Byron Address."
 
         -- | Attempt decoding an 'Address' using a Bech32 encoding.
         tryBech32 :: Maybe (HumanReadablePart, ByteString)
@@ -167,7 +167,7 @@ instance KnownNetwork n => DecodeAddress (Jormungandr n) where
             -> Either TextDecodingError Address
         bech32 (hrp', bytes) = do
             when (hrp @n /= hrp') $ Left $ TextDecodingError $
-                "This address belongs to another network. Network is: "
+                "This Address belongs to another network. Network is: "
                 <> show (networkVal @n) <> "."
             case BS.length bytes of
                 n | n == singleAddressLength ->
@@ -178,7 +178,7 @@ instance KnownNetwork n => DecodeAddress (Jormungandr n) where
                         Left (invalidFirstByte (grouped @n))
                 _ ->
                     Left $ TextDecodingError $
-                        "Invalid address length (" <> show (BS.length bytes)
+                        "Invalid Address length (" <> show (BS.length bytes)
                         <> "): expected either "
                         <> show singleAddressLength
                         <> " or "
@@ -189,7 +189,7 @@ instance KnownNetwork n => DecodeAddress (Jormungandr n) where
             singleAddressLength = 33
             groupedAddressLength = 65
             invalidFirstByte discriminant = TextDecodingError
-                $ "Invalid address first byte: "
+                $ "Invalid Address first byte: "
                 <> B8.unpack (BS.take 1 bytes)
                 <> " =/= "
                 <> B8.unpack (BS.pack [discriminant])

@@ -17,7 +17,7 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.CoinSelection.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.Primitive.Fee
-    ( ErrAdjustForFee (..), Fee (..), FeeOptions (..), adjustForFee )
+    ( ErrAdjustForFee (..), Fee (..), FeeOptions (..), adjustForFee, divvyFee )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -53,13 +53,19 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , Property
+    , checkCoverage
     , choose
+    , coverTable
     , disjoin
     , elements
+    , expectFailure
     , generate
     , property
     , scale
+    , tabulate
     , vectorOf
+    , withMaxSuccess
+    , (===)
     , (==>)
     )
 import Test.QuickCheck.Monadic
@@ -115,7 +121,7 @@ spec = do
             , csChngs = [1,1]
             })
 
-        -- Fee split evenly across change outputs, with rounding 'issues'
+        -- Fee split evenly across change outputs
         feeUnitTest (FeeFixture
             { fInps = [20,20]
             , fOuts = [17,18]
@@ -126,7 +132,7 @@ spec = do
             }) (Right $ FeeOutput
             { csInps = [20,20]
             , csOuts = [17,18]
-            , csChngs = [1,1]
+            , csChngs = [1,2]
             })
 
         -- Fee divvied, dust removed (dust = 0)
@@ -140,7 +146,7 @@ spec = do
             }) (Right $ FeeOutput
             { csInps = [20,20,20]
             , csOuts = [14,18,19]
-            , csChngs = [4,1]
+            , csChngs = [4,1,1]
             })
 
         -- Fee divvied, dust removed (dust = 1)
@@ -211,7 +217,7 @@ spec = do
             , fOuts = [7,7]
             , fChngs = [3,3]
             , fUtxo = [2,2]
-            , fFee = 9
+            , fFee = 10
             , fDust = 0
             }) (Right $ FeeOutput
             { csInps = [10,10,2,2]
@@ -245,20 +251,6 @@ spec = do
             { csInps = [20,20]
             , csOuts = [16,18]
             , csChngs = []
-            })
-
-        -- Selection with no fee
-        feeUnitTest (FeeFixture
-            { fInps = [10,10]
-            , fOuts = [7,7]
-            , fChngs = [3,3]
-            , fUtxo = [3,3]
-            , fFee = 0
-            , fDust = 0
-            }) (Right $ FeeOutput
-            { csInps = [10,10]
-            , csOuts = [7,7]
-            , csChngs = [3,3]
             })
 
         -- Change created when there was no change before
@@ -296,12 +288,20 @@ spec = do
             property $ isValidSelection cs
 
     before getSystemDRG $ describe "Fee Adjustment properties" $ do
-        it "No fee gives back the same selection"
-            (\_ -> property propSameSelection)
         it "Fee adjustment is deterministic when there's no extra inputs"
             (\_ -> property propDeterministic)
         it "Adjusting for fee (/= 0) reduces the change outputs or increase inputs"
             (property . propReducedChanges)
+
+    describe "divvyFee" $ do
+        it "Σ fst (divvyFee fee outs) == fee"
+            (checkCoverage propDivvyFeeSame)
+        it "snd (divvyFee fee outs) == outs"
+            (checkCoverage propDivvyFeeOuts)
+        it "expectFailure: not (any null (fst <$> divvyFee fee outs))"
+            (expectFailure propDivvyFeeNoNullFee)
+        it "expectFailure: empty list"
+            (expectFailure propDivvyFeeInvariantEmptyList)
 
 {-------------------------------------------------------------------------------
                          Fee Adjustment - Properties
@@ -333,14 +333,6 @@ instance Buildable FeeProp where
         <> build utxo
         <> nameF "options" (tupleF opt)
 
-propSameSelection
-    :: ShowFmt FeeProp
-    -> Property
-propSameSelection (ShowFmt (FeeProp coinSel utxo _)) = monadicIO $ liftIO $ do
-    let feeOpt = feeOptions 0 0
-    coinSel' <- runExceptT (adjustForFee feeOpt utxo coinSel)
-    fmap ShowFmt coinSel' `shouldBe` Right (ShowFmt coinSel)
-
 propDeterministic
     :: ShowFmt FeeProp
     -> Property
@@ -370,6 +362,69 @@ propReducedChanges drg (ShowFmt (FeeProp coinSel utxo (fee, dust))) = do
     feeOpt = feeOptions fee dust
     coinSel' = left show $ fst $ withDRG drg $ runExceptT $
         adjustForFee feeOpt utxo coinSel
+
+{-------------------------------------------------------------------------------
+                             divvyFee - Properties
+-------------------------------------------------------------------------------}
+
+-- | Helper to re-apply the pre-conditions for divvyFee
+propDivvyFee
+    :: ((Fee, [Coin]) -> Property)
+    -> (Fee, [Coin])
+    -> Property
+propDivvyFee prop (fee, outs) =
+    not (null outs) ==> coverTable "properties"
+        [ ("fee > 0", 50)
+        , ("nOuts=1", 1)
+        , ("nOuts=2", 1)
+        , ("nOuts=2+", 10)
+        ]
+        $ tabulate "properties"
+            [ if fee > Fee 0 then "fee > 0" else "fee == 0"
+            , "nOuts=" <> case length outs of
+                n | n <= 2 -> show n
+                _ -> "2+"
+            ]
+        $ prop (fee, outs)
+
+-- | Sum of the fees divvied over each output is the same as the initial total
+-- fee.
+propDivvyFeeSame
+    :: (Fee, [Coin])
+    -> Property
+propDivvyFeeSame = propDivvyFee $ \(fee, outs) ->
+    sum (getFee . fst <$> divvyFee fee outs) === getFee fee
+
+-- | divvyFee doesn't change any of the outputs
+propDivvyFeeOuts
+    :: (Fee, [Coin])
+    -> Property
+propDivvyFeeOuts = propDivvyFee $ \(fee, outs) ->
+    (snd <$> divvyFee fee outs) === outs
+
+-- | divvyFee never generates null fees for a given output.
+--
+-- This is NOT a property. It is here to illustrate that this can happen in
+-- practice, and is known as a possible outcome for the divvyFee function
+-- (it is fine for one of the output to be assigned no fee). The only reason
+-- this would happen is because there would be less outputs than the fee amount
+-- which is probably never going to happen in practice...
+propDivvyFeeNoNullFee
+    :: (Fee, [Coin])
+    -> Property
+propDivvyFeeNoNullFee (fee, outs) =
+    not (null outs) ==> withMaxSuccess 100000 prop
+  where
+    prop = property $ Fee 0 `notElem` (fst <$> divvyFee fee outs)
+
+-- | Illustrate the invariant: 'outs' should be an non-empty list
+propDivvyFeeInvariantEmptyList
+    :: (Fee, [Coin])
+    -> Property
+propDivvyFeeInvariantEmptyList (fee, outs) =
+    withMaxSuccess 100000 prop
+  where
+    prop = divvyFee fee outs `seq` True
 
 {-------------------------------------------------------------------------------
                          Fee Adjustment - Unit Tests
@@ -479,8 +534,12 @@ instance Arbitrary TxIn where
         <*> scale (`mod` 3) arbitrary -- No need for a high indexes
 
 instance Arbitrary Coin where
-    shrink (Coin c) = Coin <$> shrink (fromIntegral c)
+    shrink (Coin c) = Coin <$> filter (> 0) (shrink $ fromIntegral c)
     arbitrary = Coin <$> choose (1, 200000)
+
+instance Arbitrary Fee where
+    shrink (Fee c) = Fee <$> filter (> 0) (shrink $ fromIntegral c)
+    arbitrary = Fee . getCoin <$> arbitrary
 
 instance Arbitrary FeeProp where
     shrink (FeeProp cs utxo opts) =

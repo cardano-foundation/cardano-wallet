@@ -25,6 +25,7 @@ import Test.Integration.Framework.DSL
     ( Context
     , Headers (..)
     , Payload (..)
+    , TxDescription (..)
     , amount
     , balanceAvailable
     , balanceTotal
@@ -39,6 +40,7 @@ import Test.Integration.Framework.DSL
     , expectSuccess
     , faucetAmt
     , faucetUtxoAmt
+    , feeEstimator
     , fixtureWallet
     , fixtureWalletWith
     , getWalletEp
@@ -53,7 +55,6 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( arabicWalletName
     , errMsg403Fee
-    , errMsg403InvalidTransaction
     , errMsg403NotEnoughMoney
     , errMsg403UTxO
     , errMsg403WrongPass
@@ -89,7 +90,10 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        let (feeMin, feeMax) = (168609, 168785)
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+                { nInputs = 1
+                , nOutputs = 1
+                }
 
         r <- request @(ApiTransaction t) ctx (postTxEp wa) Default payload
         verify r
@@ -145,25 +149,26 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        let (feeMin, feeMax) = (181487, 181839)
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+                { nInputs = 2
+                , nOutputs = 2
+                }
 
         r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        ra <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldBetween amount (feeMin + amt, feeMax + amt)
+            , expectFieldBetween amount (feeMin + (2*amt), feeMax + (2*amt))
             , expectFieldEqual direction Outgoing
             , expectFieldEqual status Pending
             ]
-
-        ra <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
         verify ra
             [ expectFieldBetween balanceTotal
-                ( faucetAmt - feeMax - amt
-                , faucetAmt - feeMin - amt
+                ( faucetAmt - feeMax - (2*amt)
+                , faucetAmt - feeMin - (2*amt)
                 )
             , expectFieldEqual balanceAvailable (faucetAmt - 2 * faucetUtxoAmt)
             ]
-
         rd <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
         verify rd
             [ expectEventually ctx balanceAvailable (2*amt)
@@ -199,25 +204,26 @@ spec = do
                 ],
                 "passphrase": "cardano-wallet"
             }|]
-        let (feeMin, feeMax) = (181487, 181839)
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+                { nInputs = 2
+                , nOutputs = 2
+                }
 
         r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        ra <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldBetween amount (feeMin + amt, feeMax + amt)
+            , expectFieldBetween amount (feeMin + (2*amt), feeMax + (2*amt))
             , expectFieldEqual direction Outgoing
             , expectFieldEqual status Pending
             ]
-
-        ra <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
         verify ra
             [ expectFieldBetween balanceTotal
-                ( faucetAmt - feeMax - amt
-                , faucetAmt - feeMin - amt
+                ( faucetAmt - feeMax - (2*amt)
+                , faucetAmt - feeMin - (2*amt)
                 )
             , expectFieldEqual balanceAvailable (faucetAmt - 2 * faucetUtxoAmt)
             ]
-
         forM_ [wDest1, wDest2] $ \wDest -> do
             rd <- request @ApiWallet ctx (getWalletEp wDest) Default payload
             verify rd
@@ -260,7 +266,9 @@ spec = do
             ]
 
     it "TRANS_CREATE_03 - 0 balance after transaction" $ \ctx -> do
-        wSrc <- fixtureWalletWith ctx [168_434]
+        let (feeMin, _) = ctx ^. feeEstimator $ TxDescription 1 1
+        let amt = 1
+        wSrc <- fixtureWalletWith ctx [feeMin+amt]
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses ctx wDest
 
@@ -269,7 +277,7 @@ spec = do
                 "payments": [{
                     "address": #{destination},
                     "amount": {
-                        "quantity": 1,
+                        "quantity": #{amt},
                         "unit": "lovelace"
                     }
                 }],
@@ -278,7 +286,7 @@ spec = do
         r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldEqual amount 168434
+            , expectFieldEqual amount (feeMin + amt)
             , expectFieldEqual direction Outgoing
             , expectFieldEqual status Pending
             ]
@@ -291,8 +299,8 @@ spec = do
 
         rd <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
         verify rd
-            [ expectEventually ctx balanceAvailable 1
-            , expectEventually ctx balanceTotal 1
+            [ expectEventually ctx balanceAvailable amt
+            , expectEventually ctx balanceTotal amt
             ]
 
         ra2 <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
@@ -302,7 +310,8 @@ spec = do
             ]
 
     it "TRANS_CREATE_04 - Can't cover fee" $ \ctx -> do
-        wSrc <- fixtureWalletWith ctx [100_000]
+        let (feeMin, _) = ctx ^. feeEstimator $ TxDescription 1 1
+        wSrc <- fixtureWalletWith ctx [feeMin `div` 2]
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses ctx wDest
 
@@ -324,7 +333,8 @@ spec = do
             ]
 
     it "TRANS_CREATE_04 - Not enough money" $ \ctx -> do
-        wSrc <- fixtureWalletWith ctx [100_000]
+        let (feeMin, _) = ctx ^. feeEstimator $ TxDescription 1 1
+        wSrc <- fixtureWalletWith ctx [feeMin]
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses ctx wDest
 
@@ -342,7 +352,8 @@ spec = do
         r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage (errMsg403NotEnoughMoney 100_000 1000_000)
+            , expectErrorMessage $
+                errMsg403NotEnoughMoney (fromIntegral feeMin) 1_000_000
             ]
 
     it "TRANS_CREATE_04 - Wrong password" $ \ctx -> do
@@ -369,17 +380,17 @@ spec = do
 
     describe "TRANS_CREATE_05 - Invalid addresses" $ do
         let longAddr = replicate 10000 '1'
-        let byronErr = "Unable to decode Address: not a valid Byron address."
-        let base58Err = "Unable to decode Address: expected Base58 encoding."
+        let encodeErr = "Unable to decode Address:"
         let matrix =
-                [ ( "long hex", longAddr, byronErr )
-                , ( "short hex", "1", byronErr )
-                , ( "-1000", "-1000", base58Err ), ( "q", "q", byronErr )
-                , ( "empty", "", byronErr )
-                , ( "wildcards", T.unpack wildcardsWalletName, base58Err )
-                , ( "arabic", T.unpack arabicWalletName, base58Err )
-                , ( "kanji", T.unpack kanjiWalletName, base58Err )
-                , ( "polish", T.unpack polishWalletName, base58Err )
+                [ ( "long hex", longAddr, encodeErr )
+                , ( "short hex", "1", encodeErr )
+                , ( "-1000", "-1000", encodeErr )
+                , ( "q", "q", encodeErr )
+                , ( "empty", "", encodeErr )
+                , ( "wildcards", T.unpack wildcardsWalletName, encodeErr )
+                , ( "arabic", T.unpack arabicWalletName, encodeErr )
+                , ( "kanji", T.unpack kanjiWalletName, encodeErr )
+                , ( "polish", T.unpack polishWalletName, encodeErr )
                 ]
         forM_ matrix $ \(title, addr, errMsg) -> it title $ \ctx -> do
             wSrc <- emptyWallet ctx
@@ -693,56 +704,3 @@ spec = do
             r <- request @(ApiTransaction t) ctx (postTxEp w)
                     Default payload
             expectResponseCode @IO HTTP.status400 r
-
-    it "TRANS_CREATE_09 - 0 amount transaction is forbidden on single output tx" $ \ctx -> do
-        wSrc <- fixtureWallet ctx
-        wDest <- emptyWallet ctx
-        addr:_ <- listAddresses ctx wDest
-
-        let destination = addr ^. #id
-        let payload = Json [json|{
-                "payments": [{
-                    "address": #{destination},
-                    "amount": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    }
-                }],
-                "passphrase": "cardano-wallet"
-            }|]
-        r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
-        verify r
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403InvalidTransaction
-            ]
-
-    it "TRANS_CREATE_09 - 0 amount transaction is forbidden on multi-output tx" $ \ctx -> do
-        wSrc <- fixtureWallet ctx
-        wDest <- emptyWallet ctx
-        addrs <- listAddresses ctx wDest
-
-        let destination1 = (addrs !! 1) ^. #id
-        let destination2 = (addrs !! 2) ^. #id
-        let payload = Json [json|{
-                "payments": [{
-                    "address": #{destination1},
-                    "amount": {
-                        "quantity": 0,
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "address": #{destination2},
-                    "amount": {
-                        "quantity": 23,
-                        "unit": "lovelace"
-                    }
-                }],
-                "passphrase": "cardano-wallet"
-            }|]
-
-        r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
-        verify r
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403InvalidTransaction
-            ]

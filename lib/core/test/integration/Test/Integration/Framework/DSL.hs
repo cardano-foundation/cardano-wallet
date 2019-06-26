@@ -13,6 +13,7 @@
 
 module Test.Integration.Framework.DSL
     ( Context(..)
+    , TxDescription(..)
 
     -- * Steps
     , request
@@ -43,16 +44,17 @@ module Test.Integration.Framework.DSL
 
     -- * Lens
     , addressPoolGap
+    , amount
     , balanceAvailable
     , balanceTotal
     , delegation
+    , direction
+    , feeEstimator
     , passphraseLastUpdate
+    , state
+    , status
     , walletId
     , walletName
-    , state
-    , amount
-    , direction
-    , status
 
     -- * Helpers
     , (</>)
@@ -185,6 +187,7 @@ import Test.Integration.Framework.Request
     , Headers (..)
     , Payload (..)
     , RequestException (..)
+    , TxDescription (..)
     , request
     , unsafeRequest
     )
@@ -484,6 +487,14 @@ delegation =
         => (s, (WalletDelegation (ApiT PoolId)))
         -> s
     _set (s, v) = set typed (ApiT v ) s
+
+feeEstimator
+    :: Lens' (Context t) (TxDescription -> (Natural, Natural))
+feeEstimator =
+    lens _get _set
+  where
+    _get = _feeEstimator
+    _set (ctx, v) = ctx { _feeEstimator = v }
 
 passphraseLastUpdate
     :: HasType (Maybe (ApiT WalletPassphraseInfo)) s
