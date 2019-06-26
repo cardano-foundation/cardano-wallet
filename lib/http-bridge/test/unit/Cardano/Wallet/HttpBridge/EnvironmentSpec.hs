@@ -13,9 +13,7 @@ import Data.Proxy
 import Test.Hspec
     ( Spec, describe )
 import Test.QuickCheck
-    ( Arbitrary (..) )
-import Test.QuickCheck.Arbitrary.Generic
-    ( genericArbitrary, genericShrink )
+    ( Arbitrary (..), arbitraryBoundedEnum, genericShrink )
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
@@ -29,5 +27,5 @@ spec = do
 -------------------------------------------------------------------------------}
 
 instance Arbitrary Network where
-    arbitrary = genericArbitrary
+    arbitrary = arbitraryBoundedEnum
     shrink = genericShrink
