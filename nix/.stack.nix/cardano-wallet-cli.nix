@@ -31,7 +31,6 @@
           depends = [
             (hsPkgs.base)
             (hsPkgs.cardano-wallet-cli)
-            (hsPkgs.generic-arbitrary)
             (hsPkgs.hspec)
             (hsPkgs.iohk-monitoring)
             (hsPkgs.QuickCheck)
