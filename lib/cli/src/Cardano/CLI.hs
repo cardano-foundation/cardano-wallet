@@ -16,7 +16,7 @@
 module Cardano.CLI
     (
     -- * Types
-      Port(..)
+      Port (..)
 
     -- * Unicode Terminal Helpers
     , setUtf8Encoding
