@@ -82,9 +82,11 @@ instance GHC.Enum.Bounded Data.Text.Class.CaseStyle
 instance Formatting.Buildable.Buildable Data.Text.Class.TextDecodingError
 instance GHC.Show.Show Data.Text.Class.TextDecodingError
 instance GHC.Classes.Eq Data.Text.Class.TextDecodingError
+instance Data.Text.Class.FromText GHC.Base.String
 instance Data.Text.Class.FromText Data.Text.Internal.Text
 instance Data.Text.Class.FromText GHC.Types.Int
 instance Data.Text.Class.FromText GHC.Natural.Natural
+instance Data.Text.Class.ToText GHC.Base.String
 instance Data.Text.Class.ToText Data.Text.Internal.Text
 instance Data.Text.Class.ToText GHC.Types.Int
 instance Data.Text.Class.ToText GHC.Natural.Natural

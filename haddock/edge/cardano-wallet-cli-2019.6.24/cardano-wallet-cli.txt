@@ -17,6 +17,33 @@ newtype Port (tag :: Symbol)
 Port :: Int -> Port
 [getPort] :: Port -> Int
 
+-- | Controls how much information to include in log output.
+data Verbosity
+
+-- | The default level of verbosity.
+Default :: Verbosity
+
+-- | Include less information in the log output.
+Quiet :: Verbosity
+
+-- | Include more information in the log output.
+Verbose :: Verbosity
+
+-- | Initialize logging at the specified minimum <a>Severity</a> level.
+initTracer :: Severity -> Text -> IO (Trace IO Text)
+
+-- | Determine the minimum <a>Severity</a> level from the specified command
+--   line arguments.
+minSeverityFromArgs :: Arguments -> Severity
+
+-- | Determine the desired <a>Verbosity</a> level from the specified
+--   command line arguments.
+verbosityFromArgs :: Arguments -> Verbosity
+
+-- | Convert a given <a>Verbosity</a> level into a list of command line
+--   arguments that can be passed through to a sub-process.
+verbosityToArgs :: Verbosity -> [String]
+
 -- | Override the system output encoding setting. This is needed because
 --   the CLI prints UTF-8 characters regardless of the <tt>LANG</tt>
 --   environment variable.
@@ -32,6 +59,10 @@ hPutErrLn :: Handle -> Text -> IO ()
 newtype OptionValue a
 OptionValue :: a -> OptionValue a
 [getOptionValue] :: OptionValue a -> a
+
+-- | Make an existing parser optional. Returns 'Right Nothing' if the input
+--   is empty, without running the parser.
+optional :: (Monoid m, Eq m) => (m -> Either e a) -> m -> Either e (Maybe a)
 parseArgWith :: FromText a => Docopt -> Arguments -> Option -> IO a
 parseAllArgsWith :: FromText a => Docopt -> Arguments -> Option -> IO (NonEmpty a)
 
@@ -50,6 +81,14 @@ getSensitiveLine :: Buildable e => Text -> (Text -> Either e a) -> IO (a, Text)
 -- | Gather user inputs until a newline is met, hiding what's typed with a
 --   placeholder character.
 hGetSensitiveLine :: Buildable e => (Handle, Handle) -> Text -> (Text -> Either e a) -> IO (a, Text)
+
+-- | Decode API error messages and extract the corresponding message.
+decodeError :: ByteString -> Maybe Text
+
+-- | Show a data-type through its <a>ToText</a> instance
+showT :: ToText a => a -> String
+instance GHC.Show.Show Cardano.CLI.Verbosity
+instance GHC.Classes.Eq Cardano.CLI.Verbosity
 instance GHC.Show.Show a => GHC.Show.Show (Cardano.CLI.OptionValue a)
 instance GHC.Read.Read a => GHC.Read.Read (Cardano.CLI.OptionValue a)
 instance GHC.Generics.Generic (Cardano.CLI.OptionValue a)
