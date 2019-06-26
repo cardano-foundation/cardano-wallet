@@ -109,7 +109,7 @@ import Data.ByteString
 import Data.Map.Strict
     ( Map )
 import Data.Proxy
-    ( Proxy )
+    ( Proxy (..) )
 import Data.Quantity
     ( Percentage, Quantity (..) )
 import Data.Set
@@ -144,7 +144,7 @@ import Fmt
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
-    ( Symbol )
+    ( KnownSymbol, Symbol, symbolVal )
 import Numeric.Natural
     ( Natural )
 
@@ -713,29 +713,31 @@ instance Buildable (Hash "Tx") where
       where
         builder = build . toText $ h
 
+fromTextToHashBase16
+    :: forall t . KnownSymbol t => Text -> Either TextDecodingError (Hash t)
+fromTextToHashBase16 text = either
+    (const $ Left $ TextDecodingError err)
+    (pure . Hash)
+    (convertFromBase Base16 $ T.encodeUtf8 text)
+  where
+    err =
+        "Unable to decode (Hash \"" <> symbolVal (Proxy @t) <> "\"): \
+        \expected Base16 encoding"
+
+toTextFromHashBase16 :: Hash t -> Text
+toTextFromHashBase16 = T.decodeUtf8 . convertToBase Base16 . getHash
+
 instance FromText (Hash "Tx") where
-    fromText x = either
-        (const $ Left $ TextDecodingError err)
-        (pure . Hash)
-        (convertFromBase Base16 $ T.encodeUtf8 x)
-      where
-        err = "Unable to decode (Hash \"Tx\"): \
-                    \expected Base16 encoding"
+    fromText = fromTextToHashBase16
 
 instance ToText (Hash "Tx") where
-    toText = T.decodeUtf8 . convertToBase Base16 . getHash
+    toText = toTextFromHashBase16
 
 instance FromText (Hash "BlockHeader") where
-    fromText x = either
-        (const $ Left $ TextDecodingError err)
-        (pure . Hash)
-        (convertFromBase Base16 $ T.encodeUtf8 x)
-      where
-        err = "Unable to decode (Hash \"BlockHeader\"): \
-                    \expected Base16 encoding"
+    fromText = fromTextToHashBase16
 
 instance ToText (Hash "BlockHeader") where
-    toText = T.decodeUtf8 . convertToBase Base16 . getHash
+    toText = toTextFromHashBase16
 
 -- | A polymorphic wrapper type with a custom show instance to display data
 -- through 'Buildable' instances.
