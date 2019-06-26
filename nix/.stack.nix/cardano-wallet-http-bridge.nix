@@ -60,7 +60,6 @@
             (hsPkgs.containers)
             (hsPkgs.digest)
             (hsPkgs.fmt)
-            (hsPkgs.generic-arbitrary)
             (hsPkgs.hspec)
             (hsPkgs.hspec-golden-aeson)
             (hsPkgs.memory)

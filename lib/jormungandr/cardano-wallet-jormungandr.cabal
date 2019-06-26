@@ -85,7 +85,6 @@ test-suite unit
     , cardano-crypto
     , cardano-wallet-jormungandr
     , containers
-    , generic-arbitrary
     , generic-lens
     , hspec
     , memory

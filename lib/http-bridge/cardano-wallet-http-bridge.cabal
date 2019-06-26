@@ -93,7 +93,6 @@ test-suite unit
     , containers
     , digest
     , fmt
-    , generic-arbitrary
     , hspec
     , hspec-golden-aeson
     , memory
