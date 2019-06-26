@@ -79,7 +79,7 @@ let
   # Remove build jobs for which cross compiling does not make sense.
   filterJobsCross = filterAttrs (n: _: !(elem n ["dockerImage" "shell" "stackShell" "stackNixRegenerate"]));
 
-  inherit (systems.examples) mingwW64 musl64;
+  inherit (systems.examples) mingwW64 musl64 ghcjs;
 
   jobs = {
     native = mapTestOn (packagePlatformsOrig project);
@@ -87,6 +87,8 @@ let
     "${mingwW64.config}" = mapTestOnCross mingwW64
       (packagePlatformsCross (filterJobsCross project));
     musl64 = mapTestOnCross musl64
+      (packagePlatformsCross (filterJobsCross project));
+    "${ghcjs.config}" = mapTestOnCross ghcjs
       (packagePlatformsCross (filterJobsCross project));
   }
     # This aggregate job is what IOHK Hydra uses to update
