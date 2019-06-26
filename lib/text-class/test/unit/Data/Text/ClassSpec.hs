@@ -73,8 +73,10 @@ spec = do
             $ property $ \(i :: Int) -> (fromText . toText) i === pure i
         it "fromText ~ fromTextMaybe" $
             property $ \(Digits t) ->
-                classify (isNothing (fromTextMaybe @Int t)) "invalid" $
-                classify ((compare 0 <$> fromTextMaybe @Int t) == Just GT) "valid negative" $
+                classify (isNothing (fromTextMaybe @Int t))
+                    "invalid" $
+                classify ((compare 0 <$> fromTextMaybe @Int t) == Just GT)
+                    "valid negative" $
                 toList (fromTextMaybe @Int t) === toList (fromText t)
 
     describe "Text" $ do
