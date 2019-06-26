@@ -75,7 +75,6 @@ import Data.Bifunctor
     ( bimap )
 import Data.Functor
     ( (<$) )
-import qualified Data.List.NonEmpty as NE
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -135,6 +134,7 @@ import System.IO
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
