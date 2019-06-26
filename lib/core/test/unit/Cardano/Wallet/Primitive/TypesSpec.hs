@@ -101,6 +101,7 @@ spec = do
         textRoundtrip $ Proxy @TxStatus
         textRoundtrip $ Proxy @WalletName
         textRoundtrip $ Proxy @WalletId
+        textRoundtrip $ Proxy @(Hash "Genesis")
         textRoundtrip $ Proxy @(Hash "Tx")
 
     describe "Buildable" $ do
@@ -306,6 +307,10 @@ prop_2_6_2 (ins, u) =
 instance Arbitrary Direction where
     arbitrary = arbitraryBoundedEnum
     shrink = genericShrink
+
+instance Arbitrary (Hash "Genesis") where
+    arbitrary = Hash . BS.pack <$> arbitrary
+    shrink (Hash v) = Hash . BS.pack <$> shrink (BS.unpack v)
 
 instance Arbitrary (Hash "Tx") where
     -- No Shrinking
