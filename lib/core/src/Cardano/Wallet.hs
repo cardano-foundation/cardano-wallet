@@ -44,7 +44,7 @@ import Prelude hiding
     ( log )
 
 import Cardano.BM.Trace
-    ( Trace, logDebug, logError, logInfo )
+    ( Trace, appendName, logDebug, logError, logInfo, logNotice )
 import Cardano.Wallet.DB
     ( DBLayer
     , ErrNoSuchWallet (..)
@@ -88,6 +88,7 @@ import Cardano.Wallet.Primitive.Model
     , applyBlocks
     , availableUTxO
     , currentTip
+    , getPending
     , getState
     , initWallet
     , newPending
@@ -130,7 +131,7 @@ import Control.DeepSeq
 import Control.Monad
     ( forM, unless )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( MonadIO, liftIO )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
@@ -157,10 +158,12 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( toText )
 import Data.Time.Clock
     ( getCurrentTime )
 import Fmt
-    ( blockListF, pretty, (+|), (+||), (|+), (||+) )
+    ( Buildable, blockListF, pretty, (+|), (+||), (|+), (||+) )
 
 import qualified Cardano.Wallet.DB as DB
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
@@ -168,6 +171,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified Data.Text as T
 
 {-------------------------------------------------------------------------------
                                  Types
@@ -333,7 +337,7 @@ cancelWorker (WorkerRegistry mvar) wid =
 
 -- | Create a new instance of the wallet layer.
 newWalletLayer
-    :: forall s t. ()
+    :: forall s t. (Buildable (Tx t))
     => Trace IO Text
     -> Block (Tx t)
         -- ^ Very first block
@@ -343,6 +347,9 @@ newWalletLayer
     -> TransactionLayer t
     -> IO (WalletLayer s t)
 newWalletLayer tracer block0 feePolicy db nw tl = do
+    logDebugT $ "Wallet layer starting with: "
+        <> "block0: "+| block0 |+ ", "
+        <> "fee policy: "+|| feePolicy ||+""
     registry <- newRegistry
     return WalletLayer
         { createWallet = _createWallet
@@ -359,6 +366,15 @@ newWalletLayer tracer block0 feePolicy db nw tl = do
         , attachPrivateKey = _attachPrivateKey
         }
   where
+    logDebugT :: MonadIO m => Text -> m ()
+    logDebugT = liftIO . logDebug tracer
+
+    logInfoT :: MonadIO m => Text -> m ()
+    logInfoT = liftIO . logInfo tracer
+
+    debug :: (Buildable a, MonadIO m) => Text -> a -> m a
+    debug msg a = logDebugT (msg <> pretty a) $> a
+
     {---------------------------------------------------------------------------
                                        Wallets
     ---------------------------------------------------------------------------}
@@ -438,14 +454,16 @@ newWalletLayer tracer block0 feePolicy db nw tl = do
         -> ExceptT ErrNoSuchWallet IO ()
     _restoreWallet re wid = do
         (w, _) <- _readWallet wid
-        liftIO $ logInfo tracer $ "restoring wallet: " +|| wid ||+ ""
+        let workerName = "worker." <> T.take 8 (toText wid)
+        t <- liftIO $ appendName workerName tracer
+        liftIO $ logInfo t $ "Restoring wallet "+| wid |+"..."
         worker <- liftIO $ forkIO $ do
             runExceptT (networkTip nw) >>= \case
                 Left e -> do
-                    logError tracer $ "restoreSleep: " +|| e ||+ ""
-                    restoreSleep wid (currentTip w)
+                    logError t $ "Failed to get network tip: " +|| e ||+ ""
+                    restoreSleep t wid (currentTip w)
                 Right tip -> do
-                    restoreStep wid (currentTip w, tip)
+                    restoreStep t wid (currentTip w, tip)
         liftIO $ registerWorker re (wid, worker)
 
     -- | Infinite restoration loop. We drain the whole available chain and try
@@ -455,56 +473,59 @@ newWalletLayer tracer block0 feePolicy db nw tl = do
     -- The function only terminates if the wallet has disappeared from the DB.
     restoreStep
         :: (DefineTx t)
-        => WalletId
+        => Trace IO Text
+        -> WalletId
         -> (BlockHeader, BlockHeader)
         -> IO ()
-    restoreStep wid (slot, tip) = do
+    restoreStep t wid (slot, tip) = do
         runExceptT (nextBlocks nw slot) >>= \case
             Left e -> do
-                logError tracer $ "restoreStep: " +|| e ||+ ""
-                restoreSleep wid slot
+                logError t $ "Failed to get next blocks: " +|| e ||+ "."
+                restoreSleep t wid slot
             Right [] -> do
-                restoreSleep wid slot
+                logDebug t "Wallet restored."
+                restoreSleep t wid slot
             Right blocks -> do
                 let next = view #header . last $ blocks
-                runExceptT (restoreBlocks wid blocks (tip ^. #slotId)) >>= \case
-                    Left (ErrNoSuchWallet _) -> logError tracer $
-                        "restoreStep: wallet " +| wid |+ " is gone!"
+                runExceptT (restoreBlocks t wid blocks (tip ^. #slotId)) >>= \case
+                    Left (ErrNoSuchWallet _) ->
+                        logNotice t "Wallet is gone! Terminating worker..."
                     Right () -> do
-                        restoreStep wid (next, tip)
+                        restoreStep t wid (next, tip)
 
     -- | Wait a short delay before querying for blocks again. We do take this
     -- opportunity to also refresh the chain tip as it has probably increased
     -- in order to refine our syncing status.
     restoreSleep
         :: (DefineTx t)
-        => WalletId
+        => Trace IO Text
+        -> WalletId
         -> BlockHeader
         -> IO ()
-    restoreSleep wid slot = do
+    restoreSleep t wid slot = do
         let tenSeconds = 10000000 in threadDelay tenSeconds
         runExceptT (networkTip nw) >>= \case
             Left e -> do
-                logError tracer $ "restoreSleep: " +|| e ||+ ""
-                restoreSleep wid slot
+                logError t $ "Failed to get network tip: " +|| e ||+ ""
+                restoreSleep t wid slot
             Right tip ->
-                restoreStep wid (slot, tip)
+                restoreStep t wid (slot, tip)
 
     -- | Apply the given blocks to the wallet and update the wallet state,
     -- transaction history and corresponding metadata.
     restoreBlocks
         :: (DefineTx t)
-        => WalletId
+        => Trace IO Text
+        -> WalletId
         -> [Block (Tx t)]
         -> SlotId -- ^ Network tip
         -> ExceptT ErrNoSuchWallet IO ()
-    restoreBlocks wid blocks tip = do
+    restoreBlocks t wid blocks tip = do
         let (inf, sup) =
                 ( view #slotId . header . head $ blocks
                 , view #slotId . header . last $ blocks
                 )
-        liftIO $ logInfo tracer $
-            "Applying blocks ["+| inf |+" ... "+| sup |+"]"
+        liftIO $ logInfo t $ "Applying blocks ["+| inf |+" ... "+| sup |+"]"
 
         -- NOTE
         -- Not as good as a transaction, but, with the lock, nothing can make
@@ -519,16 +540,19 @@ newWalletLayer tracer block0 feePolicy db nw tl = do
             let nonEmpty = not . null . transactions
             let (h,q) = first (filter nonEmpty) $
                     splitAt (length blocks - 1) blocks
+            liftIO $ logDebug t $ pretty (h ++ q)
             let (txs, cp') = applyBlocks @s @t (h ++ q) cp
             let progress = slotRatio sup tip
             let status' = if progress == maxBound
                     then Ready
                     else Restoring progress
             let meta' = meta { status = status' } :: WalletMetadata
-            liftIO $ logInfo tracer $
-                "Tx History: " +|| length txs ||+ ""
-            unless (null txs) $ liftIO $ logDebug tracer $ pretty $
-                blockListF (snd <$> Map.elems txs)
+            let nPending = Set.size (getPending cp')
+            liftIO $ logInfo t $ pretty meta'
+            liftIO $ logInfo t $ nPending ||+" transaction(s) pending."
+            liftIO $ logInfo t $ length txs ||+ " new transaction(s) discovered."
+            unless (null txs) $ liftIO $ logDebug t $
+                pretty $ blockListF (snd <$> Map.elems txs)
             DB.putCheckpoint db (PrimaryKey wid) cp'
             DB.putTxHistory db (PrimaryKey wid) txs
             DB.putWalletMeta db (PrimaryKey wid) meta'
@@ -575,12 +599,13 @@ newWalletLayer tracer block0 feePolicy db nw tl = do
         let utxo = availableUTxO @s @t w
         (sel, utxo') <- withExceptT ErrCreateUnsignedTxCoinSelection $
             CoinSelection.random opts recipients utxo
+        logInfoT $ "Coins selected for transaction: \n"+| sel |+""
         withExceptT ErrCreateUnsignedTxFee $ do
             let feeOpts = FeeOptions
                     { estimate = computeFee feePolicy . estimateSize tl
                     , dustThreshold = minBound
                     }
-            adjustForFee feeOpts utxo' sel
+            debug "Coins after fee adjustment" =<< adjustForFee feeOpts utxo' sel
 
     _signTx
         :: (Show s, NFData s, IsOwned s, GenChange s)
