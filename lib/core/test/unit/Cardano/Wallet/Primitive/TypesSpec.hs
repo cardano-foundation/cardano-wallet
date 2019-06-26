@@ -148,6 +148,10 @@ spec = do
             let err = "wallet id should be an hex-encoded string \
                       \of 40 characters"
             fromText @WalletId "101" === Left (TextDecodingError err)
+        it "fail fromText (@Hash \"Genesis\")" $ do
+            let err = "Unable to decode (Hash \"Genesis\"): \
+                      \expected Base16 encoding"
+            fromText @(Hash "Genesis") "----" === Left (TextDecodingError err)
 
     describe "Lemma 2.1 - Properties of UTxO operations" $ do
         it "2.1.1) ins⊲ u ⊆ u"
