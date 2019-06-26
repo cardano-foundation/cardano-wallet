@@ -13,6 +13,11 @@ build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
 
+flag development
+    description: Disable `-Werror`
+    default: False
+    manual: True
+
 -- Dummy library sadly necessary for 'shc' to compute
 -- code-coverage correctly ¯\_(ツ)_/¯
 library
@@ -27,8 +32,10 @@ executable cardano-wallet
   ghc-options:
       -threaded -rtsopts
       -Wall
-      -Werror
       -O2
+  if (!flag(development))
+    ghc-options:
+      -Werror
   build-depends:
       base
     , aeson

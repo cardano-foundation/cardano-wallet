@@ -1,6 +1,6 @@
 { system, compiler, flags, pkgs, hsPkgs, pkgconfPkgs, ... }:
   {
-    flags = {};
+    flags = { development = false; };
     package = {
       specVersion = "1.10";
       identifier = { name = "cardano-wallet"; version = "2019.6.24"; };
