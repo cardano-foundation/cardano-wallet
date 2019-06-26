@@ -191,5 +191,5 @@ instance Arbitrary a => Arbitrary (OptionValue a) where
     shrink = genericShrink
 
 instance Arbitrary Severity where
-    arbitrary = genericArbitrary
+    arbitrary = arbitraryBoundedEnum
     shrink = genericShrink
