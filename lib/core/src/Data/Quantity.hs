@@ -30,8 +30,12 @@ module Data.Quantity
 
 import Prelude
 
+import Control.Arrow
+    ( left )
 import Control.DeepSeq
     ( NFData )
+import Control.Monad
+    ( unless )
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
@@ -46,7 +50,9 @@ import Data.Aeson.Types
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
-    ( FromText (..), ToText (..) )
+    ( FromText (..), TextDecodingError (..), ToText (..) )
+import Data.Text.Read
+    ( decimal )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
@@ -135,6 +141,18 @@ instance Bounded Percentage where
 instance Enum Percentage where
     fromEnum (Percentage p) = fromEnum p
     toEnum = either (error . ("toEnum: " <>) . show) id . mkPercentage
+
+instance ToText Percentage where
+    toText (Percentage p) = T.pack (show p) <> "%"
+
+instance FromText Percentage where
+    fromText txt = do
+        (p, u) <- left (const err) $ decimal txt
+        unless (u == "%") $ Left err
+        left (const err) $ mkPercentage @Integer p
+      where
+        err = TextDecodingError
+            "expected a value between 0 and 100 with a '%' suffix (e.g. '14%')"
 
 -- | Safe constructor for 'Percentage'
 mkPercentage
