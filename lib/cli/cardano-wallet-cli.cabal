@@ -57,7 +57,6 @@ test-suite unit
   build-depends:
       base
     , cardano-wallet-cli
-    , generic-arbitrary
     , hspec
     , iohk-monitoring
     , QuickCheck

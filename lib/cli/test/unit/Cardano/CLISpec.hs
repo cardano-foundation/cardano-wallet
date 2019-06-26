@@ -36,10 +36,9 @@ import Test.QuickCheck
     , arbitraryBoundedEnum
     , checkCoverage
     , cover
+    , genericShrink
     , (===)
     )
-import Test.QuickCheck.Arbitrary.Generic
-    ( genericArbitrary, genericShrink )
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
@@ -187,7 +186,7 @@ instance Arbitrary (Port "test") where
         | otherwise = [pred p]
 
 instance Arbitrary a => Arbitrary (OptionValue a) where
-    arbitrary = genericArbitrary
+    arbitrary = OptionValue <$> arbitrary
     shrink = genericShrink
 
 instance Arbitrary Severity where
