@@ -739,6 +739,12 @@ instance FromText (Hash "BlockHeader") where
 instance ToText (Hash "BlockHeader") where
     toText = toTextFromHashBase16
 
+instance FromText (Hash "Genesis") where
+    fromText = fromTextToHashBase16
+
+instance ToText (Hash "Genesis") where
+    toText = toTextFromHashBase16
+
 -- | A polymorphic wrapper type with a custom show instance to display data
 -- through 'Buildable' instances.
 newtype ShowFmt a = ShowFmt a
