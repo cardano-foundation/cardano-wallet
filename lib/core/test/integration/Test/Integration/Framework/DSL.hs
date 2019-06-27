@@ -714,7 +714,7 @@ tearDown ctx = do
          Left e -> error $ "deleteAllWallets: Cannot return wallets: " <> show e
          Right s -> s
 
--- | Wait a booting wallet server to has started. Wait up to 30s or fail.
+-- | Wait for a server to start. Wait up to 30s or fail.
 waitForServer
     :: (HasType Port ctx)
     => ctx
