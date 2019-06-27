@@ -29,12 +29,7 @@ import System.Exit
 import System.IO
     ( hClose, hFlush, hPutStr )
 import System.Process
-    ( CreateProcess (..)
-    , StdStream (..)
-    , proc
-    , waitForProcess
-    , withCreateProcess
-    )
+    ( waitForProcess, withCreateProcess )
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Hspec.Expectations.Lifted
@@ -48,6 +43,7 @@ import Test.Integration.Framework.DSL
     , listAddressesViaCLI
     , listWalletsViaCLI
     , postTransactionViaCLI
+    , proc'
     , updateWalletViaCLI
     )
 
@@ -144,11 +140,9 @@ specWithDefaultPort = do
         err `shouldNotContain` errConnectionRefused
 
     it "PORT_02 - Can omit --port when server uses default port (wallet create)" $ \_ -> do
-        let args = ["exec", "--", "cardano-wallet", "wallet", "create", "myWallet"]
         Stdout mnemonics <- generateMnemonicsViaCLI ["--size", "15"]
         let pwd = "Secure passphrase"
-        let process = (proc "stack" args)
-                { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
+        let process = proc' "cardano-wallet" ["wallet", "create", "myWallet"]
         withCreateProcess process $ \(Just stdin) (Just _) (Just stderr) h -> do
             hPutStr stdin mnemonics
             hPutStr stdin "\n"
@@ -183,11 +177,10 @@ specWithDefaultPort = do
                 "37btjrVyb4KFjfnPUjgDKLiATLxgwBbeMAEr4vxgkq4Ea5nR6evtX99x2\
                 \QFcF8ApLM4aqCLGvhHQyRJ4JHk4zVKxNeEtTJaPCeB86LndU2YvKUTEEm"
         let args =
-                [ "exec", "--", "cardano-wallet", "transaction", "create"
+                [ "transaction", "create"
                 , replicate 40 '0' , "--payment", "14@" <> addr
                 ]
-        let process = (proc "stack" args)
-                { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
+        let process = proc' "cardano-wallet" args
         withCreateProcess process $ \(Just stdin) (Just _) (Just stderr) h -> do
             hPutStr stdin (passphrase ++ "\n")
             hFlush stdin
@@ -217,11 +210,9 @@ specWithRandomPort defaultPort = do
         err `shouldContain` errConnectionRefused
 
     it "PORT_03 - Cannot omit --port when server uses random port (wallet create)" $ \_ -> do
-        let args = ["exec", "--", "cardano-wallet", "wallet", "create", "myWallet"]
         Stdout mnemonics <- generateMnemonicsViaCLI ["--size", "15"]
         let pwd = "Secure passphrase"
-        let process = (proc "stack" args)
-                { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
+        let process = proc' "cardano-wallet" ["wallet", "create", "myWallet"]
         withCreateProcess process $ \(Just stdin) (Just _) (Just stderr) h -> do
             hPutStr stdin mnemonics
             hPutStr stdin "\n"
@@ -256,11 +247,10 @@ specWithRandomPort defaultPort = do
                 "37btjrVyb4KFjfnPUjgDKLiATLxgwBbeMAEr4vxgkq4Ea5nR6evtX99x2\
                 \QFcF8ApLM4aqCLGvhHQyRJ4JHk4zVKxNeEtTJaPCeB86LndU2YvKUTEEm"
         let args =
-                [ "exec", "--", "cardano-wallet", "transaction", "create"
+                [ "transaction", "create"
                 , replicate 40 '0' , "--payment", "14@" <> addr
                 ]
-        let process = (proc "stack" args)
-                { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
+        let process = proc' "cardano-wallet" args
         withCreateProcess process $ \(Just stdin) (Just _) (Just stderr) h -> do
             hPutStr stdin (passphrase ++ "\n")
             hFlush stdin
