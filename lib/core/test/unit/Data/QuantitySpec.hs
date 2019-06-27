@@ -10,10 +10,14 @@ module Data.QuantitySpec
 
 import Prelude
 
+import Control.Monad
+    ( forM_ )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( MkPercentageError (..), Percentage, Quantity (..), mkPercentage )
 import Data.Text.Class
-    ( FromText (..), ToText (..) )
+    ( FromText (..), TextDecodingError (..) )
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
@@ -25,13 +29,18 @@ import Test.QuickCheck
     , property
     , (===)
     )
+import Test.Text.Roundtrip
+    ( textRoundtrip )
 
 import qualified Data.Aeson as Aeson
+import qualified Data.Text as T
 
 
 spec :: Spec
 spec = do
     describe "Quantity" $ do
+        textRoundtrip (Proxy @(Quantity "bytes" Int))
+
         it "fail to parse from JSON if unit doesn't match" $ do
             let msg =
                     "Error in $: failed to parse quantified value. Expected \
@@ -40,10 +49,26 @@ spec = do
             Aeson.eitherDecode "{\"unit\":\"patate\",\"quantity\":14}"
                 `shouldBe`
                 (Left @String @(Quantity "bytes" Int) msg)
-        it "fromText . toText === pure"
-            $ property $ \(i :: Int) -> (fromText . toText) i === pure i
 
     describe "Percentage" $ do
+        textRoundtrip (Proxy @Percentage)
+
+        describe "fromText failures" $ do
+            let err = TextDecodingError
+                    "expected a value between 0 and 100 with a '%' suffix \
+                    \(e.g. '14%')"
+            let tests =
+                    [ "14.2%"
+                    , "42%%"
+                    , "%"
+                    , "-65%"
+                    , "42"
+                    , "101%"
+                    , "100% "
+                    ]
+            forM_ tests $ \test -> it (T.unpack test) $ do
+                fromText @Percentage test `shouldBe` Left err
+
         it "fail to percent from JSON when out of bounds" $ do
             let msg = "Error in $.quantity: PercentageOutOfBoundsError"
             Aeson.eitherDecode "{\"unit\":\"percent\",\"quantity\":-14}"
@@ -64,10 +89,13 @@ spec = do
         it "roundtrip (toEnum . fromEnum)" $ property $ \(n :: Percentage) ->
             (toEnum . fromEnum) n === n
 
-
 {-------------------------------------------------------------------------------
                               Arbitrary Instances
 -------------------------------------------------------------------------------}
+
+instance Arbitrary a => Arbitrary (Quantity u a) where
+    shrink (Quantity a) = Quantity <$> shrink a
+    arbitrary = Quantity <$> arbitrary
 
 instance Arbitrary Percentage where
     shrink p

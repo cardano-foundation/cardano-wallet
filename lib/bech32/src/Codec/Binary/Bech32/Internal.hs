@@ -753,7 +753,7 @@ locateErrors residue len
           let p1 = (l_s1 - l_s0 + 1023) `mod` 1023 in
           if (p1 >= len) then [] else
           let l_e1 = l_s0 + (1023 - 997) * p1 in
-          if (l_e1 `mod` 33 > 0) then [] else [p1]
+          [p1 | l_e1 `mod` 33 <= 0]
     | otherwise =
           case filter (not . null) $ map findError [0 .. len - 1] of
               [] -> []

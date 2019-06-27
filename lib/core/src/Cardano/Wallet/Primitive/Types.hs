@@ -7,6 +7,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -180,6 +181,12 @@ data WalletMetadata = WalletMetadata
 
 instance NFData WalletMetadata
 
+instance Buildable WalletMetadata where
+    build (WalletMetadata wName wTime _ wStatus wDelegation) = mempty
+        <> build wName <> " (" <> build wStatus <> "), "
+        <> "created at " <> build wTime <> ", "
+        <> build wDelegation
+
 -- | Length-restricted name of a wallet
 newtype WalletName = WalletName { getWalletName ::  Text }
     deriving (Generic, Eq, Show)
@@ -201,6 +208,9 @@ instance FromText WalletName where
 
 instance ToText WalletName where
     toText = getWalletName
+
+instance Buildable WalletName where
+    build = build . toText
 
 -- | Calling 'fromText @WalletName' on shorter longer string will fail.
 walletNameMinLength :: Int
@@ -246,12 +256,26 @@ instance Ord WalletState where
     Restoring _ <= Ready = True
     Restoring a <= Restoring b = a <= b
 
+instance Buildable WalletState where
+    build = \case
+        Ready ->
+            "restored"
+        Restoring (Quantity p) ->
+            "still restoring (" <> build (toText p) <> ")"
+
 data WalletDelegation poolId
     = NotDelegating
     | Delegating !poolId
     deriving (Generic, Eq, Show)
 deriving instance Functor WalletDelegation
 instance NFData poolId => NFData (WalletDelegation poolId)
+
+instance Buildable poolId => Buildable (WalletDelegation poolId) where
+    build = \case
+        NotDelegating ->
+            "not delegating"
+        Delegating poolId ->
+            "delegating to " <> build poolId
 
 newtype WalletPassphraseInfo = WalletPassphraseInfo
     { lastUpdatedAt :: UTCTime }
@@ -275,6 +299,9 @@ newtype PoolId = PoolId
     deriving (Generic, Eq, Show)
 
 instance NFData PoolId
+
+instance Buildable PoolId where
+    build = build . getPoolId
 
 {-------------------------------------------------------------------------------
                                     Block
@@ -554,7 +581,6 @@ instance Buildable Coin where
 
 isValidCoin :: Coin -> Bool
 isValidCoin c = c >= minBound && c <= maxBound
-
 
 {-------------------------------------------------------------------------------
                                     UTxO
