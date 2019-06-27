@@ -172,6 +172,8 @@ instance Control.DeepSeq.NFData Data.Quantity.Percentage
 instance Data.Aeson.Types.FromJSON.FromJSON Data.Quantity.Percentage
 instance GHC.Enum.Bounded Data.Quantity.Percentage
 instance GHC.Enum.Enum Data.Quantity.Percentage
+instance Data.Text.Class.ToText Data.Quantity.Percentage
+instance Data.Text.Class.FromText Data.Quantity.Percentage
 instance Control.DeepSeq.NFData a => Control.DeepSeq.NFData (Data.Quantity.Quantity unit a)
 instance (GHC.TypeLits.KnownSymbol unit, Data.Aeson.Types.ToJSON.ToJSON a) => Data.Aeson.Types.ToJSON.ToJSON (Data.Quantity.Quantity unit a)
 instance (GHC.TypeLits.KnownSymbol unit, Data.Aeson.Types.FromJSON.FromJSON a) => Data.Aeson.Types.FromJSON.FromJSON (Data.Quantity.Quantity unit a)
@@ -611,11 +613,15 @@ instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.TxStatus
 instance Data.Text.Class.FromText Cardano.Wallet.Primitive.Types.TxStatus
 instance Data.Text.Class.ToText Cardano.Wallet.Primitive.Types.TxStatus
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.WalletMetadata
+instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.WalletMetadata
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.PoolId
+instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.PoolId
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.WalletPassphraseInfo
 instance Control.DeepSeq.NFData poolId => Control.DeepSeq.NFData (Cardano.Wallet.Primitive.Types.WalletDelegation poolId)
+instance Formatting.Buildable.Buildable poolId => Formatting.Buildable.Buildable (Cardano.Wallet.Primitive.Types.WalletDelegation poolId)
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.WalletState
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.WalletState
+instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.WalletState
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.WalletId
 instance Data.Text.Class.FromText Cardano.Wallet.Primitive.Types.WalletId
 instance Data.Text.Class.ToText Cardano.Wallet.Primitive.Types.WalletId
@@ -623,6 +629,7 @@ instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.WalletId
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.WalletName
 instance Data.Text.Class.FromText Cardano.Wallet.Primitive.Types.WalletName
 instance Data.Text.Class.ToText Cardano.Wallet.Primitive.Types.WalletName
+instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.WalletName
 
 module Cardano.Wallet.Unsafe
 
@@ -1536,6 +1543,14 @@ LinearFee :: Quantity "lovelace" Double -> Quantity "lovelace/x" Double -> FeePo
 --   
 --   where <tt>a</tt> &amp; <tt>b</tt> are values fixed by the protocol.
 computeFee :: FeePolicy -> Quantity "byte" Int -> Fee
+
+-- | Proportionally divide the fee over each output.
+--   
+--   Pre-condition 1: The given outputs list shouldn't be empty
+--   Pre-condition 2: None of the outputs should be null
+--   
+--   It returns the a list of pairs (fee, output).
+divvyFee :: Fee -> [Coin] -> [(Fee, Coin)]
 data FeeOptions
 FeeOptions :: (CoinSelection -> Fee) -> Coin -> FeeOptions
 
@@ -1584,6 +1599,7 @@ instance GHC.Show.Show Cardano.Wallet.Primitive.Fee.ErrAdjustForFee
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Fee.FeeOptions
 instance GHC.Show.Show Cardano.Wallet.Primitive.Fee.FeePolicy
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Fee.FeePolicy
+instance GHC.Show.Show Cardano.Wallet.Primitive.Fee.Fee
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.Fee.Fee
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Fee.Fee
 
@@ -2428,7 +2444,7 @@ newtype ErrAdjustForFee
 ErrCannotCoverFee :: Word64 -> ErrAdjustForFee
 
 -- | Create a new instance of the wallet layer.
-newWalletLayer :: forall s t. () => Trace IO Text -> Block (Tx t) -> FeePolicy -> DBLayer IO s t -> NetworkLayer t IO -> TransactionLayer t -> IO (WalletLayer s t)
+newWalletLayer :: forall s t. Buildable (Tx t) => Trace IO Text -> Block (Tx t) -> FeePolicy -> DBLayer IO s t -> NetworkLayer t IO -> TransactionLayer t -> IO (WalletLayer s t)
 instance GHC.Classes.Eq Cardano.Wallet.ErrSignTx
 instance GHC.Show.Show Cardano.Wallet.ErrSignTx
 instance GHC.Classes.Eq Cardano.Wallet.ErrUpdatePassphrase
