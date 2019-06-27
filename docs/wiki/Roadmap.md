@@ -18,27 +18,27 @@
 
 ### :heavy_check_mark: [Initial Wallet Backend Server & Corresponding CLI](https://github.com/input-output-hk/cardano-wallet/milestone/7)
 
-### :heavy_check_mark: : [Integrate node.js IPC listener in the launcher](https://github.com/input-output-hk/cardano-wallet/milestone/8)
+### :heavy_check_mark: [Integrate node.js IPC listener in the launcher](https://github.com/input-output-hk/cardano-wallet/milestone/8)
 
-### :heavy_check_mark: : [SQLite implementation for the database layer](https://github.com/input-output-hk/cardano-wallet/milestone/9)
+### :heavy_check_mark: [SQLite implementation for the database layer](https://github.com/input-output-hk/cardano-wallet/milestone/9)
 
-### :heavy_check_mark: : [List Addresses](https://github.com/input-output-hk/cardano-wallet/milestone/16)
+### :heavy_check_mark: [List Addresses](https://github.com/input-output-hk/cardano-wallet/milestone/16)
 
-### :hammer: [Jörmungandr High-level integration](https://github.com/input-output-hk/cardano-wallet/milestone/10)
+### :heavy_check_mark: [Jörmungandr High-level integration](https://github.com/input-output-hk/cardano-wallet/milestone/10)
 
 ### :hammer: [Jörmungandr Integration Testing](https://github.com/input-output-hk/cardano-wallet/milestone/15)
 
 ### :hammer: [Logging](https://github.com/input-output-hk/cardano-wallet/milestone/14)
+
+### :hammer: [Review Coin Selection](https://github.com/input-output-hk/cardano-wallet/milestone/18)
+
+### :hammer: [Finalize 'Transactions' API endpoints](https://github.com/input-output-hk/cardano-wallet/milestone/19)
 
 ---
 
 _items below are more-or-less prioritized_ 
 
 ---
-
-### Better Coin Selection
-
-The CS currently does this random + improvement procedure for all outputs, one output after the other. Instead, we could perform the random selection only for all outputs, *and then*, try to improve each output one after the other. This way, we can use our available inputs to cover requested outputs. And, once done, with the remaining available inputs, we try to improve each output one after the other. This should be much more resilient to multi-output transaction while still allowing a best-effort for cleaning up the UTxO as we make transactions. 
 
 ### Random Derivation Support
 
@@ -87,7 +87,6 @@ A few ideas to make the CLI better. It'd be nice to already get feedback on the 
 - Current Slot Id, Slot Duration, Slot Count, security parameter, fee policy, maxTxSize
 - Can be hard-coded for now or retrieve from a config file, before implementing Ledger rules
 - Can be simply "mocked" in the meantime
-
 
 ### Make Software Information Available
 
