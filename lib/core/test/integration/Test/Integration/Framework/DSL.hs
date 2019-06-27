@@ -70,6 +70,7 @@ module Test.Integration.Framework.DSL
     , faucetAmt
     , faucetUtxoAmt
     , proc'
+    , waitForServer
 
     -- * Endpoints
     , getWalletEp
@@ -123,6 +124,8 @@ import Control.Monad.Fail
     ( MonadFail (..) )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
+import Control.Retry
+    ( capDelay, constantDelay, retrying )
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString )
 import Data.Aeson
@@ -164,7 +167,7 @@ import Network.Wai.Handler.Warp
 import Numeric.Natural
     ( Natural )
 import System.Command
-    ( CmdResult, command )
+    ( CmdResult, Stderr, Stdout, command )
 import System.Directory
     ( doesPathExist )
 import System.Exit
@@ -710,6 +713,22 @@ tearDown ctx = do
      wallets c = case c of
          Left e -> error $ "deleteAllWallets: Cannot return wallets: " <> show e
          Right s -> s
+
+-- | Wait a booting wallet server to has started. Wait up to 30s or fail.
+waitForServer
+    :: (HasType Port ctx)
+    => ctx
+    -> IO ()
+waitForServer ctx = void $ retrying
+    (capDelay (30*oneSecond) $ constantDelay oneSecond)
+    -- NOTE
+    -- We still bind the output and error streams to some custom handles because
+    -- if we don't, the library defaults to `stdout` and `stderr` which can get
+    -- quite noisy.
+    (\_ (e, _ :: Stderr, _ :: Stdout) -> pure $ e == ExitFailure 1)
+    (const $ listWalletsViaCLI ctx)
+  where
+    oneSecond = 1000000
 
 unsafeCreateDigest :: Text -> Digest Blake2b_160
 unsafeCreateDigest s = fromMaybe
