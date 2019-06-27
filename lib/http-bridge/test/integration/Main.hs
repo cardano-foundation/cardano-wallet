@@ -42,6 +42,8 @@ import Data.Aeson
     ( Value (..), (.:) )
 import Data.Function
     ( (&) )
+import Data.Functor.Identity
+    ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Product.Typed
@@ -265,16 +267,7 @@ main = do
     waitForCluster :: String -> IO ()
     waitForCluster addr = do
         manager <- newManager defaultManagerSettings
-        let ctx = Context
-                { _cluster = undefined
-                , _logs = undefined
-                , _faucet = undefined
-                , _target = undefined
-                , _db = undefined
-                , _port = undefined
-                , _feeEstimator = undefined
-                , _manager = ("http://" <> T.pack addr, manager)
-                }
+        let ctx = Identity ("http://" <> T.pack addr, manager)
         let err =  "waitForCluster: unexpected positive response from Api"
         request @Value ctx ("GET", "/api/v1/node-info") Default Empty >>= \case
             (_, Left _) ->

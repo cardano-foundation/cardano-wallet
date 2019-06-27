@@ -5,6 +5,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -30,6 +31,10 @@ import Data.Aeson
     ( FromJSON )
 import Data.ByteString.Lazy
     ( ByteString )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
+import Data.Generics.Product.Typed
+    ( HasType, typed )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -132,12 +137,13 @@ data Headers
 
 -- | Makes a request to the API and decodes the response.
 request
-    :: forall a m t.
+    :: forall a m s.
         ( FromJSON a
         , MonadIO m
         , MonadCatch m
+        , HasType (Text, Manager) s
         )
-    => Context t
+    => s
     -> (Method, Text)
         -- ^ HTTP method and request path
     -> Headers
@@ -146,7 +152,7 @@ request
         -- ^ Request body
     -> m (HTTP.Status, Either RequestException a)
 request ctx (verb, path) reqHeaders body = do
-    let (base, manager) = _manager ctx
+    let (base, manager) = ctx ^. typed @(Text, Manager)
     req <- parseRequest $ T.unpack $ base <> path
     let io = handleResponse <$> liftIO (httpLbs (prepareReq req) manager)
     catch io handleException

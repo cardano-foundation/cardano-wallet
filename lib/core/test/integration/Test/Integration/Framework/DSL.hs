@@ -155,6 +155,8 @@ import GHC.TypeLits
     ( Symbol )
 import Language.Haskell.TH.Quote
     ( QuasiQuoter )
+import Network.HTTP.Client
+    ( Manager )
 import Network.HTTP.Types.Method
     ( Method )
 import Network.Wai.Handler.Warp
@@ -319,8 +321,10 @@ expectListSizeEqual l (_, res) = case res of
 -- | Expects wallet from the request to eventually reach the given state or
 -- beyond
 expectEventually
-    :: (MonadIO m, MonadCatch m, MonadFail m, Ord a, Show a)
-    => Context t
+    :: (MonadIO m, MonadCatch m, MonadFail m)
+    => (Ord a, Show a)
+    => (HasType (Text, Manager) ctx)
+    => ctx
     -> Lens' ApiWallet a
     -> a
     -> (HTTP.Status, Either RequestException ApiWallet)
@@ -347,8 +351,10 @@ expectEventually ctx getter target (_, res) = case res of
 -- | Same as `expectEventually` but work directly on ApiWallet
 -- , not response from the API
 expectEventually'
-    :: (MonadIO m, MonadCatch m, MonadFail m, Ord a, Show a)
-    => Context t
+    :: (MonadIO m, MonadCatch m, MonadFail m)
+    => (Ord a, Show a)
+    => (HasType (Text, Manager) ctx)
+    => ctx
     -> Lens' ApiWallet a
     -> a
     -> ApiWallet
