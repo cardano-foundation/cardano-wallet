@@ -24,7 +24,7 @@ module Cardano.Wallet.Api.Server
 import Prelude
 
 import Cardano.BM.Trace
-    ( Trace )
+    ( Trace, logWarning )
 import Cardano.Wallet
     ( ErrAdjustForFee (..)
     , ErrCoinSelection (..)
@@ -81,7 +81,7 @@ import Control.Exception
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT, withExceptT )
+    ( ExceptT, runExceptT, withExceptT )
 import Data.Aeson
     ( (.=) )
 import Data.Functor
@@ -107,7 +107,7 @@ import Data.Text.Class
 import Data.Time
     ( UTCTime )
 import Fmt
-    ( pretty )
+    ( pretty, (+|), (+||), (|+), (||+) )
 import Network.HTTP.Media.RenderHeader
     ( renderHeader )
 import Network.HTTP.Types.Header
@@ -165,6 +165,7 @@ start
     -> WalletLayer (SeqState t) t
     -> IO ()
 start settings trace socket wl = do
+    withWorkers trace wl
     logSettings <- newApiLoggerSettings <&> obfuscateKeys (const sensitive)
     Warp.runSettingsSocket settings socket
         $ handleRawError handler
@@ -186,6 +187,21 @@ start settings trace socket wl = do
         , "mnemonic_sentence"
         , "mnemonic_second_factor"
         ]
+
+-- | Restart restoration workers for existing wallets. This is crucial to keep
+-- on syncing wallets after the application has restarted!
+withWorkers
+    :: (DefineTx t)
+    => Trace IO Text
+    -> WalletLayer s t
+    -> IO ()
+withWorkers trace w = do
+    W.listWallets w >>= mapM_ worker
+  where
+    worker wid = runExceptT (W.restoreWallet w wid) >>= \case
+        Right () -> return ()
+        Left e -> logWarning trace $
+            "Wallet has suddenly vanished: "+| wid |+": "+|| e ||+""
 
 -- | Run an action with a TCP socket bound to a port specified by the `Listen`
 -- parameter.

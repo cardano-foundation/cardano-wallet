@@ -1,11 +1,29 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
+
 module Cardano.LauncherSpec
     ( spec
     ) where
 
 import Prelude
 
+import Cardano.Wallet.Api.Types
+    ( ApiWallet )
+import Cardano.Wallet.Primitive.Types
+    ( WalletState (..) )
+import Control.Exception
+    ( finally )
 import Control.Monad
     ( forM_ )
+import Data.Proxy
+    ( Proxy (..) )
+import Data.Text.Class
+    ( toText )
+import Network.HTTP.Client
+    ( defaultManagerSettings, newManager )
+import System.Command
+    ( Stdout (..) )
 import System.Directory
     ( removeDirectory )
 import System.Exit
@@ -24,8 +42,15 @@ import Test.Hspec
 import Test.Hspec.Expectations.Lifted
     ( shouldReturn )
 import Test.Integration.Framework.DSL
-    ( expectPathEventuallyExist, proc' )
-
+    ( createWalletViaCLI
+    , expectEventually'
+    , expectPathEventuallyExist
+    , expectValidJSON
+    , generateMnemonicsViaCLI
+    , proc'
+    , state
+    , waitForServer
+    )
 
 import qualified Data.Text.IO as TIO
 
@@ -58,6 +83,28 @@ spec = do
                 terminateProcess ph
                 TIO.hGetContents o >>= TIO.putStrLn
                 TIO.hGetContents e >>= TIO.putStrLn
+
+        it "LAUNCH - Restoration workers restart" $ withTempDir $ \d -> do
+            let port = 8088 :: Int -- Arbitrary but known.
+            let baseUrl = "http://localhost:" <> toText port <> "/"
+            ctx <- (port,) . (baseUrl,) <$> newManager defaultManagerSettings
+            let args = ["launch", "--port", show port, "--state-dir", d]
+            let process = proc' "cardano-wallet" args
+            wallet <- withCreateProcess process $ \_ (Just o) (Just e) ph -> do
+                Stdout m <- generateMnemonicsViaCLI []
+                waitForServer ctx
+                let pwd = "passphrase"
+                (_, out, _) <- createWalletViaCLI ctx ["n"] m "\n" pwd
+                terminateProcess ph
+                TIO.hGetContents o >>= TIO.putStrLn
+                TIO.hGetContents e >>= TIO.putStrLn
+                expectValidJSON (Proxy @ApiWallet) out
+            withCreateProcess process $ \_ (Just o) (Just e) ph -> do
+                waitForServer ctx
+                expectEventually' ctx state Ready wallet `finally` do
+                    terminateProcess ph
+                    TIO.hGetContents o >>= TIO.putStrLn
+                    TIO.hGetContents e >>= TIO.putStrLn
 
     describe "DaedalusIPC" $ do
         let tests =
