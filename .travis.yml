@@ -80,7 +80,7 @@ jobs:
   #
   ################################################################################
   - stage: build project 🔨
-    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
+    if: 1 = 0 # type = pull_request OR (branch IN (bors/staging, bors/trying))
     name: "Compiling Project"
     script:
     - stack clean
@@ -88,7 +88,7 @@ jobs:
     - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
 
   - stage: checks 🔬
-    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
+    if: 1 = 0 # type = pull_request OR (branch IN (bors/staging, bors/trying))
     name: "Code Style"
     script:
     - travis_retry curl -sSL https://raw.github.com/jaspervdj/stylish-haskell/master/scripts/latest.sh | sh -s $(find . -type f -name "*.hs" ! -path "*.stack-work*") -i
@@ -105,13 +105,13 @@ jobs:
     - cd -
 
   - stage: checks 🔬
-    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
+    if: 1 = 0 # type = pull_request OR (branch IN (bors/staging, bors/trying))
     name: "Tests: unit"
     script:
       - stack --no-terminal test --fast cardano-wallet-core cardano-wallet-launcher cardano-wallet-cli text-class bech32 cardano-wallet-http-bridge:unit cardano-wallet-jormungandr:unit
 
   - stage: checks 🔬
-    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
+    if: 1 = 0 # type = pull_request OR (branch IN (bors/staging, bors/trying))
     name: "Tests: integration (http-bridge)"
     script:
     - travis_retry curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-http-bridge/hermes-testnet.tar.gz
@@ -119,7 +119,7 @@ jobs:
     - stack --no-terminal test --fast cardano-wallet-http-bridge:integration
 
   - stage: checks 🔬
-    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
+    if: 1 = 0 # type = pull_request OR (branch IN (bors/staging, bors/trying))
     name: "Tests: integration (jormungandr)"
     script:
       - stack --no-terminal test --fast cardano-wallet-jormungandr:integration
@@ -139,7 +139,7 @@ jobs:
   #
   ################################################################################
   - stage: cache 💾
-    if: (type != pull_request AND branch = master) OR (tag =~ ^v)
+    if: 1 = 1 # (type != pull_request AND branch = master) OR (tag =~ ^v)
     name: "Caching Dependencies"
     script:
     - stack --no-terminal build --fast --test --no-run-tests --bench --no-run-benchmarks --only-snapshot
@@ -147,14 +147,14 @@ jobs:
     - tar czf $STACK_WORK_CACHE .stack-work
 
   - stage: build project 🔨
-    if: (type != pull_request AND branch = master) OR (tag =~ ^v)
+    if: 1 = 1 # (type != pull_request AND branch = master) OR (tag =~ ^v)
     name: "Compiling Project"
     script:
     - stack --no-terminal build --fast --test --no-run-tests --bench --no-run-benchmarks --haddock --no-haddock-deps --coverage
     - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
 
   - stage: checks 🔬
-    if: (type != pull_request AND branch = master) OR (tag =~ ^v)
+    if: 1 = 0 # (type != pull_request AND branch = master) OR (tag =~ ^v)
     name: "Code Style"
     script:
     - travis_retry curl -sSL https://raw.github.com/jaspervdj/stylish-haskell/master/scripts/latest.sh | sh -s $(find . -type f -name "*.hs" ! -path "*.stack-work*") -i
@@ -171,7 +171,7 @@ jobs:
     - cd -
 
   - stage: checks 🔬
-    if: (type != pull_request AND branch = master) OR (tag =~ ^v)
+    if: 1 = 1 # (type != pull_request AND branch = master) OR (tag =~ ^v)
     name: "Tests"
     script:
     - travis_retry curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-http-bridge/hermes-testnet.tar.gz
@@ -180,7 +180,7 @@ jobs:
     - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work lib/**/*.tix *.tix
 
   - stage: deploy 🚀
-    if: (type != pull_request AND branch = master) OR (tag =~ ^v)
+    if: 1 = 0 # (type != pull_request AND branch = master) OR (tag =~ ^v)
     name: "Haddock"
     script:
     - mkdir -p haddock/edge api/edge
@@ -192,7 +192,7 @@ jobs:
     - git push -f -q https://WilliamKingNoel-Bot:$GITHUB_ACCESS_TOKEN@github.com/input-output-hk/cardano-wallet gh-pages &>/dev/null
 
   - stage: deploy 🚀
-    if: (type != pull_request AND branch = master) OR (tag =~ ^v)
+    if: 1 = 1 # (type != pull_request AND branch = master) OR (tag =~ ^v)
     name: "Coveralls"
     script:
     - export LTS=$(cat stack.yaml | grep resolver) # Extract the LTS from the stack.yaml
@@ -237,12 +237,12 @@ jobs:
     deploy:
       provider: releases
       api_key: $GITHUB_ACCESS_TOKEN
-      draft: true # Allow editing the release before publishing it officially on GitHub
-      skip_cleanup: true # Make sure that files from the previous stages aren't cleaned up
+      draft: 1 = 1 # Allow editing the release before publishing it officially on GitHub
+      skip_cleanup: 1 = 1 # Make sure that files from the previous stages aren't cleaned up
       file:
         - $WALLET_CLI
         - $WALLET_CLI_CHECKSUM
       on:
         repo: input-output-hk/cardano-wallet
         branch: master
-        tags: true # Only release when a tag is pushed
+        tags: 1 = 1 # Only release when a tag is pushed
