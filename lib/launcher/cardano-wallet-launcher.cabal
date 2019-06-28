@@ -31,9 +31,11 @@ library
   build-depends:
       base
     , async
+    , directory
     , fmt
     , process
     , say
+    , text
   hs-source-dirs:
       src
   exposed-modules:
