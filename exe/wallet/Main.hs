@@ -5,7 +5,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -32,7 +31,8 @@ import Prelude hiding
 import Cardano.BM.Trace
     ( Trace, appendName, logAlert, logInfo )
 import Cardano.CLI
-    ( Port (..)
+    ( Environment (..)
+    , Port (..)
     , Verbosity (..)
     , decodeError
     , execGenerateMnemonic
@@ -131,9 +131,7 @@ import Servant.Client
 import Servant.Client.Core
     ( ServantError (..), responseBody )
 import System.Console.Docopt
-    ( Arguments
-    , Docopt
-    , Option
+    ( Docopt
     , argument
     , command
     , exitWithUsage
@@ -170,7 +168,6 @@ import qualified Cardano.Wallet.Jormungandr.Transaction as Jormungandr
 import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
@@ -306,21 +303,6 @@ cliExamplesJormungandr = [here|
   # Start only a wallet server and connect it to an already existing chain producer
   cardano-wallet serve --backend-port 8081
 |]
-
-data Environment = Environment
-    { args
-        :: Arguments
-    , cli
-        :: Docopt
-    , argPresent
-        :: Option -> Bool
-    , parseAllArgs
-        :: forall a . FromText a => Option -> IO (NE.NonEmpty a)
-    , parseArg
-        :: forall a . FromText a => Option -> IO a
-    , parseOptionalArg
-        :: forall a . FromText a => Option -> IO (Maybe a)
-    }
 
 main :: IO ()
 main = run withHttpBridge cliHttpBridge

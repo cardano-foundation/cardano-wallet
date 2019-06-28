@@ -6,6 +6,7 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -16,8 +17,11 @@
 
 module Cardano.CLI
     (
+    -- * Environment
+      Environment (..)
+
     -- * Types
-      Port (..)
+    , Port (..)
 
     -- * Logging
     , Verbosity (..)
@@ -145,6 +149,26 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
 {-------------------------------------------------------------------------------
+                                Environment
+-------------------------------------------------------------------------------}
+
+-- | A convenient representation of a complete CLI environment.
+data Environment = Environment
+    { args
+        :: Arguments
+    , cli
+        :: Docopt
+    , argPresent
+        :: Option -> Bool
+    , parseAllArgs
+        :: forall a . FromText a => Option -> IO (NE.NonEmpty a)
+    , parseArg
+        :: forall a . FromText a => Option -> IO a
+    , parseOptionalArg
+        :: forall a . FromText a => Option -> IO (Maybe a)
+    }
+
+{-------------------------------------------------------------------------------
                                 Extra Types
 -------------------------------------------------------------------------------}
 
@@ -204,42 +228,42 @@ optional parse = \case
     m  -> Just <$> parse m
 
 parseArgWith :: FromText a => Docopt -> Arguments -> Option -> IO a
-parseArgWith cli args option = do
-    (fromText . T.pack <$> args `getArgOrExit` option) >>= \case
+parseArgWith docopt arguments option = do
+    (fromText . T.pack <$> arguments `getArgOrExit` option) >>= \case
         Right a -> return a
         Left e -> do
             putErrLn $ T.pack $ getTextDecodingError e
             exitFailure
   where
     getArgOrExit :: Arguments -> Option -> IO String
-    getArgOrExit = getArgOrExitWith cli
+    getArgOrExit = getArgOrExitWith docopt
 
 parseAllArgsWith
     :: FromText a => Docopt -> Arguments -> Option -> IO (NE.NonEmpty a)
-parseAllArgsWith cli args option = do
-    (mapM (fromText . T.pack) <$> args `getAllArgsOrExit` option) >>= \case
+parseAllArgsWith docopt arguments option = do
+    (mapM (fromText . T.pack) <$> arguments `getAllArgsOrExit` option) >>= \case
         Right a -> return a
         Left e -> do
             putErrLn $ T.pack $ getTextDecodingError e
             exitFailure
   where
     getAllArgsOrExit :: Arguments -> Option -> IO (NE.NonEmpty String)
-    getAllArgsOrExit = getAllArgsOrExitWith cli
+    getAllArgsOrExit = getAllArgsOrExitWith docopt
 
 -- | Same as 'getAllArgs', but 'exitWithUsage' if empty list.
 --
 --   As in 'getAllArgs', if your usage pattern required the option,
 --   'getAllArgsOrExitWith' will not exit.
 getAllArgsOrExitWith :: Docopt -> Arguments -> Option -> IO (NE.NonEmpty String)
-getAllArgsOrExitWith doc args opt =
-    maybe err pure . NE.nonEmpty $ getAllArgs args opt
+getAllArgsOrExitWith doc arguments opt =
+    maybe err pure . NE.nonEmpty $ getAllArgs arguments opt
   where
     err = exitWithUsageMessage doc $ "argument expected for: " ++ show opt
 
 -- | Like 'exitWithUsage', but with a success exit code
 help :: Docopt -> IO ()
-help cli = do
-    TIO.putStrLn $ T.pack $ usage cli
+help docopt = do
+    TIO.putStrLn $ T.pack $ usage docopt
     exitSuccess
 
 {-------------------------------------------------------------------------------
@@ -264,9 +288,9 @@ minSeverityFromArgs = verbosityToMinSeverity . verbosityFromArgs
 -- | Determine the desired 'Verbosity' level from the specified command line
 --   arguments.
 verbosityFromArgs :: Arguments -> Verbosity
-verbosityFromArgs args
-    | args `isPresent` longOption "quiet"   = Quiet
-    | args `isPresent` longOption "verbose" = Verbose
+verbosityFromArgs arguments
+    | arguments `isPresent` longOption "quiet"   = Quiet
+    | arguments `isPresent` longOption "verbose" = Verbose
     | otherwise = Default
 
 -- | Convert a given 'Verbosity' level into a list of command line arguments
