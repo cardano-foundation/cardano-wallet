@@ -30,9 +30,10 @@ library
       -Werror
   build-depends:
       aeson
+    , ansi-terminal
     , base
     , bytestring
-    , ansi-terminal
+    , cardano-wallet-core
     , docopt
     , fmt
     , iohk-monitoring

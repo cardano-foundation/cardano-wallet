@@ -6,6 +6,7 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -24,6 +25,9 @@ module Cardano.CLI
     , minSeverityFromArgs
     , verbosityFromArgs
     , verbosityToArgs
+
+    -- * Mnemonics
+    , execGenerateMnemonic
 
     -- * Unicode Terminal Helpers
     , setUtf8Encoding
@@ -63,6 +67,8 @@ import Cardano.BM.Setup
     ( setupTrace )
 import Cardano.BM.Trace
     ( Trace, appendName )
+import Cardano.Wallet.Primitive.Mnemonic
+    ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Control.Arrow
     ( first )
 import Control.Exception
@@ -284,6 +290,26 @@ initTracer minSeverity cmd = do
     c <- defaultConfigStdout
     setMinSeverity c minSeverity
     setupTrace (Right c) "cardano-wallet" >>= appendName cmd
+
+{-------------------------------------------------------------------------------
+                                 Mnemonics
+-------------------------------------------------------------------------------}
+
+-- | Generate a random mnemonic of the given size 'n' (n = number of words),
+-- and print it to stdout.
+execGenerateMnemonic :: Text -> IO ()
+execGenerateMnemonic n = do
+    m <- case n of
+        "9"  -> mnemonicToText @9 . entropyToMnemonic <$> genEntropy
+        "12" -> mnemonicToText @12 . entropyToMnemonic <$> genEntropy
+        "15" -> mnemonicToText @15 . entropyToMnemonic <$> genEntropy
+        "18" -> mnemonicToText @18 . entropyToMnemonic <$> genEntropy
+        "21" -> mnemonicToText @21 . entropyToMnemonic <$> genEntropy
+        "24" -> mnemonicToText @24 . entropyToMnemonic <$> genEntropy
+        _  -> do
+            putErrLn "Invalid mnemonic size. Expected one of: 9,12,15,18,21,24"
+            exitFailure
+    TIO.putStrLn $ T.unwords m
 
 {-------------------------------------------------------------------------------
                             Unicode Terminal Helpers

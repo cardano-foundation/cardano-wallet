@@ -18,9 +18,10 @@
       "library" = {
         depends = [
           (hsPkgs.aeson)
+          (hsPkgs.ansi-terminal)
           (hsPkgs.base)
           (hsPkgs.bytestring)
-          (hsPkgs.ansi-terminal)
+          (hsPkgs.cardano-wallet-core)
           (hsPkgs.docopt)
           (hsPkgs.fmt)
           (hsPkgs.iohk-monitoring)
