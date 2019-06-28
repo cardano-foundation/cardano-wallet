@@ -18,12 +18,22 @@
       "library" = {
         depends = [
           (hsPkgs.aeson)
+          (hsPkgs.aeson-pretty)
+          (hsPkgs.ansi-terminal)
           (hsPkgs.base)
           (hsPkgs.bytestring)
-          (hsPkgs.ansi-terminal)
+          (hsPkgs.cardano-wallet-core)
+          (hsPkgs.cardano-wallet-launcher)
+          (hsPkgs.directory)
           (hsPkgs.docopt)
+          (hsPkgs.filepath)
           (hsPkgs.fmt)
+          (hsPkgs.heredoc)
+          (hsPkgs.http-client)
           (hsPkgs.iohk-monitoring)
+          (hsPkgs.servant-client)
+          (hsPkgs.servant-client-core)
+          (hsPkgs.servant-server)
           (hsPkgs.text)
           (hsPkgs.text-class)
           ];

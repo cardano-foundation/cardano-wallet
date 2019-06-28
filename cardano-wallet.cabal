@@ -38,27 +38,55 @@ executable cardano-wallet
       -Werror
   build-depends:
       base
-    , aeson-pretty
     , async
-    , bytestring
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-http-bridge
     , cardano-wallet-launcher
-    , directory
     , docopt
-    , filepath
-    , fmt
+    , heredoc
+    , http-client
+    , iohk-monitoring
+    , process
+    , text
+    , text-class
+    , warp
+  hs-source-dirs:
+      exe/wallet/http-bridge
+  main-is:
+      Main.hs
+
+executable cardano-wallet-jormungandr
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+      -O2
+  if (!flag(development))
+    ghc-options:
+      -Werror
+  build-depends:
+      base
+    , async
+    , cardano-wallet-cli
+    , cardano-wallet-core
+    , cardano-wallet-jormungandr
+    , cardano-wallet-launcher
+    , docopt
+    , heredoc
     , http-client
     , iohk-monitoring
     , process
     , servant-client
     , servant-client-core
-    , servant-server
     , text
     , text-class
     , warp
   hs-source-dirs:
-      exe/wallet
+      exe/wallet/jormungandr
   main-is:
       Main.hs

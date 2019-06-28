@@ -30,12 +30,22 @@ library
       -Werror
   build-depends:
       aeson
+    , aeson-pretty
+    , ansi-terminal
     , base
     , bytestring
-    , ansi-terminal
+    , cardano-wallet-core
+    , cardano-wallet-launcher
+    , directory
     , docopt
+    , filepath
     , fmt
+    , heredoc
+    , http-client
     , iohk-monitoring
+    , servant-client
+    , servant-client-core
+    , servant-server
     , text
     , text-class
   hs-source-dirs:
