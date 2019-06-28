@@ -18,6 +18,7 @@
       "library" = {
         depends = [
           (hsPkgs.aeson)
+          (hsPkgs.aeson-pretty)
           (hsPkgs.ansi-terminal)
           (hsPkgs.base)
           (hsPkgs.bytestring)
@@ -27,6 +28,9 @@
           (hsPkgs.heredoc)
           (hsPkgs.http-client)
           (hsPkgs.iohk-monitoring)
+          (hsPkgs.servant-client)
+          (hsPkgs.servant-client-core)
+          (hsPkgs.servant-server)
           (hsPkgs.text)
           (hsPkgs.text-class)
           ];

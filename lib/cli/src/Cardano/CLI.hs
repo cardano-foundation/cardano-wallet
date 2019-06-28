@@ -8,7 +8,10 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeOperators #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -26,6 +29,7 @@ module Cardano.CLI
 
     -- * CLI Execution
     , runCli
+    , runCliCommand
 
     -- * Types
     , Port (..)
@@ -78,24 +82,43 @@ import Cardano.BM.Setup
     ( setupTrace )
 import Cardano.BM.Trace
     ( Trace, appendName )
+import Cardano.Wallet.Api
+    ( Api )
+import Cardano.Wallet.Api.Types
+    ( ApiMnemonicT (..)
+    , ApiT (..)
+    , PostTransactionData (..)
+    , WalletPostData (..)
+    , WalletPutData (..)
+    )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( FromMnemonic (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
+import Cardano.Wallet.Primitive.Types
+    ( DecodeAddress, EncodeAddress )
+import Cardano.Wallet.Version
+    ( showVersion, version )
 import Control.Arrow
-    ( first )
+    ( first, second )
 import Control.Exception
     ( bracket )
 import Control.Monad
-    ( unless )
+    ( unless, when )
 import Data.Aeson
     ( (.:) )
 import Data.Bifunctor
     ( bimap )
 import Data.Either
-    ( fromRight )
+    ( fromRight, isRight )
 import Data.Functor
-    ( (<$) )
+    ( (<$), (<&>) )
 import Data.List
     ( sort )
+import Data.Maybe
+    ( fromMaybe )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -116,6 +139,12 @@ import GHC.TypeLits
     ( Symbol )
 import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
+import Servant
+    ( (:<|>) (..), (:>) )
+import Servant.Client
+    ( BaseUrl (..), ClientM, Scheme (..), client, mkClientEnv, runClientM )
+import Servant.Client.Core
+    ( ServantError (..), responseBody )
 import System.Console.ANSI
     ( Color (..)
     , ColorIntensity (..)
@@ -128,12 +157,16 @@ import System.Console.Docopt
     ( Arguments
     , Docopt
     , Option
+    , argument
+    , command
+    , exitWithUsage
     , exitWithUsageMessage
     , getAllArgs
     , getArgOrExitWith
     , isPresent
     , longOption
     , parseArgsOrExit
+    , shortOption
     , usage
     )
 import System.Console.Docopt.NoTH
@@ -162,10 +195,13 @@ import Text.Heredoc
     ( here )
 
 import qualified Data.Aeson as Aeson
+import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 
 {-------------------------------------------------------------------------------
@@ -287,6 +323,175 @@ runCli withBackend cliDefinition = do
             then Just <$> parseArgWith cliDefinition arguments o
             else pure Nothing
         }
+
+-- | Interprets the given environment and executes a CLI command.
+runCliCommand
+    :: forall t.
+        ( DecodeAddress t
+        , EncodeAddress t
+        )
+    => Environment
+    -> Manager
+    -> (Proxy t -> IO ()) -- ^ execServe
+    -> (IO ())            -- ^ execLaunch
+    -> IO ()
+runCliCommand Environment {..} manager execServe execLaunch
+    | argPresent (longOption "help") = help cli
+    | argPresent (shortOption 'h') = help cli
+
+    | argPresent $ command "serve" = do
+        execServe Proxy
+
+    | argPresent $ command "launch" = do
+        execLaunch
+
+    | argPresent (command "generate") &&
+      argPresent (command "mnemonic") = do
+        n <- parseArg $ longOption "size"
+        execGenerateMnemonic n
+
+    | argPresent (command "wallet") &&
+      argPresent (command "list") = do
+        runClient Aeson.encodePretty listWallets
+
+    | argPresent (command "wallet") &&
+      argPresent (command "get") = do
+        wId <- parseArg $ argument "wallet-id"
+        runClient Aeson.encodePretty $ getWallet $ ApiT wId
+
+    | argPresent (command "wallet") &&
+      argPresent (command "create") = do
+        wName <- parseArg $ argument "name"
+        wGap <- parseArg $ longOption "address-pool-gap"
+        wSeed <- do
+            let prompt = "Please enter a 15–24 word mnemonic sentence: "
+            let parser = fromMnemonic @'[15,18,21,24] @"seed" . T.words
+            getLine prompt parser
+        wSndFactor <- do
+            let prompt =
+                    "(Enter a blank line if you do not wish to use a second \
+                    \factor.)\n\
+                    \Please enter a 9–12 word mnemonic second factor: "
+            let parser =
+                    optional (fromMnemonic @'[9,12] @"generation") . T.words
+            getLine prompt parser <&> \case
+                (Nothing, _) -> Nothing
+                (Just a, t) -> Just (a, t)
+        wPwd <- getPassphraseWithConfirm
+        runClient Aeson.encodePretty $ postWallet $ WalletPostData
+            (Just $ ApiT wGap)
+            (ApiMnemonicT . second T.words $ wSeed)
+            (ApiMnemonicT . second T.words <$> wSndFactor)
+            (ApiT wName)
+            (ApiT wPwd)
+
+    | argPresent (command "wallet") &&
+      argPresent (command "update") = do
+        wId <- parseArg $ argument "wallet-id"
+        wName <- parseArg $ longOption "name"
+        runClient Aeson.encodePretty $ putWallet (ApiT wId) $ WalletPutData
+            (Just $ ApiT wName)
+
+    | argPresent (command "wallet") &&
+      argPresent (command "delete") = do
+        wId <- parseArg $ argument "wallet-id"
+        runClient (const "") (deleteWallet (ApiT wId))
+
+    | argPresent (command "transaction") &&
+      argPresent (command "create") = do
+        wId <- parseArg $ argument "wallet-id"
+        ts <- parseAllArgs $ longOption "payment"
+        res <- sendRequest $ getWallet $ ApiT wId
+        if (isRight res) then do
+            wPwd <- getPassphrase
+            runClient Aeson.encodePretty $ createTransaction (ApiT wId) $
+                PostTransactionData
+                    ts
+                    (ApiT wPwd)
+        else
+            handleResponse Aeson.encodePretty res
+
+    | argPresent (command "address") &&
+      argPresent (command "list") = do
+        wId <- parseArg $ argument "wallet-id"
+        maybeState <- parseOptionalArg $ longOption "state"
+        runClient Aeson.encodePretty
+            (listAddresses (ApiT wId) (ApiT <$> maybeState))
+
+    | argPresent $ longOption "version" = do
+        putStrLn (showVersion version)
+        exitSuccess
+
+    | otherwise =
+        exitWithUsage cli
+  where
+    getPassphrase :: IO (Passphrase "encryption")
+    getPassphrase = do
+        let prompt = "Please enter a passphrase: "
+        let parser = fromText @(Passphrase "encryption")
+        fst <$> getSensitiveLine prompt parser
+    getPassphraseWithConfirm :: IO (Passphrase "encryption")
+    getPassphraseWithConfirm = do
+        wPwd <- getPassphrase
+        (wPwd', _) <- do
+            let prompt = "Enter the passphrase a second time: "
+            let parser = fromText @(Passphrase "encryption")
+            getSensitiveLine prompt parser
+        when (wPwd /= wPwd') $ do
+            putErrLn "Passphrases don't match."
+            exitFailure
+        pure wPwd
+
+    listAddresses :<|>
+        ( deleteWallet
+        :<|> getWallet
+        :<|> listWallets
+        :<|> postWallet
+        :<|> putWallet
+        :<|> _ -- Put Wallet Passphrase
+        )
+        :<|> createTransaction
+        = client (Proxy @("v2" :> Api t))
+
+    runClient
+        :: forall a. ()
+        => (a -> BL.ByteString)
+        -> ClientM a
+        -> IO ()
+    runClient encode cmd = do
+        res <- sendRequest cmd
+        handleResponse encode res
+
+    sendRequest
+        :: forall a. ()
+        => ClientM a
+        -> IO (Either ServantError a)
+    sendRequest cmd = do
+        port <- getPort <$> parseArg (longOption "port")
+        let env = mkClientEnv manager (BaseUrl Http "localhost" port "")
+        runClientM cmd env
+
+    handleResponse
+        :: forall a. ()
+        => (a -> BL.ByteString)
+        -> Either ServantError a
+        -> IO ()
+    handleResponse encode res = do
+        case res of
+            Right a -> do
+                TIO.hPutStrLn stderr "Ok."
+                BL8.putStrLn (encode a)
+            Left e -> do
+                let msg = case e of
+                        FailureResponse r -> fromMaybe
+                            (T.decodeUtf8 $ BL.toStrict $ responseBody r)
+                            (decodeError $ responseBody r)
+                        ConnectionError t ->
+                            t
+                        _ ->
+                            T.pack $ show e
+                putErrLn msg
+                exitFailure
 
 {-------------------------------------------------------------------------------
                                 Extra Types

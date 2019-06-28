@@ -20,9 +20,7 @@
         "cardano-wallet" = {
           depends = [
             (hsPkgs.base)
-            (hsPkgs.aeson-pretty)
             (hsPkgs.async)
-            (hsPkgs.bytestring)
             (hsPkgs.cardano-wallet-cli)
             (hsPkgs.cardano-wallet-core)
             (hsPkgs.cardano-wallet-http-bridge)
@@ -38,7 +36,6 @@
             (hsPkgs.process)
             (hsPkgs.servant-client)
             (hsPkgs.servant-client-core)
-            (hsPkgs.servant-server)
             (hsPkgs.text)
             (hsPkgs.text-class)
             (hsPkgs.warp)
