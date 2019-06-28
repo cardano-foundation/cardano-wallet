@@ -29,36 +29,49 @@ import Prelude hiding
     ( getLine )
 
 import Cardano.BM.Trace
-    ( appendName, logInfo )
+    ( Trace, appendName, logInfo )
 import Cardano.CLI
     ( Environment (..)
     , Port (..)
+    , Verbosity (..)
     , commandWalletServe
     , execLaunchCommands
     , initTracer
     , makeCli
-    , minSeverityFromArgs
     , parseWalletListen
     , runCli
     , runCliCommand
     , showT
     , verbosityFromArgs
     , verbosityToArgs
+    , verbosityToMinSeverity
     )
 import Cardano.Launcher
     ( Command (Command), StdStream (..) )
 import Cardano.Wallet
-    ( newWalletLayer )
+    ( WalletLayer )
+import Cardano.Wallet.Api.Server
+    ( Listen )
 import Cardano.Wallet.DaedalusIPC
     ( daedalusIPC )
+import Cardano.Wallet.DB
+    ( DBLayer )
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge, Network (..), block0, byronFeePolicy )
+    ( HttpBridge, Network (..), byronFeePolicy )
 import Cardano.Wallet.HttpBridge.Environment
-    ( KnownNetwork )
+    ( KnownNetwork (..) )
+import Cardano.Wallet.HttpBridge.Primitive.Types
+    ( Tx )
 import Cardano.Wallet.Network
-    ( defaultRetryPolicy, waitForConnection )
+    ( NetworkLayer, defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( SeqState )
+import Cardano.Wallet.Primitive.Fee
+    ( FeePolicy )
+import Cardano.Wallet.Primitive.Types
+    ( Block )
 import Cardano.Wallet.Version
     ( showVersion, version )
 import Control.Concurrent.Async
@@ -67,6 +80,8 @@ import Data.Function
     ( (&) )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( ToText (..) )
 import Network.HTTP.Client
@@ -78,8 +93,10 @@ import System.Console.Docopt
 import Text.Heredoc
     ( here )
 
+import qualified Cardano.Wallet as Wallet
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
+import qualified Cardano.Wallet.HttpBridge.Compatibility as HttpBridge
 import qualified Cardano.Wallet.HttpBridge.Network as HttpBridge
 import qualified Cardano.Wallet.HttpBridge.Transaction as HttpBridge
 import qualified Data.Text as T
@@ -93,16 +110,23 @@ main :: IO ()
 main = runCli withBackend cliDefinition
 
 withBackend :: Manager -> Environment -> IO ()
-withBackend manager env@Environment {..} =
+withBackend manager env@Environment {..} = do
+    listen <- parseWalletListen env
+    backendPort <- parseArg $ longOption "backend-port"
+    dbFile <- parseOptionalArg $ longOption "database"
+    stateDir <- parseOptionalArg $ longOption "state-dir"
+    let verbosity = verbosityFromArgs args
+    -- FIXME
+    -- We also need to support the special arg 'local' for the bridge... or not.
     parseArg (longOption "network") >>= \case
         Testnet ->
             runCliCommand env manager
-                (execServe @'Testnet env)
-                (execLaunch env)
+                (execServe @'Testnet verbosity listen backendPort dbFile)
+                (execLaunch "testnet" verbosity listen backendPort stateDir)
         Mainnet ->
             runCliCommand env manager
-                (execServe @'Mainnet env)
-                (execLaunch env)
+                (execServe @'Mainnet verbosity listen backendPort dbFile)
+                (execLaunch "mainnet" verbosity listen backendPort stateDir)
 
 {-------------------------------------------------------------------------------
                                CLI definitions
@@ -138,22 +162,22 @@ cliExamples = [here|
                                 Launching
 -------------------------------------------------------------------------------}
 
-execLaunch :: Environment -> IO ()
-execLaunch env@Environment {..} = do
-    let verbosity = verbosityFromArgs args
-    backendPort <- parseArg $ longOption "backend-port"
-    listen <- parseWalletListen env
-    network <- parseArg $ longOption "network"
-    stateDir <- parseOptionalArg $ longOption "state-dir"
-    tracer <- initTracer (minSeverityFromArgs args) "launch"
+execLaunch
+    :: String
+    -> Verbosity
+    -> Listen
+    -> Port "Node"
+    -> Maybe FilePath
+    -> IO ()
+execLaunch network verbosity listen backendPort stateDir = do
+    tracer <- initTracer (verbosityToMinSeverity verbosity) "launch"
     execLaunchCommands tracer stateDir
         [ commandHttpBridge
-              backendPort stateDir network verbosity
         , commandWalletServe "cardano-wallet"
               listen backendPort stateDir network verbosity Nothing
         ]
   where
-    commandHttpBridge backendPort stateDir network verbosity =
+    commandHttpBridge =
         Command "cardano-http-bridge" arguments (return ()) Inherit
       where
         arguments = mconcat
@@ -169,29 +193,57 @@ execLaunch env@Environment {..} = do
 -------------------------------------------------------------------------------}
 
 execServe
-    :: forall n. (KeyToAddress (HttpBridge n), KnownNetwork n)
-    => Environment -> Proxy (HttpBridge n) -> IO ()
-execServe env@Environment {..} _ = do
-    tracer <- initTracer (minSeverityFromArgs args) "serve"
-    logInfo tracer $ "Wallet backend server starting. "
-        <> "Version "
-        <> T.pack (showVersion version)
-    walletListen <- parseWalletListen env
-    backendPort <- parseArg $ longOption "backend-port"
-    dbFile <- parseOptionalArg $ longOption "database"
-    tracerDB <- appendName "DBLayer" tracer
-    (_, db) <- Sqlite.newDBLayer tracerDB dbFile
-    nl <- HttpBridge.newNetworkLayer @n (getPort backendPort)
-    waitForConnection nl defaultRetryPolicy
-    let tl = HttpBridge.newTransactionLayer @n
-    wallet <- newWalletLayer tracer block0 byronFeePolicy db nl tl
-    Server.withListeningSocket walletListen $ \(port, socket) -> do
-        tracerIPC <- appendName "DaedalusIPC" tracer
-        tracerApi <- appendName "api" tracer
-        let beforeMainLoop = logInfo tracer $
-                "Wallet backend server listening on: " <> toText port
-        let settings = Warp.defaultSettings
-                & setBeforeMainLoop beforeMainLoop
-        let ipcServer = daedalusIPC tracerIPC port
-        let apiServer = Server.start settings tracerApi socket wallet
-        race_ ipcServer apiServer
+    :: forall n t s. (t ~ HttpBridge n, s ~ SeqState t)
+    => (KeyToAddress t, KnownNetwork n)
+    => Verbosity
+    -> Listen
+    -> Port "Node"
+    -> Maybe FilePath
+    -> Proxy t
+    -> IO ()
+execServe verbosity listen backendPort dbFile _ = do
+    tracer <- initTracer (verbosityToMinSeverity verbosity) "serve"
+    logInfo tracer "Wallet backend server starting..."
+    logInfo tracer $ "Running as v" <> T.pack (showVersion version)
+    logInfo tracer $ "Target node is Http-Bridge on " <> toText (networkVal @n)
+    newWalletLayer tracer >>= startServer tracer
+  where
+    startServer
+        :: Trace IO Text
+        -> WalletLayer s t
+        -> IO ()
+    startServer tracer wallet = do
+        Server.withListeningSocket listen $ \(port, socket) -> do
+            tracerIPC <- appendName "daedalus-ipc" tracer
+            tracerApi <- appendName "api" tracer
+            let beforeMainLoop = logInfo tracer $
+                    "Wallet backend server listening on: " <> toText port
+            let settings = Warp.defaultSettings
+                    & setBeforeMainLoop beforeMainLoop
+            let ipcServer = daedalusIPC tracerIPC port
+            let apiServer = Server.start settings tracerApi socket wallet
+            race_ ipcServer apiServer
+
+    newWalletLayer
+        :: Trace IO Text
+        -> IO (WalletLayer s t)
+    newWalletLayer tracer = do
+        (nl, block0, feePolicy) <- newNetworkLayer
+        let tl = HttpBridge.newTransactionLayer @n
+        db <- newDBLayer tracer
+        Wallet.newWalletLayer tracer block0 feePolicy db nl tl
+
+    newNetworkLayer
+        :: IO (NetworkLayer t IO, Block Tx, FeePolicy)
+    newNetworkLayer = do
+        nl <- HttpBridge.newNetworkLayer @n (getPort backendPort)
+        waitForConnection nl defaultRetryPolicy
+        return (nl, HttpBridge.block0, byronFeePolicy)
+
+    newDBLayer
+        :: Trace IO Text
+        -> IO (DBLayer IO s t)
+    newDBLayer tracer = do
+        tracerDB <- appendName "database" tracer
+        (_, db) <- Sqlite.newDBLayer tracerDB dbFile
+        return db

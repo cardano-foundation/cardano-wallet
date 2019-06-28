@@ -46,6 +46,7 @@ module Cardano.CLI
     , minSeverityFromArgs
     , verbosityFromArgs
     , verbosityToArgs
+    , verbosityToMinSeverity
 
     -- * Mnemonics
     , execGenerateMnemonic
@@ -538,7 +539,8 @@ commandWalletServe
     -> Maybe FilePath
     -> String
     -> Verbosity
-    -> Maybe (Hash "Genesis") -> Command
+    -> Maybe (Hash "Genesis")
+    -> Command
 commandWalletServe
         name listen backendPort stateDir network verbosity mGenesisHash =
     Command name args (threadDelay oneSecond) Inherit
@@ -624,7 +626,7 @@ instance ToText (OptionValue Severity) where
 
 -- | A wrapper to avoid orphan instances for types defined externally.
 newtype OptionValue a = OptionValue { getOptionValue :: a }
-  deriving (Enum, Eq, Ord, Generic, Read, Show)
+    deriving (Enum, Eq, Ord, Generic, Read, Show)
 
 -- | Make an existing parser optional. Returns 'Right Nothing' if the input is
 -- empty, without running the parser.
