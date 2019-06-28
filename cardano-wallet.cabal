@@ -43,10 +43,10 @@ executable cardano-wallet
     , cardano-wallet-core
     , cardano-wallet-http-bridge
     , cardano-wallet-launcher
-    , docopt
-    , heredoc
+    , filepath
     , http-client
     , iohk-monitoring
+    , optparse-applicative
     , process
     , text
     , text-class
