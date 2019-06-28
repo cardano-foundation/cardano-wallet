@@ -24,6 +24,7 @@
           (hsPkgs.cardano-wallet-core)
           (hsPkgs.docopt)
           (hsPkgs.fmt)
+          (hsPkgs.heredoc)
           (hsPkgs.iohk-monitoring)
           (hsPkgs.text)
           (hsPkgs.text-class)

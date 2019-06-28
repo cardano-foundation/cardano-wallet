@@ -36,6 +36,7 @@ library
     , cardano-wallet-core
     , docopt
     , fmt
+    , heredoc
     , iohk-monitoring
     , text
     , text-class
