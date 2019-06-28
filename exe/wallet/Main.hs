@@ -43,10 +43,8 @@ import Cardano.CLI
     , makeCli
     , minSeverityFromArgs
     , optional
-    , parseAllArgsWith
-    , parseArgWith
     , putErrLn
-    , setUtf8Encoding
+    , runCli
     , showT
     , verbosityFromArgs
     , verbosityToArgs
@@ -135,21 +133,17 @@ import System.Console.Docopt
     , command
     , exitWithUsage
     , getArg
-    , isPresent
     , longOption
-    , parseArgsOrExit
     , shortOption
     )
 import System.Directory
     ( createDirectory, doesDirectoryExist )
-import System.Environment
-    ( getArgs )
 import System.Exit
     ( exitFailure, exitSuccess, exitWith )
 import System.FilePath
     ( (</>) )
 import System.IO
-    ( BufferMode (NoBuffering), hSetBuffering, stderr, stdout )
+    ( stderr )
 import Text.Heredoc
     ( here )
 
@@ -169,6 +163,41 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 import qualified Network.Wai.Handler.Warp as Warp
+
+{-------------------------------------------------------------------------------
+                              Main entry point
+-------------------------------------------------------------------------------}
+
+main :: IO ()
+main = runCli withHttpBridge cliHttpBridge
+
+withHttpBridge :: Manager -> Environment -> IO ()
+withHttpBridge manager env@Environment {..} =
+    parseArg (longOption "network") >>= \case
+        HttpBridge.Testnet ->
+            exec env manager
+                (execServeHttpBridge @'HttpBridge.Testnet env)
+                (execLaunchHttpBridge env)
+        HttpBridge.Mainnet ->
+            exec env manager
+                (execServeHttpBridge @'HttpBridge.Mainnet env)
+                (execLaunchHttpBridge env)
+
+withJormungandr :: Manager -> Environment -> IO ()
+withJormungandr manager env@Environment {..} =
+    parseArg (longOption "network") >>= \case
+        Jormungandr.Testnet ->
+            exec env manager
+                (execServeJormungandr @'Jormungandr.Testnet env)
+                (execLaunchJormungandr env)
+        Jormungandr.Mainnet ->
+            exec env manager
+                (execServeJormungandr @'Jormungandr.Mainnet env)
+                (execLaunchJormungandr env)
+
+{-------------------------------------------------------------------------------
+                               CLI definitions
+-------------------------------------------------------------------------------}
 
 cliHttpBridge :: Docopt
 cliHttpBridge = makeCli
@@ -230,52 +259,6 @@ cliExamplesJormungandr = [here|
   # Start only a wallet server and connect it to an already existing chain producer
   cardano-wallet serve --backend-port 8081
 |]
-
-main :: IO ()
-main = run withHttpBridge cliHttpBridge
-
-run :: (Manager -> Environment -> IO ()) -> Docopt -> IO ()
-run runWith cliDefinition = do
-    hSetBuffering stdout NoBuffering
-    hSetBuffering stderr NoBuffering
-    setUtf8Encoding
-    manager <- newManager defaultManagerSettings
-    arguments <- getArgs >>= parseArgsOrExit cliDefinition
-    runWith manager $ Environment
-        { args = arguments
-        , cli = cliDefinition
-        , argPresent = (arguments `isPresent`)
-        , parseAllArgs = parseAllArgsWith cliDefinition arguments
-        , parseArg = parseArgWith cliDefinition arguments
-        , parseOptionalArg = \o ->
-            if arguments `isPresent` o
-            then Just <$> parseArgWith cliDefinition arguments o
-            else pure Nothing
-        }
-
-withHttpBridge :: Manager -> Environment -> IO ()
-withHttpBridge manager env@Environment {..} =
-    parseArg (longOption "network") >>= \case
-        HttpBridge.Testnet ->
-            exec env manager
-                (execServeHttpBridge @'HttpBridge.Testnet env)
-                (execLaunchHttpBridge env)
-        HttpBridge.Mainnet ->
-            exec env manager
-                (execServeHttpBridge @'HttpBridge.Mainnet env)
-                (execLaunchHttpBridge env)
-
-withJormungandr :: Manager -> Environment -> IO ()
-withJormungandr manager env@Environment {..} =
-    parseArg (longOption "network") >>= \case
-        Jormungandr.Testnet ->
-            exec env manager
-                (execServeJormungandr @'Jormungandr.Testnet env)
-                (execLaunchJormungandr env)
-        Jormungandr.Mainnet ->
-            exec env manager
-                (execServeJormungandr @'Jormungandr.Mainnet env)
-                (execLaunchJormungandr env)
 
 {-------------------------------------------------------------------------------
                          Command and Argument Parsing

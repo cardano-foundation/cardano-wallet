@@ -24,6 +24,9 @@ module Cardano.CLI
     -- * CLI Construction
     , makeCli
 
+    -- * CLI Execution
+    , runCli
+
     -- * Types
     , Port (..)
 
@@ -111,6 +114,8 @@ import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( Symbol )
+import Network.HTTP.Client
+    ( Manager, defaultManagerSettings, newManager )
 import System.Console.ANSI
     ( Color (..)
     , ColorIntensity (..)
@@ -128,10 +133,13 @@ import System.Console.Docopt
     , getArgOrExitWith
     , isPresent
     , longOption
+    , parseArgsOrExit
     , usage
     )
 import System.Console.Docopt.NoTH
     ( parseUsage )
+import System.Environment
+    ( getArgs )
 import System.Exit
     ( exitFailure, exitSuccess )
 import System.IO
@@ -255,6 +263,30 @@ cliExamplesGeneric = [here|
   cardano-wallet transaction create 2512a00e9653fe49a44a5886202e24d77eeb998f \
     --payment 22@Ae2tdPwUPEZ...nRtbfw6EHRv1D
 |]
+
+{-------------------------------------------------------------------------------
+                              CLI Execution
+-------------------------------------------------------------------------------}
+
+-- | Runs a CLI with the specified backend and CLI definition.
+runCli :: (Manager -> Environment -> IO ()) -> Docopt -> IO ()
+runCli withBackend cliDefinition = do
+    hSetBuffering stdout NoBuffering
+    hSetBuffering stderr NoBuffering
+    setUtf8Encoding
+    manager <- newManager defaultManagerSettings
+    arguments <- getArgs >>= parseArgsOrExit cliDefinition
+    withBackend manager $ Environment
+        { args = arguments
+        , cli = cliDefinition
+        , argPresent = (arguments `isPresent`)
+        , parseAllArgs = parseAllArgsWith cliDefinition arguments
+        , parseArg = parseArgWith cliDefinition arguments
+        , parseOptionalArg = \o ->
+            if arguments `isPresent` o
+            then Just <$> parseArgWith cliDefinition arguments o
+            else pure Nothing
+        }
 
 {-------------------------------------------------------------------------------
                                 Extra Types

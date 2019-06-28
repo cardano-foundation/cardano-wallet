@@ -25,6 +25,7 @@
           (hsPkgs.docopt)
           (hsPkgs.fmt)
           (hsPkgs.heredoc)
+          (hsPkgs.http-client)
           (hsPkgs.iohk-monitoring)
           (hsPkgs.text)
           (hsPkgs.text-class)

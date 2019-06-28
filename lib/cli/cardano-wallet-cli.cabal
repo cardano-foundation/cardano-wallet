@@ -37,6 +37,7 @@ library
     , docopt
     , fmt
     , heredoc
+    , http-client
     , iohk-monitoring
     , text
     , text-class
