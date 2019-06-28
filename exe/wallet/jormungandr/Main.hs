@@ -51,6 +51,8 @@ import Cardano.Wallet.DaedalusIPC
     ( daedalusIPC )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
+import Cardano.Wallet.Jormungandr.Environment
+    ( KnownNetwork, Network (..) )
 import Cardano.Wallet.Jormungandr.Network
     ( getBlock )
 import Cardano.Wallet.Jormungandr.Primitive.Types
@@ -90,7 +92,6 @@ import Text.Heredoc
 
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
-import qualified Cardano.Wallet.Jormungandr.Environment as Jormungandr
 import qualified Cardano.Wallet.Jormungandr.Network as Jormungandr
 import qualified Cardano.Wallet.Jormungandr.Transaction as Jormungandr
 import qualified Data.Text as T
@@ -106,13 +107,13 @@ main = runCli withBackend cliDefinition
 withBackend :: Manager -> Environment -> IO ()
 withBackend manager env@Environment {..} =
     parseArg (longOption "network") >>= \case
-        Jormungandr.Testnet ->
+        Testnet ->
             runCliCommand env manager
-                (execServe @'Jormungandr.Testnet env)
+                (execServe @'Testnet env)
                 (execLaunch env)
-        Jormungandr.Mainnet ->
+        Mainnet ->
             runCliCommand env manager
-                (execServe @'Jormungandr.Mainnet env)
+                (execServe @'Mainnet env)
                 (execLaunch env)
 
 {-------------------------------------------------------------------------------
@@ -191,7 +192,7 @@ execLaunch env@Environment {..} = do
 -------------------------------------------------------------------------------}
 
 execServe
-    :: forall n . (KeyToAddress (Jormungandr n), Jormungandr.KnownNetwork n)
+    :: forall n . (KeyToAddress (Jormungandr n), KnownNetwork n)
     => Environment -> Proxy (Jormungandr n) -> IO ()
 execServe env@Environment {..} _ = do
     tracer <- initTracer (minSeverityFromArgs args) "serve"

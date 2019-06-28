@@ -52,7 +52,9 @@ import Cardano.Wallet
 import Cardano.Wallet.DaedalusIPC
     ( daedalusIPC )
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge, byronFeePolicy )
+    ( HttpBridge, Network (..), block0, byronFeePolicy )
+import Cardano.Wallet.HttpBridge.Environment
+    ( KnownNetwork )
 import Cardano.Wallet.Network
     ( defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -78,8 +80,6 @@ import Text.Heredoc
 
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
-import qualified Cardano.Wallet.HttpBridge.Compatibility as HttpBridge
-import qualified Cardano.Wallet.HttpBridge.Environment as HttpBridge
 import qualified Cardano.Wallet.HttpBridge.Network as HttpBridge
 import qualified Cardano.Wallet.HttpBridge.Transaction as HttpBridge
 import qualified Data.Text as T
@@ -95,13 +95,13 @@ main = runCli withBackend cliDefinition
 withBackend :: Manager -> Environment -> IO ()
 withBackend manager env@Environment {..} =
     parseArg (longOption "network") >>= \case
-        HttpBridge.Testnet ->
+        Testnet ->
             runCliCommand env manager
-                (execServe @'HttpBridge.Testnet env)
+                (execServe @'Testnet env)
                 (execLaunch env)
-        HttpBridge.Mainnet ->
+        Mainnet ->
             runCliCommand env manager
-                (execServe @'HttpBridge.Mainnet env)
+                (execServe @'Mainnet env)
                 (execLaunch env)
 
 {-------------------------------------------------------------------------------
@@ -169,7 +169,7 @@ execLaunch env@Environment {..} = do
 -------------------------------------------------------------------------------}
 
 execServe
-    :: forall n. (KeyToAddress (HttpBridge n), HttpBridge.KnownNetwork n)
+    :: forall n. (KeyToAddress (HttpBridge n), KnownNetwork n)
     => Environment -> Proxy (HttpBridge n) -> IO ()
 execServe env@Environment {..} _ = do
     tracer <- initTracer (minSeverityFromArgs args) "serve"
@@ -184,7 +184,7 @@ execServe env@Environment {..} _ = do
     nl <- HttpBridge.newNetworkLayer @n (getPort backendPort)
     waitForConnection nl defaultRetryPolicy
     let tl = HttpBridge.newTransactionLayer @n
-    wallet <- newWalletLayer tracer HttpBridge.block0 byronFeePolicy db nl tl
+    wallet <- newWalletLayer tracer block0 byronFeePolicy db nl tl
     Server.withListeningSocket walletListen $ \(port, socket) -> do
         tracerIPC <- appendName "DaedalusIPC" tracer
         tracerApi <- appendName "api" tracer
