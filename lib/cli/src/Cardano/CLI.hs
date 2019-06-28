@@ -31,6 +31,12 @@ module Cardano.CLI
     , runCli
     , runCliCommand
 
+    -- * Launch Support
+    , execLaunchCommands
+    , commandWalletServe
+    , parseWalletListen
+    , setupStateDir
+
     -- * Types
     , Port (..)
 
@@ -81,9 +87,18 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Setup
     ( setupTrace )
 import Cardano.BM.Trace
-    ( Trace, appendName )
+    ( Trace, appendName, logAlert, logInfo )
+import Cardano.Launcher
+    ( Command (Command)
+    , ProcessHasExited (ProcessHasExited)
+    , StdStream (..)
+    , installSignalHandlers
+    , launch
+    )
 import Cardano.Wallet.Api
     ( Api )
+import Cardano.Wallet.Api.Server
+    ( Listen (..) )
 import Cardano.Wallet.Api.Types
     ( ApiMnemonicT (..)
     , ApiT (..)
@@ -96,11 +111,13 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
-    ( DecodeAddress, EncodeAddress )
+    ( DecodeAddress, EncodeAddress, Hash (..) )
 import Cardano.Wallet.Version
     ( showVersion, version )
 import Control.Arrow
     ( first, second )
+import Control.Concurrent
+    ( threadDelay )
 import Control.Exception
     ( bracket )
 import Control.Monad
@@ -132,7 +149,7 @@ import Data.Text.Class
 import Data.Text.Read
     ( decimal )
 import Fmt
-    ( Buildable, pretty )
+    ( Buildable, blockListF, fmt, nameF, pretty )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
@@ -171,10 +188,14 @@ import System.Console.Docopt
     )
 import System.Console.Docopt.NoTH
     ( parseUsage )
+import System.Directory
+    ( createDirectory, doesDirectoryExist )
 import System.Environment
     ( getArgs )
 import System.Exit
-    ( exitFailure, exitSuccess )
+    ( exitFailure, exitSuccess, exitWith )
+import System.FilePath
+    ( (</>) )
 import System.IO
     ( BufferMode (..)
     , Handle
@@ -492,6 +513,67 @@ runCliCommand Environment {..} manager execServe execLaunch
                             T.pack $ show e
                 putErrLn msg
                 exitFailure
+
+{-------------------------------------------------------------------------------
+                            Launch Command Support
+-------------------------------------------------------------------------------}
+
+-- | Execute 'launch' commands. This differs from the 'serve' command as it
+-- takes care of also starting a node backend in two separate processes and
+-- monitors both processes: if one terminates, then the other one is cancelled.
+execLaunchCommands :: Trace IO Text -> Maybe FilePath -> [Command] -> IO ()
+execLaunchCommands tracer stateDir commands = do
+    installSignalHandlers
+    maybe (pure ()) (setupStateDir tracer) stateDir
+    logInfo tracer $ fmt $ nameF "launch" $ blockListF commands
+    (ProcessHasExited pName code) <- launch commands
+    logAlert tracer $ T.pack pName <> " exited with code " <> T.pack (show code)
+    exitWith code
+
+-- | Creates a command that can be used to start the wallet API server.
+commandWalletServe
+    :: Listen
+    -> Port "Node"
+    -> Maybe FilePath
+    -> String
+    -> Verbosity
+    -> Maybe (Hash "Genesis") -> Command
+commandWalletServe listen backendPort stateDir network verbosity mGenesisHash =
+    Command "cardano-wallet" args (threadDelay oneSecond) Inherit
+  where
+    oneSecond = 1000000
+    args = mconcat
+        [ [ "serve" ]
+        , [ "--network", if network == "local" then "testnet" else network ]
+        , case listen of
+            ListenOnRandomPort -> ["--random-port"]
+            ListenOnPort port  -> ["--port", showT port]
+        , [ "--backend-port", showT backendPort ]
+        , maybe [] (\d -> ["--database", d </> "wallet.db"]) stateDir
+        , verbosityToArgs verbosity
+        , case mGenesisHash of
+            Just genesisHash -> [ "--genesis-hash", showT genesisHash ]
+            Nothing -> []
+        ]
+
+-- | Parse and convert the `--port` or `--random-port` option into a 'Listen'
+-- data-type.
+parseWalletListen :: Environment -> IO Listen
+parseWalletListen Environment {..} = do
+    let useRandomPort = argPresent $ longOption "random-port"
+    walletPort <- parseArg $ longOption "port"
+    pure $ case (useRandomPort, walletPort) of
+        (True, _) -> ListenOnRandomPort
+        (False, port) -> ListenOnPort (getPort port)
+
+-- | Initialize a state directory to store blockchain data such as blocks or
+-- the wallet database.
+setupStateDir :: Trace IO Text -> FilePath -> IO ()
+setupStateDir tracer dir = doesDirectoryExist dir >>= \case
+    True -> logInfo tracer $ "Using state directory: " <> T.pack dir
+    False -> do
+        logInfo tracer $ "Creating state directory: " <> T.pack dir
+        createDirectory dir
 
 {-------------------------------------------------------------------------------
                                 Extra Types

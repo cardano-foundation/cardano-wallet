@@ -35,7 +35,10 @@ library
     , base
     , bytestring
     , cardano-wallet-core
+    , cardano-wallet-launcher
+    , directory
     , docopt
+    , filepath
     , fmt
     , heredoc
     , http-client

@@ -44,10 +44,7 @@ executable cardano-wallet
     , cardano-wallet-http-bridge
     , cardano-wallet-jormungandr
     , cardano-wallet-launcher
-    , directory
     , docopt
-    , filepath
-    , fmt
     , heredoc
     , http-client
     , iohk-monitoring

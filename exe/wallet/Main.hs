@@ -29,14 +29,16 @@ import Prelude hiding
     ( getLine )
 
 import Cardano.BM.Trace
-    ( Trace, appendName, logAlert, logInfo )
+    ( appendName, logInfo )
 import Cardano.CLI
     ( Environment (..)
     , Port (..)
-    , Verbosity (..)
+    , commandWalletServe
+    , execLaunchCommands
     , initTracer
     , makeCli
     , minSeverityFromArgs
+    , parseWalletListen
     , runCli
     , runCliCommand
     , showT
@@ -44,16 +46,9 @@ import Cardano.CLI
     , verbosityToArgs
     )
 import Cardano.Launcher
-    ( Command (Command)
-    , ProcessHasExited (ProcessHasExited)
-    , StdStream (..)
-    , installSignalHandlers
-    , launch
-    )
+    ( Command (Command), StdStream (..) )
 import Cardano.Wallet
     ( newWalletLayer )
-import Cardano.Wallet.Api.Server
-    ( Listen (..) )
 import Cardano.Wallet.DaedalusIPC
     ( daedalusIPC )
 import Cardano.Wallet.HttpBridge.Compatibility
@@ -76,8 +71,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Cardano.Wallet.Version
     ( showVersion, version )
-import Control.Concurrent
-    ( threadDelay )
 import Control.Concurrent.Async
     ( race_ )
 import Data.Coerce
@@ -88,12 +81,8 @@ import Data.Maybe
     ( fromJust )
 import Data.Proxy
     ( Proxy (..) )
-import Data.Text
-    ( Text )
 import Data.Text.Class
     ( ToText (..) )
-import Fmt
-    ( blockListF, fmt, nameF )
 import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
 import Network.Wai.Handler.Warp
@@ -101,16 +90,7 @@ import Network.Wai.Handler.Warp
 import Servant.Client
     ( BaseUrl (..), Scheme (..) )
 import System.Console.Docopt
-    ( Docopt
-    , getArg
-    , longOption
-    )
-import System.Directory
-    ( createDirectory, doesDirectoryExist )
-import System.Exit
-    ( exitWith )
-import System.FilePath
-    ( (</>) )
+    ( Docopt, getArg, longOption )
 import Text.Heredoc
     ( here )
 
@@ -241,6 +221,17 @@ execLaunchHttpBridge env@Environment {..} = do
         , commandWalletServe
               listen backendPort stateDir network verbosity Nothing
         ]
+  where
+    commandHttpBridge backendPort stateDir network verbosity =
+        Command "cardano-http-bridge" arguments (return ()) Inherit
+      where
+        arguments = mconcat
+            [ [ "start" ]
+            , [ "--port", showT backendPort ]
+            , [ "--template", network ]
+            , maybe [] (\d -> ["--networks-dir", d]) stateDir
+            , verbosityToArgs verbosity
+            ]
 
 execLaunchJormungandr :: Environment -> IO ()
 execLaunchJormungandr env@Environment {..} = do
@@ -248,11 +239,11 @@ execLaunchJormungandr env@Environment {..} = do
     let network = fromJust $ args `getArg` longOption "network"
     let stateDir = args `getArg` longOption "state-dir"
     let verbosity = verbosityFromArgs args
+    backendPort <- parseArg $ longOption "backend-port"
     genesisBlockPath <- parseArg $ longOption "genesis-block"
     genesisHash <- Just <$> parseArg (longOption "genesis-hash")
     listen <- parseWalletListen env
     nodeConfigPath <- parseArg $ longOption "node-config"
-    backendPort <- parseArg $ longOption "backend-port"
     nodeSecretPath <- parseArg $ longOption "node-secret"
     tracer <- initTracer (minSeverityFromArgs args) "launch"
     execLaunchCommands tracer stateDir
@@ -261,62 +252,15 @@ execLaunchJormungandr env@Environment {..} = do
         , commandWalletServe
             listen backendPort stateDir network verbosity genesisHash
         ]
-
--- | Execute 'launch' commands. This differs from the 'serve' command as it
--- takes care of also starting a node backend in two separate processes and
--- monitors both processes: if one terminates, then the other one is cancelled.
-execLaunchCommands :: Trace IO Text -> Maybe FilePath -> [Command] -> IO ()
-execLaunchCommands tracer stateDir commands = do
-    installSignalHandlers
-    maybe (pure ()) (setupStateDir tracer) stateDir
-    logInfo tracer $ fmt $ nameF "launch" $ blockListF commands
-    (ProcessHasExited pName code) <- launch commands
-    logAlert tracer $ T.pack pName <> " exited with code " <> T.pack (show code)
-    exitWith code
-
-commandHttpBridge
-    :: Port "Node" -> Maybe FilePath -> String -> Verbosity -> Command
-commandHttpBridge backendPort stateDir network verbosity =
-    Command "cardano-http-bridge" args (return ()) Inherit
   where
-    args = mconcat
-        [ [ "start" ]
-        , [ "--port", showT backendPort ]
-        , [ "--template", network ]
-        , maybe [] (\d -> ["--networks-dir", d]) stateDir
-        , verbosityToArgs verbosity
-        ]
-
-commandJormungandr :: FilePath -> FilePath -> FilePath -> Command
-commandJormungandr genesisBlockPath nodeConfigPath nodeSecretPath =
-    Command "jormungandr" args (return ()) Inherit
-  where
-    args = mconcat
-      [ [ "--genesis-block", genesisBlockPath ]
-      , [ "--config", nodeConfigPath ]
-      , [ "--secret", nodeSecretPath ]
-      ]
-
-commandWalletServe
-    :: Listen -> Port "Node" -> Maybe FilePath -> String -> Verbosity
-    -> Maybe (Hash "Genesis") -> Command
-commandWalletServe listen backendPort stateDir network verbosity mGenesisHash =
-    Command "cardano-wallet" args (threadDelay oneSecond) Inherit
-  where
-    oneSecond = 1000000
-    args = mconcat
-        [ [ "serve" ]
-        , [ "--network", if network == "local" then "testnet" else network ]
-        , case listen of
-            ListenOnRandomPort -> ["--random-port"]
-            ListenOnPort port  -> ["--port", showT port]
-        , [ "--backend-port", showT backendPort ]
-        , maybe [] (\d -> ["--database", d </> "wallet.db"]) stateDir
-        , verbosityToArgs verbosity
-        , case mGenesisHash of
-            Just genesisHash -> [ "--genesis-hash", showT genesisHash ]
-            Nothing -> []
-        ]
+    commandJormungandr genesisBlockPath nodeConfigPath nodeSecretPath =
+        Command "jormungandr" arguments (return ()) Inherit
+      where
+        arguments = mconcat
+          [ [ "--genesis-block", genesisBlockPath ]
+          , [ "--config", nodeConfigPath ]
+          , [ "--secret", nodeSecretPath ]
+          ]
 
 {-------------------------------------------------------------------------------
                                  Serving
@@ -350,7 +294,6 @@ execServeHttpBridge env@Environment {..} _ = do
         let apiServer = Server.start settings tracerApi socket wallet
         race_ ipcServer apiServer
 
--- | Start a web-server to serve the wallet backend API on the given port.
 execServeJormungandr
     :: forall n . (KeyToAddress (Jormungandr n), Jormungandr.KnownNetwork n)
     => Environment -> Proxy (Jormungandr n) -> IO ()
@@ -394,26 +337,3 @@ execServeJormungandr env@Environment {..} _ = do
         feePolicy <- unsafeRunExceptT $
             Jormungandr.getInitialFeePolicy jormungandr (coerce block0H)
         return (nl, block0, feePolicy)
-
-{-------------------------------------------------------------------------------
-                                 Helpers
--------------------------------------------------------------------------------}
-
--- | Parse and convert the `--port` or `--random-port` option into a 'Listen'
--- data-type.
-parseWalletListen :: Environment -> IO Listen
-parseWalletListen Environment {..} = do
-    let useRandomPort = argPresent $ longOption "random-port"
-    walletPort <- parseArg $ longOption "port"
-    pure $ case (useRandomPort, walletPort) of
-        (True, _) -> ListenOnRandomPort
-        (False, port) -> ListenOnPort (getPort port)
-
--- | Initialize a state directory to store blockchain data such as blocks or
--- the wallet database.
-setupStateDir :: Trace IO Text -> FilePath -> IO ()
-setupStateDir tracer dir = doesDirectoryExist dir >>= \case
-    True -> logInfo tracer $ "Using state directory: " <> T.pack dir
-    False -> do
-        logInfo tracer $ "Creating state directory: " <> T.pack dir
-        createDirectory dir
