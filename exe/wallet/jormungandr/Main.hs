@@ -29,30 +29,36 @@ import Prelude hiding
     ( getLine )
 
 import Cardano.BM.Trace
-    ( appendName, logInfo )
+    ( Trace, appendName, logInfo )
 import Cardano.CLI
     ( Environment (..)
     , Port (..)
+    , Verbosity
     , commandWalletServe
     , execLaunchCommands
     , initTracer
     , makeCli
-    , minSeverityFromArgs
     , parseWalletListen
     , runCli
     , runCliCommand
+    , showT
     , verbosityFromArgs
+    , verbosityToMinSeverity
     )
 import Cardano.Launcher
     ( Command (Command), StdStream (..) )
 import Cardano.Wallet
-    ( newWalletLayer )
+    ( WalletLayer )
+import Cardano.Wallet.Api.Server
+    ( Listen )
 import Cardano.Wallet.DaedalusIPC
     ( daedalusIPC )
+import Cardano.Wallet.DB
+    ( DBLayer )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Environment
-    ( KnownNetwork, Network (..) )
+    ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Jormungandr.Network
     ( getBlock )
 import Cardano.Wallet.Jormungandr.Primitive.Types
@@ -61,6 +67,8 @@ import Cardano.Wallet.Network
     ( NetworkLayer (..), defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( SeqState )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy )
 import Cardano.Wallet.Primitive.Types
@@ -77,6 +85,8 @@ import Data.Function
     ( (&) )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( ToText (..) )
 import Network.HTTP.Client
@@ -90,6 +100,7 @@ import System.Console.Docopt
 import Text.Heredoc
     ( here )
 
+import qualified Cardano.Wallet as Wallet
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.Jormungandr.Network as Jormungandr
@@ -105,16 +116,21 @@ main :: IO ()
 main = runCli withBackend cliDefinition
 
 withBackend :: Manager -> Environment -> IO ()
-withBackend manager env@Environment {..} =
+withBackend manager env@Environment {..} = do
+    listen <- parseWalletListen env
+    backendPort <- parseArg $ longOption "backend-port"
+    dbFile <- parseOptionalArg $ longOption "database"
+    block0H <- parseArg $ longOption "genesis-hash"
+    let verbosity = verbosityFromArgs args
     parseArg (longOption "network") >>= \case
-        Testnet ->
+        n@Testnet ->
             runCliCommand env manager
-                (execServe @'Testnet env)
-                (execLaunch env)
-        Mainnet ->
+                (execServe @'Testnet verbosity listen backendPort dbFile block0H)
+                (execLaunch env n verbosity listen backendPort block0H)
+        n@Mainnet ->
             runCliCommand env manager
-                (execServe @'Mainnet env)
-                (execLaunch env)
+                (execServe @'Mainnet verbosity listen backendPort dbFile block0H)
+                (execLaunch env n verbosity listen backendPort block0H)
 
 {-------------------------------------------------------------------------------
                                CLI definitions
@@ -159,23 +175,25 @@ cliExamples = [here|
                                 Launching
 -------------------------------------------------------------------------------}
 
-execLaunch :: Environment -> IO ()
-execLaunch env@Environment {..} = do
-    let verbosity = verbosityFromArgs args
-    backendPort <- parseArg $ longOption "backend-port"
+execLaunch
+    :: Environment
+    -> Network
+    -> Verbosity
+    -> Listen
+    -> Port "Node"
+    -> Hash "Genesis"
+    -> IO ()
+execLaunch Environment {..} network verbosity listen backendPort block0H = do
     genesisBlockPath <- parseArg $ longOption "genesis-block"
-    genesisHash <- Just <$> parseArg (longOption "genesis-hash")
-    listen <- parseWalletListen env
-    network <- parseArg $ longOption "network"
     nodeConfigPath <- parseArg $ longOption "node-config"
     nodeSecretPath <- parseArg $ longOption "node-secret"
     stateDir <- parseOptionalArg $ longOption "state-dir"
-    tracer <- initTracer (minSeverityFromArgs args) "launch"
+    tracer <- initTracer (verbosityToMinSeverity verbosity) "launch"
     execLaunchCommands tracer stateDir
         [ commandJormungandr
             genesisBlockPath nodeConfigPath nodeSecretPath
         , commandWalletServe "cardano-wallet-jormungandr"
-            listen backendPort stateDir network verbosity genesisHash
+            listen backendPort stateDir (showT network) verbosity (Just block0H)
         ]
   where
     commandJormungandr genesisBlockPath nodeConfigPath nodeSecretPath =
@@ -192,40 +210,51 @@ execLaunch env@Environment {..} = do
 -------------------------------------------------------------------------------}
 
 execServe
-    :: forall n . (KeyToAddress (Jormungandr n), KnownNetwork n)
-    => Environment -> Proxy (Jormungandr n) -> IO ()
-execServe env@Environment {..} _ = do
-    tracer <- initTracer (minSeverityFromArgs args) "serve"
-    logInfo tracer $ "Wallet backend server starting. "
-        <> "Version "
-        <> T.pack (showVersion version)
-    walletListen <- parseWalletListen env
-    backendPort <- parseArg $ longOption "backend-port"
-    dbFile <- parseOptionalArg $ longOption "database"
-    tracerDB <- appendName "DBLayer" tracer
-    (_, db) <- Sqlite.newDBLayer tracerDB dbFile
-    block0H <- parseArg $ longOption "genesis-hash"
-    (nl, block0, feePolicy) <- newNetworkLayer
-        (BaseUrl Http "localhost" (getPort backendPort) "/api") block0H
-    waitForConnection nl defaultRetryPolicy
-    let tl = Jormungandr.newTransactionLayer @n block0H
-    wallet <- newWalletLayer tracer block0 feePolicy db nl tl
-    Server.withListeningSocket walletListen $ \(port, socket) -> do
-        tracerIPC <- appendName "DaedalusIPC" tracer
-        tracerApi <- appendName "api" tracer
-        let beforeMainLoop = logInfo tracer $
-                "Wallet backend server listening on: " <> toText port
-        let settings = Warp.defaultSettings
-                & setBeforeMainLoop beforeMainLoop
-        let ipcServer = daedalusIPC tracerIPC port
-        let apiServer = Server.start settings tracerApi socket wallet
-        race_ ipcServer apiServer
+    :: forall n t s. (t ~ Jormungandr n, s ~ SeqState t)
+    => (KeyToAddress t, KnownNetwork n)
+    => Verbosity
+    -> Listen
+    -> Port "Node"
+    -> Maybe FilePath
+    -> Hash "Genesis"
+    -> Proxy t
+    -> IO ()
+execServe verbosity listen backendPort dbFile block0H _ = do
+    tracer <- initTracer (verbosityToMinSeverity verbosity) "serve"
+    logInfo tracer "Wallet backend server starting..."
+    logInfo tracer $ "Running as v" <> T.pack (showVersion version)
+    logInfo tracer $ "Target node is Jörmungandr on " <> toText (networkVal @n)
+    newWalletLayer tracer >>= startServer tracer
   where
+    startServer
+        :: Trace IO Text
+        -> WalletLayer s t
+        -> IO ()
+    startServer tracer wallet = do
+        Server.withListeningSocket listen $ \(port, socket) -> do
+            tracerIPC <- appendName "daedalus-ipc" tracer
+            tracerApi <- appendName "api" tracer
+            let beforeMainLoop = logInfo tracer $
+                    "Wallet backend server listening on: " <> toText port
+            let settings = Warp.defaultSettings
+                    & setBeforeMainLoop beforeMainLoop
+            let ipcServer = daedalusIPC tracerIPC port
+            let apiServer = Server.start settings tracerApi socket wallet
+            race_ ipcServer apiServer
+
+    newWalletLayer
+        :: Trace IO Text
+        -> IO (WalletLayer s t)
+    newWalletLayer tracer = do
+        (nl, block0, feePolicy) <- newNetworkLayer
+        let tl = Jormungandr.newTransactionLayer @n block0H
+        db <- newDBLayer tracer
+        Wallet.newWalletLayer tracer block0 feePolicy db nl tl
+
     newNetworkLayer
-        :: BaseUrl
-        -> Hash "Genesis"
-        -> IO (NetworkLayer (Jormungandr n) IO, Block Tx, FeePolicy)
-    newNetworkLayer url block0H = do
+        :: IO (NetworkLayer t IO, Block Tx, FeePolicy)
+    newNetworkLayer = do
+        let url = BaseUrl Http "localhost" (getPort backendPort) "/api"
         mgr <- newManager defaultManagerSettings
         let jormungandr = Jormungandr.mkJormungandrLayer mgr url
         let nl = Jormungandr.mkNetworkLayer jormungandr
@@ -234,3 +263,11 @@ execServe env@Environment {..} _ = do
         feePolicy <- unsafeRunExceptT $
             Jormungandr.getInitialFeePolicy jormungandr (coerce block0H)
         return (nl, block0, feePolicy)
+
+    newDBLayer
+        :: Trace IO Text
+        -> IO (DBLayer IO s t)
+    newDBLayer tracer = do
+        tracerDB <- appendName "database" tracer
+        (_, db) <- Sqlite.newDBLayer tracerDB dbFile
+        return db
