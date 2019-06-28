@@ -48,6 +48,7 @@ library
     , servant-server
     , text
     , text-class
+    , optparse-applicative
   hs-source-dirs:
       src
   exposed-modules:

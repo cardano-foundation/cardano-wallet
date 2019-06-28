@@ -10,10 +10,8 @@ module Cardano.CLISpec
 
 import Prelude
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
 import Cardano.CLI
-    ( OptionValue (..), Port (..), hGetLine, hGetSensitiveLine )
+    ( Port (..), hGetLine, hGetSensitiveLine )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.MVar
@@ -36,7 +34,6 @@ import Test.QuickCheck
     , arbitraryBoundedEnum
     , checkCoverage
     , cover
-    , genericShrink
     , (===)
     )
 import Test.Text.Roundtrip
@@ -49,7 +46,6 @@ spec :: Spec
 spec = do
     describe "Can perform roundtrip textual encoding & decoding" $ do
         textRoundtrip $ Proxy @(Port "test")
-        textRoundtrip $ Proxy @(OptionValue Severity)
 
     describe "Port decoding from text" $ do
         let err = TextDecodingError
@@ -184,11 +180,3 @@ instance Arbitrary (Port "test") where
     shrink p
         | p == minBound = []
         | otherwise = [pred p]
-
-instance Arbitrary a => Arbitrary (OptionValue a) where
-    arbitrary = OptionValue <$> arbitrary
-    shrink = genericShrink
-
-instance Arbitrary Severity where
-    arbitrary = arbitraryBoundedEnum
-    shrink = genericShrink
