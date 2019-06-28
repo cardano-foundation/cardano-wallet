@@ -24,6 +24,23 @@
             (hsPkgs.cardano-wallet-cli)
             (hsPkgs.cardano-wallet-core)
             (hsPkgs.cardano-wallet-http-bridge)
+            (hsPkgs.cardano-wallet-launcher)
+            (hsPkgs.docopt)
+            (hsPkgs.heredoc)
+            (hsPkgs.http-client)
+            (hsPkgs.iohk-monitoring)
+            (hsPkgs.process)
+            (hsPkgs.text)
+            (hsPkgs.text-class)
+            (hsPkgs.warp)
+            ];
+          };
+        "cardano-wallet-jormungandr" = {
+          depends = [
+            (hsPkgs.base)
+            (hsPkgs.async)
+            (hsPkgs.cardano-wallet-cli)
+            (hsPkgs.cardano-wallet-core)
             (hsPkgs.cardano-wallet-jormungandr)
             (hsPkgs.cardano-wallet-launcher)
             (hsPkgs.docopt)

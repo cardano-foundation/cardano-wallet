@@ -532,14 +532,16 @@ execLaunchCommands tracer stateDir commands = do
 
 -- | Creates a command that can be used to start the wallet API server.
 commandWalletServe
-    :: Listen
+    :: String
+    -> Listen
     -> Port "Node"
     -> Maybe FilePath
     -> String
     -> Verbosity
     -> Maybe (Hash "Genesis") -> Command
-commandWalletServe listen backendPort stateDir network verbosity mGenesisHash =
-    Command "cardano-wallet" args (threadDelay oneSecond) Inherit
+commandWalletServe
+        name listen backendPort stateDir network verbosity mGenesisHash =
+    Command name args (threadDelay oneSecond) Inherit
   where
     oneSecond = 1000000
     args = mconcat
