@@ -42,7 +42,7 @@ import qualified Data.List as L
 
 spec :: Spec
 spec = do
-    describe "Unit tests" $ do
+    describe "Coin selection : random algorithm unit tests" $ do
         coinSelectionUnitTest random ""
             (Right $ CoinSelectionResult
                 { rsInputs = [1,1,1,1]
@@ -156,7 +156,7 @@ spec = do
             , txOutputs = 40 :| [1,1,1]
             }
 
-    before getSystemDRG $ describe "Property Tests" $ do
+    before getSystemDRG $ describe "Coin selection properties : random algorithm" $ do
         it "forall (UTxO, NonEmpty TxOut), \
            \ running algorithm gives not less UTxO fragmentation than LargestFirst algorithm"
             (property . propFragmentation)

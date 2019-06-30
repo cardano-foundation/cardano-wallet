@@ -74,7 +74,7 @@ import qualified Data.Map.Strict as Map
 
 spec :: Spec
 spec = do
-    describe "shuffle" $ do
+    describe "Coin selection properties : shuffle" $ do
         it "every non-empty list can be shuffled, ultimately"
             (checkCoverageWith lowerConfidence prop_shuffleCanShuffle)
         it "shuffle is non-deterministic"
