@@ -69,7 +69,7 @@ data TargetRange = TargetRange
 --    algorithm for this step.)
 --
 -- 2. Randomly select outputs from the UTxO, considering for each output if that
---    output is animprovement. If it is, add it to the transaction, and keep
+--    output is an improvement. If it is, add it to the transaction, and keep
 --    going. An output is considered an improvement when:
 --
 --    (a)  It doesn’t exceed a specified upper limit.

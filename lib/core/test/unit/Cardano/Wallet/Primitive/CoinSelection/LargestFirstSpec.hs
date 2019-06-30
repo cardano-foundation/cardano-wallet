@@ -135,6 +135,16 @@ spec = do
 
         coinSelectionUnitTest
             largestFirst
+            "enough coins, fragmented enough, but one output depletes all inputs"
+            (Left ErrInputsDepleted)
+            $ CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , utxoInputs = [12,20,17]
+                , txOutputs = 40 :| [1]
+                }
+
+        coinSelectionUnitTest
+            largestFirst
             "enough coins but, strict maximumNumberOfInputs"
             (Left $ ErrMaximumInputsReached 2)
             $ CoinSelectionFixture
