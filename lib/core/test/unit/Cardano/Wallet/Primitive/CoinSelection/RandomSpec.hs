@@ -43,6 +43,9 @@ import qualified Data.List as L
 spec :: Spec
 spec = do
     describe "Coin selection : random algorithm unit tests" $ do
+
+        let oneAda = 1000000
+
         coinSelectionUnitTest random ""
             (Right $ CoinSelectionResult
                 { rsInputs = [1,1,1,1]
@@ -126,6 +129,26 @@ spec = do
                 { maxNumOfInputs = 4
                 , utxoInputs = [1,1,1,1,1,1]
                 , txOutputs = 3 :| []
+                })
+
+        coinSelectionUnitTest random "REG CO-450: fallback works correctly"
+            (Right $ CoinSelectionResult
+                { rsInputs = [1000000,1000000,1000000]
+                , rsChange = [500000]
+                , rsOutputs = [2000000,500000]
+                })
+            (CoinSelectionFixture
+                { maxNumOfInputs = 4
+                , utxoInputs = [oneAda, oneAda, oneAda, oneAda]
+                , txOutputs = 2*oneAda :| [oneAda `div` 2]
+                })
+
+        coinSelectionUnitTest random "enough funds, proper fragmentation, inputs depleted"
+            (Left ErrInputsDepleted) $
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , utxoInputs = [10,10,10,10]
+                , txOutputs = 38 :| [1]
                 })
 
         coinSelectionUnitTest random "" (Left $ ErrMaximumInputsReached 2) $
