@@ -23,7 +23,7 @@ extra-deps:
 
 # iohk-monitoring-framework
 - git: https://github.com/input-output-hk/iohk-monitoring-framework
-  commit: 3395487ae1d6fe8a6370cdcc6ebc8121f221c7eb
+  commit: e2dc8b2160bb2ccd1ef9817a6498cda06ad36580
   subdirs:
     - contra-tracer
     - iohk-monitoring
@@ -38,6 +38,7 @@ flags:
     disable-graylog: true
     disable-gui: true
     disable-prometheus: true
+    disable-systemd: true
 
 nix:
   shell-file: nix/stack-shell.nix
