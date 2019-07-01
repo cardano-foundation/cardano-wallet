@@ -1,9 +1,12 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -27,11 +30,11 @@ module Cardano.Wallet.DB.Sqlite
 import Prelude
 
 import Cardano.BM.Data.LogItem
-    ( PrivacyAnnotation (..) )
+    ( LOContent (..), LogObject (..), PrivacyAnnotation (..) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
-    ( Trace, appendName, logDebug, logNotice, traceNamedItem )
+    ( Trace, appendName, traceNamedItem )
 import Cardano.Crypto.Wallet
     ( XPrv )
 import Cardano.Wallet.DB
@@ -89,6 +92,10 @@ import Control.Monad.Trans.Maybe
     ( MaybeT (..) )
 import Control.Monad.Trans.Resource
     ( runResourceT )
+import Control.Tracer
+    ( contramap )
+import Data.Aeson
+    ( ToJSON )
 import Data.Coerce
     ( coerce )
 import Data.Either
@@ -136,6 +143,8 @@ import Database.Sqlite
     ( Error (ErrorConstraint), SqliteException (SqliteException) )
 import Fmt
     ( fmt, (+||), (||+) )
+import GHC.Generics
+    ( Generic )
 import System.Log.FastLogger
     ( fromLogStr )
 
@@ -153,29 +162,52 @@ import qualified Database.Sqlite as Sqlite
 ----------------------------------------------------------------------------
 -- Sqlite connection set up
 
+-- | Return type of 'startSqliteBackend'
+data Backend = Backend SqlBackend (forall a. SqlPersistM a -> IO a)
+
+-- | Opens the SQLite database connection, sets up query logging,
+-- runs schema migrations if necessary.
+startSqliteBackend
+    :: Trace IO DBLog
+    -> Maybe FilePath
+    -> IO Backend
+startSqliteBackend trace fp = do
+    traceQuery <- appendName "query" trace
+    backend <- createSqliteBackend trace fp (queryLogFunc traceQuery)
+    lock <- newMVar ()
+
+    let runQuery' :: SqlPersistM a -> IO a
+        runQuery' cmd = withMVar lock $ const $ runQuery backend cmd
+
+    migrations <- runQuery' $ runMigrationSilent migrateAll
+    dbLog trace $ MsgMigrations (length migrations)
+    runQuery' addIndexes
+
+    pure $ Backend backend runQuery'
+
+createSqliteBackend
+    :: Trace IO DBLog
+    -> Maybe FilePath
+    -> LogFunc
+    -> IO SqlBackend
+createSqliteBackend trace fp logFunc = do
+    let connStr = sqliteConnStr fp
+    dbLog trace $ MsgConnStr connStr
+    conn <- Sqlite.open connStr
+    enableForeignKeys conn
+    wrapConnection conn logFunc
+
 enableForeignKeys :: Sqlite.Connection -> IO ()
 enableForeignKeys conn = do
     stmt <- Sqlite.prepare conn "PRAGMA foreign_keys = ON;"
     _ <- Sqlite.step stmt
     Sqlite.finalize stmt
 
-createSqliteBackend
-    :: Trace IO Text
-    -> Maybe FilePath
-    -> LogFunc
-    -> IO SqlBackend
-createSqliteBackend trace fp logFunc = do
-    let connStr = sqliteConnStr fp
-    logDebug trace $ "Using connection string: " <> connStr
-    conn <- Sqlite.open connStr
-    enableForeignKeys conn
-    wrapConnection conn logFunc
-
 sqliteConnStr :: Maybe FilePath -> Text
 sqliteConnStr = maybe ":memory:" T.pack
 
-queryLogFunc :: Trace IO Text -> LogFunc
-queryLogFunc trace _loc _source level str = traceNamedItem trace Public sev msg
+queryLogFunc :: Trace IO DBLog -> LogFunc
+queryLogFunc trace _loc _source level str = dbLog trace (MsgQuery msg sev)
   where
     -- Filter out parameters which appear after the statement semicolon.
     -- They will contain sensitive material that we don't want in the log.
@@ -217,16 +249,7 @@ newDBLayer
     -> IO (SqlBackend, DBLayer IO s t)
 newDBLayer trace fp = do
     lock <- newMVar ()
-    bigLock <- newMVar ()
-    traceQuery <- appendName "query" trace
-    backend <- createSqliteBackend trace fp (queryLogFunc traceQuery)
-    let runQuery' :: SqlPersistM a -> IO a
-        runQuery' cmd = withMVar bigLock $ const $ runQuery backend cmd
-    migrations <- runQuery' $ runMigrationSilent migrateAll
-    case length migrations of
-        0 -> logDebug trace "No database migrations were necessary."
-        n -> logNotice trace $ fmt $ ""+||n||+" migrations were applied to the database."
-    runQuery' addIndexes
+    Backend backend runQuery' <- startSqliteBackend (transformTrace trace) fp
     return (backend, DBLayer
 
         {-----------------------------------------------------------------------
@@ -808,3 +831,45 @@ selectSeqStatePendingIxs ssid =
         [Desc SeqStatePendingIxIndex]
   where
     fromRes = fmap (W.Index . seqStatePendingIxIndex . entityVal)
+
+----------------------------------------------------------------------------
+-- Logging
+
+data DBLog
+    = MsgMigrations Int
+    | MsgQuery Text Severity
+    | MsgConnStr Text
+    deriving (Generic, Show, Eq, ToJSON)
+
+transformTrace :: Trace IO Text -> Trace IO DBLog
+transformTrace = contramap (converter dbLogText)
+
+-- bit of boilerplate here, a helper function could be useful.
+converter :: (a -> b) -> LogObject a -> LogObject b
+converter f (LogObject nm me loc) = LogObject nm me (conv loc)
+  where
+    conv (LogMessage msg) = LogMessage (f msg)
+    conv (LogError a) = LogError a
+    conv (LogValue a n) = LogValue a n
+    conv (ObserveOpen st) = ObserveOpen st
+    conv (ObserveDiff st) = ObserveDiff st
+    conv (ObserveClose st) = ObserveClose st
+    conv (AggregatedMessage ag) = AggregatedMessage ag
+    conv (MonitoringEffect act) = MonitoringEffect act
+    conv (Command v) = Command v
+    conv KillPill = KillPill
+
+dbLog :: MonadIO m => Trace m DBLog -> DBLog -> m ()
+dbLog logTrace msg = traceNamedItem logTrace Public (dbLogLevel msg) msg
+
+dbLogLevel :: DBLog -> Severity
+dbLogLevel (MsgMigrations 0) = Debug
+dbLogLevel (MsgMigrations _) = Notice
+dbLogLevel (MsgQuery _ sev) = sev
+dbLogLevel (MsgConnStr _) = Debug
+
+dbLogText :: DBLog -> Text
+dbLogText (MsgMigrations 0) = "No database migrations were necessary."
+dbLogText (MsgMigrations n) = fmt $ ""+||n||+" migrations were applied to the database."
+dbLogText (MsgQuery stmt _) = stmt
+dbLogText (MsgConnStr connStr) = "Using connection string: " <> connStr

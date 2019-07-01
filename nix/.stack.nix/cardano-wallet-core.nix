@@ -25,6 +25,7 @@
           (hsPkgs.bytestring)
           (hsPkgs.cardano-crypto)
           (hsPkgs.containers)
+          (hsPkgs.contra-tracer)
           (hsPkgs.cryptonite)
           (hsPkgs.deepseq)
           (hsPkgs.exceptions)
