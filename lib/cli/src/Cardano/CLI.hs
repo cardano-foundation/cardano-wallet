@@ -720,12 +720,13 @@ verbosityToMinSeverity = \case
     Verbose -> Debug
 
 -- | Initialize logging at the specified minimum 'Severity' level.
-initTracer :: Severity -> Text -> IO (Trace IO Text)
+initTracer :: Severity -> Text -> IO (CM.Configuration, Trace IO Text)
 initTracer minSeverity cmd = do
     c <- defaultConfigStdout
     CM.setMinSeverity c minSeverity
     CM.setSetupBackends c [CM.KatipBK, CM.AggregationBK]
-    setupTrace (Right c) "cardano-wallet" >>= appendName cmd
+    tr <- appendName cmd =<< setupTrace (Right c) "cardano-wallet"
+    pure (c, tr)
 
 {-------------------------------------------------------------------------------
                                  Mnemonics

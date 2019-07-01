@@ -120,6 +120,7 @@ import System.IO.Temp
 import System.IO.Unsafe
     ( unsafePerformIO )
 
+import qualified Cardano.BM.Configuration.Model as CM
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -255,8 +256,9 @@ withDB :: (DBLayerBench -> Benchmark) -> Benchmark
 withDB bm = envWithCleanup setup cleanup (\ ~(_, db) -> bm db)
   where
     setup = do
+        logConfig <- CM.empty
         f <- emptySystemTempFile "bench.db"
-        (_, db) <- newDBLayer nullTracer (Just f)
+        (_, db) <- newDBLayer logConfig nullTracer (Just f)
         pure (f, db)
     cleanup (f, _) = mapM_ remove [f, f <> "-shm", f <> "-wal"]
     remove f = doesFileExist f >>= \case

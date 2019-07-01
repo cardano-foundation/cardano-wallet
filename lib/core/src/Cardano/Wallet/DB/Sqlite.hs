@@ -151,7 +151,6 @@ import System.Log.FastLogger
     ( fromLogStr )
 
 import qualified Cardano.BM.Configuration.Model as CM
-import qualified Cardano.BM.Data.BackendKind as CM
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery as W
 import qualified Cardano.Wallet.Primitive.Model as W
@@ -172,10 +171,11 @@ data Backend = Backend SqlBackend (forall a. SqlPersistM a -> IO a)
 -- | Opens the SQLite database connection, sets up query logging and timing,
 -- runs schema migrations if necessary.
 startSqliteBackend
-    :: Trace IO DBLog
+    :: CM.Configuration
+    -> Trace IO DBLog
     -> Maybe FilePath
     -> IO Backend
-startSqliteBackend trace fp = do
+startSqliteBackend logConfig trace fp = do
     traceQuery <- appendName "query" trace
     backend <- createSqliteBackend trace fp (queryLogFunc traceQuery)
     lock <- newMVar ()
@@ -183,7 +183,7 @@ startSqliteBackend trace fp = do
     let runQuery' :: SqlPersistM a -> IO a
         runQuery' cmd = withMVar lock $ const $ observe $ runQuery backend cmd
         observe :: IO a -> IO a
-        observe = bracketObserveIO c traceQuery Debug "runQuery"
+        observe = bracketObserveIO logConfig traceQuery Debug "runQuery"
 
     migrations <- runQuery' $ runMigrationSilent migrateAll
     dbLog trace $ MsgMigrations (length migrations)
@@ -226,13 +226,6 @@ queryLogFunc trace _loc _source level str = dbLog trace (MsgQuery msg sev)
         LevelError -> Error
         LevelOther _ -> Warning
 
-observerConfig :: IO CM.Configuration
-observerConfig = do
-    c <- CM.empty
-    CM.setMinSeverity c Debug
-    CM.setSetupBackends c [CM.KatipBK, CM.AggregationBK]
-    pure c
-
 -- | Run a query without error handling. There will be exceptions thrown if it
 -- fails.
 runQuery :: SqlBackend -> SqlPersistM a -> IO a
@@ -255,14 +248,17 @@ handleConstraint e = handleJust select handler . fmap Right
 -- library.
 newDBLayer
     :: forall s t. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t)
-    => Trace IO Text
+    => CM.Configuration
+       -- ^ Logging configuration
+    -> Trace IO Text
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
     -> IO (SqlBackend, DBLayer IO s t)
-newDBLayer trace fp = do
+newDBLayer logConfig trace fp = do
     lock <- newMVar ()
-    Backend backend runQuery' <- startSqliteBackend (transformTrace trace) fp
+    let trace' = transformTrace trace
+    Backend backend runQuery' <- startSqliteBackend logConfig trace' fp
     return (backend, DBLayer
 
         {-----------------------------------------------------------------------

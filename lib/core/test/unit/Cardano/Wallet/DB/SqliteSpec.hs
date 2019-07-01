@@ -97,6 +97,7 @@ import Test.Hspec
     , xit
     )
 
+import qualified Cardano.BM.Configuration.Model as CM
 import qualified Data.Map as Map
 import qualified Data.Text as T
 
@@ -171,8 +172,9 @@ simpleSpec = do
 
 newMemoryDBLayer :: IO (DBLayer IO (SeqState DummyTarget) DummyTarget, TVar [LogObject Text])
 newMemoryDBLayer = do
+    logConfig <- CM.empty
     logs <- newTVarIO []
-    (_, db) <- newDBLayer (traceInTVarIO logs) Nothing
+    (_, db) <- newDBLayer logConfig (traceInTVarIO logs) Nothing
     pure (db, logs)
 
 withLoggingDB :: SpecWith (DBLayer IO (SeqState DummyTarget) DummyTarget, IO [LogObject Text]) -> Spec
