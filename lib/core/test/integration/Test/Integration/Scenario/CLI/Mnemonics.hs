@@ -34,10 +34,68 @@ spec = do
         v `shouldBe` (showVersion version)
         c `shouldBe` ExitSuccess
 
-    it "CLI_HELP - cardano-wallet shows help on bad argument" $  do
-        (Exit c, Stdout out) <- cardanoWalletCLI ["--bad arg"]
-        out `shouldContain` "Cardano Wallet CLI"
-        c `shouldBe` ExitFailure 1
+    describe "CLI_HELP - cardano-wallet shows help on bad arg or param" $ do
+        let wid = replicate 40 '1'
+        let badArgs =
+                [ "--bad param"
+                , "bad arg"
+                -- serve
+                , "serve --"
+                , "serve --network testnet --random-por --quiet"
+                , "serve --network testnet --random-port --bridge-port 666 --vebrose"
+                , "serve --network"
+                , "server --verbose"
+                , "serve --database"
+                --launch
+                , "launch --quit"
+                , "launch --network mainnet --state-dir"
+                , "launch --randomport 666 --state-dir tempdir"
+                , "launcher --verbose"
+                --mnemonic
+                , "mnemonic generate --size"
+                , "mnemnic generate"
+                , "mnemonic --size 15"
+                -- wallet list
+                , "wallet list --port"
+                -- wallet create
+                , "wallet create"
+                , "wallet"
+                , "create"
+                , "wallet crate name"
+                , "wallet create --port name"
+                , "wallet create --address-pool-gap 30 name"
+                , "wallet create name --address-pool-gap"
+                -- wallet get
+                , "wallet get"
+                , "get"
+                , "get " ++ wid
+                , "wallet get " ++ wid ++ " --port"
+                -- wallet update
+                , "wallet update"
+                , "update"
+                , "update " ++ wid
+                , "wallet update " ++ wid ++ " --port"
+                -- wallet delete
+                , "wallet delete"
+                , "delete"
+                , "delete " ++ wid
+                , "wallet delete " ++ wid ++ " --port"
+                -- transaction create
+                , "transaction create " ++ wid ++ " --payment"
+                , "transaction create " ++ wid ++ " --payment 22@2cWKMJemoBaiPcjZZKQzTHzjRkaAee5dx246Ren8U5KcDGt9QX6FZQPskzykhYL1AW62U --payment"
+                , "transaction create --port " ++ wid ++ " --payment 22@ --payment"
+                , "transaction create"
+                -- address list
+                , "address"
+                , "list"
+                , "address list"
+                , "address list " ++ wid ++ " --port"
+                ]
+        forM_ badArgs $ \args -> it args $ \_ -> do
+            (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI $ words args
+            c `shouldBe` ExitFailure 1
+            e `shouldBe` ""
+            o `shouldContain` "Cardano Wallet CLI."
 
     describe "CLI_HELP - cardano-wallet shows help with" $  do
         let test option = it option $ do
