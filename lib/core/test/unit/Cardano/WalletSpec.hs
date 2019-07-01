@@ -27,7 +27,7 @@ import Cardano.Wallet
     , newWalletLayer
     )
 import Cardano.Wallet.DB
-    ( DBLayer, ErrNoSuchWallet (..), PrimaryKey (..) )
+    ( DBLayer, ErrNoSuchWallet (..), PrimaryKey (..), putTxHistory )
 import Cardano.Wallet.DB.MVar
     ( newDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -61,9 +61,13 @@ import Cardano.Wallet.Primitive.Fee
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
+    , Direction (..)
     , Hash (..)
+    , SlotId (..)
     , TxIn (..)
+    , TxMeta (..)
     , TxOut (..)
+    , TxStatus (..)
     , TxWitness (..)
     , WalletId (..)
     , WalletMetadata (..)
@@ -96,14 +100,25 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( isJust, isNothing )
+import Data.Ord
+    ( Down (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Word
+    ( Word32 )
 import GHC.Generics
     ( Generic )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldNotBe, shouldSatisfy )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, elements, property, withMaxSuccess, (==>) )
+    ( Arbitrary (..)
+    , Property
+    , choose
+    , elements
+    , property
+    , withMaxSuccess
+    , (==>)
+    )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
@@ -151,6 +166,8 @@ spec = do
             (property walletUpdatePassphraseDate)
         it "Root key is re-encrypted with new passphrase"
             (withMaxSuccess 10 $ property walletKeyIsReencrypted)
+        it "Wallet can list transactions"
+            (property walletListTransactionsSorted)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -321,6 +338,19 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
         [ TxOut (Address "destination") (Coin 14) ]
         []
 
+walletListTransactionsSorted
+    :: (WalletId, WalletName, DummyState)
+    -> Map (Hash "Tx") (Tx, TxMeta)
+    -> Property
+walletListTransactionsSorted wallet@(wid, _, _) history =
+    monadicIO $ liftIO $ do
+        (WalletLayerFixture db wl _) <- liftIO $ setupFixture wallet
+        unsafeRunExceptT $ putTxHistory db (PrimaryKey wid) history
+        txs <- unsafeRunExceptT $ listTransactions wl wid
+        length txs `shouldBe` Map.size history
+        -- With the 'Down'-wrapper, the sort is descending.
+        txs `shouldBe` L.sortOn (Down . slotId . snd) txs
+
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
 -------------------------------------------------------------------------------}
@@ -429,3 +459,20 @@ instance {-# OVERLAPS #-} Arbitrary (Key 'RootK XPrv, Passphrase "encryption")
 
 instance Show XPrv where
     show = show . CC.unXPrv
+
+instance Arbitrary (Hash "Tx") where
+    shrink _ = []
+    arbitrary =
+        Hash . BS.pack <$> replicateM 32 arbitrary
+
+instance Arbitrary Tx where
+    shrink _ = []
+    arbitrary = return $ Tx [] []
+
+instance Arbitrary TxMeta where
+    shrink _ = []
+    arbitrary = TxMeta
+        <$> elements [Pending, InLedger, Invalidated]
+        <*> elements [Incoming, Outgoing]
+        <*> (SlotId <$> choose (0, 1000) <*> choose (0, 21599))
+        <*> fmap (Quantity . fromIntegral) (arbitrary @Word32)
