@@ -68,9 +68,13 @@ data TargetRange = TargetRange
 --    transaction inputs has been exceeded, fall back on the largest-first
 --    algorithm for this step.)
 --
--- 2. Randomly select outputs from the UTxO, considering for each output if that
---    output is an improvement. If it is, add it to the transaction, and keep
---    going. An output is considered an improvement when:
+-- 2. The algorithm first makes a random  selection for each output from the UTxO,
+--    processing the biggest output first and proceeding in a descending order.
+--    If the selection is not successful largest-first fallback kicks in.
+--    If the selection is successful for each output then the
+--    improvement is tried for each selection, once again starting from the selection
+--    made for the biggest output. The improvement is tried for the next biggest output's
+--    selection. An output is considered an improvement when:
 --
 --    (a)  It doesn’t exceed a specified upper limit.
 --    (b)  Adding the new output gets us closer to the ideal change value.
@@ -106,40 +110,37 @@ random
     -> NonEmpty TxOut
     -> UTxO
     -> ExceptT ErrCoinSelection m (CoinSelection, UTxO)
-random opt outs utxo = do
+random opt outs utxo0 = do
     let descending = NE.toList . NE.sortBy (flip $ comparing coin)
     randomMaybe <- lift $ runMaybeT $ foldM
-        (processTxOut opt)
-        (utxo, mempty)
+        (makeSelection opt)
+        (utxo0, [])
         (descending outs)
     case randomMaybe of
-        Just (utxo', res) ->
-            return (res, utxo')
+        Just (utxo1, res) -> do
+            (utxo2, selection) <-
+                lift $ foldM
+                (improveTxOut opt)
+                (utxo1, mempty)
+                (reverse res)
+            return (selection, utxo2)
         Nothing ->
-            largestFirst opt outs utxo
+            largestFirst opt outs utxo0
 
--- | Perform a random selection on a given output, with improvement.
-processTxOut
+-- | Perform a random selection on a given output, without improvement.
+makeSelection
     :: forall m. MonadRandom m
     => CoinSelectionOptions
-    -> (UTxO, CoinSelection)
+    -> (UTxO, [([(TxIn, TxOut)], TxOut)])
     -> TxOut
-    -> MaybeT m (UTxO, CoinSelection)
-processTxOut (CoinSelectionOptions maxNumInputs) (utxo0, selection) txout = do
-    attempt <- coverRandomly ([], utxo0)
-    (inps, utxo') <- lift (improve attempt)
+    -> MaybeT m (UTxO, [([(TxIn, TxOut)], TxOut)])
+makeSelection (CoinSelectionOptions maxNumInputs) (utxo0, selection) txout = do
+    (inps, utxo1) <- coverRandomly ([], utxo0)
     return
-        ( utxo'
-        , selection <> CoinSelection
-            { inputs = inps
-            , outputs = [txout]
-            , change = mkChange txout inps
-            }
+        ( utxo1
+        , (inps, txout) : selection
         )
   where
-    target :: TargetRange
-    target = mkTargetRange txout
-
     coverRandomly
         :: forall m. MonadRandom m
         => ([(TxIn, TxOut)], UTxO)
@@ -147,10 +148,31 @@ processTxOut (CoinSelectionOptions maxNumInputs) (utxo0, selection) txout = do
     coverRandomly (inps, utxo)
         | L.length inps > (fromIntegral maxNumInputs) =
             MaybeT $ return Nothing
-        | balance' inps >= targetMin target =
+        | balance' inps >= targetMin (mkTargetRange txout) =
             MaybeT $ return $ Just (inps, utxo)
         | otherwise = do
             pickRandomT utxo >>= \(io, utxo') -> coverRandomly (io:inps, utxo')
+
+
+-- | Perform an improvement to random selection on a given output.
+improveTxOut
+    :: forall m. MonadRandom m
+    => CoinSelectionOptions
+    -> (UTxO, CoinSelection)
+    -> ([(TxIn, TxOut)], TxOut)
+    -> m (UTxO, CoinSelection)
+improveTxOut (CoinSelectionOptions maxNumInputs) (utxo0,selection) (inps0, txout) = do
+    (inps, utxo) <- improve (inps0, utxo0)
+    return
+        ( utxo
+        , selection <> CoinSelection
+            { inputs = inps
+            , outputs = [txout]
+            , change = mkChange txout inps
+            }
+        )
+  where
+    theTarget = mkTargetRange txout
 
     improve
         :: forall m. MonadRandom m
@@ -158,31 +180,32 @@ processTxOut (CoinSelectionOptions maxNumInputs) (utxo0, selection) txout = do
         -> m ([(TxIn, TxOut)], UTxO)
     improve (inps, utxo) =
         runMaybeT (pickRandomT utxo) >>= \case
-            Nothing ->
-                return (inps, utxo)
-            Just (io, utxo') | isImprovement io inps -> do
-                let inps' = io : inps
-                if balance' inps' >= targetAim target
-                    then return (inps', utxo')
-                    else improve (inps', utxo')
-            Just _ ->
-                return (inps, utxo)
+        Nothing ->
+            return (inps, utxo)
+        Just (io, utxo') | isImprovement io inps -> do
+            let inps' = io : inps
+            if balance' inps' >= targetAim theTarget
+                then return (inps', utxo')
+                else improve (inps', utxo')
+        Just _ ->
+            return (inps, utxo)
 
     isImprovement :: (TxIn, TxOut) -> [(TxIn, TxOut)] -> Bool
     isImprovement io selected =
         let
             condA = -- (a) It doesn’t exceed a specified upper limit.
-                balance' (io : selected) < targetMax target
+                balance' (io : selected) < targetMax theTarget
 
             condB = -- (b) Addition gets us closer to the ideal change
-                distance (targetAim target) (balance' (io : selected))
+                distance (targetAim theTarget) (balance' (io : selected))
                 <
-                distance (targetAim target) (balance' selected)
+                distance (targetAim theTarget) (balance' selected)
 
             condC = -- (c) Doesn't exceed maximum number of inputs
                 length (io : selected) <= fromIntegral maxNumInputs
         in
             condA && condB && condC
+
 
 {-------------------------------------------------------------------------------
                                  Internals

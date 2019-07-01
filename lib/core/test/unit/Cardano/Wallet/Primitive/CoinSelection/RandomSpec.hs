@@ -82,10 +82,10 @@ spec = do
                 , txOutputs = 2 :| [1]
                 })
 
-        coinSelectionUnitTest random "with fallback"
+        coinSelectionUnitTest random ""
             (Right $ CoinSelectionResult
-                { rsInputs = [1,1,1]
-                , rsChange = []
+                { rsInputs = [1,1,1,1]
+                , rsChange = [1]
                 , rsOutputs = [2,1]
                 })
             (CoinSelectionFixture
@@ -131,11 +131,11 @@ spec = do
                 , txOutputs = 3 :| []
                 })
 
-        coinSelectionUnitTest random "REG CO-450: fallback works correctly"
+        coinSelectionUnitTest random "REG CO-450: no fallback"
             (Right $ CoinSelectionResult
-                { rsInputs = [1000000,1000000,1000000]
-                , rsChange = [500000]
-                , rsOutputs = [2000000,500000]
+                { rsInputs = [oneAda, oneAda, oneAda, oneAda]
+                , rsChange = [oneAda, oneAda `div` 2]
+                , rsOutputs = [2*oneAda,oneAda `div` 2]
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 4
@@ -144,7 +144,7 @@ spec = do
                 })
 
         coinSelectionUnitTest random "enough funds, proper fragmentation, inputs depleted"
-            (Left ErrInputsDepleted) $
+            (Left ErrInputsDepleted)
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
                 , utxoInputs = [10,10,10,10]
