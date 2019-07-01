@@ -60,8 +60,10 @@ largestFirst opt outs utxo = do
             when (nUtxo < nOuts)
                 $ throwE $ ErrUtxoNotEnoughFragmented nUtxo nOuts
 
-            throwE $ ErrMaximumInputsReached (fromIntegral n)
+            when (fromIntegral n > nUtxo)
+                $ throwE ErrInputsDepleted
 
+            throwE $ ErrMaximumInputsReached (fromIntegral n)
 
 -- Selecting coins to cover at least the specified value
 -- The details of the algorithm are following:

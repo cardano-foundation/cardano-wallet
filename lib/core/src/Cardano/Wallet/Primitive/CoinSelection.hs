@@ -64,6 +64,9 @@ data ErrCoinSelection
     | ErrMaximumInputsReached Word64
     -- ^ When trying to construct a transaction, the max number of allowed
     -- inputs was reached.
+    | ErrInputsDepleted
+    -- ^ When trying to construct a transaction, the available inputs are depleted
+    -- even when UTxO is properly fragmented and with enough funds to cover payment
     deriving (Show, Eq)
 
 data CoinSelection = CoinSelection

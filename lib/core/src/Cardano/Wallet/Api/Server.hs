@@ -481,6 +481,13 @@ instance LiftHandler ErrCoinSelection where
                 , "transaction that is too big, and this would consequently "
                 , "be rejected by a core node. Try sending a smaller amount."
                 ]
+        ErrInputsDepleted ->
+            apiError err403 InputsDepleted $ mconcat
+                [ "I had to select inputs to construct the "
+                , "requested transaction. Unfortunately, one output of the "
+                , "transaction depleted all available inputs. "
+                , "Try sending a smaller amount."
+                ]
 
 instance LiftHandler ErrAdjustForFee where
     handler = \case

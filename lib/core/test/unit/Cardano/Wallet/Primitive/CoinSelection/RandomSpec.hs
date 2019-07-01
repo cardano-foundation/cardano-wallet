@@ -42,7 +42,10 @@ import qualified Data.List as L
 
 spec :: Spec
 spec = do
-    describe "Unit tests" $ do
+    describe "Coin selection : random algorithm unit tests" $ do
+
+        let oneAda = 1000000
+
         coinSelectionUnitTest random ""
             (Right $ CoinSelectionResult
                 { rsInputs = [1,1,1,1]
@@ -79,10 +82,10 @@ spec = do
                 , txOutputs = 2 :| [1]
                 })
 
-        coinSelectionUnitTest random "with fallback"
+        coinSelectionUnitTest random ""
             (Right $ CoinSelectionResult
-                { rsInputs = [1,1,1]
-                , rsChange = []
+                { rsInputs = [1,1,1,1]
+                , rsChange = [1]
                 , rsOutputs = [2,1]
                 })
             (CoinSelectionFixture
@@ -128,6 +131,26 @@ spec = do
                 , txOutputs = 3 :| []
                 })
 
+        coinSelectionUnitTest random "REG CO-450: no fallback"
+            (Right $ CoinSelectionResult
+                { rsInputs = [oneAda, oneAda, oneAda, oneAda]
+                , rsChange = [oneAda, oneAda `div` 2]
+                , rsOutputs = [2*oneAda,oneAda `div` 2]
+                })
+            (CoinSelectionFixture
+                { maxNumOfInputs = 4
+                , utxoInputs = [oneAda, oneAda, oneAda, oneAda]
+                , txOutputs = 2*oneAda :| [oneAda `div` 2]
+                })
+
+        coinSelectionUnitTest random "enough funds, proper fragmentation, inputs depleted"
+            (Left ErrInputsDepleted)
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , utxoInputs = [10,10,10,10]
+                , txOutputs = 38 :| [1]
+                })
+
         coinSelectionUnitTest random "" (Left $ ErrMaximumInputsReached 2) $
             CoinSelectionFixture
             { maxNumOfInputs = 2
@@ -156,7 +179,7 @@ spec = do
             , txOutputs = 40 :| [1,1,1]
             }
 
-    before getSystemDRG $ describe "Property Tests" $ do
+    before getSystemDRG $ describe "Coin selection properties : random algorithm" $ do
         it "forall (UTxO, NonEmpty TxOut), \
            \ running algorithm gives not less UTxO fragmentation than LargestFirst algorithm"
             (property . propFragmentation)

@@ -194,6 +194,7 @@ data ApiErrorCode
     | NotEnoughMoney
     | UtxoNotEnoughFragmented
     | TransactionIsTooBig
+    | InputsDepleted
     | CannotCoverFee
     | NetworkUnreachable
     | CreatedInvalidTransaction
