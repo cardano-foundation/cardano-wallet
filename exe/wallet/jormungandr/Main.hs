@@ -42,6 +42,7 @@ import Cardano.CLI
     , listenOption
     , nodePortOption
     , optionT
+    , runCli
     , stateDirOption
     , verbosityOption
     , verbosityToArgs
@@ -85,8 +86,6 @@ import Control.Applicative
     ( optional )
 import Control.Concurrent.Async
     ( race_ )
-import Control.Monad
-    ( join )
 import Data.Coerce
     ( coerce )
 import Data.Function
@@ -104,7 +103,6 @@ import Options.Applicative
     , Mod
     , Parser
     , command
-    , execParser
     , help
     , helper
     , info
@@ -146,7 +144,7 @@ import qualified Network.Wai.Handler.Warp as Warp
 -------------------------------------------------------------------------------}
 
 main :: IO ()
-main = join $ execParser $ cli $ mempty
+main = runCli $ cli $ mempty
     <> cmdLaunch
     <> cmdServe
     <> cmdMnemonic

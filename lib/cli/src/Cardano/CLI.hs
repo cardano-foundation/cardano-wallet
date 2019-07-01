@@ -23,7 +23,7 @@ module Cardano.CLI
     (
     -- * CLI Execution
       cli
-    , execParser
+    , runCli
 
     -- * Commands
     , cmdMnemonic
@@ -118,7 +118,7 @@ import Control.Arrow
 import Control.Exception
     ( bracket )
 import Control.Monad
-    ( unless, void, when )
+    ( join, unless, void, when )
 import Data.Aeson
     ( (.:) )
 import Data.Bifunctor
@@ -154,8 +154,8 @@ import Options.Applicative
     , ParserInfo
     , argument
     , command
+    , customExecParser
     , eitherReader
-    , execParser
     , flag'
     , header
     , help
@@ -164,8 +164,10 @@ import Options.Applicative
     , long
     , metavar
     , option
+    , prefs
     , progDesc
     , showDefaultWith
+    , showHelpOnEmpty
     , subparser
     , value
     )
@@ -220,7 +222,7 @@ import qualified Data.Text.IO as TIO
 
 -- | Construct a CLI from a list of a commands
 --
--- >>> join $ execParser $ cli $ cmdA <> cmdB <> cmdC
+-- >>> runCli $ cli $ cmdA <> cmdB <> cmdC
 --
 cli :: Mod CommandFields a -> ParserInfo a
 cli cmds = info (helper <*> subparser cmds) $ mempty
@@ -231,6 +233,13 @@ cli cmds = info (helper <*> subparser cmds) $ mempty
         , "submitted to an up-and-running server. Some commands do not require "
         , "an active server and can be run offline (e.g. 'mnemonic generate')."
         ])
+
+-- | Runs a specific command parser using appropriate preferences
+runCli :: ParserInfo (IO ()) -> IO ()
+runCli = join . customExecParser preferences
+  where
+    preferences = prefs showHelpOnEmpty
+
 
 {-------------------------------------------------------------------------------
                             Commands - 'mnemonic'
