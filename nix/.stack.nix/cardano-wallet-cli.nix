@@ -36,6 +36,7 @@
           (hsPkgs.servant-server)
           (hsPkgs.text)
           (hsPkgs.text-class)
+          (hsPkgs.optparse-applicative)
           ];
         };
       tests = {
