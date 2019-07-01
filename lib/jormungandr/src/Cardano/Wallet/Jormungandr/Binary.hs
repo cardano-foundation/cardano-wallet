@@ -31,6 +31,7 @@ module Cardano.Wallet.Jormungandr.Binary
     , Milli (..)
     , getBlock
     , getBlockHeader
+    , getBlockId
     , getMessage
     , getTransaction
     , putSignedTx
@@ -46,6 +47,9 @@ module Cardano.Wallet.Jormungandr.Binary
 
       -- * Legacy Decoders
     , decodeLegacyAddress
+
+      -- * Helpers
+    , blake2b256
 
       -- * Re-export
     , Get
@@ -77,6 +81,10 @@ import Control.Applicative
     ( many )
 import Control.Monad
     ( replicateM, unless )
+import Crypto.Hash
+    ( hash )
+import Crypto.Hash.Algorithms
+    ( Blake2b_256 )
 import Data.Binary.Get
     ( Get
     , bytesRead
@@ -114,6 +122,7 @@ import Data.Word
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 
@@ -173,6 +182,24 @@ getBlock = label "getBlock" $ do
     header <- getBlockHeader
     msgs <- isolate (fromIntegral $ contentSize header) (many getMessage)
     return $ Block header msgs
+
+-- | Extract a 'Block' id from a serialized 'Block'.
+--
+-- FIXME:
+-- Note that, this is a very simplistic way of doing it (although rather
+-- efficient) and a more correct one would required:
+--
+-- - Unserializing a block
+-- - Extracting its header
+-- - Serializing the header
+-- - Computing the hash of this serialized header
+--
+-- This is quite some busy work but we should come to that eventually.
+getBlockId :: Get (Hash "BlockHeader")
+getBlockId = do
+    size <- getWord16be
+    bytes <- getByteString (fromEnum size)
+    return $ Hash $ blake2b256 bytes
 
 {-------------------------------------------------------------------------------
                            Messages
@@ -502,3 +529,12 @@ decodeLegacyAddress bytes =
         <* CBOR.decodeTag -- CBOR Tag
         <* CBOR.decodeBytes -- Payload
         <* CBOR.decodeWord32 -- CRC
+
+{-------------------------------------------------------------------------------
+                                 Helpers
+-------------------------------------------------------------------------------}
+
+-- | Compute a Blake2b_256 hash of a given 'ByteString'
+blake2b256 :: ByteString -> ByteString
+blake2b256 =
+    BA.convert . hash @_ @Blake2b_256

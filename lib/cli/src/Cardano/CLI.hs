@@ -528,7 +528,7 @@ execLaunch
     -> IO ()
 execLaunch verbosity stateDir commands = do
     installSignalHandlers
-    tracer <- initTracer (verbosityToMinSeverity verbosity) "launch"
+    (_, tracer) <- initTracer (verbosityToMinSeverity verbosity) "launch"
     maybe (pure ()) (setupStateDir $ logInfo tracer) stateDir
     logInfo tracer $ fmt $ nameF "launch" $ blockListF commands
     (ProcessHasExited pName code) <- launch commands
