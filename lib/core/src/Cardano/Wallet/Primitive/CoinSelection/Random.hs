@@ -110,22 +110,20 @@ random
     -> NonEmpty TxOut
     -> UTxO
     -> ExceptT ErrCoinSelection m (CoinSelection, UTxO)
-random opt outs utxo0 = do
+random opt outs utxo = do
     let descending = NE.toList . NE.sortBy (flip $ comparing coin)
     randomMaybe <- lift $ runMaybeT $ foldM
         (makeSelection opt)
-        (utxo0, [])
+        (utxo, [])
         (descending outs)
     case randomMaybe of
-        Just (utxo1, res) -> do
-            (utxo2, selection) <-
-                lift $ foldM
+        Just (utxo', res) -> do
+            lift $ foldM
                 (improveTxOut opt)
-                (utxo1, mempty)
+                (mempty, utxo')
                 (reverse res)
-            return (selection, utxo2)
         Nothing ->
-            largestFirst opt outs utxo0
+            largestFirst opt outs utxo
 
 -- | Perform a random selection on a given output, without improvement.
 makeSelection
@@ -158,21 +156,21 @@ makeSelection (CoinSelectionOptions maxNumInputs) (utxo0, selection) txout = do
 improveTxOut
     :: forall m. MonadRandom m
     => CoinSelectionOptions
-    -> (UTxO, CoinSelection)
+    -> (CoinSelection, UTxO)
     -> ([(TxIn, TxOut)], TxOut)
-    -> m (UTxO, CoinSelection)
-improveTxOut (CoinSelectionOptions maxNumInputs) (utxo0,selection) (inps0, txout) = do
+    -> m (CoinSelection, UTxO)
+improveTxOut (CoinSelectionOptions maxNumInputs) (selection, utxo0) (inps0, txout) = do
     (inps, utxo) <- improve (inps0, utxo0)
     return
-        ( utxo
-        , selection <> CoinSelection
+        ( selection <> CoinSelection
             { inputs = inps
             , outputs = [txout]
             , change = mkChange txout inps
             }
+        , utxo
         )
   where
-    theTarget = mkTargetRange txout
+    target = mkTargetRange txout
 
     improve
         :: forall m. MonadRandom m
@@ -184,7 +182,7 @@ improveTxOut (CoinSelectionOptions maxNumInputs) (utxo0,selection) (inps0, txout
             return (inps, utxo)
         Just (io, utxo') | isImprovement io inps -> do
             let inps' = io : inps
-            if balance' inps' >= targetAim theTarget
+            if balance' inps' >= targetAim target
                 then return (inps', utxo')
                 else improve (inps', utxo')
         Just _ ->
@@ -194,12 +192,12 @@ improveTxOut (CoinSelectionOptions maxNumInputs) (utxo0,selection) (inps0, txout
     isImprovement io selected =
         let
             condA = -- (a) It doesn’t exceed a specified upper limit.
-                balance' (io : selected) < targetMax theTarget
+                balance' (io : selected) < targetMax target
 
             condB = -- (b) Addition gets us closer to the ideal change
-                distance (targetAim theTarget) (balance' (io : selected))
+                distance (targetAim target) (balance' (io : selected))
                 <
-                distance (targetAim theTarget) (balance' selected)
+                distance (targetAim target) (balance' selected)
 
             condC = -- (c) Doesn't exceed maximum number of inputs
                 length (io : selected) <= fromIntegral maxNumInputs
