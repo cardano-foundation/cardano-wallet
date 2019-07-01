@@ -2049,6 +2049,10 @@ resolvedInputs :: PersistTx t => Tx t -> [(TxIn, Maybe Coin)]
 --   only here, and leave the rest of the code with an opaque
 --   <tt>ResolvedTxIn</tt> type.
 mkTx :: PersistTx t => [(TxIn, Maybe Coin)] -> [TxOut] -> Tx t
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.DB.Sqlite.DBLog
+instance GHC.Classes.Eq Cardano.Wallet.DB.Sqlite.DBLog
+instance GHC.Show.Show Cardano.Wallet.DB.Sqlite.DBLog
+instance GHC.Generics.Generic Cardano.Wallet.DB.Sqlite.DBLog
 instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t => Cardano.Wallet.DB.Sqlite.PersistState (Cardano.Wallet.Primitive.AddressDiscovery.SeqState t)
 
 
