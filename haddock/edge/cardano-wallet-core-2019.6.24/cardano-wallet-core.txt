@@ -677,6 +677,11 @@ ErrUtxoNotEnoughFragmented :: Word64 -> Word64 -> ErrCoinSelection
 -- | When trying to construct a transaction, the max number of allowed
 --   inputs was reached.
 ErrMaximumInputsReached :: Word64 -> ErrCoinSelection
+
+-- | When trying to construct a transaction, the available inputs are
+--   depleted even when UTxO is properly fragmented and with enough funds
+--   to cover payment
+ErrInputsDepleted :: ErrCoinSelection
 data CoinSelection
 CoinSelection :: [(TxIn, TxOut)] -> [TxOut] -> [Coin] -> CoinSelection
 
@@ -726,9 +731,14 @@ module Cardano.Wallet.Primitive.CoinSelection.Random
 --   covered. (In the rare case that this fails because the maximum number
 --   of transaction inputs has been exceeded, fall back on the
 --   largest-first algorithm for this step.)</li>
---   <li>Randomly select outputs from the UTxO, considering for each output
---   if that output is animprovement. If it is, add it to the transaction,
---   and keep going. An output is considered an improvement when:</li>
+--   <li>The algorithm first makes a random selection for each output from
+--   the UTxO, processing the biggest output first and proceeding in a
+--   descending order. If the selection is not successful largest-first
+--   fallback kicks in. If the selection is successful for each output then
+--   the improvement is tried for each selection, once again starting from
+--   the selection made for the biggest output. The improvement is tried
+--   for the next biggest output's selection. An output is considered an
+--   improvement when:</li>
 --   </ol>
 --   
 --   (a) It doesn’t exceed a specified upper limit. (b) Adding the new
@@ -2129,6 +2139,7 @@ KeyNotFoundForAddress :: ApiErrorCode
 NotEnoughMoney :: ApiErrorCode
 UtxoNotEnoughFragmented :: ApiErrorCode
 TransactionIsTooBig :: ApiErrorCode
+InputsDepleted :: ApiErrorCode
 CannotCoverFee :: ApiErrorCode
 NetworkUnreachable :: ApiErrorCode
 CreatedInvalidTransaction :: ApiErrorCode
@@ -2441,6 +2452,11 @@ ErrUtxoNotEnoughFragmented :: Word64 -> Word64 -> ErrCoinSelection
 -- | When trying to construct a transaction, the max number of allowed
 --   inputs was reached.
 ErrMaximumInputsReached :: Word64 -> ErrCoinSelection
+
+-- | When trying to construct a transaction, the available inputs are
+--   depleted even when UTxO is properly fragmented and with enough funds
+--   to cover payment
+ErrInputsDepleted :: ErrCoinSelection
 newtype ErrAdjustForFee
 
 -- | UTxO exhausted during fee covering We record what amount missed to
