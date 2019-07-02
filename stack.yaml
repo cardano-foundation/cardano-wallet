@@ -38,6 +38,7 @@ flags:
     disable-graylog: true
     disable-gui: true
     disable-prometheus: true
+    disable-systemd: true
 
 nix:
   shell-file: nix/stack-shell.nix

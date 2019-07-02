@@ -33,8 +33,9 @@ let
         packages.cardano-wallet-core.src = src + /lib/core;
         packages.cardano-wallet-cli.src = src + /lib/cli;
         packages.cardano-wallet-launcher.src = src + /lib/launcher;
-        packages.text-class.src = src + /lib/text-class;
         packages.cardano-wallet-http-bridge.src = src + /lib/http-bridge;
+        packages.cardano-wallet-jormungandr.src = src + /lib/jormungandr;
+        packages.text-class.src = src + /lib/text-class;
         packages.bech32.src = src + /lib/bech32;
       }
 
@@ -52,14 +53,22 @@ let
           integration.build-tools = [ jormungandr ];
           unit.build-tools = [ jormungandr ];
         };
+      }
 
+      # Misc. build fixes for dependencies
+      {
+        # Cut down iohk-monitoring deps
         packages.iohk-monitoring.flags = {
           disable-ekg = true;
           disable-examples = true;
           disable-graylog = true;
           disable-gui = true;
           disable-prometheus = true;
+          disable-systemd = true;
         };
+
+        # Katip has Win32 (>=2.3 && <2.6) constraint
+        packages.katip.doExactConfig = true;
       }
 
       # the iohk-module will supply us with the necessary
