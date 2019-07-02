@@ -451,38 +451,46 @@ expectPathEventuallyExist filepath = do
             False ->
                 threadDelay (oneSecond `div` 2) >> doesPathExistNow
 
--- | Expect process eventually has given text on its stdOut
-expectProcStdOutHas :: CreateProcess -> Text -> IO ()
-expectProcStdOutHas procc out = do
+-- | Expect process eventually has given text within n lines of it's stdout.
+-- When there is not enough lines on the stdout for the given check to be
+-- performed the method will wait until the lines reach n parameter. Therefore
+-- one needs to select n carefully.
+expectProcStdOutHas :: (CreateProcess, Int) -> Text -> IO ()
+expectProcStdOutHas (procc, n) out = do
     let safeProc = procc { std_out = CreatePipe }
-    handle <- async (runProcUntil safeProc out)
-    winner <- race (threadDelay (60 * oneSecond)) (wait handle)
-    case winner of
+    res <- runProcUntil n safeProc out
+    case res of
         Left _ -> expectationFailure $
-            "waited more than 60s for proccess to have in stdout = " ++ T.unpack out
+            "Looked at first " ++ show n ++ " lines of stdout but there's no = " ++ T.unpack out
         Right _ ->
             return ()
   where
-    runProcUntil :: CreateProcess -> Text -> IO ()
-    runProcUntil pr wants = withCreateProcess pr $ \_ (Just stdout) _ h -> do
-           hSetBuffering stdout LineBuffering
-           waitForIt stdout h
+    runProcUntil :: Int -> CreateProcess -> Text -> IO (Either Text Text)
+    runProcUntil retries pr wants = withCreateProcess pr $ \_ (Just stdout) _ hand -> do
+           hSetBuffering stdout (LineBuffering)
+           waitForIt retries stdout hand
      where
-         waitForIt stdout h = do
-             r <- try $ retry 60 (TIO.hGetLine stdout) :: IO (Either SomeException Text)
-             case r of
+         waitForIt ret o h = do
+             res <- try $ retry 60 (TIO.hGetLine o) :: IO (Either SomeException Text)
+             case res of
                  Left e -> do
                      terminateProcess h
-                     TIO.hGetContents stdout >>= TIO.putStrLn
+                     TIO.hGetContents o >>= TIO.putStrLn
                      error $ "TIO.hGetLine failed to get line from proc stdout,\
                         \ while trying to check if it contains: '" ++ T.unpack wants ++ "'\
                         \ exception: " ++ show e
                  Right is ->
                      if wants `T.isInfixOf` is then do
                          terminateProcess h
-                         TIO.hGetContents stdout >>= TIO.putStrLn
-                     else
-                         waitForIt stdout h
+                         TIO.hGetContents o >>= TIO.putStrLn
+                         return $ Right "Pass"
+                     else do
+                         if (ret == 0) then do
+                             terminateProcess h
+                             TIO.hGetContents o >>= TIO.putStrLn
+                             return $ Left "Fail"
+                         else
+                             waitForIt (ret - 1) o h
 
 --
 -- Lenses

@@ -130,11 +130,12 @@ spec = do
         it "LOGGING - Can log --verbose" $ \_ -> do
             let args = ["launch", "--verbose"]
             let process = proc' "cardano-wallet" args
-            process `expectProcStdOutHas` versionLine
-            process `expectProcStdOutHas` "Debug"
-            process `expectProcStdOutHas` "Warning"
-            process `expectProcStdOutHas` "Notice"
-            process `expectProcStdOutHas` "Info"
+            (process, 30) `expectProcStdOutHas` versionLine
+            (process, 30) `expectProcStdOutHas` "Debug"
+            (process, 30) `expectProcStdOutHas` "Warning"
+            -- more log needed to get to Notice since it's --verbose
+            (process, 130) `expectProcStdOutHas` "Notice"
+            (process, 30) `expectProcStdOutHas` "Info"
 
         it "LOGGING - --quiet logs Error only" $ \_ -> do
             let args = ["launch", "--quiet"]
@@ -147,10 +148,10 @@ spec = do
             let process = proc' "cardano-wallet" args
             (o, _) <- getProcStream process 5
             o `shouldNotContain` "Debug"
-            process `expectProcStdOutHas` versionLine
-            process `expectProcStdOutHas` "Warning"
-            process `expectProcStdOutHas` "Notice"
-            process `expectProcStdOutHas` "Info"
+            (process, 20) `expectProcStdOutHas` versionLine
+            (process, 20) `expectProcStdOutHas` "Warning"
+            (process, 20) `expectProcStdOutHas` "Notice"
+            (process, 20) `expectProcStdOutHas` "Info"
 
 withTempDir :: (FilePath -> IO a) -> IO a
 withTempDir = withSystemTempDirectory "integration-state"
