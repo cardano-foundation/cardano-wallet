@@ -19,7 +19,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Types
     ( Hash (..), TxOut (..), TxWitness (..), txId )
 import Cardano.Wallet.Transaction
-    ( ErrMkStdTx (..), TransactionLayer (..) )
+    ( ErrMkStdTx (..), TransactionLayer (..), estimateMaxNumberOfInputsBase )
 import Control.Arrow
     ( second )
 import Control.Monad
@@ -32,6 +32,7 @@ import Data.Quantity
     ( Quantity (..) )
 
 import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Wallet.Jormungandr.Binary as Binary
 
 -- | Construct a 'TransactionLayer' compatible with Shelley and 'Jörmungandr'
 newTransactionLayer
@@ -48,6 +49,10 @@ newTransactionLayer (Hash block0) = TransactionLayer
 
     -- NOTE: at this point 'Jörmungandr' node does not support fee calculation
     , estimateSize = \_ -> Quantity 0
+
+    , estimateMaxNumberOfInputs =
+        estimateMaxNumberOfInputsBase Binary.estimateMaxNumberOfInputsParams
+
     }
   where
     sign

@@ -51,6 +51,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Transaction
     ( ErrMkStdTx (..), TransactionLayer (..) )
+import Cardano.Wallet.TransactionSpecShared
+    ( propMaxNumberOfInputsEstimation )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Control.Arrow
@@ -110,6 +112,12 @@ spec = do
             (withMaxSuccess 2500 $ property $ propSizeEstimation $ Proxy @'Mainnet)
         it "Estimated size is the same as taken by encodeSignedTx"
             (withMaxSuccess 2500 $ property $ propSizeEstimation $ Proxy @'Testnet)
+
+    describe "estimateMaxNumberOfInputs" $ do
+        it "Property for mainnet addresses" $ property $
+            propMaxNumberOfInputsEstimation (newTransactionLayer @'Mainnet)
+        it "Property for testnet addresses" $ property$
+            propMaxNumberOfInputsEstimation (newTransactionLayer @'Testnet)
 
     describe "mkStdTx" $ do
         unknownInputTest (Proxy @'Mainnet)

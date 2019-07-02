@@ -31,7 +31,7 @@ import Cardano.Wallet.Primitive.Types
     , txId
     )
 import Cardano.Wallet.Transaction
-    ( ErrMkStdTx (..), TransactionLayer (..) )
+    ( ErrMkStdTx (..), TransactionLayer (..), estimateMaxNumberOfInputsBase )
 import Control.Monad
     ( forM, when )
 import Data.ByteString
@@ -75,6 +75,10 @@ newTransactionLayer = TransactionLayer
         + sizeOfTx (fst <$> inps) outs chngs
         + sizeOf (CBOR.encodeListLen $ fromIntegral n)
         + n * sizeOfTxWitness
+
+    , estimateMaxNumberOfInputs =
+        estimateMaxNumberOfInputsBase CBOR.estimateMaxNumberOfInputsParams
+
     }
   where
     mkWitness

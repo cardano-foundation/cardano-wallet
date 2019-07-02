@@ -1,4 +1,6 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -15,6 +17,10 @@ module Cardano.Wallet.Transaction
 
     -- * Errors
     , ErrMkStdTx (..)
+
+    -- * Backend helpers
+    , estimateMaxNumberOfInputsBase
+    , EstimateMaxNumberOfInputsParams(..)
     ) where
 
 import Prelude
@@ -24,9 +30,20 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address, Tx, TxIn, TxOut, TxWitness )
+    ( Address (..)
+    , Coin (..)
+    , Hash (..)
+    , Tx
+    , TxIn (..)
+    , TxOut (..)
+    , TxWitness (..)
+    )
 import Data.Quantity
-    ( Quantity )
+    ( Quantity (..) )
+import Data.Word
+    ( Word16, Word8 )
+
+import qualified Data.ByteString as BS
 
 data TransactionLayer t = TransactionLayer
     { mkStdTx
@@ -57,6 +74,14 @@ data TransactionLayer t = TransactionLayer
         -- always consider the worst-case scenario of a 5-byte crc.
         -- As a consequence, our estimate may be slightly bigger than the actual
         -- transaction fee (up-to 4 extra bytes per change output).
+
+    , estimateMaxNumberOfInputs :: Quantity "byte" Word16 -> Word8
+        -- ^ Calculate a "theoretical" maximum number of inputs given a maximum
+        -- transaction size. The actual transaction size cannot be known until
+        -- it has been fully determined by coin selection. This estimate will
+        -- err on the side of permitting more inputs, resulting in a transaction
+        -- which may be too large.
+
     }
 
 -- | Possible signing error
@@ -66,3 +91,58 @@ data ErrMkStdTx
     | ErrInvalidTx
     -- ^ when transaction with 0 amount is tried (not valid in Byron)
     deriving (Eq, Show)
+
+-- | Backend-specific variables used by 'estimateMaxNumberOfInputsBase'.
+data EstimateMaxNumberOfInputsParams = EstimateMaxNumberOfInputsParams
+    { estMeasureTx :: [TxIn] -> [TxOut] -> [TxWitness] -> Int
+        -- ^ Finds the size of a serialized transaction.
+    , estAddressSample :: Address -- ^ Address to use in tx output
+    , estBlockHashSize :: Int -- ^ Block ID size
+    , estTxWitnessSize :: Int -- ^ Tx Witness size
+    }
+
+-- | This is called by the 'TransactionLayer' implementation. It uses the
+-- serialization functions to calculate the size of an empty transaction
+-- compared to a transaction with one input. The estimation is based on that.
+--
+-- It doesn't account for transaction outputs, and assumes there is a single Tx
+-- output.
+--
+-- All the values used are the smaller ones. For example, the shortest adress
+-- type and shortest witness type are chosen to use for the estimate.
+estimateMaxNumberOfInputsBase
+    :: EstimateMaxNumberOfInputsParams
+    -- ^ Backend-specific variables used in the estimation
+    -> Quantity "byte" Word16
+    -- ^ Transaction max size in bytes
+    -> Word8
+    -- ^ Maximum number of inputs, estimated
+estimateMaxNumberOfInputsBase
+    EstimateMaxNumberOfInputsParams{..} (Quantity txSize) =
+    clamp $
+    max 0 (fromIntegral txSize - fixedSize)
+    `div`
+    (inputSize - fixedSize)
+  where
+    -- The fixed size covers the headers of a signed transaction with a single
+    -- output.
+    fixedSize = sizeOfTx [] []
+
+    -- inputSize is the size of a signed transaction with a single output and a
+    -- single input.
+    inputSize = sizeOfTx [txIn] [wit]
+
+    -- Serialize a "representative" Tx with the given inputs and read its size.
+    sizeOfTx ins = estMeasureTx ins [txout]
+
+    txout = TxOut estAddressSample coin
+    coin = Coin 0
+    txIn = TxIn (Hash $ chaff estBlockHashSize) 0
+    wit = TxWitness (chaff estTxWitnessSize)
+
+    -- Make a bytestring of length n
+    chaff n = BS.replicate n 0
+
+    -- convert down to a smaller int without wrapping
+    clamp :: Int -> Word8
+    clamp = fromIntegral . min (fromIntegral $ maxBound @Word8)

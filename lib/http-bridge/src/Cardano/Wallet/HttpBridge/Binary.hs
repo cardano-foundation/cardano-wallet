@@ -39,6 +39,8 @@ module Cardano.Wallet.HttpBridge.Binary
     , decodeList
     , decodeListIndef
     , toByteString
+    , estimateMaxNumberOfInputsParams
+
     ) where
 
 import Prelude
@@ -60,6 +62,8 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , TxWitness (..)
     )
+import Cardano.Wallet.Transaction
+    ( EstimateMaxNumberOfInputsParams (..) )
 import Control.Monad
     ( void )
 import Crypto.Hash
@@ -80,6 +84,7 @@ import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 
 -- Decoding
@@ -621,3 +626,21 @@ encodeList encodeOne list = mempty
 
 toByteString :: CBOR.Encoding -> ByteString
 toByteString = BL.toStrict . CBOR.toLazyByteString
+
+-- | This provides network encoding specific variables to be used by the
+-- 'estimateMaxNumberOfInputs' function.
+estimateMaxNumberOfInputsParams :: EstimateMaxNumberOfInputsParams
+estimateMaxNumberOfInputsParams = EstimateMaxNumberOfInputsParams
+    { estMeasureTx = \ins outs wits ->
+        fromIntegral $ BL.length $ CBOR.toLazyByteString $
+        encodeSignedTx (Tx ins outs, wits)
+
+    -- Address with 256 bit public key and chain code.
+    -- There are no attributes.
+    , estAddressSample =
+        let xpub = XPub (BS.replicate 32 0) (ChainCode $ BS.replicate 32 0)
+        in Address $ toByteString $ encodeAddress xpub mempty
+
+    , estBlockHashSize = 32
+    , estTxWitnessSize = 128
+    }

@@ -47,6 +47,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Transaction
     ( TransactionLayer (..) )
+import Cardano.Wallet.TransactionSpecShared
+    ( estimateMaxNumberOfInputsSpec )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Control.Monad.Trans.Except
@@ -87,6 +89,8 @@ import qualified Data.Map as Map
 spec :: Spec
 spec = do
     estimateSizeSpec
+    estimateMaxNumberOfInputsSpec
+        (newTransactionLayer (Hash "") :: TransactionLayer (Jormungandr 'Mainnet))
     mkStdTxSpec
 
 {-------------------------------------------------------------------------------
