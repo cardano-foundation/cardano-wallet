@@ -52,6 +52,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeDecodeAddress, unsafeDecodeHex, unsafeFromHex )
 import Control.Exception
     ( SomeException, evaluate, try )
+import Control.Monad.IO.Class
+    ( liftIO )
 import Data.ByteString
     ( ByteString )
 import Data.Generics.Internal.VL.Lens
@@ -66,22 +68,14 @@ import Data.Word
     ( Word8 )
 import GHC.Generics
     ( Generic )
-import System.IO.Unsafe
-    ( unsafePerformIO )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldThrow )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
-    , choose
-    , oneof
-    , property
-    , shrinkList
-    , vectorOf
-    , (===)
-    )
+    ( Arbitrary (..), Gen, choose, oneof, property, shrinkList, vectorOf )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
+import Test.QuickCheck.Monadic
+    ( monadicIO )
 
 import qualified Data.ByteString as BS
 
@@ -241,25 +235,27 @@ spec = do
             evaluate (runPut $ putAddress $ Address "0")
                 `shouldThrow` userException msg
 
-        it "decode (encode address) === address" $ property $ \addr -> do
-                let bytes = (runPut $ putAddress addr)
-                let addr' = try' $ runGet getAddress bytes
-                addr' === (Right addr)
+        it "decode (encode address) === address" $ property $
+            \addr -> monadicIO $ liftIO $ do
+                let encode = runPut . putAddress
+                let decode = runGet getAddress
+                addr' <- try' (decode $ encode addr)
+                addr' `shouldBe` (Right addr)
 
-        it "decode (encode tx) === (validate tx)" $
-            property $ \(SignedTx signedTx) -> do
-                let bytes = try' (runPut $ putSignedTx signedTx)
-                let tx' = try' . unMessage . runGet getMessage =<< bytes
-                tx' === (Right signedTx)
+        it "decode (encode tx) === tx" $ property $
+            \(SignedTx signedTx) -> monadicIO $ liftIO $ do
+                let encode = runPut . putSignedTx
+                let decode = unMessage . runGet getMessage
+                tx' <- try' (decode $ encode signedTx)
+                tx' `shouldBe` (Right signedTx)
   where
     unMessage :: Message -> (Tx, [TxWitness])
     unMessage m = case m of
         Transaction stx -> stx
         _ -> error "expected a Transaction message"
 
-    try' :: a -> Either String a
-    try' = unsafePerformIO
-        . fmap (either (Left . show) Right)
+    try' :: a -> IO (Either String a)
+    try' = fmap (either (Left . show) Right)
         . (try @SomeException) . evaluate
 
 
