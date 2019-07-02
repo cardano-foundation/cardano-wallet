@@ -12,8 +12,14 @@
 -- License: MIT
 --
 -- The format is for the Shelley era as implemented by the Jörmungandr node.
---
 -- It is described [here](https://github.com/input-output-hk/rust-cardano/blob/master/chain-impl-mockchain/doc/format.md)
+--
+-- The module to some extent defines its own Jörmungandr-specific types,
+-- different from "Cardano.Wallet.Primitive.Types". Here, transactions are just
+-- one of many possible 'Message's that can be included in a block.
+--
+-- In some cases it also leads us to /throw exceptions/ when integers would
+-- otherwise overflow (look for uses of 'toEnum').
 
 module Cardano.Wallet.Jormungandr.Binary
     ( Block (..)
@@ -70,7 +76,7 @@ import Cardano.Wallet.Primitive.Types
 import Control.Applicative
     ( many )
 import Control.Monad
-    ( replicateM )
+    ( replicateM, unless )
 import Data.Binary.Get
     ( Get
     , bytesRead
@@ -133,7 +139,7 @@ getBlockHeader = label "getBlockHeader" $
         version <- getWord16be
         contentSize <- getWord32be
         slotEpoch <- fromIntegral <$> getWord32be
-        slotId <- fromIntegral <$> getWord32be
+        slotId <- toEnum . fromEnum <$> getWord32be
         chainLength <- getWord32be
         contentHash <- Hash <$> getByteString 32 -- or 256 bits
         parentHeaderHash <- Hash <$> getByteString 32
@@ -259,9 +265,11 @@ getTransaction = label "getTransaction" $ do
 putSignedTx :: (Tx, [TxWitness]) -> Put
 putSignedTx (tx@(Tx inputs outputs), witnesses) = withSizeHeader16be $ do
     putWord8 2
-    putWord8 $ fromIntegral $ length inputs
-    putWord8 $ fromIntegral $ length outputs
+    putWord8 $ toEnum $ length inputs
+    putWord8 $ toEnum $ length outputs
     putTx tx
+    unless (length inputs == length witnesses) $
+        fail "number of witnesses must equal number of inputs"
     mapM_ putWitness witnesses
   where
     -- Assumes the `TxWitness` has been faithfully constructed
@@ -272,13 +280,17 @@ putSignedTx (tx@(Tx inputs outputs), witnesses) = withSizeHeader16be $ do
 
 putTx :: Tx -> Put
 putTx (Tx inputs outputs) = do
+    unless (length inputs <= fromIntegral (maxBound :: Word8)) $
+        fail "number of inputs cannot be greater than 255"
+    unless (length outputs <= fromIntegral (maxBound :: Word8)) $
+        fail "number of outputs cannot be greater than 255"
     mapM_ putInput inputs
     mapM_ putOutput outputs
   where
     putInput (TxIn inputId inputIx, coin) = do
         -- NOTE: special value 0xff indicates account spending
         -- only old utxo/address scheme supported for now
-        putWord8 $ fromIntegral inputIx
+        putWord8 . toEnum . fromEnum $ inputIx
         putWord64be $ getCoin coin
         putByteString $ getHash inputId
 
@@ -454,7 +466,7 @@ isolatePut l x = do
 withSizeHeader16be :: Put -> Put
 withSizeHeader16be x = do
     let bs = BL.toStrict $ runPut x
-    putWord16be (fromIntegral $ BS.length bs)
+    putWord16be (toEnum $ BS.length bs)
     putByteString bs
 
 {-------------------------------------------------------------------------------

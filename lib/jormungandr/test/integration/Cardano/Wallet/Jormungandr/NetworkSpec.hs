@@ -4,6 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
+
 module Cardano.Wallet.Jormungandr.NetworkSpec
     ( spec
     ) where
@@ -23,7 +24,6 @@ import Cardano.Wallet.Jormungandr.Primitive.Types
 import Cardano.Wallet.Network
     ( ErrGetBlock (..)
     , ErrNetworkTip (..)
-    , ErrPostTx (..)
     , NetworkLayer (..)
     , defaultRetryPolicy
     , waitForConnection
@@ -70,7 +70,6 @@ import Test.Hspec
     , beforeAll
     , describe
     , it
-    , pendingWith
     , shouldBe
     , shouldReturn
     , shouldSatisfy
@@ -81,6 +80,8 @@ import Test.QuickCheck
 
 import qualified Cardano.Wallet.Jormungandr.Network as Jormungandr
 import qualified Data.ByteString as BS
+
+{-# ANN spec ("HLint: ignore Use head" :: String) #-}
 
 spec :: Spec
 spec = do
@@ -169,6 +170,7 @@ spec = do
         $ beforeAll startNode' $ afterAll killNode $ do
 
         it "empty tx succeeds" $ \(_, nw) -> do
+            -- Would be rejected eventually.
             let signedEmpty = (Tx [] [], [])
             runExceptT (postTx nw signedEmpty) `shouldReturn` Right ()
 
@@ -176,13 +178,18 @@ spec = do
             let signed = (txNonEmpty, [pkWitness])
             runExceptT (postTx nw signed) `shouldReturn` Right ()
 
-        it "more inputs than witnesses" $ \(_, nw) -> do
+        it "unbalanced tx (surplus) succeeds" $ \(_, nw) -> do
+            -- Jormungandr will eventually reject txs that are not perfectly
+            -- balanced though.
+            let signed = (unbalancedTx, [pkWitness])
+            runExceptT (postTx nw signed) `shouldReturn` Right ()
+
+        it "more inputs than witnesses - encoder throws" $ \(_, nw) -> do
             let signed = (txNonEmpty, [])
-            let err = Left $ ErrPostTxBadRequest ""
-            runExceptT (postTx nw signed) `shouldReturn` err
+            runExceptT (postTx nw signed) `shouldThrow` someException
 
         it "more witnesses than inputs - fine apparently" $ \(_, nw) -> do
-            -- Becase of how signed txs are encoded:
+            -- Because of how signed txs are encoded:
             -- n                      :: Word8
             -- m                      :: Word8
             -- in_0 .. in_n           :: [TxIn]
@@ -192,9 +199,10 @@ spec = do
             -- this should in practice be like appending bytes to the end of
             -- the message.
             let signed = (txNonEmpty, [pkWitness, pkWitness, pkWitness])
-            runExceptT (postTx nw signed) `shouldReturn` Right ()
+            runExceptT (postTx nw signed) `shouldThrow` someException
 
         it "no input, one output" $ \(_, nw) -> do
+            -- Would be rejected eventually.
             let tx = (Tx []
                     [ (TxOut $ unsafeDecodeAddress proxy
                         "ca1qwunuat6snw60g99ul6qvte98fja\
@@ -203,13 +211,20 @@ spec = do
                     ], [])
             runExceptT (postTx nw tx) `shouldReturn` Right ()
 
-        it "fails when addresses and hashes have wrong length" $ \(_, nw) -> do
-            pendingWith "We need to handle errors in Jormungandr.Binary"
-            let tx = (Tx [] [ TxOut (Address "<not an address>") (Coin 1227362560) ], [])
-            let err = Left $ ErrPostTxBadRequest ""
-            runExceptT (postTx nw tx) `shouldReturn` err
+        it "throws when addresses and hashes have wrong length" $ \(_, nw) -> do
+            let out = TxOut (Address "<not an address>") (Coin 1227362560)
+            let tx = (Tx [] [out] , [])
+            runExceptT (postTx nw tx) `shouldThrow` someException
 
+        it "encoder throws an exception if tx is invalid (eg too many inputs)" $
+            \(_, nw) -> do
+            let inp = head (inputs txNonEmpty)
+            let out = head (outputs txNonEmpty)
+            let tx = (Tx (replicate 300 inp) (replicate 3 out), [])
+            runExceptT (postTx nw tx) `shouldThrow` someException
   where
+    someException = (const True :: SomeException -> Bool)
+
     url :: BaseUrl
     url = BaseUrl Http "localhost" 8081 "/api"
 
@@ -266,6 +281,32 @@ spec = do
                     "ca1qwunuat6snw60g99ul6qvte98fja\
                     \le2k0uu5mrymylqz2ntgzs6vs386wxd"
                 , coin = Coin 1227362560
+                }
+            ]
+        }
+
+    unbalancedTx :: Tx
+    unbalancedTx = Tx
+        { inputs =
+            [ (TxIn
+                { inputId = Hash $ unsafeFromHex
+                    "666984dec4bc0ff1888be97bfe0694a9\
+                    \6b35c58d025405ead51d5cc72a3019f4"
+                , inputIx = 0
+                }, Coin 100)
+            ]
+        , outputs =
+            [ TxOut
+                { address = unsafeDecodeAddress proxy
+                    "ca1q0u7k6ltp3e52pch47rhdkld2gdv\
+                    \gu26rwyqh02csu3ah3384f2nvhlk7a6"
+                , coin = Coin 5
+                }
+            , TxOut
+                { address = unsafeDecodeAddress proxy
+                    "ca1qwunuat6snw60g99ul6qvte98fja\
+                    \le2k0uu5mrymylqz2ntgzs6vs386wxd"
+                , coin = Coin 5
                 }
             ]
         }
