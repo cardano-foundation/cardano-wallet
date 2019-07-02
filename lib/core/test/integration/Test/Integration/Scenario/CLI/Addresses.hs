@@ -33,6 +33,7 @@ import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain )
 import Test.Integration.Framework.DSL
     ( Context (..)
+    , KnownCommand
     , balanceAvailable
     , deleteWalletViaCLI
     , emptyWallet
@@ -51,13 +52,15 @@ import Test.Integration.Framework.TestData
 
 import qualified Data.Text as T
 
-spec :: forall t. (EncodeAddress t, DecodeAddress t) => SpecWith (Context t)
+spec
+    :: forall t. (EncodeAddress t, DecodeAddress t, KnownCommand t)
+    => SpecWith (Context t)
 spec = do
 
     it "ADDRESS_LIST_01 - Can list addresses - default poolGap" $ \ctx -> do
         let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
         walId <- emptyWallet' ctx
-        (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI ctx [walId]
+        (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI @t ctx [walId]
         err `shouldBe` "Ok.\n"
         c `shouldBe` ExitSuccess
         json <- expectValidJSON (Proxy @[ApiAddress t]) out
@@ -69,7 +72,7 @@ spec = do
         let addrPoolGap = 60
         walId <- emptyWalletWith' ctx
                     ("This is Wallet, OK?", "cardano-wallet", addrPoolGap)
-        (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI ctx [walId]
+        (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI @t ctx [walId]
         err `shouldBe` "Ok.\n"
         c `shouldBe` ExitSuccess
         json <- expectValidJSON (Proxy @[ApiAddress t]) out
@@ -81,7 +84,7 @@ spec = do
         let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
         walId <- fixtureWallet' ctx
         (Exit c1, Stdout o1, Stderr e1)
-            <- listAddressesViaCLI ctx ["--state", "used", walId]
+            <- listAddressesViaCLI @t ctx ["--state", "used", walId]
         e1 `shouldBe` "Ok.\n"
         c1 `shouldBe` ExitSuccess
         j1 <- expectValidJSON (Proxy @[ApiAddress t]) o1
@@ -89,7 +92,7 @@ spec = do
         forM_ [0..9] $ \addrNum -> do
             expectCliListItemFieldEqual addrNum state Used j1
         (Exit c2, Stdout o2, Stderr e2)
-            <- listAddressesViaCLI ctx ["--state", "unused", walId]
+            <- listAddressesViaCLI @t ctx ["--state", "unused", walId]
         e2 `shouldBe` "Ok.\n"
         c2 `shouldBe` ExitSuccess
         j2 <- expectValidJSON (Proxy @[ApiAddress t]) o2
@@ -101,14 +104,14 @@ spec = do
         $ \ctx -> do
         walId <- emptyWallet' ctx
         (Exit c1, Stdout o1, Stderr e1)
-            <- listAddressesViaCLI ctx ["--state", "used", walId]
+            <- listAddressesViaCLI @t ctx ["--state", "used", walId]
         e1 `shouldBe` "Ok.\n"
         c1 `shouldBe` ExitSuccess
         j1 <- expectValidJSON (Proxy @[ApiAddress t]) o1
         length j1 `shouldBe` 0
 
         (Exit c2, Stdout o2, Stderr e2)
-            <- listAddressesViaCLI ctx ["--state", "unused", walId]
+            <- listAddressesViaCLI @t ctx ["--state", "unused", walId]
         e2 `shouldBe` "Ok.\n"
         c2 `shouldBe` ExitSuccess
         j2 <- expectValidJSON (Proxy @[ApiAddress t]) o2
@@ -131,7 +134,7 @@ spec = do
         forM_ filters $ \fil -> it ("--state=" <> fil) $ \ctx -> do
             walId <- emptyWallet' ctx
             (Exit c, Stdout o, Stderr e)
-                <- listAddressesViaCLI ctx ["--state", fil, walId]
+                <- listAddressesViaCLI @t ctx ["--state", fil, walId]
             let err = "Unable to decode the given value: \"" <> fil <> "\". Please\
                     \ specify one of the following values: used, unused."
             e `shouldContain` err
@@ -145,7 +148,7 @@ spec = do
         let widDest = T.unpack $ wDest ^. walletId
 
         -- make sure all addresses in address_pool_gap are 'Unused'
-        (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI ctx [widDest]
+        (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI @t ctx [widDest]
         e `shouldBe` "Ok.\n"
         c `shouldBe` ExitSuccess
         j <- expectValidJSON (Proxy @[ApiAddress t]) o
@@ -157,14 +160,14 @@ spec = do
         forM_ [0..initPoolGap - 1] $ \addrNum -> do
             let dest = encodeAddress (Proxy @t) (getApiT $ fst $ (j !! addrNum) ^. #id)
             let args = [wSrc, "--payment" , T.unpack $ "1@" <> dest]
-            (cTx, _, _) <- postTransactionViaCLI ctx "cardano-wallet" args
+            (cTx, _, _) <- postTransactionViaCLI @t ctx "cardano-wallet" args
             cTx `shouldBe` ExitSuccess
 
         -- make sure all transactions are in ledger
         expectEventually' ctx balanceAvailable 10 wDest
 
         -- verify new address_pool_gap has been created
-        (Exit c1, Stdout o1, Stderr e1) <- listAddressesViaCLI ctx [widDest]
+        (Exit c1, Stdout o1, Stderr e1) <- listAddressesViaCLI @t ctx [widDest]
         e1 `shouldBe` "Ok.\n"
         c1 `shouldBe` ExitSuccess
         j1 <- expectValidJSON (Proxy @[ApiAddress t]) o1
@@ -176,7 +179,7 @@ spec = do
 
     describe "ADDRESS_LIST_04 - False wallet ids" $ do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
-            (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI ctx [walId]
+            (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI @t ctx [walId]
             o `shouldBe` ""
             c `shouldBe` ExitFailure 1
             if (title == "40 chars hex") then
@@ -188,7 +191,7 @@ spec = do
 
     it "ADDRESS_LIST_04 - 'almost' valid walletId" $ \ctx -> do
         wid <- emptyWallet' ctx
-        (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI ctx [wid ++ "0"]
+        (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI @t ctx [wid ++ "0"]
         e `shouldContain`
             "wallet id should be an hex-encoded string of 40 characters"
         o `shouldBe` ""
@@ -196,10 +199,10 @@ spec = do
 
     it "ADDRESS_LIST_04 - Deleted wallet" $ \ctx -> do
         wid <- emptyWallet' ctx
-        Exit d <- deleteWalletViaCLI ctx wid
+        Exit d <- deleteWalletViaCLI @t ctx wid
         d `shouldBe` ExitSuccess
 
-        (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI ctx [wid]
+        (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI @t ctx [wid]
         e `shouldContain` errMsg404NoWallet (T.pack wid)
         o `shouldBe` ""
         c `shouldBe` ExitFailure 1

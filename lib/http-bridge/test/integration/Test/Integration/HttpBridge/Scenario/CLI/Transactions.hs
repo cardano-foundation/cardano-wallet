@@ -26,6 +26,7 @@ import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain )
 import Test.Integration.Framework.DSL
     ( Context (..)
+    , KnownCommand
     , emptyWallet
     , fixtureWallet
     , listAddresses
@@ -37,7 +38,9 @@ import Test.Integration.Framework.TestData
 
 import qualified Data.Text as T
 
-spec :: forall t. (EncodeAddress t, DecodeAddress t) => SpecWith (Context t)
+spec
+    :: forall t.(EncodeAddress t, DecodeAddress t, KnownCommand t)
+    => SpecWith (Context t)
 spec = do
     it "TRANS_CREATE_09 - 0 amount transaction is forbidden on single output tx" $ \ctx -> do
         wSrc <- fixtureWallet ctx
@@ -51,7 +54,7 @@ spec = do
                 , "--payment", amt <> "@" <> addr
                 ]
 
-        (c, out, err) <- postTransactionViaCLI ctx "cardano-wallet" args
+        (c, out, err) <- postTransactionViaCLI @t ctx "cardano-wallet" args
         (T.unpack err) `shouldContain` errMsg403InvalidTransaction
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
@@ -70,7 +73,7 @@ spec = do
                 , "--payment", "15@" <> addr2
                 ]
 
-        (c, out, err) <- postTransactionViaCLI ctx "cardano-wallet" args
+        (c, out, err) <- postTransactionViaCLI @t ctx "cardano-wallet" args
         (T.unpack err) `shouldContain` errMsg403InvalidTransaction
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1

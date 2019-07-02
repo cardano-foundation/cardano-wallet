@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -29,18 +30,14 @@ import System.Exit
 import System.IO
     ( hClose, hFlush, hPutStr )
 import System.Process
-    ( CreateProcess (..)
-    , StdStream (..)
-    , proc
-    , waitForProcess
-    , withCreateProcess
-    )
+    ( waitForProcess, withCreateProcess )
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain, shouldNotBe, shouldNotContain )
 import Test.Integration.Framework.DSL
-    ( cardanoWalletCLI
+    ( KnownCommand (..)
+    , cardanoWalletCLI
     , createWalletViaCLI
     , deleteWalletViaCLI
     , generateMnemonicsViaCLI
@@ -48,13 +45,15 @@ import Test.Integration.Framework.DSL
     , listAddressesViaCLI
     , listWalletsViaCLI
     , postTransactionViaCLI
+    , proc'
     , updateWalletViaCLI
     )
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
-specNegative :: SpecWith ()
+specNegative
+    :: forall t. KnownCommand t => SpecWith ()
 specNegative =
     describe "PORT_04 - Fail nicely when port is out-of-bounds" $ do
         let tests =
@@ -69,7 +68,7 @@ specNegative =
                 ]
         forM_ tests $ \(cmd, opt, port) -> let args = [cmd, opt, show port] in
             it (unwords args) $ do
-                (exit, Stdout (_ :: String), Stderr err) <- cardanoWalletCLI args
+                (exit, Stdout (_ :: String), Stderr err) <- cardanoWalletCLI @t args
                 exit `shouldBe` ExitFailure 1
                 err `shouldContain`
                     (  "expected a TCP port number between "
@@ -78,42 +77,44 @@ specNegative =
                     <> show (getPort maxBound)
                     )
 
-specCommon :: HasType Port s => SpecWith s
+specCommon
+    :: forall t s. (HasType Port s, KnownCommand t)
+    => SpecWith s
 specCommon = do
     it "PORT_01 - Can't reach server with wrong port (wallet list)" $ \ctx -> do
         let ctx' = over (typed @Port) (+1) ctx
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            listWalletsViaCLI ctx'
+            listWalletsViaCLI @t ctx'
         err `shouldContain` errConnectionRefused
 
     it "PORT_01 - Can't reach server with wrong port (wallet create)" $ \ctx -> do
         let ctx' = over (typed @Port) (+1) ctx
         let name = "Wallet created via CLI"
-        Stdout mnemonics <- generateMnemonicsViaCLI ["--size", "15"]
+        Stdout mnemonics <- generateMnemonicsViaCLI @t ["--size", "15"]
         let pwd = "Secure passphrase"
         (_ :: ExitCode, _, err) <-
-            createWalletViaCLI ctx' [name] mnemonics "\n" pwd
+            createWalletViaCLI @t ctx' [name] mnemonics "\n" pwd
         T.unpack err `shouldContain` errConnectionRefused
 
     it "PORT_01 - Can't reach server with wrong port (wallet get)" $ \ctx -> do
         let ctx' = over (typed @Port) (+1) ctx
         let wid = replicate 40 '0'
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            getWalletViaCLI ctx' wid
+            getWalletViaCLI @t ctx' wid
         err `shouldContain` errConnectionRefused
 
     it "PORT_01 - Can't reach server with wrong port (wallet delete)" $ \ctx -> do
         let ctx' = over (typed @Port) (+1) ctx
         let wid = replicate 40 '0'
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            deleteWalletViaCLI ctx' wid
+            deleteWalletViaCLI @t ctx' wid
         err `shouldContain` errConnectionRefused
 
     it "PORT_01 - Can't reach server with wrong port (wallet update)" $ \ctx -> do
         let ctx' = over (typed @Port) (+1) ctx
         let wid = replicate 40 '0'
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            updateWalletViaCLI ctx' [wid, "--name", "My Wallet"]
+            updateWalletViaCLI @t ctx' [wid, "--name", "My Wallet"]
         err `shouldContain` errConnectionRefused
 
     it "PORT_01 - Can't reach server with wrong port (transction create)" $ \ctx -> do
@@ -122,7 +123,7 @@ specCommon = do
                 "37btjrVyb4KFjfnPUjgDKLiATLxgwBbeMAEr4vxgkq4Ea5nR6evtX99x2\
                 \QFcF8ApLM4aqCLGvhHQyRJ4JHk4zVKxNeEtTJaPCeB86LndU2YvKUTEEm"
         (_ :: ExitCode, _, err) <-
-            postTransactionViaCLI ctx' passphrase
+            postTransactionViaCLI @t ctx' passphrase
                 [ replicate 40 '0'
                 , "--payment", "14@" <> addr
                 ]
@@ -132,23 +133,23 @@ specCommon = do
         let ctx' = over (typed @Port) (+1) ctx
         let wid = replicate 40 '0'
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            listAddressesViaCLI ctx' [wid]
+            listAddressesViaCLI @t ctx' [wid]
         err `shouldContain` errConnectionRefused
 
 specWithDefaultPort
-    :: SpecWith s
+    :: forall t s. (HasType Port s, KnownCommand t)
+    => SpecWith s
 specWithDefaultPort = do
     it "PORT_02 - Can omit --port when server uses default port (wallet list)" $ \_ -> do
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            cardanoWalletCLI ["wallet", "list"]
+            cardanoWalletCLI @t ["wallet", "list"]
         err `shouldNotContain` errConnectionRefused
 
     it "PORT_02 - Can omit --port when server uses default port (wallet create)" $ \_ -> do
-        let args = ["exec", "--", "cardano-wallet", "wallet", "create", "myWallet"]
-        Stdout mnemonics <- generateMnemonicsViaCLI ["--size", "15"]
+        let args = ["wallet", "create", "myWallet"]
+        Stdout mnemonics <- generateMnemonicsViaCLI @t ["--size", "15"]
         let pwd = "Secure passphrase"
-        let process = (proc "stack" args)
-                { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
+        let process = proc' (commandName @t) args
         withCreateProcess process $ \(Just stdin) (Just _) (Just stderr) h -> do
             hPutStr stdin mnemonics
             hPutStr stdin "\n"
@@ -163,19 +164,19 @@ specWithDefaultPort = do
     it "PORT_02 - Can omit --port when server uses default port (wallet get)" $ \_ -> do
         let wid = replicate 40 '0'
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            cardanoWalletCLI ["wallet", "get", wid]
+            cardanoWalletCLI @t ["wallet", "get", wid]
         err `shouldNotContain` errConnectionRefused
 
     it "PORT_02 - Can omit --port when server uses default port (wallet delete)" $ \_ -> do
         let wid = replicate 40 '0'
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            cardanoWalletCLI ["wallet", "delete", wid]
+            cardanoWalletCLI @t ["wallet", "delete", wid]
         err `shouldNotContain` errConnectionRefused
 
     it "PORT_02 - Can omit --port when server uses default port (wallet update)" $ \_ -> do
         let wid = replicate 40 '0'
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            cardanoWalletCLI ["wallet", "update", wid, "--name", "My Wallet"]
+            cardanoWalletCLI @t ["wallet", "update", wid, "--name", "My Wallet"]
         err `shouldNotContain` errConnectionRefused
 
     it "PORT_02 - Can omit --port when server uses default port (transaction create)" $ \_ -> do
@@ -183,11 +184,10 @@ specWithDefaultPort = do
                 "37btjrVyb4KFjfnPUjgDKLiATLxgwBbeMAEr4vxgkq4Ea5nR6evtX99x2\
                 \QFcF8ApLM4aqCLGvhHQyRJ4JHk4zVKxNeEtTJaPCeB86LndU2YvKUTEEm"
         let args =
-                [ "exec", "--", "cardano-wallet", "transaction", "create"
+                [ "transaction", "create"
                 , replicate 40 '0' , "--payment", "14@" <> addr
                 ]
-        let process = (proc "stack" args)
-                { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
+        let process = proc' (commandName @t) args
         withCreateProcess process $ \(Just stdin) (Just _) (Just stderr) h -> do
             hPutStr stdin (passphrase ++ "\n")
             hFlush stdin
@@ -199,11 +199,11 @@ specWithDefaultPort = do
     it "PORT_02 - Can omit --port when server uses default port (address list)" $ \_ -> do
         let wid = replicate 40 '0'
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            cardanoWalletCLI ["address", "list", wid]
+            cardanoWalletCLI @t ["address", "list", wid]
         err `shouldNotContain` errConnectionRefused
 
 specWithRandomPort
-    :: HasType Port s
+    :: forall t s. (HasType Port s, KnownCommand t)
     => Port
     -> SpecWith s
 specWithRandomPort defaultPort = do
@@ -213,15 +213,14 @@ specWithRandomPort defaultPort = do
 
     it "PORT_03 - Cannot omit --port when server uses random port (wallet list)" $ \_ -> do
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            cardanoWalletCLI ["wallet", "list"]
+            cardanoWalletCLI @t ["wallet", "list"]
         err `shouldContain` errConnectionRefused
 
     it "PORT_03 - Cannot omit --port when server uses random port (wallet create)" $ \_ -> do
-        let args = ["exec", "--", "cardano-wallet", "wallet", "create", "myWallet"]
-        Stdout mnemonics <- generateMnemonicsViaCLI ["--size", "15"]
+        let args = ["wallet", "create", "myWallet"]
+        Stdout mnemonics <- generateMnemonicsViaCLI @t ["--size", "15"]
         let pwd = "Secure passphrase"
-        let process = (proc "stack" args)
-                { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
+        let process = proc' (commandName @t) args
         withCreateProcess process $ \(Just stdin) (Just _) (Just stderr) h -> do
             hPutStr stdin mnemonics
             hPutStr stdin "\n"
@@ -236,19 +235,19 @@ specWithRandomPort defaultPort = do
     it "PORT_03 - Cannot omit --port when server uses random port (wallet get)" $ \_ -> do
         let wid = replicate 40 '0'
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            cardanoWalletCLI ["wallet", "get", wid]
+            cardanoWalletCLI @t ["wallet", "get", wid]
         err `shouldContain` errConnectionRefused
 
     it "PORT_03 - Cannot omit --port when server uses random port (wallet delete)" $ \_ -> do
         let wid = replicate 40 '0'
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            cardanoWalletCLI ["wallet", "delete", wid]
+            cardanoWalletCLI @t ["wallet", "delete", wid]
         err `shouldContain` errConnectionRefused
 
     it "PORT_03 - Cannot omit --port when server uses random port (wallet update)" $ \_ -> do
         let wid = replicate 40 '0'
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            cardanoWalletCLI ["wallet", "update", wid, "--name", "My Wallet"]
+            cardanoWalletCLI @t ["wallet", "update", wid, "--name", "My Wallet"]
         err `shouldContain` errConnectionRefused
 
     it "PORT_03 - Cannot omit --port when server uses random port (transaction create)" $ \_ -> do
@@ -256,11 +255,10 @@ specWithRandomPort defaultPort = do
                 "37btjrVyb4KFjfnPUjgDKLiATLxgwBbeMAEr4vxgkq4Ea5nR6evtX99x2\
                 \QFcF8ApLM4aqCLGvhHQyRJ4JHk4zVKxNeEtTJaPCeB86LndU2YvKUTEEm"
         let args =
-                [ "exec", "--", "cardano-wallet", "transaction", "create"
+                [ "transaction", "create"
                 , replicate 40 '0' , "--payment", "14@" <> addr
                 ]
-        let process = (proc "stack" args)
-                { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
+        let process = proc' (commandName @t) args
         withCreateProcess process $ \(Just stdin) (Just _) (Just stderr) h -> do
             hPutStr stdin (passphrase ++ "\n")
             hFlush stdin
@@ -272,7 +270,7 @@ specWithRandomPort defaultPort = do
     it "PORT_03 - Cannot omit --port when server uses random port (address list)" $ \_ -> do
         let wid = replicate 40 '0'
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            cardanoWalletCLI ["address", "list", wid]
+            cardanoWalletCLI @t ["address", "list", wid]
         err `shouldContain` errConnectionRefused
 
 {-------------------------------------------------------------------------------

@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE KindSignatures #-}
@@ -13,6 +14,7 @@
 
 module Test.Integration.Framework.DSL
     ( Context(..)
+    , KnownCommand(..)
     , TxDescription(..)
 
     -- * Steps
@@ -716,7 +718,7 @@ tearDown ctx = do
 
 -- | Wait a booting wallet server to has started. Wait up to 30s or fail.
 waitForServer
-    :: (HasType Port ctx)
+    :: forall t ctx. (HasType Port ctx, KnownCommand t)
     => ctx
     -> IO ()
 waitForServer ctx = void $ retrying
@@ -726,7 +728,7 @@ waitForServer ctx = void $ retrying
     -- if we don't, the library defaults to `stdout` and `stderr` which can get
     -- quite noisy.
     (\_ (e, _ :: Stderr, _ :: Stdout) -> pure $ e == ExitFailure 1)
-    (const $ listWalletsViaCLI ctx)
+    (const $ listWalletsViaCLI @t ctx)
   where
     oneSecond = 1000000
 
@@ -802,18 +804,28 @@ updateWalletPassEp w =
 --- CLI
 ---
 
+-- | A class to select the right command for a given 'Context t'
+class KnownCommand t where
+    commandName :: String
+
 -- | Run a command using the 'cardano-wallet' executable. We run it through
 -- stack as we intend to also get code-coverage from running these commands!
-cardanoWalletCLI :: CmdResult r => [String] -> IO r
+cardanoWalletCLI
+    :: forall t r. (CmdResult r, KnownCommand t)
+    => [String]
+    -> IO r
 cardanoWalletCLI args = command [] "stack"
-    (["exec", "--", "cardano-wallet"] ++ args)
+    (["exec", "--", commandName @t] ++ args)
 
-generateMnemonicsViaCLI :: CmdResult r => [String] -> IO r
-generateMnemonicsViaCLI args = cardanoWalletCLI
+generateMnemonicsViaCLI
+    :: forall t r. (CmdResult r, KnownCommand t)
+    => [String]
+    -> IO r
+generateMnemonicsViaCLI args = cardanoWalletCLI @t
     (["mnemonic", "generate"] ++ args)
 
 createWalletViaCLI
-    :: HasType Port s
+    :: forall t s. (HasType Port s, KnownCommand t)
     => s
     -> [String]
     -> String
@@ -825,7 +837,7 @@ createWalletViaCLI ctx args mnemonics secondFactor passphrase = do
             [ "--port", show (ctx ^. typed @Port) ]
     let fullArgs =
             [ "wallet", "create" ] ++ portArgs ++ args
-    let process = proc' "cardano-wallet" fullArgs
+    let process = proc' (commandName @t) fullArgs
     withCreateProcess process $ \(Just stdin) (Just stdout) (Just stderr) h -> do
         hPutStr stdin mnemonics
         hPutStr stdin secondFactor
@@ -838,28 +850,47 @@ createWalletViaCLI ctx args mnemonics secondFactor passphrase = do
         err <- TIO.hGetContents stderr
         return (c, T.unpack out, err)
 
-deleteWalletViaCLI :: (CmdResult r, HasType Port s) => s -> String -> IO r
-deleteWalletViaCLI ctx walId = cardanoWalletCLI
+deleteWalletViaCLI
+    :: forall t r s. (CmdResult r, KnownCommand t, HasType Port s)
+    => s
+    -> String
+    -> IO r
+deleteWalletViaCLI ctx walId = cardanoWalletCLI @t
     ["wallet", "delete", "--port", show (ctx ^. typed @Port), walId ]
 
-getWalletViaCLI :: (CmdResult r, HasType Port s) => s -> String -> IO r
-getWalletViaCLI ctx walId = cardanoWalletCLI
+getWalletViaCLI
+    :: forall t r s. (CmdResult r, KnownCommand t, HasType Port s)
+    => s
+    -> String
+    -> IO r
+getWalletViaCLI ctx walId = cardanoWalletCLI @t
     ["wallet", "get", "--port", show (ctx ^. typed @Port) , walId ]
 
-listAddressesViaCLI :: (CmdResult r, HasType Port s) => s -> [String] -> IO r
-listAddressesViaCLI ctx args = cardanoWalletCLI
+listAddressesViaCLI
+    :: forall t r s. (CmdResult r, KnownCommand t, HasType Port s)
+    => s
+    -> [String]
+    -> IO r
+listAddressesViaCLI ctx args = cardanoWalletCLI @t
     (["address", "list", "--port", show (ctx ^. typed @Port)] ++ args)
 
-listWalletsViaCLI :: (CmdResult r, HasType Port s) => s -> IO r
-listWalletsViaCLI ctx = cardanoWalletCLI
+listWalletsViaCLI
+    :: forall t r s. (CmdResult r, KnownCommand t, HasType Port s)
+    => s
+    -> IO r
+listWalletsViaCLI ctx = cardanoWalletCLI @t
     ["wallet", "list", "--port", show (ctx ^. typed @Port) ]
 
-updateWalletViaCLI :: (CmdResult r, HasType Port s) => s -> [String] -> IO r
-updateWalletViaCLI ctx args = cardanoWalletCLI
+updateWalletViaCLI
+    :: forall t r s. (CmdResult r, KnownCommand t, HasType Port s)
+    => s
+    -> [String]
+    -> IO r
+updateWalletViaCLI ctx args = cardanoWalletCLI @t
     (["wallet", "update", "--port", show (ctx ^. typed @Port)] ++ args)
 
 postTransactionViaCLI
-    :: HasType Port s
+    :: forall t s. (HasType Port s, KnownCommand t)
     => s
     -> String
     -> [String]
@@ -869,7 +900,7 @@ postTransactionViaCLI ctx passphrase args = do
             ["--port", show (ctx ^. typed @Port)]
     let fullArgs =
             ["transaction", "create"] ++ portArgs ++ args
-    let process = proc' "cardano-wallet" fullArgs
+    let process = proc' (commandName @t) fullArgs
     withCreateProcess process $ \(Just stdin) (Just stdout) (Just stderr) h -> do
         hPutStr stdin (passphrase ++ "\n")
         hFlush stdin
@@ -882,10 +913,10 @@ postTransactionViaCLI ctx passphrase args = do
 -- There is a dependency cycle in the packages.
 --
 -- cardano-wallet-launcher depends on cardano-wallet-http-bridge so that it can
--- import the HttpBridge module.
+-- import the HttpBridge module (resp. with jormungandr).
 --
--- This package (cardano-wallet-http-bridge) should have
--- build-tool-depends: cardano-wallet:cardano-wallet-launcher so that it can
+-- These packages (cardano-wallet-http-bridge, cardano-wallet-jormungandr) should
+-- have build-tool-depends: cardano-wallet:cardano-wallet-launcher so that it can
 -- run launcher in the tests. But that dependency can't be expressed in the
 -- cabal file, because otherwise there would be a cycle.
 --
