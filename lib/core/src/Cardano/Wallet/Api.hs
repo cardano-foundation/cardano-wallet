@@ -109,6 +109,7 @@ type PutWalletPassphrase = "wallets"
 
 type Transactions t =
     CreateTransaction t
+    :<|> ListTransactions t
     :<|> PostTransactionFee t
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransaction
@@ -118,7 +119,6 @@ type CreateTransaction t = "wallets"
     :> ReqBody '[JSON] (PostTransactionData t)
     :> PostAccepted '[JSON] (ApiTransaction t)
 
-
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransactionFee
 type PostTransactionFee t = "wallets"
     :> Capture "walletId" (ApiT WalletId)
@@ -126,6 +126,12 @@ type PostTransactionFee t = "wallets"
     :> "fees"
     :> ReqBody '[JSON] (PostTransactionFeeData t)
     :> PostAccepted '[JSON] ApiFee
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listTransaction
+type ListTransactions t = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "transactions"
+    :> Get '[JSON] [ApiTransaction t]
 
 {-------------------------------------------------------------------------------
                                    Internals

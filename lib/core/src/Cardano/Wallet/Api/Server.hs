@@ -374,6 +374,7 @@ transactions
     -> Server (Transactions t)
 transactions w =
     createTransaction w
+    :<|> listTransactions w
     :<|> postTransactionFee w
 
 createTransaction
@@ -405,6 +406,13 @@ createTransaction w (ApiT wid) body = do
     coerceTxOut (TxOut addr (Coin c)) =
         AddressAmount (ApiT addr, Proxy @t) (Quantity $ fromIntegral c)
 
+listTransactions
+    :: WalletLayer (SeqState t) t
+    -> ApiT WalletId
+    -> Handler [ApiTransaction t]
+listTransactions _w (ApiT _wid) = do
+    return []
+
 coerceCoin :: AddressAmount t -> TxOut
 coerceCoin (AddressAmount (ApiT addr, _) (Quantity c)) =
     TxOut addr (Coin $ fromIntegral c)
@@ -423,7 +431,6 @@ postTransactionFee w (ApiT wid) body = do
     return ApiFee
         { amount = Quantity (fromIntegral fee)
         }
-
 
 {-------------------------------------------------------------------------------
                                 Error Handling
