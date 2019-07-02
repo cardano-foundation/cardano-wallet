@@ -36,11 +36,7 @@ library
     , bytestring
     , cardano-wallet-core
     , cardano-wallet-launcher
-    , directory
-    , docopt
-    , filepath
     , fmt
-    , heredoc
     , http-client
     , iohk-monitoring
     , servant-client
@@ -71,7 +67,6 @@ test-suite unit
       base
     , cardano-wallet-cli
     , hspec
-    , iohk-monitoring
     , QuickCheck
     , text
     , text-class

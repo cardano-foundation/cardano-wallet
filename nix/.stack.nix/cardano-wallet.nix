@@ -26,7 +26,6 @@
             (hsPkgs.cardano-wallet-http-bridge)
             (hsPkgs.cardano-wallet-launcher)
             (hsPkgs.filepath)
-            (hsPkgs.http-client)
             (hsPkgs.iohk-monitoring)
             (hsPkgs.optparse-applicative)
             (hsPkgs.process)
