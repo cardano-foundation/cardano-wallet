@@ -69,7 +69,7 @@ import Data.Word
 import GHC.Generics
     ( Generic )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldThrow )
+    ( Spec, describe, expectationFailure, it, shouldBe, shouldThrow )
 import Test.QuickCheck
     ( Arbitrary (..), Gen, choose, oneof, property, shrinkList, vectorOf )
 import Test.QuickCheck.Arbitrary.Generic
@@ -240,14 +240,21 @@ spec = do
                 let encode = runPut . putAddress
                 let decode = runGet getAddress
                 addr' <- try' (decode $ encode addr)
-                addr' `shouldBe` (Right addr)
+                if addr' == Right addr
+                then return ()
+                else expectationFailure $
+                    "addr /= decode (encode addr) == " ++ show addr'
 
         it "decode (encode tx) === tx" $ property $
             \(SignedTx signedTx) -> monadicIO $ liftIO $ do
                 let encode = runPut . putSignedTx
                 let decode = unMessage . runGet getMessage
                 tx' <- try' (decode $ encode signedTx)
-                tx' `shouldBe` (Right signedTx)
+                if tx' == Right signedTx
+                then return ()
+                else expectationFailure $
+                    "tx /= decode (encode tx) == " ++ show tx'
+
   where
     unMessage :: Message -> (Tx, [TxWitness])
     unMessage m = case m of
