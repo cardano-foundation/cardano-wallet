@@ -3,7 +3,7 @@
     flags = { development = false; };
     package = {
       specVersion = "1.10";
-      identifier = { name = "cardano-wallet"; version = "2019.6.24"; };
+      identifier = { name = "cardano-wallet"; version = "2019.7.2"; };
       license = "MIT";
       copyright = "2019 IOHK";
       maintainer = "operations@iohk.io";
