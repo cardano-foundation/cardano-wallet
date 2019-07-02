@@ -92,6 +92,7 @@ import qualified Data.Aeson.Types as Aeson
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Test.Integration.HttpBridge.Scenario.API.Transactions as TransactionsBridge
+import qualified Test.Integration.HttpBridge.Scenario.CLI.Server as ServerCLI
 import qualified Test.Integration.HttpBridge.Scenario.CLI.Transactions as TransactionsCLIBridge
 import qualified Test.Integration.Scenario.API.Addresses as Addresses
 import qualified Test.Integration.Scenario.API.Transactions as Transactions
@@ -99,7 +100,6 @@ import qualified Test.Integration.Scenario.API.Wallets as Wallets
 import qualified Test.Integration.Scenario.CLI.Addresses as AddressesCLI
 import qualified Test.Integration.Scenario.CLI.Mnemonics as MnemonicsCLI
 import qualified Test.Integration.Scenario.CLI.Port as PortCLI
-import qualified Test.Integration.Scenario.CLI.Server as ServerCLI
 import qualified Test.Integration.Scenario.CLI.Transactions as TransactionsCLI
 import qualified Test.Integration.Scenario.CLI.Wallets as WalletsCLI
 

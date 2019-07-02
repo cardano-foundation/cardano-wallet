@@ -175,7 +175,7 @@ test-suite integration
       Test.Integration.Scenario.API.Wallets
       Test.Integration.Scenario.CLI.Addresses
       Test.Integration.Scenario.CLI.Mnemonics
-      Test.Integration.Scenario.CLI.Server
       Test.Integration.Scenario.CLI.Transactions
       Test.Integration.Scenario.CLI.Wallets
       Test.Integration.Scenario.CLI.Port
+      Test.Integration.Jormungandr.Scenario.CLI.Server
