@@ -67,6 +67,7 @@ import System.Directory
 import Test.Hspec
     ( Spec
     , afterAll
+    , anyException
     , beforeAll
     , describe
     , it
@@ -186,7 +187,7 @@ spec = do
 
         it "more inputs than witnesses - encoder throws" $ \(_, nw) -> do
             let signed = (txNonEmpty, [])
-            runExceptT (postTx nw signed) `shouldThrow` someException
+            runExceptT (postTx nw signed) `shouldThrow` anyException
 
         it "more witnesses than inputs - fine apparently" $ \(_, nw) -> do
             -- Because of how signed txs are encoded:
@@ -199,7 +200,7 @@ spec = do
             -- this should in practice be like appending bytes to the end of
             -- the message.
             let signed = (txNonEmpty, [pkWitness, pkWitness, pkWitness])
-            runExceptT (postTx nw signed) `shouldThrow` someException
+            runExceptT (postTx nw signed) `shouldThrow` anyException
 
         it "no input, one output" $ \(_, nw) -> do
             -- Would be rejected eventually.
@@ -214,17 +215,15 @@ spec = do
         it "throws when addresses and hashes have wrong length" $ \(_, nw) -> do
             let out = TxOut (Address "<not an address>") (Coin 1227362560)
             let tx = (Tx [] [out] , [])
-            runExceptT (postTx nw tx) `shouldThrow` someException
+            runExceptT (postTx nw tx) `shouldThrow` anyException
 
         it "encoder throws an exception if tx is invalid (eg too many inputs)" $
             \(_, nw) -> do
             let inp = head (inputs txNonEmpty)
             let out = head (outputs txNonEmpty)
             let tx = (Tx (replicate 300 inp) (replicate 3 out), [])
-            runExceptT (postTx nw tx) `shouldThrow` someException
+            runExceptT (postTx nw tx) `shouldThrow` anyException
   where
-    someException = (const True :: SomeException -> Bool)
-
     url :: BaseUrl
     url = BaseUrl Http "localhost" 8081 "/api"
 
