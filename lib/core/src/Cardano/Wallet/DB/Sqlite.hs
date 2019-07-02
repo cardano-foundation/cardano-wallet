@@ -183,7 +183,7 @@ startSqliteBackend logConfig trace fp = do
     let runQuery' :: SqlPersistM a -> IO a
         runQuery' cmd = withMVar lock $ const $ observe $ runQuery backend cmd
         observe :: IO a -> IO a
-        observe = bracketObserveIO logConfig traceQuery Debug "runQuery"
+        observe = bracketObserveIO logConfig traceQuery Debug "query"
 
     migrations <- runQuery' $ runMigrationSilent migrateAll
     dbLog trace $ MsgMigrations (length migrations)
