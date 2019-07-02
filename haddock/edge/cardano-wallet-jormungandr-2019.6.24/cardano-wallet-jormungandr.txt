@@ -72,9 +72,15 @@ instance Formatting.Buildable.Buildable Cardano.Wallet.Jormungandr.Primitive.Typ
 
 
 -- | The format is for the Shelley era as implemented by the Jörmungandr
---   node.
+--   node. It is described <a>here</a>
 --   
---   It is described <a>here</a>
+--   The module to some extent defines its own Jörmungandr-specific types,
+--   different from <a>Cardano.Wallet.Primitive.Types</a>. Here,
+--   transactions are just one of many possible <a>Message</a>s that can be
+--   included in a block.
+--   
+--   In some cases it also leads us to <i>throw exceptions</i> when
+--   integers would otherwise overflow (look for uses of <a>toEnum</a>).
 module Cardano.Wallet.Jormungandr.Binary
 data Block
 Block :: BlockHeader -> [Message] -> Block
