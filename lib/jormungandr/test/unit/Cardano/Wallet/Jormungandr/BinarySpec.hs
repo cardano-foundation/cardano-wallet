@@ -73,10 +73,10 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
-    , Positive (..)
     , choose
     , oneof
     , property
+    , shrinkList
     , vectorOf
     , (===)
     )
@@ -321,24 +321,19 @@ instance Arbitrary SignedTx where
     shrink (SignedTx (Tx ins outs, wits)) =
         [SignedTx (Tx ins' outs, wits')
         | (ins', wits') <- unzip <$> shrinkList' (zip ins wits)] ++
-        [SignedTx (Tx ins outs', wits) | outs' <- shrinkList' outs ] ++
-        [ SignedTx (Tx ins' outs', wits')
-        | outs' <- shrinkAllOneStep shrink outs
-        , ins' <- shrinkAllOneStep shrink ins
-        , wits' <- shrinkAllOneStep shrink wits]
+        [SignedTx (Tx ins outs', wits) | outs' <- shrinkList' outs ]
 
       where
-        -- Shrink one step for each element in a list.
-        -- This is a very crude, unreliable way to do shrinking,
-        -- but it seems better than nothing.
-        shrinkAllOneStep :: (a -> [a]) -> [a] -> [[a]]
-        shrinkAllOneStep f l = maybe [] return $ foldl (\xs x ->
-            case f x of
-                (x':_) -> (x':) <$> xs
-                (_) -> Nothing
-            ) (Just []) l
-        shrinkList' xs  = filter (not . null)
-            [ take n xs | Positive n <- shrink (Positive $ length xs) ]
+        shrinkList' xs  =
+            (shrinkHeadAndReplicate shrink xs) ++
+            (shrinkList shrink xs)
+
+        -- Try shrinking the 'head' of the list and replace the elements in
+        -- the 'tail' with the exact same element. If the failure is related
+        -- to the size of the list, this makes the shrinking much faster.
+        shrinkHeadAndReplicate f (x:xs) =
+            (\x' -> x':(map (const x') xs)) <$> f x
+        shrinkHeadAndReplicate _f [] = []
 
 -- | Only generates single address witnesses
 instance Arbitrary TxWitness where
