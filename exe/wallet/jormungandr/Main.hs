@@ -112,6 +112,8 @@ import Options.Applicative
     )
 import Servant.Client
     ( BaseUrl (..), Scheme (..) )
+import System.Environment
+    ( getProgName )
 import System.FilePath
     ( (</>) )
 
@@ -196,10 +198,11 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
             <*> nodeConfigOption
             <*> nodeSecretOption)
     exec (LaunchArgs listen nodePort stateDir verbosity jArgs) = do
+        cmdName <- getProgName
         block0H <- runGet getBlockId <$> BL.readFile (_genesisBlock jArgs)
         execLaunch verbosity stateDir
             [ commandJormungandr jArgs
-            , commandWalletServe block0H
+            , commandWalletServe cmdName block0H
             ]
       where
         commandJormungandr (JormungandrArgs block0 nodeConfig nodeSecret) =
@@ -211,8 +214,8 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
               , [ "--secret", nodeSecret ]
               ]
 
-        commandWalletServe block0H =
-            Command "cardano-wallet" arguments (return ()) Inherit
+        commandWalletServe cmdName block0H =
+            Command cmdName arguments (return ()) Inherit
           where
             arguments = mconcat
                 [ [ "serve" ]

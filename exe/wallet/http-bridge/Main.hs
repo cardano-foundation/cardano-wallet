@@ -104,6 +104,8 @@ import Options.Applicative
     , progDesc
     , value
     )
+import System.Environment
+    ( getProgName )
 import System.FilePath
     ( (</>) )
 
@@ -163,7 +165,11 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
         <*> optional stateDirOption
         <*> verbosityOption
     exec (LaunchArgs network listen nodePort stateDir verbosity) = do
-        execLaunch verbosity stateDir [commandHttpBridge, commandWalletServe]
+        cmdName <- getProgName
+        execLaunch verbosity stateDir
+            [ commandHttpBridge
+            , commandWalletServe cmdName
+            ]
       where
         commandHttpBridge =
             Command "cardano-http-bridge" arguments (return ()) Inherit
@@ -178,8 +184,8 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
                 , maybe [] (\d -> ["--networks-dir", d]) stateDir
                 , verbosityToArgs verbosity
                 ]
-        commandWalletServe =
-            Command "cardano-wallet" arguments (return ()) Inherit
+        commandWalletServe cmdName =
+            Command cmdName arguments (return ()) Inherit
           where
             arguments = mconcat
                 [ [ "serve" ]
