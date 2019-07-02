@@ -79,8 +79,6 @@ module Cardano.CLI
 import Prelude hiding
     ( getLine )
 
-import Cardano.BM.Configuration.Model
-    ( setMinSeverity )
 import Cardano.BM.Configuration.Static
     ( defaultConfigStdout )
 import Cardano.BM.Data.Severity
@@ -216,6 +214,8 @@ import System.IO
 import Text.Heredoc
     ( here )
 
+import qualified Cardano.BM.Configuration.Model as CM
+import qualified Cardano.BM.Data.BackendKind as CM
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.Aeson.Types as Aeson
@@ -720,11 +720,13 @@ verbosityToMinSeverity = \case
     Verbose -> Debug
 
 -- | Initialize logging at the specified minimum 'Severity' level.
-initTracer :: Severity -> Text -> IO (Trace IO Text)
+initTracer :: Severity -> Text -> IO (CM.Configuration, Trace IO Text)
 initTracer minSeverity cmd = do
     c <- defaultConfigStdout
-    setMinSeverity c minSeverity
-    setupTrace (Right c) "cardano-wallet" >>= appendName cmd
+    CM.setMinSeverity c minSeverity
+    CM.setSetupBackends c [CM.KatipBK, CM.AggregationBK]
+    tr <- appendName cmd =<< setupTrace (Right c) "cardano-wallet"
+    pure (c, tr)
 
 {-------------------------------------------------------------------------------
                                  Mnemonics
@@ -894,4 +896,3 @@ decodeError bytes = do
 -- | Show a data-type through its 'ToText' instance
 showT :: ToText a => a -> String
 showT = T.unpack . toText
-

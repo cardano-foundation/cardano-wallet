@@ -94,6 +94,7 @@ import System.IO
 import System.IO.Temp
     ( emptySystemTempFile )
 
+import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -200,7 +201,9 @@ bench_restoration
     -> (WalletId, WalletName, s)
     -> IO ()
 bench_restoration _ (wid, wname, s) = withHttpBridge network $ \port -> do
-    (conn, db) <- emptySystemTempFile "bench.db" >>= Sqlite.newDBLayer nullTracer . Just
+    logConfig <- CM.empty
+    dbFile <- Just <$> emptySystemTempFile "bench.db"
+    (conn, db) <- Sqlite.newDBLayer logConfig nullTracer dbFile
     Sqlite.runQuery conn (void $ runMigrationSilent migrateAll)
     nw <- newNetworkLayer port
     let tl = newTransactionLayer

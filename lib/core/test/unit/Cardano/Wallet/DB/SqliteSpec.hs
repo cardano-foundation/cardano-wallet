@@ -11,8 +11,14 @@ module Cardano.Wallet.DB.SqliteSpec
 
 import Prelude
 
+import Cardano.BM.Configuration.Static
+    ( defaultConfigTesting )
 import Cardano.BM.Data.LogItem
     ( LOContent (..), LOMeta (severity), LogObject (..) )
+import Cardano.BM.Data.MonitoringEval
+    ( MEvAction (..), MEvExpr (..), Operand (..), Operator (..) )
+import Cardano.BM.Data.Observable
+    ( ObservableInstance (..) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Trace
@@ -61,7 +67,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Monad
-    ( unless )
+    ( replicateM_, unless )
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Crypto.Hash
@@ -92,35 +98,33 @@ import Test.Hspec
     , beforeWith
     , describe
     , it
+    , shouldBe
     , shouldNotContain
     , shouldReturn
     , xit
     )
 
+import qualified Cardano.BM.Configuration.Model as CM
+import qualified Cardano.BM.Data.Aggregated as CM
+import qualified Cardano.BM.Data.AggregatedKind as CM
+import qualified Cardano.BM.Data.Backend as CM
+import qualified Cardano.BM.Data.SubTrace as CM
+import qualified Data.HashMap.Strict as HM
 import qualified Data.Map as Map
 import qualified Data.Text as T
 
 spec :: Spec
 spec = do
-    withDB (fst <$> newMemoryDBLayer) $ do
-        describe "Sqlite Simple tests" simpleSpec
-        describe "Sqlite" dbPropertyTests
-        describe "Sqlite State machine tests" $ do
-            it "Sequential" prop_sequential
-            xit "Parallel" prop_parallel
+    sqliteSpec
+    loggingSpec
 
-    withLoggingDB $ do
-        describe "Sqlite logging" $ do
-            it "should log queries at DEBUG level" $ \(db, getLogs) -> do
-                unsafeRunExceptT $ createWallet db testPk testCp testMetadata
-                logs <- logMessages <$> getLogs
-                logs `shouldHaveLog` (Debug, "INSERT")
-
-            it "should not log query parameters" $ \(db, getLogs) -> do
-                unsafeRunExceptT $ createWallet db testPk testCp testMetadata
-                let walletName = T.unpack $ coerce $ name testMetadata
-                msgs <- T.unlines . map snd . logMessages <$> getLogs
-                T.unpack msgs `shouldNotContain` walletName
+sqliteSpec :: Spec
+sqliteSpec = withDB (fst <$> newMemoryDBLayer) $ do
+    describe "Sqlite Simple tests" simpleSpec
+    describe "Sqlite" dbPropertyTests
+    describe "Sqlite State machine tests" $ do
+        it "Sequential" prop_sequential
+        xit "Parallel" prop_parallel
 
 simpleSpec :: SpecWith (DBLayer IO (SeqState DummyTarget) DummyTarget)
 simpleSpec = do
@@ -168,11 +172,64 @@ simpleSpec = do
             runExceptT (putCheckpoint db testPk testCp) `shouldReturn` Right ()
             readCheckpoint db testPk `shouldReturn` Just testCp
 
+loggingSpec :: Spec
+loggingSpec = withLoggingDB $ do
+    describe "Sqlite query logging" $ do
+        it "should log queries at DEBUG level" $ \(db, getLogs) -> do
+            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+            logs <- logMessages <$> getLogs
+            logs `shouldHaveLog` (Debug, "INSERT")
+
+        it "should not log query parameters" $ \(db, getLogs) -> do
+            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+            let walletName = T.unpack $ coerce $ name testMetadata
+            msgs <- T.unlines . map snd . logMessages <$> getLogs
+            T.unpack msgs `shouldNotContain` walletName
+
+    describe "Sqlite observables" $ do
+        it "should measure query timings" $ \(db, getLogs) -> do
+            let count = 5
+            replicateM_ count $ listWallets db
+            -- Commented out until this is fixed:
+            --   https://github.com/input-output-hk/iohk-monitoring-framework/issues/391
+            -- msg <- T.unlines . map snd . logMessages <$> getLogs
+            -- T.unpack msgs `shouldContain` "runQuery monitor works"
+            msgs <- findObserveDiffs <$> getLogs
+            length msgs `shouldBe` count
 
 newMemoryDBLayer :: IO (DBLayer IO (SeqState DummyTarget) DummyTarget, TVar [LogObject Text])
 newMemoryDBLayer = do
+    logConfig <- defaultConfigTesting
+    CM.setMinSeverity logConfig Debug
+    CM.setSetupBackends logConfig [CM.KatipBK, CM.AggregationBK, CM.MonitoringBK]
+
+    CM.setSubTrace logConfig "query"
+        (Just $ CM.ObservableTraceSelf [MonotonicClock])
+
+    CM.setBackends logConfig
+        "query"
+        (Just [CM.AggregationBK])
+    CM.setAggregatedKind logConfig
+        "query"
+        (Just CM.StatsAK) -- statistics AgreggatedKind
+    CM.setBackends logConfig
+        "#aggregation.query"
+        (Just [CM.KatipBK])
+
+    -- This monitor should always trigger.
+    CM.setMonitors logConfig $ HM.singleton
+        "query.query"
+        ( Nothing
+        , Compare "monoclock" (GE, (OpMeasurable (CM.Seconds 0)))
+        , [CreateMessage Info "runQuery monitor works"]
+        )
+
+    CM.setBackends logConfig
+        "query"
+        (Just [CM.AggregationBK, CM.KatipBK, CM.MonitoringBK])
+
     logs <- newTVarIO []
-    (_, db) <- newDBLayer (traceInTVarIO logs) Nothing
+    (_, db) <- newDBLayer logConfig (traceInTVarIO logs) Nothing
     pure (db, logs)
 
 withLoggingDB :: SpecWith (DBLayer IO (SeqState DummyTarget) DummyTarget, IO [LogObject Text]) -> Spec
@@ -188,6 +245,12 @@ logMessages = mapMaybe getMessage
   where
     getMessage (LogObject _ m (LogMessage a)) = Just (severity m, a)
     getMessage _ = Nothing
+
+findObserveDiffs :: [LogObject a] -> [LOContent a]
+findObserveDiffs = filter isObserveDiff . map loContent
+  where
+    isObserveDiff (ObserveDiff _) = True
+    isObserveDiff _ = False
 
 shouldHaveLog :: [(Severity, Text)] -> (Severity, Text) -> Expectation
 shouldHaveLog msgs (sev, str) = unless (any match msgs) $

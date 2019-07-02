@@ -93,6 +93,7 @@ import System.Console.Docopt
 import Text.Heredoc
     ( here )
 
+import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Wallet as Wallet
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
@@ -170,7 +171,7 @@ execLaunch
     -> Maybe FilePath
     -> IO ()
 execLaunch network verbosity listen backendPort stateDir = do
-    tracer <- initTracer (verbosityToMinSeverity verbosity) "launch"
+    (_, tracer) <- initTracer (verbosityToMinSeverity verbosity) "launch"
     execLaunchCommands tracer stateDir
         [ commandHttpBridge
         , commandWalletServe "cardano-wallet"
@@ -202,11 +203,11 @@ execServe
     -> Proxy t
     -> IO ()
 execServe verbosity listen backendPort dbFile _ = do
-    tracer <- initTracer (verbosityToMinSeverity verbosity) "serve"
+    (logConfig, tracer) <- initTracer (verbosityToMinSeverity verbosity) "serve"
     logInfo tracer "Wallet backend server starting..."
     logInfo tracer $ "Running as v" <> T.pack (showVersion version)
     logInfo tracer $ "Target node is Http-Bridge on " <> toText (networkVal @n)
-    newWalletLayer tracer >>= startServer tracer
+    newWalletLayer logConfig tracer >>= startServer tracer
   where
     startServer
         :: Trace IO Text
@@ -225,12 +226,13 @@ execServe verbosity listen backendPort dbFile _ = do
             race_ ipcServer apiServer
 
     newWalletLayer
-        :: Trace IO Text
+        :: CM.Configuration
+        -> Trace IO Text
         -> IO (WalletLayer s t)
-    newWalletLayer tracer = do
+    newWalletLayer logConfig tracer = do
         (nl, block0, feePolicy) <- newNetworkLayer
         let tl = HttpBridge.newTransactionLayer @n
-        db <- newDBLayer tracer
+        db <- newDBLayer logConfig tracer
         Wallet.newWalletLayer tracer block0 feePolicy db nl tl
 
     newNetworkLayer
@@ -241,9 +243,10 @@ execServe verbosity listen backendPort dbFile _ = do
         return (nl, HttpBridge.block0, byronFeePolicy)
 
     newDBLayer
-        :: Trace IO Text
+        :: CM.Configuration
+        -> Trace IO Text
         -> IO (DBLayer IO s t)
-    newDBLayer tracer = do
+    newDBLayer logConfig tracer = do
         tracerDB <- appendName "database" tracer
-        (_, db) <- Sqlite.newDBLayer tracerDB dbFile
+        (_, db) <- Sqlite.newDBLayer logConfig tracerDB dbFile
         return db

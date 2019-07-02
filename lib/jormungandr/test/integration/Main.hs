@@ -77,6 +77,7 @@ import Test.Hspec
 import Test.Integration.Framework.DSL
     ( Context (..), TxDescription (..), tearDown )
 
+import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.Jormungandr.Network as Jormungandr
@@ -136,9 +137,10 @@ cardanoWalletServer
     :: forall network. (network ~ Jormungandr 'Testnet)
     => IO (Int, FeePolicy, SqlBackend)
 cardanoWalletServer = do
+    logConfig <- CM.empty
     tracer <- initTracer Info "serve"
     (nl, block0, feePolicy) <- newNetworkLayer jormungandrUrl block0H
-    (conn, db) <- Sqlite.newDBLayer @_ @network tracer Nothing
+    (conn, db) <- Sqlite.newDBLayer @_ @network logConfig tracer Nothing
     mvar <- newEmptyMVar
     void $ forkIO $ do
         let tl = Jormungandr.newTransactionLayer block0H

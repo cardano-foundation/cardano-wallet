@@ -91,6 +91,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
+import qualified Cardano.BM.Configuration.Model as CM
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -218,12 +219,20 @@ testOpeningCleaning call expectedAfterOpen expectedAfterClean = do
 inMemoryDBLayer
     :: (IsOurs s, NFData s, Show s, PersistState s, PersistTx t)
     => IO (SqlBackend, DBLayer IO s t)
-inMemoryDBLayer = newDBLayer nullTracer Nothing
+inMemoryDBLayer = newDBLayer' Nothing
 
 fileDBLayer
     :: (IsOurs s, NFData s, Show s, PersistState s, PersistTx t)
     => IO (SqlBackend, DBLayer IO s t)
-fileDBLayer = newDBLayer nullTracer (Just "backup/test.db")
+fileDBLayer = newDBLayer' (Just "backup/test.db")
+
+newDBLayer'
+    :: (IsOurs s, NFData s, Show s, PersistState s, PersistTx t)
+    => Maybe FilePath
+    -> IO (SqlBackend, DBLayer IO s t)
+newDBLayer' fp = do
+    logConfig <- CM.empty
+    newDBLayer logConfig nullTracer fp
 
 -- | Clean the database
 cleanDB'

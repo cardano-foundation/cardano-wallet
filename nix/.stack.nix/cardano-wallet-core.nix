@@ -102,6 +102,7 @@
             (hsPkgs.time)
             (hsPkgs.transformers)
             (hsPkgs.tree-diff)
+            (hsPkgs.unordered-containers)
             (hsPkgs.yaml)
             (hsPkgs.warp)
             ];

@@ -77,6 +77,7 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.Request
     ( Headers (Default), Payload (Empty), request )
 
+import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.LauncherSpec as Launcher
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
@@ -252,7 +253,8 @@ main = do
         -> IO (ThreadId, Int, SqlBackend, NetworkLayer network IO)
     cardanoWalletServer mlisten = do
         nl <- HttpBridge.newNetworkLayer bridgePort
-        (conn, db) <- Sqlite.newDBLayer nullTracer Nothing
+        logConfig <- CM.empty
+        (conn, db) <- Sqlite.newDBLayer logConfig nullTracer Nothing
         mvar <- newEmptyMVar
         thread <- forkIO $ do
             let tl = HttpBridge.newTransactionLayer
