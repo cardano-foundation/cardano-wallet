@@ -211,7 +211,7 @@ spec = do
         err `shouldBe` "Please enter a passphrase: **************\nOk.\n"
         txJson <- expectValidJSON (Proxy @(ApiTransaction t)) out
         verify txJson
-            [ expectCliFieldBetween amount (feeMin + amt, feeMax + amt)
+            [ expectCliFieldBetween amount (feeMin + (2*amt), feeMax + (2*amt))
             , expectCliFieldEqual direction Outgoing
             , expectCliFieldEqual status Pending
             ]
