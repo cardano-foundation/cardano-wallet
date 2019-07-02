@@ -1,10 +1,13 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Main where
 
@@ -73,7 +76,7 @@ import System.IO
 import Test.Hspec
     ( after, afterAll, beforeAll, describe, hspec )
 import Test.Integration.Framework.DSL
-    ( Context (..), TxDescription (..), tearDown )
+    ( Context (..), KnownCommand (..), TxDescription (..), tearDown )
 import Test.Integration.Framework.Request
     ( Headers (Default), Payload (Empty), request )
 
@@ -100,48 +103,52 @@ import qualified Test.Integration.Scenario.CLI.Server as ServerCLI
 import qualified Test.Integration.Scenario.CLI.Transactions as TransactionsCLI
 import qualified Test.Integration.Scenario.CLI.Wallets as WalletsCLI
 
-main :: IO ()
+-- | Define the actual executable name for the bridge CLI
+instance KnownCommand (HttpBridge n) where
+    commandName = "cardano-wallet-http-bridge"
+
+main :: forall t. (t ~ HttpBridge 'Testnet) => IO ()
 main = do
     hSetEncoding stdout utf8
     hSetEncoding stderr utf8
     hspec $ do
-        describe "Cardano.LauncherSpec" Launcher.spec
         describe "Cardano.WalletSpec" Wallet.spec
         describe "Cardano.Wallet.HttpBridge.NetworkSpec" HttpBridge.spec
+        describe "Cardano.LauncherSpec" (Launcher.spec @t)
         describe "CLI commands not requiring bridge" $ do
-            describe "Mnemonics CLI tests" MnemonicsCLI.spec
+            describe "Mnemonics CLI tests" (MnemonicsCLI.spec @t)
             describe "--port CLI tests" $ do
-                PortCLI.specNegative
+                PortCLI.specNegative @t
                 cardanoWalletServer Nothing
                     & beforeAll
                     $ afterAll killServer
                     $ describe "with default port" $ do
-                        PortCLI.specCommon
-                        PortCLI.specWithDefaultPort
+                        PortCLI.specCommon @t
+                        PortCLI.specWithDefaultPort @t
                 cardanoWalletServer (Just $ ListenOnPort defaultPort)
                     & beforeAll
                     $ afterAll killServer
                     $ describe "with specified port" $ do
-                        PortCLI.specCommon
+                        PortCLI.specCommon @t
                 cardanoWalletServer (Just ListenOnRandomPort)
                     & beforeAll
                     $ afterAll killServer
                     $ describe "with random port" $ do
-                        PortCLI.specCommon
-                        PortCLI.specWithRandomPort defaultPort
+                        PortCLI.specCommon @t
+                        PortCLI.specWithRandomPort @t defaultPort
         beforeAll startCluster $
             afterAll killCluster $ after tearDown $ do
-            describe "Wallets API endpoint tests" Wallets.spec
-            describe "Transactions API endpoint tests" Transactions.spec
-            describe "Addresses API endpoint tests" Addresses.spec
-            describe "Wallets CLI tests" WalletsCLI.spec
-            describe "Transactions CLI tests" TransactionsCLI.spec
-            describe "Addresses CLI tests" AddressesCLI.spec
-            describe "Server CLI tests" ServerCLI.spec
+            describe "Wallets API endpoint tests" (Wallets.spec @t)
+            describe "Transactions API endpoint tests" (Transactions.spec @t)
+            describe "Addresses API endpoint tests" (Addresses.spec @t)
+            describe "Wallets CLI tests" (WalletsCLI.spec @t)
+            describe "Transactions CLI tests" (TransactionsCLI.spec @t)
+            describe "Addresses CLI tests" (AddressesCLI.spec @t)
+            describe "Server CLI tests" (ServerCLI.spec @t)
             describe "Transactions CLI tests (bridge specific)"
-                TransactionsCLIBridge.spec
+                (TransactionsCLIBridge.spec @t)
             describe "Transactions API endpoint tests (bridge specific)"
-                TransactionsBridge.spec
+                (TransactionsBridge.spec @t)
   where
     oneSecond :: Int
     oneSecond = 1 * 1000 * 1000 -- 1 second in microseconds
