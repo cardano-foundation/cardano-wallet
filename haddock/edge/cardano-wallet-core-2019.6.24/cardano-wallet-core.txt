@@ -2030,7 +2030,7 @@ module Cardano.Wallet.DB.Sqlite
 --   
 --   If the given file path does not exist, it will be created by the
 --   sqlite library.
-newDBLayer :: forall s t. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t) => Trace IO Text -> Maybe FilePath -> IO (SqlBackend, DBLayer IO s t)
+newDBLayer :: forall s t. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t) => Configuration -> Trace IO Text -> Maybe FilePath -> IO (SqlBackend, DBLayer IO s t)
 
 -- | Run a query without error handling. There will be exceptions thrown if
 --   it fails.

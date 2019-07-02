@@ -67,7 +67,7 @@ Quiet :: Verbosity
 Verbose :: Verbosity
 
 -- | Initialize logging at the specified minimum <a>Severity</a> level.
-initTracer :: Severity -> Text -> IO (Trace IO Text)
+initTracer :: Severity -> Text -> IO (Configuration, Trace IO Text)
 
 -- | Determine the minimum <a>Severity</a> level from the specified command
 --   line arguments.
