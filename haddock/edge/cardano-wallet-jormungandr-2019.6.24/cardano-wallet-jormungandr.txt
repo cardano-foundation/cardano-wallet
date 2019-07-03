@@ -169,6 +169,21 @@ Milli :: Word64 -> Milli
 getBlock :: Get Block
 getBlockHeader :: Get BlockHeader
 
+-- | Extract a <a>Block</a> id from a serialized <a>Block</a>.
+--   
+--   FIXME: Note that, this is a very simplistic way of doing it (although
+--   rather efficient) and a more correct one would required:
+--   
+--   <ul>
+--   <li>Unserializing a block</li>
+--   <li>Extracting its header</li>
+--   <li>Serializing the header</li>
+--   <li>Computing the hash of this serialized header</li>
+--   </ul>
+--   
+--   This is quite some busy work but we should come to that eventually.
+getBlockId :: Get (Hash "BlockHeader")
+
 -- | Decode a message (header + contents).
 getMessage :: Get Message
 
@@ -185,6 +200,9 @@ singleAddressFromKey :: forall n. KnownNetwork n => Proxy n -> XPub -> Address
 --   merely checks that the underlying bytestring has a "valid" structure /
 --   format without doing much more.
 decodeLegacyAddress :: ByteString -> Maybe Address
+
+-- | Compute a Blake2b_256 hash of a given <a>ByteString</a>
+blake2b256 :: ByteString -> ByteString
 data Get a
 
 -- | The simplest interface to run a <a>Get</a> decoder. If the decoder
