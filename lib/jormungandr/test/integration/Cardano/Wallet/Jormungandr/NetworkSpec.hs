@@ -155,7 +155,7 @@ spec = do
             action `shouldReturn` ()
 
         it "networkTip: throws on invalid url" $ do
-            let wrongUrl = BaseUrl Http "localhost" 8080 "/not-valid-prefix"
+            let wrongUrl = BaseUrl Http "localhost" 8081 "/not-valid-prefix"
             let wait nw = waitForConnection nw defaultRetryPolicy
                     `catch` (\(_ :: SomeException) -> return ())
             let test (_, nw) = do
@@ -225,7 +225,7 @@ spec = do
             runExceptT (postTx nw tx) `shouldThrow` anyException
   where
     url :: BaseUrl
-    url = BaseUrl Http "localhost" 8080 "/api"
+    url = BaseUrl Http "localhost" 8081 "/api"
 
     second :: Int
     second = 1000000

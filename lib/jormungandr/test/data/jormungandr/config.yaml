@@ -1,7 +1,7 @@
 storage: "/tmp/cardano-wallet-jormungandr/storage"
 
 rest:
-  listen: "127.0.0.1:8080"
+  listen: "127.0.0.1:8081"
   prefix: "api"
 
 peer_2_peer:
