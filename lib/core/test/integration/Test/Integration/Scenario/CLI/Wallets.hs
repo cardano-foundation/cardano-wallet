@@ -180,7 +180,8 @@ spec = do
 
         (c, o, e) <- createWalletViaCLI ctx [n] m "\n" "secure-passphrase"
         c `shouldBe` ExitFailure 1
-        e `shouldBe` "name is too long: expected at most 255 characters\n"
+        T.unpack e `shouldContain`
+            "name is too long: expected at most 255 characters"
         o `shouldBe` ""
 
     describe "WALLETS_CREATE_05 - Can create wallet with different mnemonic sizes" $ do
@@ -289,8 +290,10 @@ spec = do
         let expectsErr c o e gap = do
                 c `shouldBe` ExitFailure 1
                 o `shouldNotContain` gap
-                T.unpack e `shouldBe` "An address pool gap must be a natural number \
-                    \between " ++ show addressPoolGapMin ++ " and " ++ show addressPoolGapMax ++ ".\n"
+                T.unpack e `shouldContain`
+                    "An address pool gap must be a natural number between "
+                    ++ show addressPoolGapMin ++ " and "
+                    ++ show addressPoolGapMax ++ "."
 
         let matrix =
                 [ ( "Gap max", show addressPoolGapMax, expectsOk )
@@ -325,10 +328,12 @@ spec = do
             out `shouldBe` ""
             c `shouldBe` ExitFailure 1
             if (title == "40 chars hex") then
-                err `shouldBe` "I couldn't find a wallet with the given id:\
+                err `shouldContain`
+                    "I couldn't find a wallet with the given id:\
                     \ 1111111111111111111111111111111111111111\n"
             else
-                err `shouldBe` "wallet id should be an hex-encoded string of\
+                err `shouldContain`
+                    "wallet id should be an hex-encoded string of\
                     \ 40 characters\n"
 
     it "WALLETS_LIST_01 - Can list wallets" $ \ctx -> do

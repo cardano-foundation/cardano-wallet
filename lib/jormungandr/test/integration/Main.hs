@@ -153,7 +153,7 @@ cardanoWalletServer = do
     (,feePolicy,conn) <$> takeMVar mvar
   where
     jormungandrUrl :: BaseUrl
-    jormungandrUrl = BaseUrl Http "localhost" 8081 "/api"
+    jormungandrUrl = BaseUrl Http "localhost" 8080 "/api"
     block0H = Hash $ unsafeFromHex
         "dba597bee5f0987efbf56f6bd7f44c38158a7770d0cb28a26b5eca40613a7ebd"
         -- ^ jcli genesis hash --input test/data/jormungandr/block0.bin

@@ -43,10 +43,9 @@ executable cardano-wallet
     , cardano-wallet-core
     , cardano-wallet-http-bridge
     , cardano-wallet-launcher
-    , docopt
-    , heredoc
-    , http-client
+    , filepath
     , iohk-monitoring
+    , optparse-applicative
     , process
     , text
     , text-class
@@ -72,14 +71,15 @@ executable cardano-wallet-jormungandr
   build-depends:
       base
     , async
+    , bytestring
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-jormungandr
     , cardano-wallet-launcher
-    , docopt
-    , heredoc
+    , filepath
     , http-client
     , iohk-monitoring
+    , optparse-applicative
     , process
     , servant-client
     , servant-client-core

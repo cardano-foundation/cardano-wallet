@@ -24,11 +24,7 @@
           (hsPkgs.bytestring)
           (hsPkgs.cardano-wallet-core)
           (hsPkgs.cardano-wallet-launcher)
-          (hsPkgs.directory)
-          (hsPkgs.docopt)
-          (hsPkgs.filepath)
           (hsPkgs.fmt)
-          (hsPkgs.heredoc)
           (hsPkgs.http-client)
           (hsPkgs.iohk-monitoring)
           (hsPkgs.servant-client)
@@ -36,6 +32,7 @@
           (hsPkgs.servant-server)
           (hsPkgs.text)
           (hsPkgs.text-class)
+          (hsPkgs.optparse-applicative)
           ];
         };
       tests = {
@@ -44,7 +41,6 @@
             (hsPkgs.base)
             (hsPkgs.cardano-wallet-cli)
             (hsPkgs.hspec)
-            (hsPkgs.iohk-monitoring)
             (hsPkgs.QuickCheck)
             (hsPkgs.text)
             (hsPkgs.text-class)

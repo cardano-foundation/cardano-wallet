@@ -30,7 +30,7 @@ import System.Exit
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe )
+    ( shouldBe, shouldContain )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , balanceAvailable
@@ -133,8 +133,8 @@ spec = do
             (Exit c, Stdout o, Stderr e)
                 <- listAddressesViaCLI ctx ["--state", fil, walId]
             let err = "Unable to decode the given value: \"" <> fil <> "\". Please\
-                    \ specify one of the following values: used, unused.\n"
-            e `shouldBe` err
+                    \ specify one of the following values: used, unused."
+            e `shouldContain` err
             c `shouldBe` ExitFailure 1
             o `shouldBe` ""
 
@@ -180,15 +180,17 @@ spec = do
             o `shouldBe` ""
             c `shouldBe` ExitFailure 1
             if (title == "40 chars hex") then
-                e `shouldBe` errMsg404NoWallet "1111111111111111111111111111111111111111\n"
+                e `shouldContain`
+                    errMsg404NoWallet "1111111111111111111111111111111111111111"
             else
-                e `shouldBe` "wallet id should be an hex-encoded string of\
-                    \ 40 characters\n"
+                e `shouldContain`
+                    "wallet id should be an hex-encoded string of 40 characters"
 
     it "ADDRESS_LIST_04 - 'almost' valid walletId" $ \ctx -> do
         wid <- emptyWallet' ctx
         (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI ctx [wid ++ "0"]
-        e `shouldBe` "wallet id should be an hex-encoded string of 40 characters\n"
+        e `shouldContain`
+            "wallet id should be an hex-encoded string of 40 characters"
         o `shouldBe` ""
         c `shouldBe` ExitFailure 1
 
@@ -198,7 +200,7 @@ spec = do
         d `shouldBe` ExitSuccess
 
         (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI ctx [wid]
-        e `shouldBe` errMsg404NoWallet (T.pack wid <> "\n")
+        e `shouldContain` errMsg404NoWallet (T.pack wid)
         o `shouldBe` ""
         c `shouldBe` ExitFailure 1
 

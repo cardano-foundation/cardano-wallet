@@ -29,7 +29,7 @@ import qualified Data.List as L
 spec :: SpecWith ()
 spec = do
     it "CLI_VERSION - cardano-wallet shows version" $  do
-        (Exit c, Stdout out) <- cardanoWalletCLI ["--version"]
+        (Exit c, Stdout out) <- cardanoWalletCLI ["version"]
         let v = L.dropWhileEnd (== '\n') out
         v `shouldBe` (showVersion version)
         c `shouldBe` ExitSuccess
@@ -40,7 +40,6 @@ spec = do
                 [ "--bad param"
                 , "bad arg"
                 -- serve
-                , "serve --"
                 , "serve --network testnet --random-por --quiet"
                 , "serve --network testnet --random-port --bridge-port 666 --vebrose"
                 , "serve --network"
@@ -63,7 +62,6 @@ spec = do
                 , "create"
                 , "wallet crate name"
                 , "wallet create --port name"
-                , "wallet create --address-pool-gap 30 name"
                 , "wallet create name --address-pool-gap"
                 -- wallet get
                 , "wallet get"
@@ -94,13 +92,16 @@ spec = do
         forM_ badArgs $ \args -> it args $ \_ -> do
             (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI $ words args
             c `shouldBe` ExitFailure 1
-            e `shouldBe` ""
-            o `shouldContain` "Cardano Wallet CLI."
+            o `shouldBe` ""
+            e `shouldContain` "Usage:"
 
     describe "CLI_HELP - cardano-wallet shows help with" $  do
         let test option = it option $ do
-                (Exit c, Stdout out) <- cardanoWalletCLI [option]
-                out `shouldContain` "Cardano Wallet CLI"
+                (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI [option]
+                e `shouldBe` ""
+                o `shouldContain` "Usage:"
+                o `shouldContain` "Available options:"
+                o `shouldContain` "Available commands:"
                 c `shouldBe` ExitSuccess
         forM_ ["-h", "--help"] test
 

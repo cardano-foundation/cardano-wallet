@@ -21,10 +21,14 @@ module Data.Text.Class
     , FromText (..)
     , TextDecodingError(..)
     , fromTextMaybe
+
       -- * Producing and consuming text from bounded enumeration types
     , CaseStyle (..)
     , toTextFromBoundedEnum
     , fromTextToBoundedEnum
+
+      -- * Helpers
+    , showT
     ) where
 
 import Prelude
@@ -191,3 +195,7 @@ fromCaseStyle = \case
         (\c -> if C.isUpper c then Nothing else Just s) =<< listToMaybe s
     ensureFirstCharUpperCase s =
         (\c -> if C.isLower c then Nothing else Just s) =<< listToMaybe s
+
+-- | Show a data-type through its 'ToText' instance
+showT :: ToText a => a -> String
+showT = T.unpack . toText

@@ -25,7 +25,7 @@ import Prelude
 import Cardano.Wallet.DB.Sqlite
     ( PersistTx (..) )
 import Cardano.Wallet.Jormungandr.Binary
-    ( Put, decodeLegacyAddress, putTx, runPut, singleAddressFromKey )
+    ( blake2b256, decodeLegacyAddress, putTx, runPut, singleAddressFromKey )
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Jormungandr.Primitive.Types
@@ -48,10 +48,6 @@ import Control.Arrow
     ( second )
 import Control.Monad
     ( when )
-import Crypto.Hash
-    ( hash )
-import Crypto.Hash.Algorithms
-    ( Blake2b_256 )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
@@ -65,7 +61,6 @@ import Data.Text.Class
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.Binary.Bech32 as Bech32
-import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
@@ -88,11 +83,7 @@ instance DefineTx (Jormungandr network) where
     outputs = outputs
     -- The corresponding rust implementation is:
     -- https://github.com/input-output-hk/rust-cardano/blob/e5d974f7bedeb00c9c9d688ac66094a34bf8f40d/chain-impl-mockchain/src/transaction/transaction.rs#L115-L119
-    txId = blake2b256 . putTx
-      where
-        blake2b256 :: forall tag. Put -> Hash tag
-        blake2b256 =
-            Hash . BA.convert . hash @_ @Blake2b_256 . BL.toStrict . runPut
+    txId = Hash . blake2b256 . BL.toStrict . runPut . putTx
 
 instance PersistTx (Jormungandr network) where
     resolvedInputs = map (second Just) . inputs
