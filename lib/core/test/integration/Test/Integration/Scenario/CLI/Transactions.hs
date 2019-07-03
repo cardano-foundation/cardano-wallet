@@ -68,6 +68,7 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( arabicWalletName
     , errMsg403Fee
+    , errMsg403InputsDepleted
     , errMsg403NotEnoughMoney
     , errMsg403UTxO
     , errMsg403WrongPass
@@ -296,6 +297,27 @@ spec = do
             [ expectCliFieldEqual balanceAvailable amt
             , expectCliFieldEqual balanceTotal amt
             ]
+
+    it "TRANS_CREATE_04 - Error shown when ErrInputsDepleted encountered" $ \ctx -> do
+        wSrc <- fixtureWalletWith ctx [12_000_000, 20_000_000, 17_000_000]
+        wDest <- emptyWallet ctx
+        addrs <- listAddresses ctx wDest
+
+        let addr1 = encodeAddress (Proxy @t) (getApiT $ fst $ addrs !! 1 ^. #id)
+        let addr2 = encodeAddress (Proxy @t) (getApiT $ fst $ addrs !! 2 ^. #id)
+        let addr3 = encodeAddress (Proxy @t) (getApiT $ fst $ addrs !! 3 ^. #id)
+
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", "40000000@" <> addr1
+                , "--payment", "22@" <> addr2
+                , "--payment", "22@" <> addr3
+                ]
+
+        (c, out, err) <- postTransactionViaCLI ctx "Secure Passphrase" args
+        (T.unpack err) `shouldContain` errMsg403InputsDepleted
+        out `shouldBe` ""
+        c `shouldBe` ExitFailure 1
 
     it "TRANS_CREATE_04 - Can't cover fee" $ \ctx -> do
         let (feeMin, _) = ctx ^. feeEstimator $ TxDescription 1 1

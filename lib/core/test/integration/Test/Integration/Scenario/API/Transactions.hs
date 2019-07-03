@@ -17,8 +17,12 @@ import Cardano.Wallet.Primitive.Types
     ( DecodeAddress (..), Direction (..), EncodeAddress (..), TxStatus (..) )
 import Control.Monad
     ( forM_ )
+import Data.Aeson
+    ( Value )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( view, (^.) )
+import Numeric.Natural
+    ( Natural )
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Integration.Framework.DSL
@@ -55,6 +59,7 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( arabicWalletName
     , errMsg403Fee
+    , errMsg403InputsDepleted
     , errMsg403NotEnoughMoney
     , errMsg403UTxO
     , errMsg403WrongPass
@@ -74,6 +79,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall t. (EncodeAddress t, DecodeAddress t) => SpecWith (Context t)
 spec = do
+
     it "TRANS_CREATE_01 - Single Output Transaction" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
         addrs <- listAddresses ctx wb
@@ -307,6 +313,30 @@ spec = do
         verify ra2
             [ expectFieldEqual balanceTotal 0
             , expectFieldEqual balanceAvailable 0
+            ]
+
+    it "TRANS_CREATE_04 - Error shown when ErrInputsDepleted encountered" $ \ctx -> do
+        wSrc <- fixtureWalletWith ctx [12_000_000, 20_000_000, 17_000_000]
+        wDest <- emptyWallet ctx
+        addrs <- listAddresses ctx wDest
+
+        let addrIds = view #id <$> take 3 addrs
+        let amounts = [40_000_000, 22, 22] :: [Natural]
+        let payments = flip map (zip amounts addrIds) $ \(coin, addr) -> [json|{
+                "address": #{addr},
+                "amount": {
+                    "quantity": #{coin},
+                    "unit": "lovelace"
+                }
+            }|]
+        let payload = Json [json|{
+                "payments": #{payments :: [Value]},
+                "passphrase": "Secure Passphrase"
+            }|]
+        r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        verify r
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403InputsDepleted
             ]
 
     it "TRANS_CREATE_04 - Can't cover fee" $ \ctx -> do
