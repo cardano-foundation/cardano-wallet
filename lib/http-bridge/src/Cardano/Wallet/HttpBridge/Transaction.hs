@@ -58,7 +58,6 @@ newTransactionLayer = TransactionLayer
         let tx = Tx ins outs
         when (any (\ (TxOut _ c) -> c == Coin 0) outs)
             $ Left ErrInvalidTx
-        -- Not working, maybe we need to make TransactionLayer polymorphic
         let txSigData = txId @(HttpBridge n) tx
         txWitnesses <- forM inps $ \(_in, TxOut addr _c) -> mkWitness txSigData
             <$> maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
