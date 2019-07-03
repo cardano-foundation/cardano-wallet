@@ -48,6 +48,7 @@ module Test.Integration.Framework.TestData
     , errMsg404NoEndpoint
     , errMsg404NoRootKey
     , errMsg404NoWallet
+    , errMsg403InputsDepleted
     , errMsg403InvalidTransaction
     , errMsg405
     , errMsg406
@@ -228,6 +229,11 @@ errMsg403NotEnoughMoney has needs = "I can't process this payment because there'
     \ not enough UTxO available in the wallet. The total UTxO sums up to\
     \ " ++ show has ++ " Lovelace, but I need " ++ show needs ++ " Lovelace\
     \ (excluding fee amount) in order to proceed  with the payment."
+
+errMsg403InputsDepleted :: String
+errMsg403InputsDepleted = "I had to select inputs to construct the requested\
+    \ transaction. Unfortunately, one output of the transaction depleted all\
+    \ available inputs. Try sending a smaller amount."
 
 errMsg403InvalidTransaction :: String
 errMsg403InvalidTransaction = "I can't process this payment because it contains at least\
