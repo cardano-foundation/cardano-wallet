@@ -24,6 +24,7 @@
           (hsPkgs.bytestring)
           (hsPkgs.cardano-wallet-core)
           (hsPkgs.cardano-wallet-launcher)
+          (hsPkgs.extra)
           (hsPkgs.fmt)
           (hsPkgs.http-client)
           (hsPkgs.iohk-monitoring)

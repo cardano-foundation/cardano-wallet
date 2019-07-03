@@ -43,6 +43,7 @@ module Cardano.CLI
     , verbosityOption
 
     -- * Types
+    , MnemonicSize (..)
     , Port (..)
 
     -- * Logging
@@ -125,6 +126,8 @@ import Data.Bifunctor
     ( bimap )
 import Data.Functor
     ( (<$), (<&>) )
+import Data.List.Extra
+    ( enumerate )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
@@ -256,7 +259,7 @@ cmdMnemonic = command "mnemonic" $ info (helper <*> cmds) mempty
 
 -- | Arguments for 'mnemonic generate' command
 newtype MnemonicGenerateArgs = MnemonicGenerateArgs
-    { _size :: String -- See 'sizeOption' note.
+    { _size :: MnemonicSize
     }
 
 -- | cardano-wallet mnemonic generate [--size=INT]
@@ -267,15 +270,12 @@ cmdMnemonicGenerate = command "generate" $ info (helper <*> cmd) $ mempty
     cmd = exec . MnemonicGenerateArgs <$> sizeOption
     exec (MnemonicGenerateArgs n) = do
         m <- case n of
-            "9"  -> mnemonicToText @9 . entropyToMnemonic <$> genEntropy
-            "12" -> mnemonicToText @12 . entropyToMnemonic <$> genEntropy
-            "15" -> mnemonicToText @15 . entropyToMnemonic <$> genEntropy
-            "18" -> mnemonicToText @18 . entropyToMnemonic <$> genEntropy
-            "21" -> mnemonicToText @21 . entropyToMnemonic <$> genEntropy
-            "24" -> mnemonicToText @24 . entropyToMnemonic <$> genEntropy
-            _  -> do
-                putErrLn "Invalid mnemonic size. Expected one of: 9,12,15,18,21,24"
-                exitFailure
+            MS_9  -> mnemonicToText @9  . entropyToMnemonic <$> genEntropy
+            MS_12 -> mnemonicToText @12 . entropyToMnemonic <$> genEntropy
+            MS_15 -> mnemonicToText @15 . entropyToMnemonic <$> genEntropy
+            MS_18 -> mnemonicToText @18 . entropyToMnemonic <$> genEntropy
+            MS_21 -> mnemonicToText @21 . entropyToMnemonic <$> genEntropy
+            MS_24 -> mnemonicToText @24 . entropyToMnemonic <$> genEntropy
         TIO.putStrLn $ T.unwords m
 
 {-------------------------------------------------------------------------------
@@ -612,19 +612,12 @@ portOption = optionT $ mempty
     <> showDefaultWith showT
 
 -- | [--size=INT], default: 15
---
--- NOTE: We keep the size in 'String' to ease error reporting in the command
--- handler. This allows to avoid errors that are too Haskell-ish like:
---
---    Int is an integer number between -9223372036854775808 and 9223372036854775807.
---
--- and report something more appropriate to the user.
-sizeOption :: Parser String
+sizeOption :: Parser MnemonicSize
 sizeOption = optionT $ mempty
     <> long "size"
     <> metavar "INT"
     <> help "number of mnemonic words to generate."
-    <> value "15"
+    <> value MS_15
     <> showDefaultWith show
 
 -- | --state-dir=FILEPATH
@@ -779,6 +772,29 @@ handleResponse encode res = do
 {-------------------------------------------------------------------------------
                                 Extra Types
 -------------------------------------------------------------------------------}
+
+-- | Represents the number of words in a mnemonic sentence.
+--
+-- Only valid sizes are representable by this type.
+--
+data MnemonicSize
+    = MS_9 | MS_12 | MS_15 | MS_18 | MS_21 | MS_24
+    deriving (Bounded, Enum, Eq, Generic, Show)
+
+instance ToText MnemonicSize where
+    toText = T.pack . drop 3 .  show
+
+instance FromText MnemonicSize where
+    fromText t = case lookup t sizeMap of
+        Just ms -> pure ms
+        Nothing -> Left $ TextDecodingError $ mempty
+            <> "Invalid mnemonic size. Expected one of: "
+            <> T.unpack (T.intercalate ", " sizeTexts)
+            <> "."
+      where
+        sizes = enumerate
+        sizeMap = sizeTexts `zip` sizes
+        sizeTexts = toText <$> sizes
 
 -- | Port number with a tag for describing what it is used for
 newtype Port (tag :: Symbol) = Port { getPort :: Int }

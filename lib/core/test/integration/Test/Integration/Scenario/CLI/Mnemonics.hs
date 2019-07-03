@@ -125,6 +125,6 @@ spec = do
             (Exit c, Stdout out, Stderr err) <-
                 generateMnemonicsViaCLI ["--size", size]
             c `shouldBe` ExitFailure 1
-            err `shouldBe`
-                "Invalid mnemonic size. Expected one of: 9,12,15,18,21,24\n"
+            err `shouldContain`
+                "Invalid mnemonic size. Expected one of: 9, 12, 15, 18, 21, 24."
             out `shouldBe` mempty
