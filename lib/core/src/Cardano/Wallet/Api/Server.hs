@@ -29,6 +29,7 @@ import Cardano.Wallet
     ( ErrAdjustForFee (..)
     , ErrCoinSelection (..)
     , ErrCreateUnsignedTx (..)
+    , ErrEstimateTxFee (..)
     , ErrMkStdTx (..)
     , ErrNetworkUnreachable (..)
     , ErrNoSuchWallet (..)
@@ -65,6 +66,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( SeqState (..), defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelectionOptions (..) )
+import Cardano.Wallet.Primitive.Fee
+    ( Fee (..) )
 import Cardano.Wallet.Primitive.Model
     ( availableBalance, getState, totalBalance )
 import Cardano.Wallet.Primitive.Types
@@ -371,7 +374,7 @@ transactions
     -> Server (Transactions t)
 transactions w =
     createTransaction w
-    :<|> getFee w
+    :<|> postTransactionFee w
 
 createTransaction
     :: forall t. (DefineTx t, KeyToAddress t)
@@ -398,19 +401,28 @@ createTransaction w (ApiT wid) body = do
         , status = ApiT (meta ^. #status)
         }
   where
-    coerceCoin :: AddressAmount t -> TxOut
-    coerceCoin (AddressAmount (ApiT addr, _) (Quantity c)) =
-        TxOut addr (Coin $ fromIntegral c)
     coerceTxOut :: TxOut -> AddressAmount t
     coerceTxOut (TxOut addr (Coin c)) =
         AddressAmount (ApiT addr, Proxy @t) (Quantity $ fromIntegral c)
 
-getFee
-    :: WalletLayer (SeqState t) t
+coerceCoin :: AddressAmount t -> TxOut
+coerceCoin (AddressAmount (ApiT addr, _) (Quantity c)) =
+    TxOut addr (Coin $ fromIntegral c)
+
+postTransactionFee
+    :: forall t. (DefineTx t)
+    => WalletLayer (SeqState t) t
     -> ApiT WalletId
     -> PostTransactionFeeData t
     -> Handler ApiFee
-getFee _w (ApiT _wid) _body = undefined
+postTransactionFee w (ApiT wid) body = do
+    -- FIXME Compute the options based on the transaction's size / inputs
+    let opts = CoinSelectionOptions { maximumNumberOfInputs = 10 }
+    let outs = coerceCoin <$> (body ^. #payments)
+    (Fee fee) <- liftHandler $ W.estimateTxFee w wid opts outs
+    return ApiFee
+        { amount = Quantity (fromIntegral fee)
+        }
 
 
 {-------------------------------------------------------------------------------
@@ -518,6 +530,12 @@ instance LiftHandler ErrCreateUnsignedTx where
         ErrCreateUnsignedTxNoSuchWallet e -> handler e
         ErrCreateUnsignedTxCoinSelection e -> handler e
         ErrCreateUnsignedTxFee e -> handler e
+
+instance LiftHandler ErrEstimateTxFee where
+    handler = \case
+        ErrEstimateTxFeeNoSuchWallet e -> handler e
+        ErrEstimateTxFeeCoinSelection e -> handler e
+        ErrEstimateTxFeeFee e -> handler e
 
 instance LiftHandler ErrSignTx where
     handler = \case
