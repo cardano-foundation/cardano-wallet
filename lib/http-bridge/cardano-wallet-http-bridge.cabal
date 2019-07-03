@@ -149,7 +149,6 @@ test-suite integration
     , cryptonite
     , directory
     , exceptions
-    , extra
     , generic-lens
     , hspec
     , hspec-core
