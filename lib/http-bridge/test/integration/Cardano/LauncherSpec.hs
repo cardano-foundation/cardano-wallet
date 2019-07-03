@@ -127,29 +127,27 @@ spec = do
                 waitForProcess ph `shouldReturn` ExitSuccess
 
     describe "LOGGING - cardano-wallet launch logging" $ do
-        it "LOGGING - Can log --verbose" $ \_ -> do
+        it "LOGGING - Launch can log --verbose" $ \_ -> do
             let args = ["launch", "--verbose"]
             let process = proc' "cardano-wallet" args
-            (process, 30) `expectProcStdOutHas` versionLine
-            (process, 30) `expectProcStdOutHas` "Debug"
-            (process, 30) `expectProcStdOutHas` "Warning"
-            -- more log needed to get to Notice since it's --verbose
-            (process, 130) `expectProcStdOutHas` "Notice"
-            (process, 30) `expectProcStdOutHas` "Info"
+            -- more log needed since it's --verbose
+            (process, 200) `expectProcStdOutHas` versionLine
+            (process, 200) `expectProcStdOutHas` "Debug"
+            (process, 200) `expectProcStdOutHas` "Notice"
+            (process, 200) `expectProcStdOutHas` "Info"
 
-        it "LOGGING - --quiet logs Error only" $ \_ -> do
+        it "LOGGING - Launch --quiet logs Error only" $ \_ -> do
             let args = ["launch", "--quiet"]
             let process = proc' "cardano-wallet" args
             (o, _) <- getProcStream process 10
             T.pack o `shouldBe` ""
 
-        it "LOGGING - default logs Info" $ \_ -> do
+        it "LOGGING - Launch default logs Info" $ \_ -> do
             let args = ["launch"]
             let process = proc' "cardano-wallet" args
             (o, _) <- getProcStream process 5
             o `shouldNotContain` "Debug"
             (process, 20) `expectProcStdOutHas` versionLine
-            (process, 20) `expectProcStdOutHas` "Warning"
             (process, 20) `expectProcStdOutHas` "Notice"
             (process, 20) `expectProcStdOutHas` "Info"
 

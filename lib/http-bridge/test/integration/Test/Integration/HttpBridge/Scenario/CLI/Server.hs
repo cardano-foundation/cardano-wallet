@@ -44,23 +44,22 @@ spec = do
             threadDelay oneSecond
 
     describe "LOGGING - cardano-wallet serve logging" $ do
-        it "LOGGING - Can log --verbose" $ \_ -> do
+        it "LOGGING - Serve an log --verbose" $ \_ -> do
             let args = ["serve", "--verbose"]
             let process = proc' (commandName @t) args
             (process, 30) `expectProcStdOutHas` versionLine
             (process, 30) `expectProcStdOutHas` "Debug"
-            (process, 30) `expectProcStdOutHas` "Warning"
             (process, 30) `expectProcStdOutHas` "Notice"
             (process, 30) `expectProcStdOutHas` "Info"
 
-        it "LOGGING - --quiet logs Error only" $ \_ -> do
+        it "LOGGING - Serve --quiet logs Error only" $ \_ -> do
             let args = ["serve", "--quiet"]
             let process = proc' (commandName @t) args
             (o, e) <- getProcStream process 10
             T.pack o `shouldBe` ""
             T.pack e `shouldBe` ""
 
-        it "LOGGING - default logs Info" $ \_ -> do
+        it "LOGGING - Serve default logs Info" $ \_ -> do
             let args = ["serve"]
             let process = proc' (commandName @t) args
             (o, e) <- getProcStream process 5
@@ -68,7 +67,6 @@ spec = do
             T.pack e `shouldBe` ""
             -- 9 lines should be enough to get desired entries
             (process, 9) `expectProcStdOutHas` versionLine
-            (process, 9) `expectProcStdOutHas` "Warning"
             (process, 9) `expectProcStdOutHas` "Notice"
             (process, 9) `expectProcStdOutHas` "Info"
 
