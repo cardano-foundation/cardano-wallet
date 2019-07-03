@@ -36,8 +36,10 @@ module Cardano.Wallet.Api.Types
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
     , PostTransactionData (..)
+    , PostTransactionFeeData (..)
     , ApiBlockData (..)
     , ApiTransaction (..)
+    , ApiFee (..)
     , AddressAmount (..)
     , ApiErrorCode (..)
 
@@ -161,6 +163,14 @@ data WalletPutPassphraseData = WalletPutPassphraseData
 data PostTransactionData t = PostTransactionData
     { payments :: !(NonEmpty (AddressAmount t))
     , passphrase :: !(ApiT (Passphrase "encryption"))
+    } deriving (Eq, Generic, Show)
+
+data PostTransactionFeeData t = PostTransactionFeeData
+    { payments :: !(NonEmpty (AddressAmount t))
+    } deriving (Eq, Generic, Show)
+
+data ApiFee = ApiFee
+    { amount :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
 data ApiTransaction t = ApiTransaction
@@ -292,6 +302,11 @@ instance FromJSON WalletPutPassphraseData where
 instance ToJSON  WalletPutPassphraseData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
+instance FromJSON ApiFee where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiFee where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
 instance (PassphraseMaxLength purpose, PassphraseMinLength purpose)
     => FromJSON (ApiT (Passphrase purpose)) where
     parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText
@@ -352,6 +367,11 @@ instance ToJSON (ApiT PoolId) where
 instance DecodeAddress t => FromJSON (PostTransactionData t) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance EncodeAddress t => ToJSON (PostTransactionData t) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance DecodeAddress t => FromJSON (PostTransactionFeeData t) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeAddress t => ToJSON (PostTransactionFeeData t) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT SlotId) where

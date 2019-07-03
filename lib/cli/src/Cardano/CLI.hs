@@ -94,11 +94,13 @@ import Cardano.Wallet.Api.Server
 import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAddress
+    , ApiFee
     , ApiMnemonicT (..)
     , ApiT (..)
     , ApiTransaction
     , ApiWallet
     , PostTransactionData (..)
+    , PostTransactionFeeData (..)
     , WalletPostData (..)
     , WalletPutData (..)
     )
@@ -695,6 +697,10 @@ data WalletClient t = WalletClient
         :: ApiT WalletId
         -> PostTransactionData t
         -> ClientM (ApiTransaction t)
+    , postTransactionFee
+        :: ApiT WalletId
+        -> PostTransactionFeeData t
+        -> ClientM ApiFee
     }
 
 walletClient :: forall t. (DecodeAddress t, EncodeAddress t) => WalletClient t
@@ -714,8 +720,9 @@ walletClient =
             :<|> _ -- Put Wallet Passphrase
             = wallets
 
-        _postTransaction =
-            transactions
+        _postTransaction
+            :<|> _postTransactionFee
+            = transactions
     in
         WalletClient
             { listAddresses = _listAddresses
@@ -725,6 +732,7 @@ walletClient =
             , postWallet = _postWallet
             , putWallet = _putWallet
             , postTransaction = _postTransaction
+            , postTransactionFee = _postTransactionFee
             }
 
 runClient

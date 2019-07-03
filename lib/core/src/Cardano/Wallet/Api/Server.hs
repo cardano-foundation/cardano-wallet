@@ -47,10 +47,12 @@ import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)
     , ApiErrorCode (..)
+    , ApiFee (..)
     , ApiT (..)
     , ApiTransaction (..)
     , ApiWallet (..)
     , PostTransactionData
+    , PostTransactionFeeData
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -367,7 +369,9 @@ transactions
     :: (DefineTx t, KeyToAddress t)
     => WalletLayer (SeqState t) t
     -> Server (Transactions t)
-transactions = createTransaction
+transactions w =
+    createTransaction w
+    :<|> getFee w
 
 createTransaction
     :: forall t. (DefineTx t, KeyToAddress t)
@@ -400,6 +404,14 @@ createTransaction w (ApiT wid) body = do
     coerceTxOut :: TxOut -> AddressAmount t
     coerceTxOut (TxOut addr (Coin c)) =
         AddressAmount (ApiT addr, Proxy @t) (Quantity $ fromIntegral c)
+
+getFee
+    :: WalletLayer (SeqState t) t
+    -> ApiT WalletId
+    -> PostTransactionFeeData t
+    -> Handler ApiFee
+getFee _w (ApiT _wid) _body = undefined
+
 
 {-------------------------------------------------------------------------------
                                 Error Handling
