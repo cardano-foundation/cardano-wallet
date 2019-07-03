@@ -11,7 +11,7 @@ module Cardano.CLISpec
 import Prelude
 
 import Cardano.CLI
-    ( Port (..), hGetLine, hGetSensitiveLine )
+    ( MnemonicSize (..), Port (..), hGetLine, hGetSensitiveLine )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.MVar
@@ -34,6 +34,7 @@ import Test.QuickCheck
     , arbitraryBoundedEnum
     , checkCoverage
     , cover
+    , genericShrink
     , (===)
     )
 import Test.Text.Roundtrip
@@ -46,6 +47,7 @@ spec :: Spec
 spec = do
     describe "Can perform roundtrip textual encoding & decoding" $ do
         textRoundtrip $ Proxy @(Port "test")
+        textRoundtrip $ Proxy @MnemonicSize
 
     describe "Port decoding from text" $ do
         let err = TextDecodingError
@@ -174,6 +176,10 @@ test fn (GetLineTest prompt_ input_ output expected) = do
 {-------------------------------------------------------------------------------
                                Arbitrary Instances
 -------------------------------------------------------------------------------}
+
+instance Arbitrary MnemonicSize where
+    arbitrary = arbitraryBoundedEnum
+    shrink = genericShrink
 
 instance Arbitrary (Port "test") where
     arbitrary = arbitraryBoundedEnum
