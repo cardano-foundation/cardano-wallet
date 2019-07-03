@@ -12,6 +12,8 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiTransaction, ApiWallet )
+import Cardano.Wallet.Primitive.Mnemonic
+    ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
     ( DecodeAddress
     , EncodeAddress
@@ -26,8 +28,6 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Text
     ( Text )
-import System.Command
-    ( Stdout (..) )
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Integration.Framework.DSL
@@ -48,7 +48,6 @@ import Test.Integration.Framework.DSL
     , expectListSizeEqual
     , expectResponseCode
     , fixtureWallet
-    , generateMnemonicsViaCLI
     , getFromResponse
     , getWalletEp
     , json
@@ -134,8 +133,8 @@ spec = do
     it "WALLETS_CREATE_02 - Restored wallet preserves funds" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         -- create wallet
-        Stdout mnemonics <- generateMnemonicsViaCLI []
-        let payldCrt = payloadWith "!st created" (T.words $ T.pack mnemonics)
+        mnemonics <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
+        let payldCrt = payloadWith "!st created" mnemonics
         rInit <- request @ApiWallet ctx ("POST", "v2/wallets") Default payldCrt
         verify rInit
             [ expectResponseCode @IO HTTP.status202

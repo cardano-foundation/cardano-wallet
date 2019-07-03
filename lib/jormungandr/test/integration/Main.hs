@@ -6,6 +6,8 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Main where
 
 import Prelude
@@ -75,7 +77,7 @@ import System.IO
 import Test.Hspec
     ( after, afterAll, beforeAll, describe, hspec )
 import Test.Integration.Framework.DSL
-    ( Context (..), TxDescription (..), tearDown )
+    ( Context (..), KnownCommand (..), TxDescription (..), tearDown )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Wallet.Api.Server as Server
@@ -85,17 +87,33 @@ import qualified Cardano.Wallet.Jormungandr.NetworkSpec as Network
 import qualified Cardano.Wallet.Jormungandr.Transaction as Jormungandr
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
+import qualified Test.Integration.Jormungandr.Scenario.CLI.Server as ServerCLI
 import qualified Test.Integration.Scenario.API.Addresses as Addresses
 import qualified Test.Integration.Scenario.API.Transactions as Transactions
 import qualified Test.Integration.Scenario.API.Wallets as Wallets
+import qualified Test.Integration.Scenario.CLI.Addresses as AddressesCLI
+import qualified Test.Integration.Scenario.CLI.Mnemonics as MnemonicsCLI
+import qualified Test.Integration.Scenario.CLI.Transactions as TransactionsCLI
+import qualified Test.Integration.Scenario.CLI.Wallets as WalletsCLI
 
-main :: IO ()
+-- | Define the actual executable name for the bridge CLI
+instance KnownCommand (Jormungandr n) where
+    commandName = "cardano-wallet-jormungandr"
+
+main :: forall t. (t ~ Jormungandr 'Testnet) => IO ()
 main = hspec $ do
     describe "Cardano.Wallet.NetworkSpec" Network.spec
+    describe "Mnemonics CLI tests" (MnemonicsCLI.spec @t)
     beforeAll start $ afterAll cleanup $ after tearDown $ do
+        -- API e2e Testing
         describe "Addresses API endpoint tests" Addresses.spec
         describe "Transactions API endpoint tests" Transactions.spec
         describe "Wallets API endpoint tests" Wallets.spec
+        -- Command-Line e2e Testing
+        describe "Addresses CLI tests" (AddressesCLI.spec @t)
+        describe "Server CLI tests" (ServerCLI.spec @t)
+        describe "Transactions CLI tests" (TransactionsCLI.spec @t)
+        describe "Wallets CLI tests" (WalletsCLI.spec @t)
   where
     start :: IO (Context (Jormungandr 'Testnet))
     start = do

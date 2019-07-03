@@ -17,7 +17,7 @@
     components = {
       "library" = {};
       exes = {
-        "cardano-wallet" = {
+        "cardano-wallet-http-bridge" = {
           depends = [
             (hsPkgs.base)
             (hsPkgs.async)

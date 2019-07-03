@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -42,7 +43,8 @@ import Test.Hspec
 import Test.Hspec.Expectations.Lifted
     ( shouldReturn )
 import Test.Integration.Framework.DSL
-    ( createWalletViaCLI
+    ( KnownCommand
+    , createWalletViaCLI
     , expectEventually'
     , expectPathEventuallyExist
     , expectValidJSON
@@ -54,7 +56,7 @@ import Test.Integration.Framework.DSL
 
 import qualified Data.Text.IO as TIO
 
-spec :: Spec
+spec :: forall t. (KnownCommand t) => Spec
 spec = do
     describe "LAUNCH - cardano-wallet launch" $ do
         it "LAUNCH - Can start launcher with --state-dir" $ withTempDir $ \d -> do
@@ -91,16 +93,16 @@ spec = do
             let args = ["launch", "--port", show port, "--state-dir", d]
             let process = proc' "cardano-wallet" args
             wallet <- withCreateProcess process $ \_ (Just o) (Just e) ph -> do
-                Stdout m <- generateMnemonicsViaCLI []
-                waitForServer ctx
+                Stdout m <- generateMnemonicsViaCLI @t []
+                waitForServer @t ctx
                 let pwd = "passphrase"
-                (_, out, _) <- createWalletViaCLI ctx ["n"] m "\n" pwd
+                (_, out, _) <- createWalletViaCLI @t ctx ["n"] m "\n" pwd
                 terminateProcess ph
                 TIO.hGetContents o >>= TIO.putStrLn
                 TIO.hGetContents e >>= TIO.putStrLn
                 expectValidJSON (Proxy @ApiWallet) out
             withCreateProcess process $ \_ (Just o) (Just e) ph -> do
-                waitForServer ctx
+                waitForServer @t ctx
                 expectEventually' ctx state Ready wallet `finally` do
                     terminateProcess ph
                     TIO.hGetContents o >>= TIO.putStrLn

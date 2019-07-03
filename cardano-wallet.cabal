@@ -23,7 +23,7 @@ flag development
 library
   hs-source-dirs: .
 
-executable cardano-wallet
+executable cardano-wallet-http-bridge
   default-language:
       Haskell2010
   default-extensions:

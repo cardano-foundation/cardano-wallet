@@ -1,5 +1,8 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Test.Integration.Scenario.CLI.Mnemonics
     ( spec
@@ -22,14 +25,14 @@ import Test.Hspec
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain )
 import Test.Integration.Framework.DSL
-    ( cardanoWalletCLI, generateMnemonicsViaCLI )
+    ( KnownCommand, cardanoWalletCLI, generateMnemonicsViaCLI )
 
 import qualified Data.List as L
 
-spec :: SpecWith ()
+spec :: forall t. KnownCommand t => SpecWith ()
 spec = do
     it "CLI_VERSION - cardano-wallet shows version" $  do
-        (Exit c, Stdout out) <- cardanoWalletCLI ["version"]
+        (Exit c, Stdout out) <- cardanoWalletCLI @t ["version"]
         let v = L.dropWhileEnd (== '\n') out
         v `shouldBe` (showVersion version)
         c `shouldBe` ExitSuccess
@@ -90,14 +93,14 @@ spec = do
                 , "address list " ++ wid ++ " --port"
                 ]
         forM_ badArgs $ \args -> it args $ \_ -> do
-            (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI $ words args
+            (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t $ words args
             c `shouldBe` ExitFailure 1
             o `shouldBe` ""
             e `shouldContain` "Usage:"
 
     describe "CLI_HELP - cardano-wallet shows help with" $  do
         let test option = it option $ do
-                (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI [option]
+                (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t [option]
                 e `shouldBe` ""
                 o `shouldContain` "Usage:"
                 o `shouldContain` "Available options:"
@@ -106,14 +109,14 @@ spec = do
         forM_ ["-h", "--help"] test
 
     it "CLI_MNEMONICS_01 - Can generate mnemonics with default size" $  do
-        (Exit c, Stdout out) <- generateMnemonicsViaCLI []
+        (Exit c, Stdout out) <- generateMnemonicsViaCLI @t []
         length (words out) `shouldBe` 15
         c `shouldBe` ExitSuccess
 
     describe "CLI_MNEMONICS_01 - Can generate mnemonics with different sizes" $ do
         let test size = it ("--size=" <> show size) $ do
                 (Exit c, Stdout out) <-
-                    generateMnemonicsViaCLI ["--size", show size]
+                    generateMnemonicsViaCLI @t ["--size", show size]
                 length (words out) `shouldBe` size
                 c `shouldBe` ExitSuccess
         forM_ [9, 12, 15, 18, 21, 24] test
@@ -123,7 +126,7 @@ spec = do
                 ["15.5", "3", "6", "14", "abc", "👌", "0", "~!@#%" , "-1000", "1000"]
         forM_ sizes $ \(size) -> it ("--size=" <> size) $ do
             (Exit c, Stdout out, Stderr err) <-
-                generateMnemonicsViaCLI ["--size", size]
+                generateMnemonicsViaCLI @t ["--size", size]
             c `shouldBe` ExitFailure 1
             err `shouldContain`
                 "Invalid mnemonic size. Expected one of: 9, 12, 15, 18, 21, 24."
