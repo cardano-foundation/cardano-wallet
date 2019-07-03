@@ -16,14 +16,15 @@ import System.Process
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldNotContain )
+    ( shouldBe )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand (..)
+    , collectStreams
     , expectPathEventuallyExist
-    , expectProcStdOutHas
-    , getProcStream
     , proc'
+    , shouldContainT
+    , shouldNotContainT
     )
 import Test.Integration.Framework.TestData
     ( versionLine )
@@ -44,31 +45,30 @@ spec = do
             threadDelay oneSecond
 
     describe "LOGGING - cardano-wallet serve logging" $ do
-        it "LOGGING - Serve an log --verbose" $ \_ -> do
-            let args = ["serve", "--verbose"]
+        it "LOGGING - Launch can log --verbose" $ \_ -> do
+            let args = ["serve", "--random-port", "--verbose"]
             let process = proc' (commandName @t) args
-            (process, 30) `expectProcStdOutHas` versionLine
-            (process, 30) `expectProcStdOutHas` "Debug"
-            (process, 30) `expectProcStdOutHas` "Notice"
-            (process, 30) `expectProcStdOutHas` "Info"
+            (out, _) <- collectStreams (20, 0) process
+            out `shouldContainT` versionLine
+            out `shouldContainT` "Debug"
+            out `shouldContainT` "Info"
+            out `shouldContainT` "Notice"
 
         it "LOGGING - Serve --quiet logs Error only" $ \_ -> do
-            let args = ["serve", "--quiet"]
+            let args = ["serve", "--random-port", "--quiet"]
             let process = proc' (commandName @t) args
-            (o, e) <- getProcStream process 10
-            T.pack o `shouldBe` ""
-            T.pack e `shouldBe` ""
+            (out, err) <- collectStreams (10, 10) process
+            out `shouldBe` mempty
+            err `shouldBe` mempty
 
         it "LOGGING - Serve default logs Info" $ \_ -> do
-            let args = ["serve"]
+            let args = ["serve", "--random-port"]
             let process = proc' (commandName @t) args
-            (o, e) <- getProcStream process 5
-            o `shouldNotContain` "Debug"
-            T.pack e `shouldBe` ""
-            -- 9 lines should be enough to get desired entries
-            (process, 9) `expectProcStdOutHas` versionLine
-            (process, 9) `expectProcStdOutHas` "Notice"
-            (process, 9) `expectProcStdOutHas` "Info"
+            (out, _) <- collectStreams (5, 0) process
+            out `shouldNotContainT` "Debug"
+            out `shouldContainT` versionLine
+            out `shouldContainT` "Info"
+            out `shouldContainT` "Notice"
 
 oneSecond :: Int
 oneSecond = 1000000
