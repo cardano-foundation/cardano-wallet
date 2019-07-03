@@ -28,8 +28,6 @@ spec = do
                 let process = proc' (commandName @t) args
                 withCreateProcess process $ \_ _ _ ph -> do
                     expectPathEventuallyExist db
-                    expectPathEventuallyExist (db <> "-shm")
-                    expectPathEventuallyExist (db <> "-wal")
                     terminateProcess ph
             threadDelay oneSecond
 
