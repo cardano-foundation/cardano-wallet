@@ -29,8 +29,6 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( versionLine )
 
-import qualified Data.Text as T
-
 spec :: forall t. KnownCommand t => SpecWith (Context t)
 spec = do
     describe "SERVER - cardano-wallet serve" $ do
