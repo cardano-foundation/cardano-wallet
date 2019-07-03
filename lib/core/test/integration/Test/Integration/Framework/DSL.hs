@@ -181,9 +181,10 @@ import System.Directory
 import System.Exit
     ( ExitCode (..) )
 import System.IO
-    ( BufferMode (..), hClose, hFlush, hPutStr, hSetBuffering )
+    ( BufferMode (..), Handle, hClose, hFlush, hPutStr, hSetBuffering )
 import System.Process
     ( CreateProcess (..)
+    , ProcessHandle
     , StdStream (..)
     , proc
     , terminateProcess
@@ -460,37 +461,44 @@ expectProcStdOutHas (procc, n) out = do
     let safeProc = procc { std_out = CreatePipe }
     res <- runProcUntil n safeProc out
     case res of
-        Left _ -> expectationFailure $
-            "Looked at first " ++ show n ++ " lines of stdout but there's no = " ++ T.unpack out
+        Left _ -> expectationFailure $ mempty
+            <> "Looked at first "
+            <> show n
+            <> " lines of stdout but there's no = "
+            <> T.unpack out
         Right _ ->
             return ()
   where
     runProcUntil :: Int -> CreateProcess -> Text -> IO (Either Text Text)
-    runProcUntil retries pr wants = withCreateProcess pr $ \_ (Just stdout) _ hand -> do
+    runProcUntil maxN p wants = withCreateProcess p $ \_ (Just stdout) _ ph -> do
            hSetBuffering stdout (LineBuffering)
-           waitForIt retries stdout hand
-     where
-         waitForIt ret o h = do
-             res <- try $ retry 60 (TIO.hGetLine o) :: IO (Either SomeException Text)
-             case res of
-                 Left e -> do
-                     terminateProcess h
-                     TIO.hGetContents o >>= TIO.putStrLn
-                     error $ "TIO.hGetLine failed to get line from proc stdout,\
-                        \ while trying to check if it contains: '" ++ T.unpack wants ++ "'\
-                        \ exception: " ++ show e
-                 Right is ->
-                     if wants `T.isInfixOf` is then do
-                         terminateProcess h
-                         TIO.hGetContents o >>= TIO.putStrLn
-                         return $ Right "Pass"
-                     else do
-                         if (ret == 0) then do
-                             terminateProcess h
-                             TIO.hGetContents o >>= TIO.putStrLn
-                             return $ Left "Fail"
-                         else
-                             waitForIt (ret - 1) o h
+           waitForIt wants maxN stdout ph
+
+    waitForIt :: Text -> Int -> Handle -> ProcessHandle -> IO (Either Text Text)
+    waitForIt wants maxN stdout ph = do
+        res <- try $ retry 60 (TIO.hGetLine stdout)
+        case res of
+            Left e -> do
+                terminateProcess' stdout ph
+                error $
+                    "TIO.hGetLine failed to get line from proc stdout, while \
+                    \trying to check if it contains: '" ++ T.unpack wants
+                    ++ "' exception: " ++ show @SomeException e
+            Right is | wants `T.isInfixOf` is ->
+                Right "Pass" <$ terminateProcess' stdout ph
+            Right _ | (maxN == 0) ->
+                Left "Fail" <$ terminateProcess' stdout ph
+            _ ->
+                waitForIt wants (maxN - 1) stdout ph
+
+    -- NOTE
+    -- calling 'terminateProcess' alone seems insufficient to really clean up
+    -- existing process. The function does resolve, but process aren't removed
+    -- by the OS until something is read out of the one of its output stream.
+    terminateProcess' :: Handle -> ProcessHandle -> IO ()
+    terminateProcess' h ph = do
+        terminateProcess ph
+        TIO.hGetContents h >>= TIO.putStrLn
 
 --
 -- Lenses
@@ -971,11 +979,11 @@ proc' cmd args = (proc "stack" (["exec", "--", cmd] ++ args))
 -- | Get process out and err streams after n seconds of running and terminate
 getProcStream :: CreateProcess -> Int -> IO (String, String)
 getProcStream pr n = withCreateProcess pr $ \_ (Just stdout) (Just stderr) h -> do
-       threadDelay $ n*oneSecond
-       terminateProcess h
-       out <- TIO.hGetContents stdout
-       err <- TIO.hGetContents stderr
-       return (T.unpack out, T.unpack err)
+    threadDelay $ n*oneSecond
+    terminateProcess h
+    out <- TIO.hGetContents stdout
+    err <- TIO.hGetContents stderr
+    return (T.unpack out, T.unpack err)
 
 oneSecond :: Int
 oneSecond = 1_000_000
