@@ -54,6 +54,7 @@ addons:
       - libgmp-dev
       - librocksdb-dev
       - libsystemd-dev
+      - lsof
 
 service:
   - docker
