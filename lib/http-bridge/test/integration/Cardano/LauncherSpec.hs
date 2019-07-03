@@ -41,18 +41,23 @@ import System.Process
 import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Expectations.Lifted
-    ( shouldReturn )
+    ( shouldBe, shouldReturn )
 import Test.Integration.Framework.DSL
-    ( KnownCommand
+    ( KnownCommand (..)
+    , collectStreams
     , createWalletViaCLI
     , expectEventually'
     , expectPathEventuallyExist
     , expectValidJSON
     , generateMnemonicsViaCLI
     , proc'
+    , shouldContainT
+    , shouldNotContainT
     , state
     , waitForServer
     )
+import Test.Integration.Framework.TestData
+    ( versionLine )
 
 import qualified Data.Text.IO as TIO
 
@@ -61,13 +66,11 @@ spec = do
     describe "LAUNCH - cardano-wallet launch" $ do
         it "LAUNCH - Can start launcher with --state-dir" $ withTempDir $ \d -> do
             let args = ["launch", "--network", "testnet", "--random-port", "--state-dir", d]
-            let process = proc' "cardano-wallet" args
+            let process = proc' (commandName @t) args
             withCreateProcess process $ \_ (Just o) (Just e) ph -> do
                 expectPathEventuallyExist d
                 expectPathEventuallyExist (d <> "/testnet")
                 expectPathEventuallyExist (d <> "/wallet.db")
-                expectPathEventuallyExist (d <> "/wallet.db-shm")
-                expectPathEventuallyExist (d <> "/wallet.db-wal")
                 terminateProcess ph
                 TIO.hGetContents o >>= TIO.putStrLn
                 TIO.hGetContents e >>= TIO.putStrLn
@@ -75,13 +78,11 @@ spec = do
         it "LAUNCH - Can start launcher with --state-dir (empty dir)" $ withTempDir $ \d -> do
             removeDirectory d
             let args = ["launch", "--network", "testnet", "--random-port", "--state-dir", d]
-            let process = proc' "cardano-wallet" args
+            let process = proc' (commandName @t) args
             withCreateProcess process $ \_ (Just o) (Just e) ph -> do
                 expectPathEventuallyExist d
                 expectPathEventuallyExist (d <> "/testnet")
                 expectPathEventuallyExist (d <> "/wallet.db")
-                expectPathEventuallyExist (d <> "/wallet.db-shm")
-                expectPathEventuallyExist (d <> "/wallet.db-wal")
                 terminateProcess ph
                 TIO.hGetContents o >>= TIO.putStrLn
                 TIO.hGetContents e >>= TIO.putStrLn
@@ -91,7 +92,7 @@ spec = do
             let baseUrl = "http://localhost:" <> toText port <> "/"
             ctx <- (port,) . (baseUrl,) <$> newManager defaultManagerSettings
             let args = ["launch", "--port", show port, "--state-dir", d]
-            let process = proc' "cardano-wallet" args
+            let process = proc' (commandName @t) args
             wallet <- withCreateProcess process $ \_ (Just o) (Just e) ph -> do
                 Stdout m <- generateMnemonicsViaCLI @t []
                 waitForServer @t ctx
@@ -121,5 +122,32 @@ spec = do
                 (_, _, _, ph) <- createProcess (proc filepath args)
                 waitForProcess ph `shouldReturn` ExitSuccess
 
+    describe "LOGGING - cardano-wallet launch logging" $ do
+        it "LOGGING - Launch can log --verbose" $ \_ -> do
+            let args = ["launch", "--verbose"]
+            let process = proc' (commandName @t) args
+            (out, _) <- collectStreams (35, 0) process
+            out `shouldContainT` versionLine
+            out `shouldContainT` "Debug"
+            out `shouldContainT` "Info"
+            out `shouldContainT` "Notice"
+
+        it "LOGGING - Launch --quiet logs Error only" $ \_ -> do
+            let args = ["launch", "--quiet"]
+            let process = proc' (commandName @t) args
+            (out, err) <- collectStreams (10, 10) process
+            out `shouldBe` mempty
+            err `shouldBe` mempty
+
+        it "LOGGING - Launch default logs Info" $ \_ -> do
+            let args = ["launch"]
+            let process = proc' (commandName @t) args
+            (out, _) <- collectStreams (15, 0) process
+            out `shouldNotContainT` "Debug"
+            out `shouldContainT` versionLine
+            out `shouldContainT` "Info"
+            out `shouldContainT` "Notice"
+
 withTempDir :: (FilePath -> IO a) -> IO a
 withTempDir = withSystemTempDirectory "integration-state"
+

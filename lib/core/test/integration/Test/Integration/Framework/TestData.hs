@@ -33,6 +33,7 @@ module Test.Integration.Framework.TestData
     , addressPoolGapMax
     , addressPoolGapMin
     , cmdOk
+    , versionLine
     , passphraseMaxLength
     , passphraseMinLength
     , payloadWith
@@ -58,8 +59,10 @@ module Test.Integration.Framework.TestData
 
 import Prelude
 
+import Cardano.Wallet.Version
+    ( showVersion, version )
 import Data.Text
-    ( Text, unpack )
+    ( Text, pack, unpack )
 import Test.Integration.Framework.DSL
     ( Payload (..), json )
 
@@ -214,6 +217,9 @@ updatePassPayload oldPass newPass = Json [json| {
     "old_passphrase": #{oldPass},
     "new_passphrase": #{newPass}
       } |]
+
+versionLine :: Text
+versionLine = "Running as v" <> pack (showVersion version)
 
   ---
   --- Error messages

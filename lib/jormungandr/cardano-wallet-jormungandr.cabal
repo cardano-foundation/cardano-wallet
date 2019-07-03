@@ -137,6 +137,7 @@ test-suite integration
     , deepseq
     , directory
     , exceptions
+    , extra
     , generic-lens
     , hspec
     , hspec-expectations-lifted

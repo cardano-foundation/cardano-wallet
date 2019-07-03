@@ -317,7 +317,7 @@ spec = do
                 , "--payment", "22@" <> addr3
                 ]
 
-        (c, out, err) <- postTransactionViaCLI ctx "Secure Passphrase" args
+        (c, out, err) <- postTransactionViaCLI @t ctx "Secure Passphrase" args
         (T.unpack err) `shouldContain` errMsg403InputsDepleted
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1

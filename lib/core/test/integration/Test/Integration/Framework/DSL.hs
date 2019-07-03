@@ -73,6 +73,9 @@ module Test.Integration.Framework.DSL
     , faucetUtxoAmt
     , proc'
     , waitForServer
+    , collectStreams
+    , shouldContainT
+    , shouldNotContainT
 
     -- * Endpoints
     , getWalletEp
@@ -117,9 +120,13 @@ import Cardano.Wallet.Primitive.Types
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
-    ( async, race, wait )
+    ( async, concurrently, race, wait )
+import Control.Concurrent.MVar
+    ( MVar, modifyMVar_, newMVar, takeMVar )
+import Control.Exception
+    ( SomeException (..), finally, try )
 import Control.Monad
-    ( forM_, unless, void )
+    ( forM_, unless, void, (>=>) )
 import Control.Monad.Catch
     ( MonadCatch )
 import Control.Monad.Fail
@@ -138,6 +145,8 @@ import Data.Foldable
     ( toList )
 import Data.Function
     ( (&) )
+import Data.Functor
+    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( Lens', lens, set, view, (^.) )
 import Data.Generics.Labels
@@ -175,18 +184,20 @@ import System.Directory
 import System.Exit
     ( ExitCode (..) )
 import System.IO
-    ( hClose, hFlush, hPutStr )
+    ( BufferMode (..), Handle, hClose, hFlush, hPutStr, hSetBuffering )
 import System.Process
     ( CreateProcess (..)
+    , ProcessHandle
     , StdStream (..)
     , proc
+    , terminateProcess
     , waitForProcess
     , withCreateProcess
     )
 import Test.Hspec
     ( expectationFailure )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain, shouldNotBe )
+    ( shouldBe, shouldContain, shouldNotBe, shouldNotContain )
 import Test.Integration.Faucet
     ( nextWallet )
 import Test.Integration.Framework.Request
@@ -345,7 +356,6 @@ expectEventually ctx getter target (_, res) = case res of
             Right _ ->
                 return ()
   where
-    oneSecond = 1_000_000
     loopUntilRestore :: Text -> IO ()
     loopUntilRestore wid = do
         r <- request @ApiWallet ctx ("GET", "v2/wallets/" <> wid) Default Empty
@@ -438,7 +448,6 @@ expectPathEventuallyExist filepath = do
         Right _ ->
             return ()
   where
-    oneSecond = 1_000_000
     doesPathExistNow = do
         doesPathExist filepath >>= \case
             True ->
@@ -446,7 +455,6 @@ expectPathEventuallyExist filepath = do
             False ->
                 threadDelay (oneSecond `div` 2) >> doesPathExistNow
 
---
 -- Lenses
 --
 addressPoolGap :: HasType (ApiT AddressPoolGap) s => Lens' s Int
@@ -620,7 +628,6 @@ fixtureWallet ctx = do
         Left _ -> fail "fixtureWallet: waited too long for initial transaction"
         Right a -> return a
   where
-    oneSecond = 1_000_000
     sixtySeconds = 60*oneSecond
     checkBalance :: Text -> IO ApiWallet
     checkBalance wid = do
@@ -716,7 +723,7 @@ tearDown ctx = do
          Left e -> error $ "deleteAllWallets: Cannot return wallets: " <> show e
          Right s -> s
 
--- | Wait a booting wallet server to has started. Wait up to 30s or fail.
+-- | Wait for a booting wallet server to start. Wait up to 30s or fail.
 waitForServer
     :: forall t ctx. (HasType Port ctx, KnownCommand t)
     => ctx
@@ -729,8 +736,6 @@ waitForServer ctx = void $ retrying
     -- quite noisy.
     (\_ (e, _ :: Stderr, _ :: Stdout) -> pure $ e == ExitFailure 1)
     (const $ listWalletsViaCLI @t ctx)
-  where
-    oneSecond = 1000000
 
 unsafeCreateDigest :: Text -> Digest Blake2b_160
 unsafeCreateDigest s = fromMaybe
@@ -924,3 +929,58 @@ postTransactionViaCLI ctx passphrase args = do
 proc' :: FilePath -> [String] -> CreateProcess
 proc' cmd args = (proc "stack" (["exec", "--", cmd] ++ args))
     { std_in = CreatePipe, std_out = CreatePipe, std_err = CreatePipe }
+
+-- | Collect lines from standard output and error streams for 30 seconds, or,
+-- until a given limit is for both streams.
+collectStreams :: (Int, Int) -> CreateProcess -> IO (Text, Text)
+collectStreams (nOut0, nErr0) p = do
+    let safeP = p { std_out = CreatePipe, std_err = CreatePipe }
+    mvar <- newMVar (mempty, mempty)
+    withCreateProcess safeP $ \_ (Just o) (Just e) ph -> do
+        hSetBuffering o LineBuffering
+        hSetBuffering e LineBuffering
+        let io = race
+                (threadDelay (30 * oneSecond))
+                (collect mvar ((o, nOut0), (e, nErr0)) ph)
+        void $ io `finally` do
+            -- NOTE
+            -- Somehow, calling 'terminateProcess' isn't sufficient. We also
+            -- need to close the handles otherwise, the function resolves but
+            -- the processes remains hanging there for a while...
+            terminateProcess ph *> flush o
+    takeMVar mvar
+  where
+    flush :: Handle -> IO ()
+    flush = try @SomeException . TIO.hGetContents >=> print
+
+    collect
+        :: MVar (Text, Text)
+        -> ((Handle, Int), (Handle, Int))
+        -> ProcessHandle
+        -> IO ()
+    collect mvar ((stdout, nOut), (stderr, nErr)) ph
+        | nOut <= 0 && nErr <= 0 = return ()
+        | otherwise = do
+            ((out, nOut'), (err, nErr')) <- concurrently
+                (getNextLine nOut stdout)
+                (getNextLine nErr stderr)
+            modifyMVar_ mvar (\(out0, err0) -> return (out0 <> out, err0 <> err))
+            collect mvar ((stdout, nOut'), (stderr, nErr')) ph
+
+    getNextLine :: Int -> Handle -> IO (Text, Int)
+    getNextLine n h
+        | n <= 0 = return (mempty, n)
+        | otherwise = try @SomeException (TIO.hGetLine h) <&> \case
+            Left _  -> (mempty, n)
+            Right l -> (l, n-1)
+
+-- | Like `shouldContain`, but with 'Text'
+shouldContainT :: Text -> Text -> IO ()
+shouldContainT a b = T.unpack a `shouldContain` T.unpack b
+
+-- | Like `shouldNotContain`, but with 'Text'
+shouldNotContainT :: Text -> Text -> IO ()
+shouldNotContainT a b = T.unpack a `shouldNotContain` T.unpack b
+
+oneSecond :: Int
+oneSecond = 1_000_000

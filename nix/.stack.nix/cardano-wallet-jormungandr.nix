@@ -85,6 +85,7 @@
             (hsPkgs.deepseq)
             (hsPkgs.directory)
             (hsPkgs.exceptions)
+            (hsPkgs.extra)
             (hsPkgs.generic-lens)
             (hsPkgs.hspec)
             (hsPkgs.hspec-expectations-lifted)
