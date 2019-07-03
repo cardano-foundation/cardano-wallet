@@ -10,8 +10,12 @@ git:
 
 env:
   global:
-    - WALLET_CLI=$HOME/.local/bin/cardano-wallet
-    - WALLET_CLI_CHECKSUM=$HOME/.local/bin/cardano-wallet.sha256
+    - WALLET_CLI_JORMUNGANDR=$HOME/.local/bin/cardano-wallet-jormungandr
+    - WALLET_CLI_JORMUNGANDR_CHECKSUM=$HOME/.local/bin/cardano-wallet-jormungandr.sha256
+    - WALLET_CLI_JORMUNGANDR_TARGZ=$HOME/.local/bin/cardano-wallet-jormungandr.tar.gz
+    - WALLET_CLI_HTTP_BRIDGE=$HOME/.local/bin/cardano-wallet-http-bridge
+    - WALLET_CLI_HTTP_BRIDGE_CHECKSUM=$HOME/.local/bin/cardano-wallet-http-bridge.sha256
+    - WALLET_CLI_HTTP_BRIDGE_TARGZ=$HOME/.local/bin/cardano-wallet-http-bridge.tar.gz
     - STACK_WORK_CACHE=$HOME/.stack/stack-work.tar.gz
     - PATH=$PATH:$HOME/.local/bin
     - LOCAL_MIX_DIR=.stack-work/dist/x86_64-linux/Cabal-2.4.0.1/hpc/
@@ -223,11 +227,24 @@ jobs:
     if: tag =~ ^v
     name: "Executables"
     script:
-    # Create binaries and checksums
+    # Create optimized binaries and checksums
+    - stack clean
+    - stack --no-terminal build
     - stack --no-terminal install
-    - sha256sum $WALLET_CLI | head -c 64 > $WALLET_CLI_CHECKSUM
-    - ls $WALLET_CLI
-    - ls $WALLET_CLI_CHECKSUM
+
+    # Bundle cardano-wallet-jormungandr
+    - cp $WALLET_CLI_JORMUNGANDR cardano-wallet
+    - tar czf $WALLET_CLI_JORMUNGANDR_TARGZ cardano-wallet
+    - sha256sum $WALLET_CLI_JORMUNGANDR | head -c 64 > $WALLET_CLI_JORMUNGANDR_CHECKSUM
+    - ls $WALLET_CLI_JORMUNGANDR_TARGZ
+    - ls $WALLET_CLI_JORMUNGANDR_CHECKSUM
+
+    # Bundle cardano-wallet-http-bridge
+    - cp $WALLET_CLI_HTTP_BRIDGE cardano-wallet
+    - tar czf $WALLET_CLI_HTTP_BRIDGE_TARGZ cardano-wallet
+    - sha256sum $WALLET_CLI_HTTP_BRIDGE | head -c 64 > $WALLET_CLI_HTTP_BRIDGE_CHECKSUM
+    - ls $WALLET_CLI_HTTP_BRIDGE_TARGZ
+    - ls $WALLET_CLI_HTTP_BRIDGE_CHECKSUM
 
     # Deploy documentation snapshot
     - mkdir -p haddock/$TRAVIS_TAG api/$TRAVIS_TAG
@@ -236,15 +253,17 @@ jobs:
     - git checkout --orphan gh-pages-deploy && git reset
     - git add api haddock && git commit -m $TRAVIS_COMMIT
     - git checkout gh-pages && git merge -X theirs --no-commit --no-ff --allow-unrelated-histories - && git commit --allow-empty --no-edit
-    - git push -f -q https://WilliamKingNoel-Bot:$GITHUB_ACCESS_TOKEN@github.com/input-output-hk/cardano-wallet gh-pages &>/dev/null
+    - travis_retry git push -f -q https://WilliamKingNoel-Bot:$GITHUB_ACCESS_TOKEN@github.com/input-output-hk/cardano-wallet gh-pages &>/dev/null
     deploy:
       provider: releases
       api_key: $GITHUB_ACCESS_TOKEN
       draft: true # Allow editing the release before publishing it officially on GitHub
       skip_cleanup: true # Make sure that files from the previous stages aren't cleaned up
       file:
-        - $WALLET_CLI
-        - $WALLET_CLI_CHECKSUM
+        - $WALLET_CLI_JORMUNGANDR_TARGZ
+        - $WALLET_CLI_JORMUNGANDR_CHECKSUM
+        - $WALLET_CLI_HTTP_BRIDGE_TARGZ
+        - $WALLET_CLI_HTTP_BRIDGE_CHECKSUM
       on:
         repo: input-output-hk/cardano-wallet
         branch: master
