@@ -176,7 +176,10 @@ jobs:
     script:
     - travis_retry curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-http-bridge/hermes-testnet.tar.gz
     - tar xzf hermes-testnet.tar.gz -C $HOME
-    - travis_wait 30 stack --no-terminal test --fast --haddock --no-haddock-deps --coverage
+    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-core cardano-wallet-cli cardano-wallet-launcher bech32 text-class
+    - travis_wait 30 stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-http-bridge
+    - travis_wait 30 stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr
+    - find . -path *.tix ! -path *.stack-work*
     - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work lib/**/*.tix
 
   - stage: deploy 🚀
