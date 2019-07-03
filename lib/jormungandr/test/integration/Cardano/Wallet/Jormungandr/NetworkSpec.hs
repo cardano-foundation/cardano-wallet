@@ -237,7 +237,7 @@ spec = do
     startNode baseUrl wait = do
         removePathForcibly "/tmp/cardano-wallet-jormungandr"
         let dir = "test/data/jormungandr"
-        _ <- launch [Command "lsof" ["-i", ":8080"] (return ()) Inherit]
+        _ <- launch [Command "bash" ["log-8080-port.sh"] (return ()) Inherit]
         handle <- async $ void $ launch
             [ Command "jormungandr"
                 [ "--genesis-block", dir ++ "/block0.bin"
