@@ -538,13 +538,13 @@ cmdVersion = command "version" $ info cmd $ mempty
 execLaunch
     :: Verbosity
     -> FilePath
-    -> (FilePath -> IO ())
+    -> (Trace IO Text -> FilePath -> IO ())
     -> [Command]
     -> IO ()
 execLaunch verbosity stateDir withStateDir commands = do
     installSignalHandlers
     (_, tracer) <- initTracer (verbosityToMinSeverity verbosity) "launch"
-    setupStateDir (logInfo tracer) withStateDir stateDir
+    setupStateDir (logInfo tracer) (withStateDir tracer) stateDir
     logInfo tracer $ fmt $ nameF "launch" $ blockListF commands
     (ProcessHasExited pName code) <- launch commands
     logAlert tracer $ T.pack pName <> " exited with code " <> T.pack (show code)

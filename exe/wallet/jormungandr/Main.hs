@@ -104,6 +104,7 @@ import Options.Applicative
     , Mod
     , Parser
     , command
+    , footer
     , help
     , helper
     , info
@@ -185,6 +186,9 @@ cmdLaunch
     :: Mod CommandFields (IO ())
 cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
     <> progDesc "Launch and monitor a wallet server and its chain producers."
+    <> footer
+        "Please note that launch will generate a configuration for Jörmungandr \
+        \in a folder specified by '--state-dir'."
   where
     cmd = fmap exec $ LaunchArgs
         <$> listenOption
@@ -200,9 +204,13 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
         let baseUrl = BaseUrl Http "127.0.0.1" (getPort nodePort) "/api"
         stateDir <- resolveHomeDir stateDirRaw
         let nodeConfig = stateDir </> "jormungandr-config.json"
-        let withStateDir _ = genConfigFile stateDir baseUrl
-                & Aeson.encode
-                & BL.writeFile nodeConfig
+        let withStateDir tracer _ = do
+                genConfigFile stateDir baseUrl
+                    & Aeson.encode
+                    & BL.writeFile nodeConfig
+                logInfo tracer $ mempty
+                    <> "Generated Jörmungandr's configuration to: "
+                    <> T.pack nodeConfig
         execLaunch verbosity stateDir withStateDir
             [ commandJormungandr nodeConfig jArgs
             , commandWalletServe cmdName stateDir block0H

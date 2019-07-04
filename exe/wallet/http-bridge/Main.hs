@@ -166,7 +166,7 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
         <*> stateDirOption
         <*> verbosityOption
     exec (LaunchArgs network listen nodePort stateDirRaw verbosity) = do
-        let withStateDir _ = pure ()
+        let withStateDir _ _ = pure ()
         stateDir <- resolveHomeDir stateDirRaw
         cmdName <- getProgName
         execLaunch verbosity stateDir withStateDir
