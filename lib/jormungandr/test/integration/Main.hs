@@ -56,6 +56,8 @@ import Data.Coerce
     ( coerce )
 import Data.Function
     ( (&) )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -130,7 +132,7 @@ main = hspec $ do
                 ] (return ())
                 (UseHandle logs)
         handle <- async $ void $ launch [jormungandrLauncher]
-        (port, feePolicy, db) <- cardanoWalletServer
+        (port, feePolicy, db) <- cardanoWalletServer (Just ListenOnRandomPort)
         let baseUrl = "http://localhost:" <> T.pack (show port) <> "/"
         manager <- (baseUrl,) <$> newManager defaultManagerSettings
         faucet <- initFaucet
@@ -155,8 +157,9 @@ initTracer minSeverity cmd = do
 -- code coverage measures from running the scenarios on top of it!
 cardanoWalletServer
     :: forall network. (network ~ Jormungandr 'Testnet)
-    => IO (Int, FeePolicy, SqlBackend)
-cardanoWalletServer = do
+    => Maybe Listen
+    -> IO (Int, FeePolicy, SqlBackend)
+cardanoWalletServer mlisten = do
     logConfig <- CM.empty
     tracer <- initTracer Info "serve"
     (nl, block0, feePolicy) <- newNetworkLayer jormungandrUrl block0H
@@ -165,7 +168,7 @@ cardanoWalletServer = do
     void $ forkIO $ do
         let tl = Jormungandr.newTransactionLayer block0H
         wallet <- newWalletLayer tracer block0 feePolicy db nl tl
-        let listen = ListenOnRandomPort
+        let listen = fromMaybe (ListenOnPort defaultPort) mlisten
         Server.withListeningSocket listen $ \(port, socket) -> do
             let settings = Warp.defaultSettings
                     & setBeforeMainLoop (putMVar mvar port)
@@ -220,3 +223,7 @@ mkFeeEstimator policy (TxDescription nInps nOuts) =
 -- | One second in micro-seconds
 oneSecond :: Int
 oneSecond = 1000000
+
+-- | Default port for the wallet server
+defaultPort :: Int
+defaultPort = 8090
