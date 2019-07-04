@@ -618,7 +618,7 @@ sizeOption = optionT $ mempty
     <> metavar "INT"
     <> help "number of mnemonic words to generate."
     <> value MS_15
-    <> showDefaultWith show
+    <> showDefaultWith showT
 
 -- | --state-dir=FILEPATH
 stateDirOption :: Parser FilePath
