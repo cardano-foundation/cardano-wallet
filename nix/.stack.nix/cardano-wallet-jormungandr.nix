@@ -95,7 +95,6 @@
             (hsPkgs.iohk-monitoring)
             (hsPkgs.memory)
             (hsPkgs.persistent)
-            (hsPkgs.persistent-sqlite)
             (hsPkgs.process)
             (hsPkgs.QuickCheck)
             (hsPkgs.retry)

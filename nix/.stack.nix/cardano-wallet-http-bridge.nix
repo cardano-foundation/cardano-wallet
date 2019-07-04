@@ -98,7 +98,6 @@
             (hsPkgs.http-types)
             (hsPkgs.iohk-monitoring)
             (hsPkgs.persistent)
-            (hsPkgs.persistent-sqlite)
             (hsPkgs.process)
             (hsPkgs.retry)
             (hsPkgs.template-haskell)

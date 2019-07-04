@@ -21,8 +21,6 @@ module Test.Integration.Framework.Request
 
 import Prelude
 
-import Control.Concurrent.Async
-    ( Async )
 import Control.Monad.Catch
     ( Exception (..), MonadCatch (..), throwM )
 import Control.Monad.IO.Class
@@ -39,8 +37,6 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Text
     ( Text )
-import Database.Persist.Sqlite
-    ( SqlBackend )
 import GHC.Generics
     ( Generic )
 import Network.HTTP.Client
@@ -66,8 +62,6 @@ import Network.Wai.Handler.Warp
     ( Port )
 import Numeric.Natural
     ( Natural )
-import System.IO
-    ( Handle )
 import Test.Integration.Faucet
     ( Faucet )
 
@@ -79,24 +73,19 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 -- | Running Context for our integration test
 data Context t = Context
-    { _cluster
-        :: Async ()
-        -- ^ A handle to the running cluster / chain producer
+    { _cleanup
+        :: IO ()
+        -- ^ An action to clean up open processes after tests
     , _manager
         :: (Text, Manager)
         -- ^ The underlying BaseUrl and Manager used by the Wallet Client
     , _port
         :: Port
         -- ^ Server TCP port
-    , _logs
-        :: Handle
-        -- ^ A file 'Handle' to the launcher log output
     , _faucet
         :: Faucet
         -- ^ A 'Faucet' handle in to have access to funded wallets in
         -- integration tests.
-    , _db :: SqlBackend
-        -- ^ A database connection handle
     , _feeEstimator :: TxDescription -> (Natural, Natural)
         -- ^ A fee estimator for the integration tests
     , _target
