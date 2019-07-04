@@ -81,7 +81,6 @@ import Test.Integration.Framework.Request
     ( Headers (Default), Payload (Empty), request )
 
 import qualified Cardano.BM.Configuration.Model as CM
-import qualified Cardano.LauncherSpec as Launcher
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.HttpBridge.Network as HttpBridge
@@ -92,12 +91,14 @@ import qualified Data.Aeson.Types as Aeson
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Test.Integration.HttpBridge.Scenario.API.Transactions as TransactionsBridge
+import qualified Test.Integration.HttpBridge.Scenario.CLI.Launcher as LauncherCLI
 import qualified Test.Integration.HttpBridge.Scenario.CLI.Server as ServerCLI
 import qualified Test.Integration.HttpBridge.Scenario.CLI.Transactions as TransactionsCLIBridge
 import qualified Test.Integration.Scenario.API.Addresses as Addresses
 import qualified Test.Integration.Scenario.API.Transactions as Transactions
 import qualified Test.Integration.Scenario.API.Wallets as Wallets
 import qualified Test.Integration.Scenario.CLI.Addresses as AddressesCLI
+import qualified Test.Integration.Scenario.CLI.Miscellaneous as MiscellaneousCLI
 import qualified Test.Integration.Scenario.CLI.Mnemonics as MnemonicsCLI
 import qualified Test.Integration.Scenario.CLI.Port as PortCLI
 import qualified Test.Integration.Scenario.CLI.Transactions as TransactionsCLI
@@ -114,28 +115,28 @@ main = do
     hspec $ do
         describe "Cardano.WalletSpec" Wallet.spec
         describe "Cardano.Wallet.HttpBridge.NetworkSpec" HttpBridge.spec
-        describe "Cardano.LauncherSpec" (Launcher.spec @t)
-        describe "CLI commands not requiring bridge" $ do
-            describe "Mnemonics CLI tests" (MnemonicsCLI.spec @t)
-            describe "--port CLI tests" $ do
-                PortCLI.specNegative @t
-                cardanoWalletServer Nothing
-                    & beforeAll
-                    $ afterAll killServer
-                    $ describe "with default port" $ do
-                        PortCLI.specCommon @t
-                        PortCLI.specWithDefaultPort @t
-                cardanoWalletServer (Just $ ListenOnPort defaultPort)
-                    & beforeAll
-                    $ afterAll killServer
-                    $ describe "with specified port" $ do
-                        PortCLI.specCommon @t
-                cardanoWalletServer (Just ListenOnRandomPort)
-                    & beforeAll
-                    $ afterAll killServer
-                    $ describe "with random port" $ do
-                        PortCLI.specCommon @t
-                        PortCLI.specWithRandomPort @t defaultPort
+        describe "Launcher CLI tests" (LauncherCLI.spec @t)
+        describe "Mnemonics CLI tests" (MnemonicsCLI.spec @t)
+        describe "Miscellaneous CLI tests" (MiscellaneousCLI.spec @t)
+        describe "--port CLI tests" $ do
+            PortCLI.specNegative @t
+            cardanoWalletServer Nothing
+                & beforeAll
+                $ afterAll killServer
+                $ describe "with default port" $ do
+                    PortCLI.specCommon @t
+                    PortCLI.specWithDefaultPort @t
+            cardanoWalletServer (Just $ ListenOnPort defaultPort)
+                & beforeAll
+                $ afterAll killServer
+                $ describe "with specified port" $ do
+                    PortCLI.specCommon @t
+            cardanoWalletServer (Just ListenOnRandomPort)
+                & beforeAll
+                $ afterAll killServer
+                $ describe "with random port" $ do
+                    PortCLI.specCommon @t
+                    PortCLI.specWithRandomPort @t defaultPort
         beforeAll startCluster $
             afterAll killCluster $ after tearDown $ do
             describe "Wallets API endpoint tests" (Wallets.spec @t)

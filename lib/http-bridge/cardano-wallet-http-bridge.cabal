@@ -175,25 +175,26 @@ test-suite integration
   main-is:
       Main.hs
   other-modules:
-      Cardano.LauncherSpec
-      Cardano.WalletSpec
-      Cardano.Wallet.HttpBridge.NetworkSpec
       Cardano.Faucet
+      Cardano.Wallet.HttpBridge.NetworkSpec
+      Cardano.WalletSpec
       Test.Integration.Faucet
       Test.Integration.Framework.DSL
       Test.Integration.Framework.Request
       Test.Integration.Framework.TestData
+      Test.Integration.HttpBridge.Scenario.API.Transactions
+      Test.Integration.HttpBridge.Scenario.CLI.Launcher
+      Test.Integration.HttpBridge.Scenario.CLI.Server
+      Test.Integration.HttpBridge.Scenario.CLI.Transactions
       Test.Integration.Scenario.API.Addresses
       Test.Integration.Scenario.API.Transactions
       Test.Integration.Scenario.API.Wallets
       Test.Integration.Scenario.CLI.Addresses
+      Test.Integration.Scenario.CLI.Miscellaneous
       Test.Integration.Scenario.CLI.Mnemonics
       Test.Integration.Scenario.CLI.Port
       Test.Integration.Scenario.CLI.Transactions
       Test.Integration.Scenario.CLI.Wallets
-      Test.Integration.HttpBridge.Scenario.API.Transactions
-      Test.Integration.HttpBridge.Scenario.CLI.Server
-      Test.Integration.HttpBridge.Scenario.CLI.Transactions
 
 benchmark restore
   default-language:
