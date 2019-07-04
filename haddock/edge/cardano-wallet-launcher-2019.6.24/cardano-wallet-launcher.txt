@@ -76,7 +76,7 @@ installSignalHandlers :: IO ()
 
 -- | Initialize a state directory to store blockchain data such as blocks
 --   or the wallet database.
-setupStateDir :: (Text -> IO ()) -> FilePath -> IO ()
+setupStateDir :: (Text -> IO ()) -> (FilePath -> IO ()) -> FilePath -> IO ()
 instance GHC.Show.Show Cardano.Launcher.ProcessHasExited
 instance GHC.Exception.Type.Exception Cardano.Launcher.ProcessHasExited
 instance Formatting.Buildable.Buildable Cardano.Launcher.Command

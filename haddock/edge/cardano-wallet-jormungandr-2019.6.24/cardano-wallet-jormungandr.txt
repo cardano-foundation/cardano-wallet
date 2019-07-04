@@ -249,6 +249,18 @@ Testnet :: Network
 
 -- | Genesis block header, i.e. very first block header of the chain
 block0 :: BlockHeader
+data BaseUrl
+BaseUrl :: Scheme -> String -> Int -> String -> BaseUrl
+[baseUrlScheme] :: BaseUrl -> Scheme
+[baseUrlHost] :: BaseUrl -> String
+[baseUrlPort] :: BaseUrl -> Int
+[baseUrlPath] :: BaseUrl -> String
+data Scheme
+Http :: Scheme
+Https :: Scheme
+
+-- | Generate a configuration file for Jörmungandr@0.2.3
+genConfigFile :: FilePath -> BaseUrl -> Value
 instance Cardano.Wallet.Primitive.Types.DefineTx (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr network)
 instance Cardano.Wallet.DB.Sqlite.PersistTx (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr network)
 instance Cardano.Wallet.Jormungandr.Environment.KnownNetwork n => Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr n)
