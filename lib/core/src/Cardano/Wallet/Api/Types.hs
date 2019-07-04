@@ -165,12 +165,12 @@ data PostTransactionData t = PostTransactionData
     , passphrase :: !(ApiT (Passphrase "encryption"))
     } deriving (Eq, Generic, Show)
 
-data PostTransactionFeeData t = PostTransactionFeeData
-    { payments :: !(NonEmpty (AddressAmount t))
+newtype PostTransactionFeeData t = PostTransactionFeeData
+    { payments :: (NonEmpty (AddressAmount t))
     } deriving (Eq, Generic, Show)
 
-data ApiFee = ApiFee
-    { amount :: !(Quantity "lovelace" Natural)
+newtype ApiFee = ApiFee
+    { amount :: (Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
 data ApiTransaction t = ApiTransaction

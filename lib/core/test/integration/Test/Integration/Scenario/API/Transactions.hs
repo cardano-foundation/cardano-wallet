@@ -721,7 +721,7 @@ spec = do
         verify r
             [ expectSuccess
             , expectResponseCode HTTP.status202
-            , expectFieldBetween amount (feeMin + amt, feeMax + amt)
+            , expectFieldBetween amount (feeMin - amt, feeMax + amt)
             ]
 
     it "TRANS_ESTIMATE_05 - Multiple Output Fee Estimation to single wallet" $ \ctx -> do
@@ -756,7 +756,7 @@ spec = do
         r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldBetween amount (feeMin + (2*amt), feeMax + (2*amt))
+            , expectFieldBetween amount (feeMin - (2*amt), feeMax + (2*amt))
             ]
 
     it "TRANS_ESTIMATE_06 - Multiple Output Fee Estimation to different wallets" $ \ctx -> do
@@ -795,7 +795,7 @@ spec = do
         r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
-            , expectFieldBetween amount (feeMin + (2*amt), feeMax + (2*amt))
+            , expectFieldBetween amount (feeMin - (2*amt), feeMax + (2*amt))
             ]
 
     it "TRANS_ESTIMATE_07 - Multiple Output Fee Estimation don't work on single UTxO" $ \ctx -> do
