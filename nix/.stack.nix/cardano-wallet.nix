@@ -37,6 +37,7 @@
         "cardano-wallet-jormungandr" = {
           depends = [
             (hsPkgs.base)
+            (hsPkgs.aeson)
             (hsPkgs.async)
             (hsPkgs.bytestring)
             (hsPkgs.cardano-wallet-cli)
@@ -48,8 +49,6 @@
             (hsPkgs.iohk-monitoring)
             (hsPkgs.optparse-applicative)
             (hsPkgs.process)
-            (hsPkgs.servant-client)
-            (hsPkgs.servant-client-core)
             (hsPkgs.text)
             (hsPkgs.text-class)
             (hsPkgs.warp)
