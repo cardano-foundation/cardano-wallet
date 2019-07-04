@@ -164,7 +164,7 @@ main = runCli $ cli $ mempty
     [--state-dir=DIR]
     [(--quiet | --verbose )]
     --genesis-block=FILE
-    --node-secret=FILE
+    --bft-leaders=FILE
 -------------------------------------------------------------------------------}
 
 data LaunchArgs = LaunchArgs
@@ -177,7 +177,7 @@ data LaunchArgs = LaunchArgs
 
 data JormungandrArgs = JormungandrArgs
     { _genesisBlock :: FilePath
-    , _nodeSecret :: FilePath
+    , _bftLeaders :: FilePath
     }
 
 -- | cardano-wallet launch
@@ -193,7 +193,7 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
         <*> verbosityOption
         <*> (JormungandrArgs
             <$> genesisBlockOption
-            <*> nodeSecretOption)
+            <*> bftLeadersOption)
     exec (LaunchArgs listen nodePort stateDirRaw verbosity jArgs) = do
         cmdName <- getProgName
         block0H <- runGet getBlockId <$> BL.readFile (_genesisBlock jArgs)
@@ -208,13 +208,13 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
             , commandWalletServe cmdName stateDir block0H
             ]
       where
-        commandJormungandr nodeConfig (JormungandrArgs block0 nodeSecret) =
+        commandJormungandr nodeConfig (JormungandrArgs block0 bftLeaders) =
             Command "jormungandr" arguments (return ()) Inherit
           where
             arguments = mconcat
               [ [ "--genesis-block", block0 ]
               , [ "--config", nodeConfig ]
-              , [ "--secret", nodeSecret ]
+              , [ "--secret", bftLeaders ]
               ]
 
         commandWalletServe cmdName stateDir block0H =
@@ -328,12 +328,12 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
                                  Options
 -------------------------------------------------------------------------------}
 
--- | --node-secret=FILE
-nodeSecretOption :: Parser FilePath
-nodeSecretOption = optionT $ mempty
-    <> long "node-secret"
+-- | --bft-leaders=FILE
+bftLeadersOption :: Parser FilePath
+bftLeadersOption = optionT $ mempty
+    <> long "bft-leaders"
     <> metavar "FILE"
-    <> help "Path to BFT leaders' secrets (.yaml)."
+    <> help "Path to BFT leaders' secrets (.yaml/.json)."
 
 -- | --genesis-block=FILE
 genesisBlockOption :: Parser FilePath
