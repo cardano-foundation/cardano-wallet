@@ -1,5 +1,5 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -12,13 +12,20 @@ module Cardano.Wallet.HttpBridge.Transaction
 import Prelude
 
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge )
+    ( HttpBridge, estimateMaxNumberOfInputsParams )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..), ProtocolMagic (..) )
 import Cardano.Wallet.HttpBridge.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (AddressK), Key, Passphrase (..), XPrv, getKey, publicKey )
+    ( Depth (AddressK)
+    , Key
+    , KeyToAddress
+    , Passphrase (..)
+    , XPrv
+    , getKey
+    , publicKey
+    )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
@@ -50,8 +57,8 @@ import qualified Data.ByteString.Lazy as BL
 
 -- | Construct a 'TransactionLayer' compatible with Byron and the 'HttpBridge'
 newTransactionLayer
-    :: forall n. KnownNetwork n
-    => TransactionLayer (HttpBridge n)
+    :: forall n t. (KnownNetwork n, t ~ HttpBridge n, KeyToAddress t)
+    => TransactionLayer t
 newTransactionLayer = TransactionLayer
     { mkStdTx = \keyFrom inps outs -> do
         let ins = (fmap fst inps)
@@ -77,7 +84,7 @@ newTransactionLayer = TransactionLayer
         + n * sizeOfTxWitness
 
     , estimateMaxNumberOfInputs =
-        estimateMaxNumberOfInputsBase CBOR.estimateMaxNumberOfInputsParams
+        estimateMaxNumberOfInputsBase (estimateMaxNumberOfInputsParams @n)
 
     }
   where

@@ -568,7 +568,8 @@ blake2b256 =
 
 -- | This provides network encoding specific variables to be used by the
 -- 'estimateMaxNumberOfInputs' function.
-estimateMaxNumberOfInputsParams :: EstimateMaxNumberOfInputsParams
+estimateMaxNumberOfInputsParams
+    :: EstimateMaxNumberOfInputsParams t
 estimateMaxNumberOfInputsParams = EstimateMaxNumberOfInputsParams
     { estMeasureTx = \ins outs wits -> fromIntegral $ BL.length $
         runPut $ putSignedTx (Tx (map (, Coin 0) ins) outs, wits)

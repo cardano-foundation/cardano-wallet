@@ -2,6 +2,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -637,7 +638,7 @@ spec = do
 -------------------------------------------------------------------------------}
 
 propSizeEstimation
-    :: forall n. (KnownNetwork n)
+    :: forall n t. (KnownNetwork n, t ~ HttpBridge n, KeyToAddress t)
     => Proxy n
     -> (ShowFmt CoinSelection, InfiniteList (Network -> Address))
     -> Property

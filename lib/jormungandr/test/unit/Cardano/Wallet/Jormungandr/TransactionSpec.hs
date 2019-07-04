@@ -364,7 +364,7 @@ mkStdTxSpec = do
             \ff21f5f9ebc2d2a5e201"
 
 goldenTestStdTx
-    :: forall (n :: Network). ()
+    :: forall n. (KnownNetwork n)
     => Proxy (Jormungandr n)
     -> (Address -> Maybe (Key 'AddressK XPrv, Passphrase "encryption"))
     -> Hash "Genesis"

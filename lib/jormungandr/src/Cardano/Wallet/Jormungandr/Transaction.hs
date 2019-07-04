@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -36,9 +37,9 @@ import qualified Cardano.Wallet.Jormungandr.Binary as Binary
 
 -- | Construct a 'TransactionLayer' compatible with Shelley and 'Jörmungandr'
 newTransactionLayer
-    :: forall n. ()
+    :: forall n t. (t ~ Jormungandr n)
     => Hash "Genesis"
-    -> TransactionLayer (Jormungandr n)
+    -> TransactionLayer t
 newTransactionLayer (Hash block0) = TransactionLayer
     { mkStdTx = \keyFrom inps outs -> do
         let tx = Tx (fmap (second coin) inps) outs
@@ -51,7 +52,8 @@ newTransactionLayer (Hash block0) = TransactionLayer
     , estimateSize = \_ -> Quantity 0
 
     , estimateMaxNumberOfInputs =
-        estimateMaxNumberOfInputsBase Binary.estimateMaxNumberOfInputsParams
+        estimateMaxNumberOfInputsBase $
+        Binary.estimateMaxNumberOfInputsParams @t
 
     }
   where

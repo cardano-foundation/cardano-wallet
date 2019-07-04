@@ -89,7 +89,7 @@ data ErrMkStdTx
     deriving (Eq, Show)
 
 -- | Backend-specific variables used by 'estimateMaxNumberOfInputsBase'.
-data EstimateMaxNumberOfInputsParams = EstimateMaxNumberOfInputsParams
+data EstimateMaxNumberOfInputsParams t = EstimateMaxNumberOfInputsParams
     { estMeasureTx :: [TxIn] -> [TxOut] -> [TxWitness] -> Int
         -- ^ Finds the size of a serialized transaction.
     , estAddressSample :: Address -- ^ Address to use in tx output
@@ -107,7 +107,7 @@ data EstimateMaxNumberOfInputsParams = EstimateMaxNumberOfInputsParams
 -- All the values used are the smaller ones. For example, the shortest adress
 -- type and shortest witness type are chosen to use for the estimate.
 estimateMaxNumberOfInputsBase
-    :: EstimateMaxNumberOfInputsParams
+    :: EstimateMaxNumberOfInputsParams t
     -- ^ Backend-specific variables used in the estimation
     -> Quantity "byte" Word16
     -- ^ Transaction max size in bytes
