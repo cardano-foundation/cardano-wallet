@@ -44,7 +44,7 @@ before_install:
   - tar xzf $STACK_WORK_CACHE || echo "no .stack-work yet"
   - travis_retry curl -L https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-node-simple/cardano-node-simple-3.0.1.tar.gz | tar xz -C $HOME/.local/bin
   - cardano-node-simple --version
-  - travis_retry curl -L https://github.com/KtorZ/cardano-http-bridge/releases/download/v0.0.3/cardano-http-bridge-v0.0.3-x86_64-linux.tar.gz | tar xz -C $HOME/.local/bin
+  - travis_retry curl -L https://github.com/KtorZ/cardano-http-bridge/releases/download/v0.0.4/cardano-http-bridge-v0.0.4-x86_64-linux.tar.gz | tar xz -C $HOME/.local/bin
   - cardano-http-bridge --version
   - travis_retry curl -L https://github.com/input-output-hk/jormungandr/releases/download/v0.2.3/jormungandr-v0.2.3-x86_64-unknown-linux-gnu.tar.gz | tar xz -C $HOME/.local/bin
   - jcli --version && jormungandr --version
