@@ -32,6 +32,7 @@ library
       -Werror
   build-depends:
       base
+    , aeson
     , base58-bytestring
     , bech32
     , binary
@@ -43,6 +44,7 @@ library
     , deepseq
     , either
     , exceptions
+    , filepath
     , fmt
     , http-client
     , http-types
@@ -79,6 +81,7 @@ test-suite unit
       -Werror
   build-depends:
       base
+    , aeson-qq
     , binary
     , bytestring
     , cardano-wallet-core

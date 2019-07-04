@@ -18,6 +18,11 @@ module Cardano.Wallet.Jormungandr.Compatibility
       Jormungandr
     , Network (..)
     , block0
+
+      -- * Node's Configuration
+    , BaseUrl (..)
+    , Scheme (..)
+    , genConfigFile
     ) where
 
 import Prelude
@@ -48,6 +53,8 @@ import Control.Arrow
     ( second )
 import Control.Monad
     ( when )
+import Data.Aeson
+    ( Value (..), object, (.=) )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
@@ -58,12 +65,18 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
     ( TextDecodingError (..) )
+import Servant.Client.Core
+    ( BaseUrl (..), Scheme (..) )
+import System.FilePath
+    ( FilePath, (</>) )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.Binary.Bech32 as Bech32
+import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 -- | A type representing the Jormungandr as a network target. This has an
@@ -185,3 +198,26 @@ instance KnownNetwork n => DecodeAddress (Jormungandr n) where
                 <> " =/= "
                 <> B8.unpack (BS.pack [discriminant])
                 <> "."
+
+-- | Generate a configuration file for Jörmungandr@0.2.3
+genConfigFile
+    :: FilePath
+    -> BaseUrl
+    -> Aeson.Value
+genConfigFile stateDir (BaseUrl _ host port path) = object
+    [ "storage" .= (stateDir </> "jormungandr")
+    , "rest" .= object
+        [ "listen" .= String listen
+        , "prefix" .= String prefix
+        ]
+    , "peer_2_peer" .= object
+        [ "trusted_peers" .= ([] :: [()])
+        , "topics_of_interests" .= object
+            [ "messages" .= String "low"
+            , "blocks" .= String "normal"
+            ]
+        ]
+    ]
+  where
+    listen = T.pack $ mconcat [host, ":", show port]
+    prefix = T.pack $ drop 1 path

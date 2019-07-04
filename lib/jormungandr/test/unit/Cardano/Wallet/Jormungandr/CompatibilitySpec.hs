@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -17,7 +18,7 @@ import Cardano.Crypto.Wallet
 import Cardano.Wallet.Jormungandr.Binary
     ( singleAddressFromKey )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr )
+    ( BaseUrl (..), Jormungandr, Scheme (..), genConfigFile )
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Jormungandr.Primitive.Types
@@ -35,6 +36,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Unsafe
     ( unsafeDecodeAddress, unsafeFromHex )
+import Data.Aeson.QQ
+    ( aesonQQ )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
@@ -251,6 +254,25 @@ spec = do
             ]
             "ta1sn0e7zr89gafgauz9xu3m25cz5ugs0s4xhtxdhqsuca58r6ycclr7\
             \sp2hlmqvhyywy266ghldvxn4p0adxn0esew6a423jkmxpdsc5d8xw6gar"
+
+    describe "genConfigFile" $ do
+        it "example configuration" $ do
+            let stateDir = "/state-dir"
+            let baseUrl = BaseUrl Http "127.0.0.1" 8080 "/api"
+            genConfigFile stateDir baseUrl `shouldBe` [aesonQQ|{
+                "storage": "/state-dir/jormungandr",
+                "rest": {
+                    "listen": "127.0.0.1:8080",
+                    "prefix": "api"
+                },
+                "peer_2_peer": {
+                    "trusted_peers": [],
+                    "topics_of_interests": {
+                        "messages": "low",
+                        "blocks": "normal"
+                    }
+                }
+            }|]
 
 negativeTest
     :: DecodeAddress t
