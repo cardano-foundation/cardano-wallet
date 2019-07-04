@@ -27,14 +27,16 @@ let
   // {
     # This aggregate job is what IOHK Hydra uses to update
     # the CI status in GitHub.
-    required = mkRequiredJob
+    required = mkRequiredJob (
       # fixme: fix failing tests
       # collectTests jobs.native.tests ++
-      # fixme: haskell.nix benchmarks builder is not working
-      # collectTests jobs.native.benchmarks ++
-      [ jobs.native.cardano-wallet.x86_64-linux
-        jobs.native.cardano-wallet.x86_64-darwin
-      ];
+      collectTests jobs.native.benchmarks ++
+      [ jobs.native.cardano-wallet-http-bridge.x86_64-linux
+        jobs.native.cardano-wallet-http-bridge.x86_64-darwin
+        jobs.native.cardano-wallet-jormungandr.x86_64-linux
+        jobs.native.cardano-wallet-jormungandr.x86_64-darwin
+      ]
+    );
   }
   # Build the shell derivation in Hydra so that all its dependencies
   # are cached.
