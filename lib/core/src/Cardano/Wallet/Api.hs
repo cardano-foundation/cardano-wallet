@@ -5,10 +5,12 @@ module Cardano.Wallet.Api where
 
 import Cardano.Wallet.Api.Types
     ( ApiAddress
+    , ApiFee
     , ApiT
     , ApiTransaction
     , ApiWallet
     , PostTransactionData
+    , PostTransactionFeeData
     , WalletPostData
     , WalletPutData
     , WalletPutPassphraseData
@@ -107,6 +109,7 @@ type PutWalletPassphrase = "wallets"
 
 type Transactions t =
     CreateTransaction t
+    :<|> PostTransactionFee t
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransaction
 type CreateTransaction t = "wallets"
@@ -114,6 +117,15 @@ type CreateTransaction t = "wallets"
     :> "transactions"
     :> ReqBody '[JSON] (PostTransactionData t)
     :> PostAccepted '[JSON] (ApiTransaction t)
+
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransactionFee
+type PostTransactionFee t = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "transactions"
+    :> "fees"
+    :> ReqBody '[JSON] (PostTransactionFeeData t)
+    :> PostAccepted '[JSON] ApiFee
 
 {-------------------------------------------------------------------------------
                                    Internals

@@ -27,11 +27,13 @@ import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)
     , ApiBlockData (..)
+    , ApiFee (..)
     , ApiMnemonicT (..)
     , ApiT (..)
     , ApiTransaction (..)
     , ApiWallet (..)
     , PostTransactionData (..)
+    , PostTransactionFeeData (..)
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -175,7 +177,9 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(AddressAmount DummyTarget)
             jsonRoundtripAndGolden $ Proxy @(ApiTransaction DummyTarget)
             jsonRoundtripAndGolden $ Proxy @ApiWallet
+            jsonRoundtripAndGolden $ Proxy @ApiFee
             jsonRoundtripAndGolden $ Proxy @(PostTransactionData DummyTarget)
+            jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeData DummyTarget)
             jsonRoundtripAndGolden $ Proxy @WalletPostData
             jsonRoundtripAndGolden $ Proxy @WalletPutData
             jsonRoundtripAndGolden $ Proxy @WalletPutPassphraseData
@@ -360,6 +364,13 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
+        it "ApiFee" $ property $ \x ->
+            let
+                x' = ApiFee
+                    { amount = amount (x :: ApiFee)
+                    }
+            in
+                x' === x .&&. show x' === show x
         it "WalletPostData" $ property $ \x ->
             let
                 x' = WalletPostData
@@ -391,6 +402,13 @@ spec = do
                 x' = PostTransactionData
                     { payments = payments (x :: PostTransactionData DummyTarget)
                     , passphrase = passphrase (x :: PostTransactionData DummyTarget)
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "PostTransactionFeeData" $ property $ \x ->
+            let
+                x' = PostTransactionFeeData
+                    { payments = payments (x :: PostTransactionFeeData DummyTarget)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -510,6 +528,10 @@ instance Arbitrary (Quantity "percent" Percentage) where
     arbitrary = Quantity <$> arbitraryBoundedEnum
 
 instance Arbitrary ApiWallet where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiFee where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -656,6 +678,10 @@ instance Arbitrary (PostTransactionData t) where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
+instance Arbitrary (PostTransactionFeeData t) where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
 instance Arbitrary (ApiTransaction t) where
     shrink = genericShrink
     arbitrary = do
@@ -747,6 +773,9 @@ instance ToSchema (ApiAddress t) where
 instance ToSchema ApiWallet where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWallet"
 
+instance ToSchema ApiFee where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiFee"
+
 instance ToSchema WalletPostData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletPostData"
 
@@ -758,6 +787,9 @@ instance ToSchema WalletPutPassphraseData where
 
 instance ToSchema (PostTransactionData t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPostTransactionData"
+
+instance ToSchema (PostTransactionFeeData t) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiPostTransactionFeeData"
 
 instance ToSchema (ApiTransaction t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiTransaction"

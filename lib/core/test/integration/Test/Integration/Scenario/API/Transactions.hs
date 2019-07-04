@@ -12,7 +12,7 @@ module Test.Integration.Scenario.API.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiTransaction, ApiWallet )
+    ( ApiFee, ApiTransaction, ApiWallet )
 import Cardano.Wallet.Primitive.Types
     ( DecodeAddress (..), Direction (..), EncodeAddress (..), TxStatus (..) )
 import Control.Monad
@@ -51,11 +51,14 @@ import Test.Integration.Framework.DSL
     , json
     , listAddresses
     , postTxEp
+    , postTxFeeEp
     , request
     , status
     , verify
     , walletId
     )
+import Test.Integration.Framework.Request
+    ( RequestException )
 import Test.Integration.Framework.TestData
     ( arabicWalletName
     , errMsg403Fee
@@ -409,20 +412,7 @@ spec = do
             ]
 
     describe "TRANS_CREATE_05 - Invalid addresses" $ do
-        let longAddr = replicate 10000 '1'
-        let encodeErr = "Unable to decode Address:"
-        let matrix =
-                [ ( "long hex", longAddr, encodeErr )
-                , ( "short hex", "1", encodeErr )
-                , ( "-1000", "-1000", encodeErr )
-                , ( "q", "q", encodeErr )
-                , ( "empty", "", encodeErr )
-                , ( "wildcards", T.unpack wildcardsWalletName, encodeErr )
-                , ( "arabic", T.unpack arabicWalletName, encodeErr )
-                , ( "kanji", T.unpack kanjiWalletName, encodeErr )
-                , ( "polish", T.unpack polishWalletName, encodeErr )
-                ]
-        forM_ matrix $ \(title, addr, errMsg) -> it title $ \ctx -> do
+        forM_ matrixWrongAddrs $ \(title, addr, errMsg) -> it title $ \ctx -> do
             wSrc <- emptyWallet ctx
             let payload = Json [json|{
                     "payments": [{
@@ -494,77 +484,7 @@ spec = do
             ]
 
     describe "TRANS_CREATE_06 - Invalid amount" $ do
-        let unitErr = "failed to parse quantified value. Expected value in\
-            \ 'lovelace' (e.g. { 'unit': 'lovelace', 'quantity': ... }"
-        let matrix =
-                [ ( "Quantity = 1.5"
-                , [json|{"quantity": 1.5, "unit": "lovelace"}|]
-                , [ expectResponseCode HTTP.status400
-                  , expectErrorMessage "expected Natural, encountered\
-                    \ floating number 1.5" ]
-                )
-                , ( "Quantity = -1000"
-                , [json|{"quantity": -1000, "unit": "lovelace"}|]
-                , [ expectResponseCode HTTP.status400
-                  , expectErrorMessage "expected Natural, encountered\
-                    \ negative number -1000" ]
-                )
-                , ( "Quantity = \"-1000\""
-                , [json|{"quantity": "-1000", "unit": "lovelace"}|]
-                , [ expectResponseCode HTTP.status400
-                  , expectErrorMessage "expected Natural, encountered String" ]
-                )
-                , ( "Quantity = []"
-                , [json|{"quantity": [], "unit": "lovelace"}|]
-                , [ expectResponseCode HTTP.status400
-                  , expectErrorMessage "expected Natural, encountered Array" ]
-                )
-                , ( "Quantity = \"string with diacritics\""
-                , [json|{"quantity": #{polishWalletName}
-                        , "unit": "lovelace"}|]
-                , [ expectResponseCode HTTP.status400
-                  , expectErrorMessage "expected Natural, encountered String" ]
-                )
-                , ( "Quantity = \"string with wildcards\""
-                , [json|{"quantity": #{wildcardsWalletName}
-                        , "unit": "lovelace"}|]
-                , [ expectResponseCode HTTP.status400
-                  , expectErrorMessage "expected Natural, encountered String" ]
-                )
-                , ( "Quantity missing"
-                , [json|{"unit": "lovelace"}|]
-                , [ expectResponseCode HTTP.status400
-                  , expectErrorMessage "key 'quantity' not present" ]
-                )
-                , ( "Unit missing"
-                , [json|{"quantity": 1}|]
-                , [ expectResponseCode HTTP.status400
-                  , expectErrorMessage "key 'unit' not present" ]
-                )
-                , ( "Unit = [\"lovelace\"]"
-                , [json|{"quantity": 1, "unit": ["lovelace"]}|]
-                , [ expectResponseCode HTTP.status400
-                  , expectErrorMessage unitErr ]
-                )
-                , ( "Unit = -33", [json|{"quantity": 1, "unit": -33}|]
-                , [ expectResponseCode HTTP.status400
-                  , expectErrorMessage unitErr ]
-                )
-                , ( "Unit = 33", [json|{"quantity": 1, "unit": 33}|]
-                , [ expectResponseCode HTTP.status400
-                  , expectErrorMessage unitErr ]
-                )
-                , ( "Unit = \"LOVELACE\""
-                , [json|{"quantity": 1, "unit": "LOVELACE"}|]
-                , [ expectResponseCode HTTP.status400
-                  , expectErrorMessage unitErr ]
-                )
-                , ( "Unit = \"ada\"", [json|{"quantity": 1, "unit": "ada"}|]
-                , [ expectResponseCode HTTP.status400
-                  , expectErrorMessage unitErr ]
-                )
-                ]
-        forM_ matrix $ \(title, amt, expectations) -> it title $ \ctx -> do
+        forM_ (matrixInvalidQuantities @(ApiTransaction t)) $ \(title, amt, expectations) -> it title $ \ctx -> do
             wSrc <- emptyWallet ctx
             wDest <- emptyWallet ctx
             addr:_ <- listAddresses ctx wDest
@@ -671,30 +591,7 @@ spec = do
             expectErrorMessage errMsg405 r
 
     describe "TRANS_CREATE_08 - HTTP headers" $ do
-        let matrix =
-                 [ ( "No HTTP headers -> 415", None
-                   , [ expectResponseCode @IO HTTP.status415
-                     , expectErrorMessage errMsg415 ]
-                   )
-                 , ( "Accept: text/plain -> 406"
-                   , Headers
-                         [ ("Content-Type", "application/json")
-                         , ("Accept", "text/plain") ]
-                   , [ expectResponseCode @IO HTTP.status406
-                     , expectErrorMessage errMsg406 ]
-                   )
-                 , ( "No Content-Type -> 415"
-                   , Headers [ ("Accept", "application/json") ]
-                   , [ expectResponseCode @IO HTTP.status415
-                     , expectErrorMessage errMsg415 ]
-                   )
-                 , ( "Content-Type: text/plain -> 415"
-                   , Headers [ ("Content-Type", "text/plain") ]
-                   , [ expectResponseCode @IO HTTP.status415
-                     , expectErrorMessage errMsg415 ]
-                   )
-                 ]
-        forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> do
+        forM_ (matrixHeaders @(ApiTransaction t)) $ \(title, headers, expectations) -> it title $ \ctx -> do
             w <- emptyWallet ctx
             wDest <- emptyWallet ctx
             addr:_ <- listAddresses ctx wDest
@@ -734,3 +631,510 @@ spec = do
             r <- request @(ApiTransaction t) ctx (postTxEp w)
                     Default payload
             expectResponseCode @IO HTTP.status400 r
+
+    describe "TRANS_ESTIMATE_01 - v2/wallets/{id}/transactions/fees - Methods Not Allowed" $ do
+        let matrix = ["PUT", "DELETE", "CONNECT", "TRACE", "OPTIONS", "GET"]
+        forM_ matrix $ \method -> it (show method) $ \ctx -> do
+            w <- emptyWallet ctx
+            wDest <- emptyWallet ctx
+            addr:_ <- listAddresses ctx wDest
+            let destination = addr ^. #id
+            let payload = Json [json|{
+                    "payments": [{
+                        "address": #{destination},
+                        "amount": {
+                            "quantity": 1,
+                            "unit": "lovelace"
+                        }
+                    }]
+                }|]
+            let endpoint = "v2/wallets/" <> w ^. walletId <> "/transactions/fees"
+            r <- request @ApiFee ctx (method, endpoint)
+                    Default payload
+            expectResponseCode @IO HTTP.status405 r
+            expectErrorMessage errMsg405 r
+
+
+    describe "TRANS_ESTIMATE_02 - HTTP headers" $ do
+        forM_ (matrixHeaders @ApiFee) $ \(title, headers, expectations) -> it title $ \ctx -> do
+            w <- emptyWallet ctx
+            wDest <- emptyWallet ctx
+            addr:_ <- listAddresses ctx wDest
+            let destination = addr ^. #id
+            let payload = Json [json|{
+                    "payments": [{
+                        "address": #{destination},
+                        "amount": {
+                            "quantity": 1,
+                            "unit": "lovelace"
+                        }
+                    }]
+                }|]
+            r <- request @ApiFee ctx (postTxFeeEp w)
+                    headers payload
+            verify r expectations
+
+
+    describe "TRANS_ESTIMATE_03 - Bad payload" $ do
+        let matrix =
+                [ ( "empty payload", NonJson "" )
+                , ( "{} payload", NonJson "{}" )
+                , ( "non-json valid payload"
+                  , NonJson
+                        "{ payments: [{\
+                         \\"address\": 12312323,\
+                         \\"amount: {\
+                         \\"quantity\": 1,\
+                         \\"unit\": \"lovelace\"} }]\
+                         \ }"
+                  )
+                ]
+
+        forM_ matrix $ \(name, nonJson) -> it name $ \ctx -> do
+            w <- emptyWallet ctx
+            let payload = nonJson
+            r <- request @ApiFee ctx (postTxFeeEp w)
+                    Default payload
+            expectResponseCode @IO HTTP.status400 r
+
+    it "TRANS_ESTIMATE_04 - Single Output Fee Estimation" $ \ctx -> do
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
+        addrs <- listAddresses ctx wb
+
+        let amt = 1
+        let destination = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }]
+            }|]
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+                { nInputs = 1
+                , nOutputs = 1
+                }
+
+        r <- request @ApiFee ctx (postTxFeeEp wa) Default payload
+        verify r
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectFieldBetween amount (feeMin - amt, feeMax + amt)
+            ]
+
+    it "TRANS_ESTIMATE_05 - Multiple Output Fee Estimation to single wallet" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        wDest <- emptyWallet ctx
+        addrs <- listAddresses ctx wDest
+
+        let amt = 1
+        let destination1 = (addrs !! 1) ^. #id
+        let destination2 = (addrs !! 2) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination1},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                },
+                {
+                    "address": #{destination2},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }]
+            }|]
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+                { nInputs = 2
+                , nOutputs = 2
+                }
+
+        r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+        verify r
+            [ expectResponseCode HTTP.status202
+            , expectFieldBetween amount (feeMin - (2*amt), feeMax + (2*amt))
+            ]
+
+    it "TRANS_ESTIMATE_06 - Multiple Output Fee Estimation to different wallets" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        wDest1 <- emptyWallet ctx
+        wDest2 <- emptyWallet ctx
+        addrs1 <- listAddresses ctx wDest1
+        addrs2 <- listAddresses ctx wDest2
+
+        let amt = 1
+        let destination1 = (addrs1 !! 1) ^. #id
+        let destination2 = (addrs2 !! 1) ^. #id
+        let payload = Json [json|{
+                "payments": [
+                    {
+                        "address": #{destination1},
+                        "amount": {
+                            "quantity": #{amt},
+                            "unit": "lovelace"
+                        }
+                    },
+                    {
+                        "address": #{destination2},
+                        "amount": {
+                            "quantity": #{amt},
+                            "unit": "lovelace"
+                        }
+                    }
+                ]
+            }|]
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+                { nInputs = 2
+                , nOutputs = 2
+                }
+
+        r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+        verify r
+            [ expectResponseCode HTTP.status202
+            , expectFieldBetween amount (feeMin - (2*amt), feeMax + (2*amt))
+            ]
+
+    it "TRANS_ESTIMATE_07 - Multiple Output Fee Estimation don't work on single UTxO" $ \ctx -> do
+        wSrc <- fixtureWalletWith ctx [2_124_333]
+        wDest <- emptyWallet ctx
+        addrs <- listAddresses ctx wDest
+
+        let destination1 = (addrs !! 1) ^. #id
+        let destination2 = (addrs !! 2) ^. #id
+        let payload = Json [json|{
+                "payments": [
+                    {
+                        "address": #{destination1},
+                        "amount": {
+                            "quantity": 1,
+                            "unit": "lovelace"
+                        }
+                    },
+                    {
+                        "address": #{destination2},
+                        "amount": {
+                            "quantity": 1,
+                            "unit": "lovelace"
+                        }
+                    }
+                ]
+            }|]
+
+        r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+        verify r
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403UTxO
+            ]
+
+    it "TRANS_ESTIMATE_08 - we see result when we can't cover fee" $ \ctx -> do
+        let (feeMin, _) = ctx ^. feeEstimator $ TxDescription 1 1
+        wSrc <- fixtureWalletWith ctx [feeMin `div` 2]
+        wDest <- emptyWallet ctx
+        addr:_ <- listAddresses ctx wDest
+
+        let destination = addr ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": 1,
+                        "unit": "lovelace"
+                    }
+                }]
+            }|]
+        r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+        verify r
+            [ expectResponseCode HTTP.status202 ]
+
+    it "TRANS_ESTIMATE_09 - Not enough money" $ \ctx -> do
+        let (feeMin, _) = ctx ^. feeEstimator $ TxDescription 1 1
+        wSrc <- fixtureWalletWith ctx [feeMin]
+        wDest <- emptyWallet ctx
+        addr:_ <- listAddresses ctx wDest
+
+        let destination = addr ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": 1000000,
+                        "unit": "lovelace"
+                    }
+                }]
+            }|]
+        r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+        verify r
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage $
+                errMsg403NotEnoughMoney (fromIntegral feeMin) 1_000_000
+            ]
+
+    describe "TRANS_ESTIMATE_10 - Invalid addresses" $ do
+        forM_ matrixWrongAddrs $ \(title, addr, errMsg) -> it title $ \ctx -> do
+            wSrc <- emptyWallet ctx
+            let payload = Json [json|{
+                    "payments": [{
+                        "address": #{addr},
+                        "amount": {
+                            "quantity": 1,
+                            "unit": "lovelace"
+                        }
+                    }]
+                }|]
+            r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+            verify r
+                [ expectResponseCode HTTP.status400
+                , expectErrorMessage errMsg
+                ]
+
+    it "TRANS_ESTIMATE_11 - [] as address" $ \ctx -> do
+        wSrc <- emptyWallet ctx
+        let payload = Json [json|{
+                "payments": [{
+                    "address": [],
+                    "amount": {
+                        "quantity": 1,
+                        "unit": "lovelace"
+                    }
+                }]
+            }|]
+        r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+        verify r
+            [ expectResponseCode HTTP.status400
+            , expectErrorMessage "expected Text, encountered Array"
+            ]
+
+    it "TRANS_ESTIMATE_12 - Num as address" $ \ctx -> do
+        wSrc <- emptyWallet ctx
+        let payload = Json [json|{
+                "payments": [{
+                    "address": 123123,
+                    "amount": {
+                        "quantity": 1,
+                        "unit": "lovelace"
+                    }
+                }]
+            }|]
+        r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+        verify r
+            [ expectResponseCode HTTP.status400
+            , expectErrorMessage "expected Text, encountered Num"
+            ]
+
+    it "TRANS_ESTIMATE_13 - address param missing" $ \ctx -> do
+        wSrc <- emptyWallet ctx
+        let payload = Json [json|{
+                "payments": [{
+                    "amount": {
+                        "quantity": 1,
+                        "unit": "lovelace"
+                    }
+                }]
+            }|]
+        r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+        verify r
+            [ expectResponseCode HTTP.status400
+            , expectErrorMessage "key 'address' not present"
+            ]
+
+    describe "TRANS_ESTIMATE_14 - Invalid amount" $ do
+        forM_ (matrixInvalidQuantities @ApiFee) $ \(title, amt, expectations) -> it title $ \ctx -> do
+            wSrc <- emptyWallet ctx
+            wDest <- emptyWallet ctx
+            addr:_ <- listAddresses ctx wDest
+
+            let destination = addr ^. #id
+            let payload = Json [json|{
+                    "payments": [{
+                        "address": #{destination},
+                        "amount": #{amt}
+                    }]
+                }|]
+            r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+            verify r expectations
+
+    describe "TRANS_ESTIMATE_15 - False wallet ids" $ do
+        forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
+            wDest <- emptyWallet ctx
+            addr:_ <- listAddresses ctx wDest
+            let destination = addr ^. #id
+            let payload = Json [json|{
+                    "payments": [{
+                        "address": #{destination},
+                        "amount": {
+                            "quantity": 1,
+                            "unit": "lovelace"
+                        }
+                    }]
+                }|]
+            let endpoint = "v2/wallets/" <> walId <> "/transactions/fees"
+            r <- request @ApiFee ctx ("POST", T.pack endpoint)
+                    Default payload
+            expectResponseCode HTTP.status404 r
+            if (title == "40 chars hex") then
+                expectErrorMessage (errMsg404NoWallet $ T.pack walId) r
+            else
+                expectErrorMessage errMsg404NoEndpoint r
+
+    it "TRANS_ESTIMATE_16 - 'almost' valid walletId" $ \ctx -> do
+        w <- emptyWallet ctx
+        wDest <- emptyWallet ctx
+        addr:_ <- listAddresses ctx wDest
+        let destination = addr ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": 1,
+                        "unit": "lovelace"
+                    }
+                }]
+            }|]
+        let endpoint =
+                "v2/wallets" <> T.unpack (T.append (w ^. walletId) "0")
+                <> "/transactions/fees"
+        r <- request @ApiFee ctx ("POST", T.pack endpoint)
+                Default payload
+        expectResponseCode @IO HTTP.status404 r
+        expectErrorMessage errMsg404NoEndpoint r
+
+    it "TRANS_ESTIMATE_17 - Deleted wallet" $ \ctx -> do
+        w <- emptyWallet ctx
+        _ <- request @ApiWallet ctx (deleteWalletEp w) Default Empty
+        wDest <- emptyWallet ctx
+        addr:_ <- listAddresses ctx wDest
+        let destination = addr ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": 1,
+                        "unit": "lovelace"
+                    }
+                }]
+            }|]
+        r <- request @ApiFee ctx (postTxFeeEp w) Default payload
+        expectResponseCode @IO HTTP.status404 r
+        expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+  where
+    longAddr = replicate 10000 '1'
+    encodeErr = "Unable to decode Address:"
+    matrixWrongAddrs =
+        [ ( "long hex", longAddr, encodeErr )
+        , ( "short hex", "1", encodeErr )
+        , ( "-1000", "-1000", encodeErr )
+        , ( "q", "q", encodeErr )
+        , ( "empty", "", encodeErr )
+        , ( "wildcards", T.unpack wildcardsWalletName, encodeErr )
+        , ( "arabic", T.unpack arabicWalletName, encodeErr )
+        , ( "kanji", T.unpack kanjiWalletName, encodeErr )
+        , ( "polish", T.unpack polishWalletName, encodeErr )
+        ]
+    unitErr = "failed to parse quantified value. Expected value in\
+              \ 'lovelace' (e.g. { 'unit': 'lovelace', 'quantity': ... }"
+    matrixInvalidQuantities
+        :: (Show a)
+        => [( String
+            , Value
+            , [(HTTP.Status, Either RequestException a) -> IO ()])
+           ]
+    matrixInvalidQuantities =
+        [ ( "Quantity = 1.5"
+        , [json|{"quantity": 1.5, "unit": "lovelace"}|]
+        , [ expectResponseCode HTTP.status400
+          , expectErrorMessage "expected Natural, encountered\
+              \ floating number 1.5" ]
+        )
+        , ( "Quantity = -1000"
+        , [json|{"quantity": -1000, "unit": "lovelace"}|]
+        , [ expectResponseCode HTTP.status400
+          , expectErrorMessage "expected Natural, encountered\
+              \ negative number -1000" ]
+        )
+        , ( "Quantity = \"-1000\""
+        , [json|{"quantity": "-1000", "unit": "lovelace"}|]
+        , [ expectResponseCode HTTP.status400
+          , expectErrorMessage "expected Natural, encountered String" ]
+        )
+        , ( "Quantity = []"
+        , [json|{"quantity": [], "unit": "lovelace"}|]
+        , [ expectResponseCode HTTP.status400
+          , expectErrorMessage "expected Natural, encountered Array" ]
+        )
+        , ( "Quantity = \"string with diacritics\""
+        , [json|{"quantity": #{polishWalletName}
+                , "unit": "lovelace"}|]
+        , [ expectResponseCode HTTP.status400
+          , expectErrorMessage "expected Natural, encountered String" ]
+        )
+        , ( "Quantity = \"string with wildcards\""
+        , [json|{"quantity": #{wildcardsWalletName}
+                , "unit": "lovelace"}|]
+        , [ expectResponseCode HTTP.status400
+          , expectErrorMessage "expected Natural, encountered String" ]
+        )
+        , ( "Quantity missing"
+        , [json|{"unit": "lovelace"}|]
+        , [ expectResponseCode HTTP.status400
+          , expectErrorMessage "key 'quantity' not present" ]
+        )
+        , ( "Unit missing"
+        , [json|{"quantity": 1}|]
+        , [ expectResponseCode HTTP.status400
+          , expectErrorMessage "key 'unit' not present" ]
+        )
+        , ( "Unit = [\"lovelace\"]"
+        , [json|{"quantity": 1, "unit": ["lovelace"]}|]
+        , [ expectResponseCode HTTP.status400
+          , expectErrorMessage unitErr ]
+        )
+        , ( "Unit = -33", [json|{"quantity": 1, "unit": -33}|]
+        , [ expectResponseCode HTTP.status400
+          , expectErrorMessage unitErr ]
+        )
+        , ( "Unit = 33", [json|{"quantity": 1, "unit": 33}|]
+        , [ expectResponseCode HTTP.status400
+          , expectErrorMessage unitErr ]
+        )
+        , ( "Unit = \"LOVELACE\""
+        , [json|{"quantity": 1, "unit": "LOVELACE"}|]
+        , [ expectResponseCode HTTP.status400
+          , expectErrorMessage unitErr ]
+        )
+        , ( "Unit = \"ada\"", [json|{"quantity": 1, "unit": "ada"}|]
+        , [ expectResponseCode HTTP.status400
+          , expectErrorMessage unitErr ]
+        )
+        ]
+    matrixHeaders
+        :: (Show a)
+        => [( String
+            , Headers
+            , [(HTTP.Status, Either RequestException a) -> IO ()])
+           ]
+    matrixHeaders =
+        [ ( "No HTTP headers -> 415", None
+          , [ expectResponseCode @IO HTTP.status415
+           , expectErrorMessage errMsg415 ]
+        )
+        , ( "Accept: text/plain -> 406"
+          , Headers [ ("Content-Type", "application/json")
+                    , ("Accept", "text/plain") ]
+          , [ expectResponseCode @IO HTTP.status406
+            , expectErrorMessage errMsg406 ]
+        )
+        , ( "No Content-Type -> 415"
+          , Headers [ ("Accept", "application/json") ]
+          , [ expectResponseCode @IO HTTP.status415
+          , expectErrorMessage errMsg415 ]
+        )
+        , ( "Content-Type: text/plain -> 415"
+          , Headers [ ("Content-Type", "text/plain") ]
+          , [ expectResponseCode @IO HTTP.status415
+            , expectErrorMessage errMsg415 ]
+        )
+        ]

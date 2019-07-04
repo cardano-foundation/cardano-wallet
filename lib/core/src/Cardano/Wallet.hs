@@ -23,6 +23,7 @@ module Cardano.Wallet
 
     -- * Errors
     , ErrCreateUnsignedTx (..)
+    , ErrEstimateTxFee (..)
     , ErrNoSuchWallet (..)
     , ErrSignTx (..)
     , ErrSubmitTx (..)
@@ -78,6 +79,7 @@ import Cardano.Wallet.Primitive.CoinSelection
     )
 import Cardano.Wallet.Primitive.Fee
     ( ErrAdjustForFee (..)
+    , Fee (..)
     , FeeOptions (..)
     , FeePolicy
     , adjustForFee
@@ -243,6 +245,15 @@ data WalletLayer s t = WalletLayer
         -- coin selection for the given outputs. In order to construct (and
         -- sign) an actual transaction, have a look at 'signTx'.
 
+    , estimateTxFee
+        :: (DefineTx t)
+        => WalletId
+        -> CoinSelectionOptions
+        -> NonEmpty TxOut
+        -> ExceptT ErrEstimateTxFee IO Fee
+        -- ^ Estimate a transaction fee by automatically selecting inputs from the
+        -- wallet to cover the requested outputs.
+
     , signTx
         :: (Show s, NFData s, IsOwned s, GenChange s)
         => WalletId
@@ -276,6 +287,12 @@ data ErrCreateUnsignedTx
     = ErrCreateUnsignedTxNoSuchWallet ErrNoSuchWallet
     | ErrCreateUnsignedTxCoinSelection ErrCoinSelection
     | ErrCreateUnsignedTxFee ErrAdjustForFee
+    deriving (Show, Eq)
+
+-- | Errors occuring when estimating transaction fee
+data ErrEstimateTxFee
+    = ErrEstimateTxFeeNoSuchWallet ErrNoSuchWallet
+    | ErrEstimateTxFeeCoinSelection ErrCoinSelection
     deriving (Show, Eq)
 
 -- | Errors occuring when signing a transaction
@@ -361,6 +378,7 @@ newWalletLayer tracer block0 feePolicy db nw tl = do
         , restoreWallet = _restoreWallet registry
         , listAddresses = _listAddresses
         , createUnsignedTx = _createUnsignedTx
+        , estimateTxFee = _estimateTxFee
         , signTx = _signTx
         , submitTx = _submitTx
         , attachPrivateKey = _attachPrivateKey
@@ -606,6 +624,21 @@ newWalletLayer tracer block0 feePolicy db nw tl = do
                     , dustThreshold = minBound
                     }
             debug "Coins after fee adjustment" =<< adjustForFee feeOpts utxo' sel
+
+
+    _estimateTxFee
+        :: DefineTx t
+        => WalletId
+        -> CoinSelectionOptions
+        -> NonEmpty TxOut
+        -> ExceptT ErrEstimateTxFee IO Fee
+    _estimateTxFee wid opts recipients = do
+        (w, _) <- withExceptT ErrEstimateTxFeeNoSuchWallet (_readWallet wid)
+        let utxo = availableUTxO @s @t w
+        (sel, _utxo') <- withExceptT ErrEstimateTxFeeCoinSelection $
+            CoinSelection.random opts recipients utxo
+        let estimateFee = computeFee feePolicy . estimateSize tl
+        pure $ estimateFee sel
 
     _signTx
         :: (Show s, NFData s, IsOwned s, GenChange s)
