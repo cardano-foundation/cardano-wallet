@@ -70,6 +70,7 @@ executable cardano-wallet-jormungandr
       -Werror
   build-depends:
       base
+    , aeson
     , async
     , bytestring
     , cardano-wallet-cli

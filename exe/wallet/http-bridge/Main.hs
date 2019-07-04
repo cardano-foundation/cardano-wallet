@@ -44,6 +44,7 @@ import Cardano.CLI
     , listenOption
     , nodePortOption
     , optionT
+    , resolveHomeDir
     , runCli
     , stateDirOption
     , verbosityOption
@@ -164,14 +165,16 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
         <*> nodePortOption
         <*> stateDirOption
         <*> verbosityOption
-    exec (LaunchArgs network listen nodePort stateDir verbosity) = do
+    exec (LaunchArgs network listen nodePort stateDirRaw verbosity) = do
+        let withStateDir _ = pure ()
+        stateDir <- resolveHomeDir stateDirRaw
         cmdName <- getProgName
-        execLaunch verbosity stateDir
-            [ commandHttpBridge
-            , commandWalletServe cmdName
+        execLaunch verbosity stateDir withStateDir
+            [ commandHttpBridge stateDir
+            , commandWalletServe cmdName stateDir
             ]
       where
-        commandHttpBridge =
+        commandHttpBridge stateDir =
             Command "cardano-http-bridge" arguments (return ()) Inherit
           where
             arguments = mconcat
@@ -184,7 +187,7 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
                 , [ "--networks-dir", stateDir ]
                 , verbosityToArgs verbosity
                 ]
-        commandWalletServe cmdName =
+        commandWalletServe cmdName stateDir =
             Command cmdName arguments (return ()) Inherit
           where
             arguments = mconcat

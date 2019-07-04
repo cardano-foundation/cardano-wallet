@@ -36,6 +36,7 @@ library
     , bytestring
     , cardano-wallet-core
     , cardano-wallet-launcher
+    , directory
     , extra
     , fmt
     , http-client

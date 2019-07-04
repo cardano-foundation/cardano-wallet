@@ -42,6 +42,7 @@ import Cardano.CLI
     , listenOption
     , nodePortOption
     , optionT
+    , resolveHomeDir
     , runCli
     , stateDirOption
     , verbosityOption
@@ -61,7 +62,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.Jormungandr.Binary
     ( getBlockId, runGet )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr )
+    ( BaseUrl (..), Jormungandr, Scheme (..), genConfigFile )
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Jormungandr.Network
@@ -110,8 +111,6 @@ import Options.Applicative
     , metavar
     , progDesc
     )
-import Servant.Client
-    ( BaseUrl (..), Scheme (..) )
 import System.Environment
     ( getProgName )
 import System.FilePath
@@ -123,6 +122,7 @@ import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.Jormungandr.Network as Jormungandr
 import qualified Cardano.Wallet.Jormungandr.Transaction as Jormungandr
+import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
@@ -164,7 +164,6 @@ main = runCli $ cli $ mempty
     [--state-dir=DIR]
     [(--quiet | --verbose )]
     --genesis-block=FILE
-    --node-config=FILE
     --node-secret=FILE
 -------------------------------------------------------------------------------}
 
@@ -178,7 +177,6 @@ data LaunchArgs = LaunchArgs
 
 data JormungandrArgs = JormungandrArgs
     { _genesisBlock :: FilePath
-    , _nodeConfig :: FilePath
     , _nodeSecret :: FilePath
     }
 
@@ -195,17 +193,22 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
         <*> verbosityOption
         <*> (JormungandrArgs
             <$> genesisBlockOption
-            <*> nodeConfigOption
             <*> nodeSecretOption)
-    exec (LaunchArgs listen nodePort stateDir verbosity jArgs) = do
+    exec (LaunchArgs listen nodePort stateDirRaw verbosity jArgs) = do
         cmdName <- getProgName
         block0H <- runGet getBlockId <$> BL.readFile (_genesisBlock jArgs)
-        execLaunch verbosity stateDir
-            [ commandJormungandr jArgs
-            , commandWalletServe cmdName block0H
+        let baseUrl = BaseUrl Http "127.0.0.1" (getPort nodePort) "/api"
+        stateDir <- resolveHomeDir stateDirRaw
+        let nodeConfig = stateDir </> "jormungandr-config.json"
+        let withStateDir _ = genConfigFile stateDir baseUrl
+                & Aeson.encode
+                & BL.writeFile nodeConfig
+        execLaunch verbosity stateDir withStateDir
+            [ commandJormungandr nodeConfig jArgs
+            , commandWalletServe cmdName stateDir block0H
             ]
       where
-        commandJormungandr (JormungandrArgs block0 nodeConfig nodeSecret) =
+        commandJormungandr nodeConfig (JormungandrArgs block0 nodeSecret) =
             Command "jormungandr" arguments (return ()) Inherit
           where
             arguments = mconcat
@@ -214,7 +217,7 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
               , [ "--secret", nodeSecret ]
               ]
 
-        commandWalletServe cmdName block0H =
+        commandWalletServe cmdName stateDir block0H =
             Command cmdName arguments (return ()) Inherit
           where
             arguments = mconcat
@@ -324,13 +327,6 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
 {-------------------------------------------------------------------------------
                                  Options
 -------------------------------------------------------------------------------}
-
--- | --node-config=FILE
-nodeConfigOption :: Parser FilePath
-nodeConfigOption = optionT $ mempty
-    <> long "node-config"
-    <> metavar "FILE"
-    <> help "Path to Jörmungandr's own configuration (.yaml)."
 
 -- | --node-secret=FILE
 nodeSecretOption :: Parser FilePath
