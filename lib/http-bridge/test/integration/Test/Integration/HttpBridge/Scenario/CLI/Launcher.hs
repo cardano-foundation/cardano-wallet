@@ -3,7 +3,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.LauncherSpec
+module Test.Integration.HttpBridge.Scenario.CLI.Launcher
     ( spec
     ) where
 

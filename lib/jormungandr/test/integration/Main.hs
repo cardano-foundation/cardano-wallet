@@ -92,6 +92,7 @@ import qualified Test.Integration.Scenario.API.Addresses as Addresses
 import qualified Test.Integration.Scenario.API.Transactions as Transactions
 import qualified Test.Integration.Scenario.API.Wallets as Wallets
 import qualified Test.Integration.Scenario.CLI.Addresses as AddressesCLI
+import qualified Test.Integration.Scenario.CLI.Miscellaneous as MiscellaneousCLI
 import qualified Test.Integration.Scenario.CLI.Mnemonics as MnemonicsCLI
 import qualified Test.Integration.Scenario.CLI.Transactions as TransactionsCLI
 import qualified Test.Integration.Scenario.CLI.Wallets as WalletsCLI
@@ -104,6 +105,7 @@ main :: forall t. (t ~ Jormungandr 'Testnet) => IO ()
 main = hspec $ do
     describe "Cardano.Wallet.NetworkSpec" Network.spec
     describe "Mnemonics CLI tests" (MnemonicsCLI.spec @t)
+    describe "Miscellaneous CLI tests" (MiscellaneousCLI.spec @t)
     beforeAll start $ afterAll cleanup $ after tearDown $ do
         -- API e2e Testing
         describe "Addresses API endpoint tests" Addresses.spec
