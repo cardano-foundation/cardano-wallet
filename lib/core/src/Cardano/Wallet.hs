@@ -293,7 +293,6 @@ data ErrCreateUnsignedTx
 data ErrEstimateTxFee
     = ErrEstimateTxFeeNoSuchWallet ErrNoSuchWallet
     | ErrEstimateTxFeeCoinSelection ErrCoinSelection
-    | ErrEstimateTxFeeFee ErrAdjustForFee
     deriving (Show, Eq)
 
 -- | Errors occuring when signing a transaction
@@ -638,10 +637,8 @@ newWalletLayer tracer block0 feePolicy db nw tl = do
         let utxo = availableUTxO @s @t w
         (sel, _utxo') <- withExceptT ErrEstimateTxFeeCoinSelection $
             CoinSelection.random opts recipients utxo
-        logInfoT $ "Coins selected for transaction: \n"+| sel |+""
-        withExceptT ErrEstimateTxFeeFee $ do
-            let estimateFee = computeFee feePolicy . estimateSize tl
-            pure $ estimateFee sel
+        let estimateFee = computeFee feePolicy . estimateSize tl
+        pure $ estimateFee sel
 
     _signTx
         :: (Show s, NFData s, IsOwned s, GenChange s)

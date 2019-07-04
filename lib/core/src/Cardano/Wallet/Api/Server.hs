@@ -535,7 +535,6 @@ instance LiftHandler ErrEstimateTxFee where
     handler = \case
         ErrEstimateTxFeeNoSuchWallet e -> handler e
         ErrEstimateTxFeeCoinSelection e -> handler e
-        ErrEstimateTxFeeFee e -> handler e
 
 instance LiftHandler ErrSignTx where
     handler = \case
