@@ -17,7 +17,7 @@ import Cardano.Wallet.Transaction
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
-    ( Word16 )
+    ( Word16, Word8 )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
@@ -45,17 +45,26 @@ propMaxNumberOfInputsEstimation
     :: TransactionLayer t
     -> Quantity "byte" Word16
     -> Quantity "byte" Word16
+    -> Word8
+    -> Word8
     -> Property
-propMaxNumberOfInputsEstimation tl qa@(Quantity ma) qb@(Quantity mb) =
+propMaxNumberOfInputsEstimation tl qa@(Quantity ma) qb@(Quantity mb) oa ob =
     counterexample debug
-    (isIncreasingFunction .&&. estIsSmallerThanSize)
+    (isIncreasingFunction .&&. moreOutputsLessInputs .&&. estIsSmallerThanSize)
   where
-    isIncreasingFunction = if (ma < mb) then (est qa <= est qb) else (est qa >= est qb)
-    estIsSmallerThanSize = (est qa <= ma) .&&. (est qb <= mb)
-    est = fromIntegral . estimateMaxNumberOfInputs tl
-    debug = unwords
+    estAA = est qa oa
+    estBA = est qb oa
+    estAB = est qa ob
+    isIncreasingFunction = if ma < mb then estAA <= estBA else estAA >= estBA
+    moreOutputsLessInputs = if oa < ob then estAA >= estAB else estAA <= estAB
+    estIsSmallerThanSize = (estAA < ma || ma == 0) .&&. (estBA < mb || mb == 0)
+    est no = fromIntegral . estimateMaxNumberOfInputs tl no
+    debug = unlines
         [ "sizeA = " <> show ma, "sizeB = " <> show mb
-        , "estA = " <> show (est qa), "estB = " <> show (est qb)
+        , "numOutputsA = " <> show oa, "numOutputsB = " <> show ob
+        , "estAA = " <> show estAA
+        , "estBA = " <> show estBA
+        , "estAB = " <> show estAB
         ]
 
 instance Arbitrary (Quantity "byte" Word16) where

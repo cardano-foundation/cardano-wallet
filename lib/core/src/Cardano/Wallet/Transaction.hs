@@ -30,14 +30,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
-    , Coin (..)
-    , Hash (..)
-    , Tx
-    , TxIn (..)
-    , TxOut (..)
-    , TxWitness (..)
-    )
+    ( Address (..), Hash (..), Tx, TxIn (..), TxOut (..), TxWitness (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
@@ -75,12 +68,15 @@ data TransactionLayer t = TransactionLayer
         -- As a consequence, our estimate may be slightly bigger than the actual
         -- transaction fee (up-to 4 extra bytes per change output).
 
-    , estimateMaxNumberOfInputs :: Quantity "byte" Word16 -> Word8
+    , estimateMaxNumberOfInputs :: Quantity "byte" Word16 -> Word8 -> Word8
         -- ^ Calculate a "theoretical" maximum number of inputs given a maximum
-        -- transaction size. The actual transaction size cannot be known until
-        -- it has been fully determined by coin selection. This estimate will
-        -- err on the side of permitting more inputs, resulting in a transaction
-        -- which may be too large.
+        -- transaction size and desired number of outputs.
+        --
+        -- The actual transaction size cannot be known until it has been fully
+        -- determined by coin selection.
+        --
+        -- This estimate will err on the side of permitting more inputs,
+        -- resulting in a transaction which may be too large.
 
     }
 
@@ -116,27 +112,25 @@ estimateMaxNumberOfInputsBase
     -> Quantity "byte" Word16
     -- ^ Transaction max size in bytes
     -> Word8
+    -- ^ Number of outputs in transaction
+    -> Word8
     -- ^ Maximum number of inputs, estimated
 estimateMaxNumberOfInputsBase
-    EstimateMaxNumberOfInputsParams{..} (Quantity txSize) =
-    clamp $
-    max 0 (fromIntegral txSize - fixedSize)
-    `div`
-    (inputSize - fixedSize)
+    EstimateMaxNumberOfInputsParams{..} (Quantity txSize) numOutputs =
+    clamp $ max 0 (fromIntegral txSize - fixedSize) `div` inputSize
   where
     -- The fixed size covers the headers of a signed transaction with a single
     -- output.
     fixedSize = sizeOfTx [] []
 
-    -- inputSize is the size of a signed transaction with a single output and a
-    -- single input.
-    inputSize = sizeOfTx [txIn] [wit]
+    -- inputSize is the size of each additional input of a signed transaction.
+    inputSize = sizeOfTx [txIn] [wit] - fixedSize
 
     -- Serialize a "representative" Tx with the given inputs and read its size.
-    sizeOfTx ins = estMeasureTx ins [txout]
+    sizeOfTx ins = estMeasureTx ins outs
 
-    txout = TxOut estAddressSample coin
-    coin = Coin 0
+    outs = replicate (fromIntegral numOutputs) txout
+    txout = TxOut estAddressSample minBound
     txIn = TxIn (Hash $ chaff estBlockHashSize) 0
     wit = TxWitness (chaff estTxWitnessSize)
 

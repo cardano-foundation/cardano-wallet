@@ -486,16 +486,16 @@ putAddress addr@(Address bs)
         $ "Address has unexpected length "
         ++ show len ++ ": " ++ show addr
   where
-    hasCorrectLength = len == addrLenAccount || len == addrLenDelegation
+    hasCorrectLength = len == addrLenSingle || len == addrLenGrouped
     len = fromIntegral $ BS.length bs
 
--- Serialized length in bytes of a bootstrap or account address
-addrLenAccount :: Int
-addrLenAccount = 33
+-- Serialized length in bytes of a bootstrap or account address (Single Address)
+addrLenSingle :: Int
+addrLenSingle = 33
 
--- Serialized length in bytes of a delegation address
-addrLenDelegation :: Int
-addrLenDelegation = 65
+-- Serialized length in bytes of a delegation address (Grouped Address)
+addrLenGrouped :: Int
+addrLenGrouped = 65
 
 singleAddressFromKey :: forall n. KnownNetwork n => Proxy n -> XPub -> Address
 singleAddressFromKey _ xPub = Address $ BL.toStrict $ runPut $ do
@@ -574,7 +574,7 @@ estimateMaxNumberOfInputsParams = EstimateMaxNumberOfInputsParams
         runPut $ putSignedTx (Tx (map (, Coin 0) ins) outs, wits)
 
     -- Use length of the smaller type of address.
-    , estAddressSample = Address $ BS.replicate addrLenAccount 0
+    , estAddressSample = Address $ BS.replicate addrLenSingle 0
 
     -- Block IDs are always this long.
     , estBlockHashSize = 32
