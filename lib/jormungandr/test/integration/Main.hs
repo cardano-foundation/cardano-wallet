@@ -45,9 +45,9 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeRunExceptT )
 import Control.Concurrent
-    ( forkIO )
+    ( threadDelay )
 import Control.Concurrent.Async
-    ( async, cancel )
+    ( Async, async, cancel )
 import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, takeMVar )
 import Control.Monad
@@ -96,6 +96,7 @@ import qualified Test.Integration.Scenario.API.Wallets as Wallets
 import qualified Test.Integration.Scenario.CLI.Addresses as AddressesCLI
 import qualified Test.Integration.Scenario.CLI.Miscellaneous as MiscellaneousCLI
 import qualified Test.Integration.Scenario.CLI.Mnemonics as MnemonicsCLI
+import qualified Test.Integration.Scenario.CLI.Port as PortCLI
 import qualified Test.Integration.Scenario.CLI.Transactions as TransactionsCLI
 import qualified Test.Integration.Scenario.CLI.Wallets as WalletsCLI
 
@@ -108,7 +109,8 @@ main = hspec $ do
     describe "Cardano.Wallet.NetworkSpec" Network.spec
     describe "Mnemonics CLI tests" (MnemonicsCLI.spec @t)
     describe "Miscellaneous CLI tests" (MiscellaneousCLI.spec @t)
-    beforeAll start $ afterAll cleanup $ after tearDown $ do
+    describe "Ports CLI (negative) tests" (PortCLI.specNegative @t)
+    beforeAll (start Nothing) $ afterAll _cleanup $ after tearDown $ do
         -- API e2e Testing
         describe "Addresses API endpoint tests" Addresses.spec
         describe "Transactions API endpoint tests" Transactions.spec
@@ -118,9 +120,21 @@ main = hspec $ do
         describe "Server CLI tests" (ServerCLI.spec @t)
         describe "Transactions CLI tests" (TransactionsCLI.spec @t)
         describe "Wallets CLI tests" (WalletsCLI.spec @t)
+        describe "Ports CLI (default) tests" $ do
+            PortCLI.specCommon @t
+            PortCLI.specWithDefaultPort @t
+    let explicitPort = Just $ ListenOnPort defaultPort
+    beforeAll (start explicitPort) $ afterAll _cleanup $ after tearDown $ do
+        describe "Ports CLI (explicit) tests" $ do
+            PortCLI.specCommon @t
+    let randomPort = Just ListenOnRandomPort
+    beforeAll (start randomPort) $ afterAll _cleanup $ after tearDown $ do
+        describe "Ports CLI (random) tests" $ do
+            PortCLI.specCommon @t
+            PortCLI.specWithRandomPort @t defaultPort
   where
-    start :: IO (Context (Jormungandr 'Testnet))
-    start = do
+    start :: Maybe Listen -> IO (Context (Jormungandr 'Testnet))
+    start listen = do
         let dir = "./test/data/jormungandr"
         removePathForcibly "/tmp/cardano-wallet-jormungandr"
         logs <- openFile "/tmp/jormungandr" WriteMode
@@ -132,18 +146,18 @@ main = hspec $ do
                 ] (return ())
                 (UseHandle logs)
         handle <- async $ void $ launch [jormungandrLauncher]
-        (port, feePolicy, db) <- cardanoWalletServer (Just ListenOnRandomPort)
+        (handle', port, feePolicy, db) <- cardanoWalletServer listen
         let baseUrl = "http://localhost:" <> T.pack (show port) <> "/"
         manager <- (baseUrl,) <$> newManager defaultManagerSettings
         faucet <- initFaucet
         let estimator = mkFeeEstimator feePolicy
-        return $ Context handle manager port logs faucet db estimator Proxy
-
-    cleanup :: Context t -> IO ()
-    cleanup ctx = do
-        cancel (_cluster ctx)
-        hClose (_logs ctx)
-        close' (_db ctx)
+        let cleanup = do
+                cancel handle
+                cancel handle'
+                hClose logs
+                close' db
+                threadDelay oneSecond
+        return $ Context cleanup manager port faucet estimator Proxy
 
 -- | Initialize logging at the specified minimum 'Severity' level.
 initTracer :: Severity -> Text -> IO (Trace IO Text)
@@ -158,14 +172,14 @@ initTracer minSeverity cmd = do
 cardanoWalletServer
     :: forall network. (network ~ Jormungandr 'Testnet)
     => Maybe Listen
-    -> IO (Int, FeePolicy, SqlBackend)
+    -> IO (Async (), Int, FeePolicy, SqlBackend)
 cardanoWalletServer mlisten = do
     logConfig <- CM.empty
     tracer <- initTracer Info "serve"
     (nl, block0, feePolicy) <- newNetworkLayer jormungandrUrl block0H
     (conn, db) <- Sqlite.newDBLayer @_ @network logConfig tracer Nothing
     mvar <- newEmptyMVar
-    void $ forkIO $ do
+    handle <- async $ do
         let tl = Jormungandr.newTransactionLayer block0H
         wallet <- newWalletLayer tracer block0 feePolicy db nl tl
         let listen = fromMaybe (ListenOnPort defaultPort) mlisten
@@ -173,7 +187,7 @@ cardanoWalletServer mlisten = do
             let settings = Warp.defaultSettings
                     & setBeforeMainLoop (putMVar mvar port)
             Server.start settings tracer socket wallet
-    (,feePolicy,conn) <$> takeMVar mvar
+    (handle,,feePolicy,conn) <$> takeMVar mvar
   where
     jormungandrUrl :: BaseUrl
     jormungandrUrl = BaseUrl Http "localhost" 8080 "/api"

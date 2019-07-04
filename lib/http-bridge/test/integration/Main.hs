@@ -137,8 +137,7 @@ main = do
                 $ describe "with random port" $ do
                     PortCLI.specCommon @t
                     PortCLI.specWithRandomPort @t defaultPort
-        beforeAll startCluster $
-            afterAll killCluster $ after tearDown $ do
+        beforeAll startCluster $ afterAll _cleanup $ after tearDown $ do
             describe "Wallets API endpoint tests" (Wallets.spec @t)
             describe "Transactions API endpoint tests" (Transactions.spec @t)
             describe "Addresses API endpoint tests" (Addresses.spec @t)
@@ -208,13 +207,11 @@ main = do
         manager <- (baseURL,) <$> newManager defaultManagerSettings
         faucet <- putStrLn "Creating money out of thin air..." *> initFaucet nl
         let estimator = mkFeeEstimator byronFeePolicy
-        return $ Context cluster manager port handle faucet db estimator Proxy
-
-    killCluster :: Context t -> IO ()
-    killCluster ctx = do
-        cancel (_cluster ctx)
-        hClose (_logs ctx)
-        close' (_db ctx)
+        let cleanup = do
+                cancel cluster
+                hClose handle
+                close' db
+        return $ Context cleanup manager port faucet estimator Proxy
 
     killServer :: (HasType ThreadId s, HasType SqlBackend s) => s -> IO ()
     killServer ctx = do
