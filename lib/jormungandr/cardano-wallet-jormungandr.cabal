@@ -147,7 +147,6 @@ test-suite integration
     , iohk-monitoring
     , memory
     , persistent
-    , persistent-sqlite
     , process
     , QuickCheck
     , retry
