@@ -148,7 +148,7 @@ data LaunchArgs = LaunchArgs
     { _network :: Either Local Network
     , _listen :: Listen
     , _nodePort :: Port "Node"
-    , _stateDir :: Maybe FilePath
+    , _stateDir :: FilePath
     , _verbosity :: Verbosity
     }
 
@@ -162,7 +162,7 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
         <$> networkOption'
         <*> listenOption
         <*> nodePortOption
-        <*> optional stateDirOption
+        <*> stateDirOption
         <*> verbosityOption
     exec (LaunchArgs network listen nodePort stateDir verbosity) = do
         cmdName <- getProgName
@@ -181,7 +181,7 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
                         Left Local -> "local"
                         Right n -> showT n
                   ]
-                , maybe [] (\d -> ["--networks-dir", d]) stateDir
+                , [ "--networks-dir", stateDir ]
                 , verbosityToArgs verbosity
                 ]
         commandWalletServe cmdName =
@@ -197,7 +197,7 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
                     ListenOnRandomPort -> ["--random-port"]
                     ListenOnPort port  -> ["--port", showT port]
                 , [ "--node-port", showT nodePort ]
-                , maybe [] (\d -> ["--database", d </> "wallet.db"]) stateDir
+                , [ "--database", stateDir </> "wallet.db" ]
                 , verbosityToArgs verbosity
                 ]
 

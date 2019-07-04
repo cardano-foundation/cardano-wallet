@@ -171,7 +171,7 @@ main = runCli $ cli $ mempty
 data LaunchArgs = LaunchArgs
     { _listen :: Listen
     , _nodePort :: Port "Node"
-    , _stateDir :: Maybe FilePath
+    , _stateDir :: FilePath
     , _verbosity :: Verbosity
     , _jormungandrArgs :: JormungandrArgs
     }
@@ -191,7 +191,7 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
     cmd = fmap exec $ LaunchArgs
         <$> listenOption
         <*> nodePortOption
-        <*> optional stateDirOption
+        <*> stateDirOption
         <*> verbosityOption
         <*> (JormungandrArgs
             <$> genesisBlockOption
@@ -223,7 +223,7 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
                     ListenOnRandomPort -> ["--random-port"]
                     ListenOnPort port  -> ["--port", showT port]
                 , [ "--node-port", showT nodePort ]
-                , maybe [] (\d -> ["--database", d </> "wallet.db"]) stateDir
+                , [ "--database", stateDir </> "wallet.db" ]
                 , verbosityToArgs verbosity
                 , [ "--genesis-hash", showT block0H ]
                 ]

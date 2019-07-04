@@ -534,13 +534,13 @@ cmdVersion = command "version" $ info cmd $ mempty
 -- monitors both processes: if one terminates, then the other one is cancelled.
 execLaunch
     :: Verbosity
-    -> Maybe FilePath
+    -> FilePath
     -> [Command]
     -> IO ()
 execLaunch verbosity stateDir commands = do
     installSignalHandlers
     (_, tracer) <- initTracer (verbosityToMinSeverity verbosity) "launch"
-    maybe (pure ()) (setupStateDir $ logInfo tracer) stateDir
+    setupStateDir (logInfo tracer) stateDir
     logInfo tracer $ fmt $ nameF "launch" $ blockListF commands
     (ProcessHasExited pName code) <- launch commands
     logAlert tracer $ T.pack pName <> " exited with code " <> T.pack (show code)
@@ -622,12 +622,13 @@ sizeOption = optionT $ mempty
     <> value MS_15
     <> showDefaultWith showT
 
--- | --state-dir=FILEPATH
+-- | --state-dir=FILEPATH, default: ~/.cardano-wallet
 stateDirOption :: Parser FilePath
 stateDirOption = optionT $ mempty
     <> long "state-dir"
     <> metavar "DIR"
     <> help "write wallet state (blockchain and database) to this directory"
+    <> value "~/.cardano-wallet"
 
 -- | [(--quiet|--verbose)]
 verbosityOption :: Parser Verbosity
