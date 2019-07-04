@@ -2110,6 +2110,9 @@ data PostTransactionData t
 PostTransactionData :: !NonEmpty (AddressAmount t) -> !ApiT (Passphrase "encryption") -> PostTransactionData t
 [$sel:payments:PostTransactionData] :: PostTransactionData t -> !NonEmpty (AddressAmount t)
 [$sel:passphrase:PostTransactionData] :: PostTransactionData t -> !ApiT (Passphrase "encryption")
+newtype PostTransactionFeeData t
+PostTransactionFeeData :: NonEmpty (AddressAmount t) -> PostTransactionFeeData t
+[$sel:payments:PostTransactionFeeData] :: PostTransactionFeeData t -> NonEmpty (AddressAmount t)
 data ApiBlockData
 ApiBlockData :: UTCTime -> !ApiT SlotId -> ApiBlockData
 [$sel:time:ApiBlockData] :: ApiBlockData -> UTCTime
@@ -2124,6 +2127,9 @@ ApiTransaction :: !ApiT (Hash "Tx") -> !Quantity "lovelace" Natural -> !Maybe Ap
 [$sel:inputs:ApiTransaction] :: ApiTransaction t -> !NonEmpty (AddressAmount t)
 [$sel:outputs:ApiTransaction] :: ApiTransaction t -> !NonEmpty (AddressAmount t)
 [$sel:status:ApiTransaction] :: ApiTransaction t -> !ApiT TxStatus
+newtype ApiFee
+ApiFee :: Quantity "lovelace" Natural -> ApiFee
+[$sel:amount:ApiFee] :: ApiFee -> Quantity "lovelace" Natural
 data AddressAmount t
 AddressAmount :: !(ApiT Address, Proxy t) -> !Quantity "lovelace" Natural -> AddressAmount t
 [$sel:address:AddressAmount] :: AddressAmount t -> !(ApiT Address, Proxy t)
@@ -2209,6 +2215,9 @@ instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.PostTransactionData t)
 instance GHC.Show.Show (Cardano.Wallet.Api.Types.ApiTransaction t)
 instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.ApiTransaction t)
 instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.ApiTransaction t)
+instance GHC.Show.Show (Cardano.Wallet.Api.Types.PostTransactionFeeData t)
+instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.PostTransactionFeeData t)
+instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.PostTransactionFeeData t)
 instance GHC.Show.Show (Cardano.Wallet.Api.Types.AddressAmount t)
 instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.AddressAmount t)
 instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.AddressAmount t)
@@ -2221,6 +2230,9 @@ instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.ApiT a)
 instance GHC.Show.Show Cardano.Wallet.Api.Types.ApiErrorCode
 instance GHC.Generics.Generic Cardano.Wallet.Api.Types.ApiErrorCode
 instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiErrorCode
+instance GHC.Show.Show Cardano.Wallet.Api.Types.ApiFee
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.ApiFee
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiFee
 instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletPostData
 instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletPostData
 instance Cardano.Wallet.Primitive.AddressDerivation.FromMnemonic sizes purpose => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
@@ -2237,6 +2249,8 @@ instance Cardano.Wallet.Primitive.Types.DecodeAddress t => Data.Aeson.Types.From
 instance Cardano.Wallet.Primitive.Types.EncodeAddress t => Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.PostTransactionData t)
 instance Cardano.Wallet.Primitive.Types.DecodeAddress t => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiTransaction t)
 instance Cardano.Wallet.Primitive.Types.EncodeAddress t => Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiTransaction t)
+instance Cardano.Wallet.Primitive.Types.DecodeAddress t => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.PostTransactionFeeData t)
+instance Cardano.Wallet.Primitive.Types.EncodeAddress t => Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.PostTransactionFeeData t)
 instance Cardano.Wallet.Primitive.Types.DecodeAddress t => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.AddressAmount t)
 instance Cardano.Wallet.Primitive.Types.EncodeAddress t => Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.AddressAmount t)
 instance Cardano.Wallet.Primitive.Types.DecodeAddress t => Data.Text.Class.FromText (Cardano.Wallet.Api.Types.AddressAmount t)
@@ -2276,6 +2290,8 @@ instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.W
 instance Data.Text.Class.FromText a => Web.Internal.HttpApiData.FromHttpApiData (Cardano.Wallet.Api.Types.ApiT a)
 instance Data.Text.Class.ToText a => Web.Internal.HttpApiData.ToHttpApiData (Cardano.Wallet.Api.Types.ApiT a)
 instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiErrorCode
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.ApiFee
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiFee
 
 module Cardano.Wallet.Api
 type Api t = Addresses t :<|> Wallets :<|> Transactions t
@@ -2309,11 +2325,15 @@ type PutWallet = "wallets" :> Capture "walletId" (ApiT WalletId) :> ReqBody '[JS
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/putWalletPassphrase</a>
 type PutWalletPassphrase = "wallets" :> Capture "walletId" (ApiT WalletId) :> "passphrase" :> ReqBody '[JSON] WalletPutPassphraseData :> PutNoContent '[Any] NoContent
-type Transactions t = CreateTransaction t
+type Transactions t = CreateTransaction t :<|> PostTransactionFee t
 
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransaction</a>
 type CreateTransaction t = "wallets" :> Capture "walletId" (ApiT WalletId) :> "transactions" :> ReqBody '[JSON] (PostTransactionData t) :> PostAccepted '[JSON] (ApiTransaction t)
+
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransactionFee</a>
+type PostTransactionFee t = "wallets" :> Capture "walletId" (ApiT WalletId) :> "transactions" :> "fees" :> ReqBody '[JSON] (PostTransactionFeeData t) :> PostAccepted '[JSON] ApiFee
 
 -- | Any media type
 data Any
@@ -2325,7 +2345,7 @@ instance Servant.API.ContentTypes.Accept Cardano.Wallet.Api.Any
 --   to realize its role as being intermediary between the three.
 module Cardano.Wallet
 data WalletLayer s t
-WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)) -> (WalletId -> (WalletMetadata -> WalletMetadata) -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> (Passphrase "encryption-old", Passphrase "encryption-new") -> ExceptT ErrUpdatePassphrase IO ()) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO ()) -> ((IsOurs s, CompareDiscovery s, KnownAddresses s, DefineTx t) => WalletId -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]) -> (DefineTx t => WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection) -> ((Show s, NFData s, IsOwned s, GenChange s) => WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx t, TxMeta, [TxWitness])) -> (DefineTx t => WalletId -> (Tx t, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()) -> WalletLayer s t
+WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)) -> (WalletId -> (WalletMetadata -> WalletMetadata) -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> (Passphrase "encryption-old", Passphrase "encryption-new") -> ExceptT ErrUpdatePassphrase IO ()) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO ()) -> ((IsOurs s, CompareDiscovery s, KnownAddresses s, DefineTx t) => WalletId -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]) -> (DefineTx t => WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection) -> (DefineTx t => WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrEstimateTxFee IO Fee) -> ((Show s, NFData s, IsOwned s, GenChange s) => WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx t, TxMeta, [TxWitness])) -> (DefineTx t => WalletId -> (Tx t, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()) -> WalletLayer s t
 
 -- | Initialise and store a new wallet, returning its Id.
 [$sel:createWallet:WalletLayer] :: WalletLayer s t -> (Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId
@@ -2365,6 +2385,10 @@ WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletNa
 --   actual transaction, have a look at <a>$sel:signTx:WalletLayer</a>.
 [$sel:createUnsignedTx:WalletLayer] :: WalletLayer s t -> DefineTx t => WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection
 
+-- | Estimate a transaction fee by automatically selecting inputs from the
+--   wallet to cover the requested outputs.
+[$sel:estimateTxFee:WalletLayer] :: WalletLayer s t -> DefineTx t => WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrEstimateTxFee IO Fee
+
 -- | Produce witnesses and construct a transaction from a given selection.
 --   Requires the encryption passphrase in order to decrypt the root
 --   private key. Note that this doesn't broadcast the transaction to the
@@ -2385,6 +2409,11 @@ data ErrCreateUnsignedTx
 ErrCreateUnsignedTxNoSuchWallet :: ErrNoSuchWallet -> ErrCreateUnsignedTx
 ErrCreateUnsignedTxCoinSelection :: ErrCoinSelection -> ErrCreateUnsignedTx
 ErrCreateUnsignedTxFee :: ErrAdjustForFee -> ErrCreateUnsignedTx
+
+-- | Errors occuring when estimating transaction fee
+data ErrEstimateTxFee
+ErrEstimateTxFeeNoSuchWallet :: ErrNoSuchWallet -> ErrEstimateTxFee
+ErrEstimateTxFeeCoinSelection :: ErrCoinSelection -> ErrEstimateTxFee
 
 -- | Can't perform given operation because there's no wallet
 newtype ErrNoSuchWallet
@@ -2473,6 +2502,8 @@ instance GHC.Classes.Eq Cardano.Wallet.ErrWithRootKey
 instance GHC.Show.Show Cardano.Wallet.ErrWithRootKey
 instance GHC.Classes.Eq Cardano.Wallet.ErrSubmitTx
 instance GHC.Show.Show Cardano.Wallet.ErrSubmitTx
+instance GHC.Classes.Eq Cardano.Wallet.ErrEstimateTxFee
+instance GHC.Show.Show Cardano.Wallet.ErrEstimateTxFee
 instance GHC.Classes.Eq Cardano.Wallet.ErrCreateUnsignedTx
 instance GHC.Show.Show Cardano.Wallet.ErrCreateUnsignedTx
 
@@ -2548,6 +2579,7 @@ instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrWithRootKey
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.Primitive.CoinSelection.ErrCoinSelection
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.Primitive.Fee.ErrAdjustForFee
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrCreateUnsignedTx
+instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrEstimateTxFee
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrSignTx
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrSubmitTx
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrUpdatePassphrase
