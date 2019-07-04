@@ -82,6 +82,7 @@ module Test.Integration.Framework.DSL
     , deleteWalletEp
     , getAddressesEp
     , postTxEp
+    , postTxFeeEp
     , updateWalletPassEp
 
     -- * CLI
@@ -797,6 +798,12 @@ postTxEp :: ApiWallet -> (Method, Text)
 postTxEp w =
     ( "POST"
     , "v2/wallets/" <> w ^. walletId <> "/transactions"
+    )
+
+postTxFeeEp :: ApiWallet -> (Method, Text)
+postTxFeeEp w =
+    ( "POST"
+    , "v2/wallets/" <> w ^. walletId <> "/transactions/fees"
     )
 
 updateWalletPassEp :: ApiWallet -> (Method, Text)
