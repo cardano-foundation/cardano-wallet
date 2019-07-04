@@ -433,6 +433,13 @@ definitions:
       metrics: *stakePoolMetrics
       profit_margin: *stakePoolProfitMargin
 
+  ApiFee: &ApiFee
+    type: object
+    required:
+      - amount
+    properties:
+      amount: *transactionAmount
+
   ApiTransaction: &ApiTransaction
     type: object
     required:
@@ -553,6 +560,13 @@ definitions:
         <<: *walletPassphrase
         description: The wallet's master passphrase.
 
+  ApiPostTransactionFeeData: &ApiPostTransactionFeeData
+    type: object
+    required:
+      - payments
+    properties:
+      payments: *transactionOutputs
+
 #############################################################################
 #                                                                           #
 #                               PARAMETERS                                  #
@@ -579,13 +593,6 @@ x-parametersStakePoolId: &parametersStakePoolId
   required: true
   type: string
   format: base58
-
-x-parametersPostTransactionFee: &parametersPostTransactionFee
-  type: object
-  required:
-    - payments
-  properties:
-    payments: *transactionOutputs
 
 x-parametersJoinStakePool: &parametersJoinStakePool
   type: object
@@ -766,7 +773,7 @@ x-responsesPostTransactionFee: &responsesPostTransactionFee
       required:
         - amount
       properties:
-        amount: *transactionAmount
+        amount: *ApiFee
 
 x-responsesListAddresses: &responsesListAddresses
   <<: *responsesErr400
@@ -952,11 +959,11 @@ paths:
       tags: ["Transactions"]
       summary: Estimate
       description: |
-        <p align="right">status: <strong>not implemented</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
       parameters:
         - *parametersWalletId
         - <<: *parametersBody
-          schema: *parametersPostTransactionFee
+          schema: *ApiPostTransactionFeeData
       responses: *responsesPostTransactionFee
 
   /wallets/{walletId}/addresses:
