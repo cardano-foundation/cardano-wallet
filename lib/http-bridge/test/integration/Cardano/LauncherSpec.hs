@@ -110,10 +110,12 @@ spec = do
                     TIO.hGetContents e >>= TIO.putStrLn
 
     describe "DaedalusIPC" $ do
+        let defaultArgs =
+                [ commandName @t, "launch", "--quiet" ]
         let tests =
-                [ ["--random-port"]
-                , ["--port", "8082"]
-                , []
+                [ defaultArgs ++ ["--random-port"]
+                , defaultArgs ++ ["--port", "8082"]
+                , defaultArgs
                 ]
         forM_ tests $ \args -> do
             let title = "should reply with the port when asked " <> show args
