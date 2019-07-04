@@ -89,6 +89,7 @@ import qualified Cardano.Wallet.Jormungandr.NetworkSpec as Network
 import qualified Cardano.Wallet.Jormungandr.Transaction as Jormungandr
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
+import qualified Test.Integration.Jormungandr.Scenario.CLI.Launcher as LauncherCLI
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Server as ServerCLI
 import qualified Test.Integration.Scenario.API.Addresses as Addresses
 import qualified Test.Integration.Scenario.API.Transactions as Transactions
@@ -110,6 +111,7 @@ main = hspec $ do
     describe "Mnemonics CLI tests" (MnemonicsCLI.spec @t)
     describe "Miscellaneous CLI tests" (MiscellaneousCLI.spec @t)
     describe "Ports CLI (negative) tests" (PortCLI.specNegative @t)
+    describe "Launcher CLI tests" (LauncherCLI.spec @t)
     beforeAll (start Nothing) $ afterAll _cleanup $ after tearDown $ do
         -- API e2e Testing
         describe "Addresses API endpoint tests" Addresses.spec
