@@ -29,8 +29,10 @@ in {
   inherit cardano-http-bridge cardano-sl-node jormungandr;
   inherit (haskellPackages.cardano-wallet.identifier) version;
 
-  cardano-wallet-http-bridge = haskellPackages.cardano-wallet.components.exes.cardano-wallet-http-bridge;
-  cardano-wallet-jormungandr = haskellPackages.cardano-wallet.components.exes.cardano-wallet-jormungandr;
+  inherit (haskellPackages.cardano-wallet.components.exes)
+    cardano-wallet-http-bridge
+    cardano-wallet-jormungandr;
+
   tests = collectComponents "tests" isCardanoWallet haskellPackages;
   benchmarks = collectComponents "benchmarks" isCardanoWallet haskellPackages;
 
@@ -39,6 +41,7 @@ in {
     packages = ps: with ps; [
       cardano-wallet
       cardano-wallet-cli
+      cardano-wallet-launcher
       cardano-wallet-core
       cardano-wallet-http-bridge
       cardano-wallet-jormungandr
