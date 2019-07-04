@@ -4,6 +4,22 @@ This wiki page is a "blackboard" where anyone in the team can write ideas or sug
 
 # Ideas
 
+## Use shared libraries instead of symbolic links for code sharing
+
+Currently, the integration test suites for Jörmungandr and HTTP bridge share a **common code base** through the use of **symbolic links**.
+
+Unfortunately, using symbolic links in this way **breaks code introspection and refactoring tools** such as `haskell-ide-engine`, `ghc-mod`, `HaRe` and so on, that depend on having a standard Cabal package structure.
+
+We should consider moving these common source code files into a shared library that can be referenced from both integration test suites.
+
+This work will have ramifications for:
+- documentation generation (we don't necessarily want to generate documentation for this shared library)
+- code coverage (we want to make sure that code coverage is not negatively affected).
+
+We should consider the above ramifications as part of any solution.
+
+Prototype: https://github.com/input-output-hk/cardano-wallet/pull/499
+
 ## Defer use of `IO` in the various layers
 
 We currently have a variety of interfaces that we bundle together in the `WalletLayer`, which is yet another interface. All these interfaces are parameterized over a monad `m`, although all the constructor we provide specialize it directly to `IO`. 
