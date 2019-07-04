@@ -67,6 +67,7 @@ module Cardano.CLI
 
     -- * Helpers
     , decodeError
+    , resolveHomeDir
     ) where
 
 import Prelude hiding
@@ -190,6 +191,8 @@ import System.Console.ANSI
     , hCursorBackward
     , hSetSGR
     )
+import System.Directory
+    ( getHomeDirectory )
 import System.Exit
     ( exitFailure, exitSuccess, exitWith )
 import System.IO
@@ -534,13 +537,14 @@ cmdVersion = command "version" $ info cmd $ mempty
 -- monitors both processes: if one terminates, then the other one is cancelled.
 execLaunch
     :: Verbosity
-    -> Maybe FilePath
+    -> FilePath
+    -> (Trace IO Text -> FilePath -> IO ())
     -> [Command]
     -> IO ()
-execLaunch verbosity stateDir commands = do
+execLaunch verbosity stateDir withStateDir commands = do
     installSignalHandlers
     (_, tracer) <- initTracer (verbosityToMinSeverity verbosity) "launch"
-    maybe (pure ()) (setupStateDir $ logInfo tracer) stateDir
+    setupStateDir (logInfo tracer) (withStateDir tracer) stateDir
     logInfo tracer $ fmt $ nameF "launch" $ blockListF commands
     (ProcessHasExited pName code) <- launch commands
     logAlert tracer $ T.pack pName <> " exited with code " <> T.pack (show code)
@@ -622,12 +626,14 @@ sizeOption = optionT $ mempty
     <> value MS_15
     <> showDefaultWith showT
 
--- | --state-dir=FILEPATH
+-- | --state-dir=FILEPATH, default: ~/.cardano-wallet
 stateDirOption :: Parser FilePath
 stateDirOption = optionT $ mempty
     <> long "state-dir"
     <> metavar "DIR"
     <> help "write wallet state (blockchain and database) to this directory"
+    <> value "$HOME/.cardano-wallet"
+    <> showDefaultWith show
 
 -- | [(--quiet|--verbose)]
 verbosityOption :: Parser Verbosity
@@ -1035,6 +1041,16 @@ decodeError
 decodeError bytes = do
     obj <- Aeson.decode bytes
     Aeson.parseMaybe (Aeson.withObject "Error" (.: "message")) obj
+
+-- | Resolve '~' or '$HOME' in a 'FilePath' to their actual system value
+resolveHomeDir :: FilePath -> IO FilePath
+resolveHomeDir dir = do
+    homeDir <- T.pack <$> getHomeDirectory
+    return
+        $ T.unpack
+        $ T.replace "$HOME" homeDir
+        $ T.replace "~" homeDir
+        $ T.pack dir
 
 -- | Make a parser optional
 optionalE

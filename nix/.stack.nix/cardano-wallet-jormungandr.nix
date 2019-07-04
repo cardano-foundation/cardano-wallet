@@ -21,6 +21,7 @@
       "library" = {
         depends = [
           (hsPkgs.base)
+          (hsPkgs.aeson)
           (hsPkgs.base58-bytestring)
           (hsPkgs.bech32)
           (hsPkgs.binary)
@@ -32,6 +33,7 @@
           (hsPkgs.deepseq)
           (hsPkgs.either)
           (hsPkgs.exceptions)
+          (hsPkgs.filepath)
           (hsPkgs.fmt)
           (hsPkgs.http-client)
           (hsPkgs.http-types)
@@ -48,6 +50,7 @@
         "unit" = {
           depends = [
             (hsPkgs.base)
+            (hsPkgs.aeson-qq)
             (hsPkgs.binary)
             (hsPkgs.bytestring)
             (hsPkgs.cardano-wallet-core)

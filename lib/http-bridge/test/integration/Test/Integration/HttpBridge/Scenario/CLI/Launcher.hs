@@ -119,14 +119,15 @@ spec = do
                 ]
         forM_ tests $ \args -> do
             let title = "should reply with the port when asked " <> show args
-            it title $ do
+            it title $ withTempDir $ \d -> do
                 let filepath = "test/integration/js/mock-daedalus.js"
-                (_, _, _, ph) <- createProcess (proc filepath args)
+                let stateDir = ["--state-dir", d]
+                (_, _, _, ph) <- createProcess (proc filepath (args ++ stateDir))
                 waitForProcess ph `shouldReturn` ExitSuccess
 
     describe "LOGGING - cardano-wallet launch logging" $ do
-        it "LOGGING - Launch can log --verbose" $ \_ -> do
-            let args = ["launch", "--verbose"]
+        it "LOGGING - Launch can log --verbose" $ withTempDir $ \d -> do
+            let args = ["launch", "--state-dir", d, "--verbose"]
             let process = proc' (commandName @t) args
             (out, _) <- collectStreams (35, 0) process
             out `shouldContainT` versionLine
@@ -134,17 +135,17 @@ spec = do
             out `shouldContainT` "Info"
             out `shouldContainT` "Notice"
 
-        it "LOGGING - Launch --quiet logs Error only" $ \_ -> do
-            let args = ["launch", "--quiet"]
+        it "LOGGING - Launch --quiet logs Error only" $ withTempDir $ \d -> do
+            let args = ["launch", "--state-dir", d, "--quiet"]
             let process = proc' (commandName @t) args
             (out, err) <- collectStreams (10, 10) process
             out `shouldBe` mempty
             err `shouldBe` mempty
 
-        it "LOGGING - Launch default logs Info" $ \_ -> do
-            let args = ["launch"]
+        it "LOGGING - Launch default logs Info" $ withTempDir $ \d -> do
+            let args = ["launch", "--state-dir", d]
             let process = proc' (commandName @t) args
-            (out, _) <- collectStreams (15, 0) process
+            (out, _) <- collectStreams (20, 0) process
             out `shouldNotContainT` "Debug"
             out `shouldContainT` versionLine
             out `shouldContainT` "Info"
@@ -152,4 +153,3 @@ spec = do
 
 withTempDir :: (FilePath -> IO a) -> IO a
 withTempDir = withSystemTempDirectory "integration-state"
-

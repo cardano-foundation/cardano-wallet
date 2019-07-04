@@ -121,9 +121,11 @@ launch cmds = do
 
 -- | Initialize a state directory to store blockchain data such as blocks or
 -- the wallet database.
-setupStateDir :: (Text -> IO ()) -> FilePath -> IO ()
-setupStateDir logT dir = doesDirectoryExist dir >>= \case
-    True -> logT $ "Using state directory: " <> T.pack dir
-    False -> do
-        logT $ "Creating state directory: " <> T.pack dir
-        createDirectory dir
+setupStateDir :: (Text -> IO ()) -> (FilePath -> IO ()) -> FilePath -> IO ()
+setupStateDir logT withDir dir = do
+    doesDirectoryExist dir >>= \case
+        True -> logT $ "Using state directory: " <> T.pack dir
+        False -> do
+            logT $ "Creating state directory: " <> T.pack dir
+            createDirectory dir
+    withDir dir

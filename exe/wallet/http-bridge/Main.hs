@@ -44,6 +44,7 @@ import Cardano.CLI
     , listenOption
     , nodePortOption
     , optionT
+    , resolveHomeDir
     , runCli
     , stateDirOption
     , verbosityOption
@@ -148,7 +149,7 @@ data LaunchArgs = LaunchArgs
     { _network :: Either Local Network
     , _listen :: Listen
     , _nodePort :: Port "Node"
-    , _stateDir :: Maybe FilePath
+    , _stateDir :: FilePath
     , _verbosity :: Verbosity
     }
 
@@ -162,16 +163,18 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
         <$> networkOption'
         <*> listenOption
         <*> nodePortOption
-        <*> optional stateDirOption
+        <*> stateDirOption
         <*> verbosityOption
-    exec (LaunchArgs network listen nodePort stateDir verbosity) = do
+    exec (LaunchArgs network listen nodePort stateDirRaw verbosity) = do
+        let withStateDir _ _ = pure ()
+        stateDir <- resolveHomeDir stateDirRaw
         cmdName <- getProgName
-        execLaunch verbosity stateDir
-            [ commandHttpBridge
-            , commandWalletServe cmdName
+        execLaunch verbosity stateDir withStateDir
+            [ commandHttpBridge stateDir
+            , commandWalletServe cmdName stateDir
             ]
       where
-        commandHttpBridge =
+        commandHttpBridge stateDir =
             Command "cardano-http-bridge" arguments (return ()) Inherit
           where
             arguments = mconcat
@@ -181,10 +184,10 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
                         Left Local -> "local"
                         Right n -> showT n
                   ]
-                , maybe [] (\d -> ["--networks-dir", d]) stateDir
+                , [ "--networks-dir", stateDir ]
                 , verbosityToArgs verbosity
                 ]
-        commandWalletServe cmdName =
+        commandWalletServe cmdName stateDir =
             Command cmdName arguments (return ()) Inherit
           where
             arguments = mconcat
@@ -197,7 +200,7 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
                     ListenOnRandomPort -> ["--random-port"]
                     ListenOnPort port  -> ["--port", showT port]
                 , [ "--node-port", showT nodePort ]
-                , maybe [] (\d -> ["--database", d </> "wallet.db"]) stateDir
+                , [ "--database", stateDir </> "wallet.db" ]
                 , verbosityToArgs verbosity
                 ]
 
