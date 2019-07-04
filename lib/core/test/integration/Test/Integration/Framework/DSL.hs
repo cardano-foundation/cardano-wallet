@@ -947,7 +947,7 @@ collectStreams (nOut0, nErr0) p = do
         hSetBuffering o LineBuffering
         hSetBuffering e LineBuffering
         let io = race
-                (threadDelay (30 * oneSecond))
+                (threadDelay (45 * oneSecond))
                 (collect mvar ((o, nOut0), (e, nErr0)) ph)
         void $ io `finally` do
             -- NOTE
@@ -977,9 +977,11 @@ collectStreams (nOut0, nErr0) p = do
     getNextLine :: Int -> Handle -> IO (Text, Int)
     getNextLine n h
         | n <= 0 = return (mempty, n)
-        | otherwise = try @SomeException (TIO.hGetLine h) <&> \case
-            Left _  -> (mempty, n)
-            Right l -> (l, n-1)
+        | otherwise = do
+            threadDelay (10 * oneMillisecond)
+            try @SomeException (TIO.hGetLine h) <&> \case
+                Left _  -> (mempty, n)
+                Right l -> (l, n-1)
 
 -- | Like `shouldContain`, but with 'Text'
 shouldContainT :: Text -> Text -> IO ()
@@ -990,4 +992,7 @@ shouldNotContainT :: Text -> Text -> IO ()
 shouldNotContainT a b = T.unpack a `shouldNotContain` T.unpack b
 
 oneSecond :: Int
-oneSecond = 1_000_000
+oneSecond = 1_000 * oneMillisecond
+
+oneMillisecond :: Int
+oneMillisecond = 1_000
