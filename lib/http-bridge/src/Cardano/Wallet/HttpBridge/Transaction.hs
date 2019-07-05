@@ -11,8 +11,10 @@ module Cardano.Wallet.HttpBridge.Transaction
 
 import Prelude
 
+import Cardano.Wallet.HttpBridge.Binary
+    ( estimateMaxNumberOfInputsParams )
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge, estimateMaxNumberOfInputsParams )
+    ( HttpBridge )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..), ProtocolMagic (..) )
 import Cardano.Wallet.HttpBridge.Primitive.Types
@@ -84,7 +86,7 @@ newTransactionLayer = TransactionLayer
         + n * sizeOfTxWitness
 
     , estimateMaxNumberOfInputs =
-        estimateMaxNumberOfInputsBase (estimateMaxNumberOfInputsParams @n)
+        estimateMaxNumberOfInputsBase @t estimateMaxNumberOfInputsParams
 
     }
   where

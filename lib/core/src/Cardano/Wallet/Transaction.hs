@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -26,7 +27,7 @@ module Cardano.Wallet.Transaction
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Key, Passphrase, XPrv )
+    ( Depth (..), Key, KeyToAddress (..), Passphrase, XPrv, deserializeXPub )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
@@ -36,7 +37,7 @@ import Data.Quantity
 import Data.Word
     ( Word16, Word8 )
 
-import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 
 data TransactionLayer t = TransactionLayer
     { mkStdTx
@@ -92,7 +93,6 @@ data ErrMkStdTx
 data EstimateMaxNumberOfInputsParams t = EstimateMaxNumberOfInputsParams
     { estMeasureTx :: [TxIn] -> [TxOut] -> [TxWitness] -> Int
         -- ^ Finds the size of a serialized transaction.
-    , estAddressSample :: Address -- ^ Address to use in tx output
     , estBlockHashSize :: Int -- ^ Block ID size
     , estTxWitnessSize :: Int -- ^ Tx Witness size
     }
@@ -107,7 +107,8 @@ data EstimateMaxNumberOfInputsParams t = EstimateMaxNumberOfInputsParams
 -- All the values used are the smaller ones. For example, the shortest adress
 -- type and shortest witness type are chosen to use for the estimate.
 estimateMaxNumberOfInputsBase
-    :: EstimateMaxNumberOfInputsParams t
+    :: forall target. (KeyToAddress target)
+    => EstimateMaxNumberOfInputsParams target
     -- ^ Backend-specific variables used in the estimation
     -> Quantity "byte" Word16
     -- ^ Transaction max size in bytes
@@ -130,12 +131,13 @@ estimateMaxNumberOfInputsBase
     sizeOfTx ins = estMeasureTx ins outs
 
     outs = replicate (fromIntegral numOutputs) txout
-    txout = TxOut estAddressSample minBound
+    txout = TxOut baseAddr minBound
+    Right baseAddr = keyToAddress @target <$> deserializeXPub (chaff 128)
     txIn = TxIn (Hash $ chaff estBlockHashSize) 0
     wit = TxWitness (chaff estTxWitnessSize)
 
     -- Make a bytestring of length n
-    chaff n = BS.replicate n 0
+    chaff n = B8.replicate n '0'
 
     -- convert down to a smaller int without wrapping
     clamp :: Int -> Word8

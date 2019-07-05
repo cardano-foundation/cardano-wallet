@@ -19,7 +19,6 @@ module Cardano.Wallet.HttpBridge.Compatibility
     , Network (..)
     , block0
     , byronFeePolicy
-    , estimateMaxNumberOfInputsParams
     ) where
 
 import Prelude
@@ -29,11 +28,11 @@ import Cardano.Crypto.Wallet
 import Cardano.Wallet.DB.Sqlite
     ( PersistTx (..) )
 import Cardano.Wallet.HttpBridge.Binary
-    ( decodeAddressPayload, encodeProtocolMagic, encodeSignedTx, encodeTx )
+    ( decodeAddressPayload, encodeProtocolMagic, encodeTx )
 import Cardano.Wallet.HttpBridge.Environment
     ( Network (Mainnet, Testnet), ProtocolMagic, protocolMagic )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Key (..), KeyToAddress (..), deserializeXPub, getKey )
+    ( Depth (..), Key (..), KeyToAddress (..), getKey )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
@@ -47,8 +46,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , Tx (..)
     )
-import Cardano.Wallet.Transaction
-    ( EstimateMaxNumberOfInputsParams (..) )
 import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
@@ -68,7 +65,6 @@ import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text.Encoding as T
 
@@ -158,22 +154,3 @@ block0 = Block
 -- | Hard-coded fee policy for Cardano on Byron
 byronFeePolicy :: FeePolicy
 byronFeePolicy = LinearFee (Quantity 155381) (Quantity 43.946)
-
--- | This provides network encoding specific variables to be used by the
--- 'estimateMaxNumberOfInputs' function.
-estimateMaxNumberOfInputsParams
-    :: forall n t. (KeyToAddress t, t ~ HttpBridge n)
-    => EstimateMaxNumberOfInputsParams t
-estimateMaxNumberOfInputsParams = EstimateMaxNumberOfInputsParams
-    { estMeasureTx = \ins outs wits ->
-        fromIntegral $ BL.length $ CBOR.toLazyByteString $
-        encodeSignedTx (W.Tx ins outs, wits)
-
-    -- Address with attributes depending on the network
-    , estAddressSample =
-        let Right k = deserializeXPub (B8.replicate 128 '0')
-        in keyToAddress @t k
-
-    , estBlockHashSize = 32
-    , estTxWitnessSize = 128
-    }

@@ -13,6 +13,8 @@ import Prelude
 
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
+import Cardano.Wallet.Jormungandr.Environment
+    ( KnownNetwork )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -37,7 +39,7 @@ import qualified Cardano.Wallet.Jormungandr.Binary as Binary
 
 -- | Construct a 'TransactionLayer' compatible with Shelley and 'Jörmungandr'
 newTransactionLayer
-    :: forall n t. (t ~ Jormungandr n)
+    :: forall n t. (KnownNetwork n, t ~ Jormungandr n)
     => Hash "Genesis"
     -> TransactionLayer t
 newTransactionLayer (Hash block0) = TransactionLayer
@@ -52,8 +54,7 @@ newTransactionLayer (Hash block0) = TransactionLayer
     , estimateSize = \_ -> Quantity 0
 
     , estimateMaxNumberOfInputs =
-        estimateMaxNumberOfInputsBase $
-        Binary.estimateMaxNumberOfInputsParams @t
+        estimateMaxNumberOfInputsBase @t Binary.estimateMaxNumberOfInputsParams
 
     }
   where

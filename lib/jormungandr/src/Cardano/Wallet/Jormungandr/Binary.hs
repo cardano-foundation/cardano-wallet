@@ -574,9 +574,6 @@ estimateMaxNumberOfInputsParams = EstimateMaxNumberOfInputsParams
     { estMeasureTx = \ins outs wits -> fromIntegral $ BL.length $
         runPut $ putSignedTx (Tx (map (, Coin 0) ins) outs, wits)
 
-    -- Use length of the smaller type of address.
-    , estAddressSample = Address $ BS.replicate addrLenSingle 0
-
     -- Block IDs are always this long.
     , estBlockHashSize = 32
 

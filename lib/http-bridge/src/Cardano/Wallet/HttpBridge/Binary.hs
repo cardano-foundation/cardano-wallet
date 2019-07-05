@@ -39,6 +39,7 @@ module Cardano.Wallet.HttpBridge.Binary
     , decodeList
     , decodeListIndef
     , toByteString
+    , estimateMaxNumberOfInputsParams
 
     ) where
 
@@ -61,6 +62,8 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , TxWitness (..)
     )
+import Cardano.Wallet.Transaction
+    ( EstimateMaxNumberOfInputsParams (..) )
 import Control.Monad
     ( void )
 import Crypto.Hash
@@ -622,3 +625,14 @@ encodeList encodeOne list = mempty
 
 toByteString :: CBOR.Encoding -> ByteString
 toByteString = BL.toStrict . CBOR.toLazyByteString
+
+-- | This provides network encoding specific variables to be used by the
+-- 'estimateMaxNumberOfInputs' function.
+estimateMaxNumberOfInputsParams :: EstimateMaxNumberOfInputsParams t
+estimateMaxNumberOfInputsParams = EstimateMaxNumberOfInputsParams
+    { estMeasureTx = \ins outs wits ->
+        fromIntegral $ BL.length $ CBOR.toLazyByteString $
+        encodeSignedTx (Tx ins outs, wits)
+    , estBlockHashSize = 32
+    , estTxWitnessSize = 128
+    }
