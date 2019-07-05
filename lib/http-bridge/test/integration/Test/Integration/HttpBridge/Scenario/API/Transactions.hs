@@ -12,7 +12,7 @@ module Test.Integration.HttpBridge.Scenario.API.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiTransaction )
+    ( ApiFee, ApiTransaction )
 import Cardano.Wallet.Primitive.Types
     ( DecodeAddress (..), EncodeAddress (..) )
 import Data.Generics.Internal.VL.Lens
@@ -30,6 +30,7 @@ import Test.Integration.Framework.DSL
     , json
     , listAddresses
     , postTxEp
+    , postTxFeeEp
     , request
     , verify
     )
@@ -41,6 +42,34 @@ import qualified Network.HTTP.Types.Status as HTTP
 spec :: forall t. (EncodeAddress t, DecodeAddress t) => SpecWith (Context t)
 spec = do
     it "TRANS_CREATE_09 - 0 amount transaction is forbidden on single output tx" $ \ctx -> do
+        (wSrc, payload) <- fixtureZeroAmtSingle ctx
+        r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        verify r
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403InvalidTransaction
+            ]
+
+    it "TRANS_CREATE_09 - 0 amount transaction is forbidden on multi-output tx" $ \ctx -> do
+        (wSrc, payload) <- fixtureZeroAmtMulti ctx
+        r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        verify r
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403InvalidTransaction
+            ]
+
+    it "TRANS_ESTIMATE_09 - 0 tx fee estimation is allowed? on single output tx" $ \ctx -> do
+        (wSrc, payload) <- fixtureZeroAmtSingle ctx
+        r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+        verify r
+            [ expectResponseCode HTTP.status202 ]
+
+    it "TRANS_ESTIMATE_09 - 0 amount tx fee estimation is allowed? on multi-output tx" $ \ctx -> do
+        (wSrc, payload) <- fixtureZeroAmtMulti ctx
+        r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+        verify r
+            [ expectResponseCode HTTP.status202 ]
+  where
+    fixtureZeroAmtSingle ctx = do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses ctx wDest
@@ -56,13 +85,9 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-        r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
-        verify r
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403InvalidTransaction
-            ]
+        return (wSrc, payload)
 
-    it "TRANS_CREATE_09 - 0 amount transaction is forbidden on multi-output tx" $ \ctx -> do
+    fixtureZeroAmtMulti ctx = do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
         addrs <- listAddresses ctx wDest
@@ -86,9 +111,4 @@ spec = do
                 }],
                 "passphrase": "cardano-wallet"
             }|]
-
-        r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
-        verify r
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403InvalidTransaction
-            ]
+        return (wSrc, payload)
