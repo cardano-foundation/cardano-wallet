@@ -123,7 +123,7 @@ decodeAttributes = do
     _ <- CBOR.decodeMapLenCanonical -- Empty map of attributes
     return ((), CBOR.encodeMapLen 0)
 
-{-# ANN decodeBlock ("HLint: ignore Use <$>" :: String) #-}
+{-# HLINT ignore decodeBlock "Use <$>" #-}
 decodeBlock :: CBOR.Decoder s (Block Tx)
 decodeBlock = do
     CBOR.decodeListLenCanonicalOf 2
@@ -389,7 +389,7 @@ decodeTx = do
 decodeTxPayload :: CBOR.Decoder s [Tx]
 decodeTxPayload = (map fst) <$> decodeListIndef decodeSignedTx
 
-{-# ANN decodeTxIn ("HLint: ignore Use <$>" :: String) #-}
+{-# HLINT ignore decodeTxIn "Use <$>" #-}
 decodeTxIn :: CBOR.Decoder s TxIn
 decodeTxIn = do
     _ <- CBOR.decodeListLenCanonicalOf 2
@@ -410,7 +410,7 @@ decodeTxIn = do
         index <- CBOR.decodeWord32
         return $ TxIn tx index
 
-{-# ANN decodeTxOut ("HLint: ignore Use <$>" :: String) #-}
+{-# HLINT ignore decodeTxOut "Use <$>" #-}
 decodeTxOut :: CBOR.Decoder s TxOut
 decodeTxOut = do
     _ <- CBOR.decodeListLenCanonicalOf 2
