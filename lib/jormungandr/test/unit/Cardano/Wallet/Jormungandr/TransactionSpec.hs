@@ -47,7 +47,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Transaction
     ( TransactionLayer (..) )
 import Cardano.Wallet.TransactionSpecShared
-    ( estimateMaxNumberOfInputsSpec )
+    ( propMaxNumberOfInputsEstimation )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Control.Monad.Trans.Except
@@ -89,7 +89,6 @@ spec :: Spec
 spec = do
     estimateSizeSpec
     estimateMaxNumberOfInputsSpec
-        (newTransactionLayer (Hash "") :: TransactionLayer (Jormungandr 'Mainnet))
     mkStdTxSpec
 
 {-------------------------------------------------------------------------------
@@ -199,6 +198,19 @@ instance Arbitrary (Hash "Tx") where
     arbitrary = do
         bytes <- BS.pack <$> vectorOf 32 arbitrary
         pure $ Hash bytes
+
+{-------------------------------------------------------------------------------
+                             Max inputs estimation
+-------------------------------------------------------------------------------}
+
+estimateMaxNumberOfInputsSpec :: Spec
+estimateMaxNumberOfInputsSpec = describe "estimateMaxNumberOfInputs" $ do
+    it "Property for mainnet addresses" $
+        property $ propMaxNumberOfInputsEstimation
+        (newTransactionLayer (Hash "") :: TransactionLayer (Jormungandr 'Mainnet))
+    it "Property for testnet addresses" $
+        property $ propMaxNumberOfInputsEstimation
+        (newTransactionLayer (Hash "") :: TransactionLayer (Jormungandr 'Testnet))
 
 {-------------------------------------------------------------------------------
                                   mkStdTx

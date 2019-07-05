@@ -6,8 +6,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.TransactionSpecShared
-    ( estimateMaxNumberOfInputsSpec
-    , propMaxNumberOfInputsEstimation
+    ( propMaxNumberOfInputsEstimation
     ) where
 
 import Prelude
@@ -18,8 +17,6 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Word
     ( Word16, Word8 )
-import Test.Hspec
-    ( Spec, describe, it )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
@@ -27,19 +24,12 @@ import Test.QuickCheck
     , choose
     , counterexample
     , elements
-    , property
     , (.&&.)
     )
 
 {-------------------------------------------------------------------------------
                              Max inputs estimation
 -------------------------------------------------------------------------------}
-
-estimateMaxNumberOfInputsSpec :: TransactionLayer t -> Spec
-estimateMaxNumberOfInputsSpec tl =
-    describe "estimateMaxNumberOfInputs" $ do
-        it "Property for mainnet addresses"
-            (property $ propMaxNumberOfInputsEstimation tl)
 
 propMaxNumberOfInputsEstimation
     :: TransactionLayer t
