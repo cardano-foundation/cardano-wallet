@@ -632,7 +632,7 @@ spec = do
                     Default payload
             expectResponseCode @IO HTTP.status400 r
 
-    describe "TRANS_ESTIMATE_01 - v2/wallets/{id}/transactions/fees - Methods Not Allowed" $ do
+    describe "TRANS_ESTIMATE_08 - v2/wallets/{id}/transactions/fees - Methods Not Allowed" $ do
         let matrix = ["PUT", "DELETE", "CONNECT", "TRACE", "OPTIONS", "GET"]
         forM_ matrix $ \method -> it (show method) $ \ctx -> do
             w <- emptyWallet ctx
@@ -655,7 +655,7 @@ spec = do
             expectErrorMessage errMsg405 r
 
 
-    describe "TRANS_ESTIMATE_02 - HTTP headers" $ do
+    describe "TRANS_ESTIMATE_08 - HTTP headers" $ do
         forM_ (matrixHeaders @ApiFee) $ \(title, headers, expectations) -> it title $ \ctx -> do
             w <- emptyWallet ctx
             wDest <- emptyWallet ctx
@@ -675,7 +675,7 @@ spec = do
             verify r expectations
 
 
-    describe "TRANS_ESTIMATE_03 - Bad payload" $ do
+    describe "TRANS_ESTIMATE_08 - Bad payload" $ do
         let matrix =
                 [ ( "empty payload", NonJson "" )
                 , ( "{} payload", NonJson "{}" )
@@ -697,7 +697,7 @@ spec = do
                     Default payload
             expectResponseCode @IO HTTP.status400 r
 
-    it "TRANS_ESTIMATE_04 - Single Output Fee Estimation" $ \ctx -> do
+    it "TRANS_ESTIMATE_01 - Single Output Fee Estimation" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
         addrs <- listAddresses ctx wb
 
@@ -724,7 +724,7 @@ spec = do
             , expectFieldBetween amount (feeMin - amt, feeMax + amt)
             ]
 
-    it "TRANS_ESTIMATE_05 - Multiple Output Fee Estimation to single wallet" $ \ctx -> do
+    it "TRANS_ESTIMATE_02 - Multiple Output Fee Estimation to single wallet" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
         addrs <- listAddresses ctx wDest
@@ -759,7 +759,7 @@ spec = do
             , expectFieldBetween amount (feeMin - (2*amt), feeMax + (2*amt))
             ]
 
-    it "TRANS_ESTIMATE_06 - Multiple Output Fee Estimation to different wallets" $ \ctx -> do
+    it "TRANS_ESTIMATE_02 - Multiple Output Fee Estimation to different wallets" $ \ctx -> do
         wSrc <- fixtureWallet ctx
         wDest1 <- emptyWallet ctx
         wDest2 <- emptyWallet ctx
@@ -798,7 +798,7 @@ spec = do
             , expectFieldBetween amount (feeMin - (2*amt), feeMax + (2*amt))
             ]
 
-    it "TRANS_ESTIMATE_07 - Multiple Output Fee Estimation don't work on single UTxO" $ \ctx -> do
+    it "TRANS_ESTIMATE_02 - Multiple Output Fee Estimation don't work on single UTxO" $ \ctx -> do
         wSrc <- fixtureWalletWith ctx [2_124_333]
         wDest <- emptyWallet ctx
         addrs <- listAddresses ctx wDest
@@ -830,27 +830,30 @@ spec = do
             , expectErrorMessage errMsg403UTxO
             ]
 
-    it "TRANS_ESTIMATE_08 - we see result when we can't cover fee" $ \ctx -> do
-        let (feeMin, _) = ctx ^. feeEstimator $ TxDescription 1 1
+    it "TRANS_ESTIMATE_03 - we see result when we can't cover fee" $ \ctx -> do
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription 1 1
         wSrc <- fixtureWalletWith ctx [feeMin `div` 2]
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses ctx wDest
+        let amt = 1
 
         let destination = addr ^. #id
         let payload = Json [json|{
                 "payments": [{
                     "address": #{destination},
                     "amount": {
-                        "quantity": 1,
+                        "quantity": #{amt},
                         "unit": "lovelace"
                     }
                 }]
             }|]
         r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
         verify r
-            [ expectResponseCode HTTP.status202 ]
+            [ expectResponseCode HTTP.status202
+            , expectFieldBetween amount (feeMin - amt, feeMax + amt)
+            ]
 
-    it "TRANS_ESTIMATE_09 - Not enough money" $ \ctx -> do
+    it "TRANS_ESTIMATE_04 - Not enough money" $ \ctx -> do
         let (feeMin, _) = ctx ^. feeEstimator $ TxDescription 1 1
         wSrc <- fixtureWalletWith ctx [feeMin]
         wDest <- emptyWallet ctx
@@ -873,7 +876,7 @@ spec = do
                 errMsg403NotEnoughMoney (fromIntegral feeMin) 1_000_000
             ]
 
-    describe "TRANS_ESTIMATE_10 - Invalid addresses" $ do
+    describe "TRANS_ESTIMATE_05 - Invalid addresses" $ do
         forM_ matrixWrongAddrs $ \(title, addr, errMsg) -> it title $ \ctx -> do
             wSrc <- emptyWallet ctx
             let payload = Json [json|{
@@ -891,7 +894,7 @@ spec = do
                 , expectErrorMessage errMsg
                 ]
 
-    it "TRANS_ESTIMATE_11 - [] as address" $ \ctx -> do
+    it "TRANS_ESTIMATE_05 - [] as address" $ \ctx -> do
         wSrc <- emptyWallet ctx
         let payload = Json [json|{
                 "payments": [{
@@ -908,7 +911,7 @@ spec = do
             , expectErrorMessage "expected Text, encountered Array"
             ]
 
-    it "TRANS_ESTIMATE_12 - Num as address" $ \ctx -> do
+    it "TRANS_ESTIMATE_05 - Num as address" $ \ctx -> do
         wSrc <- emptyWallet ctx
         let payload = Json [json|{
                 "payments": [{
@@ -925,7 +928,7 @@ spec = do
             , expectErrorMessage "expected Text, encountered Num"
             ]
 
-    it "TRANS_ESTIMATE_13 - address param missing" $ \ctx -> do
+    it "TRANS_ESTIMATE_05 - address param missing" $ \ctx -> do
         wSrc <- emptyWallet ctx
         let payload = Json [json|{
                 "payments": [{
@@ -941,7 +944,7 @@ spec = do
             , expectErrorMessage "key 'address' not present"
             ]
 
-    describe "TRANS_ESTIMATE_14 - Invalid amount" $ do
+    describe "TRANS_ESTIMATE_06 - Invalid amount" $ do
         forM_ (matrixInvalidQuantities @ApiFee) $ \(title, amt, expectations) -> it title $ \ctx -> do
             wSrc <- emptyWallet ctx
             wDest <- emptyWallet ctx
@@ -957,7 +960,7 @@ spec = do
             r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
             verify r expectations
 
-    describe "TRANS_ESTIMATE_15 - False wallet ids" $ do
+    describe "TRANS_ESTIMATE_07 - False wallet ids" $ do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
             wDest <- emptyWallet ctx
             addr:_ <- listAddresses ctx wDest
@@ -980,7 +983,7 @@ spec = do
             else
                 expectErrorMessage errMsg404NoEndpoint r
 
-    it "TRANS_ESTIMATE_16 - 'almost' valid walletId" $ \ctx -> do
+    it "TRANS_ESTIMATE_07 - 'almost' valid walletId" $ \ctx -> do
         w <- emptyWallet ctx
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses ctx wDest
@@ -1002,7 +1005,7 @@ spec = do
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage errMsg404NoEndpoint r
 
-    it "TRANS_ESTIMATE_17 - Deleted wallet" $ \ctx -> do
+    it "TRANS_ESTIMATE_07 - Deleted wallet" $ \ctx -> do
         w <- emptyWallet ctx
         _ <- request @ApiWallet ctx (deleteWalletEp w) Default Empty
         wDest <- emptyWallet ctx
