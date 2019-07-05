@@ -539,7 +539,7 @@ newWalletLayer tracer bp db nw tl = do
     _restoreWallet re wid = do
         (w, _) <- _readWallet wid
         let workerName = "worker." <> T.take 8 (toText wid)
-        t <- liftIO $ appendName workerName tracer
+            t = appendName workerName tracer
         liftIO $ logInfo t $ "Restoring wallet "+| wid |+"..."
         worker <- liftIO $ forkIO $ do
             runExceptT (networkTip nw) >>= \case

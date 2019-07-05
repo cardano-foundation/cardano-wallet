@@ -388,7 +388,7 @@ startSqliteBackend
     -> Maybe FilePath
     -> IO SqliteContext
 startSqliteBackend logConfig trace fp = do
-    traceQuery <- appendName "query" trace
+    let traceQuery = appendName "query" trace
     backend <- createSqliteBackend trace fp (queryLogFunc traceQuery)
     lock <- newMVar ()
     let observe :: IO a -> IO a
