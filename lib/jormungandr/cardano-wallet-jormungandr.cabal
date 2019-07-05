@@ -173,6 +173,7 @@ test-suite integration
       Test.Integration.Framework.DSL
       Test.Integration.Framework.Request
       Test.Integration.Framework.TestData
+      Test.Integration.Jormungandr.Scenario.CLI.Launcher
       Test.Integration.Jormungandr.Scenario.CLI.Server
       Test.Integration.Scenario.API.Addresses
       Test.Integration.Scenario.API.Transactions
