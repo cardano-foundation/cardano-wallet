@@ -319,23 +319,7 @@ spec = do
             ]
 
     it "TRANS_CREATE_04 - Error shown when ErrInputsDepleted encountered" $ \ctx -> do
-        wSrc <- fixtureWalletWith ctx [12_000_000, 20_000_000, 17_000_000]
-        wDest <- emptyWallet ctx
-        addrs <- listAddresses ctx wDest
-
-        let addrIds = view #id <$> take 3 addrs
-        let amounts = [40_000_000, 22, 22] :: [Natural]
-        let payments = flip map (zip amounts addrIds) $ \(coin, addr) -> [json|{
-                "address": #{addr},
-                "amount": {
-                    "quantity": #{coin},
-                    "unit": "lovelace"
-                }
-            }|]
-        let payload = Json [json|{
-                "payments": #{payments :: [Value]},
-                "passphrase": "Secure Passphrase"
-            }|]
+        (wSrc, payload) <- fixtureErrInputsDepleted ctx
         r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
@@ -876,6 +860,14 @@ spec = do
                 errMsg403NotEnoughMoney (fromIntegral feeMin) 1_000_000
             ]
 
+    it "TRANS_ESTIMATE_04 - Error shown when ErrInputsDepleted encountered" $ \ctx -> do
+        (wSrc, payload) <- fixtureErrInputsDepleted ctx
+        r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+        verify r
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403InputsDepleted
+            ]
+
     describe "TRANS_ESTIMATE_05 - Invalid addresses" $ do
         forM_ matrixWrongAddrs $ \(title, addr, errMsg) -> it title $ \ctx -> do
             wSrc <- emptyWallet ctx
@@ -1141,3 +1133,22 @@ spec = do
             , expectErrorMessage errMsg415 ]
         )
         ]
+    fixtureErrInputsDepleted ctx = do
+        wSrc <- fixtureWalletWith ctx [12_000_000, 20_000_000, 17_000_000]
+        wDest <- emptyWallet ctx
+        addrs <- listAddresses ctx wDest
+
+        let addrIds = view #id <$> take 3 addrs
+        let amounts = [40_000_000, 22, 22] :: [Natural]
+        let payments = flip map (zip amounts addrIds) $ \(coin, addr) -> [json|{
+                "address": #{addr},
+                "amount": {
+                    "quantity": #{coin},
+                    "unit": "lovelace"
+                }
+            }|]
+        let payload = Json [json|{
+                "payments": #{payments :: [Value]},
+                "passphrase": "Secure Passphrase"
+            }|]
+        return (wSrc, payload)
