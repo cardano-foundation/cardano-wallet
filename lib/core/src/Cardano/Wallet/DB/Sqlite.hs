@@ -34,7 +34,7 @@ module Cardano.Wallet.DB.Sqlite
 import Prelude
 
 import Cardano.BM.Data.LogItem
-    ( LOContent (..), LogObject (..), PrivacyAnnotation (..) )
+    ( PrivacyAnnotation (..) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Observer.Monadic
@@ -869,22 +869,7 @@ data DBLog
     deriving (Generic, Show, Eq, ToJSON)
 
 transformTrace :: Trace IO Text -> Trace IO DBLog
-transformTrace = contramap (converter dbLogText)
-
--- bit of boilerplate here, a helper function could be useful.
-converter :: (a -> b) -> LogObject a -> LogObject b
-converter f (LogObject nm me loc) = LogObject nm me (conv loc)
-  where
-    conv (LogMessage msg) = LogMessage (f msg)
-    conv (LogError a) = LogError a
-    conv (LogValue a n) = LogValue a n
-    conv (ObserveOpen st) = ObserveOpen st
-    conv (ObserveDiff st) = ObserveDiff st
-    conv (ObserveClose st) = ObserveClose st
-    conv (AggregatedMessage ag) = AggregatedMessage ag
-    conv (MonitoringEffect act) = MonitoringEffect act
-    conv (Command v) = Command v
-    conv KillPill = KillPill
+transformTrace = contramap (fmap dbLogText)
 
 dbLog :: MonadIO m => Trace m DBLog -> DBLog -> m ()
 dbLog logTrace msg = traceNamedItem logTrace Public (dbLogLevel msg) msg
