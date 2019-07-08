@@ -29,7 +29,7 @@ However, many tools (including [Jörmungandr](https://github.com/input-output-hk
 | `--verbose --verbose` | `-vv` | Very verbose |
 | `--verbose --verbose --verbose` | `-vvv` | Extremely verbose |
 
-We might consider introducing the same, for consistency.
+We should consider making our wallet CLI behave in a consistent way with any commands (such as `jormungandr`) on which it depends, so that different levels of quietness (or verbosity) correspond to the same log levels.
 
 This is fairly easy to achieve with `optparse-applicative`. See https://github.com/pcapriotti/optparse-applicative#flags
 
