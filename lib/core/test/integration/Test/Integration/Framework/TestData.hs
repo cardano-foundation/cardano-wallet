@@ -251,6 +251,11 @@ _errMsg403InpsOrOutsExceeded (maxNumInps, maxNumOuts) =
     \   more than " ++ show maxNumInps ++ " or the number of outputs\
     \ exceeds " ++ show maxNumOuts ++ "."
 
+errMsg403CannotEstimateFee :: String
+errMsg403CannotEstimateFee = "I can't process this payment because it contains at least\
+    \ one payment output of value 0 (Byron) or a transaction has more\
+    \ than 255 inputs or outputs (Jormungandr)."
+
 errMsg403UTxO :: String
 errMsg403UTxO = "When creating new transactions, I'm not able to re-use the\
     \ same UTxO for different outputs. Here, I only have 1\

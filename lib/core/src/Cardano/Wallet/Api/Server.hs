@@ -546,6 +546,12 @@ instance Buildable e => LiftHandler (ErrEstimateTxFee e) where
     handler = \case
         ErrEstimateTxFeeNoSuchWallet e -> handler e
         ErrEstimateTxFeeCoinSelection e -> handler e
+        ErrEstimateTxFeeBackend _ ->
+            apiError err403 CreatedInvalidTransaction $ mconcat
+                [ "I can't process this payment because it contains either at least"
+                , " one payment output of value 0 (Byron) or a transaction has more"
+                , " than 255 inputs or outputs (Jormungandr)."
+                ]
 
 instance LiftHandler ErrSignTx where
     handler = \case
