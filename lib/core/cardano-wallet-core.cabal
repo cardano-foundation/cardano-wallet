@@ -188,6 +188,7 @@ test-suite unit
       Cardano.Wallet.Primitive.MnemonicSpec
       Cardano.Wallet.Primitive.ModelSpec
       Cardano.Wallet.Primitive.TypesSpec
+      Cardano.Wallet.TransactionSpec
       Cardano.WalletSpec
       Data.QuantitySpec
       Network.Wai.Middleware.LoggingSpec
