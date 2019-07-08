@@ -30,11 +30,12 @@ import Test.Integration.Framework.DSL
     , emptyWallet
     , fixtureWallet
     , listAddresses
+    , postTransactionFeeViaCLI
     , postTransactionViaCLI
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403InvalidTransaction )
+    ( errMsg403CannotEstimateFee, errMsg403InvalidTransaction )
 
 import qualified Data.Text as T
 
@@ -75,5 +76,41 @@ spec = do
 
         (c, out, err) <- postTransactionViaCLI @t ctx "cardano-wallet" args
         (T.unpack err) `shouldContain` errMsg403InvalidTransaction
+        out `shouldBe` ""
+        c `shouldBe` ExitFailure 1
+
+    it "TRANS_ESTIMATE_09 - 0 amount transaction is forbidden on single output tx" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        wDest <- emptyWallet ctx
+        addrs:_ <- listAddresses ctx wDest
+        let addr =
+                encodeAddress (Proxy @t) (getApiT $ fst $ addrs ^. #id)
+        let amt = "0"
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", amt <> "@" <> addr
+                ]
+
+        (c, out, err) <- postTransactionFeeViaCLI @t ctx args
+        (T.unpack err) `shouldContain` errMsg403CannotEstimateFee
+        out `shouldBe` ""
+        c `shouldBe` ExitFailure 1
+
+    it "TRANS_ESTIMATE_09 - 0 amount transaction is forbidden on multi-output tx" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        wDest <- emptyWallet ctx
+        addrs <- listAddresses ctx wDest
+        let addr1 =
+                encodeAddress (Proxy @t) (getApiT $ fst $ addrs !! 1 ^. #id)
+        let addr2 =
+                encodeAddress (Proxy @t) (getApiT $ fst $ addrs !! 2 ^. #id)
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", "0@" <> addr1
+                , "--payment", "15@" <> addr2
+                ]
+
+        (c, out, err) <- postTransactionFeeViaCLI @t ctx args
+        (T.unpack err) `shouldContain` errMsg403CannotEstimateFee
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
