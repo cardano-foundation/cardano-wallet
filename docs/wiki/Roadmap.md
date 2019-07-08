@@ -26,9 +26,9 @@
 
 ### :heavy_check_mark: [Jörmungandr High-level integration](https://github.com/input-output-hk/cardano-wallet/milestone/10)
 
-### :hammer: [Jörmungandr Integration Testing](https://github.com/input-output-hk/cardano-wallet/milestone/15)
+### :heavy_check_mark: [Jörmungandr Integration Testing](https://github.com/input-output-hk/cardano-wallet/milestone/15)
 
-### :hammer: [Logging](https://github.com/input-output-hk/cardano-wallet/milestone/14)
+### :heavy_check_mark: [Logging](https://github.com/input-output-hk/cardano-wallet/milestone/14)
 
 ### :hammer: [Review Coin Selection](https://github.com/input-output-hk/cardano-wallet/milestone/18)
 
