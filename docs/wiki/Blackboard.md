@@ -4,6 +4,7 @@ This wiki page is a "blackboard" where anyone in the team can write ideas or sug
 
 # Contents
 
+* [Support multiple `--quiet` or `--verbose` flags in the CLI](#support-multiple---quiet-or---verbose-flags-in-the-cli)
 * [Use shared libraries instead of symbolic links for code sharing](#use-shared-libraries-instead-of-symbolic-links-for-code-sharing)
 * [Defer use of `IO` in the various layers](#defer-use-of-io-in-the-various-layers)
 * [Run integration tests against mainnet](#run-integration-tests-against-mainnet)
@@ -11,6 +12,26 @@ This wiki page is a "blackboard" where anyone in the team can write ideas or sug
 * [Consider DB state transition testing in the context of DB corruption](#consider-db-state-transition-testing-in-the-context-of-db-corruption)
 
 # Ideas
+
+## Support multiple `--quiet` or `--verbose` flags in the CLI.
+
+Currently, our CLI provides `--quiet` and `--verbose` flags, which when specified will make the output quieter or more verbose, respectively.
+
+However, many tools (including [Jörmungandr](https://github.com/input-output-hk/jormungandr)) support different levels of quietness and verbosity, by allowing the user to specify these flags multiple times. For example:
+
+| Long Form | Short Form | Effect |
+| -- | -- | -- |
+| `--quiet --quiet --quiet` | `-qqq` | Extremely quiet |
+| `--quiet --quiet` | `-qq` | Very quiet |
+| `--quiet` | `-q` | Quiet |
+| (nothing) | (nothing) | Default |
+| `--verbose` | `-v` | Verbose |
+| `--verbose --verbose` | `-vv` | Very verbose |
+| `--verbose --verbose --verbose` | `-vvv` | Extremely verbose |
+
+We might consider introducing the same, for consistency.
+
+This is fairly easy to achieve with `optparse-applicative`. See https://github.com/pcapriotti/optparse-applicative#flags
 
 ## Use shared libraries instead of symbolic links for code sharing
 
