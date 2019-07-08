@@ -46,6 +46,12 @@ _items below are more-or-less prioritized_
 - Finalize port of discovery for random addresses
 - Extend API to support random wallet
 
+### Integrating with cardano-node (Haskell)
+
+- New network layer through unix domain socket
+- Port CLI & Integration tests
+- Resolve API and or core-types discrepancy 
+
 ### Make Protocol Settings Available
 
 - Current Slot Id, Slot Duration, Slot Count, security parameter, fee policy, maxTxSize
