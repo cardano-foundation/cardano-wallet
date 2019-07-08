@@ -1,6 +1,14 @@
 # Forewords
 
-This wiki page is a "blackboard" where anyone in the team can write ideas or suggestions about various things on the team, the project, the code or the development process. Give as many details as you can so that, during release meeting, we can discuss what's on the board and improve. 
+This wiki page is a "blackboard" where anyone in the team can write ideas or suggestions about various things on the team, the project, the code or the development process. Give as many details as you can so that, during the release meeting, we can discuss what's on the board and improve. 
+
+# Contents
+
+* [Use shared libraries instead of symbolic links for code sharing](#use-shared-libraries-instead-of-symbolic-links-for-code-sharing)
+* [Defer use of `IO` in the various layers](#defer-use-of-io-in-the-various-layers)
+* [Run integration tests against mainnet](#run-integration-tests-against-mainnet)
+* [Better error reporting in the API](better-error-reporting-in-the-api)
+* [Consider DB state transition testing in the context of DB corruption](#consider-db-state-transition-testing-in-the-context-of-db-corruption)
 
 # Ideas
 
