@@ -71,7 +71,7 @@ in
       let res = builtins.tryEval (
         if isDerivation value then
           value.meta.hydraPlatforms
-            or (supportedMatchesCross (value.meta.platforms or [ "x86_64-linux" ]))
+            or (supportedMatchesCross (value.meta.platforms or supportedCrossSystems))
         else if value.recurseForDerivations or false || value.recurseForRelease or false then
           packagePlatformsCross value
         else
