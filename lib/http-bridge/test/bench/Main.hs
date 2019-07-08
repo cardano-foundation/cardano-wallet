@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -190,12 +191,14 @@ parseNetwork = \case
 
 {-# ANN bench_restoration ("HLint: ignore Use camelCase" :: String) #-}
 bench_restoration
-    :: forall (n :: Network) s.
+    :: forall (n :: Network) s t.
         ( IsOwned s
         , NFData s
         , Show s
         , PersistState s
         , KnownNetwork n
+        , t ~ HttpBridge n
+        , KeyToAddress t
         )
     => Proxy n
     -> (WalletId, WalletName, s)
@@ -209,7 +212,7 @@ bench_restoration _ (wid, wname, s) = withHttpBridge network $ \port -> do
     let tl = newTransactionLayer
     BlockHeader sl _ <- unsafeRunExceptT $ networkTip nw
     sayErr . fmt $ network ||+ " tip is at " +|| sl ||+ ""
-    w <- newWalletLayer @_ @(HttpBridge n) nullTracer block0 byronFeePolicy db nw tl
+    w <- newWalletLayer @_ @t nullTracer block0 byronFeePolicy db nw tl
     wallet <- unsafeRunExceptT $ createWallet w wid wname s
     unsafeRunExceptT $ restoreWallet w wallet
     waitForWalletSync w wallet

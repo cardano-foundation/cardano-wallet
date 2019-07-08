@@ -1,4 +1,7 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -15,18 +18,26 @@ module Cardano.Wallet.Transaction
 
     -- * Errors
     , ErrMkStdTx (..)
+
+    -- * Backend helpers
+    , estimateMaxNumberOfInputsBase
+    , EstimateMaxNumberOfInputsParams(..)
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Key, Passphrase, XPrv )
+    ( Depth (..), Key, KeyToAddress (..), Passphrase, XPrv, deserializeXPub )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address, Tx, TxIn, TxOut, TxWitness )
+    ( Address (..), Hash (..), Tx, TxIn (..), TxOut (..), TxWitness (..) )
 import Data.Quantity
-    ( Quantity )
+    ( Quantity (..) )
+import Data.Word
+    ( Word16, Word8 )
+
+import qualified Data.ByteString.Char8 as B8
 
 data TransactionLayer t = TransactionLayer
     { mkStdTx
@@ -57,6 +68,17 @@ data TransactionLayer t = TransactionLayer
         -- always consider the worst-case scenario of a 5-byte crc.
         -- As a consequence, our estimate may be slightly bigger than the actual
         -- transaction fee (up-to 4 extra bytes per change output).
+
+    , estimateMaxNumberOfInputs :: Quantity "byte" Word16 -> Word8 -> Word8
+        -- ^ Calculate a "theoretical" maximum number of inputs given a maximum
+        -- transaction size and desired number of outputs.
+        --
+        -- The actual transaction size cannot be known until it has been fully
+        -- determined by coin selection.
+        --
+        -- This estimate will err on the side of permitting more inputs,
+        -- resulting in a transaction which may be too large.
+
     }
 
 -- | Possible signing error
@@ -66,3 +88,57 @@ data ErrMkStdTx
     | ErrInvalidTx
     -- ^ when transaction with 0 amount is tried (not valid in Byron)
     deriving (Eq, Show)
+
+-- | Backend-specific variables used by 'estimateMaxNumberOfInputsBase'.
+data EstimateMaxNumberOfInputsParams t = EstimateMaxNumberOfInputsParams
+    { estMeasureTx :: [TxIn] -> [TxOut] -> [TxWitness] -> Int
+        -- ^ Finds the size of a serialized transaction.
+    , estBlockHashSize :: Int -- ^ Block ID size
+    , estTxWitnessSize :: Int -- ^ Tx Witness size
+    }
+
+-- | This is called by the 'TransactionLayer' implementation. It uses the
+-- serialization functions to calculate the size of an empty transaction
+-- compared to a transaction with one input. The estimation is based on that.
+--
+-- It doesn't account for transaction outputs, and assumes there is a single Tx
+-- output.
+--
+-- All the values used are the smaller ones. For example, the shortest adress
+-- type and shortest witness type are chosen to use for the estimate.
+estimateMaxNumberOfInputsBase
+    :: forall target. (KeyToAddress target)
+    => EstimateMaxNumberOfInputsParams target
+    -- ^ Backend-specific variables used in the estimation
+    -> Quantity "byte" Word16
+    -- ^ Transaction max size in bytes
+    -> Word8
+    -- ^ Number of outputs in transaction
+    -> Word8
+    -- ^ Maximum number of inputs, estimated
+estimateMaxNumberOfInputsBase
+    EstimateMaxNumberOfInputsParams{..} (Quantity txSize) numOutputs =
+    clamp $ max 0 (fromIntegral txSize - fixedSize) `div` inputSize
+  where
+    -- The fixed size covers the headers of a signed transaction with a single
+    -- output.
+    fixedSize = sizeOfTx [] []
+
+    -- inputSize is the size of each additional input of a signed transaction.
+    inputSize = sizeOfTx [txIn] [wit] - fixedSize
+
+    -- Serialize a "representative" Tx with the given inputs and read its size.
+    sizeOfTx ins = estMeasureTx ins outs
+
+    outs = replicate (fromIntegral numOutputs) txout
+    txout = TxOut baseAddr minBound
+    Right baseAddr = keyToAddress @target <$> deserializeXPub (chaff 128)
+    txIn = TxIn (Hash $ chaff estBlockHashSize) 0
+    wit = TxWitness (chaff estTxWitnessSize)
+
+    -- Make a bytestring of length n
+    chaff n = B8.replicate n '0'
+
+    -- convert down to a smaller int without wrapping
+    clamp :: Int -> Word8
+    clamp = fromIntegral . min (fromIntegral $ maxBound @Word8)

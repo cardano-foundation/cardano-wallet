@@ -3,7 +3,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
@@ -47,6 +46,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Transaction
     ( TransactionLayer (..) )
+import Cardano.Wallet.TransactionSpecShared
+    ( propMaxNumberOfInputsEstimation )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Control.Monad.Trans.Except
@@ -87,6 +88,7 @@ import qualified Data.Map as Map
 spec :: Spec
 spec = do
     estimateSizeSpec
+    estimateMaxNumberOfInputsSpec
     mkStdTxSpec
 
 {-------------------------------------------------------------------------------
@@ -196,6 +198,19 @@ instance Arbitrary (Hash "Tx") where
     arbitrary = do
         bytes <- BS.pack <$> vectorOf 32 arbitrary
         pure $ Hash bytes
+
+{-------------------------------------------------------------------------------
+                             Max inputs estimation
+-------------------------------------------------------------------------------}
+
+estimateMaxNumberOfInputsSpec :: Spec
+estimateMaxNumberOfInputsSpec = describe "estimateMaxNumberOfInputs" $ do
+    it "Property for mainnet addresses" $
+        property $ propMaxNumberOfInputsEstimation
+        (newTransactionLayer (Hash "") :: TransactionLayer (Jormungandr 'Mainnet))
+    it "Property for testnet addresses" $
+        property $ propMaxNumberOfInputsEstimation
+        (newTransactionLayer (Hash "") :: TransactionLayer (Jormungandr 'Testnet))
 
 {-------------------------------------------------------------------------------
                                   mkStdTx
@@ -360,7 +375,7 @@ mkStdTxSpec = do
             \ff21f5f9ebc2d2a5e201"
 
 goldenTestStdTx
-    :: forall (n :: Network). ()
+    :: forall n. (KnownNetwork n)
     => Proxy (Jormungandr n)
     -> (Address -> Maybe (Key 'AddressK XPrv, Passphrase "encryption"))
     -> Hash "Genesis"

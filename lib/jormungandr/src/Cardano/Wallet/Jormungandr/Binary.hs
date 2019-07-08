@@ -5,6 +5,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -50,12 +51,14 @@ module Cardano.Wallet.Jormungandr.Binary
 
       -- * Helpers
     , blake2b256
+    , estimateMaxNumberOfInputsParams
 
       -- * Re-export
     , Get
     , runGet
     , Put
     , runPut
+
     ) where
 
 import Prelude
@@ -77,10 +80,12 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , TxWitness (..)
     )
+import Cardano.Wallet.Transaction
+    ( EstimateMaxNumberOfInputsParams (..) )
 import Control.Applicative
     ( many )
 import Control.Monad
-    ( replicateM, unless )
+    ( replicateM, unless, when )
 import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
@@ -240,6 +245,19 @@ getInitial = label "getInitial" $ do
     len <- fromIntegral <$> getWord16be
     replicateM len getConfigParam
 
+data TxWitnessTag
+    = TxWitnessLegacyUTxO
+    | TxWitnessUTxO
+    | TxWitnessAccount
+    | TxWitnessMultisig
+    deriving (Show, Eq)
+
+txWitnessSize :: TxWitnessTag -> Int
+txWitnessSize TxWitnessLegacyUTxO = 128
+txWitnessSize TxWitnessUTxO = 64
+txWitnessSize TxWitnessAccount = 64
+txWitnessSize TxWitnessMultisig = 68
+
 -- | Decode the contents of a @Transaction@-message.
 getTransaction :: Get (Tx, [TxWitness])
 getTransaction = label "getTransaction" $ do
@@ -248,22 +266,23 @@ getTransaction = label "getTransaction" $ do
     wits <- replicateM witnessCount getWitness
     return (Tx ins outs, wits)
   where
+    getWitness :: Get TxWitness
     getWitness = do
-        tag <- getWord8
-        case tag of
-            0 -> -- Legacy UTxO
-                isolate 128 $ TxWitness <$> getByteString 128
-            1 -> -- UTxO
-                isolate 64 $ TxWitness <$> getByteString 64
+        tag <- getTxWitnessTag
+        when (tag == TxWitnessAccount) $
+            error "unimplemented: Account witness"
+        when (tag == TxWitnessMultisig) $
+            error "unimplemented: Multisig witness"
+        let len = txWitnessSize tag
+        TxWitness <$> isolate len (getByteString len)
 
-            2 -> -- Account
-                isolate 64 $ getByteString 64
-                    *> error "unimplemented: Account witness"
-            3 -> -- Multisig
-                isolate 68 $ getByteString 68
-                    *> error "unimplemented: Multisig witness"
-            other ->
-                fail $ "Invalid witness type: " ++ show other
+    getTxWitnessTag :: Get TxWitnessTag
+    getTxWitnessTag = getWord8 >>= \case
+        0 -> pure TxWitnessLegacyUTxO
+        1 -> pure TxWitnessUTxO
+        2 -> pure TxWitnessAccount
+        3 -> pure TxWitnessMultisig
+        other -> fail $ "Invalid witness type: " ++ show other
 
     getTokenTransfer :: Get ([(TxIn, Coin)], [TxOut])
     getTokenTransfer = label "getTokenTransfer" $ do
@@ -462,13 +481,21 @@ getAddress = do
 
 putAddress :: Address -> Put
 putAddress addr@(Address bs)
-    | l == 33 = putByteString bs -- bootstrap or account addr
-    | l == 65 = putByteString bs -- delegation addr
+    | hasCorrectLength = putByteString bs
     | otherwise = fail
         $ "Address has unexpected length "
-        ++ (show l)
-        ++ ": " ++ show addr
-  where l = BS.length bs
+        ++ show len ++ ": " ++ show addr
+  where
+    hasCorrectLength = len == addrLenSingle || len == addrLenGrouped
+    len = fromIntegral $ BS.length bs
+
+-- Serialized length in bytes of a bootstrap or account address (Single Address)
+addrLenSingle :: Int
+addrLenSingle = 33
+
+-- Serialized length in bytes of a delegation address (Grouped Address)
+addrLenGrouped :: Int
+addrLenGrouped = 65
 
 singleAddressFromKey :: forall n. KnownNetwork n => Proxy n -> XPub -> Address
 singleAddressFromKey _ xPub = Address $ BL.toStrict $ runPut $ do
@@ -538,3 +565,18 @@ decodeLegacyAddress bytes =
 blake2b256 :: ByteString -> ByteString
 blake2b256 =
     BA.convert . hash @_ @Blake2b_256
+
+-- | This provides network encoding specific variables to be used by the
+-- 'estimateMaxNumberOfInputs' function.
+estimateMaxNumberOfInputsParams
+    :: EstimateMaxNumberOfInputsParams t
+estimateMaxNumberOfInputsParams = EstimateMaxNumberOfInputsParams
+    { estMeasureTx = \ins outs wits -> fromIntegral $ BL.length $
+        runPut $ putSignedTx (Tx (map (, Coin 0) ins) outs, wits)
+
+    -- Block IDs are always this long.
+    , estBlockHashSize = 32
+
+    -- The length of the smallest type of witness.
+    , estTxWitnessSize = txWitnessSize TxWitnessUTxO
+    }

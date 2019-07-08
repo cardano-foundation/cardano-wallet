@@ -364,6 +364,8 @@ dummyTransactionLayer = TransactionLayer
         return (tx, wit)
     , estimateSize =
         error "dummyTransactionLayer: estimateSize not implemented"
+    , estimateMaxNumberOfInputs =
+        error "dummyTransactionLayer: estimateMaxNumberOfInputs not implemented"
     }
   where
     withEither :: e -> Maybe a -> Either e a
