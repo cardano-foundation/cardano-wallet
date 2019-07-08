@@ -223,6 +223,7 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
               [ [ "--genesis-block", block0 ]
               , [ "--config", nodeConfig ]
               , [ "--secret", bftLeaders ]
+              , verbosityToArgs verbosity
               ]
 
         commandWalletServe cmdName stateDir block0H =
