@@ -13,7 +13,7 @@ This wiki page is a "blackboard" where anyone in the team can write ideas or sug
 
 # Ideas
 
-## Support multiple `--quiet` or `--verbose` flags in the CLI.
+## Support multiple `--quiet` or `--verbose` flags in the CLI
 
 Currently, our CLI provides `--quiet` and `--verbose` flags, which when specified will make the output quieter or more verbose, respectively.
 
