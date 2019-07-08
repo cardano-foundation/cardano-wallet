@@ -32,10 +32,12 @@ module Cardano.Wallet
     , ErrWithRootKey (..)
     , ErrWrongPassphrase (..)
     , ErrMkStdTx (..)
+    , ErrValidateSelection (..)
     , ErrPostTx (..)
     , ErrNetworkUnreachable (..)
     , ErrCoinSelection (..)
     , ErrAdjustForFee (..)
+    , MaxInpsOrOuts (..)
 
     -- * Construction
     , newWalletLayer
@@ -119,7 +121,11 @@ import Cardano.Wallet.Primitive.Types
     , slotRatio
     )
 import Cardano.Wallet.Transaction
-    ( ErrMkStdTx (..), TransactionLayer (..) )
+    ( ErrMkStdTx (..)
+    , ErrValidateSelection (..)
+    , MaxInpsOrOuts (..)
+    , TransactionLayer (..)
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Arrow
@@ -137,7 +143,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT, throwE, withExceptT )
+    ( ExceptT (..), except, runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), maybeToExceptT )
 import Control.Monad.Trans.State
@@ -302,6 +308,7 @@ data ErrCreateUnsignedTx
 data ErrEstimateTxFee
     = ErrEstimateTxFeeNoSuchWallet ErrNoSuchWallet
     | ErrEstimateTxFeeCoinSelection ErrCoinSelection
+    | ErrEstimateTxFeeValidateSelection ErrValidateSelection
     deriving (Show, Eq)
 
 -- | Errors occuring when signing a transaction
@@ -652,6 +659,8 @@ newWalletLayer tracer block0 feePolicy db nw tl = do
         let utxo = availableUTxO @s @t w
         (sel, _utxo') <- withExceptT ErrEstimateTxFeeCoinSelection $
             CoinSelection.random opts recipients utxo
+        withExceptT ErrEstimateTxFeeValidateSelection $
+            except $ (validateSelection tl) sel
         let estimateFee = computeFee feePolicy . estimateSize tl
         pure $ estimateFee sel
 
@@ -661,7 +670,7 @@ newWalletLayer tracer block0 feePolicy db nw tl = do
         -> Passphrase "encryption"
         -> CoinSelection
         -> ExceptT ErrSignTx IO (Tx t, TxMeta, [TxWitness])
-    _signTx wid pwd (CoinSelection ins outs chgs) = DB.withLock db $ do
+    _signTx wid pwd sel@(CoinSelection ins outs chgs) = DB.withLock db $ do
         (w, _) <- withExceptT ErrSignTxNoSuchWallet $ _readWallet wid
         let (changeOuts, s') = flip runState (getState w) $ forM chgs $ \c -> do
                 addr <- state genChange
@@ -669,7 +678,7 @@ newWalletLayer tracer block0 feePolicy db nw tl = do
         allShuffledOuts <- liftIO $ shuffle (outs ++ changeOuts)
         withRootKey wid pwd ErrSignTxWithRootKey $ \xprv -> do
             let keyFrom = isOwned (getState w) (xprv, pwd)
-            case mkStdTx tl keyFrom ins allShuffledOuts of
+            case mkStdTx tl keyFrom sel allShuffledOuts of
                 Right (tx, wit) -> do
                     -- Safe because we have a lock and we already fetched the
                     -- wallet within this context.

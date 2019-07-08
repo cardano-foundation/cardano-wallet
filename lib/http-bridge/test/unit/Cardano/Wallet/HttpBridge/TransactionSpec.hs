@@ -682,7 +682,7 @@ unknownInputTest
     -> SpecWith ()
 unknownInputTest _ = it title $ do
     let addr = keyToAddress @(HttpBridge n) $ publicKey $ xprv "address-number-0"
-    let res = mkStdTx tl keyFrom inps outs
+    let res = mkStdTx tl keyFrom (CoinSelection inps outs chngs) outs
           where
             tl = newTransactionLayer @n
             keyFrom = const Nothing
@@ -692,6 +692,7 @@ unknownInputTest _ = it title $ do
                   )
                 ]
             outs = []
+            chngs = []
     res `shouldBe` Left (ErrKeyNotFoundForAddress addr)
   where
     title = "Unknown input address yields an error ("
@@ -839,7 +840,8 @@ goldenTestSignedTx _ nOuts xprvs expected = it title $ do
     let keyFrom a = (,mempty) <$> Map.lookup a s
     let inps = mkInput <$> zip addrs [0..]
     let outs = take nOuts $ mkOutput <$> cycle addrs
-    let res = mkStdTx (newTransactionLayer @n) keyFrom inps outs
+    let chngs = []
+    let res = mkStdTx (newTransactionLayer @n) keyFrom (CoinSelection inps outs chngs) outs
     case res of
         Left e -> fail (show e)
         Right tx -> do

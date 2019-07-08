@@ -208,6 +208,7 @@ data ApiErrorCode
     | CannotCoverFee
     | NetworkUnreachable
     | CreatedInvalidTransaction
+    | WrongInputsOrOutputs
     | RejectedByCoreNode
     | BadRequest
     | NotFound

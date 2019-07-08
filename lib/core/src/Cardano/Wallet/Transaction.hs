@@ -18,6 +18,8 @@ module Cardano.Wallet.Transaction
 
     -- * Errors
     , ErrMkStdTx (..)
+    , ErrValidateSelection (..)
+    , MaxInpsOrOuts (..)
 
     -- * Backend helpers
     , estimateMaxNumberOfInputsBase
@@ -42,7 +44,7 @@ import qualified Data.ByteString.Char8 as B8
 data TransactionLayer t = TransactionLayer
     { mkStdTx
         :: (Address -> Maybe (Key 'AddressK XPrv, Passphrase "encryption"))
-        -> [(TxIn, TxOut)]
+        -> CoinSelection
         -> [TxOut]
         -> Either ErrMkStdTx (Tx t, [TxWitness])
         -- ^ Construct a standard transaction
@@ -79,15 +81,32 @@ data TransactionLayer t = TransactionLayer
         -- This estimate will err on the side of permitting more inputs,
         -- resulting in a transaction which may be too large.
 
+    , validateSelection
+      :: CoinSelection
+      -> Either ErrValidateSelection ()
+      -- ^ Validate coin selection
     }
 
 -- | Possible signing error
 data ErrMkStdTx
     = ErrKeyNotFoundForAddress Address
     -- ^ We tried to sign a transaction with inputs that are unknown to us?
-    | ErrInvalidTx
-    -- ^ when transaction with 0 amount is tried (not valid in Byron)
+    | ErrInvalidTx ErrValidateSelection
+    -- ^ The transaction is not valid because of the invalid selection
     deriving (Eq, Show)
+
+data MaxInpsOrOuts = MaxInpsOrOuts
+    { maxInps :: Int
+    , maxOuts :: Int
+    } deriving (Eq, Show)
+
+data ErrValidateSelection
+    = ErrInvalidTxOutAmount
+    -- ^ transaction with 0 amount is tried
+    | ErrExceededInpsOrOuts MaxInpsOrOuts
+    -- ^ transaction has more than maxInps or maxOuts
+    deriving (Eq, Show)
+
 
 -- | Backend-specific variables used by 'estimateMaxNumberOfInputsBase'.
 data EstimateMaxNumberOfInputsParams t = EstimateMaxNumberOfInputsParams

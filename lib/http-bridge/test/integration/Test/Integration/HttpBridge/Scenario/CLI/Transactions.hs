@@ -35,7 +35,7 @@ import Test.Integration.Framework.DSL
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403CannotEstimateFee, errMsg403InvalidTransaction )
+    ( errMsg403ZeroAmtOutput )
 
 import qualified Data.Text as T
 
@@ -56,7 +56,7 @@ spec = do
                 ]
 
         (c, out, err) <- postTransactionViaCLI @t ctx "cardano-wallet" args
-        (T.unpack err) `shouldContain` errMsg403InvalidTransaction
+        (T.unpack err) `shouldContain` errMsg403ZeroAmtOutput
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
 
@@ -75,7 +75,7 @@ spec = do
                 ]
 
         (c, out, err) <- postTransactionViaCLI @t ctx "cardano-wallet" args
-        (T.unpack err) `shouldContain` errMsg403InvalidTransaction
+        (T.unpack err) `shouldContain` errMsg403ZeroAmtOutput
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
 
@@ -92,7 +92,7 @@ spec = do
                 ]
 
         (c, out, err) <- postTransactionFeeViaCLI @t ctx args
-        (T.unpack err) `shouldContain` errMsg403CannotEstimateFee
+        (T.unpack err) `shouldContain` errMsg403ZeroAmtOutput
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
 
@@ -111,6 +111,6 @@ spec = do
                 ]
 
         (c, out, err) <- postTransactionFeeViaCLI @t ctx args
-        (T.unpack err) `shouldContain` errMsg403CannotEstimateFee
+        (T.unpack err) `shouldContain` errMsg403ZeroAmtOutput
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1

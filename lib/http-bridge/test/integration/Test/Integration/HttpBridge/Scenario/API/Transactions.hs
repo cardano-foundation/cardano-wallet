@@ -35,7 +35,7 @@ import Test.Integration.Framework.DSL
     , verify
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403InvalidTransaction )
+    ( errMsg403ZeroAmtOutput )
 
 import qualified Network.HTTP.Types.Status as HTTP
 
@@ -46,7 +46,7 @@ spec = do
         r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403InvalidTransaction
+            , expectErrorMessage errMsg403ZeroAmtOutput
             ]
 
     it "TRANS_CREATE_09 - 0 amount transaction is forbidden on multi-output tx" $ \ctx -> do
@@ -54,20 +54,24 @@ spec = do
         r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403InvalidTransaction
+            , expectErrorMessage errMsg403ZeroAmtOutput
             ]
 
     it "TRANS_ESTIMATE_09 - 0 tx fee estimation is allowed? on single output tx" $ \ctx -> do
         (wSrc, payload) <- fixtureZeroAmtSingle ctx
         r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
         verify r
-            [ expectResponseCode HTTP.status202 ]
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403ZeroAmtOutput
+            ]
 
     it "TRANS_ESTIMATE_09 - 0 amount tx fee estimation is allowed? on multi-output tx" $ \ctx -> do
         (wSrc, payload) <- fixtureZeroAmtMulti ctx
         r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
         verify r
-            [ expectResponseCode HTTP.status202 ]
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403ZeroAmtOutput
+            ]
   where
     fixtureZeroAmtSingle ctx = do
         wSrc <- fixtureWallet ctx

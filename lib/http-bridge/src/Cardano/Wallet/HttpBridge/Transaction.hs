@@ -40,7 +40,11 @@ import Cardano.Wallet.Primitive.Types
     , txId
     )
 import Cardano.Wallet.Transaction
-    ( ErrMkStdTx (..), TransactionLayer (..), estimateMaxNumberOfInputsBase )
+    ( ErrMkStdTx (..)
+    , ErrValidateSelection (..)
+    , TransactionLayer (..)
+    , estimateMaxNumberOfInputsBase
+    )
 import Control.Monad
     ( forM, when )
 import Data.ByteString
@@ -62,15 +66,16 @@ newTransactionLayer
     :: forall n t. (KnownNetwork n, t ~ HttpBridge n, KeyToAddress t)
     => TransactionLayer t
 newTransactionLayer = TransactionLayer
-    { mkStdTx = \keyFrom inps outs -> do
+    { mkStdTx = \keyFrom sel@(CoinSelection inps _ _) outs -> do
         let ins = (fmap fst inps)
         let tx = Tx ins outs
-        when (any (\ (TxOut _ c) -> c == Coin 0) outs)
-            $ Left ErrInvalidTx
         let txSigData = txId @(HttpBridge n) tx
-        txWitnesses <- forM inps $ \(_in, TxOut addr _c) -> mkWitness txSigData
-            <$> maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
-        return (tx, txWitnesses)
+        case checkSelection sel of
+            Left err -> Left $ ErrInvalidTx err
+            Right _ -> do
+                txWitnesses <- forM inps $ \(_in, TxOut addr _c) -> mkWitness txSigData
+                    <$> maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
+                return (tx, txWitnesses)
 
     , estimateSize = \(CoinSelection inps outs chngs) -> let n = length inps in
         Quantity $
@@ -88,6 +93,7 @@ newTransactionLayer = TransactionLayer
     , estimateMaxNumberOfInputs =
         estimateMaxNumberOfInputsBase @t estimateMaxNumberOfInputsParams
 
+    , validateSelection = checkSelection
     }
   where
     mkWitness
@@ -98,6 +104,11 @@ newTransactionLayer = TransactionLayer
         $ CBOR.toStrictByteString
         $ CBOR.encodePublicKeyWitness (getKey $ publicKey xPrv)
         $ sign (SignTx tx) (xPrv, pwd)
+
+    checkSelection :: CoinSelection -> Either ErrValidateSelection ()
+    checkSelection (CoinSelection _ outs _) = do
+        when (any (\ (TxOut _ c) -> c == Coin 0) outs)
+            $ Left ErrInvalidTxOutAmount
 
     sign
         :: SignTag

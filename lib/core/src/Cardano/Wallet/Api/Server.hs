@@ -37,9 +37,11 @@ import Cardano.Wallet
     , ErrSignTx (..)
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
+    , ErrValidateSelection (..)
     , ErrWalletAlreadyExists (..)
     , ErrWithRootKey (..)
     , ErrWrongPassphrase (..)
+    , MaxInpsOrOuts (..)
     , WalletLayer
     )
 import Cardano.Wallet.Api
@@ -539,10 +541,24 @@ instance LiftHandler ErrCreateUnsignedTx where
         ErrCreateUnsignedTxCoinSelection e -> handler e
         ErrCreateUnsignedTxFee e -> handler e
 
+instance LiftHandler ErrValidateSelection where
+    handler = \case
+        ErrInvalidTxOutAmount ->
+            apiError err403 WrongInputsOrOutputs $ mconcat
+                [ "I can't validate coin selection because"
+                , " at least one output has value 0."
+                ]
+        (ErrExceededInpsOrOuts (MaxInpsOrOuts maxInputs maxOutputs))->
+            apiError err403 WrongInputsOrOutputs $ mconcat
+                [ "I can't validate coin selection because either the number of inputs is"
+                , " more than ", toText maxInputs," or the number of outputs exceeds ",toText maxOutputs,"."
+                ]
+
 instance LiftHandler ErrEstimateTxFee where
     handler = \case
         ErrEstimateTxFeeNoSuchWallet e -> handler e
         ErrEstimateTxFeeCoinSelection e -> handler e
+        ErrEstimateTxFeeValidateSelection e -> handler e
 
 instance LiftHandler ErrSignTx where
     handler = \case
@@ -553,11 +569,7 @@ instance LiftHandler ErrSignTx where
                 , pretty addr, ". Are you sure this address belongs to a known "
                 , "wallet?"
                 ]
-        ErrSignTx ErrInvalidTx ->
-            apiError err403 CreatedInvalidTransaction $ mconcat
-                [ "I can't process this payment because it contains at least"
-                , " one payment output of value 0. This isn't supported by the current core nodes."
-                ]
+        ErrSignTx (ErrInvalidTx e) -> handler e
         ErrSignTxNoSuchWallet e -> (handler e)
             { errHTTPCode = 410
             , errReasonPhrase = errReasonPhrase err410

@@ -382,7 +382,7 @@ setupFixture (wid, wname, wstate) = do
 -- implements a fake signer that still produces sort of witnesses
 dummyTransactionLayer :: TransactionLayer DummyTarget
 dummyTransactionLayer = TransactionLayer
-    { mkStdTx = \keyFrom inps outs -> do
+    { mkStdTx = \keyFrom (CoinSelection inps _ _) outs -> do
         let tx = Tx (fmap fst inps) outs
         wit <- forM inps $ \(_, TxOut addr _) -> do
             (xprv, Passphrase pwd) <- withEither
@@ -396,6 +396,8 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: estimateSize not implemented"
     , estimateMaxNumberOfInputs =
         error "dummyTransactionLayer: estimateMaxNumberOfInputs not implemented"
+    , validateSelection =
+        error "dummyTransactionLayer: validateSelection not implemented"
     }
   where
     withEither :: e -> Maybe a -> Either e a

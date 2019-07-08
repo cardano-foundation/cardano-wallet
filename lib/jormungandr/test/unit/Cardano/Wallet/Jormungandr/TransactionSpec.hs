@@ -384,7 +384,7 @@ goldenTestStdTx
     -> ByteString
     -> SpecWith ()
 goldenTestStdTx _ keystore block0 inps outs bytes' = it title $ do
-    let tx = mkStdTx tl keystore  inps outs
+    let tx = mkStdTx tl keystore (CoinSelection inps outs []) outs
     let bytes = hex . BL.toStrict . runPut . putSignedTx <$> tx
     bytes `shouldBe` Right bytes'
   where

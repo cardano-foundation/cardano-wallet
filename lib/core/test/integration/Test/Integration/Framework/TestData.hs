@@ -50,7 +50,7 @@ module Test.Integration.Framework.TestData
     , errMsg404NoRootKey
     , errMsg404NoWallet
     , errMsg403InputsDepleted
-    , errMsg403InvalidTransaction
+    , errMsg403ZeroAmtOutput
     , errMsg405
     , errMsg406
     , errMsg415
@@ -59,6 +59,8 @@ module Test.Integration.Framework.TestData
 
 import Prelude
 
+import Cardano.Wallet
+    ( MaxInpsOrOuts (..) )
 import Cardano.Wallet.Version
     ( showVersion, version )
 import Data.Text
@@ -241,9 +243,15 @@ errMsg403InputsDepleted = "I had to select inputs to construct the requested\
     \ transaction. Unfortunately, one output of the transaction depleted all\
     \ available inputs. Try sending a smaller amount."
 
-errMsg403InvalidTransaction :: String
-errMsg403InvalidTransaction = "I can't process this payment because it contains at least\
-    \ one payment output of value 0. This isn't supported by the current core nodes."
+errMsg403ZeroAmtOutput :: String
+errMsg403ZeroAmtOutput = "I can't validate coin selection because\
+    \ at least one output has value 0."
+
+_errMsg403InpsOrOutsExceeded :: MaxInpsOrOuts -> String
+_errMsg403InpsOrOutsExceeded (MaxInpsOrOuts maxNumInps maxNumOuts) =
+    "I can't validate coin selection because either the number of inputs is\
+    \   more than " ++ show maxNumInps ++ " or the number of outputs\
+    \ exceeds " ++ show maxNumOuts ++ "."
 
 errMsg403UTxO :: String
 errMsg403UTxO = "When creating new transactions, I'm not able to re-use the\

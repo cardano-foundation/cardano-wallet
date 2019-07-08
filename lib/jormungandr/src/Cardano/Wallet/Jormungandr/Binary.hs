@@ -52,6 +52,8 @@ module Cardano.Wallet.Jormungandr.Binary
       -- * Helpers
     , blake2b256
     , estimateMaxNumberOfInputsParams
+    , maxNumberOfInputs
+    , maxNumberOfOutputs
 
       -- * Re-export
     , Get
@@ -59,7 +61,6 @@ module Cardano.Wallet.Jormungandr.Binary
     , runGetOrFail
     , Put
     , runPut
-
     ) where
 
 import Prelude
@@ -132,6 +133,15 @@ import qualified Codec.CBOR.Read as CBOR
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
+
+
+-- maximum number of inputs in a valid transaction
+maxNumberOfInputs :: Int
+maxNumberOfInputs = 255
+
+-- maximum number of outputs in a valid transaction
+maxNumberOfOutputs :: Int
+maxNumberOfOutputs = 255
 
 -- Do-notation is favoured over applicative syntax for readability:
 {-# ANN module ("HLint: ignore Use <$>" :: String) #-}
@@ -318,9 +328,9 @@ putSignedTx (tx@(Tx inputs outputs), witnesses) = withSizeHeader16be $ do
 putTx :: Tx -> Put
 putTx (Tx inputs outputs) = do
     unless (length inputs <= fromIntegral (maxBound :: Word8)) $
-        fail "number of inputs cannot be greater than 255"
+        fail ("number of inputs cannot be greater than " ++ show maxNumberOfInputs)
     unless (length outputs <= fromIntegral (maxBound :: Word8)) $
-        fail "number of outputs cannot be greater than 255"
+        fail ("number of outputs cannot be greater than " ++ show maxNumberOfOutputs)
     mapM_ putInput inputs
     mapM_ putOutput outputs
   where
