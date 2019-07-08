@@ -11,7 +11,7 @@ module Test.Integration.Scenario.CLI.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiTransaction, ApiWallet, getApiT )
+    ( ApiFee, ApiTransaction, ApiWallet, getApiT )
 import Cardano.Wallet.Primitive.Types
     ( DecodeAddress (..)
     , Direction (..)
@@ -61,6 +61,7 @@ import Test.Integration.Framework.DSL
     , fixtureWalletWith
     , getWalletViaCLI
     , listAddresses
+    , postTransactionFeeViaCLI
     , postTransactionViaCLI
     , status
     , verify
@@ -374,24 +375,7 @@ spec = do
         c `shouldBe` ExitFailure 1
 
     describe "TRANS_CREATE_05 - Invalid addresses" $ do
-        let longAddr = replicate 10000 '1'
-        let encodeErr = "Unable to decode Address:"
-        let parseErr = "Parse error. Expecting format \"<amount>@<address>\""
-        let matrix =
-                [ ( "long hex", longAddr, encodeErr )
-                , ( "short hex", "1", encodeErr )
-                , ( "-1000", "-1000", encodeErr )
-                , ( "q", "q", encodeErr )
-                , ( "empty", "", encodeErr )
-                , ( "wildcards", T.unpack wildcardsWalletName, parseErr )
-                , ( "arabic", T.unpack arabicWalletName, encodeErr )
-                , ( "kanji", T.unpack kanjiWalletName, encodeErr )
-                , ( "polish", T.unpack polishWalletName, encodeErr )
-                , ( "[]", "[]", encodeErr )
-                , ( "no address", "", encodeErr )
-                , ( "address is space", " ", encodeErr )
-                ]
-        forM_ matrix $ \(title, addr, errMsg) -> it title $ \ctx -> do
+        forM_ matrixInvalidAddrs $ \(title, addr, errMsg) -> it title $ \ctx -> do
             wSrc <- emptyWallet ctx
             let args = T.unpack <$>
                     [ wSrc ^. walletId
@@ -404,17 +388,7 @@ spec = do
             c `shouldBe` ExitFailure 1
 
     describe "TRANS_CREATE_06 - Invalid amount" $ do
-        let errNum = "Expecting natural number"
-        let parseErr = "Parse error. Expecting format \"<amount>@<address>\""
-        let matrix =
-                [ ("1.5", "1.5", errNum)
-                , ("-1000", "-1000", errNum)
-                , ("[]", "[]", errNum)
-                , ("string with diacritics", polishWalletName, errNum)
-                , ("string with wildcards", wildcardsWalletName, parseErr)
-                , ("no amount", "", errNum)
-                ]
-        forM_ matrix $ \(title, amt, errMsg) -> it title $ \ctx -> do
+        forM_ matrixInvalidAmt $ \(title, amt, errMsg) -> it title $ \ctx -> do
             wSrc <- emptyWallet ctx
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses ctx wDest
@@ -487,3 +461,213 @@ spec = do
             \the given id: " ++ T.unpack ( wSrc ^. walletId )
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
+
+    it "TRANS_ESTIMATE_01 - Can estimate fee of transaction via CLI" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        wDest <- emptyWallet ctx
+        addr:_ <- listAddresses ctx wDest
+        let addrStr =
+                encodeAddress (Proxy @t) (getApiT $ fst $ addr ^. #id)
+        let amt = 14
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+                { nInputs = 1
+                , nOutputs = 1
+                }
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", T.pack (show amt) <> "@" <> addrStr
+                ]
+        (c, out, err) <- postTransactionFeeViaCLI @t ctx args
+        err `shouldBe` "Ok.\n"
+        txJson <- expectValidJSON (Proxy @ApiFee) out
+        verify txJson
+            [ expectCliFieldBetween amount (feeMin + amt, feeMax + amt)
+            ]
+        c `shouldBe` ExitSuccess
+
+    it "TRANS_ESTIMATE_02 - Multiple Output Tx fees estimate to single wallet via CLI" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        wDest <- emptyWallet ctx
+        addr <- listAddresses ctx wDest
+        let addr1 =
+                encodeAddress (Proxy @t) (getApiT $ fst $ addr !! 1 ^. #id)
+        let addr2 =
+                encodeAddress (Proxy @t) (getApiT $ fst $ addr !! 2 ^. #id)
+        let amt = 14
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+                { nInputs = 2
+                , nOutputs = 2
+                }
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", T.pack (show amt) <> "@" <> addr1
+                , "--payment", T.pack (show amt) <> "@" <> addr2
+                ]
+        (c, out, err) <- postTransactionFeeViaCLI @t ctx args
+        err `shouldBe` "Ok.\n"
+        txJson <- expectValidJSON (Proxy @ApiFee) out
+        verify txJson
+            [ expectCliFieldBetween amount (feeMin + (2*amt), feeMax + (2*amt))
+            ]
+        c `shouldBe` ExitSuccess
+
+
+    it "TRANS_ESTIMATE_03 - Multiple Output Tx fees estimation to different wallets via CLI" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        wDest1 <- emptyWallet ctx
+        wDest2 <- emptyWallet ctx
+        addr1:_ <- listAddresses ctx wDest1
+        addr2:_ <- listAddresses ctx wDest2
+        let addr1' =
+                encodeAddress (Proxy @t) (getApiT $ fst $ addr1 ^. #id)
+        let addr2' =
+                encodeAddress (Proxy @t) (getApiT $ fst $ addr2 ^. #id)
+        let amt = 14
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+                { nInputs = 2
+                , nOutputs = 2
+                }
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", T.pack (show amt) <> "@" <> addr1'
+                , "--payment", T.pack (show amt) <> "@" <> addr2'
+                ]
+        (c, out, err) <- postTransactionFeeViaCLI @t ctx args
+        err `shouldBe` "Ok.\n"
+        txJson <- expectValidJSON (Proxy @ApiFee) out
+        verify txJson
+            [ expectCliFieldBetween amount (feeMin + (2*amt), feeMax + (2*amt))
+            ]
+        c `shouldBe` ExitSuccess
+
+    it "TRANS_ESTIMATE_04 - Multiple Output Txs fees estimation doesn't work on single UTxO" $ \ctx -> do
+        wSrc <- fixtureWalletWith ctx [2_124_333]
+        wDest <- emptyWallet ctx
+        addrs <- listAddresses ctx wDest
+
+        let addr1 =
+                encodeAddress (Proxy @t) (getApiT $ fst $ addrs !! 1 ^. #id)
+        let addr2 =
+                encodeAddress (Proxy @t) (getApiT $ fst $ addrs !! 2 ^. #id)
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", "12333@" <> addr1
+                , "--payment", "4666@" <> addr2
+                ]
+        (c, out, err) <- postTransactionFeeViaCLI @t ctx args
+        (T.unpack err) `shouldContain` errMsg403UTxO
+        out `shouldBe` ""
+        c `shouldBe` ExitFailure 1
+
+    it "TRANS_ESTIMATE_05 - Error shown when ErrInputsDepleted encountered" $ \ctx -> do
+        wSrc <- fixtureWalletWith ctx [12_000_000, 20_000_000, 17_000_000]
+        wDest <- emptyWallet ctx
+        addrs <- listAddresses ctx wDest
+
+        let addr1 = encodeAddress (Proxy @t) (getApiT $ fst $ addrs !! 1 ^. #id)
+        let addr2 = encodeAddress (Proxy @t) (getApiT $ fst $ addrs !! 2 ^. #id)
+        let addr3 = encodeAddress (Proxy @t) (getApiT $ fst $ addrs !! 3 ^. #id)
+
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", "40000000@" <> addr1
+                , "--payment", "22@" <> addr2
+                , "--payment", "22@" <> addr3
+                ]
+
+        (c, out, err) <- postTransactionFeeViaCLI @t ctx args
+        (T.unpack err) `shouldContain` errMsg403InputsDepleted
+        out `shouldBe` ""
+        c `shouldBe` ExitFailure 1
+
+    it "TRANS_ESTIMATE_06 - we give fee estimation when we can't cover fee" $ \ctx -> do
+        let (feeMin, _) = ctx ^. feeEstimator $ TxDescription 1 1
+        wSrc <- fixtureWalletWith ctx [feeMin `div` 2]
+        wDest <- emptyWallet ctx
+        addrs:_ <- listAddresses ctx wDest
+        let addr =
+                encodeAddress (Proxy @t) (getApiT $ fst $ addrs ^. #id)
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", "1@" <> addr
+                ]
+
+        (c, _, err) <- postTransactionFeeViaCLI @t ctx args
+        err `shouldBe` "Ok.\n"
+        c `shouldBe` ExitSuccess
+
+    it "TRANS_ESTIMATE_07 - Not enough money" $ \ctx -> do
+        let (feeMin, _) = ctx ^. feeEstimator $ TxDescription 1 1
+        wSrc <- fixtureWalletWith ctx [feeMin]
+        wDest <- emptyWallet ctx
+        addrs:_ <- listAddresses ctx wDest
+        let addr =
+                encodeAddress (Proxy @t) (getApiT $ fst $ addrs ^. #id)
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", "1000000@" <> addr
+                ]
+
+        (c, out, err) <- postTransactionFeeViaCLI @t ctx args
+        (T.unpack err) `shouldContain`
+            errMsg403NotEnoughMoney (fromIntegral feeMin) 1_000_000
+        out `shouldBe` ""
+        c `shouldBe` ExitFailure 1
+
+    describe "TRANS_ESTIMATE_08 - Invalid addresses" $ do
+        forM_ matrixInvalidAddrs $ \(title, addr, errMsg) -> it title $ \ctx -> do
+            wSrc <- emptyWallet ctx
+            let args = T.unpack <$>
+                    [ wSrc ^. walletId
+                    , "--payment", "12@" <> (T.pack addr)
+                    ]
+
+            (c, out, err) <- postTransactionFeeViaCLI @t ctx args
+            (T.unpack err) `shouldContain` errMsg
+            out `shouldBe` ""
+            c `shouldBe` ExitFailure 1
+
+    describe "TRANS_ESTIMATE_09 - Invalid amount" $ do
+        forM_ matrixInvalidAmt $ \(title, amt, errMsg) -> it title $ \ctx -> do
+            wSrc <- emptyWallet ctx
+            wDest <- emptyWallet ctx
+            addrs:_ <- listAddresses ctx wDest
+            let addr =
+                    encodeAddress (Proxy @t) (getApiT $ fst $ addrs ^. #id)
+            let args = T.unpack <$>
+                    [ wSrc ^. walletId
+                    , "--payment", amt <> "@" <> addr
+                    ]
+
+            (c, out, err) <- postTransactionViaCLI @t ctx "cardano-wallet" args
+            (T.unpack err) `shouldContain` errMsg
+            out `shouldBe` ""
+            c `shouldBe` ExitFailure 1
+
+  where
+      longAddr = replicate 10000 '1'
+      encodeErr = "Unable to decode Address:"
+      parseErr = "Parse error. Expecting format \"<amount>@<address>\""
+      matrixInvalidAddrs =
+          [ ( "long hex", longAddr, encodeErr )
+          , ( "short hex", "1", encodeErr )
+          , ( "-1000", "-1000", encodeErr )
+          , ( "q", "q", encodeErr )
+          , ( "empty", "", encodeErr )
+          , ( "wildcards", T.unpack wildcardsWalletName, parseErr )
+          , ( "arabic", T.unpack arabicWalletName, encodeErr )
+          , ( "kanji", T.unpack kanjiWalletName, encodeErr )
+          , ( "polish", T.unpack polishWalletName, encodeErr )
+          , ( "[]", "[]", encodeErr )
+          , ( "no address", "", encodeErr )
+          , ( "address is space", " ", encodeErr )
+          ]
+      errNum = "Expecting natural number"
+      matrixInvalidAmt =
+          [ ("1.5", "1.5", errNum)
+          , ("-1000", "-1000", errNum)
+          , ("[]", "[]", errNum)
+          , ("string with diacritics", polishWalletName, errNum)
+          , ("string with wildcards", wildcardsWalletName, parseErr)
+          , ("no amount", "", errNum)
+          ]
