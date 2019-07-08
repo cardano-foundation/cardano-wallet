@@ -431,6 +431,7 @@ cmdWalletDelete = command "delete" $ info (helper <*> cmd) $ mempty
                             Commands - 'transaction'
 
   cardano-wallet transaction create [--port=INT] <wallet-id> --payment=PAYMENT...
+  cardano-wallet transaction fees [--port=INT] <wallet-id> --payment=PAYMENT...
 -------------------------------------------------------------------------------}
 
 -- | cardano-wallet transaction
@@ -441,6 +442,7 @@ cmdTransaction = command "transaction" $ info (helper <*> cmds) mempty
   where
     cmds = subparser $ mempty
         <> cmdTransactionCreate @t
+        <> cmdTransactionFees @t
 
 -- | Arguments for 'transaction create' command
 data TransactionCreateArgs t = TransactionCreateArgs
@@ -471,6 +473,28 @@ cmdTransactionCreate = command "create" $ info (helper <*> cmd) $ mempty
                     (PostTransactionData wPayments (ApiT wPwd))
             Left _ ->
                 handleResponse Aeson.encodePretty res
+
+cmdTransactionFees
+    :: forall t. (DecodeAddress t, EncodeAddress t)
+    => Mod CommandFields (IO ())
+cmdTransactionFees = command "fees" $ info (helper <*> cmd) $ mempty
+    <> progDesc "Estimate fees for a transaction."
+  where
+    cmd = fmap exec $ TransactionCreateArgs
+        <$> portOption
+        <*> walletIdArgument
+        <*> fmap NE.fromList (some paymentOption)
+    exec (TransactionCreateArgs wPort wId wPayments) = do
+        res <- sendRequest wPort $ getWallet (walletClient @t) $ ApiT wId
+        case res of
+            Right _ -> do
+                runClient wPort Aeson.encodePretty $ postTransactionFee
+                    (walletClient @t)
+                    (ApiT wId)
+                    (PostTransactionFeeData wPayments)
+            Left _ ->
+                handleResponse Aeson.encodePretty res
+
 
 {-------------------------------------------------------------------------------
                             Commands - 'address'
