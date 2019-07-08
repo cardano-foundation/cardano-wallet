@@ -1,3 +1,10 @@
+### :hammer: [Review Coin Selection](https://github.com/input-output-hk/cardano-wallet/milestone/18)
+
+### :hammer: [Finalize 'Transactions' API endpoints](https://github.com/input-output-hk/cardano-wallet/milestone/19)
+
+<details>
+    <summary>Archived</summary>
+
 ### :heavy_check_mark: [Setup New `cardano-wallet` Repository & CI](https://github.com/input-output-hk/cardano-wallet/milestone/1)
 
 ### :heavy_check_mark: [Receive And Process Blocks (via `cardano-http-bridge`)](https://github.com/input-output-hk/cardano-wallet/milestone/2)
@@ -29,10 +36,7 @@
 ### :heavy_check_mark: [Jörmungandr Integration Testing](https://github.com/input-output-hk/cardano-wallet/milestone/15)
 
 ### :heavy_check_mark: [Logging](https://github.com/input-output-hk/cardano-wallet/milestone/14)
-
-### :hammer: [Review Coin Selection](https://github.com/input-output-hk/cardano-wallet/milestone/18)
-
-### :hammer: [Finalize 'Transactions' API endpoints](https://github.com/input-output-hk/cardano-wallet/milestone/19)
+</details>
 
 ---
 
