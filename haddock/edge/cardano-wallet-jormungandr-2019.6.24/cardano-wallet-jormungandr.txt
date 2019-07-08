@@ -203,6 +203,10 @@ decodeLegacyAddress :: ByteString -> Maybe Address
 
 -- | Compute a Blake2b_256 hash of a given <a>ByteString</a>
 blake2b256 :: ByteString -> ByteString
+
+-- | This provides network encoding specific variables to be used by the
+--   <tt>estimateMaxNumberOfInputs</tt> function.
+estimateMaxNumberOfInputsParams :: EstimateMaxNumberOfInputsParams t
 data Get a
 
 -- | The simplest interface to run a <a>Get</a> decoder. If the decoder
@@ -227,6 +231,8 @@ instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.LeaderId
 instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.LeaderId
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.Milli
 instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.Milli
+instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.TxWitnessTag
+instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.TxWitnessTag
 instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Binary.BlockHeader
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Binary.BlockHeader
 
@@ -384,4 +390,4 @@ module Cardano.Wallet.Jormungandr.Transaction
 
 -- | Construct a <a>TransactionLayer</a> compatible with Shelley and
 --   <tt>Jörmungandr</tt>
-newTransactionLayer :: forall n. () => Hash "Genesis" -> TransactionLayer (Jormungandr n)
+newTransactionLayer :: forall n t. (KnownNetwork n, t ~ Jormungandr n) => Hash "Genesis" -> TransactionLayer t

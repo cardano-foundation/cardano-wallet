@@ -998,7 +998,7 @@ instance Control.DeepSeq.NFData key => Control.DeepSeq.NFData (Cardano.Wallet.Pr
 --   flexible to various backends.
 module Cardano.Wallet.Transaction
 data TransactionLayer t
-TransactionLayer :: ((Address -> Maybe (Key  'AddressK XPrv, Passphrase "encryption")) -> [(TxIn, TxOut)] -> [TxOut] -> Either ErrMkStdTx (Tx t, [TxWitness])) -> (CoinSelection -> Quantity "byte" Int) -> TransactionLayer t
+TransactionLayer :: ((Address -> Maybe (Key  'AddressK XPrv, Passphrase "encryption")) -> [(TxIn, TxOut)] -> [TxOut] -> Either ErrMkStdTx (Tx t, [TxWitness])) -> (CoinSelection -> Quantity "byte" Int) -> (Quantity "byte" Word16 -> Word8 -> Word8) -> TransactionLayer t
 
 -- | Construct a standard transaction
 --   
@@ -1025,6 +1025,16 @@ TransactionLayer :: ((Address -> Maybe (Key  'AddressK XPrv, Passphrase "encrypt
 --   transaction fee (up-to 4 extra bytes per change output).
 [estimateSize] :: TransactionLayer t -> CoinSelection -> Quantity "byte" Int
 
+-- | Calculate a "theoretical" maximum number of inputs given a maximum
+--   transaction size and desired number of outputs.
+--   
+--   The actual transaction size cannot be known until it has been fully
+--   determined by coin selection.
+--   
+--   This estimate will err on the side of permitting more inputs,
+--   resulting in a transaction which may be too large.
+[estimateMaxNumberOfInputs] :: TransactionLayer t -> Quantity "byte" Word16 -> Word8 -> Word8
+
 -- | Possible signing error
 data ErrMkStdTx
 
@@ -1033,6 +1043,33 @@ ErrKeyNotFoundForAddress :: Address -> ErrMkStdTx
 
 -- | when transaction with 0 amount is tried (not valid in Byron)
 ErrInvalidTx :: ErrMkStdTx
+
+-- | This is called by the <a>TransactionLayer</a> implementation. It uses
+--   the serialization functions to calculate the size of an empty
+--   transaction compared to a transaction with one input. The estimation
+--   is based on that.
+--   
+--   It doesn't account for transaction outputs, and assumes there is a
+--   single Tx output.
+--   
+--   All the values used are the smaller ones. For example, the shortest
+--   adress type and shortest witness type are chosen to use for the
+--   estimate.
+estimateMaxNumberOfInputsBase :: forall target. KeyToAddress target => EstimateMaxNumberOfInputsParams target -> Quantity "byte" Word16 -> Word8 -> Word8
+
+-- | Backend-specific variables used by
+--   <a>estimateMaxNumberOfInputsBase</a>.
+data EstimateMaxNumberOfInputsParams t
+EstimateMaxNumberOfInputsParams :: ([TxIn] -> [TxOut] -> [TxWitness] -> Int) -> Int -> Int -> EstimateMaxNumberOfInputsParams t
+
+-- | Finds the size of a serialized transaction.
+[estMeasureTx] :: EstimateMaxNumberOfInputsParams t -> [TxIn] -> [TxOut] -> [TxWitness] -> Int
+
+-- | Block ID size
+[estBlockHashSize] :: EstimateMaxNumberOfInputsParams t -> Int
+
+-- | Tx Witness size
+[estTxWitnessSize] :: EstimateMaxNumberOfInputsParams t -> Int
 instance GHC.Show.Show Cardano.Wallet.Transaction.ErrMkStdTx
 instance GHC.Classes.Eq Cardano.Wallet.Transaction.ErrMkStdTx
 
