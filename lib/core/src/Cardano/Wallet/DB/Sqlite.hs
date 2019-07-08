@@ -20,6 +20,7 @@
 
 module Cardano.Wallet.DB.Sqlite
     ( newDBLayer
+    , withDBLayer
     , runQuery
 
     -- * Interfaces
@@ -36,7 +37,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Observer.Monadic
     ( bracketObserveIO )
 import Cardano.BM.Trace
-    ( Trace, appendName, traceNamedItem )
+    ( Trace, appendName, logDebug, traceNamedItem )
 import Cardano.Crypto.Wallet
     ( XPrv )
 import Cardano.Wallet.DB
@@ -78,6 +79,8 @@ import Control.Concurrent.MVar
     ( newMVar, withMVar )
 import Control.DeepSeq
     ( NFData )
+import Control.Exception
+    ( bracket )
 import Control.Monad
     ( mapM_, when )
 import Control.Monad.Catch
@@ -108,6 +111,8 @@ import Data.List.Split
     ( chunksOf )
 import Data.Map.Strict
     ( Map )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -122,6 +127,7 @@ import Database.Persist.Sql
     , LogFunc
     , SelectOpt (..)
     , Update (..)
+    , connClose
     , deleteCascadeWhere
     , deleteWhere
     , insert
@@ -140,11 +146,16 @@ import Database.Persist.Sql
     , (==.)
     )
 import Database.Persist.Sqlite
-    ( SqlBackend, SqlPersistM, SqlPersistT, wrapConnection )
+    ( SqlBackend
+    , SqlPersistM
+    , SqlPersistT
+    , mkSqliteConnectionInfo
+    , wrapConnectionInfo
+    )
 import Database.Sqlite
     ( Error (ErrorConstraint), SqliteException (SqliteException) )
 import Fmt
-    ( fmt, (+||), (||+) )
+    ( fmt, (+|), (+||), (|+), (||+) )
 import GHC.Generics
     ( Generic )
 import System.Log.FastLogger
@@ -200,14 +211,7 @@ createSqliteBackend trace fp logFunc = do
     let connStr = sqliteConnStr fp
     dbLog trace $ MsgConnStr connStr
     conn <- Sqlite.open connStr
-    enableForeignKeys conn
-    wrapConnection conn logFunc
-
-enableForeignKeys :: Sqlite.Connection -> IO ()
-enableForeignKeys conn = do
-    stmt <- Sqlite.prepare conn "PRAGMA foreign_keys = ON;"
-    _ <- Sqlite.step stmt
-    Sqlite.finalize stmt
+    wrapConnectionInfo (mkSqliteConnectionInfo connStr) conn logFunc
 
 sqliteConnStr :: Maybe FilePath -> Text
 sqliteConnStr = maybe ":memory:" T.pack
@@ -239,6 +243,25 @@ handleConstraint e = handleJust select handler . fmap Right
       select (SqliteException ErrorConstraint _ _) = Just ()
       select _ = Nothing
       handler = const . pure  . Left $ e
+
+withDBLayer
+    :: forall s t a. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t)
+    => CM.Configuration
+       -- ^ Logging configuration
+    -> Trace IO Text
+       -- ^ Logging object
+    -> Maybe FilePath
+       -- ^ Database file location, or Nothing for in-memory database
+    -> (DBLayer IO s t -> IO a)
+       -- ^ Action to run.
+    -> IO a
+withDBLayer logConfig trace fp act = bracket acquire release act'
+  where
+    acquire = newDBLayer logConfig trace fp
+    release (backend, _) = do
+        logDebug trace (dbLogText (MsgClosing fp))
+        connClose backend
+    act' (_, dbLayer) = act dbLayer
 
 -- | Sets up a connection to the SQLite database.
 --
@@ -848,6 +871,7 @@ data DBLog
     = MsgMigrations Int
     | MsgQuery Text Severity
     | MsgConnStr Text
+    | MsgClosing (Maybe FilePath)
     deriving (Generic, Show, Eq, ToJSON)
 
 transformTrace :: Trace IO Text -> Trace IO DBLog
@@ -876,9 +900,11 @@ dbLogLevel (MsgMigrations 0) = Debug
 dbLogLevel (MsgMigrations _) = Notice
 dbLogLevel (MsgQuery _ sev) = sev
 dbLogLevel (MsgConnStr _) = Debug
+dbLogLevel (MsgClosing _) = Debug
 
 dbLogText :: DBLog -> Text
 dbLogText (MsgMigrations 0) = "No database migrations were necessary."
 dbLogText (MsgMigrations n) = fmt $ ""+||n||+" migrations were applied to the database."
 dbLogText (MsgQuery stmt _) = stmt
 dbLogText (MsgConnStr connStr) = "Using connection string: " <> connStr
+dbLogText (MsgClosing fp) = "Closing database ("+|fromMaybe "in-memory" fp|+")"
