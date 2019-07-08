@@ -52,17 +52,30 @@ _items below are more-or-less prioritized_
 - Port CLI & Integration tests
 - Resolve API and or core-types discrepancy 
 
-### Make Protocol Settings Available
+### Make Protocol Settings & Blockchain status Available
 
 - Current Slot Id, Slot Duration, Slot Count, security parameter, fee policy, maxTxSize
 - Can be hard-coded for now or retrieve from a config file, before implementing Ledger rules
 - Can be simply "mocked" in the meantime
+- Sync progress, blockchain height, localBlockchainHeight, localTimeInformation, subscriptionStatus
 
 ### Make Software Information Available
 
 - Useful in the long-run, pretty useless for the testnet summit release
 - Software Information, Git Revision
 - Can be simply "mocked" in the meantime
+
+## Improvements to the CLI
+
+A few ideas to make the CLI better. It'd be nice to already get feedback on the existing one and see what people external to the project would have to say. A few ideas already:
+
+ - if the passphrases don't match - prompt user to put them again twice
+ - make wallet backend server introduce itself in the HTTP header server (and make CLI to check for that value and put some warning/error if it don't match)
+ - `create wallet` wizard to be a whole responsive/prompt CLI
+ - Improve error msg for `FromText AddressAmount`
+ - Chose a better name for CLI option `transaction create`. Currently we use it to do all three steps: coin selection, sign, submit. See discussion https://github.com/input-output-hk/cardano-wallet/pull/225#discussion_r281454697
+ - `Qualtity "lovelace" Natural` is used to parse number of lovelace/coins from CLI. This is defined in `FromText (Quantity sym b)` https://github.com/input-output-hk/cardano-wallet/pull/225/files/fff43a4e5a70ed93bf028217ebdc90429252be2d#diff-27d87fed0f151afbb3b4e829fb315ba3R107 . We might want to use more fine grained parser for coins and parse "20lovelace" and "20ada" differently (and do coin conversion autimatically) and default "20" to lovelace
+ - Improve password validation in API and CLI which validate for strong passwords (passwords should have enough entropy)
 
 ### Handle Rollbacks
 
@@ -77,7 +90,6 @@ _items below are more-or-less prioritized_
     - Controlled stake (or % of distribution owned, approximately)
     - number of slots successfully handled in the previous epoch
 
-
 ### Join / Quit Staking Pools
 
 - Certificate keys derived from the wallet's private key (can use a level of
@@ -86,26 +98,6 @@ _items below are more-or-less prioritized_
 - Craft transaction using a staking key to register to a pool
 - Check Pool Status and sanity check to prevent user from making mistakes
 - Make Sure The Staking Status is available in the wallet representation
-
-## Improvements to the CLI
-
-A few ideas to make the CLI better. It'd be nice to already get feedback on the existing one and see what people external to the project would have to say. A few ideas already:
-
- - if the passphrases don't match - prompt user to put them again twice
- - make wallet backend server introduce itself in the HTTP header server (and make CLI to check for that value and put some warning/error if it don't match)
- - `create wallet` wizard to be a whole responsive/prompt CLI
- - Improve error msg for `FromText AddressAmount`
- - Chose a better name for CLI option `transaction create`. Currently we use it to do all three steps: coin selection, sign, submit. See discussion https://github.com/input-output-hk/cardano-wallet/pull/225#discussion_r281454697
- - `Qualtity "lovelace" Natural` is used to parse number of lovelace/coins from CLI. This is defined in `FromText (Quantity sym b)` https://github.com/input-output-hk/cardano-wallet/pull/225/files/fff43a4e5a70ed93bf028217ebdc90429252be2d#diff-27d87fed0f151afbb3b4e829fb315ba3R107 . We might want to use more fine grained parser for coins and parse "20lovelace" and "20ada" differently (and do coin conversion autimatically) and default "20" to lovelace
- - Improve password validation in API and CLI which validate for strong passwords (passwords should have enough entropy)
-
-### Make Node / Blockchain Status Available
-
-- Sync progress, blockchain height, localBlockchainHeight, localTimeInformation, subscriptionStatus
-
-### Updates
-
-- Support for software update API (proxying to underlying node's API for updates, if any)
 
 ### Externally-owned wallets & Fine-grained transaction manipulation
 
@@ -119,6 +111,10 @@ A few ideas to make the CLI better. It'd be nice to already get feedback on the 
 - Dedicated certificate redemption standalone software 
 - Construct a redemption transaction and submit it to the chain
 - ADA are tracked in the wallet backend afterward, like any other blocks
+
+### Updates (?)
+
+- Support for software update API (proxying to underlying node's API for updates, if any)
 
 ### Better Restoration Stress Benchmark
 
