@@ -21,7 +21,6 @@
 module Cardano.Wallet.DB.Sqlite
     ( newDBLayer
     , withDBLayer
-    , runQuery
 
     -- * Interfaces
     , PersistState (..)
@@ -88,15 +87,13 @@ import Control.Monad.Catch
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Logger
-    ( LogLevel (..), runNoLoggingT )
+    ( LogLevel (..) )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..) )
-import Control.Monad.Trans.Resource
-    ( runResourceT )
 import Control.Tracer
     ( contramap )
 import Data.Aeson
@@ -146,12 +143,7 @@ import Database.Persist.Sql
     , (==.)
     )
 import Database.Persist.Sqlite
-    ( SqlBackend
-    , SqlPersistM
-    , SqlPersistT
-    , mkSqliteConnectionInfo
-    , wrapConnectionInfo
-    )
+    ( SqlBackend, SqlPersistT, mkSqliteConnectionInfo, wrapConnectionInfo )
 import Database.Sqlite
     ( Error (ErrorConstraint), SqliteException (SqliteException) )
 import Fmt
@@ -179,6 +171,8 @@ import qualified Database.Sqlite as Sqlite
 -- | Return type of 'startSqliteBackend'
 data Backend = Backend SqlBackend (forall a. SqlPersistM a -> IO a)
 
+type SqlPersistM = SqlPersistT IO -- fixme: remove type alias
+
 -- | Opens the SQLite database connection, sets up query logging and timing,
 -- runs schema migrations if necessary.
 startSqliteBackend
@@ -191,16 +185,16 @@ startSqliteBackend logConfig trace fp = do
     backend <- createSqliteBackend trace fp (queryLogFunc traceQuery)
     lock <- newMVar ()
 
-    let runQuery' :: SqlPersistM a -> IO a
-        runQuery' cmd = withMVar lock $ const $ observe $ runQuery backend cmd
+    let runQuery :: SqlPersistM a -> IO a
+        runQuery cmd = withMVar lock $ const $ observe $ runSqlConn cmd backend
         observe :: IO a -> IO a
         observe = bracketObserveIO logConfig traceQuery Debug "query"
 
-    migrations <- runQuery' $ runMigrationSilent migrateAll
+    migrations <- runQuery $ runMigrationSilent migrateAll
     dbLog trace $ MsgMigrations (length migrations)
-    runQuery' addIndexes
+    runQuery addIndexes
 
-    pure $ Backend backend runQuery'
+    pure $ Backend backend runQuery
 
 createSqliteBackend
     :: Trace IO DBLog
@@ -229,11 +223,6 @@ queryLogFunc trace _loc _source level str = dbLog trace (MsgQuery msg sev)
         LevelWarn -> Warning
         LevelError -> Error
         LevelOther _ -> Warning
-
--- | Run a query without error handling. There will be exceptions thrown if it
--- fails.
-runQuery :: SqlBackend -> SqlPersistM a -> IO a
-runQuery conn = runResourceT . runNoLoggingT . flip runSqlConn conn
 
 -- | Run an action, and convert any Sqlite constraints exception into the given
 -- error result. No other exceptions are handled.
@@ -281,7 +270,7 @@ newDBLayer
 newDBLayer logConfig trace fp = do
     lock <- newMVar ()
     let trace' = transformTrace trace
-    Backend backend runQuery' <- startSqliteBackend logConfig trace' fp
+    Backend backend runQuery <- startSqliteBackend logConfig trace' fp
     return (backend, DBLayer
 
         {-----------------------------------------------------------------------
@@ -289,7 +278,7 @@ newDBLayer logConfig trace fp = do
         -----------------------------------------------------------------------}
 
         { createWallet = \(PrimaryKey wid) cp meta ->
-              ExceptT $ runQuery' $ do
+              ExceptT $ runQuery $ do
                   res <- handleConstraint (ErrWalletAlreadyExists wid) $
                       insert_ (mkWalletEntity wid meta)
                   when (isRight res) $
@@ -297,7 +286,7 @@ newDBLayer logConfig trace fp = do
                   pure res
 
         , removeWallet = \(PrimaryKey wid) ->
-              ExceptT $ runQuery' $
+              ExceptT $ runQuery $
               selectWallet wid >>= \case
                   Just _ -> Right <$> do
                       deleteCheckpoints @s wid
@@ -307,7 +296,7 @@ newDBLayer logConfig trace fp = do
                       deleteCascadeWhere [WalTableId ==. wid]
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
-        , listWallets = runQuery' $
+        , listWallets = runQuery $
               map (PrimaryKey . unWalletKey) <$>
               selectKeysList [] [Asc WalTableId]
 
@@ -316,7 +305,7 @@ newDBLayer logConfig trace fp = do
         -----------------------------------------------------------------------}
 
         , putCheckpoint = \(PrimaryKey wid) cp ->
-              ExceptT $ runQuery' $
+              ExceptT $ runQuery $
               selectWallet wid >>= \case
                   Just _ -> Right <$> do
                       deleteCheckpoints @s wid -- clear out all checkpoints
@@ -325,7 +314,7 @@ newDBLayer logConfig trace fp = do
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
         , readCheckpoint = \(PrimaryKey wid) ->
-              runQuery' $
+              runQuery $
               selectLatestCheckpoint wid >>= \case
                   Just cp -> do
                       utxo <- selectUTxO cp
@@ -339,7 +328,7 @@ newDBLayer logConfig trace fp = do
         -----------------------------------------------------------------------}
 
         , putWalletMeta = \(PrimaryKey wid) meta ->
-              ExceptT $ runQuery' $
+              ExceptT $ runQuery $
               selectWallet wid >>= \case
                   Just _ -> do
                       updateWhere [WalTableId ==. wid]
@@ -348,7 +337,7 @@ newDBLayer logConfig trace fp = do
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
         , readWalletMeta = \(PrimaryKey wid) ->
-              runQuery' $
+              runQuery $
               fmap (metadataFromEntity . entityVal) <$>
               selectFirst [WalTableId ==. wid] []
 
@@ -357,7 +346,7 @@ newDBLayer logConfig trace fp = do
         -----------------------------------------------------------------------}
 
         , putTxHistory = \(PrimaryKey wid) txs ->
-              ExceptT $ runQuery' $
+              ExceptT $ runQuery $
               selectWallet wid >>= \case
                   Just _ -> do
                       let (metas, txins, txouts) = mkTxHistory @t wid $ W.invariant
@@ -371,7 +360,7 @@ newDBLayer logConfig trace fp = do
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
         , readTxHistory = \(PrimaryKey wid) ->
-              runQuery' $
+              runQuery $
               selectTxHistory @t wid []
 
         {-----------------------------------------------------------------------
@@ -379,7 +368,7 @@ newDBLayer logConfig trace fp = do
         -----------------------------------------------------------------------}
 
         , putPrivateKey = \(PrimaryKey wid) key ->
-                ExceptT $ runQuery' $
+                ExceptT $ runQuery $
                 selectWallet wid >>= \case
                     Just _ -> Right <$> do
                         deleteWhere [PrivateKeyTableWalletId ==. wid]
@@ -387,7 +376,7 @@ newDBLayer logConfig trace fp = do
                     Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
         , readPrivateKey = \(PrimaryKey wid) ->
-              runQuery' $
+              runQuery $
               let keys = selectFirst [PrivateKeyTableWalletId ==. wid] []
                   toMaybe = either (const Nothing) Just
               in (>>= toMaybe . privateKeyFromEntity . entityVal) <$> keys
