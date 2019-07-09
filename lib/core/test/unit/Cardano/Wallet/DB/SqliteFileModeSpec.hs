@@ -76,6 +76,8 @@ import Data.Text.Class
     ( FromText (..) )
 import Data.Time.Clock
     ( getCurrentTime )
+import System.IO.Temp
+    ( emptySystemTempFile )
 import System.IO.Unsafe
     ( unsafePerformIO )
 import System.Random
@@ -96,42 +98,49 @@ spec :: Spec
 spec =  do
     describe "Check db opening/closing" $ do
         it "Opening and closing of db works" $ do
-            replicateM_ 25 $
-                fileDBLayer @(SeqState DummyTarget) @DummyTarget >>= destroyDBLayer . fst
+            replicateM_ 25 $ do
+                db <- Just <$> temporaryDBFile
+                (ctx, _) <- newDBLayer' @(SeqState DummyTarget) @DummyTarget db
+                destroyDBLayer ctx
 
-    before (fileDBLayer >>= cleanDB') $
+    before temporaryDBFile $
         describe "Check db reading/writing from/to file and cleaning" $ do
 
-        it "create and list wallet works" $ \(ctx, db) -> do
+        it "create and list wallet works" $ \f -> do
+            (ctx, db) <- newDBLayer' (Just f)
             unsafeRunExceptT $ createWallet db testWid testCp testMetadata
             destroyDBLayer ctx
-            testOpeningCleaning listWallets [testWid] []
+            testOpeningCleaning f listWallets [testWid] []
 
-        it "create and get meta works" $ \(ctx, db) -> do
+        it "create and get meta works" $ \f -> do
+            (ctx, db) <- newDBLayer' (Just f)
             now <- getCurrentTime
             let meta = testMetadata
                    { passphraseInfo = Just $ WalletPassphraseInfo now }
             unsafeRunExceptT $ createWallet db testWid testCp meta
             destroyDBLayer ctx
-            testOpeningCleaning (`readWalletMeta` testWid) (Just meta) Nothing
+            testOpeningCleaning f (`readWalletMeta` testWid) (Just meta) Nothing
 
-        it "create and get private key" $ \(ctx, db) -> do
+        it "create and get private key" $ \f-> do
+            (ctx, db) <- newDBLayer' (Just f)
             unsafeRunExceptT $ createWallet db testWid testCp testMetadata
             (k, h) <- unsafeRunExceptT $ attachPrivateKey db testWid
             destroyDBLayer ctx
-            testOpeningCleaning (`readPrivateKey` testWid) (Just (k, h)) Nothing
+            testOpeningCleaning f (`readPrivateKey` testWid) (Just (k, h)) Nothing
 
-        it "put and read tx history" $ \(ctx, db) -> do
+        it "put and read tx history" $ \f -> do
+            (ctx, db) <- newDBLayer' (Just f)
             unsafeRunExceptT $ createWallet db testWid testCp testMetadata
             unsafeRunExceptT $ putTxHistory db testWid testTxs
             destroyDBLayer ctx
-            testOpeningCleaning (`readTxHistory` testWid) testTxs Map.empty
+            testOpeningCleaning f (`readTxHistory` testWid) testTxs Map.empty
 
-        it "put and read checkpoint" $ \(ctx, db) -> do
+        it "put and read checkpoint" $ \f -> do
+            (ctx, db) <- newDBLayer' (Just f)
             unsafeRunExceptT $ createWallet db testWid testCp testMetadata
             unsafeRunExceptT $ putCheckpoint db testWid testCp
             destroyDBLayer ctx
-            testOpeningCleaning (`readCheckpoint` testWid) (Just testCp) Nothing
+            testOpeningCleaning f (`readCheckpoint` testWid) (Just testCp) Nothing
 
     describe "random operation chunks property" $ do
         it "realize a random batch of operations upon one db open"
@@ -152,11 +161,12 @@ prop_randomOpChunks (KeyValPairs pairs) =
     not (null pairs) ==> monadicIO (liftIO prop)
   where
     prop = do
-        (ctxF, dbF) <- fileDBLayer >>= cleanDB'
+        filepath <- temporaryDBFile
+        (ctxF, dbF) <- newDBLayer' (Just filepath) >>= cleanDB'
         (ctxM, dbM) <- inMemoryDBLayer >>= cleanDB'
         forM_ pairs (insertPair dbM)
         cutRandomly pairs >>= mapM_ (\chunk -> do
-            (ctx, db) <- fileDBLayer
+            (ctx, db) <- newDBLayer' (Just filepath)
             forM_ chunk (insertPair db)
             destroyDBLayer ctx)
         dbF `shouldBeConsistentWith` dbM
@@ -194,17 +204,18 @@ prop_randomOpChunks (KeyValPairs pairs) =
 -- that cleaning up happens as expected.
 testOpeningCleaning
     :: (Show s, Eq s)
-    => (DBLayer IO (SeqState DummyTarget) DummyTarget -> IO s)
+    => FilePath
+    -> (DBLayer IO (SeqState DummyTarget) DummyTarget -> IO s)
     -> s
     -> s
     -> Expectation
-testOpeningCleaning call expectedAfterOpen expectedAfterClean = do
-    (ctx1, db1) <- fileDBLayer
+testOpeningCleaning filepath call expectedAfterOpen expectedAfterClean = do
+    (ctx1, db1) <- newDBLayer' (Just filepath)
     call db1 `shouldReturn` expectedAfterOpen
     _ <- cleanDB db1
     call db1 `shouldReturn` expectedAfterClean
     destroyDBLayer ctx1
-    (ctx2,db2) <- fileDBLayer
+    (ctx2,db2) <- newDBLayer' (Just filepath)
     call db2 `shouldReturn` expectedAfterClean
     destroyDBLayer ctx2
 
@@ -217,10 +228,8 @@ inMemoryDBLayer
     => IO (SqliteContext, DBLayer IO s t)
 inMemoryDBLayer = newDBLayer' Nothing
 
-fileDBLayer
-    :: (IsOurs s, NFData s, Show s, PersistState s, PersistTx t)
-    => IO (SqliteContext, DBLayer IO s t)
-fileDBLayer = newDBLayer' (Just "backup/test.db")
+temporaryDBFile :: IO FilePath
+temporaryDBFile = emptySystemTempFile "cardano-wallet-SqliteFileMode"
 
 newDBLayer'
     :: (IsOurs s, NFData s, Show s, PersistState s, PersistTx t)
