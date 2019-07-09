@@ -209,6 +209,7 @@ data ApiErrorCode
     | InvalidCoinSelection
     | NetworkUnreachable
     | CreatedInvalidTransaction
+    | CannotValidateSelection
     | RejectedByCoreNode
     | BadRequest
     | NotFound
