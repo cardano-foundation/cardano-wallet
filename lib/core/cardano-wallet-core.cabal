@@ -57,7 +57,6 @@ library
     , persistent
     , persistent-sqlite
     , persistent-template
-    , resourcet
     , retry
     , servant
     , servant-server
@@ -142,8 +141,6 @@ test-suite unit
     , lens
     , memory
     , network
-    , persistent
-    , persistent-sqlite
     , QuickCheck
     , quickcheck-instances
     , quickcheck-state-machine >= 0.6.0

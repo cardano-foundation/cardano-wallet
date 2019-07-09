@@ -97,7 +97,6 @@
             (hsPkgs.http-api-data)
             (hsPkgs.http-types)
             (hsPkgs.iohk-monitoring)
-            (hsPkgs.persistent)
             (hsPkgs.process)
             (hsPkgs.retry)
             (hsPkgs.template-haskell)
