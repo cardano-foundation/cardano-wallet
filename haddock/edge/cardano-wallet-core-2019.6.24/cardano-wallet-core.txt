@@ -1307,7 +1307,7 @@ NetworkLayer :: (BlockHeader -> ExceptT ErrGetBlock m [Block (Tx t)]) -> ExceptT
 waitForConnection :: NetworkLayer t IO -> RetryPolicyM IO -> IO ()
 
 -- | A default <a>RetryPolicy</a> with a constant delay, but retries for no
---   longer than 20 seconds.
+--   longer than a minute.
 defaultRetryPolicy :: Monad m => RetryPolicyM m
 
 -- | Network is not reachable
@@ -2061,30 +2061,50 @@ instance (Database.Persist.Class.PersistQuery backend, Database.Persist.Class.Pe
 -- | An implementation of the DBLayer which uses Persistent and SQLite.
 module Cardano.Wallet.DB.Sqlite
 
+-- | Context for the SQLite <a>DBLayer</a>.
+data SqliteContext
+
 -- | Sets up a connection to the SQLite database.
 --   
 --   Database migrations are run to create tables if necessary.
 --   
 --   If the given file path does not exist, it will be created by the
 --   sqlite library.
-newDBLayer :: forall s t. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t) => Configuration -> Trace IO Text -> Maybe FilePath -> IO (SqlBackend, DBLayer IO s t)
+--   
+--   <tt>getDBLayer</tt> will provide the actual <a>DBLayer</a>
+--   implementation. The database should be closed with
+--   <a>destroyDBLayer</a>. If you use <a>withDBLayer</a> then both of
+--   these things will be handled for you.
+newDBLayer :: forall s t. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t) => Configuration -> Trace IO Text -> Maybe FilePath -> IO (SqliteContext, DBLayer IO s t)
 
--- | Run a query without error handling. There will be exceptions thrown if
---   it fails.
-runQuery :: SqlBackend -> SqlPersistM a -> IO a
+-- | Finalize database statements and close the database connection.
+destroyDBLayer :: SqliteContext -> IO ()
+
+-- | Runs an action with a connection to the SQLite database.
+--   
+--   Database migrations are run to create tables if necessary.
+--   
+--   If the given file path does not exist, it will be created by the
+--   sqlite library.
+withDBLayer :: forall s t a. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t) => Configuration -> Trace IO Text -> Maybe FilePath -> (DBLayer IO s t -> IO a) -> IO a
+
+-- | Run a raw query from the outside using an instantiate DB layer. This
+--   is completely unsafe because it breaks the abstraction boundary and
+--   can have disastrous results on the database consistency.
+unsafeRunQuery :: SqliteContext -> SqlPersistT IO a -> IO a
 
 -- | Functions for saving/loading the wallet's address discovery state into
 --   SQLite.
 class PersistState s
 
 -- | Store the state for a checkpoint.
-insertState :: PersistState s => (WalletId, SlotId) -> s -> SqlPersistM ()
+insertState :: PersistState s => (WalletId, SlotId) -> s -> SqlPersistT IO ()
 
 -- | Load the state for a checkpoint.
-selectState :: PersistState s => (WalletId, SlotId) -> SqlPersistM (Maybe s)
+selectState :: PersistState s => (WalletId, SlotId) -> SqlPersistT IO (Maybe s)
 
 -- | Remove the state for all checkpoints of a wallet.
-deleteState :: PersistState s => WalletId -> SqlPersistM ()
+deleteState :: PersistState s => WalletId -> SqlPersistT IO ()
 class DefineTx t => PersistTx t
 resolvedInputs :: PersistTx t => Tx t -> [(TxIn, Maybe Coin)]
 

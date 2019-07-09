@@ -76,6 +76,9 @@ stateDirOption :: Parser FilePath
 --   </ul>
 verbosityOption :: Parser Verbosity
 
+-- | Wrapper type around <a>Text</a> to make its semantic more explicit
+data Service
+
 -- | Represents the number of words in a mnemonic sentence.
 --   
 --   Only valid sizes are representable by this type.
@@ -105,7 +108,7 @@ Quiet :: Verbosity
 Verbose :: Verbosity
 
 -- | Initialize logging at the specified minimum <a>Severity</a> level.
-initTracer :: Severity -> Text -> IO (Configuration, Trace IO Text)
+initTracer :: Severity -> Text -> IO (Configuration, Switchboard Text, Trace IO Text)
 
 -- | Convert a given <a>Verbosity</a> level into a list of command line
 --   arguments that can be passed through to a sub-process.
@@ -141,11 +144,22 @@ hGetSensitiveLine :: Buildable e => (Handle, Handle) -> Text -> (Text -> Either 
 -- | Decode API error messages and extract the corresponding message.
 decodeError :: ByteString -> Maybe Text
 
+-- | Look whether a particular filepath is correctly resolved on the
+--   filesystem. This makes for a better user experience when passing wrong
+--   filepaths via options or arguments, especially when they get forwarded
+--   to other services.
+requireFilePath :: FilePath -> IO ()
+
 -- | Resolve '~' or '$HOME' in a <a>FilePath</a> to their actual system
 --   value
 resolveHomeDir :: FilePath -> IO FilePath
+
+-- | Wait for a service to become available on a given TCP port. Exit on
+--   failure with a proper error message.
+waitForService :: forall e. Exception e => Service -> (Switchboard Text, Trace IO Text) -> Port "Node" -> IO () -> IO ()
 instance GHC.Show.Show Cardano.CLI.Verbosity
 instance GHC.Classes.Eq Cardano.CLI.Verbosity
+instance Data.String.IsString Cardano.CLI.Service
 instance GHC.Classes.Ord (Cardano.CLI.Port tag)
 instance GHC.Enum.Enum (Cardano.CLI.Port tag)
 instance GHC.Generics.Generic (Cardano.CLI.Port tag)

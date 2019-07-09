@@ -170,18 +170,6 @@ getBlock :: Get Block
 getBlockHeader :: Get BlockHeader
 
 -- | Extract a <a>Block</a> id from a serialized <a>Block</a>.
---   
---   FIXME: Note that, this is a very simplistic way of doing it (although
---   rather efficient) and a more correct one would required:
---   
---   <ul>
---   <li>Unserializing a block</li>
---   <li>Extracting its header</li>
---   <li>Serializing the header</li>
---   <li>Computing the hash of this serialized header</li>
---   </ul>
---   
---   This is quite some busy work but we should come to that eventually.
 getBlockId :: Get (Hash "BlockHeader")
 
 -- | Decode a message (header + contents).
@@ -213,6 +201,14 @@ data Get a
 --   runs into an error, calls <a>fail</a>, or runs out of input, it will
 --   call <a>error</a>.
 runGet :: () => Get a -> ByteString -> a
+
+-- | Run a <a>Get</a> monad and return <a>Left</a> on failure and
+--   <a>Right</a> on success. In both cases any unconsumed input and the
+--   number of bytes consumed is returned. In the case of failure, a
+--   human-readable error message is included as well.
+--   
+--   <i>Since: 0.6.4.0</i>
+runGetOrFail :: () => Get a -> ByteString -> Either (ByteString, ByteOffset, String) (ByteString, ByteOffset, a)
 
 -- | Put merely lifts Builder into a Writer monad, applied to ().
 type Put = PutM ()
@@ -368,6 +364,10 @@ JormungandrLayer :: ExceptT ErrNetworkUnreachable m (Hash "BlockHeader") -> (Has
 mkJormungandrLayer :: Manager -> BaseUrl -> JormungandrLayer IO
 data ErrUnexpectedNetworkFailure
 ErrUnexpectedNetworkFailure :: Link -> ServantError -> ErrUnexpectedNetworkFailure
+data ErrGetInitialFeePolicy
+ErrGetInitialFeePolicyNetworkUnreachable :: ErrNetworkUnreachable -> ErrGetInitialFeePolicy
+ErrGetInitialFeePolicyGenesisNotFound :: Hash "Genesis" -> ErrGetInitialFeePolicy
+ErrGetInitialFeePolicyNoInitialPolicy :: [ConfigParam] -> ErrGetInitialFeePolicy
 data BaseUrl
 BaseUrl :: Scheme -> String -> Int -> String -> BaseUrl
 [baseUrlScheme] :: BaseUrl -> Scheme
