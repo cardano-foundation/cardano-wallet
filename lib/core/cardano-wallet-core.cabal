@@ -126,6 +126,7 @@ test-suite unit
     , cardano-wallet-core
     , containers
     , cryptonite
+    , directory
     , deepseq
     , extra >= 1.6.17
     , file-embed
@@ -152,6 +153,7 @@ test-suite unit
     , servant-swagger
     , stm
     , swagger2
+    , temporary
     , text
     , text-class
     , time

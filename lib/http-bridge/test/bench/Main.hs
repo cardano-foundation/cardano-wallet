@@ -206,8 +206,8 @@ bench_restoration
 bench_restoration _ (wid, wname, s) = withHttpBridge network $ \port -> do
     logConfig <- CM.empty
     dbFile <- Just <$> emptySystemTempFile "bench.db"
-    (conn, db) <- Sqlite.newDBLayer logConfig nullTracer dbFile
-    Sqlite.runQuery conn (void $ runMigrationSilent migrateAll)
+    (ctx, db) <- Sqlite.newDBLayer logConfig nullTracer dbFile
+    Sqlite.unsafeRunQuery ctx (void $ runMigrationSilent migrateAll)
     nw <- newNetworkLayer port
     let tl = newTransactionLayer
     BlockHeader sl _ <- unsafeRunExceptT $ networkTip nw

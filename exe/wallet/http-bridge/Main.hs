@@ -83,6 +83,8 @@ import Control.Applicative
     ( optional, (<|>) )
 import Control.Concurrent.Async
     ( race_ )
+import Control.Monad
+    ( (>=>) )
 import Data.Function
     ( (&) )
 import Data.Text
@@ -249,8 +251,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
         logInfo tracer "Wallet backend server starting..."
         logInfo tracer $ "Running as v" <> T.pack (showVersion version)
         logInfo tracer $ "Node is Http-Bridge on " <> toText (networkVal @n)
-        withDBLayer logCfg tracer $ \db ->
-            newWalletLayer tracer db >>= startServer tracer
+        withDBLayer logCfg tracer $ newWalletLayer tracer >=> startServer tracer
       where
         startServer
             :: Trace IO Text

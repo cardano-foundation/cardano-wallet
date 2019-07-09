@@ -28,7 +28,7 @@ import Cardano.BM.Trace
 import Cardano.Wallet.DB
     ( DBLayer (..), ErrWalletAlreadyExists (..), PrimaryKey (..), cleanDB )
 import Cardano.Wallet.DB.Sqlite
-    ( getDBLayer, newDBLayer, withDBLayer )
+    ( newDBLayer, withDBLayer )
 import Cardano.Wallet.DB.StateMachine
     ( prop_parallel, prop_sequential )
 import Cardano.Wallet.DBSpec
@@ -211,20 +211,19 @@ loggingSpec = withLoggingDB $ do
 
 connectionSpec :: Spec
 connectionSpec = describe "Sqlite database file" $ do
-    let writeSomething = \db -> do
+    let writeSomething db = do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
             listWallets db `shouldReturn` [testPk]
-        tempFilesAbsent = \fp -> do
+        tempFilesAbsent fp = do
             doesFileExist fp `shouldReturn` True
             doesFileExist (fp <> "-wal") `shouldReturn` False
             doesFileExist (fp <> "-shm") `shouldReturn` False
         bomb = throwIO (userError "bomb")
-
     it "is properly closed after withDBLayer" $
         withTestDBFile writeSomething tempFilesAbsent
     it "is properly closed after an exception in withDBLayer" $
         withTestDBFile (\db -> writeSomething db >> bomb) tempFilesAbsent
-        `shouldThrow` isUserError
+            `shouldThrow` isUserError
 
 -- | Run a test action inside withDBLayer, then check assertions.
 withTestDBFile
@@ -271,7 +270,7 @@ newMemoryDBLayer = do
         (Just [CM.AggregationBK, CM.KatipBK, CM.MonitoringBK])
 
     logs <- newTVarIO []
-    db <- getDBLayer <$> newDBLayer logConfig (traceInTVarIO logs) Nothing
+    db <- snd <$> newDBLayer logConfig (traceInTVarIO logs) Nothing
     pure (db, logs)
 
 withLoggingDB :: SpecWith (DBLayer IO (SeqState DummyTarget) DummyTarget, IO [LogObject Text]) -> Spec
