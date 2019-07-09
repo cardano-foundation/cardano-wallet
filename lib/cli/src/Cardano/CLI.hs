@@ -109,6 +109,7 @@ import Cardano.Wallet.Api.Types
     , PostTransactionFeeData (..)
     , WalletPostData (..)
     , WalletPutData (..)
+    , WalletPutPassphraseData (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..)
@@ -189,7 +190,7 @@ import Options.Applicative
     , value
     )
 import Servant
-    ( (:<|>) (..), (:>) )
+    ( (:<|>) (..), (:>), NoContent )
 import Servant.Client
     ( BaseUrl (..), ClientM, Scheme (..), client, mkClientEnv, runClientM )
 import Servant.Client.Core
@@ -300,6 +301,7 @@ cmdMnemonicGenerate = command "generate" $ info (helper <*> cmd) $ mempty
   cardano-wallet wallet create [--port=INT] <name> [--address-pool-gap=INT]
   cardano-wallet wallet get [--port=INT] <wallet-id>
   cardano-wallet wallet update name [--port=INT] <wallet-id> STRING
+  cardano-wallet wallet update passphrase [--port=INT] <wallet-id>
   cardano-wallet wallet delete [--port=INT] <wallet-id>
 -------------------------------------------------------------------------------}
 
@@ -402,6 +404,7 @@ cmdWalletUpdate = command "update" $ info (helper <*> cmds) $ mempty
   where
     cmds = subparser $ mempty
         <> cmdWalletUpdateName @t
+        <> cmdWalletUpdatePassphrase @t
 
 -- | Arguments for 'wallet update name' command
 data WalletUpdateNameArgs = WalletUpdateNameArgs
@@ -425,6 +428,33 @@ cmdWalletUpdateName = command "name" $ info (helper <*> cmd) $ mempty
         runClient wPort Aeson.encodePretty $ putWallet (walletClient @t)
             (ApiT wId)
             (WalletPutData $ Just (ApiT wName))
+
+-- | Arguments for 'wallet update passphrase' command
+data WalletUpdatePassphraseArgs = WalletUpdatePassphraseArgs
+    { _port :: Port "Wallet"
+    , _id :: WalletId
+    }
+
+-- | cardano-wallet wallet update passphrase [--port=INT] <wallet-id>
+cmdWalletUpdatePassphrase
+    :: forall t. (DecodeAddress t, EncodeAddress t)
+    => Mod CommandFields (IO ())
+cmdWalletUpdatePassphrase = command "passphrase" $ info (helper <*> cmd) $
+    progDesc "Update passphrase of wallet with specified id."
+  where
+    cmd = fmap exec $ WalletUpdatePassphraseArgs
+        <$> portOption
+        <*> walletIdArgument
+    exec (WalletUpdatePassphraseArgs wPort wId) = do
+        wPassphraseOld <- getPassphrase
+            "Please enter your current passphrase: "
+        wPassphraseNew <- getPassphraseWithConfirm
+            "Please enter a new passphrase: "
+        runClient wPort (const mempty) $
+            putWalletPassphrase (walletClient @t) (ApiT wId) $
+                WalletPutPassphraseData
+                    (ApiT wPassphraseOld)
+                    (ApiT wPassphraseNew)
 
 -- | Arguments for 'wallet delete' command
 data WalletDeleteArgs = WalletDeleteArgs
@@ -734,6 +764,10 @@ data WalletClient t = WalletClient
         :: ApiT WalletId
         -> WalletPutData
         -> ClientM ApiWallet
+    , putWalletPassphrase
+        :: ApiT WalletId
+        -> WalletPutPassphraseData
+        -> ClientM NoContent
     , postTransaction
         :: ApiT WalletId
         -> PostTransactionData t
@@ -758,7 +792,7 @@ walletClient =
             :<|> _listWallets
             :<|> _postWallet
             :<|> _putWallet
-            :<|> _ -- Put Wallet Passphrase
+            :<|> _putWalletPassphrase
             = wallets
 
         _postTransaction
@@ -773,6 +807,7 @@ walletClient =
             , listWallets = _listWallets
             , postWallet = _postWallet
             , putWallet = _putWallet
+            , putWalletPassphrase = _putWalletPassphrase
             , postTransaction = _postTransaction
             , postTransactionFee = _postTransactionFee
             }
