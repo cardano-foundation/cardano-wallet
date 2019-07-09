@@ -342,7 +342,13 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
         newWalletLayer (sb, tracer) db = do
             (nl, block0, feePolicy) <- newNetworkLayer (sb, tracer)
             let tl = Jormungandr.newTransactionLayer @n block0H
-            Wallet.newWalletLayer tracer block0 feePolicy db nl tl
+            db <- newDBLayer logCfg tracer
+            let url = BaseUrl Http "localhost" (getPort nodePort) "/api"
+            mgr <- newManager defaultManagerSettings
+            let jormungandr = Jormungandr.mkJormungandrLayer mgr url
+            slotLength <- unsafeRunExceptT $
+                Jormungandr.getInitialSlotDuration jormungandr (coerce block0H)
+            Wallet.newWalletLayer tracer block0 feePolicy slotLength db nl tl
 
         newNetworkLayer
             :: (Switchboard Text, Trace IO Text)

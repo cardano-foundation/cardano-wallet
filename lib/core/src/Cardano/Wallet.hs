@@ -21,6 +21,7 @@ module Cardano.Wallet
     (
     -- * Interface
       WalletLayer (..)
+    , SlotLength (..)
 
     -- * Errors
     , ErrAdjustForFee (..)
@@ -166,6 +167,8 @@ import Data.Text.Class
     ( toText )
 import Data.Time.Clock
     ( getCurrentTime )
+import Data.Word
+    ( Word8 )
 import Fmt
     ( Buildable, blockListF, pretty, (+|), (+||), (|+), (||+) )
 
@@ -361,6 +364,9 @@ cancelWorker (WorkerRegistry mvar) wid =
                                  Construction
 -------------------------------------------------------------------------------}
 
+newtype SlotLength = SlotLength (Quantity "second/slot" Word8)
+    deriving (Show, Eq)
+
 -- | Create a new instance of the wallet layer.
 newWalletLayer
     :: forall s t. (Buildable (Tx t))
@@ -368,11 +374,12 @@ newWalletLayer
     -> Block (Tx t)
         -- ^ Very first block
     -> FeePolicy
+    -> SlotLength
     -> DBLayer IO s t
     -> NetworkLayer t IO
     -> TransactionLayer t
     -> IO (WalletLayer s t)
-newWalletLayer tracer block0 feePolicy db nw tl = do
+newWalletLayer tracer block0 feePolicy (SlotLength (Quantity slotLength)) db nw tl = do
     logDebugT $ "Wallet layer starting with: "
         <> "block0: "+| block0 |+ ", "
         <> "fee policy: "+|| feePolicy ||+""
@@ -536,7 +543,7 @@ newWalletLayer tracer block0 feePolicy db nw tl = do
         -> BlockHeader
         -> IO ()
     restoreSleep t wid slot = do
-        let tenSeconds = 10000000 in threadDelay tenSeconds
+        let halfSlotLengthDelay = 500000 * (fromIntegral slotLength) in threadDelay halfSlotLengthDelay
         runExceptT (networkTip nw) >>= \case
             Left e -> do
                 logError t $ "Failed to get network tip: " +|| e ||+ ""

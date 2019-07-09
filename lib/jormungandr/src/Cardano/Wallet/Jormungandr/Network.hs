@@ -37,6 +37,8 @@ module Cardano.Wallet.Jormungandr.Network
 
 import Prelude
 
+import Cardano.Wallet
+    ( SlotLength (..) )
 import Cardano.Wallet.Jormungandr.Api
     ( BlockId (..)
     , GetBlock
@@ -171,6 +173,9 @@ data JormungandrLayer m = JormungandrLayer
     , getInitialFeePolicy
         :: Hash "Genesis"
         -> ExceptT ErrGetInitialFeePolicy m FeePolicy
+    , getInitialSlotDuration
+        :: Hash "Genesis"
+        -> ExceptT ErrGetInitialSlotDuration m SlotLength
     }
 
 -- | Construct a 'JormungandrLayer'-client
@@ -259,6 +264,33 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
                 return policy
             _ ->
                 throwE $ ErrGetInitialFeePolicyNoInitialPolicy params
+
+    , getInitialSlotDuration = \block0 -> do
+        J.Block _ msgs <- ExceptT $ run (cGetBlock (BlockId $ coerce block0)) >>= \case
+            Left (FailureResponse e) | responseStatusCode e == status400 ->
+                return . Left . ErrGetInitialSlotDurationGenesisNotFound $ block0
+            x -> do
+                let ctx = safeLink api (Proxy @GetBlock) (BlockId $ coerce block0)
+                let networkUnreachable = ErrGetInitialSlotDurationNetworkUnreachable
+                left networkUnreachable <$> defaultHandler ctx x
+
+        let params = mconcat $ mapMaybe getConfigParameters msgs
+              where
+                getConfigParameters = \case
+                    Initial xs -> Just xs
+                    _ -> Nothing
+
+        let mduration = mapMaybe getSlotDuration params
+              where
+                getSlotDuration = \case
+                    SlotDuration x -> Just x
+                    _ -> Nothing
+
+        case mduration of
+            [duration] ->
+                return $ SlotLength duration
+            _ ->
+                throwE $ ErrGetInitialSlotDurationNoInitialPolicy params
     }
   where
     run :: ClientM a -> IO (Either ServantError a)
@@ -303,4 +335,10 @@ data ErrGetInitialFeePolicy
     = ErrGetInitialFeePolicyNetworkUnreachable ErrNetworkUnreachable
     | ErrGetInitialFeePolicyGenesisNotFound (Hash "Genesis")
     | ErrGetInitialFeePolicyNoInitialPolicy [ConfigParam]
+    deriving (Show, Eq)
+
+data ErrGetInitialSlotDuration
+    = ErrGetInitialSlotDurationNetworkUnreachable ErrNetworkUnreachable
+    | ErrGetInitialSlotDurationGenesisNotFound (Hash "Genesis")
+    | ErrGetInitialSlotDurationNoInitialPolicy [ConfigParam]
     deriving (Show, Eq)
