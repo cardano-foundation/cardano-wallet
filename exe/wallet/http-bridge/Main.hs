@@ -27,6 +27,8 @@ module Main where
 import Prelude hiding
     ( getLine )
 
+import Cardano.BM.Backend.Switchboard
+    ( Switchboard )
 import Cardano.BM.Trace
     ( Trace, appendName, logInfo )
 import Cardano.CLI
@@ -50,6 +52,7 @@ import Cardano.CLI
     , verbosityOption
     , verbosityToArgs
     , verbosityToMinSeverity
+    , waitForService
     )
 import Cardano.Launcher
     ( Command (Command), StdStream (..) )
@@ -68,7 +71,7 @@ import Cardano.Wallet.HttpBridge.Environment
 import Cardano.Wallet.HttpBridge.Primitive.Types
     ( Tx )
 import Cardano.Wallet.Network
-    ( NetworkLayer, defaultRetryPolicy, waitForConnection )
+    ( ErrNetworkTip, NetworkLayer, defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -247,11 +250,11 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
         => ServeArgs
         -> IO ()
     exec (ServeArgs _ listen nodePort dbFile verbosity) = do
-        (logCfg, tracer) <- initTracer (verbosityToMinSeverity verbosity) "serve"
-        logInfo tracer "Wallet backend server starting..."
-        logInfo tracer $ "Running as v" <> T.pack (showVersion version)
-        logInfo tracer $ "Node is Http-Bridge on " <> toText (networkVal @n)
-        withDBLayer logCfg tracer $ newWalletLayer tracer >=> startServer tracer
+        (cfg, sb, tr) <- initTracer (verbosityToMinSeverity verbosity) "serve"
+        logInfo tr "Wallet backend server starting..."
+        logInfo tr $ "Running as v" <> T.pack (showVersion version)
+        logInfo tr $ "Node is Http-Bridge on " <> toText (networkVal @n)
+        withDBLayer cfg tr $ newWalletLayer (sb, tr) >=> startServer tr
       where
         startServer
             :: Trace IO Text
@@ -270,19 +273,21 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
                 race_ ipcServer apiServer
 
         newWalletLayer
-            :: Trace IO Text
+            :: (Switchboard Text, Trace IO Text)
             -> DBLayer IO s t
             -> IO (WalletLayer s t)
-        newWalletLayer tracer db = do
-            (nl, block0, feePolicy) <- newNetworkLayer
+        newWalletLayer (sb, tracer) db = do
+            (nl, block0, feePolicy) <- newNetworkLayer (sb, tracer)
             let tl = HttpBridge.newTransactionLayer @n
             Wallet.newWalletLayer tracer block0 feePolicy db nl tl
 
         newNetworkLayer
-            :: IO (NetworkLayer t IO, Block Tx, FeePolicy)
-        newNetworkLayer = do
+            :: (Switchboard Text, Trace IO Text)
+            -> IO (NetworkLayer t IO, Block Tx, FeePolicy)
+        newNetworkLayer (sb, tracer) = do
             nl <- HttpBridge.newNetworkLayer @n (getPort nodePort)
-            waitForConnection nl defaultRetryPolicy
+            waitForService @ErrNetworkTip "http-bridge" (sb, tracer) nodePort $
+                waitForConnection nl defaultRetryPolicy
             return (nl, HttpBridge.block0, byronFeePolicy)
 
         withDBLayer

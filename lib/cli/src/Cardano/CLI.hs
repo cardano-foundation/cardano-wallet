@@ -43,6 +43,7 @@ module Cardano.CLI
     , verbosityOption
 
     -- * Types
+    , Service
     , MnemonicSize (..)
     , Port (..)
 
@@ -69,17 +70,20 @@ module Cardano.CLI
     , decodeError
     , requireFilePath
     , resolveHomeDir
+    , waitForService
     ) where
 
 import Prelude hiding
     ( getLine )
 
+import Cardano.BM.Backend.Switchboard
+    ( Switchboard )
 import Cardano.BM.Configuration.Static
     ( defaultConfigStdout )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Setup
-    ( setupTrace )
+    ( setupTrace_, shutdown )
 import Cardano.BM.Trace
     ( Trace, appendName, logAlert, logInfo )
 import Cardano.Launcher
@@ -121,7 +125,7 @@ import Control.Applicative
 import Control.Arrow
     ( first, left, second )
 import Control.Exception
-    ( bracket )
+    ( Exception, bracket, catch )
 import Control.Monad
     ( join, unless, void, when )
 import Data.Aeson
@@ -138,6 +142,8 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
+import Data.String
+    ( IsString )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -568,7 +574,7 @@ execLaunch
     -> IO ()
 execLaunch verbosity stateDir withStateDir commands = do
     installSignalHandlers
-    (_, tracer) <- initTracer (verbosityToMinSeverity verbosity) "launch"
+    (_, _, tracer) <- initTracer (verbosityToMinSeverity verbosity) "launch"
     setupStateDir (logInfo tracer) (withStateDir tracer) stateDir
     logInfo tracer $ fmt $ nameF "launch" $ blockListF commands
     (ProcessHasExited pName code) <- launch commands
@@ -866,6 +872,9 @@ instance FromText (Port tag) where
 instance ToText (Port tag) where
     toText (Port p) = toText p
 
+-- | Wrapper type around 'Text' to make its semantic more explicit
+newtype Service = Service Text deriving newtype IsString
+
 {-------------------------------------------------------------------------------
                                   Logging
 -------------------------------------------------------------------------------}
@@ -896,13 +905,17 @@ verbosityToMinSeverity = \case
     Verbose -> Debug
 
 -- | Initialize logging at the specified minimum 'Severity' level.
-initTracer :: Severity -> Text -> IO (CM.Configuration, Trace IO Text)
+initTracer
+    :: Severity
+    -> Text
+    -> IO (CM.Configuration, Switchboard Text, Trace IO Text)
 initTracer minSeverity cmd = do
     c <- defaultConfigStdout
     CM.setMinSeverity c minSeverity
     CM.setSetupBackends c [CM.KatipBK, CM.AggregationBK]
-    tr <- appendName cmd =<< setupTrace (Right c) "cardano-wallet"
-    pure (c, tr)
+    (tr0, sb) <- setupTrace_ c "cardano-wallet"
+    tr <- appendName cmd tr0
+    pure (c, sb, tr)
 
 {-------------------------------------------------------------------------------
                             Unicode Terminal Helpers
@@ -1076,6 +1089,47 @@ resolveHomeDir dir = do
         $ T.replace "$HOME" homeDir
         $ T.replace "~" homeDir
         $ T.pack dir
+
+-- | Wait for a service to become available on a given TCP port. Exit on failure
+-- with a proper error message.
+waitForService
+    :: forall e. (Exception e)
+    => Service
+        -- ^ Name of the service
+    -> (Switchboard Text, Trace IO Text)
+        -- ^ A 'Trace' for logging
+    -> Port "Node"
+        -- ^ Underlying TCP port
+    -> IO ()
+        -- ^ Service we're waiting after.
+    -> IO ()
+waitForService (Service service) (sb, tracer) port action = do
+    logInfo tracer $ mconcat
+        [ "Waiting for "
+        , service
+        , " to be ready on tcp/"
+        , T.pack (showT port)
+        ]
+    let handler (_ :: e) = do
+            logAlert tracer $ mconcat
+                [ "Waited too long for "
+                , service
+                , " to become available. Giving up!"
+                ]
+            shutdown sb
+            putErrLn $ mconcat
+                [ "Hint (1): If you're launching the wallet server on your own,"
+                , " double-check that ", service
+                , " is up-and-running and listening on the same port given to"
+                , " '--node-port' (i.e. tcp/", T.pack (showT port), ")."
+                ]
+            putErrLn $ mconcat
+                [ "Hint (2): Should you be starting from scratch, make"
+                , " sure to have a good-enough network connection to"
+                , " synchronize the first blocks in a timely manner."
+                ]
+            exitFailure
+    action `catch` handler
 
 -- | Look whether a particular filepath is correctly resolved on the filesystem.
 -- This makes for a better user experience when passing wrong filepaths via
