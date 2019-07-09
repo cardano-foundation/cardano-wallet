@@ -104,7 +104,7 @@ spec = do
 
         -- post transaction
         (c, out, err) <- postTransactionViaCLI @t ctx "cardano-wallet" args
-        err `shouldBe` "Please enter a passphrase: **************\nOk.\n"
+        err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
         txJson <- expectValidJSON (Proxy @(ApiTransaction t)) out
         verify txJson
             [ expectCliFieldBetween amount (feeMin + amt, feeMax + amt)
@@ -156,7 +156,7 @@ spec = do
 
         -- post transaction
         (c, out, err) <- postTransactionViaCLI @t ctx "cardano-wallet" args
-        err `shouldBe` "Please enter a passphrase: **************\nOk.\n"
+        err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
         txJson <- expectValidJSON (Proxy @(ApiTransaction t)) out
         verify txJson
             [ expectCliFieldBetween amount (feeMin + (2*amt), feeMax + (2*amt))
@@ -210,7 +210,7 @@ spec = do
 
         -- post transaction
         (c, out, err) <- postTransactionViaCLI @t ctx "cardano-wallet" args
-        err `shouldBe` "Please enter a passphrase: **************\nOk.\n"
+        err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
         txJson <- expectValidJSON (Proxy @(ApiTransaction t)) out
         verify txJson
             [ expectCliFieldBetween amount (feeMin + (2*amt), feeMax + (2*amt))
@@ -276,7 +276,7 @@ spec = do
                 ]
 
         (c, out, err) <- postTransactionViaCLI @t ctx "Secure Passphrase" args
-        err `shouldBe` "Please enter a passphrase: *****************\nOk.\n"
+        err `shouldBe` "Please enter your passphrase: *****************\nOk.\n"
         txJson <- expectValidJSON (Proxy @(ApiTransaction t)) out
         verify txJson
             [ expectCliFieldEqual amount (feeMin+amt)

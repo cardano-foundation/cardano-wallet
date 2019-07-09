@@ -111,7 +111,11 @@ import Cardano.Wallet.Api.Types
     , WalletPutData (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( FromMnemonic (..), Passphrase (..) )
+    ( FromMnemonic (..)
+    , Passphrase (..)
+    , PassphraseMaxLength
+    , PassphraseMinLength
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap, defaultAddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -361,7 +365,7 @@ cmdWalletCreate = command "create" $ info (helper <*> cmd) $ mempty
             getLine prompt parser <&> \case
                 (Nothing, _) -> Nothing
                 (Just a, t) -> Just (a, t)
-        wPwd <- getPassphraseWithConfirm
+        wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
         runClient wPort Aeson.encodePretty $ postWallet (walletClient @t) $
             WalletPostData
                 (Just $ ApiT wGap)
@@ -472,7 +476,7 @@ cmdTransactionCreate = command "create" $ info (helper <*> cmd) $ mempty
         res <- sendRequest wPort $ getWallet (walletClient @t) $ ApiT wId
         case res of
             Right _ -> do
-                wPwd <- getPassphrase
+                wPwd <- getPassphrase "Please enter your passphrase: "
                 runClient wPort Aeson.encodePretty $ postTransaction
                     (walletClient @t)
                     (ApiT wId)
@@ -944,19 +948,24 @@ putErrLn = hPutErrLn stderr
                          Processing of Sensitive Data
 -------------------------------------------------------------------------------}
 
-getPassphrase :: IO (Passphrase "encryption")
-getPassphrase = do
-    let prompt = "Please enter a passphrase: "
-    let parser = fromText @(Passphrase "encryption")
+getPassphrase
+    :: forall a . (PassphraseMinLength a, PassphraseMaxLength a)
+    => Text
+    -> IO (Passphrase a)
+getPassphrase prompt = do
+    let parser = fromText @(Passphrase a)
     fst <$> getSensitiveLine prompt parser
 
-getPassphraseWithConfirm :: IO (Passphrase "encryption")
-getPassphraseWithConfirm = do
-    wPwd <- getPassphrase
+getPassphraseWithConfirm
+    :: forall a . (PassphraseMinLength a, PassphraseMaxLength a)
+    => Text
+    -> IO (Passphrase a)
+getPassphraseWithConfirm prompt = do
+    wPwd <- getPassphrase prompt
     (wPwd', _) <- do
-        let prompt = "Enter the passphrase a second time: "
-        let parser = fromText @(Passphrase "encryption")
-        getSensitiveLine prompt parser
+        let promptRepeat = "Enter the passphrase a second time: "
+        let parser = fromText @(Passphrase a)
+        getSensitiveLine promptRepeat parser
     when (wPwd /= wPwd') $ do
         putErrLn "Passphrases don't match."
         exitFailure
