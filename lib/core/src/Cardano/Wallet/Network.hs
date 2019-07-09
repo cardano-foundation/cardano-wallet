@@ -102,9 +102,9 @@ waitForConnection nw policy = do
             return True
 
 -- | A default 'RetryPolicy' with a constant delay, but retries for no longer
--- than 20 seconds.
+-- than a minute.
 defaultRetryPolicy :: Monad m => RetryPolicyM m
 defaultRetryPolicy =
-    limitRetriesByCumulativeDelay (20 * second) (constantDelay (1 * second))
+    limitRetriesByCumulativeDelay (60 * second) (constantDelay (1 * second))
   where
     second = 1000*1000
