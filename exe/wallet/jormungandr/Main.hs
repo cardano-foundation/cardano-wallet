@@ -3,6 +3,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -27,8 +28,10 @@ import Prelude hiding
 
 import Cardano.BM.Backend.Switchboard
     ( Switchboard )
+import Cardano.BM.Setup
+    ( shutdown )
 import Cardano.BM.Trace
-    ( Trace, appendName, logInfo )
+    ( Trace, appendName, logAlert, logInfo )
 import Cardano.CLI
     ( Port (..)
     , Verbosity (..)
@@ -71,11 +74,16 @@ import Cardano.Wallet.Jormungandr.Compatibility
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Jormungandr.Network
-    ( getBlock )
+    ( ErrGetInitialFeePolicy (..), getBlock, getInitialFeePolicy )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Network
-    ( ErrNetworkTip, NetworkLayer (..), defaultRetryPolicy, waitForConnection )
+    ( ErrGetBlock (..)
+    , ErrNetworkTip
+    , NetworkLayer (..)
+    , defaultRetryPolicy
+    , waitForConnection
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -84,8 +92,6 @@ import Cardano.Wallet.Primitive.Fee
     ( FeePolicy )
 import Cardano.Wallet.Primitive.Types
     ( Block (..), Hash (..) )
-import Cardano.Wallet.Unsafe
-    ( unsafeRunExceptT )
 import Cardano.Wallet.Version
     ( showVersion, version )
 import Control.Applicative
@@ -94,6 +100,8 @@ import Control.Concurrent.Async
     ( race_ )
 import Control.Monad
     ( (>=>) )
+import Control.Monad.Trans.Except
+    ( runExceptT )
 import Data.Coerce
     ( coerce )
 import Data.Function
@@ -337,13 +345,24 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
         newNetworkLayer (sb, tracer) = do
             let url = BaseUrl Http "localhost" (getPort nodePort) "/api"
             mgr <- newManager defaultManagerSettings
-            let jormungandr = Jormungandr.mkJormungandrLayer mgr url
-            let nl = Jormungandr.mkNetworkLayer jormungandr
+            let jor = Jormungandr.mkJormungandrLayer mgr url
+            let nl = Jormungandr.mkNetworkLayer jor
             waitForService @ErrNetworkTip "Jörmungandr" (sb, tracer) nodePort $
                 waitForConnection nl defaultRetryPolicy
-            block0 <- unsafeRunExceptT $ getBlock jormungandr (coerce block0H)
-            feePolicy <- unsafeRunExceptT $
-                Jormungandr.getInitialFeePolicy jormungandr (coerce block0H)
+            block0 <- runExceptT (getBlock jor (coerce block0H)) >>= \case
+                Right a -> return a
+                Left (ErrGetBlockNetworkUnreachable _) ->
+                    handleNetworkUnreachable tracer
+                Left (ErrGetBlockNotFound _) ->
+                    handleGenesisNotFound (sb, tracer)
+            feePolicy <- runExceptT (getInitialFeePolicy jor (coerce block0H)) >>= \case
+                Right a -> return a
+                Left (ErrGetInitialFeePolicyNetworkUnreachable _) ->
+                    handleNetworkUnreachable tracer
+                Left (ErrGetInitialFeePolicyGenesisNotFound _) ->
+                    handleGenesisNotFound (sb, tracer)
+                Left (ErrGetInitialFeePolicyNoInitialPolicy _) ->
+                    handleNoInitialPolicy tracer
             return (nl, block0, feePolicy)
 
         withDBLayer
@@ -354,6 +373,36 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
         withDBLayer logCfg tracer action = do
             tracerDB <- appendName "database" tracer
             Sqlite.withDBLayer logCfg tracerDB dbFile action
+
+        handleGenesisNotFound
+            :: (Switchboard Text, Trace IO Text)
+            -> IO a
+        handleGenesisNotFound (sb, tracer) = do
+            logAlert tracer
+                "Failed to retrieve the genesis block. The block doesn't exist!"
+            shutdown sb
+            putErrLn $ T.pack $ mconcat
+                [ "Hint: double-check the genesis hash you've just gave "
+                , "me via '--genesis-hash' (i.e. ", showT block0H, ")."
+                ]
+            exitFailure
+
+        handleNetworkUnreachable
+            :: Trace IO Text
+            -> IO a
+        handleNetworkUnreachable tracer = do
+            logAlert tracer "It looks like Jörmungandr is down?"
+            exitFailure
+
+        handleNoInitialPolicy
+            :: Trace IO Text
+            -> IO a
+        handleNoInitialPolicy tracer = do
+            logAlert tracer $ mconcat
+                [ "I successfully retrieved the genesis block from Jörmungandr, "
+                , "but there's no initial fee policy defined?"
+                ]
+            exitFailure
 
 {-------------------------------------------------------------------------------
                                  Options
