@@ -21,12 +21,14 @@ import Cardano.BM.Data.Observable
     ( ObservableInstance (..) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
+import Cardano.BM.Setup
+    ( setupTrace )
 import Cardano.BM.Trace
     ( traceInTVarIO )
 import Cardano.Wallet.DB
     ( DBLayer (..), ErrWalletAlreadyExists (..), PrimaryKey (..), cleanDB )
 import Cardano.Wallet.DB.Sqlite
-    ( newDBLayer )
+    ( getDBLayer, newDBLayer, withDBLayer )
 import Cardano.Wallet.DB.StateMachine
     ( prop_parallel, prop_sequential )
 import Cardano.Wallet.DBSpec
@@ -66,6 +68,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
+import Control.Exception
+    ( throwIO )
 import Control.Monad
     ( replicateM_, unless )
 import Control.Monad.Trans.Except
@@ -88,6 +92,12 @@ import Data.Time.Clock
     ( getCurrentTime )
 import GHC.Conc
     ( TVar, atomically, newTVarIO, readTVarIO, writeTVar )
+import System.Directory
+    ( doesFileExist, removeFile )
+import System.IO.Error
+    ( isUserError )
+import System.IO.Temp
+    ( withSystemTempFile )
 import System.IO.Unsafe
     ( unsafePerformIO )
 import Test.Hspec
@@ -101,6 +111,7 @@ import Test.Hspec
     , shouldBe
     , shouldNotContain
     , shouldReturn
+    , shouldThrow
     , xit
     )
 
@@ -117,6 +128,7 @@ spec :: Spec
 spec = do
     sqliteSpec
     loggingSpec
+    connectionSpec
 
 sqliteSpec :: Spec
 sqliteSpec = withDB (fst <$> newMemoryDBLayer) $ do
@@ -197,6 +209,36 @@ loggingSpec = withLoggingDB $ do
             msgs <- findObserveDiffs <$> getLogs
             length msgs `shouldBe` count
 
+connectionSpec :: Spec
+connectionSpec = describe "Sqlite database file" $ do
+    let writeSomething = \db -> do
+            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+            listWallets db `shouldReturn` [testPk]
+        tempFilesAbsent = \fp -> do
+            doesFileExist fp `shouldReturn` True
+            doesFileExist (fp <> "-wal") `shouldReturn` False
+            doesFileExist (fp <> "-shm") `shouldReturn` False
+        bomb = throwIO (userError "bomb")
+
+    it "is properly closed after withDBLayer" $
+        withTestDBFile writeSomething tempFilesAbsent
+    it "is properly closed after an exception in withDBLayer" $
+        withTestDBFile (\db -> writeSomething db >> bomb) tempFilesAbsent
+        `shouldThrow` isUserError
+
+-- | Run a test action inside withDBLayer, then check assertions.
+withTestDBFile
+    :: (DBLayer IO (SeqState DummyTarget) DummyTarget -> IO ())
+    -> (FilePath -> IO a)
+    -> IO a
+withTestDBFile action expectations = do
+    logConfig <- defaultConfigTesting
+    trace <- setupTrace (Right logConfig) "connectionSpec"
+    withSystemTempFile "spec.db" $ \fp _handle -> do
+        removeFile fp
+        withDBLayer logConfig trace (Just fp) action
+        expectations fp
+
 newMemoryDBLayer :: IO (DBLayer IO (SeqState DummyTarget) DummyTarget, TVar [LogObject Text])
 newMemoryDBLayer = do
     logConfig <- defaultConfigTesting
@@ -229,7 +271,7 @@ newMemoryDBLayer = do
         (Just [CM.AggregationBK, CM.KatipBK, CM.MonitoringBK])
 
     logs <- newTVarIO []
-    (_, db) <- newDBLayer logConfig (traceInTVarIO logs) Nothing
+    db <- getDBLayer <$> newDBLayer logConfig (traceInTVarIO logs) Nothing
     pure (db, logs)
 
 withLoggingDB :: SpecWith (DBLayer IO (SeqState DummyTarget) DummyTarget, IO [LogObject Text]) -> Spec
