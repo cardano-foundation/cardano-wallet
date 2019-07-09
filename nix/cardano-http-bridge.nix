@@ -1,10 +1,14 @@
 { rustPlatform
 , fetchFromGitHub
 , protobuf
+, stdenv
+, darwin
 ,  ... }:
 
 
-rustPlatform.buildRustPackage rec {
+let
+  Security = darwin.apple_sdk.frameworks.Security;
+in rustPlatform.buildRustPackage rec {
   name = "cardano-http-bridge-${version}";
 
   version = "0.0.3";
@@ -17,8 +21,12 @@ rustPlatform.buildRustPackage rec {
   };
   cargoSha256 = "1phij6gcs70rsv1y0ac6lciq384g2f014mn15pjvd02l09nx7k49";
 
-  buildInputs = [ protobuf ];
+  buildInputs = [ protobuf ] ++ stdenv.lib.optional stdenv.isDarwin Security;
 
   PROTOC = "${protobuf}/bin/protoc";
 
+  # workaround https://github.com/NixOS/nixpkgs/issues/61618
+  preConfigure = ''
+    export HOME=`mktemp -d`
+  '';
 }
