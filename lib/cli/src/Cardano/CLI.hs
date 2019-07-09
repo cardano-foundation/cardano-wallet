@@ -255,7 +255,6 @@ runCli = join . customExecParser preferences
   where
     preferences = prefs showHelpOnEmpty
 
-
 {-------------------------------------------------------------------------------
                             Commands - 'mnemonic'
 
@@ -501,7 +500,6 @@ cmdTransactionFees = command "fees" $ info (helper <*> cmd) $ mempty
                     (PostTransactionFeeData wPayments)
             Left _ ->
                 handleResponse Aeson.encodePretty res
-
 
 {-------------------------------------------------------------------------------
                             Commands - 'address'
