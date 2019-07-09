@@ -84,6 +84,7 @@ executable cardano-wallet-jormungandr
     , process
     , text
     , text-class
+    , transformers
     , warp
   hs-source-dirs:
       exe/wallet/jormungandr

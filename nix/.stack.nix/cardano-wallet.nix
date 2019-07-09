@@ -51,6 +51,7 @@
             (hsPkgs.process)
             (hsPkgs.text)
             (hsPkgs.text-class)
+            (hsPkgs.transformers)
             (hsPkgs.warp)
             ];
           };
