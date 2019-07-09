@@ -5,6 +5,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -19,8 +20,11 @@
 -- An implementation of the DBLayer which uses Persistent and SQLite.
 
 module Cardano.Wallet.DB.Sqlite
-    ( newDBLayer
-    , runQuery
+    ( SqliteContext
+    , newDBLayer
+    , destroyDBLayer
+    , withDBLayer
+    , unsafeRunQuery
 
     -- * Interfaces
     , PersistState (..)
@@ -36,7 +40,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Observer.Monadic
     ( bracketObserveIO )
 import Cardano.BM.Trace
-    ( Trace, appendName, traceNamedItem )
+    ( Trace, appendName, logDebug, traceNamedItem )
 import Cardano.Crypto.Wallet
     ( XPrv )
 import Cardano.Wallet.DB
@@ -78,6 +82,8 @@ import Control.Concurrent.MVar
     ( newMVar, withMVar )
 import Control.DeepSeq
     ( NFData )
+import Control.Exception
+    ( bracket )
 import Control.Monad
     ( mapM_, when )
 import Control.Monad.Catch
@@ -85,15 +91,13 @@ import Control.Monad.Catch
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Logger
-    ( LogLevel (..), runNoLoggingT )
+    ( LogLevel (..) )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..) )
-import Control.Monad.Trans.Resource
-    ( runResourceT )
 import Control.Tracer
     ( contramap )
 import Data.Aeson
@@ -108,6 +112,8 @@ import Data.List.Split
     ( chunksOf )
 import Data.Map.Strict
     ( Map )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -122,6 +128,7 @@ import Database.Persist.Sql
     , LogFunc
     , SelectOpt (..)
     , Update (..)
+    , close'
     , deleteCascadeWhere
     , deleteWhere
     , insert
@@ -140,11 +147,11 @@ import Database.Persist.Sql
     , (==.)
     )
 import Database.Persist.Sqlite
-    ( SqlBackend, SqlPersistM, SqlPersistT, wrapConnection )
+    ( SqlBackend, SqlPersistT, mkSqliteConnectionInfo, wrapConnectionInfo )
 import Database.Sqlite
     ( Error (ErrorConstraint), SqliteException (SqliteException) )
 import Fmt
-    ( fmt, (+||), (||+) )
+    ( fmt, (+|), (+||), (|+), (||+) )
 import GHC.Generics
     ( Generic )
 import System.Log.FastLogger
@@ -165,52 +172,23 @@ import qualified Database.Sqlite as Sqlite
 ----------------------------------------------------------------------------
 -- Sqlite connection set up
 
--- | Return type of 'startSqliteBackend'
-data Backend = Backend SqlBackend (forall a. SqlPersistM a -> IO a)
+-- | Context for the SQLite 'DBLayer'.
+data SqliteContext = SqliteContext
+    { getSqlBackend :: SqlBackend
+    -- ^ A handle to the Persistent SQL backend.
+    , runQuery :: forall a. SqlPersistT IO a -> IO a
+    -- ^ 'safely' run a query with logging and lock-protection
+    , dbFile :: Maybe FilePath
+    -- ^ The actual database file, if any. If none, runs in-memory
+    , trace :: Trace IO DBLog
+    -- ^ A 'Trace' for logging
+    }
 
--- | Opens the SQLite database connection, sets up query logging and timing,
--- runs schema migrations if necessary.
-startSqliteBackend
-    :: CM.Configuration
-    -> Trace IO DBLog
-    -> Maybe FilePath
-    -> IO Backend
-startSqliteBackend logConfig trace fp = do
-    traceQuery <- appendName "query" trace
-    backend <- createSqliteBackend trace fp (queryLogFunc traceQuery)
-    lock <- newMVar ()
-
-    let runQuery' :: SqlPersistM a -> IO a
-        runQuery' cmd = withMVar lock $ const $ observe $ runQuery backend cmd
-        observe :: IO a -> IO a
-        observe = bracketObserveIO logConfig traceQuery Debug "query"
-
-    migrations <- runQuery' $ runMigrationSilent migrateAll
-    dbLog trace $ MsgMigrations (length migrations)
-    runQuery' addIndexes
-
-    pure $ Backend backend runQuery'
-
-createSqliteBackend
-    :: Trace IO DBLog
-    -> Maybe FilePath
-    -> LogFunc
-    -> IO SqlBackend
-createSqliteBackend trace fp logFunc = do
-    let connStr = sqliteConnStr fp
-    dbLog trace $ MsgConnStr connStr
-    conn <- Sqlite.open connStr
-    enableForeignKeys conn
-    wrapConnection conn logFunc
-
-enableForeignKeys :: Sqlite.Connection -> IO ()
-enableForeignKeys conn = do
-    stmt <- Sqlite.prepare conn "PRAGMA foreign_keys = ON;"
-    _ <- Sqlite.step stmt
-    Sqlite.finalize stmt
-
-sqliteConnStr :: Maybe FilePath -> Text
-sqliteConnStr = maybe ":memory:" T.pack
+-- | Run a raw query from the outside using an instantiate DB layer. This is
+-- completely unsafe because it breaks the abstraction boundary and can have
+-- disastrous results on the database consistency.
+unsafeRunQuery :: SqliteContext -> SqlPersistT IO a -> IO a
+unsafeRunQuery = runQuery
 
 queryLogFunc :: Trace IO DBLog -> LogFunc
 queryLogFunc trace _loc _source level str = dbLog trace (MsgQuery msg sev)
@@ -226,11 +204,6 @@ queryLogFunc trace _loc _source level str = dbLog trace (MsgQuery msg sev)
         LevelError -> Error
         LevelOther _ -> Warning
 
--- | Run a query without error handling. There will be exceptions thrown if it
--- fails.
-runQuery :: SqlBackend -> SqlPersistM a -> IO a
-runQuery conn = runResourceT . runNoLoggingT . flip runSqlConn conn
-
 -- | Run an action, and convert any Sqlite constraints exception into the given
 -- error result. No other exceptions are handled.
 handleConstraint :: MonadCatch m => e -> m a -> m (Either e a)
@@ -240,12 +213,45 @@ handleConstraint e = handleJust select handler . fmap Right
       select _ = Nothing
       handler = const . pure  . Left $ e
 
+-- | Runs an action with a connection to the SQLite database.
+--
+-- Database migrations are run to create tables if necessary.
+--
+-- If the given file path does not exist, it will be created by the sqlite
+-- library.
+withDBLayer
+    :: forall s t a. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t)
+    => CM.Configuration
+       -- ^ Logging configuration
+    -> Trace IO Text
+       -- ^ Logging object
+    -> Maybe FilePath
+       -- ^ Database file location, or Nothing for in-memory database
+    -> (DBLayer IO s t -> IO a)
+       -- ^ Action to run.
+    -> IO a
+withDBLayer logConfig trace fp action = bracket before after between
+  where
+    before = newDBLayer logConfig trace fp
+    after = destroyDBLayer . fst
+    between = action . snd
+
+-- | Finalize database statements and close the database connection.
+destroyDBLayer :: SqliteContext -> IO ()
+destroyDBLayer (SqliteContext {getSqlBackend, trace, dbFile}) = do
+    logDebug trace (MsgClosing dbFile)
+    close' getSqlBackend
+
 -- | Sets up a connection to the SQLite database.
 --
 -- Database migrations are run to create tables if necessary.
 --
 -- If the given file path does not exist, it will be created by the sqlite
 -- library.
+--
+-- 'getDBLayer' will provide the actual 'DBLayer' implementation. The database
+-- should be closed with 'destroyDBLayer'. If you use 'withDBLayer' then both of
+-- these things will be handled for you.
 newDBLayer
     :: forall s t. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t)
     => CM.Configuration
@@ -254,19 +260,19 @@ newDBLayer
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
-    -> IO (SqlBackend, DBLayer IO s t)
+    -> IO (SqliteContext, DBLayer IO s t)
 newDBLayer logConfig trace fp = do
     lock <- newMVar ()
     let trace' = transformTrace trace
-    Backend backend runQuery' <- startSqliteBackend logConfig trace' fp
-    return (backend, DBLayer
+    ctx@SqliteContext{runQuery} <- startSqliteBackend logConfig trace' fp
+    return (ctx, DBLayer
 
         {-----------------------------------------------------------------------
                                       Wallets
         -----------------------------------------------------------------------}
 
         { createWallet = \(PrimaryKey wid) cp meta ->
-              ExceptT $ runQuery' $ do
+              ExceptT $ runQuery $ do
                   res <- handleConstraint (ErrWalletAlreadyExists wid) $
                       insert_ (mkWalletEntity wid meta)
                   when (isRight res) $
@@ -274,7 +280,7 @@ newDBLayer logConfig trace fp = do
                   pure res
 
         , removeWallet = \(PrimaryKey wid) ->
-              ExceptT $ runQuery' $
+              ExceptT $ runQuery $
               selectWallet wid >>= \case
                   Just _ -> Right <$> do
                       deleteCheckpoints @s wid
@@ -284,7 +290,7 @@ newDBLayer logConfig trace fp = do
                       deleteCascadeWhere [WalTableId ==. wid]
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
-        , listWallets = runQuery' $
+        , listWallets = runQuery $
               map (PrimaryKey . unWalletKey) <$>
               selectKeysList [] [Asc WalTableId]
 
@@ -293,7 +299,7 @@ newDBLayer logConfig trace fp = do
         -----------------------------------------------------------------------}
 
         , putCheckpoint = \(PrimaryKey wid) cp ->
-              ExceptT $ runQuery' $
+              ExceptT $ runQuery $
               selectWallet wid >>= \case
                   Just _ -> Right <$> do
                       deleteCheckpoints @s wid -- clear out all checkpoints
@@ -302,7 +308,7 @@ newDBLayer logConfig trace fp = do
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
         , readCheckpoint = \(PrimaryKey wid) ->
-              runQuery' $
+              runQuery $
               selectLatestCheckpoint wid >>= \case
                   Just cp -> do
                       utxo <- selectUTxO cp
@@ -316,7 +322,7 @@ newDBLayer logConfig trace fp = do
         -----------------------------------------------------------------------}
 
         , putWalletMeta = \(PrimaryKey wid) meta ->
-              ExceptT $ runQuery' $
+              ExceptT $ runQuery $
               selectWallet wid >>= \case
                   Just _ -> do
                       updateWhere [WalTableId ==. wid]
@@ -325,7 +331,7 @@ newDBLayer logConfig trace fp = do
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
         , readWalletMeta = \(PrimaryKey wid) ->
-              runQuery' $
+              runQuery $
               fmap (metadataFromEntity . entityVal) <$>
               selectFirst [WalTableId ==. wid] []
 
@@ -334,7 +340,7 @@ newDBLayer logConfig trace fp = do
         -----------------------------------------------------------------------}
 
         , putTxHistory = \(PrimaryKey wid) txs ->
-              ExceptT $ runQuery' $
+              ExceptT $ runQuery $
               selectWallet wid >>= \case
                   Just _ -> do
                       let (metas, txins, txouts) = mkTxHistory @t wid $ W.invariant
@@ -348,7 +354,7 @@ newDBLayer logConfig trace fp = do
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
         , readTxHistory = \(PrimaryKey wid) ->
-              runQuery' $
+              runQuery $
               selectTxHistory @t wid []
 
         {-----------------------------------------------------------------------
@@ -356,7 +362,7 @@ newDBLayer logConfig trace fp = do
         -----------------------------------------------------------------------}
 
         , putPrivateKey = \(PrimaryKey wid) key ->
-                ExceptT $ runQuery' $
+                ExceptT $ runQuery $
                 selectWallet wid >>= \case
                     Just _ -> Right <$> do
                         deleteWhere [PrivateKeyTableWalletId ==. wid]
@@ -364,7 +370,7 @@ newDBLayer logConfig trace fp = do
                     Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
         , readPrivateKey = \(PrimaryKey wid) ->
-              runQuery' $
+              runQuery $
               let keys = selectFirst [PrivateKeyTableWalletId ==. wid] []
                   toMaybe = either (const Nothing) Just
               in (>>= toMaybe . privateKeyFromEntity . entityVal) <$> keys
@@ -378,9 +384,46 @@ newDBLayer logConfig trace fp = do
         })
 
 ----------------------------------------------------------------------------
+-- Internal / Database Setup
+
+-- | Opens the SQLite database connection, sets up query logging and timing,
+-- runs schema migrations if necessary.
+startSqliteBackend
+    :: CM.Configuration
+    -> Trace IO DBLog
+    -> Maybe FilePath
+    -> IO SqliteContext
+startSqliteBackend logConfig trace fp = do
+    traceQuery <- appendName "query" trace
+    backend <- createSqliteBackend trace fp (queryLogFunc traceQuery)
+    lock <- newMVar ()
+    let observe :: IO a -> IO a
+        observe = bracketObserveIO logConfig traceQuery Debug "query"
+    let runQuery :: SqlPersistT IO a -> IO a
+        runQuery cmd = withMVar lock $ const $ observe $ runSqlConn cmd backend
+    migrations <- runQuery $ runMigrationSilent migrateAll
+    dbLog trace $ MsgMigrations (length migrations)
+    runQuery addIndexes
+    pure $ SqliteContext backend runQuery fp trace
+
+createSqliteBackend
+    :: Trace IO DBLog
+    -> Maybe FilePath
+    -> LogFunc
+    -> IO SqlBackend
+createSqliteBackend trace fp logFunc = do
+    let connStr = sqliteConnStr fp
+    dbLog trace $ MsgConnStr connStr
+    conn <- Sqlite.open connStr
+    wrapConnectionInfo (mkSqliteConnectionInfo connStr) conn logFunc
+
+sqliteConnStr :: Maybe FilePath -> Text
+sqliteConnStr = maybe ":memory:" T.pack
+
+----------------------------------------------------------------------------
 -- SQLite database setup
 
-addIndexes :: SqlPersistM ()
+addIndexes :: SqlPersistT IO ()
 addIndexes = mapM_ (`rawExecute` [])
     [ createIndex "tx_meta_wallet_id" "tx_meta (wallet_id)"
     , createIndex "tx_in_tx_id" "tx_in (tx_id)"
@@ -585,7 +628,7 @@ insertCheckpoint
     :: (PersistState s, PersistTx t)
     => W.WalletId
     -> W.Wallet s t
-    -> SqlPersistM ()
+    -> SqlPersistT IO ()
 insertCheckpoint wid cp = do
     let (cp', utxo, ins, outs, metas) = mkCheckpointEntity wid cp
     insert_ cp'
@@ -598,7 +641,7 @@ insertCheckpoint wid cp = do
 deleteCheckpoints
     :: forall s. PersistState s
     => W.WalletId
-    -> SqlPersistM ()
+    -> SqlPersistT IO ()
 deleteCheckpoints wid = do
     deleteWhere [UtxoTableWalletId ==. wid]
     deleteWhere [CheckpointTableWalletId ==. wid]
@@ -607,16 +650,16 @@ deleteCheckpoints wid = do
 -- | Delete TxMeta values for a wallet.
 deleteTxMetas
     :: W.WalletId
-    -> SqlPersistM ()
+    -> SqlPersistT IO ()
 deleteTxMetas wid = deleteWhere [ TxMetaTableWalletId ==. wid ]
 
 -- | Add new TxMeta rows, overwriting existing ones.
-putTxMetas :: [TxMeta] -> SqlPersistM ()
+putTxMetas :: [TxMeta] -> SqlPersistT IO ()
 putTxMetas metas = dbChunked repsertMany
     [(TxMetaKey txMetaTableTxId txMetaTableWalletId, m) | m@TxMeta{..} <- metas]
 
 -- | Insert multiple transactions, removing old instances first.
-putTxs :: [TxIn] -> [TxOut] -> SqlPersistM ()
+putTxs :: [TxIn] -> [TxOut] -> SqlPersistT IO ()
 putTxs txins txouts = do
     dbChunked repsertMany
         [ (TxInKey txInputTableTxId txInputTableSourceTxId txInputTableSourceIndex, i)
@@ -634,7 +677,7 @@ putTxs txins txouts = do
 --
 -- We choose a conservative value 'chunkSize' << 999 because there can be
 -- multiple variables per row updated.
-dbChunked :: ([a] -> SqlPersistM b) -> [a] -> SqlPersistM ()
+dbChunked :: ([a] -> SqlPersistT IO b) -> [a] -> SqlPersistT IO ()
 dbChunked = chunkedM chunkSize
 
 -- | Given an action which takes a list of items, and a list of items, run that
@@ -669,7 +712,7 @@ deleteMany
     => [Filter record]
     -> EntityField record typ
     -> [typ]
-    -> SqlPersistM ()
+    -> SqlPersistT IO ()
 deleteMany filters entity types
     -- SQLite max limit is at 999 variables. We may have other variables so,
     -- we arbitrarily pick 500 which is way below 999. This should prevent the
@@ -681,7 +724,7 @@ deleteMany filters entity types
         deleteMany filters entity (drop chunkSize types)
 
 -- | Delete transactions that aren't referred to by TxMeta of any wallet.
-deleteLooseTransactions :: SqlPersistM ()
+deleteLooseTransactions :: SqlPersistT IO ()
 deleteLooseTransactions = do
     deleteLoose "tx_in"
     deleteLoose "tx_out"
@@ -698,7 +741,7 @@ deleteLooseTransactions = do
 
 selectLatestCheckpoint
     :: W.WalletId
-    -> SqlPersistM (Maybe Checkpoint)
+    -> SqlPersistT IO (Maybe Checkpoint)
 selectLatestCheckpoint wid = fmap entityVal <$>
     selectFirst
         [ CheckpointTableWalletId ==. wid
@@ -706,7 +749,7 @@ selectLatestCheckpoint wid = fmap entityVal <$>
 
 selectUTxO
     :: Checkpoint
-    -> SqlPersistM [UTxO]
+    -> SqlPersistT IO [UTxO]
 selectUTxO (Checkpoint wid sl _parent) = fmap entityVal <$>
     selectList
         [ UtxoTableWalletId ==. wid
@@ -715,7 +758,7 @@ selectUTxO (Checkpoint wid sl _parent) = fmap entityVal <$>
 
 selectTxs
     :: [TxId]
-    -> SqlPersistM ([TxIn], [TxOut])
+    -> SqlPersistT IO ([TxIn], [TxOut])
 selectTxs txids = do
     ins <- fmap entityVal <$> selectList [TxInputTableTxId <-. txids]
         [Asc TxInputTableTxId, Asc TxInputTableOrder]
@@ -727,7 +770,7 @@ selectTxHistory
     :: forall t. PersistTx t
     => W.WalletId
     -> [Filter TxMeta]
-    -> SqlPersistM (Map (W.Hash "Tx") (W.Tx t, W.TxMeta))
+    -> SqlPersistT IO (Map (W.Hash "Tx") (W.Tx t, W.TxMeta))
 selectTxHistory wid conditions = do
     metas <- fmap entityVal <$> selectList
         ((TxMetaTableWalletId ==. wid) : conditions) []
@@ -747,11 +790,11 @@ checkpointId cp = (checkpointTableWalletId cp, checkpointTableSlot cp)
 -- SQLite.
 class PersistState s where
     -- | Store the state for a checkpoint.
-    insertState :: (W.WalletId, W.SlotId) -> s -> SqlPersistM ()
+    insertState :: (W.WalletId, W.SlotId) -> s -> SqlPersistT IO ()
     -- | Load the state for a checkpoint.
-    selectState :: (W.WalletId, W.SlotId) -> SqlPersistM (Maybe s)
+    selectState :: (W.WalletId, W.SlotId) -> SqlPersistT IO (Maybe s)
     -- | Remove the state for all checkpoints of a wallet.
-    deleteState :: W.WalletId -> SqlPersistM ()
+    deleteState :: W.WalletId -> SqlPersistT IO ()
 
 class DefineTx t => PersistTx t where
     resolvedInputs :: Tx t -> [(W.TxIn, Maybe W.Coin)]
@@ -804,7 +847,7 @@ instance W.KeyToAddress t => PersistState (W.SeqState t) where
 
 insertAddressPool
     :: W.AddressPool t c
-    -> SqlPersistM AddressPoolId
+    -> SqlPersistT IO AddressPoolId
 insertAddressPool ap = do
     let ap' = AddressPool (AddressPoolXPub $ W.accountPubKey ap) (W.gap ap)
     apid <- insert ap'
@@ -819,7 +862,7 @@ mkSeqStatePendingIxs ssid =
 selectAddressPool
     :: forall t chain. (W.KeyToAddress t, Typeable chain)
     => AddressPoolId
-    -> SqlPersistM (Maybe (W.AddressPool t chain))
+    -> SqlPersistT IO (Maybe (W.AddressPool t chain))
 selectAddressPool apid = do
     ix <- fmap entityVal <$> selectList [IndexAddressPool ==. apid]
         [Asc IndexNumber]
@@ -833,7 +876,7 @@ selectAddressPool apid = do
     addressPoolFromEntity ixs (AddressPool (AddressPoolXPub pubKey) gap) =
         W.mkAddressPool @t @chain pubKey gap (map indexAddress ixs)
 
-selectSeqStatePendingIxs :: SeqStateId -> SqlPersistM W.PendingIxs
+selectSeqStatePendingIxs :: SeqStateId -> SqlPersistT IO W.PendingIxs
 selectSeqStatePendingIxs ssid =
     W.pendingIxsFromList . fromRes <$> selectList
         [SeqStatePendingIxSeqStateId ==. ssid]
@@ -848,6 +891,7 @@ data DBLog
     = MsgMigrations Int
     | MsgQuery Text Severity
     | MsgConnStr Text
+    | MsgClosing (Maybe FilePath)
     deriving (Generic, Show, Eq, ToJSON)
 
 transformTrace :: Trace IO Text -> Trace IO DBLog
@@ -876,9 +920,11 @@ dbLogLevel (MsgMigrations 0) = Debug
 dbLogLevel (MsgMigrations _) = Notice
 dbLogLevel (MsgQuery _ sev) = sev
 dbLogLevel (MsgConnStr _) = Debug
+dbLogLevel (MsgClosing _) = Debug
 
 dbLogText :: DBLog -> Text
 dbLogText (MsgMigrations 0) = "No database migrations were necessary."
 dbLogText (MsgMigrations n) = fmt $ ""+||n||+" migrations were applied to the database."
 dbLogText (MsgQuery stmt _) = stmt
 dbLogText (MsgConnStr connStr) = "Using connection string: " <> connStr
+dbLogText (MsgClosing fp) = "Closing database ("+|fromMaybe "in-memory" fp|+")"

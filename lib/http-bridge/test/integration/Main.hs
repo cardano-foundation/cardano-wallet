@@ -23,6 +23,8 @@ import Cardano.Wallet
     ( newWalletLayer )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
+import Cardano.Wallet.DB.Sqlite
+    ( SqliteContext )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge, block0, byronFeePolicy )
 import Cardano.Wallet.HttpBridge.Environment
@@ -61,8 +63,6 @@ import Data.Text.Class
     ( ToText (..) )
 import Data.Time
     ( addUTCTime, defaultTimeLocale, formatTime, getCurrentTime )
-import Database.Persist.Sql
-    ( SqlBackend, close' )
 import Network.HTTP.Client
     ( defaultManagerSettings, newManager )
 import Network.Wai.Handler.Warp
@@ -210,12 +210,12 @@ main = do
         let cleanup = do
                 cancel cluster
                 hClose handle
-                close' db
+                Sqlite.destroyDBLayer db
         return $ Context cleanup manager port faucet estimator Proxy
 
-    killServer :: (HasType ThreadId s, HasType SqlBackend s) => s -> IO ()
+    killServer :: (HasType ThreadId s, HasType SqliteContext s) => s -> IO ()
     killServer ctx = do
-        close' (ctx ^. typed @SqlBackend)
+        Sqlite.destroyDBLayer (ctx ^. typed @SqliteContext)
         killThread (ctx ^. typed @ThreadId)
 
     cardanoNodeSimple stateDir sysStart (nodeId, nodeAddr) h extra = Command
@@ -255,11 +255,11 @@ main = do
     cardanoWalletServer
         :: (network ~ HttpBridge 'Testnet)
         => Maybe Listen
-        -> IO (ThreadId, Int, SqlBackend, NetworkLayer network IO)
+        -> IO (ThreadId, Int, SqliteContext, NetworkLayer network IO)
     cardanoWalletServer mlisten = do
         nl <- HttpBridge.newNetworkLayer bridgePort
         logConfig <- CM.empty
-        (conn, db) <- Sqlite.newDBLayer logConfig nullTracer Nothing
+        (ctx, db) <- Sqlite.newDBLayer logConfig nullTracer Nothing
         mvar <- newEmptyMVar
         thread <- forkIO $ do
             let tl = HttpBridge.newTransactionLayer
@@ -269,7 +269,7 @@ main = do
                 let settings = Warp.defaultSettings
                         & setBeforeMainLoop (putMVar mvar port)
                 Server.start settings nullTracer socket wallet
-        (thread,,conn,nl) <$> takeMVar mvar
+        (thread,,ctx,nl) <$> takeMVar mvar
 
     waitForCluster :: String -> IO ()
     waitForCluster addr = do

@@ -30,6 +30,8 @@ import Cardano.Wallet
     ( newWalletLayer )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
+import Cardano.Wallet.DB.Sqlite
+    ( SqliteContext )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, Network (..) )
 import Cardano.Wallet.Jormungandr.Network
@@ -64,8 +66,6 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
-import Database.Persist.Sql
-    ( SqlBackend, close' )
 import Network.HTTP.Client
     ( defaultManagerSettings, newManager )
 import Network.Wai.Handler.Warp
@@ -157,7 +157,7 @@ main = hspec $ do
                 cancel handle
                 cancel handle'
                 hClose logs
-                close' db
+                Sqlite.destroyDBLayer db
                 threadDelay oneSecond
         return $ Context cleanup manager port faucet estimator Proxy
 
@@ -174,12 +174,12 @@ initTracer minSeverity cmd = do
 cardanoWalletServer
     :: forall network. (network ~ Jormungandr 'Testnet)
     => Maybe Listen
-    -> IO (Async (), Int, FeePolicy, SqlBackend)
+    -> IO (Async (), Int, FeePolicy, SqliteContext)
 cardanoWalletServer mlisten = do
     logConfig <- CM.empty
     tracer <- initTracer Info "serve"
     (nl, block0, feePolicy) <- newNetworkLayer jormungandrUrl block0H
-    (conn, db) <- Sqlite.newDBLayer @_ @network logConfig tracer Nothing
+    (sqlCtx, db) <- Sqlite.newDBLayer @_ @network logConfig tracer Nothing
     mvar <- newEmptyMVar
     handle <- async $ do
         let tl = Jormungandr.newTransactionLayer block0H
@@ -189,7 +189,7 @@ cardanoWalletServer mlisten = do
             let settings = Warp.defaultSettings
                     & setBeforeMainLoop (putMVar mvar port)
             Server.start settings tracer socket wallet
-    (handle,,feePolicy,conn) <$> takeMVar mvar
+    (handle,,feePolicy,sqlCtx) <$> takeMVar mvar
   where
     jormungandrUrl :: BaseUrl
     jormungandrUrl = BaseUrl Http "localhost" 8080 "/api"

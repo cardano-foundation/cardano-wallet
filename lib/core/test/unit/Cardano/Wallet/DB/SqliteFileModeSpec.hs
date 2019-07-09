@@ -16,7 +16,7 @@ import Cardano.BM.Data.Tracer
 import Cardano.Wallet.DB
     ( DBLayer (..), ErrNoSuchWallet (..), PrimaryKey (..), cleanDB )
 import Cardano.Wallet.DB.Sqlite
-    ( PersistState, PersistTx, newDBLayer )
+    ( PersistState, PersistTx, SqliteContext, destroyDBLayer, newDBLayer )
 import Cardano.Wallet.DBSpec
     ( KeyValPairs (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -76,10 +76,8 @@ import Data.Text.Class
     ( FromText (..) )
 import Data.Time.Clock
     ( getCurrentTime )
-import Database.Persist.Sql
-    ( close' )
-import Database.Persist.Sqlite
-    ( SqlBackend )
+import System.IO.Temp
+    ( emptySystemTempFile )
 import System.IO.Unsafe
     ( unsafePerformIO )
 import System.Random
@@ -100,42 +98,49 @@ spec :: Spec
 spec =  do
     describe "Check db opening/closing" $ do
         it "Opening and closing of db works" $ do
-            replicateM_ 25 $
-                fileDBLayer @(SeqState DummyTarget) @DummyTarget >>= close' . fst
+            replicateM_ 25 $ do
+                db <- Just <$> temporaryDBFile
+                (ctx, _) <- newDBLayer' @(SeqState DummyTarget) @DummyTarget db
+                destroyDBLayer ctx
 
-    before (fileDBLayer >>= cleanDB') $
+    before temporaryDBFile $
         describe "Check db reading/writing from/to file and cleaning" $ do
 
-        it "create and list wallet works" $ \(conn, db) -> do
+        it "create and list wallet works" $ \f -> do
+            (ctx, db) <- newDBLayer' (Just f)
             unsafeRunExceptT $ createWallet db testWid testCp testMetadata
-            close' conn
-            testOpeningCleaning listWallets [testWid] []
+            destroyDBLayer ctx
+            testOpeningCleaning f listWallets [testWid] []
 
-        it "create and get meta works" $ \(conn, db) -> do
+        it "create and get meta works" $ \f -> do
+            (ctx, db) <- newDBLayer' (Just f)
             now <- getCurrentTime
             let meta = testMetadata
                    { passphraseInfo = Just $ WalletPassphraseInfo now }
             unsafeRunExceptT $ createWallet db testWid testCp meta
-            close' conn
-            testOpeningCleaning (`readWalletMeta` testWid) (Just meta) Nothing
+            destroyDBLayer ctx
+            testOpeningCleaning f (`readWalletMeta` testWid) (Just meta) Nothing
 
-        it "create and get private key" $ \(conn, db) -> do
+        it "create and get private key" $ \f-> do
+            (ctx, db) <- newDBLayer' (Just f)
             unsafeRunExceptT $ createWallet db testWid testCp testMetadata
             (k, h) <- unsafeRunExceptT $ attachPrivateKey db testWid
-            close' conn
-            testOpeningCleaning (`readPrivateKey` testWid) (Just (k, h)) Nothing
+            destroyDBLayer ctx
+            testOpeningCleaning f (`readPrivateKey` testWid) (Just (k, h)) Nothing
 
-        it "put and read tx history" $ \(conn, db) -> do
+        it "put and read tx history" $ \f -> do
+            (ctx, db) <- newDBLayer' (Just f)
             unsafeRunExceptT $ createWallet db testWid testCp testMetadata
             unsafeRunExceptT $ putTxHistory db testWid testTxs
-            close' conn
-            testOpeningCleaning (`readTxHistory` testWid) testTxs Map.empty
+            destroyDBLayer ctx
+            testOpeningCleaning f (`readTxHistory` testWid) testTxs Map.empty
 
-        it "put and read checkpoint" $ \(conn, db) -> do
+        it "put and read checkpoint" $ \f -> do
+            (ctx, db) <- newDBLayer' (Just f)
             unsafeRunExceptT $ createWallet db testWid testCp testMetadata
             unsafeRunExceptT $ putCheckpoint db testWid testCp
-            close' conn
-            testOpeningCleaning (`readCheckpoint` testWid) (Just testCp) Nothing
+            destroyDBLayer ctx
+            testOpeningCleaning f (`readCheckpoint` testWid) (Just testCp) Nothing
 
     describe "random operation chunks property" $ do
         it "realize a random batch of operations upon one db open"
@@ -156,15 +161,16 @@ prop_randomOpChunks (KeyValPairs pairs) =
     not (null pairs) ==> monadicIO (liftIO prop)
   where
     prop = do
-        (connF, dbF) <- fileDBLayer >>= cleanDB'
-        (connM, dbM) <- inMemoryDBLayer >>= cleanDB'
+        filepath <- temporaryDBFile
+        (ctxF, dbF) <- newDBLayer' (Just filepath) >>= cleanDB'
+        (ctxM, dbM) <- inMemoryDBLayer >>= cleanDB'
         forM_ pairs (insertPair dbM)
         cutRandomly pairs >>= mapM_ (\chunk -> do
-            (conn, db) <- fileDBLayer
+            (ctx, db) <- newDBLayer' (Just filepath)
             forM_ chunk (insertPair db)
-            close' conn)
+            destroyDBLayer ctx)
         dbF `shouldBeConsistentWith` dbM
-        close' connF *> close' connM
+        destroyDBLayer ctxF *> destroyDBLayer ctxM
 
     insertPair
         :: DBLayer IO s t
@@ -198,19 +204,20 @@ prop_randomOpChunks (KeyValPairs pairs) =
 -- that cleaning up happens as expected.
 testOpeningCleaning
     :: (Show s, Eq s)
-    => (DBLayer IO (SeqState DummyTarget) DummyTarget -> IO s)
+    => FilePath
+    -> (DBLayer IO (SeqState DummyTarget) DummyTarget -> IO s)
     -> s
     -> s
     -> Expectation
-testOpeningCleaning call expectedAfterOpen expectedAfterClean = do
-    (conn1, db1) <- fileDBLayer
+testOpeningCleaning filepath call expectedAfterOpen expectedAfterClean = do
+    (ctx1, db1) <- newDBLayer' (Just filepath)
     call db1 `shouldReturn` expectedAfterOpen
     _ <- cleanDB db1
     call db1 `shouldReturn` expectedAfterClean
-    close' conn1
-    (conn2,db2) <- fileDBLayer
+    destroyDBLayer ctx1
+    (ctx2,db2) <- newDBLayer' (Just filepath)
     call db2 `shouldReturn` expectedAfterClean
-    close' conn2
+    destroyDBLayer ctx2
 
 {-------------------------------------------------------------------------------
                                  Helpers
@@ -218,18 +225,16 @@ testOpeningCleaning call expectedAfterOpen expectedAfterClean = do
 
 inMemoryDBLayer
     :: (IsOurs s, NFData s, Show s, PersistState s, PersistTx t)
-    => IO (SqlBackend, DBLayer IO s t)
+    => IO (SqliteContext, DBLayer IO s t)
 inMemoryDBLayer = newDBLayer' Nothing
 
-fileDBLayer
-    :: (IsOurs s, NFData s, Show s, PersistState s, PersistTx t)
-    => IO (SqlBackend, DBLayer IO s t)
-fileDBLayer = newDBLayer' (Just "backup/test.db")
+temporaryDBFile :: IO FilePath
+temporaryDBFile = emptySystemTempFile "cardano-wallet-SqliteFileMode"
 
 newDBLayer'
     :: (IsOurs s, NFData s, Show s, PersistState s, PersistTx t)
     => Maybe FilePath
-    -> IO (SqlBackend, DBLayer IO s t)
+    -> IO (SqliteContext, DBLayer IO s t)
 newDBLayer' fp = do
     logConfig <- CM.empty
     newDBLayer logConfig nullTracer fp
@@ -237,10 +242,10 @@ newDBLayer' fp = do
 -- | Clean the database
 cleanDB'
     :: Monad m
-    => (SqlBackend, DBLayer m s t)
-    -> m (SqlBackend, DBLayer m s t)
-cleanDB' (conn, db) =
-    cleanDB db $> (conn, db)
+    => (SqliteContext, DBLayer m s t)
+    -> m (SqliteContext, DBLayer m s t)
+cleanDB' (ctx, db) =
+    cleanDB db $> (ctx, db)
 
 -- | Attach an arbitrary private key to a wallet
 attachPrivateKey

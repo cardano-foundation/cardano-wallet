@@ -83,6 +83,8 @@ import Control.Applicative
     ( optional, (<|>) )
 import Control.Concurrent.Async
     ( race_ )
+import Control.Monad
+    ( (>=>) )
 import Data.Function
     ( (&) )
 import Data.Text
@@ -249,7 +251,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
         logInfo tracer "Wallet backend server starting..."
         logInfo tracer $ "Running as v" <> T.pack (showVersion version)
         logInfo tracer $ "Node is Http-Bridge on " <> toText (networkVal @n)
-        newWalletLayer logCfg tracer >>= startServer tracer
+        withDBLayer logCfg tracer $ newWalletLayer tracer >=> startServer tracer
       where
         startServer
             :: Trace IO Text
@@ -268,13 +270,12 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
                 race_ ipcServer apiServer
 
         newWalletLayer
-            :: CM.Configuration
-            -> Trace IO Text
+            :: Trace IO Text
+            -> DBLayer IO s t
             -> IO (WalletLayer s t)
-        newWalletLayer logCfg tracer = do
+        newWalletLayer tracer db = do
             (nl, block0, feePolicy) <- newNetworkLayer
             let tl = HttpBridge.newTransactionLayer @n
-            db <- newDBLayer logCfg tracer
             Wallet.newWalletLayer tracer block0 feePolicy db nl tl
 
         newNetworkLayer
@@ -284,14 +285,14 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
             waitForConnection nl defaultRetryPolicy
             return (nl, HttpBridge.block0, byronFeePolicy)
 
-        newDBLayer
+        withDBLayer
             :: CM.Configuration
             -> Trace IO Text
-            -> IO (DBLayer IO s t)
-        newDBLayer logCfg tracer = do
+            -> (DBLayer IO s t -> IO a)
+            -> IO a
+        withDBLayer logCfg tracer action = do
             tracerDB <- appendName "database" tracer
-            (_, db) <- Sqlite.newDBLayer logCfg tracerDB dbFile
-            return db
+            Sqlite.withDBLayer logCfg tracerDB dbFile action
 
 {-------------------------------------------------------------------------------
                                  Options
