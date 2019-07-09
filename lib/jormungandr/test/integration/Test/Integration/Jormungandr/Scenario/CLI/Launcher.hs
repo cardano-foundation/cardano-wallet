@@ -24,7 +24,7 @@ import Data.Text.Class
 import Network.HTTP.Client
     ( defaultManagerSettings, newManager )
 import System.Command
-    ( Stdout (..) )
+    ( Exit (..), Stderr (..), Stdout (..) )
 import System.Directory
     ( removeDirectory )
 import System.Exit
@@ -41,9 +41,10 @@ import System.Process
 import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldReturn )
+    ( shouldBe, shouldContain, shouldReturn )
 import Test.Integration.Framework.DSL
     ( KnownCommand (..)
+    , cardanoWalletCLI
     , collectStreams
     , createWalletViaCLI
     , expectEventually'
@@ -89,6 +90,44 @@ spec = do
                     terminateProcess ph
                     TIO.hGetContents o >>= TIO.putStrLn
                     TIO.hGetContents e >>= TIO.putStrLn
+
+        it "LAUNCH - Non-Existing files for --genesis-block" $ do
+            let block0' = block0 <> ".doesnexist"
+            let args =
+                    [ "launch"
+                    , "--genesis-block", block0'
+                    , "--bft-leaders", leaders
+                    ]
+            (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
+            c `shouldBe` ExitFailure 1
+            o `shouldBe` mempty
+            e `shouldContain`
+                ("I couldn't find any file at the given location: " <> block0')
+
+        it "LAUNCH - Invalid block0 file (not a serialized block)" $ do
+            let args =
+                    [ "launch"
+                    , "--genesis-block", leaders
+                    , "--bft-leaders", leaders
+                    ]
+            (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
+            c `shouldBe` ExitFailure 1
+            o `shouldBe` mempty
+            e `shouldContain`
+                ("As far as I can tell, this isn't a valid block file: " <> leaders)
+
+        it "LAUNCH - Non-Existing files for --bft-leaders" $ do
+            let leaders' = leaders <> ".doesnexist"
+            let args =
+                    [ "launch"
+                    , "--genesis-block", block0
+                    , "--bft-leaders", leaders'
+                    ]
+            (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
+            c `shouldBe` ExitFailure 1
+            o `shouldBe` mempty
+            e `shouldContain`
+                ("I couldn't find any file at the given location: " <> leaders')
 
         it "LAUNCH - Restoration workers restart" $ withTempDir $ \d -> do
             let port = 8088 :: Int -- Arbitrary but known.

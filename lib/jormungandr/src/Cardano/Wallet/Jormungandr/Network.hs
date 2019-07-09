@@ -23,6 +23,7 @@ module Cardano.Wallet.Jormungandr.Network
 
     -- * Exception
     , ErrUnexpectedNetworkFailure (..)
+    , ErrGetInitialFeePolicy (..)
 
     -- * Re-export
     , BaseUrl (..)
