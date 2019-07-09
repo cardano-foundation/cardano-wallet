@@ -1,3 +1,6 @@
+-- need this for {-# HLINT ... #-}; see https://github.com/ndmitchell/hlint#ignoring-hints
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
