@@ -20,12 +20,11 @@
 -- An implementation of the DBLayer which uses Persistent and SQLite.
 
 module Cardano.Wallet.DB.Sqlite
-    ( SqliteDBLayer
-    , getDBLayer
-    , getSqlBackend
+    ( SqliteContext
     , newDBLayer
     , destroyDBLayer
     , withDBLayer
+    , unsafeRunQuery
 
     -- * Interfaces
     , PersistState (..)
@@ -174,52 +173,22 @@ import qualified Database.Sqlite as Sqlite
 -- Sqlite connection set up
 
 -- | Context for the SQLite 'DBLayer'.
-data SqliteDBLayer s t = SqliteDBLayer
-    { getDBLayer :: DBLayer IO s t
-    -- ^ The 'DBLayer' implementation.
-    , getSqlBackend :: SqlBackend
+data SqliteContext = SqliteContext
+    { getSqlBackend :: SqlBackend
     -- ^ A handle to the Persistent SQL backend.
     , runQuery :: forall a. SqlPersistT IO a -> IO a
+    -- ^ 'safely' run a query with logging and lock-protection
     , dbFile :: Maybe FilePath
+    -- ^ The actual database file, if any. If none, runs in-memory
     , trace :: Trace IO DBLog
+    -- ^ A 'Trace' for logging
     }
 
--- | Opens the SQLite database connection, sets up query logging and timing,
--- runs schema migrations if necessary.
-startSqliteBackend
-    :: CM.Configuration
-    -> Trace IO DBLog
-    -> Maybe FilePath
-    -> IO (SqliteDBLayer s t)
-startSqliteBackend logConfig trace fp = do
-    traceQuery <- appendName "query" trace
-    backend <- createSqliteBackend trace fp (queryLogFunc traceQuery)
-    lock <- newMVar ()
-
-    let runQuery :: SqlPersistT IO a -> IO a
-        runQuery cmd = withMVar lock $ const $ observe $ runSqlConn cmd backend
-        observe :: IO a -> IO a
-        observe = bracketObserveIO logConfig traceQuery Debug "query"
-
-    migrations <- runQuery $ runMigrationSilent migrateAll
-    dbLog trace $ MsgMigrations (length migrations)
-    runQuery addIndexes
-
-    pure $ SqliteDBLayer (error "uninitialized") backend runQuery fp trace
-
-createSqliteBackend
-    :: Trace IO DBLog
-    -> Maybe FilePath
-    -> LogFunc
-    -> IO SqlBackend
-createSqliteBackend trace fp logFunc = do
-    let connStr = sqliteConnStr fp
-    dbLog trace $ MsgConnStr connStr
-    conn <- Sqlite.open connStr
-    wrapConnectionInfo (mkSqliteConnectionInfo connStr) conn logFunc
-
-sqliteConnStr :: Maybe FilePath -> Text
-sqliteConnStr = maybe ":memory:" T.pack
+-- | Run a raw query from the outside using an instantiate DB layer. This is
+-- completely unsafe because it breaks the abstraction boundary and can have
+-- disastrous results on the database consistency.
+unsafeRunQuery :: SqliteContext -> SqlPersistT IO a -> IO a
+unsafeRunQuery = runQuery
 
 queryLogFunc :: Trace IO DBLog -> LogFunc
 queryLogFunc trace _loc _source level str = dbLog trace (MsgQuery msg sev)
@@ -261,10 +230,17 @@ withDBLayer
     -> (DBLayer IO s t -> IO a)
        -- ^ Action to run.
     -> IO a
-withDBLayer logConfig trace fp act = bracket create destroyDBLayer act'
+withDBLayer logConfig trace fp action = bracket before after between
   where
-    create = newDBLayer logConfig trace fp
-    act' = act . getDBLayer
+    before = newDBLayer logConfig trace fp
+    after = destroyDBLayer . fst
+    between = action . snd
+
+-- | Finalize database statements and close the database connection.
+destroyDBLayer :: SqliteContext -> IO ()
+destroyDBLayer (SqliteContext {getSqlBackend, trace, dbFile}) = do
+    logDebug trace (MsgClosing dbFile)
+    close' getSqlBackend
 
 -- | Sets up a connection to the SQLite database.
 --
@@ -284,12 +260,12 @@ newDBLayer
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
-    -> IO (SqliteDBLayer s t)
+    -> IO (SqliteContext, DBLayer IO s t)
 newDBLayer logConfig trace fp = do
     lock <- newMVar ()
     let trace' = transformTrace trace
-    db@SqliteDBLayer{runQuery} <- startSqliteBackend logConfig trace' fp
-    return db { getDBLayer = DBLayer
+    ctx@SqliteContext{runQuery} <- startSqliteBackend logConfig trace' fp
+    return (ctx, DBLayer
 
         {-----------------------------------------------------------------------
                                       Wallets
@@ -405,13 +381,44 @@ newDBLayer logConfig trace fp = do
 
         , withLock = \action ->
               ExceptT $ withMVar lock $ \() -> runExceptT action
-        } }
+        })
 
--- | Finalize database statements and close the database connection.
-destroyDBLayer :: SqliteDBLayer s t -> IO ()
-destroyDBLayer (SqliteDBLayer {getSqlBackend, trace, dbFile}) = do
-    logDebug trace (MsgClosing dbFile)
-    close' getSqlBackend
+----------------------------------------------------------------------------
+-- Internal / Database Setup
+
+-- | Opens the SQLite database connection, sets up query logging and timing,
+-- runs schema migrations if necessary.
+startSqliteBackend
+    :: CM.Configuration
+    -> Trace IO DBLog
+    -> Maybe FilePath
+    -> IO SqliteContext
+startSqliteBackend logConfig trace fp = do
+    traceQuery <- appendName "query" trace
+    backend <- createSqliteBackend trace fp (queryLogFunc traceQuery)
+    lock <- newMVar ()
+    let observe :: IO a -> IO a
+        observe = bracketObserveIO logConfig traceQuery Debug "query"
+    let runQuery :: SqlPersistT IO a -> IO a
+        runQuery cmd = withMVar lock $ const $ observe $ runSqlConn cmd backend
+    migrations <- runQuery $ runMigrationSilent migrateAll
+    dbLog trace $ MsgMigrations (length migrations)
+    runQuery addIndexes
+    pure $ SqliteContext backend runQuery fp trace
+
+createSqliteBackend
+    :: Trace IO DBLog
+    -> Maybe FilePath
+    -> LogFunc
+    -> IO SqlBackend
+createSqliteBackend trace fp logFunc = do
+    let connStr = sqliteConnStr fp
+    dbLog trace $ MsgConnStr connStr
+    conn <- Sqlite.open connStr
+    wrapConnectionInfo (mkSqliteConnectionInfo connStr) conn logFunc
+
+sqliteConnStr :: Maybe FilePath -> Text
+sqliteConnStr = maybe ":memory:" T.pack
 
 ----------------------------------------------------------------------------
 -- SQLite database setup
