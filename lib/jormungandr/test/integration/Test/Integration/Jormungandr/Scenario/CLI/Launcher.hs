@@ -104,6 +104,18 @@ spec = do
             e `shouldContain`
                 ("I couldn't find any file at the given location: " <> block0')
 
+        it "LAUNCH - Invalid block0 file (not a serialized block)" $ do
+            let args =
+                    [ "launch"
+                    , "--genesis-block", leaders
+                    , "--bft-leaders", leaders
+                    ]
+            (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
+            c `shouldBe` ExitFailure 1
+            o `shouldBe` mempty
+            e `shouldContain`
+                ("As far as I can tell, this isn't a valid block file: " <> leaders)
+
         it "LAUNCH - Non-Existing files for --bft-leaders" $ do
             let leaders' = leaders <> ".doesnexist"
             let args =

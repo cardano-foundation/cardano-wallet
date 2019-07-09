@@ -56,6 +56,7 @@ module Cardano.Wallet.Jormungandr.Binary
       -- * Re-export
     , Get
     , runGet
+    , runGetOrFail
     , Put
     , runPut
 
@@ -102,6 +103,7 @@ import Data.Binary.Get
     , label
     , lookAhead
     , runGet
+    , runGetOrFail
     , skip
     )
 import Data.Binary.Put
@@ -189,22 +191,11 @@ getBlock = label "getBlock" $ do
     return $ Block header msgs
 
 -- | Extract a 'Block' id from a serialized 'Block'.
---
--- FIXME:
--- Note that, this is a very simplistic way of doing it (although rather
--- efficient) and a more correct one would required:
---
--- - Unserializing a block
--- - Extracting its header
--- - Serializing the header
--- - Computing the hash of this serialized header
---
--- This is quite some busy work but we should come to that eventually.
 getBlockId :: Get (Hash "BlockHeader")
-getBlockId = do
+getBlockId = lookAhead getBlock *> label "getBlockId" (do
     size <- getWord16be
     bytes <- getByteString (fromEnum size)
-    return $ Hash $ blake2b256 bytes
+    return $ Hash $ blake2b256 bytes)
 
 {-------------------------------------------------------------------------------
                            Messages

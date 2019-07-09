@@ -42,6 +42,7 @@ import Cardano.CLI
     , listenOption
     , nodePortOption
     , optionT
+    , putErrLn
     , requireFilePath
     , resolveHomeDir
     , runCli
@@ -61,7 +62,7 @@ import Cardano.Wallet.DaedalusIPC
 import Cardano.Wallet.DB
     ( DBLayer )
 import Cardano.Wallet.Jormungandr.Binary
-    ( getBlockId, runGet )
+    ( getBlockId, runGetOrFail )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( BaseUrl (..), Jormungandr, Scheme (..), genConfigFile )
 import Cardano.Wallet.Jormungandr.Environment
@@ -117,6 +118,8 @@ import Options.Applicative
     )
 import System.Environment
     ( getProgName )
+import System.Exit
+    ( exitFailure )
 import System.FilePath
     ( (</>) )
 
@@ -205,7 +208,7 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
         requireFilePath (_genesisBlock jArgs)
         requireFilePath (_bftLeaders jArgs)
         cmdName <- getProgName
-        block0H <- runGet getBlockId <$> BL.readFile (_genesisBlock jArgs)
+        block0H <- parseBlock0H (_genesisBlock jArgs)
         let baseUrl = BaseUrl Http "127.0.0.1" (getPort nodePort) "/api"
         stateDir <- resolveHomeDir stateDirRaw
         let nodeConfig = stateDir </> "jormungandr-config.json"
@@ -243,6 +246,17 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
                 , verbosityToArgs verbosity
                 , [ "--genesis-hash", showT block0H ]
                 ]
+
+parseBlock0H :: FilePath -> IO (Hash "Genesis")
+parseBlock0H file = do
+    bytes <- BL.readFile file
+    case runGetOrFail getBlockId bytes of
+        Right (_, _, block0H) -> return (coerce block0H)
+        Left _ -> do
+            putErrLn $ mempty
+                <> "As far as I can tell, this isn't a valid block file: "
+                <> T.pack file
+            exitFailure
 
 {-------------------------------------------------------------------------------
                             Command - 'serve'
