@@ -67,6 +67,7 @@ module Cardano.CLI
 
     -- * Helpers
     , decodeError
+    , requireFilePath
     , resolveHomeDir
     ) where
 
@@ -192,7 +193,7 @@ import System.Console.ANSI
     , hSetSGR
     )
 import System.Directory
-    ( getHomeDirectory )
+    ( doesFileExist, getHomeDirectory )
 import System.Exit
     ( exitFailure, exitSuccess, exitWith )
 import System.IO
@@ -1075,6 +1076,18 @@ resolveHomeDir dir = do
         $ T.replace "$HOME" homeDir
         $ T.replace "~" homeDir
         $ T.pack dir
+
+-- | Look whether a particular filepath is correctly resolved on the filesystem.
+-- This makes for a better user experience when passing wrong filepaths via
+-- options or arguments, especially when they get forwarded to other services.
+requireFilePath :: FilePath -> IO ()
+requireFilePath path = doesFileExist path >>= \case
+    True -> return ()
+    False -> do
+        putErrLn $ "I couldn't find any file at the given location: " <> pathT
+        exitFailure
+  where
+    pathT = T.pack path
 
 -- | Make a parser optional
 optionalE

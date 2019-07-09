@@ -42,6 +42,7 @@ import Cardano.CLI
     , listenOption
     , nodePortOption
     , optionT
+    , requireFilePath
     , resolveHomeDir
     , runCli
     , stateDirOption
@@ -201,6 +202,8 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
             <$> genesisBlockOption
             <*> bftLeadersOption)
     exec (LaunchArgs listen nodePort stateDirRaw verbosity jArgs) = do
+        requireFilePath (_genesisBlock jArgs)
+        requireFilePath (_bftLeaders jArgs)
         cmdName <- getProgName
         block0H <- runGet getBlockId <$> BL.readFile (_genesisBlock jArgs)
         let baseUrl = BaseUrl Http "127.0.0.1" (getPort nodePort) "/api"
