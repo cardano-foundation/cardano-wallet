@@ -93,7 +93,7 @@ module Test.Integration.Framework.DSL
     , getWalletViaCLI
     , listAddressesViaCLI
     , listWalletsViaCLI
-    , updateWalletViaCLI
+    , updateWalletNameViaCLI
     , postTransactionViaCLI
     , postTransactionFeeViaCLI
     ) where
@@ -894,13 +894,13 @@ listWalletsViaCLI
 listWalletsViaCLI ctx = cardanoWalletCLI @t
     ["wallet", "list", "--port", show (ctx ^. typed @Port) ]
 
-updateWalletViaCLI
+updateWalletNameViaCLI
     :: forall t r s. (CmdResult r, KnownCommand t, HasType Port s)
     => s
     -> [String]
     -> IO r
-updateWalletViaCLI ctx args = cardanoWalletCLI @t
-    (["wallet", "update", "--port", show (ctx ^. typed @Port)] ++ args)
+updateWalletNameViaCLI ctx args = cardanoWalletCLI @t
+    (["wallet", "update", "name", "--port", show (ctx ^. typed @Port)] ++ args)
 
 postTransactionViaCLI
     :: forall t s. (HasType Port s, KnownCommand t)

@@ -299,7 +299,7 @@ cmdMnemonicGenerate = command "generate" $ info (helper <*> cmd) $ mempty
   cardano-wallet wallet list [--port=INT]
   cardano-wallet wallet create [--port=INT] <name> [--address-pool-gap=INT]
   cardano-wallet wallet get [--port=INT] <wallet-id>
-  cardano-wallet wallet update [--port=INT] <wallet-id> --name=STRING
+  cardano-wallet wallet update name [--port=INT] <wallet-id> STRING
   cardano-wallet wallet delete [--port=INT] <wallet-id>
 -------------------------------------------------------------------------------}
 
@@ -394,25 +394,34 @@ cmdWalletGet = command "get" $ info (helper <*> cmd) $ mempty
         runClient wPort Aeson.encodePretty $ getWallet (walletClient @t) $
             ApiT wId
 
--- | Arguments for 'wallet update' command
-data WalletUpdateArgs = WalletUpdateArgs
+cmdWalletUpdate
+    :: forall t. (DecodeAddress t, EncodeAddress t)
+    => Mod CommandFields (IO ())
+cmdWalletUpdate = command "update" $ info (helper <*> cmds) $ mempty
+    <> progDesc "Update a wallet."
+  where
+    cmds = subparser $ mempty
+        <> cmdWalletUpdateName @t
+
+-- | Arguments for 'wallet update name' command
+data WalletUpdateNameArgs = WalletUpdateNameArgs
     { _port :: Port "Wallet"
     , _id :: WalletId
     , _name :: WalletName
     }
 
--- | cardano-wallet wallet update [--port=INT] <wallet-id> --name=STRING
-cmdWalletUpdate
+-- | cardano-wallet wallet update name [--port=INT] <wallet-id> STRING
+cmdWalletUpdateName
     :: forall t. (DecodeAddress t, EncodeAddress t)
     => Mod CommandFields (IO ())
-cmdWalletUpdate = command "update" $ info (helper <*> cmd) $ mempty
-    <> progDesc "Update metadata of a wallet with specified id."
+cmdWalletUpdateName = command "name" $ info (helper <*> cmd) $ mempty
+    <> progDesc "Update name of a wallet with specified id."
   where
-    cmd = fmap exec $ WalletUpdateArgs
+    cmd = fmap exec $ WalletUpdateNameArgs
         <$> portOption
         <*> walletIdArgument
-        <*> walletNameOption
-    exec (WalletUpdateArgs wPort wId wName) = do
+        <*> walletNameArgument
+    exec (WalletUpdateNameArgs wPort wId wName) = do
         runClient wPort Aeson.encodePretty $ putWallet (walletClient @t)
             (ApiT wId)
             (WalletPutData $ Just (ApiT wName))
@@ -678,13 +687,6 @@ verbosityOption = (Quiet <$ quiet) <|> (Verbose <$ verbose) <|> (pure Default)
     verbose = flag' False $ mempty
         <> long "verbose"
         <> help "display debugging information in the log output"
-
--- | --name=STRING
-walletNameOption :: Parser WalletName
-walletNameOption = optionT $ mempty
-    <> long "name"
-    <> metavar "STRING"
-    <> help "name of the wallet."
 
 -- | <wallet-id=WALLET_ID>
 walletIdArgument :: Parser WalletId

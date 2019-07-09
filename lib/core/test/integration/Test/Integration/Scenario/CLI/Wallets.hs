@@ -60,7 +60,7 @@ import Test.Integration.Framework.DSL
     , passphraseLastUpdate
     , postTransactionViaCLI
     , state
-    , updateWalletViaCLI
+    , updateWalletNameViaCLI
     , verify
     , walletId
     , walletName
@@ -372,11 +372,12 @@ spec = do
             , expectCliListItemFieldEqual 2 walletId (T.pack w3)
             ]
 
-    describe "WALLETS_UPDATE_01,02 - Can update wallet name" $ do
+    describe "WALLETS_UPDATE_NAME_01,02 - Can update wallet name" $ do
         forM_ walletNames $ \(title, n) -> it title $ \ctx -> do
             wid <- emptyWallet' ctx
-            let args = [wid, "--name", n]
-            (Exit c, Stdout out, Stderr err) <- updateWalletViaCLI @t ctx args
+            let args = [wid, n]
+            (Exit c, Stdout out, Stderr err) <-
+                updateWalletNameViaCLI @t ctx args
             c `shouldBe` ExitSuccess
             err `shouldBe` cmdOk
             j <- expectValidJSON (Proxy @ApiWallet) out

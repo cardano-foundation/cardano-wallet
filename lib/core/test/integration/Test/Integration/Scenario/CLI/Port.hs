@@ -46,7 +46,7 @@ import Test.Integration.Framework.DSL
     , listWalletsViaCLI
     , postTransactionViaCLI
     , proc'
-    , updateWalletViaCLI
+    , updateWalletNameViaCLI
     )
 
 import qualified Data.Text as T
@@ -114,7 +114,7 @@ specCommon = do
         let ctx' = over (typed @Port) (+1) ctx
         let wid = replicate 40 '0'
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            updateWalletViaCLI @t ctx' [wid, "--name", "My Wallet"]
+            updateWalletNameViaCLI @t ctx' [wid, "My Wallet"]
         err `shouldContain` errConnectionRefused
 
     it "PORT_01 - Can't reach server with wrong port (transction create)" $ \ctx -> do
@@ -176,7 +176,7 @@ specWithDefaultPort = do
     it "PORT_02 - Can omit --port when server uses default port (wallet update)" $ \_ -> do
         let wid = replicate 40 '0'
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            cardanoWalletCLI @t ["wallet", "update", wid, "--name", "My Wallet"]
+            cardanoWalletCLI @t ["wallet", "update", "name", wid, "My Wallet"]
         err `shouldNotContain` errConnectionRefused
 
     it "PORT_02 - Can omit --port when server uses default port (transaction create)" $ \_ -> do
@@ -247,7 +247,7 @@ specWithRandomPort defaultPort = do
     it "PORT_03 - Cannot omit --port when server uses random port (wallet update)" $ \_ -> do
         let wid = replicate 40 '0'
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            cardanoWalletCLI @t ["wallet", "update", wid, "--name", "My Wallet"]
+            cardanoWalletCLI @t ["wallet", "update", "name", wid, "My Wallet"]
         err `shouldContain` errConnectionRefused
 
     it "PORT_03 - Cannot omit --port when server uses random port (transaction create)" $ \_ -> do
