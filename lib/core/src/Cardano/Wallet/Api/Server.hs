@@ -43,7 +43,7 @@ import Cardano.Wallet
     , WalletLayer
     )
 import Cardano.Wallet.Api
-    ( Addresses, Api, Transactions, Wallets )
+    ( Addresses, Api, Iso8601Range, Transactions, Wallets )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)
@@ -409,8 +409,9 @@ createTransaction w (ApiT wid) body = do
 listTransactions
     :: WalletLayer (SeqState t) t
     -> ApiT WalletId
+    -> Maybe (Iso8601Range "inserted-at")
     -> Handler [ApiTransaction t]
-listTransactions _w (ApiT _wid) = do
+listTransactions _w (ApiT _wid) _maybeRange = do
     return []
 
 coerceCoin :: AddressAmount t -> TxOut
