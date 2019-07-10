@@ -236,13 +236,18 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
             ]
       where
         commandJormungandr nodeConfig (JormungandrArgs block0 bftLeaders) =
-            Command "jormungandr" arguments (return ()) Inherit
+            Command "jormungandr" arguments (return ()) quiet
           where
             arguments = mconcat
               [ [ "--genesis-block", block0 ]
               , [ "--config", nodeConfig ]
               , [ "--secret", bftLeaders ]
+              , verbose
               ]
+            (quiet, verbose) = case verbosity of
+                Default -> (Inherit, mempty)
+                Quiet -> (NoStream, mempty)
+                Verbose -> (Inherit, ["-v"])
 
         commandWalletServe cmdName stateDir block0H =
             Command cmdName arguments (return ()) Inherit
