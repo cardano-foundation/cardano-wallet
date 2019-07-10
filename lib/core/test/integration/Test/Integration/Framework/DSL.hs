@@ -67,6 +67,8 @@ module Test.Integration.Framework.DSL
     , json
     , listAddresses
     , tearDown
+    , fixtureMaxTxSize
+    , fixtureNInputs
     , fixtureWallet
     , fixtureWalletWith
     , faucetAmt
@@ -614,6 +616,65 @@ emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
     expectResponseCode @IO HTTP.status202 r
     return (getFromResponse id r)
 
+-- | Prepare Wallet with utxo of size n (each output = amt ada) and payload for Tx
+-- with n number of inputs (single input = 1 lovelace) to be sent from that wallet
+fixtureNInputs
+    :: forall t. (EncodeAddress t, DecodeAddress t)
+    => Context t
+    -> (Int, Natural)
+    -> IO (ApiWallet, ApiWallet, Payload)
+fixtureNInputs ctx (n, amt) = do
+    wSrc <- fixtureWalletWith ctx (replicate n amt)
+    wDest1 <- emptyWalletWith ctx ("Wallet", "cardano-wallet", 100)
+    wDest2 <- emptyWalletWith ctx ("Wallet", "cardano-wallet", 100)
+    wDest3 <- emptyWalletWith ctx ("Wallet", "cardano-wallet", 100)
+    addrs1 <- listAddresses ctx wDest1
+    addrs2 <- listAddresses ctx wDest2
+    addrs3 <- listAddresses ctx wDest3
+
+    -- each amt is going to different address
+    let addrIds = view #id <$> take n (addrs1 ++ addrs2 ++ addrs3)
+    -- when sending to everything to one address - it worked
+    -- let addrIdRepl = replicate n addrIds !! 0
+    let amounts = take n [1, 1..] :: [Natural]
+    let payments = flip map (zip amounts addrIds) $ \(coin, addr) -> [aesonQQ|{
+            "address": #{addr},
+            "amount": {
+                "quantity": #{coin},
+                "unit": "lovelace"
+            }
+        }|]
+    let payload = Json [aesonQQ|{
+            "payments": #{payments :: [Value]},
+            "passphrase": "Secure Passphrase"
+        }|]
+    return (wSrc, wDest1, payload)
+
+-- | Prepare Wallet with utxo of size n (each output = amt ada) and payload for Tx
+-- to be send with given amtToSend
+fixtureMaxTxSize
+    :: forall t. (EncodeAddress t, DecodeAddress t)
+    => Context t
+    -> (Int, Natural)
+    -> Natural
+    -> IO (ApiWallet, ApiWallet, Payload)
+fixtureMaxTxSize ctx (n, amt) amtToSend = do
+    wSrc <- fixtureWalletWith ctx (replicate n amt)
+    wDest <- emptyWallet ctx
+    addr:_ <- listAddresses ctx wDest
+    let destination = addr ^. #id
+    let payload = Json [aesonQQ|{
+            "payments": [{
+                "address": #{destination},
+                "amount": {
+                    "quantity": #{amtToSend},
+                    "unit": "lovelace"
+                }
+            }],
+            "passphrase": "Secure Passphrase"
+        }|]
+    return (wSrc, wDest, payload)
+
 -- | Restore a faucet and wait until funds are available.
 fixtureWallet
     :: Context t
@@ -653,26 +714,43 @@ fixtureWalletWith
 fixtureWalletWith ctx coins = do
     wSrc <- fixtureWallet ctx
     wUtxo <- emptyWallet ctx
-    (_, addrs) <-
-        unsafeRequest @[ApiAddress t] ctx (getAddressesEp wUtxo "") Empty
-    let addrIds = view #id <$> addrs
-    let payments = flip map (zip coins addrIds) $ \(coin, addr) -> [aesonQQ|{
-            "address": #{addr},
-            "amount": {
-                "quantity": #{coin},
-                "unit": "lovelace"
-            }
-        }|]
-    let payload = Json [aesonQQ|{
-            "payments": #{payments :: [Value]},
-            "passphrase": "cardano-wallet"
-        }|]
-    request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
-        >>= expectResponseCode HTTP.status202
+    performTxs wSrc wUtxo coins
     r <- request @ApiWallet ctx (getWalletEp wUtxo) Default Empty
-    verify r [ expectEventually ctx balanceAvailable (sum coins) ]
     void $ request @() ctx (deleteWalletEp wSrc) Default Empty
     return (getFromResponse id r)
+  where
+      performTxs ws wd c = do
+          let firstTen = take 10 c
+          let makeTx widSrc widDest amounts = do
+                  getAmt <- request @ApiWallet ctx (getWalletEp widDest) Default Empty
+                  let currentAmt = getFromResponse balanceAvailable getAmt
+                  (_, addrs) <-
+                      unsafeRequest @[ApiAddress t] ctx (getAddressesEp widDest "") Empty
+                  let addrIds = view #id <$> addrs
+                  let payments = flip map (zip amounts addrIds) $ \(amt, addr) -> [aesonQQ|{
+                          "address": #{addr},
+                          "amount": {
+                              "quantity": #{amt},
+                              "unit": "lovelace"
+                          }
+                      }|]
+
+                  let payload = Json [aesonQQ|{
+                          "payments": #{payments :: [Value]},
+                          "passphrase": "cardano-wallet"
+                      }|]
+                  request @(ApiTransaction t) ctx (postTxEp widSrc) Default payload
+                    >>= expectResponseCode HTTP.status202
+                  r <- request @ApiWallet ctx (getWalletEp widDest) Default Empty
+                  expectEventually ctx balanceAvailable (sum $ currentAmt:amounts) r
+          if (firstTen == [] ) then
+              return ()
+          else do
+              -- perform tx with at most 10 inputs at a time because
+              -- there is 10 UTxO available in each faucet
+              makeTx ws wd firstTen
+              performTxs ws wd (drop 10 c)
+
 
 -- | Total amount on each faucet wallet
 faucetAmt :: Natural

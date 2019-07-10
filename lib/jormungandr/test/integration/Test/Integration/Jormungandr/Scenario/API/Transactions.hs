@@ -24,13 +24,16 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , emptyWallet
+    , expectErrorMessage
     , expectResponseCode
+    , fixtureNInputs
     , fixtureWallet
     , json
     , listAddresses
     , postTxEp
     , postTxFeeEp
     , request
+    , verify
     )
 
 import qualified Network.HTTP.Types.Status as HTTP
@@ -56,6 +59,21 @@ spec = do
         (wSrc, payload) <- fixtureZeroAmtMulti ctx
         r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
         expectResponseCode HTTP.status202 r
+
+    it "TRANS_CREATE_10, TRANS_ESTIMATE_10 - 256 input/output tx/fee" $ \ctx -> do
+        (wSrc, _, payload) <- fixtureNInputs ctx (256, 1_000_000)
+        fee <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+        tx <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        verify fee
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage "I can't estimate transaction fee because\
+                \ transaction has either more than 255 inputs or more than\
+                \ 255 outputs."
+            ]
+        verify tx
+            [ expectResponseCode HTTP.status500
+            , expectErrorMessage "Something went wrong"
+            ]
   where
     fixtureZeroAmtSingle ctx = do
         wSrc <- fixtureWallet ctx
