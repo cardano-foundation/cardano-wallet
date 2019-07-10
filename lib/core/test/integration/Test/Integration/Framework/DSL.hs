@@ -743,7 +743,7 @@ fixtureWalletWith ctx coins = do
                     >>= expectResponseCode HTTP.status202
                   r <- request @ApiWallet ctx (getWalletEp widDest) Default Empty
                   expectEventually ctx balanceAvailable (sum $ currentAmt:amounts) r
-          if (firstTen == [] ) then
+          if (null firstTen) then
               return ()
           else do
               -- perform tx with at most 10 inputs at a time because

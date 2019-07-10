@@ -252,8 +252,9 @@ _errMsg403InpsOrOutsExceeded (maxNumInps, maxNumOuts) =
     \ exceeds " ++ show maxNumOuts ++ "."
 
 errMsg403CannotEstimateFee :: String
-errMsg403CannotEstimateFee = "I can't estimate transaction fee because transaction contains\
-    \ at least one payment output of value 0."
+errMsg403CannotEstimateFee = "I can't process this payment because it contains at least\
+    \ one payment output of value 0 (Byron) or a transaction has more\
+    \ than 255 inputs or outputs (Jormungandr)."
 
 errMsg403UTxO :: String
 errMsg403UTxO = "When creating new transactions, I'm not able to re-use the\

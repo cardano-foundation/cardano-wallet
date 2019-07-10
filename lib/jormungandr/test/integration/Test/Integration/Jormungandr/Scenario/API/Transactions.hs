@@ -27,6 +27,7 @@ import Test.Integration.Framework.DSL
     , expectErrorMessage
     , expectResponseCode
     , fixtureNInputs
+    , fixtureMaxTxSize
     , fixtureWallet
     , json
     , listAddresses
@@ -35,6 +36,8 @@ import Test.Integration.Framework.DSL
     , request
     , verify
     )
+import Test.Integration.Framework.TestData
+    ( errMsg403TxTooBig )
 
 import qualified Network.HTTP.Types.Status as HTTP
 
@@ -73,6 +76,22 @@ spec = do
         verify tx
             [ expectResponseCode HTTP.status500
             , expectErrorMessage "Something went wrong"
+            ]
+
+    it "TRANS_CREATE_10 - Cannot post tx when max tx size reached" $ \ctx -> do
+        (wSrc, _, payload) <- fixtureMaxTxSize ctx (46, 1_000_000) 45_000_000
+        tx <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        verify tx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage (errMsg403TxTooBig 10)
+            ]
+
+    it "TRANS_ESTIMATE_10 - Cannot estimate fee when max tx size reached" $ \ctx -> do
+        (wSrc, _, payload) <- fixtureMaxTxSize ctx (46, 1_000_000) 45_000_000
+        fee <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
+        verify fee
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage (errMsg403TxTooBig 10)
             ]
   where
     fixtureZeroAmtSingle ctx = do
