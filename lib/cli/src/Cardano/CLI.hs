@@ -418,7 +418,7 @@ cmdWalletUpdateName
     :: forall t. (DecodeAddress t, EncodeAddress t)
     => Mod CommandFields (IO ())
 cmdWalletUpdateName = command "name" $ info (helper <*> cmd) $ mempty
-    <> progDesc "Update name of a wallet with specified id."
+    <> progDesc "Update a wallet's name."
   where
     cmd = fmap exec $ WalletUpdateNameArgs
         <$> portOption
@@ -440,7 +440,7 @@ cmdWalletUpdatePassphrase
     :: forall t. (DecodeAddress t, EncodeAddress t)
     => Mod CommandFields (IO ())
 cmdWalletUpdatePassphrase = command "passphrase" $ info (helper <*> cmd) $
-    progDesc "Update passphrase of wallet with specified id."
+    progDesc "Update a wallet's passphrase."
   where
     cmd = fmap exec $ WalletUpdatePassphraseArgs
         <$> portOption
