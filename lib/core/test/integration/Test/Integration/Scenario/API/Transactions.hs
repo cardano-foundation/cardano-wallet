@@ -568,7 +568,7 @@ spec = do
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
     describe "TRANS_CREATE_08 - v2/wallets/{id}/transactions - Methods Not Allowed" $ do
-        let matrix = ["PUT", "DELETE", "CONNECT", "TRACE", "OPTIONS", "GET"]
+        let matrix = ["PUT", "DELETE", "CONNECT", "TRACE", "OPTIONS"]
         forM_ matrix $ \method -> it (show method) $ \ctx -> do
             w <- emptyWallet ctx
             wDest <- emptyWallet ctx

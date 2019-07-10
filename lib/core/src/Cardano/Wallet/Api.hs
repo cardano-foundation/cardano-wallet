@@ -1,7 +1,10 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE TypeOperators #-}
 
 module Cardano.Wallet.Api where
+
+import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiAddress
@@ -19,6 +22,10 @@ import Cardano.Wallet.Primitive.Types
     ( AddressState, WalletId )
 import Data.List.NonEmpty
     ( NonEmpty ((:|)) )
+import Data.Time.Clock
+    ( UTCTime )
+import GHC.TypeLits
+    ( Symbol )
 import Network.HTTP.Media
     ( (//), (/:) )
 import Servant.API
@@ -27,7 +34,9 @@ import Servant.API
     , Accept (..)
     , Capture
     , DeleteNoContent
+    , FromHttpApiData (..)
     , Get
+    , Header
     , JSON
     , NoContent
     , PostAccepted
@@ -35,6 +44,7 @@ import Servant.API
     , PutNoContent
     , QueryParam
     , ReqBody
+    , ToHttpApiData (..)
     )
 
 type Api t = Addresses t :<|> Wallets :<|> Transactions t
@@ -109,6 +119,7 @@ type PutWalletPassphrase = "wallets"
 
 type Transactions t =
     CreateTransaction t
+    :<|> ListTransactions t
     :<|> PostTransactionFee t
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransaction
@@ -118,7 +129,6 @@ type CreateTransaction t = "wallets"
     :> ReqBody '[JSON] (PostTransactionData t)
     :> PostAccepted '[JSON] (ApiTransaction t)
 
-
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransactionFee
 type PostTransactionFee t = "wallets"
     :> Capture "walletId" (ApiT WalletId)
@@ -126,6 +136,13 @@ type PostTransactionFee t = "wallets"
     :> "fees"
     :> ReqBody '[JSON] (PostTransactionFeeData t)
     :> PostAccepted '[JSON] ApiFee
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listTransaction
+type ListTransactions t = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "transactions"
+    :> Header "Range" (Iso8601Range "inserted-at")
+    :> Get '[JSON] [ApiTransaction t]
 
 {-------------------------------------------------------------------------------
                                    Internals
@@ -140,3 +157,30 @@ instance Accept Any where
         [ "application" // "json"
         , "application" // "json" /: ("charset", "utf-8")
         ]
+
+-- | A range of dates in ISO-8601 UTC format without symbols. Meant to be
+-- rendered as a HTTP 'Header', where the 'name' type-parameter renders as a
+-- prefix, e.g.
+--
+-- name 20190227T160329Z-*
+--
+-- 'Nothing' ("*") can be used instead of upper and/or lower boundary.
+--
+-- - `20190227T160329Z-*`: means all transactions after
+--    2019-02-27 T 16:03:29Z (including)
+-- - `*-20190227T160329Z`: means all transactions before 2019-02-27 T 16:03:29Z
+--    (including)
+-- - `*-*`: means all transactions
+-- - `20190227T000000Z-20200227T000000Z`: means all transaction between
+--    2019-02-27 and 2020-02-27, in ascending order.
+-- - `20200227T000000Z-20190227T000000Z`: means all transaction between
+--  2020-02-27 and 2019-02-27, in descending order.
+data Iso8601Range (name :: Symbol)
+    = Iso8601Range (Maybe UTCTime) (Maybe UTCTime)
+    deriving (Show)
+
+instance FromHttpApiData (Iso8601Range (name :: Symbol)) where
+    parseUrlPiece = error "FromHttpApiData Iso8601Range to be implemented"
+
+instance ToHttpApiData (Iso8601Range (name :: Symbol)) where
+    toUrlPiece = error "ToHttpApiData Iso8601Range to be implemented"

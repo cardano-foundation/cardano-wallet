@@ -758,6 +758,7 @@ walletClient =
             = wallets
 
         _postTransaction
+            :<|> _listTransactions
             :<|> _postTransactionFee
             = transactions
     in

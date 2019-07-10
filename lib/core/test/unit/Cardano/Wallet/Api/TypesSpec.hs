@@ -125,7 +125,15 @@ import GHC.TypeLits
 import Numeric.Natural
     ( Natural )
 import Servant
-    ( (:<|>), (:>), Capture, QueryParam, ReqBody, StdMethod (..), Verb )
+    ( (:<|>)
+    , (:>)
+    , Capture
+    , Header'
+    , QueryParam
+    , ReqBody
+    , StdMethod (..)
+    , Verb
+    )
 import Servant.Swagger.Test
     ( validateEveryToJSON )
 import Test.Aeson.GenericSpecs
@@ -844,6 +852,9 @@ instance HasPath sub => HasPath (ReqBody a b :> sub) where
     getPath _ = getPath (Proxy @sub)
 
 instance HasPath sub => HasPath (QueryParam a b :> sub) where
+    getPath _ = getPath (Proxy @sub)
+
+instance HasPath sub => HasPath (Header' opts name ty :> sub) where
     getPath _ = getPath (Proxy @sub)
 
 -- A way to demote 'StdMethod' back to the world of values. Servant provides a
