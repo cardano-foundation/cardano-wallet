@@ -594,7 +594,7 @@ newWalletLayer tracer block0 feePolicy db nw tl = do
                 then Just a
                 else Nothing
         let usedAddrs =
-                Set.fromList $ concatMap (mapMaybe maybeIsOurs . outputs') txs
+                Set.fromList $ concatMap (mapMaybe maybeIsOurs . outputs' . snd) txs
               where outputs' (tx, _) = W.outputs @t tx
         let knownAddrs =
                 L.sortBy (compareDiscovery s) (knownAddresses s)

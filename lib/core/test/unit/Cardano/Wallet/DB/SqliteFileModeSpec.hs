@@ -131,9 +131,9 @@ spec =  do
         it "put and read tx history" $ \f -> do
             (ctx, db) <- newDBLayer' (Just f)
             unsafeRunExceptT $ createWallet db testWid testCp testMetadata
-            unsafeRunExceptT $ putTxHistory db testWid testTxs
+            unsafeRunExceptT $ putTxHistory db testWid (Map.fromList testTxs)
             destroyDBLayer ctx
-            testOpeningCleaning f (`readTxHistory` testWid) testTxs Map.empty
+            testOpeningCleaning f (`readTxHistory` testWid) testTxs mempty
 
         it "put and read checkpoint" $ \f -> do
             (ctx, db) <- newDBLayer' (Just f)
@@ -295,8 +295,8 @@ testMetadata = WalletMetadata
 testWid :: PrimaryKey WalletId
 testWid = PrimaryKey (WalletId (hash @ByteString "test"))
 
-testTxs :: Map.Map (Hash "Tx") (Tx, TxMeta)
-testTxs = Map.fromList
+testTxs :: [(Hash "Tx", (Tx, TxMeta))]
+testTxs =
     [ (Hash "tx2", (Tx [TxIn (Hash "tx1") 0] [TxOut (Address "addr") (Coin 1)]
       , TxMeta InLedger Incoming (SlotId 14 0) (Quantity 1337144))
       )

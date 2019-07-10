@@ -27,7 +27,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
-    ( Hash, Tx, TxMeta, WalletId, WalletMetadata )
+    ( Hash, Tx, TxMeta (slotId), WalletId, WalletMetadata )
 import Control.Concurrent.MVar
     ( MVar, modifyMVar, newMVar, readMVar, withMVar )
 import Control.DeepSeq
@@ -36,6 +36,8 @@ import Control.Monad
     ( (>=>) )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
+import Data.List
+    ( sortOn )
 import Data.Map.Strict
     ( Map )
 
@@ -121,8 +123,10 @@ newDBLayer = do
                         Right $ Just $ Database cp meta (txs' <> txs) k
             txs' `deepseq` alterMVar db alter key
 
-        , readTxHistory = \key ->
-            maybe mempty txHistory . Map.lookup key <$> readMVar db
+        , readTxHistory = \key -> let
+                sortedTxHistory = reverse . sortOn slot . Map.toList . txHistory
+                slot = slotId . snd . snd
+            in maybe mempty sortedTxHistory . Map.lookup key <$> readMVar db
 
         {-----------------------------------------------------------------------
                                        Keystore

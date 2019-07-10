@@ -169,13 +169,15 @@ simpleSpec = do
 
         it "put and read tx history" $ \db -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
-            runExceptT (putTxHistory db testPk testTxs) `shouldReturn` Right ()
+            runExceptT (putTxHistory db testPk (Map.fromList testTxs))
+                `shouldReturn` Right ()
             readTxHistory db testPk `shouldReturn` testTxs
 
         it "put and read tx history - regression case" $ \db -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
             unsafeRunExceptT $ createWallet db testPk1 testCp testMetadata
-            runExceptT (putTxHistory db testPk1 testTxs) `shouldReturn` Right ()
+            runExceptT (putTxHistory db testPk1 (Map.fromList testTxs))
+                `shouldReturn` Right ()
             runExceptT (removeWallet db testPk) `shouldReturn` Right ()
             readTxHistory db testPk1 `shouldReturn` testTxs
 
@@ -339,8 +341,8 @@ testPk = PrimaryKey testWid
 testPk1 :: PrimaryKey WalletId
 testPk1 = PrimaryKey testWid1
 
-testTxs :: Map.Map (Hash "Tx") (Tx, TxMeta)
-testTxs = Map.fromList
+testTxs :: [(Hash "Tx", (Tx, TxMeta))]
+testTxs =
     [ (Hash "tx2"
       , (Tx [TxIn (Hash "tx1") 0] [TxOut (Address "addr") (Coin 1)]
         , TxMeta InLedger Incoming (SlotId 14 0) (Quantity 1337144))) ]

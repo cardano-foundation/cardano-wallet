@@ -426,6 +426,8 @@ sqliteConnStr = maybe ":memory:" T.pack
 addIndexes :: SqlPersistT IO ()
 addIndexes = mapM_ (`rawExecute` [])
     [ createIndex "tx_meta_wallet_id" "tx_meta (wallet_id)"
+    -- Covers filtering and sorting (either direction) of tx history
+    , createIndex "tx_meta_slot" "tx_meta (slot ASC)"
     , createIndex "tx_in_tx_id" "tx_in (tx_id)"
     , createIndex "tx_out_tx_id" "tx_out (tx_id)"
     ]
@@ -522,7 +524,7 @@ checkpointFromEntity
     :: forall s t. (IsOurs s, NFData s, Show s, DefineTx t)
     => Checkpoint
     -> [UTxO]
-    -> Map (W.Hash "Tx") (W.Tx t, W.TxMeta)
+    -> [(W.Hash "Tx", (W.Tx t, W.TxMeta))]
     -> s
     -> W.Wallet s t
 checkpointFromEntity (Checkpoint _ slot (BlockId parentHeaderHash)) utxo txs =
@@ -532,7 +534,7 @@ checkpointFromEntity (Checkpoint _ slot (BlockId parentHeaderHash)) utxo txs =
         [ (W.TxIn input ix, W.TxOut addr coin)
         | UTxO _ _ (TxId input) ix addr coin <- utxo
         ]
-    pending = Set.fromList $ Map.elems txs
+    pending = Set.fromList $ map snd txs
 
 mkTxHistory
     :: forall t. PersistTx t
@@ -592,11 +594,11 @@ txHistoryFromEntity
     => [TxMeta]
     -> [TxIn]
     -> [TxOut]
-    -> Map (W.Hash "Tx") (W.Tx t, W.TxMeta)
-txHistoryFromEntity metas ins outs = Map.fromList
-    [ (getTxId (txMetaTableTxId m), (mkTxWith (txMetaTableTxId m), mkTxMeta m))
-    | m <- metas ]
+    -> [(W.Hash "Tx", (W.Tx t, W.TxMeta))]
+txHistoryFromEntity metas ins outs = map mkItem metas
   where
+    mkItem m = ( getTxId (txMetaTableTxId m)
+               , (mkTxWith (txMetaTableTxId m), mkTxMeta m) )
     mkTxWith txid = mkTx @t
         (map mkTxIn $ filter ((== txid) . txInputTableTxId) ins)
         (map mkTxOut $ filter ((== txid) . txOutputTableTxId) outs)
@@ -770,10 +772,11 @@ selectTxHistory
     :: forall t. PersistTx t
     => W.WalletId
     -> [Filter TxMeta]
-    -> SqlPersistT IO (Map (W.Hash "Tx") (W.Tx t, W.TxMeta))
+    -> SqlPersistT IO [(W.Hash "Tx", (W.Tx t, W.TxMeta))]
 selectTxHistory wid conditions = do
+    let opt = [Desc TxMetaTableSlotId] -- note: there is an index on this column
     metas <- fmap entityVal <$> selectList
-        ((TxMetaTableWalletId ==. wid) : conditions) []
+        ((TxMetaTableWalletId ==. wid) : conditions) opt
     let txids = map txMetaTableTxId metas
     (ins, outs) <- selectTxs txids
     pure $ txHistoryFromEntity @t metas ins outs
