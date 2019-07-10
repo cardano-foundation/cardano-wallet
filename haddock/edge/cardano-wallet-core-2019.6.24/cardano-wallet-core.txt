@@ -2382,7 +2382,7 @@ type PutWallet = "wallets" :> Capture "walletId" (ApiT WalletId) :> ReqBody '[JS
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/putWalletPassphrase</a>
 type PutWalletPassphrase = "wallets" :> Capture "walletId" (ApiT WalletId) :> "passphrase" :> ReqBody '[JSON] WalletPutPassphraseData :> PutNoContent '[Any] NoContent
-type Transactions t = CreateTransaction t :<|> PostTransactionFee t
+type Transactions t = CreateTransaction t :<|> ListTransactions t :<|> PostTransactionFee t
 
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransaction</a>
@@ -2392,8 +2392,38 @@ type CreateTransaction t = "wallets" :> Capture "walletId" (ApiT WalletId) :> "t
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransactionFee</a>
 type PostTransactionFee t = "wallets" :> Capture "walletId" (ApiT WalletId) :> "transactions" :> "fees" :> ReqBody '[JSON] (PostTransactionFeeData t) :> PostAccepted '[JSON] ApiFee
 
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/listTransaction</a>
+type ListTransactions t = "wallets" :> Capture "walletId" (ApiT WalletId) :> "transactions" :> Header "Range" (Iso8601Range "inserted-at") :> Get '[JSON] [ApiTransaction t]
+
 -- | Any media type
 data Any
+
+-- | A range of dates in ISO-8601 UTC format without symbols. Meant to be
+--   rendered as a HTTP <a>Header</a>, where the <tt>name</tt>
+--   type-parameter renders as a prefix, e.g.
+--   
+--   name 20190227T160329Z-*
+--   
+--   <a>Nothing</a> ("*") can be used instead of upper and/or lower
+--   boundary.
+--   
+--   <ul>
+--   <li>`20190227T160329Z-*`: means all transactions after 2019-02-27 T
+--   16:03:29Z (including)</li>
+--   <li>`*-20190227T160329Z`: means all transactions before 2019-02-27 T
+--   16:03:29Z (including)</li>
+--   <li><tt>*-*</tt>: means all transactions</li>
+--   <li>`20190227T000000Z-20200227T000000Z`: means all transaction between
+--   2019-02-27 and 2020-02-27, in ascending order.</li>
+--   <li>`20200227T000000Z-20190227T000000Z`: means all transaction between
+--   2020-02-27 and 2019-02-27, in descending order.</li>
+--   </ul>
+data Iso8601Range (name :: Symbol)
+Iso8601Range :: Maybe UTCTime -> Maybe UTCTime -> Iso8601Range
+instance GHC.Show.Show (Cardano.Wallet.Api.Iso8601Range name)
+instance Web.Internal.HttpApiData.FromHttpApiData (Cardano.Wallet.Api.Iso8601Range name)
+instance Web.Internal.HttpApiData.ToHttpApiData (Cardano.Wallet.Api.Iso8601Range name)
 instance Servant.API.ContentTypes.Accept Cardano.Wallet.Api.Any
 
 
