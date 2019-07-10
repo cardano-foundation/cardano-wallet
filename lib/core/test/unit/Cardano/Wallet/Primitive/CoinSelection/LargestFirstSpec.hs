@@ -153,6 +153,22 @@ spec = do
                 , txOutputs = 41 :| [6]
                 }
 
+        coinSelectionUnitTest largestFirst "each output needs <maxNumOfInputs"
+            (Left $ ErrMaximumInputsReached 9)
+            (CoinSelectionFixture
+                { maxNumOfInputs = 9
+                , utxoInputs = replicate 100 1
+                , txOutputs = NE.fromList (replicate 100 1)
+                })
+
+        coinSelectionUnitTest largestFirst "each output needs >maxNumInputs"
+            (Left $ ErrMaximumInputsReached 9)
+            (CoinSelectionFixture
+                { maxNumOfInputs = 9
+                , utxoInputs = replicate 100 1
+                , txOutputs = NE.fromList (replicate 10 10)
+                })
+
         coinSelectionUnitTest
             largestFirst
             "enough coins but, strict maximumNumberOfInputs"

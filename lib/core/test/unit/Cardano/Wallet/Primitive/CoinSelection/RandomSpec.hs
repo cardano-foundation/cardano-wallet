@@ -38,12 +38,11 @@ import Test.QuickCheck
     ( Property, property, (===), (==>) )
 
 import qualified Data.List as L
-
+import qualified Data.List.NonEmpty as NE
 
 spec :: Spec
 spec = do
     describe "Coin selection : random algorithm unit tests" $ do
-
         let oneAda = 1000000
 
         coinSelectionUnitTest random ""
@@ -151,12 +150,29 @@ spec = do
                 , txOutputs = 38 :| [1]
                 })
 
-        coinSelectionUnitTest random "" (Left $ ErrMaximumInputsReached 2) $
-            CoinSelectionFixture
-            { maxNumOfInputs = 2
-            , utxoInputs = [1,1,1,1,1,1]
-            , txOutputs = 3 :| []
-            }
+        coinSelectionUnitTest random ""
+            (Left $ ErrMaximumInputsReached 2)
+            (CoinSelectionFixture
+                { maxNumOfInputs = 2
+                , utxoInputs = [1,1,1,1,1,1]
+                , txOutputs = 3 :| []
+                })
+
+        coinSelectionUnitTest random "each output needs <maxNumOfInputs"
+            (Left $ ErrMaximumInputsReached 9)
+            (CoinSelectionFixture
+                { maxNumOfInputs = 9
+                , utxoInputs = replicate 100 1
+                , txOutputs = NE.fromList (replicate 100 1)
+                })
+
+        coinSelectionUnitTest random "each output needs >maxNumInputs"
+            (Left $ ErrMaximumInputsReached 9)
+            (CoinSelectionFixture
+                { maxNumOfInputs = 9
+                , utxoInputs = replicate 100 1
+                , txOutputs = NE.fromList (replicate 10 10)
+                })
 
         coinSelectionUnitTest random "" (Left $ ErrNotEnoughMoney 39 40) $
             CoinSelectionFixture
