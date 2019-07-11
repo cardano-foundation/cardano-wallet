@@ -21,7 +21,7 @@ module Cardano.Wallet
     (
     -- * Interface
       WalletLayer (..)
-    , SlotLength (..)
+    , BlockchainParameters (..)
 
     -- * Errors
     , ErrAdjustForFee (..)
@@ -108,6 +108,7 @@ import Cardano.Wallet.Primitive.Types
     , DefineTx (..)
     , Direction (..)
     , SlotId (..)
+    , SlotLength (..)
     , Tx (..)
     , TxMeta (..)
     , TxOut (..)
@@ -167,8 +168,6 @@ import Data.Text.Class
     ( toText )
 import Data.Time.Clock
     ( getCurrentTime )
-import Data.Word
-    ( Word8 )
 import Fmt
     ( Buildable, blockListF, pretty, (+|), (+||), (|+), (||+) )
 
@@ -364,25 +363,29 @@ cancelWorker (WorkerRegistry mvar) wid =
                                  Construction
 -------------------------------------------------------------------------------}
 
-newtype SlotLength = SlotLength (Quantity "second/slot" Word8)
-    deriving (Show, Eq)
+data BlockchainParameters t = BlockchainParameters
+    { genesisBlock :: Block (Tx t)
+        -- ^ Very first block
+    , feePolicy :: FeePolicy
+    , slotLength :: SlotLength
+    }
 
 -- | Create a new instance of the wallet layer.
 newWalletLayer
     :: forall s t. (Buildable (Tx t))
     => Trace IO Text
-    -> Block (Tx t)
-        -- ^ Very first block
-    -> FeePolicy
-    -> SlotLength
+    -> BlockchainParameters t
     -> DBLayer IO s t
     -> NetworkLayer t IO
     -> TransactionLayer t
     -> IO (WalletLayer s t)
-newWalletLayer tracer block0 feePolicy (SlotLength (Quantity slotLength)) db nw tl = do
+newWalletLayer
+    tracer
+    (BlockchainParameters block0 theFeePolicy (SlotLength (Quantity theSlotLength)))
+    db nw tl = do
     logDebugT $ "Wallet layer starting with: "
         <> "block0: "+| block0 |+ ", "
-        <> "fee policy: "+|| feePolicy ||+""
+        <> "fee policy: "+|| theFeePolicy ||+""
     registry <- newRegistry
     return WalletLayer
         { createWallet = _createWallet
@@ -543,7 +546,7 @@ newWalletLayer tracer block0 feePolicy (SlotLength (Quantity slotLength)) db nw 
         -> BlockHeader
         -> IO ()
     restoreSleep t wid slot = do
-        let halfSlotLengthDelay = 500000 * (fromIntegral slotLength) in threadDelay halfSlotLengthDelay
+        let halfSlotLengthDelay = 500000 * (fromIntegral theSlotLength) in threadDelay halfSlotLengthDelay
         runExceptT (networkTip nw) >>= \case
             Left e -> do
                 logError t $ "Failed to get network tip: " +|| e ||+ ""
@@ -653,6 +656,10 @@ newWalletLayer tracer block0 feePolicy (SlotLength (Quantity slotLength)) db nw 
             CoinSelection.random coinSelOpts recipients utxo
         logInfoT $ "Coins selected for transaction: \n"+| sel |+""
         withExceptT ErrCreateUnsignedTxFee $ do
+            let feeOpts = FeeOptions
+                    { estimate = computeFee theFeePolicy . estimateSize tl
+                    , dustThreshold = minBound
+                    }
             debug "Coins after fee adjustment" =<< adjustForFee feeOpts utxo' sel
 
     _estimateTxFee
@@ -664,8 +671,8 @@ newWalletLayer tracer block0 feePolicy (SlotLength (Quantity slotLength)) db nw 
         (w, _) <- withExceptT ErrEstimateTxFeeNoSuchWallet (_readWallet wid)
         let utxo = availableUTxO @s @t w
         (sel, _utxo') <- withExceptT ErrEstimateTxFeeCoinSelection $
-            CoinSelection.random coinSelOpts recipients utxo
-        let estimateFee = computeFee feePolicy . estimateSize tl
+            CoinSelection.random opts recipients utxo
+        let estimateFee = computeFee theFeePolicy . estimateSize tl
         pure $ estimateFee sel
 
     _signTx

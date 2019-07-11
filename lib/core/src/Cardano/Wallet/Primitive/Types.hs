@@ -66,6 +66,7 @@ module Cardano.Wallet.Primitive.Types
 
     -- * Slotting
     , SlotId (..)
+    , SlotLength (..)
     , slotRatio
     , flatSlot
     , fromFlatSlot
@@ -130,7 +131,7 @@ import Data.Text.Class
 import Data.Time
     ( UTCTime )
 import Data.Word
-    ( Word16, Word32, Word64 )
+    ( Word16, Word32, Word64, Word8 )
 import Fmt
     ( Buildable (..)
     , blockListF
@@ -703,6 +704,9 @@ fromFlatSlot n = SlotId e (fromIntegral s)
 
 epochLength :: Integral a => a
 epochLength = 21600
+
+newtype SlotLength = SlotLength (Quantity "second/slot" Word8)
+    deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
                                Polymorphic Types

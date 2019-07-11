@@ -16,13 +16,11 @@ import Cardano.BM.Trace
 import Cardano.Launcher
     ( Command (Command), StdStream (..), installSignalHandlers, launch )
 import Cardano.Wallet
-    ( WalletLayer (..), newWalletLayer )
+    ( BlockchainParameters (..), WalletLayer (..), newWalletLayer )
 import Cardano.Wallet.DB.Sqlite
     ( PersistState )
-import Cardano.Wallet.HttpBridge.Binary
-    ( slotLength )
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge, block0, byronFeePolicy )
+    ( HttpBridge, block0, byronFeePolicy, byronSlotLength )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.HttpBridge.Network
@@ -214,7 +212,10 @@ bench_restoration _ (wid, wname, s) = withHttpBridge network $ \port -> do
     let tl = newTransactionLayer
     BlockHeader sl _ <- unsafeRunExceptT $ networkTip nw
     sayErr . fmt $ network ||+ " tip is at " +|| sl ||+ ""
-    w <- newWalletLayer @_ @t nullTracer block0 byronFeePolicy slotLength db nw tl
+    w <- newWalletLayer
+        @_ @t nullTracer
+        (BlockchainParameters block0 byronFeePolicy byronSlotLength)
+        db nw tl
     wallet <- unsafeRunExceptT $ createWallet w wid wname s
     unsafeRunExceptT $ restoreWallet w wallet
     waitForWalletSync w wallet

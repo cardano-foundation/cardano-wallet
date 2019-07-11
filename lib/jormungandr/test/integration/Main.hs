@@ -27,7 +27,7 @@ import Cardano.Faucet
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
-    ( SlotLength, newWalletLayer )
+    ( BlockchainParameters (..), newWalletLayer )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.DB.Sqlite
@@ -187,7 +187,7 @@ cardanoWalletServer mlisten = do
     mvar <- newEmptyMVar
     handle <- async $ do
         let tl = Jormungandr.newTransactionLayer block0H
-        wallet <- newWalletLayer tracer block0 feePolicy slotLength db nl tl
+        wallet <- newWalletLayer tracer (BlockchainParameters block0 feePolicy slotLength) db nl tl
         let listen = fromMaybe (ListenOnPort defaultPort) mlisten
         Server.withListeningSocket listen $ \(port, socket) -> do
             let settings = Warp.defaultSettings

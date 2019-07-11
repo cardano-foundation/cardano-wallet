@@ -60,7 +60,7 @@ import Cardano.CLI
 import Cardano.Launcher
     ( Command (Command), StdStream (..) )
 import Cardano.Wallet
-    ( WalletLayer )
+    ( BlockchainParameters (..), WalletLayer )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.DaedalusIPC
@@ -344,12 +344,12 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
             -> DBLayer IO s t
             -> IO (WalletLayer s t)
         newWalletLayer (sb, tracer) db = do
-            (nl, block0, feePolicy) <- newNetworkLayer (sb, tracer)
+            (nl, block0, theFeePolicy) <- newNetworkLayer (sb, tracer)
             let tl = Jormungandr.newTransactionLayer @n block0H
             let url = BaseUrl Http "localhost" (getPort nodePort) "/api"
             mgr <- newManager defaultManagerSettings
             let jor = Jormungandr.mkJormungandrLayer mgr url
-            slotLength <-
+            theSlotLength <-
                 runExceptT (Jormungandr.getInitialSlotDuration jor (coerce block0H)) >>= \case
                 Right a -> return a
                 Left (ErrGetInitialSlotDurationNetworkUnreachable _) ->
@@ -358,7 +358,8 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
                     handleGenesisNotFound (sb, tracer)
                 Left (ErrGetInitialSlotDurationNoInitialPolicy _) ->
                     handleNoInitialPolicy tracer
-            Wallet.newWalletLayer tracer block0 feePolicy slotLength db nl tl
+            Wallet.newWalletLayer
+                tracer (BlockchainParameters block0 theFeePolicy theSlotLength) db nl tl
 
         newNetworkLayer
             :: (Switchboard Text, Trace IO Text)
@@ -376,7 +377,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
                     handleNetworkUnreachable tracer
                 Left (ErrGetBlockNotFound _) ->
                     handleGenesisNotFound (sb, tracer)
-            feePolicy <- runExceptT (getInitialFeePolicy jor (coerce block0H)) >>= \case
+            theFeePolicy <- runExceptT (getInitialFeePolicy jor (coerce block0H)) >>= \case
                 Right a -> return a
                 Left (ErrGetInitialFeePolicyNetworkUnreachable _) ->
                     handleNetworkUnreachable tracer
@@ -384,7 +385,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
                     handleGenesisNotFound (sb, tracer)
                 Left (ErrGetInitialFeePolicyNoInitialPolicy _) ->
                     handleNoInitialPolicy tracer
-            return (nl, block0, feePolicy)
+            return (nl, block0, theFeePolicy)
 
         withDBLayer
             :: CM.Configuration

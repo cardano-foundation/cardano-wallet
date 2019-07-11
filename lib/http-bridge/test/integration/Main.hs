@@ -20,15 +20,13 @@ import Cardano.Faucet
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
-    ( newWalletLayer )
+    ( BlockchainParameters (..), newWalletLayer )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.DB.Sqlite
     ( SqliteContext )
-import Cardano.Wallet.HttpBridge.Binary
-    ( slotLength )
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge, block0, byronFeePolicy )
+    ( HttpBridge, block0, byronFeePolicy, byronSlotLength )
 import Cardano.Wallet.HttpBridge.Environment
     ( Network (..) )
 import Cardano.Wallet.Network
@@ -267,7 +265,9 @@ main = do
         thread <- forkIO $ do
             let tl = HttpBridge.newTransactionLayer
             wallet <-
-                newWalletLayer nullTracer block0 byronFeePolicy slotLength db nl tl
+                newWalletLayer
+                nullTracer (BlockchainParameters block0 byronFeePolicy byronSlotLength)
+                db nl tl
             let listen = fromMaybe (ListenOnPort defaultPort) mlisten
             Server.withListeningSocket listen $ \(port, socket) -> do
                 let settings = Warp.defaultSettings

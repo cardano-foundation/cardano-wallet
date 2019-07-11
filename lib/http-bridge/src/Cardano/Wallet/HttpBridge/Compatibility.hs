@@ -19,6 +19,7 @@ module Cardano.Wallet.HttpBridge.Compatibility
     , Network (..)
     , block0
     , byronFeePolicy
+    , byronSlotLength
     ) where
 
 import Prelude
@@ -44,6 +45,7 @@ import Cardano.Wallet.Primitive.Types
     , EncodeAddress (..)
     , Hash (..)
     , SlotId (..)
+    , SlotLength (..)
     , Tx (..)
     )
 import Crypto.Hash
@@ -154,3 +156,8 @@ block0 = Block
 -- | Hard-coded fee policy for Cardano on Byron
 byronFeePolicy :: FeePolicy
 byronFeePolicy = LinearFee (Quantity 155381) (Quantity 43.946)
+
+
+-- | Hard-coded slot duration
+byronSlotLength :: SlotLength
+byronSlotLength = SlotLength $ Quantity 20

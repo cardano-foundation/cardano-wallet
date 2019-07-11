@@ -38,8 +38,6 @@ module Cardano.Wallet.Jormungandr.Network
 
 import Prelude
 
-import Cardano.Wallet
-    ( SlotLength (..) )
 import Cardano.Wallet.Jormungandr.Api
     ( BlockId (..)
     , GetBlock
@@ -64,7 +62,12 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), Hash (..), TxWitness (..) )
+    ( Block (..)
+    , BlockHeader (..)
+    , Hash (..)
+    , SlotLength (..)
+    , TxWitness (..)
+    )
 import Control.Arrow
     ( left )
 import Control.Exception

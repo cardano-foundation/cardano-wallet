@@ -17,13 +17,13 @@ import Prelude
 import Cardano.BM.Trace
     ( nullTracer )
 import Cardano.Wallet
-    ( ErrCreateUnsignedTx (..)
+    ( BlockchainParameters (..)
+    , ErrCreateUnsignedTx (..)
     , ErrSignTx (..)
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
     , ErrWithRootKey (..)
     , ErrWithRootKey (..)
-    , SlotLength (..)
     , WalletLayer (..)
     , newWalletLayer
     )
@@ -65,6 +65,7 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , Hash (..)
     , SlotId (..)
+    , SlotLength (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -373,9 +374,7 @@ setupFixture (wid, wname, wstate) = do
         @_
         @DummyTarget
         nullTracer
-        block0
-        dummyPolicy
-        dummySlotLength
+        (BlockchainParameters block0 dummyPolicy dummySlotLength)
         db
         nl
         tl

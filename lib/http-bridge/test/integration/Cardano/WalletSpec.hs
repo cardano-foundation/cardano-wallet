@@ -13,11 +13,9 @@ import Cardano.BM.Trace
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
-    ( WalletLayer (..), newWalletLayer )
-import Cardano.Wallet.HttpBridge.Binary
-    ( slotLength )
+    ( BlockchainParameters (..), WalletLayer (..), newWalletLayer )
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge, block0, byronFeePolicy )
+    ( HttpBridge, block0, byronFeePolicy, byronSlotLength )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -85,4 +83,4 @@ spec = do
         let tl = HttpBridge.newTransactionLayer
         (handle,) <$>
             (newWalletLayer @_ @(HttpBridge 'Testnet)
-                nullTracer block0 byronFeePolicy slotLength db nl tl)
+                nullTracer (BlockchainParameters block0 byronFeePolicy byronSlotLength) db nl tl)
