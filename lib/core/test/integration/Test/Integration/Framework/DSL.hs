@@ -94,6 +94,7 @@ module Test.Integration.Framework.DSL
     , listAddressesViaCLI
     , listWalletsViaCLI
     , updateWalletNameViaCLI
+    , updateWalletPassphraseViaCLI
     , postTransactionViaCLI
     , postTransactionFeeViaCLI
     ) where
@@ -901,6 +902,36 @@ updateWalletNameViaCLI
     -> IO r
 updateWalletNameViaCLI ctx args = cardanoWalletCLI @t
     (["wallet", "update", "name", "--port", show (ctx ^. typed @Port)] ++ args)
+
+updateWalletPassphraseViaCLI
+    :: forall t s. (KnownCommand t, HasType Port s)
+    => s
+    -> String
+        -- ^ Wallet id
+    -> String
+        -- ^ Old passphrase
+    -> String
+        -- ^ New passphrase
+    -> String
+        -- ^ New passphrase (repeated for confirmation)
+    -> IO (ExitCode, Text, Text)
+updateWalletPassphraseViaCLI ctx wid ppOld ppNew ppNewConfirm = do
+    let process = proc' (commandName @t)
+            [ "wallet", "update", "passphrase"
+            , "--port", show (ctx ^. typed @Port)
+            , wid
+            ]
+    withCreateProcess process $
+        \(Just stdin) (Just stdout) (Just stderr) h -> do
+            hPutStr stdin (ppOld <> "\n")
+            hPutStr stdin (ppNew <> "\n")
+            hPutStr stdin (ppNewConfirm <> "\n")
+            hFlush stdin
+            hClose stdin
+            c <- waitForProcess h
+            out <- TIO.hGetContents stdout
+            err <- TIO.hGetContents stderr
+            pure (c, out, err)
 
 postTransactionViaCLI
     :: forall t s. (HasType Port s, KnownCommand t)

@@ -61,6 +61,7 @@ import Test.Integration.Framework.DSL
     , postTransactionViaCLI
     , state
     , updateWalletNameViaCLI
+    , updateWalletPassphraseViaCLI
     , verify
     , walletId
     , walletName
@@ -382,6 +383,61 @@ spec = do
             err `shouldBe` cmdOk
             j <- expectValidJSON (Proxy @ApiWallet) out
             expectCliFieldEqual walletName (T.pack n) j
+
+    it "WALLETS_UPDATE_PASSPHRASE_01 - \
+        \Can update passphrase normally"
+        $ \ctx -> do
+            let name = "name"
+            let ppOld = "old secure passphrase"
+            let ppNew = "new secure passphrase"
+            wid <- emptyWalletWith' ctx (name, T.pack ppOld, addressPoolGapMin)
+            (exitCode, out, err) <-
+                updateWalletPassphraseViaCLI @t ctx wid ppOld ppNew ppNew
+            out `shouldBe` "\n"
+            T.unpack err `shouldContain` cmdOk
+            exitCode `shouldBe` ExitSuccess
+
+    it "WALLETS_UPDATE_PASSPHRASE_02 - \
+        \Cannot update passphrase if new passphrase is too short"
+        $ \ctx -> do
+            let name = "name"
+            let ppOld = "old secure passphrase"
+            let ppNew = take (passphraseMinLength - 1) ['0' ..]
+            wid <- emptyWalletWith' ctx (name, T.pack ppOld, addressPoolGapMin)
+            (exitCode, out, err) <-
+                updateWalletPassphraseViaCLI @t ctx wid ppOld ppNew ppNew
+            out `shouldBe` mempty
+            T.unpack err `shouldContain` "passphrase is too short"
+            exitCode `shouldBe` ExitFailure 1
+
+    it "WALLETS_UPDATE_PASSPHRASE_03 - \
+        \Cannot update passphrase if new passphrase is not confirmed correctly"
+        $ \ctx -> do
+            let name = "name"
+            let ppOld = "old secure passphrase"
+            let ppNew1 = "new secure passphrase 1"
+            let ppNew2 = "new secure passphrase 2"
+            wid <- emptyWalletWith' ctx (name, T.pack ppOld, addressPoolGapMin)
+            (exitCode, out, err) <-
+                updateWalletPassphraseViaCLI @t ctx wid ppOld ppNew1 ppNew2
+            out `shouldBe` mempty
+            T.unpack err `shouldContain` "Passphrases don't match"
+            exitCode `shouldBe` ExitFailure 1
+
+    it "WALLETS_UPDATE_PASSPHRASE_04 - \
+        \Cannot update passphrase if original passphrase is entered incorrectly"
+        $ \ctx -> do
+            let name = "name"
+            let ppOldRight = "right secure passphrase"
+            let ppOldWrong = "wrong secure passphrase"
+            let ppNew = "new secure passphrase"
+            wid <- emptyWalletWith' ctx
+                (name, T.pack ppOldRight, addressPoolGapMin)
+            (exitCode, out, err) <-
+                updateWalletPassphraseViaCLI @t ctx wid ppOldWrong ppNew ppNew
+            out `shouldBe` mempty
+            T.unpack err `shouldContain` "passphrase doesn't match"
+            exitCode `shouldBe` ExitFailure 1
 
     it "WALLETS_DELETE_01, WALLETS_LIST_02 - Can delete wallet" $ \ctx -> do
         walId <- emptyWallet' ctx
