@@ -21,9 +21,12 @@ module Cardano.Wallet.Jormungandr.Network
     , JormungandrLayer (..)
     , mkJormungandrLayer
 
-    -- * Exception
+    -- * Exceptions
     , ErrUnexpectedNetworkFailure (..)
+
+    -- * Errors
     , ErrGetInitialFeePolicy (..)
+    , ErrGetDescendants (..)
 
     -- * Re-export
     , BaseUrl (..)

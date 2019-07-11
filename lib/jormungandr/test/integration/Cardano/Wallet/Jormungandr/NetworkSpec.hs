@@ -18,7 +18,11 @@ import Cardano.Wallet.Jormungandr.Api
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, Network (..), block0 )
 import Cardano.Wallet.Jormungandr.Network
-    ( BaseUrl (..), ErrUnexpectedNetworkFailure (..), Scheme (..) )
+    ( BaseUrl (..)
+    , ErrGetDescendants (..)
+    , ErrUnexpectedNetworkFailure (..)
+    , Scheme (..)
+    )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Network
@@ -55,7 +59,7 @@ import Control.Monad.Trans.Except
 import Control.Retry
     ( limitRetries, retrying )
 import Data.Either
-    ( isLeft, isRight )
+    ( isRight )
 import Data.Functor
     ( ($>) )
 import Data.Proxy
@@ -181,7 +185,11 @@ spec = do
             let jml = Jormungandr.mkJormungandrLayer mgr url
             let nonexistent = Hash "cat"
             res <- runExceptT (Jormungandr.getDescendantIds jml nonexistent 42)
-            res `shouldSatisfy` isLeft
+            res `shouldSatisfy` \case
+                Left (ErrGetDescendantsParentNotFound _) -> True
+                Left (ErrGetDescendantsNetworkUnreachable _) -> False
+                Right _ -> False
+
 
     -- NOTE: 'Right ()' just means that the format wasn't obviously wrong.
     -- The tx may still be rejected.
