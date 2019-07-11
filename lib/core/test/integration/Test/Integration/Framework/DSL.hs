@@ -636,11 +636,10 @@ fixtureNInputs ctx (n, amt) = do
     let addrIds = view #id <$> take n (addrs1 ++ addrs2 ++ addrs3)
     -- when sending to everything to one address - it worked
     -- let addrIdRepl = replicate n addrIds !! 0
-    let amounts = take n [1, 1..] :: [Natural]
-    let payments = flip map (zip amounts addrIds) $ \(coin, addr) -> [aesonQQ|{
+    let payments = flip map addrIds $ \addr -> [aesonQQ|{
             "address": #{addr},
             "amount": {
-                "quantity": #{coin},
+                "quantity": 1,
                 "unit": "lovelace"
             }
         }|]

@@ -76,22 +76,18 @@ spec = do
             , expectErrorMessage errMsg403CannotEstimateFee
             ]
 
-    it "TRANS_CREATE_10 - Cannot post tx when max tx size reached" $ \ctx -> do
+    it "TRANS_CREATE_10, TRANS_ESTIMATE_10 - Cannot post tx when max tx size reached" $ \ctx -> do
         (wSrc, _, payload) <- fixtureMaxTxSize ctx (46, 1_000_000) 45_000_000
         tx <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        fee <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
         verify tx
             [ expectResponseCode HTTP.status403
             , expectErrorMessage (errMsg403TxTooBig 10)
             ]
-
-    it "TRANS_ESTIMATE_10 - Cannot estimate fee when max tx size reached" $ \ctx -> do
-        (wSrc, _, payload) <- fixtureMaxTxSize ctx (46, 1_000_000) 45_000_000
-        fee <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
         verify fee
             [ expectResponseCode HTTP.status403
             , expectErrorMessage (errMsg403TxTooBig 10)
             ]
-
   where
     fixtureZeroAmtSingle ctx = do
         wSrc <- fixtureWallet ctx
