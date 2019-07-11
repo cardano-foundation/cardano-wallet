@@ -40,6 +40,8 @@ import Data.List
     ( sortOn )
 import Data.Map.Strict
     ( Map )
+import Data.Ord
+    ( Down (..) )
 
 import qualified Data.Map.Strict as Map
 
@@ -124,8 +126,8 @@ newDBLayer = do
             txs' `deepseq` alterMVar db alter key
 
         , readTxHistory = \key -> let
-                sortedTxHistory = reverse . sortOn slot . Map.toList . txHistory
-                slot = slotId . snd . snd
+                sortedTxHistory = sortOn slot . Map.toList . txHistory
+                slot = Down . slotId . snd . snd
             in maybe mempty sortedTxHistory . Map.lookup key <$> readMVar db
 
         {-----------------------------------------------------------------------

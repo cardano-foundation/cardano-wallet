@@ -102,6 +102,8 @@ import Data.Functor
     ( ($>) )
 import Data.Functor.Identity
     ( Identity (..) )
+import Data.Ord
+    ( Down (..) )
 import Data.Quantity
     ( Percentage, Quantity (..), mkPercentage )
 import Data.Typeable
@@ -191,7 +193,7 @@ type TxHistory = [(Hash "Tx", (Tx, TxMeta))]
 
 -- | Apply the default sort order (descending on time) to a 'TxHistory'.
 sortTxHistory :: TxHistory -> TxHistory
-sortTxHistory = reverse . L.sortOn (slotId . snd . snd)
+sortTxHistory = L.sortOn (Down . slotId . snd . snd)
 
 newtype KeyValPairs k v = KeyValPairs [(k, v)]
     deriving (Generic, Show, Eq)
