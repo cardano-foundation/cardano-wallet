@@ -512,6 +512,7 @@ cmdTransaction = command "transaction" $ info (helper <*> cmds) mempty
     cmds = subparser $ mempty
         <> cmdTransactionCreate @t
         <> cmdTransactionFees @t
+        <> cmdTransactionList @t
 
 -- | Arguments for 'transaction create' command
 data TransactionCreateArgs t = TransactionCreateArgs
@@ -562,6 +563,33 @@ cmdTransactionFees = command "fees" $ info (helper <*> cmd) $ mempty
                     (PostTransactionFeeData wPayments)
             Left _ ->
                 handleResponse Aeson.encodePretty res
+
+-- | Arguments for 'transaction list' command.
+data TransactionListArgs = TransactionListArgs
+    { _port :: Port "Wallet"
+    , _walletId :: WalletId
+    , _timeAfter :: Maybe Iso8601Time
+    , _timeBefore :: Maybe Iso8601Time
+    }
+
+cmdTransactionList
+    :: forall t. (DecodeAddress t, EncodeAddress t)
+    => Mod CommandFields (IO ())
+cmdTransactionList = command "list" $ info (helper <*> cmd) $ mempty
+    <> progDesc "List the transactions associated with a wallet."
+  where
+    cmd = fmap exec $ TransactionListArgs
+        <$> portOption
+        <*> walletIdArgument
+        <*> optional timeAfterOption
+        <*> optional timeBeforeOption
+    exec (TransactionListArgs wPort wId mTimeAfter mTimeBefore) =
+        runClient wPort Aeson.encodePretty $ listTransactions
+            (walletClient @t)
+            (ApiT wId)
+            (pure $ Iso8601Range
+                (getIso8601Time <$> mTimeAfter)
+                (getIso8601Time <$> mTimeBefore))
 
 {-------------------------------------------------------------------------------
                             Commands - 'address'
@@ -719,6 +747,22 @@ stateDirOption backendDir = optional $ strOption $ mempty
         ])
   where
     defaultDir = backendDir </> "NETWORK"
+
+-- | [--after=TIME]
+timeAfterOption :: Parser Iso8601Time
+timeAfterOption = optionT $ mempty
+    <> long "after"
+    <> metavar "TIME"
+    <> help "specifies an earliest time"
+    <> showDefaultWith showT
+
+-- | [--before=TIME]
+timeBeforeOption :: Parser Iso8601Time
+timeBeforeOption = optionT $ mempty
+    <> long "before"
+    <> metavar "TIME"
+    <> help "specifies a latest time"
+    <> showDefaultWith showT
 
 -- | [(--quiet|--verbose)]
 verbosityOption :: Parser Verbosity
