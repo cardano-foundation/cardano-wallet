@@ -373,7 +373,7 @@ spec = do
             , expectCliListItemFieldEqual 2 walletId (T.pack w3)
             ]
 
-    describe "WALLETS_UPDATE_NAME_01,02 - Can update wallet name" $ do
+    describe "WALLETS_UPDATE_01,02 - Can update wallet name" $ do
         forM_ walletNames $ \(title, n) -> it title $ \ctx -> do
             wid <- emptyWallet' ctx
             let args = [wid, n]
@@ -384,7 +384,7 @@ spec = do
             j <- expectValidJSON (Proxy @ApiWallet) out
             expectCliFieldEqual walletName (T.pack n) j
 
-    it "WALLETS_UPDATE_PASSPHRASE_01 - \
+    it "WALLETS_UPDATE_PASS_01 - \
         \Can update passphrase normally"
         $ \ctx -> do
             let name = "name"
@@ -397,7 +397,7 @@ spec = do
             T.unpack err `shouldContain` cmdOk
             exitCode `shouldBe` ExitSuccess
 
-    it "WALLETS_UPDATE_PASSPHRASE_02 - \
+    it "WALLETS_UPDATE_PASS_02 - \
         \Cannot update passphrase if new passphrase is too short"
         $ \ctx -> do
             let name = "name"
@@ -410,7 +410,7 @@ spec = do
             T.unpack err `shouldContain` "passphrase is too short"
             exitCode `shouldBe` ExitFailure 1
 
-    it "WALLETS_UPDATE_PASSPHRASE_03 - \
+    it "WALLETS_UPDATE_PASS_02 - \
         \Cannot update passphrase if new passphrase is not confirmed correctly"
         $ \ctx -> do
             let name = "name"
@@ -424,7 +424,7 @@ spec = do
             T.unpack err `shouldContain` "Passphrases don't match"
             exitCode `shouldBe` ExitFailure 1
 
-    it "WALLETS_UPDATE_PASSPHRASE_04 - \
+    it "WALLETS_UPDATE_PASS_03 - \
         \Cannot update passphrase if original passphrase is entered incorrectly"
         $ \ctx -> do
             let name = "name"
