@@ -7,6 +7,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -22,20 +23,21 @@ module Cardano.Wallet
       WalletLayer (..)
 
     -- * Errors
+    , ErrAdjustForFee (..)
+    , ErrCoinSelection (..)
     , ErrCreateUnsignedTx (..)
     , ErrEstimateTxFee (..)
+    , ErrMkStdTx (..)
+    , ErrNetworkUnreachable (..)
     , ErrNoSuchWallet (..)
+    , ErrPostTx (..)
     , ErrSignTx (..)
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
+    , ErrValidateSelection
     , ErrWalletAlreadyExists (..)
     , ErrWithRootKey (..)
     , ErrWrongPassphrase (..)
-    , ErrMkStdTx (..)
-    , ErrPostTx (..)
-    , ErrNetworkUnreachable (..)
-    , ErrCoinSelection (..)
-    , ErrAdjustForFee (..)
 
     -- * Construction
     , newWalletLayer
@@ -73,7 +75,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..)
-    , CoinSelectionOptions
+    , CoinSelectionOptions (..)
     , ErrCoinSelection (..)
     , shuffle
     )
@@ -119,7 +121,7 @@ import Cardano.Wallet.Primitive.Types
     , slotRatio
     )
 import Cardano.Wallet.Transaction
-    ( ErrMkStdTx (..), TransactionLayer (..) )
+    ( ErrMkStdTx (..), ErrValidateSelection, TransactionLayer (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Arrow
@@ -235,22 +237,20 @@ data WalletLayer s t = WalletLayer
         -- are ordered from the most recently discovered to the oldest known.
 
     , createUnsignedTx
-        :: (DefineTx t)
+        :: forall e. (DefineTx t, e ~ ErrValidateSelection t)
         => WalletId
-        -> CoinSelectionOptions
         -> NonEmpty TxOut
-        -> ExceptT ErrCreateUnsignedTx IO CoinSelection
+        -> ExceptT (ErrCreateUnsignedTx e) IO CoinSelection
         -- ^ Prepare a transaction and automatically select inputs from the
         -- wallet to cover the requested outputs. Note that this only run the
         -- coin selection for the given outputs. In order to construct (and
         -- sign) an actual transaction, have a look at 'signTx'.
 
     , estimateTxFee
-        :: (DefineTx t)
+        :: forall e. (DefineTx t, e ~ ErrValidateSelection t)
         => WalletId
-        -> CoinSelectionOptions
         -> NonEmpty TxOut
-        -> ExceptT ErrEstimateTxFee IO Fee
+        -> ExceptT (ErrEstimateTxFee e) IO Fee
         -- ^ Estimate a transaction fee by automatically selecting inputs from the
         -- wallet to cover the requested outputs.
 
@@ -292,16 +292,16 @@ data WalletLayer s t = WalletLayer
     }
 
 -- | Errors occuring when creating an unsigned transaction
-data ErrCreateUnsignedTx
+data ErrCreateUnsignedTx e
     = ErrCreateUnsignedTxNoSuchWallet ErrNoSuchWallet
-    | ErrCreateUnsignedTxCoinSelection ErrCoinSelection
+    | ErrCreateUnsignedTxCoinSelection (ErrCoinSelection e)
     | ErrCreateUnsignedTxFee ErrAdjustForFee
     deriving (Show, Eq)
 
 -- | Errors occuring when estimating transaction fee
-data ErrEstimateTxFee
+data ErrEstimateTxFee e
     = ErrEstimateTxFeeNoSuchWallet ErrNoSuchWallet
-    | ErrEstimateTxFeeCoinSelection ErrCoinSelection
+    | ErrEstimateTxFeeCoinSelection (ErrCoinSelection e)
     deriving (Show, Eq)
 
 -- | Errors occuring when signing a transaction
@@ -621,37 +621,43 @@ newWalletLayer tracer block0 feePolicy db nw tl = do
                                     Transactions
     ---------------------------------------------------------------------------}
 
+    -- FIXME Compute the options based on the transaction's size / inputs
+    coinSelOpts :: CoinSelectionOptions (ErrValidateSelection t)
+    coinSelOpts = CoinSelectionOptions
+        { maximumNumberOfInputs = 10
+        , validate = validateSelection tl
+        }
+
+    feeOpts :: FeeOptions
+    feeOpts = FeeOptions
+            { estimate = computeFee feePolicy . estimateSize tl
+            , dustThreshold = minBound
+            }
+
     _createUnsignedTx
-        :: DefineTx t
+        :: forall e. (DefineTx t, e ~ ErrValidateSelection t)
         => WalletId
-        -> CoinSelectionOptions
         -> NonEmpty TxOut
-        -> ExceptT ErrCreateUnsignedTx IO CoinSelection
-    _createUnsignedTx wid opts recipients = do
+        -> ExceptT (ErrCreateUnsignedTx e) IO CoinSelection
+    _createUnsignedTx wid recipients = do
         (w, _) <- withExceptT ErrCreateUnsignedTxNoSuchWallet (_readWallet wid)
         let utxo = availableUTxO @s @t w
         (sel, utxo') <- withExceptT ErrCreateUnsignedTxCoinSelection $
-            CoinSelection.random opts recipients utxo
+            CoinSelection.random coinSelOpts recipients utxo
         logInfoT $ "Coins selected for transaction: \n"+| sel |+""
         withExceptT ErrCreateUnsignedTxFee $ do
-            let feeOpts = FeeOptions
-                    { estimate = computeFee feePolicy . estimateSize tl
-                    , dustThreshold = minBound
-                    }
             debug "Coins after fee adjustment" =<< adjustForFee feeOpts utxo' sel
 
-
     _estimateTxFee
-        :: DefineTx t
+        :: forall e. (DefineTx t, e ~ ErrValidateSelection t)
         => WalletId
-        -> CoinSelectionOptions
         -> NonEmpty TxOut
-        -> ExceptT ErrEstimateTxFee IO Fee
-    _estimateTxFee wid opts recipients = do
+        -> ExceptT (ErrEstimateTxFee e) IO Fee
+    _estimateTxFee wid recipients = do
         (w, _) <- withExceptT ErrEstimateTxFeeNoSuchWallet (_readWallet wid)
         let utxo = availableUTxO @s @t w
         (sel, _utxo') <- withExceptT ErrEstimateTxFeeCoinSelection $
-            CoinSelection.random opts recipients utxo
+            CoinSelection.random coinSelOpts recipients utxo
         let estimateFee = computeFee feePolicy . estimateSize tl
         pure $ estimateFee sel
 

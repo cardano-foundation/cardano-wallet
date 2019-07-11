@@ -89,6 +89,7 @@ import qualified Cardano.Wallet.Jormungandr.NetworkSpec as Network
 import qualified Cardano.Wallet.Jormungandr.Transaction as Jormungandr
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
+import qualified Test.Integration.Jormungandr.Scenario.API.Transactions as TransactionsJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Launcher as LauncherCLI
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Server as ServerCLI
 import qualified Test.Integration.Scenario.API.Addresses as Addresses
@@ -116,6 +117,8 @@ main = hspec $ do
         -- API e2e Testing
         describe "Addresses API endpoint tests" Addresses.spec
         describe "Transactions API endpoint tests" Transactions.spec
+        describe "Transactions API endpoint tests (Jormungandr specific)"
+            (TransactionsJormungandr.spec @t)
         describe "Wallets API endpoint tests" Wallets.spec
         -- Command-Line e2e Testing
         describe "Addresses CLI tests" (AddressesCLI.spec @t)

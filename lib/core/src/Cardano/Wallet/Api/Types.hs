@@ -206,6 +206,7 @@ data ApiErrorCode
     | TransactionIsTooBig
     | InputsDepleted
     | CannotCoverFee
+    | InvalidCoinSelection
     | NetworkUnreachable
     | CreatedInvalidTransaction
     | RejectedByCoreNode

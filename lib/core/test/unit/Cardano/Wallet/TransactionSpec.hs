@@ -15,7 +15,6 @@ spec :: Spec
 spec =
     describe "Pointless tests to cover 'Show' instances for errors" $ do
         testShow $ ErrKeyNotFoundForAddress $ Address mempty
-        testShow ErrInvalidTx
 
 testShow :: Show a => a -> Spec
 testShow a = it (show a) True

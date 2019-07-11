@@ -4,6 +4,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.HttpBridge.Transaction
     ( newTransactionLayer
@@ -40,7 +41,11 @@ import Cardano.Wallet.Primitive.Types
     , txId
     )
 import Cardano.Wallet.Transaction
-    ( ErrMkStdTx (..), TransactionLayer (..), estimateMaxNumberOfInputsBase )
+    ( ErrMkStdTx (..)
+    , ErrValidateSelection
+    , TransactionLayer (..)
+    , estimateMaxNumberOfInputsBase
+    )
 import Control.Monad
     ( forM, when )
 import Data.ByteString
@@ -49,6 +54,8 @@ import Data.Either.Combinators
     ( maybeToRight )
 import Data.Quantity
     ( Quantity (..) )
+import Fmt
+    ( Buildable (..) )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.HttpBridge.Binary as CBOR
@@ -65,8 +72,6 @@ newTransactionLayer = TransactionLayer
     { mkStdTx = \keyFrom inps outs -> do
         let ins = (fmap fst inps)
         let tx = Tx ins outs
-        when (any (\ (TxOut _ c) -> c == Coin 0) outs)
-            $ Left ErrInvalidTx
         let txSigData = txId @(HttpBridge n) tx
         txWitnesses <- forM inps $ \(_in, TxOut addr _c) -> mkWitness txSigData
             <$> maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
@@ -88,6 +93,9 @@ newTransactionLayer = TransactionLayer
     , estimateMaxNumberOfInputs =
         estimateMaxNumberOfInputsBase @t estimateMaxNumberOfInputsParams
 
+    , validateSelection = \(CoinSelection _ outs _) -> do
+        when (any (\ (TxOut _ c) -> c == Coin 0) outs)
+            $ Left ErrInvalidTxOutAmount
     }
   where
     mkWitness
@@ -250,3 +258,12 @@ newTransactionLayer = TransactionLayer
 -- a lot more cases.
 newtype SignTag
     = SignTx (Hash "Tx")
+
+-- | Transaction with 0 output amount is tried
+data ErrInvalidTxOutAmount = ErrInvalidTxOutAmount
+
+instance Buildable ErrInvalidTxOutAmount where
+    build _ =
+        "I can't validate coin selection because at least one output has value 0."
+
+type instance ErrValidateSelection (HttpBridge n) = ErrInvalidTxOutAmount

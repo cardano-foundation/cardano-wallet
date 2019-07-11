@@ -11,7 +11,10 @@ module Cardano.Wallet.Primitive.CoinSelectionSpec
     , CoinSelectionFixture(..)
     , CoinSelectionResult(..)
     , CoinSelProp(..)
+    , ErrValidation(..)
     , coinSelectionUnitTest
+    , noValidation
+    , alwaysFail
     ) where
 
 -- | This module contains shared logic between the coin selection tests. They
@@ -132,11 +135,24 @@ instance Buildable CoinSelProp where
 data CoinSelectionFixture = CoinSelectionFixture
     { maxNumOfInputs :: Word64
         -- ^ Maximum number of inputs that can be selected
+    , validateSelection :: CoinSelection -> Either ErrValidation ()
+        -- ^ A extra validation function on the resulting selection
     , utxoInputs :: [Word64]
         -- ^ Value (in Lovelace) & number of available coins in the UTxO
     , txOutputs :: NonEmpty Word64
         -- ^ Value (in Lovelace) & number of requested outputs
-    } deriving Show
+    }
+
+-- | A dummy error for testing extra validation
+data ErrValidation = ErrValidation deriving (Eq, Show)
+
+-- | Smart constructor for the validation function that always succeed
+noValidation :: CoinSelection -> Either ErrValidation ()
+noValidation = const (Right ())
+
+-- | Smart constructor for the validation function that always fail
+alwaysFail :: CoinSelection -> Either ErrValidation ()
+alwaysFail = const (Left ErrValidation)
 
 -- | Testing-friendly format for 'CoinSelection' results of unit tests
 data CoinSelectionResult = CoinSelectionResult
@@ -148,21 +164,21 @@ data CoinSelectionResult = CoinSelectionResult
 -- | Generate a 'UTxO' and 'TxOut' matching the given 'Fixture', and perform
 -- given coin selection on it.
 coinSelectionUnitTest
-    :: ( CoinSelectionOptions
+    :: ( CoinSelectionOptions ErrValidation
          -> NonEmpty TxOut
          -> UTxO
-         -> ExceptT ErrCoinSelection IO (CoinSelection, UTxO)
+         -> ExceptT (ErrCoinSelection ErrValidation) IO (CoinSelection, UTxO)
        )
     -> String
-    -> Either ErrCoinSelection CoinSelectionResult
+    -> Either (ErrCoinSelection ErrValidation) CoinSelectionResult
     -> CoinSelectionFixture
     -> SpecWith ()
-coinSelectionUnitTest run lbl expected (CoinSelectionFixture n utxoF outsF) =
+coinSelectionUnitTest run lbl expected (CoinSelectionFixture n fn utxoF outsF) =
     it title $ do
         (utxo,txOuts) <- setup
         result <- runExceptT $ do
             (CoinSelection inps outs chngs, _) <-
-                run (CoinSelectionOptions n) txOuts utxo
+                run (CoinSelectionOptions n fn) txOuts utxo
             return $ CoinSelectionResult
                 { rsInputs = map (getCoin . coin . snd) inps
                 , rsChange = map getCoin chngs

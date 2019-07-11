@@ -133,7 +133,7 @@ spec :: Spec
 spec = do
     describe "Pointless tests to cover 'Show' instances for errors" $ do
         let wid = WalletId (hash @ByteString "arbitrary")
-        it (show $ ErrCreateUnsignedTxNoSuchWallet (ErrNoSuchWallet wid)) True
+        it (show $ ErrCreateUnsignedTxNoSuchWallet @() (ErrNoSuchWallet wid)) True
         it (show $ ErrSignTxNoSuchWallet (ErrNoSuchWallet wid)) True
         it (show $ ErrSubmitTxNoSuchWallet (ErrNoSuchWallet wid)) True
         it (show $ ErrUpdatePassphraseNoSuchWallet (ErrNoSuchWallet wid)) True
@@ -396,6 +396,8 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: estimateSize not implemented"
     , estimateMaxNumberOfInputs =
         error "dummyTransactionLayer: estimateMaxNumberOfInputs not implemented"
+    , validateSelection =
+        error "dummyTransactionLayer: validateSelection not implemented"
     }
   where
     withEither :: e -> Maybe a -> Either e a
