@@ -18,7 +18,10 @@ import Cardano.Wallet.Primitive.CoinSelectionSpec
     ( CoinSelProp (..)
     , CoinSelectionFixture (..)
     , CoinSelectionResult (..)
+    , ErrValidation (..)
+    , alwaysFail
     , coinSelectionUnitTest
+    , noValidation
     )
 import Control.Monad.Trans.Except
     ( runExceptT )
@@ -53,6 +56,7 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
+                , validateSelection = noValidation
                 , utxoInputs = [1,1,1,1,1,1]
                 , txOutputs = 2 :| []
                 })
@@ -65,6 +69,7 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
+                , validateSelection = noValidation
                 , utxoInputs = [1,1,1,1,1,1]
                 , txOutputs = 2 :| [1]
                 })
@@ -77,6 +82,7 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
+                , validateSelection = noValidation
                 , utxoInputs = [1,1,1,1,1]
                 , txOutputs = 2 :| [1]
                 })
@@ -89,6 +95,7 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
+                , validateSelection = noValidation
                 , utxoInputs = [1,1,1,1]
                 , txOutputs = 2 :| [1]
                 })
@@ -101,6 +108,7 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
+                , validateSelection = noValidation
                 , utxoInputs = [5,5,5]
                 , txOutputs = 2 :| []
                 })
@@ -114,6 +122,7 @@ spec = do
             )
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
+                , validateSelection = noValidation
                 , utxoInputs = [10,10,10]
                 , txOutputs = 2 :| [2]
                 })
@@ -126,6 +135,7 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 4
+                , validateSelection = noValidation
                 , utxoInputs = [1,1,1,1,1,1]
                 , txOutputs = 3 :| []
                 })
@@ -138,6 +148,7 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 4
+                , validateSelection = noValidation
                 , utxoInputs = [oneAda, oneAda, oneAda, oneAda]
                 , txOutputs = 2*oneAda :| [oneAda `div` 2]
                 })
@@ -146,6 +157,7 @@ spec = do
             (Left ErrInputsDepleted)
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
+                , validateSelection = noValidation
                 , utxoInputs = [10,10,10,10]
                 , txOutputs = 38 :| [1]
                 })
@@ -154,6 +166,7 @@ spec = do
             (Left $ ErrMaximumInputsReached 2)
             (CoinSelectionFixture
                 { maxNumOfInputs = 2
+                , validateSelection = noValidation
                 , utxoInputs = [1,1,1,1,1,1]
                 , txOutputs = 3 :| []
                 })
@@ -162,6 +175,7 @@ spec = do
             (Left $ ErrMaximumInputsReached 9)
             (CoinSelectionFixture
                 { maxNumOfInputs = 9
+                , validateSelection = noValidation
                 , utxoInputs = replicate 100 1
                 , txOutputs = NE.fromList (replicate 100 1)
                 })
@@ -170,30 +184,46 @@ spec = do
             (Left $ ErrMaximumInputsReached 9)
             (CoinSelectionFixture
                 { maxNumOfInputs = 9
+                , validateSelection = noValidation
                 , utxoInputs = replicate 100 1
                 , txOutputs = NE.fromList (replicate 10 10)
                 })
 
-        coinSelectionUnitTest random "" (Left $ ErrNotEnoughMoney 39 40) $
-            CoinSelectionFixture
-            { maxNumOfInputs = 100
-            , utxoInputs = [12,10,17]
-            , txOutputs = 40 :| []
-            }
+        coinSelectionUnitTest random ""
+            (Left $ ErrNotEnoughMoney 39 40)
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , validateSelection = noValidation
+                , utxoInputs = [12,10,17]
+                , txOutputs = 40 :| []
+                })
 
-        coinSelectionUnitTest random "" (Left $ ErrNotEnoughMoney 39 43) $
-            CoinSelectionFixture
-            { maxNumOfInputs = 100
-            , utxoInputs = [12,10,17]
-            , txOutputs = 40 :| [1,1,1]
-            }
+        coinSelectionUnitTest random ""
+            (Left $ ErrNotEnoughMoney 39 43)
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , validateSelection = noValidation
+                , utxoInputs = [12,10,17]
+                , txOutputs = 40 :| [1,1,1]
+                })
 
-        coinSelectionUnitTest random "" (Left $ ErrUtxoNotEnoughFragmented 3 4) $
-            CoinSelectionFixture
-            { maxNumOfInputs = 100
-            , utxoInputs = [12,20,17]
-            , txOutputs = 40 :| [1,1,1]
-            }
+        coinSelectionUnitTest random ""
+            (Left $ ErrUtxoNotEnoughFragmented 3 4)
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , validateSelection = noValidation
+                , utxoInputs = [12,20,17]
+                , txOutputs = 40 :| [1,1,1]
+                })
+
+        coinSelectionUnitTest random "custom validation"
+            (Left $ ErrInvalidSelection ErrValidation)
+            (CoinSelectionFixture
+                { maxNumOfInputs = 100
+                , validateSelection = alwaysFail
+                , utxoInputs = [1,1]
+                , txOutputs = 2 :| []
+                })
 
     before getSystemDRG $ describe "Coin selection properties : random algorithm" $ do
         it "forall (UTxO, NonEmpty TxOut), \
@@ -220,9 +250,9 @@ propFragmentation drg (CoinSelProp utxo txOuts) = do
     prop (CoinSelection inps1 _ _, CoinSelection inps2 _ _) =
         L.length inps1 `shouldSatisfy` (>= L.length inps2)
     (selection1,_) = withDRG drg
-        (runExceptT $ random (CoinSelectionOptions 100) txOuts utxo)
+        (runExceptT $ random (CoinSelectionOptions 100 noValidation) txOuts utxo)
     selection2 = runIdentity $ runExceptT $
-        largestFirst (CoinSelectionOptions 100) txOuts utxo
+        largestFirst (CoinSelectionOptions 100 noValidation) txOuts utxo
 
 propErrors
     :: SystemDRG
@@ -236,6 +266,6 @@ propErrors drg (CoinSelProp utxo txOuts) = do
     prop (err1, err2) =
         err1 === err2
     (selection1,_) = withDRG drg
-        (runExceptT $ random (CoinSelectionOptions 1) txOuts utxo)
+        (runExceptT $ random (CoinSelectionOptions 1 noValidation) txOuts utxo)
     selection2 = runIdentity $ runExceptT $
-        largestFirst (CoinSelectionOptions 1) txOuts utxo
+        largestFirst (CoinSelectionOptions 1 noValidation) txOuts utxo

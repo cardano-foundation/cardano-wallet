@@ -133,7 +133,7 @@ spec :: Spec
 spec = do
     describe "Pointless tests to cover 'Show' instances for errors" $ do
         let wid = WalletId (hash @ByteString "arbitrary")
-        it (show $ ErrCreateUnsignedTxNoSuchWallet (ErrNoSuchWallet wid)) True
+        it (show $ ErrCreateUnsignedTxNoSuchWallet @() (ErrNoSuchWallet wid)) True
         it (show $ ErrSignTxNoSuchWallet (ErrNoSuchWallet wid)) True
         it (show $ ErrSubmitTxNoSuchWallet (ErrNoSuchWallet wid)) True
         it (show $ ErrUpdatePassphraseNoSuchWallet (ErrNoSuchWallet wid)) True
@@ -382,7 +382,7 @@ setupFixture (wid, wname, wstate) = do
 -- implements a fake signer that still produces sort of witnesses
 dummyTransactionLayer :: TransactionLayer DummyTarget
 dummyTransactionLayer = TransactionLayer
-    { mkStdTx = \keyFrom (CoinSelection inps _ _) outs -> do
+    { mkStdTx = \keyFrom inps outs -> do
         let tx = Tx (fmap fst inps) outs
         wit <- forM inps $ \(_, TxOut addr _) -> do
             (xprv, Passphrase pwd) <- withEither

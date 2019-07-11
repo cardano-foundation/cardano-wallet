@@ -59,8 +59,6 @@ module Test.Integration.Framework.TestData
 
 import Prelude
 
-import Cardano.Wallet
-    ( MaxInpsOrOuts (..) )
 import Cardano.Wallet.Version
     ( showVersion, version )
 import Data.Text
@@ -247,8 +245,8 @@ errMsg403ZeroAmtOutput :: String
 errMsg403ZeroAmtOutput = "I can't validate coin selection because\
     \ at least one output has value 0."
 
-_errMsg403InpsOrOutsExceeded :: MaxInpsOrOuts -> String
-_errMsg403InpsOrOutsExceeded (MaxInpsOrOuts maxNumInps maxNumOuts) =
+_errMsg403InpsOrOutsExceeded :: (Int, Int) -> String
+_errMsg403InpsOrOutsExceeded (maxNumInps, maxNumOuts) =
     "I can't validate coin selection because either the number of inputs is\
     \   more than " ++ show maxNumInps ++ " or the number of outputs\
     \ exceeds " ++ show maxNumOuts ++ "."
