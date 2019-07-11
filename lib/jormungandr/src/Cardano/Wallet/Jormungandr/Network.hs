@@ -25,9 +25,8 @@ module Cardano.Wallet.Jormungandr.Network
     , ErrUnexpectedNetworkFailure (..)
 
     -- * Errors
-    , ErrGetInitialFeePolicy (..)
     , ErrGetDescendants (..)
-    , ErrGetInitialSlotDuration (..)
+    , ErrGetInitialConfigParams (..)
 
     -- * Re-export
     , BaseUrl (..)
@@ -174,12 +173,9 @@ data JormungandrLayer m = JormungandrLayer
     , postMessage
         :: (Tx, [TxWitness])
         -> ExceptT ErrPostTx m ()
-    , getInitialFeePolicy
+    , getInitialConfigParams
         :: Hash "Genesis"
-        -> ExceptT ErrGetInitialFeePolicy m FeePolicy
-    , getInitialSlotDuration
-        :: Hash "Genesis"
-        -> ExceptT ErrGetInitialSlotDuration m SlotLength
+        -> ExceptT ErrGetInitialConfigParams m (FeePolicy, SlotLength)
     }
 
 -- | Construct a 'JormungandrLayer'-client
@@ -241,14 +237,13 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
             x -> do
                 let ctx = safeLink api (Proxy @PostMessage)
                 left ErrPostTxNetworkUnreachable <$> defaultHandler ctx x
-
-    , getInitialFeePolicy = \block0 -> do
+    , getInitialConfigParams = \block0 -> do
         J.Block _ msgs <- ExceptT $ run (cGetBlock (BlockId $ coerce block0)) >>= \case
             Left (FailureResponse e) | responseStatusCode e == status400 ->
-                return . Left . ErrGetInitialFeePolicyGenesisNotFound $ block0
+                return . Left . ErrGetInitialConfigParamsGenesisNotFound $ block0
             x -> do
                 let ctx = safeLink api (Proxy @GetBlock) (BlockId $ coerce block0)
-                let networkUnreachable = ErrGetInitialFeePolicyNetworkUnreachable
+                let networkUnreachable = ErrGetInitialConfigParamsNetworkUnreachable
                 left networkUnreachable <$> defaultHandler ctx x
 
         let params = mconcat $ mapMaybe getConfigParameters msgs
@@ -263,38 +258,17 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
                     ConfigLinearFee x -> Just x
                     _ -> Nothing
 
-        case mpolicy of
-            [policy] ->
-                return policy
-            _ ->
-                throwE $ ErrGetInitialFeePolicyNoInitialPolicy params
-
-    , getInitialSlotDuration = \block0 -> do
-        J.Block _ msgs <- ExceptT $ run (cGetBlock (BlockId $ coerce block0)) >>= \case
-            Left (FailureResponse e) | responseStatusCode e == status400 ->
-                return . Left . ErrGetInitialSlotDurationGenesisNotFound $ block0
-            x -> do
-                let ctx = safeLink api (Proxy @GetBlock) (BlockId $ coerce block0)
-                let networkUnreachable = ErrGetInitialSlotDurationNetworkUnreachable
-                left networkUnreachable <$> defaultHandler ctx x
-
-        let params = mconcat $ mapMaybe getConfigParameters msgs
-              where
-                getConfigParameters = \case
-                    Initial xs -> Just xs
-                    _ -> Nothing
-
         let mduration = mapMaybe getSlotDuration params
               where
                 getSlotDuration = \case
                     SlotDuration x -> Just x
                     _ -> Nothing
 
-        case mduration of
-            [duration] ->
-                return $ SlotLength duration
+        case (mpolicy,mduration) of
+            ([policy],[duration]) ->
+                return (policy, SlotLength duration)
             _ ->
-                throwE $ ErrGetInitialSlotDurationNoInitialPolicy params
+                throwE $ ErrGetInitialConfigParamsNoInitialPolicy params
     }
   where
     run :: ClientM a -> IO (Either ServantError a)
@@ -335,14 +309,8 @@ data ErrGetDescendants
     | ErrGetDescendantsParentNotFound (Hash "BlockHeader")
     deriving (Show, Eq)
 
-data ErrGetInitialFeePolicy
-    = ErrGetInitialFeePolicyNetworkUnreachable ErrNetworkUnreachable
-    | ErrGetInitialFeePolicyGenesisNotFound (Hash "Genesis")
-    | ErrGetInitialFeePolicyNoInitialPolicy [ConfigParam]
-    deriving (Show, Eq)
-
-data ErrGetInitialSlotDuration
-    = ErrGetInitialSlotDurationNetworkUnreachable ErrNetworkUnreachable
-    | ErrGetInitialSlotDurationGenesisNotFound (Hash "Genesis")
-    | ErrGetInitialSlotDurationNoInitialPolicy [ConfigParam]
+data ErrGetInitialConfigParams
+    = ErrGetInitialConfigParamsNetworkUnreachable ErrNetworkUnreachable
+    | ErrGetInitialConfigParamsGenesisNotFound (Hash "Genesis")
+    | ErrGetInitialConfigParamsNoInitialPolicy [ConfigParam]
     deriving (Show, Eq)

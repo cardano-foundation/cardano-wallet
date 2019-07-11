@@ -74,11 +74,7 @@ import Cardano.Wallet.Jormungandr.Compatibility
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Jormungandr.Network
-    ( ErrGetInitialFeePolicy (..)
-    , ErrGetInitialSlotDuration (..)
-    , getBlock
-    , getInitialFeePolicy
-    )
+    ( ErrGetInitialConfigParams (..), getBlock, getInitialConfigParams )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Network
@@ -95,7 +91,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), Hash (..) )
+    ( Block (..), Hash (..), SlotLength )
 import Cardano.Wallet.Version
     ( showVersion, version )
 import Control.Applicative
@@ -344,26 +340,14 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
             -> DBLayer IO s t
             -> IO (WalletLayer s t)
         newWalletLayer (sb, tracer) db = do
-            (nl, block0, theFeePolicy) <- newNetworkLayer (sb, tracer)
+            (nl, block0, theFeePolicy, theSlotLength) <- newNetworkLayer (sb, tracer)
             let tl = Jormungandr.newTransactionLayer @n block0H
-            let url = BaseUrl Http "localhost" (getPort nodePort) "/api"
-            mgr <- newManager defaultManagerSettings
-            let jor = Jormungandr.mkJormungandrLayer mgr url
-            theSlotLength <-
-                runExceptT (Jormungandr.getInitialSlotDuration jor (coerce block0H)) >>= \case
-                Right a -> return a
-                Left (ErrGetInitialSlotDurationNetworkUnreachable _) ->
-                    handleNetworkUnreachable tracer
-                Left (ErrGetInitialSlotDurationGenesisNotFound _) ->
-                    handleGenesisNotFound (sb, tracer)
-                Left (ErrGetInitialSlotDurationNoInitialPolicy _) ->
-                    handleNoInitialPolicy tracer
             Wallet.newWalletLayer
                 tracer (BlockchainParameters block0 theFeePolicy theSlotLength) db nl tl
 
         newNetworkLayer
             :: (Switchboard Text, Trace IO Text)
-            -> IO (NetworkLayer t IO, Block Tx, FeePolicy)
+            -> IO (NetworkLayer t IO, Block Tx, FeePolicy, SlotLength)
         newNetworkLayer (sb, tracer) = do
             let url = BaseUrl Http "localhost" (getPort nodePort) "/api"
             mgr <- newManager defaultManagerSettings
@@ -377,15 +361,16 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
                     handleNetworkUnreachable tracer
                 Left (ErrGetBlockNotFound _) ->
                     handleGenesisNotFound (sb, tracer)
-            theFeePolicy <- runExceptT (getInitialFeePolicy jor (coerce block0H)) >>= \case
+            (theFeePolicy, theSlotLength) <-
+                runExceptT (getInitialConfigParams jor (coerce block0H)) >>= \case
                 Right a -> return a
-                Left (ErrGetInitialFeePolicyNetworkUnreachable _) ->
+                Left (ErrGetInitialConfigParamsNetworkUnreachable _) ->
                     handleNetworkUnreachable tracer
-                Left (ErrGetInitialFeePolicyGenesisNotFound _) ->
+                Left (ErrGetInitialConfigParamsGenesisNotFound _) ->
                     handleGenesisNotFound (sb, tracer)
-                Left (ErrGetInitialFeePolicyNoInitialPolicy _) ->
+                Left (ErrGetInitialConfigParamsNoInitialPolicy _) ->
                     handleNoInitialPolicy tracer
-            return (nl, block0, theFeePolicy)
+            return (nl, block0, theFeePolicy, theSlotLength)
 
         withDBLayer
             :: CM.Configuration

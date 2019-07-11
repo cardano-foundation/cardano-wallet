@@ -214,10 +214,8 @@ newNetworkLayer url block0H = do
     waitForConnection nl defaultRetryPolicy
     block0 <- unsafeRunExceptT $
         getBlock jormungandr (coerce block0H)
-    feePolicy <- unsafeRunExceptT $
-        getInitialFeePolicy jormungandr (coerce block0H)
-    slotLength <- unsafeRunExceptT $
-        getInitialSlotDuration jormungandr (coerce block0H)
+    (feePolicy, slotLength) <- unsafeRunExceptT $
+        getInitialConfigParams jormungandr (coerce block0H)
     return (nl, block0, feePolicy, slotLength)
 
 mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)
