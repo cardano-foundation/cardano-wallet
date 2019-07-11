@@ -280,6 +280,15 @@ data WalletLayer s t = WalletLayer
         -- ^ Attach a given private key to a wallet. The private key is
         -- necessary for some operations like signing transactions or,
         -- generating new accounts.
+
+    , listTransactions
+        :: DefineTx t
+        => WalletId
+        -> ExceptT ErrNoSuchWallet IO [(Tx t, TxMeta)]
+        -- ^ List all transactions and metadata from history for a given wallet.
+        --
+        -- The result is sorted on 'slotId' in descending order. The most recent
+        -- transaction comes first.
     }
 
 -- | Errors occuring when creating an unsigned transaction
@@ -382,6 +391,7 @@ newWalletLayer tracer block0 feePolicy db nw tl = do
         , signTx = _signTx
         , submitTx = _submitTx
         , attachPrivateKey = _attachPrivateKey
+        , listTransactions = _listTransactions
         }
   where
     logDebugT :: MonadIO m => Text -> m ()
@@ -456,6 +466,11 @@ newWalletLayer tracer block0 feePolicy db nw tl = do
         :: IO [WalletId]
     _listWallets =
         fmap (\(PrimaryKey wid) -> wid) <$> DB.listWallets db
+
+    _listTransactions
+        :: WalletId
+        -> ExceptT ErrNoSuchWallet IO [(Tx t, TxMeta)]
+    _listTransactions wid = liftIO $ map snd <$> DB.readTxHistory db (PrimaryKey wid)
 
     _removeWallet
         :: WorkerRegistry
