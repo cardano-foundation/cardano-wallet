@@ -53,7 +53,7 @@ import Cardano.Wallet.DB
     , cleanDB
     )
 import Cardano.Wallet.DBSpec
-    ( GenTxHistory (..), TxHistory )
+    ( GenTxHistory (..), TxHistory, sortTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -233,16 +233,18 @@ mReadWalletMeta :: MWid -> MockOp (Maybe WalletMetadata)
 mReadWalletMeta wid m@(M _ meta _ _) = (Right (Map.lookup wid meta), m)
 
 mPutTxHistory :: MWid -> TxHistory -> MockOp ()
-mPutTxHistory wid txs' m@(M cp metas txs pk)
+mPutTxHistory wid txList m@(M cp metas txs pk)
     | wid `Map.member` cp = (Right (), M cp metas txs'' pk)
     | otherwise           = (Left (NoSuchWallet wid), m)
   where
+    txs' = Map.fromList txList
+
     -- Add tx history for the wallet, and then update any Tx in the mock
     -- database that appeared in the given TxHistory.
-    txs'' = Map.mapWithKey updateTxs <$> Map.alter appendTxs wid txs
+    txs'' = Map.toList . Map.mapWithKey updateTxs . Map.fromList <$> Map.alter appendTxs wid txs
 
     -- Add tx history, replacing entries with the same TxId.
-    appendTxs = Just . (txs' <>) . fromMaybe mempty
+    appendTxs = Just . Map.toList . (txs' <>) . Map.fromList . fromMaybe mempty
 
     -- Update a Tx of the given id, if it is in the given TxHistory.
     updateTxs :: Hash "Tx" -> (Tx, TxMeta) -> (Tx, TxMeta)
@@ -250,8 +252,10 @@ mPutTxHistory wid txs' m@(M cp metas txs pk)
 
 mReadTxHistory :: MWid -> MockOp TxHistory
 mReadTxHistory wid m@(M cp _ txs _)
-    | wid `Map.member` cp = (Right (fromMaybe mempty (Map.lookup wid txs)), m)
+    | wid `Map.member` cp = (Right txHistory, m)
     | otherwise = (Right mempty, m)
+  where
+    txHistory = sortTxHistory $ fromMaybe mempty (Map.lookup wid txs)
 
 mPutPrivateKey :: MWid -> MPrivKey -> MockOp ()
 mPutPrivateKey wid pk' m@(M cp metas txs pk)
@@ -391,7 +395,7 @@ runIO db = fmap Resp . go
         ReadWalletMeta wid ->
             Right . Metadata <$> readWalletMeta db (PrimaryKey wid)
         PutTxHistory wid txs ->
-            catchNoSuchWallet Unit $ putTxHistory db (PrimaryKey wid) txs
+            catchNoSuchWallet Unit $ putTxHistory db (PrimaryKey wid) (Map.fromList txs)
         ReadTxHistory wid ->
             Right . TxHistory <$> readTxHistory db (PrimaryKey wid)
         PutPrivateKey wid pk ->
@@ -686,8 +690,8 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
     , createWalletTwice
     , removeWalletTwice
     , createThenList
-    , readTxHistory (not . Map.null) SuccessfulReadTxHistory
-    , readTxHistory Map.null UnsuccessfulReadTxHistory
+    , readTxHistory (not . null) SuccessfulReadTxHistory
+    , readTxHistory null UnsuccessfulReadTxHistory
     , txUnsorted inputs TxUnsortedInputs
     , txUnsorted outputs TxUnsortedOutputs
     , readCheckpoint isJust SuccessfulReadCheckpoint
@@ -827,7 +831,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
         update didRead ev = didRead ||
             case (cmd ev, mockResp ev) of
                 (At (PutTxHistory _ h), Resp (Right _)) ->
-                    any (isUnordered . sel . fst) h
+                    any (isUnordered . sel . fst) (Map.fromList h)
                 _otherwise ->
                     False
 

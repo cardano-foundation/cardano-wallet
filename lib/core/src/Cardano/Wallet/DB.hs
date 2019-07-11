@@ -102,10 +102,11 @@ data DBLayer m s t = DBLayer
 
     , readTxHistory
         :: PrimaryKey WalletId
-        -> m (Map (Hash "Tx") (Tx t, TxMeta))
-        -- ^ Fetch the current transaction history of a known wallet.
+        -> m [(Hash "Tx", (Tx t, TxMeta))]
+        -- ^ Fetch the current transaction history of a known wallet, ordered by
+        -- descending slot number.
         --
-        -- Returns an empty map if the wallet isn't found.
+        -- Returns an empty list if the wallet isn't found.
 
     , putPrivateKey
         :: PrimaryKey WalletId

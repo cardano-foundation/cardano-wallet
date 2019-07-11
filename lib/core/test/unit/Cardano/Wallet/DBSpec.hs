@@ -22,6 +22,7 @@ module Cardano.Wallet.DBSpec
     , GenTxHistory (..)
     , KeyValPairs (..)
     , TxHistory
+    , sortTxHistory
     ) where
 
 import Prelude
@@ -101,8 +102,8 @@ import Data.Functor
     ( ($>) )
 import Data.Functor.Identity
     ( Identity (..) )
-import Data.Map.Strict
-    ( Map )
+import Data.Ord
+    ( Down (..) )
 import Data.Quantity
     ( Percentage, Quantity (..), mkPercentage )
 import Data.Typeable
@@ -154,7 +155,6 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 
 spec :: Spec
 spec = return ()
@@ -174,6 +174,12 @@ unions =
     . Map.elems
     . foldl (\m (k, v) -> Map.unionWith (<>) (Map.fromList [(k, v)]) m) mempty
 
+-- | Keep the unions (right-biased) of all transactions, and sort them in the
+-- default order for readTxHistory.
+sortedUnions :: Ord k => [(k, GenTxHistory)] -> [Identity GenTxHistory]
+sortedUnions = map (Identity . sort' . runIdentity) . unions
+    where sort' = GenTxHistory . sortTxHistory . unGenTxHistory
+
 -- | Execute an action once per key @k@ present in the given list
 once :: (Ord k, Monad m) => [(k,v)] -> ((k,v) -> m a) -> m [a]
 once xs = forM (Map.toList (Map.fromList xs))
@@ -182,7 +188,12 @@ once xs = forM (Map.toList (Map.fromList xs))
 once_ :: (Ord k, Monad m) => [(k,v)] -> ((k,v) -> m a) -> m ()
 once_ xs = void . once xs
 
-type TxHistory = Map (Hash "Tx") (Tx, TxMeta)
+-- | Shorthand for the readTxHistory result type.
+type TxHistory = [(Hash "Tx", (Tx, TxMeta))]
+
+-- | Apply the default sort order (descending on time) to a 'TxHistory'.
+sortTxHistory :: TxHistory -> TxHistory
+sortTxHistory = L.sortOn (Down . slotId . snd . snd)
 
 newtype KeyValPairs k v = KeyValPairs [(k, v)]
     deriving (Generic, Show, Eq)
@@ -328,25 +339,15 @@ newtype GenTxHistory = GenTxHistory { unGenTxHistory :: TxHistory }
     deriving newtype (Semigroup, Monoid)
 
 instance Arbitrary GenTxHistory where
-    shrink (GenTxHistory h) = map GenTxHistory (shrinkKeys h ++ shrinkTx h)
+    shrink (GenTxHistory h) = map GenTxHistory (shrinkList shrinkOneTx h)
       where
-        -- remove keys from the map
-        shrinkKeys :: TxHistory -> [TxHistory]
-        shrinkKeys txs =
-            [ Map.restrictKeys txs (Set.fromList ks)
-            | ks <- shrinkList (const []) (Map.keys txs) ]
-        -- make the transactions smaller
-        shrinkTx :: TxHistory -> [TxHistory]
-        shrinkTx txs =
-            [ Map.fromList [(k, v') | v' <- shrinkOneTx v]
-            | (k, v) <- Map.toList txs ]
-        shrinkOneTx :: (Tx, TxMeta) -> [(Tx, TxMeta)]
-        shrinkOneTx (tx, meta) =
-            [(tx', meta) | tx' <- shrink tx]
+        shrinkOneTx :: (Hash "Tx", (Tx, TxMeta)) -> [(Hash "Tx", (Tx, TxMeta))]
+        shrinkOneTx (txid, (tx, meta)) =
+            [(txid, (tx', meta)) | tx' <- shrink tx]
 
     -- Ensure unique transaction IDs within a given batch of transactions to add
     -- to the history.
-    arbitrary = GenTxHistory . Map.fromList <$> do
+    arbitrary = GenTxHistory . sortTxHistory <$> do
         -- NOTE
         -- We discard pending transaction from any 'GenTxHistory since,
         -- inserting a pending transaction actually has an effect on the
@@ -420,7 +421,7 @@ putTxHistoryF
     -> GenTxHistory
     -> ExceptT ErrNoSuchWallet m ()
 putTxHistoryF db wid =
-    putTxHistory db wid . unGenTxHistory
+    putTxHistory db wid . Map.fromList . unGenTxHistory
 
 
 {-------------------------------------------------------------------------------
@@ -571,7 +572,7 @@ prop_isolation putA readB readC readD db (key, a) =
         liftIO (cleanDB db)
         (cp, meta, GenTxHistory txs) <- pick arbitrary
         liftIO $ unsafeRunExceptT $ createWallet db key cp meta
-        liftIO $ unsafeRunExceptT $ putTxHistory db key txs
+        liftIO $ unsafeRunExceptT $ putTxHistory db key (Map.fromList txs)
         (b, c, d) <- liftIO $ (,,)
             <$> readB db key
             <*> readC db key
@@ -747,7 +748,7 @@ dbPropertyTests = do
         it "Wallet Metadata"
             (checkCoverage . (prop_sequentialPut putWalletMeta readWalletMeta lrp))
         it "Tx History"
-            (checkCoverage . (prop_sequentialPut putTxHistoryF readTxHistoryF unions))
+            (checkCoverage . (prop_sequentialPut putTxHistoryF readTxHistoryF sortedUnions))
         it "Private Key"
             (checkCoverage . (prop_sequentialPut putPrivateKey readPrivateKey lrp))
 
@@ -760,7 +761,7 @@ dbPropertyTests = do
                 (length . lrp @Maybe)))
         it "Tx History"
             (checkCoverage . (prop_parallelPut putTxHistoryF readTxHistoryF
-                (length . unions @GenTxHistory)))
+                (length . sortedUnions)))
         it "Private Key"
             (checkCoverage . (prop_parallelPut putPrivateKey readPrivateKey
                 (length . lrp @Maybe)))
