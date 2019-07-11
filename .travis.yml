@@ -180,9 +180,29 @@ jobs:
     script:
     - travis_retry curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-http-bridge/hermes-testnet.tar.gz
     - tar xzf hermes-testnet.tar.gz -C $HOME
-    - travis_wait 45 stack --no-terminal test --fast --haddock --no-haddock-deps --coverage --jobs 1
-    - find . -path *.tix ! -path *.stack-work*
-    - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work lib/**/*.tix
+
+    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-core
+    - mkdir -p .coverage/core && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/core \;
+
+    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-launcher
+    - mkdir -p .coverage/launcher && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/launcher \;
+
+    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-cli
+    - mkdir -p .coverage/cli && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/cli \;
+
+    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage text-class
+    - mkdir -p .coverage/text-class && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/text-class \;
+
+    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage bech32
+    - mkdir -p .coverage/bech32 && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/bech32 \;
+
+    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-http-bridge
+    - mkdir -p .coverage/http-bridge && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/http-bridge \;
+
+    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr
+    - mkdir -p .coverage/jormungandr && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/jormungandr \;
+
+    - tar czf $STACK_WORK_CACHE .stack-work .coverage lib/**/.stack-work lib/**/*.tix
 
   - stage: deploy 🚀
     if: (type != pull_request AND branch = master) OR (tag =~ ^v)
@@ -208,11 +228,11 @@ jobs:
     - cd lib/core
     - find $LOCAL_MIX_DIR -type f -name "Cardano.Wallet.DB.Sqlite.TH.mix" > overlay.hpc
     - 'sed -i "s/.*hpc\/\(.*\).mix/module \"\1\" {}/" overlay.hpc'
-    - stack exec -- hpc overlay --hpcdir $LOCAL_MIX_DIR overlay.hpc > Cardano.Wallet.DB.Sqlite.TH.tix
+    - stack exec -- hpc overlay --hpcdir $LOCAL_MIX_DIR overlay.hpc > .coverage/core/Cardano.Wallet.DB.Sqlite.TH.tix
     - 'sed -i "s/0,/1,/g" Cardano.Wallet.DB.Sqlite.TH.tix'
     - cd -
     # Re-build the coverage report taking .tix from executables running outside of the test suites
-    - stack hpc report --all lib/**/*.tix
+    - stack hpc report .coverage/**/*.tix
     - shc combined custom
 
   ################################################################################
