@@ -18,7 +18,11 @@ import Cardano.Wallet.Jormungandr.Api
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, Network (..), block0 )
 import Cardano.Wallet.Jormungandr.Network
-    ( BaseUrl (..), ErrUnexpectedNetworkFailure (..), Scheme (..) )
+    ( BaseUrl (..)
+    , ErrGetDescendants (..)
+    , ErrUnexpectedNetworkFailure (..)
+    , Scheme (..)
+    )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Network
@@ -60,6 +64,8 @@ import Data.Functor
     ( ($>) )
 import Data.Proxy
     ( Proxy (..) )
+import Network.HTTP.Client
+    ( defaultManagerSettings, newManager )
 import Servant.Links
     ( safeLink )
 import System.Directory
@@ -163,6 +169,26 @@ spec = do
                     shouldThrow io $ \(ErrUnexpectedNetworkFailure link _) ->
                         show link == show (safeLink api (Proxy @GetTipId))
             bracket (startNode wrongUrl wait) killNode test
+
+    describe "White-box error path tests" $
+        beforeAll startNode' $ afterAll killNode $ do
+
+        it "can't fetch a block that doesn't exist" $ \_ -> do
+            mgr <- newManager defaultManagerSettings
+            let jml = Jormungandr.mkJormungandrLayer mgr url
+            let nonexistent = Hash "kitten"
+            res <- runExceptT (Jormungandr.getBlock jml nonexistent)
+            res `shouldBe` Left (ErrGetBlockNotFound nonexistent)
+
+        it "can't fetch a blocks from a parent that doesn't exist" $ \_ -> do
+            mgr <- newManager defaultManagerSettings
+            let jml = Jormungandr.mkJormungandrLayer mgr url
+            let nonexistent = Hash "cat"
+            res <- runExceptT (Jormungandr.getDescendantIds jml nonexistent 42)
+            res `shouldSatisfy` \case
+                Left (ErrGetDescendantsParentNotFound _) -> True
+                Left (ErrGetDescendantsNetworkUnreachable _) -> False
+                Right _ -> False
 
 
     -- NOTE: 'Right ()' just means that the format wasn't obviously wrong.
