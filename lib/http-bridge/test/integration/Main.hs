@@ -113,6 +113,7 @@ main = do
     hSetEncoding stdout utf8
     hSetEncoding stderr utf8
     hspec $ do
+        describe "Server CLI timeout test" (ServerCLI.specNoBackend @t)
         describe "Cardano.WalletSpec" Wallet.spec
         describe "Cardano.Wallet.HttpBridge.NetworkSpec" HttpBridge.spec
         describe "Launcher CLI tests" (LauncherCLI.spec @t)

@@ -108,6 +108,7 @@ instance KnownCommand (Jormungandr n) where
 
 main :: forall t. (t ~ Jormungandr 'Testnet) => IO ()
 main = hspec $ do
+    describe "Server CLI timeout test" (ServerCLI.specNoBackend @t)
     describe "Cardano.Wallet.NetworkSpec" Network.spec
     describe "Mnemonics CLI tests" (MnemonicsCLI.spec @t)
     describe "Miscellaneous CLI tests" (MiscellaneousCLI.spec @t)

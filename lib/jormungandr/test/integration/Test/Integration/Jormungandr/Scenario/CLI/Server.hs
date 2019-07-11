@@ -1,8 +1,10 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Test.Integration.Jormungandr.Scenario.CLI.Server
     ( spec
+    , specNoBackend
     ) where
 
 import Prelude
@@ -14,7 +16,7 @@ import System.IO.Temp
 import System.Process
     ( terminateProcess, withCreateProcess )
 import Test.Hspec
-    ( SpecWith, describe, it )
+    ( Spec, SpecWith, describe, it )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe )
 import Test.Integration.Framework.DSL
@@ -92,6 +94,24 @@ spec = do
             out `shouldContainT` "Info"
             out `shouldContainT` "Notice"
 
+specNoBackend :: forall t. KnownCommand t => Spec
+specNoBackend = do
+    it "TIMEOUT - Times out gracefully after 60 seconds" $ do
+        let args =
+                ["serve"
+                , "--genesis-hash"
+                , "1234"
+                ]
+        let process = proc' (commandName @t) args
+        (out, err) <- collectStreams (61, 61) process
+        out `shouldContainT` "Waited too long for Jörmungandr to become available.\
+            \ Giving up!"
+        err `shouldContainT` "Hint (1): If you're launching the wallet server\
+            \ on your own, double-check that Jörmungandr is up-and-running and\
+            \ listening on the same port given to '--node-port' (i.e. tcp/8080)."
+        err `shouldContainT` "Hint (2): Should you be starting from scratch,\
+            \ make sure to have a good-enough network connection to synchronize\
+            \ the first blocks in a timely manner."
 
 oneSecond :: Int
 oneSecond = 1000000
