@@ -15,9 +15,9 @@
 module Cardano.Wallet.Primitive.CoinSelection
     (
       -- * Coin Selection
-      CoinSelectionOptions (..)
+      CoinSelection(..)
     , ErrCoinSelection (..)
-    , CoinSelection(..)
+    , CoinSelectionOptions (..)
 
     -- * Helpers
     , shuffle
@@ -46,28 +46,6 @@ import qualified Data.Vector.Mutable as MV
 {-------------------------------------------------------------------------------
                                 Coin Selection
 -------------------------------------------------------------------------------}
-
-newtype CoinSelectionOptions = CoinSelectionOptions
-    { maximumNumberOfInputs
-        :: Word64
-    } deriving (Generic)
-
-data ErrCoinSelection
-    = ErrNotEnoughMoney Word64 Word64
-    -- ^ UTxO exhausted during input selection
-    -- We record the balance of the UTxO as well as the size of the payment
-    -- we tried to make.
-    | ErrUtxoNotEnoughFragmented Word64 Word64
-    -- ^ UTxO is not enough fragmented for the number of transaction outputs
-    -- We record the number of UTxO entries as well as the number of the
-    -- outputs of the transaction.
-    | ErrMaximumInputsReached Word64
-    -- ^ When trying to construct a transaction, the max number of allowed
-    -- inputs was reached.
-    | ErrInputsDepleted
-    -- ^ When trying to construct a transaction, the available inputs are depleted
-    -- even when UTxO is properly fragmented and with enough funds to cover payment
-    deriving (Show, Eq)
 
 data CoinSelection = CoinSelection
     { inputs  :: [(TxIn, TxOut)]
@@ -99,6 +77,35 @@ instance Buildable CoinSelection where
         <> nameF "change" (listF chngs)
       where
         inpsF (txin, txout) = build txin <> " (~ " <> build txout <> ")"
+
+data CoinSelectionOptions e = CoinSelectionOptions
+    { maximumNumberOfInputs
+        :: Word64
+    , validate
+        :: CoinSelection -> Either e ()
+    } deriving (Generic)
+
+data ErrCoinSelection e
+    = ErrNotEnoughMoney Word64 Word64
+    -- ^ UTxO exhausted during input selection
+    -- We record the balance of the UTxO as well as the size of the payment
+    -- we tried to make.
+    | ErrUtxoNotEnoughFragmented Word64 Word64
+    -- ^ UTxO is not enough fragmented for the number of transaction outputs
+    -- We record the number of UTxO entries as well as the number of the
+    -- outputs of the transaction.
+    | ErrMaximumInputsReached Word64
+    -- ^ When trying to construct a transaction, the max number of allowed
+    -- inputs was reached.
+    | ErrInputsDepleted
+    -- ^ When trying to construct a transaction, the available inputs are depleted
+    -- even when UTxO is properly fragmented and with enough funds to cover payment
+    | ErrInvalidSelection e
+    -- ^ Somewhat, we ended up generating an invalid coin selection because of
+    -- inputs passed down to the coin selection function, or because a target
+    -- backend has extra-limitations not covered by our coin selection
+    -- algorithm.
+    deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
                                    Helpers

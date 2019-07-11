@@ -1,7 +1,9 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -18,8 +20,7 @@ module Cardano.Wallet.Transaction
 
     -- * Errors
     , ErrMkStdTx (..)
-    , ErrValidateSelection (..)
-    , MaxInpsOrOuts (..)
+    , ErrValidateSelection
 
     -- * Backend helpers
     , estimateMaxNumberOfInputsBase
@@ -44,7 +45,7 @@ import qualified Data.ByteString.Char8 as B8
 data TransactionLayer t = TransactionLayer
     { mkStdTx
         :: (Address -> Maybe (Key 'AddressK XPrv, Passphrase "encryption"))
-        -> CoinSelection
+        -> [(TxIn, TxOut)]
         -> [TxOut]
         -> Either ErrMkStdTx (Tx t, [TxWitness])
         -- ^ Construct a standard transaction
@@ -82,38 +83,35 @@ data TransactionLayer t = TransactionLayer
         -- resulting in a transaction which may be too large.
 
     , validateSelection
-      :: CoinSelection
-      -> Either ErrValidateSelection ()
-      -- ^ Validate coin selection
+      :: CoinSelection -> Either (ErrValidateSelection t) ()
+      -- ^ Validate coin selection regarding rules that may be specific to a
+      -- particular backend implementation.
+      --
+      -- For example, Byron nodes do not allow null output amounts. Jörmungandr
+      -- on its side doesn't support more than 255 inputs or outputs.
     }
 
+-- | A type family for validations that are specific to a particular backend
+-- type. This demands an instantiation of the family for a particular backend:
+--
+--     type instance (ErrValidateSelection MyBackend) = MyCustomError
+--
+type family ErrValidateSelection t
+
 -- | Possible signing error
-data ErrMkStdTx
+newtype ErrMkStdTx
     = ErrKeyNotFoundForAddress Address
     -- ^ We tried to sign a transaction with inputs that are unknown to us?
-    | ErrInvalidTx ErrValidateSelection
-    -- ^ The transaction is not valid because of the invalid selection
     deriving (Eq, Show)
-
-data MaxInpsOrOuts = MaxInpsOrOuts
-    { maxInps :: Int
-    , maxOuts :: Int
-    } deriving (Eq, Show)
-
-data ErrValidateSelection
-    = ErrInvalidTxOutAmount
-    -- ^ transaction with 0 amount is tried
-    | ErrExceededInpsOrOuts MaxInpsOrOuts
-    -- ^ transaction has more than maxInps or maxOuts
-    deriving (Eq, Show)
-
 
 -- | Backend-specific variables used by 'estimateMaxNumberOfInputsBase'.
 data EstimateMaxNumberOfInputsParams t = EstimateMaxNumberOfInputsParams
     { estMeasureTx :: [TxIn] -> [TxOut] -> [TxWitness] -> Int
         -- ^ Finds the size of a serialized transaction.
-    , estBlockHashSize :: Int -- ^ Block ID size
-    , estTxWitnessSize :: Int -- ^ Tx Witness size
+    , estBlockHashSize :: Int
+        -- ^ Block ID size
+    , estTxWitnessSize :: Int
+        -- ^ Tx Witness size
     }
 
 -- | This is called by the 'TransactionLayer' implementation. It uses the

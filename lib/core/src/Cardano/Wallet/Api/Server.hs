@@ -37,11 +37,10 @@ import Cardano.Wallet
     , ErrSignTx (..)
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
-    , ErrValidateSelection (..)
+    , ErrValidateSelection
     , ErrWalletAlreadyExists (..)
     , ErrWithRootKey (..)
     , ErrWrongPassphrase (..)
-    , MaxInpsOrOuts (..)
     , WalletLayer
     )
 import Cardano.Wallet.Api
@@ -66,8 +65,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress, digest, generateKeyFromSeed, publicKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( SeqState (..), defaultAddressPoolGap, mkSeqState )
-import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelectionOptions (..) )
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..) )
 import Cardano.Wallet.Primitive.Model
@@ -114,7 +111,7 @@ import Data.Text.Class
 import Data.Time
     ( UTCTime )
 import Fmt
-    ( pretty, (+|), (+||), (|+), (||+) )
+    ( Buildable, pretty, (+|), (+||), (|+), (||+) )
 import Network.HTTP.Media.RenderHeader
     ( renderHeader )
 import Network.HTTP.Types.Header
@@ -165,7 +162,13 @@ data Listen
 
 -- | Start the application server, using the given settings and a bound socket.
 start
-    :: forall t. (DefineTx t, KeyToAddress t, EncodeAddress t, DecodeAddress t)
+    :: forall t.
+        ( DefineTx t
+        , KeyToAddress t
+        , EncodeAddress t
+        , DecodeAddress t
+        , Buildable (ErrValidateSelection t)
+        )
     => Warp.Settings
     -> Trace IO Text
     -> Socket
@@ -371,7 +374,7 @@ listAddresses w (ApiT wid) stateFilter = do
 -------------------------------------------------------------------------------}
 
 transactions
-    :: (DefineTx t, KeyToAddress t)
+    :: (DefineTx t, KeyToAddress t, Buildable (ErrValidateSelection t))
     => WalletLayer (SeqState t) t
     -> Server (Transactions t)
 transactions w =
@@ -380,17 +383,15 @@ transactions w =
     :<|> postTransactionFee w
 
 createTransaction
-    :: forall t. (DefineTx t, KeyToAddress t)
+    :: forall t. (DefineTx t, KeyToAddress t, Buildable (ErrValidateSelection t))
     => WalletLayer (SeqState t) t
     -> ApiT WalletId
     -> PostTransactionData t
     -> Handler (ApiTransaction t)
 createTransaction w (ApiT wid) body = do
-    -- FIXME Compute the options based on the transaction's size / inputs
-    let opts = CoinSelectionOptions { maximumNumberOfInputs = 10 }
     let outs = coerceCoin <$> (body ^. #payments)
     let pwd = getApiT $ body ^. #passphrase
-    selection <- liftHandler $ W.createUnsignedTx w wid opts outs
+    selection <- liftHandler $ W.createUnsignedTx w wid outs
     (tx, meta, wit) <- liftHandler $ W.signTx w wid pwd selection
     liftHandler $ W.submitTx w wid (tx, meta, wit)
     return ApiTransaction
@@ -421,16 +422,14 @@ coerceCoin (AddressAmount (ApiT addr, _) (Quantity c)) =
     TxOut addr (Coin $ fromIntegral c)
 
 postTransactionFee
-    :: forall t. (DefineTx t)
+    :: forall t. (DefineTx t, Buildable (ErrValidateSelection t))
     => WalletLayer (SeqState t) t
     -> ApiT WalletId
     -> PostTransactionFeeData t
     -> Handler ApiFee
 postTransactionFee w (ApiT wid) body = do
-    -- FIXME Compute the options based on the transaction's size / inputs
-    let opts = CoinSelectionOptions { maximumNumberOfInputs = 10 }
     let outs = coerceCoin <$> (body ^. #payments)
-    (Fee fee) <- liftHandler $ W.estimateTxFee w wid opts outs
+    (Fee fee) <- liftHandler $ W.estimateTxFee w wid outs
     return ApiFee
         { amount = Quantity (fromIntegral fee)
         }
@@ -491,7 +490,7 @@ instance LiftHandler ErrWithRootKey where
                 , toText wid
                 ]
 
-instance LiftHandler ErrCoinSelection where
+instance Buildable e => LiftHandler (ErrCoinSelection e) where
     handler = \case
         ErrNotEnoughMoney utxo payment ->
             apiError err403 NotEnoughMoney $ mconcat
@@ -522,6 +521,8 @@ instance LiftHandler ErrCoinSelection where
                 , "transaction depleted all available inputs. "
                 , "Try sending a smaller amount."
                 ]
+        ErrInvalidSelection e ->
+            apiError err403 InvalidCoinSelection $ pretty e
 
 instance LiftHandler ErrAdjustForFee where
     handler = \case
@@ -535,30 +536,16 @@ instance LiftHandler ErrAdjustForFee where
                 , showT missing, " Lovelace."
                 ]
 
-instance LiftHandler ErrCreateUnsignedTx where
+instance Buildable e => LiftHandler (ErrCreateUnsignedTx e) where
     handler = \case
         ErrCreateUnsignedTxNoSuchWallet e -> handler e
         ErrCreateUnsignedTxCoinSelection e -> handler e
         ErrCreateUnsignedTxFee e -> handler e
 
-instance LiftHandler ErrValidateSelection where
-    handler = \case
-        ErrInvalidTxOutAmount ->
-            apiError err403 WrongInputsOrOutputs $ mconcat
-                [ "I can't validate coin selection because"
-                , " at least one output has value 0."
-                ]
-        (ErrExceededInpsOrOuts (MaxInpsOrOuts maxInputs maxOutputs))->
-            apiError err403 WrongInputsOrOutputs $ mconcat
-                [ "I can't validate coin selection because either the number of inputs is"
-                , " more than ", toText maxInputs," or the number of outputs exceeds ",toText maxOutputs,"."
-                ]
-
-instance LiftHandler ErrEstimateTxFee where
+instance Buildable e => LiftHandler (ErrEstimateTxFee e) where
     handler = \case
         ErrEstimateTxFeeNoSuchWallet e -> handler e
         ErrEstimateTxFeeCoinSelection e -> handler e
-        ErrEstimateTxFeeValidateSelection e -> handler e
 
 instance LiftHandler ErrSignTx where
     handler = \case
@@ -569,7 +556,6 @@ instance LiftHandler ErrSignTx where
                 , pretty addr, ". Are you sure this address belongs to a known "
                 , "wallet?"
                 ]
-        ErrSignTx (ErrInvalidTx e) -> handler e
         ErrSignTxNoSuchWallet e -> (handler e)
             { errHTTPCode = 410
             , errReasonPhrase = errReasonPhrase err410

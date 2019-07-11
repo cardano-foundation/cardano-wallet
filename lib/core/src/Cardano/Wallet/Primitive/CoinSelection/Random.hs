@@ -30,16 +30,20 @@ import Cardano.Wallet.Primitive.Types
     , invariant
     , pickRandom
     )
+import Control.Arrow
+    ( left )
 import Control.Monad
     ( foldM )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..) )
+    ( ExceptT (..), except )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), runMaybeT )
 import Crypto.Random.Types
     ( MonadRandom )
+import Data.Functor
+    ( ($>) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Ord
@@ -105,11 +109,11 @@ data TargetRange = TargetRange
 -- we set.
 -- @
 random
-    :: forall m. MonadRandom m
-    => CoinSelectionOptions
+    :: forall m e. MonadRandom m
+    => CoinSelectionOptions e
     -> NonEmpty TxOut
     -> UTxO
-    -> ExceptT ErrCoinSelection m (CoinSelection, UTxO)
+    -> ExceptT (ErrCoinSelection e) m (CoinSelection, UTxO)
 random opt outs utxo = do
     let descending = NE.toList . NE.sortBy (flip $ comparing coin)
     randomMaybe <- lift $ runMaybeT $
@@ -118,20 +122,22 @@ random opt outs utxo = do
         Just (opt', utxo', res) -> do
             (_, sel, remUtxo) <- lift $
                 foldM improveTxOut (opt', mempty, utxo') (reverse res)
-            return (sel, remUtxo)
+            guard sel $> (sel, remUtxo)
         Nothing ->
             largestFirst opt outs utxo
+  where
+    guard = except . left ErrInvalidSelection . validate opt
 
 -- | Perform a random selection on a given output, without improvement.
 makeSelection
-    :: forall m. MonadRandom m
-    => (CoinSelectionOptions, UTxO, [([(TxIn, TxOut)], TxOut)])
+    :: forall m e. MonadRandom m
+    => (CoinSelectionOptions e, UTxO, [([(TxIn, TxOut)], TxOut)])
     -> TxOut
-    -> MaybeT m (CoinSelectionOptions, UTxO, [([(TxIn, TxOut)], TxOut)])
-makeSelection (CoinSelectionOptions maxNumInputs, utxo0, selection) txout = do
+    -> MaybeT m (CoinSelectionOptions e, UTxO, [([(TxIn, TxOut)], TxOut)])
+makeSelection (CoinSelectionOptions maxNumInputs fn, utxo0, selection) txout = do
     (inps, utxo1) <- coverRandomly ([], utxo0)
     return
-        ( CoinSelectionOptions (maxNumInputs - fromIntegral (L.length inps))
+        ( CoinSelectionOptions (maxNumInputs - fromIntegral (L.length inps)) fn
         , utxo1
         , (inps, txout) : selection
         )
@@ -150,10 +156,10 @@ makeSelection (CoinSelectionOptions maxNumInputs, utxo0, selection) txout = do
 
 -- | Perform an improvement to random selection on a given output.
 improveTxOut
-    :: forall m. MonadRandom m
-    => (CoinSelectionOptions, CoinSelection, UTxO)
+    :: forall m e. MonadRandom m
+    => (CoinSelectionOptions e, CoinSelection, UTxO)
     -> ([(TxIn, TxOut)], TxOut)
-    -> m (CoinSelectionOptions, CoinSelection, UTxO)
+    -> m (CoinSelectionOptions e, CoinSelection, UTxO)
 improveTxOut (opt0, selection, utxo0) (inps0, txout) = do
     (opt, inps, utxo) <- improve (opt0, inps0, utxo0)
     return
@@ -169,17 +175,17 @@ improveTxOut (opt0, selection, utxo0) (inps0, txout) = do
     target = mkTargetRange txout
 
     improve
-        :: forall m. MonadRandom m
-        => (CoinSelectionOptions, [(TxIn, TxOut)], UTxO)
-        -> m (CoinSelectionOptions, [(TxIn, TxOut)], UTxO)
-    improve (opt@(CoinSelectionOptions maxN), inps, utxo)
+        :: forall m e. MonadRandom m
+        => (CoinSelectionOptions e, [(TxIn, TxOut)], UTxO)
+        -> m (CoinSelectionOptions e, [(TxIn, TxOut)], UTxO)
+    improve (opt@(CoinSelectionOptions maxN fn), inps, utxo)
         | maxN >= 1 && balance' inps < targetAim target = do
             runMaybeT (pickRandomT utxo) >>= \case
                 Nothing ->
                     return (opt, inps, utxo)
                 Just (io, utxo') | isImprovement io inps -> do
                     let inps' = io : inps
-                    let opt' = CoinSelectionOptions (maxN - 1)
+                    let opt' = CoinSelectionOptions (maxN - 1) fn
                     improve (opt', inps', utxo')
                 Just _ ->
                     return (opt, inps, utxo)
