@@ -1461,7 +1461,7 @@ module Cardano.Wallet.DB
 --   serialize and unserialize it (e.g. <tt>forall s. (Serialize s) =&gt;
 --   ...</tt>)
 data DBLayer m s t
-DBLayer :: (PrimaryKey WalletId -> Wallet s t -> WalletMetadata -> ExceptT ErrWalletAlreadyExists m ()) -> (PrimaryKey WalletId -> ExceptT ErrNoSuchWallet m ()) -> m [PrimaryKey WalletId] -> (PrimaryKey WalletId -> Wallet s t -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe (Wallet s t))) -> (PrimaryKey WalletId -> WalletMetadata -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe WalletMetadata)) -> (DefineTx t => PrimaryKey WalletId -> Map (Hash "Tx") (Tx t, TxMeta) -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Map (Hash "Tx") (Tx t, TxMeta))) -> (PrimaryKey WalletId -> (Key  'RootK XPrv, Hash "encryption") -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe (Key  'RootK XPrv, Hash "encryption"))) -> (forall e a. () => ExceptT e m a -> ExceptT e m a) -> DBLayer m s t
+DBLayer :: (PrimaryKey WalletId -> Wallet s t -> WalletMetadata -> ExceptT ErrWalletAlreadyExists m ()) -> (PrimaryKey WalletId -> ExceptT ErrNoSuchWallet m ()) -> m [PrimaryKey WalletId] -> (PrimaryKey WalletId -> Wallet s t -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe (Wallet s t))) -> (PrimaryKey WalletId -> WalletMetadata -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe WalletMetadata)) -> (DefineTx t => PrimaryKey WalletId -> Map (Hash "Tx") (Tx t, TxMeta) -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m [(Hash "Tx", (Tx t, TxMeta))]) -> (PrimaryKey WalletId -> (Key  'RootK XPrv, Hash "encryption") -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe (Key  'RootK XPrv, Hash "encryption"))) -> (forall e a. () => ExceptT e m a -> ExceptT e m a) -> DBLayer m s t
 
 -- | Initialize a database entry for a given wallet. <a>putCheckpoint</a>,
 --   <a>putWalletMeta</a> or <a>putTxHistory</a> will actually all fail if
@@ -1505,10 +1505,11 @@ DBLayer :: (PrimaryKey WalletId -> Wallet s t -> WalletMetadata -> ExceptT ErrWa
 --   If the wallet doesn't exist, this operation returns an error.
 [putTxHistory] :: DBLayer m s t -> DefineTx t => PrimaryKey WalletId -> Map (Hash "Tx") (Tx t, TxMeta) -> ExceptT ErrNoSuchWallet m ()
 
--- | Fetch the current transaction history of a known wallet.
+-- | Fetch the current transaction history of a known wallet, ordered by
+--   descending slot number.
 --   
---   Returns an empty map if the wallet isn't found.
-[readTxHistory] :: DBLayer m s t -> PrimaryKey WalletId -> m (Map (Hash "Tx") (Tx t, TxMeta))
+--   Returns an empty list if the wallet isn't found.
+[readTxHistory] :: DBLayer m s t -> PrimaryKey WalletId -> m [(Hash "Tx", (Tx t, TxMeta))]
 
 -- | Store or replace a private key for a given wallet. Note that wallet
 --   _could_ be stored and manipulated without any private key associated
