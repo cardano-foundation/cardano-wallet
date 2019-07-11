@@ -55,11 +55,13 @@ import Control.Monad.Trans.Except
 import Control.Retry
     ( limitRetries, retrying )
 import Data.Either
-    ( isRight )
+    ( isLeft, isRight )
 import Data.Functor
     ( ($>) )
 import Data.Proxy
     ( Proxy (..) )
+import Network.HTTP.Client
+    ( defaultManagerSettings, newManager )
 import Servant.Links
     ( safeLink )
 import System.Directory
@@ -164,6 +166,22 @@ spec = do
                         show link == show (safeLink api (Proxy @GetTipId))
             bracket (startNode wrongUrl wait) killNode test
 
+    describe "White-box error path tests" $
+        beforeAll startNode' $ afterAll killNode $ do
+
+        it "can't fetch a block that doesn't exist" $ \_ -> do
+            mgr <- newManager defaultManagerSettings
+            let jml = Jormungandr.mkJormungandrLayer mgr url
+            let nonexistent = Hash "kitten"
+            res <- runExceptT (Jormungandr.getBlock jml nonexistent)
+            res `shouldBe` Left (ErrGetBlockNotFound nonexistent)
+
+        it "can't fetch a blocks from a parent that doesn't exist" $ \_ -> do
+            mgr <- newManager defaultManagerSettings
+            let jml = Jormungandr.mkJormungandrLayer mgr url
+            let nonexistent = Hash "cat"
+            res <- runExceptT (Jormungandr.getDescendantIds jml nonexistent 42)
+            res `shouldSatisfy` isLeft
 
     -- NOTE: 'Right ()' just means that the format wasn't obviously wrong.
     -- The tx may still be rejected.
