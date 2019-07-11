@@ -368,6 +368,9 @@ data ErrGetInitialFeePolicy
 ErrGetInitialFeePolicyNetworkUnreachable :: ErrNetworkUnreachable -> ErrGetInitialFeePolicy
 ErrGetInitialFeePolicyGenesisNotFound :: Hash "Genesis" -> ErrGetInitialFeePolicy
 ErrGetInitialFeePolicyNoInitialPolicy :: [ConfigParam] -> ErrGetInitialFeePolicy
+data ErrGetDescendants
+ErrGetDescendantsNetworkUnreachable :: ErrNetworkUnreachable -> ErrGetDescendants
+ErrGetDescendantsParentNotFound :: Hash "BlockHeader" -> ErrGetDescendants
 data BaseUrl
 BaseUrl :: Scheme -> String -> Int -> String -> BaseUrl
 [baseUrlScheme] :: BaseUrl -> Scheme
