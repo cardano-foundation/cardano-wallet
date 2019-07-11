@@ -2433,7 +2433,7 @@ instance Servant.API.ContentTypes.Accept Cardano.Wallet.Api.Any
 --   to realize its role as being intermediary between the three.
 module Cardano.Wallet
 data WalletLayer s t
-WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)) -> (WalletId -> (WalletMetadata -> WalletMetadata) -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> (Passphrase "encryption-old", Passphrase "encryption-new") -> ExceptT ErrUpdatePassphrase IO ()) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO ()) -> ((IsOurs s, CompareDiscovery s, KnownAddresses s, DefineTx t) => WalletId -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]) -> (DefineTx t => WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection) -> (DefineTx t => WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrEstimateTxFee IO Fee) -> ((Show s, NFData s, IsOwned s, GenChange s) => WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx t, TxMeta, [TxWitness])) -> (DefineTx t => WalletId -> (Tx t, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()) -> WalletLayer s t
+WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)) -> (WalletId -> (WalletMetadata -> WalletMetadata) -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> (Passphrase "encryption-old", Passphrase "encryption-new") -> ExceptT ErrUpdatePassphrase IO ()) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO ()) -> ((IsOurs s, CompareDiscovery s, KnownAddresses s, DefineTx t) => WalletId -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]) -> (DefineTx t => WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrCreateUnsignedTx IO CoinSelection) -> (DefineTx t => WalletId -> CoinSelectionOptions -> NonEmpty TxOut -> ExceptT ErrEstimateTxFee IO Fee) -> ((Show s, NFData s, IsOwned s, GenChange s) => WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx t, TxMeta, [TxWitness])) -> (DefineTx t => WalletId -> (Tx t, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()) -> (DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO [(Tx t, TxMeta)]) -> WalletLayer s t
 
 -- | Initialise and store a new wallet, returning its Id.
 [$sel:createWallet:WalletLayer] :: WalletLayer s t -> (Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId
@@ -2491,6 +2491,12 @@ WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletNa
 --   for some operations like signing transactions or, generating new
 --   accounts.
 [$sel:attachPrivateKey:WalletLayer] :: WalletLayer s t -> WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()
+
+-- | List all transactions and metadata from history for a given wallet.
+--   
+--   The result is sorted on <a>BlockHeader</a> in descending order. The
+--   most recent transaction comes first.
+[$sel:listTransactions:WalletLayer] :: WalletLayer s t -> DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO [(Tx t, TxMeta)]
 
 -- | Errors occuring when creating an unsigned transaction
 data ErrCreateUnsignedTx
