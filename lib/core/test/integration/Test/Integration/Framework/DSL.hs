@@ -616,30 +616,26 @@ emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
     expectResponseCode @IO HTTP.status202 r
     return (getFromResponse id r)
 
--- | Prepare Wallet with utxo of size n (each output = amt ada) and payload for Tx
--- with n number of inputs (single input = 1 lovelace) to be sent from that wallet
+-- | Prepare Wallet with utxo of size n (each output = amt) and payload for Tx
+-- with n number of inputs (single input = amtToSend) to be sent from that wallet
 fixtureNInputs
     :: forall t. (EncodeAddress t, DecodeAddress t)
     => Context t
     -> (Int, Natural)
+    -> Natural
     -> IO (ApiWallet, ApiWallet, Payload)
-fixtureNInputs ctx (n, amt) = do
+fixtureNInputs ctx (n, amt) amtToSend = do
     wSrc <- fixtureWalletWith ctx (replicate n amt)
-    wDest1 <- emptyWalletWith ctx ("Wallet", "cardano-wallet", 100)
-    wDest2 <- emptyWalletWith ctx ("Wallet", "cardano-wallet", 100)
-    wDest3 <- emptyWalletWith ctx ("Wallet", "cardano-wallet", 100)
-    addrs1 <- listAddresses ctx wDest1
-    addrs2 <- listAddresses ctx wDest2
-    addrs3 <- listAddresses ctx wDest3
+    wDest <- emptyWallet ctx
+    addrs <- listAddresses ctx wDest
 
-    -- each amt is going to different address
-    let addrIds = view #id <$> take n (addrs1 ++ addrs2 ++ addrs3)
-    -- when sending to everything to one address - it worked
-    -- let addrIdRepl = replicate n addrIds !! 0
-    let payments = flip map addrIds $ \addr -> [aesonQQ|{
+    -- each amt is going to the same address
+    let addrIds = view #id <$> addrs
+    let addrIdRepl = replicate n addrIds !! 0
+    let payments = flip map addrIdRepl $ \addr -> [aesonQQ|{
             "address": #{addr},
             "amount": {
-                "quantity": 1,
+                "quantity": #{amtToSend},
                 "unit": "lovelace"
             }
         }|]
@@ -647,9 +643,9 @@ fixtureNInputs ctx (n, amt) = do
             "payments": #{payments :: [Value]},
             "passphrase": "Secure Passphrase"
         }|]
-    return (wSrc, wDest1, payload)
+    return (wSrc, wDest, payload)
 
--- | Prepare Wallet with utxo of size n (each output = amt ada) and payload for Tx
+-- | Prepare Wallet with utxo of size n (each output = amt) and payload for Tx
 -- to be send with given amtToSend
 fixtureMaxTxSize
     :: forall t. (EncodeAddress t, DecodeAddress t)

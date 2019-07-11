@@ -64,7 +64,7 @@ spec = do
         expectResponseCode HTTP.status202 r
 
     it "TRANS_CREATE_10, TRANS_ESTIMATE_10 - 256 input/output tx/fee" $ \ctx -> do
-        (wSrc, _, payload) <- fixtureNInputs ctx (256, 1_000_000)
+        (wSrc, _, payload) <- fixtureNInputs ctx (256, 1_000_000) 1
         fee <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
         tx <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
         verify fee
