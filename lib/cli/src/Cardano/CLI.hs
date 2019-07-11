@@ -109,9 +109,14 @@ import Cardano.Wallet.Api.Types
     , PostTransactionFeeData (..)
     , WalletPostData (..)
     , WalletPutData (..)
+    , WalletPutPassphraseData (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( FromMnemonic (..), Passphrase (..) )
+    ( FromMnemonic (..)
+    , Passphrase (..)
+    , PassphraseMaxLength
+    , PassphraseMinLength
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap, defaultAddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -185,7 +190,7 @@ import Options.Applicative
     , value
     )
 import Servant
-    ( (:<|>) (..), (:>) )
+    ( (:<|>) (..), (:>), NoContent )
 import Servant.Client
     ( BaseUrl (..), ClientM, Scheme (..), client, mkClientEnv, runClientM )
 import Servant.Client.Core
@@ -255,7 +260,6 @@ runCli = join . customExecParser preferences
   where
     preferences = prefs showHelpOnEmpty
 
-
 {-------------------------------------------------------------------------------
                             Commands - 'mnemonic'
 
@@ -296,7 +300,8 @@ cmdMnemonicGenerate = command "generate" $ info (helper <*> cmd) $ mempty
   cardano-wallet wallet list [--port=INT]
   cardano-wallet wallet create [--port=INT] <name> [--address-pool-gap=INT]
   cardano-wallet wallet get [--port=INT] <wallet-id>
-  cardano-wallet wallet update [--port=INT] <wallet-id> --name=STRING
+  cardano-wallet wallet update name [--port=INT] <wallet-id> STRING
+  cardano-wallet wallet update passphrase [--port=INT] <wallet-id>
   cardano-wallet wallet delete [--port=INT] <wallet-id>
 -------------------------------------------------------------------------------}
 
@@ -362,7 +367,7 @@ cmdWalletCreate = command "create" $ info (helper <*> cmd) $ mempty
             getLine prompt parser <&> \case
                 (Nothing, _) -> Nothing
                 (Just a, t) -> Just (a, t)
-        wPwd <- getPassphraseWithConfirm
+        wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
         runClient wPort Aeson.encodePretty $ postWallet (walletClient @t) $
             WalletPostData
                 (Just $ ApiT wGap)
@@ -391,28 +396,65 @@ cmdWalletGet = command "get" $ info (helper <*> cmd) $ mempty
         runClient wPort Aeson.encodePretty $ getWallet (walletClient @t) $
             ApiT wId
 
--- | Arguments for 'wallet update' command
-data WalletUpdateArgs = WalletUpdateArgs
+cmdWalletUpdate
+    :: forall t. (DecodeAddress t, EncodeAddress t)
+    => Mod CommandFields (IO ())
+cmdWalletUpdate = command "update" $ info (helper <*> cmds) $ mempty
+    <> progDesc "Update a wallet."
+  where
+    cmds = subparser $ mempty
+        <> cmdWalletUpdateName @t
+        <> cmdWalletUpdatePassphrase @t
+
+-- | Arguments for 'wallet update name' command
+data WalletUpdateNameArgs = WalletUpdateNameArgs
     { _port :: Port "Wallet"
     , _id :: WalletId
     , _name :: WalletName
     }
 
--- | cardano-wallet wallet update [--port=INT] <wallet-id> --name=STRING
-cmdWalletUpdate
+-- | cardano-wallet wallet update name [--port=INT] <wallet-id> STRING
+cmdWalletUpdateName
     :: forall t. (DecodeAddress t, EncodeAddress t)
     => Mod CommandFields (IO ())
-cmdWalletUpdate = command "update" $ info (helper <*> cmd) $ mempty
-    <> progDesc "Update metadata of a wallet with specified id."
+cmdWalletUpdateName = command "name" $ info (helper <*> cmd) $ mempty
+    <> progDesc "Update a wallet's name."
   where
-    cmd = fmap exec $ WalletUpdateArgs
+    cmd = fmap exec $ WalletUpdateNameArgs
         <$> portOption
         <*> walletIdArgument
-        <*> walletNameOption
-    exec (WalletUpdateArgs wPort wId wName) = do
+        <*> walletNameArgument
+    exec (WalletUpdateNameArgs wPort wId wName) = do
         runClient wPort Aeson.encodePretty $ putWallet (walletClient @t)
             (ApiT wId)
             (WalletPutData $ Just (ApiT wName))
+
+-- | Arguments for 'wallet update passphrase' command
+data WalletUpdatePassphraseArgs = WalletUpdatePassphraseArgs
+    { _port :: Port "Wallet"
+    , _id :: WalletId
+    }
+
+-- | cardano-wallet wallet update passphrase [--port=INT] <wallet-id>
+cmdWalletUpdatePassphrase
+    :: forall t. (DecodeAddress t, EncodeAddress t)
+    => Mod CommandFields (IO ())
+cmdWalletUpdatePassphrase = command "passphrase" $ info (helper <*> cmd) $
+    progDesc "Update a wallet's passphrase."
+  where
+    cmd = fmap exec $ WalletUpdatePassphraseArgs
+        <$> portOption
+        <*> walletIdArgument
+    exec (WalletUpdatePassphraseArgs wPort wId) = do
+        wPassphraseOld <- getPassphrase
+            "Please enter your current passphrase: "
+        wPassphraseNew <- getPassphraseWithConfirm
+            "Please enter a new passphrase: "
+        runClient wPort (const mempty) $
+            putWalletPassphrase (walletClient @t) (ApiT wId) $
+                WalletPutPassphraseData
+                    (ApiT wPassphraseOld)
+                    (ApiT wPassphraseNew)
 
 -- | Arguments for 'wallet delete' command
 data WalletDeleteArgs = WalletDeleteArgs
@@ -473,7 +515,7 @@ cmdTransactionCreate = command "create" $ info (helper <*> cmd) $ mempty
         res <- sendRequest wPort $ getWallet (walletClient @t) $ ApiT wId
         case res of
             Right _ -> do
-                wPwd <- getPassphrase
+                wPwd <- getPassphrase "Please enter your passphrase: "
                 runClient wPort Aeson.encodePretty $ postTransaction
                     (walletClient @t)
                     (ApiT wId)
@@ -501,7 +543,6 @@ cmdTransactionFees = command "fees" $ info (helper <*> cmd) $ mempty
                     (PostTransactionFeeData wPayments)
             Left _ ->
                 handleResponse Aeson.encodePretty res
-
 
 {-------------------------------------------------------------------------------
                             Commands - 'address'
@@ -677,13 +718,6 @@ verbosityOption = (Quiet <$ quiet) <|> (Verbose <$ verbose) <|> (pure Default)
         <> long "verbose"
         <> help "display debugging information in the log output"
 
--- | --name=STRING
-walletNameOption :: Parser WalletName
-walletNameOption = optionT $ mempty
-    <> long "name"
-    <> metavar "STRING"
-    <> help "name of the wallet."
-
 -- | <wallet-id=WALLET_ID>
 walletIdArgument :: Parser WalletId
 walletIdArgument = argumentT $ mempty
@@ -730,6 +764,10 @@ data WalletClient t = WalletClient
         :: ApiT WalletId
         -> WalletPutData
         -> ClientM ApiWallet
+    , putWalletPassphrase
+        :: ApiT WalletId
+        -> WalletPutPassphraseData
+        -> ClientM NoContent
     , postTransaction
         :: ApiT WalletId
         -> PostTransactionData t
@@ -754,7 +792,7 @@ walletClient =
             :<|> _listWallets
             :<|> _postWallet
             :<|> _putWallet
-            :<|> _ -- Put Wallet Passphrase
+            :<|> _putWalletPassphrase
             = wallets
 
         _postTransaction
@@ -769,6 +807,7 @@ walletClient =
             , listWallets = _listWallets
             , postWallet = _postWallet
             , putWallet = _putWallet
+            , putWalletPassphrase = _putWalletPassphrase
             , postTransaction = _postTransaction
             , postTransactionFee = _postTransactionFee
             }
@@ -946,19 +985,24 @@ putErrLn = hPutErrLn stderr
                          Processing of Sensitive Data
 -------------------------------------------------------------------------------}
 
-getPassphrase :: IO (Passphrase "encryption")
-getPassphrase = do
-    let prompt = "Please enter a passphrase: "
-    let parser = fromText @(Passphrase "encryption")
+getPassphrase
+    :: forall a . (PassphraseMinLength a, PassphraseMaxLength a)
+    => Text
+    -> IO (Passphrase a)
+getPassphrase prompt = do
+    let parser = fromText @(Passphrase a)
     fst <$> getSensitiveLine prompt parser
 
-getPassphraseWithConfirm :: IO (Passphrase "encryption")
-getPassphraseWithConfirm = do
-    wPwd <- getPassphrase
+getPassphraseWithConfirm
+    :: forall a . (PassphraseMinLength a, PassphraseMaxLength a)
+    => Text
+    -> IO (Passphrase a)
+getPassphraseWithConfirm prompt = do
+    wPwd <- getPassphrase prompt
     (wPwd', _) <- do
-        let prompt = "Enter the passphrase a second time: "
-        let parser = fromText @(Passphrase "encryption")
-        getSensitiveLine prompt parser
+        let promptRepeat = "Enter the passphrase a second time: "
+        let parser = fromText @(Passphrase a)
+        getSensitiveLine promptRepeat parser
     when (wPwd /= wPwd') $ do
         putErrLn "Passphrases don't match."
         exitFailure
