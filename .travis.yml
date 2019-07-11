@@ -120,13 +120,13 @@ jobs:
     script:
     - travis_retry curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-http-bridge/hermes-testnet.tar.gz
     - tar xzf hermes-testnet.tar.gz -C $HOME
-    - stack --no-terminal test --fast cardano-wallet-http-bridge:integration
+    - stack --no-terminal test --fast cardano-wallet-http-bridge:integration --ta "--skip PR_DISABLED"
 
   - stage: checks 🔬
     if: type = pull_request OR (branch IN (bors/staging, bors/trying))
     name: "Tests: integration (jormungandr)"
     script:
-      - stack --no-terminal test --fast cardano-wallet-jormungandr:integration
+      - stack --no-terminal test --fast cardano-wallet-jormungandr:integration --ta "--skip PR_DISABLED"
 
   ################################################################################
   #

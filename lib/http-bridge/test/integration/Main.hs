@@ -113,7 +113,7 @@ main = do
     hSetEncoding stdout utf8
     hSetEncoding stderr utf8
     hspec $ do
-        describe "Server CLI timeout test" (ServerCLI.specNoBackend @t)
+        describe "PR_DISABLED Server CLI timeout test" (ServerCLI.specNoBackend @t)
         describe "Cardano.WalletSpec" Wallet.spec
         describe "Cardano.Wallet.HttpBridge.NetworkSpec" HttpBridge.spec
         describe "Launcher CLI tests" (LauncherCLI.spec @t)
@@ -139,16 +139,16 @@ main = do
                     PortCLI.specCommon @t
                     PortCLI.specWithRandomPort @t defaultPort
         beforeAll startCluster $ afterAll _cleanup $ after tearDown $ do
-            describe "Wallets API endpoint tests" (Wallets.spec @t)
-            describe "Transactions API endpoint tests" (Transactions.spec @t)
-            describe "Addresses API endpoint tests" (Addresses.spec @t)
+            describe "PR_DISABLED Wallets API endpoint tests" (Wallets.spec @t)
+            describe "PR_DISABLED Transactions API endpoint tests" (Transactions.spec @t)
+            describe "PR_DISABLED Addresses API endpoint tests" (Addresses.spec @t)
             describe "Wallets CLI tests" (WalletsCLI.spec @t)
             describe "Transactions CLI tests" (TransactionsCLI.spec @t)
             describe "Addresses CLI tests" (AddressesCLI.spec @t)
             describe "Server CLI tests" (ServerCLI.spec @t)
             describe "Transactions CLI tests (bridge specific)"
                 (TransactionsCLIBridge.spec @t)
-            describe "Transactions API endpoint tests (bridge specific)"
+            describe "PR_DISABLED Transactions API endpoint tests (bridge specific)"
                 (TransactionsBridge.spec @t)
   where
     oneSecond :: Int
