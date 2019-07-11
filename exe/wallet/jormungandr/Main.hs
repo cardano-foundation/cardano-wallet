@@ -74,7 +74,11 @@ import Cardano.Wallet.Jormungandr.Compatibility
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Jormungandr.Network
-    ( ErrGetInitialFeePolicy (..), getBlock, getInitialFeePolicy )
+    ( ErrGetInitialFeePolicy (..)
+    , ErrGetInitialSlotDuration (..)
+    , getBlock
+    , getInitialFeePolicy
+    )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Network
@@ -342,12 +346,18 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
         newWalletLayer (sb, tracer) db = do
             (nl, block0, feePolicy) <- newNetworkLayer (sb, tracer)
             let tl = Jormungandr.newTransactionLayer @n block0H
-            db <- newDBLayer logCfg tracer
             let url = BaseUrl Http "localhost" (getPort nodePort) "/api"
             mgr <- newManager defaultManagerSettings
-            let jormungandr = Jormungandr.mkJormungandrLayer mgr url
-            slotLength <- unsafeRunExceptT $
-                Jormungandr.getInitialSlotDuration jormungandr (coerce block0H)
+            let jor = Jormungandr.mkJormungandrLayer mgr url
+            slotLength <-
+                runExceptT (Jormungandr.getInitialSlotDuration jor (coerce block0H)) >>= \case
+                Right a -> return a
+                Left (ErrGetInitialSlotDurationNetworkUnreachable _) ->
+                    handleNetworkUnreachable tracer
+                Left (ErrGetInitialSlotDurationGenesisNotFound _) ->
+                    handleGenesisNotFound (sb, tracer)
+                Left (ErrGetInitialSlotDurationNoInitialPolicy _) ->
+                    handleNoInitialPolicy tracer
             Wallet.newWalletLayer tracer block0 feePolicy slotLength db nl tl
 
         newNetworkLayer

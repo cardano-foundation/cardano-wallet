@@ -27,6 +27,7 @@ module Cardano.Wallet.Jormungandr.Network
     -- * Errors
     , ErrGetInitialFeePolicy (..)
     , ErrGetDescendants (..)
+    , ErrGetInitialSlotDuration (..)
 
     -- * Re-export
     , BaseUrl (..)
