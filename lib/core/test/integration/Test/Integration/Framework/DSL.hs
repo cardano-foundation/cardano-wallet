@@ -997,7 +997,7 @@ collectStreams (nOut0, nErr0) p = do
         hSetBuffering o LineBuffering
         hSetBuffering e LineBuffering
         let io = race
-                (threadDelay (45 * oneSecond))
+                (threadDelay (65 * oneSecond))
                 (collect mvar ((o, nOut0), (e, nErr0)) ph)
         void $ io `finally` do
             -- NOTE

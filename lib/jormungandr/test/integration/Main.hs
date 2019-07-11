@@ -108,6 +108,7 @@ instance KnownCommand (Jormungandr n) where
 
 main :: forall t. (t ~ Jormungandr 'Testnet) => IO ()
 main = hspec $ do
+    describe "PR_DISABLED Server CLI timeout test" (ServerCLI.specNoBackend @t)
     describe "Cardano.Wallet.NetworkSpec" Network.spec
     describe "Mnemonics CLI tests" (MnemonicsCLI.spec @t)
     describe "Miscellaneous CLI tests" (MiscellaneousCLI.spec @t)
@@ -115,11 +116,11 @@ main = hspec $ do
     describe "Launcher CLI tests" (LauncherCLI.spec @t)
     beforeAll (start Nothing) $ afterAll _cleanup $ after tearDown $ do
         -- API e2e Testing
-        describe "Addresses API endpoint tests" Addresses.spec
-        describe "Transactions API endpoint tests" Transactions.spec
-        describe "Transactions API endpoint tests (Jormungandr specific)"
+        describe "PR_DISABLED Addresses API endpoint tests" Addresses.spec
+        describe "PR_DISABLED Transactions API endpoint tests" Transactions.spec
+        describe "PR_DISABLED Transactions API endpoint tests (Jormungandr specific)"
             (TransactionsJormungandr.spec @t)
-        describe "Wallets API endpoint tests" Wallets.spec
+        describe "PR_DISABLED Wallets API endpoint tests" Wallets.spec
         -- Command-Line e2e Testing
         describe "Addresses CLI tests" (AddressesCLI.spec @t)
         describe "Server CLI tests" (ServerCLI.spec @t)
