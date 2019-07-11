@@ -4,6 +4,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.HttpBridge.Transaction
     ( newTransactionLayer
@@ -41,7 +42,7 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Transaction
     ( ErrMkStdTx (..)
-    , ErrValidateSelection (..)
+    , ErrValidateSelection
     , TransactionLayer (..)
     , estimateMaxNumberOfInputsBase
     )
@@ -53,6 +54,8 @@ import Data.Either.Combinators
     ( maybeToRight )
 import Data.Quantity
     ( Quantity (..) )
+import Fmt
+    ( Buildable (..) )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.HttpBridge.Binary as CBOR
@@ -66,16 +69,13 @@ newTransactionLayer
     :: forall n t. (KnownNetwork n, t ~ HttpBridge n, KeyToAddress t)
     => TransactionLayer t
 newTransactionLayer = TransactionLayer
-    { mkStdTx = \keyFrom sel@(CoinSelection inps _ _) outs -> do
+    { mkStdTx = \keyFrom inps outs -> do
         let ins = (fmap fst inps)
         let tx = Tx ins outs
         let txSigData = txId @(HttpBridge n) tx
-        case checkSelection sel of
-            Left err -> Left $ ErrInvalidTx err
-            Right _ -> do
-                txWitnesses <- forM inps $ \(_in, TxOut addr _c) -> mkWitness txSigData
-                    <$> maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
-                return (tx, txWitnesses)
+        txWitnesses <- forM inps $ \(_in, TxOut addr _c) -> mkWitness txSigData
+            <$> maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
+        return (tx, txWitnesses)
 
     , estimateSize = \(CoinSelection inps outs chngs) -> let n = length inps in
         Quantity $
@@ -93,7 +93,9 @@ newTransactionLayer = TransactionLayer
     , estimateMaxNumberOfInputs =
         estimateMaxNumberOfInputsBase @t estimateMaxNumberOfInputsParams
 
-    , validateSelection = checkSelection
+    , validateSelection = \(CoinSelection _ outs _) -> do
+        when (any (\ (TxOut _ c) -> c == Coin 0) outs)
+            $ Left ErrInvalidTxOutAmount
     }
   where
     mkWitness
@@ -104,11 +106,6 @@ newTransactionLayer = TransactionLayer
         $ CBOR.toStrictByteString
         $ CBOR.encodePublicKeyWitness (getKey $ publicKey xPrv)
         $ sign (SignTx tx) (xPrv, pwd)
-
-    checkSelection :: CoinSelection -> Either ErrValidateSelection ()
-    checkSelection (CoinSelection _ outs _) = do
-        when (any (\ (TxOut _ c) -> c == Coin 0) outs)
-            $ Left ErrInvalidTxOutAmount
 
     sign
         :: SignTag
@@ -261,3 +258,12 @@ newTransactionLayer = TransactionLayer
 -- a lot more cases.
 newtype SignTag
     = SignTx (Hash "Tx")
+
+-- | Transaction with 0 output amount is tried
+data ErrInvalidTxOutAmount = ErrInvalidTxOutAmount
+
+instance Buildable ErrInvalidTxOutAmount where
+    build _ =
+        "I can't validate coin selection because at least one output has value 0."
+
+type instance ErrValidateSelection (HttpBridge n) = ErrInvalidTxOutAmount

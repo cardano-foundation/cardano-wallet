@@ -4,6 +4,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer
@@ -11,8 +12,6 @@ module Cardano.Wallet.Jormungandr.Transaction
 
 import Prelude
 
-import Cardano.Wallet
-    ( MaxInpsOrOuts (..) )
 import Cardano.Wallet.Jormungandr.Binary
     ( maxNumberOfInputs, maxNumberOfOutputs )
 import Cardano.Wallet.Jormungandr.Compatibility
@@ -29,7 +28,7 @@ import Cardano.Wallet.Primitive.Types
     ( Hash (..), TxOut (..), TxWitness (..), txId )
 import Cardano.Wallet.Transaction
     ( ErrMkStdTx (..)
-    , ErrValidateSelection (..)
+    , ErrValidateSelection
     , TransactionLayer (..)
     , estimateMaxNumberOfInputsBase
     )
@@ -43,6 +42,10 @@ import Data.Either.Combinators
     ( maybeToRight )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text.Class
+    ( toText )
+import Fmt
+    ( Buildable (..) )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Jormungandr.Binary as Binary
@@ -53,23 +56,24 @@ newTransactionLayer
     => Hash "Genesis"
     -> TransactionLayer t
 newTransactionLayer (Hash block0) = TransactionLayer
-    { mkStdTx = \keyFrom sel@(CoinSelection inps _ _) outs -> do
+    { mkStdTx = \keyFrom inps outs -> do
         let tx = Tx (fmap (second coin) inps) outs
         let bs = block0 <> getHash (txId @(Jormungandr n) tx)
-        case checkSelection sel of
-            Left err -> Left $ ErrInvalidTx err
-            Right _ -> do
-                txWitnesses <- forM inps $ \(_, TxOut addr _) -> sign bs
-                    <$> maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
-                return (tx, txWitnesses)
+        txWitnesses <- forM inps $ \(_, TxOut addr _) -> sign bs
+            <$> maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
+        return (tx, txWitnesses)
 
-    -- NOTE: at this point 'Jörmungandr' node does not support fee calculation
+    -- FIXME:
+    -- Implement fee calculation for Jörmungandr!
+    -- See: https://github.com/input-output-hk/cardano-wallet/blob/f683a6d609bed3bea02eca1a18205d84f6486bd6/lib/jormungandr/test/integration/Main.hs#L217-L237
     , estimateSize = \_ -> Quantity 0
 
     , estimateMaxNumberOfInputs =
         estimateMaxNumberOfInputsBase @t Binary.estimateMaxNumberOfInputsParams
 
-    , validateSelection = checkSelection
+    , validateSelection = \(CoinSelection inps outs _) -> do
+        when (length inps > maxNumberOfInputs || length outs > maxNumberOfOutputs)
+            $ Left ErrExceededInpsOrOuts
     }
   where
     sign
@@ -79,8 +83,16 @@ newTransactionLayer (Hash block0) = TransactionLayer
     sign bytes (key, (Passphrase pwd)) =
         TxWitness . CC.unXSignature $ CC.sign pwd (getKey key) bytes
 
-    checkSelection :: CoinSelection -> Either ErrValidateSelection ()
-    checkSelection (CoinSelection inps outs _) = do
-        when (length inps > maxNumberOfInputs || length outs > maxNumberOfOutputs)
-            $ Left $ ErrExceededInpsOrOuts
-            (MaxInpsOrOuts maxNumberOfInputs maxNumberOfOutputs)
+-- | Transaction with 0 output amount is tried
+data ErrExceededInpsOrOuts = ErrExceededInpsOrOuts
+
+instance Buildable ErrExceededInpsOrOuts where
+    build _ = build $ mconcat
+        [ "I can't validate coin selection because either the number of inputs "
+        , "is more than ", maxI," or the number of outputs exceeds ", maxO, "."
+        ]
+      where
+        maxI = toText maxNumberOfInputs
+        maxO = toText maxNumberOfOutputs
+
+type instance ErrValidateSelection (Jormungandr n) = ErrExceededInpsOrOuts
