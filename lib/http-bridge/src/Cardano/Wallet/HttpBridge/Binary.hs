@@ -43,13 +43,15 @@ module Cardano.Wallet.HttpBridge.Binary
     , decodeListIndef
     , toByteString
     , estimateMaxNumberOfInputsParams
-
+    , slotLength
     ) where
 
 import Prelude
 
 import Cardano.Crypto.Wallet
     ( ChainCode (..), XPub (..), unXPub )
+import Cardano.Wallet
+    ( SlotLength (..) )
 import Cardano.Wallet.HttpBridge.Environment
     ( ProtocolMagic (..) )
 import Cardano.Wallet.HttpBridge.Primitive.Types
@@ -77,6 +79,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Digest.CRC32
     ( crc32 )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Word
     ( Word16, Word64 )
 import Debug.Trace
@@ -639,3 +643,6 @@ estimateMaxNumberOfInputsParams = EstimateMaxNumberOfInputsParams
     , estBlockHashSize = 32
     , estTxWitnessSize = 128
     }
+
+slotLength :: SlotLength
+slotLength = SlotLength $ Quantity 20

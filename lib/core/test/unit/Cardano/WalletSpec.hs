@@ -23,6 +23,7 @@ import Cardano.Wallet
     , ErrUpdatePassphrase (..)
     , ErrWithRootKey (..)
     , ErrWithRootKey (..)
+    , SlotLength (..)
     , WalletLayer (..)
     , newWalletLayer
     )
@@ -368,7 +369,16 @@ setupFixture (wid, wname, wstate) = do
     db <- newDBLayer
     let nl = error "NetworkLayer"
     let tl = dummyTransactionLayer
-    wl <- newWalletLayer @_ @DummyTarget nullTracer block0 dummyPolicy db nl tl
+    wl <- newWalletLayer
+        @_
+        @DummyTarget
+        nullTracer
+        block0
+        dummyPolicy
+        dummySlotLength
+        db
+        nl
+        tl
     res <- runExceptT $ createWallet wl wid wname wstate
     let wal = case res of
             Left _ -> []
@@ -377,6 +387,9 @@ setupFixture (wid, wname, wstate) = do
   where
     dummyPolicy :: FeePolicy
     dummyPolicy = LinearFee (Quantity 14) (Quantity 42)
+
+    dummySlotLength :: SlotLength
+    dummySlotLength = SlotLength $ Quantity 1
 
 -- | A dummy transaction layer to see the effect of a root private key. It
 -- implements a fake signer that still produces sort of witnesses
