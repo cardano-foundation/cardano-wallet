@@ -41,11 +41,13 @@ library
     , fmt
     , http-client
     , iohk-monitoring
+    , iso8601-time
     , servant-client
     , servant-client-core
     , servant-server
     , text
     , text-class
+    , time
     , optparse-applicative
   hs-source-dirs:
       src
@@ -70,6 +72,7 @@ test-suite unit
     , cardano-wallet-cli
     , hspec
     , QuickCheck
+    , quickcheck-instances
     , text
     , text-class
   build-tools:

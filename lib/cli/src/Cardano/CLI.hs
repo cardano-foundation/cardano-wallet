@@ -43,6 +43,7 @@ module Cardano.CLI
     , verbosityOption
 
     -- * Types
+    , Iso8601Time (..)
     , Service
     , MnemonicSize (..)
     , Port (..)
@@ -155,6 +156,10 @@ import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..), showT )
 import Data.Text.Read
     ( decimal )
+import Data.Time.Clock
+    ( UTCTime )
+import Data.Time.ISO8601
+    ( formatISO8601, parseISO8601 )
 import Fmt
     ( Buildable, blockListF, fmt, nameF, pretty )
 import GHC.Generics
@@ -862,6 +867,22 @@ handleResponse encode res = do
 {-------------------------------------------------------------------------------
                                 Extra Types
 -------------------------------------------------------------------------------}
+
+-- | Defines a point in time that can be formatted as and parsed from an
+--   ISO 8601-compliant string.
+--
+newtype Iso8601Time = Iso8601Time
+    { getIso8601Time :: UTCTime
+    } deriving (Eq, Ord, Show)
+
+instance ToText Iso8601Time where
+    toText = T.pack . formatISO8601 . getIso8601Time
+
+instance FromText Iso8601Time where
+    fromText = maybe (Left err) (Right . Iso8601Time) . parseISO8601 . T.unpack
+      where
+        err = TextDecodingError
+            "Unable to parse time argument. Expecting ISO 8601 format."
 
 -- | Represents the number of words in a mnemonic sentence.
 --

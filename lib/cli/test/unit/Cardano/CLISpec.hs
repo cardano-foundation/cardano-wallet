@@ -11,13 +11,20 @@ module Cardano.CLISpec
 import Prelude
 
 import Cardano.CLI
-    ( MnemonicSize (..), Port (..), hGetLine, hGetSensitiveLine )
+    ( Iso8601Time (..)
+    , MnemonicSize (..)
+    , Port (..)
+    , hGetLine
+    , hGetSensitiveLine
+    )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, takeMVar )
 import Control.Monad
     ( mapM_ )
+import Data.Either
+    ( isRight )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -27,7 +34,7 @@ import Data.Text.Class
 import System.IO
     ( Handle, IOMode (..), hClose, openFile )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Large (..)
@@ -35,8 +42,12 @@ import Test.QuickCheck
     , checkCoverage
     , cover
     , genericShrink
+    , property
+    , (.&&.)
     , (===)
     )
+import Test.QuickCheck.Instances.Time
+    ()
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
@@ -46,8 +57,17 @@ import qualified Data.Text.IO as TIO
 spec :: Spec
 spec = do
     describe "Can perform roundtrip textual encoding & decoding" $ do
+        textRoundtrip $ Proxy @Iso8601Time
         textRoundtrip $ Proxy @(Port "test")
         textRoundtrip $ Proxy @MnemonicSize
+
+    describe "Can decode basic ISO 8601 time examples" $ do
+        canDecodeIso8601Time "2008-09-15T15:53:00Z"
+        canDecodeIso8601Time "2008-09-15T15:53:00.1Z"
+        canDecodeIso8601Time "2008-09-15T15:53:00.12Z"
+        canDecodeIso8601Time "2008-09-15T15:53:00+05:00"
+        canDecodeIso8601Time "2008-09-15T15:53:00.1+05:00"
+        canDecodeIso8601Time "2008-09-15T15:53:00.12+05:00"
 
     describe "Port decoding from text" $ do
         let err = TextDecodingError
@@ -177,6 +197,10 @@ test fn (GetLineTest prompt_ input_ output expected) = do
                                Arbitrary Instances
 -------------------------------------------------------------------------------}
 
+instance Arbitrary Iso8601Time where
+    arbitrary = Iso8601Time <$> arbitrary
+    shrink (Iso8601Time t) = Iso8601Time <$> shrink t
+
 instance Arbitrary MnemonicSize where
     arbitrary = arbitraryBoundedEnum
     shrink = genericShrink
@@ -186,3 +210,23 @@ instance Arbitrary (Port "test") where
     shrink p
         | p == minBound = []
         | otherwise = [pred p]
+
+{-------------------------------------------------------------------------------
+                               Helper Functions
+-------------------------------------------------------------------------------}
+
+-- | Checks whether the specified 'Text' can be decoded as an 'Iso8601Time'
+--   using the 'FromText` instance.
+--
+canDecodeIso8601Time :: Text -> Spec
+canDecodeIso8601Time text =
+    it ("Can decode ISO 8601 time: " <> T.unpack text) $ property $ do
+        let result = fromText @Iso8601Time text
+        -- Internally, 'Iso8601Time' values are always stored canonically as
+        -- times in the UTC+0 timezone. Any original timezone information is
+        -- lost. So we check that a roundtrip text conversion can be applied
+        -- to the result of parsing the original input, rather than to the
+        -- original input itself.
+        (result `shouldSatisfy` isRight)
+            .&&.
+            ((fromText . toText =<< result) `shouldBe` result)

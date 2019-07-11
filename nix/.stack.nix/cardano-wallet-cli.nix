@@ -29,11 +29,13 @@
           (hsPkgs.fmt)
           (hsPkgs.http-client)
           (hsPkgs.iohk-monitoring)
+          (hsPkgs.iso8601-time)
           (hsPkgs.servant-client)
           (hsPkgs.servant-client-core)
           (hsPkgs.servant-server)
           (hsPkgs.text)
           (hsPkgs.text-class)
+          (hsPkgs.time)
           (hsPkgs.optparse-applicative)
           ];
         };
@@ -44,6 +46,7 @@
             (hsPkgs.cardano-wallet-cli)
             (hsPkgs.hspec)
             (hsPkgs.QuickCheck)
+            (hsPkgs.quickcheck-instances)
             (hsPkgs.text)
             (hsPkgs.text-class)
             ];
