@@ -11,14 +11,23 @@ import Prelude
 
 import Control.Concurrent
     ( threadDelay )
+import Control.Monad
+    ( forM_ )
+import System.Exit
+    ( ExitCode (..) )
 import System.IO.Temp
     ( withSystemTempDirectory )
 import System.Process
-    ( terminateProcess, withCreateProcess )
+    ( createProcess
+    , proc
+    , terminateProcess
+    , waitForProcess
+    , withCreateProcess
+    )
 import Test.Hspec
     ( Spec, SpecWith, describe, it )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe )
+    ( shouldBe, shouldReturn )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand (..)
@@ -43,6 +52,20 @@ spec = do
                     expectPathEventuallyExist db
                     terminateProcess ph
             threadDelay oneSecond
+
+    describe "DaedalusIPC" $ do
+        let defaultArgs =
+                [ commandName @t , "serve" ]
+        let tests =
+                [ defaultArgs ++ ["--random-port"]
+                , defaultArgs ++ ["--port", "8082"]
+                ]
+        forM_ tests $ \args -> do
+            let title = "should reply with the port when asked " <> show args
+            it title $ \_ -> do
+                let filepath = "test/integration/js/mock-daedalus.js"
+                (_, _, _, ph) <- createProcess (proc filepath args)
+                waitForProcess ph `shouldReturn` ExitSuccess
 
     describe "LOGGING - cardano-wallet serve logging" $ do
         it "LOGGING - Launch can log --verbose" $ \_ -> do
