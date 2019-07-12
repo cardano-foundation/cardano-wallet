@@ -2,7 +2,4 @@ packages:
   cardano-wallet.cabal
   lib/*/*.cabal
 
-benchmarks: True
-tests: True
-
 flags: +development

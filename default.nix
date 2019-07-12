@@ -49,7 +49,9 @@ in {
       text-class
     ];
     buildInputs =
-      with pkgs.haskellPackages; [ cabal-install hlint stylish-haskell weeder ghcid ]
+      with pkgs.haskellPackages; [ hlint stylish-haskell weeder ghcid ]
       ++ [ cardano-http-bridge jormungandr cardano-sl-node pkgs.pkgconfig pkgs.sqlite-interactive ];
   };
+
+  checks.check-nix-tools = pkgs.callPackage ./nix/check-nix-tools.nix {};
 }
