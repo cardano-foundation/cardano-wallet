@@ -37,6 +37,8 @@ module Cardano.Wallet.Jormungandr.Network
 
 import Prelude
 
+import Cardano.Wallet
+    ( BlockchainParameters )
 import Cardano.Wallet.Jormungandr.Api
     ( BlockId (..)
     , GetBlock
@@ -173,9 +175,9 @@ data JormungandrLayer m = JormungandrLayer
     , postMessage
         :: (Tx, [TxWitness])
         -> ExceptT ErrPostTx m ()
-    , getInitialConfigParams
+    , getInitialBlockchainParameters
         :: Hash "Genesis"
-        -> ExceptT ErrGetInitialConfigParams m (FeePolicy, SlotLength)
+        -> ExceptT ErrGetInitialConfigParams m (BlockchainParameters (Jormungandr network))
     }
 
 -- | Construct a 'JormungandrLayer'-client
@@ -237,8 +239,8 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
             x -> do
                 let ctx = safeLink api (Proxy @PostMessage)
                 left ErrPostTxNetworkUnreachable <$> defaultHandler ctx x
-    , getInitialConfigParams = \block0 -> do
-        J.Block _ msgs <- ExceptT $ run (cGetBlock (BlockId $ coerce block0)) >>= \case
+    , getInitialBlockchainParameters = \block0 -> do
+        jblock@(J.Block _ msgs) <- ExceptT $ run (cGetBlock (BlockId $ coerce block0)) >>= \case
             Left (FailureResponse e) | responseStatusCode e == status400 ->
                 return . Left . ErrGetInitialConfigParamsGenesisNotFound $ block0
             x -> do
@@ -266,7 +268,7 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
 
         case (mpolicy,mduration) of
             ([policy],[duration]) ->
-                return (policy, SlotLength duration)
+                return $ (coerceBlock jblock) policy (SlotLength duration)
             _ ->
                 throwE $ ErrGetInitialConfigParamsNoInitialPolicy params
     }

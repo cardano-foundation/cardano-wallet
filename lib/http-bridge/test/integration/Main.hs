@@ -264,10 +264,8 @@ main = do
         mvar <- newEmptyMVar
         thread <- forkIO $ do
             let tl = HttpBridge.newTransactionLayer
-            wallet <-
-                newWalletLayer
-                nullTracer (BlockchainParameters block0 byronFeePolicy byronSlotLength)
-                db nl tl
+            let bp = BlockchainParameters block0 byronFeePolicy byronSlotLength
+            wallet <- newWalletLayer nullTracer bp db nl tl
             let listen = fromMaybe (ListenOnPort defaultPort) mlisten
             Server.withListeningSocket listen $ \(port, socket) -> do
                 let settings = Warp.defaultSettings

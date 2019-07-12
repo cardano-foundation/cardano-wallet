@@ -277,11 +277,10 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
             -> DBLayer IO s t
             -> IO (WalletLayer s t)
         newWalletLayer (sb, tracer) db = do
-            (nl, block0, theFeePolicy) <- newNetworkLayer (sb, tracer)
+            (nl, block0, feePolicy) <- newNetworkLayer (sb, tracer)
             let tl = HttpBridge.newTransactionLayer @n
-            Wallet.newWalletLayer
-                tracer (BlockchainParameters block0 theFeePolicy byronSlotLength)
-                db nl tl
+            let bp = BlockchainParameters block0 feePolicy byronSlotLength
+            Wallet.newWalletLayer tracer bp db nl tl
 
         newNetworkLayer
             :: (Switchboard Text, Trace IO Text)

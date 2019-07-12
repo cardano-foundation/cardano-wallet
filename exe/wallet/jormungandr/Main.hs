@@ -74,7 +74,10 @@ import Cardano.Wallet.Jormungandr.Compatibility
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Jormungandr.Network
-    ( ErrGetInitialConfigParams (..), getBlock, getInitialConfigParams )
+    ( ErrGetInitialConfigParams (..)
+    , getBlock
+    , getInitialBlockchainParameters
+    )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Network
@@ -340,10 +343,10 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
             -> DBLayer IO s t
             -> IO (WalletLayer s t)
         newWalletLayer (sb, tracer) db = do
-            (nl, block0, theFeePolicy, theSlotLength) <- newNetworkLayer (sb, tracer)
+            (nl, block0, feePolicy, slotLength) <- newNetworkLayer (sb, tracer)
             let tl = Jormungandr.newTransactionLayer @n block0H
-            Wallet.newWalletLayer
-                tracer (BlockchainParameters block0 theFeePolicy theSlotLength) db nl tl
+            let bp = BlockchainParameters block0 feePolicy slotLength
+            Wallet.newWalletLayer tracer bp db nl tl
 
         newNetworkLayer
             :: (Switchboard Text, Trace IO Text)
@@ -361,8 +364,8 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
                     handleNetworkUnreachable tracer
                 Left (ErrGetBlockNotFound _) ->
                     handleGenesisNotFound (sb, tracer)
-            (theFeePolicy, theSlotLength) <-
-                runExceptT (getInitialConfigParams jor (coerce block0H)) >>= \case
+            (feePolicy, slotLength) <-
+                runExceptT (getInitialBlockchainParameters jor (coerce block0H)) >>= \case
                 Right a -> return a
                 Left (ErrGetInitialConfigParamsNetworkUnreachable _) ->
                     handleNetworkUnreachable tracer
@@ -370,7 +373,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
                     handleGenesisNotFound (sb, tracer)
                 Left (ErrGetInitialConfigParamsNoInitialPolicy _) ->
                     handleNoInitialPolicy tracer
-            return (nl, block0, theFeePolicy, theSlotLength)
+            return (nl, block0, feePolicy, slotLength)
 
         withDBLayer
             :: CM.Configuration

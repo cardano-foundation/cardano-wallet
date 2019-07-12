@@ -364,10 +364,10 @@ cancelWorker (WorkerRegistry mvar) wid =
 -------------------------------------------------------------------------------}
 
 data BlockchainParameters t = BlockchainParameters
-    { genesisBlock :: Block (Tx t)
+    { getGenesisBlock :: Block (Tx t)
         -- ^ Very first block
-    , feePolicy :: FeePolicy
-    , slotLength :: SlotLength
+    , getFeePolicy :: FeePolicy
+    , getSlotLength :: SlotLength
     }
 
 -- | Create a new instance of the wallet layer.
@@ -381,11 +381,11 @@ newWalletLayer
     -> IO (WalletLayer s t)
 newWalletLayer
     tracer
-    (BlockchainParameters block0 theFeePolicy (SlotLength (Quantity theSlotLength)))
+    (BlockchainParameters block0 feePolicy (SlotLength (Quantity slotLength)))
     db nw tl = do
     logDebugT $ "Wallet layer starting with: "
         <> "block0: "+| block0 |+ ", "
-        <> "fee policy: "+|| theFeePolicy ||+""
+        <> "fee policy: "+|| feePolicy ||+""
     registry <- newRegistry
     return WalletLayer
         { createWallet = _createWallet
@@ -546,7 +546,7 @@ newWalletLayer
         -> BlockHeader
         -> IO ()
     restoreSleep t wid slot = do
-        let halfSlotLengthDelay = 500000 * (fromIntegral theSlotLength) in threadDelay halfSlotLengthDelay
+        let halfSlotLengthDelay = 500000 * (fromIntegral slotLength) in threadDelay halfSlotLengthDelay
         runExceptT (networkTip nw) >>= \case
             Left e -> do
                 logError t $ "Failed to get network tip: " +|| e ||+ ""
@@ -657,7 +657,7 @@ newWalletLayer
         logInfoT $ "Coins selected for transaction: \n"+| sel |+""
         withExceptT ErrCreateUnsignedTxFee $ do
             let feeOpts = FeeOptions
-                    { estimate = computeFee theFeePolicy . estimateSize tl
+                    { estimate = computeFee feePolicy . estimateSize tl
                     , dustThreshold = minBound
                     }
             debug "Coins after fee adjustment" =<< adjustForFee feeOpts utxo' sel
@@ -672,7 +672,7 @@ newWalletLayer
         let utxo = availableUTxO @s @t w
         (sel, _utxo') <- withExceptT ErrEstimateTxFeeCoinSelection $
             CoinSelection.random opts recipients utxo
-        let estimateFee = computeFee theFeePolicy . estimateSize tl
+        let estimateFee = computeFee feePolicy . estimateSize tl
         pure $ estimateFee sel
 
     _signTx

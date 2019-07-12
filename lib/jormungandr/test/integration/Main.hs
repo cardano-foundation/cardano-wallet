@@ -43,7 +43,7 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), Hash (..) )
+    ( Block (..), Hash (..), SlotLength )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeRunExceptT )
 import Control.Concurrent
@@ -187,7 +187,8 @@ cardanoWalletServer mlisten = do
     mvar <- newEmptyMVar
     handle <- async $ do
         let tl = Jormungandr.newTransactionLayer block0H
-        wallet <- newWalletLayer tracer (BlockchainParameters block0 feePolicy slotLength) db nl tl
+        let bp = BlockchainParameters block0 feePolicy slotLength
+        wallet <- newWalletLayer tracer bp db nl tl
         let listen = fromMaybe (ListenOnPort defaultPort) mlisten
         Server.withListeningSocket listen $ \(port, socket) -> do
             let settings = Warp.defaultSettings
@@ -215,7 +216,7 @@ newNetworkLayer url block0H = do
     block0 <- unsafeRunExceptT $
         getBlock jormungandr (coerce block0H)
     (feePolicy, slotLength) <- unsafeRunExceptT $
-        getInitialConfigParams jormungandr (coerce block0H)
+        getInitialBlockchainParameters jormungandr (coerce block0H)
     return (nl, block0, feePolicy, slotLength)
 
 mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)

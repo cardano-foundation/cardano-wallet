@@ -359,7 +359,7 @@ data ConfigParam
     -- ^ Consensus version. BFT / Genesis Praos.
     | SlotsPerEpoch (Quantity "slot/epoch" Word32)
     -- ^ Number of slots in an epoch.
-    | SlotDuration (Quantity "second/slot" Word8)
+    | SlotDuration (Quantity "second" Word8)
     -- ^ Slot duration in seconds.
     | EpochStabilityDepth (Quantity "block" Word32)
     -- ^ The length of the suffix of the chain (in blocks) considered unstable.

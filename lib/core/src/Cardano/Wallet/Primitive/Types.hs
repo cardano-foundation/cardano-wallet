@@ -705,7 +705,7 @@ fromFlatSlot n = SlotId e (fromIntegral s)
 epochLength :: Integral a => a
 epochLength = 21600
 
-newtype SlotLength = SlotLength (Quantity "second/slot" Word8)
+newtype SlotLength = SlotLength (Quantity "second" Word8)
     deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------

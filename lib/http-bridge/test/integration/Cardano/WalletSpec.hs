@@ -81,6 +81,6 @@ spec = do
         db <- MVar.newDBLayer
         nl <- HttpBridge.newNetworkLayer @'Testnet port
         let tl = HttpBridge.newTransactionLayer
+        let bp = BlockchainParameters block0 byronFeePolicy byronSlotLength
         (handle,) <$>
-            (newWalletLayer @_ @(HttpBridge 'Testnet)
-                nullTracer (BlockchainParameters block0 byronFeePolicy byronSlotLength) db nl tl)
+            (newWalletLayer @_ @(HttpBridge 'Testnet) nullTracer bp db nl tl)
