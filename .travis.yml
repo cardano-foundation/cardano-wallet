@@ -196,10 +196,10 @@ jobs:
     - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage bech32
     - mkdir -p .coverage/bech32 && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/bech32 \;
 
-    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-http-bridge
+    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-http-bridge 2>/dev/null
     - mkdir -p .coverage/http-bridge && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/http-bridge \;
 
-    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr
+    - stack --no-terminal test --fast --haddock --no-haddock-deps --coverage cardano-wallet-jormungandr 2>/dev/null
     - mkdir -p .coverage/jormungandr && find . -name "*.tix" ! -path "*.coverage*" -exec cp \{} .coverage/jormungandr \;
 
     - tar czf $STACK_WORK_CACHE .stack-work .coverage lib/**/.stack-work lib/**/*.tix
