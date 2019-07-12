@@ -446,15 +446,20 @@ cmdWalletUpdatePassphrase = command "passphrase" $ info (helper <*> cmd) $
         <$> portOption
         <*> walletIdArgument
     exec (WalletUpdatePassphraseArgs wPort wId) = do
-        wPassphraseOld <- getPassphrase
-            "Please enter your current passphrase: "
-        wPassphraseNew <- getPassphraseWithConfirm
-            "Please enter a new passphrase: "
-        runClient wPort (const mempty) $
-            putWalletPassphrase (walletClient @t) (ApiT wId) $
-                WalletPutPassphraseData
-                    (ApiT wPassphraseOld)
-                    (ApiT wPassphraseNew)
+        res <- sendRequest wPort $ getWallet (walletClient @t) $ ApiT wId
+        case res of
+            Right _ -> do
+                wPassphraseOld <- getPassphrase
+                    "Please enter your current passphrase: "
+                wPassphraseNew <- getPassphraseWithConfirm
+                    "Please enter a new passphrase: "
+                runClient wPort (const mempty) $
+                    putWalletPassphrase (walletClient @t) (ApiT wId) $
+                        WalletPutPassphraseData
+                            (ApiT wPassphraseOld)
+                            (ApiT wPassphraseNew)
+            Left _ ->
+                handleResponse Aeson.encodePretty res
 
 -- | Arguments for 'wallet delete' command
 data WalletDeleteArgs = WalletDeleteArgs
