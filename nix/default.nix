@@ -53,6 +53,17 @@ let
           integration.build-tools = [ jormungandr ];
           unit.build-tools = [ jormungandr ];
         };
+
+        packages.cardano-wallet-http-bridge.components.benchmarks.restore = {
+          build-tools = [ pkgs.makeWrapper ];
+          postInstall = ''
+            makeWrapper \
+              $out/cardano-wallet-*/restore \
+              $out/bin/restore \
+              --prefix PATH : ${cardano-http-bridge}/bin
+          '';
+        };
+        packages.cardano-wallet-http-bridge.components.all.postInstall = pkgs.lib.mkForce "";
       }
 
       # Misc. build fixes for dependencies
