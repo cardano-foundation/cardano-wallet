@@ -107,6 +107,7 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
+    , Iso8601Range (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
     , WalletPostData (..)
@@ -783,6 +784,10 @@ data WalletClient t = WalletClient
         :: ApiT WalletId
         -> WalletPutPassphraseData
         -> ClientM NoContent
+    , listTransactions
+        :: ApiT WalletId
+        -> Maybe (Iso8601Range "inserted-at")
+        -> ClientM [ApiTransaction t]
     , postTransaction
         :: ApiT WalletId
         -> PostTransactionData t
@@ -824,6 +829,7 @@ walletClient =
             , postWallet = _postWallet
             , putWallet = _putWallet
             , putWalletPassphrase = _putWalletPassphrase
+            , listTransactions = _listTransactions
             , postTransaction = _postTransaction
             , postTransactionFee = _postTransactionFee
             , getWalletUtxoStatistics = _getWalletUtxoStatistics
