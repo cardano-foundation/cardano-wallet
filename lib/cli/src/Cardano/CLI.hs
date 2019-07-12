@@ -269,8 +269,6 @@ runCli = join . customExecParser preferences
 
 {-------------------------------------------------------------------------------
                             Commands - 'mnemonic'
-
-  cardano-wallet mnemonic generate [--size=INT]
 -------------------------------------------------------------------------------}
 
 -- | cardano-wallet mnemonic
@@ -303,13 +301,6 @@ cmdMnemonicGenerate = command "generate" $ info (helper <*> cmd) $ mempty
 
 {-------------------------------------------------------------------------------
                             Commands - 'wallet'
-
-  cardano-wallet wallet list [--port=INT]
-  cardano-wallet wallet create [--port=INT] <name> [--address-pool-gap=INT]
-  cardano-wallet wallet get [--port=INT] <wallet-id>
-  cardano-wallet wallet update name [--port=INT] <wallet-id> STRING
-  cardano-wallet wallet update passphrase [--port=INT] <wallet-id>
-  cardano-wallet wallet delete [--port=INT] <wallet-id>
 -------------------------------------------------------------------------------}
 
 -- | cardano-wallet wallet
@@ -490,9 +481,6 @@ cmdWalletDelete = command "delete" $ info (helper <*> cmd) $ mempty
 
 {-------------------------------------------------------------------------------
                             Commands - 'transaction'
-
-  cardano-wallet transaction create [--port=INT] <wallet-id> --payment=PAYMENT...
-  cardano-wallet transaction fees [--port=INT] <wallet-id> --payment=PAYMENT...
 -------------------------------------------------------------------------------}
 
 -- | cardano-wallet transaction
@@ -558,8 +546,6 @@ cmdTransactionFees = command "fees" $ info (helper <*> cmd) $ mempty
 
 {-------------------------------------------------------------------------------
                             Commands - 'address'
-
-  cardano-wallet address list [--port=INT] [--state=STRING] <wallet-id>
 -------------------------------------------------------------------------------}
 
 -- | cardano-wallet address
@@ -596,8 +582,6 @@ cmdAddressList = command "list" $ info (helper <*> cmd) $ mempty
 
 {-------------------------------------------------------------------------------
                             Commands - 'version'
-
-  cardano-wallet version
 -------------------------------------------------------------------------------}
 
 -- | cardano-wallet version
@@ -612,8 +596,6 @@ cmdVersion = command "version" $ info cmd $ mempty
 
 {-------------------------------------------------------------------------------
                             Commands - 'launch'
-
-  cardano-wallet launch ...
 -------------------------------------------------------------------------------}
 
 -- | Execute 'launch' commands. This differs from the 'serve' command as it
