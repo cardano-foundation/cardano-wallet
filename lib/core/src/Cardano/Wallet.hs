@@ -168,6 +168,8 @@ import Data.Text.Class
     ( toText )
 import Data.Time.Clock
     ( diffTimeToPicoseconds, getCurrentTime )
+import Data.Word
+    ( Word16 )
 import Fmt
     ( Buildable, blockListF, pretty, (+|), (+||), (|+), (||+) )
 
@@ -635,10 +637,9 @@ newWalletLayer tracer bp db nw tl = do
                                     Transactions
     ---------------------------------------------------------------------------}
 
-    -- FIXME Compute the options based on the transaction's size / inputs
     coinSelOpts :: CoinSelectionOptions (ErrValidateSelection t)
     coinSelOpts = CoinSelectionOptions
-        { maximumNumberOfInputs = 10
+        { maximumNumberOfInputs = estimateMaxNumberOfInputs tl txMaxSize
         , validate = validateSelection tl
         }
 

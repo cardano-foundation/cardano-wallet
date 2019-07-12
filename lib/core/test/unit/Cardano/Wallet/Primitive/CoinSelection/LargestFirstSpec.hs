@@ -215,7 +215,7 @@ propDeterministic
     :: CoinSelProp
     -> Property
 propDeterministic (CoinSelProp utxo txOuts) = do
-    let opts = CoinSelectionOptions 100 noValidation
+    let opts = CoinSelectionOptions (const 100) noValidation
     let resultOne = runIdentity $ runExceptT $ largestFirst opts txOuts utxo
     let resultTwo = runIdentity $ runExceptT $ largestFirst opts txOuts utxo
     resultOne === resultTwo
@@ -229,7 +229,7 @@ propAtLeast (CoinSelProp utxo txOuts) =
     prop (CoinSelection inps _ _) =
         L.length inps `shouldSatisfy` (>= NE.length txOuts)
     selection = runIdentity $ runExceptT $
-        largestFirst (CoinSelectionOptions 100 noValidation) txOuts utxo
+        largestFirst (CoinSelectionOptions (const 100) noValidation) txOuts utxo
 
 propInputDecreasingOrder
     :: CoinSelProp
@@ -247,4 +247,4 @@ propInputDecreasingOrder (CoinSelProp utxo txOuts) =
             (>= (getExtremumValue L.maximum utxo'))
     getExtremumValue f = f . map (getCoin . coin . snd)
     selection = runIdentity $ runExceptT $
-        largestFirst (CoinSelectionOptions 100 noValidation) txOuts utxo
+        largestFirst (CoinSelectionOptions (const 100) noValidation) txOuts utxo

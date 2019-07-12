@@ -109,7 +109,7 @@ import Data.Quantity
 import Data.Time.Clock
     ( secondsToDiffTime )
 import Data.Word
-    ( Word32 )
+    ( Word16, Word32 )
 import GHC.Generics
     ( Generic )
 import Test.Hspec

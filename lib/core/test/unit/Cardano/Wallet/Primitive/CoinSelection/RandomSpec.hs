@@ -250,9 +250,10 @@ propFragmentation drg (CoinSelProp utxo txOuts) = do
     prop (CoinSelection inps1 _ _, CoinSelection inps2 _ _) =
         L.length inps1 `shouldSatisfy` (>= L.length inps2)
     (selection1,_) = withDRG drg
-        (runExceptT $ random (CoinSelectionOptions 100 noValidation) txOuts utxo)
+        (runExceptT $ random opt txOuts utxo)
     selection2 = runIdentity $ runExceptT $
-        largestFirst (CoinSelectionOptions 100 noValidation) txOuts utxo
+        largestFirst opt txOuts utxo
+    opt = CoinSelectionOptions (const 100) noValidation
 
 propErrors
     :: SystemDRG
@@ -266,6 +267,7 @@ propErrors drg (CoinSelProp utxo txOuts) = do
     prop (err1, err2) =
         err1 === err2
     (selection1,_) = withDRG drg
-        (runExceptT $ random (CoinSelectionOptions 1 noValidation) txOuts utxo)
+        (runExceptT $ random opt txOuts utxo)
     selection2 = runIdentity $ runExceptT $
-        largestFirst (CoinSelectionOptions 1 noValidation) txOuts utxo
+        largestFirst opt txOuts utxo
+    opt = (CoinSelectionOptions (const 1) noValidation)

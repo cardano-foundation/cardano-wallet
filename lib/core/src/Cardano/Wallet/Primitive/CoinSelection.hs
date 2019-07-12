@@ -34,7 +34,7 @@ import Crypto.Number.Generate
 import Data.Vector.Mutable
     ( IOVector )
 import Data.Word
-    ( Word64 )
+    ( Word64, Word8 )
 import Fmt
     ( Buildable (..), blockListF, blockListF', listF, nameF )
 import GHC.Generics
@@ -80,9 +80,11 @@ instance Buildable CoinSelection where
 
 data CoinSelectionOptions e = CoinSelectionOptions
     { maximumNumberOfInputs
-        :: Word64
+        :: Word8 -> Word8
+            -- ^ Maximum number of inputs allowed for a given number of outputs
     , validate
         :: CoinSelection -> Either e ()
+            -- ^ Returns any backend-specific error regarding coin selection
     } deriving (Generic)
 
 data ErrCoinSelection e
