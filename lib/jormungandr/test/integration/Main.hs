@@ -182,12 +182,11 @@ cardanoWalletServer
 cardanoWalletServer mlisten = do
     logConfig <- CM.empty
     tracer <- initTracer Info "serve"
-    (nl, block0, feePolicy, slotLength) <- newNetworkLayer jormungandrUrl block0H
+    (nl, bp) <- newNetworkLayer jormungandrUrl block0H
     (sqlCtx, db) <- Sqlite.newDBLayer @_ @network logConfig tracer Nothing
     mvar <- newEmptyMVar
     handle <- async $ do
         let tl = Jormungandr.newTransactionLayer block0H
-        let bp = BlockchainParameters block0 feePolicy slotLength
         wallet <- newWalletLayer tracer bp db nl tl
         let listen = fromMaybe (ListenOnPort defaultPort) mlisten
         Server.withListeningSocket listen $ \(port, socket) -> do

@@ -124,6 +124,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Time.Clock
+    ( DiffTime, secondsToDiffTime )
 import Data.Word
     ( Word16, Word32, Word64, Word8 )
 
@@ -359,7 +361,7 @@ data ConfigParam
     -- ^ Consensus version. BFT / Genesis Praos.
     | SlotsPerEpoch (Quantity "slot/epoch" Word32)
     -- ^ Number of slots in an epoch.
-    | SlotDuration (Quantity "second" Word8)
+    | SlotDuration DiffTime
     -- ^ Slot duration in seconds.
     | EpochStabilityDepth (Quantity "block" Word32)
     -- ^ The length of the suffix of the chain (in blocks) considered unstable.
@@ -400,7 +402,7 @@ getConfigParam = label "getConfigParam" $ do
         2 -> Block0Date <$> getWord64be
         3 -> Consensus <$> getConsensusVersion
         4 -> SlotsPerEpoch . Quantity <$> getWord32be
-        5 -> SlotDuration . Quantity <$> getWord8
+        5 -> SlotDuration . secondsToDiffTime . fromIntegral <$> getWord8
         6 -> EpochStabilityDepth . Quantity <$> getWord32be
         8 -> ConsensusGenesisPraosParamF <$> getMilli
         9 -> MaxNumberOfTransactionsPerBlock <$> getWord32be

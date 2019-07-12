@@ -130,8 +130,10 @@ import Data.Text.Class
     )
 import Data.Time
     ( UTCTime )
+import Data.Time.Clock
+    ( DiffTime )
 import Data.Word
-    ( Word16, Word32, Word64, Word8 )
+    ( Word16, Word32, Word64 )
 import Fmt
     ( Buildable (..)
     , blockListF
@@ -705,7 +707,7 @@ fromFlatSlot n = SlotId e (fromIntegral s)
 epochLength :: Integral a => a
 epochLength = 21600
 
-newtype SlotLength = SlotLength (Quantity "second" Word8)
+newtype SlotLength = SlotLength DiffTime
     deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------

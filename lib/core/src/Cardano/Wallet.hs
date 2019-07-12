@@ -167,7 +167,7 @@ import Data.Text
 import Data.Text.Class
     ( toText )
 import Data.Time.Clock
-    ( getCurrentTime )
+    ( diffTimeToPicoseconds, getCurrentTime )
 import Fmt
     ( Buildable, blockListF, pretty, (+|), (+||), (|+), (||+) )
 
@@ -381,7 +381,7 @@ newWalletLayer
     -> IO (WalletLayer s t)
 newWalletLayer
     tracer
-    (BlockchainParameters block0 feePolicy (SlotLength (Quantity slotLength)))
+    (BlockchainParameters block0 feePolicy (SlotLength slotLength))
     db nw tl = do
     logDebugT $ "Wallet layer starting with: "
         <> "block0: "+| block0 |+ ", "
@@ -545,14 +545,15 @@ newWalletLayer
         -> WalletId
         -> BlockHeader
         -> IO ()
-    restoreSleep t wid slot = do
-        let halfSlotLengthDelay = 500000 * (fromIntegral slotLength) in threadDelay halfSlotLengthDelay
-        runExceptT (networkTip nw) >>= \case
-            Left e -> do
-                logError t $ "Failed to get network tip: " +|| e ||+ ""
-                restoreSleep t wid slot
-            Right tip ->
-                restoreStep t wid (slot, tip)
+    restoreSleep t wid slot =
+        let halfSlotLengthDelay = fromIntegral $ (diffTimeToPicoseconds slotLength `div` 500000) in do
+            threadDelay halfSlotLengthDelay
+            runExceptT (networkTip nw) >>= \case
+                Left e -> do
+                    logError t $ "Failed to get network tip: " +|| e ||+ ""
+                    restoreSleep t wid slot
+                Right tip ->
+                    restoreStep t wid (slot, tip)
 
     -- | Apply the given blocks to the wallet and update the wallet state,
     -- transaction history and corresponding metadata.

@@ -106,6 +106,8 @@ import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Time.Clock
+    ( secondsToDiffTime )
 import Data.Word
     ( Word32 )
 import GHC.Generics
@@ -370,14 +372,8 @@ setupFixture (wid, wname, wstate) = do
     db <- newDBLayer
     let nl = error "NetworkLayer"
     let tl = dummyTransactionLayer
-    wl <- newWalletLayer
-        @_
-        @DummyTarget
-        nullTracer
-        (BlockchainParameters block0 dummyPolicy dummySlotLength)
-        db
-        nl
-        tl
+    let bp = BlockchainParameters block0 dummyPolicy dummySlotLength
+    wl <- newWalletLayer @_ @DummyTarget nullTracer bp db nl tl
     res <- runExceptT $ createWallet wl wid wname wstate
     let wal = case res of
             Left _ -> []
@@ -388,7 +384,7 @@ setupFixture (wid, wname, wstate) = do
     dummyPolicy = LinearFee (Quantity 14) (Quantity 42)
 
     dummySlotLength :: SlotLength
-    dummySlotLength = SlotLength $ Quantity 1
+    dummySlotLength = SlotLength $ secondsToDiffTime 1
 
 -- | A dummy transaction layer to see the effect of a root private key. It
 -- implements a fake signer that still produces sort of witnesses

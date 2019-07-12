@@ -54,6 +54,7 @@ library
     , servant-client-core
     , text
     , text-class
+    , time
     , transformers
   hs-source-dirs:
       src

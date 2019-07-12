@@ -60,6 +60,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
     ( TextDecodingError (..) )
+import Data.Time.Clock
+    ( secondsToDiffTime )
 
 import qualified Cardano.Wallet.HttpBridge.Binary as CBOR
 import qualified Cardano.Wallet.HttpBridge.Primitive.Types as W
@@ -160,4 +162,4 @@ byronFeePolicy = LinearFee (Quantity 155381) (Quantity 43.946)
 
 -- | Hard-coded slot duration
 byronSlotLength :: SlotLength
-byronSlotLength = SlotLength $ Quantity 20
+byronSlotLength = SlotLength $ secondsToDiffTime 20
