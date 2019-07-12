@@ -11,6 +11,8 @@ import Prelude
 
 import Control.Concurrent
     ( threadDelay )
+import Control.Exception
+    ( finally )
 import Control.Monad
     ( forM_ )
 import System.Exit
@@ -50,6 +52,7 @@ spec = do
                 let process = proc' (commandName @t) args
                 withCreateProcess process $ \_ _ _ ph -> do
                     expectPathEventuallyExist db
+                  `finally` do
                     terminateProcess ph
             threadDelay oneSecond
 

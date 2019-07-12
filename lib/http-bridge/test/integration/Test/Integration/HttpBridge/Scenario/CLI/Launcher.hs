@@ -71,6 +71,7 @@ spec = do
                 expectPathEventuallyExist d
                 expectPathEventuallyExist (d <> "/testnet")
                 expectPathEventuallyExist (d <> "/wallet.db")
+              `finally` do
                 terminateProcess ph
                 TIO.hGetContents o >>= TIO.putStrLn
                 TIO.hGetContents e >>= TIO.putStrLn
@@ -83,6 +84,7 @@ spec = do
                 expectPathEventuallyExist d
                 expectPathEventuallyExist (d <> "/testnet")
                 expectPathEventuallyExist (d <> "/wallet.db")
+              `finally` do
                 terminateProcess ph
                 TIO.hGetContents o >>= TIO.putStrLn
                 TIO.hGetContents e >>= TIO.putStrLn
@@ -98,13 +100,15 @@ spec = do
                 waitForServer @t ctx
                 let pwd = "passphrase"
                 (_, out, _) <- createWalletViaCLI @t ctx ["n"] m "\n" pwd
+                expectValidJSON (Proxy @ApiWallet) out
+              `finally` do
                 terminateProcess ph
                 TIO.hGetContents o >>= TIO.putStrLn
                 TIO.hGetContents e >>= TIO.putStrLn
-                expectValidJSON (Proxy @ApiWallet) out
             withCreateProcess process $ \_ (Just o) (Just e) ph -> do
                 waitForServer @t ctx
-                expectEventually' ctx state Ready wallet `finally` do
+                expectEventually' ctx state Ready wallet
+              `finally` do
                     terminateProcess ph
                     TIO.hGetContents o >>= TIO.putStrLn
                     TIO.hGetContents e >>= TIO.putStrLn
