@@ -24,7 +24,7 @@ import Control.Concurrent.MVar
 import Control.Monad
     ( mapM_ )
 import Data.Either
-    ( isRight )
+    ( isLeft, isRight )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -61,13 +61,45 @@ spec = do
         textRoundtrip $ Proxy @(Port "test")
         textRoundtrip $ Proxy @MnemonicSize
 
-    describe "Can decode basic ISO 8601 time examples" $ do
-        canDecodeIso8601Time "2008-09-15T15:53:00Z"
-        canDecodeIso8601Time "2008-09-15T15:53:00.1Z"
-        canDecodeIso8601Time "2008-09-15T15:53:00.12Z"
-        canDecodeIso8601Time "2008-09-15T15:53:00+05:00"
-        canDecodeIso8601Time "2008-09-15T15:53:00.1+05:00"
-        canDecodeIso8601Time "2008-09-15T15:53:00.12+05:00"
+    describe "Can decode valid ISO 8601 strings" $ do
+        describe "UTC+0 timezone (Z)" $ do
+            canDecodeValidIso8601Time "2008-09-15T15:53:00Z"
+            canDecodeValidIso8601Time "2008-09-15T15:53:00.1Z"
+            canDecodeValidIso8601Time "2008-09-15T15:53:00.12Z"
+        describe "UTC+0 timezone (manually specified)" $ do
+            canDecodeValidIso8601Time "2008-09-15T15:53:00+00:00"
+            canDecodeValidIso8601Time "2008-09-15T15:53:00.1+00:00"
+            canDecodeValidIso8601Time "2008-09-15T15:53:00.12+00:00"
+        describe "UTC+8 timezone (manually specified)" $ do
+            canDecodeValidIso8601Time "2008-09-15T15:53:00+08:00"
+            canDecodeValidIso8601Time "2008-09-15T15:53:00.1+08:00"
+            canDecodeValidIso8601Time "2008-09-15T15:53:00.12+08:00"
+
+    describe "Cannot decode invalid ISO 8601 strings" $ do
+        describe "Strings that are not time values" $ do
+            cannotDecodeInvalidIso8601Time ""
+            cannotDecodeInvalidIso8601Time "w"
+            cannotDecodeInvalidIso8601Time "wibble"
+        describe "Dates without times" $ do
+            cannotDecodeInvalidIso8601Time "2008"
+            cannotDecodeInvalidIso8601Time "2008-09"
+            cannotDecodeInvalidIso8601Time "2008-09-15"
+        describe "Missing timezones" $ do
+            cannotDecodeInvalidIso8601Time "2008-09-15T15:53:00"
+            cannotDecodeInvalidIso8601Time "2008-09-15T15:53:00.1"
+            cannotDecodeInvalidIso8601Time "2008-09-15T15:53:00.12"
+        describe "Invalid timezone characters" $ do
+            cannotDecodeInvalidIso8601Time "2008-09-15T15:53:00A"
+            cannotDecodeInvalidIso8601Time "2008-09-15T15:53:00.1A"
+            cannotDecodeInvalidIso8601Time "2008-09-15T15:53:00.12A"
+        describe "Invalid date-time separators" $ do
+            cannotDecodeInvalidIso8601Time "2008-09-15S15:53:00Z"
+            cannotDecodeInvalidIso8601Time "2008-09-15S15:53:00.1Z"
+            cannotDecodeInvalidIso8601Time "2008-09-15S15:53:00.12Z"
+        describe "Missing date-time separators" $ do
+            cannotDecodeInvalidIso8601Time "2008-09-1515:53:00Z"
+            cannotDecodeInvalidIso8601Time "2008-09-1515:53:00.1Z"
+            cannotDecodeInvalidIso8601Time "2008-09-1515:53:00.12Z"
 
     describe "Port decoding from text" $ do
         let err = TextDecodingError
@@ -215,12 +247,12 @@ instance Arbitrary (Port "test") where
                                Helper Functions
 -------------------------------------------------------------------------------}
 
--- | Checks whether the specified 'Text' can be decoded as an 'Iso8601Time'
---   using the 'FromText` instance.
+-- | Checks that the specified 'Text' CAN be decoded as an 'Iso8601Time'
+--   value using the 'FromText` instance.
 --
-canDecodeIso8601Time :: Text -> Spec
-canDecodeIso8601Time text =
-    it ("Can decode ISO 8601 time: " <> T.unpack text) $ property $ do
+canDecodeValidIso8601Time :: Text -> Spec
+canDecodeValidIso8601Time text =
+    it ("Can decode as ISO 8601 time: " <> T.unpack text) $ property $ do
         let result = fromText @Iso8601Time text
         -- Internally, 'Iso8601Time' values are always stored canonically as
         -- times in the UTC+0 timezone. Any original timezone information is
@@ -230,3 +262,11 @@ canDecodeIso8601Time text =
         (result `shouldSatisfy` isRight)
             .&&.
             ((fromText . toText =<< result) `shouldBe` result)
+
+-- | Checks that the specified 'Text' CANNOT be decoded as an 'Iso8601Time'
+--   value using the 'FromText' instance.
+--
+cannotDecodeInvalidIso8601Time :: Text -> Spec
+cannotDecodeInvalidIso8601Time text =
+    it ("Cannot decode as ISO 8601 time: " <> T.unpack text) $ property $ do
+        fromText @Iso8601Time text `shouldSatisfy` isLeft
