@@ -74,7 +74,7 @@ import Cardano.Wallet.Jormungandr.Compatibility
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Jormungandr.Network
-    ( ErrGetInitialConfigParams (..), getInitialBlockchainParameters )
+    ( ErrGetBlockchainParams (..), getInitialBlockchainParameters )
 import Cardano.Wallet.Network
     ( ErrNetworkTip, NetworkLayer (..), defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -348,11 +348,11 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
             blockchainParams <-
                 runExceptT (getInitialBlockchainParameters jor (coerce block0H)) >>= \case
                 Right a -> return a
-                Left (ErrGetInitialConfigParamsNetworkUnreachable _) ->
+                Left (ErrGetBlockchainParamsNetworkUnreachable _) ->
                     handleNetworkUnreachable tracer
-                Left (ErrGetInitialConfigParamsGenesisNotFound _) ->
+                Left (ErrGetBlockchainParamsGenesisNotFound _) ->
                     handleGenesisNotFound (sb, tracer)
-                Left (ErrGetInitialConfigParamsNoInitialPolicy _) ->
+                Left (ErrGetBlockchainParamsNoInitialPolicy _) ->
                     handleNoInitialPolicy tracer
             return (nl, blockchainParams)
 

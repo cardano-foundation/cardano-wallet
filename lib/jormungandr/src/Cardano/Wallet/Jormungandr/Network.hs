@@ -26,7 +26,7 @@ module Cardano.Wallet.Jormungandr.Network
 
     -- * Errors
     , ErrGetDescendants (..)
-    , ErrGetInitialConfigParams (..)
+    , ErrGetBlockchainParams (..)
 
     -- * Re-export
     , BaseUrl (..)
@@ -175,7 +175,7 @@ data JormungandrLayer n m = JormungandrLayer
         -> ExceptT ErrPostTx m ()
     , getInitialBlockchainParameters
         :: Hash "Genesis"
-        -> ExceptT ErrGetInitialConfigParams m (BlockchainParameters (Jormungandr n))
+        -> ExceptT ErrGetBlockchainParams m (BlockchainParameters (Jormungandr n))
     }
 
 -- | Construct a 'JormungandrLayer'-client
@@ -241,10 +241,10 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
     , getInitialBlockchainParameters = \block0 -> do
         jblock@(J.Block _ msgs) <- ExceptT $ run (cGetBlock (BlockId $ coerce block0)) >>= \case
             Left (FailureResponse e) | responseStatusCode e == status400 ->
-                return . Left . ErrGetInitialConfigParamsGenesisNotFound $ block0
+                return . Left . ErrGetBlockchainParamsGenesisNotFound $ block0
             x -> do
                 let ctx = safeLink api (Proxy @GetBlock) (BlockId $ coerce block0)
-                let networkUnreachable = ErrGetInitialConfigParamsNetworkUnreachable
+                let networkUnreachable = ErrGetBlockchainParamsNetworkUnreachable
                 left networkUnreachable <$> defaultHandler ctx x
 
         let params = mconcat $ mapMaybe getConfigParameters msgs
@@ -269,7 +269,7 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
             ([policy],[duration]) ->
                 return $ BlockchainParameters (coerceBlock jblock) policy (SlotLength duration)
             _ ->
-                throwE $ ErrGetInitialConfigParamsNoInitialPolicy params
+                throwE $ ErrGetBlockchainParamsNoInitialPolicy params
     }
   where
     run :: ClientM a -> IO (Either ServantError a)
@@ -310,8 +310,8 @@ data ErrGetDescendants
     | ErrGetDescendantsParentNotFound (Hash "BlockHeader")
     deriving (Show, Eq)
 
-data ErrGetInitialConfigParams
-    = ErrGetInitialConfigParamsNetworkUnreachable ErrNetworkUnreachable
-    | ErrGetInitialConfigParamsGenesisNotFound (Hash "Genesis")
-    | ErrGetInitialConfigParamsNoInitialPolicy [ConfigParam]
+data ErrGetBlockchainParams
+    = ErrGetBlockchainParamsNetworkUnreachable ErrNetworkUnreachable
+    | ErrGetBlockchainParamsGenesisNotFound (Hash "Genesis")
+    | ErrGetBlockchainParamsNoInitialPolicy [ConfigParam]
     deriving (Show, Eq)
