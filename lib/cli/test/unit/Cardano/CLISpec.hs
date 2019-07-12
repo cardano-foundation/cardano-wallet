@@ -14,15 +14,31 @@ import Cardano.CLI
     ( Iso8601Time (..)
     , MnemonicSize (..)
     , Port (..)
+    , cli
+    , cmdAddress
+    , cmdMnemonic
+    , cmdTransaction
+    , cmdVersion
+    , cmdWallet
     , hGetLine
     , hGetSensitiveLine
     )
+import Cardano.Crypto.Wallet
+    ( unXPub )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( KeyToAddress (..), getKey )
+import Cardano.Wallet.Primitive.Types
+    ( Address (..), DecodeAddress (..), EncodeAddress (..) )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, takeMVar )
 import Control.Monad
     ( mapM_ )
+import Data.Bifunctor
+    ( bimap )
+import Data.ByteArray.Encoding
+    ( Base (Base16), convertFromBase, convertToBase )
 import Data.Either
     ( isLeft, isRight )
 import Data.Proxy
@@ -31,10 +47,19 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), toText )
+import Options.Applicative
+    ( ParserFailure (..)
+    , ParserHelp (..)
+    , ParserResult (..)
+    , execParserPure
+    , prefs
+    )
+import Options.Applicative.Help.Chunk
+    ( unChunk )
 import System.IO
     ( Handle, IOMode (..), hClose, openFile )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldSatisfy )
+    ( Spec, describe, expectationFailure, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Large (..)
@@ -52,10 +77,34 @@ import Test.Text.Roundtrip
     ( textRoundtrip )
 
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 
 spec :: Spec
 spec = do
+    describe "Specification / Usage Overview" $ do
+        let parser = cli $ mempty
+                <> cmdMnemonic
+                <> cmdWallet @DummyTarget
+                <> cmdTransaction @DummyTarget
+                <> cmdAddress @DummyTarget
+                <> cmdVersion
+
+        let defaultPrefs = prefs mempty
+
+        let shouldShowUsage args expected =
+                case execParserPure defaultPrefs parser args of
+                    Success _ -> expectationFailure
+                        "expected parser to show usage but it has succeeded"
+                    CompletionInvoked _ -> expectationFailure
+                        "expected parser to show usage but it offered completion"
+                    Failure (ParserFailure help) -> do
+                        let (ParserHelp _ _ _ usage _ _, _, _) = help mempty
+                        maybe mempty show (unChunk usage) `shouldBe` expected
+
+        it "--help" $ ["--help"] `shouldShowUsage` mconcat
+            []
+
     describe "Can perform roundtrip textual encoding & decoding" $ do
         textRoundtrip $ Proxy @Iso8601Time
         textRoundtrip $ Proxy @(Port "test")
@@ -367,3 +416,23 @@ ensureIso8601TimesEquivalent t1 t2 = it title $ property $
     title = mempty
             <> "Equivalent ISO 8601 times are decoded equivalently: "
             <> show (t1, t2)
+
+{-------------------------------------------------------------------------------
+                                 Dummy Target
+-------------------------------------------------------------------------------}
+
+data DummyTarget
+
+instance KeyToAddress DummyTarget where
+    keyToAddress = Address . unXPub . getKey
+
+instance EncodeAddress DummyTarget where
+    encodeAddress _ = T.decodeUtf8 . convertToBase Base16 . unAddress
+
+instance DecodeAddress DummyTarget where
+    decodeAddress _ = bimap decodingError Address
+        . convertFromBase Base16
+        . T.encodeUtf8
+      where
+        decodingError _ = TextDecodingError
+            "Unable to decode Address: expected Base16 encoding"

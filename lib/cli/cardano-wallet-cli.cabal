@@ -68,8 +68,12 @@ test-suite unit
       -Werror
   build-depends:
       base
+    , cardano-crypto
     , cardano-wallet-cli
+    , cardano-wallet-core
     , hspec
+    , memory
+    , optparse-applicative
     , QuickCheck
     , quickcheck-instances
     , text
