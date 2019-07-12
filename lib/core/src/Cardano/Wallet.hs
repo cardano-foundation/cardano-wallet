@@ -656,10 +656,6 @@ newWalletLayer
             CoinSelection.random coinSelOpts recipients utxo
         logInfoT $ "Coins selected for transaction: \n"+| sel |+""
         withExceptT ErrCreateUnsignedTxFee $ do
-            let feeOpts = FeeOptions
-                    { estimate = computeFee feePolicy . estimateSize tl
-                    , dustThreshold = minBound
-                    }
             debug "Coins after fee adjustment" =<< adjustForFee feeOpts utxo' sel
 
     _estimateTxFee
@@ -671,7 +667,7 @@ newWalletLayer
         (w, _) <- withExceptT ErrEstimateTxFeeNoSuchWallet (_readWallet wid)
         let utxo = availableUTxO @s @t w
         (sel, _utxo') <- withExceptT ErrEstimateTxFeeCoinSelection $
-            CoinSelection.random opts recipients utxo
+            CoinSelection.random coinSelOpts recipients utxo
         let estimateFee = computeFee feePolicy . estimateSize tl
         pure $ estimateFee sel
 

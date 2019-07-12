@@ -38,7 +38,7 @@ module Cardano.Wallet.Jormungandr.Network
 import Prelude
 
 import Cardano.Wallet
-    ( BlockchainParameters )
+    ( BlockchainParameters (..) )
 import Cardano.Wallet.Jormungandr.Api
     ( BlockId (..)
     , GetBlock
@@ -60,8 +60,6 @@ import Cardano.Wallet.Network
     , ErrPostTx (..)
     , NetworkLayer (..)
     )
-import Cardano.Wallet.Primitive.Fee
-    ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
@@ -118,12 +116,12 @@ newNetworkLayer
     -> IO (NetworkLayer (Jormungandr n) IO)
 newNetworkLayer url = do
     mgr <- newManager defaultManagerSettings
-    return $ mkNetworkLayer $ mkJormungandrLayer mgr url
+    return $ mkNetworkLayer $ mkJormungandrLayer @n mgr url
 
 -- | Wrap a Jormungandr client into a 'NetworkLayer' common interface.
 mkNetworkLayer
     :: Monad m
-    => JormungandrLayer m
+    => JormungandrLayer n m
     -> NetworkLayer (Jormungandr n) m
 mkNetworkLayer j = NetworkLayer
     { networkTip = do
@@ -162,7 +160,7 @@ mkNetworkLayer j = NetworkLayer
 -------------------------------------------------------------------------------}
 
 -- | Endpoints of the jormungandr REST API.
-data JormungandrLayer m = JormungandrLayer
+data JormungandrLayer n m = JormungandrLayer
     { getTipId
         :: ExceptT ErrNetworkUnreachable m (Hash "BlockHeader")
     , getBlock
@@ -177,7 +175,7 @@ data JormungandrLayer m = JormungandrLayer
         -> ExceptT ErrPostTx m ()
     , getInitialBlockchainParameters
         :: Hash "Genesis"
-        -> ExceptT ErrGetInitialConfigParams m (BlockchainParameters (Jormungandr network))
+        -> ExceptT ErrGetInitialConfigParams m (BlockchainParameters (Jormungandr n))
     }
 
 -- | Construct a 'JormungandrLayer'-client
@@ -200,7 +198,8 @@ data JormungandrLayer m = JormungandrLayer
 -- >>> runExceptT $ getDescendantIds j t 4
 -- Right []
 mkJormungandrLayer
-    :: Manager -> BaseUrl -> JormungandrLayer IO
+    :: forall n. ()
+    => Manager -> BaseUrl -> JormungandrLayer n IO
 mkJormungandrLayer mgr baseUrl = JormungandrLayer
     { getTipId = ExceptT $ do
         let ctx = safeLink api (Proxy @GetTipId)
@@ -254,9 +253,9 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
                     Initial xs -> Just xs
                     _ -> Nothing
 
-        let mpolicy = mapMaybe getFeePolicy params
+        let mpolicy = mapMaybe getsFeePolicy params
               where
-                getFeePolicy = \case
+                getsFeePolicy = \case
                     ConfigLinearFee x -> Just x
                     _ -> Nothing
 
@@ -268,7 +267,7 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
 
         case (mpolicy,mduration) of
             ([policy],[duration]) ->
-                return $ (coerceBlock jblock) policy (SlotLength duration)
+                return $ BlockchainParameters (coerceBlock jblock) policy (SlotLength duration)
             _ ->
                 throwE $ ErrGetInitialConfigParamsNoInitialPolicy params
     }
