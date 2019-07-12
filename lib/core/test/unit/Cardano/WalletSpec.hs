@@ -372,7 +372,7 @@ setupFixture (wid, wname, wstate) = do
     db <- newDBLayer
     let nl = error "NetworkLayer"
     let tl = dummyTransactionLayer
-    let bp = BlockchainParameters block0 dummyPolicy dummySlotLength
+    let bp = BlockchainParameters block0 policy slotLength txMaxSize
     wl <- newWalletLayer @_ @DummyTarget nullTracer bp db nl tl
     res <- runExceptT $ createWallet wl wid wname wstate
     let wal = case res of
@@ -380,11 +380,14 @@ setupFixture (wid, wname, wstate) = do
             Right walletId -> [walletId]
     pure $ WalletLayerFixture db wl wal
   where
-    dummyPolicy :: FeePolicy
-    dummyPolicy = LinearFee (Quantity 14) (Quantity 42)
+    policy :: FeePolicy
+    policy = LinearFee (Quantity 14) (Quantity 42)
 
-    dummySlotLength :: SlotLength
-    dummySlotLength = SlotLength $ secondsToDiffTime 1
+    slotLength :: SlotLength
+    slotLength = SlotLength $ secondsToDiffTime 1
+
+    txMaxSize :: Quantity "byte" Word16
+    txMaxSize = Quantity 8192
 
 -- | A dummy transaction layer to see the effect of a root private key. It
 -- implements a fake signer that still produces sort of witnesses

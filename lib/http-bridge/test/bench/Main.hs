@@ -20,7 +20,7 @@ import Cardano.Wallet
 import Cardano.Wallet.DB.Sqlite
     ( PersistState )
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge, block0, byronFeePolicy, byronSlotLength )
+    ( HttpBridge, block0, byronFeePolicy, byronSlotLength, byronTxMaxSize )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.HttpBridge.Network
@@ -212,7 +212,12 @@ bench_restoration _ (wid, wname, s) = withHttpBridge network $ \port -> do
     let tl = newTransactionLayer
     BlockHeader sl _ <- unsafeRunExceptT $ networkTip nw
     sayErr . fmt $ network ||+ " tip is at " +|| sl ||+ ""
-    let bp = BlockchainParameters block0 byronFeePolicy byronSlotLength
+    let bp = BlockchainParameters
+            { getGenesisBlock = block0
+            , getFeePolicy = byronFeePolicy
+            , getSlotLength = byronSlotLength
+            , getTxMaxSize = byronTxMaxSize
+            }
     w <- newWalletLayer @_ @t nullTracer bp db nw tl
     wallet <- unsafeRunExceptT $ createWallet w wid wname s
     unsafeRunExceptT $ restoreWallet w wallet

@@ -180,8 +180,7 @@ cardanoWalletServer
 cardanoWalletServer mlisten = do
     logConfig <- CM.empty
     tracer <- initTracer Info "serve"
-    (nl, bp@(BlockchainParameters _ feePolicy _) ) <-
-         newNetworkLayer jormungandrUrl block0H
+    (nl, bp) <- newNetworkLayer jormungandrUrl block0H
     (sqlCtx, db) <- Sqlite.newDBLayer @_ @network logConfig tracer Nothing
     mvar <- newEmptyMVar
     handle <- async $ do
@@ -192,7 +191,7 @@ cardanoWalletServer mlisten = do
             let settings = Warp.defaultSettings
                     & setBeforeMainLoop (putMVar mvar port)
             Server.start settings tracer socket wallet
-    (handle,,feePolicy,sqlCtx) <$> takeMVar mvar
+    (handle, , getFeePolicy bp, sqlCtx) <$> takeMVar mvar
   where
     jormungandrUrl :: BaseUrl
     jormungandrUrl = BaseUrl Http "localhost" 8080 "/api"

@@ -20,6 +20,7 @@ module Cardano.Wallet.HttpBridge.Compatibility
     , block0
     , byronFeePolicy
     , byronSlotLength
+    , byronTxMaxSize
     ) where
 
 import Prelude
@@ -62,6 +63,8 @@ import Data.Text.Class
     ( TextDecodingError (..) )
 import Data.Time.Clock
     ( secondsToDiffTime )
+import Data.Word
+    ( Word16 )
 
 import qualified Cardano.Wallet.HttpBridge.Binary as CBOR
 import qualified Cardano.Wallet.HttpBridge.Primitive.Types as W
@@ -159,7 +162,10 @@ block0 = Block
 byronFeePolicy :: FeePolicy
 byronFeePolicy = LinearFee (Quantity 155381) (Quantity 43.946)
 
-
 -- | Hard-coded slot duration
 byronSlotLength :: SlotLength
 byronSlotLength = SlotLength $ secondsToDiffTime 20
+
+-- | Hard-coded max transaction size
+byronTxMaxSize :: Quantity "byte" Word16
+byronTxMaxSize = Quantity 8192

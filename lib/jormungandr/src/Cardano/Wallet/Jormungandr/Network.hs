@@ -50,7 +50,7 @@ import Cardano.Wallet.Jormungandr.Api
 import Cardano.Wallet.Jormungandr.Binary
     ( ConfigParam (..), Message (..), coerceBlock )
 import Cardano.Wallet.Jormungandr.Compatibility
-    ( Jormungandr )
+    ( Jormungandr, softTxMaxSize )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx )
 import Cardano.Wallet.Network
@@ -267,7 +267,12 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
 
         case (mpolicy,mduration) of
             ([policy],[duration]) ->
-                return $ BlockchainParameters (coerceBlock jblock) policy (SlotLength duration)
+                return $ BlockchainParameters
+                    { getGenesisBlock = coerceBlock jblock
+                    , getFeePolicy = policy
+                    , getSlotLength = SlotLength duration
+                    , getTxMaxSize = softTxMaxSize
+                    }
             _ ->
                 throwE $ ErrGetBlockchainParamsNoInitialPolicy params
     }

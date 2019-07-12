@@ -18,6 +18,7 @@ module Cardano.Wallet.Jormungandr.Compatibility
       Jormungandr
     , Network (..)
     , block0
+    , softTxMaxSize
 
       -- * Node's Configuration
     , BaseUrl (..)
@@ -63,8 +64,12 @@ import Data.Maybe
     ( fromJust, isJust )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text.Class
     ( TextDecodingError (..) )
+import Data.Word
+    ( Word16 )
 import Servant.Client.Core
     ( BaseUrl (..), Scheme (..) )
 import System.FilePath
@@ -89,6 +94,14 @@ block0 = BlockHeader
     { slotId = (SlotId 0 0)
     , prevBlockHash = Hash (BS.replicate 32 0)
     }
+
+-- | Jörmugandr's chain parameter doesn't include a transaction max size. The
+-- actual hard-limit for the size is constrained by the binary format and
+-- numbers used to represent the number of inputs and outputs (Word8), yet
+-- there's also a soft-limit of 8kb which results in much smaller transactions
+-- in the end.
+softTxMaxSize :: Quantity "byte" Word16
+softTxMaxSize = Quantity 8192
 
 instance DefineTx (Jormungandr network) where
     type Tx (Jormungandr network) = Tx

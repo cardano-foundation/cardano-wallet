@@ -367,7 +367,11 @@ data BlockchainParameters t = BlockchainParameters
     { getGenesisBlock :: Block (Tx t)
         -- ^ Very first block
     , getFeePolicy :: FeePolicy
+        -- ^ Policy regarding transcation fee
     , getSlotLength :: SlotLength
+        -- ^ Length, in seconds, of a slot
+    , getTxMaxSize :: Quantity "byte" Word16
+        -- ^ Maximum size of a transaction (soft or hard limit)
     }
 
 -- | Create a new instance of the wallet layer.
@@ -379,10 +383,7 @@ newWalletLayer
     -> NetworkLayer t IO
     -> TransactionLayer t
     -> IO (WalletLayer s t)
-newWalletLayer
-    tracer
-    (BlockchainParameters block0 feePolicy (SlotLength slotLength))
-    db nw tl = do
+newWalletLayer tracer bp db nw tl = do
     logDebugT $ "Wallet layer starting with: "
         <> "block0: "+| block0 |+ ", "
         <> "fee policy: "+|| feePolicy ||+""
@@ -404,6 +405,8 @@ newWalletLayer
         , listTransactions = _listTransactions
         }
   where
+    BlockchainParameters block0 feePolicy (SlotLength slotLength) txMaxSize = bp
+
     logDebugT :: MonadIO m => Text -> m ()
     logDebugT = liftIO . logDebug tracer
 
