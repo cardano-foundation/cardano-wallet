@@ -477,7 +477,8 @@ spec = do
                   , ""
                   , expect (ExitFailure 1, mempty, "passphrase is too short")
                   )
-                , ( "Incorrect old passphrase", "wrong secure passphrase"
+                , ( "Incorrect old passphrase"
+                  , "wrong secure passphrase"
                   , expect (ExitFailure 1, mempty, errMsg403WrongPass)
                   )
                 ]
