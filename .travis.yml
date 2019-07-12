@@ -228,9 +228,10 @@ jobs:
     - cd lib/core
     - find $LOCAL_MIX_DIR -type f -name "Cardano.Wallet.DB.Sqlite.TH.mix" > overlay.hpc
     - 'sed -i "s/.*hpc\/\(.*\).mix/module \"\1\" {}/" overlay.hpc'
-    - stack exec -- hpc overlay --hpcdir $LOCAL_MIX_DIR overlay.hpc > .coverage/core/Cardano.Wallet.DB.Sqlite.TH.tix
+    - stack exec -- hpc overlay --hpcdir $LOCAL_MIX_DIR overlay.hpc > Cardano.Wallet.DB.Sqlite.TH.tix
     - 'sed -i "s/0,/1,/g" Cardano.Wallet.DB.Sqlite.TH.tix'
     - cd -
+    - mv lib/core/*.tix .coverage/core
     # Re-build the coverage report taking .tix from executables running outside of the test suites
     - stack hpc report .coverage/**/*.tix
     - shc combined custom
