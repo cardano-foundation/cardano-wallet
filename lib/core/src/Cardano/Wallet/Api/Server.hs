@@ -546,16 +546,6 @@ instance Buildable e => LiftHandler (ErrEstimateTxFee e) where
     handler = \case
         ErrEstimateTxFeeNoSuchWallet e -> handler e
         ErrEstimateTxFeeCoinSelection e -> handler e
-        ErrEstimateTxFeeBackend ErrInvalidTxOutAmount ->
-            apiError err403 CannotValidateSelection $ mconcat
-                [ "I can't estimate transaction fee because transaction contains"
-                , " at least one payment output of value 0."
-                ]
-        ErrEstimateTxFeeBackend ErrExceededInpsOrOuts ->
-            apiError err403 CannotValidateSelection $ mconcat
-                [ "I can't estimate transaction fee because transaction has either"
-                , " more than 255 inputs or more than 255 outputs."
-                ]
 
 instance LiftHandler ErrSignTx where
     handler = \case

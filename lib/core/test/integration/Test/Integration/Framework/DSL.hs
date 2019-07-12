@@ -631,7 +631,7 @@ fixtureNInputs ctx (n, amt) amtToSend = do
 
     -- each amt is going to the same address
     let addrIds = view #id <$> addrs
-    let addrIdRepl = replicate n addrIds !! 0
+    let addrIdRepl = replicate n addrIds !! 1
     let payments = flip map addrIdRepl $ \addr -> [aesonQQ|{
             "address": #{addr},
             "amount": {
