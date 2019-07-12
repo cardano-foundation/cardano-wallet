@@ -545,15 +545,15 @@ newWalletLayer
         -> WalletId
         -> BlockHeader
         -> IO ()
-    restoreSleep t wid slot =
-        let halfSlotLengthDelay = fromIntegral (diffTimeToPicoseconds slotLength `div` 2000000) in do
-            threadDelay halfSlotLengthDelay
-            runExceptT (networkTip nw) >>= \case
-                Left e -> do
-                    logError t $ "Failed to get network tip: " +|| e ||+ ""
-                    restoreSleep t wid slot
-                Right tip ->
-                    restoreStep t wid (slot, tip)
+    restoreSleep t wid slot = do
+        let halfSlotLengthDelay = fromIntegral (diffTimeToPicoseconds slotLength `div` 2000000)
+        threadDelay halfSlotLengthDelay
+        runExceptT (networkTip nw) >>= \case
+            Left e -> do
+                logError t $ "Failed to get network tip: " +|| e ||+ ""
+                restoreSleep t wid slot
+            Right tip ->
+                restoreStep t wid (slot, tip)
 
     -- | Apply the given blocks to the wallet and update the wallet state,
     -- transaction history and corresponding metadata.
