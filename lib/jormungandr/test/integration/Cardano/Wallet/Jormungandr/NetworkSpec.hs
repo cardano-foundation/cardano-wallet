@@ -185,11 +185,7 @@ spec = do
             let jml = Jormungandr.mkJormungandrLayer mgr url
             let nonexistent = Hash "cat"
             res <- runExceptT (Jormungandr.getDescendantIds jml nonexistent 42)
-            res `shouldSatisfy` \case
-                Left (ErrGetDescendantsParentNotFound _) -> True
-                Left (ErrGetDescendantsNetworkUnreachable _) -> False
-                Right _ -> False
-
+            res `shouldBe` Left (ErrGetDescendantsParentNotFound nonexistent)
 
     -- NOTE: 'Right ()' just means that the format wasn't obviously wrong.
     -- The tx may still be rejected.
