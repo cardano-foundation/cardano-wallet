@@ -57,7 +57,8 @@ spec = do
             , expectErrorMessage errMsg403ZeroAmtOutput
             ]
 
-    it "TRANS_ESTIMATE_09 - 0 tx fee estimation is allowed? on single output tx" $ \ctx -> do
+    it "TRANS_ESTIMATE_09 - \
+        \a fee cannot be estimated for a tx with an output of amount 0 (single)" $ \ctx -> do
         (wSrc, payload) <- fixtureZeroAmtSingle ctx
         r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
         verify r
@@ -65,7 +66,8 @@ spec = do
             , expectErrorMessage errMsg403ZeroAmtOutput
             ]
 
-    it "TRANS_ESTIMATE_09 - 0 amount tx fee estimation is allowed? on multi-output tx" $ \ctx -> do
+    it "TRANS_ESTIMATE_09 - \
+        \a fee cannot be estimated for a tx with an output of amount 0 (multi)" $ \ctx -> do
         (wSrc, payload) <- fixtureZeroAmtMulti ctx
         r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
         verify r

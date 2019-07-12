@@ -50,6 +50,7 @@ module Test.Integration.Framework.TestData
     , errMsg404NoRootKey
     , errMsg404NoWallet
     , errMsg403InputsDepleted
+    , errMsg403TxTooBig
     , errMsg403ZeroAmtOutput
     , errMsg405
     , errMsg406
@@ -240,6 +241,12 @@ errMsg403InputsDepleted :: String
 errMsg403InputsDepleted = "I had to select inputs to construct the requested\
     \ transaction. Unfortunately, one output of the transaction depleted all\
     \ available inputs. Try sending a smaller amount."
+
+errMsg403TxTooBig :: Int -> String
+errMsg403TxTooBig n = "I had to select " ++ show n ++ " inputs to construct the\
+    \ requested transaction. Unfortunately, this would create a transaction\
+    \ that is too big, and this would consequently be rejected by a core node.\
+    \ Try sending a smaller amount."
 
 errMsg403ZeroAmtOutput :: String
 errMsg403ZeroAmtOutput = "I can't validate coin selection because\
