@@ -185,11 +185,17 @@ spec = do
             let jml = Jormungandr.mkJormungandrLayer mgr url
             let nonexistent = Hash "cat"
             res <- runExceptT (Jormungandr.getDescendantIds jml nonexistent 42)
-            res `shouldSatisfy` \case
-                Left (ErrGetDescendantsParentNotFound _) -> True
-                Left (ErrGetDescendantsNetworkUnreachable _) -> False
-                Right _ -> False
+            res `shouldBe` Left (ErrGetDescendantsParentNotFound nonexistent)
 
+        it "returns correct error when backend is not started" $ \_ -> do
+            mgr <- newManager defaultManagerSettings
+            -- connect with a base URL for which the backend is not started on
+            let url' = url { baseUrlPort = baseUrlPort url + 5 }
+            let jml = Jormungandr.mkJormungandrLayer mgr url'
+            res <- runExceptT (Jormungandr.getBlock jml (Hash "xyzzy"))
+            res `shouldSatisfy` \case
+                Left (ErrGetBlockNetworkUnreachable _) -> True
+                _ -> False
 
     -- NOTE: 'Right ()' just means that the format wasn't obviously wrong.
     -- The tx may still be rejected.
