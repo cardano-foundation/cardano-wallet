@@ -74,6 +74,10 @@ spec = do
             canDecodeValidIso8601Time "2008-09-15T15:53:00+08:00"
             canDecodeValidIso8601Time "2008-09-15T15:53:00.1+08:00"
             canDecodeValidIso8601Time "2008-09-15T15:53:00.12+08:00"
+        describe "UTC-8 timezone (manually specified)" $ do
+            canDecodeValidIso8601Time "2008-09-15T15:53:00-08:00"
+            canDecodeValidIso8601Time "2008-09-15T15:53:00.1-08:00"
+            canDecodeValidIso8601Time "2008-09-15T15:53:00.12-08:00"
 
     describe "Cannot decode invalid ISO 8601 strings" $ do
         describe "Strings that are not time values" $ do
