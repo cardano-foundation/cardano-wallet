@@ -2,16 +2,22 @@ env:
   NIX_PATH: "channel:nixos-19.03"
 steps:
   - label: 'Restore benchmark - testnet'
-    command: "./.buildkite/benchmark.sh"
+    command: "./.buildkite/bench-restore.sh"
     timeout_in_minutes: 60
     agents:
       system: x86_64-linux
     env:
       NETWORK: testnet
   - label: 'Restore benchmark - mainnet'
-    command: "./.buildkite/benchmark.sh"
+    command: "./.buildkite/bench-restore.sh"
     timeout_in_minutes: 90
     agents:
       system: x86_64-linux
     env:
       NETWORK: mainnet
+
+  - label: 'Database benchmark'
+    command: "./.buildkite/bench-db.sh"
+    timeout_in_minutes: 60
+    agents:
+      system: x86_64-linux
