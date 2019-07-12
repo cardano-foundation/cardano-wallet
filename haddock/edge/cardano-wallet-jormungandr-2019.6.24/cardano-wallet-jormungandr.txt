@@ -108,7 +108,7 @@ Consensus :: ConsensusVersion -> ConfigParam
 SlotsPerEpoch :: Quantity "slot/epoch" Word32 -> ConfigParam
 
 -- | Slot duration in seconds.
-SlotDuration :: Quantity "second/slot" Word8 -> ConfigParam
+SlotDuration :: DiffTime -> ConfigParam
 
 -- | The length of the suffix of the chain (in blocks) considered unstable.
 EpochStabilityDepth :: Quantity "block" Word32 -> ConfigParam
@@ -320,16 +320,16 @@ module Cardano.Wallet.Jormungandr.Network
 newNetworkLayer :: forall n. () => BaseUrl -> IO (NetworkLayer (Jormungandr n) IO)
 
 -- | Wrap a Jormungandr client into a <a>NetworkLayer</a> common interface.
-mkNetworkLayer :: Monad m => JormungandrLayer m -> NetworkLayer (Jormungandr n) m
+mkNetworkLayer :: Monad m => JormungandrLayer n m -> NetworkLayer (Jormungandr n) m
 
 -- | Endpoints of the jormungandr REST API.
-data JormungandrLayer m
-JormungandrLayer :: ExceptT ErrNetworkUnreachable m (Hash "BlockHeader") -> (Hash "BlockHeader" -> ExceptT ErrGetBlock m (Block Tx)) -> (Hash "BlockHeader" -> Word -> ExceptT ErrGetDescendants m [Hash "BlockHeader"]) -> ((Tx, [TxWitness]) -> ExceptT ErrPostTx m ()) -> (Hash "Genesis" -> ExceptT ErrGetInitialFeePolicy m FeePolicy) -> JormungandrLayer m
-[$sel:getTipId:JormungandrLayer] :: JormungandrLayer m -> ExceptT ErrNetworkUnreachable m (Hash "BlockHeader")
-[$sel:getBlock:JormungandrLayer] :: JormungandrLayer m -> Hash "BlockHeader" -> ExceptT ErrGetBlock m (Block Tx)
-[$sel:getDescendantIds:JormungandrLayer] :: JormungandrLayer m -> Hash "BlockHeader" -> Word -> ExceptT ErrGetDescendants m [Hash "BlockHeader"]
-[$sel:postMessage:JormungandrLayer] :: JormungandrLayer m -> (Tx, [TxWitness]) -> ExceptT ErrPostTx m ()
-[$sel:getInitialFeePolicy:JormungandrLayer] :: JormungandrLayer m -> Hash "Genesis" -> ExceptT ErrGetInitialFeePolicy m FeePolicy
+data JormungandrLayer n m
+JormungandrLayer :: ExceptT ErrNetworkUnreachable m (Hash "BlockHeader") -> (Hash "BlockHeader" -> ExceptT ErrGetBlock m (Block Tx)) -> (Hash "BlockHeader" -> Word -> ExceptT ErrGetDescendants m [Hash "BlockHeader"]) -> ((Tx, [TxWitness]) -> ExceptT ErrPostTx m ()) -> (Hash "Genesis" -> ExceptT ErrGetBlockchainParams m (BlockchainParameters (Jormungandr n))) -> JormungandrLayer n m
+[$sel:getTipId:JormungandrLayer] :: JormungandrLayer n m -> ExceptT ErrNetworkUnreachable m (Hash "BlockHeader")
+[$sel:getBlock:JormungandrLayer] :: JormungandrLayer n m -> Hash "BlockHeader" -> ExceptT ErrGetBlock m (Block Tx)
+[$sel:getDescendantIds:JormungandrLayer] :: JormungandrLayer n m -> Hash "BlockHeader" -> Word -> ExceptT ErrGetDescendants m [Hash "BlockHeader"]
+[$sel:postMessage:JormungandrLayer] :: JormungandrLayer n m -> (Tx, [TxWitness]) -> ExceptT ErrPostTx m ()
+[$sel:getInitialBlockchainParameters:JormungandrLayer] :: JormungandrLayer n m -> Hash "Genesis" -> ExceptT ErrGetBlockchainParams m (BlockchainParameters (Jormungandr n))
 
 -- | Construct a <a>JormungandrLayer</a>-client
 --   
@@ -363,16 +363,16 @@ JormungandrLayer :: ExceptT ErrNetworkUnreachable m (Hash "BlockHeader") -> (Has
 --   &gt;&gt;&gt; runExceptT $ getDescendantIds j t 4
 --   Right []
 --   </pre>
-mkJormungandrLayer :: Manager -> BaseUrl -> JormungandrLayer IO
+mkJormungandrLayer :: forall n. () => Manager -> BaseUrl -> JormungandrLayer n IO
 data ErrUnexpectedNetworkFailure
 ErrUnexpectedNetworkFailure :: Link -> ServantError -> ErrUnexpectedNetworkFailure
-data ErrGetInitialFeePolicy
-ErrGetInitialFeePolicyNetworkUnreachable :: ErrNetworkUnreachable -> ErrGetInitialFeePolicy
-ErrGetInitialFeePolicyGenesisNotFound :: Hash "Genesis" -> ErrGetInitialFeePolicy
-ErrGetInitialFeePolicyNoInitialPolicy :: [ConfigParam] -> ErrGetInitialFeePolicy
 data ErrGetDescendants
 ErrGetDescendantsNetworkUnreachable :: ErrNetworkUnreachable -> ErrGetDescendants
 ErrGetDescendantsParentNotFound :: Hash "BlockHeader" -> ErrGetDescendants
+data ErrGetBlockchainParams
+ErrGetBlockchainParamsNetworkUnreachable :: ErrNetworkUnreachable -> ErrGetBlockchainParams
+ErrGetBlockchainParamsGenesisNotFound :: Hash "Genesis" -> ErrGetBlockchainParams
+ErrGetBlockchainParamsNoInitialPolicy :: [ConfigParam] -> ErrGetBlockchainParams
 data BaseUrl
 BaseUrl :: Scheme -> String -> Int -> String -> BaseUrl
 [baseUrlScheme] :: BaseUrl -> Scheme
@@ -384,8 +384,8 @@ defaultManagerSettings :: ManagerSettings
 data Scheme
 Http :: Scheme
 Https :: Scheme
-instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Network.ErrGetInitialFeePolicy
-instance GHC.Show.Show Cardano.Wallet.Jormungandr.Network.ErrGetInitialFeePolicy
+instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Network.ErrGetBlockchainParams
+instance GHC.Show.Show Cardano.Wallet.Jormungandr.Network.ErrGetBlockchainParams
 instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Network.ErrGetDescendants
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Network.ErrGetDescendants
 instance GHC.Show.Show Cardano.Wallet.Jormungandr.Network.ErrUnexpectedNetworkFailure

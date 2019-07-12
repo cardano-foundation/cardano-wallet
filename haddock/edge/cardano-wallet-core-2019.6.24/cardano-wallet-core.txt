@@ -389,6 +389,8 @@ data SlotId
 SlotId :: !Word64 -> !Word16 -> SlotId
 [$sel:epochNumber:SlotId] :: SlotId -> !Word64
 [$sel:slotNumber:SlotId] :: SlotId -> !Word16
+newtype SlotLength
+SlotLength :: DiffTime -> SlotLength
 
 -- | Compute the approximate ratio / progress between two slots. This is an
 --   approximation for a few reasons, one of them being that we hard code
@@ -500,6 +502,8 @@ instance GHC.Classes.Ord (Cardano.Wallet.Primitive.Types.Hash tag)
 instance GHC.Classes.Eq (Cardano.Wallet.Primitive.Types.Hash tag)
 instance GHC.Generics.Generic (Cardano.Wallet.Primitive.Types.Hash tag)
 instance GHC.Show.Show (Cardano.Wallet.Primitive.Types.Hash tag)
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.SlotLength
+instance GHC.Show.Show Cardano.Wallet.Primitive.Types.SlotLength
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.TxMeta
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.TxMeta
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.TxMeta
@@ -2516,6 +2520,13 @@ WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletNa
 --   The result is sorted on <a>BlockHeader</a> in descending order. The
 --   most recent transaction comes first.
 [$sel:listTransactions:WalletLayer] :: WalletLayer s t -> DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO [(Tx t, TxMeta)]
+data BlockchainParameters t
+BlockchainParameters :: Block (Tx t) -> FeePolicy -> SlotLength -> BlockchainParameters t
+
+-- | Very first block
+[$sel:getGenesisBlock:BlockchainParameters] :: BlockchainParameters t -> Block (Tx t)
+[$sel:getFeePolicy:BlockchainParameters] :: BlockchainParameters t -> FeePolicy
+[$sel:getSlotLength:BlockchainParameters] :: BlockchainParameters t -> SlotLength
 newtype ErrAdjustForFee
 
 -- | UTxO exhausted during fee covering We record what amount missed to
@@ -2616,7 +2627,7 @@ data ErrWrongPassphrase
 ErrWrongPassphrase :: ErrWrongPassphrase
 
 -- | Create a new instance of the wallet layer.
-newWalletLayer :: forall s t. Buildable (Tx t) => Trace IO Text -> Block (Tx t) -> FeePolicy -> DBLayer IO s t -> NetworkLayer t IO -> TransactionLayer t -> IO (WalletLayer s t)
+newWalletLayer :: forall s t. Buildable (Tx t) => Trace IO Text -> BlockchainParameters t -> DBLayer IO s t -> NetworkLayer t IO -> TransactionLayer t -> IO (WalletLayer s t)
 instance GHC.Classes.Eq Cardano.Wallet.ErrSignTx
 instance GHC.Show.Show Cardano.Wallet.ErrSignTx
 instance GHC.Classes.Eq Cardano.Wallet.ErrUpdatePassphrase
