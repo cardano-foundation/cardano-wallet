@@ -54,6 +54,7 @@ library
     , servant-client-core
     , text
     , text-class
+    , time
     , transformers
   hs-source-dirs:
       src
@@ -95,6 +96,7 @@ test-suite unit
     , QuickCheck
     , text
     , text-class
+    , time
     , transformers
   build-tools:
       hspec-discover

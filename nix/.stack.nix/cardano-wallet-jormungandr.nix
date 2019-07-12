@@ -43,6 +43,7 @@
           (hsPkgs.servant-client-core)
           (hsPkgs.text)
           (hsPkgs.text-class)
+          (hsPkgs.time)
           (hsPkgs.transformers)
           ];
         };
@@ -64,6 +65,7 @@
             (hsPkgs.QuickCheck)
             (hsPkgs.text)
             (hsPkgs.text-class)
+            (hsPkgs.time)
             (hsPkgs.transformers)
             ];
           build-tools = [

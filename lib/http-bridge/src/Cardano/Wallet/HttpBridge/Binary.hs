@@ -43,7 +43,6 @@ module Cardano.Wallet.HttpBridge.Binary
     , decodeListIndef
     , toByteString
     , estimateMaxNumberOfInputsParams
-
     ) where
 
 import Prelude

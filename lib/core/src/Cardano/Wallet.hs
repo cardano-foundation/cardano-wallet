@@ -21,6 +21,7 @@ module Cardano.Wallet
     (
     -- * Interface
       WalletLayer (..)
+    , BlockchainParameters (..)
 
     -- * Errors
     , ErrAdjustForFee (..)
@@ -107,6 +108,7 @@ import Cardano.Wallet.Primitive.Types
     , DefineTx (..)
     , Direction (..)
     , SlotId (..)
+    , SlotLength (..)
     , Tx (..)
     , TxMeta (..)
     , TxOut (..)
@@ -165,7 +167,7 @@ import Data.Text
 import Data.Text.Class
     ( toText )
 import Data.Time.Clock
-    ( getCurrentTime )
+    ( diffTimeToPicoseconds, getCurrentTime )
 import Fmt
     ( Buildable, blockListF, pretty, (+|), (+||), (|+), (||+) )
 
@@ -361,18 +363,26 @@ cancelWorker (WorkerRegistry mvar) wid =
                                  Construction
 -------------------------------------------------------------------------------}
 
+data BlockchainParameters t = BlockchainParameters
+    { getGenesisBlock :: Block (Tx t)
+        -- ^ Very first block
+    , getFeePolicy :: FeePolicy
+    , getSlotLength :: SlotLength
+    }
+
 -- | Create a new instance of the wallet layer.
 newWalletLayer
     :: forall s t. (Buildable (Tx t))
     => Trace IO Text
-    -> Block (Tx t)
-        -- ^ Very first block
-    -> FeePolicy
+    -> BlockchainParameters t
     -> DBLayer IO s t
     -> NetworkLayer t IO
     -> TransactionLayer t
     -> IO (WalletLayer s t)
-newWalletLayer tracer block0 feePolicy db nw tl = do
+newWalletLayer
+    tracer
+    (BlockchainParameters block0 feePolicy (SlotLength slotLength))
+    db nw tl = do
     logDebugT $ "Wallet layer starting with: "
         <> "block0: "+| block0 |+ ", "
         <> "fee policy: "+|| feePolicy ||+""
@@ -536,7 +546,8 @@ newWalletLayer tracer block0 feePolicy db nw tl = do
         -> BlockHeader
         -> IO ()
     restoreSleep t wid slot = do
-        let tenSeconds = 10000000 in threadDelay tenSeconds
+        let halfSlotLengthDelay = fromIntegral (diffTimeToPicoseconds slotLength `div` 2000000)
+        threadDelay halfSlotLengthDelay
         runExceptT (networkTip nw) >>= \case
             Left e -> do
                 logError t $ "Failed to get network tip: " +|| e ||+ ""

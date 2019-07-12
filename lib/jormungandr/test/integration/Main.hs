@@ -27,7 +27,7 @@ import Cardano.Faucet
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
-    ( newWalletLayer )
+    ( BlockchainParameters (..), newWalletLayer )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.DB.Sqlite
@@ -36,14 +36,12 @@ import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, Network (..) )
 import Cardano.Wallet.Jormungandr.Network
     ( BaseUrl (..), JormungandrLayer (..), Scheme (..), mkJormungandrLayer )
-import Cardano.Wallet.Jormungandr.Primitive.Types
-    ( Tx (..) )
 import Cardano.Wallet.Network
     ( NetworkLayer (..), defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), Hash (..) )
+    ( Hash (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeRunExceptT )
 import Control.Concurrent
@@ -182,12 +180,13 @@ cardanoWalletServer
 cardanoWalletServer mlisten = do
     logConfig <- CM.empty
     tracer <- initTracer Info "serve"
-    (nl, block0, feePolicy) <- newNetworkLayer jormungandrUrl block0H
+    (nl, bp@(BlockchainParameters _ feePolicy _) ) <-
+         newNetworkLayer jormungandrUrl block0H
     (sqlCtx, db) <- Sqlite.newDBLayer @_ @network logConfig tracer Nothing
     mvar <- newEmptyMVar
     handle <- async $ do
         let tl = Jormungandr.newTransactionLayer block0H
-        wallet <- newWalletLayer tracer block0 feePolicy db nl tl
+        wallet <- newWalletLayer tracer bp db nl tl
         let listen = fromMaybe (ListenOnPort defaultPort) mlisten
         Server.withListeningSocket listen $ \(port, socket) -> do
             let settings = Warp.defaultSettings
@@ -206,17 +205,15 @@ cardanoWalletServer mlisten = do
 newNetworkLayer
     :: BaseUrl
     -> Hash "Genesis"
-    -> IO (NetworkLayer (Jormungandr n) IO, Block Tx, FeePolicy)
+    -> IO (NetworkLayer (Jormungandr n) IO, BlockchainParameters (Jormungandr n))
 newNetworkLayer url block0H = do
     mgr <- newManager defaultManagerSettings
     let jormungandr = mkJormungandrLayer mgr url
     let nl = Jormungandr.mkNetworkLayer jormungandr
     waitForConnection nl defaultRetryPolicy
-    block0 <- unsafeRunExceptT $
-        getBlock jormungandr (coerce block0H)
-    feePolicy <- unsafeRunExceptT $
-        getInitialFeePolicy jormungandr (coerce block0H)
-    return (nl, block0, feePolicy)
+    blockchainParams <- unsafeRunExceptT $
+        getInitialBlockchainParameters jormungandr (coerce block0H)
+    return (nl, blockchainParams)
 
 mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)
 mkFeeEstimator policy (TxDescription nInps nOuts) =

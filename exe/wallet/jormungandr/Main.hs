@@ -60,7 +60,7 @@ import Cardano.CLI
 import Cardano.Launcher
     ( Command (Command), StdStream (..) )
 import Cardano.Wallet
-    ( WalletLayer )
+    ( BlockchainParameters (..), WalletLayer )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.DaedalusIPC
@@ -74,24 +74,15 @@ import Cardano.Wallet.Jormungandr.Compatibility
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Jormungandr.Network
-    ( ErrGetInitialFeePolicy (..), getBlock, getInitialFeePolicy )
-import Cardano.Wallet.Jormungandr.Primitive.Types
-    ( Tx (..) )
+    ( ErrGetBlockchainParams (..), getInitialBlockchainParameters )
 import Cardano.Wallet.Network
-    ( ErrGetBlock (..)
-    , ErrNetworkTip
-    , NetworkLayer (..)
-    , defaultRetryPolicy
-    , waitForConnection
-    )
+    ( ErrNetworkTip, NetworkLayer (..), defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( SeqState )
-import Cardano.Wallet.Primitive.Fee
-    ( FeePolicy )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), Hash (..) )
+    ( Hash (..) )
 import Cardano.Wallet.Version
     ( showVersion, version )
 import Control.Applicative
@@ -340,13 +331,13 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
             -> DBLayer IO s t
             -> IO (WalletLayer s t)
         newWalletLayer (sb, tracer) db = do
-            (nl, block0, feePolicy) <- newNetworkLayer (sb, tracer)
+            (nl, blockchainParams) <- newNetworkLayer (sb, tracer)
             let tl = Jormungandr.newTransactionLayer @n block0H
-            Wallet.newWalletLayer tracer block0 feePolicy db nl tl
+            Wallet.newWalletLayer tracer blockchainParams db nl tl
 
         newNetworkLayer
             :: (Switchboard Text, Trace IO Text)
-            -> IO (NetworkLayer t IO, Block Tx, FeePolicy)
+            -> IO (NetworkLayer t IO, BlockchainParameters t)
         newNetworkLayer (sb, tracer) = do
             let url = BaseUrl Http "localhost" (getPort nodePort) "/api"
             mgr <- newManager defaultManagerSettings
@@ -354,21 +345,16 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
             let nl = Jormungandr.mkNetworkLayer jor
             waitForService @ErrNetworkTip "Jörmungandr" (sb, tracer) nodePort $
                 waitForConnection nl defaultRetryPolicy
-            block0 <- runExceptT (getBlock jor (coerce block0H)) >>= \case
+            blockchainParams <-
+                runExceptT (getInitialBlockchainParameters jor (coerce block0H)) >>= \case
                 Right a -> return a
-                Left (ErrGetBlockNetworkUnreachable _) ->
+                Left (ErrGetBlockchainParamsNetworkUnreachable _) ->
                     handleNetworkUnreachable tracer
-                Left (ErrGetBlockNotFound _) ->
+                Left (ErrGetBlockchainParamsGenesisNotFound _) ->
                     handleGenesisNotFound (sb, tracer)
-            feePolicy <- runExceptT (getInitialFeePolicy jor (coerce block0H)) >>= \case
-                Right a -> return a
-                Left (ErrGetInitialFeePolicyNetworkUnreachable _) ->
-                    handleNetworkUnreachable tracer
-                Left (ErrGetInitialFeePolicyGenesisNotFound _) ->
-                    handleGenesisNotFound (sb, tracer)
-                Left (ErrGetInitialFeePolicyNoInitialPolicy _) ->
+                Left (ErrGetBlockchainParamsNoInitialPolicy _) ->
                     handleNoInitialPolicy tracer
-            return (nl, block0, feePolicy)
+            return (nl, blockchainParams)
 
         withDBLayer
             :: CM.Configuration

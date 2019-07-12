@@ -64,6 +64,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Time.Clock
+    ( secondsToDiffTime )
 import Data.Word
     ( Word8 )
 import GHC.Generics
@@ -120,7 +122,7 @@ spec = do
                         , Discrimination Testnet
                         , Consensus BFT
                         , SlotsPerEpoch (Quantity 2160)
-                        , SlotDuration (Quantity 15)
+                        , SlotDuration (secondsToDiffTime 15)
                         , EpochStabilityDepth (Quantity 10)
                         , AddBftLeader $ LeaderId $ unsafeFromHex
                             "30a694b80dbba2d1b8a4b55652b03d96\
@@ -173,7 +175,7 @@ spec = do
                         , Discrimination Mainnet
                         , Consensus BFT
                         , SlotsPerEpoch (Quantity 500)
-                        , SlotDuration (Quantity 10)
+                        , SlotDuration (secondsToDiffTime 10)
                         , EpochStabilityDepth (Quantity 10)
                         , AddBftLeader $ LeaderId $ unsafeFromHex
                             "b216ee388fc25596cf43fbca815c463c\
