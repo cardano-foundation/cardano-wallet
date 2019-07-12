@@ -69,10 +69,14 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( addressPoolGapMax
     , addressPoolGapMin
+    , arabicWalletName
     , cmdOk
+    , errMsg403WrongPass
     , falseWalletIds
     , passphraseMaxLength
     , passphraseMinLength
+    , russianWalletName
+    , wildcardsWalletName
     )
 
 import qualified Data.Text as T
@@ -384,31 +388,66 @@ spec = do
             j <- expectValidJSON (Proxy @ApiWallet) out
             expectCliFieldEqual walletName (T.pack n) j
 
-    it "WALLETS_UPDATE_PASS_01 - \
-        \Can update passphrase normally"
+    it "WALLETS_UPDATE_PASS_01 - Can update passphrase normally"
         $ \ctx -> do
             let name = "name"
             let ppOld = "old secure passphrase"
             let ppNew = "new secure passphrase"
-            wid <- emptyWalletWith' ctx (name, T.pack ppOld, addressPoolGapMin)
+            w <- emptyWalletWith ctx (name, T.pack ppOld, addressPoolGapMin)
+            let initPassUpdateTime = w ^. passphraseLastUpdate
+            let wid = T.unpack $ w ^. walletId
+
+            --update pass
             (exitCode, out, err) <-
                 updateWalletPassphraseViaCLI @t ctx wid ppOld ppNew ppNew
             out `shouldBe` "\n"
             T.unpack err `shouldContain` cmdOk
             exitCode `shouldBe` ExitSuccess
 
-    it "WALLETS_UPDATE_PASS_02 - \
-        \Cannot update passphrase if new passphrase is too short"
-        $ \ctx -> do
+            --verify passphraseLastUpdate was updated
+            Stdout o <- getWalletViaCLI @t ctx wid
+            j <- expectValidJSON (Proxy @ApiWallet) o
+            expectCliFieldNotEqual passphraseLastUpdate initPassUpdateTime j
+
+    describe "WALLETS_UPDATE_PASS_02 - New passphrase values" $ do
+        let matrix =
+                [ ( show passphraseMinLength ++ " char long"
+                  , replicate passphraseMinLength 'ź'
+                  , expect (ExitSuccess, "\n", cmdOk)
+                  )
+                , ( show (passphraseMinLength - 1) ++ " char long"
+                  , replicate (passphraseMinLength - 1) 'ź'
+                  , expect (ExitFailure 1, mempty, "passphrase is too short")
+                  )
+                , ( show passphraseMaxLength ++ " char long"
+                  , replicate passphraseMinLength 'ź'
+                  , expect (ExitSuccess, "\n", cmdOk)
+                  )
+                , ( show (passphraseMaxLength + 1) ++ " char long"
+                  , replicate (passphraseMaxLength + 1) 'ź'
+                  , expect (ExitFailure 1, mempty, "passphrase is too long")
+                  )
+                , ( "Empty passphrase"
+                  , ""
+                  , expect (ExitFailure 1, mempty, "passphrase is too short")
+                  )
+                , ( "Russian passphrase", T.unpack russianWalletName
+                  , expect (ExitSuccess, "\n", cmdOk)
+                  )
+                , ( "Arabic passphrase", T.unpack arabicWalletName
+                  , expect (ExitSuccess, "\n", cmdOk)
+                  )
+                , ( "Wildcards passphrase", T.unpack wildcardsWalletName
+                  , expect (ExitSuccess, "\n", cmdOk)
+                  )
+                ]
+        forM_ matrix $ \(title, ppNew, expectations) -> it title $ \ctx -> do
             let name = "name"
             let ppOld = "old secure passphrase"
-            let ppNew = take (passphraseMinLength - 1) ['0' ..]
             wid <- emptyWalletWith' ctx (name, T.pack ppOld, addressPoolGapMin)
             (exitCode, out, err) <-
                 updateWalletPassphraseViaCLI @t ctx wid ppOld ppNew ppNew
-            out `shouldBe` mempty
-            T.unpack err `shouldContain` "passphrase is too short"
-            exitCode `shouldBe` ExitFailure 1
+            expectations (exitCode, out, err)
 
     it "WALLETS_UPDATE_PASS_02 - \
         \Cannot update passphrase if new passphrase is not confirmed correctly"
@@ -424,20 +463,107 @@ spec = do
             T.unpack err `shouldContain` "Passphrases don't match"
             exitCode `shouldBe` ExitFailure 1
 
-    it "WALLETS_UPDATE_PASS_03 - \
-        \Cannot update passphrase if original passphrase is entered incorrectly"
-        $ \ctx -> do
+    describe "WALLETS_UPDATE_PASS_03 - Old passphrase values" $ do
+        let matrix =
+                [ ( show (passphraseMinLength - 1) ++ " char long"
+                  , replicate (passphraseMinLength - 1) 'ź'
+                  , expect (ExitFailure 1, mempty, "passphrase is too short")
+                  )
+                , ( show (passphraseMaxLength + 1) ++ " char long"
+                  , replicate (passphraseMaxLength + 1) 'ź'
+                  , expect (ExitFailure 1, mempty, "passphrase is too long")
+                  )
+                , ( "Empty passphrase"
+                  , ""
+                  , expect (ExitFailure 1, mempty, "passphrase is too short")
+                  )
+                , ( "Incorrect old passphrase", "wrong secure passphrase"
+                  , expect (ExitFailure 1, mempty, errMsg403WrongPass)
+                  )
+                ]
+        forM_ matrix $ \(title, ppOldWrong, expectations) -> it title $ \ctx -> do
             let name = "name"
             let ppOldRight = "right secure passphrase"
-            let ppOldWrong = "wrong secure passphrase"
             let ppNew = "new secure passphrase"
             wid <- emptyWalletWith' ctx
                 (name, T.pack ppOldRight, addressPoolGapMin)
             (exitCode, out, err) <-
                 updateWalletPassphraseViaCLI @t ctx wid ppOldWrong ppNew ppNew
-            out `shouldBe` mempty
-            T.unpack err `shouldContain` "passphrase doesn't match"
-            exitCode `shouldBe` ExitFailure 1
+            expectations (exitCode, out, err)
+
+    describe "WALLETS_UPDATE_PASS_03 - \
+        \Can update pass from pass that's boundary value" $ do
+        let matrix =
+                [ ( show passphraseMinLength ++ " char long"
+                  , replicate passphraseMinLength 'ź'
+                  , expect (ExitSuccess, "\n", cmdOk)
+                  )
+                , ( show passphraseMaxLength ++ " char long"
+                  , replicate passphraseMaxLength 'ź'
+                 , expect (ExitSuccess, "\n", cmdOk)
+                  )
+                ]
+        forM_ matrix $ \(title, ppOldRight, expectations) -> it title $ \ctx -> do
+            let name = "name"
+            let ppNew = replicate passphraseMaxLength 'ź'
+            wid <- emptyWalletWith' ctx
+                (name, T.pack ppOldRight, addressPoolGapMin)
+            (exitCode, out, err) <-
+                updateWalletPassphraseViaCLI @t ctx wid ppOldRight ppNew ppNew
+            expectations (exitCode, out, err)
+
+    describe "WALLETS_UPDATE_PASS_04 - Cannot update pass of wallets with false ids" $ do
+        forM_ falseWalletIds $ \(title, wid) -> it title $ \ctx -> do
+            let ppOld = "right secure passphrase"
+            let ppNew = "new secure passphrase"
+            (c, out, err) <-
+                updateWalletPassphraseViaCLI @t ctx wid ppOld ppNew ppNew
+            out `shouldBe` ""
+            c `shouldBe` ExitFailure 1
+            if (title == "40 chars hex") then
+                T.unpack  err `shouldContain`
+                    "I couldn't find a wallet with the given id:\
+                    \ 1111111111111111111111111111111111111111\n"
+            else
+                T.unpack  err `shouldContain`
+                    "wallet id should be an hex-encoded string of\
+                    \ 40 characters\n"
+
+    describe "WALLETS_UPDATE_PASS_05,06 - \
+        \Transaction after updating passphrase can only be made with new pass" $ do
+        let oldPass = "cardano-wallet"
+        let newPass = "cardano-wallet2"
+        let expectTxOK (ec, out, err) = do
+                ec `shouldBe` ExitSuccess
+                _ <- expectValidJSON (Proxy @(ApiTransaction t)) out
+                T.unpack err `shouldContain` cmdOk
+        let matrix =
+                [ ("Old passphrase -> fail", oldPass
+                  , expect (ExitFailure 1, mempty, errMsg403WrongPass)
+                  )
+                , ("New passphrase -> OK", newPass
+                  , expectTxOK
+                  )
+                ]
+
+        forM_ matrix $ \(title, pass, expectations) -> it title $ \ctx -> do
+            wSrc <- fixtureWallet ctx
+            wDest <- emptyWallet ctx
+            addr:_ <- listAddresses ctx wDest
+            let wid = T.unpack $ wSrc ^. walletId
+            (c, out, err) <-
+                updateWalletPassphraseViaCLI @t ctx wid oldPass newPass newPass
+            expect (ExitSuccess, "\n", cmdOk) (c, out, err)
+
+            let addrStr =
+                    encodeAddress (Proxy @t) (getApiT $ fst $ addr ^. #id)
+            let args = T.unpack <$>
+                    [ wSrc ^. walletId
+                    , "--payment", "1@" <> addrStr
+                    ]
+
+            (cTx, outTx, errTx) <- postTransactionViaCLI @t ctx pass args
+            expectations (cTx, outTx, errTx)
 
     it "WALLETS_DELETE_01, WALLETS_LIST_02 - Can delete wallet" $ \ctx -> do
         walId <- emptyWallet' ctx
@@ -448,6 +574,11 @@ spec = do
         (Stdout o, Stderr e) <- listWalletsViaCLI @t ctx
         o `shouldBe` "[]\n"
         e `shouldBe` cmdOk
+  where
+      expect (expEc, expOut, expErr) (ec, out, err) = do
+              ec `shouldBe` expEc
+              out `shouldBe` expOut
+              T.unpack err `shouldContain` expErr
 
 emptyWallet' :: Context t -> IO String
 emptyWallet' = fmap (T.unpack . view walletId) . emptyWallet
@@ -464,8 +595,6 @@ walletNames =
         , ( "Name max + 1", replicate ( walletNameMinLength + 1 ) 'ź' )
         , ( "Single space", " " )
         , ( "Russian", "АаБбВвГгДдЕеЁёЖжЗз")
-        -- these names give error in automated tests which cannot be reproduced
-        -- by hand:
         , ( "Polish", "aąbcćdeęfghijklłmnoóp" )
         , ( "Kanji", "亜哀挨愛曖悪握圧扱宛嵐")
         ]
