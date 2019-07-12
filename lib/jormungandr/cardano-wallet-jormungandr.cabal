@@ -96,6 +96,7 @@ test-suite unit
     , QuickCheck
     , text
     , text-class
+    , time
     , transformers
   build-tools:
       hspec-discover

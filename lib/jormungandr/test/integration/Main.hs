@@ -36,14 +36,12 @@ import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, Network (..) )
 import Cardano.Wallet.Jormungandr.Network
     ( BaseUrl (..), JormungandrLayer (..), Scheme (..), mkJormungandrLayer )
-import Cardano.Wallet.Jormungandr.Primitive.Types
-    ( Tx (..) )
 import Cardano.Wallet.Network
     ( NetworkLayer (..), defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), Hash (..), SlotLength )
+    ( Hash (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeRunExceptT )
 import Control.Concurrent
@@ -182,7 +180,8 @@ cardanoWalletServer
 cardanoWalletServer mlisten = do
     logConfig <- CM.empty
     tracer <- initTracer Info "serve"
-    (nl, bp) <- newNetworkLayer jormungandrUrl block0H
+    (nl, bp@(BlockchainParameters _ feePolicy _) ) <-
+         newNetworkLayer jormungandrUrl block0H
     (sqlCtx, db) <- Sqlite.newDBLayer @_ @network logConfig tracer Nothing
     mvar <- newEmptyMVar
     handle <- async $ do
@@ -206,17 +205,15 @@ cardanoWalletServer mlisten = do
 newNetworkLayer
     :: BaseUrl
     -> Hash "Genesis"
-    -> IO (NetworkLayer (Jormungandr n) IO, Block Tx, FeePolicy, SlotLength)
+    -> IO (NetworkLayer (Jormungandr n) IO, BlockchainParameters (Jormungandr n))
 newNetworkLayer url block0H = do
     mgr <- newManager defaultManagerSettings
     let jormungandr = mkJormungandrLayer mgr url
     let nl = Jormungandr.mkNetworkLayer jormungandr
     waitForConnection nl defaultRetryPolicy
-    block0 <- unsafeRunExceptT $
-        getBlock jormungandr (coerce block0H)
-    (feePolicy, slotLength) <- unsafeRunExceptT $
+    blockchainParams <- unsafeRunExceptT $
         getInitialBlockchainParameters jormungandr (coerce block0H)
-    return (nl, block0, feePolicy, slotLength)
+    return (nl, blockchainParams)
 
 mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)
 mkFeeEstimator policy (TxDescription nInps nOuts) =

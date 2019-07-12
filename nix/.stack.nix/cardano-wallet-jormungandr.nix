@@ -65,6 +65,7 @@
             (hsPkgs.QuickCheck)
             (hsPkgs.text)
             (hsPkgs.text-class)
+            (hsPkgs.time)
             (hsPkgs.transformers)
             ];
           build-tools = [

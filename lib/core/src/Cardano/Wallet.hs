@@ -546,7 +546,7 @@ newWalletLayer
         -> BlockHeader
         -> IO ()
     restoreSleep t wid slot =
-        let halfSlotLengthDelay = fromIntegral $ (diffTimeToPicoseconds slotLength `div` 500000) in do
+        let halfSlotLengthDelay = fromIntegral (diffTimeToPicoseconds slotLength `div` 2000000) in do
             threadDelay halfSlotLengthDelay
             runExceptT (networkTip nw) >>= \case
                 Left e -> do
