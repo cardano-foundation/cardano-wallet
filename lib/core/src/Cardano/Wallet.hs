@@ -29,7 +29,7 @@ module Cardano.Wallet
     , ErrCreateUnsignedTx (..)
     , ErrEstimateTxFee (..)
     , ErrMkStdTx (..)
-    , ErrNetworkUnreachable (..)
+    , ErrNetworkUnavailable (..)
     , ErrNoSuchWallet (..)
     , ErrPostTx (..)
     , ErrSignTx (..)
@@ -56,7 +56,7 @@ import Cardano.Wallet.DB
     , PrimaryKey (..)
     )
 import Cardano.Wallet.Network
-    ( ErrNetworkUnreachable (..), ErrPostTx (..), NetworkLayer (..) )
+    ( ErrNetworkUnavailable (..), ErrPostTx (..), NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (RootK)
     , ErrWrongPassphrase (..)

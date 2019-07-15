@@ -74,7 +74,7 @@ import Cardano.Wallet.HttpBridge.Compatibility
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..) )
 import Cardano.Wallet.Network
-    ( ErrNetworkTip, NetworkLayer, defaultRetryPolicy, waitForConnection )
+    ( NetworkLayer, defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -285,7 +285,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
             -> IO (NetworkLayer t IO, BlockchainParameters t)
         newNetworkLayer (sb, tracer) = do
             nl <- HttpBridge.newNetworkLayer @n (getPort nodePort)
-            waitForService @ErrNetworkTip "http-bridge" (sb, tracer) nodePort $
+            waitForService "http-bridge" (sb, tracer) nodePort $
                 waitForConnection nl defaultRetryPolicy
             let bp = BlockchainParameters
                     { getGenesisBlock = HttpBridge.block0

@@ -44,7 +44,7 @@ import Cardano.Wallet.HttpBridge.Primitive.Types
 import Cardano.Wallet.Network
     ( ErrGetBlock (..)
     , ErrNetworkTip (..)
-    , ErrNetworkUnreachable (..)
+    , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     , NetworkLayer (..)
     )
@@ -81,7 +81,7 @@ import Servant.API
 import Servant.Client
     ( BaseUrl (..), ClientM, Scheme (Http), client, mkClientEnv, runClientM )
 import Servant.Client.Core
-    ( ServantError (..), responseBody, responseStatusCode )
+    ( Response, ServantError (..), responseBody, responseStatusCode )
 import Servant.Extra.ContentTypes
     ( WithHash (..) )
 import Servant.Links
@@ -121,7 +121,7 @@ rbNextBlocks
     :: Monad m
     => HttpBridgeLayer m -- ^ http-bridge API
     -> SlotId -- ^ Starting point
-    -> ExceptT ErrNetworkUnreachable m [Block Tx]
+    -> ExceptT ErrNetworkUnavailable m [Block Tx]
 rbNextBlocks bridge start = maybeTip (getNetworkTip bridge) >>= \case
     Just (tipHash, tipHdr) -> do
         epochBlocks <-
@@ -161,7 +161,7 @@ fetchBlocksFromTip
     => HttpBridgeLayer m
     -> SlotId
     -> Hash "BlockHeader"
-    -> ExceptT ErrNetworkUnreachable m [Block Tx]
+    -> ExceptT ErrNetworkUnavailable m [Block Tx]
 fetchBlocksFromTip bridge start tipHash =
     reverse <$> workBackwards tipHash
   where
@@ -180,9 +180,9 @@ fetchBlocksFromTip bridge start tipHash =
 -- | Endpoints of the cardano-http-bridge API.
 data HttpBridgeLayer m = HttpBridgeLayer
     { getBlock
-        :: Hash "BlockHeader" -> ExceptT ErrNetworkUnreachable m (Block Tx)
+        :: Hash "BlockHeader" -> ExceptT ErrNetworkUnavailable m (Block Tx)
     , getEpoch
-        :: Word64 -> ExceptT ErrNetworkUnreachable m [(Block Tx)]
+        :: Word64 -> ExceptT ErrNetworkUnavailable m [(Block Tx)]
     , getNetworkTip
         :: ExceptT ErrNetworkTip m (Hash "BlockHeader", BlockHeader)
     , postSignedTx
@@ -253,7 +253,7 @@ mkHttpBridgeLayer mgr baseUrl networkName = HttpBridgeLayer
     defaultHandler
         :: Link
         -> Either ServantError a
-        -> IO (Either ErrNetworkUnreachable a)
+        -> IO (Either ErrNetworkUnavailable a)
     defaultHandler ctx = \case
         Right c -> return $ Right c
 
@@ -262,6 +262,9 @@ mkHttpBridgeLayer mgr baseUrl networkName = HttpBridgeLayer
         -- initialise, or restarting the node.
         Left (ConnectionError e) ->
             return $ Left $ ErrNetworkUnreachable e
+
+        Left (FailureResponse r) | isInvalidNetwork r ->
+            return $ Left $ ErrNetworkInvalid $ getNetworkName networkName
 
         -- Other errors (status code, decode failure, invalid content type
         -- headers). These are considered to be programming errors, so crash.
@@ -273,6 +276,10 @@ mkHttpBridgeLayer mgr baseUrl networkName = HttpBridgeLayer
         :<|> cGetNetworkTip
         :<|> cPostSignedTx
         = client api
+
+    isInvalidNetwork :: Response -> Bool
+    isInvalidNetwork r = responseStatusCode r == status400 &&
+        "Invalid network" `BL.isPrefixOf` responseBody r
 
 blockHeaderHash
     :: WithHash algorithm (ApiT BlockHeader)
