@@ -547,7 +547,7 @@ Apart from the chosen prelude, there should be no implicit imports. Instead, eve
   import Data.Map.Strict
       ( Map )
   import Data.Aeson 
-      ( FromJSON(..), ToJSON(..) )
+      ( FromJSON (..), ToJSON (..) )
   
   
   -- GOOD
