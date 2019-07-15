@@ -45,8 +45,6 @@ import Test.Integration.Framework.DSL
     , faucetAmt
     , faucetUtxoAmt
     , feeEstimator
-    , fixtureMaxTxSize
-    , fixtureNInputs
     , fixtureWallet
     , fixtureWalletWith
     , getWalletEp
@@ -66,7 +64,6 @@ import Test.Integration.Framework.TestData
     , errMsg403Fee
     , errMsg403InputsDepleted
     , errMsg403NotEnoughMoney
-    , errMsg403TxTooBig
     , errMsg403UTxO
     , errMsg403WrongPass
     , errMsg404NoEndpoint
@@ -1019,33 +1016,6 @@ spec = do
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
-    it "TRANS_CREATE_10, TRANS_ESTIMATE_10 - \
-        \Cannot post/estimate tx when max tx size reached (single output)" $ \ctx -> do
-        (wSrc, _, payload) <- fixtureMaxTxSize ctx (11, 1_000_000) 10_000_001
-        fee <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
-        tx <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
-        verify fee
-         [ expectResponseCode HTTP.status403
-         , expectErrorMessage (errMsg403TxTooBig 10)
-         ]
-        verify tx
-         [ expectResponseCode HTTP.status403
-         , expectErrorMessage (errMsg403TxTooBig 10)
-         ]
-
-    it "TRANS_CREATE_10, TRANS_ESTIMATE_10 - \
-        \Cannot post/estimate tx when max tx size reached (multi output)" $ \ctx -> do
-        (wSrc, _, payload) <- fixtureNInputs ctx (11, 1_000_000) 1
-        fee <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
-        tx <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
-        verify fee
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage (errMsg403TxTooBig 10)
-            ]
-        verify tx
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage (errMsg403TxTooBig 10)
-            ]
   where
     longAddr = replicate 10000 '1'
     encodeErr = "Unable to decode Address:"
