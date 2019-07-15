@@ -120,7 +120,7 @@ spec = do
         it "Property for testnet addresses" $ property$
             propMaxNumberOfInputsEstimation (newTransactionLayer @'Testnet)
 
-    describe "mkStdTx" $ do
+    describe "mkStdTx unknown input" $ do
         unknownInputTest (Proxy @'Mainnet)
         unknownInputTest (Proxy @'Testnet)
 
