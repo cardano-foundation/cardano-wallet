@@ -41,7 +41,6 @@ library
     , fmt
     , http-client
     , iohk-monitoring
-    , iso8601-time
     , servant-client
     , servant-client-core
     , servant-server

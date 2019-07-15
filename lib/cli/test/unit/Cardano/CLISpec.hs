@@ -62,48 +62,88 @@ spec = do
         textRoundtrip $ Proxy @MnemonicSize
 
     describe "Can decode valid ISO 8601 strings" $ do
-        describe "UTC+0 timezone (Z)" $ do
-            canDecodeValidIso8601Time "2008-09-15T15:53:00Z"
-            canDecodeValidIso8601Time "2008-09-15T15:53:00.1Z"
-            canDecodeValidIso8601Time "2008-09-15T15:53:00.12Z"
-        describe "UTC+0 timezone (manually specified)" $ do
-            canDecodeValidIso8601Time "2008-09-15T15:53:00+00:00"
-            canDecodeValidIso8601Time "2008-09-15T15:53:00.1+00:00"
-            canDecodeValidIso8601Time "2008-09-15T15:53:00.12+00:00"
-        describe "UTC+8 timezone (manually specified)" $ do
-            canDecodeValidIso8601Time "2008-09-15T15:53:00+08:00"
-            canDecodeValidIso8601Time "2008-09-15T15:53:00.1+08:00"
-            canDecodeValidIso8601Time "2008-09-15T15:53:00.12+08:00"
-        describe "UTC-8 timezone (manually specified)" $ do
-            canDecodeValidIso8601Time "2008-09-15T15:53:00-08:00"
-            canDecodeValidIso8601Time "2008-09-15T15:53:00.1-08:00"
-            canDecodeValidIso8601Time "2008-09-15T15:53:00.12-08:00"
+        describe "Basic format" $ do
+            describe "UTC+0 timezone (Z)" $ do
+                canDecodeValidIso8601Time "20080915T155300Z"
+                canDecodeValidIso8601Time "20080915T155300.1Z"
+                canDecodeValidIso8601Time "20080915T155300.12Z"
+            describe "UTC+0 timezone (manually specified)" $ do
+                canDecodeValidIso8601Time "20080915T155300+0000"
+                canDecodeValidIso8601Time "20080915T155300.1+0000"
+                canDecodeValidIso8601Time "20080915T155300.12+0000"
+            describe "UTC+8 timezone (manually specified)" $ do
+                canDecodeValidIso8601Time "20080915T155300+0800"
+                canDecodeValidIso8601Time "20080915T155300.1+0800"
+                canDecodeValidIso8601Time "20080915T155300.12+0800"
+            describe "UTC-8 timezone (manually specified)" $ do
+                canDecodeValidIso8601Time "20080915T155300-0800"
+                canDecodeValidIso8601Time "20080915T155300.1-0800"
+                canDecodeValidIso8601Time "20080915T155300.12-0800"
+        describe "Extended format" $ do
+            describe "UTC+0 timezone (Z)" $ do
+                canDecodeValidIso8601Time "2008-09-15T15:53:00Z"
+                canDecodeValidIso8601Time "2008-09-15T15:53:00.1Z"
+                canDecodeValidIso8601Time "2008-09-15T15:53:00.12Z"
+            describe "UTC+0 timezone (manually specified)" $ do
+                canDecodeValidIso8601Time "2008-09-15T15:53:00+00:00"
+                canDecodeValidIso8601Time "2008-09-15T15:53:00.1+00:00"
+                canDecodeValidIso8601Time "2008-09-15T15:53:00.12+00:00"
+            describe "UTC+8 timezone (manually specified)" $ do
+                canDecodeValidIso8601Time "2008-09-15T15:53:00+08:00"
+                canDecodeValidIso8601Time "2008-09-15T15:53:00.1+08:00"
+                canDecodeValidIso8601Time "2008-09-15T15:53:00.12+08:00"
+            describe "UTC-8 timezone (manually specified)" $ do
+                canDecodeValidIso8601Time "2008-09-15T15:53:00-08:00"
+                canDecodeValidIso8601Time "2008-09-15T15:53:00.1-08:00"
+                canDecodeValidIso8601Time "2008-09-15T15:53:00.12-08:00"
 
     describe "Cannot decode invalid ISO 8601 strings" $ do
         describe "Strings that are not time values" $ do
             cannotDecodeInvalidIso8601Time ""
             cannotDecodeInvalidIso8601Time "w"
             cannotDecodeInvalidIso8601Time "wibble"
-        describe "Dates without times" $ do
-            cannotDecodeInvalidIso8601Time "2008"
-            cannotDecodeInvalidIso8601Time "2008-09"
-            cannotDecodeInvalidIso8601Time "2008-09-15"
-        describe "Missing timezones" $ do
-            cannotDecodeInvalidIso8601Time "2008-09-15T15:53:00"
-            cannotDecodeInvalidIso8601Time "2008-09-15T15:53:00.1"
-            cannotDecodeInvalidIso8601Time "2008-09-15T15:53:00.12"
-        describe "Invalid timezone characters" $ do
-            cannotDecodeInvalidIso8601Time "2008-09-15T15:53:00A"
-            cannotDecodeInvalidIso8601Time "2008-09-15T15:53:00.1A"
-            cannotDecodeInvalidIso8601Time "2008-09-15T15:53:00.12A"
-        describe "Invalid date-time separators" $ do
-            cannotDecodeInvalidIso8601Time "2008-09-15S15:53:00Z"
-            cannotDecodeInvalidIso8601Time "2008-09-15S15:53:00.1Z"
-            cannotDecodeInvalidIso8601Time "2008-09-15S15:53:00.12Z"
-        describe "Missing date-time separators" $ do
-            cannotDecodeInvalidIso8601Time "2008-09-1515:53:00Z"
-            cannotDecodeInvalidIso8601Time "2008-09-1515:53:00.1Z"
-            cannotDecodeInvalidIso8601Time "2008-09-1515:53:00.12Z"
+        describe "Basic format" $ do
+            describe "Dates without times" $ do
+                cannotDecodeInvalidIso8601Time "2008"
+                cannotDecodeInvalidIso8601Time "200809"
+                cannotDecodeInvalidIso8601Time "20080915"
+            describe "Missing timezones" $ do
+                cannotDecodeInvalidIso8601Time "20080915T155300"
+                cannotDecodeInvalidIso8601Time "20080915T155300.1"
+                cannotDecodeInvalidIso8601Time "20080915T155300.12"
+            describe "Invalid timezone characters" $ do
+                cannotDecodeInvalidIso8601Time "20080915T155300A"
+                cannotDecodeInvalidIso8601Time "20080915T155300.1A"
+                cannotDecodeInvalidIso8601Time "20080915T155300.12A"
+            describe "Invalid date-time separators" $ do
+                cannotDecodeInvalidIso8601Time "20080915S155300Z"
+                cannotDecodeInvalidIso8601Time "20080915S155300.1Z"
+                cannotDecodeInvalidIso8601Time "20080915S155300.12Z"
+            describe "Missing date-time separators" $ do
+                cannotDecodeInvalidIso8601Time "20080915155300Z"
+                cannotDecodeInvalidIso8601Time "20080915155300.1Z"
+                cannotDecodeInvalidIso8601Time "20080915155300.12Z"
+        describe "Extended format" $ do
+            describe "Dates without times" $ do
+                cannotDecodeInvalidIso8601Time "2008"
+                cannotDecodeInvalidIso8601Time "2008-09"
+                cannotDecodeInvalidIso8601Time "2008-09-15"
+            describe "Missing timezones" $ do
+                cannotDecodeInvalidIso8601Time "2008-09-15T15:53:00"
+                cannotDecodeInvalidIso8601Time "2008-09-15T15:53:00.1"
+                cannotDecodeInvalidIso8601Time "2008-09-15T15:53:00.12"
+            describe "Invalid timezone characters" $ do
+                cannotDecodeInvalidIso8601Time "2008-09-15T15:53:00A"
+                cannotDecodeInvalidIso8601Time "2008-09-15T15:53:00.1A"
+                cannotDecodeInvalidIso8601Time "2008-09-15T15:53:00.12A"
+            describe "Invalid date-time separators" $ do
+                cannotDecodeInvalidIso8601Time "2008-09-15S15:53:00Z"
+                cannotDecodeInvalidIso8601Time "2008-09-15S15:53:00.1Z"
+                cannotDecodeInvalidIso8601Time "2008-09-15S15:53:00.12Z"
+            describe "Missing date-time separators" $ do
+                cannotDecodeInvalidIso8601Time "2008-09-1515:53:00Z"
+                cannotDecodeInvalidIso8601Time "2008-09-1515:53:00.1Z"
+                cannotDecodeInvalidIso8601Time "2008-09-1515:53:00.12Z"
 
     describe "Port decoding from text" $ do
         let err = TextDecodingError

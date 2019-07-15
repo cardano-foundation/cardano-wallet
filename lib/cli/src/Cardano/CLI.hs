@@ -158,8 +158,8 @@ import Data.Text.Read
     ( decimal )
 import Data.Time.Clock
     ( UTCTime )
-import Data.Time.ISO8601
-    ( formatISO8601, parseISO8601 )
+import Data.Time.Format
+    ( defaultTimeLocale, formatTime, parseTimeM )
 import Fmt
     ( Buildable, blockListF, fmt, nameF, pretty )
 import GHC.Generics
@@ -876,13 +876,36 @@ newtype Iso8601Time = Iso8601Time
     } deriving (Eq, Ord, Show)
 
 instance ToText Iso8601Time where
-    toText = T.pack . formatISO8601 . getIso8601Time
+    toText = T.pack . formatTime defaultTimeLocale extendedUtc . getIso8601Time
 
 instance FromText Iso8601Time where
-    fromText = maybe (Left err) (Right . Iso8601Time) . parseISO8601 . T.unpack
+    fromText t = maybe (Left err) (Right . Iso8601Time) $ parse $ T.unpack t
       where
-        err = TextDecodingError
-            "Unable to parse time argument. Expecting ISO 8601 format."
+        parse s =
+            foldr (<|>) Nothing $
+            flip (parseTimeM False defaultTimeLocale) s <$> supportedFormats
+        supportedFormats =
+            [ basicUtc, basicLocal, extendedUtc, extendedLocal ]
+        err = TextDecodingError $ mempty
+            <> "Unable to parse time argument: '"
+            <> T.unpack t
+            <> "'. Expecting ISO 8601 format (basic or extended)."
+
+-- | ISO 8601 basic format (UTC).
+basicUtc :: String
+basicUtc = "%Y%m%dT%H%M%S%QZ"
+
+-- | ISO 8601 basic format (with local timezone).
+basicLocal :: String
+basicLocal = "%Y%m%dT%H%M%S%Q%z"
+
+-- | ISO 8601 extended format (UTC).
+extendedUtc :: String
+extendedUtc = "%Y-%m-%dT%H:%M:%S%QZ"
+
+-- | ISO 8601 extended format (with local timezone).
+extendedLocal :: String
+extendedLocal = "%Y-%m-%dT%H:%M:%S%Q%z"
 
 -- | Represents the number of words in a mnemonic sentence.
 --
