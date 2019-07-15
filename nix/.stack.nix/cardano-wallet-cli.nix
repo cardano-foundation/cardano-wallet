@@ -34,6 +34,7 @@
           (hsPkgs.servant-server)
           (hsPkgs.text)
           (hsPkgs.text-class)
+          (hsPkgs.time)
           (hsPkgs.optparse-applicative)
           ];
         };
@@ -44,6 +45,7 @@
             (hsPkgs.cardano-wallet-cli)
             (hsPkgs.hspec)
             (hsPkgs.QuickCheck)
+            (hsPkgs.quickcheck-instances)
             (hsPkgs.text)
             (hsPkgs.text-class)
             ];

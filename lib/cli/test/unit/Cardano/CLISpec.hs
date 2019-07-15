@@ -11,13 +11,20 @@ module Cardano.CLISpec
 import Prelude
 
 import Cardano.CLI
-    ( MnemonicSize (..), Port (..), hGetLine, hGetSensitiveLine )
+    ( Iso8601Time (..)
+    , MnemonicSize (..)
+    , Port (..)
+    , hGetLine
+    , hGetSensitiveLine
+    )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, takeMVar )
 import Control.Monad
     ( mapM_ )
+import Data.Either
+    ( isLeft, isRight )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -27,7 +34,7 @@ import Data.Text.Class
 import System.IO
     ( Handle, IOMode (..), hClose, openFile )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Large (..)
@@ -35,8 +42,12 @@ import Test.QuickCheck
     , checkCoverage
     , cover
     , genericShrink
+    , property
+    , (.&&.)
     , (===)
     )
+import Test.QuickCheck.Instances.Time
+    ()
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
@@ -46,8 +57,130 @@ import qualified Data.Text.IO as TIO
 spec :: Spec
 spec = do
     describe "Can perform roundtrip textual encoding & decoding" $ do
+        textRoundtrip $ Proxy @Iso8601Time
         textRoundtrip $ Proxy @(Port "test")
         textRoundtrip $ Proxy @MnemonicSize
+
+    describe "ISO 8601 encoding of dates and times" $ do
+
+        describe "Can decode valid ISO 8601 strings" $ do
+
+            describe "Basic format" $ do
+                describe "UTC+0 timezone (Z)" $ do
+                    canDecodeValidIso8601Time "20080915T155300Z"
+                    canDecodeValidIso8601Time "20080915T155300.1Z"
+                    canDecodeValidIso8601Time "20080915T155300.12Z"
+                describe "UTC+0 timezone (manually specified)" $ do
+                    canDecodeValidIso8601Time "20080915T155300+0000"
+                    canDecodeValidIso8601Time "20080915T155300.1+0000"
+                    canDecodeValidIso8601Time "20080915T155300.12+0000"
+                describe "UTC+8 timezone (manually specified)" $ do
+                    canDecodeValidIso8601Time "20080915T155300+0800"
+                    canDecodeValidIso8601Time "20080915T155300.1+0800"
+                    canDecodeValidIso8601Time "20080915T155300.12+0800"
+                describe "UTC-8 timezone (manually specified)" $ do
+                    canDecodeValidIso8601Time "20080915T155300-0800"
+                    canDecodeValidIso8601Time "20080915T155300.1-0800"
+                    canDecodeValidIso8601Time "20080915T155300.12-0800"
+
+            describe "Extended format" $ do
+                describe "UTC+0 timezone (Z)" $ do
+                    canDecodeValidIso8601Time "2008-09-15T15:53:00Z"
+                    canDecodeValidIso8601Time "2008-09-15T15:53:00.1Z"
+                    canDecodeValidIso8601Time "2008-09-15T15:53:00.12Z"
+                describe "UTC+0 timezone (manually specified)" $ do
+                    canDecodeValidIso8601Time "2008-09-15T15:53:00+00:00"
+                    canDecodeValidIso8601Time "2008-09-15T15:53:00.1+00:00"
+                    canDecodeValidIso8601Time "2008-09-15T15:53:00.12+00:00"
+                describe "UTC+8 timezone (manually specified)" $ do
+                    canDecodeValidIso8601Time "2008-09-15T15:53:00+08:00"
+                    canDecodeValidIso8601Time "2008-09-15T15:53:00.1+08:00"
+                    canDecodeValidIso8601Time "2008-09-15T15:53:00.12+08:00"
+                describe "UTC-8 timezone (manually specified)" $ do
+                    canDecodeValidIso8601Time "2008-09-15T15:53:00-08:00"
+                    canDecodeValidIso8601Time "2008-09-15T15:53:00.1-08:00"
+                    canDecodeValidIso8601Time "2008-09-15T15:53:00.12-08:00"
+
+        describe "Cannot decode invalid ISO 8601 strings" $ do
+
+            describe "Strings that are not time values" $ do
+                cannotDecodeInvalidIso8601Time ""
+                cannotDecodeInvalidIso8601Time "w"
+                cannotDecodeInvalidIso8601Time "wibble"
+
+            describe "Basic format" $ do
+                describe "Dates without times" $ do
+                    cannotDecodeInvalidIso8601Time "2008"
+                    cannotDecodeInvalidIso8601Time "200809"
+                    cannotDecodeInvalidIso8601Time "20080915"
+                describe "Missing timezones" $ do
+                    cannotDecodeInvalidIso8601Time "20080915T155300"
+                    cannotDecodeInvalidIso8601Time "20080915T155300.1"
+                    cannotDecodeInvalidIso8601Time "20080915T155300.12"
+                describe "Invalid timezone characters" $ do
+                    cannotDecodeInvalidIso8601Time "20080915T155300A"
+                    cannotDecodeInvalidIso8601Time "20080915T155300.1A"
+                    cannotDecodeInvalidIso8601Time "20080915T155300.12A"
+                describe "Invalid date-time separators" $ do
+                    cannotDecodeInvalidIso8601Time "20080915S155300Z"
+                    cannotDecodeInvalidIso8601Time "20080915S155300.1Z"
+                    cannotDecodeInvalidIso8601Time "20080915S155300.12Z"
+                describe "Missing date-time separators" $ do
+                    cannotDecodeInvalidIso8601Time "20080915155300Z"
+                    cannotDecodeInvalidIso8601Time "20080915155300.1Z"
+                    cannotDecodeInvalidIso8601Time "20080915155300.12Z"
+
+            describe "Extended format" $ do
+                describe "Dates without times" $ do
+                    cannotDecodeInvalidIso8601Time "2008"
+                    cannotDecodeInvalidIso8601Time "2008-09"
+                    cannotDecodeInvalidIso8601Time "2008-09-15"
+                describe "Missing timezones" $ do
+                    cannotDecodeInvalidIso8601Time "2008-09-15T15:53:00"
+                    cannotDecodeInvalidIso8601Time "2008-09-15T15:53:00.1"
+                    cannotDecodeInvalidIso8601Time "2008-09-15T15:53:00.12"
+                describe "Invalid timezone characters" $ do
+                    cannotDecodeInvalidIso8601Time "2008-09-15T15:53:00A"
+                    cannotDecodeInvalidIso8601Time "2008-09-15T15:53:00.1A"
+                    cannotDecodeInvalidIso8601Time "2008-09-15T15:53:00.12A"
+                describe "Invalid date-time separators" $ do
+                    cannotDecodeInvalidIso8601Time "2008-09-15S15:53:00Z"
+                    cannotDecodeInvalidIso8601Time "2008-09-15S15:53:00.1Z"
+                    cannotDecodeInvalidIso8601Time "2008-09-15S15:53:00.12Z"
+                describe "Missing date-time separators" $ do
+                    cannotDecodeInvalidIso8601Time "2008-09-1515:53:00Z"
+                    cannotDecodeInvalidIso8601Time "2008-09-1515:53:00.1Z"
+                    cannotDecodeInvalidIso8601Time "2008-09-1515:53:00.12Z"
+
+        describe "Equivalent times are decoded equivalently" $ do
+
+            describe "Times with the same date" $ do
+                ensureIso8601TimesEquivalent
+                    "2008-08-08T12:00:00+01:00"
+                    "2008-08-08T11:00:00Z"
+                ensureIso8601TimesEquivalent
+                    "2008-08-08T12:00:00+08:00"
+                    "2008-08-08T04:00:00Z"
+                ensureIso8601TimesEquivalent
+                    "2008-08-08T12:00:00-01:00"
+                    "2008-08-08T13:00:00Z"
+                ensureIso8601TimesEquivalent
+                    "2008-08-08T12:00:00-08:00"
+                    "2008-08-08T20:00:00Z"
+
+            describe "Times with different dates" $ do
+                ensureIso8601TimesEquivalent
+                    "2008-08-08T00:00:00+01:00"
+                    "2008-08-07T23:00:00Z"
+                ensureIso8601TimesEquivalent
+                    "2008-08-08T00:00:00+08:00"
+                    "2008-08-07T16:00:00Z"
+                ensureIso8601TimesEquivalent
+                    "2008-08-08T23:00:00-01:00"
+                    "2008-08-09T00:00:00Z"
+                ensureIso8601TimesEquivalent
+                    "2008-08-08T23:00:00-08:00"
+                    "2008-08-09T07:00:00Z"
 
     describe "Port decoding from text" $ do
         let err = TextDecodingError
@@ -177,6 +310,10 @@ test fn (GetLineTest prompt_ input_ output expected) = do
                                Arbitrary Instances
 -------------------------------------------------------------------------------}
 
+instance Arbitrary Iso8601Time where
+    arbitrary = Iso8601Time <$> arbitrary
+    shrink (Iso8601Time t) = Iso8601Time <$> shrink t
+
 instance Arbitrary MnemonicSize where
     arbitrary = arbitraryBoundedEnum
     shrink = genericShrink
@@ -186,3 +323,47 @@ instance Arbitrary (Port "test") where
     shrink p
         | p == minBound = []
         | otherwise = [pred p]
+
+{-------------------------------------------------------------------------------
+                               Helper Functions
+-------------------------------------------------------------------------------}
+
+-- | Checks that the specified 'Text' CAN be decoded as an 'Iso8601Time'
+--   value using the 'FromText` instance.
+--
+canDecodeValidIso8601Time :: Text -> Spec
+canDecodeValidIso8601Time text =
+    it ("Can decode as ISO 8601 time: " <> T.unpack text) $ property $ do
+        let result = fromText @Iso8601Time text
+        -- Internally, 'Iso8601Time' values are always stored canonically as
+        -- times in the UTC+0 timezone. Any original timezone information is
+        -- lost. So we check that a roundtrip text conversion can be applied
+        -- to the result of parsing the original input, rather than to the
+        -- original input itself.
+        (result `shouldSatisfy` isRight)
+            .&&.
+            ((fromText . toText =<< result) `shouldBe` result)
+
+-- | Checks that the specified 'Text' CANNOT be decoded as an 'Iso8601Time'
+--   value using the 'FromText' instance.
+--
+cannotDecodeInvalidIso8601Time :: Text -> Spec
+cannotDecodeInvalidIso8601Time text =
+    it ("Cannot decode as ISO 8601 time: " <> T.unpack text) $ property $ do
+        fromText @Iso8601Time text `shouldSatisfy` isLeft
+
+-- | Checks that the specified "Text' values can both be decoded as valid
+--   'Iso8601Time' values, and that the resultant values are equal.
+--
+ensureIso8601TimesEquivalent :: Text -> Text -> Spec
+ensureIso8601TimesEquivalent t1 t2 = it title $ property $
+    (r1 `shouldBe` r2)
+    .&&. (r1 `shouldSatisfy` isRight)
+    .&&. (r2 `shouldSatisfy` isRight)
+
+  where
+    r1 = fromText @Iso8601Time t1
+    r2 = fromText @Iso8601Time t2
+    title = mempty
+            <> "Equivalent ISO 8601 times are decoded equivalently: "
+            <> show (t1, t2)

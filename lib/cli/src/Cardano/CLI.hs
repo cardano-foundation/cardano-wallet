@@ -43,6 +43,7 @@ module Cardano.CLI
     , verbosityOption
 
     -- * Types
+    , Iso8601Time (..)
     , Service
     , MnemonicSize (..)
     , Port (..)
@@ -155,6 +156,10 @@ import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..), showT )
 import Data.Text.Read
     ( decimal )
+import Data.Time.Clock
+    ( UTCTime )
+import Data.Time.Format
+    ( defaultTimeLocale, formatTime, parseTimeM )
 import Fmt
     ( Buildable, blockListF, fmt, nameF, pretty )
 import GHC.Generics
@@ -862,6 +867,45 @@ handleResponse encode res = do
 {-------------------------------------------------------------------------------
                                 Extra Types
 -------------------------------------------------------------------------------}
+
+-- | Defines a point in time that can be formatted as and parsed from an
+--   ISO 8601-compliant string.
+--
+newtype Iso8601Time = Iso8601Time
+    { getIso8601Time :: UTCTime
+    } deriving (Eq, Ord, Show)
+
+instance ToText Iso8601Time where
+    toText = T.pack . formatTime defaultTimeLocale extendedUtc . getIso8601Time
+
+instance FromText Iso8601Time where
+    fromText t = maybe (Left err) (Right . Iso8601Time) $ parse $ T.unpack t
+      where
+        parse s =
+            foldr (<|>) Nothing $
+            flip (parseTimeM False defaultTimeLocale) s <$> supportedFormats
+        supportedFormats =
+            [ basicUtc, basicLocal, extendedUtc, extendedLocal ]
+        err = TextDecodingError $ mempty
+            <> "Unable to parse time argument: '"
+            <> T.unpack t
+            <> "'. Expecting ISO 8601 format (basic or extended)."
+
+-- | ISO 8601 basic format (UTC).
+basicUtc :: String
+basicUtc = "%Y%m%dT%H%M%S%QZ"
+
+-- | ISO 8601 basic format (with local timezone).
+basicLocal :: String
+basicLocal = "%Y%m%dT%H%M%S%Q%z"
+
+-- | ISO 8601 extended format (UTC).
+extendedUtc :: String
+extendedUtc = "%Y-%m-%dT%H:%M:%S%QZ"
+
+-- | ISO 8601 extended format (with local timezone).
+extendedLocal :: String
+extendedLocal = "%Y-%m-%dT%H:%M:%S%Q%z"
 
 -- | Represents the number of words in a mnemonic sentence.
 --

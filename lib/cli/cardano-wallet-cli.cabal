@@ -46,6 +46,7 @@ library
     , servant-server
     , text
     , text-class
+    , time
     , optparse-applicative
   hs-source-dirs:
       src
@@ -70,6 +71,7 @@ test-suite unit
     , cardano-wallet-cli
     , hspec
     , QuickCheck
+    , quickcheck-instances
     , text
     , text-class
   build-tools:
