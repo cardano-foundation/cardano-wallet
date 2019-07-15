@@ -65,21 +65,20 @@ import Cardano.Wallet.DaedalusIPC
 import Cardano.Wallet.DB
     ( DBLayer )
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge, Network (..), byronFeePolicy, byronSlotLength )
+    ( HttpBridge
+    , Network (..)
+    , byronFeePolicy
+    , byronSlotLength
+    , byronTxMaxSize
+    )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..) )
-import Cardano.Wallet.HttpBridge.Primitive.Types
-    ( Tx )
 import Cardano.Wallet.Network
     ( ErrNetworkTip, NetworkLayer, defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( SeqState )
-import Cardano.Wallet.Primitive.Fee
-    ( FeePolicy )
-import Cardano.Wallet.Primitive.Types
-    ( Block )
 import Cardano.Wallet.Version
     ( showVersion, version )
 import Control.Applicative
@@ -277,19 +276,24 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
             -> DBLayer IO s t
             -> IO (WalletLayer s t)
         newWalletLayer (sb, tracer) db = do
-            (nl, block0, feePolicy) <- newNetworkLayer (sb, tracer)
+            (nl, bp) <- newNetworkLayer (sb, tracer)
             let tl = HttpBridge.newTransactionLayer @n
-            let bp = BlockchainParameters block0 feePolicy byronSlotLength
             Wallet.newWalletLayer tracer bp db nl tl
 
         newNetworkLayer
             :: (Switchboard Text, Trace IO Text)
-            -> IO (NetworkLayer t IO, Block Tx, FeePolicy)
+            -> IO (NetworkLayer t IO, BlockchainParameters t)
         newNetworkLayer (sb, tracer) = do
             nl <- HttpBridge.newNetworkLayer @n (getPort nodePort)
             waitForService @ErrNetworkTip "http-bridge" (sb, tracer) nodePort $
                 waitForConnection nl defaultRetryPolicy
-            return (nl, HttpBridge.block0, byronFeePolicy)
+            let bp = BlockchainParameters
+                    { getGenesisBlock = HttpBridge.block0
+                    , getFeePolicy = byronFeePolicy
+                    , getSlotLength = byronSlotLength
+                    , getTxMaxSize = byronTxMaxSize
+                    }
+            return (nl, bp)
 
         withDBLayer
             :: CM.Configuration

@@ -46,8 +46,12 @@ largestFirst
     -> ExceptT (ErrCoinSelection e) m (CoinSelection, UTxO)
 largestFirst opt outs utxo = do
     let descending = NE.toList . NE.sortBy (flip $ comparing coin)
-    let n = fromIntegral $ maximumNumberOfInputs opt
-    let nLargest = take n . L.sortBy (flip $ comparing (coin . snd)) . Map.toList . getUTxO
+    let nOuts = fromIntegral $ NE.length outs
+    let maxN = fromIntegral $ maximumNumberOfInputs opt (fromIntegral nOuts)
+    let nLargest = take maxN
+            . L.sortBy (flip $ comparing (coin . snd))
+            . Map.toList
+            . getUTxO
     let guard = except . left ErrInvalidSelection . validate opt
 
     case foldM atLeast (nLargest utxo, mempty) (descending outs) of
@@ -57,7 +61,6 @@ largestFirst opt outs utxo = do
             let moneyRequested = sum $ (getCoin . coin) <$> (descending outs)
             let utxoBalance = fromIntegral $ balance utxo
             let nUtxo = fromIntegral $ L.length $ (Map.toList . getUTxO) utxo
-            let nOuts = fromIntegral $ NE.length outs
 
             when (utxoBalance < moneyRequested)
                 $ throwE $ ErrNotEnoughMoney utxoBalance moneyRequested
@@ -65,10 +68,10 @@ largestFirst opt outs utxo = do
             when (nUtxo < nOuts)
                 $ throwE $ ErrUtxoNotEnoughFragmented nUtxo nOuts
 
-            when (fromIntegral n > nUtxo)
+            when (fromIntegral maxN > nUtxo)
                 $ throwE ErrInputsDepleted
 
-            throwE $ ErrMaximumInputsReached (fromIntegral n)
+            throwE $ ErrMaximumInputsReached (fromIntegral maxN)
 
 -- Selecting coins to cover at least the specified value
 -- The details of the algorithm are following:

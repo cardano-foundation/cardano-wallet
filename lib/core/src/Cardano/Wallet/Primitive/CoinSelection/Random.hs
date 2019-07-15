@@ -116,12 +116,14 @@ random
     -> ExceptT (ErrCoinSelection e) m (CoinSelection, UTxO)
 random opt outs utxo = do
     let descending = NE.toList . NE.sortBy (flip $ comparing coin)
+    let nOuts = fromIntegral $ NE.length outs
+    let maxN = fromIntegral $ maximumNumberOfInputs opt nOuts
     randomMaybe <- lift $ runMaybeT $
-        foldM makeSelection (opt, utxo, []) (descending outs)
+        foldM makeSelection (maxN, utxo, []) (descending outs)
     case randomMaybe of
-        Just (opt', utxo', res) -> do
+        Just (maxN', utxo', res) -> do
             (_, sel, remUtxo) <- lift $
-                foldM improveTxOut (opt', mempty, utxo') (reverse res)
+                foldM improveTxOut (maxN', mempty, utxo') (reverse res)
             guard sel $> (sel, remUtxo)
         Nothing ->
             largestFirst opt outs utxo
@@ -130,14 +132,14 @@ random opt outs utxo = do
 
 -- | Perform a random selection on a given output, without improvement.
 makeSelection
-    :: forall m e. MonadRandom m
-    => (CoinSelectionOptions e, UTxO, [([(TxIn, TxOut)], TxOut)])
+    :: forall m. MonadRandom m
+    => (Word64, UTxO, [([(TxIn, TxOut)], TxOut)])
     -> TxOut
-    -> MaybeT m (CoinSelectionOptions e, UTxO, [([(TxIn, TxOut)], TxOut)])
-makeSelection (CoinSelectionOptions maxNumInputs fn, utxo0, selection) txout = do
+    -> MaybeT m (Word64, UTxO, [([(TxIn, TxOut)], TxOut)])
+makeSelection (maxNumInputs, utxo0, selection) txout = do
     (inps, utxo1) <- coverRandomly ([], utxo0)
     return
-        ( CoinSelectionOptions (maxNumInputs - fromIntegral (L.length inps)) fn
+        ( maxNumInputs - fromIntegral (L.length inps)
         , utxo1
         , (inps, txout) : selection
         )
@@ -156,14 +158,14 @@ makeSelection (CoinSelectionOptions maxNumInputs fn, utxo0, selection) txout = d
 
 -- | Perform an improvement to random selection on a given output.
 improveTxOut
-    :: forall m e. MonadRandom m
-    => (CoinSelectionOptions e, CoinSelection, UTxO)
+    :: forall m. MonadRandom m
+    => (Word64, CoinSelection, UTxO)
     -> ([(TxIn, TxOut)], TxOut)
-    -> m (CoinSelectionOptions e, CoinSelection, UTxO)
-improveTxOut (opt0, selection, utxo0) (inps0, txout) = do
-    (opt, inps, utxo) <- improve (opt0, inps0, utxo0)
+    -> m (Word64, CoinSelection, UTxO)
+improveTxOut (maxN0, selection, utxo0) (inps0, txout) = do
+    (maxN, inps, utxo) <- improve (maxN0, inps0, utxo0)
     return
-        ( opt
+        ( maxN
         , selection <> CoinSelection
             { inputs = inps
             , outputs = [txout]
@@ -175,22 +177,22 @@ improveTxOut (opt0, selection, utxo0) (inps0, txout) = do
     target = mkTargetRange txout
 
     improve
-        :: forall m e. MonadRandom m
-        => (CoinSelectionOptions e, [(TxIn, TxOut)], UTxO)
-        -> m (CoinSelectionOptions e, [(TxIn, TxOut)], UTxO)
-    improve (opt@(CoinSelectionOptions maxN fn), inps, utxo)
+        :: forall m. MonadRandom m
+        => (Word64, [(TxIn, TxOut)], UTxO)
+        -> m (Word64, [(TxIn, TxOut)], UTxO)
+    improve (maxN, inps, utxo)
         | maxN >= 1 && balance' inps < targetAim target = do
             runMaybeT (pickRandomT utxo) >>= \case
                 Nothing ->
-                    return (opt, inps, utxo)
+                    return (maxN, inps, utxo)
                 Just (io, utxo') | isImprovement io inps -> do
                     let inps' = io : inps
-                    let opt' = CoinSelectionOptions (maxN - 1) fn
-                    improve (opt', inps', utxo')
+                    let maxN' = maxN - 1
+                    improve (maxN', inps', utxo')
                 Just _ ->
-                    return (opt, inps, utxo)
+                    return (maxN, inps, utxo)
         | otherwise =
-            return (opt, inps, utxo)
+            return (maxN, inps, utxo)
 
     isImprovement :: (TxIn, TxOut) -> [(TxIn, TxOut)] -> Bool
     isImprovement io selected =

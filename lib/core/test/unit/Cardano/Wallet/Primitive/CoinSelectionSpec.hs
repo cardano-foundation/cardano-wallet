@@ -133,7 +133,7 @@ instance Buildable CoinSelProp where
 
 -- | A fixture for testing the coin selection
 data CoinSelectionFixture = CoinSelectionFixture
-    { maxNumOfInputs :: Word64
+    { maxNumOfInputs :: Word8
         -- ^ Maximum number of inputs that can be selected
     , validateSelection :: CoinSelection -> Either ErrValidation ()
         -- ^ A extra validation function on the resulting selection
@@ -178,7 +178,7 @@ coinSelectionUnitTest run lbl expected (CoinSelectionFixture n fn utxoF outsF) =
         (utxo,txOuts) <- setup
         result <- runExceptT $ do
             (CoinSelection inps outs chngs, _) <-
-                run (CoinSelectionOptions n fn) txOuts utxo
+                run (CoinSelectionOptions (const n) fn) txOuts utxo
             return $ CoinSelectionResult
                 { rsInputs = map (getCoin . coin . snd) inps
                 , rsChange = map getCoin chngs
