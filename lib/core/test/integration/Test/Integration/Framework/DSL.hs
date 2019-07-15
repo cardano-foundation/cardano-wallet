@@ -67,7 +67,6 @@ module Test.Integration.Framework.DSL
     , json
     , listAddresses
     , tearDown
-    , fixtureMaxTxSize
     , fixtureNInputs
     , fixtureWallet
     , fixtureWalletWith
@@ -616,22 +615,23 @@ emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
     expectResponseCode @IO HTTP.status202 r
     return (getFromResponse id r)
 
--- | Prepare Wallet with utxo of size n (each utxo having = amt) and payload for Tx
--- with n number of inputs (single input = amtToSend) to be sent from that wallet
+-- | Prepare Wallet with utxo (utxoSize, amt) and payload for the tx to be sent
+-- from this wallet
 fixtureNInputs
     :: forall t. (EncodeAddress t, DecodeAddress t)
     => Context t
     -> (Int, Natural)
-    -> Natural
+        -- ^ Src wallet utxo (size, amtInEachUtxo)
+    -> (Int, Natural)
+        -- ^ Transaction inputs (numOfInputs, amtToSendInEachInput)
     -> IO (ApiWallet, ApiWallet, Payload)
-fixtureNInputs ctx (n, amt) amtToSend = do
-    wSrc <- fixtureWalletWith ctx (replicate n amt)
+fixtureNInputs ctx (utxoSize, amt) (inputs, amtToSend) = do
+    wSrc <- fixtureWalletWith ctx (replicate utxoSize amt)
     wDest <- emptyWallet ctx
-    addrs <- listAddresses ctx wDest
+    address:_ <- listAddresses ctx wDest
 
     -- each amtToSend is going to the same address
-    let addrIds = view #id <$> take n addrs
-    let addrIdRepl = replicate n addrIds !! 1
+    let addrIdRepl = replicate inputs (address ^. #id)
     let payments = flip map addrIdRepl $ \addr -> [aesonQQ|{
             "address": #{addr},
             "amount": {
@@ -641,31 +641,6 @@ fixtureNInputs ctx (n, amt) amtToSend = do
         }|]
     let payload = Json [aesonQQ|{
             "payments": #{payments :: [Value]},
-            "passphrase": "Secure Passphrase"
-        }|]
-    return (wSrc, wDest, payload)
-
--- | Prepare Wallet with utxo of size n (each output = amt) and payload for Tx
--- to be send with given amtToSend (single input)
-fixtureMaxTxSize
-    :: forall t. (EncodeAddress t, DecodeAddress t)
-    => Context t
-    -> (Int, Natural)
-    -> Natural
-    -> IO (ApiWallet, ApiWallet, Payload)
-fixtureMaxTxSize ctx (n, amt) amtToSend = do
-    wSrc <- fixtureWalletWith ctx (replicate n amt)
-    wDest <- emptyWallet ctx
-    addr:_ <- listAddresses ctx wDest
-    let destination = addr ^. #id
-    let payload = Json [aesonQQ|{
-            "payments": [{
-                "address": #{destination},
-                "amount": {
-                    "quantity": #{amtToSend},
-                    "unit": "lovelace"
-                }
-            }],
             "passphrase": "Secure Passphrase"
         }|]
     return (wSrc, wDest, payload)
