@@ -50,17 +50,13 @@ import Cardano.Wallet.DB
     , PrimaryKey (..)
     )
 import Cardano.Wallet.DB.Sqlite.TH
-    ( AddressPool (..)
-    , AddressPoolId
-    , AddressPoolIndex (..)
-    , Checkpoint (..)
+    ( Checkpoint (..)
     , EntityField (..)
     , Key (..)
     , PrivateKey (..)
     , SeqState (..)
-    , SeqStateExternalPool (..)
+    , SeqStateAddresses (..)
     , SeqStateId
-    , SeqStateInternalPool (..)
     , SeqStatePendingIx (..)
     , TxIn (..)
     , TxMeta (..)
@@ -85,7 +81,7 @@ import Control.DeepSeq
 import Control.Exception
     ( bracket )
 import Control.Monad
-    ( mapM_, when )
+    ( mapM_, void, when )
 import Control.Monad.Catch
     ( MonadCatch (..), handleJust )
 import Control.Monad.IO.Class
@@ -120,8 +116,6 @@ import Data.Text
     ( Text )
 import Data.Typeable
     ( Typeable )
-import Database.Persist.Class
-    ( toPersistValue )
 import Database.Persist.Sql
     ( Entity (..)
     , Filter
@@ -788,85 +782,68 @@ class DefineTx t => PersistTx t where
 
 instance W.KeyToAddress t => PersistState (W.SeqState t) where
     insertState (wid, sl) st = do
-        ssid <- insert (SeqState wid sl)
-        intApId <- insertAddressPool $ W.internalPool st
-        extApId <- insertAddressPool $ W.externalPool st
-        insert_ $ SeqStateInternalPool ssid intApId
-        insert_ $ SeqStateExternalPool ssid extApId
+        let (intPool, extPool) = (W.internalPool st, W.externalPool st)
+        let (xpub, _) = W.invariant
+                "Internal & External pool use different account public keys!"
+                (W.accountPubKey intPool, W.accountPubKey extPool)
+                (uncurry (==))
+        let eGap = W.gap extPool
+        let iGap = W.gap intPool
+        ssid <- insert (SeqState wid sl eGap iGap (AddressPoolXPub xpub))
+        insertAddressPool ssid intPool
+        insertAddressPool ssid extPool
         insertMany_ $ mkSeqStatePendingIxs ssid $ W.pendingChangeIxs st
 
     selectState (wid, sl) = runMaybeT $ do
-        ssid <- MaybeT $ fmap entityKey
-            <$> selectFirst
-                [ SeqStateTableWalletId ==. wid
-                , SeqStateTableCheckpointSlot ==. sl
-                ] []
-        intApId <- MaybeT $ fmap (seqStateInternalPoolAddressPool . entityVal)
-            <$> selectFirst [ SeqStateInternalPoolSeqStateId ==. ssid ] []
-        extApId <- MaybeT $ fmap (seqStateExternalPoolAddressPool . entityVal)
-            <$> selectFirst [ SeqStateExternalPoolSeqStateId ==. ssid ] []
-        internalPool <- MaybeT $ selectAddressPool intApId
-        externalPool <- MaybeT $ selectAddressPool extApId
+        st <- MaybeT $ selectFirst
+            [ SeqStateTableWalletId ==. wid
+            , SeqStateTableCheckpointSlot ==. sl
+            ] []
+        let (ssid, SeqState _ _ eGap iGap xPub) = (entityKey st, entityVal st)
+        intPool <- lift $ selectAddressPool ssid iGap xPub
+        extPool <- lift $ selectAddressPool ssid eGap xPub
         pendingChangeIxs <- lift $ selectSeqStatePendingIxs ssid
-        pure $ W.SeqState internalPool externalPool pendingChangeIxs
+        pure $ W.SeqState intPool extPool pendingChangeIxs
 
     deleteState wid = do
         ssid <- fmap entityKey <$> selectList [ SeqStateTableWalletId ==. wid ] []
-        mapM_ (deleteSeqAddresses W.ExternalChain) ssid
-        mapM_ (deleteSeqAddresses W.InternalChain) ssid
-        deleteCascadeWhere [SeqStateTableWalletId ==. wid]
-
--- | Clean-up sequential addresses from both internal and external pools from
--- known sequential states.
-deleteSeqAddresses
-    :: W.ChangeChain
-    -> SeqStateId
-    -> SqlPersistT IO ()
-deleteSeqAddresses cc ssid = flip rawExecute [toPersistValue ssid] $ T.unwords
-    [ "DELETE FROM address_pool_index WHERE address_pool_id"
-    , "IN ("
-    , T.unwords
-        [ "SELECT address_pool_id"
-        , "FROM", t
-        , "WHERE seq_state_id = ?"
-        ]
-    , ")"
-    ]
-  where
-    t = case cc of
-        W.ExternalChain -> "seq_state_external_pool"
-        W.InternalChain -> "seq_state_internal_pool"
+        deleteWhere [ SeqStateAddressesSeqStateId <-. ssid ]
+        deleteWhere [ SeqStatePendingIxSeqStateId <-. ssid ]
+        deleteWhere [ SeqStateTableWalletId ==. wid ]
 
 insertAddressPool
-    :: W.AddressPool t c
-    -> SqlPersistT IO AddressPoolId
-insertAddressPool ap = do
-    let ap' = AddressPool (AddressPoolXPub $ W.accountPubKey ap) (W.gap ap)
-    apid <- insert ap'
-    let ixs = [ AddressPoolIndex apid a i | (i, a) <- zip [0..] (W.addresses ap) ]
-    dbChunked insertMany_ ixs
-    pure apid
+    :: forall t c. (Typeable c)
+    => SeqStateId
+    -> W.AddressPool t c
+    -> SqlPersistT IO ()
+insertAddressPool ssid pool =
+    void $ dbChunked insertMany_
+        [ SeqStateAddresses ssid addr ix (W.changeChain @c)
+        | (ix, addr) <- zip [0..] (W.addresses pool)
+        ]
+
+selectAddressPool
+    :: forall t chain. (W.KeyToAddress t, Typeable chain)
+    => SeqStateId
+    -> W.AddressPoolGap
+    -> AddressPoolXPub
+    -> SqlPersistT IO (W.AddressPool t chain)
+selectAddressPool ssid gap (AddressPoolXPub xpub) = do
+    addrs <- fmap entityVal <$> selectList
+        [ SeqStateAddressesSeqStateId ==. ssid
+        , SeqStateAddressesChangeChain ==. W.changeChain @chain
+        ] [Asc SeqStateAddressesIndex]
+    pure $ addressPoolFromEntity addrs
+  where
+    addressPoolFromEntity
+        :: [SeqStateAddresses]
+        -> W.AddressPool t chain
+    addressPoolFromEntity addrs =
+        W.mkAddressPool @t @chain xpub gap (map seqStateAddressesAddress addrs)
 
 mkSeqStatePendingIxs :: SeqStateId -> W.PendingIxs -> [SeqStatePendingIx]
 mkSeqStatePendingIxs ssid =
     fmap (SeqStatePendingIx ssid . W.getIndex) . W.pendingIxsToList
-
-selectAddressPool
-    :: forall t chain. (W.KeyToAddress t, Typeable chain)
-    => AddressPoolId
-    -> SqlPersistT IO (Maybe (W.AddressPool t chain))
-selectAddressPool apid = do
-    ix <- fmap entityVal <$> selectList [IndexAddressPool ==. apid]
-        [Asc IndexNumber]
-    ap <- fmap entityVal <$> selectFirst [AddressPoolId ==. apid] []
-    pure $ addressPoolFromEntity ix <$> ap
-  where
-    addressPoolFromEntity
-        :: [AddressPoolIndex]
-        -> AddressPool
-        -> W.AddressPool t chain
-    addressPoolFromEntity ixs (AddressPool (AddressPoolXPub pubKey) gap) =
-        W.mkAddressPool @t @chain pubKey gap (map indexAddress ixs)
 
 selectSeqStatePendingIxs :: SeqStateId -> SqlPersistT IO W.PendingIxs
 selectSeqStatePendingIxs ssid =
