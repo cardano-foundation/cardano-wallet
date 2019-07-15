@@ -253,6 +253,13 @@ Testnet :: Network
 
 -- | Genesis block header, i.e. very first block header of the chain
 block0 :: BlockHeader
+
+-- | Jörmugandr's chain parameter doesn't include a transaction max size.
+--   The actual hard-limit for the size is constrained by the binary format
+--   and numbers used to represent the number of inputs and outputs
+--   (Word8), yet there's also a soft-limit of 8kb which results in much
+--   smaller transactions in the end.
+softTxMaxSize :: Quantity "byte" Word16
 data BaseUrl
 BaseUrl :: Scheme -> String -> Int -> String -> BaseUrl
 [baseUrlScheme] :: BaseUrl -> Scheme

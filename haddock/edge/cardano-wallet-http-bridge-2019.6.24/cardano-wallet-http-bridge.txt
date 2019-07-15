@@ -199,6 +199,9 @@ byronFeePolicy :: FeePolicy
 
 -- | Hard-coded slot duration
 byronSlotLength :: SlotLength
+
+-- | Hard-coded max transaction size
+byronTxMaxSize :: Quantity "byte" Word16
 instance Cardano.Wallet.Primitive.Types.DefineTx (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge network)
 instance Cardano.Wallet.DB.Sqlite.PersistTx (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge network)
 instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge 'Cardano.Wallet.HttpBridge.Environment.Testnet)

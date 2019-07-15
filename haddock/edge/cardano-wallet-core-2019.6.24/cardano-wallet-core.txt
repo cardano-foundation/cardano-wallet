@@ -701,8 +701,12 @@ ErrInputsDepleted :: ErrCoinSelection e
 --   algorithm.
 ErrInvalidSelection :: e -> ErrCoinSelection e
 data CoinSelectionOptions e
-CoinSelectionOptions :: Word64 -> (CoinSelection -> Either e ()) -> CoinSelectionOptions e
-[maximumNumberOfInputs] :: CoinSelectionOptions e -> Word64
+CoinSelectionOptions :: (Word8 -> Word8) -> (CoinSelection -> Either e ()) -> CoinSelectionOptions e
+
+-- | Maximum number of inputs allowed for a given number of outputs
+[maximumNumberOfInputs] :: CoinSelectionOptions e -> Word8 -> Word8
+
+-- | Returns any backend-specific error regarding coin selection
 [validate] :: CoinSelectionOptions e -> CoinSelection -> Either e ()
 
 -- | Shuffles a list of elements.
@@ -2521,12 +2525,19 @@ WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletNa
 --   most recent transaction comes first.
 [$sel:listTransactions:WalletLayer] :: WalletLayer s t -> DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO [(Tx t, TxMeta)]
 data BlockchainParameters t
-BlockchainParameters :: Block (Tx t) -> FeePolicy -> SlotLength -> BlockchainParameters t
+BlockchainParameters :: Block (Tx t) -> FeePolicy -> SlotLength -> Quantity "byte" Word16 -> BlockchainParameters t
 
 -- | Very first block
 [$sel:getGenesisBlock:BlockchainParameters] :: BlockchainParameters t -> Block (Tx t)
+
+-- | Policy regarding transcation fee
 [$sel:getFeePolicy:BlockchainParameters] :: BlockchainParameters t -> FeePolicy
+
+-- | Length, in seconds, of a slot
 [$sel:getSlotLength:BlockchainParameters] :: BlockchainParameters t -> SlotLength
+
+-- | Maximum size of a transaction (soft or hard limit)
+[$sel:getTxMaxSize:BlockchainParameters] :: BlockchainParameters t -> Quantity "byte" Word16
 newtype ErrAdjustForFee
 
 -- | UTxO exhausted during fee covering We record what amount missed to
