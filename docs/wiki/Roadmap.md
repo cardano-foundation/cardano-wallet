@@ -55,6 +55,12 @@ _items below are more-or-less prioritized_
 - New network layer through unix domain socket
 - Port CLI & Integration tests
 - Resolve API and or core-types discrepancy 
+- Implement the transaction layer to serialize and sign transactions for the Haskell nodes.
+- Add a third executable target for our command-line, and have the ability to serve the wallet on top of a new Haskell node
+
+### Finalize cross-compilation to windows
+
+We can cross-compile the CLI and source code to windows! Which is great but not sufficient. What we would ultimately need is a way to run our e2e tests and integration tests on windows, which is a hard problem. Because the tests are running fine on Linux and OSX, doesn't mean that the executable produced for windows will be fine too.
 
 ### Make Protocol Settings & Blockchain status Available
 
