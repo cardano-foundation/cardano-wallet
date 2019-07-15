@@ -171,24 +171,24 @@ SeqState
 
 -- Address pool attributes.
 AddressPool
-    addressPoolAccountPubKey        AddressPoolXPub
-    addressPoolGap                  W.AddressPoolGap
+    addressPoolAccountPubKey        AddressPoolXPub   sql=account_xpub
+    addressPoolGap                  W.AddressPoolGap  sql=gap
 
     deriving Show Generic
 
 -- Mapping of pool addresses to indices.
 AddressPoolIndex
-    indexAddressPool   AddressPoolId
-    indexAddress       W.Address
-    indexNumber        Word32
+    indexAddressPool   AddressPoolId  sql=address_pool_id
+    indexAddress       W.Address      sql=address
+    indexNumber        Word32         sql=address_ix
 
     deriving Show Generic
 
 -- Sequential address discovery scheme -- internal address pool
 -- associated with state record.
 SeqStateInternalPool
-    seqStateInternalPoolSeqStateId   SeqStateId
-    seqStateInternalPoolAddressPool  AddressPoolId
+    seqStateInternalPoolSeqStateId   SeqStateId     sql=seq_state_id
+    seqStateInternalPoolAddressPool  AddressPoolId  sql=address_pool_id
     UniqueSeqStateInternalPool seqStateInternalPoolSeqStateId seqStateInternalPoolAddressPool
     Primary seqStateInternalPoolSeqStateId
     deriving Show Generic
@@ -196,16 +196,16 @@ SeqStateInternalPool
 -- Sequential address discovery scheme -- external address pool
 -- associated with state record.
 SeqStateExternalPool
-    seqStateExternalPoolSeqStateId   SeqStateId
-    seqStateExternalPoolAddressPool  AddressPoolId
+    seqStateExternalPoolSeqStateId   SeqStateId     sql=seq_state_id
+    seqStateExternalPoolAddressPool  AddressPoolId  sql=address_pool_id
     UniqueSeqStateExternalPool seqStateExternalPoolSeqStateId seqStateExternalPoolAddressPool
     Primary seqStateExternalPoolSeqStateId
     deriving Show Generic
 
 -- Sequential address discovery scheme -- pending change indexes
 SeqStatePendingIx
-    seqStatePendingIxSeqStateId     SeqStateId
-    seqStatePendingIxIndex          Word32
+    seqStatePendingIxSeqStateId     SeqStateId      sql=seq_state_id
+    seqStatePendingIxIndex          Word32          sql=pending_ix
 
     Primary seqStatePendingIxSeqStateId seqStatePendingIxIndex
     deriving Show Generic
