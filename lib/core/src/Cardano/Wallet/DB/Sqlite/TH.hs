@@ -38,6 +38,7 @@ import GHC.Generics
 import Numeric.Natural
     ( Natural )
 
+import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteString.Char8 as B8
@@ -160,52 +161,30 @@ UTxO                                     sql=utxo
 
 -- State for sequential scheme address discovery
 SeqState
-
     -- The wallet checkpoint (wallet_id, slot)
-    seqStateTableWalletId        W.WalletId  sql=wallet_id
-    seqStateTableCheckpointSlot  W.SlotId    sql=slot
+    seqStateTableWalletId        W.WalletId        sql=wallet_id
+    seqStateTableCheckpointSlot  W.SlotId          sql=slot
+    seqStateTableExternalGap     W.AddressPoolGap  sql=external_gap
+    seqStateTableInternalGap     W.AddressPoolGap  sql=internal_gap
+    seqStateTableAccountXPub     AddressPoolXPub   sql=account_xpub
 
     UniqueSeqState seqStateTableWalletId seqStateTableCheckpointSlot
     Foreign Checkpoint fk_checkpoint_seq_state seqStateTableWalletId seqStateTableCheckpointSlot
     deriving Show Generic
 
--- Address pool attributes.
-AddressPool
-    addressPoolAccountPubKey        AddressPoolXPub
-    addressPoolGap                  W.AddressPoolGap
-
-    deriving Show Generic
-
 -- Mapping of pool addresses to indices.
-AddressPoolIndex
-    indexAddressPool   AddressPoolId
-    indexAddress       W.Address
-    indexNumber        Word32
+SeqStateAddresses
+    seqStateAddressesSeqStateId   SeqStateId     sql=seq_state_id
+    seqStateAddressesAddress      W.Address      sql=address
+    seqStateAddressesIndex        Word32         sql=address_ix
+    seqStateAddressesChangeChain  W.ChangeChain  sql=change_chain
 
-    deriving Show Generic
-
--- Sequential address discovery scheme -- internal address pool
--- associated with state record.
-SeqStateInternalPool
-    seqStateInternalPoolSeqStateId   SeqStateId
-    seqStateInternalPoolAddressPool  AddressPoolId
-    UniqueSeqStateInternalPool seqStateInternalPoolSeqStateId seqStateInternalPoolAddressPool
-    Primary seqStateInternalPoolSeqStateId
-    deriving Show Generic
-
--- Sequential address discovery scheme -- external address pool
--- associated with state record.
-SeqStateExternalPool
-    seqStateExternalPoolSeqStateId   SeqStateId
-    seqStateExternalPoolAddressPool  AddressPoolId
-    UniqueSeqStateExternalPool seqStateExternalPoolSeqStateId seqStateExternalPoolAddressPool
-    Primary seqStateExternalPoolSeqStateId
     deriving Show Generic
 
 -- Sequential address discovery scheme -- pending change indexes
 SeqStatePendingIx
-    seqStatePendingIxSeqStateId     SeqStateId
-    seqStatePendingIxIndex          Word32
+    seqStatePendingIxSeqStateId   SeqStateId     sql=seq_state_id
+    seqStatePendingIxIndex        Word32         sql=pending_ix
 
     Primary seqStatePendingIxSeqStateId seqStatePendingIxIndex
     deriving Show Generic
