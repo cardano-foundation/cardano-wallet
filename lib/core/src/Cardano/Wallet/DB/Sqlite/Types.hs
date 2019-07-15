@@ -23,7 +23,7 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Key, deserializeXPub, serializeXPub )
+    ( ChangeChain, Depth (..), Key, deserializeXPub, serializeXPub )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap (..), getAddressPoolGap, mkAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
@@ -324,3 +324,13 @@ instance PersistField AddressPoolXPub where
 
 instance PersistFieldSql AddressPoolXPub where
     sqlType _ = sqlType (Proxy @B8.ByteString)
+
+----------------------------------------------------------------------------
+-- ChangeChain
+
+instance PersistField ChangeChain where
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql ChangeChain where
+    sqlType _ = sqlType (Proxy @Text)

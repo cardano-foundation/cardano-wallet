@@ -125,7 +125,13 @@ import Data.Proxy
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( CaseStyle (..)
+    , FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    , fromTextToBoundedEnum
+    , toTextFromBoundedEnum
+    )
 import Data.Typeable
     ( Typeable )
 import Data.Word
@@ -444,9 +450,9 @@ instance MonadRandom ((->) (Passphrase "salt")) where
 -- the addresses generated on the internal chain, whereas the external chain is
 -- used for addresses that are part of the 'advertised' targets of a transaction
 data ChangeChain
-    = InternalChain
-    | ExternalChain
-    deriving (Generic, Typeable, Show, Eq)
+    = ExternalChain
+    | InternalChain
+    deriving (Generic, Typeable, Show, Eq, Ord, Bounded)
 
 instance NFData ChangeChain
 
@@ -461,6 +467,12 @@ instance Enum ChangeChain where
     fromEnum = \case
         ExternalChain -> 0
         InternalChain -> 1
+
+instance ToText ChangeChain where
+    toText = toTextFromBoundedEnum SnakeLowerCase
+
+instance FromText ChangeChain where
+    fromText = fromTextToBoundedEnum SnakeLowerCase
 
 -- | Purpose is a constant set to 44' (or 0x8000002C) following the BIP-44
 -- recommendation. It indicates that the subtree of this node is used
