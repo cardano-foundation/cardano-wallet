@@ -152,6 +152,36 @@ spec = do
                     cannotDecodeInvalidIso8601Time "2008-09-1515:53:00.1Z"
                     cannotDecodeInvalidIso8601Time "2008-09-1515:53:00.12Z"
 
+        describe "Equivalent times are decoded equivalently" $ do
+
+            describe "Times with the same date" $ do
+                ensureIso8601TimesEquivalent
+                    "2008-08-08T12:00:00+01:00"
+                    "2008-08-08T11:00:00Z"
+                ensureIso8601TimesEquivalent
+                    "2008-08-08T12:00:00+08:00"
+                    "2008-08-08T04:00:00Z"
+                ensureIso8601TimesEquivalent
+                    "2008-08-08T12:00:00-01:00"
+                    "2008-08-08T13:00:00Z"
+                ensureIso8601TimesEquivalent
+                    "2008-08-08T12:00:00-08:00"
+                    "2008-08-08T20:00:00Z"
+
+            describe "Times with different dates" $ do
+                ensureIso8601TimesEquivalent
+                    "2008-08-08T00:00:00+01:00"
+                    "2008-08-07T23:00:00Z"
+                ensureIso8601TimesEquivalent
+                    "2008-08-08T00:00:00+08:00"
+                    "2008-08-07T16:00:00Z"
+                ensureIso8601TimesEquivalent
+                    "2008-08-08T23:00:00-01:00"
+                    "2008-08-09T00:00:00Z"
+                ensureIso8601TimesEquivalent
+                    "2008-08-08T23:00:00-08:00"
+                    "2008-08-09T07:00:00Z"
+
     describe "Port decoding from text" $ do
         let err = TextDecodingError
                 $ "expected a TCP port number between "
@@ -321,3 +351,19 @@ cannotDecodeInvalidIso8601Time :: Text -> Spec
 cannotDecodeInvalidIso8601Time text =
     it ("Cannot decode as ISO 8601 time: " <> T.unpack text) $ property $ do
         fromText @Iso8601Time text `shouldSatisfy` isLeft
+
+-- | Checks that the specified "Text' values can both be decoded as valid
+--   'Iso8601Time' values, and that the resultant values are equal.
+--
+ensureIso8601TimesEquivalent :: Text -> Text -> Spec
+ensureIso8601TimesEquivalent t1 t2 = it title $ property $
+    (r1 `shouldBe` r2)
+    .&&. (r1 `shouldSatisfy` isRight)
+    .&&. (r2 `shouldSatisfy` isRight)
+
+  where
+    r1 = fromText @Iso8601Time t1
+    r2 = fromText @Iso8601Time t2
+    title = mempty
+            <> "Equivalent ISO 8601 times are decoded equivalently: "
+            <> show (t1, t2)
