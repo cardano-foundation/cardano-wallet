@@ -824,15 +824,15 @@ instance W.KeyToAddress t => PersistState (W.SeqState t) where
         insertMany_ $ mkSeqStatePendingIxs ssid $ W.pendingChangeIxs st
 
     selectState (wid, sl) = runMaybeT $ do
-        ssid <- MaybeT $ fmap entityKey <$>
-            selectFirst [ SeqStateTableWalletId ==. wid
-                        , SeqStateTableCheckpointSlot ==. sl ] []
-        intApId <- MaybeT $
-            fmap (seqStateInternalPoolAddressPool . entityVal) <$>
-            selectFirst [ SeqStateInternalPoolSeqStateId ==. ssid ] []
-        extApId <- MaybeT $
-            fmap (seqStateExternalPoolAddressPool . entityVal) <$>
-            selectFirst [ SeqStateExternalPoolSeqStateId ==. ssid ] []
+        ssid <- MaybeT $ fmap entityKey
+            <$> selectFirst
+                [ SeqStateTableWalletId ==. wid
+                , SeqStateTableCheckpointSlot ==. sl
+                ] []
+        intApId <- MaybeT $ fmap (seqStateInternalPoolAddressPool . entityVal)
+            <$> selectFirst [ SeqStateInternalPoolSeqStateId ==. ssid ] []
+        extApId <- MaybeT $ fmap (seqStateExternalPoolAddressPool . entityVal)
+            <$> selectFirst [ SeqStateExternalPoolSeqStateId ==. ssid ] []
         internalPool <- MaybeT $ selectAddressPool intApId
         externalPool <- MaybeT $ selectAddressPool extApId
         pendingChangeIxs <- lift $ selectSeqStatePendingIxs ssid
@@ -840,13 +840,30 @@ instance W.KeyToAddress t => PersistState (W.SeqState t) where
 
     deleteState wid = do
         ssid <- fmap entityKey <$> selectList [ SeqStateTableWalletId ==. wid ] []
-        intApId <- fmap (seqStateInternalPoolAddressPool . entityVal) <$>
-            selectList [ SeqStateInternalPoolSeqStateId <-. ssid ] []
-        extApId <- fmap (seqStateExternalPoolAddressPool . entityVal) <$>
-            selectList [ SeqStateExternalPoolSeqStateId <-. ssid ] []
-        deleteMany [] AddressPoolId intApId
-        deleteMany [] AddressPoolId extApId
+        mapM_ (deleteSeqAddresses W.ExternalChain) ssid
+        mapM_ (deleteSeqAddresses W.InternalChain) ssid
         deleteCascadeWhere [SeqStateTableWalletId ==. wid]
+
+-- | Clean-up sequential addresses from both internal and external pools from
+-- known sequential states.
+deleteSeqAddresses
+    :: W.ChangeChain
+    -> SeqStateId
+    -> SqlPersistT IO ()
+deleteSeqAddresses cc ssid = flip rawExecute [toPersistValue ssid] $ T.unwords
+    [ "DELETE FROM address_pool_index WHERE address_pool_id"
+    , "IN ("
+    , T.unwords
+        [ "SELECT address_pool_id"
+        , "FROM", t
+        , "WHERE seq_state_id = ?"
+        ]
+    , ")"
+    ]
+  where
+    t = case cc of
+        W.ExternalChain -> "seq_state_external_pool"
+        W.InternalChain -> "seq_state_internal_pool"
 
 insertAddressPool
     :: W.AddressPool t c
