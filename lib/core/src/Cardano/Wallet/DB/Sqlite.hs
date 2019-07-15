@@ -121,7 +121,7 @@ import Data.Text
 import Data.Typeable
     ( Typeable )
 import Database.Persist.Class
-    ( DeleteCascade, PersistField, PersistRecordBackend )
+    ( toPersistValue )
 import Database.Persist.Sql
     ( Entity (..)
     , Filter
@@ -693,37 +693,9 @@ chunkedM
 chunkedM n f = mapM_ f . chunksOf n
 
 -- | Size of chunks when inserting, updating or deleting many rows at once. We
--- only act on `chunkSize` values at a time. See also 'dbChunked' and
--- 'deleteMany'.
+-- only act on `chunkSize` values at a time. See also 'dbChunked'.
 chunkSize :: Int
 chunkSize = 100
-
--- | Remove many entities from the database in chunks of fixed size.
---
--- This is to prevent too many variables appearing in the SQL statement.
--- SQLITE_MAX_VARIABLE_NUMBER is 999 by default, and we will get a
--- "too many SQL variables" exception if that is exceeded.
---
--- We choose a conservative value 'chunkSize' << 999 because there can be
--- multiple variables per row updated.
-deleteMany
-    :: forall typ record.
-       ( PersistField typ
-       , DeleteCascade record SqlBackend
-       , PersistRecordBackend record SqlBackend )
-    => [Filter record]
-    -> EntityField record typ
-    -> [typ]
-    -> SqlPersistT IO ()
-deleteMany filters entity types
-    -- SQLite max limit is at 999 variables. We may have other variables so,
-    -- we arbitrarily pick 500 which is way below 999. This should prevent the
-    -- infamous: too many SQL variables
-    | length types < chunkSize =
-        deleteCascadeWhere ((entity <-. types):filters)
-    | otherwise = do
-        deleteCascadeWhere ((entity <-. take chunkSize types):filters)
-        deleteMany filters entity (drop chunkSize types)
 
 -- | Delete transactions that aren't referred to by TxMeta of any wallet.
 deleteLooseTransactions :: SqlPersistT IO ()
