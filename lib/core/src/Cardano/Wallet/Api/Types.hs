@@ -7,6 +7,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -100,6 +101,8 @@ import Data.Bifunctor
     ( bimap )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -107,15 +110,21 @@ import Data.Quantity
 import Data.Text
     ( Text, split )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    , splitAtLastOccurrence
+    )
 import Data.Time
     ( UTCTime )
+import Data.Time.Format
+    ( defaultTimeLocale, formatTime, parseTimeM )
 import Fmt
     ( pretty )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
-    ( Nat, Symbol )
+    ( KnownSymbol, Nat, Symbol, symbolVal )
 import Numeric.Natural
     ( Natural )
 import Web.HttpApiData
@@ -240,6 +249,56 @@ data ApiErrorCode
 data Iso8601Range (name :: Symbol)
     = Iso8601Range (Maybe UTCTime) (Maybe UTCTime)
     deriving (Show)
+
+instance KnownSymbol name => ToText (Iso8601Range name) where
+    toText (Iso8601Range t1 t2) = prefix <> " " <> suffix
+      where
+        prefix = T.pack $ symbolVal (Proxy @name)
+        suffix = timeToText t1 <> "-" <> timeToText t2
+        timeToText = \case
+            Nothing -> "*"
+            Just t -> T.pack $ formatTime defaultTimeLocale basicUtc t
+
+instance KnownSymbol name => FromText (Iso8601Range name) where
+    fromText t = do
+        (prefix, suffix) <- guardM (splitAtLastOccurrence ' ' t)
+            "Unable to find required space separator character."
+        (t1, t2) <- guardM (splitAtLastOccurrence '-' suffix)
+            "Unable to find required hyphen separator character."
+        guardB (prefix == expectedPrefix) $
+            "Invalid prefix string found. Expecting: " <> show expectedPrefix
+        v1 <- guardM (parseTime t1) $
+            "Invalid start time string: " <> show t1
+        v2 <- guardM (parseTime t2) $
+            "Invalid end time string: " <> show t2
+        guardB (validRange v1 v2)
+            "Start time is later than end time."
+        pure $ Iso8601Range v1 v2
+      where
+        expectedPrefix = T.pack $ symbolVal (Proxy @name)
+
+        guardB :: Bool -> String -> Either TextDecodingError ()
+        guardB b err = if b then Right () else raise err
+
+        guardM :: Maybe a -> String -> Either TextDecodingError a
+        guardM ma err = maybe (raise err) Right ma
+
+        raise :: forall a . String -> Either TextDecodingError a
+        raise err = Left $ TextDecodingError $
+            "Error encountered while decoding ISO 8601 time range: " <> err
+
+        parseTime :: Text -> Maybe (Maybe UTCTime)
+        parseTime = \case
+            "*" -> pure Nothing
+            timeText -> pure <$>
+                parseTimeM False defaultTimeLocale basicUtc $ T.unpack timeText
+
+        validRange :: Maybe UTCTime -> Maybe UTCTime -> Bool
+        validRange mt1 mt2 = fromMaybe True $ (<) <$> mt1 <*> mt2
+
+-- | ISO 8601 basic format (UTC).
+basicUtc :: String
+basicUtc = "%Y%m%dT%H%M%S%QZ"
 
 instance FromHttpApiData (Iso8601Range (name :: Symbol)) where
     parseUrlPiece = error "FromHttpApiData Iso8601Range to be implemented"
