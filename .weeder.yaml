@@ -22,7 +22,7 @@
         - identifier:
           - AnyAddressStateId
           - AnyAddressStateKey
-          - AnyAddressStateTableProportion
+          - AnyAddressStateProportion
           - UniqueAnyAddressState
   - section:
     - name: test:integration
