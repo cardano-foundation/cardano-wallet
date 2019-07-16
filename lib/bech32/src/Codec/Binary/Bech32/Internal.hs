@@ -102,6 +102,8 @@ import Data.Maybe
     ( isNothing, mapMaybe )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( splitAtLastOccurrence )
 import Data.Word
     ( Word8 )
 
@@ -799,15 +801,3 @@ locateErrors residue len
 
 guardE :: Bool -> e -> Either e ()
 guardE b e = if b then Right () else Left e
-
--- | Splits the given 'Text' into a prefix and a suffix using the last
--- occurrence of the specified separator character as a splitting point.
--- Evaluates to 'Nothing' if the 'ByteString` does not contain the separator
--- character.
-splitAtLastOccurrence :: Char -> Text -> Maybe (Text, Text)
-splitAtLastOccurrence c s
-    | isNothing (T.find (== c) s) = Nothing
-    | otherwise = pure (prefix, suffix)
-  where
-    (prefixPlusOne, suffix) = T.breakOnEnd (T.pack [c]) s
-    prefix = T.dropEnd 1 prefixPlusOne
