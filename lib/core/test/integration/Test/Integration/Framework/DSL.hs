@@ -367,6 +367,31 @@ expectEventually ctx getter target (_, res) = case res of
         unless (target' >= target) $
             let ms = 1000 in threadDelay (500 * ms) *> loopUntilRestore wid
 
+-- | Like `expectEventually'` but the target is part of the response
+expectEventuallyL
+    :: (MonadIO m, MonadCatch m, MonadFail m)
+    => (Ord a, Show a)
+    => (HasType (Text, Manager) ctx)
+    => ctx
+    -> Lens' ApiWallet a
+    -> Lens' ApiWallet a
+    -> ApiWallet
+    -> m ()
+expectEventuallyL ctx getter target s = liftIO $ do
+    let wid = s ^. walletId
+    winner <- race (threadDelay $ 60 * oneSecond) (loopUntilRestore wid)
+    case winner of
+        Left _ -> expectationFailure
+            "waited more than 60s for value to exceed given target."
+        Right _ ->
+            return ()
+  where
+    loopUntilRestore :: Text -> IO ()
+    loopUntilRestore wid = do
+        r <- request @ApiWallet ctx ("GET", "v2/wallets/" <> wid) Default Empty
+        unless (getFromResponse getter r >= getFromResponse target r) $
+            let ms = 1000 in threadDelay (500 * ms) *> loopUntilRestore wid
+
 -- | Same as `expectEventually` but work directly on ApiWallet
 -- , not response from the API
 expectEventually'
