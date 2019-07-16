@@ -124,6 +124,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , WalletState (..)
+    , flatSlot
     , slotRatio
     )
 import Cardano.Wallet.Transaction
@@ -171,7 +172,13 @@ import Data.Text
 import Data.Text.Class
     ( toText )
 import Data.Time.Clock
-    ( UTCTime, diffTimeToPicoseconds, getCurrentTime )
+    ( DiffTime
+    , NominalDiffTime
+    , UTCTime
+    , addUTCTime
+    , diffTimeToPicoseconds
+    , getCurrentTime
+    )
 import Data.Word
     ( Word16 )
 import Fmt
@@ -297,6 +304,10 @@ data WalletLayer s t = WalletLayer
         --
         -- The result is sorted on 'slotId' in descending order. The most recent
         -- transaction comes first.
+
+    , slotIdTime :: SlotId -> UTCTime
+    -- ^ Calculate the time corresponding to a 'SlotId' assuming the slotting
+    -- parameters of the blockchain never has changed.
     }
 
 -- | Errors occuring when creating an unsigned transaction
@@ -411,11 +422,12 @@ newWalletLayer tracer bp db nw tl = do
         , submitTx = _submitTx
         , attachPrivateKey = _attachPrivateKey
         , listTransactions = _listTransactions
+        , slotIdTime = _slotIdTime
         }
   where
     BlockchainParameters
         block0
-        _block0Date
+        block0Date
         feePolicy
         (SlotLength slotLength)
         slotsPerEpoch
@@ -731,6 +743,20 @@ newWalletLayer tracer bp db nw tl = do
         DB.withLock db $ withExceptT ErrSubmitTxNoSuchWallet $ do
             (w, _) <- _readWallet wid
             DB.putCheckpoint db (PrimaryKey wid) (newPending (tx, meta) w)
+
+    _slotIdTime
+        :: SlotId
+        -> UTCTime
+    _slotIdTime slN =
+        addUTCTime (convert $ slotLength * slots) block0Date
+      where
+        slots = fromIntegral . fromEnum $ (flatSlot' slN) - (flatSlot' sl0)
+        sl0 = block0 ^. (#header . #slotId)
+
+        flatSlot' = flatSlot slotsPerEpoch
+
+        convert :: DiffTime -> NominalDiffTime
+        convert = toEnum . fromEnum
 
     {---------------------------------------------------------------------------
                                      Keystore
