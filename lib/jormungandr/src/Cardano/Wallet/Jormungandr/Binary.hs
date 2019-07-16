@@ -125,7 +125,9 @@ import Data.Proxy
 import Data.Quantity
     ( Quantity (..) )
 import Data.Time.Clock
-    ( DiffTime, secondsToDiffTime )
+    ( DiffTime, UTCTime, secondsToDiffTime )
+import Data.Time.Clock.POSIX
+    ( posixSecondsToUTCTime )
 import Data.Word
     ( Word16, Word32, Word64, Word8 )
 
@@ -352,14 +354,14 @@ putTx (Tx inputs outputs) = do
 -------------------------------------------------------------------------------}
 
 data ConfigParam
-    = Block0Date Word64
+    = Block0Date UTCTime
     -- ^ The official start time of the blockchain, in seconds since the Unix
     -- epoch.
     | Discrimination Network
     -- ^ Address discrimination. Testnet / Mainnet.
     | Consensus ConsensusVersion
     -- ^ Consensus version. BFT / Genesis Praos.
-    | SlotsPerEpoch (Quantity "slot/epoch" Word32)
+    | SlotsPerEpoch W.SlotsPerEpoch
     -- ^ Number of slots in an epoch.
     | SlotDuration DiffTime
     -- ^ Slot duration in seconds.
@@ -399,9 +401,9 @@ getConfigParam = label "getConfigParam" $ do
     let len = fromIntegral $ taglen .&. (63) -- 0b111111
     isolate len $ case tag of
         1 -> Discrimination <$> getNetwork
-        2 -> Block0Date <$> getWord64be
+        2 -> Block0Date . posixSecondsToUTCTime . fromIntegral <$> getWord64be
         3 -> Consensus <$> getConsensusVersion
-        4 -> SlotsPerEpoch . Quantity <$> getWord32be
+        4 -> SlotsPerEpoch . W.SlotsPerEpoch . fromIntegral  <$> getWord32be
         5 -> SlotDuration . secondsToDiffTime . fromIntegral <$> getWord8
         6 -> EpochStabilityDepth . Quantity <$> getWord32be
         8 -> ConsensusGenesisPraosParamF <$> getMilli

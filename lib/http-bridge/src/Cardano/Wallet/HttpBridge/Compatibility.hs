@@ -21,18 +21,25 @@ module Cardano.Wallet.HttpBridge.Compatibility
     , byronFeePolicy
     , byronSlotLength
     , byronTxMaxSize
+    , byronBlockchainParameters
     ) where
 
 import Prelude
 
 import Cardano.Crypto.Wallet
     ( XPub (..) )
+import Cardano.Wallet
+    ( BlockchainParameters (..) )
 import Cardano.Wallet.DB.Sqlite
     ( PersistTx (..) )
 import Cardano.Wallet.HttpBridge.Binary
     ( decodeAddressPayload, encodeProtocolMagic, encodeTx )
 import Cardano.Wallet.HttpBridge.Environment
-    ( Network (Mainnet, Testnet), ProtocolMagic, protocolMagic )
+    ( KnownNetwork (..)
+    , Network (Mainnet, Testnet)
+    , ProtocolMagic
+    , protocolMagic
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), Key (..), KeyToAddress (..), getKey )
 import Cardano.Wallet.Primitive.Fee
@@ -47,6 +54,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , SlotId (..)
     , SlotLength (..)
+    , SlotsPerEpoch (..)
     , Tx (..)
     )
 import Crypto.Hash
@@ -63,6 +71,8 @@ import Data.Text.Class
     ( TextDecodingError (..) )
 import Data.Time.Clock
     ( secondsToDiffTime )
+import Data.Time.Clock.POSIX
+    ( posixSecondsToUTCTime )
 import Data.Word
     ( Word16 )
 
@@ -169,3 +179,17 @@ byronSlotLength = SlotLength $ secondsToDiffTime 20
 -- | Hard-coded max transaction size
 byronTxMaxSize :: Quantity "byte" Word16
 byronTxMaxSize = Quantity 8192
+
+byronBlockchainParameters
+    :: forall n. KnownNetwork n
+    => BlockchainParameters (HttpBridge n)
+byronBlockchainParameters = BlockchainParameters
+    { getGenesisBlock = block0
+    , getGenesisBlockDate = case networkVal @n of
+        Mainnet -> posixSecondsToUTCTime 1506203091
+        Testnet -> posixSecondsToUTCTime 1537941600
+    , getFeePolicy = byronFeePolicy
+    , getSlotLength = byronSlotLength
+    , getTxMaxSize = byronTxMaxSize
+    , getSlotsPerEpoch = SlotsPerEpoch 21600
+    }

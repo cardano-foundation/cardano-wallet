@@ -66,6 +66,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Time.Clock
     ( secondsToDiffTime )
+import Data.Time.Clock.POSIX
+    ( posixSecondsToUTCTime )
 import Data.Word
     ( Word8 )
 import GHC.Generics
@@ -79,6 +81,7 @@ import Test.QuickCheck.Arbitrary.Generic
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
+import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteString as BS
 
 spec :: Spec
@@ -118,10 +121,10 @@ spec = do
                         , parentHeaderHash = block0 ^. #prevBlockHash
                         }
                     [ Initial
-                        [ Block0Date 1556202057
+                        [ Block0Date (posixSecondsToUTCTime 1556202057)
                         , Discrimination Testnet
                         , Consensus BFT
-                        , SlotsPerEpoch (Quantity 2160)
+                        , SlotsPerEpoch $ W.SlotsPerEpoch 2160
                         , SlotDuration (secondsToDiffTime 15)
                         , EpochStabilityDepth (Quantity 10)
                         , AddBftLeader $ LeaderId $ unsafeFromHex
@@ -171,10 +174,10 @@ spec = do
                         , parentHeaderHash = block0 ^. #prevBlockHash
                         }
                     [ Initial
-                        [ Block0Date 1556202057
+                        [ Block0Date (posixSecondsToUTCTime 1556202057)
                         , Discrimination Mainnet
                         , Consensus BFT
-                        , SlotsPerEpoch (Quantity 500)
+                        , SlotsPerEpoch (W.SlotsPerEpoch 500)
                         , SlotDuration (secondsToDiffTime 10)
                         , EpochStabilityDepth (Quantity 10)
                         , AddBftLeader $ LeaderId $ unsafeFromHex

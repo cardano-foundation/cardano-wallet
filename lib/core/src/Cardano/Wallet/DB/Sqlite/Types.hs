@@ -32,6 +32,7 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , Hash (..)
     , SlotId (..)
+    , SlotsPerEpoch (..)
     , TxStatus (..)
     , WalletId (..)
     , WalletState (..)
@@ -68,7 +69,7 @@ import Data.Text.Class
     , getTextDecodingError
     )
 import Data.Word
-    ( Word64, Word8 )
+    ( Word16, Word64, Word8 )
 import Database.Persist.Sqlite
     ( PersistField (..), PersistFieldSql (..), PersistValue )
 import Database.Persist.TH
@@ -225,9 +226,16 @@ instance PathPiece BlockId where
 instance PersistFieldSql SlotId where
     sqlType _ = sqlType (Proxy @Word64)
 
+-- | As a short-to-medium term solution of persisting 'SlotId', we use
+-- 'flatSlot' with an artificial epochLength. I.e. /not the same epochLength as
+-- the blockchain/. This is just for the sake of storing the 64 bit epoch and
+-- the 16 bit slot inside a single 64-bit field.
+artificialEpochLength :: SlotsPerEpoch
+artificialEpochLength = SlotsPerEpoch $ fromIntegral (maxBound :: Word16)
+
 instance PersistField SlotId where
-    toPersistValue = toPersistValue . flatSlot
-    fromPersistValue = fmap fromFlatSlot . fromPersistValue
+    toPersistValue = toPersistValue . flatSlot artificialEpochLength
+    fromPersistValue = fmap (fromFlatSlot artificialEpochLength) . fromPersistValue
 
 instance ToJSON SlotId where
     toJSON = genericToJSON defaultOptions
