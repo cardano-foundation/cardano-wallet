@@ -33,11 +33,11 @@ import Test.Integration.Framework.DSL
     , fixtureWallet
     , fixtureWalletWith
     , json
-    , json
     , listAddresses
     , postTxEp
     , postTxFeeEp
     , request
+    , for
     , verify
     )
 import Test.Integration.Framework.TestData
@@ -85,7 +85,6 @@ spec = do
             wSrc <- fixtureWalletWith ctx (replicate 77 1_000_000)
             wDest <- emptyWallet ctx
             address <- (view #id . head) <$> listAddresses ctx wDest
-            let for = flip map
             let payments = for (replicate nInputs address) $ \addr -> [json|{
                     "address": #{addr},
                     "amount": {

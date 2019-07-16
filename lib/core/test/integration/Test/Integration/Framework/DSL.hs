@@ -76,6 +76,7 @@ module Test.Integration.Framework.DSL
     , collectStreams
     , shouldContainT
     , shouldNotContainT
+    , for
 
     -- * Endpoints
     , getWalletEp
@@ -1063,3 +1064,13 @@ oneSecond = 1_000 * oneMillisecond
 
 oneMillisecond :: Int
 oneMillisecond = 1_000
+
+-- | Creates group of at most `n` elements. Last group may be smaller if
+-- it's not properly divisible.
+groupsOf :: Int -> [a] -> [[a]]
+groupsOf _ [] = []
+groupsOf n xs = take n xs : groupsOf n (drop n xs)
+
+-- | 'map' flipped.
+for :: [a] -> (a -> b) -> [b]
+for = flip map
