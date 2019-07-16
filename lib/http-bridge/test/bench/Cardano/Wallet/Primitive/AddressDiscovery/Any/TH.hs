@@ -35,11 +35,11 @@ share
     ]
     [persistLowerCase|
 AnyAddressState
-    anyAddressStateTableWalletId        W.WalletId  sql=wallet_id
-    anyAddressStateTableCheckpointSlot  W.SlotId    sql=slot
-    anyAddressStateTableProportion      Double      sql=proportion
+    anyAddressStateWalletId        W.WalletId  sql=wallet_id
+    anyAddressStateCheckpointSlot  W.SlotId    sql=slot
+    anyAddressStateProportion      Double      sql=proportion
 
-    UniqueAnyAddressState anyAddressStateTableWalletId anyAddressStateTableCheckpointSlot
-    -- Foreign Checkpoint fk_checkpoint_any_address_state anyAddressStateTableWalletId anyAddressStateTableCheckpointSlot
+    UniqueAnyAddressState anyAddressStateWalletId anyAddressStateCheckpointSlot
+    -- Foreign Checkpoint fk_checkpoint_any_address_state anyAddressStateWalletId anyAddressStateCheckpointSlot
     deriving Show Generic
 |]
