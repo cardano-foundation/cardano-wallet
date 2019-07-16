@@ -18,7 +18,9 @@ import Cardano.Wallet.Primitive.Types
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( view, (^.) )
+import Numeric.Natural
+    ( Natural )
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Integration.Framework.DSL
@@ -28,8 +30,8 @@ import Test.Integration.Framework.DSL
     , emptyWallet
     , expectErrorMessage
     , expectResponseCode
-    , fixtureNInputs
     , fixtureWallet
+    , fixtureWalletWith
     , json
     , listAddresses
     , postTxEp
@@ -82,7 +84,7 @@ spec = do
         \Cannot post tx/fee when max tx size reached" $ do
         let matrix =
                 [ ( "single output"
-                  , (1, 46_000_001)
+                  , (1, 46_000_001 :: Natural)
                   , 46
                   )
                 , ( "multi output"
@@ -90,8 +92,22 @@ spec = do
                   , 32
                   )
                 ]
-        forM_ matrix $ \(title, txInputs, errInputs) -> it title $ \ctx -> do
-            (wSrc, _, payload) <- fixtureNInputs ctx (47, 1_000_000) txInputs
+        forM_ matrix $ \(title, (nInputs, amt), errInputs) -> it title $ \ctx -> do
+            wSrc <- fixtureWalletWith ctx (replicate 47 1_000_000)
+            wDest <- emptyWallet ctx
+            address <- (view #id . head) <$> listAddresses ctx wDest
+            let for = flip map
+            let payments = for (replicate nInputs address) $ \addr -> [json|{
+                    "address": #{addr},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }|]
+            let payload = Json [json|{
+                    "payments": #{payments},
+                    "passphrase": "Secure Passphrase"
+                }|]
             fee <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
             tx <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
             verify fee

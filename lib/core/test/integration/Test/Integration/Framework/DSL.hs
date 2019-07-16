@@ -67,7 +67,6 @@ module Test.Integration.Framework.DSL
     , json
     , listAddresses
     , tearDown
-    , fixtureNInputs
     , fixtureWallet
     , fixtureWalletWith
     , faucetAmt
@@ -614,36 +613,6 @@ emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
     r <- request @ApiWallet ctx postWalletEp Default payload
     expectResponseCode @IO HTTP.status202 r
     return (getFromResponse id r)
-
--- | Prepare Wallet with utxo (utxoSize, amt) and payload for the tx to be sent
--- from this wallet
-fixtureNInputs
-    :: forall t. (EncodeAddress t, DecodeAddress t)
-    => Context t
-    -> (Int, Natural)
-        -- ^ Src wallet utxo (size, amtInEachUtxo)
-    -> (Int, Natural)
-        -- ^ Transaction inputs (numOfInputs, amtToSendInEachInput)
-    -> IO (ApiWallet, ApiWallet, Payload)
-fixtureNInputs ctx (utxoSize, amt) (inputs, amtToSend) = do
-    wSrc <- fixtureWalletWith ctx (replicate utxoSize amt)
-    wDest <- emptyWallet ctx
-    address:_ <- listAddresses ctx wDest
-
-    -- each amtToSend is going to the same address
-    let addrIdRepl = replicate inputs (address ^. #id)
-    let payments = flip map addrIdRepl $ \addr -> [aesonQQ|{
-            "address": #{addr},
-            "amount": {
-                "quantity": #{amtToSend},
-                "unit": "lovelace"
-            }
-        }|]
-    let payload = Json [aesonQQ|{
-            "payments": #{payments :: [Value]},
-            "passphrase": "Secure Passphrase"
-        }|]
-    return (wSrc, wDest, payload)
 
 -- | Restore a faucet and wait until funds are available.
 fixtureWallet
