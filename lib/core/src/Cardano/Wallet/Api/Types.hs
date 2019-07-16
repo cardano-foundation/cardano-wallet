@@ -98,7 +98,7 @@ import Data.Aeson
     , sumEncoding
     )
 import Data.Bifunctor
-    ( bimap )
+    ( bimap, first )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
@@ -300,11 +300,13 @@ instance KnownSymbol name => FromText (Iso8601Range name) where
 basicUtc :: String
 basicUtc = "%Y%m%dT%H%M%S%QZ"
 
-instance FromHttpApiData (Iso8601Range (name :: Symbol)) where
-    parseUrlPiece = error "FromHttpApiData Iso8601Range to be implemented"
+instance KnownSymbol name => FromHttpApiData (Iso8601Range (name :: Symbol))
+  where
+    parseUrlPiece = first (T.pack . getTextDecodingError) . fromText
 
-instance ToHttpApiData (Iso8601Range (name :: Symbol)) where
-    toUrlPiece = error "ToHttpApiData Iso8601Range to be implemented"
+instance KnownSymbol name => ToHttpApiData (Iso8601Range (name :: Symbol))
+  where
+    toUrlPiece = toText
 
 {-------------------------------------------------------------------------------
                               Polymorphic Types
