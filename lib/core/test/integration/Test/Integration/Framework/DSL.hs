@@ -67,6 +67,7 @@ module Test.Integration.Framework.DSL
     , json
     , listAddresses
     , tearDown
+    , fixtureNInputs
     , fixtureWallet
     , fixtureWalletWith
     , faucetAmt
@@ -614,6 +615,36 @@ emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
     expectResponseCode @IO HTTP.status202 r
     return (getFromResponse id r)
 
+-- | Prepare Wallet with utxo (utxoSize, amt) and payload for the tx to be sent
+-- from this wallet
+fixtureNInputs
+    :: forall t. (EncodeAddress t, DecodeAddress t)
+    => Context t
+    -> (Int, Natural)
+        -- ^ Src wallet utxo (size, amtInEachUtxo)
+    -> (Int, Natural)
+        -- ^ Transaction inputs (numOfInputs, amtToSendInEachInput)
+    -> IO (ApiWallet, ApiWallet, Payload)
+fixtureNInputs ctx (utxoSize, amt) (inputs, amtToSend) = do
+    wSrc <- fixtureWalletWith ctx (replicate utxoSize amt)
+    wDest <- emptyWallet ctx
+    address:_ <- listAddresses ctx wDest
+
+    -- each amtToSend is going to the same address
+    let addrIdRepl = replicate inputs (address ^. #id)
+    let payments = flip map addrIdRepl $ \addr -> [aesonQQ|{
+            "address": #{addr},
+            "amount": {
+                "quantity": #{amtToSend},
+                "unit": "lovelace"
+            }
+        }|]
+    let payload = Json [aesonQQ|{
+            "payments": #{payments :: [Value]},
+            "passphrase": "Secure Passphrase"
+        }|]
+    return (wSrc, wDest, payload)
+
 -- | Restore a faucet and wait until funds are available.
 fixtureWallet
     :: Context t
@@ -653,26 +684,43 @@ fixtureWalletWith
 fixtureWalletWith ctx coins = do
     wSrc <- fixtureWallet ctx
     wUtxo <- emptyWallet ctx
-    (_, addrs) <-
-        unsafeRequest @[ApiAddress t] ctx (getAddressesEp wUtxo "") Empty
-    let addrIds = view #id <$> addrs
-    let payments = flip map (zip coins addrIds) $ \(coin, addr) -> [aesonQQ|{
-            "address": #{addr},
-            "amount": {
-                "quantity": #{coin},
-                "unit": "lovelace"
-            }
-        }|]
-    let payload = Json [aesonQQ|{
-            "payments": #{payments :: [Value]},
-            "passphrase": "cardano-wallet"
-        }|]
-    request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
-        >>= expectResponseCode HTTP.status202
+    performTxs wSrc wUtxo coins
     r <- request @ApiWallet ctx (getWalletEp wUtxo) Default Empty
-    verify r [ expectEventually ctx balanceAvailable (sum coins) ]
     void $ request @() ctx (deleteWalletEp wSrc) Default Empty
     return (getFromResponse id r)
+  where
+      performTxs ws wd c = do
+          let firstTen = take 10 c
+          let makeTx widSrc widDest amounts = do
+                  getAmt <- request @ApiWallet ctx (getWalletEp widDest) Default Empty
+                  let currentAmt = getFromResponse balanceAvailable getAmt
+                  (_, addrs) <-
+                      unsafeRequest @[ApiAddress t] ctx (getAddressesEp widDest "") Empty
+                  let addrIds = view #id <$> addrs
+                  let payments = flip map (zip amounts addrIds) $ \(amt, addr) -> [aesonQQ|{
+                          "address": #{addr},
+                          "amount": {
+                              "quantity": #{amt},
+                              "unit": "lovelace"
+                          }
+                      }|]
+
+                  let payload = Json [aesonQQ|{
+                          "payments": #{payments :: [Value]},
+                          "passphrase": "cardano-wallet"
+                      }|]
+                  rr <- request @(ApiTransaction t) ctx (postTxEp widSrc) Default payload
+                  expectResponseCode HTTP.status202 rr
+                  r <- request @ApiWallet ctx (getWalletEp widDest) Default Empty
+                  expectEventually ctx balanceAvailable (sum $ currentAmt:amounts) r
+          if ( null firstTen ) then
+              return ()
+          else do
+              -- perform tx with at most 10 inputs at a time because
+              -- there is 10 UTxO available in each faucet
+              makeTx ws wd firstTen
+              performTxs ws wd (drop 10 c)
+
 
 -- | Total amount on each faucet wallet
 faucetAmt :: Natural

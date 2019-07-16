@@ -1015,6 +1015,7 @@ spec = do
         r <- request @ApiFee ctx (postTxFeeEp w) Default payload
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+
   where
     longAddr = replicate 10000 '1'
     encodeErr = "Unable to decode Address:"
