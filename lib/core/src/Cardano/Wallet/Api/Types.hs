@@ -248,7 +248,7 @@ data ApiErrorCode
 --  2020-02-27 and 2019-02-27, in descending order.
 data Iso8601Range (name :: Symbol)
     = Iso8601Range (Maybe UTCTime) (Maybe UTCTime)
-    deriving (Generic, Show)
+    deriving (Eq, Show)
 
 instance KnownSymbol name => ToText (Iso8601Range name) where
     toText (Iso8601Range t1 t2) = prefix <> " " <> suffix

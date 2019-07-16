@@ -164,6 +164,8 @@ import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Instances.Time
     ()
+import Test.Text.Roundtrip
+    ( textRoundtrip )
 import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
@@ -205,6 +207,9 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletName)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletPassphraseInfo)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletState)
+
+    describe "Can perform roundtrip textual encoding & decoding" $ do
+        textRoundtrip $ Proxy @(Iso8601Range "test-header")
 
     describe "AddressAmount" $ do
         it "fromText . toText === pure"
