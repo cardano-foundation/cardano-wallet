@@ -112,6 +112,8 @@ import Cardano.Wallet.Api.Types
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
     )
+import Cardano.Wallet.Network
+    ( ErrNetworkTip (..), ErrNetworkUnavailable (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( FromMnemonic (..)
     , Passphrase (..)
@@ -131,7 +133,7 @@ import Control.Applicative
 import Control.Arrow
     ( first, left, second )
 import Control.Exception
-    ( Exception, bracket, catch )
+    ( bracket, catch )
 import Control.Monad
     ( join, unless, void, when )
 import Data.Aeson
@@ -1187,8 +1189,7 @@ resolveHomeDir dir = do
 -- | Wait for a service to become available on a given TCP port. Exit on failure
 -- with a proper error message.
 waitForService
-    :: forall e. (Exception e)
-    => Service
+    :: Service
         -- ^ Name of the service
     -> (Switchboard Text, Trace IO Text)
         -- ^ A 'Trace' for logging
@@ -1204,7 +1205,15 @@ waitForService (Service service) (sb, tracer) port action = do
         , " to be ready on tcp/"
         , T.pack (showT port)
         ]
-    let handler (_ :: e) = do
+    let handler (ErrNetworkTipNetworkUnreachable (ErrNetworkInvalid net)) = do
+            logAlert tracer $ mconcat
+                [ "The node backend is not running on the \"", net, "\" "
+                , "network. Please start the wallet server and the node "
+                , "backend on the same network. Exiting now." ]
+            shutdown sb
+            exitFailure
+
+        handler _ = do
             logAlert tracer $ mconcat
                 [ "Waited too long for "
                 , service
@@ -1223,6 +1232,7 @@ waitForService (Service service) (sb, tracer) port action = do
                 , " synchronize the first blocks in a timely manner."
                 ]
             exitFailure
+
     action `catch` handler
 
 -- | Look whether a particular filepath is correctly resolved on the filesystem.

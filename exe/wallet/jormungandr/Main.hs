@@ -76,7 +76,7 @@ import Cardano.Wallet.Jormungandr.Environment
 import Cardano.Wallet.Jormungandr.Network
     ( ErrGetBlockchainParams (..), getInitialBlockchainParameters )
 import Cardano.Wallet.Network
-    ( ErrNetworkTip, NetworkLayer (..), defaultRetryPolicy, waitForConnection )
+    ( NetworkLayer (..), defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -343,7 +343,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
             mgr <- newManager defaultManagerSettings
             let jor = Jormungandr.mkJormungandrLayer mgr url
             let nl = Jormungandr.mkNetworkLayer jor
-            waitForService @ErrNetworkTip "Jörmungandr" (sb, tracer) nodePort $
+            waitForService "Jörmungandr" (sb, tracer) nodePort $
                 waitForConnection nl defaultRetryPolicy
             blockchainParams <-
                 runExceptT (getInitialBlockchainParameters jor (coerce block0H)) >>= \case

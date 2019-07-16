@@ -31,7 +31,6 @@ import Cardano.Wallet
     , ErrCreateUnsignedTx (..)
     , ErrEstimateTxFee (..)
     , ErrMkStdTx (..)
-    , ErrNetworkUnreachable (..)
     , ErrNoSuchWallet (..)
     , ErrPostTx (..)
     , ErrSignTx (..)
@@ -61,6 +60,8 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     , getApiMnemonicT
     )
+import Cardano.Wallet.Network
+    ( ErrNetworkUnavailable (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress, digest, generateKeyFromSeed, publicKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -569,12 +570,8 @@ instance LiftHandler ErrSignTx where
 instance LiftHandler ErrSubmitTx where
     handler = \case
         ErrSubmitTxNetwork e -> case e of
-            ErrPostTxNetworkUnreachable (ErrNetworkUnreachable err) ->
-                apiError err503 NetworkUnreachable $ mconcat
-                    [ "I couldn't submit the transaction: the network is "
-                    , "unreachable: ", pretty err, ". Trying again in a bit "
-                    , "might work."
-                    ]
+            ErrPostTxNetworkUnreachable e' ->
+                handler e'
             ErrPostTxBadRequest err ->
                 apiError err500 CreatedInvalidTransaction $ mconcat
                     [ "That's embarassing. It looks like I've created an "
@@ -596,6 +593,19 @@ instance LiftHandler ErrSubmitTx where
             { errHTTPCode = 410
             , errReasonPhrase = errReasonPhrase err410
             }
+
+instance LiftHandler ErrNetworkUnavailable where
+    handler = \case
+        ErrNetworkUnreachable err ->
+            apiError err503 NetworkUnreachable $ mconcat
+                [ "The node backend is unreachable: ", err
+                , ". Trying again in a bit might work."
+                ]
+        ErrNetworkInvalid network ->
+            apiError err503 NetworkMisconfigured $ mconcat
+                [ "The node backend is configured for the wrong network: "
+                , network, "."
+                ]
 
 instance LiftHandler ErrUpdatePassphrase where
     handler = \case

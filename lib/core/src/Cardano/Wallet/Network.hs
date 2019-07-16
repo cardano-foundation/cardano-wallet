@@ -14,7 +14,7 @@ module Cardano.Wallet.Network
     , defaultRetryPolicy
 
     -- * Errors
-    , ErrNetworkUnreachable (..)
+    , ErrNetworkUnavailable (..)
     , ErrNetworkTip (..)
     , ErrGetBlock (..)
     , ErrPostTx (..)
@@ -25,7 +25,7 @@ import Prelude
 import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..), Hash (..), Tx, TxWitness )
 import Control.Exception
-    ( Exception, throwIO )
+    ( Exception (..), throwIO )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Control.Retry
@@ -51,16 +51,22 @@ data NetworkLayer t m = NetworkLayer
         -- ^ Broadcast a transaction to the chain producer
     }
 
--- | Network is not reachable
-newtype ErrNetworkUnreachable
+-- | Network is unavailable
+data ErrNetworkUnavailable
     = ErrNetworkUnreachable Text
+      -- ^ Cannot connect to network backend.
+    | ErrNetworkInvalid Text
+      -- ^ Network backend reports that the requested network is invalid.
     deriving (Generic, Show, Eq)
 
-instance Exception ErrNetworkUnreachable
+-- | Exception predicate for 'ErrNetworkUnreachable'.
+isNetworkUnreachable :: ErrNetworkUnavailable -> Bool
+isNetworkUnreachable (ErrNetworkUnreachable _) = True
+isNetworkUnreachable (ErrNetworkInvalid _) = False
 
 -- | Error while trying to get the network tip
 data ErrNetworkTip
-    = ErrNetworkTipNetworkUnreachable ErrNetworkUnreachable
+    = ErrNetworkTipNetworkUnreachable ErrNetworkUnavailable
     | ErrNetworkTipNotFound
     deriving (Generic, Show, Eq)
 
@@ -68,13 +74,13 @@ instance Exception ErrNetworkTip
 
 -- | Error while trying to get one or more blocks
 data ErrGetBlock
-    = ErrGetBlockNetworkUnreachable ErrNetworkUnreachable
+    = ErrGetBlockNetworkUnreachable ErrNetworkUnavailable
     | ErrGetBlockNotFound (Hash "BlockHeader")
     deriving (Show, Eq)
 
 -- | Error while trying to send a transaction
 data ErrPostTx
-    = ErrPostTxNetworkUnreachable ErrNetworkUnreachable
+    = ErrPostTxNetworkUnreachable ErrNetworkUnavailable
     | ErrPostTxBadRequest Text
     | ErrPostTxProtocolFailure Text
     deriving (Generic, Show, Eq)
@@ -98,8 +104,8 @@ waitForConnection nw policy = do
             return False
         Left ErrNetworkTipNotFound ->
             return True
-        Left (ErrNetworkTipNetworkUnreachable _) ->
-            return True
+        Left (ErrNetworkTipNetworkUnreachable e) ->
+            return $ isNetworkUnreachable e
 
 -- | A default 'RetryPolicy' with a constant delay, but retries for no longer
 -- than a minute.

@@ -56,7 +56,7 @@ import Cardano.Wallet.Jormungandr.Primitive.Types
 import Cardano.Wallet.Network
     ( ErrGetBlock (..)
     , ErrNetworkTip (..)
-    , ErrNetworkUnreachable (..)
+    , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     , NetworkLayer (..)
     )
@@ -162,7 +162,7 @@ mkNetworkLayer j = NetworkLayer
 -- | Endpoints of the jormungandr REST API.
 data JormungandrLayer n m = JormungandrLayer
     { getTipId
-        :: ExceptT ErrNetworkUnreachable m (Hash "BlockHeader")
+        :: ExceptT ErrNetworkUnavailable m (Hash "BlockHeader")
     , getBlock
         :: Hash "BlockHeader"
         -> ExceptT ErrGetBlock m (Block Tx)
@@ -283,7 +283,7 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
     defaultHandler
         :: Link
         -> Either ServantError a
-        -> IO (Either ErrNetworkUnreachable a)
+        -> IO (Either ErrNetworkUnavailable a)
     defaultHandler ctx = \case
         Right c -> return $ Right c
 
@@ -311,12 +311,12 @@ data ErrUnexpectedNetworkFailure
 instance Exception ErrUnexpectedNetworkFailure
 
 data ErrGetDescendants
-    = ErrGetDescendantsNetworkUnreachable ErrNetworkUnreachable
+    = ErrGetDescendantsNetworkUnreachable ErrNetworkUnavailable
     | ErrGetDescendantsParentNotFound (Hash "BlockHeader")
     deriving (Show, Eq)
 
 data ErrGetBlockchainParams
-    = ErrGetBlockchainParamsNetworkUnreachable ErrNetworkUnreachable
+    = ErrGetBlockchainParamsNetworkUnreachable ErrNetworkUnavailable
     | ErrGetBlockchainParamsGenesisNotFound (Hash "Genesis")
     | ErrGetBlockchainParamsNoInitialPolicy [ConfigParam]
     deriving (Show, Eq)

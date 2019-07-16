@@ -18,7 +18,7 @@ import Cardano.Wallet.HttpBridge.Primitive.Types
 import Cardano.Wallet.Network
     ( ErrGetBlock (..)
     , ErrNetworkTip (..)
-    , ErrNetworkUnreachable (..)
+    , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     , NetworkLayer (..)
     , defaultRetryPolicy
@@ -104,6 +104,18 @@ spec = do
                     SlotId ep sl <- slotId <$> networkTip' bridge
                     length <$> nextBlocks' bridge (mkHeader $ SlotId (ep + 1) sl)
             action `shouldReturn` pure 0
+
+        it "gets a 'ErrNetworkInvalid' if wrong network used" $ \_ -> do
+            bridge <- newNetworkLayerInvalid
+            let msg x = "Expected a ErrNetworkInvalid' failure but got " <> show x
+            let action = do
+                    res <- runExceptT $ networkTip bridge
+                    res `shouldSatisfy` \case
+                        Left (ErrNetworkTipNetworkUnreachable (ErrNetworkInvalid _)) ->
+                            True
+                        _ ->
+                            error (msg res)
+            action `shouldReturn` ()
 
     describe "Error paths" $ beforeAll newNetworkLayer $ do
         it "gets a 'ErrNetworkUnreachable' if bridge isn't up (1)" $ \bridge -> do
@@ -214,6 +226,8 @@ spec = do
 
     newNetworkLayer =
         HttpBridge.newNetworkLayer @'Testnet port
+    newNetworkLayerInvalid =
+        HttpBridge.newNetworkLayer @'Mainnet port
     closeBridge (handle, _) = do
         cancel handle
         threadDelay $ 1 * second

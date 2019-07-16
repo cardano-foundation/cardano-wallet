@@ -208,6 +208,7 @@ data ApiErrorCode
     | CannotCoverFee
     | InvalidCoinSelection
     | NetworkUnreachable
+    | NetworkMisconfigured
     | CreatedInvalidTransaction
     | RejectedByCoreNode
     | BadRequest
