@@ -172,6 +172,7 @@ test-suite integration
       Main.hs
   other-modules:
       Cardano.Faucet
+      Cardano.WalletSpec
       Cardano.Wallet.Jormungandr.NetworkSpec
       Test.Integration.Faucet
       Test.Integration.Framework.DSL

@@ -85,6 +85,7 @@ import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.Jormungandr.Network as Jormungandr
 import qualified Cardano.Wallet.Jormungandr.NetworkSpec as Network
 import qualified Cardano.Wallet.Jormungandr.Transaction as Jormungandr
+import qualified Cardano.WalletSpec as Wallet
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Test.Integration.Jormungandr.Scenario.API.Transactions as TransactionsJormungandr
@@ -108,6 +109,7 @@ main :: forall t. (t ~ Jormungandr 'Testnet) => IO ()
 main = hspec $ do
     describe "PR_DISABLED Server CLI timeout test" (ServerCLI.specNoBackend @t)
     describe "Cardano.Wallet.NetworkSpec" Network.spec
+    describe "WalletLayer tests" (Wallet.spec)
     describe "Mnemonics CLI tests" (MnemonicsCLI.spec @t)
     describe "Miscellaneous CLI tests" (MiscellaneousCLI.spec @t)
     describe "Ports CLI (negative) tests" (PortCLI.specNegative @t)
