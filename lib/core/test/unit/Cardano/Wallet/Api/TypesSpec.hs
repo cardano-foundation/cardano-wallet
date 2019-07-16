@@ -32,6 +32,7 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTransaction (..)
     , ApiWallet (..)
+    , Iso8601Range (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
     , WalletBalance (..)
@@ -121,7 +122,7 @@ import Data.Typeable
 import Data.Word
     ( Word8 )
 import GHC.TypeLits
-    ( KnownSymbol, symbolVal )
+    ( KnownSymbol, Symbol, symbolVal )
 import Numeric.Natural
     ( Natural )
 import Servant
@@ -545,6 +546,15 @@ instance Arbitrary ApiFee where
 
 instance Arbitrary AddressPoolGap where
     arbitrary = arbitraryBoundedEnum
+
+instance Arbitrary (Iso8601Range (name :: Symbol)) where
+    arbitrary = do
+        (mt1, mt2) <- arbitrary
+        let (mv1, mv2) =
+                if all isJust [mt1, mt2]
+                then (min mt1 mt2, max mt1 mt2)
+                else (mt1, mt2)
+        pure $ Iso8601Range mv1 mv2
 
 instance Arbitrary WalletPostData where
     arbitrary = genericArbitrary
