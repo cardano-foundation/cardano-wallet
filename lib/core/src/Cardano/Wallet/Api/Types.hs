@@ -42,6 +42,7 @@ module Cardano.Wallet.Api.Types
     , ApiFee (..)
     , AddressAmount (..)
     , ApiErrorCode (..)
+    , Iso8601Range (..)
 
     -- * Polymorphic Types
     , ApiT (..)
@@ -218,6 +219,33 @@ data ApiErrorCode
     | UnsupportedMediaType
     | UnexpectedError
     deriving (Eq, Generic, Show)
+
+-- | A range of dates in ISO-8601 UTC format without symbols. Meant to be
+-- rendered as a HTTP 'Header', where the 'name' type-parameter renders as a
+-- prefix, e.g.
+--
+-- name 20190227T160329Z-*
+--
+-- 'Nothing' ("*") can be used instead of upper and/or lower boundary.
+--
+-- - `20190227T160329Z-*`: means all transactions after
+--    2019-02-27 T 16:03:29Z (including)
+-- - `*-20190227T160329Z`: means all transactions before 2019-02-27 T 16:03:29Z
+--    (including)
+-- - `*-*`: means all transactions
+-- - `20190227T000000Z-20200227T000000Z`: means all transaction between
+--    2019-02-27 and 2020-02-27, in ascending order.
+-- - `20200227T000000Z-20190227T000000Z`: means all transaction between
+--  2020-02-27 and 2019-02-27, in descending order.
+data Iso8601Range (name :: Symbol)
+    = Iso8601Range (Maybe UTCTime) (Maybe UTCTime)
+    deriving (Show)
+
+instance FromHttpApiData (Iso8601Range (name :: Symbol)) where
+    parseUrlPiece = error "FromHttpApiData Iso8601Range to be implemented"
+
+instance ToHttpApiData (Iso8601Range (name :: Symbol)) where
+    toUrlPiece = error "ToHttpApiData Iso8601Range to be implemented"
 
 {-------------------------------------------------------------------------------
                               Polymorphic Types
