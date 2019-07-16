@@ -335,7 +335,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
                     handleNetworkUnreachable tracer
                 Left (ErrGetBlockchainParamsGenesisNotFound _) ->
                     handleGenesisNotFound (sb, tracer)
-                Left (ErrGetBlockchainParamsNoInitialPolicy _) ->
+                Left (ErrGetBlockchainParamsIncompleteParams _) ->
                     handleNoInitialPolicy tracer
             return (nl, blockchainParams)
 

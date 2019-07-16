@@ -274,7 +274,7 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
                     , getTxMaxSize = softTxMaxSize
                     }
             _ ->
-                throwE $ ErrGetBlockchainParamsNoInitialPolicy params
+                throwE $ ErrGetBlockchainParamsIncompleteParams params
     }
   where
     run :: ClientM a -> IO (Either ServantError a)
@@ -318,5 +318,5 @@ data ErrGetDescendants
 data ErrGetBlockchainParams
     = ErrGetBlockchainParamsNetworkUnreachable ErrNetworkUnavailable
     | ErrGetBlockchainParamsGenesisNotFound (Hash "Genesis")
-    | ErrGetBlockchainParamsNoInitialPolicy [ConfigParam]
+    | ErrGetBlockchainParamsIncompleteParams [ConfigParam]
     deriving (Show, Eq)
