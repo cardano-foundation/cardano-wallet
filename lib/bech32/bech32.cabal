@@ -35,6 +35,7 @@ library
     , containers
     , extra
     , text
+    , text-class
   hs-source-dirs:
       src
   exposed-modules:

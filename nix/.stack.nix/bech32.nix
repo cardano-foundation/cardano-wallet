@@ -23,6 +23,7 @@
           (hsPkgs.containers)
           (hsPkgs.extra)
           (hsPkgs.text)
+          (hsPkgs.text-class)
           ];
         };
       tests = {
