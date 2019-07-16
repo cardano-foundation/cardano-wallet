@@ -89,13 +89,13 @@ instance PersistState AnyAddressState where
         insert_ (DB.AnyAddressState wid sl s)
     selectState (wid, sl) = runMaybeT $ do
         DB.AnyAddressState _ _ s <- MaybeT $ fmap entityVal <$> selectFirst
-            [ DB.AnyAddressStateTableWalletId ==. wid
-            , DB.AnyAddressStateTableCheckpointSlot ==. sl
+            [ DB.AnyAddressStateWalletId ==. wid
+            , DB.AnyAddressStateCheckpointSlot ==. sl
             ] []
         return (AnyAddressState s)
 
     deleteState wid =
-        deleteWhere [ DB.AnyAddressStateTableWalletId ==. wid ]
+        deleteWhere [ DB.AnyAddressStateWalletId ==. wid ]
 
 initAnyState :: Text -> Double -> (WalletId, WalletName, AnyAddressState)
 initAnyState wname p = (walletId cfg, WalletName wname, cfg)
