@@ -203,8 +203,8 @@ showT = T.unpack . toText
 
 -- | Splits the given 'Text' into a prefix and a suffix using the last
 -- occurrence of the specified separator character as a splitting point.
--- Evaluates to 'Nothing' if the 'ByteString` does not contain the separator
--- character.
+-- Evaluates to 'Nothing' if the specified 'Text' does not contain the
+-- separator character.
 splitAtLastOccurrence :: Char -> Text -> Maybe (Text, Text)
 splitAtLastOccurrence c s
     | isNothing (T.find (== c) s) = Nothing
