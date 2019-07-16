@@ -25,6 +25,7 @@ import Cardano.Wallet.Jormungandr.Transaction
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , Key
+    , KeyToAddress (..)
     , Passphrase (..)
     , XPrv
     , keyToAddress
@@ -45,7 +46,7 @@ import Cardano.Wallet.Primitive.Types
     , UTxO (..)
     )
 import Cardano.Wallet.Transaction
-    ( TransactionLayer (..) )
+    ( ErrMkStdTx (..), TransactionLayer (..) )
 import Cardano.Wallet.TransactionSpecShared
     ( propMaxNumberOfInputsEstimation )
 import Cardano.Wallet.Unsafe
@@ -64,6 +65,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text.Class
+    ( toText )
 import Test.Hspec
     ( Spec, SpecWith, describe, it, shouldBe )
 import Test.QuickCheck
@@ -84,6 +87,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
+import qualified Data.Text as T
 
 spec :: Spec
 spec = do
@@ -324,6 +328,10 @@ mkStdTxSpec = do
             \044b712c59e612858993b95b47ec7d94ded00044a34fdd9686fe3dea3a62bbf7eb\
             \1ddc2a576bd5e1133207"
 
+    describe "mkStdTx unknown input" $ do
+        unknownInputTest (Proxy @'Mainnet) block0
+        unknownInputTest (Proxy @'Testnet) block0
+
     describe "mkStdTx 'Testnet" $ do
         let proxy = Proxy @(Jormungandr 'Testnet)
         let keyToAddress' = keyToAddress @(Jormungandr 'Testnet)
@@ -407,3 +415,30 @@ mkKeystore pairs k =
 
 hex :: ByteString -> ByteString
 hex = convertToBase Base16
+
+unknownInputTest
+    :: forall n. (KnownNetwork n)
+    => Proxy n
+    -> Hash "Genesis"
+    -> SpecWith ()
+unknownInputTest _ block0 = it title $ do
+    let addr = keyToAddress @(Jormungandr n) $ publicKey $ xprv "address-number-0"
+    let res = mkStdTx tl keyFrom inps outs
+          where
+            tl = newTransactionLayer @n block0
+            keyFrom = const Nothing
+            inps =
+                [ ( TxIn (Hash "arbitrary") 0
+                  , TxOut addr (Coin 0)
+                  )
+                ]
+            outs = []
+    res `shouldBe` Left (ErrKeyNotFoundForAddress addr)
+  where
+    title = "Unknown input address yields an error ("
+        <> T.unpack (toText (networkVal @n))
+        <> ")"
+
+    xprv :: ByteString -> Key depth XPrv
+    xprv seed =
+        unsafeGenerateKeyFromSeed (Passphrase (BA.convert seed), mempty) mempty
