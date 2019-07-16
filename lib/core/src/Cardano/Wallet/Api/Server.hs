@@ -43,7 +43,7 @@ import Cardano.Wallet
     , WalletLayer
     )
 import Cardano.Wallet.Api
-    ( Addresses, Api, Iso8601Range, Transactions, Wallets )
+    ( Addresses, Api, Transactions, Wallets )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)
@@ -52,6 +52,7 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTransaction (..)
     , ApiWallet (..)
+    , Iso8601Range (..)
     , PostTransactionData
     , PostTransactionFeeData
     , WalletBalance (..)
