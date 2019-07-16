@@ -331,8 +331,8 @@ mkNetworkLayer :: Monad m => JormungandrLayer n m -> NetworkLayer (Jormungandr n
 
 -- | Endpoints of the jormungandr REST API.
 data JormungandrLayer n m
-JormungandrLayer :: ExceptT ErrNetworkUnreachable m (Hash "BlockHeader") -> (Hash "BlockHeader" -> ExceptT ErrGetBlock m (Block Tx)) -> (Hash "BlockHeader" -> Word -> ExceptT ErrGetDescendants m [Hash "BlockHeader"]) -> ((Tx, [TxWitness]) -> ExceptT ErrPostTx m ()) -> (Hash "Genesis" -> ExceptT ErrGetBlockchainParams m (BlockchainParameters (Jormungandr n))) -> JormungandrLayer n m
-[$sel:getTipId:JormungandrLayer] :: JormungandrLayer n m -> ExceptT ErrNetworkUnreachable m (Hash "BlockHeader")
+JormungandrLayer :: ExceptT ErrNetworkUnavailable m (Hash "BlockHeader") -> (Hash "BlockHeader" -> ExceptT ErrGetBlock m (Block Tx)) -> (Hash "BlockHeader" -> Word -> ExceptT ErrGetDescendants m [Hash "BlockHeader"]) -> ((Tx, [TxWitness]) -> ExceptT ErrPostTx m ()) -> (Hash "Genesis" -> ExceptT ErrGetBlockchainParams m (BlockchainParameters (Jormungandr n))) -> JormungandrLayer n m
+[$sel:getTipId:JormungandrLayer] :: JormungandrLayer n m -> ExceptT ErrNetworkUnavailable m (Hash "BlockHeader")
 [$sel:getBlock:JormungandrLayer] :: JormungandrLayer n m -> Hash "BlockHeader" -> ExceptT ErrGetBlock m (Block Tx)
 [$sel:getDescendantIds:JormungandrLayer] :: JormungandrLayer n m -> Hash "BlockHeader" -> Word -> ExceptT ErrGetDescendants m [Hash "BlockHeader"]
 [$sel:postMessage:JormungandrLayer] :: JormungandrLayer n m -> (Tx, [TxWitness]) -> ExceptT ErrPostTx m ()
@@ -374,10 +374,10 @@ mkJormungandrLayer :: forall n. () => Manager -> BaseUrl -> JormungandrLayer n I
 data ErrUnexpectedNetworkFailure
 ErrUnexpectedNetworkFailure :: Link -> ServantError -> ErrUnexpectedNetworkFailure
 data ErrGetDescendants
-ErrGetDescendantsNetworkUnreachable :: ErrNetworkUnreachable -> ErrGetDescendants
+ErrGetDescendantsNetworkUnreachable :: ErrNetworkUnavailable -> ErrGetDescendants
 ErrGetDescendantsParentNotFound :: Hash "BlockHeader" -> ErrGetDescendants
 data ErrGetBlockchainParams
-ErrGetBlockchainParamsNetworkUnreachable :: ErrNetworkUnreachable -> ErrGetBlockchainParams
+ErrGetBlockchainParamsNetworkUnreachable :: ErrNetworkUnavailable -> ErrGetBlockchainParams
 ErrGetBlockchainParamsGenesisNotFound :: Hash "Genesis" -> ErrGetBlockchainParams
 ErrGetBlockchainParamsNoInitialPolicy :: [ConfigParam] -> ErrGetBlockchainParams
 data BaseUrl

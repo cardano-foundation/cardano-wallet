@@ -162,7 +162,7 @@ resolveHomeDir :: FilePath -> IO FilePath
 
 -- | Wait for a service to become available on a given TCP port. Exit on
 --   failure with a proper error message.
-waitForService :: forall e. Exception e => Service -> (Switchboard Text, Trace IO Text) -> Port "Node" -> IO () -> IO ()
+waitForService :: Service -> (Switchboard Text, Trace IO Text) -> Port "Node" -> IO () -> IO ()
 instance GHC.Show.Show Cardano.CLI.Verbosity
 instance GHC.Classes.Eq Cardano.CLI.Verbosity
 instance Data.String.IsString Cardano.CLI.Service

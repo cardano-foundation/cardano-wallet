@@ -326,9 +326,9 @@ module Cardano.Wallet.HttpBridge.Network
 
 -- | Endpoints of the cardano-http-bridge API.
 data HttpBridgeLayer m
-HttpBridgeLayer :: (Hash "BlockHeader" -> ExceptT ErrNetworkUnreachable m (Block Tx)) -> (Word64 -> ExceptT ErrNetworkUnreachable m [Block Tx]) -> ExceptT ErrNetworkTip m (Hash "BlockHeader", BlockHeader) -> ((Tx, [TxWitness]) -> ExceptT ErrPostTx m ()) -> HttpBridgeLayer m
-[$sel:getBlock:HttpBridgeLayer] :: HttpBridgeLayer m -> Hash "BlockHeader" -> ExceptT ErrNetworkUnreachable m (Block Tx)
-[$sel:getEpoch:HttpBridgeLayer] :: HttpBridgeLayer m -> Word64 -> ExceptT ErrNetworkUnreachable m [Block Tx]
+HttpBridgeLayer :: (Hash "BlockHeader" -> ExceptT ErrNetworkUnavailable m (Block Tx)) -> (Word64 -> ExceptT ErrNetworkUnavailable m [Block Tx]) -> ExceptT ErrNetworkTip m (Hash "BlockHeader", BlockHeader) -> ((Tx, [TxWitness]) -> ExceptT ErrPostTx m ()) -> HttpBridgeLayer m
+[$sel:getBlock:HttpBridgeLayer] :: HttpBridgeLayer m -> Hash "BlockHeader" -> ExceptT ErrNetworkUnavailable m (Block Tx)
+[$sel:getEpoch:HttpBridgeLayer] :: HttpBridgeLayer m -> Word64 -> ExceptT ErrNetworkUnavailable m [Block Tx]
 [$sel:getNetworkTip:HttpBridgeLayer] :: HttpBridgeLayer m -> ExceptT ErrNetworkTip m (Hash "BlockHeader", BlockHeader)
 [$sel:postSignedTx:HttpBridgeLayer] :: HttpBridgeLayer m -> (Tx, [TxWitness]) -> ExceptT ErrPostTx m ()
 
