@@ -15,6 +15,8 @@ import Control.Exception
     ( finally )
 import Control.Monad
     ( forM_ )
+import System.Command
+    ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit
     ( ExitCode (..) )
 import System.IO.Temp
@@ -29,10 +31,11 @@ import System.Process
 import Test.Hspec
     ( Spec, SpecWith, describe, it )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldReturn )
+    ( shouldBe, shouldContain, shouldReturn )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand (..)
+    , cardanoWalletCLI
     , collectStreams
     , expectPathEventuallyExist
     , proc'
@@ -55,6 +58,17 @@ spec = do
                   `finally` do
                     terminateProcess ph
             threadDelay oneSecond
+
+        it "SERVER - Stops gracefully on wrong network connection" $ \_ -> do
+            let faultyNetwork = "mainnet"
+            let args = ["serve", "--network", faultyNetwork]
+            (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI @t args
+            out `shouldContain` "The node backend is not running on the\
+                \ \"" ++ faultyNetwork ++ "\" network. Please start the\
+                \ wallet server and the node backend on the same network.\
+                \ Exiting now."
+            err `shouldBe` mempty
+            c `shouldBe` ExitFailure 1
 
     describe "DaedalusIPC" $ do
         let defaultArgs =
