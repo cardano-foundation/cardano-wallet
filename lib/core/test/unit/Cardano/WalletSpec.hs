@@ -66,6 +66,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , SlotId (..)
     , SlotLength (..)
+    , SlotsPerEpoch (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -108,6 +109,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Time.Clock
     ( secondsToDiffTime )
+import Data.Time.Clock.POSIX
+    ( posixSecondsToUTCTime )
 import Data.Word
     ( Word16, Word32 )
 import GHC.Generics
@@ -372,7 +375,8 @@ setupFixture (wid, wname, wstate) = do
     db <- newDBLayer
     let nl = error "NetworkLayer"
     let tl = dummyTransactionLayer
-    let bp = BlockchainParameters block0 policy slotLength txMaxSize
+    let bp = BlockchainParameters
+            block0 block0Date policy slotLength slotsPerEpoch txMaxSize
     wl <- newWalletLayer @_ @DummyTarget nullTracer bp db nl tl
     res <- runExceptT $ createWallet wl wid wname wstate
     let wal = case res of
@@ -388,6 +392,10 @@ setupFixture (wid, wname, wstate) = do
 
     txMaxSize :: Quantity "byte" Word16
     txMaxSize = Quantity 8192
+
+    slotsPerEpoch = SlotsPerEpoch 21600
+
+    block0Date = posixSecondsToUTCTime 0
 
 -- | A dummy transaction layer to see the effect of a root private key. It
 -- implements a fake signer that still produces sort of witnesses

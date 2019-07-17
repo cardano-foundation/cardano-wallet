@@ -161,6 +161,7 @@ test-suite integration
     , temporary
     , text
     , text-class
+    , time
     , transformers
     , warp
   type:

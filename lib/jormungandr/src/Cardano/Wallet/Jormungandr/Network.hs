@@ -2,6 +2,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -68,7 +69,6 @@ import Cardano.Wallet.Primitive.Types
     , TxWitness (..)
     )
 import Control.Arrow
-    ( left )
 import Control.Exception
     ( Exception )
 import Control.Monad
@@ -265,16 +265,30 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
                     SlotDuration x -> Just x
                     _ -> Nothing
 
-        case (mpolicy,mduration) of
-            ([policy],[duration]) ->
+        let mblock0Date = mapMaybe getBlock0Date params
+              where
+                getBlock0Date = \case
+                    Block0Date x -> Just x
+                    _ -> Nothing
+
+        let mslotsPerEpoch = mapMaybe getEpochLength params
+              where
+                getEpochLength = \case
+                    SlotsPerEpoch x -> Just x
+                    _ -> Nothing
+
+        case (mpolicy, mduration, mblock0Date, mslotsPerEpoch) of
+            ([policy],[duration],[block0Date], [slotsPerEpoch]) ->
                 return $ BlockchainParameters
                     { getGenesisBlock = coerceBlock jblock
+                    , getGenesisBlockDate = block0Date
                     , getFeePolicy = policy
+                    , getSlotsPerEpoch = slotsPerEpoch
                     , getSlotLength = SlotLength duration
                     , getTxMaxSize = softTxMaxSize
                     }
             _ ->
-                throwE $ ErrGetBlockchainParamsNoInitialPolicy params
+                throwE $ ErrGetBlockchainParamsIncompleteParams params
     }
   where
     run :: ClientM a -> IO (Either ServantError a)
@@ -318,5 +332,5 @@ data ErrGetDescendants
 data ErrGetBlockchainParams
     = ErrGetBlockchainParamsNetworkUnreachable ErrNetworkUnavailable
     | ErrGetBlockchainParamsGenesisNotFound (Hash "Genesis")
-    | ErrGetBlockchainParamsNoInitialPolicy [ConfigParam]
+    | ErrGetBlockchainParamsIncompleteParams [ConfigParam]
     deriving (Show, Eq)

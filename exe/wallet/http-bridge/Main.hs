@@ -65,12 +65,7 @@ import Cardano.Wallet.DaedalusIPC
 import Cardano.Wallet.DB
     ( DBLayer )
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge
-    , Network (..)
-    , byronFeePolicy
-    , byronSlotLength
-    , byronTxMaxSize
-    )
+    ( HttpBridge, Network (..), byronBlockchainParameters )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..) )
 import Cardano.Wallet.Network
@@ -118,7 +113,6 @@ import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Wallet as Wallet
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
-import qualified Cardano.Wallet.HttpBridge.Compatibility as HttpBridge
 import qualified Cardano.Wallet.HttpBridge.Network as HttpBridge
 import qualified Cardano.Wallet.HttpBridge.Transaction as HttpBridge
 import qualified Data.Text as T
@@ -272,13 +266,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
             nl <- HttpBridge.newNetworkLayer @n (getPort nodePort)
             waitForService "http-bridge" (sb, tracer) nodePort $
                 waitForConnection nl defaultRetryPolicy
-            let bp = BlockchainParameters
-                    { getGenesisBlock = HttpBridge.block0
-                    , getFeePolicy = byronFeePolicy
-                    , getSlotLength = byronSlotLength
-                    , getTxMaxSize = byronTxMaxSize
-                    }
-            return (nl, bp)
+            return (nl, byronBlockchainParameters)
 
         withDBLayer
             :: CM.Configuration

@@ -23,6 +23,7 @@ import Cardano.Wallet.Primitive.Types
     , Dom (..)
     , Hash (..)
     , SlotId (..)
+    , SlotsPerEpoch (..)
     , TxIn (..)
     , TxMeta (TxMeta)
     , TxOut (..)
@@ -121,14 +122,16 @@ spec = do
             let txMeta = TxMeta Invalidated Incoming (SlotId 0 42) (Quantity 0)
             "+0.000000 invalidated since 0.42" === pretty @_ @Text txMeta
 
+    let slotsPerEpoch = SlotsPerEpoch 21600
+
     describe "slotRatio" $ do
         it "works for any two slots" $ property $ \sl0 sl1 ->
-            slotRatio sl0 sl1 `deepseq` ()
+            slotRatio slotsPerEpoch sl0 sl1 `deepseq` ()
     describe "flatSlot" $ do
         it "flatSlot . fromFlatSlot == id" $ property $ \sl ->
-            fromFlatSlot (flatSlot sl) === sl
+            fromFlatSlot slotsPerEpoch (flatSlot slotsPerEpoch sl) === sl
         it "fromFlatSlot . flatSlot == id" $ property $ \n ->
-            flatSlot (fromFlatSlot n) === n
+            flatSlot slotsPerEpoch (fromFlatSlot slotsPerEpoch n) === n
 
     describe "Negative cases for types decoding" $ do
         it "fail fromText @AddressState \"unusedused\"" $ do

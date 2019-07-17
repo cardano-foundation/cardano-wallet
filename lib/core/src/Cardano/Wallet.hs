@@ -109,6 +109,7 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , SlotId (..)
     , SlotLength (..)
+    , SlotsPerEpoch (..)
     , Tx (..)
     , TxMeta (..)
     , TxOut (..)
@@ -167,7 +168,7 @@ import Data.Text
 import Data.Text.Class
     ( toText )
 import Data.Time.Clock
-    ( diffTimeToPicoseconds, getCurrentTime )
+    ( UTCTime, diffTimeToPicoseconds, getCurrentTime )
 import Data.Word
     ( Word16 )
 import Fmt
@@ -368,10 +369,12 @@ cancelWorker (WorkerRegistry mvar) wid =
 data BlockchainParameters t = BlockchainParameters
     { getGenesisBlock :: Block (Tx t)
         -- ^ Very first block
+    , getGenesisBlockDate :: UTCTime
     , getFeePolicy :: FeePolicy
         -- ^ Policy regarding transcation fee
     , getSlotLength :: SlotLength
         -- ^ Length, in seconds, of a slot
+    , getSlotsPerEpoch :: SlotsPerEpoch
     , getTxMaxSize :: Quantity "byte" Word16
         -- ^ Maximum size of a transaction (soft or hard limit)
     }
@@ -407,7 +410,13 @@ newWalletLayer tracer bp db nw tl = do
         , listTransactions = _listTransactions
         }
   where
-    BlockchainParameters block0 feePolicy (SlotLength slotLength) txMaxSize = bp
+    BlockchainParameters
+        block0
+        _block0Date
+        feePolicy
+        (SlotLength slotLength)
+        slotsPerEpoch
+        txMaxSize = bp
 
     logDebugT :: MonadIO m => Text -> m ()
     logDebugT = liftIO . logDebug tracer
@@ -591,7 +600,7 @@ newWalletLayer tracer bp db nw tl = do
                     splitAt (length blocks - 1) blocks
             liftIO $ logDebug t $ pretty (h ++ q)
             let (txs, cp') = applyBlocks @s @t (h ++ q) cp
-            let progress = slotRatio sup tip
+            let progress = slotRatio slotsPerEpoch sup tip
             let status' = if progress == maxBound
                     then Ready
                     else Restoring progress
