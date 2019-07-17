@@ -31,6 +31,7 @@ import Cardano.Wallet.Api.Types
     , ApiMnemonicT (..)
     , ApiT (..)
     , ApiTransaction (..)
+    , ApiTxInput (..)
     , ApiUtxoStatistics (..)
     , ApiWallet (..)
     , Iso8601Range (..)
@@ -70,6 +71,7 @@ import Cardano.Wallet.Primitive.Types
     , HistogramBar (..)
     , PoolId (..)
     , SlotId (..)
+    , TxIn (..)
     , TxIn (..)
     , TxOut (..)
     , TxStatus (..)
@@ -827,6 +829,14 @@ instance Arbitrary ApiUtxoStatistics where
             (Quantity $ fromIntegral stakes)
             (ApiT bType)
             boundCountMap
+
+instance Arbitrary TxIn where
+    shrink _ = []
+    arbitrary = TxIn <$> arbitrary <*> arbitrary
+
+instance Arbitrary (ApiTxInput t) where
+    shrink _ = []
+    arbitrary = ApiTxInput <$> arbitrary <*> arbitrary
 
 instance Arbitrary (Quantity "block" Natural) where
     shrink (Quantity 0) = []

@@ -109,9 +109,14 @@ import Cardano.Wallet.Primitive.Types
     , DefineTx (..)
     , Direction (..)
     , EpochLength (..)
+    , Hash (..)
+    , SlotId (..)
     , SlotId (..)
     , SlotLength (..)
+    , SlotLength (..)
+    , TransactionInfo (..)
     , Tx (..)
+    , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
     , TxStatus (..)
@@ -299,7 +304,7 @@ data WalletLayer s t = WalletLayer
     , listTransactions
         :: DefineTx t
         => WalletId
-        -> ExceptT ErrNoSuchWallet IO [(Tx t, TxMeta)]
+        -> ExceptT ErrNoSuchWallet IO [TransactionInfo]
         -- ^ List all transactions and metadata from history for a given wallet.
         --
         -- The result is sorted on 'slotId' in descending order. The most recent
@@ -507,9 +512,34 @@ newWalletLayer tracer bp db nw tl = do
         fmap (\(PrimaryKey wid) -> wid) <$> DB.listWallets db
 
     _listTransactions
-        :: WalletId
-        -> ExceptT ErrNoSuchWallet IO [(Tx t, TxMeta)]
-    _listTransactions wid = liftIO $ map snd <$> DB.readTxHistory db (PrimaryKey wid)
+        :: (DefineTx t)
+        => WalletId
+        -> ExceptT ErrNoSuchWallet IO [TransactionInfo]
+    _listTransactions wid =
+        liftIO $ assemble <$> DB.readTxHistory db (PrimaryKey wid)
+      where
+        -- This relies on DB.readTxHistory returning all necessary transactions
+        -- to assemble coin selection information for outgoing payments.
+        -- To reliably provide this information, it should be looked up when
+        -- applying blocks, but that is future work:
+        -- https://github.com/input-output-hk/cardano-wallet/issues/573
+        assemble :: [(Hash "Tx", (Tx t, TxMeta))] -> [TransactionInfo]
+        assemble txs = map mkTxInfo txs
+          where
+            mkTxInfo (txid, (tx, meta)) = TransactionInfo
+                { txInfoId = txid
+                , txInfoInputs = [(txIn, lookupOutput txIn) | txIn <- W.inputs @t tx]
+                , txInfoOutputs = W.outputs @t tx
+                , txInfoMeta = meta
+                }
+            txOuts = Map.fromList
+                [ (txid, W.outputs @t tx)
+                | (txid, (tx, _)) <- txs ]
+            -- Because we only track UTxO of this wallet, we can only return
+            -- this information for outgoing payments.
+            lookupOutput (TxIn txid index) =
+                Map.lookup txid txOuts >>= atIndex (fromIntegral index)
+            atIndex i xs = if i < length xs then Just (xs !! i) else Nothing
 
     _removeWallet
         :: WorkerRegistry

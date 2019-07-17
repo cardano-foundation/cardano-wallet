@@ -40,6 +40,7 @@ module Cardano.Wallet.Primitive.Types
     , Direction(..)
     , TxStatus(..)
     , TxWitness(..)
+    , TransactionInfo (..)
     , txIns
     , isPending
 
@@ -486,6 +487,20 @@ newtype TxWitness = TxWitness { unWitness :: ByteString }
 -- | True if the given tuple refers to a pending transaction
 isPending :: TxMeta -> Bool
 isPending = (== Pending) . (status :: TxMeta -> TxStatus)
+
+-- | Full expanded and resolved information about a transaction, suitable for
+-- presentation to the user.
+data TransactionInfo = TransactionInfo
+    { txInfoId :: !(Hash "Tx")
+    -- ^ Transaction ID of this transaction
+    , txInfoInputs :: ![(TxIn, Maybe TxOut)]
+    -- ^ Transaction inputs and (maybe) corresponding outputs of the
+    -- source. Source information can only be provided for outgoing payments.
+    , txInfoOutputs :: ![TxOut]
+    -- ^ Payment destination.
+    , txInfoMeta :: !TxMeta
+    -- ^ Other information calculated from the transaction.
+    } deriving (Show, Eq, Ord)
 
 {-------------------------------------------------------------------------------
                                     Address

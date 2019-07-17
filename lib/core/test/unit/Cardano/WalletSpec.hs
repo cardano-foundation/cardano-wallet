@@ -67,6 +67,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , SlotId (..)
     , SlotLength (..)
+    , TransactionInfo (txInfoMeta)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -356,7 +357,7 @@ walletListTransactionsSorted wallet@(wid, _, _) history =
         txs <- unsafeRunExceptT $ listTransactions wl wid
         length txs `shouldBe` Map.size history
         -- With the 'Down'-wrapper, the sort is descending.
-        txs `shouldBe` L.sortOn (Down . slotId . snd) txs
+        txs `shouldBe` L.sortOn (Down . slotId . txInfoMeta) txs
 
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
