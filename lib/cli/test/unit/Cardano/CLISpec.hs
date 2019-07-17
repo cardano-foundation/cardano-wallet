@@ -14,15 +14,30 @@ import Cardano.CLI
     ( Iso8601Time (..)
     , MnemonicSize (..)
     , Port (..)
+    , cli
+    , cmdAddress
+    , cmdMnemonic
+    , cmdTransaction
+    , cmdWallet
     , hGetLine
     , hGetSensitiveLine
     )
+import Cardano.Crypto.Wallet
+    ( unXPub )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( KeyToAddress (..), getKey )
+import Cardano.Wallet.Primitive.Types
+    ( Address (..), DecodeAddress (..), EncodeAddress (..) )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, takeMVar )
 import Control.Monad
     ( mapM_ )
+import Data.Bifunctor
+    ( bimap )
+import Data.ByteArray.Encoding
+    ( Base (Base16), convertFromBase, convertToBase )
 import Data.Either
     ( isLeft, isRight )
 import Data.Proxy
@@ -31,6 +46,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), toText )
+import Options.Applicative
+    ( ParserResult (..), columns, execParserPure, prefs, renderFailure )
 import System.IO
     ( Handle, IOMode (..), hClose, openFile )
 import Test.Hspec
@@ -40,6 +57,7 @@ import Test.QuickCheck
     , Large (..)
     , arbitraryBoundedEnum
     , checkCoverage
+    , counterexample
     , cover
     , genericShrink
     , property
@@ -52,10 +70,205 @@ import Test.Text.Roundtrip
     ( textRoundtrip )
 
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 
 spec :: Spec
 spec = do
+    describe "Specification / Usage Overview" $ do
+        let parser = cli $ mempty
+                <> cmdMnemonic
+                <> cmdWallet @DummyTarget
+                <> cmdTransaction @DummyTarget
+                <> cmdAddress @DummyTarget
+
+        let defaultPrefs = prefs (mempty <> columns 65)
+
+        let expectationFailure = flip counterexample False
+
+        let shouldShowUsage args expected = it (unwords args) $
+                case execParserPure defaultPrefs parser args of
+                    Success _ -> expectationFailure
+                        "expected parser to show usage but it has succeeded"
+                    CompletionInvoked _ -> expectationFailure
+                        "expected parser to show usage but it offered completion"
+                    Failure failure -> property $
+                        let (usage, _) = renderFailure failure mempty
+                        in counterexample usage $ expected === lines usage
+
+        ["--help"] `shouldShowUsage`
+            [ "The CLI is a proxy to the wallet server, which is required for"
+            , "most commands. Commands are turned into corresponding API calls,"
+            , "and submitted to an up-and-running server. Some commands do not"
+            , "require an active server and can be run offline (e.g. 'mnemonic"
+            , "generate')."
+            , ""
+            , "Usage:  COMMAND"
+            , "  Cardano Wallet Command-Line Interface (CLI)"
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , ""
+            , "Available commands:"
+            , "  mnemonic                 "
+            , "  wallet                   "
+            , "  transaction              "
+            , "  address                  "
+            ]
+
+        ["mnemonic", "--help"] `shouldShowUsage`
+            [ "Usage:  mnemonic COMMAND"
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , ""
+            , "Available commands:"
+            , "  generate                 Generate English BIP-0039 compatible"
+            , "                           mnemonic words."
+            ]
+
+        ["mnemonic", "generate", "--help"] `shouldShowUsage`
+            [ "Usage:  mnemonic generate [--size INT]"
+            , "  Generate English BIP-0039 compatible mnemonic words."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --size INT               number of mnemonic words to"
+            , "                           generate. (default: 15)"
+            ]
+
+        ["wallet", "--help"] `shouldShowUsage`
+            [ "Usage:  wallet COMMAND"
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , ""
+            , "Available commands:"
+            , "  list                     List all known wallets."
+            , "  create                   Create a new wallet using a sequential"
+            , "                           address scheme."
+            , "  get                      Fetch the wallet with specified id."
+            , "  update                   Update a wallet."
+            , "  delete                   Deletes wallet with specified wallet"
+            , "                           id."
+            ]
+
+        ["wallet", "list", "--help"] `shouldShowUsage`
+            [ "Usage:  wallet list [--port INT]"
+            , "  List all known wallets."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --port INT               port used for serving the wallet"
+            , "                           API. (default: 8090)"
+            ]
+
+        ["wallet", "create", "--help"] `shouldShowUsage`
+            [ "Usage:  wallet create [--port INT] STRING"
+            , "                      [--address-pool-gap INT]"
+            , "  Create a new wallet using a sequential address scheme."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --port INT               port used for serving the wallet"
+            , "                           API. (default: 8090)"
+            , "  --address-pool-gap INT   number of unused consecutive addresses"
+            , "                           to keep track of. (default: 20)"
+            ]
+
+        ["wallet", "get", "--help"] `shouldShowUsage`
+            [ "Usage:  wallet get [--port INT] WALLET_ID"
+            , "  Fetch the wallet with specified id."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --port INT               port used for serving the wallet"
+            , "                           API. (default: 8090)"
+            ]
+
+        ["wallet", "update", "--help"] `shouldShowUsage`
+            [ "Usage:  wallet update COMMAND"
+            , "  Update a wallet."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , ""
+            , "Available commands:"
+            , "  name                     Update a wallet's name."
+            , "  passphrase               Update a wallet's passphrase."
+            ]
+
+        ["wallet", "delete", "--help"] `shouldShowUsage`
+            [ "Usage:  wallet delete [--port INT] WALLET_ID"
+            , "  Deletes wallet with specified wallet id."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --port INT               port used for serving the wallet"
+            , "                           API. (default: 8090)"
+            ]
+
+        ["transaction", "--help"] `shouldShowUsage`
+            [ "Usage:  transaction COMMAND"
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , ""
+            , "Available commands:"
+            , "  create                   Create and submit a new transaction."
+            , "  fees                     Estimate fees for a transaction."
+            ]
+
+        ["transaction", "create", "--help"] `shouldShowUsage`
+            [ "Usage:  transaction create [--port INT] WALLET_ID"
+            , "                           --payment PAYMENT"
+            , "  Create and submit a new transaction."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --port INT               port used for serving the wallet"
+            , "                           API. (default: 8090)"
+            , "  --payment PAYMENT        address to send to and amount to send"
+            , "                           separated by @, e.g."
+            , "                           '<amount>@<address>'"
+            ]
+
+        ["transaction", "fees", "--help"] `shouldShowUsage`
+            [ "Usage:  transaction fees [--port INT] WALLET_ID --payment PAYMENT"
+            , "  Estimate fees for a transaction."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --port INT               port used for serving the wallet"
+            , "                           API. (default: 8090)"
+            , "  --payment PAYMENT        address to send to and amount to send"
+            , "                           separated by @, e.g."
+            , "                           '<amount>@<address>'"
+            ]
+
+        ["address", "--help"] `shouldShowUsage`
+            [ "Usage:  address COMMAND"
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , ""
+            , "Available commands:"
+            , "  list                     List all known addresses of a given"
+            , "                           wallet."
+            ]
+
+        ["address", "list", "--help"] `shouldShowUsage`
+            [ "Usage:  address list [--port INT] [--state STRING] WALLET_ID"
+            , "  List all known addresses of a given wallet."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --port INT               port used for serving the wallet"
+            , "                           API. (default: 8090)"
+            , "  --state STRING           only addresses with the given state:"
+            , "                           either 'used' or 'unused'."
+            ]
+
     describe "Can perform roundtrip textual encoding & decoding" $ do
         textRoundtrip $ Proxy @Iso8601Time
         textRoundtrip $ Proxy @(Port "test")
@@ -367,3 +580,23 @@ ensureIso8601TimesEquivalent t1 t2 = it title $ property $
     title = mempty
             <> "Equivalent ISO 8601 times are decoded equivalently: "
             <> show (t1, t2)
+
+{-------------------------------------------------------------------------------
+                                 Dummy Target
+-------------------------------------------------------------------------------}
+
+data DummyTarget
+
+instance KeyToAddress DummyTarget where
+    keyToAddress = Address . unXPub . getKey
+
+instance EncodeAddress DummyTarget where
+    encodeAddress _ = T.decodeUtf8 . convertToBase Base16 . unAddress
+
+instance DecodeAddress DummyTarget where
+    decodeAddress _ = bimap decodingError Address
+        . convertFromBase Base16
+        . T.encodeUtf8
+      where
+        decodingError _ = TextDecodingError
+            "Unable to decode Address: expected Base16 encoding"

@@ -269,11 +269,8 @@ runCli = join . customExecParser preferences
 
 {-------------------------------------------------------------------------------
                             Commands - 'mnemonic'
-
-  cardano-wallet mnemonic generate [--size=INT]
 -------------------------------------------------------------------------------}
 
--- | cardano-wallet mnemonic
 cmdMnemonic :: Mod CommandFields (IO ())
 cmdMnemonic = command "mnemonic" $ info (helper <*> cmds) mempty
   where
@@ -285,7 +282,6 @@ newtype MnemonicGenerateArgs = MnemonicGenerateArgs
     { _size :: MnemonicSize
     }
 
--- | cardano-wallet mnemonic generate [--size=INT]
 cmdMnemonicGenerate :: Mod CommandFields (IO ())
 cmdMnemonicGenerate = command "generate" $ info (helper <*> cmd) $ mempty
     <> progDesc "Generate English BIP-0039 compatible mnemonic words."
@@ -303,16 +299,8 @@ cmdMnemonicGenerate = command "generate" $ info (helper <*> cmd) $ mempty
 
 {-------------------------------------------------------------------------------
                             Commands - 'wallet'
-
-  cardano-wallet wallet list [--port=INT]
-  cardano-wallet wallet create [--port=INT] <name> [--address-pool-gap=INT]
-  cardano-wallet wallet get [--port=INT] <wallet-id>
-  cardano-wallet wallet update name [--port=INT] <wallet-id> STRING
-  cardano-wallet wallet update passphrase [--port=INT] <wallet-id>
-  cardano-wallet wallet delete [--port=INT] <wallet-id>
 -------------------------------------------------------------------------------}
 
--- | cardano-wallet wallet
 cmdWallet
     :: forall t. (DecodeAddress t, EncodeAddress t)
     => Mod CommandFields (IO ())
@@ -330,7 +318,6 @@ newtype WalletListArgs = WalletListArgs
     { _port :: Port "Wallet"
     }
 
--- | cardano-wallet wallet list [--port=INT]
 cmdWalletList
     :: forall t. (DecodeAddress t, EncodeAddress t)
     => Mod CommandFields (IO ())
@@ -348,7 +335,6 @@ data WalletCreateArgs = WalletCreateArgs
     , _gap :: AddressPoolGap
     }
 
--- | cardano-wallet wallet create [--port=INT] <name> [--address-pool-gap=INT]
 cmdWalletCreate
     :: forall t. (DecodeAddress t, EncodeAddress t)
     => Mod CommandFields (IO ())
@@ -389,7 +375,6 @@ data WalletGetArgs = WalletGetArgs
     , _id :: WalletId
     }
 
--- | cardano-wallet wallet get [--port=INT] <wallet-id>
 cmdWalletGet
     :: forall t. (DecodeAddress t, EncodeAddress t)
     => Mod CommandFields (IO ())
@@ -420,7 +405,6 @@ data WalletUpdateNameArgs = WalletUpdateNameArgs
     , _name :: WalletName
     }
 
--- | cardano-wallet wallet update name [--port=INT] <wallet-id> STRING
 cmdWalletUpdateName
     :: forall t. (DecodeAddress t, EncodeAddress t)
     => Mod CommandFields (IO ())
@@ -442,7 +426,6 @@ data WalletUpdatePassphraseArgs = WalletUpdatePassphraseArgs
     , _id :: WalletId
     }
 
--- | cardano-wallet wallet update passphrase [--port=INT] <wallet-id>
 cmdWalletUpdatePassphrase
     :: forall t. (DecodeAddress t, EncodeAddress t)
     => Mod CommandFields (IO ())
@@ -474,7 +457,6 @@ data WalletDeleteArgs = WalletDeleteArgs
     , _id :: WalletId
     }
 
--- | cardano-wallet wallet delete [--port=INT] <wallet-id>
 cmdWalletDelete
     :: forall t. (DecodeAddress t, EncodeAddress t)
     => Mod CommandFields (IO ())
@@ -490,9 +472,6 @@ cmdWalletDelete = command "delete" $ info (helper <*> cmd) $ mempty
 
 {-------------------------------------------------------------------------------
                             Commands - 'transaction'
-
-  cardano-wallet transaction create [--port=INT] <wallet-id> --payment=PAYMENT...
-  cardano-wallet transaction fees [--port=INT] <wallet-id> --payment=PAYMENT...
 -------------------------------------------------------------------------------}
 
 -- | cardano-wallet transaction
@@ -512,7 +491,6 @@ data TransactionCreateArgs t = TransactionCreateArgs
     , _payments :: NonEmpty (AddressAmount t)
     }
 
--- | cardano-wallet wallet list [--port=INT]
 cmdTransactionCreate
     :: forall t. (DecodeAddress t, EncodeAddress t)
     => Mod CommandFields (IO ())
@@ -558,11 +536,8 @@ cmdTransactionFees = command "fees" $ info (helper <*> cmd) $ mempty
 
 {-------------------------------------------------------------------------------
                             Commands - 'address'
-
-  cardano-wallet address list [--port=INT] [--state=STRING] <wallet-id>
 -------------------------------------------------------------------------------}
 
--- | cardano-wallet address
 cmdAddress
     :: forall t. (DecodeAddress t, EncodeAddress t)
     => Mod CommandFields (IO ())
@@ -578,7 +553,6 @@ data AddressListArgs = AddressListArgs
     , _id :: WalletId
     }
 
--- | cardano-wallet address list [--port=INT] [--state=STRING] <wallet-id>
 cmdAddressList
     :: forall t. (DecodeAddress t, EncodeAddress t)
     => Mod CommandFields (IO ())
@@ -596,11 +570,8 @@ cmdAddressList = command "list" $ info (helper <*> cmd) $ mempty
 
 {-------------------------------------------------------------------------------
                             Commands - 'version'
-
-  cardano-wallet version
 -------------------------------------------------------------------------------}
 
--- | cardano-wallet version
 cmdVersion :: Mod CommandFields (IO ())
 cmdVersion = command "version" $ info cmd $ mempty
     <> progDesc "Show the program's version."
@@ -612,8 +583,6 @@ cmdVersion = command "version" $ info cmd $ mempty
 
 {-------------------------------------------------------------------------------
                             Commands - 'launch'
-
-  cardano-wallet launch ...
 -------------------------------------------------------------------------------}
 
 -- | Execute 'launch' commands. This differs from the 'serve' command as it

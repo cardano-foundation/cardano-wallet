@@ -42,8 +42,12 @@
         "unit" = {
           depends = [
             (hsPkgs.base)
+            (hsPkgs.cardano-crypto)
             (hsPkgs.cardano-wallet-cli)
+            (hsPkgs.cardano-wallet-core)
             (hsPkgs.hspec)
+            (hsPkgs.memory)
+            (hsPkgs.optparse-applicative)
             (hsPkgs.QuickCheck)
             (hsPkgs.quickcheck-instances)
             (hsPkgs.text)
