@@ -116,7 +116,7 @@ main = do
         describe "PR_DISABLED Server CLI timeout test" (ServerCLI.specNoBackend @t)
         describe "Cardano.WalletSpec" Wallet.spec
         describe "Cardano.Wallet.HttpBridge.NetworkSpec" HttpBridge.spec
-        describe "Launcher CLI tests" (LauncherCLI.spec @t)
+        describe "MERGE_DISABLED Launcher CLI tests" (LauncherCLI.spec @t)
         describe "Mnemonics CLI tests" (MnemonicsCLI.spec @t)
         describe "Miscellaneous CLI tests" (MiscellaneousCLI.spec @t)
         describe "--port CLI tests" $ do
