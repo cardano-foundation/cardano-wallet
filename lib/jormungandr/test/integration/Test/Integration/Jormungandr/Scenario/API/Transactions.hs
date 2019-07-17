@@ -32,12 +32,12 @@ import Test.Integration.Framework.DSL
     , expectResponseCode
     , fixtureWallet
     , fixtureWalletWith
+    , for
     , json
     , listAddresses
     , postTxEp
     , postTxFeeEp
     , request
-    , for
     , verify
     )
 import Test.Integration.Framework.TestData
