@@ -52,6 +52,7 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
+    , NonEmptyList (..)
     , Property
     , checkCoverage
     , choose
@@ -370,10 +371,10 @@ propReducedChanges drg (ShowFmt (FeeProp coinSel utxo (fee, dust))) = do
 -- | Helper to re-apply the pre-conditions for divvyFee
 propDivvyFee
     :: ((Fee, [Coin]) -> Property)
-    -> (Fee, [Coin])
+    -> (Fee, NonEmptyList Coin)
     -> Property
-propDivvyFee prop (fee, outs) =
-    not (null outs) ==> coverTable "properties"
+propDivvyFee prop (fee, NonEmpty outs) =
+    coverTable "properties"
         [ ("fee > 0", 50)
         , ("nOuts=1", 1)
         , ("nOuts=2", 1)
@@ -390,14 +391,14 @@ propDivvyFee prop (fee, outs) =
 -- | Sum of the fees divvied over each output is the same as the initial total
 -- fee.
 propDivvyFeeSame
-    :: (Fee, [Coin])
+    :: (Fee, NonEmptyList Coin)
     -> Property
 propDivvyFeeSame = propDivvyFee $ \(fee, outs) ->
     sum (getFee . fst <$> divvyFee fee outs) === getFee fee
 
 -- | divvyFee doesn't change any of the outputs
 propDivvyFeeOuts
-    :: (Fee, [Coin])
+    :: (Fee, NonEmptyList Coin)
     -> Property
 propDivvyFeeOuts = propDivvyFee $ \(fee, outs) ->
     (snd <$> divvyFee fee outs) === outs
