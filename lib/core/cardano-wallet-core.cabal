@@ -191,6 +191,7 @@ test-suite unit
       Cardano.Wallet.TransactionSpec
       Cardano.WalletSpec
       Data.QuantitySpec
+      Data.Time.TextSpec
       Network.Wai.Middleware.LoggingSpec
 
 benchmark db
