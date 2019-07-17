@@ -101,8 +101,6 @@ import Data.Bifunctor
     ( bimap, first )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
-import Data.Maybe
-    ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -248,7 +246,7 @@ data ApiErrorCode
 --  2020-02-27 and 2019-02-27, in descending order.
 data Iso8601Range (name :: Symbol)
     = Iso8601Range (Maybe UTCTime) (Maybe UTCTime)
-    deriving (Eq, Show)
+    deriving (Eq, Generic, Show)
 
 instance KnownSymbol name => ToText (Iso8601Range name) where
     toText (Iso8601Range t1 t2) = prefix <> " " <> suffix
@@ -271,8 +269,6 @@ instance KnownSymbol name => FromText (Iso8601Range name) where
             "Invalid start time string: " <> show t1
         v2 <- guardM (parseTime t2) $
             "Invalid end time string: " <> show t2
-        guardB (validRange v1 v2)
-            "Start time is later than end time."
         pure $ Iso8601Range v1 v2
       where
         expectedPrefix = T.pack $ symbolVal (Proxy @name)
@@ -292,9 +288,6 @@ instance KnownSymbol name => FromText (Iso8601Range name) where
             "*" -> pure Nothing
             timeText -> pure <$>
                 parseTimeM False defaultTimeLocale basicUtc $ T.unpack timeText
-
-        validRange :: Maybe UTCTime -> Maybe UTCTime -> Bool
-        validRange mt1 mt2 = fromMaybe True $ (<) <$> mt1 <*> mt2
 
 -- | ISO 8601 basic format (UTC).
 basicUtc :: String
