@@ -63,6 +63,9 @@ module Cardano.Wallet.Primitive.Types
     , restrictedBy
     , restrictedTo
     , Dom(..)
+    , UTxOStatistics (..)
+    , computeUtxoStatistics
+    , log10
 
     -- * Slotting
     , SlotId (..)
@@ -109,6 +112,8 @@ import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
 import Data.Proxy
@@ -153,6 +158,9 @@ import GHC.TypeLits
 import Numeric.Natural
     ( Natural )
 
+import qualified Control.Foldl as F
+import qualified Data.List as L
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -652,6 +660,78 @@ restrictedTo :: UTxO -> Set TxOut -> UTxO
 restrictedTo (UTxO utxo) outs =
     UTxO $ Map.filter (`Set.member` outs) utxo
 
+data UTxOStatistics = UTxOStatistics
+    { histogram :: ![HistogramBar]
+    , allStakes :: !Word64
+    } deriving (Show, Generic, Ord)
+
+instance Eq UTxOStatistics where
+    (UTxOStatistics h s) == (UTxOStatistics h' s') =
+        s == s' && sorted h == sorted h'
+      where
+        sorted :: [HistogramBar] -> [HistogramBar]
+        sorted = L.sortOn (\(HistogramBarCount key _) -> key)
+
+-- | Utxo statistics for the wallet.
+-- Histogram is composed of bars that represent the bucket. The bucket is tagged by upper bound of a given bucket.
+-- The bar value corresponds to the number of stakes
+-- In the future the bar value could be different things:
+--  (a) sum of stakes in a bucket
+--  (b) avg or std of stake in a bucket
+--  (c) topN buckets
+-- to name a few
+data HistogramBar = HistogramBarCount
+    { bucketUpperBound :: !Word64
+    , bucketCount      :: !Word64
+    } deriving (Show, Eq, Ord, Generic)
+
+--  Buckets boundaries can be constructed in different ways
+data BoundType = Log10 deriving (Eq, Show, Generic)
+
+-- | Smart-constructor to create bounds using a log-10 scale
+log10 :: BoundType
+log10 = Log10
+{-# INLINE log10 #-}
+
+-- | Compute UtxoStatistics from a bunch of UTxOs
+computeUtxoStatistics :: BoundType -> UTxO -> UTxOStatistics
+computeUtxoStatistics btype =
+    F.fold foldStatistics . getCoins
+  where
+    getCoins :: UTxO -> [Word64]
+    getCoins =
+        map (getCoin . coin) . Map.elems . getUTxO
+
+    foldStatistics :: F.Fold Word64 UTxOStatistics
+    foldStatistics = UTxOStatistics
+        <$> foldBuckets (generateBounds btype)
+        <*> F.sum
+
+    foldBuckets :: NonEmpty Word64 -> F.Fold Word64 [HistogramBar]
+    foldBuckets bounds =
+        let
+            step :: Map Word64 Word64 -> Word64 -> Map Word64 Word64
+            step x a =
+                case Map.lookupGE a x of
+                    Just (k, v) -> Map.insert k (v+1) x
+                    Nothing -> Map.adjust (+1) (NE.head bounds) x
+            initial :: Map Word64 Word64
+            initial =
+                Map.fromList $ zip (NE.toList bounds) (repeat 0)
+            extract :: Map Word64 Word64 -> [HistogramBar]
+            extract =
+                map (uncurry HistogramBarCount) . Map.toList
+        in
+            F.Fold step initial extract
+
+    generateBounds :: BoundType -> NonEmpty Word64
+    generateBounds bType =
+        let (^!) :: Word64 -> Word64 -> Word64
+            (^!) = (^)
+        in case bType of
+            Log10 ->
+                NE.fromList $
+                map (\toPower -> 10 ^! toPower) [1..16] ++ [45 * (10 ^! 15)]
 
 {-------------------------------------------------------------------------------
                                    Slotting

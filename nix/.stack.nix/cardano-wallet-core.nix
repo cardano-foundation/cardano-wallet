@@ -31,6 +31,7 @@
           (hsPkgs.exceptions)
           (hsPkgs.fast-logger)
           (hsPkgs.fmt)
+          (hsPkgs.foldl)
           (hsPkgs.generic-lens)
           (hsPkgs.http-api-data)
           (hsPkgs.http-media)

@@ -24,6 +24,7 @@ module Cardano.Wallet
     , BlockchainParameters (..)
 
     -- * Errors
+    , ErrListUTxOStatistics (..)
     , ErrAdjustForFee (..)
     , ErrCoinSelection (..)
     , ErrCreateUnsignedTx (..)
@@ -115,12 +116,15 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , TxStatus (..)
     , TxWitness
+    , UTxOStatistics
     , WalletDelegation (..)
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , WalletState (..)
+    , computeUtxoStatistics
+    , log10
     , slotRatio
     )
 import Cardano.Wallet.Transaction
@@ -259,6 +263,12 @@ data WalletLayer s t = WalletLayer
         -- ^ Estimate a transaction fee by automatically selecting inputs from the
         -- wallet to cover the requested outputs.
 
+    , listUtxoStatistics
+        :: (DefineTx t)
+        => WalletId
+        -> ExceptT ErrListUTxOStatistics IO UTxOStatistics
+        -- ^ List the wallet's UTxO statistics.
+
     , signTx
         :: (Show s, NFData s, IsOwned s, GenChange s)
         => WalletId
@@ -307,6 +317,10 @@ data ErrCreateUnsignedTx e
 data ErrEstimateTxFee e
     = ErrEstimateTxFeeNoSuchWallet ErrNoSuchWallet
     | ErrEstimateTxFeeCoinSelection (ErrCoinSelection e)
+    deriving (Show, Eq)
+
+newtype ErrListUTxOStatistics
+    = ErrListUTxOStatisticsNoSuchWallet ErrNoSuchWallet
     deriving (Show, Eq)
 
 -- | Errors occuring when signing a transaction
@@ -404,6 +418,7 @@ newWalletLayer tracer bp db nw tl = do
         , listAddresses = _listAddresses
         , createUnsignedTx = _createUnsignedTx
         , estimateTxFee = _estimateTxFee
+        , listUtxoStatistics = _listUtxoStatistics
         , signTx = _signTx
         , submitTx = _submitTx
         , attachPrivateKey = _attachPrivateKey
@@ -684,6 +699,15 @@ newWalletLayer tracer bp db nw tl = do
             CoinSelection.random coinSelOpts recipients utxo
         let estimateFee = computeFee feePolicy . estimateSize tl
         pure $ estimateFee sel
+
+    _listUtxoStatistics
+        :: (DefineTx t)
+        => WalletId
+        -> ExceptT ErrListUTxOStatistics IO UTxOStatistics
+    _listUtxoStatistics wid = do
+        (w, _) <- withExceptT ErrListUTxOStatisticsNoSuchWallet (_readWallet wid)
+        let utxo = availableUTxO @s @t w
+        pure $ computeUtxoStatistics log10 utxo
 
     _signTx
         :: (Show s, NFData s, IsOwned s, GenChange s)
