@@ -52,25 +52,25 @@
 
 -- Wallet IDs, address discovery state, and metadata.
 Wallet
-    walTableId                 W.WalletId     sql=wallet_id
-    walTableCreationTime       UTCTime        sql=creation_time
-    walTableName               Text           sql=name
-    walTablePassphraseLastUpdatedAt  UTCTime Maybe  sql=passphrase_last_updated_at
-    walTableStatus             W.WalletState  sql=status
-    walTableDelegation         Text Maybe     sql=delegation
+    walId                 W.WalletId     sql=wallet_id
+    walCreationTime       UTCTime        sql=creation_time
+    walName               Text           sql=name
+    walPassphraseLastUpdatedAt  UTCTime Maybe  sql=passphrase_last_updated_at
+    walStatus             W.WalletState  sql=status
+    walDelegation         Text Maybe     sql=delegation
 
-    Primary walTableId
+    Primary walId
     deriving Show Generic
 
 -- The private key for each wallet. This is in a separate table simply so that
 -- &quot;SELECT * FROM wallet&quot; won't print keys.
-PrivateKey                                  sql=private_key
-    privateKeyTableWalletId  W.WalletId     sql=wallet_id
-    privateKeyTableRootKey   B8.ByteString  sql=root
-    privateKeyTableHash      B8.ByteString  sql=hash
+PrivateKey                             sql=private_key
+    privateKeyWalletId  W.WalletId     sql=wallet_id
+    privateKeyRootKey   B8.ByteString  sql=root
+    privateKeyHash      B8.ByteString  sql=hash
 
-    Primary privateKeyTableWalletId
-    Foreign Wallet fk_wallet_private_key privateKeyTableWalletId
+    Primary privateKeyWalletId
+    Foreign Wallet fk_wallet_private_key privateKeyWalletId
 
     deriving Show Generic
 
@@ -81,95 +81,95 @@ PrivateKey                                  sql=private_key
 -- transaction with different metadata values. The associated inputs and outputs
 -- of the transaction are in the TxIn and TxOut tables.
 TxMeta
-    txMetaTableTxId       TxId         sql=tx_id
-    txMetaTableWalletId   W.WalletId   sql=wallet_id
-    txMetaTableStatus     W.TxStatus   sql=status
-    txMetaTableDirection  W.Direction  sql=direction
-    txMetaTableSlotId     W.SlotId     sql=slot
-    txMetaTableAmount     Natural      sql=amount
+    txMetaTxId       TxId         sql=tx_id
+    txMetaWalletId   W.WalletId   sql=wallet_id
+    txMetaStatus     W.TxStatus   sql=status
+    txMetaDirection  W.Direction  sql=direction
+    txMetaSlotId     W.SlotId     sql=slot
+    txMetaAmount     Natural      sql=amount
 
-    Primary txMetaTableTxId txMetaTableWalletId
-    Foreign Wallet fk_wallet_tx_meta txMetaTableWalletId
+    Primary txMetaTxId txMetaWalletId
+    Foreign Wallet fk_wallet_tx_meta txMetaWalletId
     deriving Show Generic
 
 -- A transaction input associated with TxMeta.
 --
 -- There is no wallet ID because these values depend only on the transaction,
--- not the wallet. txInputTableTxId is referred to by TxMeta
+-- not the wallet. txInputTxId is referred to by TxMeta
 TxIn
-    txInputTableTxId           TxId          sql=tx_id
-    txInputTableOrder          Int           sql=order
-    txInputTableSourceTxId     TxId          sql=source_id
-    txInputTableSourceIndex    Word32        sql=source_index
-    txInputTableSourceAmount   W.Coin Maybe  sql=source_amount default=NULL
+    txInputTxId           TxId          sql=tx_id
+    txInputOrder          Int           sql=order
+    txInputSourceTxId     TxId          sql=source_id
+    txInputSourceIndex    Word32        sql=source_index
+    txInputSourceAmount   W.Coin Maybe  sql=source_amount default=NULL
 
-    Primary txInputTableTxId txInputTableSourceTxId txInputTableSourceIndex
+    Primary txInputTxId txInputSourceTxId txInputSourceIndex
     deriving Show Generic
 
 -- A transaction output associated with TxMeta.
 --
 -- There is no wallet ID because these values depend only on the transaction,
--- not the wallet. txOutputTableTxId is referred to by TxMeta
+-- not the wallet. txOutputTxId is referred to by TxMeta
 TxOut
-    txOutputTableTxId     TxId        sql=tx_id
-    txOutputTableIndex    Word32      sql=index
-    txOutputTableAddress  W.Address   sql=address
-    txOutputTableAmount   W.Coin      sql=amount
+    txOutputTxId     TxId        sql=tx_id
+    txOutputIndex    Word32      sql=index
+    txOutputAddress  W.Address   sql=address
+    txOutputAmount   W.Coin      sql=amount
 
-    Primary txOutputTableTxId txOutputTableIndex
+    Primary txOutputTxId txOutputIndex
     deriving Show Generic
 
 -- A checkpoint for a given wallet is referred to by (wallet_id, slot).
 -- Checkpoint data such as UTxO will refer to this table.
 Checkpoint
-    checkpointTableWalletId    W.WalletId  sql=wallet_id
-    checkpointTableSlot        W.SlotId    sql=slot
-    checkpointTableParent      BlockId     sql=parent
+    checkpointWalletId    W.WalletId  sql=wallet_id
+    checkpointSlot        W.SlotId    sql=slot
+    checkpointParent      BlockId     sql=parent
 
-    Primary checkpointTableWalletId checkpointTableSlot
-    Foreign Wallet fk_wallet_checkpoint checkpointTableWalletId
+    Primary checkpointWalletId checkpointSlot
+    Foreign Wallet fk_wallet_checkpoint checkpointWalletId
 
     deriving Show Generic
 
 -- The UTxO for a given wallet checkpoint is a one-to-one mapping from TxIn -&gt;
 -- TxOut. This table does not need to refer to the TxIn or TxOut tables. All
 -- necessary information for the UTxO is in this table.
-UTxO                                     sql=utxo
+UTxO                                sql=utxo
 
     -- The wallet checkpoint (wallet_id, slot)
-    utxoTableWalletId        W.WalletId  sql=wallet_id
-    utxoTableCheckpointSlot  W.SlotId    sql=slot
+    utxoWalletId        W.WalletId  sql=wallet_id
+    utxoCheckpointSlot  W.SlotId    sql=slot
 
     -- TxIn
-    utxoTableInputId         TxId        sql=input_tx_id
-    utxoTableInputIndex      Word32      sql=input_index
+    utxoInputId         TxId        sql=input_tx_id
+    utxoInputIndex      Word32      sql=input_index
 
     -- TxOut
-    utxoTableOutputAddress   W.Address   sql=output_address
-    utxoTableOutputCoin      W.Coin      sql=output_coin
+    utxoOutputAddress   W.Address   sql=output_address
+    utxoOutputCoin      W.Coin      sql=output_coin
 
     Primary
-        utxoTableWalletId
-        utxoTableCheckpointSlot
-        utxoTableInputId
-        utxoTableInputIndex
-        utxoTableOutputAddress
-        utxoTableOutputCoin
+        utxoWalletId
+        utxoCheckpointSlot
+        utxoInputId
+        utxoInputIndex
+        utxoOutputAddress
+        utxoOutputCoin
 
-    Foreign Checkpoint fk_checkpoint_utxo utxoTableWalletId utxoTableCheckpointSlot
+    Foreign Checkpoint fk_checkpoint_utxo utxoWalletId utxoCheckpointSlot
     deriving Show Generic
 
 -- State for sequential scheme address discovery
 SeqState
     -- The wallet checkpoint (wallet_id, slot)
-    seqStateTableWalletId        W.WalletId        sql=wallet_id
-    seqStateTableCheckpointSlot  W.SlotId          sql=slot
-    seqStateTableExternalGap     W.AddressPoolGap  sql=external_gap
-    seqStateTableInternalGap     W.AddressPoolGap  sql=internal_gap
-    seqStateTableAccountXPub     AddressPoolXPub   sql=account_xpub
+    seqStateWalletId        W.WalletId        sql=wallet_id
+    seqStateCheckpointSlot  W.SlotId          sql=slot
+    seqStateExternalGap     W.AddressPoolGap  sql=external_gap
+    seqStateInternalGap     W.AddressPoolGap  sql=internal_gap
+    seqStateAccountXPub     AddressPoolXPub   sql=account_xpub
 
-    UniqueSeqState seqStateTableWalletId seqStateTableCheckpointSlot
-    Foreign Checkpoint fk_checkpoint_seq_state seqStateTableWalletId seqStateTableCheckpointSlot
+    UniqueSeqState seqStateWalletId seqStateCheckpointSlot
+    Foreign Checkpoint fk_checkpoint_seq_state seqStateWalletId seqStateCheckpointSlot
     deriving Show Generic
 
 -- Mapping of pool addresses to indices.

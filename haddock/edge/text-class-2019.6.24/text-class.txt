@@ -77,6 +77,12 @@ fromTextToBoundedEnum :: forall a. (Bounded a, Enum a, Show a) => CaseStyle -> T
 
 -- | Show a data-type through its <a>ToText</a> instance
 showT :: ToText a => a -> String
+
+-- | Splits the given <a>Text</a> into a prefix and a suffix using the last
+--   occurrence of the specified separator character as a splitting point.
+--   Evaluates to <a>Nothing</a> if the specified <a>Text</a> does not
+--   contain the separator character.
+splitAtLastOccurrence :: Char -> Text -> Maybe (Text, Text)
 instance GHC.Show.Show Data.Text.Class.CaseStyle
 instance GHC.Generics.Generic Data.Text.Class.CaseStyle
 instance GHC.Classes.Eq Data.Text.Class.CaseStyle

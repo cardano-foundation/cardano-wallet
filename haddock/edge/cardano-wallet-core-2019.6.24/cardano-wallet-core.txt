@@ -1789,65 +1789,65 @@ instance Database.Persist.Sql.Class.PersistFieldSql Cardano.Wallet.Primitive.Add
 module Cardano.Wallet.DB.Sqlite.TH
 data Wallet
 Wallet :: !WalletId -> !UTCTime -> !Text -> !Maybe UTCTime -> !WalletState -> !Maybe Text -> Wallet
-[walTableId] :: Wallet -> !WalletId
-[walTableCreationTime] :: Wallet -> !UTCTime
-[walTableName] :: Wallet -> !Text
-[walTablePassphraseLastUpdatedAt] :: Wallet -> !Maybe UTCTime
-[walTableStatus] :: Wallet -> !WalletState
-[walTableDelegation] :: Wallet -> !Maybe Text
+[walId] :: Wallet -> !WalletId
+[walCreationTime] :: Wallet -> !UTCTime
+[walName] :: Wallet -> !Text
+[walPassphraseLastUpdatedAt] :: Wallet -> !Maybe UTCTime
+[walStatus] :: Wallet -> !WalletState
+[walDelegation] :: Wallet -> !Maybe Text
 type WalletId = Key Wallet
 data PrivateKey
 PrivateKey :: !WalletId -> !ByteString -> !ByteString -> PrivateKey
-[privateKeyTableWalletId] :: PrivateKey -> !WalletId
-[privateKeyTableRootKey] :: PrivateKey -> !ByteString
-[privateKeyTableHash] :: PrivateKey -> !ByteString
+[privateKeyWalletId] :: PrivateKey -> !WalletId
+[privateKeyRootKey] :: PrivateKey -> !ByteString
+[privateKeyHash] :: PrivateKey -> !ByteString
 type PrivateKeyId = Key PrivateKey
 data TxMeta
 TxMeta :: !TxId -> !WalletId -> !TxStatus -> !Direction -> !SlotId -> !Natural -> TxMeta
-[txMetaTableTxId] :: TxMeta -> !TxId
-[txMetaTableWalletId] :: TxMeta -> !WalletId
-[txMetaTableStatus] :: TxMeta -> !TxStatus
-[txMetaTableDirection] :: TxMeta -> !Direction
-[txMetaTableSlotId] :: TxMeta -> !SlotId
-[txMetaTableAmount] :: TxMeta -> !Natural
+[txMetaTxId] :: TxMeta -> !TxId
+[txMetaWalletId] :: TxMeta -> !WalletId
+[txMetaStatus] :: TxMeta -> !TxStatus
+[txMetaDirection] :: TxMeta -> !Direction
+[txMetaSlotId] :: TxMeta -> !SlotId
+[txMetaAmount] :: TxMeta -> !Natural
 type TxMetaId = Key TxMeta
 data TxIn
 TxIn :: !TxId -> !Int -> !TxId -> !Word32 -> !Maybe Coin -> TxIn
-[txInputTableTxId] :: TxIn -> !TxId
-[txInputTableOrder] :: TxIn -> !Int
-[txInputTableSourceTxId] :: TxIn -> !TxId
-[txInputTableSourceIndex] :: TxIn -> !Word32
-[txInputTableSourceAmount] :: TxIn -> !Maybe Coin
+[txInputTxId] :: TxIn -> !TxId
+[txInputOrder] :: TxIn -> !Int
+[txInputSourceTxId] :: TxIn -> !TxId
+[txInputSourceIndex] :: TxIn -> !Word32
+[txInputSourceAmount] :: TxIn -> !Maybe Coin
 type TxInId = Key TxIn
 data TxOut
 TxOut :: !TxId -> !Word32 -> !Address -> !Coin -> TxOut
-[txOutputTableTxId] :: TxOut -> !TxId
-[txOutputTableIndex] :: TxOut -> !Word32
-[txOutputTableAddress] :: TxOut -> !Address
-[txOutputTableAmount] :: TxOut -> !Coin
+[txOutputTxId] :: TxOut -> !TxId
+[txOutputIndex] :: TxOut -> !Word32
+[txOutputAddress] :: TxOut -> !Address
+[txOutputAmount] :: TxOut -> !Coin
 type TxOutId = Key TxOut
 data Checkpoint
 Checkpoint :: !WalletId -> !SlotId -> !BlockId -> Checkpoint
-[checkpointTableWalletId] :: Checkpoint -> !WalletId
-[checkpointTableSlot] :: Checkpoint -> !SlotId
-[checkpointTableParent] :: Checkpoint -> !BlockId
+[checkpointWalletId] :: Checkpoint -> !WalletId
+[checkpointSlot] :: Checkpoint -> !SlotId
+[checkpointParent] :: Checkpoint -> !BlockId
 type CheckpointId = Key Checkpoint
 data UTxO
 UTxO :: !WalletId -> !SlotId -> !TxId -> !Word32 -> !Address -> !Coin -> UTxO
-[utxoTableWalletId] :: UTxO -> !WalletId
-[utxoTableCheckpointSlot] :: UTxO -> !SlotId
-[utxoTableInputId] :: UTxO -> !TxId
-[utxoTableInputIndex] :: UTxO -> !Word32
-[utxoTableOutputAddress] :: UTxO -> !Address
-[utxoTableOutputCoin] :: UTxO -> !Coin
+[utxoWalletId] :: UTxO -> !WalletId
+[utxoCheckpointSlot] :: UTxO -> !SlotId
+[utxoInputId] :: UTxO -> !TxId
+[utxoInputIndex] :: UTxO -> !Word32
+[utxoOutputAddress] :: UTxO -> !Address
+[utxoOutputCoin] :: UTxO -> !Coin
 type UTxOId = Key UTxO
 data SeqState
 SeqState :: !WalletId -> !SlotId -> !AddressPoolGap -> !AddressPoolGap -> !AddressPoolXPub -> SeqState
-[seqStateTableWalletId] :: SeqState -> !WalletId
-[seqStateTableCheckpointSlot] :: SeqState -> !SlotId
-[seqStateTableExternalGap] :: SeqState -> !AddressPoolGap
-[seqStateTableInternalGap] :: SeqState -> !AddressPoolGap
-[seqStateTableAccountXPub] :: SeqState -> !AddressPoolXPub
+[seqStateWalletId] :: SeqState -> !WalletId
+[seqStateCheckpointSlot] :: SeqState -> !SlotId
+[seqStateExternalGap] :: SeqState -> !AddressPoolGap
+[seqStateInternalGap] :: SeqState -> !AddressPoolGap
+[seqStateAccountXPub] :: SeqState -> !AddressPoolXPub
 type SeqStateId = Key SeqState
 data SeqStateAddresses
 SeqStateAddresses :: !Key SeqState -> !Address -> !Word32 -> !ChangeChain -> SeqStateAddresses
