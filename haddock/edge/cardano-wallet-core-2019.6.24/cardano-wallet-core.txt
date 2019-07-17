@@ -391,17 +391,19 @@ SlotId :: !Word64 -> !Word16 -> SlotId
 [$sel:slotNumber:SlotId] :: SlotId -> !Word16
 newtype SlotLength
 SlotLength :: DiffTime -> SlotLength
+newtype SlotsPerEpoch
+SlotsPerEpoch :: Word64 -> SlotsPerEpoch
 
 -- | Compute the approximate ratio / progress between two slots. This is an
 --   approximation for a few reasons, one of them being that we hard code
 --   the epoch length as a static number whereas it may vary in practice.
-slotRatio :: SlotId -> SlotId -> Quantity "percent" Percentage
+slotRatio :: SlotsPerEpoch -> SlotId -> SlotId -> Quantity "percent" Percentage
 
 -- | Convert a <a>SlotId</a> to the number of slots since genesis.
-flatSlot :: SlotId -> Word64
+flatSlot :: SlotsPerEpoch -> SlotId -> Word64
 
 -- | Convert a <a>flatSlot</a> index to <a>SlotId</a>.
-fromFlatSlot :: Word64 -> SlotId
+fromFlatSlot :: SlotsPerEpoch -> Word64 -> SlotId
 
 -- | Additional information about a wallet that can't simply be derived
 --   from the blockchain like <tt>Wallet s t</tt> is.
@@ -502,6 +504,8 @@ instance GHC.Classes.Ord (Cardano.Wallet.Primitive.Types.Hash tag)
 instance GHC.Classes.Eq (Cardano.Wallet.Primitive.Types.Hash tag)
 instance GHC.Generics.Generic (Cardano.Wallet.Primitive.Types.Hash tag)
 instance GHC.Show.Show (Cardano.Wallet.Primitive.Types.Hash tag)
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.SlotsPerEpoch
+instance GHC.Show.Show Cardano.Wallet.Primitive.Types.SlotsPerEpoch
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.SlotLength
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.SlotLength
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.TxMeta
@@ -1714,6 +1718,12 @@ TxId :: Hash "Tx" -> TxId
 newtype BlockId
 BlockId :: Hash "BlockHeader" -> BlockId
 [getBlockId] :: BlockId -> Hash "BlockHeader"
+
+-- | As a short-to-medium term solution of persisting <a>SlotId</a>, we use
+--   <a>flatSlot</a> with an artificial epochLength. I.e. /not the same
+--   epochLength as the blockchain/. This is just for the sake of storing
+--   the 64 bit epoch and the 16 bit slot inside a single 64-bit field.
+artificialEpochLength :: SlotsPerEpoch
 walletStateNum :: WalletState -> Word8
 walletStateFromNum :: Word8 -> WalletState
 mkCoin :: Word64 -> Either Text Coin
@@ -2473,16 +2483,18 @@ WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletNa
 --   most recent transaction comes first.
 [$sel:listTransactions:WalletLayer] :: WalletLayer s t -> DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO [(Tx t, TxMeta)]
 data BlockchainParameters t
-BlockchainParameters :: Block (Tx t) -> FeePolicy -> SlotLength -> Quantity "byte" Word16 -> BlockchainParameters t
+BlockchainParameters :: Block (Tx t) -> UTCTime -> FeePolicy -> SlotLength -> SlotsPerEpoch -> Quantity "byte" Word16 -> BlockchainParameters t
 
 -- | Very first block
 [$sel:getGenesisBlock:BlockchainParameters] :: BlockchainParameters t -> Block (Tx t)
+[$sel:getGenesisBlockDate:BlockchainParameters] :: BlockchainParameters t -> UTCTime
 
 -- | Policy regarding transcation fee
 [$sel:getFeePolicy:BlockchainParameters] :: BlockchainParameters t -> FeePolicy
 
 -- | Length, in seconds, of a slot
 [$sel:getSlotLength:BlockchainParameters] :: BlockchainParameters t -> SlotLength
+[$sel:getSlotsPerEpoch:BlockchainParameters] :: BlockchainParameters t -> SlotsPerEpoch
 
 -- | Maximum size of a transaction (soft or hard limit)
 [$sel:getTxMaxSize:BlockchainParameters] :: BlockchainParameters t -> Quantity "byte" Word16

@@ -21,20 +21,12 @@ cli :: Mod CommandFields a -> ParserInfo a
 
 -- | Runs a specific command parser using appropriate preferences
 runCli :: ParserInfo (IO ()) -> IO ()
-
--- | cardano-wallet mnemonic
 cmdMnemonic :: Mod CommandFields (IO ())
-
--- | cardano-wallet wallet
 cmdWallet :: forall t. (DecodeAddress t, EncodeAddress t) => Mod CommandFields (IO ())
 
 -- | cardano-wallet transaction
 cmdTransaction :: forall t. (DecodeAddress t, EncodeAddress t) => Mod CommandFields (IO ())
-
--- | cardano-wallet address
 cmdAddress :: forall t. (DecodeAddress t, EncodeAddress t) => Mod CommandFields (IO ())
-
--- | cardano-wallet version
 cmdVersion :: Mod CommandFields (IO ())
 
 -- | Execute <a>launch</a> commands. This differs from the <tt>serve</tt>

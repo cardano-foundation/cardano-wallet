@@ -96,7 +96,7 @@ data ConfigParam
 
 -- | The official start time of the blockchain, in seconds since the Unix
 --   epoch.
-Block0Date :: Word64 -> ConfigParam
+Block0Date :: UTCTime -> ConfigParam
 
 -- | Address discrimination. Testnet / Mainnet.
 Discrimination :: Network -> ConfigParam
@@ -105,7 +105,7 @@ Discrimination :: Network -> ConfigParam
 Consensus :: ConsensusVersion -> ConfigParam
 
 -- | Number of slots in an epoch.
-SlotsPerEpoch :: Quantity "slot/epoch" Word32 -> ConfigParam
+SlotsPerEpoch :: SlotsPerEpoch -> ConfigParam
 
 -- | Slot duration in seconds.
 SlotDuration :: DiffTime -> ConfigParam
@@ -379,7 +379,7 @@ ErrGetDescendantsParentNotFound :: Hash "BlockHeader" -> ErrGetDescendants
 data ErrGetBlockchainParams
 ErrGetBlockchainParamsNetworkUnreachable :: ErrNetworkUnavailable -> ErrGetBlockchainParams
 ErrGetBlockchainParamsGenesisNotFound :: Hash "Genesis" -> ErrGetBlockchainParams
-ErrGetBlockchainParamsNoInitialPolicy :: [ConfigParam] -> ErrGetBlockchainParams
+ErrGetBlockchainParamsIncompleteParams :: [ConfigParam] -> ErrGetBlockchainParams
 data BaseUrl
 BaseUrl :: Scheme -> String -> Int -> String -> BaseUrl
 [baseUrlScheme] :: BaseUrl -> Scheme
