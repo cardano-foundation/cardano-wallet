@@ -140,15 +140,9 @@ main = runCli $ cli $ mempty
 
 {-------------------------------------------------------------------------------
                             Command - 'launch'
-
-  cardano-wallet launch
-    [--network=STRING]
-    [(--port=INT | --random-port)]
-    [--node-port=INT]
-    [--state-dir=DIR]
-    [(--quiet | --verbose )]
 -------------------------------------------------------------------------------}
 
+-- | Arguments for the 'launch' command
 data LaunchArgs = LaunchArgs
     { _network :: Either Local Network
     , _listen :: Listen
@@ -157,7 +151,6 @@ data LaunchArgs = LaunchArgs
     , _verbosity :: Verbosity
     }
 
--- | cardano-wallet launch
 cmdLaunch
     :: Mod CommandFields (IO ())
 cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
@@ -210,13 +203,6 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
 
 {-------------------------------------------------------------------------------
                             Command - 'serve'
-
-  cardano-wallet serve
-    [--network=STRING]
-    [(--port=INT | --random-port)]
-    [--node-port=INT]
-    [--database=FILE]
-    [(--quiet | --verbose )]
 -------------------------------------------------------------------------------}
 
 -- | Arguments for the 'serve' command
@@ -228,7 +214,6 @@ data ServeArgs = ServeArgs
     , _verbosity :: Verbosity
     }
 
--- | cardano-wallet serve
 cmdServe
     :: Mod CommandFields (IO ())
 cmdServe = command "serve" $ info (helper <*> cmd) $ mempty

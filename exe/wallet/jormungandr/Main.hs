@@ -166,16 +166,9 @@ main = runCli $ cli $ mempty
 
 {-------------------------------------------------------------------------------
                             Command - 'launch'
-
-  cardano-wallet launch
-    [(--port=INT | --random-port)]
-    [--node-port=INT]
-    [--state-dir=DIR]
-    [(--quiet | --verbose )]
-    --genesis-block=FILE
-    --bft-leaders=FILE
 -------------------------------------------------------------------------------}
 
+-- | Arguments for the 'launch' command
 data LaunchArgs = LaunchArgs
     { _listen :: Listen
     , _nodePort :: Port "Node"
@@ -189,7 +182,6 @@ data JormungandrArgs = JormungandrArgs
     , _bftLeaders :: FilePath
     }
 
--- | cardano-wallet launch
 cmdLaunch
     :: Mod CommandFields (IO ())
 cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
@@ -267,14 +259,6 @@ parseBlock0H file = do
 
 {-------------------------------------------------------------------------------
                             Command - 'serve'
-
-  cardano-wallet serve
-    [--network=STRING]
-    [(--port=INT | --random-port)]
-    [--node-port=INT]
-    [--database=FILE]
-    [(--quiet | --verbose )]
-    --genesis-hash=STRING
 -------------------------------------------------------------------------------}
 
 -- | Arguments for the 'serve' command
@@ -286,7 +270,6 @@ data ServeArgs = ServeArgs
     , _block0H :: Hash "Genesis"
     }
 
--- | cardano-wallet serve
 cmdServe
     :: Mod CommandFields (IO ())
 cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
