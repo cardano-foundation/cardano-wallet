@@ -218,7 +218,7 @@ genConfigFile
     -> BaseUrl
     -> Aeson.Value
 genConfigFile stateDir (BaseUrl _ host port path) = object
-    [ "storage" .= (stateDir </> "jormungandr")
+    [ "storage" .= (stateDir </> "chain")
     , "rest" .= object
         [ "listen" .= String listen
         , "prefix" .= String prefix
