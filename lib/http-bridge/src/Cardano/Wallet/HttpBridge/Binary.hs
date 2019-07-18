@@ -1,9 +1,8 @@
--- need this for {-# HLINT ... #-}; see https://github.com/ndmitchell/hlint#ignoring-hints
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
+-- need this for {-# HLINT ... #-}; see https://github.com/ndmitchell/hlint#ignoring-hints
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -22,13 +21,18 @@
 module Cardano.Wallet.HttpBridge.Binary
     (
     -- * Decoding
-      decodeBlock
+      Block (..)
+    , BlockHeader (..)
+    , decodeBlock
     , decodeBlockHeader
     , decodeTx
     , decodeTxWitness
     , decodeSignedTx
     , decodeAddressPayload
 
+    -- * Conversion
+    , convertBlock
+    , convertBlockHeader
     -- * Encoding
     , encodeTx
     , encodeAddress
@@ -55,11 +59,10 @@ import Cardano.Wallet.HttpBridge.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
-    , Block (..)
-    , BlockHeader (..)
     , Coin (..)
     , Hash (..)
     , SlotId (..)
+    , SlotNo (..)
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
@@ -81,6 +84,8 @@ import Data.Word
 import Debug.Trace
     ( traceShow )
 
+import qualified Cardano.Wallet.Primitive.Types as W
+    ( Block (..), BlockHeader (..) )
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
@@ -89,6 +94,16 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Lazy as BL
 
 -- Decoding
+
+data Block = Block
+    { header :: !BlockHeader
+    , transactions :: ![Tx]
+    } deriving (Show, Eq)
+
+data BlockHeader = BlockHeader
+    { slotId :: SlotId
+    , prevBlockHash :: !(Hash "BlockHeader")
+    } deriving (Show, Eq)
 
 decodeAddress :: CBOR.Decoder s Address
 decodeAddress = do
@@ -126,7 +141,7 @@ decodeAttributes = do
     return ((), CBOR.encodeMapLen 0)
 
 {-# HLINT ignore decodeBlock "Use <$>" #-}
-decodeBlock :: CBOR.Decoder s (Block Tx)
+decodeBlock :: CBOR.Decoder s Block
 decodeBlock = do
     CBOR.decodeListLenCanonicalOf 2
     t <- CBOR.decodeWordCanonical
@@ -444,6 +459,27 @@ decodeUpdateProof :: CBOR.Decoder s ()
 decodeUpdateProof = do
     _ <- CBOR.decodeBytes -- Update Hash
     return ()
+
+-- * Conversion
+
+-- | Convert the Cardano Byron binary format block into a simpler Wallet block.
+convertBlock
+    :: (SlotId -> SlotNo)
+    -- ^ Function to determine absolute slot index from an (epoch, local slot).
+    -> Block -- ^ Deserialized block.
+    -> W.Block Tx
+convertBlock flatten (Block h txs) =
+    W.Block (convertBlockHeader flatten h) txs
+
+-- | Convert the Cardano Byron binary format block header into a simpler Wallet
+-- block header.
+convertBlockHeader
+    :: (SlotId -> SlotNo)
+    -- ^ Function to determine absolute slot index from an (epoch, local slot).
+    -> BlockHeader -- ^ Deserialized block header.
+    -> W.BlockHeader
+convertBlockHeader flatten (BlockHeader sl prev) =
+    W.BlockHeader (flatten sl) prev
 
 -- * Encoding
 

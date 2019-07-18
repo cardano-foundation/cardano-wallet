@@ -39,7 +39,8 @@ module Cardano.Wallet.Jormungandr.Binary
     , putTx
 
     -- * Coercion with business-domain
-    , coerceBlock
+    , convertBlock
+    , convertBlockHeader
 
     -- * Addresses
     , putAddress
@@ -76,8 +77,10 @@ import Cardano.Wallet.Primitive.Fee
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
+    , EpochLength (..)
     , Hash (..)
     , SlotId (..)
+    , SlotNo
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
@@ -361,7 +364,7 @@ data ConfigParam
     -- ^ Address discrimination. Testnet / Mainnet.
     | Consensus ConsensusVersion
     -- ^ Consensus version. BFT / Genesis Praos.
-    | SlotsPerEpoch W.EpochLength
+    | SlotsPerEpoch EpochLength
     -- ^ Number of slots in an epoch.
     | SlotDuration DiffTime
     -- ^ Slot duration in seconds.
@@ -403,7 +406,7 @@ getConfigParam = label "getConfigParam" $ do
         1 -> Discrimination <$> getNetwork
         2 -> Block0Date . posixSecondsToUTCTime . fromIntegral <$> getWord64be
         3 -> Consensus <$> getConsensusVersion
-        4 -> SlotsPerEpoch . W.EpochLength . fromIntegral  <$> getWord32be
+        4 -> SlotsPerEpoch . EpochLength . fromIntegral  <$> getWord32be
         5 -> SlotDuration . secondsToDiffTime . fromIntegral <$> getWord8
         6 -> EpochStabilityDepth . Quantity <$> getWord32be
         8 -> ConsensusGenesisPraosParamF <$> getMilli
@@ -532,15 +535,28 @@ withSizeHeader16be x = do
                                 Conversions
 -------------------------------------------------------------------------------}
 
-coerceBlock  :: Block -> W.Block Tx
-coerceBlock (Block h msgs) =
-    W.Block coerceHeader coerceMessages
+-- | Convert the Jörmungandr binary format block into a simpler Wallet block.
+convertBlock
+    :: (SlotId -> SlotNo)
+    -- ^ Function to determine absolute slot index from an (epoch, local slot).
+    -> Block -- ^ Deserialized Jörmungandr block.
+    -> W.Block Tx
+convertBlock flatten (Block h msgs) =
+    W.Block convertHeader convertMessages
   where
-    coerceHeader = W.BlockHeader (slot h) (parentHeaderHash h)
-    coerceMessages = msgs >>= \case
+    convertHeader = convertBlockHeader flatten h
+    convertMessages = msgs >>= \case
         Initial _ -> []
         Transaction (tx, _wits) -> return tx
         UnimplementedMessage _ -> []
+
+-- | Convert the Jörmungandr binary format header into a simpler Wallet header
+convertBlockHeader
+    :: (SlotId -> SlotNo)
+    -- ^ Function to determine absolute slot index from an (epoch, local slot).
+    -> BlockHeader -- ^ Deserialized Jörmungandr block header.
+    -> W.BlockHeader
+convertBlockHeader flatten h = W.BlockHeader (flatten (slot h)) (parentHeaderHash h)
 
 {-------------------------------------------------------------------------------
                               Legacy Decoders

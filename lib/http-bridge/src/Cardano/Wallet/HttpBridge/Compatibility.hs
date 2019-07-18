@@ -53,8 +53,8 @@ import Cardano.Wallet.Primitive.Types
     , EncodeAddress (..)
     , EpochLength (..)
     , Hash (..)
-    , SlotId (..)
     , SlotLength (..)
+    , SlotNo (..)
     , Tx (..)
     )
 import Crypto.Hash
@@ -162,7 +162,7 @@ instance DecodeAddress (HttpBridge (network :: Network)) where
 block0 :: Block W.Tx
 block0 = Block
     { header = BlockHeader
-        { slotId = SlotId 0 0
+        { slotNo = SlotNo 0
         , prevBlockHash = Hash "genesis"
         }
     , transactions = []

@@ -25,7 +25,7 @@ import Cardano.Wallet.Primitive.Types
     , DefineTx
     , EncodeAddress (..)
     , Hash (..)
-    , SlotId (..)
+    , SlotNo (..)
     , TxIn (..)
     , TxOut (..)
     )
@@ -88,7 +88,7 @@ instance Buildable Tx where
 block0 :: Block Tx
 block0 = Block
     { header = BlockHeader
-        { slotId = SlotId 0 0
+        { slotNo = SlotNo 0
         , prevBlockHash = Hash "genesis"
         }
     , transactions = []

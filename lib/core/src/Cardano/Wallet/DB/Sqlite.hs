@@ -501,7 +501,7 @@ mkCheckpointEntity wid wal =
         ]
     (metas, ins, outs) = mkTxHistory @t wid (Map.fromList pending)
     header = (W.currentTip wal)
-    sl = header ^. #slotId
+    sl = header ^. #slotNo
     parent = header ^. #prevBlockHash
     cp = Checkpoint
         { checkpointWalletId = wid
@@ -576,7 +576,7 @@ mkTxMetaEntity wid txid meta = TxMeta
     , txMetaWalletId = wid
     , txMetaStatus = meta ^. #status
     , txMetaDirection = meta ^. #direction
-    , txMetaSlotId = meta ^. #slotId
+    , txMetaSlot = meta ^. #slotNo
     , txMetaAmount = getAmount (meta ^. #amount)
     }
     where getAmount (Quantity n) = n
@@ -610,7 +610,7 @@ txHistoryFromEntity metas ins outs = map mkItem metas
     mkTxMeta m = W.TxMeta
         { W.status = txMetaStatus m
         , W.direction = txMetaDirection m
-        , W.slotId = txMetaSlotId m
+        , W.slotNo = txMetaSlot m
         , W.amount = Quantity (txMetaAmount m)
         }
 
@@ -631,7 +631,7 @@ insertCheckpoint wid cp = do
     putTxMetas metas
     putTxs ins outs
     dbChunked insertMany_ utxo
-    insertState (wid, (W.currentTip cp) ^. #slotId) (W.getState cp)
+    insertState (wid, (W.currentTip cp) ^. #slotNo) (W.getState cp)
 
 -- | Delete all checkpoints associated with a wallet.
 deleteCheckpoints
@@ -740,7 +740,7 @@ selectTxHistory
     -> [Filter TxMeta]
     -> SqlPersistT IO [(W.Hash "Tx", (W.Tx t, W.TxMeta))]
 selectTxHistory wid conditions = do
-    let opt = [Desc TxMetaSlotId] -- note: there is an index on this column
+    let opt = [Desc TxMetaSlot] -- note: there is an index on this column
     metas <- fmap entityVal <$> selectList
         ((TxMetaWalletId ==. wid) : conditions) opt
     let txids = map txMetaTxId metas
@@ -750,18 +750,18 @@ selectTxHistory wid conditions = do
 ---------------------------------------------------------------------------
 -- DB queries for address discovery state
 
--- | Get a @(WalletId, SlotId)@ pair from the checkpoint table, for use with
+-- | Get a @(WalletId, SlotNo)@ pair from the checkpoint table, for use with
 -- 'insertState' and 'selectState'.
-checkpointId :: Checkpoint -> (W.WalletId, W.SlotId)
+checkpointId :: Checkpoint -> (W.WalletId, W.SlotNo)
 checkpointId cp = (checkpointWalletId cp, checkpointSlot cp)
 
 -- | Functions for saving/loading the wallet's address discovery state into
 -- SQLite.
 class PersistState s where
     -- | Store the state for a checkpoint.
-    insertState :: (W.WalletId, W.SlotId) -> s -> SqlPersistT IO ()
+    insertState :: (W.WalletId, W.SlotNo) -> s -> SqlPersistT IO ()
     -- | Load the state for a checkpoint.
-    selectState :: (W.WalletId, W.SlotId) -> SqlPersistT IO (Maybe s)
+    selectState :: (W.WalletId, W.SlotNo) -> SqlPersistT IO (Maybe s)
     -- | Remove the state for all checkpoints of a wallet.
     deleteState :: W.WalletId -> SqlPersistT IO ()
 

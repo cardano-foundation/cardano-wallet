@@ -14,7 +14,9 @@ import Prelude
 
 
 import Cardano.Wallet.HttpBridge.Binary
-    ( decodeBlock
+    ( Block (..)
+    , BlockHeader (..)
+    , decodeBlock
     , decodeBlockHeader
     , decodeSignedTx
     , decodeTx
@@ -30,9 +32,7 @@ import Cardano.Wallet.HttpBridge.Environment
 import Cardano.Wallet.HttpBridge.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..)
-    , BlockHeader (..)
-    , Coin (..)
+    ( Coin (..)
     , Hash (..)
     , SlotId (..)
     , TxIn (..)
@@ -163,7 +163,7 @@ blockHeader1 = BlockHeader
     }
 
 -- A mainnet block
-block1 :: Block Tx
+block1 :: Block
 block1 = Block
     { header = BlockHeader
         { slotId = SlotId 105 9519
@@ -176,7 +176,7 @@ block1 = Block
         "4d97da40fb62bec847d6123762e82f9325f11d0c8e89deee0c7dbb598ed5f0cf"
 
 -- A mainnet block with a transaction
-block2 :: Block Tx
+block2 :: Block
 block2 = Block
     { header = BlockHeader
         { slotId = SlotId 105 9876
@@ -205,7 +205,7 @@ block2 = Block
         \aHz9M4myYAkQVc5m9E4DKJjRDjPxuDdK3ZsHb1Dnqf3XorZ1PnzX"
 
 -- A testnet block with a transaction
-block3 :: Block Tx
+block3 :: Block
 block3 = Block
     { header = BlockHeader
         { slotId = SlotId 30 9278
@@ -237,7 +237,7 @@ block3 = Block
         \RQRHCMezN6AMLd3uYTC5hbeVTUiPzfQUTCEogg2HrSJKQUjAgsoYZHwT3"
 
 -- A mainnet block with multiple transactions
-block4 :: Block Tx
+block4 :: Block
 block4 = Block
     { header = BlockHeader
         { slotId = SlotId 14 18

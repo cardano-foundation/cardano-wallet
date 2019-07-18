@@ -37,7 +37,7 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , Coin (..)
     , Hash (..)
-    , SlotId (..)
+    , SlotNo (..)
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
@@ -98,8 +98,8 @@ spec = do
         it "get network tip" $ \(_, nw) -> do
             resp <- runExceptT $ networkTip nw
             resp `shouldSatisfy` isRight
-            let (Right slot) = slotId <$> resp
-            slot `shouldSatisfy` (>= SlotId 0 0)
+            let (Right slot) = slotNo <$> resp
+            slot `shouldSatisfy` (>= SlotNo 0)
 
         it "get some blocks from the genesis" $ \(_, nw) -> do
             threadDelay (10 * second)
@@ -125,7 +125,7 @@ spec = do
             -- for what it's worth, I didn't bother retrying.
             bytes <- BS.pack <$> generate (vectorOf 32 arbitrary)
             let block = BlockHeader
-                    { slotId = SlotId 42 14 -- Anything
+                    { slotNo = SlotNo 42 -- Anything
                     , prevBlockHash = Hash bytes
                     }
             resp <- runExceptT $ nextBlocks nw block

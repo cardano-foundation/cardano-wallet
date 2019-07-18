@@ -108,8 +108,8 @@ import Cardano.Wallet.Primitive.Types
     , DefineTx (..)
     , Direction (..)
     , EpochLength (..)
-    , SlotId (..)
     , SlotLength (..)
+    , SlotNo (..)
     , Tx (..)
     , TxMeta (..)
     , TxOut (..)
@@ -292,7 +292,7 @@ data WalletLayer s t = WalletLayer
         -> ExceptT ErrNoSuchWallet IO [(Tx t, TxMeta)]
         -- ^ List all transactions and metadata from history for a given wallet.
         --
-        -- The result is sorted on 'slotId' in descending order. The most recent
+        -- The result is sorted on 'slotNo' in descending order. The most recent
         -- transaction comes first.
     }
 
@@ -415,7 +415,7 @@ newWalletLayer tracer bp db nw tl = do
         _block0Date
         feePolicy
         (SlotLength slotLength)
-        slotsPerEpoch
+        _slotsPerEpoch
         txMaxSize = bp
 
     logDebugT :: MonadIO m => Text -> m ()
@@ -544,7 +544,7 @@ newWalletLayer tracer bp db nw tl = do
                 restoreSleep t wid slot
             Right blocks -> do
                 let next = view #header . last $ blocks
-                runExceptT (restoreBlocks t wid blocks (tip ^. #slotId)) >>= \case
+                runExceptT (restoreBlocks t wid blocks (tip ^. #slotNo)) >>= \case
                     Left (ErrNoSuchWallet _) ->
                         logNotice t "Wallet is gone! Terminating worker..."
                     Right () -> do
@@ -576,12 +576,12 @@ newWalletLayer tracer bp db nw tl = do
         => Trace IO Text
         -> WalletId
         -> [Block (Tx t)]
-        -> SlotId -- ^ Network tip
+        -> SlotNo -- ^ Network tip
         -> ExceptT ErrNoSuchWallet IO ()
     restoreBlocks t wid blocks tip = do
         let (inf, sup) =
-                ( view #slotId . header . head $ blocks
-                , view #slotId . header . last $ blocks
+                ( view #slotNo . header . head $ blocks
+                , view #slotNo . header . last $ blocks
                 )
         liftIO $ logInfo t $ "Applying blocks ["+| inf |+" ... "+| sup |+"]"
 
@@ -600,7 +600,7 @@ newWalletLayer tracer bp db nw tl = do
                     splitAt (length blocks - 1) blocks
             liftIO $ logDebug t $ pretty (h ++ q)
             let (txs, cp') = applyBlocks @s @t (h ++ q) cp
-            let progress = slotRatio slotsPerEpoch sup tip
+            let progress = slotRatio sup tip
             let status' = if progress == maxBound
                     then Ready
                     else Restoring progress
@@ -712,7 +712,7 @@ newWalletLayer tracer bp db nw tl = do
                     let meta = TxMeta
                             { status = Pending
                             , direction = Outgoing
-                            , slotId = (currentTip w) ^. #slotId
+                            , slotNo = (currentTip w) ^. #slotNo
                             , amount = Quantity (amtInps - amtChng)
                             }
                     return (tx, meta, wit)

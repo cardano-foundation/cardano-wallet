@@ -25,6 +25,8 @@ module Cardano.Wallet.HttpBridge.Network
 
 import Prelude
 
+import Cardano.Wallet
+    ( BlockchainParameters (getEpochLength) )
 import Cardano.Wallet.HttpBridge.Api
     ( ApiT (..)
     , EpochIndex (..)
@@ -35,8 +37,10 @@ import Cardano.Wallet.HttpBridge.Api
     , PostSignedTx
     , api
     )
+import Cardano.Wallet.HttpBridge.Binary
+    ( Block (..), BlockHeader (..), convertBlock, convertBlockHeader )
 import Cardano.Wallet.HttpBridge.Compatibility
-    ( HttpBridge )
+    ( HttpBridge, byronBlockchainParameters )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.HttpBridge.Primitive.Types
@@ -49,7 +53,7 @@ import Cardano.Wallet.Network
     , NetworkLayer (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), Hash (..), SlotId (..), TxWitness )
+    ( Hash (..), SlotId (..), TxWitness, flatSlot, fromFlatSlot )
 import Control.Arrow
     ( left )
 import Control.Exception
@@ -87,18 +91,29 @@ import Servant.Extra.ContentTypes
 import Servant.Links
     ( Link, safeLink )
 
+import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text.Encoding as T
 import qualified Servant.Extra.ContentTypes as Api
 
 -- | Constructs a network layer with the given cardano-http-bridge API.
-mkNetworkLayer :: Monad m => HttpBridgeLayer m -> NetworkLayer (HttpBridge n) m
+mkNetworkLayer
+    :: forall m n.
+       (KnownNetwork (n :: Network), Monad m)
+    => HttpBridgeLayer m
+    -> NetworkLayer (HttpBridge n) m
 mkNetworkLayer httpBridge = NetworkLayer
-    { nextBlocks = \(BlockHeader sl _) ->
-        withExceptT ErrGetBlockNetworkUnreachable (rbNextBlocks httpBridge sl)
-    , networkTip = snd <$> getNetworkTip httpBridge
+    { nextBlocks = \(W.BlockHeader sl _) ->
+        withExceptT ErrGetBlockNetworkUnreachable $
+        map (convertBlock toSlotNo) <$>
+        rbNextBlocks httpBridge (fromSlotNo sl)
+    , networkTip = convertBlockHeader (toSlotNo) . snd <$> getNetworkTip httpBridge
     , postTx = postSignedTx httpBridge
     }
+  where
+    fromSlotNo = fromFlatSlot slotsPerEpoch
+    toSlotNo = flatSlot slotsPerEpoch
+    slotsPerEpoch = getEpochLength $ byronBlockchainParameters @n
 
 -- | Creates a cardano-http-bridge 'NetworkLayer' using the given connection
 -- settings.
@@ -121,7 +136,7 @@ rbNextBlocks
     :: Monad m
     => HttpBridgeLayer m -- ^ http-bridge API
     -> SlotId -- ^ Starting point
-    -> ExceptT ErrNetworkUnavailable m [Block Tx]
+    -> ExceptT ErrNetworkUnavailable m [Block]
 rbNextBlocks bridge start = maybeTip (getNetworkTip bridge) >>= \case
     Just (tipHash, tipHdr) -> do
         epochBlocks <-
@@ -141,7 +156,7 @@ rbNextBlocks bridge start = maybeTip (getNetworkTip bridge) >>= \case
 
     -- Predicate returns true iff the block is from the given slot or a later
     -- one.
-    blockIsAfter :: SlotId -> Block Tx -> Bool
+    blockIsAfter :: SlotId -> Block -> Bool
     blockIsAfter s = (> s) . slotId . header
 
     -- Grab the remaining blocks which aren't packed in epoch files,
@@ -161,7 +176,7 @@ fetchBlocksFromTip
     => HttpBridgeLayer m
     -> SlotId
     -> Hash "BlockHeader"
-    -> ExceptT ErrNetworkUnavailable m [Block Tx]
+    -> ExceptT ErrNetworkUnavailable m [Block]
 fetchBlocksFromTip bridge start tipHash =
     reverse <$> workBackwards tipHash
   where
@@ -180,9 +195,9 @@ fetchBlocksFromTip bridge start tipHash =
 -- | Endpoints of the cardano-http-bridge API.
 data HttpBridgeLayer m = HttpBridgeLayer
     { getBlock
-        :: Hash "BlockHeader" -> ExceptT ErrNetworkUnavailable m (Block Tx)
+        :: Hash "BlockHeader" -> ExceptT ErrNetworkUnavailable m Block
     , getEpoch
-        :: Word64 -> ExceptT ErrNetworkUnavailable m [(Block Tx)]
+        :: Word64 -> ExceptT ErrNetworkUnavailable m [Block]
     , getNetworkTip
         :: ExceptT ErrNetworkTip m (Hash "BlockHeader", BlockHeader)
     , postSignedTx

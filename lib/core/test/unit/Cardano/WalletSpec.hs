@@ -65,8 +65,8 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , EpochLength (..)
     , Hash (..)
-    , SlotId (..)
     , SlotLength (..)
+    , SlotNo (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -118,14 +118,7 @@ import GHC.Generics
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldNotBe, shouldSatisfy )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Property
-    , choose
-    , elements
-    , property
-    , withMaxSuccess
-    , (==>)
-    )
+    ( Arbitrary (..), Property, elements, property, withMaxSuccess, (==>) )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
@@ -356,7 +349,7 @@ walletListTransactionsSorted wallet@(wid, _, _) history =
         txs <- unsafeRunExceptT $ listTransactions wl wid
         length txs `shouldBe` Map.size history
         -- With the 'Down'-wrapper, the sort is descending.
-        txs `shouldBe` L.sortOn (Down . slotId . snd) txs
+        txs `shouldBe` L.sortOn (Down . slotNo . snd) txs
 
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
@@ -495,5 +488,5 @@ instance Arbitrary TxMeta where
     arbitrary = TxMeta
         <$> elements [Pending, InLedger, Invalidated]
         <*> elements [Incoming, Outgoing]
-        <*> (SlotId <$> choose (0, 1000) <*> choose (0, 21599))
+        <*> (SlotNo <$> arbitrary)
         <*> fmap (Quantity . fromIntegral) (arbitrary @Word32)

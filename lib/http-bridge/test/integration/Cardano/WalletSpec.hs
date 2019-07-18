@@ -27,7 +27,7 @@ import Cardano.Wallet.Primitive.Mnemonic
 import Cardano.Wallet.Primitive.Model
     ( currentTip )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), SlotId (..), WalletId (..), WalletName (..) )
+    ( BlockHeader (..), SlotNo (..), WalletId (..), WalletName (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Concurrent
@@ -58,9 +58,9 @@ spec = do
                 (mkSeqState @(HttpBridge 'Testnet) (xprv, mempty) minBound)
             unsafeRunExceptT $ restoreWallet wallet wid
             threadDelay 2000000
-            tip <- slotId . currentTip . fst <$>
+            tip <- slotNo . currentTip . fst <$>
                 unsafeRunExceptT (readWallet wallet wid)
-            unless (tip > (SlotId 0 0)) $
+            unless (tip > SlotNo 0) $
                 expectationFailure ("The wallet tip is still " ++ show tip)
   where
     port = 1337

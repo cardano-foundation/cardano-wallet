@@ -5,13 +5,11 @@ module Data.PackfileSpec
 import Prelude
 
 import Cardano.Wallet.HttpBridge.Binary
-    ( decodeBlock )
+    ( Block (..), BlockHeader (..), decodeBlock )
 import Cardano.Wallet.HttpBridge.BinarySpec
     ( unsafeDeserialiseFromBytes )
-import Cardano.Wallet.HttpBridge.Primitive.Types
-    ( Tx )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), SlotId (..) )
+    ( SlotId (..) )
 import Data.Either
     ( fromRight, isRight )
 import Data.Packfile
@@ -102,7 +100,7 @@ spec = do
             slotNumber second `shouldBe` 1 -- second block
 
 -- | Decode all blocks in a pack file, without error handling
-unsafeDeserialiseEpoch :: L8.ByteString -> [Block Tx]
+unsafeDeserialiseEpoch :: L8.ByteString -> [Block]
 unsafeDeserialiseEpoch = either giveUp decodeBlocks . decodePackfile
     where
         decodeBlocks = map decodeBlob

@@ -22,8 +22,10 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , Dom (..)
     , EpochLength (..)
+    , EpochLength (..)
     , Hash (..)
     , SlotId (..)
+    , SlotNo (..)
     , TxIn (..)
     , TxMeta (TxMeta)
     , TxOut (..)
@@ -112,21 +114,21 @@ spec = do
             let wid = WalletId $ digest $ publicKey xprv
             "336c96f1...b8cac9ce" === pretty @_ @Text wid
         it "TxMeta (1)" $ do
-            let txMeta = TxMeta Pending Outgoing (SlotId 14 42) (Quantity 1337)
-            "-0.001337 pending since 14.42" === pretty @_ @Text txMeta
+            let txMeta = TxMeta Pending Outgoing (SlotNo 302442) (Quantity 1337)
+            "-0.001337 pending since 302442" === pretty @_ @Text txMeta
         it "TxMeta (2)" $ do
             let txMeta =
-                    TxMeta InLedger Incoming (SlotId 14 0) (Quantity 13371442)
-            "+13.371442 in ledger since 14.0" === pretty @_ @Text txMeta
+                    TxMeta InLedger Incoming (SlotNo 302400) (Quantity 13371442)
+            "+13.371442 in ledger since 302400" === pretty @_ @Text txMeta
         it "TxMeta (3)" $ do
-            let txMeta = TxMeta Invalidated Incoming (SlotId 0 42) (Quantity 0)
-            "+0.000000 invalidated since 0.42" === pretty @_ @Text txMeta
+            let txMeta = TxMeta Invalidated Incoming (SlotNo 302442) (Quantity 0)
+            "+0.000000 invalidated since 302442" === pretty @_ @Text txMeta
 
     let slotsPerEpoch = EpochLength 21600
 
     describe "slotRatio" $ do
         it "works for any two slots" $ property $ \sl0 sl1 ->
-            slotRatio slotsPerEpoch sl0 sl1 `deepseq` ()
+            slotRatio sl0 sl1 `deepseq` ()
     describe "flatSlot" $ do
         it "flatSlot . fromFlatSlot == id" $ property $ \sl ->
             fromFlatSlot slotsPerEpoch (flatSlot slotsPerEpoch sl) === sl
@@ -183,6 +185,8 @@ spec = do
             (checkCoverage prop_2_6_2)
 
     describe "Slotting ordering" $ do
+        it "Any Slot >= SlotNo 0"
+            (property (>= SlotNo 0))
         it "Any Slot >= SlotId 0 0"
             (property (>= SlotId 0 0))
         it "SlotId 1 2 < SlotId 2 1"
@@ -393,6 +397,10 @@ instance Arbitrary SlotId where
         ep <- choose (0, 10)
         sl <- choose (0, 100)
         return (SlotId ep sl)
+
+instance Arbitrary SlotNo where
+    shrink _ = []
+    arbitrary = SlotNo <$> choose (0, 216000)
 
 instance Arbitrary (Block Tx) where
     shrink (Block h txs) = Block h <$> shrink txs

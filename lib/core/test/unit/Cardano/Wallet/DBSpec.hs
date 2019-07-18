@@ -72,7 +72,7 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Direction (..)
     , Hash (..)
-    , SlotId (..)
+    , SlotNo (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -193,7 +193,7 @@ type TxHistory = [(Hash "Tx", (Tx, TxMeta))]
 
 -- | Apply the default sort order (descending on time) to a 'TxHistory'.
 sortTxHistory :: TxHistory -> TxHistory
-sortTxHistory = L.sortOn (Down . slotId . snd . snd)
+sortTxHistory = L.sortOn (Down . slotNo . snd . snd)
 
 newtype KeyValPairs k v = KeyValPairs [(k, v)]
     deriving (Generic, Show, Eq)
@@ -301,8 +301,12 @@ instance Arbitrary TxMeta where
     arbitrary = TxMeta
         <$> elements [Pending, InLedger, Invalidated]
         <*> elements [Incoming, Outgoing]
-        <*> (SlotId <$> choose (0, 1000) <*> choose (0, 21599))
+        <*> arbitrary
         <*> fmap (Quantity . fromIntegral) (arbitrary @Word32)
+
+instance Arbitrary SlotNo where
+    shrink (SlotNo sl) = SlotNo <$> shrink sl
+    arbitrary = SlotNo <$> choose (0, 1000000000)
 
 customizedGen :: Gen Percentage
 customizedGen = do

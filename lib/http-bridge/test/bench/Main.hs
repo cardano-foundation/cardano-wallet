@@ -46,7 +46,7 @@ import Cardano.Wallet.Primitive.Model
     ( totalBalance, totalUTxO )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
-    , SlotId (..)
+    , SlotNo (..)
     , UTxO (..)
     , WalletId (..)
     , WalletName (..)
@@ -226,7 +226,7 @@ bench_restoration _ (wid, wname, s) = withHttpBridge network $ \port -> do
   where
     network = networkVal @n
 
-logChunk :: SlotId -> IO ()
+logChunk :: SlotNo -> IO ()
 logChunk slot = sayErr . fmt $ "Processing "+||slot||+""
 
 withHttpBridge :: Network -> (Int -> IO a) -> IO a
@@ -280,11 +280,11 @@ waitForWalletSync walletLayer wid = do
 waitForNodeSync
     :: NetworkLayer t IO
     -> Text
-    -> (SlotId -> SlotId -> IO ())
-    -> IO SlotId
+    -> (SlotNo -> SlotNo -> IO ())
+    -> IO SlotNo
 waitForNodeSync bridge networkName logSlot = loop 10
   where
-    loop :: Int -> IO SlotId
+    loop :: Int -> IO SlotNo
     loop retries = runExceptT (networkTip bridge) >>= \case
         Right (BlockHeader tipBlockSlot _) -> do
             currentSlot <- getCurrentSlot networkName
@@ -303,22 +303,18 @@ waitForNodeSync bridge networkName logSlot = loop 10
                | otherwise -> throwIO e
 
 -- | Calculate the current slot, because the network layer doesn't know it.
-getCurrentSlot :: Text -> IO SlotId
+getCurrentSlot :: Text -> IO SlotNo
 getCurrentSlot net = calcSlot <$> startTime net <*> getPOSIXTime
   where
-    calcSlot :: POSIXTime -> POSIXTime -> SlotId
-    calcSlot start now = SlotId ep idx
+    calcSlot :: POSIXTime -> POSIXTime -> SlotNo
+    calcSlot start now = SlotNo $ floor $ (now - start) / slotDur
       where
-        d = now - start
         slotDur = 20
-        epochDur = slotDur * 21600
-        ep = floor (d / epochDur)
-        idx = floor ((d - (fromIntegral ep) * epochDur) / slotDur)
 
     startTime :: MonadFail m => Text -> m POSIXTime
     startTime "mainnet" = pure 1506203091
     startTime "testnet" = pure 1537941600
     startTime n = fail $ "Unknown network name: " ++ T.unpack n
 
-logQuiet :: SlotId -> SlotId -> IO ()
+logQuiet :: SlotNo -> SlotNo -> IO ()
 logQuiet _ _ = pure ()

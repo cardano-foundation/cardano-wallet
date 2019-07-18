@@ -49,7 +49,7 @@ import Cardano.Wallet.Jormungandr.Api
     , api
     )
 import Cardano.Wallet.Jormungandr.Binary
-    ( ConfigParam (..), Message (..), coerceBlock )
+    ( ConfigParam (..), Message (..), convertBlock, convertBlockHeader )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, softTxMaxSize )
 import Cardano.Wallet.Jormungandr.Primitive.Types
@@ -62,11 +62,13 @@ import Cardano.Wallet.Network
     , NetworkLayer (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..)
-    , BlockHeader (..)
+    ( BlockHeader (..)
     , Hash (..)
+    , SlotId
     , SlotLength (..)
+    , SlotNo (..)
     , TxWitness (..)
+    , flatSlot
     )
 import Control.Arrow
 import Control.Exception
@@ -105,6 +107,7 @@ import Servant.Links
     ( Link, safeLink )
 
 import qualified Cardano.Wallet.Jormungandr.Binary as J
+import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text.Encoding as T
 
@@ -127,12 +130,12 @@ mkNetworkLayer j = NetworkLayer
     { networkTip = do
         t <- (getTipId j) `mappingError`
             ErrNetworkTipNetworkUnreachable
-        b <- (getBlock j t) `mappingError` \case
+        J.Block h _ <- (getBlock j t) `mappingError` \case
             ErrGetBlockNotFound _ ->
                 ErrNetworkTipNotFound
             ErrGetBlockNetworkUnreachable e ->
                 ErrNetworkTipNetworkUnreachable e
-        return $ header b
+        return $ convertBlockHeader toSlotNo h
 
     , nextBlocks = \tip -> do
         let count = 10000
@@ -145,7 +148,7 @@ mkNetworkLayer j = NetworkLayer
                 ErrGetBlockNetworkUnreachable e
             ErrGetDescendantsParentNotFound _ ->
                 ErrGetBlockNotFound (prevBlockHash tip)
-        forM ids (getBlock j)
+        forM ids (fmap (convertBlock toSlotNo) <$> getBlock j)
 
     , postTx = postMessage j
     }
@@ -154,6 +157,23 @@ mkNetworkLayer j = NetworkLayer
 
     tailOrEmpty [] = []
     tailOrEmpty (_:xs) = xs
+
+-- | Internal parameters of the network layer implementation.
+data Config = Config
+    { toSlotNo :: SlotId -> SlotNo
+    , slotTime :: SlotNo -> UTCTime
+    }
+
+mkConfig :: BlockchainParameters n -> Config
+mkConfig bp = Config
+    { toSlotNo = flatSlot (getEpochLength bp)
+    , slotTime = \(SlotNo _) -> error "slotTime unimplemented #529"
+    }
+
+-- | Placeholder config, for use when it doesn't matter (e.g. testing if the
+-- node backend is responding).
+nullConfig :: Config
+nullConfig = Config (const $ SlotNo 0) (const $ read "2000-01-01 00:00:00")
 
 {-------------------------------------------------------------------------------
                             Jormungandr Client
@@ -165,7 +185,7 @@ data JormungandrLayer n m = JormungandrLayer
         :: ExceptT ErrNetworkUnavailable m (Hash "BlockHeader")
     , getBlock
         :: Hash "BlockHeader"
-        -> ExceptT ErrGetBlock m (Block Tx)
+        -> ExceptT ErrGetBlock m J.Block
     , getDescendantIds
         :: Hash "BlockHeader"
         -> Word
@@ -206,7 +226,7 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
         run (getBlockId <$> cGetTipId) >>= defaultHandler ctx
 
     , getBlock = \blockId -> ExceptT $ do
-        run (coerceBlock <$> cGetBlock (BlockId blockId)) >>= \case
+        run (cGetBlock (BlockId blockId)) >>= \case
             Left (FailureResponse e) | responseStatusCode e == status400 ->
                 return . Left . ErrGetBlockNotFound $ blockId
             x -> do
@@ -271,16 +291,16 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
                     Block0Date x -> Just x
                     _ -> Nothing
 
-        let mepochLength = mapMaybe getSlotsPerEpoch params
+        let mepochLength = mapMaybe getEpochLength params
               where
-                getSlotsPerEpoch = \case
+                getEpochLength = \case
                     SlotsPerEpoch x -> Just x
                     _ -> Nothing
 
         case (mpolicy, mduration, mblock0Date, mepochLength) of
             ([policy],[duration],[block0Date], [epochLength]) ->
                 return $ BlockchainParameters
-                    { getGenesisBlock = coerceBlock jblock
+                    { getGenesisBlock = convertBlock (const $ SlotNo 0) jblock
                     , getGenesisBlockDate = block0Date
                     , getFeePolicy = policy
                     , getEpochLength = epochLength
@@ -334,3 +354,8 @@ data ErrGetBlockchainParams
     | ErrGetBlockchainParamsGenesisNotFound (Hash "Genesis")
     | ErrGetBlockchainParamsIncompleteParams [ConfigParam]
     deriving (Show, Eq)
+
+-- TODO: This is temporary. The actual value should be retrieved from the
+-- network config params.
+toSlotNo :: SlotId -> SlotNo
+toSlotNo = flatSlot (W.SlotsPerEpoch 21600)

@@ -42,6 +42,7 @@ import Cardano.Wallet.Primitive.Fee
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
+    , EpochLength (..)
     , Hash (..)
     , SlotId (..)
     , TxIn (..)
@@ -81,7 +82,6 @@ import Test.QuickCheck.Arbitrary.Generic
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
-import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteString as BS
 
 spec :: Spec
@@ -113,7 +113,7 @@ spec = do
                     BlockHeader
                         { version = 0
                         , contentSize = 458
-                        , slot = block0 ^. #slotId
+                        , slot = SlotId 0 0
                         , chainLength = 0
                         , contentHash = Hash $ unsafeFromHex
                             "f7becdf807c706cef54ec4832d2a7475\
@@ -124,7 +124,7 @@ spec = do
                         [ Block0Date (posixSecondsToUTCTime 1556202057)
                         , Discrimination Testnet
                         , Consensus BFT
-                        , SlotsPerEpoch $ W.EpochLength 2160
+                        , SlotsPerEpoch $ EpochLength 2160
                         , SlotDuration (secondsToDiffTime 15)
                         , EpochStabilityDepth (Quantity 10)
                         , AddBftLeader $ LeaderId $ unsafeFromHex
@@ -166,7 +166,7 @@ spec = do
                     BlockHeader
                         { version = 0
                         , contentSize = 129
-                        , slot = block0 ^. #slotId
+                        , slot = SlotId 0 0
                         , chainLength = 0
                         , contentHash = Hash $ unsafeFromHex
                             "5df3b1c19c1400a9925158ade2b71913\
@@ -177,7 +177,7 @@ spec = do
                         [ Block0Date (posixSecondsToUTCTime 1556202057)
                         , Discrimination Mainnet
                         , Consensus BFT
-                        , SlotsPerEpoch (W.EpochLength 500)
+                        , SlotsPerEpoch (EpochLength 500)
                         , SlotDuration (secondsToDiffTime 10)
                         , EpochStabilityDepth (Quantity 10)
                         , AddBftLeader $ LeaderId $ unsafeFromHex

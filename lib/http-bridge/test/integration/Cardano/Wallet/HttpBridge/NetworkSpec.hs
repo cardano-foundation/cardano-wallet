@@ -29,11 +29,15 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , Coin (..)
+    , EpochLength (..)
     , Hash (..)
     , SlotId (..)
+    , SlotNo
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
+    , flatSlot
+    , fromFlatSlot
     )
 import Control.Concurrent
     ( threadDelay )
@@ -90,7 +94,7 @@ spec = do
 
         it "get unstable blocks for the unstable epoch" $ \(_, bridge) -> do
             let action = runExceptT $ do
-                    (SlotId ep sl) <- slotId <$> networkTip' bridge
+                    SlotId ep sl <- fromSlotNo . slotNo <$> networkTip' bridge
                     let sl' = if sl > 2 then sl - 2 else 0
                     blocks <- nextBlocks' bridge (mkHeader $ SlotId ep sl')
                     lift $ blocks `shouldSatisfy` (\bs
@@ -101,7 +105,7 @@ spec = do
 
         it "produce no blocks if start is after tip" $ \(_, bridge) -> do
             let action = runExceptT $ do
-                    SlotId ep sl <- slotId <$> networkTip' bridge
+                    SlotId ep sl <- fromSlotNo . slotNo <$> networkTip' bridge
                     length <$> nextBlocks' bridge (mkHeader $ SlotId (ep + 1) sl)
             action `shouldReturn` pure 0
 
@@ -247,8 +251,14 @@ spec = do
     second = 1000*1000
 
     -- The underlying HttpBridgeLayer is only needs the slot of the header.
-    mkHeader slot = BlockHeader
-        { slotId = slot
+    mkHeader slotId = BlockHeader
+        { slotNo = toSlotNo slotId
         , prevBlockHash =
             Hash "prevBlockHash is not used by the http-bridge NetworkLayer"
         }
+
+fromSlotNo :: SlotNo -> SlotId
+fromSlotNo = fromFlatSlot (EpochLength 21600)
+
+toSlotNo :: SlotId -> SlotNo
+toSlotNo = flatSlot (EpochLength 21600)

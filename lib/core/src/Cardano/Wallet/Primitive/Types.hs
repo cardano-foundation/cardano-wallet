@@ -65,6 +65,7 @@ module Cardano.Wallet.Primitive.Types
     , Dom(..)
 
     -- * Slotting
+    , SlotNo (..)
     , SlotId (..)
     , SlotLength (..)
     , EpochLength (..)
@@ -327,8 +328,8 @@ instance Buildable tx => Buildable (Block tx) where
         <> indentF 4 (blockListF txs)
 
 data BlockHeader = BlockHeader
-    { slotId
-        :: SlotId
+    { slotNo
+        :: SlotNo
     , prevBlockHash
         :: !(Hash "BlockHeader")
     } deriving (Show, Eq, Ord, Generic)
@@ -421,7 +422,7 @@ instance Buildable (TxIn, TxOut) where
 data TxMeta = TxMeta
     { status :: !TxStatus
     , direction :: !Direction
-    , slotId :: !SlotId
+    , slotNo :: !SlotNo
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Show, Eq, Ord, Generic)
 
@@ -661,10 +662,40 @@ restrictedTo (UTxO utxo) outs =
   in their corresponding block. This should be probably enough to cover for
   pretty much all our needs.
 
-  If slotting arithmetic has to be introduced, it will require proper thoughts.
+  The core wallet works with absolute 'SlotNo' values. The network node backends
+  convert 'SlotId' (epoch and local slot) values to simple 'SlotNo' values
+  using their configuration and chain state.
+
 -------------------------------------------------------------------------------}
 
--- | A slot identifier is the combination of an epoch and slot.
+-- | Slot number - the 0-based index for the Ouroboros time slot.
+newtype SlotNo = SlotNo { unSlotNo :: Word64 }
+  deriving stock (Show, Read, Eq, Ord, Bounded, Generic)
+  deriving newtype (Num, Enum)
+
+instance NFData SlotNo
+
+instance Buildable SlotNo where
+    build (SlotNo s) = fromString (show s)
+
+-- | Compute the approximate ratio / progress between two slots. This is an
+-- approximation because the result is rounded up to 100%, if the numerator is
+-- within a few slots distance of the denominator.
+slotRatio
+    :: SlotNo
+        -- ^ Numerator
+    -> SlotNo
+        -- ^ Denominator
+    -> Quantity "percent" Percentage
+slotRatio (SlotNo a) (SlotNo b) =
+    let
+        tolerance = 5
+    in if distance a b < tolerance || a >= b then
+        maxBound
+    else
+        Quantity $ toEnum $ fromIntegral $ (100 * a) `div` b
+
+--- | A slot identifier is the combination of an epoch and slot.
 data SlotId = SlotId
   { epochNumber :: !Word64
   , slotNumber :: !Word16
@@ -675,33 +706,14 @@ instance NFData SlotId
 instance Buildable SlotId where
     build (SlotId e s) = fromString (show e) <> "." <> fromString (show s)
 
--- | Compute the approximate ratio / progress between two slots. This is an
--- approximation for a few reasons, one of them being that we hard code the
--- epoch length as a static number whereas it may vary in practice.
-slotRatio
-    :: EpochLength
-    -> SlotId
-        -- ^ Numerator
-    -> SlotId
-        -- ^ Denominator
-    -> Quantity "percent" Percentage
-slotRatio epochLength a b =
-    let
-        n0 = flatSlot epochLength a
-        n1 = flatSlot epochLength b
-        tolerance = 5
-    in if distance n0 n1 < tolerance || n0 >= n1 then
-        maxBound
-    else
-        Quantity $ toEnum $ fromIntegral $ (100 * n0) `div` n1
-
 -- | Convert a 'SlotId' to the number of slots since genesis.
-flatSlot :: EpochLength -> SlotId -> Word64
-flatSlot (EpochLength epochLength) (SlotId e s) = epochLength * e + fromIntegral s
+flatSlot :: EpochLength -> SlotId -> SlotNo
+flatSlot (EpochLength epochLength) (SlotId e s) =
+    SlotNo (epochLength * e + fromIntegral s)
 
 -- | Convert a 'flatSlot' index to 'SlotId'.
-fromFlatSlot :: EpochLength -> Word64 -> SlotId
-fromFlatSlot (EpochLength epochLength) n = SlotId e (fromIntegral s)
+fromFlatSlot :: EpochLength -> SlotNo -> SlotId
+fromFlatSlot (EpochLength epochLength) (SlotNo n) = SlotId e (fromIntegral s)
   where
     e = n `div` epochLength
     s = n `mod` epochLength
@@ -711,6 +723,7 @@ newtype SlotLength = SlotLength DiffTime
 
 newtype EpochLength = EpochLength Word64
     deriving (Show, Eq)
+
 {-------------------------------------------------------------------------------
                                Polymorphic Types
 -------------------------------------------------------------------------------}

@@ -85,7 +85,7 @@ TxMeta
     txMetaWalletId   W.WalletId   sql=wallet_id
     txMetaStatus     W.TxStatus   sql=status
     txMetaDirection  W.Direction  sql=direction
-    txMetaSlotId     W.SlotId     sql=slot
+    txMetaSlot       W.SlotNo     sql=slot
     txMetaAmount     Natural      sql=amount
 
     Primary txMetaTxId txMetaWalletId
@@ -123,7 +123,7 @@ TxOut
 -- Checkpoint data such as UTxO will refer to this table.
 Checkpoint
     checkpointWalletId    W.WalletId  sql=wallet_id
-    checkpointSlot        W.SlotId    sql=slot
+    checkpointSlot        W.SlotNo    sql=slot
     checkpointParent      BlockId     sql=parent
 
     Primary checkpointWalletId checkpointSlot
@@ -138,7 +138,7 @@ UTxO                                sql=utxo
 
     -- The wallet checkpoint (wallet_id, slot)
     utxoWalletId        W.WalletId  sql=wallet_id
-    utxoCheckpointSlot  W.SlotId    sql=slot
+    utxoCheckpointSlot  W.SlotNo    sql=slot
 
     -- TxIn
     utxoInputId         TxId        sql=input_tx_id
@@ -163,7 +163,7 @@ UTxO                                sql=utxo
 SeqState
     -- The wallet checkpoint (wallet_id, slot)
     seqStateWalletId        W.WalletId        sql=wallet_id
-    seqStateCheckpointSlot  W.SlotId          sql=slot
+    seqStateCheckpointSlot  W.SlotNo          sql=slot
     seqStateExternalGap     W.AddressPoolGap  sql=external_gap
     seqStateInternalGap     W.AddressPoolGap  sql=internal_gap
     seqStateAccountXPub     AddressPoolXPub   sql=account_xpub

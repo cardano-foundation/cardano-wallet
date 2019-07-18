@@ -27,7 +27,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
-    ( Hash, Tx, TxMeta (slotId), WalletId, WalletMetadata )
+    ( Hash, Tx, TxMeta (slotNo), WalletId, WalletMetadata )
 import Control.Concurrent.MVar
     ( MVar, modifyMVar, newMVar, readMVar, withMVar )
 import Control.DeepSeq
@@ -127,7 +127,7 @@ newDBLayer = do
 
         , readTxHistory = \key -> let
                 sortedTxHistory = sortOn slot . Map.toList . txHistory
-                slot = Down . slotId . snd . snd
+                slot = Down . slotNo . snd . snd
             in maybe mempty sortedTxHistory . Map.lookup key <$> readMVar db
 
         {-----------------------------------------------------------------------

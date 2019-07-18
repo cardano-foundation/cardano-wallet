@@ -40,7 +40,7 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Direction (..)
     , Hash (..)
-    , SlotId (..)
+    , SlotNo (..)
     , TxIn (..)
     , TxMeta (TxMeta)
     , TxOut (..)
@@ -298,6 +298,6 @@ testWid = PrimaryKey (WalletId (hash @ByteString "test"))
 testTxs :: [(Hash "Tx", (Tx, TxMeta))]
 testTxs =
     [ (Hash "tx2", (Tx [TxIn (Hash "tx1") 0] [TxOut (Address "addr") (Coin 1)]
-      , TxMeta InLedger Incoming (SlotId 14 0) (Quantity 1337144))
+      , TxMeta InLedger Incoming (SlotNo 302400) (Quantity 1337144))
       )
     ]
