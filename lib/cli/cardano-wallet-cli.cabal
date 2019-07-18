@@ -38,6 +38,7 @@ library
     , cardano-wallet-launcher
     , directory
     , extra
+    , filepath
     , fmt
     , http-client
     , iohk-monitoring

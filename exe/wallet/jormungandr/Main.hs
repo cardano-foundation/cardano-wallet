@@ -204,7 +204,7 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
         cmdName <- getProgName
         block0H <- parseBlock0H (_genesisBlock jArgs)
         let baseUrl = BaseUrl Http "127.0.0.1" (getPort nodePort) "/api"
-        stateDir <- resolveHomeDir stateDirRaw
+        stateDir <- resolveHomeDir @(Jormungandr 'Testnet) stateDirRaw
         let nodeConfig = stateDir </> "jormungandr-config.json"
         let withStateDir tracer _ = do
                 genConfigFile stateDir baseUrl

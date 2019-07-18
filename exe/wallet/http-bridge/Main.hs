@@ -150,15 +150,24 @@ cmdLaunch
 cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
     <> progDesc "Launch and monitor a wallet server and its chain producer."
   where
-    cmd = fmap exec $ LaunchArgs
+    cmd = fmap withNetwork $ LaunchArgs
         <$> networkOption'
         <*> listenOption
         <*> nodePortOption
         <*> stateDirOption
         <*> verbosityOption
+    withNetwork args@(LaunchArgs network _ _ _ _) = case network of
+        Left Local -> exec @(HttpBridge 'Testnet) args
+        Right Testnet -> exec @(HttpBridge 'Testnet) args
+        Right Mainnet -> exec @(HttpBridge 'Mainnet) args
+    exec
+        :: forall t n s. (t ~ HttpBridge n, s ~ SeqState t)
+        => (KeyToAddress t, KnownNetwork n)
+        => LaunchArgs
+        -> IO ()
     exec (LaunchArgs network listen nodePort stateDirRaw verbosity) = do
         let withStateDir _ _ = pure ()
-        stateDir <- resolveHomeDir stateDirRaw
+        stateDir <- resolveHomeDir @t stateDirRaw
         cmdName <- getProgName
         execLaunch verbosity stateDir withStateDir
             [ commandHttpBridge stateDir

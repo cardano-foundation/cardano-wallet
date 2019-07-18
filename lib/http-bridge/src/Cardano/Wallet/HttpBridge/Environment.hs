@@ -36,6 +36,8 @@ import Data.Text.Class
     , fromTextToBoundedEnum
     , toTextFromBoundedEnum
     )
+import Data.Typeable
+    ( Typeable )
 import GHC.Generics
     ( Generic )
 
@@ -47,7 +49,7 @@ data Network = Mainnet | Testnet
 newtype ProtocolMagic = ProtocolMagic Int32
     deriving (Generic, Show)
 
-class KnownNetwork (n :: Network) where
+class Typeable n => KnownNetwork (n :: Network) where
     networkVal :: Network
     protocolMagic :: ProtocolMagic
 

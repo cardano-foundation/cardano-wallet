@@ -164,6 +164,8 @@ import Data.Time.Clock
     ( UTCTime )
 import Data.Time.Text
     ( iso8601, iso8601ExtendedUtc, utcTimeFromText, utcTimeToText )
+import Data.Typeable
+    ( TypeRep, Typeable, tyConName, typeRep, typeRepArgs, typeRepTyCon )
 import Fmt
     ( Buildable, blockListF, fmt, nameF, pretty )
 import GHC.Generics
@@ -216,6 +218,8 @@ import System.Directory
     ( doesFileExist, getHomeDirectory )
 import System.Exit
     ( exitFailure, exitSuccess, exitWith )
+import System.FilePath
+    ( (</>) )
 import System.IO
     ( BufferMode (..)
     , Handle
@@ -240,6 +244,7 @@ import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
+import qualified Data.Char as C
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -1128,14 +1133,25 @@ decodeError bytes = do
     Aeson.parseMaybe (Aeson.withObject "Error" (.: "message")) obj
 
 -- | Resolve '~' or '$HOME' in a 'FilePath' to their actual system value
-resolveHomeDir :: FilePath -> IO FilePath
+resolveHomeDir
+    :: forall t. Typeable t
+    => FilePath
+    -> IO FilePath
 resolveHomeDir dir = do
+    let namespace = typeRepFilePath $ typeRep $ Proxy @t
     homeDir <- T.pack <$> getHomeDirectory
     return
         $ T.unpack
         $ T.replace "$HOME" homeDir
         $ T.replace "~" homeDir
-        $ T.pack dir
+        $ T.pack
+        $ foldl (</>) dir namespace
+  where
+    typeRepFilePath :: TypeRep -> [FilePath]
+    typeRepFilePath root = h : q
+      where
+        h = fmap C.toLower . filter C.isLetter . tyConName . typeRepTyCon $ root
+        q = mconcat (typeRepFilePath <$> typeRepArgs root)
 
 -- | Wait for a service to become available on a given TCP port. Exit on failure
 -- with a proper error message.
