@@ -2617,6 +2617,47 @@ instance GHC.Show.Show e => GHC.Show.Show (Cardano.Wallet.ErrEstimateTxFee e)
 instance GHC.Classes.Eq e => GHC.Classes.Eq (Cardano.Wallet.ErrCreateUnsignedTx e)
 instance GHC.Show.Show e => GHC.Show.Show (Cardano.Wallet.ErrCreateUnsignedTx e)
 
+
+-- | Utility functions for converting time values to and from text.
+module Data.Time.Text
+
+-- | Convert the specified time value to text, using the specified time
+--   format.
+utcTimeToText :: TimeFormat -> UTCTime -> Text
+
+-- | Attempt to use each of the specified time formats to parse the given
+--   text. Returns a time value that corresponds to the first matching
+--   format, or <a>Nothing</a> if none of the formats matched.
+utcTimeFromText :: [TimeFormat] -> Text -> Maybe UTCTime
+
+-- | Represents a particular way of representing a moment in time in text.
+data TimeFormat
+TimeFormat :: String -> String -> TimeFormat
+[timeFormatName] :: TimeFormat -> String
+[timeFormatPattern] :: TimeFormat -> String
+
+-- | Represents the ISO 8601 basic format (UTC).
+iso8601BasicUtc :: TimeFormat
+
+-- | Represents the ISO 8601 basic format (with local timezone).
+iso8601BasicLocal :: TimeFormat
+
+-- | Represents the ISO 8601 extended format (UTC).
+iso8601ExtendedUtc :: TimeFormat
+
+-- | Represents the ISO 8601 extended format (with local timezone).
+iso8601ExtendedLocal :: TimeFormat
+
+-- | Represents the ISO 8601 family of formats.
+iso8601 :: [TimeFormat]
+
+-- | Represents the ISO 8601 basic family of formats.
+iso8601Basic :: [TimeFormat]
+
+-- | Represents the ISO 8601 extended family of formats.
+iso8601Extended :: [TimeFormat]
+instance GHC.Classes.Eq Data.Time.Text.TimeFormat
+
 module Network.Wai.Middleware.Logging
 
 -- | Installs a request &amp; response logger on a Wai application.
