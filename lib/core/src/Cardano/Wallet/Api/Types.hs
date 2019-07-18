@@ -115,8 +115,8 @@ import Data.Text.Class
     )
 import Data.Time
     ( UTCTime )
-import Data.Time.Format
-    ( defaultTimeLocale, formatTime, parseTimeM )
+import Data.Time.Text
+    ( iso8601BasicUtc, utcTimeFromText, utcTimeToText )
 import Fmt
     ( pretty )
 import GHC.Generics
@@ -255,7 +255,7 @@ instance KnownSymbol name => ToText (Iso8601Range name) where
         suffix = timeToText t1 <> "-" <> timeToText t2
         timeToText = \case
             Nothing -> "*"
-            Just t -> T.pack $ formatTime defaultTimeLocale basicUtc t
+            Just t -> utcTimeToText iso8601BasicUtc t
 
 instance KnownSymbol name => FromText (Iso8601Range name) where
     fromText t = do
@@ -286,12 +286,7 @@ instance KnownSymbol name => FromText (Iso8601Range name) where
         parseTime :: Text -> Maybe (Maybe UTCTime)
         parseTime = \case
             "*" -> pure Nothing
-            timeText -> pure <$>
-                parseTimeM False defaultTimeLocale basicUtc $ T.unpack timeText
-
--- | ISO 8601 basic format (UTC).
-basicUtc :: String
-basicUtc = "%Y%m%dT%H%M%S%QZ"
+            timeText -> pure <$> utcTimeFromText [iso8601BasicUtc] timeText
 
 instance KnownSymbol name => FromHttpApiData (Iso8601Range (name :: Symbol))
   where
