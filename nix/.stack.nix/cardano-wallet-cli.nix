@@ -26,6 +26,7 @@
           (hsPkgs.cardano-wallet-launcher)
           (hsPkgs.directory)
           (hsPkgs.extra)
+          (hsPkgs.filepath)
           (hsPkgs.fmt)
           (hsPkgs.http-client)
           (hsPkgs.iohk-monitoring)
