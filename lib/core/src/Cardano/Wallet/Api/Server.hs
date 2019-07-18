@@ -84,7 +84,6 @@ import Cardano.Wallet.Primitive.Types
     , UTxOStatistics (..)
     , WalletId (..)
     , WalletMetadata (..)
-    , log10
     )
 import Control.Exception
     ( bracket )
@@ -356,10 +355,10 @@ getUTxOsStatistics
     -> ApiT WalletId
     -> Handler ApiUtxoStatistics
 getUTxOsStatistics w (ApiT wid) = do
-    (UTxOStatistics histo totalStakes) <- liftHandler $ W.listUtxoStatistics w wid
+    (UTxOStatistics histo totalStakes bType) <- liftHandler $ W.listUtxoStatistics w wid
     return ApiUtxoStatistics
         { total = Quantity (fromIntegral totalStakes)
-        , scale = log10
+        , scale = bType
         , distribution = histo
         }
 

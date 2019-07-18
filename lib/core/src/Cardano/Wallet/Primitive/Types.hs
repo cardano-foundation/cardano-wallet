@@ -670,6 +670,7 @@ restrictedTo (UTxO utxo) outs =
 data UTxOStatistics = UTxOStatistics
     { histogram :: ![HistogramBar]
     , allStakes :: !Word64
+    , boundType :: BoundType
     } deriving (Show, Generic, Ord)
 
 data UTxOStatisticsError
@@ -679,7 +680,7 @@ data UTxOStatisticsError
     deriving (Eq, Show, Read, Generic)
 
 instance Eq UTxOStatistics where
-    (UTxOStatistics h s) == (UTxOStatistics h' s') =
+    (UTxOStatistics h s _) == (UTxOStatistics h' s' _) =
         s == s' && sorted h == sorted h'
       where
         sorted :: [HistogramBar] -> [HistogramBar]
@@ -699,23 +700,23 @@ data HistogramBar = HistogramBarCount
     } deriving (Show, Eq, Ord, Generic)
 
 --  Buckets boundaries can be constructed in different ways
-data BoundType = Log10 deriving (Eq, Show, Generic)
+data BoundType = Log10 deriving (Eq, Show, Ord, Generic)
 
 -- | Smart-constructor to create bounds using a log-10 scale
 log10 :: BoundType
 log10 = Log10
 {-# INLINE log10 #-}
 
--- | Compute UtxoStatistics from a bunch of UTxOs
+-- | Compute UtxoStatistics from UTxOs
 computeUtxoStatistics :: BoundType -> UTxO -> UTxOStatistics
-computeUtxoStatistics btype =
-    F.fold foldStatistics . getCoins
+computeUtxoStatistics btype utxos =
+    (F.fold foldStatistics (getCoins utxos)) btype
   where
     getCoins :: UTxO -> [Word64]
     getCoins =
         map (getCoin . coin) . Map.elems . getUTxO
 
-    foldStatistics :: F.Fold Word64 UTxOStatistics
+    foldStatistics :: F.Fold Word64 (BoundType -> UTxOStatistics)
     foldStatistics = UTxOStatistics
         <$> foldBuckets (generateBounds btype)
         <*> F.sum
@@ -752,7 +753,7 @@ mkUtxoStatistics btype hist totalStakes = do
     when (length histoKeys <= 0) $
         Left ErrEmptyHistogram
     when (any (`notElem` acceptedKeys) histoKeys) $
-        Left $ ErrInvalidBounds $ "given bounds are incompatible with bound type"
+        Left $ ErrInvalidBounds "given bounds are incompatible with bound type"
     when (any (< 0) histoElems) $
         Left $ ErrInvalidBounds "encountered negative bound"
     when (totalStakes < 0) $
@@ -763,6 +764,7 @@ mkUtxoStatistics btype hist totalStakes = do
     pure UTxOStatistics
         { histogram = histoBars
         , allStakes = totalStakes
+        , boundType = btype
         }
 
 getPossibleBounds :: Map Word64 Word64 -> (Word64, Word64)

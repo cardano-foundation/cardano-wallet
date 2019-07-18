@@ -87,7 +87,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     , isValidCoin
-    , log10
     , mkUtxoStatistics
     )
 import Control.Arrow
@@ -528,13 +527,13 @@ instance FromJSON ApiUtxoStatistics where
       where
         parseUtxoStatistics :: Object -> Parser ApiUtxoStatistics
         parseUtxoStatistics o = do
-            (UTxOStatistics hist totalStakes) <- eitherToParser =<< mkUtxoStatistics
+            (UTxOStatistics hist totalStakes bType) <- eitherToParser =<< mkUtxoStatistics
                 <$> (o .: "scale")
                 <*> (o .: "distribution")
                 <*> (o .: "total")
             return ApiUtxoStatistics
                 { total = Quantity (fromIntegral totalStakes)
-                , scale = log10
+                , scale = bType
                 , distribution = hist
                 }
 
