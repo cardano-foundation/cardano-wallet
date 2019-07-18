@@ -31,7 +31,7 @@ import Data.Text
 import Fmt
     ( Buildable (..), blockListF', indentF )
 import System.Directory
-    ( createDirectory, doesDirectoryExist )
+    ( createDirectoryIfMissing, doesDirectoryExist )
 import System.Exit
     ( ExitCode )
 import System.Process
@@ -127,5 +127,6 @@ setupStateDir logT withDir dir = do
         True -> logT $ "Using state directory: " <> T.pack dir
         False -> do
             logT $ "Creating state directory: " <> T.pack dir
-            createDirectory dir
+            let createParentIfMissing = True
+            createDirectoryIfMissing createParentIfMissing dir
     withDir dir
