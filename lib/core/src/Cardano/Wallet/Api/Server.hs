@@ -358,7 +358,7 @@ getUTxOsStatistics w (ApiT wid) = do
     (UTxOStatistics histo totalStakes bType) <- liftHandler $ W.listUtxoStatistics w wid
     return ApiUtxoStatistics
         { total = Quantity (fromIntegral totalStakes)
-        , scale = bType
+        , scale = ApiT bType
         , distribution = histo
         }
 

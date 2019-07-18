@@ -71,6 +71,8 @@ module Cardano.Wallet.Primitive.Types
     , computeUtxoStatistics
     , mkUtxoStatistics
     , log10
+    , generateBounds
+    , getPossibleBounds
 
     -- * Slotting
     , SlotId (..)

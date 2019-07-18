@@ -483,7 +483,7 @@ cmdWalletDelete = command "delete" $ info (helper <*> cmd) $ mempty
 cmdWalletGetUtxoStatistics
     :: forall t. (DecodeAddress t, EncodeAddress t)
     => Mod CommandFields (IO ())
-cmdWalletGetUtxoStatistics = command "utxos" $ info (helper <*> cmd) $ mempty
+cmdWalletGetUtxoStatistics = command "utxo" $ info (helper <*> cmd) $ mempty
     <> progDesc "Get UTxO statistics for the wallet with specified id."
   where
     cmd = fmap exec $ WalletGetArgs

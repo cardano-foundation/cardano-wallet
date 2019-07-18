@@ -67,7 +67,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
-    , BoundType
+    , BoundType (..)
     , Coin (..)
     , DecodeAddress (..)
     , Direction (..)
@@ -169,7 +169,7 @@ data ApiWallet = ApiWallet
 
 data ApiUtxoStatistics = ApiUtxoStatistics
     { total :: !(Quantity "lovelace" Natural)
-    , scale :: BoundType
+    , scale :: !(ApiT BoundType)
     , distribution :: [HistogramBar]
     } deriving (Eq, Generic, Show)
 
@@ -518,35 +518,39 @@ instance ToJSON ApiUtxoStatistics where
         in
             object
                 [ "total" .= totalStake
-                , "boundType" .= theScale
+                , "scale" .= getApiT theScale
                 , "distribution" .= histogramObject bars
                 ]
 
 instance FromJSON ApiUtxoStatistics where
-    parseJSON = withObject "ApiUtxoStatistics" parseUtxoStatistics
+    parseJSON = withObject "ApiWalletUTxOsStatistics" parseUtxoStatistics
       where
         parseUtxoStatistics :: Object -> Parser ApiUtxoStatistics
         parseUtxoStatistics o = do
+            totalQuantity <- o .: "total"
             (UTxOStatistics hist totalStakes bType) <- eitherToParser =<< mkUtxoStatistics
                 <$> (o .: "scale")
                 <*> (o .: "distribution")
-                <*> (o .: "total")
+                <*> (totalQuantity .: "quantity")
             return ApiUtxoStatistics
                 { total = Quantity (fromIntegral totalStakes)
-                , scale = bType
+                , scale = ApiT bType
                 , distribution = hist
                 }
 
+instance ToJSON (ApiT BoundType) where
+    toJSON (ApiT Log10) = "log10"
+
+instance FromJSON (ApiT BoundType) where
+    parseJSON "log10" = pure $ ApiT Log10
+    parseJSON _ = fail $ "wrong BoundType value"
+
 instance ToJSON BoundType where
-    toJSON = genericToJSON aesonEnumOpts
+    toJSON Log10 = "log10"
 
 instance FromJSON BoundType where
-    parseJSON = genericParseJSON aesonEnumOpts
-
-aesonEnumOpts :: Aeson.Options
-aesonEnumOpts = Aeson.defaultOptions
-    { Aeson.tagSingleConstructors = True
-    }
+    parseJSON "log10" = pure Log10
+    parseJSON _ = fail $ "wrong BoundType value"
 
 instance FromJSON (ApiT PoolId) where
     parseJSON = fmap (ApiT . PoolId) . parseJSON

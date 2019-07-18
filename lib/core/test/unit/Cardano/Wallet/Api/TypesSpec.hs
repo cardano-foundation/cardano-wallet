@@ -31,6 +31,7 @@ import Cardano.Wallet.Api.Types
     , ApiMnemonicT (..)
     , ApiT (..)
     , ApiTransaction (..)
+    , ApiUtxoStatistics (..)
     , ApiWallet (..)
     , Iso8601Range (..)
     , PostTransactionData (..)
@@ -63,9 +64,11 @@ import Cardano.Wallet.Primitive.Mnemonic
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
+    , BoundType (..)
     , Coin (..)
     , Direction (..)
     , Hash (..)
+    , HistogramBar (..)
     , PoolId (..)
     , SlotId (..)
     , TxStatus (..)
@@ -74,6 +77,9 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , WalletState (..)
+    , generateBounds
+    , getPossibleBounds
+    , log10
     , walletNameMaxLength
     , walletNameMinLength
     )
@@ -155,7 +161,9 @@ import Test.QuickCheck
     , arbitraryPrintableChar
     , choose
     , frequency
+    , infiniteListOf
     , property
+    , shuffle
     , vectorOf
     , (.&&.)
     , (===)
@@ -173,6 +181,8 @@ import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Yaml as Yaml
@@ -188,6 +198,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(AddressAmount DummyTarget)
             jsonRoundtripAndGolden $ Proxy @(ApiTransaction DummyTarget)
             jsonRoundtripAndGolden $ Proxy @ApiWallet
+            jsonRoundtripAndGolden $ Proxy @ApiUtxoStatistics
             jsonRoundtripAndGolden $ Proxy @ApiFee
             jsonRoundtripAndGolden $ Proxy @(PostTransactionData DummyTarget)
             jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeData DummyTarget)
@@ -780,6 +791,16 @@ instance Arbitrary (ApiTransaction t) where
             <*> arbitrary
             <*> pure txStatus
 
+instance Arbitrary ApiUtxoStatistics where
+    arbitrary = do
+        upperBounds <- shuffle (NE.toList $ generateBounds Log10)
+        counts <- infiniteListOf arbitrary
+        let histogram = zip upperBounds counts
+        let histoBars = map (uncurry HistogramBarCount) histogram
+        allStakes <-
+            Quantity . fromIntegral <$> choose (getPossibleBounds $ Map.fromList histogram)
+        return $ ApiUtxoStatistics allStakes (ApiT log10) histoBars
+
 instance Arbitrary (Quantity "block" Natural) where
     shrink (Quantity 0) = []
     shrink _ = [Quantity 0]
@@ -871,6 +892,8 @@ instance ToSchema (PostTransactionFeeData t) where
 instance ToSchema (ApiTransaction t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiTransaction"
 
+instance ToSchema ApiUtxoStatistics where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiWalletUTxOsStatistics"
 
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
 -- we simply look it up within the Swagger specification.
