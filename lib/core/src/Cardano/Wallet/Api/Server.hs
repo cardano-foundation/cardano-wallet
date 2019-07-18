@@ -30,6 +30,7 @@ import Cardano.Wallet
     , ErrCoinSelection (..)
     , ErrCreateUnsignedTx (..)
     , ErrEstimateTxFee (..)
+    , ErrListUTxOStatistics (..)
     , ErrMkStdTx (..)
     , ErrNoSuchWallet (..)
     , ErrPostTx (..)
@@ -51,6 +52,7 @@ import Cardano.Wallet.Api.Types
     , ApiFee (..)
     , ApiT (..)
     , ApiTransaction (..)
+    , ApiUtxoStatistics (..)
     , ApiWallet (..)
     , Iso8601Range (..)
     , PostTransactionData
@@ -79,8 +81,10 @@ import Cardano.Wallet.Primitive.Types
     , DefineTx (..)
     , EncodeAddress (..)
     , TxOut (..)
+    , UTxOStatistics (..)
     , WalletId (..)
     , WalletMetadata (..)
+    , log10
     )
 import Control.Exception
     ( bracket )
@@ -247,6 +251,7 @@ wallets w =
     :<|> postWallet w
     :<|> putWallet w
     :<|> putWalletPassphrase w
+    :<|> getUTxOsStatistics w
 
 deleteWallet
     :: WalletLayer (SeqState t) t
@@ -344,6 +349,19 @@ putWalletPassphrase w (ApiT wid) body = do
     let (WalletPutPassphraseData (ApiT old) (ApiT new)) = body
     liftHandler $ W.updateWalletPassphrase w wid (old, new)
     return NoContent
+
+getUTxOsStatistics
+    :: (DefineTx t)
+    => WalletLayer (SeqState t) t
+    -> ApiT WalletId
+    -> Handler ApiUtxoStatistics
+getUTxOsStatistics w (ApiT wid) = do
+    (UTxOStatistics histo totalStakes) <- liftHandler $ W.listUtxoStatistics w wid
+    return ApiUtxoStatistics
+        { total = Quantity (fromIntegral totalStakes)
+        , scale = log10
+        , distribution = histo
+        }
 
 {-------------------------------------------------------------------------------
                                     Addresses
@@ -548,6 +566,10 @@ instance Buildable e => LiftHandler (ErrEstimateTxFee e) where
     handler = \case
         ErrEstimateTxFeeNoSuchWallet e -> handler e
         ErrEstimateTxFeeCoinSelection e -> handler e
+
+instance LiftHandler ErrListUTxOStatistics where
+    handler = \case
+        ErrListUTxOStatisticsNoSuchWallet e -> handler e
 
 instance LiftHandler ErrSignTx where
     handler = \case

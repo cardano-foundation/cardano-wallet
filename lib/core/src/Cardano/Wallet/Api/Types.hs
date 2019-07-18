@@ -15,6 +15,8 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 -- |
 -- Copyright: © 2018-2019 IOHK
 -- License: MIT
@@ -32,6 +34,7 @@ module Cardano.Wallet.Api.Types
     -- * API Types
       ApiAddress (..)
     , ApiWallet (..)
+    , ApiUtxoStatistics (..)
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -64,15 +67,19 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
+    , BoundType
     , Coin (..)
     , DecodeAddress (..)
     , Direction (..)
     , EncodeAddress (..)
     , Hash (..)
+    , HistogramBar
+    , HistogramBar (..)
     , PoolId (..)
     , ShowFmt (..)
     , SlotId (..)
     , TxStatus (..)
+    , UTxOStatistics (..)
     , WalletBalance (..)
     , WalletDelegation (..)
     , WalletId (..)
@@ -80,6 +87,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     , isValidCoin
+    , log10
+    , mkUtxoStatistics
     )
 import Control.Arrow
     ( left )
@@ -87,6 +96,7 @@ import Control.Monad
     ( (>=>) )
 import Data.Aeson
     ( FromJSON (..)
+    , Object
     , SumEncoding (..)
     , ToJSON (..)
     , camelTo2
@@ -94,9 +104,15 @@ import Data.Aeson
     , fieldLabelModifier
     , genericParseJSON
     , genericToJSON
+    , object
     , omitNothingFields
     , sumEncoding
+    , withObject
+    , (.:)
+    , (.=)
     )
+import Data.Aeson.Types
+    ( Parser )
 import Data.Bifunctor
     ( bimap, first )
 import Data.List.NonEmpty
@@ -126,10 +142,11 @@ import GHC.TypeLits
 import Numeric.Natural
     ( Natural )
 import Web.HttpApiData
-    ( FromHttpApiData (..), ToHttpApiData (..) )
+    ( FromHttpApiData (..), ToHttpApiData (..), showTextData )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
+import qualified Data.HashMap.Strict as HMS
 import qualified Data.Text as T
 
 {-------------------------------------------------------------------------------
@@ -149,6 +166,12 @@ data ApiWallet = ApiWallet
     , name :: !(ApiT WalletName)
     , passphrase :: !(Maybe (ApiT WalletPassphraseInfo))
     , state :: !(ApiT WalletState)
+    } deriving (Eq, Generic, Show)
+
+data ApiUtxoStatistics = ApiUtxoStatistics
+    { total :: !(Quantity "lovelace" Natural)
+    , scale :: BoundType
+    , distribution :: [HistogramBar]
     } deriving (Eq, Generic, Show)
 
 data WalletPostData = WalletPostData
@@ -484,6 +507,47 @@ instance FromJSON (ApiT WalletState) where
     parseJSON = fmap ApiT . genericParseJSON walletStateOptions
 instance ToJSON (ApiT WalletState) where
     toJSON = genericToJSON walletStateOptions . getApiT
+
+instance ToJSON ApiUtxoStatistics where
+    toJSON (ApiUtxoStatistics totalStake theScale bars) =
+        let
+            histogramObject =
+                Aeson.Object . HMS.fromList . map extractBarKey
+
+            extractBarKey (HistogramBarCount bound stake) =
+                showTextData bound .= stake
+        in
+            object
+                [ "total" .= totalStake
+                , "boundType" .= theScale
+                , "distribution" .= histogramObject bars
+                ]
+
+instance FromJSON ApiUtxoStatistics where
+    parseJSON = withObject "ApiUtxoStatistics" parseUtxoStatistics
+      where
+        parseUtxoStatistics :: Object -> Parser ApiUtxoStatistics
+        parseUtxoStatistics o = do
+            (UTxOStatistics hist totalStakes) <- eitherToParser =<< mkUtxoStatistics
+                <$> (o .: "scale")
+                <*> (o .: "distribution")
+                <*> (o .: "total")
+            return ApiUtxoStatistics
+                { total = Quantity (fromIntegral totalStakes)
+                , scale = log10
+                , distribution = hist
+                }
+
+instance ToJSON BoundType where
+    toJSON = genericToJSON aesonEnumOpts
+
+instance FromJSON BoundType where
+    parseJSON = genericParseJSON aesonEnumOpts
+
+aesonEnumOpts :: Aeson.Options
+aesonEnumOpts = Aeson.defaultOptions
+    { Aeson.tagSingleConstructors = True
+    }
 
 instance FromJSON (ApiT PoolId) where
     parseJSON = fmap (ApiT . PoolId) . parseJSON

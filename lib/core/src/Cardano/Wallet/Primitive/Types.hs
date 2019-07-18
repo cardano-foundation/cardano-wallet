@@ -15,6 +15,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE ViewPatterns #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -64,7 +65,11 @@ module Cardano.Wallet.Primitive.Types
     , restrictedTo
     , Dom(..)
     , UTxOStatistics (..)
+    , HistogramBar (..)
+    , BoundType (..)
+    , UTxOStatisticsError(..)
     , computeUtxoStatistics
+    , mkUtxoStatistics
     , log10
 
     -- * Slotting
@@ -100,6 +105,8 @@ import Prelude
 
 import Control.DeepSeq
     ( NFData (..) )
+import Control.Monad
+    ( when )
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString )
 import Crypto.Number.Generate
@@ -665,6 +672,12 @@ data UTxOStatistics = UTxOStatistics
     , allStakes :: !Word64
     } deriving (Show, Generic, Ord)
 
+data UTxOStatisticsError
+    = ErrEmptyHistogram
+    | ErrInvalidBounds !Text
+    | ErrInvalidTotalStakes !Text
+    deriving (Eq, Show, Read, Generic)
+
 instance Eq UTxOStatistics where
     (UTxOStatistics h s) == (UTxOStatistics h' s') =
         s == s' && sorted h == sorted h'
@@ -724,14 +737,57 @@ computeUtxoStatistics btype =
         in
             F.Fold step initial extract
 
-    generateBounds :: BoundType -> NonEmpty Word64
-    generateBounds bType =
-        let (^!) :: Word64 -> Word64 -> Word64
-            (^!) = (^)
-        in case bType of
-            Log10 ->
-                NE.fromList $
-                map (\toPower -> 10 ^! toPower) [1..16] ++ [45 * (10 ^! 15)]
+mkUtxoStatistics
+    :: BoundType
+    -> Map Word64 Word64
+    -> Word64
+    -> Either UTxOStatisticsError UTxOStatistics
+mkUtxoStatistics btype hist totalStakes = do
+    let (histoKeys, histoElems) = (Map.keys hist, Map.elems hist)
+    let acceptedKeys = NE.toList $ generateBounds btype
+    let (minPossibleValue, maxPossibleValue) = getPossibleBounds hist
+    let constructHistogram = uncurry HistogramBarCount
+    let histoBars = map constructHistogram $ Map.toList hist
+
+    when (length histoKeys <= 0) $
+        Left ErrEmptyHistogram
+    when (any (`notElem` acceptedKeys) histoKeys) $
+        Left $ ErrInvalidBounds $ "given bounds are incompatible with bound type"
+    when (any (< 0) histoElems) $
+        Left $ ErrInvalidBounds "encountered negative bound"
+    when (totalStakes < 0) $
+        Left $ ErrInvalidTotalStakes "total stakes is negative"
+    when (totalStakes < minPossibleValue && totalStakes > maxPossibleValue) $
+        Left $ ErrInvalidTotalStakes "inconsistent total stakes & histogram"
+
+    pure UTxOStatistics
+        { histogram = histoBars
+        , allStakes = totalStakes
+        }
+
+getPossibleBounds :: Map Word64 Word64 -> (Word64, Word64)
+getPossibleBounds hist =
+    (calculatePossibleBound fst, calculatePossibleBound snd)
+  where
+    createBracketPairs :: Num a => [a] -> [(a,a)]
+    createBracketPairs (reverse -> (x:xs)) = zip (map (+1) $ reverse (xs ++ [0])) (reverse (x:xs))
+    createBracketPairs _ = []
+    matching fromPair (key,value) =
+        map ( (*value) . fromPair ) . filter (\(_,upper) -> key == upper)
+    acceptedKeys = NE.toList $ generateBounds log10
+    calculatePossibleBound fromPair =
+        sum .
+        concatMap (\pair -> matching fromPair pair $ createBracketPairs acceptedKeys) $
+        Map.toList hist
+
+generateBounds :: BoundType -> NonEmpty Word64
+generateBounds bType =
+    let (^!) :: Word64 -> Word64 -> Word64
+        (^!) = (^)
+    in case bType of
+        Log10 ->
+            NE.fromList $
+            map (\toPower -> 10 ^! toPower) [1..16] ++ [45 * (10 ^! 15)]
 
 {-------------------------------------------------------------------------------
                                    Slotting

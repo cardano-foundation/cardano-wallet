@@ -9,6 +9,7 @@ import Cardano.Wallet.Api.Types
     , ApiFee
     , ApiT
     , ApiTransaction
+    , ApiUtxoStatistics
     , ApiWallet
     , Iso8601Range
     , PostTransactionData
@@ -71,6 +72,7 @@ type Wallets =
     :<|> PostWallet
     :<|> PutWallet
     :<|> PutWalletPassphrase
+    :<|> GetUTxOsStatistics
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteWallet
 type DeleteWallet = "wallets"
@@ -103,6 +105,13 @@ type PutWalletPassphrase = "wallets"
     :> "passphrase"
     :> ReqBody '[JSON] WalletPutPassphraseData
     :> PutNoContent '[Any] NoContent
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getUTxOsStatistics
+type GetUTxOsStatistics = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "statistics"
+    :> "utxos"
+    :> Get '[JSON] ApiUtxoStatistics
 
 {-------------------------------------------------------------------------------
                                   Transactions
