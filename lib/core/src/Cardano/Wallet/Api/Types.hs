@@ -543,14 +543,14 @@ instance ToJSON (ApiT BoundType) where
 
 instance FromJSON (ApiT BoundType) where
     parseJSON "log10" = pure $ ApiT Log10
-    parseJSON _ = fail $ "wrong BoundType value"
+    parseJSON _ = fail "wrong BoundType value"
 
 instance ToJSON BoundType where
     toJSON Log10 = "log10"
 
 instance FromJSON BoundType where
     parseJSON "log10" = pure Log10
-    parseJSON _ = fail $ "wrong BoundType value"
+    parseJSON _ = fail "wrong BoundType value"
 
 instance FromJSON (ApiT PoolId) where
     parseJSON = fmap (ApiT . PoolId) . parseJSON

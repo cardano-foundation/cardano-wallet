@@ -67,12 +67,9 @@ module Cardano.Wallet.Primitive.Types
     , UTxOStatistics (..)
     , HistogramBar (..)
     , BoundType (..)
-    , UTxOStatisticsError(..)
     , computeUtxoStatistics
     , mkUtxoStatistics
     , log10
-    , generateBounds
-    , getPossibleBounds
 
     -- * Slotting
     , SlotId (..)
@@ -740,6 +737,12 @@ computeUtxoStatistics btype utxos =
         in
             F.Fold step initial extract
 
+totalLovelacesMinted :: Quantity "lovelace" Natural
+totalLovelacesMinted =
+    let lovelacesPerAda = 1000000
+        totalAdaMinted = 45000000000
+    in Quantity $ lovelacesPerAda * totalAdaMinted
+
 mkUtxoStatistics
     :: BoundType
     -> Map Word64 Word64
@@ -751,8 +754,9 @@ mkUtxoStatistics btype hist totalStakes = do
     let (minPossibleValue, maxPossibleValue) = getPossibleBounds hist
     let constructHistogram = uncurry HistogramBarCount
     let histoBars = map constructHistogram $ Map.toList hist
+    let (Quantity totalUpperBound) = totalLovelacesMinted
 
-    when (length histoKeys <= 0) $
+    when (null histoKeys) $
         Left ErrEmptyHistogram
     when (any (`notElem` acceptedKeys) histoKeys) $
         Left $ ErrInvalidBounds "given bounds are incompatible with bound type"
@@ -762,6 +766,8 @@ mkUtxoStatistics btype hist totalStakes = do
         Left $ ErrInvalidTotalStakes "total stakes is negative"
     when (totalStakes < minPossibleValue && totalStakes > maxPossibleValue) $
         Left $ ErrInvalidTotalStakes "inconsistent total stakes & histogram"
+    when (totalStakes > fromIntegral totalUpperBound) $
+        Left $ ErrInvalidTotalStakes "total stakes is bigger than total money ever minted"
 
     pure UTxOStatistics
         { histogram = histoBars
@@ -791,7 +797,7 @@ generateBounds bType =
     in case bType of
         Log10 ->
             NE.fromList $
-            map (\toPower -> 10 ^! toPower) [1..16] ++ [45 * (10 ^! 15)]
+            map (10 ^!) [1..16] ++ [45 * (10 ^! 15)]
 
 {-------------------------------------------------------------------------------
                                    Slotting

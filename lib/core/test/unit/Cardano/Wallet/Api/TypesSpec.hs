@@ -64,21 +64,22 @@ import Cardano.Wallet.Primitive.Mnemonic
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
-    , BoundType (..)
     , Coin (..)
     , Direction (..)
     , Hash (..)
-    , HistogramBar (..)
     , PoolId (..)
     , SlotId (..)
+    , TxIn (..)
+    , TxOut (..)
     , TxStatus (..)
+    , UTxO (..)
+    , UTxOStatistics (..)
     , WalletDelegation (..)
     , WalletId (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , WalletState (..)
-    , generateBounds
-    , getPossibleBounds
+    , computeUtxoStatistics
     , log10
     , walletNameMaxLength
     , walletNameMinLength
@@ -161,9 +162,8 @@ import Test.QuickCheck
     , arbitraryPrintableChar
     , choose
     , frequency
-    , infiniteListOf
     , property
-    , shuffle
+    , scale
     , vectorOf
     , (.&&.)
     , (===)
@@ -181,7 +181,6 @@ import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -791,15 +790,36 @@ instance Arbitrary (ApiTransaction t) where
             <*> arbitrary
             <*> pure txStatus
 
+instance Arbitrary Coin where
+    -- No Shrinking
+    arbitrary = Coin <$> choose (0, 1000000000000000)
+
+instance Arbitrary UTxO where
+    shrink (UTxO utxo) = UTxO <$> shrink utxo
+    arbitrary = do
+        n <- choose (0, 10)
+        utxo <- zip
+            <$> vectorOf n arbitrary
+            <*> vectorOf n arbitrary
+        return $ UTxO $ Map.fromList utxo
+
+instance Arbitrary TxOut where
+    -- No Shrinking
+    arbitrary = TxOut
+        <$> arbitrary
+        <*> arbitrary
+
+instance Arbitrary TxIn where
+    -- No Shrinking
+    arbitrary = TxIn
+        <$> arbitrary
+        <*> Test.QuickCheck.scale (`mod` 3) arbitrary -- No need for a crazy high indexes
+
 instance Arbitrary ApiUtxoStatistics where
     arbitrary = do
-        upperBounds <- shuffle (NE.toList $ generateBounds Log10)
-        counts <- infiniteListOf arbitrary
-        let histogram = zip upperBounds counts
-        let histoBars = map (uncurry HistogramBarCount) histogram
-        allStakes <-
-            Quantity . fromIntegral <$> choose (getPossibleBounds $ Map.fromList histogram)
-        return $ ApiUtxoStatistics allStakes (ApiT log10) histoBars
+        utxos <- arbitrary
+        let (UTxOStatistics histoBars stakes bType) = computeUtxoStatistics log10 utxos
+        return $ ApiUtxoStatistics (Quantity $ fromIntegral stakes) (ApiT bType) histoBars
 
 instance Arbitrary (Quantity "block" Natural) where
     shrink (Quantity 0) = []
