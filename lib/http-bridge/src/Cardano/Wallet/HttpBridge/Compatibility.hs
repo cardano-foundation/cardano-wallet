@@ -51,10 +51,10 @@ import Cardano.Wallet.Primitive.Types
     , DecodeAddress (..)
     , DefineTx (..)
     , EncodeAddress (..)
+    , EpochLength (..)
     , Hash (..)
     , SlotId (..)
     , SlotLength (..)
-    , SlotsPerEpoch (..)
     , Tx (..)
     )
 import Crypto.Hash
@@ -191,5 +191,5 @@ byronBlockchainParameters = BlockchainParameters
     , getFeePolicy = byronFeePolicy
     , getSlotLength = byronSlotLength
     , getTxMaxSize = byronTxMaxSize
-    , getSlotsPerEpoch = SlotsPerEpoch 21600
+    , getEpochLength = EpochLength 21600
     }

@@ -124,7 +124,7 @@ spec = do
                         [ Block0Date (posixSecondsToUTCTime 1556202057)
                         , Discrimination Testnet
                         , Consensus BFT
-                        , SlotsPerEpoch $ W.SlotsPerEpoch 2160
+                        , SlotsPerEpoch $ W.EpochLength 2160
                         , SlotDuration (secondsToDiffTime 15)
                         , EpochStabilityDepth (Quantity 10)
                         , AddBftLeader $ LeaderId $ unsafeFromHex
@@ -177,7 +177,7 @@ spec = do
                         [ Block0Date (posixSecondsToUTCTime 1556202057)
                         , Discrimination Mainnet
                         , Consensus BFT
-                        , SlotsPerEpoch (W.SlotsPerEpoch 500)
+                        , SlotsPerEpoch (W.EpochLength 500)
                         , SlotDuration (secondsToDiffTime 10)
                         , EpochStabilityDepth (Quantity 10)
                         , AddBftLeader $ LeaderId $ unsafeFromHex

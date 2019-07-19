@@ -271,19 +271,19 @@ mkJormungandrLayer mgr baseUrl = JormungandrLayer
                     Block0Date x -> Just x
                     _ -> Nothing
 
-        let mslotsPerEpoch = mapMaybe getEpochLength params
+        let mepochLength = mapMaybe getSlotsPerEpoch params
               where
-                getEpochLength = \case
+                getSlotsPerEpoch = \case
                     SlotsPerEpoch x -> Just x
                     _ -> Nothing
 
-        case (mpolicy, mduration, mblock0Date, mslotsPerEpoch) of
-            ([policy],[duration],[block0Date], [slotsPerEpoch]) ->
+        case (mpolicy, mduration, mblock0Date, mepochLength) of
+            ([policy],[duration],[block0Date], [epochLength]) ->
                 return $ BlockchainParameters
                     { getGenesisBlock = coerceBlock jblock
                     , getGenesisBlockDate = block0Date
                     , getFeePolicy = policy
-                    , getSlotsPerEpoch = slotsPerEpoch
+                    , getEpochLength = epochLength
                     , getSlotLength = SlotLength duration
                     , getTxMaxSize = softTxMaxSize
                     }

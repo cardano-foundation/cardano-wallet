@@ -63,10 +63,10 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
     , Direction (..)
+    , EpochLength (..)
     , Hash (..)
     , SlotId (..)
     , SlotLength (..)
-    , SlotsPerEpoch (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -393,7 +393,7 @@ setupFixture (wid, wname, wstate) = do
     txMaxSize :: Quantity "byte" Word16
     txMaxSize = Quantity 8192
 
-    slotsPerEpoch = SlotsPerEpoch 21600
+    slotsPerEpoch = EpochLength 21600
 
     block0Date = posixSecondsToUTCTime 0
 
