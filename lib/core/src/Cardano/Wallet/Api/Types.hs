@@ -227,23 +227,70 @@ data ApiErrorCode
     | UnexpectedError
     deriving (Eq, Generic, Show)
 
--- | A range of dates in ISO-8601 UTC format without symbols. Meant to be
--- rendered as a HTTP 'Header', where the 'name' type-parameter renders as a
--- prefix, e.g.
+-- | Specifies a __time range__ that can be used to constrain and order the
+--   results of queries that return sets of data with associated times.
 --
--- name 20190227T160329Z-*
+-- Each 'Iso8601Range' value has an associated textual representation provided
+-- by the 'ToText' and 'FromText' instances, based on the ISO 8601 Basic UTC
+-- format.
 --
--- 'Nothing' ("*") can be used instead of upper and/or lower boundary.
+-- Ranges can be __closed__, __half-open__, or __fully-open__.
 --
--- - `20190227T160329Z-*`: means all transactions after
---    2019-02-27 T 16:03:29Z (including)
--- - `*-20190227T160329Z`: means all transactions before 2019-02-27 T 16:03:29Z
---    (including)
--- - `*-*`: means all transactions
--- - `20190227T000000Z-20200227T000000Z`: means all transaction between
---    2019-02-27 and 2020-02-27, in ascending order.
--- - `20200227T000000Z-20190227T000000Z`: means all transaction between
---  2020-02-27 and 2019-02-27, in descending order.
+-- == Closed time ranges
+--
+-- For a pair of times @__t1__@ and @__t2__@ where @__t1 < t2__@:
+--
+-- * Queries with the following range will return data in __ascending__ order
+--   from @__t1__@ to @__t2__@:
+--
+--     > Iso8601Range (Just t1) (Just t2)
+--
+--     Example textual representation:
+--
+--     > "name 20180808T080808Z-20190909T090909Z"
+--
+-- * Queries with the following range will return data in __descending__ order
+--   from @__t2__@ to @__t1__@:
+--
+--     > Iso8601Range (Just t2) (Just t1)
+--
+--     Example textual representation:
+--
+--     > "name 20190909T090909Z-20180808T080808Z"
+--
+-- == Half-open time ranges
+--
+-- For some point in time @__t__@:
+--
+-- * Queries with the following range will return data in __ascending__ order
+--   from the __start of time__ until time @__t__@:
+--
+--     > Iso8601Range Nothing (Just t)
+--
+--     Example textual representation:
+--
+--     > "name *-20190909T090909Z"
+--
+-- * Queries with the following range will return data in __ascending__ order
+--   from time @__t__@ until the __end of time__:
+--
+--     > Iso8601Range (Just t) Nothing
+--
+--     Example textual representation:
+--
+--     > "name 20180808T080808Z-*"
+--
+-- == Fully-open time ranges
+--
+-- * Queries with the following range will return data in __ascending__ order
+--   from the __start of time__ until the __end of time__:
+--
+--     > Iso8601Range Nothing Nothing
+--
+--     Example textual representation:
+--
+--     > "name *-*"
+--
 data Iso8601Range (name :: Symbol)
     = Iso8601Range (Maybe UTCTime) (Maybe UTCTime)
     deriving (Eq, Generic, Show)
