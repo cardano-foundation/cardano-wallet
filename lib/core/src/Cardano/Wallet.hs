@@ -308,6 +308,9 @@ data WalletLayer s t = WalletLayer
     , slotIdTime :: SlotId -> UTCTime
     -- ^ Calculate the time corresponding to a 'SlotId' assuming the slotting
     -- parameters of the blockchain never has changed.
+
+    , getBlockchainParameters :: BlockchainParameters t
+    -- ^ Retrive the current blockchain parameters (valid at the tip).
     }
 
 -- | Errors occuring when creating an unsigned transaction
@@ -423,6 +426,7 @@ newWalletLayer tracer bp db nw tl = do
         , attachPrivateKey = _attachPrivateKey
         , listTransactions = _listTransactions
         , slotIdTime = _slotIdTime
+        , getBlockchainParameters = _getBlockchainParameters
         }
   where
     BlockchainParameters
@@ -757,6 +761,12 @@ newWalletLayer tracer bp db nw tl = do
 
         convert :: DiffTime -> NominalDiffTime
         convert = toEnum . fromEnum
+
+    -- NOTE: We're currently assuming they cannot be updated
+    _getBlockchainParameters
+        :: BlockchainParameters t
+    _getBlockchainParameters
+        = bp
 
     {---------------------------------------------------------------------------
                                      Keystore

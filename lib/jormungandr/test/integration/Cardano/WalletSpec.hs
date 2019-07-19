@@ -14,7 +14,11 @@ import Cardano.BM.Trace
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
-    ( WalletLayer (..), newWalletLayer, waitForWalletSync )
+    ( BlockchainParameters (..)
+    , WalletLayer (..)
+    , newWalletLayer
+    , waitForWalletSync
+    )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( BaseUrl (..), Jormungandr, Scheme (..) )
 import Cardano.Wallet.Jormungandr.Environment
@@ -37,6 +41,7 @@ import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , Hash (..)
     , SlotId (..)
+    , SlotLength (..)
     , WalletId (..)
     , WalletName (..)
     )
@@ -91,23 +96,27 @@ spec = do
             waitForWalletSync wallet nullTracer wid
             tip <- slotId . currentTip . fst <$>
                 unsafeRunExceptT (readWallet wallet wid)
-            let slotDuration = 10 -- TODO: fetch param from walletLayer
+            let slotLength = getSlotLength' $ getBlockchainParameters wallet
             t <- getCurrentTime
             let tMinted = slotIdTime wallet tip
-            -- Check that tMinted ∈ (t - slotDuration, t)
-            if t > tMinted && tMinted > addUTCTime (-slotDuration) t
+            -- Check that tMinted ∈ (t - slotLength, t)
+            let lowerBound = addUTCTime (-slotLength) t
+            let upperBound = t
+            if upperBound > tMinted && tMinted > lowerBound
             then return ()
             else expectationFailure $
                 "The network tip " ++ show tip ++
                 " corresponds to time " ++ show tMinted ++
-                " which should be close to " ++ show t ++
-                " but isn't."
+                "\nIt should be in the interval (" ++ show lowerBound ++
+                " , " ++ show upperBound ++ "), but isn't."
 
 
 
   where
     second :: Int
     second = 1000000
+
+    getSlotLength' = toEnum . fromEnum . unSlotLength . getSlotLength
 
     startNode = do
         removePathForcibly "/tmp/cardano-wallet-jormungandr"

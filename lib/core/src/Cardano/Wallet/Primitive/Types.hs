@@ -706,7 +706,7 @@ fromFlatSlot (EpochLength epochLength) n = SlotId e (fromIntegral s)
     e = n `div` epochLength
     s = n `mod` epochLength
 
-newtype SlotLength = SlotLength DiffTime
+newtype SlotLength = SlotLength { unSlotLength :: DiffTime }
     deriving (Show, Eq)
 
 newtype EpochLength = EpochLength Word64
