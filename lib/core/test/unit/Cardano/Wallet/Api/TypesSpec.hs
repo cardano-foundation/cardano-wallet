@@ -32,6 +32,7 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTransaction (..)
     , ApiWallet (..)
+    , Iso8601Range (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
     , WalletBalance (..)
@@ -79,7 +80,7 @@ import Cardano.Wallet.Primitive.Types
 import Control.Lens
     ( Lens', at, (^.) )
 import Control.Monad
-    ( replicateM )
+    ( forM_, replicateM )
 import Crypto.Hash
     ( hash )
 import Data.Aeson
@@ -121,7 +122,7 @@ import Data.Typeable
 import Data.Word
     ( Word8 )
 import GHC.TypeLits
-    ( KnownSymbol, symbolVal )
+    ( KnownSymbol, Symbol, symbolVal )
 import Numeric.Natural
     ( Natural )
 import Servant
@@ -163,6 +164,8 @@ import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Instances.Time
     ()
+import Test.Text.Roundtrip
+    ( textRoundtrip )
 import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
@@ -205,6 +208,67 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletPassphraseInfo)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletState)
 
+    describe "Iso8601Range" $ do
+
+        describe "Can perform roundtrip textual encoding & decoding" $ do
+            textRoundtrip $ Proxy @(Iso8601Range "test-header")
+
+        let err = "Error encountered while decoding ISO 8601 time range: "
+
+        it "Cannot decode ranges without a space separator chararcter" $
+            property $ \(range :: Iso8601Range "test-header") -> do
+                let result = fromText @(Iso8601Range "test-header")
+                        $ T.filter (/= ' ')
+                        $ toText range
+                result `shouldBe` Left (TextDecodingError $ err
+                    <> "Unable to find required space separator character.")
+
+        it "Cannot decode ranges without a hyphen separator chararcter" $
+            property $ \(range :: Iso8601Range "test-header") -> do
+                let result = fromText @(Iso8601Range "test-header")
+                        $ T.filter (/= '-')
+                        $ toText range
+                result `shouldBe` Left (TextDecodingError $ err
+                    <> "Unable to find required hyphen separator character.")
+
+        it "Cannot decode ranges without a valid prefix" $
+            property $ \(range :: Iso8601Range "test-header-1") -> do
+                let result = fromText @(Iso8601Range "test-header-2")
+                        $ toText range
+                result `shouldBe` Left (TextDecodingError $ err
+                    <> "Invalid prefix string found. Expecting: "
+                    <> "\"test-header-2\"")
+
+        let exampleValidTime = "20080808T080808Z"
+
+        let exampleInvalidTimes =
+                [ ""
+                , "?"
+                , "2008"
+                , "20080808"
+                , "20080808T"
+                , "20080808T08"
+                , "20080808T0808"
+                , "20080808T080808" ]
+
+        describe "Cannot decode ranges without a valid start time" $
+            forM_ exampleInvalidTimes $ \invalidTime ->
+                it (T.unpack invalidTime) $ property $ do
+                    let text = "test " <> invalidTime <> "-" <> exampleValidTime
+                    fromText @(Iso8601Range "test") text
+                        `shouldBe` Left (TextDecodingError $ err
+                            <> "Invalid start time string: "
+                            <> show invalidTime)
+
+        describe "Cannot decode ranges without a valid end time" $
+            forM_ exampleInvalidTimes $ \invalidTime ->
+                it (T.unpack invalidTime) $ property $ do
+                    let text = "test " <> exampleValidTime <> "-" <> invalidTime
+                    fromText @(Iso8601Range "test") text
+                        `shouldBe` Left (TextDecodingError $ err
+                            <> "Invalid end time string: "
+                            <> show invalidTime)
+
     describe "AddressAmount" $ do
         it "fromText . toText === pure"
             $ property
@@ -222,6 +286,7 @@ spec = do
         "can perform roundtrip HttpApiData serialization & deserialization" $ do
             httpApiDataRountrip $ Proxy @(ApiT WalletId)
             httpApiDataRountrip $ Proxy @(ApiT AddressState)
+            httpApiDataRountrip $ Proxy @(Iso8601Range "test-header")
 
     describe
         "verify that every type used with JSON content type in a servant API \
@@ -545,6 +610,10 @@ instance Arbitrary ApiFee where
 
 instance Arbitrary AddressPoolGap where
     arbitrary = arbitraryBoundedEnum
+
+instance Arbitrary (Iso8601Range (name :: Symbol)) where
+    arbitrary = Iso8601Range <$> arbitrary <*> arbitrary
+    shrink = genericShrink
 
 instance Arbitrary WalletPostData where
     arbitrary = genericArbitrary
