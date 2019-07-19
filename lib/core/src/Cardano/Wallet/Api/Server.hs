@@ -80,6 +80,7 @@ import Cardano.Wallet.Primitive.Types
     , DecodeAddress (..)
     , DefineTx (..)
     , EncodeAddress (..)
+    , HistogramBar (..)
     , TxOut (..)
     , UTxOStatistics (..)
     , WalletId (..)
@@ -153,6 +154,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.Wai.Handler.Warp as Warp
@@ -359,7 +361,8 @@ getUTxOsStatistics w (ApiT wid) = do
     return ApiUtxoStatistics
         { total = Quantity (fromIntegral totalStakes)
         , scale = ApiT bType
-        , distribution = histo
+        , distribution =
+                Map.fromList $ map (\(HistogramBarCount b c)-> (b,c)) histo
         }
 
 {-------------------------------------------------------------------------------

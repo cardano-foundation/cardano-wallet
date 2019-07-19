@@ -67,6 +67,7 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Direction (..)
     , Hash (..)
+    , HistogramBar (..)
     , PoolId (..)
     , SlotId (..)
     , TxIn (..)
@@ -819,7 +820,8 @@ instance Arbitrary ApiUtxoStatistics where
     arbitrary = do
         utxos <- arbitrary
         let (UTxOStatistics histoBars stakes bType) = computeUtxoStatistics log10 utxos
-        return $ ApiUtxoStatistics (Quantity $ fromIntegral stakes) (ApiT bType) histoBars
+        let boundCountMap = Map.fromList $ map (\(HistogramBarCount b c)-> (b,c)) histoBars
+        return $ ApiUtxoStatistics (Quantity $ fromIntegral stakes) (ApiT bType) boundCountMap
 
 instance Arbitrary (Quantity "block" Natural) where
     shrink (Quantity 0) = []

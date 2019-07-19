@@ -15,8 +15,6 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
-{-# OPTIONS_GHC -fno-warn-orphans #-}
-
 -- |
 -- Copyright: © 2018-2019 IOHK
 -- License: MIT
@@ -73,13 +71,10 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , EncodeAddress (..)
     , Hash (..)
-    , HistogramBar
-    , HistogramBar (..)
     , PoolId (..)
     , ShowFmt (..)
     , SlotId (..)
     , TxStatus (..)
-    , UTxOStatistics (..)
     , WalletBalance (..)
     , WalletDelegation (..)
     , WalletId (..)
@@ -87,7 +82,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     , isValidCoin
-    , mkUtxoStatistics
     )
 import Control.Arrow
     ( left )
@@ -95,7 +89,6 @@ import Control.Monad
     ( (>=>) )
 import Data.Aeson
     ( FromJSON (..)
-    , Object
     , SumEncoding (..)
     , ToJSON (..)
     , camelTo2
@@ -103,19 +96,15 @@ import Data.Aeson
     , fieldLabelModifier
     , genericParseJSON
     , genericToJSON
-    , object
     , omitNothingFields
     , sumEncoding
-    , withObject
-    , (.:)
-    , (.=)
     )
-import Data.Aeson.Types
-    ( Parser )
 import Data.Bifunctor
     ( bimap, first )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Map.Strict
+    ( Map )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -132,6 +121,8 @@ import Data.Time
     ( UTCTime )
 import Data.Time.Text
     ( iso8601BasicUtc, utcTimeFromText, utcTimeToText )
+import Data.Word
+    ( Word64 )
 import Fmt
     ( pretty )
 import GHC.Generics
@@ -141,11 +132,10 @@ import GHC.TypeLits
 import Numeric.Natural
     ( Natural )
 import Web.HttpApiData
-    ( FromHttpApiData (..), ToHttpApiData (..), showTextData )
+    ( FromHttpApiData (..), ToHttpApiData (..) )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
-import qualified Data.HashMap.Strict as HMS
 import qualified Data.Text as T
 
 {-------------------------------------------------------------------------------
@@ -170,7 +160,7 @@ data ApiWallet = ApiWallet
 data ApiUtxoStatistics = ApiUtxoStatistics
     { total :: !(Quantity "lovelace" Natural)
     , scale :: !(ApiT BoundType)
-    , distribution :: [HistogramBar]
+    , distribution :: !(Map Word64 Word64)
     } deriving (Eq, Generic, Show)
 
 data WalletPostData = WalletPostData
@@ -507,49 +497,16 @@ instance FromJSON (ApiT WalletState) where
 instance ToJSON (ApiT WalletState) where
     toJSON = genericToJSON walletStateOptions . getApiT
 
-instance ToJSON ApiUtxoStatistics where
-    toJSON (ApiUtxoStatistics totalStake theScale bars) =
-        let
-            histogramObject =
-                Aeson.Object . HMS.fromList . map extractBarKey
-
-            extractBarKey (HistogramBarCount bound stake) =
-                showTextData bound .= stake
-        in
-            object
-                [ "total" .= totalStake
-                , "scale" .= getApiT theScale
-                , "distribution" .= histogramObject bars
-                ]
-
 instance FromJSON ApiUtxoStatistics where
-    parseJSON = withObject "ApiWalletUTxOsStatistics" parseUtxoStatistics
-      where
-        parseUtxoStatistics :: Object -> Parser ApiUtxoStatistics
-        parseUtxoStatistics o = do
-            totalQuantity <- o .: "total"
-            (UTxOStatistics hist totalStakes bType) <- eitherToParser =<< mkUtxoStatistics
-                <$> (o .: "scale")
-                <*> (o .: "distribution")
-                <*> (totalQuantity .: "quantity")
-            return ApiUtxoStatistics
-                { total = Quantity (fromIntegral totalStakes)
-                , scale = ApiT bType
-                , distribution = hist
-                }
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiUtxoStatistics where
+    toJSON = genericToJSON defaultRecordTypeOptions
 
 instance ToJSON (ApiT BoundType) where
     toJSON (ApiT Log10) = "log10"
 
 instance FromJSON (ApiT BoundType) where
     parseJSON "log10" = pure $ ApiT Log10
-    parseJSON _ = fail "wrong BoundType value"
-
-instance ToJSON BoundType where
-    toJSON Log10 = "log10"
-
-instance FromJSON BoundType where
-    parseJSON "log10" = pure Log10
     parseJSON _ = fail "wrong BoundType value"
 
 instance FromJSON (ApiT PoolId) where
