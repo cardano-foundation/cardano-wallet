@@ -286,6 +286,7 @@ spec = do
         "can perform roundtrip HttpApiData serialization & deserialization" $ do
             httpApiDataRountrip $ Proxy @(ApiT WalletId)
             httpApiDataRountrip $ Proxy @(ApiT AddressState)
+            httpApiDataRountrip $ Proxy @(Iso8601Range "test-header")
 
     describe
         "verify that every type used with JSON content type in a servant API \
