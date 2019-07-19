@@ -84,9 +84,9 @@ spec = do
                 let process = proc' (commandName @t) args
                 withCreateProcess process $ \_ (Just o) (Just e) ph -> do
                     expectPathEventuallyExist d
-                    expectPathEventuallyExist (d <> "/jormungandr")
-                    expectPathEventuallyExist (d <> "/jormungandr-config.json")
-                    expectPathEventuallyExist (d <> "/wallet.db")
+                    expectPathEventuallyExist (d <> "/jormungandr/testnet/chain")
+                    expectPathEventuallyExist (d <> "/jormungandr/testnet/jormungandr-config.json")
+                    expectPathEventuallyExist (d <> "/jormungandr/testnet/wallet.db")
                   `finally` do
                     terminateProcess ph
                     TIO.hGetContents o >>= TIO.putStrLn

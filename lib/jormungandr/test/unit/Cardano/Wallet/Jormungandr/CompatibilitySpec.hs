@@ -260,7 +260,7 @@ spec = do
             let stateDir = "/state-dir"
             let baseUrl = BaseUrl Http "127.0.0.1" 8080 "/api"
             genConfigFile stateDir baseUrl `shouldBe` [aesonQQ|{
-                "storage": "/state-dir/jormungandr",
+                "storage": "/state-dir/chain",
                 "rest": {
                     "listen": "127.0.0.1:8080",
                     "prefix": "api"
