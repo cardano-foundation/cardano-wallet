@@ -11,12 +11,20 @@ module Main where
 
 import Prelude
 
+import Cardano.BM.Backend.Switchboard
+    ( Switchboard )
+import Cardano.BM.Configuration.Static
+    ( defaultConfigStdout )
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Setup
+    ( setupTrace_ )
 import Cardano.BM.Trace
-    ( nullTracer )
+    ( Trace, appendName, nullTracer )
 import Cardano.Launcher
     ( Command (Command), StdStream (..), installSignalHandlers, launch )
 import Cardano.Wallet
-    ( WalletLayer (..), newWalletLayer )
+    ( WalletLayer (..), newWalletLayer, waitForWalletSync )
 import Cardano.Wallet.DB.Sqlite
     ( PersistState )
 import Cardano.Wallet.HttpBridge.Compatibility
@@ -50,7 +58,6 @@ import Cardano.Wallet.Primitive.Types
     , UTxO (..)
     , WalletId (..)
     , WalletName (..)
-    , WalletState (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
@@ -70,12 +77,8 @@ import Control.Monad.Trans.Except
     ( runExceptT )
 import Criterion.Measurement
     ( getTime, initializeTime, secs )
-import Data.Generics.Internal.VL.Lens
-    ( (^.) )
 import Data.Proxy
     ( Proxy (..) )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -96,6 +99,7 @@ import System.IO.Temp
     ( emptySystemTempFile )
 
 import qualified Cardano.BM.Configuration.Model as CM
+import qualified Cardano.BM.Data.BackendKind as CM
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -110,24 +114,25 @@ main = do
     hSetBuffering stderr NoBuffering
     installSignalHandlers
     network <- getArgs >>= parseNetwork
+    (_, _, tracer) <- initTracer Info "launch"
     case network of
         Testnet -> do
             let proxy = Proxy @'Testnet
             prepareNode proxy
             runBenchmarks
                 [ bench ("restore " <> toText network <> " seq")
-                    (bench_restoration proxy (walletSeq @'Testnet))
+                    (bench_restoration proxy tracer (walletSeq @'Testnet))
                 , bench ("restore " <> toText network <> " 10% ownership")
-                    (bench_restoration proxy wallet10p)
+                    (bench_restoration proxy tracer wallet10p)
                 ]
         Mainnet -> do
             let proxy = Proxy @'Mainnet
             prepareNode proxy
             runBenchmarks
                 [ bench ("restore " <> toText network <> " seq")
-                    (bench_restoration proxy (walletSeq @'Mainnet))
+                    (bench_restoration proxy tracer (walletSeq @'Mainnet))
                 , bench ("restore " <> toText network <> " 10% ownership")
-                    (bench_restoration proxy wallet10p)
+                    (bench_restoration proxy tracer wallet10p)
                 ]
   where
     walletSeq
@@ -201,9 +206,10 @@ bench_restoration
         , KeyToAddress t
         )
     => Proxy n
+    -> Trace IO Text
     -> (WalletId, WalletName, s)
     -> IO ()
-bench_restoration _ (wid, wname, s) = withHttpBridge network $ \port -> do
+bench_restoration _ tr (wid, wname, s) = withHttpBridge network $ \port -> do
     logConfig <- CM.empty
     dbFile <- Just <$> emptySystemTempFile "bench.db"
     (ctx, db) <- Sqlite.newDBLayer logConfig nullTracer dbFile
@@ -216,7 +222,7 @@ bench_restoration _ (wid, wname, s) = withHttpBridge network $ \port -> do
     w <- newWalletLayer @_ @t nullTracer bp db nw tl
     wallet <- unsafeRunExceptT $ createWallet w wid wname s
     unsafeRunExceptT $ restoreWallet w wallet
-    waitForWalletSync w wallet
+    waitForWalletSync w tr wallet
     (wallet', _) <- unsafeRunExceptT $ readWallet w wid
     sayErr "Wallet restored!"
     sayErr . fmt $ "Balance: " +|| totalBalance wallet' ||+ " lovelace"
@@ -259,21 +265,6 @@ prepareNode _ = do
     sayErr . fmt $ "Completed sync of "+|toText network|+" up to "+||sl||+""
   where
     network = networkVal @n
-
--- | Regularly poll the wallet to monitor it's syncing progress. Block until the
--- wallet reaches 100%.
-waitForWalletSync
-    :: WalletLayer s t
-    -> WalletId
-    -> IO ()
-waitForWalletSync walletLayer wid = do
-    (_, meta) <- unsafeRunExceptT $ readWallet walletLayer wid
-    case meta ^. #status of
-        Ready -> return ()
-        Restoring (Quantity p) -> do
-            sayErr . fmt $ "[INFO] restoring: "+||p||+"%"
-            threadDelay 1000000
-            waitForWalletSync walletLayer wid
 
 -- | Poll the network tip until it reaches the slot corresponding to the current
 -- time.
@@ -322,3 +313,16 @@ getCurrentSlot net = calcSlot <$> startTime net <*> getPOSIXTime
 
 logQuiet :: SlotId -> SlotId -> IO ()
 logQuiet _ _ = pure ()
+
+-- | Initialize logging at the specified minimum 'Severity' level.
+initTracer
+    :: Severity
+    -> Text
+    -> IO (CM.Configuration, Switchboard Text, Trace IO Text)
+initTracer minSeverity cmd = do
+    c <- defaultConfigStdout
+    CM.setMinSeverity c minSeverity
+    CM.setSetupBackends c [CM.KatipBK, CM.AggregationBK]
+    (tr0, sb) <- setupTrace_ c "bench cardano-http-bridge:restore"
+    tr <- appendName cmd tr0
+    pure (c, sb, tr)
