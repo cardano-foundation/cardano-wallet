@@ -4,6 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -21,6 +22,8 @@ module Cardano.Wallet.Jormungandr.Network
     , mkNetworkLayer
     , JormungandrLayer (..)
     , mkJormungandrLayer
+    , Config
+    , nullConfig
 
     -- * Exceptions
     , ErrUnexpectedNetworkFailure (..)
@@ -77,6 +80,8 @@ import Control.Monad
     ( forM, void )
 import Control.Monad.Catch
     ( throwM )
+import Control.Monad.Trans.Class
+    ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT (..), throwE, withExceptT )
 import Data.Coerce
@@ -85,6 +90,8 @@ import Data.Maybe
     ( mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Time.Clock
+    ( UTCTime )
 import Network.HTTP.Client
     ( Manager, defaultManagerSettings, newManager )
 import Network.HTTP.Types.Status
@@ -107,26 +114,30 @@ import Servant.Links
     ( Link, safeLink )
 
 import qualified Cardano.Wallet.Jormungandr.Binary as J
-import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text.Encoding as T
 
 -- | Creates a new 'NetworkLayer' connecting to an underlying 'Jormungandr'
 -- backend target.
 newNetworkLayer
-    :: forall n. ()
+    :: forall n t. (t ~ Jormungandr n)
     => BaseUrl
-    -> IO (NetworkLayer (Jormungandr n) IO)
-newNetworkLayer url = do
-    mgr <- newManager defaultManagerSettings
-    return $ mkNetworkLayer $ mkJormungandrLayer @n mgr url
+    -> Hash "Genesis"
+    -> ExceptT ErrGetBlockchainParams IO
+       (NetworkLayer t IO, BlockchainParameters t)
+newNetworkLayer url genesisHash = do
+    mgr <- lift $ newManager defaultManagerSettings
+    let jl = mkJormungandrLayer @n mgr url
+    params <- getInitialBlockchainParameters jl genesisHash
+    return (mkNetworkLayer (mkConfig params) jl, params)
 
 -- | Wrap a Jormungandr client into a 'NetworkLayer' common interface.
 mkNetworkLayer
     :: Monad m
-    => JormungandrLayer n m
+    => Config
+    -> JormungandrLayer n m
     -> NetworkLayer (Jormungandr n) m
-mkNetworkLayer j = NetworkLayer
+mkNetworkLayer Config{..} j = NetworkLayer
     { networkTip = do
         t <- (getTipId j) `mappingError`
             ErrNetworkTipNetworkUnreachable
@@ -354,8 +365,3 @@ data ErrGetBlockchainParams
     | ErrGetBlockchainParamsGenesisNotFound (Hash "Genesis")
     | ErrGetBlockchainParamsIncompleteParams [ConfigParam]
     deriving (Show, Eq)
-
--- TODO: This is temporary. The actual value should be retrieved from the
--- network config params.
-toSlotNo :: SlotId -> SlotNo
-toSlotNo = flatSlot (W.SlotsPerEpoch 21600)

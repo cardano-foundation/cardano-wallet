@@ -133,7 +133,7 @@ spec = do
 
     describe "Error paths" $ do
         it "networkTip: ErrNetworkUnreachable" $ do
-            nw <- Jormungandr.newNetworkLayer url
+            nw <- newNetworkLayer url
             let msg x =
                     "Expected a ErrNetworkUnreachable' failure but got "
                     <> show x
@@ -147,7 +147,7 @@ spec = do
             action `shouldReturn` ()
 
         it "nextBlocks: ErrNetworkUnreachable" $ do
-            nw <- Jormungandr.newNetworkLayer url
+            nw <- newNetworkLayer url
             let msg x =
                     "Expected a ErrNetworkUnreachable' failure but got "
                     <> show x
@@ -277,7 +277,8 @@ spec = do
                 ] (return ())
                 Inherit
             ]
-        nw <- Jormungandr.newNetworkLayer baseUrl
+        threadDelay 5000000 -- fixme: need to fix the wait
+        nw <- newNetworkLayer baseUrl
         wait nw $> (handle, nw)
 
     killNode :: (Async (), a) -> IO ()
@@ -341,3 +342,11 @@ spec = do
                 }
             ]
         }
+
+    block0H :: Hash "Genesis"
+    block0H = Hash $ unsafeFromHex
+        "dba597bee5f0987efbf56f6bd7f44c38158a7770d0cb28a26b5eca40613a7ebd"
+        -- ^ jcli genesis hash --input test/data/jormungandr/block0.bin
+
+    newNetworkLayer url' = fmap fst . unsafeRunExceptT $
+        Jormungandr.newNetworkLayer url' block0H
