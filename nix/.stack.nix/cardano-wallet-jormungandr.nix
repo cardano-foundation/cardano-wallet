@@ -86,6 +86,7 @@
             (hsPkgs.cardano-wallet-jormungandr)
             (hsPkgs.cardano-wallet-launcher)
             (hsPkgs.command)
+            (hsPkgs.containers)
             (hsPkgs.cryptonite)
             (hsPkgs.deepseq)
             (hsPkgs.directory)

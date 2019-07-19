@@ -147,6 +147,7 @@ test-suite integration
     , cardano-wallet-http-bridge
     , cardano-wallet-launcher
     , command
+    , containers
     , cborg
     , cryptonite
     , directory

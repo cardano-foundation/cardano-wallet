@@ -86,6 +86,7 @@
             (hsPkgs.cardano-wallet-http-bridge)
             (hsPkgs.cardano-wallet-launcher)
             (hsPkgs.command)
+            (hsPkgs.containers)
             (hsPkgs.cborg)
             (hsPkgs.cryptonite)
             (hsPkgs.directory)
