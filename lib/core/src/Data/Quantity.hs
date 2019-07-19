@@ -157,7 +157,7 @@ instance FromText Percentage where
             "expected a value between 0 and 100 with a '%' suffix (e.g. '14%')"
 
 instance Buildable Percentage where
-    build (Percentage p) = mempty <> build p <> "%"
+    build (Percentage p) = build p <> "%"
 
 -- | Safe constructor for 'Percentage'
 mkPercentage

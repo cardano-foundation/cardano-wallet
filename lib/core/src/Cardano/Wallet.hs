@@ -44,6 +44,9 @@ module Cardano.Wallet
 
     -- * Construction
     , newWalletLayer
+
+    -- * Helpers
+    , waitForWalletSync
     ) where
 
 import Prelude hiding
@@ -846,3 +849,25 @@ newWalletLayer tracer bp db nw tl = do
                         return $ checkPassphrase pwd hpwd
                     return xprv
         action xprv
+
+
+{---------------------------------------------------------------------------
+                                 Helpers
+  Defined outside 'WalletLayer' since they don't benefit from being "layered".
+---------------------------------------------------------------------------}
+
+-- | Regularly poll the wallet to monitor it's syncing progress. Block until the
+-- wallet reaches 100%.
+waitForWalletSync
+    :: WalletLayer s t
+    -> WalletId
+    -> ExceptT ErrNoSuchWallet IO ()
+waitForWalletSync walletLayer wid = do
+    (_, meta) <- readWallet walletLayer wid
+    case meta ^. #status of
+        Ready -> return ()
+        Restoring _progress -> do
+            liftIO $ threadDelay $ 1 * second
+            waitForWalletSync walletLayer wid
+  where
+    second = 1000*1000

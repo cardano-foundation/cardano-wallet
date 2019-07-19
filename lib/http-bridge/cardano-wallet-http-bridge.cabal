@@ -223,7 +223,6 @@ benchmark restore
     , deepseq
     , digest
     , fmt
-    , generic-lens
     , iohk-monitoring
     , persistent
     , persistent-template

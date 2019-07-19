@@ -16,7 +16,7 @@ import Cardano.BM.Trace
 import Cardano.Launcher
     ( Command (Command), StdStream (..), installSignalHandlers, launch )
 import Cardano.Wallet
-    ( WalletLayer (..), newWalletLayer )
+    ( WalletLayer (..), newWalletLayer, waitForWalletSync )
 import Cardano.Wallet.DB.Sqlite
     ( PersistState )
 import Cardano.Wallet.HttpBridge.Compatibility
@@ -50,7 +50,6 @@ import Cardano.Wallet.Primitive.Types
     , UTxO (..)
     , WalletId (..)
     , WalletName (..)
-    , WalletState (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
@@ -70,12 +69,8 @@ import Control.Monad.Trans.Except
     ( runExceptT )
 import Criterion.Measurement
     ( getTime, initializeTime, secs )
-import Data.Generics.Internal.VL.Lens
-    ( (^.) )
 import Data.Proxy
     ( Proxy (..) )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -216,7 +211,7 @@ bench_restoration _ (wid, wname, s) = withHttpBridge network $ \port -> do
     w <- newWalletLayer @_ @t nullTracer bp db nw tl
     wallet <- unsafeRunExceptT $ createWallet w wid wname s
     unsafeRunExceptT $ restoreWallet w wallet
-    waitForWalletSync w wallet
+    unsafeRunExceptT $ waitForWalletSync w wallet
     (wallet', _) <- unsafeRunExceptT $ readWallet w wid
     sayErr "Wallet restored!"
     sayErr . fmt $ "Balance: " +|| totalBalance wallet' ||+ " lovelace"
@@ -259,21 +254,6 @@ prepareNode _ = do
     sayErr . fmt $ "Completed sync of "+|toText network|+" up to "+||sl||+""
   where
     network = networkVal @n
-
--- | Regularly poll the wallet to monitor it's syncing progress. Block until the
--- wallet reaches 100%.
-waitForWalletSync
-    :: WalletLayer s t
-    -> WalletId
-    -> IO ()
-waitForWalletSync walletLayer wid = do
-    (_, meta) <- unsafeRunExceptT $ readWallet walletLayer wid
-    case meta ^. #status of
-        Ready -> return ()
-        Restoring (Quantity p) -> do
-            sayErr . fmt $ "[INFO] restoring: "+||p||+"%"
-            threadDelay 1000000
-            waitForWalletSync walletLayer wid
 
 -- | Poll the network tip until it reaches the slot corresponding to the current
 -- time.
