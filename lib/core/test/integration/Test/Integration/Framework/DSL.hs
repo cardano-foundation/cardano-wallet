@@ -82,6 +82,7 @@ module Test.Integration.Framework.DSL
     -- * Endpoints
     , getWalletEp
     , deleteWalletEp
+    , getWalletUtxoEp
     , getAddressesEp
     , postTxEp
     , postTxFeeEp
@@ -868,6 +869,12 @@ deleteWalletEp :: ApiWallet -> (Method, Text)
 deleteWalletEp w =
     ( "DELETE"
     , "v2/wallets/" <> w ^. walletId
+    )
+
+getWalletUtxoEp :: ApiWallet -> (Method, Text)
+getWalletUtxoEp w =
+    ( "GET"
+    , "v2/wallets/" <> w ^. walletId <> "/statistics/utxos"
     )
 
 getAddressesEp :: ApiWallet -> Text -> (Method, Text)

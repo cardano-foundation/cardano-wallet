@@ -11,7 +11,7 @@ module Test.Integration.Scenario.API.Wallets
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiTransaction, ApiWallet )
+    ( ApiTransaction, ApiUtxoStatistics, ApiWallet )
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
@@ -28,6 +28,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Text
     ( Text )
+import Numeric.Natural
+    ( Natural )
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Integration.Framework.DSL
@@ -47,9 +49,11 @@ import Test.Integration.Framework.DSL
     , expectListItemFieldEqual
     , expectListSizeEqual
     , expectResponseCode
+    , expectWalletUTxO
     , fixtureWallet
     , getFromResponse
     , getWalletEp
+    , getWalletUtxoEp
     , json
     , listAddresses
     , passphraseLastUpdate
@@ -1460,6 +1464,70 @@ spec = do
             r <- request @ApiWallet ctx (method, endpoint) Default Empty
             expectResponseCode @IO HTTP.status405 r
             expectErrorMessage errMsg405 r
+
+    it "WALLETS_UTXO_01 - Cannot get UTxO statistics after wallet is deleted" $ \ctx -> do
+        let payload = Json [json| {
+                "name": "Some Wallet",
+                "mnemonic_sentence": #{mnemonics21},
+                "passphrase": "Secure Passphrase"
+                } |]
+        r1 <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
+        expectResponseCode @IO HTTP.status202 r1
+        let wid = getFromResponse walletId r1
+
+        -- delete wallet
+        let wDest = getFromResponse id r1
+        rDel <- request @ApiWallet ctx (deleteWalletEp wDest) Default Empty
+        expectResponseCode @IO HTTP.status204 rDel
+
+        rStat <- request @ApiUtxoStatistics ctx (getWalletUtxoEp wDest) Default Empty
+        expectResponseCode @IO HTTP.status404 rStat
+        expectErrorMessage (errMsg404NoWallet wid) rStat
+
+    it "WALLETS_UTXO_02 - Utxo statistics works properly" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        -- create wallet
+        mnemonics <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
+        let payldCrt = payloadWith "!st created" mnemonics
+        rInit <- request @ApiWallet ctx ("POST", "v2/wallets") Default payldCrt
+        let wDest = getFromResponse id rInit
+        verify rInit
+            [ expectResponseCode @IO HTTP.status202
+            , expectFieldEqual balanceAvailable 0
+            , expectFieldEqual balanceTotal 0
+            ]
+        rStat <- request @ApiUtxoStatistics ctx (getWalletUtxoEp wDest) Default Empty
+        expectResponseCode @IO HTTP.status200 rStat
+        expectWalletUTxO [] (snd rStat)
+
+        --send funds
+        addrs <- listAddresses ctx wDest
+        let destination = (addrs !! 1) ^. #id
+        let coins = [13::Natural, 43, 66, 101, 1339]
+        let matrix = zip coins [1..]
+        forM_ matrix $ \(c, alreadyAbsorbed) -> do
+            let payload = Json [json|{
+                    "payments": [{
+                        "address": #{destination},
+                        "amount": {
+                            "quantity": #{c},
+                            "unit": "lovelace"
+                        }
+                    }],
+                    "passphrase": "cardano-wallet"
+                }|]
+            rTrans <- request @(ApiTransaction t) ctx (postTxEp wSrc)
+                Default payload
+            expectResponseCode @IO HTTP.status202 rTrans
+            rGet <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
+            let coinsSent = map fromIntegral $ take alreadyAbsorbed coins
+            verify rGet
+                [ expectEventually ctx balanceTotal (fromIntegral $ sum coinsSent)
+                , expectEventually ctx balanceAvailable (fromIntegral $ sum coinsSent)
+                ]
+            rStat1 <- request @ApiUtxoStatistics ctx (getWalletUtxoEp wDest) Default Empty
+            expectResponseCode @IO HTTP.status200 rStat1
+            expectWalletUTxO coinsSent (snd rStat1)
  where
     getHeaderCases =
               [ ( "No HTTP headers -> 200", None
