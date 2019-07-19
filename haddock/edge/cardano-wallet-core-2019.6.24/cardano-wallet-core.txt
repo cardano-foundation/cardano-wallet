@@ -2107,312 +2107,6 @@ instance GHC.Generics.Generic Cardano.Wallet.DB.Sqlite.DBLog
 instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t => Cardano.Wallet.DB.Sqlite.PersistState (Cardano.Wallet.Primitive.AddressDiscovery.SeqState t)
 
 
--- | API type representations of various types. We define here pretty much
---   all our user-facing types that are mostly composed with internal /
---   primitive types.
---   
---   This module also define required API instances (JSON, HttpApiData...)
---   for all those types, making sure to match the specification document:
---   
---   <a>Wallet API Specification</a>
-module Cardano.Wallet.Api.Types
-data ApiAddress t
-ApiAddress :: !(ApiT Address, Proxy t) -> !ApiT AddressState -> ApiAddress t
-[$sel:id:ApiAddress] :: ApiAddress t -> !(ApiT Address, Proxy t)
-[$sel:state:ApiAddress] :: ApiAddress t -> !ApiT AddressState
-data ApiWallet
-ApiWallet :: !ApiT WalletId -> !ApiT AddressPoolGap -> !ApiT WalletBalance -> !ApiT (WalletDelegation (ApiT PoolId)) -> !ApiT WalletName -> !Maybe (ApiT WalletPassphraseInfo) -> !ApiT WalletState -> ApiWallet
-[$sel:id:ApiWallet] :: ApiWallet -> !ApiT WalletId
-[$sel:addressPoolGap:ApiWallet] :: ApiWallet -> !ApiT AddressPoolGap
-[$sel:balance:ApiWallet] :: ApiWallet -> !ApiT WalletBalance
-[$sel:delegation:ApiWallet] :: ApiWallet -> !ApiT (WalletDelegation (ApiT PoolId))
-[$sel:name:ApiWallet] :: ApiWallet -> !ApiT WalletName
-[$sel:passphrase:ApiWallet] :: ApiWallet -> !Maybe (ApiT WalletPassphraseInfo)
-[$sel:state:ApiWallet] :: ApiWallet -> !ApiT WalletState
-data WalletBalance
-WalletBalance :: !Quantity "lovelace" Natural -> !Quantity "lovelace" Natural -> WalletBalance
-[$sel:available:WalletBalance] :: WalletBalance -> !Quantity "lovelace" Natural
-[$sel:total:WalletBalance] :: WalletBalance -> !Quantity "lovelace" Natural
-data WalletPostData
-WalletPostData :: !Maybe (ApiT AddressPoolGap) -> !ApiMnemonicT '[15, 18, 21, 24] "seed" -> !Maybe (ApiMnemonicT '[9, 12] "generation") -> !ApiT WalletName -> !ApiT (Passphrase "encryption") -> WalletPostData
-[$sel:addressPoolGap:WalletPostData] :: WalletPostData -> !Maybe (ApiT AddressPoolGap)
-[$sel:mnemonicSentence:WalletPostData] :: WalletPostData -> !ApiMnemonicT '[15, 18, 21, 24] "seed"
-[$sel:mnemonicSecondFactor:WalletPostData] :: WalletPostData -> !Maybe (ApiMnemonicT '[9, 12] "generation")
-[$sel:name:WalletPostData] :: WalletPostData -> !ApiT WalletName
-[$sel:passphrase:WalletPostData] :: WalletPostData -> !ApiT (Passphrase "encryption")
-newtype WalletPutData
-WalletPutData :: Maybe (ApiT WalletName) -> WalletPutData
-[$sel:name:WalletPutData] :: WalletPutData -> Maybe (ApiT WalletName)
-data WalletPutPassphraseData
-WalletPutPassphraseData :: !ApiT (Passphrase "encryption-old") -> !ApiT (Passphrase "encryption-new") -> WalletPutPassphraseData
-[$sel:oldPassphrase:WalletPutPassphraseData] :: WalletPutPassphraseData -> !ApiT (Passphrase "encryption-old")
-[$sel:newPassphrase:WalletPutPassphraseData] :: WalletPutPassphraseData -> !ApiT (Passphrase "encryption-new")
-data PostTransactionData t
-PostTransactionData :: !NonEmpty (AddressAmount t) -> !ApiT (Passphrase "encryption") -> PostTransactionData t
-[$sel:payments:PostTransactionData] :: PostTransactionData t -> !NonEmpty (AddressAmount t)
-[$sel:passphrase:PostTransactionData] :: PostTransactionData t -> !ApiT (Passphrase "encryption")
-newtype PostTransactionFeeData t
-PostTransactionFeeData :: NonEmpty (AddressAmount t) -> PostTransactionFeeData t
-[$sel:payments:PostTransactionFeeData] :: PostTransactionFeeData t -> NonEmpty (AddressAmount t)
-data ApiBlockData
-ApiBlockData :: UTCTime -> !ApiT SlotId -> ApiBlockData
-[$sel:time:ApiBlockData] :: ApiBlockData -> UTCTime
-[$sel:block:ApiBlockData] :: ApiBlockData -> !ApiT SlotId
-data ApiTransaction t
-ApiTransaction :: !ApiT (Hash "Tx") -> !Quantity "lovelace" Natural -> !Maybe ApiBlockData -> !Quantity "block" Natural -> !ApiT Direction -> !NonEmpty (AddressAmount t) -> !NonEmpty (AddressAmount t) -> !ApiT TxStatus -> ApiTransaction t
-[$sel:id:ApiTransaction] :: ApiTransaction t -> !ApiT (Hash "Tx")
-[$sel:amount:ApiTransaction] :: ApiTransaction t -> !Quantity "lovelace" Natural
-[$sel:insertedAt:ApiTransaction] :: ApiTransaction t -> !Maybe ApiBlockData
-[$sel:depth:ApiTransaction] :: ApiTransaction t -> !Quantity "block" Natural
-[$sel:direction:ApiTransaction] :: ApiTransaction t -> !ApiT Direction
-[$sel:inputs:ApiTransaction] :: ApiTransaction t -> !NonEmpty (AddressAmount t)
-[$sel:outputs:ApiTransaction] :: ApiTransaction t -> !NonEmpty (AddressAmount t)
-[$sel:status:ApiTransaction] :: ApiTransaction t -> !ApiT TxStatus
-newtype ApiFee
-ApiFee :: Quantity "lovelace" Natural -> ApiFee
-[$sel:amount:ApiFee] :: ApiFee -> Quantity "lovelace" Natural
-data AddressAmount t
-AddressAmount :: !(ApiT Address, Proxy t) -> !Quantity "lovelace" Natural -> AddressAmount t
-[$sel:address:AddressAmount] :: AddressAmount t -> !(ApiT Address, Proxy t)
-[$sel:amount:AddressAmount] :: AddressAmount t -> !Quantity "lovelace" Natural
-
--- | Error codes returned by the API, in the form of snake_cased strings
-data ApiErrorCode
-NoSuchWallet :: ApiErrorCode
-WalletAlreadyExists :: ApiErrorCode
-NoRootKey :: ApiErrorCode
-WrongEncryptionPassphrase :: ApiErrorCode
-KeyNotFoundForAddress :: ApiErrorCode
-NotEnoughMoney :: ApiErrorCode
-UtxoNotEnoughFragmented :: ApiErrorCode
-TransactionIsTooBig :: ApiErrorCode
-InputsDepleted :: ApiErrorCode
-CannotCoverFee :: ApiErrorCode
-InvalidCoinSelection :: ApiErrorCode
-NetworkUnreachable :: ApiErrorCode
-NetworkMisconfigured :: ApiErrorCode
-CreatedInvalidTransaction :: ApiErrorCode
-RejectedByCoreNode :: ApiErrorCode
-BadRequest :: ApiErrorCode
-NotFound :: ApiErrorCode
-MethodNotAllowed :: ApiErrorCode
-NotAcceptable :: ApiErrorCode
-UnsupportedMediaType :: ApiErrorCode
-UnexpectedError :: ApiErrorCode
-
--- | A range of dates in ISO-8601 UTC format without symbols. Meant to be
---   rendered as a HTTP <tt>Header</tt>, where the <a>ApiWallet</a>
---   type-parameter renders as a prefix, e.g.
---   
---   name 20190227T160329Z-*
---   
---   <a>Nothing</a> ("*") can be used instead of upper and/or lower
---   boundary.
---   
---   <ul>
---   <li>`20190227T160329Z-*`: means all transactions after 2019-02-27 T
---   16:03:29Z (including)</li>
---   <li>`*-20190227T160329Z`: means all transactions before 2019-02-27 T
---   16:03:29Z (including)</li>
---   <li><tt>*-*</tt>: means all transactions</li>
---   <li>`20190227T000000Z-20200227T000000Z`: means all transaction between
---   2019-02-27 and 2020-02-27, in ascending order.</li>
---   <li>`20200227T000000Z-20190227T000000Z`: means all transaction between
---   2020-02-27 and 2019-02-27, in descending order.</li>
---   </ul>
-data Iso8601Range (name :: Symbol)
-Iso8601Range :: Maybe UTCTime -> Maybe UTCTime -> Iso8601Range
-
--- | Polymorphic wrapper type to put around primitive types and, 3rd party
---   lib types to avoid defining orphan instances and/or, undesirable
---   instances on primitive types. It helps to keep a nice separation of
---   concerns between the API layer and other modules.
-newtype ApiT a
-ApiT :: a -> ApiT a
-[$sel:getApiT:ApiT] :: ApiT a -> a
-
--- | Representation of mnemonics at the API-level, using a polymorphic type
---   in the lengths of mnemonics that are supported (and an underlying
---   purpose). In practice, mnemonics correspond to passphrases or seeds,
---   and although they're nice to manipulate as mnemonics from a
---   user-perspective, carrying around a list of words doesn't really make
---   sense for the business logic, which prefers manipulating scrubbed
---   bytes directly.
---   
---   <pre>
---   data MyWallet
---       { mnemonic :: ApiMnemonicT '[15,18,21,24] "root-seed"
---       }
---   </pre>
---   
---   Note that the given <a>Nat</a>s **have** to be valid mnemonic sizes,
---   otherwise the underlying code won't even compile, with not-so-friendly
---   error messages.
---   
---   Also, the internal representation holds a <tt>[Text]</tt> which
---   contains the list of mnemonic words that was parsed. This is only to
---   be able to implement the <a>ToJSON</a> instances and roundtrip, which
---   is a very dubious argument. In practice, we'll NEVER peek at the
---   mnemonic, output them and whatnot.
-newtype ApiMnemonicT (sizes :: [Nat]) (purpose :: Symbol)
-ApiMnemonicT :: (Passphrase purpose, [Text]) -> ApiMnemonicT
-getApiMnemonicT :: ApiMnemonicT sizes purpose -> Passphrase purpose
-instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletPostData
-instance GHC.Generics.Generic Cardano.Wallet.Api.Types.WalletPostData
-instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletPostData
-instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
-instance GHC.Show.Show (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
-instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
-instance GHC.Show.Show (Cardano.Wallet.Api.Types.ApiAddress t)
-instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.ApiAddress t)
-instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.ApiAddress t)
-instance GHC.Show.Show Cardano.Wallet.Api.Types.ApiWallet
-instance GHC.Generics.Generic Cardano.Wallet.Api.Types.ApiWallet
-instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiWallet
-instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletPutData
-instance GHC.Generics.Generic Cardano.Wallet.Api.Types.WalletPutData
-instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletPutData
-instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletPutPassphraseData
-instance GHC.Generics.Generic Cardano.Wallet.Api.Types.WalletPutPassphraseData
-instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletPutPassphraseData
-instance GHC.Show.Show (Cardano.Wallet.Api.Types.PostTransactionData t)
-instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.PostTransactionData t)
-instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.PostTransactionData t)
-instance GHC.Show.Show (Cardano.Wallet.Api.Types.ApiTransaction t)
-instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.ApiTransaction t)
-instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.ApiTransaction t)
-instance GHC.Show.Show (Cardano.Wallet.Api.Types.PostTransactionFeeData t)
-instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.PostTransactionFeeData t)
-instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.PostTransactionFeeData t)
-instance GHC.Show.Show (Cardano.Wallet.Api.Types.AddressAmount t)
-instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.AddressAmount t)
-instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.AddressAmount t)
-instance GHC.Show.Show Cardano.Wallet.Api.Types.ApiBlockData
-instance GHC.Generics.Generic Cardano.Wallet.Api.Types.ApiBlockData
-instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiBlockData
-instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.Wallet.Api.Types.ApiT a)
-instance GHC.Show.Show a => GHC.Show.Show (Cardano.Wallet.Api.Types.ApiT a)
-instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.ApiT a)
-instance GHC.Show.Show (Cardano.Wallet.Api.Types.Iso8601Range name)
-instance GHC.Show.Show Cardano.Wallet.Api.Types.ApiErrorCode
-instance GHC.Generics.Generic Cardano.Wallet.Api.Types.ApiErrorCode
-instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiErrorCode
-instance GHC.Show.Show Cardano.Wallet.Api.Types.ApiFee
-instance GHC.Generics.Generic Cardano.Wallet.Api.Types.ApiFee
-instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiFee
-instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletPostData
-instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletPostData
-instance Cardano.Wallet.Primitive.AddressDerivation.FromMnemonic sizes purpose => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
-instance Cardano.Wallet.Primitive.Types.DecodeAddress t => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiAddress t)
-instance Cardano.Wallet.Primitive.Types.EncodeAddress t => Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiAddress t)
-instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.ApiWallet
-instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiWallet
-instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletPutData
-instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletPutData
-instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletPutPassphraseData
-instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletPutPassphraseData
-instance Cardano.Wallet.Primitive.Types.DecodeAddress t => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.PostTransactionData t)
-instance Cardano.Wallet.Primitive.Types.EncodeAddress t => Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.PostTransactionData t)
-instance Cardano.Wallet.Primitive.Types.DecodeAddress t => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiTransaction t)
-instance Cardano.Wallet.Primitive.Types.EncodeAddress t => Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiTransaction t)
-instance Cardano.Wallet.Primitive.Types.DecodeAddress t => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.PostTransactionFeeData t)
-instance Cardano.Wallet.Primitive.Types.EncodeAddress t => Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.PostTransactionFeeData t)
-instance Cardano.Wallet.Primitive.Types.DecodeAddress t => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.AddressAmount t)
-instance Cardano.Wallet.Primitive.Types.EncodeAddress t => Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.AddressAmount t)
-instance Cardano.Wallet.Primitive.Types.DecodeAddress t => Data.Text.Class.FromText (Cardano.Wallet.Api.Types.AddressAmount t)
-instance Cardano.Wallet.Primitive.Types.EncodeAddress t => Data.Text.Class.ToText (Cardano.Wallet.Api.Types.AddressAmount t)
-instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.ApiBlockData
-instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiBlockData
-instance Cardano.Wallet.Primitive.Types.DecodeAddress t => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.Address, Data.Proxy.Proxy t)
-instance Cardano.Wallet.Primitive.Types.EncodeAddress t => Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.Address, Data.Proxy.Proxy t)
-instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.AddressState)
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.AddressState)
-instance (Cardano.Wallet.Primitive.AddressDerivation.PassphraseMaxLength purpose, Cardano.Wallet.Primitive.AddressDerivation.PassphraseMinLength purpose) => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose))
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose))
-instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletId)
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletId)
-instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap)
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap)
-instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletBalance)
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletBalance)
-instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.Types.WalletDelegation (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.PoolId)))
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.Types.WalletDelegation (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.PoolId)))
-instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletName)
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletName)
-instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletPassphraseInfo)
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletPassphraseInfo)
-instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletState)
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletState)
-instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.PoolId)
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.PoolId)
-instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.SlotId)
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.SlotId)
-instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.Types.Hash "Tx"))
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.Types.Hash "Tx"))
-instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.Direction)
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.Direction)
-instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.TxStatus)
-instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.TxStatus)
-instance Data.Text.Class.FromText a => Web.Internal.HttpApiData.FromHttpApiData (Cardano.Wallet.Api.Types.ApiT a)
-instance Data.Text.Class.ToText a => Web.Internal.HttpApiData.ToHttpApiData (Cardano.Wallet.Api.Types.ApiT a)
-instance Web.Internal.HttpApiData.FromHttpApiData (Cardano.Wallet.Api.Types.Iso8601Range name)
-instance Web.Internal.HttpApiData.ToHttpApiData (Cardano.Wallet.Api.Types.Iso8601Range name)
-instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiErrorCode
-instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.ApiFee
-instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiFee
-
-module Cardano.Wallet.Api
-type Api t = Addresses t :<|> Wallets :<|> Transactions t
-type Addresses t = ListAddresses t
-
--- | 
---   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/listAddresses</a>
-type ListAddresses t = "wallets" :> Capture "walletId" (ApiT WalletId) :> "addresses" :> QueryParam "state" (ApiT AddressState) :> Get '[JSON] [ApiAddress t]
-type Wallets = DeleteWallet :<|> GetWallet :<|> ListWallets :<|> PostWallet :<|> PutWallet :<|> PutWalletPassphrase
-
--- | 
---   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteWallet</a>
-type DeleteWallet = "wallets" :> Capture "walletId" (ApiT WalletId) :> DeleteNoContent '[Any] NoContent
-
--- | 
---   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/getWallet</a>
-type GetWallet = "wallets" :> Capture "walletId" (ApiT WalletId) :> Get '[JSON] ApiWallet
-
--- | 
---   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/listWallets</a>
-type ListWallets = "wallets" :> Get '[JSON] [ApiWallet]
-
--- | 
---   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/postWallet</a>
-type PostWallet = "wallets" :> ReqBody '[JSON] WalletPostData :> PostAccepted '[JSON] ApiWallet
-
--- | 
---   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/putWallet</a>
-type PutWallet = "wallets" :> Capture "walletId" (ApiT WalletId) :> ReqBody '[JSON] WalletPutData :> Put '[JSON] ApiWallet
-
--- | 
---   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/putWalletPassphrase</a>
-type PutWalletPassphrase = "wallets" :> Capture "walletId" (ApiT WalletId) :> "passphrase" :> ReqBody '[JSON] WalletPutPassphraseData :> PutNoContent '[Any] NoContent
-type Transactions t = CreateTransaction t :<|> ListTransactions t :<|> PostTransactionFee t
-
--- | 
---   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransaction</a>
-type CreateTransaction t = "wallets" :> Capture "walletId" (ApiT WalletId) :> "transactions" :> ReqBody '[JSON] (PostTransactionData t) :> PostAccepted '[JSON] (ApiTransaction t)
-
--- | 
---   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransactionFee</a>
-type PostTransactionFee t = "wallets" :> Capture "walletId" (ApiT WalletId) :> "transactions" :> "fees" :> ReqBody '[JSON] (PostTransactionFeeData t) :> PostAccepted '[JSON] ApiFee
-
--- | 
---   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/listTransaction</a>
-type ListTransactions t = "wallets" :> Capture "walletId" (ApiT WalletId) :> "transactions" :> Header "Range" (Iso8601Range "inserted-at") :> Get '[JSON] [ApiTransaction t]
-
--- | Any media type
-data Any
-instance Servant.API.ContentTypes.Accept Cardano.Wallet.Api.Any
-
-
 -- | Provides the wallet layer functions that are used by API layer and
 --   uses both <a>Cardano.Wallet.DB</a> and <a>Cardano.Wallet.Network</a>
 --   to realize its role as being intermediary between the three.
@@ -2657,6 +2351,346 @@ iso8601Basic :: [TimeFormat]
 -- | Represents the ISO 8601 extended family of formats.
 iso8601Extended :: [TimeFormat]
 instance GHC.Classes.Eq Data.Time.Text.TimeFormat
+
+
+-- | API type representations of various types. We define here pretty much
+--   all our user-facing types that are mostly composed with internal /
+--   primitive types.
+--   
+--   This module also define required API instances (JSON, HttpApiData...)
+--   for all those types, making sure to match the specification document:
+--   
+--   <a>Wallet API Specification</a>
+module Cardano.Wallet.Api.Types
+data ApiAddress t
+ApiAddress :: !(ApiT Address, Proxy t) -> !ApiT AddressState -> ApiAddress t
+[$sel:id:ApiAddress] :: ApiAddress t -> !(ApiT Address, Proxy t)
+[$sel:state:ApiAddress] :: ApiAddress t -> !ApiT AddressState
+data ApiWallet
+ApiWallet :: !ApiT WalletId -> !ApiT AddressPoolGap -> !ApiT WalletBalance -> !ApiT (WalletDelegation (ApiT PoolId)) -> !ApiT WalletName -> !Maybe (ApiT WalletPassphraseInfo) -> !ApiT WalletState -> ApiWallet
+[$sel:id:ApiWallet] :: ApiWallet -> !ApiT WalletId
+[$sel:addressPoolGap:ApiWallet] :: ApiWallet -> !ApiT AddressPoolGap
+[$sel:balance:ApiWallet] :: ApiWallet -> !ApiT WalletBalance
+[$sel:delegation:ApiWallet] :: ApiWallet -> !ApiT (WalletDelegation (ApiT PoolId))
+[$sel:name:ApiWallet] :: ApiWallet -> !ApiT WalletName
+[$sel:passphrase:ApiWallet] :: ApiWallet -> !Maybe (ApiT WalletPassphraseInfo)
+[$sel:state:ApiWallet] :: ApiWallet -> !ApiT WalletState
+data WalletBalance
+WalletBalance :: !Quantity "lovelace" Natural -> !Quantity "lovelace" Natural -> WalletBalance
+[$sel:available:WalletBalance] :: WalletBalance -> !Quantity "lovelace" Natural
+[$sel:total:WalletBalance] :: WalletBalance -> !Quantity "lovelace" Natural
+data WalletPostData
+WalletPostData :: !Maybe (ApiT AddressPoolGap) -> !ApiMnemonicT '[15, 18, 21, 24] "seed" -> !Maybe (ApiMnemonicT '[9, 12] "generation") -> !ApiT WalletName -> !ApiT (Passphrase "encryption") -> WalletPostData
+[$sel:addressPoolGap:WalletPostData] :: WalletPostData -> !Maybe (ApiT AddressPoolGap)
+[$sel:mnemonicSentence:WalletPostData] :: WalletPostData -> !ApiMnemonicT '[15, 18, 21, 24] "seed"
+[$sel:mnemonicSecondFactor:WalletPostData] :: WalletPostData -> !Maybe (ApiMnemonicT '[9, 12] "generation")
+[$sel:name:WalletPostData] :: WalletPostData -> !ApiT WalletName
+[$sel:passphrase:WalletPostData] :: WalletPostData -> !ApiT (Passphrase "encryption")
+newtype WalletPutData
+WalletPutData :: Maybe (ApiT WalletName) -> WalletPutData
+[$sel:name:WalletPutData] :: WalletPutData -> Maybe (ApiT WalletName)
+data WalletPutPassphraseData
+WalletPutPassphraseData :: !ApiT (Passphrase "encryption-old") -> !ApiT (Passphrase "encryption-new") -> WalletPutPassphraseData
+[$sel:oldPassphrase:WalletPutPassphraseData] :: WalletPutPassphraseData -> !ApiT (Passphrase "encryption-old")
+[$sel:newPassphrase:WalletPutPassphraseData] :: WalletPutPassphraseData -> !ApiT (Passphrase "encryption-new")
+data PostTransactionData t
+PostTransactionData :: !NonEmpty (AddressAmount t) -> !ApiT (Passphrase "encryption") -> PostTransactionData t
+[$sel:payments:PostTransactionData] :: PostTransactionData t -> !NonEmpty (AddressAmount t)
+[$sel:passphrase:PostTransactionData] :: PostTransactionData t -> !ApiT (Passphrase "encryption")
+newtype PostTransactionFeeData t
+PostTransactionFeeData :: NonEmpty (AddressAmount t) -> PostTransactionFeeData t
+[$sel:payments:PostTransactionFeeData] :: PostTransactionFeeData t -> NonEmpty (AddressAmount t)
+data ApiBlockData
+ApiBlockData :: UTCTime -> !ApiT SlotId -> ApiBlockData
+[$sel:time:ApiBlockData] :: ApiBlockData -> UTCTime
+[$sel:block:ApiBlockData] :: ApiBlockData -> !ApiT SlotId
+data ApiTransaction t
+ApiTransaction :: !ApiT (Hash "Tx") -> !Quantity "lovelace" Natural -> !Maybe ApiBlockData -> !Quantity "block" Natural -> !ApiT Direction -> !NonEmpty (AddressAmount t) -> !NonEmpty (AddressAmount t) -> !ApiT TxStatus -> ApiTransaction t
+[$sel:id:ApiTransaction] :: ApiTransaction t -> !ApiT (Hash "Tx")
+[$sel:amount:ApiTransaction] :: ApiTransaction t -> !Quantity "lovelace" Natural
+[$sel:insertedAt:ApiTransaction] :: ApiTransaction t -> !Maybe ApiBlockData
+[$sel:depth:ApiTransaction] :: ApiTransaction t -> !Quantity "block" Natural
+[$sel:direction:ApiTransaction] :: ApiTransaction t -> !ApiT Direction
+[$sel:inputs:ApiTransaction] :: ApiTransaction t -> !NonEmpty (AddressAmount t)
+[$sel:outputs:ApiTransaction] :: ApiTransaction t -> !NonEmpty (AddressAmount t)
+[$sel:status:ApiTransaction] :: ApiTransaction t -> !ApiT TxStatus
+newtype ApiFee
+ApiFee :: Quantity "lovelace" Natural -> ApiFee
+[$sel:amount:ApiFee] :: ApiFee -> Quantity "lovelace" Natural
+data AddressAmount t
+AddressAmount :: !(ApiT Address, Proxy t) -> !Quantity "lovelace" Natural -> AddressAmount t
+[$sel:address:AddressAmount] :: AddressAmount t -> !(ApiT Address, Proxy t)
+[$sel:amount:AddressAmount] :: AddressAmount t -> !Quantity "lovelace" Natural
+
+-- | Error codes returned by the API, in the form of snake_cased strings
+data ApiErrorCode
+NoSuchWallet :: ApiErrorCode
+WalletAlreadyExists :: ApiErrorCode
+NoRootKey :: ApiErrorCode
+WrongEncryptionPassphrase :: ApiErrorCode
+KeyNotFoundForAddress :: ApiErrorCode
+NotEnoughMoney :: ApiErrorCode
+UtxoNotEnoughFragmented :: ApiErrorCode
+TransactionIsTooBig :: ApiErrorCode
+InputsDepleted :: ApiErrorCode
+CannotCoverFee :: ApiErrorCode
+InvalidCoinSelection :: ApiErrorCode
+NetworkUnreachable :: ApiErrorCode
+NetworkMisconfigured :: ApiErrorCode
+CreatedInvalidTransaction :: ApiErrorCode
+RejectedByCoreNode :: ApiErrorCode
+BadRequest :: ApiErrorCode
+NotFound :: ApiErrorCode
+MethodNotAllowed :: ApiErrorCode
+NotAcceptable :: ApiErrorCode
+UnsupportedMediaType :: ApiErrorCode
+UnexpectedError :: ApiErrorCode
+
+-- | Specifies a <b>time range</b> that can be used to constrain and order
+--   the results of queries that return sets of data with associated times.
+--   
+--   Each <a>Iso8601Range</a> value has an associated textual
+--   representation provided by the <a>ToText</a> and <a>FromText</a>
+--   instances, based on the ISO 8601 Basic UTC format.
+--   
+--   Ranges can be <b>closed</b>, <b>half-open</b>, or <b>fully-open</b>.
+--   
+--   <h2>Closed time ranges</h2>
+--   
+--   For a pair of times <tt><b>t1</b></tt> and <tt><b>t2</b></tt> where
+--   <tt><b>t1 &lt; t2</b></tt>:
+--   
+--   <ul>
+--   <li>Queries with the following range will return data in
+--   <b>ascending</b> order from <tt><b>t1</b></tt> to
+--   <tt><b>t2</b></tt>:<pre>Iso8601Range (Just t1) (Just t2)</pre>Example
+--   textual representation:<pre>"name
+--   20180808T080808Z-20190909T090909Z"</pre></li>
+--   <li>Queries with the following range will return data in
+--   <b>descending</b> order from <tt><b>t2</b></tt> to
+--   <tt><b>t1</b></tt>:<pre>Iso8601Range (Just t2) (Just t1)</pre>Example
+--   textual representation:<pre>"name
+--   20190909T090909Z-20180808T080808Z"</pre></li>
+--   </ul>
+--   
+--   <h2>Half-open time ranges</h2>
+--   
+--   For some point in time <tt><b>t</b></tt>:
+--   
+--   <ul>
+--   <li>Queries with the following range will return data in
+--   <b>ascending</b> order from the <b>start of time</b> until time
+--   <tt><b>t</b></tt>:<pre>Iso8601Range Nothing (Just t)</pre>Example
+--   textual representation:<pre>"name *-20190909T090909Z"</pre></li>
+--   <li>Queries with the following range will return data in
+--   <b>ascending</b> order from time <tt><b>t</b></tt> until the <b>end of
+--   time</b>:<pre>Iso8601Range (Just t) Nothing</pre>Example textual
+--   representation:<pre>"name 20180808T080808Z-*"</pre></li>
+--   </ul>
+--   
+--   <h2>Fully-open time ranges</h2>
+--   
+--   <ul>
+--   <li>Queries with the following range will return data in
+--   <b>ascending</b> order from the <b>start of time</b> until the <b>end
+--   of time</b>:<pre>Iso8601Range Nothing Nothing</pre>Example textual
+--   representation:<pre>"name *-*"</pre></li>
+--   </ul>
+data Iso8601Range (name :: Symbol)
+Iso8601Range :: Maybe UTCTime -> Maybe UTCTime -> Iso8601Range
+
+-- | Polymorphic wrapper type to put around primitive types and, 3rd party
+--   lib types to avoid defining orphan instances and/or, undesirable
+--   instances on primitive types. It helps to keep a nice separation of
+--   concerns between the API layer and other modules.
+newtype ApiT a
+ApiT :: a -> ApiT a
+[$sel:getApiT:ApiT] :: ApiT a -> a
+
+-- | Representation of mnemonics at the API-level, using a polymorphic type
+--   in the lengths of mnemonics that are supported (and an underlying
+--   purpose). In practice, mnemonics correspond to passphrases or seeds,
+--   and although they're nice to manipulate as mnemonics from a
+--   user-perspective, carrying around a list of words doesn't really make
+--   sense for the business logic, which prefers manipulating scrubbed
+--   bytes directly.
+--   
+--   <pre>
+--   data MyWallet
+--       { mnemonic :: ApiMnemonicT '[15,18,21,24] "root-seed"
+--       }
+--   </pre>
+--   
+--   Note that the given <a>Nat</a>s **have** to be valid mnemonic sizes,
+--   otherwise the underlying code won't even compile, with not-so-friendly
+--   error messages.
+--   
+--   Also, the internal representation holds a <tt>[Text]</tt> which
+--   contains the list of mnemonic words that was parsed. This is only to
+--   be able to implement the <a>ToJSON</a> instances and roundtrip, which
+--   is a very dubious argument. In practice, we'll NEVER peek at the
+--   mnemonic, output them and whatnot.
+newtype ApiMnemonicT (sizes :: [Nat]) (purpose :: Symbol)
+ApiMnemonicT :: (Passphrase purpose, [Text]) -> ApiMnemonicT
+getApiMnemonicT :: ApiMnemonicT sizes purpose -> Passphrase purpose
+instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletPostData
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.WalletPostData
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletPostData
+instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
+instance GHC.Show.Show (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
+instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
+instance GHC.Show.Show (Cardano.Wallet.Api.Types.ApiAddress t)
+instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.ApiAddress t)
+instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.ApiAddress t)
+instance GHC.Show.Show Cardano.Wallet.Api.Types.ApiWallet
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.ApiWallet
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiWallet
+instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletPutData
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.WalletPutData
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletPutData
+instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletPutPassphraseData
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.WalletPutPassphraseData
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletPutPassphraseData
+instance GHC.Show.Show (Cardano.Wallet.Api.Types.PostTransactionData t)
+instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.PostTransactionData t)
+instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.PostTransactionData t)
+instance GHC.Show.Show (Cardano.Wallet.Api.Types.ApiTransaction t)
+instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.ApiTransaction t)
+instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.ApiTransaction t)
+instance GHC.Show.Show (Cardano.Wallet.Api.Types.PostTransactionFeeData t)
+instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.PostTransactionFeeData t)
+instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.PostTransactionFeeData t)
+instance GHC.Show.Show (Cardano.Wallet.Api.Types.AddressAmount t)
+instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.AddressAmount t)
+instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.AddressAmount t)
+instance GHC.Show.Show Cardano.Wallet.Api.Types.ApiBlockData
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.ApiBlockData
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiBlockData
+instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.Wallet.Api.Types.ApiT a)
+instance GHC.Show.Show a => GHC.Show.Show (Cardano.Wallet.Api.Types.ApiT a)
+instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.ApiT a)
+instance GHC.Show.Show (Cardano.Wallet.Api.Types.Iso8601Range name)
+instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.Iso8601Range name)
+instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.Iso8601Range name)
+instance GHC.Show.Show Cardano.Wallet.Api.Types.ApiErrorCode
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.ApiErrorCode
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiErrorCode
+instance GHC.Show.Show Cardano.Wallet.Api.Types.ApiFee
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.ApiFee
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiFee
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletPostData
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletPostData
+instance Cardano.Wallet.Primitive.AddressDerivation.FromMnemonic sizes purpose => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiMnemonicT sizes purpose)
+instance Cardano.Wallet.Primitive.Types.DecodeAddress t => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiAddress t)
+instance Cardano.Wallet.Primitive.Types.EncodeAddress t => Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiAddress t)
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.ApiWallet
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiWallet
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletPutData
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletPutData
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletPutPassphraseData
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletPutPassphraseData
+instance Cardano.Wallet.Primitive.Types.DecodeAddress t => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.PostTransactionData t)
+instance Cardano.Wallet.Primitive.Types.EncodeAddress t => Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.PostTransactionData t)
+instance Cardano.Wallet.Primitive.Types.DecodeAddress t => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiTransaction t)
+instance Cardano.Wallet.Primitive.Types.EncodeAddress t => Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiTransaction t)
+instance Cardano.Wallet.Primitive.Types.DecodeAddress t => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.PostTransactionFeeData t)
+instance Cardano.Wallet.Primitive.Types.EncodeAddress t => Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.PostTransactionFeeData t)
+instance Cardano.Wallet.Primitive.Types.DecodeAddress t => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.AddressAmount t)
+instance Cardano.Wallet.Primitive.Types.EncodeAddress t => Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.AddressAmount t)
+instance Cardano.Wallet.Primitive.Types.DecodeAddress t => Data.Text.Class.FromText (Cardano.Wallet.Api.Types.AddressAmount t)
+instance Cardano.Wallet.Primitive.Types.EncodeAddress t => Data.Text.Class.ToText (Cardano.Wallet.Api.Types.AddressAmount t)
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.ApiBlockData
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiBlockData
+instance Cardano.Wallet.Primitive.Types.DecodeAddress t => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.Address, Data.Proxy.Proxy t)
+instance Cardano.Wallet.Primitive.Types.EncodeAddress t => Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.Address, Data.Proxy.Proxy t)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.AddressState)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.AddressState)
+instance (Cardano.Wallet.Primitive.AddressDerivation.PassphraseMaxLength purpose, Cardano.Wallet.Primitive.AddressDerivation.PassphraseMinLength purpose) => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose))
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose))
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletId)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletId)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.AddressDiscovery.AddressPoolGap)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletBalance)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletBalance)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.Types.WalletDelegation (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.PoolId)))
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.Types.WalletDelegation (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.PoolId)))
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletName)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletName)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletPassphraseInfo)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletPassphraseInfo)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletState)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletState)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.PoolId)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.PoolId)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.SlotId)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.SlotId)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.Types.Hash "Tx"))
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.Types.Hash "Tx"))
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.Direction)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.Direction)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.TxStatus)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.TxStatus)
+instance Data.Text.Class.FromText a => Web.Internal.HttpApiData.FromHttpApiData (Cardano.Wallet.Api.Types.ApiT a)
+instance Data.Text.Class.ToText a => Web.Internal.HttpApiData.ToHttpApiData (Cardano.Wallet.Api.Types.ApiT a)
+instance GHC.TypeLits.KnownSymbol name => Data.Text.Class.ToText (Cardano.Wallet.Api.Types.Iso8601Range name)
+instance GHC.TypeLits.KnownSymbol name => Data.Text.Class.FromText (Cardano.Wallet.Api.Types.Iso8601Range name)
+instance GHC.TypeLits.KnownSymbol name => Web.Internal.HttpApiData.FromHttpApiData (Cardano.Wallet.Api.Types.Iso8601Range name)
+instance GHC.TypeLits.KnownSymbol name => Web.Internal.HttpApiData.ToHttpApiData (Cardano.Wallet.Api.Types.Iso8601Range name)
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiErrorCode
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.ApiFee
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiFee
+
+module Cardano.Wallet.Api
+type Api t = Addresses t :<|> Wallets :<|> Transactions t
+type Addresses t = ListAddresses t
+
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/listAddresses</a>
+type ListAddresses t = "wallets" :> Capture "walletId" (ApiT WalletId) :> "addresses" :> QueryParam "state" (ApiT AddressState) :> Get '[JSON] [ApiAddress t]
+type Wallets = DeleteWallet :<|> GetWallet :<|> ListWallets :<|> PostWallet :<|> PutWallet :<|> PutWalletPassphrase
+
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteWallet</a>
+type DeleteWallet = "wallets" :> Capture "walletId" (ApiT WalletId) :> DeleteNoContent '[Any] NoContent
+
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/getWallet</a>
+type GetWallet = "wallets" :> Capture "walletId" (ApiT WalletId) :> Get '[JSON] ApiWallet
+
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/listWallets</a>
+type ListWallets = "wallets" :> Get '[JSON] [ApiWallet]
+
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/postWallet</a>
+type PostWallet = "wallets" :> ReqBody '[JSON] WalletPostData :> PostAccepted '[JSON] ApiWallet
+
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/putWallet</a>
+type PutWallet = "wallets" :> Capture "walletId" (ApiT WalletId) :> ReqBody '[JSON] WalletPutData :> Put '[JSON] ApiWallet
+
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/putWalletPassphrase</a>
+type PutWalletPassphrase = "wallets" :> Capture "walletId" (ApiT WalletId) :> "passphrase" :> ReqBody '[JSON] WalletPutPassphraseData :> PutNoContent '[Any] NoContent
+type Transactions t = CreateTransaction t :<|> ListTransactions t :<|> PostTransactionFee t
+
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransaction</a>
+type CreateTransaction t = "wallets" :> Capture "walletId" (ApiT WalletId) :> "transactions" :> ReqBody '[JSON] (PostTransactionData t) :> PostAccepted '[JSON] (ApiTransaction t)
+
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransactionFee</a>
+type PostTransactionFee t = "wallets" :> Capture "walletId" (ApiT WalletId) :> "transactions" :> "fees" :> ReqBody '[JSON] (PostTransactionFeeData t) :> PostAccepted '[JSON] ApiFee
+
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/listTransaction</a>
+type ListTransactions t = "wallets" :> Capture "walletId" (ApiT WalletId) :> "transactions" :> Header "Range" (Iso8601Range "inserted-at") :> Get '[JSON] [ApiTransaction t]
+
+-- | Any media type
+data Any
+instance Servant.API.ContentTypes.Accept Cardano.Wallet.Api.Any
 
 module Network.Wai.Middleware.Logging
 
