@@ -288,7 +288,7 @@ networkOption :: Parser Network
 networkOption = optionT $ mempty
     <> long "network"
     <> metavar "STRING"
-    <> help "target network to connect to: testnet or mainnet"
+    <> help "target network to connect to: testnet or mainnet (default: testnet)"
     <> value Testnet
 
 -- | [--local-network|--network=STRING], default (Right Testnet)
@@ -298,4 +298,4 @@ networkOption' =
   where
     localNetworkOption = flag' False $ mempty
         <> long "local-network"
-        <> help "connect to a local network"
+        <> help "connect to a local network (conflicts with --network)"
