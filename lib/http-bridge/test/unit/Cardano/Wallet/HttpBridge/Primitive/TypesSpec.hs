@@ -54,6 +54,7 @@ spec = do
                                 ]
                             }
                         ]
+                    , updatedSlottingParameters = (Nothing, Nothing)
                     }
             "dffc3506...6969a73b (14.19)\n\
             \    - ~> 1st c29d3ea0...13862214\n\

@@ -170,6 +170,7 @@ block1 = Block
         , prevBlockHash = prevBlockHash0
         }
     , transactions = mempty
+    , updatedSlottingParameters = (Nothing, Nothing)
     }
   where
     prevBlockHash0 = Hash $ unsafeFromHex
@@ -191,6 +192,7 @@ block2 = Block
                 , TxOut { address = address1, coin = Coin 1810771919 } ]
             }
         ]
+    , updatedSlottingParameters = (Nothing, Nothing)
     }
   where
     prevBlockHash0 = Hash $ unsafeFromHex
@@ -221,6 +223,7 @@ block3 = Block
                 , TxOut { address = address1, coin = Coin 1004099328 } ]
             }
         ]
+    , updatedSlottingParameters = (Nothing, Nothing)
     }
   where
     prevBlockHash0 = Hash $ unsafeFromHex
@@ -281,6 +284,7 @@ block4 = Block
                   ]
             }
         ]
+    , updatedSlottingParameters = (Nothing, Nothing)
     }
   where
     prevBlockHash0 = Hash $ unsafeFromHex

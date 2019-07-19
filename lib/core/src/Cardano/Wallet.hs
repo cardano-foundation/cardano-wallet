@@ -97,6 +97,7 @@ import Cardano.Wallet.Primitive.Model
     , getState
     , initWallet
     , newPending
+    , slottingState
     , updateState
     )
 import Cardano.Wallet.Primitive.Types
@@ -438,7 +439,8 @@ newWalletLayer tracer bp db nw tl = do
         -> s
         -> ExceptT ErrWalletAlreadyExists IO WalletId
     _createWallet wid wname s = do
-        let checkpoint = initWallet block0 s
+        let slotting = undefined
+        let checkpoint = initWallet block0 s slotting
         currentTime <- liftIO getCurrentTime
         let metadata = WalletMetadata
                 { name = wname
@@ -714,6 +716,7 @@ newWalletLayer tracer bp db nw tl = do
                             , direction = Outgoing
                             , slotId = (currentTip w) ^. #slotId
                             , amount = Quantity (amtInps - amtChng)
+                            , utcTime = (slottingState w) ^. #time
                             }
                     return (tx, meta, wit)
                 Left e ->

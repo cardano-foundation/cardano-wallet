@@ -522,13 +522,15 @@ checkpointFromEntity
     -> s
     -> W.Wallet s t
 checkpointFromEntity (Checkpoint _ slot (BlockId parentHeaderHash)) utxo txs =
-    W.unsafeInitWallet utxo' pending (W.BlockHeader slot parentHeaderHash)
+    W.unsafeInitWallet
+        utxo' pending (W.BlockHeader slot parentHeaderHash) slottingParams
   where
     utxo' = W.UTxO . Map.fromList $
         [ (W.TxIn input ix, W.TxOut addr coin)
         | UTxO _ _ (TxId input) ix addr coin <- utxo
         ]
     pending = Set.fromList $ map snd txs
+    slottingParams = error "TODO: SlottingParams to be persisted"
 
 mkTxHistory
     :: forall t. PersistTx t
@@ -612,6 +614,7 @@ txHistoryFromEntity metas ins outs = map mkItem metas
         , W.direction = txMetaDirection m
         , W.slotId = txMetaSlotId m
         , W.amount = Quantity (txMetaAmount m)
+        , W.utcTime = error "TODO: utcTime to be persisted"
         }
 
 ----------------------------------------------------------------------------

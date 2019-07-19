@@ -316,12 +316,13 @@ data Block tx = Block
         :: !BlockHeader
     , transactions
         :: ![tx]
+    , updatedSlottingParameters :: (Maybe EpochLength, Maybe SlotLength)
     } deriving (Show, Eq, Ord, Generic)
 
 instance NFData tx => NFData (Block tx)
 
 instance Buildable tx => Buildable (Block tx) where
-    build (Block h txs) = mempty
+    build (Block h txs _newSlottingParams) = mempty
         <> build h
         <> "\n"
         <> indentF 4 (blockListF txs)
@@ -422,13 +423,14 @@ data TxMeta = TxMeta
     { status :: !TxStatus
     , direction :: !Direction
     , slotId :: !SlotId
+    , utcTime :: UTCTime
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Show, Eq, Ord, Generic)
 
 instance NFData TxMeta
 
 instance Buildable TxMeta where
-    build (TxMeta s d sl (Quantity a)) = mempty
+    build (TxMeta s d sl _time (Quantity a)) = mempty
         <> (case d of; Incoming -> "+"; Outgoing -> "-")
         <> fixedF @Double 6 (fromIntegral a / 1e6)
         <> " " <> build s
@@ -707,10 +709,14 @@ fromFlatSlot (EpochLength epochLength) n = SlotId e (fromIntegral s)
     s = n `mod` epochLength
 
 newtype SlotLength = SlotLength DiffTime
-    deriving (Show, Eq)
+    deriving (Show, Eq, Ord, Generic)
 
 newtype EpochLength = EpochLength Word64
-    deriving (Show, Eq)
+    deriving (Show, Eq, Ord, Generic)
+
+instance NFData EpochLength
+instance NFData SlotLength
+
 {-------------------------------------------------------------------------------
                                Polymorphic Types
 -------------------------------------------------------------------------------}

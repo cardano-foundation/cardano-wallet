@@ -142,7 +142,7 @@ mockHeaderFromHash h = BlockHeader slot prevHash
 -- generated.
 mockEpoch :: Word64 -> [Block Tx]
 mockEpoch ep =
-    [ Block (mockHeaderFromHash (mockHash sl)) mempty
+    [ Block (mockHeaderFromHash (mockHash sl)) mempty (Nothing, Nothing)
     | sl <- [ SlotId ep i | i <- epochs ]
     ]
   where
@@ -167,7 +167,7 @@ mockHttpBridge
 mockHttpBridge logLine firstUnstableEpoch tip = HttpBridgeLayer
     { getBlock = \hash -> do
         lift $ logLine $ "mock getBlock " ++ show hash
-        pure $ Block (mockHeaderFromHash hash) mempty
+        pure $ Block (mockHeaderFromHash hash) mempty (Nothing, Nothing)
 
     , getEpoch = \ep -> do
         lift $ logLine $ "mock getEpoch " ++ show ep

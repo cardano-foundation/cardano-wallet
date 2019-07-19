@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
@@ -48,6 +49,7 @@ module Cardano.Wallet.Primitive.Model
     , availableUTxO
     , utxo
     , getPending
+    , slottingState
     ) where
 
 import Prelude
@@ -60,7 +62,9 @@ import Cardano.Wallet.Primitive.Types
     , DefineTx (..)
     , Direction (..)
     , Dom (..)
+    , EpochLength (..)
     , Hash (..)
+    , SlotLength (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -93,6 +97,10 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Set
     ( Set )
+import Data.Time.Clock
+    ( UTCTime (..) )
+import GHC.Generics
+    ( Generic )
 import Numeric.Natural
     ( Natural )
 
@@ -139,17 +147,33 @@ data Wallet s t where
         => UTxO -- Unspent tx outputs belonging to this wallet
         -> Set (Tx t, TxMeta) -- Pending outgoing transactions
         -> BlockHeader -- Header of the latest applied block (current tip)
+        -> SlottingState
         -> s -- Address discovery state
         -> Wallet s t
 
 deriving instance Show (Wallet s t)
 deriving instance Eq s => Eq (Wallet s t)
 instance NFData (Wallet s t) where
-    rnf (Wallet u pending sl s) =
+    rnf (Wallet u pending ss sl s) =
         deepseq (rnf u) $
         deepseq (rnf pending) $
+        deepseq (rnf ss)
         deepseq (rnf sl) $
         deepseq (rnf s) ()
+
+data SlottingState = SlottingState
+    { slotsPerEpoch :: EpochLength
+    , slotLength :: SlotLength
+    , time :: UTCTime
+    , slotNo :: Word
+    } deriving (Show, Eq, Generic)
+
+instance NFData SlottingState where
+    rnf (SlottingState el sd t sno) =
+        deepseq (rnf el) $
+        deepseq (rnf sd) $
+        deepseq (rnf t) $
+        deepseq (rnf sno) ()
 
 {-------------------------------------------------------------------------------
                           Construction & Modification
@@ -163,10 +187,11 @@ initWallet
     => Block (Tx t)
     -- ^ The genesis block
     -> s
+    -> SlottingState
     -> Wallet s t
-initWallet block s =
-    let ((txs, utxo'), s') = prefilterBlock (Proxy @t) block mempty s
-    in Wallet utxo' (Set.fromList txs) (header block) s'
+initWallet block s ss =
+    let ((txs, utxo'), s') = prefilterBlock (Proxy @t) block mempty ss s
+    in Wallet utxo' (Set.fromList txs) (header block) ss s'
 
 -- | Update the state of an existing Wallet model
 updateState
@@ -174,7 +199,7 @@ updateState
     => s
     -> Wallet s t
     -> Wallet s t
-updateState s (Wallet a b c _) = Wallet a b c s
+updateState s (Wallet a b c d _) = Wallet a b c d s
 
 -- | Apply Block is the only way to make the wallet evolve. It returns a new
 -- updated wallet state, as well as the set of all our transaction discovered
@@ -184,10 +209,10 @@ applyBlock
     => Block (Tx t)
     -> Wallet s t
     -> (Map (Hash "Tx") (Tx t, TxMeta), Wallet s t)
-applyBlock !b (Wallet !u !pending _ s) =
+applyBlock !b (Wallet !u !pending _ !ss s) =
     let
         -- Prefilter Block / Update UTxO
-        ((txs, u'), s') = prefilterBlock (Proxy @t) b u s
+        ((txs, u'), s') = prefilterBlock (Proxy @t) b u ss' s
         -- Update Pending
         newIns = txIns @t $ Set.fromList (map fst txs)
         pending' = pending `pendingExcluding_` newIns
@@ -195,9 +220,29 @@ applyBlock !b (Wallet !u !pending _ s) =
         txs' = Map.fromList $ map
             (\(tx, meta) -> (txId @t tx, (tx, meta)))
             txs
+
+
+        mNewSlotsPerEpoch = fst $ b ^. #updatedSlottingParameters
+        mNewSlotDur = snd $ b ^. #updatedSlottingParameters
+
+        -- Update slotting state according to... a subset of the ledger rules
+        -- I presume this is intended to be.
+        --
+        -- I'm not sure this is correct, but for someone familiar with the
+        -- ledger rules it should probably be easy to check.
+        ss' = SlottingState
+            { slotsPerEpoch = maybe (slotsPerEpoch ss) id mNewSlotsPerEpoch
+            , slotLength = maybe (slotLength ss) id mNewSlotDur
+            , slotNo =
+                -- ΔslotNo = Δepoch * oldSlotsPerEpoch + ΔslotId
+                error "TODO: calculate"
+            , time =
+                -- Δtime = ΔslotNo * oldSlotDuration
+                error "TODO: calculate"
+            }
     in
         ( txs'
-        , Wallet u' pending' (b ^. #header) s'
+        , Wallet u' pending' (b ^. #header) ss' s'
         )
   where
     pendingExcluding_ = pendingExcluding (Proxy @t)
@@ -219,8 +264,8 @@ newPending
     :: (Tx t, TxMeta)
     -> Wallet s t
     -> Wallet s t
-newPending !tx (Wallet !u !pending !tip !s) =
-    Wallet u (Set.insert tx pending) tip s
+newPending !tx (Wallet !u !pending !tip !ss !s) =
+    Wallet u (Set.insert tx pending) tip ss s
 
 -- | Constructs a wallet from the exact given state. Using this function instead
 -- of 'initWallet' and 'applyBlock' allows the wallet invariants to be
@@ -235,6 +280,7 @@ unsafeInitWallet
     -- ^ Pending outgoing transactions
     -> BlockHeader
     -- ^ Header of the latest applied block (current tip)
+    -> SlottingState
     -> s
     -- ^Address discovery state
     -> Wallet s t
@@ -246,11 +292,11 @@ unsafeInitWallet = Wallet
 
 -- | Get the wallet current tip
 currentTip :: Wallet s t -> BlockHeader
-currentTip (Wallet _ _ tip _) = tip
+currentTip (Wallet _ _ tip _ _) = tip
 
 -- | Get the wallet current state
 getState :: Wallet s t -> s
-getState (Wallet _ _ _ s) = s
+getState (Wallet _ _ _ _ s) = s
 
 -- | Available balance = 'balance' . 'availableUTxO'
 availableBalance :: DefineTx t => Wallet s t -> Natural
@@ -264,21 +310,25 @@ totalBalance =
 
 -- | Available UTxO = @pending ⋪ utxo@
 availableUTxO :: forall s t. DefineTx t => Wallet s t -> UTxO
-availableUTxO (Wallet u pending _ _) =
+availableUTxO (Wallet u pending _ _ _) =
     u  `excluding` txIns @t (Set.map fst pending)
 
 -- | Total UTxO = 'availableUTxO' @<>@ 'changeUTxO'
 totalUTxO :: forall s t. DefineTx t => Wallet s t -> UTxO
-totalUTxO wallet@(Wallet _ pending _ s) =
+totalUTxO wallet@(Wallet _ pending _ _ s) =
     availableUTxO wallet <> changeUTxO (Proxy @t) (Set.map fst pending) s
 
 -- | Actual utxo
 utxo :: Wallet s t -> UTxO
-utxo (Wallet u _ _ _) = u
+utxo (Wallet u _ _ _ _) = u
 
 -- | Get the set of pending transactions
 getPending :: Wallet s t -> Set (Tx t, TxMeta)
-getPending (Wallet _ pending _ _) = pending
+getPending (Wallet _ pending _ _ _) = pending
+
+-- | Get the
+slottingState :: Wallet s t -> SlottingState
+slottingState (Wallet _ _ _ ss _) = ss
 
 {-------------------------------------------------------------------------------
                                Internals
@@ -310,9 +360,10 @@ prefilterBlock
     => Proxy t
     -> Block (Tx t)
     -> UTxO
+    -> SlottingState
     -> s
     -> (([(Tx t, TxMeta)], UTxO), s)
-prefilterBlock proxy b u0 = runState $ do
+prefilterBlock proxy b u0 ss = runState $ do
     (ourTxs, ourU) <- foldM applyTx (mempty, u0) (transactions b)
     return (ourTxs, ourU)
   where
@@ -322,6 +373,7 @@ prefilterBlock proxy b u0 = runState $ do
         , direction = dir
         , slotId = b ^. #header . #slotId
         , amount = Quantity amt
+        , utcTime = ss ^. #time
         }
     applyTx
         :: ([(Tx t, TxMeta)], UTxO)
