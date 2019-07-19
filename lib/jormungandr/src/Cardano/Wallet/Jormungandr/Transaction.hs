@@ -8,6 +8,7 @@
 
 module Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer
+    , ErrExceededInpsOrOuts (..)
     ) where
 
 import Prelude
@@ -83,8 +84,9 @@ newTransactionLayer (Hash block0) = TransactionLayer
     sign bytes (key, (Passphrase pwd)) =
         TxWitness . CC.unXSignature $ CC.sign pwd (getKey key) bytes
 
--- | Transaction with 0 output amount is tried
+-- | Transaction with improper number of inputs and outputs is tried
 data ErrExceededInpsOrOuts = ErrExceededInpsOrOuts
+    deriving (Eq, Show)
 
 instance Buildable ErrExceededInpsOrOuts where
     build _ = build $ mconcat
