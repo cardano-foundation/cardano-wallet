@@ -1474,15 +1474,18 @@ spec = do
         r1 <- request @ApiWallet ctx ("POST", "v2/wallets") Default payload
         expectResponseCode @IO HTTP.status202 r1
         let wid = getFromResponse walletId r1
+        let wDest = getFromResponse id r1
+        rStat <- request @ApiUtxoStatistics ctx (getWalletUtxoEp wDest) Default Empty
+        expectResponseCode @IO HTTP.status200 rStat
+        expectWalletUTxO [] (snd rStat)
 
         -- delete wallet
-        let wDest = getFromResponse id r1
         rDel <- request @ApiWallet ctx (deleteWalletEp wDest) Default Empty
         expectResponseCode @IO HTTP.status204 rDel
 
-        rStat <- request @ApiUtxoStatistics ctx (getWalletUtxoEp wDest) Default Empty
-        expectResponseCode @IO HTTP.status404 rStat
-        expectErrorMessage (errMsg404NoWallet wid) rStat
+        rStat1 <- request @ApiUtxoStatistics ctx (getWalletUtxoEp wDest) Default Empty
+        expectResponseCode @IO HTTP.status404 rStat1
+        expectErrorMessage (errMsg404NoWallet wid) rStat1
 
     it "WALLETS_UTXO_02 - Utxo statistics works properly" $ \ctx -> do
         wSrc <- fixtureWallet ctx

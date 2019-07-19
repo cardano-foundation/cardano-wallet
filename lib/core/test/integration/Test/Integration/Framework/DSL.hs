@@ -93,6 +93,7 @@ module Test.Integration.Framework.DSL
     , generateMnemonicsViaCLI
     , createWalletViaCLI
     , deleteWalletViaCLI
+    , getWalletUtxoStatisticsViaCLI
     , getWalletViaCLI
     , listAddressesViaCLI
     , listWalletsViaCLI
@@ -966,6 +967,14 @@ getWalletViaCLI
     -> IO r
 getWalletViaCLI ctx walId = cardanoWalletCLI @t
     ["wallet", "get", "--port", show (ctx ^. typed @Port) , walId ]
+
+getWalletUtxoStatisticsViaCLI
+    :: forall t r s. (CmdResult r, KnownCommand t, HasType Port s)
+    => s
+    -> String
+    -> IO r
+getWalletUtxoStatisticsViaCLI ctx walId = cardanoWalletCLI @t
+    ["wallet", "utxo", "--port", show (ctx ^. typed @Port) , walId ]
 
 listAddressesViaCLI
     :: forall t r s. (CmdResult r, KnownCommand t, HasType Port s)

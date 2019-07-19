@@ -10,7 +10,7 @@ module Test.Integration.Scenario.CLI.Wallets
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiTransaction, ApiWallet, getApiT )
+    ( ApiTransaction, ApiUtxoStatistics, ApiWallet, getApiT )
 import Cardano.Wallet.Primitive.Types
     ( DecodeAddress (..)
     , EncodeAddress (..)
@@ -52,8 +52,10 @@ import Test.Integration.Framework.DSL
     , expectCliListItemFieldEqual
     , expectEventually'
     , expectValidJSON
+    , expectWalletUTxO
     , fixtureWallet
     , generateMnemonicsViaCLI
+    , getWalletUtxoStatisticsViaCLI
     , getWalletViaCLI
     , listAddresses
     , listWalletsViaCLI
@@ -72,6 +74,7 @@ import Test.Integration.Framework.TestData
     , arabicWalletName
     , cmdOk
     , errMsg403WrongPass
+    , errMsg404NoWallet
     , falseWalletIds
     , passphraseMaxLength
     , passphraseMinLength
@@ -575,6 +578,71 @@ spec = do
         (Stdout o, Stderr e) <- listWalletsViaCLI @t ctx
         o `shouldBe` "[]\n"
         e `shouldBe` cmdOk
+
+    it "WALLETS_UTXO_01 - Cannot get UTxO statistics after wallet is deleted" $ \ctx -> do
+        -- create a wallet
+        Stdout m <- generateMnemonicsViaCLI @t []
+        (c1, o1, e1) <- createWalletViaCLI @t ctx ["n"] m "\n" "secure-passphrase"
+        c1 `shouldBe` ExitSuccess
+        T.unpack e1 `shouldContain` cmdOk
+        wDest <- expectValidJSON (Proxy @ApiWallet) o1
+        verify wDest
+            [ expectCliFieldEqual balanceAvailable 0
+            , expectCliFieldEqual balanceTotal 0
+            ]
+        let wid = wDest ^. walletId
+        Stdout o3 <- getWalletUtxoStatisticsViaCLI @t ctx $ T.unpack wid
+        utxoStats <- expectValidJSON (Proxy @ApiUtxoStatistics) o3
+        expectWalletUTxO [] (Right utxoStats)
+
+        -- delete wallet
+        Exit cd <- deleteWalletViaCLI @t ctx $ T.unpack wid
+        cd `shouldBe` ExitSuccess
+
+        (Exit c, Stdout out, Stderr err) <- getWalletUtxoStatisticsViaCLI @t ctx $ T.unpack wid
+        out `shouldBe` ""
+        c `shouldBe` ExitFailure 1
+        err `shouldContain` (errMsg404NoWallet wid)
+
+    it "WALLETS_UTXO_02 - Utxo statistics works properly" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+
+        -- create a wallet
+        Stdout m <- generateMnemonicsViaCLI @t []
+        (c1, o1, e1) <- createWalletViaCLI @t ctx ["n"] m "\n" "secure-passphrase"
+        c1 `shouldBe` ExitSuccess
+        T.unpack e1 `shouldContain` cmdOk
+        wDest <- expectValidJSON (Proxy @ApiWallet) o1
+        verify wDest
+            [ expectCliFieldEqual balanceAvailable 0
+            , expectCliFieldEqual balanceTotal 0
+            ]
+        let wid = wDest ^. walletId
+        Stdout o3 <- getWalletUtxoStatisticsViaCLI @t ctx $ T.unpack wid
+        utxoStats <- expectValidJSON (Proxy @ApiUtxoStatistics) o3
+        expectWalletUTxO [] (Right utxoStats)
+
+        --send transactions to the wallet
+        let coins = [13, 43, 66, 101, 1339] :: [Integer]
+        let matrix = zip coins [1..]
+        addrs:_ <- listAddresses ctx wDest
+        let addr =
+                encodeAddress (Proxy @t) (getApiT $ fst $ addrs ^. #id)
+        forM_ matrix $ \(amount, alreadyAbsorbed) -> do
+            let args = T.unpack <$>
+                    [ wSrc ^. walletId
+                    , "--payment", T.pack (show amount) <> "@" <> addr
+                    ]
+            (cp, op, ep) <- postTransactionViaCLI @t ctx "cardano-wallet" args
+            T.unpack ep `shouldContain` cmdOk
+            _ <- expectValidJSON (Proxy @(ApiTransaction t)) op
+            cp `shouldBe` ExitSuccess
+            let coinsSent = map fromIntegral $ take alreadyAbsorbed coins
+            expectEventually' ctx balanceAvailable (fromIntegral $ sum coinsSent) wDest
+            expectEventually' ctx balanceTotal (fromIntegral $ sum coinsSent) wDest
+            Stdout out <- getWalletUtxoStatisticsViaCLI @t ctx $ T.unpack wid
+            utxoStats1 <- expectValidJSON (Proxy @ApiUtxoStatistics) out
+            expectWalletUTxO coinsSent (Right utxoStats1)
   where
       expect (expEc, expOut, expErr) (ec, out, err) = do
               ec `shouldBe` expEc

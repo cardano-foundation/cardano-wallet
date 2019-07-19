@@ -490,9 +490,13 @@ cmdWalletGetUtxoStatistics = command "utxo" $ info (helper <*> cmd) $ mempty
         <$> portOption
         <*> walletIdArgument
     exec (WalletGetArgs wPort wId) = do
-        runClient wPort Aeson.encodePretty $ getWalletUtxoStatistics (walletClient @t) $
-            ApiT wId
-
+        res <- sendRequest wPort $ getWallet (walletClient @t) $ ApiT wId
+        case res of
+            Right _ -> do
+                runClient wPort Aeson.encodePretty $
+                    getWalletUtxoStatistics (walletClient @t) (ApiT wId)
+            Left _ ->
+                handleResponse Aeson.encodePretty res
 
 {-------------------------------------------------------------------------------
                             Commands - 'transaction'
