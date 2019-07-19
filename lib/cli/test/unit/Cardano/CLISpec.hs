@@ -148,6 +148,8 @@ spec = do
             , "  update                   Update a wallet."
             , "  delete                   Deletes wallet with specified wallet"
             , "                           id."
+            , "  utxo                     Get UTxO statistics for the wallet"
+            , "                           with specified id."
             ]
 
         ["wallet", "list", "--help"] `shouldShowUsage`
