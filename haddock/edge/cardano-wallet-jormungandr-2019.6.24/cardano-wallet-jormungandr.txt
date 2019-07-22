@@ -105,7 +105,7 @@ Discrimination :: Network -> ConfigParam
 Consensus :: ConsensusVersion -> ConfigParam
 
 -- | Number of slots in an epoch.
-SlotsPerEpoch :: SlotsPerEpoch -> ConfigParam
+SlotsPerEpoch :: EpochLength -> ConfigParam
 
 -- | Slot duration in seconds.
 SlotDuration :: DiffTime -> ConfigParam
