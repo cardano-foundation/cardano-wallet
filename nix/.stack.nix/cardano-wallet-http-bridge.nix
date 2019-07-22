@@ -125,7 +125,6 @@
             (hsPkgs.deepseq)
             (hsPkgs.digest)
             (hsPkgs.fmt)
-            (hsPkgs.generic-lens)
             (hsPkgs.iohk-monitoring)
             (hsPkgs.persistent)
             (hsPkgs.persistent-template)
