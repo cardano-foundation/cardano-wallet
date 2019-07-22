@@ -10,6 +10,8 @@ module Test.Integration.Scenario.CLI.Transactions
 
 import Prelude
 
+import Cardano.CLI
+    ( Iso8601Time (..) )
 import Cardano.Wallet.Api.Types
     ( ApiFee, ApiTransaction, ApiWallet, getApiT )
 import Cardano.Wallet.Primitive.Types
@@ -61,6 +63,7 @@ import Test.Integration.Framework.DSL
     , fixtureWalletWith
     , getWalletViaCLI
     , listAddresses
+    , listTransactionsViaCLI
     , postTransactionFeeViaCLI
     , postTransactionViaCLI
     , status
@@ -79,6 +82,10 @@ import Test.Integration.Framework.TestData
     , polishWalletName
     , wildcardsWalletName
     )
+import Test.QuickCheck
+    ( property, withMaxSuccess )
+import Test.QuickCheck.Instances.Time
+    ()
 
 import qualified Data.Text as T
 
@@ -643,6 +650,17 @@ spec = do
             (T.unpack err) `shouldContain` errMsg
             out `shouldBe` ""
             c `shouldBe` ExitFailure 1
+
+    it "TRANS_LIST_01 - Listing transactions for an empty wallet" $ \ctx ->
+        withMaxSuccess 10 $ property $ \mAfter mBefore -> do
+            wallet <- emptyWallet ctx
+            (Exit code, Stdout out, Stderr err) <-
+                listTransactionsViaCLI @t ctx wallet
+                    (Iso8601Time <$> mAfter)
+                    (Iso8601Time <$> mBefore)
+            err `shouldBe` "Ok.\n"
+            out `shouldBe` "[]\n"
+            code `shouldBe` ExitSuccess
 
   where
       longAddr = replicate 10000 '1'

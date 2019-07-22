@@ -103,6 +103,7 @@
             (hsPkgs.persistent)
             (hsPkgs.process)
             (hsPkgs.QuickCheck)
+            (hsPkgs.quickcheck-instances)
             (hsPkgs.retry)
             (hsPkgs.servant)
             (hsPkgs.template-haskell)
