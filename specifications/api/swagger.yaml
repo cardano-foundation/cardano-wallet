@@ -685,7 +685,6 @@ x-responsesGetUTxOsStatistics: &responsesGetUTxOsStatistics
   <<: *responsesErr404
   <<: *responsesErr405
   <<: *responsesErr406
-  <<: *responsesErr423
   200:
     description: Ok
     schema: *ApiWalletUTxOsStatistics
