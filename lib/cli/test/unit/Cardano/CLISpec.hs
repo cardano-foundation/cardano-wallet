@@ -266,8 +266,10 @@ spec = do
             , "  -h,--help                Show this help text"
             , "  --port INT               port used for serving the wallet"
             , "                           API. (default: 8090)"
-            , "  --after TIME             specifies an earliest time"
-            , "  --before TIME            specifies a latest time"
+            , "  --after TIME             specifies an earliest time (ISO 8601"
+            , "                           format: basic or extended)"
+            , "  --before TIME            specifies a latest time (ISO 8601"
+            , "                           format: basic or extended)"
             ]
 
         ["address", "--help"] `shouldShowUsage`

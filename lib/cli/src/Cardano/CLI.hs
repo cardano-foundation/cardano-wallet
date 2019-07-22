@@ -753,7 +753,7 @@ timeAfterOption :: Parser Iso8601Time
 timeAfterOption = optionT $ mempty
     <> long "after"
     <> metavar "TIME"
-    <> help "specifies an earliest time"
+    <> help "specifies an earliest time (ISO 8601 format: basic or extended)"
     <> showDefaultWith showT
 
 -- | [--before=TIME]
@@ -761,7 +761,7 @@ timeBeforeOption :: Parser Iso8601Time
 timeBeforeOption = optionT $ mempty
     <> long "before"
     <> metavar "TIME"
-    <> help "specifies a latest time"
+    <> help "specifies a latest time (ISO 8601 format: basic or extended)"
     <> showDefaultWith showT
 
 -- | [(--quiet|--verbose)]
