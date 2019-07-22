@@ -101,11 +101,14 @@ module Test.Integration.Framework.DSL
     , updateWalletPassphraseViaCLI
     , postTransactionViaCLI
     , postTransactionFeeViaCLI
+    , listTransactionsViaCLI
     ) where
 
 import Prelude hiding
     ( fail )
 
+import Cardano.CLI
+    ( Iso8601Time (..) )
 import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiT (..)
@@ -148,7 +151,7 @@ import Control.Concurrent.MVar
 import Control.Exception
     ( SomeException (..), finally, try )
 import Control.Monad
-    ( forM_, unless, void, (>=>) )
+    ( forM_, join, unless, void, (>=>) )
 import Control.Monad.Catch
     ( MonadCatch )
 import Control.Monad.Fail
@@ -189,6 +192,8 @@ import Data.Text
     ( Text )
 import Data.Word
     ( Word64 )
+import Data.Text.Class
+    ( showT )
 import GHC.TypeLits
     ( Symbol )
 import Language.Haskell.TH.Quote
@@ -1066,6 +1071,20 @@ postTransactionFeeViaCLI ctx args = do
         err <- TIO.hGetContents stderr
         return (c, T.unpack out, err)
 
+listTransactionsViaCLI
+    :: forall t r s . (CmdResult r, HasType Port s, KnownCommand t)
+    => s
+    -> ApiWallet
+    -> Maybe Iso8601Time
+    -> Maybe Iso8601Time
+    -> IO r
+listTransactionsViaCLI ctx wallet mAfter mBefore = cardanoWalletCLI @t $ join
+    [ ["transaction", "list"]
+    , ["--port", show (ctx ^. typed @Port)]
+    , [T.unpack $ wallet ^. walletId]
+    , maybe [] (\t -> ["--after", showT t]) mAfter
+    , maybe [] (\t -> ["--before", showT t]) mBefore
+    ]
 
 -- There is a dependency cycle in the packages.
 --
