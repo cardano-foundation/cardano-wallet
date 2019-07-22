@@ -403,4 +403,10 @@ module Cardano.Wallet.Jormungandr.Transaction
 -- | Construct a <a>TransactionLayer</a> compatible with Shelley and
 --   <tt>Jörmungandr</tt>
 newTransactionLayer :: forall n t. (KnownNetwork n, t ~ Jormungandr n) => Hash "Genesis" -> TransactionLayer t
+
+-- | Transaction with improper number of inputs and outputs is tried
+data ErrExceededInpsOrOuts
+ErrExceededInpsOrOuts :: ErrExceededInpsOrOuts
+instance GHC.Show.Show Cardano.Wallet.Jormungandr.Transaction.ErrExceededInpsOrOuts
+instance GHC.Classes.Eq Cardano.Wallet.Jormungandr.Transaction.ErrExceededInpsOrOuts
 instance Formatting.Buildable.Buildable Cardano.Wallet.Jormungandr.Transaction.ErrExceededInpsOrOuts
