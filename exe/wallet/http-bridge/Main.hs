@@ -3,6 +3,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -42,11 +43,11 @@ import Cardano.CLI
     , cmdWallet
     , databaseOption
     , execLaunch
+    , getDataDir
     , initTracer
     , listenOption
     , nodePortOption
     , optionT
-    , resolveHomeDir
     , runCli
     , stateDirOption
     , verbosityOption
@@ -82,8 +83,12 @@ import Control.Concurrent.Async
     ( race_ )
 import Control.Monad
     ( (>=>) )
+import Data.Char
+    ( toLower )
 import Data.Function
     ( (&) )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -123,14 +128,16 @@ import qualified Network.Wai.Handler.Warp as Warp
 -------------------------------------------------------------------------------}
 
 main :: forall (n :: Network). IO ()
-main = runCli $ cli $ mempty
-    <> cmdLaunch
-    <> cmdServe
-    <> cmdMnemonic
-    <> cmdWallet @(HttpBridge n)
-    <> cmdTransaction @(HttpBridge n)
-    <> cmdAddress @(HttpBridge n)
-    <> cmdVersion
+main = do
+    dataDir <- getDataDir "http-bridge"
+    runCli $ cli $ mempty
+        <> cmdLaunch dataDir
+        <> cmdServe
+        <> cmdMnemonic
+        <> cmdWallet @(HttpBridge n)
+        <> cmdTransaction @(HttpBridge n)
+        <> cmdAddress @(HttpBridge n)
+        <> cmdVersion
 
 {-------------------------------------------------------------------------------
                             Command - 'launch'
@@ -141,20 +148,21 @@ data LaunchArgs = LaunchArgs
     { _network :: Either Local Network
     , _listen :: Listen
     , _nodePort :: Port "Node"
-    , _stateDir :: FilePath
+    , _stateDir :: Maybe FilePath
     , _verbosity :: Verbosity
     }
 
 cmdLaunch
-    :: Mod CommandFields (IO ())
-cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
+    :: FilePath
+    -> Mod CommandFields (IO ())
+cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
     <> progDesc "Launch and monitor a wallet server and its chain producer."
   where
     cmd = fmap withNetwork $ LaunchArgs
         <$> networkOption'
         <*> listenOption
         <*> nodePortOption
-        <*> stateDirOption
+        <*> stateDirOption dataDir
         <*> verbosityOption
     withNetwork args@(LaunchArgs network _ _ _ _) = case network of
         Left Local -> exec @(HttpBridge 'Testnet) args
@@ -165,9 +173,9 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
         => (KeyToAddress t, KnownNetwork n)
         => LaunchArgs
         -> IO ()
-    exec (LaunchArgs network listen nodePort stateDirRaw verbosity) = do
+    exec (LaunchArgs network listen nodePort mStateDir verbosity) = do
         let withStateDir _ _ = pure ()
-        stateDir <- resolveHomeDir @t stateDirRaw
+        let stateDir = fromMaybe (stateDirForNetwork dataDir network) mStateDir
         cmdName <- getProgName
         execLaunch verbosity stateDir withStateDir
             [ commandHttpBridge stateDir
@@ -308,3 +316,13 @@ networkOption' =
     localNetworkOption = flag' False $ mempty
         <> long "local-network"
         <> help "connect to a local network (conflicts with --network)"
+
+stateDirForNetwork
+    :: FilePath
+    -- ^ Backend-specific data directory (result of 'getDataDir')
+    -> Either Local Network
+    -- ^ The network selected by the user
+    -> FilePath
+stateDirForNetwork backendDir net = backendDir </> case net of
+    Left Local -> "local"
+    Right network -> map toLower $ show network

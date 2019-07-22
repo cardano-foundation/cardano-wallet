@@ -43,13 +43,13 @@ import Cardano.CLI
     , cmdWallet
     , databaseOption
     , execLaunch
+    , getDataDir
     , initTracer
     , listenOption
     , nodePortOption
     , optionT
     , putErrLn
     , requireFilePath
-    , resolveHomeDir
     , runCli
     , stateDirOption
     , verbosityOption
@@ -97,6 +97,8 @@ import Data.Coerce
     ( coerce )
 import Data.Function
     ( (&) )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -155,14 +157,16 @@ import qualified Network.Wai.Handler.Warp as Warp
 -------------------------------------------------------------------------------}
 
 main :: IO ()
-main = runCli $ cli $ mempty
-    <> cmdLaunch
-    <> cmdServe
-    <> cmdMnemonic
-    <> cmdWallet @(Jormungandr 'Testnet)
-    <> cmdTransaction @(Jormungandr 'Testnet)
-    <> cmdAddress @(Jormungandr 'Testnet)
-    <> cmdVersion
+main = do
+    dataDir <- getDataDir "jormungandr"
+    runCli $ cli $ mempty
+        <> cmdLaunch dataDir
+        <> cmdServe
+        <> cmdMnemonic
+        <> cmdWallet @(Jormungandr 'Testnet)
+        <> cmdTransaction @(Jormungandr 'Testnet)
+        <> cmdAddress @(Jormungandr 'Testnet)
+        <> cmdVersion
 
 {-------------------------------------------------------------------------------
                             Command - 'launch'
@@ -172,7 +176,7 @@ main = runCli $ cli $ mempty
 data LaunchArgs = LaunchArgs
     { _listen :: Listen
     , _nodePort :: Port "Node"
-    , _stateDir :: FilePath
+    , _stateDir :: Maybe FilePath
     , _verbosity :: Verbosity
     , _jormungandrArgs :: JormungandrArgs
     }
@@ -183,8 +187,9 @@ data JormungandrArgs = JormungandrArgs
     }
 
 cmdLaunch
-    :: Mod CommandFields (IO ())
-cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
+    :: FilePath
+    -> Mod CommandFields (IO ())
+cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
     <> progDesc "Launch and monitor a wallet server and its chain producers."
     <> footer
         "Please note that launch will generate a configuration for Jörmungandr \
@@ -193,18 +198,18 @@ cmdLaunch = command "launch" $ info (helper <*> cmd) $ mempty
     cmd = fmap exec $ LaunchArgs
         <$> listenOption
         <*> nodePortOption
-        <*> stateDirOption
+        <*> stateDirOption dataDir
         <*> verbosityOption
         <*> (JormungandrArgs
             <$> genesisBlockOption
             <*> bftLeadersOption)
-    exec (LaunchArgs listen nodePort stateDirRaw verbosity jArgs) = do
+    exec (LaunchArgs listen nodePort mStateDir verbosity jArgs) = do
         requireFilePath (_genesisBlock jArgs)
         requireFilePath (_bftLeaders jArgs)
         cmdName <- getProgName
         block0H <- parseBlock0H (_genesisBlock jArgs)
         let baseUrl = BaseUrl Http "127.0.0.1" (getPort nodePort) "/api"
-        stateDir <- resolveHomeDir @(Jormungandr 'Testnet) stateDirRaw
+        let stateDir = fromMaybe (dataDir </> "testnet") mStateDir
         let nodeConfig = stateDir </> "jormungandr-config.json"
         let withStateDir tracer _ = do
                 genConfigFile stateDir baseUrl

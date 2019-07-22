@@ -70,7 +70,7 @@ module Cardano.CLI
     -- * Helpers
     , decodeError
     , requireFilePath
-    , resolveHomeDir
+    , getDataDir
     , waitForService
     ) where
 
@@ -164,8 +164,6 @@ import Data.Time.Clock
     ( UTCTime )
 import Data.Time.Text
     ( iso8601, iso8601ExtendedUtc, utcTimeFromText, utcTimeToText )
-import Data.Typeable
-    ( TypeRep, Typeable, tyConName, typeRep, typeRepArgs, typeRepTyCon )
 import Fmt
     ( Buildable, blockListF, fmt, nameF, pretty )
 import GHC.Generics
@@ -197,6 +195,7 @@ import Options.Applicative
     , progDesc
     , showDefaultWith
     , showHelpOnEmpty
+    , strOption
     , subparser
     , value
     )
@@ -215,11 +214,13 @@ import System.Console.ANSI
     , hSetSGR
     )
 import System.Directory
-    ( doesFileExist, getHomeDirectory )
+    ( XdgDirectory (..), doesFileExist, getXdgDirectory )
 import System.Exit
     ( exitFailure, exitSuccess, exitWith )
 import System.FilePath
     ( (</>) )
+import System.Info
+    ( os )
 import System.IO
     ( BufferMode (..)
     , Handle
@@ -244,7 +245,6 @@ import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
-import qualified Data.Char as C
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -686,14 +686,14 @@ sizeOption = optionT $ mempty
     <> value MS_15
     <> showDefaultWith showT
 
--- | --state-dir=FILEPATH, default: ~/.cardano-wallet
-stateDirOption :: Parser FilePath
-stateDirOption = optionT $ mempty
+-- | --state-dir=FILEPATH, default: ~/.cardano-wallet/$backend/$network
+stateDirOption :: FilePath -> Parser (Maybe FilePath)
+stateDirOption backendDir = optional $ strOption $ mempty
     <> long "state-dir"
     <> metavar "DIR"
-    <> help "write wallet state (blockchain and database) to this directory"
-    <> value "$HOME/.cardano-wallet"
-    <> showDefaultWith show
+    <> help ("write wallet state (blockchain and database) to this directory" ++
+        " (default: " ++ defaultDir ++ ")")
+    where defaultDir = backendDir </> "NETWORK"
 
 -- | [(--quiet|--verbose)]
 verbosityOption :: Parser Verbosity
@@ -1132,26 +1132,18 @@ decodeError bytes = do
     obj <- Aeson.decode bytes
     Aeson.parseMaybe (Aeson.withObject "Error" (.: "message")) obj
 
--- | Resolve '~' or '$HOME' in a 'FilePath' to their actual system value
-resolveHomeDir
-    :: forall t. Typeable t
-    => FilePath
+-- | Find the user data directory for a given node network backend.
+getDataDir
+    :: String -- ^ The network backend name.
     -> IO FilePath
-resolveHomeDir dir = do
-    let namespace = typeRepFilePath $ typeRep $ Proxy @t
-    homeDir <- T.pack <$> getHomeDirectory
-    return
-        $ T.unpack
-        $ T.replace "$HOME" homeDir
-        $ T.replace "~" homeDir
-        $ T.pack
-        $ foldl (</>) dir namespace
-  where
-    typeRepFilePath :: TypeRep -> [FilePath]
-    typeRepFilePath root = h : q
-      where
-        h = fmap C.toLower . filter C.isLetter . tyConName . typeRepTyCon $ root
-        q = mconcat (typeRepFilePath <$> typeRepArgs root)
+getDataDir backendDir = do
+    -- On Linux/MacOS, use the XDG data directory.
+    -- On Windows, use the Local AppData (XdgCache) rather than one from the
+    -- Roaming profile because we don't want to (potentially) transmit the
+    -- wallet database to a network share.
+    let dir = if os /= "windows" then XdgData else XdgCache
+    dataDir <- getXdgDirectory dir "cardano-wallet"
+    return $ dataDir </> backendDir
 
 -- | Wait for a service to become available on a given TCP port. Exit on failure
 -- with a proper error message.
