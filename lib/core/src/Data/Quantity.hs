@@ -53,6 +53,8 @@ import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Text.Read
     ( decimal )
+import Fmt
+    ( Buildable (..) )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
@@ -153,6 +155,9 @@ instance FromText Percentage where
       where
         err = TextDecodingError
             "expected a value between 0 and 100 with a '%' suffix (e.g. '14%')"
+
+instance Buildable Percentage where
+    build (Percentage p) = mempty <> build p <> "%"
 
 -- | Safe constructor for 'Percentage'
 mkPercentage
