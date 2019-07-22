@@ -21,7 +21,7 @@ import Cardano.Wallet.Jormungandr.Compatibility
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Jormungandr.Transaction
-    ( newTransactionLayer )
+    ( ErrExceededInpsOrOuts (..), newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , Key
@@ -382,6 +382,14 @@ mkStdTxSpec = do
             \9cebdc18021656f17413e35efed90cc701c5066ea423c16a2e2b85ad2fc314ad6b\
             \ff21f5f9ebc2d2a5e201"
 
+    describe "validateSelection cannot accept selection that violates maxNumberOfInputs" $ do
+        tooNumerousInpsTest (Proxy @'Mainnet) block0
+        tooNumerousInpsTest (Proxy @'Testnet) block0
+
+    describe "validateSelection cannot accept selection that violates maxNumberOfOutputs" $ do
+        tooNumerousOutsTest (Proxy @'Mainnet) block0
+        tooNumerousOutsTest (Proxy @'Testnet) block0
+
 goldenTestStdTx
     :: forall n. (KnownNetwork n)
     => Proxy (Jormungandr n)
@@ -439,6 +447,51 @@ unknownInputTest _ block0 = it title $ do
         <> T.unpack (toText (networkVal @n))
         <> ")"
 
-    xprv :: ByteString -> Key depth XPrv
-    xprv seed =
-        unsafeGenerateKeyFromSeed (Passphrase (BA.convert seed), mempty) mempty
+tooNumerousInpsTest
+    :: forall n. (KnownNetwork n)
+    => Proxy n
+    -> Hash "Genesis"
+    -> SpecWith ()
+tooNumerousInpsTest _ block0 = it title $ do
+    let addr = keyToAddress @(Jormungandr n) $ publicKey $ xprv "address-number-0"
+    let res = validateSelection tl (CoinSelection inps outs chngs)
+          where
+            tl = newTransactionLayer @n block0
+            inps = replicate 256
+                ( TxIn (Hash "arbitrary") 0
+                , TxOut addr (Coin 1)
+                )
+            outs = []
+            chngs = []
+    res `shouldBe` Left ErrExceededInpsOrOuts
+  where
+    title = "Too numerous inputs yields an error ("
+        <> T.unpack (toText (networkVal @n))
+        <> ")"
+
+tooNumerousOutsTest
+    :: forall n. (KnownNetwork n)
+    => Proxy n
+    -> Hash "Genesis"
+    -> SpecWith ()
+tooNumerousOutsTest _ block0 = it title $ do
+    let addr = keyToAddress @(Jormungandr n) $ publicKey $ xprv "address-number-0"
+    let res = validateSelection tl (CoinSelection inps outs chngs)
+          where
+            tl = newTransactionLayer @n block0
+            inps = replicate 255
+                ( TxIn (Hash "arbitrary") 0
+                , TxOut addr (Coin 10)
+                )
+            outs = replicate 256 (TxOut addr (Coin 9))
+            chngs = replicate 256 (Coin 9)
+    res `shouldBe` Left ErrExceededInpsOrOuts
+  where
+    title = "Too numerous outputs yields an error ("
+        <> T.unpack (toText (networkVal @n))
+        <> ")"
+
+
+xprv :: ByteString -> Key depth XPrv
+xprv seed =
+    unsafeGenerateKeyFromSeed (Passphrase (BA.convert seed), mempty) mempty
