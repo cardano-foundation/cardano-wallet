@@ -21,9 +21,9 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Direction (..)
     , Dom (..)
+    , EpochLength (..)
     , Hash (..)
     , SlotId (..)
-    , SlotsPerEpoch (..)
     , TxIn (..)
     , TxMeta (TxMeta)
     , TxOut (..)
@@ -122,7 +122,7 @@ spec = do
             let txMeta = TxMeta Invalidated Incoming (SlotId 0 42) (Quantity 0)
             "+0.000000 invalidated since 0.42" === pretty @_ @Text txMeta
 
-    let slotsPerEpoch = SlotsPerEpoch 21600
+    let slotsPerEpoch = EpochLength 21600
 
     describe "slotRatio" $ do
         it "works for any two slots" $ property $ \sl0 sl1 ->

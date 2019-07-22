@@ -71,8 +71,8 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , Coin (..)
     , Direction (..)
+    , EpochLength (..)
     , Hash (..)
-    , SlotsPerEpoch (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -394,5 +394,5 @@ label :: Show n => B8.ByteString -> n -> B8.ByteString
 label prefix n = prefix <> B8.pack (show n)
 
 -- | Arbitrary epoch length for testing
-epochLength :: SlotsPerEpoch
-epochLength = SlotsPerEpoch 500
+epochLength :: EpochLength
+epochLength = EpochLength 500

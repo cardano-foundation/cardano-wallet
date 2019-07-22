@@ -361,7 +361,7 @@ data ConfigParam
     -- ^ Address discrimination. Testnet / Mainnet.
     | Consensus ConsensusVersion
     -- ^ Consensus version. BFT / Genesis Praos.
-    | SlotsPerEpoch W.SlotsPerEpoch
+    | SlotsPerEpoch W.EpochLength
     -- ^ Number of slots in an epoch.
     | SlotDuration DiffTime
     -- ^ Slot duration in seconds.
@@ -403,7 +403,7 @@ getConfigParam = label "getConfigParam" $ do
         1 -> Discrimination <$> getNetwork
         2 -> Block0Date . posixSecondsToUTCTime . fromIntegral <$> getWord64be
         3 -> Consensus <$> getConsensusVersion
-        4 -> SlotsPerEpoch . W.SlotsPerEpoch . fromIntegral  <$> getWord32be
+        4 -> SlotsPerEpoch . W.EpochLength . fromIntegral  <$> getWord32be
         5 -> SlotDuration . secondsToDiffTime . fromIntegral <$> getWord8
         6 -> EpochStabilityDepth . Quantity <$> getWord32be
         8 -> ConsensusGenesisPraosParamF <$> getMilli

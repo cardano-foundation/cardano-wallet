@@ -30,9 +30,9 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
     , Direction (..)
+    , EpochLength (..)
     , Hash (..)
     , SlotId (..)
-    , SlotsPerEpoch (..)
     , TxStatus (..)
     , WalletId (..)
     , WalletState (..)
@@ -230,8 +230,8 @@ instance PersistFieldSql SlotId where
 -- 'flatSlot' with an artificial epochLength. I.e. /not the same epochLength as
 -- the blockchain/. This is just for the sake of storing the 64 bit epoch and
 -- the 16 bit slot inside a single 64-bit field.
-artificialEpochLength :: SlotsPerEpoch
-artificialEpochLength = SlotsPerEpoch $ fromIntegral (maxBound :: Word16)
+artificialEpochLength :: EpochLength
+artificialEpochLength = EpochLength $ fromIntegral (maxBound :: Word16)
 
 instance PersistField SlotId where
     toPersistValue = toPersistValue . flatSlot artificialEpochLength

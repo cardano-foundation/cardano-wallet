@@ -107,9 +107,9 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , DefineTx (..)
     , Direction (..)
+    , EpochLength (..)
     , SlotId (..)
     , SlotLength (..)
-    , SlotsPerEpoch (..)
     , Tx (..)
     , TxMeta (..)
     , TxOut (..)
@@ -374,7 +374,7 @@ data BlockchainParameters t = BlockchainParameters
         -- ^ Policy regarding transcation fee
     , getSlotLength :: SlotLength
         -- ^ Length, in seconds, of a slot
-    , getSlotsPerEpoch :: SlotsPerEpoch
+    , getEpochLength :: EpochLength
     , getTxMaxSize :: Quantity "byte" Word16
         -- ^ Maximum size of a transaction (soft or hard limit)
     }

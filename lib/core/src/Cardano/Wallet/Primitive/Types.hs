@@ -67,7 +67,7 @@ module Cardano.Wallet.Primitive.Types
     -- * Slotting
     , SlotId (..)
     , SlotLength (..)
-    , SlotsPerEpoch (..)
+    , EpochLength (..)
     , slotRatio
     , flatSlot
     , fromFlatSlot
@@ -679,7 +679,7 @@ instance Buildable SlotId where
 -- approximation for a few reasons, one of them being that we hard code the
 -- epoch length as a static number whereas it may vary in practice.
 slotRatio
-    :: SlotsPerEpoch
+    :: EpochLength
     -> SlotId
         -- ^ Numerator
     -> SlotId
@@ -696,12 +696,12 @@ slotRatio epochLength a b =
         Quantity $ toEnum $ fromIntegral $ (100 * n0) `div` n1
 
 -- | Convert a 'SlotId' to the number of slots since genesis.
-flatSlot :: SlotsPerEpoch -> SlotId -> Word64
-flatSlot (SlotsPerEpoch epochLength) (SlotId e s) = epochLength * e + fromIntegral s
+flatSlot :: EpochLength -> SlotId -> Word64
+flatSlot (EpochLength epochLength) (SlotId e s) = epochLength * e + fromIntegral s
 
 -- | Convert a 'flatSlot' index to 'SlotId'.
-fromFlatSlot :: SlotsPerEpoch -> Word64 -> SlotId
-fromFlatSlot (SlotsPerEpoch epochLength) n = SlotId e (fromIntegral s)
+fromFlatSlot :: EpochLength -> Word64 -> SlotId
+fromFlatSlot (EpochLength epochLength) n = SlotId e (fromIntegral s)
   where
     e = n `div` epochLength
     s = n `mod` epochLength
@@ -709,7 +709,7 @@ fromFlatSlot (SlotsPerEpoch epochLength) n = SlotId e (fromIntegral s)
 newtype SlotLength = SlotLength DiffTime
     deriving (Show, Eq)
 
-newtype SlotsPerEpoch = SlotsPerEpoch Word64
+newtype EpochLength = EpochLength Word64
     deriving (Show, Eq)
 {-------------------------------------------------------------------------------
                                Polymorphic Types
