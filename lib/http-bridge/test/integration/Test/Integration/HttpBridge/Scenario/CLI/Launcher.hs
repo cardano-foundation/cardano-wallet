@@ -81,8 +81,8 @@ spec = do
                 let process = proc' (commandName @t) args
                 withCreateProcess process $ \_ (Just o) (Just e) ph -> do
                     expectPathEventuallyExist d
-                    expectPathEventuallyExist (d <> "/httpbridge/testnet/testnet")
-                    expectPathEventuallyExist (d <> "/httpbridge/testnet/wallet.db")
+                    expectPathEventuallyExist (d <> "/testnet")
+                    expectPathEventuallyExist (d <> "/wallet.db")
                   `finally` do
                     terminateProcess ph
                     TIO.hGetContents o >>= TIO.putStrLn
@@ -100,8 +100,8 @@ spec = do
             let process = proc' (commandName @t) args
             withCreateProcess process $ \_ (Just o) (Just e) ph -> do
                 expectPathEventuallyExist dir
-                expectPathEventuallyExist (dir <> "/httpbridge/testnet/testnet")
-                expectPathEventuallyExist (dir <> "/httpbridge/testnet/wallet.db")
+                expectPathEventuallyExist (dir <> "/testnet")
+                expectPathEventuallyExist (dir <> "/wallet.db")
               `finally` do
                 terminateProcess ph
                 TIO.hGetContents o >>= TIO.putStrLn

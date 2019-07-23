@@ -691,9 +691,12 @@ stateDirOption :: FilePath -> Parser (Maybe FilePath)
 stateDirOption backendDir = optional $ strOption $ mempty
     <> long "state-dir"
     <> metavar "DIR"
-    <> help ("write wallet state (blockchain and database) to this directory" ++
-        " (default: " ++ defaultDir ++ ")")
-    where defaultDir = backendDir </> "NETWORK"
+    <> help (mconcat
+        [ "write wallet state (blockchain and database) to this directory"
+        , " (default: ", defaultDir, ")"
+        ])
+  where
+    defaultDir = backendDir </> "NETWORK"
 
 -- | [(--quiet|--verbose)]
 verbosityOption :: Parser Verbosity
