@@ -60,6 +60,14 @@ _items below are more-or-less prioritized_
 - Implement the transaction layer to serialize and sign transactions for the Haskell nodes.
 - Add a third executable target for our command-line, and have the ability to serve the wallet on top of a new Haskell node
 
+### Transaction History Index
+
+> When listing transactions, users expect to see the source address and amount used for each input of each transaction. Currently cardano-wallet is able to show address and amount for inputs of outgoing transaction, but not incoming transactions. For incoming transactions, it can only show a (TxId, Index) pair.
+
+- While restoring the wallet, the (TxId, Index) -> (Address, Amount) mapping should be cached so that it's possible to resolve addresses and amounts for incoming transactions.
+- The API must return addresses and amounts for each input of a transaction.
+- The API may also return (TxId, Index) values as extra information for each input of a transaction.
+
 ### Finalize cross-compilation to windows
 
 We can cross-compile the CLI and source code to windows! Which is great but not sufficient. What we would ultimately need is a way to run our e2e tests and integration tests on windows, which is a hard problem. Because the tests are running fine on Linux and OSX, doesn't mean that the executable produced for windows will be fine too.
