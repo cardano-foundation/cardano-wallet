@@ -669,12 +669,6 @@ data UTxOStatistics = UTxOStatistics
     , boundType :: BoundType
     } deriving (Show, Generic, Ord)
 
-data UTxOStatisticsError
-    = ErrEmptyHistogram
-    | ErrInvalidBounds !Text
-    | ErrInvalidTotalStakes !Text
-    deriving (Eq, Show, Read, Generic)
-
 instance Eq UTxOStatistics where
     (UTxOStatistics h s _) == (UTxOStatistics h' s' _) =
         s == s' && sorted h == sorted h'
