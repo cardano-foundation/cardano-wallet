@@ -152,6 +152,7 @@ import Fmt
     , ordinalF
     , prefixF
     , suffixF
+    , tupleF
     )
 import GHC.Generics
     ( Generic )
@@ -687,6 +688,9 @@ data HistogramBar = HistogramBar
     { bucketUpperBound :: !Word64
     , bucketCount      :: !Word64
     } deriving (Show, Eq, Ord, Generic)
+
+instance Buildable HistogramBar where
+    build (HistogramBar k v) = tupleF (k, v)
 
 --  Buckets boundaries can be constructed in different ways
 data BoundType = Log10 deriving (Eq, Show, Ord, Generic)
