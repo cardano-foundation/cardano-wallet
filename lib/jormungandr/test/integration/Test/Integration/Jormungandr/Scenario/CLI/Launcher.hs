@@ -84,13 +84,33 @@ spec = do
                 let process = proc' (commandName @t) args
                 withCreateProcess process $ \_ (Just o) (Just e) ph -> do
                     expectPathEventuallyExist d
-                    expectPathEventuallyExist (d <> "/jormungandr")
+                    expectPathEventuallyExist (d <> "/chain")
                     expectPathEventuallyExist (d <> "/jormungandr-config.json")
                     expectPathEventuallyExist (d <> "/wallet.db")
                   `finally` do
                     terminateProcess ph
                     TIO.hGetContents o >>= TIO.putStrLn
                     TIO.hGetContents e >>= TIO.putStrLn
+
+        it "LAUNCH - Can start launcher with --state-dir (nested dir)" $ withTempDir $ \d -> do
+            let dir = d ++ "/a/b/c/d/e/f/g"
+            let args =
+                    [ "launch"
+                    , "--random-port"
+                    , "--state-dir", dir
+                    , "--genesis-block", block0
+                    , "--bft-leaders", leaders
+                    ]
+            let process = proc' (commandName @t) args
+            withCreateProcess process $ \_ (Just o) (Just e) ph -> do
+                expectPathEventuallyExist dir
+                expectPathEventuallyExist (dir <> "/chain")
+                expectPathEventuallyExist (dir <> "/jormungandr-config.json")
+                expectPathEventuallyExist (dir <> "/wallet.db")
+              `finally` do
+                terminateProcess ph
+                TIO.hGetContents o >>= TIO.putStrLn
+                TIO.hGetContents e >>= TIO.putStrLn
 
         it "LAUNCH - Non-Existing files for --genesis-block" $ do
             let block0' = block0 <> ".doesnexist"

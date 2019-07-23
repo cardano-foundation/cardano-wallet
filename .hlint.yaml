@@ -49,6 +49,7 @@
 - ignore: {name: "Reduce duplication"} # This is a decision left to developers and reviewers
 - ignore: {name: "Redundant bracket"} # Not everyone knows precedences of every operators in Haskell. Brackets help readability.
 - ignore: {name: "Redundant do"} # Just an annoying hlint built-in, GHC may remove redundant do if he wants
+- ignore: {name: "Monoid law, left identity"} # Using 'mempty' can be useful to vertically-align elements
 
 
 # Add custom hints for this project

@@ -64,26 +64,44 @@ import qualified Data.Text.IO as TIO
 spec :: forall t. (KnownCommand t) => Spec
 spec = do
     describe "LAUNCH - cardano-wallet launch" $ do
-        it "LAUNCH - Can start launcher with --state-dir" $ withTempDir $ \d -> do
-            let args = ["launch", "--network", "testnet", "--random-port", "--state-dir", d]
-            let process = proc' (commandName @t) args
-            withCreateProcess process $ \_ (Just o) (Just e) ph -> do
-                expectPathEventuallyExist d
-                expectPathEventuallyExist (d <> "/testnet")
-                expectPathEventuallyExist (d <> "/wallet.db")
-              `finally` do
-                terminateProcess ph
-                TIO.hGetContents o >>= TIO.putStrLn
-                TIO.hGetContents e >>= TIO.putStrLn
+        describe "LAUNCH - Can start launcher with --state-dir" $ do
+            let tests =
+                    [ ("existing dir", const $ pure ())
+                    , ("non-existing dir", removeDirectory)
+                    ]
+            forM_ tests $ \(title, before) -> it title $ withTempDir $ \d -> do
+                before d
+                let args =
+                        [ "launch"
+                        , "--network"
+                        , "testnet"
+                        , "--random-port"
+                        , "--state-dir", d
+                        ]
+                let process = proc' (commandName @t) args
+                withCreateProcess process $ \_ (Just o) (Just e) ph -> do
+                    expectPathEventuallyExist d
+                    expectPathEventuallyExist (d <> "/testnet")
+                    expectPathEventuallyExist (d <> "/wallet.db")
+                  `finally` do
+                    terminateProcess ph
+                    TIO.hGetContents o >>= TIO.putStrLn
+                    TIO.hGetContents e >>= TIO.putStrLn
 
-        it "LAUNCH - Can start launcher with --state-dir (empty dir)" $ withTempDir $ \d -> do
-            removeDirectory d
-            let args = ["launch", "--network", "testnet", "--random-port", "--state-dir", d]
+        it "LAUNCH - Can start launcher with --state-dir (nested dir)" $ withTempDir $ \d -> do
+            let dir = d ++ "/a/b/c/d/e/f/g"
+            let args =
+                    [ "launch"
+                    , "--network"
+                    , "testnet"
+                    , "--random-port"
+                    , "--state-dir", dir
+                    ]
             let process = proc' (commandName @t) args
             withCreateProcess process $ \_ (Just o) (Just e) ph -> do
-                expectPathEventuallyExist d
-                expectPathEventuallyExist (d <> "/testnet")
-                expectPathEventuallyExist (d <> "/wallet.db")
+                expectPathEventuallyExist dir
+                expectPathEventuallyExist (dir <> "/testnet")
+                expectPathEventuallyExist (dir <> "/wallet.db")
               `finally` do
                 terminateProcess ph
                 TIO.hGetContents o >>= TIO.putStrLn
