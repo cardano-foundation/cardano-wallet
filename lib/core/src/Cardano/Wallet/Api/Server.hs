@@ -31,7 +31,6 @@ import Cardano.Wallet
     , ErrCoinSelection (..)
     , ErrCreateUnsignedTx (..)
     , ErrEstimateTxFee (..)
-    , ErrListTransactions (..)
     , ErrListUTxOStatistics (..)
     , ErrMkStdTx (..)
     , ErrNoSuchWallet (..)
@@ -68,7 +67,7 @@ import Cardano.Wallet.Api.Types
     , getApiMnemonicT
     )
 import Cardano.Wallet.Network
-    ( ErrNetworkTip (..), ErrNetworkUnavailable (..) )
+    ( ErrNetworkUnavailable (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress, digest, generateKeyFromSeed, publicKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -469,7 +468,7 @@ listTransactions w (ApiT wid) maybeRange = do
     case maybeRange of
         Just _ -> throwError (err501 { errBody = "Issue #466 unimplemented" })
         Nothing -> pure ()
-    txs <- liftHandler $ W.listTransactions w wid
+    txs <- liftIO $ W.listTransactions w wid
     return $ map mkApiTransactionFromInfo txs
 
 coerceCoin :: AddressAmount t -> TxOut
@@ -669,20 +668,6 @@ instance LiftHandler ErrUpdatePassphrase where
     handler = \case
         ErrUpdatePassphraseNoSuchWallet e -> handler e
         ErrUpdatePassphraseWithRootKey e  -> handler e
-
-instance LiftHandler ErrListTransactions where
-    handler = \case
-        ErrListTransactionsNoSuchWallet e -> handler e
-        ErrListTransactionsNetworkTip e -> handler e
-
-instance LiftHandler ErrNetworkTip where
-    handler = \case
-        ErrNetworkTipNotFound ->
-            apiError err503 NetworkTipNotFound $ mconcat
-                [ "The node backend does not know the network tip. "
-                , "Trying again in a bit might work."
-                ]
-        ErrNetworkTipNetworkUnreachable e -> handler e
 
 instance LiftHandler ServantErr where
     handler err@(ServantErr code _ body headers)

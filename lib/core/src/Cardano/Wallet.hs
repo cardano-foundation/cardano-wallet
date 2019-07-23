@@ -29,7 +29,6 @@ module Cardano.Wallet
     , ErrCoinSelection (..)
     , ErrCreateUnsignedTx (..)
     , ErrEstimateTxFee (..)
-    , ErrListTransactions (..)
     , ErrMkStdTx (..)
     , ErrNetworkUnavailable (..)
     , ErrNoSuchWallet (..)
@@ -58,11 +57,7 @@ import Cardano.Wallet.DB
     , PrimaryKey (..)
     )
 import Cardano.Wallet.Network
-    ( ErrNetworkTip (..)
-    , ErrNetworkUnavailable (..)
-    , ErrPostTx (..)
-    , NetworkLayer (..)
-    )
+    ( ErrNetworkUnavailable (..), ErrPostTx (..), NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (RootK)
     , ErrWrongPassphrase (..)
@@ -136,7 +131,6 @@ import Cardano.Wallet.Primitive.Types
     , computeUtxoStatistics
     , flatSlot
     , log10
-    , slotDifference
     , slotRatio
     )
 import Cardano.Wallet.Transaction
@@ -317,7 +311,7 @@ data WalletLayer s t = WalletLayer
     , listTransactions
         :: DefineTx t
         => WalletId
-        -> ExceptT ErrListTransactions IO [TransactionInfo]
+        -> IO [TransactionInfo]
         -- ^ List all transactions and metadata from history for a given wallet.
         --
         -- The result is sorted on 'slotId' in descending order. The most recent
@@ -358,12 +352,6 @@ data ErrSubmitTx
 data ErrUpdatePassphrase
     = ErrUpdatePassphraseNoSuchWallet ErrNoSuchWallet
     | ErrUpdatePassphraseWithRootKey ErrWithRootKey
-    deriving (Show, Eq)
-
--- | Errors that can occur when trying to list transactions.
-data ErrListTransactions
-    = ErrListTransactionsNoSuchWallet ErrNoSuchWallet
-    | ErrListTransactionsNetworkTip ErrNetworkTip
     deriving (Show, Eq)
 
 -- | Errors occuring when trying to perform an operation on a wallet which
@@ -533,27 +521,24 @@ newWalletLayer tracer bp db nw tl = do
     _listTransactions
         :: (DefineTx t)
         => WalletId
-        -> ExceptT ErrListTransactions IO [TransactionInfo]
-    _listTransactions wid = do
-        tipHeader <- withExceptT ErrListTransactionsNetworkTip $ networkTip nw
-        let tip = tipHeader ^. #slotId
-        liftIO $ assemble tip <$> DB.readTxHistory db (PrimaryKey wid)
+        -> IO [TransactionInfo]
+    _listTransactions wid = assemble <$> DB.readTxHistory db (PrimaryKey wid)
       where
         -- This relies on DB.readTxHistory returning all necessary transactions
         -- to assemble coin selection information for outgoing payments.
         -- To reliably provide this information, it should be looked up when
         -- applying blocks, but that is future work (issue #573).
-        assemble :: SlotId -> [(Hash "Tx", (Tx t, TxMeta))] -> [TransactionInfo]
-        assemble tip txs = map mkTxInfo txs
+        assemble :: [(Hash "Tx", (Tx t, TxMeta))] -> [TransactionInfo]
+        assemble txs = map mkTxInfo txs
           where
             mkTxInfo (txid, (tx, meta)) = TransactionInfo
                 { txInfoId = txid
                 , txInfoInputs = [(txIn, lookupOutput txIn) | txIn <- W.inputs @t tx]
                 , txInfoOutputs = W.outputs @t tx
                 , txInfoMeta = meta
-                , txInfoDepth = slotDifference slotsPerEpoch tip (meta ^. #slotId)
+                , txInfoDepth = Quantity 0
                 -- fixme: this depth is calculated in slots, but a block depth is required.
-                -- That will require recording the block height for every slot.
+                -- That will require tracking the block height and recording it in TxMeta.
                 , txInfoTime = blockTime (meta ^. #slotId)
                 }
             txOuts = Map.fromList

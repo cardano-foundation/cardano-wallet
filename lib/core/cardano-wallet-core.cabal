@@ -134,6 +134,7 @@ test-suite unit
     , fmt
     , foldl
     , generic-arbitrary
+    , generic-lens
     , hspec
     , hspec-golden-aeson
     , http-api-data

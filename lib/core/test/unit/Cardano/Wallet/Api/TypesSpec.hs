@@ -816,7 +816,8 @@ instance Arbitrary TxIn where
     -- No Shrinking
     arbitrary = TxIn
         <$> arbitrary
-        <*> Test.QuickCheck.scale (`mod` 3) arbitrary -- No need for a crazy high indexes
+        -- NOTE: No need for a crazy high indexes
+        <*> Test.QuickCheck.scale (`mod` 3) arbitrary
 
 instance Arbitrary ApiUtxoStatistics where
     arbitrary = do
@@ -829,10 +830,6 @@ instance Arbitrary ApiUtxoStatistics where
             (Quantity $ fromIntegral stakes)
             (ApiT bType)
             boundCountMap
-
-instance Arbitrary TxIn where
-    shrink _ = []
-    arbitrary = TxIn <$> arbitrary <*> arbitrary
 
 instance Arbitrary (ApiTxInput t) where
     shrink _ = []

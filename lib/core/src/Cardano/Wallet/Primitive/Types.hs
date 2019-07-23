@@ -75,7 +75,6 @@ module Cardano.Wallet.Primitive.Types
     , SlotLength (..)
     , EpochLength (..)
     , slotRatio
-    , slotDifference
     , flatSlot
     , fromFlatSlot
 
@@ -803,16 +802,6 @@ fromFlatSlot (EpochLength epochLength) n = SlotId e (fromIntegral s)
   where
     e = n `div` epochLength
     s = n `mod` epochLength
-
--- | @slotDifference a b@ is how many slots @a@ is after @b@. The result is
--- non-negative, and if @b > a@ then this function returns zero.
-slotDifference :: EpochLength -> SlotId -> SlotId -> Quantity "block" Natural
-slotDifference epl a b
-    | a' > b' = Quantity $ fromIntegral $ a' - b'
-    | otherwise = Quantity 0
-  where
-    a' = flatSlot epl a
-    b' = flatSlot epl b
 
 newtype SlotLength = SlotLength DiffTime
     deriving (Show, Eq)
