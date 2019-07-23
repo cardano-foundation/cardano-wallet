@@ -515,42 +515,6 @@ newWalletLayer tracer bp db nw tl = do
     _listWallets =
         fmap (\(PrimaryKey wid) -> wid) <$> DB.listWallets db
 
-    _listTransactions
-        :: (DefineTx t)
-        => WalletId
-        -> IO [TransactionInfo]
-    _listTransactions wid = assemble <$> DB.readTxHistory db (PrimaryKey wid)
-      where
-        -- This relies on DB.readTxHistory returning all necessary transactions
-        -- to assemble coin selection information for outgoing payments.
-        -- To reliably provide this information, it should be looked up when
-        -- applying blocks, but that is future work (issue #573).
-        assemble :: [(Hash "Tx", (Tx t, TxMeta))] -> [TransactionInfo]
-        assemble txs = map mkTxInfo txs
-          where
-            mkTxInfo (txid, (tx, meta)) = TransactionInfo
-                { txInfoId = txid
-                , txInfoInputs = [(txIn, lookupOutput txIn) | txIn <- W.inputs @t tx]
-                , txInfoOutputs = W.outputs @t tx
-                , txInfoMeta = meta
-                , txInfoDepth = Quantity 0
-                -- fixme: this depth is calculated in slots, but a block depth is required.
-                -- That will require tracking the block height and recording it in TxMeta.
-                , txInfoTime = slotUTCTime
-                    slotsPerEpoch
-                    (SlotLength slotLength)
-                    block0Date
-                    (meta ^. #slotId)
-                }
-            txOuts = Map.fromList
-                [ (txid, W.outputs @t tx)
-                | (txid, (tx, _)) <- txs ]
-            -- Because we only track UTxO of this wallet, we can only return
-            -- this information for outgoing payments.
-            lookupOutput (TxIn txid index) =
-                Map.lookup txid txOuts >>= atIndex (fromIntegral index)
-            atIndex i xs = if i < length xs then Just (xs !! i) else Nothing
-
     _removeWallet
         :: WorkerRegistry
         -> WalletId
@@ -577,6 +541,15 @@ newWalletLayer tracer bp db nw tl = do
                 Right tip -> do
                     restoreStep t wid (currentTip w, tip)
         liftIO $ registerWorker re (wid, worker)
+
+    _listUtxoStatistics
+        :: (DefineTx t)
+        => WalletId
+        -> ExceptT ErrListUTxOStatistics IO UTxOStatistics
+    _listUtxoStatistics wid = do
+        (w, _) <- withExceptT ErrListUTxOStatisticsNoSuchWallet (_readWallet wid)
+        let utxo = availableUTxO @s @t w
+        pure $ computeUtxoStatistics log10 utxo
 
     -- | Infinite restoration loop. We drain the whole available chain and try
     -- to catch up with the node. In case of error, we log it and wait a bit
@@ -741,14 +714,41 @@ newWalletLayer tracer bp db nw tl = do
         let estimateFee = computeFee feePolicy . estimateSize tl
         pure $ estimateFee sel
 
-    _listUtxoStatistics
+    _listTransactions
         :: (DefineTx t)
         => WalletId
-        -> ExceptT ErrListUTxOStatistics IO UTxOStatistics
-    _listUtxoStatistics wid = do
-        (w, _) <- withExceptT ErrListUTxOStatisticsNoSuchWallet (_readWallet wid)
-        let utxo = availableUTxO @s @t w
-        pure $ computeUtxoStatistics log10 utxo
+        -> IO [TransactionInfo]
+    _listTransactions wid = assemble <$> DB.readTxHistory db (PrimaryKey wid)
+      where
+        -- This relies on DB.readTxHistory returning all necessary transactions
+        -- to assemble coin selection information for outgoing payments.
+        -- To reliably provide this information, it should be looked up when
+        -- applying blocks, but that is future work (issue #573).
+        assemble :: [(Hash "Tx", (Tx t, TxMeta))] -> [TransactionInfo]
+        assemble txs = map mkTxInfo txs
+          where
+            mkTxInfo (txid, (tx, meta)) = TransactionInfo
+                { txInfoId = txid
+                , txInfoInputs = [(txIn, lookupOutput txIn) | txIn <- W.inputs @t tx]
+                , txInfoOutputs = W.outputs @t tx
+                , txInfoMeta = meta
+                , txInfoDepth = Quantity 0
+                -- fixme: this depth is calculated in slots, but a block depth is required.
+                -- That will require tracking the block height and recording it in TxMeta.
+                , txInfoTime = slotUTCTime
+                    slotsPerEpoch
+                    (SlotLength slotLength)
+                    block0Date
+                    (meta ^. #slotId)
+                }
+            txOuts = Map.fromList
+                [ (txid, W.outputs @t tx)
+                | (txid, (tx, _)) <- txs ]
+            -- Because we only track UTxO of this wallet, we can only return
+            -- this information for outgoing payments.
+            lookupOutput (TxIn txid index) =
+                Map.lookup txid txOuts >>= atIndex (fromIntegral index)
+            atIndex i xs = if i < length xs then Just (xs !! i) else Nothing
 
     _signTx
         :: (Show s, NFData s, IsOwned s, GenChange s)
