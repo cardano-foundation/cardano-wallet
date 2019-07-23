@@ -654,11 +654,19 @@ execLaunch
 execLaunch verbosity stateDir withStateDir commands = do
     installSignalHandlers
     (_, _, tracer) <- initTracer (verbosityToMinSeverity verbosity) "launch"
-    setupStateDir (logInfo tracer) (withStateDir tracer) stateDir
-    logInfo tracer $ fmt $ nameF "launch" $ blockListF commands
-    (ProcessHasExited pName code) <- launch commands
-    logAlert tracer $ T.pack pName <> " exited with code " <> T.pack (show code)
-    exitWith code
+    setupStateDir (logInfo tracer) (withStateDir tracer) stateDir >>= \case
+        Left _ -> do
+            putErrLn $ mconcat
+                    [ "Stopping! \"" <> T.pack stateDir <>"\" appears to be"
+                    , " a file existing on your system. Remove the file or"
+                    , " choose different path."
+                    ]
+            exitFailure
+        Right _ -> do
+            logInfo tracer $ fmt $ nameF "launch" $ blockListF commands
+            (ProcessHasExited pName code) <- launch commands
+            logAlert tracer $ T.pack pName <> " exited with code " <> T.pack (show code)
+            exitWith code
 
 {-------------------------------------------------------------------------------
                               Options & Arguments

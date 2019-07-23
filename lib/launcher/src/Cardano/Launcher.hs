@@ -31,7 +31,7 @@ import Data.Text
 import Fmt
     ( Buildable (..), blockListF', indentF )
 import System.Directory
-    ( createDirectoryIfMissing, doesDirectoryExist )
+    ( createDirectoryIfMissing, doesDirectoryExist, doesFileExist )
 import System.Exit
     ( ExitCode )
 import System.Process
@@ -119,14 +119,22 @@ launch cmds = do
             "Unreachable. Supervising threads should never finish. " <>
             "They should stay running or throw @ProcessHasExited@."
 
+data FileExists = FileExists
+    deriving Show
+
+instance Exception FileExists
+
 -- | Initialize a state directory to store blockchain data such as blocks or
 -- the wallet database.
-setupStateDir :: (Text -> IO ()) -> (FilePath -> IO ()) -> FilePath -> IO ()
-setupStateDir logT withDir dir = do
+setupStateDir :: (Text -> IO ()) -> (FilePath -> IO ()) -> FilePath -> IO (Either FileExists ())
+setupStateDir logT withDir dir = try $ do
     doesDirectoryExist dir >>= \case
         True -> logT $ "Using state directory: " <> T.pack dir
         False -> do
-            logT $ "Creating state directory: " <> T.pack dir
-            let createParentIfMissing = True
-            createDirectoryIfMissing createParentIfMissing dir
+            doesFileExist dir >>= \case
+                True -> throwIO FileExists
+                False -> do
+                    logT $ "Creating state directory: " <> T.pack dir
+                    let createParentIfMissing = True
+                    createDirectoryIfMissing createParentIfMissing dir
     withDir dir
