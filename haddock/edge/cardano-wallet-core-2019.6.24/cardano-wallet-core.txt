@@ -544,10 +544,6 @@ instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.HistogramBar
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.HistogramBar
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.HistogramBar
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.HistogramBar
-instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.UTxOStatisticsError
-instance GHC.Read.Read Cardano.Wallet.Primitive.Types.UTxOStatisticsError
-instance GHC.Show.Show Cardano.Wallet.Primitive.Types.UTxOStatisticsError
-instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.UTxOStatisticsError
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.TxOut
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.TxOut
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.TxOut
@@ -633,6 +629,7 @@ instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.TxMeta
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.SlotId
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.SlotId
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.UTxOStatistics
+instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.HistogramBar
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.TxOut
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.TxOut
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.Coin
