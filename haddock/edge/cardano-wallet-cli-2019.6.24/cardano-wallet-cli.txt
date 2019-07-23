@@ -59,9 +59,10 @@ listenOption :: Parser Listen
 nodePortOption :: Parser (Port "Node")
 
 -- | <ul>
---   <li>-state-dir=FILEPATH, default: ~/.cardano-wallet</li>
+--   <li>-state-dir=FILEPATH, default:
+--   ~<i>.cardano-wallet</i>$backend/$network</li>
 --   </ul>
-stateDirOption :: Parser FilePath
+stateDirOption :: FilePath -> Parser (Maybe FilePath)
 
 -- | <ul>
 --   <li><i>(--quiet|--verbose)</i></li>
@@ -148,9 +149,8 @@ decodeError :: ByteString -> Maybe Text
 --   to other services.
 requireFilePath :: FilePath -> IO ()
 
--- | Resolve '~' or '$HOME' in a <a>FilePath</a> to their actual system
---   value
-resolveHomeDir :: FilePath -> IO FilePath
+-- | Find the user data directory for a given node network backend.
+getDataDir :: String -> IO FilePath
 
 -- | Wait for a service to become available on a given TCP port. Exit on
 --   failure with a proper error message.

@@ -25,7 +25,7 @@ module Cardano.Wallet.HttpBridge.Environment
 data Network
 Mainnet :: Network
 Testnet :: Network
-class KnownNetwork (n :: Network)
+class Typeable n => KnownNetwork (n :: Network)
 networkVal :: KnownNetwork n => Network
 protocolMagic :: KnownNetwork n => ProtocolMagic
 
