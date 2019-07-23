@@ -360,7 +360,7 @@ walletListTransactionsSorted wallet@(wid, _, _) history =
     monadicIO $ liftIO $ do
         (WalletLayerFixture db wl _ slotIdTime) <- liftIO $ setupFixture wallet
         unsafeRunExceptT $ putTxHistory db (PrimaryKey wid) history
-        txs <- listTransactions wl wid
+        txs <- unsafeRunExceptT $ listTransactions wl wid
         length txs `shouldBe` Map.size history
         -- With the 'Down'-wrapper, the sort is descending.
         txs `shouldBe` L.sortOn (Down . slotId . txInfoMeta) txs

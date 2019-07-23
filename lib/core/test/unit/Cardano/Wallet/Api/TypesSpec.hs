@@ -835,7 +835,7 @@ instance Arbitrary (ApiTxInput t) where
     shrink _ = []
     arbitrary = ApiTxInput <$> arbitrary <*> arbitrary
 
-instance Arbitrary (Quantity "block" Natural) where
+instance Arbitrary (Quantity "slot" Natural) where
     shrink (Quantity 0) = []
     shrink _ = [Quantity 0]
     arbitrary = Quantity . fromIntegral <$> (arbitrary @Word8)

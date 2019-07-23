@@ -207,7 +207,7 @@ data ApiTransaction t = ApiTransaction
     { id :: !(ApiT (Hash "Tx"))
     , amount :: !(Quantity "lovelace" Natural)
     , insertedAt :: !(Maybe ApiBlockData)
-    , depth :: !(Quantity "block" Natural)
+    , depth :: !(Quantity "slot" Natural)
     , direction :: !(ApiT Direction)
     , inputs :: !(NonEmpty (ApiTxInput t))
     , outputs :: !(NonEmpty (AddressAmount t))
