@@ -1078,13 +1078,14 @@ listTransactionsViaCLI
     -> Maybe Iso8601Time
     -> Maybe Iso8601Time
     -> IO r
-listTransactionsViaCLI ctx wallet mAfter mBefore = cardanoWalletCLI @t $ join
-    [ ["transaction", "list"]
-    , ["--port", show (ctx ^. typed @Port)]
-    , [T.unpack $ wallet ^. walletId]
-    , maybe [] (\t -> ["--after", showT t]) mAfter
-    , maybe [] (\t -> ["--before", showT t]) mBefore
-    ]
+listTransactionsViaCLI ctx wallet mTimeRangeStart mTimeRangeEnd =
+    cardanoWalletCLI @t $ join
+        [ ["transaction", "list"]
+        , ["--port", show (ctx ^. typed @Port)]
+        , [T.unpack $ wallet ^. walletId]
+        , maybe [] (\t -> ["--start", showT t]) mTimeRangeStart
+        , maybe [] (\t -> ["--end", showT t]) mTimeRangeEnd
+        ]
 
 -- There is a dependency cycle in the packages.
 --

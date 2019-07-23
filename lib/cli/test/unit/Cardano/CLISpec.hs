@@ -258,18 +258,18 @@ spec = do
             ]
 
         ["transaction", "list", "--help"] `shouldShowUsage`
-            [ "Usage:  transaction list [--port INT] WALLET_ID [--after TIME]"
-            , "                         [--before TIME]"
+            [ "Usage:  transaction list [--port INT] WALLET_ID [--start TIME]"
+            , "                         [--end TIME]"
             , "  List the transactions associated with a wallet."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
             , "  --port INT               port used for serving the wallet"
             , "                           API. (default: 8090)"
-            , "  --after TIME             specifies an earliest time (ISO 8601"
-            , "                           format: basic or extended)"
-            , "  --before TIME            specifies a latest time (ISO 8601"
-            , "                           format: basic or extended)"
+            , "  --start TIME             specifies a start time (ISO 8601"
+            , "                           format: basic or extended)."
+            , "  --end TIME               specifies an end time (ISO 8601"
+            , "                           format: basic or extended)."
             ]
 
         ["address", "--help"] `shouldShowUsage`

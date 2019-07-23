@@ -568,8 +568,8 @@ cmdTransactionFees = command "fees" $ info (helper <*> cmd) $ mempty
 data TransactionListArgs = TransactionListArgs
     { _port :: Port "Wallet"
     , _walletId :: WalletId
-    , _timeAfter :: Maybe Iso8601Time
-    , _timeBefore :: Maybe Iso8601Time
+    , _timeRangeStart :: Maybe Iso8601Time
+    , _timeRangeEnd :: Maybe Iso8601Time
     }
 
 cmdTransactionList
@@ -581,15 +581,15 @@ cmdTransactionList = command "list" $ info (helper <*> cmd) $ mempty
     cmd = fmap exec $ TransactionListArgs
         <$> portOption
         <*> walletIdArgument
-        <*> optional timeAfterOption
-        <*> optional timeBeforeOption
-    exec (TransactionListArgs wPort wId mTimeAfter mTimeBefore) =
+        <*> optional timeRangeStartOption
+        <*> optional timeRangeEndOption
+    exec (TransactionListArgs wPort wId mTimeRangeStart mTimeRangeEnd) =
         runClient wPort Aeson.encodePretty $ listTransactions
             (walletClient @t)
             (ApiT wId)
             (pure $ Iso8601Range
-                (getIso8601Time <$> mTimeAfter)
-                (getIso8601Time <$> mTimeBefore))
+                (getIso8601Time <$> mTimeRangeStart)
+                (getIso8601Time <$> mTimeRangeEnd))
 
 {-------------------------------------------------------------------------------
                             Commands - 'address'
@@ -748,20 +748,20 @@ stateDirOption backendDir = optional $ strOption $ mempty
   where
     defaultDir = backendDir </> "NETWORK"
 
--- | [--after=TIME]
-timeAfterOption :: Parser Iso8601Time
-timeAfterOption = optionT $ mempty
-    <> long "after"
+-- | [--start=TIME]
+timeRangeStartOption :: Parser Iso8601Time
+timeRangeStartOption = optionT $ mempty
+    <> long "start"
     <> metavar "TIME"
-    <> help "specifies an earliest time (ISO 8601 format: basic or extended)"
+    <> help "specifies a start time (ISO 8601 format: basic or extended)."
     <> showDefaultWith showT
 
--- | [--before=TIME]
-timeBeforeOption :: Parser Iso8601Time
-timeBeforeOption = optionT $ mempty
-    <> long "before"
+-- | [--end=TIME]
+timeRangeEndOption :: Parser Iso8601Time
+timeRangeEndOption = optionT $ mempty
+    <> long "end"
     <> metavar "TIME"
-    <> help "specifies a latest time (ISO 8601 format: basic or extended)"
+    <> help "specifies an end time (ISO 8601 format: basic or extended)."
     <> showDefaultWith showT
 
 -- | [(--quiet|--verbose)]

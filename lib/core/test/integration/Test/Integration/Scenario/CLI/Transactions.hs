@@ -652,12 +652,12 @@ spec = do
             c `shouldBe` ExitFailure 1
 
     it "TRANS_LIST_01 - Listing transactions for an empty wallet" $ \ctx ->
-        withMaxSuccess 10 $ property $ \mAfter mBefore -> do
+        withMaxSuccess 10 $ property $ \mTimeRangeStart mTimeRangeEnd -> do
             wallet <- emptyWallet ctx
             (Exit code, Stdout out, Stderr err) <-
                 listTransactionsViaCLI @t ctx wallet
-                    (Iso8601Time <$> mAfter)
-                    (Iso8601Time <$> mBefore)
+                    (Iso8601Time <$> mTimeRangeStart)
+                    (Iso8601Time <$> mTimeRangeEnd)
             err `shouldBe` "Ok.\n"
             out `shouldBe` "[]\n"
             code `shouldBe` ExitSuccess
