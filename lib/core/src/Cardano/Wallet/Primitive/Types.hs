@@ -65,7 +65,7 @@ module Cardano.Wallet.Primitive.Types
     , Dom(..)
     , UTxOStatistics (..)
     , HistogramBar (..)
-    , BoundType (..)
+    , BoundType
     , computeUtxoStatistics
     , log10
 
