@@ -58,11 +58,7 @@ import Cardano.Wallet.DB
     , PrimaryKey (..)
     )
 import Cardano.Wallet.Network
-    ( ErrNetworkTip (..)
-    , ErrNetworkUnavailable (..)
-    , ErrPostTx (..)
-    , NetworkLayer (..)
-    )
+    ( ErrNetworkUnavailable (..), ErrPostTx (..), NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (RootK)
     , ErrWrongPassphrase (..)
@@ -301,14 +297,6 @@ data WalletLayer s t = WalletLayer
         -> ExceptT ErrSubmitTx IO ()
         -- ^ Broadcast a (signed) transaction to the network.
 
-    , attachPrivateKey
-        :: WalletId
-        -> (Key 'RootK XPrv, Passphrase "encryption")
-        -> ExceptT ErrNoSuchWallet IO ()
-        -- ^ Attach a given private key to a wallet. The private key is
-        -- necessary for some operations like signing transactions or,
-        -- generating new accounts.
-
     , listTransactions
         :: DefineTx t
         => WalletId
@@ -317,6 +305,15 @@ data WalletLayer s t = WalletLayer
         --
         -- The result is sorted on 'slotId' in descending order. The most recent
         -- transaction comes first.
+
+    , attachPrivateKey
+        :: WalletId
+        -> (Key 'RootK XPrv, Passphrase "encryption")
+        -> ExceptT ErrNoSuchWallet IO ()
+        -- ^ Attach a given private key to a wallet. The private key is
+        -- necessary for some operations like signing transactions or,
+        -- generating new accounts.
+
     }
 
 -- | Errors occuring when creating an unsigned transaction
@@ -363,9 +360,8 @@ data ErrWithRootKey
     deriving (Show, Eq)
 
 -- | Errors that can occur when trying to list transactions.
-data ErrListTransactions
+newtype ErrListTransactions
     = ErrListTransactionsNoSuchWallet ErrNoSuchWallet
-    | ErrListTransactionsNetworkTip ErrNetworkTip
     deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
@@ -731,8 +727,8 @@ newWalletLayer tracer bp db nw tl = do
         => WalletId
         -> ExceptT ErrListTransactions IO [TransactionInfo]
     _listTransactions wid = do
-        tipHeader <- withExceptT ErrListTransactionsNetworkTip $ networkTip nw
-        let tip = tipHeader ^. #slotId
+        (w, _) <- withExceptT ErrListTransactionsNoSuchWallet $ _readWallet wid
+        let tip = currentTip w ^. #slotId
         liftIO $ assemble tip <$> DB.readTxHistory db (PrimaryKey wid)
       where
         -- This relies on DB.readTxHistory returning all necessary transactions

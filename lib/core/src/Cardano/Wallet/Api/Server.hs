@@ -68,7 +68,7 @@ import Cardano.Wallet.Api.Types
     , getApiMnemonicT
     )
 import Cardano.Wallet.Network
-    ( ErrNetworkTip (..), ErrNetworkUnavailable (..) )
+    ( ErrNetworkUnavailable (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress, digest, generateKeyFromSeed, publicKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -673,16 +673,6 @@ instance LiftHandler ErrUpdatePassphrase where
 instance LiftHandler ErrListTransactions where
     handler = \case
         ErrListTransactionsNoSuchWallet e -> handler e
-        ErrListTransactionsNetworkTip e -> handler e
-
-instance LiftHandler ErrNetworkTip where
-    handler = \case
-        ErrNetworkTipNotFound ->
-            apiError err503 NetworkTipNotFound $ mconcat
-                [ "The node backend does not know the network tip. "
-                , "Trying again in a bit might work."
-                ]
-        ErrNetworkTipNetworkUnreachable e -> handler e
 
 instance LiftHandler ServantErr where
     handler err@(ServantErr code _ body headers)
