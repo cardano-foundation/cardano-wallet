@@ -166,7 +166,7 @@ block0 = Block
         , prevBlockHash = Hash "genesis"
         }
     , transactions = []
-    , updatedSlottingParameters = (Nothing, Nothing)
+    , protocolUpdates = []
     }
 
 -- | Hard-coded fee policy for Cardano on Byron

@@ -144,14 +144,14 @@ decodeBlock = do
             -- In theory, we should also:
             --
             -- _ <- decodeGenesisBlockBody
-            return $ Block h mempty (Nothing, Nothing)
+            return $ Block h mempty []
 
         1 -> do -- Main Block
             _ <- CBOR.decodeListLenCanonicalOf 3
             h <- decodeMainBlockHeader
             txs <- decodeMainBlockBody
             -- _ <- decodeMainExtraData
-            return $ Block h txs (Nothing, Nothing)
+            return $ Block h txs []
 
         _ -> do
             fail $ "decodeBlock: unknown block constructor: " <> show t

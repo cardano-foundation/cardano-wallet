@@ -534,7 +534,7 @@ withSizeHeader16be x = do
 
 coerceBlock  :: Block -> W.Block Tx
 coerceBlock (Block h msgs) =
-    W.Block coerceHeader coerceMessages (Nothing, Nothing)
+    W.Block coerceHeader coerceMessages []
   where
     coerceHeader = W.BlockHeader (slot h) (parentHeaderHash h)
     coerceMessages = msgs >>= \case
