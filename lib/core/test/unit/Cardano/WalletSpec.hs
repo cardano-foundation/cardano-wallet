@@ -68,6 +68,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , SlotId (..)
     , SlotLength (..)
+    , StartTime (..)
     , TransactionInfo (txInfoMeta)
     , TransactionInfo (..)
     , TxIn (..)
@@ -114,7 +115,7 @@ import Data.Ord
 import Data.Quantity
     ( Quantity (..) )
 import Data.Time.Clock
-    ( UTCTime, secondsToDiffTime )
+    ( UTCTime )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Word
@@ -400,14 +401,14 @@ setupFixture (wid, wname, wstate) = do
     policy = LinearFee (Quantity 14) (Quantity 42)
 
     slotLength :: SlotLength
-    slotLength = SlotLength $ secondsToDiffTime 1
+    slotLength = SlotLength 10
 
     txMaxSize :: Quantity "byte" Word16
     txMaxSize = Quantity 8192
 
     slotsPerEpoch = EpochLength 21600
 
-    block0Date = posixSecondsToUTCTime 0
+    block0Date = StartTime $ posixSecondsToUTCTime 0
 
     slotNo = flatSlot slotsPerEpoch
     slotIdTime = posixSecondsToUTCTime . fromIntegral . (+1) . slotNo

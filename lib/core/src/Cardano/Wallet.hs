@@ -114,6 +114,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotLength (..)
     , SlotLength (..)
+    , StartTime (..)
     , TransactionInfo (..)
     , Tx (..)
     , TxIn (..)
@@ -129,9 +130,9 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     , computeUtxoStatistics
-    , flatSlot
     , log10
     , slotRatio
+    , slotUTCTime
     )
 import Cardano.Wallet.Transaction
     ( ErrMkStdTx (..), ErrValidateSelection, TransactionLayer (..) )
@@ -178,13 +179,7 @@ import Data.Text
 import Data.Text.Class
     ( toText )
 import Data.Time.Clock
-    ( DiffTime
-    , NominalDiffTime
-    , UTCTime
-    , addUTCTime
-    , diffTimeToPicoseconds
-    , getCurrentTime
-    )
+    ( getCurrentTime )
 import Data.Word
     ( Word16 )
 import Fmt
@@ -395,12 +390,14 @@ cancelWorker (WorkerRegistry mvar) wid =
 data BlockchainParameters t = BlockchainParameters
     { getGenesisBlock :: Block (Tx t)
         -- ^ Very first block
-    , getGenesisBlockDate :: UTCTime
+    , getGenesisBlockDate :: StartTime
+        -- ^ Start time of the chain
     , getFeePolicy :: FeePolicy
         -- ^ Policy regarding transcation fee
     , getSlotLength :: SlotLength
         -- ^ Length, in seconds, of a slot
     , getEpochLength :: EpochLength
+        -- ^ Number of slots in a single epoch
     , getTxMaxSize :: Quantity "byte" Word16
         -- ^ Maximum size of a transaction (soft or hard limit)
     }
@@ -539,7 +536,11 @@ newWalletLayer tracer bp db nw tl = do
                 , txInfoDepth = Quantity 0
                 -- fixme: this depth is calculated in slots, but a block depth is required.
                 -- That will require tracking the block height and recording it in TxMeta.
-                , txInfoTime = blockTime (meta ^. #slotId)
+                , txInfoTime = slotUTCTime
+                    slotsPerEpoch
+                    (SlotLength slotLength)
+                    block0Date
+                    (meta ^. #slotId)
                 }
             txOuts = Map.fromList
                 [ (txid, W.outputs @t tx)
@@ -549,18 +550,6 @@ newWalletLayer tracer bp db nw tl = do
             lookupOutput (TxIn txid index) =
                 Map.lookup txid txOuts >>= atIndex (fromIntegral index)
             atIndex i xs = if i < length xs then Just (xs !! i) else Nothing
-
-    -- Calculates the time a block was created. Block creation time is at the
-    -- /end/ of the slot (maybe -- check this).
-    -- There is some silly stuff going on converting 'DiffTime' to
-    -- 'NominalDiffTime'. We should probably use 'UTCTime'/'NominalDiffTime'
-    -- everywhere.
-    blockTime :: SlotId -> UTCTime
-    blockTime sl = addUTCTime (silly offset) block0Date
-      where
-        offset = slotLength * fromIntegral (flatSlot slotsPerEpoch sl + 1)
-        silly :: DiffTime -> NominalDiffTime
-        silly = fromRational . toRational
 
     _removeWallet
         :: WorkerRegistry
@@ -626,7 +615,8 @@ newWalletLayer tracer bp db nw tl = do
         -> BlockHeader
         -> IO ()
     restoreSleep t wid slot = do
-        let halfSlotLengthDelay = fromIntegral (diffTimeToPicoseconds slotLength `div` 2000000)
+        -- NOTE: Conversion functions will treat 'NominalDiffTime' as picoseconds
+        let halfSlotLengthDelay = fromEnum slotLength `div` 2000000
         threadDelay halfSlotLengthDelay
         runExceptT (networkTip nw) >>= \case
             Left e -> do

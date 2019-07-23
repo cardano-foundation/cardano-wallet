@@ -74,9 +74,11 @@ module Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotLength (..)
     , EpochLength (..)
+    , StartTime (..)
     , slotRatio
     , flatSlot
     , fromFlatSlot
+    , slotUTCTime
 
     -- * Wallet Metadata
     , WalletMetadata(..)
@@ -137,10 +139,8 @@ import Data.Text.Class
     , fromTextToBoundedEnum
     , toTextFromBoundedEnum
     )
-import Data.Time
-    ( UTCTime )
 import Data.Time.Clock
-    ( DiffTime )
+    ( NominalDiffTime, UTCTime, addUTCTime )
 import Data.Word
     ( Word16, Word32, Word64 )
 import Fmt
@@ -794,7 +794,8 @@ slotRatio epochLength a b =
 
 -- | Convert a 'SlotId' to the number of slots since genesis.
 flatSlot :: EpochLength -> SlotId -> Word64
-flatSlot (EpochLength epochLength) (SlotId e s) = epochLength * e + fromIntegral s
+flatSlot (EpochLength epochLength) (SlotId e s) =
+    epochLength * e + fromIntegral s
 
 -- | Convert a 'flatSlot' index to 'SlotId'.
 fromFlatSlot :: EpochLength -> Word64 -> SlotId
@@ -803,10 +804,27 @@ fromFlatSlot (EpochLength epochLength) n = SlotId e (fromIntegral s)
     e = n `div` epochLength
     s = n `mod` epochLength
 
-newtype SlotLength = SlotLength DiffTime
+-- | Get the approximate UTCTime corresponding to a 'SlotId'. We compute the
+-- time from the blockchain start, and consider each slot as _happening_ at the
+-- end of the slot duration (such that the first slot timestamp is actually
+-- after the blockchain start). This is purely arbitrary and in practice, any
+-- time between the start of a slot and the end could be a validate candidate.
+slotUTCTime :: EpochLength -> SlotLength -> StartTime -> SlotId -> UTCTime
+slotUTCTime epochLength (SlotLength slotLength) (StartTime start) sl =
+    addUTCTime offset start
+  where
+    offset = slotLength * fromIntegral (flatSlot epochLength sl + 1)
+
+-- | Duration of a single slot.
+newtype SlotLength = SlotLength NominalDiffTime
     deriving (Show, Eq)
 
+-- | Number of slots in a single epoch
 newtype EpochLength = EpochLength Word64
+    deriving (Show, Eq)
+
+-- | Blockchain start time
+newtype StartTime = StartTime UTCTime
     deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
