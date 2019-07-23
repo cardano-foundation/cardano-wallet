@@ -64,6 +64,7 @@ import Cardano.Wallet.Primitive.Types
     , Dom (..)
     , EpochLength (..)
     , Hash (..)
+    , ProtocolUpdate (..)
     , SlotLength (..)
     , TxIn (..)
     , TxMeta (..)
@@ -222,17 +223,14 @@ applyBlock !b (Wallet !u !pending _ !ss s) =
             txs
 
 
-        mNewSlotsPerEpoch = fst $ b ^. #updatedSlottingParameters
-        mNewSlotDur = snd $ b ^. #updatedSlottingParameters
-
         -- Update slotting state according to... a subset of the ledger rules
         -- I presume this is intended to be.
         --
         -- I'm not sure this is correct, but for someone familiar with the
         -- ledger rules it should probably be easy to check.
         ss' = SlottingState
-            { slotsPerEpoch = maybe (slotsPerEpoch ss) id mNewSlotsPerEpoch
-            , slotLength = maybe (slotLength ss) id mNewSlotDur
+            { slotsPerEpoch = slotsPerEpoch $ applyUpdates ss
+            , slotLength = slotLength $ applyUpdates ss
             , slotNo =
                 -- ΔslotNo = Δepoch * oldSlotsPerEpoch + ΔslotId
                 error "TODO: calculate"
@@ -246,6 +244,12 @@ applyBlock !b (Wallet !u !pending _ !ss s) =
         )
   where
     pendingExcluding_ = pendingExcluding (Proxy @t)
+
+    applyUpdate :: ProtocolUpdate -> SlottingState -> SlottingState
+    applyUpdate (UpdatedEpochLength el) ss_ = ss_ { slotsPerEpoch = el }
+    applyUpdate (UpdatedSlotLength sl) ss_ = ss_ { slotLength = sl }
+
+    applyUpdates ss_ = foldl (flip applyUpdate) ss_ (b ^. #protocolUpdates)
 
 -- | Helper to apply multiple blocks in sequence to an existing wallet. It's
 -- basically just a @foldl' applyBlock@ over the given blocks.

@@ -31,6 +31,7 @@ module Cardano.Wallet.Primitive.Types
     -- * Block
       Block(..)
     , BlockHeader(..)
+    , ProtocolUpdate(..)
 
     -- * Tx
     , DefineTx(..)
@@ -316,7 +317,7 @@ data Block tx = Block
         :: !BlockHeader
     , transactions
         :: ![tx]
-    , updatedSlottingParameters :: (Maybe EpochLength, Maybe SlotLength)
+    , protocolUpdates :: [ProtocolUpdate]
     } deriving (Show, Eq, Ord, Generic)
 
 instance NFData tx => NFData (Block tx)
@@ -344,6 +345,13 @@ instance Buildable BlockHeader where
         <> " (" <> build s <> ")"
       where
         prevF = build $ T.decodeUtf8 $ convertToBase Base16 $ getHash prev
+
+data ProtocolUpdate
+    = UpdatedEpochLength EpochLength
+    | UpdatedSlotLength SlotLength
+    deriving (Show, Eq, Generic, Ord)
+
+instance NFData ProtocolUpdate
 
 {-------------------------------------------------------------------------------
                                       Tx
