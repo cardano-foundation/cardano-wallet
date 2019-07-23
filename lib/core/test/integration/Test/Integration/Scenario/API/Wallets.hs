@@ -11,7 +11,7 @@ module Test.Integration.Scenario.API.Wallets
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiTransaction, ApiWallet )
+    ( ApiTransaction, ApiUtxoStatistics, ApiWallet )
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
@@ -28,6 +28,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Text
     ( Text )
+import Numeric.Natural
+    ( Natural )
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Integration.Framework.DSL
@@ -47,9 +49,11 @@ import Test.Integration.Framework.DSL
     , expectListItemFieldEqual
     , expectListSizeEqual
     , expectResponseCode
+    , expectWalletUTxO
     , fixtureWallet
     , getFromResponse
     , getWalletEp
+    , getWalletUtxoEp
     , json
     , listAddresses
     , passphraseLastUpdate
@@ -1458,6 +1462,127 @@ spec = do
             w <- emptyWallet ctx
             let endpoint = "v2/wallets/" <> w ^. walletId <> "/passphrase"
             r <- request @ApiWallet ctx (method, endpoint) Default Empty
+            expectResponseCode @IO HTTP.status405 r
+            expectErrorMessage errMsg405 r
+
+    it "WALLETS_UTXO_01 - Wallet's inactivity is reflected in utxo" $ \ctx -> do
+        w <- emptyWallet ctx
+        rStat <- request @ApiUtxoStatistics ctx (getWalletUtxoEp w) Default Empty
+        expectResponseCode @IO HTTP.status200 rStat
+        expectWalletUTxO [] (snd rStat)
+
+    it "WALLETS_UTXO_02 - Sending and receiving funds updates wallet's utxo." $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        wDest <- emptyWallet ctx
+
+        --send funds
+        addrs <- listAddresses ctx wDest
+        let destination = (addrs !! 1) ^. #id
+        let coins = [13::Natural, 43, 66, 101, 1339]
+        let matrix = zip coins [1..]
+        forM_ matrix $ \(c, alreadyAbsorbed) -> do
+            let payload = Json [json|{
+                    "payments": [{
+                        "address": #{destination},
+                        "amount": {
+                            "quantity": #{c},
+                            "unit": "lovelace"
+                        }
+                    }],
+                    "passphrase": "cardano-wallet"
+                }|]
+            rTrans <- request @(ApiTransaction t) ctx (postTxEp wSrc)
+                Default payload
+            expectResponseCode @IO HTTP.status202 rTrans
+
+            rGet <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
+            let coinsSent = map fromIntegral $ take alreadyAbsorbed coins
+            verify rGet
+                [ expectEventually ctx balanceTotal (fromIntegral $ sum coinsSent)
+                , expectEventually ctx balanceAvailable (fromIntegral $ sum coinsSent)
+                ]
+            --verify utxo
+            rStat1 <- request @ApiUtxoStatistics ctx (getWalletUtxoEp wDest) Default Empty
+            expectResponseCode @IO HTTP.status200 rStat1
+            expectWalletUTxO coinsSent (snd rStat1)
+
+    describe "WALLETS_UTXO_03 - non-existing wallets" $  do
+        forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
+            let endpoint =
+                        "v2/wallets/"
+                        <> T.pack walId
+                        <> "/statistics/utxos" :: Text
+            r <- request @ApiUtxoStatistics ctx ("GET", endpoint) Default Empty
+            expectResponseCode @IO HTTP.status404 r
+            if (title == "40 chars hex") then
+                expectErrorMessage (errMsg404NoWallet $ T.pack walId) r
+            else
+                expectErrorMessage errMsg404NoEndpoint r
+
+    it "WALLETS_UTXO_03 - Deleted wallet is not available for utxo" $ \ctx -> do
+        w <- emptyWallet ctx
+        _ <- request @ApiWallet ctx (deleteWalletEp w) Default Empty
+
+        r <- request @ApiUtxoStatistics ctx (getWalletUtxoEp w) Default Empty
+        expectResponseCode @IO HTTP.status404 r
+        expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+
+    it "WALLETS_UTXO_03 - 'almost' valid walletId" $ \ctx -> do
+        w <- emptyWallet ctx
+        let endpoint =
+                    "v2/wallets"
+                    <> (T.append (w ^. walletId) "1")
+                    <> "/statistics/utxos" :: Text
+        r <- request @ApiUtxoStatistics ctx ("GET", endpoint) Default Empty
+        expectResponseCode @IO HTTP.status404 r
+        expectErrorMessage errMsg404NoEndpoint r
+
+    it "WALLETS_UTXO_03 - 'almost' valid endpoint" $ \ctx -> do
+        w <- emptyWallet ctx
+        let endpoint =
+                    "v2/wallets"
+                    <> w ^. walletId
+                    <> "/statistics/utxo" :: Text
+        r <- request @ApiUtxoStatistics ctx ("GET", endpoint) Default Empty
+        expectResponseCode @IO HTTP.status404 r
+        expectErrorMessage errMsg404NoEndpoint r
+
+    describe "WALLETS_UTXO_04 - HTTP headers" $ do
+        let matrix =
+                [ ( "No HTTP headers -> 200"
+                  , None
+                  , [ expectResponseCode @IO HTTP.status200 ] )
+                , ( "Accept: text/plain -> 406"
+                  , Headers
+                        [ ("Content-Type", "application/json")
+                        , ("Accept", "text/plain") ]
+                  , [ expectResponseCode @IO HTTP.status406
+                    , expectErrorMessage errMsg406 ]
+                  )
+                , ( "No Accept -> 200"
+                  , Headers [ ("Content-Type", "application/json") ]
+                  , [ expectResponseCode @IO HTTP.status200 ]
+                  )
+                , ( "No Content-Type -> 200"
+                  , Headers [ ("Accept", "application/json") ]
+                  , [ expectResponseCode @IO HTTP.status200 ]
+                  )
+                , ( "Content-Type: text/plain -> 200"
+                  , Headers [ ("Content-Type", "text/plain") ]
+                  , [ expectResponseCode @IO HTTP.status200 ]
+                  )
+                ]
+        forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> do
+            w <- emptyWallet ctx
+            r <- request @ApiUtxoStatistics ctx (getWalletUtxoEp w) headers Empty
+            verify r expectations
+
+    describe "WALLETS_UTXO_04 - v2/wallets/{id}/statistics/utxos - Methods Not Allowed" $ do
+        let matrix = ["POST", "PUT", "CONNECT", "TRACE", "OPTIONS", "DELETE"]
+        forM_ matrix $ \method -> it (show method) $ \ctx -> do
+            w <- emptyWallet ctx
+            let endpoint = "v2/wallets/" <> w ^. walletId <> "/statistics/utxos"
+            r <- request @ApiUtxoStatistics ctx (method, endpoint) Default Empty
             expectResponseCode @IO HTTP.status405 r
             expectErrorMessage errMsg405 r
  where

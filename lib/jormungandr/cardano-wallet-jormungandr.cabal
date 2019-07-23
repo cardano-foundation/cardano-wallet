@@ -139,6 +139,7 @@ test-suite integration
     , cardano-wallet-jormungandr
     , cardano-wallet-launcher
     , command
+    , containers
     , cryptonite
     , deepseq
     , directory

@@ -31,6 +31,7 @@ import Cardano.Wallet.Api.Types
     , ApiMnemonicT (..)
     , ApiT (..)
     , ApiTransaction (..)
+    , ApiUtxoStatistics (..)
     , ApiWallet (..)
     , Iso8601Range (..)
     , PostTransactionData (..)
@@ -66,14 +67,21 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Direction (..)
     , Hash (..)
+    , HistogramBar (..)
     , PoolId (..)
     , SlotId (..)
+    , TxIn (..)
+    , TxOut (..)
     , TxStatus (..)
+    , UTxO (..)
+    , UTxOStatistics (..)
     , WalletDelegation (..)
     , WalletId (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , WalletState (..)
+    , computeUtxoStatistics
+    , log10
     , walletNameMaxLength
     , walletNameMinLength
     )
@@ -156,6 +164,7 @@ import Test.QuickCheck
     , choose
     , frequency
     , property
+    , scale
     , vectorOf
     , (.&&.)
     , (===)
@@ -173,6 +182,7 @@ import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Yaml as Yaml
@@ -188,6 +198,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(AddressAmount DummyTarget)
             jsonRoundtripAndGolden $ Proxy @(ApiTransaction DummyTarget)
             jsonRoundtripAndGolden $ Proxy @ApiWallet
+            jsonRoundtripAndGolden $ Proxy @ApiUtxoStatistics
             jsonRoundtripAndGolden $ Proxy @ApiFee
             jsonRoundtripAndGolden $ Proxy @(PostTransactionData DummyTarget)
             jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeData DummyTarget)
@@ -780,6 +791,43 @@ instance Arbitrary (ApiTransaction t) where
             <*> arbitrary
             <*> pure txStatus
 
+instance Arbitrary Coin where
+    -- No Shrinking
+    arbitrary = Coin <$> choose (0, 1000000000000000)
+
+instance Arbitrary UTxO where
+    shrink (UTxO utxo) = UTxO <$> shrink utxo
+    arbitrary = do
+        n <- choose (0, 10)
+        utxo <- zip
+            <$> vectorOf n arbitrary
+            <*> vectorOf n arbitrary
+        return $ UTxO $ Map.fromList utxo
+
+instance Arbitrary TxOut where
+    -- No Shrinking
+    arbitrary = TxOut
+        <$> arbitrary
+        <*> arbitrary
+
+instance Arbitrary TxIn where
+    -- No Shrinking
+    arbitrary = TxIn
+        <$> arbitrary
+        <*> Test.QuickCheck.scale (`mod` 3) arbitrary -- No need for a crazy high indexes
+
+instance Arbitrary ApiUtxoStatistics where
+    arbitrary = do
+        utxos <- arbitrary
+        let (UTxOStatistics histoBars stakes bType) =
+                computeUtxoStatistics log10 utxos
+        let boundCountMap =
+                Map.fromList $ map (\(HistogramBar k v)-> (k,v)) histoBars
+        return $ ApiUtxoStatistics
+            (Quantity $ fromIntegral stakes)
+            (ApiT bType)
+            boundCountMap
+
 instance Arbitrary (Quantity "block" Natural) where
     shrink (Quantity 0) = []
     shrink _ = [Quantity 0]
@@ -871,6 +919,8 @@ instance ToSchema (PostTransactionFeeData t) where
 instance ToSchema (ApiTransaction t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiTransaction"
 
+instance ToSchema ApiUtxoStatistics where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiWalletUTxOsStatistics"
 
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
 -- we simply look it up within the Swagger specification.

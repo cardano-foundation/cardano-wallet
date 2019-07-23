@@ -42,6 +42,7 @@ module Test.Integration.Framework.TestData
     , updatePassPayload
 
     -- * Error messages
+    , errMsgWalletIdEncoding
     , errMsg403Fee
     , errMsg403NotEnoughMoney
     , errMsg403UTxO
@@ -225,6 +226,9 @@ versionLine = "Running as v" <> pack (showVersion version)
   ---
   --- Error messages
   ---
+errMsgWalletIdEncoding :: String
+errMsgWalletIdEncoding = "wallet id should be an hex-encoded string of 40 characters"
+
 errMsg403Fee :: String
 errMsg403Fee = "I'm unable to adjust the given transaction to cover the\
     \ associated fee! In order to do so, I'd have to select one or\

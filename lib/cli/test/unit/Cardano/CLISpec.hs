@@ -148,6 +148,8 @@ spec = do
             , "  update                   Update a wallet."
             , "  delete                   Deletes wallet with specified wallet"
             , "                           id."
+            , "  utxo                     Get UTxO statistics for the wallet"
+            , "                           with specified id."
             ]
 
         ["wallet", "list", "--help"] `shouldShowUsage`
@@ -198,6 +200,16 @@ spec = do
         ["wallet", "delete", "--help"] `shouldShowUsage`
             [ "Usage:  wallet delete [--port INT] WALLET_ID"
             , "  Deletes wallet with specified wallet id."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --port INT               port used for serving the wallet"
+            , "                           API. (default: 8090)"
+            ]
+
+        ["wallet", "utxo", "--help"] `shouldShowUsage`
+            [ "Usage:  wallet utxo [--port INT] WALLET_ID"
+            , "  Get UTxO statistics for the wallet with specified id."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"

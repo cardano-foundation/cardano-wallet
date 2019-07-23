@@ -39,6 +39,7 @@ module Test.Integration.Framework.DSL
     , expectCliFieldEqual
     , expectCliFieldNotEqual
     , expectCliListItemFieldEqual
+    , expectWalletUTxO
     , verify
     , Headers(..)
     , Payload(..)
@@ -81,6 +82,7 @@ module Test.Integration.Framework.DSL
     -- * Endpoints
     , getWalletEp
     , deleteWalletEp
+    , getWalletUtxoEp
     , getAddressesEp
     , postTxEp
     , postTxFeeEp
@@ -91,6 +93,7 @@ module Test.Integration.Framework.DSL
     , generateMnemonicsViaCLI
     , createWalletViaCLI
     , deleteWalletViaCLI
+    , getWalletUtxoStatisticsViaCLI
     , getWalletViaCLI
     , listAddressesViaCLI
     , listWalletsViaCLI
@@ -104,22 +107,37 @@ import Prelude hiding
     ( fail )
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress, ApiT (..), ApiTransaction, ApiWallet )
+    ( ApiAddress
+    , ApiT (..)
+    , ApiTransaction
+    , ApiUtxoStatistics (..)
+    , ApiWallet
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( AddressPoolGap, getAddressPoolGap, mkAddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
-    ( DecodeAddress (..)
+    ( Address (..)
+    , Coin (..)
+    , DecodeAddress (..)
     , Direction (..)
     , EncodeAddress (..)
+    , Hash (..)
+    , HistogramBar (..)
     , PoolId (..)
+    , TxIn (..)
+    , TxOut (..)
     , TxStatus (..)
+    , UTxO (..)
+    , UTxOStatistics (..)
     , WalletBalance (..)
     , WalletDelegation (..)
     , WalletId (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
+    , computeUtxoStatistics
+    , log10
     )
 import Control.Concurrent
     ( threadDelay )
@@ -169,6 +187,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Word
+    ( Word64 )
 import GHC.TypeLits
     ( Symbol )
 import Language.Haskell.TH.Quote
@@ -216,15 +236,17 @@ import Test.Integration.Framework.Request
 import Web.HttpApiData
     ( ToHttpApiData (..) )
 
+
+import qualified Cardano.Wallet.Primitive.Types as Types
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
+import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 import qualified Network.HTTP.Types.Status as HTTP
-
 --
 -- API response expectations
 --
@@ -337,6 +359,26 @@ expectListSizeEqual
 expectListSizeEqual l (_, res) = case res of
     Left e   -> wantedSuccessButError e
     Right xs -> length (toList xs) `shouldBe` l
+
+-- | Expects wallet UTxO statistics from the request to be equal to pre-calculated
+expectWalletUTxO
+    :: (MonadIO m, MonadFail m)
+    => [Word64]
+    -> Either RequestException ApiUtxoStatistics
+    -> m ()
+expectWalletUTxO coins = \case
+    Left e  -> wantedSuccessButError e
+    Right stats -> do
+        let addr = Address "ARBITRARY"
+        let constructUtxoEntry idx c =
+                ( TxIn (Hash "ARBITRARY") idx
+                , TxOut addr (Coin c)
+                )
+        let utxo = UTxO $ Map.fromList $ zipWith constructUtxoEntry [0..] coins
+        let (UTxOStatistics hist stakes bType) = computeUtxoStatistics log10 utxo
+        let distr = Map.fromList $ map (\(HistogramBar k v)-> (k,v)) hist
+        (ApiUtxoStatistics (Quantity (fromIntegral stakes)) (ApiT bType) distr)
+            `shouldBe` stats
 
 -- | Expects wallet from the request to eventually reach the given state or
 -- beyond
@@ -505,19 +547,19 @@ balanceAvailable =
     _set (s, v) = set typed initBal s
         where
             initBal =
-                (ApiT $ WalletBalance {available = Quantity v, total = Quantity v })
+                (ApiT $ WalletBalance {available = Quantity v, Types.total = Quantity v })
 
 balanceTotal :: HasType (ApiT WalletBalance) s => Lens' s Natural
 balanceTotal =
     lens _get _set
   where
     _get :: HasType (ApiT WalletBalance) s => s -> Natural
-    _get = fromQuantity @"lovelace" . total . getApiT . view typed
+    _get = fromQuantity @"lovelace" . Types.total . getApiT . view typed
     _set :: HasType (ApiT WalletBalance) s => (s, Natural) -> s
     _set (s, v) = set typed initBal s
         where
             initBal =
-                (ApiT $ WalletBalance {available = Quantity v, total = Quantity v })
+                (ApiT $ WalletBalance {available = Quantity v, Types.total = Quantity v })
 
 delegation
     :: HasType (ApiT (WalletDelegation (ApiT PoolId))) s
@@ -829,6 +871,12 @@ deleteWalletEp w =
     , "v2/wallets/" <> w ^. walletId
     )
 
+getWalletUtxoEp :: ApiWallet -> (Method, Text)
+getWalletUtxoEp w =
+    ( "GET"
+    , "v2/wallets/" <> w ^. walletId <> "/statistics/utxos"
+    )
+
 getAddressesEp :: ApiWallet -> Text -> (Method, Text)
 getAddressesEp w stateFilter =
     ( "GET"
@@ -918,6 +966,14 @@ getWalletViaCLI
     -> IO r
 getWalletViaCLI ctx walId = cardanoWalletCLI @t
     ["wallet", "get", "--port", show (ctx ^. typed @Port) , walId ]
+
+getWalletUtxoStatisticsViaCLI
+    :: forall t r s. (CmdResult r, KnownCommand t, HasType Port s)
+    => s
+    -> String
+    -> IO r
+getWalletUtxoStatisticsViaCLI ctx walId = cardanoWalletCLI @t
+    ["wallet", "utxo", "--port", show (ctx ^. typed @Port) , walId ]
 
 listAddressesViaCLI
     :: forall t r s. (CmdResult r, KnownCommand t, HasType Port s)

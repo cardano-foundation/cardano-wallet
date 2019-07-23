@@ -32,6 +32,7 @@ module Cardano.Wallet.Api.Types
     -- * API Types
       ApiAddress (..)
     , ApiWallet (..)
+    , ApiUtxoStatistics (..)
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -64,6 +65,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
+    , BoundType
     , Coin (..)
     , DecodeAddress (..)
     , Direction (..)
@@ -96,11 +98,14 @@ import Data.Aeson
     , genericToJSON
     , omitNothingFields
     , sumEncoding
+    , tagSingleConstructors
     )
 import Data.Bifunctor
     ( bimap, first )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Map.Strict
+    ( Map )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -117,6 +122,8 @@ import Data.Time
     ( UTCTime )
 import Data.Time.Text
     ( iso8601BasicUtc, utcTimeFromText, utcTimeToText )
+import Data.Word
+    ( Word64 )
 import Fmt
     ( pretty )
 import GHC.Generics
@@ -149,6 +156,12 @@ data ApiWallet = ApiWallet
     , name :: !(ApiT WalletName)
     , passphrase :: !(Maybe (ApiT WalletPassphraseInfo))
     , state :: !(ApiT WalletState)
+    } deriving (Eq, Generic, Show)
+
+data ApiUtxoStatistics = ApiUtxoStatistics
+    { total :: !(Quantity "lovelace" Natural)
+    , scale :: !(ApiT BoundType)
+    , distribution :: !(Map Word64 Word64)
     } deriving (Eq, Generic, Show)
 
 data WalletPostData = WalletPostData
@@ -485,6 +498,16 @@ instance FromJSON (ApiT WalletState) where
 instance ToJSON (ApiT WalletState) where
     toJSON = genericToJSON walletStateOptions . getApiT
 
+instance FromJSON ApiUtxoStatistics where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiUtxoStatistics where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance ToJSON (ApiT BoundType) where
+    toJSON = genericToJSON defaultSumTypeOptions . getApiT
+instance FromJSON (ApiT BoundType) where
+    parseJSON = fmap ApiT . genericParseJSON defaultSumTypeOptions
+
 instance FromJSON (ApiT PoolId) where
     parseJSON = fmap (ApiT . PoolId) . parseJSON
 instance ToJSON (ApiT PoolId) where
@@ -616,6 +639,7 @@ data TaggedObjectOptions = TaggedObjectOptions
 defaultSumTypeOptions :: Aeson.Options
 defaultSumTypeOptions = Aeson.defaultOptions
     { constructorTagModifier = camelTo2 '_'
+    , tagSingleConstructors = True
     }
 
 defaultRecordTypeOptions :: Aeson.Options

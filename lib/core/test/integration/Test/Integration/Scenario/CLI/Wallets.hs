@@ -10,7 +10,7 @@ module Test.Integration.Scenario.CLI.Wallets
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiTransaction, ApiWallet, getApiT )
+    ( ApiTransaction, ApiUtxoStatistics, ApiWallet, getApiT )
 import Cardano.Wallet.Primitive.Types
     ( DecodeAddress (..)
     , EncodeAddress (..)
@@ -52,8 +52,10 @@ import Test.Integration.Framework.DSL
     , expectCliListItemFieldEqual
     , expectEventually'
     , expectValidJSON
+    , expectWalletUTxO
     , fixtureWallet
     , generateMnemonicsViaCLI
+    , getWalletUtxoStatisticsViaCLI
     , getWalletViaCLI
     , listAddresses
     , listWalletsViaCLI
@@ -72,6 +74,8 @@ import Test.Integration.Framework.TestData
     , arabicWalletName
     , cmdOk
     , errMsg403WrongPass
+    , errMsg404NoWallet
+    , errMsgWalletIdEncoding
     , falseWalletIds
     , passphraseMaxLength
     , passphraseMinLength
@@ -336,13 +340,9 @@ spec = do
             out `shouldBe` ""
             c `shouldBe` ExitFailure 1
             if (title == "40 chars hex") then
-                err `shouldContain`
-                    "I couldn't find a wallet with the given id:\
-                    \ 1111111111111111111111111111111111111111\n"
+                err `shouldContain` errMsg404NoWallet (T.pack $ replicate 40 '1')
             else
-                err `shouldContain`
-                    "wallet id should be an hex-encoded string of\
-                    \ 40 characters\n"
+                err `shouldContain` errMsgWalletIdEncoding
 
     it "WALLETS_LIST_01 - Can list wallets" $ \ctx -> do
         let name = "Wallet to be listed"
@@ -522,13 +522,10 @@ spec = do
             out `shouldBe` ""
             c `shouldBe` ExitFailure 1
             if (title == "40 chars hex") then
-                T.unpack  err `shouldContain`
-                    "I couldn't find a wallet with the given id:\
-                    \ 1111111111111111111111111111111111111111\n"
+                T.unpack err `shouldContain`
+                        errMsg404NoWallet (T.pack $ replicate 40 '1')
             else
-                T.unpack  err `shouldContain`
-                    "wallet id should be an hex-encoded string of\
-                    \ 40 characters\n"
+                T.unpack err `shouldContain` errMsgWalletIdEncoding
 
     describe "WALLETS_UPDATE_PASS_05,06 - \
         \Transaction after updating passphrase can only be made with new pass" $ do
@@ -575,6 +572,73 @@ spec = do
         (Stdout o, Stderr e) <- listWalletsViaCLI @t ctx
         o `shouldBe` "[]\n"
         e `shouldBe` cmdOk
+
+    it "WALLETS_UTXO_01 - Wallet's inactivity is reflected in utxo" $ \ctx -> do
+        wid <- emptyWallet' ctx
+        (Exit c, Stdout o, Stderr e) <- getWalletUtxoStatisticsViaCLI @t ctx wid
+        c `shouldBe` ExitSuccess
+        e `shouldBe` cmdOk
+        utxoStats <- expectValidJSON (Proxy @ApiUtxoStatistics) o
+        expectWalletUTxO [] (Right utxoStats)
+
+    it "WALLETS_UTXO_02 - Utxo statistics works properly" $ \ctx -> do
+        wSrc <- fixtureWallet ctx
+        wDest <- emptyWallet ctx
+
+        --send transactions to the wallet
+        let coins = [13, 43, 66, 101, 1339] :: [Integer]
+        let matrix = zip coins [1..]
+        addrs:_ <- listAddresses ctx wDest
+        let addr =
+                encodeAddress (Proxy @t) (getApiT $ fst $ addrs ^. #id)
+        forM_ matrix $ \(amount, alreadyAbsorbed) -> do
+            let args = T.unpack <$>
+                    [ wSrc ^. walletId
+                    , "--payment", T.pack (show amount) <> "@" <> addr
+                    ]
+            (cp, op, ep) <- postTransactionViaCLI @t ctx "cardano-wallet" args
+            T.unpack ep `shouldContain` cmdOk
+            _ <- expectValidJSON (Proxy @(ApiTransaction t)) op
+            cp `shouldBe` ExitSuccess
+            let coinsSent = map fromIntegral $ take alreadyAbsorbed coins
+            expectEventually' ctx balanceAvailable (fromIntegral $ sum coinsSent) wDest
+            expectEventually' ctx balanceTotal (fromIntegral $ sum coinsSent) wDest
+            --verify utxo
+            (Exit c, Stdout o, Stderr e)
+                    <- getWalletUtxoStatisticsViaCLI @t ctx $ T.unpack (wDest ^. walletId)
+            c `shouldBe` ExitSuccess
+            e `shouldBe` cmdOk
+            utxoStats1 <- expectValidJSON (Proxy @ApiUtxoStatistics) o
+            expectWalletUTxO coinsSent (Right utxoStats1)
+
+    describe "WALLETS_UTXO_03 - non-existing wallets" $ do
+        forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
+            (Exit c, Stdout out, Stderr err) <- getWalletUtxoStatisticsViaCLI @t ctx walId
+            out `shouldBe` mempty
+            c `shouldBe` ExitFailure 1
+            if (title == "40 chars hex") then
+                err `shouldContain` errMsg404NoWallet (T.pack $ replicate 40 '1')
+            else
+                err `shouldContain` errMsgWalletIdEncoding
+
+    it "WALLETS_UTXO_03 - Deleted wallet is not available for utxo" $ \ctx -> do
+        wid <- emptyWallet' ctx
+        Exit cd <- deleteWalletViaCLI @t ctx wid
+        cd `shouldBe` ExitSuccess
+
+        (Exit c, Stdout o, Stderr e) <- getWalletUtxoStatisticsViaCLI @t ctx wid
+        c `shouldBe` ExitFailure 1
+        e `shouldContain` errMsg404NoWallet (T.pack wid)
+        o `shouldBe` mempty
+
+    it "WALLETS_UTXO_03 - 'almost' valid walletId" $ \ctx -> do
+        wid <- emptyWallet' ctx
+        (Exit c, Stdout o, Stderr e)
+                <- getWalletUtxoStatisticsViaCLI @t ctx (wid ++ "1")
+        c `shouldBe` ExitFailure 1
+        e `shouldContain` errMsgWalletIdEncoding
+        o `shouldBe` mempty
+
   where
       expect (expEc, expOut, expErr) (ec, out, err) = do
               ec `shouldBe` expEc

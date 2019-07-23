@@ -79,6 +79,11 @@ spec = do
                 , "delete"
                 , "delete " ++ wid
                 , "wallet delete " ++ wid ++ " --port"
+                -- wallet UTxO
+                , "wallet utxo"
+                , "utxo"
+                , "utxo " ++ wid
+                , "wallet utxo " ++ wid ++ " --port"
                 -- transaction create
                 , "transaction create " ++ wid ++ " --payment"
                 , "transaction create " ++ wid ++ " --payment 22@2cWKMJemoBaiPcjZZKQzTHzjRkaAee5dx246Ren8U5KcDGt9QX6FZQPskzykhYL1AW62U --payment"

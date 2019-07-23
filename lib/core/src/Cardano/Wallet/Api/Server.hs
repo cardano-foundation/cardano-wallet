@@ -30,6 +30,7 @@ import Cardano.Wallet
     , ErrCoinSelection (..)
     , ErrCreateUnsignedTx (..)
     , ErrEstimateTxFee (..)
+    , ErrListUTxOStatistics (..)
     , ErrMkStdTx (..)
     , ErrNoSuchWallet (..)
     , ErrPostTx (..)
@@ -51,6 +52,7 @@ import Cardano.Wallet.Api.Types
     , ApiFee (..)
     , ApiT (..)
     , ApiTransaction (..)
+    , ApiUtxoStatistics (..)
     , ApiWallet (..)
     , Iso8601Range (..)
     , PostTransactionData
@@ -78,7 +80,9 @@ import Cardano.Wallet.Primitive.Types
     , DecodeAddress (..)
     , DefineTx (..)
     , EncodeAddress (..)
+    , HistogramBar (..)
     , TxOut (..)
+    , UTxOStatistics (..)
     , WalletId (..)
     , WalletMetadata (..)
     )
@@ -150,6 +154,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.Wai.Handler.Warp as Warp
@@ -247,6 +252,7 @@ wallets w =
     :<|> postWallet w
     :<|> putWallet w
     :<|> putWalletPassphrase w
+    :<|> getUTxOsStatistics w
 
 deleteWallet
     :: WalletLayer (SeqState t) t
@@ -344,6 +350,19 @@ putWalletPassphrase w (ApiT wid) body = do
     let (WalletPutPassphraseData (ApiT old) (ApiT new)) = body
     liftHandler $ W.updateWalletPassphrase w wid (old, new)
     return NoContent
+
+getUTxOsStatistics
+    :: (DefineTx t)
+    => WalletLayer (SeqState t) t
+    -> ApiT WalletId
+    -> Handler ApiUtxoStatistics
+getUTxOsStatistics w (ApiT wid) = do
+    (UTxOStatistics histo totalStakes bType) <- liftHandler $ W.listUtxoStatistics w wid
+    return ApiUtxoStatistics
+        { total = Quantity (fromIntegral totalStakes)
+        , scale = ApiT bType
+        , distribution = Map.fromList $ map (\(HistogramBar k v)-> (k,v)) histo
+        }
 
 {-------------------------------------------------------------------------------
                                     Addresses
@@ -548,6 +567,10 @@ instance Buildable e => LiftHandler (ErrEstimateTxFee e) where
     handler = \case
         ErrEstimateTxFeeNoSuchWallet e -> handler e
         ErrEstimateTxFeeCoinSelection e -> handler e
+
+instance LiftHandler ErrListUTxOStatistics where
+    handler = \case
+        ErrListUTxOStatisticsNoSuchWallet e -> handler e
 
 instance LiftHandler ErrSignTx where
     handler = \case

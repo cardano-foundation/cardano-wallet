@@ -105,6 +105,7 @@ import Cardano.Wallet.Api.Types
     , ApiMnemonicT (..)
     , ApiT (..)
     , ApiTransaction
+    , ApiUtxoStatistics
     , ApiWallet
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
@@ -319,6 +320,7 @@ cmdWallet = command "wallet" $ info (helper <*> cmds) mempty
         <> cmdWalletGet @t
         <> cmdWalletUpdate @t
         <> cmdWalletDelete @t
+        <> cmdWalletGetUtxoStatistics @t
 
 -- | Arguments for 'wallet list' command
 newtype WalletListArgs = WalletListArgs
@@ -476,6 +478,25 @@ cmdWalletDelete = command "delete" $ info (helper <*> cmd) $ mempty
     exec (WalletDeleteArgs wPort wId) = do
         runClient wPort (const "") $ deleteWallet (walletClient @t) $
             ApiT wId
+
+
+cmdWalletGetUtxoStatistics
+    :: forall t. (DecodeAddress t, EncodeAddress t)
+    => Mod CommandFields (IO ())
+cmdWalletGetUtxoStatistics = command "utxo" $ info (helper <*> cmd) $ mempty
+    <> progDesc "Get UTxO statistics for the wallet with specified id."
+  where
+    cmd = fmap exec $ WalletGetArgs
+        <$> portOption
+        <*> walletIdArgument
+    exec (WalletGetArgs wPort wId) = do
+        res <- sendRequest wPort $ getWallet (walletClient @t) $ ApiT wId
+        case res of
+            Right _ -> do
+                runClient wPort Aeson.encodePretty $
+                    getWalletUtxoStatistics (walletClient @t) (ApiT wId)
+            Left _ ->
+                handleResponse Aeson.encodePretty res
 
 {-------------------------------------------------------------------------------
                             Commands - 'transaction'
@@ -746,6 +767,9 @@ data WalletClient t = WalletClient
     , getWallet
         :: ApiT WalletId
         -> ClientM ApiWallet
+    , getWalletUtxoStatistics
+        :: ApiT WalletId
+        -> ClientM ApiUtxoStatistics
     , listWallets
         :: ClientM [ApiWallet]
     , postWallet
@@ -784,6 +808,7 @@ walletClient =
             :<|> _postWallet
             :<|> _putWallet
             :<|> _putWalletPassphrase
+            :<|> _getWalletUtxoStatistics
             = wallets
 
         _postTransaction
@@ -801,6 +826,7 @@ walletClient =
             , putWalletPassphrase = _putWalletPassphrase
             , postTransaction = _postTransaction
             , postTransactionFee = _postTransactionFee
+            , getWalletUtxoStatistics = _getWalletUtxoStatistics
             }
 
 runClient

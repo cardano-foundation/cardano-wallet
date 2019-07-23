@@ -45,6 +45,7 @@ library
     , exceptions
     , fast-logger
     , fmt
+    , foldl
     , generic-lens
     , http-api-data
     , http-media
