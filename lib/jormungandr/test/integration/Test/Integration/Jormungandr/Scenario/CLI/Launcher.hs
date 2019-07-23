@@ -29,8 +29,10 @@ import System.Directory
     ( removeDirectory )
 import System.Exit
     ( ExitCode (..) )
+import System.IO
+    ( Handle )
 import System.IO.Temp
-    ( withSystemTempDirectory )
+    ( withSystemTempDirectory, withSystemTempFile )
 import System.Process
     ( createProcess
     , proc
@@ -67,6 +69,21 @@ spec = do
     let block0 = "test/data/jormungandr/block0.bin"
     let leaders = "test/data/jormungandr/secret.yaml"
     describe "LAUNCH - cardano-wallet launch" $ do
+        it "LAUNCHx - Stop when --state-dir is an existing file" $ withTempFile $ \f _ -> do
+            let args =
+                    [ "launch"
+                    , "--genesis-block", block0
+                    , "--bft-leaders", leaders
+                    , "--state-dir", f
+                    ]
+
+            (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
+            c `shouldBe` ExitFailure 1
+            o `shouldBe` mempty
+            e `shouldBe`
+                "Stopping! \"" ++ f ++ "\" appears to be a file existing on\
+                \ your system. Remove the file or choose different path.\n"
+
         describe "LAUNCH - Can start launcher with --state-dir" $ do
             let tests =
                     [ ("existing dir", const $ pure ())
@@ -234,3 +251,6 @@ spec = do
 
 withTempDir :: (FilePath -> IO a) -> IO a
 withTempDir = withSystemTempDirectory "integration-state"
+
+withTempFile :: (FilePath -> Handle -> IO a) -> IO a
+withTempFile = withSystemTempFile "temp-file"
