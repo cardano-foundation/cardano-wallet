@@ -819,9 +819,14 @@ instance Arbitrary TxIn where
 instance Arbitrary ApiUtxoStatistics where
     arbitrary = do
         utxos <- arbitrary
-        let (UTxOStatistics histoBars stakes bType) = computeUtxoStatistics log10 utxos
-        let boundCountMap = Map.fromList $ map (\(HistogramBarCount b c)-> (b,c)) histoBars
-        return $ ApiUtxoStatistics (Quantity $ fromIntegral stakes) (ApiT bType) boundCountMap
+        let (UTxOStatistics histoBars stakes bType) =
+                computeUtxoStatistics log10 utxos
+        let boundCountMap =
+                Map.fromList $ map (\(HistogramBar k v)-> (k,v)) histoBars
+        return $ ApiUtxoStatistics
+            (Quantity $ fromIntegral stakes)
+            (ApiT bType)
+            boundCountMap
 
 instance Arbitrary (Quantity "block" Natural) where
     shrink (Quantity 0) = []

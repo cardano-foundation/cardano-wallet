@@ -369,15 +369,14 @@ expectWalletUTxO
 expectWalletUTxO coins = \case
     Left e  -> wantedSuccessButError e
     Right stats -> do
-        let addr = Address "addr-0"
+        let addr = Address "ARBITRARY"
         let constructUtxoEntry idx c =
-                ( TxIn (Hash "TXID01") idx
+                ( TxIn (Hash "ARBITRARY") idx
                 , TxOut addr (Coin c)
                 )
         let utxo = UTxO $ Map.fromList $ zipWith constructUtxoEntry [0..] coins
         let (UTxOStatistics hist stakes bType) = computeUtxoStatistics log10 utxo
-        let distr = Map.fromList $ map (\(HistogramBarCount b c)-> (b,c)) hist
-
+        let distr = Map.fromList $ map (\(HistogramBar k v)-> (k,v)) hist
         (ApiUtxoStatistics (Quantity (fromIntegral stakes)) (ApiT bType) distr)
             `shouldBe` stats
 

@@ -15,7 +15,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE ViewPatterns #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -68,7 +67,6 @@ module Cardano.Wallet.Primitive.Types
     , HistogramBar (..)
     , BoundType (..)
     , computeUtxoStatistics
-    , mkUtxoStatistics
     , log10
 
     -- * Slotting
@@ -104,8 +102,6 @@ import Prelude
 
 import Control.DeepSeq
     ( NFData (..) )
-import Control.Monad
-    ( when )
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString )
 import Crypto.Number.Generate
@@ -683,17 +679,11 @@ instance Eq UTxOStatistics where
         s == s' && sorted h == sorted h'
       where
         sorted :: [HistogramBar] -> [HistogramBar]
-        sorted = L.sortOn (\(HistogramBarCount key _) -> key)
+        sorted = L.sortOn (\(HistogramBar key _) -> key)
 
--- | Utxo statistics for the wallet.
--- Histogram is composed of bars that represent the bucket. The bucket is tagged by upper bound of a given bucket.
--- The bar value corresponds to the number of stakes
--- In the future the bar value could be different things:
---  (a) sum of stakes in a bucket
---  (b) avg or std of stake in a bucket
---  (c) topN buckets
--- to name a few
-data HistogramBar = HistogramBarCount
+-- An 'HistogramBar' captures the value of a particular bucket. It specifies
+-- the bucket upper bound, and its corresponding distribution (on the y-axis).
+data HistogramBar = HistogramBar
     { bucketUpperBound :: !Word64
     , bucketCount      :: !Word64
     } deriving (Show, Eq, Ord, Generic)
@@ -724,80 +714,24 @@ computeUtxoStatistics btype utxos =
     foldBuckets bounds =
         let
             step :: Map Word64 Word64 -> Word64 -> Map Word64 Word64
-            step x a =
-                case Map.lookupGE a x of
-                    Just (k, v) -> Map.insert k (v+1) x
-                    Nothing -> Map.adjust (+1) (NE.head bounds) x
+            step x a = case Map.lookupGE a x of
+                Just (k, v) -> Map.insert k (v+1) x
+                Nothing -> Map.adjust (+1) (NE.head bounds) x
             initial :: Map Word64 Word64
             initial =
                 Map.fromList $ zip (NE.toList bounds) (repeat 0)
             extract :: Map Word64 Word64 -> [HistogramBar]
             extract =
-                map (uncurry HistogramBarCount) . Map.toList
+                map (uncurry HistogramBar) . Map.toList
         in
             F.Fold step initial extract
 
-totalLovelacesMinted :: Quantity "lovelace" Natural
-totalLovelacesMinted =
-    let lovelacesPerAda = 1000000
-        totalAdaMinted = 45000000000
-    in Quantity $ lovelacesPerAda * totalAdaMinted
+    generateBounds :: BoundType -> NonEmpty Word64
+    generateBounds = \case
+        Log10 -> NE.fromList $ map (10 ^!) [1..16] ++ [45 * (10 ^! 15)]
 
-mkUtxoStatistics
-    :: BoundType
-    -> Map Word64 Word64
-    -> Word64
-    -> Either UTxOStatisticsError UTxOStatistics
-mkUtxoStatistics btype hist totalStakes = do
-    let (histoKeys, histoElems) = (Map.keys hist, Map.elems hist)
-    let acceptedKeys = NE.toList $ generateBounds btype
-    let (minPossibleValue, maxPossibleValue) = getPossibleBounds hist
-    let constructHistogram = uncurry HistogramBarCount
-    let histoBars = map constructHistogram $ Map.toList hist
-    let (Quantity totalUpperBound) = totalLovelacesMinted
-
-    when (null histoKeys) $
-        Left ErrEmptyHistogram
-    when (any (`notElem` acceptedKeys) histoKeys) $
-        Left $ ErrInvalidBounds "given bounds are incompatible with bound type"
-    when (any (< 0) histoElems) $
-        Left $ ErrInvalidBounds "encountered negative bound"
-    when (totalStakes < 0) $
-        Left $ ErrInvalidTotalStakes "total stakes is negative"
-    when (totalStakes < minPossibleValue && totalStakes > maxPossibleValue) $
-        Left $ ErrInvalidTotalStakes "inconsistent total stakes & histogram"
-    when (totalStakes > fromIntegral totalUpperBound) $
-        Left $ ErrInvalidTotalStakes "total stakes is bigger than total money ever minted"
-
-    pure UTxOStatistics
-        { histogram = histoBars
-        , allStakes = totalStakes
-        , boundType = btype
-        }
-
-getPossibleBounds :: Map Word64 Word64 -> (Word64, Word64)
-getPossibleBounds hist =
-    (calculatePossibleBound fst, calculatePossibleBound snd)
-  where
-    createBracketPairs :: Num a => [a] -> [(a,a)]
-    createBracketPairs (reverse -> (x:xs)) = zip (map (+1) $ reverse (xs ++ [0])) (reverse (x:xs))
-    createBracketPairs _ = []
-    matching fromPair (key,value) =
-        map ( (*value) . fromPair ) . filter (\(_,upper) -> key == upper)
-    acceptedKeys = NE.toList $ generateBounds log10
-    calculatePossibleBound fromPair =
-        sum .
-        concatMap (\pair -> matching fromPair pair $ createBracketPairs acceptedKeys) $
-        Map.toList hist
-
-generateBounds :: BoundType -> NonEmpty Word64
-generateBounds bType =
-    let (^!) :: Word64 -> Word64 -> Word64
-        (^!) = (^)
-    in case bType of
-        Log10 ->
-            NE.fromList $
-            map (10 ^!) [1..16] ++ [45 * (10 ^! 15)]
+    (^!) :: Word64 -> Word64 -> Word64
+    (^!) = (^)
 
 {-------------------------------------------------------------------------------
                                    Slotting

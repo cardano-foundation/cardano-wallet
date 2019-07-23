@@ -361,8 +361,7 @@ getUTxOsStatistics w (ApiT wid) = do
     return ApiUtxoStatistics
         { total = Quantity (fromIntegral totalStakes)
         , scale = ApiT bType
-        , distribution =
-                Map.fromList $ map (\(HistogramBarCount b c)-> (b,c)) histo
+        , distribution = Map.fromList $ map (\(HistogramBar k v)-> (k,v)) histo
         }
 
 {-------------------------------------------------------------------------------
