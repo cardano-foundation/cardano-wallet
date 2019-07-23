@@ -2,6 +2,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -30,6 +31,7 @@ import Cardano.Wallet
     , ErrCoinSelection (..)
     , ErrCreateUnsignedTx (..)
     , ErrEstimateTxFee (..)
+    , ErrListTransactions (..)
     , ErrListUTxOStatistics (..)
     , ErrMkStdTx (..)
     , ErrNoSuchWallet (..)
@@ -48,6 +50,7 @@ import Cardano.Wallet.Api
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)
+    , ApiBlockData (..)
     , ApiErrorCode (..)
     , ApiFee (..)
     , ApiT (..)
@@ -65,7 +68,7 @@ import Cardano.Wallet.Api.Types
     , getApiMnemonicT
     )
 import Cardano.Wallet.Network
-    ( ErrNetworkUnavailable (..) )
+    ( ErrNetworkTip (..), ErrNetworkUnavailable (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress, digest, generateKeyFromSeed, publicKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -447,6 +450,15 @@ mkApiTransaction txid ins outs meta = ApiTransaction
     coerceTxOut (TxOut addr (Coin c)) =
         AddressAmount (ApiT addr, Proxy @t) (Quantity $ fromIntegral c)
 
+-- Populate an API transaction record with 'TransactionInfo' from the wallet
+-- layer.
+mkApiTransactionFromInfo :: TransactionInfo -> ApiTransaction t
+mkApiTransactionFromInfo (TransactionInfo txid ins outs meta depth txtime) =
+    apiTx { depth, insertedAt }
+  where
+    apiTx = mkApiTransaction txid ins outs meta
+    insertedAt = Just (ApiBlockData txtime (ApiT (meta ^. #slotId)))
+
 listTransactions
     :: forall t. (DefineTx t)
     => WalletLayer (SeqState t) t
@@ -458,8 +470,7 @@ listTransactions w (ApiT wid) maybeRange = do
         Just _ -> throwError (err501 { errBody = "Issue #466 unimplemented" })
         Nothing -> pure ()
     txs <- liftHandler $ W.listTransactions w wid
-    return [ mkApiTransaction txid ins outs meta
-           | TransactionInfo txid ins outs meta <- txs]
+    return $ map mkApiTransactionFromInfo txs
 
 coerceCoin :: AddressAmount t -> TxOut
 coerceCoin (AddressAmount (ApiT addr, _) (Quantity c)) =
@@ -658,6 +669,20 @@ instance LiftHandler ErrUpdatePassphrase where
     handler = \case
         ErrUpdatePassphraseNoSuchWallet e -> handler e
         ErrUpdatePassphraseWithRootKey e  -> handler e
+
+instance LiftHandler ErrListTransactions where
+    handler = \case
+        ErrListTransactionsNoSuchWallet e -> handler e
+        ErrListTransactionsNetworkTip e -> handler e
+
+instance LiftHandler ErrNetworkTip where
+    handler = \case
+        ErrNetworkTipNotFound ->
+            apiError err503 NetworkTipNotFound $ mconcat
+                [ "The node backend does not know the network tip. "
+                , "Trying again in a bit might work."
+                ]
+        ErrNetworkTipNetworkUnreachable e -> handler e
 
 instance LiftHandler ServantErr where
     handler err@(ServantErr code _ body headers)

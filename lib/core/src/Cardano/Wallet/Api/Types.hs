@@ -244,6 +244,7 @@ data ApiErrorCode
     | InvalidCoinSelection
     | NetworkUnreachable
     | NetworkMisconfigured
+    | NetworkTipNotFound
     | CreatedInvalidTransaction
     | RejectedByCoreNode
     | BadRequest

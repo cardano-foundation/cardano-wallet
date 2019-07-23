@@ -75,6 +75,7 @@ module Cardano.Wallet.Primitive.Types
     , SlotLength (..)
     , EpochLength (..)
     , slotRatio
+    , slotDifference
     , flatSlot
     , fromFlatSlot
 
@@ -500,6 +501,10 @@ data TransactionInfo = TransactionInfo
     -- ^ Payment destination.
     , txInfoMeta :: !TxMeta
     -- ^ Other information calculated from the transaction.
+    , txInfoDepth :: Quantity "block" Natural
+    -- ^ Number of blocks minted since the transaction block.
+    , txInfoTime :: UTCTime
+    -- ^ Creation time of the block including this transaction.
     } deriving (Show, Eq, Ord)
 
 {-------------------------------------------------------------------------------
@@ -799,11 +804,22 @@ fromFlatSlot (EpochLength epochLength) n = SlotId e (fromIntegral s)
     e = n `div` epochLength
     s = n `mod` epochLength
 
+-- | @slotDifference a b@ is how many slots @a@ is after @b@. The result is
+-- non-negative, and if @b > a@ then this function returns zero.
+slotDifference :: EpochLength -> SlotId -> SlotId -> Quantity "block" Natural
+slotDifference epl a b
+    | a' > b' = Quantity $ fromIntegral $ a' - b'
+    | otherwise = Quantity 0
+  where
+    a' = flatSlot epl a
+    b' = flatSlot epl b
+
 newtype SlotLength = SlotLength DiffTime
     deriving (Show, Eq)
 
 newtype EpochLength = EpochLength Word64
     deriving (Show, Eq)
+
 {-------------------------------------------------------------------------------
                                Polymorphic Types
 -------------------------------------------------------------------------------}
