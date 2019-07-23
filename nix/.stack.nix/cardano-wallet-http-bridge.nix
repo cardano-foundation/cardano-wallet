@@ -100,8 +100,6 @@
             (hsPkgs.http-types)
             (hsPkgs.iohk-monitoring)
             (hsPkgs.process)
-            (hsPkgs.QuickCheck)
-            (hsPkgs.quickcheck-instances)
             (hsPkgs.retry)
             (hsPkgs.template-haskell)
             (hsPkgs.temporary)

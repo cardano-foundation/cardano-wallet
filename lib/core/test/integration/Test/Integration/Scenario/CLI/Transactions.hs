@@ -10,8 +10,6 @@ module Test.Integration.Scenario.CLI.Transactions
 
 import Prelude
 
-import Cardano.CLI
-    ( Iso8601Time (..) )
 import Cardano.Wallet.Api.Types
     ( ApiFee, ApiTransaction, ApiWallet, getApiT )
 import Cardano.Wallet.Primitive.Types
@@ -82,10 +80,6 @@ import Test.Integration.Framework.TestData
     , polishWalletName
     , wildcardsWalletName
     )
-import Test.QuickCheck
-    ( property, withMaxSuccess )
-import Test.QuickCheck.Instances.Time
-    ()
 
 import qualified Data.Text as T
 
@@ -651,16 +645,32 @@ spec = do
             out `shouldBe` ""
             c `shouldBe` ExitFailure 1
 
-    it "TRANS_LIST_01 - Listing transactions for an empty wallet" $ \ctx ->
-        withMaxSuccess 10 $ property $ \mTimeRangeStart mTimeRangeEnd -> do
-            wallet <- emptyWallet ctx
-            (Exit code, Stdout out, Stderr err) <-
-                listTransactionsViaCLI @t ctx wallet
-                    (Iso8601Time <$> mTimeRangeStart)
-                    (Iso8601Time <$> mTimeRangeEnd)
-            err `shouldBe` "Ok.\n"
-            out `shouldBe` "[]\n"
-            code `shouldBe` ExitSuccess
+        let validTime1 = "2001-01-01T01:01:01Z"
+        let validTime2 = "2009-09-09T09:09:09Z"
+
+        let timeRangeMatrix :: [(Maybe String, Maybe String)]
+            timeRangeMatrix =
+                [ (Nothing, Nothing)
+                , (Just validTime1, Nothing)
+                , (Nothing, Just validTime1)
+                , (Just validTime1, Just validTime2)
+                , (Just validTime2, Just validTime1)
+                ]
+
+        describe "TRANS_LIST_01 - Listing transactions for an empty wallet" $
+            forM_ timeRangeMatrix $ \(mStart, mEnd) -> do
+                let title = mempty
+                      <> "listing transactions from "
+                      <> show mStart
+                      <> " to "
+                      <> show mEnd
+                it title $ \ctx -> do
+                    wallet <- emptyWallet ctx
+                    (Exit code, Stdout out, Stderr err) <-
+                        listTransactionsViaCLI @t ctx wallet mStart mEnd
+                    err `shouldBe` "Ok.\n"
+                    out `shouldBe` "[]\n"
+                    code `shouldBe` ExitSuccess
 
   where
       longAddr = replicate 10000 '1'

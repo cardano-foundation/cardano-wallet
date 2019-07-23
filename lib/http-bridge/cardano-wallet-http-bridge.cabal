@@ -161,8 +161,6 @@ test-suite integration
     , http-types
     , iohk-monitoring
     , process
-    , QuickCheck
-    , quickcheck-instances
     , retry
     , template-haskell
     , temporary

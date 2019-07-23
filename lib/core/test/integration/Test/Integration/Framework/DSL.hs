@@ -107,8 +107,6 @@ module Test.Integration.Framework.DSL
 import Prelude hiding
     ( fail )
 
-import Cardano.CLI
-    ( Iso8601Time (..) )
 import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiT (..)
@@ -192,8 +190,6 @@ import Data.Text
     ( Text )
 import Data.Word
     ( Word64 )
-import Data.Text.Class
-    ( showT )
 import GHC.TypeLits
     ( Symbol )
 import Language.Haskell.TH.Quote
@@ -1075,16 +1071,16 @@ listTransactionsViaCLI
     :: forall t r s . (CmdResult r, HasType Port s, KnownCommand t)
     => s
     -> ApiWallet
-    -> Maybe Iso8601Time
-    -> Maybe Iso8601Time
+    -> Maybe String
+    -> Maybe String
     -> IO r
 listTransactionsViaCLI ctx wallet mTimeRangeStart mTimeRangeEnd =
     cardanoWalletCLI @t $ join
         [ ["transaction", "list"]
         , ["--port", show (ctx ^. typed @Port)]
         , [T.unpack $ wallet ^. walletId]
-        , maybe [] (\t -> ["--start", showT t]) mTimeRangeStart
-        , maybe [] (\t -> ["--end", showT t]) mTimeRangeEnd
+        , maybe [] (\t -> ["--start", t]) mTimeRangeStart
+        , maybe [] (\t -> ["--end",   t]) mTimeRangeEnd
         ]
 
 -- There is a dependency cycle in the packages.

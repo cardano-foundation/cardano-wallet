@@ -156,7 +156,6 @@ test-suite integration
     , persistent
     , process
     , QuickCheck
-    , quickcheck-instances
     , retry
     , servant
     , template-haskell
