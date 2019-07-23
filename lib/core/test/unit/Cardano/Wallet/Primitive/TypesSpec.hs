@@ -1,5 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -18,20 +20,25 @@ import Cardano.Wallet.Primitive.Types
     , AddressState (..)
     , Block (..)
     , BlockHeader (..)
+    , BoundType
     , Coin (..)
     , Direction (..)
     , Dom (..)
     , EpochLength (..)
     , Hash (..)
+    , HistogramBar (..)
+    , ShowFmt (..)
     , SlotId (..)
     , TxIn (..)
     , TxMeta (TxMeta)
     , TxOut (..)
     , TxStatus (..)
     , UTxO (..)
+    , UTxOStatistics (..)
     , WalletId (..)
     , WalletName (..)
     , balance
+    , computeUtxoStatistics
     , excluding
     , flatSlot
     , fromFlatSlot
@@ -51,6 +58,8 @@ import Crypto.Hash
     ( hash )
 import Data.ByteString
     ( ByteString )
+import Data.Function
+    ( (&) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -72,11 +81,13 @@ import Test.QuickCheck
     , arbitraryPrintableChar
     , checkCoverage
     , choose
+    , counterexample
     , cover
     , oneof
     , property
     , scale
     , vectorOf
+    , (=/=)
     , (===)
     )
 import Test.QuickCheck.Arbitrary.Generic
@@ -192,6 +203,16 @@ spec = do
         it "SlotId 1 2 < SlotId 2 2"
             (property $ SlotId { epochNumber = 1, slotNumber = 2 } < SlotId 2 2)
 
+    describe "UtxoStatistics" $ do
+        it "total statistics == balance utxo"
+            (checkCoverage propUtxoTotalIsBalance)
+        it "sum of weighted distribution >= total balance"
+            (checkCoverage propUtxoSumDistribution)
+        it "distribution == empty <=> UTxO == empty"
+            (checkCoverage propUtxoEmptyIsEmpty)
+        it "sum of the distribution coeffs == sizeOf UTxO"
+            (checkCoverage propUtxoWeightsEqualSize)
+
 {-------------------------------------------------------------------------------
        Wallet Specification - Lemma 2.1 - Properties of UTxO operations
 -------------------------------------------------------------------------------}
@@ -303,6 +324,63 @@ prop_2_6_2 (ins, u) =
         balance u - balance (u `restrictedBy` ins)
 
 {-------------------------------------------------------------------------------
+                        UTxO statistics Properties
+-------------------------------------------------------------------------------}
+
+-- | The 'total' stake in the statistics is the UTxO's balance
+propUtxoTotalIsBalance
+    :: BoundType
+    -> ShowFmt UTxO
+    -> Property
+propUtxoTotalIsBalance bType (ShowFmt utxo) =
+    fromIntegral totalStake == balance utxo
+    & cover 75 (utxo /= mempty) "UTxO /= empty"
+  where
+    UTxOStatistics _ totalStake _ = computeUtxoStatistics bType utxo
+
+-- | The sum of the weighted distribution is greater than the sum of UTxOs
+-- outputs (we distribute the UtxO over buckets with upper-bounds, so everything
+-- in a bucket is lower than its upper-bound).
+propUtxoSumDistribution
+    :: BoundType
+    -> ShowFmt UTxO
+    -> Property
+propUtxoSumDistribution bType (ShowFmt utxo) =
+    sum (upperVal <$> bars) >= fromIntegral (balance utxo)
+    & cover 75 (utxo /= mempty) "UTxO /= empty"
+    & counterexample ("Histogram: " <> pretty bars)
+  where
+    UTxOStatistics bars _ _ = computeUtxoStatistics bType utxo
+    upperVal (HistogramBar k v) = k * v
+
+-- | The distribution is empty if and only if the UTxO is empty
+propUtxoEmptyIsEmpty
+    :: BoundType
+    -> ShowFmt UTxO
+    -> Property
+propUtxoEmptyIsEmpty bType (ShowFmt utxo) =
+    if all isEmpty bars then utxo === mempty else utxo =/= mempty
+    & cover 75 (utxo /= mempty) "UTxO /= empty"
+    & counterexample ("Histogram: " <> pretty bars)
+  where
+    UTxOStatistics bars _ _ = computeUtxoStatistics bType utxo
+    isEmpty (HistogramBar _ v) = v == 0
+
+-- | The sum of the distribution coefficients should is equal to the number of
+-- UTxO entries
+propUtxoWeightsEqualSize
+    :: BoundType
+    -> ShowFmt UTxO
+    -> Property
+propUtxoWeightsEqualSize bType (ShowFmt utxo) =
+    sum (histElems bars) === fromIntegral (Map.size $ getUTxO utxo)
+    & cover 75 (utxo /= mempty) "UTxO /= empty"
+    & counterexample ("Coefficients: " <> pretty (histElems bars))
+  where
+    UTxOStatistics bars _ _ = computeUtxoStatistics bType utxo
+    histElems = fmap $ \(HistogramBar _ v) -> v
+
+{-------------------------------------------------------------------------------
                             Arbitrary Instances
 
     Arbitrary instances define here aren't necessarily reflecting on real-life
@@ -310,6 +388,8 @@ prop_2_6_2 (ins, u) =
     structures that don't have much entropy and therefore, allow us to even test
     something when checking for intersections and set restrictions!
 -------------------------------------------------------------------------------}
+
+deriving instance Arbitrary a => Arbitrary (ShowFmt a)
 
 instance Arbitrary Direction where
     arbitrary = arbitraryBoundedEnum
@@ -413,3 +493,7 @@ instance Arbitrary WalletName where
     shrink (WalletName t)
         | T.length t <= walletNameMinLength = []
         | otherwise = [WalletName $ T.take walletNameMinLength t]
+
+instance Arbitrary BoundType where
+    shrink = genericShrink
+    arbitrary = genericArbitrary

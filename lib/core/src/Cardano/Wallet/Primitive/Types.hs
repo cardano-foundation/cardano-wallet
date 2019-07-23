@@ -152,6 +152,7 @@ import Fmt
     , ordinalF
     , prefixF
     , suffixF
+    , tupleF
     )
 import GHC.Generics
     ( Generic )
@@ -668,12 +669,6 @@ data UTxOStatistics = UTxOStatistics
     , boundType :: BoundType
     } deriving (Show, Generic, Ord)
 
-data UTxOStatisticsError
-    = ErrEmptyHistogram
-    | ErrInvalidBounds !Text
-    | ErrInvalidTotalStakes !Text
-    deriving (Eq, Show, Read, Generic)
-
 instance Eq UTxOStatistics where
     (UTxOStatistics h s _) == (UTxOStatistics h' s' _) =
         s == s' && sorted h == sorted h'
@@ -687,6 +682,9 @@ data HistogramBar = HistogramBar
     { bucketUpperBound :: !Word64
     , bucketCount      :: !Word64
     } deriving (Show, Eq, Ord, Generic)
+
+instance Buildable HistogramBar where
+    build (HistogramBar k v) = tupleF (k, v)
 
 --  Buckets boundaries can be constructed in different ways
 data BoundType = Log10 deriving (Eq, Show, Ord, Generic)
