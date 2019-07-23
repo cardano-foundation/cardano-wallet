@@ -98,6 +98,7 @@ import Data.Aeson
     , genericToJSON
     , omitNothingFields
     , sumEncoding
+    , tagSingleConstructors
     )
 import Data.Bifunctor
     ( bimap, first )
@@ -503,11 +504,9 @@ instance ToJSON ApiUtxoStatistics where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance ToJSON (ApiT BoundType) where
-    toJSON (ApiT Log10) = "log10"
-
+    toJSON = genericToJSON defaultSumTypeOptions . getApiT
 instance FromJSON (ApiT BoundType) where
-    parseJSON "log10" = pure $ ApiT Log10
-    parseJSON _ = fail "wrong BoundType value"
+    parseJSON = fmap ApiT . genericParseJSON defaultSumTypeOptions
 
 instance FromJSON (ApiT PoolId) where
     parseJSON = fmap (ApiT . PoolId) . parseJSON
@@ -640,6 +639,7 @@ data TaggedObjectOptions = TaggedObjectOptions
 defaultSumTypeOptions :: Aeson.Options
 defaultSumTypeOptions = Aeson.defaultOptions
     { constructorTagModifier = camelTo2 '_'
+    , tagSingleConstructors = True
     }
 
 defaultRecordTypeOptions :: Aeson.Options
