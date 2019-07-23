@@ -383,6 +383,22 @@ class Dom a where {
     type family DomElem a :: *;
 }
 dom :: Dom a => a -> Set (DomElem a)
+data UTxOStatistics
+UTxOStatistics :: ![HistogramBar] -> !Word64 -> BoundType -> UTxOStatistics
+[$sel:histogram:UTxOStatistics] :: UTxOStatistics -> ![HistogramBar]
+[$sel:allStakes:UTxOStatistics] :: UTxOStatistics -> !Word64
+[$sel:boundType:UTxOStatistics] :: UTxOStatistics -> BoundType
+data HistogramBar
+HistogramBar :: !Word64 -> !Word64 -> HistogramBar
+[$sel:bucketUpperBound:HistogramBar] :: HistogramBar -> !Word64
+[$sel:bucketCount:HistogramBar] :: HistogramBar -> !Word64
+data BoundType
+
+-- | Compute UtxoStatistics from UTxOs
+computeUtxoStatistics :: BoundType -> UTxO -> UTxOStatistics
+
+-- | Smart-constructor to create bounds using a log-10 scale
+log10 :: BoundType
 
 -- | A slot identifier is the combination of an epoch and slot.
 data SlotId
@@ -517,6 +533,21 @@ instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.SlotId
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.SlotId
 instance GHC.Read.Read Cardano.Wallet.Primitive.Types.SlotId
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.SlotId
+instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.UTxOStatistics
+instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.UTxOStatistics
+instance GHC.Show.Show Cardano.Wallet.Primitive.Types.UTxOStatistics
+instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.BoundType
+instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.BoundType
+instance GHC.Show.Show Cardano.Wallet.Primitive.Types.BoundType
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.BoundType
+instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.HistogramBar
+instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.HistogramBar
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.HistogramBar
+instance GHC.Show.Show Cardano.Wallet.Primitive.Types.HistogramBar
+instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.UTxOStatisticsError
+instance GHC.Read.Read Cardano.Wallet.Primitive.Types.UTxOStatisticsError
+instance GHC.Show.Show Cardano.Wallet.Primitive.Types.UTxOStatisticsError
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.UTxOStatisticsError
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.TxOut
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.TxOut
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.TxOut
@@ -601,6 +632,7 @@ instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.TxMeta
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.TxMeta
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.SlotId
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.SlotId
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.UTxOStatistics
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.TxOut
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.TxOut
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.Coin
@@ -2112,7 +2144,7 @@ instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t => Cardano.Wa
 --   to realize its role as being intermediary between the three.
 module Cardano.Wallet
 data WalletLayer s t
-WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)) -> (WalletId -> (WalletMetadata -> WalletMetadata) -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> (Passphrase "encryption-old", Passphrase "encryption-new") -> ExceptT ErrUpdatePassphrase IO ()) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO ()) -> ((IsOurs s, CompareDiscovery s, KnownAddresses s, DefineTx t) => WalletId -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]) -> (forall e. (DefineTx t, e ~ ErrValidateSelection t) => WalletId -> NonEmpty TxOut -> ExceptT (ErrCreateUnsignedTx e) IO CoinSelection) -> (forall e. (DefineTx t, e ~ ErrValidateSelection t) => WalletId -> NonEmpty TxOut -> ExceptT (ErrEstimateTxFee e) IO Fee) -> ((Show s, NFData s, IsOwned s, GenChange s) => WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx t, TxMeta, [TxWitness])) -> (DefineTx t => WalletId -> (Tx t, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()) -> (DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO [(Tx t, TxMeta)]) -> WalletLayer s t
+WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)) -> (WalletId -> (WalletMetadata -> WalletMetadata) -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> (Passphrase "encryption-old", Passphrase "encryption-new") -> ExceptT ErrUpdatePassphrase IO ()) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO ()) -> ((IsOurs s, CompareDiscovery s, KnownAddresses s, DefineTx t) => WalletId -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]) -> (forall e. (DefineTx t, e ~ ErrValidateSelection t) => WalletId -> NonEmpty TxOut -> ExceptT (ErrCreateUnsignedTx e) IO CoinSelection) -> (forall e. (DefineTx t, e ~ ErrValidateSelection t) => WalletId -> NonEmpty TxOut -> ExceptT (ErrEstimateTxFee e) IO Fee) -> (DefineTx t => WalletId -> ExceptT ErrListUTxOStatistics IO UTxOStatistics) -> ((Show s, NFData s, IsOwned s, GenChange s) => WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx t, TxMeta, [TxWitness])) -> (DefineTx t => WalletId -> (Tx t, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()) -> (DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO [(Tx t, TxMeta)]) -> WalletLayer s t
 
 -- | Initialise and store a new wallet, returning its Id.
 [$sel:createWallet:WalletLayer] :: WalletLayer s t -> (Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId
@@ -2156,6 +2188,9 @@ WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletNa
 --   wallet to cover the requested outputs.
 [$sel:estimateTxFee:WalletLayer] :: WalletLayer s t -> forall e. (DefineTx t, e ~ ErrValidateSelection t) => WalletId -> NonEmpty TxOut -> ExceptT (ErrEstimateTxFee e) IO Fee
 
+-- | List the wallet's UTxO statistics.
+[$sel:listUtxoStatistics:WalletLayer] :: WalletLayer s t -> DefineTx t => WalletId -> ExceptT ErrListUTxOStatistics IO UTxOStatistics
+
 -- | Produce witnesses and construct a transaction from a given selection.
 --   Requires the encryption passphrase in order to decrypt the root
 --   private key. Note that this doesn't broadcast the transaction to the
@@ -2192,6 +2227,8 @@ BlockchainParameters :: Block (Tx t) -> UTCTime -> FeePolicy -> SlotLength -> Ep
 
 -- | Maximum size of a transaction (soft or hard limit)
 [$sel:getTxMaxSize:BlockchainParameters] :: BlockchainParameters t -> Quantity "byte" Word16
+newtype ErrListUTxOStatistics
+ErrListUTxOStatisticsNoSuchWallet :: ErrNoSuchWallet -> ErrListUTxOStatistics
 newtype ErrAdjustForFee
 
 -- | UTxO exhausted during fee covering We record what amount missed to
@@ -2306,6 +2343,8 @@ instance GHC.Classes.Eq Cardano.Wallet.ErrWithRootKey
 instance GHC.Show.Show Cardano.Wallet.ErrWithRootKey
 instance GHC.Classes.Eq Cardano.Wallet.ErrSubmitTx
 instance GHC.Show.Show Cardano.Wallet.ErrSubmitTx
+instance GHC.Classes.Eq Cardano.Wallet.ErrListUTxOStatistics
+instance GHC.Show.Show Cardano.Wallet.ErrListUTxOStatistics
 instance GHC.Classes.Eq e => GHC.Classes.Eq (Cardano.Wallet.ErrEstimateTxFee e)
 instance GHC.Show.Show e => GHC.Show.Show (Cardano.Wallet.ErrEstimateTxFee e)
 instance GHC.Classes.Eq e => GHC.Classes.Eq (Cardano.Wallet.ErrCreateUnsignedTx e)
@@ -2375,6 +2414,11 @@ ApiWallet :: !ApiT WalletId -> !ApiT AddressPoolGap -> !ApiT WalletBalance -> !A
 [$sel:name:ApiWallet] :: ApiWallet -> !ApiT WalletName
 [$sel:passphrase:ApiWallet] :: ApiWallet -> !Maybe (ApiT WalletPassphraseInfo)
 [$sel:state:ApiWallet] :: ApiWallet -> !ApiT WalletState
+data ApiUtxoStatistics
+ApiUtxoStatistics :: !Quantity "lovelace" Natural -> !ApiT BoundType -> !Map Word64 Word64 -> ApiUtxoStatistics
+[$sel:total:ApiUtxoStatistics] :: ApiUtxoStatistics -> !Quantity "lovelace" Natural
+[$sel:scale:ApiUtxoStatistics] :: ApiUtxoStatistics -> !ApiT BoundType
+[$sel:distribution:ApiUtxoStatistics] :: ApiUtxoStatistics -> !Map Word64 Word64
 data WalletBalance
 WalletBalance :: !Quantity "lovelace" Natural -> !Quantity "lovelace" Natural -> WalletBalance
 [$sel:available:WalletBalance] :: WalletBalance -> !Quantity "lovelace" Natural
@@ -2545,6 +2589,9 @@ instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.ApiAddress t)
 instance GHC.Show.Show Cardano.Wallet.Api.Types.ApiWallet
 instance GHC.Generics.Generic Cardano.Wallet.Api.Types.ApiWallet
 instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiWallet
+instance GHC.Show.Show Cardano.Wallet.Api.Types.ApiUtxoStatistics
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.ApiUtxoStatistics
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiUtxoStatistics
 instance GHC.Show.Show Cardano.Wallet.Api.Types.WalletPutData
 instance GHC.Generics.Generic Cardano.Wallet.Api.Types.WalletPutData
 instance GHC.Classes.Eq Cardano.Wallet.Api.Types.WalletPutData
@@ -2586,6 +2633,8 @@ instance Cardano.Wallet.Primitive.Types.DecodeAddress t => Data.Aeson.Types.From
 instance Cardano.Wallet.Primitive.Types.EncodeAddress t => Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiAddress t)
 instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.ApiWallet
 instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiWallet
+instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.ApiUtxoStatistics
+instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiUtxoStatistics
 instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletPutData
 instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.WalletPutData
 instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.WalletPutPassphraseData
@@ -2622,6 +2671,8 @@ instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Carda
 instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletPassphraseInfo)
 instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletState)
 instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.WalletState)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.BoundType)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.BoundType)
 instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.PoolId)
 instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.PoolId)
 instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.SlotId)
@@ -2649,7 +2700,7 @@ type Addresses t = ListAddresses t
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/listAddresses</a>
 type ListAddresses t = "wallets" :> Capture "walletId" (ApiT WalletId) :> "addresses" :> QueryParam "state" (ApiT AddressState) :> Get '[JSON] [ApiAddress t]
-type Wallets = DeleteWallet :<|> GetWallet :<|> ListWallets :<|> PostWallet :<|> PutWallet :<|> PutWalletPassphrase
+type Wallets = DeleteWallet :<|> GetWallet :<|> ListWallets :<|> PostWallet :<|> PutWallet :<|> PutWalletPassphrase :<|> GetUTxOsStatistics
 
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteWallet</a>
@@ -2674,6 +2725,10 @@ type PutWallet = "wallets" :> Capture "walletId" (ApiT WalletId) :> ReqBody '[JS
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/putWalletPassphrase</a>
 type PutWalletPassphrase = "wallets" :> Capture "walletId" (ApiT WalletId) :> "passphrase" :> ReqBody '[JSON] WalletPutPassphraseData :> PutNoContent '[Any] NoContent
+
+-- | 
+--   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/getUTxOsStatistics</a>
+type GetUTxOsStatistics = "wallets" :> Capture "walletId" (ApiT WalletId) :> "statistics" :> "utxos" :> Get '[JSON] ApiUtxoStatistics
 type Transactions t = CreateTransaction t :<|> ListTransactions t :<|> PostTransactionFee t
 
 -- | 
@@ -2765,6 +2820,7 @@ instance Formatting.Buildable.Buildable e => Cardano.Wallet.Api.Server.LiftHandl
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.Primitive.Fee.ErrAdjustForFee
 instance Formatting.Buildable.Buildable e => Cardano.Wallet.Api.Server.LiftHandler (Cardano.Wallet.ErrCreateUnsignedTx e)
 instance Formatting.Buildable.Buildable e => Cardano.Wallet.Api.Server.LiftHandler (Cardano.Wallet.ErrEstimateTxFee e)
+instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrListUTxOStatistics
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrSignTx
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrSubmitTx
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.Network.ErrNetworkUnavailable

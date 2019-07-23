@@ -685,7 +685,6 @@ x-responsesGetUTxOsStatistics: &responsesGetUTxOsStatistics
   <<: *responsesErr404
   <<: *responsesErr405
   <<: *responsesErr406
-  <<: *responsesErr423
   200:
     description: Ok
     schema: *ApiWalletUTxOsStatistics
@@ -885,7 +884,7 @@ paths:
       tags: ["Wallets"]
       summary: UTxO Statistics
       description: |
-        <p align="right">status: <strong>not implemented</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
         Return the UTxOs distribution across the whole wallet, in the form of a histogram.
 
