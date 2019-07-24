@@ -82,8 +82,8 @@ This is a shortcut command for those looking into an _out-of-the-box_ solution f
 >   --genesis-block FILE
 >   --bft-leaders FILE
 
-- :information: Please note that launch will generate a configuration for Jörmungandr in a folder specified by '--state-dir'.
-- :information: The wallet backend only works with Jörmungandr in BFT mode with a test discrimination.
+- :information_source: Please note that launch will generate a configuration for Jörmungandr in a folder specified by '--state-dir'.
+- :information_source: The wallet backend only works with Jörmungandr in BFT mode with a test discrimination.
 
 ##### --genesis-block
 
