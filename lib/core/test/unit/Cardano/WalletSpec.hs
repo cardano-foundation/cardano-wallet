@@ -401,7 +401,7 @@ setupFixture (wid, wname, wstate) = do
     policy = LinearFee (Quantity 14) (Quantity 42)
 
     slotLength :: SlotLength
-    slotLength = SlotLength 10
+    slotLength = SlotLength 1
 
     txMaxSize :: Quantity "byte" Word16
     txMaxSize = Quantity 8192
