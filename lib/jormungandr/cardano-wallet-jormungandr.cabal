@@ -1,5 +1,5 @@
 name:                cardano-wallet-jormungandr
-version:             2019.6.24
+version:             2019.7.24
 synopsis:            Wallet backend protocol-specific bits implemented using Jörmungandr
 description:         Please see README.md
 homepage:            https://github.com/input-output-hk/cardano-wallet
