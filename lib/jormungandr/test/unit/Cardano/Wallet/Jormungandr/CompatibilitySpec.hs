@@ -265,9 +265,9 @@ spec = do
                     "listen": "127.0.0.1:8080",
                     "prefix": "api"
                 },
-                "peer_2_peer": {
+                "p2p": {
                     "trusted_peers": [],
-                    "topics_of_interests": {
+                    "topics_of_interest": {
                         "messages": "low",
                         "blocks": "normal"
                     }

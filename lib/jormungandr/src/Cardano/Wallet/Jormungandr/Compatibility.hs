@@ -212,7 +212,7 @@ instance KnownNetwork n => DecodeAddress (Jormungandr n) where
                 <> B8.unpack (BS.pack [discriminant])
                 <> "."
 
--- | Generate a configuration file for Jörmungandr@0.2.3
+-- | Generate a configuration file for Jörmungandr@0.3.1
 genConfigFile
     :: FilePath
     -> BaseUrl
@@ -223,9 +223,9 @@ genConfigFile stateDir (BaseUrl _ host port path) = object
         [ "listen" .= String listen
         , "prefix" .= String prefix
         ]
-    , "peer_2_peer" .= object
+    , "p2p" .= object
         [ "trusted_peers" .= ([] :: [()])
-        , "topics_of_interests" .= object
+        , "topics_of_interest" .= object
             [ "messages" .= String "low"
             , "blocks" .= String "normal"
             ]
