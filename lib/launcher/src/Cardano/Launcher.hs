@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE LambdaCase #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -15,7 +14,6 @@ module Cardano.Launcher
     , ProcessHasExited(..)
     , launch
     , installSignalHandlers
-    , setupStateDir
     ) where
 
 import Prelude
@@ -26,12 +24,8 @@ import Control.Exception
     ( Exception, throwIO, try )
 import Data.List
     ( isPrefixOf )
-import Data.Text
-    ( Text )
 import Fmt
     ( Buildable (..), blockListF', indentF )
-import System.Directory
-    ( createDirectoryIfMissing, doesDirectoryExist )
 import System.Exit
     ( ExitCode )
 import System.Process
@@ -41,8 +35,6 @@ import System.Process
     , waitForProcess
     , withCreateProcess
     )
-
-import qualified Data.Text as T
 
 #ifdef mingw32_HOST_OS
 import Cardano.Launcher.Windows
@@ -118,15 +110,3 @@ launch cmds = do
         Right _ -> error $
             "Unreachable. Supervising threads should never finish. " <>
             "They should stay running or throw @ProcessHasExited@."
-
--- | Initialize a state directory to store blockchain data such as blocks or
--- the wallet database.
-setupStateDir :: (Text -> IO ()) -> (FilePath -> IO ()) -> FilePath -> IO ()
-setupStateDir logT withDir dir = do
-    doesDirectoryExist dir >>= \case
-        True -> logT $ "Using state directory: " <> T.pack dir
-        False -> do
-            logT $ "Creating state directory: " <> T.pack dir
-            let createParentIfMissing = True
-            createDirectoryIfMissing createParentIfMissing dir
-    withDir dir

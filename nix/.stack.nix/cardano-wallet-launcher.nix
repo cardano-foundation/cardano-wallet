@@ -19,11 +19,9 @@
         depends = [
           (hsPkgs.base)
           (hsPkgs.async)
-          (hsPkgs.directory)
           (hsPkgs.fmt)
           (hsPkgs.process)
           (hsPkgs.say)
-          (hsPkgs.text)
           ] ++ (if system.isWindows
           then [ (hsPkgs.Win32) ]
           else [ (hsPkgs.unix) ]);

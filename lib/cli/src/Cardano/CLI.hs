@@ -88,12 +88,7 @@ import Cardano.BM.Setup
 import Cardano.BM.Trace
     ( Trace, appendName, logAlert, logInfo )
 import Cardano.Launcher
-    ( Command
-    , ProcessHasExited (..)
-    , installSignalHandlers
-    , launch
-    , setupStateDir
-    )
+    ( Command, ProcessHasExited (..), installSignalHandlers, launch )
 import Cardano.Wallet.Api
     ( Api )
 import Cardano.Wallet.Api.Server
@@ -216,7 +211,12 @@ import System.Console.ANSI
     , hSetSGR
     )
 import System.Directory
-    ( XdgDirectory (..), doesFileExist, getXdgDirectory )
+    ( XdgDirectory (..)
+    , createDirectoryIfMissing
+    , doesDirectoryExist
+    , doesFileExist
+    , getXdgDirectory
+    )
 import System.Exit
     ( exitFailure, exitSuccess, exitWith )
 import System.FilePath
@@ -659,6 +659,25 @@ execLaunch verbosity stateDir withStateDir commands = do
     (ProcessHasExited pName code) <- launch commands
     logAlert tracer $ T.pack pName <> " exited with code " <> T.pack (show code)
     exitWith code
+
+-- | Initialize a state directory to store blockchain data such as blocks or
+-- the wallet database.
+setupStateDir :: (Text -> IO ()) -> (FilePath -> IO ()) -> FilePath -> IO ()
+setupStateDir logT withDir dir = do
+    exists <- doesFileExist dir
+    when exists $ do
+        putErrLn $ mconcat
+                [ T.pack dir <> " must be a directory, but it is"
+                , " a file. Exiting."
+                ]
+        exitFailure
+    doesDirectoryExist dir >>= \case
+        True -> logT $ "Using state directory: " <> T.pack dir
+        False -> do
+            logT $ "Creating state directory: " <> T.pack dir
+            let createParentIfMissing = True
+            createDirectoryIfMissing createParentIfMissing dir
+    withDir dir
 
 {-------------------------------------------------------------------------------
                               Options & Arguments

@@ -24,13 +24,15 @@ import Data.Text.Class
 import Network.HTTP.Client
     ( defaultManagerSettings, newManager )
 import System.Command
-    ( Stdout (..) )
+    ( Exit (..), Stderr (..), Stdout (..) )
 import System.Directory
     ( removeDirectory )
 import System.Exit
     ( ExitCode (..) )
+import System.IO
+    ( Handle )
 import System.IO.Temp
-    ( withSystemTempDirectory )
+    ( withSystemTempDirectory, withSystemTempFile )
 import System.Process
     ( createProcess
     , proc
@@ -44,6 +46,7 @@ import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldReturn )
 import Test.Integration.Framework.DSL
     ( KnownCommand (..)
+    , cardanoWalletCLI
     , collectStreams
     , createWalletViaCLI
     , expectEventually'
@@ -64,6 +67,17 @@ import qualified Data.Text.IO as TIO
 spec :: forall t. (KnownCommand t) => Spec
 spec = do
     describe "LAUNCH - cardano-wallet launch" $ do
+        it "LAUNCH - Stop when --state-dir is an existing file" $ withTempFile $ \f _ -> do
+            let args =
+                    [ "launch"
+                    , "--state-dir", f
+                    ]
+
+            (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
+            c `shouldBe` ExitFailure 1
+            o `shouldBe` mempty
+            e `shouldBe` f ++ " must be a directory, but it is a file. Exiting.\n"
+
         describe "LAUNCH - Can start launcher with --state-dir" $ do
             let tests =
                     [ ("existing dir", const $ pure ())
@@ -175,3 +189,6 @@ spec = do
 
 withTempDir :: (FilePath -> IO a) -> IO a
 withTempDir = withSystemTempDirectory "integration-state"
+
+withTempFile :: (FilePath -> Handle -> IO a) -> IO a
+withTempFile = withSystemTempFile "temp-file"
