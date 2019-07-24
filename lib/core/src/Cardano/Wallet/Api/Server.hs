@@ -150,10 +150,8 @@ import Servant
     , err409
     , err410
     , err500
-    , err501
     , err503
     , serve
-    , throwError
     )
 import Servant.Server
     ( Handler (..), ServantErr (..) )
@@ -465,10 +463,7 @@ listTransactions
     -> ApiT WalletId
     -> Maybe (Iso8601Range "inserted-at")
     -> Handler [ApiTransaction t]
-listTransactions w (ApiT wid) maybeRange = do
-    case maybeRange of
-        Just _ -> throwError (err501 { errBody = "Issue #466 unimplemented" })
-        Nothing -> pure ()
+listTransactions w (ApiT wid) _maybeRange = do
     txs <- liftHandler $ W.listTransactions w wid
     return $ map mkApiTransactionFromInfo txs
 
