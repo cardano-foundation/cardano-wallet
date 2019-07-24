@@ -24,34 +24,7 @@
 
 - [ ] Verify all PRs since the last release have a corresponding milestone (hint: we can filter PR by merge date on github using `merged:>yyyy-mm-dd` filter).
 
-- [ ] List of all the stories and corresponding PRs included in the release. Here below is a small script to do this quickly using the Github API
-
-  <details>
-    <summary>make_changelog.sh</summary>
-
-  ```
-  # Automatically generate CHANGELOG from merged PRs
-  #
-  # Usage: make_changelog.sh <previous-release> <current-release>
-  #
-  # Examples:
-  #
-  #   make_changelog.sh 2019-07-02 2019-07-24
-
-  API_TOKEN=<github-api-token>
-
-  PULL_REQUESTS=$(curl -X GET \
-    -H "Authorization: token $API_TOKEN" \
-    -H "Accept: application/vnd.github.v3+json" \
-    https://api.github.com/search/issues?q=repo:input-output-hk/cardano-wallet+is:pr+is:merged+merged:%3E$1+merged:%3C$2)
-
-  PULL_REQUESTS=$(echo $PULL_REQUESTS | jq '.items | map({number:.number,title:.title,milestone:.milestone.title}) | group_by(.milestone)')
-  PULL_REQUESTS=$(echo $PULL_REQUESTS | jq '.[] | map([.milestone,"#"+(.number | tostring),.title] | join(" | "))')
-
-  printf "%s\n" "$PULL_REQUESTS" | sed 's/"//g'
-  ```
-
-  </details>
+- [ ] List of all the stories and corresponding PRs included in the release.
 
 - [ ] Write release notes in the [release page](https://github.com/input-output-hk/cardano-wallet/releases), following the [RELEASE_TEMPLATE](https://github.com/input-output-hk/cardano-wallet/blob/master/.github/RELEASE_TEMPLATE.md).
 
