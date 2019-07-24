@@ -20,7 +20,7 @@ import Cardano.Wallet.Primitive.Types
     , encodeAddress
     )
 import Control.Monad
-    ( forM_ )
+    ( forM_, join )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Product.Typed
@@ -667,7 +667,11 @@ spec = do
                 it title $ \ctx -> do
                     wallet <- emptyWallet ctx
                     (Exit code, Stdout out, Stderr err) <-
-                        listTransactionsViaCLI @t ctx wallet mStart mEnd
+                        listTransactionsViaCLI @t ctx $ join
+                            [ [T.unpack $ wallet ^. walletId]
+                            , maybe [] (\t -> ["--start", t]) mStart
+                            , maybe [] (\t -> ["--end"  , t]) mEnd
+                            ]
                     err `shouldBe` "Ok.\n"
                     out `shouldBe` "[]\n"
                     code `shouldBe` ExitSuccess

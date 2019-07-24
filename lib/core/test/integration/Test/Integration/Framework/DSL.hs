@@ -1070,18 +1070,13 @@ postTransactionFeeViaCLI ctx args = do
 listTransactionsViaCLI
     :: forall t r s . (CmdResult r, HasType Port s, KnownCommand t)
     => s
-    -> ApiWallet
-    -> Maybe String
-    -> Maybe String
+    -> [String]
     -> IO r
-listTransactionsViaCLI ctx wallet mTimeRangeStart mTimeRangeEnd =
-    cardanoWalletCLI @t $ join
-        [ ["transaction", "list"]
-        , ["--port", show (ctx ^. typed @Port)]
-        , [T.unpack $ wallet ^. walletId]
-        , maybe [] (\t -> ["--start", t]) mTimeRangeStart
-        , maybe [] (\t -> ["--end",   t]) mTimeRangeEnd
-        ]
+listTransactionsViaCLI ctx args = cardanoWalletCLI @t $ join
+    [ ["transaction", "list"]
+    , ["--port", show (ctx ^. typed @Port)]
+    , args
+    ]
 
 -- There is a dependency cycle in the packages.
 --
