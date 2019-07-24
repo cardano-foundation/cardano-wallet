@@ -5,7 +5,7 @@
       specVersion = "1.10";
       identifier = {
         name = "cardano-wallet-http-bridge";
-        version = "2019.6.24";
+        version = "2019.7.24";
         };
       license = "MIT";
       copyright = "2019 IOHK";
