@@ -262,6 +262,30 @@ Invalidated :: TxStatus
 newtype TxWitness
 TxWitness :: ByteString -> TxWitness
 [$sel:unWitness:TxWitness] :: TxWitness -> ByteString
+
+-- | Full expanded and resolved information about a transaction, suitable
+--   for presentation to the user.
+data TransactionInfo
+TransactionInfo :: !Hash "Tx" -> ![(TxIn, Maybe TxOut)] -> ![TxOut] -> !TxMeta -> Quantity "slot" Natural -> UTCTime -> TransactionInfo
+
+-- | Transaction ID of this transaction
+[$sel:txInfoId:TransactionInfo] :: TransactionInfo -> !Hash "Tx"
+
+-- | Transaction inputs and (maybe) corresponding outputs of the source.
+--   Source information can only be provided for outgoing payments.
+[$sel:txInfoInputs:TransactionInfo] :: TransactionInfo -> ![(TxIn, Maybe TxOut)]
+
+-- | Payment destination.
+[$sel:txInfoOutputs:TransactionInfo] :: TransactionInfo -> ![TxOut]
+
+-- | Other information calculated from the transaction.
+[$sel:txInfoMeta:TransactionInfo] :: TransactionInfo -> !TxMeta
+
+-- | Number of slots since the transaction slot.
+[$sel:txInfoDepth:TransactionInfo] :: TransactionInfo -> Quantity "slot" Natural
+
+-- | Creation time of the block including this transaction.
+[$sel:txInfoTime:TransactionInfo] :: TransactionInfo -> UTCTime
 txIns :: forall t. DefineTx t => Set (Tx t) -> Set TxIn
 
 -- | True if the given tuple refers to a pending transaction
@@ -405,10 +429,18 @@ data SlotId
 SlotId :: !Word64 -> !Word16 -> SlotId
 [$sel:epochNumber:SlotId] :: SlotId -> !Word64
 [$sel:slotNumber:SlotId] :: SlotId -> !Word16
+
+-- | Duration of a single slot.
 newtype SlotLength
-SlotLength :: DiffTime -> SlotLength
+SlotLength :: NominalDiffTime -> SlotLength
+
+-- | Number of slots in a single epoch
 newtype EpochLength
 EpochLength :: Word64 -> EpochLength
+
+-- | Blockchain start time
+newtype StartTime
+StartTime :: UTCTime -> StartTime
 
 -- | Compute the approximate ratio / progress between two slots. This is an
 --   approximation for a few reasons, one of them being that we hard code
@@ -420,6 +452,14 @@ flatSlot :: EpochLength -> SlotId -> Word64
 
 -- | Convert a <a>flatSlot</a> index to <a>SlotId</a>.
 fromFlatSlot :: EpochLength -> Word64 -> SlotId
+
+-- | The time that a slot begins.
+slotStartTime :: EpochLength -> SlotLength -> StartTime -> SlotId -> UTCTime
+
+-- | <tt>slotDifference a b</tt> is how many slots <tt>a</tt> is after
+--   <tt>b</tt>. The result is non-negative, and if <tt>b &gt; a</tt> then
+--   this function returns zero.
+slotDifference :: EpochLength -> SlotId -> SlotId -> Quantity "slot" Natural
 
 -- | Additional information about a wallet that can't simply be derived
 --   from the blockchain like <tt>Wallet s t</tt> is.
@@ -506,6 +546,9 @@ instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.BlockHeader
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.BlockHeader
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.BlockHeader
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.BlockHeader
+instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.TransactionInfo
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.TransactionInfo
+instance GHC.Show.Show Cardano.Wallet.Primitive.Types.TransactionInfo
 instance GHC.Base.Monoid Cardano.Wallet.Primitive.Types.UTxO
 instance GHC.Base.Semigroup Cardano.Wallet.Primitive.Types.UTxO
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.UTxO
@@ -520,6 +563,8 @@ instance GHC.Classes.Ord (Cardano.Wallet.Primitive.Types.Hash tag)
 instance GHC.Classes.Eq (Cardano.Wallet.Primitive.Types.Hash tag)
 instance GHC.Generics.Generic (Cardano.Wallet.Primitive.Types.Hash tag)
 instance GHC.Show.Show (Cardano.Wallet.Primitive.Types.Hash tag)
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.StartTime
+instance GHC.Show.Show Cardano.Wallet.Primitive.Types.StartTime
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.EpochLength
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.EpochLength
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.SlotLength
@@ -2141,7 +2186,7 @@ instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t => Cardano.Wa
 --   to realize its role as being intermediary between the three.
 module Cardano.Wallet
 data WalletLayer s t
-WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)) -> (WalletId -> (WalletMetadata -> WalletMetadata) -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> (Passphrase "encryption-old", Passphrase "encryption-new") -> ExceptT ErrUpdatePassphrase IO ()) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO ()) -> ((IsOurs s, CompareDiscovery s, KnownAddresses s, DefineTx t) => WalletId -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]) -> (forall e. (DefineTx t, e ~ ErrValidateSelection t) => WalletId -> NonEmpty TxOut -> ExceptT (ErrCreateUnsignedTx e) IO CoinSelection) -> (forall e. (DefineTx t, e ~ ErrValidateSelection t) => WalletId -> NonEmpty TxOut -> ExceptT (ErrEstimateTxFee e) IO Fee) -> (DefineTx t => WalletId -> ExceptT ErrListUTxOStatistics IO UTxOStatistics) -> ((Show s, NFData s, IsOwned s, GenChange s) => WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx t, TxMeta, [TxWitness])) -> (DefineTx t => WalletId -> (Tx t, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()) -> (DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO [(Tx t, TxMeta)]) -> WalletLayer s t
+WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)) -> (WalletId -> (WalletMetadata -> WalletMetadata) -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> (Passphrase "encryption-old", Passphrase "encryption-new") -> ExceptT ErrUpdatePassphrase IO ()) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO ()) -> ((IsOurs s, CompareDiscovery s, KnownAddresses s, DefineTx t) => WalletId -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]) -> (forall e. (DefineTx t, e ~ ErrValidateSelection t) => WalletId -> NonEmpty TxOut -> ExceptT (ErrCreateUnsignedTx e) IO CoinSelection) -> (forall e. (DefineTx t, e ~ ErrValidateSelection t) => WalletId -> NonEmpty TxOut -> ExceptT (ErrEstimateTxFee e) IO Fee) -> (DefineTx t => WalletId -> ExceptT ErrListUTxOStatistics IO UTxOStatistics) -> ((Show s, NFData s, IsOwned s, GenChange s) => WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx t, TxMeta, [TxWitness])) -> (DefineTx t => WalletId -> (Tx t, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> (DefineTx t => WalletId -> ExceptT ErrListTransactions IO [TransactionInfo]) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()) -> WalletLayer s t
 
 -- | Initialise and store a new wallet, returning its Id.
 [$sel:createWallet:WalletLayer] :: WalletLayer s t -> (Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId
@@ -2198,34 +2243,36 @@ WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletNa
 -- | Broadcast a (signed) transaction to the network.
 [$sel:submitTx:WalletLayer] :: WalletLayer s t -> DefineTx t => WalletId -> (Tx t, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()
 
--- | Attach a given private key to a wallet. The private key is necessary
---   for some operations like signing transactions or, generating new
---   accounts.
-[$sel:attachPrivateKey:WalletLayer] :: WalletLayer s t -> WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()
-
 -- | List all transactions and metadata from history for a given wallet.
 --   
 --   The result is sorted on <a>BlockHeader</a> in descending order. The
 --   most recent transaction comes first.
-[$sel:listTransactions:WalletLayer] :: WalletLayer s t -> DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO [(Tx t, TxMeta)]
+[$sel:listTransactions:WalletLayer] :: WalletLayer s t -> DefineTx t => WalletId -> ExceptT ErrListTransactions IO [TransactionInfo]
+
+-- | Attach a given private key to a wallet. The private key is necessary
+--   for some operations like signing transactions or, generating new
+--   accounts.
+[$sel:attachPrivateKey:WalletLayer] :: WalletLayer s t -> WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()
 data BlockchainParameters t
-BlockchainParameters :: Block (Tx t) -> UTCTime -> FeePolicy -> SlotLength -> EpochLength -> Quantity "byte" Word16 -> BlockchainParameters t
+BlockchainParameters :: Block (Tx t) -> StartTime -> FeePolicy -> SlotLength -> EpochLength -> Quantity "byte" Word16 -> BlockchainParameters t
 
 -- | Very first block
 [$sel:getGenesisBlock:BlockchainParameters] :: BlockchainParameters t -> Block (Tx t)
-[$sel:getGenesisBlockDate:BlockchainParameters] :: BlockchainParameters t -> UTCTime
+
+-- | Start time of the chain
+[$sel:getGenesisBlockDate:BlockchainParameters] :: BlockchainParameters t -> StartTime
 
 -- | Policy regarding transcation fee
 [$sel:getFeePolicy:BlockchainParameters] :: BlockchainParameters t -> FeePolicy
 
 -- | Length, in seconds, of a slot
 [$sel:getSlotLength:BlockchainParameters] :: BlockchainParameters t -> SlotLength
+
+-- | Number of slots in a single epoch
 [$sel:getEpochLength:BlockchainParameters] :: BlockchainParameters t -> EpochLength
 
 -- | Maximum size of a transaction (soft or hard limit)
 [$sel:getTxMaxSize:BlockchainParameters] :: BlockchainParameters t -> Quantity "byte" Word16
-newtype ErrListUTxOStatistics
-ErrListUTxOStatisticsNoSuchWallet :: ErrNoSuchWallet -> ErrListUTxOStatistics
 newtype ErrAdjustForFee
 
 -- | UTxO exhausted during fee covering We record what amount missed to
@@ -2267,6 +2314,12 @@ ErrCreateUnsignedTxFee :: ErrAdjustForFee -> ErrCreateUnsignedTx e
 data ErrEstimateTxFee e
 ErrEstimateTxFeeNoSuchWallet :: ErrNoSuchWallet -> ErrEstimateTxFee e
 ErrEstimateTxFeeCoinSelection :: ErrCoinSelection e -> ErrEstimateTxFee e
+
+-- | Errors that can occur when trying to list transactions.
+newtype ErrListTransactions
+ErrListTransactionsNoSuchWallet :: ErrNoSuchWallet -> ErrListTransactions
+newtype ErrListUTxOStatistics
+ErrListUTxOStatisticsNoSuchWallet :: ErrNoSuchWallet -> ErrListUTxOStatistics
 
 -- | Possible signing error
 newtype ErrMkStdTx
@@ -2332,6 +2385,8 @@ ErrWrongPassphrase :: ErrWrongPassphrase
 
 -- | Create a new instance of the wallet layer.
 newWalletLayer :: forall s t. Buildable (Tx t) => Trace IO Text -> BlockchainParameters t -> DBLayer IO s t -> NetworkLayer t IO -> TransactionLayer t -> IO (WalletLayer s t)
+instance GHC.Classes.Eq Cardano.Wallet.ErrListTransactions
+instance GHC.Show.Show Cardano.Wallet.ErrListTransactions
 instance GHC.Classes.Eq Cardano.Wallet.ErrSignTx
 instance GHC.Show.Show Cardano.Wallet.ErrSignTx
 instance GHC.Classes.Eq Cardano.Wallet.ErrUpdatePassphrase
@@ -2446,18 +2501,22 @@ ApiBlockData :: UTCTime -> !ApiT SlotId -> ApiBlockData
 [$sel:time:ApiBlockData] :: ApiBlockData -> UTCTime
 [$sel:block:ApiBlockData] :: ApiBlockData -> !ApiT SlotId
 data ApiTransaction t
-ApiTransaction :: !ApiT (Hash "Tx") -> !Quantity "lovelace" Natural -> !Maybe ApiBlockData -> !Quantity "block" Natural -> !ApiT Direction -> !NonEmpty (AddressAmount t) -> !NonEmpty (AddressAmount t) -> !ApiT TxStatus -> ApiTransaction t
+ApiTransaction :: !ApiT (Hash "Tx") -> !Quantity "lovelace" Natural -> !Maybe ApiBlockData -> !Quantity "slot" Natural -> !ApiT Direction -> !NonEmpty (ApiTxInput t) -> !NonEmpty (AddressAmount t) -> !ApiT TxStatus -> ApiTransaction t
 [$sel:id:ApiTransaction] :: ApiTransaction t -> !ApiT (Hash "Tx")
 [$sel:amount:ApiTransaction] :: ApiTransaction t -> !Quantity "lovelace" Natural
 [$sel:insertedAt:ApiTransaction] :: ApiTransaction t -> !Maybe ApiBlockData
-[$sel:depth:ApiTransaction] :: ApiTransaction t -> !Quantity "block" Natural
+[$sel:depth:ApiTransaction] :: ApiTransaction t -> !Quantity "slot" Natural
 [$sel:direction:ApiTransaction] :: ApiTransaction t -> !ApiT Direction
-[$sel:inputs:ApiTransaction] :: ApiTransaction t -> !NonEmpty (AddressAmount t)
+[$sel:inputs:ApiTransaction] :: ApiTransaction t -> !NonEmpty (ApiTxInput t)
 [$sel:outputs:ApiTransaction] :: ApiTransaction t -> !NonEmpty (AddressAmount t)
 [$sel:status:ApiTransaction] :: ApiTransaction t -> !ApiT TxStatus
 newtype ApiFee
 ApiFee :: Quantity "lovelace" Natural -> ApiFee
 [$sel:amount:ApiFee] :: ApiFee -> Quantity "lovelace" Natural
+data ApiTxInput t
+ApiTxInput :: !Maybe (AddressAmount t) -> !ApiT TxIn -> ApiTxInput t
+[$sel:source:ApiTxInput] :: ApiTxInput t -> !Maybe (AddressAmount t)
+[$sel:input:ApiTxInput] :: ApiTxInput t -> !ApiT TxIn
 data AddressAmount t
 AddressAmount :: !(ApiT Address, Proxy t) -> !Quantity "lovelace" Natural -> AddressAmount t
 [$sel:address:AddressAmount] :: AddressAmount t -> !(ApiT Address, Proxy t)
@@ -2478,6 +2537,7 @@ CannotCoverFee :: ApiErrorCode
 InvalidCoinSelection :: ApiErrorCode
 NetworkUnreachable :: ApiErrorCode
 NetworkMisconfigured :: ApiErrorCode
+NetworkTipNotFound :: ApiErrorCode
 CreatedInvalidTransaction :: ApiErrorCode
 RejectedByCoreNode :: ApiErrorCode
 BadRequest :: ApiErrorCode
@@ -2601,6 +2661,9 @@ instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.PostTransactionData t)
 instance GHC.Show.Show (Cardano.Wallet.Api.Types.ApiTransaction t)
 instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.ApiTransaction t)
 instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.ApiTransaction t)
+instance GHC.Show.Show (Cardano.Wallet.Api.Types.ApiTxInput t)
+instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.ApiTxInput t)
+instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.ApiTxInput t)
 instance GHC.Show.Show (Cardano.Wallet.Api.Types.PostTransactionFeeData t)
 instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.PostTransactionFeeData t)
 instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.PostTransactionFeeData t)
@@ -2640,6 +2703,8 @@ instance Cardano.Wallet.Primitive.Types.DecodeAddress t => Data.Aeson.Types.From
 instance Cardano.Wallet.Primitive.Types.EncodeAddress t => Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.PostTransactionData t)
 instance Cardano.Wallet.Primitive.Types.DecodeAddress t => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiTransaction t)
 instance Cardano.Wallet.Primitive.Types.EncodeAddress t => Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiTransaction t)
+instance Cardano.Wallet.Primitive.Types.DecodeAddress t => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiTxInput t)
+instance Cardano.Wallet.Primitive.Types.EncodeAddress t => Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiTxInput t)
 instance Cardano.Wallet.Primitive.Types.DecodeAddress t => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.PostTransactionFeeData t)
 instance Cardano.Wallet.Primitive.Types.EncodeAddress t => Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.PostTransactionFeeData t)
 instance Cardano.Wallet.Primitive.Types.DecodeAddress t => Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.AddressAmount t)
@@ -2674,6 +2739,8 @@ instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Carda
 instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.PoolId)
 instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.SlotId)
 instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.SlotId)
+instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.TxIn)
+instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.TxIn)
 instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.Types.Hash "Tx"))
 instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT (Cardano.Wallet.Primitive.Types.Hash "Tx"))
 instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.Direction)
@@ -2822,6 +2889,7 @@ instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrSignTx
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrSubmitTx
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.Network.ErrNetworkUnavailable
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrUpdatePassphrase
+instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrListTransactions
 instance Cardano.Wallet.Api.Server.LiftHandler Servant.Server.Internal.ServantErr.ServantErr
 
 module Cardano.Wallet.Version

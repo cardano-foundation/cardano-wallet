@@ -96,7 +96,7 @@ data ConfigParam
 
 -- | The official start time of the blockchain, in seconds since the Unix
 --   epoch.
-Block0Date :: UTCTime -> ConfigParam
+Block0Date :: StartTime -> ConfigParam
 
 -- | Address discrimination. Testnet / Mainnet.
 Discrimination :: Network -> ConfigParam
@@ -108,7 +108,7 @@ Consensus :: ConsensusVersion -> ConfigParam
 SlotsPerEpoch :: EpochLength -> ConfigParam
 
 -- | Slot duration in seconds.
-SlotDuration :: DiffTime -> ConfigParam
+SlotDuration :: NominalDiffTime -> ConfigParam
 
 -- | The length of the suffix of the chain (in blocks) considered unstable.
 EpochStabilityDepth :: Quantity "block" Word32 -> ConfigParam
