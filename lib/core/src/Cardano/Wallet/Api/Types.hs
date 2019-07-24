@@ -42,6 +42,7 @@ module Cardano.Wallet.Api.Types
     , ApiBlockData (..)
     , ApiTransaction (..)
     , ApiFee (..)
+    , ApiTxInput (..)
     , AddressAmount (..)
     , ApiErrorCode (..)
     , Iso8601Range (..)
@@ -74,6 +75,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolId (..)
     , ShowFmt (..)
     , SlotId (..)
+    , TxIn (..)
     , TxStatus (..)
     , WalletBalance (..)
     , WalletDelegation (..)
@@ -83,6 +85,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletState (..)
     , isValidCoin
     )
+import Control.Applicative
+    ( optional )
 import Control.Arrow
     ( left )
 import Control.Monad
@@ -91,14 +95,19 @@ import Data.Aeson
     ( FromJSON (..)
     , SumEncoding (..)
     , ToJSON (..)
+    , Value (Object)
     , camelTo2
     , constructorTagModifier
     , fieldLabelModifier
     , genericParseJSON
     , genericToJSON
+    , object
     , omitNothingFields
     , sumEncoding
     , tagSingleConstructors
+    , withObject
+    , (.:)
+    , (.=)
     )
 import Data.Bifunctor
     ( bimap, first )
@@ -198,11 +207,16 @@ data ApiTransaction t = ApiTransaction
     { id :: !(ApiT (Hash "Tx"))
     , amount :: !(Quantity "lovelace" Natural)
     , insertedAt :: !(Maybe ApiBlockData)
-    , depth :: !(Quantity "block" Natural)
+    , depth :: !(Quantity "slot" Natural)
     , direction :: !(ApiT Direction)
-    , inputs :: !(NonEmpty (AddressAmount t))
+    , inputs :: !(NonEmpty (ApiTxInput t))
     , outputs :: !(NonEmpty (AddressAmount t))
     , status :: !(ApiT TxStatus)
+    } deriving (Eq, Generic, Show)
+
+data ApiTxInput t = ApiTxInput
+    { source :: !(Maybe (AddressAmount t))
+    , input :: !(ApiT TxIn)
     } deriving (Eq, Generic, Show)
 
 data AddressAmount t = AddressAmount
@@ -230,6 +244,7 @@ data ApiErrorCode
     | InvalidCoinSelection
     | NetworkUnreachable
     | NetworkMisconfigured
+    | NetworkTipNotFound
     | CreatedInvalidTransaction
     | RejectedByCoreNode
     | BadRequest
@@ -550,6 +565,25 @@ instance DecodeAddress t => FromJSON (ApiTransaction t) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance EncodeAddress t => ToJSON (ApiTransaction t) where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance DecodeAddress t => FromJSON (ApiTxInput t) where
+    parseJSON v = ApiTxInput <$> optional (parseJSON v) <*> parseJSON v
+
+instance EncodeAddress t => ToJSON (ApiTxInput t) where
+    toJSON (ApiTxInput s i) =
+        Object (maybe mempty (fromValue . toJSON) s <> fromValue (toJSON i))
+      where
+        fromValue (Object o) = o
+        fromValue _ = mempty
+
+instance FromJSON (ApiT TxIn) where
+    parseJSON = withObject "TxIn" $ \v -> ApiT <$>
+        (TxIn <$> fmap getApiT (v .: "id") <*> v .: "index")
+
+instance ToJSON (ApiT TxIn) where
+    toJSON (ApiT (TxIn txid ix)) = object
+        [ "id" .= toJSON (ApiT txid)
+        , "index" .= toJSON ix ]
 
 instance FromJSON (ApiT (Hash "Tx")) where
     parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText

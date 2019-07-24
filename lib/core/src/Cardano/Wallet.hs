@@ -24,11 +24,12 @@ module Cardano.Wallet
     , BlockchainParameters (..)
 
     -- * Errors
-    , ErrListUTxOStatistics (..)
     , ErrAdjustForFee (..)
     , ErrCoinSelection (..)
     , ErrCreateUnsignedTx (..)
     , ErrEstimateTxFee (..)
+    , ErrListTransactions (..)
+    , ErrListUTxOStatistics (..)
     , ErrMkStdTx (..)
     , ErrNetworkUnavailable (..)
     , ErrNoSuchWallet (..)
@@ -109,9 +110,15 @@ import Cardano.Wallet.Primitive.Types
     , DefineTx (..)
     , Direction (..)
     , EpochLength (..)
+    , Hash (..)
+    , SlotId (..)
     , SlotId (..)
     , SlotLength (..)
+    , SlotLength (..)
+    , StartTime (..)
+    , TransactionInfo (..)
     , Tx (..)
+    , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
     , TxStatus (..)
@@ -125,7 +132,9 @@ import Cardano.Wallet.Primitive.Types
     , WalletState (..)
     , computeUtxoStatistics
     , log10
+    , slotDifference
     , slotRatio
+    , slotStartTime
     )
 import Cardano.Wallet.Transaction
     ( ErrMkStdTx (..), ErrValidateSelection, TransactionLayer (..) )
@@ -172,7 +181,7 @@ import Data.Text
 import Data.Text.Class
     ( toText )
 import Data.Time.Clock
-    ( UTCTime, diffTimeToPicoseconds, getCurrentTime )
+    ( getCurrentTime )
 import Data.Word
     ( Word16 )
 import Fmt
@@ -288,6 +297,15 @@ data WalletLayer s t = WalletLayer
         -> ExceptT ErrSubmitTx IO ()
         -- ^ Broadcast a (signed) transaction to the network.
 
+    , listTransactions
+        :: DefineTx t
+        => WalletId
+        -> ExceptT ErrListTransactions IO [TransactionInfo]
+        -- ^ List all transactions and metadata from history for a given wallet.
+        --
+        -- The result is sorted on 'slotId' in descending order. The most recent
+        -- transaction comes first.
+
     , attachPrivateKey
         :: WalletId
         -> (Key 'RootK XPrv, Passphrase "encryption")
@@ -296,14 +314,6 @@ data WalletLayer s t = WalletLayer
         -- necessary for some operations like signing transactions or,
         -- generating new accounts.
 
-    , listTransactions
-        :: DefineTx t
-        => WalletId
-        -> ExceptT ErrNoSuchWallet IO [(Tx t, TxMeta)]
-        -- ^ List all transactions and metadata from history for a given wallet.
-        --
-        -- The result is sorted on 'slotId' in descending order. The most recent
-        -- transaction comes first.
     }
 
 -- | Errors occuring when creating an unsigned transaction
@@ -349,6 +359,11 @@ data ErrWithRootKey
     | ErrWithRootKeyWrongPassphrase WalletId ErrWrongPassphrase
     deriving (Show, Eq)
 
+-- | Errors that can occur when trying to list transactions.
+newtype ErrListTransactions
+    = ErrListTransactionsNoSuchWallet ErrNoSuchWallet
+    deriving (Show, Eq)
+
 {-------------------------------------------------------------------------------
                                 Worker Registry
 -------------------------------------------------------------------------------}
@@ -383,12 +398,14 @@ cancelWorker (WorkerRegistry mvar) wid =
 data BlockchainParameters t = BlockchainParameters
     { getGenesisBlock :: Block (Tx t)
         -- ^ Very first block
-    , getGenesisBlockDate :: UTCTime
+    , getGenesisBlockDate :: StartTime
+        -- ^ Start time of the chain
     , getFeePolicy :: FeePolicy
         -- ^ Policy regarding transcation fee
     , getSlotLength :: SlotLength
         -- ^ Length, in seconds, of a slot
     , getEpochLength :: EpochLength
+        -- ^ Number of slots in a single epoch
     , getTxMaxSize :: Quantity "byte" Word16
         -- ^ Maximum size of a transaction (soft or hard limit)
     }
@@ -427,7 +444,7 @@ newWalletLayer tracer bp db nw tl = do
   where
     BlockchainParameters
         block0
-        _block0Date
+        block0Date
         feePolicy
         (SlotLength slotLength)
         slotsPerEpoch
@@ -506,11 +523,6 @@ newWalletLayer tracer bp db nw tl = do
     _listWallets =
         fmap (\(PrimaryKey wid) -> wid) <$> DB.listWallets db
 
-    _listTransactions
-        :: WalletId
-        -> ExceptT ErrNoSuchWallet IO [(Tx t, TxMeta)]
-    _listTransactions wid = liftIO $ map snd <$> DB.readTxHistory db (PrimaryKey wid)
-
     _removeWallet
         :: WorkerRegistry
         -> WalletId
@@ -537,6 +549,15 @@ newWalletLayer tracer bp db nw tl = do
                 Right tip -> do
                     restoreStep t wid (currentTip w, tip)
         liftIO $ registerWorker re (wid, worker)
+
+    _listUtxoStatistics
+        :: (DefineTx t)
+        => WalletId
+        -> ExceptT ErrListUTxOStatistics IO UTxOStatistics
+    _listUtxoStatistics wid = do
+        (w, _) <- withExceptT ErrListUTxOStatisticsNoSuchWallet (_readWallet wid)
+        let utxo = availableUTxO @s @t w
+        pure $ computeUtxoStatistics log10 utxo
 
     -- | Infinite restoration loop. We drain the whole available chain and try
     -- to catch up with the node. In case of error, we log it and wait a bit
@@ -575,7 +596,8 @@ newWalletLayer tracer bp db nw tl = do
         -> BlockHeader
         -> IO ()
     restoreSleep t wid slot = do
-        let halfSlotLengthDelay = fromIntegral (diffTimeToPicoseconds slotLength `div` 2000000)
+        -- NOTE: Conversion functions will treat 'NominalDiffTime' as picoseconds
+        let halfSlotLengthDelay = fromEnum slotLength `div` 2000000
         threadDelay halfSlotLengthDelay
         runExceptT (networkTip nw) >>= \case
             Left e -> do
@@ -700,14 +722,49 @@ newWalletLayer tracer bp db nw tl = do
         let estimateFee = computeFee feePolicy . estimateSize tl
         pure $ estimateFee sel
 
-    _listUtxoStatistics
+    _listTransactions
         :: (DefineTx t)
         => WalletId
-        -> ExceptT ErrListUTxOStatistics IO UTxOStatistics
-    _listUtxoStatistics wid = do
-        (w, _) <- withExceptT ErrListUTxOStatisticsNoSuchWallet (_readWallet wid)
-        let utxo = availableUTxO @s @t w
-        pure $ computeUtxoStatistics log10 utxo
+        -> ExceptT ErrListTransactions IO [TransactionInfo]
+    _listTransactions wid = do
+        (w, _) <- withExceptT ErrListTransactionsNoSuchWallet $ _readWallet wid
+        let tip = currentTip w ^. #slotId
+        liftIO $ assemble tip <$> DB.readTxHistory db (PrimaryKey wid)
+      where
+        -- This relies on DB.readTxHistory returning all necessary transactions
+        -- to assemble coin selection information for outgoing payments.
+        -- To reliably provide this information, it should be looked up when
+        -- applying blocks, but that is future work (issue #573).
+        assemble
+            :: SlotId
+            -> [(Hash "Tx", (Tx t, TxMeta))]
+            -> [TransactionInfo]
+        assemble tip txs = map mkTxInfo txs
+          where
+            mkTxInfo (txid, (tx, meta)) = TransactionInfo
+                { txInfoId = txid
+                , txInfoInputs = [(txIn, lookupOutput txIn) | txIn <- W.inputs @t tx]
+                , txInfoOutputs = W.outputs @t tx
+                , txInfoMeta = meta
+                , txInfoDepth = slotDifference slotsPerEpoch tip (meta ^. #slotId)
+                , txInfoTime = txTime (meta ^. #slotId)
+                }
+            txOuts = Map.fromList
+                [ (txid, W.outputs @t tx)
+                | (txid, (tx, _)) <- txs ]
+            -- Because we only track UTxO of this wallet, we can only return
+            -- this information for outgoing payments.
+            lookupOutput (TxIn txid index) =
+                Map.lookup txid txOuts >>= atIndex (fromIntegral index)
+            atIndex i xs = if i < length xs then Just (xs !! i) else Nothing
+            -- Get the approximate time of a transaction, given its 'SlotId'. We
+            -- assume that the transaction "happens" at the start of the
+            -- slot. This is purely arbitrary and in practice, any time between
+            -- the start of a slot and the end could be a validate candidate.
+            txTime = slotStartTime
+                slotsPerEpoch
+                (SlotLength slotLength)
+                block0Date
 
     _signTx
         :: (Show s, NFData s, IsOwned s, GenChange s)

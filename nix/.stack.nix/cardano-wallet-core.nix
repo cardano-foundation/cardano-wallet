@@ -78,6 +78,7 @@
             (hsPkgs.fmt)
             (hsPkgs.foldl)
             (hsPkgs.generic-arbitrary)
+            (hsPkgs.generic-lens)
             (hsPkgs.hspec)
             (hsPkgs.hspec-golden-aeson)
             (hsPkgs.http-api-data)

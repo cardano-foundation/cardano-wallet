@@ -244,7 +244,7 @@ x-transactionInsertedAt: &transactionInsertedAt
 
 x-transactionDepth: &transactionDepth
   description: Current depth of the transaction in the local chain
-  <<: *numberOfBlocks
+  <<: *numberOfSlots
 
 x-transactionDirection: &transactionDirection
   type: string
@@ -253,7 +253,24 @@ x-transactionDirection: &transactionDirection
     - incoming
 
 x-transactionInputs: &transactionInputs
-  description: A list of resolved inputs
+  description: A list of transaction inputs
+  type: array
+  minItems: 1
+  items:
+    type: object
+    required:
+      - id
+      - index
+    properties:
+      address: *addressId
+      amount: *transactionAmount
+      id: *transactionId
+      index:
+        type: integer
+        minimum: 0
+
+x-transactionOutputs: &transactionOutputs
+  description: A list of target outputs
   type: array
   minItems: 1
   items:
@@ -264,10 +281,6 @@ x-transactionInputs: &transactionInputs
     properties:
       address: *addressId
       amount: *transactionAmount
-
-x-transactionOutputs: &transactionOutputs
-  description: A list of target outputs
-  <<: *transactionInputs
 
 x-transactionStatus: &transactionStatus
   description: |

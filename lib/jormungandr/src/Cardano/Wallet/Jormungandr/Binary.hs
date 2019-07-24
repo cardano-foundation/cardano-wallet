@@ -125,7 +125,7 @@ import Data.Proxy
 import Data.Quantity
     ( Quantity (..) )
 import Data.Time.Clock
-    ( DiffTime, UTCTime, secondsToDiffTime )
+    ( NominalDiffTime, secondsToDiffTime )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Word
@@ -354,7 +354,7 @@ putTx (Tx inputs outputs) = do
 -------------------------------------------------------------------------------}
 
 data ConfigParam
-    = Block0Date UTCTime
+    = Block0Date W.StartTime
     -- ^ The official start time of the blockchain, in seconds since the Unix
     -- epoch.
     | Discrimination Network
@@ -363,7 +363,7 @@ data ConfigParam
     -- ^ Consensus version. BFT / Genesis Praos.
     | SlotsPerEpoch W.EpochLength
     -- ^ Number of slots in an epoch.
-    | SlotDuration DiffTime
+    | SlotDuration NominalDiffTime
     -- ^ Slot duration in seconds.
     | EpochStabilityDepth (Quantity "block" Word32)
     -- ^ The length of the suffix of the chain (in blocks) considered unstable.
@@ -401,10 +401,10 @@ getConfigParam = label "getConfigParam" $ do
     let len = fromIntegral $ taglen .&. (63) -- 0b111111
     isolate len $ case tag of
         1 -> Discrimination <$> getNetwork
-        2 -> Block0Date . posixSecondsToUTCTime . fromIntegral <$> getWord64be
+        2 -> Block0Date . W.StartTime . posixSecondsToUTCTime . fromIntegral <$> getWord64be
         3 -> Consensus <$> getConsensusVersion
         4 -> SlotsPerEpoch . W.EpochLength . fromIntegral  <$> getWord32be
-        5 -> SlotDuration . secondsToDiffTime . fromIntegral <$> getWord8
+        5 -> SlotDuration . secondsToNominalDiffTime <$> getWord8
         6 -> EpochStabilityDepth . Quantity <$> getWord32be
         8 -> ConsensusGenesisPraosParamF <$> getMilli
         9 -> MaxNumberOfTransactionsPerBlock <$> getWord32be
@@ -416,6 +416,14 @@ getConfigParam = label "getConfigParam" $ do
         15 -> ProposalExpiration . Quantity <$> getWord32be
         16 -> KesUpdateSpeed . Quantity <$> getWord32be
         other -> fail $ "Invalid config param with tag " ++ show other
+  where
+    -- NOTE
+    -- Conversion between 'DiffTime' <-> 'NominalDiffTime' is safe here because
+    -- the duration can't never be more than 255 seconds, so the leap second
+    -- is never involved.
+    secondsToNominalDiffTime :: Word8 -> NominalDiffTime
+    secondsToNominalDiffTime =
+        toEnum . fromEnum . secondsToDiffTime .  fromIntegral
 
 -- | Used to represent (>= 0) rational numbers as (>= 0) integers, by just
 -- multiplying by 1000. For instance: '3.141592' is represented as 'Milli 3142'.

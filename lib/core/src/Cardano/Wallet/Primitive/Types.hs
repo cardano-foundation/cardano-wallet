@@ -40,6 +40,7 @@ module Cardano.Wallet.Primitive.Types
     , Direction(..)
     , TxStatus(..)
     , TxWitness(..)
+    , TransactionInfo (..)
     , txIns
     , isPending
 
@@ -73,9 +74,12 @@ module Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotLength (..)
     , EpochLength (..)
+    , StartTime (..)
     , slotRatio
     , flatSlot
     , fromFlatSlot
+    , slotStartTime
+    , slotDifference
 
     -- * Wallet Metadata
     , WalletMetadata(..)
@@ -136,10 +140,8 @@ import Data.Text.Class
     , fromTextToBoundedEnum
     , toTextFromBoundedEnum
     )
-import Data.Time
-    ( UTCTime )
 import Data.Time.Clock
-    ( DiffTime )
+    ( NominalDiffTime, UTCTime, addUTCTime )
 import Data.Word
     ( Word16, Word32, Word64 )
 import Fmt
@@ -487,6 +489,24 @@ newtype TxWitness = TxWitness { unWitness :: ByteString }
 isPending :: TxMeta -> Bool
 isPending = (== Pending) . (status :: TxMeta -> TxStatus)
 
+-- | Full expanded and resolved information about a transaction, suitable for
+-- presentation to the user.
+data TransactionInfo = TransactionInfo
+    { txInfoId :: !(Hash "Tx")
+    -- ^ Transaction ID of this transaction
+    , txInfoInputs :: ![(TxIn, Maybe TxOut)]
+    -- ^ Transaction inputs and (maybe) corresponding outputs of the
+    -- source. Source information can only be provided for outgoing payments.
+    , txInfoOutputs :: ![TxOut]
+    -- ^ Payment destination.
+    , txInfoMeta :: !TxMeta
+    -- ^ Other information calculated from the transaction.
+    , txInfoDepth :: Quantity "slot" Natural
+    -- ^ Number of slots since the transaction slot.
+    , txInfoTime :: UTCTime
+    -- ^ Creation time of the block including this transaction.
+    } deriving (Show, Eq, Ord)
+
 {-------------------------------------------------------------------------------
                                     Address
 -------------------------------------------------------------------------------}
@@ -775,7 +795,8 @@ slotRatio epochLength a b =
 
 -- | Convert a 'SlotId' to the number of slots since genesis.
 flatSlot :: EpochLength -> SlotId -> Word64
-flatSlot (EpochLength epochLength) (SlotId e s) = epochLength * e + fromIntegral s
+flatSlot (EpochLength epochLength) (SlotId e s) =
+    epochLength * e + fromIntegral s
 
 -- | Convert a 'flatSlot' index to 'SlotId'.
 fromFlatSlot :: EpochLength -> Word64 -> SlotId
@@ -784,11 +805,35 @@ fromFlatSlot (EpochLength epochLength) n = SlotId e (fromIntegral s)
     e = n `div` epochLength
     s = n `mod` epochLength
 
-newtype SlotLength = SlotLength DiffTime
+-- | @slotDifference a b@ is how many slots @a@ is after @b@. The result is
+-- non-negative, and if @b > a@ then this function returns zero.
+slotDifference :: EpochLength -> SlotId -> SlotId -> Quantity "slot" Natural
+slotDifference epl a b
+    | a' > b' = Quantity $ fromIntegral $ a' - b'
+    | otherwise = Quantity 0
+  where
+    a' = flatSlot epl a
+    b' = flatSlot epl b
+
+-- | The time that a slot begins.
+slotStartTime :: EpochLength -> SlotLength -> StartTime -> SlotId -> UTCTime
+slotStartTime epochLength (SlotLength slotLength) (StartTime start) sl =
+    addUTCTime offset start
+  where
+    offset = slotLength * fromIntegral (flatSlot epochLength sl)
+
+-- | Duration of a single slot.
+newtype SlotLength = SlotLength NominalDiffTime
     deriving (Show, Eq)
 
+-- | Number of slots in a single epoch
 newtype EpochLength = EpochLength Word64
     deriving (Show, Eq)
+
+-- | Blockchain start time
+newtype StartTime = StartTime UTCTime
+    deriving (Show, Eq)
+
 {-------------------------------------------------------------------------------
                                Polymorphic Types
 -------------------------------------------------------------------------------}

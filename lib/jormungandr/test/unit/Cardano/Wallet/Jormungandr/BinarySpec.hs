@@ -44,6 +44,7 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Hash (..)
     , SlotId (..)
+    , StartTime (..)
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
@@ -64,8 +65,6 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Time.Clock
-    ( secondsToDiffTime )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Word
@@ -121,11 +120,11 @@ spec = do
                         , parentHeaderHash = block0 ^. #prevBlockHash
                         }
                     [ Initial
-                        [ Block0Date (posixSecondsToUTCTime 1556202057)
+                        [ Block0Date (StartTime $ posixSecondsToUTCTime 1556202057)
                         , Discrimination Testnet
                         , Consensus BFT
                         , SlotsPerEpoch $ W.EpochLength 2160
-                        , SlotDuration (secondsToDiffTime 15)
+                        , SlotDuration 15
                         , EpochStabilityDepth (Quantity 10)
                         , AddBftLeader $ LeaderId $ unsafeFromHex
                             "30a694b80dbba2d1b8a4b55652b03d96\
@@ -174,11 +173,11 @@ spec = do
                         , parentHeaderHash = block0 ^. #prevBlockHash
                         }
                     [ Initial
-                        [ Block0Date (posixSecondsToUTCTime 1556202057)
+                        [ Block0Date (StartTime $ posixSecondsToUTCTime 1556202057)
                         , Discrimination Mainnet
                         , Consensus BFT
                         , SlotsPerEpoch (W.EpochLength 500)
-                        , SlotDuration (secondsToDiffTime 10)
+                        , SlotDuration 10
                         , EpochStabilityDepth (Quantity 10)
                         , AddBftLeader $ LeaderId $ unsafeFromHex
                             "b216ee388fc25596cf43fbca815c463c\

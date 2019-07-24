@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -67,6 +68,9 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , SlotId (..)
     , SlotLength (..)
+    , StartTime (..)
+    , TransactionInfo (txInfoMeta)
+    , TransactionInfo (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -75,6 +79,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
+    , flatSlot
     , txId
     )
 import Cardano.Wallet.Transaction
@@ -99,6 +104,8 @@ import Data.Coerce
     ( coerce )
 import Data.Either
     ( isLeft, isRight )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -108,7 +115,7 @@ import Data.Ord
 import Data.Quantity
     ( Quantity (..) )
 import Data.Time.Clock
-    ( secondsToDiffTime )
+    ( UTCTime )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Word
@@ -184,7 +191,7 @@ walletCreationProp
     :: (WalletId, WalletName, DummyState)
     -> Property
 walletCreationProp newWallet = monadicIO $ liftIO $ do
-    (WalletLayerFixture db _wl walletIds) <- setupFixture newWallet
+    (WalletLayerFixture db _wl walletIds _) <- setupFixture newWallet
     resFromDb <- DB.readCheckpoint db (PrimaryKey $ L.head walletIds)
     resFromDb `shouldSatisfy` isJust
 
@@ -193,7 +200,7 @@ walletDoubleCreationProp
     -> Property
 walletDoubleCreationProp newWallet@(wid, wname, wstate) =
     monadicIO $ liftIO $ do
-        (WalletLayerFixture _db wl _walletIds) <- setupFixture newWallet
+        (WalletLayerFixture _db wl _walletIds _) <- setupFixture newWallet
         secondTrial <- runExceptT $ createWallet wl wid wname wstate
         secondTrial `shouldSatisfy` isLeft
 
@@ -201,7 +208,7 @@ walletGetProp
     :: (WalletId, WalletName, DummyState)
     -> Property
 walletGetProp newWallet = monadicIO $ liftIO $ do
-    (WalletLayerFixture _db wl walletIds) <- liftIO $ setupFixture newWallet
+    (WalletLayerFixture _db wl walletIds _) <- liftIO $ setupFixture newWallet
     resFromGet <- runExceptT $ readWallet wl (L.head walletIds)
     resFromGet `shouldSatisfy` isRight
 
@@ -209,7 +216,7 @@ walletGetWrongIdProp
     :: ((WalletId, WalletName, DummyState), WalletId)
     -> Property
 walletGetWrongIdProp (newWallet, corruptedWalletId) = monadicIO $ liftIO $ do
-    (WalletLayerFixture _db wl _walletIds) <- liftIO $ setupFixture newWallet
+    (WalletLayerFixture _db wl _walletIds _) <- liftIO $ setupFixture newWallet
     attempt <- runExceptT $ readWallet wl corruptedWalletId
     attempt `shouldSatisfy` isLeft
 
@@ -217,16 +224,16 @@ walletIdDeterministic
     :: (WalletId, WalletName, DummyState)
     -> Property
 walletIdDeterministic newWallet = monadicIO $ liftIO $ do
-    (WalletLayerFixture _ _ widsA) <- liftIO $ setupFixture newWallet
-    (WalletLayerFixture _ _ widsB) <- liftIO $ setupFixture newWallet
+    (WalletLayerFixture _ _ widsA _) <- liftIO $ setupFixture newWallet
+    (WalletLayerFixture _ _ widsB _) <- liftIO $ setupFixture newWallet
     widsA `shouldBe` widsB
 
 walletIdInjective
     :: ((WalletId, WalletName, DummyState), (WalletId, WalletName, DummyState))
     -> Property
 walletIdInjective (walletA, walletB) = monadicIO $ liftIO $ do
-    (WalletLayerFixture _ _ widsA) <- liftIO $ setupFixture walletA
-    (WalletLayerFixture _ _ widsB) <- liftIO $ setupFixture walletB
+    (WalletLayerFixture _ _ widsA _) <- liftIO $ setupFixture walletA
+    (WalletLayerFixture _ _ widsB _) <- liftIO $ setupFixture walletB
     widsA `shouldNotBe` widsB
 
 walletUpdateName
@@ -234,7 +241,7 @@ walletUpdateName
     -> [WalletName]
     -> Property
 walletUpdateName wallet@(_, wName0, _) names = monadicIO $ liftIO $ do
-    (WalletLayerFixture _ wl [wid]) <- liftIO $ setupFixture wallet
+    (WalletLayerFixture _ wl [wid] _) <- liftIO $ setupFixture wallet
     unsafeRunExceptT $ forM_ names $ \wName ->
         updateWallet wl wid (\x -> x { name = wName })
     wName <- fmap (name . snd) <$> unsafeRunExceptT $ readWallet wl wid
@@ -247,7 +254,7 @@ walletUpdateNameNoSuchWallet
     -> Property
 walletUpdateNameNoSuchWallet wallet@(wid', _, _) wid wName =
     wid /= wid' ==> monadicIO $ liftIO $ do
-        (WalletLayerFixture _ wl _) <- liftIO $ setupFixture wallet
+        (WalletLayerFixture _ wl _ _) <- liftIO $ setupFixture wallet
         attempt <- runExceptT $ updateWallet wl wid (\x -> x { name = wName })
         attempt `shouldBe` Left (ErrNoSuchWallet wid)
 
@@ -257,7 +264,7 @@ walletUpdatePassphrase
     -> Maybe (Key 'RootK XPrv, Passphrase "encryption")
     -> Property
 walletUpdatePassphrase wallet new mxprv = monadicIO $ liftIO $ do
-    (WalletLayerFixture _ wl [wid]) <- liftIO $ setupFixture wallet
+    (WalletLayerFixture _ wl [wid] _) <- liftIO $ setupFixture wallet
     case mxprv of
         Nothing -> prop_withoutPrivateKey wl wid
         Just (xprv, pwd) -> prop_withPrivateKey wl wid (xprv, pwd)
@@ -279,7 +286,7 @@ walletUpdatePassphraseWrong
     -> Property
 walletUpdatePassphraseWrong wallet (xprv, pwd) (old, new) =
     pwd /= coerce old ==> monadicIO $ liftIO $ do
-        (WalletLayerFixture _ wl [wid]) <- liftIO $ setupFixture wallet
+        (WalletLayerFixture _ wl [wid] _) <- liftIO $ setupFixture wallet
         unsafeRunExceptT $ attachPrivateKey wl wid (xprv, pwd)
         attempt <- runExceptT $ updateWalletPassphrase wl wid (old, new)
         let err = ErrUpdatePassphraseWithRootKey
@@ -294,7 +301,7 @@ walletUpdatePassphraseNoSuchWallet
     -> Property
 walletUpdatePassphraseNoSuchWallet wallet@(wid', _, _) wid (old, new) =
     wid /= wid' ==> monadicIO $ liftIO $ do
-        (WalletLayerFixture _ wl _) <- liftIO $ setupFixture wallet
+        (WalletLayerFixture _ wl _ _) <- liftIO $ setupFixture wallet
         attempt <- runExceptT $ updateWalletPassphrase wl wid (old, new)
         let err = ErrUpdatePassphraseWithRootKey (ErrWithRootKeyNoRootKey wid)
         attempt `shouldBe` Left err
@@ -304,7 +311,7 @@ walletUpdatePassphraseDate
     -> (Key 'RootK XPrv, Passphrase "encryption")
     -> Property
 walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
-    (WalletLayerFixture _ wl [wid]) <- liftIO $ setupFixture wallet
+    (WalletLayerFixture _ wl [wid] _) <- liftIO $ setupFixture wallet
     let infoShouldSatisfy predicate = do
             info <- (passphraseInfo . snd) <$>
                 unsafeRunExceptT (readWallet wl wid)
@@ -329,7 +336,7 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
     monadicIO $ liftIO $ do
         let state = Map.insert (Address "source") minBound mempty
         let wallet = (wid, wname, DummyState state)
-        (WalletLayerFixture _ wl _) <- liftIO $ setupFixture wallet
+        (WalletLayerFixture _ wl _ _) <- liftIO $ setupFixture wallet
         unsafeRunExceptT $ attachPrivateKey wl wid (xprv, pwd)
         (_,_,[witOld]) <- unsafeRunExceptT $ signTx wl wid pwd selection
         unsafeRunExceptT $ updateWalletPassphrase wl wid (coerce pwd, newPwd)
@@ -351,12 +358,17 @@ walletListTransactionsSorted
     -> Property
 walletListTransactionsSorted wallet@(wid, _, _) history =
     monadicIO $ liftIO $ do
-        (WalletLayerFixture db wl _) <- liftIO $ setupFixture wallet
+        (WalletLayerFixture db wl _ slotIdTime) <- liftIO $ setupFixture wallet
         unsafeRunExceptT $ putTxHistory db (PrimaryKey wid) history
         txs <- unsafeRunExceptT $ listTransactions wl wid
         length txs `shouldBe` Map.size history
         -- With the 'Down'-wrapper, the sort is descending.
-        txs `shouldBe` L.sortOn (Down . slotId . snd) txs
+        txs `shouldBe` L.sortOn (Down . slotId . txInfoMeta) txs
+        -- Check transaction time calculation
+        let times = Map.fromList [(txInfoId i, txInfoTime i) | i <- txs]
+        let expTimes =
+                Map.map (\(_, meta) -> slotIdTime (meta ^. #slotId)) history
+        times `shouldBe` expTimes
 
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
@@ -366,6 +378,7 @@ data WalletLayerFixture = WalletLayerFixture
     { _fixtureDBLayer :: DBLayer IO DummyState DummyTarget
     , _fixtureWalletLayer :: WalletLayer DummyState DummyTarget
     , _fixtureWallet :: [WalletId]
+    , _fixtureSlotIdTime :: SlotId -> UTCTime
     }
 
 setupFixture
@@ -382,20 +395,23 @@ setupFixture (wid, wname, wstate) = do
     let wal = case res of
             Left _ -> []
             Right walletId -> [walletId]
-    pure $ WalletLayerFixture db wl wal
+    pure $ WalletLayerFixture db wl wal slotIdTime
   where
     policy :: FeePolicy
     policy = LinearFee (Quantity 14) (Quantity 42)
 
     slotLength :: SlotLength
-    slotLength = SlotLength $ secondsToDiffTime 1
+    slotLength = SlotLength 1
 
     txMaxSize :: Quantity "byte" Word16
     txMaxSize = Quantity 8192
 
     slotsPerEpoch = EpochLength 21600
 
-    block0Date = posixSecondsToUTCTime 0
+    block0Date = StartTime $ posixSecondsToUTCTime 0
+
+    slotNo = flatSlot slotsPerEpoch
+    slotIdTime = posixSecondsToUTCTime . fromIntegral . slotNo
 
 -- | A dummy transaction layer to see the effect of a root private key. It
 -- implements a fake signer that still produces sort of witnesses

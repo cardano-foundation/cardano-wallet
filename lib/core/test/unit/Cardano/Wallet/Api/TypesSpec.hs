@@ -31,6 +31,7 @@ import Cardano.Wallet.Api.Types
     , ApiMnemonicT (..)
     , ApiT (..)
     , ApiTransaction (..)
+    , ApiTxInput (..)
     , ApiUtxoStatistics (..)
     , ApiWallet (..)
     , Iso8601Range (..)
@@ -70,6 +71,7 @@ import Cardano.Wallet.Primitive.Types
     , HistogramBar (..)
     , PoolId (..)
     , SlotId (..)
+    , TxIn (..)
     , TxIn (..)
     , TxOut (..)
     , TxStatus (..)
@@ -814,7 +816,8 @@ instance Arbitrary TxIn where
     -- No Shrinking
     arbitrary = TxIn
         <$> arbitrary
-        <*> Test.QuickCheck.scale (`mod` 3) arbitrary -- No need for a crazy high indexes
+        -- NOTE: No need for a crazy high indexes
+        <*> Test.QuickCheck.scale (`mod` 3) arbitrary
 
 instance Arbitrary ApiUtxoStatistics where
     arbitrary = do
@@ -828,7 +831,11 @@ instance Arbitrary ApiUtxoStatistics where
             (ApiT bType)
             boundCountMap
 
-instance Arbitrary (Quantity "block" Natural) where
+instance Arbitrary (ApiTxInput t) where
+    shrink _ = []
+    arbitrary = ApiTxInput <$> arbitrary <*> arbitrary
+
+instance Arbitrary (Quantity "slot" Natural) where
     shrink (Quantity 0) = []
     shrink _ = [Quantity 0]
     arbitrary = Quantity . fromIntegral <$> (arbitrary @Word8)

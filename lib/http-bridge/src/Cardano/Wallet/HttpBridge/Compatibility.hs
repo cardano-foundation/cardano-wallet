@@ -55,6 +55,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , SlotId (..)
     , SlotLength (..)
+    , StartTime (..)
     , Tx (..)
     )
 import Crypto.Hash
@@ -69,8 +70,6 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
     ( TextDecodingError (..) )
-import Data.Time.Clock
-    ( secondsToDiffTime )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Word
@@ -174,7 +173,7 @@ byronFeePolicy = LinearFee (Quantity 155381) (Quantity 43.946)
 
 -- | Hard-coded slot duration
 byronSlotLength :: SlotLength
-byronSlotLength = SlotLength $ secondsToDiffTime 20
+byronSlotLength = SlotLength 20
 
 -- | Hard-coded max transaction size
 byronTxMaxSize :: Quantity "byte" Word16
@@ -186,8 +185,8 @@ byronBlockchainParameters
 byronBlockchainParameters = BlockchainParameters
     { getGenesisBlock = block0
     , getGenesisBlockDate = case networkVal @n of
-        Mainnet -> posixSecondsToUTCTime 1506203091
-        Testnet -> posixSecondsToUTCTime 1537941600
+        Mainnet -> StartTime $ posixSecondsToUTCTime 1506203091
+        Testnet -> StartTime $ posixSecondsToUTCTime 1537941600
     , getFeePolicy = byronFeePolicy
     , getSlotLength = byronSlotLength
     , getTxMaxSize = byronTxMaxSize

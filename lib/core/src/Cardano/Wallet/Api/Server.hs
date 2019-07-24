@@ -2,6 +2,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -30,6 +31,7 @@ import Cardano.Wallet
     , ErrCoinSelection (..)
     , ErrCreateUnsignedTx (..)
     , ErrEstimateTxFee (..)
+    , ErrListTransactions (..)
     , ErrListUTxOStatistics (..)
     , ErrMkStdTx (..)
     , ErrNoSuchWallet (..)
@@ -48,10 +50,12 @@ import Cardano.Wallet.Api
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)
+    , ApiBlockData (..)
     , ApiErrorCode (..)
     , ApiFee (..)
     , ApiT (..)
     , ApiTransaction (..)
+    , ApiTxInput (..)
     , ApiUtxoStatistics (..)
     , ApiWallet (..)
     , Iso8601Range (..)
@@ -80,7 +84,10 @@ import Cardano.Wallet.Primitive.Types
     , DecodeAddress (..)
     , DefineTx (..)
     , EncodeAddress (..)
+    , Hash (..)
     , HistogramBar (..)
+    , TransactionInfo (TransactionInfo)
+    , TxIn
     , TxOut (..)
     , UTxOStatistics (..)
     , WalletId (..)
@@ -415,28 +422,50 @@ createTransaction w (ApiT wid) body = do
     selection <- liftHandler $ W.createUnsignedTx w wid outs
     (tx, meta, wit) <- liftHandler $ W.signTx w wid pwd selection
     liftHandler $ W.submitTx w wid (tx, meta, wit)
-    return ApiTransaction
-        { id = ApiT (txId @t tx)
-        , amount = meta ^. #amount
-        , insertedAt = Nothing
-        , depth = Quantity 0
-        , direction = ApiT (meta ^. #direction)
-        , inputs = NE.fromList (coerceTxOut . snd <$> selection ^. #inputs)
-        , outputs = NE.fromList (coerceTxOut <$> W.outputs @t tx)
-        , status = ApiT (meta ^. #status)
-        }
+    return $ mkApiTransaction (txId @t tx)
+        (fmap Just <$> selection ^. #inputs) (selection ^. #outputs) meta
+
+mkApiTransaction
+    :: forall t.
+       Hash "Tx"
+    -> [(TxIn, Maybe TxOut)]
+    -> [TxOut]
+    -> W.TxMeta
+    -> ApiTransaction t
+mkApiTransaction txid ins outs meta = ApiTransaction
+    { id = ApiT txid
+    , amount = meta ^. #amount
+    , insertedAt = Nothing
+    , depth = Quantity 0
+    , direction = ApiT (meta ^. #direction)
+    , inputs = NE.fromList
+        [ApiTxInput (fmap coerceTxOut o) (ApiT i) | (i, o) <- ins]
+    , outputs = NE.fromList (coerceTxOut <$> outs)
+    , status = ApiT (meta ^. #status)
+    }
   where
     coerceTxOut :: TxOut -> AddressAmount t
     coerceTxOut (TxOut addr (Coin c)) =
         AddressAmount (ApiT addr, Proxy @t) (Quantity $ fromIntegral c)
 
+-- Populate an API transaction record with 'TransactionInfo' from the wallet
+-- layer.
+mkApiTransactionFromInfo :: TransactionInfo -> ApiTransaction t
+mkApiTransactionFromInfo (TransactionInfo txid ins outs meta depth txtime) =
+    apiTx { depth, insertedAt }
+  where
+    apiTx = mkApiTransaction txid ins outs meta
+    insertedAt = Just (ApiBlockData txtime (ApiT (meta ^. #slotId)))
+
 listTransactions
-    :: WalletLayer (SeqState t) t
+    :: forall t. (DefineTx t)
+    => WalletLayer (SeqState t) t
     -> ApiT WalletId
     -> Maybe (Iso8601Range "inserted-at")
     -> Handler [ApiTransaction t]
-listTransactions _w (ApiT _wid) _maybeRange = do
-    return []
+listTransactions w (ApiT wid) _maybeRange = do
+    txs <- liftHandler $ W.listTransactions w wid
+    return $ map mkApiTransactionFromInfo txs
 
 coerceCoin :: AddressAmount t -> TxOut
 coerceCoin (AddressAmount (ApiT addr, _) (Quantity c)) =
@@ -635,6 +664,10 @@ instance LiftHandler ErrUpdatePassphrase where
     handler = \case
         ErrUpdatePassphraseNoSuchWallet e -> handler e
         ErrUpdatePassphraseWithRootKey e  -> handler e
+
+instance LiftHandler ErrListTransactions where
+    handler = \case
+        ErrListTransactionsNoSuchWallet e -> handler e
 
 instance LiftHandler ServantErr where
     handler err@(ServantErr code _ body headers)
