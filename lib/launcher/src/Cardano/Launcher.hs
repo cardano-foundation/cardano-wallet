@@ -24,6 +24,8 @@ import Control.Concurrent.Async
     ( forConcurrently )
 import Control.Exception
     ( Exception, throwIO, try )
+import Control.Monad
+    ( when )
 import Data.List
     ( isPrefixOf )
 import Data.Text
@@ -128,13 +130,12 @@ instance Exception FileExists
 -- the wallet database.
 setupStateDir :: (Text -> IO ()) -> (FilePath -> IO ()) -> FilePath -> IO (Either FileExists ())
 setupStateDir logT withDir dir = try $ do
+    exists <- doesFileExist dir
+    when exists $ throwIO FileExists
     doesDirectoryExist dir >>= \case
         True -> logT $ "Using state directory: " <> T.pack dir
         False -> do
-            doesFileExist dir >>= \case
-                True -> throwIO FileExists
-                False -> do
-                    logT $ "Creating state directory: " <> T.pack dir
-                    let createParentIfMissing = True
-                    createDirectoryIfMissing createParentIfMissing dir
+            logT $ "Creating state directory: " <> T.pack dir
+            let createParentIfMissing = True
+            createDirectoryIfMissing createParentIfMissing dir
     withDir dir

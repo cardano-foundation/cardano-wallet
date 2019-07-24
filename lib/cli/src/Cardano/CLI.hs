@@ -657,9 +657,8 @@ execLaunch verbosity stateDir withStateDir commands = do
     setupStateDir (logInfo tracer) (withStateDir tracer) stateDir >>= \case
         Left _ -> do
             putErrLn $ mconcat
-                    [ "Stopping! \"" <> T.pack stateDir <>"\" appears to be"
-                    , " a file existing on your system. Remove the file or"
-                    , " choose different path."
+                    [ T.pack stateDir <> " must be a directory, but it is"
+                    , " a file. Exiting."
                     ]
             exitFailure
         Right _ -> do

@@ -80,9 +80,7 @@ spec = do
             (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
             c `shouldBe` ExitFailure 1
             o `shouldBe` mempty
-            e `shouldBe`
-                "Stopping! \"" ++ f ++ "\" appears to be a file existing on\
-                \ your system. Remove the file or choose different path.\n"
+            e `shouldBe` f ++ " must be a directory, but it is a file. Exiting.\n"
 
         describe "LAUNCH - Can start launcher with --state-dir" $ do
             let tests =
