@@ -70,6 +70,13 @@
 
 - [ ] Execute all [manual scenarios](https://github.com/input-output-hk/cardano-wallet/tree/master/lib/core/test/manual/) on the binaries to be released.
 
-- [ ] Verify that sensitive fields listed in [Cardano/Wallet/Api/Server](https://github.com/input-output-hk/cardano-wallet/blob/master/lib/core/src/Cardano/Wallet/Api/Server.hs#L180-L187) are still accurate and aren't missing any new ones.
+- [ ] Verify that sensitive fields listed in [Cardano/Wallet/Api/Server](https://github.com/input-output-hk/cardano-wallet/blob/master/lib/core/src/Cardano/Wallet/Api/Server.hs#L200-L206) are still accurate and aren't missing any new ones.
+```
+          "passphrase"
+        , "old_passphrase"
+        , "new_passphrase"
+        , "mnemonic_sentence"
+        , "mnemonic_second_factor"
+```
 
 - [ ] Verify latest [buildkite nightly](https://buildkite.com/input-output-hk/cardano-wallet-nightly) and make sure the results are fine.
