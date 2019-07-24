@@ -397,7 +397,7 @@ startSqliteBackend logConfig trace fp = do
         runQuery cmd = withMVar lock $ const $ observe $ runSqlConn cmd backend
     migrations <- runQuery $ runMigrationSilent migrateAll
     dbLog trace $ MsgMigrations (length migrations)
-    runQuery addIndexes
+    runQuery addIndices
     pure $ SqliteContext backend runQuery fp trace
 
 createSqliteBackend
@@ -417,11 +417,13 @@ sqliteConnStr = maybe ":memory:" T.pack
 ----------------------------------------------------------------------------
 -- SQLite database setup
 
-addIndexes :: SqlPersistT IO ()
-addIndexes = mapM_ (`rawExecute` [])
+addIndices :: SqlPersistT IO ()
+addIndices = mapM_ (`rawExecute` [])
     [ createIndex "tx_meta_wallet_id" "tx_meta (wallet_id)"
     -- Covers filtering and sorting (either direction) of tx history
     , createIndex "tx_meta_slot" "tx_meta (slot ASC)"
+    , createIndex "tx_meta_tx_id" "tx_meta (tx_id ASC)"
+    -- Indices for filtering TxIn/TxOut by TxId
     , createIndex "tx_in_tx_id" "tx_in (tx_id)"
     , createIndex "tx_out_tx_id" "tx_out (tx_id)"
     ]
@@ -740,9 +742,12 @@ selectTxHistory
     -> [Filter TxMeta]
     -> SqlPersistT IO [(W.Hash "Tx", (W.Tx t, W.TxMeta))]
 selectTxHistory wid conditions = do
-    let opt = [Desc TxMetaSlotId] -- note: there is an index on this column
+    -- Note: there are sorted indices on these columns.
+    -- The secondary sort by TxId is to make the ordering stable
+    -- so that testing with random data always works.
+    let sortOpt = [ Desc TxMetaSlotId, Asc TxMetaTxId ]
     metas <- fmap entityVal <$> selectList
-        ((TxMetaWalletId ==. wid) : conditions) opt
+        ((TxMetaWalletId ==. wid) : conditions) sortOpt
     let txids = map txMetaTxId metas
     (ins, outs) <- selectTxs txids
     pure $ txHistoryFromEntity @t metas ins outs
