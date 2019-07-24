@@ -134,7 +134,7 @@ import Cardano.Wallet.Primitive.Types
     , log10
     , slotDifference
     , slotRatio
-    , slotUTCTime
+    , slotStartTime
     )
 import Cardano.Wallet.Transaction
     ( ErrMkStdTx (..), ErrValidateSelection, TransactionLayer (..) )
@@ -747,11 +747,7 @@ newWalletLayer tracer bp db nw tl = do
                 , txInfoOutputs = W.outputs @t tx
                 , txInfoMeta = meta
                 , txInfoDepth = slotDifference slotsPerEpoch tip (meta ^. #slotId)
-                , txInfoTime = slotUTCTime
-                    slotsPerEpoch
-                    (SlotLength slotLength)
-                    block0Date
-                    (meta ^. #slotId)
+                , txInfoTime = txTime (meta ^. #slotId)
                 }
             txOuts = Map.fromList
                 [ (txid, W.outputs @t tx)
@@ -761,6 +757,14 @@ newWalletLayer tracer bp db nw tl = do
             lookupOutput (TxIn txid index) =
                 Map.lookup txid txOuts >>= atIndex (fromIntegral index)
             atIndex i xs = if i < length xs then Just (xs !! i) else Nothing
+            -- Get the approximate time of a transaction, given its 'SlotId'. We
+            -- assume that the transaction "happens" at the start of the
+            -- slot. This is purely arbitrary and in practice, any time between
+            -- the start of a slot and the end could be a validate candidate.
+            txTime = slotStartTime
+                slotsPerEpoch
+                (SlotLength slotLength)
+                block0Date
 
     _signTx
         :: (Show s, NFData s, IsOwned s, GenChange s)

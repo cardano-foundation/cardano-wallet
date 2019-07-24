@@ -411,7 +411,7 @@ setupFixture (wid, wname, wstate) = do
     block0Date = StartTime $ posixSecondsToUTCTime 0
 
     slotNo = flatSlot slotsPerEpoch
-    slotIdTime = posixSecondsToUTCTime . fromIntegral . (+1) . slotNo
+    slotIdTime = posixSecondsToUTCTime . fromIntegral . slotNo
 
 -- | A dummy transaction layer to see the effect of a root private key. It
 -- implements a fake signer that still produces sort of witnesses

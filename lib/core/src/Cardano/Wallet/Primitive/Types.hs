@@ -78,7 +78,7 @@ module Cardano.Wallet.Primitive.Types
     , slotRatio
     , flatSlot
     , fromFlatSlot
-    , slotUTCTime
+    , slotStartTime
     , slotDifference
 
     -- * Wallet Metadata
@@ -815,16 +815,12 @@ slotDifference epl a b
     a' = flatSlot epl a
     b' = flatSlot epl b
 
--- | Get the approximate UTCTime corresponding to a 'SlotId'. We compute the
--- time from the blockchain start, and consider each slot as _happening_ at the
--- end of the slot duration (such that the first slot timestamp is actually
--- after the blockchain start). This is purely arbitrary and in practice, any
--- time between the start of a slot and the end could be a validate candidate.
-slotUTCTime :: EpochLength -> SlotLength -> StartTime -> SlotId -> UTCTime
-slotUTCTime epochLength (SlotLength slotLength) (StartTime start) sl =
+-- | The time that a slot begins.
+slotStartTime :: EpochLength -> SlotLength -> StartTime -> SlotId -> UTCTime
+slotStartTime epochLength (SlotLength slotLength) (StartTime start) sl =
     addUTCTime offset start
   where
-    offset = slotLength * fromIntegral (flatSlot epochLength sl + 1)
+    offset = slotLength * fromIntegral (flatSlot epochLength sl)
 
 -- | Duration of a single slot.
 newtype SlotLength = SlotLength NominalDiffTime
