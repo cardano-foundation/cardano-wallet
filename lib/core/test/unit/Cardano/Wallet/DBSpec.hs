@@ -191,9 +191,13 @@ once_ xs = void . once xs
 -- | Shorthand for the readTxHistory result type.
 type TxHistory = [(Hash "Tx", (Tx, TxMeta))]
 
--- | Apply the default sort order (descending on time) to a 'TxHistory'.
+-- | Apply the default sort order (descending on time, then by TxId) to a
+-- 'TxHistory'.
 sortTxHistory :: TxHistory -> TxHistory
-sortTxHistory = L.sortOn (Down . slotId . snd . snd)
+sortTxHistory = sortBySlot . sortByTxId
+  where
+    sortBySlot = L.sortOn (Down . slotId . snd . snd)
+    sortByTxId = L.sortOn fst
 
 newtype KeyValPairs k v = KeyValPairs [(k, v)]
     deriving (Generic, Show, Eq)
