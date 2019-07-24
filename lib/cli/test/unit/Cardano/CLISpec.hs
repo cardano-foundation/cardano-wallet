@@ -226,6 +226,8 @@ spec = do
             , "Available commands:"
             , "  create                   Create and submit a new transaction."
             , "  fees                     Estimate fees for a transaction."
+            , "  list                     List the transactions associated with"
+            , "                           a wallet."
             ]
 
         ["transaction", "create", "--help"] `shouldShowUsage`
@@ -253,6 +255,21 @@ spec = do
             , "  --payment PAYMENT        address to send to and amount to send"
             , "                           separated by @, e.g."
             , "                           '<amount>@<address>'"
+            ]
+
+        ["transaction", "list", "--help"] `shouldShowUsage`
+            [ "Usage:  transaction list [--port INT] WALLET_ID [--start TIME]"
+            , "                         [--end TIME]"
+            , "  List the transactions associated with a wallet."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --port INT               port used for serving the wallet"
+            , "                           API. (default: 8090)"
+            , "  --start TIME             specifies a start time (ISO 8601"
+            , "                           format: basic or extended)."
+            , "  --end TIME               specifies an end time (ISO 8601"
+            , "                           format: basic or extended)."
             ]
 
         ["address", "--help"] `shouldShowUsage`

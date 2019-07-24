@@ -107,6 +107,7 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
+    , Iso8601Range (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
     , WalletPostData (..)
@@ -511,6 +512,7 @@ cmdTransaction = command "transaction" $ info (helper <*> cmds) mempty
     cmds = subparser $ mempty
         <> cmdTransactionCreate @t
         <> cmdTransactionFees @t
+        <> cmdTransactionList @t
 
 -- | Arguments for 'transaction create' command
 data TransactionCreateArgs t = TransactionCreateArgs
@@ -561,6 +563,33 @@ cmdTransactionFees = command "fees" $ info (helper <*> cmd) $ mempty
                     (PostTransactionFeeData wPayments)
             Left _ ->
                 handleResponse Aeson.encodePretty res
+
+-- | Arguments for 'transaction list' command.
+data TransactionListArgs = TransactionListArgs
+    { _port :: Port "Wallet"
+    , _walletId :: WalletId
+    , _timeRangeStart :: Maybe Iso8601Time
+    , _timeRangeEnd :: Maybe Iso8601Time
+    }
+
+cmdTransactionList
+    :: forall t. (DecodeAddress t, EncodeAddress t)
+    => Mod CommandFields (IO ())
+cmdTransactionList = command "list" $ info (helper <*> cmd) $ mempty
+    <> progDesc "List the transactions associated with a wallet."
+  where
+    cmd = fmap exec $ TransactionListArgs
+        <$> portOption
+        <*> walletIdArgument
+        <*> optional timeRangeStartOption
+        <*> optional timeRangeEndOption
+    exec (TransactionListArgs wPort wId mTimeRangeStart mTimeRangeEnd) =
+        runClient wPort Aeson.encodePretty $ listTransactions
+            (walletClient @t)
+            (ApiT wId)
+            (pure $ Iso8601Range
+                (getIso8601Time <$> mTimeRangeStart)
+                (getIso8601Time <$> mTimeRangeEnd))
 
 {-------------------------------------------------------------------------------
                             Commands - 'address'
@@ -719,6 +748,22 @@ stateDirOption backendDir = optional $ strOption $ mempty
   where
     defaultDir = backendDir </> "NETWORK"
 
+-- | [--start=TIME]
+timeRangeStartOption :: Parser Iso8601Time
+timeRangeStartOption = optionT $ mempty
+    <> long "start"
+    <> metavar "TIME"
+    <> help "specifies a start time (ISO 8601 format: basic or extended)."
+    <> showDefaultWith showT
+
+-- | [--end=TIME]
+timeRangeEndOption :: Parser Iso8601Time
+timeRangeEndOption = optionT $ mempty
+    <> long "end"
+    <> metavar "TIME"
+    <> help "specifies an end time (ISO 8601 format: basic or extended)."
+    <> showDefaultWith showT
+
 -- | [(--quiet|--verbose)]
 verbosityOption :: Parser Verbosity
 verbosityOption = (Quiet <$ quiet) <|> (Verbose <$ verbose) <|> (pure Default)
@@ -783,6 +828,10 @@ data WalletClient t = WalletClient
         :: ApiT WalletId
         -> WalletPutPassphraseData
         -> ClientM NoContent
+    , listTransactions
+        :: ApiT WalletId
+        -> Maybe (Iso8601Range "inserted-at")
+        -> ClientM [ApiTransaction t]
     , postTransaction
         :: ApiT WalletId
         -> PostTransactionData t
@@ -824,6 +873,7 @@ walletClient =
             , postWallet = _postWallet
             , putWallet = _putWallet
             , putWalletPassphrase = _putWalletPassphrase
+            , listTransactions = _listTransactions
             , postTransaction = _postTransaction
             , postTransactionFee = _postTransactionFee
             , getWalletUtxoStatistics = _getWalletUtxoStatistics

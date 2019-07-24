@@ -20,7 +20,7 @@ import Cardano.Wallet.Primitive.Types
     , encodeAddress
     )
 import Control.Monad
-    ( forM_ )
+    ( forM_, join )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Product.Typed
@@ -61,6 +61,7 @@ import Test.Integration.Framework.DSL
     , fixtureWalletWith
     , getWalletViaCLI
     , listAddresses
+    , listTransactionsViaCLI
     , postTransactionFeeViaCLI
     , postTransactionViaCLI
     , status
@@ -643,6 +644,37 @@ spec = do
             (T.unpack err) `shouldContain` errMsg
             out `shouldBe` ""
             c `shouldBe` ExitFailure 1
+
+        let validTime1 = "2001-01-01T01:01:01Z"
+        let validTime2 = "2009-09-09T09:09:09Z"
+
+        let timeRangeMatrix :: [(Maybe String, Maybe String)]
+            timeRangeMatrix =
+                [ (Nothing, Nothing)
+                , (Just validTime1, Nothing)
+                , (Nothing, Just validTime1)
+                , (Just validTime1, Just validTime2)
+                , (Just validTime2, Just validTime1)
+                ]
+
+        describe "TRANS_LIST_01 - Listing transactions for an empty wallet" $
+            forM_ timeRangeMatrix $ \(mStart, mEnd) -> do
+                let title = mempty
+                      <> "listing transactions from "
+                      <> show mStart
+                      <> " to "
+                      <> show mEnd
+                it title $ \ctx -> do
+                    wallet <- emptyWallet ctx
+                    (Exit code, Stdout out, Stderr err) <-
+                        listTransactionsViaCLI @t ctx $ join
+                            [ [T.unpack $ wallet ^. walletId]
+                            , maybe [] (\t -> ["--start", t]) mStart
+                            , maybe [] (\t -> ["--end"  , t]) mEnd
+                            ]
+                    err `shouldBe` "Ok.\n"
+                    out `shouldBe` "[]\n"
+                    code `shouldBe` ExitSuccess
 
   where
       longAddr = replicate 10000 '1'

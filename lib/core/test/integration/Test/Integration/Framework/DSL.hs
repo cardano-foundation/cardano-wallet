@@ -101,6 +101,7 @@ module Test.Integration.Framework.DSL
     , updateWalletPassphraseViaCLI
     , postTransactionViaCLI
     , postTransactionFeeViaCLI
+    , listTransactionsViaCLI
     ) where
 
 import Prelude hiding
@@ -148,7 +149,7 @@ import Control.Concurrent.MVar
 import Control.Exception
     ( SomeException (..), finally, try )
 import Control.Monad
-    ( forM_, unless, void, (>=>) )
+    ( forM_, join, unless, void, (>=>) )
 import Control.Monad.Catch
     ( MonadCatch )
 import Control.Monad.Fail
@@ -1066,6 +1067,16 @@ postTransactionFeeViaCLI ctx args = do
         err <- TIO.hGetContents stderr
         return (c, T.unpack out, err)
 
+listTransactionsViaCLI
+    :: forall t r s . (CmdResult r, HasType Port s, KnownCommand t)
+    => s
+    -> [String]
+    -> IO r
+listTransactionsViaCLI ctx args = cardanoWalletCLI @t $ join
+    [ ["transaction", "list"]
+    , ["--port", show (ctx ^. typed @Port)]
+    , args
+    ]
 
 -- There is a dependency cycle in the packages.
 --
