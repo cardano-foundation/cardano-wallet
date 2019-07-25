@@ -304,8 +304,8 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
             -> IO ()
         startServer tracer wallet = do
             Server.withListeningSocket listen $ \(port, socket) -> do
-                tracerIPC <- appendName "daedalus-ipc" tracer
-                tracerApi <- appendName "api" tracer
+                let tracerIPC = appendName "daedalus-ipc" tracer
+                let tracerApi = appendName "api" tracer
                 let beforeMainLoop = logInfo tracer $
                         "Wallet backend server listening on: " <> toText port
                 let settings = Warp.defaultSettings
@@ -350,7 +350,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
             -> (DBLayer IO s t -> IO a)
             -> IO a
         withDBLayer logCfg tracer action = do
-            tracerDB <- appendName "database" tracer
+            let tracerDB = appendName "database" tracer
             Sqlite.withDBLayer logCfg tracerDB dbFile action
 
         handleGenesisNotFound

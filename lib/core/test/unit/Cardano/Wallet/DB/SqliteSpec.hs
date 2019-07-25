@@ -242,6 +242,13 @@ withTestDBFile action expectations = do
 
 newMemoryDBLayer :: IO (DBLayer IO (SeqState DummyTarget) DummyTarget, TVar [LogObject Text])
 newMemoryDBLayer = do
+    logConfig <- testingLogConfig
+    logs <- newTVarIO []
+    db <- snd <$> newDBLayer logConfig (traceInTVarIO logs) Nothing
+    pure (db, logs)
+
+testingLogConfig :: IO CM.Configuration
+testingLogConfig = do
     logConfig <- defaultConfigTesting
     CM.setMinSeverity logConfig Debug
     CM.setSetupBackends logConfig [CM.KatipBK, CM.AggregationBK, CM.MonitoringBK]
@@ -261,9 +268,9 @@ newMemoryDBLayer = do
 
     -- This monitor should always trigger.
     CM.setMonitors logConfig $ HM.singleton
-        "query.query"
+        "query.diff"
         ( Nothing
-        , Compare "monoclock" (GE, (OpMeasurable (CM.Seconds 0)))
+        , Compare "query.diff.timestamp" (GE, (OpMeasurable (CM.Seconds 0)))
         , [CreateMessage Info "runQuery monitor works"]
         )
 
@@ -271,9 +278,7 @@ newMemoryDBLayer = do
         "query"
         (Just [CM.AggregationBK, CM.KatipBK, CM.MonitoringBK])
 
-    logs <- newTVarIO []
-    db <- snd <$> newDBLayer logConfig (traceInTVarIO logs) Nothing
-    pure (db, logs)
+    pure logConfig
 
 withLoggingDB :: SpecWith (DBLayer IO (SeqState DummyTarget) DummyTarget, IO [LogObject Text]) -> Spec
 withLoggingDB = beforeAll newMemoryDBLayer . beforeWith clean

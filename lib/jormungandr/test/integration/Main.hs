@@ -168,7 +168,7 @@ initTracer :: Severity -> Text -> IO (Trace IO Text)
 initTracer minSeverity cmd = do
     c <- defaultConfigStdout
     setMinSeverity c minSeverity
-    setupTrace (Right c) "cardano-wallet" >>= appendName cmd
+    appendName cmd <$> setupTrace (Right c) "cardano-wallet"
 
 -- NOTE
 -- We start the wallet server in the same process such that we get

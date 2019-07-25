@@ -1058,9 +1058,8 @@ initTracer minSeverity cmd = do
     c <- defaultConfigStdout
     CM.setMinSeverity c minSeverity
     CM.setSetupBackends c [CM.KatipBK, CM.AggregationBK]
-    (tr0, sb) <- setupTrace_ c "cardano-wallet"
-    tr <- appendName cmd tr0
-    pure (c, sb, tr)
+    (tr, sb) <- setupTrace_ c "cardano-wallet"
+    pure (c, sb, appendName cmd tr)
 
 {-------------------------------------------------------------------------------
                             Unicode Terminal Helpers

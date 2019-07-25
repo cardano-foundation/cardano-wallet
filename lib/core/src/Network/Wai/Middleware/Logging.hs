@@ -71,7 +71,8 @@ withApiLogger
 withApiLogger t0 settings app req0 sendResponse = do
     start <- getCurrentTime
     (req, reqBody) <- getRequestBody req0
-    t <- nextRequestId settings >>= \rid -> modifyName (withRequestId rid) t0
+    rid <- nextRequestId settings
+    let t = modifyName (withRequestId rid) t0
     logRequest t req reqBody
     app req $ \res -> do
         builderIO <- newIORef (Nothing, mempty)
