@@ -256,7 +256,7 @@ spec = do
 
         ["transaction", "list", "--help"] `shouldShowUsage`
             [ "Usage:  transaction list [--port INT] WALLET_ID [--start TIME]"
-            , "                         [--end TIME]"
+            , "                         [--end TIME] [--order ORDER]"
             , "  List the transactions associated with a wallet."
             , ""
             , "Available options:"
@@ -267,6 +267,8 @@ spec = do
             , "                           format: basic or extended)."
             , "  --end TIME               specifies an end time (ISO 8601"
             , "                           format: basic or extended)."
+            , "  --order ORDER            specifies a sort order, either"
+            , "                           'ascending' or 'descending'."
             ]
 
         ["address", "--help"] `shouldShowUsage`

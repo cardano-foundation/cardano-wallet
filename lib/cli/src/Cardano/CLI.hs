@@ -564,6 +564,7 @@ data TransactionListArgs = TransactionListArgs
     , _walletId :: WalletId
     , _timeRangeStart :: Maybe Iso8601Time
     , _timeRangeEnd :: Maybe Iso8601Time
+    , _sortOrder :: Maybe SortOrder
     }
 
 cmdTransactionList
@@ -577,13 +578,14 @@ cmdTransactionList = command "list" $ info (helper <*> cmd) $ mempty
         <*> walletIdArgument
         <*> optional timeRangeStartOption
         <*> optional timeRangeEndOption
-    exec (TransactionListArgs wPort wId mTimeRangeStart mTimeRangeEnd) =
+        <*> optional sortOrderOption
+    exec (TransactionListArgs wPort wId mTimeRangeStart mTimeRangeEnd mOrder) =
         runClient wPort Aeson.encodePretty $ listTransactions
             (walletClient @t)
             (ApiT wId)
             mTimeRangeStart
             mTimeRangeEnd
-            Nothing
+            mOrder
 
 {-------------------------------------------------------------------------------
                             Commands - 'address'
@@ -775,6 +777,14 @@ timeRangeEndOption = optionT $ mempty
     <> long "end"
     <> metavar "TIME"
     <> help "specifies an end time (ISO 8601 format: basic or extended)."
+    <> showDefaultWith showT
+
+-- | [--order=ORDER]
+sortOrderOption :: Parser SortOrder
+sortOrderOption = optionT $ mempty
+    <> long "order"
+    <> metavar "ORDER"
+    <> help "specifies a sort order, either 'ascending' or 'descending'."
     <> showDefaultWith showT
 
 -- | [(--quiet|--verbose)]
