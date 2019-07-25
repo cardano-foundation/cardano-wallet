@@ -45,6 +45,7 @@ module Cardano.Wallet.Api.Types
     , AddressAmount (..)
     , ApiErrorCode (..)
     , Iso8601Time (..)
+    , SortOrder (..)
 
     -- * Polymorphic Types
     , ApiT (..)
@@ -123,7 +124,13 @@ import Data.Quantity
 import Data.Text
     ( Text, split )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( CaseStyle (CamelCase)
+    , FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    , fromTextToBoundedEnum
+    , toTextFromBoundedEnum
+    )
 import Data.Time
     ( UTCTime )
 import Data.Time.Text
@@ -277,6 +284,26 @@ instance FromHttpApiData Iso8601Time
 
 instance ToHttpApiData Iso8601Time
   where
+    toUrlPiece = toText
+
+-- | Represents a sort order, applicable to a query.
+data SortOrder
+    = Ascending
+        -- ^ Sort in ascending order.
+    | Descending
+        -- ^ Sort in descending order.
+    deriving (Bounded, Enum, Eq, Generic, Show)
+
+instance ToText SortOrder where
+    toText = toTextFromBoundedEnum CamelCase
+
+instance FromText SortOrder where
+    fromText = fromTextToBoundedEnum CamelCase
+
+instance FromHttpApiData SortOrder where
+    parseUrlPiece = first (T.pack . getTextDecodingError) . fromText
+
+instance ToHttpApiData SortOrder where
     toUrlPiece = toText
 
 {-------------------------------------------------------------------------------

@@ -37,6 +37,7 @@ import Cardano.Wallet.Api.Types
     , Iso8601Time (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
+    , SortOrder (..)
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -221,11 +222,12 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletPassphraseInfo)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletState)
 
-    describe "Iso8601Time" $ do
+    describe "Textual encoding" $ do
 
-        describe "Can perform roundtrip textual encoding & decoding" $
+        describe "Can perform roundtrip textual encoding & decoding" $ do
 
             textRoundtrip $ Proxy @Iso8601Time
+            textRoundtrip $ Proxy @SortOrder
 
     describe "AddressAmount" $ do
         it "fromText . toText === pure"
@@ -245,6 +247,7 @@ spec = do
             httpApiDataRoundtrip $ Proxy @(ApiT WalletId)
             httpApiDataRoundtrip $ Proxy @(ApiT AddressState)
             httpApiDataRoundtrip $ Proxy @Iso8601Time
+            httpApiDataRoundtrip $ Proxy @SortOrder
 
     describe
         "verify that every type used with JSON content type in a servant API \
@@ -572,6 +575,10 @@ instance Arbitrary AddressPoolGap where
 instance Arbitrary Iso8601Time where
     arbitrary = Iso8601Time <$> arbitrary
     shrink (Iso8601Time t) = Iso8601Time <$> shrink t
+
+instance Arbitrary SortOrder where
+    arbitrary = arbitraryBoundedEnum
+    shrink = genericShrink
 
 instance Arbitrary WalletPostData where
     arbitrary = genericArbitrary
