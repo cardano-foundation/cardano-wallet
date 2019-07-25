@@ -41,19 +41,14 @@ import Cardano.Wallet.DB.Sqlite
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..), block0 )
 import Cardano.Wallet.Primitive.AddressDerivation
+    ( Depth (..), Key, Passphrase (..), XPrv, XPub, keyToAddress, publicKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( ChangeChain (..)
-    , Depth (..)
-    , Key
-    , Passphrase (..)
-    , XPrv
-    , XPub
     , deriveAddressPublicKey
     , generateKeyFromSeed
-    , keyToAddress
-    , publicKey
     , unsafeGenerateKeyFromSeed
     )
-import Cardano.Wallet.Primitive.AddressDiscovery
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , AddressPoolGap (..)
     , SeqState (..)

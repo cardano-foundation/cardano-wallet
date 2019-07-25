@@ -70,8 +70,10 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Network
     ( ErrNetworkUnavailable (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress, digest, generateKeyFromSeed, publicKey )
-import Cardano.Wallet.Primitive.AddressDiscovery
+    ( KeyToAddress, digest, publicKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( generateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..), defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..) )

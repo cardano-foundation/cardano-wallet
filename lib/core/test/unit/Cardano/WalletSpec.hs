@@ -35,19 +35,21 @@ import Cardano.Wallet.DB.MVar
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..), block0 )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChangeChain (..)
-    , Depth (..)
+    ( Depth (..)
     , DerivationType (..)
     , ErrWrongPassphrase (..)
     , Index
     , Key
     , Passphrase (..)
     , XPrv
+    , getKey
+    , publicKey
+    )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( ChangeChain (..)
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
     , generateKeyFromSeed
-    , getKey
-    , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)

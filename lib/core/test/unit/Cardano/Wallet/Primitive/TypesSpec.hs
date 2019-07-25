@@ -14,7 +14,9 @@ import Prelude
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Passphrase (..), digest, generateKeyFromSeed, publicKey )
+    ( Passphrase (..), digest, publicKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)

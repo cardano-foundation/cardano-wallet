@@ -22,15 +22,13 @@ import Cardano.Wallet.DBSpec
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..), block0 )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , Key
-    , Passphrase (..)
-    , XPrv
-    , encryptPassphrase
-    , generateKeyFromSeed
-    )
+    ( Depth (..), Key, Passphrase (..), XPrv, encryptPassphrase )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs, SeqState (..), defaultAddressPoolGap, mkSeqState )
+    ( IsOurs )
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+    ( SeqState (..), defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.Mnemonic
     ( EntropySize, entropyToBytes, genEntropy )
 import Cardano.Wallet.Primitive.Model

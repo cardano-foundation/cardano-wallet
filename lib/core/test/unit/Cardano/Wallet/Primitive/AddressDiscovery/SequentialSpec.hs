@@ -11,7 +11,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Primitive.AddressDiscoverySpec
+module Cardano.Wallet.Primitive.AddressDiscovery.SequentialSpec
     ( spec
     ) where
 
@@ -20,24 +20,20 @@ import Prelude
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChangeChain (..)
-    , Depth (..)
-    , Key
-    , KeyToAddress (..)
-    , Passphrase (..)
-    , XPub
-    , deriveAddressPublicKey
-    , publicKey
-    , unsafeGenerateKeyFromSeed
-    )
+    ( Depth (..), Key, KeyToAddress (..), Passphrase (..), XPub, publicKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( ChangeChain (..), deriveAddressPublicKey, unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( AddressPool
-    , AddressPoolGap (..)
-    , CompareDiscovery (..)
+    ( CompareDiscovery (..)
     , GenChange (..)
     , IsOurs (..)
     , IsOwned (..)
     , KnownAddresses (..)
+    , genChange
+    )
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+    ( AddressPool
+    , AddressPoolGap (..)
     , MkAddressPoolGapError (..)
     , SeqState (..)
     , accountPubKey
@@ -46,7 +42,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , defaultAddressPoolGap
     , emptyPendingIxs
     , gap
-    , genChange
     , lookupAddress
     , mkAddressPool
     , mkAddressPoolGap

@@ -18,7 +18,9 @@ import Cardano.Wallet.DBSpec
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs (..), SeqState (..) )
+    ( IsOurs (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+    ( SeqState (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet )
 import Cardano.Wallet.Primitive.Types

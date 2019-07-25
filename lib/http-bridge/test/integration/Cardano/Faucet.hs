@@ -16,14 +16,12 @@ import Cardano.Wallet.HttpBridge.Primitive.Types
 import Cardano.Wallet.Network
     ( NetworkLayer (postTx) )
 import Cardano.Wallet.Primitive.AddressDerivation
+    ( KeyToAddress (..), Passphrase (..), XPrv, publicKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( ChangeChain (..)
-    , KeyToAddress (..)
-    , Passphrase (..)
-    , XPrv
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
     , generateKeyFromSeed
-    , publicKey
     )
 import Cardano.Wallet.Primitive.Mnemonic
     ( Mnemonic

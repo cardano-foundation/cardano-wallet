@@ -6,7 +6,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.HttpBridge.Primitive.AddressDerivationSpec
+module Cardano.Wallet.HttpBridge.Primitive.AddressDerivation.SequentialSpec
     ( spec
     ) where
 
@@ -17,17 +17,19 @@ import Cardano.Wallet.HttpBridge.Compatibility
 import Cardano.Wallet.HttpBridge.Environment
     ( Network (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChangeChain (..)
-    , Depth (..)
+    ( Depth (..)
     , DerivationType (..)
     , Index
     , KeyToAddress (..)
     , Passphrase (..)
+    , keyToAddress
+    , publicKey
+    )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( ChangeChain (..)
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
     , generateKeyFromSeed
-    , keyToAddress
-    , publicKey
     )
 import Cardano.Wallet.Primitive.Types
     ( encodeAddress )
