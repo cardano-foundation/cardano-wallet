@@ -242,9 +242,9 @@ spec = do
 
     describe
         "can perform roundtrip HttpApiData serialization & deserialization" $ do
-            httpApiDataRountrip $ Proxy @(ApiT WalletId)
-            httpApiDataRountrip $ Proxy @(ApiT AddressState)
-            httpApiDataRountrip $ Proxy @Iso8601Time
+            httpApiDataRoundtrip $ Proxy @(ApiT WalletId)
+            httpApiDataRoundtrip $ Proxy @(ApiT AddressState)
+            httpApiDataRoundtrip $ Proxy @Iso8601Time
 
     describe
         "verify that every type used with JSON content type in a servant API \
@@ -502,7 +502,7 @@ jsonRoundtripAndGolden = roundtripAndGoldenSpecsWithSettings settings
         }
 
 -- Perform roundtrip tests for FromHttpApiData & ToHttpApiData instances
-httpApiDataRountrip
+httpApiDataRoundtrip
     :: forall a.
         ( Arbitrary a
         , FromHttpApiData a
@@ -513,7 +513,7 @@ httpApiDataRountrip
         )
     => Proxy a
     -> Spec
-httpApiDataRountrip proxy =
+httpApiDataRoundtrip proxy =
     it ("URL encoding of " <> cons (typeRep proxy)) $ property $ \(x :: a) -> do
         let bytes = toUrlPiece x
         let x' = parseUrlPiece bytes
