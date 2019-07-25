@@ -43,6 +43,7 @@ library
     , cryptonite
     , deepseq
     , exceptions
+    , extra
     , fast-logger
     , fmt
     , foldl

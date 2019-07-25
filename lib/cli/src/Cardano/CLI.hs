@@ -103,6 +103,7 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet
     , Iso8601Range (..)
+    , Iso8601Time (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
     , WalletPostData (..)
@@ -137,8 +138,6 @@ import Data.Aeson
     ( (.:) )
 import Data.Bifunctor
     ( bimap )
-import Data.Either.Extra
-    ( maybeToEither )
 import Data.Functor
     ( (<$), (<&>) )
 import Data.List.Extra
@@ -157,10 +156,6 @@ import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..), showT )
 import Data.Text.Read
     ( decimal )
-import Data.Time.Clock
-    ( UTCTime )
-import Data.Time.Text
-    ( iso8601, iso8601ExtendedUtc, utcTimeFromText, utcTimeToText )
 import Fmt
     ( Buildable, blockListF, fmt, nameF, pretty )
 import GHC.Generics
@@ -943,25 +938,6 @@ handleResponse encode res = do
 {-------------------------------------------------------------------------------
                                 Extra Types
 -------------------------------------------------------------------------------}
-
--- | Defines a point in time that can be formatted as and parsed from an
---   ISO 8601-compliant string.
---
-newtype Iso8601Time = Iso8601Time
-    { getIso8601Time :: UTCTime
-    } deriving (Eq, Ord, Show)
-
-instance ToText Iso8601Time where
-    toText = utcTimeToText iso8601ExtendedUtc . getIso8601Time
-
-instance FromText Iso8601Time where
-    fromText t =
-        Iso8601Time <$> maybeToEither err (utcTimeFromText iso8601 t)
-      where
-        err = TextDecodingError $ mempty
-            <> "Unable to parse time argument: '"
-            <> T.unpack t
-            <> "'. Expecting ISO 8601 format (basic or extended)."
 
 -- | Represents the number of words in a mnemonic sentence.
 --

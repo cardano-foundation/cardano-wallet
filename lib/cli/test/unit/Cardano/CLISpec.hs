@@ -11,8 +11,7 @@ module Cardano.CLISpec
 import Prelude
 
 import Cardano.CLI
-    ( Iso8601Time (..)
-    , MnemonicSize (..)
+    ( MnemonicSize (..)
     , Port (..)
     , cli
     , cmdAddress
@@ -61,8 +60,6 @@ import Test.QuickCheck
     , property
     , (===)
     )
-import Test.QuickCheck.Instances.Time
-    ()
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
@@ -296,7 +293,6 @@ spec = do
             ]
 
     describe "Can perform roundtrip textual encoding & decoding" $ do
-        textRoundtrip $ Proxy @Iso8601Time
         textRoundtrip $ Proxy @(Port "test")
         textRoundtrip $ Proxy @MnemonicSize
 
@@ -427,10 +423,6 @@ test fn (GetLineTest prompt_ input_ output expected) = do
 {-------------------------------------------------------------------------------
                                Arbitrary Instances
 -------------------------------------------------------------------------------}
-
-instance Arbitrary Iso8601Time where
-    arbitrary = Iso8601Time <$> arbitrary
-    shrink (Iso8601Time t) = Iso8601Time <$> shrink t
 
 instance Arbitrary MnemonicSize where
     arbitrary = arbitraryBoundedEnum

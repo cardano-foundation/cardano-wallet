@@ -35,7 +35,6 @@
           (hsPkgs.servant-server)
           (hsPkgs.text)
           (hsPkgs.text-class)
-          (hsPkgs.time)
           (hsPkgs.optparse-applicative)
           ];
         };
@@ -50,7 +49,6 @@
             (hsPkgs.memory)
             (hsPkgs.optparse-applicative)
             (hsPkgs.QuickCheck)
-            (hsPkgs.quickcheck-instances)
             (hsPkgs.text)
             (hsPkgs.text-class)
             ];

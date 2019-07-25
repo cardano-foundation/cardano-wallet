@@ -35,6 +35,7 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics (..)
     , ApiWallet (..)
     , Iso8601Range (..)
+    , Iso8601Time (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
     , WalletBalance (..)
@@ -220,6 +221,12 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletName)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletPassphraseInfo)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletState)
+
+    describe "Iso8601Time" $ do
+
+        describe "Can perform roundtrip textual encoding & decoding" $
+
+            textRoundtrip $ Proxy @Iso8601Time
 
     describe "Iso8601Range" $ do
 
@@ -627,6 +634,10 @@ instance Arbitrary AddressPoolGap where
 instance Arbitrary (Iso8601Range (name :: Symbol)) where
     arbitrary = Iso8601Range <$> arbitrary <*> arbitrary
     shrink = genericShrink
+
+instance Arbitrary Iso8601Time where
+    arbitrary = Iso8601Time <$> arbitrary
+    shrink (Iso8601Time t) = Iso8601Time <$> shrink t
 
 instance Arbitrary WalletPostData where
     arbitrary = genericArbitrary

@@ -45,6 +45,7 @@ module Cardano.Wallet.Api.Types
     , ApiTxInput (..)
     , AddressAmount (..)
     , ApiErrorCode (..)
+    , Iso8601Time (..)
     , Iso8601Range (..)
 
     -- * Polymorphic Types
@@ -111,6 +112,8 @@ import Data.Aeson
     )
 import Data.Bifunctor
     ( bimap, first )
+import Data.Either.Extra
+    ( maybeToEither )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -130,7 +133,12 @@ import Data.Text.Class
 import Data.Time
     ( UTCTime )
 import Data.Time.Text
-    ( iso8601BasicUtc, utcTimeFromText, utcTimeToText )
+    ( iso8601
+    , iso8601BasicUtc
+    , iso8601ExtendedUtc
+    , utcTimeFromText
+    , utcTimeToText
+    )
 import Data.Word
     ( Word64 )
 import Fmt
@@ -254,6 +262,25 @@ data ApiErrorCode
     | UnsupportedMediaType
     | UnexpectedError
     deriving (Eq, Generic, Show)
+
+-- | Defines a point in time that can be formatted as and parsed from an
+--   ISO 8601-compliant string.
+--
+newtype Iso8601Time = Iso8601Time
+    { getIso8601Time :: UTCTime
+    } deriving (Eq, Ord, Show)
+
+instance ToText Iso8601Time where
+    toText = utcTimeToText iso8601ExtendedUtc . getIso8601Time
+
+instance FromText Iso8601Time where
+    fromText t =
+        Iso8601Time <$> maybeToEither err (utcTimeFromText iso8601 t)
+      where
+        err = TextDecodingError $ mempty
+            <> "Unable to parse time argument: '"
+            <> T.unpack t
+            <> "'. Expecting ISO 8601 format (basic or extended)."
 
 -- | Specifies a __time range__ that can be used to constrain and order the
 --   results of queries that return sets of data with associated times.
