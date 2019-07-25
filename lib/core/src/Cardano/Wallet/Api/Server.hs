@@ -61,6 +61,7 @@ import Cardano.Wallet.Api.Types
     , Iso8601Time (..)
     , PostTransactionData
     , PostTransactionFeeData
+    , SortOrder (..)
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -465,8 +466,9 @@ listTransactions
     -> ApiT WalletId
     -> Maybe Iso8601Time
     -> Maybe Iso8601Time
+    -> Maybe SortOrder
     -> Handler [ApiTransaction t]
-listTransactions w (ApiT wid) _maybeStart _maybeEnd = do
+listTransactions w (ApiT wid) _maybeStart _maybeEnd _maybeOrder = do
     txs <- liftHandler $ W.listTransactions w wid
     return $ map mkApiTransactionFromInfo txs
 

@@ -13,6 +13,7 @@ import Cardano.Wallet.Api.Types
     , Iso8601Time
     , PostTransactionData
     , PostTransactionFeeData
+    , SortOrder
     , WalletPostData
     , WalletPutData
     , WalletPutPassphraseData
@@ -143,6 +144,7 @@ type ListTransactions t = "wallets"
     :> "transactions"
     :> QueryParam "start" Iso8601Time
     :> QueryParam "end" Iso8601Time
+    :> QueryParam "order" SortOrder
     :> Get '[JSON] [ApiTransaction t]
 
 {-------------------------------------------------------------------------------

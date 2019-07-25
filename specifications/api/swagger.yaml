@@ -961,6 +961,13 @@ paths:
             Times can be local (with a timezone offset) or UTC.
 
             Example: `2008-08-08T08:08:08Z`
+        - in: query
+          name: order
+          type: string
+          enum:
+            - ascending
+            - descending
+          description: An optional sort order.
       responses: *responsesListTransactions
 
     post:

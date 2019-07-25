@@ -104,6 +104,7 @@ import Cardano.Wallet.Api.Types
     , Iso8601Time (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
+    , SortOrder (..)
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
@@ -582,6 +583,7 @@ cmdTransactionList = command "list" $ info (helper <*> cmd) $ mempty
             (ApiT wId)
             mTimeRangeStart
             mTimeRangeEnd
+            Nothing
 
 {-------------------------------------------------------------------------------
                             Commands - 'address'
@@ -843,6 +845,7 @@ data WalletClient t = WalletClient
         :: ApiT WalletId
         -> Maybe Iso8601Time
         -> Maybe Iso8601Time
+        -> Maybe SortOrder
         -> ClientM [ApiTransaction t]
     , postTransaction
         :: ApiT WalletId
