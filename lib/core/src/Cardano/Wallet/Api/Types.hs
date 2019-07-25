@@ -278,12 +278,10 @@ instance FromText Iso8601Time where
             <> T.unpack t
             <> "'. Expecting ISO 8601 format (basic or extended)."
 
-instance FromHttpApiData Iso8601Time
-  where
+instance FromHttpApiData Iso8601Time where
     parseUrlPiece = first (T.pack . getTextDecodingError) . fromText
 
-instance ToHttpApiData Iso8601Time
-  where
+instance ToHttpApiData Iso8601Time where
     toUrlPiece = toText
 
 -- | Represents a sort order, applicable to a query.
