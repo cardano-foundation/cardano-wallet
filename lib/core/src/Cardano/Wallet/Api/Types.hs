@@ -7,7 +7,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -46,7 +45,6 @@ module Cardano.Wallet.Api.Types
     , AddressAmount (..)
     , ApiErrorCode (..)
     , Iso8601Time (..)
-    , Iso8601Range (..)
 
     -- * Polymorphic Types
     , ApiT (..)
@@ -125,20 +123,11 @@ import Data.Quantity
 import Data.Text
     ( Text, split )
 import Data.Text.Class
-    ( FromText (..)
-    , TextDecodingError (..)
-    , ToText (..)
-    , splitAtLastOccurrence
-    )
+    ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Time
     ( UTCTime )
 import Data.Time.Text
-    ( iso8601
-    , iso8601BasicUtc
-    , iso8601ExtendedUtc
-    , utcTimeFromText
-    , utcTimeToText
-    )
+    ( iso8601, iso8601ExtendedUtc, utcTimeFromText, utcTimeToText )
 import Data.Word
     ( Word64 )
 import Fmt
@@ -146,7 +135,7 @@ import Fmt
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
-    ( KnownSymbol, Nat, Symbol, symbolVal )
+    ( Nat, Symbol )
 import Numeric.Natural
     ( Natural )
 import Web.HttpApiData
@@ -287,122 +276,6 @@ instance FromHttpApiData Iso8601Time
     parseUrlPiece = first (T.pack . getTextDecodingError) . fromText
 
 instance ToHttpApiData Iso8601Time
-  where
-    toUrlPiece = toText
-
--- | Specifies a __time range__ that can be used to constrain and order the
---   results of queries that return sets of data with associated times.
---
--- Each 'Iso8601Range' value has an associated textual representation provided
--- by the 'ToText' and 'FromText' instances, based on the ISO 8601 Basic UTC
--- format.
---
--- Ranges can be __closed__, __half-open__, or __fully-open__.
---
--- == Closed time ranges
---
--- For a pair of times @__t1__@ and @__t2__@ where @__t1 < t2__@:
---
--- * Queries with the following range will return data in __ascending__ order
---   from @__t1__@ to @__t2__@:
---
---     > Iso8601Range (Just t1) (Just t2)
---
---     Example textual representation:
---
---     > "name 20180808T080808Z-20190909T090909Z"
---
--- * Queries with the following range will return data in __descending__ order
---   from @__t2__@ to @__t1__@:
---
---     > Iso8601Range (Just t2) (Just t1)
---
---     Example textual representation:
---
---     > "name 20190909T090909Z-20180808T080808Z"
---
--- == Half-open time ranges
---
--- For some point in time @__t__@:
---
--- * Queries with the following range will return data in __ascending__ order
---   from the __start of time__ until time @__t__@:
---
---     > Iso8601Range Nothing (Just t)
---
---     Example textual representation:
---
---     > "name *-20190909T090909Z"
---
--- * Queries with the following range will return data in __ascending__ order
---   from time @__t__@ until the __end of time__:
---
---     > Iso8601Range (Just t) Nothing
---
---     Example textual representation:
---
---     > "name 20180808T080808Z-*"
---
--- == Fully-open time ranges
---
--- * Queries with the following range will return data in __ascending__ order
---   from the __start of time__ until the __end of time__:
---
---     > Iso8601Range Nothing Nothing
---
---     Example textual representation:
---
---     > "name *-*"
---
-data Iso8601Range (name :: Symbol)
-    = Iso8601Range (Maybe UTCTime) (Maybe UTCTime)
-    deriving (Eq, Generic, Show)
-
-instance KnownSymbol name => ToText (Iso8601Range name) where
-    toText (Iso8601Range t1 t2) = prefix <> " " <> suffix
-      where
-        prefix = T.pack $ symbolVal (Proxy @name)
-        suffix = timeToText t1 <> "-" <> timeToText t2
-        timeToText = \case
-            Nothing -> "*"
-            Just t -> utcTimeToText iso8601BasicUtc t
-
-instance KnownSymbol name => FromText (Iso8601Range name) where
-    fromText t = do
-        (prefix, suffix) <- guardM (splitAtLastOccurrence ' ' t)
-            "Unable to find required space separator character."
-        (t1, t2) <- guardM (splitAtLastOccurrence '-' suffix)
-            "Unable to find required hyphen separator character."
-        guardB (prefix == expectedPrefix) $
-            "Invalid prefix string found. Expecting: " <> show expectedPrefix
-        v1 <- guardM (parseTime t1) $
-            "Invalid start time string: " <> show t1
-        v2 <- guardM (parseTime t2) $
-            "Invalid end time string: " <> show t2
-        pure $ Iso8601Range v1 v2
-      where
-        expectedPrefix = T.pack $ symbolVal (Proxy @name)
-
-        guardB :: Bool -> String -> Either TextDecodingError ()
-        guardB b err = if b then Right () else raise err
-
-        guardM :: Maybe a -> String -> Either TextDecodingError a
-        guardM ma err = maybe (raise err) Right ma
-
-        raise :: forall a . String -> Either TextDecodingError a
-        raise err = Left $ TextDecodingError $
-            "Error encountered while decoding ISO 8601 time range: " <> err
-
-        parseTime :: Text -> Maybe (Maybe UTCTime)
-        parseTime = \case
-            "*" -> pure Nothing
-            timeText -> pure <$> utcTimeFromText [iso8601BasicUtc] timeText
-
-instance KnownSymbol name => FromHttpApiData (Iso8601Range (name :: Symbol))
-  where
-    parseUrlPiece = first (T.pack . getTextDecodingError) . fromText
-
-instance KnownSymbol name => ToHttpApiData (Iso8601Range (name :: Symbol))
   where
     toUrlPiece = toText
 
