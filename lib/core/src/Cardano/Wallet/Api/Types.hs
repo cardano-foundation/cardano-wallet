@@ -282,6 +282,14 @@ instance FromText Iso8601Time where
             <> T.unpack t
             <> "'. Expecting ISO 8601 format (basic or extended)."
 
+instance FromHttpApiData Iso8601Time
+  where
+    parseUrlPiece = first (T.pack . getTextDecodingError) . fromText
+
+instance ToHttpApiData Iso8601Time
+  where
+    toUrlPiece = toText
+
 -- | Specifies a __time range__ that can be used to constrain and order the
 --   results of queries that return sets of data with associated times.
 --

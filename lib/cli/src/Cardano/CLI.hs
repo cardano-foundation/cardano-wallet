@@ -102,7 +102,6 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
-    , Iso8601Range (..)
     , Iso8601Time (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
@@ -582,9 +581,8 @@ cmdTransactionList = command "list" $ info (helper <*> cmd) $ mempty
         runClient wPort Aeson.encodePretty $ listTransactions
             (walletClient @t)
             (ApiT wId)
-            (pure $ Iso8601Range
-                (getIso8601Time <$> mTimeRangeStart)
-                (getIso8601Time <$> mTimeRangeEnd))
+            mTimeRangeStart
+            mTimeRangeEnd
 
 {-------------------------------------------------------------------------------
                             Commands - 'address'
@@ -844,7 +842,8 @@ data WalletClient t = WalletClient
         -> ClientM NoContent
     , listTransactions
         :: ApiT WalletId
-        -> Maybe (Iso8601Range "inserted-at")
+        -> Maybe Iso8601Time
+        -> Maybe Iso8601Time
         -> ClientM [ApiTransaction t]
     , postTransaction
         :: ApiT WalletId

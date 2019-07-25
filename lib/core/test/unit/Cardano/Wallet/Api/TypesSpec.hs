@@ -307,6 +307,7 @@ spec = do
             httpApiDataRountrip $ Proxy @(ApiT WalletId)
             httpApiDataRountrip $ Proxy @(ApiT AddressState)
             httpApiDataRountrip $ Proxy @(Iso8601Range "test-header")
+            httpApiDataRountrip $ Proxy @Iso8601Time
 
     describe
         "verify that every type used with JSON content type in a servant API \

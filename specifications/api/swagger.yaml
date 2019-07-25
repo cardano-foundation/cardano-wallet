@@ -941,16 +941,26 @@ paths:
         <p align="right">status: <strong>not implemented</strong></p>
       parameters:
         - *parametersWalletId
-        - in: header
-          name: Range
+        - in: query
+          name: start
           type: string
-          format: inserted_at={range-start}-{range-end}
+          format: ISO 8601
           description: |
-            A range of date in ISO-8601 UTC format without symbols to retrieve. Note that
-            the start joker symbol `*` can be used instead of a date to refer to a lower
-            or upper boundary.
+            An optional start time in ISO 8601 format.
+            Basic and extended formats are both accepted.
+            Times can be local (with a timezone offset) or UTC.
 
-            Example: `inserted-at 20190227T160329Z-*`
+            Example: `2008-08-08T08:08:08Z`
+        - in: query
+          name: end
+          type: string
+          format: ISO 8601
+          description: |
+            An optional end time in ISO 8601 format.
+            Basic and extended formats are both accepted.
+            Times can be local (with a timezone offset) or UTC.
+
+            Example: `2008-08-08T08:08:08Z`
       responses: *responsesListTransactions
 
     post:
