@@ -85,6 +85,11 @@ We can cross-compile the CLI and source code to windows! Which is great but not 
 - Software Information, Git Revision
 - Can be simply "mocked" in the meantime
 
+### Handle Rollbacks
+
+- Handle rollbacks at the networking layer / db storage
+- Handle rollbacks within the wallet (cf Checkpoints)
+
 ## Improvements to the CLI
 
 A few ideas to make the CLI better. It'd be nice to already get feedback on the existing one and see what people external to the project would have to say. A few ideas already:
@@ -96,11 +101,6 @@ A few ideas to make the CLI better. It'd be nice to already get feedback on the 
  - Chose a better name for CLI option `transaction create`. Currently we use it to do all three steps: coin selection, sign, submit. See discussion https://github.com/input-output-hk/cardano-wallet/pull/225#discussion_r281454697
  - `Qualtity "lovelace" Natural` is used to parse number of lovelace/coins from CLI. This is defined in `FromText (Quantity sym b)` https://github.com/input-output-hk/cardano-wallet/pull/225/files/fff43a4e5a70ed93bf028217ebdc90429252be2d#diff-27d87fed0f151afbb3b4e829fb315ba3R107 . We might want to use more fine grained parser for coins and parse "20lovelace" and "20ada" differently (and do coin conversion autimatically) and default "20" to lovelace
  - Improve password validation in API and CLI which validate for strong passwords (passwords should have enough entropy)
-
-### Handle Rollbacks
-
-- Handle rollbacks at the networking layer / db storage
-- Handle rollbacks within the wallet (cf Checkpoints)
 
 ### List Available Staking Pools
 
