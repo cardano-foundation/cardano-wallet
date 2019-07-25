@@ -43,7 +43,6 @@ module Cardano.CLI
     , verbosityOption
 
     -- * Types
-    , Iso8601Time (..)
     , Service
     , MnemonicSize (..)
     , Port (..)
