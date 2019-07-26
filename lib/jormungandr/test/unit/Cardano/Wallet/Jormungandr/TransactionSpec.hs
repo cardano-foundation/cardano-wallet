@@ -30,8 +30,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , XPrv
     , keyToAddress
     , publicKey
-    , unsafeGenerateKeyFromSeed
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.CoinSelection.LargestFirst

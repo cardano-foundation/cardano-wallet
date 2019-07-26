@@ -46,7 +46,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..), PassphraseMaxLength (..), PassphraseMinLength (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
     ( CheckSumBits

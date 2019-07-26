@@ -86,7 +86,11 @@ library
       Cardano.Wallet.DB.Sqlite.Types
       Cardano.Wallet.Network
       Cardano.Wallet.Primitive.AddressDerivation
+      Cardano.Wallet.Primitive.AddressDerivation.Random
+      Cardano.Wallet.Primitive.AddressDerivation.Sequential
       Cardano.Wallet.Primitive.AddressDiscovery
+      Cardano.Wallet.Primitive.AddressDiscovery.Random
+      Cardano.Wallet.Primitive.AddressDiscovery.Sequential
       Cardano.Wallet.Primitive.CoinSelection
       Cardano.Wallet.Primitive.CoinSelection.LargestFirst
       Cardano.Wallet.Primitive.CoinSelection.Random
@@ -181,8 +185,8 @@ test-suite unit
       Cardano.Wallet.DBSpec
       Cardano.Wallet.DummyTarget.Primitive.Types
       Cardano.Wallet.NetworkSpec
-      Cardano.Wallet.Primitive.AddressDerivationSpec
-      Cardano.Wallet.Primitive.AddressDiscoverySpec
+      Cardano.Wallet.Primitive.AddressDerivation.SequentialSpec
+      Cardano.Wallet.Primitive.AddressDiscovery.SequentialSpec
       Cardano.Wallet.Primitive.CoinSelection.LargestFirstSpec
       Cardano.Wallet.Primitive.CoinSelection.RandomSpec
       Cardano.Wallet.Primitive.CoinSelectionSpec

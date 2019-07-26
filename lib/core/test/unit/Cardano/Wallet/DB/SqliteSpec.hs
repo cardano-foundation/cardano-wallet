@@ -36,12 +36,10 @@ import Cardano.Wallet.DBSpec
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Passphrase (..)
-    , encryptPassphrase
-    , generateKeyFromSeed
-    , unsafeGenerateKeyFromSeed
-    )
-import Cardano.Wallet.Primitive.AddressDiscovery
+    ( Passphrase (..), encryptPassphrase )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( generateKeyFromSeed, unsafeGenerateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..), defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.Mnemonic
     ( EntropySize, entropyToBytes, genEntropy )

@@ -45,16 +45,10 @@ import Cardano.Wallet.DB.Sqlite
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..), block0 )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , Key
-    , KeyToAddress (..)
-    , Passphrase (..)
-    , XPub
-    , generateKeyFromSeed
-    , publicKey
-    , unsafeGenerateKeyFromSeed
-    )
-import Cardano.Wallet.Primitive.AddressDiscovery
+    ( Depth (..), Key, KeyToAddress (..), Passphrase (..), XPub, publicKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( generateKeyFromSeed, unsafeGenerateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , SeqState (..)
     , defaultAddressPoolGap

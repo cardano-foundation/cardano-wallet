@@ -4,7 +4,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Primitive.AddressDerivationSpec
+module Cardano.Wallet.Primitive.AddressDerivation.SequentialSpec
     ( spec
     ) where
 
@@ -13,8 +13,7 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( unXPrv )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChangeChain (..)
-    , Depth (..)
+    ( Depth (..)
     , DerivationType (..)
     , ErrWrongPassphrase (..)
     , FromMnemonic (..)
@@ -26,17 +25,20 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseMinLength (..)
     , XPrv
     , checkPassphrase
-    , deriveAccountPrivateKey
-    , deriveAddressPrivateKey
-    , deriveAddressPublicKey
     , deserializeXPrv
     , deserializeXPub
     , encryptPassphrase
-    , generateKeyFromSeed
     , getIndex
     , publicKey
     , serializeXPrv
     , serializeXPub
+    )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( ChangeChain (..)
+    , deriveAccountPrivateKey
+    , deriveAddressPrivateKey
+    , deriveAddressPublicKey
+    , generateKeyFromSeed
     , unsafeGenerateKeyFromSeed
     )
 import Cardano.Wallet.Primitive.Types

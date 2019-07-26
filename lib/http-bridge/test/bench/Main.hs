@@ -30,18 +30,17 @@ import Cardano.Wallet.HttpBridge.Transaction
 import Cardano.Wallet.Network
     ( NetworkLayer (..), defaultRetryPolicy, networkTip, waitForConnection )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress (..)
-    , Passphrase (..)
-    , digest
-    , generateKeyFromSeed
-    , publicKey
-    )
+    ( KeyToAddress (..), Passphrase (..), digest, publicKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOwned, SeqState, defaultAddressPoolGap, mkSeqState )
+    ( IsOwned )
 import Cardano.Wallet.Primitive.AddressDiscovery.Any
     ( AnyAddressState, initAnyState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Any.TH
     ( migrateAll )
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+    ( SeqState, defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.Model
     ( totalBalance, totalUTxO )
 import Cardano.Wallet.Primitive.Types

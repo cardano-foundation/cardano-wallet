@@ -23,8 +23,10 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChangeChain, Depth (..), Key, deserializeXPub, serializeXPub )
-import Cardano.Wallet.Primitive.AddressDiscovery
+    ( Depth (..), Key, deserializeXPub, serializeXPub )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( ChangeChain )
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..), getAddressPoolGap, mkAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)

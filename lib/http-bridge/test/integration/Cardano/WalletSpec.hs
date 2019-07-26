@@ -19,8 +19,10 @@ import Cardano.Wallet.HttpBridge.Compatibility
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Passphrase (..), digest, generateKeyFromSeed, publicKey )
-import Cardano.Wallet.Primitive.AddressDiscovery
+    ( Passphrase (..), digest, publicKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( generateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( mkSeqState )
 import Cardano.Wallet.Primitive.Mnemonic
     ( EntropySize, entropyToBytes, genEntropy )

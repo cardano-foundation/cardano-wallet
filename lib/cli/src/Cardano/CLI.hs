@@ -117,7 +117,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseMaxLength
     , PassphraseMinLength
     )
-import Cardano.Wallet.Primitive.AddressDiscovery
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, defaultAddressPoolGap )
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )

@@ -15,7 +15,7 @@ import Cardano.Crypto.Wallet
     ( unXPub )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..), getKey )
-import Cardano.Wallet.Primitive.AddressDiscovery
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
