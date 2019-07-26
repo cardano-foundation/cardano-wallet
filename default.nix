@@ -43,6 +43,7 @@ in {
       cardano-wallet-cli
       cardano-wallet-launcher
       cardano-wallet-core
+      cardano-wallet-core-integration
       cardano-wallet-http-bridge
       cardano-wallet-jormungandr
       bech32

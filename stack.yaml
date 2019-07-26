@@ -5,6 +5,7 @@ packages:
 - .
 - lib/bech32
 - lib/core
+- lib/core-integration
 - lib/cli
 - lib/launcher
 - lib/text-class

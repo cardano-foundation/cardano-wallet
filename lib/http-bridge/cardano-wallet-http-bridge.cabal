@@ -138,32 +138,24 @@ test-suite integration
   build-depends:
       base
     , aeson
-    , aeson-qq
     , async
-    , bytestring
     , cardano-crypto
-    , cardano-wallet-cli
     , cardano-wallet-core
+    , cardano-wallet-core-integration
     , cardano-wallet-http-bridge
     , cardano-wallet-launcher
     , command
-    , containers
     , cborg
-    , cryptonite
     , directory
-    , exceptions
-    , extra
     , generic-lens
     , hspec
     , hspec-core
     , hspec-expectations-lifted
     , http-client
-    , http-api-data
     , http-types
     , iohk-monitoring
     , process
     , retry
-    , template-haskell
     , temporary
     , text
     , text-class
@@ -180,23 +172,10 @@ test-suite integration
       Cardano.Faucet
       Cardano.Wallet.HttpBridge.NetworkSpec
       Cardano.WalletSpec
-      Test.Integration.Faucet
-      Test.Integration.Framework.DSL
-      Test.Integration.Framework.Request
-      Test.Integration.Framework.TestData
       Test.Integration.HttpBridge.Scenario.API.Transactions
       Test.Integration.HttpBridge.Scenario.CLI.Launcher
       Test.Integration.HttpBridge.Scenario.CLI.Server
       Test.Integration.HttpBridge.Scenario.CLI.Transactions
-      Test.Integration.Scenario.API.Addresses
-      Test.Integration.Scenario.API.Transactions
-      Test.Integration.Scenario.API.Wallets
-      Test.Integration.Scenario.CLI.Addresses
-      Test.Integration.Scenario.CLI.Miscellaneous
-      Test.Integration.Scenario.CLI.Mnemonics
-      Test.Integration.Scenario.CLI.Port
-      Test.Integration.Scenario.CLI.Transactions
-      Test.Integration.Scenario.CLI.Wallets
 
 benchmark restore
   default-language:

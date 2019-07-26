@@ -11,6 +11,7 @@
         cardano-wallet = ./cardano-wallet.nix;
         bech32 = ./bech32.nix;
         cardano-wallet-core = ./cardano-wallet-core.nix;
+        cardano-wallet-core-integration = ./cardano-wallet-core-integration.nix;
         cardano-wallet-cli = ./cardano-wallet-cli.nix;
         cardano-wallet-launcher = ./cardano-wallet-launcher.nix;
         text-class = ./text-class.nix;
