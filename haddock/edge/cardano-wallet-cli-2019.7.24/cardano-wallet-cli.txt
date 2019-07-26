@@ -69,12 +69,6 @@ stateDirOption :: FilePath -> Parser (Maybe FilePath)
 --   </ul>
 verbosityOption :: Parser Verbosity
 
--- | Defines a point in time that can be formatted as and parsed from an
---   ISO 8601-compliant string.
-newtype Iso8601Time
-Iso8601Time :: UTCTime -> Iso8601Time
-[$sel:getIso8601Time:Iso8601Time] :: Iso8601Time -> UTCTime
-
 -- | Wrapper type around <a>Text</a> to make its semantic more explicit
 data Service
 
@@ -168,13 +162,8 @@ instance GHC.Generics.Generic Cardano.CLI.MnemonicSize
 instance GHC.Classes.Eq Cardano.CLI.MnemonicSize
 instance GHC.Enum.Enum Cardano.CLI.MnemonicSize
 instance GHC.Enum.Bounded Cardano.CLI.MnemonicSize
-instance GHC.Show.Show Cardano.CLI.Iso8601Time
-instance GHC.Classes.Ord Cardano.CLI.Iso8601Time
-instance GHC.Classes.Eq Cardano.CLI.Iso8601Time
 instance GHC.Enum.Bounded (Cardano.CLI.Port tag)
 instance Data.Text.Class.FromText (Cardano.CLI.Port tag)
 instance Data.Text.Class.ToText (Cardano.CLI.Port tag)
 instance Data.Text.Class.ToText Cardano.CLI.MnemonicSize
 instance Data.Text.Class.FromText Cardano.CLI.MnemonicSize
-instance Data.Text.Class.ToText Cardano.CLI.Iso8601Time
-instance Data.Text.Class.FromText Cardano.CLI.Iso8601Time

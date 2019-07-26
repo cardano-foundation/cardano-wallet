@@ -2584,58 +2584,20 @@ NotAcceptable :: ApiErrorCode
 UnsupportedMediaType :: ApiErrorCode
 UnexpectedError :: ApiErrorCode
 
--- | Specifies a <b>time range</b> that can be used to constrain and order
---   the results of queries that return sets of data with associated times.
---   
---   Each <a>Iso8601Range</a> value has an associated textual
---   representation provided by the <a>ToText</a> and <a>FromText</a>
---   instances, based on the ISO 8601 Basic UTC format.
---   
---   Ranges can be <b>closed</b>, <b>half-open</b>, or <b>fully-open</b>.
---   
---   <h2>Closed time ranges</h2>
---   
---   For a pair of times <tt><b>t1</b></tt> and <tt><b>t2</b></tt> where
---   <tt><b>t1 &lt; t2</b></tt>:
---   
---   <ul>
---   <li>Queries with the following range will return data in
---   <b>ascending</b> order from <tt><b>t1</b></tt> to
---   <tt><b>t2</b></tt>:<pre>Iso8601Range (Just t1) (Just t2)</pre>Example
---   textual representation:<pre>"name
---   20180808T080808Z-20190909T090909Z"</pre></li>
---   <li>Queries with the following range will return data in
---   <b>descending</b> order from <tt><b>t2</b></tt> to
---   <tt><b>t1</b></tt>:<pre>Iso8601Range (Just t2) (Just t1)</pre>Example
---   textual representation:<pre>"name
---   20190909T090909Z-20180808T080808Z"</pre></li>
---   </ul>
---   
---   <h2>Half-open time ranges</h2>
---   
---   For some point in time <tt><b>t</b></tt>:
---   
---   <ul>
---   <li>Queries with the following range will return data in
---   <b>ascending</b> order from the <b>start of time</b> until time
---   <tt><b>t</b></tt>:<pre>Iso8601Range Nothing (Just t)</pre>Example
---   textual representation:<pre>"name *-20190909T090909Z"</pre></li>
---   <li>Queries with the following range will return data in
---   <b>ascending</b> order from time <tt><b>t</b></tt> until the <b>end of
---   time</b>:<pre>Iso8601Range (Just t) Nothing</pre>Example textual
---   representation:<pre>"name 20180808T080808Z-*"</pre></li>
---   </ul>
---   
---   <h2>Fully-open time ranges</h2>
---   
---   <ul>
---   <li>Queries with the following range will return data in
---   <b>ascending</b> order from the <b>start of time</b> until the <b>end
---   of time</b>:<pre>Iso8601Range Nothing Nothing</pre>Example textual
---   representation:<pre>"name *-*"</pre></li>
---   </ul>
-data Iso8601Range (name :: Symbol)
-Iso8601Range :: Maybe UTCTime -> Maybe UTCTime -> Iso8601Range
+-- | Defines a point in time that can be formatted as and parsed from an
+--   ISO 8601-compliant string.
+newtype Iso8601Time
+Iso8601Time :: UTCTime -> Iso8601Time
+[$sel:getIso8601Time:Iso8601Time] :: Iso8601Time -> UTCTime
+
+-- | Represents a sort order, applicable to a query.
+data SortOrder
+
+-- | Sort in ascending order.
+Ascending :: SortOrder
+
+-- | Sort in descending order.
+Descending :: SortOrder
 
 -- | Polymorphic wrapper type to put around primitive types and, 3rd party
 --   lib types to avoid defining orphan instances and/or, undesirable
@@ -2713,9 +2675,14 @@ instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiBlockData
 instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.Wallet.Api.Types.ApiT a)
 instance GHC.Show.Show a => GHC.Show.Show (Cardano.Wallet.Api.Types.ApiT a)
 instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.ApiT a)
-instance GHC.Show.Show (Cardano.Wallet.Api.Types.Iso8601Range name)
-instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.Iso8601Range name)
-instance GHC.Classes.Eq (Cardano.Wallet.Api.Types.Iso8601Range name)
+instance GHC.Show.Show Cardano.Wallet.Api.Types.SortOrder
+instance GHC.Generics.Generic Cardano.Wallet.Api.Types.SortOrder
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.SortOrder
+instance GHC.Enum.Enum Cardano.Wallet.Api.Types.SortOrder
+instance GHC.Enum.Bounded Cardano.Wallet.Api.Types.SortOrder
+instance GHC.Show.Show Cardano.Wallet.Api.Types.Iso8601Time
+instance GHC.Classes.Ord Cardano.Wallet.Api.Types.Iso8601Time
+instance GHC.Classes.Eq Cardano.Wallet.Api.Types.Iso8601Time
 instance GHC.Show.Show Cardano.Wallet.Api.Types.ApiErrorCode
 instance GHC.Generics.Generic Cardano.Wallet.Api.Types.ApiErrorCode
 instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiErrorCode
@@ -2786,10 +2753,14 @@ instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Carda
 instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.TxStatus)
 instance Data.Text.Class.FromText a => Web.Internal.HttpApiData.FromHttpApiData (Cardano.Wallet.Api.Types.ApiT a)
 instance Data.Text.Class.ToText a => Web.Internal.HttpApiData.ToHttpApiData (Cardano.Wallet.Api.Types.ApiT a)
-instance GHC.TypeLits.KnownSymbol name => Data.Text.Class.ToText (Cardano.Wallet.Api.Types.Iso8601Range name)
-instance GHC.TypeLits.KnownSymbol name => Data.Text.Class.FromText (Cardano.Wallet.Api.Types.Iso8601Range name)
-instance GHC.TypeLits.KnownSymbol name => Web.Internal.HttpApiData.FromHttpApiData (Cardano.Wallet.Api.Types.Iso8601Range name)
-instance GHC.TypeLits.KnownSymbol name => Web.Internal.HttpApiData.ToHttpApiData (Cardano.Wallet.Api.Types.Iso8601Range name)
+instance Data.Text.Class.ToText Cardano.Wallet.Api.Types.SortOrder
+instance Data.Text.Class.FromText Cardano.Wallet.Api.Types.SortOrder
+instance Web.Internal.HttpApiData.FromHttpApiData Cardano.Wallet.Api.Types.SortOrder
+instance Web.Internal.HttpApiData.ToHttpApiData Cardano.Wallet.Api.Types.SortOrder
+instance Data.Text.Class.ToText Cardano.Wallet.Api.Types.Iso8601Time
+instance Data.Text.Class.FromText Cardano.Wallet.Api.Types.Iso8601Time
+instance Web.Internal.HttpApiData.FromHttpApiData Cardano.Wallet.Api.Types.Iso8601Time
+instance Web.Internal.HttpApiData.ToHttpApiData Cardano.Wallet.Api.Types.Iso8601Time
 instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiErrorCode
 instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.Api.Types.ApiFee
 instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.Api.Types.ApiFee
@@ -2842,7 +2813,7 @@ type PostTransactionFee t = "wallets" :> Capture "walletId" (ApiT WalletId) :> "
 
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/listTransaction</a>
-type ListTransactions t = "wallets" :> Capture "walletId" (ApiT WalletId) :> "transactions" :> Header "Range" (Iso8601Range "inserted-at") :> Get '[JSON] [ApiTransaction t]
+type ListTransactions t = "wallets" :> Capture "walletId" (ApiT WalletId) :> "transactions" :> QueryParam "start" Iso8601Time :> QueryParam "end" Iso8601Time :> QueryParam "order" SortOrder :> Get '[JSON] [ApiTransaction t]
 
 -- | Any media type
 data Any
