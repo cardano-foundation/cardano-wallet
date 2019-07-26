@@ -49,6 +49,8 @@ We should consider the above ramifications as part of any solution.
 
 Prototype: https://github.com/input-output-hk/cardano-wallet/pull/499
 
+**Decision**: address this as issue https://github.com/input-output-hk/cardano-wallet/issues/583. 
+
 ## Run integration tests against mainnet
 
 > Reviewed on **week 21**:
