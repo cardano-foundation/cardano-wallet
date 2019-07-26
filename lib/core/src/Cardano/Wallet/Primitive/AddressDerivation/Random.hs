@@ -27,7 +27,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.Random
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( DerivationScheme (DerivationScheme1), XPrv, deriveXPrv, generateNew )
+    ( DerivationScheme (DerivationScheme1), XPrv, deriveXPrv, generate )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationType (..), Index (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Common
@@ -40,8 +40,6 @@ import Crypto.Hash.Algorithms
     ( Blake2b_256 )
 import Data.ByteArray
     ( ScrubbedBytes )
-import Data.ByteString
-    ( ByteString )
 
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -84,6 +82,11 @@ deriveAddressPrivateKey (Passphrase pwd) (Key accXPrv) (Index addrIx) =
 
 -- | Generate a root key from a corresponding seed.
 -- The seed should be at least 32 bytes
+--
+-- fixme: I'm not sure if "the seed should be at least 32 bytes" is correct.
+-- A 12-word mnemonic carries 16 bytes of entry. Then hashing it with
+-- Blake2b-256 will create a 32 byte digest, which is big enough for the
+-- 'generate' function.
 generateKeyFromSeed
     :: Passphrase "seed"
     -> Passphrase "encryption"
@@ -101,9 +104,7 @@ unsafeGenerateKeyFromSeed (Passphrase seed) (Passphrase pwd) =
             ("seed length : " <> show (BA.length seed) <> " in (Passphrase \"seed\") is not valid")
             seed
             (\s -> BA.length s >= 16 && BA.length s <= 255)
-        genPwd = mempty :: ByteString
-    -- fixme: generate or generateNew?
-    in Key $ generateNew (hashSeed seed') genPwd pwd
+    in Key $ generate (hashSeed seed') pwd
 
 -- | Hash the seed entropy (generated from mnemonic) used to initiate a HD
 -- wallet.
