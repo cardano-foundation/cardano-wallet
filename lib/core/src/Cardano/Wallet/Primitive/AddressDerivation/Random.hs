@@ -100,8 +100,9 @@ unsafeGenerateKeyFromSeed (Passphrase seed) (Passphrase pwd) =
         seed' = invariant
             ("seed length : " <> show (BA.length seed) <> " in (Passphrase \"seed\") is not valid")
             seed
-            (\s -> BA.length s >= 32 && BA.length s <= 255)
+            (\s -> BA.length s >= 16 && BA.length s <= 255)
         genPwd = mempty :: ByteString
+    -- fixme: generate or generateNew?
     in Key $ generateNew (hashSeed seed') genPwd pwd
 
 -- | Hash the seed entropy (generated from mnemonic) used to initiate a HD
