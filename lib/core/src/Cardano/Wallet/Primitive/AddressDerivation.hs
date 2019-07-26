@@ -27,7 +27,8 @@ module Cardano.Wallet.Primitive.AddressDerivation
     (
     -- * Polymorphic / General Purpose Types
     -- $use
-      Key (..)
+      Key
+    , getKey
     , Depth (..)
     , Index (..)
     , DerivationType (..)
@@ -35,7 +36,6 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , digest
     , XPub
     , XPrv
-
     -- * Backends Interoperability
     , KeyToAddress(..)
 
@@ -61,6 +61,8 @@ import Prelude
 
 import Cardano.Crypto.Wallet
     ( XPrv, XPub, toXPub, unXPrv, unXPub, xPrvChangePass, xprv, xpub )
+import Cardano.Wallet.Primitive.AddressDerivation.Common
+    ( Depth (..), Key (..) )
 import Cardano.Wallet.Primitive.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
@@ -122,27 +124,6 @@ import qualified Data.Text.Encoding as T
 {-------------------------------------------------------------------------------
                         Polymorphic / General Purpose Types
 -------------------------------------------------------------------------------}
-
--- | A cryptographic key, with phantom-types to disambiguate key types.
---
--- @
--- let rootPrivateKey = Key 'RootK XPrv
--- let accountPubKey = Key 'AccountK XPub
--- let addressPubKey = Key 'AddressK XPub
--- @
-newtype Key (level :: Depth) key = Key { getKey :: key }
-    deriving stock (Generic, Show, Eq)
-
-instance (NFData key) => NFData (Key level key)
-
-
--- | Key Depth in the derivation path, according to BIP-0039 / BIP-0044
---
--- @m | purpose' | cointype' | account' | change | address@
---
--- We do not manipulate purpose, cointype and change paths directly, so they are
--- left out of the sum type.
-data Depth = RootK | AccountK | AddressK
 
 -- | A derivation index, with phantom-types to disambiguate derivation type.
 --
