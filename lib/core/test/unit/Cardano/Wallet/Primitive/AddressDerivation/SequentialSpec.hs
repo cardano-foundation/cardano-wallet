@@ -26,12 +26,17 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
+    , choose
     , elements
     , expectFailure
     , property
+    , vectorOf
     , (===)
     , (==>)
     )
+
+import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
 
 spec :: Spec
 spec = do
@@ -109,3 +114,9 @@ prop_accountKeyDerivation (seed, recPwd) encPwd ix =
 instance Arbitrary ChangeChain where
     shrink _ = []
     arbitrary = elements [InternalChain, ExternalChain]
+
+instance {-# OVERLAPS #-} Arbitrary (Passphrase "seed") where
+    arbitrary = do
+        n <- choose (16, 64)
+        bytes <- BS.pack <$> vectorOf n arbitrary
+        return $ Passphrase $ BA.convert bytes

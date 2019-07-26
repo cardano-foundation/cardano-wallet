@@ -55,7 +55,6 @@ import Test.QuickCheck
     , choose
     , expectFailure
     , property
-    , vectorOf
     , (.&&.)
     , (===)
     , (==>)
@@ -271,12 +270,6 @@ instance {-# OVERLAPS #-} Arbitrary (Passphrase "encryption") where
         let p = Proxy :: Proxy "encryption"
         n <- choose (passphraseMinLength p, passphraseMaxLength p)
         bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
-        return $ Passphrase $ BA.convert bytes
-
-instance {-# OVERLAPS #-} Arbitrary (Passphrase "seed") where
-    arbitrary = do
-        n <- choose (16, 64)
-        bytes <- BS.pack <$> vectorOf n arbitrary
         return $ Passphrase $ BA.convert bytes
 
 instance Arbitrary (Hash "encryption") where

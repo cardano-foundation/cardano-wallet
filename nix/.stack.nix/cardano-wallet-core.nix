@@ -24,6 +24,7 @@
           (hsPkgs.binary)
           (hsPkgs.bytestring)
           (hsPkgs.cardano-crypto)
+          (hsPkgs.cborg)
           (hsPkgs.containers)
           (hsPkgs.contra-tracer)
           (hsPkgs.cryptonite)
