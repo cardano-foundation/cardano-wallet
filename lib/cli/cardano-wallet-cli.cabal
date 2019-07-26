@@ -47,7 +47,6 @@ library
     , servant-server
     , text
     , text-class
-    , time
     , optparse-applicative
   hs-source-dirs:
       src
@@ -76,7 +75,6 @@ test-suite unit
     , memory
     , optparse-applicative
     , QuickCheck
-    , quickcheck-instances
     , text
     , text-class
   build-tools:

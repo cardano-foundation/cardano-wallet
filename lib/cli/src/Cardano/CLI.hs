@@ -43,7 +43,6 @@ module Cardano.CLI
     , verbosityOption
 
     -- * Types
-    , Iso8601Time (..)
     , Service
     , MnemonicSize (..)
     , Port (..)
@@ -102,9 +101,10 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
-    , Iso8601Range (..)
+    , Iso8601Time (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
+    , SortOrder (..)
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
@@ -137,8 +137,6 @@ import Data.Aeson
     ( (.:) )
 import Data.Bifunctor
     ( bimap )
-import Data.Either.Extra
-    ( maybeToEither )
 import Data.Functor
     ( (<$), (<&>) )
 import Data.List.Extra
@@ -157,10 +155,6 @@ import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..), showT )
 import Data.Text.Read
     ( decimal )
-import Data.Time.Clock
-    ( UTCTime )
-import Data.Time.Text
-    ( iso8601, iso8601ExtendedUtc, utcTimeFromText, utcTimeToText )
 import Fmt
     ( Buildable, blockListF, fmt, nameF, pretty )
 import GHC.Generics
@@ -570,6 +564,7 @@ data TransactionListArgs = TransactionListArgs
     , _walletId :: WalletId
     , _timeRangeStart :: Maybe Iso8601Time
     , _timeRangeEnd :: Maybe Iso8601Time
+    , _sortOrder :: Maybe SortOrder
     }
 
 cmdTransactionList
@@ -583,13 +578,14 @@ cmdTransactionList = command "list" $ info (helper <*> cmd) $ mempty
         <*> walletIdArgument
         <*> optional timeRangeStartOption
         <*> optional timeRangeEndOption
-    exec (TransactionListArgs wPort wId mTimeRangeStart mTimeRangeEnd) =
+        <*> optional sortOrderOption
+    exec (TransactionListArgs wPort wId mTimeRangeStart mTimeRangeEnd mOrder) =
         runClient wPort Aeson.encodePretty $ listTransactions
             (walletClient @t)
             (ApiT wId)
-            (pure $ Iso8601Range
-                (getIso8601Time <$> mTimeRangeStart)
-                (getIso8601Time <$> mTimeRangeEnd))
+            mTimeRangeStart
+            mTimeRangeEnd
+            mOrder
 
 {-------------------------------------------------------------------------------
                             Commands - 'address'
@@ -783,6 +779,14 @@ timeRangeEndOption = optionT $ mempty
     <> help "specifies an end time (ISO 8601 format: basic or extended)."
     <> showDefaultWith showT
 
+-- | [--order=ORDER]
+sortOrderOption :: Parser SortOrder
+sortOrderOption = optionT $ mempty
+    <> long "order"
+    <> metavar "ORDER"
+    <> help "specifies a sort order, either 'ascending' or 'descending'."
+    <> showDefaultWith showT
+
 -- | [(--quiet|--verbose)]
 verbosityOption :: Parser Verbosity
 verbosityOption = (Quiet <$ quiet) <|> (Verbose <$ verbose) <|> (pure Default)
@@ -849,7 +853,9 @@ data WalletClient t = WalletClient
         -> ClientM NoContent
     , listTransactions
         :: ApiT WalletId
-        -> Maybe (Iso8601Range "inserted-at")
+        -> Maybe Iso8601Time
+        -> Maybe Iso8601Time
+        -> Maybe SortOrder
         -> ClientM [ApiTransaction t]
     , postTransaction
         :: ApiT WalletId
@@ -943,25 +949,6 @@ handleResponse encode res = do
 {-------------------------------------------------------------------------------
                                 Extra Types
 -------------------------------------------------------------------------------}
-
--- | Defines a point in time that can be formatted as and parsed from an
---   ISO 8601-compliant string.
---
-newtype Iso8601Time = Iso8601Time
-    { getIso8601Time :: UTCTime
-    } deriving (Eq, Ord, Show)
-
-instance ToText Iso8601Time where
-    toText = utcTimeToText iso8601ExtendedUtc . getIso8601Time
-
-instance FromText Iso8601Time where
-    fromText t =
-        Iso8601Time <$> maybeToEither err (utcTimeFromText iso8601 t)
-      where
-        err = TextDecodingError $ mempty
-            <> "Unable to parse time argument: '"
-            <> T.unpack t
-            <> "'. Expecting ISO 8601 format (basic or extended)."
 
 -- | Represents the number of words in a mnemonic sentence.
 --

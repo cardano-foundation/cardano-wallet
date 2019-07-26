@@ -10,9 +10,10 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
-    , Iso8601Range
+    , Iso8601Time
     , PostTransactionData
     , PostTransactionFeeData
+    , SortOrder
     , WalletPostData
     , WalletPutData
     , WalletPutPassphraseData
@@ -30,7 +31,6 @@ import Servant.API
     , Capture
     , DeleteNoContent
     , Get
-    , Header
     , JSON
     , NoContent
     , PostAccepted
@@ -142,7 +142,9 @@ type PostTransactionFee t = "wallets"
 type ListTransactions t = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions"
-    :> Header "Range" (Iso8601Range "inserted-at")
+    :> QueryParam "start" Iso8601Time
+    :> QueryParam "end" Iso8601Time
+    :> QueryParam "order" SortOrder
     :> Get '[JSON] [ApiTransaction t]
 
 {-------------------------------------------------------------------------------

@@ -91,6 +91,7 @@
             (hsPkgs.cryptonite)
             (hsPkgs.directory)
             (hsPkgs.exceptions)
+            (hsPkgs.extra)
             (hsPkgs.generic-lens)
             (hsPkgs.hspec)
             (hsPkgs.hspec-core)

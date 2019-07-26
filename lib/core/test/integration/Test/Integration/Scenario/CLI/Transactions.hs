@@ -11,7 +11,7 @@ module Test.Integration.Scenario.CLI.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiFee, ApiTransaction, ApiWallet, getApiT )
+    ( ApiFee, ApiTransaction, ApiWallet, SortOrder, getApiT )
 import Cardano.Wallet.Primitive.Types
     ( DecodeAddress (..)
     , Direction (..)
@@ -25,10 +25,12 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Product.Typed
     ( typed )
+import Data.List.Extra
+    ( enumerate )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
-    ( toText )
+    ( showT, toText )
 import Network.Wai.Handler.Warp
     ( Port )
 import System.Command
@@ -657,24 +659,32 @@ spec = do
                 , (Just validTime2, Just validTime1)
                 ]
 
+        let sortOrderMatrix :: [Maybe SortOrder]
+            sortOrderMatrix = Nothing : fmap pure enumerate
+
         describe "TRANS_LIST_01 - Listing transactions for an empty wallet" $
             forM_ timeRangeMatrix $ \(mStart, mEnd) -> do
-                let title = mempty
-                      <> "listing transactions from "
-                      <> show mStart
-                      <> " to "
-                      <> show mEnd
-                it title $ \ctx -> do
-                    wallet <- emptyWallet ctx
-                    (Exit code, Stdout out, Stderr err) <-
-                        listTransactionsViaCLI @t ctx $ join
-                            [ [T.unpack $ wallet ^. walletId]
-                            , maybe [] (\t -> ["--start", t]) mStart
-                            , maybe [] (\t -> ["--end"  , t]) mEnd
-                            ]
-                    err `shouldBe` "Ok.\n"
-                    out `shouldBe` "[]\n"
-                    code `shouldBe` ExitSuccess
+                forM_ sortOrderMatrix $ \mOrder -> do
+                    let title = mempty
+                          <> "listing transactions from "
+                          <> show mStart
+                          <> " to "
+                          <> show mEnd
+                          <> " in "
+                          <> show mOrder
+                          <> " order "
+                    it title $ \ctx -> do
+                        wallet <- emptyWallet ctx
+                        (Exit code, Stdout out, Stderr err) <-
+                            listTransactionsViaCLI @t ctx $ join
+                                [ [T.unpack $ wallet ^. walletId]
+                                , maybe [] (\t -> ["--start", t]) mStart
+                                , maybe [] (\t -> ["--end"  , t]) mEnd
+                                , maybe [] (\o -> ["--order", showT o]) mOrder
+                                ]
+                        err `shouldBe` "Ok.\n"
+                        out `shouldBe` "[]\n"
+                        code `shouldBe` ExitSuccess
 
   where
       longAddr = replicate 10000 '1'

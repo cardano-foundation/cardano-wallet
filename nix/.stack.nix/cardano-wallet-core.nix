@@ -29,6 +29,7 @@
           (hsPkgs.cryptonite)
           (hsPkgs.deepseq)
           (hsPkgs.exceptions)
+          (hsPkgs.extra)
           (hsPkgs.fast-logger)
           (hsPkgs.fmt)
           (hsPkgs.foldl)

@@ -58,9 +58,10 @@ import Cardano.Wallet.Api.Types
     , ApiTxInput (..)
     , ApiUtxoStatistics (..)
     , ApiWallet (..)
-    , Iso8601Range (..)
+    , Iso8601Time (..)
     , PostTransactionData
     , PostTransactionFeeData
+    , SortOrder (..)
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -463,9 +464,11 @@ listTransactions
     :: forall t. (DefineTx t)
     => WalletLayer (SeqState t) t
     -> ApiT WalletId
-    -> Maybe (Iso8601Range "inserted-at")
+    -> Maybe Iso8601Time
+    -> Maybe Iso8601Time
+    -> Maybe SortOrder
     -> Handler [ApiTransaction t]
-listTransactions w (ApiT wid) _maybeRange = do
+listTransactions w (ApiT wid) _maybeStart _maybeEnd _maybeOrder = do
     txs <- liftHandler $ W.listTransactions w wid
     return $ map mkApiTransactionFromInfo txs
 
