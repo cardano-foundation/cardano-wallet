@@ -124,7 +124,7 @@ import Data.Quantity
 import Data.Text
     ( Text, split )
 import Data.Text.Class
-    ( CaseStyle (CamelCase)
+    ( CaseStyle (SnakeLowerCase)
     , FromText (..)
     , TextDecodingError (..)
     , ToText (..)
@@ -293,10 +293,10 @@ data SortOrder
     deriving (Bounded, Enum, Eq, Generic, Show)
 
 instance ToText SortOrder where
-    toText = toTextFromBoundedEnum CamelCase
+    toText = toTextFromBoundedEnum SnakeLowerCase
 
 instance FromText SortOrder where
-    fromText = fromTextToBoundedEnum CamelCase
+    fromText = fromTextToBoundedEnum SnakeLowerCase
 
 instance FromHttpApiData SortOrder where
     parseUrlPiece = first (T.pack . getTextDecodingError) . fromText
