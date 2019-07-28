@@ -109,7 +109,7 @@ import Data.List.Split
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( fromMaybe )
+    ( catMaybes, fromMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -137,8 +137,10 @@ import Database.Persist.Sql
     , selectList
     , updateWhere
     , (<-.)
+    , (<=.)
     , (=.)
     , (==.)
+    , (>=.)
     )
 import Database.Persist.Sqlite
     ( SqlBackend, SqlPersistT, mkSqliteConnectionInfo, wrapConnectionInfo )
@@ -306,7 +308,8 @@ newDBLayer logConfig trace fp = do
               selectLatestCheckpoint wid >>= \case
                   Just cp -> do
                       utxo <- selectUTxO cp
-                      txs <- selectTxHistory @t wid [TxMetaStatus ==. W.Pending]
+                      txs <- selectTxHistory @t wid
+                          W.defaultTxSortOrder [TxMetaStatus ==. W.Pending]
                       s <- selectState (checkpointId cp)
                       pure (checkpointFromEntity @s @t cp utxo txs <$> s)
                   Nothing -> pure Nothing
@@ -347,9 +350,12 @@ newDBLayer logConfig trace fp = do
                       pure $ Right ()
                   Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
-        , readTxHistory = \(PrimaryKey wid) ->
+        , readTxHistory = \(PrimaryKey wid) order range ->
               runQuery $
-              selectTxHistory @t wid []
+              selectTxHistory @t wid order $ catMaybes
+                [ (TxMetaSlotId >=.) <$> W.rStart range
+                , (TxMetaSlotId <=.) <$> W.rEnd range
+                ]
 
         {-----------------------------------------------------------------------
                                        Keystore
@@ -739,18 +745,22 @@ selectTxs txids = do
 selectTxHistory
     :: forall t. PersistTx t
     => W.WalletId
+    -> W.SortOrder
     -> [Filter TxMeta]
     -> SqlPersistT IO [(W.Hash "Tx", (W.Tx t, W.TxMeta))]
-selectTxHistory wid conditions = do
-    -- Note: there are sorted indices on these columns.
-    -- The secondary sort by TxId is to make the ordering stable
-    -- so that testing with random data always works.
-    let sortOpt = [ Desc TxMetaSlotId, Asc TxMetaTxId ]
+selectTxHistory wid order conditions = do
     metas <- fmap entityVal <$> selectList
         ((TxMetaWalletId ==. wid) : conditions) sortOpt
     let txids = map txMetaTxId metas
     (ins, outs) <- selectTxs txids
     pure $ txHistoryFromEntity @t metas ins outs
+  where
+    -- Note: there are sorted indices on these columns.
+    -- The secondary sort by TxId is to make the ordering stable
+    -- so that testing with random data always works.
+    sortOpt = case order of
+        W.Ascending -> [Asc TxMetaSlotId, Desc TxMetaTxId]
+        W.Descending -> [Desc TxMetaSlotId, Asc TxMetaTxId]
 
 ---------------------------------------------------------------------------
 -- DB queries for address discovery state
