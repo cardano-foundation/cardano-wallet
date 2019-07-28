@@ -49,6 +49,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , WalletState (..)
+    , defaultTxSortOrder
+    , wholeRange
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
@@ -131,7 +133,11 @@ spec =  do
             unsafeRunExceptT $ createWallet db testWid testCp testMetadata
             unsafeRunExceptT $ putTxHistory db testWid (Map.fromList testTxs)
             destroyDBLayer ctx
-            testOpeningCleaning f (`readTxHistory` testWid) testTxs mempty
+            testOpeningCleaning
+                f
+                (\db' -> readTxHistory db' testWid defaultTxSortOrder wholeRange)
+                testTxs
+                mempty
 
         it "put and read checkpoint" $ \f -> do
             (ctx, db) <- newDBLayer' (Just f)

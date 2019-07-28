@@ -26,7 +26,15 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
-    ( DefineTx (..), Hash, TxMeta, WalletId, WalletMetadata )
+    ( DefineTx (..)
+    , Hash
+    , Range (..)
+    , SlotId (..)
+    , SortOrder (..)
+    , TxMeta
+    , WalletId
+    , WalletMetadata
+    )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Data.Map.Strict
@@ -102,6 +110,8 @@ data DBLayer m s t = DBLayer
 
     , readTxHistory
         :: PrimaryKey WalletId
+        -> SortOrder
+        -> Range SlotId
         -> m [(Hash "Tx", (Tx t, TxMeta))]
         -- ^ Fetch the current transaction history of a known wallet, ordered by
         -- descending slot number.

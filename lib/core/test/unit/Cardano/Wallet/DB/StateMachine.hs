@@ -11,6 +11,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -53,7 +54,7 @@ import Cardano.Wallet.DB
     , cleanDB
     )
 import Cardano.Wallet.DBSpec
-    ( GenTxHistory (..), TxHistory, sortTxHistory )
+    ( GenTxHistory (..), TxHistory, filterTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -63,7 +64,14 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), TxMeta (..), WalletId (..), WalletMetadata (..) )
+    ( Hash (..)
+    , Range (..)
+    , SlotId (..)
+    , SortOrder (..)
+    , TxMeta (..)
+    , WalletId (..)
+    , WalletMetadata (..)
+    )
 import Control.Foldl
     ( Fold (..) )
 import Control.Monad.IO.Class
@@ -88,6 +96,8 @@ import Data.Set
     ( Set )
 import Data.TreeDiff
     ( ToExpr (..), defaultExprViaShow )
+import Data.Word
+    ( Word32 )
 import GHC.Generics
     ( Generic )
 import System.Random
@@ -250,12 +260,13 @@ mPutTxHistory wid txList m@(M cp metas txs pk)
     updateTxs :: Hash "Tx" -> (Tx, TxMeta) -> (Tx, TxMeta)
     updateTxs txid (tx, meta) = (maybe tx fst (Map.lookup txid txs'), meta)
 
-mReadTxHistory :: MWid -> MockOp TxHistory
-mReadTxHistory wid m@(M cp _ txs _)
+mReadTxHistory :: MWid -> SortOrder -> Range SlotId -> MockOp TxHistory
+mReadTxHistory wid order range m@(M cp _ txs _)
     | wid `Map.member` cp = (Right txHistory, m)
     | otherwise = (Right mempty, m)
   where
-    txHistory = sortTxHistory $ fromMaybe mempty (Map.lookup wid txs)
+    txHistory = filterTxHistory order range
+        $ fromMaybe mempty (Map.lookup wid txs)
 
 mPutPrivateKey :: MWid -> MPrivKey -> MockOp ()
 mPutPrivateKey wid pk' m@(M cp metas txs pk)
@@ -281,7 +292,7 @@ data Cmd wid
     | PutWalletMeta wid WalletMetadata
     | ReadWalletMeta wid
     | PutTxHistory wid TxHistory
-    | ReadTxHistory wid
+    | ReadTxHistory wid SortOrder (Range SlotId)
     | PutPrivateKey wid MPrivKey
     | ReadPrivateKey wid
     deriving (Show, Functor, Foldable, Traversable)
@@ -349,8 +360,8 @@ runMock = \case
         first (Resp . fmap Metadata) . mReadWalletMeta wid
     PutTxHistory wid txs ->
         first (Resp . fmap Unit) . mPutTxHistory wid txs
-    ReadTxHistory wid ->
-        first (Resp . fmap TxHistory) . mReadTxHistory wid
+    ReadTxHistory wid order range ->
+        first (Resp . fmap TxHistory) . mReadTxHistory wid order range
     PutPrivateKey wid pk ->
         first (Resp . fmap Unit) . mPutPrivateKey wid pk
     ReadPrivateKey wid ->
@@ -396,8 +407,8 @@ runIO db = fmap Resp . go
             Right . Metadata <$> readWalletMeta db (PrimaryKey wid)
         PutTxHistory wid txs ->
             catchNoSuchWallet Unit $ putTxHistory db (PrimaryKey wid) (Map.fromList txs)
-        ReadTxHistory wid ->
-            Right . TxHistory <$> readTxHistory db (PrimaryKey wid)
+        ReadTxHistory wid order range ->
+            Right . TxHistory <$> readTxHistory db (PrimaryKey wid) order range
         PutPrivateKey wid pk ->
             catchNoSuchWallet Unit $
                 putPrivateKey db (PrimaryKey wid) (fromMockPrivKey pk)
@@ -512,7 +523,7 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
         , (5, PutWalletMeta <$> genId' <*> arbitrary)
         , (5, ReadWalletMeta <$> genId')
         , (5, PutTxHistory <$> genId' <*> fmap unGenTxHistory arbitrary)
-        , (5, ReadTxHistory <$> genId')
+        , (5, ReadTxHistory <$> genId' <*> genSortOrder <*> genRange)
         , (3, PutPrivateKey <$> genId' <*> genPrivKey)
         , (3, ReadPrivateKey <$> genId')
         ]
@@ -525,6 +536,21 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
 
     genPrivKey :: Gen MPrivKey
     genPrivKey = elements ["pk1", "pk2", "pk3"]
+
+    genSortOrder :: Gen SortOrder
+    genSortOrder = QC.elements [Ascending, Descending]
+
+    genRange :: Gen (Range SlotId)
+    genRange = Range <$> genSId <*> genSId
+      where
+        genSId :: Gen (Maybe SlotId)
+        genSId = QC.oneof
+            [ return Nothing
+            , Just <$> (SlotId <$> genWord32 <*> arbitrary)
+            ]
+        -- FIXME: There's currently an artifical boundary on ~48 bits for the
+        -- Sqlite storage of the SlotId's epochNumber.
+        genWord32 = fromIntegral <$> arbitrary @Word32
 
 isUnordered :: Ord x => [x] -> Bool
 isUnordered xs = xs /= L.sort xs
@@ -722,7 +748,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
 
     isReadTxHistory :: Event Symbolic -> Maybe MWid
     isReadTxHistory ev = case (cmd ev, mockResp ev, before ev) of
-        (At (ReadTxHistory wid), Resp (Right (TxHistory _)), Model _ wids)
+        (At (ReadTxHistory wid _ _), Resp (Right (TxHistory _)), Model _ wids)
             -> Just (wids ! wid)
         _otherwise
             -> Nothing
@@ -815,7 +841,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
       where
         update :: Bool -> Event Symbolic -> Bool
         update didRead ev = didRead || case (cmd ev, mockResp ev) of
-            (At (ReadTxHistory _), Resp (Right (TxHistory h))) ->
+            (At ReadTxHistory {}, Resp (Right (TxHistory h))) ->
                 check h
             _otherwise ->
                 False

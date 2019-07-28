@@ -22,7 +22,7 @@ module Cardano.Wallet.DBSpec
     , GenTxHistory (..)
     , KeyValPairs (..)
     , TxHistory
-    , sortTxHistory
+    , filterTxHistory
     ) where
 
 import Prelude
@@ -67,7 +67,9 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Direction (..)
     , Hash (..)
+    , Range (..)
     , SlotId (..)
+    , SortOrder (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -79,7 +81,10 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , WalletState (..)
+    , defaultTxSortOrder
     , isPending
+    , isWithinRange
+    , wholeRange
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
@@ -173,7 +178,10 @@ unions =
 -- default order for readTxHistory.
 sortedUnions :: Ord k => [(k, GenTxHistory)] -> [Identity GenTxHistory]
 sortedUnions = map (Identity . sort' . runIdentity) . unions
-    where sort' = GenTxHistory . sortTxHistory . unGenTxHistory
+  where
+    sort' = GenTxHistory
+      . filterTxHistory defaultTxSortOrder wholeRange
+      . unGenTxHistory
 
 -- | Execute an action once per key @k@ present in the given list
 once :: (Ord k, Monad m) => [(k,v)] -> ((k,v) -> m a) -> m [a]
@@ -186,10 +194,16 @@ once_ xs = void . once xs
 -- | Shorthand for the readTxHistory result type.
 type TxHistory = [(Hash "Tx", (Tx, TxMeta))]
 
--- | Apply the default sort order (descending on time, then by TxId) to a
--- 'TxHistory'.
-sortTxHistory :: TxHistory -> TxHistory
-sortTxHistory = sortBySlot . sortByTxId
+-- | Apply optional filters on slotId and sort using the default sort order
+-- (first time/slotId, then by TxId) to a 'TxHistory'.
+filterTxHistory :: SortOrder -> Range SlotId -> TxHistory -> TxHistory
+filterTxHistory order range =
+    filter (isWithinRange range . slotId . snd . snd)
+    . (case order of
+        Ascending -> reverse
+        Descending -> id)
+    . sortBySlot
+    . sortByTxId
   where
     sortBySlot = L.sortOn (Down . slotId . snd . snd)
     sortByTxId = L.sortOn fst
@@ -357,6 +371,8 @@ instance Arbitrary GenTxHistory where
         mockTxId :: Tx -> Hash "Tx"
         mockTxId = Hash . B8.pack . show
 
+        sortTxHistory = filterTxHistory defaultTxSortOrder wholeRange
+
 instance Arbitrary UTxO where
     shrink (UTxO utxo) = UTxO <$> shrink utxo
     arbitrary = do
@@ -412,7 +428,9 @@ readTxHistoryF
     => DBLayer m s DummyTarget
     -> PrimaryKey WalletId
     -> m (Identity GenTxHistory)
-readTxHistoryF db = fmap (Identity . GenTxHistory) . readTxHistory db
+readTxHistoryF db wid =
+    (Identity . GenTxHistory)
+    <$> readTxHistory db wid defaultTxSortOrder wholeRange
 
 putTxHistoryF
     :: DBLayer m s DummyTarget

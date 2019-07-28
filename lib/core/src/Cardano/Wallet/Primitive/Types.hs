@@ -97,6 +97,10 @@ module Cardano.Wallet.Primitive.Types
 
     -- * Querying
     , SortOrder (..)
+    , Range (..)
+    , wholeRange
+    , isWithinRange
+    , defaultTxSortOrder
 
     -- * Polymorphic
     , Hash (..)
@@ -325,6 +329,39 @@ instance ToText SortOrder where
 
 instance FromText SortOrder where
     fromText = fromTextToBoundedEnum SnakeLowerCase
+
+defaultTxSortOrder :: SortOrder
+defaultTxSortOrder =  Descending
+
+-- |'Range a' is used to filter data with optional `>=` and `<=` bounds.
+--
+-- When both bounds are 'Just', it functions like the closed range
+-- '[start, end]'. When both bounds are 'Nothing' it functions like
+-- '(-∞,∞)', including everything (see 'wholeRange'.)
+--
+-- The full four interesting cases with the corresponding predicate in the third
+-- column:
+--
+-- - [start, end]  Range (Just start) (Just end)   \x -> x >= start && x <= end
+-- - [start,∞)     Range (Just start) Nothing      \x -> x >= start
+-- - (-∞,end]      Range Nothing (Just end)        \x -> x <= end
+-- - (-∞,∞)        Range Nothing Nothing           \_x -> True
+data Range a = Range
+    { rStart :: Maybe a
+    , rEnd :: Maybe a
+    } deriving (Eq, Show)
+
+-- | The range that includes everything.
+wholeRange :: Range a
+wholeRange = Range Nothing Nothing
+
+isWithinRange :: Ord a => Range a -> a -> Bool
+isWithinRange (Range low high) x =
+    (maybe True (x >=) low) &&
+    (maybe True (x <=) high)
+
+-- NOTE: We could imagine replacing 'Range (Just 3) Nothing' with something
+-- more magic like: `(Including 3) ... NoBound`
 
 {-------------------------------------------------------------------------------
                                   Stake Pools

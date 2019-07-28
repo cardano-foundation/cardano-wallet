@@ -70,6 +70,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , SlotId (..)
     , SlotLength (..)
+    , SortOrder (..)
     , StartTime (..)
     , TransactionInfo (txInfoMeta)
     , TransactionInfo (..)
@@ -129,12 +130,15 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
+    , arbitraryBoundedEnum
     , choose
     , elements
     , property
     , withMaxSuccess
     , (==>)
     )
+import Test.QuickCheck.Instances.Time
+    ()
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
@@ -356,9 +360,11 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
 
 walletListTransactionsSorted
     :: (WalletId, WalletName, DummyState)
+    -> SortOrder
+    -> (Maybe UTCTime, Maybe UTCTime)
     -> Map (Hash "Tx") (Tx, TxMeta)
     -> Property
-walletListTransactionsSorted wallet@(wid, _, _) history =
+walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history =
     monadicIO $ liftIO $ do
         (WalletLayerFixture db wl _ slotIdTime) <- liftIO $ setupFixture wallet
         unsafeRunExceptT $ putTxHistory db (PrimaryKey wid) history
@@ -496,6 +502,14 @@ instance {-# OVERLAPS #-} Arbitrary (Key 'RootK XPrv, Passphrase "encryption")
         pwd <- arbitrary
         let key = generateKeyFromSeed (seed, mempty) pwd
         return (key, pwd)
+
+instance Arbitrary SlotId where
+    shrink _ = []
+    arbitrary = SlotId <$> arbitrary <*> arbitrary
+
+instance Arbitrary SortOrder where
+    shrink _ = []
+    arbitrary = arbitraryBoundedEnum
 
 instance Show XPrv where
     show = show . CC.unXPrv
