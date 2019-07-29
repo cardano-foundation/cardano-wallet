@@ -1300,6 +1300,10 @@ deriveAddressPrivateKey :: Passphrase "encryption" -> Key  'AccountK XPrv -> Cha
 --   This is the preferred way of deriving new sequential address public
 --   keys.
 deriveAddressPublicKey :: Key  'AccountK XPub -> ChangeChain -> Index  'Soft  'AddressK -> Key  'AddressK XPub
+
+-- | The minimum seed length for <a>generateKeyFromSeed</a> and
+--   <a>unsafeGenerateKeyFromSeed</a>.
+minSeedLengthBytes :: Int
 instance GHC.Enum.Bounded Cardano.Wallet.Primitive.AddressDerivation.Sequential.ChangeChain
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.AddressDerivation.Sequential.ChangeChain
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDerivation.Sequential.ChangeChain
@@ -1457,9 +1461,43 @@ instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDiscovery.Sequential.Addr
 
 -- | Implementation of address derivation for the random scheme, as
 --   implemented by the legacy Cardano wallets.
+--   
+--   For full documentation of the key derivation schemes, see the
+--   <a>Cardano.Crypto.Wallet</a> module, and the implementation in
+--   <a>cardano-crypto</a>.
 module Cardano.Wallet.Primitive.AddressDerivation.Random
+
+-- | Derives account private key from the given root private key, using
+--   derivation scheme 1.
+--   
+--   NOTE: The caller is expected to provide the corresponding passphrase
+--   (and to have checked that the passphrase is valid). Providing a wrong
+--   passphrase will not make the function fail but will instead, yield an
+--   incorrect new key that doesn't belong to the wallet.
 deriveAccountPrivateKey :: Passphrase "encryption" -> Key  'RootK XPrv -> Index  'Hardened  'AccountK -> Key  'AccountK XPrv
+
+-- | Derives address private key from the given account private key, using
+--   derivation scheme 1.
+--   
+--   NOTE: The caller is expected to provide the corresponding passphrase
+--   (and to have checked that the passphrase is valid). Providing a wrong
+--   passphrase will not make the function fail but will instead, yield an
+--   incorrect new key that doesn't belong to the wallet.
 deriveAddressPrivateKey :: Passphrase "encryption" -> Key  'AccountK XPrv -> Index  'Soft  'AddressK -> Key  'AddressK XPrv
+
+-- | Generate a root key from a corresponding seed. The seed should be at
+--   least 16 (<a>minSeedLengthBytes</a>) bytes.
+generateKeyFromSeed :: Passphrase "seed" -> Passphrase "encryption" -> Key  'RootK XPrv
+
+-- | Generate a new key from seed. Note that the <tt>depth</tt> is left
+--   open so that the caller gets to decide what type of key this is. This
+--   is mostly for testing, in practice, seeds are used to represent root
+--   keys, and one should use <a>generateKeyFromSeed</a>.
+unsafeGenerateKeyFromSeed :: Passphrase "seed" -> Passphrase "encryption" -> Key depth XPrv
+
+-- | The amount of entropy carried by a BIP-39 12-word mnemonic is 16
+--   bytes.
+minSeedLengthBytes :: Int
 
 module Cardano.Wallet.Network
 data NetworkLayer t m
