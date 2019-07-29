@@ -367,7 +367,8 @@ getUTxOsStatistics
     -> ApiT WalletId
     -> Handler ApiUtxoStatistics
 getUTxOsStatistics w (ApiT wid) = do
-    (UTxOStatistics histo totalStakes bType) <- liftHandler $ W.listUtxoStatistics w wid
+    (UTxOStatistics histo totalStakes bType) <-
+        liftHandler $ W.listUtxoStatistics w wid
     return ApiUtxoStatistics
         { total = Quantity (fromIntegral totalStakes)
         , scale = ApiT bType
@@ -414,7 +415,11 @@ transactions w =
     :<|> postTransactionFee w
 
 createTransaction
-    :: forall t. (DefineTx t, KeyToAddress t, Buildable (ErrValidateSelection t))
+    :: forall t.
+        ( DefineTx t
+        , KeyToAddress t
+        , Buildable (ErrValidateSelection t)
+        )
     => WalletLayer (SeqState t) t
     -> ApiT WalletId
     -> PostTransactionData t

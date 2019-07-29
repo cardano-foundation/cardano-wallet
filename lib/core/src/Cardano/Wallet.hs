@@ -269,8 +269,8 @@ data WalletLayer s t = WalletLayer
         => WalletId
         -> NonEmpty TxOut
         -> ExceptT (ErrEstimateTxFee e) IO Fee
-        -- ^ Estimate a transaction fee by automatically selecting inputs from the
-        -- wallet to cover the requested outputs.
+        -- ^ Estimate a transaction fee by automatically selecting inputs from
+        -- the wallet to cover the requested outputs.
 
     , listUtxoStatistics
         :: (DefineTx t)
@@ -555,7 +555,8 @@ newWalletLayer tracer bp db nw tl = do
         => WalletId
         -> ExceptT ErrListUTxOStatistics IO UTxOStatistics
     _listUtxoStatistics wid = do
-        (w, _) <- withExceptT ErrListUTxOStatisticsNoSuchWallet (_readWallet wid)
+        (w, _) <- withExceptT
+            ErrListUTxOStatisticsNoSuchWallet (_readWallet wid)
         let utxo = availableUTxO @s @t w
         pure $ computeUtxoStatistics log10 utxo
 
@@ -580,11 +581,12 @@ newWalletLayer tracer bp db nw tl = do
                 restoreSleep t wid slot
             Right blocks -> do
                 let next = view #header . last $ blocks
-                runExceptT (restoreBlocks t wid blocks (tip ^. #slotId)) >>= \case
-                    Left (ErrNoSuchWallet _) ->
-                        logNotice t "Wallet is gone! Terminating worker..."
-                    Right () -> do
-                        restoreStep t wid (next, tip)
+                runExceptT (restoreBlocks t wid blocks (tip ^. #slotId)) >>=
+                    \case
+                        Left (ErrNoSuchWallet _) ->
+                            logNotice t "Wallet is gone! Terminating worker..."
+                        Right () -> do
+                            restoreStep t wid (next, tip)
 
     -- | Wait a short delay before querying for blocks again. We do take this
     -- opportunity to also refresh the chain tip as it has probably increased
@@ -596,7 +598,8 @@ newWalletLayer tracer bp db nw tl = do
         -> BlockHeader
         -> IO ()
     restoreSleep t wid slot = do
-        -- NOTE: Conversion functions will treat 'NominalDiffTime' as picoseconds
+        -- NOTE: Conversion functions will treat 'NominalDiffTime' as
+        -- picoseconds
         let halfSlotLengthDelay = fromEnum slotLength `div` 2000000
         threadDelay halfSlotLengthDelay
         runExceptT (networkTip nw) >>= \case
@@ -645,7 +648,8 @@ newWalletLayer tracer bp db nw tl = do
             let nPending = Set.size (getPending cp')
             liftIO $ logInfo t $ pretty meta'
             liftIO $ logInfo t $ nPending ||+" transaction(s) pending."
-            liftIO $ logInfo t $ length txs ||+ " new transaction(s) discovered."
+            liftIO $ logInfo t $
+                length txs ||+ " new transaction(s) discovered."
             unless (null txs) $ liftIO $ logDebug t $
                 pretty $ blockListF (snd <$> Map.elems txs)
             DB.putCheckpoint db (PrimaryKey wid) cp'
@@ -670,9 +674,10 @@ newWalletLayer tracer bp db nw tl = do
         let maybeIsOurs (TxOut a _) = if fst (isOurs a s)
                 then Just a
                 else Nothing
-        let usedAddrs =
-                Set.fromList $ concatMap (mapMaybe maybeIsOurs . outputs' . snd) txs
-              where outputs' (tx, _) = W.outputs @t tx
+        let usedAddrs = Set.fromList $
+                concatMap (mapMaybe maybeIsOurs . outputs' . snd) txs
+              where
+                outputs' (tx, _) = W.outputs @t tx
         let knownAddrs =
                 L.sortBy (compareDiscovery s) (knownAddresses s)
         let withAddressState addr =
@@ -707,7 +712,8 @@ newWalletLayer tracer bp db nw tl = do
             CoinSelection.random coinSelOpts recipients utxo
         logInfoT $ "Coins selected for transaction: \n"+| sel |+""
         withExceptT ErrCreateUnsignedTxFee $ do
-            debug "Coins after fee adjustment" =<< adjustForFee feeOpts utxo' sel
+            debug "Coins after fee adjustment"
+                =<< adjustForFee feeOpts utxo' sel
 
     _estimateTxFee
         :: forall e. (DefineTx t, e ~ ErrValidateSelection t)
@@ -743,10 +749,12 @@ newWalletLayer tracer bp db nw tl = do
           where
             mkTxInfo (txid, (tx, meta)) = TransactionInfo
                 { txInfoId = txid
-                , txInfoInputs = [(txIn, lookupOutput txIn) | txIn <- W.inputs @t tx]
+                , txInfoInputs =
+                    [(txIn, lookupOutput txIn) | txIn <- W.inputs @t tx]
                 , txInfoOutputs = W.outputs @t tx
                 , txInfoMeta = meta
-                , txInfoDepth = slotDifference slotsPerEpoch tip (meta ^. #slotId)
+                , txInfoDepth =
+                    slotDifference slotsPerEpoch tip (meta ^. #slotId)
                 , txInfoTime = txTime (meta ^. #slotId)
                 }
             txOuts = Map.fromList
