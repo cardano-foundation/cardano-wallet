@@ -61,6 +61,7 @@ import Test.Integration.Framework.Request
     ( RequestException )
 import Test.Integration.Framework.TestData
     ( arabicWalletName
+    , errMsg400StartTimeLaterThanEndTime
     , errMsg403Fee
     , errMsg403InputsDepleted
     , errMsg403NotEnoughMoney
@@ -76,6 +77,8 @@ import Test.Integration.Framework.TestData
     , polishWalletName
     , wildcardsWalletName
     )
+import Web.HttpApiData
+    ( toQueryParam )
 
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
@@ -1015,6 +1018,26 @@ spec = do
         r <- request @ApiFee ctx (postTxFeeEp w) Default payload
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+
+    it "TRANS_LIST_02 - Start time shouldn't be later than end time" $
+        \ctx -> do
+              w <- emptyWallet ctx
+              let startTime = "2009-09-09T09:09:09Z"
+              let endTime = "2001-01-01T01:01:01Z"
+              let endpoint = mempty
+                      <> "v2/wallets/"
+                      <> T.unpack (w ^. walletId)
+                      <> "/transactions?"
+                      <> "start="
+                      <> T.unpack (toQueryParam startTime)
+                      <> "&end="
+                      <> T.unpack (toQueryParam endTime)
+              r <- request @([ApiTransaction t]) ctx ("GET", T.pack endpoint)
+                  Default Empty
+              expectResponseCode @IO HTTP.status400 r
+              expectErrorMessage
+                  (errMsg400StartTimeLaterThanEndTime startTime endTime) r
+              pure ()
 
   where
     longAddr = replicate 10000 '1'

@@ -11,11 +11,12 @@ module Test.Integration.Scenario.CLI.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiFee, ApiTransaction, ApiWallet, SortOrder, getApiT )
+    ( ApiFee, ApiTransaction, ApiWallet, getApiT )
 import Cardano.Wallet.Primitive.Types
     ( DecodeAddress (..)
     , Direction (..)
     , EncodeAddress (..)
+    , SortOrder (..)
     , TxStatus (..)
     , encodeAddress
     )
@@ -656,7 +657,6 @@ spec = do
                 , (Just validTime1, Nothing)
                 , (Nothing, Just validTime1)
                 , (Just validTime1, Just validTime2)
-                , (Just validTime2, Just validTime1)
                 ]
 
         let sortOrderMatrix :: [Maybe SortOrder]
@@ -685,6 +685,37 @@ spec = do
                         err `shouldBe` "Ok.\n"
                         out `shouldBe` "[]\n"
                         code `shouldBe` ExitSuccess
+
+        describe "TRANS_LIST_02 - Start time shouldn't be later than end time" $
+            forM_ sortOrderMatrix $ \mOrder -> do
+                let startTime = max validTime1 validTime2
+                let endTime   = min validTime1 validTime2
+                let title = mempty
+                        <> "listing transactions from "
+                        <> show startTime
+                        <> " to "
+                        <> show endTime
+                        <> " in "
+                        <> show mOrder
+                        <> " order "
+                it title $ \ctx -> do
+                    wallet <- emptyWallet ctx
+                    (Exit code, Stdout out, Stderr err) <-
+                        listTransactionsViaCLI @t ctx $ join
+                            [ [T.unpack $ wallet ^. walletId]
+                            , ["--start", startTime]
+                            , ["--end"  , endTime]
+                            , maybe [] (\o -> ["--order", showT o]) mOrder
+                            ]
+                    err `shouldBe` mconcat
+                        [ "The specified start time '"
+                        , startTime
+                        , "' is later than the specified end time '"
+                        , endTime
+                        , "'.\n"
+                        ]
+                    out `shouldBe` mempty
+                    code `shouldBe` ExitFailure 1
 
   where
       longAddr = replicate 10000 '1'

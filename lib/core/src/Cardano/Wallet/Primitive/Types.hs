@@ -95,6 +95,9 @@ module Cardano.Wallet.Primitive.Types
     -- * Stake Pools
     , PoolId(..)
 
+    -- * Querying
+    , SortOrder (..)
+
     -- * Polymorphic
     , Hash (..)
     , ShowFmt (..)
@@ -304,6 +307,24 @@ data WalletBalance = WalletBalance
     { available :: !(Quantity "lovelace" Natural)
     , total :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
+
+{-------------------------------------------------------------------------------
+                                   Queries
+-------------------------------------------------------------------------------}
+
+-- | Represents a sort order, applicable to the results returned by a query.
+data SortOrder
+    = Ascending
+        -- ^ Sort in ascending order.
+    | Descending
+        -- ^ Sort in descending order.
+    deriving (Bounded, Enum, Eq, Generic, Show)
+
+instance ToText SortOrder where
+    toText = toTextFromBoundedEnum SnakeLowerCase
+
+instance FromText SortOrder where
+    fromText = fromTextToBoundedEnum SnakeLowerCase
 
 {-------------------------------------------------------------------------------
                                   Stake Pools

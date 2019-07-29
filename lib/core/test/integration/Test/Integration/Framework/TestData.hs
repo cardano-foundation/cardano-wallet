@@ -43,6 +43,7 @@ module Test.Integration.Framework.TestData
 
     -- * Error messages
     , errMsgWalletIdEncoding
+    , errMsg400StartTimeLaterThanEndTime
     , errMsg403Fee
     , errMsg403NotEnoughMoney
     , errMsg403UTxO
@@ -228,6 +229,15 @@ versionLine = "Running as v" <> pack (showVersion version)
   ---
 errMsgWalletIdEncoding :: String
 errMsgWalletIdEncoding = "wallet id should be an hex-encoded string of 40 characters"
+
+errMsg400StartTimeLaterThanEndTime :: String -> String -> String
+errMsg400StartTimeLaterThanEndTime startTime endTime = mconcat
+    [ "The specified start time '"
+    , startTime
+    , "' is later than the specified end time '"
+    , endTime
+    , "'."
+    ]
 
 errMsg403Fee :: String
 errMsg403Fee = "I'm unable to adjust the given transaction to cover the\

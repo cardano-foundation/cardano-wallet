@@ -37,6 +37,7 @@ import Cardano.Wallet
     , ErrNoSuchWallet (..)
     , ErrPostTx (..)
     , ErrSignTx (..)
+    , ErrStartTimeLaterThanEndTime (..)
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
     , ErrValidateSelection
@@ -61,7 +62,6 @@ import Cardano.Wallet.Api.Types
     , Iso8601Time (..)
     , PostTransactionData
     , PostTransactionFeeData
-    , SortOrder (..)
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -89,6 +89,7 @@ import Cardano.Wallet.Primitive.Types
     , EncodeAddress (..)
     , Hash (..)
     , HistogramBar (..)
+    , SortOrder (..)
     , TransactionInfo (TransactionInfo)
     , TxIn
     , TxOut (..)
@@ -148,6 +149,7 @@ import Servant
     , NoContent (..)
     , Server
     , contentType
+    , err400
     , err403
     , err404
     , err409
@@ -367,7 +369,8 @@ getUTxOsStatistics
     -> ApiT WalletId
     -> Handler ApiUtxoStatistics
 getUTxOsStatistics w (ApiT wid) = do
-    (UTxOStatistics histo totalStakes bType) <- liftHandler $ W.listUtxoStatistics w wid
+    (UTxOStatistics histo totalStakes bType) <-
+        liftHandler $ W.listUtxoStatistics w wid
     return ApiUtxoStatistics
         { total = Quantity (fromIntegral totalStakes)
         , scale = ApiT bType
@@ -414,7 +417,11 @@ transactions w =
     :<|> postTransactionFee w
 
 createTransaction
-    :: forall t. (DefineTx t, KeyToAddress t, Buildable (ErrValidateSelection t))
+    :: forall t.
+        ( DefineTx t
+        , KeyToAddress t
+        , Buildable (ErrValidateSelection t)
+        )
     => WalletLayer (SeqState t) t
     -> ApiT WalletId
     -> PostTransactionData t
@@ -466,10 +473,13 @@ listTransactions
     -> ApiT WalletId
     -> Maybe Iso8601Time
     -> Maybe Iso8601Time
-    -> Maybe SortOrder
+    -> Maybe (ApiT SortOrder)
     -> Handler [ApiTransaction t]
-listTransactions w (ApiT wid) _maybeStart _maybeEnd _maybeOrder = do
+listTransactions w (ApiT wid) mStart mEnd mOrder = do
     txs <- liftHandler $ W.listTransactions w wid
+        (getIso8601Time <$> mStart)
+        (getIso8601Time <$> mEnd)
+        (getApiT <$> mOrder)
     return $ map mkApiTransactionFromInfo txs
 
 coerceCoin :: AddressAmount t -> TxOut
@@ -673,6 +683,16 @@ instance LiftHandler ErrUpdatePassphrase where
 instance LiftHandler ErrListTransactions where
     handler = \case
         ErrListTransactionsNoSuchWallet e -> handler e
+        ErrListTransactionsStartTimeLaterThanEndTime e -> handler e
+
+instance LiftHandler ErrStartTimeLaterThanEndTime where
+    handler err = apiError err400 StartTimeLaterThanEndTime $ mconcat
+        [ "The specified start time '"
+        , toText $ Iso8601Time $ startTime err
+        , "' is later than the specified end time '"
+        , toText $ Iso8601Time $ endTime err
+        , "'."
+        ]
 
 instance LiftHandler ServantErr where
     handler err@(ServantErr code _ body headers)
