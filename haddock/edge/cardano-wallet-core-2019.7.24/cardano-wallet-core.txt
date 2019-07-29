@@ -547,6 +547,16 @@ WalletBalance :: !Quantity "lovelace" Natural -> !Quantity "lovelace" Natural ->
 newtype PoolId
 PoolId :: Text -> PoolId
 [$sel:getPoolId:PoolId] :: PoolId -> Text
+
+-- | Represents a sort order, applicable to the results returned by a
+--   query.
+data SortOrder
+
+-- | Sort in ascending order.
+Ascending :: SortOrder
+
+-- | Sort in descending order.
+Descending :: SortOrder
 newtype Hash (tag :: Symbol)
 Hash :: ByteString -> Hash
 [$sel:getHash:Hash] :: Hash -> ByteString
@@ -662,6 +672,11 @@ instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.WalletMetadata
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.PoolId
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.PoolId
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.PoolId
+instance GHC.Show.Show Cardano.Wallet.Primitive.Types.SortOrder
+instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.SortOrder
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.SortOrder
+instance GHC.Enum.Enum Cardano.Wallet.Primitive.Types.SortOrder
+instance GHC.Enum.Bounded Cardano.Wallet.Primitive.Types.SortOrder
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.WalletBalance
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.WalletBalance
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.WalletBalance
@@ -734,6 +749,8 @@ instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.WalletMetadata
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.WalletMetadata
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.PoolId
 instance Formatting.Buildable.Buildable Cardano.Wallet.Primitive.Types.PoolId
+instance Data.Text.Class.ToText Cardano.Wallet.Primitive.Types.SortOrder
+instance Data.Text.Class.FromText Cardano.Wallet.Primitive.Types.SortOrder
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.Types.WalletPassphraseInfo
 instance Control.DeepSeq.NFData poolId => Control.DeepSeq.NFData (Cardano.Wallet.Primitive.Types.WalletDelegation poolId)
 instance Formatting.Buildable.Buildable poolId => Formatting.Buildable.Buildable (Cardano.Wallet.Primitive.Types.WalletDelegation poolId)
@@ -2292,7 +2309,7 @@ instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t => Cardano.Wa
 --   to realize its role as being intermediary between the three.
 module Cardano.Wallet
 data WalletLayer s t
-WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)) -> (WalletId -> (WalletMetadata -> WalletMetadata) -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> (Passphrase "encryption-old", Passphrase "encryption-new") -> ExceptT ErrUpdatePassphrase IO ()) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO ()) -> ((IsOurs s, CompareDiscovery s, KnownAddresses s, DefineTx t) => WalletId -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]) -> (forall e. (DefineTx t, e ~ ErrValidateSelection t) => WalletId -> NonEmpty TxOut -> ExceptT (ErrCreateUnsignedTx e) IO CoinSelection) -> (forall e. (DefineTx t, e ~ ErrValidateSelection t) => WalletId -> NonEmpty TxOut -> ExceptT (ErrEstimateTxFee e) IO Fee) -> (DefineTx t => WalletId -> ExceptT ErrListUTxOStatistics IO UTxOStatistics) -> ((Show s, NFData s, IsOwned s, GenChange s) => WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx t, TxMeta, [TxWitness])) -> (DefineTx t => WalletId -> (Tx t, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> (DefineTx t => WalletId -> ExceptT ErrListTransactions IO [TransactionInfo]) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()) -> WalletLayer s t
+WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)) -> (WalletId -> (WalletMetadata -> WalletMetadata) -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> (Passphrase "encryption-old", Passphrase "encryption-new") -> ExceptT ErrUpdatePassphrase IO ()) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO ()) -> ((IsOurs s, CompareDiscovery s, KnownAddresses s, DefineTx t) => WalletId -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]) -> (forall e. (DefineTx t, e ~ ErrValidateSelection t) => WalletId -> NonEmpty TxOut -> ExceptT (ErrCreateUnsignedTx e) IO CoinSelection) -> (forall e. (DefineTx t, e ~ ErrValidateSelection t) => WalletId -> NonEmpty TxOut -> ExceptT (ErrEstimateTxFee e) IO Fee) -> (DefineTx t => WalletId -> ExceptT ErrListUTxOStatistics IO UTxOStatistics) -> ((Show s, NFData s, IsOwned s, GenChange s) => WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx t, TxMeta, [TxWitness])) -> (DefineTx t => WalletId -> (Tx t, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> (DefineTx t => WalletId -> Maybe UTCTime -> Maybe UTCTime -> Maybe SortOrder -> ExceptT ErrListTransactions IO [TransactionInfo]) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()) -> WalletLayer s t
 
 -- | Initialise and store a new wallet, returning its Id.
 [$sel:createWallet:WalletLayer] :: WalletLayer s t -> (Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId
@@ -2353,7 +2370,7 @@ WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletNa
 --   
 --   The result is sorted on <a>BlockHeader</a> in descending order. The
 --   most recent transaction comes first.
-[$sel:listTransactions:WalletLayer] :: WalletLayer s t -> DefineTx t => WalletId -> ExceptT ErrListTransactions IO [TransactionInfo]
+[$sel:listTransactions:WalletLayer] :: WalletLayer s t -> DefineTx t => WalletId -> Maybe UTCTime -> Maybe UTCTime -> Maybe SortOrder -> ExceptT ErrListTransactions IO [TransactionInfo]
 
 -- | Attach a given private key to a wallet. The private key is necessary
 --   for some operations like signing transactions or, generating new
@@ -2422,8 +2439,9 @@ ErrEstimateTxFeeNoSuchWallet :: ErrNoSuchWallet -> ErrEstimateTxFee e
 ErrEstimateTxFeeCoinSelection :: ErrCoinSelection e -> ErrEstimateTxFee e
 
 -- | Errors that can occur when trying to list transactions.
-newtype ErrListTransactions
+data ErrListTransactions
 ErrListTransactionsNoSuchWallet :: ErrNoSuchWallet -> ErrListTransactions
+ErrListTransactionsStartTimeLaterThanEndTime :: ErrStartTimeLaterThanEndTime -> ErrListTransactions
 newtype ErrListUTxOStatistics
 ErrListUTxOStatisticsNoSuchWallet :: ErrNoSuchWallet -> ErrListUTxOStatistics
 
@@ -2457,6 +2475,13 @@ data ErrSignTx
 ErrSignTx :: ErrMkStdTx -> ErrSignTx
 ErrSignTxNoSuchWallet :: ErrNoSuchWallet -> ErrSignTx
 ErrSignTxWithRootKey :: ErrWithRootKey -> ErrSignTx
+
+-- | Indicates that the specified start time is later than the specified
+--   end time.
+data ErrStartTimeLaterThanEndTime
+ErrStartTimeLaterThanEndTime :: UTCTime -> UTCTime -> ErrStartTimeLaterThanEndTime
+[$sel:startTime:ErrStartTimeLaterThanEndTime] :: ErrStartTimeLaterThanEndTime -> UTCTime
+[$sel:endTime:ErrStartTimeLaterThanEndTime] :: ErrStartTimeLaterThanEndTime -> UTCTime
 
 -- | Errors occuring when submitting a signed transaction to the network
 data ErrSubmitTx
@@ -2493,6 +2518,8 @@ ErrWrongPassphrase :: ErrWrongPassphrase
 newWalletLayer :: forall s t. Buildable (Tx t) => Trace IO Text -> BlockchainParameters t -> DBLayer IO s t -> NetworkLayer t IO -> TransactionLayer t -> IO (WalletLayer s t)
 instance GHC.Classes.Eq Cardano.Wallet.ErrListTransactions
 instance GHC.Show.Show Cardano.Wallet.ErrListTransactions
+instance GHC.Classes.Eq Cardano.Wallet.ErrStartTimeLaterThanEndTime
+instance GHC.Show.Show Cardano.Wallet.ErrStartTimeLaterThanEndTime
 instance GHC.Classes.Eq Cardano.Wallet.ErrSignTx
 instance GHC.Show.Show Cardano.Wallet.ErrSignTx
 instance GHC.Classes.Eq Cardano.Wallet.ErrUpdatePassphrase
@@ -2650,6 +2677,7 @@ BadRequest :: ApiErrorCode
 NotFound :: ApiErrorCode
 MethodNotAllowed :: ApiErrorCode
 NotAcceptable :: ApiErrorCode
+StartTimeLaterThanEndTime :: ApiErrorCode
 UnsupportedMediaType :: ApiErrorCode
 UnexpectedError :: ApiErrorCode
 
@@ -2658,15 +2686,6 @@ UnexpectedError :: ApiErrorCode
 newtype Iso8601Time
 Iso8601Time :: UTCTime -> Iso8601Time
 [$sel:getIso8601Time:Iso8601Time] :: Iso8601Time -> UTCTime
-
--- | Represents a sort order, applicable to a query.
-data SortOrder
-
--- | Sort in ascending order.
-Ascending :: SortOrder
-
--- | Sort in descending order.
-Descending :: SortOrder
 
 -- | Polymorphic wrapper type to put around primitive types and, 3rd party
 --   lib types to avoid defining orphan instances and/or, undesirable
@@ -2744,11 +2763,6 @@ instance GHC.Classes.Eq Cardano.Wallet.Api.Types.ApiBlockData
 instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.Wallet.Api.Types.ApiT a)
 instance GHC.Show.Show a => GHC.Show.Show (Cardano.Wallet.Api.Types.ApiT a)
 instance GHC.Generics.Generic (Cardano.Wallet.Api.Types.ApiT a)
-instance GHC.Show.Show Cardano.Wallet.Api.Types.SortOrder
-instance GHC.Generics.Generic Cardano.Wallet.Api.Types.SortOrder
-instance GHC.Classes.Eq Cardano.Wallet.Api.Types.SortOrder
-instance GHC.Enum.Enum Cardano.Wallet.Api.Types.SortOrder
-instance GHC.Enum.Bounded Cardano.Wallet.Api.Types.SortOrder
 instance GHC.Show.Show Cardano.Wallet.Api.Types.Iso8601Time
 instance GHC.Classes.Ord Cardano.Wallet.Api.Types.Iso8601Time
 instance GHC.Classes.Eq Cardano.Wallet.Api.Types.Iso8601Time
@@ -2822,10 +2836,6 @@ instance Data.Aeson.Types.FromJSON.FromJSON (Cardano.Wallet.Api.Types.ApiT Carda
 instance Data.Aeson.Types.ToJSON.ToJSON (Cardano.Wallet.Api.Types.ApiT Cardano.Wallet.Primitive.Types.TxStatus)
 instance Data.Text.Class.FromText a => Web.Internal.HttpApiData.FromHttpApiData (Cardano.Wallet.Api.Types.ApiT a)
 instance Data.Text.Class.ToText a => Web.Internal.HttpApiData.ToHttpApiData (Cardano.Wallet.Api.Types.ApiT a)
-instance Data.Text.Class.ToText Cardano.Wallet.Api.Types.SortOrder
-instance Data.Text.Class.FromText Cardano.Wallet.Api.Types.SortOrder
-instance Web.Internal.HttpApiData.FromHttpApiData Cardano.Wallet.Api.Types.SortOrder
-instance Web.Internal.HttpApiData.ToHttpApiData Cardano.Wallet.Api.Types.SortOrder
 instance Data.Text.Class.ToText Cardano.Wallet.Api.Types.Iso8601Time
 instance Data.Text.Class.FromText Cardano.Wallet.Api.Types.Iso8601Time
 instance Web.Internal.HttpApiData.FromHttpApiData Cardano.Wallet.Api.Types.Iso8601Time
@@ -2882,7 +2892,7 @@ type PostTransactionFee t = "wallets" :> Capture "walletId" (ApiT WalletId) :> "
 
 -- | 
 --   <a>https://input-output-hk.github.io/cardano-wallet/api/#operation/listTransaction</a>
-type ListTransactions t = "wallets" :> Capture "walletId" (ApiT WalletId) :> "transactions" :> QueryParam "start" Iso8601Time :> QueryParam "end" Iso8601Time :> QueryParam "order" SortOrder :> Get '[JSON] [ApiTransaction t]
+type ListTransactions t = "wallets" :> Capture "walletId" (ApiT WalletId) :> "transactions" :> QueryParam "start" Iso8601Time :> QueryParam "end" Iso8601Time :> QueryParam "order" (ApiT SortOrder) :> Get '[JSON] [ApiTransaction t]
 
 -- | Any media type
 data Any
@@ -2967,6 +2977,7 @@ instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrSubmitTx
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.Network.ErrNetworkUnavailable
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrUpdatePassphrase
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrListTransactions
+instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.ErrStartTimeLaterThanEndTime
 instance Cardano.Wallet.Api.Server.LiftHandler Servant.Server.Internal.ServantErr.ServantErr
 
 module Cardano.Wallet.Version
