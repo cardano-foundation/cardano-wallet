@@ -11,7 +11,7 @@ module Cardano.Wallet.Primitive.AddressDerivationSpec
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( unXPrv )
+    ( XPub, unXPrv )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
@@ -289,6 +289,10 @@ instance Eq XPrv where
 instance Arbitrary (Key 'RootK XPrv) where
     shrink _ = []
     arbitrary = genRootKeys
+
+instance Arbitrary (Key 'RootK XPub) where
+    shrink _ = []
+    arbitrary = publicKey <$> arbitrary @(Key 'RootK XPrv)
 
 genRootKeys :: Gen (Key 'RootK XPrv)
 genRootKeys = do

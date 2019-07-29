@@ -1,8 +1,11 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -22,33 +25,55 @@
 -- <https://github.com/input-output-hk/cardano-crypto/blob/4590efa638397e952a51a8994b5543e4ea3c1ecd/cbits/encrypted_sign.c cardano-crypto>.
 
 module Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( deriveAccountPrivateKey
+    ( -- * Key derivation and generation
+      deriveAccountPrivateKey
     , deriveAddressPrivateKey
     , generateKeyFromSeed
     , unsafeGenerateKeyFromSeed
     , minSeedLengthBytes
+    -- * Address encoding/decoding
+    , encodeDerivationPath
+    , decodeDerivationPath
+    , decodeAddressDerivationPath
     ) where
 
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( DerivationScheme (DerivationScheme1), XPrv, deriveXPrv, generate )
+    ( DerivationScheme (DerivationScheme1)
+    , XPrv
+    , XPub
+    , deriveXPrv
+    , generate
+    , unXPub
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationType (..), Index (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Common
     ( Depth (..), Key (..) )
 import Cardano.Wallet.Primitive.Types
     ( invariant )
+import Control.Monad
+    ( when )
+import Crypto.Error
+    ( CryptoError (..), CryptoFailable (..) )
 import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
-    ( Blake2b_256 )
+    ( Blake2b_256, SHA512 (..) )
 import Data.ByteArray
     ( ScrubbedBytes )
+import Data.ByteString
+    ( ByteString )
 
+import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
+import qualified Codec.CBOR.Read as CBOR
 import qualified Codec.CBOR.Write as CBOR
+import qualified Crypto.Cipher.ChaChaPoly1305 as Poly
+import qualified Crypto.KDF.PBKDF2 as PBKDF2
 import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 
 -- | Derives account private key from the given root private key, using
@@ -128,10 +153,211 @@ hashSeed :: ScrubbedBytes -> ScrubbedBytes
 hashSeed = serialize . blake2b256 . serialize
   where
     serialize = BA.convert . cbor . BA.convert
-    cbor = BL.toStrict . CBOR.toLazyByteString . CBOR.encodeBytes
+    cbor = CBOR.toStrictByteString . CBOR.encodeBytes
 
 -- hashSeedForPaperWallet :: ScrubbedBytes -> ScrubbedBytes
 -- hashSeedForPaperWallet = blake2b256
 
 blake2b256 :: ScrubbedBytes -> ScrubbedBytes
 blake2b256 = BA.convert . hash @ScrubbedBytes @Blake2b_256
+
+{-------------------------------------------------------------------------------
+                         Derivation path serialization
+
+In the composition of a Cardano address, the following functions concern the
+"Derivation Path" box.
+
++--------------------------------------------------------------------------------+
+|              Base-58 Encoded CBOR-Serialized Object with CRC*                  |
+|                                                                                |
+|      DdzFFzCqrhstiVdBdYEAmpLPtSWxFYy...rYcBLq29xJD4xZw16REKyhJC9PFGgPSbX       |
+|                                                                                |
++--------------------------------------------------------------------------------+
+                                    |
+                                    |
+                                    v
++--------------------------------------------------------------------------------+
+|     Address Root    |     Address Attributes    |           AddrType           |
+|                     |                           |                              |
+|   Hash (224 bits)   |  Der. Path* + Stake + NM  |  PubKey | (Script) | Redeem  |
+|                     |    (open for extension)   |     (open for extension)     |
++--------------------------------------------------------------------------------+
+             |                 |
+             |                 |     +----------------------------------+
+             v                 |     |        Derivation Path           |
++---------------------------+  |---->|                                  |
+|  SHA3-256 >> Blake2b_224  |  |     | ChaChaPoly* AccountIx/AddressIx  |
+|                           |  |     +----------------------------------+
+|  -AddrType                |  |
+|  -ASD* (~AddrType+PubKey) |  |     +----------------------------------+
+|  -Address Attributes      |  |     |       Stake Distribution         |
++---------------------------+  |     |                                  |
+                               |---->|  BootstrapEra | (Single | Multi) |
+                               |     +----------------------------------+
+                               |
+                               |     +----------------------------------+
+                               |     |          Network Magic           |
+                               |---->|                                  |
+                                     | Addr Discr: MainNet vs TestNet   |
+                                     +----------------------------------+
+
+-------------------------------------------------------------------------------}
+
+-- | Encode the derivation path (account index and address index) part of a
+-- random HD address.
+--
+-- This is the opposite of 'decodeDerivationPath'.
+--
+-- NOTE: The caller must ensure that the key length is 32 bytes, which can be
+-- done by using the 'generateKeyFromSeed' and
+-- 'Cardano.Wallet.Primitive.AddressDerivation.publicKey' functions.
+encodeDerivationPath
+    :: Key 'RootK XPub
+    -> Index 'Hardened 'AccountK
+    -> Index 'Soft 'AddressK
+    -> CBOR.Encoding
+encodeDerivationPath rootKey accIx addrIx =
+    encodeNestedBytes $
+    useInvariant $
+    encryptDerPath (hdPassphrase rootKey) $
+    CBOR.toStrictByteString $
+    encodeDerPath accIx addrIx
+  where
+    -- Encryption will fail if the key is too short, but that won't happen if
+    -- the key was created with 'generateKeyFromSeed'.
+    useInvariant (CryptoPassed res) = res
+    useInvariant (CryptoFailed err) = error $ "encodeDerivationPath: " ++ show err
+
+encodeDerPath :: Index 'Hardened 'AccountK -> Index 'Soft 'AddressK -> CBOR.Encoding
+encodeDerPath (Index accIx) (Index addrIx) = mempty
+    <> CBOR.encodeListLenIndef
+    <> CBOR.encodeWord32 accIx
+    <> CBOR.encodeWord32 addrIx
+    <> CBOR.encodeBreak
+
+-- | Decode the Addr Root + Attributes + Type section of a HD random scheme
+-- address, and return the derivation path.
+--
+-- It will fail to parse if the address is not in the random scheme. If the
+-- public key is incorrect, the decode result will be 'Nothing'.
+decodeAddressDerivationPath
+    :: Key 'RootK XPub
+    -> CBOR.Decoder s (Maybe (Index 'Hardened 'AccountK, Index 'Soft 'AddressK))
+decodeAddressDerivationPath rootKey = do
+    _ <- CBOR.decodeListLenCanonicalOf 3
+    _ <- CBOR.decodeBytes -- Address Root
+    len <- CBOR.decodeMapLen -- Address Attributes
+    case len of
+        1 -> do
+            _ <- CBOR.decodeWord8 -- Type (1)
+            decodeDerivationPath rootKey
+        _ -> fail $ "decodeAddressDerivationPath: Incorrect map length: " ++ show len
+
+-- | Decode the HD random derivation path section of an address.
+-- If the public key is incorrect, the decode result will be 'Nothing'.
+--
+-- This is the opposite of 'encodeDerivationPath'.
+decodeDerivationPath
+    :: Key 'RootK XPub
+    -> CBOR.Decoder s (Maybe (Index 'Hardened 'AccountK, Index 'Soft 'AddressK))
+decodeDerivationPath rootKey = do
+    payload <- decodeNestedBytes
+    case decryptDerPath (hdPassphrase rootKey) payload of
+        CryptoPassed plaintext ->
+            Just <$> deserialiseDerPath plaintext
+        CryptoFailed _ ->
+            pure Nothing
+  where
+    deserialiseDerPath
+        :: ByteString
+        -> CBOR.Decoder s (Index 'Hardened 'AccountK, Index 'Soft 'AddressK)
+    deserialiseDerPath bytes =
+        case CBOR.deserialiseFromBytes decodeDerPath (BL.fromStrict bytes) of
+        Right (_, result) -> pure result
+        _ -> fail "decodeAddressDerivationPath: unable to decode path"
+
+decodeDerPath :: CBOR.Decoder s (Index 'Hardened 'AccountK, Index 'Soft 'AddressK)
+decodeDerPath = decodeListIndef CBOR.decodeWord32 >>= \case
+    [accIx, addrIx] -> pure (Index accIx, Index addrIx)
+    ps -> fail $ "decodeDerPath: Unexpected derivation path length ("
+        ++ (show $ length ps) ++ ")"
+
+  where
+    -- | Decode an arbitrary long list. CBOR introduce a "break" character to
+    -- mark the end of the list, so we simply decode each item until we encounter
+    -- a break character.
+    --
+    -- Example:
+    --
+    --     myDecoder :: CBOR.Decoder s [MyType]
+    --     myDecoder = decodeListIndef decodeOne
+    --       where
+    --         decodeOne :: CBOR.Decoder s MyType
+    --
+    decodeListIndef :: forall s a. CBOR.Decoder s a -> CBOR.Decoder s [a]
+    decodeListIndef decodeOne = do
+        _ <- CBOR.decodeListLenIndef
+        CBOR.decodeSequenceLenIndef (flip (:)) [] reverse decodeOne
+
+-- | Derive a symmetric key for encrypting and authenticating the address
+-- derivation path.
+hdPassphrase :: Key 'RootK XPub -> Passphrase "address-der"
+hdPassphrase (Key rootXPub) = Passphrase $
+    PBKDF2.generate
+    (PBKDF2.prfHMAC SHA512)
+    (PBKDF2.Parameters 500 32)
+    (unXPub rootXPub)
+    ("address-hashing" :: ByteString)
+
+{-------------------------------------------------------------------------------
+                    HD payload encryption and authentication
+-------------------------------------------------------------------------------}
+
+cardanoNonce :: ByteString
+cardanoNonce = "serokellfore"
+
+-- | ChaCha20/Poly1305 encrypting and signing the HD payload of addresses.
+encryptDerPath
+    :: Passphrase "address-der"
+       -- ^ Symmetric key / passphrase, 32-byte long
+    -> ByteString -- Payload to be encrypted
+    -> CryptoFailable ByteString -- Ciphertext with a 128-bit crypto-tag appended.
+encryptDerPath (Passphrase passphrase) payload = do
+    nonce <- Poly.nonce12 cardanoNonce
+    st1 <- Poly.finalizeAAD <$> Poly.initialize passphrase nonce
+    let (out, st2) = Poly.encrypt payload st1
+    return $ out <> BA.convert (Poly.finalize st2)
+
+-- | ChaCha20/Poly1305 decrypting and authenticating the HD payload of
+-- addresses.
+decryptDerPath
+    :: Passphrase "address-der"
+       -- ^ Symmetric key / passphrase, 32-byte long
+    -> ByteString -- Payload to be encrypted
+    -> CryptoFailable ByteString
+decryptDerPath (Passphrase passphrase) bytes = do
+    let (payload, tag) = BS.splitAt (BS.length bytes - 16) bytes
+    nonce <- Poly.nonce12 cardanoNonce
+    st1 <- Poly.finalizeAAD <$> Poly.initialize passphrase nonce
+    let (out, st2) = Poly.decrypt payload st1
+    when (BA.convert (Poly.finalize st2) /= tag) $ CryptoFailed CryptoError_MacKeyInvalid
+    return out
+
+{-------------------------------------------------------------------------------
+                              "Interesting" Codecs
+-------------------------------------------------------------------------------}
+
+-- | Double-CBOR-decode a ByteString.
+decodeNestedBytes :: CBOR.Decoder s ByteString
+decodeNestedBytes = deserialise <$> CBOR.decodeBytes >>= \case
+    Right ("", bytes) -> pure bytes
+    Right _ -> fail "Leftovers when decoding nested bytes"
+    _ -> fail "Could not decode nested bytes"
+  where
+    deserialise = CBOR.deserialiseFromBytes CBOR.decodeBytes . BL.fromStrict
+
+-- | Double-CBOR-encode a ByteString.
+encodeNestedBytes :: ByteString -> CBOR.Encoding
+encodeNestedBytes = CBOR.encodeBytes . serialise
+  where
+    serialise = CBOR.toStrictByteString . CBOR.encodeBytes
