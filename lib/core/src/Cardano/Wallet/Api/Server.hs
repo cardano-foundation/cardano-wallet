@@ -61,7 +61,6 @@ import Cardano.Wallet.Api.Types
     , Iso8601Time (..)
     , PostTransactionData
     , PostTransactionFeeData
-    , SortOrder (..)
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -89,6 +88,7 @@ import Cardano.Wallet.Primitive.Types
     , EncodeAddress (..)
     , Hash (..)
     , HistogramBar (..)
+    , SortOrder (..)
     , TransactionInfo (TransactionInfo)
     , TxIn
     , TxOut (..)
@@ -471,7 +471,7 @@ listTransactions
     -> ApiT WalletId
     -> Maybe Iso8601Time
     -> Maybe Iso8601Time
-    -> Maybe SortOrder
+    -> Maybe (ApiT SortOrder)
     -> Handler [ApiTransaction t]
 listTransactions w (ApiT wid) _maybeStart _maybeEnd _maybeOrder = do
     txs <- liftHandler $ W.listTransactions w wid

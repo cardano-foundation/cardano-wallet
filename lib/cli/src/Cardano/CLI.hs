@@ -104,7 +104,6 @@ import Cardano.Wallet.Api.Types
     , Iso8601Time (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
-    , SortOrder (..)
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
@@ -122,7 +121,13 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, DecodeAddress, EncodeAddress, WalletId, WalletName )
+    ( AddressState
+    , DecodeAddress
+    , EncodeAddress
+    , SortOrder
+    , WalletId
+    , WalletName
+    )
 import Cardano.Wallet.Version
     ( showVersion, version )
 import Control.Applicative
@@ -585,7 +590,7 @@ cmdTransactionList = command "list" $ info (helper <*> cmd) $ mempty
             (ApiT wId)
             mTimeRangeStart
             mTimeRangeEnd
-            mOrder
+            (ApiT <$> mOrder)
 
 {-------------------------------------------------------------------------------
                             Commands - 'address'
@@ -855,7 +860,7 @@ data WalletClient t = WalletClient
         :: ApiT WalletId
         -> Maybe Iso8601Time
         -> Maybe Iso8601Time
-        -> Maybe SortOrder
+        -> Maybe (ApiT SortOrder)
         -> ClientM [ApiTransaction t]
     , postTransaction
         :: ApiT WalletId

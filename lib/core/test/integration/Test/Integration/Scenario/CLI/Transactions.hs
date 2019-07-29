@@ -11,11 +11,12 @@ module Test.Integration.Scenario.CLI.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiFee, ApiTransaction, ApiWallet, SortOrder, getApiT )
+    ( ApiFee, ApiTransaction, ApiWallet, getApiT )
 import Cardano.Wallet.Primitive.Types
     ( DecodeAddress (..)
     , Direction (..)
     , EncodeAddress (..)
+    , SortOrder (..)
     , TxStatus (..)
     , encodeAddress
     )

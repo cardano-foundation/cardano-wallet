@@ -37,7 +37,6 @@ import Cardano.Wallet.Api.Types
     , Iso8601Time (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
-    , SortOrder (..)
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -72,6 +71,7 @@ import Cardano.Wallet.Primitive.Types
     , HistogramBar (..)
     , PoolId (..)
     , SlotId (..)
+    , SortOrder (..)
     , TxIn (..)
     , TxIn (..)
     , TxOut (..)
@@ -247,7 +247,7 @@ spec = do
             httpApiDataRoundtrip $ Proxy @(ApiT WalletId)
             httpApiDataRoundtrip $ Proxy @(ApiT AddressState)
             httpApiDataRoundtrip $ Proxy @Iso8601Time
-            httpApiDataRoundtrip $ Proxy @SortOrder
+            httpApiDataRoundtrip $ Proxy @(ApiT SortOrder)
 
     describe
         "verify that every type used with JSON content type in a servant API \
