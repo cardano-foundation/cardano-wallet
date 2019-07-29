@@ -36,6 +36,42 @@ instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.DaedalusIPC.MsgOut
 instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.DaedalusIPC.MsgIn
 
 
+-- | Use the types from <a>Cardano.Wallet.Primitive.AddressDerivation</a>
+--   or the key generation or derivation functions from
+--   <a>Cardano.Wallet.Primitive.AddressDerivation.Sequential</a> or
+--   <a>Cardano.Wallet.Primitive.AddressDerivation.Random</a> instead of
+--   this module.
+module Cardano.Wallet.Primitive.AddressDerivation.Common
+
+-- | A cryptographic key, with phantom-types to disambiguate key types.
+--   
+--   <pre>
+--   let rootPrivateKey = Key 'RootK XPrv
+--   let accountPubKey = Key 'AccountK XPub
+--   let addressPubKey = Key 'AddressK XPub
+--   </pre>
+newtype Key (level :: Depth) key
+Key :: key -> Key key
+[getKey] :: Key key -> key
+
+-- | Key Depth in the derivation path, according to BIP-0039 / BIP-0044
+--   
+--   <pre>
+--   m | purpose' | cointype' | account' | change | address
+--   </pre>
+--   
+--   We do not manipulate purpose, cointype and change paths directly, so
+--   they are left out of the sum type.
+data Depth
+RootK :: Depth
+AccountK :: Depth
+AddressK :: Depth
+instance GHC.Classes.Eq key => GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDerivation.Common.Key level key)
+instance GHC.Show.Show key => GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.Common.Key level key)
+instance GHC.Generics.Generic (Cardano.Wallet.Primitive.AddressDerivation.Common.Key level key)
+instance Control.DeepSeq.NFData key => Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDerivation.Common.Key level key)
+
+
 -- | This module provides mnemonic (backup phrase) creation, and conversion
 --   of a mnemonic to seed for wallet restoration.
 module Cardano.Wallet.Primitive.Mnemonic
@@ -878,9 +914,8 @@ module Cardano.Wallet.Primitive.AddressDerivation
 --   let accountPubKey = Key 'AccountK XPub
 --   let addressPubKey = Key 'AddressK XPub
 --   </pre>
-newtype Key (level :: Depth) key
-Key :: key -> Key key
-[getKey] :: Key key -> key
+data Key (level :: Depth) key
+getKey :: Key level key -> key
 
 -- | Key Depth in the derivation path, according to BIP-0039 / BIP-0044
 --   
@@ -1008,9 +1043,6 @@ instance GHC.Classes.Ord (Cardano.Wallet.Primitive.AddressDerivation.Index deriv
 instance GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDerivation.Index derivationType level)
 instance GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.Index derivationType level)
 instance GHC.Generics.Generic (Cardano.Wallet.Primitive.AddressDerivation.Index derivationType level)
-instance GHC.Classes.Eq key => GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDerivation.Key level key)
-instance GHC.Show.Show key => GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.Key level key)
-instance GHC.Generics.Generic (Cardano.Wallet.Primitive.AddressDerivation.Key level key)
 instance (n Data.Type.Equality.~ Crypto.Encoding.BIP39.EntropySize mw, csz Data.Type.Equality.~ Crypto.Encoding.BIP39.CheckSumBits n, Crypto.Encoding.BIP39.ConsistentEntropy n mw csz, Cardano.Wallet.Primitive.AddressDerivation.FromMnemonic rest purpose, Cardano.Wallet.Primitive.AddressDerivation.NatVals rest) => Cardano.Wallet.Primitive.AddressDerivation.FromMnemonic (mw : rest) purpose
 instance Cardano.Wallet.Primitive.AddressDerivation.NatVals '[]
 instance (GHC.TypeNats.KnownNat n, Cardano.Wallet.Primitive.AddressDerivation.NatVals rest) => Cardano.Wallet.Primitive.AddressDerivation.NatVals (n : rest)
@@ -1029,7 +1061,6 @@ instance GHC.Enum.Bounded (Cardano.Wallet.Primitive.AddressDerivation.Index 'Car
 instance GHC.Enum.Bounded (Cardano.Wallet.Primitive.AddressDerivation.Index 'Cardano.Wallet.Primitive.AddressDerivation.Soft level)
 instance GHC.Enum.Enum (Cardano.Wallet.Primitive.AddressDerivation.Index 'Cardano.Wallet.Primitive.AddressDerivation.Hardened level)
 instance GHC.Enum.Enum (Cardano.Wallet.Primitive.AddressDerivation.Index 'Cardano.Wallet.Primitive.AddressDerivation.Soft level)
-instance Control.DeepSeq.NFData key => Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDerivation.Key level key)
 
 
 -- | An extra interface for operation on transactions (e.g. creating
@@ -1129,8 +1160,8 @@ instance GHC.Classes.Eq Cardano.Wallet.Transaction.ErrMkStdTx
 --   discovery schemes implemented are:
 --   
 --   <ul>
---   <li><a>Sequential</a></li>
---   <li><a>Random</a></li>
+--   <li><a>Cardano.Wallet.Primitive.AddressDiscovery.Sequential</a></li>
+--   <li><a>Cardano.Wallet.Primitive.AddressDiscovery.Random</a></li>
 --   </ul>
 module Cardano.Wallet.Primitive.AddressDiscovery
 
