@@ -9,9 +9,10 @@ packages:
 - lib/cli
 - lib/launcher
 - lib/text-class
+- lib/test-utils
 - lib/http-bridge
 - lib/jormungandr
-- lib/test-utils
+- lib/shelley
 
 extra-deps:
 # Miscellaneous
@@ -31,6 +32,59 @@ extra-deps:
     - iohk-monitoring
 - time-units-1.0.0
 - libsystemd-journal-1.4.4
+
+# cardano-node (Shelley)
+- tasty-hedgehog-1.0.0.1
+- streaming-binary-0.3.0.1
+- hedgehog-1.0
+- generic-monoid-0.1.0.0
+- git: https://github.com/input-output-hk/cardano-base
+  commit: d015414ab8a139173162e0cbce719f834d8b6e6c
+  subdirs:
+    - binary
+    - binary/test
+    - cardano-crypto-class
+
+- git: https://github.com/input-output-hk/cardano-ledger
+  commit: 2f8550cf6cce8951c396b23bacaf4be66539d321
+  subdirs:
+    - cardano-ledger
+    - cardano-ledger/test
+    - crypto
+    - crypto/test
+
+- git: https://github.com/input-output-hk/cardano-prelude
+  commit: 3084f8b8514d93970415e895b241691b80c7b9ee
+  subdirs:
+    - .
+    - test
+
+- git: https://github.com/input-output-hk/cardano-shell
+  commit: 28a327104bd85b62273797866886674f9c4f6c5a
+
+- git: https://github.com/input-output-hk/cardano-sl-x509
+  commit: ec96c64c665b741c17b4e38f611315bae9b0b054
+
+- git: https://github.com/input-output-hk/ouroboros-network
+  commit: 8d51fb7701f8e08724caeb97308c3378a6d30227
+  subdirs:
+      - io-sim-classes
+      - network-mux
+      - ouroboros-network
+      - ouroboros-consensus
+      - typed-protocols
+      - typed-protocols-cbor
+
+- git: https://github.com/joelwilliamson/bimap
+  commit: 013a0639c222b3f5572ae20ce364815e5d8f2156
+
+- git: http://github.com/well-typed/canonical-json
+  commit: ddfe3593b80b5ceb88842bb7a6f2268df75d2c2f
+
+- git: https://github.com/well-typed/cborg
+  commit: 80fbe0ee5e67a5622e2cb9eaa9d8594a2214322d
+  subdirs:
+    - cborg
 
 flags:
   # Bring in less dependencies from iohk-monitoring
