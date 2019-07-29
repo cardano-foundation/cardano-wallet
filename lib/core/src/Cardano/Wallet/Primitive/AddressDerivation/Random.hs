@@ -16,12 +16,17 @@
 --
 -- Implementation of address derivation for the random scheme, as
 -- implemented by the legacy Cardano wallets.
+--
+-- For full documentation of the key derivation schemes,
+-- see the "Cardano.Crypto.Wallet" module, and the implementation in
+-- <https://github.com/input-output-hk/cardano-crypto/blob/4590efa638397e952a51a8994b5543e4ea3c1ecd/cbits/encrypted_sign.c cardano-crypto>.
 
 module Cardano.Wallet.Primitive.AddressDerivation.Random
     ( deriveAccountPrivateKey
     , deriveAddressPrivateKey
-    , unsafeGenerateKeyFromSeed
     , generateKeyFromSeed
+    , unsafeGenerateKeyFromSeed
+    , minSeedLengthBytes
     ) where
 
 import Prelude
@@ -47,9 +52,7 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Lazy as BL
 
 -- | Derives account private key from the given root private key, using
--- derivation scheme 1 (see the
--- <https://github.com/input-output-hk/cardano-crypto cardano-crypto>
--- package for more details).
+-- derivation scheme 1.
 --
 -- NOTE: The caller is expected to provide the corresponding passphrase (and to
 -- have checked that the passphrase is valid). Providing a wrong passphrase will
@@ -64,9 +67,7 @@ deriveAccountPrivateKey (Passphrase pwd) (Key masterXPrv) (Index accIx) =
     Key $ deriveXPrv DerivationScheme1 pwd masterXPrv accIx
 
 -- | Derives address private key from the given account private key, using
--- derivation scheme 1 (see the
--- <https://github.com/input-output-hk/cardano-crypto/ cardano-crypto>
--- package for more details).
+-- derivation scheme 1.
 --
 -- NOTE: The caller is expected to provide the corresponding passphrase (and to
 -- have checked that the passphrase is valid). Providing a wrong passphrase will
@@ -81,36 +82,40 @@ deriveAddressPrivateKey (Passphrase pwd) (Key accXPrv) (Index addrIx) =
     Key $ deriveXPrv DerivationScheme1 pwd accXPrv addrIx
 
 -- | Generate a root key from a corresponding seed.
--- The seed should be at least 32 bytes
---
--- fixme: I'm not sure if "the seed should be at least 32 bytes" is correct.
--- A 12-word mnemonic carries 16 bytes of entry. Then hashing it with
--- Blake2b-256 will create a 32 byte digest, which is big enough for the
--- 'generate' function.
+-- The seed should be at least 16 ('minSeedLengthBytes') bytes.
 generateKeyFromSeed
     :: Passphrase "seed"
     -> Passphrase "encryption"
     -> Key 'RootK XPrv
 generateKeyFromSeed = unsafeGenerateKeyFromSeed
 
--- | See 'generateKeyFromSeed'.
+-- | Generate a new key from seed. Note that the @depth@ is left open so that
+-- the caller gets to decide what type of key this is. This is mostly for
+-- testing, in practice, seeds are used to represent root keys, and one should
+-- use 'generateKeyFromSeed'.
 unsafeGenerateKeyFromSeed
     :: Passphrase "seed"
     -> Passphrase "encryption"
     -> Key depth XPrv
 unsafeGenerateKeyFromSeed (Passphrase seed) (Passphrase pwd) =
-    let
-        seed' = invariant
-            ("seed length : " <> show (BA.length seed) <> " in (Passphrase \"seed\") is not valid")
-            seed
-            (\s -> BA.length s >= 16 && BA.length s <= 255)
-    in Key $ generate (hashSeed seed') pwd
+    Key $ generate (hashSeed seed') pwd
+  where
+    seed' = invariant
+        ("seed length : " <> show (BA.length seed)
+            <> " in (Passphrase \"seed\") is not valid")
+        seed
+        (\s -> BA.length s >= minSeedLengthBytes && BA.length s <= 255)
+
+-- | The amount of entropy carried by a BIP-39 12-word mnemonic is 16 bytes.
+minSeedLengthBytes :: Int
+minSeedLengthBytes = 16
 
 -- | Hash the seed entropy (generated from mnemonic) used to initiate a HD
--- wallet.
+-- wallet. This increases the key length to 34 bytes, which is greater than the
+-- minimum for 'generate' (32 bytes).
 --
 -- Note that our current implementation deviates from BIP-39 because we use a
--- fast blake2b hashing function rather than a slow PBKDF2.
+-- hash function (Blake2b) rather than key stretching with PBKDF2.
 --
 -- There are two methods of hashing the seed entropy, for different use cases.
 --

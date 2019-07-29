@@ -24,7 +24,11 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Common
     ( Key (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( deriveAccountPrivateKey, deriveAddressPrivateKey, generateKeyFromSeed )
+    ( deriveAccountPrivateKey
+    , deriveAddressPrivateKey
+    , generateKeyFromSeed
+    , minSeedLengthBytes
+    )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
 import Control.Monad
@@ -94,14 +98,14 @@ generateTest GenerateKeyFromSeed{..} =
 
 test1 :: GenerateKeyFromSeed
 test1 = GenerateKeyFromSeed
-    { mnem = defMnem
+    { mnem = defMnemonic
     , pwd = pp ""
     , rootKey = xprv16 "b84d0b6db447911a98a3ade98145c0e8323e106f07bc17a99c2104c2688bb7528310902a3cec7e262ded6a4369ec1f48966a6b48b1ee90aa00e61b95417949f81258854ab44b0cfda59bd68fbd87f280841a390068049df0f8a903c94ba65b7aa4762129a6c83acfda5b257eaeb73ec5fee1518b6674fdc7891fe23f06174421"
     }
 
 test2 :: GenerateKeyFromSeed
 test2 = GenerateKeyFromSeed
-    { mnem = defMnem
+    { mnem = defMnemonic
     , pwd = pp "4a87f05fe25a57c96ff5221863e61b91bcca566b853b616f55e5d2c18caa1a4c"
     , rootKey = xprv16 "b842ae13cbb31b7d96910472bbed5c8729c764d66af81b48120a6a583eae55faf78c24765e0c9826f4d095f3e6addb4bda68df322b220d3c08b8a5b414232d101258854ab44b0cfda59bd68fbd87f280841a390068049df0f8a903c94ba65b7aa4762129a6c83acfda5b257eaeb73ec5fee1518b6674fdc7891fe23f06174421"
     }
@@ -119,9 +123,10 @@ genKey spendingPassword = convertToBase Base16 (unXPrv prv)
 -}
 
 -- | This is the mnemonic that provides the 'Default' instance in cardano-sl
-defMnem :: [Text]
-defMnem = [ "squirrel", "material", "silly", "twice", "direct", "slush"
-          , "pistol", "razor", "become", "junk", "kingdom", "flee" ]
+defMnemonic :: [Text]
+defMnemonic =
+    [ "squirrel", "material", "silly", "twice", "direct", "slush"
+    , "pistol", "razor", "become", "junk", "kingdom", "flee" ]
 
 -- Get a private key from a hex string, without error checking.
 xprv16 :: ByteString -> Key purpose XPrv
@@ -137,13 +142,12 @@ pp :: ByteString -> Passphrase purpose
 pp hex = Passphrase b
     where Right b = convertFromBase Base16 hex
 
-
 {-------------------------------------------------------------------------------
                              Arbitrary Instances
 -------------------------------------------------------------------------------}
 
 instance {-# OVERLAPS #-} Arbitrary (Passphrase "seed") where
     arbitrary = do
-        n <- choose (32, 64)
+        n <- choose (minSeedLengthBytes, 64)
         bytes <- BS.pack <$> vectorOf n arbitrary
         return $ Passphrase $ BA.convert bytes

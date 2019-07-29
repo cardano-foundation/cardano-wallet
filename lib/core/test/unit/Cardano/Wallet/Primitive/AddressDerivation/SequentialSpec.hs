@@ -17,6 +17,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     , deriveAddressPrivateKey
     , deriveAddressPublicKey
     , generateKeyFromSeed
+    , minSeedLengthBytes
     , unsafeGenerateKeyFromSeed
     )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
@@ -117,6 +118,6 @@ instance Arbitrary ChangeChain where
 
 instance {-# OVERLAPS #-} Arbitrary (Passphrase "seed") where
     arbitrary = do
-        n <- choose (16, 64)
+        n <- choose (minSeedLengthBytes, 64)
         bytes <- BS.pack <$> vectorOf n arbitrary
         return $ Passphrase $ BA.convert bytes

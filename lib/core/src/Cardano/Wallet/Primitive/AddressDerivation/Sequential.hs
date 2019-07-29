@@ -21,13 +21,13 @@
 
 module Cardano.Wallet.Primitive.AddressDerivation.Sequential
     (
-    -- * Sequential Derivation
       ChangeChain(..)
     , generateKeyFromSeed
     , unsafeGenerateKeyFromSeed
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
     , deriveAddressPublicKey
+    , minSeedLengthBytes
     ) where
 
 import Prelude
@@ -115,6 +115,11 @@ purposeIndex = 0x8000002C
 coinTypeIndex :: Word32
 coinTypeIndex = 0x80000717
 
+-- | The minimum seed length for 'generateKeyFromSeed' and
+-- 'unsafeGenerateKeyFromSeed'.
+minSeedLengthBytes :: Int
+minSeedLengthBytes = 16
+
 -- | Generate a new key from seed. Note that the @depth@ is left open so that
 -- the caller gets to decide what type of key this is. This is mostly for
 -- testing, in practice, seeds are used to represent root keys, and one should
@@ -129,7 +134,7 @@ unsafeGenerateKeyFromSeed (Passphrase seed, Passphrase gen) (Passphrase pwd) =
         seed' = invariant
             ("seed length : " <> show (BA.length seed) <> " in (Passphrase \"seed\") is not valid")
             seed
-            (\s -> BA.length s >= 16 && BA.length s <= 255)
+            (\s -> BA.length s >= minSeedLengthBytes && BA.length s <= 255)
     in Key $ generateNew seed' gen pwd
 
 -- | Generate a root key from a corresponding seed
