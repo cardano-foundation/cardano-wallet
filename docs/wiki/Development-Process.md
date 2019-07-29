@@ -1,5 +1,7 @@
 The team follows a methodology known as [extreme programming][xp] which can be summarized as follows:
 
+![cardano-logo.png](cardano-logo.png)
+
 ## Planning
 
 - The project is divided into iterations of 2 weeks
