@@ -26,7 +26,9 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( XPrv )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), DerivationType (..), Index (..), Key (..), Passphrase (..) )
+    ( DerivationType (..), Index (..), Passphrase (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Common
+    ( Depth (..), Key (..) )
 
 deriveAccountPrivateKey
     :: Passphrase "encryption"

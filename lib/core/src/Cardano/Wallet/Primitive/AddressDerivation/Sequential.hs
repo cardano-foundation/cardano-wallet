@@ -35,7 +35,9 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( DerivationScheme (..), XPrv, XPub, deriveXPrv, deriveXPub, generateNew )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), DerivationType (..), Index (..), Key (..), Passphrase (..) )
+    ( DerivationType (..), Index (..), Passphrase (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Common
+    ( Depth (..), Key (..) )
 import Cardano.Wallet.Primitive.Types
     ( invariant )
 import Control.DeepSeq
