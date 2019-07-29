@@ -35,6 +35,7 @@ module Cardano.Wallet
     , ErrNoSuchWallet (..)
     , ErrPostTx (..)
     , ErrSignTx (..)
+    , ErrStartTimeLaterThanEndTime (..)
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
     , ErrValidateSelection
@@ -150,7 +151,7 @@ import Control.Concurrent.MVar
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( forM, unless )
+    ( forM, unless, when )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Class
@@ -366,9 +367,17 @@ data ErrWithRootKey
     deriving (Show, Eq)
 
 -- | Errors that can occur when trying to list transactions.
-newtype ErrListTransactions
+data ErrListTransactions
     = ErrListTransactionsNoSuchWallet ErrNoSuchWallet
+    | ErrListTransactionsStartTimeLaterThanEndTime ErrStartTimeLaterThanEndTime
     deriving (Show, Eq)
+
+-- | Indicates that the specified start time is later than the specified end
+-- time.
+data ErrStartTimeLaterThanEndTime = ErrStartTimeLaterThanEndTime
+    { startTime :: UTCTime
+    , endTime :: UTCTime
+    } deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
                                 Worker Registry
@@ -741,8 +750,13 @@ newWalletLayer tracer bp db nw tl = do
         -> Maybe UTCTime
         -> Maybe SortOrder
         -> ExceptT ErrListTransactions IO [TransactionInfo]
-    _listTransactions wid _mStart _mEnd _mOrder = do
+    _listTransactions wid mStart mEnd _mOrder = do
         (w, _) <- withExceptT ErrListTransactionsNoSuchWallet $ _readWallet wid
+        case (mStart, mEnd) of
+            (Just start, Just end) -> when (start > end) $ throwE $
+                ErrListTransactionsStartTimeLaterThanEndTime $
+                    ErrStartTimeLaterThanEndTime start end
+            _ -> pure ()
         let tip = currentTip w ^. #slotId
         liftIO $ assemble tip <$> DB.readTxHistory db (PrimaryKey wid)
       where

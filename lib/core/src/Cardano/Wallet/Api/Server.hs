@@ -37,6 +37,7 @@ import Cardano.Wallet
     , ErrNoSuchWallet (..)
     , ErrPostTx (..)
     , ErrSignTx (..)
+    , ErrStartTimeLaterThanEndTime (..)
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
     , ErrValidateSelection
@@ -148,6 +149,7 @@ import Servant
     , NoContent (..)
     , Server
     , contentType
+    , err400
     , err403
     , err404
     , err409
@@ -681,6 +683,16 @@ instance LiftHandler ErrUpdatePassphrase where
 instance LiftHandler ErrListTransactions where
     handler = \case
         ErrListTransactionsNoSuchWallet e -> handler e
+        ErrListTransactionsStartTimeLaterThanEndTime e -> handler e
+
+instance LiftHandler ErrStartTimeLaterThanEndTime where
+    handler err = apiError err400 StartTimeLaterThanEndTime $ mconcat
+        [ "The specified start time '"
+        , toText $ Iso8601Time $ startTime err
+        , "' is later than the specified end time '"
+        , toText $ Iso8601Time $ endTime err
+        , "'."
+        ]
 
 instance LiftHandler ServantErr where
     handler err@(ServantErr code _ body headers)

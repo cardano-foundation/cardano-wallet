@@ -248,6 +248,7 @@ data ApiErrorCode
     | NotFound
     | MethodNotAllowed
     | NotAcceptable
+    | StartTimeLaterThanEndTime
     | UnsupportedMediaType
     | UnexpectedError
     deriving (Eq, Generic, Show)

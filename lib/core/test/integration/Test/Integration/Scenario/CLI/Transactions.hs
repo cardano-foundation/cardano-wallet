@@ -657,7 +657,6 @@ spec = do
                 , (Just validTime1, Nothing)
                 , (Nothing, Just validTime1)
                 , (Just validTime1, Just validTime2)
-                , (Just validTime2, Just validTime1)
                 ]
 
         let sortOrderMatrix :: [Maybe SortOrder]
