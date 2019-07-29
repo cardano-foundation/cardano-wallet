@@ -115,6 +115,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotLength (..)
     , SlotLength (..)
+    , SortOrder (..)
     , StartTime (..)
     , TransactionInfo (..)
     , Tx (..)
@@ -181,7 +182,7 @@ import Data.Text
 import Data.Text.Class
     ( toText )
 import Data.Time.Clock
-    ( getCurrentTime )
+    ( UTCTime, getCurrentTime )
 import Data.Word
     ( Word16 )
 import Fmt
@@ -300,6 +301,11 @@ data WalletLayer s t = WalletLayer
     , listTransactions
         :: DefineTx t
         => WalletId
+        -> Maybe UTCTime
+            -- Start time
+        -> Maybe UTCTime
+            -- End time
+        -> Maybe SortOrder
         -> ExceptT ErrListTransactions IO [TransactionInfo]
         -- ^ List all transactions and metadata from history for a given wallet.
         --
@@ -731,8 +737,11 @@ newWalletLayer tracer bp db nw tl = do
     _listTransactions
         :: (DefineTx t)
         => WalletId
+        -> Maybe UTCTime
+        -> Maybe UTCTime
+        -> Maybe SortOrder
         -> ExceptT ErrListTransactions IO [TransactionInfo]
-    _listTransactions wid = do
+    _listTransactions wid _mStart _mEnd _mOrder = do
         (w, _) <- withExceptT ErrListTransactionsNoSuchWallet $ _readWallet wid
         let tip = currentTip w ^. #slotId
         liftIO $ assemble tip <$> DB.readTxHistory db (PrimaryKey wid)

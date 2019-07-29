@@ -473,8 +473,11 @@ listTransactions
     -> Maybe Iso8601Time
     -> Maybe (ApiT SortOrder)
     -> Handler [ApiTransaction t]
-listTransactions w (ApiT wid) _maybeStart _maybeEnd _maybeOrder = do
+listTransactions w (ApiT wid) mStart mEnd mOrder = do
     txs <- liftHandler $ W.listTransactions w wid
+        (getIso8601Time <$> mStart)
+        (getIso8601Time <$> mEnd)
+        (getApiT <$> mOrder)
     return $ map mkApiTransactionFromInfo txs
 
 coerceCoin :: AddressAmount t -> TxOut
