@@ -36,14 +36,11 @@ library
     , cardano-crypto-wrapper
     , contra-tracer
     , io-sim-classes
-    , iohk-monitoring
     , network
     , network-mux
-    , optparse-applicative
     , ouroboros-consensus
     , ouroboros-network
     , serialise
-    , stm
     , text
     , transformers
     , typed-protocols
