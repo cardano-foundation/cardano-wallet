@@ -182,11 +182,9 @@ spec = do
         it "XPriv" (property prop_roundtripXPriv)
         it "XPub" (property prop_roundtripXPub)
 
-
 {-------------------------------------------------------------------------------
                                Properties
 -------------------------------------------------------------------------------}
-
 
 prop_succMaxBoundHardIx :: Property
 prop_succMaxBoundHardIx = expectFailure $
@@ -247,7 +245,6 @@ prop_passphraseHashMalformed
     -> Property
 prop_passphraseHashMalformed pwd = monadicIO $ liftIO $ do
     checkPassphrase pwd (Hash mempty) `shouldBe` Left ErrWrongPassphrase
-
 
 {-------------------------------------------------------------------------------
                              Arbitrary Instances
