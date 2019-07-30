@@ -135,6 +135,7 @@ import qualified Cardano.Wallet.Jormungandr.Network as Jormungandr
 import qualified Cardano.Wallet.Jormungandr.Transaction as Jormungandr
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Char as C
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
 
@@ -224,18 +225,15 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
             ]
       where
         commandJormungandr nodeConfig (JormungandrArgs block0 bftLeaders) =
-            Command "jormungandr" arguments (return ()) quiet
+            Command "jormungandr" arguments (return ()) Inherit
           where
+            logLevel = C.toLower <$> show (verbosityToMinSeverity verbosity)
             arguments = mconcat
               [ [ "--genesis-block", block0 ]
               , [ "--config", nodeConfig ]
               , [ "--secret", bftLeaders ]
-              , verbose
+              , [ "--log-level", logLevel ]
               ]
-            (quiet, verbose) = case verbosity of
-                Default -> (Inherit, mempty)
-                Quiet -> (NoStream, mempty)
-                Verbose -> (Inherit, ["-v"])
 
         commandWalletServe cmdName stateDir block0H =
             Command cmdName arguments (return ()) Inherit
