@@ -787,6 +787,6 @@ dbPropertyTests = do
 withDB :: IO (DBLayer IO s t) -> SpecWith (DBLayer IO s t) -> Spec
 withDB create = beforeAll create . beforeWith (\db -> cleanDB db $> db)
 
--- FIXME: We are only running these tests with one sort order.
+-- NOTE: We are only running these tests with one sort order.
 sortOrder :: SortOrder
 sortOrder = Descending

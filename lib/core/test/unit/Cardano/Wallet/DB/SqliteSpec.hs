@@ -53,6 +53,7 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , Hash (..)
     , SlotId (..)
+    , SortOrder (..)
     , TxIn (..)
     , TxMeta (TxMeta)
     , TxOut (..)
@@ -63,7 +64,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , WalletState (..)
-    , defaultTxSortOrder
     , wholeRange
     )
 import Cardano.Wallet.Unsafe
@@ -167,12 +167,13 @@ simpleSpec = do
             unsafeRunExceptT (putPrivateKey db testPk (k, h))
             readPrivateKey db testPk `shouldReturn` Just (k, h)
 
+        let sortOrder = Descending
         it "put and read tx history" $ \db -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
             runExceptT (putTxHistory db testPk (Map.fromList testTxs))
                 `shouldReturn` Right ()
             readTxHistory db testPk
-                defaultTxSortOrder wholeRange `shouldReturn` testTxs
+                sortOrder wholeRange `shouldReturn` testTxs
 
         it "put and read tx history - regression case" $ \db -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
@@ -181,7 +182,7 @@ simpleSpec = do
                 `shouldReturn` Right ()
             runExceptT (removeWallet db testPk) `shouldReturn` Right ()
             readTxHistory db testPk1
-                defaultTxSortOrder wholeRange `shouldReturn` testTxs
+                sortOrder wholeRange `shouldReturn` testTxs
 
         it "put and read checkpoint" $ \db -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
