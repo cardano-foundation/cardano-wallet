@@ -133,7 +133,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     , computeUtxoStatistics
-    , defaultTxSortOrder
     , log10
     , slotDifference
     , slotRatio
@@ -688,7 +687,7 @@ newWalletLayer tracer bp db nw tl = do
         (s, txs) <- DB.withLock db $ (,)
             <$> (getState <$> _readWalletCheckpoint wid)
             <*> liftIO (DB.readTxHistory db
-                (PrimaryKey wid) defaultTxSortOrder wholeRange)
+                (PrimaryKey wid) Descending wholeRange)
         let maybeIsOurs (TxOut a _) = if fst (isOurs a s)
                 then Just a
                 else Nothing
@@ -753,7 +752,7 @@ newWalletLayer tracer bp db nw tl = do
         -> Maybe UTCTime
         -> Maybe SortOrder
         -> ExceptT ErrListTransactions IO [TransactionInfo]
-    _listTransactions wid mStart mEnd _mOrder = do
+    _listTransactions wid mStart mEnd mOrder = do
         (w, _) <- withExceptT ErrListTransactionsNoSuchWallet $ _readWallet wid
         case (mStart, mEnd) of
             (Just start, Just end) -> when (start > end) $ throwE $
@@ -761,9 +760,10 @@ newWalletLayer tracer bp db nw tl = do
                     ErrStartTimeLaterThanEndTime start end
             _ -> pure ()
         let tip = currentTip w ^. #slotId
+        let order = maybe Descending id mOrder
         liftIO $ assemble tip
             <$> DB.readTxHistory db (PrimaryKey wid)
-                defaultTxSortOrder wholeRange
+                order wholeRange
       where
         -- This relies on DB.readTxHistory returning all necessary transactions
         -- to assemble coin selection information for outgoing payments.
