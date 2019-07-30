@@ -26,7 +26,6 @@ import Cardano.Wallet.Network
     )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
-    , Block (..)
     , BlockHeader (..)
     , Coin (..)
     , Hash (..)
@@ -67,27 +66,6 @@ port = 1337
 spec :: Spec
 spec = do
     describe "Happy paths" $ beforeAll startBridge $ afterAll closeBridge $ do
-        it "get from packed epochs" $ \(_, bridge) -> do
-            let blocks = runExceptT $ nextBlocks bridge
-                    (mkHeader $ SlotId 13 21599)
-            (fmap length <$> blocks)
-                `shouldReturn` pure 21600
-            (fmap (prevBlockHash . header . head) <$> blocks)
-                `shouldReturn` pure (Hash
-                    "7Z\213\204\SUB\134l\149\&8\191ZO\\0q]\ESCB\CAN\254\f[\RS\
-                    \\142\SOH\192K\250^\168\188m")
-
-        it "get from packet epochs and filter by start slot"
-                $ \(_, bridge) -> do
-            let blocks = runExceptT $ nextBlocks bridge
-                    (mkHeader $ SlotId 14 13999)
-            (fmap length <$> blocks)
-                `shouldReturn` pure 7600
-            (fmap (prevBlockHash . header . head) <$> blocks)
-                `shouldReturn` pure (Hash
-                    "\186\173\135)\129\248 \214\222\159\161x\EM\214\187\&8\158\
-                    \\220\237\245\bd\207\DC4\RS\168\212\143\240g\EOTQ")
-
         it "get unstable blocks for the unstable epoch" $ \(_, bridge) -> do
             let action = runExceptT $ do
                     (SlotId ep sl) <- slotId <$> networkTip' bridge
