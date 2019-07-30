@@ -100,7 +100,6 @@ module Cardano.Wallet.Primitive.Types
     , Range (..)
     , wholeRange
     , isWithinRange
-    , defaultTxSortOrder
 
     -- * Polymorphic
     , Hash (..)
@@ -329,9 +328,6 @@ instance ToText SortOrder where
 
 instance FromText SortOrder where
     fromText = fromTextToBoundedEnum SnakeLowerCase
-
-defaultTxSortOrder :: SortOrder
-defaultTxSortOrder =  Descending
 
 -- |'Range a' is used to filter data with optional `>=` and `<=` bounds.
 --
