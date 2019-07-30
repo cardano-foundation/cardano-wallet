@@ -153,7 +153,11 @@ jobs:
     if: (type != pull_request AND branch = master) OR (tag =~ ^v)
     name: "Compiling Project"
     script:
-    - stack --no-terminal build --fast --test --no-run-tests --bench --no-run-benchmarks --haddock --no-haddock-deps --coverage
+    # The following command also builds the `cardano-wallet-core-integration`
+    # component, since it is a dependency of `cardano-wallet-http-bridge` and
+    # `cardano-wallet-jormungandr`, but avoids building Haddock documentation
+    # for just that component.
+    - stack --no-terminal build --fast --test --no-run-tests --bench --no-run-benchmarks --haddock --no-haddock-deps --coverage text-class bech32 cardano-wallet-launcher cardano-wallet-core cardano-wallet-cli cardano-wallet-http-bridge cardano-wallet-jormungandr cardano-wallet
     - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
 
   - stage: checks 🔬
