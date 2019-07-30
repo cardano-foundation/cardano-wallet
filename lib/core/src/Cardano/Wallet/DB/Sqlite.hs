@@ -310,7 +310,7 @@ newDBLayer logConfig trace fp = do
                       utxo <- selectUTxO cp
                       -- 'checkpointFromEntity' will create a 'Set' from the
                       -- pending txs so the order is not important.
-                      let order = Descending
+                      let order = W.Descending
                       txs <- selectTxHistory @t wid
                           order [TxMetaStatus ==. W.Pending]
                       s <- selectState (checkpointId cp)
