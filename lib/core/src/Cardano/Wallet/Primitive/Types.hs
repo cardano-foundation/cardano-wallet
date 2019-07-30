@@ -537,7 +537,7 @@ instance ToText Direction where
 
 -- | @TxWitness@ is proof that transaction inputs are allowed to be spent
 newtype TxWitness = TxWitness { unWitness :: ByteString }
-    deriving (Show, Eq)
+    deriving (Show, Eq, Ord)
 
 -- | True if the given tuple refers to a pending transaction
 isPending :: TxMeta -> Bool

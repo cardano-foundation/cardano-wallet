@@ -31,7 +31,7 @@ import Prelude
 import Cardano.Wallet.DB.Sqlite
     ( PersistTx (..) )
 import Cardano.Wallet.Jormungandr.Binary
-    ( blake2b256, decodeLegacyAddress, putTx, runPut, singleAddressFromKey )
+    ( decodeLegacyAddress, singleAddressFromKey )
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Jormungandr.Primitive.Types
@@ -80,7 +80,6 @@ import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
-import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
@@ -109,11 +108,11 @@ instance DefineTx (Jormungandr network) where
     outputs = outputs
     -- The corresponding rust implementation is:
     -- https://github.com/input-output-hk/rust-cardano/blob/e5d974f7bedeb00c9c9d688ac66094a34bf8f40d/chain-impl-mockchain/src/transaction/transaction.rs#L115-L119
-    txId = Hash . blake2b256 . BL.toStrict . runPut . putTx
+    txId = txid
 
 instance PersistTx (Jormungandr network) where
     resolvedInputs = map (second Just) . inputs
-    mkTx inps = Tx ((second unsafeFromMaybe) <$> inps)
+    mkTx tid inps = Tx tid ((second unsafeFromMaybe) <$> inps)
       where
         unsafeFromMaybe amt = fromJust $ invariant
             ("PersistTx (Jormungandr network): invariant violation, tried to \
