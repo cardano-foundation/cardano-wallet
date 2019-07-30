@@ -81,7 +81,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , WalletState (..)
-    , defaultTxSortOrder
     , isPending
     , isWithinRange
     , wholeRange
@@ -180,7 +179,7 @@ sortedUnions :: Ord k => [(k, GenTxHistory)] -> [Identity GenTxHistory]
 sortedUnions = map (Identity . sort' . runIdentity) . unions
   where
     sort' = GenTxHistory
-      . filterTxHistory defaultTxSortOrder wholeRange
+      . filterTxHistory sortOrder wholeRange
       . unGenTxHistory
 
 -- | Execute an action once per key @k@ present in the given list
@@ -371,7 +370,7 @@ instance Arbitrary GenTxHistory where
         mockTxId :: Tx -> Hash "Tx"
         mockTxId = Hash . B8.pack . show
 
-        sortTxHistory = filterTxHistory defaultTxSortOrder wholeRange
+        sortTxHistory = filterTxHistory sortOrder wholeRange
 
 instance Arbitrary UTxO where
     shrink (UTxO utxo) = UTxO <$> shrink utxo
@@ -430,7 +429,7 @@ readTxHistoryF
     -> m (Identity GenTxHistory)
 readTxHistoryF db wid =
     (Identity . GenTxHistory)
-    <$> readTxHistory db wid defaultTxSortOrder wholeRange
+    <$> readTxHistory db wid sortOrder wholeRange
 
 putTxHistoryF
     :: DBLayer m s DummyTarget
@@ -787,3 +786,7 @@ dbPropertyTests = do
 -- once, and cleared with 'cleanDB' before each test.
 withDB :: IO (DBLayer IO s t) -> SpecWith (DBLayer IO s t) -> Spec
 withDB create = beforeAll create . beforeWith (\db -> cleanDB db $> db)
+
+-- FIXME: We are only running these tests with one sort order.
+sortOrder :: SortOrder
+sortOrder = Descending
