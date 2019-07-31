@@ -307,7 +307,7 @@ data WalletLayer s t = WalletLayer
             -- Start time
         -> Maybe UTCTime
             -- End time
-        -> Maybe SortOrder
+        -> SortOrder
         -> ExceptT ErrListTransactions IO [TransactionInfo]
         -- ^ List all transactions and metadata from history for a given wallet.
         --
@@ -750,9 +750,9 @@ newWalletLayer tracer bp db nw tl = do
         => WalletId
         -> Maybe UTCTime
         -> Maybe UTCTime
-        -> Maybe SortOrder
+        -> SortOrder
         -> ExceptT ErrListTransactions IO [TransactionInfo]
-    _listTransactions wid mStart mEnd mOrder = do
+    _listTransactions wid mStart mEnd order = do
         (w, _) <- withExceptT ErrListTransactionsNoSuchWallet $ _readWallet wid
         case (mStart, mEnd) of
             (Just start, Just end) -> when (start > end) $ throwE $
@@ -760,7 +760,6 @@ newWalletLayer tracer bp db nw tl = do
                     ErrStartTimeLaterThanEndTime start end
             _ -> pure ()
         let tip = currentTip w ^. #slotId
-        let order = maybe Descending id mOrder
         liftIO $ assemble tip
             <$> DB.readTxHistory db (PrimaryKey wid)
                 order wholeRange
