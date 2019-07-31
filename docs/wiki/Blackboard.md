@@ -34,7 +34,7 @@ Informal testing of the `Arbitrary` instance for `UTCTime` shows that the values
 
 We might consider making a new instance that generates a wider range of dates, both from the past and the future. It would also be nice to generate times with a mixture of precisions:
 
-```
+```hs
 % replicateM_ 10 (generate @UTCTime arbitrary >>= print)
 2373-01-14 19:28:07.105907934381 UTC
 1992-09-27 11:44:23 UTC
