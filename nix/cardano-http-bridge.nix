@@ -11,15 +11,15 @@ let
 in rustPlatform.buildRustPackage rec {
   name = "cardano-http-bridge-${version}";
 
-  version = "0.0.3";
+  version = "0.0.5";
   src = fetchFromGitHub {
-    owner = "KtorZ";
+    owner = "rvl";
     repo = "cardano-http-bridge";
     fetchSubmodules = true;
-    rev = "a0e05390bee29d90daeec958fdce97e08c437143";
-    sha256 = "1ix9b0pp50397g46h9k8axyrh8395a5l7zixsqrsyq90jwkbafa3";
+    rev = "5cd4ef1f6c0622168a108c82f312a26582f163ad";
+    sha256 = "0a1l9c3i8xcw4fql76j6azgnqiip7hsg7a1jmbhgnlybn079ym9p";
   };
-  cargoSha256 = "1phij6gcs70rsv1y0ac6lciq384g2f014mn15pjvd02l09nx7k49";
+  cargoSha256 = "0dmd1v3pqkhjrnqy64ldpg1vhj01m95gm57njcfihiscwy3nwj70";
 
   buildInputs = [ protobuf ] ++ stdenv.lib.optional stdenv.isDarwin Security;
 

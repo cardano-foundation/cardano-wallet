@@ -186,7 +186,7 @@ byronBlockchainParameters = BlockchainParameters
     { getGenesisBlock = block0
     , getGenesisBlockDate = case networkVal @n of
         Mainnet -> StartTime $ posixSecondsToUTCTime 1506203091
-        Testnet -> StartTime $ posixSecondsToUTCTime 1537941600
+        Testnet -> StartTime $ posixSecondsToUTCTime 1563999616
     , getFeePolicy = byronFeePolicy
     , getSlotLength = byronSlotLength
     , getTxMaxSize = byronTxMaxSize
