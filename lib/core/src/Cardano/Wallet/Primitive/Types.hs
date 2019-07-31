@@ -79,6 +79,7 @@ module Cardano.Wallet.Primitive.Types
     , flatSlot
     , fromFlatSlot
     , slotStartTime
+    , slotAtTime
     , slotDifference
 
     -- * Wallet Metadata
@@ -147,7 +148,7 @@ import Data.Text.Class
     , toTextFromBoundedEnum
     )
 import Data.Time.Clock
-    ( NominalDiffTime, UTCTime, addUTCTime )
+    ( NominalDiffTime, UTCTime, addUTCTime, diffUTCTime )
 import Data.Word
     ( Word16, Word32, Word64 )
 import Fmt
@@ -875,6 +876,13 @@ slotStartTime epochLength (SlotLength slotLength) (StartTime start) sl =
     addUTCTime offset start
   where
     offset = slotLength * fromIntegral (flatSlot epochLength sl)
+
+-- | The SlotId at a given time.
+slotAtTime :: EpochLength -> SlotLength -> StartTime -> UTCTime -> SlotId
+slotAtTime epochLength (SlotLength slotLength) (StartTime start) time =
+    fromFlatSlot
+        epochLength
+        (round $ (time `diffUTCTime` start) / slotLength)
 
 -- | Duration of a single slot.
 newtype SlotLength = SlotLength NominalDiffTime

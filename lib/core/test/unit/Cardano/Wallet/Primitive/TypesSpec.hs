@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -17,6 +18,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..), digest, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( generateKeyFromSeed )
+import Test.QuickCheck.Instances.Time ()
+import Data.Word (Word64)
+import Data.Time.Clock (NominalDiffTime, UTCTime)
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
@@ -31,6 +35,8 @@ import Cardano.Wallet.Primitive.Types
     , HistogramBar (..)
     , ShowFmt (..)
     , SlotId (..)
+    , SlotLength (..)
+    , StartTime (..)
     , TxIn (..)
     , TxMeta (TxMeta)
     , TxOut (..)
@@ -48,7 +54,9 @@ import Cardano.Wallet.Primitive.Types
     , isValidCoin
     , restrictedBy
     , restrictedTo
+    , slotAtTime
     , slotRatio
+    , slotStartTime
     , walletNameMaxLength
     , walletNameMinLength
     )
@@ -145,6 +153,13 @@ spec = do
             fromFlatSlot slotsPerEpoch (flatSlot slotsPerEpoch sl) === sl
         it "fromFlatSlot . flatSlot == id" $ property $ \n ->
             flatSlot slotsPerEpoch (fromFlatSlot slotsPerEpoch n) === n
+
+    describe "SlotId <-> UTCTime conversions" $ do
+        it "slotAtTime . slotStartTime == id" $
+            property $ \slotLength epochLength startTime sl -> do
+                let slotAtTime' = slotAtTime epochLength slotLength startTime
+                let slotStartTime' = slotStartTime epochLength slotLength startTime
+                slotAtTime' (slotStartTime' sl) === sl
 
     describe "Negative cases for types decoding" $ do
         it "fail fromText @AddressState \"unusedused\"" $ do
@@ -499,3 +514,22 @@ instance Arbitrary WalletName where
 instance Arbitrary BoundType where
     shrink = genericShrink
     arbitrary = genericArbitrary
+
+newtype NonZero a = NonZero a
+
+instance (Arbitrary a, Num a, Eq a) => Arbitrary (NonZero a) where
+    arbitrary = NonZero . restrict <$> arbitrary
+      where
+        restrict x = if x == 0 then 1 else x
+    shrink (NonZero x) =
+        map NonZero
+        . suggestOne
+        . filter (/= 0)
+        $ shrink x
+      where
+        suggestOne shrinks = if shrinks == [] then [1] else []
+
+deriving via UTCTime instance Arbitrary StartTime
+deriving via (NonZero NominalDiffTime) instance Arbitrary SlotLength
+deriving via (NonZero Word64) instance Arbitrary EpochLength
+
