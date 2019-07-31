@@ -759,10 +759,11 @@ newWalletLayer tracer bp db nw tl = do
                 ErrListTransactionsStartTimeLaterThanEndTime $
                     ErrStartTimeLaterThanEndTime start end
             _ -> pure ()
+        let slotIdRange = (error "TODO :: UTCTime -> SlotId") timeRange
         let tip = currentTip w ^. #slotId
         liftIO $ assemble tip
             <$> DB.readTxHistory db (PrimaryKey wid)
-                order wholeRange
+                order slotIdRange
       where
         -- This relies on DB.readTxHistory returning all necessary transactions
         -- to assemble coin selection information for outgoing payments.
