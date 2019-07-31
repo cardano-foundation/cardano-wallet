@@ -4,6 +4,7 @@ This wiki page is a "blackboard" where anyone in the team can write ideas or sug
 
 # Contents
 
+* [Investigate the `Arbitrary` instance for `UTCTime`](#investigate-the-arbitrary-instance-for-utctime-in-testquickcheckinstancestime)
 * [Support multiple `--quiet` or `--verbose` flags in the CLI](#support-multiple---quiet-or---verbose-flags-in-the-cli)
 * [Use shared libraries instead of symbolic links for code sharing](#use-shared-libraries-instead-of-symbolic-links-for-code-sharing)
 * [Defer use of `IO` in the various layers](#defer-use-of-io-in-the-various-layers)
@@ -12,6 +13,12 @@ This wiki page is a "blackboard" where anyone in the team can write ideas or sug
 * [Consider DB state transition testing in the context of DB corruption](#consider-db-state-transition-testing-in-the-context-of-db-corruption)
 
 # Ideas
+
+## Investigate the `Arbitrary` instance for `UTCTime` in `Test.QuickCheck.Instances.Time`
+
+Informal testing of the `Arbitrary` instance for `UTCTime` shows that the values generated seem to be biased towards dates from a very long time ago (in the past).
+
+We might consider running some tests to confirm this, and decide whether we want to make a new instance that generates a wider range of dates, both from the past and the future. 
 
 ## Support multiple `--quiet` or `--verbose` flags in the CLI
 
