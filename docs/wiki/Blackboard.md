@@ -16,9 +16,23 @@ This wiki page is a "blackboard" where anyone in the team can write ideas or sug
 
 ## Investigate the `Arbitrary` instance for `UTCTime` in `Test.QuickCheck.Instances.Time`
 
-Informal testing of the `Arbitrary` instance for `UTCTime` shows that the values generated seem to be biased towards dates from a very long time ago (in the past).
+Informal testing of the `Arbitrary` instance for `UTCTime` shows that the values generated seem to be biased towards dates from a very long time ago (in the past):
 
-We might consider running some tests to confirm this, and decide whether we want to make a new instance that generates a wider range of dates, both from the past and the future. 
+```hs
+% replicateM_ 10 (generate @UTCTime arbitrary >>= print)
+1864-05-08 15:57:52.608452450367 UTC
+1864-05-27 22:26:35.875633272764 UTC
+1864-05-31 22:34:41.532543415989 UTC
+1864-05-13 03:32:49.388750554273 UTC
+1864-05-12 11:19:37.589857718608 UTC
+1864-05-08 09:54:51.660554300608 UTC
+1864-04-30 18:28:11.658332851904 UTC
+1864-05-02 00:05:04.983741204058 UTC
+1864-05-24 03:20:51.109800641012 UTC
+1864-05-14 18:32:08.199434389462 UTC
+```
+
+We might consider making a new instance that generates a wider range of dates, both from the past and the future. 
 
 ## Support multiple `--quiet` or `--verbose` flags in the CLI
 
