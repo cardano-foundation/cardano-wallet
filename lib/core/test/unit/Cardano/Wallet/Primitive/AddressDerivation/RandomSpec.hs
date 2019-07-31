@@ -21,12 +21,11 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , Index
+    , Index (..)
     , Passphrase (..)
     , XPrv
     , fromMnemonic
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Index (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Common
     ( Key (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Random

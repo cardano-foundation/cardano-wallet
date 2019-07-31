@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE InstanceSigs #-}
@@ -280,7 +279,7 @@ decodeDerPath :: CBOR.Decoder s (Index 'Hardened 'AccountK, Index 'Soft 'Address
 decodeDerPath = decodeListIndef CBOR.decodeWord32 >>= \case
     [accIx, addrIx] -> pure (Index accIx, Index addrIx)
     ps -> fail $ "decodeDerPath: Unexpected derivation path length ("
-        ++ (show $ length ps) ++ ")"
+        ++ show (length ps) ++ ")"
 
   where
     -- | Decode an arbitrary long list. CBOR introduce a "break" character to
