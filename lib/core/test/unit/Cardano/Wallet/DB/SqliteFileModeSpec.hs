@@ -128,18 +128,27 @@ spec =  do
             destroyDBLayer ctx
             testOpeningCleaning f (`readPrivateKey` testWid) (Just (k, h)) Nothing
 
-        it "put and read tx history (Ascending and Descending)" $ \f -> do
+        it "put and read tx history (Ascending)" $ \f -> do
             (ctx, db) <- newDBLayer' (Just f)
             unsafeRunExceptT $ createWallet db testWid testCp testMetadata
             unsafeRunExceptT $ putTxHistory db testWid (Map.fromList testTxs)
             destroyDBLayer ctx
-            let testWith order = testOpeningCleaning
-                    f
-                    (\db' -> readTxHistory db' testWid order wholeRange)
-                    testTxs
-                    mempty
-            testWith Ascending
-            testWith Descending
+            testOpeningCleaning
+                f
+                (\db' -> readTxHistory db' testWid Ascending wholeRange)
+                testTxs
+                mempty
+
+        it "put and read tx history (Decending)" $ \f -> do
+            (ctx, db) <- newDBLayer' (Just f)
+            unsafeRunExceptT $ createWallet db testWid testCp testMetadata
+            unsafeRunExceptT $ putTxHistory db testWid (Map.fromList testTxs)
+            destroyDBLayer ctx
+            testOpeningCleaning
+                f
+                (\db' -> readTxHistory db' testWid Descending wholeRange)
+                testTxs
+                mempty
 
         it "put and read checkpoint" $ \f -> do
             (ctx, db) <- newDBLayer' (Just f)
