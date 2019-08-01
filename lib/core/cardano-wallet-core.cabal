@@ -132,6 +132,7 @@ test-suite unit
     , bytestring
     , cardano-crypto
     , cardano-wallet-core
+    , cardano-wallet-test-utils
     , containers
     , cryptonite
     , directory

@@ -71,6 +71,7 @@
             (hsPkgs.bytestring)
             (hsPkgs.cardano-crypto)
             (hsPkgs.cardano-wallet-core)
+            (hsPkgs.cardano-wallet-test-utils)
             (hsPkgs.containers)
             (hsPkgs.cryptonite)
             (hsPkgs.directory)
