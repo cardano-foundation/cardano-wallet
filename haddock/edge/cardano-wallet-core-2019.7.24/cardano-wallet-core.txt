@@ -557,6 +557,32 @@ Ascending :: SortOrder
 
 -- | Sort in descending order.
 Descending :: SortOrder
+
+-- | 'Range a' is used to filter data with optional <a>&gt;=</a> and
+--   <a>&lt;=</a> bounds.
+--   
+--   When both bounds are <a>Just</a>, it functions like the closed range
+--   '[start, end]'. When both bounds are <a>Nothing</a> it functions like
+--   '(-∞,∞)', including everything (see <a>wholeRange</a>.)
+--   
+--   The full four interesting cases with the corresponding predicate in
+--   the third column:
+--   
+--   <ul>
+--   <li>[start, end] Range (Just start) (Just end) x -&gt; x &gt;= start
+--   &amp;&amp; x &lt;= end</li>
+--   <li>[start,∞) Range (Just start) Nothing x -&gt; x &gt;= start</li>
+--   <li>(-∞,end] Range Nothing (Just end) x -&gt; x &lt;= end</li>
+--   <li>(-∞,∞) Range Nothing Nothing _x -&gt; True</li>
+--   </ul>
+data Range a
+Range :: Maybe a -> Maybe a -> Range a
+[$sel:rStart:Range] :: Range a -> Maybe a
+[$sel:rEnd:Range] :: Range a -> Maybe a
+
+-- | The range that includes everything.
+wholeRange :: Range a
+isWithinRange :: Ord a => Range a -> a -> Bool
 newtype Hash (tag :: Symbol)
 Hash :: ByteString -> Hash
 [$sel:getHash:Hash] :: Hash -> ByteString
@@ -672,6 +698,8 @@ instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.WalletMetadata
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.PoolId
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.PoolId
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.PoolId
+instance GHC.Show.Show a => GHC.Show.Show (Cardano.Wallet.Primitive.Types.Range a)
+instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.Wallet.Primitive.Types.Range a)
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.SortOrder
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.SortOrder
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.SortOrder
@@ -1719,7 +1747,7 @@ module Cardano.Wallet.DB
 --   serialize and unserialize it (e.g. <tt>forall s. (Serialize s) =&gt;
 --   ...</tt>)
 data DBLayer m s t
-DBLayer :: (PrimaryKey WalletId -> Wallet s t -> WalletMetadata -> ExceptT ErrWalletAlreadyExists m ()) -> (PrimaryKey WalletId -> ExceptT ErrNoSuchWallet m ()) -> m [PrimaryKey WalletId] -> (PrimaryKey WalletId -> Wallet s t -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe (Wallet s t))) -> (PrimaryKey WalletId -> WalletMetadata -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe WalletMetadata)) -> (DefineTx t => PrimaryKey WalletId -> Map (Hash "Tx") (Tx t, TxMeta) -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m [(Hash "Tx", (Tx t, TxMeta))]) -> (PrimaryKey WalletId -> (Key  'RootK XPrv, Hash "encryption") -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe (Key  'RootK XPrv, Hash "encryption"))) -> (forall e a. () => ExceptT e m a -> ExceptT e m a) -> DBLayer m s t
+DBLayer :: (PrimaryKey WalletId -> Wallet s t -> WalletMetadata -> ExceptT ErrWalletAlreadyExists m ()) -> (PrimaryKey WalletId -> ExceptT ErrNoSuchWallet m ()) -> m [PrimaryKey WalletId] -> (PrimaryKey WalletId -> Wallet s t -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe (Wallet s t))) -> (PrimaryKey WalletId -> WalletMetadata -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe WalletMetadata)) -> (DefineTx t => PrimaryKey WalletId -> Map (Hash "Tx") (Tx t, TxMeta) -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> SortOrder -> Range SlotId -> m [(Hash "Tx", (Tx t, TxMeta))]) -> (PrimaryKey WalletId -> (Key  'RootK XPrv, Hash "encryption") -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe (Key  'RootK XPrv, Hash "encryption"))) -> (forall e a. () => ExceptT e m a -> ExceptT e m a) -> DBLayer m s t
 
 -- | Initialize a database entry for a given wallet. <a>putCheckpoint</a>,
 --   <a>putWalletMeta</a> or <a>putTxHistory</a> will actually all fail if
@@ -1767,7 +1795,7 @@ DBLayer :: (PrimaryKey WalletId -> Wallet s t -> WalletMetadata -> ExceptT ErrWa
 --   descending slot number.
 --   
 --   Returns an empty list if the wallet isn't found.
-[readTxHistory] :: DBLayer m s t -> PrimaryKey WalletId -> m [(Hash "Tx", (Tx t, TxMeta))]
+[readTxHistory] :: DBLayer m s t -> PrimaryKey WalletId -> SortOrder -> Range SlotId -> m [(Hash "Tx", (Tx t, TxMeta))]
 
 -- | Store or replace a private key for a given wallet. Note that wallet
 --   _could_ be stored and manipulated without any private key associated
@@ -2332,7 +2360,7 @@ instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t => Cardano.Wa
 --   to realize its role as being intermediary between the three.
 module Cardano.Wallet
 data WalletLayer s t
-WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)) -> (WalletId -> (WalletMetadata -> WalletMetadata) -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> (Passphrase "encryption-old", Passphrase "encryption-new") -> ExceptT ErrUpdatePassphrase IO ()) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO ()) -> ((IsOurs s, CompareDiscovery s, KnownAddresses s, DefineTx t) => WalletId -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]) -> (forall e. (DefineTx t, e ~ ErrValidateSelection t) => WalletId -> NonEmpty TxOut -> ExceptT (ErrCreateUnsignedTx e) IO CoinSelection) -> (forall e. (DefineTx t, e ~ ErrValidateSelection t) => WalletId -> NonEmpty TxOut -> ExceptT (ErrEstimateTxFee e) IO Fee) -> (DefineTx t => WalletId -> ExceptT ErrListUTxOStatistics IO UTxOStatistics) -> ((Show s, NFData s, IsOwned s, GenChange s) => WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx t, TxMeta, [TxWitness])) -> (DefineTx t => WalletId -> (Tx t, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> (DefineTx t => WalletId -> Maybe UTCTime -> Maybe UTCTime -> Maybe SortOrder -> ExceptT ErrListTransactions IO [TransactionInfo]) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()) -> WalletLayer s t
+WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)) -> (WalletId -> (WalletMetadata -> WalletMetadata) -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> (Passphrase "encryption-old", Passphrase "encryption-new") -> ExceptT ErrUpdatePassphrase IO ()) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO ()) -> ((IsOurs s, CompareDiscovery s, KnownAddresses s, DefineTx t) => WalletId -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]) -> (forall e. (DefineTx t, e ~ ErrValidateSelection t) => WalletId -> NonEmpty TxOut -> ExceptT (ErrCreateUnsignedTx e) IO CoinSelection) -> (forall e. (DefineTx t, e ~ ErrValidateSelection t) => WalletId -> NonEmpty TxOut -> ExceptT (ErrEstimateTxFee e) IO Fee) -> (DefineTx t => WalletId -> ExceptT ErrListUTxOStatistics IO UTxOStatistics) -> ((Show s, NFData s, IsOwned s, GenChange s) => WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx t, TxMeta, [TxWitness])) -> (DefineTx t => WalletId -> (Tx t, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> (DefineTx t => WalletId -> Maybe UTCTime -> Maybe UTCTime -> SortOrder -> ExceptT ErrListTransactions IO [TransactionInfo]) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()) -> WalletLayer s t
 
 -- | Initialise and store a new wallet, returning its Id.
 [$sel:createWallet:WalletLayer] :: WalletLayer s t -> (Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId
@@ -2393,7 +2421,7 @@ WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletNa
 --   
 --   The result is sorted on <a>BlockHeader</a> in descending order. The
 --   most recent transaction comes first.
-[$sel:listTransactions:WalletLayer] :: WalletLayer s t -> DefineTx t => WalletId -> Maybe UTCTime -> Maybe UTCTime -> Maybe SortOrder -> ExceptT ErrListTransactions IO [TransactionInfo]
+[$sel:listTransactions:WalletLayer] :: WalletLayer s t -> DefineTx t => WalletId -> Maybe UTCTime -> Maybe UTCTime -> SortOrder -> ExceptT ErrListTransactions IO [TransactionInfo]
 
 -- | Attach a given private key to a wallet. The private key is necessary
 --   for some operations like signing transactions or, generating new
