@@ -107,6 +107,7 @@ import Test.QuickCheck
     , Args (..)
     , Gen
     , Property
+    , arbitraryBoundedEnum
     , collect
     , elements
     , frequency
@@ -538,7 +539,7 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
     genPrivKey = elements ["pk1", "pk2", "pk3"]
 
     genSortOrder :: Gen SortOrder
-    genSortOrder = QC.elements [Ascending, Descending]
+    genSortOrder = arbitraryBoundedEnum
 
     genRange :: Gen (Range SlotId)
     genRange = Range <$> genSId <*> genSId
