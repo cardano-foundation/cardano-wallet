@@ -42,16 +42,20 @@ module Cardano.Wallet.Primitive.AddressDerivation.Random
     , encodeDerivationPath
     , decodeDerivationPath
     , decodeAddressDerivationPath
+    , decodeAddressDerivationPathShort
     , addrToPayload
     , unsafeDeserialiseFromBytes
     , deserialise
+    , toAddress
     ) where
 
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( DerivationScheme (DerivationScheme1)
+    ( ChainCode (..)
+    , DerivationScheme (DerivationScheme1)
     , XPrv
+    , XPub (..)
     , deriveXPrv
     , generate
     , toXPub
@@ -75,13 +79,15 @@ import Control.DeepSeq
 import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
-    ( Blake2b_256, SHA512 (..) )
+    ( Blake2b_224, Blake2b_256, SHA3_256, SHA512 (..) )
 import Data.ByteArray
     ( ScrubbedBytes )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
-    ( bitcoinAlphabet, decodeBase58 )
+    ( bitcoinAlphabet, decodeBase58, encodeBase58 )
+import Data.Digest.CRC32
+    ( crc32 )
 import Data.Maybe
     ( fromJust )
 import Data.Word
