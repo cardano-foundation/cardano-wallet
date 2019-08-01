@@ -15,11 +15,13 @@ module Cardano.Wallet.Jormungandr.TransactionSpec
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
-    ( putSignedTx, runPut )
+    ( MessageType (..), putSignedTx, runPut, withHeader )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
+import Cardano.Wallet.Jormungandr.Primitive.Types
+    ( Tx (..) )
 import Cardano.Wallet.Jormungandr.Transaction
     ( ErrExceededInpsOrOuts (..), newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -402,7 +404,13 @@ goldenTestStdTx
     -> SpecWith ()
 goldenTestStdTx _ keystore block0 inps outs bytes' = it title $ do
     let tx = mkStdTx tl keystore inps outs
-    let bytes = hex . BL.toStrict . runPut . putSignedTx <$> tx
+    let bytes = fmap
+            (\(Tx _ i o, w) -> hex
+                $ BL.toStrict
+                $ runPut
+                $ withHeader MsgTypeTransaction
+                $ putSignedTx i o w)
+            tx
     bytes `shouldBe` Right bytes'
   where
     tl = newTransactionLayer @n block0

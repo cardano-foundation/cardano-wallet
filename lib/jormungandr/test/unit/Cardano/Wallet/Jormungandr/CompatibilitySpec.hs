@@ -16,13 +16,11 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( ChainCode (..), XPub (..) )
 import Cardano.Wallet.Jormungandr.Binary
-    ( singleAddressFromKey )
+    ( signData, singleAddressFromKey )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( BaseUrl (..), Jormungandr, Scheme (..), genConfigFile )
 import Cardano.Wallet.Jormungandr.Environment
     ( KnownNetwork (..), Network (..) )
-import Cardano.Wallet.Jormungandr.Primitive.Types
-    ( Tx (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -32,7 +30,6 @@ import Cardano.Wallet.Primitive.Types
     , ShowFmt (..)
     , TxIn (..)
     , TxOut (..)
-    , txId
     )
 import Cardano.Wallet.Unsafe
     ( unsafeDecodeAddress, unsafeFromHex )
@@ -68,52 +65,54 @@ import qualified Data.Text as T
 
 spec :: Spec
 spec = do
-    describe "txId @(Jormungandr 'Mainnet)" $ do
+    describe "signData @(Jormungandr 'Mainnet)" $ do
         let proxy = Proxy @(Jormungandr 'Mainnet)
         let fakeIn0 = Hash $ unsafeFromHex
                 "666984dec4bc0ff1888be97bfe0694a96b35c58d025405ead51d5cc72a3019f4"
         let fakeIn1 = Hash $ unsafeFromHex
                 "1323856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1"
         let addr0 = unsafeDecodeAddress proxy
-                "ca1q0u7k6ltp3e52pch47rhdkld2gdvgu26rwyqh02csu3ah3384f2nvhlk7a6"
+                "ca1qw0rtl2hpm6zlj4vsjkjyrtk7x2ujclrx8wwxakh4yh7s2xegalpxyayx7e"
         let addr1 = unsafeDecodeAddress proxy
-                "ca1qwrsm0yp4cmhn483y59sddp9qkkskdg6jn4z0vs56482k2f2udpdzxtqtv5"
+                "ca1qv474k2hgzr5h68v5khvfv6p95mac6wlkztw9azwe73casfk420ykxsjume"
         let change = unsafeDecodeAddress proxy
-                "ca1qwunuat6snw60g99ul6qvte98fjale2k0uu5mrymylqz2ntgzs6vs386wxd"
-        goldenTestTxId proxy
-            (Tx
-                { inputs =
-                    [ (TxIn fakeIn0 1, Coin 14442) ]
-                , outputs =
-                    [ TxOut addr0 (Coin 1337)
-                    , TxOut change (Coin 13105)
-                    ]
-                }
-            ) "7cf21d06943e32157ce59c87445ddd1b3f850142eaad3827ef79562c28369059"
-        goldenTestTxId proxy
-            (Tx
-                { inputs =
-                    [ (TxIn fakeIn0 1, Coin 14442) ]
-                , outputs =
-                    [ TxOut addr0 (Coin 1337)
-                    ]
-                }
-            ) "9c1e6d53ab16ed41468a82d8a23e3c833696cf89f450f84f135ad0049ffcf45f"
-        goldenTestTxId proxy
-            (Tx
-                { inputs =
-                    [ (TxIn fakeIn0 1, Coin 14442)
-                    , (TxIn fakeIn1 1, Coin 42)
-                    , (TxIn fakeIn0 2, Coin 123456789)
-                    ]
-                , outputs =
-                    [ TxOut addr0 (Coin 14)
-                    , TxOut addr1 (Coin 123456)
-                    ]
-                }
-            ) "0ff9f6b16425e493730b56f77b1cda236e15a267f69e76e02ebb59f722b8d0c1"
+                "ca1q0nh79pzqxge7qy8jp2zu9rdxqsepe55qlw756zzuy8hgddqvru95l5syeu"
+        goldenTestSignData proxy (GoldenTestSignData
+            { gtInputs =
+                [ (TxIn fakeIn0 1, Coin 14442)
+                ]
+            , gtOutputs =
+                [ TxOut addr0 (Coin 1337)
+                , TxOut change (Coin 13105)
+                ]
+            , gtExpected =
+                "bdb76ef9ec8d47efc9ec2e72101510697e6ebbac6e2f727bbf552afb24969bf6"
+            })
+        goldenTestSignData proxy (GoldenTestSignData
+            { gtInputs =
+                [ (TxIn fakeIn0 1, Coin 14442)
+                ]
+            , gtOutputs =
+                [ TxOut addr0 (Coin 1337)
+                ]
+            , gtExpected =
+                "29a713efa6a8458bbc7c0d52e923ac9356970fa87f2416e64e6e534afce92e77"
+            })
+        goldenTestSignData proxy (GoldenTestSignData
+            { gtInputs =
+                [ (TxIn fakeIn0 1, Coin 14442)
+                , (TxIn fakeIn1 1, Coin 42)
+                , (TxIn fakeIn0 2, Coin 123456789)
+                ]
+            , gtOutputs =
+                [ TxOut addr0 (Coin 14)
+                , TxOut addr1 (Coin 123456)
+                ]
+            , gtExpected =
+                "5ee1bf0175fbcf5282e267ad8d2f8cf4f6fef7c9ca4474c95299aa90a0ff020e"
+            })
 
-    describe "txId @(Jormungandr 'Testnet)" $ do
+    describe "signData @(Jormungandr 'Testnet)" $ do
         let proxy = Proxy @(Jormungandr 'Testnet)
         let fakeIn0 = Hash $ unsafeFromHex
                 "666984dec4bc0ff1888be97bfe0694a96b35c58d025405ead51d5cc72a3019f4"
@@ -125,38 +124,40 @@ spec = do
                 "ta1s09dcqava9nsl889fyrhuufx0reavt76qa803rzmllfur7cxcmt2xqsxwsm"
         let change = unsafeDecodeAddress proxy
                 "ta1sw4rdkek9rc5ywhrfna92wulm7ljdr5000g8kysz2hf2hgeyl5h755fhef2"
-        goldenTestTxId proxy
-            (Tx
-                { inputs =
-                    [ (TxIn fakeIn0 1, Coin 14442) ]
-                , outputs =
-                    [ TxOut addr0 (Coin 1337)
-                    , TxOut change (Coin 13105)
-                    ]
-                }
-            ) "e9af554cb09e80d3d1adf4f44406f88226bd528e5fabfe56b9f3092007980991"
-        goldenTestTxId proxy
-            (Tx
-                { inputs =
-                    [ (TxIn fakeIn0 1, Coin 14442) ]
-                , outputs =
-                    [ TxOut addr0 (Coin 1337)
-                    ]
-                }
-            ) "e8c3c0f3a499c56bb02852aa980f19866921c8e290e4e5f3ff4f6f36556f336d"
-        goldenTestTxId proxy
-            (Tx
-                { inputs =
-                    [ (TxIn fakeIn0 1, Coin 14442)
-                    , (TxIn fakeIn1 1, Coin 42)
-                    , (TxIn fakeIn0 2, Coin 123456789)
-                    ]
-                , outputs =
-                    [ TxOut addr0 (Coin 14)
-                    , TxOut addr1 (Coin 123456)
-                    ]
-                }
-            ) "c0efd28ea39c17d0fc64263008ca8e36615aaeabfa5e556fdc4152ff89d1b22f"
+        goldenTestSignData proxy (GoldenTestSignData
+            { gtInputs =
+                [ (TxIn fakeIn0 1, Coin 14442)
+                ]
+            , gtOutputs =
+                [ TxOut addr0 (Coin 1337)
+                , TxOut change (Coin 13105)
+                ]
+            , gtExpected =
+                "e9af554cb09e80d3d1adf4f44406f88226bd528e5fabfe56b9f3092007980991"
+            })
+        goldenTestSignData proxy (GoldenTestSignData
+            { gtInputs =
+                [ (TxIn fakeIn0 1, Coin 14442)
+                ]
+            , gtOutputs =
+                [ TxOut addr0 (Coin 1337)
+                ]
+            , gtExpected =
+                "e8c3c0f3a499c56bb02852aa980f19866921c8e290e4e5f3ff4f6f36556f336d"
+            })
+        goldenTestSignData proxy (GoldenTestSignData
+            { gtInputs =
+                [ (TxIn fakeIn0 1, Coin 14442)
+                , (TxIn fakeIn1 1, Coin 42)
+                , (TxIn fakeIn0 2, Coin 123456789)
+                ]
+            , gtOutputs =
+                [ TxOut addr0 (Coin 14)
+                , TxOut addr1 (Coin 123456)
+                ]
+            , gtExpected =
+                "c0efd28ea39c17d0fc64263008ca8e36615aaeabfa5e556fdc4152ff89d1b22f"
+            })
 
     describe "encodeAddress & decodeAddress (Mainnet)" $ do
         let proxy = Proxy @(Jormungandr 'Mainnet)
@@ -307,16 +308,25 @@ goldenTestAddr proxy pubkeys expected = it ("golden test: " <> T.unpack expected
   where
     chainCode = ChainCode "<ChainCode is not used by singleAddressFromKey>"
 
+data GoldenTestSignData = GoldenTestSignData
+    { gtInputs :: [(TxIn, Coin)]
+    , gtOutputs :: [TxOut]
+    , gtExpected :: ByteString
+    }
+
 -- | Generate tx ids for the given transaction and compare the result with an
 -- expected output obtained from jcli (see appendix below)
-goldenTestTxId
+--
+-- Note that jcli doesn't give the fragment id but, it gives the signing data
+-- (so the tx id as we knew it).
+goldenTestSignData
     :: forall t n. (t ~ Jormungandr n)
     => Proxy (Jormungandr n)
-    -> Tx
-    -> ByteString
+    -> GoldenTestSignData
     -> SpecWith ()
-goldenTestTxId _ tx expected = it ("golden test: " <> show tx) $ do
-    hex (getHash $ txId @t tx) `shouldBe` expected
+goldenTestSignData _ (GoldenTestSignData ins outs expected) =
+    it ("golden test: " <> B8.unpack expected) $
+        hex (getHash $ signData ins outs) `shouldBe` expected
   where
     hex = convertToBase @ByteString @ByteString Base16
 
