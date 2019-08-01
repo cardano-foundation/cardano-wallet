@@ -1,4 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -10,6 +11,7 @@ module Cardano.Wallet.Unsafe
     , unsafeRunExceptT
     , unsafeXPrv
     , unsafeMkMnemonic
+    , unsafeDeserialiseFromBytes
     ) where
 
 import Prelude
@@ -38,6 +40,8 @@ import Data.Text
     ( Text )
 
 import qualified Cardano.Crypto.Wallet as CC
+import qualified Codec.CBOR.Decoding as CBOR
+import qualified Codec.CBOR.Read as CBOR
 import qualified Data.ByteString.Lazy as BL
 
 -- | Decode an hex-encoded 'ByteString' into raw bytes, or fail.
@@ -80,3 +84,9 @@ unsafeRunExceptT = runExceptT >=> \case
         fail $ "unexpected error: " <> show e
     Right a ->
         return a
+
+-- | CBOR deserialise without error handling - handy for prototypes or testing.
+unsafeDeserialiseFromBytes :: (forall s. CBOR.Decoder s a) -> BL.ByteString -> a
+unsafeDeserialiseFromBytes decoder bytes =
+    either (\e -> error $ "unsafeDeserialiseFromBytes: " <> show e) snd $
+        CBOR.deserialiseFromBytes decoder bytes

@@ -37,7 +37,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Random
     , encodeDerivationPath
     , generateKeyFromSeed
     , minSeedLengthBytes
-    , unsafeDeserialiseFromBytes
     )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ( DecodeDerivationPath (..)
@@ -48,6 +47,8 @@ import Cardano.Wallet.Primitive.AddressDerivationSpec
     )
 import Cardano.Wallet.Primitive.Types
     ( Address (..) )
+import Cardano.Wallet.Unsafe
+    ( unsafeDeserialiseFromBytes )
 import Control.Monad
     ( (<=<) )
 import Data.ByteArray.Encoding
