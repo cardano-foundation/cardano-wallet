@@ -29,6 +29,7 @@
           (hsPkgs.contra-tracer)
           (hsPkgs.cryptonite)
           (hsPkgs.deepseq)
+          (hsPkgs.digest)
           (hsPkgs.exceptions)
           (hsPkgs.extra)
           (hsPkgs.fast-logger)

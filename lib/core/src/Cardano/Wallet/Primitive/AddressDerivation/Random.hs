@@ -34,17 +34,20 @@ module Cardano.Wallet.Primitive.AddressDerivation.Random
     , encodeDerivationPath
     , decodeDerivationPath
     , decodeAddressDerivationPath
+    , decodeAddressDerivationPathShort
     , addrToPayload
     , unsafeDeserialiseFromBytes
     , deserialise
+    , toAddress
     ) where
 
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( DerivationScheme (DerivationScheme1)
+    ( ChainCode (..)
+    , DerivationScheme (DerivationScheme1)
     , XPrv
-    , XPub
+    , XPub (..)
     , deriveXPrv
     , generate
     , unXPub
@@ -62,13 +65,15 @@ import Crypto.Error
 import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
-    ( Blake2b_256, SHA512 (..) )
+    ( Blake2b_224, Blake2b_256, SHA3_256, SHA512 (..) )
 import Data.ByteArray
     ( ScrubbedBytes )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
-    ( bitcoinAlphabet, decodeBase58 )
+    ( bitcoinAlphabet, decodeBase58, encodeBase58 )
+import Data.Digest.CRC32
+    ( crc32 )
 import Data.Maybe
     ( fromJust )
 import Data.Word
@@ -248,6 +253,7 @@ encodeDerPath (Index accIx) (Index addrIx) = mempty
 --
 -- It will fail to parse if the address is not in the random scheme. If the
 -- public key is incorrect, the decode result will be 'Nothing'.
+
 decodeAddressDerivationPath
     :: Key 'RootK XPub
     -> CBOR.Decoder s (Maybe (Index 'Hardened 'AccountK, Index 'Soft 'AddressK))
@@ -260,6 +266,19 @@ decodeAddressDerivationPath rootKey = do
     when (addrType /= 0) $
         fail $ "decodeAddressDerivationPath: type is not 0 (public key), it is " ++ show addrType
     pure path
+
+decodeAddressDerivationPathShort
+    :: Key 'RootK XPub
+    -> CBOR.Decoder s (Maybe (Index 'Hardened 'AccountK, Index 'Soft 'AddressK))
+decodeAddressDerivationPathShort rootKey = do
+    _ <- CBOR.decodeListLenCanonicalOf 3
+    _ <- CBOR.decodeBytes -- Address Root
+    len <- CBOR.decodeMapLen -- Address Attributes
+    case len of
+        1 -> do
+            _ <- CBOR.decodeWord8 -- Type (1)
+            decodeDerivationPath rootKey
+        _ -> fail $ "decodeAddressDerivationPath: Incorrect map length: " ++ show len
 
 -- | The attributes are pairs of numeric tags and bytes, where the bytes will be
 -- CBOR-encoded stuff. This decoder does not enforce "canonicity" of entries.
@@ -328,6 +347,53 @@ hdPassphrase (Key rootXPub) = Passphrase $
     (PBKDF2.Parameters 500 32)
     (unXPub rootXPub)
     ("address-hashing" :: ByteString)
+
+toAddress
+    :: Key 'RootK XPub
+    -> Key 'AddressK XPub
+    -> Index 'Hardened 'AccountK
+    -> Index 'Soft 'AddressK
+    -> Address
+toAddress rootXPub (Key addrXPub) accIx addrIx =
+    Address $ encodeBase58 bitcoinAlphabet
+    $ CBOR.toStrictByteString
+    $ encodeAddress addrXPub encodeAddressAttributes
+  where
+    encodeAddressAttributes = mempty
+        <> CBOR.encodeMapLen 1
+        <> CBOR.encodeWord8 1
+        <> encodeDerivationPath rootXPub accIx addrIx
+
+    encodeAddress :: XPub -> CBOR.Encoding -> CBOR.Encoding
+    encodeAddress (XPub pub (ChainCode cc)) encodeAttributes =
+        let
+            payload = CBOR.toStrictByteString $ mempty
+                <> CBOR.encodeListLen 3
+                <> CBOR.encodeBytes root
+                <> encodeAttributes
+                <> CBOR.encodeWord8 0
+
+            root = BA.convert $ hash @_ @Blake2b_224 $ hash @_ @SHA3_256 $ CBOR.toStrictByteString $ mempty
+                <> CBOR.encodeListLen 3
+                <> CBOR.encodeWord8 0
+                <> encodeSpendingData
+                <> encodeAttributes
+
+            encodeXPub =
+                CBOR.encodeBytes (pub <> cc)
+
+            encodeSpendingData = CBOR.encodeListLen 2
+                <> CBOR.encodeWord8 0
+                <> encodeXPub
+
+            encodeAddressPayload :: ByteString -> CBOR.Encoding
+            encodeAddressPayload pay = mempty
+                <> CBOR.encodeListLen 2
+                <> CBOR.encodeTag 24
+                <> CBOR.encodeBytes payload
+                <> CBOR.encodeWord32 (crc32 pay)
+
+        in encodeAddressPayload payload
 
 {-------------------------------------------------------------------------------
                     HD payload encryption and authentication
