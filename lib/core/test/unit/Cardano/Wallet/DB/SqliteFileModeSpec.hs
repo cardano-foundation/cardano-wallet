@@ -39,6 +39,7 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , Hash (..)
     , SlotId (..)
+    , SortOrder (..)
     , TxIn (..)
     , TxMeta (TxMeta)
     , TxOut (..)
@@ -49,6 +50,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , WalletState (..)
+    , wholeRange
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
@@ -126,12 +128,27 @@ spec =  do
             destroyDBLayer ctx
             testOpeningCleaning f (`readPrivateKey` testWid) (Just (k, h)) Nothing
 
-        it "put and read tx history" $ \f -> do
+        it "put and read tx history (Ascending)" $ \f -> do
             (ctx, db) <- newDBLayer' (Just f)
             unsafeRunExceptT $ createWallet db testWid testCp testMetadata
             unsafeRunExceptT $ putTxHistory db testWid (Map.fromList testTxs)
             destroyDBLayer ctx
-            testOpeningCleaning f (`readTxHistory` testWid) testTxs mempty
+            testOpeningCleaning
+                f
+                (\db' -> readTxHistory db' testWid Ascending wholeRange)
+                testTxs
+                mempty
+
+        it "put and read tx history (Decending)" $ \f -> do
+            (ctx, db) <- newDBLayer' (Just f)
+            unsafeRunExceptT $ createWallet db testWid testCp testMetadata
+            unsafeRunExceptT $ putTxHistory db testWid (Map.fromList testTxs)
+            destroyDBLayer ctx
+            testOpeningCleaning
+                f
+                (\db' -> readTxHistory db' testWid Descending wholeRange)
+                testTxs
+                mempty
 
         it "put and read checkpoint" $ \f -> do
             (ctx, db) <- newDBLayer' (Just f)

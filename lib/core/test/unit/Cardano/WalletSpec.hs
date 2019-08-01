@@ -70,6 +70,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , SlotId (..)
     , SlotLength (..)
+    , SortOrder (..)
     , StartTime (..)
     , TransactionInfo (txInfoMeta)
     , TransactionInfo (..)
@@ -129,6 +130,7 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
+    , arbitraryBoundedEnum
     , choose
     , elements
     , property
@@ -137,6 +139,8 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Monadic
     ( monadicIO )
+import Test.Utils.Time
+    ( UniformTime )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.DB as DB
@@ -356,14 +360,16 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
 
 walletListTransactionsSorted
     :: (WalletId, WalletName, DummyState)
+    -> SortOrder
+    -> (Maybe UniformTime, Maybe UniformTime)
     -> Map (Hash "Tx") (Tx, TxMeta)
     -> Property
-walletListTransactionsSorted wallet@(wid, _, _) history =
+walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history =
     monadicIO $ liftIO $ do
         (WalletLayerFixture db wl _ slotIdTime) <- liftIO $ setupFixture wallet
         unsafeRunExceptT $ putTxHistory db (PrimaryKey wid) history
         txs <- unsafeRunExceptT $
-            listTransactions wl wid Nothing Nothing Nothing
+            listTransactions wl wid Nothing Nothing Descending
         length txs `shouldBe` Map.size history
         -- With the 'Down'-wrapper, the sort is descending.
         txs `shouldBe` L.sortOn (Down . slotId . txInfoMeta) txs
@@ -496,6 +502,14 @@ instance {-# OVERLAPS #-} Arbitrary (Key 'RootK XPrv, Passphrase "encryption")
         pwd <- arbitrary
         let key = generateKeyFromSeed (seed, mempty) pwd
         return (key, pwd)
+
+instance Arbitrary SlotId where
+    shrink _ = []
+    arbitrary = SlotId <$> arbitrary <*> arbitrary
+
+instance Arbitrary SortOrder where
+    shrink _ = []
+    arbitrary = arbitraryBoundedEnum
 
 instance Show XPrv where
     show = show . CC.unXPrv

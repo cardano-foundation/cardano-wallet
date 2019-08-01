@@ -479,8 +479,11 @@ listTransactions w (ApiT wid) mStart mEnd mOrder = do
     txs <- liftHandler $ W.listTransactions w wid
         (getIso8601Time <$> mStart)
         (getIso8601Time <$> mEnd)
-        (getApiT <$> mOrder)
+        (maybe defaultSortOrder getApiT mOrder)
     return $ map mkApiTransactionFromInfo txs
+  where
+    defaultSortOrder :: SortOrder
+    defaultSortOrder = Descending
 
 coerceCoin :: AddressAmount t -> TxOut
 coerceCoin (AddressAmount (ApiT addr, _) (Quantity c)) =

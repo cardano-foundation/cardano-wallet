@@ -137,6 +137,7 @@ import Cardano.Wallet.Primitive.Types
     , slotDifference
     , slotRatio
     , slotStartTime
+    , wholeRange
     )
 import Cardano.Wallet.Transaction
     ( ErrMkStdTx (..), ErrValidateSelection, TransactionLayer (..) )
@@ -306,7 +307,7 @@ data WalletLayer s t = WalletLayer
             -- Start time
         -> Maybe UTCTime
             -- End time
-        -> Maybe SortOrder
+        -> SortOrder
         -> ExceptT ErrListTransactions IO [TransactionInfo]
         -- ^ List all transactions and metadata from history for a given wallet.
         --
@@ -685,7 +686,8 @@ newWalletLayer tracer bp db nw tl = do
     _listAddresses wid = do
         (s, txs) <- DB.withLock db $ (,)
             <$> (getState <$> _readWalletCheckpoint wid)
-            <*> liftIO (DB.readTxHistory db (PrimaryKey wid))
+            <*> liftIO (DB.readTxHistory db
+                (PrimaryKey wid) Descending wholeRange)
         let maybeIsOurs (TxOut a _) = if fst (isOurs a s)
                 then Just a
                 else Nothing
@@ -748,9 +750,9 @@ newWalletLayer tracer bp db nw tl = do
         => WalletId
         -> Maybe UTCTime
         -> Maybe UTCTime
-        -> Maybe SortOrder
+        -> SortOrder
         -> ExceptT ErrListTransactions IO [TransactionInfo]
-    _listTransactions wid mStart mEnd _mOrder = do
+    _listTransactions wid mStart mEnd order = do
         (w, _) <- withExceptT ErrListTransactionsNoSuchWallet $ _readWallet wid
         case (mStart, mEnd) of
             (Just start, Just end) -> when (start > end) $ throwE $
@@ -758,7 +760,9 @@ newWalletLayer tracer bp db nw tl = do
                     ErrStartTimeLaterThanEndTime start end
             _ -> pure ()
         let tip = currentTip w ^. #slotId
-        liftIO $ assemble tip <$> DB.readTxHistory db (PrimaryKey wid)
+        liftIO $ assemble tip
+            <$> DB.readTxHistory db (PrimaryKey wid)
+                order wholeRange
       where
         -- This relies on DB.readTxHistory returning all necessary transactions
         -- to assemble coin selection information for outgoing payments.
