@@ -26,8 +26,8 @@ import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck
     ( property, (.&&.), (===) )
-import Test.QuickCheck.Instances.Time
-    ()
+import Test.Utils.Time
+    ( getUniformTime )
 
 import qualified Data.Text as T
 
@@ -37,8 +37,8 @@ spec = describe "Conversion of UTC time values to and from text" $ do
     describe "Roundtrip conversion to and from text succeeds for all formats" $
         forM_ allSupportedFormats $ \tf ->
             it (timeFormatName tf) $ property $ \t ->
-                utcTimeFromText [tf] (utcTimeToText tf t)
-                    `shouldBe` Just t
+                utcTimeFromText [tf] (utcTimeToText tf $ getUniformTime t)
+                    `shouldBe` Just (getUniformTime t)
 
     describe "Parsing valid strings succeeds for all formats" $
         forM_ allSupportedFormats $ \tf -> describe (timeFormatName tf) $
