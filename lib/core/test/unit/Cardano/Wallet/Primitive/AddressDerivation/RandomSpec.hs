@@ -29,26 +29,27 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Common
     ( Key (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( decodeAddressDerivationPath
+    ( addrToPayload
+    , decodeAddressDerivationPath
     , decodeDerivationPath
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
+    , deserialise
     , encodeDerivationPath
     , generateKeyFromSeed
     , minSeedLengthBytes
+    , unsafeDeserialiseFromBytes
     )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
+import Cardano.Wallet.Primitive.Types
+    ( Address (..) )
 import Control.Monad
     ( (<=<) )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase )
 import Data.ByteString
     ( ByteString )
-import Data.ByteString.Base58
-    ( bitcoinAlphabet, decodeBase58 )
-import Data.Maybe
-    ( fromJust )
 import Data.Text
     ( Text )
 import Data.Word
@@ -68,12 +69,9 @@ import Test.QuickCheck
     , (==>)
     )
 
-import qualified Codec.CBOR.Decoding as CBOR
-import qualified Codec.CBOR.Read as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as BL
 
 spec :: Spec
 spec = do
@@ -205,8 +203,7 @@ decodeTest :: DecodeDerivationPath -> Expectation
 decodeTest DecodeDerivationPath{..} =
     decoded `shouldBe` Right (Just (Index accIndex, Index addrIndex))
   where
-    payload = unsafeDeserialiseFromBytes decodeAddressPayload $ b58decode addr
-    decoded = deserialise (decodeAddressDerivationPath rootXPub) payload
+    decoded = deserialise (decodeAddressDerivationPath rootXPub) (addrToPayload $ Address addr)
     Key rootXPrv = generateKeyFromSeed (Passphrase seed) (Passphrase "")
     rootXPub = Key (toXPub rootXPrv)
     Right (Passphrase seed) = fromMnemonic @'[12] mnem
@@ -269,30 +266,6 @@ xprv16 hex = Key k
 pp :: ByteString -> Passphrase purpose
 pp hex = Passphrase b
     where Right b = convertFromBase Base16 hex
-
--- | Decode a bitcoin base-58 address to a LBS, without error handling.
-b58decode :: ByteString -> BL.ByteString
-b58decode = BL.fromStrict . fromJust . decodeBase58 bitcoinAlphabet
-
--- | CBOR deserialise without error handling - handy for prototypes or testing.
-unsafeDeserialiseFromBytes :: (forall s. CBOR.Decoder s a) -> BL.ByteString -> a
-unsafeDeserialiseFromBytes decoder bytes =
-    either (\e -> error $ "unsafeDeserialiseFromBytes: " <> show e) snd $
-        CBOR.deserialiseFromBytes decoder bytes
-
--- | CBOR deserialise a strict bytestring
-deserialise :: (forall s. CBOR.Decoder s a) -> ByteString -> Either CBOR.DeserialiseFailure a
-deserialise dec = fmap snd . CBOR.deserialiseFromBytes dec . BL.fromStrict
-
--- | Extract the HD payload part of an legacy scheme Address, which has already
--- been base-58 decoded.
-decodeAddressPayload :: CBOR.Decoder s ByteString
-decodeAddressPayload = do
-    _ <- CBOR.decodeListLenCanonicalOf 2
-    _ <- CBOR.decodeTag
-    bytes <- CBOR.decodeBytes
-    _ <- CBOR.decodeWord32 -- CRC
-    return bytes
 
 {-------------------------------------------------------------------------------
                              Arbitrary Instances

@@ -34,6 +34,9 @@ module Cardano.Wallet.Primitive.AddressDerivation.Random
     , encodeDerivationPath
     , decodeDerivationPath
     , decodeAddressDerivationPath
+    , addrToPayload
+    , unsafeDeserialiseFromBytes
+    , deserialise
     ) where
 
 import Prelude
@@ -51,7 +54,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Common
     ( Depth (..), Key (..) )
 import Cardano.Wallet.Primitive.Types
-    ( invariant )
+    ( Address (..), invariant )
 import Control.Monad
     ( replicateM, when )
 import Crypto.Error
@@ -64,6 +67,10 @@ import Data.ByteArray
     ( ScrubbedBytes )
 import Data.ByteString
     ( ByteString )
+import Data.ByteString.Base58
+    ( bitcoinAlphabet, decodeBase58 )
+import Data.Maybe
+    ( fromJust )
 import Data.Word
     ( Word8 )
 
@@ -369,3 +376,31 @@ decodeNestedBytes dec bytes =
         Right ("", res) -> pure res
         Right _ -> fail "Leftovers when decoding nested bytes"
         _ -> fail "Could not decode nested bytes"
+
+addrToPayload :: Address -> ByteString
+addrToPayload (Address addr) =
+    unsafeDeserialiseFromBytes decodeAddressPayload $ b58decode addr
+
+-- | CBOR deserialise without error handling - handy for prototypes or testing.
+unsafeDeserialiseFromBytes :: (forall s. CBOR.Decoder s a) -> BL.ByteString -> a
+unsafeDeserialiseFromBytes decoder bytes =
+    either (\e -> error $ "unsafeDeserialiseFromBytes: " <> show e) snd $
+        CBOR.deserialiseFromBytes decoder bytes
+
+-- | Decode a bitcoin base-58 address to a LBS, without error handling.
+b58decode :: ByteString -> BL.ByteString
+b58decode = BL.fromStrict . fromJust . decodeBase58 bitcoinAlphabet
+
+-- | Extract the HD payload part of an legacy scheme Address, which has already
+-- been base-58 decoded.
+decodeAddressPayload :: CBOR.Decoder s ByteString
+decodeAddressPayload = do
+    _ <- CBOR.decodeListLenCanonicalOf 2
+    _ <- CBOR.decodeTag
+    bytes <- CBOR.decodeBytes
+    _ <- CBOR.decodeWord32 -- CRC
+    return bytes
+
+-- | CBOR deserialise a strict bytestring
+deserialise :: (forall s. CBOR.Decoder s a) -> ByteString -> Either CBOR.DeserialiseFailure a
+deserialise dec = fmap snd . CBOR.deserialiseFromBytes dec . BL.fromStrict
