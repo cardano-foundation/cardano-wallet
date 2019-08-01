@@ -755,9 +755,15 @@ of the new branches.
 >
 > When conditional evaluation depends on the value of a sum type, it's tempting
 > to use a test for equality or inequality to branch on a particular
-> value. However, if someone adds a new constructor to the sum type later on,
+> value.
+
+> However, if someone adds a new constructor to the sum type later on,
 > we'd ideally like the compiler to remind us to check all locations that inspect
 > values of this type, especially where conditional evaluation is involved.
+>
+> Using an equality test is non-ideal because the compiler won't necessarily
+> fail if a new constructor is added to the underlying sum type, whereas it
+> will **always** fail if a pattern match becomes incomplete.
 
 For expressions that evaluate differently depending on a value of a sum type,
 prefer pattern matching over equality testing for values of that type.
