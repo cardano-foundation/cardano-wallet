@@ -48,6 +48,8 @@ We use this instance quite a bit in our tests. We might therefore consider makin
 2423-08-24 15:05:50.351400953777 UTC
 ```
 
+Conclusion: Implemented in PR https://github.com/input-output-hk/cardano-wallet/pull/594
+
 ## Support multiple `--quiet` or `--verbose` flags in the CLI
 
 Currently, our CLI provides `--quiet` and `--verbose` flags, which when specified will make the output quieter or more verbose, respectively.
