@@ -76,10 +76,11 @@ newTransactionLayer (Hash block0) = TransactionLayer
                 }
         return (tx, wits)
 
-    -- FIXME:
-    -- Implement fee calculation for Jörmungandr!
-    -- See: https://github.com/input-output-hk/cardano-wallet/blob/f683a6d609bed3bea02eca1a18205d84f6486bd6/lib/jormungandr/test/integration/Main.hs#L217-L237
-    , estimateSize = \_ -> Quantity 0
+    -- NOTE
+    -- Jörmungandr fee calculation is a linear function where the coefficient
+    -- is multiplied by the total number of inputs and outputs.
+    , estimateSize = \(CoinSelection inps outs chgs) ->
+        Quantity $ length inps + length outs + length chgs
 
     , estimateMaxNumberOfInputs =
         estimateMaxNumberOfInputsBase @t Binary.estimateMaxNumberOfInputsParams
