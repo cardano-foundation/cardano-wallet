@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -41,7 +40,12 @@ import Cardano.Wallet.Primitive.AddressDerivation.Random
     , unsafeDeserialiseFromBytes
     )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
-    ()
+    ( DecodeDerivationPath (..)
+    , decodeTest1
+    , decodeTest2
+    , decodeTest3
+    , decodeTest4
+    )
 import Cardano.Wallet.Primitive.Types
     ( Address (..) )
 import Control.Monad
@@ -52,10 +56,6 @@ import Data.ByteString
     ( ByteString )
 import Data.Text
     ( Text )
-import Data.Word
-    ( Word32 )
-import GHC.Generics
-    ( Generic )
 import Test.Hspec
     ( Expectation, Spec, describe, it, shouldBe )
 import Test.QuickCheck
@@ -192,13 +192,6 @@ defMnemonic =
                     Golden tests for Address derivation path
 -------------------------------------------------------------------------------}
 
-data DecodeDerivationPath = DecodeDerivationPath
-    { mnem :: [Text]
-    , addr :: ByteString
-    , accIndex :: Word32
-    , addrIndex :: Word32
-    } deriving (Generic, Show, Eq)
-
 decodeTest :: DecodeDerivationPath -> Expectation
 decodeTest DecodeDerivationPath{..} =
     decoded `shouldBe` Right (Just (Index accIndex, Index addrIndex))
@@ -207,47 +200,6 @@ decodeTest DecodeDerivationPath{..} =
     Key rootXPrv = generateKeyFromSeed (Passphrase seed) (Passphrase "")
     rootXPub = Key (toXPub rootXPrv)
     Right (Passphrase seed) = fromMnemonic @'[12] mnem
-
--- Generated on mainnet Daedalus -- first address of the initial account.
-decodeTest1 :: DecodeDerivationPath
-decodeTest1 = DecodeDerivationPath
-    { mnem = addrMnemonic
-    , addr = "DdzFFzCqrhsznTSvu5VS2Arte6DbsvfGL2mhezwj4T8fvJqQ4C53RYc8nrNukdpfUfxz3R5ryZTcMtFZfdq4hVkPFHD1XV2dxY7AJEon"
-    , accIndex = 2147483648
-    , addrIndex = 2147483648
-    }
-
--- Generated for mainnet, first address of an additional account.
-decodeTest2 :: DecodeDerivationPath
-decodeTest2 = DecodeDerivationPath
-    { mnem = addrMnemonic
-    , addr = "DdzFFzCqrht2qSNuod2j3HQdxQYu7ehMnHqPMK6ZCZc1oTBfFJFTaqMF62rzWsJWZhbrN15uA4Bsp6M7t5WkqfumdnjLjZ5xRk8szuCd"
-    , accIndex = 2694138340
-    , addrIndex = 2512821145
-    }
-
-decodeTest3 :: DecodeDerivationPath
-decodeTest3 = DecodeDerivationPath
-    { mnem = addrMnemonic
-    , addr = "37btjrVyb4KEFr9tdBDYVPUWpFAu65yfnoqWmd5aeZpBk7MKTyH5tiPZ7sFi6k4vWXS5Df7H7Z4CT4m3uJ1Ps4ck7rrzqWDmtiifXoqX2MQHSGYeon"
-    , accIndex = 2147483648
-    , addrIndex = 2147483648
-    }
-
-decodeTest4 :: DecodeDerivationPath
-decodeTest4 = DecodeDerivationPath
-    { mnem = addrMnemonic
-    , addr = "37btjrVyb4KBbK7wGESZtW3vXSj8c8fGGHwS2b2fnCd6erjPw3Nt2Nw4RLbrYbdLbdgseiF3YaawsT1JGes9FMrW6Fuye9ANyLhkTq2EiHsnPE4qso"
-    , accIndex = 3337448281
-    , addrIndex = 3234874775
-    }
-
--- | Random empty wallet. It's not possible to restore a wallet from
--- 'defMnemonic', so that's why there are two mnemonics in these tests.
-addrMnemonic :: [Text]
-addrMnemonic =
-    [ "price", "whip", "bottom", "execute", "resist", "library"
-    , "entire", "purse", "assist", "clock", "still", "noble" ]
 
 {-------------------------------------------------------------------------------
                                      Utils

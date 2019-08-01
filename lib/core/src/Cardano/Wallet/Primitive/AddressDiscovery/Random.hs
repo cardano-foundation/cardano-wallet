@@ -24,7 +24,7 @@ import Prelude
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), Key, XPrv, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( addrToPayload, decodeAddressDerivationPathShort, deserialise )
+    ( addrToPayload, decodeAddressDerivationPath, deserialise )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -44,7 +44,7 @@ instance NFData RndState
 
 instance IsOurs RndState where
     isOurs addr (RndState s) = do
-        case deserialise (decodeAddressDerivationPathShort $ publicKey s) (addrToPayload addr) of
+        case deserialise (decodeAddressDerivationPath $ publicKey s) (addrToPayload addr) of
             Right (Just _) -> (True, RndState s)
             _ -> (False, RndState s)
 
