@@ -19,7 +19,7 @@ Each proposal should start with a section justifying the standard with rational 
     * [HLint is used for hints and general code style](#hlint-is-used-for-hints-and-general-code-style)
     * [We use explicit imports by default, and favor qualified imports for ambiguous functions](#we-use-explicit-imports-by-default-and-favor-qualified-imports-for-ambiguous-functions)
     * [All modules begin with a helpful documentation comment](#all-modules-begin-with-a-helpful-documentation-comment)
-    * [Avoid wildcard when pattern-matching on ADTs](#avoid-wildcard-when-pattern-matching-on-adts)
+    * [Avoid wildcards when pattern-matching on ADTs](#avoid-wildcards-when-pattern-matching-on-adts)
     * [Prefer named constants over magic numbers](#prefer-named-constants-over-magic-numbers)
 
 * [Testing](#testing)
@@ -710,7 +710,7 @@ instance Arbitrary HumanReadableChar where
 
 </details>
 
-## Avoid wildcard when pattern-matching on ADTs
+## Avoid wildcards when pattern-matching on ADTs
 
 > **Why**
 >
