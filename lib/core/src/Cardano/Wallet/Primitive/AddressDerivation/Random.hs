@@ -42,18 +42,14 @@ module Cardano.Wallet.Primitive.AddressDerivation.Random
     , encodeDerivationPath
     , decodeDerivationPath
     , decodeAddressDerivationPath
-    , decodeAddressDerivationPathShort
     , addrToPayload
-    , unsafeDeserialiseFromBytes
     , deserialise
-    , toAddress
     ) where
 
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( ChainCode (..)
-    , DerivationScheme (DerivationScheme1)
+    ( DerivationScheme (DerivationScheme1)
     , XPrv
     , XPub (..)
     , deriveXPrv
@@ -74,20 +70,20 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), invariant )
+import Cardano.Wallet.Unsafe
+    ( unsafeDeserialiseFromBytes )
 import Control.DeepSeq
     ( NFData )
 import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
-    ( Blake2b_224, Blake2b_256, SHA3_256, SHA512 (..) )
+    ( Blake2b_256, SHA512 (..) )
 import Data.ByteArray
     ( ScrubbedBytes )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
-    ( bitcoinAlphabet, decodeBase58, encodeBase58 )
-import Data.Digest.CRC32
-    ( crc32 )
+    ( bitcoinAlphabet, decodeBase58 )
 import Data.Maybe
     ( fromJust )
 import Data.Word
@@ -293,12 +289,6 @@ mapKey f rnd = rnd { getKey = f (getKey rnd) }
 addrToPayload :: Address -> ByteString
 addrToPayload (Address addr) =
     unsafeDeserialiseFromBytes decodeAddressPayload $ b58decode addr
-
--- | CBOR deserialise without error handling - handy for prototypes or testing.
-unsafeDeserialiseFromBytes :: (forall s. CBOR.Decoder s a) -> BL.ByteString -> a
-unsafeDeserialiseFromBytes decoder bytes =
-    either (\e -> error $ "unsafeDeserialiseFromBytes: " <> show e) snd $
-        CBOR.deserialiseFromBytes decoder bytes
 
 -- | Decode a bitcoin base-58 address to a LBS, without error handling.
 b58decode :: ByteString -> BL.ByteString

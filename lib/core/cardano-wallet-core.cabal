@@ -44,7 +44,6 @@ library
     , contra-tracer
     , cryptonite
     , deepseq
-    , digest
     , exceptions
     , extra
     , fast-logger
