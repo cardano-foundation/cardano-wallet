@@ -1516,6 +1516,29 @@ unsafeGenerateKeyFromSeed :: Passphrase "seed" -> Passphrase "encryption" -> Key
 --   bytes.
 minSeedLengthBytes :: Int
 
+-- | Encode the derivation path (account index and address index) part of a
+--   random HD address.
+--   
+--   This is the opposite of <a>decodeDerivationPath</a>.
+--   
+--   NOTE: The caller must ensure that the key length is 32 bytes, which
+--   can be done by using the <a>generateKeyFromSeed</a> and
+--   <a>publicKey</a> functions.
+encodeDerivationPath :: Key  'RootK XPub -> Index  'Hardened  'AccountK -> Index  'Soft  'AddressK -> Encoding
+
+-- | Decode the HD random derivation path section of an address. If the
+--   public key is incorrect, the decode result will be <a>Nothing</a>.
+--   
+--   This is the opposite of <a>encodeDerivationPath</a>.
+decodeDerivationPath :: Key  'RootK XPub -> Decoder s (Maybe (Index  'Hardened  'AccountK, Index  'Soft  'AddressK))
+
+-- | Decode the Addr Root + Attributes + Type section of a HD random scheme
+--   address, and return the derivation path.
+--   
+--   It will fail to parse if the address is not in the random scheme. If
+--   the public key is incorrect, the decode result will be <a>Nothing</a>.
+decodeAddressDerivationPath :: Key  'RootK XPub -> Decoder s (Maybe (Index  'Hardened  'AccountK, Index  'Soft  'AddressK))
+
 module Cardano.Wallet.Network
 data NetworkLayer t m
 NetworkLayer :: (BlockHeader -> ExceptT ErrGetBlock m [Block (Tx t)]) -> ExceptT ErrNetworkTip m BlockHeader -> ((Tx t, [TxWitness]) -> ExceptT ErrPostTx m ()) -> NetworkLayer t m
