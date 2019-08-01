@@ -133,6 +133,7 @@ import Test.QuickCheck
     , elements
     , generate
     , genericShrink
+    , liftArbitrary
     , oneof
     , property
     , scale
@@ -140,10 +141,10 @@ import Test.QuickCheck
     , suchThat
     , vectorOf
     )
-import Test.QuickCheck.Instances.Time
-    ()
 import Test.QuickCheck.Monadic
     ( monadicIO, pick )
+import Test.Utils.Time
+    ( genUniformTime )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -312,8 +313,8 @@ instance Arbitrary WalletMetadata where
     shrink _ = []
     arbitrary =  WalletMetadata
         <$> (WalletName <$> elements ["bulbazaur", "charmander", "squirtle"])
-        <*> arbitrary
-        <*> (fmap WalletPassphraseInfo <$> arbitrary)
+        <*> genUniformTime
+        <*> (fmap WalletPassphraseInfo <$> liftArbitrary genUniformTime)
         <*> oneof [pure Ready, Restoring . Quantity <$> customizedGen]
         <*> pure NotDelegating
 

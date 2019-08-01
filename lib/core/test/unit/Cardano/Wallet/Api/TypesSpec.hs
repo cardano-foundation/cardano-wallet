@@ -174,10 +174,10 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
-import Test.QuickCheck.Instances.Time
-    ()
 import Test.Text.Roundtrip
     ( textRoundtrip )
+import Test.Utils.Time
+    ( genUniformTime )
 import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
@@ -573,8 +573,7 @@ instance Arbitrary AddressPoolGap where
     arbitrary = arbitraryBoundedEnum
 
 instance Arbitrary Iso8601Time where
-    arbitrary = Iso8601Time <$> arbitrary
-    shrink (Iso8601Time t) = Iso8601Time <$> shrink t
+    arbitrary = Iso8601Time <$> genUniformTime
 
 instance Arbitrary SortOrder where
     arbitrary = arbitraryBoundedEnum
@@ -633,8 +632,7 @@ instance (PassphraseMaxLength purpose, PassphraseMinLength purpose) =>
       where p = Proxy :: Proxy purpose
 
 instance Arbitrary WalletPassphraseInfo where
-    arbitrary = genericArbitrary
-    shrink = genericShrink
+    arbitrary = WalletPassphraseInfo <$> genUniformTime
 
 instance Arbitrary WalletState where
     arbitrary = genericArbitrary
@@ -703,8 +701,8 @@ instance
             ]
 
 instance Arbitrary ApiBlockData where
-    arbitrary = genericArbitrary
-    shrink = genericShrink
+    arbitrary = ApiBlockData <$> genUniformTime <*> arbitrary
+    shrink (ApiBlockData t b) = ApiBlockData t <$> shrink b
 
 instance Arbitrary SlotId where
     arbitrary = SlotId <$> arbitrary <*> arbitrary

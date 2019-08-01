@@ -132,6 +132,7 @@ test-suite unit
     , bytestring
     , cardano-crypto
     , cardano-wallet-core
+    , cardano-wallet-test-utils
     , containers
     , cryptonite
     , directory
@@ -152,7 +153,6 @@ test-suite unit
     , memory
     , network
     , QuickCheck
-    , quickcheck-instances
     , quickcheck-state-machine >= 0.6.0
     , random
     , servant
