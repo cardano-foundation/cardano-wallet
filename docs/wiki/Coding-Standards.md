@@ -772,20 +772,22 @@ prefer pattern matching over equality testing for values of that type.
   <summary>See examples</summary>
 
   ```hs
-  data SortOrder = Ascending | Descending
-
+  data SortOrder = Ascending | Descending   
+      deriving Eq   
+  
   -- BAD
-  sortWithOrder :: Ord a => SortOrder -> [a] -> [a] 
-  sortWithOrder order values = f $ sort values
-    where
+  sortWithOrder' :: Ord a => SortOrder -> [a] -> [a]
+  sortWithOrder' order = f . sort   
+    where   
       f = if order == Ascending then id else reverse
-
-  -- GOOD
-  sortWithOther :: Ord a => SortOrder -> [a] -> [a] 
-  sortWithOrder order values = f $ sort values
-    where
-      f Ascending = id
-      f Descending = reverse
+  
+  -- GOOD   
+  sortWithOrder :: Ord a => SortOrder -> [a] -> [a] 
+  sortWithOrder order = f . sort
+    where   
+      f = case order of 
+          Ascending -> id  
+          Descending -> reverse
   ```
 </details>
 
