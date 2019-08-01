@@ -11,6 +11,7 @@ packages:
 - lib/text-class
 - lib/http-bridge
 - lib/jormungandr
+- lib/test-utils
 
 extra-deps:
 # Miscellaneous
