@@ -2,6 +2,9 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -14,7 +17,13 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( toXPub, unXPrv )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), DerivationType (..), Index (..), Passphrase (..), XPrv )
+    ( Depth (..)
+    , DerivationType (..)
+    , Index (..)
+    , Passphrase (..)
+    , XPrv
+    , fromMnemonic
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.Common
     ( Key (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
@@ -25,13 +34,20 @@ import Cardano.Wallet.Primitive.AddressDerivation.Random
     , toAddress
     )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
-    ()
+    ( DecodeDerivationPath (..)
+    , decodeTest1
+    , decodeTest2
+    , decodeTest3
+    , decodeTest4
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..) )
+import Cardano.Wallet.Primitive.Types
+    ( Address (..) )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Expectation, Spec, describe, it, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..), Property, choose, property, vectorOf, (.&&.), (===) )
 
@@ -44,6 +60,35 @@ spec = do
 
         it "isOurs works as expected during key derivation" $ do
             property prop_keyDerivationObeysIsOurs
+
+    goldenSpec
+
+
+{-------------------------------------------------------------------------------
+                                  Golden tests
+-------------------------------------------------------------------------------}
+
+goldenSpec :: Spec
+goldenSpec = describe "Golden tests" $ do
+
+    it "check isOurs - mainnet - initial account" $
+        checkIsOurs decodeTest1
+
+    it "check isOurs - mainnet - another account" $
+        checkIsOurs decodeTest2
+
+    it "check isOurs - testnet - initial account" $
+        checkIsOurs decodeTest3
+
+    it "check isOurs - testnet - another account" $
+        checkIsOurs decodeTest4
+
+checkIsOurs :: DecodeDerivationPath -> Expectation
+checkIsOurs DecodeDerivationPath{..} =
+    isOurs (Address addr) (RndState rootXPrv) `shouldBe` (True, RndState rootXPrv)
+  where
+    rootXPrv = generateKeyFromSeed (Passphrase seed) (Passphrase "")
+    Right (Passphrase seed) = fromMnemonic @'[12] mnem
 
 
 {-------------------------------------------------------------------------------
