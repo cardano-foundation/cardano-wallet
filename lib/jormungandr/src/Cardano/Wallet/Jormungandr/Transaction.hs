@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
@@ -14,7 +15,7 @@ module Cardano.Wallet.Jormungandr.Transaction
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
-    ( maxNumberOfInputs, maxNumberOfOutputs )
+    ( fragmentId, maxNumberOfInputs, maxNumberOfOutputs, signData )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr )
 import Cardano.Wallet.Jormungandr.Environment
@@ -26,7 +27,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), TxOut (..), TxWitness (..), txId )
+    ( Hash (..), TxOut (..), TxWitness (..) )
 import Cardano.Wallet.Transaction
     ( ErrMkStdTx (..)
     , ErrValidateSelection
@@ -57,12 +58,23 @@ newTransactionLayer
     => Hash "Genesis"
     -> TransactionLayer t
 newTransactionLayer (Hash block0) = TransactionLayer
-    { mkStdTx = \keyFrom inps outs -> do
-        let tx = Tx (fmap (second coin) inps) outs
-        let bs = block0 <> getHash (txId @(Jormungandr n) tx)
-        txWitnesses <- forM inps $ \(_, TxOut addr _) -> sign bs
+    { mkStdTx = \keyFrom rnps outs -> do
+        -- NOTE
+        --
+        -- Yet, for signing, we need to embed a hash of the transaction data
+        -- without the witnesses (since we don't yet have them!). In this sense,
+        -- this is a transaction id as Byron nodes or the http-bridge
+        -- defines them.
+        let inps = fmap (second coin) rnps
+        let bs = block0 <> getHash (signData inps outs)
+        wits <- forM rnps $ \(_, TxOut addr _) -> sign bs
             <$> maybeToRight (ErrKeyNotFoundForAddress addr) (keyFrom addr)
-        return (tx, txWitnesses)
+        let tx = Tx
+                { txid = fragmentId inps outs wits
+                , inputs = inps
+                , outputs = outs
+                }
+        return (tx, wits)
 
     -- FIXME:
     -- Implement fee calculation for Jörmungandr!

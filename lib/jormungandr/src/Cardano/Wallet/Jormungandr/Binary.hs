@@ -29,6 +29,7 @@ module Cardano.Wallet.Jormungandr.Binary
     , ConsensusVersion (..)
     , LeaderId (..)
     , Message (..)
+    , MessageType (..)
     , Milli (..)
     , getBlock
     , getBlockHeader
@@ -52,8 +53,11 @@ module Cardano.Wallet.Jormungandr.Binary
       -- * Helpers
     , blake2b256
     , estimateMaxNumberOfInputsParams
+    , fragmentId
     , maxNumberOfInputs
     , maxNumberOfOutputs
+    , signData
+    , withHeader
 
       -- * Re-export
     , Get
@@ -96,6 +100,7 @@ import Data.Binary.Get
     ( Get
     , bytesRead
     , getByteString
+    , getLazyByteString
     , getWord16be
     , getWord32be
     , getWord64be
@@ -146,6 +151,10 @@ maxNumberOfInputs = 255
 -- maximum number of outputs in a valid transaction
 maxNumberOfOutputs :: Int
 maxNumberOfOutputs = 255
+
+{-------------------------------------------------------------------------------
+                                 Blocks
+-------------------------------------------------------------------------------}
 
 -- Do-notation is favoured over applicative syntax for readability:
 {-# ANN module ("HLint: ignore Use <$>" :: String) #-}
@@ -228,27 +237,9 @@ data Message
     -- Messages not yet supported go there.
     deriving (Eq, Show)
 
--- | Decode a message (header + contents).
-getMessage :: Get Message
-getMessage = label "getMessage" $ do
-    size <- fromIntegral <$> getWord16be
-    contentType <- fromIntegral <$> getWord8
-    let remaining = size - 1
-    let unimpl = skip remaining >> return (UnimplementedMessage contentType)
-    isolate remaining $ case contentType of
-        0 -> Initial <$> getInitial
-        1 -> unimpl
-        2 -> Transaction <$> getTransaction
-        3 -> unimpl
-        4 -> unimpl
-        5 -> unimpl
-        other -> fail $ "Unexpected content type tag " ++ show other
-
--- | Decode the contents of a @Initial@-message.
-getInitial :: Get [ConfigParam]
-getInitial = label "getInitial" $ do
-    len <- fromIntegral <$> getWord16be
-    replicateM len getConfigParam
+data MessageType
+    = MsgTypeInitial
+    | MsgTypeTransaction
 
 data TxWitnessTag
     = TxWitnessLegacyUTxO
@@ -257,19 +248,56 @@ data TxWitnessTag
     | TxWitnessMultisig
     deriving (Show, Eq)
 
+-- | Decode a message (header + contents).
+getMessage :: Get Message
+getMessage = label "getMessage" $ do
+    size <- fromIntegral <$> getWord16be
+    msgType <- fromIntegral <$> getWord8
+    let remaining = size - 1
+    let unimpl = skip remaining >> return (UnimplementedMessage msgType)
+    isolate remaining $ case msgType of
+        0 -> Initial <$> getInitial
+        1 -> unimpl
+        2 -> Transaction <$> getTransaction remaining
+        3 -> unimpl
+        4 -> unimpl
+        5 -> unimpl
+        other -> fail $ "Unexpected content type tag " ++ show other
+
+messageTypeTag :: MessageType -> Word8
+messageTypeTag = \case
+    MsgTypeInitial -> 0
+    MsgTypeTransaction -> 2
+
+-- | Decode the contents of a @Initial@-message.
+getInitial :: Get [ConfigParam]
+getInitial = label "getInitial" $ do
+    len <- fromIntegral <$> getWord16be
+    replicateM len getConfigParam
+
+
+{-------------------------------------------------------------------------------
+                                Transactions
+-------------------------------------------------------------------------------}
+
 txWitnessSize :: TxWitnessTag -> Int
-txWitnessSize TxWitnessLegacyUTxO = 128
-txWitnessSize TxWitnessUTxO = 64
-txWitnessSize TxWitnessAccount = 64
-txWitnessSize TxWitnessMultisig = 68
+txWitnessSize = \case
+    TxWitnessLegacyUTxO -> 128
+    TxWitnessUTxO -> 64
+    TxWitnessAccount -> 64
+    TxWitnessMultisig -> 68
 
 -- | Decode the contents of a @Transaction@-message.
-getTransaction :: Get (Tx, [TxWitness])
-getTransaction = label "getTransaction" $ do
+getTransaction :: Int -> Get (Tx, [TxWitness])
+getTransaction n = label "getTransaction" $ do
+    bytes <- lookAhead (getLazyByteString $ fromIntegral n)
+    let tag = runPut (putWord8 (messageTypeTag MsgTypeTransaction))
+    let tid = Hash . blake2b256 . BL.toStrict $ (tag <> bytes)
+
     (ins, outs) <- getTokenTransfer
     let witnessCount = length ins
     wits <- replicateM witnessCount getWitness
-    return (Tx ins outs, wits)
+    return (Tx tid ins outs, wits)
   where
     getWitness :: Get TxWitness
     getWitness = do
@@ -309,16 +337,11 @@ getTransaction = label "getTransaction" $ do
             value <- Coin <$> getWord64be
             return $ TxOut addr value
 
-{-------------------------------------------------------------------------------
-                            Common Structure
--------------------------------------------------------------------------------}
-
-putSignedTx :: (Tx, [TxWitness]) -> Put
-putSignedTx (tx@(Tx inputs outputs), witnesses) = withSizeHeader16be $ do
-    putWord8 2
+putSignedTx :: [(TxIn, Coin)] -> [TxOut] -> [TxWitness] -> Put
+putSignedTx inputs outputs witnesses = do
     putWord8 $ toEnum $ length inputs
     putWord8 $ toEnum $ length outputs
-    putTx tx
+    putTx inputs outputs
     unless (length inputs == length witnesses) $
         fail "number of witnesses must equal number of inputs"
     mapM_ putWitness witnesses
@@ -329,8 +352,8 @@ putSignedTx (tx@(Tx inputs outputs), witnesses) = withSizeHeader16be $ do
         putWord8 1
         putByteString bytes
 
-putTx :: Tx -> Put
-putTx (Tx inputs outputs) = do
+putTx :: [(TxIn, Coin)] -> [TxOut] -> Put
+putTx inputs outputs = do
     unless (length inputs <= fromIntegral (maxBound :: Word8)) $
         fail ("number of inputs cannot be greater than " ++ show maxNumberOfInputs)
     unless (length outputs <= fromIntegral (maxBound :: Word8)) $
@@ -530,11 +553,64 @@ isolatePut l x = do
         ++ ", but expected to be "
         ++ (show l)
 
-withSizeHeader16be :: Put -> Put
-withSizeHeader16be x = do
-    let bs = BL.toStrict $ runPut x
+-- | Add a corresponding header to a message. Every message is encoded as:
+--
+--     HEADER(MESSAGE) | MESSAGE
+--
+-- where `HEADER` is:
+--
+--     SIZE (2 bytes) | TYPE (1 byte)
+--
+withHeader :: MessageType -> Put -> Put
+withHeader typ content = do
+    let bs = BL.toStrict $ runPut (putWord8 (messageTypeTag typ) *> content)
     putWord16be (toEnum $ BS.length bs)
     putByteString bs
+
+-- | Compute a Blake2b_256 hash of a given 'ByteString'
+blake2b256 :: ByteString -> ByteString
+blake2b256 =
+    BA.convert . hash @_ @Blake2b_256
+
+-- | This provides network encoding specific variables to be used by the
+-- 'estimateMaxNumberOfInputs' function.
+estimateMaxNumberOfInputsParams
+    :: EstimateMaxNumberOfInputsParams t
+estimateMaxNumberOfInputsParams = EstimateMaxNumberOfInputsParams
+    { estMeasureTx = \ins outs wits -> fromIntegral $ BL.length $
+        runPut $ withHeader MsgTypeTransaction $
+            putSignedTx (map (, Coin 0) ins) outs wits
+
+    -- Block IDs are always this long.
+    , estBlockHashSize = 32
+
+    -- The length of the smallest type of witness.
+    , estTxWitnessSize = txWitnessSize TxWitnessUTxO
+    }
+
+-- | Jörmungandr distinguish 'fragment id' (what we commonly call 'txId')
+-- from 'transaction sign data'. A transaction fragment corresponds to
+-- a signed transaction (inputs, outputs and witnesses). So, the
+-- witnesses are required to compute a `txid`.
+fragmentId
+    :: [(TxIn, Coin)]
+    -> [TxOut]
+    -> [TxWitness]
+    -> Hash "Tx"
+fragmentId inps outs wits =
+    Hash $ blake2b256 $ BL.toStrict $ runPut $ do
+        putWord8 (messageTypeTag MsgTypeTransaction)
+        putSignedTx inps outs wits
+
+-- | See 'fragmentId'. This computes the signing data required for producing
+-- transaction witnesses.
+signData
+    :: [(TxIn, Coin)]
+    -> [TxOut]
+    -> Hash "SignData"
+signData inps outs =
+    Hash $ blake2b256 $ BL.toStrict $ runPut $ do
+        putTx inps outs
 
 {-------------------------------------------------------------------------------
                                 Conversions
@@ -569,27 +645,3 @@ decodeLegacyAddress bytes =
         <* CBOR.decodeTag -- CBOR Tag
         <* CBOR.decodeBytes -- Payload
         <* CBOR.decodeWord32 -- CRC
-
-{-------------------------------------------------------------------------------
-                                 Helpers
--------------------------------------------------------------------------------}
-
--- | Compute a Blake2b_256 hash of a given 'ByteString'
-blake2b256 :: ByteString -> ByteString
-blake2b256 =
-    BA.convert . hash @_ @Blake2b_256
-
--- | This provides network encoding specific variables to be used by the
--- 'estimateMaxNumberOfInputs' function.
-estimateMaxNumberOfInputsParams
-    :: EstimateMaxNumberOfInputsParams t
-estimateMaxNumberOfInputsParams = EstimateMaxNumberOfInputsParams
-    { estMeasureTx = \ins outs wits -> fromIntegral $ BL.length $
-        runPut $ putSignedTx (Tx (map (, Coin 0) ins) outs, wits)
-
-    -- Block IDs are always this long.
-    , estBlockHashSize = 32
-
-    -- The length of the smallest type of witness.
-    , estTxWitnessSize = txWitnessSize TxWitnessUTxO
-    }
