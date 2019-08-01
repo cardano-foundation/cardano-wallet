@@ -135,6 +135,7 @@ test-suite integration
     , bytestring
     , cardano-wallet-cli
     , cardano-wallet-core
+    , cardano-wallet-core-integration
     , cardano-wallet-http-bridge
     , cardano-wallet-jormungandr
     , cardano-wallet-launcher
@@ -174,19 +175,6 @@ test-suite integration
   other-modules:
       Cardano.Faucet
       Cardano.Wallet.Jormungandr.NetworkSpec
-      Test.Integration.Faucet
-      Test.Integration.Framework.DSL
-      Test.Integration.Framework.Request
-      Test.Integration.Framework.TestData
       Test.Integration.Jormungandr.Scenario.API.Transactions
       Test.Integration.Jormungandr.Scenario.CLI.Launcher
       Test.Integration.Jormungandr.Scenario.CLI.Server
-      Test.Integration.Scenario.API.Addresses
-      Test.Integration.Scenario.API.Transactions
-      Test.Integration.Scenario.API.Wallets
-      Test.Integration.Scenario.CLI.Addresses
-      Test.Integration.Scenario.CLI.Miscellaneous
-      Test.Integration.Scenario.CLI.Mnemonics
-      Test.Integration.Scenario.CLI.Port
-      Test.Integration.Scenario.CLI.Transactions
-      Test.Integration.Scenario.CLI.Wallets
