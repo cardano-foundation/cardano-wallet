@@ -20,6 +20,7 @@ Each proposal should start with a section justifying the standard with rational 
     * [We use explicit imports by default, and favor qualified imports for ambiguous functions](#we-use-explicit-imports-by-default-and-favor-qualified-imports-for-ambiguous-functions)
     * [All modules begin with a helpful documentation comment](#all-modules-begin-with-a-helpful-documentation-comment)
     * [Avoid wildcards when pattern-matching on sum types](#avoid-wildcards-when-pattern-matching-on-sum-types)
+    * [Prefer pattern-matching to equality testing on sum types](#prefer-pattern-matching-to-equality-testing-on-sum-types)
     * [Prefer named constants over magic numbers](#prefer-named-constants-over-magic-numbers)
 
 * [Testing](#testing)
@@ -745,6 +746,37 @@ of the new branches.
   handleErr = \case
     ErrWalletNotFound -> {- ... -}
     _ -> ErrUnknown
+  ```
+</details>
+
+## Prefer pattern-matching to equality testing on sum types.
+
+> **Why**
+>
+> When conditional evaluation depends on the value of a sum type, it's tempting
+> to use a test for equality or inequality to branch on a particular
+> value. However, if someone adds a new constructor to the sum type later on,
+> we'd ideally like the compiler to remind us to check all locations that inspect
+> values of this type, especially where conditional evaluation is involved.
+
+For expressions that evaluate differently depending on a value of a sum type,
+prefer pattern matching over equality testing for values of that type.
+
+<details>
+  <summary>See examples</summary>
+
+  ```hs
+  data SortOrder = Ascending | Descending
+
+  -- BAD
+  sort :: Ord a => SortOrder -> [a] -> [a] 
+  sort order = if order == Ascending then id else reverse
+
+  -- GOOD
+  sort :: Ord a => SortOrder -> [a] -> [a] 
+  sort = \case
+      Ascending -> id
+      Descending -> reverse
   ```
 </details>
 
