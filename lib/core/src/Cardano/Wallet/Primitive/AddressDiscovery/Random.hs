@@ -44,6 +44,11 @@ instance IsOwned RndState where
 instance GenChange RndState where
     genChange s = (error "GenChange RndState unimplemented", s)
 
+-- Unlike sequential derivation, we can't derive an order from the index only
+-- (they are randomly generated), nor anything else in the address itself.
+--
+-- Therefore, we'll simply consider that addresses using the random address
+-- derivation scheme won't be ordered in any particular order.
 instance CompareDiscovery RndState where
     compareDiscovery _ _ _ = EQ
 
