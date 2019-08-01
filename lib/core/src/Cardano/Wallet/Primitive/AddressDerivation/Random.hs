@@ -53,7 +53,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Common
 import Cardano.Wallet.Primitive.Types
     ( invariant )
 import Control.Monad
-    ( when )
+    ( replicateM, when )
 import Crypto.Error
     ( CryptoError (..), CryptoFailable (..) )
 import Crypto.Hash
@@ -64,6 +64,8 @@ import Data.ByteArray
     ( ScrubbedBytes )
 import Data.ByteString
     ( ByteString )
+import Data.Word
+    ( Word8 )
 
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
@@ -216,14 +218,14 @@ encodeDerivationPath
     -> Index 'Soft 'AddressK
     -> CBOR.Encoding
 encodeDerivationPath rootKey accIx addrIx =
-    encodeNestedBytes $
+    CBOR.encodeBytes $
     useInvariant $
     encryptDerPath (hdPassphrase rootKey) $
     CBOR.toStrictByteString $
     encodeDerPath accIx addrIx
   where
-    -- Encryption will fail if the key is too short, but that won't happen if
-    -- the key was created with 'generateKeyFromSeed'.
+    -- Encryption will fail if the key is the wrong size, but that won't happen
+    -- if the key was created with 'generateKeyFromSeed'.
     useInvariant (CryptoPassed res) = res
     useInvariant (CryptoFailed err) = error $ "encodeDerivationPath: " ++ show err
 
@@ -245,12 +247,32 @@ decodeAddressDerivationPath
 decodeAddressDerivationPath rootKey = do
     _ <- CBOR.decodeListLenCanonicalOf 3
     _ <- CBOR.decodeBytes -- Address Root
-    len <- CBOR.decodeMapLen -- Address Attributes
-    case len of
-        1 -> do
-            _ <- CBOR.decodeWord8 -- Type (1)
-            decodeDerivationPath rootKey
-        _ -> fail $ "decodeAddressDerivationPath: Incorrect map length: " ++ show len
+    attrs <- decodeAllAttributes
+    path <- decodePathAttribute rootKey attrs
+    addrType <- CBOR.decodeWord8 -- Type
+    when (addrType /= 0) $
+        fail $ "decodeAddressDerivationPath: type is not 0 (public key), it is " ++ show addrType
+    pure path
+
+-- | The attributes are pairs of numeric tags and bytes, where the bytes will be
+-- CBOR-encoded stuff. This decoder does not enforce "canonicity" of entries.
+decodeAllAttributes :: CBOR.Decoder s [(Word8, ByteString)]
+decodeAllAttributes = do
+    n <- CBOR.decodeMapLenCanonical -- Address Attributes length
+    replicateM n decodeAttr
+  where
+    decodeAttr = (,) <$> CBOR.decodeWord8 <*> CBOR.decodeBytes
+
+decodePathAttribute
+    :: Key 'RootK XPub
+    -> [(Word8, ByteString)]
+    -> CBOR.Decoder s (Maybe (Index 'Hardened 'AccountK, Index 'Soft 'AddressK))
+decodePathAttribute rootKey attrs = case lookup derPathTag attrs of
+    Just payload -> decodeNestedBytes (decodeDerivationPath rootKey) payload
+    Nothing -> fail $ "decodeAddressDerivationPath: Missing attribute "
+        ++ show derPathTag
+  where
+    derPathTag = 1 -- derivation path
 
 -- | Decode the HD random derivation path section of an address.
 -- If the public key is incorrect, the decode result will be 'Nothing'.
@@ -260,20 +282,12 @@ decodeDerivationPath
     :: Key 'RootK XPub
     -> CBOR.Decoder s (Maybe (Index 'Hardened 'AccountK, Index 'Soft 'AddressK))
 decodeDerivationPath rootKey = do
-    payload <- decodeNestedBytes
+    payload <- CBOR.decodeBytes
     case decryptDerPath (hdPassphrase rootKey) payload of
         CryptoPassed plaintext ->
-            Just <$> deserialiseDerPath plaintext
+            Just <$> decodeNestedBytes decodeDerPath plaintext
         CryptoFailed _ ->
             pure Nothing
-  where
-    deserialiseDerPath
-        :: ByteString
-        -> CBOR.Decoder s (Index 'Hardened 'AccountK, Index 'Soft 'AddressK)
-    deserialiseDerPath bytes =
-        case CBOR.deserialiseFromBytes decodeDerPath (BL.fromStrict bytes) of
-        Right (_, result) -> pure result
-        _ -> fail "decodeAddressDerivationPath: unable to decode path"
 
 decodeDerPath :: CBOR.Decoder s (Index 'Hardened 'AccountK, Index 'Soft 'AddressK)
 decodeDerPath = decodeListIndef CBOR.decodeWord32 >>= \case
@@ -343,20 +357,15 @@ decryptDerPath (Passphrase passphrase) bytes = do
     return out
 
 {-------------------------------------------------------------------------------
-                              "Interesting" Codecs
+                                     Utils
 -------------------------------------------------------------------------------}
 
--- | Double-CBOR-decode a ByteString.
-decodeNestedBytes :: CBOR.Decoder s ByteString
-decodeNestedBytes = deserialise <$> CBOR.decodeBytes >>= \case
-    Right ("", bytes) -> pure bytes
-    Right _ -> fail "Leftovers when decoding nested bytes"
-    _ -> fail "Could not decode nested bytes"
-  where
-    deserialise = CBOR.deserialiseFromBytes CBOR.decodeBytes . BL.fromStrict
-
--- | Double-CBOR-encode a ByteString.
-encodeNestedBytes :: ByteString -> CBOR.Encoding
-encodeNestedBytes = CBOR.encodeBytes . serialise
-  where
-    serialise = CBOR.toStrictByteString . CBOR.encodeBytes
+decodeNestedBytes
+    :: (forall s. CBOR.Decoder s r)
+    -> ByteString
+    -> CBOR.Decoder s' r
+decodeNestedBytes dec bytes =
+    case CBOR.deserialiseFromBytes dec (BL.fromStrict bytes) of
+        Right ("", res) -> pure res
+        Right _ -> fail "Leftovers when decoding nested bytes"
+        _ -> fail "Could not decode nested bytes"

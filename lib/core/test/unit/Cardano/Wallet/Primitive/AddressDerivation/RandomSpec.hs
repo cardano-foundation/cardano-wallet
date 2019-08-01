@@ -56,7 +56,7 @@ import Data.Word
 import GHC.Generics
     ( Generic )
 import Test.Hspec
-    ( Expectation, Spec, describe, it, shouldBe, xit )
+    ( Expectation, Spec, describe, it, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
@@ -136,10 +136,10 @@ goldenSpec = describe "Golden tests" $ do
     it "decodeDerivationPath - mainnet - another account" $
         decodeTest decodeTest2
 
-    xit "decodeDerivationPath - testnet - initial account" $
+    it "decodeDerivationPath - testnet - initial account" $
         decodeTest decodeTest3
 
-    xit "decodeDerivationPath - testnet - another account" $
+    it "decodeDerivationPath - testnet - another account" $
         decodeTest decodeTest4
 
 {-------------------------------------------------------------------------------
@@ -232,7 +232,7 @@ decodeTest2 = DecodeDerivationPath
 decodeTest3 :: DecodeDerivationPath
 decodeTest3 = DecodeDerivationPath
     { mnem = addrMnemonic
-    , addr = "37btjrVyb4KDD9Lin2WuM5SNhjMDi4LXM5Fdq7PAwGXHQXJ3nDgL17q6uJPhdevxstPGdi4Wy7N1W5ZmPoZ6AoZwU9y94U8KmiMuAz6NK63YdtsAk2"
+    , addr = "37btjrVyb4KEFr9tdBDYVPUWpFAu65yfnoqWmd5aeZpBk7MKTyH5tiPZ7sFi6k4vWXS5Df7H7Z4CT4m3uJ1Ps4ck7rrzqWDmtiifXoqX2MQHSGYeon"
     , accIndex = 2147483648
     , addrIndex = 2147483648
     }
@@ -240,9 +240,9 @@ decodeTest3 = DecodeDerivationPath
 decodeTest4 :: DecodeDerivationPath
 decodeTest4 = DecodeDerivationPath
     { mnem = addrMnemonic
-    , addr = "37btjrVyb4KCzXJAu3SqvbquQmzvxbbA8N8Zisyu3J9B82MMp4MVUss48DqV16DtctWhTppk5uQSh4sgTB71MeNaCZpxDMEb9BnJW5kC6Dx3RDUGxc"
-    , accIndex = 3427581457
-    , addrIndex = 0
+    , addr = "37btjrVyb4KBbK7wGESZtW3vXSj8c8fGGHwS2b2fnCd6erjPw3Nt2Nw4RLbrYbdLbdgseiF3YaawsT1JGes9FMrW6Fuye9ANyLhkTq2EiHsnPE4qso"
+    , accIndex = 3337448281
+    , addrIndex = 3234874775
     }
 
 -- | Random empty wallet. It's not possible to restore a wallet from
