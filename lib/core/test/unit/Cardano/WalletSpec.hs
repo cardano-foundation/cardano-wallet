@@ -137,10 +137,10 @@ import Test.QuickCheck
     , withMaxSuccess
     , (==>)
     )
-import Test.QuickCheck.Instances.Time
-    ()
 import Test.QuickCheck.Monadic
     ( monadicIO )
+import Test.Utils.Time
+    ( UniformTime )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.DB as DB
@@ -361,7 +361,7 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
 walletListTransactionsSorted
     :: (WalletId, WalletName, DummyState)
     -> SortOrder
-    -> (Maybe UTCTime, Maybe UTCTime)
+    -> (Maybe UniformTime, Maybe UniformTime)
     -> Map (Hash "Tx") (Tx, TxMeta)
     -> Property
 walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history =
