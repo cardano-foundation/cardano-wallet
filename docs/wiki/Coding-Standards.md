@@ -19,7 +19,7 @@ Each proposal should start with a section justifying the standard with rational 
     * [HLint is used for hints and general code style](#hlint-is-used-for-hints-and-general-code-style)
     * [We use explicit imports by default, and favor qualified imports for ambiguous functions](#we-use-explicit-imports-by-default-and-favor-qualified-imports-for-ambiguous-functions)
     * [All modules begin with a helpful documentation comment](#all-modules-begin-with-a-helpful-documentation-comment)
-    * [Avoid wildcards when pattern-matching on ADTs](#avoid-wildcards-when-pattern-matching-on-adts)
+    * [Avoid wildcards when pattern-matching on sum types](#avoid-wildcards-when-pattern-matching-on-sum-types)
     * [Prefer named constants over magic numbers](#prefer-named-constants-over-magic-numbers)
 
 * [Testing](#testing)
@@ -710,20 +710,21 @@ instance Arbitrary HumanReadableChar where
 
 </details>
 
-## Avoid wildcards when pattern-matching on ADTs
+## Avoid wildcards when pattern-matching on sum types
 
 > **Why**
 >
-> When pattern-matching on ADTs it is tempting to handling a few similar cases
-> using a wildcard `_`. However, this often lead to undesirable behavior when 
+> When pattern-matching on sum types it is tempting to handle a few similar cases
+> using a wildcard `_`. However, this often leads to undesirable behavior when 
 > adding new branches to an ADT. Compilers won't trigger any warnings and, as 
 > developers, we might miss some necessary logic updates in existing pattern
 > matches.
 
-When pattern-matching on ADTs or, finite structures, we avoid as much as possible
-the use of wildcard `_` and favor an explicit handling of all branches. This way,
-we get compiler errors when extending the underlying ADT's and avoid silently 
-handling (probably wrong) some of the new branches.
+When pattern-matching on sum types or finite structures, we should avoid
+the use of the wildcard `_` as much as possible, and instead favor explicit
+handling of all branches. This way, we get compiler errors when extending
+the underlying ADT and avoid silently handling (probably incorretly) some
+of the new branches.
 
 <details>
   <summary>See examples</summary>
