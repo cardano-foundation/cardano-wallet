@@ -775,14 +775,17 @@ prefer pattern matching over equality testing for values of that type.
   data SortOrder = Ascending | Descending
 
   -- BAD
-  sort :: Ord a => SortOrder -> [a] -> [a] 
-  sort order = if order == Ascending then id else reverse
+  sortWithOrder :: Ord a => SortOrder -> [a] -> [a] 
+  sortWithOrder order values = f $ sort values
+    where
+      f = if order == Ascending then id else reverse
 
   -- GOOD
-  sort :: Ord a => SortOrder -> [a] -> [a] 
-  sort = \case
-      Ascending -> id
-      Descending -> reverse
+  sortWithOther :: Ord a => SortOrder -> [a] -> [a] 
+  sortWithOrder order values = f $ sort values
+    where
+      f Ascending = id
+      f Descending = reverse
   ```
 </details>
 
