@@ -152,7 +152,7 @@ import Control.Concurrent.MVar
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( forM, unless, when )
+    ( forM, unless )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Class
@@ -753,18 +753,23 @@ newWalletLayer tracer bp db nw tl = do
         -> SortOrder
         -> ExceptT ErrListTransactions IO [TransactionInfo]
     _listTransactions wid mStart mEnd order = do
+        guardRange (mStart, mEnd)
         (w, _) <- withExceptT ErrListTransactionsNoSuchWallet $ _readWallet wid
-        case (mStart, mEnd) of
-            (Just start, Just end) -> when (start > end) $ throwE $
-                ErrListTransactionsStartTimeLaterThanEndTime $
-                    ErrStartTimeLaterThanEndTime start end
-            _ -> pure ()
-        let slotIdRange = (error "TODO :: UTCTime -> SlotId") timeRange
+        let slotIdRange = error "TODO :: UTCTime -> SlotId"
         let tip = currentTip w ^. #slotId
         liftIO $ assemble tip
-            <$> DB.readTxHistory db (PrimaryKey wid)
-                order slotIdRange
+            <$> DB.readTxHistory db (PrimaryKey wid) order slotIdRange
       where
+        guardRange
+            :: (Maybe UTCTime, Maybe UTCTime)
+            -> ExceptT ErrListTransactions IO ()
+        guardRange = \case
+            (Just start, Just end) | start > end -> do
+                let err = ErrStartTimeLaterThanEndTime start end
+                throwE (ErrListTransactionsStartTimeLaterThanEndTime err)
+            _ ->
+                pure ()
+
         -- This relies on DB.readTxHistory returning all necessary transactions
         -- to assemble coin selection information for outgoing payments.
         -- To reliably provide this information, it should be looked up when
