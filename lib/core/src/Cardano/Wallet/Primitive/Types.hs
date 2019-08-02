@@ -852,14 +852,14 @@ slotRatio epochLength a b =
 -- | Convert a 'SlotId' to the number of slots since genesis.
 flatSlot :: EpochLength -> SlotId -> Word64
 flatSlot (EpochLength epochLength) (SlotId e s) =
-    epochLength * e + fromIntegral s
+    fromIntegral epochLength * e + fromIntegral s
 
 -- | Convert a 'flatSlot' index to 'SlotId'.
 fromFlatSlot :: EpochLength -> Word64 -> SlotId
 fromFlatSlot (EpochLength epochLength) n = SlotId e (fromIntegral s)
   where
-    e = n `div` epochLength
-    s = n `mod` epochLength
+    e = n `div` fromIntegral epochLength
+    s = n `mod` fromIntegral epochLength
 
 -- | @slotDifference a b@ is how many slots @a@ is after @b@. The result is
 -- non-negative, and if @b > a@ then this function returns zero.
@@ -903,7 +903,7 @@ newtype SlotLength = SlotLength NominalDiffTime
     deriving (Show, Eq)
 
 -- | Number of slots in a single epoch
-newtype EpochLength = EpochLength Word64
+newtype EpochLength = EpochLength Word16
     deriving (Show, Eq)
 
 -- | Blockchain start time
