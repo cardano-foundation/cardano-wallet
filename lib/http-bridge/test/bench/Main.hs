@@ -16,7 +16,7 @@ import Cardano.BM.Trace
 import Cardano.Launcher
     ( Command (Command), StdStream (..), installSignalHandlers, launch )
 import Cardano.Wallet
-    ( WalletLayer (..), newWalletLayer )
+    ( BlockchainParameters (..), WalletLayer (..), newWalletLayer )
 import Cardano.Wallet.DB.Sqlite
     ( PersistState )
 import Cardano.Wallet.HttpBridge.Compatibility
@@ -46,6 +46,7 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , SlotId (..)
+    , StartTime (..)
     , UTxO (..)
     , WalletId (..)
     , WalletName (..)
@@ -80,7 +81,7 @@ import Data.Text
 import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock.POSIX
-    ( POSIXTime, getPOSIXTime )
+    ( POSIXTime, getPOSIXTime, utcTimeToPOSIXSeconds )
 import Database.Persist.Sql
     ( runMigrationSilent )
 import Fmt
@@ -315,9 +316,16 @@ getCurrentSlot net = calcSlot <$> startTime net <*> getPOSIXTime
         idx = floor ((d - (fromIntegral ep) * epochDur) / slotDur)
 
     startTime :: MonadFail m => Text -> m POSIXTime
-    startTime "mainnet" = pure 1506203091
-    startTime "testnet" = pure 1537941600
-    startTime n = fail $ "Unknown network name: " ++ T.unpack n
+    startTime "mainnet" = pure
+        $ (\(StartTime t) -> utcTimeToPOSIXSeconds t)
+        $ getGenesisBlockDate
+        $ byronBlockchainParameters @'Mainnet
+    startTime "testnet" = pure
+        $ (\(StartTime t) -> utcTimeToPOSIXSeconds t)
+        $ getGenesisBlockDate
+        $ byronBlockchainParameters @'Testnet
+    startTime n =
+        fail $ "Unknown network name: " ++ T.unpack n
 
 logQuiet :: SlotId -> SlotId -> IO ()
 logQuiet _ _ = pure ()

@@ -153,7 +153,7 @@ spec = do
 
     describe "DaedalusIPC" $ do
         let defaultArgs =
-                [ commandName @t, "launch", "--quiet" ]
+                [ commandName @t, "launch" ]
         let tests =
                 [ defaultArgs ++ ["--random-port"]
                 , defaultArgs ++ ["--port", "8082"]
