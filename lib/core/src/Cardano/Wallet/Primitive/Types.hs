@@ -9,6 +9,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -79,7 +80,7 @@ module Cardano.Wallet.Primitive.Types
     , flatSlot
     , fromFlatSlot
     , slotStartTime
-    , slotAtTime
+    , slotAt
     , slotDifference
 
     -- * Wallet Metadata
@@ -878,11 +879,24 @@ slotStartTime epochLength (SlotLength slotLength) (StartTime start) sl =
     offset = slotLength * fromIntegral (flatSlot epochLength sl)
 
 -- | The SlotId at a given time.
-slotAtTime :: EpochLength -> SlotLength -> StartTime -> UTCTime -> SlotId
-slotAtTime epochLength (SlotLength slotLength) (StartTime start) time =
-    fromFlatSlot
-        epochLength
-        (round $ (time `diffUTCTime` start) / slotLength)
+slotAt :: EpochLength -> SlotLength -> StartTime -> UTCTime -> SlotId
+slotAt (EpochLength nSlots) (SlotLength slotLength) (StartTime start) time =
+    SlotId
+        { epochNumber = ep
+        , slotNumber = sl
+        }
+  where
+    diff :: NominalDiffTime
+    diff = time `diffUTCTime` start
+
+    epochLength :: NominalDiffTime
+    epochLength = fromIntegral nSlots * slotLength
+
+    ep :: Word64
+    ep = floor (diff / epochLength)
+
+    sl :: Word16
+    sl = floor ((diff - (fromIntegral ep) * epochLength) / slotLength)
 
 -- | Duration of a single slot.
 newtype SlotLength = SlotLength NominalDiffTime
