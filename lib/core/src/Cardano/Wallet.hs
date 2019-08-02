@@ -112,6 +112,7 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , EpochLength (..)
     , Hash (..)
+    , Range (..)
     , SlotId (..)
     , SlotId (..)
     , SlotLength (..)
@@ -134,6 +135,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletState (..)
     , computeUtxoStatistics
     , log10
+    , slotAt
     , slotDifference
     , slotRatio
     , slotStartTime
@@ -376,8 +378,8 @@ data ErrListTransactions
 -- | Indicates that the specified start time is later than the specified end
 -- time.
 data ErrStartTimeLaterThanEndTime = ErrStartTimeLaterThanEndTime
-    { startTime :: UTCTime
-    , endTime :: UTCTime
+    { errStartTime :: UTCTime
+    , errEndTime :: UTCTime
     } deriving (Show, Eq)
 
 {-------------------------------------------------------------------------------
@@ -460,10 +462,10 @@ newWalletLayer tracer bp db nw tl = do
   where
     BlockchainParameters
         block0
-        block0Date
+        startTime
         feePolicy
-        (SlotLength slotLength)
-        slotsPerEpoch
+        slotLength
+        epochLength
         txMaxSize = bp
 
     logDebugT :: MonadIO m => Text -> m ()
@@ -616,7 +618,8 @@ newWalletLayer tracer bp db nw tl = do
     restoreSleep t wid slot = do
         -- NOTE: Conversion functions will treat 'NominalDiffTime' as
         -- picoseconds
-        let halfSlotLengthDelay = fromEnum slotLength `div` 2000000
+        let (SlotLength s) = slotLength
+        let halfSlotLengthDelay = fromEnum s `div` 2000000
         threadDelay halfSlotLengthDelay
         runExceptT (networkTip nw) >>= \case
             Left e -> do
@@ -656,7 +659,7 @@ newWalletLayer tracer bp db nw tl = do
                     splitAt (length blocks - 1) blocks
             liftIO $ logDebug t $ pretty (h ++ q)
             let (txs, cp') = applyBlocks @s @t (h ++ q) cp
-            let progress = slotRatio slotsPerEpoch sup tip
+            let progress = slotRatio epochLength sup tip
             let status' = if progress == maxBound
                     then Ready
                     else Restoring progress
@@ -755,10 +758,13 @@ newWalletLayer tracer bp db nw tl = do
     _listTransactions wid mStart mEnd order = do
         guardRange (mStart, mEnd)
         (w, _) <- withExceptT ErrListTransactionsNoSuchWallet $ _readWallet wid
-        let slotIdRange = error "TODO :: UTCTime -> SlotId"
         let tip = currentTip w ^. #slotId
+        let range = Range
+                { rStart = slotAt epochLength slotLength startTime <$> mStart
+                , rEnd = slotAt epochLength slotLength startTime <$> mEnd
+                }
         liftIO $ assemble tip
-            <$> DB.readTxHistory db (PrimaryKey wid) order slotIdRange
+            <$> DB.readTxHistory db (PrimaryKey wid) order range
       where
         guardRange
             :: (Maybe UTCTime, Maybe UTCTime)
@@ -787,7 +793,7 @@ newWalletLayer tracer bp db nw tl = do
                 , txInfoOutputs = W.outputs @t tx
                 , txInfoMeta = meta
                 , txInfoDepth =
-                    slotDifference slotsPerEpoch tip (meta ^. #slotId)
+                    slotDifference epochLength tip (meta ^. #slotId)
                 , txInfoTime = txTime (meta ^. #slotId)
                 }
             txOuts = Map.fromList
@@ -802,10 +808,7 @@ newWalletLayer tracer bp db nw tl = do
             -- assume that the transaction "happens" at the start of the
             -- slot. This is purely arbitrary and in practice, any time between
             -- the start of a slot and the end could be a validate candidate.
-            txTime = slotStartTime
-                slotsPerEpoch
-                (SlotLength slotLength)
-                block0Date
+            txTime = slotStartTime epochLength slotLength startTime
 
     _signTx
         :: (Show s, NFData s, IsOwned s, GenChange s)
