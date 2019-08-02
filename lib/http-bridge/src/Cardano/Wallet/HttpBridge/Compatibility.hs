@@ -100,7 +100,7 @@ instance DefineTx (HttpBridge network) where
 
 instance PersistTx (HttpBridge network) where
     resolvedInputs = flip zip (repeat Nothing) . W.inputs
-    mkTx inps = W.Tx (fst <$> inps)
+    mkTx _ inps = W.Tx (fst <$> inps)
 
 -- | Encode a public key to a (Byron / Legacy) Cardano 'Address'. This is mostly
 -- dubious CBOR serializations with no data attributes.

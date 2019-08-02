@@ -97,7 +97,6 @@ test-suite unit
     , text
     , text-class
     , time
-    , transformers
   build-tools:
       hspec-discover
   type:

@@ -15,6 +15,8 @@ import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet.Jormungandr.Api
     ( GetTipId, api )
+import Cardano.Wallet.Jormungandr.Binary
+    ( fragmentId )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, Network (..), block0 )
 import Cardano.Wallet.Jormungandr.Network
@@ -204,7 +206,7 @@ spec = do
 
         it "empty tx succeeds" $ \(_, nw) -> do
             -- Would be rejected eventually.
-            let signedEmpty = (Tx [] [], [])
+            let signedEmpty = (Tx (fragmentId [] [] []) [] [], [])
             runExceptT (postTx nw signedEmpty) `shouldReturn` Right ()
 
         it "some tx succeeds" $ \(_, nw) -> do
@@ -236,24 +238,25 @@ spec = do
 
         it "no input, one output" $ \(_, nw) -> do
             -- Would be rejected eventually.
-            let tx = (Tx []
+            let outs =
                     [ (TxOut $ unsafeDecodeAddress proxy
                         "ca1qwunuat6snw60g99ul6qvte98fja\
                         \le2k0uu5mrymylqz2ntgzs6vs386wxd")
                       (Coin 1227362560)
-                    ], [])
+                    ]
+            let tx = (Tx (fragmentId [] outs []) [] outs, [])
             runExceptT (postTx nw tx) `shouldReturn` Right ()
 
         it "throws when addresses and hashes have wrong length" $ \(_, nw) -> do
             let out = TxOut (Address "<not an address>") (Coin 1227362560)
-            let tx = (Tx [] [out] , [])
+            let tx = (Tx (fragmentId [] [out] []) [] [out], [])
             runExceptT (postTx nw tx) `shouldThrow` anyException
 
         it "encoder throws an exception if tx is invalid (eg too many inputs)" $
             \(_, nw) -> do
-            let inp = head (inputs txNonEmpty)
-            let out = head (outputs txNonEmpty)
-            let tx = (Tx (replicate 300 inp) (replicate 3 out), [])
+            let inps = replicate 300 (head $ inputs txNonEmpty)
+            let outs = replicate 3 (head $ outputs txNonEmpty)
+            let tx = (Tx (fragmentId inps outs []) inps outs, [])
             runExceptT (postTx nw tx) `shouldThrow` anyException
   where
     url :: BaseUrl
@@ -292,7 +295,8 @@ spec = do
 
     txNonEmpty :: Tx
     txNonEmpty = Tx
-        { inputs =
+        { txid = Hash "unused"
+        , inputs =
             [ (TxIn
                 { inputId = Hash $ unsafeFromHex
                     "666984dec4bc0ff1888be97bfe0694a9\
@@ -318,7 +322,8 @@ spec = do
 
     unbalancedTx :: Tx
     unbalancedTx = Tx
-        { inputs =
+        { txid = Hash "unused"
+        , inputs =
             [ (TxIn
                 { inputId = Hash $ unsafeFromHex
                     "666984dec4bc0ff1888be97bfe0694a9\

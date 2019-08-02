@@ -352,7 +352,7 @@ instance NFData (DBLayer m s t) where
 
 instance PersistTx DummyTarget where
     resolvedInputs = flip zip (repeat Nothing) . inputs
-    mkTx inps = Tx (fst <$> inps)
+    mkTx _ inps = Tx (fst <$> inps)
 
 testCp :: WalletBench
 testCp = initWallet block0 initDummyState

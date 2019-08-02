@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 
 -- |
@@ -16,10 +17,11 @@ module Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx(..)
     ) where
 
-import Prelude
+import Prelude hiding
+    ( id )
 
 import Cardano.Wallet.Primitive.Types
-    ( Coin, TxIn, TxOut )
+    ( Coin, Hash, TxIn, TxOut )
 import Control.DeepSeq
     ( NFData (..) )
 import Fmt
@@ -28,7 +30,13 @@ import GHC.Generics
     ( Generic )
 
 data Tx = Tx
-    { inputs
+    { txid
+        :: Hash "Tx"
+        -- ^ Jörmungandr computes transaction id by hashing the full content of
+        -- the transaction, which includes witnesses. Therefore, we need either
+        -- to keep track of the witnesses to be able to re-compute the tx id
+        -- every time, or, simply keep track of the id itself.
+    , inputs
         :: ![(TxIn, Coin)]
         -- ^ NOTE: Order of inputs matters in the transaction representation. The
         -- transaction id is computed from the binary representation of a tx,
@@ -43,6 +51,7 @@ data Tx = Tx
 instance NFData Tx
 
 instance Buildable Tx where
-    build (Tx ins outs) = mempty
+    build (Tx tid ins outs) = mempty
+        <> build tid
         <> blockListF' "~>" build (fst <$> ins)
         <> blockListF' "<~" build outs

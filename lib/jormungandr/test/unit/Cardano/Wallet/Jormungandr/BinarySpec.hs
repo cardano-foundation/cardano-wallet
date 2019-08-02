@@ -21,7 +21,9 @@ import Cardano.Wallet.Jormungandr.Binary
     , ConsensusVersion (..)
     , LeaderId (..)
     , Message (..)
+    , MessageType (..)
     , Milli (..)
+    , fragmentId
     , getAddress
     , getBlock
     , getMessage
@@ -30,6 +32,7 @@ import Cardano.Wallet.Jormungandr.Binary
     , runGet
     , runPut
     , singleAddressFromKey
+    , withHeader
     )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, block0 )
@@ -136,7 +139,10 @@ spec = do
                         , ConfigLinearFee $ LinearFee (Quantity 0) (Quantity 0)
                         ]
                     , Transaction (Tx
-                        { inputs = []
+                        { txid = Hash $ unsafeFromHex
+                            "6f5e01c34590f5ead789c234a816ac25\
+                            \41baece53f6e51bf52222bd7feb5cd04"
+                        , inputs = []
                         , outputs =
                             [ TxOut
                                 { address = unsafeDecodeAddress proxy
@@ -251,8 +257,11 @@ spec = do
 
         it "decode (encode tx) === tx" $ property $
             \(SignedTx signedTx) -> monadicIO $ liftIO $ do
-                let encode = runPut . putSignedTx
-                let decode = unMessage . runGet getMessage
+                let encode ((Tx _ inps outs), wits) = runPut
+                        $ withHeader MsgTypeTransaction
+                        $ putSignedTx inps outs wits
+                let decode =
+                        unMessage . runGet getMessage
                 tx' <- try' (decode $ encode signedTx)
                 if tx' == Right signedTx
                 then return ()
@@ -318,17 +327,22 @@ newtype SignedTx = SignedTx (Tx, [TxWitness])
 
 instance Arbitrary SignedTx where
     arbitrary = do
-        nIn <- fromIntegral <$> arbitrary @Word8
+        nIns <- fromIntegral <$> arbitrary @Word8
         nOut <- fromIntegral <$> arbitrary @Word8
-        ins <- vectorOf nIn arbitrary
+        inps <- vectorOf nIns arbitrary
         outs <- vectorOf nOut arbitrary
-        witnesses <- vectorOf nIn arbitrary
-        return $ SignedTx (Tx ins outs, witnesses)
+        wits <- vectorOf nIns arbitrary
+        let tid = fragmentId inps outs wits
+        return $ SignedTx (Tx tid inps outs, wits)
 
-    shrink (SignedTx (Tx ins outs, wits)) =
-        [SignedTx (Tx ins' outs, wits')
-        | (ins', wits') <- unzip <$> shrinkList' (zip ins wits)] ++
-        [SignedTx (Tx ins outs', wits) | outs' <- shrinkList' outs ]
+    shrink (SignedTx (Tx _ inps outs, wits)) =
+        [ SignedTx (Tx (fragmentId inps' outs wits') inps' outs, wits')
+        | (inps', wits') <- unzip <$> shrinkList' (zip inps wits)
+        ]
+        ++
+        [ SignedTx (Tx (fragmentId inps outs' wits) inps outs', wits)
+        | outs' <- shrinkList' outs
+        ]
 
       where
         shrinkList' xs  =

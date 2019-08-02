@@ -295,7 +295,7 @@ ourAddresses cc =
 
 instance PersistTx DummyTarget where
     resolvedInputs = flip zip (repeat Nothing) . inputs
-    mkTx inps = Tx (fst <$> inps)
+    mkTx _ inps = Tx (fst <$> inps)
 
 instance Arbitrary Tx where
     shrink (Tx ins outs) =

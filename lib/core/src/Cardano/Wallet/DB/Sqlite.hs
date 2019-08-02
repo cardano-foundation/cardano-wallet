@@ -602,9 +602,12 @@ txHistoryFromEntity
     -> [(W.Hash "Tx", (W.Tx t, W.TxMeta))]
 txHistoryFromEntity metas ins outs = map mkItem metas
   where
-    mkItem m = ( getTxId (txMetaTxId m)
-               , (mkTxWith (txMetaTxId m), mkTxMeta m) )
+    mkItem m =
+        ( getTxId (txMetaTxId m)
+        , (mkTxWith (txMetaTxId m), mkTxMeta m)
+        )
     mkTxWith txid = mkTx @t
+        (getTxId txid)
         (map mkTxIn $ filter ((== txid) . txInputTxId) ins)
         (map mkTxOut $ filter ((== txid) . txOutputTxId) outs)
     mkTxIn tx =
@@ -793,7 +796,7 @@ class DefineTx t => PersistTx t where
     -- the format here and only here, and leave the rest of the code with an
     -- opaque 'ResolvedTxIn' type.
 
-    mkTx :: [(W.TxIn, Maybe W.Coin)] -> [W.TxOut] -> Tx t
+    mkTx :: W.Hash "Tx" -> [(W.TxIn, Maybe W.Coin)] -> [W.TxOut] -> Tx t
     -- | Re-construct a transaction from a set resolved inputs and
     -- some outputs. Returns 'Nothing' if the transaction couldn't be
     -- constructed.

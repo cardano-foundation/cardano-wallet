@@ -1110,7 +1110,9 @@ collectStreams (nOut0, nErr0) p = do
             -- Somehow, calling 'terminateProcess' isn't sufficient. We also
             -- need to close the handles otherwise, the function resolves but
             -- the processes remains hanging there for a while...
-            terminateProcess ph *> flush o
+            terminateProcess ph
+            flush o
+            flush e
     takeMVar mvar
   where
     flush :: Handle -> IO ()

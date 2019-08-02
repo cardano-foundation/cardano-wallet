@@ -24,9 +24,16 @@ module Cardano.Wallet.Jormungandr.Api
 import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
-    ( Block, getBlock, putSignedTx, runGet, runPut )
+    ( Block
+    , MessageType (..)
+    , getBlock
+    , putSignedTx
+    , runGet
+    , runPut
+    , withHeader
+    )
 import Cardano.Wallet.Jormungandr.Primitive.Types
-    ( Tx )
+    ( Tx (..) )
 import Cardano.Wallet.Primitive.Types
     ( Hash (..), TxWitness )
 import Control.Applicative
@@ -127,7 +134,8 @@ instance MimeUnrender JormungandrBinary Block where
     mimeUnrender _ = pure . runGet getBlock
 
 instance MimeRender JormungandrBinary (Tx, [TxWitness]) where
-    mimeRender _ = runPut . putSignedTx
+    mimeRender _ (Tx _ ins outs, wits) =
+        runPut $ withHeader MsgTypeTransaction $ putSignedTx ins outs wits
 
 data Hex
 
