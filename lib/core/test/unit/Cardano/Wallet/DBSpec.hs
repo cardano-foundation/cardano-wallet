@@ -7,6 +7,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -41,13 +42,16 @@ import Cardano.Wallet.DB.Sqlite
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..), block0 )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Key, Passphrase (..), XPrv, XPub, keyToAddress, publicKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( ChangeChain (..)
-    , deriveAddressPublicKey
-    , generateKeyFromSeed
-    , unsafeGenerateKeyFromSeed
+    ( Depth (..)
+    , KeyToAddress (..)
+    , Passphrase (..)
+    , WalletKey (..)
+    , XPrv
+    , XPub
+    , publicKey
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( ChangeChain (..), SeqKey (..), deriveAddressPublicKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , AddressPoolGap (..)
@@ -281,7 +285,7 @@ unsafeMkAddressPoolGap g = case (mkAddressPoolGap $ fromIntegral g) of
     Left _ -> error $ "unsafeMkAddressPoolGap: bad argument: " <> show g
 
 ourAccount
-    :: Key 'AccountK XPub
+    :: SeqKey 'AccountK XPub
 ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
   where
     seed = Passphrase $ BA.convert $ BS.replicate 32 0
@@ -296,6 +300,9 @@ ourAddresses cc =
 instance PersistTx DummyTarget where
     resolvedInputs = flip zip (repeat Nothing) . inputs
     mkTx _ inps = Tx (fst <$> inps)
+
+-- instance KeyToAddress DummyTarget SeqKey where
+--     keyToAddress = Address . unXPub . getKey . unSeqKey
 
 instance Arbitrary Tx where
     shrink (Tx ins outs) =
@@ -382,7 +389,7 @@ instance Arbitrary UTxO where
             <*> vectorOf n arbitrary
         return $ UTxO $ Map.fromList utxo
 
-instance Arbitrary (Key 'RootK XPrv) where
+instance Arbitrary (SeqKey 'RootK XPrv) where
     shrink _ = []
     arbitrary = elements rootKeys
 
@@ -400,7 +407,7 @@ instance Show XPrv where
 instance Eq XPrv where
     a == b = unXPrv a == unXPrv b
 
-genRootKeys :: Gen (Key 'RootK XPrv)
+genRootKeys :: Gen (SeqKey 'RootK XPrv)
 genRootKeys = do
     (s, g, e) <- (,,)
         <$> genPassphrase @"seed" (16, 32)
@@ -418,14 +425,14 @@ genRootKeys = do
 -- private keys, it isn't particularly useful / relevant to generate many of
 -- them as they're really treated as an opaque type.
 -- Instead, we generate them once, and picks from the list.
-rootKeys :: [Key 'RootK XPrv]
+rootKeys :: [SeqKey 'RootK XPrv]
 rootKeys = unsafePerformIO $ generate (vectorOf 10 genRootKeys)
 {-# NOINLINE rootKeys #-}
 
 -- | Wrap the result of 'readTxHistory' in an arbitrary identity Applicative
 readTxHistoryF
     :: Functor m
-    => DBLayer m s DummyTarget
+    => DBLayer m s DummyTarget SeqKey
     -> PrimaryKey WalletId
     -> m (Identity GenTxHistory)
 readTxHistoryF db wid =
@@ -433,7 +440,7 @@ readTxHistoryF db wid =
     <$> readTxHistory db wid sortOrder wholeRange
 
 putTxHistoryF
-    :: DBLayer m s DummyTarget
+    :: DBLayer m s DummyTarget SeqKey
     -> PrimaryKey WalletId
     -> GenTxHistory
     -> ExceptT ErrNoSuchWallet m ()
@@ -447,7 +454,7 @@ putTxHistoryF db wid =
 
 -- | Can list created wallets
 prop_createListWallet
-    :: DBLayer IO s DummyTarget
+    :: DBLayer IO s DummyTarget SeqKey
     -> KeyValPairs (PrimaryKey WalletId) (Wallet s DummyTarget, WalletMetadata)
     -> Property
 prop_createListWallet db (KeyValPairs pairs) =
@@ -461,7 +468,7 @@ prop_createListWallet db (KeyValPairs pairs) =
 
 -- | Trying to create a same wallet twice should yield an error
 prop_createWalletTwice
-    :: DBLayer IO s DummyTarget
+    :: DBLayer IO s DummyTarget SeqKey
     -> ( PrimaryKey WalletId
        , Wallet s DummyTarget
        , WalletMetadata
@@ -478,7 +485,7 @@ prop_createWalletTwice db (key@(PrimaryKey wid), cp, meta) =
 
 -- | Trying to remove a same wallet twice should yield an error
 prop_removeWalletTwice
-    :: DBLayer IO s DummyTarget
+    :: DBLayer IO s DummyTarget SeqKey
     -> ( PrimaryKey WalletId
        , Wallet s DummyTarget
        , WalletMetadata
@@ -499,16 +506,16 @@ prop_removeWalletTwice db (key@(PrimaryKey wid), cp, meta) =
 prop_readAfterPut
     :: ( Show (f a), Eq (f a), Applicative f
        , Arbitrary (Wallet s DummyTarget))
-    => (  DBLayer IO s DummyTarget
+    => (  DBLayer IO s DummyTarget SeqKey
        -> PrimaryKey WalletId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
-    -> (  DBLayer IO s DummyTarget
+    -> (  DBLayer IO s DummyTarget SeqKey
        -> PrimaryKey WalletId
        -> IO (f a)
        ) -- ^ Read Operation
-    -> DBLayer IO s DummyTarget
+    -> DBLayer IO s DummyTarget SeqKey
     -> (PrimaryKey WalletId, a)
         -- ^ Property arguments
     -> Property
@@ -527,18 +534,18 @@ prop_readAfterPut putOp readOp db (key, a) =
 -- | Can't put resource before a wallet has been initialized
 prop_putBeforeInit
     :: (Show (f a), Eq (f a))
-    => (  DBLayer IO s DummyTarget
+    => (  DBLayer IO s DummyTarget SeqKey
        -> PrimaryKey WalletId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
-    -> (  DBLayer IO s DummyTarget
+    -> (  DBLayer IO s DummyTarget SeqKey
        -> PrimaryKey WalletId
        -> IO (f a)
        ) -- ^ Read Operation
     -> f a
         -- ^ An 'empty' value for the 'Applicative' f
-    -> DBLayer IO s DummyTarget
+    -> DBLayer IO s DummyTarget SeqKey
     -> (PrimaryKey WalletId, a)
         -- ^ Property arguments
     -> Property
@@ -561,24 +568,24 @@ prop_isolation
        , Show (h d), Eq (h d)
        , Arbitrary (Wallet s DummyTarget)
        )
-    => (  DBLayer IO s DummyTarget
+    => (  DBLayer IO s DummyTarget SeqKey
        -> PrimaryKey WalletId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
-    -> (  DBLayer IO s DummyTarget
+    -> (  DBLayer IO s DummyTarget SeqKey
        -> PrimaryKey WalletId
        -> IO (f b)
        ) -- ^ Read Operation for another resource
-    -> (  DBLayer IO s DummyTarget
+    -> (  DBLayer IO s DummyTarget SeqKey
        -> PrimaryKey WalletId
        -> IO (g c)
        ) -- ^ Read Operation for another resource
-    -> (  DBLayer IO s DummyTarget
+    -> (  DBLayer IO s DummyTarget SeqKey
        -> PrimaryKey WalletId
        -> IO (h d)
        ) -- ^ Read Operation for another resource
-    -> DBLayer IO s DummyTarget
+    -> DBLayer IO s DummyTarget SeqKey
     -> (PrimaryKey WalletId, a)
         -- ^ Properties arguments
     -> Property
@@ -605,13 +612,13 @@ prop_isolation putA readB readC readD db (key, a) =
 -- | Can't read back data after delete
 prop_readAfterDelete
     :: (Show (f a), Eq (f a), Arbitrary (Wallet s DummyTarget))
-    => (  DBLayer IO s DummyTarget
+    => (  DBLayer IO s DummyTarget SeqKey
        -> PrimaryKey WalletId
        -> IO (f a)
        ) -- ^ Read Operation
     -> f a
         -- ^ An 'empty' value for the 'Applicative' f
-    -> DBLayer IO s DummyTarget
+    -> DBLayer IO s DummyTarget SeqKey
     -> PrimaryKey WalletId
     -> Property
 prop_readAfterDelete readOp empty db key =
@@ -628,18 +635,18 @@ prop_readAfterDelete readOp empty db key =
 -- | Check that the DB supports multiple sequential puts for a given resource
 prop_sequentialPut
     :: (Show (f a), Eq (f a), Arbitrary (Wallet s DummyTarget))
-    => (  DBLayer IO s DummyTarget
+    => (  DBLayer IO s DummyTarget SeqKey
        -> PrimaryKey WalletId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
-    -> (  DBLayer IO s DummyTarget
+    -> (  DBLayer IO s DummyTarget SeqKey
        -> PrimaryKey WalletId
        -> IO (f a)
        ) -- ^ Read Operation
     -> (forall k. Ord k => [(k, a)] -> [f a])
         -- ^ How do we expect operations to resolve
-    -> DBLayer IO s DummyTarget
+    -> DBLayer IO s DummyTarget SeqKey
     -> KeyValPairs (PrimaryKey WalletId) a
         -- ^ Property arguments
     -> Property
@@ -664,18 +671,18 @@ prop_sequentialPut putOp readOp resolve db (KeyValPairs pairs) =
 -- | Check that the DB supports multiple sequential puts for a given resource
 prop_parallelPut
     :: (Arbitrary (Wallet s DummyTarget))
-    => (  DBLayer IO s DummyTarget
+    => (  DBLayer IO s DummyTarget SeqKey
        -> PrimaryKey WalletId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
-    -> (  DBLayer IO s DummyTarget
+    -> (  DBLayer IO s DummyTarget SeqKey
        -> PrimaryKey WalletId
        -> IO (f a)
        ) -- ^ Read Operation
     -> (forall k. Ord k => [(k, a)] -> Int)
         -- ^ How many entries to we expect in the end
-    -> DBLayer IO s DummyTarget
+    -> DBLayer IO s DummyTarget SeqKey
     -> KeyValPairs (PrimaryKey WalletId) a
         -- ^ Property arguments
     -> Property
@@ -699,7 +706,7 @@ prop_parallelPut putOp readOp resolve db (KeyValPairs pairs) =
 
 dbPropertyTests
     :: (Arbitrary (Wallet s DummyTarget), Eq s)
-    => SpecWith (DBLayer IO s DummyTarget)
+    => SpecWith (DBLayer IO s DummyTarget SeqKey)
 dbPropertyTests = do
     describe "Extra Properties about DB initialization" $ do
         it "createWallet . listWallets yields expected results"
@@ -785,7 +792,7 @@ dbPropertyTests = do
 
 -- | Provide a DBLayer to a Spec that requires it. The database is initialised
 -- once, and cleared with 'cleanDB' before each test.
-withDB :: IO (DBLayer IO s t) -> SpecWith (DBLayer IO s t) -> Spec
+withDB :: IO (DBLayer IO s t k) -> SpecWith (DBLayer IO s t k) -> Spec
 withDB create = beforeAll create . beforeWith (\db -> cleanDB db $> db)
 
 -- NOTE: We are only running these tests with one sort order.

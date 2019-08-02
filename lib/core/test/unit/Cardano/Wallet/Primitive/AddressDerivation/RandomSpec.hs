@@ -16,25 +16,23 @@ module Cardano.Wallet.Primitive.AddressDerivation.RandomSpec
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPub, toXPub, xprv )
+    ( XPub, xprv )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , Index
     , Index (..)
     , Passphrase (..)
+    , WalletKey (..)
     , XPrv
     , fromMnemonic
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Common
-    ( Key (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( decodeAddressDerivationPath
+    ( RndKey (..)
+    , decodeAddressDerivationPath
     , decodeDerivationPath
-    , deriveAccountPrivateKey
-    , deriveAddressPrivateKey
+    , deriveRndKeyFromXPrv
     , encodeDerivationPath
-    , generateKeyFromSeed
     , minSeedLengthBytes
     )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
@@ -59,6 +57,8 @@ import Test.Hspec
     ( Expectation, Spec, describe, it, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Gen
+    , InfiniteList (..)
     , Property
     , choose
     , property
@@ -96,16 +96,15 @@ prop_keyDerivation
     -> Index 'Hardened 'AccountK
     -> Index 'Soft 'AddressK
     -> Property
-prop_keyDerivation seed encPwd ix1 ix2 =
-    addrXPrv `seq` property () -- NOTE Making sure this doesn't throw
+prop_keyDerivation seed encPwd _ix1 _ix2 =
+    addressKey rndKey `seq` property () -- NOTE Making sure this doesn't throw
   where
-    rootXPrv = generateKeyFromSeed seed encPwd
-    accXPrv = deriveAccountPrivateKey encPwd rootXPrv ix1
-    addrXPrv = deriveAddressPrivateKey encPwd accXPrv ix2
+    -- fixme: put acc idx and addr idx back
+    rndKey = generateKeyFromSeed seed encPwd :: RndKey 'RootK XPrv
 
 prop_derivationPathRoundTrip
-    :: Key 'RootK XPub
-    -> Key 'RootK XPub
+    :: RndKey 'RootK XPub
+    -> RndKey 'RootK XPub
     -> Index 'Hardened 'AccountK
     -> Index 'Soft 'AddressK
     -> Property
@@ -149,12 +148,14 @@ goldenSpec = describe "Golden tests" $ do
 data GenerateKeyFromSeed = GenerateKeyFromSeed
     { mnem :: [Text]
     , pwd :: Passphrase "encryption"
-    , rootKey :: Key 'RootK XPrv
-    } deriving (Show, Eq)
+    , rootKey :: RndKey 'RootK XPrv
+    }
 
 generateTest :: GenerateKeyFromSeed -> Expectation
 generateTest GenerateKeyFromSeed{..} =
-    generateKeyFromSeed (Passphrase seed) pwd `shouldBe` rootKey
+    masterKey (generateKeyFromSeed (Passphrase seed) pwd)
+    `shouldBe`
+    masterKey rootKey
   where
     Right (Passphrase seed) = fromMnemonic @'[12] mnem
 
@@ -207,8 +208,8 @@ decodeTest DecodeDerivationPath{..} =
   where
     payload = unsafeDeserialiseFromBytes decodeAddressPayload $ b58decode addr
     decoded = deserialise (decodeAddressDerivationPath rootXPub) payload
-    Key rootXPrv = generateKeyFromSeed (Passphrase seed) (Passphrase "")
-    rootXPub = Key (toXPub rootXPrv)
+    rootXPrv = generateKeyFromSeed (Passphrase seed) (Passphrase "") :: RndKey 'RootK XPrv
+    rootXPub = publicKey rootXPrv
     Right (Passphrase seed) = fromMnemonic @'[12] mnem
 
 -- Generated on mainnet Daedalus -- first address of the initial account.
@@ -257,8 +258,8 @@ addrMnemonic =
 -------------------------------------------------------------------------------}
 
 -- | Get a private key from a hex string, without error checking.
-xprv16 :: ByteString -> Key purpose XPrv
-xprv16 hex = Key k
+xprv16 :: ByteString -> RndKey purpose XPrv
+xprv16 hex = deriveRndKeyFromXPrv k
   where
     Right k = xprvFromText hex
     xprvFromText = xprv <=< fromHexText
@@ -305,3 +306,25 @@ instance {-# OVERLAPS #-} Arbitrary (Passphrase "seed") where
         n <- choose (minSeedLengthBytes, 64)
         bytes <- BS.pack <$> vectorOf n arbitrary
         return $ Passphrase $ BA.convert bytes
+
+
+instance Arbitrary (RndKey 'RootK XPrv) where
+    shrink _ = []
+    arbitrary = genRootKeys
+
+instance Arbitrary (RndKey 'RootK XPub) where
+    shrink _ = []
+    arbitrary = publicKey <$> arbitrary
+
+genRootKeys :: Gen (RndKey 'RootK XPrv)
+genRootKeys = do
+    (s, e) <- (,)
+        <$> genPassphrase @"seed" (16, 32)
+        <*> genPassphrase @"encryption" (0, 16)
+    return $ generateKeyFromSeed s e
+  where
+    genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
+    genPassphrase range = do
+        n <- choose range
+        InfiniteList bytes _ <- arbitrary
+        return $ Passphrase $ BA.convert $ BS.pack $ take n bytes

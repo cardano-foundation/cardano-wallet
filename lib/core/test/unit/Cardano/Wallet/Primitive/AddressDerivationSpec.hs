@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -19,20 +20,18 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , FromMnemonic (..)
     , FromMnemonicError (..)
     , Index
-    , Key
     , Passphrase (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
+    , PersistKey (..)
+    , WalletKey (..)
     , XPrv
     , checkPassphrase
-    , deserializeXPrv
-    , deserializeXPub
     , encryptPassphrase
     , getIndex
-    , publicKey
-    , serializeXPrv
-    , serializeXPub
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( SeqKey (..) )
 import Cardano.Wallet.Primitive.Types
     ( Hash (..) )
 import Control.Monad
@@ -64,8 +63,6 @@ import Test.QuickCheck.Monadic
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as Seq
-    ( generateKeyFromSeed )
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
@@ -210,14 +207,14 @@ prop_roundtripEnumIndexSoft ix =
     (toEnum . fromEnum) ix === ix .&&. (toEnum . fromEnum . getIndex) ix === ix
 
 prop_roundtripXPriv
-    :: (Key 'RootK XPrv, Hash "encryption")
+    :: (SeqKey 'RootK XPrv, Hash "encryption")
     -> Property
 prop_roundtripXPriv xpriv = do
     let xpriv' = (deserializeXPrv . serializeXPrv) xpriv
     xpriv' === Right xpriv
 
 prop_roundtripXPub
-    :: Key 'RootK XPrv
+    :: SeqKey 'RootK XPrv
     -> Property
 prop_roundtripXPub xpriv = do
     let xpub = publicKey xpriv
@@ -286,21 +283,21 @@ instance Show XPrv where
 instance Eq XPrv where
     a == b = unXPrv a == unXPrv b
 
-instance Arbitrary (Key 'RootK XPrv) where
+instance Arbitrary (SeqKey 'RootK XPrv) where
     shrink _ = []
     arbitrary = genRootKeys
 
-instance Arbitrary (Key 'RootK XPub) where
+instance Arbitrary (SeqKey 'RootK XPub) where
     shrink _ = []
-    arbitrary = publicKey <$> arbitrary @(Key 'RootK XPrv)
+    arbitrary = publicKey <$> arbitrary
 
-genRootKeys :: Gen (Key 'RootK XPrv)
+genRootKeys :: Gen (SeqKey 'RootK XPrv)
 genRootKeys = do
     (s, g, e) <- (,,)
         <$> genPassphrase @"seed" (16, 32)
         <*> genPassphrase @"generation" (0, 16)
         <*> genPassphrase @"encryption" (0, 16)
-    return $ Seq.generateKeyFromSeed (s, g) e
+    return $ generateKeyFromSeed (s, g) e
   where
     genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
     genPassphrase range = do

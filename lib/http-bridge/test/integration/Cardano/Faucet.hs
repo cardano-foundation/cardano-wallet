@@ -16,12 +16,18 @@ import Cardano.Wallet.HttpBridge.Primitive.Types
 import Cardano.Wallet.Network
     ( NetworkLayer (postTx) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress (..), Passphrase (..), XPrv, publicKey )
+    ( Depth (..)
+    , KeyToAddress (..)
+    , Passphrase (..)
+    , WalletKey (..)
+    , XPrv
+    , publicKey
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( ChangeChain (..)
+    , SeqKey
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
-    , generateKeyFromSeed
     )
 import Cardano.Wallet.Primitive.Mnemonic
     ( Mnemonic
@@ -75,7 +81,7 @@ initFaucet nl = do
             (seed, pwd) =
                 (Passphrase $ entropyToBytes $ mnemonicToEntropy mw, mempty)
             rootXPrv =
-                generateKeyFromSeed (seed, mempty) pwd
+                generateKeyFromSeed (seed, mempty) pwd :: SeqKey 'RootK XPrv
             accXPrv =
                 deriveAccountPrivateKey pwd rootXPrv minBound
             addrXPrv =

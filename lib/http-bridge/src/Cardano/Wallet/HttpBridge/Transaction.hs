@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
@@ -22,13 +23,14 @@ import Cardano.Wallet.HttpBridge.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (AddressK)
-    , Key
-    , KeyToAddress
+    , KeyToAddress (..)
     , Passphrase (..)
+    , WalletKey (..)
     , XPrv
-    , getKey
     , publicKey
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( SeqKey (..) )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
@@ -66,8 +68,8 @@ import qualified Data.ByteString.Lazy as BL
 
 -- | Construct a 'TransactionLayer' compatible with Byron and the 'HttpBridge'
 newTransactionLayer
-    :: forall n t. (KnownNetwork n, t ~ HttpBridge n, KeyToAddress t)
-    => TransactionLayer t
+    :: forall n t key. (KnownNetwork n, t ~ HttpBridge n, KeyToAddress t key, key ~ SeqKey)
+    => TransactionLayer t key
 newTransactionLayer = TransactionLayer
     { mkStdTx = \keyFrom inps outs -> do
         let ins = (fmap fst inps)
@@ -91,7 +93,7 @@ newTransactionLayer = TransactionLayer
         + n * sizeOfTxWitness
 
     , estimateMaxNumberOfInputs =
-        estimateMaxNumberOfInputsBase @t estimateMaxNumberOfInputsParams
+        estimateMaxNumberOfInputsBase @t @SeqKey estimateMaxNumberOfInputsParams
 
     , validateSelection = \(CoinSelection _ outs _) -> do
         when (any (\ (TxOut _ c) -> c == Coin 0) outs)
@@ -100,7 +102,7 @@ newTransactionLayer = TransactionLayer
   where
     mkWitness
         :: Hash "Tx"
-        -> (Key 'AddressK XPrv, Passphrase "encryption")
+        -> (SeqKey 'AddressK XPrv, Passphrase "encryption")
         -> TxWitness
     mkWitness tx (xPrv, pwd) = TxWitness
         $ CBOR.toStrictByteString
@@ -109,7 +111,7 @@ newTransactionLayer = TransactionLayer
 
     sign
         :: SignTag
-        -> (Key 'AddressK XPrv, Passphrase "encryption")
+        -> (SeqKey 'AddressK XPrv, Passphrase "encryption")
         -> Hash "signature"
     sign tag (key, (Passphrase pwd)) =
         Hash . CC.unXSignature $ CC.sign pwd (getKey key) (signTag tag)

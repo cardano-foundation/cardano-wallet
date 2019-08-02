@@ -28,9 +28,15 @@ import Cardano.Wallet.HttpBridge.Primitive.Types
 import Cardano.Wallet.HttpBridge.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Key, KeyToAddress (..), Passphrase (..), XPrv, publicKey )
+    ( Depth (..)
+    , KeyToAddress (..)
+    , Passphrase (..)
+    , XPrv
+    , publicKey
+    , unsafeGenerateKeyFromSeed
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( unsafeGenerateKeyFromSeed )
+    ( SeqKey (..) )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.CoinSelection.LargestFirst
@@ -633,7 +639,8 @@ spec = do
 -------------------------------------------------------------------------------}
 
 propSizeEstimation
-    :: forall n t. (KnownNetwork n, t ~ HttpBridge n, KeyToAddress t)
+    :: forall n t key.
+       (KnownNetwork n, t ~ HttpBridge n, KeyToAddress t key, key ~ SeqKey)
     => Proxy n
     -> (ShowFmt CoinSelection, InfiniteList (Network -> Address))
     -> Property
@@ -672,7 +679,8 @@ propSizeEstimation _ (ShowFmt sel, InfiniteList chngAddrs _) =
             (Tx (fst <$> inps) (outs <> txChngs), wits)
 
 unknownInputTest
-    :: forall n. (KnownNetwork n, KeyToAddress (HttpBridge n))
+    :: forall n key.
+       (KnownNetwork n, KeyToAddress (HttpBridge n) key, key ~ SeqKey)
     => Proxy n
     -> SpecWith ()
 unknownInputTest _ = it title $ do
@@ -814,16 +822,16 @@ instance Arbitrary TxIn where
                                 Golden Tests
 -------------------------------------------------------------------------------}
 
-xprv :: ByteString -> Key depth XPrv
+xprv :: ByteString -> SeqKey depth XPrv
 xprv seed =
     unsafeGenerateKeyFromSeed (Passphrase (BA.convert seed), mempty) mempty
 
 goldenTestSignedTx
-    :: forall n. (KnownNetwork n, KeyToAddress (HttpBridge n))
+    :: forall n key. (KnownNetwork n, KeyToAddress (HttpBridge n) key, key ~ SeqKey)
     => Proxy n
     -> Int
         -- ^ Number of outputs
-    -> [(Key 'AddressK XPrv, Coin)]
+    -> [(key 'AddressK XPrv, Coin)]
         -- ^ (Address Private Keys, Output value)
     -> ByteString
         -- ^ Expected result, in Base16

@@ -10,15 +10,20 @@ module Cardano.Wallet.Primitive.AddressDerivation.SequentialSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), DerivationType (..), Index, Passphrase (..), publicKey )
+    ( Depth (..)
+    , DerivationType (..)
+    , Index
+    , Passphrase (..)
+    , WalletKey (..)
+    , XPrv
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( ChangeChain (..)
+    , SeqKey (..)
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
     , deriveAddressPublicKey
-    , generateKeyFromSeed
     , minSeedLengthBytes
-    , unsafeGenerateKeyFromSeed
     )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
@@ -91,7 +96,7 @@ prop_publicChildKeyDerivation
 prop_publicChildKeyDerivation (seed, recPwd) encPwd cc ix =
     addrXPub1 === addrXPub2
   where
-    accXPrv = unsafeGenerateKeyFromSeed (seed, recPwd) (encPwd)
+    accXPrv = unsafeGenerateKeyFromSeed (seed, recPwd) encPwd :: SeqKey 'AccountK XPrv
     -- N(CKDpriv((kpar, cpar), i))
     addrXPub1 = publicKey $ deriveAddressPrivateKey encPwd accXPrv cc ix
     -- CKDpub(N(kpar, cpar), i)
@@ -105,7 +110,7 @@ prop_accountKeyDerivation
 prop_accountKeyDerivation (seed, recPwd) encPwd ix =
     accXPub `seq` property () -- NOTE Making sure this doesn't throw
   where
-    rootXPrv = generateKeyFromSeed (seed, recPwd) encPwd
+    rootXPrv = generateKeyFromSeed (seed, recPwd) encPwd :: SeqKey 'RootK XPrv
     accXPub = deriveAccountPrivateKey encPwd rootXPrv ix
 
 {-------------------------------------------------------------------------------

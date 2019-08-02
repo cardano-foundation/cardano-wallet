@@ -20,28 +20,59 @@
 -- implemented by Yoroi/Icarus and cardano-cli.
 
 module Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    (
-      ChangeChain(..)
-    , generateKeyFromSeed
-    , unsafeGenerateKeyFromSeed
+    ( -- * SeqKey types
+      SeqKey(..)
+    , ChangeChain(..)
+    -- * SeqKey generation and derivation
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
     , deriveAddressPublicKey
     , minSeedLengthBytes
+    -- * Passphrase
+    , changePassphraseSeq
+    -- * Storing and retrieving keys
+    , serializeXPrvSeq
+    , deserializeXPrvSeq
+    , serializeXPubSeq
+    , deserializeXPubSeq
     ) where
 
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( DerivationScheme (..), XPrv, XPub, deriveXPrv, deriveXPub, generateNew )
+    ( DerivationScheme (..)
+    , XPrv
+    , XPub
+    , deriveXPrv
+    , deriveXPub
+    , generateNew
+    , toXPub
+    , unXPrv
+    , unXPub
+    , xPrvChangePass
+    , xprv
+    , xpub
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationType (..), Index (..), Passphrase (..) )
+    ( Depth (..)
+    , DerivationType (..)
+    , Index (..)
+    , Passphrase (..)
+    , PersistKey (..)
+    , WalletKey (..)
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.Common
-    ( Depth (..), Key (..) )
+    ( fromHexText, toHexText )
 import Cardano.Wallet.Primitive.Types
-    ( invariant )
+    ( Hash (..), invariant )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData (..) )
+import Control.Monad
+    ( (<=<) )
+import Crypto.Hash
+    ( Digest, HashAlgorithm, hash )
+import Data.ByteString
+    ( ByteString )
 import Data.Maybe
     ( fromMaybe )
 import Data.Text.Class
@@ -63,6 +94,29 @@ import qualified Data.ByteArray as BA
 {-------------------------------------------------------------------------------
                             Sequential Derivation
 -------------------------------------------------------------------------------}
+
+
+-- | A cryptographic key for sequential-scheme address derivation, with
+-- phantom-types to disambiguate key types.
+--
+-- @
+-- let rootPrivateKey = SeqKey 'RootK XPrv
+-- let accountPubKey = SeqKey 'AccountK XPub
+-- let addressPubKey = SeqKey 'AddressK XPub
+-- @
+newtype SeqKey (level :: Depth) key = SeqKey { getKey :: key }
+    deriving stock (Generic, Show, Eq)
+
+instance (NFData key) => NFData (SeqKey level key)
+
+instance WalletKey SeqKey where
+     -- The actual seed and its recovery / generation passphrase
+    type WalletKeySeed SeqKey = (Passphrase "seed", Passphrase "generation")
+
+    unsafeGenerateKeyFromSeed = unsafeGenerateKeyFromSeedSeq
+    changePassphrase = changePassphraseSeq
+    publicKey = publicKeySeq
+    digest = digestSeq
 
 -- | Marker for the change chain. In practice, change of a transaction goes onto
 -- the addresses generated on the internal chain, whereas the external chain is
@@ -124,27 +178,18 @@ minSeedLengthBytes = 16
 -- the caller gets to decide what type of key this is. This is mostly for
 -- testing, in practice, seeds are used to represent root keys, and one should
 -- use 'generateKeyFromSeed'.
-unsafeGenerateKeyFromSeed
+unsafeGenerateKeyFromSeedSeq
     :: (Passphrase "seed", Passphrase "generation")
         -- ^ The actual seed and its recovery / generation passphrase
     -> Passphrase "encryption"
-    -> Key depth XPrv
-unsafeGenerateKeyFromSeed (Passphrase seed, Passphrase gen) (Passphrase pwd) =
+    -> SeqKey depth XPrv
+unsafeGenerateKeyFromSeedSeq (Passphrase seed, Passphrase gen) (Passphrase pwd) =
     let
         seed' = invariant
             ("seed length : " <> show (BA.length seed) <> " in (Passphrase \"seed\") is not valid")
             seed
             (\s -> BA.length s >= minSeedLengthBytes && BA.length s <= 255)
-    in Key $ generateNew seed' gen pwd
-
--- | Generate a root key from a corresponding seed
--- The seed should be at least 16 bytes
-generateKeyFromSeed
-    :: (Passphrase "seed", Passphrase "generation")
-        -- ^ The actual seed and its recovery / generation passphrase
-    -> Passphrase "encryption"
-    -> Key 'RootK XPrv
-generateKeyFromSeed = unsafeGenerateKeyFromSeed
+    in SeqKey $ generateNew seed' gen pwd
 
 -- | Derives account private key from the given root private key, using
 -- derivation scheme 2 (see <https://github.com/input-output-hk/cardano-crypto/ cardano-crypto>
@@ -156,10 +201,10 @@ generateKeyFromSeed = unsafeGenerateKeyFromSeed
 -- doesn't belong to the wallet.
 deriveAccountPrivateKey
     :: Passphrase "encryption"
-    -> Key 'RootK XPrv
+    -> SeqKey 'RootK XPrv
     -> Index 'Hardened 'AccountK
-    -> Key 'AccountK XPrv
-deriveAccountPrivateKey (Passphrase pwd) (Key rootXPrv) (Index accIx) =
+    -> SeqKey 'AccountK XPrv
+deriveAccountPrivateKey (Passphrase pwd) (SeqKey rootXPrv) (Index accIx) =
     let
         purposeXPrv = -- lvl1 derivation; hardened derivation of purpose'
             deriveXPrv DerivationScheme2 pwd rootXPrv purposeIndex
@@ -168,7 +213,7 @@ deriveAccountPrivateKey (Passphrase pwd) (Key rootXPrv) (Index accIx) =
         acctXPrv = -- lvl3 derivation; hardened derivation of account' index
             deriveXPrv DerivationScheme2 pwd coinTypeXPrv accIx
     in
-        Key acctXPrv
+        SeqKey acctXPrv
 
 -- | Derives address private key from the given account private key, using
 -- derivation scheme 2 (see <https://github.com/input-output-hk/cardano-crypto/ cardano-crypto>
@@ -183,12 +228,12 @@ deriveAccountPrivateKey (Passphrase pwd) (Key rootXPrv) (Index accIx) =
 -- doesn't belong to the wallet.
 deriveAddressPrivateKey
     :: Passphrase "encryption"
-    -> Key 'AccountK XPrv
+    -> SeqKey 'AccountK XPrv
     -> ChangeChain
     -> Index 'Soft 'AddressK
-    -> Key 'AddressK XPrv
+    -> SeqKey 'AddressK XPrv
 deriveAddressPrivateKey
-        (Passphrase pwd) (Key accXPrv) changeChain (Index addrIx) =
+        (Passphrase pwd) (SeqKey accXPrv) changeChain (Index addrIx) =
     let
         changeCode =
             fromIntegral $ fromEnum changeChain
@@ -197,7 +242,7 @@ deriveAddressPrivateKey
         addrXPrv = -- lvl5 derivation; soft derivation of address index
             deriveXPrv DerivationScheme2 pwd changeXPrv addrIx
     in
-        Key addrXPrv
+        SeqKey addrXPrv
 
 -- | Derives address public key from the given account public key, using
 -- derivation scheme 2 (see <https://github.com/input-output-hk/cardano-crypto/ cardano-crypto>
@@ -205,18 +250,18 @@ deriveAddressPrivateKey
 --
 -- This is the preferred way of deriving new sequential address public keys.
 deriveAddressPublicKey
-    :: Key 'AccountK XPub
+    :: SeqKey 'AccountK XPub
     -> ChangeChain
     -> Index 'Soft 'AddressK
-    -> Key 'AddressK XPub
-deriveAddressPublicKey (Key accXPub) changeChain (Index addrIx) =
+    -> SeqKey 'AddressK XPub
+deriveAddressPublicKey (SeqKey accXPub) changeChain (Index addrIx) =
     fromMaybe errWrongIndex $ do
         let changeCode = fromIntegral $ fromEnum changeChain
         changeXPub <- -- lvl4 derivation in bip44 is derivation of change chain
             deriveXPub DerivationScheme2 accXPub changeCode
         addrXPub <- -- lvl5 derivation in bip44 is derivation of address chain
             deriveXPub DerivationScheme2 changeXPub addrIx
-        return $ Key addrXPub
+        return $ SeqKey addrXPub
   where
     errWrongIndex = error $
         "Cardano.Wallet.Primitive.AddressDerivation.deriveAddressPublicKey \
@@ -224,3 +269,134 @@ deriveAddressPublicKey (Key accXPub) changeChain (Index addrIx) =
         \derivation ( " ++ show addrIx ++ "). This is either a programmer \
         \error, or, we may have reached the maximum number of addresses for \
         \a given wallet."
+
+
+{-------------------------------------------------------------------------------
+                                   Passphrase
+-------------------------------------------------------------------------------}
+
+-- | Re-encrypt a private key using a different passphrase.
+--
+-- **Important**:
+-- This function doesn't check that the old passphrase is correct! Caller is
+-- expected to have already checked that. Using an incorrect passphrase here
+-- will lead to very bad thing.
+changePassphraseSeq
+    :: Passphrase "encryption-old"
+    -> Passphrase "encryption-new"
+    -> SeqKey purpose XPrv
+    -> SeqKey purpose XPrv
+changePassphraseSeq (Passphrase oldPwd) (Passphrase newPwd) (SeqKey prv) =
+    SeqKey $ xPrvChangePass oldPwd newPwd prv
+
+{-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------}
+
+-- | Extract the public key part of a private key.
+publicKeySeq
+    :: SeqKey level XPrv
+    -> SeqKey level XPub
+publicKeySeq (SeqKey k) =
+    SeqKey (toXPub k)
+
+-- | Hash a public key to some other representation.
+digestSeq
+    :: HashAlgorithm a
+    => SeqKey level XPub
+    -> Digest a
+digestSeq (SeqKey k) =
+    hash (unXPub k)
+
+{-------------------------------------------------------------------------------
+                          Storing and retrieving keys
+-------------------------------------------------------------------------------}
+
+instance PersistKey SeqKey where
+    serializeXPrv = serializeXPrvSeq
+    deserializeXPrv = deserializeXPrvSeq
+    serializeXPub = serializeXPubSeq
+    deserializeXPub = deserializeXPubSeq
+
+-- | Convert a private key and its password hash into hexadecimal strings
+-- suitable for storing in a text file or database column.
+serializeXPrvSeq
+    :: (SeqKey purpose XPrv, Hash "encryption")
+    -> (ByteString, ByteString)
+serializeXPrvSeq (k, h) =
+    ( toHexText . unXPrv . getKey $ k
+    , toHexText . getHash $ h )
+
+-- | The reverse of 'serializeXPrv'. This may fail if the inputs are not valid
+-- hexadecimal strings, or if the key is of the wrong length.
+deserializeXPrvSeq
+    :: (ByteString, ByteString)
+       -- ^ Hexadecimal encoded private key and password hash
+    -> Either String (SeqKey purpose XPrv, Hash "encryption")
+deserializeXPrvSeq (k, h) = (,)
+    <$> fmap SeqKey (xprvFromText k)
+    <*> fmap Hash (fromHexText h)
+  where
+    xprvFromText = xprv <=< fromHexText
+
+-- | Convert a public key into a hexadecimal string suitable for storing in a
+-- text file or database column.
+serializeXPubSeq :: SeqKey purpose XPub -> ByteString
+serializeXPubSeq = toHexText . unXPub . getKey
+
+-- | The reverse of 'serializeXPub'. This will fail if the input is not a valid
+-- hexadecimal string of the correct length.
+deserializeXPubSeq :: ByteString -> Either String (SeqKey purpose XPub)
+deserializeXPubSeq = fmap SeqKey . (xpub <=< fromHexText)
+
+-- $use
+-- 'Key' and 'Index' allow for representing public keys, private keys, hardened
+-- indexes and soft (non-hardened) indexes for various level in a non-ambiguous
+-- manner. Those types are opaque and can only be created through dedicated
+-- constructors.
+--
+-- Indexes can be created through their `Bounded` and `Enum` instances. Note
+-- that, the `Enum` functions are partial and its the caller responsibility to
+-- make sure it is safe to call them. For instance, calling @succ maxBound@ for
+-- any index would through a runtime error. Similarly, trying to convert an
+-- invalid value from an 'Int' to a an 'Index' will result in bad behavior.
+--
+-- >>> toEnum 0x00000000 :: Index 'Soft 'AddressK
+-- Index {getIndex = 0}
+--
+-- >>> toEnum 0x00000000 :: Index 'Hardened 'AccountK
+-- Index {getIndex = *** Exception: Index@Hardened.toEnum: bad argument
+--
+-- >>> toEnum 0x80000000 :: Index 'Hardened 'AccountK
+-- Index {getIndex = 2147483648}
+--
+-- >>> toEnum 0x80000000 :: Index 'Soft 'AddressK
+-- Index {getIndex = *** Exception: Index@Soft.toEnum: bad argument
+--
+-- Keys have to be created from a seed using 'generateKeyFromSeed' which always
+-- gives a root private key. Then, child keys can be created safely using the
+-- various key derivation methods:
+--
+-- - 'publicKey' --> For any @SeqKey _ XPrv@ to @SeqKey _ XPub@
+-- - 'deriveAccountPrivateKey' -->
+--      From @SeqKey RootK XPrv@ to @SeqKey AccountK XPrv@
+-- - 'deriveAddressPrivateKey' -->
+--      From @SeqKey AccountK XPrv@ to @SeqKey AddressK XPrv@
+-- - 'deriveAddressPublicKey' -->
+--      From @SeqKey AccountK XPub@ to @SeqKey AddressK XPub@
+--
+-- For example:
+--
+-- @
+-- -- Access public key for: m|coinType'|purpose'|0'
+-- let seed = "My Secret Seed"
+--
+-- let rootXPrv :: SeqKey 'RootK XPrv
+--     rootXPrv = generateKeyFromSeed (seed, mempty) mempty
+--
+-- let accIx :: Index 'Hardened 'AccountK
+--     accIx = toEnum 0x80000000
+--
+-- let accXPub :: SeqKey 'AccountL XPub
+--     accXPub = publicKey $ deriveAccountPrivateKey mempty rootXPrv accIx
+-- @

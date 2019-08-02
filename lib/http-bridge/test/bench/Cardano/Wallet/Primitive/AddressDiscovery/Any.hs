@@ -1,6 +1,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -66,7 +68,7 @@ instance IsOurs AnyAddressState where
         where
           p' = floor (fromIntegral (maxBound :: Word32) * p)
 
-instance IsOwned AnyAddressState where
+instance IsOwned AnyAddressState key where
     isOwned _ _ _ = Nothing
 
 instance GenChange AnyAddressState where

@@ -30,9 +30,14 @@ import Cardano.Wallet.HttpBridge.Transaction
 import Cardano.Wallet.Network
     ( NetworkLayer (..), defaultRetryPolicy, networkTip, waitForConnection )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress (..), Passphrase (..), digest, publicKey )
+    ( KeyToAddress (..)
+    , Passphrase (..)
+    , digest
+    , generateKeyFromSeed
+    , publicKey
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( generateKeyFromSeed )
+    ( SeqKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOwned )
 import Cardano.Wallet.Primitive.AddressDiscovery.Any
@@ -52,6 +57,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletState (..)
     )
+import Cardano.Wallet.Transaction
+    ( TransactionLayer )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Concurrent
@@ -110,28 +117,29 @@ main = do
     hSetBuffering stderr NoBuffering
     installSignalHandlers
     network <- getArgs >>= parseNetwork
+    let seq = Proxy @SeqKey
     case network of
         Testnet -> do
             let proxy = Proxy @'Testnet
             prepareNode proxy
             runBenchmarks
                 [ bench ("restore " <> toText network <> " seq")
-                    (bench_restoration proxy (walletSeq @'Testnet))
+                    (bench_restoration proxy seq (walletSeq @'Testnet))
                 , bench ("restore " <> toText network <> " 10% ownership")
-                    (bench_restoration proxy wallet10p)
+                    (bench_restoration proxy seq wallet10p)
                 ]
         Mainnet -> do
             let proxy = Proxy @'Mainnet
             prepareNode proxy
             runBenchmarks
                 [ bench ("restore " <> toText network <> " seq")
-                    (bench_restoration proxy (walletSeq @'Mainnet))
+                    (bench_restoration proxy seq (walletSeq @'Mainnet))
                 , bench ("restore " <> toText network <> " 10% ownership")
-                    (bench_restoration proxy wallet10p)
+                    (bench_restoration proxy seq wallet10p)
                 ]
   where
     walletSeq
-        :: KeyToAddress (HttpBridge n)
+        :: KeyToAddress (HttpBridge n) SeqKey
         => (WalletId, WalletName, SeqState (HttpBridge n))
     walletSeq =
         let
@@ -191,25 +199,26 @@ parseNetwork = \case
 
 {-# ANN bench_restoration ("HLint: ignore Use camelCase" :: String) #-}
 bench_restoration
-    :: forall (n :: Network) s t.
-        ( IsOwned s
+    :: forall (n :: Network) s t key.
+        ( IsOwned s key
         , NFData s
         , Show s
         , PersistState s
         , KnownNetwork n
         , t ~ HttpBridge n
-        , KeyToAddress t
+        , KeyToAddress t key
         )
     => Proxy n
+    -> Proxy key
     -> (WalletId, WalletName, s)
     -> IO ()
-bench_restoration _ (wid, wname, s) = withHttpBridge network $ \port -> do
+bench_restoration _ _ (wid, wname, s) = withHttpBridge network $ \port -> do
     logConfig <- CM.empty
     dbFile <- Just <$> emptySystemTempFile "bench.db"
     (ctx, db) <- Sqlite.newDBLayer logConfig nullTracer dbFile
     Sqlite.unsafeRunQuery ctx (void $ runMigrationSilent migrateAll)
     nw <- newNetworkLayer port
-    let tl = newTransactionLayer
+    let tl = newTransactionLayer :: TransactionLayer t key
     BlockHeader sl _ <- unsafeRunExceptT $ networkTip nw
     sayErr . fmt $ network ||+ " tip is at " +|| sl ||+ ""
     let bp = byronBlockchainParameters
@@ -263,7 +272,7 @@ prepareNode _ = do
 -- | Regularly poll the wallet to monitor it's syncing progress. Block until the
 -- wallet reaches 100%.
 waitForWalletSync
-    :: WalletLayer s t
+    :: WalletLayer s t key
     -> WalletId
     -> IO ()
 waitForWalletSync walletLayer wid = do

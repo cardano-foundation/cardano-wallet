@@ -23,7 +23,9 @@ import Cardano.Wallet.Jormungandr.Environment
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (AddressK), Key, Passphrase (..), XPrv, getKey )
+    ( Depth (AddressK), Passphrase (..), XPrv )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( SeqKey (..) )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
@@ -56,7 +58,7 @@ import qualified Cardano.Wallet.Jormungandr.Binary as Binary
 newTransactionLayer
     :: forall n t. (KnownNetwork n, t ~ Jormungandr n)
     => Hash "Genesis"
-    -> TransactionLayer t
+    -> TransactionLayer t SeqKey
 newTransactionLayer (Hash block0) = TransactionLayer
     { mkStdTx = \keyFrom rnps outs -> do
         -- NOTE
@@ -82,7 +84,7 @@ newTransactionLayer (Hash block0) = TransactionLayer
         Quantity $ length inps + length outs + length chgs
 
     , estimateMaxNumberOfInputs =
-        estimateMaxNumberOfInputsBase @t Binary.estimateMaxNumberOfInputsParams
+        estimateMaxNumberOfInputsBase @t @SeqKey Binary.estimateMaxNumberOfInputsParams
 
     , validateSelection = \(CoinSelection inps outs _) -> do
         when (length inps > maxNumberOfInputs || length outs > maxNumberOfOutputs)
@@ -91,7 +93,7 @@ newTransactionLayer (Hash block0) = TransactionLayer
   where
     sign
         :: ByteString
-        -> (Key 'AddressK XPrv, Passphrase "encryption")
+        -> (SeqKey 'AddressK XPrv, Passphrase "encryption")
         -> TxWitness
     sign bytes (key, (Passphrase pwd)) =
         TxWitness . CC.unXSignature $ CC.sign pwd (getKey key) bytes

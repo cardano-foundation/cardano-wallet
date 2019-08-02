@@ -3,12 +3,15 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -59,13 +62,13 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , Index
-    , Key
     , KeyToAddress (..)
     , Passphrase (..)
-    , publicKey
+    , WalletKey (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( ChangeChain (..)
+    , SeqKey (..)
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
     , deriveAddressPublicKey
@@ -175,7 +178,7 @@ defaultAddressPoolGap =
 -- AddressPool { }
 data AddressPool target (chain :: ChangeChain) = AddressPool
     { accountPubKey
-        :: !(Key 'AccountK XPub)
+        :: !(SeqKey 'AccountK XPub)
         -- ^ Corresponding key for the pool (a pool is tied to only one account)
     , gap
         :: !AddressPoolGap
@@ -218,8 +221,8 @@ addresses = map fst . L.sortOn snd . Map.toList . indexedAddresses
 -- The pool will grow from the start if less than @g :: AddressPoolGap@ are
 -- given, such that, there are always @g@ undiscovered addresses in the pool.
 mkAddressPool
-    :: forall t chain. (KeyToAddress t, Typeable chain)
-    => Key 'AccountK XPub
+    :: forall t chain. (KeyToAddress t SeqKey, Typeable chain)
+    => SeqKey 'AccountK XPub
     -> AddressPoolGap
     -> [Address]
     -> AddressPool t chain
@@ -242,7 +245,7 @@ mkAddressPool key g addrs = AddressPool
 -- possible that the pool is not amended at all - this happens in the case that
 -- an address is discovered 'far' from the edge.
 lookupAddress
-    :: forall t chain. (KeyToAddress t, Typeable chain)
+    :: forall t chain. (KeyToAddress t SeqKey, Typeable chain)
     => Address
     -> AddressPool t chain
     -> (Maybe (Index 'Soft 'AddressK), AddressPool t chain)
@@ -256,7 +259,7 @@ lookupAddress !target !pool =
 -- | If an address is discovered near the edge, we extend the address sequence,
 -- otherwise we return the pool untouched.
 extendAddressPool
-    :: forall t chain. (KeyToAddress t, Typeable chain)
+    :: forall t chain. (KeyToAddress t SeqKey, Typeable chain)
     => Index 'Soft 'AddressK
     -> AddressPool t chain
     -> AddressPool t chain
@@ -275,9 +278,9 @@ extendAddressPool !ix !pool
 
 -- | Compute the pool extension from a starting index
 nextAddresses
-    :: forall t. KeyToAddress t
+    :: forall t. KeyToAddress t SeqKey
     => Proxy t
-    -> Key 'AccountK XPub
+    -> SeqKey 'AccountK XPub
     -> AddressPoolGap
     -> ChangeChain
     -> Index 'Soft 'AddressK
@@ -382,8 +385,8 @@ instance NFData (SeqState t)
 
 -- | Construct a Sequential state for a wallet.
 mkSeqState
-    :: KeyToAddress t
-    => (Key 'RootK XPrv, Passphrase "encryption")
+    :: KeyToAddress t SeqKey
+    => (SeqKey 'RootK XPrv, Passphrase "encryption")
     -> AddressPoolGap
     -> SeqState t
 mkSeqState (rootXPrv, pwd) g =
@@ -402,7 +405,7 @@ mkSeqState (rootXPrv, pwd) g =
 -- account discovery algorithm is only specified for the external chain so
 -- in theory, there's nothing forcing a wallet to generate change
 -- addresses on the internal chain anywhere in the available range.
-instance KeyToAddress t => IsOurs (SeqState t) where
+instance KeyToAddress t SeqKey => IsOurs (SeqState t) where
     isOurs addr (SeqState !s1 !s2 !ixs) =
         let
             (internal, !s1') = lookupAddress addr s1
@@ -414,7 +417,7 @@ instance KeyToAddress t => IsOurs (SeqState t) where
         in
             (ixs' `deepseq` ours `deepseq` ours, SeqState s1' s2' ixs')
 
-instance KeyToAddress t => GenChange (SeqState t) where
+instance KeyToAddress t SeqKey => GenChange (SeqState t) where
     -- | We pick indexes in sequence from the first known available index (i.e.
     -- @length addrs - gap@) but we do not generate _new change addresses_. As a
     -- result, we can't generate more than @gap@ _pending_ change addresses and
@@ -430,7 +433,7 @@ instance KeyToAddress t => GenChange (SeqState t) where
         in
             (addr, SeqState intPool extPool pending')
 
-instance KeyToAddress t => IsOwned (SeqState t) where
+instance KeyToAddress t SeqKey => IsOwned (SeqState t) SeqKey where
     isOwned (SeqState !s1 !s2 _) (rootPrv, pwd) addr =
         let
             xPrv1 = lookupAndDeriveXPrv s1
@@ -442,7 +445,7 @@ instance KeyToAddress t => IsOwned (SeqState t) where
         lookupAndDeriveXPrv
             :: forall chain. (Typeable chain)
             => AddressPool t chain
-            -> Maybe (Key 'AddressK XPrv)
+            -> Maybe (SeqKey 'AddressK XPrv)
         lookupAndDeriveXPrv pool =
             let
                 -- We are assuming there is only one account
@@ -452,7 +455,7 @@ instance KeyToAddress t => IsOwned (SeqState t) where
             in
                 deriveAddressPrivateKey pwd accountPrv cc <$> addrIx
 
-instance KeyToAddress t => CompareDiscovery (SeqState t) where
+instance KeyToAddress t SeqKey => CompareDiscovery (SeqState t) where
     compareDiscovery (SeqState !s1 !s2 _) a1 a2 =
         let
             ix a = fst . lookupAddress a

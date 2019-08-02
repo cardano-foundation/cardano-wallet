@@ -12,6 +12,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -69,7 +70,7 @@ import Cardano.Wallet.DB.Sqlite.TH
 import Cardano.Wallet.DB.Sqlite.Types
     ( AddressPoolXPub (..), BlockId (..), TxId (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), deserializeXPrv, serializeXPrv )
+    ( Depth (..), PersistKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Types
@@ -155,6 +156,7 @@ import System.Log.FastLogger
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as W
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -216,14 +218,14 @@ handleConstraint e = handleJust select handler . fmap Right
 -- If the given file path does not exist, it will be created by the sqlite
 -- library.
 withDBLayer
-    :: forall s t a. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t)
+    :: forall s t key a. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t, PersistKey key)
     => CM.Configuration
        -- ^ Logging configuration
     -> Trace IO Text
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
-    -> (DBLayer IO s t -> IO a)
+    -> (DBLayer IO s t key -> IO a)
        -- ^ Action to run.
     -> IO a
 withDBLayer logConfig trace fp action = bracket before after between
@@ -249,14 +251,14 @@ destroyDBLayer (SqliteContext {getSqlBackend, trace, dbFile}) = do
 -- should be closed with 'destroyDBLayer'. If you use 'withDBLayer' then both of
 -- these things will be handled for you.
 newDBLayer
-    :: forall s t. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t)
+    :: forall s t key. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t, PersistKey key)
     => CM.Configuration
        -- ^ Logging configuration
     -> Trace IO Text
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
-    -> IO (SqliteContext, DBLayer IO s t)
+    -> IO (SqliteContext, DBLayer IO s t key)
 newDBLayer logConfig trace fp = do
     lock <- newMVar ()
     let trace' = transformTrace trace
@@ -482,8 +484,9 @@ metadataFromEntity wal = W.WalletMetadata
     }
 
 mkPrivateKeyEntity
-    :: W.WalletId
-    -> (W.Key 'RootK XPrv, W.Hash "encryption")
+    :: PersistKey key
+    => W.WalletId
+    -> (key 'RootK XPrv, W.Hash "encryption")
     -> PrivateKey
 mkPrivateKeyEntity wid kh = PrivateKey
     { privateKeyWalletId = wid
@@ -494,8 +497,9 @@ mkPrivateKeyEntity wid kh = PrivateKey
     (root, hash) = serializeXPrv kh
 
 privateKeyFromEntity
-    :: PrivateKey
-    -> Either String (W.Key 'RootK XPrv, W.Hash "encryption")
+    :: PersistKey key
+    => PrivateKey
+    -> Either String (key 'RootK XPrv, W.Hash "encryption")
 privateKeyFromEntity (PrivateKey _ k h) = deserializeXPrv (k, h)
 
 mkCheckpointEntity
@@ -801,7 +805,7 @@ class DefineTx t => PersistTx t where
     -- some outputs. Returns 'Nothing' if the transaction couldn't be
     -- constructed.
 
-instance W.KeyToAddress t => PersistState (W.SeqState t) where
+instance W.KeyToAddress t W.SeqKey => PersistState (W.SeqState t) where
     insertState (wid, sl) st = do
         let (intPool, extPool) = (W.internalPool st, W.externalPool st)
         let (xpub, _) = W.invariant
@@ -844,7 +848,7 @@ insertAddressPool ssid pool =
         ]
 
 selectAddressPool
-    :: forall t chain. (W.KeyToAddress t, Typeable chain)
+    :: forall t chain. (W.KeyToAddress t W.SeqKey, Typeable chain)
     => SeqStateId
     -> W.AddressPoolGap
     -> AddressPoolXPub

@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -24,7 +25,9 @@ import Cardano.CLI
 import Cardano.Crypto.Wallet
     ( unXPub )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress (..), getKey )
+    ( KeyToAddress (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( SeqKey (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), DecodeAddress (..), EncodeAddress (..) )
 import Control.Concurrent
@@ -444,7 +447,7 @@ instance Arbitrary (Port "test") where
 
 data DummyTarget
 
-instance KeyToAddress DummyTarget where
+instance KeyToAddress DummyTarget SeqKey where
     keyToAddress = Address . unXPub . getKey
 
 instance EncodeAddress DummyTarget where
