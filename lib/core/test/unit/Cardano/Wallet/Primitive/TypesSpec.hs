@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -31,6 +32,8 @@ import Cardano.Wallet.Primitive.Types
     , HistogramBar (..)
     , ShowFmt (..)
     , SlotId (..)
+    , SlotLength (..)
+    , StartTime (..)
     , TxIn (..)
     , TxMeta (TxMeta)
     , TxOut (..)
@@ -48,7 +51,9 @@ import Cardano.Wallet.Primitive.Types
     , isValidCoin
     , restrictedBy
     , restrictedTo
+    , slotAt
     , slotRatio
+    , slotStartTime
     , walletNameMaxLength
     , walletNameMinLength
     )
@@ -78,6 +83,7 @@ import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , NonZero (..)
     , Property
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
@@ -89,13 +95,18 @@ import Test.QuickCheck
     , property
     , scale
     , vectorOf
+    , withMaxSuccess
     , (=/=)
     , (===)
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
+import Test.QuickCheck.Instances.Time
+    ()
 import Test.Text.Roundtrip
     ( textRoundtrip )
+import Test.Utils.Time
+    ( genUniformTime )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -145,6 +156,22 @@ spec = do
             fromFlatSlot slotsPerEpoch (flatSlot slotsPerEpoch sl) === sl
         it "fromFlatSlot . flatSlot == id" $ property $ \n ->
             flatSlot slotsPerEpoch (fromFlatSlot slotsPerEpoch n) === n
+
+    describe "SlotId <-> UTCTime conversions" $ do
+        it "slotAt . slotStartTime == id" $ withMaxSuccess 1000 $ property $
+            \slotLength startTime (epochLength, sl) -> do
+                let slotAt' = slotAt
+                        epochLength
+                        slotLength
+                        startTime
+
+                let slotStartTime' = slotStartTime
+                        epochLength
+                        slotLength
+                        startTime
+
+                counterexample (show $ slotStartTime' sl) $
+                    slotAt' (slotStartTime' sl) === sl
 
     describe "Negative cases for types decoding" $ do
         it "fail fromText @AddressState \"unusedused\"" $ do
@@ -499,3 +526,33 @@ instance Arbitrary WalletName where
 instance Arbitrary BoundType where
     shrink = genericShrink
     arbitrary = genericArbitrary
+
+instance Arbitrary SlotLength where
+    shrink (SlotLength t) =
+        map (SlotLength . fromIntegral)
+        $ filter (> 0)
+        $ shrink (floor t :: Int)
+    arbitrary =
+        SlotLength . fromIntegral <$> choose (1 :: Int, 100)
+
+instance Arbitrary StartTime where
+    arbitrary = StartTime <$> genUniformTime
+
+instance Arbitrary EpochLength where
+    arbitrary = EpochLength . getNonZero <$> arbitrary
+
+-- | Note, for functions which works with both an epoch length and a slot id,
+-- we need to make sure that the 'slotNumber' doesn't exceed the epoch length,
+-- otherwise, all computations get mixed up.
+instance {-# OVERLAPS #-} Arbitrary (EpochLength, SlotId) where
+    shrink (a,b) =
+        filter validSlotConfig $ zip (shrink a) (shrink b)
+      where
+        validSlotConfig (EpochLength ep, SlotId _ sl) = sl < ep
+
+    arbitrary = do
+        (EpochLength epochLength) <- arbitrary
+        ep <- choose (0, 1000)
+        sl <- choose (0, fromIntegral epochLength - 1)
+        return (EpochLength epochLength, SlotId ep sl)
+

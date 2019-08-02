@@ -9,6 +9,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -79,6 +80,7 @@ module Cardano.Wallet.Primitive.Types
     , flatSlot
     , fromFlatSlot
     , slotStartTime
+    , slotAt
     , slotDifference
 
     -- * Wallet Metadata
@@ -147,7 +149,7 @@ import Data.Text.Class
     , toTextFromBoundedEnum
     )
 import Data.Time.Clock
-    ( NominalDiffTime, UTCTime, addUTCTime )
+    ( NominalDiffTime, UTCTime, addUTCTime, diffUTCTime )
 import Data.Word
     ( Word16, Word32, Word64 )
 import Fmt
@@ -850,14 +852,14 @@ slotRatio epochLength a b =
 -- | Convert a 'SlotId' to the number of slots since genesis.
 flatSlot :: EpochLength -> SlotId -> Word64
 flatSlot (EpochLength epochLength) (SlotId e s) =
-    epochLength * e + fromIntegral s
+    fromIntegral epochLength * e + fromIntegral s
 
 -- | Convert a 'flatSlot' index to 'SlotId'.
 fromFlatSlot :: EpochLength -> Word64 -> SlotId
 fromFlatSlot (EpochLength epochLength) n = SlotId e (fromIntegral s)
   where
-    e = n `div` epochLength
-    s = n `mod` epochLength
+    e = n `div` fromIntegral epochLength
+    s = n `mod` fromIntegral epochLength
 
 -- | @slotDifference a b@ is how many slots @a@ is after @b@. The result is
 -- non-negative, and if @b > a@ then this function returns zero.
@@ -876,12 +878,32 @@ slotStartTime epochLength (SlotLength slotLength) (StartTime start) sl =
   where
     offset = slotLength * fromIntegral (flatSlot epochLength sl)
 
+-- | The SlotId at a given time.
+slotAt :: EpochLength -> SlotLength -> StartTime -> UTCTime -> SlotId
+slotAt (EpochLength nSlots) (SlotLength slotLength) (StartTime start) time =
+    SlotId
+        { epochNumber = ep
+        , slotNumber = sl
+        }
+  where
+    diff :: NominalDiffTime
+    diff = time `diffUTCTime` start
+
+    epochLength :: NominalDiffTime
+    epochLength = fromIntegral nSlots * slotLength
+
+    ep :: Word64
+    ep = floor (diff / epochLength)
+
+    sl :: Word16
+    sl = floor ((diff - (fromIntegral ep) * epochLength) / slotLength)
+
 -- | Duration of a single slot.
 newtype SlotLength = SlotLength NominalDiffTime
     deriving (Show, Eq)
 
 -- | Number of slots in a single epoch
-newtype EpochLength = EpochLength Word64
+newtype EpochLength = EpochLength Word16
     deriving (Show, Eq)
 
 -- | Blockchain start time

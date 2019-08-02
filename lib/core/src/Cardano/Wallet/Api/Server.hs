@@ -691,9 +691,9 @@ instance LiftHandler ErrListTransactions where
 instance LiftHandler ErrStartTimeLaterThanEndTime where
     handler err = apiError err400 StartTimeLaterThanEndTime $ mconcat
         [ "The specified start time '"
-        , toText $ Iso8601Time $ startTime err
+        , toText $ Iso8601Time $ errStartTime err
         , "' is later than the specified end time '"
-        , toText $ Iso8601Time $ endTime err
+        , toText $ Iso8601Time $ errEndTime err
         , "'."
         ]
 
