@@ -41,15 +41,31 @@ import Cardano.Wallet.Primitive.AddressDerivationSpec
     , decodeTest4
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs (..) )
+    ( IsOurs (..), IsOwned (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..) )
+import Control.Monad
+    ( unless )
+import Control.Monad.IO.Class
+    ( liftIO )
+import Data.Maybe
+    ( isJust )
 import Test.Hspec
-    ( Expectation, Spec, describe, it, shouldBe, xit )
+    ( Expectation, Spec, describe, expectationFailure, it, shouldBe, xit )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, choose, property, vectorOf, (.&&.), (===) )
+    ( Arbitrary (..)
+    , Property
+    , choose
+    , property
+    , vectorOf
+    , (.&&.)
+    , (===)
+    , (==>)
+    )
+import Test.QuickCheck.Monadic
+    ( monadicIO )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -62,6 +78,10 @@ spec = do
             property prop_keyDerivationObeysIsOurs
 
     goldenSpec
+
+    describe "IsOwned" $ do
+        it "Any discovered address has a corresponding private key!" $ do
+            (property prop_lookupDiscovered)
 
 
 {-------------------------------------------------------------------------------
@@ -112,6 +132,17 @@ prop_keyDerivationObeysIsOurs seed encPwd accIx addrIx rk' =
     addrXPrv = deriveAddressPrivateKey encPwd accXPrv addrIx
     _addrXPub = publicKey addrXPrv
     address = undefined -- here use -> keyToAddress rootXPub addrXPub accIx addIx @Network
+
+prop_lookupDiscovered
+    :: (Key 'RootK XPrv, Address)
+    -> Property
+prop_lookupDiscovered (rk, addr) =
+    let (ours, s) = isOurs addr (RndState rk) in ours ==> prop s
+  where
+    prop s = monadicIO $ liftIO $ do
+        unless (isJust $ isOwned (RndState rk) (rk, mempty) addr) $ do
+            expectationFailure "couldn't find private key corresponding to addr"
+
 
 instance Eq RndState where
     (RndState (Key a)) == (RndState (Key b)) = unXPrv a == unXPrv b
