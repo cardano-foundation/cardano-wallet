@@ -24,7 +24,12 @@ import Prelude
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), Key, XPrv, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( addrToPayload, decodeAddressDerivationPath, deserialise )
+    ( addrToPayload
+    , decodeAddressDerivationPath
+    , deriveAccountPrivateKey
+    , deriveAddressPrivateKey
+    , deserialise
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -49,7 +54,13 @@ instance IsOurs RndState where
             _ -> (False, RndState s)
 
 instance IsOwned RndState where
-    isOwned _ _ _ = Nothing
+    isOwned (RndState s) (_, pwd) addr =
+        case deserialise (decodeAddressDerivationPath $ publicKey s) (addrToPayload addr) of
+            Right (Just (accIx, addrIx) ) -> do
+                let accXPrv = deriveAccountPrivateKey pwd s accIx
+                let addrXPrv = deriveAddressPrivateKey pwd accXPrv addrIx
+                Just (addrXPrv, pwd)
+            _ -> Nothing
 
 instance GenChange RndState where
     genChange s = (error "GenChange RndState unimplemented", s)
