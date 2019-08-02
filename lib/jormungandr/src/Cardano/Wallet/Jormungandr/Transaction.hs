@@ -60,8 +60,7 @@ newTransactionLayer
 newTransactionLayer (Hash block0) = TransactionLayer
     { mkStdTx = \keyFrom rnps outs -> do
         -- NOTE
-        --
-        -- Yet, for signing, we need to embed a hash of the transaction data
+        -- For signing, we need to embed a hash of the transaction data
         -- without the witnesses (since we don't yet have them!). In this sense,
         -- this is a transaction id as Byron nodes or the http-bridge
         -- defines them.
