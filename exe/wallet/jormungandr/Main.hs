@@ -121,7 +121,7 @@ import Options.Applicative
     , progDesc
     )
 import System.Environment
-    ( getProgName )
+    ( getExecutablePath )
 import System.Exit
     ( exitFailure )
 import System.FilePath
@@ -207,7 +207,7 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
     exec (LaunchArgs listen nodePort mStateDir verbosity jArgs) = do
         requireFilePath (_genesisBlock jArgs)
         requireFilePath (_bftLeaders jArgs)
-        cmdName <- getProgName
+        cmdName <- getExecutablePath
         block0H <- parseBlock0H (_genesisBlock jArgs)
         let baseUrl = BaseUrl Http "127.0.0.1" (getPort nodePort) "/api"
         let stateDir = fromMaybe (dataDir </> "testnet") mStateDir

@@ -109,7 +109,7 @@ import Options.Applicative
     , value
     )
 import System.Environment
-    ( getProgName )
+    ( getExecutablePath )
 import System.FilePath
     ( (</>) )
 
@@ -175,7 +175,7 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
     exec (LaunchArgs network listen nodePort mStateDir verbosity) = do
         let withStateDir _ _ = pure ()
         let stateDir = fromMaybe (stateDirForNetwork dataDir network) mStateDir
-        cmdName <- getProgName
+        cmdName <- getExecutablePath
         execLaunch verbosity stateDir withStateDir
             [ commandHttpBridge stateDir
             , commandWalletServe cmdName stateDir
