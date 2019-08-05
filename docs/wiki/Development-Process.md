@@ -1,6 +1,9 @@
 <p align="center">
-    ![IOHK](iohk-signature.gif)
+    <img alt="IOHK" src="cardano-logo.png" />
 </p>
+
+![](cardano-logo.png)
+![](iohk-signature.gif)
 
 The team follows a methodology known as [extreme programming][xp] which can be summarized as follows:
 
