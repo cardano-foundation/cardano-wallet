@@ -94,7 +94,6 @@
             (hsPkgs.memory)
             (hsPkgs.network)
             (hsPkgs.QuickCheck)
-            (hsPkgs.quickcheck-instances)
             (hsPkgs.quickcheck-state-machine)
             (hsPkgs.random)
             (hsPkgs.servant)

@@ -101,8 +101,6 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
-import Test.QuickCheck.Instances.Time
-    ()
 import Test.Text.Roundtrip
     ( textRoundtrip )
 import Test.Utils.Time
