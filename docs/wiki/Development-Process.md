@@ -1,5 +1,5 @@
 <p align="center">
-    ![IOHK](iohk-logo.png)
+    ![IOHK](iohk-signature.png)
 </p>
 
 The team follows a methodology known as [extreme programming][xp] which can be summarized as follows:
