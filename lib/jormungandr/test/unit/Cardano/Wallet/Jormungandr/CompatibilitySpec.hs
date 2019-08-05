@@ -271,7 +271,8 @@ spec = do
                     "topics_of_interest": {
                         "messages": "low",
                         "blocks": "normal"
-                    }
+                    },
+                    "public_address" : "/ip4/127.0.0.1/tcp/8081"
                 }
             }|]
 

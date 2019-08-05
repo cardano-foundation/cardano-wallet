@@ -228,6 +228,7 @@ genConfigFile stateDir (BaseUrl _ host port path) = object
             [ "messages" .= String "low"
             , "blocks" .= String "normal"
             ]
+        , "public_address" .= String "/ip4/127.0.0.1/tcp/8081"
         ]
     ]
   where
