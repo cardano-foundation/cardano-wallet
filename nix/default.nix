@@ -36,6 +36,7 @@ let
         packages.cardano-wallet-launcher.src = src + /lib/launcher;
         packages.cardano-wallet-http-bridge.src = src + /lib/http-bridge;
         packages.cardano-wallet-jormungandr.src = src + /lib/jormungandr;
+        packages.cardano-wallet-shelley.src = src + /lib/shelley;
         packages.cardano-wallet-test-utils.src = src + /lib/test-utils;
         packages.text-class.src = src + /lib/text-class;
         packages.bech32.src = src + /lib/bech32;
