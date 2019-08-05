@@ -169,6 +169,7 @@ spec = do
 
     describe "LOGGING - cardano-wallet launch logging" $ do
         it "LOGGING - Launch can log --verbose" $ withTempDir $ \d -> do
+            pendingWith "See 'LAUNCH - Restoration workers restart'"
             let args = ["launch", "--state-dir", d, "--verbose"]
             let process = proc' (commandName @t) args
             (out, _) <- collectStreams (35, 0) process
@@ -178,6 +179,7 @@ spec = do
             out `shouldContainT` "Notice"
 
         it "LOGGING - Launch --quiet logs Error only" $ withTempDir $ \d -> do
+            pendingWith "See 'LAUNCH - Restoration workers restart'"
             let args = ["launch", "--state-dir", d, "--quiet"]
             let process = proc' (commandName @t) args
             (out, err) <- collectStreams (10, 10) process
@@ -185,6 +187,7 @@ spec = do
             err `shouldBe` mempty
 
         it "LOGGING - Launch default logs Info" $ withTempDir $ \d -> do
+            pendingWith "See 'LAUNCH - Restoration workers restart'"
             let args = ["launch", "--state-dir", d]
             let process = proc' (commandName @t) args
             (out, _) <- collectStreams (20, 0) process
