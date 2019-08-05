@@ -53,3 +53,7 @@
 ```
 
 - [ ] Verify latest [buildkite nightly](https://buildkite.com/input-output-hk/cardano-wallet-nightly) and make sure the results are fine.
+
+- [ ] Manually run the disabled `LAUNCH` tests in:
+    - [ ] `lib/http-bridge/test/integration/Test/Integration/HttpBridge/Scenario/CLI/Launcher.hs`
+    - [ ] `lib/jormungandr/test/integration/Test/Integration/Jormungandr/Scenario/CLI/Launcher.hs`
