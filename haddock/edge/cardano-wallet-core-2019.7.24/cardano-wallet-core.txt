@@ -472,7 +472,7 @@ SlotLength :: NominalDiffTime -> SlotLength
 
 -- | Number of slots in a single epoch
 newtype EpochLength
-EpochLength :: Word64 -> EpochLength
+EpochLength :: Word16 -> EpochLength
 
 -- | Blockchain start time
 newtype StartTime
@@ -491,6 +491,9 @@ fromFlatSlot :: EpochLength -> Word64 -> SlotId
 
 -- | The time that a slot begins.
 slotStartTime :: EpochLength -> SlotLength -> StartTime -> SlotId -> UTCTime
+
+-- | The SlotId at a given time.
+slotAt :: EpochLength -> SlotLength -> StartTime -> UTCTime -> SlotId
 
 -- | <tt>slotDifference a b</tt> is how many slots <tt>a</tt> is after
 --   <tt>b</tt>. The result is non-negative, and if <tt>b &gt; a</tt> then
@@ -678,6 +681,7 @@ instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.Address
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.Address
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.Address
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.Address
+instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.TxWitness
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.TxWitness
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.TxWitness
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.Direction
@@ -2347,7 +2351,7 @@ resolvedInputs :: PersistTx t => Tx t -> [(TxIn, Maybe Coin)]
 --   require quite a lot of work. So, we kinda force the format here and
 --   only here, and leave the rest of the code with an opaque
 --   <tt>ResolvedTxIn</tt> type.
-mkTx :: PersistTx t => [(TxIn, Maybe Coin)] -> [TxOut] -> Tx t
+mkTx :: PersistTx t => Hash "Tx" -> [(TxIn, Maybe Coin)] -> [TxOut] -> Tx t
 instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.DB.Sqlite.DBLog
 instance GHC.Classes.Eq Cardano.Wallet.DB.Sqlite.DBLog
 instance GHC.Show.Show Cardano.Wallet.DB.Sqlite.DBLog
@@ -2531,8 +2535,8 @@ ErrSignTxWithRootKey :: ErrWithRootKey -> ErrSignTx
 --   end time.
 data ErrStartTimeLaterThanEndTime
 ErrStartTimeLaterThanEndTime :: UTCTime -> UTCTime -> ErrStartTimeLaterThanEndTime
-[$sel:startTime:ErrStartTimeLaterThanEndTime] :: ErrStartTimeLaterThanEndTime -> UTCTime
-[$sel:endTime:ErrStartTimeLaterThanEndTime] :: ErrStartTimeLaterThanEndTime -> UTCTime
+[$sel:errStartTime:ErrStartTimeLaterThanEndTime] :: ErrStartTimeLaterThanEndTime -> UTCTime
+[$sel:errEndTime:ErrStartTimeLaterThanEndTime] :: ErrStartTimeLaterThanEndTime -> UTCTime
 
 -- | Errors occuring when submitting a signed transaction to the network
 data ErrSubmitTx

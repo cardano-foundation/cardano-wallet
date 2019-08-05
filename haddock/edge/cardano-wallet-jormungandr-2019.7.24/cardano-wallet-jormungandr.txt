@@ -52,7 +52,13 @@ instance Data.Text.Class.ToText Cardano.Wallet.Jormungandr.Environment.Network
 --   their corresponding resolved value as <a>Coin</a>.
 module Cardano.Wallet.Jormungandr.Primitive.Types
 data Tx
-Tx :: ![(TxIn, Coin)] -> ![TxOut] -> Tx
+Tx :: Hash "Tx" -> ![(TxIn, Coin)] -> ![TxOut] -> Tx
+
+-- | Jörmungandr computes transaction id by hashing the full content of the
+--   transaction, which includes witnesses. Therefore, we need either to
+--   keep track of the witnesses to be able to re-compute the tx id every
+--   time, or, simply keep track of the id itself.
+[txid] :: Tx -> Hash "Tx"
 
 -- | NOTE: Order of inputs matters in the transaction representation. The
 --   transaction id is computed from the binary representation of a tx, for
@@ -160,6 +166,9 @@ Initial :: [ConfigParam] -> Message
 -- | A standard signed transaction
 Transaction :: (Tx, [TxWitness]) -> Message
 UnimplementedMessage :: Int -> Message
+data MessageType
+MsgTypeInitial :: MessageType
+MsgTypeTransaction :: MessageType
 
 -- | Used to represent (&gt;= 0) rational numbers as (&gt;= 0) integers, by
 --   just multiplying by 1000. For instance: '3.141592' is represented as
@@ -176,9 +185,9 @@ getBlockId :: Get (Hash "BlockHeader")
 getMessage :: Get Message
 
 -- | Decode the contents of a <tt>Transaction</tt>-message.
-getTransaction :: Get (Tx, [TxWitness])
-putSignedTx :: (Tx, [TxWitness]) -> Put
-putTx :: Tx -> Put
+getTransaction :: Int -> Get (Tx, [TxWitness])
+putSignedTx :: [(TxIn, Coin)] -> [TxOut] -> [TxWitness] -> Put
+putTx :: [(TxIn, Coin)] -> [TxOut] -> Put
 coerceBlock :: Block -> Block Tx
 putAddress :: Address -> Put
 getAddress :: Get Address
@@ -195,8 +204,27 @@ blake2b256 :: ByteString -> ByteString
 -- | This provides network encoding specific variables to be used by the
 --   <tt>estimateMaxNumberOfInputs</tt> function.
 estimateMaxNumberOfInputsParams :: EstimateMaxNumberOfInputsParams t
+
+-- | Jörmungandr distinguish 'fragment id' (what we commonly call
+--   <tt>txId</tt>) from 'transaction sign data'. A transaction fragment
+--   corresponds to a signed transaction (inputs, outputs and witnesses).
+--   So, the witnesses are required to compute a <a>txid</a>.
+fragmentId :: [(TxIn, Coin)] -> [TxOut] -> [TxWitness] -> Hash "Tx"
 maxNumberOfInputs :: Int
 maxNumberOfOutputs :: Int
+
+-- | See <a>fragmentId</a>. This computes the signing data required for
+--   producing transaction witnesses.
+signData :: [(TxIn, Coin)] -> [TxOut] -> Hash "SignData"
+
+-- | Add a corresponding header to a message. Every message is encoded as:
+--   
+--   HEADER(MESSAGE) | MESSAGE
+--   
+--   where <tt>HEADER</tt> is:
+--   
+--   SIZE (2 bytes) | TYPE (1 byte)
+withHeader :: MessageType -> Put -> Put
 data Get a
 
 -- | The simplest interface to run a <a>Get</a> decoder. If the decoder
@@ -270,7 +298,7 @@ data Scheme
 Http :: Scheme
 Https :: Scheme
 
--- | Generate a configuration file for Jörmungandr@0.2.3
+-- | Generate a configuration file for Jörmungandr@0.3.1
 genConfigFile :: FilePath -> BaseUrl -> Value
 instance Cardano.Wallet.Primitive.Types.DefineTx (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr network)
 instance Cardano.Wallet.DB.Sqlite.PersistTx (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr network)
