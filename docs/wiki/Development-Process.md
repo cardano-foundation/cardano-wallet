@@ -1,6 +1,8 @@
-The team follows a methodology known as [extreme programming][xp] which can be summarized as follows:
+<p align="center">
+    ![IOHK](iohk-logo.png)
+</p>
 
-![cardano-logo.png](cardano-logo.png)
+The team follows a methodology known as [extreme programming][xp] which can be summarized as follows:
 
 ## Planning
 
