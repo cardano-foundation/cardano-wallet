@@ -4,22 +4,27 @@
 
 The team follows a methodology known as [extreme programming][xp] which can be summarized as follows:
 
+## Roadmap
+
+- Our Roadmap is specified [in our wiki](https://github.com/input-output-hk/cardano-wallet/wiki/Roadmap)
+- Items on the Roadmap are prioritized (items at the top are the most important)
+- The Roadmap reflects user-stories (and not technical details)
+- The Roadmap is reviewed and discussed with the product team
+
 ## Planning
 
 - The project is divided into iterations of 2 weeks
 - Releases are small and occur often (every 4 weeks at most)
-- User stories are specified, understood, estimated and agreed upon upfront during a release planning
-- An iteration planning starts each iteration:
-    - bugs or failing tests to be fixed from previous iteration become tasks
-    - one or more user stories are selected and broken down into tasks 
+- An iteration planning starts each iteration
+- A few days before the iteration planning meeting, one or more user stories are selected and broken down into tasks 
+- During the iteration planning meeting:
     - tasks are estimated and prioritized; tasks that are too big are broken down further
-    - At the end of an iteration, there should be no tasks left 
-- Project velocity is measured for each iteration
-- Tasks, PR & Bugs all have a dedicated GitHub template:
+    - unfinished tasks from a previous iteration are carried over with increased priority
+- Project velocity is measured for each iteration and help estimating how big can be a single iteration
+- Tasks and PR have a dedicated GitHub template:
     - [Task Template](https://github.com/input-output-hk/cardano-wallet/blob/master/.github/ISSUE_TEMPLATE/task.md)
-    - [Bug Template](https://github.com/input-output-hk/cardano-wallet/blob/master/.github/ISSUE_TEMPLATE/bug.md)
     - [PR Template](https://github.com/input-output-hk/cardano-wallet/blob/master/.github/PULL_REQUEST_TEMPLATE.md)
-- Tasks and Bugs move across the following board:
+- Tasks move across the following board (see Task template for transitions)
 
 ```
 |*************|  |*************|  |*************|  |*************|
@@ -30,11 +35,10 @@ The team follows a methodology known as [extreme programming][xp] which can be s
 |_____________|  |_____________|  |_____________|  |_____________|
 ```
 
-
 ## Coding
 
-- We work in pairs, each pair member reviewing the work of the other
 - The code is collectively owned, everyone is knowledgeable about every part of the code
+- The code is peer-reviewed
 - Code is following an agreed [standard and style][styleguide]
 - Code is integrated and tested daily to the main branch (`master`) through PR
 - The main branch should be _releasable_ at any time and not contain broken features
@@ -46,6 +50,8 @@ The team follows a methodology known as [extreme programming][xp] which can be s
 
 - All code should be covered by tests (either unit, integration or manual) 
 - Issues are closed by QA, once convinced by developers that the added code works and is covered
+    - Developers are expected to point relevant automated or manual test procedures to QA
+    - Developers may also point to documentation or, code details that ensure reliability of the code
 - When a bug is found, tests are created to illustrate the failure, prior to fixing it
 - Tests are ran daily in a integration environment
 
@@ -56,6 +62,7 @@ The team follows a methodology known as [extreme programming][xp] which can be s
 - The ticket is discussed on Slack with the team to confirm that it's indeed a bug.
 - Once confirmed, the label `UNCONFIRMED` is changed to `CONFIRMED` and the bug is given a priority.
 - If dispelled, the bug ticket is closed without further ado.  
+- Bugs then move across the same board as tasks, described previously.
 
 ## Communication
 
