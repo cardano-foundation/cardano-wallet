@@ -111,7 +111,7 @@ main = hspec $ do
     describe "Mnemonics CLI tests" (MnemonicsCLI.spec @t)
     describe "Miscellaneous CLI tests" (MiscellaneousCLI.spec @t)
     describe "Ports CLI (negative) tests" (PortCLI.specNegative @t)
-    describe "MERGE_DISABLED Launcher CLI tests" (LauncherCLI.spec @t)
+    describe "Launcher CLI tests" (LauncherCLI.spec @t)
     beforeAll (start Nothing) $ afterAll _cleanup $ after tearDown $ do
         -- API e2e Testing
         describe "PR_DISABLED Addresses API endpoint tests" Addresses.spec
