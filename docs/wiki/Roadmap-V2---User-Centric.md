@@ -80,6 +80,7 @@
     except only minimal disruptions of their service as we add new features
     to the software.
 
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 --- 
 
@@ -110,6 +111,7 @@ Why:
     additional functionalities can be added on top of this networking interface
     to provide high-level features to client applications.
 
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 --- 
 
@@ -149,6 +151,7 @@ Why:
     or remote explorer service, or simply a different UI (with deeplinks to an external
     service for instance).
 
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ---
 
@@ -173,6 +176,7 @@ Why:
     wallet software on their machine. This would be an important disruption of
     the existing service. 
 
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ---
 
@@ -196,7 +200,7 @@ Why:
     on their machine. This would be an important disruption of the existing
     service. 
 
-
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 --- 
 
@@ -233,6 +237,7 @@ Why:
     directly with the network but prefer consuming these pieces of information
     from the wallet backend.
 
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ---
 
@@ -268,6 +273,7 @@ Why:
     longer a possibility with a fully decentralized network, especially when
     running Ouroboros-praos which may require rolling back every few seconds.
 
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ---
 
@@ -292,6 +298,7 @@ Why:
     wallet backend would much benefit from this approach since it is now an
     external
 
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 --- 
 
@@ -319,7 +326,8 @@ Why:
     developers to avoid mistakes and better understand errors. A nice and
     polish software leads to less frustration and prevent from time loss
     tracking down an issue because of a poor error reporting.
-    
+  
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 --- 
 
@@ -343,6 +351,7 @@ Why:
     protection.  Having the system requiring stronger passphrases forces
     user to raise a bit their protection level. 
 
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ---
 
@@ -374,6 +383,7 @@ Why:
     already manages users' assets and have access to cryptographic materials
     necessary to register to a stake pool.
 
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ---
 
@@ -397,6 +407,7 @@ Why:
   - It should be as easy for users to stop participating into the delegation
     protocol than it is for them to join in order to not "lock them up". 
 
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ---
 
@@ -424,6 +435,10 @@ Why:
     applications to build a more complete user interface using only the wallet
     backend as a source of information.
 
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
+
+---
+
 ## :gift: Better Restoration Stress Benchmark
 
 **When:**
@@ -447,6 +462,11 @@ Why:
 
 **Why:**
   - Benchmarks provide some necessary results 
+
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
+
+
+---
 
 ## :gift: Better Supervision Of Launcher's Child Processes
 
@@ -474,6 +494,10 @@ Why:
     signal, but we can rely on OS-level functionality to make sure resources
     are released properly and on-time.
 
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
+
+
+---
 
 ## :question: Fine Grained Transaction Manipulation
 
@@ -493,13 +517,16 @@ Why:
   - Submitting a transaction shouldn't require any access to the wallet's root
     private key.
 
-
 **Why:**
   - Some users (e.g. big exchanges) do key management on their end and prefer
     not to share the sensitive cryptographic materials with a third-party
     software. This would also allow client applications to offload key
     management to hardware wallets components like Ledger or Trezor.
 
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
+
+
+---
 
 ## :hammer: Pagination Of Transaction History 
 
@@ -524,6 +551,9 @@ Why:
     efficient UI for showing a user all its transactions. Instead, having
     a well-paginated system which makes fetching the history easy helps
     building a much better user experience. 
+
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
+
 
 ---
 
