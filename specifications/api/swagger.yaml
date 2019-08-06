@@ -946,9 +946,12 @@ paths:
           type: string
           format: ISO 8601
           description: |
-            An optional start time in ISO 8601 date-and-time format.
-            Basic and extended formats are both accepted.
-            Times can be local (with a timezone offset) or UTC.
+            An optional start time in ISO 8601 date-and-time format. Basic and
+            extended formats are both accepted. Times can be local (with a
+            timezone offset) or UTC.
+
+            If both a start time and an end time are specified, then the start
+            time must not be later than the end time.
 
             Example: `2008-08-08T08:08:08Z`
         - in: query
@@ -956,9 +959,12 @@ paths:
           type: string
           format: ISO 8601
           description: |
-            An optional end time in ISO 8601 date-and-time format.
-            Basic and extended formats are both accepted.
-            Times can be local (with a timezone offset) or UTC.
+            An optional end time in ISO 8601 date-and-time format. Basic and
+            extended formats are both accepted. Times can be local (with a
+            timezone offset) or UTC.
+
+            If both a start time and an end time are specified, then the start
+            time must not be later than the end time.
 
             Example: `2008-08-08T08:08:08Z`
         - in: query
