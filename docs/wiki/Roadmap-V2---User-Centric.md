@@ -24,12 +24,33 @@
 #### Daedalus
 
 - [Legacy / Existing Wallet Support](#gift-legacy--existing-wallet-support)
+- [Transaction Input Resolution](#question-transaction-input-resolution)
+- [Wallet Backend on Windows](#gift-wallet-backend-on-windows)
+- [Wallet Backend on OSX](#gift-wallet-backend-on-osx)
+- [Pagination Of Transaction History](#hammer-pagination-of-transaction-history)
 
 #### Byron Rewrite
 
+- [Haskell `cardano-node` networking integration](#gift-haskell-cardano-node-networking-integration)
+- [Make Protocol Parameters Available to Clients](#gift-make-protocol-parameters-available-to-clients)
+- [Support Roll-backs](#gift-support-roll-backs)
+- [Automatic Software Update](#question-automatic-software-updates)
+- TODO: Keep Track of Protocol Parameters
+
 #### Shelley Phase
 
+- [Join Stake Pools](#gift-join-stake-pools)
+- [Quit Stake Pools](#hammer-quit-stake-pools)
+- [List Stake Pools](#hammer-listing-available-stake-pools)
+- [Fine Grained Transaction Manipulation](#question-fine-grained-transaction-manipulation)
+
 #### Miscellaneous
+
+- [Friendlier Command-Line](#gift-friendlier-command-line)
+- [Enforce Stronger Master Passphrases](#gift-enforce-stronger-master-passphrases)
+- [Better Restoration Benchmark](#gift-better-restoration-stress-benchmark)
+- [Better Supervision Of Child Processes](#gift-better-supervision-of-launchers-child-processes)
+- 
 
 ## :gift: Legacy / Existing Wallet Support
 
