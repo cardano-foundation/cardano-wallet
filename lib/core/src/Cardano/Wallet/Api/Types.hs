@@ -270,7 +270,8 @@ instance FromText Iso8601Time where
         err = TextDecodingError $ mempty
             <> "Unable to parse time argument: '"
             <> T.unpack t
-            <> "'. Expecting ISO 8601 format (basic or extended)."
+            <> "'. Expecting ISO 8601 date-and-time format (basic or extended)"
+            <> ", e.g. 2012-09-25T10:15:00Z."
 
 instance FromHttpApiData Iso8601Time where
     parseUrlPiece = first (T.pack . getTextDecodingError) . fromText

@@ -773,7 +773,10 @@ timeRangeStartOption :: Parser Iso8601Time
 timeRangeStartOption = optionT $ mempty
     <> long "start"
     <> metavar "TIME"
-    <> help "specifies a start time (ISO 8601 format: basic or extended)."
+    <> help (mconcat
+        [ "start time (ISO 8601 date-and-time format:"
+        , " basic or extended, e.g. 2012-09-25T10:15:00Z)."
+        ])
     <> showDefaultWith showT
 
 -- | [--end=TIME]
@@ -781,7 +784,10 @@ timeRangeEndOption :: Parser Iso8601Time
 timeRangeEndOption = optionT $ mempty
     <> long "end"
     <> metavar "TIME"
-    <> help "specifies an end time (ISO 8601 format: basic or extended)."
+    <> help (mconcat
+        [ "end time (ISO 8601 date-and-time format:"
+        , " basic or extended, e.g. 2016-11-21T10:15:00Z)."
+        ])
     <> showDefaultWith showT
 
 -- | [--order=ORDER]
