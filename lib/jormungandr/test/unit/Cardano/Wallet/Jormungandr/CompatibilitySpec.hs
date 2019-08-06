@@ -260,7 +260,7 @@ spec = do
         it "example configuration" $ do
             let stateDir = "/state-dir"
             let baseUrl = BaseUrl Http "127.0.0.1" 8080 "/api"
-            genConfigFile stateDir baseUrl `shouldBe` [aesonQQ|{
+            genConfigFile stateDir 8081 baseUrl `shouldBe` [aesonQQ|{
                 "storage": "/state-dir/chain",
                 "rest": {
                     "listen": "127.0.0.1:8080",
@@ -271,7 +271,8 @@ spec = do
                     "topics_of_interest": {
                         "messages": "low",
                         "blocks": "normal"
-                    }
+                    },
+                    "public_address" : "/ip4/127.0.0.1/tcp/8081"
                 }
             }|]
 
