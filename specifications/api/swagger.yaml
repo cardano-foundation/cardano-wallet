@@ -967,6 +967,7 @@ paths:
           enum:
             - ascending
             - descending
+          default: descending
           description: An optional sort order.
       responses: *responsesListTransactions
 
