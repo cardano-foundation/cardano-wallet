@@ -461,7 +461,8 @@ Why:
     construct automatic checks comparing against a baseline threshold. 
 
 **Why:**
-  - Benchmarks provide some necessary results 
+  - Benchmarks provide some necessary results to assess to good functioning of the 
+    software in real-life scenarios. 
 
 <p align=right><a href="#overview">top :arrow_heading_up:</a></p>
 
