@@ -62,7 +62,7 @@ import Cardano.Launcher
 import Cardano.Wallet
     ( BlockchainParameters (..), WalletLayer )
 import Cardano.Wallet.Api.Server
-    ( Listen (..) )
+    ( Listen (..), getRandomPort )
 import Cardano.Wallet.DaedalusIPC
     ( daedalusIPC )
 import Cardano.Wallet.DB
@@ -213,7 +213,8 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
         let stateDir = fromMaybe (dataDir </> "testnet") mStateDir
         let nodeConfig = stateDir </> "jormungandr-config.json"
         let withStateDir tracer _ = do
-                genConfigFile stateDir baseUrl
+                port <- getRandomPort
+                genConfigFile stateDir port baseUrl
                     & Aeson.encode
                     & BL.writeFile nodeConfig
                 logInfo tracer $ mempty
