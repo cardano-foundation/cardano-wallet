@@ -186,7 +186,7 @@ import Data.Text
 import Data.Text.Class
     ( toText )
 import Data.Time.Clock
-    ( UTCTime, getCurrentTime )
+    ( UTCTime, addUTCTime, getCurrentTime )
 import Data.Word
     ( Word16 )
 import Fmt
@@ -760,8 +760,10 @@ newWalletLayer tracer bp db nw tl = do
         (w, _) <- withExceptT ErrListTransactionsNoSuchWallet $ _readWallet wid
         let tip = currentTip w ^. #slotId
         let range = Range
-                { rStart = slotAt epochLength slotLength startTime <$> mStart
-                , rEnd = slotAt epochLength slotLength startTime <$> mEnd
+                { rStart = slotAt epochLength slotLength startTime . recenter
+                    <$> mStart
+                , rEnd = slotAt epochLength slotLength startTime
+                    <$> mEnd
                 }
         liftIO $ assemble tip
             <$> DB.readTxHistory db (PrimaryKey wid) order range
@@ -775,6 +777,46 @@ newWalletLayer tracer bp db nw tl = do
                 throwE (ErrListTransactionsStartTimeLaterThanEndTime err)
             _ ->
                 pure ()
+
+        -- | For any start time, ee do have a window of `slotLength` seconds
+        -- where different times will yield a same slot id.
+        --
+        -- Because we define transaction's timestamp as the beginning of their
+        -- slot id and filter by slot id in the database, transactions with a
+        -- timestamp prior to the `start` filter may show up (for having a same
+        -- slot id!).
+        --
+        -- Therefore, we adjust the `start` lower-bound to be at the end of the
+        -- slot id window (with a precision at the second) such that, a
+        -- transaction made at `t` will only show up if the start date specified
+        -- is `s < t`.
+        --
+        --                slot length
+        --                <--------->
+        --
+        --    0 ----------|---------|---------|---------|---------|---------> t
+        --                ^      ^
+        --                t      s
+        --
+        -- Let's distinguish some cases of interest:
+        --
+        -- 1/ s >= t, such that |s - t| >  slotLength      Should not yield tx
+        -- 2/ s >= t, such that |s - t| <= slotLength      Should not yield tx
+        -- 3/ s < t , such that |s - t| <= slotLength      Should yield tx
+        -- 4/ s < t , such that |s - t| >  slotLength      Should yield tx
+        --
+        -- Adding `slotLength` to `s`, we have:
+        --
+        -- 1/ We have s > t, and |s - t| > slotLength ==> slot(s) > slot(t)
+        -- 2/ We now falls into the first case ==> slot(s) > slot(t)
+        -- 3/ s is now greater than t, but slot(s) == slot(t)
+        -- 4/ s is still smaller than t and slot(s) <= slot(t)
+        --
+        -- So, it suffices to add `slotLength` to `s` to make sure it yields the
+        -- correct transactions, exclusively. Adding only `slotLength - 1` would
+        -- make the range inclusive.
+        recenter :: UTCTime -> UTCTime
+        recenter = addUTCTime (s - 1) where (SlotLength s) = slotLength
 
         -- This relies on DB.readTxHistory returning all necessary transactions
         -- to assemble coin selection information for outgoing payments.
