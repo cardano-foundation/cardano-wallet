@@ -50,7 +50,6 @@
 - [Enforce Stronger Master Passphrases](#gift-enforce-stronger-master-passphrases)
 - [Better Restoration Benchmark](#gift-better-restoration-stress-benchmark)
 - [Better Supervision Of Child Processes](#gift-better-supervision-of-launchers-child-processes)
-- 
 
 ## :gift: Legacy / Existing Wallet Support
 
