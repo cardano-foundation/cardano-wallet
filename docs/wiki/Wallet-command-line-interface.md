@@ -26,7 +26,7 @@ Available COMMANDS:
     <a href="#wallet-utxo">utxo</a>              Get a wallet's UTxO distribution 
     update
       <a href="#wallet-update-passphrase">passphrase</a>      Update a wallet's master passphrase
-      <a href="#wallet-update-metadata">metadata</a>        Update a wallet's metadata 
+      <a href="#wallet-update-name">name</a>            Update a wallet's name 
     <a href="#wallet-delete">delete</a>            Forget a wallet and its metadata
   transaction
     <a href="#transaction-create">create</a>            Create a transaction from a known wallet
@@ -469,3 +469,9 @@ $ cardano-wallet list addresses 2512a00e9653fe49a44a5886202e24d77eeb998f
 ```
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
+
+## version
+
+> `cardano-wallet version`
+
+Show the software version.
