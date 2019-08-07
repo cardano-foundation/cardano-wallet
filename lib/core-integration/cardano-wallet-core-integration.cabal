@@ -50,6 +50,7 @@ library
     , http-types
     , process
     , retry
+    , time
     , template-haskell
     , text
     , text-class

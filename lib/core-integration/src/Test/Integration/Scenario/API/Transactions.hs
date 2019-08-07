@@ -44,6 +44,8 @@ import Test.Integration.Framework.DSL
     , expectEventually
     , expectFieldBetween
     , expectFieldEqual
+    , expectListSizeEqual
+    , expectListItemFieldEqual
     , expectResponseCode
     , expectSuccess
     , faucetAmt
@@ -52,7 +54,9 @@ import Test.Integration.Framework.DSL
     , fixtureWallet
     , fixtureWalletWith
     , getWalletEp
+    -- , insertedAt
     , json
+    , getFromResponseList
     , listAddresses
     , listAllTransactions
     , listTransactions
@@ -63,6 +67,8 @@ import Test.Integration.Framework.DSL
     , verify
     , walletId
     )
+-- import Test.Hspec.Expectations.Lifted
+--     ( shouldBe )
 import Test.Integration.Framework.Request
     ( RequestException )
 import Test.Integration.Framework.TestData
@@ -1025,25 +1031,95 @@ spec = do
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
+    it "TRANS_LIST_01x - Can list Incoming and Outgoing transactions" $ \ctx -> do
+        (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        addrs <- listAddresses ctx wDest
+
+        -- Tx from a fixture wallet
+        let amt = 1
+        let destination = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": "cardano-wallet"
+            }|]
+
+        rt <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        expectResponseCode HTTP.status202 rt
+
+        expectEventually' ctx balanceAvailable amt wDest
+        expectEventually' ctx balanceTotal amt wDest
+
+        -- Verify Tx list contains Incoming and Outgoing
+        r <- request @([ApiTransaction t]) ctx (listTxEp wSrc mempty)
+            Default Empty
+
+        -- let outs = getFromResponseList @(ApiTransaction t) 0 outputs r
+        -- let ins = getFromResponseList 0 inputs r
+        -- length outs `shouldBe` 10
+        -- length ins `shouldBe` 10
+        verify r
+            [ expectResponseCode @IO HTTP.status200
+            , expectListSizeEqual 2
+            , expectListItemFieldEqual 0 direction Incoming
+            , expectListItemFieldEqual 0 amount 1_000_000_000_000
+            , expectListItemFieldEqual 0 status InLedger
+            , expectListItemFieldEqual 1 direction Outgoing
+            , expectListItemFieldEqual 1 amount 1
+            , expectListItemFieldEqual 1 status InLedger
+            ]
+
+
     it "TRANS_LIST_02 - Start time shouldn't be later than end time" $
         \ctx -> do
               w <- emptyWallet ctx
               let startTime = "2009-09-09T09:09:09Z"
               let endTime = "2001-01-01T01:01:01Z"
-              let endpoint = mempty
-                      <> "v2/wallets/"
-                      <> T.unpack (w ^. walletId)
-                      <> "/transactions?"
-                      <> "start="
-                      <> T.unpack (toQueryParam startTime)
+              let query = mempty
+                      <> "?start="
+                      <> (toQueryParam startTime)
                       <> "&end="
-                      <> T.unpack (toQueryParam endTime)
-              r <- request @([ApiTransaction t]) ctx ("GET", T.pack endpoint)
+                      <> (toQueryParam endTime)
+              r <- request @([ApiTransaction t]) ctx (listTxEp w query)
                   Default Empty
               expectResponseCode @IO HTTP.status400 r
               expectErrorMessage
                   (errMsg400StartTimeLaterThanEndTime startTime endTime) r
               pure ()
+
+    describe "TRANS_LIST_04 - Request headers" $ do
+        let headerCases =
+                  [ ( "No HTTP headers -> 200", None
+                    , [ expectResponseCode @IO HTTP.status200 ] )
+                  , ( "Accept: text/plain -> 406"
+                    , Headers
+                          [ ("Content-Type", "application/json")
+                          , ("Accept", "text/plain") ]
+                    , [ expectResponseCode @IO HTTP.status406
+                      , expectErrorMessage errMsg406 ]
+                    )
+                  , ( "No Accept -> 200"
+                    , Headers [ ("Content-Type", "application/json") ]
+                    , [ expectResponseCode @IO HTTP.status200 ]
+                    )
+                  , ( "No Content-Type -> 200"
+                    , Headers [ ("Accept", "application/json") ]
+                    , [ expectResponseCode @IO HTTP.status200 ]
+                    )
+                  , ( "Content-Type: text/plain -> 200"
+                    , Headers [ ("Content-Type", "text/plain") ]
+                    , [ expectResponseCode @IO HTTP.status200 ]
+                    )
+                  ]
+        forM_ headerCases $ \(title, headers, expectations) -> it title $ \ctx -> do
+            w <- emptyWallet ctx
+            r <- request @([ApiTransaction t]) ctx (listTxEp w mempty) headers Empty
+            verify r expectations
 
     it "TRANS_LIST_RANGE_01 - \
        \Transaction at time t is SELECTED by small ranges that cover it" $
