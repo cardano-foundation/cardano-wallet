@@ -127,6 +127,7 @@ instance WalletKey RndKey where
     changePassphrase = changePassphraseRnd
     publicKey = publicKeyRnd
     digest = digestRnd
+    getRawKey = error "WalletKey RndKey: getRawKey unimplemented"
 
 instance PersistKey RndKey where
     serializeXPrv = error "PersistKey RndKey unimplemented"

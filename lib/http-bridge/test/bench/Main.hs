@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
@@ -32,6 +33,7 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..)
     , Passphrase (..)
+    , PersistKey
     , digest
     , generateKeyFromSeed
     , publicKey
@@ -57,8 +59,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletState (..)
     )
-import Cardano.Wallet.Transaction
-    ( TransactionLayer )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Concurrent
@@ -117,25 +117,22 @@ main = do
     hSetBuffering stderr NoBuffering
     installSignalHandlers
     network <- getArgs >>= parseNetwork
-    let seq = Proxy @SeqKey
     case network of
         Testnet -> do
-            let proxy = Proxy @'Testnet
-            prepareNode proxy
+            prepareNode (Proxy @'Testnet)
             runBenchmarks
                 [ bench ("restore " <> toText network <> " seq")
-                    (bench_restoration proxy seq (walletSeq @'Testnet))
+                    (bench_restoration @'Testnet @SeqKey (walletSeq @'Testnet))
                 , bench ("restore " <> toText network <> " 10% ownership")
-                    (bench_restoration proxy seq wallet10p)
+                    (bench_restoration @'Testnet @SeqKey wallet10p)
                 ]
         Mainnet -> do
-            let proxy = Proxy @'Mainnet
-            prepareNode proxy
+            prepareNode (Proxy @'Mainnet)
             runBenchmarks
                 [ bench ("restore " <> toText network <> " seq")
-                    (bench_restoration proxy seq (walletSeq @'Mainnet))
+                    (bench_restoration @'Mainnet @SeqKey (walletSeq @'Mainnet))
                 , bench ("restore " <> toText network <> " 10% ownership")
-                    (bench_restoration proxy seq wallet10p)
+                    (bench_restoration @'Mainnet @SeqKey wallet10p)
                 ]
   where
     walletSeq
@@ -199,7 +196,7 @@ parseNetwork = \case
 
 {-# ANN bench_restoration ("HLint: ignore Use camelCase" :: String) #-}
 bench_restoration
-    :: forall (n :: Network) s t key.
+    :: forall (n :: Network) key s t.
         ( IsOwned s key
         , NFData s
         , Show s
@@ -207,18 +204,17 @@ bench_restoration
         , KnownNetwork n
         , t ~ HttpBridge n
         , KeyToAddress t key
+        , PersistKey key
         )
-    => Proxy n
-    -> Proxy key
-    -> (WalletId, WalletName, s)
+    => (WalletId, WalletName, s)
     -> IO ()
-bench_restoration _ _ (wid, wname, s) = withHttpBridge network $ \port -> do
+bench_restoration (wid, wname, s) = withHttpBridge network $ \port -> do
     logConfig <- CM.empty
     dbFile <- Just <$> emptySystemTempFile "bench.db"
     (ctx, db) <- Sqlite.newDBLayer logConfig nullTracer dbFile
     Sqlite.unsafeRunQuery ctx (void $ runMigrationSilent migrateAll)
     nw <- newNetworkLayer port
-    let tl = newTransactionLayer @n
+    let tl = newTransactionLayer @n @key
     BlockHeader sl _ <- unsafeRunExceptT $ networkTip nw
     sayErr . fmt $ network ||+ " tip is at " +|| sl ||+ ""
     let bp = byronBlockchainParameters

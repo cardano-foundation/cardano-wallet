@@ -391,8 +391,18 @@ class WalletKey (key :: Depth -> * -> *) where
     -- type constraint added.
     -- unwrapKey :: key level depth -> Key level depth
 
-    publicKey :: key level XPrv -> key level XPub
-    digest :: HashAlgorithm a => key level XPub -> Digest a
+    publicKey
+        :: key level XPrv
+        -> key level XPub
+
+    digest
+        :: HashAlgorithm a
+        => key level XPub
+        -> Digest a
+
+    getRawKey
+        :: key level raw
+        -> raw
 
 class PersistKey (key :: Depth -> * -> *) where
     serializeXPrv :: (key level XPrv, Hash "encryption") -> (ByteString, ByteString)

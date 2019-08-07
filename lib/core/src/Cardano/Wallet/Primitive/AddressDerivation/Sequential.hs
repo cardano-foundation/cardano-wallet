@@ -117,6 +117,7 @@ instance WalletKey SeqKey where
     changePassphrase = changePassphraseSeq
     publicKey = publicKeySeq
     digest = digestSeq
+    getRawKey = getKey
 
 -- | Marker for the change chain. In practice, change of a transaction goes onto
 -- the addresses generated on the internal chain, whereas the external chain is

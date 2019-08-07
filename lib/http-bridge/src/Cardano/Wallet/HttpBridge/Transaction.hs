@@ -25,12 +25,11 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (AddressK)
     , KeyToAddress (..)
     , Passphrase (..)
+    , PersistKey (..)
     , WalletKey (..)
     , XPrv
     , publicKey
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey (..) )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
@@ -68,7 +67,8 @@ import qualified Data.ByteString.Lazy as BL
 
 -- | Construct a 'TransactionLayer' compatible with Byron and the 'HttpBridge'
 newTransactionLayer
-    :: forall n t key. (KnownNetwork n, t ~ HttpBridge n, KeyToAddress t key, key ~ SeqKey)
+    :: forall n key t.
+        (KnownNetwork n, t ~ HttpBridge n, KeyToAddress t key, PersistKey key)
     => TransactionLayer t key
 newTransactionLayer = TransactionLayer
     { mkStdTx = \keyFrom inps outs -> do
@@ -93,7 +93,7 @@ newTransactionLayer = TransactionLayer
         + n * sizeOfTxWitness
 
     , estimateMaxNumberOfInputs =
-        estimateMaxNumberOfInputsBase @t @SeqKey estimateMaxNumberOfInputsParams
+        estimateMaxNumberOfInputsBase @t @key estimateMaxNumberOfInputsParams
 
     , validateSelection = \(CoinSelection _ outs _) -> do
         when (any (\ (TxOut _ c) -> c == Coin 0) outs)
@@ -102,19 +102,19 @@ newTransactionLayer = TransactionLayer
   where
     mkWitness
         :: Hash "Tx"
-        -> (SeqKey 'AddressK XPrv, Passphrase "encryption")
+        -> (key 'AddressK XPrv, Passphrase "encryption")
         -> TxWitness
     mkWitness tx (xPrv, pwd) = TxWitness
         $ CBOR.toStrictByteString
-        $ CBOR.encodePublicKeyWitness (getKey $ publicKey xPrv)
+        $ CBOR.encodePublicKeyWitness (getRawKey $ publicKey xPrv)
         $ sign (SignTx tx) (xPrv, pwd)
 
     sign
         :: SignTag
-        -> (SeqKey 'AddressK XPrv, Passphrase "encryption")
+        -> (key 'AddressK XPrv, Passphrase "encryption")
         -> Hash "signature"
     sign tag (key, (Passphrase pwd)) =
-        Hash . CC.unXSignature $ CC.sign pwd (getKey key) (signTag tag)
+        Hash . CC.unXSignature $ CC.sign pwd (getRawKey key) (signTag tag)
       where
         -- | Encode magic bytes & the contents of a @SignTag@. Magic bytes are
         -- guaranteed to be different (and begin with a different byte) for different

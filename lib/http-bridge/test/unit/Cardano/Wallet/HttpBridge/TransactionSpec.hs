@@ -117,9 +117,9 @@ spec = do
 
     describe "estimateMaxNumberOfInputs" $ do
         it "Property for mainnet addresses" $ property $
-            propMaxNumberOfInputsEstimation (newTransactionLayer @'Mainnet)
+            propMaxNumberOfInputsEstimation (newTransactionLayer @'Mainnet @SeqKey)
         it "Property for testnet addresses" $ property$
-            propMaxNumberOfInputsEstimation (newTransactionLayer @'Testnet)
+            propMaxNumberOfInputsEstimation (newTransactionLayer @'Testnet @SeqKey)
 
     describe "mkStdTx unknown input" $ do
         unknownInputTest (Proxy @'Mainnet)
@@ -646,7 +646,7 @@ propSizeEstimation
     -> Property
 propSizeEstimation _ (ShowFmt sel, InfiniteList chngAddrs _) =
     let
-        calcSize = estimateSize (newTransactionLayer @n) sel
+        calcSize = estimateSize (newTransactionLayer @n @key) sel
         tx = fromCoinSelection sel
         encodedTx = CBOR.toLazyByteString $ encodeSignedTx tx
         size = fromIntegral $ BL.length encodedTx
@@ -687,7 +687,7 @@ unknownInputTest _ = it title $ do
     let addr = keyToAddress @(HttpBridge n) $ publicKey $ xprv "address-number-0"
     let res = mkStdTx tl keyFrom inps outs
           where
-            tl = newTransactionLayer @n
+            tl = newTransactionLayer @n @key
             keyFrom = const Nothing
             inps =
                 [ ( TxIn (Hash "arbitrary") 0
