@@ -648,76 +648,76 @@ spec = do
             out `shouldBe` ""
             c `shouldBe` ExitFailure 1
 
-        let validTime1 = "2001-01-01T01:01:01Z"
-        let validTime2 = "2009-09-09T09:09:09Z"
-
-        let timeRangeMatrix :: [(Maybe String, Maybe String)]
-            timeRangeMatrix =
-                [ (Nothing, Nothing)
-                , (Just validTime1, Nothing)
-                , (Nothing, Just validTime1)
-                , (Just validTime1, Just validTime2)
-                ]
-
-        let sortOrderMatrix :: [Maybe SortOrder]
-            sortOrderMatrix = Nothing : fmap pure enumerate
-
-        describe "TRANS_LIST_01 - Listing transactions for an empty wallet" $
-            forM_ timeRangeMatrix $ \(mStart, mEnd) -> do
-                forM_ sortOrderMatrix $ \mOrder -> do
-                    let title = mempty
-                          <> "listing transactions from "
-                          <> show mStart
-                          <> " to "
-                          <> show mEnd
-                          <> " in "
-                          <> show mOrder
-                          <> " order "
-                    it title $ \ctx -> do
-                        wallet <- emptyWallet ctx
-                        (Exit code, Stdout out, Stderr err) <-
-                            listTransactionsViaCLI @t ctx $ join
-                                [ [T.unpack $ wallet ^. walletId]
-                                , maybe [] (\t -> ["--start", t]) mStart
-                                , maybe [] (\t -> ["--end"  , t]) mEnd
-                                , maybe [] (\o -> ["--order", showT o]) mOrder
-                                ]
-                        err `shouldBe` "Ok.\n"
-                        out `shouldBe` "[]\n"
-                        code `shouldBe` ExitSuccess
-
-        describe "TRANS_LIST_02 - Start time shouldn't be later than end time" $
+    describe "TRANS_LIST_01 - Listing transactions for an empty wallet" $
+        forM_ timeRangeMatrix $ \(mStart, mEnd) -> do
             forM_ sortOrderMatrix $ \mOrder -> do
-                let startTime = max validTime1 validTime2
-                let endTime   = min validTime1 validTime2
                 let title = mempty
-                        <> "listing transactions from "
-                        <> show startTime
-                        <> " to "
-                        <> show endTime
-                        <> " in "
-                        <> show mOrder
-                        <> " order "
+                      <> "listing transactions from "
+                      <> show mStart
+                      <> " to "
+                      <> show mEnd
+                      <> " in "
+                      <> show mOrder
+                      <> " order "
                 it title $ \ctx -> do
                     wallet <- emptyWallet ctx
                     (Exit code, Stdout out, Stderr err) <-
                         listTransactionsViaCLI @t ctx $ join
                             [ [T.unpack $ wallet ^. walletId]
-                            , ["--start", startTime]
-                            , ["--end"  , endTime]
+                            , maybe [] (\t -> ["--start", t]) mStart
+                            , maybe [] (\t -> ["--end"  , t]) mEnd
                             , maybe [] (\o -> ["--order", showT o]) mOrder
                             ]
-                    err `shouldBe` mconcat
-                        [ "The specified start time '"
-                        , startTime
-                        , "' is later than the specified end time '"
-                        , endTime
-                        , "'.\n"
+                    err `shouldBe` "Ok.\n"
+                    out `shouldBe` "[]\n"
+                    code `shouldBe` ExitSuccess
+
+    describe "TRANS_LIST_02 - Start time shouldn't be later than end time" $
+        forM_ sortOrderMatrix $ \mOrder -> do
+            let startTime = max validTime1 validTime2
+            let endTime   = min validTime1 validTime2
+            let title = mempty
+                    <> "listing transactions from "
+                    <> show startTime
+                    <> " to "
+                    <> show endTime
+                    <> " in "
+                    <> show mOrder
+                    <> " order "
+            it title $ \ctx -> do
+                wallet <- emptyWallet ctx
+                (Exit code, Stdout out, Stderr err) <-
+                    listTransactionsViaCLI @t ctx $ join
+                        [ [T.unpack $ wallet ^. walletId]
+                        , ["--start", startTime]
+                        , ["--end"  , endTime]
+                        , maybe [] (\o -> ["--order", showT o]) mOrder
                         ]
-                    out `shouldBe` mempty
-                    code `shouldBe` ExitFailure 1
+                err `shouldBe` mconcat
+                    [ "The specified start time '"
+                    , startTime
+                    , "' is later than the specified end time '"
+                    , endTime
+                    , "'.\n"
+                    ]
+                out `shouldBe` mempty
+                code `shouldBe` ExitFailure 1
 
   where
+      sortOrderMatrix :: [Maybe SortOrder]
+      sortOrderMatrix = Nothing : fmap pure enumerate
+
+      validTime1 = "2001-01-01T01:01:01Z"
+      validTime2 = "2009-09-09T09:09:09Z"
+
+      timeRangeMatrix :: [(Maybe String, Maybe String)]
+      timeRangeMatrix =
+          [ (Nothing, Nothing)
+          , (Just validTime1, Nothing)
+          , (Nothing, Just validTime1)
+          , (Just validTime1, Just validTime2)
+          ]
+
       longAddr = replicate 10000 '1'
       encodeErr = "Unable to decode Address:"
       parseErr = "Parse error. Expecting format \"<amount>@<address>\""
