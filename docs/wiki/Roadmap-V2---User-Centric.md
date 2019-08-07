@@ -2,7 +2,7 @@
 > 
 > Sections below describe user stories in a non-technical way, from a business
 > perspective. We aim at capturing user requirements that are non technical but
-> reflects on actual capabilities or behaviors that are expected from the
+> reflects on actual capabilities or behaviours that are expected from the
 > system. Each section is structured to answer the four questions below:
 >
 > **When:**
@@ -12,7 +12,7 @@
 >   - Who's the target / protagonist of that story. To whom does it benefit.
 > 
 > **What:**
->   - What is the story about, in terms of user experience and expected behavior.
+>   - What is the story about, in terms of user experience and expected behaviour.
 > 
 > **Why:**
 >   - What business value does this have. Why is it something relevant.
@@ -95,7 +95,7 @@
 **What:** 
   - Connect the wallet backend software to a `cardano-node` via the newly
     designed mini-protocols (in particular, the "chain sync" and "transaction
-    submission" protocols). We want to illustrate the good functionning of 
+    submission" protocols). We want to illustrate the good functioning of 
     the networking interface provided by the new Haskell nodes showing that
     blocks can be downloaded to follow a blockchain maintained by a network
     of Haskell `cardano-node`s.
@@ -256,7 +256,7 @@ Why:
     when needed and not only append blocks to an existing chain. Doing so,
     transactions that could have been inserted in recent blocks might become
     pending again, and balances may change to reflect the chain after a
-    rollback.  Beside, we do not rollbacks to have a significant impact on the
+    rollback.  Beside, we do not roll back to have a significant impact on the
     software usability. Hence, most features should remain available during
     rollbacks. Submitting transactions may be however forbidden during
     rollbacks.
@@ -287,7 +287,7 @@ Why:
 
 **What:**
   - In order update the wallet backend software, one currently has to either 
-    compile it from the sources, or, download a pre-compiled binary artifact 
+    compile it from the sources, or, download a pre-compiled binary artefact 
     from our release page. Instead, the wallet backend could receive updates
     directly from the network and download its own new version automatically.
 
