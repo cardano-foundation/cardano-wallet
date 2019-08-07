@@ -62,10 +62,10 @@ data Database s t key = Database
 
 -- | Instantiate a new in-memory "database" layer that simply stores data in
 -- a local MVar. Data vanishes if the software is shut down.
-newDBLayer :: forall s t key. (NFData (key 'RootK XPrv)) => IO (DBLayer IO s t key)
+newDBLayer :: forall s t k. (NFData (k 'RootK XPrv)) => IO (DBLayer IO s t k)
 newDBLayer = do
     lock <- newMVar ()
-    db <- newMVar (mempty :: Map (PrimaryKey WalletId) (Database s t key))
+    db <- newMVar (mempty :: Map (PrimaryKey WalletId) (Database s t k))
     return $ DBLayer
 
         {-----------------------------------------------------------------------

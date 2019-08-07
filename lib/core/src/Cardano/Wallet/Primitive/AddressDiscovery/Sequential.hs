@@ -198,9 +198,9 @@ instance NFData (AddressPool target chain)
 --
 -- >>> changeChain @chain
 -- ...
-changeChain :: forall (chain :: ChangeChain). Typeable chain => ChangeChain
+changeChain :: forall (c :: ChangeChain). Typeable c => ChangeChain
 changeChain =
-    case typeRep (Proxy :: Proxy chain) of
+    case typeRep (Proxy :: Proxy c) of
         t | t == typeRep (Proxy :: Proxy 'InternalChain) ->
             InternalChain
         _ ->
@@ -221,11 +221,11 @@ addresses = map fst . L.sortOn snd . Map.toList . indexedAddresses
 -- The pool will grow from the start if less than @g :: AddressPoolGap@ are
 -- given, such that, there are always @g@ undiscovered addresses in the pool.
 mkAddressPool
-    :: forall t chain. (KeyToAddress t SeqKey, Typeable chain)
+    :: forall t c. (KeyToAddress t SeqKey, Typeable c)
     => SeqKey 'AccountK XPub
     -> AddressPoolGap
     -> [Address]
-    -> AddressPool t chain
+    -> AddressPool t c
 mkAddressPool key g addrs = AddressPool
     { accountPubKey = key
     , gap = g
@@ -234,7 +234,7 @@ mkAddressPool key g addrs = AddressPool
             (Proxy @t)
             key
             g
-            (changeChain @chain)
+            (changeChain @c)
             minBound
           <>
             Map.fromList (zip addrs [minBound..maxBound])
@@ -245,10 +245,10 @@ mkAddressPool key g addrs = AddressPool
 -- possible that the pool is not amended at all - this happens in the case that
 -- an address is discovered 'far' from the edge.
 lookupAddress
-    :: forall t chain. (KeyToAddress t SeqKey, Typeable chain)
+    :: forall t c. (KeyToAddress t SeqKey, Typeable c)
     => Address
-    -> AddressPool t chain
-    -> (Maybe (Index 'Soft 'AddressK), AddressPool t chain)
+    -> AddressPool t c
+    -> (Maybe (Index 'Soft 'AddressK), AddressPool t c)
 lookupAddress !target !pool =
     case Map.lookup target (indexedAddresses pool) of
         Just ix ->
@@ -259,10 +259,10 @@ lookupAddress !target !pool =
 -- | If an address is discovered near the edge, we extend the address sequence,
 -- otherwise we return the pool untouched.
 extendAddressPool
-    :: forall t chain. (KeyToAddress t SeqKey, Typeable chain)
+    :: forall t c. (KeyToAddress t SeqKey, Typeable c)
     => Index 'Soft 'AddressK
-    -> AddressPool t chain
-    -> AddressPool t chain
+    -> AddressPool t c
+    -> AddressPool t c
 extendAddressPool !ix !pool
     | isOnEdge  = pool { indexedAddresses = indexedAddresses pool <> next }
     | otherwise = pool
@@ -273,7 +273,7 @@ extendAddressPool !ix !pool
         (Proxy @t)
         (accountPubKey pool)
         (gap pool)
-        (changeChain @chain)
+        (changeChain @c)
         (succ ix)
 
 -- | Compute the pool extension from a starting index
@@ -443,15 +443,15 @@ instance KeyToAddress t SeqKey => IsOwned (SeqState t) SeqKey where
             (,pwd) <$> xPrv
       where
         lookupAndDeriveXPrv
-            :: forall chain. (Typeable chain)
-            => AddressPool t chain
+            :: forall c. (Typeable c)
+            => AddressPool t c
             -> Maybe (SeqKey 'AddressK XPrv)
         lookupAndDeriveXPrv pool =
             let
                 -- We are assuming there is only one account
                 accountPrv = deriveAccountPrivateKey pwd rootPrv minBound
                 (addrIx, _) = lookupAddress addr pool
-                cc = changeChain @chain
+                cc = changeChain @c
             in
                 deriveAddressPrivateKey pwd accountPrv cc <$> addrIx
 

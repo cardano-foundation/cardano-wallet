@@ -44,7 +44,7 @@ import Data.Map.Strict
 -- | A Database interface for storing various things in a DB. In practice,
 -- we'll need some extra contraints on the wallet state that allows us to
 -- serialize and unserialize it (e.g. @forall s. (Serialize s) => ...@)
-data DBLayer m s t key = DBLayer
+data DBLayer m s t k = DBLayer
     { createWallet
         :: PrimaryKey WalletId
         -> Wallet s t
@@ -120,7 +120,7 @@ data DBLayer m s t key = DBLayer
 
     , putPrivateKey
         :: PrimaryKey WalletId
-        -> (key 'RootK XPrv, Hash "encryption")
+        -> (k 'RootK XPrv, Hash "encryption")
         -> ExceptT ErrNoSuchWallet m ()
         -- ^ Store or replace a private key for a given wallet. Note that wallet
         -- _could_ be stored and manipulated without any private key associated
@@ -129,7 +129,7 @@ data DBLayer m s t key = DBLayer
 
     , readPrivateKey
         :: PrimaryKey WalletId
-        -> m (Maybe (key 'RootK XPrv, Hash "encryption"))
+        -> m (Maybe (k 'RootK XPrv, Hash "encryption"))
         -- ^ Read a previously stored private key and its associated passphrase
         -- hash.
 

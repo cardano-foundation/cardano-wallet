@@ -218,14 +218,14 @@ handleConstraint e = handleJust select handler . fmap Right
 -- If the given file path does not exist, it will be created by the sqlite
 -- library.
 withDBLayer
-    :: forall s t key a. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t, PersistKey key)
+    :: forall s t k a. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t, PersistKey k)
     => CM.Configuration
        -- ^ Logging configuration
     -> Trace IO Text
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
-    -> (DBLayer IO s t key -> IO a)
+    -> (DBLayer IO s t k -> IO a)
        -- ^ Action to run.
     -> IO a
 withDBLayer logConfig trace fp action = bracket before after between
@@ -251,14 +251,14 @@ destroyDBLayer (SqliteContext {getSqlBackend, trace, dbFile}) = do
 -- should be closed with 'destroyDBLayer'. If you use 'withDBLayer' then both of
 -- these things will be handled for you.
 newDBLayer
-    :: forall s t key. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t, PersistKey key)
+    :: forall s t k. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t, PersistKey k)
     => CM.Configuration
        -- ^ Logging configuration
     -> Trace IO Text
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
-    -> IO (SqliteContext, DBLayer IO s t key)
+    -> IO (SqliteContext, DBLayer IO s t k)
 newDBLayer logConfig trace fp = do
     lock <- newMVar ()
     let trace' = transformTrace trace
@@ -484,9 +484,9 @@ metadataFromEntity wal = W.WalletMetadata
     }
 
 mkPrivateKeyEntity
-    :: PersistKey key
+    :: PersistKey k
     => W.WalletId
-    -> (key 'RootK XPrv, W.Hash "encryption")
+    -> (k 'RootK XPrv, W.Hash "encryption")
     -> PrivateKey
 mkPrivateKeyEntity wid kh = PrivateKey
     { privateKeyWalletId = wid
@@ -497,9 +497,9 @@ mkPrivateKeyEntity wid kh = PrivateKey
     (root, hash) = serializeXPrv kh
 
 privateKeyFromEntity
-    :: PersistKey key
+    :: PersistKey k
     => PrivateKey
-    -> Either String (key 'RootK XPrv, W.Hash "encryption")
+    -> Either String (k 'RootK XPrv, W.Hash "encryption")
 privateKeyFromEntity (PrivateKey _ k h) = deserializeXPrv (k, h)
 
 mkCheckpointEntity
@@ -848,23 +848,23 @@ insertAddressPool ssid pool =
         ]
 
 selectAddressPool
-    :: forall t chain. (W.KeyToAddress t W.SeqKey, Typeable chain)
+    :: forall t c. (W.KeyToAddress t W.SeqKey, Typeable c)
     => SeqStateId
     -> W.AddressPoolGap
     -> AddressPoolXPub
-    -> SqlPersistT IO (W.AddressPool t chain)
+    -> SqlPersistT IO (W.AddressPool t c)
 selectAddressPool ssid gap (AddressPoolXPub xpub) = do
     addrs <- fmap entityVal <$> selectList
         [ SeqStateAddressesSeqStateId ==. ssid
-        , SeqStateAddressesChangeChain ==. W.changeChain @chain
+        , SeqStateAddressesChangeChain ==. W.changeChain @c
         ] [Asc SeqStateAddressesIndex]
     pure $ addressPoolFromEntity addrs
   where
     addressPoolFromEntity
         :: [SeqStateAddresses]
-        -> W.AddressPool t chain
+        -> W.AddressPool t c
     addressPoolFromEntity addrs =
-        W.mkAddressPool @t @chain xpub gap (map seqStateAddressesAddress addrs)
+        W.mkAddressPool @t @c xpub gap (map seqStateAddressesAddress addrs)
 
 mkSeqStatePendingIxs :: SeqStateId -> W.PendingIxs -> [SeqStatePendingIx]
 mkSeqStatePendingIxs ssid =

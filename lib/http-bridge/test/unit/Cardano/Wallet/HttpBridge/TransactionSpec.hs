@@ -639,14 +639,14 @@ spec = do
 -------------------------------------------------------------------------------}
 
 propSizeEstimation
-    :: forall n t key.
-       (KnownNetwork n, t ~ HttpBridge n, KeyToAddress t key, key ~ SeqKey)
+    :: forall n t k.
+       (KnownNetwork n, t ~ HttpBridge n, KeyToAddress t k, k ~ SeqKey)
     => Proxy n
     -> (ShowFmt CoinSelection, InfiniteList (Network -> Address))
     -> Property
 propSizeEstimation _ (ShowFmt sel, InfiniteList chngAddrs _) =
     let
-        calcSize = estimateSize (newTransactionLayer @n @key) sel
+        calcSize = estimateSize (newTransactionLayer @n @k) sel
         tx = fromCoinSelection sel
         encodedTx = CBOR.toLazyByteString $ encodeSignedTx tx
         size = fromIntegral $ BL.length encodedTx
@@ -679,15 +679,15 @@ propSizeEstimation _ (ShowFmt sel, InfiniteList chngAddrs _) =
             (Tx (fst <$> inps) (outs <> txChngs), wits)
 
 unknownInputTest
-    :: forall n key.
-       (KnownNetwork n, KeyToAddress (HttpBridge n) key, key ~ SeqKey)
+    :: forall n k.
+       (KnownNetwork n, KeyToAddress (HttpBridge n) k, k ~ SeqKey)
     => Proxy n
     -> SpecWith ()
 unknownInputTest _ = it title $ do
     let addr = keyToAddress @(HttpBridge n) $ publicKey $ xprv "address-number-0"
     let res = mkStdTx tl keyFrom inps outs
           where
-            tl = newTransactionLayer @n @key
+            tl = newTransactionLayer @n @k
             keyFrom = const Nothing
             inps =
                 [ ( TxIn (Hash "arbitrary") 0
@@ -827,11 +827,11 @@ xprv seed =
     unsafeGenerateKeyFromSeed (Passphrase (BA.convert seed), mempty) mempty
 
 goldenTestSignedTx
-    :: forall n key. (KnownNetwork n, KeyToAddress (HttpBridge n) key, key ~ SeqKey)
+    :: forall n k. (KnownNetwork n, KeyToAddress (HttpBridge n) k, k ~ SeqKey)
     => Proxy n
     -> Int
         -- ^ Number of outputs
-    -> [(key 'AddressK XPrv, Coin)]
+    -> [(k 'AddressK XPrv, Coin)]
         -- ^ (Address Private Keys, Output value)
     -> ByteString
         -- ^ Expected result, in Base16

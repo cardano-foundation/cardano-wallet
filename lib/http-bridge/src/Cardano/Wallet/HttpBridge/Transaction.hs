@@ -67,9 +67,9 @@ import qualified Data.ByteString.Lazy as BL
 
 -- | Construct a 'TransactionLayer' compatible with Byron and the 'HttpBridge'
 newTransactionLayer
-    :: forall n key t.
-        (KnownNetwork n, t ~ HttpBridge n, KeyToAddress t key, PersistKey key)
-    => TransactionLayer t key
+    :: forall n k t.
+        (KnownNetwork n, t ~ HttpBridge n, KeyToAddress t k, PersistKey k)
+    => TransactionLayer t k
 newTransactionLayer = TransactionLayer
     { mkStdTx = \keyFrom inps outs -> do
         let ins = (fmap fst inps)
@@ -93,7 +93,7 @@ newTransactionLayer = TransactionLayer
         + n * sizeOfTxWitness
 
     , estimateMaxNumberOfInputs =
-        estimateMaxNumberOfInputsBase @t @key estimateMaxNumberOfInputsParams
+        estimateMaxNumberOfInputsBase @t @k estimateMaxNumberOfInputsParams
 
     , validateSelection = \(CoinSelection _ outs _) -> do
         when (any (\ (TxOut _ c) -> c == Coin 0) outs)
@@ -102,7 +102,7 @@ newTransactionLayer = TransactionLayer
   where
     mkWitness
         :: Hash "Tx"
-        -> (key 'AddressK XPrv, Passphrase "encryption")
+        -> (k 'AddressK XPrv, Passphrase "encryption")
         -> TxWitness
     mkWitness tx (xPrv, pwd) = TxWitness
         $ CBOR.toStrictByteString
@@ -111,7 +111,7 @@ newTransactionLayer = TransactionLayer
 
     sign
         :: SignTag
-        -> (key 'AddressK XPrv, Passphrase "encryption")
+        -> (k 'AddressK XPrv, Passphrase "encryption")
         -> Hash "signature"
     sign tag (key, (Passphrase pwd)) =
         Hash . CC.unXSignature $ CC.sign pwd (getRawKey key) (signTag tag)

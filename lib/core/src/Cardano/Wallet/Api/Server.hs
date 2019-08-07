@@ -183,10 +183,10 @@ data Listen
 
 -- | Start the application server, using the given settings and a bound socket.
 start
-    :: forall t key.
+    :: forall t k.
         ( DefineTx t
-        , KeyToAddress t key
-        , key ~ SeqKey
+        , KeyToAddress t k
+        , k ~ SeqKey
         , EncodeAddress t
         , DecodeAddress t
         , Buildable (ErrValidateSelection t)
@@ -194,7 +194,7 @@ start
     => Warp.Settings
     -> Trace IO Text
     -> Socket
-    -> WalletLayer (SeqState t) t key
+    -> WalletLayer (SeqState t) t k
     -> IO ()
 start settings trace socket wl = do
     withWorkers trace wl
@@ -265,8 +265,8 @@ getRandomPort = do
 -------------------------------------------------------------------------------}
 
 wallets
-    :: forall t key. (DefineTx t, KeyToAddress t key, key ~ SeqKey)
-    => WalletLayer (SeqState t) t key
+    :: forall t k. (DefineTx t, KeyToAddress t k, k ~ SeqKey)
+    => WalletLayer (SeqState t) t k
     -> Server Wallets
 wallets w =
     deleteWallet w
@@ -332,9 +332,9 @@ listWallets w = do
         mapM (getWalletWithCreationTime w) (ApiT <$> wids)
 
 postWallet
-    :: forall t key.
-       (DefineTx t, KeyToAddress t key, key ~ SeqKey)
-    => WalletLayer (SeqState t) t key
+    :: forall t k.
+       (DefineTx t, KeyToAddress t k, k ~ SeqKey)
+    => WalletLayer (SeqState t) t k
     -> WalletPostData
     -> Handler ApiWallet
 postWallet w body = do

@@ -384,8 +384,8 @@ class WalletKey (key :: Depth -> * -> *) where
     changePassphrase
         :: Passphrase "encryption-old"
         -> Passphrase "encryption-new"
-        -> key level XPrv
-        -> key level XPrv
+        -> key depth XPrv
+        -> key depth XPrv
 
     -- This function is temporary, just to implement IsOwned, until it gets a
     -- type constraint added.
@@ -397,7 +397,7 @@ class WalletKey (key :: Depth -> * -> *) where
 
     digest
         :: HashAlgorithm a
-        => key level XPub
+        => key depth XPub
         -> Digest a
 
     getRawKey

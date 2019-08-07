@@ -20,6 +20,8 @@ import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..), digest, generateKeyFromSeed, publicKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( SeqKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( mkSeqState )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -80,7 +82,7 @@ spec = do
         threadDelay 1000000
         db <- MVar.newDBLayer
         nl <- HttpBridge.newNetworkLayer @'Testnet port
-        let tl = HttpBridge.newTransactionLayer
+        let tl = HttpBridge.newTransactionLayer @'Testnet @SeqKey
         let bp = byronBlockchainParameters
         (handle,) <$>
             (newWalletLayer @_ @(HttpBridge 'Testnet) nullTracer bp db nl tl)

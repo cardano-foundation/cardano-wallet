@@ -272,14 +272,14 @@ prop_poolAtLeastGapAddresses pool =
 
 -- | Our addresses are eventually discovered
 prop_poolEventuallyDiscoverOurs
-    :: forall (chain :: ChangeChain). (Typeable chain)
+    :: forall (c :: ChangeChain). (Typeable c)
     => (AddressPoolGap, Address)
     -> Property
 prop_poolEventuallyDiscoverOurs (g, addr) =
     addr `elem` ours ==> withMaxSuccess 10 $ property prop
   where
-    ours = take 25 (ourAddresses (changeChain @chain))
-    pool = flip execState (mkAddressPool @DummyTarget @chain ourAccount g mempty) $
+    ours = take 25 (ourAddresses (changeChain @c))
+    pool = flip execState (mkAddressPool @DummyTarget @c ourAccount g mempty) $
         forM ours (state . lookupAddress)
     prop = (fromEnum <$> fst (lookupAddress addr pool)) === elemIndex addr ours
 

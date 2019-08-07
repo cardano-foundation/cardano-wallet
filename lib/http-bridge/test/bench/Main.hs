@@ -196,15 +196,15 @@ parseNetwork = \case
 
 {-# ANN bench_restoration ("HLint: ignore Use camelCase" :: String) #-}
 bench_restoration
-    :: forall (n :: Network) key s t.
-        ( IsOwned s key
+    :: forall (n :: Network) k s t.
+        ( IsOwned s k
         , NFData s
         , Show s
         , PersistState s
         , KnownNetwork n
         , t ~ HttpBridge n
-        , KeyToAddress t key
-        , PersistKey key
+        , KeyToAddress t k
+        , PersistKey k
         )
     => (WalletId, WalletName, s)
     -> IO ()
@@ -214,7 +214,7 @@ bench_restoration (wid, wname, s) = withHttpBridge network $ \port -> do
     (ctx, db) <- Sqlite.newDBLayer logConfig nullTracer dbFile
     Sqlite.unsafeRunQuery ctx (void $ runMigrationSilent migrateAll)
     nw <- newNetworkLayer port
-    let tl = newTransactionLayer @n @key
+    let tl = newTransactionLayer @n @k
     BlockHeader sl _ <- unsafeRunExceptT $ networkTip nw
     sayErr . fmt $ network ||+ " tip is at " +|| sl ||+ ""
     let bp = byronBlockchainParameters
@@ -268,7 +268,7 @@ prepareNode _ = do
 -- | Regularly poll the wallet to monitor it's syncing progress. Block until the
 -- wallet reaches 100%.
 waitForWalletSync
-    :: WalletLayer s t key
+    :: WalletLayer s t k
     -> WalletId
     -> IO ()
 waitForWalletSync walletLayer wid = do

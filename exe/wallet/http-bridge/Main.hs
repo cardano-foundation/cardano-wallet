@@ -240,8 +240,8 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
         Testnet -> exec @(HttpBridge 'Testnet) args
         Mainnet -> exec @(HttpBridge 'Mainnet) args
     exec
-        :: forall t n s. (t ~ HttpBridge n, s ~ SeqState t)
-        => (KeyToAddress t SeqKey, KnownNetwork n)
+        :: forall t k n s. (t ~ HttpBridge n, s ~ SeqState t, k ~ SeqKey)
+        => (KeyToAddress t k, KnownNetwork n)
         => ServeArgs
         -> IO ()
     exec (ServeArgs _ listen nodePort dbFile verbosity) = do

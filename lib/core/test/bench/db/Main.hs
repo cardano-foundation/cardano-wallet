@@ -334,8 +334,8 @@ benchPutSeqState numCheckpoints numAddrs db =
         ]
 
 mkPool
-    :: forall t chain. (KeyToAddress t SeqKey, Typeable chain)
-    => Int -> Int -> AddressPool t chain
+    :: forall t c. (KeyToAddress t SeqKey, Typeable c)
+    => Int -> Int -> AddressPool t c
 mkPool numAddrs i = mkAddressPool ourAccount defaultAddressPoolGap addrs
   where
     addrs =
@@ -348,7 +348,7 @@ mkPool numAddrs i = mkAddressPool ourAccount defaultAddressPoolGap addrs
 type DBLayerBench = DBLayer IO (SeqState DummyTarget) DummyTarget SeqKey
 type WalletBench = Wallet (SeqState DummyTarget) DummyTarget
 
-instance NFData (DBLayer m s t key) where
+instance NFData (DBLayer m s t k) where
     rnf _ = ()
 
 instance PersistTx DummyTarget where
