@@ -218,7 +218,7 @@ bench_restoration _ _ (wid, wname, s) = withHttpBridge network $ \port -> do
     (ctx, db) <- Sqlite.newDBLayer logConfig nullTracer dbFile
     Sqlite.unsafeRunQuery ctx (void $ runMigrationSilent migrateAll)
     nw <- newNetworkLayer port
-    let tl = newTransactionLayer :: TransactionLayer t key
+    let tl = newTransactionLayer @n
     BlockHeader sl _ <- unsafeRunExceptT $ networkTip nw
     sayErr . fmt $ network ||+ " tip is at " +|| sl ||+ ""
     let bp = byronBlockchainParameters

@@ -348,7 +348,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
         withDBLayer
             :: CM.Configuration
             -> Trace IO Text
-            -> (DBLayer IO s t SeqKey -> IO a)
+            -> (DBLayer IO s t k -> IO a)
             -> IO a
         withDBLayer logCfg tracer action = do
             let tracerDB = appendName "database" tracer
