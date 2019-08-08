@@ -43,11 +43,10 @@ $ stack test cardano-wallet:unit --test-arguments "--match MyModule"
     cardano-node-3.0.3, git revision 41b73a146e5d15e1dd48dd0a272ba646f588e7b5
     ```
 
-3. Import the initial testnet chain bootstrap for `cardano-http-bridge`
+3. Import the initial testnet chain bootstrap data for `cardano-http-bridge`
 
     ```
-    $ curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-http-bridge/hermes-testnet.tar.gz
-    $ tar xzf hermes-testnet.tar.gz -C $HOME && rm hermes-testnet.tar.gz
+    $ curl -L https://github.com/KtorZ/cardano-http-bridge/releases/download/v0.0.5/hermes-testnet.tar.gz | tar xz -C $HOME
     ```
 
 #### Test
