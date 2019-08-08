@@ -111,26 +111,28 @@ instance PersistTx (HttpBridge network) where
 -- | Encode a public key to a (Byron / Legacy) Cardano 'Address'. This is mostly
 -- dubious CBOR serializations with no data attributes.
 instance KeyToAddress (HttpBridge 'Testnet) SeqKey where
-    keyToAddress = keyToAddressWith
+    keyToAddress = keyToAddressWith @SeqKey
         (attributesWithProtocolMagic (protocolMagic @'Testnet))
 
 instance KeyToAddress (HttpBridge 'Mainnet) SeqKey where
-    keyToAddress = keyToAddressWith emptyAttributes
+    keyToAddress = keyToAddressWith @SeqKey emptyAttributes
 
 instance KeyToAddress (HttpBridge 'Testnet) RndKey where
-    keyToAddress key = rndKeyToAddressWith
+    keyToAddress key = keyToAddressWith @RndKey
         (rndAttributesWithProtocolMagic (protocolMagic @'Testnet) key)
         key
 
 instance KeyToAddress (HttpBridge 'Mainnet) RndKey where
-    keyToAddress = rndKeyToAddressWith emptyAttributes
+    keyToAddress = keyToAddressWith @RndKey emptyAttributes
 
-rndKeyToAddressWith :: CBOR.Encoding -> RndKey 'AddressK XPub -> Address
-rndKeyToAddressWith attrs key = Address
+keyToAddressWith
+    :: forall k. WalletKey k
+    => CBOR.Encoding -> k 'AddressK XPub -> Address
+keyToAddressWith attrs key = Address
     $ CBOR.toStrictByteString
     $ CBOR.encodeAddress xpub attrs
   where
-    xpub = getRawKey key
+    xpub = getRawKey @k key
 
 rndAttributesWithProtocolMagic :: ProtocolMagic -> RndKey 'AddressK XPub -> CBOR.Encoding
 rndAttributesWithProtocolMagic pm key = mempty
@@ -139,13 +141,6 @@ rndAttributesWithProtocolMagic pm key = mempty
     <> CBOR.encodeBytes (CBOR.toStrictByteString $ encodeDerivationPath key)
     <> CBOR.encodeWord 2
     <> CBOR.encodeBytes (CBOR.toStrictByteString $ encodeProtocolMagic pm)
-
-keyToAddressWith :: CBOR.Encoding -> SeqKey 'AddressK XPub -> Address
-keyToAddressWith attrs key = Address
-    $ CBOR.toStrictByteString
-    $ CBOR.encodeAddress xpub attrs
-  where
-    xpub = getRawKey key
 
 attributesWithProtocolMagic :: ProtocolMagic -> CBOR.Encoding
 attributesWithProtocolMagic pm = mempty
