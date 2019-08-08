@@ -1,7 +1,11 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.HttpBridge.BinarySpec
     ( spec
@@ -12,13 +16,18 @@ module Cardano.Wallet.HttpBridge.BinarySpec
 
 import Prelude
 
-
 import Cardano.Wallet.HttpBridge.Binary
-    ( decodeBlock
+    ( decodeAddressDerivationPath
+    , decodeAddressPayload
+    , decodeAllAttributes
+    , decodeBlock
     , decodeBlockHeader
+    , decodeDerivationPathAttr
     , decodeSignedTx
     , decodeTx
     , decodeTxWitness
+    , encodeAttributes
+    , encodeDerivationPathAttr
     , encodeSignedTx
     , encodeTx
     , encodeTxWitness
@@ -29,6 +38,15 @@ import Cardano.Wallet.HttpBridge.Environment
     ( Network (..) )
 import Cardano.Wallet.HttpBridge.Primitive.Types
     ( Tx (..) )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Depth (..)
+    , DerivationType (..)
+    , Index (..)
+    , Passphrase (..)
+    , fromMnemonic
+    )
+import Cardano.Wallet.Primitive.AddressDerivation.Random
+    ( RndKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
@@ -42,17 +60,35 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Unsafe
     ( unsafeDecodeAddress, unsafeFromHex )
+import Data.ByteString
+    ( ByteString )
 import Data.Either
     ( isLeft )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Text
+    ( Text )
+import Data.Word
+    ( Word32 )
 import Test.Hspec
     ( Expectation, HasCallStack, Spec, describe, it, shouldBe, shouldSatisfy )
+import Test.QuickCheck
+    ( Arbitrary (..)
+    , Property
+    , arbitraryBoundedEnum
+    , conjoin
+    , property
+    , vectorOf
+    , (===)
+    , (==>)
+    )
 
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
 import qualified Codec.CBOR.Write as CBOR
+import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as L8
 
@@ -143,6 +179,67 @@ spec = do
                 encodeSignedTx
                 (txs !! 0, [pkWit])
 
+    describe "decodeAddress <-> encodeAddress roundtrip" $ do
+        it "DerivationPath roundtrip" (property prop_derivationPathRoundTrip)
+
+    describe "Golden Tests for Byron Addresses w/ random scheme (Mainnet)" $ do
+        it "decodeDerivationPath - mainnet - initial account" $
+            decodeDerivationPathTest DecodeDerivationPath
+                { mnem =
+                    arbitraryMnemonic
+                , addr =
+                    "82d818584283581ca08bcb9e5e8cd30d5aea6d434c46abd8604fe4907d\
+                    \56b9730ca28ce5a101581e581c22e25f2464ec7295b556d86d0ec33bc1\
+                    \a681e7656da92dbc0582f5e4001a3abe2aa5"
+                , accIndex =
+                    2147483648
+                , addrIndex =
+                    2147483648
+                }
+
+        it "decodeDerivationPath - mainnet - another account" $
+            decodeDerivationPathTest DecodeDerivationPath
+                { mnem =
+                    arbitraryMnemonic
+                , addr =
+                    "82d818584283581cb039e80866203e82fc834b8e6a355b83ec6f8fd199\
+                    \66078a40e6d6b2a101581e581c22e27fb12d08728073cd416dfbfcb8dc\
+                    \0e760335d1d60f65e8740034001a4bce4d1a"
+                , accIndex =
+                    2694138340
+                , addrIndex =
+                    2512821145
+                }
+
+    describe "Golden Tests for Byron Addresses w/ random scheme (Testnet)" $ do
+        it "decodeDerivationPath - testnet - initial account" $
+            decodeDerivationPathTest DecodeDerivationPath
+                { mnem =
+                    arbitraryMnemonic
+                , addr =
+                    "82d818584983581ca03d42af673855aabcef3059e21c37235ae706072d\
+                    \38150dcefae9c6a201581e581c22e25f2464ec7295b556d86d0ec33bc1\
+                    \a681e7656da92dbc0582f5e402451a4170cb17001a39a0b7b5"
+                , accIndex =
+                    2147483648
+                , addrIndex =
+                    2147483648
+                }
+
+        it "decodeDerivationPath - testnet - another account" $
+            decodeDerivationPathTest DecodeDerivationPath
+                { mnem =
+                    arbitraryMnemonic
+                , addr =
+                    "82d818584983581c267b40902921c3afd73926a83a23ca08ae9626a64a\
+                    \4b5616d14d6709a201581e581c22e219c90fb572d565134f6daeab650d\
+                    \c871d130430afe594116f1ae02451a4170cb17001aee75f28a"
+                , accIndex =
+                    3337448281
+                , addrIndex =
+                    3234874775
+                }
+
 cborRoundtrip
     :: (HasCallStack, Show a, Eq a)
     => (forall s. CBOR.Decoder s a)
@@ -153,6 +250,85 @@ cborRoundtrip decode encode a = do
     let bytes = CBOR.toLazyByteString $ encode a
     let a' = unsafeDeserialiseFromBytes decode bytes
     a `shouldBe` a'
+
+{-------------------------------------------------------------------------------
+                    Golden tests for Address derivation path
+-------------------------------------------------------------------------------}
+
+data DecodeDerivationPath = DecodeDerivationPath
+    { mnem :: [Text]
+    , addr :: ByteString
+    , accIndex :: Word32
+    , addrIndex :: Word32
+    } deriving (Show, Eq)
+
+-- An aribtrary mnemonic sentence for the tests
+arbitraryMnemonic :: [Text]
+arbitraryMnemonic =
+    [ "price", "whip", "bottom", "execute", "resist", "library"
+    , "entire", "purse", "assist", "clock", "still", "noble" ]
+
+decodeDerivationPathTest :: DecodeDerivationPath -> Expectation
+decodeDerivationPathTest DecodeDerivationPath{..} =
+    decoded `shouldBe` Right (Just (Index accIndex, Index addrIndex))
+  where
+    payload = unsafeDeserialiseFromBytes decodeAddressPayload $
+        BL.fromStrict (unsafeFromHex addr)
+    decoded = deserialise (decodeAddressDerivationPath pwd) payload
+    Right seed = fromMnemonic @'[12] mnem
+    key = generateKeyFromSeed seed mempty
+    pwd = payloadPassphrase key
+
+deserialise
+    :: (forall s. CBOR.Decoder s a)
+    -> ByteString
+    -> Either CBOR.DeserialiseFailure a
+deserialise dec =
+    fmap snd . CBOR.deserialiseFromBytes dec . BL.fromStrict
+
+{-------------------------------------------------------------------------------
+                           Derivation Path Roundtrip
+-------------------------------------------------------------------------------}
+
+prop_derivationPathRoundTrip
+    :: Passphrase "addr-derivation-payload"
+    -> Passphrase "addr-derivation-payload"
+    -> Index 'Hardened 'AccountK
+    -> Index 'Hardened 'AddressK
+    -> Property
+prop_derivationPathRoundTrip pwd pwd' acctIx addrIx =
+    let
+        encoded = CBOR.toLazyByteString $ encodeAttributes
+            [ encodeDerivationPathAttr pwd acctIx addrIx ]
+        decoded = unsafeDeserialiseFromBytes
+                (decodeAllAttributes >>=  decodeDerivationPathAttr pwd)
+                encoded
+        decoded' = unsafeDeserialiseFromBytes
+                (decodeAllAttributes >>=  decodeDerivationPathAttr pwd')
+                encoded
+    in
+        conjoin
+            [ decoded === Just (acctIx, addrIx)
+            , pwd /= pwd' ==> decoded' === Nothing
+            ]
+
+instance {-# OVERLAPS #-} Arbitrary (Passphrase "addr-derivation-payload") where
+    arbitrary = do
+        -- TODO n <- choose (minSeedLengthBytes, 32)
+        bytes <- BS.pack <$> vectorOf 32 arbitrary
+        return $ Passphrase $ BA.convert bytes
+
+instance Arbitrary (Index 'Hardened 'AddressK) where
+    shrink _ = []
+    arbitrary = arbitraryBoundedEnum
+
+instance Arbitrary (Index 'Hardened 'AccountK) where
+    shrink _ = []
+    arbitrary = arbitraryBoundedEnum
+
+{-------------------------------------------------------------------------------
+                                  Test Data
+-------------------------------------------------------------------------------}
 
 -- A mainnet block header
 blockHeader1 :: BlockHeader
