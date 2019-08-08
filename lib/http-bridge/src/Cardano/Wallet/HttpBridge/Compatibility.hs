@@ -45,7 +45,7 @@ import Cardano.Wallet.HttpBridge.Environment
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), KeyToAddress (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey )
+    ( RndKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey )
 import Cardano.Wallet.Primitive.Fee
@@ -117,22 +117,16 @@ instance KeyToAddress (HttpBridge 'Testnet) SeqKey where
 instance KeyToAddress (HttpBridge 'Mainnet) SeqKey where
     keyToAddress = keyToAddressWith emptyAttributes
 
-instance KeyToAddress (HttpBridge 'Mainnet) RndKey where
-    keyToAddress _ = error "KeyToAddress RndKey unimplemented"
-
 instance KeyToAddress (HttpBridge 'Testnet) RndKey where
-    keyToAddress _ = error "KeyToAddress RndKey unimplemented"
+    keyToAddress = rndKeyToAddressWith
+        (attributesWithProtocolMagic (protocolMagic @'Testnet))
 
-{-
-rndToAddressAttrs, rndToAddressAttrsWithProtocolMagic
-    :: RndKey 'RootK XPub
-    -> RndKey 'AddressK XPub
-    -> Index 'Hardened 'AccountK
-    -> Index 'Soft 'AddressK
-    -> CBOR.Encoding
-rndToAddressAttrs = error "to be implemented"
-rndToAddressAttrsWithProtocolMagic = rndToAddressAttrs
--}
+instance KeyToAddress (HttpBridge 'Mainnet) RndKey where
+    keyToAddress = rndKeyToAddressWith emptyAttributes
+
+rndKeyToAddressWith :: CBOR.Encoding -> RndKey 'AddressK XPub -> Address
+rndKeyToAddressWith _attrs (RndKey _addressXPub (_accIx, _addrIx) _) =
+    error "rndKeyToAddressWith: unimplemented"
 
 keyToAddressWith :: CBOR.Encoding -> SeqKey 'AddressK XPub -> Address
 keyToAddressWith attrs key = Address
