@@ -118,17 +118,27 @@ instance KeyToAddress (HttpBridge 'Mainnet) SeqKey where
     keyToAddress = keyToAddressWith emptyAttributes
 
 instance KeyToAddress (HttpBridge 'Testnet) RndKey where
-    keyToAddress = rndKeyToAddressWith
-        (attributesWithProtocolMagic (protocolMagic @'Testnet))
+    keyToAddress key = rndKeyToAddressWith
+        (rndAttributesWithProtocolMagic (protocolMagic @'Testnet) key)
+        key
 
 instance KeyToAddress (HttpBridge 'Mainnet) RndKey where
     keyToAddress = rndKeyToAddressWith emptyAttributes
 
 rndKeyToAddressWith :: CBOR.Encoding -> RndKey 'AddressK XPub -> Address
-rndKeyToAddressWith _attrs key =
-    error "rndKeyToAddressWith: unimplemented"
+rndKeyToAddressWith attrs key = Address
+    $ CBOR.toStrictByteString
+    $ CBOR.encodeAddress xpub attrs
   where
-    _derPath = encodeDerivationPath key
+    xpub = getRawKey key
+
+rndAttributesWithProtocolMagic :: ProtocolMagic -> RndKey 'AddressK XPub -> CBOR.Encoding
+rndAttributesWithProtocolMagic pm key = mempty
+    <> CBOR.encodeMapLen 2
+    <> CBOR.encodeWord 1
+    <> CBOR.encodeBytes (CBOR.toStrictByteString $ encodeDerivationPath key)
+    <> CBOR.encodeWord 2
+    <> CBOR.encodeBytes (CBOR.toStrictByteString $ encodeProtocolMagic pm)
 
 keyToAddressWith :: CBOR.Encoding -> SeqKey 'AddressK XPub -> Address
 keyToAddressWith attrs key = Address
