@@ -12,7 +12,14 @@ module Test.Integration.Scenario.API.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiFee, ApiTransaction, ApiWallet, insertedAt, time )
+    ( ApiTxInput
+    , AddressAmount
+    , ApiFee
+    , ApiTransaction
+    , ApiWallet
+    , insertedAt
+    , time
+    )
 import Cardano.Wallet.Primitive.Types
     ( DecodeAddress (..), Direction (..), EncodeAddress (..), TxStatus (..) )
 import Control.Monad
@@ -22,7 +29,7 @@ import Data.Aeson
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Time.Clock
-    ( UTCTime )
+    ( UTCTime, addUTCTime )
 import Data.Time.Utils
     ( utcTimePred, utcTimeSucc )
 import Numeric.Natural
@@ -42,9 +49,11 @@ import Test.Integration.Framework.DSL
     , emptyWallet
     , expectErrorMessage
     , expectEventually
+    , expectEventually'
     , expectFieldBetween
     , expectFieldEqual
     , expectListSizeEqual
+    , expectListItemFieldBetween
     , expectListItemFieldEqual
     , expectResponseCode
     , expectSuccess
@@ -54,21 +63,26 @@ import Test.Integration.Framework.DSL
     , fixtureWallet
     , fixtureWalletWith
     , getWalletEp
-    -- , insertedAt
+    , insertedAt
     , json
+    , getFromResponse
     , getFromResponseList
     , listAddresses
     , listAllTransactions
     , listTransactions
+    , listTxEp
+    , outputs
+    , inputs
     , postTxEp
     , postTxFeeEp
     , request
     , status
     , verify
     , walletId
+    , utcIso8601ToText
     )
--- import Test.Hspec.Expectations.Lifted
---     ( shouldBe )
+import Test.Hspec.Expectations.Lifted
+    ( shouldBe )
 import Test.Integration.Framework.Request
     ( RequestException )
 import Test.Integration.Framework.TestData
@@ -539,7 +553,7 @@ spec = do
                 "passphrase": "cardano-wallet"
             }|]
         let endpoint =
-                "v2/wallets" <> T.unpack (T.append (w ^. walletId) "0")
+                "v2/wallets/" <> T.unpack (T.append (w ^. walletId) "0")
                 <> "/transactions"
         r <- request @(ApiTransaction t) ctx ("POST", T.pack endpoint)
                 Default payload
@@ -566,7 +580,7 @@ spec = do
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
-    describe "TRANS_CREATE_08 - v2/wallets/{id}/transactions - Methods Not Allowed" $ do
+    describe "TRANS_CREATE_08, TRANS_LIST_04 - v2/wallets/{id}/transactions - Methods Not Allowed" $ do
         let matrix = ["PUT", "DELETE", "CONNECT", "TRACE", "OPTIONS"]
         forM_ matrix $ \method -> it (show method) $ \ctx -> do
             w <- emptyWallet ctx
@@ -1031,49 +1045,262 @@ spec = do
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
-    it "TRANS_LIST_01x - Can list Incoming and Outgoing transactions" $ \ctx -> do
-        (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        addrs <- listAddresses ctx wDest
-
-        -- Tx from a fixture wallet
-        let amt = 1
-        let destination = (addrs !! 1) ^. #id
-        let payload = Json [json|{
-                "payments": [{
-                    "address": #{destination},
-                    "amount": {
-                        "quantity": #{amt},
-                        "unit": "lovelace"
-                    }
-                }],
-                "passphrase": "cardano-wallet"
-            }|]
-
-        rt <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
-        expectResponseCode HTTP.status202 rt
-
-        expectEventually' ctx balanceAvailable amt wDest
-        expectEventually' ctx balanceTotal amt wDest
+    it "TRANS_LIST_01 - Can list Incoming and Outgoing transactions" $ \ctx -> do
+        (wSrc, _, _) <- fixtureWalletManyTxs ctx [1]
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+                { nInputs = 1
+                , nOutputs = 1
+                }
 
         -- Verify Tx list contains Incoming and Outgoing
         r <- request @([ApiTransaction t]) ctx (listTxEp wSrc mempty)
             Default Empty
 
-        -- let outs = getFromResponseList @(ApiTransaction t) 0 outputs r
-        -- let ins = getFromResponseList 0 inputs r
-        -- length outs `shouldBe` 10
-        -- length ins `shouldBe` 10
+        -- Outgoing tx inputs and outpus size
+        let outsOut = getFromResponseList 0 outputs r
+        let insOut = getFromResponseList 0 inputs r
+        length (outsOut :: [AddressAmount t]) `shouldBe` 2
+        length (insOut :: [ApiTxInput t]) `shouldBe` 1
+
+        -- Incoming tx inputs and outpus size
+        let outsIn = getFromResponseList 1 outputs r
+        let insIn = getFromResponseList 1 inputs r
+        length (outsIn :: [AddressAmount t]) `shouldBe` 1000
+        length (insIn :: [ApiTxInput t]) `shouldBe` 1
+
         verify r
             [ expectResponseCode @IO HTTP.status200
             , expectListSizeEqual 2
-            , expectListItemFieldEqual 0 direction Incoming
-            , expectListItemFieldEqual 0 amount 1_000_000_000_000
+            , expectListItemFieldEqual 0 direction Outgoing
+            , expectListItemFieldBetween 0 amount (feeMin + 1, feeMax + 1)
             , expectListItemFieldEqual 0 status InLedger
-            , expectListItemFieldEqual 1 direction Outgoing
-            , expectListItemFieldEqual 1 amount 1
+            , expectListItemFieldEqual 1 direction Incoming
+            , expectListItemFieldEqual 1 amount 1_000_000_000_000
             , expectListItemFieldEqual 1 status InLedger
             ]
 
+    -- | This scenario covers the following matrix of cases. Cases where generated
+    -- using one of parwise test cases generation tools available online.
+    -- +----+----------+----------+------------+--------------+
+    -- |    |  start   |   end    |   order    |    result    |
+    -- +----+----------+----------+------------+--------------+
+    -- |  1 | edge     | edge     | ascending  | 2 ascending  |
+    -- |  2 | edge     | edge + 1 | descending | 2 descending |
+    -- |  3 | edge     | edge - 1 | empty      | 1st one      |
+    -- |  4 | edge     | empty    | empty      | 2 descending |
+    -- |  5 | edge + 1 | edge + 1 | empty      | 2nd one      |
+    -- |  6 | edge + 1 | edge - 1 | empty      | none         |
+    -- |  7 | edge + 1 | empty    | ascending  | 2nd one      |
+    -- |  8 | edge + 1 | edge     | descending | 2nd one      |
+    -- |  9 | edge - 1 | edge - 1 | ascending  | 1st one      |
+    -- | 10 | edge - 1 | empty    | descending | 2 descending |
+    -- | 11 | edge - 1 | edge     | empty      | 2 descending |
+    -- | 12 | edge - 1 | edge + 1 | empty      | 2 descending |
+    -- | 13 | empty    | empty    | empty      | 2 descending |
+    -- | 14 | empty    | edge     | empty      | 2 descending |
+    -- | 15 | empty    | edge + 1 | ascending  | 2 ascending  |
+    -- | 16 | empty    | edge - 1 | descending | 1st one      |
+    -- +----+----------+----------+------------+--------------+
+    it "TRANS_LIST_02,03 - Can limit/order results with start, end and order" $ \ctx -> do
+        (_, w, [(t1, a1), (t2, a2)]) <- fixtureWalletManyTxs ctx [10,20]
+
+        let toParam = toQueryParam . utcIso8601ToText
+        let matrix =
+                [
+                -- 1
+                  ( "?start="
+                    <> (toParam t1)
+                    <> "&end="
+                    <> (toParam t2)
+                    <> "&order=ascending"
+                  ,  [ expectListSizeEqual 2
+                     , expectListItemFieldEqual 0 amount a1
+                     , expectListItemFieldEqual 1 amount a2
+                     ]
+                  )
+                -- 2
+                , ( "?start="
+                    <> (toParam t1)
+                    <> "&end="
+                    <> (toParam $ addUTCTime 1 t2)
+                    <> "&order=descending"
+                  ,  [ expectListSizeEqual 2
+                     , expectListItemFieldEqual 0 amount a2
+                     , expectListItemFieldEqual 1 amount a1
+                     ]
+                  )
+                -- 3
+                , ( "?start="
+                    <> (toParam t1)
+                    <> "&end="
+                    <> (toParam $ addUTCTime (-1) t2)
+                  ,  [ expectListSizeEqual 1
+                     , expectListItemFieldEqual 0 amount a1
+                     ]
+                  )
+                -- 4
+                , ( "?start="
+                    <> (toParam t1)
+                  ,  [ expectListSizeEqual 2
+                      , expectListItemFieldEqual 0 amount a2
+                      , expectListItemFieldEqual 1 amount a1
+                      ]
+                    )
+                -- 5
+                , ( "?start="
+                    <> (toParam $ addUTCTime 1 t1)
+                    <> "&end="
+                    <> (toParam $ addUTCTime 1 t2)
+                  ,  [ expectListSizeEqual 1
+                     , expectListItemFieldEqual 0 amount a2
+                     ]
+                  )
+                -- 6
+                , ( "?start="
+                    <> (toParam $ addUTCTime 1 t1)
+                    <> "&end="
+                    <> (toParam $ addUTCTime (-1) t2)
+                  , [ expectListSizeEqual 0 ]
+                  )
+                -- 7
+                , ( "?start="
+                    <> (toParam $ addUTCTime 1 t1)
+                    <> "&order=ascending"
+                  , [ expectListSizeEqual 1
+                    , expectListItemFieldEqual 0 amount a2
+                    ]
+                  )
+                -- 8
+                , ( "?order=descending&start="
+                    <> (toParam $ addUTCTime 1 t1)
+                    <> "&end="
+                    <> (toParam t2)
+                  , [ expectListSizeEqual 1
+                    , expectListItemFieldEqual 0 amount a2
+                    ]
+                  )
+                -- 9
+                , ( "?order=ascending&start="
+                    <> (toParam $ addUTCTime (-1) t1)
+                    <> "&end="
+                    <> (toParam $ addUTCTime (-1) t2)
+                  , [ expectListSizeEqual 1
+                    , expectListItemFieldEqual 0 amount a1
+                    ]
+                  )
+                -- 10
+                , ( "?order=descending&start="
+                    <> (toParam $ addUTCTime (-1) t1)
+                  , [ expectListSizeEqual 2
+                    , expectListItemFieldEqual 0 amount a2
+                    , expectListItemFieldEqual 1 amount a1
+                    ]
+                  )
+                -- 11
+                , ( "?start="
+                    <> (toParam $ addUTCTime (-1) t1)
+                    <> "&end="
+                    <> (toParam t2)
+                  , [ expectListSizeEqual 2
+                    , expectListItemFieldEqual 0 amount a2
+                    , expectListItemFieldEqual 1 amount a1
+                    ]
+                  )
+                -- 12
+                , ( "?start="
+                    <> (toParam $ addUTCTime (-1) t1)
+                    <> "&end="
+                    <> (toParam $ addUTCTime 1 t2)
+                  , [ expectListSizeEqual 2
+                    , expectListItemFieldEqual 0 amount a2
+                    , expectListItemFieldEqual 1 amount a1
+                    ]
+                  )
+                -- 13
+                , ( mempty
+                  , [ expectListSizeEqual 2
+                    , expectListItemFieldEqual 0 amount a2
+                    , expectListItemFieldEqual 1 amount a1
+                    ]
+                  )
+                -- 14
+                , ( "?end="
+                    <> (toParam t2)
+                  , [ expectListSizeEqual 2
+                    , expectListItemFieldEqual 0 amount a2
+                    , expectListItemFieldEqual 1 amount a1
+                    ]
+                  )
+                -- 15
+                , ( "?end="
+                    <> (toParam $ addUTCTime 1 t2)
+                  , [ expectListSizeEqual 2
+                    , expectListItemFieldEqual 0 amount a2
+                    , expectListItemFieldEqual 1 amount a1
+                    ]
+                  )
+                -- 16
+                , ( "?end="
+                    <> (toParam $ addUTCTime (-1) t2)
+                  , [ expectListSizeEqual 1
+                    , expectListItemFieldEqual 0 amount a1
+                    ]
+                  )
+                ]
+
+        forM_ matrix $ \(query, expectations) -> do
+          rf <- request @([ApiTransaction t]) ctx (listTxEp w query)
+              Default Empty
+          verify rf expectations
+
+    describe "TRANS_LIST_02,03 - Faulty start, end, order values" $ do
+        let orderErr = "Please specify one of the following values:\
+            \ ascending, descending."
+        let startEndErr = "Expecting ISO 8601 date-and-time format\
+            \ (basic or extended), e.g. 2012-09-25T10:15:00Z."
+        let queries =
+                  [ ( "?start=2009"
+                    , [ expectResponseCode @IO HTTP.status400
+                      , expectErrorMessage startEndErr
+                      ]
+                    )
+                  ,
+                    ( "?start=2012-09-25T10:15:00Z&end=2016-11-21"
+                    , [ expectResponseCode @IO HTTP.status400
+                      , expectErrorMessage startEndErr
+                      ]
+                    )
+                  ,
+                    ( "?start=2012-09-25&start=2016-11-21T10:15:00Z"
+                    , [ expectResponseCode @IO HTTP.status400
+                      , expectErrorMessage startEndErr
+                      ]
+                    )
+                  ,
+                    ( "?end=2012-09-25T10:15:00Z&start=2016-11-21"
+                    , [ expectResponseCode @IO HTTP.status400
+                      , expectErrorMessage startEndErr
+                      ]
+                    )
+                  ,
+                    ( "?order=scending"
+                    , [ expectResponseCode @IO HTTP.status400
+                      , expectErrorMessage orderErr
+                      ]
+                    )
+                  ,
+                    ( "?start=2012-09-25T10:15:00Z&order=asc"
+                    , [ expectResponseCode @IO HTTP.status400
+                      , expectErrorMessage orderErr
+                      ]
+                    )
+                  ]
+        forM_ queries $ \(q, expects) -> it q $ \ctx -> do
+            w <- emptyWallet ctx
+            let query = T.pack q
+            r <- request @([ApiTransaction t]) ctx (listTxEp w query)
+                Default Empty
+            verify r expects
 
     it "TRANS_LIST_02 - Start time shouldn't be later than end time" $
         \ctx -> do
@@ -1120,6 +1347,35 @@ spec = do
             w <- emptyWallet ctx
             r <- request @([ApiTransaction t]) ctx (listTxEp w mempty) headers Empty
             verify r expectations
+
+    it "TRANS_LIST_04 - 'almost' valid walletId" $ \ctx -> do
+        w <- emptyWallet ctx
+        let endpoint = "v2/wallets/"
+                <> T.unpack (T.append (w ^. walletId) "0")
+                <> "/transactions"
+        r <- request @([ApiTransaction t]) ctx ("GET", T.pack endpoint)
+                Default Empty
+        expectResponseCode @IO HTTP.status404 r
+        expectErrorMessage errMsg404NoEndpoint r
+
+    it "TRANS_LIST_04 - Deleted wallet" $ \ctx -> do
+        w <- emptyWallet ctx
+        _ <- request @ApiWallet ctx (deleteWalletEp w) Default Empty
+        r <- request @([ApiTransaction t]) ctx (listTxEp w mempty)
+            Default Empty
+        expectResponseCode @IO HTTP.status404 r
+        expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+
+    -- describe "TRANS_LIST_04 - False wallet ids" $ do
+    --     forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
+    --         let endpoint = "v2/wallets/" <> walId <> "/transactions"
+    --         r <- request @([ApiTransaction t]) ctx ("GET", T.pack endpoint)
+    --                 Default Empty
+    --         expectResponseCode HTTP.status404 r
+    --         if (title == "40 chars hex") then
+    --             expectErrorMessage (errMsg404NoWallet $ T.pack walId) r
+    --         else
+    --             expectErrorMessage errMsg404NoEndpoint r
 
     it "TRANS_LIST_RANGE_01 - \
        \Transaction at time t is SELECTED by small ranges that cover it" $
@@ -1279,6 +1535,7 @@ spec = do
             , expectErrorMessage errMsg415 ]
         )
         ]
+
     fixtureErrInputsDepleted ctx = do
         wSrc <- fixtureWalletWith ctx [12_000_000, 20_000_000, 17_000_000]
         wDest <- emptyWallet ctx
@@ -1298,3 +1555,42 @@ spec = do
                 "passphrase": "Secure Passphrase"
             }|]
         return (wSrc, payload)
+
+    fixtureWalletManyTxs
+      :: Context t
+      -> [Natural]
+      -> IO (ApiWallet, ApiWallet, [(UTCTime, Natural)])
+    fixtureWalletManyTxs ctx txAmounts = do
+        (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        addrs <- listAddresses ctx wDest
+
+        forM_ txAmounts $ \amt -> do
+            let destination = (addrs !! 1) ^. #id
+            let payload = Json [json|{
+                    "payments": [{
+                        "address": #{destination},
+                        "amount": {
+                            "quantity": #{amt},
+                            "unit": "lovelace"
+                        }
+                    }],
+                    "passphrase": "cardano-wallet"
+                }|]
+
+            rg <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
+            let balAv = getFromResponse balanceAvailable rg
+            let balTot = getFromResponse balanceTotal rg
+
+            request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+              >>= expectResponseCode HTTP.status202
+            expectEventually' ctx balanceAvailable (amt + balAv) wDest
+            expectEventually' ctx balanceTotal (amt + balTot) wDest
+
+        expectEventually' ctx balanceAvailable (sum txAmounts) wDest
+        expectEventually' ctx balanceTotal (sum txAmounts) wDest
+        r <- request @([ApiTransaction t]) ctx (listTxEp wDest "?order=ascending")
+            Default Empty
+        let indexes = [0..(length txAmounts - 1)]
+        let txTimes = map (\x -> fromJust $ getFromResponseList x insertedAt r) indexes
+        let wDestTxList = zip txTimes txAmounts
+        return (wSrc, wDest, wDestTxList)
