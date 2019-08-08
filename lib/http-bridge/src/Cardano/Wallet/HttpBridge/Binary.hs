@@ -2,8 +2,10 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -23,25 +25,29 @@ module Cardano.Wallet.HttpBridge.Binary
     (
     -- * Decoding
       decodeBlock
+    , decodeAddressDerivationPath
+    , decodeAddressPayload
+    , decodeAllAttributes
     , decodeBlockHeader
+    , decodeDerivationPathAttr
+    , decodeSignedTx
     , decodeTx
     , decodeTxWitness
-    , decodeSignedTx
-    , decodeAddressPayload
 
     -- * Encoding
-    , encodeTx
     , encodeAddress
-    , encodeTxWitness
+    , encodeDerivationPathAttr
+    , encodeEmptyAttributes
+    , encodeProtocolMagicAttr
     , encodePublicKeyWitness
     , encodeSignedTx
-    , encodeProtocolMagic
+    , encodeTx
+    , encodeTxWitness
 
     -- * Helpers
     , inspectNextToken
     , decodeList
     , decodeListIndef
-    , toByteString
     , estimateMaxNumberOfInputsParams
     ) where
 
@@ -53,6 +59,8 @@ import Cardano.Wallet.HttpBridge.Environment
     ( ProtocolMagic (..) )
 import Cardano.Wallet.HttpBridge.Primitive.Types
     ( Tx (..) )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Depth (..), DerivationType (..), Index (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Block (..)
@@ -67,7 +75,9 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Transaction
     ( EstimateMaxNumberOfInputsParams (..) )
 import Control.Monad
-    ( void )
+    ( replicateM, void, when )
+import Crypto.Error
+    ( CryptoError (..), CryptoFailable (..) )
 import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
@@ -77,7 +87,7 @@ import Data.ByteString
 import Data.Digest.CRC32
     ( crc32 )
 import Data.Word
-    ( Word16, Word64 )
+    ( Word16, Word64, Word8 )
 import Debug.Trace
     ( traceShow )
 
@@ -85,10 +95,55 @@ import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
 import qualified Codec.CBOR.Write as CBOR
+import qualified Crypto.Cipher.ChaChaPoly1305 as Poly
 import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 
 -- Decoding
+
+{-------------------------------------------------------------------------------
+                         Byron Address Encoding
+
+In the composition of a Cardano address, the following functions concern the
+"Derivation Path" box.
+
++-------------------------------------------------------------------------------+
+|                                                                               |
+|                        CBOR-Serialized Object with CRC¹                       |
+|                                                                               |
++-------------------------------------------------------------------------------+
+                                        |
+                                        |
+                                        v
++-------------------------------------------------------------------------------+
+|     Address Root    |     Address Attributes    |           AddrType          |
+|                     |                           |                             |
+|   Hash (224 bits)   |  Der. Path² + Stake + NM  |  PubKey | (Script) | Redeem |
+|                     |    (open for extension)   |     (open for extension)    |
++-------------------------------------------------------------------------------+
+             |                 |
+             |                 |     +----------------------------------+
+             v                 |     |        Derivation Path           |
++---------------------------+  |---->|                                  |
+| SHA3-256                  |  |     | ChaChaPoly⁴ AccountIx/AddressIx  |
+|   |> Blake2b 224          |  |     +----------------------------------+
+|   |> CBOR                 |  |
+|                           |  |
+|  -AddrType                |  |     +----------------------------------+
+|  -ASD³ (~AddrType+PubKey) |  |     |       Stake Distribution         |
+|  -Address Attributes      |  |     |                                  |
++---------------------------+  |---->|  BootstrapEra | (Single | Multi) |
+                               |     +----------------------------------+
+                               |
+                               |
+                               |     +----------------------------------+
+                               |     |          Network Magic           |
+                               |---->|                                  |
+                                     | Addr Discr: MainNet vs TestNet   |
+                                     +----------------------------------+
+
+-------------------------------------------------------------------------------}
 
 decodeAddress :: CBOR.Decoder s Address
 decodeAddress = do
@@ -120,10 +175,95 @@ decodeAddressPayload = do
     _ <- CBOR.decodeWord32 -- CRC
     return bytes
 
-decodeAttributes :: CBOR.Decoder s ((), CBOR.Encoding)
-decodeAttributes = do
+decodeAddressDerivationPath
+    :: Passphrase "addr-derivation-payload"
+    -> CBOR.Decoder s (Maybe
+        ( Index 'Hardened 'AccountK
+        , Index 'Hardened 'AddressK
+        ))
+decodeAddressDerivationPath pwd = do
+    _ <- CBOR.decodeListLenCanonicalOf 3
+    _ <- CBOR.decodeBytes
+    path <- decodeAllAttributes >>= decodeDerivationPathAttr pwd
+    addrType <- CBOR.decodeWord8 -- Type
+    when (addrType /= 0) $
+        fail $ mconcat
+            [ "decodeAddressDerivationPath: type is not 0 (public key), it is "
+            , show addrType
+            ]
+    pure path
+
+decodeEmptyAttributes :: CBOR.Decoder s ((), CBOR.Encoding)
+decodeEmptyAttributes = do
     _ <- CBOR.decodeMapLenCanonical -- Empty map of attributes
     return ((), CBOR.encodeMapLen 0)
+
+-- | The attributes are pairs of numeric tags and bytes, where the bytes will be
+-- CBOR-encoded stuff. This decoder does not enforce "canonicity" of entries.
+decodeAllAttributes
+    :: CBOR.Decoder s [(Word8, ByteString)]
+decodeAllAttributes = do
+    n <- CBOR.decodeMapLenCanonical -- Address Attributes length
+    replicateM n decodeAttr
+  where
+    decodeAttr = (,) <$> CBOR.decodeWord8 <*> CBOR.decodeBytes
+
+decodeDerivationPathAttr
+    :: Passphrase "addr-derivation-payload"
+    -> [(Word8, ByteString)]
+    -> CBOR.Decoder s (Maybe
+        ( Index 'Hardened 'AccountK
+        , Index 'Hardened 'AddressK
+        ))
+decodeDerivationPathAttr pwd attrs = do
+    case lookup derPathTag attrs of
+        Just payload -> do
+            decodeNestedBytes decoder payload
+        Nothing -> fail $ mconcat
+            [ "decodeDerivationPathAttr: Missing attribute "
+            , show derPathTag
+            ]
+  where
+    derPathTag = 1
+    decoder :: CBOR.Decoder s (Maybe
+        ( Index 'Hardened 'AccountK
+        , Index 'Hardened 'AddressK
+        ))
+    decoder = do
+        bytes <- CBOR.decodeBytes
+        case decryptDerivationPath pwd bytes of
+            CryptoPassed plaintext ->
+                Just <$> decodeNestedBytes decodeDerivationPath plaintext
+            CryptoFailed _ ->
+                pure Nothing
+
+-- Opposite of 'encodeDerivationPath'.
+decodeDerivationPath
+    :: CBOR.Decoder s
+        ( Index 'Hardened 'AccountK
+        , Index 'Hardened 'AddressK
+        )
+decodeDerivationPath = do
+    ixs <- decodeListIndef CBOR.decodeWord32
+    case ixs of
+        [acctIx, addrIx] | isValidIx acctIx && isValidIx addrIx ->
+            pure (toEnum $ fromIntegral acctIx, toEnum $ fromIntegral addrIx)
+        [_, _] ->
+            fail $ mconcat
+                [ "decodeDerivationPath: indexes out of ranges: "
+                , show ixs
+                ]
+        _ ->
+            fail $ mconcat
+                [ "decodeDerivationPath: invalid derivation path payload: "
+                , "expected two indexes but got: "
+                , show ixs
+                ]
+  where
+    isValidIx i =
+        i >= getIndex (minBound @(Index 'Hardened _))
+        &&
+        i <= getIndex (maxBound @(Index 'Hardened _))
 
 {-# HLINT ignore decodeBlock "Use <$>" #-}
 decodeBlock :: CBOR.Decoder s (Block Tx)
@@ -223,7 +363,7 @@ decodeGenesisConsensusData = do
 decodeGenesisExtraData :: CBOR.Decoder s ()
 decodeGenesisExtraData = do
     _ <- CBOR.decodeListLenCanonicalOf 1
-    _ <- decodeAttributes
+    _ <- decodeEmptyAttributes
     return ()
 
 decodeGenesisProof :: CBOR.Decoder s ()
@@ -282,7 +422,7 @@ decodeMainExtraData = do
     _ <- CBOR.decodeListLenCanonicalOf 4
     _ <- decodeBlockVersion
     _ <- decodeSoftwareVersion
-    _ <- decodeAttributes
+    _ <- decodeEmptyAttributes
     _ <- decodeDataProof
     return ()
 
@@ -385,7 +525,7 @@ decodeTx = do
     _ <- CBOR.decodeListLenCanonicalOf 3
     ins <- decodeListIndef decodeTxIn
     outs <- decodeListIndef decodeTxOut
-    _ <- decodeAttributes
+    _ <- decodeEmptyAttributes
     return $ Tx ins outs
 
 decodeTxPayload :: CBOR.Decoder s [Tx]
@@ -504,6 +644,38 @@ encodeAddressPayload payload = mempty
     <> CBOR.encodeBytes payload
     <> CBOR.encodeWord32 (crc32 payload)
 
+encodeEmptyAttributes :: CBOR.Encoding
+encodeEmptyAttributes = CBOR.encodeMapLen 0
+
+encodeProtocolMagicAttr :: ProtocolMagic -> CBOR.Encoding
+encodeProtocolMagicAttr pm = mempty
+    <> CBOR.encodeWord 2 -- Tag for 'ProtocolMagic' attribute
+    <> CBOR.encodeBytes (CBOR.toStrictByteString $ encodeProtocolMagic pm)
+
+-- This is the opposite of 'decodeDerivationPathAttr'.
+--
+-- NOTE: The caller must ensure that the passphrase length is 32 bytes.
+encodeDerivationPathAttr
+    :: Passphrase "addr-derivation-payload"
+    -> Index 'Hardened 'AccountK
+    -> Index 'Hardened 'AddressK
+    -> CBOR.Encoding
+encodeDerivationPathAttr pwd acctIx addrIx = mempty
+    <> CBOR.encodeWord8 1 -- Tag for 'DerivationPath' attribute
+    <> CBOR.encodeBytes (encryptDerivationPath pwd path)
+  where
+    path = encodeDerivationPath acctIx addrIx
+
+encodeDerivationPath
+    :: Index 'Hardened 'AccountK
+    -> Index 'Hardened 'AddressK
+    -> CBOR.Encoding
+encodeDerivationPath (Index acctIx) (Index addrIx) = mempty
+    <> CBOR.encodeListLenIndef
+    <> CBOR.encodeWord32 acctIx
+    <> CBOR.encodeWord32 addrIx
+    <> CBOR.encodeBreak
+
 encodeSignedTx :: (Tx, [TxWitness]) -> CBOR.Encoding
 encodeSignedTx (tx, witnesses) = mempty
     <> CBOR.encodeListLen 2
@@ -575,7 +747,60 @@ encodeTxOut (TxOut (Address addr) (Coin c)) = mempty
             decodeAddressPayload
             (BL.fromStrict addr)
 
--- * Helpers
+{-------------------------------------------------------------------------------
+                    HD payload encryption and authentication
+-------------------------------------------------------------------------------}
+
+-- | Hard-coded nonce from the legacy code-base.
+cardanoNonce :: ByteString
+cardanoNonce = "serokellfore"
+
+-- | ChaCha20/Poly1305 encrypting and signing the HD payload of addresses.
+--
+-- NOTE: The caller must ensure that the passphrase length is 32 bytes.
+encryptDerivationPath
+    :: Passphrase "addr-derivation-payload"
+       -- ^ Symmetric key / passphrase, 32-byte long
+    -> CBOR.Encoding
+        -- ^ Payload to be encrypted
+    -> ByteString
+        -- ^ Ciphertext with a 128-bit crypto-tag appended.
+encryptDerivationPath (Passphrase passphrase) payload = unsafeSerialize $ do
+    nonce <- Poly.nonce12 cardanoNonce
+    st1 <- Poly.finalizeAAD <$> Poly.initialize passphrase nonce
+    let (out, st2) = Poly.encrypt (CBOR.toStrictByteString payload) st1
+    return $ out <> BA.convert (Poly.finalize st2)
+  where
+    unsafeSerialize :: CryptoFailable ByteString -> ByteString
+    unsafeSerialize =
+        CBOR.toStrictByteString . CBOR.encodeBytes . useInvariant
+
+    -- Encryption will fail if the key is the wrong size, but that won't happen
+    -- if the key was created with 'generateKeyFromSeed'.
+    useInvariant = \case
+        CryptoPassed res -> res
+        CryptoFailed err -> error $ "encodeAddressKey: " ++ show err
+
+-- | ChaCha20/Poly1305 decrypting and authenticating the HD payload of
+-- addresses.
+decryptDerivationPath
+    :: Passphrase "addr-derivation-payload"
+       -- ^ Symmetric key / passphrase, 32-byte long
+    -> ByteString
+        -- ^ Payload to be decrypted
+    -> CryptoFailable ByteString
+decryptDerivationPath (Passphrase passphrase) bytes = do
+    let (payload, tag) = BS.splitAt (BS.length bytes - 16) bytes
+    nonce <- Poly.nonce12 cardanoNonce
+    st1 <- Poly.finalizeAAD <$> Poly.initialize passphrase nonce
+    let (out, st2) = Poly.decrypt payload st1
+    when (BA.convert (Poly.finalize st2) /= tag) $
+        CryptoFailed CryptoError_MacKeyInvalid
+    return out
+
+{-------------------------------------------------------------------------------
+                                Helpers
+-------------------------------------------------------------------------------}
 
 -- | Inspect the next token that has to be decoded and print it to the console
 -- as a trace. Useful for debugging Decoders.
@@ -625,8 +850,20 @@ encodeList encodeOne list = mempty
     <> CBOR.encodeListLen (fromIntegral $ length list)
     <> mconcat (map encodeOne list)
 
-toByteString :: CBOR.Encoding -> ByteString
-toByteString = BL.toStrict . CBOR.toLazyByteString
+-- | Byron CBOR encodings often have CBOR nested in CBOR. This helps decoding
+-- a particular 'ByteString' that represents a CBOR object.
+decodeNestedBytes
+    :: (forall s. CBOR.Decoder s r)
+    -> ByteString
+    -> CBOR.Decoder s' r
+decodeNestedBytes dec bytes =
+    case CBOR.deserialiseFromBytes dec (BL.fromStrict bytes) of
+        Right ("", res) ->
+            pure res
+        Right _ ->
+            fail "Leftovers when decoding nested bytes"
+        _ ->
+            fail "Could not decode nested bytes"
 
 -- | This provides network encoding specific variables to be used by the
 -- 'estimateMaxNumberOfInputs' function.
