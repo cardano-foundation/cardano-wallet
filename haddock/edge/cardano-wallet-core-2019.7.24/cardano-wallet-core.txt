@@ -1575,29 +1575,6 @@ deriveAccountPrivateKey :: Passphrase "encryption" -> RndKey  'RootK XPrv -> Ind
 --   passphrase will not make the function fail but will instead, yield an
 --   incorrect new key that doesn't belong to the wallet.
 deriveAddressPrivateKey :: Passphrase "encryption" -> RndKey  'AccountK XPrv -> Index  'Hardened  'AddressK -> RndKey  'AddressK XPrv
-
--- | Encode the derivation path (account index and address index) part of a
---   random HD address.
---   
---   This is the opposite of <a>decodeDerivationPath</a>.
---   
---   NOTE: The caller must ensure that the key length is 32 bytes,
---   selectKey can be done by using the <a>generateKeyFromSeed</a> and
---   <a>publicKey</a> functions.
-encodeDerivationPath :: RndKey  'AddressK XPub -> Encoding
-
--- | Decode the HD random derivation path section of an address. If the
---   public key is incorrect, the decode result will be <a>Nothing</a>.
---   
---   This is the opposite of <a>encodeDerivationPath</a>.
-decodeDerivationPath :: RndKey  'RootK XPub -> Decoder s (Maybe (Index  'Hardened  'AccountK, Index  'Hardened  'AddressK))
-
--- | Decode the Addr Root + Attributes + Type section of a HD random scheme
---   address, and return the derivation path.
---   
---   It will fail to parse if the address is not in the random scheme. If
---   the public key is incorrect, the decode result will be <a>Nothing</a>.
-decodeAddressDerivationPath :: RndKey  'RootK XPub -> Decoder s (Maybe (Index  'Hardened  'AccountK, Index  'Hardened  'AddressK))
 instance GHC.Generics.Generic (Cardano.Wallet.Primitive.AddressDerivation.Random.RndKey depth key)
 instance (GHC.Show.Show key, GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.Random.DerivationPath depth)) => GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.Random.RndKey depth key)
 instance (GHC.Classes.Eq key, GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDerivation.Random.DerivationPath depth)) => GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDerivation.Random.RndKey depth key)
