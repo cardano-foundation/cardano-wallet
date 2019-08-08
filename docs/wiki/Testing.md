@@ -22,6 +22,12 @@ $ stack test cardano-wallet:unit --test-arguments "--match MyModule"
     $ cargo install --branch cardano-wallet-integration --git https://github.com/KtorZ/cardano-http-bridge.git
     ```
 
+    Check that it works and that you have the correct version by running:
+    ```
+    $ cardano-http-bridge --help
+    cardano-http-bridge 0.0.5
+    ```
+
 2. Install [cardano-sl@cardano-node-simple](https://github.com/input-output-hk/cardano-sl)
 
     ```
