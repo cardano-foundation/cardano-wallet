@@ -111,31 +111,44 @@ instance PersistTx (HttpBridge network) where
 -- | Encode a public key to a (Byron / Legacy) Cardano 'Address'. This is mostly
 -- dubious CBOR serializations with no data attributes.
 instance KeyToAddress (HttpBridge 'Testnet) SeqKey where
-    keyToAddress = keyToAddressWith
+    keyToAddress = keyToAddressWith @SeqKey
         (attributesWithProtocolMagic (protocolMagic @'Testnet))
 
 instance KeyToAddress (HttpBridge 'Mainnet) SeqKey where
-    keyToAddress = keyToAddressWith emptyAttributes
+    keyToAddress = keyToAddressWith @SeqKey emptyAttributes
 
 instance KeyToAddress (HttpBridge 'Testnet) RndKey where
-    keyToAddress = rndKeyToAddressWith
-        (attributesWithProtocolMagic (protocolMagic @'Testnet))
+    keyToAddress key = keyToAddressWith @RndKey
+        (rndAttributesWithProtocolMagic (protocolMagic @'Testnet) key)
+        key
 
 instance KeyToAddress (HttpBridge 'Mainnet) RndKey where
-    keyToAddress = rndKeyToAddressWith emptyAttributes
+    keyToAddress key = keyToAddressWith @RndKey
+        (rndAttributesWithoutProtocolMagic key)
+        key
 
-rndKeyToAddressWith :: CBOR.Encoding -> RndKey 'AddressK XPub -> Address
-rndKeyToAddressWith _attrs key =
-    error "rndKeyToAddressWith: unimplemented"
-  where
-    _derPath = encodeDerivationPath key
-
-keyToAddressWith :: CBOR.Encoding -> SeqKey 'AddressK XPub -> Address
+keyToAddressWith
+    :: forall k. WalletKey k
+    => CBOR.Encoding -> k 'AddressK XPub -> Address
 keyToAddressWith attrs key = Address
     $ CBOR.toStrictByteString
     $ CBOR.encodeAddress xpub attrs
   where
-    xpub = getRawKey key
+    xpub = getRawKey @k key
+
+rndAttributesWithProtocolMagic :: ProtocolMagic -> RndKey 'AddressK XPub -> CBOR.Encoding
+rndAttributesWithProtocolMagic pm key = mempty
+    <> CBOR.encodeMapLen 2
+    <> CBOR.encodeWord 1
+    <> CBOR.encodeBytes (CBOR.toStrictByteString $ encodeDerivationPath key)
+    <> CBOR.encodeWord 2
+    <> CBOR.encodeBytes (CBOR.toStrictByteString $ encodeProtocolMagic pm)
+
+rndAttributesWithoutProtocolMagic :: RndKey 'AddressK XPub -> CBOR.Encoding
+rndAttributesWithoutProtocolMagic key = mempty
+    <> CBOR.encodeMapLen 1
+    <> CBOR.encodeWord 1
+    <> CBOR.encodeBytes (CBOR.toStrictByteString $ encodeDerivationPath key)
 
 attributesWithProtocolMagic :: ProtocolMagic -> CBOR.Encoding
 attributesWithProtocolMagic pm = mempty
