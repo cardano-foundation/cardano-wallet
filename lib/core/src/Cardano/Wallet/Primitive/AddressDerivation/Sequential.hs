@@ -104,10 +104,10 @@ import qualified Data.ByteArray as BA
 -- let accountPubKey = SeqKey 'AccountK XPub
 -- let addressPubKey = SeqKey 'AddressK XPub
 -- @
-newtype SeqKey (level :: Depth) key = SeqKey { getKey :: key }
+newtype SeqKey (depth :: Depth) key = SeqKey { getKey :: key }
     deriving stock (Generic, Show, Eq)
 
-instance (NFData key) => NFData (SeqKey level key)
+instance (NFData key) => NFData (SeqKey depth key)
 
 instance WalletKey SeqKey where
      -- The actual seed and its recovery / generation passphrase
@@ -296,15 +296,15 @@ changePassphraseSeq (Passphrase oldPwd) (Passphrase newPwd) (SeqKey prv) =
 
 -- | Extract the public key part of a private key.
 publicKeySeq
-    :: SeqKey level XPrv
-    -> SeqKey level XPub
+    :: SeqKey depth XPrv
+    -> SeqKey depth XPub
 publicKeySeq (SeqKey k) =
     SeqKey (toXPub k)
 
 -- | Hash a public key to some other representation.
 digestSeq
     :: HashAlgorithm a
-    => SeqKey level XPub
+    => SeqKey depth XPub
     -> Digest a
 digestSeq (SeqKey k) =
     hash (unXPub k)

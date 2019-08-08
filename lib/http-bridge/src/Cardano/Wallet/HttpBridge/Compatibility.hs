@@ -43,11 +43,11 @@ import Cardano.Wallet.HttpBridge.Environment
     , protocolMagic
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), KeyToAddress (..) )
+    ( Depth (..), KeyToAddress (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey (..) )
+    ( RndKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey (..) )
+    ( SeqKey )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
@@ -139,7 +139,7 @@ keyToAddressWith attrs key = Address
     $ CBOR.toStrictByteString
     $ CBOR.encodeAddress xpub attrs
   where
-    xpub = getKey key
+    xpub = getRawKey key
 
 attributesWithProtocolMagic :: ProtocolMagic -> CBOR.Encoding
 attributesWithProtocolMagic pm = mempty

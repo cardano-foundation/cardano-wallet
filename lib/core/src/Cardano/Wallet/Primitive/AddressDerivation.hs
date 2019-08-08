@@ -172,7 +172,7 @@ data DerivationType = Hardened | Soft
 -- readability in function signatures.
 newtype Passphrase (purpose :: Symbol) = Passphrase ScrubbedBytes
     deriving stock (Eq, Show)
-    deriving newtype (Semigroup, Monoid)
+    deriving newtype (Semigroup, Monoid, NFData)
 
 type role Passphrase phantom
 
@@ -366,8 +366,13 @@ instance MonadRandom ((->) (Passphrase "salt")) where
 -------------------------------------------------------------------------------}
 
 class WalletKey (key :: Depth -> * -> *) where
+    -- | Data required to generate a WalletKey.
     type WalletKeySeed key
 
+    -- | Generate a new key from seed. Note that the @depth@ is left open so
+    -- that the caller gets to decide what type of key this is. This is mostly
+    -- for testing, in practice, seeds are used to represent root keys, and one
+    -- should use 'generateKeyFromSeed'.
     unsafeGenerateKeyFromSeed
         :: WalletKeySeed key
         -> Passphrase "encryption"
@@ -381,33 +386,55 @@ class WalletKey (key :: Depth -> * -> *) where
         -> key 'RootK XPrv
     generateKeyFromSeed = unsafeGenerateKeyFromSeed
 
+    -- | Re-encrypt a private key using a different passphrase.
+    --
+    -- **Important**:
+    -- This function doesn't check that the old passphrase is correct! Caller is
+    -- expected to have already checked that. Using an incorrect passphrase here
+    -- will lead to very bad thing.
     changePassphrase
         :: Passphrase "encryption-old"
         -> Passphrase "encryption-new"
         -> key depth XPrv
         -> key depth XPrv
 
-    -- This function is temporary, just to implement IsOwned, until it gets a
-    -- type constraint added.
-    -- unwrapKey :: key level depth -> Key level depth
-
+    -- | Extract the public key part of a private key.
     publicKey
-        :: key level XPrv
-        -> key level XPub
+        :: key depth XPrv
+        -> key depth XPub
 
+    -- | Hash a public key to some other representation.
     digest
         :: HashAlgorithm a
         => key depth XPub
         -> Digest a
 
+    -- | Unwrap the 'WalletKey' to use the 'XPrv' or 'XPub'.
     getRawKey
-        :: key level raw
+        :: key depth raw
         -> raw
 
+-- | Operations for saving a 'WalletKey' into a database, and restoring it from
+-- a database. The keys should be encoded in hexadecimal strings.
 class PersistKey (key :: Depth -> * -> *) where
-    serializeXPrv :: (key level XPrv, Hash "encryption") -> (ByteString, ByteString)
-    deserializeXPrv :: (ByteString, ByteString) -> Either String (key level XPrv, Hash "encryption")
+    -- | Convert a private key and its password hash into hexadecimal strings
+    -- suitable for storing in a text file or database column.
+    serializeXPrv
+        :: (key depth XPrv, Hash "encryption")
+        -> (ByteString, ByteString)
+
+    -- | The reverse of 'serializeXPrv'. This may fail if the inputs are not
+    -- valid hexadecimal strings, or if the key is of the wrong length.
+    deserializeXPrv
+        :: (ByteString, ByteString)
+        -> Either String (key depth XPrv, Hash "encryption")
+
+    -- | Convert a public key into a hexadecimal string suitable for storing in
+    -- a text file or database column.
     serializeXPub :: key purpose XPub -> ByteString
+
+    -- | The reverse of 'serializeXPub'. This will fail if the input is not a
+    -- valid hexadecimal string of the correct length.
     deserializeXPub :: ByteString -> Either String (key purpose XPub)
 
 -- | Convert a public key to an 'Address' depending on a particular target.
