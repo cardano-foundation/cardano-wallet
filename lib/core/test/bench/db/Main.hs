@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
@@ -45,9 +46,9 @@ import Cardano.Wallet.DB.Sqlite
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..), block0 )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Key, KeyToAddress (..), Passphrase (..), XPub, publicKey )
+    ( Depth (..), KeyToAddress (..), Passphrase (..), WalletKey (..), XPub )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( generateKeyFromSeed, unsafeGenerateKeyFromSeed )
+    ( SeqKey (..), generateKeyFromSeed, unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , SeqState (..)
@@ -333,8 +334,8 @@ benchPutSeqState numCheckpoints numAddrs db =
         ]
 
 mkPool
-    :: forall t chain. (KeyToAddress t, Typeable chain)
-    => Int -> Int -> AddressPool t chain
+    :: forall t c. (KeyToAddress t SeqKey, Typeable c)
+    => Int -> Int -> AddressPool t c
 mkPool numAddrs i = mkAddressPool ourAccount defaultAddressPoolGap addrs
   where
     addrs =
@@ -344,10 +345,10 @@ mkPool numAddrs i = mkAddressPool ourAccount defaultAddressPoolGap addrs
 ----------------------------------------------------------------------------
 -- Mock data to use for benchmarks
 
-type DBLayerBench = DBLayer IO (SeqState DummyTarget) DummyTarget
+type DBLayerBench = DBLayer IO (SeqState DummyTarget) DummyTarget SeqKey
 type WalletBench = Wallet (SeqState DummyTarget) DummyTarget
 
-instance NFData (DBLayer m s t) where
+instance NFData (DBLayer m s t k) where
     rnf _ = ()
 
 instance PersistTx DummyTarget where
@@ -379,7 +380,7 @@ testWid = WalletId (hash ("test" :: ByteString))
 testPk :: PrimaryKey WalletId
 testPk = PrimaryKey testWid
 
-ourAccount :: Key 'AccountK XPub
+ourAccount :: SeqKey 'AccountK XPub
 ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
   where seed = Passphrase $ BA.convert $ BS.replicate 32 0
 

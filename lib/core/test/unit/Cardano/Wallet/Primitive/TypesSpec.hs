@@ -15,9 +15,9 @@ import Prelude
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Passphrase (..), digest, publicKey )
+    ( Depth (..), Passphrase (..), WalletKey (..), XPrv, digest, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( generateKeyFromSeed )
+    ( SeqKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
@@ -130,7 +130,7 @@ spec = do
     describe "Buildable" $ do
         it "WalletId" $ do
             let seed = Passphrase (BA.convert @ByteString "0000000000000000")
-            let xprv = generateKeyFromSeed (seed, mempty) mempty
+            let xprv = generateKeyFromSeed (seed, mempty) mempty :: SeqKey 'RootK XPrv
             let wid = WalletId $ digest $ publicKey xprv
             "336c96f1...b8cac9ce" === pretty @_ @Text wid
         it "TxMeta (1)" $ do
@@ -553,4 +553,3 @@ instance {-# OVERLAPS #-} Arbitrary (EpochLength, SlotId) where
         ep <- choose (0, 1000)
         sl <- choose (0, fromIntegral epochLength - 1)
         return (EpochLength epochLength, SlotId ep sl)
-

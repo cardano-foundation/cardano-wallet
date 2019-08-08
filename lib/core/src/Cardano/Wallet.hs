@@ -63,10 +63,9 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (RootK)
     , ErrWrongPassphrase (..)
-    , Key
     , Passphrase
+    , WalletKey (..)
     , XPrv
-    , changePassphrase
     , checkPassphrase
     , encryptPassphrase
     )
@@ -204,7 +203,7 @@ import qualified Data.Text as T
                                  Types
 -------------------------------------------------------------------------------}
 
-data WalletLayer s t = WalletLayer
+data WalletLayer s t k = WalletLayer
     { createWallet
         :: (Show s, NFData s, IsOurs s, DefineTx t)
         => WalletId
@@ -225,7 +224,8 @@ data WalletLayer s t = WalletLayer
         -- ^ Update the wallet metadata with the given update function.
 
     , updateWalletPassphrase
-        :: WalletId
+        :: WalletKey k
+        => WalletId
         -> (Passphrase "encryption-old", Passphrase "encryption-new")
         -> ExceptT ErrUpdatePassphrase IO ()
         -- ^ Change the wallet passphrase to the given passphrase.
@@ -284,7 +284,7 @@ data WalletLayer s t = WalletLayer
         -- ^ List the wallet's UTxO statistics.
 
     , signTx
-        :: (Show s, NFData s, IsOwned s, GenChange s)
+        :: (Show s, NFData s, IsOwned s k, GenChange s)
         => WalletId
         -> Passphrase "encryption"
         -> CoinSelection
@@ -317,8 +317,9 @@ data WalletLayer s t = WalletLayer
         -- transaction comes first.
 
     , attachPrivateKey
-        :: WalletId
-        -> (Key 'RootK XPrv, Passphrase "encryption")
+        :: WalletKey k
+        => WalletId
+        -> (k 'RootK XPrv, Passphrase "encryption")
         -> ExceptT ErrNoSuchWallet IO ()
         -- ^ Attach a given private key to a wallet. The private key is
         -- necessary for some operations like signing transactions or,
@@ -430,13 +431,15 @@ data BlockchainParameters t = BlockchainParameters
 
 -- | Create a new instance of the wallet layer.
 newWalletLayer
-    :: forall s t. (Buildable (Tx t))
+    :: forall s t k.
+       ( Buildable (Tx t)
+       )
     => Trace IO Text
     -> BlockchainParameters t
-    -> DBLayer IO s t
+    -> DBLayer IO s t k
     -> NetworkLayer t IO
-    -> TransactionLayer t
-    -> IO (WalletLayer s t)
+    -> TransactionLayer t k
+    -> IO (WalletLayer s t k)
 newWalletLayer tracer bp db nw tl = do
     logDebugT $ "Wallet layer starting with: "
         <> "block0: "+| block0 |+ ", "
@@ -527,7 +530,8 @@ newWalletLayer tracer bp db nw tl = do
         DB.putWalletMeta db (PrimaryKey wid) (modify meta)
 
     _updateWalletPassphrase
-        :: WalletId
+        :: WalletKey k
+        => WalletId
         -> (Passphrase "encryption-old", Passphrase "encryption-new")
         -> ExceptT ErrUpdatePassphrase IO ()
     _updateWalletPassphrase wid (old, new) = do
@@ -853,7 +857,7 @@ newWalletLayer tracer bp db nw tl = do
             txTime = slotStartTime epochLength slotLength startTime
 
     _signTx
-        :: (Show s, NFData s, IsOwned s, GenChange s)
+        :: (Show s, NFData s, IsOwned s k, GenChange s)
         => WalletId
         -> Passphrase "encryption"
         -> CoinSelection
@@ -902,7 +906,7 @@ newWalletLayer tracer bp db nw tl = do
 
     _attachPrivateKey
         :: WalletId
-        -> (Key 'RootK XPrv, Passphrase "encryption")
+        -> (k 'RootK XPrv, Passphrase "encryption")
         -> ExceptT ErrNoSuchWallet IO ()
     _attachPrivateKey wid (xprv, pwd) = do
         hpwd <- liftIO $ encryptPassphrase pwd
@@ -920,7 +924,7 @@ newWalletLayer tracer bp db nw tl = do
         => WalletId
         -> Passphrase "encryption"
         -> (ErrWithRootKey -> e)
-        -> (Key 'RootK XPrv -> ExceptT e IO a)
+        -> (k 'RootK XPrv -> ExceptT e IO a)
         -> ExceptT e IO a
     withRootKey wid pwd embed action = do
         xprv <- withExceptT embed $ do

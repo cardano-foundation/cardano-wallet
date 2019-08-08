@@ -20,9 +20,19 @@ import Prelude
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Key, KeyToAddress (..), Passphrase (..), XPub, publicKey )
+    ( Depth (..)
+    , KeyToAddress (..)
+    , Passphrase (..)
+    , WalletKey (..)
+    , XPrv
+    , XPub
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( ChangeChain (..), deriveAddressPublicKey, unsafeGenerateKeyFromSeed )
+    ( ChangeChain (..)
+    , SeqKey (..)
+    , deriveAddressPublicKey
+    , unsafeGenerateKeyFromSeed
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -266,14 +276,14 @@ prop_poolAtLeastGapAddresses pool =
 
 -- | Our addresses are eventually discovered
 prop_poolEventuallyDiscoverOurs
-    :: forall (chain :: ChangeChain). (Typeable chain)
+    :: forall (c :: ChangeChain). (Typeable c)
     => (AddressPoolGap, Address)
     -> Property
 prop_poolEventuallyDiscoverOurs (g, addr) =
     addr `elem` ours ==> withMaxSuccess 10 $ property prop
   where
-    ours = take 25 (ourAddresses (changeChain @chain))
-    pool = flip execState (mkAddressPool @DummyTarget @chain ourAccount g mempty) $
+    ours = take 25 (ourAddresses (changeChain @c))
+    pool = flip execState (mkAddressPool @DummyTarget @c ourAccount g mempty) $
         forM ours (state . lookupAddress)
     prop = (fromEnum <$> fst (lookupAddress addr pool)) === elemIndex addr ours
 
@@ -323,7 +333,7 @@ prop_lookupDiscovered
 prop_lookupDiscovered (s0, addr) =
     let (ours, s) = isOurs addr s0 in ours ==> prop s
   where
-    key = unsafeGenerateKeyFromSeed (mempty, mempty) mempty
+    key = unsafeGenerateKeyFromSeed (mempty, mempty) mempty :: SeqKey 'RootK XPrv
     prop s = monadicIO $ liftIO $ do
         unless (isJust $ isOwned s (key, mempty) addr) $ do
             expectationFailure "couldn't find private key corresponding to addr"
@@ -405,7 +415,7 @@ prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
 -------------------------------------------------------------------------------}
 
 ourAccount
-    :: Key 'AccountK XPub
+    :: SeqKey 'AccountK XPub
 ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, mempty) mempty
   where
     seed = Passphrase $ BA.convert $ BS.replicate 32 0
@@ -449,7 +459,7 @@ instance Arbitrary Address where
         notOurs = do
             bytes <- Passphrase . BA.convert . BS.pack . take 32 . getInfiniteList
                 <$> arbitrary
-            let xprv = unsafeGenerateKeyFromSeed (bytes, mempty) mempty
+            let xprv = unsafeGenerateKeyFromSeed (bytes, mempty) mempty :: SeqKey 'AddressK XPrv
             return $ keyToAddress @DummyTarget $ publicKey xprv
 
 instance Typeable chain => Arbitrary (AddressPool DummyTarget chain) where

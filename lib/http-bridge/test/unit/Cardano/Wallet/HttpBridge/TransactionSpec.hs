@@ -28,9 +28,9 @@ import Cardano.Wallet.HttpBridge.Primitive.Types
 import Cardano.Wallet.HttpBridge.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Key, KeyToAddress (..), Passphrase (..), XPrv, publicKey )
+    ( Depth (..), KeyToAddress (..), Passphrase (..), XPrv, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( unsafeGenerateKeyFromSeed )
+    ( SeqKey (..), unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.CoinSelection.LargestFirst
@@ -111,9 +111,9 @@ spec = do
 
     describe "estimateMaxNumberOfInputs" $ do
         it "Property for mainnet addresses" $ property $
-            propMaxNumberOfInputsEstimation (newTransactionLayer @'Mainnet)
+            propMaxNumberOfInputsEstimation (newTransactionLayer @'Mainnet @SeqKey)
         it "Property for testnet addresses" $ property$
-            propMaxNumberOfInputsEstimation (newTransactionLayer @'Testnet)
+            propMaxNumberOfInputsEstimation (newTransactionLayer @'Testnet @SeqKey)
 
     describe "mkStdTx unknown input" $ do
         unknownInputTest (Proxy @'Mainnet)
@@ -633,13 +633,14 @@ spec = do
 -------------------------------------------------------------------------------}
 
 propSizeEstimation
-    :: forall n t. (KnownNetwork n, t ~ HttpBridge n, KeyToAddress t)
+    :: forall n t k.
+       (KnownNetwork n, t ~ HttpBridge n, KeyToAddress t k, k ~ SeqKey)
     => Proxy n
     -> (ShowFmt CoinSelection, InfiniteList (Network -> Address))
     -> Property
 propSizeEstimation _ (ShowFmt sel, InfiniteList chngAddrs _) =
     let
-        calcSize = estimateSize (newTransactionLayer @n) sel
+        calcSize = estimateSize (newTransactionLayer @n @k) sel
         tx = fromCoinSelection sel
         encodedTx = CBOR.toLazyByteString $ encodeSignedTx tx
         size = fromIntegral $ BL.length encodedTx
@@ -672,14 +673,15 @@ propSizeEstimation _ (ShowFmt sel, InfiniteList chngAddrs _) =
             (Tx (fst <$> inps) (outs <> txChngs), wits)
 
 unknownInputTest
-    :: forall n. (KnownNetwork n, KeyToAddress (HttpBridge n))
+    :: forall n k.
+       (KnownNetwork n, KeyToAddress (HttpBridge n) k, k ~ SeqKey)
     => Proxy n
     -> SpecWith ()
 unknownInputTest _ = it title $ do
     let addr = keyToAddress @(HttpBridge n) $ publicKey $ xprv "address-number-0"
     let res = mkStdTx tl keyFrom inps outs
           where
-            tl = newTransactionLayer @n
+            tl = newTransactionLayer @n @k
             keyFrom = const Nothing
             inps =
                 [ ( TxIn (Hash "arbitrary") 0
@@ -814,16 +816,16 @@ instance Arbitrary TxIn where
                                 Golden Tests
 -------------------------------------------------------------------------------}
 
-xprv :: ByteString -> Key depth XPrv
+xprv :: ByteString -> SeqKey depth XPrv
 xprv seed =
     unsafeGenerateKeyFromSeed (Passphrase (BA.convert seed), mempty) mempty
 
 goldenTestSignedTx
-    :: forall n. (KnownNetwork n, KeyToAddress (HttpBridge n))
+    :: forall n k. (KnownNetwork n, KeyToAddress (HttpBridge n) k, k ~ SeqKey)
     => Proxy n
     -> Int
         -- ^ Number of outputs
-    -> [(Key 'AddressK XPrv, Coin)]
+    -> [(k 'AddressK XPrv, Coin)]
         -- ^ (Address Private Keys, Output value)
     -> ByteString
         -- ^ Expected result, in Base16

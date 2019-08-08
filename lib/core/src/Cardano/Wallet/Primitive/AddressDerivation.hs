@@ -7,6 +7,7 @@
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -22,22 +23,25 @@
 -- where most of the crypto happens in the wallet and, it is quite important to
 -- ensure that the implementations match with other Cardano wallets
 -- (like cardano-sl, Yoroi/Icarus, or cardano-cli)
+--
+-- The actual implementations are in the following modules:
+--
+--  * "Cardano.Wallet.Primitive.AddressDerivation.Sequential"
+--  * "Cardano.Wallet.Primitive.AddressDerivation.Random"
 
 module Cardano.Wallet.Primitive.AddressDerivation
     (
     -- * Polymorphic / General Purpose Types
     -- $use
-      Key
-    , getKey
-    , Depth (..)
+      Depth (..)
     , Index (..)
     , DerivationType (..)
-    , publicKey
-    , digest
     , XPub
     , XPrv
     -- * Backends Interoperability
     , KeyToAddress(..)
+    , WalletKey(..)
+    , PersistKey(..)
 
     -- * Passphrase
     , Passphrase(..)
@@ -48,21 +52,12 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , ErrWrongPassphrase(..)
     , encryptPassphrase
     , checkPassphrase
-    , changePassphrase
-
-    -- * Storing and retrieving keys
-    , serializeXPrv
-    , deserializeXPrv
-    , serializeXPub
-    , deserializeXPub
     ) where
 
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPrv, XPub, toXPub, unXPrv, unXPub, xPrvChangePass, xprv, xpub )
-import Cardano.Wallet.Primitive.AddressDerivation.Common
-    ( Depth (..), Key (..) )
+    ( XPrv, XPub )
 import Cardano.Wallet.Primitive.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
@@ -82,9 +77,9 @@ import Control.Arrow
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( unless, (<=<) )
+    ( unless )
 import Crypto.Hash
-    ( Digest, HashAlgorithm, hash )
+    ( Digest, HashAlgorithm )
 import Crypto.KDF.PBKDF2
     ( Parameters (..), fastPBKDF2_SHA512 )
 import Crypto.Random.Types
@@ -93,8 +88,6 @@ import Data.Bifunctor
     ( first )
 import Data.ByteArray
     ( ScrubbedBytes )
-import Data.ByteArray.Encoding
-    ( Base (..), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.List
@@ -120,10 +113,17 @@ import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
-
 {-------------------------------------------------------------------------------
                         Polymorphic / General Purpose Types
 -------------------------------------------------------------------------------}
+
+-- | Key Depth in the derivation path, according to BIP-0039 / BIP-0044
+--
+-- @m | purpose' | cointype' | account' | change | address@
+--
+-- We do not manipulate purpose, cointype and change paths directly, so they are
+-- left out of the sum type.
+data Depth = RootK | AccountK | AddressK
 
 -- | A derivation index, with phantom-types to disambiguate derivation type.
 --
@@ -164,21 +164,6 @@ instance Enum (Index 'Soft level) where
 -- | Type of derivation that should be used with the given indexes.
 data DerivationType = Hardened | Soft
 
--- | Extract the public key part of a private key.
-publicKey
-    :: Key level XPrv
-    -> Key level XPub
-publicKey (Key k) =
-    Key (toXPub k)
-
--- | Hash a public key to some other representation.
-digest
-    :: HashAlgorithm a
-    => Key level XPub
-    -> Digest a
-digest (Key k) =
-    hash (unXPub k)
-
 {-------------------------------------------------------------------------------
                                  Passphrases
 -------------------------------------------------------------------------------}
@@ -187,7 +172,7 @@ digest (Key k) =
 -- readability in function signatures.
 newtype Passphrase (purpose :: Symbol) = Passphrase ScrubbedBytes
     deriving stock (Eq, Show)
-    deriving newtype (Semigroup, Monoid)
+    deriving newtype (Semigroup, Monoid, NFData)
 
 type role Passphrase phantom
 
@@ -351,20 +336,6 @@ checkPassphrase received stored = do
 data ErrWrongPassphrase = ErrWrongPassphrase
     deriving stock (Show, Eq)
 
--- | Re-encrypt a private key using a different passphrase.
---
--- **Important**:
--- This function doesn't check that the old passphrase is correct! Caller is
--- expected to have already checked that. Using an incorrect passphrase here
--- will lead to very bad thing.
-changePassphrase
-    :: Passphrase "encryption-old"
-    -> Passphrase "encryption-new"
-    -> Key purpose XPrv
-    -> Key purpose XPrv
-changePassphrase (Passphrase oldPwd) (Passphrase newPwd) (Key prv) =
-    Key $ xPrvChangePass oldPwd newPwd prv
-
 -- | Little trick to be able to provide our own "random" salt in order to
 -- deterministically re-compute a passphrase hash from a known salt. Note that,
 -- this boils down to giving an extra argument to the `encryptPassphrase`
@@ -394,102 +365,61 @@ instance MonadRandom ((->) (Passphrase "salt")) where
                           Backend-dependent functions
 -------------------------------------------------------------------------------}
 
+class WalletKey (key :: Depth -> * -> *) where
+    -- | Re-encrypt a private key using a different passphrase.
+    --
+    -- **Important**:
+    -- This function doesn't check that the old passphrase is correct! Caller is
+    -- expected to have already checked that. Using an incorrect passphrase here
+    -- will lead to very bad thing.
+    changePassphrase
+        :: Passphrase "encryption-old"
+        -> Passphrase "encryption-new"
+        -> key depth XPrv
+        -> key depth XPrv
+
+    -- | Extract the public key part of a private key.
+    publicKey
+        :: key depth XPrv
+        -> key depth XPub
+
+    -- | Hash a public key to some other representation.
+    digest
+        :: HashAlgorithm a
+        => key depth XPub
+        -> Digest a
+
+    -- | Unwrap the 'WalletKey' to use the 'XPrv' or 'XPub'.
+    getRawKey
+        :: key depth raw
+        -> raw
+
+-- | Operations for saving a 'WalletKey' into a database, and restoring it from
+-- a database. The keys should be encoded in hexadecimal strings.
+class PersistKey (key :: Depth -> * -> *) where
+    -- | Convert a private key and its password hash into hexadecimal strings
+    -- suitable for storing in a text file or database column.
+    serializeXPrv
+        :: (key depth XPrv, Hash "encryption")
+        -> (ByteString, ByteString)
+
+    -- | The reverse of 'serializeXPrv'. This may fail if the inputs are not
+    -- valid hexadecimal strings, or if the key is of the wrong length.
+    deserializeXPrv
+        :: (ByteString, ByteString)
+        -> Either String (key depth XPrv, Hash "encryption")
+
+    -- | Convert a public key into a hexadecimal string suitable for storing in
+    -- a text file or database column.
+    serializeXPub :: key purpose XPub -> ByteString
+
+    -- | The reverse of 'serializeXPub'. This will fail if the input is not a
+    -- valid hexadecimal string of the correct length.
+    deserializeXPub :: ByteString -> Either String (key purpose XPub)
+
 -- | Convert a public key to an 'Address' depending on a particular target.
 --
 -- Note that 'keyToAddress' is ambiguous and requires therefore a type
 -- applications. See also 'TxId'.
-class KeyToAddress target where
-    keyToAddress :: Key 'AddressK XPub -> Address
-
-{-------------------------------------------------------------------------------
-                          Storing and retrieving keys
--------------------------------------------------------------------------------}
-
-fromHexText :: ByteString -> Either String ByteString
-fromHexText = convertFromBase Base16
-
-toHexText :: ByteString -> ByteString
-toHexText = convertToBase Base16
-
--- | Convert a private key and its password hash into hexadecimal strings
--- suitable for storing in a text file or database column.
-serializeXPrv
-    :: (Key purpose XPrv, Hash "encryption")
-    -> (ByteString, ByteString)
-serializeXPrv (k, h) =
-    ( toHexText . unXPrv . getKey $ k
-    , toHexText . getHash $ h )
-
--- | The reverse of 'serializeXPrv'. This may fail if the inputs are not valid
--- hexadecimal strings, or if the key is of the wrong length.
-deserializeXPrv
-    :: (ByteString, ByteString)
-       -- ^ Hexadecimal encoded private key and password hash
-    -> Either String (Key purpose XPrv, Hash "encryption")
-deserializeXPrv (k, h) = (,)
-    <$> fmap Key (xprvFromText k)
-    <*> fmap Hash (fromHexText h)
-  where
-    xprvFromText = xprv <=< fromHexText
-
--- | Convert a public key into a hexadecimal string suitable for storing in a
--- text file or database column.
-serializeXPub :: Key purpose XPub -> ByteString
-serializeXPub = toHexText . unXPub . getKey
-
--- | The reverse of 'serializeXPub'. This will fail if the input is not a valid
--- hexadecimal string of the correct length.
-deserializeXPub :: ByteString -> Either String (Key purpose XPub)
-deserializeXPub = fmap Key . (xpub <=< fromHexText)
-
--- $use
--- 'Key' and 'Index' allow for representing public keys, private keys, hardened
--- indexes and soft (non-hardened) indexes for various level in a non-ambiguous
--- manner. Those types are opaque and can only be created through dedicated
--- constructors.
---
--- Indexes can be created through their `Bounded` and `Enum` instances. Note
--- that, the `Enum` functions are partial and its the caller responsibility to
--- make sure it is safe to call them. For instance, calling @succ maxBound@ for
--- any index would through a runtime error. Similarly, trying to convert an
--- invalid value from an 'Int' to a an 'Index' will result in bad behavior.
---
--- >>> toEnum 0x00000000 :: Index 'Soft 'AddressK
--- Index {getIndex = 0}
---
--- >>> toEnum 0x00000000 :: Index 'Hardened 'AccountK
--- Index {getIndex = *** Exception: Index@Hardened.toEnum: bad argument
---
--- >>> toEnum 0x80000000 :: Index 'Hardened 'AccountK
--- Index {getIndex = 2147483648}
---
--- >>> toEnum 0x80000000 :: Index 'Soft 'AddressK
--- Index {getIndex = *** Exception: Index@Soft.toEnum: bad argument
---
--- Keys have to be created from a seed using 'generateKeyFromSeed' which always
--- gives a root private key. Then, child keys can be created safely using the
--- various key derivation methods:
---
--- - 'publicKey' --> For any @Key _ XPrv@ to @Key _ XPub@
--- - 'deriveAccountPrivateKey' -->
---      From @Key RootK XPrv@ to @Key AccountK XPrv@
--- - 'deriveAddressPrivateKey' -->
---      From @Key AccountK XPrv@ to @Key AddressK XPrv@
--- - 'deriveAddressPublicKey' -->
---      From @Key AccountK XPub@ to @Key AddressK XPub@
---
--- For example:
---
--- @
--- -- Access public key for: m|coinType'|purpose'|0'
--- let seed = "My Secret Seed"
---
--- let rootXPrv :: Key 'RootK XPrv
---     rootXPrv = generateKeyFromSeed (seed, mempty) mempty
---
--- let accIx :: Index 'Hardened 'AccountK
---     accIx = toEnum 0x80000000
---
--- let accXPub :: Key 'AccountL XPub
---     accXPub = publicKey $ deriveAccountPrivateKey mempty rootXPrv accIx
--- @
+class WalletKey key => KeyToAddress target (key :: Depth -> * -> *) where
+    keyToAddress :: key 'AddressK XPub -> Address

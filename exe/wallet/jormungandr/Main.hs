@@ -79,6 +79,8 @@ import Cardano.Wallet.Network
     ( NetworkLayer (..), defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( SeqKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
 import Cardano.Wallet.Primitive.Types
@@ -286,8 +288,8 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
         <*> verbosityOption
         <*> genesisHashOption
     exec
-        :: forall t n s. (n ~ 'Testnet, t ~ Jormungandr n, s ~ SeqState t)
-        => (KeyToAddress t, KnownNetwork n)
+        :: forall t k n s. (n ~ 'Testnet, t ~ Jormungandr n, s ~ SeqState t, k ~ SeqKey)
+        => (KeyToAddress t k, KnownNetwork n)
         => ServeArgs
         -> IO ()
     exec (ServeArgs listen nodePort dbFile verbosity block0H) = do
@@ -299,7 +301,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
       where
         startServer
             :: Trace IO Text
-            -> WalletLayer s t
+            -> WalletLayer s t k
             -> IO ()
         startServer tracer wallet = do
             Server.withListeningSocket listen $ \(port, socket) -> do
@@ -315,8 +317,8 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
 
         newWalletLayer
             :: (Switchboard Text, Trace IO Text)
-            -> DBLayer IO s t
-            -> IO (WalletLayer s t)
+            -> DBLayer IO s t k
+            -> IO (WalletLayer s t k)
         newWalletLayer (sb, tracer) db = do
             (nl, blockchainParams) <- newNetworkLayer (sb, tracer)
             let tl = Jormungandr.newTransactionLayer @n block0H
@@ -346,7 +348,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
         withDBLayer
             :: CM.Configuration
             -> Trace IO Text
-            -> (DBLayer IO s t -> IO a)
+            -> (DBLayer IO s t k -> IO a)
             -> IO a
         withDBLayer logCfg tracer action = do
             let tracerDB = appendName "database" tracer

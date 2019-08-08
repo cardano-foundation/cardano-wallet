@@ -24,7 +24,6 @@ import Cardano.Wallet.Jormungandr.Transaction
     ( ErrExceededInpsOrOuts (..), newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
-    , Key
     , KeyToAddress (..)
     , Passphrase (..)
     , XPrv
@@ -32,7 +31,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( unsafeGenerateKeyFromSeed )
+    ( SeqKey, unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
@@ -74,10 +73,10 @@ estimateMaxNumberOfInputsSpec :: Spec
 estimateMaxNumberOfInputsSpec = describe "estimateMaxNumberOfInputs" $ do
     it "Property for mainnet addresses" $
         property $ propMaxNumberOfInputsEstimation
-        (newTransactionLayer (Hash "") :: TransactionLayer (Jormungandr 'Mainnet))
+        (newTransactionLayer (Hash "") :: TransactionLayer (Jormungandr 'Mainnet) SeqKey)
     it "Property for testnet addresses" $
         property $ propMaxNumberOfInputsEstimation
-        (newTransactionLayer (Hash "") :: TransactionLayer (Jormungandr 'Testnet))
+        (newTransactionLayer (Hash "") :: TransactionLayer (Jormungandr 'Testnet) SeqKey)
 
 {-------------------------------------------------------------------------------
                                   mkStdTx
@@ -256,7 +255,7 @@ mkStdTxSpec = do
 goldenTestStdTx
     :: forall n. (KnownNetwork n)
     => Proxy (Jormungandr n)
-    -> (Address -> Maybe (Key 'AddressK XPrv, Passphrase "encryption"))
+    -> (Address -> Maybe (SeqKey 'AddressK XPrv, Passphrase "encryption"))
     -> Hash "Genesis"
     -> [(TxIn, TxOut)]
     -> [TxOut]
@@ -278,7 +277,7 @@ goldenTestStdTx _ keystore block0 inps outs bytes' = it title $ do
 
 xprvFromSeed
     :: ByteString
-    -> (Key depth XPrv, Passphrase "encryption")
+    -> (SeqKey depth XPrv, Passphrase "encryption")
 xprvFromSeed seed =
     ( unsafeGenerateKeyFromSeed (Passphrase (BA.convert seed), mempty) pwd
     , pwd
@@ -361,6 +360,6 @@ tooNumerousOutsTest _ block0 = it title $ do
         <> ")"
 
 
-xprv :: ByteString -> Key depth XPrv
+xprv :: ByteString -> SeqKey depth XPrv
 xprv seed =
     unsafeGenerateKeyFromSeed (Passphrase (BA.convert seed), mempty) mempty

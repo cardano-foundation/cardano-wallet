@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
@@ -22,11 +23,11 @@ import Cardano.Wallet.HttpBridge.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (AddressK)
-    , Key
-    , KeyToAddress
+    , KeyToAddress (..)
     , Passphrase (..)
+    , PersistKey (..)
+    , WalletKey (..)
     , XPrv
-    , getKey
     , publicKey
     )
 import Cardano.Wallet.Primitive.CoinSelection
@@ -66,8 +67,9 @@ import qualified Data.ByteString.Lazy as BL
 
 -- | Construct a 'TransactionLayer' compatible with Byron and the 'HttpBridge'
 newTransactionLayer
-    :: forall n t. (KnownNetwork n, t ~ HttpBridge n, KeyToAddress t)
-    => TransactionLayer t
+    :: forall n k t.
+        (KnownNetwork n, t ~ HttpBridge n, KeyToAddress t k, PersistKey k)
+    => TransactionLayer t k
 newTransactionLayer = TransactionLayer
     { mkStdTx = \keyFrom inps outs -> do
         let ins = (fmap fst inps)
@@ -91,7 +93,7 @@ newTransactionLayer = TransactionLayer
         + n * sizeOfTxWitness
 
     , estimateMaxNumberOfInputs =
-        estimateMaxNumberOfInputsBase @t estimateMaxNumberOfInputsParams
+        estimateMaxNumberOfInputsBase @t @k estimateMaxNumberOfInputsParams
 
     , validateSelection = \(CoinSelection _ outs _) -> do
         when (any (\ (TxOut _ c) -> c == Coin 0) outs)
@@ -100,19 +102,19 @@ newTransactionLayer = TransactionLayer
   where
     mkWitness
         :: Hash "Tx"
-        -> (Key 'AddressK XPrv, Passphrase "encryption")
+        -> (k 'AddressK XPrv, Passphrase "encryption")
         -> TxWitness
     mkWitness tx (xPrv, pwd) = TxWitness
         $ CBOR.toStrictByteString
-        $ CBOR.encodePublicKeyWitness (getKey $ publicKey xPrv)
+        $ CBOR.encodePublicKeyWitness (getRawKey $ publicKey xPrv)
         $ sign (SignTx tx) (xPrv, pwd)
 
     sign
         :: SignTag
-        -> (Key 'AddressK XPrv, Passphrase "encryption")
+        -> (k 'AddressK XPrv, Passphrase "encryption")
         -> Hash "signature"
     sign tag (key, (Passphrase pwd)) =
-        Hash . CC.unXSignature $ CC.sign pwd (getKey key) (signTag tag)
+        Hash . CC.unXSignature $ CC.sign pwd (getRawKey key) (signTag tag)
       where
         -- | Encode magic bytes & the contents of a @SignTag@. Magic bytes are
         -- guaranteed to be different (and begin with a different byte) for different

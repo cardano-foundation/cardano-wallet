@@ -1,4 +1,6 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -37,7 +39,9 @@ import Cardano.Wallet.Jormungandr.Environment
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress (..), getKey )
+    ( KeyToAddress (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( SeqKey (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , BlockHeader (..)
@@ -121,9 +125,8 @@ instance PersistTx (Jormungandr network) where
             amt
             isJust
 
-instance forall n. KnownNetwork n => KeyToAddress (Jormungandr n) where
+instance forall n. KnownNetwork n => KeyToAddress (Jormungandr n) SeqKey where
     keyToAddress key = singleAddressFromKey (Proxy @n) (getKey key)
-
 
 -- | Encode an 'Address' to a human-readable format. This produces two kinds of
 -- encodings:

@@ -22,7 +22,7 @@ module Cardano.Wallet.DB
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Key, XPrv )
+    ( Depth (..), XPrv )
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
@@ -44,7 +44,7 @@ import Data.Map.Strict
 -- | A Database interface for storing various things in a DB. In practice,
 -- we'll need some extra contraints on the wallet state that allows us to
 -- serialize and unserialize it (e.g. @forall s. (Serialize s) => ...@)
-data DBLayer m s t = DBLayer
+data DBLayer m s t k = DBLayer
     { createWallet
         :: PrimaryKey WalletId
         -> Wallet s t
@@ -120,7 +120,7 @@ data DBLayer m s t = DBLayer
 
     , putPrivateKey
         :: PrimaryKey WalletId
-        -> (Key 'RootK XPrv, Hash "encryption")
+        -> (k 'RootK XPrv, Hash "encryption")
         -> ExceptT ErrNoSuchWallet m ()
         -- ^ Store or replace a private key for a given wallet. Note that wallet
         -- _could_ be stored and manipulated without any private key associated
@@ -129,7 +129,7 @@ data DBLayer m s t = DBLayer
 
     , readPrivateKey
         :: PrimaryKey WalletId
-        -> m (Maybe (Key 'RootK XPrv, Hash "encryption"))
+        -> m (Maybe (k 'RootK XPrv, Hash "encryption"))
         -- ^ Read a previously stored private key and its associated passphrase
         -- hash.
 
@@ -161,5 +161,5 @@ newtype PrimaryKey key = PrimaryKey key
     deriving (Eq, Ord)
 
 -- | Clean a database by removing all wallets.
-cleanDB :: Monad m => DBLayer m s t -> m ()
+cleanDB :: Monad m => DBLayer m s t k -> m ()
 cleanDB db = listWallets db >>= mapM_ (runExceptT . removeWallet db)

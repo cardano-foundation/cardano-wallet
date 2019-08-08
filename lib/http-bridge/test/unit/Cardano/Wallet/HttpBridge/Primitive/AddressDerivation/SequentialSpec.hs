@@ -27,6 +27,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( ChangeChain (..)
+    , SeqKey (..)
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
     , generateKeyFromSeed
@@ -80,7 +81,7 @@ spec = do
 -------------------------------------------------------------------------------}
 
 goldenYoroiAddr
-    :: forall n. (KeyToAddress (HttpBridge n))
+    :: forall n. (KeyToAddress (HttpBridge n) SeqKey)
     => Proxy n
     -> (Passphrase "seed", Passphrase "generation")
     -> ChangeChain

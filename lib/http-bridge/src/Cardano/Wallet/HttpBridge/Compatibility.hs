@@ -1,5 +1,7 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -41,7 +43,11 @@ import Cardano.Wallet.HttpBridge.Environment
     , protocolMagic
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Key (..), KeyToAddress (..), getKey )
+    ( Depth (..), KeyToAddress (..), WalletKey (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Random
+    ( RndKey, encodeDerivationPath )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( SeqKey )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
@@ -104,19 +110,32 @@ instance PersistTx (HttpBridge network) where
 
 -- | Encode a public key to a (Byron / Legacy) Cardano 'Address'. This is mostly
 -- dubious CBOR serializations with no data attributes.
-instance KeyToAddress (HttpBridge 'Testnet) where
+instance KeyToAddress (HttpBridge 'Testnet) SeqKey where
     keyToAddress = keyToAddressWith
-        $ attributesWithProtocolMagic (protocolMagic @'Testnet)
+        (attributesWithProtocolMagic (protocolMagic @'Testnet))
 
-instance KeyToAddress (HttpBridge 'Mainnet) where
+instance KeyToAddress (HttpBridge 'Mainnet) SeqKey where
     keyToAddress = keyToAddressWith emptyAttributes
 
-keyToAddressWith :: CBOR.Encoding -> Key 'AddressK XPub -> Address
+instance KeyToAddress (HttpBridge 'Testnet) RndKey where
+    keyToAddress = rndKeyToAddressWith
+        (attributesWithProtocolMagic (protocolMagic @'Testnet))
+
+instance KeyToAddress (HttpBridge 'Mainnet) RndKey where
+    keyToAddress = rndKeyToAddressWith emptyAttributes
+
+rndKeyToAddressWith :: CBOR.Encoding -> RndKey 'AddressK XPub -> Address
+rndKeyToAddressWith _attrs key =
+    error "rndKeyToAddressWith: unimplemented"
+  where
+    _derPath = encodeDerivationPath key
+
+keyToAddressWith :: CBOR.Encoding -> SeqKey 'AddressK XPub -> Address
 keyToAddressWith attrs key = Address
     $ CBOR.toStrictByteString
     $ CBOR.encodeAddress xpub attrs
   where
-    xpub = getKey key
+    xpub = getRawKey key
 
 attributesWithProtocolMagic :: ProtocolMagic -> CBOR.Encoding
 attributesWithProtocolMagic pm = mempty

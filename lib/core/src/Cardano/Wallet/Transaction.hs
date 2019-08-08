@@ -1,5 +1,7 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -30,7 +32,7 @@ module Cardano.Wallet.Transaction
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Key, KeyToAddress (..), Passphrase, XPrv, deserializeXPub )
+    ( Depth (..), KeyToAddress (..), Passphrase, PersistKey (..), XPrv )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
@@ -42,9 +44,9 @@ import Data.Word
 
 import qualified Data.ByteString.Char8 as B8
 
-data TransactionLayer t = TransactionLayer
+data TransactionLayer t k = TransactionLayer
     { mkStdTx
-        :: (Address -> Maybe (Key 'AddressK XPrv, Passphrase "encryption"))
+        :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
         -> [(TxIn, TxOut)]
         -> [TxOut]
         -> Either ErrMkStdTx (Tx t, [TxWitness])
@@ -124,8 +126,8 @@ data EstimateMaxNumberOfInputsParams t = EstimateMaxNumberOfInputsParams
 -- All the values used are the smaller ones. For example, the shortest adress
 -- type and shortest witness type are chosen to use for the estimate.
 estimateMaxNumberOfInputsBase
-    :: forall target. (KeyToAddress target)
-    => EstimateMaxNumberOfInputsParams target
+    :: forall t k. (KeyToAddress t k, PersistKey k)
+    => EstimateMaxNumberOfInputsParams t
     -- ^ Backend-specific variables used in the estimation
     -> Quantity "byte" Word16
     -- ^ Transaction max size in bytes
@@ -149,7 +151,7 @@ estimateMaxNumberOfInputsBase
 
     outs = replicate (fromIntegral numOutputs) txout
     txout = TxOut baseAddr minBound
-    Right baseAddr = keyToAddress @target <$> deserializeXPub (chaff 128)
+    Right baseAddr = keyToAddress @t @k <$> deserializeXPub (chaff 128)
     txIn = TxIn (Hash $ chaff estBlockHashSize) 0
     wit = TxWitness (chaff estTxWitnessSize)
 

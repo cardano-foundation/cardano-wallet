@@ -38,7 +38,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..), encryptPassphrase )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( generateKeyFromSeed, unsafeGenerateKeyFromSeed )
+    ( SeqKey (..), generateKeyFromSeed, unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..), defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -138,7 +138,7 @@ sqliteSpec = withDB (fst <$> newMemoryDBLayer) $ do
         it "Sequential" prop_sequential
         xit "Parallel" prop_parallel
 
-simpleSpec :: SpecWith (DBLayer IO (SeqState DummyTarget) DummyTarget)
+simpleSpec :: SpecWith (DBLayer IO (SeqState DummyTarget) DummyTarget SeqKey)
 simpleSpec = do
     describe "Wallet table" $ do
         it "create and list works" $ \db -> do
@@ -232,7 +232,7 @@ connectionSpec = describe "Sqlite database file" $ do
 
 -- | Run a test action inside withDBLayer, then check assertions.
 withTestDBFile
-    :: (DBLayer IO (SeqState DummyTarget) DummyTarget -> IO ())
+    :: (DBLayer IO (SeqState DummyTarget) DummyTarget SeqKey -> IO ())
     -> (FilePath -> IO a)
     -> IO a
 withTestDBFile action expectations = do
@@ -243,7 +243,7 @@ withTestDBFile action expectations = do
         withDBLayer logConfig trace (Just fp) action
         expectations fp
 
-newMemoryDBLayer :: IO (DBLayer IO (SeqState DummyTarget) DummyTarget, TVar [LogObject Text])
+newMemoryDBLayer :: IO (DBLayer IO (SeqState DummyTarget) DummyTarget SeqKey, TVar [LogObject Text])
 newMemoryDBLayer = do
     logConfig <- testingLogConfig
     logs <- newTVarIO []
@@ -283,7 +283,7 @@ testingLogConfig = do
 
     pure logConfig
 
-withLoggingDB :: SpecWith (DBLayer IO (SeqState DummyTarget) DummyTarget, IO [LogObject Text]) -> Spec
+withLoggingDB :: SpecWith (DBLayer IO (SeqState DummyTarget) DummyTarget SeqKey, IO [LogObject Text]) -> Spec
 withLoggingDB = beforeAll newMemoryDBLayer . beforeWith clean
   where
     clean (db, logs) = do

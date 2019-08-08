@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -23,7 +24,7 @@ import Cardano.Wallet.DB
     , PrimaryKey (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Key, XPrv )
+    ( Depth (..), XPrv )
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
@@ -38,7 +39,7 @@ import Cardano.Wallet.Primitive.Types
 import Control.Concurrent.MVar
     ( MVar, modifyMVar, newMVar, readMVar, withMVar )
 import Control.DeepSeq
-    ( deepseq )
+    ( NFData, deepseq )
 import Control.Monad
     ( (>=>) )
 import Control.Monad.Trans.Except
@@ -52,19 +53,19 @@ import Data.Ord
 
 import qualified Data.Map.Strict as Map
 
-data Database s t = Database
+data Database s t k = Database
     { wallet :: !(Wallet s t)
     , metadata :: !WalletMetadata
     , txHistory :: !(Map (Hash "Tx") (Tx t, TxMeta))
-    , xprv :: !(Maybe (Key 'RootK XPrv, Hash "encryption"))
+    , xprv :: !(Maybe (k 'RootK XPrv, Hash "encryption"))
     }
 
 -- | Instantiate a new in-memory "database" layer that simply stores data in
 -- a local MVar. Data vanishes if the software is shut down.
-newDBLayer :: forall s t. IO (DBLayer IO s t)
+newDBLayer :: forall s t k. (NFData (k 'RootK XPrv)) => IO (DBLayer IO s t k)
 newDBLayer = do
     lock <- newMVar ()
-    db <- newMVar (mempty :: Map (PrimaryKey WalletId) (Database s t))
+    db <- newMVar (mempty :: Map (PrimaryKey WalletId) (Database s t k))
     return $ DBLayer
 
         {-----------------------------------------------------------------------

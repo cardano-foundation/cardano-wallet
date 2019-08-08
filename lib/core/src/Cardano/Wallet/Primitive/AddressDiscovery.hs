@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- |
@@ -29,7 +30,7 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( XPrv )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Key, Passphrase (..) )
+    ( Depth (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address )
 
@@ -64,12 +65,13 @@ class IsOurs s where
 -- the root private key of a particular wallet. This isn't true for externally
 -- owned wallet which would delegate its key management to a third party (like
 -- a hardware Ledger or Trezor).
-class IsOurs s => IsOwned s where
+-- fixme: Add a key parameter to IsOwned
+class IsOurs s => IsOwned s key where
     isOwned
         :: s
-        -> (Key 'RootK XPrv, Passphrase "encryption")
+        -> (key 'RootK XPrv, Passphrase "encryption")
         -> Address
-        -> Maybe (Key 'AddressK XPrv, Passphrase "encryption")
+        -> Maybe (key 'AddressK XPrv, Passphrase "encryption")
         -- ^ Derive the private key corresponding to an address. Careful, this
         -- operation can be costly. Note that the state is discarded from this
         -- function as we do not intend to discover any addresses from this

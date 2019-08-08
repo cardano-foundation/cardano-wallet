@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -14,7 +15,9 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( unXPub )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress (..), getKey )
+    ( KeyToAddress (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( SeqKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..) )
 import Cardano.Wallet.Primitive.Types
@@ -55,7 +58,7 @@ data Tx = Tx
 
 instance NFData Tx
 
-instance KeyToAddress DummyTarget where
+instance KeyToAddress DummyTarget SeqKey where
     keyToAddress = Address . unXPub . getKey
 
 instance EncodeAddress DummyTarget where

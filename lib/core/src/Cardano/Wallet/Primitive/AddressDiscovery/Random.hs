@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- |
@@ -20,6 +21,8 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Random
 
 import Prelude
 
+import Cardano.Wallet.Primitive.AddressDerivation.Random
+    ( RndKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -38,7 +41,7 @@ mkRndState = error "AddressDiscovery.Random unimplemented"
 instance IsOurs RndState where
     isOurs _ s = (False, s)
 
-instance IsOwned RndState where
+instance IsOwned RndState RndKey where
     isOwned _ _ _ = Nothing
 
 instance GenChange RndState where

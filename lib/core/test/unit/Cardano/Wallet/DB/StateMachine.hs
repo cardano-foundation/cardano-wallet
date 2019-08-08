@@ -58,7 +58,9 @@ import Cardano.Wallet.DBSpec
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Key, XPrv, deserializeXPrv )
+    ( XPrv, deserializeXPrv )
+import Cardano.Wallet.Primitive.AddressDerivation.Sequential
+    ( SeqKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..) )
 import Cardano.Wallet.Primitive.Model
@@ -174,12 +176,12 @@ unMockWid (MWid wid) = WalletId . hash . B8.pack $ wid
 type MPrivKey = String
 
 -- | Stuff a mock private key into the type used by 'DBLayer'.
-fromMockPrivKey :: MPrivKey -> (Key purpose XPrv, Hash "encryption")
+fromMockPrivKey :: MPrivKey -> (SeqKey purpose XPrv, Hash "encryption")
 fromMockPrivKey s = (k, Hash (B8.pack s))
     where Right (k, _) = deserializeXPrv (B8.replicate 256 '0', mempty)
 
 -- | Unstuff the DBLayer private key into the mock type.
-toMockPrivKey :: (Key purpose XPrv, Hash "encryption") -> MPrivKey
+toMockPrivKey :: (SeqKey purpose XPrv, Hash "encryption") -> MPrivKey
 toMockPrivKey (_, Hash h) = B8.unpack h
 
 -- | Mock representation of a 'DBLayer'
@@ -376,7 +378,7 @@ runMock = \case
 -- 'DBLayer' is specialized to a dummy node backend, but uses the real 'SeqState'
 -- , so that the functions to store/load SeqState are tested. Using concrete
 -- types avoids infecting all the types and functions with extra type parameters.
-type DBLayerTest = DBLayer IO (SeqState DummyTarget) DummyTarget
+type DBLayerTest = DBLayer IO (SeqState DummyTarget) DummyTarget SeqKey
 
 runIO
     :: DBLayerTest

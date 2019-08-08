@@ -1,12 +1,16 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -24,12 +28,14 @@
 -- <https://github.com/input-output-hk/cardano-crypto/blob/4590efa638397e952a51a8994b5543e4ea3c1ecd/cbits/encrypted_sign.c cardano-crypto>.
 
 module Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( -- * Key derivation and generation
-      deriveAccountPrivateKey
-    , deriveAddressPrivateKey
-    , generateKeyFromSeed
+    ( -- * RndKey types
+      RndKey(..)
+      -- * RndKey derivation and generation
     , unsafeGenerateKeyFromSeed
+    , generateKeyFromSeed
     , minSeedLengthBytes
+    , deriveAccountPrivateKey
+    , deriveAddressPrivateKey
     -- * Address encoding/decoding
     , encodeDerivationPath
     , decodeDerivationPath
@@ -44,14 +50,24 @@ import Cardano.Crypto.Wallet
     , XPub
     , deriveXPrv
     , generate
+    , toXPub
     , unXPub
+    , xPrvChangePass
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationType (..), Index (..), Passphrase (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Common
-    ( Depth (..), Key (..) )
+    ( Depth (..)
+    , DerivationType (..)
+    , Index (..)
+    , Passphrase (..)
+    , PersistKey (..)
+    , WalletKey (..)
+    , deserializeXPrv
+    , serializeXPrv
+    )
 import Cardano.Wallet.Primitive.Types
     ( invariant )
+import Control.DeepSeq
+    ( NFData )
 import Control.Monad
     ( replicateM, when )
 import Crypto.Error
@@ -66,6 +82,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Word
     ( Word8 )
+import GHC.Generics
+    ( Generic )
 
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
@@ -77,67 +95,91 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 
--- | Derives account private key from the given root private key, using
--- derivation scheme 1.
---
--- NOTE: The caller is expected to provide the corresponding passphrase (and to
--- have checked that the passphrase is valid). Providing a wrong passphrase will
--- not make the function fail but will instead, yield an incorrect new key that
--- doesn't belong to the wallet.
-deriveAccountPrivateKey
-    :: Passphrase "encryption"
-    -> Key 'RootK XPrv
-    -> Index 'Hardened 'AccountK
-    -> Key 'AccountK XPrv
-deriveAccountPrivateKey (Passphrase pwd) (Key masterXPrv) (Index accIx) =
-    Key $ deriveXPrv DerivationScheme1 pwd masterXPrv accIx
+{-------------------------------------------------------------------------------
+                                   Key Types
+-------------------------------------------------------------------------------}
 
--- | Derives address private key from the given account private key, using
--- derivation scheme 1.
---
--- NOTE: The caller is expected to provide the corresponding passphrase (and to
--- have checked that the passphrase is valid). Providing a wrong passphrase will
--- not make the function fail but will instead, yield an incorrect new key that
--- doesn't belong to the wallet.
-deriveAddressPrivateKey
-    :: Passphrase "encryption"
-    -> Key 'AccountK XPrv
-    -> Index 'Soft 'AddressK
-    -> Key 'AddressK XPrv
-deriveAddressPrivateKey (Passphrase pwd) (Key accXPrv) (Index addrIx) =
-    Key $ deriveXPrv DerivationScheme1 pwd accXPrv addrIx
+-- | Material for deriving HD random scheme keys, which can be used for making
+-- addresses.
+data RndKey (depth :: Depth) key = RndKey
+    { getKey :: key
+    -- ^ The raw private or public key.
+    , derivationPath :: DerivationPath depth
+    -- ^ The address derivation indices for the level of this key.
+    , payloadPassphrase :: Passphrase "addr-derivation-payload"
+    -- ^ Used for encryption of payload containing address derivation path.
+    } deriving stock (Generic)
+
+instance (NFData key, NFData (DerivationPath depth)) => NFData (RndKey depth key)
+deriving instance (Show key, Show (DerivationPath depth)) => Show (RndKey depth key)
+deriving instance (Eq key, Eq (DerivationPath depth)) => Eq (RndKey depth key)
+
+-- | The hierarchical derivation indices for a given level/depth.
+type family DerivationPath (depth :: Depth) :: * where
+    -- The root key is generated from the seed.
+    DerivationPath 'RootK =
+        ()
+    -- The account key is generated from the root key and account index.
+    DerivationPath 'AccountK =
+        Index 'Hardened 'AccountK
+    -- The address key is generated from the account key and address index.
+    DerivationPath 'AddressK =
+        (Index 'Hardened 'AccountK, Index 'Hardened 'AddressK)
+
+instance WalletKey RndKey where
+    changePassphrase = changePassphraseRnd
+    -- Extract the public key part of a private key.
+    publicKey = mapKey toXPub
+    -- Hash a public key to some other representation.
+    digest = hash . unXPub . getKey
+    getRawKey = getKey
+
+instance PersistKey RndKey where
+    serializeXPrv = error "PersistKey RndKey unimplemented"
+    deserializeXPrv = error "PersistKey RndKey unimplemented"
+    serializeXPub = error "PersistKey RndKey unimplemented"
+    deserializeXPub = error "PersistKey RndKey unimplemented"
+
+{-------------------------------------------------------------------------------
+                                 Key generation
+-------------------------------------------------------------------------------}
+
+-- | The amount of entropy carried by a BIP-39 12-word mnemonic is 16 bytes.
+minSeedLengthBytes :: Int
+minSeedLengthBytes = 16
 
 -- | Generate a root key from a corresponding seed.
--- The seed should be at least 16 ('minSeedLengthBytes') bytes.
+-- The seed should be at least 16 bytes.
 generateKeyFromSeed
     :: Passphrase "seed"
     -> Passphrase "encryption"
-    -> Key 'RootK XPrv
-generateKeyFromSeed = unsafeGenerateKeyFromSeed
+    -> RndKey 'RootK XPrv
+generateKeyFromSeed = unsafeGenerateKeyFromSeed ()
 
 -- | Generate a new key from seed. Note that the @depth@ is left open so that
 -- the caller gets to decide what type of key this is. This is mostly for
 -- testing, in practice, seeds are used to represent root keys, and one should
 -- use 'generateKeyFromSeed'.
 unsafeGenerateKeyFromSeed
-    :: Passphrase "seed"
+    :: DerivationPath depth
+    -> Passphrase "seed"
     -> Passphrase "encryption"
-    -> Key depth XPrv
-unsafeGenerateKeyFromSeed (Passphrase seed) (Passphrase pwd) =
-    Key $ generate (hashSeed seed') pwd
+    -> RndKey depth XPrv
+unsafeGenerateKeyFromSeed derivationPath (Passphrase seed) (Passphrase pwd) = RndKey
+    { getKey = masterKey
+    , derivationPath
+    , payloadPassphrase = hdPassphrase masterKey
+    }
   where
+    masterKey = generate (hashSeed seed') pwd
     seed' = invariant
         ("seed length : " <> show (BA.length seed)
             <> " in (Passphrase \"seed\") is not valid")
         seed
         (\s -> BA.length s >= minSeedLengthBytes && BA.length s <= 255)
 
--- | The amount of entropy carried by a BIP-39 12-word mnemonic is 16 bytes.
-minSeedLengthBytes :: Int
-minSeedLengthBytes = 16
-
 -- | Hash the seed entropy (generated from mnemonic) used to initiate a HD
--- wallet. This increases the key length to 34 bytes, which is greater than the
+-- wallet. This increases the key length to 34 bytes, selectKey is greater than the
 -- minimum for 'generate' (32 bytes).
 --
 -- Note that our current implementation deviates from BIP-39 because we use a
@@ -161,6 +203,70 @@ hashSeed = serialize . blake2b256 . serialize
 
 blake2b256 :: ScrubbedBytes -> ScrubbedBytes
 blake2b256 = BA.convert . hash @ScrubbedBytes @Blake2b_256
+
+{-------------------------------------------------------------------------------
+                                   Passphrase
+-------------------------------------------------------------------------------}
+
+-- | Re-encrypt the private key using a different passphrase, and regenerate
+-- the payload passphrase.
+--
+-- **Important**:
+-- This function doesn't check that the old passphrase is correct! Caller is
+-- expected to have already checked that. Using an incorrect passphrase here
+-- will lead to very bad thing.
+changePassphraseRnd
+    :: Passphrase "encryption-old"
+    -> Passphrase "encryption-new"
+    -> RndKey depth XPrv
+    -> RndKey depth XPrv
+changePassphraseRnd (Passphrase oldPwd) (Passphrase newPwd) key = RndKey
+    { getKey = masterKey
+    , derivationPath = derivationPath key
+    , payloadPassphrase = hdPassphrase masterKey
+    }
+  where
+    masterKey = xPrvChangePass oldPwd newPwd (getKey key)
+
+{-------------------------------------------------------------------------------
+                                 HD derivation
+-------------------------------------------------------------------------------}
+
+-- | Derives account private key from the given root private key, using
+-- derivation scheme 1.
+--
+-- NOTE: The caller is expected to provide the corresponding passphrase (and to
+-- have checked that the passphrase is valid). Providing a wrong passphrase will
+-- not make the function fail but will instead, yield an incorrect new key that
+-- doesn't belong to the wallet.
+deriveAccountPrivateKey
+    :: Passphrase "encryption"
+    -> RndKey 'RootK XPrv
+    -> Index 'Hardened 'AccountK
+    -> RndKey 'AccountK XPrv
+deriveAccountPrivateKey (Passphrase pwd) masterKey idx@(Index accIx) = RndKey
+    { getKey = deriveXPrv DerivationScheme1 pwd (getKey masterKey) accIx
+    , derivationPath = idx
+    , payloadPassphrase = payloadPassphrase masterKey
+    }
+
+-- | Derives address private key from the given account private key, using
+-- derivation scheme 1.
+--
+-- NOTE: The caller is expected to provide the corresponding passphrase (and to
+-- have checked that the passphrase is valid). Providing a wrong passphrase will
+-- not make the function fail but will instead, yield an incorrect new key that
+-- doesn't belong to the wallet.
+deriveAddressPrivateKey
+    :: Passphrase "encryption"
+    -> RndKey 'AccountK XPrv
+    -> Index 'Hardened 'AddressK
+    -> RndKey 'AddressK XPrv
+deriveAddressPrivateKey (Passphrase pwd) accountKey idx@(Index addrIx) = RndKey
+    { getKey = deriveXPrv DerivationScheme1 pwd (getKey accountKey) addrIx
+    , derivationPath = (derivationPath accountKey, idx)
+    , payloadPassphrase = payloadPassphrase accountKey
+    }
 
 {-------------------------------------------------------------------------------
                          Derivation path serialization
@@ -209,18 +315,14 @@ In the composition of a Cardano address, the following functions concern the
 --
 -- This is the opposite of 'decodeDerivationPath'.
 --
--- NOTE: The caller must ensure that the key length is 32 bytes, which can be
+-- NOTE: The caller must ensure that the key length is 32 bytes, selectKey can be
 -- done by using the 'generateKeyFromSeed' and
 -- 'Cardano.Wallet.Primitive.AddressDerivation.publicKey' functions.
-encodeDerivationPath
-    :: Key 'RootK XPub
-    -> Index 'Hardened 'AccountK
-    -> Index 'Soft 'AddressK
-    -> CBOR.Encoding
-encodeDerivationPath rootKey accIx addrIx =
+encodeDerivationPath :: RndKey 'AddressK XPub -> CBOR.Encoding
+encodeDerivationPath (RndKey _ (accIx, addrIx) payloadPassphrase) =
     CBOR.encodeBytes $
     useInvariant $
-    encryptDerPath (hdPassphrase rootKey) $
+    encryptDerPath payloadPassphrase $
     CBOR.toStrictByteString $
     encodeDerPath accIx addrIx
   where
@@ -229,7 +331,7 @@ encodeDerivationPath rootKey accIx addrIx =
     useInvariant (CryptoPassed res) = res
     useInvariant (CryptoFailed err) = error $ "encodeDerivationPath: " ++ show err
 
-encodeDerPath :: Index 'Hardened 'AccountK -> Index 'Soft 'AddressK -> CBOR.Encoding
+encodeDerPath :: Index 'Hardened 'AccountK -> Index 'Hardened 'AddressK -> CBOR.Encoding
 encodeDerPath (Index accIx) (Index addrIx) = mempty
     <> CBOR.encodeListLenIndef
     <> CBOR.encodeWord32 accIx
@@ -242,13 +344,13 @@ encodeDerPath (Index accIx) (Index addrIx) = mempty
 -- It will fail to parse if the address is not in the random scheme. If the
 -- public key is incorrect, the decode result will be 'Nothing'.
 decodeAddressDerivationPath
-    :: Key 'RootK XPub
-    -> CBOR.Decoder s (Maybe (Index 'Hardened 'AccountK, Index 'Soft 'AddressK))
-decodeAddressDerivationPath rootKey = do
+    :: RndKey 'RootK XPub
+    -> CBOR.Decoder s (Maybe (Index 'Hardened 'AccountK, Index 'Hardened 'AddressK))
+decodeAddressDerivationPath masterKey = do
     _ <- CBOR.decodeListLenCanonicalOf 3
     _ <- CBOR.decodeBytes -- Address Root
     attrs <- decodeAllAttributes
-    path <- decodePathAttribute rootKey attrs
+    path <- decodePathAttribute masterKey attrs
     addrType <- CBOR.decodeWord8 -- Type
     when (addrType /= 0) $
         fail $ "decodeAddressDerivationPath: type is not 0 (public key), it is " ++ show addrType
@@ -264,11 +366,11 @@ decodeAllAttributes = do
     decodeAttr = (,) <$> CBOR.decodeWord8 <*> CBOR.decodeBytes
 
 decodePathAttribute
-    :: Key 'RootK XPub
+    :: RndKey 'RootK XPub
     -> [(Word8, ByteString)]
-    -> CBOR.Decoder s (Maybe (Index 'Hardened 'AccountK, Index 'Soft 'AddressK))
-decodePathAttribute rootKey attrs = case lookup derPathTag attrs of
-    Just payload -> decodeNestedBytes (decodeDerivationPath rootKey) payload
+    -> CBOR.Decoder s (Maybe (Index 'Hardened 'AccountK, Index 'Hardened 'AddressK))
+decodePathAttribute masterKey attrs = case lookup derPathTag attrs of
+    Just payload -> decodeNestedBytes (decodeDerivationPath masterKey) payload
     Nothing -> fail $ "decodeAddressDerivationPath: Missing attribute "
         ++ show derPathTag
   where
@@ -279,17 +381,17 @@ decodePathAttribute rootKey attrs = case lookup derPathTag attrs of
 --
 -- This is the opposite of 'encodeDerivationPath'.
 decodeDerivationPath
-    :: Key 'RootK XPub
-    -> CBOR.Decoder s (Maybe (Index 'Hardened 'AccountK, Index 'Soft 'AddressK))
-decodeDerivationPath rootKey = do
+    :: RndKey 'RootK XPub
+    -> CBOR.Decoder s (Maybe (Index 'Hardened 'AccountK, Index 'Hardened 'AddressK))
+decodeDerivationPath masterKey = do
     payload <- CBOR.decodeBytes
-    case decryptDerPath (hdPassphrase rootKey) payload of
+    case decryptDerPath (payloadPassphrase masterKey) payload of
         CryptoPassed plaintext ->
             Just <$> decodeNestedBytes decodeDerPath plaintext
         CryptoFailed _ ->
             pure Nothing
 
-decodeDerPath :: CBOR.Decoder s (Index 'Hardened 'AccountK, Index 'Soft 'AddressK)
+decodeDerPath :: CBOR.Decoder s (Index 'Hardened 'AccountK, Index 'Hardened 'AddressK)
 decodeDerPath = decodeListIndef CBOR.decodeWord32 >>= \case
     [accIx, addrIx] -> pure (Index accIx, Index addrIx)
     ps -> fail $ "decodeDerPath: Unexpected derivation path length ("
@@ -314,12 +416,12 @@ decodeDerPath = decodeListIndef CBOR.decodeWord32 >>= \case
 
 -- | Derive a symmetric key for encrypting and authenticating the address
 -- derivation path.
-hdPassphrase :: Key 'RootK XPub -> Passphrase "address-der"
-hdPassphrase (Key rootXPub) = Passphrase $
+hdPassphrase :: XPrv -> Passphrase "addr-derivation-payload"
+hdPassphrase masterKey = Passphrase $
     PBKDF2.generate
     (PBKDF2.prfHMAC SHA512)
     (PBKDF2.Parameters 500 32)
-    (unXPub rootXPub)
+    (unXPub . toXPub $ masterKey)
     ("address-hashing" :: ByteString)
 
 {-------------------------------------------------------------------------------
@@ -331,7 +433,7 @@ cardanoNonce = "serokellfore"
 
 -- | ChaCha20/Poly1305 encrypting and signing the HD payload of addresses.
 encryptDerPath
-    :: Passphrase "address-der"
+    :: Passphrase "addr-derivation-payload"
        -- ^ Symmetric key / passphrase, 32-byte long
     -> ByteString -- Payload to be encrypted
     -> CryptoFailable ByteString -- Ciphertext with a 128-bit crypto-tag appended.
@@ -344,7 +446,7 @@ encryptDerPath (Passphrase passphrase) payload = do
 -- | ChaCha20/Poly1305 decrypting and authenticating the HD payload of
 -- addresses.
 decryptDerPath
-    :: Passphrase "address-der"
+    :: Passphrase "addr-derivation-payload"
        -- ^ Symmetric key / passphrase, 32-byte long
     -> ByteString -- Payload to be encrypted
     -> CryptoFailable ByteString
@@ -369,3 +471,7 @@ decodeNestedBytes dec bytes =
         Right ("", res) -> pure res
         Right _ -> fail "Leftovers when decoding nested bytes"
         _ -> fail "Could not decode nested bytes"
+
+-- | Transform the wrapped key.
+mapKey :: (key -> key') -> RndKey depth key -> RndKey depth key'
+mapKey f rnd = rnd { getKey = f (getKey rnd) }

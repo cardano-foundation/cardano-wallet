@@ -22,9 +22,9 @@ import Cardano.Wallet.DBSpec
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..), block0 )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Key, Passphrase (..), XPrv, encryptPassphrase )
+    ( Depth (..), Passphrase (..), XPrv, encryptPassphrase )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( generateKeyFromSeed )
+    ( SeqKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -188,7 +188,7 @@ prop_randomOpChunks (KeyValPairs pairs) =
         destroyDBLayer ctxF *> destroyDBLayer ctxM
 
     insertPair
-        :: DBLayer IO s t
+        :: DBLayer IO s t k
         -> (PrimaryKey WalletId, (Wallet s t, WalletMetadata))
         -> IO ()
     insertPair db (k, (cp, meta)) = do
@@ -200,7 +200,7 @@ prop_randomOpChunks (KeyValPairs pairs) =
             unsafeRunExceptT $ createWallet db k cp meta
             Set.fromList <$> listWallets db `shouldReturn` Set.fromList (k:keys)
 
-    shouldBeConsistentWith :: (Eq s) => DBLayer IO s t -> DBLayer IO s t -> IO ()
+    shouldBeConsistentWith :: (Eq s) => DBLayer IO s t k -> DBLayer IO s t k -> IO ()
     shouldBeConsistentWith db1 db2 = do
         expectedWalIds <- Set.fromList <$> listWallets db1
         Set.fromList <$> listWallets db2
@@ -220,7 +220,7 @@ prop_randomOpChunks (KeyValPairs pairs) =
 testOpeningCleaning
     :: (Show s, Eq s)
     => FilePath
-    -> (DBLayer IO (SeqState DummyTarget) DummyTarget -> IO s)
+    -> (DBLayer IO (SeqState DummyTarget) DummyTarget SeqKey -> IO s)
     -> s
     -> s
     -> Expectation
@@ -240,7 +240,7 @@ testOpeningCleaning filepath call expectedAfterOpen expectedAfterClean = do
 
 inMemoryDBLayer
     :: (IsOurs s, NFData s, Show s, PersistState s, PersistTx t)
-    => IO (SqliteContext, DBLayer IO s t)
+    => IO (SqliteContext, DBLayer IO s t SeqKey)
 inMemoryDBLayer = newDBLayer' Nothing
 
 temporaryDBFile :: IO FilePath
@@ -249,7 +249,7 @@ temporaryDBFile = emptySystemTempFile "cardano-wallet-SqliteFileMode"
 newDBLayer'
     :: (IsOurs s, NFData s, Show s, PersistState s, PersistTx t)
     => Maybe FilePath
-    -> IO (SqliteContext, DBLayer IO s t)
+    -> IO (SqliteContext, DBLayer IO s t SeqKey)
 newDBLayer' fp = do
     logConfig <- CM.empty
     newDBLayer logConfig nullTracer fp
@@ -257,16 +257,16 @@ newDBLayer' fp = do
 -- | Clean the database
 cleanDB'
     :: Monad m
-    => (SqliteContext, DBLayer m s t)
-    -> m (SqliteContext, DBLayer m s t)
+    => (SqliteContext, DBLayer m s t k)
+    -> m (SqliteContext, DBLayer m s t k)
 cleanDB' (ctx, db) =
     cleanDB db $> (ctx, db)
 
 -- | Attach an arbitrary private key to a wallet
 attachPrivateKey
-    :: DBLayer IO s t
+    :: DBLayer IO s t SeqKey
     -> PrimaryKey WalletId
-    -> ExceptT ErrNoSuchWallet IO (Key 'RootK XPrv, Hash "encryption")
+    -> ExceptT ErrNoSuchWallet IO (SeqKey 'RootK XPrv, Hash "encryption")
 attachPrivateKey db wid = do
     let Right pwd = fromText "simplevalidphrase"
     let k = generateKeyFromSeed (coerce pwd, coerce pwd) pwd
