@@ -14,8 +14,6 @@ module Cardano.Wallet.Primitive.AddressDiscovery.RandomSpec
 
 import Prelude
 
-import Cardano.Crypto.Wallet
-    ( unXPrv )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
@@ -25,10 +23,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , fromMnemonic
     , publicKey
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Common
-    ( Key (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( deriveAccountPrivateKey
+    ( RndKey (..)
+    , deriveAccountPrivateKey
     , deriveAddressPrivateKey
     , generateKeyFromSeed
     , minSeedLengthBytes
@@ -49,7 +46,16 @@ import Cardano.Wallet.Primitive.Types
 import Test.Hspec
     ( Expectation, Spec, describe, it, shouldBe, xit )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, choose, property, vectorOf, (.&&.), (===) )
+    ( Arbitrary (..)
+    , Gen
+    , InfiniteList (..)
+    , Property
+    , choose
+    , property
+    , vectorOf
+    , (.&&.)
+    , (===)
+    )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -99,8 +105,8 @@ prop_keyDerivationObeysIsOurs
     :: Passphrase "seed"
     -> Passphrase "encryption"
     -> Index 'Hardened 'AccountK
-    -> Index 'Soft 'AddressK
-    -> Key 'RootK XPrv
+    -> Index 'Hardened 'AddressK
+    -> RndKey 'RootK XPrv
     -> Property
 prop_keyDerivationObeysIsOurs seed encPwd accIx addrIx rk' =
     isOurs address (RndState rootXPrv) === (True, RndState rootXPrv) .&&.
@@ -114,10 +120,10 @@ prop_keyDerivationObeysIsOurs seed encPwd accIx addrIx rk' =
     address = undefined -- here use -> keyToAddress rootXPub addrXPub accIx addIx @Network
 
 instance Eq RndState where
-    (RndState (Key a)) == (RndState (Key b)) = unXPrv a == unXPrv b
+    (RndState a) == (RndState b) = getKey a == getKey b
 
 instance Show RndState where
-    show (RndState (Key a)) = show (unXPrv a)
+    show (RndState a) = show (getKey a)
 
 {-------------------------------------------------------------------------------
                              Arbitrary Instances
@@ -130,3 +136,20 @@ instance {-# OVERLAPS #-} Arbitrary (Passphrase "seed") where
         n <- choose (minSeedLengthBytes, 64)
         bytes <- BS.pack <$> vectorOf n arbitrary
         return $ Passphrase $ BA.convert bytes
+
+instance Arbitrary (RndKey 'RootK XPrv) where
+    shrink _ = []
+    arbitrary = genRootKeys
+
+genRootKeys :: Gen (RndKey 'RootK XPrv)
+genRootKeys = do
+    (s, e) <- (,)
+        <$> genPassphrase @"seed" (16, 32)
+        <*> genPassphrase @"encryption" (0, 16)
+    return $ generateKeyFromSeed s e
+  where
+    genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
+    genPassphrase range = do
+        n <- choose range
+        InfiniteList bytes _ <- arbitrary
+        return $ Passphrase $ BA.convert $ BS.pack $ take n bytes

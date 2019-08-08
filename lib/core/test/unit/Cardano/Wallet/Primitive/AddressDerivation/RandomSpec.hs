@@ -27,15 +27,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
     ( RndKey (..)
-    ( addrToPayload
+    , addrToPayload
     , decodeAddressDerivationPath
     , decodeDerivationPath
-    , deriveAccountPrivateKey
-    , deriveAddressPrivateKey
     , deserialise
     , encodeDerivationPath
     , generateKeyFromSeed
     , minSeedLengthBytes
+    , unsafeGenerateKeyFromSeed
     )
 
 import Cardano.Wallet.Primitive.AddressDerivationSpec
@@ -155,8 +154,7 @@ decodeTest DecodeDerivationPath{..} =
     decoded `shouldBe` Right (Just (Index accIndex, Index addrIndex))
   where
     decoded = deserialise (decodeAddressDerivationPath rootXPub) (addrToPayload $ Address addr)
-    Key rootXPrv = generateKeyFromSeed (Passphrase seed) (Passphrase "")
-    rootXPub = Key (toXPub rootXPrv)
+    rootXPub = publicKey $ generateKeyFromSeed (Passphrase seed) (Passphrase "")
     Right (Passphrase seed) = fromMnemonic @'[12] mnem
 
 {-------------------------------------------------------------------------------

@@ -77,7 +77,6 @@ import Test.QuickCheck.Monadic
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as Seq
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.Text as T

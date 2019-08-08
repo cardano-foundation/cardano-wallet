@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -22,9 +23,9 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Random
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Key, XPrv, publicKey )
+    ( Depth (..), XPrv, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( addrToPayload, decodeAddressDerivationPath, deserialise )
+    ( RndKey (..), addrToPayload, decodeAddressDerivationPath, deserialise )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -37,7 +38,7 @@ import Control.DeepSeq
 import GHC.Generics
     ( Generic )
 
-newtype RndState = RndState { getRndState :: Key 'RootK XPrv }
+newtype RndState = RndState { getRndState :: RndKey 'RootK XPrv }
     deriving (Generic)
 
 instance NFData RndState
