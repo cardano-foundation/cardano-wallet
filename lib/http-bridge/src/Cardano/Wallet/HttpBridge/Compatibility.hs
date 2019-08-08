@@ -5,6 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -38,14 +39,20 @@ import Cardano.Wallet.HttpBridge.Binary
     , encodeProtocolMagicAttr
     , encodeTx
     )
+import Cardano.Wallet.HttpBridge.Binary
+    ( decodeAddressDerivationPath )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (Mainnet, Testnet), protocolMagic )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey (..) )
+    ( RndKey (..), addrToPayload, deserialise )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( IsOurs (..), IsOwned (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery.Random
+    ( RndState (..) )
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
@@ -138,6 +145,15 @@ instance KeyToAddress (HttpBridge 'Mainnet) RndKey where
       where
         (acctIx, addrIx) = derivationPath k
         pwd = payloadPassphrase k
+
+instance IsOurs RndState where
+    isOurs addr (RndState s) = do
+        case deserialise (decodeAddressDerivationPath $ payloadPassphrase $ publicKey s) (addrToPayload addr) of
+            Right (Just _) -> (True, RndState s)
+            _ -> (False, RndState s)
+
+instance IsOwned RndState RndKey where
+    isOwned _ _ _ = Nothing
 
 -- | Encode an 'Address' to a human-readable format, in this case
 --

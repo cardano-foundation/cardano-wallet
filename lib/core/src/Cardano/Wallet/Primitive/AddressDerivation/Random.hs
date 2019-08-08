@@ -39,9 +39,6 @@ module Cardano.Wallet.Primitive.AddressDerivation.Random
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
     -- * Address encoding/decoding
-    , encodeDerivationPath
-    , decodeDerivationPath
-    , decodeAddressDerivationPath
     , addrToPayload
     , deserialise
     ) where
@@ -51,7 +48,6 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( DerivationScheme (DerivationScheme1)
     , XPrv
-    , XPub (..)
     , deriveXPrv
     , generate
     , toXPub
@@ -86,15 +82,16 @@ import Data.ByteString.Base58
     ( bitcoinAlphabet, decodeBase58 )
 import Data.Maybe
     ( fromJust )
-import Data.Word
-    ( Word8 )
 import GHC.Generics
     ( Generic )
 
+import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
+import qualified Codec.CBOR.Read as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.KDF.PBKDF2 as PBKDF2
 import qualified Data.ByteArray as BA
+import qualified Data.ByteString.Lazy as BL
 
 {-------------------------------------------------------------------------------
                                    Key Types

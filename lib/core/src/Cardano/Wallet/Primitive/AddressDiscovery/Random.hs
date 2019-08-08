@@ -23,16 +23,11 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Random
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), XPrv, publicKey )
+    ( Depth (..), XPrv )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey (..), addrToPayload, decodeAddressDerivationPath, deserialise )
+    ( RndKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( CompareDiscovery (..)
-    , GenChange (..)
-    , IsOurs (..)
-    , IsOwned (..)
-    , KnownAddresses (..)
-    )
+    ( CompareDiscovery (..), GenChange (..), KnownAddresses (..) )
 import Control.DeepSeq
     ( NFData )
 import GHC.Generics
@@ -42,15 +37,6 @@ newtype RndState = RndState { getRndState :: RndKey 'RootK XPrv }
     deriving (Generic)
 
 instance NFData RndState
-
-instance IsOurs RndState where
-    isOurs addr (RndState s) = do
-        case deserialise (decodeAddressDerivationPath $ publicKey s) (addrToPayload addr) of
-            Right (Just _) -> (True, RndState s)
-            _ -> (False, RndState s)
-
-instance IsOwned RndState RndKey where
-    isOwned _ _ _ = Nothing
 
 instance GenChange RndState where
     genChange s = (error "GenChange RndState unimplemented", s)

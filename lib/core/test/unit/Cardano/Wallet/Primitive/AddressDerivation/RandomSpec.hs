@@ -15,39 +15,11 @@ module Cardano.Wallet.Primitive.AddressDerivation.RandomSpec
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( xprv )
+    ( unXPrv, xprv )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , DerivationType (..)
-    , Index
-    , Index (..)
-    , Passphrase (..)
-    , XPrv
-    , fromMnemonic
-    )
+    ( Depth (..), Passphrase (..), XPrv, fromMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey (..)
-    , addrToPayload
-    , decodeAddressDerivationPath
-    , decodeDerivationPath
-    , deserialise
-    , encodeDerivationPath
-    , generateKeyFromSeed
-    , minSeedLengthBytes
-    , unsafeGenerateKeyFromSeed
-    )
-
-import Cardano.Wallet.Primitive.AddressDerivationSpec
-    ( DecodeDerivationPath (..)
-    , decodeTest1
-    , decodeTest2
-    , decodeTest3
-    , decodeTest4
-    )
-import Cardano.Wallet.Primitive.Types
-    ( Address (..) )
-import Cardano.Wallet.Unsafe
-    ( unsafeDeserialiseFromBytes )
+    ( RndKey (..), generateKeyFromSeed, minSeedLengthBytes )
 import Control.Monad
     ( (<=<) )
 import Data.ByteArray.Encoding
@@ -59,7 +31,7 @@ import Data.Text
 import Test.Hspec
     ( Expectation, Spec, describe, it, shouldBe )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, choose, property, vectorOf )
+    ( Arbitrary (..), choose, vectorOf )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -67,25 +39,6 @@ import qualified Data.ByteString as BS
 spec :: Spec
 spec = do
     goldenSpec
-    describe "Random Address Derivation Properties" $ do
-        it "Key derivation works for various indexes" $
-            property prop_keyDerivation
-
-{-------------------------------------------------------------------------------
-                               Properties
--------------------------------------------------------------------------------}
-
-prop_keyDerivation
-    :: Passphrase "seed"
-    -> Passphrase "encryption"
-    -> Index 'Hardened 'AccountK
-    -> Index 'Hardened 'AddressK
-    -> Property
-prop_keyDerivation seed encPwd accIx addrIx =
-    rndKey `seq` property () -- NOTE Making sure this doesn't throw
-  where
-    rndKey :: RndKey 'AddressK XPrv
-    rndKey = unsafeGenerateKeyFromSeed (accIx, addrIx) seed encPwd
 
 {-------------------------------------------------------------------------------
                                   Golden tests
@@ -146,18 +99,6 @@ defMnemonic =
     , "pistol", "razor", "become", "junk", "kingdom", "flee" ]
 
 {-------------------------------------------------------------------------------
-                    Golden tests for Address derivation path
--------------------------------------------------------------------------------}
-
-decodeTest :: DecodeDerivationPath -> Expectation
-decodeTest DecodeDerivationPath{..} =
-    decoded `shouldBe` Right (Just (Index accIndex, Index addrIndex))
-  where
-    decoded = deserialise (decodeAddressDerivationPath rootXPub) (addrToPayload $ Address addr)
-    rootXPub = publicKey $ generateKeyFromSeed (Passphrase seed) (Passphrase "")
-    Right (Passphrase seed) = fromMnemonic @'[12] mnem
-
-{-------------------------------------------------------------------------------
                                      Utils
 -------------------------------------------------------------------------------}
 
@@ -178,6 +119,12 @@ pp hex = Passphrase b
 {-------------------------------------------------------------------------------
                              Arbitrary Instances
 -------------------------------------------------------------------------------}
+
+instance Show XPrv where
+    show = show . unXPrv
+
+instance Eq XPrv where
+    a == b = unXPrv a == unXPrv b
 
 -- This generator will only produce valid (@>= minSeedLengthBytes@) passphrases
 -- because 'generateKeyFromSeed' is a partial function.
