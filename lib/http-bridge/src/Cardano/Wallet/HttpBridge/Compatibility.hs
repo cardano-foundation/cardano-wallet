@@ -28,24 +28,22 @@ module Cardano.Wallet.HttpBridge.Compatibility
 
 import Prelude
 
-import Cardano.Crypto.Wallet
-    ( XPub (..) )
 import Cardano.Wallet
     ( BlockchainParameters (..) )
 import Cardano.Wallet.DB.Sqlite
     ( PersistTx (..) )
 import Cardano.Wallet.HttpBridge.Binary
-    ( decodeAddressPayload, encodeProtocolMagic, encodeTx )
-import Cardano.Wallet.HttpBridge.Environment
-    ( KnownNetwork (..)
-    , Network (Mainnet, Testnet)
-    , ProtocolMagic
-    , protocolMagic
+    ( decodeAddressPayload
+    , encodeDerivationPathAttr
+    , encodeProtocolMagicAttr
+    , encodeTx
     )
+import Cardano.Wallet.HttpBridge.Environment
+    ( KnownNetwork (..), Network (Mainnet, Testnet), protocolMagic )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), KeyToAddress (..), WalletKey (..) )
+    ( KeyToAddress (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey, encodeDerivationPath )
+    ( RndKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey )
 import Cardano.Wallet.Primitive.Fee
@@ -111,53 +109,35 @@ instance PersistTx (HttpBridge network) where
 -- | Encode a public key to a (Byron / Legacy) Cardano 'Address'. This is mostly
 -- dubious CBOR serializations with no data attributes.
 instance KeyToAddress (HttpBridge 'Testnet) SeqKey where
-    keyToAddress = keyToAddressWith @SeqKey
-        (attributesWithProtocolMagic (protocolMagic @'Testnet))
+    keyToAddress k = Address
+        $ CBOR.toStrictByteString
+        $ CBOR.encodeAddress (getRawKey k)
+            [ encodeProtocolMagicAttr (protocolMagic @'Testnet) ]
 
 instance KeyToAddress (HttpBridge 'Mainnet) SeqKey where
-    keyToAddress = keyToAddressWith @SeqKey emptyAttributes
+    keyToAddress k = Address
+        $ CBOR.toStrictByteString
+        $ CBOR.encodeAddress (getRawKey k) []
 
 instance KeyToAddress (HttpBridge 'Testnet) RndKey where
-    keyToAddress key = keyToAddressWith @RndKey
-        (rndAttributesWithProtocolMagic (protocolMagic @'Testnet) key)
-        key
+    keyToAddress k = Address
+        $ CBOR.toStrictByteString
+        $ CBOR.encodeAddress (getRawKey k)
+            [ encodeDerivationPathAttr pwd acctIx addrIx
+            , encodeProtocolMagicAttr (protocolMagic @'Testnet)
+            ]
+      where
+        (acctIx, addrIx) = derivationPath k
+        pwd = payloadPassphrase k
 
 instance KeyToAddress (HttpBridge 'Mainnet) RndKey where
-    keyToAddress key = keyToAddressWith @RndKey
-        (rndAttributesWithoutProtocolMagic key)
-        key
-
-keyToAddressWith
-    :: forall k. WalletKey k
-    => CBOR.Encoding -> k 'AddressK XPub -> Address
-keyToAddressWith attrs key = Address
-    $ CBOR.toStrictByteString
-    $ CBOR.encodeAddress xpub attrs
-  where
-    xpub = getRawKey @k key
-
-rndAttributesWithProtocolMagic :: ProtocolMagic -> RndKey 'AddressK XPub -> CBOR.Encoding
-rndAttributesWithProtocolMagic pm key = mempty
-    <> CBOR.encodeMapLen 2
-    <> CBOR.encodeWord 1
-    <> CBOR.encodeBytes (CBOR.toStrictByteString $ encodeDerivationPath key)
-    <> CBOR.encodeWord 2
-    <> CBOR.encodeBytes (CBOR.toStrictByteString $ encodeProtocolMagic pm)
-
-rndAttributesWithoutProtocolMagic :: RndKey 'AddressK XPub -> CBOR.Encoding
-rndAttributesWithoutProtocolMagic key = mempty
-    <> CBOR.encodeMapLen 1
-    <> CBOR.encodeWord 1
-    <> CBOR.encodeBytes (CBOR.toStrictByteString $ encodeDerivationPath key)
-
-attributesWithProtocolMagic :: ProtocolMagic -> CBOR.Encoding
-attributesWithProtocolMagic pm = mempty
-    <> CBOR.encodeMapLen 1
-    <> CBOR.encodeWord 2
-    <> CBOR.encodeBytes (CBOR.toStrictByteString $ encodeProtocolMagic pm)
-
-emptyAttributes :: CBOR.Encoding
-emptyAttributes = CBOR.encodeMapLen 0
+    keyToAddress k = Address
+        $ CBOR.toStrictByteString
+        $ CBOR.encodeAddress (getRawKey k)
+            [ encodeDerivationPathAttr pwd acctIx addrIx ]
+      where
+        (acctIx, addrIx) = derivationPath k
+        pwd = payloadPassphrase k
 
 -- | Encode an 'Address' to a human-readable format, in this case
 --

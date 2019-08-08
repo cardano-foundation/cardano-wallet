@@ -129,12 +129,10 @@ test-suite unit
     , aeson
     , aeson-qq
     , async
-    , base58-bytestring
     , bytestring
     , cardano-crypto
     , cardano-wallet-core
     , cardano-wallet-test-utils
-    , cborg
     , containers
     , cryptonite
     , directory
