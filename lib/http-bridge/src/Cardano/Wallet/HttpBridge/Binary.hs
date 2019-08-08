@@ -36,8 +36,8 @@ module Cardano.Wallet.HttpBridge.Binary
 
     -- * Encoding
     , encodeAddress
+    , encodeAttributes
     , encodeDerivationPathAttr
-    , encodeEmptyAttributes
     , encodeProtocolMagicAttr
     , encodePublicKeyWitness
     , encodeSignedTx
@@ -76,6 +76,8 @@ import Cardano.Wallet.Transaction
     ( EstimateMaxNumberOfInputsParams (..) )
 import Control.Monad
     ( replicateM, void, when )
+import Control.Monad.Fail
+    ( MonadFail )
 import Crypto.Error
     ( CryptoError (..), CryptoFailable (..) )
 import Crypto.Hash
@@ -594,15 +596,15 @@ decodeUpdateProof = do
 --
 -- @
 -- -- Old / Random Addresses
--- let encodeAttributes = mempty
+-- let encodeAddrAttributes = mempty
 --      <> CBOR.encodeMapLen 1
 --      <> CBOR.encodeWord8 1
 --      <> encodeDerivationPath (hdPassphrase rootXPub) accIx addrIx
--- let addr = encodeAddress xpub encodeAttributes
+-- let addr = encodeAddress xpub encodeAddrAttributes
 --
 -- -- New / Sequential Addresses
--- let encodeAttributes = mempty <> CBOR.encodeMapLen 0
--- let addr = encodeAddress xpub encodeAttributes
+-- let encodeAddrAttributes = mempty <> CBOR.encodeMapLen 0
+-- let addr = encodeAddress xpub encodeAddrAttributes
 -- @
 --
 -- Note that we are passing the behavior to encode attributes as a parameter
@@ -615,8 +617,8 @@ decodeUpdateProof = do
 --   the public key (like the wallet root id and some extra logic for encoding
 --   passphrases). This is just scheme-specific and is better left out of this
 --   particular function
-encodeAddress :: XPub -> CBOR.Encoding -> CBOR.Encoding
-encodeAddress (XPub pub (ChainCode cc)) encodeAttributes =
+encodeAddress :: XPub -> [CBOR.Encoding] -> CBOR.Encoding
+encodeAddress (XPub pub (ChainCode cc)) attrs =
     encodeAddressPayload payload
   where
     blake2b224 = hash @_ @Blake2b_224
@@ -624,13 +626,13 @@ encodeAddress (XPub pub (ChainCode cc)) encodeAttributes =
     payload = CBOR.toStrictByteString $ mempty
         <> CBOR.encodeListLen 3
         <> CBOR.encodeBytes root
-        <> encodeAttributes
+        <> encodeAttributes attrs
         <> CBOR.encodeWord8 0 -- Address Type, 0 = Public Key
     root = BA.convert $ blake2b224 $ sha3256 $ CBOR.toStrictByteString $ mempty
         <> CBOR.encodeListLen 3
         <> CBOR.encodeWord8 0 -- Address Type, 0 = Public Key
         <> encodeSpendingData
-        <> encodeAttributes
+        <> encodeAttributes attrs
     encodeXPub =
         CBOR.encodeBytes (pub <> cc)
     encodeSpendingData = CBOR.encodeListLen 2
@@ -644,8 +646,10 @@ encodeAddressPayload payload = mempty
     <> CBOR.encodeBytes payload
     <> CBOR.encodeWord32 (crc32 payload)
 
-encodeEmptyAttributes :: CBOR.Encoding
-encodeEmptyAttributes = CBOR.encodeMapLen 0
+encodeAttributes :: [CBOR.Encoding] -> CBOR.Encoding
+encodeAttributes attrs = CBOR.encodeMapLen l <> mconcat attrs
+  where
+    l = fromIntegral (length attrs)
 
 encodeProtocolMagicAttr :: ProtocolMagic -> CBOR.Encoding
 encodeProtocolMagicAttr pm = mempty
@@ -853,9 +857,10 @@ encodeList encodeOne list = mempty
 -- | Byron CBOR encodings often have CBOR nested in CBOR. This helps decoding
 -- a particular 'ByteString' that represents a CBOR object.
 decodeNestedBytes
-    :: (forall s. CBOR.Decoder s r)
+    :: MonadFail m
+    => (forall s. CBOR.Decoder s r)
     -> ByteString
-    -> CBOR.Decoder s' r
+    -> m r
 decodeNestedBytes dec bytes =
     case CBOR.deserialiseFromBytes dec (BL.fromStrict bytes) of
         Right ("", res) ->
