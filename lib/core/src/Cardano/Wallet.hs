@@ -224,7 +224,8 @@ data WalletLayer s t k = WalletLayer
         -- ^ Update the wallet metadata with the given update function.
 
     , updateWalletPassphrase
-        :: WalletId
+        :: WalletKey k
+        => WalletId
         -> (Passphrase "encryption-old", Passphrase "encryption-new")
         -> ExceptT ErrUpdatePassphrase IO ()
         -- ^ Change the wallet passphrase to the given passphrase.
@@ -432,7 +433,7 @@ data BlockchainParameters t = BlockchainParameters
 newWalletLayer
     :: forall s t k.
        ( Buildable (Tx t)
-       , WalletKey k)
+       )
     => Trace IO Text
     -> BlockchainParameters t
     -> DBLayer IO s t k
@@ -529,7 +530,8 @@ newWalletLayer tracer bp db nw tl = do
         DB.putWalletMeta db (PrimaryKey wid) (modify meta)
 
     _updateWalletPassphrase
-        :: WalletId
+        :: WalletKey k
+        => WalletId
         -> (Passphrase "encryption-old", Passphrase "encryption-new")
         -> ExceptT ErrUpdatePassphrase IO ()
     _updateWalletPassphrase wid (old, new) = do

@@ -57,8 +57,6 @@ data TransactionLayer t k = TransactionLayer
         --
         -- This expects as a first argument a mean to compute or lookup private
         -- key corresponding to a particular address.
-        --
-        -- fixme: make this polymorphic on WalletKey
 
     , estimateSize :: CoinSelection -> Quantity "byte" Int
         -- ^ Estimate the size of a 'CoinSelection', in bytes. This operation is

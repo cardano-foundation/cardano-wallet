@@ -53,11 +53,11 @@ import Data.Ord
 
 import qualified Data.Map.Strict as Map
 
-data Database s t key = Database
+data Database s t k = Database
     { wallet :: !(Wallet s t)
     , metadata :: !WalletMetadata
     , txHistory :: !(Map (Hash "Tx") (Tx t, TxMeta))
-    , xprv :: !(Maybe (key 'RootK XPrv, Hash "encryption"))
+    , xprv :: !(Maybe (k 'RootK XPrv, Hash "encryption"))
     }
 
 -- | Instantiate a new in-memory "database" layer that simply stores data in

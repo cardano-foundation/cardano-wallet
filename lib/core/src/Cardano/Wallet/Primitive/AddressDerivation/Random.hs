@@ -106,7 +106,7 @@ data RndKey (depth :: Depth) key = RndKey
     -- ^ The raw private or public key.
     , derivationPath :: DerivationPath depth
     -- ^ The address derivation indices for the level of this key.
-    , payloadPassphrase :: Passphrase "address-der"
+    , payloadPassphrase :: Passphrase "addr-derivation-payload"
     -- ^ Used for encryption of payload containing address derivation path.
     } deriving stock (Generic)
 
@@ -132,7 +132,7 @@ instance WalletKey RndKey where
     publicKey = mapKey toXPub
     -- Hash a public key to some other representation.
     digest = hash . unXPub . getKey
-    getRawKey = error "WalletKey RndKey: getRawKey unimplemented"
+    getRawKey = getKey
 
 instance PersistKey RndKey where
     serializeXPrv = error "PersistKey RndKey unimplemented"
@@ -416,7 +416,7 @@ decodeDerPath = decodeListIndef CBOR.decodeWord32 >>= \case
 
 -- | Derive a symmetric key for encrypting and authenticating the address
 -- derivation path.
-hdPassphrase :: XPrv -> Passphrase "address-der"
+hdPassphrase :: XPrv -> Passphrase "addr-derivation-payload"
 hdPassphrase masterKey = Passphrase $
     PBKDF2.generate
     (PBKDF2.prfHMAC SHA512)
@@ -433,7 +433,7 @@ cardanoNonce = "serokellfore"
 
 -- | ChaCha20/Poly1305 encrypting and signing the HD payload of addresses.
 encryptDerPath
-    :: Passphrase "address-der"
+    :: Passphrase "addr-derivation-payload"
        -- ^ Symmetric key / passphrase, 32-byte long
     -> ByteString -- Payload to be encrypted
     -> CryptoFailable ByteString -- Ciphertext with a 128-bit crypto-tag appended.
@@ -446,7 +446,7 @@ encryptDerPath (Passphrase passphrase) payload = do
 -- | ChaCha20/Poly1305 decrypting and authenticating the HD payload of
 -- addresses.
 decryptDerPath
-    :: Passphrase "address-der"
+    :: Passphrase "addr-derivation-payload"
        -- ^ Symmetric key / passphrase, 32-byte long
     -> ByteString -- Payload to be encrypted
     -> CryptoFailable ByteString

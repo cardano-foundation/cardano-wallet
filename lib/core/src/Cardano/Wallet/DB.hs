@@ -161,5 +161,5 @@ newtype PrimaryKey key = PrimaryKey key
     deriving (Eq, Ord)
 
 -- | Clean a database by removing all wallets.
-cleanDB :: Monad m => DBLayer m s t key -> m ()
+cleanDB :: Monad m => DBLayer m s t k -> m ()
 cleanDB db = listWallets db >>= mapM_ (runExceptT . removeWallet db)

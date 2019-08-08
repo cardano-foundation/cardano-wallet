@@ -366,7 +366,8 @@ putWallet w (ApiT wid) body = do
     getWallet w (ApiT wid)
 
 putWalletPassphrase
-    :: WalletLayer (SeqState t) t k
+    :: (WalletKey k)
+    => WalletLayer (SeqState t) t k
     -> ApiT WalletId
     -> WalletPutPassphraseData
     -> Handler NoContent

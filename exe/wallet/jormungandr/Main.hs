@@ -301,7 +301,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
       where
         startServer
             :: Trace IO Text
-            -> WalletLayer s t SeqKey
+            -> WalletLayer s t k
             -> IO ()
         startServer tracer wallet = do
             Server.withListeningSocket listen $ \(port, socket) -> do
@@ -317,8 +317,8 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
 
         newWalletLayer
             :: (Switchboard Text, Trace IO Text)
-            -> DBLayer IO s t SeqKey
-            -> IO (WalletLayer s t SeqKey)
+            -> DBLayer IO s t k
+            -> IO (WalletLayer s t k)
         newWalletLayer (sb, tracer) db = do
             (nl, blockchainParams) <- newNetworkLayer (sb, tracer)
             let tl = Jormungandr.newTransactionLayer @n block0H
