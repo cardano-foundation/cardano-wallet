@@ -50,6 +50,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     , SeqKey (..)
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
+    , generateKeyFromSeed
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)

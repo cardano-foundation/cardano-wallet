@@ -23,7 +23,9 @@ import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
     , deriveAddressPublicKey
+    , generateKeyFromSeed
     , minSeedLengthBytes
+    , unsafeGenerateKeyFromSeed
     )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()

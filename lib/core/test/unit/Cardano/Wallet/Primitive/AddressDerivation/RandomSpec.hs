@@ -31,9 +31,10 @@ import Cardano.Wallet.Primitive.AddressDerivation.Random
     ( RndKey (..)
     , decodeAddressDerivationPath
     , decodeDerivationPath
-    , deriveRndKeyFromXPrv
     , encodeDerivationPath
+    , generateKeyFromSeed
     , minSeedLengthBytes
+    , unsafeGenerateKeyFromSeed
     )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
@@ -94,19 +95,19 @@ prop_keyDerivation
     :: Passphrase "seed"
     -> Passphrase "encryption"
     -> Index 'Hardened 'AccountK
-    -> Index 'Soft 'AddressK
+    -> Index 'Hardened 'AddressK
     -> Property
-prop_keyDerivation seed encPwd _ix1 _ix2 =
-    addressKey rndKey `seq` property () -- NOTE Making sure this doesn't throw
+prop_keyDerivation seed encPwd accIx addrIx =
+    rndKey `seq` property () -- NOTE Making sure this doesn't throw
   where
-    -- fixme: put acc idx and addr idx back
-    rndKey = generateKeyFromSeed seed encPwd :: RndKey 'RootK XPrv
+    rndKey :: RndKey 'AddressK XPrv
+    rndKey = unsafeGenerateKeyFromSeed (accIx, addrIx) seed encPwd
 
 prop_derivationPathRoundTrip
     :: RndKey 'RootK XPub
     -> RndKey 'RootK XPub
     -> Index 'Hardened 'AccountK
-    -> Index 'Soft 'AddressK
+    -> Index 'Hardened 'AddressK
     -> Property
 prop_derivationPathRoundTrip rk rk' accIx addrIx =
     let
@@ -153,9 +154,9 @@ data GenerateKeyFromSeed = GenerateKeyFromSeed
 
 generateTest :: GenerateKeyFromSeed -> Expectation
 generateTest GenerateKeyFromSeed{..} =
-    masterKey (generateKeyFromSeed (Passphrase seed) pwd)
+    getKey (generateKeyFromSeed (Passphrase seed) pwd)
     `shouldBe`
-    masterKey rootKey
+    getKey rootKey
   where
     Right (Passphrase seed) = fromMnemonic @'[12] mnem
 
@@ -258,8 +259,8 @@ addrMnemonic =
 -------------------------------------------------------------------------------}
 
 -- | Get a private key from a hex string, without error checking.
-xprv16 :: ByteString -> RndKey purpose XPrv
-xprv16 hex = deriveRndKeyFromXPrv k
+xprv16 :: ByteString -> RndKey 'RootK XPrv
+xprv16 hex = RndKey k () (error "passphrase not used for tests")
   where
     Right k = xprvFromText hex
     xprvFromText = xprv <=< fromHexText
@@ -267,7 +268,7 @@ xprv16 hex = deriveRndKeyFromXPrv k
     fromHexText = convertFromBase Base16
 
 -- | Get a passphrase from a hex string, without error checking
-pp :: ByteString -> Passphrase purpose
+pp :: ByteString -> Passphrase depth
 pp hex = Passphrase b
     where Right b = convertFromBase Base16 hex
 

@@ -22,14 +22,9 @@ import Cardano.Wallet.DBSpec
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..), block0 )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , Passphrase (..)
-    , XPrv
-    , encryptPassphrase
-    , generateKeyFromSeed
-    )
+    ( Depth (..), Passphrase (..), XPrv, encryptPassphrase )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey (..) )
+    ( SeqKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential

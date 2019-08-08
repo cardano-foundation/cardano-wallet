@@ -31,7 +31,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , getIndex
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey (..) )
+    ( SeqKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Types
     ( Hash (..) )
 import Control.Monad
@@ -247,6 +247,10 @@ prop_passphraseHashMalformed pwd = monadicIO $ liftIO $ do
 -------------------------------------------------------------------------------}
 
 instance Arbitrary (Index 'Soft 'AddressK) where
+    shrink _ = []
+    arbitrary = arbitraryBoundedEnum
+
+instance Arbitrary (Index 'Hardened 'AddressK) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 

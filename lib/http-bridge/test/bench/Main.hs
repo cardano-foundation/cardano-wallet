@@ -31,15 +31,9 @@ import Cardano.Wallet.HttpBridge.Transaction
 import Cardano.Wallet.Network
     ( NetworkLayer (..), defaultRetryPolicy, networkTip, waitForConnection )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress (..)
-    , Passphrase (..)
-    , PersistKey
-    , digest
-    , generateKeyFromSeed
-    , publicKey
-    )
+    ( KeyToAddress (..), Passphrase (..), PersistKey, digest, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey )
+    ( SeqKey, generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOwned )
 import Cardano.Wallet.Primitive.AddressDiscovery.Any

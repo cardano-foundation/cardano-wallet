@@ -51,7 +51,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( ChangeChain (..), SeqKey (..), deriveAddressPublicKey )
+    ( ChangeChain (..)
+    , SeqKey (..)
+    , deriveAddressPublicKey
+    , generateKeyFromSeed
+    , unsafeGenerateKeyFromSeed
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , AddressPoolGap (..)
