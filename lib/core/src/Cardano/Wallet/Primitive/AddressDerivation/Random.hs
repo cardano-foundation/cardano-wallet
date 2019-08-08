@@ -115,13 +115,13 @@ deriving instance (Eq key, Eq (DerivationPath depth)) => Eq (RndKey depth key)
 
 -- | The hierarchical derivation indices for a given level/depth.
 type family DerivationPath (depth :: Depth) :: * where
-    -- | The root key, generated from the seed.
+    -- The root key is generated from the seed.
     DerivationPath 'RootK =
         ()
-    -- | The account key, generated from the root key and account index.
+    -- The account key is generated from the root key and account index.
     DerivationPath 'AccountK =
         Index 'Hardened 'AccountK
-    -- | The address key, generated from the account key and address index.
+    -- The address key is generated from the account key and address index.
     DerivationPath 'AddressK =
         (Index 'Hardened 'AccountK, Index 'Hardened 'AddressK)
 
