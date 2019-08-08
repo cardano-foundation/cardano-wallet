@@ -123,7 +123,9 @@ instance KeyToAddress (HttpBridge 'Testnet) RndKey where
         key
 
 instance KeyToAddress (HttpBridge 'Mainnet) RndKey where
-    keyToAddress = keyToAddressWith @RndKey emptyAttributes
+    keyToAddress key = keyToAddressWith @RndKey
+        (rndAttributesWithoutProtocolMagic key)
+        key
 
 keyToAddressWith
     :: forall k. WalletKey k
@@ -141,6 +143,12 @@ rndAttributesWithProtocolMagic pm key = mempty
     <> CBOR.encodeBytes (CBOR.toStrictByteString $ encodeDerivationPath key)
     <> CBOR.encodeWord 2
     <> CBOR.encodeBytes (CBOR.toStrictByteString $ encodeProtocolMagic pm)
+
+rndAttributesWithoutProtocolMagic :: RndKey 'AddressK XPub -> CBOR.Encoding
+rndAttributesWithoutProtocolMagic key = mempty
+    <> CBOR.encodeMapLen 1
+    <> CBOR.encodeWord 1
+    <> CBOR.encodeBytes (CBOR.toStrictByteString $ encodeDerivationPath key)
 
 attributesWithProtocolMagic :: ProtocolMagic -> CBOR.Encoding
 attributesWithProtocolMagic pm = mempty
