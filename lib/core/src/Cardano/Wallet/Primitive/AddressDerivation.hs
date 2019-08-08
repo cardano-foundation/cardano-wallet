@@ -366,26 +366,6 @@ instance MonadRandom ((->) (Passphrase "salt")) where
 -------------------------------------------------------------------------------}
 
 class WalletKey (key :: Depth -> * -> *) where
-    -- | Data required to generate a WalletKey.
-    type WalletKeySeed key
-
-    -- | Generate a new key from seed. Note that the @depth@ is left open so
-    -- that the caller gets to decide what type of key this is. This is mostly
-    -- for testing, in practice, seeds are used to represent root keys, and one
-    -- should use 'generateKeyFromSeed'.
-    unsafeGenerateKeyFromSeed
-        :: WalletKeySeed key
-        -> Passphrase "encryption"
-        -> key depth XPrv
-
-    -- | Generate a root key from a corresponding seed.
-    -- The seed should be at least 16 bytes.
-    generateKeyFromSeed
-        :: WalletKeySeed key
-        -> Passphrase "encryption"
-        -> key 'RootK XPrv
-    generateKeyFromSeed = unsafeGenerateKeyFromSeed
-
     -- | Re-encrypt a private key using a different passphrase.
     --
     -- **Important**:

@@ -24,10 +24,12 @@ module Cardano.Wallet.Primitive.AddressDerivation.Sequential
       SeqKey(..)
     , ChangeChain(..)
     -- * SeqKey generation and derivation
+    , generateKeyFromSeed
+    , unsafeGenerateKeyFromSeed
+    , minSeedLengthBytes
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
     , deriveAddressPublicKey
-    , minSeedLengthBytes
     -- * Passphrase
     , changePassphraseSeq
     -- * Storing and retrieving keys
@@ -110,10 +112,6 @@ newtype SeqKey (depth :: Depth) key = SeqKey { getKey :: key }
 instance (NFData key) => NFData (SeqKey depth key)
 
 instance WalletKey SeqKey where
-     -- The actual seed and its recovery / generation passphrase
-    type WalletKeySeed SeqKey = (Passphrase "seed", Passphrase "generation")
-
-    unsafeGenerateKeyFromSeed = unsafeGenerateKeyFromSeedSeq
     changePassphrase = changePassphraseSeq
     publicKey = publicKeySeq
     digest = digestSeq
@@ -175,16 +173,25 @@ coinTypeIndex = 0x80000717
 minSeedLengthBytes :: Int
 minSeedLengthBytes = 16
 
+-- | Generate a root key from a corresponding seed.
+-- The seed should be at least 16 bytes.
+generateKeyFromSeed
+    :: (Passphrase "seed", Passphrase "generation")
+       -- ^ The actual seed and its recovery / generation passphrase
+    -> Passphrase "encryption"
+    -> SeqKey 'RootK XPrv
+generateKeyFromSeed = unsafeGenerateKeyFromSeed
+
 -- | Generate a new key from seed. Note that the @depth@ is left open so that
 -- the caller gets to decide what type of key this is. This is mostly for
 -- testing, in practice, seeds are used to represent root keys, and one should
 -- use 'generateKeyFromSeed'.
-unsafeGenerateKeyFromSeedSeq
+unsafeGenerateKeyFromSeed
     :: (Passphrase "seed", Passphrase "generation")
         -- ^ The actual seed and its recovery / generation passphrase
     -> Passphrase "encryption"
     -> SeqKey depth XPrv
-unsafeGenerateKeyFromSeedSeq (Passphrase seed, Passphrase gen) (Passphrase pwd) =
+unsafeGenerateKeyFromSeed (Passphrase seed, Passphrase gen) (Passphrase pwd) =
     let
         seed' = invariant
             ("seed length : " <> show (BA.length seed) <> " in (Passphrase \"seed\") is not valid")

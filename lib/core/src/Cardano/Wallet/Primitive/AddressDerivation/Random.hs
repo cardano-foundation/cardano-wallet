@@ -30,8 +30,8 @@ module Cardano.Wallet.Primitive.AddressDerivation.Random
     ( -- * RndKey types
       RndKey(..)
       -- * RndKey derivation and generation
-    , unsafeGenerateKeyFromSeedRnd
-    , generateKeyFromSeedRnd
+    , unsafeGenerateKeyFromSeed
+    , generateKeyFromSeed
     , minSeedLengthBytes
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
@@ -126,9 +126,6 @@ type family DerivationPath (depth :: Depth) :: * where
         (Index 'Hardened 'AccountK, Index 'Hardened 'AddressK)
 
 instance WalletKey RndKey where
-    type WalletKeySeed RndKey = Passphrase "seed"
-    unsafeGenerateKeyFromSeed = unsafeGenerateKeyFromSeedRnd undefined
-    generateKeyFromSeed = generateKeyFromSeedRnd
     changePassphrase = changePassphraseRnd
     publicKey = publicKeyRnd
     digest = digestRnd
@@ -144,22 +141,24 @@ instance PersistKey RndKey where
                                  Key generation
 -------------------------------------------------------------------------------}
 
-generateKeyFromSeedRnd
+-- | Generate a root key from a corresponding seed.
+-- The seed should be at least 16 bytes.
+generateKeyFromSeed
     :: Passphrase "seed"
     -> Passphrase "encryption"
     -> RndKey 'RootK XPrv
-generateKeyFromSeedRnd = unsafeGenerateKeyFromSeedRnd ()
+generateKeyFromSeed = unsafeGenerateKeyFromSeed ()
 
 -- | Generate a new key from seed. Note that the @depth@ is left open so that
 -- the caller gets to decide what type of key this is. This is mostly for
 -- testing, in practice, seeds are used to represent root keys, and one should
 -- use 'generateKeyFromSeed'.
-unsafeGenerateKeyFromSeedRnd
+unsafeGenerateKeyFromSeed
     :: DerivationPath depth
     -> Passphrase "seed"
     -> Passphrase "encryption"
     -> RndKey depth XPrv
-unsafeGenerateKeyFromSeedRnd derivationPath (Passphrase seed) (Passphrase pwd) = RndKey
+unsafeGenerateKeyFromSeed derivationPath (Passphrase seed) (Passphrase pwd) = RndKey
     { getKey = masterKey
     , derivationPath
     , payloadPassphrase = hdPassphrase masterKey
