@@ -48,7 +48,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), KeyToAddress (..), Passphrase (..), WalletKey (..), XPub )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey (..), generateKeyFromSeed )
+    ( SeqKey (..), generateKeyFromSeed, unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , SeqState (..)

@@ -28,7 +28,11 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , XPub
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( ChangeChain (..), SeqKey (..), deriveAddressPublicKey )
+    ( ChangeChain (..)
+    , SeqKey (..)
+    , deriveAddressPublicKey
+    , unsafeGenerateKeyFromSeed
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)

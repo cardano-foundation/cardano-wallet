@@ -28,15 +28,9 @@ import Cardano.Wallet.HttpBridge.Primitive.Types
 import Cardano.Wallet.HttpBridge.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , KeyToAddress (..)
-    , Passphrase (..)
-    , XPrv
-    , publicKey
-    , unsafeGenerateKeyFromSeed
-    )
+    ( Depth (..), KeyToAddress (..), Passphrase (..), XPrv, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey (..) )
+    ( SeqKey (..), unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.CoinSelection.LargestFirst

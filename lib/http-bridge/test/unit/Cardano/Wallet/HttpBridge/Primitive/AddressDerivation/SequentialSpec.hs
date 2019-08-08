@@ -22,7 +22,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Index
     , KeyToAddress (..)
     , Passphrase (..)
-    , generateKeyFromSeed
     , keyToAddress
     , publicKey
     )
@@ -31,6 +30,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     , SeqKey (..)
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
+    , generateKeyFromSeed
     )
 import Cardano.Wallet.Primitive.Types
     ( encodeAddress )
