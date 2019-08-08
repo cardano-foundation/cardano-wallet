@@ -45,7 +45,7 @@ import Cardano.Wallet.HttpBridge.Environment
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), KeyToAddress (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey (..) )
+    ( RndKey, encodeDerivationPath )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey )
 import Cardano.Wallet.Primitive.Fee
@@ -125,8 +125,10 @@ instance KeyToAddress (HttpBridge 'Mainnet) RndKey where
     keyToAddress = rndKeyToAddressWith emptyAttributes
 
 rndKeyToAddressWith :: CBOR.Encoding -> RndKey 'AddressK XPub -> Address
-rndKeyToAddressWith _attrs (RndKey _addressXPub (_accIx, _addrIx) _) =
+rndKeyToAddressWith _attrs key =
     error "rndKeyToAddressWith: unimplemented"
+  where
+    _derPath = encodeDerivationPath key
 
 keyToAddressWith :: CBOR.Encoding -> SeqKey 'AddressK XPub -> Address
 keyToAddressWith attrs key = Address
