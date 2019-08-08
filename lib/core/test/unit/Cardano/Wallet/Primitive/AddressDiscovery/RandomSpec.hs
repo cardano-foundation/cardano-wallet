@@ -15,21 +15,9 @@ module Cardano.Wallet.Primitive.AddressDiscovery.RandomSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , DerivationType (..)
-    , Index (..)
-    , Passphrase (..)
-    , XPrv
-    , fromMnemonic
-    , publicKey
-    )
+    ( Passphrase (..), fromMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey (..)
-    , deriveAccountPrivateKey
-    , deriveAddressPrivateKey
-    , generateKeyFromSeed
-    , minSeedLengthBytes
-    )
+    ( RndKey (..), generateKeyFromSeed, minSeedLengthBytes )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ( DecodeDerivationPath (..)
     , decodeTest1
@@ -44,31 +32,15 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
 import Cardano.Wallet.Primitive.Types
     ( Address (..) )
 import Test.Hspec
-    ( Expectation, Spec, describe, it, shouldBe, xit )
+    ( Expectation, Spec, describe, it, shouldBe )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
-    , InfiniteList (..)
-    , Property
-    , choose
-    , property
-    , vectorOf
-    , (.&&.)
-    , (===)
-    )
+    ( Arbitrary (..), choose, vectorOf )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 
 spec :: Spec
-spec = do
-    describe "Random Address Discovery Properties" $ do
-
-        xit "isOurs works as expected during key derivation" $ do
-            property prop_keyDerivationObeysIsOurs
-
-    goldenSpec
-
+spec = goldenSpec
 
 {-------------------------------------------------------------------------------
                                   Golden tests
@@ -98,26 +70,8 @@ checkIsOurs DecodeDerivationPath{..} =
 
 
 {-------------------------------------------------------------------------------
-                               Properties
+                             Arbitrary Instances
 -------------------------------------------------------------------------------}
-
-prop_keyDerivationObeysIsOurs
-    :: Passphrase "seed"
-    -> Passphrase "encryption"
-    -> Index 'Hardened 'AccountK
-    -> Index 'Hardened 'AddressK
-    -> RndKey 'RootK XPrv
-    -> Property
-prop_keyDerivationObeysIsOurs seed encPwd accIx addrIx rk' =
-    isOurs address (RndState rootXPrv) === (True, RndState rootXPrv) .&&.
-    isOurs address (RndState rk') === (False, RndState rk')
-  where
-    rootXPrv = generateKeyFromSeed seed encPwd
-    _rootXPub = publicKey rootXPrv
-    accXPrv = deriveAccountPrivateKey encPwd rootXPrv accIx
-    addrXPrv = deriveAddressPrivateKey encPwd accXPrv addrIx
-    _addrXPub = publicKey addrXPrv
-    address = undefined -- here use -> keyToAddress rootXPub addrXPub accIx addIx @Network
 
 instance Eq RndState where
     (RndState a) == (RndState b) = getKey a == getKey b
@@ -125,9 +79,6 @@ instance Eq RndState where
 instance Show RndState where
     show (RndState a) = show (getKey a)
 
-{-------------------------------------------------------------------------------
-                             Arbitrary Instances
--------------------------------------------------------------------------------}
 
 -- This generator will only produce valid (@>= minSeedLengthBytes@) passphrases
 -- because 'generateKeyFromSeed' is a partial function.
@@ -136,20 +87,3 @@ instance {-# OVERLAPS #-} Arbitrary (Passphrase "seed") where
         n <- choose (minSeedLengthBytes, 64)
         bytes <- BS.pack <$> vectorOf n arbitrary
         return $ Passphrase $ BA.convert bytes
-
-instance Arbitrary (RndKey 'RootK XPrv) where
-    shrink _ = []
-    arbitrary = genRootKeys
-
-genRootKeys :: Gen (RndKey 'RootK XPrv)
-genRootKeys = do
-    (s, e) <- (,)
-        <$> genPassphrase @"seed" (16, 32)
-        <*> genPassphrase @"encryption" (0, 16)
-    return $ generateKeyFromSeed s e
-  where
-    genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
-    genPassphrase range = do
-        n <- choose range
-        InfiniteList bytes _ <- arbitrary
-        return $ Passphrase $ BA.convert $ BS.pack $ take n bytes
