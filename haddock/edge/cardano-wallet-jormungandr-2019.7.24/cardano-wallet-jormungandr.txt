@@ -299,10 +299,10 @@ Http :: Scheme
 Https :: Scheme
 
 -- | Generate a configuration file for Jörmungandr@0.3.1
-genConfigFile :: FilePath -> BaseUrl -> Value
+genConfigFile :: FilePath -> Int -> BaseUrl -> Value
 instance Cardano.Wallet.Primitive.Types.DefineTx (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr network)
 instance Cardano.Wallet.DB.Sqlite.PersistTx (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr network)
-instance Cardano.Wallet.Jormungandr.Environment.KnownNetwork n => Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr n)
+instance Cardano.Wallet.Jormungandr.Environment.KnownNetwork n => Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr n) Cardano.Wallet.Primitive.AddressDerivation.Sequential.SeqKey
 instance Cardano.Wallet.Jormungandr.Environment.KnownNetwork n => Cardano.Wallet.Primitive.Types.EncodeAddress (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr n)
 instance Cardano.Wallet.Jormungandr.Environment.KnownNetwork n => Cardano.Wallet.Primitive.Types.DecodeAddress (Cardano.Wallet.Jormungandr.Compatibility.Jormungandr n)
 
@@ -430,7 +430,7 @@ module Cardano.Wallet.Jormungandr.Transaction
 
 -- | Construct a <a>TransactionLayer</a> compatible with Shelley and
 --   <tt>Jörmungandr</tt>
-newTransactionLayer :: forall n t. (KnownNetwork n, t ~ Jormungandr n) => Hash "Genesis" -> TransactionLayer t
+newTransactionLayer :: forall n t. (KnownNetwork n, t ~ Jormungandr n) => Hash "Genesis" -> TransactionLayer t SeqKey
 
 -- | Transaction with improper number of inputs and outputs is tried
 data ErrExceededInpsOrOuts

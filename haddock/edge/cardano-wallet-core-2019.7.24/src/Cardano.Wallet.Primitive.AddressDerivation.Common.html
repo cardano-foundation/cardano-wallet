@@ -1,58 +1,42 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE AllowAmbiguousTypes #-}</span><span>
 </span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE DataKinds #-}</span><span>
-</span><a name="line-3"></a><span class="hs-pragma">{-# LANGUAGE DeriveGeneric #-}</span><span>
-</span><a name="line-4"></a><span class="hs-pragma">{-# LANGUAGE DerivingStrategies #-}</span><span>
-</span><a name="line-5"></a><span class="hs-pragma">{-# LANGUAGE FlexibleInstances #-}</span><span>
-</span><a name="line-6"></a><span class="hs-pragma">{-# LANGUAGE InstanceSigs #-}</span><span>
-</span><a name="line-7"></a><span class="hs-pragma">{-# LANGUAGE MultiParamTypeClasses #-}</span><span>
-</span><a name="line-8"></a><span class="hs-pragma">{-# LANGUAGE RoleAnnotations #-}</span><span>
-</span><a name="line-9"></a><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables #-}</span><span>
-</span><a name="line-10"></a><span class="hs-pragma">{-# LANGUAGE TypeFamilies #-}</span><span>
-</span><a name="line-11"></a><span class="hs-pragma">{-# LANGUAGE TypeOperators #-}</span><span>
-</span><a name="line-12"></a><span class="hs-pragma">{-# LANGUAGE UndecidableInstances #-}</span><span>
-</span><a name="line-13"></a><span>
-</span><a name="line-14"></a><span class="hs-comment">-- |</span><span>
-</span><a name="line-15"></a><span class="hs-comment">-- Copyright: &#169; 2018-2019 IOHK</span><span>
-</span><a name="line-16"></a><span class="hs-comment">-- License: MIT</span><span>
-</span><a name="line-17"></a><span class="hs-comment">--</span><span>
-</span><a name="line-18"></a><span class="hs-comment">-- Use the types from &quot;Cardano.Wallet.Primitive.AddressDerivation&quot; or the key</span><span>
-</span><a name="line-19"></a><span class="hs-comment">-- generation or derivation functions from</span><span>
-</span><a name="line-20"></a><span class="hs-comment">-- &quot;Cardano.Wallet.Primitive.AddressDerivation.Sequential&quot; or</span><span>
-</span><a name="line-21"></a><span class="hs-comment">-- &quot;Cardano.Wallet.Primitive.AddressDerivation.Random&quot; instead of this module.</span><span>
-</span><a name="line-22"></a><span>
-</span><a name="line-23"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Cardano.Wallet.Primitive.AddressDerivation.Common</span><span>
-</span><a name="line-24"></a><span>    </span><span class="hs-special">(</span><span> </span><a href="Cardano.Wallet.Primitive.AddressDerivation.Common.html#Key"><span class="hs-identifier hs-type">Key</span></a><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
-</span><a name="line-25"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.Primitive.AddressDerivation.Common.html#Depth"><span class="hs-identifier hs-type">Depth</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
-</span><a name="line-26"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
-</span><a name="line-27"></a><span>
-</span><a name="line-28"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Prelude</span><span>
+</span><a name="line-3"></a><span class="hs-pragma">{-# LANGUAGE DerivingStrategies #-}</span><span>
+</span><a name="line-4"></a><span class="hs-pragma">{-# LANGUAGE FlexibleInstances #-}</span><span>
+</span><a name="line-5"></a><span class="hs-pragma">{-# LANGUAGE InstanceSigs #-}</span><span>
+</span><a name="line-6"></a><span class="hs-pragma">{-# LANGUAGE MultiParamTypeClasses #-}</span><span>
+</span><a name="line-7"></a><span class="hs-pragma">{-# LANGUAGE RoleAnnotations #-}</span><span>
+</span><a name="line-8"></a><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables #-}</span><span>
+</span><a name="line-9"></a><span class="hs-pragma">{-# LANGUAGE TypeFamilies #-}</span><span>
+</span><a name="line-10"></a><span class="hs-pragma">{-# LANGUAGE TypeOperators #-}</span><span>
+</span><a name="line-11"></a><span class="hs-pragma">{-# LANGUAGE UndecidableInstances #-}</span><span>
+</span><a name="line-12"></a><span>
+</span><a name="line-13"></a><span class="hs-comment">-- |</span><span>
+</span><a name="line-14"></a><span class="hs-comment">-- Copyright: &#169; 2018-2019 IOHK</span><span>
+</span><a name="line-15"></a><span class="hs-comment">-- License: MIT</span><span>
+</span><a name="line-16"></a><span class="hs-comment">--</span><span>
+</span><a name="line-17"></a><span class="hs-comment">-- Common functions for the address derivation implementations.</span><span>
+</span><a name="line-18"></a><span class="hs-comment">--</span><span>
+</span><a name="line-19"></a><span class="hs-comment">-- Use the types from &quot;Cardano.Wallet.Primitive.AddressDerivation&quot; or the key</span><span>
+</span><a name="line-20"></a><span class="hs-comment">-- generation or derivation functions from</span><span>
+</span><a name="line-21"></a><span class="hs-comment">-- &quot;Cardano.Wallet.Primitive.AddressDerivation.Sequential&quot; or</span><span>
+</span><a name="line-22"></a><span class="hs-comment">-- &quot;Cardano.Wallet.Primitive.AddressDerivation.Random&quot; instead of this module.</span><span>
+</span><a name="line-23"></a><span class="hs-comment">--</span><span>
+</span><a name="line-24"></a><span>
+</span><a name="line-25"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Cardano.Wallet.Primitive.AddressDerivation.Common</span><span>
+</span><a name="line-26"></a><span>    </span><span class="hs-special">(</span><span> </span><a href="Cardano.Wallet.Primitive.AddressDerivation.Common.html#fromHexText"><span class="hs-identifier hs-var">fromHexText</span></a><span>
+</span><a name="line-27"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Cardano.Wallet.Primitive.AddressDerivation.Common.html#toHexText"><span class="hs-identifier hs-var">toHexText</span></a><span>
+</span><a name="line-28"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
 </span><a name="line-29"></a><span>
-</span><a name="line-30"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.DeepSeq</span><span>
-</span><a name="line-31"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">NFData</span><span> </span><span class="hs-special">)</span><span>
-</span><a name="line-32"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.Generics</span><span>
-</span><a name="line-33"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Generic</span><span> </span><span class="hs-special">)</span><span>
-</span><a name="line-34"></a><span>
-</span><a name="line-35"></a><span class="hs-comment">{-------------------------------------------------------------------------------
-                        Polymorphic / General Purpose Types
--------------------------------------------------------------------------------}</span><span>
-</span><a name="line-38"></a><span>
-</span><a name="line-39"></a><span class="hs-comment">-- | A cryptographic key, with phantom-types to disambiguate key types.</span><span>
-</span><a name="line-40"></a><span class="hs-comment">--</span><span>
-</span><a name="line-41"></a><span class="hs-comment">-- @</span><span>
-</span><a name="line-42"></a><span class="hs-comment">-- let rootPrivateKey = Key 'RootK XPrv</span><span>
-</span><a name="line-43"></a><span class="hs-comment">-- let accountPubKey = Key 'AccountK XPub</span><span>
-</span><a name="line-44"></a><span class="hs-comment">-- let addressPubKey = Key 'AddressK XPub</span><span>
-</span><a name="line-45"></a><span class="hs-comment">-- @</span><span>
-</span><a name="line-46"></a><span class="hs-keyword">newtype</span><span> </span><a name="Key"><a href="Cardano.Wallet.Primitive.AddressDerivation.Common.html#Key"><span class="hs-identifier">Key</span></a></a><span> </span><span class="hs-special">(</span><a name="local-6989586621679098052"><a href="#local-6989586621679098052"><span class="hs-identifier">level</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><a href="Cardano.Wallet.Primitive.AddressDerivation.Common.html#Depth"><span class="hs-identifier hs-type">Depth</span></a><span class="hs-special">)</span><span> </span><a name="local-6989586621679098053"><a href="#local-6989586621679098053"><span class="hs-identifier">key</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a name="Key"><a href="Cardano.Wallet.Primitive.AddressDerivation.Common.html#Key"><span class="hs-identifier">Key</span></a></a><span> </span><span class="hs-special">{</span><span> </span><a name="getKey"><a href="Cardano.Wallet.Primitive.AddressDerivation.Common.html#getKey"><span class="hs-identifier">getKey</span></a></a><span> </span><span class="hs-glyph">::</span><span> </span><a href="#local-6989586621679098053"><span class="hs-identifier hs-type">key</span></a><span> </span><span class="hs-special">}</span><span>
-</span><a name="line-47"></a><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-keyword">stock</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">Generic</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Show</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Eq</span><span class="hs-special">)</span><span>
-</span><a name="line-48"></a><span>
-</span><a name="line-49"></a><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-type">NFData</span><span> </span><a href="#local-6989586621679098054"><span class="hs-identifier hs-type">key</span></a><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-identifier hs-type">NFData</span><span> </span><span class="hs-special">(</span><a href="Cardano.Wallet.Primitive.AddressDerivation.Common.html#Key"><span class="hs-identifier hs-type">Key</span></a><span> </span><a href="#local-6989586621679098055"><span class="hs-identifier hs-type">level</span></a><span> </span><a href="#local-6989586621679098054"><span class="hs-identifier hs-type">key</span></a><span class="hs-special">)</span><span>
-</span><a name="line-50"></a><span>
-</span><a name="line-51"></a><span class="hs-comment">-- | Key Depth in the derivation path, according to BIP-0039 / BIP-0044</span><span>
-</span><a name="line-52"></a><span class="hs-comment">--</span><span>
-</span><a name="line-53"></a><span class="hs-comment">-- @m | purpose' | cointype' | account' | change | address@</span><span>
-</span><a name="line-54"></a><span class="hs-comment">--</span><span>
-</span><a name="line-55"></a><span class="hs-comment">-- We do not manipulate purpose, cointype and change paths directly, so they are</span><span>
-</span><a name="line-56"></a><span class="hs-comment">-- left out of the sum type.</span><span>
-</span><a name="line-57"></a><span class="hs-keyword">data</span><span> </span><a name="Depth"><a href="Cardano.Wallet.Primitive.AddressDerivation.Common.html#Depth"><span class="hs-identifier">Depth</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><a name="RootK"><a href="Cardano.Wallet.Primitive.AddressDerivation.Common.html#RootK"><span class="hs-identifier">RootK</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><a name="AccountK"><a href="Cardano.Wallet.Primitive.AddressDerivation.Common.html#AccountK"><span class="hs-identifier">AccountK</span></a></a><span> </span><span class="hs-glyph">|</span><span> </span><a name="AddressK"><a href="Cardano.Wallet.Primitive.AddressDerivation.Common.html#AddressK"><span class="hs-identifier">AddressK</span></a></a><span>
-</span><a name="line-58"></a></pre></body></html>
+</span><a name="line-30"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Prelude</span><span>
+</span><a name="line-31"></a><span>
+</span><a name="line-32"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.ByteArray.Encoding</span><span>
+</span><a name="line-33"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Base</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">convertFromBase</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">convertToBase</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-34"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.ByteString</span><span>
+</span><a name="line-35"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">ByteString</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-36"></a><span>
+</span><a name="line-37"></a><span class="hs-identifier">fromHexText</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">ByteString</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Either</span><span> </span><span class="hs-identifier hs-type">String</span><span> </span><span class="hs-identifier hs-type">ByteString</span><span>
+</span><a name="line-38"></a><a name="fromHexText"><a href="Cardano.Wallet.Primitive.AddressDerivation.Common.html#fromHexText"><span class="hs-identifier">fromHexText</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">convertFromBase</span><span> </span><span class="hs-identifier hs-var">Base16</span><span>
+</span><a name="line-39"></a><span>
+</span><a name="line-40"></a><span class="hs-identifier">toHexText</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">ByteString</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">ByteString</span><span>
+</span><a name="line-41"></a><a name="toHexText"><a href="Cardano.Wallet.Primitive.AddressDerivation.Common.html#toHexText"><span class="hs-identifier">toHexText</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier hs-var">convertToBase</span><span> </span><span class="hs-identifier hs-var">Base16</span><span>
+</span><a name="line-42"></a></pre></body></html>

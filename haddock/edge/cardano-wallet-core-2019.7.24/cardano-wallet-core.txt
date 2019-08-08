@@ -36,40 +36,16 @@ instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.DaedalusIPC.MsgOut
 instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.DaedalusIPC.MsgIn
 
 
--- | Use the types from <a>Cardano.Wallet.Primitive.AddressDerivation</a>
+-- | Common functions for the address derivation implementations.
+--   
+--   Use the types from <a>Cardano.Wallet.Primitive.AddressDerivation</a>
 --   or the key generation or derivation functions from
 --   <a>Cardano.Wallet.Primitive.AddressDerivation.Sequential</a> or
 --   <a>Cardano.Wallet.Primitive.AddressDerivation.Random</a> instead of
 --   this module.
 module Cardano.Wallet.Primitive.AddressDerivation.Common
-
--- | A cryptographic key, with phantom-types to disambiguate key types.
---   
---   <pre>
---   let rootPrivateKey = Key 'RootK XPrv
---   let accountPubKey = Key 'AccountK XPub
---   let addressPubKey = Key 'AddressK XPub
---   </pre>
-newtype Key (level :: Depth) key
-Key :: key -> Key key
-[getKey] :: Key key -> key
-
--- | Key Depth in the derivation path, according to BIP-0039 / BIP-0044
---   
---   <pre>
---   m | purpose' | cointype' | account' | change | address
---   </pre>
---   
---   We do not manipulate purpose, cointype and change paths directly, so
---   they are left out of the sum type.
-data Depth
-RootK :: Depth
-AccountK :: Depth
-AddressK :: Depth
-instance GHC.Classes.Eq key => GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDerivation.Common.Key level key)
-instance GHC.Show.Show key => GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.Common.Key level key)
-instance GHC.Generics.Generic (Cardano.Wallet.Primitive.AddressDerivation.Common.Key level key)
-instance Control.DeepSeq.NFData key => Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDerivation.Common.Key level key)
+fromHexText :: ByteString -> Either String ByteString
+toHexText :: ByteString -> ByteString
 
 
 -- | This module provides mnemonic (backup phrase) creation, and conversion
@@ -954,17 +930,14 @@ random :: forall m e. MonadRandom m => CoinSelectionOptions e -> NonEmpty TxOut 
 --   This is where most of the crypto happens in the wallet and, it is
 --   quite important to ensure that the implementations match with other
 --   Cardano wallets (like cardano-sl, Yoroi/Icarus, or cardano-cli)
-module Cardano.Wallet.Primitive.AddressDerivation
-
--- | A cryptographic key, with phantom-types to disambiguate key types.
 --   
---   <pre>
---   let rootPrivateKey = Key 'RootK XPrv
---   let accountPubKey = Key 'AccountK XPub
---   let addressPubKey = Key 'AddressK XPub
---   </pre>
-data Key (level :: Depth) key
-getKey :: Key level key -> key
+--   The actual implementations are in the following modules:
+--   
+--   <ul>
+--   <li><a>Cardano.Wallet.Primitive.AddressDerivation.Sequential</a></li>
+--   <li><a>Cardano.Wallet.Primitive.AddressDerivation.Random</a></li>
+--   </ul>
+module Cardano.Wallet.Primitive.AddressDerivation
 
 -- | Key Depth in the derivation path, according to BIP-0039 / BIP-0044
 --   
@@ -994,12 +967,6 @@ Index :: Word32 -> Index
 data DerivationType
 Hardened :: DerivationType
 Soft :: DerivationType
-
--- | Extract the public key part of a private key.
-publicKey :: Key level XPrv -> Key level XPub
-
--- | Hash a public key to some other representation.
-digest :: HashAlgorithm a => Key level XPub -> Digest a
 data XPub
 data XPrv
 
@@ -1008,8 +975,48 @@ data XPrv
 --   
 --   Note that <a>keyToAddress</a> is ambiguous and requires therefore a
 --   type applications. See also <tt>TxId</tt>.
-class KeyToAddress target
-keyToAddress :: KeyToAddress target => Key  'AddressK XPub -> Address
+class WalletKey key => KeyToAddress target (key :: Depth -> * -> *)
+keyToAddress :: KeyToAddress target key => key  'AddressK XPub -> Address
+class WalletKey (key :: Depth -> * -> *)
+
+-- | Re-encrypt a private key using a different passphrase.
+--   
+--   <ul>
+--   <li>*Important**: This function doesn't check that the old passphrase
+--   is correct! Caller is expected to have already checked that. Using an
+--   incorrect passphrase here will lead to very bad thing.</li>
+--   </ul>
+changePassphrase :: WalletKey key => Passphrase "encryption-old" -> Passphrase "encryption-new" -> key depth XPrv -> key depth XPrv
+
+-- | Extract the public key part of a private key.
+publicKey :: WalletKey key => key depth XPrv -> key depth XPub
+
+-- | Hash a public key to some other representation.
+digest :: (WalletKey key, HashAlgorithm a) => key depth XPub -> Digest a
+
+-- | Unwrap the <a>WalletKey</a> to use the <a>XPrv</a> or <a>XPub</a>.
+getRawKey :: WalletKey key => key depth raw -> raw
+
+-- | Operations for saving a <a>WalletKey</a> into a database, and
+--   restoring it from a database. The keys should be encoded in
+--   hexadecimal strings.
+class PersistKey (key :: Depth -> * -> *)
+
+-- | Convert a private key and its password hash into hexadecimal strings
+--   suitable for storing in a text file or database column.
+serializeXPrv :: PersistKey key => (key depth XPrv, Hash "encryption") -> (ByteString, ByteString)
+
+-- | The reverse of <a>serializeXPrv</a>. This may fail if the inputs are
+--   not valid hexadecimal strings, or if the key is of the wrong length.
+deserializeXPrv :: PersistKey key => (ByteString, ByteString) -> Either String (key depth XPrv, Hash "encryption")
+
+-- | Convert a public key into a hexadecimal string suitable for storing in
+--   a text file or database column.
+serializeXPub :: PersistKey key => key purpose XPub -> ByteString
+
+-- | The reverse of <a>serializeXPub</a>. This will fail if the input is
+--   not a valid hexadecimal string of the correct length.
+deserializeXPub :: PersistKey key => ByteString -> Either String (key purpose XPub)
 
 -- | An encapsulated passphrase. The inner format is free, but the wrapper
 --   helps readability in function signatures.
@@ -1054,36 +1061,12 @@ encryptPassphrase :: MonadRandom m => Passphrase purpose -> m (Hash purpose)
 
 -- | Check whether a <a>Passphrase</a> matches with a stored <a>Hash</a>
 checkPassphrase :: Passphrase purpose -> Hash purpose -> Either ErrWrongPassphrase ()
-
--- | Re-encrypt a private key using a different passphrase.
---   
---   <ul>
---   <li>*Important**: This function doesn't check that the old passphrase
---   is correct! Caller is expected to have already checked that. Using an
---   incorrect passphrase here will lead to very bad thing.</li>
---   </ul>
-changePassphrase :: Passphrase "encryption-old" -> Passphrase "encryption-new" -> Key purpose XPrv -> Key purpose XPrv
-
--- | Convert a private key and its password hash into hexadecimal strings
---   suitable for storing in a text file or database column.
-serializeXPrv :: (Key purpose XPrv, Hash "encryption") -> (ByteString, ByteString)
-
--- | The reverse of <a>serializeXPrv</a>. This may fail if the inputs are
---   not valid hexadecimal strings, or if the key is of the wrong length.
-deserializeXPrv :: (ByteString, ByteString) -> Either String (Key purpose XPrv, Hash "encryption")
-
--- | Convert a public key into a hexadecimal string suitable for storing in
---   a text file or database column.
-serializeXPub :: Key purpose XPub -> ByteString
-
--- | The reverse of <a>serializeXPub</a>. This will fail if the input is
---   not a valid hexadecimal string of the correct length.
-deserializeXPub :: ByteString -> Either String (Key purpose XPub)
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDerivation.ErrWrongPassphrase
 instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDerivation.ErrWrongPassphrase
 instance Formatting.Buildable.Buildable (Cardano.Wallet.Primitive.AddressDerivation.FromMnemonicError sz)
 instance GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.FromMnemonicError sz)
 instance GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDerivation.FromMnemonicError sz)
+instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
 instance GHC.Base.Monoid (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
 instance GHC.Base.Semigroup (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
 instance GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.Passphrase purpose)
@@ -1117,8 +1100,8 @@ instance GHC.Enum.Enum (Cardano.Wallet.Primitive.AddressDerivation.Index 'Cardan
 --   those operations from our wallet layer, keeping the implementation
 --   flexible to various backends.
 module Cardano.Wallet.Transaction
-data TransactionLayer t
-TransactionLayer :: ((Address -> Maybe (Key  'AddressK XPrv, Passphrase "encryption")) -> [(TxIn, TxOut)] -> [TxOut] -> Either ErrMkStdTx (Tx t, [TxWitness])) -> (CoinSelection -> Quantity "byte" Int) -> (Quantity "byte" Word16 -> Word8 -> Word8) -> (CoinSelection -> Either (ErrValidateSelection t) ()) -> TransactionLayer t
+data TransactionLayer t k
+TransactionLayer :: ((Address -> Maybe (k  'AddressK XPrv, Passphrase "encryption")) -> [(TxIn, TxOut)] -> [TxOut] -> Either ErrMkStdTx (Tx t, [TxWitness])) -> (CoinSelection -> Quantity "byte" Int) -> (Quantity "byte" Word16 -> Word8 -> Word8) -> (CoinSelection -> Either (ErrValidateSelection t) ()) -> TransactionLayer t k
 
 -- | Construct a standard transaction
 --   
@@ -1127,7 +1110,7 @@ TransactionLayer :: ((Address -> Maybe (Key  'AddressK XPrv, Passphrase "encrypt
 --   
 --   This expects as a first argument a mean to compute or lookup private
 --   key corresponding to a particular address.
-[mkStdTx] :: TransactionLayer t -> (Address -> Maybe (Key  'AddressK XPrv, Passphrase "encryption")) -> [(TxIn, TxOut)] -> [TxOut] -> Either ErrMkStdTx (Tx t, [TxWitness])
+[mkStdTx] :: TransactionLayer t k -> (Address -> Maybe (k  'AddressK XPrv, Passphrase "encryption")) -> [(TxIn, TxOut)] -> [TxOut] -> Either ErrMkStdTx (Tx t, [TxWitness])
 
 -- | Estimate the size of a <a>CoinSelection</a>, in bytes. This operation
 --   is seemingly coupled to the binary representation of a
@@ -1143,7 +1126,7 @@ TransactionLayer :: ((Address -> Maybe (Key  'AddressK XPrv, Passphrase "encrypt
 --   therefore always consider the worst-case scenario of a 5-byte crc. As
 --   a consequence, our estimate may be slightly bigger than the actual
 --   transaction fee (up-to 4 extra bytes per change output).
-[estimateSize] :: TransactionLayer t -> CoinSelection -> Quantity "byte" Int
+[estimateSize] :: TransactionLayer t k -> CoinSelection -> Quantity "byte" Int
 
 -- | Calculate a "theoretical" maximum number of inputs given a maximum
 --   transaction size and desired number of outputs.
@@ -1153,14 +1136,14 @@ TransactionLayer :: ((Address -> Maybe (Key  'AddressK XPrv, Passphrase "encrypt
 --   
 --   This estimate will err on the side of permitting more inputs,
 --   resulting in a transaction which may be too large.
-[estimateMaxNumberOfInputs] :: TransactionLayer t -> Quantity "byte" Word16 -> Word8 -> Word8
+[estimateMaxNumberOfInputs] :: TransactionLayer t k -> Quantity "byte" Word16 -> Word8 -> Word8
 
 -- | Validate coin selection regarding rules that may be specific to a
 --   particular backend implementation.
 --   
 --   For example, Byron nodes do not allow null output amounts. Jörmungandr
 --   on its side doesn't support more than 255 inputs or outputs.
-[validateSelection] :: TransactionLayer t -> CoinSelection -> Either (ErrValidateSelection t) ()
+[validateSelection] :: TransactionLayer t k -> CoinSelection -> Either (ErrValidateSelection t) ()
 
 -- | Possible signing error
 newtype ErrMkStdTx
@@ -1186,7 +1169,7 @@ type family ErrValidateSelection t
 --   All the values used are the smaller ones. For example, the shortest
 --   adress type and shortest witness type are chosen to use for the
 --   estimate.
-estimateMaxNumberOfInputsBase :: forall target. KeyToAddress target => EstimateMaxNumberOfInputsParams target -> Quantity "byte" Word16 -> Word8 -> Word8
+estimateMaxNumberOfInputsBase :: forall t k. (KeyToAddress t k, PersistKey k) => EstimateMaxNumberOfInputsParams t -> Quantity "byte" Word16 -> Word8 -> Word8
 
 -- | Backend-specific variables used by
 --   <a>estimateMaxNumberOfInputsBase</a>.
@@ -1242,9 +1225,10 @@ isOurs :: IsOurs s => Address -> s -> (Bool, s)
 --   Requiring <a>IsOwned</a> as a constraint supposed that there is a way
 --   to recover the root private key of a particular wallet. This isn't
 --   true for externally owned wallet which would delegate its key
---   management to a third party (like a hardware Ledger or Trezor).
-class IsOurs s => IsOwned s
-isOwned :: IsOwned s => s -> (Key  'RootK XPrv, Passphrase "encryption") -> Address -> Maybe (Key  'AddressK XPrv, Passphrase "encryption")
+--   management to a third party (like a hardware Ledger or Trezor). fixme:
+--   Add a key parameter to IsOwned
+class IsOurs s => IsOwned s key
+isOwned :: IsOwned s key => s -> (key  'RootK XPrv, Passphrase "encryption") -> Address -> Maybe (key  'AddressK XPrv, Passphrase "encryption")
 
 -- | Abstracting over change address generation. In theory, this is only
 --   needed for sending transactions on a wallet following a particular
@@ -1284,22 +1268,21 @@ class KnownAddresses s
 knownAddresses :: KnownAddresses s => s -> [Address]
 
 
--- | An implementation of address discovery for the random address scheme
---   as used by the legacy Cardano wallets.
-module Cardano.Wallet.Primitive.AddressDiscovery.Random
-newtype RndState
-RndState :: ByteString -> RndState
-mkRndState :: RndState
-instance Cardano.Wallet.Primitive.AddressDiscovery.IsOurs Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState
-instance Cardano.Wallet.Primitive.AddressDiscovery.IsOwned Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState
-instance Cardano.Wallet.Primitive.AddressDiscovery.GenChange Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState
-instance Cardano.Wallet.Primitive.AddressDiscovery.CompareDiscovery Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState
-instance Cardano.Wallet.Primitive.AddressDiscovery.KnownAddresses Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState
-
-
 -- | Implementation of address derivation for the sequential schemes, as
 --   implemented by Yoroi/Icarus and cardano-cli.
 module Cardano.Wallet.Primitive.AddressDerivation.Sequential
+
+-- | A cryptographic key for sequential-scheme address derivation, with
+--   phantom-types to disambiguate key types.
+--   
+--   <pre>
+--   let rootPrivateKey = SeqKey 'RootK XPrv
+--   let accountPubKey = SeqKey 'AccountK XPub
+--   let addressPubKey = SeqKey 'AddressK XPub
+--   </pre>
+newtype SeqKey (depth :: Depth) key
+SeqKey :: key -> SeqKey key
+[getKey] :: SeqKey key -> key
 
 -- | Marker for the change chain. In practice, change of a transaction goes
 --   onto the addresses generated on the internal chain, whereas the
@@ -1309,15 +1292,19 @@ data ChangeChain
 ExternalChain :: ChangeChain
 InternalChain :: ChangeChain
 
--- | Generate a root key from a corresponding seed The seed should be at
---   least 16 bytes
-generateKeyFromSeed :: (Passphrase "seed", Passphrase "generation") -> Passphrase "encryption" -> Key  'RootK XPrv
+-- | Generate a root key from a corresponding seed. The seed should be at
+--   least 16 bytes.
+generateKeyFromSeed :: (Passphrase "seed", Passphrase "generation") -> Passphrase "encryption" -> SeqKey  'RootK XPrv
 
 -- | Generate a new key from seed. Note that the <tt>depth</tt> is left
 --   open so that the caller gets to decide what type of key this is. This
 --   is mostly for testing, in practice, seeds are used to represent root
 --   keys, and one should use <a>generateKeyFromSeed</a>.
-unsafeGenerateKeyFromSeed :: (Passphrase "seed", Passphrase "generation") -> Passphrase "encryption" -> Key depth XPrv
+unsafeGenerateKeyFromSeed :: (Passphrase "seed", Passphrase "generation") -> Passphrase "encryption" -> SeqKey depth XPrv
+
+-- | The minimum seed length for <a>generateKeyFromSeed</a> and
+--   <a>unsafeGenerateKeyFromSeed</a>.
+minSeedLengthBytes :: Int
 
 -- | Derives account private key from the given root private key, using
 --   derivation scheme 2 (see <a>cardano-crypto</a> package for more
@@ -1327,7 +1314,7 @@ unsafeGenerateKeyFromSeed :: (Passphrase "seed", Passphrase "generation") -> Pas
 --   (and to have checked that the passphrase is valid). Providing a wrong
 --   passphrase will not make the function fail but will instead, yield an
 --   incorrect new key that doesn't belong to the wallet.
-deriveAccountPrivateKey :: Passphrase "encryption" -> Key  'RootK XPrv -> Index  'Hardened  'AccountK -> Key  'AccountK XPrv
+deriveAccountPrivateKey :: Passphrase "encryption" -> SeqKey  'RootK XPrv -> Index  'Hardened  'AccountK -> SeqKey  'AccountK XPrv
 
 -- | Derives address private key from the given account private key, using
 --   derivation scheme 2 (see <a>cardano-crypto</a> package for more
@@ -1340,7 +1327,7 @@ deriveAccountPrivateKey :: Passphrase "encryption" -> Key  'RootK XPrv -> Index 
 --   (and to have checked that the passphrase is valid). Providing a wrong
 --   passphrase will not make the function fail but will instead, yield an
 --   incorrect new key that doesn't belong to the wallet.
-deriveAddressPrivateKey :: Passphrase "encryption" -> Key  'AccountK XPrv -> ChangeChain -> Index  'Soft  'AddressK -> Key  'AddressK XPrv
+deriveAddressPrivateKey :: Passphrase "encryption" -> SeqKey  'AccountK XPrv -> ChangeChain -> Index  'Soft  'AddressK -> SeqKey  'AddressK XPrv
 
 -- | Derives address public key from the given account public key, using
 --   derivation scheme 2 (see <a>cardano-crypto</a> package for more
@@ -1348,20 +1335,47 @@ deriveAddressPrivateKey :: Passphrase "encryption" -> Key  'AccountK XPrv -> Cha
 --   
 --   This is the preferred way of deriving new sequential address public
 --   keys.
-deriveAddressPublicKey :: Key  'AccountK XPub -> ChangeChain -> Index  'Soft  'AddressK -> Key  'AddressK XPub
+deriveAddressPublicKey :: SeqKey  'AccountK XPub -> ChangeChain -> Index  'Soft  'AddressK -> SeqKey  'AddressK XPub
 
--- | The minimum seed length for <a>generateKeyFromSeed</a> and
---   <a>unsafeGenerateKeyFromSeed</a>.
-minSeedLengthBytes :: Int
+-- | Re-encrypt a private key using a different passphrase.
+--   
+--   <ul>
+--   <li>*Important**: This function doesn't check that the old passphrase
+--   is correct! Caller is expected to have already checked that. Using an
+--   incorrect passphrase here will lead to very bad thing.</li>
+--   </ul>
+changePassphraseSeq :: Passphrase "encryption-old" -> Passphrase "encryption-new" -> SeqKey purpose XPrv -> SeqKey purpose XPrv
+
+-- | Convert a private key and its password hash into hexadecimal strings
+--   suitable for storing in a text file or database column.
+serializeXPrvSeq :: (SeqKey purpose XPrv, Hash "encryption") -> (ByteString, ByteString)
+
+-- | The reverse of <a>serializeXPrv</a>. This may fail if the inputs are
+--   not valid hexadecimal strings, or if the key is of the wrong length.
+deserializeXPrvSeq :: (ByteString, ByteString) -> Either String (SeqKey purpose XPrv, Hash "encryption")
+
+-- | Convert a public key into a hexadecimal string suitable for storing in
+--   a text file or database column.
+serializeXPubSeq :: SeqKey purpose XPub -> ByteString
+
+-- | The reverse of <a>serializeXPub</a>. This will fail if the input is
+--   not a valid hexadecimal string of the correct length.
+deserializeXPubSeq :: ByteString -> Either String (SeqKey purpose XPub)
 instance GHC.Enum.Bounded Cardano.Wallet.Primitive.AddressDerivation.Sequential.ChangeChain
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.AddressDerivation.Sequential.ChangeChain
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDerivation.Sequential.ChangeChain
 instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDerivation.Sequential.ChangeChain
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDerivation.Sequential.ChangeChain
+instance GHC.Classes.Eq key => GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDerivation.Sequential.SeqKey depth key)
+instance GHC.Show.Show key => GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.Sequential.SeqKey depth key)
+instance GHC.Generics.Generic (Cardano.Wallet.Primitive.AddressDerivation.Sequential.SeqKey depth key)
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDerivation.Sequential.ChangeChain
 instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDerivation.Sequential.ChangeChain
 instance Data.Text.Class.ToText Cardano.Wallet.Primitive.AddressDerivation.Sequential.ChangeChain
 instance Data.Text.Class.FromText Cardano.Wallet.Primitive.AddressDerivation.Sequential.ChangeChain
+instance Control.DeepSeq.NFData key => Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDerivation.Sequential.SeqKey depth key)
+instance Cardano.Wallet.Primitive.AddressDerivation.WalletKey Cardano.Wallet.Primitive.AddressDerivation.Sequential.SeqKey
+instance Cardano.Wallet.Primitive.AddressDerivation.PersistKey Cardano.Wallet.Primitive.AddressDerivation.Sequential.SeqKey
 
 
 -- | An implementation of address discovery for the sequential address
@@ -1422,10 +1436,10 @@ addresses :: AddressPool t chain -> [Address]
 --   &gt;&gt;&gt; changeChain @chain
 --   ...
 --   </pre>
-changeChain :: forall (chain :: ChangeChain). Typeable chain => ChangeChain
+changeChain :: forall (c :: ChangeChain). Typeable c => ChangeChain
 
 -- | Corresponding key for the pool (a pool is tied to only one account)
-accountPubKey :: AddressPool target chain -> Key  'AccountK XPub
+accountPubKey :: AddressPool target chain -> SeqKey  'AccountK XPub
 
 -- | Create a new Address pool from a list of addresses. Note that, the
 --   list is expected to be ordered in sequence (first indexes, first in
@@ -1434,13 +1448,13 @@ accountPubKey :: AddressPool target chain -> Key  'AccountK XPub
 --   The pool will grow from the start if less than <tt>g ::
 --   AddressPoolGap</tt> are given, such that, there are always <tt>g</tt>
 --   undiscovered addresses in the pool.
-mkAddressPool :: forall t chain. (KeyToAddress t, Typeable chain) => Key  'AccountK XPub -> AddressPoolGap -> [Address] -> AddressPool t chain
+mkAddressPool :: forall t c. (KeyToAddress t SeqKey, Typeable c) => SeqKey  'AccountK XPub -> AddressPoolGap -> [Address] -> AddressPool t c
 
 -- | Lookup an address in the pool. When we find an address in a pool, the
 --   pool may be amended if the address was discovered near the edge. It is
 --   also possible that the pool is not amended at all - this happens in
 --   the case that an address is discovered <tt>far</tt> from the edge.
-lookupAddress :: forall t chain. (KeyToAddress t, Typeable chain) => Address -> AddressPool t chain -> (Maybe (Index  'Soft  'AddressK), AddressPool t chain)
+lookupAddress :: forall t c. (KeyToAddress t SeqKey, Typeable c) => Address -> AddressPool t c -> (Maybe (Index  'Soft  'AddressK), AddressPool t c)
 
 -- | An ordered set of pending indexes. This keep track of indexes used
 data PendingIxs
@@ -1478,7 +1492,7 @@ SeqState :: !AddressPool t  'InternalChain -> !AddressPool t  'ExternalChain -> 
 [pendingChangeIxs] :: SeqState t -> !PendingIxs
 
 -- | Construct a Sequential state for a wallet.
-mkSeqState :: KeyToAddress t => (Key  'RootK XPrv, Passphrase "encryption") -> AddressPoolGap -> SeqState t
+mkSeqState :: KeyToAddress t SeqKey => (SeqKey  'RootK XPrv, Passphrase "encryption") -> AddressPoolGap -> SeqState t
 instance GHC.Show.Show (Cardano.Wallet.Primitive.AddressDiscovery.Sequential.SeqState t)
 instance GHC.Generics.Generic (Cardano.Wallet.Primitive.AddressDiscovery.Sequential.SeqState t)
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDiscovery.Sequential.PendingIxs
@@ -1494,10 +1508,10 @@ instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDiscovery.Sequential.Add
 instance GHC.Show.Show Cardano.Wallet.Primitive.AddressDiscovery.Sequential.AddressPoolGap
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.Sequential.AddressPoolGap
 instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDiscovery.Sequential.SeqState t)
-instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t => Cardano.Wallet.Primitive.AddressDiscovery.IsOurs (Cardano.Wallet.Primitive.AddressDiscovery.Sequential.SeqState t)
-instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t => Cardano.Wallet.Primitive.AddressDiscovery.GenChange (Cardano.Wallet.Primitive.AddressDiscovery.Sequential.SeqState t)
-instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t => Cardano.Wallet.Primitive.AddressDiscovery.IsOwned (Cardano.Wallet.Primitive.AddressDiscovery.Sequential.SeqState t)
-instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t => Cardano.Wallet.Primitive.AddressDiscovery.CompareDiscovery (Cardano.Wallet.Primitive.AddressDiscovery.Sequential.SeqState t)
+instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t Cardano.Wallet.Primitive.AddressDerivation.Sequential.SeqKey => Cardano.Wallet.Primitive.AddressDiscovery.IsOurs (Cardano.Wallet.Primitive.AddressDiscovery.Sequential.SeqState t)
+instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t Cardano.Wallet.Primitive.AddressDerivation.Sequential.SeqKey => Cardano.Wallet.Primitive.AddressDiscovery.GenChange (Cardano.Wallet.Primitive.AddressDiscovery.Sequential.SeqState t)
+instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t Cardano.Wallet.Primitive.AddressDerivation.Sequential.SeqKey => Cardano.Wallet.Primitive.AddressDiscovery.IsOwned (Cardano.Wallet.Primitive.AddressDiscovery.Sequential.SeqState t) Cardano.Wallet.Primitive.AddressDerivation.Sequential.SeqKey
+instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t Cardano.Wallet.Primitive.AddressDerivation.Sequential.SeqKey => Cardano.Wallet.Primitive.AddressDiscovery.CompareDiscovery (Cardano.Wallet.Primitive.AddressDiscovery.Sequential.SeqState t)
 instance Cardano.Wallet.Primitive.AddressDiscovery.KnownAddresses (Cardano.Wallet.Primitive.AddressDiscovery.Sequential.SeqState t)
 instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.Sequential.PendingIxs
 instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDiscovery.Sequential.AddressPool target chain)
@@ -1516,6 +1530,34 @@ instance GHC.Enum.Enum Cardano.Wallet.Primitive.AddressDiscovery.Sequential.Addr
 --   <a>cardano-crypto</a>.
 module Cardano.Wallet.Primitive.AddressDerivation.Random
 
+-- | Material for deriving HD random scheme keys, which can be used for
+--   making addresses.
+data RndKey (depth :: Depth) key
+RndKey :: key -> DerivationPath depth -> Passphrase "addr-derivation-payload" -> RndKey key
+
+-- | The raw private or public key.
+[getKey] :: RndKey key -> key
+
+-- | The address derivation indices for the level of this key.
+[derivationPath] :: RndKey key -> DerivationPath depth
+
+-- | Used for encryption of payload containing address derivation path.
+[payloadPassphrase] :: RndKey key -> Passphrase "addr-derivation-payload"
+
+-- | Generate a new key from seed. Note that the <tt>depth</tt> is left
+--   open so that the caller gets to decide what type of key this is. This
+--   is mostly for testing, in practice, seeds are used to represent root
+--   keys, and one should use <a>generateKeyFromSeed</a>.
+unsafeGenerateKeyFromSeed :: DerivationPath depth -> Passphrase "seed" -> Passphrase "encryption" -> RndKey depth XPrv
+
+-- | Generate a root key from a corresponding seed. The seed should be at
+--   least 16 bytes.
+generateKeyFromSeed :: Passphrase "seed" -> Passphrase "encryption" -> RndKey  'RootK XPrv
+
+-- | The amount of entropy carried by a BIP-39 12-word mnemonic is 16
+--   bytes.
+minSeedLengthBytes :: Int
+
 -- | Derives account private key from the given root private key, using
 --   derivation scheme 1.
 --   
@@ -1523,7 +1565,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.Random
 --   (and to have checked that the passphrase is valid). Providing a wrong
 --   passphrase will not make the function fail but will instead, yield an
 --   incorrect new key that doesn't belong to the wallet.
-deriveAccountPrivateKey :: Passphrase "encryption" -> Key  'RootK XPrv -> Index  'Hardened  'AccountK -> Key  'AccountK XPrv
+deriveAccountPrivateKey :: Passphrase "encryption" -> RndKey  'RootK XPrv -> Index  'Hardened  'AccountK -> RndKey  'AccountK XPrv
 
 -- | Derives address private key from the given account private key, using
 --   derivation scheme 1.
@@ -1532,44 +1574,49 @@ deriveAccountPrivateKey :: Passphrase "encryption" -> Key  'RootK XPrv -> Index 
 --   (and to have checked that the passphrase is valid). Providing a wrong
 --   passphrase will not make the function fail but will instead, yield an
 --   incorrect new key that doesn't belong to the wallet.
-deriveAddressPrivateKey :: Passphrase "encryption" -> Key  'AccountK XPrv -> Index  'Soft  'AddressK -> Key  'AddressK XPrv
-
--- | Generate a root key from a corresponding seed. The seed should be at
---   least 16 (<a>minSeedLengthBytes</a>) bytes.
-generateKeyFromSeed :: Passphrase "seed" -> Passphrase "encryption" -> Key  'RootK XPrv
-
--- | Generate a new key from seed. Note that the <tt>depth</tt> is left
---   open so that the caller gets to decide what type of key this is. This
---   is mostly for testing, in practice, seeds are used to represent root
---   keys, and one should use <a>generateKeyFromSeed</a>.
-unsafeGenerateKeyFromSeed :: Passphrase "seed" -> Passphrase "encryption" -> Key depth XPrv
-
--- | The amount of entropy carried by a BIP-39 12-word mnemonic is 16
---   bytes.
-minSeedLengthBytes :: Int
+deriveAddressPrivateKey :: Passphrase "encryption" -> RndKey  'AccountK XPrv -> Index  'Hardened  'AddressK -> RndKey  'AddressK XPrv
 
 -- | Encode the derivation path (account index and address index) part of a
 --   random HD address.
 --   
 --   This is the opposite of <a>decodeDerivationPath</a>.
 --   
---   NOTE: The caller must ensure that the key length is 32 bytes, which
---   can be done by using the <a>generateKeyFromSeed</a> and
+--   NOTE: The caller must ensure that the key length is 32 bytes,
+--   selectKey can be done by using the <a>generateKeyFromSeed</a> and
 --   <a>publicKey</a> functions.
-encodeDerivationPath :: Key  'RootK XPub -> Index  'Hardened  'AccountK -> Index  'Soft  'AddressK -> Encoding
+encodeDerivationPath :: RndKey  'AddressK XPub -> Encoding
 
 -- | Decode the HD random derivation path section of an address. If the
 --   public key is incorrect, the decode result will be <a>Nothing</a>.
 --   
 --   This is the opposite of <a>encodeDerivationPath</a>.
-decodeDerivationPath :: Key  'RootK XPub -> Decoder s (Maybe (Index  'Hardened  'AccountK, Index  'Soft  'AddressK))
+decodeDerivationPath :: RndKey  'RootK XPub -> Decoder s (Maybe (Index  'Hardened  'AccountK, Index  'Hardened  'AddressK))
 
 -- | Decode the Addr Root + Attributes + Type section of a HD random scheme
 --   address, and return the derivation path.
 --   
 --   It will fail to parse if the address is not in the random scheme. If
 --   the public key is incorrect, the decode result will be <a>Nothing</a>.
-decodeAddressDerivationPath :: Key  'RootK XPub -> Decoder s (Maybe (Index  'Hardened  'AccountK, Index  'Soft  'AddressK))
+decodeAddressDerivationPath :: RndKey  'RootK XPub -> Decoder s (Maybe (Index  'Hardened  'AccountK, Index  'Hardened  'AddressK))
+instance GHC.Generics.Generic (Cardano.Wallet.Primitive.AddressDerivation.Random.RndKey depth key)
+instance (GHC.Show.Show key, GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.Random.DerivationPath depth)) => GHC.Show.Show (Cardano.Wallet.Primitive.AddressDerivation.Random.RndKey depth key)
+instance (GHC.Classes.Eq key, GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDerivation.Random.DerivationPath depth)) => GHC.Classes.Eq (Cardano.Wallet.Primitive.AddressDerivation.Random.RndKey depth key)
+instance (Control.DeepSeq.NFData key, Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDerivation.Random.DerivationPath depth)) => Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDerivation.Random.RndKey depth key)
+instance Cardano.Wallet.Primitive.AddressDerivation.WalletKey Cardano.Wallet.Primitive.AddressDerivation.Random.RndKey
+instance Cardano.Wallet.Primitive.AddressDerivation.PersistKey Cardano.Wallet.Primitive.AddressDerivation.Random.RndKey
+
+
+-- | An implementation of address discovery for the random address scheme
+--   as used by the legacy Cardano wallets.
+module Cardano.Wallet.Primitive.AddressDiscovery.Random
+newtype RndState
+RndState :: ByteString -> RndState
+mkRndState :: RndState
+instance Cardano.Wallet.Primitive.AddressDiscovery.IsOurs Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState
+instance Cardano.Wallet.Primitive.AddressDiscovery.IsOwned Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState Cardano.Wallet.Primitive.AddressDerivation.Random.RndKey
+instance Cardano.Wallet.Primitive.AddressDiscovery.GenChange Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState
+instance Cardano.Wallet.Primitive.AddressDiscovery.CompareDiscovery Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState
+instance Cardano.Wallet.Primitive.AddressDiscovery.KnownAddresses Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState
 
 module Cardano.Wallet.Network
 data NetworkLayer t m
@@ -1750,42 +1797,42 @@ module Cardano.Wallet.DB
 --   we'll need some extra contraints on the wallet state that allows us to
 --   serialize and unserialize it (e.g. <tt>forall s. (Serialize s) =&gt;
 --   ...</tt>)
-data DBLayer m s t
-DBLayer :: (PrimaryKey WalletId -> Wallet s t -> WalletMetadata -> ExceptT ErrWalletAlreadyExists m ()) -> (PrimaryKey WalletId -> ExceptT ErrNoSuchWallet m ()) -> m [PrimaryKey WalletId] -> (PrimaryKey WalletId -> Wallet s t -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe (Wallet s t))) -> (PrimaryKey WalletId -> WalletMetadata -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe WalletMetadata)) -> (DefineTx t => PrimaryKey WalletId -> Map (Hash "Tx") (Tx t, TxMeta) -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> SortOrder -> Range SlotId -> m [(Hash "Tx", (Tx t, TxMeta))]) -> (PrimaryKey WalletId -> (Key  'RootK XPrv, Hash "encryption") -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe (Key  'RootK XPrv, Hash "encryption"))) -> (forall e a. () => ExceptT e m a -> ExceptT e m a) -> DBLayer m s t
+data DBLayer m s t k
+DBLayer :: (PrimaryKey WalletId -> Wallet s t -> WalletMetadata -> ExceptT ErrWalletAlreadyExists m ()) -> (PrimaryKey WalletId -> ExceptT ErrNoSuchWallet m ()) -> m [PrimaryKey WalletId] -> (PrimaryKey WalletId -> Wallet s t -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe (Wallet s t))) -> (PrimaryKey WalletId -> WalletMetadata -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe WalletMetadata)) -> (DefineTx t => PrimaryKey WalletId -> Map (Hash "Tx") (Tx t, TxMeta) -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> SortOrder -> Range SlotId -> m [(Hash "Tx", (Tx t, TxMeta))]) -> (PrimaryKey WalletId -> (k  'RootK XPrv, Hash "encryption") -> ExceptT ErrNoSuchWallet m ()) -> (PrimaryKey WalletId -> m (Maybe (k  'RootK XPrv, Hash "encryption"))) -> (forall e a. () => ExceptT e m a -> ExceptT e m a) -> DBLayer m s t k
 
 -- | Initialize a database entry for a given wallet. <a>putCheckpoint</a>,
 --   <a>putWalletMeta</a> or <a>putTxHistory</a> will actually all fail if
 --   they are called _first_ on a wallet.
-[createWallet] :: DBLayer m s t -> PrimaryKey WalletId -> Wallet s t -> WalletMetadata -> ExceptT ErrWalletAlreadyExists m ()
+[createWallet] :: DBLayer m s t k -> PrimaryKey WalletId -> Wallet s t -> WalletMetadata -> ExceptT ErrWalletAlreadyExists m ()
 
 -- | Remove a given wallet and all its associated data (checkpoints,
 --   metadata, tx history ...)
-[removeWallet] :: DBLayer m s t -> PrimaryKey WalletId -> ExceptT ErrNoSuchWallet m ()
+[removeWallet] :: DBLayer m s t k -> PrimaryKey WalletId -> ExceptT ErrNoSuchWallet m ()
 
 -- | Get the list of all known wallets in the DB, possibly empty.
-[listWallets] :: DBLayer m s t -> m [PrimaryKey WalletId]
+[listWallets] :: DBLayer m s t k -> m [PrimaryKey WalletId]
 
 -- | Replace the current checkpoint for a given wallet. We do not handle
 --   rollbacks yet, and therefore only stores the latest available
 --   checkpoint.
 --   
 --   If the wallet doesn't exist, this operation returns an error.
-[putCheckpoint] :: DBLayer m s t -> PrimaryKey WalletId -> Wallet s t -> ExceptT ErrNoSuchWallet m ()
+[putCheckpoint] :: DBLayer m s t k -> PrimaryKey WalletId -> Wallet s t -> ExceptT ErrNoSuchWallet m ()
 
 -- | Fetch the most recent checkpoint of a given wallet.
 --   
 --   Return <a>Nothing</a> if there's no such wallet.
-[readCheckpoint] :: DBLayer m s t -> PrimaryKey WalletId -> m (Maybe (Wallet s t))
+[readCheckpoint] :: DBLayer m s t k -> PrimaryKey WalletId -> m (Maybe (Wallet s t))
 
 -- | Replace an existing wallet metadata with the given one.
 --   
 --   If the wallet doesn't exist, this operation returns an error
-[putWalletMeta] :: DBLayer m s t -> PrimaryKey WalletId -> WalletMetadata -> ExceptT ErrNoSuchWallet m ()
+[putWalletMeta] :: DBLayer m s t k -> PrimaryKey WalletId -> WalletMetadata -> ExceptT ErrNoSuchWallet m ()
 
 -- | Fetch a wallet metadata, if they exist.
 --   
 --   Return <a>Nothing</a> if there's no such wallet.
-[readWalletMeta] :: DBLayer m s t -> PrimaryKey WalletId -> m (Maybe WalletMetadata)
+[readWalletMeta] :: DBLayer m s t k -> PrimaryKey WalletId -> m (Maybe WalletMetadata)
 
 -- | Augments the transaction history for a known wallet.
 --   
@@ -1793,24 +1840,24 @@ DBLayer :: (PrimaryKey WalletId -> Wallet s t -> WalletMetadata -> ExceptT ErrWa
 --   altered nor merged (just ignored).
 --   
 --   If the wallet doesn't exist, this operation returns an error.
-[putTxHistory] :: DBLayer m s t -> DefineTx t => PrimaryKey WalletId -> Map (Hash "Tx") (Tx t, TxMeta) -> ExceptT ErrNoSuchWallet m ()
+[putTxHistory] :: DBLayer m s t k -> DefineTx t => PrimaryKey WalletId -> Map (Hash "Tx") (Tx t, TxMeta) -> ExceptT ErrNoSuchWallet m ()
 
 -- | Fetch the current transaction history of a known wallet, ordered by
 --   descending slot number.
 --   
 --   Returns an empty list if the wallet isn't found.
-[readTxHistory] :: DBLayer m s t -> PrimaryKey WalletId -> SortOrder -> Range SlotId -> m [(Hash "Tx", (Tx t, TxMeta))]
+[readTxHistory] :: DBLayer m s t k -> PrimaryKey WalletId -> SortOrder -> Range SlotId -> m [(Hash "Tx", (Tx t, TxMeta))]
 
 -- | Store or replace a private key for a given wallet. Note that wallet
 --   _could_ be stored and manipulated without any private key associated
 --   to it. A private key is only seldomly required for very specific
 --   operations (like transaction signing).
-[putPrivateKey] :: DBLayer m s t -> PrimaryKey WalletId -> (Key  'RootK XPrv, Hash "encryption") -> ExceptT ErrNoSuchWallet m ()
+[putPrivateKey] :: DBLayer m s t k -> PrimaryKey WalletId -> (k  'RootK XPrv, Hash "encryption") -> ExceptT ErrNoSuchWallet m ()
 
 -- | Read a previously stored private key and its associated passphrase
 --   hash.
-[readPrivateKey] :: DBLayer m s t -> PrimaryKey WalletId -> m (Maybe (Key  'RootK XPrv, Hash "encryption"))
-[withLock] :: DBLayer m s t -> forall e a. () => ExceptT e m a -> ExceptT e m a
+[readPrivateKey] :: DBLayer m s t k -> PrimaryKey WalletId -> m (Maybe (k  'RootK XPrv, Hash "encryption"))
+[withLock] :: DBLayer m s t k -> forall e a. () => ExceptT e m a -> ExceptT e m a
 
 -- | A primary key which can take many forms depending on the value. This
 --   may become a type family as we move forward, but for now, it
@@ -1825,7 +1872,7 @@ newtype PrimaryKey key
 PrimaryKey :: key -> PrimaryKey key
 
 -- | Clean a database by removing all wallets.
-cleanDB :: Monad m => DBLayer m s t -> m ()
+cleanDB :: Monad m => DBLayer m s t k -> m ()
 
 -- | Can't perform given operation because there's no wallet
 newtype ErrNoSuchWallet
@@ -1849,7 +1896,7 @@ module Cardano.Wallet.DB.MVar
 
 -- | Instantiate a new in-memory "database" layer that simply stores data
 --   in a local MVar. Data vanishes if the software is shut down.
-newDBLayer :: forall s t. IO (DBLayer IO s t)
+newDBLayer :: forall s t k. NFData (k  'RootK XPrv) => IO (DBLayer IO s t k)
 
 
 -- | Provides the API of Coin Selection algorithm and Fee Calculation This
@@ -1980,8 +2027,8 @@ walletStateNum :: WalletState -> Word8
 walletStateFromNum :: Word8 -> WalletState
 mkCoin :: Word64 -> Either Text Coin
 newtype AddressPoolXPub
-AddressPoolXPub :: Key  'AccountK XPub -> AddressPoolXPub
-[getAddressPoolXPub] :: AddressPoolXPub -> Key  'AccountK XPub
+AddressPoolXPub :: SeqKey  'AccountK XPub -> AddressPoolXPub
+[getAddressPoolXPub] :: AddressPoolXPub -> SeqKey  'AccountK XPub
 instance GHC.Generics.Generic Cardano.Wallet.DB.Sqlite.Types.AddressPoolXPub
 instance GHC.Classes.Eq Cardano.Wallet.DB.Sqlite.Types.AddressPoolXPub
 instance GHC.Show.Show Cardano.Wallet.DB.Sqlite.Types.AddressPoolXPub
@@ -2311,7 +2358,7 @@ data SqliteContext
 --   implementation. The database should be closed with
 --   <a>destroyDBLayer</a>. If you use <a>withDBLayer</a> then both of
 --   these things will be handled for you.
-newDBLayer :: forall s t. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t) => Configuration -> Trace IO Text -> Maybe FilePath -> IO (SqliteContext, DBLayer IO s t)
+newDBLayer :: forall s t k. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t, PersistKey k) => Configuration -> Trace IO Text -> Maybe FilePath -> IO (SqliteContext, DBLayer IO s t k)
 
 -- | Finalize database statements and close the database connection.
 destroyDBLayer :: SqliteContext -> IO ()
@@ -2322,7 +2369,7 @@ destroyDBLayer :: SqliteContext -> IO ()
 --   
 --   If the given file path does not exist, it will be created by the
 --   sqlite library.
-withDBLayer :: forall s t a. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t) => Configuration -> Trace IO Text -> Maybe FilePath -> (DBLayer IO s t -> IO a) -> IO a
+withDBLayer :: forall s t k a. (IsOurs s, NFData s, Show s, PersistState s, PersistTx t, PersistKey k) => Configuration -> Trace IO Text -> Maybe FilePath -> (DBLayer IO s t k -> IO a) -> IO a
 
 -- | Run a raw query from the outside using an instantiate DB layer. This
 --   is completely unsafe because it breaks the abstraction boundary and
@@ -2356,35 +2403,35 @@ instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.DB.Sqlite.DBLog
 instance GHC.Classes.Eq Cardano.Wallet.DB.Sqlite.DBLog
 instance GHC.Show.Show Cardano.Wallet.DB.Sqlite.DBLog
 instance GHC.Generics.Generic Cardano.Wallet.DB.Sqlite.DBLog
-instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t => Cardano.Wallet.DB.Sqlite.PersistState (Cardano.Wallet.Primitive.AddressDiscovery.Sequential.SeqState t)
+instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t Cardano.Wallet.Primitive.AddressDerivation.Sequential.SeqKey => Cardano.Wallet.DB.Sqlite.PersistState (Cardano.Wallet.Primitive.AddressDiscovery.Sequential.SeqState t)
 
 
 -- | Provides the wallet layer functions that are used by API layer and
 --   uses both <a>Cardano.Wallet.DB</a> and <a>Cardano.Wallet.Network</a>
 --   to realize its role as being intermediary between the three.
 module Cardano.Wallet
-data WalletLayer s t
-WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)) -> (WalletId -> (WalletMetadata -> WalletMetadata) -> ExceptT ErrNoSuchWallet IO ()) -> (WalletId -> (Passphrase "encryption-old", Passphrase "encryption-new") -> ExceptT ErrUpdatePassphrase IO ()) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO ()) -> ((IsOurs s, CompareDiscovery s, KnownAddresses s, DefineTx t) => WalletId -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]) -> (forall e. (DefineTx t, e ~ ErrValidateSelection t) => WalletId -> NonEmpty TxOut -> ExceptT (ErrCreateUnsignedTx e) IO CoinSelection) -> (forall e. (DefineTx t, e ~ ErrValidateSelection t) => WalletId -> NonEmpty TxOut -> ExceptT (ErrEstimateTxFee e) IO Fee) -> (DefineTx t => WalletId -> ExceptT ErrListUTxOStatistics IO UTxOStatistics) -> ((Show s, NFData s, IsOwned s, GenChange s) => WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx t, TxMeta, [TxWitness])) -> (DefineTx t => WalletId -> (Tx t, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> (DefineTx t => WalletId -> Maybe UTCTime -> Maybe UTCTime -> SortOrder -> ExceptT ErrListTransactions IO [TransactionInfo]) -> (WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()) -> WalletLayer s t
+data WalletLayer s t k
+WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId) -> (WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)) -> (WalletId -> (WalletMetadata -> WalletMetadata) -> ExceptT ErrNoSuchWallet IO ()) -> (WalletKey k => WalletId -> (Passphrase "encryption-old", Passphrase "encryption-new") -> ExceptT ErrUpdatePassphrase IO ()) -> IO [WalletId] -> (WalletId -> ExceptT ErrNoSuchWallet IO ()) -> (DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO ()) -> ((IsOurs s, CompareDiscovery s, KnownAddresses s, DefineTx t) => WalletId -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]) -> (forall e. (DefineTx t, e ~ ErrValidateSelection t) => WalletId -> NonEmpty TxOut -> ExceptT (ErrCreateUnsignedTx e) IO CoinSelection) -> (forall e. (DefineTx t, e ~ ErrValidateSelection t) => WalletId -> NonEmpty TxOut -> ExceptT (ErrEstimateTxFee e) IO Fee) -> (DefineTx t => WalletId -> ExceptT ErrListUTxOStatistics IO UTxOStatistics) -> ((Show s, NFData s, IsOwned s k, GenChange s) => WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx t, TxMeta, [TxWitness])) -> (DefineTx t => WalletId -> (Tx t, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()) -> (DefineTx t => WalletId -> Maybe UTCTime -> Maybe UTCTime -> SortOrder -> ExceptT ErrListTransactions IO [TransactionInfo]) -> (WalletKey k => WalletId -> (k  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()) -> WalletLayer s t k
 
 -- | Initialise and store a new wallet, returning its Id.
-[$sel:createWallet:WalletLayer] :: WalletLayer s t -> (Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId
+[$sel:createWallet:WalletLayer] :: WalletLayer s t k -> (Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletName -> s -> ExceptT ErrWalletAlreadyExists IO WalletId
 
 -- | Retrieve the wallet state for the wallet with the given ID.
-[$sel:readWallet:WalletLayer] :: WalletLayer s t -> WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)
+[$sel:readWallet:WalletLayer] :: WalletLayer s t k -> WalletId -> ExceptT ErrNoSuchWallet IO (Wallet s t, WalletMetadata)
 
 -- | Update the wallet metadata with the given update function.
-[$sel:updateWallet:WalletLayer] :: WalletLayer s t -> WalletId -> (WalletMetadata -> WalletMetadata) -> ExceptT ErrNoSuchWallet IO ()
+[$sel:updateWallet:WalletLayer] :: WalletLayer s t k -> WalletId -> (WalletMetadata -> WalletMetadata) -> ExceptT ErrNoSuchWallet IO ()
 
 -- | Change the wallet passphrase to the given passphrase.
-[$sel:updateWalletPassphrase:WalletLayer] :: WalletLayer s t -> WalletId -> (Passphrase "encryption-old", Passphrase "encryption-new") -> ExceptT ErrUpdatePassphrase IO ()
+[$sel:updateWalletPassphrase:WalletLayer] :: WalletLayer s t k -> WalletKey k => WalletId -> (Passphrase "encryption-old", Passphrase "encryption-new") -> ExceptT ErrUpdatePassphrase IO ()
 
 -- | Retrieve a list of known wallets IDs.
-[$sel:listWallets:WalletLayer] :: WalletLayer s t -> IO [WalletId]
+[$sel:listWallets:WalletLayer] :: WalletLayer s t k -> IO [WalletId]
 
 -- | Remove an existing wallet. Note that, there's no particular work to be
 --   done regarding the restoration worker as it will simply terminate on
 --   the next tick when noticing that the corresponding wallet is gone.
-[$sel:removeWallet:WalletLayer] :: WalletLayer s t -> WalletId -> ExceptT ErrNoSuchWallet IO ()
+[$sel:removeWallet:WalletLayer] :: WalletLayer s t k -> WalletId -> ExceptT ErrNoSuchWallet IO ()
 
 -- | Restore a wallet from its current tip up to a given target (typically,
 --   the network tip).
@@ -2392,45 +2439,45 @@ WalletLayer :: ((Show s, NFData s, IsOurs s, DefineTx t) => WalletId -> WalletNa
 --   It returns immediately and fail if the wallet is already beyond the
 --   given tip. It starts a worker in background which will fetch and apply
 --   remaining blocks until failure or, the target slot is reached.
-[$sel:restoreWallet:WalletLayer] :: WalletLayer s t -> DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO ()
+[$sel:restoreWallet:WalletLayer] :: WalletLayer s t k -> DefineTx t => WalletId -> ExceptT ErrNoSuchWallet IO ()
 
 -- | List all addresses of a wallet with their metadata. Addresses are
 --   ordered from the most recently discovered to the oldest known.
-[$sel:listAddresses:WalletLayer] :: WalletLayer s t -> (IsOurs s, CompareDiscovery s, KnownAddresses s, DefineTx t) => WalletId -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]
+[$sel:listAddresses:WalletLayer] :: WalletLayer s t k -> (IsOurs s, CompareDiscovery s, KnownAddresses s, DefineTx t) => WalletId -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]
 
 -- | Prepare a transaction and automatically select inputs from the wallet
 --   to cover the requested outputs. Note that this only run the coin
 --   selection for the given outputs. In order to construct (and sign) an
 --   actual transaction, have a look at <a>$sel:signTx:WalletLayer</a>.
-[$sel:createUnsignedTx:WalletLayer] :: WalletLayer s t -> forall e. (DefineTx t, e ~ ErrValidateSelection t) => WalletId -> NonEmpty TxOut -> ExceptT (ErrCreateUnsignedTx e) IO CoinSelection
+[$sel:createUnsignedTx:WalletLayer] :: WalletLayer s t k -> forall e. (DefineTx t, e ~ ErrValidateSelection t) => WalletId -> NonEmpty TxOut -> ExceptT (ErrCreateUnsignedTx e) IO CoinSelection
 
 -- | Estimate a transaction fee by automatically selecting inputs from the
 --   wallet to cover the requested outputs.
-[$sel:estimateTxFee:WalletLayer] :: WalletLayer s t -> forall e. (DefineTx t, e ~ ErrValidateSelection t) => WalletId -> NonEmpty TxOut -> ExceptT (ErrEstimateTxFee e) IO Fee
+[$sel:estimateTxFee:WalletLayer] :: WalletLayer s t k -> forall e. (DefineTx t, e ~ ErrValidateSelection t) => WalletId -> NonEmpty TxOut -> ExceptT (ErrEstimateTxFee e) IO Fee
 
 -- | List the wallet's UTxO statistics.
-[$sel:listUtxoStatistics:WalletLayer] :: WalletLayer s t -> DefineTx t => WalletId -> ExceptT ErrListUTxOStatistics IO UTxOStatistics
+[$sel:listUtxoStatistics:WalletLayer] :: WalletLayer s t k -> DefineTx t => WalletId -> ExceptT ErrListUTxOStatistics IO UTxOStatistics
 
 -- | Produce witnesses and construct a transaction from a given selection.
 --   Requires the encryption passphrase in order to decrypt the root
 --   private key. Note that this doesn't broadcast the transaction to the
 --   network. In order to do so, have a look at
 --   <a>$sel:submitTx:WalletLayer</a>.
-[$sel:signTx:WalletLayer] :: WalletLayer s t -> (Show s, NFData s, IsOwned s, GenChange s) => WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx t, TxMeta, [TxWitness])
+[$sel:signTx:WalletLayer] :: WalletLayer s t k -> (Show s, NFData s, IsOwned s k, GenChange s) => WalletId -> Passphrase "encryption" -> CoinSelection -> ExceptT ErrSignTx IO (Tx t, TxMeta, [TxWitness])
 
 -- | Broadcast a (signed) transaction to the network.
-[$sel:submitTx:WalletLayer] :: WalletLayer s t -> DefineTx t => WalletId -> (Tx t, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()
+[$sel:submitTx:WalletLayer] :: WalletLayer s t k -> DefineTx t => WalletId -> (Tx t, TxMeta, [TxWitness]) -> ExceptT ErrSubmitTx IO ()
 
 -- | List all transactions and metadata from history for a given wallet.
 --   
 --   The result is sorted on <a>BlockHeader</a> in descending order. The
 --   most recent transaction comes first.
-[$sel:listTransactions:WalletLayer] :: WalletLayer s t -> DefineTx t => WalletId -> Maybe UTCTime -> Maybe UTCTime -> SortOrder -> ExceptT ErrListTransactions IO [TransactionInfo]
+[$sel:listTransactions:WalletLayer] :: WalletLayer s t k -> DefineTx t => WalletId -> Maybe UTCTime -> Maybe UTCTime -> SortOrder -> ExceptT ErrListTransactions IO [TransactionInfo]
 
 -- | Attach a given private key to a wallet. The private key is necessary
 --   for some operations like signing transactions or, generating new
 --   accounts.
-[$sel:attachPrivateKey:WalletLayer] :: WalletLayer s t -> WalletId -> (Key  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()
+[$sel:attachPrivateKey:WalletLayer] :: WalletLayer s t k -> WalletKey k => WalletId -> (k  'RootK XPrv, Passphrase "encryption") -> ExceptT ErrNoSuchWallet IO ()
 data BlockchainParameters t
 BlockchainParameters :: Block (Tx t) -> StartTime -> FeePolicy -> SlotLength -> EpochLength -> Quantity "byte" Word16 -> BlockchainParameters t
 
@@ -2570,7 +2617,7 @@ data ErrWrongPassphrase
 ErrWrongPassphrase :: ErrWrongPassphrase
 
 -- | Create a new instance of the wallet layer.
-newWalletLayer :: forall s t. Buildable (Tx t) => Trace IO Text -> BlockchainParameters t -> DBLayer IO s t -> NetworkLayer t IO -> TransactionLayer t -> IO (WalletLayer s t)
+newWalletLayer :: forall s t k. Buildable (Tx t) => Trace IO Text -> BlockchainParameters t -> DBLayer IO s t k -> NetworkLayer t IO -> TransactionLayer t k -> IO (WalletLayer s t k)
 instance GHC.Classes.Eq Cardano.Wallet.ErrListTransactions
 instance GHC.Show.Show Cardano.Wallet.ErrListTransactions
 instance GHC.Classes.Eq Cardano.Wallet.ErrStartTimeLaterThanEndTime
@@ -3012,11 +3059,12 @@ ListenOnRandomPort :: Listen
 
 -- | Start the application server, using the given settings and a bound
 --   socket.
-start :: forall t. (DefineTx t, KeyToAddress t, EncodeAddress t, DecodeAddress t, Buildable (ErrValidateSelection t)) => Settings -> Trace IO Text -> Socket -> WalletLayer (SeqState t) t -> IO ()
+start :: forall t k. (DefineTx t, KeyToAddress t k, k ~ SeqKey, EncodeAddress t, DecodeAddress t, Buildable (ErrValidateSelection t)) => Settings -> Trace IO Text -> Socket -> WalletLayer (SeqState t) t k -> IO ()
 
 -- | Run an action with a TCP socket bound to a port specified by the
 --   <a>Listen</a> parameter.
 withListeningSocket :: Listen -> ((Port, Socket) -> IO ()) -> IO ()
+getRandomPort :: IO Port
 instance GHC.Classes.Eq Cardano.Wallet.Api.Server.Listen
 instance GHC.Show.Show Cardano.Wallet.Api.Server.Listen
 instance Cardano.Wallet.Api.Server.LiftHandler Cardano.Wallet.DB.ErrNoSuchWallet

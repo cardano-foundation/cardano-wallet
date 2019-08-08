@@ -205,8 +205,10 @@ byronTxMaxSize :: Quantity "byte" Word16
 byronBlockchainParameters :: forall n. KnownNetwork n => BlockchainParameters (HttpBridge n)
 instance Cardano.Wallet.Primitive.Types.DefineTx (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge network)
 instance Cardano.Wallet.DB.Sqlite.PersistTx (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge network)
-instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge 'Cardano.Wallet.HttpBridge.Environment.Testnet)
-instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge 'Cardano.Wallet.HttpBridge.Environment.Mainnet)
+instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge 'Cardano.Wallet.HttpBridge.Environment.Testnet) Cardano.Wallet.Primitive.AddressDerivation.Sequential.SeqKey
+instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge 'Cardano.Wallet.HttpBridge.Environment.Mainnet) Cardano.Wallet.Primitive.AddressDerivation.Sequential.SeqKey
+instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge 'Cardano.Wallet.HttpBridge.Environment.Testnet) Cardano.Wallet.Primitive.AddressDerivation.Random.RndKey
+instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge 'Cardano.Wallet.HttpBridge.Environment.Mainnet) Cardano.Wallet.Primitive.AddressDerivation.Random.RndKey
 instance Cardano.Wallet.Primitive.Types.EncodeAddress (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge network)
 instance Cardano.Wallet.Primitive.Types.DecodeAddress (Cardano.Wallet.HttpBridge.Compatibility.HttpBridge network)
 
@@ -214,7 +216,7 @@ module Cardano.Wallet.HttpBridge.Transaction
 
 -- | Construct a <a>TransactionLayer</a> compatible with Byron and the
 --   <a>HttpBridge</a>
-newTransactionLayer :: forall n t. (KnownNetwork n, t ~ HttpBridge n, KeyToAddress t) => TransactionLayer t
+newTransactionLayer :: forall n k t. (KnownNetwork n, t ~ HttpBridge n, KeyToAddress t k, PersistKey k) => TransactionLayer t k
 instance Formatting.Buildable.Buildable Cardano.Wallet.HttpBridge.Transaction.ErrInvalidTxOutAmount
 
 
