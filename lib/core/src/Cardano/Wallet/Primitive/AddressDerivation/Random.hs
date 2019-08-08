@@ -72,7 +72,7 @@ import Control.Monad
 import Crypto.Error
     ( CryptoError (..), CryptoFailable (..) )
 import Crypto.Hash
-    ( Digest, HashAlgorithm, hash )
+    ( hash )
 import Crypto.Hash.Algorithms
     ( Blake2b_256, SHA512 (..) )
 import Data.ByteArray
@@ -127,8 +127,10 @@ type family DerivationPath (depth :: Depth) :: * where
 
 instance WalletKey RndKey where
     changePassphrase = changePassphraseRnd
-    publicKey = publicKeyRnd
-    digest = digestRnd
+    -- Extract the public key part of a private key.
+    publicKey = mapKey toXPub
+    -- Hash a public key to some other representation.
+    digest = hash . unXPub . getKey
     getRawKey = error "WalletKey RndKey: getRawKey unimplemented"
 
 instance PersistKey RndKey where
@@ -140,6 +142,10 @@ instance PersistKey RndKey where
 {-------------------------------------------------------------------------------
                                  Key generation
 -------------------------------------------------------------------------------}
+
+-- | The amount of entropy carried by a BIP-39 12-word mnemonic is 16 bytes.
+minSeedLengthBytes :: Int
+minSeedLengthBytes = 16
 
 -- | Generate a root key from a corresponding seed.
 -- The seed should be at least 16 bytes.
@@ -171,10 +177,6 @@ unsafeGenerateKeyFromSeed derivationPath (Passphrase seed) (Passphrase pwd) = Rn
         seed
         (\s -> BA.length s >= minSeedLengthBytes && BA.length s <= 255)
 
--- | The amount of entropy carried by a BIP-39 12-word mnemonic is 16 bytes.
-minSeedLengthBytes :: Int
-minSeedLengthBytes = 16
-
 -- | Hash the seed entropy (generated from mnemonic) used to initiate a HD
 -- wallet. This increases the key length to 34 bytes, selectKey is greater than the
 -- minimum for 'generate' (32 bytes).
@@ -200,6 +202,30 @@ hashSeed = serialize . blake2b256 . serialize
 
 blake2b256 :: ScrubbedBytes -> ScrubbedBytes
 blake2b256 = BA.convert . hash @ScrubbedBytes @Blake2b_256
+
+{-------------------------------------------------------------------------------
+                                   Passphrase
+-------------------------------------------------------------------------------}
+
+-- | Re-encrypt the private key using a different passphrase, and regenerate
+-- the payload passphrase.
+--
+-- **Important**:
+-- This function doesn't check that the old passphrase is correct! Caller is
+-- expected to have already checked that. Using an incorrect passphrase here
+-- will lead to very bad thing.
+changePassphraseRnd
+    :: Passphrase "encryption-old"
+    -> Passphrase "encryption-new"
+    -> RndKey depth XPrv
+    -> RndKey depth XPrv
+changePassphraseRnd (Passphrase oldPwd) (Passphrase newPwd) key = RndKey
+    { getKey = masterKey
+    , derivationPath = derivationPath key
+    , payloadPassphrase = hdPassphrase masterKey
+    }
+  where
+    masterKey = xPrvChangePass oldPwd newPwd (getKey key)
 
 {-------------------------------------------------------------------------------
                                  HD derivation
@@ -452,39 +478,3 @@ decodeNestedBytes dec bytes =
 -- | Transform the wrapped key.
 mapKey :: (key -> key') -> RndKey depth key -> RndKey depth key'
 mapKey f rnd = rnd { getKey = f (getKey rnd) }
-
-{-------------------------------------------------------------------------------
-                                   Passphrase
--------------------------------------------------------------------------------}
-
--- | Re-encrypt the private key using a different passphrase, and regenerate
--- subkeys.
---
--- **Important**:
--- This function doesn't check that the old passphrase is correct! Caller is
--- expected to have already checked that. Using an incorrect passphrase here
--- will lead to very bad thing.
-changePassphraseRnd
-    :: Passphrase "encryption-old"
-    -> Passphrase "encryption-new"
-    -> RndKey purpose XPrv
-    -> RndKey purpose XPrv
-changePassphraseRnd (Passphrase oldPwd) (Passphrase newPwd) =
-    mapKey (xPrvChangePass oldPwd newPwd)
-
-{-------------------------------------------------------------------------------
-                              WalletKey functions
--------------------------------------------------------------------------------}
-
--- | Extract the public key part of a private key.
-publicKeyRnd
-    :: RndKey depth XPrv
-    -> RndKey depth XPub
-publicKeyRnd = mapKey toXPub
-
--- | Hash a public key to some other representation.
-digestRnd
-    :: HashAlgorithm a
-    => RndKey depth XPub
-    -> Digest a
-digestRnd = hash . unXPub . getKey
