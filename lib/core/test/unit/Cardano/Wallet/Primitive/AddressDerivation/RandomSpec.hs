@@ -111,7 +111,9 @@ prop_derivationPathRoundTrip
     -> Property
 prop_derivationPathRoundTrip rk rk' accIx addrIx =
     let
-        encoded = CBOR.toLazyByteString $ encodeDerivationPath rk accIx addrIx
+        addrKey :: RndKey 'AddressK XPub
+        addrKey = RndKey (getKey rk) (accIx, addrIx) (payloadPassphrase rk)
+        encoded = CBOR.toLazyByteString $ encodeDerivationPath addrKey
         decoded = unsafeDeserialiseFromBytes (decodeDerivationPath rk) encoded
         decoded' = unsafeDeserialiseFromBytes (decodeDerivationPath rk') encoded
     in

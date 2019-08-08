@@ -317,18 +317,11 @@ In the composition of a Cardano address, the following functions concern the
 -- NOTE: The caller must ensure that the key length is 32 bytes, selectKey can be
 -- done by using the 'generateKeyFromSeed' and
 -- 'Cardano.Wallet.Primitive.AddressDerivation.publicKey' functions.
---
--- fixme: change key parameter to @RndKey 'AddressK XPub@, which will already
--- contain (accIx, addrIx)
-encodeDerivationPath
-    :: RndKey 'RootK XPub
-    -> Index 'Hardened 'AccountK
-    -> Index 'Hardened 'AddressK
-    -> CBOR.Encoding
-encodeDerivationPath masterKey accIx addrIx =
+encodeDerivationPath :: RndKey 'AddressK XPub -> CBOR.Encoding
+encodeDerivationPath (RndKey _ (accIx, addrIx) payloadPassphrase) =
     CBOR.encodeBytes $
     useInvariant $
-    encryptDerPath (payloadPassphrase masterKey) $
+    encryptDerPath payloadPassphrase $
     CBOR.toStrictByteString $
     encodeDerPath accIx addrIx
   where
