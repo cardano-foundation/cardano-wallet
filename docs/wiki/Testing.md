@@ -18,37 +18,37 @@ $ stack test cardano-wallet:unit --test-arguments "--match MyModule"
 
 1. Install our fork of [cardano-http-bridge](https://github.com/KtorZ/cardano-http-bridge)
 
-```
-$ cargo install --branch cardano-wallet-integration --git https://github.com/KtorZ/cardano-http-bridge.git
-```
+    ```
+    $ cargo install --branch cardano-wallet-integration --git https://github.com/KtorZ/cardano-http-bridge.git
+    ```
 
 2. Install [cardano-sl@cardano-node-simple](https://github.com/input-output-hk/cardano-sl)
 
-```
-$ git clone git@github.com:input-output-hk/cardano-sl.git
-$ cd cardano-sl
-$ stack install cardano-sl-node:exe:cardano-node-simple
-```
+    ```
+    $ git clone git@github.com:input-output-hk/cardano-sl.git
+    $ cd cardano-sl
+    $ stack install cardano-sl-node:exe:cardano-node-simple
+    ```
 
-Alternatively, if you're running on Linux, you may use a pre-compiled version:
+    Alternatively, if you're running on Linux, you may use a pre-compiled version:
 
-```
-$ curl -L -o cardano-node-simple-3.0.1.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-node-simple/cardano-node-simple-3.0.1.tar.gz
-$ tar xzf cardano-node-simple-3.0.1.tar.gz -C /usr/local/bin && rm cardano-node-simple-3.0.1.tar.gz
-```
+    ```
+    $ curl -L -o cardano-node-simple-3.0.1.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-node-simple/cardano-node-simple-3.0.1.tar.gz
+    $ tar xzf cardano-node-simple-3.0.1.tar.gz -C /usr/local/bin && rm cardano-node-simple-3.0.1.tar.gz
+    ```
 
-Check that it works by running the following:
-```
-$ cardano-node-simple --version
-cardano-node-3.0.3, git revision 41b73a146e5d15e1dd48dd0a272ba646f588e7b5
-```
+    Check that it works by running the following:
+    ```
+    $ cardano-node-simple --version
+    cardano-node-3.0.3, git revision 41b73a146e5d15e1dd48dd0a272ba646f588e7b5
+    ```
 
 3. Import the initial testnet chain bootstrap for `cardano-http-bridge`
 
-```
-$ curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-http-bridge/hermes-testnet.tar.gz
-$ tar xzf hermes-testnet.tar.gz -C $HOME && rm hermes-testnet.tar.gz
-```
+    ```
+    $ curl -L -o hermes-testnet.tar.gz https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/lib/http-bridge/test/data/cardano-http-bridge/hermes-testnet.tar.gz
+    $ tar xzf hermes-testnet.tar.gz -C $HOME && rm hermes-testnet.tar.gz
+    ```
 
 #### Test
 
