@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
@@ -246,7 +247,8 @@ prop_keyDerivation seed encPwd accIx addrIx =
 
 
 prop_keyDerivationObeysIsOurs
-    :: forall (n :: Network). KnownNetwork n
+    :: forall (n :: Network).
+       (KnownNetwork n, KeyToAddress (HttpBridge n) RndKey)
     => Passphrase "seed"
     -> Passphrase "encryption"
     -> Index 'Hardened 'AccountK
