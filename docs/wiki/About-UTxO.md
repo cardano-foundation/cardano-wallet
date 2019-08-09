@@ -12,7 +12,7 @@ In a UTxO-based blockchain, a **Transaction** is a binding between **inputs** an
 ```
 
 <p align="center">
-  _**Fig. 1** a Transaction_
+  <small><strong>Fig. 1</strong> a Transaction</small>
 </p>
 
 In a standard payment, outputs are a combination of:
@@ -29,7 +29,7 @@ In a standard payment, outputs are a combination of:
 ```
 
 <p align="center">
-  _**Fig. 2** a Payment_
+  <small><strong>Fig. 2</strong> a Payment</small>
 </p>
  
 > NOTE _on address encoding_:
@@ -64,7 +64,7 @@ outputs of previous transactions.
 ```
 
 <p align="center">
-  _**Fig. 3** a Payment chain_
+  <small><strong>Fig. 3</strong> a Payment chain</small>
 </p>
 
 
