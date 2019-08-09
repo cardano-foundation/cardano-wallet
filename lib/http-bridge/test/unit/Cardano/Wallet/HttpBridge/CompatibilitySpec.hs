@@ -45,6 +45,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Random
     , deriveAddressPrivateKey
     , deserialise
     , generateKeyFromSeed
+    , minSeedLengthBytes
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
     ( unsafeGenerateKeyFromSeed )
@@ -90,6 +91,7 @@ import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
@@ -125,9 +127,9 @@ spec = do
         it "Key derivation works for various indexes" $
             property prop_keyDerivation
         it "isOurs works as expected during key derivation in testnet" $ do
-            property (prop_keyDerivationObeysIsOurs @'Testnet)
+            property (prop_derivedKeysAreOurs @'Testnet)
         it "isOurs works as expected during key derivation in mainnet" $ do
-            property (prop_keyDerivationObeysIsOurs @'Mainnet)
+            property (prop_derivedKeysAreOurs @'Mainnet)
 
     goldenSpec
 
@@ -245,8 +247,8 @@ prop_keyDerivation seed encPwd accIx addrIx =
     rndKey :: RndKey 'AddressK XPrv
     rndKey = unsafeGenerateKeyFromSeed (accIx, addrIx) seed encPwd
 
-
-prop_keyDerivationObeysIsOurs
+-- All keys derived from a given seed should satisfy IsOurs with the same key.
+prop_derivedKeysAreOurs
     :: forall (n :: Network).
        (KnownNetwork n, KeyToAddress (HttpBridge n) RndKey)
     => Passphrase "seed"
@@ -255,7 +257,7 @@ prop_keyDerivationObeysIsOurs
     -> Index 'Hardened 'AddressK
     -> RndKey 'RootK XPrv
     -> Property
-prop_keyDerivationObeysIsOurs seed encPwd accIx addrIx rk' =
+prop_derivedKeysAreOurs seed encPwd accIx addrIx rk' =
     isOurs address (RndState rootXPrv) === (True, RndState rootXPrv) .&&.
     isOurs address (RndState rk') === (False, RndState rk')
   where
@@ -308,6 +310,13 @@ instance {-# OVERLAPS #-} Arbitrary (Passphrase "encryption") where
         bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
         return $ Passphrase $ BA.convert bytes
 
+-- Generate only valid seeds. The precondition of 'generateKey' is that the seed
+-- is of sufficient length, and it crashes otherwise
+instance {-# OVERLAPS #-} Arbitrary (Passphrase "seed") where
+    arbitrary = do
+        -- fixme: why only printable chars? easier to print?
+        chars <- replicateM minSeedLengthBytes arbitraryPrintableChar
+        return $ Passphrase $ BA.convert $ B8.pack chars
 
 -- The address format on 'Staging' is the same as 'Mainnet'.
 genAddress :: (Int, Int) -> Gen Address
