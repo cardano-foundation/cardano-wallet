@@ -44,6 +44,7 @@
           (hsPkgs.template-haskell)
           (hsPkgs.text)
           (hsPkgs.text-class)
+          (hsPkgs.time)
           (hsPkgs.warp)
           ];
         };

@@ -8,6 +8,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -fno-warn-simplifiable-class-constraints #-}
@@ -67,6 +68,8 @@ module Test.Integration.Framework.DSL
     , getFromResponse
     , json
     , listAddresses
+    , listTransactions
+    , listAllTransactions
     , tearDown
     , fixtureWallet
     , fixtureWalletWith
@@ -104,15 +107,13 @@ module Test.Integration.Framework.DSL
     , listTransactionsViaCLI
     ) where
 
-import Prelude hiding
-    ( fail )
-
 import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiT (..)
     , ApiTransaction
     , ApiUtxoStatistics (..)
     , ApiWallet
+    , Iso8601Time (..)
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, getAddressPoolGap, mkAddressPoolGap )
@@ -127,6 +128,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , HistogramBar (..)
     , PoolId (..)
+    , SortOrder (..)
     , TxIn (..)
     , TxOut (..)
     , TxStatus (..)
@@ -181,13 +183,17 @@ import Data.Generics.Product.Typed
 import Data.List
     ( (!!) )
 import Data.Maybe
-    ( fromMaybe )
+    ( catMaybes, fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( ToText (..) )
+import Data.Time
+    ( UTCTime )
 import Data.Word
     ( Word64 )
 import GHC.TypeLits
@@ -202,6 +208,8 @@ import Network.Wai.Handler.Warp
     ( Port )
 import Numeric.Natural
     ( Natural )
+import Prelude hiding
+    ( fail )
 import System.Command
     ( CmdResult, Stderr, Stdout, command )
 import System.Directory
@@ -236,7 +244,6 @@ import Test.Integration.Framework.Request
     )
 import Web.HttpApiData
     ( ToHttpApiData (..) )
-
 
 import qualified Cardano.Wallet.Primitive.Types as Types
 import qualified Data.Aeson as Aeson
@@ -790,6 +797,37 @@ listAddresses ctx w = do
     (_, addrs) <- unsafeRequest @[ApiAddress t] ctx (getAddressesEp w "") Empty
     return addrs
 
+listAllTransactions
+    :: forall t. DecodeAddress t
+    => Context t
+    -> ApiWallet
+    -> IO [ApiTransaction t]
+listAllTransactions ctx w = listTransactions ctx w Nothing Nothing Nothing
+
+listTransactions
+    :: forall t. DecodeAddress t
+    => Context t
+    -> ApiWallet
+    -> Maybe UTCTime
+    -> Maybe UTCTime
+    -> Maybe SortOrder
+    -> IO [ApiTransaction t]
+listTransactions ctx wallet mStart mEnd mOrder = do
+    (_, txs) <- unsafeRequest @[ApiTransaction t] ctx path Empty
+    return txs
+  where
+    path = listTransactionsEp wallet $ toQueryString $ catMaybes
+        [ ("start", ) . toText <$> (Iso8601Time <$> mStart)
+        , ("end"  , ) . toText <$> (Iso8601Time <$> mEnd  )
+        , ("order", ) . toText <$> mOrder
+        ]
+
+toQueryString :: [(Text, Text)] -> Text
+toQueryString kvs = if T.null suffix then mempty else "?" <> suffix
+  where
+    suffix = T.intercalate "&" $ buildQueryParam <$> kvs
+    buildQueryParam (k, v) = k <> "=" <> toQueryParam v
+
 infixr 5 </>
 (</>) :: ToHttpApiData a => Text -> a -> Text
 base </> next = mconcat [base, "/", toQueryParam next]
@@ -882,6 +920,12 @@ getAddressesEp :: ApiWallet -> Text -> (Method, Text)
 getAddressesEp w stateFilter =
     ( "GET"
     , "v2/wallets/" <> w ^. walletId <> "/addresses" <> stateFilter
+    )
+
+listTransactionsEp :: ApiWallet -> Text -> (Method, Text)
+listTransactionsEp w stateFilter =
+    ( "GET"
+    , "v2/wallets/" <> w ^. walletId <> "/transactions" <> stateFilter
     )
 
 postTxEp :: ApiWallet -> (Method, Text)
