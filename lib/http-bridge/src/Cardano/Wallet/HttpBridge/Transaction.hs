@@ -23,7 +23,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (AddressK)
     , KeyToAddress (..)
     , Passphrase (..)
-    , PersistKey (..)
     , WalletKey (..)
     , XPrv
     , publicKey
@@ -68,7 +67,7 @@ import qualified Data.ByteString.Lazy as BL
 -- | Construct a 'TransactionLayer' compatible with Byron and the 'HttpBridge'
 newTransactionLayer
     :: forall n k t.
-        (KnownNetwork n, t ~ HttpBridge n, KeyToAddress t k, PersistKey k)
+        (KnownNetwork n, t ~ HttpBridge n, KeyToAddress t k)
     => TransactionLayer t k
 newTransactionLayer = TransactionLayer
     { mkStdTx = \keyFrom inps outs -> do

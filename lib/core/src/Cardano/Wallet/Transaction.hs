@@ -32,7 +32,7 @@ module Cardano.Wallet.Transaction
 import Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), KeyToAddress (..), Passphrase, PersistKey (..), XPrv )
+    ( Depth (..), KeyToAddress (..), Passphrase, XPrv, dummyAddress )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
@@ -42,7 +42,7 @@ import Data.Quantity
 import Data.Word
     ( Word16, Word8 )
 
-import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString as BS
 
 data TransactionLayer t k = TransactionLayer
     { mkStdTx
@@ -126,7 +126,7 @@ data EstimateMaxNumberOfInputsParams t = EstimateMaxNumberOfInputsParams
 -- All the values used are the smaller ones. For example, the shortest adress
 -- type and shortest witness type are chosen to use for the estimate.
 estimateMaxNumberOfInputsBase
-    :: forall t k. (KeyToAddress t k, PersistKey k)
+    :: forall t k. (KeyToAddress t k)
     => EstimateMaxNumberOfInputsParams t
     -- ^ Backend-specific variables used in the estimation
     -> Quantity "byte" Word16
@@ -151,12 +151,12 @@ estimateMaxNumberOfInputsBase
 
     outs = replicate (fromIntegral numOutputs) txout
     txout = TxOut baseAddr minBound
-    Right baseAddr = keyToAddress @t @k <$> deserializeXPub (chaff 128)
+    baseAddr = dummyAddress @t @k
     txIn = TxIn (Hash $ chaff estBlockHashSize) 0
     wit = TxWitness (chaff estTxWitnessSize)
 
     -- Make a bytestring of length n
-    chaff n = B8.replicate n '0'
+    chaff n = BS.replicate n 0
 
     -- convert down to a smaller int without wrapping
     clamp :: Int -> Word8

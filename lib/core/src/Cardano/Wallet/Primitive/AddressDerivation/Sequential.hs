@@ -33,9 +33,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.Sequential
     -- * Passphrase
     , changePassphraseSeq
     -- * Storing and retrieving keys
-    , serializeXPrvSeq
     , deserializeXPrvSeq
-    , serializeXPubSeq
     , deserializeXPubSeq
     ) where
 
@@ -63,8 +61,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PersistKey (..)
     , WalletKey (..)
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Common
-    ( fromHexText, toHexText )
 import Cardano.Wallet.Primitive.Types
     ( Hash (..), invariant )
 import Control.DeepSeq
@@ -73,6 +69,8 @@ import Control.Monad
     ( (<=<) )
 import Crypto.Hash
     ( Digest, HashAlgorithm, hash )
+import Data.ByteArray.Encoding
+    ( Base (..), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.Maybe
@@ -92,6 +90,7 @@ import GHC.Generics
     ( Generic )
 
 import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
 
 {-------------------------------------------------------------------------------
                             Sequential Derivation
@@ -116,6 +115,7 @@ instance WalletKey SeqKey where
     publicKey = publicKeySeq
     digest = digestSeq
     getRawKey = getKey
+    dummyKey = dummyKeySeq
 
 -- | Marker for the change chain. In practice, change of a transaction goes onto
 -- the addresses generated on the internal chain, whereas the external chain is
@@ -298,7 +298,7 @@ changePassphraseSeq (Passphrase oldPwd) (Passphrase newPwd) (SeqKey prv) =
     SeqKey $ xPrvChangePass oldPwd newPwd prv
 
 {-------------------------------------------------------------------------------
-
+                            WalletKey implementation
 -------------------------------------------------------------------------------}
 
 -- | Extract the public key part of a private key.
@@ -316,24 +316,21 @@ digestSeq
 digestSeq (SeqKey k) =
     hash (unXPub k)
 
+dummyKeySeq :: SeqKey 'AddressK XPub
+dummyKeySeq = SeqKey key
+    where Right key = xpub (BS.replicate 64 0)
+
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys
 -------------------------------------------------------------------------------}
 
 instance PersistKey SeqKey where
-    serializeXPrv = serializeXPrvSeq
+    serializeXPrv (k, h) =
+        ( toHexText . unXPrv . getRawKey $ k
+        , toHexText . getHash $ h )
     deserializeXPrv = deserializeXPrvSeq
-    serializeXPub = serializeXPubSeq
+    serializeXPub = toHexText . unXPub . getRawKey
     deserializeXPub = deserializeXPubSeq
-
--- | Convert a private key and its password hash into hexadecimal strings
--- suitable for storing in a text file or database column.
-serializeXPrvSeq
-    :: (SeqKey purpose XPrv, Hash "encryption")
-    -> (ByteString, ByteString)
-serializeXPrvSeq (k, h) =
-    ( toHexText . unXPrv . getKey $ k
-    , toHexText . getHash $ h )
 
 -- | The reverse of 'serializeXPrv'. This may fail if the inputs are not valid
 -- hexadecimal strings, or if the key is of the wrong length.
@@ -347,15 +344,16 @@ deserializeXPrvSeq (k, h) = (,)
   where
     xprvFromText = xprv <=< fromHexText
 
--- | Convert a public key into a hexadecimal string suitable for storing in a
--- text file or database column.
-serializeXPubSeq :: SeqKey purpose XPub -> ByteString
-serializeXPubSeq = toHexText . unXPub . getKey
-
--- | The reverse of 'serializeXPub'. This will fail if the input is not a valid
+-- | The reverse of 'serializeXPub'. This will fail if the input is not
 -- hexadecimal string of the correct length.
 deserializeXPubSeq :: ByteString -> Either String (SeqKey purpose XPub)
 deserializeXPubSeq = fmap SeqKey . (xpub <=< fromHexText)
+
+toHexText :: ByteString -> ByteString
+toHexText = convertToBase Base16
+
+fromHexText :: ByteString -> Either String ByteString
+fromHexText = convertFromBase Base16
 
 -- $use
 -- 'Key' and 'Index' allow for representing public keys, private keys, hardened

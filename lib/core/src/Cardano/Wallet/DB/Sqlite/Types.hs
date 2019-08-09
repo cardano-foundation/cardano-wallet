@@ -25,7 +25,7 @@ import Cardano.Crypto.Wallet
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), PersistKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( ChangeChain, SeqKey )
+    ( ChangeChain, SeqKey, deserializeXPubSeq )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..), getAddressPoolGap, mkAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
@@ -329,7 +329,7 @@ instance PersistField AddressPoolXPub where
     toPersistValue = toPersistValue . serializeXPub . getAddressPoolXPub
     fromPersistValue pv = fromPersistValue >=> deserializeXPub' $ pv
       where
-        deserializeXPub' = bimap msg AddressPoolXPub . deserializeXPub
+        deserializeXPub' = bimap msg AddressPoolXPub . deserializeXPubSeq
         msg e = T.pack $ "not a valid XPub: " <> show pv <> ": " <> e
 
 instance PersistFieldSql AddressPoolXPub where
