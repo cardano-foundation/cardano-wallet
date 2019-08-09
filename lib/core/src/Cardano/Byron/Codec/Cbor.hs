@@ -45,6 +45,7 @@ module Cardano.Byron.Codec.Cbor
     , encodeTxWitness
 
     -- * Helpers
+    , deserialise
     , inspectNextToken
     , decodeList
     , decodeListIndef
@@ -861,3 +862,10 @@ decodeNestedBytes dec bytes =
             fail "Leftovers when decoding nested bytes"
         _ ->
             fail "Could not decode nested bytes"
+
+deserialise
+    :: (forall s. CBOR.Decoder s a)
+    -> ByteString
+    -> Either CBOR.DeserialiseFailure a
+deserialise dec =
+    fmap snd . CBOR.deserialiseFromBytes dec . BL.fromStrict

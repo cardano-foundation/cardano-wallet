@@ -196,6 +196,7 @@ test-suite unit
       Cardano.Wallet.Primitive.AddressDerivation.SequentialSpec
       Cardano.Wallet.Primitive.AddressDerivation.RandomSpec
       Cardano.Wallet.Primitive.AddressDiscovery.SequentialSpec
+      Cardano.Wallet.Primitive.AddressDiscovery.RandomSpec
       Cardano.Wallet.Primitive.CoinSelection.LargestFirstSpec
       Cardano.Wallet.Primitive.CoinSelection.RandomSpec
       Cardano.Wallet.Primitive.CoinSelectionSpec

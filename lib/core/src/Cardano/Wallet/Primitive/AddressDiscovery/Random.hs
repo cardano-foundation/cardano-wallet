@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -16,13 +17,16 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Random
     (
     -- ** State
       RndState (..)
-    , mkRndState
     ) where
 
 import Prelude
 
+import Cardano.Byron.Codec.Cbor
+    ( decodeAddressDerivationPath, decodeAddressPayload, deserialise )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Depth (..), XPrv )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey )
+    ( RndKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -30,16 +34,31 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , IsOwned (..)
     , KnownAddresses (..)
     )
-import Data.ByteString
-    ( ByteString )
+import Cardano.Wallet.Primitive.Types
+    ( Address (..) )
+import Cardano.Wallet.Unsafe
+    ( unsafeDeserialiseCbor, unsafeFromHex )
+import Control.DeepSeq
+    ( NFData )
+import GHC.Generics
+    ( Generic )
 
-newtype RndState = RndState ByteString
+import qualified Data.ByteString.Lazy as BL
 
-mkRndState :: RndState
-mkRndState = error "AddressDiscovery.Random unimplemented"
+
+newtype RndState = RndState { getRndState :: RndKey 'RootK XPrv }
+    deriving (Generic)
+
+instance NFData RndState
 
 instance IsOurs RndState where
-    isOurs _ s = (False, s)
+    isOurs (Address addr) (RndState key) = do
+        let payload = unsafeDeserialiseCbor decodeAddressPayload $
+                BL.fromStrict (unsafeFromHex addr)
+        let pwd = payloadPassphrase key
+        case deserialise (decodeAddressDerivationPath pwd) payload of
+            Right (Just _) -> (True, RndState key)
+            _ -> (False, RndState key)
 
 instance IsOwned RndState RndKey where
     isOwned _ _ _ = Nothing
