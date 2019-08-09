@@ -15,9 +15,13 @@
 - [Release Checklist](https://github.com/input-output-hk/cardano-wallet/wiki/Release-Checklist)
 
 
-# Knowledge Base
+# Knowledge Base (Cardano)
+
+- [About Address Derivation](https://github.com/input-output-hk/cardano-wallet/wiki/About-Address-Derivation)
+- [About Address Format - Byron](https://github.com/input-output-hk/cardano-wallet/wiki/About-Address-Format---Byron)
+- [About Coin Selection](https://github.com/input-output-hk/cardano-wallet/wiki/About-Coin-Selection)
+- [About UTxO](https://github.com/input-output-hk/cardano-wallet/wiki/About-UTxO)
+
+# Knowledge Base (Haskell)
 
 - [Specifying exceptions with Servant and Swagger](https://github.com/input-output-hk/cardano-wallet/wiki/Specifying-exceptions-with-Servant-and-Swagger)
-- [About Address Derivation](https://github.com/input-output-hk/cardano-wallet/wiki/About-Address-Derivation)
-- [About Coin Selection](https://github.com/input-output-hk/cardano-wallet/wiki/About-Coin-Selection)
-- [Prototype](https://github.com/KtorZ/wallet-prototype)
