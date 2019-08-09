@@ -10,7 +10,7 @@ import Prelude
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.HttpBridge.Environment
-    ( KnownNetwork (..), Network (..), ProtocolMagic (..) )
+    ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.HttpBridge.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Network
@@ -41,6 +41,7 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
     , Hash (..)
+    , ProtocolMagic (..)
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
@@ -57,8 +58,8 @@ import Data.Proxy
 import Test.Integration.Faucet
     ( Faucet (..) )
 
+import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Crypto.Wallet as CC
-import qualified Cardano.Wallet.HttpBridge.Binary as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 

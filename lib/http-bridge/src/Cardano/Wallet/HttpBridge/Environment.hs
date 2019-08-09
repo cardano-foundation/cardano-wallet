@@ -22,13 +22,12 @@ module Cardano.Wallet.HttpBridge.Environment
     -- * Networking
       Network(..)
     , KnownNetwork (..)
-    , ProtocolMagic(..)
     ) where
 
 import Prelude
 
-import Data.Int
-    ( Int32 )
+import Cardano.Wallet.Primitive.Types
+    ( ProtocolMagic (..) )
 import Data.Text.Class
     ( CaseStyle (..)
     , FromText (..)
@@ -44,10 +43,6 @@ import GHC.Generics
 -- | Available network options.
 data Network = Mainnet | Testnet
     deriving (Generic, Show, Eq, Bounded, Enum)
-
--- | Magic constant associated to a given network
-newtype ProtocolMagic = ProtocolMagic Int32
-    deriving (Generic, Show)
 
 class Typeable n => KnownNetwork (n :: Network) where
     networkVal :: Network

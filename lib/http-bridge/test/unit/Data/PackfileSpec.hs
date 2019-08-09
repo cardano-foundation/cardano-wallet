@@ -6,12 +6,10 @@ import Prelude
 
 import Cardano.Byron.Codec.Cbor
     ( decodeBlock )
+import Cardano.Wallet.Primitive.Types
+    ( Block (..), BlockHeader (..), SlotId (..), TxIn, TxOut )
 import Cardano.Wallet.Unsafe
     ( unsafeDeserialiseCbor )
-import Cardano.Wallet.HttpBridge.Primitive.Types
-    ( Tx )
-import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), SlotId (..) )
 import Data.Either
     ( fromRight, isRight )
 import Data.Packfile
@@ -102,7 +100,7 @@ spec = do
             slotNumber second `shouldBe` 1 -- second block
 
 -- | Decode all blocks in a pack file, without error handling
-unsafeDeserialiseEpoch :: L8.ByteString -> [Block Tx]
+unsafeDeserialiseEpoch :: L8.ByteString -> [Block ([TxIn], [TxOut])]
 unsafeDeserialiseEpoch = either giveUp decodeBlocks . decodePackfile
     where
       decodeBlocks = map decodeBlob

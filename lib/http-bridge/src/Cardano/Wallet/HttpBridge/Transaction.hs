@@ -13,12 +13,10 @@ module Cardano.Wallet.HttpBridge.Transaction
 
 import Prelude
 
-import Cardano.Wallet.HttpBridge.Binary
-    ( estimateMaxNumberOfInputsParams )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
 import Cardano.Wallet.HttpBridge.Environment
-    ( KnownNetwork (..), Network (..), ProtocolMagic (..) )
+    ( KnownNetwork (..), Network (..) )
 import Cardano.Wallet.HttpBridge.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -36,6 +34,7 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
     , Hash (..)
+    , ProtocolMagic (..)
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
@@ -44,6 +43,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Transaction
     ( ErrMkStdTx (..)
     , ErrValidateSelection
+    , EstimateMaxNumberOfInputsParams (..)
     , TransactionLayer (..)
     , estimateMaxNumberOfInputsBase
     )
@@ -58,8 +58,8 @@ import Data.Quantity
 import Fmt
     ( Buildable (..) )
 
+import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Crypto.Wallet as CC
-import qualified Cardano.Wallet.HttpBridge.Binary as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
@@ -93,7 +93,14 @@ newTransactionLayer = TransactionLayer
         + n * sizeOfTxWitness
 
     , estimateMaxNumberOfInputs =
-        estimateMaxNumberOfInputsBase @t @k estimateMaxNumberOfInputsParams
+        estimateMaxNumberOfInputsBase @t @k $ EstimateMaxNumberOfInputsParams
+            { estMeasureTx = \ins outs wits -> fromIntegral
+                $ BL.length
+                $ CBOR.toLazyByteString
+                $ CBOR.encodeSignedTx ((ins, outs), wits)
+            , estBlockHashSize = 32
+            , estTxWitnessSize = 128
+            }
 
     , validateSelection = \(CoinSelection _ outs _) -> do
         when (any (\ (TxOut _ c) -> c == Coin 0) outs)

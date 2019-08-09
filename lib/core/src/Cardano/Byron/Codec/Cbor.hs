@@ -11,7 +11,7 @@
 -- Copyright: © 2018-2019 IOHK
 -- License: MIT
 --
--- These are (partial) CBOR decoders for blocks and block headers. Note that we
+-- These are (partial) CBOR decoders for Byron binary types. Note that we
 -- ignore most of the block's and header's content and only retrieve the pieces
 -- of information relevant to us, wallet (we do assume a trusted node and
 -- therefore, we needn't to care about verifying signatures and blocks
@@ -21,7 +21,7 @@
 -- of Cardano and will endure in the first stages of Shelley. They are also used
 -- by components like the Rust <https://github.com/input-output-hk/cardano-http-bridge cardano-http-bridge>.
 
-module Cardano.Wallet.HttpBridge.Binary
+module Cardano.Byron.Codec.Cbor
     (
     -- * Decoding
       decodeBlock
@@ -48,17 +48,12 @@ module Cardano.Wallet.HttpBridge.Binary
     , inspectNextToken
     , decodeList
     , decodeListIndef
-    , estimateMaxNumberOfInputsParams
     ) where
 
 import Prelude
 
 import Cardano.Crypto.Wallet
     ( ChainCode (..), XPub (..), unXPub )
-import Cardano.Wallet.HttpBridge.Environment
-    ( ProtocolMagic (..) )
-import Cardano.Wallet.HttpBridge.Primitive.Types
-    ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), DerivationType (..), Index (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Types
@@ -67,13 +62,12 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , Coin (..)
     , Hash (..)
+    , ProtocolMagic (..)
     , SlotId (..)
     , TxIn (..)
     , TxOut (..)
     , TxWitness (..)
     )
-import Cardano.Wallet.Transaction
-    ( EstimateMaxNumberOfInputsParams (..) )
 import Control.Monad
     ( replicateM, void, when )
 import Control.Monad.Fail
@@ -102,10 +96,8 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 
--- Decoding
-
 {-------------------------------------------------------------------------------
-                         Byron Address Encoding
+                       Byron Address Binary Format
 
 In the composition of a Cardano address, the following functions concern the
 "Derivation Path" box.
@@ -268,7 +260,7 @@ decodeDerivationPath = do
         i <= getIndex (maxBound @(Index 'Hardened _))
 
 {-# HLINT ignore decodeBlock "Use <$>" #-}
-decodeBlock :: CBOR.Decoder s (Block Tx)
+decodeBlock :: CBOR.Decoder s (Block ([TxIn], [TxOut]))
 decodeBlock = do
     CBOR.decodeListLenCanonicalOf 2
     t <- CBOR.decodeWordCanonical
@@ -390,7 +382,7 @@ decodeLightIndex = do
     _ <- CBOR.decodeWord64 -- Epoch Index #2
     return ()
 
-decodeMainBlockBody :: CBOR.Decoder s [Tx]
+decodeMainBlockBody :: CBOR.Decoder s [([TxIn], [TxOut])]
 decodeMainBlockBody = do
     _ <- CBOR.decodeListLenCanonicalOf 4
     decodeTxPayload
@@ -495,7 +487,7 @@ decodeSignature = do
         2 -> decodeProxySignature decodeHeavyIndex
         _ -> fail $ "decodeSignature: unknown signature constructor: " <> show t
 
-decodeSignedTx :: CBOR.Decoder s (Tx, [TxWitness])
+decodeSignedTx :: CBOR.Decoder s (([TxIn], [TxOut]), [TxWitness])
 decodeSignedTx = do
     _ <- CBOR.decodeListLenCanonicalOf 2
     tx <- decodeTx
@@ -522,15 +514,15 @@ decodeSoftwareVersion = do
     _ <- CBOR.decodeWord32 -- Software Version
     return ()
 
-decodeTx :: CBOR.Decoder s Tx
+decodeTx :: CBOR.Decoder s ([TxIn], [TxOut])
 decodeTx = do
     _ <- CBOR.decodeListLenCanonicalOf 3
     ins <- decodeListIndef decodeTxIn
     outs <- decodeListIndef decodeTxOut
     _ <- decodeEmptyAttributes
-    return $ Tx ins outs
+    return (ins, outs)
 
-decodeTxPayload :: CBOR.Decoder s [Tx]
+decodeTxPayload :: CBOR.Decoder s [([TxIn], [TxOut])]
 decodeTxPayload = (map fst) <$> decodeListIndef decodeSignedTx
 
 {-# HLINT ignore decodeTxIn "Use <$>" #-}
@@ -680,7 +672,7 @@ encodeDerivationPath (Index acctIx) (Index addrIx) = mempty
     <> CBOR.encodeWord32 addrIx
     <> CBOR.encodeBreak
 
-encodeSignedTx :: (Tx, [TxWitness]) -> CBOR.Encoding
+encodeSignedTx :: (([TxIn], [TxOut]), [TxWitness]) -> CBOR.Encoding
 encodeSignedTx (tx, witnesses) = mempty
     <> CBOR.encodeListLen 2
     <> encodeTx tx
@@ -708,14 +700,14 @@ encodePublicKeyWitness xpub (Hash signData) = mempty
     <> CBOR.encodeBytes (unXPub xpub)
     <> CBOR.encodeBytes signData
 
-encodeTx :: Tx -> CBOR.Encoding
-encodeTx tx = mempty
+encodeTx :: ([TxIn], [TxOut]) -> CBOR.Encoding
+encodeTx (inps, outs) = mempty
     <> CBOR.encodeListLen 3
     <> CBOR.encodeListLenIndef
-    <> mconcat (encodeTxIn <$> inputs tx)
+    <> mconcat (encodeTxIn <$> inps)
     <> CBOR.encodeBreak
     <> CBOR.encodeListLenIndef
-    <> mconcat (encodeTxOut <$> outputs tx)
+    <> mconcat (encodeTxOut <$> outs)
     <> CBOR.encodeBreak
     <> encodeTxAttributes
 
@@ -869,14 +861,3 @@ decodeNestedBytes dec bytes =
             fail "Leftovers when decoding nested bytes"
         _ ->
             fail "Could not decode nested bytes"
-
--- | This provides network encoding specific variables to be used by the
--- 'estimateMaxNumberOfInputs' function.
-estimateMaxNumberOfInputsParams :: EstimateMaxNumberOfInputsParams t
-estimateMaxNumberOfInputsParams = EstimateMaxNumberOfInputsParams
-    { estMeasureTx = \ins outs wits ->
-        fromIntegral $ BL.length $ CBOR.toLazyByteString $
-        encodeSignedTx (Tx ins outs, wits)
-    , estBlockHashSize = 32
-    , estTxWitnessSize = 128
-    }

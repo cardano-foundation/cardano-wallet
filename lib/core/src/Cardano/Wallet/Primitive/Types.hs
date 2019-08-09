@@ -103,6 +103,9 @@ module Cardano.Wallet.Primitive.Types
     , wholeRange
     , isWithinRange
 
+    -- * ProtocolMagic
+    , ProtocolMagic (..)
+
     -- * Polymorphic
     , Hash (..)
     , ShowFmt (..)
@@ -126,6 +129,8 @@ import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.Int
+    ( Int32 )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -909,6 +914,14 @@ newtype EpochLength = EpochLength Word16
 -- | Blockchain start time
 newtype StartTime = StartTime UTCTime
     deriving (Show, Eq)
+
+{-------------------------------------------------------------------------------
+                                Protocol Magic
+-------------------------------------------------------------------------------}
+
+-- | Magic constant associated to a given network
+newtype ProtocolMagic = ProtocolMagic Int32
+    deriving (Generic, Show)
 
 {-------------------------------------------------------------------------------
                                Polymorphic Types

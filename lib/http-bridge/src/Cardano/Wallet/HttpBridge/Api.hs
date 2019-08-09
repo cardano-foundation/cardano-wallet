@@ -21,12 +21,12 @@ module Cardano.Wallet.HttpBridge.Api
 
 import Prelude
 
-import Cardano.Wallet.HttpBridge.Binary
+import Cardano.Byron.Codec.Cbor
     ( decodeBlock, decodeBlockHeader, decodeSignedTx, encodeSignedTx )
 import Cardano.Wallet.HttpBridge.Primitive.Types
-    ( Tx )
+    ( Tx (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block, BlockHeader, TxWitness )
+    ( Block (..), BlockHeader, TxWitness )
 import Crypto.Hash.Algorithms
     ( Blake2b_256 )
 import Data.Aeson
@@ -101,7 +101,9 @@ type PostSignedTx
 newtype ApiT a = ApiT { getApiT :: a } deriving (Show)
 
 instance FromCBOR (ApiT (Block Tx)) where
-    fromCBOR = ApiT <$> decodeBlock
+    fromCBOR = ApiT . hoist <$> decodeBlock
+      where
+        hoist (Block h txs) = Block h (uncurry Tx <$> txs)
 
 instance FromCBOR (ApiT BlockHeader) where
     fromCBOR = ApiT <$> decodeBlockHeader
@@ -123,10 +125,10 @@ instance ToHttpApiData NetworkName where
     toUrlPiece = getNetworkName
 
 instance ToJSON (ApiT (Tx, [TxWitness])) where
-    toJSON (ApiT (tx, wit))= object ["signedTx" .= base64 bytes]
+    toJSON (ApiT ((Tx inps outs), wit))= object ["signedTx" .= base64 bytes]
       where
         bytes :: ByteString
-        bytes = CBOR.toStrictByteString $ encodeSignedTx (tx, wit)
+        bytes = CBOR.toStrictByteString $ encodeSignedTx ((inps, outs), wit)
         base64 :: ByteString -> String
         base64 = B8.unpack . convertToBase Base64
 
@@ -134,9 +136,10 @@ instance FromJSON (ApiT (Tx, [TxWitness])) where
     parseJSON = withObject "SignedTx" $ \p -> do
         bs <- (base64 <$> (p .: "signedTx"))
             >>= either fail return
-        tx <- pure (CBOR.deserialiseFromBytes decodeSignedTx (BL.fromStrict bs))
+        ((inps, outs), wits) <-
+            pure (CBOR.deserialiseFromBytes decodeSignedTx (BL.fromStrict bs))
             >>= either (fail . show) (return . snd)
-        return $ ApiT tx
+        return $ ApiT ((Tx inps outs), wits)
       where
         base64 :: String -> Either String ByteString
         base64 bs = convertFromBase Base64 (B8.pack bs)
