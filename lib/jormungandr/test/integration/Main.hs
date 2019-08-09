@@ -116,7 +116,7 @@ main = hspec $ do
         -- API e2e Testing
         describe "PR_DISABLED Addresses API endpoint tests" Addresses.spec
         describe "PR_DISABLED Transactions API endpoint tests" Transactions.spec
-        describe "PR_DISABLED Transactions API endpoint tests (Jormungandr specific)"
+        describe "Transactions API endpoint tests (Jormungandr specific)"
             (TransactionsJormungandr.spec @t)
         describe "PR_DISABLED Wallets API endpoint tests" Wallets.spec
         -- Command-Line e2e Testing

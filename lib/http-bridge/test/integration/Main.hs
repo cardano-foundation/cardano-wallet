@@ -140,7 +140,7 @@ main = do
                     PortCLI.specWithRandomPort @t defaultPort
         beforeAll startCluster $ afterAll _cleanup $ after tearDown $ do
             describe "PR_DISABLED Wallets API endpoint tests" (Wallets.spec @t)
-            describe "PR_DISABLED Transactions API endpoint tests" (Transactions.spec @t)
+            describe "Transactions API endpoint tests" (Transactions.spec @t)
             describe "PR_DISABLED Addresses API endpoint tests" (Addresses.spec @t)
             describe "Wallets CLI tests" (WalletsCLI.spec @t)
             describe "Transactions CLI tests" (TransactionsCLI.spec @t)
