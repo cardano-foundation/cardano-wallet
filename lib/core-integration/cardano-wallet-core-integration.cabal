@@ -53,6 +53,7 @@ library
     , template-haskell
     , text
     , text-class
+    , time
     , warp
   hs-source-dirs:
       src

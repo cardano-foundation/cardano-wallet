@@ -12,7 +12,7 @@ module Test.Integration.Scenario.API.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiFee, ApiTransaction, ApiWallet )
+    ( ApiFee, ApiTransaction, ApiWallet, insertedAt, time )
 import Cardano.Wallet.Primitive.Types
     ( DecodeAddress (..), Direction (..), EncodeAddress (..), TxStatus (..) )
 import Control.Monad
@@ -21,10 +21,14 @@ import Data.Aeson
     ( Value )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
+import Data.Maybe
+    ( listToMaybe )
+import Data.Time.Clock
+    ( NominalDiffTime, UTCTime, addUTCTime )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, it )
+    ( SpecWith, describe, it, shouldBe, shouldSatisfy )
 import Test.Integration.Framework.DSL
     ( Context
     , Headers (..)
@@ -50,6 +54,8 @@ import Test.Integration.Framework.DSL
     , getWalletEp
     , json
     , listAddresses
+    , listAllTransactions
+    , listTransactions
     , postTxEp
     , postTxFeeEp
     , request
@@ -1039,7 +1045,58 @@ spec = do
                   (errMsg400StartTimeLaterThanEndTime startTime endTime) r
               pure ()
 
+    it "TRANS_LIST_RANGE_01 - \
+       \Transaction at time t is SELECTED by small ranges that cover it" $
+          \ctx -> do
+              (w, _, t) <- getWalletWithOneTransaction ctx
+              let te = addUTCTime (negate onePicosecond) t
+              let tl = addUTCTime         onePicosecond  t
+              te < t `shouldBe` True
+              tl > t `shouldBe` True
+              txs1 <- listTransactions ctx w (Just t ) (Just t ) Nothing
+              txs2 <- listTransactions ctx w (Just te) (Just t ) Nothing
+              txs3 <- listTransactions ctx w (Just t ) (Just tl) Nothing
+              txs4 <- listTransactions ctx w (Just te) (Just tl) Nothing
+              length <$> [txs1, txs2, txs3, txs4] `shouldSatisfy` all (== 1)
+
+    it "TRANS_LIST_RANGE_02 - \
+       \Transaction at time t is NOT selected by range (t + 𝛿t, ...)" $
+          \ctx -> do
+              (w, _, t) <- getWalletWithOneTransaction ctx
+              let tl = addUTCTime onePicosecond t
+              tl > t `shouldBe` True
+              txs1 <- listTransactions ctx w (Just tl) (Nothing) Nothing
+              txs2 <- listTransactions ctx w (Just tl) (Just tl) Nothing
+              length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
+
+    it "TRANS_LIST_RANGE_03 - \
+       \Transaction at time t is NOT selected by range (..., t - 𝛿t)" $
+          \ctx -> do
+              (w, _, t) <- getWalletWithOneTransaction ctx
+              let te = addUTCTime (negate onePicosecond) t
+              te < t `shouldBe` True
+              txs1 <- listTransactions ctx w (Nothing) (Just te) Nothing
+              txs2 <- listTransactions ctx w (Just te) (Just te) Nothing
+              length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
+
   where
+
+    getWalletWithOneTransaction
+        :: Context t -> IO (ApiWallet, ApiTransaction t, UTCTime)
+    getWalletWithOneTransaction ctx = do
+        w <- fixtureWallet ctx
+        mt <- listToMaybe <$> listAllTransactions ctx w
+        case mt of
+            Just tx -> case time <$> insertedAt tx of
+                Just t -> pure (w, tx, t)
+                Nothing -> die
+            _ -> die
+      where
+        die = error "Expected one transaction with a time."
+
+    onePicosecond :: NominalDiffTime
+    onePicosecond = toEnum 1
+
     longAddr = replicate 10000 '1'
     encodeErr = "Unable to decode Address:"
     matrixWrongAddrs =
