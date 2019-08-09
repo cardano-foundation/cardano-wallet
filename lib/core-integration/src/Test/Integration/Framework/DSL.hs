@@ -56,7 +56,7 @@ module Test.Integration.Framework.DSL
     , direction
     , feeEstimator
     , inputs
-    , insertedAt
+    , insertedAtTime
     , passphraseLastUpdate
     , state
     , status
@@ -681,8 +681,8 @@ direction =
     _set :: HasType (ApiT Direction) s => (s, Direction) -> s
     _set (s, v) = set typed (ApiT v) s
 
-insertedAt :: HasType (Maybe ApiBlockData) s => Lens' s (Maybe UTCTime)
-insertedAt =
+insertedAtTime :: HasType (Maybe ApiBlockData) s => Lens' s (Maybe UTCTime)
+insertedAtTime =
     lens _get _set
   where
     _get :: HasType (Maybe ApiBlockData) s => s -> (Maybe UTCTime)
@@ -890,7 +890,7 @@ listTransactions ctx wallet mStart mEnd mOrder = do
     (_, txs) <- unsafeRequest @[ApiTransaction t] ctx path Empty
     return txs
   where
-    path = listTransactionsEp wallet $ toQueryString $ catMaybes
+    path = listTxEp wallet $ toQueryString $ catMaybes
         [ ("start", ) . toText <$> (Iso8601Time <$> mStart)
         , ("end"  , ) . toText <$> (Iso8601Time <$> mEnd  )
         , ("order", ) . toText <$> mOrder
@@ -994,12 +994,6 @@ getAddressesEp :: ApiWallet -> Text -> (Method, Text)
 getAddressesEp w stateFilter =
     ( "GET"
     , "v2/wallets/" <> w ^. walletId <> "/addresses" <> stateFilter
-    )
-
-listTransactionsEp :: ApiWallet -> Text -> (Method, Text)
-listTransactionsEp w stateFilter =
-    ( "GET"
-    , "v2/wallets/" <> w ^. walletId <> "/transactions" <> stateFilter
     )
 
 postTxEp :: ApiWallet -> (Method, Text)

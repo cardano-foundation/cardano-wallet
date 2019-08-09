@@ -63,7 +63,7 @@ import Test.Integration.Framework.DSL
     , fixtureWallet
     , fixtureWalletWith
     , getWalletEp
-    , insertedAt
+    , insertedAtTime
     , json
     , getFromResponse
     , getFromResponseList
@@ -81,8 +81,6 @@ import Test.Integration.Framework.DSL
     , walletId
     , utcIso8601ToText
     )
-import Test.Hspec.Expectations.Lifted
-    ( shouldBe )
 import Test.Integration.Framework.Request
     ( RequestException )
 import Test.Integration.Framework.TestData
@@ -1079,27 +1077,27 @@ spec = do
             , expectListItemFieldEqual 1 status InLedger
             ]
 
-    -- | This scenario covers the following matrix of cases. Cases where generated
+    -- This scenario covers the following matrix of cases. Cases where generated
     -- using one of parwise test cases generation tools available online.
     -- +----+----------+----------+------------+--------------+
-    -- |    |  start   |   end    |   order    |    result    |
+    --     |  start   |   end    |   order    |    result    |
     -- +----+----------+----------+------------+--------------+
-    -- |  1 | edge     | edge     | ascending  | 2 ascending  |
-    -- |  2 | edge     | edge + 1 | descending | 2 descending |
-    -- |  3 | edge     | edge - 1 | empty      | 1st one      |
-    -- |  4 | edge     | empty    | empty      | 2 descending |
-    -- |  5 | edge + 1 | edge + 1 | empty      | 2nd one      |
-    -- |  6 | edge + 1 | edge - 1 | empty      | none         |
-    -- |  7 | edge + 1 | empty    | ascending  | 2nd one      |
-    -- |  8 | edge + 1 | edge     | descending | 2nd one      |
-    -- |  9 | edge - 1 | edge - 1 | ascending  | 1st one      |
-    -- | 10 | edge - 1 | empty    | descending | 2 descending |
-    -- | 11 | edge - 1 | edge     | empty      | 2 descending |
-    -- | 12 | edge - 1 | edge + 1 | empty      | 2 descending |
-    -- | 13 | empty    | empty    | empty      | 2 descending |
-    -- | 14 | empty    | edge     | empty      | 2 descending |
-    -- | 15 | empty    | edge + 1 | ascending  | 2 ascending  |
-    -- | 16 | empty    | edge - 1 | descending | 1st one      |
+    --   1 | edge     | edge     | ascending  | 2 ascending  |
+    --   2 | edge     | edge + 1 | descending | 2 descending |
+    --   3 | edge     | edge - 1 | empty      | 1st one      |
+    --   4 | edge     | empty    | empty      | 2 descending |
+    --   5 | edge + 1 | edge + 1 | empty      | 2nd one      |
+    --   6 | edge + 1 | edge - 1 | empty      | none         |
+    --   7 | edge + 1 | empty    | ascending  | 2nd one      |
+    --   8 | edge + 1 | edge     | descending | 2nd one      |
+    --   9 | edge - 1 | edge - 1 | ascending  | 1st one      |
+    --  10 | edge - 1 | empty    | descending | 2 descending |
+    --  11 | edge - 1 | edge     | empty      | 2 descending |
+    --  12 | edge - 1 | edge + 1 | empty      | 2 descending |
+    --  13 | empty    | empty    | empty      | 2 descending |
+    --  14 | empty    | edge     | empty      | 2 descending |
+    --  15 | empty    | edge + 1 | ascending  | 2 ascending  |
+    --  16 | empty    | edge - 1 | descending | 1st one      |
     -- +----+----------+----------+------------+--------------+
     it "TRANS_LIST_02,03 - Can limit/order results with start, end and order" $ \ctx -> do
         (_, w, [(t1, a1), (t2, a2)]) <- fixtureWalletManyTxs ctx [10,20]
@@ -1591,6 +1589,6 @@ spec = do
         r <- request @([ApiTransaction t]) ctx (listTxEp wDest "?order=ascending")
             Default Empty
         let indexes = [0..(length txAmounts - 1)]
-        let txTimes = map (\x -> fromJust $ getFromResponseList x insertedAt r) indexes
+        let txTimes = map (\x -> fromJust $ getFromResponseList x insertedAtTime r) indexes
         let wDestTxList = zip txTimes txAmounts
         return (wSrc, wDest, wDestTxList)
