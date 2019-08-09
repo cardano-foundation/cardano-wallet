@@ -41,7 +41,6 @@ library
     , cborg
     , cryptonite
     , deepseq
-    , digest
     , either
     , exceptions
     , fmt
@@ -61,7 +60,6 @@ library
       src
   exposed-modules:
       Cardano.Wallet.HttpBridge.Api
-      Cardano.Wallet.HttpBridge.Binary
       Cardano.Wallet.HttpBridge.Compatibility
       Cardano.Wallet.HttpBridge.Environment
       Cardano.Wallet.HttpBridge.Network
@@ -111,7 +109,6 @@ test-suite unit
       Main.hs
   other-modules:
       Cardano.Wallet.HttpBridge.ApiSpec
-      Cardano.Wallet.HttpBridge.BinarySpec
       Cardano.Wallet.HttpBridge.CompatibilitySpec
       Cardano.Wallet.HttpBridge.EnvironmentSpec
       Cardano.Wallet.HttpBridge.NetworkSpec

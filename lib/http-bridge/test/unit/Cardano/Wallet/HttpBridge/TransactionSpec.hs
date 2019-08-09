@@ -17,7 +17,7 @@ module Cardano.Wallet.HttpBridge.TransactionSpec
 
 import Prelude
 
-import Cardano.Wallet.HttpBridge.Binary
+import Cardano.Byron.Codec.Cbor
     ( encodeSignedTx )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge )
@@ -641,8 +641,8 @@ propSizeEstimation
 propSizeEstimation _ (ShowFmt sel, InfiniteList chngAddrs _) =
     let
         calcSize = estimateSize (newTransactionLayer @n @k) sel
-        tx = fromCoinSelection sel
-        encodedTx = CBOR.toLazyByteString $ encodeSignedTx tx
+        (Tx inps outs, wits) = fromCoinSelection sel
+        encodedTx = CBOR.toLazyByteString $ encodeSignedTx ((inps, outs), wits)
         size = fromIntegral $ BL.length encodedTx
         -- We always go for the higher bound for change address payload's size,
         -- so, we may end up with up to 4 extra bytes per change address in our
@@ -839,11 +839,10 @@ goldenTestSignedTx _ nOuts xprvs expected = it title $ do
     let res = mkStdTx (newTransactionLayer @n) keyFrom inps outs
     case res of
         Left e -> fail (show e)
-        Right tx -> do
+        Right (Tx inps' outs', wits) -> do
             let bytes = convertToBase Base16
                     $ CBOR.toStrictByteString
-                    $ encodeSignedTx
-                    tx
+                    $ encodeSignedTx ((inps', outs'), wits)
             bytes `shouldBe` expected
   where
     title :: String

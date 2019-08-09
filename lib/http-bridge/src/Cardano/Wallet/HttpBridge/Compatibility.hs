@@ -28,16 +28,16 @@ module Cardano.Wallet.HttpBridge.Compatibility
 
 import Prelude
 
-import Cardano.Wallet
-    ( BlockchainParameters (..) )
-import Cardano.Wallet.DB.Sqlite
-    ( PersistTx (..) )
-import Cardano.Wallet.HttpBridge.Binary
+import Cardano.Byron.Codec.Cbor
     ( decodeAddressPayload
     , encodeDerivationPathAttr
     , encodeProtocolMagicAttr
     , encodeTx
     )
+import Cardano.Wallet
+    ( BlockchainParameters (..) )
+import Cardano.Wallet.DB.Sqlite
+    ( PersistTx (..) )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (Mainnet, Testnet), protocolMagic )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -79,7 +79,7 @@ import Data.Time.Clock.POSIX
 import Data.Word
     ( Word16 )
 
-import qualified Cardano.Wallet.HttpBridge.Binary as CBOR
+import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Wallet.HttpBridge.Primitive.Types as W
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
@@ -96,7 +96,7 @@ instance DefineTx (HttpBridge network) where
     type Tx (HttpBridge network) = W.Tx
     inputs = W.inputs
     outputs = W.outputs
-    txId = blake2b256 . encodeTx
+    txId = blake2b256 . encodeTx . (\(W.Tx inps outs) -> (inps, outs))
       where
         blake2b256 :: forall tag. CBOR.Encoding -> Hash tag
         blake2b256 =
