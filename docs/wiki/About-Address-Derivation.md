@@ -143,14 +143,14 @@ below.
 > rather ad-hoc to the structural considerations above, but is still a major
 > motivation.
 
-### Differences between Cardano *HD Sequential* and BIP-44
+### Differences between *Cardano HD Sequential* and *BIP-44*
 
 In BIP-44, new derivation paths are obtained by computing points on an elliptic
 curve where curve parameters are defined by secp256k1. Cardano's implementation
 relies on ed25519 for it provides better properties in terms of security and 
 performances. 
 
-## Differences between *HD Random *and *HD Sequential* Wallets
+## Differences between *HD Random* and *HD Sequential* Wallets
 
 Because BIP-44 public keys (HD Sequential) are generated in sequence, there's
 no need to maintain a derivation path in the address attributes (incidentally,
