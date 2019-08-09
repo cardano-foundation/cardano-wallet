@@ -1,226 +1,564 @@
-### :hammer: [Finalize 'Transactions' API endpoints](https://github.com/input-output-hk/cardano-wallet/milestone/19)
+> :information_source: How To Read This Document :information_source:
+> 
+> Sections below describe user stories in a non-technical way, from a business
+> perspective. We aim at capturing user requirements that are non technical but
+> reflects on actual capabilities or behaviours that are expected from the
+> system. Each section is structured to answer the four questions below:
+>
+> **When:**
+>   - What is the priority. How important is that story compared to another. 
+>
+> **Who:**   
+>   - Who's the target / protagonist of that story. To whom does it benefit.
+> 
+> **What:**
+>   - What is the story about, in terms of user experience and expected behaviour.
+> 
+> **Why:**
+>   - What business value does this have. Why is it something relevant.
 
-### :hammer: [Primitives for random derivation support](https://github.com/input-output-hk/cardano-wallet/milestone/20)
+--- 
 
-<details>
-    <summary>Archived</summary>
+## Overview
 
-### :heavy_check_mark: [Setup New `cardano-wallet` Repository & CI](https://github.com/input-output-hk/cardano-wallet/milestone/1)
+#### Daedalus
 
-### :heavy_check_mark: [Receive And Process Blocks (via `cardano-http-bridge`)](https://github.com/input-output-hk/cardano-wallet/milestone/2)
+- [Legacy / Existing Wallet Support](#gift-legacy--existing-wallet-support)
+- [Transaction Input Resolution](#question-transaction-input-resolution)
+- [Wallet Backend on Windows](#gift-wallet-backend-on-windows)
+- [Wallet Backend on OSX](#gift-wallet-backend-on-osx)
+- [Pagination Of Transaction History](#hammer-pagination-of-transaction-history)
 
-### :heavy_check_mark: [Basic Launcher](https://github.com/input-output-hk/cardano-wallet/milestone/3)
+#### Byron Rewrite
 
-### :heavy_check_mark: [Support Wallet Creation](https://github.com/input-output-hk/cardano-wallet/milestone/4)
+- [Haskell `cardano-node` networking integration](#gift-haskell-cardano-node-networking-integration)
+- [Make Protocol Parameters Available to Clients](#gift-make-protocol-parameters-available-to-clients)
+- [Support Roll-backs](#gift-support-roll-backs)
+- [Automatic Software Update](#question-automatic-software-updates)
+- TODO: Keep Track of Protocol Parameters
 
-### :heavy_check_mark: [Wallet Layer Integration (against `cardano-http-bridge`)](https://github.com/input-output-hk/cardano-wallet/milestone/5)
+#### Shelley Phase
 
-### :heavy_check_mark: [Restore Historical Data](https://github.com/input-output-hk/cardano-wallet/milestone/7)
+- [Join Stake Pools](#gift-join-stake-pools)
+- [Quit Stake Pools](#hammer-quit-stake-pools)
+- [List Stake Pools](#hammer-listing-available-stake-pools)
+- [Fine Grained Transaction Manipulation](#question-fine-grained-transaction-manipulation)
 
-### :heavy_check_mark: [Benchmarking & Nightly Builds](https://github.com/input-output-hk/cardano-wallet/milestone/7)
+#### Miscellaneous
 
-### :heavy_check_mark: [Fee Calculation](https://github.com/input-output-hk/cardano-wallet/milestone/6)
+- [Friendlier Command-Line](#gift-friendlier-command-line)
+- [Enforce Stronger Master Passphrases](#gift-enforce-stronger-master-passphrases)
+- [Better Restoration Benchmark](#gift-better-restoration-stress-benchmark)
+- [Better Supervision Of Child Processes](#gift-better-supervision-of-launchers-child-processes)
 
-### :heavy_check_mark: [Transaction creation, submission & Coin Selection](https://github.com/input-output-hk/cardano-wallet/milestone/6)
+## :gift: Legacy / Existing Wallet Support
 
-### :heavy_check_mark: [Initial Wallet Backend Server & Corresponding CLI](https://github.com/input-output-hk/cardano-wallet/milestone/7)
+**When:** 
+  - High Priority
+  - Byron rewrite
 
-### :heavy_check_mark: [Integrate node.js IPC listener in the launcher](https://github.com/input-output-hk/cardano-wallet/milestone/8)
+**Who:** 
+  - Daedalus 
 
-### :heavy_check_mark: [SQLite implementation for the database layer](https://github.com/input-output-hk/cardano-wallet/milestone/9)
+**What:** 
+  - Be able to keep monitoring their wallet balance and make transactions to
+    addresses as they always used to. A wallet software must provide the
+    following capabilities:
 
-### :heavy_check_mark: [List Addresses](https://github.com/input-output-hk/cardano-wallet/milestone/16)
+    - Restore an existing wallet from current mainnet from a 12-word mnemonic sentence
+    - Monitor a wallet available and pending balances
+    - List historical transactions of that particular wallet
+    - Perform transactions to any addresses of the Cardano blockchain
+    - Create new deposit addresses 
+    - List existing known addresses of one's wallet, and tell whether each address
+      is used or not.
 
-### :heavy_check_mark: [Jörmungandr High-level integration](https://github.com/input-output-hk/cardano-wallet/milestone/10)
+**Why:**
+  - Some level of compatibility with the current software is necessary to 
+    maintain the continuity between the old and new versions. Current users
+    except only minimal disruptions of their service as we add new features
+    to the software.
 
-### :heavy_check_mark: [Jörmungandr Integration Testing](https://github.com/input-output-hk/cardano-wallet/milestone/15)
+<p align=right><a href="#overview">top :arrow_heading_up:</a></p>
 
-### :heavy_check_mark: [Logging](https://github.com/input-output-hk/cardano-wallet/milestone/14)
+--- 
 
-### :heavy_check_mark: [Review Coin Selection](https://github.com/input-output-hk/cardano-wallet/milestone/18)
-</details>
+## :gift: (Haskell) `cardano-node` networking integration
 
----
+**When:** 
+  - High Priority
+  - Byron rewrite
 
-_items below are more-or-less prioritized_ 
+**Who:**
+  - High-level client applications using `cardano-node`  
 
----
+**What:** 
+  - Connect the wallet backend software to a `cardano-node` via the newly
+    designed mini-protocols (in particular, the "chain sync" and "transaction
+    submission" protocols). We want to illustrate the good functioning of 
+    the networking interface provided by the new Haskell nodes showing that
+    blocks can be downloaded to follow a blockchain maintained by a network
+    of Haskell `cardano-node`s.
 
-### Random Derivation Support
+Why:
+  - The wallet backend is the interface sitting between many client
+    applications and the cardano-node. This avoid a low-level integration for
+    client applications that want to deal with a Cardano blockchain but have
+    little knowledge of or desire to implement the low-level mini-protocols.
+    Therefore, a first step towards a fully integrated wallet backend with the
+    ability to retrieve blocks from a network full of `cardano-node`. Later,
+    additional functionalities can be added on top of this networking interface
+    to provide high-level features to client applications.
 
-- Finalize port of derivation for random addresses
-- Finalize port of discovery for random addresses
-- Extend API to support random wallet
+<p align=right><a href="#overview">top :arrow_heading_up:</a></p>
 
-### Integrating with cardano-node (Haskell)
+--- 
 
-- New network layer through unix domain socket
-- Port CLI & Integration tests
-- Resolve API and or core-types discrepancy 
-- Implement the transaction layer to serialize and sign transactions for the Haskell nodes.
-- Add a third executable target for our command-line, and have the ability to serve the wallet on top of a new Haskell node
+## :question: Transaction Input Resolution
 
-### Transaction History Index
+**When:** 
+  - Low Priority ?
+  - ?
 
-> When listing transactions, users expect to see the source address and amount used for each input of each transaction. Currently cardano-wallet is able to show address and amount for inputs of outgoing transaction, but not incoming transactions. For incoming transactions, it can only show a (TxId, Index) pair.
+**Who:** 
+  - Daedalus 
 
-- While restoring the wallet, the (TxId, Index) -> (Address, Amount) mapping should be cached so that it's possible to resolve addresses and amounts for incoming transactions.
-- The API must return addresses and amounts for each input of a transaction.
-- The API may also return (TxId, Index) values as extra information for each input of a transaction.
+**What:**
+  - Cardano is a UTxO-based blockchain. Therefore, transactions represents a mapping
+    between inputs and outputs, 
 
-### Finalize cross-compilation to windows
+    where **inputs** point to:
 
-We can cross-compile the CLI and source code to windows! Which is great but not sufficient. What we would ultimately need is a way to run our e2e tests and integration tests on windows, which is a hard problem. Because the tests are running fine on Linux and OSX, doesn't mean that the executable produced for windows will be fine too.
+      - A previous transaction id
+      - An output number of that transaction
 
-### Make Protocol Settings & Blockchain status Available
+    and **outputs** point to:
 
-- Current Slot Id, Slot Duration, Slot Count, security parameter, fee policy, maxTxSize
-- Can be hard-coded for now or retrieve from a config file, before implementing Ledger rules
-- Can be simply "mocked" in the meantime
-- Sync progress, blockchain height, localBlockchainHeight, localTimeInformation, subscriptionStatus
+      - An address
+      - An amount
 
-### Make Software Information Available
+    In practice, users want to know the `address` and `amount` corresponding to a 
+    particular transaction id and output number. We call this a "resolved input" as 
+    it requires to following a chain of transaction in order to resolve the actual 
+    values pointed by a transaction id and output number. 
 
-- Useful in the long-run, pretty useless for the testnet summit release
-- Software Information, Git Revision
-- Can be simply "mocked" in the meantime
+**Why:**
+  - Users think of transactions as funds moving between two addresses, very much like
+    it works in classic accounting. It makes mental representation easier.
+  - Having this done by the wallet backend makes the deployment and service management
+    easier, although in practice, we could imagine different solutions like a local
+    or remote explorer service, or simply a different UI (with deeplinks to an external
+    service for instance).
 
-### Handle Rollbacks
-
-- Handle rollbacks at the networking layer / db storage
-- Handle rollbacks within the wallet (cf Checkpoints)
-
-## Improvements to the CLI
-
-A few ideas to make the CLI better. It'd be nice to already get feedback on the existing one and see what people external to the project would have to say. A few ideas already:
-
- - if the passphrases don't match - prompt user to put them again twice
- - make wallet backend server introduce itself in the HTTP header server (and make CLI to check for that value and put some warning/error if it don't match)
- - `create wallet` wizard to be a whole responsive/prompt CLI
- - Improve error msg for `FromText AddressAmount`
- - Chose a better name for CLI option `transaction create`. Currently we use it to do all three steps: coin selection, sign, submit. See discussion https://github.com/input-output-hk/cardano-wallet/pull/225#discussion_r281454697
- - `Qualtity "lovelace" Natural` is used to parse number of lovelace/coins from CLI. This is defined in `FromText (Quantity sym b)` https://github.com/input-output-hk/cardano-wallet/pull/225/files/fff43a4e5a70ed93bf028217ebdc90429252be2d#diff-27d87fed0f151afbb3b4e829fb315ba3R107 . We might want to use more fine grained parser for coins and parse "20lovelace" and "20ada" differently (and do coin conversion autimatically) and default "20" to lovelace
- - Improve password validation in API and CLI which validate for strong passwords (passwords should have enough entropy)
-
-### List Available Staking Pools
-
-- A pool boils down to a (metadata --> 3-to-4-letter identifier) + public key
-- Having more metadata --> TODO ADD LINK TO JSON SCHEMA + Discussion with Vincent
-- We may associate the following metrics to a pool:
-    - Controlled stake (or % of distribution owned, approximately)
-    - number of slots successfully handled in the previous epoch
-
-### Join / Quit Staking Pools
-
-- Certificate keys derived from the wallet's private key (can use a level of
-  the BIP-44 derivation --> change level)
-- Publish certificate to the blockchain
-- Craft transaction using a staking key to register to a pool
-- Check Pool Status and sanity check to prevent user from making mistakes
-- Make Sure The Staking Status is available in the wallet representation
-
-### Externally-owned wallets & Fine-grained transaction manipulation
-
-- Manual coin selection
-- Off-band signing
-- Track of list of account or address public keys
-- Manual change address selection
-
-### Ada Redemption External Tools (?)
-
-- Dedicated certificate redemption standalone software 
-- Construct a redemption transaction and submit it to the chain
-- ADA are tracked in the wallet backend afterward, like any other blocks
-
-### Updates (?)
-
-- Support for software update API (proxying to underlying node's API for updates, if any)
-
-### Better Restoration Stress Benchmark
-
-Existing chain data doesn't necessarily include "extreme" cases that might occur in the future
-
-- Make data generators which set up transactions for wallets of various sizes.
-- Use the [weigh](https://www.fpcomplete.com/blog/2016/05/weigh-package) package to measure and display the GHC heap usage of test scenarios.
-- Figure out a way of generating semi-realistic transactions in blocks
-- Use a mock network layer to feed generated blocks to wallet layer
-- Set up a test case which checks heap usage after applying a certain number of transactions in a certain number of blocks.
-- Also measure how long it took to apply those blocks/transactions.
-- Automatically check benchmark results and compare them against some baseline with threshold
-
-
-### Better supervision of child processes in launcher
-
-Currently child processes (cardano-wallet-server and cardano-http-bridge) are
-not terminated when the parent cardano-wallet-launcher is terminated via
-SIGKILL signal (kill -9). We need to implement solution that will terminate the
-child processes when the parent process is killed via kill -9. The idea is to
-use shared socket. More details on [#75](https://github.com/input-output-hk/cardano-wallet/pull/75) 
-& [#77](https://github.com/input-output-hk/cardano-wallet/pull/77)
+<p align=right><a href="#overview">top :arrow_heading_up:</a></p>
 
 ---
 
-## Annexes
+## :gift: Wallet Backend on Windows
 
-<details>
-  <summary><strong>Reminder: What is a _Wallet_?</strong></summary>
+**When:**
+  - Low priority ?
+  - Byron rewrite
 
-  Cardano Wallets are represented by a cryptographic master private key which
-  allows deterministic and sequential derivation of child keys through
-  cryptographic computations.
+**Who:**
+  - Daedalus 
 
-  The master private key can be derived from a list of mnemonic words (see
-  [BIP-0039][BIP-0039]) and a password. New keys can be derived from the master
-  key forming a hierarchical tree structure of related keys (see
-  [BIP-0032][BIP-0032]). That tree structure is layered in various _paths_ with
-  particular purpose (see [BIP-0044][BIP-0044]).
+**What:**
+  - The wallet backend is a crucial piece of software in the Daedalus' pipeline which 
+    runs on the same host-machine as the frontend part that is Daedalus. Users running
+    on Windows therefore need the ability to run the wallet backend on their host system
+    (a.k.a Windows).
 
-  To every key, one can associate a corresponding Cardano address. Consequently,
-  keys can be used to verify whether an address _belongs_ to the wallet (as in,
-  comes from a key that can be derived from the master key).
-</details>
+**Why:**
+  - Many (most) users of Daedalus are running on Windows. Not being to run on
+    Windows means the inability for Windows users to run a local version of the
+    wallet software on their machine. This would be an important disruption of
+    the existing service. 
 
-<details>
-  <summary><strong>Available Rust Primitives</strong></summary>
+<p align=right><a href="#overview">top :arrow_heading_up:</a></p>
 
-  We could leverage some of the rust crypto primitives for a bunch of operation,
-  using Haskell's FFI with C bindings. Here's a list of the available primitives
-  in Rust:
+---
 
-  https://github.com/input-output-hk/rust-cardano/blob/master/cardano-c/cardano.h
-</details>
+## :gift: Wallet Backend on OSX
 
-<details>
-  <summary><strong>New Addresses In Shelley Era</strong></summary>
+**When:**
+  - Low priority ?
+  - Byron rewrite
 
-  Rust nodes will already be using a new addresses format which Shelley will also
-  use.  The specification for this address format is available here:
+**Who:**
+  - Daedalus 
 
-  https://github.com/input-output-hk/implementation-decisions/blob/master/text/0001-address.md
-</details>
+**What:**
+  - The wallet backend is a crucial piece of software in the Daedalus' pipeline which 
+    runs on the same host-machine as the frontend part that is Daedalus. Users running
+    on OSX therefore need the ability to run the wallet backend on their host system.
 
-<details>
-  <summary><strong>cardano-http-bridge</strong></summary>
+**Why:**
+  - Many users of Daedalus are running on OSX. Not being to run on OSX means
+    the inability for OSX users to run a local version of the wallet software
+    on their machine. This would be an important disruption of the existing
+    service. 
 
-  In the early phase, as an alternative to using a trusted Haskell node to
-  retrieve blocks through the diffusion layer, we could rely on the existing Rust
-  HTTP-Bridge which provides some useful API endpoints to efficiently retrieve
-  blocks (and epochs) from a Cardano network or submit transactions to it:
+<p align=right><a href="#overview">top :arrow_heading_up:</a></p>
 
-  https://github.com/input-output-hk/cardano-http-bridge
+--- 
 
-  For example:
+## :gift: Make protocol parameters available to clients
 
-  - `GET /:network/block/:blockid`
-  - `GET /:network/tip`
-  - `POST: /:network/txs/signed`
+**When:**
+  - Low Priority
+  - Byron rewrite
 
-  Later, when ready, we can switch over to use the Rust node API using a new
-  block format. But it allows us for an easy testing in the early phase.
-</details>
+**Who:**
+  - Daedalus
+  - High-level client applications 
 
-<details>
-  <summary><strong>prototype</strong></summary>
+**What:**
+  - The Cardano blockchain has a few parameters that are relevant for running
+    the consensus protocol, but also, for client applications dealing with the
+    blockchain. High-level clients like Daedalus are interested in consuming
+    these pieces of information directly from the wallet backend which should 
+    keep track of them and provide them on demand. In particular, Daedalus wants to know:
 
-  https://github.com/KtorZ/wallet-prototype
-</details>
+    - The current tip of the chain
+    - The current blockchain height (in number of slots)
+    - The "local" blockchain height (in number of slots). Said differently, 
+      the syncing status of the wallet software.
+    - The NTP drift of a local core node, in milliseconds, if available
+    - The software update availability
+
+**Why:**
+  - Depending on the client, some have an informative value, and some others
+    are necessary for the good functioning of the application. The wallet
+    backend already keeps track of a few of these details for its own. Beside,
+    keeping track of these requires a client to comprehend update proposals and
+    the initial genesis blocks. High-level client applications do not interact
+    directly with the network but prefer consuming these pieces of information
+    from the wallet backend.
+
+<p align=right><a href="#overview">top :arrow_heading_up:</a></p>
+
+---
+
+## :gift: Support Roll-backs
+
+**When:**
+  - Medium Priority
+  - Byron rewrite ?
+
+**Who:**
+  - Any client application using the wallet backend
+
+**What:**
+  - In a standard setup, it is very likely for a core node to roll-back (i.e.
+    rewind the chain to a previous point in time). This means that the wallet
+    backend must be able to correctly keep track of blocks, rolling backwards
+    when needed and not only append blocks to an existing chain. Doing so,
+    transactions that could have been inserted in recent blocks might become
+    pending again, and balances may change to reflect the chain after a
+    rollback.  Beside, we do not roll back to have a significant impact on the
+    software usability. Hence, most features should remain available during
+    rollbacks. Submitting transactions may be however forbidden during
+    rollbacks.
+
+**Why:**
+  - Although this doesn't occur in an perfect BFT setup where the network
+    connectivity between nodes would be 100% reliable, it can in practice
+    happens very rarely. In addition, rollbacks are a mechanism very frequent
+    in the Ouroboros-praos protocol which core nodes will implement soon. Not
+    handling rollbacks would force any user to purge the wallet database and
+    restart the software on every rollbacks. While this maybe _acceptable_ in a
+    federated era where all nodes are very much in our control, this is no
+    longer a possibility with a fully decentralized network, especially when
+    running Ouroboros-praos which may require rolling back every few seconds.
+
+<p align=right><a href="#overview">top :arrow_heading_up:</a></p>
+
+---
+
+## :question: Automatic Software Updates
+
+**When:**
+  - ??
+
+**Who:**
+  - Daedalus
+  - Non-technical users of the wallet backend
+
+**What:**
+  - In order update the wallet backend software, one currently has to either 
+    compile it from the sources, or, download a pre-compiled binary artefact 
+    from our release page. Instead, the wallet backend could receive updates
+    directly from the network and download its own new version automatically.
+
+**Why:**
+  - Having automatic software updates moves the update logic and complexity
+    from the users to the software itself. It is however unclear that the 
+    wallet backend would much benefit from this approach since it is now an
+    external
+
+<p align=right><a href="#overview">top :arrow_heading_up:</a></p>
+
+--- 
+
+## :gift: Friendlier Command-Line
+
+**When:**
+  - Low Priority
+
+**Who:** 
+  - Users of the wallet backend command-line
+  - Maintainers of the wallet backend
+
+**What:**
+  - While using the wallet backend command-line, we've observed a few points
+    that could be improved and made a bit more user-friendly:
+    - Prompt user again when passphrases don't match (instead of failing)
+    - Handshake CLI and Server to avoid sending request to another service by accident
+    - Find a better name for the command `transaction create` (which does
+      construction, signing and building)
+    - Improve error message when failing to parse a transaction amount
+    - Allow specifying units for coin values like `20lovelace` or `20ada`
+
+**Why:**
+  - The command-line interface is human-facing and should help both users and
+    developers to avoid mistakes and better understand errors. A nice and
+    polish software leads to less frustration and prevent from time loss
+    tracking down an issue because of a poor error reporting.
+  
+<p align=right><a href="#overview">top :arrow_heading_up:</a></p>
+
+--- 
+
+## :gift: Enforce Stronger Master Passphrases
+
+**When:**
+  - Low Priority
+
+**Who:**
+  - Users of the wallet backend (API & CLI)
+
+**What:**
+  - The wallet backend only enforces a particular minimal size for wallet
+    master passphrases. Instead, we would rather enforce strong and secure
+    passphrases following advices from the OWASP security guides, using
+    battle-tested algorithms like `zxcvbn` and a blacklist of popular
+    known passphrases. 
+
+**Why:**
+  - Users have a tendency to use very weak passphrases as their sole
+    protection.  Having the system requiring stronger passphrases forces
+    user to raise a bit their protection level. 
+
+<p align=right><a href="#overview">top :arrow_heading_up:</a></p>
+
+---
+
+## :gift: Join Stake Pools
+
+**When:**
+  - Low Priority
+  - Shelley
+
+**Who:**
+  - Client applications who wants to implement delegation features
+
+**What:**
+  - It should be possible for a wallet owner to delegate their funds to a
+    particular stake pool. We only consider full delegation / all-or-nothing
+    delegation at this stage. It's also not question about incentive or
+    rewards but boils down to providing capabilities to create, sign and 
+    register delegation certificates to a compatible network.
+  - A user wants to know whether one of his wallet, once restored, is delegating
+    funds to a pool or not.
+
+**Why:**
+  - Delegation is a central part of the decentralization era. "Standard users"
+    can't be expected to run their own pool and setup a full node for this
+    requires a specific technical expertise, resources and time. Instead, users
+    want the ability to delegate their fund to an existing operator running a
+    node.
+  - Having this done by the wallet backend seems reasonable since the wallet
+    already manages users' assets and have access to cryptographic materials
+    necessary to register to a stake pool.
+
+<p align=right><a href="#overview">top :arrow_heading_up:</a></p>
+
+---
+
+## :hammer: Quit Stake Pools
+
+**When:**
+  - Low Priority
+  - Shelley
+
+**Who:**
+  - Client applications who wants to implement delegation features
+
+**What:**
+  - Users that are delegating should have the ability to stop delegating. 
+    From the network point of view, there's no such thing as "quitting" a 
+    stake pool (to be confirmed?), but instead, users are free to delegate
+    to another party, might it be themselves. 
+  - TODO: story to clarify, it is unclear what's the expected feature
+
+**Why:**
+  - It should be as easy for users to stop participating into the delegation
+    protocol than it is for them to join in order to not "lock them up". 
+
+<p align=right><a href="#overview">top :arrow_heading_up:</a></p>
+
+---
+
+## :hammer: Listing Available Stake Pools
+
+**When:**
+  - Low Priority
+  - Shelley
+
+**Who:**
+  - Client applications who wants to implement delegation features
+
+**What:** 
+  - Users should be able to see which stake pools are currently registered on the 
+    network and have some metadata and metrics about these pools. In particular, we're
+    interested in knowing:
+      - A 3-4 (non-unique) letter identifier 
+      - The (approximate) controlled stake 
+      - The number of slots successfully handled in the previous epoch
+      - TODO: To clarify, a comparison _performance_ metric 
+  
+**Why:**
+  - Since a wallet would be providing ways to participate in the delegation, it
+    makes sense to locate associated feature quite nearby. This allows client
+    applications to build a more complete user interface using only the wallet
+    backend as a source of information.
+
+<p align=right><a href="#overview">top :arrow_heading_up:</a></p>
+
+---
+
+## :gift: Better Restoration Stress Benchmark
+
+**When:**
+  - Low Priority
+  - Byron Rewrite
+
+**Who:**
+  - Maintainers of the wallet backend
+
+**What:**
+  - Part of our nightly builds include restoring wallets on current testnet and
+    mainnet networks (powered by `cardano-http-bridge`). Yet, Existing chain
+    data doesn't necessarily include "extreme" cases that might occur in the
+    future. Therefore, we could make data generators to set up transactions for 
+    wallets of various sizes.
+
+  - Also, we currently only observe the heap usage of the software and export a 
+    visual artifact of an overall heap usage. Instead, we could use dedicated 
+    packages (`weigh`) to have more fine-grained measures and also, be able to 
+    construct automatic checks comparing against a baseline threshold. 
+
+**Why:**
+  - Benchmarks provide some necessary results to assess to good functioning of the 
+    software in real-life scenarios. 
+
+<p align=right><a href="#overview">top :arrow_heading_up:</a></p>
+
+
+---
+
+## :gift: Better Supervision Of Launcher's Child Processes
+
+**When:**
+  - Low Priority
+  - Byron Rewrite
+
+**Who:**
+  - Maintainers of the wallet backend
+  - Unix users of the wallet backend
+
+**What:**
+  - The `launch` command of the command-line currently spawns two child processes:
+    - An actual wallet server
+    - A corresponding backend node to talk to Yet, when the parent process is
+      terminate via a SIGKILL signal on UNIX, child processes aren't killed as
+      they're when using a SIGINT (ctrl-c). Ideally, we do want to properly
+      clean-up after the process receives a SIGKILL signal from the operating
+      system. More details on [#75](https://github.com/input-output-hk/cardano-wallet/pull/75) and [#77](https://github.com/input-output-hk/cardano-wallet/pull/77)
+
+**Why:**
+  - Unix users expect every sub-processes started by the system to be
+    cleaned-up when terminating a parent process. There's no way for a
+    particular application to "handle" a SIGKILL for it's the semantic of that
+    signal, but we can rely on OS-level functionality to make sure resources
+    are released properly and on-time.
+
+<p align=right><a href="#overview">top :arrow_heading_up:</a></p>
+
+
+---
+
+## :question: Fine Grained Transaction Manipulation
+
+**When:**
+  - Low Priority
+  - Byron Rewrite
+
+**Who:**
+  - Client applications doing key management themselves (e.g. implementing Ledger or Trezor support)
+
+**What:**
+  - The wallet backend does input selection, transaction signing and
+    transaction submission all in one-step. Users of the API should have the
+    ability to do any of these three steps independently (while still having
+    the ability to let the wallet backend do them itself as it does currently).
+
+  - Submitting a transaction shouldn't require any access to the wallet's root
+    private key.
+
+**Why:**
+  - Some users (e.g. big exchanges) do key management on their end and prefer
+    not to share the sensitive cryptographic materials with a third-party
+    software. This would also allow client applications to offload key
+    management to hardware wallets components like Ledger or Trezor.
+
+<p align=right><a href="#overview">top :arrow_heading_up:</a></p>
+
+
+---
+
+## :hammer: Pagination Of Transaction History 
+
+**When:**
+  - Low Priority
+  - Byron Rewrite
+
+**Who:**
+  - Client applications 
+
+**What:**
+  - The wallet backend provides the ability to fetch historical transactions
+    of a particular wallet. Users can order transactions and filter them
+    according to date ranges. Yet, it'd be ideal for a client application
+    to be able to browse a collection of transactions reliably by batches
+    of a fixed size. 
+  - TODO: What sort of interface does a client expect? 
+  - TODO: Is there really a need for this?
+
+**Why:**
+  - Using only ranges can be tricky for a client to build a reliable and 
+    efficient UI for showing a user all its transactions. Instead, having
+    a well-paginated system which makes fetching the history easy helps
+    building a much better user experience. 
+
+<p align=right><a href="#overview">top :arrow_heading_up:</a></p>
+
+
+---
+
+> **Legend**
+>
+> - :gift:: Confirmed story
+> - :question:: Unconfirmed story
+> - :hammer:: Partial story, more details are needed
