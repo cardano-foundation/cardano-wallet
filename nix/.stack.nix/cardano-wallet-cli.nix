@@ -45,10 +45,12 @@
             (hsPkgs.cardano-crypto)
             (hsPkgs.cardano-wallet-cli)
             (hsPkgs.cardano-wallet-core)
+            (hsPkgs.filepath)
             (hsPkgs.hspec)
             (hsPkgs.memory)
             (hsPkgs.optparse-applicative)
             (hsPkgs.QuickCheck)
+            (hsPkgs.temporary)
             (hsPkgs.text)
             (hsPkgs.text-class)
             ];
