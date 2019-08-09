@@ -820,7 +820,7 @@ newWalletLayer tracer bp db nw tl = do
         -- correct transactions, exclusively. Adding only `slotLength - 1` would
         -- make the range inclusive.
         recenter :: UTCTime -> UTCTime
-        recenter = addUTCTime (s - 1) where (SlotLength s) = slotLength
+        recenter = addUTCTime (pred s) where (SlotLength s) = slotLength
 
         -- This relies on DB.readTxHistory returning all necessary transactions
         -- to assemble coin selection information for outgoing payments.
