@@ -34,13 +34,12 @@ import Cardano.Wallet
 import Cardano.Wallet.DB.Sqlite
     ( PersistTx (..) )
 import Cardano.Wallet.HttpBridge.Binary
-    ( decodeAddressPayload
+    ( decodeAddressDerivationPath
+    , decodeAddressPayload
     , encodeDerivationPathAttr
     , encodeProtocolMagicAttr
     , encodeTx
     )
-import Cardano.Wallet.HttpBridge.Binary
-    ( decodeAddressDerivationPath )
 import Cardano.Wallet.HttpBridge.Environment
     ( KnownNetwork (..), Network (Mainnet, Testnet), protocolMagic )
 import Cardano.Wallet.Primitive.AddressDerivation

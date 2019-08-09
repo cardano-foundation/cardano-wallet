@@ -34,21 +34,17 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
     , XPrv
+    , fromMnemonic
     , publicKey
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( fromMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
     ( RndKey (..)
     , addrToPayload
-    , deriveAccountPrivateKey
-    , deriveAddressPrivateKey
     , deserialise
     , generateKeyFromSeed
     , minSeedLengthBytes
+    , unsafeGenerateKeyFromSeed
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
@@ -261,12 +257,9 @@ prop_derivedKeysAreOurs seed encPwd accIx addrIx rk' =
     isOurs address (RndState rootXPrv) === (True, RndState rootXPrv) .&&.
     isOurs address (RndState rk') === (False, RndState rk')
   where
+    key = publicKey $ unsafeGenerateKeyFromSeed (accIx, addrIx) seed encPwd
     rootXPrv = generateKeyFromSeed seed encPwd
-    accXPrv = deriveAccountPrivateKey encPwd rootXPrv accIx
-    addrXPrv = deriveAddressPrivateKey encPwd accXPrv addrIx
-    addrXPub = publicKey addrXPrv
-    address = keyToAddress @(HttpBridge n) addrXPub
-
+    address = keyToAddress @(HttpBridge n) key
 
 {-------------------------------------------------------------------------------
                     Instances
