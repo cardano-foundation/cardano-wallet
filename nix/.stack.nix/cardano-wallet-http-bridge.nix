@@ -30,7 +30,6 @@
           (hsPkgs.cborg)
           (hsPkgs.cryptonite)
           (hsPkgs.deepseq)
-          (hsPkgs.digest)
           (hsPkgs.either)
           (hsPkgs.exceptions)
           (hsPkgs.fmt)
