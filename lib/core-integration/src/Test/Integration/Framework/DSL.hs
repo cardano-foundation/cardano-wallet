@@ -86,6 +86,7 @@ module Test.Integration.Framework.DSL
     , shouldContainT
     , shouldNotContainT
     , for
+    , toQueryString
     , utcIso8601ToText
 
     -- * Endpoints

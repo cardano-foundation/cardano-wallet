@@ -12,10 +12,10 @@ module Test.Integration.Scenario.API.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiTxInput
-    , AddressAmount
+    ( AddressAmount
     , ApiFee
     , ApiTransaction
+    , ApiTxInput
     , ApiWallet
     , insertedAt
     , time
@@ -52,9 +52,9 @@ import Test.Integration.Framework.DSL
     , expectEventually'
     , expectFieldBetween
     , expectFieldEqual
-    , expectListSizeEqual
     , expectListItemFieldBetween
     , expectListItemFieldEqual
+    , expectListSizeEqual
     , expectResponseCode
     , expectSuccess
     , faucetAmt
@@ -62,24 +62,25 @@ import Test.Integration.Framework.DSL
     , feeEstimator
     , fixtureWallet
     , fixtureWalletWith
-    , getWalletEp
-    , insertedAtTime
-    , json
     , getFromResponse
     , getFromResponseList
+    , getWalletEp
+    , inputs
+    , insertedAtTime
+    , json
     , listAddresses
     , listAllTransactions
     , listTransactions
     , listTxEp
     , outputs
-    , inputs
     , postTxEp
     , postTxFeeEp
     , request
     , status
+    , toQueryString
+    , utcIso8601ToText
     , verify
     , walletId
-    , utcIso8601ToText
     )
 import Test.Integration.Framework.Request
     ( RequestException )
@@ -101,8 +102,6 @@ import Test.Integration.Framework.TestData
     , polishWalletName
     , wildcardsWalletName
     )
-import Web.HttpApiData
-    ( toQueryParam )
 
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
@@ -1053,6 +1052,7 @@ spec = do
         -- Verify Tx list contains Incoming and Outgoing
         r <- request @([ApiTransaction t]) ctx (listTxEp wSrc mempty)
             Default Empty
+        expectResponseCode @IO HTTP.status200 r
 
         -- Outgoing tx inputs and outpus size
         let outsOut = getFromResponseList 0 outputs r
@@ -1067,8 +1067,7 @@ spec = do
         length (insIn :: [ApiTxInput t]) `shouldBe` 1
 
         verify r
-            [ expectResponseCode @IO HTTP.status200
-            , expectListSizeEqual 2
+            [ expectListSizeEqual 2
             , expectListItemFieldEqual 0 direction Outgoing
             , expectListItemFieldBetween 0 amount (feeMin + 1, feeMax + 1)
             , expectListItemFieldEqual 0 status InLedger
@@ -1077,8 +1076,8 @@ spec = do
             , expectListItemFieldEqual 1 status InLedger
             ]
 
-    -- This scenario covers the following matrix of cases. Cases where generated
-    -- using one of parwise test cases generation tools available online.
+    -- This scenario covers the following matrix of cases. Cases were generated
+    -- using one of pairwise test cases generation tools available online.
     -- +----+----------+----------+------------+--------------+
     --     |  start   |   end    |   order    |    result    |
     -- +----+----------+----------+------------+--------------+
@@ -1098,117 +1097,123 @@ spec = do
     --  14 | empty    | edge     | empty      | 2 descending |
     --  15 | empty    | edge + 1 | ascending  | 2 ascending  |
     --  16 | empty    | edge - 1 | descending | 1st one      |
+    --  17 | t1       | t1       | empty      | 1st one      |
+    --  18 | t2       | t2       | descending | 2nd one      |
     -- +----+----------+----------+------------+--------------+
-    it "TRANS_LIST_02,03 - Can limit/order results with start, end and order" $ \ctx -> do
+    it "TRANS_LIST_02,03 - Can limit/order results with start, end and order"
+        $ \ctx -> do
         (_, w, [(t1, a1), (t2, a2)]) <- fixtureWalletManyTxs ctx [10,20]
-
-        let toParam = toQueryParam . utcIso8601ToText
         let matrix =
                 [
                 -- 1
-                  ( "?start="
-                    <> (toParam t1)
-                    <> "&end="
-                    <> (toParam t2)
-                    <> "&order=ascending"
+                  ( toQueryString
+                        [ ( "start", utcIso8601ToText t1)
+                        , ( "end", utcIso8601ToText t2 )
+                        , ( "order", "ascending" )
+                        ]
                   ,  [ expectListSizeEqual 2
                      , expectListItemFieldEqual 0 amount a1
                      , expectListItemFieldEqual 1 amount a2
                      ]
                   )
                 -- 2
-                , ( "?start="
-                    <> (toParam t1)
-                    <> "&end="
-                    <> (toParam $ addUTCTime 1 t2)
-                    <> "&order=descending"
+                , ( toQueryString
+                        [ ( "start", utcIso8601ToText t1)
+                        , ( "end", utcIso8601ToText $ plusOneSecond t2 )
+                        , ( "order", "descending" )
+                        ]
                   ,  [ expectListSizeEqual 2
                      , expectListItemFieldEqual 0 amount a2
                      , expectListItemFieldEqual 1 amount a1
                      ]
                   )
                 -- 3
-                , ( "?start="
-                    <> (toParam t1)
-                    <> "&end="
-                    <> (toParam $ addUTCTime (-1) t2)
+                , ( toQueryString
+                        [ ( "start", utcIso8601ToText t1)
+                        , ( "end", utcIso8601ToText $ minusOneSecond t2 )
+                        ]
                   ,  [ expectListSizeEqual 1
                      , expectListItemFieldEqual 0 amount a1
                      ]
                   )
                 -- 4
-                , ( "?start="
-                    <> (toParam t1)
+                , ( toQueryString
+                        [ ( "start", utcIso8601ToText t1) ]
                   ,  [ expectListSizeEqual 2
                       , expectListItemFieldEqual 0 amount a2
                       , expectListItemFieldEqual 1 amount a1
                       ]
                     )
                 -- 5
-                , ( "?start="
-                    <> (toParam $ addUTCTime 1 t1)
-                    <> "&end="
-                    <> (toParam $ addUTCTime 1 t2)
+                , ( toQueryString
+                        [ ( "start", utcIso8601ToText $ plusOneSecond t1)
+                        , ( "end", utcIso8601ToText $ plusOneSecond t2 )
+                        ]
                   ,  [ expectListSizeEqual 1
                      , expectListItemFieldEqual 0 amount a2
                      ]
                   )
                 -- 6
-                , ( "?start="
-                    <> (toParam $ addUTCTime 1 t1)
-                    <> "&end="
-                    <> (toParam $ addUTCTime (-1) t2)
+                , ( toQueryString
+                        [ ( "start", utcIso8601ToText $ plusOneSecond t1)
+                        , ( "end", utcIso8601ToText $ minusOneSecond t2 )
+                        ]
                   , [ expectListSizeEqual 0 ]
                   )
                 -- 7
-                , ( "?start="
-                    <> (toParam $ addUTCTime 1 t1)
-                    <> "&order=ascending"
+                , ( toQueryString
+                        [ ( "start", utcIso8601ToText $ plusOneSecond t1)
+                        , ( "order", "ascending" )
+                        ]
                   , [ expectListSizeEqual 1
                     , expectListItemFieldEqual 0 amount a2
                     ]
                   )
                 -- 8
-                , ( "?order=descending&start="
-                    <> (toParam $ addUTCTime 1 t1)
-                    <> "&end="
-                    <> (toParam t2)
+                , ( toQueryString
+                        [ ( "order", "descending")
+                        , ( "start", utcIso8601ToText $ plusOneSecond t1 )
+                        , ( "end", utcIso8601ToText t2)
+                        ]
                   , [ expectListSizeEqual 1
                     , expectListItemFieldEqual 0 amount a2
                     ]
                   )
                 -- 9
-                , ( "?order=ascending&start="
-                    <> (toParam $ addUTCTime (-1) t1)
-                    <> "&end="
-                    <> (toParam $ addUTCTime (-1) t2)
+                , ( toQueryString
+                        [ ( "order", "ascending")
+                        , ( "start", utcIso8601ToText $ minusOneSecond t1 )
+                        , ( "end", utcIso8601ToText $ minusOneSecond t2)
+                        ]
                   , [ expectListSizeEqual 1
                     , expectListItemFieldEqual 0 amount a1
                     ]
                   )
                 -- 10
-                , ( "?order=descending&start="
-                    <> (toParam $ addUTCTime (-1) t1)
+                , ( toQueryString
+                        [ ( "order", "descending")
+                        , ( "start", utcIso8601ToText $ minusOneSecond t1 )
+                        ]
                   , [ expectListSizeEqual 2
                     , expectListItemFieldEqual 0 amount a2
                     , expectListItemFieldEqual 1 amount a1
                     ]
                   )
                 -- 11
-                , ( "?start="
-                    <> (toParam $ addUTCTime (-1) t1)
-                    <> "&end="
-                    <> (toParam t2)
+                , ( toQueryString
+                        [ ( "start", utcIso8601ToText $ minusOneSecond t1 )
+                        , ( "end", utcIso8601ToText t2)
+                        ]
                   , [ expectListSizeEqual 2
                     , expectListItemFieldEqual 0 amount a2
                     , expectListItemFieldEqual 1 amount a1
                     ]
                   )
                 -- 12
-                , ( "?start="
-                    <> (toParam $ addUTCTime (-1) t1)
-                    <> "&end="
-                    <> (toParam $ addUTCTime 1 t2)
+                , ( toQueryString
+                        [ ( "start", utcIso8601ToText $ minusOneSecond t1 )
+                        , ( "end", utcIso8601ToText $ plusOneSecond t2)
+                        ]
                   , [ expectListSizeEqual 2
                     , expectListItemFieldEqual 0 amount a2
                     , expectListItemFieldEqual 1 amount a1
@@ -1222,28 +1227,47 @@ spec = do
                     ]
                   )
                 -- 14
-                , ( "?end="
-                    <> (toParam t2)
+                , ( toQueryString
+                        [ ( "end", utcIso8601ToText t2) ]
                   , [ expectListSizeEqual 2
                     , expectListItemFieldEqual 0 amount a2
                     , expectListItemFieldEqual 1 amount a1
                     ]
                   )
                 -- 15
-                , ( "?end="
-                    <> (toParam $ addUTCTime 1 t2)
+                , ( toQueryString
+                        [ ( "end", utcIso8601ToText $ plusOneSecond t2) ]
                   , [ expectListSizeEqual 2
                     , expectListItemFieldEqual 0 amount a2
                     , expectListItemFieldEqual 1 amount a1
                     ]
                   )
                 -- 16
-                , ( "?end="
-                    <> (toParam $ addUTCTime (-1) t2)
+                , ( toQueryString
+                        [ ( "end", utcIso8601ToText $ minusOneSecond t2) ]
                   , [ expectListSizeEqual 1
                     , expectListItemFieldEqual 0 amount a1
                     ]
                   )
+                -- 17
+                , ( toQueryString
+                        [ ( "start", utcIso8601ToText t1 )
+                        , ( "end", utcIso8601ToText t1)
+                        ]
+                  , [ expectListSizeEqual 1
+                    , expectListItemFieldEqual 0 amount a1
+                    ]
+                  )
+                -- 18
+                , ( toQueryString
+                        [ ( "start", utcIso8601ToText t2 )
+                        , ( "end", utcIso8601ToText t2)
+                        , ( "order", "descending")
+                        ]
+                  , [ expectListSizeEqual 1
+                    , expectListItemFieldEqual 0 amount a2
+                    ]
+                )
                 ]
 
         forM_ matrix $ \(query, expectations) -> do
@@ -1257,46 +1281,57 @@ spec = do
         let startEndErr = "Expecting ISO 8601 date-and-time format\
             \ (basic or extended), e.g. 2012-09-25T10:15:00Z."
         let queries =
-                  [ ( "?start=2009"
+                  [ ( toQueryString [ ("start", "2009") ]
                     , [ expectResponseCode @IO HTTP.status400
                       , expectErrorMessage startEndErr
                       ]
                     )
                   ,
-                    ( "?start=2012-09-25T10:15:00Z&end=2016-11-21"
+                    ( toQueryString
+                            [ ("start", "2012-09-25T10:15:00Z")
+                            , ("end", "2016-11-21")
+                            ]
                     , [ expectResponseCode @IO HTTP.status400
                       , expectErrorMessage startEndErr
                       ]
                     )
                   ,
-                    ( "?start=2012-09-25&start=2016-11-21T10:15:00Z"
+                    ( toQueryString
+                            [ ("start", "2012-09-25")
+                            , ("end", "2016-11-21T10:15:00Z")
+                            ]
                     , [ expectResponseCode @IO HTTP.status400
                       , expectErrorMessage startEndErr
                       ]
                     )
                   ,
-                    ( "?end=2012-09-25T10:15:00Z&start=2016-11-21"
+                    ( toQueryString
+                            [ ("end", "2012-09-25T10:15:00Z")
+                            , ("start", "2016-11-21")
+                            ]
                     , [ expectResponseCode @IO HTTP.status400
                       , expectErrorMessage startEndErr
                       ]
                     )
                   ,
-                    ( "?order=scending"
+                    ( toQueryString [ ("order", "scending") ]
                     , [ expectResponseCode @IO HTTP.status400
                       , expectErrorMessage orderErr
                       ]
                     )
                   ,
-                    ( "?start=2012-09-25T10:15:00Z&order=asc"
+                    ( toQueryString
+                            [ ("start", "2012-09-25T10:15:00Z")
+                            , ("order", "asc")
+                            ]
                     , [ expectResponseCode @IO HTTP.status400
                       , expectErrorMessage orderErr
                       ]
                     )
                   ]
-        forM_ queries $ \(q, expects) -> it q $ \ctx -> do
+        forM_ queries $ \(q, expects) -> it (T.unpack q) $ \ctx -> do
             w <- emptyWallet ctx
-            let query = T.pack q
-            r <- request @([ApiTransaction t]) ctx (listTxEp w query)
+            r <- request @([ApiTransaction t]) ctx (listTxEp w q)
                 Default Empty
             verify r expects
 
@@ -1305,11 +1340,10 @@ spec = do
               w <- emptyWallet ctx
               let startTime = "2009-09-09T09:09:09Z"
               let endTime = "2001-01-01T01:01:01Z"
-              let query = mempty
-                      <> "?start="
-                      <> (toQueryParam startTime)
-                      <> "&end="
-                      <> (toQueryParam endTime)
+              let query = toQueryString
+                      [ ("start", T.pack startTime)
+                      , ("end", T.pack endTime)
+                      ]
               r <- request @([ApiTransaction t]) ctx (listTxEp w query)
                   Default Empty
               expectResponseCode @IO HTTP.status400 r
@@ -1554,6 +1588,10 @@ spec = do
             }|]
         return (wSrc, payload)
 
+    plusOneSecond, minusOneSecond :: UTCTime -> UTCTime
+    plusOneSecond = addUTCTime 1
+    minusOneSecond = addUTCTime (-1)
+
     fixtureWalletManyTxs
       :: Context t
       -> [Natural]
@@ -1589,6 +1627,8 @@ spec = do
         r <- request @([ApiTransaction t]) ctx (listTxEp wDest "?order=ascending")
             Default Empty
         let indexes = [0..(length txAmounts - 1)]
-        let txTimes = map (\x -> fromJust $ getFromResponseList x insertedAtTime r) indexes
+        let txTimes = map
+                (\x -> fromJust $ getFromResponseList x insertedAtTime r)
+                indexes
         let wDestTxList = zip txTimes txAmounts
         return (wSrc, wDest, wDestTxList)
