@@ -75,7 +75,7 @@ base58:
 ```
 
 In this representation, bytes are in a structured format called [CBOR](https://tools.ietf.org/html/rfc7049).
-Some bytes are actually tags with carry a particular semantic, and some are values.
+Some bytes are actually tags which carry a particular semantic, and some are values.
 We can re-shuffle the bytes as follows to make things a bit clearer:
 
 ```
@@ -125,7 +125,7 @@ base58:
 ```
 
 In this representation, bytes are in a structured format called [CBOR](https://tools.ietf.org/html/rfc7049).
-Some bytes are actually tags with carry a particular semantic, and some are values.
+Some bytes are actually tags which carry a particular semantic, and some are values.
 We can re-shuffle the bytes as follows to make things a bit clearer:
 
 ```
