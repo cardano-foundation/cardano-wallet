@@ -40,6 +40,7 @@ module Test.Integration.Framework.DSL
     , expectCliFieldBetween
     , expectCliFieldEqual
     , expectCliFieldNotEqual
+    , expectCliListItemFieldBetween
     , expectCliListItemFieldEqual
     , expectWalletUTxO
     , verify
@@ -77,6 +78,7 @@ module Test.Integration.Framework.DSL
     , listAllTransactions
     , tearDown
     , fixtureWallet
+    , fixtureWalletManyTxs
     , fixtureWalletWith
     , faucetAmt
     , faucetUtxoAmt
@@ -518,6 +520,19 @@ expectCliFieldBetween getter (aMin, aMax) s = case view getter s of
             _ ->
                 return ()
 
+expectCliListItemFieldBetween
+    :: (MonadIO m, MonadFail m, Show a, Eq a, Ord a)
+    => Int
+    -> Lens' s a
+    -> (a, a)
+    -> [s]
+    -> m ()
+expectCliListItemFieldBetween i getter (aMin, aMax) xs
+        | length xs > i = expectCliFieldBetween getter (aMin, aMax) (xs !! i)
+        | otherwise = fail $
+            "expectCliListItemFieldBetween: trying to access the #" <> show i <>
+            " element from a list but there's none! "
+
 expectCliFieldEqual
     :: (MonadIO m, Show a, Eq a)
     => Lens' s a
@@ -824,6 +839,55 @@ fixtureWalletWith ctx coins0 = do
             >>= expectResponseCode HTTP.status202
         expectEventually' ctx balanceAvailable (sum (balance:coins)) dest
         expectEventuallyL ctx balanceAvailable balanceTotal src
+
+-- | fixtureWallets (src, dest) with many transactions
+-- additionally for dest wallet the list of txs [(txTime, txAmt)] is returned
+fixtureWalletManyTxs
+  :: forall t. (EncodeAddress t, DecodeAddress t)
+  => Context t
+  -> [Natural]
+  -- ^ List of tx amounts
+  -> IO (ApiWallet, ApiWallet, [(UTCTime, Natural)])
+  -- ^ (wSrc, wDest, wDestTxList)
+fixtureWalletManyTxs ctx txAmounts = do
+    (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+    addrs <- listAddresses ctx wDest
+
+    forM_ txAmounts $ \amt -> do
+        let destination = (addrs !! 1) ^. #id
+        let payload = Json [aesonQQ|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": "cardano-wallet"
+            }|]
+
+        rg <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
+        let balAv = getFromResponse balanceAvailable rg
+        let balTot = getFromResponse balanceTotal rg
+
+        request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+          >>= expectResponseCode HTTP.status202
+        expectEventually' ctx balanceAvailable (amt + balAv) wDest
+        expectEventually' ctx balanceTotal (amt + balTot) wDest
+
+    expectEventually' ctx balanceAvailable (sum txAmounts) wDest
+    expectEventually' ctx balanceTotal (sum txAmounts) wDest
+    r <- request @([ApiTransaction t]) ctx (listTxEp wDest "?order=ascending")
+        Default Empty
+    let indexes = [0..(length txAmounts - 1)]
+    let txTime x = fromMaybe
+            (error $ "Cannot get tx time from the tx list in position = " ++ show x )
+            (getFromResponseList x insertedAtTime r)
+    let txTimes = map
+            txTime
+            indexes
+    let wDestTxList = zip txTimes txAmounts
+    return (wSrc, wDest, wDestTxList)
 
 -- | Total amount on each faucet wallet
 faucetAmt :: Natural

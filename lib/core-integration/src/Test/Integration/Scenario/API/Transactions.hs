@@ -49,7 +49,6 @@ import Test.Integration.Framework.DSL
     , emptyWallet
     , expectErrorMessage
     , expectEventually
-    , expectEventually'
     , expectFieldBetween
     , expectFieldEqual
     , expectListItemFieldBetween
@@ -61,12 +60,11 @@ import Test.Integration.Framework.DSL
     , faucetUtxoAmt
     , feeEstimator
     , fixtureWallet
+    , fixtureWalletManyTxs
     , fixtureWalletWith
-    , getFromResponse
     , getFromResponseList
     , getWalletEp
     , inputs
-    , insertedAtTime
     , json
     , listAddresses
     , listAllTransactions
@@ -1591,44 +1589,3 @@ spec = do
     plusOneSecond, minusOneSecond :: UTCTime -> UTCTime
     plusOneSecond = addUTCTime 1
     minusOneSecond = addUTCTime (-1)
-
-    fixtureWalletManyTxs
-      :: Context t
-      -> [Natural]
-      -> IO (ApiWallet, ApiWallet, [(UTCTime, Natural)])
-    fixtureWalletManyTxs ctx txAmounts = do
-        (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        addrs <- listAddresses ctx wDest
-
-        forM_ txAmounts $ \amt -> do
-            let destination = (addrs !! 1) ^. #id
-            let payload = Json [json|{
-                    "payments": [{
-                        "address": #{destination},
-                        "amount": {
-                            "quantity": #{amt},
-                            "unit": "lovelace"
-                        }
-                    }],
-                    "passphrase": "cardano-wallet"
-                }|]
-
-            rg <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
-            let balAv = getFromResponse balanceAvailable rg
-            let balTot = getFromResponse balanceTotal rg
-
-            request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
-              >>= expectResponseCode HTTP.status202
-            expectEventually' ctx balanceAvailable (amt + balAv) wDest
-            expectEventually' ctx balanceTotal (amt + balTot) wDest
-
-        expectEventually' ctx balanceAvailable (sum txAmounts) wDest
-        expectEventually' ctx balanceTotal (sum txAmounts) wDest
-        r <- request @([ApiTransaction t]) ctx (listTxEp wDest "?order=ascending")
-            Default Empty
-        let indexes = [0..(length txAmounts - 1)]
-        let txTimes = map
-                (\x -> fromJust $ getFromResponseList x insertedAtTime r)
-                indexes
-        let wDestTxList = zip txTimes txAmounts
-        return (wSrc, wDest, wDestTxList)
