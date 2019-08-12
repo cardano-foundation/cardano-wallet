@@ -51,6 +51,9 @@ newtype RndState = RndState { getRndState :: RndKey 'RootK XPrv }
 
 instance NFData RndState
 
+-- An address is considered to belong to the 'RndState' wallet if it can be decoded
+-- as a Byron HD random address, and where the wallet key can be used to decrypt
+-- the address derivation path.
 instance IsOurs RndState where
     isOurs (Address addr) st@(RndState key) = (isJust path, st)
       where

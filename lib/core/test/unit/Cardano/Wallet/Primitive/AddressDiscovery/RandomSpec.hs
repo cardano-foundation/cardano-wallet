@@ -166,20 +166,12 @@ arbitraryMnemonic =
     [ "price", "whip", "bottom", "execute", "resist", "library"
     , "entire", "purse", "assist", "clock", "still", "noble" ]
 
--- A different arbitrary mnemonic sentence for the tests.
-anotherMnemonic :: [Text]
-anotherMnemonic =
-    [ "toss", "reunion", "lunar", "pilot", "direct", "chicken"
-    , "give", "total", "future", "wrap", "sunny", "ostrich" ]
-
 checkIsOurs :: CheckIsOursTest -> Expectation
 checkIsOurs CheckIsOursTest{..} = do
     fst (isOurs addr' rndState) `shouldBe` expected
-    fst (isOurs addr' rndStateWrong) `shouldBe` False
   where
     Right addr' = Address <$> convertFromBase Base16 addr
     rndState = rndStateFromMnem arbitraryMnemonic
-    rndStateWrong = rndStateFromMnem anotherMnemonic
 
 rndStateFromMnem :: [Text] -> RndState
 rndStateFromMnem mnem = RndState rootXPrv
