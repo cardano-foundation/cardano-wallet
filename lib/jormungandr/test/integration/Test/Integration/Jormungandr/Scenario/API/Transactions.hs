@@ -12,7 +12,7 @@ module Test.Integration.Jormungandr.Scenario.API.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiFee, ApiTransaction )
+    ( ApiFee, ApiTransaction (..) )
 import Cardano.Wallet.Primitive.Types
     ( DecodeAddress (..), EncodeAddress (..) )
 import Control.Monad
@@ -22,7 +22,7 @@ import Data.Generics.Internal.VL.Lens
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, it )
+    ( SpecWith, describe, it, shouldBe, shouldSatisfy )
 import Test.Integration.Framework.DSL
     ( Context
     , Headers (..)
@@ -35,6 +35,7 @@ import Test.Integration.Framework.DSL
     , for
     , json
     , listAddresses
+    , listAllTransactions
     , postTxEp
     , postTxFeeEp
     , request
@@ -68,6 +69,11 @@ spec = do
         (wSrc, payload) <- fixtureZeroAmtMulti ctx
         r <- request @ApiFee ctx (postTxFeeEp wSrc) Default payload
         expectResponseCode HTTP.status202 r
+
+    it "TRANS_LIST_?? - List transactions of a fixture wallet" $ \ctx -> do
+        txs <- fixtureWallet ctx >>= listAllTransactions ctx
+        length txs `shouldBe` 10
+        txs `shouldSatisfy` all (null . inputs)
 
     describe "TRANS_CREATE_10, TRANS_ESTIMATE_10 - \
         \Cannot post tx/fee when max tx size reached" $ do
