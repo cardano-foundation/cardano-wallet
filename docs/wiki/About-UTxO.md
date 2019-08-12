@@ -102,19 +102,19 @@ participant.
 
   In a very simple system that would only support payment transactions, public key
   could be substituted for addresses. In practice, addresses are meant to hold some
-  extra pieces of information that are useful for other aspect of the protocol.
-  For instance, in Cardano in the Shelley era, addresses also contains:
+  extra pieces of information that are useful for other aspects of the protocol.
+  For instance, in Cardano in the Shelley era, addresses may also contain:
 
   - A network discriminant tag, to distinguish addresses between a testNet and the
     MainNet and avoid unfortunate mistakes.
 
   - A stake reference to take part in delegation.
 
-  Addresses may also be used to trigger smart contracts, in which case, they'll rather
-  refer to a hash of particular script rather than a public key. 
+  Addresses may also be used to trigger smart contracts, in which case, they'll
+  refer to a particular script rather than a public key. 
 
   In a nutshell, a public key is a piece of information that enables a stakeholder to
-  prove he owns a particular UTxO. An address is a data-structure which contain various
+  prove one owns a particular UTxO. Whereas an address is a data-structure which contain various
   pieces of information, for example, a (reference to a) public key. 
 </details>
 
