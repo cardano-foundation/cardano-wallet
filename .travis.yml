@@ -84,7 +84,16 @@ jobs:
   #
   ################################################################################
   - stage: build project 🔨
-    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
+    if: (type = pull_request OR (branch IN (bors/staging, bors/trying))) AND (commit_message =~ /Travis-CI-Disable/)
+    name: "Diff Control"
+    script:
+    # Fails if there's any source file modified.
+    - git diff $(git merge-base master HEAD) HEAD --stat --exit-code -- --path "*.hs"
+    - git diff $(git merge-base master HEAD) HEAD --stat --exit-code -- --path "*.js"
+    - git diff $(git merge-base master HEAD) HEAD --stat --exit-code -- --path "specifications/*"
+
+  - stage: build project 🔨
+    if: (type = pull_request OR (branch IN (bors/staging, bors/trying))) AND NOT (commit_message =~ /Travis-CI-Disable/)
     name: "Compiling Project"
     script:
     - stack clean
@@ -92,7 +101,7 @@ jobs:
     - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
 
   - stage: checks 🔬
-    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
+    if: (type = pull_request OR (branch IN (bors/staging, bors/trying))) AND NOT (commit_message =~ /Travis-CI-Disable/)
     name: "Code Style"
     script:
     - travis_retry curl -sSL https://raw.github.com/jaspervdj/stylish-haskell/master/scripts/latest.sh | sh -s $(find . -type f -name "*.hs" ! -path "*.stack-work*") -i
@@ -109,20 +118,20 @@ jobs:
     - cd -
 
   - stage: checks 🔬
-    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
+    if: (type = pull_request OR (branch IN (bors/staging, bors/trying))) AND NOT (commit_message =~ /Travis-CI-Disable/)
     name: "Tests: unit"
     script:
       - stack --no-terminal test --fast cardano-wallet-core cardano-wallet-launcher cardano-wallet-cli text-class bech32 cardano-wallet-http-bridge:unit cardano-wallet-jormungandr:unit
 
   - stage: checks 🔬
-    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
+    if: (type = pull_request OR (branch IN (bors/staging, bors/trying))) AND NOT (commit_message =~ /Travis-CI-Disable/)
     name: "Tests: integration (http-bridge)"
     script:
     - travis_retry curl -L https://github.com/KtorZ/cardano-http-bridge/releases/download/v0.0.5/hermes-testnet.tar.gz | tar xz -C $HOME
     - stack --no-terminal test --fast cardano-wallet-http-bridge:integration --ta "--skip PR_DISABLED"
 
   - stage: checks 🔬
-    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
+    if: (type = pull_request OR (branch IN (bors/staging, bors/trying))) AND NOT (commit_message =~ /Travis-CI-Disable/)
     name: "Tests: integration (jormungandr)"
     script:
       - stack --no-terminal test --fast cardano-wallet-jormungandr:integration --ta "--skip PR_DISABLED"
