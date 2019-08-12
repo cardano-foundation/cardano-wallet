@@ -15,9 +15,7 @@ module Test.Utils.Time
 import Prelude
 
 import Data.Time
-    ( Day (ModifiedJulianDay), DiffTime, UTCTime (..) )
-import Data.Time.Clock
-    ( picosecondsToDiffTime, secondsToDiffTime )
+    ( Day (ModifiedJulianDay), NominalDiffTime, UTCTime (..), addUTCTime )
 import Test.QuickCheck
     ( Arbitrary, Gen, arbitrary, choose, oneof )
 
@@ -36,23 +34,23 @@ instance Arbitrary UniformTime where
 genUniformTime :: Gen UTCTime
 genUniformTime = oneof
     [ genWith
-        hoursToDiffTime
+        hoursToNominalDiffTime
         hoursInOneDay
     , genWith
-        secondsToDiffTime
+        secondsToNominalDiffTime
         secondsInOneDay
     , genWith
-        picosecondsToDiffTime
+        picosecondsToNominalDiffTime
         picosecondsInOneDay
     ]
   where
-    genWith :: (Integer -> DiffTime) -> Integer -> Gen UTCTime
-    genWith unitsToDiffTime unitsInOneDay = do
+    genWith :: (Integer -> NominalDiffTime) -> Integer -> Gen UTCTime
+    genWith unitsToNominalDiffTime unitsInOneDay = do
         numberOfDays <- ModifiedJulianDay
             <$> choose (0, daysInOneThousandYears)
-        timeSinceMidnight <- unitsToDiffTime
+        timeSinceMidnight <- unitsToNominalDiffTime
             <$> choose (0, unitsInOneDay)
-        pure $ UTCTime numberOfDays timeSinceMidnight
+        pure $ addUTCTime timeSinceMidnight (UTCTime numberOfDays 0)
 
 -- | The approximate number of days in one thousand years.
 daysInOneThousandYears :: Integral a => a
@@ -78,7 +76,14 @@ secondsInOneDay = (secondsInOneHour * hoursInOneDay) + 1
 secondsInOneHour :: Integral a => a
 secondsInOneHour = 60 * 60
 
--- | Convert a number of hours into a 'DiffTime' value.
-hoursToDiffTime :: Integral a => a -> DiffTime
-hoursToDiffTime hours =
-    secondsToDiffTime (secondsInOneHour * fromIntegral hours)
+-- | Convert a number of hours into a 'NominalDiffTime' value.
+hoursToNominalDiffTime :: Integral a => a -> NominalDiffTime
+hoursToNominalDiffTime = fromIntegral . (secondsInOneHour *)
+
+-- | Convert a number of picoseconds into a 'NominalDiffTime' value.
+picosecondsToNominalDiffTime :: Integral a => a -> NominalDiffTime
+picosecondsToNominalDiffTime = toEnum . fromIntegral
+
+-- | Convert a number of seconds into a 'NominalDiffTime' value.
+secondsToNominalDiffTime :: Integral a => a -> NominalDiffTime
+secondsToNominalDiffTime = fromIntegral
