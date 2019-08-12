@@ -46,6 +46,7 @@ in {
       cardano-wallet-core-integration
       cardano-wallet-http-bridge
       cardano-wallet-jormungandr
+      cardano-wallet-shelley
       cardano-wallet-test-utils
       bech32
       text-class

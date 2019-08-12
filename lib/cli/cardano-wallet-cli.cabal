@@ -71,10 +71,12 @@ test-suite unit
     , cardano-crypto
     , cardano-wallet-cli
     , cardano-wallet-core
+    , filepath
     , hspec
     , memory
     , optparse-applicative
     , QuickCheck
+    , temporary
     , text
     , text-class
   build-tools:

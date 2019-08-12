@@ -48,8 +48,12 @@ import Data.Text.Class
     ( FromText (..), TextDecodingError (..), toText )
 import Options.Applicative
     ( ParserResult (..), columns, execParserPure, prefs, renderFailure )
+import System.FilePath
+    ( (</>) )
 import System.IO
     ( Handle, IOMode (..), hClose, openFile )
+import System.IO.Temp
+    ( withSystemTempDirectory )
 import Test.Hspec
     ( Spec, describe, it, shouldBe )
 import Test.QuickCheck
@@ -401,25 +405,26 @@ test
         )
     -> GetLineTest a
     -> IO ()
-test fn (GetLineTest prompt_ input_ output expected) = do
-    -- Setup
-    let fstdin = "/tmp/cardano-wallet-cli-stdin"
-    let fstdout = "/tmp/cardano-wallet-cli-stdout"
-    TIO.writeFile fstdin input_ *> writeFile fstdout mempty
-    stdin <- openFile fstdin ReadWriteMode
-    stdout <- openFile fstdout ReadWriteMode
+test fn (GetLineTest prompt_ input_ output expected) =
+    withSystemTempDirectory "cardano-wallet-cli" $ \dir -> do
+        -- Setup
+        let fstdin = dir </> "stdin"
+        let fstdout = dir </> "stdout"
+        TIO.writeFile fstdin input_ *> writeFile fstdout mempty
+        stdin <- openFile fstdin ReadWriteMode
+        stdout <- openFile fstdout ReadWriteMode
 
-    -- Action
-    mvar <- newEmptyMVar
-    let action = fn (stdin, stdout) prompt_ fromText
-    _ <- forkFinally action (handler mvar)
-    res <- takeMVar mvar
-    hClose stdin *> hClose stdout
-    content <- TIO.readFile fstdout
+        -- Action
+        mvar <- newEmptyMVar
+        let action = fn (stdin, stdout) prompt_ fromText
+        _ <- forkFinally action (handler mvar)
+        res <- takeMVar mvar
+        hClose stdin *> hClose stdout
+        content <- TIO.readFile fstdout
 
-    -- Expectations
-    (fst <$> res) `shouldBe` Just expected
-    content `shouldBe` output
+        -- Expectations
+        (fst <$> res) `shouldBe` Just expected
+        content `shouldBe` output
   where
     handler mvar = \case
         Left _ ->

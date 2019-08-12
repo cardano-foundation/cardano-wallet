@@ -31,10 +31,13 @@ let
       {
         packages.cardano-wallet.src = src;
         packages.cardano-wallet-core.src = src + /lib/core;
+        packages.cardano-wallet-core-integration.src = src + /lib/core-integration;
         packages.cardano-wallet-cli.src = src + /lib/cli;
         packages.cardano-wallet-launcher.src = src + /lib/launcher;
         packages.cardano-wallet-http-bridge.src = src + /lib/http-bridge;
         packages.cardano-wallet-jormungandr.src = src + /lib/jormungandr;
+        packages.cardano-wallet-shelley.src = src + /lib/shelley;
+        packages.cardano-wallet-test-utils.src = src + /lib/test-utils;
         packages.text-class.src = src + /lib/text-class;
         packages.bech32.src = src + /lib/bech32;
       }
