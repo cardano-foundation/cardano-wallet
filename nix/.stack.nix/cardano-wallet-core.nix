@@ -123,6 +123,7 @@
             (hsPkgs.bytestring)
             (hsPkgs.cardano-crypto)
             (hsPkgs.cardano-wallet-core)
+            (hsPkgs.cborg)
             (hsPkgs.containers)
             (hsPkgs.criterion)
             (hsPkgs.cryptonite)

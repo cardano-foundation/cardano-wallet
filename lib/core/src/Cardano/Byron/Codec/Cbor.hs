@@ -45,6 +45,7 @@ module Cardano.Byron.Codec.Cbor
     , encodeTxWitness
 
     -- * Helpers
+    , deserialiseCbor
     , inspectNextToken
     , decodeList
     , decodeListIndef
@@ -82,6 +83,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Digest.CRC32
     ( crc32 )
+import Data.Either.Extra
+    ( eitherToMaybe )
 import Data.Word
     ( Word16, Word64, Word8 )
 import Debug.Trace
@@ -861,3 +864,11 @@ decodeNestedBytes dec bytes =
             fail "Leftovers when decoding nested bytes"
         _ ->
             fail "Could not decode nested bytes"
+
+-- | Shortcut for deserialising a strict 'Bytestring' with the given decoder.
+deserialiseCbor
+    :: (forall s. CBOR.Decoder s a)
+    -> ByteString
+    -> Maybe a
+deserialiseCbor dec =
+    fmap snd . eitherToMaybe . CBOR.deserialiseFromBytes dec . BL.fromStrict

@@ -23,6 +23,7 @@ import Cardano.Byron.Codec.Cbor
     , decodeSignedTx
     , decodeTx
     , decodeTxWitness
+    , deserialiseCbor
     , encodeAttributes
     , encodeDerivationPathAttr
     , encodeSignedTx
@@ -245,21 +246,14 @@ arbitraryMnemonic =
 
 decodeDerivationPathTest :: DecodeDerivationPath -> Expectation
 decodeDerivationPathTest DecodeDerivationPath{..} =
-    decoded `shouldBe` Right (Just (Index accIndex, Index addrIndex))
+    decoded `shouldBe` Just (Just (Index accIndex, Index addrIndex))
   where
     payload = unsafeDeserialiseCbor decodeAddressPayload $
         BL.fromStrict (unsafeFromHex addr)
-    decoded = deserialise (decodeAddressDerivationPath pwd) payload
+    decoded = deserialiseCbor (decodeAddressDerivationPath pwd) payload
     Right seed = fromMnemonic @'[12] mnem
     key = generateKeyFromSeed seed mempty
     pwd = payloadPassphrase key
-
-deserialise
-    :: (forall s. CBOR.Decoder s a)
-    -> ByteString
-    -> Either CBOR.DeserialiseFailure a
-deserialise dec =
-    fmap snd . CBOR.deserialiseFromBytes dec . BL.fromStrict
 
 {-------------------------------------------------------------------------------
                            Derivation Path Roundtrip

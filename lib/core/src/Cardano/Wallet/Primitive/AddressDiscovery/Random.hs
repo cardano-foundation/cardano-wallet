@@ -1,8 +1,10 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- |
@@ -16,13 +18,16 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Random
     (
     -- ** State
       RndState (..)
-    , mkRndState
     ) where
 
 import Prelude
 
+import Cardano.Byron.Codec.Cbor
+    ( decodeAddressDerivationPath, decodeAddressPayload, deserialiseCbor )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Depth (..), XPrv )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey )
+    ( RndKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -30,16 +35,32 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , IsOwned (..)
     , KnownAddresses (..)
     )
-import Data.ByteString
-    ( ByteString )
+import Cardano.Wallet.Primitive.Types
+    ( Address (..) )
+import Control.DeepSeq
+    ( NFData )
+import Control.Monad
+    ( join )
+import Data.Maybe
+    ( isJust )
+import GHC.Generics
+    ( Generic )
 
-newtype RndState = RndState ByteString
+newtype RndState = RndState { getRndState :: RndKey 'RootK XPrv }
+    deriving (Generic)
 
-mkRndState :: RndState
-mkRndState = error "AddressDiscovery.Random unimplemented"
+instance NFData RndState
 
+-- An address is considered to belong to the 'RndState' wallet if it can be decoded
+-- as a Byron HD random address, and where the wallet key can be used to decrypt
+-- the address derivation path.
 instance IsOurs RndState where
-    isOurs _ s = (False, s)
+    isOurs (Address addr) st@(RndState key) = (isJust path, st)
+      where
+        pwd = payloadPassphrase key
+        path = do
+            payload <- deserialiseCbor decodeAddressPayload addr
+            join $ deserialiseCbor (decodeAddressDerivationPath pwd) payload
 
 instance IsOwned RndState RndKey where
     isOwned _ _ _ = Nothing
