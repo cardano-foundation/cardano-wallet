@@ -15,7 +15,9 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( unXPub )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress (..) )
+    ( KeyToAddress (..), WalletKey (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Random
+    ( RndKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -45,7 +47,9 @@ import Fmt
 import GHC.Generics
     ( Generic )
 
+import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text.Encoding as T
 
@@ -59,7 +63,16 @@ data Tx = Tx
 instance NFData Tx
 
 instance KeyToAddress DummyTarget SeqKey where
-    keyToAddress = Address . unXPub . getKey
+    keyToAddress = Address . unXPub . getRawKey
+
+instance KeyToAddress DummyTarget RndKey where
+    keyToAddress k = Address
+        $ CBOR.toStrictByteString
+        $ CBOR.encodeAddress (getRawKey k)
+            [ CBOR.encodeDerivationPathAttr pwd acctIx addrIx ]
+      where
+        (acctIx, addrIx) = derivationPath k
+        pwd = payloadPassphrase k
 
 instance EncodeAddress DummyTarget where
     encodeAddress _ = T.decodeUtf8 . convertToBase Base16 . unAddress

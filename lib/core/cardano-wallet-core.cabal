@@ -228,6 +228,7 @@ benchmark db
     , bytestring
     , cardano-crypto
     , cardano-wallet-core
+    , cborg
     , containers
     , criterion
     , cryptonite

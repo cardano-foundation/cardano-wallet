@@ -14,10 +14,23 @@ module Cardano.Wallet.Primitive.AddressDiscovery.RandomSpec
 
 import Prelude
 
+import Cardano.Wallet.DummyTarget.Primitive.Types
+    ( DummyTarget )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Passphrase (..), fromMnemonic )
+    ( Depth (..)
+    , DerivationType (..)
+    , Index (..)
+    , KeyToAddress (..)
+    , Passphrase (..)
+    , WalletKey (..)
+    , fromMnemonic
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey (..), generateKeyFromSeed )
+    ( RndKey (..)
+    , deriveAccountPrivateKey
+    , deriveAddressPrivateKey
+    , generateKeyFromSeed
+    )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -26,6 +39,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address (..) )
+import Data.ByteArray.Encoding
+    ( Base (..), convertFromBase )
 import Data.ByteString
     ( ByteString )
 import Data.Text
@@ -34,11 +49,24 @@ import Data.Word
     ( Word32 )
 import Test.Hspec
     ( Expectation, Spec, describe, it, shouldBe )
+import Test.QuickCheck
+    ( Arbitrary (..)
+    , Gen
+    , InfiniteList (..)
+    , Property
+    , choose
+    , property
+    , (.&&.)
+    )
+
+import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
 
 spec :: Spec
 spec = do
     goldenSpecMainnet
     goldenSpecTestnet
+    propSpec
 
 {-------------------------------------------------------------------------------
                                   Golden tests
@@ -48,7 +76,7 @@ goldenSpecMainnet :: Spec
 goldenSpecMainnet =
     describe "Golden tests for Byron Addresses w/ random scheme (Mainnet)" $ do
     it "check isOurs for initial account" $
-        checkIsOurs DecodeDerivationPath
+        checkIsOurs CheckIsOursTest
         { mnem =
                 arbitraryMnemonic
         , addr =
@@ -59,9 +87,10 @@ goldenSpecMainnet =
                 2147483648
         , addrIndex =
                 2147483648
+        , expected = True
         }
     it "check isOurs for another account" $
-        checkIsOurs DecodeDerivationPath
+        checkIsOurs CheckIsOursTest
         { mnem =
                 arbitraryMnemonic
         , addr =
@@ -72,13 +101,26 @@ goldenSpecMainnet =
                 2694138340
         , addrIndex =
                 2512821145
+        , expected = True
+        }
+    it "check isOurs for bogus address" $
+        checkIsOurs CheckIsOursTest
+        { mnem =
+                arbitraryMnemonic
+        , addr =
+                "82d818584283581cb039e80866203e82fc834b8e6a355b83ec6f8fd199"
+        , accIndex =
+                2694138340
+        , addrIndex =
+                2512821145
+        , expected = False
         }
 
 goldenSpecTestnet :: Spec
 goldenSpecTestnet =
     describe "Golden tests forByron Addresses w/ random scheme (Testnet)" $ do
     it "check isOurs - initial account" $
-        checkIsOurs DecodeDerivationPath
+        checkIsOurs CheckIsOursTest
         { mnem =
                 arbitraryMnemonic
         , addr =
@@ -89,9 +131,10 @@ goldenSpecTestnet =
                 2147483648
         , addrIndex =
                 2147483648
+        , expected = True
         }
     it "check isOurs - another account" $
-        checkIsOurs DecodeDerivationPath
+        checkIsOurs CheckIsOursTest
         { mnem =
                 arbitraryMnemonic
         , addr =
@@ -102,33 +145,73 @@ goldenSpecTestnet =
                 3337448281
         , addrIndex =
                 3234874775
+        , expected = True
         }
 
 {-------------------------------------------------------------------------------
                     Golden tests for Address derivation path
 -------------------------------------------------------------------------------}
 
-data DecodeDerivationPath = DecodeDerivationPath
+data CheckIsOursTest = CheckIsOursTest
     { mnem :: [Text]
     , addr :: ByteString
     , accIndex :: Word32
     , addrIndex :: Word32
+    , expected :: Bool
     } deriving (Show, Eq)
 
--- An aribtrary mnemonic sentence for the tests
+-- An arbitrary mnemonic sentence for the tests
 arbitraryMnemonic :: [Text]
 arbitraryMnemonic =
     [ "price", "whip", "bottom", "execute", "resist", "library"
     , "entire", "purse", "assist", "clock", "still", "noble" ]
 
+-- A different arbitrary mnemonic sentence for the tests.
+anotherMnemonic :: [Text]
+anotherMnemonic =
+    [ "toss", "reunion", "lunar", "pilot", "direct", "chicken"
+    , "give", "total", "future", "wrap", "sunny", "ostrich" ]
 
-checkIsOurs :: DecodeDerivationPath -> Expectation
-checkIsOurs DecodeDerivationPath{..} =
-    isOurs (Address addr) (RndState rootXPrv) `shouldBe` (True, RndState rootXPrv)
+checkIsOurs :: CheckIsOursTest -> Expectation
+checkIsOurs CheckIsOursTest{..} = do
+    fst (isOurs addr' rndState) `shouldBe` expected
+    fst (isOurs addr' rndStateWrong) `shouldBe` False
+  where
+    Right addr' = Address <$> convertFromBase Base16 addr
+    rndState = rndStateFromMnem arbitraryMnemonic
+    rndStateWrong = rndStateFromMnem anotherMnemonic
+
+rndStateFromMnem :: [Text] -> RndState
+rndStateFromMnem mnem = RndState rootXPrv
   where
     rootXPrv = generateKeyFromSeed (Passphrase seed) (Passphrase "")
     Right (Passphrase seed) = fromMnemonic @'[12] mnem
 
+{-------------------------------------------------------------------------------
+                               Properties
+-------------------------------------------------------------------------------}
+
+propSpec :: Spec
+propSpec = describe "Random Address Discovery Properties" $ do
+    it "isOurs works as expected during key derivation" $ do
+        property prop_derivedKeysAreOurs
+
+prop_derivedKeysAreOurs
+    :: RndStatePassphrase
+    -> RndStatePassphrase
+    -> Index 'Hardened 'AccountK
+    -> Index 'Hardened 'AddressK
+    -> Property
+prop_derivedKeysAreOurs
+    (RndStatePassphrase st pwd)
+    (RndStatePassphrase st' _)
+    accIx addrIx =
+    fst (isOurs addr st) .&&. not (fst (isOurs addr st'))
+  where
+    rk = getRndState st
+    addr = keyToAddress @DummyTarget addrKey
+    accKey = deriveAccountPrivateKey pwd rk accIx
+    addrKey = publicKey $ deriveAddressPrivateKey pwd accKey addrIx
 
 {-------------------------------------------------------------------------------
                     Instances
@@ -139,3 +222,23 @@ instance Eq RndState where
 
 instance Show RndState where
     show (RndState a) = show (getKey a)
+
+data RndStatePassphrase = RndStatePassphrase
+    { rndState :: RndState
+    , passphrase :: Passphrase "encryption"
+    } deriving (Show, Eq)
+
+instance Arbitrary RndStatePassphrase where
+    shrink _ = []  -- no shrinking
+    arbitrary = do
+        (s, e) <- (,)
+            <$> genPassphrase @"seed" (16, 32)
+            <*> genPassphrase @"encryption" (0, 16)
+        let st = generateKeyFromSeed s e
+        pure $ RndStatePassphrase (RndState st) e
+      where
+        genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
+        genPassphrase range = do
+            n <- choose range
+            InfiniteList bytes _ <- arbitrary
+            return $ Passphrase $ BA.convert $ BS.pack $ take n bytes

@@ -4,6 +4,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- |
@@ -22,7 +23,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Random
 import Prelude
 
 import Cardano.Byron.Codec.Cbor
-    ( decodeAddressDerivationPath, decodeAddressPayload, deserialise )
+    ( decodeAddressDerivationPath, decodeAddressPayload, deserialiseCbor )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), XPrv )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
@@ -36,15 +37,14 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     )
 import Cardano.Wallet.Primitive.Types
     ( Address (..) )
-import Cardano.Wallet.Unsafe
-    ( unsafeDeserialiseCbor, unsafeFromHex )
 import Control.DeepSeq
     ( NFData )
+import Control.Monad
+    ( join )
+import Data.Maybe
+    ( isJust )
 import GHC.Generics
     ( Generic )
-
-import qualified Data.ByteString.Lazy as BL
-
 
 newtype RndState = RndState { getRndState :: RndKey 'RootK XPrv }
     deriving (Generic)
@@ -52,13 +52,12 @@ newtype RndState = RndState { getRndState :: RndKey 'RootK XPrv }
 instance NFData RndState
 
 instance IsOurs RndState where
-    isOurs (Address addr) (RndState key) = do
-        let payload = unsafeDeserialiseCbor decodeAddressPayload $
-                BL.fromStrict (unsafeFromHex addr)
-        let pwd = payloadPassphrase key
-        case deserialise (decodeAddressDerivationPath pwd) payload of
-            Right (Just _) -> (True, RndState key)
-            _ -> (False, RndState key)
+    isOurs (Address addr) st@(RndState key) = (isJust path, st)
+      where
+        pwd = payloadPassphrase key
+        path = do
+            payload <- deserialiseCbor decodeAddressPayload addr
+            join $ deserialiseCbor (decodeAddressDerivationPath pwd) payload
 
 instance IsOwned RndState RndKey where
     isOwned _ _ _ = Nothing

@@ -34,8 +34,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , XPrv
     , publicKey
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Common
-    ( toHexText )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
     ( RndKey (..)
     , generateKeyFromSeed
@@ -183,6 +181,7 @@ spec = do
 {-------------------------------------------------------------------------------
                                Properties
 -------------------------------------------------------------------------------}
+
 prop_derivedKeysAreOurs
     :: forall (n :: Network).
        (KnownNetwork n, KeyToAddress (HttpBridge n) RndKey)
@@ -193,13 +192,12 @@ prop_derivedKeysAreOurs
     -> RndKey 'RootK XPrv
     -> Property
 prop_derivedKeysAreOurs seed encPwd accIx addrIx rk' =
-    isOurs addr' (RndState rootXPrv) === (True, RndState rootXPrv) .&&.
-    isOurs addr' (RndState rk') === (False, RndState rk')
+    isOurs addr (RndState rootXPrv) === (True, RndState rootXPrv) .&&.
+    isOurs addr (RndState rk') === (False, RndState rk')
   where
     rndKey = publicKey $ unsafeGenerateKeyFromSeed (accIx, addrIx) seed encPwd
     rootXPrv = generateKeyFromSeed seed encPwd
-    (Address addr) = keyToAddress @(HttpBridge n) rndKey
-    addr' = Address $ toHexText addr
+    addr = keyToAddress @(HttpBridge n) rndKey
 
 {-------------------------------------------------------------------------------
                                Arbitrary instances
