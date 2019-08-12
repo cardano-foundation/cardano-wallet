@@ -8,6 +8,15 @@ dist: xenial
 git:
   depth: false
 
+notifications:
+  slack:
+    rooms:
+      secure: VYkYJktT9Cu/aRGQccZrFdjqgFZKq65k5CIMF3i2QmMfwXVzgFojY2XyRP+VB/idopI3iAtMz81dHXUBNyX50JtftFRL4R3ic+7eqDJu30E9kerjDbFeveISVLLTTTvuG13sME6UclgKycF9Cma68Q9+MqSxCMNnu1X8LvqKofZLG2xy9UMUzJx39a9D/+oyQUtpNRopxxvG9bpyOoOp9H+lJLlDiiBpNea07l0r+9XlgfbM1UiqdxBuZMzbWoOE2QKv+JBj1PrHyS0LNwnbM6k6VNx0BWMa3C9NSnvKp7vF0aOSR9UslCjAcE/eg8xzNu/A/xNhgxF30Uc4rzH99E7f4z+G4/Qure2p+Y+jz0IBtsmLDfHWwEL2BPyaqTbMwEJz8oYKYYrb9UtjYLvn4LtbgtwAqqDgbdpMlS5pB5P/klblDsR3YsKkLwYPfZeAKXyLfMMuVpEILE7nS9ntyjw5I6tCK23PryeuJQad34C7iFQXeC42WvgYV5x+F+ZbFaY58GdVWER5X66yp4Jxgo2uo0tCdjpN8PlgQOjDSl7tgMBFcLu+TXhpYZQ1Kr/nV2f2Nb2+MDs5Eb/05yTeZzNBMzMLbKNZcAJgP3kyAAgnkUuDaVYLUcZ2q5CJkokWLWTg6fLzcoNZ1kdmtU14FwOuj0sczO42AiAqYP4EOls=
+    on_pull_requests: false
+    on_success: change # Send a Slack notification when the build goes from failed to success (and vice-versa)
+    on_error: always # Send a Slack notification when the build is failing on master
+    email: false
+
 env:
   global:
     - WALLET_CLI_JORMUNGANDR=$HOME/.local/bin/cardano-wallet-jormungandr
