@@ -107,6 +107,7 @@ library
       Cardano.Wallet.Unsafe
       Cardano.Wallet.Version
       Data.Time.Text
+      Data.Time.Utils
       Data.Quantity
       Network.Wai.Middleware.ServantError
       Network.Wai.Middleware.Logging
@@ -207,6 +208,7 @@ test-suite unit
       Cardano.WalletSpec
       Data.QuantitySpec
       Data.Time.TextSpec
+      Data.Time.UtilsSpec
       Network.Wai.Middleware.LoggingSpec
 
 benchmark db
