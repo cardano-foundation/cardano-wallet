@@ -1592,19 +1592,6 @@ instance (Control.DeepSeq.NFData key, Control.DeepSeq.NFData (Cardano.Wallet.Pri
 instance Cardano.Wallet.Primitive.AddressDerivation.WalletKey Cardano.Wallet.Primitive.AddressDerivation.Random.RndKey
 instance Cardano.Wallet.Primitive.AddressDerivation.PersistKey Cardano.Wallet.Primitive.AddressDerivation.Random.RndKey
 
-
--- | An implementation of address discovery for the random address scheme
---   as used by the legacy Cardano wallets.
-module Cardano.Wallet.Primitive.AddressDiscovery.Random
-newtype RndState
-RndState :: ByteString -> RndState
-mkRndState :: RndState
-instance Cardano.Wallet.Primitive.AddressDiscovery.IsOurs Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState
-instance Cardano.Wallet.Primitive.AddressDiscovery.IsOwned Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState Cardano.Wallet.Primitive.AddressDerivation.Random.RndKey
-instance Cardano.Wallet.Primitive.AddressDiscovery.GenChange Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState
-instance Cardano.Wallet.Primitive.AddressDiscovery.CompareDiscovery Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState
-instance Cardano.Wallet.Primitive.AddressDiscovery.KnownAddresses Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState
-
 module Cardano.Wallet.Network
 data NetworkLayer t m
 NetworkLayer :: (BlockHeader -> ExceptT ErrGetBlock m [Block (Tx t)]) -> ExceptT ErrNetworkTip m BlockHeader -> ((Tx t, [TxWitness]) -> ExceptT ErrPostTx m ()) -> NetworkLayer t m
@@ -1732,6 +1719,10 @@ encodeSignedTx :: (([TxIn], [TxOut]), [TxWitness]) -> Encoding
 encodeTx :: ([TxIn], [TxOut]) -> Encoding
 encodeTxWitness :: TxWitness -> Encoding
 
+-- | Shortcut for deserialising a strict <tt>Bytestring</tt> with the given
+--   decoder.
+deserialiseCbor :: (forall s. Decoder s a) -> ByteString -> Maybe a
+
 -- | Inspect the next token that has to be decoded and print it to the
 --   console as a trace. Useful for debugging Decoders. Example:
 --   
@@ -1766,6 +1757,21 @@ decodeList :: forall s a. Decoder s a -> Decoder s [a]
 --       decodeOne :: CBOR.Decoder s MyType
 --   </pre>
 decodeListIndef :: forall s a. Decoder s a -> Decoder s [a]
+
+
+-- | An implementation of address discovery for the random address scheme
+--   as used by the legacy Cardano wallets.
+module Cardano.Wallet.Primitive.AddressDiscovery.Random
+newtype RndState
+RndState :: RndKey  'RootK XPrv -> RndState
+[getRndState] :: RndState -> RndKey  'RootK XPrv
+instance GHC.Generics.Generic Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState
+instance Control.DeepSeq.NFData Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState
+instance Cardano.Wallet.Primitive.AddressDiscovery.IsOurs Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState
+instance Cardano.Wallet.Primitive.AddressDiscovery.IsOwned Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState Cardano.Wallet.Primitive.AddressDerivation.Random.RndKey
+instance Cardano.Wallet.Primitive.AddressDiscovery.GenChange Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState
+instance Cardano.Wallet.Primitive.AddressDiscovery.CompareDiscovery Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState
+instance Cardano.Wallet.Primitive.AddressDiscovery.KnownAddresses Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState
 
 
 -- | Here we find the "business logic" to manage a Cardano wallet. This is
@@ -2822,13 +2828,13 @@ ApiBlockData :: UTCTime -> !ApiT SlotId -> ApiBlockData
 [$sel:time:ApiBlockData] :: ApiBlockData -> UTCTime
 [$sel:block:ApiBlockData] :: ApiBlockData -> !ApiT SlotId
 data ApiTransaction t
-ApiTransaction :: !ApiT (Hash "Tx") -> !Quantity "lovelace" Natural -> !Maybe ApiBlockData -> !Quantity "slot" Natural -> !ApiT Direction -> !NonEmpty (ApiTxInput t) -> !NonEmpty (AddressAmount t) -> !ApiT TxStatus -> ApiTransaction t
+ApiTransaction :: !ApiT (Hash "Tx") -> !Quantity "lovelace" Natural -> !Maybe ApiBlockData -> !Quantity "slot" Natural -> !ApiT Direction -> ![ApiTxInput t] -> !NonEmpty (AddressAmount t) -> !ApiT TxStatus -> ApiTransaction t
 [$sel:id:ApiTransaction] :: ApiTransaction t -> !ApiT (Hash "Tx")
 [$sel:amount:ApiTransaction] :: ApiTransaction t -> !Quantity "lovelace" Natural
 [$sel:insertedAt:ApiTransaction] :: ApiTransaction t -> !Maybe ApiBlockData
 [$sel:depth:ApiTransaction] :: ApiTransaction t -> !Quantity "slot" Natural
 [$sel:direction:ApiTransaction] :: ApiTransaction t -> !ApiT Direction
-[$sel:inputs:ApiTransaction] :: ApiTransaction t -> !NonEmpty (ApiTxInput t)
+[$sel:inputs:ApiTransaction] :: ApiTransaction t -> ![ApiTxInput t]
 [$sel:outputs:ApiTransaction] :: ApiTransaction t -> !NonEmpty (AddressAmount t)
 [$sel:status:ApiTransaction] :: ApiTransaction t -> !ApiT TxStatus
 newtype ApiFee
@@ -3085,6 +3091,18 @@ type ListTransactions t = "wallets" :> Capture "walletId" (ApiT WalletId) :> "tr
 -- | Any media type
 data Any
 instance Servant.API.ContentTypes.Accept Cardano.Wallet.Api.Any
+
+
+-- | Utility functions for manipulating time values.
+module Data.Time.Utils
+
+-- | For a given time <tt>t0</tt>, get the closest representable time
+--   <tt>t1</tt> to <tt>t0</tt> for which 't1 &lt; t0'.
+utcTimePred :: UTCTime -> UTCTime
+
+-- | For a given time <tt>t0</tt>, get the closest representable time
+--   <tt>t1</tt> to <tt>t0</tt> for which 't0 &lt; t1'.
+utcTimeSucc :: UTCTime -> UTCTime
 
 module Network.Wai.Middleware.Logging
 

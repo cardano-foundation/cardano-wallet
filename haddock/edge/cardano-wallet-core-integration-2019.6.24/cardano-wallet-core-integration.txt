@@ -226,6 +226,8 @@ emptyWalletWith :: Context t -> (Text, Text, Int) -> IO ApiWallet
 getFromResponse :: Lens' s a -> (Status, Either RequestException s) -> a
 json :: QuasiQuoter
 listAddresses :: forall t. DecodeAddress t => Context t -> ApiWallet -> IO [ApiAddress t]
+listTransactions :: forall t. DecodeAddress t => Context t -> ApiWallet -> Maybe UTCTime -> Maybe UTCTime -> Maybe SortOrder -> IO [ApiTransaction t]
+listAllTransactions :: forall t. DecodeAddress t => Context t -> ApiWallet -> IO [ApiTransaction t]
 
 -- | teardown after each test (currently only deleting all wallets)
 tearDown :: Context t -> IO ()
