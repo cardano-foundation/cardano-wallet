@@ -255,7 +255,7 @@ x-transactionDirection: &transactionDirection
 x-transactionInputs: &transactionInputs
   description: A list of transaction inputs
   type: array
-  minItems: 1
+  minItems: 0
   items:
     type: object
     required:

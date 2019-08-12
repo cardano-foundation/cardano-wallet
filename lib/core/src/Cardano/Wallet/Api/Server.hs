@@ -462,8 +462,7 @@ mkApiTransaction txid ins outs meta = ApiTransaction
     , insertedAt = Nothing
     , depth = Quantity 0
     , direction = ApiT (meta ^. #direction)
-    , inputs = NE.fromList
-        [ApiTxInput (fmap coerceTxOut o) (ApiT i) | (i, o) <- ins]
+    , inputs = [ApiTxInput (fmap coerceTxOut o) (ApiT i) | (i, o) <- ins]
     , outputs = NE.fromList (coerceTxOut <$> outs)
     , status = ApiT (meta ^. #status)
     }

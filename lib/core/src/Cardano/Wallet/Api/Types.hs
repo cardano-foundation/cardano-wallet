@@ -206,7 +206,7 @@ data ApiTransaction t = ApiTransaction
     , insertedAt :: !(Maybe ApiBlockData)
     , depth :: !(Quantity "slot" Natural)
     , direction :: !(ApiT Direction)
-    , inputs :: !(NonEmpty (ApiTxInput t))
+    , inputs :: ![ApiTxInput t]
     , outputs :: !(NonEmpty (AddressAmount t))
     , status :: !(ApiT TxStatus)
     } deriving (Eq, Generic, Show)
