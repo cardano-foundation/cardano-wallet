@@ -57,6 +57,7 @@ import Test.QuickCheck
     , choose
     , property
     , (.&&.)
+    , (===)
     )
 
 import qualified Data.ByteArray as BA
@@ -218,6 +219,8 @@ propSpec :: Spec
 propSpec = describe "Random Address Discovery Properties" $ do
     it "isOurs works as expected during key derivation" $ do
         property prop_derivedKeysAreOurs
+    it "isOwned works as expected during key derivation" $ do
+        property prop_derivedKeysAreOwned
 
 prop_derivedKeysAreOurs
     :: RndStatePassphrase
@@ -235,6 +238,25 @@ prop_derivedKeysAreOurs
     addr = keyToAddress @DummyTarget addrKey
     accKey = deriveAccountPrivateKey pwd rk accIx
     addrKey = publicKey $ deriveAddressPrivateKey pwd accKey addrIx
+
+prop_derivedKeysAreOwned
+    :: RndStatePassphrase
+    -> RndStatePassphrase
+    -> Index 'Hardened 'AccountK
+    -> Index 'Hardened 'AddressK
+    -> Property
+prop_derivedKeysAreOwned
+    (RndStatePassphrase st pwd)
+    (RndStatePassphrase st' pwd')
+    accIx addrIx =
+    isOwned st (getRndState st, pwd) addr === Just (addrKeyPrv, pwd)
+    .&&.
+    isOwned st' (getRndState st', pwd') addr === Nothing
+  where
+    addr = keyToAddress @DummyTarget (publicKey addrKeyPrv)
+    accKey = deriveAccountPrivateKey pwd (getRndState st) accIx
+    addrKeyPrv = deriveAddressPrivateKey pwd accKey addrIx
+
 
 {-------------------------------------------------------------------------------
                     Instances
