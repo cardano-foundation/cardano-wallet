@@ -24,11 +24,13 @@ import Data.Generics.Internal.VL.Lens
 import Data.Maybe
     ( listToMaybe )
 import Data.Time.Clock
-    ( NominalDiffTime, UTCTime, addUTCTime )
+    ( UTCTime )
+import Data.Time.Utils
+    ( utcTimePred, utcTimeSucc )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldBe, shouldSatisfy )
+    ( SpecWith, describe, it, shouldSatisfy )
 import Test.Integration.Framework.DSL
     ( Context
     , Headers (..)
@@ -1049,10 +1051,7 @@ spec = do
        \Transaction at time t is SELECTED by small ranges that cover it" $
           \ctx -> do
               (w, _, t) <- getWalletWithOneTransaction ctx
-              let te = addUTCTime (negate onePicosecond) t
-              let tl = addUTCTime         onePicosecond  t
-              te < t `shouldBe` True
-              tl > t `shouldBe` True
+              let (te, tl) = (utcTimePred t, utcTimeSucc t)
               txs1 <- listTransactions ctx w (Just t ) (Just t ) Nothing
               txs2 <- listTransactions ctx w (Just te) (Just t ) Nothing
               txs3 <- listTransactions ctx w (Just t ) (Just tl) Nothing
@@ -1063,8 +1062,7 @@ spec = do
        \Transaction at time t is NOT selected by range (t + 𝛿t, ...)" $
           \ctx -> do
               (w, _, t) <- getWalletWithOneTransaction ctx
-              let tl = addUTCTime onePicosecond t
-              tl > t `shouldBe` True
+              let tl = utcTimeSucc t
               txs1 <- listTransactions ctx w (Just tl) (Nothing) Nothing
               txs2 <- listTransactions ctx w (Just tl) (Just tl) Nothing
               length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
@@ -1073,8 +1071,7 @@ spec = do
        \Transaction at time t is NOT selected by range (..., t - 𝛿t)" $
           \ctx -> do
               (w, _, t) <- getWalletWithOneTransaction ctx
-              let te = addUTCTime (negate onePicosecond) t
-              te < t `shouldBe` True
+              let te = utcTimePred t
               txs1 <- listTransactions ctx w (Nothing) (Just te) Nothing
               txs2 <- listTransactions ctx w (Just te) (Just te) Nothing
               length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
@@ -1093,9 +1090,6 @@ spec = do
             _ -> die
       where
         die = error "Expected one transaction with a time."
-
-    onePicosecond :: NominalDiffTime
-    onePicosecond = toEnum 1
 
     longAddr = replicate 10000 '1'
     encodeErr = "Unable to decode Address:"
