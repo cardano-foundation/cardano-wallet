@@ -707,14 +707,14 @@ insertedAtTime =
     _set (s, v) = set typed (fn <$> v) s
          where fn t = ApiBlockData (t) (ApiT (SlotId 1 1))
 
-inputs :: HasType (NonEmpty (ApiTxInput t)) s => Lens' s [ApiTxInput t]
+inputs :: HasType [ApiTxInput t] s => Lens' s [ApiTxInput t]
 inputs =
     lens _get _set
   where
-    _get :: HasType (NonEmpty (ApiTxInput t)) s => s -> [ApiTxInput t]
-    _get = NE.toList . view typed
-    _set :: HasType (NonEmpty (ApiTxInput t)) s => (s, [ApiTxInput t]) -> s
-    _set (s, v) = set typed (NE.fromList v) s
+    _get :: HasType [ApiTxInput t] s => s -> [ApiTxInput t]
+    _get = view typed
+    _set :: HasType [ApiTxInput t] s => (s, [ApiTxInput t]) -> s
+    _set (s, v) = set typed v s
 
 outputs :: HasType (NonEmpty (AddressAmount t)) s => Lens' s [AddressAmount t]
 outputs =

@@ -35,7 +35,7 @@ import Data.Time.Utils
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldSatisfy )
+    ( SpecWith, describe, it, shouldBe, shouldSatisfy )
 import Test.Integration.Framework.DSL
     ( Context
     , Headers (..)

@@ -11,7 +11,7 @@ module Test.Integration.Scenario.CLI.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiFee, ApiTransaction, ApiWallet, getApiT )
+    ( ApiFee, ApiTransaction, ApiWallet, getApiT, insertedAt, time )
 import Cardano.Wallet.Primitive.Types
     ( DecodeAddress (..)
     , Direction (..)
@@ -23,7 +23,7 @@ import Cardano.Wallet.Primitive.Types
 import Control.Monad
     ( forM_, join )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( view, (^.) )
 import Data.Generics.Product.Typed
     ( typed )
 import Data.List.Extra
@@ -32,6 +32,10 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
     ( showT, toText )
+import Data.Time.Clock
+    ( UTCTime )
+import Data.Time.Utils
+    ( utcTimePred, utcTimeSucc )
 import Network.Wai.Handler.Warp
     ( Port )
 import System.Command
@@ -41,7 +45,7 @@ import System.Exit
 import Test.Hspec
     ( SpecWith, describe, it )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain )
+    ( shouldBe, shouldContain, shouldSatisfy )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand
@@ -55,19 +59,24 @@ import Test.Integration.Framework.DSL
     , emptyWallet
     , expectCliFieldBetween
     , expectCliFieldEqual
+    , expectCliListItemFieldBetween
+    , expectCliListItemFieldEqual
     , expectEventually'
     , expectValidJSON
     , faucetAmt
     , faucetUtxoAmt
     , feeEstimator
     , fixtureWallet
+    , fixtureWalletManyTxs
     , fixtureWalletWith
     , getWalletViaCLI
     , listAddresses
+    , listAllTransactions
     , listTransactionsViaCLI
     , postTransactionFeeViaCLI
     , postTransactionViaCLI
     , status
+    , utcIso8601ToText
     , verify
     , walletId
     )
@@ -78,6 +87,7 @@ import Test.Integration.Framework.TestData
     , errMsg403NotEnoughMoney
     , errMsg403UTxO
     , errMsg403WrongPass
+    , errMsg404NoWallet
     , falseWalletIds
     , kanjiWalletName
     , polishWalletName
@@ -672,6 +682,28 @@ spec = do
                     out `shouldBe` "[]\n"
                     code `shouldBe` ExitSuccess
 
+    it "TRANS_LIST_01 - Can list Incoming and Outgoing transactions" $ \ctx -> do
+        (wSrc, _, _) <- fixtureWalletManyTxs ctx [1]
+        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
+                { nInputs = 1
+                , nOutputs = 1
+                }
+
+        (Exit code, Stdout out, Stderr err) <-
+            listTransactionsViaCLI @t ctx [T.unpack $ wSrc ^. walletId]
+        err `shouldBe` "Ok.\n"
+        code `shouldBe` ExitSuccess
+        outJson <- expectValidJSON (Proxy @([ApiTransaction t])) out
+        length outJson `shouldBe` 2
+        verify outJson
+            [ expectCliListItemFieldBetween 0 amount (feeMin + 1, feeMax + 1)
+            , expectCliListItemFieldEqual 0 direction Outgoing
+            , expectCliListItemFieldEqual 0 status InLedger
+            , expectCliListItemFieldEqual 1 amount 1_000_000_000_000
+            , expectCliListItemFieldEqual 1 direction Incoming
+            , expectCliListItemFieldEqual 1 status InLedger
+            ]
+
     describe "TRANS_LIST_02 - Start time shouldn't be later than end time" $
         forM_ sortOrderMatrix $ \mOrder -> do
             let startTime = max validTime1 validTime2
@@ -685,12 +717,12 @@ spec = do
                     <> show mOrder
                     <> " order "
             it title $ \ctx -> do
-                wallet <- emptyWallet ctx
+                wid <- emptyWallet' ctx
                 (Exit code, Stdout out, Stderr err) <-
                     listTransactionsViaCLI @t ctx $ join
-                        [ [T.unpack $ wallet ^. walletId]
-                        , ["--start", startTime]
-                        , ["--end"  , endTime]
+                        [ [ wid ]
+                        , [ "--start", startTime ]
+                        , [ "--end"  , endTime ]
                         , maybe [] (\o -> ["--order", showT o]) mOrder
                         ]
                 err `shouldBe` mconcat
@@ -703,7 +735,174 @@ spec = do
                 out `shouldBe` mempty
                 code `shouldBe` ExitFailure 1
 
+    it "TRANS_LIST_03 - Can order results" $ \ctx -> do
+        (_, w, [(_, a1), (_, a2)]) <- fixtureWalletManyTxs ctx [10,20]
+        let orderings =
+                [ ( mempty
+                  , [ expectCliListItemFieldEqual 0 amount a2
+                    , expectCliListItemFieldEqual 1 amount a1
+                    ]
+                  )
+                , ( [ "--order", "ascending" ]
+                  , [ expectCliListItemFieldEqual 0 amount a1
+                    , expectCliListItemFieldEqual 1 amount a2
+                    ]
+                  )
+                , ( [ "--order", "descending" ]
+                  , [ expectCliListItemFieldEqual 0 amount a2
+                    , expectCliListItemFieldEqual 1 amount a1
+                    ]
+                  )
+                ]
+
+        forM_ orderings $ \(order, expects) -> do
+            let args = T.unpack <$> w ^. walletId : order
+            (Exit code, Stdout out, Stderr err) <-
+                listTransactionsViaCLI @t ctx args
+            err `shouldBe` "Ok.\n"
+            code `shouldBe` ExitSuccess
+            outJson <- expectValidJSON (Proxy @([ApiTransaction t])) out
+            length outJson `shouldBe` 2
+            verify outJson expects
+
+    describe "TRANS_LIST_02,03 - Faulty start, end, order values" $ do
+        let orderErr = "Please specify one of the following values:\
+            \ ascending, descending."
+        let startEndErr = "Expecting ISO 8601 date-and-time format\
+            \ (basic or extended), e.g. 2012-09-25T10:15:00Z."
+        let queries =
+                  [ ( [ "--start", "2009" ]
+                    , startEndErr
+                    )
+                  ,
+                    ( [ "--start", "2012-09-25T10:15:00Z", "--end", "2016-11-21" ]
+                    , startEndErr
+                    )
+                  ,
+                    ( [ "--start", "2012-09-25", "--end", "2016-11-21T10:15:00Z" ]
+                    , startEndErr
+                    )
+                  ,
+                    ( [ "--end", "2012-09-25T10:15:00Z", "--start", "2016-11-21" ]
+                    , startEndErr
+                    )
+                  ,
+                    ( [ "--order", "scending" ]
+                    , orderErr
+                    )
+                  ,
+                    ( [ "--start", "2012-09-25T10:15:00Z", "--order", "asc" ]
+                    , orderErr
+                    )
+                  ]
+        forM_ queries $ \(q, errorMess) -> it (unwords q) $ \ctx -> do
+            wid <- emptyWallet' ctx
+            let args = wid : q
+            (Exit code, Stdout out, Stderr err) <-
+                listTransactionsViaCLI @t ctx args
+            out `shouldBe` mempty
+            code `shouldBe` ExitFailure 1
+            err `shouldContain` errorMess
+
+    it "TRANS_LIST_04 - 'almost' valid walletId" $ \ctx -> do
+        wid <- emptyWallet' ctx
+        let invalidWid = wid ++ "0"
+        (Exit code, Stdout out, Stderr err) <-
+            listTransactionsViaCLI @t ctx [invalidWid]
+
+        err `shouldContain` "wallet id should be an hex-encoded\
+            \ string of 40 characters"
+        code `shouldBe` ExitFailure 1
+        out `shouldBe` mempty
+
+    it "TRANS_LIST_04 - Deleted wallet" $ \ctx -> do
+        wid <- emptyWallet' ctx
+        Exit d <- deleteWalletViaCLI @t ctx wid
+        d `shouldBe` ExitSuccess
+
+        (Exit c, Stdout o, Stderr e) <- listTransactionsViaCLI @t ctx [wid]
+        e `shouldContain` errMsg404NoWallet (T.pack wid)
+        o `shouldBe` mempty
+        c `shouldBe` ExitFailure 1
+
+    describe "TRANS_LIST_04 - False wallet ids" $ do
+        forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
+            (Exit c, Stdout o, Stderr e) <- listTransactionsViaCLI @t ctx [walId]
+            o `shouldBe` ""
+            c `shouldBe` ExitFailure 1
+            if (title == "40 chars hex") then
+                e `shouldContain`
+                    errMsg404NoWallet "1111111111111111111111111111111111111111"
+            else
+                e `shouldContain`
+                    "wallet id should be an hex-encoded string of 40 characters"
+
+    it "TRANS_LIST_RANGE_01 - \
+       \Transaction at time t is SELECTED by small ranges that cover it" $
+          \ctx -> do
+              w <- fixtureWalletWith ctx [1]
+              let walId = w ^. walletId
+              t <- unsafeGetTransactionTime <$> listAllTransactions ctx w
+              let (te, tl) = (utcTimePred t, utcTimeSucc t)
+              let query t1 t2 =
+                        [ "--start", utcIso8601ToText t1
+                        , "--end", utcIso8601ToText t2
+                        ]
+              Stdout o1  <- listTransactionsViaCLI @t ctx
+                    ( T.unpack <$> walId : (query t t) )
+              Stdout o2 <- listTransactionsViaCLI @t ctx
+                    ( T.unpack <$> walId : (query te t) )
+              Stdout o3 <- listTransactionsViaCLI @t ctx
+                    ( T.unpack <$> walId : (query t tl) )
+              Stdout o4 <- listTransactionsViaCLI @t ctx
+                    ( T.unpack <$> walId : (query te tl) )
+              oJson1 <- expectValidJSON (Proxy @([ApiTransaction t])) o1
+              oJson2 <- expectValidJSON (Proxy @([ApiTransaction t])) o2
+              oJson3 <- expectValidJSON (Proxy @([ApiTransaction t])) o3
+              oJson4 <- expectValidJSON (Proxy @([ApiTransaction t])) o4
+              length <$> [oJson1, oJson2, oJson3, oJson4] `shouldSatisfy` all (== 1)
+
+    it "TRANS_LIST_RANGE_02 - \
+       \Transaction at time t is NOT selected by range (t + 𝛿t, ...)" $
+          \ctx -> do
+              w <- fixtureWalletWith ctx [1]
+              let walId = w ^. walletId
+              t <- unsafeGetTransactionTime <$> listAllTransactions ctx w
+              let tl = utcIso8601ToText $ utcTimeSucc t
+              Stdout o1  <- listTransactionsViaCLI @t ctx
+                    ( T.unpack <$> [walId, "--start", tl] )
+              Stdout o2 <- listTransactionsViaCLI @t ctx
+                    ( T.unpack <$> [walId, "--start", tl, "--end", tl] )
+              oJson1 <- expectValidJSON (Proxy @([ApiTransaction t])) o1
+              oJson2 <- expectValidJSON (Proxy @([ApiTransaction t])) o2
+              length <$> [oJson1, oJson2] `shouldSatisfy` all (== 0)
+
+    it "TRANS_LIST_RANGE_03 - \
+       \Transaction at time t is NOT selected by range (..., t - 𝛿t)" $
+          \ctx -> do
+              w <- fixtureWalletWith ctx [1]
+              let walId = w ^. walletId
+              t <- unsafeGetTransactionTime <$> listAllTransactions ctx w
+              let te = utcIso8601ToText $ utcTimePred t
+              Stdout o1  <- listTransactionsViaCLI @t ctx
+                      ( T.unpack <$> [walId, "--end", te] )
+              Stdout o2 <- listTransactionsViaCLI @t ctx
+                      ( T.unpack <$> [walId, "--start", te, "--end", te] )
+              oJson1 <- expectValidJSON (Proxy @([ApiTransaction t])) o1
+              oJson2 <- expectValidJSON (Proxy @([ApiTransaction t])) o2
+              length <$> [oJson1, oJson2] `shouldSatisfy` all (== 0)
   where
+      unsafeGetTransactionTime
+          :: [ApiTransaction t]
+          -> UTCTime
+      unsafeGetTransactionTime txs =
+          case fmap time . insertedAt <$> txs of
+              (Just t):_ -> t
+              _ -> error "Expected at least one transaction with a time."
+
+      emptyWallet' :: Context t -> IO String
+      emptyWallet' = fmap (T.unpack . view walletId) . emptyWallet
+
       sortOrderMatrix :: [Maybe SortOrder]
       sortOrderMatrix = Nothing : fmap pure enumerate
 
@@ -714,7 +913,7 @@ spec = do
       timeRangeMatrix =
           [ (Nothing, Nothing)
           , (Just validTime1, Nothing)
-          , (Nothing, Just validTime1)
+          , (Nothing, Just validTime2)
           , (Just validTime1, Just validTime2)
           ]
 
