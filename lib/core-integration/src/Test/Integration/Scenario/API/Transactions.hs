@@ -21,8 +21,6 @@ import Data.Aeson
     ( Value )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
-import Data.Maybe
-    ( listToMaybe )
 import Data.Time.Clock
     ( UTCTime )
 import Data.Time.Utils
@@ -1050,7 +1048,8 @@ spec = do
     it "TRANS_LIST_RANGE_01 - \
        \Transaction at time t is SELECTED by small ranges that cover it" $
           \ctx -> do
-              (w, _, t) <- getWalletWithOneTransaction ctx
+              w <- fixtureWalletWith ctx [1]
+              t <- unsafeGetTransactionTime <$> listAllTransactions ctx w
               let (te, tl) = (utcTimePred t, utcTimeSucc t)
               txs1 <- listTransactions ctx w (Just t ) (Just t ) Nothing
               txs2 <- listTransactions ctx w (Just te) (Just t ) Nothing
@@ -1061,7 +1060,8 @@ spec = do
     it "TRANS_LIST_RANGE_02 - \
        \Transaction at time t is NOT selected by range (t + 𝛿t, ...)" $
           \ctx -> do
-              (w, _, t) <- getWalletWithOneTransaction ctx
+              w <- fixtureWalletWith ctx [1]
+              t <- unsafeGetTransactionTime <$> listAllTransactions ctx w
               let tl = utcTimeSucc t
               txs1 <- listTransactions ctx w (Just tl) (Nothing) Nothing
               txs2 <- listTransactions ctx w (Just tl) (Just tl) Nothing
@@ -1070,26 +1070,21 @@ spec = do
     it "TRANS_LIST_RANGE_03 - \
        \Transaction at time t is NOT selected by range (..., t - 𝛿t)" $
           \ctx -> do
-              (w, _, t) <- getWalletWithOneTransaction ctx
+              w <- fixtureWalletWith ctx [1]
+              t <- unsafeGetTransactionTime <$> listAllTransactions ctx w
               let te = utcTimePred t
               txs1 <- listTransactions ctx w (Nothing) (Just te) Nothing
               txs2 <- listTransactions ctx w (Just te) (Just te) Nothing
               length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
 
   where
-
-    getWalletWithOneTransaction
-        :: Context t -> IO (ApiWallet, ApiTransaction t, UTCTime)
-    getWalletWithOneTransaction ctx = do
-        w <- fixtureWallet ctx
-        mt <- listToMaybe <$> listAllTransactions ctx w
-        case mt of
-            Just tx -> case time <$> insertedAt tx of
-                Just t -> pure (w, tx, t)
-                Nothing -> die
-            _ -> die
-      where
-        die = error "Expected one transaction with a time."
+    unsafeGetTransactionTime
+        :: [ApiTransaction t]
+        -> UTCTime
+    unsafeGetTransactionTime txs =
+        case fmap time . insertedAt <$> txs of
+            (Just t):_ -> t
+            _ -> error "Expected at least one transaction with a time."
 
     longAddr = replicate 10000 '1'
     encodeErr = "Unable to decode Address:"
