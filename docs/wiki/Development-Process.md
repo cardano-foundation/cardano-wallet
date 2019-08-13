@@ -21,7 +21,7 @@ The team follows a methodology known as [extreme programming][xp] which can be s
     - Clarify product requirements as needed with the product referent
     - Break the U/S into tasks (small, sizeable, chunks of work)
     - Make sure that all tasks are estimated and clear
-    - Make sure that a story can fit in a sprint, or, reduce its scope as needed
+    - Make sure that a story can fit in an iteration (2 weeks), or, reduce its scope as needed
     - Make decisions regarding implementation and technical solutions for that U/S
 - An iteration planning starts each iteration:
     - U/S are discussed and reviewed by the whole team
