@@ -36,7 +36,7 @@ import Cardano.Wallet.Primitive.AddressDerivationSpec
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..), IsOwned (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( RndState (..) )
+    ( RndState (..), emptyChangeState )
 import Cardano.Wallet.Primitive.Types
     ( Address (..) )
 import Data.ByteArray.Encoding
@@ -197,7 +197,7 @@ checkIsOwned GoldenTest{..} = do
   where
     pwd = Passphrase ""
     Right addr' = Address <$> convertFromBase Base16 addr
-    rndState@(RndState rootXPrv) = rndStateFromMnem arbitraryMnemonic
+    rndState@(RndState rootXPrv _) = rndStateFromMnem arbitraryMnemonic
     accXPrv = deriveAccountPrivateKey pwd rootXPrv (Index accIndex)
     addrXPrv = deriveAddressPrivateKey pwd accXPrv (Index addrIndex)
     expectation = if expected then
@@ -206,7 +206,7 @@ checkIsOwned GoldenTest{..} = do
 
 
 rndStateFromMnem :: [Text] -> RndState
-rndStateFromMnem mnem = RndState rootXPrv
+rndStateFromMnem mnem = RndState rootXPrv emptyChangeState
   where
     rootXPrv = generateKeyFromSeed (Passphrase seed) (Passphrase "")
     Right (Passphrase seed) = fromMnemonic @'[12] mnem
@@ -234,7 +234,7 @@ prop_derivedKeysAreOurs
     accIx addrIx =
     fst (isOurs addr st) .&&. not (fst (isOurs addr st'))
   where
-    rk = getRndState st
+    rk = rndKey st
     addr = keyToAddress @DummyTarget addrKey
     accKey = deriveAccountPrivateKey pwd rk accIx
     addrKey = publicKey $ deriveAddressPrivateKey pwd accKey addrIx
@@ -249,12 +249,12 @@ prop_derivedKeysAreOwned
     (RndStatePassphrase st pwd)
     (RndStatePassphrase st' pwd')
     accIx addrIx =
-    isOwned st (getRndState st, pwd) addr === Just (addrKeyPrv, pwd)
+    isOwned st (rndKey st, pwd) addr === Just (addrKeyPrv, pwd)
     .&&.
-    isOwned st' (getRndState st', pwd') addr === Nothing
+    isOwned st' (rndKey st', pwd') addr === Nothing
   where
     addr = keyToAddress @DummyTarget (publicKey addrKeyPrv)
-    accKey = deriveAccountPrivateKey pwd (getRndState st) accIx
+    accKey = deriveAccountPrivateKey pwd (rndKey st) accIx
     addrKeyPrv = deriveAddressPrivateKey pwd accKey addrIx
 
 
@@ -263,10 +263,10 @@ prop_derivedKeysAreOwned
 -------------------------------------------------------------------------------}
 
 instance Eq RndState where
-    (RndState a) == (RndState b) = getKey a == getKey b
+    (RndState a _) == (RndState b _) = getKey a == getKey b
 
 instance Show RndState where
-    show (RndState a) = show (getKey a)
+    show (RndState a _) = show (getKey a)
 
 data RndStatePassphrase = RndStatePassphrase
     { rndState :: RndState
@@ -280,7 +280,7 @@ instance Arbitrary RndStatePassphrase where
             <$> genPassphrase @"seed" (16, 32)
             <*> genPassphrase @"encryption" (0, 16)
         let st = generateKeyFromSeed s e
-        pure $ RndStatePassphrase (RndState st) e
+        pure $ RndStatePassphrase (RndState st emptyChangeState) e
       where
         genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
         genPassphrase range = do

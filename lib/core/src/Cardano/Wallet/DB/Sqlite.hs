@@ -906,7 +906,9 @@ instance PersistState W.RndState where
     deleteState _ = pure ()
 
     -- Construct a 'RndState' from the root private key
-    selectState (wid, _) = fmap (W.RndState . fst) <$> selectPrivateKey wid
+    selectState (wid, _) = do
+        let constructRndState key = W.RndState key W.emptyChangeState
+        fmap (constructRndState . fst) <$> selectPrivateKey wid
 
 {-------------------------------------------------------------------------------
                                     Logging
