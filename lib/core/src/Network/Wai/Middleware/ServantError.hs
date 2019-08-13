@@ -2,7 +2,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- Middleware between Wai <-> Servant to accommodate raw error responses
 -- returned by servant. See also 'handleRawError'.

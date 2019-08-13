@@ -3,7 +3,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- Database / Persistence layer for the wallet backend. This is where we define
 -- the interface allowing us to store and fetch various data on our wallets.

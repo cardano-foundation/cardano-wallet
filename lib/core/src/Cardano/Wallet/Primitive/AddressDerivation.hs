@@ -17,7 +17,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- Primitives for performing address derivation for some given schemes. This is
 -- where most of the crypto happens in the wallet and, it is quite important to

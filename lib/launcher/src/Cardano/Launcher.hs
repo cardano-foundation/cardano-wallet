@@ -2,7 +2,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- This module contains a mechanism for launching external processes together,
 -- and provides the functionality needed to kill them all if one goes down.

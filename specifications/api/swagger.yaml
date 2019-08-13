@@ -6,7 +6,7 @@ info:
   title: Cardano Wallet Backend API
   version: 2.0.0
   license:
-    name: MIT
+    name: Apache-2.0
     url: https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/LICENSE
   description: |
     <p align="right"><img style="position: relative; top: -10em; margin-bottom: -12em;" width="20%" src="https://cardanodocs.com/img/cardano.png"></img></p>

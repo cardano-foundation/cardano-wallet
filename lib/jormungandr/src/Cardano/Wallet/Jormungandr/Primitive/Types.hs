@@ -3,7 +3,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- Declaration of primitive types that are specific to a particular backend.
 -- Likely, the shape of all types is similar and will eventually converge

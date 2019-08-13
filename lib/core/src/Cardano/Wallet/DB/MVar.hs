@@ -5,7 +5,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- Dummy implementation of the database-layer, using MVar. This may be good for
 -- state-machine testing in order to compare it with an implementation on a real

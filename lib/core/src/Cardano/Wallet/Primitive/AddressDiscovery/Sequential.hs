@@ -15,7 +15,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- An implementation of address discovery for the sequential address derivation
 -- scheme specified in BIP-0044.

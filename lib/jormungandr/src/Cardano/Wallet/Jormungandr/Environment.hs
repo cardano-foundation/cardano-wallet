@@ -5,7 +5,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- This module contains static configuration parameters. Rather than providing
 -- and carrying around a configuration file through the application, we resolve

@@ -4,7 +4,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- An API specification for the Cardano HTTP Bridge.
 module Cardano.Wallet.HttpBridge.Api

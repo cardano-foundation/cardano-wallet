@@ -7,7 +7,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- This module contains types for address discovery. The two address discovery
 -- schemes implemented are:

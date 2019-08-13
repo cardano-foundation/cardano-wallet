@@ -17,7 +17,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- Implementation of address derivation for the random scheme, as
 -- implemented by the legacy Cardano wallets.

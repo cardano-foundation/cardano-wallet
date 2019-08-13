@@ -15,7 +15,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- Shared types and helpers for CLI parsing
 

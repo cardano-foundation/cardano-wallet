@@ -12,7 +12,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- This module parses command line arguments for the wallet and executes
 -- corresponding commands.

@@ -9,7 +9,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- These are (partial) CBOR decoders for Byron binary types. Note that we
 -- ignore most of the block's and header's content and only retrieve the pieces

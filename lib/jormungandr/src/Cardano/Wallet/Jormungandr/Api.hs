@@ -8,7 +8,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- An specification for the Jörmungandr REST API.
 module Cardano.Wallet.Jormungandr.Api

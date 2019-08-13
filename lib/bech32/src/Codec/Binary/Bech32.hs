@@ -1,6 +1,6 @@
 -- |
 -- Copyright: © 2017 Marko Bencun, 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- Implementation of the [Bech32]
 -- (https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki)
@@ -35,4 +35,3 @@ module Codec.Binary.Bech32
     ) where
 
 import Codec.Binary.Bech32.Internal
-

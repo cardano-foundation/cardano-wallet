@@ -10,7 +10,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- This benchmark gathers timings of the important database operations, for
 -- various sizes of input. The chosen sizes are meant to approach and slightly

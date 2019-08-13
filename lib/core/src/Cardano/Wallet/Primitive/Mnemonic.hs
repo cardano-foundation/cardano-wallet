@@ -13,7 +13,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- This module provides mnemonic (backup phrase) creation, and conversion of a
 -- mnemonic to seed for wallet restoration.

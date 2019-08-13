@@ -5,7 +5,7 @@ homepage:      https://github.com/input-output-hk/cardano-wallet
 author:        IOHK Engineering Team
 maintainer:    operations@iohk.io
 copyright:     2017 Marko Bencun, 2019 IOHK
-license:       MIT
+license:       Apache-2.0
 category:      Web
 build-type:    Simple
 cabal-version: >=1.10

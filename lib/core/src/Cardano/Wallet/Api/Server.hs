@@ -12,7 +12,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- API handlers and server using the underlying wallet layer to provide
 -- endpoints reachable through HTTP.

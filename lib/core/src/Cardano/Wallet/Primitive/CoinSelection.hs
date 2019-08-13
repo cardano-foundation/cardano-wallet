@@ -4,7 +4,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- Provides the API of Coin Selection algorithm and Fee Calculation
 -- This module contains the implementation of adjusting coin selection for a fee.

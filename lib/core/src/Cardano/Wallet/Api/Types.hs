@@ -16,7 +16,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- API type representations of various types. We define here pretty much all our
 -- user-facing types that are mostly composed with internal / primitive types.
