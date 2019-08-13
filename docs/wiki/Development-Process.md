@@ -7,7 +7,7 @@ The team follows a methodology known as [extreme programming][xp] which can be s
 ## Roadmap
 
 - Our Roadmap is specified [in our wiki](https://github.com/input-output-hk/cardano-wallet/wiki/Roadmap)
-- Items on the Roadmap are prioritized (items at the top are the most important)
+- Items on the Roadmap are prioritized
 - The Roadmap reflects user-stories (and not technical details)
 - The Roadmap is reviewed and discussed with the product team
 
@@ -15,11 +15,18 @@ The team follows a methodology known as [extreme programming][xp] which can be s
 
 - The project is divided into iterations of 2 weeks
 - Releases are small and occur often (every 4 weeks at most)
-- An iteration planning starts each iteration
-- A few days before the iteration planning meeting, one or more user stories are selected and broken down into tasks 
-- During the iteration planning meeting:
-    - tasks are estimated and prioritized; tasks that are too big are broken down further
-    - unfinished tasks from a previous iteration are carried over with increased priority
+- Technical discussions and proposals happen in a dedicated repository:
+    - [cardano-wallet-adr](https://github.com/input-output-hk/cardano-wallet-adr)
+- User stories are assigned to and owned by a member of the team. User story's owners are expected to:
+    - Clarify product requirements as needed with the product referent
+    - Break the U/S into tasks (small, sizeable, chunks of work)
+    - Make sure that all tasks are estimated and clear
+    - Make sure that a story can fit in a sprint, or, reduce its scope as needed
+    - Make decisions regarding implementation and technical solutions for that U/S
+- An iteration planning starts each iteration:
+    - U/S are discussed and reviewed by the whole team
+    - Proposed technical solutions in relation with U/S are reviewed 
+    - New technical problems arise and are discussed in [cardano-wallet-adr](https://github.com/input-output-hk/cardano-wallet-adr) 
 - Project velocity is measured for each iteration and help estimating how big can be a single iteration
 - Tasks and PR have a dedicated GitHub template:
     - [Task Template](https://github.com/input-output-hk/cardano-wallet/blob/master/.github/ISSUE_TEMPLATE/task.md)
