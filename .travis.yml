@@ -8,6 +8,15 @@ dist: xenial
 git:
   depth: false
 
+notifications:
+  slack:
+    rooms:
+      secure: VYkYJktT9Cu/aRGQccZrFdjqgFZKq65k5CIMF3i2QmMfwXVzgFojY2XyRP+VB/idopI3iAtMz81dHXUBNyX50JtftFRL4R3ic+7eqDJu30E9kerjDbFeveISVLLTTTvuG13sME6UclgKycF9Cma68Q9+MqSxCMNnu1X8LvqKofZLG2xy9UMUzJx39a9D/+oyQUtpNRopxxvG9bpyOoOp9H+lJLlDiiBpNea07l0r+9XlgfbM1UiqdxBuZMzbWoOE2QKv+JBj1PrHyS0LNwnbM6k6VNx0BWMa3C9NSnvKp7vF0aOSR9UslCjAcE/eg8xzNu/A/xNhgxF30Uc4rzH99E7f4z+G4/Qure2p+Y+jz0IBtsmLDfHWwEL2BPyaqTbMwEJz8oYKYYrb9UtjYLvn4LtbgtwAqqDgbdpMlS5pB5P/klblDsR3YsKkLwYPfZeAKXyLfMMuVpEILE7nS9ntyjw5I6tCK23PryeuJQad34C7iFQXeC42WvgYV5x+F+ZbFaY58GdVWER5X66yp4Jxgo2uo0tCdjpN8PlgQOjDSl7tgMBFcLu+TXhpYZQ1Kr/nV2f2Nb2+MDs5Eb/05yTeZzNBMzMLbKNZcAJgP3kyAAgnkUuDaVYLUcZ2q5CJkokWLWTg6fLzcoNZ1kdmtU14FwOuj0sczO42AiAqYP4EOls=
+    on_pull_requests: false
+    on_success: change # Send a Slack notification when the build goes from failed to success (and vice-versa)
+    on_error: always # Send a Slack notification when the build is failing on master
+    email: false
+
 env:
   global:
     - WALLET_CLI_JORMUNGANDR=$HOME/.local/bin/cardano-wallet-jormungandr
@@ -84,7 +93,16 @@ jobs:
   #
   ################################################################################
   - stage: build project 🔨
-    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
+    if: (type = pull_request OR (branch IN (bors/staging, bors/trying))) AND (commit_message =~ /Travis-CI-Disable/)
+    name: "Diff Control"
+    script:
+    # Fails if there's any source file modified.
+    - git diff $(git merge-base master HEAD) HEAD --stat --exit-code -- --path "*.hs"
+    - git diff $(git merge-base master HEAD) HEAD --stat --exit-code -- --path "*.js"
+    - git diff $(git merge-base master HEAD) HEAD --stat --exit-code -- --path "specifications/*"
+
+  - stage: build project 🔨
+    if: (type = pull_request OR (branch IN (bors/staging, bors/trying))) AND NOT (commit_message =~ /Travis-CI-Disable/)
     name: "Compiling Project"
     script:
     - stack clean
@@ -92,7 +110,7 @@ jobs:
     - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
 
   - stage: checks 🔬
-    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
+    if: (type = pull_request OR (branch IN (bors/staging, bors/trying))) AND NOT (commit_message =~ /Travis-CI-Disable/)
     name: "Code Style"
     script:
     - travis_retry curl -sSL https://raw.github.com/jaspervdj/stylish-haskell/master/scripts/latest.sh | sh -s $(find . -type f -name "*.hs" ! -path "*.stack-work*") -i
@@ -109,20 +127,20 @@ jobs:
     - cd -
 
   - stage: checks 🔬
-    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
+    if: (type = pull_request OR (branch IN (bors/staging, bors/trying))) AND NOT (commit_message =~ /Travis-CI-Disable/)
     name: "Tests: unit"
     script:
       - stack --no-terminal test --fast cardano-wallet-core cardano-wallet-launcher cardano-wallet-cli text-class bech32 cardano-wallet-http-bridge:unit cardano-wallet-jormungandr:unit
 
   - stage: checks 🔬
-    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
+    if: (type = pull_request OR (branch IN (bors/staging, bors/trying))) AND NOT (commit_message =~ /Travis-CI-Disable/)
     name: "Tests: integration (http-bridge)"
     script:
     - travis_retry curl -L https://github.com/KtorZ/cardano-http-bridge/releases/download/v0.0.5/hermes-testnet.tar.gz | tar xz -C $HOME
     - stack --no-terminal test --fast cardano-wallet-http-bridge:integration --ta "--skip PR_DISABLED"
 
   - stage: checks 🔬
-    if: type = pull_request OR (branch IN (bors/staging, bors/trying))
+    if: (type = pull_request OR (branch IN (bors/staging, bors/trying))) AND NOT (commit_message =~ /Travis-CI-Disable/)
     name: "Tests: integration (jormungandr)"
     script:
       - stack --no-terminal test --fast cardano-wallet-jormungandr:integration --ta "--skip PR_DISABLED"
