@@ -51,7 +51,7 @@
 - [Better Restoration Benchmark](#gift-better-restoration-stress-benchmark)
 - [Better Supervision Of Child Processes](#gift-better-supervision-of-launchers-child-processes)
 
-## :gift: Legacy / Existing Wallet Support
+## :hammer: Legacy / Existing Wallet Support
 
 **When:** 
   - High Priority
