@@ -12,10 +12,8 @@ module Test.Integration.Scenario.API.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( AddressAmount
-    , ApiFee
+    ( ApiFee
     , ApiTransaction
-    , ApiTxInput
     , ApiWallet
     , insertedAt
     , time
@@ -35,7 +33,7 @@ import Data.Time.Utils
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldBe, shouldSatisfy )
+    ( SpecWith, describe, it, shouldSatisfy )
 import Test.Integration.Framework.DSL
     ( Context
     , Headers (..)
@@ -62,15 +60,12 @@ import Test.Integration.Framework.DSL
     , fixtureWallet
     , fixtureWalletManyTxs
     , fixtureWalletWith
-    , getFromResponseList
     , getWalletEp
-    , inputs
     , json
     , listAddresses
     , listAllTransactions
     , listTransactions
     , listTxEp
-    , outputs
     , postTxEp
     , postTxFeeEp
     , request
@@ -575,7 +570,10 @@ spec = do
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
-    describe "TRANS_CREATE_08, TRANS_LIST_04 - v2/wallets/{id}/transactions - Methods Not Allowed" $ do
+    describe
+        "TRANS_CREATE_08, TRANS_LIST_04 - \
+        \v2/wallets/{id}/transactions - Methods Not Allowed" $ do
+
         let matrix = ["PUT", "DELETE", "CONNECT", "TRACE", "OPTIONS"]
         forM_ matrix $ \method -> it (show method) $ \ctx -> do
             w <- emptyWallet ctx
@@ -1052,18 +1050,6 @@ spec = do
             Default Empty
         expectResponseCode @IO HTTP.status200 r
 
-        -- Outgoing tx inputs and outpus size
-        let outsOut = getFromResponseList 0 outputs r
-        let insOut = getFromResponseList 0 inputs r
-        length (outsOut :: [AddressAmount t]) `shouldBe` 2
-        length (insOut :: [ApiTxInput t]) `shouldBe` 1
-
-        -- Incoming tx inputs and outpus size
-        let outsIn = getFromResponseList 1 outputs r
-        let insIn = getFromResponseList 1 inputs r
-        length (outsIn :: [AddressAmount t]) `shouldBe` 1000
-        length (insIn :: [ApiTxInput t]) `shouldBe` 1
-
         verify r
             [ expectListSizeEqual 2
             , expectListItemFieldEqual 0 direction Outgoing
@@ -1076,9 +1062,9 @@ spec = do
 
     -- This scenario covers the following matrix of cases. Cases were generated
     -- using one of pairwise test cases generation tools available online.
-    -- +----+----------+----------+------------+--------------+
+    -- +---+----------+----------+------------+--------------+
     --     |  start   |   end    |   order    |    result    |
-    -- +----+----------+----------+------------+--------------+
+    -- +---+----------+----------+------------+--------------+
     --   1 | edge     | edge     | ascending  | 2 ascending  |
     --   2 | edge     | edge + 1 | descending | 2 descending |
     --   3 | edge     | edge - 1 | empty      | 1st one      |
@@ -1097,7 +1083,7 @@ spec = do
     --  16 | empty    | edge - 1 | descending | 1st one      |
     --  17 | t1       | t1       | empty      | 1st one      |
     --  18 | t2       | t2       | descending | 2nd one      |
-    -- +----+----------+----------+------------+--------------+
+    -- +---+----------+----------+------------+--------------+
     it "TRANS_LIST_02,03 - Can limit/order results with start, end and order"
         $ \ctx -> do
         (_, w, [(t1, a1), (t2, a2)]) <- fixtureWalletManyTxs ctx [10,20]
