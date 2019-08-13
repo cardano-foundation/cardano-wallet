@@ -8,7 +8,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- Contains various implementation decision that are specific to a particular
 -- network / protocol. This allows us to easily select a particular backend

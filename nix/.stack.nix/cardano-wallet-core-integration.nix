@@ -7,7 +7,7 @@
         name = "cardano-wallet-core-integration";
         version = "2019.6.24";
         };
-      license = "MIT";
+      license = "Apache-2.0";
       copyright = "2019 IOHK";
       maintainer = "operations@iohk.io";
       author = "IOHK Engineering Team";

@@ -11,7 +11,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- This module contains the necessary logic to talk to implement the network
 -- layer using the cardano-http-bridge as a chain producer.

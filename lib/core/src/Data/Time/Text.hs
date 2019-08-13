@@ -1,6 +1,6 @@
 -- |
 -- Copyright: © 2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- Utility functions for converting time values to and from text.
 

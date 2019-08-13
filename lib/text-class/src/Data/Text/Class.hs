@@ -9,7 +9,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- Extend the 'Data.Text' module with an extra abstraction to encode and decode
 -- values safely to and from 'Text'. It's very similar to 'FromJSON' and

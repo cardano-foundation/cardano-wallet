@@ -9,7 +9,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- Auto-generated Sqlite & Persistent machinery via Template-Haskell. This has
 -- been moved into a separate file so that we can treat it slightly differently

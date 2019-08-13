@@ -10,7 +10,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- Automatically generated code via Template-Haskell. Contains necessary
 -- database rows and columns declaration to work with 'AnyAddressState'.

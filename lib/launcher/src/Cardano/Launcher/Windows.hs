@@ -1,6 +1,6 @@
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 -- Portability: Windows
 --
 

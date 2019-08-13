@@ -11,7 +11,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- Representation of values with an associated (free) unit of measure. Useful to
 -- disambiguate primitive types like 'Int' or 'String' which can be in different

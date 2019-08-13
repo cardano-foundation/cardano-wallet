@@ -7,7 +7,7 @@
         name = "cardano-wallet-http-bridge";
         version = "2019.7.24";
         };
-      license = "MIT";
+      license = "Apache-2.0";
       copyright = "2019 IOHK";
       maintainer = "operations@iohk.io";
       author = "IOHK Engineering Team";

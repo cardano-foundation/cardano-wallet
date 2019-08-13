@@ -5,7 +5,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- Provides a mechanism for Daedalus to discover what port the cardano-wallet
 -- server is listening on.

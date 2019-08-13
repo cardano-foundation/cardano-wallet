@@ -6,7 +6,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- This module contains instances and types necessary for storing wallets in a
 -- SQL database with Persistent.

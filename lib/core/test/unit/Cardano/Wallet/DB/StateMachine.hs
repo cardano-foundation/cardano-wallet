@@ -19,7 +19,7 @@
 
 -- |
 -- Copyright: © 2018-2019 IOHK
--- License: MIT
+-- License: Apache-2.0
 --
 -- These are state machine model tests for the 'DBLayer' implementations.
 --
