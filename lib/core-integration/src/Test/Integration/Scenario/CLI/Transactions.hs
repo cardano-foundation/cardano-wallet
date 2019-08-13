@@ -59,7 +59,6 @@ import Test.Integration.Framework.DSL
     , emptyWallet
     , expectCliFieldBetween
     , expectCliFieldEqual
-    , expectCliListItemFieldBetween
     , expectCliListItemFieldEqual
     , expectEventually'
     , expectValidJSON
@@ -683,23 +682,16 @@ spec = do
                     code `shouldBe` ExitSuccess
 
     it "TRANS_LIST_01 - Can list Incoming and Outgoing transactions" $ \ctx -> do
-        (wSrc, _, _) <- fixtureWalletManyTxs ctx [1]
-        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
-                { nInputs = 1
-                , nOutputs = 1
-                }
+        (wSrc, _) <- fixtureWalletManyTxs ctx [1]
 
         (Exit code, Stdout out, Stderr err) <-
             listTransactionsViaCLI @t ctx [T.unpack $ wSrc ^. walletId]
         err `shouldBe` "Ok.\n"
         code `shouldBe` ExitSuccess
         outJson <- expectValidJSON (Proxy @([ApiTransaction t])) out
-        length outJson `shouldBe` 2
         verify outJson
-            [ expectCliListItemFieldBetween 0 amount (feeMin + 1, feeMax + 1)
-            , expectCliListItemFieldEqual 0 direction Outgoing
+            [ expectCliListItemFieldEqual 0 direction Outgoing
             , expectCliListItemFieldEqual 0 status InLedger
-            , expectCliListItemFieldEqual 1 amount 1_000_000_000_000
             , expectCliListItemFieldEqual 1 direction Incoming
             , expectCliListItemFieldEqual 1 status InLedger
             ]
@@ -736,7 +728,9 @@ spec = do
                 code `shouldBe` ExitFailure 1
 
     it "TRANS_LIST_03 - Can order results" $ \ctx -> do
-        (_, w, [(_, a1), (_, a2)]) <- fixtureWalletManyTxs ctx [10,20]
+        let a1 = 10
+        let a2 = 20
+        (_, w) <- fixtureWalletManyTxs ctx [a1, a2]
         let orderings =
                 [ ( mempty
                   , [ expectCliListItemFieldEqual 0 amount a2

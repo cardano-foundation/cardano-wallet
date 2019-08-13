@@ -49,12 +49,12 @@ import Test.Integration.Framework.DSL
     , expectEventually
     , expectFieldBetween
     , expectFieldEqual
-    , expectListItemFieldBetween
     , expectListItemFieldEqual
     , expectListSizeEqual
     , expectResponseCode
     , expectSuccess
     , faucetAmt
+    , insertedAtTime
     , faucetUtxoAmt
     , feeEstimator
     , fixtureWallet
@@ -1039,11 +1039,7 @@ spec = do
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
     it "TRANS_LIST_01 - Can list Incoming and Outgoing transactions" $ \ctx -> do
-        (wSrc, _, _) <- fixtureWalletManyTxs ctx [1]
-        let (feeMin, feeMax) = ctx ^. feeEstimator $ TxDescription
-                { nInputs = 1
-                , nOutputs = 1
-                }
+        (wSrc, _) <- fixtureWalletManyTxs ctx [1]
 
         -- Verify Tx list contains Incoming and Outgoing
         r <- request @([ApiTransaction t]) ctx (listTxEp wSrc mempty)
@@ -1051,12 +1047,9 @@ spec = do
         expectResponseCode @IO HTTP.status200 r
 
         verify r
-            [ expectListSizeEqual 2
-            , expectListItemFieldEqual 0 direction Outgoing
-            , expectListItemFieldBetween 0 amount (feeMin + 1, feeMax + 1)
+            [ expectListItemFieldEqual 0 direction Outgoing
             , expectListItemFieldEqual 0 status InLedger
             , expectListItemFieldEqual 1 direction Incoming
-            , expectListItemFieldEqual 1 amount 1_000_000_000_000
             , expectListItemFieldEqual 1 status InLedger
             ]
 
@@ -1084,9 +1077,14 @@ spec = do
     --  17 | t1       | t1       | empty      | 1st one      |
     --  18 | t2       | t2       | descending | 2nd one      |
     -- +---+----------+----------+------------+--------------+
-    it "TRANS_LIST_02,03 - Can limit/order results with start, end and order"
+    it "TRANS_LIST_02,03x - Can limit/order results with start, end and order"
         $ \ctx -> do
-        (_, w, [(t1, a1), (t2, a2)]) <- fixtureWalletManyTxs ctx [10,20]
+        let a1 = 10
+        let a2 = 20
+        (_, w) <- fixtureWalletManyTxs ctx [a1,a2]
+        txs <- listAllTransactions ctx w
+        let [Just t2, Just t1] = map (view insertedAtTime) txs
+
         let matrix =
                 [
                 -- 1

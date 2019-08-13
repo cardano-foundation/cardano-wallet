@@ -841,14 +841,13 @@ fixtureWalletWith ctx coins0 = do
         expectEventuallyL ctx balanceAvailable balanceTotal src
 
 -- | fixtureWallets (src, dest) with many transactions
--- additionally for dest wallet the list of txs [(txTime, txAmt)] is returned
 fixtureWalletManyTxs
   :: forall t. (EncodeAddress t, DecodeAddress t)
   => Context t
   -> [Natural]
   -- ^ List of tx amounts
-  -> IO (ApiWallet, ApiWallet, [(UTCTime, Natural)])
-  -- ^ (wSrc, wDest, wDestTxList)
+  -> IO (ApiWallet, ApiWallet)
+  -- ^ (wSrc, wDest)
 fixtureWalletManyTxs ctx txAmounts = do
     (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
     addrs <- listAddresses ctx wDest
@@ -877,17 +876,7 @@ fixtureWalletManyTxs ctx txAmounts = do
 
     expectEventually' ctx balanceAvailable (sum txAmounts) wDest
     expectEventually' ctx balanceTotal (sum txAmounts) wDest
-    r <- request @([ApiTransaction t]) ctx (listTxEp wDest "?order=ascending")
-        Default Empty
-    let indexes = [0..(length txAmounts - 1)]
-    let txTime x = fromMaybe
-            (error $ "Cannot get tx time from the tx list in position = " ++ show x )
-            (getFromResponseList x insertedAtTime r)
-    let txTimes = map
-            txTime
-            indexes
-    let wDestTxList = zip txTimes txAmounts
-    return (wSrc, wDest, wDestTxList)
+    return (wSrc, wDest)
 
 -- | Total amount on each faucet wallet
 faucetAmt :: Natural
