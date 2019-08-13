@@ -1865,7 +1865,7 @@ instance GHC.Classes.Eq s => GHC.Classes.Eq (Cardano.Wallet.Primitive.Model.Wall
 instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.Model.Wallet s t)
 
 
--- | Database / Pesistence layer for the wallet backend. This is where we
+-- | Database / Persistence layer for the wallet backend. This is where we
 --   define the interface allowing us to store and fetch various data on
 --   our wallets.
 module Cardano.Wallet.DB
@@ -2481,6 +2481,7 @@ instance GHC.Classes.Eq Cardano.Wallet.DB.Sqlite.DBLog
 instance GHC.Show.Show Cardano.Wallet.DB.Sqlite.DBLog
 instance GHC.Generics.Generic Cardano.Wallet.DB.Sqlite.DBLog
 instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t Cardano.Wallet.Primitive.AddressDerivation.Sequential.SeqKey => Cardano.Wallet.DB.Sqlite.PersistState (Cardano.Wallet.Primitive.AddressDiscovery.Sequential.SeqState t)
+instance Cardano.Wallet.DB.Sqlite.PersistState Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState
 
 
 -- | Provides the wallet layer functions that are used by API layer and
