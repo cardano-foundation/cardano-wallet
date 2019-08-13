@@ -36,6 +36,7 @@ module Cardano.CLI
     -- * Option & Argument Parsers
     , optionT
     , argumentT
+    , addressSchemeOption
     , databaseOption
     , listenOption
     , nodePortOption
@@ -44,6 +45,7 @@ module Cardano.CLI
 
     -- * Types
     , Service
+    , AddressScheme (..)
     , MnemonicSize (..)
     , Port (..)
 
@@ -157,7 +159,14 @@ import Data.String
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..), showT )
+    ( CaseStyle (..)
+    , FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
+    , fromTextToBoundedEnum
+    , showT
+    , toTextFromBoundedEnum
+    )
 import Data.Text.Read
     ( decimal )
 import Fmt
@@ -691,6 +700,15 @@ addressStateOption = optionT $ mempty
     <> metavar "STRING"
     <> help "only addresses with the given state: either 'used' or 'unused'."
 
+-- | [--addresses=STRING], default: sequential
+addressSchemeOption :: Parser AddressScheme
+addressSchemeOption = optionT $ mempty
+    <> long "address-scheme"
+    <> metavar "STRING"
+    <> help "address derivation and key scheme for wallet"
+    <> showDefaultWith (T.unpack . toText)
+    <> value Sequential
+
 -- | --database=FILEPATH
 databaseOption :: Parser FilePath
 databaseOption = optionT $ mempty
@@ -983,6 +1001,16 @@ instance FromText MnemonicSize where
         sizes = enumerate
         sizeMap = sizeTexts `zip` sizes
         sizeTexts = toText <$> sizes
+
+-- | Available address derivation schemes.
+data AddressScheme = Sequential | Random
+    deriving (Generic, Show, Eq, Bounded, Enum)
+
+instance FromText AddressScheme where
+    fromText = fromTextToBoundedEnum KebabLowerCase
+
+instance ToText AddressScheme where
+    toText = toTextFromBoundedEnum KebabLowerCase
 
 -- | Port number with a tag for describing what it is used for
 newtype Port (tag :: Symbol) = Port { getPort :: Int }

@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -18,7 +19,8 @@
 -- endpoints reachable through HTTP.
 
 module Cardano.Wallet.Api.Server
-    ( Listen (..)
+    ( WalletServer
+    , Listen (..)
     , start
     , withListeningSocket
     , getRandomPort
@@ -74,8 +76,10 @@ import Cardano.Wallet.Network
     ( ErrNetworkUnavailable (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..), WalletKey (..), digest, publicKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey (..), generateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( CompareDiscovery, GenChange, IsOurs, IsOwned, KnownAddresses )
+import Cardano.Wallet.Primitive.AddressDiscovery.Random
+    ( RndState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..), defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.Fee
@@ -99,6 +103,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     , WalletMetadata (..)
     )
+import Control.DeepSeq
+    ( NFData )
 import Control.Exception
     ( bracket )
 import Control.Monad.IO.Class
@@ -164,6 +170,8 @@ import Servant.Server
     ( Handler (..), ServantErr (..) )
 
 import qualified Cardano.Wallet as W
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Random as Rnd
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as BL
@@ -181,20 +189,33 @@ data Listen
       -- ^ Listen on an unused TCP port, selected at random
     deriving (Show, Eq)
 
+-- | The type constraints of the API server.
+--
+--  * @s@ is the type of address discovery state.
+--  * @t@ is the type of the target (node backend).
+--  * @k@ is the key type, which determines the address derivation scheme.
+type WalletServer s t k =
+    ( DefineTx t
+    , KeyToAddress t k
+    , EncodeAddress t
+    , DecodeAddress t
+    , Buildable (ErrValidateSelection t)
+    , Show s
+    , NFData s
+    , IsOwned s k
+    , IsOurs s
+    , GenChange s
+    , CompareDiscovery s
+    , KnownAddresses s
+    )
+
 -- | Start the application server, using the given settings and a bound socket.
 start
-    :: forall t k.
-        ( DefineTx t
-        , KeyToAddress t k
-        , k ~ SeqKey
-        , EncodeAddress t
-        , DecodeAddress t
-        , Buildable (ErrValidateSelection t)
-        )
+    :: forall s t k. WalletServer s t k
     => Warp.Settings
     -> Trace IO Text
     -> Socket
-    -> WalletLayer (SeqState t) t k
+    -> WalletLayer s t k
     -> IO ()
 start settings trace socket wl = do
     withWorkers trace wl
@@ -206,7 +227,7 @@ start settings trace socket wl = do
   where
     -- | A Servant server for our wallet API
     server :: Server (Api t)
-    server = addresses wl :<|> wallets wl :<|> transactions wl
+    server = addresses @s wl :<|> wallets wl :<|> transactions wl
 
     application :: Application
     application = serve (Proxy @("v2" :> Api t)) server
@@ -265,8 +286,8 @@ getRandomPort = do
 -------------------------------------------------------------------------------}
 
 wallets
-    :: forall t k. (DefineTx t, KeyToAddress t k, k ~ SeqKey)
-    => WalletLayer (SeqState t) t k
+    :: forall s t k. (DefineTx t, KeyToAddress t k)
+    => WalletLayer s t k
     -> Server Wallets
 wallets w =
     deleteWallet w
@@ -278,7 +299,7 @@ wallets w =
     :<|> getUTxOsStatistics w
 
 deleteWallet
-    :: WalletLayer (SeqState t) t k
+    :: WalletLayer s t k
     -> ApiT WalletId
     -> Handler NoContent
 deleteWallet w (ApiT wid) = do
@@ -287,14 +308,14 @@ deleteWallet w (ApiT wid) = do
 
 getWallet
     :: (DefineTx t)
-    => WalletLayer (SeqState t) t k
+    => WalletLayer s t k
     -> ApiT WalletId
     -> Handler ApiWallet
 getWallet w wid = fst <$> getWalletWithCreationTime w wid
 
 getWalletWithCreationTime
     :: (DefineTx t)
-    => WalletLayer (SeqState t) t k
+    => WalletLayer s t k
     -> ApiT WalletId
     -> Handler (ApiWallet, UTCTime)
 getWalletWithCreationTime w (ApiT wid) = do
@@ -305,7 +326,8 @@ getWalletWithCreationTime w (ApiT wid) = do
         { id =
             ApiT wid
         , addressPoolGap =
-            ApiT $ getState wallet ^. #externalPool . #gap
+            ApiT $ getState wallet ^. -- #externalPool . #gap
+              error "fixme: polymorphic getWallet not implemented"
         , balance = ApiT $ WalletBalance
             { available =
                 Quantity $ availableBalance wallet
@@ -324,7 +346,7 @@ getWalletWithCreationTime w (ApiT wid) = do
 
 listWallets
     :: (DefineTx t)
-    => WalletLayer (SeqState t) t k
+    => WalletLayer s t k
     -> Handler [ApiWallet]
 listWallets w = do
     wids <- liftIO $ W.listWallets w
@@ -332,17 +354,24 @@ listWallets w = do
         mapM (getWalletWithCreationTime w) (ApiT <$> wids)
 
 postWallet
-    :: forall t k.
-       (DefineTx t, KeyToAddress t k, k ~ SeqKey)
+    :: forall s t k. (DefineTx t, KeyToAddress t k)
+    => WalletLayer s t k
+    -> WalletPostData
+    -> Handler ApiWallet
+postWallet = error "fixme: polymorphic postWallet not implemented"
+
+postWalletSeq
+    :: forall s t k.
+       (DefineTx t, KeyToAddress t k, k ~ Seq.SeqKey)
     => WalletLayer (SeqState t) t k
     -> WalletPostData
     -> Handler ApiWallet
-postWallet w body = do
+postWalletSeq w body = do
     let seed = getApiMnemonicT (body ^. #mnemonicSentence)
     let secondFactor =
             maybe mempty getApiMnemonicT (body ^. #mnemonicSecondFactor)
     let pwd = getApiT (body ^. #passphrase)
-    let rootXPrv = generateKeyFromSeed (seed, secondFactor) pwd
+    let rootXPrv = Seq.generateKeyFromSeed (seed, secondFactor) pwd
     let g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
     let s = mkSeqState (rootXPrv, pwd) g
     let wid = WalletId $ digest $ publicKey rootXPrv
@@ -351,9 +380,26 @@ postWallet w body = do
     liftHandler $ W.restoreWallet w wid
     getWallet w (ApiT wid)
 
+postWalletRnd
+    :: forall s t k.
+       (DefineTx t, KeyToAddress t k, k ~ Rnd.RndKey)
+    => WalletLayer RndState t k
+    -> WalletPostData
+    -> Handler ApiWallet
+postWalletRnd w body = do
+    let seed = getApiMnemonicT (body ^. #mnemonicSentence)
+    let pwd = getApiT (body ^. #passphrase)
+    let rootXPrv = Rnd.generateKeyFromSeed seed pwd
+    let s = RndState rootXPrv
+    let wid = WalletId $ digest $ publicKey rootXPrv
+    _ <- liftHandler $ W.createWallet w wid (getApiT (body ^. #name)) s
+    liftHandler $ W.attachPrivateKey w wid (rootXPrv, pwd)
+    liftHandler $ W.restoreWallet w wid
+    getWallet w (ApiT wid)
+
 putWallet
     :: (DefineTx t)
-    => WalletLayer (SeqState t) t k
+    => WalletLayer s t k
     -> ApiT WalletId
     -> WalletPutData
     -> Handler ApiWallet
@@ -367,7 +413,7 @@ putWallet w (ApiT wid) body = do
 
 putWalletPassphrase
     :: (WalletKey k)
-    => WalletLayer (SeqState t) t k
+    => WalletLayer s t k
     -> ApiT WalletId
     -> WalletPutPassphraseData
     -> Handler NoContent
@@ -378,7 +424,7 @@ putWalletPassphrase w (ApiT wid) body = do
 
 getUTxOsStatistics
     :: (DefineTx t)
-    => WalletLayer (SeqState t) t k
+    => WalletLayer s t k
     -> ApiT WalletId
     -> Handler ApiUtxoStatistics
 getUTxOsStatistics w (ApiT wid) = do
@@ -395,14 +441,26 @@ getUTxOsStatistics w (ApiT wid) = do
 -------------------------------------------------------------------------------}
 
 addresses
-    :: (DefineTx t, KeyToAddress t k, k ~ SeqKey)
-    => WalletLayer (SeqState t) t k
+    :: forall s t k.
+       ( DefineTx t
+       , KeyToAddress t k
+       , IsOurs s
+       , CompareDiscovery s
+       , KnownAddresses s
+       )
+    => WalletLayer s t k
     -> Server (Addresses t)
 addresses = listAddresses
 
 listAddresses
-    :: forall t k. (DefineTx t, KeyToAddress t k, k ~ SeqKey)
-    => WalletLayer (SeqState t) t k
+    :: forall s t k.
+       ( DefineTx t
+       , KeyToAddress t k
+       , IsOurs s
+       , CompareDiscovery s
+       , KnownAddresses s
+       )
+    => WalletLayer s t k
     -> ApiT WalletId
     -> Maybe (ApiT AddressState)
     -> Handler [ApiAddress t]
@@ -421,8 +479,16 @@ listAddresses w (ApiT wid) stateFilter = do
 -------------------------------------------------------------------------------}
 
 transactions
-    :: (DefineTx t, KeyToAddress t k, k ~ SeqKey, Buildable (ErrValidateSelection t))
-    => WalletLayer (SeqState t) t k
+    :: forall s t k.
+       ( DefineTx t
+       , Buildable (ErrValidateSelection t)
+       , KeyToAddress t k
+       , Show s
+       , NFData s
+       , IsOwned s k
+       , GenChange s
+       )
+    => WalletLayer s t k
     -> Server (Transactions t)
 transactions w =
     createTransaction w
@@ -430,13 +496,15 @@ transactions w =
     :<|> postTransactionFee w
 
 createTransaction
-    :: forall t k.
+    :: forall s t k.
         ( DefineTx t
         , Buildable (ErrValidateSelection t)
-        , KeyToAddress t k
-        , k ~ SeqKey
+        , Show s
+        , NFData s
+        , IsOwned s k
+        , GenChange s
         )
-    => WalletLayer (SeqState t) t k
+    => WalletLayer s t k
     -> ApiT WalletId
     -> PostTransactionData t
     -> Handler (ApiTransaction t)
@@ -481,8 +549,8 @@ mkApiTransactionFromInfo (TransactionInfo txid ins outs meta depth txtime) =
     insertedAt = Just (ApiBlockData txtime (ApiT (meta ^. #slotId)))
 
 listTransactions
-    :: forall t k. (DefineTx t)
-    => WalletLayer (SeqState t) t k
+    :: forall s t k. (DefineTx t)
+    => WalletLayer s t k
     -> ApiT WalletId
     -> Maybe Iso8601Time
     -> Maybe Iso8601Time
@@ -503,8 +571,8 @@ coerceCoin (AddressAmount (ApiT addr, _) (Quantity c)) =
     TxOut addr (Coin $ fromIntegral c)
 
 postTransactionFee
-    :: forall t k. (DefineTx t, Buildable (ErrValidateSelection t))
-    => WalletLayer (SeqState t) t k
+    :: forall s t k. (DefineTx t, Buildable (ErrValidateSelection t))
+    => WalletLayer s t k
     -> ApiT WalletId
     -> PostTransactionFeeData t
     -> Handler ApiFee

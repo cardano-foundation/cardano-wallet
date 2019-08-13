@@ -32,8 +32,10 @@ import Cardano.BM.Backend.Switchboard
 import Cardano.BM.Trace
     ( Trace, appendName, logInfo )
 import Cardano.CLI
-    ( Port (..)
+    ( AddressScheme (..)
+    , Port (..)
     , Verbosity (..)
+    , addressSchemeOption
     , cli
     , cmdAddress
     , cmdMnemonic
@@ -59,11 +61,13 @@ import Cardano.Launcher
 import Cardano.Wallet
     ( BlockchainParameters (..), WalletLayer )
 import Cardano.Wallet.Api.Server
-    ( Listen (..) )
+    ( Listen (..), WalletServer )
 import Cardano.Wallet.DaedalusIPC
     ( daedalusIPC )
 import Cardano.Wallet.DB
     ( DBLayer )
+import Cardano.Wallet.DB.Sqlite
+    ( PersistState )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge, Network (..), byronBlockchainParameters )
 import Cardano.Wallet.HttpBridge.Environment
@@ -71,9 +75,13 @@ import Cardano.Wallet.HttpBridge.Environment
 import Cardano.Wallet.Network
     ( NetworkLayer, defaultRetryPolicy, waitForConnection )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( KeyToAddress )
+    ( PersistKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Random
+    ( RndKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey )
+import Cardano.Wallet.Primitive.AddressDiscovery.Random
+    ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
 import Cardano.Wallet.Version
@@ -147,6 +155,7 @@ main = do
 -- | Arguments for the 'launch' command
 data LaunchArgs = LaunchArgs
     { _network :: Either Local Network
+    , _addressScheme :: AddressScheme
     , _listen :: Listen
     , _nodePort :: Port "Node"
     , _stateDir :: Maybe FilePath
@@ -161,25 +170,27 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
   where
     cmd = fmap withNetwork $ LaunchArgs
         <$> networkOption'
+        <*> addressSchemeOption
         <*> listenOption
         <*> nodePortOption
         <*> stateDirOption dataDir
         <*> verbosityOption
-    withNetwork args@(LaunchArgs network _ _ _ _) = case network of
+    withNetwork args@(LaunchArgs network _ _ _ _ _) = case network of
         Left Local -> exec @(HttpBridge 'Testnet) args
         Right Testnet -> exec @(HttpBridge 'Testnet) args
         Right Mainnet -> exec @(HttpBridge 'Mainnet) args
+
     exec
         :: forall t n s.
            LaunchArgs
         -> IO ()
-    exec (LaunchArgs network listen nodePort mStateDir verbosity) = do
+    exec (LaunchArgs network scheme listen nodePort mStateDir verbosity) = do
         let withStateDir _ _ = pure ()
         let stateDir = fromMaybe (stateDirForNetwork dataDir network) mStateDir
         cmdName <- getExecutablePath
         execLaunch verbosity stateDir withStateDir
             [ commandHttpBridge stateDir
-            , commandWalletServe cmdName stateDir
+            , commandWalletServe cmdName scheme stateDir
             ]
       where
         commandHttpBridge stateDir =
@@ -195,11 +206,12 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
                 , [ "--networks-dir", stateDir ]
                 , verbosityToArgs verbosity
                 ]
-        commandWalletServe cmdName stateDir =
+        commandWalletServe cmdName scheme stateDir =
             Command cmdName arguments (return ()) Inherit
           where
             arguments = mconcat
                 [ [ "serve" ]
+                , [ "--scheme", T.unpack (toText scheme) ]
                 , [ "--network", case network of
                         Left Local -> "testnet"
                         Right n -> showT n
@@ -219,6 +231,7 @@ cmdLaunch dataDir = command "launch" $ info (helper <*> cmd) $ mempty
 -- | Arguments for the 'serve' command
 data ServeArgs = ServeArgs
     { _network :: Network
+    , _keyScheme :: AddressScheme
     , _listen :: Listen
     , _nodePort :: Port "Node"
     , _database :: Maybe FilePath
@@ -232,19 +245,35 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
   where
     cmd = fmap withNetwork $ ServeArgs
         <$> networkOption
+        <*> addressSchemeOption
         <*> listenOption
         <*> nodePortOption
         <*> optional databaseOption
         <*> verbosityOption
-    withNetwork args@(ServeArgs network _ _ _ _) = case network of
-        Testnet -> exec @(HttpBridge 'Testnet) args
-        Mainnet -> exec @(HttpBridge 'Mainnet) args
-    exec
+    withNetwork args@(ServeArgs network scheme _ _ _ _) =
+        case (network, scheme) of
+            (Testnet, Sequential) -> execSeq @(HttpBridge 'Testnet) args
+            (Mainnet, Sequential) -> execSeq @(HttpBridge 'Mainnet) args
+            (Testnet, Random) -> execRnd @(HttpBridge 'Testnet) args
+            (Mainnet, Random) -> execRnd @(HttpBridge 'Mainnet) args
+    execSeq
         :: forall t k n s. (t ~ HttpBridge n, s ~ SeqState t, k ~ SeqKey)
-        => (KeyToAddress t k, KnownNetwork n)
+        => (KnownNetwork n, WalletServer s t k, PersistState s, PersistKey k)
         => ServeArgs
         -> IO ()
-    exec (ServeArgs _ listen nodePort dbFile verbosity) = do
+    execSeq = exec @t @k @n @s
+    execRnd
+        :: forall t k n s. (t ~ HttpBridge n, s ~ RndState, k ~ RndKey)
+        => (KnownNetwork n, WalletServer s t k, PersistState s, PersistKey k)
+        => ServeArgs
+        -> IO ()
+    execRnd = exec @t @k @n @s
+    exec
+        :: forall t k n s. (t ~ HttpBridge n)
+        => (KnownNetwork n, WalletServer s t k, PersistState s, PersistKey k)
+        => ServeArgs
+        -> IO ()
+    exec (ServeArgs _ _ listen nodePort dbFile verbosity) = do
         (cfg, sb, tr) <- initTracer (verbosityToMinSeverity verbosity) "serve"
         logInfo tr "Wallet backend server starting..."
         logInfo tr $ "Running as v" <> T.pack (showVersion version)
