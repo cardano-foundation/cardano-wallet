@@ -42,10 +42,10 @@
 - [Join Stake Pools](#gift-join-stake-pools)
 - [Quit Stake Pools](#hammer-quit-stake-pools)
 - [List Stake Pools](#hammer-listing-available-stake-pools)
-- [Fine Grained Transaction Manipulation](#question-fine-grained-transaction-manipulation)
 
 #### Miscellaneous
 
+- [Signed Transaction Submission](#gift-signed-transaction-submission)
 - [Friendlier Command-Line](#gift-friendlier-command-line)
 - [Enforce Stronger Master Passphrases](#gift-enforce-stronger-master-passphrases)
 - [Better Restoration Benchmark](#gift-better-restoration-stress-benchmark)
@@ -499,23 +499,27 @@ Why:
 
 ---
 
-## :question: Fine Grained Transaction Manipulation
+## :gift: Signed Transaction Submission
 
 **When:**
-  - Low Priority
   - Byron Rewrite
 
 **Who:**
   - Client applications doing key management themselves (e.g. implementing Ledger or Trezor support)
+  - Darko Mijic 
 
 **What:**
   - The wallet backend does input selection, transaction signing and
-    transaction submission all in one-step. Users of the API should have the
+    transaction submission all in one-step. Users of the API should ultimately have the
     ability to do any of these three steps independently (while still having
-    the ability to let the wallet backend do them itself as it does currently).
+    the ability to let the wallet backend do them itself as it does currently). As a starter, 
+    we'll offer the ability to submit already signed transactions through the API. 
 
-  - Submitting a transaction shouldn't require any access to the wallet's root
-    private key.
+  - Submitting an already signed transaction shouldn't require any access to the wallet's root
+    private key. 
+
+  - Submitting an already signed transaction shouldn't even require a wallet to have been created,
+    clients should be able to trigger this endpoint freely.
 
 **Why:**
   - Some users (e.g. big exchanges) do key management on their end and prefer
