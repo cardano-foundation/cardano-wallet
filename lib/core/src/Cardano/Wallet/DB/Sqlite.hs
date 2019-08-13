@@ -157,6 +157,7 @@ import System.Log.FastLogger
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as W
+import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as W
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -167,8 +168,9 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Database.Sqlite as Sqlite
 
-----------------------------------------------------------------------------
--- Sqlite connection set up
+{-------------------------------------------------------------------------------
+                            Sqlite connection set up
+-------------------------------------------------------------------------------}
 
 -- | Context for the SQLite 'DBLayer'.
 data SqliteContext = SqliteContext
@@ -375,10 +377,7 @@ newDBLayer logConfig trace fp = do
                     Nothing -> pure $ Left $ ErrNoSuchWallet wid
 
         , readPrivateKey = \(PrimaryKey wid) ->
-              runQuery $
-              let keys = selectFirst [PrivateKeyWalletId ==. wid] []
-                  toMaybe = either (const Nothing) Just
-              in (>>= toMaybe . privateKeyFromEntity . entityVal) <$> keys
+              runQuery $ selectPrivateKey wid
 
         {-----------------------------------------------------------------------
                                        Lock
@@ -388,8 +387,9 @@ newDBLayer logConfig trace fp = do
               ExceptT $ withMVar lock $ \() -> runExceptT action
         })
 
-----------------------------------------------------------------------------
--- Internal / Database Setup
+{-------------------------------------------------------------------------------
+                           Internal / Database Setup
+-------------------------------------------------------------------------------}
 
 -- | Opens the SQLite database connection, sets up query logging and timing,
 -- runs schema migrations if necessary.
@@ -425,8 +425,9 @@ createSqliteBackend trace fp logFunc = do
 sqliteConnStr :: Maybe FilePath -> Text
 sqliteConnStr = maybe ":memory:" T.pack
 
-----------------------------------------------------------------------------
--- SQLite database setup
+{-------------------------------------------------------------------------------
+                             SQLite database setup
+-------------------------------------------------------------------------------}
 
 addIndices :: SqlPersistT IO ()
 addIndices = mapM_ (`rawExecute` [])
@@ -441,8 +442,9 @@ addIndices = mapM_ (`rawExecute` [])
   where
     createIndex name on = "CREATE INDEX IF NOT EXISTS " <> name <> " ON " <> on
 
-----------------------------------------------------------------------------
--- Conversion between Persistent table types and wallet types
+{-------------------------------------------------------------------------------
+           Conversion between Persistent table types and wallet types
+-------------------------------------------------------------------------------}
 
 delegationToText :: W.WalletDelegation W.PoolId -> Maybe Text
 delegationToText W.NotDelegating = Nothing
@@ -632,8 +634,9 @@ txHistoryFromEntity metas ins outs = map mkItem metas
         , W.amount = Quantity (txMetaAmount m)
         }
 
-----------------------------------------------------------------------------
--- DB Queries
+{-------------------------------------------------------------------------------
+                                   DB Queries
+-------------------------------------------------------------------------------}
 
 selectWallet :: MonadIO m => W.WalletId -> SqlPersistT m (Maybe Wallet)
 selectWallet wid = fmap entityVal <$> selectFirst [WalId ==. wid] []
@@ -772,8 +775,18 @@ selectTxHistory wid order conditions = do
         W.Ascending -> [Asc TxMetaSlotId, Desc TxMetaTxId]
         W.Descending -> [Desc TxMetaSlotId, Asc TxMetaTxId]
 
----------------------------------------------------------------------------
--- DB queries for address discovery state
+selectPrivateKey
+    :: (MonadIO m, PersistKey k)
+    => W.WalletId
+    -> SqlPersistT m (Maybe (k 'RootK XPrv, W.Hash "encryption"))
+selectPrivateKey wid =
+    let keys = selectFirst [PrivateKeyWalletId ==. wid] []
+        toMaybe = either (const Nothing) Just
+    in (>>= toMaybe . privateKeyFromEntity . entityVal) <$> keys
+
+{-------------------------------------------------------------------------------
+                     DB queries for address discovery state
+-------------------------------------------------------------------------------}
 
 -- | Get a @(WalletId, SlotId)@ pair from the checkpoint table, for use with
 -- 'insertState' and 'selectState'.
@@ -804,6 +817,10 @@ class DefineTx t => PersistTx t where
     -- | Re-construct a transaction from a set resolved inputs and
     -- some outputs. Returns 'Nothing' if the transaction couldn't be
     -- constructed.
+
+{-------------------------------------------------------------------------------
+                          Sequential address discovery
+-------------------------------------------------------------------------------}
 
 instance W.KeyToAddress t W.SeqKey => PersistState (W.SeqState t) where
     insertState (wid, sl) st = do
@@ -878,8 +895,22 @@ selectSeqStatePendingIxs ssid =
   where
     fromRes = fmap (W.Index . seqStatePendingIxIndex . entityVal)
 
-----------------------------------------------------------------------------
--- Logging
+{-------------------------------------------------------------------------------
+                          HD Random address discovery
+-------------------------------------------------------------------------------}
+
+instance PersistState W.RndState where
+    -- The 'RndState' is the root key, which is already in the DB, so nothing to
+    -- insert or delete.
+    insertState _ _ = pure ()
+    deleteState _ = pure ()
+
+    -- Construct a 'RndState' from the root private key
+    selectState (wid, _) = fmap (W.RndState . fst) <$> selectPrivateKey wid
+
+{-------------------------------------------------------------------------------
+                                    Logging
+-------------------------------------------------------------------------------}
 
 data DBLog
     = MsgMigrations Int

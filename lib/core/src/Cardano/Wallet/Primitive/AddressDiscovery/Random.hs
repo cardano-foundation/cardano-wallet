@@ -49,6 +49,9 @@ import GHC.Generics
 newtype RndState = RndState { getRndState :: RndKey 'RootK XPrv }
     deriving (Generic)
 
+instance Show RndState where
+    show _ = "RndState <xprv>"
+
 instance NFData RndState
 
 -- An address is considered to belong to the 'RndState' wallet if it can be decoded
