@@ -58,7 +58,7 @@ import Cardano.Wallet.DBSpec
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( XPrv, deserializeXPrv )
+    ( Depth (..), XPrv, deserializeXPrv )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( SeqKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -176,7 +176,7 @@ unMockWid (MWid wid) = WalletId . hash . B8.pack $ wid
 type MPrivKey = String
 
 -- | Stuff a mock private key into the type used by 'DBLayer'.
-fromMockPrivKey :: MPrivKey -> (SeqKey purpose XPrv, Hash "encryption")
+fromMockPrivKey :: MPrivKey -> (SeqKey 'RootK XPrv, Hash "encryption")
 fromMockPrivKey s = (k, Hash (B8.pack s))
     where Right (k, _) = deserializeXPrv (B8.replicate 256 '0', mempty)
 

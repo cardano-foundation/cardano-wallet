@@ -42,6 +42,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , KeyToAddress(..)
     , WalletKey(..)
     , PersistKey(..)
+    , dummyAddress
 
     -- * Passphrase
     , Passphrase(..)
@@ -394,32 +395,36 @@ class WalletKey (key :: Depth -> * -> *) where
         :: key depth raw
         -> raw
 
+    -- | Produce a fake address key of this scheme, for use in 'dummyAddress'.
+    dummyKey :: key 'AddressK XPub
+
+-- | Encoding of addresses for certain key types and backend targets.
+class WalletKey key => KeyToAddress target (key :: Depth -> * -> *) where
+    -- | Convert a public key to an 'Address' depending on a particular target.
+    --
+    -- Note that 'keyToAddress' is ambiguous and requires therefore a type
+    -- application. See also 'TxId'.
+    keyToAddress :: key 'AddressK XPub -> Address
+
+-- | Produce a fake address of representative size for the target and key
+-- type. This can be used in transaction size estimations.
+--
+-- This function is ambiguous, like 'keyToAddress', and types need to be
+-- applied.
+dummyAddress :: forall target key. KeyToAddress target key => Address
+dummyAddress = keyToAddress @target @key dummyKey
+
 -- | Operations for saving a 'WalletKey' into a database, and restoring it from
 -- a database. The keys should be encoded in hexadecimal strings.
-class PersistKey (key :: Depth -> * -> *) where
+class WalletKey key => PersistKey (key :: Depth -> * -> *) where
     -- | Convert a private key and its password hash into hexadecimal strings
     -- suitable for storing in a text file or database column.
     serializeXPrv
-        :: (key depth XPrv, Hash "encryption")
+        :: (key 'RootK XPrv, Hash "encryption")
         -> (ByteString, ByteString)
 
     -- | The reverse of 'serializeXPrv'. This may fail if the inputs are not
     -- valid hexadecimal strings, or if the key is of the wrong length.
     deserializeXPrv
         :: (ByteString, ByteString)
-        -> Either String (key depth XPrv, Hash "encryption")
-
-    -- | Convert a public key into a hexadecimal string suitable for storing in
-    -- a text file or database column.
-    serializeXPub :: key purpose XPub -> ByteString
-
-    -- | The reverse of 'serializeXPub'. This will fail if the input is not a
-    -- valid hexadecimal string of the correct length.
-    deserializeXPub :: ByteString -> Either String (key purpose XPub)
-
--- | Convert a public key to an 'Address' depending on a particular target.
---
--- Note that 'keyToAddress' is ambiguous and requires therefore a type
--- applications. See also 'TxId'.
-class WalletKey key => KeyToAddress target (key :: Depth -> * -> *) where
-    keyToAddress :: key 'AddressK XPub -> Address
+        -> Either String (key 'RootK XPrv, Hash "encryption")

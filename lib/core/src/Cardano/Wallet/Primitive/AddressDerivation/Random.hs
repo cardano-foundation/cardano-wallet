@@ -45,11 +45,15 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( DerivationScheme (DerivationScheme1)
     , XPrv
+    , XPub
     , deriveXPrv
     , generate
     , toXPub
+    , unXPrv
     , unXPub
     , xPrvChangePass
+    , xprv
+    , xpub
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
@@ -58,11 +62,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PersistKey (..)
     , WalletKey (..)
-    , deserializeXPrv
-    , serializeXPrv
     )
 import Cardano.Wallet.Primitive.Types
-    ( invariant )
+    ( Hash (..), invariant )
 import Control.DeepSeq
     ( NFData )
 import Crypto.Hash
@@ -71,6 +73,8 @@ import Crypto.Hash.Algorithms
     ( Blake2b_256, SHA512 (..) )
 import Data.ByteArray
     ( ScrubbedBytes )
+import Data.ByteArray.Encoding
+    ( Base (..), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
 import GHC.Generics
@@ -80,6 +84,7 @@ import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.KDF.PBKDF2 as PBKDF2
 import qualified Data.ByteArray as BA
+import qualified Data.ByteString.Char8 as B8
 
 {-------------------------------------------------------------------------------
                                    Key Types
@@ -119,12 +124,7 @@ instance WalletKey RndKey where
     -- Hash a public key to some other representation.
     digest = hash . unXPub . getKey
     getRawKey = getKey
-
-instance PersistKey RndKey where
-    serializeXPrv = error "PersistKey RndKey unimplemented"
-    deserializeXPrv = error "PersistKey RndKey unimplemented"
-    serializeXPub = error "PersistKey RndKey unimplemented"
-    deserializeXPub = error "PersistKey RndKey unimplemented"
+    dummyKey = dummyKeyRnd
 
 {-------------------------------------------------------------------------------
                                  Key generation
@@ -199,6 +199,13 @@ hdPassphrase masterKey = Passphrase $
     (unXPub . toXPub $ masterKey)
     ("address-hashing" :: ByteString)
 
+dummyKeyRnd :: RndKey 'AddressK XPub
+dummyKeyRnd = RndKey key (minBound, minBound) pwd
+  where
+    Right key = xpub (B8.replicate 64 '\0')
+    -- The 'hdPassphrase' result is 256 bits
+    pwd = Passphrase (BA.convert $ B8.replicate 32 '\0')
+
 {-------------------------------------------------------------------------------
                                    Passphrase
 -------------------------------------------------------------------------------}
@@ -262,6 +269,50 @@ deriveAddressPrivateKey (Passphrase pwd) accountKey idx@(Index addrIx) = RndKey
     , derivationPath = (derivationPath accountKey, idx)
     , payloadPassphrase = payloadPassphrase accountKey
     }
+
+{-------------------------------------------------------------------------------
+                          Storing and retrieving keys
+-------------------------------------------------------------------------------}
+
+instance PersistKey RndKey where
+    serializeXPrv = serializeXPrvRnd
+    deserializeXPrv = deserializeXPrvRnd
+
+-- | Serialize the key with its payload encryption passphrase.
+serializeKey :: (ByteString, Passphrase "addr-derivation-payload") -> ByteString
+serializeKey (k, Passphrase p) =
+    convertToBase Base16 k <> ":" <> convertToBase Base16 p
+
+-- | Deserialize the key and its payload encryption passphrase.
+deserializeKey
+    :: (ByteString -> Either String key)
+    -> ByteString
+    -> Either String (key, Passphrase "addr-derivation-payload")
+deserializeKey f b = case map (convertFromBase Base16) (B8.split ':' b) of
+    [Right k, Right p] -> case f k of
+        Right k' -> Right (k', Passphrase (BA.convert p))
+        Left e -> Left e
+    _ -> Left "Key input must be two hex strings separated by :"
+
+serializeXPrvRnd
+    :: (RndKey 'RootK XPrv, Hash "encryption")
+    -> (ByteString, ByteString)
+serializeXPrvRnd (RndKey k _ p, h) =
+    ( serializeKey (unXPrv k, p)
+    , convertToBase Base16 . getHash $ h )
+
+-- | The reverse of 'serializeXPrv'. This may fail if the inputs are not valid
+-- hexadecimal strings, or if the key is of the wrong length.
+deserializeXPrvRnd
+    :: (ByteString, ByteString)
+       -- ^ Hexadecimal encoded private key and password hash
+    -> Either String (RndKey 'RootK XPrv, Hash "encryption")
+deserializeXPrvRnd (k, h) = (,)
+    <$> fmap mkKey (rootKeyFromText k)
+    <*> fmap Hash (convertFromBase Base16 h)
+  where
+    rootKeyFromText = deserializeKey xprv
+    mkKey (key, pwd) = RndKey key () pwd
 
 {-------------------------------------------------------------------------------
                                      Utils
