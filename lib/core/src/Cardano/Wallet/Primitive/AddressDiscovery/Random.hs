@@ -2,10 +2,13 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -20,6 +23,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Random
       RndState (..)
     , emptyChangeState
     , updateChangeState
+    , incrementChangeState
     , ChangeState (..)
     ) where
 
@@ -28,7 +32,14 @@ import Prelude
 import Cardano.Byron.Codec.Cbor
     ( decodeAddressDerivationPath, decodeAddressPayload, deserialiseCbor )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), DerivationType (..), Index (..), XPrv )
+    ( Depth (..)
+    , DerivationType (..)
+    , Index (..)
+    , KeyToAddress (..)
+    , Passphrase (..)
+    , XPrv
+    , publicKey
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
     ( RndKey (..), deriveAccountPrivateKey, deriveAddressPrivateKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -48,6 +59,8 @@ import Data.Maybe
     ( isJust )
 import Data.Set
     ( Set )
+import Data.Word
+    ( Word32 )
 import GHC.Generics
     ( Generic )
 
@@ -89,30 +102,59 @@ addressToPath (Address addr) key = do
 -- already used addresses (not only change addresses but ever known, ie. generated)
 data ChangeState = ChangeState
     { forbidenAddresses :: Set Address
-    , nextIndex :: (Index 'Soft 'AccountK, Index 'Soft 'AddressK)
+    , passphrase :: Passphrase "encryption"
+    , nextIndex :: (Index 'Hardened 'AccountK, Index 'Hardened 'AddressK)
     } deriving (Generic, Show, Eq)
 
 instance NFData ChangeState
 
 emptyChangeState :: ChangeState
-emptyChangeState = ChangeState Set.empty (minBound, minBound)
+emptyChangeState = ChangeState Set.empty (Passphrase "") (minBound, minBound)
+
+incrementIndices :: Word32 -> Word32 -> (Word32, Word32)
+incrementIndices accIx addrIx =
+    if (addrIx == maxBound && accIx == maxBound) then
+        (minBound, minBound)
+    else if (addrIx == maxBound) then
+        (accIx + 1, minBound)
+    else (accIx, addrIx + 1)
 
 updateChangeState
     :: Address
     -> ChangeState
     -> ChangeState
-updateChangeState addr (ChangeState addrs (Index accIx, Index addrIx)) =
-    let (accIx', addrIx') =
-            if (addrIx == maxBound && accIx == maxBound) then
-                (minBound, minBound)
-            else if (addrIx == maxBound) then
-                (accIx + 1, minBound)
-            else (accIx, addrIx + 1)
-    in ChangeState (Set.insert addr addrs) (Index accIx', Index addrIx')
+updateChangeState addr (ChangeState addrs pwd (Index accIx, Index addrIx)) =
+    let (accIx', addrIx') = incrementIndices accIx addrIx
+    in ChangeState (Set.insert addr addrs) pwd (Index accIx', Index addrIx')
 
+incrementChangeState :: ChangeState -> ChangeState
+incrementChangeState (ChangeState addrs pwd (Index accIx, Index addrIx)) =
+    let (accIx', addrIx') = incrementIndices accIx addrIx
+    in ChangeState addrs pwd (Index accIx', Index addrIx')
 
-instance GenChange RndState where
-    genChange s = (error "GenChange RndState unimplemented", s)
+instance KeyToAddress t RndKey => GenChange RndState where
+    genChange rs = searchAddr @t rs
+
+searchAddr
+    :: forall t. (KeyToAddress t RndKey)
+    => RndState
+    -> (Address, RndState)
+searchAddr rs@(RndState rk cs@(ChangeState forbidenAddrs _ _)) =
+    if (Set.member (deriveAddrKey @t rs) forbidenAddrs) then
+        searchAddr @t $ RndState rk (incrementChangeState cs)
+    else
+       let addr' = deriveAddrKey @t rs
+       in (addr', RndState rk $ updateChangeState addr' cs)
+
+deriveAddrKey
+    :: forall t. (KeyToAddress t RndKey)
+    => RndState
+    -> Address
+deriveAddrKey (RndState rk (ChangeState _ pwd (accIx, addrIx))) =
+    let accKey = deriveAccountPrivateKey pwd rk accIx
+        addrKey = publicKey $ deriveAddressPrivateKey pwd accKey addrIx
+    in keyToAddress @t addrKey
+
 
 
 -- Unlike sequential derivation, we can't derive an order from the index only

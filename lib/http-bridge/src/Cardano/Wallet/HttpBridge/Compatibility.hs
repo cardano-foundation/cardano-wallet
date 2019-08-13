@@ -139,6 +139,7 @@ instance KeyToAddress (HttpBridge 'Mainnet) RndKey where
         (acctIx, addrIx) = derivationPath k
         pwd = payloadPassphrase k
 
+
 -- | Encode an 'Address' to a human-readable format, in this case
 --
 -- [Base58](https://en.wikipedia.org/wiki/Base58)
