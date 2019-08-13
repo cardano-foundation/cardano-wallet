@@ -25,9 +25,9 @@ import Prelude
 import Cardano.Byron.Codec.Cbor
     ( decodeAddressDerivationPath, decodeAddressPayload, deserialiseCbor )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), XPrv )
+    ( Depth (..), DerivationType (..), Index, XPrv )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
-    ( RndKey (..) )
+    ( RndKey (..), deriveAccountPrivateKey, deriveAddressPrivateKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -55,15 +55,26 @@ instance NFData RndState
 -- as a Byron HD random address, and where the wallet key can be used to decrypt
 -- the address derivation path.
 instance IsOurs RndState where
-    isOurs (Address addr) st@(RndState key) = (isJust path, st)
-      where
-        pwd = payloadPassphrase key
-        path = do
-            payload <- deserialiseCbor decodeAddressPayload addr
-            join $ deserialiseCbor (decodeAddressDerivationPath pwd) payload
+    isOurs addr st@(RndState key) =
+        (isJust $ addressToPath addr key, st)
 
 instance IsOwned RndState RndKey where
-    isOwned _ _ _ = Nothing
+    isOwned (RndState key) (_,pwd) addr =
+        case addressToPath addr key of
+            Just (accIx, addrIx) -> do
+                let accXPrv = deriveAccountPrivateKey pwd key accIx
+                let addrXPrv = deriveAddressPrivateKey pwd accXPrv addrIx
+                Just (addrXPrv, pwd)
+            _ -> Nothing
+
+addressToPath
+    :: Address
+    -> RndKey 'RootK XPrv
+    -> Maybe (Index 'Hardened 'AccountK, Index 'Hardened 'AddressK)
+addressToPath (Address addr) key = do
+    let pwd = payloadPassphrase key
+    payload <- deserialiseCbor decodeAddressPayload addr
+    join $ deserialiseCbor (decodeAddressDerivationPath pwd) payload
 
 instance GenChange RndState where
     genChange s = (error "GenChange RndState unimplemented", s)
