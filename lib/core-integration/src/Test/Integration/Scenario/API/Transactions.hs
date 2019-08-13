@@ -13,12 +13,7 @@ module Test.Integration.Scenario.API.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiFee
-    , ApiTransaction
-    , ApiWallet
-    , insertedAt
-    , time
-    )
+    ( ApiFee, ApiTransaction, ApiWallet, insertedAt, time )
 import Cardano.Wallet.Primitive.Types
     ( DecodeAddress (..), Direction (..), EncodeAddress (..), TxStatus (..) )
 import Control.Monad
@@ -56,12 +51,12 @@ import Test.Integration.Framework.DSL
     , expectResponseCode
     , expectSuccess
     , faucetAmt
-    , insertedAtTime
     , faucetUtxoAmt
     , feeEstimator
     , fixtureWallet
     , fixtureWalletWith
     , getWalletEp
+    , insertedAtTime
     , json
     , listAddresses
     , listAllTransactions
