@@ -78,7 +78,6 @@ module Test.Integration.Framework.DSL
     , listAllTransactions
     , tearDown
     , fixtureWallet
-    , fixtureWalletManyTxs
     , fixtureWalletWith
     , faucetAmt
     , faucetUtxoAmt
@@ -839,44 +838,6 @@ fixtureWalletWith ctx coins0 = do
             >>= expectResponseCode HTTP.status202
         expectEventually' ctx balanceAvailable (sum (balance:coins)) dest
         expectEventuallyL ctx balanceAvailable balanceTotal src
-
--- | fixtureWallets (src, dest) with many transactions
-fixtureWalletManyTxs
-  :: forall t. (EncodeAddress t, DecodeAddress t)
-  => Context t
-  -> [Natural]
-  -- ^ List of tx amounts
-  -> IO (ApiWallet, ApiWallet)
-  -- ^ (wSrc, wDest)
-fixtureWalletManyTxs ctx txAmounts = do
-    (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-    addrs <- listAddresses ctx wDest
-
-    forM_ txAmounts $ \amt -> do
-        let destination = (addrs !! 1) ^. #id
-        let payload = Json [aesonQQ|{
-                "payments": [{
-                    "address": #{destination},
-                    "amount": {
-                        "quantity": #{amt},
-                        "unit": "lovelace"
-                    }
-                }],
-                "passphrase": "cardano-wallet"
-            }|]
-
-        rg <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
-        let balAv = getFromResponse balanceAvailable rg
-        let balTot = getFromResponse balanceTotal rg
-
-        request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
-          >>= expectResponseCode HTTP.status202
-        expectEventually' ctx balanceAvailable (amt + balAv) wDest
-        expectEventually' ctx balanceTotal (amt + balTot) wDest
-
-    expectEventually' ctx balanceAvailable (sum txAmounts) wDest
-    expectEventually' ctx balanceTotal (sum txAmounts) wDest
-    return (wSrc, wDest)
 
 -- | Total amount on each faucet wallet
 faucetAmt :: Natural

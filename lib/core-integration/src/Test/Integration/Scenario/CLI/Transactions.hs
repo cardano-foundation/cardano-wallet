@@ -38,6 +38,8 @@ import Data.Time.Utils
     ( utcTimePred, utcTimeSucc )
 import Network.Wai.Handler.Warp
     ( Port )
+import Numeric.Natural
+    ( Natural )
 import System.Command
     ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit
@@ -66,7 +68,6 @@ import Test.Integration.Framework.DSL
     , faucetUtxoAmt
     , feeEstimator
     , fixtureWallet
-    , fixtureWalletManyTxs
     , fixtureWalletWith
     , getWalletViaCLI
     , listAddresses
@@ -682,8 +683,25 @@ spec = do
                     code `shouldBe` ExitSuccess
 
     it "TRANS_LIST_01 - Can list Incoming and Outgoing transactions" $ \ctx -> do
-        (wSrc, _) <- fixtureWalletManyTxs ctx [1]
+        -- Make tx from fixtureWallet
+        wSrc <- fixtureWallet ctx
+        wDest <- emptyWallet ctx
+        addr:_ <- listAddresses ctx wDest
+        let addrStr =
+                encodeAddress (Proxy @t) (getApiT $ fst $ addr ^. #id)
+        let amt = 14 :: Natural
+        let args = T.unpack <$>
+                [ wSrc ^. walletId
+                , "--payment", T.pack (show amt) <> "@" <> addrStr
+                ]
 
+        -- post transaction
+        (c, _, _) <- postTransactionViaCLI @t ctx "cardano-wallet" args
+        c `shouldBe` ExitSuccess
+        expectEventually' ctx balanceAvailable amt wDest
+        expectEventually' ctx balanceTotal amt wDest
+
+        -- Verify Tx list contains Incoming and Outgoing
         (Exit code, Stdout out, Stderr err) <-
             listTransactionsViaCLI @t ctx [T.unpack $ wSrc ^. walletId]
         err `shouldBe` "Ok.\n"
@@ -728,9 +746,12 @@ spec = do
                 code `shouldBe` ExitFailure 1
 
     it "TRANS_LIST_03 - Can order results" $ \ctx -> do
-        let a1 = 10
-        let a2 = 20
-        (_, w) <- fixtureWalletManyTxs ctx [a1, a2]
+        let a1 = sum $ replicate 10 1
+        let a2 = sum $ replicate 10 2
+        w <- fixtureWalletWith ctx $ mconcat
+                [ replicate 10 1
+                , replicate 10 2
+                ]
         let orderings =
                 [ ( mempty
                   , [ expectCliListItemFieldEqual 0 amount a2

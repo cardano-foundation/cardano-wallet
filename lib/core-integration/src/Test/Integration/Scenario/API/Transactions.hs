@@ -2,6 +2,7 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -47,6 +48,7 @@ import Test.Integration.Framework.DSL
     , emptyWallet
     , expectErrorMessage
     , expectEventually
+    , expectEventually'
     , expectFieldBetween
     , expectFieldEqual
     , expectListItemFieldEqual
@@ -58,7 +60,6 @@ import Test.Integration.Framework.DSL
     , faucetUtxoAmt
     , feeEstimator
     , fixtureWallet
-    , fixtureWalletManyTxs
     , fixtureWalletWith
     , getWalletEp
     , json
@@ -1039,7 +1040,27 @@ spec = do
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
     it "TRANS_LIST_01 - Can list Incoming and Outgoing transactions" $ \ctx -> do
-        (wSrc, _) <- fixtureWalletManyTxs ctx [1]
+        -- Make tx from fixtureWallet
+        (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        addrs <- listAddresses ctx wDest
+
+        let amt = 1 :: Natural
+        let destination = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": "cardano-wallet"
+            }|]
+
+        request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+            >>= expectResponseCode HTTP.status202
+        expectEventually' ctx balanceAvailable amt wDest
+        expectEventually' ctx balanceTotal amt wDest
 
         -- Verify Tx list contains Incoming and Outgoing
         r <- request @([ApiTransaction t]) ctx (listTxEp wSrc mempty)
@@ -1079,9 +1100,12 @@ spec = do
     -- +---+----------+----------+------------+--------------+
     it "TRANS_LIST_02,03x - Can limit/order results with start, end and order"
         $ \ctx -> do
-        let a1 = 10
-        let a2 = 20
-        (_, w) <- fixtureWalletManyTxs ctx [a1,a2]
+        let a1 = sum $ replicate 10 1
+        let a2 = sum $ replicate 10 2
+        w <- fixtureWalletWith ctx $ mconcat
+                [ replicate 10 1
+                , replicate 10 2
+                ]
         txs <- listAllTransactions ctx w
         let [Just t2, Just t1] = map (view insertedAtTime) txs
 
@@ -1380,16 +1404,16 @@ spec = do
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
-    -- describe "TRANS_LIST_04 - False wallet ids" $ do
-    --     forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
-    --         let endpoint = "v2/wallets/" <> walId <> "/transactions"
-    --         r <- request @([ApiTransaction t]) ctx ("GET", T.pack endpoint)
-    --                 Default Empty
-    --         expectResponseCode HTTP.status404 r
-    --         if (title == "40 chars hex") then
-    --             expectErrorMessage (errMsg404NoWallet $ T.pack walId) r
-    --         else
-    --             expectErrorMessage errMsg404NoEndpoint r
+    describe "TRANS_LIST_04 - False wallet ids" $ do
+        forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
+            let endpoint = "v2/wallets/" <> walId <> "/transactions"
+            r <- request @([ApiTransaction t]) ctx ("GET", T.pack endpoint)
+                    Default Empty
+            expectResponseCode HTTP.status404 r
+            if (title == "40 chars hex") then
+                expectErrorMessage (errMsg404NoWallet $ T.pack walId) r
+            else
+                expectErrorMessage errMsg404NoEndpoint r :: IO ()
 
     it "TRANS_LIST_RANGE_01 - \
        \Transaction at time t is SELECTED by small ranges that cover it" $
