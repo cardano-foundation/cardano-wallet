@@ -420,7 +420,7 @@ class WalletKey key => PersistKey (key :: Depth -> * -> *) where
     -- | Convert a private key and its password hash into hexadecimal strings
     -- suitable for storing in a text file or database column.
     serializeXPrv
-        :: (key depth XPrv, Hash "encryption")
+        :: (key 'RootK XPrv, Hash "encryption")
         -> (ByteString, ByteString)
 
     -- | The reverse of 'serializeXPrv'. This may fail if the inputs are not
@@ -428,11 +428,3 @@ class WalletKey key => PersistKey (key :: Depth -> * -> *) where
     deserializeXPrv
         :: (ByteString, ByteString)
         -> Either String (key 'RootK XPrv, Hash "encryption")
-
-    -- | Convert a public key into a hexadecimal string suitable for storing in
-    -- a text file or database column.
-    serializeXPub :: key depth XPub -> ByteString
-
-    -- | The reverse of 'serializeXPub'. This will fail if the input is not a
-    -- valid hexadecimal string of the correct length.
-    deserializeXPub :: ByteString -> Either String (key 'RootK XPub)

@@ -277,8 +277,6 @@ deriveAddressPrivateKey (Passphrase pwd) accountKey idx@(Index addrIx) = RndKey
 instance PersistKey RndKey where
     serializeXPrv = serializeXPrvRnd
     deserializeXPrv = deserializeXPrvRnd
-    deserializeXPub = deserializeXPubRnd
-    serializeXPub = serializeXPubRnd
 
 -- | Serialize the key with its payload encryption passphrase.
 serializeKey :: (ByteString, Passphrase "addr-derivation-payload") -> ByteString
@@ -297,7 +295,7 @@ deserializeKey f b = case map (convertFromBase Base16) (B8.split ':' b) of
     _ -> Left "Key input must be two hex strings separated by :"
 
 serializeXPrvRnd
-    :: (RndKey depth XPrv, Hash "encryption")
+    :: (RndKey 'RootK XPrv, Hash "encryption")
     -> (ByteString, ByteString)
 serializeXPrvRnd (RndKey k _ p, h) =
     ( serializeKey (unXPrv k, p)
@@ -314,18 +312,6 @@ deserializeXPrvRnd (k, h) = (,)
     <*> fmap Hash (convertFromBase Base16 h)
   where
     rootKeyFromText = deserializeKey xprv
-    mkKey (key, pwd) = RndKey key () pwd
-
--- | Convert a public key into a hexadecimal string suitable for storing in
--- a text file or database column.
-serializeXPubRnd :: RndKey depth XPub -> ByteString
-serializeXPubRnd (RndKey k _ p) = serializeKey (unXPub k, p)
-
--- | The reverse of 'serializeXPub'. This will fail if the input is not a valid
--- hexadecimal string of the correct length.
-deserializeXPubRnd :: ByteString -> Either String (RndKey 'RootK XPub)
-deserializeXPubRnd = fmap mkKey . (deserializeKey xpub)
-  where
     mkKey (key, pwd) = RndKey key () pwd
 
 {-------------------------------------------------------------------------------

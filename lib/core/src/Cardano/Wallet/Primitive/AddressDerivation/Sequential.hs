@@ -33,8 +33,8 @@ module Cardano.Wallet.Primitive.AddressDerivation.Sequential
     -- * Passphrase
     , changePassphraseSeq
     -- * Storing and retrieving keys
-    , deserializeXPrvSeq
     , deserializeXPubSeq
+    , serializeXPubSeq
     ) where
 
 import Prelude
@@ -325,15 +325,20 @@ dummyKeySeq = SeqKey key
 -------------------------------------------------------------------------------}
 
 instance PersistKey SeqKey where
-    serializeXPrv (k, h) =
-        ( toHexText . unXPrv . getRawKey $ k
-        , toHexText . getHash $ h )
+    serializeXPrv = serializeXPrvSeq
     deserializeXPrv = deserializeXPrvSeq
-    serializeXPub = toHexText . unXPub . getRawKey
-    deserializeXPub = deserializeXPubSeq
 
--- | The reverse of 'serializeXPrv'. This may fail if the inputs are not valid
--- hexadecimal strings, or if the key is of the wrong length.
+-- | Convert a private key and its password hash into hexadecimal strings
+-- suitable for storing in a text file or database column.
+serializeXPrvSeq
+    :: (SeqKey 'RootK XPrv, Hash "encryption")
+    -> (ByteString, ByteString)
+serializeXPrvSeq (k, h) =
+    ( toHexText . unXPrv . getRawKey $ k
+    , toHexText . getHash $ h )
+
+-- | The reverse of 'serializeXPrvSeq'. This may fail if the inputs are not
+-- valid hexadecimal strings, or if the key is of the wrong length.
 deserializeXPrvSeq
     :: (ByteString, ByteString)
        -- ^ Hexadecimal encoded private key and password hash
@@ -343,6 +348,11 @@ deserializeXPrvSeq (k, h) = (,)
     <*> fmap Hash (fromHexText h)
   where
     xprvFromText = xprv <=< fromHexText
+
+-- | Convert a public key into a hexadecimal string suitable for storing in a
+-- text file or database column.
+serializeXPubSeq :: SeqKey purpose XPub -> ByteString
+serializeXPubSeq = toHexText . unXPub . getRawKey
 
 -- | The reverse of 'serializeXPub'. This will fail if the input is not
 -- hexadecimal string of the correct length.

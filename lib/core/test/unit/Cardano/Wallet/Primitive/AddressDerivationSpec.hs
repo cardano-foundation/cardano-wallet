@@ -31,7 +31,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , getIndex
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey (..), generateKeyFromSeed )
+    ( SeqKey (..), deserializeXPubSeq, generateKeyFromSeed, serializeXPubSeq )
 import Cardano.Wallet.Primitive.Types
     ( Hash (..) )
 import Control.Monad
@@ -218,7 +218,7 @@ prop_roundtripXPub
     -> Property
 prop_roundtripXPub xpriv = do
     let xpub = publicKey xpriv
-    let xpub' = (deserializeXPub . serializeXPub) xpub
+    let xpub' = (deserializeXPubSeq . serializeXPubSeq) xpub
     xpub' === Right xpub
 
 prop_passphraseRoundtrip
