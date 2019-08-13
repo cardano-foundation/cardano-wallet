@@ -5,7 +5,7 @@
 -- Copyright: © 2018-2019 IOHK
 -- License: MIT
 --
--- Database / Pesistence layer for the wallet backend. This is where we define
+-- Database / Persistence layer for the wallet backend. This is where we define
 -- the interface allowing us to store and fetch various data on our wallets.
 
 module Cardano.Wallet.DB
