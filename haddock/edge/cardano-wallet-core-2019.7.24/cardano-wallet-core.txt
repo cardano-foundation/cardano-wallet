@@ -36,18 +36,6 @@ instance Data.Aeson.Types.ToJSON.ToJSON Cardano.Wallet.DaedalusIPC.MsgOut
 instance Data.Aeson.Types.FromJSON.FromJSON Cardano.Wallet.DaedalusIPC.MsgIn
 
 
--- | Common functions for the address derivation implementations.
---   
---   Use the types from <a>Cardano.Wallet.Primitive.AddressDerivation</a>
---   or the key generation or derivation functions from
---   <a>Cardano.Wallet.Primitive.AddressDerivation.Sequential</a> or
---   <a>Cardano.Wallet.Primitive.AddressDerivation.Random</a> instead of
---   this module.
-module Cardano.Wallet.Primitive.AddressDerivation.Common
-fromHexText :: ByteString -> Either String ByteString
-toHexText :: ByteString -> ByteString
-
-
 -- | This module provides mnemonic (backup phrase) creation, and conversion
 --   of a mnemonic to seed for wallet restoration.
 module Cardano.Wallet.Primitive.Mnemonic
@@ -980,12 +968,14 @@ Soft :: DerivationType
 data XPub
 data XPrv
 
+-- | Encoding of addresses for certain key types and backend targets.
+class WalletKey key => KeyToAddress target (key :: Depth -> * -> *)
+
 -- | Convert a public key to an <a>Address</a> depending on a particular
 --   target.
 --   
 --   Note that <a>keyToAddress</a> is ambiguous and requires therefore a
---   type applications. See also <tt>TxId</tt>.
-class WalletKey key => KeyToAddress target (key :: Depth -> * -> *)
+--   type application. See also <tt>TxId</tt>.
 keyToAddress :: KeyToAddress target key => key  'AddressK XPub -> Address
 class WalletKey (key :: Depth -> * -> *)
 
@@ -1007,26 +997,29 @@ digest :: (WalletKey key, HashAlgorithm a) => key depth XPub -> Digest a
 -- | Unwrap the <a>WalletKey</a> to use the <a>XPrv</a> or <a>XPub</a>.
 getRawKey :: WalletKey key => key depth raw -> raw
 
+-- | Produce a fake address key of this scheme, for use in
+--   <a>dummyAddress</a>.
+dummyKey :: WalletKey key => key  'AddressK XPub
+
 -- | Operations for saving a <a>WalletKey</a> into a database, and
 --   restoring it from a database. The keys should be encoded in
 --   hexadecimal strings.
-class PersistKey (key :: Depth -> * -> *)
+class WalletKey key => PersistKey (key :: Depth -> * -> *)
 
 -- | Convert a private key and its password hash into hexadecimal strings
 --   suitable for storing in a text file or database column.
-serializeXPrv :: PersistKey key => (key depth XPrv, Hash "encryption") -> (ByteString, ByteString)
+serializeXPrv :: PersistKey key => (key  'RootK XPrv, Hash "encryption") -> (ByteString, ByteString)
 
 -- | The reverse of <a>serializeXPrv</a>. This may fail if the inputs are
 --   not valid hexadecimal strings, or if the key is of the wrong length.
-deserializeXPrv :: PersistKey key => (ByteString, ByteString) -> Either String (key depth XPrv, Hash "encryption")
+deserializeXPrv :: PersistKey key => (ByteString, ByteString) -> Either String (key  'RootK XPrv, Hash "encryption")
 
--- | Convert a public key into a hexadecimal string suitable for storing in
---   a text file or database column.
-serializeXPub :: PersistKey key => key purpose XPub -> ByteString
-
--- | The reverse of <a>serializeXPub</a>. This will fail if the input is
---   not a valid hexadecimal string of the correct length.
-deserializeXPub :: PersistKey key => ByteString -> Either String (key purpose XPub)
+-- | Produce a fake address of representative size for the target and key
+--   type. This can be used in transaction size estimations.
+--   
+--   This function is ambiguous, like <a>keyToAddress</a>, and types need
+--   to be applied.
+dummyAddress :: forall target key. KeyToAddress target key => Address
 
 -- | An encapsulated passphrase. The inner format is free, but the wrapper
 --   helps readability in function signatures.
@@ -1179,7 +1172,7 @@ type family ErrValidateSelection t
 --   All the values used are the smaller ones. For example, the shortest
 --   adress type and shortest witness type are chosen to use for the
 --   estimate.
-estimateMaxNumberOfInputsBase :: forall t k. (KeyToAddress t k, PersistKey k) => EstimateMaxNumberOfInputsParams t -> Quantity "byte" Word16 -> Word8 -> Word8
+estimateMaxNumberOfInputsBase :: forall t k. KeyToAddress t k => EstimateMaxNumberOfInputsParams t -> Quantity "byte" Word16 -> Word8 -> Word8
 
 -- | Backend-specific variables used by
 --   <a>estimateMaxNumberOfInputsBase</a>.
@@ -1356,21 +1349,13 @@ deriveAddressPublicKey :: SeqKey  'AccountK XPub -> ChangeChain -> Index  'Soft 
 --   </ul>
 changePassphraseSeq :: Passphrase "encryption-old" -> Passphrase "encryption-new" -> SeqKey purpose XPrv -> SeqKey purpose XPrv
 
--- | Convert a private key and its password hash into hexadecimal strings
---   suitable for storing in a text file or database column.
-serializeXPrvSeq :: (SeqKey purpose XPrv, Hash "encryption") -> (ByteString, ByteString)
-
--- | The reverse of <a>serializeXPrv</a>. This may fail if the inputs are
---   not valid hexadecimal strings, or if the key is of the wrong length.
-deserializeXPrvSeq :: (ByteString, ByteString) -> Either String (SeqKey purpose XPrv, Hash "encryption")
+-- | The reverse of <tt>serializeXPub</tt>. This will fail if the input is
+--   not hexadecimal string of the correct length.
+deserializeXPubSeq :: ByteString -> Either String (SeqKey purpose XPub)
 
 -- | Convert a public key into a hexadecimal string suitable for storing in
 --   a text file or database column.
 serializeXPubSeq :: SeqKey purpose XPub -> ByteString
-
--- | The reverse of <a>serializeXPub</a>. This will fail if the input is
---   not a valid hexadecimal string of the correct length.
-deserializeXPubSeq :: ByteString -> Either String (SeqKey purpose XPub)
 instance GHC.Enum.Bounded Cardano.Wallet.Primitive.AddressDerivation.Sequential.ChangeChain
 instance GHC.Classes.Ord Cardano.Wallet.Primitive.AddressDerivation.Sequential.ChangeChain
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.AddressDerivation.Sequential.ChangeChain
