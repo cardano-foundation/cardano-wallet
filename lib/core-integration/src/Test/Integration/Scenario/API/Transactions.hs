@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -95,11 +96,9 @@ import Test.Integration.Framework.TestData
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
-data TestCase = TestCase
+data TestCase a = TestCase
     { query :: T.Text
-    , assertions
-        :: forall a. (Show a, Eq a)
-        => [(HTTP.Status, Either RequestException [a]) -> IO ()]
+    , assertions :: [(HTTP.Status, Either RequestException a) -> IO ()]
     }
 
 spec :: forall t. (EncodeAddress t, DecodeAddress t) => SpecWith (Context t)
@@ -1110,7 +1109,7 @@ spec = do
                 ]
         txs <- listAllTransactions ctx w
         let [Just t2, Just t1] = map (view insertedAtTime) txs
-        let matrix =
+        let matrix :: [TestCase [ApiTransaction t]] =
                 [
                  -- 1
                    TestCase
@@ -1300,15 +1299,16 @@ spec = do
                                ]
                        }
                    -- 18
-                   { query = toQueryString
-                           [ ( "start", utcIso8601ToText t2 )
-                           , ( "end", utcIso8601ToText t2)
-                           ]
-                   , assertions =
-                           [ expectListSizeEqual 1
-                           , expectListItemFieldEqual 0 amount a2
-                           ]
-                   }
+                   , TestCase
+                       { query = toQueryString
+                               [ ( "start", utcIso8601ToText t2 )
+                               , ( "end", utcIso8601ToText t2)
+                               ]
+                       , assertions =
+                               [ expectListSizeEqual 1
+                               , expectListItemFieldEqual 0 amount a2
+                               ]
+                       }
 
                 ]
 
@@ -1322,7 +1322,7 @@ spec = do
             \ ascending, descending."
         let startEndErr = "Expecting ISO 8601 date-and-time format\
             \ (basic or extended), e.g. 2012-09-25T10:15:00Z."
-        let queries =
+        let queries :: [TestCase [ApiTransaction t]] =
                 [
                   TestCase
                     { query = toQueryString [ ("start", "2009") ]
