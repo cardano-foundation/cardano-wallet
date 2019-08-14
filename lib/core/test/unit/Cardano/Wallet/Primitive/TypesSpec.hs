@@ -53,6 +53,7 @@ import Cardano.Wallet.Primitive.Types
     , restrictedBy
     , restrictedTo
     , slotAt
+    , slotDifference
     , slotPred
     , slotRatio
     , slotStartTime
@@ -175,6 +176,26 @@ spec = do
                 \(sps, slot) -> do
                     let f = slotPred sps . slotSucc sps
                     slot === f slot
+
+        it "slotDifference (slotSucc slot) slot == 1 (valid difference)" $
+            withMaxSuccess 1000 $ property $
+                \(sps, slot) -> do
+                    slotDifference sps (slotSucc sps slot) slot === Quantity 1
+
+        it "slotDifference slot (slotPred slot) == 1 (valid difference)" $
+            withMaxSuccess 1000 $ property $
+                \(sps, slot) -> do
+                    slotDifference sps slot (slotPred sps slot) === Quantity 1
+
+        it "slotDifference (slotPred slot) slot == 0 (invalid difference)" $
+            withMaxSuccess 1000 $ property $
+                \(sps, slot) -> do
+                    slotDifference sps (slotPred sps slot) slot === Quantity 0
+
+        it "slotDifference slot (slotSucc slot) == 0 (invalid difference)" $
+            withMaxSuccess 1000 $ property $
+                \(sps, slot) -> do
+                    slotDifference sps slot (slotSucc sps slot) === Quantity 0
 
         it "slotAt . slotStartTime == id" $
             withMaxSuccess 1000 $ property $
