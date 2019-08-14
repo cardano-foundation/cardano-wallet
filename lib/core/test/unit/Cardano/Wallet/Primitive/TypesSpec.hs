@@ -202,6 +202,15 @@ spec = do
                             . slotStartTime sps
                     slot === f slot
 
+        it "slotStartingAtOrJustBefore . slotStartTime == \
+            \slotStartingAtOrJustAfter . slotStartTime" $
+            withMaxSuccess 1000 $ property $
+                \(sps, slot) -> do
+                    let f = slotStartingAtOrJustBefore sps . slotStartTime sps
+                    let g = slotStartingAtOrJustAfter  sps . slotStartTime sps
+                    counterexample (show (slot, slotStartTime sps slot)) $
+                        f slot === g slot
+
     describe "Negative cases for types decoding" $ do
         it "fail fromText @AddressState \"unusedused\"" $ do
             let err = "Unable to decode the given value: \"unusedused\".\
