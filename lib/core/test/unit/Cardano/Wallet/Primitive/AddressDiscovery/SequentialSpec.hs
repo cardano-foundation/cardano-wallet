@@ -394,7 +394,7 @@ prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
     let
         s0 = SeqState intPool extPool emptyPendingIxs
         addrs0 = knownAddresses s0
-        (change, s1) = genChange s0
+        (change, s1) = genChange @DummyTarget s0
         addrs1 = knownAddresses s1
     in conjoin
         [ prop_addrsNotInInternalPool addrs0
@@ -432,7 +432,7 @@ changeAddresses
     -> SeqState DummyTarget
     -> ([Address], SeqState DummyTarget)
 changeAddresses as s =
-    let (a, s') = genChange s
+    let (a, s') = genChange @DummyTarget s
     in if a `elem` as then (as, s) else changeAddresses (a:as) s'
 
 deriving instance Arbitrary a => Arbitrary (ShowFmt a)

@@ -71,7 +71,7 @@ instance IsOurs AnyAddressState where
 instance IsOwned AnyAddressState key where
     isOwned _ _ _ = Nothing
 
-instance GenChange AnyAddressState where
+instance GenChange t AnyAddressState where
     genChange _ = error
         "GenChange.genChange: trying to generate change for \
         \an incompatible scheme 'AnyAddressState'. Please don't."

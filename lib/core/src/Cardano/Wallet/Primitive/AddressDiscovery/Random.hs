@@ -22,6 +22,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Random
     -- ** State
       RndState (..)
     , emptyRndState
+    , updateChangeState
     ) where
 
 import Prelude
@@ -77,7 +78,7 @@ instance NFData RndState
 -- the address derivation path.
 instance IsOurs RndState where
     isOurs addr st@(RndState key _ _ _ ) =
-        (isJust $ addressToPath addr key, st)
+        (isJust $ addressToPath addr key, updateChangeState addr st)
 
 instance IsOwned RndState RndKey where
     isOwned (RndState key _ _ _ ) (_,pwd) addr =
@@ -119,7 +120,7 @@ incrementChangeState (RndState key addrs pwd (Index accIx, Index addrIx)) =
     let (accIx', addrIx') = incrementIndices accIx addrIx
     in RndState key addrs pwd (Index accIx', Index addrIx')
 
-instance KeyToAddress t RndKey => GenChange RndState where
+instance KeyToAddress t RndKey => GenChange t RndState where
     genChange = searchAddr @t
 
 searchAddr

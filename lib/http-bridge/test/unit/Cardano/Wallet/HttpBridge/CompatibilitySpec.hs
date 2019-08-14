@@ -43,7 +43,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Random
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( RndState (..), emptyRndState )
+    ( RndState (..), emptyRndState, updateChangeState )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -192,8 +192,8 @@ prop_derivedKeysAreOurs
     -> RndKey 'RootK XPrv
     -> Property
 prop_derivedKeysAreOurs seed encPwd accIx addrIx rk' =
-    isOurs addr (emptyRndState rootXPrv) === (True, emptyRndState rootXPrv) .&&.
-    isOurs addr (emptyRndState rk') === (False, emptyRndState rk')
+    isOurs addr (emptyRndState rootXPrv) === (True, updateChangeState addr $ emptyRndState rootXPrv) .&&.
+    isOurs addr (emptyRndState rk') === (False, updateChangeState addr $ emptyRndState rk')
   where
     key = publicKey $ unsafeGenerateKeyFromSeed (accIx, addrIx) seed encPwd
     rootXPrv = generateKeyFromSeed seed encPwd

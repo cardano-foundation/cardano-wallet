@@ -417,7 +417,7 @@ instance KeyToAddress t SeqKey => IsOurs (SeqState t) where
         in
             (ixs' `deepseq` ours `deepseq` ours, SeqState s1' s2' ixs')
 
-instance KeyToAddress t SeqKey => GenChange (SeqState t) where
+instance KeyToAddress t SeqKey => GenChange t (SeqState t) where
     -- | We pick indexes in sequence from the first known available index (i.e.
     -- @length addrs - gap@) but we do not generate _new change addresses_. As a
     -- result, we can't generate more than @gap@ _pending_ change addresses and

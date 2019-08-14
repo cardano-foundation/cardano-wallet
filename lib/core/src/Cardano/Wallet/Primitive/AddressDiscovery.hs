@@ -82,7 +82,7 @@ class IsOurs s => IsOwned s key where
 -- abstractions allows for defining an heuristic to pick new change address. For
 -- instance, in BIP-44, change addresses belong to a particular change chain
 -- (also called "Internal Chain").
-class GenChange s where
+class GenChange t s where
     genChange
         :: s
         -> (Address, s)
