@@ -1058,8 +1058,8 @@ spec = do
                 "passphrase": "cardano-wallet"
             }|]
 
-        request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
-            >>= expectResponseCode HTTP.status202
+        tx <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        expectResponseCode HTTP.status202 tx
         expectEventually' ctx balanceAvailable amt wDest
         expectEventually' ctx balanceTotal amt wDest
 
@@ -1070,9 +1070,7 @@ spec = do
 
         verify r
             [ expectListItemFieldEqual 0 direction Outgoing
-            , expectListItemFieldEqual 0 status InLedger
             , expectListItemFieldEqual 1 direction Incoming
-            , expectListItemFieldEqual 1 status InLedger
             ]
 
     -- This scenario covers the following matrix of cases. Cases were generated

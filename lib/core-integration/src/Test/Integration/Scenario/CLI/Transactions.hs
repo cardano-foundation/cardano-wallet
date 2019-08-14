@@ -709,9 +709,7 @@ spec = do
         outJson <- expectValidJSON (Proxy @([ApiTransaction t])) out
         verify outJson
             [ expectCliListItemFieldEqual 0 direction Outgoing
-            , expectCliListItemFieldEqual 0 status InLedger
             , expectCliListItemFieldEqual 1 direction Incoming
-            , expectCliListItemFieldEqual 1 status InLedger
             ]
 
     describe "TRANS_LIST_02 - Start time shouldn't be later than end time" $
