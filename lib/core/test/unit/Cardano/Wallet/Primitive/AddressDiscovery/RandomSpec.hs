@@ -36,7 +36,7 @@ import Cardano.Wallet.Primitive.AddressDerivationSpec
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..), IsOwned (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( RndState (..), emptyChangeState )
+    ( RndState (..), emptyRndState )
 import Cardano.Wallet.Primitive.Types
     ( Address (..) )
 import Data.ByteArray.Encoding
@@ -197,7 +197,7 @@ checkIsOwned GoldenTest{..} = do
   where
     pwd = Passphrase ""
     Right addr' = Address <$> convertFromBase Base16 addr
-    rndState@(RndState rootXPrv _) = rndStateFromMnem arbitraryMnemonic
+    rndState@(RndState rootXPrv _ _ _) = rndStateFromMnem arbitraryMnemonic
     accXPrv = deriveAccountPrivateKey pwd rootXPrv (Index accIndex)
     addrXPrv = deriveAddressPrivateKey pwd accXPrv (Index addrIndex)
     expectation = if expected then
@@ -206,7 +206,7 @@ checkIsOwned GoldenTest{..} = do
 
 
 rndStateFromMnem :: [Text] -> RndState
-rndStateFromMnem mnem = RndState rootXPrv emptyChangeState
+rndStateFromMnem mnem = emptyRndState rootXPrv
   where
     rootXPrv = generateKeyFromSeed (Passphrase seed) (Passphrase "")
     Right (Passphrase seed) = fromMnemonic @'[12] mnem
@@ -263,10 +263,10 @@ prop_derivedKeysAreOwned
 -------------------------------------------------------------------------------}
 
 instance Eq RndState where
-    (RndState a _) == (RndState b _) = getKey a == getKey b
+    (RndState a _ _ _) == (RndState b _ _ _) = getKey a == getKey b
 
 instance Show RndState where
-    show (RndState a _) = show (getKey a)
+    show (RndState a _ _ _) = show (getKey a)
 
 data RndStatePassphrase = RndStatePassphrase
     { rndState :: RndState
@@ -280,7 +280,7 @@ instance Arbitrary RndStatePassphrase where
             <$> genPassphrase @"seed" (16, 32)
             <*> genPassphrase @"encryption" (0, 16)
         let st = generateKeyFromSeed s e
-        pure $ RndStatePassphrase (RndState st emptyChangeState) e
+        pure $ RndStatePassphrase (emptyRndState st) e
       where
         genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
         genPassphrase range = do

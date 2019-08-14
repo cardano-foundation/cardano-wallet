@@ -43,7 +43,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Random
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( RndState (..), emptyChangeState )
+    ( RndState (..), emptyRndState )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -192,10 +192,9 @@ prop_derivedKeysAreOurs
     -> RndKey 'RootK XPrv
     -> Property
 prop_derivedKeysAreOurs seed encPwd accIx addrIx rk' =
-    isOurs addr (RndState rootXPrv c) === (True, RndState rootXPrv c) .&&.
-    isOurs addr (RndState rk' c) === (False, RndState rk' c)
+    isOurs addr (emptyRndState rootXPrv) === (True, emptyRndState rootXPrv) .&&.
+    isOurs addr (emptyRndState rk') === (False, emptyRndState rk')
   where
-    c = emptyChangeState
     key = publicKey $ unsafeGenerateKeyFromSeed (accIx, addrIx) seed encPwd
     rootXPrv = generateKeyFromSeed seed encPwd
     addr = keyToAddress @(HttpBridge n) key
@@ -205,11 +204,11 @@ prop_derivedKeysAreOurs seed encPwd accIx addrIx rk' =
 -------------------------------------------------------------------------------}
 
 instance Eq RndState where
-    (RndState k1 c1) == (RndState k2 c2) =
-        getKey k1 == getKey k2 && c1 == c2
+    (RndState k1 addr1 pwd1 _) == (RndState k2 addr2 pwd2 _) =
+        getKey k1 == getKey k2 && addr1 == addr2 && pwd1 == pwd2
 
 instance Show RndState where
-    show (RndState a _) = show (getKey a)
+    show (RndState key _ _ _) = show (getKey key)
 
 instance Show XPrv where
     show = show . unXPrv

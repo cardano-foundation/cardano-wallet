@@ -21,10 +21,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Random
     (
     -- ** State
       RndState (..)
-    , emptyChangeState
-    , updateChangeState
-    , incrementChangeState
-    , ChangeState (..)
+    , emptyRndState
     ) where
 
 import Prelude
@@ -68,7 +65,9 @@ import qualified Data.Set as Set
 
 data RndState = RndState
     { rndKey :: RndKey 'RootK XPrv
-    , changeState :: ChangeState
+    , forbidenAddresses :: Set Address
+    , passphrase :: Passphrase "encryption"
+    , nextIndex :: (Index 'Hardened 'AccountK, Index 'Hardened 'AddressK)
     } deriving (Generic)
 
 instance NFData RndState
@@ -77,11 +76,11 @@ instance NFData RndState
 -- as a Byron HD random address, and where the wallet key can be used to decrypt
 -- the address derivation path.
 instance IsOurs RndState where
-    isOurs addr st@(RndState key _) =
+    isOurs addr st@(RndState key _ _ _ ) =
         (isJust $ addressToPath addr key, st)
 
 instance IsOwned RndState RndKey where
-    isOwned (RndState key _) (_,pwd) addr =
+    isOwned (RndState key _ _ _ ) (_,pwd) addr =
         case addressToPath addr key of
             Just (accIx, addrIx) -> do
                 let accXPrv = deriveAccountPrivateKey pwd key accIx
@@ -98,63 +97,50 @@ addressToPath (Address addr) key = do
     payload <- deserialiseCbor decodeAddressPayload addr
     join $ deserialiseCbor (decodeAddressDerivationPath pwd) payload
 
--- | Change state keeps track of the first free index to use and
--- already used addresses (not only change addresses but ever known, ie. generated)
-data ChangeState = ChangeState
-    { forbidenAddresses :: Set Address
-    , passphrase :: Passphrase "encryption"
-    , nextIndex :: (Index 'Hardened 'AccountK, Index 'Hardened 'AddressK)
-    } deriving (Generic, Show, Eq)
-
-instance NFData ChangeState
-
-emptyChangeState :: ChangeState
-emptyChangeState = ChangeState Set.empty (Passphrase "") (minBound, minBound)
+emptyRndState :: RndKey 'RootK XPrv -> RndState
+emptyRndState key = RndState key Set.empty (Passphrase "") (minBound, minBound)
 
 incrementIndices :: Word32 -> Word32 -> (Word32, Word32)
-incrementIndices accIx addrIx =
-    if (addrIx == maxBound && accIx == maxBound) then
-        (minBound, minBound)
-    else if (addrIx == maxBound) then
-        (accIx + 1, minBound)
-    else (accIx, addrIx + 1)
+incrementIndices accIx addrIx
+    | (addrIx == maxBound && accIx == maxBound) = (minBound, minBound)
+    | (addrIx == maxBound) = (accIx + 1, minBound)
+    | otherwise = (accIx, addrIx + 1)
 
 updateChangeState
     :: Address
-    -> ChangeState
-    -> ChangeState
-updateChangeState addr (ChangeState addrs pwd (Index accIx, Index addrIx)) =
+    -> RndState
+    -> RndState
+updateChangeState addr (RndState key addrs pwd (Index accIx, Index addrIx)) =
     let (accIx', addrIx') = incrementIndices accIx addrIx
-    in ChangeState (Set.insert addr addrs) pwd (Index accIx', Index addrIx')
+    in RndState key (Set.insert addr addrs) pwd (Index accIx', Index addrIx')
 
-incrementChangeState :: ChangeState -> ChangeState
-incrementChangeState (ChangeState addrs pwd (Index accIx, Index addrIx)) =
+incrementChangeState :: RndState -> RndState
+incrementChangeState (RndState key addrs pwd (Index accIx, Index addrIx)) =
     let (accIx', addrIx') = incrementIndices accIx addrIx
-    in ChangeState addrs pwd (Index accIx', Index addrIx')
+    in RndState key addrs pwd (Index accIx', Index addrIx')
 
 instance KeyToAddress t RndKey => GenChange RndState where
-    genChange rs = searchAddr @t rs
+    genChange = searchAddr @t
 
 searchAddr
     :: forall t. (KeyToAddress t RndKey)
     => RndState
     -> (Address, RndState)
-searchAddr rs@(RndState rk cs@(ChangeState forbidenAddrs _ _)) =
+searchAddr rs@(RndState _ forbidenAddrs _ _) =
     if (Set.member (deriveAddrKey @t rs) forbidenAddrs) then
-        searchAddr @t $ RndState rk (incrementChangeState cs)
+        searchAddr @t $ incrementChangeState rs
     else
        let addr' = deriveAddrKey @t rs
-       in (addr', RndState rk $ updateChangeState addr' cs)
+       in (addr', updateChangeState addr' rs)
 
 deriveAddrKey
     :: forall t. (KeyToAddress t RndKey)
     => RndState
     -> Address
-deriveAddrKey (RndState rk (ChangeState _ pwd (accIx, addrIx))) =
+deriveAddrKey (RndState rk _ pwd (accIx, addrIx)) =
     let accKey = deriveAccountPrivateKey pwd rk accIx
         addrKey = publicKey $ deriveAddressPrivateKey pwd accKey addrIx
     in keyToAddress @t addrKey
-
 
 
 -- Unlike sequential derivation, we can't derive an order from the index only
