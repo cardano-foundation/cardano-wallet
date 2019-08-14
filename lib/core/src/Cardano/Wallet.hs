@@ -116,6 +116,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotLength (..)
     , SlotLength (..)
+    , SlotParameters (..)
     , SortOrder (..)
     , StartTime (..)
     , TransactionInfo (..)
@@ -429,6 +430,10 @@ data BlockchainParameters t = BlockchainParameters
     , getTxMaxSize :: Quantity "byte" Word16
         -- ^ Maximum size of a transaction (soft or hard limit)
     }
+
+getSlotParameters :: BlockchainParameters t -> SlotParameters
+getSlotParameters (BlockchainParameters _ st _ sl el _) =
+    SlotParameters el sl st
 
 -- | Create a new instance of the wallet layer.
 newWalletLayer

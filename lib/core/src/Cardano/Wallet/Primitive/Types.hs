@@ -73,6 +73,7 @@ module Cardano.Wallet.Primitive.Types
 
     -- * Slotting
     , SlotId (..)
+    , SlotParameters (..)
     , SlotLength (..)
     , EpochLength (..)
     , StartTime (..)
@@ -837,6 +838,16 @@ instance NFData SlotId
 
 instance Buildable SlotId where
     build (SlotId e s) = fromString (show e) <> "." <> fromString (show s)
+
+-- | The essential parameters necessary for performing slot arithmetic.
+data SlotParameters = SlotParameters
+    { getEpochLength
+        :: EpochLength
+    , getSlotLength
+        :: SlotLength
+    , getGenesisBlockDate
+        :: StartTime
+    } deriving (Eq, Show)
 
 -- | Compute the approximate ratio / progress between two slots. This is an
 -- approximation for a few reasons, one of them being that we hard code the
