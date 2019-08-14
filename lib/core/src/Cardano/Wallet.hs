@@ -113,8 +113,6 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , Range (..)
     , SlotId (..)
-    , SlotId (..)
-    , SlotLength (..)
     , SlotLength (..)
     , SlotParameters (..)
     , SortOrder (..)
@@ -471,11 +469,13 @@ newWalletLayer tracer bp db nw tl = do
   where
     BlockchainParameters
         block0
-        startTime
+        _startTime
         feePolicy
         slotLength
         epochLength
         txMaxSize = bp
+
+    sp = getSlotParameters bp
 
     logDebugT :: MonadIO m => Text -> m ()
     logDebugT = liftIO . logDebug tracer
@@ -770,12 +770,8 @@ newWalletLayer tracer bp db nw tl = do
         (w, _) <- withExceptT ErrListTransactionsNoSuchWallet $ _readWallet wid
         let tip = currentTip w ^. #slotId
         let range = Range
-                { rStart =
-                    slotStartingAtOrJustAfter
-                        epochLength slotLength startTime <$> mStart
-                , rEnd =
-                    slotStartingAtOrJustBefore
-                        epochLength slotLength startTime <$> mEnd
+                { rStart = slotStartingAtOrJustAfter sp <$> mStart
+                , rEnd = slotStartingAtOrJustBefore sp <$> mEnd
                 }
         liftIO $ assemble tip
             <$> DB.readTxHistory db (PrimaryKey wid) order range
@@ -822,7 +818,7 @@ newWalletLayer tracer bp db nw tl = do
             -- assume that the transaction "happens" at the start of the
             -- slot. This is purely arbitrary and in practice, any time between
             -- the start of a slot and the end could be a validate candidate.
-            txTime = slotStartTime epochLength slotLength startTime
+            txTime = slotStartTime sp
 
     _signTx
         :: (Show s, NFData s, IsOwned s k, GenChange s)
