@@ -895,14 +895,14 @@ slotDifference epl a b
 -- | Return the slot immediately before the given slot.
 slotPred :: SlotParameters -> SlotId -> SlotId
 slotPred (SlotParameters (EpochLength el) _ _) (SlotId en sn)
-    | sn > 0    = SlotId (en    ) (               sn - 1)
-    | otherwise = SlotId (en - 1) (fromIntegral $ el - 1)
+    | sn > 0 = SlotId en (sn - 1)
+    | otherwise = SlotId (en - 1) (el - 1)
 
 -- | Return the slot immediately after the given slot.
 slotSucc :: SlotParameters -> SlotId -> SlotId
 slotSucc (SlotParameters (EpochLength el) _ _) (SlotId en sn)
-    | sn < el - 1 = SlotId (en    ) (sn + 1)
-    | otherwise   = SlotId (en + 1) (     0)
+    | sn < el - 1 = SlotId en (sn + 1)
+    | otherwise = SlotId (en + 1) 0
 
 -- | The time that a slot begins.
 slotStartTime :: SlotParameters -> SlotId -> UTCTime
