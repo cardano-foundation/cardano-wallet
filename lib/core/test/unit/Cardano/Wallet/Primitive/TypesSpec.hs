@@ -55,6 +55,8 @@ import Cardano.Wallet.Primitive.Types
     , slotPred
     , slotRatio
     , slotStartTime
+    , slotStartingAtOrJustAfter
+    , slotStartingAtOrJustBefore
     , slotSucc
     , walletNameMaxLength
     , walletNameMinLength
@@ -79,6 +81,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( TextDecodingError (..), fromText )
+import Data.Time.Utils
+    ( utcTimePred, utcTimeSucc )
 import Fmt
     ( pretty )
 import Test.Hspec
@@ -178,7 +182,8 @@ spec = do
                 slot === f slot
 
         it "slotAt . slotStartTime == id" $ withMaxSuccess 1000 $ property $
-            \slotLength startTime (epochLength, sl) -> do
+            \slotLength startTime (epochLength, slot) -> do
+
                 let slotAt' = slotAt
                         epochLength
                         slotLength
@@ -189,8 +194,62 @@ spec = do
                         slotLength
                         startTime
 
-                counterexample (show $ slotStartTime' sl) $
-                    slotAt' (slotStartTime' sl) === sl
+                let f = slotAt' . slotStartTime'
+
+                counterexample (show $ slotStartTime' slot) $
+                    slot === f slot
+
+        it "slotSucc . slotStartingAtOrJustBefore . utcTimePred . slotStartTime\
+            \ == id" $
+            withMaxSuccess 1000 $ property $
+                \slotLength startTime (epochLength, slot) -> do
+
+                    let slotStartingAtOrJustBefore' = slotStartingAtOrJustBefore
+                            epochLength
+                            slotLength
+                            startTime
+
+                    let slotStartTime' = slotStartTime
+                            epochLength
+                            slotLength
+                            startTime
+
+                    let slotSucc' = slotSucc
+                            epochLength
+
+                    let f = slotSucc'
+                            . slotStartingAtOrJustBefore'
+                            . utcTimePred
+                            . slotStartTime'
+
+                    counterexample (show (slot, slotStartTime' slot)) $
+                        slot === f slot
+
+        it "slotPred . slotStartingAtOrJustAfter . utcTimeSucc . slotStartTime\
+            \ == id" $
+            withMaxSuccess 1000 $ property $
+                \slotLength startTime (epochLength, slot) -> do
+
+                    let slotStartingAtOrJustAfter' = slotStartingAtOrJustAfter
+                            epochLength
+                            slotLength
+                            startTime
+
+                    let slotStartTime' = slotStartTime
+                            epochLength
+                            slotLength
+                            startTime
+
+                    let slotPred' = slotPred
+                            epochLength
+
+                    let f = slotPred'
+                            . slotStartingAtOrJustAfter'
+                            . utcTimeSucc
+                            . slotStartTime'
+
+                    counterexample (show (slot, slotStartTime' slot)) $
+                        slot == f slot
 
     describe "Negative cases for types decoding" $ do
         it "fail fromText @AddressState \"unusedused\"" $ do

@@ -80,6 +80,8 @@ module Cardano.Wallet.Primitive.Types
     , flatSlot
     , fromFlatSlot
     , slotStartTime
+    , slotStartingAtOrJustAfter
+    , slotStartingAtOrJustBefore
     , slotAt
     , slotDifference
     , slotPred
@@ -897,7 +899,21 @@ slotStartTime epochLength (SlotLength slotLength) (StartTime start) sl =
   where
     offset = slotLength * fromIntegral (flatSlot epochLength sl)
 
--- | The SlotId at a given time.
+-- | For the given time 't', determine the ID of the earliest slot with start
+--   time 's' such that 't ≤ s'.
+slotStartingAtOrJustAfter
+    :: EpochLength -> SlotLength -> StartTime -> UTCTime -> SlotId
+slotStartingAtOrJustAfter el sl st t =
+    slotAt el sl st (addUTCTime (pred $ getSlotLength sl) t)
+
+-- | For the given time 't', determine the ID of the latest slot with start
+--   time 's' such that 's ≤ t'.
+slotStartingAtOrJustBefore
+    :: EpochLength -> SlotLength -> StartTime -> UTCTime -> SlotId
+slotStartingAtOrJustBefore = slotAt
+
+-- | For the given time 't', determine the ID of the unique slot with start
+--   time 's' and end time 'e' such that 's ≤ t ≤ e'.
 slotAt :: EpochLength -> SlotLength -> StartTime -> UTCTime -> SlotId
 slotAt (EpochLength nSlots) (SlotLength slotLength) (StartTime start) time =
     SlotId
