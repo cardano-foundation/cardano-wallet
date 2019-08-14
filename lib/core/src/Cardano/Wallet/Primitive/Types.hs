@@ -82,6 +82,8 @@ module Cardano.Wallet.Primitive.Types
     , slotStartTime
     , slotAt
     , slotDifference
+    , slotPred
+    , slotSucc
 
     -- * Wallet Metadata
     , WalletMetadata(..)
@@ -875,6 +877,18 @@ slotDifference epl a b
   where
     a' = flatSlot epl a
     b' = flatSlot epl b
+
+-- | Return the slot immediately before the given slot.
+slotPred :: EpochLength -> SlotId -> SlotId
+slotPred (EpochLength el) (SlotId en sn)
+    | sn > 0    = SlotId (en    ) (               sn - 1)
+    | otherwise = SlotId (en - 1) (fromIntegral $ el - 1)
+
+-- | Return the slot immediately after the given slot.
+slotSucc :: EpochLength -> SlotId -> SlotId
+slotSucc (EpochLength el) (SlotId en sn)
+    | sn < el - 1 = SlotId (en    ) (sn + 1)
+    | otherwise   = SlotId (en + 1) (     0)
 
 -- | The time that a slot begins.
 slotStartTime :: EpochLength -> SlotLength -> StartTime -> SlotId -> UTCTime

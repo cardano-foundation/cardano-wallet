@@ -52,8 +52,10 @@ import Cardano.Wallet.Primitive.Types
     , restrictedBy
     , restrictedTo
     , slotAt
+    , slotPred
     , slotRatio
     , slotStartTime
+    , slotSucc
     , walletNameMaxLength
     , walletNameMinLength
     )
@@ -155,7 +157,26 @@ spec = do
         it "fromFlatSlot . flatSlot == id" $ property $ \n ->
             flatSlot slotsPerEpoch (fromFlatSlot slotsPerEpoch n) === n
 
-    describe "SlotId <-> UTCTime conversions" $ do
+    describe "Slot arithmetic" $ do
+
+        it "slotSucc . slotPred == id" $ withMaxSuccess 1000 $ property $
+            \(epochLength, slot) -> do
+
+                let slotPred' = slotPred epochLength
+                let slotSucc' = slotSucc epochLength
+                let f = slotSucc' . slotPred'
+
+                slot === f slot
+
+        it "slotPred . slotSucc == id" $ withMaxSuccess 1000 $ property $
+            \(epochLength, slot) -> do
+
+                let slotPred' = slotPred epochLength
+                let slotSucc' = slotSucc epochLength
+                let f = slotPred' . slotSucc'
+
+                slot === f slot
+
         it "slotAt . slotStartTime == id" $ withMaxSuccess 1000 $ property $
             \slotLength startTime (epochLength, sl) -> do
                 let slotAt' = slotAt
