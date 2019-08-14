@@ -9,6 +9,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -73,6 +74,7 @@ module Cardano.Wallet.Primitive.Types
 
     -- * Slotting
     , SlotId (..)
+    , SlotParameters (..)
     , SlotLength (..)
     , EpochLength (..)
     , StartTime (..)
@@ -80,8 +82,12 @@ module Cardano.Wallet.Primitive.Types
     , flatSlot
     , fromFlatSlot
     , slotStartTime
+    , slotStartingAtOrJustAfter
+    , slotStartingAtOrJustBefore
     , slotAt
     , slotDifference
+    , slotPred
+    , slotSucc
 
     -- * Wallet Metadata
     , WalletMetadata(..)
@@ -834,6 +840,16 @@ instance NFData SlotId
 instance Buildable SlotId where
     build (SlotId e s) = fromString (show e) <> "." <> fromString (show s)
 
+-- | The essential parameters necessary for performing slot arithmetic.
+data SlotParameters = SlotParameters
+    { getEpochLength
+        :: EpochLength
+    , getSlotLength
+        :: SlotLength
+    , getGenesisBlockDate
+        :: StartTime
+    } deriving (Eq, Show)
+
 -- | Compute the approximate ratio / progress between two slots. This is an
 -- approximation for a few reasons, one of them being that we hard code the
 -- epoch length as a static number whereas it may vary in practice.
@@ -868,40 +884,61 @@ fromFlatSlot (EpochLength epochLength) n = SlotId e (fromIntegral s)
 
 -- | @slotDifference a b@ is how many slots @a@ is after @b@. The result is
 -- non-negative, and if @b > a@ then this function returns zero.
-slotDifference :: EpochLength -> SlotId -> SlotId -> Quantity "slot" Natural
-slotDifference epl a b
+slotDifference :: SlotParameters -> SlotId -> SlotId -> Quantity "slot" Natural
+slotDifference (SlotParameters el _ _) a b
     | a' > b' = Quantity $ fromIntegral $ a' - b'
     | otherwise = Quantity 0
   where
-    a' = flatSlot epl a
-    b' = flatSlot epl b
+    a' = flatSlot el a
+    b' = flatSlot el b
+
+-- | Return the slot immediately before the given slot.
+slotPred :: SlotParameters -> SlotId -> SlotId
+slotPred (SlotParameters (EpochLength el) _ _) (SlotId en sn)
+    | sn > 0 = SlotId en (sn - 1)
+    | otherwise = SlotId (en - 1) (el - 1)
+
+-- | Return the slot immediately after the given slot.
+slotSucc :: SlotParameters -> SlotId -> SlotId
+slotSucc (SlotParameters (EpochLength el) _ _) (SlotId en sn)
+    | sn < el - 1 = SlotId en (sn + 1)
+    | otherwise = SlotId (en + 1) 0
 
 -- | The time that a slot begins.
-slotStartTime :: EpochLength -> SlotLength -> StartTime -> SlotId -> UTCTime
-slotStartTime epochLength (SlotLength slotLength) (StartTime start) sl =
-    addUTCTime offset start
+slotStartTime :: SlotParameters -> SlotId -> UTCTime
+slotStartTime (SlotParameters el (SlotLength sl) (StartTime st)) slot =
+    addUTCTime offset st
   where
-    offset = slotLength * fromIntegral (flatSlot epochLength sl)
+    offset = sl * fromIntegral (flatSlot el slot)
 
--- | The SlotId at a given time.
-slotAt :: EpochLength -> SlotLength -> StartTime -> UTCTime -> SlotId
-slotAt (EpochLength nSlots) (SlotLength slotLength) (StartTime start) time =
-    SlotId
-        { epochNumber = ep
-        , slotNumber = sl
-        }
+-- | For the given time 't', determine the ID of the earliest slot with start
+--   time 's' such that 't ≤ s'.
+slotStartingAtOrJustAfter :: SlotParameters -> UTCTime -> SlotId
+slotStartingAtOrJustAfter sp@(SlotParameters _ (SlotLength sl) _) t =
+    slotAt sp (addUTCTime (pred sl) t)
+
+-- | For the given time 't', determine the ID of the latest slot with start
+--   time 's' such that 's ≤ t'.
+slotStartingAtOrJustBefore :: SlotParameters -> UTCTime -> SlotId
+slotStartingAtOrJustBefore = slotAt
+
+-- | For the given time 't', determine the ID of the unique slot with start
+--   time 's' and end time 'e' such that 's ≤ t ≤ e'.
+slotAt :: SlotParameters -> UTCTime -> SlotId
+slotAt (SlotParameters (EpochLength el) (SlotLength sl) (StartTime st)) t =
+    SlotId {epochNumber, slotNumber}
   where
     diff :: NominalDiffTime
-    diff = time `diffUTCTime` start
+    diff = t `diffUTCTime` st
 
     epochLength :: NominalDiffTime
-    epochLength = fromIntegral nSlots * slotLength
+    epochLength = fromIntegral el * sl
 
-    ep :: Word64
-    ep = floor (diff / epochLength)
+    epochNumber :: Word64
+    epochNumber = floor (diff / epochLength)
 
-    sl :: Word16
-    sl = floor ((diff - (fromIntegral ep) * epochLength) / slotLength)
+    slotNumber :: Word16
+    slotNumber = floor ((diff - (fromIntegral epochNumber) * epochLength) / sl)
 
 -- | Duration of a single slot.
 newtype SlotLength = SlotLength NominalDiffTime

@@ -33,6 +33,7 @@ import Cardano.Wallet.Primitive.Types
     , ShowFmt (..)
     , SlotId (..)
     , SlotLength (..)
+    , SlotParameters (..)
     , StartTime (..)
     , TxIn (..)
     , TxMeta (TxMeta)
@@ -52,8 +53,13 @@ import Cardano.Wallet.Primitive.Types
     , restrictedBy
     , restrictedTo
     , slotAt
+    , slotDifference
+    , slotPred
     , slotRatio
     , slotStartTime
+    , slotStartingAtOrJustAfter
+    , slotStartingAtOrJustBefore
+    , slotSucc
     , walletNameMaxLength
     , walletNameMinLength
     )
@@ -77,6 +83,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( TextDecodingError (..), fromText )
+import Data.Time.Utils
+    ( utcTimePred, utcTimeSucc )
 import Fmt
     ( pretty )
 import Test.Hspec
@@ -155,21 +163,74 @@ spec = do
         it "fromFlatSlot . flatSlot == id" $ property $ \n ->
             flatSlot slotsPerEpoch (fromFlatSlot slotsPerEpoch n) === n
 
-    describe "SlotId <-> UTCTime conversions" $ do
-        it "slotAt . slotStartTime == id" $ withMaxSuccess 1000 $ property $
-            \slotLength startTime (epochLength, sl) -> do
-                let slotAt' = slotAt
-                        epochLength
-                        slotLength
-                        startTime
+    describe "Slot arithmetic" $ do
 
-                let slotStartTime' = slotStartTime
-                        epochLength
-                        slotLength
-                        startTime
+        it "slotSucc . slotPred == id" $
+            withMaxSuccess 1000 $ property $
+                \(sps, slot) -> do
+                    let f = slotSucc sps . slotPred sps
+                    slot === f slot
 
-                counterexample (show $ slotStartTime' sl) $
-                    slotAt' (slotStartTime' sl) === sl
+        it "slotPred . slotSucc == id" $
+            withMaxSuccess 1000 $ property $
+                \(sps, slot) -> do
+                    let f = slotPred sps . slotSucc sps
+                    slot === f slot
+
+        it "slotDifference (slotSucc slot) slot == 1 (valid difference)" $
+            withMaxSuccess 1000 $ property $
+                \(sps, slot) -> do
+                    slotDifference sps (slotSucc sps slot) slot === Quantity 1
+
+        it "slotDifference slot (slotPred slot) == 1 (valid difference)" $
+            withMaxSuccess 1000 $ property $
+                \(sps, slot) -> do
+                    slotDifference sps slot (slotPred sps slot) === Quantity 1
+
+        it "slotDifference (slotPred slot) slot == 0 (invalid difference)" $
+            withMaxSuccess 1000 $ property $
+                \(sps, slot) -> do
+                    slotDifference sps (slotPred sps slot) slot === Quantity 0
+
+        it "slotDifference slot (slotSucc slot) == 0 (invalid difference)" $
+            withMaxSuccess 1000 $ property $
+                \(sps, slot) -> do
+                    slotDifference sps slot (slotSucc sps slot) === Quantity 0
+
+        it "slotAt . slotStartTime == id" $
+            withMaxSuccess 1000 $ property $
+                \(sps, slot) -> do
+                    let f = slotAt sps . slotStartTime sps
+                    slot === f slot
+
+        it "slotSucc . slotStartingAtOrJustBefore . utcTimePred . slotStartTime\
+            \ == id" $
+            withMaxSuccess 1000 $ property $
+                \(sps, slot) -> do
+                    let f = slotSucc sps
+                            . slotStartingAtOrJustBefore sps
+                            . utcTimePred
+                            . slotStartTime sps
+                    slot === f slot
+
+        it "slotPred . slotStartingAtOrJustAfter . utcTimeSucc . slotStartTime\
+            \ == id" $
+            withMaxSuccess 1000 $ property $
+                \(sps, slot) -> do
+                    let f = slotPred sps
+                            . slotStartingAtOrJustAfter sps
+                            . utcTimeSucc
+                            . slotStartTime sps
+                    slot === f slot
+
+        it "slotStartingAtOrJustBefore . slotStartTime == \
+            \slotStartingAtOrJustAfter . slotStartTime" $
+            withMaxSuccess 1000 $ property $
+                \(sps, slot) -> do
+                    let f = slotStartingAtOrJustBefore sps . slotStartTime sps
+                    let g = slotStartingAtOrJustAfter  sps . slotStartTime sps
+                    counterexample (show (slot, slotStartTime sps slot)) $
+                        f slot === g slot
 
     describe "Negative cases for types decoding" $ do
         it "fail fromText @AddressState \"unusedused\"" $ do
@@ -538,6 +599,16 @@ instance Arbitrary StartTime where
 
 instance Arbitrary EpochLength where
     arbitrary = EpochLength . getNonZero <$> arbitrary
+
+instance {-# OVERLAPS #-} Arbitrary (SlotParameters, SlotId) where
+    arbitrary = do
+        (el, slot) <- arbitrary
+        sl <- arbitrary
+        st <- arbitrary
+        pure (SlotParameters el sl st, slot)
+    shrink (SlotParameters el sl st, slot) = do
+        (el', slot') <- shrink (el, slot)
+        pure (SlotParameters el' sl st, slot')
 
 -- | Note, for functions which works with both an epoch length and a slot id,
 -- we need to make sure that the 'slotNumber' doesn't exceed the epoch length,
