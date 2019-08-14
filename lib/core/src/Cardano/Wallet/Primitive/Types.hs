@@ -884,13 +884,13 @@ fromFlatSlot (EpochLength epochLength) n = SlotId e (fromIntegral s)
 
 -- | @slotDifference a b@ is how many slots @a@ is after @b@. The result is
 -- non-negative, and if @b > a@ then this function returns zero.
-slotDifference :: EpochLength -> SlotId -> SlotId -> Quantity "slot" Natural
-slotDifference epl a b
+slotDifference :: SlotParameters -> SlotId -> SlotId -> Quantity "slot" Natural
+slotDifference (SlotParameters el _ _) a b
     | a' > b' = Quantity $ fromIntegral $ a' - b'
     | otherwise = Quantity 0
   where
-    a' = flatSlot epl a
-    b' = flatSlot epl b
+    a' = flatSlot el a
+    b' = flatSlot el b
 
 -- | Return the slot immediately before the given slot.
 slotPred :: SlotParameters -> SlotId -> SlotId

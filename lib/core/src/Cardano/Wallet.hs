@@ -803,7 +803,7 @@ newWalletLayer tracer bp db nw tl = do
                 , txInfoOutputs = W.outputs @t tx
                 , txInfoMeta = meta
                 , txInfoDepth =
-                    slotDifference epochLength tip (meta ^. #slotId)
+                    slotDifference sp tip (meta ^. #slotId)
                 , txInfoTime = txTime (meta ^. #slotId)
                 }
             txOuts = Map.fromList
