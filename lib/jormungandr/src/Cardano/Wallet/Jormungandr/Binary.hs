@@ -508,7 +508,7 @@ getAddress = do
     case kind of
         0x3 -> Address <$> getByteString 33 -- single address
         0x4 -> Address <$> getByteString 65 -- grouped address
-        0x5 -> Address <$> getByteString 65 -- account address
+        0x5 -> Address <$> getByteString 33 -- account address
         0x6 -> Address <$> getByteString 33 -- multisig address
         other -> fail $ "Invalid address type: " ++ show other
   where
