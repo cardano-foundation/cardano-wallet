@@ -60,6 +60,8 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Data.ByteString
     ( ByteString )
+import Data.Either
+    ( isRight )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
@@ -75,7 +77,14 @@ import Data.Word
 import GHC.Generics
     ( Generic )
 import Test.Hspec
-    ( Spec, describe, expectationFailure, it, shouldBe, shouldThrow )
+    ( Spec
+    , describe
+    , expectationFailure
+    , it
+    , shouldBe
+    , shouldSatisfy
+    , shouldThrow
+    )
 import Test.QuickCheck
     ( Arbitrary (..), Gen, choose, oneof, property, shrinkList, vectorOf )
 import Test.QuickCheck.Arbitrary.Generic
@@ -85,6 +94,7 @@ import Test.QuickCheck.Monadic
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BL
 
 spec :: Spec
 spec = do
@@ -221,6 +231,14 @@ spec = do
                         }
                     []
             unsafeDecodeHex getBlock bytes `shouldBe` block
+
+        it "should decode an account address golden" $ do
+            -- This address was manually retrieved from a jcli-created genesis
+            -- block.
+            let hex = "850C0DF2B9A4CD3E8CD36B81BE295EF2A\
+                      \B5BA25929A36359F84CD1AA5CEBE2FAED"
+            res <- try' (runGet getAddress (BL.fromStrict $ unsafeFromHex hex))
+            res `shouldSatisfy` isRight
 
     describe "Encoding" $ do
         let cc = ChainCode "<ChainCode is not used by singleAddressToKey>"
