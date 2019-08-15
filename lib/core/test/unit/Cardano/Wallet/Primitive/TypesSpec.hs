@@ -2,6 +2,7 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -73,6 +74,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Function
     ( (&) )
+import Data.Function.Utils
+    ( applyN )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -91,6 +94,7 @@ import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , NonNegative (..)
     , NonZero (..)
     , Property
     , arbitraryBoundedEnum
@@ -106,6 +110,7 @@ import Test.QuickCheck
     , withMaxSuccess
     , (=/=)
     , (===)
+    , (==>)
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
@@ -165,42 +170,82 @@ spec = do
 
     describe "Slot arithmetic" $ do
 
-        it "slotSucc . slotPred == id" $
-            withMaxSuccess 1000 $ property $
+        it "applyN (flatSlot slot) slotPred slot == Just (fromFlatSlot 0)" $
+            withMaxSuccess 10 $ property $
                 \(sps, slot) -> do
-                    let f = slotSucc sps . slotPred sps
-                    slot === f slot
+                    let n = flatSlot (getEpochLength sps) slot
+                    Just (fromFlatSlot (getEpochLength sps) 0) ===
+                        applyN n (slotPred sps =<<) (Just slot)
 
-        it "slotPred . slotSucc == id" $
-            withMaxSuccess 1000 $ property $
+        it "applyN (flatSlot slot + 1) slotPred slot == Nothing" $
+            withMaxSuccess 10 $ property $
                 \(sps, slot) -> do
-                    let f = slotPred sps . slotSucc sps
-                    slot === f slot
+                    let n = flatSlot (getEpochLength sps) slot + 1
+                    Nothing === applyN n (slotPred sps =<<) (Just slot)
 
-        it "slotDifference (slotSucc slot) slot == 1 (valid difference)" $
+        it "(applyN n slotSucc) . (applyN n slotPred) == id" $
             withMaxSuccess 1000 $ property $
-                \(sps, slot) -> do
-                    slotDifference sps (slotSucc sps slot) slot === Quantity 1
+                \(sps, slot) (NonNegative (n :: Int)) ->
+                    flatSlot (getEpochLength sps) slot >= fromIntegral n ==> do
+                    let s = applyN n (slotSucc sps <$>)
+                    let p = applyN n (slotPred sps =<<)
+                    Just slot === (s . p) (Just slot)
 
-        it "slotDifference slot (slotPred slot) == 1 (valid difference)" $
+        it "(applyN n slotPred) . (applyN n slotSucc) == id" $
             withMaxSuccess 1000 $ property $
-                \(sps, slot) -> do
-                    slotDifference sps slot (slotPred sps slot) === Quantity 1
+                \(sps, slot) (NonNegative (n :: Int)) -> do
+                    let s = applyN n (slotSucc sps <$>)
+                    let p = applyN n (slotPred sps =<<)
+                    Just slot === (p . s) (Just slot)
 
-        it "slotDifference (slotPred slot) slot == 0 (invalid difference)" $
+        it "slotDifference (applyN n slotSucc slot) slot == \
+            \n (valid difference)" $
             withMaxSuccess 1000 $ property $
-                \(sps, slot) -> do
-                    slotDifference sps (slotPred sps slot) slot === Quantity 0
+                \(sps, slot) (NonNegative (n :: Int)) ->
+                    Quantity (fromIntegral n) ===
+                        slotDifference sps (applyN n (slotSucc sps) slot) slot
 
-        it "slotDifference slot (slotSucc slot) == 0 (invalid difference)" $
+        it "slotDifference slot (applyN n slotPred slot) == \
+            \n (valid difference)" $
             withMaxSuccess 1000 $ property $
-                \(sps, slot) -> do
-                    slotDifference sps slot (slotSucc sps slot) === Quantity 0
+                \(sps, slot) (NonNegative (n :: Int)) ->
+                    flatSlot (getEpochLength sps) slot >= fromIntegral n ==>
+                    Just (Quantity (fromIntegral n)) ===
+                        (slotDifference sps slot <$>
+                            applyN n (slotPred sps =<<) (Just slot))
+
+        it "slotDifference (applyN n slotPred slot) slot == \
+            \0 (invalid difference)" $
+            withMaxSuccess 1000 $ property $
+                \(sps, slot) (NonNegative (n :: Int)) ->
+                    flatSlot (getEpochLength sps) slot >= fromIntegral n ==>
+                    Just (Quantity 0) ===
+                        (flip (slotDifference sps) slot <$>
+                            applyN n (slotPred sps =<<) (Just slot))
+
+        it "slotDifference slot (applyN n slotSucc slot) == \
+            \0 (invalid difference)" $
+            withMaxSuccess 1000 $ property $
+                \(sps, slot) (NonNegative (n :: Int)) ->
+                    Quantity 0 ===
+                        slotDifference sps slot (applyN n (slotSucc sps) slot)
 
         it "slotAt . slotStartTime == id" $
             withMaxSuccess 1000 $ property $
                 \(sps, slot) -> do
                     let f = slotAt sps . slotStartTime sps
+                    slot === f slot
+
+        it "slotStartingAtOrJustAfter . slotStartTime == id" $
+            withMaxSuccess 1000 $ property $
+                \(sps, slot) -> do
+                    let f = slotStartingAtOrJustAfter sps . slotStartTime sps
+                    slot === f slot
+
+        it "slotStartingAtOrJustBefore . slotStartTime == id" $
+            withMaxSuccess 1000 $ property $
+                \(sps, slot) -> do
+                    let f = slotStartingAtOrJustBefore sps . slotStartTime sps
                     slot === f slot
 
         it "slotSucc . slotStartingAtOrJustBefore . utcTimePred . slotStartTime\
@@ -216,21 +261,13 @@ spec = do
         it "slotPred . slotStartingAtOrJustAfter . utcTimeSucc . slotStartTime\
             \ == id" $
             withMaxSuccess 1000 $ property $
-                \(sps, slot) -> do
+                \(sps, slot) ->
+                    flatSlot (getEpochLength sps) slot > 0 ==> do
                     let f = slotPred sps
                             . slotStartingAtOrJustAfter sps
                             . utcTimeSucc
                             . slotStartTime sps
-                    slot === f slot
-
-        it "slotStartingAtOrJustBefore . slotStartTime == \
-            \slotStartingAtOrJustAfter . slotStartTime" $
-            withMaxSuccess 1000 $ property $
-                \(sps, slot) -> do
-                    let f = slotStartingAtOrJustBefore sps . slotStartTime sps
-                    let g = slotStartingAtOrJustAfter  sps . slotStartTime sps
-                    counterexample (show (slot, slotStartTime sps slot)) $
-                        f slot === g slot
+                    Just slot === f slot
 
     describe "Negative cases for types decoding" $ do
         it "fail fromText @AddressState \"unusedused\"" $ do
