@@ -424,7 +424,7 @@ instance KeyToAddress t SeqKey => GenChange t (SeqState t) where
     -- therefore, rotate the change addresses when we need extra change outputs.
     --
     -- See also: 'nextChangeIndex'
-    genChange (SeqState intPool extPool pending) =
+    genChange _pwd (SeqState intPool extPool pending) =
         let
             (ix, pending') = nextChangeIndex intPool pending
             accountXPub = accountPubKey intPool

@@ -78,6 +78,10 @@ import Database.Persist.TH
     ( MkPersistSettings (..), sqlSettings )
 import GHC.Generics
     ( Generic )
+import System.Random
+    ( StdGen )
+import Text.Read
+    ( readMaybe )
 import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
 import Web.PathPieces
@@ -107,6 +111,13 @@ aesonFromText what = withText what $ either (fail . show) pure . fromText
 fromPersistValueFromText :: FromText a => PersistValue -> Either Text a
 fromPersistValueFromText = fromPersistValue >=> fromTextWithErr
     where fromTextWithErr = first ("not a valid value: " <>) . fromText'
+
+-- | 'fromPersistValue' defined in terms of the 'Read' class
+fromPersistValueRead :: Read a => PersistValue -> Either Text a
+fromPersistValueRead pv = fromPersistValue pv >>= readWithErr
+  where
+    readWithErr = toEither . readMaybe . T.unpack
+    toEither = maybe (Left $ "not a valid value: " <> T.pack (show pv)) Right
 
 ----------------------------------------------------------------------------
 -- Direction
@@ -343,4 +354,14 @@ instance PersistField ChangeChain where
     fromPersistValue = fromPersistValueFromText
 
 instance PersistFieldSql ChangeChain where
+    sqlType _ = sqlType (Proxy @Text)
+
+----------------------------------------------------------------------------
+-- StdGen
+
+instance PersistField StdGen where
+    toPersistValue = toPersistValue . show
+    fromPersistValue = fromPersistValueRead
+
+instance PersistFieldSql StdGen where
     sqlType _ = sqlType (Proxy @Text)

@@ -55,6 +55,9 @@ import Cardano.Wallet.DB.Sqlite.TH
     , EntityField (..)
     , Key (..)
     , PrivateKey (..)
+    , RndState (..)
+    , RndStateAddress (..)
+    , RndStateId
     , SeqState (..)
     , SeqStateAddresses (..)
     , SeqStateId
@@ -156,9 +159,9 @@ import System.Log.FastLogger
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as W
-import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as W
-import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as W
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as Seq
+import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
+import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.ByteString.Char8 as B8
@@ -822,19 +825,19 @@ class DefineTx t => PersistTx t where
                           Sequential address discovery
 -------------------------------------------------------------------------------}
 
-instance W.KeyToAddress t W.SeqKey => PersistState (W.SeqState t) where
+instance W.KeyToAddress t Seq.SeqKey => PersistState (Seq.SeqState t) where
     insertState (wid, sl) st = do
-        let (intPool, extPool) = (W.internalPool st, W.externalPool st)
+        let (intPool, extPool) = (Seq.internalPool st, Seq.externalPool st)
         let (xpub, _) = W.invariant
                 "Internal & External pool use different account public keys!"
-                (W.accountPubKey intPool, W.accountPubKey extPool)
+                (Seq.accountPubKey intPool, Seq.accountPubKey extPool)
                 (uncurry (==))
-        let eGap = W.gap extPool
-        let iGap = W.gap intPool
+        let eGap = Seq.gap extPool
+        let iGap = Seq.gap intPool
         ssid <- insert (SeqState wid sl eGap iGap (AddressPoolXPub xpub))
         insertAddressPool ssid intPool
         insertAddressPool ssid extPool
-        insertMany_ $ mkSeqStatePendingIxs ssid $ W.pendingChangeIxs st
+        insertMany_ $ mkSeqStatePendingIxs ssid $ Seq.pendingChangeIxs st
 
     selectState (wid, sl) = runMaybeT $ do
         st <- MaybeT $ selectFirst
@@ -845,7 +848,7 @@ instance W.KeyToAddress t W.SeqKey => PersistState (W.SeqState t) where
         intPool <- lift $ selectAddressPool ssid iGap xPub
         extPool <- lift $ selectAddressPool ssid eGap xPub
         pendingChangeIxs <- lift $ selectSeqStatePendingIxs ssid
-        pure $ W.SeqState intPool extPool pendingChangeIxs
+        pure $ Seq.SeqState intPool extPool pendingChangeIxs
 
     deleteState wid = do
         ssid <- fmap entityKey <$> selectList [ SeqStateWalletId ==. wid ] []
@@ -856,40 +859,40 @@ instance W.KeyToAddress t W.SeqKey => PersistState (W.SeqState t) where
 insertAddressPool
     :: forall t c. (Typeable c)
     => SeqStateId
-    -> W.AddressPool t c
+    -> Seq.AddressPool t c
     -> SqlPersistT IO ()
 insertAddressPool ssid pool =
     void $ dbChunked insertMany_
-        [ SeqStateAddresses ssid addr ix (W.changeChain @c)
-        | (ix, addr) <- zip [0..] (W.addresses pool)
+        [ SeqStateAddresses ssid addr ix (Seq.changeChain @c)
+        | (ix, addr) <- zip [0..] (Seq.addresses pool)
         ]
 
 selectAddressPool
-    :: forall t c. (W.KeyToAddress t W.SeqKey, Typeable c)
+    :: forall t c. (W.KeyToAddress t Seq.SeqKey, Typeable c)
     => SeqStateId
-    -> W.AddressPoolGap
+    -> Seq.AddressPoolGap
     -> AddressPoolXPub
-    -> SqlPersistT IO (W.AddressPool t c)
+    -> SqlPersistT IO (Seq.AddressPool t c)
 selectAddressPool ssid gap (AddressPoolXPub xpub) = do
     addrs <- fmap entityVal <$> selectList
         [ SeqStateAddressesSeqStateId ==. ssid
-        , SeqStateAddressesChangeChain ==. W.changeChain @c
+        , SeqStateAddressesChangeChain ==. Seq.changeChain @c
         ] [Asc SeqStateAddressesIndex]
     pure $ addressPoolFromEntity addrs
   where
     addressPoolFromEntity
         :: [SeqStateAddresses]
-        -> W.AddressPool t c
+        -> Seq.AddressPool t c
     addressPoolFromEntity addrs =
-        W.mkAddressPool @t @c xpub gap (map seqStateAddressesAddress addrs)
+        Seq.mkAddressPool @t @c xpub gap (map seqStateAddressesAddress addrs)
 
-mkSeqStatePendingIxs :: SeqStateId -> W.PendingIxs -> [SeqStatePendingIx]
+mkSeqStatePendingIxs :: SeqStateId -> Seq.PendingIxs -> [SeqStatePendingIx]
 mkSeqStatePendingIxs ssid =
-    fmap (SeqStatePendingIx ssid . W.getIndex) . W.pendingIxsToList
+    fmap (SeqStatePendingIx ssid . W.getIndex) . Seq.pendingIxsToList
 
-selectSeqStatePendingIxs :: SeqStateId -> SqlPersistT IO W.PendingIxs
+selectSeqStatePendingIxs :: SeqStateId -> SqlPersistT IO Seq.PendingIxs
 selectSeqStatePendingIxs ssid =
-    W.pendingIxsFromList . fromRes <$> selectList
+    Seq.pendingIxsFromList . fromRes <$> selectList
         [SeqStatePendingIxSeqStateId ==. ssid]
         [Desc SeqStatePendingIxIndex]
   where
@@ -899,15 +902,64 @@ selectSeqStatePendingIxs ssid =
                           HD Random address discovery
 -------------------------------------------------------------------------------}
 
-instance PersistState W.RndState where
-    -- The 'RndState' is the root key, which is already in the DB, so nothing to
-    -- insert or delete.
-    insertState _ _ = pure ()
-    deleteState _ = pure ()
+-- Persisting 'RndState' requires that the wallet root key has already been
+-- added to the database with 'putPrivateKey'. Unlike sequential AD, random
+-- address discovery requires a root key to recognize addresses.
+instance PersistState Rnd.RndState where
+    insertState (wid, sl) st = do
+        rsid <- insert $ RndState wid sl
+            (W.getIndex (st ^. #accountIndex))
+            (st ^. #gen)
+        insertRndStateAddresses rsid False $ Rnd.addresses st
+        insertRndStateAddresses rsid True $ Rnd.pendingAddresses st
 
-    -- Construct a 'RndState' from the root private key
-    selectState (wid, _) =
-        fmap (W.emptyRndState . fst) <$> selectPrivateKey wid
+    selectState (wid, sl) = runMaybeT $ do
+        rndKey <- MaybeT $ fmap fst <$> selectPrivateKey wid
+        st <- MaybeT $ selectFirst
+            [ RndStateWalletId ==. wid
+            , RndStateCheckpointSlot ==. sl
+            ] []
+        let (rsid, RndState _ _ accIx gen) = (entityKey st, entityVal st)
+        addresses <- lift $ selectRndStateAddresses rsid False
+        pendingAddresses <- lift $ selectRndStateAddresses rsid True
+        pure $ Rnd.RndState
+            { rndKey = rndKey
+            , accountIndex = W.Index accIx
+            , addresses = addresses
+            , pendingAddresses = pendingAddresses
+            , gen = gen
+            }
+
+    deleteState wid = do
+        rsid <- fmap entityKey <$> selectList [ RndStateWalletId ==. wid ] []
+        deleteWhere [ RndStateAddressRndStateId <-. rsid ]
+        deleteWhere [ RndStateWalletId ==. wid ]
+
+insertRndStateAddresses
+    :: RndStateId
+    -> Bool
+    -> Map (W.Index 'W.Hardened 'W.AccountK, W.Index 'W.Hardened 'W.AddressK) W.Address
+    -> SqlPersistT IO ()
+insertRndStateAddresses rsid pending addresses =
+    void $ dbChunked insertMany_
+        [ RndStateAddress rsid accIx addrIx addr pending
+        | ((W.Index accIx, W.Index addrIx), addr) <- Map.assocs addresses
+        ]
+
+selectRndStateAddresses
+    :: RndStateId
+    -> Bool
+    -> SqlPersistT IO (Map (W.Index 'W.Hardened 'W.AccountK, W.Index 'W.Hardened 'W.AddressK) W.Address)
+selectRndStateAddresses rsid pending = do
+    addrs <- fmap entityVal <$> selectList
+        [ RndStateAddressRndStateId ==. rsid
+        , RndStateAddressPending ==. pending
+        ] []
+    pure $ Map.fromList $ map assocFromEntity addrs
+  where
+    assocFromEntity (RndStateAddress _ accIx addrIx addr _) =
+        ((W.Index accIx, W.Index addrIx), addr)
+
 
 {-------------------------------------------------------------------------------
                                     Logging

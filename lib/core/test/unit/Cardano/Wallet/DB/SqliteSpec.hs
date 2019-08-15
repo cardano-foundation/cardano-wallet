@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -25,10 +26,12 @@ import Cardano.BM.Setup
     ( setupTrace )
 import Cardano.BM.Trace
     ( traceInTVarIO )
+import Cardano.Crypto.Wallet
+    ( XPrv, unXPrv )
 import Cardano.Wallet.DB
     ( DBLayer (..), ErrWalletAlreadyExists (..), PrimaryKey (..), cleanDB )
 import Cardano.Wallet.DB.Sqlite
-    ( newDBLayer, withDBLayer )
+    ( PersistState, PersistTx, newDBLayer, withDBLayer )
 import Cardano.Wallet.DB.StateMachine
     ( prop_parallel, prop_sequential )
 import Cardano.Wallet.DBSpec
@@ -36,9 +39,20 @@ import Cardano.Wallet.DBSpec
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Passphrase (..), encryptPassphrase )
+    ( Depth (..)
+    , Passphrase (..)
+    , PersistKey
+    , WalletKey (..)
+    , encryptPassphrase
+    )
+import Cardano.Wallet.Primitive.AddressDerivation.Random
+    ( RndKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey (..), generateKeyFromSeed, unsafeGenerateKeyFromSeed )
+    ( SeqKey (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( IsOurs )
+import Cardano.Wallet.Primitive.AddressDiscovery.Random
+    ( RndState (..), mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..), defaultAddressPoolGap, mkSeqState )
 import Cardano.Wallet.Primitive.Mnemonic
@@ -68,6 +82,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
+import Control.DeepSeq
+    ( NFData )
 import Control.Exception
     ( throwIO )
 import Control.Monad
@@ -120,6 +136,10 @@ import qualified Cardano.BM.Data.Aggregated as CM
 import qualified Cardano.BM.Data.AggregatedKind as CM
 import qualified Cardano.BM.Data.Backend as CM
 import qualified Cardano.BM.Data.SubTrace as CM
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Random as Rnd
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as Seq
+import qualified Data.ByteArray.Encoding as BA
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map as Map
 import qualified Data.Text as T
@@ -127,19 +147,34 @@ import qualified Data.Text as T
 spec :: Spec
 spec = do
     sqliteSpec
+    sqliteSpecRnd
     loggingSpec
     connectionSpec
 
 sqliteSpec :: Spec
 sqliteSpec = withDB (fst <$> newMemoryDBLayer) $ do
-    describe "Sqlite Simple tests" simpleSpec
+    describe "Sqlite Simple tests (SeqState)" (simpleSpec testCpSeq)
     describe "Sqlite" dbPropertyTests
     describe "Sqlite State machine tests" $ do
         it "Sequential" prop_sequential
         xit "Parallel" prop_parallel
 
-simpleSpec :: SpecWith (DBLayer IO (SeqState DummyTarget) DummyTarget SeqKey)
-simpleSpec = do
+sqliteSpecRnd :: Spec
+sqliteSpecRnd =
+    withDB (fst <$> newMemoryDBLayer @RndState @DummyTarget @RndKey) $ do
+        describe "Sqlite Simple tests (RndState)" (simpleSpec testCpRnd)
+
+simpleSpec
+    :: forall s k.
+       ( PersistState s
+       , PersistKey k
+       , Show (k 'RootK XPrv)
+       , Eq (k 'RootK XPrv)
+       , Eq s
+       , GenerateTestKey k )
+    => Wallet s DummyTarget
+    -> SpecWith (DBLayer IO s DummyTarget k)
+simpleSpec testCp = do
     describe "Wallet table" $ do
         it "create and list works" $ \db -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
@@ -161,9 +196,7 @@ simpleSpec = do
         it "create and get private key" $ \db -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
             readPrivateKey db testPk `shouldReturn` Nothing
-            let Right phr = fromText "abcdefghijklmnop"
-                k = unsafeGenerateKeyFromSeed (coerce phr, coerce phr) phr
-            h <- encryptPassphrase phr
+            (k, h) <- generateTestKey
             unsafeRunExceptT (putPrivateKey db testPk (k, h))
             readPrivateKey db testPk `shouldReturn` Just (k, h)
 
@@ -186,6 +219,8 @@ simpleSpec = do
 
         it "put and read checkpoint" $ \db -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+            kh <- generateTestKey
+            unsafeRunExceptT (putPrivateKey db testPk kh)
             runExceptT (putCheckpoint db testPk testCp) `shouldReturn` Right ()
             readCheckpoint db testPk `shouldReturn` Just testCp
 
@@ -193,12 +228,12 @@ loggingSpec :: Spec
 loggingSpec = withLoggingDB $ do
     describe "Sqlite query logging" $ do
         it "should log queries at DEBUG level" $ \(db, getLogs) -> do
-            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+            unsafeRunExceptT $ createWallet db testPk testCpSeq testMetadata
             logs <- logMessages <$> getLogs
             logs `shouldHaveLog` (Debug, "INSERT")
 
         it "should not log query parameters" $ \(db, getLogs) -> do
-            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+            unsafeRunExceptT $ createWallet db testPk testCpSeq testMetadata
             let walletName = T.unpack $ coerce $ name testMetadata
             msgs <- T.unlines . map snd . logMessages <$> getLogs
             T.unpack msgs `shouldNotContain` walletName
@@ -217,7 +252,7 @@ loggingSpec = withLoggingDB $ do
 connectionSpec :: Spec
 connectionSpec = describe "Sqlite database file" $ do
     let writeSomething db = do
-            unsafeRunExceptT $ createWallet db testPk testCp testMetadata
+            unsafeRunExceptT $ createWallet db testPk testCpSeq testMetadata
             listWallets db `shouldReturn` [testPk]
         tempFilesAbsent fp = do
             doesFileExist fp `shouldReturn` True
@@ -243,7 +278,9 @@ withTestDBFile action expectations = do
         withDBLayer logConfig trace (Just fp) action
         expectations fp
 
-newMemoryDBLayer :: IO (DBLayer IO (SeqState DummyTarget) DummyTarget SeqKey, TVar [LogObject Text])
+newMemoryDBLayer
+    :: (IsOurs s, NFData s, Show s, PersistState s, PersistTx t, PersistKey k)
+    => IO (DBLayer IO s t k, TVar [LogObject Text])
 newMemoryDBLayer = do
     logConfig <- testingLogConfig
     logs <- newTVarIO []
@@ -310,14 +347,9 @@ shouldHaveLog msgs (sev, str) = unless (any match msgs) $
   where
     match (sev', msg) = sev' == sev && str `T.isInfixOf` msg
 
-testCp :: Wallet (SeqState DummyTarget) DummyTarget
-testCp = initWallet initDummyBlock0 initDummyState
-
-initDummyState :: SeqState DummyTarget
-initDummyState = mkSeqState (xprv, mempty) defaultAddressPoolGap
-  where
-      bytes = entropyToBytes <$> unsafePerformIO $ genEntropy @(EntropySize 15)
-      xprv = generateKeyFromSeed (Passphrase bytes, mempty) mempty
+{-------------------------------------------------------------------------------
+                                   Test data
+-------------------------------------------------------------------------------}
 
 initDummyBlock0 :: Block Tx
 initDummyBlock0 = Block
@@ -354,3 +386,64 @@ testTxs =
     [ (Hash "tx2"
       , (Tx [TxIn (Hash "tx1") 0] [TxOut (Address "addr") (Coin 1)]
         , TxMeta InLedger Incoming (SlotId 14 0) (Quantity 1337144))) ]
+
+testPassphraseAndHash :: IO (Passphrase "encryption", Hash "encryption")
+testPassphraseAndHash = do
+    let Right phr = fromText "abcdefghijklmnop"
+    h <- encryptPassphrase phr
+    pure (phr, h)
+
+class GenerateTestKey (key :: Depth -> * -> *) where
+    generateTestKey :: IO (key 'RootK XPrv, Hash "encryption")
+
+{-------------------------------------------------------------------------------
+                           Test data - Sequential AD
+-------------------------------------------------------------------------------}
+
+testCpSeq :: Wallet (SeqState DummyTarget) DummyTarget
+testCpSeq = initWallet initDummyBlock0 initDummyStateSeq
+
+initDummyStateSeq :: SeqState DummyTarget
+initDummyStateSeq = mkSeqState (xprv, mempty) defaultAddressPoolGap
+  where
+      bytes = entropyToBytes <$> unsafePerformIO $ genEntropy @(EntropySize 15)
+      xprv = Seq.generateKeyFromSeed (Passphrase bytes, mempty) mempty
+
+instance GenerateTestKey SeqKey where
+    generateTestKey = do
+        (phr, h) <- testPassphraseAndHash
+        pure (Seq.unsafeGenerateKeyFromSeed (coerce phr, coerce phr) phr, h)
+
+{-------------------------------------------------------------------------------
+                      Test data and instances - Random AD
+-------------------------------------------------------------------------------}
+
+instance Show RndState where
+    show (RndState k idx addrs pending g) = unwords
+        [ "RndState"
+        , B8.unpack (BA.convertToBase BA.Base16 (unXPrv (getRawKey k)))
+        , p idx, p addrs, p pending, p g ]
+        where p x = "(" ++ show x ++ ")"
+
+instance Eq RndState where
+    (==)
+        (RndState k1 idx1 addrs1 pending1 gen1)
+        (RndState k2 idx2 addrs2 pending2 gen2) =
+        getRawKey k1 == getRawKey k2
+        && idx1 == idx2
+        && addrs1 == addrs2
+        && pending1 == pending2
+        && show gen1 == show gen2
+
+instance GenerateTestKey RndKey where
+    generateTestKey = do
+        (phr, h) <- testPassphraseAndHash
+        pure (Rnd.generateKeyFromSeed (coerce phr) phr, h)
+
+{-# NOINLINE initDummyStateRnd #-}
+initDummyStateRnd :: RndState
+initDummyStateRnd = mkRndState xprv 0
+    where xprv = fst $ unsafePerformIO generateTestKey
+
+testCpRnd :: Wallet RndState DummyTarget
+testCpRnd = initWallet initDummyBlock0 initDummyStateRnd
