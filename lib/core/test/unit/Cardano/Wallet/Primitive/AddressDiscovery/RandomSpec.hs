@@ -3,6 +3,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -38,7 +39,7 @@ import Cardano.Wallet.Primitive.AddressDerivationSpec
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( GenChange (..), IsOurs (..), IsOwned (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( RndState (..), emptyRndState )
+    ( RndState (..), initRndState )
 import Cardano.Wallet.Primitive.Types
     ( Address (..) )
 import Data.ByteArray.Encoding
@@ -57,6 +58,7 @@ import Test.QuickCheck
     , InfiniteList (..)
     , Property
     , choose
+    , conjoin
     , property
     , (.&&.)
     , (===)
@@ -64,6 +66,7 @@ import Test.QuickCheck
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 spec :: Spec
@@ -196,12 +199,12 @@ checkIsOurs GoldenTest{..} = do
 
 checkIsOwned :: GoldenTest -> Expectation
 checkIsOwned GoldenTest{..} = do
-    isOwned rndState (rootXPrv, pwd) addr' `shouldBe` expectation
+    isOwned st (rndKey, pwd) addr' `shouldBe` expectation
   where
     pwd = Passphrase ""
     Right addr' = Address <$> convertFromBase Base16 addr
-    rndState@(RndState rootXPrv _ _ _) = rndStateFromMnem arbitraryMnemonic
-    accXPrv = deriveAccountPrivateKey pwd rootXPrv (Index accIndex)
+    st@RndState{rndKey} = rndStateFromMnem arbitraryMnemonic
+    accXPrv = deriveAccountPrivateKey pwd rndKey (Index accIndex)
     addrXPrv = deriveAddressPrivateKey pwd accXPrv (Index addrIndex)
     expectation = if expected then
         Just (addrXPrv, pwd)
@@ -209,7 +212,7 @@ checkIsOwned GoldenTest{..} = do
 
 
 rndStateFromMnem :: [Text] -> RndState
-rndStateFromMnem mnem = emptyRndState rootXPrv
+rndStateFromMnem mnem = initRndState rootXPrv 0
   where
     rootXPrv = generateKeyFromSeed (Passphrase seed) (Passphrase "")
     Right (Passphrase seed) = fromMnemonic @'[12] mnem
@@ -224,19 +227,18 @@ propSpec = describe "Random Address Discovery Properties" $ do
         property prop_derivedKeysAreOurs
     it "isOwned works as expected during key derivation" $ do
         property prop_derivedKeysAreOwned
-    it "GenChange address is always isOurs and is added to forbiden addresses" $ do
+    it "GenChange address always satisfies isOurs" $ do
         property prop_changeAddressesBelongToUs
     it "each address discovered by isOurs is in forbiden addresses and different than change address" $ do
-        property prop_forbidenAddreses
+        property prop_forbiddenAddreses
 
 
 prop_derivedKeysAreOurs
     :: RndState
     -> RndState
-    -> Index 'Hardened 'AccountK
     -> Index 'Hardened 'AddressK
     -> Property
-prop_derivedKeysAreOurs st@(RndState rk _ pwd _) st' accIx addrIx =
+prop_derivedKeysAreOurs st@(RndState rk pwd accIx _ _ _) st' addrIx =
     fst (isOurs addr st) .&&. not (fst (isOurs addr st'))
   where
     addr = keyToAddress @DummyTarget addrKey
@@ -246,13 +248,12 @@ prop_derivedKeysAreOurs st@(RndState rk _ pwd _) st' accIx addrIx =
 prop_derivedKeysAreOwned
     :: RndState
     -> RndState
-    -> Index 'Hardened 'AccountK
     -> Index 'Hardened 'AddressK
     -> Property
 prop_derivedKeysAreOwned
-    st@(RndState rk _ pwd _)
-    st'@(RndState rk' _ pwd' _)
-    accIx addrIx =
+    st@(RndState rk pwd accIx _ _ _)
+    st'@(RndState rk' pwd' _ _ _ _)
+    addrIx =
     isOwned st (rndKey st, pwd) addr === Just (addrKeyPrv, pwd)
     .&&.
     isOwned st' (rk', pwd') addr === Nothing
@@ -270,42 +271,44 @@ prop_changeAddressesBelongToUs st st' =
   where
     (addr, _) = genChange @DummyTarget st
 
-prop_forbidenAddreses
+prop_forbiddenAddreses
     :: RndState
-    -> Index 'Hardened 'AccountK
     -> Index 'Hardened 'AddressK
     -> Property
-prop_forbidenAddreses st@(RndState rk _ pwd _) accIx addrIx =
-    (Set.member addr forbiden)
-    .&&. not (Set.member changeAddr forbiden)
-    .&&. (Set.member changeAddr forbiden')
+prop_forbiddenAddreses st@(RndState rk pwd accIx _ _ _) addrIx = conjoin
+    [ (Set.notMember addr (forbidden st))
+    , (Set.member addr (forbidden isOursSt))
+    , (Set.notMember changeAddr (forbidden isOursSt))
+    , (Set.member changeAddr (forbidden changeSt))
+    ]
   where
-    (changeAddr,RndState _ forbiden' _ _)  = genChange @DummyTarget st'
-    (RndState _ forbiden _ _) = st'
-    (_, st') = isOurs addr st
+    (_ours, isOursSt) = isOurs addr st
+    (changeAddr, changeSt) = genChange @DummyTarget isOursSt
+
+    forbidden s = Set.fromList $ Map.elems $ addresses s <> pendingAddresses s
+
     addr = keyToAddress @DummyTarget (publicKey addrKeyPrv)
     accKey = deriveAccountPrivateKey pwd rk accIx
     addrKeyPrv = deriveAddressPrivateKey pwd accKey addrIx
-
 
 {-------------------------------------------------------------------------------
                     Instances
 -------------------------------------------------------------------------------}
 
 instance Eq RndState where
-    (RndState a _ _ _) == (RndState b _ _ _) = getKey a == getKey b
+    (RndState k1 p1 accIx1 _ _ _) == (RndState k2 p2 accIx2 _ _ _)
+        = getKey k1 == getKey k2 && p1 == p2 && accIx1 == accIx2
 
 instance Show RndState where
-    show (RndState a _ _ _) = show (getKey a)
+    show (RndState a _ _ _ _ _) = show (getKey a)
 
 instance Arbitrary RndState where
     shrink _ = []  -- no shrinking
     arbitrary = do
-        (s, e) <- (,)
-            <$> genPassphrase @"seed" (16, 32)
-            <*> genPassphrase @"encryption" (0, 16)
+        s <- genPassphrase @"seed" (16, 32)
+        e <- genPassphrase @"encryption" (0, 16)
         let key = generateKeyFromSeed s e
-        pure $ RndState key Set.empty e (minBound, minBound)
+        pure $ (initRndState key 0) { passphrase = e }
       where
         genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
         genPassphrase range = do

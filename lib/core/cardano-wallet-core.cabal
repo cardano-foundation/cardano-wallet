@@ -61,6 +61,7 @@ library
     , persistent
     , persistent-sqlite
     , persistent-template
+    , random
     , retry
     , servant
     , servant-server
