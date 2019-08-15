@@ -105,6 +105,7 @@ library
       Cardano.Wallet.Transaction
       Cardano.Wallet.Unsafe
       Cardano.Wallet.Version
+      Data.Function.Utils
       Data.Time.Text
       Data.Time.Utils
       Data.Quantity
@@ -206,6 +207,7 @@ test-suite unit
       Cardano.Wallet.Primitive.TypesSpec
       Cardano.Wallet.TransactionSpec
       Cardano.WalletSpec
+      Data.Function.UtilsSpec
       Data.QuantitySpec
       Data.Time.TextSpec
       Data.Time.UtilsSpec
