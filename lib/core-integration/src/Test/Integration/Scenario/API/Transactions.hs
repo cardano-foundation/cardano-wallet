@@ -1108,206 +1108,186 @@ spec = do
         txs <- listAllTransactions ctx w
         let [Just t2, Just t1] = map (view insertedAtTime) txs
         let matrix :: [TestCase [ApiTransaction t]] =
-                [
-                 -- 1
-                   TestCase
+                [ TestCase -- 1
                     { query = toQueryString
-                          [ ( "start", utcIso8601ToText t1)
-                          , ( "end", utcIso8601ToText t2 )
-                          , ( "order", "ascending" )
-                          ]
+                        [ ("start", utcIso8601ToText t1)
+                        , ("end", utcIso8601ToText t2)
+                        , ("order", "ascending")
+                        ]
                     , assertions =
-                            [ expectListSizeEqual 2
-                            , expectListItemFieldEqual 0 amount a1
-                            , expectListItemFieldEqual 1 amount a2
-                            ]
+                        [ expectListSizeEqual 2
+                        , expectListItemFieldEqual 0 amount a1
+                        , expectListItemFieldEqual 1 amount a2
+                        ]
                     }
-                 -- 2
-                 , TestCase
-                     { query = toQueryString
-                             [ ( "start", utcIso8601ToText t1)
-                             , ( "end", utcIso8601ToText $ plusOneSecond t2 )
-                             , ( "order", "descending" )
-                             ]
-                     , assertions =
-                            [ expectListSizeEqual 2
-                            , expectListItemFieldEqual 0 amount a2
-                            , expectListItemFieldEqual 1 amount a1
-                            ]
-                     }
-                  -- 3
-                  , TestCase
-                      { query = toQueryString
-                              [ ( "start", utcIso8601ToText t1)
-                              , ( "end", utcIso8601ToText $ minusOneSecond t2 )
-                              ]
-                      , assertions =
-                             [ expectListSizeEqual 1
-                             , expectListItemFieldEqual 0 amount a1
-                             ]
-                      }
-                   -- 4
-                   , TestCase
-                       { query = toQueryString
-                               [ ( "start", utcIso8601ToText t1) ]
-                       , assertions =
-                               [ expectListSizeEqual 2
-                               , expectListItemFieldEqual 0 amount a2
-                               , expectListItemFieldEqual 1 amount a1
-                               ]
-                       }
-                   -- 5
-                   , TestCase
-                       { query = toQueryString
-                               [ ( "start", utcIso8601ToText $ plusOneSecond t1)
-                               , ( "end", utcIso8601ToText $ plusOneSecond t2 )
-                               ]
-                       , assertions =
-                              [ expectListSizeEqual 1
-                              , expectListItemFieldEqual 0 amount a2
-                              ]
-                       }
-                   -- 6
-                   , TestCase
-                       { query = toQueryString
-                               [ ( "start", utcIso8601ToText $ plusOneSecond t1)
-                               , ( "end", utcIso8601ToText $ minusOneSecond t2 )
-                               ]
-                       , assertions =
-                               [ expectListSizeEqual 0 ]
-                       }
-                   -- 7
-                   , TestCase
-                       { query = toQueryString
-                               [ ( "start", utcIso8601ToText $ plusOneSecond t1)
-                               , ( "order", "ascending" )
-                               ]
-                       , assertions =
-                               [ expectListSizeEqual 1
-                               , expectListItemFieldEqual 0 amount a2
-                               ]
-                       }
-                   -- 8
-                   , TestCase
-                       { query = toQueryString
-                               [ ( "order", "descending")
-                               , ( "start", utcIso8601ToText $ plusOneSecond t1 )
-                               , ( "end", utcIso8601ToText t2)
-                               ]
-                       , assertions =
-                               [ expectListSizeEqual 1
-                               , expectListItemFieldEqual 0 amount a2
-                               ]
-                       }
-                   -- 9
-                   , TestCase
-                       { query = toQueryString
-                               [ ( "order", "ascending")
-                               , ( "start", utcIso8601ToText $ minusOneSecond t1 )
-                               , ( "end", utcIso8601ToText $ minusOneSecond t2)
-                               ]
-                       , assertions =
-                               [ expectListSizeEqual 1
-                               , expectListItemFieldEqual 0 amount a1
-                               ]
-                       }
-                   -- 10
-                   , TestCase
-                       { query = toQueryString
-                               [ ( "order", "descending")
-                               , ( "start", utcIso8601ToText $ minusOneSecond t1 )
-                               ]
-                       , assertions =
-                               [ expectListSizeEqual 2
-                               , expectListItemFieldEqual 0 amount a2
-                               , expectListItemFieldEqual 1 amount a1
-                               ]
-                       }
-                   -- 11
-                   , TestCase
-                       { query = toQueryString
-                               [ ( "start", utcIso8601ToText $ minusOneSecond t1 )
-                               , ( "end", utcIso8601ToText t2)
-                               ]
-                       , assertions =
-                               [ expectListSizeEqual 2
-                               , expectListItemFieldEqual 0 amount a2
-                               , expectListItemFieldEqual 1 amount a1
-                               ]
-                       }
-                   -- 12
-                   , TestCase
-                       { query = toQueryString
-                               [ ( "start", utcIso8601ToText $ minusOneSecond t1 )
-                               , ( "end", utcIso8601ToText $ plusOneSecond t2)
-                               ]
-                       , assertions =
-                               [ expectListSizeEqual 2
-                               , expectListItemFieldEqual 0 amount a2
-                               , expectListItemFieldEqual 1 amount a1
-                               ]
-                       }
-                   -- 13
-                   , TestCase
-                       { query = mempty
-                       , assertions =
-                               [ expectListSizeEqual 2
-                               , expectListItemFieldEqual 0 amount a2
-                               , expectListItemFieldEqual 1 amount a1
-                               ]
-                       }
-                   -- 14
-                   , TestCase
-                       { query = toQueryString
-                               [ ( "end", utcIso8601ToText t2) ]
-                       , assertions =
-                               [ expectListSizeEqual 2
-                               , expectListItemFieldEqual 0 amount a2
-                               , expectListItemFieldEqual 1 amount a1
-                               ]
-                       }
-                   -- 15
-                   , TestCase
-                       { query = toQueryString
-                               [ ( "end", utcIso8601ToText $ plusOneSecond t2) ]
-                       , assertions =
-                               [ expectListSizeEqual 2
-                               , expectListItemFieldEqual 0 amount a2
-                               , expectListItemFieldEqual 1 amount a1
-                               ]
-                       }
-                   -- 16
-                   , TestCase
-                       { query = toQueryString
-                               [ ( "end", utcIso8601ToText $ minusOneSecond t2) ]
-                       , assertions =
-                               [ expectListSizeEqual 1
-                               , expectListItemFieldEqual 0 amount a1
-                               ]
-                       }
-                   -- 17
-                   , TestCase
-                       { query = toQueryString
-                               [ ( "start", utcIso8601ToText t1 )
-                               , ( "end", utcIso8601ToText t1)
-                               ]
-                       , assertions =
-                               [ expectListSizeEqual 1
-                               , expectListItemFieldEqual 0 amount a1
-                               ]
-                       }
-                   -- 18
-                   , TestCase
-                       { query = toQueryString
-                               [ ( "start", utcIso8601ToText t2 )
-                               , ( "end", utcIso8601ToText t2)
-                               ]
-                       , assertions =
-                               [ expectListSizeEqual 1
-                               , expectListItemFieldEqual 0 amount a2
-                               ]
-                       }
-
+                , TestCase -- 2
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText t1)
+                        , ("end", utcIso8601ToText $ plusOneSecond t2)
+                        , ("order", "descending")
+                        ]
+                    , assertions =
+                        [ expectListSizeEqual 2
+                        , expectListItemFieldEqual 0 amount a2
+                        , expectListItemFieldEqual 1 amount a1
+                        ]
+                    }
+                , TestCase -- 3
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText t1)
+                        , ("end", utcIso8601ToText $ minusOneSecond t2)
+                        ]
+                    , assertions =
+                        [ expectListSizeEqual 1
+                        , expectListItemFieldEqual 0 amount a1
+                        ]
+                    }
+                , TestCase -- 4
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText t1) ]
+                    , assertions =
+                        [ expectListSizeEqual 2
+                        , expectListItemFieldEqual 0 amount a2
+                        , expectListItemFieldEqual 1 amount a1
+                        ]
+                    }
+                , TestCase --5
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText $ plusOneSecond t1)
+                        , ("end", utcIso8601ToText $ plusOneSecond t2)
+                        ]
+                    , assertions =
+                        [ expectListSizeEqual 1
+                        , expectListItemFieldEqual 0 amount a2
+                        ]
+                    }
+                , TestCase -- 6
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText $ plusOneSecond t1)
+                        , ("end", utcIso8601ToText $ minusOneSecond t2)
+                        ]
+                    , assertions =
+                        [ expectListSizeEqual 0 ]
+                    }
+                , TestCase -- 7
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText $ plusOneSecond t1)
+                        , ("order", "ascending")
+                        ]
+                    , assertions =
+                        [ expectListSizeEqual 1
+                        , expectListItemFieldEqual 0 amount a2
+                        ]
+                    }
+                , TestCase -- 8
+                    { query = toQueryString
+                        [ ("order", "descending")
+                        , ("start", utcIso8601ToText $ plusOneSecond t1)
+                        , ("end", utcIso8601ToText t2)
+                        ]
+                    , assertions =
+                        [ expectListSizeEqual 1
+                        , expectListItemFieldEqual 0 amount a2
+                        ]
+                    }
+                , TestCase -- 9
+                    { query = toQueryString
+                        [ ("order", "ascending")
+                        , ("start", utcIso8601ToText $ minusOneSecond t1)
+                        , ("end", utcIso8601ToText $ minusOneSecond t2)
+                        ]
+                    , assertions =
+                        [ expectListSizeEqual 1
+                        , expectListItemFieldEqual 0 amount a1
+                        ]
+                    }
+                , TestCase -- 10
+                    { query = toQueryString
+                        [ ("order", "descending")
+                        , ("start", utcIso8601ToText $ minusOneSecond t1)
+                        ]
+                    , assertions =
+                        [ expectListSizeEqual 2
+                        , expectListItemFieldEqual 0 amount a2
+                        , expectListItemFieldEqual 1 amount a1
+                        ]
+                    }
+                , TestCase -- 11
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText $ minusOneSecond t1)
+                        , ("end", utcIso8601ToText t2)
+                        ]
+                    , assertions =
+                        [ expectListSizeEqual 2
+                        , expectListItemFieldEqual 0 amount a2
+                        , expectListItemFieldEqual 1 amount a1
+                        ]
+                    }
+                , TestCase -- 12
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText $ minusOneSecond t1)
+                        , ("end", utcIso8601ToText $ plusOneSecond t2)
+                        ]
+                    , assertions =
+                        [ expectListSizeEqual 2
+                        , expectListItemFieldEqual 0 amount a2
+                        , expectListItemFieldEqual 1 amount a1
+                        ]
+                    }
+                , TestCase -- 13
+                    { query = mempty
+                    , assertions =
+                        [ expectListSizeEqual 2
+                        , expectListItemFieldEqual 0 amount a2
+                        , expectListItemFieldEqual 1 amount a1
+                        ]
+                    }
+                , TestCase -- 14
+                    { query = toQueryString
+                        [ ("end", utcIso8601ToText t2) ]
+                    , assertions =
+                        [ expectListSizeEqual 2
+                        , expectListItemFieldEqual 0 amount a2
+                        , expectListItemFieldEqual 1 amount a1
+                        ]
+                    }
+                , TestCase -- 15
+                    { query = toQueryString
+                        [ ("end", utcIso8601ToText $ plusOneSecond t2) ]
+                    , assertions =
+                        [ expectListSizeEqual 2
+                        , expectListItemFieldEqual 0 amount a2
+                        , expectListItemFieldEqual 1 amount a1
+                        ]
+                    }
+                , TestCase -- 16
+                    { query = toQueryString
+                        [ ("end", utcIso8601ToText $ minusOneSecond t2) ]
+                    , assertions =
+                        [ expectListSizeEqual 1
+                        , expectListItemFieldEqual 0 amount a1
+                        ]
+                    }
+                , TestCase -- 17
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText t1)
+                        , ("end", utcIso8601ToText t1)
+                        ]
+                    , assertions =
+                        [ expectListSizeEqual 1
+                        , expectListItemFieldEqual 0 amount a1
+                        ]
+                    }
+                , TestCase -- 18
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText t2)
+                        , ("end", utcIso8601ToText t2)
+                        ]
+                    , assertions =
+                        [ expectListSizeEqual 1
+                        , expectListItemFieldEqual 0 amount a2
+                        ]
+                    }
                 ]
 
         forM_ matrix $ \tc -> do
