@@ -105,6 +105,11 @@ instance GHC.Classes.Eq Crypto.Encoding.BIP39.MnemonicWordsError
 instance GHC.Classes.Eq Crypto.Encoding.BIP39.Dictionary.DictionaryError
 instance GHC.TypeNats.KnownNat csz => GHC.Exception.Type.Exception (Cardano.Wallet.Primitive.Mnemonic.MnemonicException csz)
 
+module Data.Function.Utils
+
+-- | Apply a function <tt>n</tt> times to the specified input.
+applyN :: Integral n => n -> (a -> a) -> a -> a
+
 
 -- | Representation of values with an associated (free) unit of measure.
 --   Useful to disambiguate primitive types like <a>Int</a> or <a>Value</a>
@@ -430,6 +435,13 @@ SlotId :: !Word64 -> !Word16 -> SlotId
 [$sel:epochNumber:SlotId] :: SlotId -> !Word64
 [$sel:slotNumber:SlotId] :: SlotId -> !Word16
 
+-- | The essential parameters necessary for performing slot arithmetic.
+data SlotParameters
+SlotParameters :: EpochLength -> SlotLength -> StartTime -> SlotParameters
+[$sel:getEpochLength:SlotParameters] :: SlotParameters -> EpochLength
+[$sel:getSlotLength:SlotParameters] :: SlotParameters -> SlotLength
+[$sel:getGenesisBlockDate:SlotParameters] :: SlotParameters -> StartTime
+
 -- | Duration of a single slot.
 newtype SlotLength
 SlotLength :: NominalDiffTime -> SlotLength
@@ -454,15 +466,31 @@ flatSlot :: EpochLength -> SlotId -> Word64
 fromFlatSlot :: EpochLength -> Word64 -> SlotId
 
 -- | The time that a slot begins.
-slotStartTime :: EpochLength -> SlotLength -> StartTime -> SlotId -> UTCTime
+slotStartTime :: SlotParameters -> SlotId -> UTCTime
 
--- | The SlotId at a given time.
-slotAt :: EpochLength -> SlotLength -> StartTime -> UTCTime -> SlotId
+-- | For the given time <tt>t</tt>, determine the ID of the earliest slot
+--   with start time <tt>s</tt> such that 't ≤ s'.
+slotStartingAtOrJustAfter :: SlotParameters -> UTCTime -> SlotId
+
+-- | For the given time <tt>t</tt>, determine the ID of the latest slot
+--   with start time <tt>s</tt> such that 's ≤ t'.
+slotStartingAtOrJustBefore :: SlotParameters -> UTCTime -> SlotId
+
+-- | For the given time <tt>t</tt>, determine the ID of the unique slot
+--   with start time <tt>s</tt> and end time <tt>e</tt> such that 's ≤ t ≤
+--   e'.
+slotAt :: SlotParameters -> UTCTime -> SlotId
 
 -- | <tt>slotDifference a b</tt> is how many slots <tt>a</tt> is after
 --   <tt>b</tt>. The result is non-negative, and if <tt>b &gt; a</tt> then
 --   this function returns zero.
-slotDifference :: EpochLength -> SlotId -> SlotId -> Quantity "slot" Natural
+slotDifference :: SlotParameters -> SlotId -> SlotId -> Quantity "slot" Natural
+
+-- | Return the slot immediately before the given slot.
+slotPred :: SlotParameters -> SlotId -> Maybe SlotId
+
+-- | Return the slot immediately after the given slot.
+slotSucc :: SlotParameters -> SlotId -> SlotId
 
 -- | Additional information about a wallet that can't simply be derived
 --   from the blockchain like <tt>Wallet s t</tt> is.
@@ -608,6 +636,8 @@ instance GHC.Generics.Generic (Cardano.Wallet.Primitive.Types.Hash tag)
 instance GHC.Show.Show (Cardano.Wallet.Primitive.Types.Hash tag)
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.ProtocolMagic
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.ProtocolMagic
+instance GHC.Show.Show Cardano.Wallet.Primitive.Types.SlotParameters
+instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.SlotParameters
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.StartTime
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.StartTime
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.EpochLength
