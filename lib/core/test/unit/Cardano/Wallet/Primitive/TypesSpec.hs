@@ -261,8 +261,7 @@ spec = do
         it "slotPred . slotStartingAtOrJustAfter . utcTimeSucc . slotStartTime\
             \ == id" $
             withMaxSuccess 1000 $ property $
-                \(sps, slot) ->
-                    flatSlot (getEpochLength sps) slot > 0 ==> do
+                \(sps, slot) -> do
                     let f = slotPred sps
                             . slotStartingAtOrJustAfter sps
                             . utcTimeSucc
