@@ -468,7 +468,7 @@ instance IsOwned DummyState SeqKey where
         let addrXPrv = deriveAddressPrivateKey pwd accXPrv ExternalChain ix
         return (addrXPrv, pwd)
 
-instance GenChange DummyTarget DummyState where
+instance GenChange DummyState where
     genChange _ s = (Address "dummy", s)
 
 instance CompareDiscovery DummyState where

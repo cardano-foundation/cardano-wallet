@@ -210,9 +210,8 @@ checkIsOwned GoldenTest{..} = do
         Just (addrXPrv, pwd)
         else Nothing
 
-
-rndStateFromMnem :: [Text] -> RndState
-rndStateFromMnem mnem = mkRndState rootXPrv 0
+rndStateFromMnem :: [Text] -> RndState DummyTarget
+rndStateFromMnem mnem = mkRndState @DummyTarget rootXPrv 0
   where
     rootXPrv = generateKeyFromSeed (Passphrase seed) (Passphrase "")
     Right (Passphrase seed) = fromMnemonic @'[12] mnem
@@ -234,7 +233,7 @@ propSpec = describe "Random Address Discovery Properties" $ do
 
 -- | A pair of random address discovery state, and the encryption passphrase for
 -- the RndState root key.
-data Rnd = Rnd RndState (Passphrase "encryption")
+data Rnd = Rnd (RndState DummyTarget) (Passphrase "encryption")
 
 prop_derivedKeysAreOurs
     :: Rnd
@@ -275,7 +274,7 @@ prop_changeAddressesBelongToUs
     (Rnd st' _) =
     fst (isOurs addr st) .&&. not (fst (isOurs addr st'))
   where
-    (addr, _) = genChange @DummyTarget pwd st
+    (addr, _) = genChange pwd st
 
 prop_forbiddenAddreses
     :: Rnd
@@ -289,7 +288,7 @@ prop_forbiddenAddreses (Rnd st@(RndState rk accIx _ _ _) pwd) addrIx = conjoin
     ]
   where
     (_ours, isOursSt) = isOurs addr st
-    (changeAddr, changeSt) = genChange @DummyTarget pwd isOursSt
+    (changeAddr, changeSt) = genChange pwd isOursSt
 
     forbidden s = Set.fromList $ Map.elems $ addresses s <> pendingAddresses s
 
@@ -301,7 +300,7 @@ prop_forbiddenAddreses (Rnd st@(RndState rk accIx _ _ _) pwd) addrIx = conjoin
                     Instances
 -------------------------------------------------------------------------------}
 
-instance Eq RndState where
+instance Eq (RndState t) where
     (RndState k1 accIx1 _ _ _) == (RndState k2 accIx2 _ _ _)
         = getKey k1 == getKey k2 && accIx1 == accIx2
 

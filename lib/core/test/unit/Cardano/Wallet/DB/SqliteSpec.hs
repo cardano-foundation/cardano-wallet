@@ -161,14 +161,12 @@ sqliteSpec = withDB (fst <$> newMemoryDBLayer) $ do
 
 sqliteSpecRnd :: Spec
 sqliteSpecRnd =
-    withDB (fst <$> newMemoryDBLayer @RndState @DummyTarget @RndKey) $ do
+    withDB (fst <$> newMemoryDBLayer @(RndState DummyTarget) @DummyTarget @RndKey) $ do
         describe "Sqlite Simple tests (RndState)" (simpleSpec testCpRnd)
 
 simpleSpec
     :: forall s k.
-       ( PersistState s
-       , PersistKey k
-       , Show (k 'RootK XPrv)
+       ( Show (k 'RootK XPrv)
        , Eq (k 'RootK XPrv)
        , Eq s
        , GenerateTestKey k )
@@ -418,14 +416,14 @@ instance GenerateTestKey SeqKey where
                       Test data and instances - Random AD
 -------------------------------------------------------------------------------}
 
-instance Show RndState where
+instance Show (RndState t) where
     show (RndState k idx addrs pending g) = unwords
         [ "RndState"
         , B8.unpack (BA.convertToBase BA.Base16 (unXPrv (getRawKey k)))
         , p idx, p addrs, p pending, p g ]
         where p x = "(" ++ show x ++ ")"
 
-instance Eq RndState where
+instance Eq (RndState t) where
     (==)
         (RndState k1 idx1 addrs1 pending1 gen1)
         (RndState k2 idx2 addrs2 pending2 gen2) =
@@ -441,9 +439,9 @@ instance GenerateTestKey RndKey where
         pure (Rnd.generateKeyFromSeed (coerce phr) phr, h)
 
 {-# NOINLINE initDummyStateRnd #-}
-initDummyStateRnd :: RndState
+initDummyStateRnd :: RndState DummyTarget
 initDummyStateRnd = mkRndState xprv 0
     where xprv = fst $ unsafePerformIO generateTestKey
 
-testCpRnd :: Wallet RndState DummyTarget
+testCpRnd :: Wallet (RndState DummyTarget) DummyTarget
 testCpRnd = initWallet initDummyBlock0 initDummyStateRnd

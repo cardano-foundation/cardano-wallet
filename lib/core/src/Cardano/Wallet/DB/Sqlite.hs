@@ -905,7 +905,7 @@ selectSeqStatePendingIxs ssid =
 -- Persisting 'RndState' requires that the wallet root key has already been
 -- added to the database with 'putPrivateKey'. Unlike sequential AD, random
 -- address discovery requires a root key to recognize addresses.
-instance PersistState Rnd.RndState where
+instance PersistState (Rnd.RndState t) where
     insertState (wid, sl) st = do
         rsid <- insert $ RndState wid sl
             (W.getIndex (st ^. #accountIndex))
