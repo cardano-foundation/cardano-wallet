@@ -13,7 +13,7 @@
 -- License: Apache-2.0
 --
 -- The format is for the Shelley era as implemented by the Jörmungandr node.
--- It is described [here](https://github.com/input-output-hk/rust-cardano/blob/master/chain-impl-mockchain/doc/format.md)
+-- It is described [here](https://github.com/input-output-hk/chain-libs/blob/master/chain-impl-mockchain/doc/format.md)
 --
 -- The module to some extent defines its own Jörmungandr-specific types,
 -- different from "Cardano.Wallet.Primitive.Types". Here, transactions are just
@@ -508,7 +508,7 @@ getAddress = do
     case kind of
         0x3 -> Address <$> getByteString 33 -- single address
         0x4 -> Address <$> getByteString 65 -- grouped address
-        0x5 -> Address <$> getByteString 65 -- account address
+        0x5 -> Address <$> getByteString 33 -- account address
         0x6 -> Address <$> getByteString 33 -- multisig address
         other -> fail $ "Invalid address type: " ++ show other
   where
