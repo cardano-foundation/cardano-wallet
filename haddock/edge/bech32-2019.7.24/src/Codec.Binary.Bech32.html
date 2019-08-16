@@ -1,0 +1,38 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><a name="line-2"></a><span class="hs-comment">-- Copyright: &#169; 2017 Marko Bencun, 2018-2019 IOHK</span><span>
+</span><a name="line-3"></a><span class="hs-comment">-- License: Apache-2.0</span><span>
+</span><a name="line-4"></a><span class="hs-comment">--</span><span>
+</span><a name="line-5"></a><span class="hs-comment">-- Implementation of the [Bech32]</span><span>
+</span><a name="line-6"></a><span class="hs-comment">-- (https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki)</span><span>
+</span><a name="line-7"></a><span class="hs-comment">-- address format.</span><span>
+</span><a name="line-8"></a><span class="hs-comment">--</span><span>
+</span><a name="line-9"></a><span class="hs-comment">-- From an original implementation by Marko Bencun:</span><span>
+</span><a name="line-10"></a><span class="hs-comment">--</span><span>
+</span><a name="line-11"></a><span class="hs-comment">-- [sipa/bech32](https://github.com/sipa/bech32/tree/bdc264f84014c234e908d72026b7b780122be11f/ref/haskell)</span><span>
+</span><a name="line-12"></a><span>
+</span><a name="line-13"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Codec.Binary.Bech32</span><span>
+</span><a name="line-14"></a><span>    </span><span class="hs-special">(</span><span>
+</span><a name="line-15"></a><span>      </span><span class="hs-comment">-- * Encoding &amp; Decoding</span><span>
+</span><a name="line-16"></a><span>      </span><a href="Codec.Binary.Bech32.Internal.html#encode"><span class="hs-identifier hs-var">encode</span></a><span>
+</span><a name="line-17"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Codec.Binary.Bech32.Internal.html#encodeLenient"><span class="hs-identifier hs-var">encodeLenient</span></a><span>
+</span><a name="line-18"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Codec.Binary.Bech32.Internal.html#EncodingError"><span class="hs-identifier hs-type">EncodingError</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-19"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Codec.Binary.Bech32.Internal.html#decode"><span class="hs-identifier hs-var">decode</span></a><span>
+</span><a name="line-20"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Codec.Binary.Bech32.Internal.html#decodeLenient"><span class="hs-identifier hs-var">decodeLenient</span></a><span>
+</span><a name="line-21"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Codec.Binary.Bech32.Internal.html#DecodingError"><span class="hs-identifier hs-type">DecodingError</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-22"></a><span>
+</span><a name="line-23"></a><span>      </span><span class="hs-comment">-- * Data Part</span><span>
+</span><a name="line-24"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Codec.Binary.Bech32.Internal.html#DataPart"><span class="hs-identifier hs-type">DataPart</span></a><span>
+</span><a name="line-25"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Codec.Binary.Bech32.Internal.html#dataPartFromBytes"><span class="hs-identifier hs-var">dataPartFromBytes</span></a><span>
+</span><a name="line-26"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Codec.Binary.Bech32.Internal.html#dataPartFromText"><span class="hs-identifier hs-var">dataPartFromText</span></a><span>
+</span><a name="line-27"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Codec.Binary.Bech32.Internal.html#dataPartToBytes"><span class="hs-identifier hs-var">dataPartToBytes</span></a><span>
+</span><a name="line-28"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Codec.Binary.Bech32.Internal.html#dataPartToText"><span class="hs-identifier hs-var">dataPartToText</span></a><span>
+</span><a name="line-29"></a><span>
+</span><a name="line-30"></a><span>      </span><span class="hs-comment">-- * Human-Readable Part</span><span>
+</span><a name="line-31"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Codec.Binary.Bech32.Internal.html#HumanReadablePart"><span class="hs-identifier hs-type">HumanReadablePart</span></a><span>
+</span><a name="line-32"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Codec.Binary.Bech32.Internal.html#HumanReadablePartError"><span class="hs-identifier hs-type">HumanReadablePartError</span></a><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><a name="line-33"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Codec.Binary.Bech32.Internal.html#humanReadablePartFromText"><span class="hs-identifier hs-var">humanReadablePartFromText</span></a><span>
+</span><a name="line-34"></a><span>    </span><span class="hs-special">,</span><span> </span><a href="Codec.Binary.Bech32.Internal.html#humanReadablePartToText"><span class="hs-identifier hs-var">humanReadablePartToText</span></a><span>
+</span><a name="line-35"></a><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-36"></a><span>
+</span><a name="line-37"></a><span class="hs-keyword">import</span><span> </span><a href="Codec.Binary.Bech32.Internal.html"><span class="hs-identifier">Codec.Binary.Bech32.Internal</span></a><span>
+</span><a name="line-38"></a></pre></body></html>
