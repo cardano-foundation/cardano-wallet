@@ -56,6 +56,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeDecodeAddress, unsafeDecodeHex, unsafeFromHex )
 import Control.Exception
     ( SomeException, evaluate, try )
+import Control.Monad
+    ( forM_ )
 import Control.Monad.IO.Class
     ( liftIO )
 import Data.ByteString
@@ -66,6 +68,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
     ()
+import Data.List
+    ( isSuffixOf )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -76,11 +80,14 @@ import Data.Word
     ( Word8 )
 import GHC.Generics
     ( Generic )
+import System.Directory
+    ( getDirectoryContents )
 import Test.Hspec
     ( Spec
     , describe
     , expectationFailure
     , it
+    , runIO
     , shouldBe
     , shouldSatisfy
     , shouldThrow
@@ -239,6 +246,17 @@ spec = do
                       \B5BA25929A36359F84CD1AA5CEBE2FAED"
             res <- try' (runGet getAddress (BL.fromStrict $ unsafeFromHex hex))
             res `shouldSatisfy` isRight
+
+        describe "golden block0s from jcli" $ do
+            let dir = "test/data/block0s"
+            files <- runIO $ filter (".bin" `isSuffixOf`)
+                <$> getDirectoryContents dir
+            forM_ files $ \filename -> do
+                it ("should decode " ++ filename) $ do
+                    bs <- BL.readFile (dir ++ "/" ++ filename)
+                    res <- try' (runGet getBlock bs)
+                    res `shouldSatisfy` isRight
+                    return ()
 
     describe "Encoding" $ do
         let cc = ChainCode "<ChainCode is not used by singleAddressToKey>"
