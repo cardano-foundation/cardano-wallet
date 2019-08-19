@@ -469,7 +469,7 @@ instance IsOwned DummyState SeqKey where
         return (addrXPrv, pwd)
 
 instance GenChange DummyState where
-    genChange s = (Address "dummy", s)
+    genChange _ s = (Address "dummy", s)
 
 instance CompareDiscovery DummyState where
     compareDiscovery _ _ _ = EQ

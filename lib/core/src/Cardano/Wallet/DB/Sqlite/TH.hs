@@ -37,6 +37,8 @@ import GHC.Generics
     ( Generic (..) )
 import Numeric.Natural
     ( Natural )
+import System.Random
+    ( StdGen )
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as W
@@ -187,5 +189,32 @@ SeqStatePendingIx
     seqStatePendingIxIndex        Word32         sql=pending_ix
 
     Primary seqStatePendingIxSeqStateId seqStatePendingIxIndex
+    deriving Show Generic
+
+-- State for random scheme address discovery
+RndState
+    -- The wallet checkpoint (wallet_id, slot)
+    rndStateWalletId        W.WalletId        sql=wallet_id
+    rndStateCheckpointSlot  W.SlotId          sql=slot
+    rndStateAccountIndex    Word32            sql=account_ix
+    rndStateGen             StdGen            sql=gen
+
+    UniqueRndState rndStateWalletId rndStateCheckpointSlot
+    Foreign Checkpoint fk_checkpoint_rnd_state rndStateWalletId rndStateCheckpointSlot
+    deriving Show Generic
+
+-- The set of discovered addresses or pending change addresses.
+RndStateAddress
+    rndStateAddressRndStateId    RndStateId        sql=rnd_state_id
+    rndStateAddressAccountIndex  Word32            sql=account_ix
+    rndStateAddressIndex         Word32            sql=address_ix
+    rndStateAddressAddress       W.Address         sql=address
+    rndStateAddressPending       Bool              sql=pending
+
+    Primary
+        rndStateAddressStateId
+        rndStateAddressAccountIndex
+        rndStateAddressIndex
+        rndStateAddressAddress
     deriving Show Generic
 |]

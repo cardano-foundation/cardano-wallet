@@ -829,7 +829,7 @@ newWalletLayer tracer bp db nw tl = do
     _signTx wid pwd (CoinSelection ins outs chgs) = DB.withLock db $ do
         (w, _) <- withExceptT ErrSignTxNoSuchWallet $ _readWallet wid
         let (changeOuts, s') = flip runState (getState w) $ forM chgs $ \c -> do
-                addr <- state genChange
+                addr <- state (genChange pwd)
                 return $ TxOut addr c
         allShuffledOuts <- liftIO $ shuffle (outs ++ changeOuts)
         withRootKey wid pwd ErrSignTxWithRootKey $ \xprv -> do

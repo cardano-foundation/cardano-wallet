@@ -47,6 +47,7 @@
           (hsPkgs.persistent)
           (hsPkgs.persistent-sqlite)
           (hsPkgs.persistent-template)
+          (hsPkgs.random)
           (hsPkgs.retry)
           (hsPkgs.servant)
           (hsPkgs.servant-server)

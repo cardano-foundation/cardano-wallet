@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -65,7 +66,6 @@ class IsOurs s where
 -- the root private key of a particular wallet. This isn't true for externally
 -- owned wallet which would delegate its key management to a third party (like
 -- a hardware Ledger or Trezor).
--- fixme: Add a key parameter to IsOwned
 class IsOurs s => IsOwned s key where
     isOwned
         :: s
@@ -84,7 +84,8 @@ class IsOurs s => IsOwned s key where
 -- (also called "Internal Chain").
 class GenChange s where
     genChange
-        :: s
+        :: Passphrase "encryption"
+        -> s
         -> (Address, s)
         -- ^ Generate a new change address for the given scheme. The rules for
         -- generating a new change address depends on the underlying scheme.

@@ -19,8 +19,6 @@ import Cardano.Crypto.Wallet
     ( unXPrv )
 import Cardano.Wallet.HttpBridge.Compatibility
     ( HttpBridge, Network (..) )
-import Cardano.Wallet.HttpBridge.Environment
-    ( KnownNetwork (..) )
 import Cardano.Wallet.HttpBridge.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -41,9 +39,9 @@ import Cardano.Wallet.Primitive.AddressDerivation.Random
     , unsafeGenerateKeyFromSeed
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs (..) )
+    ( IsOurs (..), KnownAddresses (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
-    ( RndState (..) )
+    ( RndState (..), mkRndState )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -183,8 +181,8 @@ spec = do
 -------------------------------------------------------------------------------}
 
 prop_derivedKeysAreOurs
-    :: forall (n :: Network).
-       (KnownNetwork n, KeyToAddress (HttpBridge n) RndKey)
+    :: forall (n :: Network) t.
+       (KeyToAddress t RndKey, t ~ HttpBridge n)
     => Passphrase "seed"
     -> Passphrase "encryption"
     -> Index 'Hardened 'AccountK
@@ -192,22 +190,25 @@ prop_derivedKeysAreOurs
     -> RndKey 'RootK XPrv
     -> Property
 prop_derivedKeysAreOurs seed encPwd accIx addrIx rk' =
-    isOurs addr (RndState rootXPrv) === (True, RndState rootXPrv) .&&.
-    isOurs addr (RndState rk') === (False, RndState rk')
+    resPos .&&. addr `elem` knownAddresses stPos' .&&.
+    not resNeg .&&. addr `notElem` knownAddresses stNeg'
   where
-    rndKey = publicKey $ unsafeGenerateKeyFromSeed (accIx, addrIx) seed encPwd
+    (resPos, stPos') = isOurs addr (mkRndState @t rootXPrv 0)
+    (resNeg, stNeg') = isOurs addr (mkRndState @t rk' 0)
+    key = publicKey $ unsafeGenerateKeyFromSeed (accIx, addrIx) seed encPwd
     rootXPrv = generateKeyFromSeed seed encPwd
-    addr = keyToAddress @(HttpBridge n) rndKey
+    addr = keyToAddress @(HttpBridge n) key
 
 {-------------------------------------------------------------------------------
                                Arbitrary instances
 -------------------------------------------------------------------------------}
 
-instance Eq RndState where
-    (RndState a) == (RndState b) = getKey a == getKey b
+instance Eq (RndState t) where
+    (RndState k1 accIx1 _ _ _) == (RndState k2 accIx2 _ _ _) =
+        getKey k1 == getKey k2 && accIx1 == accIx2
 
-instance Show RndState where
-    show (RndState a) = show (getKey a)
+instance Show (RndState t) where
+    show (RndState key _ _ _ _) = show (getKey key)
 
 instance Show XPrv where
     show = show . unXPrv
