@@ -54,12 +54,12 @@ import Cardano.Wallet.Primitive.Types
     , restrictedBy
     , restrictedTo
     , slotAt
+    , slotCeiling
     , slotDifference
+    , slotFloor
     , slotPred
     , slotRatio
     , slotStartTime
-    , slotStartingAtOrJustAfter
-    , slotStartingAtOrJustBefore
     , slotSucc
     , walletNameMaxLength
     , walletNameMinLength
@@ -236,34 +236,32 @@ spec = do
                     let f = slotAt sps . slotStartTime sps
                     slot === f slot
 
-        it "slotStartingAtOrJustAfter . slotStartTime == id" $
+        it "slotCeiling . slotStartTime == id" $
             withMaxSuccess 1000 $ property $
                 \(sps, slot) -> do
-                    let f = slotStartingAtOrJustAfter sps . slotStartTime sps
+                    let f = slotCeiling sps . slotStartTime sps
                     slot === f slot
 
-        it "slotStartingAtOrJustBefore . slotStartTime == id" $
+        it "slotFloor . slotStartTime == id" $
             withMaxSuccess 1000 $ property $
                 \(sps, slot) -> do
-                    let f = slotStartingAtOrJustBefore sps . slotStartTime sps
+                    let f = slotFloor sps . slotStartTime sps
                     slot === f slot
 
-        it "slotSucc . slotStartingAtOrJustBefore . utcTimePred . slotStartTime\
-            \ == id" $
+        it "slotSucc . slotFloor . utcTimePred . slotStartTime == id" $
             withMaxSuccess 1000 $ property $
                 \(sps, slot) -> do
                     let f = slotSucc sps
-                            . slotStartingAtOrJustBefore sps
+                            . slotFloor sps
                             . utcTimePred
                             . slotStartTime sps
                     slot === f slot
 
-        it "slotPred . slotStartingAtOrJustAfter . utcTimeSucc . slotStartTime\
-            \ == id" $
+        it "slotPred . slotCeiling . utcTimeSucc . slotStartTime == id" $
             withMaxSuccess 1000 $ property $
                 \(sps, slot) -> do
                     let f = slotPred sps
-                            . slotStartingAtOrJustAfter sps
+                            . slotCeiling sps
                             . utcTimeSucc
                             . slotStartTime sps
                     Just slot === f slot

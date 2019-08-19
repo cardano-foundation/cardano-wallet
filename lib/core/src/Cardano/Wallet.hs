@@ -133,11 +133,11 @@ import Cardano.Wallet.Primitive.Types
     , WalletState (..)
     , computeUtxoStatistics
     , log10
+    , slotCeiling
     , slotDifference
+    , slotFloor
     , slotRatio
     , slotStartTime
-    , slotStartingAtOrJustAfter
-    , slotStartingAtOrJustBefore
     , wholeRange
     )
 import Cardano.Wallet.Transaction
@@ -770,8 +770,8 @@ newWalletLayer tracer bp db nw tl = do
         (w, _) <- withExceptT ErrListTransactionsNoSuchWallet $ _readWallet wid
         let tip = currentTip w ^. #slotId
         let range = Range
-                { rStart = slotStartingAtOrJustAfter sp <$> mStart
-                , rEnd = slotStartingAtOrJustBefore sp <$> mEnd
+                { rStart = slotCeiling sp <$> mStart
+                , rEnd = slotFloor sp <$> mEnd
                 }
         liftIO $ assemble tip
             <$> DB.readTxHistory db (PrimaryKey wid) order range
