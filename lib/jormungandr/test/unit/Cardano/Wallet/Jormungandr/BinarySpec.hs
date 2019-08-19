@@ -247,7 +247,7 @@ spec = do
             res <- try' (runGet getAddress (BL.fromStrict $ unsafeFromHex hex))
             res `shouldSatisfy` isRight
 
-        describe "golden block0s from jcli" $ do
+        describe "golden block0s generated in jormungandr-lib" $ do
             let dir = "test/data/block0s"
             files <- runIO $ filter (".bin" `isSuffixOf`)
                 <$> getDirectoryContents dir
