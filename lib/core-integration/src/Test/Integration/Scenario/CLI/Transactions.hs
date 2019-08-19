@@ -876,7 +876,7 @@ spec = do
               length <$> [oJson1, oJson2, oJson3, oJson4] `shouldSatisfy` all (== 1)
 
     it "TRANS_LIST_RANGE_02 - \
-       \Transaction at time t is NOT selected by range (t + 𝛿t, ...)" $
+       \Transaction at time t is NOT selected by range [t + 𝛿t, ...)" $
           \ctx -> do
               w <- fixtureWalletWith ctx [1]
               let walId = w ^. walletId
@@ -891,7 +891,7 @@ spec = do
               length <$> [oJson1, oJson2] `shouldSatisfy` all (== 0)
 
     it "TRANS_LIST_RANGE_03 - \
-       \Transaction at time t is NOT selected by range (..., t - 𝛿t)" $
+       \Transaction at time t is NOT selected by range (..., t - 𝛿t]" $
           \ctx -> do
               w <- fixtureWalletWith ctx [1]
               let walId = w ^. walletId
