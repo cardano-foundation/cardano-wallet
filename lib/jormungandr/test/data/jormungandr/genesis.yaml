@@ -58,9 +58,9 @@ blockchain_configuration:
 # The initial deposits present in the blockchain.
 #
 # The last 10 addresses come from 10 different wallets. For the integration
-# test's faucets to be of similar shape with the one used with the http-bridge,
-# we want each wallet to have 10 UTxO available, hence the repetition for each
-# address.
+# test's faucets to be of similar shape with the one used with the now removed
+# http-bridge, we want each wallet to have 10 UTxO available, hence the
+# repetition for each address.
 initial:
   # This is just to add some variation into integration tests by making sure two
   # cases are covered in genesis.yaml initial transactions:

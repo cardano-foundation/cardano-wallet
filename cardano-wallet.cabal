@@ -1,0 +1,60 @@
+name:                cardano-wallet
+version:             2019.7.24
+synopsis:            The Wallet Backend for a Cardano node.
+description:         Please see README.md
+homepage:            https://github.com/input-output-hk/cardano-wallet
+author:              IOHK Engineering Team
+maintainer:          operations@iohk.io
+copyright:           2019 IOHK
+license:             Apache-2.0
+license-file:        LICENSE
+category:            Web
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+flag development
+    description: Disable `-Werror`
+    default: False
+    manual: True
+
+-- Dummy library sadly necessary for 'shc' to compute
+-- code-coverage correctly ¯\_(ツ)_/¯
+library
+  hs-source-dirs: .
+
+executable cardano-wallet-jormungandr
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+      -O2
+  if (!flag(development))
+    ghc-options:
+      -Werror
+  build-depends:
+      base
+    , aeson
+    , async
+    , bytestring
+    , cardano-wallet-cli
+    , cardano-wallet-core
+    , cardano-wallet-jormungandr
+    , cardano-wallet-launcher
+    , filepath
+    , http-client
+    , iohk-monitoring
+    , optparse-applicative
+    , process
+    , text
+    , text-class
+    , transformers
+    , warp
+  hs-source-dirs:
+      exe/wallet/jormungandr
+  main-is:
+      Main.hs

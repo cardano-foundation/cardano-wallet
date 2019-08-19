@@ -16,7 +16,6 @@
         cardano-wallet-launcher = ./cardano-wallet-launcher.nix;
         text-class = ./text-class.nix;
         cardano-wallet-test-utils = ./cardano-wallet-test-utils.nix;
-        cardano-wallet-http-bridge = ./cardano-wallet-http-bridge.nix;
         cardano-wallet-jormungandr = ./cardano-wallet-jormungandr.nix;
         persistent-sqlite = ./persistent-sqlite.nix;
         cardano-crypto = ./cardano-crypto.nix;

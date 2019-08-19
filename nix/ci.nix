@@ -8,7 +8,6 @@ builtins.mapAttrs (system: _:
   in
     walletPkgs.pkgs.recurseIntoAttrs {
       inherit (walletPkgs)
-        cardano-wallet-http-bridge
         cardano-wallet-jormungandr
         tests
         benchmarks;

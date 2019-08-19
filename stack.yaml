@@ -9,7 +9,6 @@ packages:
 - lib/launcher
 - lib/text-class
 - lib/test-utils
-- lib/http-bridge
 - lib/jormungandr
 
 extra-deps:

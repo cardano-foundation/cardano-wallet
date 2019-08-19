@@ -22,9 +22,6 @@ env:
     - WALLET_CLI_JORMUNGANDR=$HOME/.local/bin/cardano-wallet-jormungandr
     - WALLET_CLI_JORMUNGANDR_CHECKSUM=$HOME/.local/bin/cardano-wallet-jormungandr.sha256
     - WALLET_CLI_JORMUNGANDR_TARGZ=$HOME/.local/bin/cardano-wallet-jormungandr.tar.gz
-    - WALLET_CLI_HTTP_BRIDGE=$HOME/.local/bin/cardano-wallet-http-bridge
-    - WALLET_CLI_HTTP_BRIDGE_CHECKSUM=$HOME/.local/bin/cardano-wallet-http-bridge.sha256
-    - WALLET_CLI_HTTP_BRIDGE_TARGZ=$HOME/.local/bin/cardano-wallet-http-bridge.tar.gz
     - STACK_WORK_CACHE=$HOME/.stack/stack-work.tar.gz
     - PATH=$PATH:$HOME/.local/bin
     - LOCAL_MIX_DIR=.stack-work/dist/x86_64-linux/Cabal-2.4.0.1/hpc/
@@ -114,13 +111,6 @@ jobs:
     - ls $WALLET_CLI_JORMUNGANDR_TARGZ
     - ls $WALLET_CLI_JORMUNGANDR_CHECKSUM
 
-    # Bundle cardano-wallet-http-bridge
-    - cp $WALLET_CLI_HTTP_BRIDGE cardano-wallet
-    - tar czf $WALLET_CLI_HTTP_BRIDGE_TARGZ cardano-wallet
-    - sha256sum $WALLET_CLI_HTTP_BRIDGE | head -c 64 > $WALLET_CLI_HTTP_BRIDGE_CHECKSUM
-    - ls $WALLET_CLI_HTTP_BRIDGE_TARGZ
-    - ls $WALLET_CLI_HTTP_BRIDGE_CHECKSUM
-
     # Deploy documentation snapshot
     - mkdir -p haddock/$TRAVIS_TAG api/$TRAVIS_TAG
     - cp -Rv specifications/api/* api/$TRAVIS_TAG
@@ -138,8 +128,6 @@ jobs:
       file:
         - $WALLET_CLI_JORMUNGANDR_TARGZ
         - $WALLET_CLI_JORMUNGANDR_CHECKSUM
-        - $WALLET_CLI_HTTP_BRIDGE_TARGZ
-        - $WALLET_CLI_HTTP_BRIDGE_CHECKSUM
       on:
         repo: input-output-hk/cardano-wallet
         branch: master

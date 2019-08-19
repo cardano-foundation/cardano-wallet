@@ -30,9 +30,7 @@ let
     required = mkRequiredJob (
       collectTests jobs.native.tests ++
       collectTests jobs.native.benchmarks ++
-      [ jobs.native.cardano-wallet-http-bridge.x86_64-linux
-        jobs.native.cardano-wallet-http-bridge.x86_64-darwin
-        jobs.native.cardano-wallet-jormungandr.x86_64-linux
+      [ jobs.native.cardano-wallet-jormungandr.x86_64-linux
         jobs.native.cardano-wallet-jormungandr.x86_64-darwin
       ]
     );

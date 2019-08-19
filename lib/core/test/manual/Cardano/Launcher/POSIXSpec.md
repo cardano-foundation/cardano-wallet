@@ -21,7 +21,7 @@ signals are correctly handled on a unix system.
   ```
   $ ps -ef | grep cardano
   10983  4904  0 09:42 pts/1 00:00:00 /home/user/Documents/IOHK/cardano-wallet/.stack-work/install/x86_64-linux/lts-13.8/8.6.3/bin/cardano-wallet
-  11003 10983 75 09:42 pts/1 00:03:30 cardano-http-bridge start --port 8080
+  11003 10983 75 09:42 pts/1 00:03:30 cardano-wallet-jormungandr start --port 8080
   11071 10983 58 09:42 pts/1 00:02:41 NETWORK=mainnet cardano-wallet serve --port 8090 --node-port 8080
   ```
 
@@ -32,14 +32,14 @@ signals are correctly handled on a unix system.
 
 ### `SIGQUIT`
 
-- Start the launcher using `stack exec -- cardano-wallet launch`
+- Start the launcher using `stack exec -- cardano-wallet-jormungandr launch --genesis-block lib/jormungandr/test/data/jormungandr/block0.bin --bft-leaders lib/jormungandr/test/data/jormungandr/secret.yaml`
 - In another terminal, run `ps -ef | grep cardano`, there should be three
   processes running (the launcher, the wallet and the underlying chain
   producer)
   ```
   $ ps -ef | grep cardano
   10983  4904  0 09:42 pts/1 00:00:00 /home/user/Documents/IOHK/cardano-wallet/.stack-work/install/x86_64-linux/lts-13.8/8.6.3/bin/cardano-wallet
-  11003 10983 75 09:42 pts/1 00:03:30 cardano-http-bridge start --port 8080
+  11003 10983 75 09:42 pts/1 00:03:30 wallet-jormungandr start --port 8080
   11071 10983 58 09:42 pts/1 00:02:41 NETWORK=mainnet cardano-wallet serve --port 8090 --node-port 8080
   ```
 
@@ -50,14 +50,14 @@ signals are correctly handled on a unix system.
 
 ### `SIGTERM`
 
-- Start the launcher in background using `stack exec -- cardano-wallet launch &`
+- Start the launcher in background using `stack exec -- cardano-wallet-jormungandr launch --genesis-block lib/jormungandr/test/data/jormungandr/block0.bin --bft-leaders lib/jormungandr/test/data/jormungandr/secret.yaml &`
 - Run `ps -ef | grep cardano` and lookup the `pid` of the launcher process (and
   control that there are indeed three processes running: the launcher, the
   wallet and the chain producer)
   ```
   $ ps -ef | grep cardano
   10983  4904  0 09:42 pts/1 00:00:00 /home/user/Documents/IOHK/cardano-wallet/.stack-work/install/x86_64-linux/lts-13.8/8.6.3/bin/cardano-wallet
-  11003 10983 75 09:42 pts/1 00:03:30 cardano-http-bridge start --port 8080
+  11003 10983 75 09:42 pts/1 00:03:30 cardano-wallet-jormungandr start --port 8080
   11071 10983 58 09:42 pts/1 00:02:41 NETWORK=mainnet cardano-wallet serve --port 8090 --node-port 8080
   ```
 - Send a `SIGTERM` signal to this pid using `kill <pid>`
@@ -80,14 +80,14 @@ signals are correctly handled on a unix system.
 >
 > Please note that steps below are therefore currently invalid!
 
-- Start the launcher in background using `stack exec -- cardano-wallet launch &`
+- Start the launcher in background using `stack exec -- cardano-wallet-jormungandr launch --genesis-block lib/jormungandr/test/data/jormungandr/block0.bin --bft-leaders lib/jormungandr/test/data/jormungandr/secret.yaml &`
 - Run `ps -ef | grep cardano` and lookup the `pid` of the launcher process (and
   control that there are indeed three processes running: the launcher, the
   wallet and the chain producer)
   ```
   $ ps -ef | grep cardano
   10983  4904  0 09:42 pts/1 00:00:00 /home/user/Documents/IOHK/cardano-wallet/.stack-work/install/x86_64-linux/lts-13.8/8.6.3/bin/cardano-wallet
-  11003 10983 75 09:42 pts/1 00:03:30 cardano-http-bridge start --port 8080
+  11003 10983 75 09:42 pts/1 00:03:30 cardano-wallet-jormungandr start --port 8080
   11071 10983 58 09:42 pts/1 00:02:41 NETWORK=mainnet cardano-wallet serve --port 8090 --node-port 8080
   ```
 - Send a `SIGKILL` signal to this pid using `kill -9 <pid>`
