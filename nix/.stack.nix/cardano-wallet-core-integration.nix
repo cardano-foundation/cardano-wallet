@@ -41,6 +41,7 @@
           (hsPkgs.http-types)
           (hsPkgs.process)
           (hsPkgs.retry)
+          (hsPkgs.time)
           (hsPkgs.template-haskell)
           (hsPkgs.text)
           (hsPkgs.text-class)
