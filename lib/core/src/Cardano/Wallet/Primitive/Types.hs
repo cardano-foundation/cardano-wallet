@@ -364,8 +364,8 @@ data Range a = Range
 wholeRange :: Range a
 wholeRange = Range Nothing Nothing
 
-isWithinRange :: Ord a => Range a -> a -> Bool
-isWithinRange (Range low high) x =
+isWithinRange :: Ord a => a -> Range a -> Bool
+isWithinRange x (Range low high) =
     (maybe True (x >=) low) &&
     (maybe True (x <=) high)
 
