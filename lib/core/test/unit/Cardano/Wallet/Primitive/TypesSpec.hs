@@ -204,25 +204,33 @@ spec = do
             withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
                 checkCoverage $
                 cover 10 (isJust $ rStart r) "has defined start" $
-                ((`isWithinRange` r) <$> rStart r) =/= Just False
+                (((`isWithinRange` r) <$> rStart r) =/= Just False)
+                    .&&.
+                    (((`isBeforeRange` r) <$> rStart r) =/= Just True)
 
         it "rEnd r `isWithinRange` r" $
             withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
                 checkCoverage $
                 cover 10 (isJust $ rEnd r) "has defined end" $
-                ((`isWithinRange` r) <$> rEnd r) =/= Just False
+                (((`isWithinRange` r) <$> rEnd r) =/= Just False)
+                    .&&.
+                    (((`isAfterRange` r) <$> rEnd r) =/= Just True)
 
-        it "not (pred (rStart r) `isWithinRange` r)" $
+        it "pred (rStart r) `isBeforeRange` r" $
             withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
                 checkCoverage $
                 cover 10 (isJust $ rStart r) "has defined start" $
-                ((`isWithinRange` r) . pred <$> rStart r) =/= Just True
+                (((`isWithinRange` r) . pred <$> rStart r) =/= Just True)
+                    .&&.
+                    (((`isBeforeRange` r) . pred <$> rStart r) =/= Just False)
 
-        it "not (succ (rEnd r) `isWithinRange` r)" $
+        it "succ (rEnd r) `isAfterRange` r" $
             withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
                 checkCoverage $
                 cover 10 (isJust $ rEnd r) "has defined end" $
                 ((`isWithinRange` r) . succ <$> rEnd r) =/= Just True
+                    .&&.
+                    (((`isAfterRange` r) . succ <$> rEnd r) =/= Just False)
 
         it "a `isWithinRange` wholeRange == True" $
             property $ \(a :: Integer) ->
