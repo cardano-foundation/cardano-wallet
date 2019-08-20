@@ -129,7 +129,7 @@ import Test.QuickCheck.Arbitrary.Generic
 import Test.Text.Roundtrip
     ( textRoundtrip )
 import Test.Utils.Time
-    ( genUniformTime )
+    ( genUniformTime, getUniformTime )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -238,6 +238,26 @@ spec = do
                 a `isWithinRange` wholeRange === True
 
     describe "Slot arithmetic" $ do
+
+        it "slotFloor (slotStartTime slotMinBound) == Just slotMinBound" $
+            withMaxSuccess 1000 $ property $ \sps ->
+                slotFloor sps (slotStartTime sps slotMinBound)
+                    === Just slotMinBound
+
+        it "slotFloor (utcTimePred (slotStartTime slotMinBound)) == Nothing" $
+            withMaxSuccess 1000 $ property $ \sps ->
+                slotFloor sps (utcTimePred (slotStartTime sps slotMinBound))
+                    === Nothing
+
+        it "t < slotStartTime slotMinBound => slotFloor t == Nothing" $
+            withMaxSuccess 1000 $ property $ \sps t ->
+                (StartTime $ getUniformTime t) < getGenesisBlockDate sps ==>
+                    slotFloor sps (getUniformTime t) === Nothing
+
+        it "t < slotStartTime slotMinBound => slotCeiling t == slotMinBound" $
+            withMaxSuccess 1000 $ property $ \sps t ->
+                (StartTime $ getUniformTime t) < getGenesisBlockDate sps ==>
+                    slotCeiling sps (getUniformTime t) === slotMinBound
 
         it "applyN (flatSlot slot) slotPred slot == Just slotMinBound" $
             withMaxSuccess 10 $ property $

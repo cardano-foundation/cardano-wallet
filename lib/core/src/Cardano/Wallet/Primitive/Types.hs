@@ -1017,7 +1017,7 @@ newtype EpochLength = EpochLength Word16
 
 -- | Blockchain start time
 newtype StartTime = StartTime UTCTime
-    deriving (Show, Eq)
+    deriving (Show, Eq, Ord)
 
 {-------------------------------------------------------------------------------
                                 Protocol Magic
