@@ -18,7 +18,7 @@ module Cardano.Wallet.Network
     , ErrNetworkTip (..)
     , ErrGetBlock (..)
     , ErrPostTx (..)
-    , ErrPostExternalTx (..)
+    , ErrDecodeExternalTx (..)
     ) where
 
 import Prelude
@@ -53,9 +53,9 @@ data NetworkLayer t m = NetworkLayer
         :: (Tx t, [TxWitness]) -> ExceptT ErrPostTx m ()
         -- ^ Broadcast a transaction to the chain producer
 
-    , postExternalTx
-        :: ByteString -> ExceptT ErrPostExternalTx m ()
-        -- ^ Broadcast an externally signed transaction to the chain producer
+    , decodeExternalTx
+        :: ByteString -> ExceptT ErrDecodeExternalTx m (Tx t, [TxWitness])
+        -- ^ Decode an externally signed transaction to the chain producer
     }
 
 -- | Network is unavailable
@@ -94,15 +94,13 @@ data ErrPostTx
 
 instance Exception ErrPostTx
 
--- | Error while trying to send an externally signed transaction
-data ErrPostExternalTx
-    = ErrPostExternalTxNetworkUnreachable ErrNetworkUnavailable
-    | ErrPostExternalTxBadRequest Text
-    | ErrPostExternalTxProtocolFailure Text
-    | ErrPostExternalTxNotSupported Text
+-- | Error while trying to decode externally signed transaction
+data ErrDecodeExternalTx
+    = ErrDecodeExternalTxWrongPayload Text
+    | ErrDecodeExternalTxNotSupported Text
     deriving (Generic, Show, Eq)
 
-instance Exception ErrPostExternalTx
+instance Exception ErrDecodeExternalTx
 
 
 -- | Wait until 'networkTip networkLayer' succeeds according to a given

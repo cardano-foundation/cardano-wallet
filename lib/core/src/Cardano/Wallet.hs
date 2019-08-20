@@ -34,7 +34,7 @@ module Cardano.Wallet
     , ErrNetworkUnavailable (..)
     , ErrNoSuchWallet (..)
     , ErrPostTx (..)
-    , ErrPostExternalTx (..)
+    , ErrDecodeExternalTx (..)
     , ErrSignTx (..)
     , ErrStartTimeLaterThanEndTime (..)
     , ErrSubmitTx (..)
@@ -61,8 +61,8 @@ import Cardano.Wallet.DB
     , PrimaryKey (..)
     )
 import Cardano.Wallet.Network
-    ( ErrNetworkUnavailable (..)
-    , ErrPostExternalTx (..)
+    ( ErrDecodeExternalTx (..)
+    , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     , NetworkLayer (..)
     )
@@ -370,8 +370,9 @@ data ErrSubmitTx
     deriving (Show, Eq)
 
 -- | Errors occuring when submitting an externally signed transaction to the network
-newtype ErrSubmitExternalTx
-    = ErrSubmitExternalTxNetwork ErrPostExternalTx
+data ErrSubmitExternalTx
+    = ErrSubmitExternalTxNetwork ErrPostTx
+    | ErrSubmitExternalTxDecode ErrDecodeExternalTx
     deriving (Show, Eq)
 
 -- | Errors occuring when trying to change a wallet's passphrase
@@ -889,8 +890,9 @@ newWalletLayer tracer bp db nw tl = do
     _submitExternalTx
         :: ByteString
         -> ExceptT ErrSubmitExternalTx IO ()
-    _submitExternalTx payload =
-        withExceptT ErrSubmitExternalTxNetwork $ postExternalTx nw payload
+    _submitExternalTx payload = do
+        txWithWit <- withExceptT ErrSubmitExternalTxDecode $ decodeExternalTx nw payload
+        withExceptT ErrSubmitExternalTxNetwork $ postTx nw txWithWit
 
 
     {---------------------------------------------------------------------------

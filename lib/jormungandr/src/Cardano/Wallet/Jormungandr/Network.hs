@@ -49,13 +49,14 @@ import Cardano.Wallet.Jormungandr.Api
     , api
     )
 import Cardano.Wallet.Jormungandr.Binary
-    ( ConfigParam (..), Message (..), coerceBlock )
+    ( ConfigParam (..), Message (..), coerceBlock, getMessage, runGet )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, softTxMaxSize )
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx )
 import Cardano.Wallet.Network
-    ( ErrGetBlock (..)
+    ( ErrDecodeExternalTx (..)
+    , ErrGetBlock (..)
     , ErrNetworkTip (..)
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
@@ -148,7 +149,12 @@ mkNetworkLayer j = NetworkLayer
         forM ids (getBlock j)
 
     , postTx = postMessage j
-    , postExternalTx = undefined
+    , decodeExternalTx = \payload -> do
+            msg <- pure $ runGet getMessage (BL.fromStrict payload)
+            case msg of
+                Transaction stx -> pure stx
+                _ -> throwE $ ErrDecodeExternalTxWrongPayload "expected a Transaction message"
+
     }
   where
     mappingError = flip withExceptT
