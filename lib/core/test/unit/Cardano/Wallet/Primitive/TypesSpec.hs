@@ -66,6 +66,7 @@ import Cardano.Wallet.Primitive.Types
     , slotCeiling
     , slotDifference
     , slotFloor
+    , slotMinBound
     , slotPred
     , slotRatio
     , slotStartTime
@@ -238,11 +239,11 @@ spec = do
 
     describe "Slot arithmetic" $ do
 
-        it "applyN (flatSlot slot) slotPred slot == Just (fromFlatSlot 0)" $
+        it "applyN (flatSlot slot) slotPred slot == Just slotMinBound" $
             withMaxSuccess 10 $ property $
                 \(sps, slot) -> do
                     let n = flatSlot (getEpochLength sps) slot
-                    Just (fromFlatSlot (getEpochLength sps) 0) ===
+                    Just slotMinBound ===
                         applyN n (slotPred sps =<<) (Just slot)
 
         it "applyN (flatSlot slot + 1) slotPred slot == Nothing" $
@@ -316,10 +317,10 @@ spec = do
                     let f = slotFloor sps . slotStartTime sps
                     Just slot === f slot
 
-        it "slot > SlotId 0 0 => \
+        it "slot > slotMinBound => \
             \slotSucc . slotFloor . utcTimePred . slotStartTime == id" $
             withMaxSuccess 1000 $ property $
-                \(sps, slot) -> slot > SlotId 0 0 ==> do
+                \(sps, slot) -> slot > slotMinBound ==> do
                     let f = fmap (slotSucc sps)
                             . slotFloor sps
                             . utcTimePred

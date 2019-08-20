@@ -86,6 +86,7 @@ module Cardano.Wallet.Primitive.Types
     , slotFloor
     , slotAt
     , slotDifference
+    , slotMinBound
     , slotPred
     , slotSucc
     , slotRange
@@ -960,12 +961,16 @@ slotStartTime (SlotParameters el (SlotLength sl) (StartTime st)) slot =
 --   time 's' such that 't ≤ s'.
 slotCeiling :: SlotParameters -> UTCTime -> SlotId
 slotCeiling sp@(SlotParameters _ (SlotLength sl) _) t =
-    fromMaybe (SlotId 0 0) $ slotAt sp (addUTCTime (pred sl) t)
+    fromMaybe slotMinBound $ slotAt sp (addUTCTime (pred sl) t)
 
 -- | For the given time 't', determine the ID of the latest slot with start
 --   time 's' such that 's ≤ t'.
 slotFloor :: SlotParameters -> UTCTime -> Maybe SlotId
 slotFloor = slotAt
+
+-- | Returns the earliest slot.
+slotMinBound :: SlotId
+slotMinBound = SlotId 0 0
 
 -- | For the given time 't', determine the ID of the unique slot with start
 --   time 's' and end time 'e' such that 's ≤ t ≤ e'.
