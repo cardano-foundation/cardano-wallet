@@ -470,11 +470,11 @@ slotStartTime :: SlotParameters -> SlotId -> UTCTime
 
 -- | For the given time <tt>t</tt>, determine the ID of the earliest slot
 --   with start time <tt>s</tt> such that 't ≤ s'.
-slotStartingAtOrJustAfter :: SlotParameters -> UTCTime -> SlotId
+slotCeiling :: SlotParameters -> UTCTime -> SlotId
 
 -- | For the given time <tt>t</tt>, determine the ID of the latest slot
 --   with start time <tt>s</tt> such that 's ≤ t'.
-slotStartingAtOrJustBefore :: SlotParameters -> UTCTime -> SlotId
+slotFloor :: SlotParameters -> UTCTime -> SlotId
 
 -- | For the given time <tt>t</tt>, determine the ID of the unique slot
 --   with start time <tt>s</tt> and end time <tt>e</tt> such that 's ≤ t ≤
