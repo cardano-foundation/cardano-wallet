@@ -30,6 +30,7 @@ module Test.Integration.Framework.DSL
     , expectFieldEqual
     , expectFieldNotEqual
     , expectFieldBetween
+    , expectListItemFieldBetween
     , expectListItemFieldEqual
     , expectListSizeEqual
     , expectResponseCode
@@ -39,6 +40,7 @@ module Test.Integration.Framework.DSL
     , expectCliFieldBetween
     , expectCliFieldEqual
     , expectCliFieldNotEqual
+    , expectCliListItemFieldBetween
     , expectCliListItemFieldEqual
     , expectWalletUTxO
     , verify
@@ -54,9 +56,12 @@ module Test.Integration.Framework.DSL
     , delegation
     , direction
     , feeEstimator
+    , inputs
+    , insertedAtTime
     , passphraseLastUpdate
     , state
     , status
+    , outputs
     , walletId
     , walletName
 
@@ -66,6 +71,7 @@ module Test.Integration.Framework.DSL
     , emptyWallet
     , emptyWalletWith
     , getFromResponse
+    , getFromResponseList
     , json
     , listAddresses
     , listTransactions
@@ -81,6 +87,8 @@ module Test.Integration.Framework.DSL
     , shouldContainT
     , shouldNotContainT
     , for
+    , toQueryString
+    , utcIso8601ToText
 
     -- * Endpoints
     , getWalletEp
@@ -89,6 +97,7 @@ module Test.Integration.Framework.DSL
     , getAddressesEp
     , postTxEp
     , postTxFeeEp
+    , listTxEp
     , updateWalletPassEp
 
     -- * CLI
@@ -108,9 +117,12 @@ module Test.Integration.Framework.DSL
     ) where
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
+    ( AddressAmount
+    , ApiAddress
+    , ApiBlockData (..)
     , ApiT (..)
     , ApiTransaction
+    , ApiTxInput (..)
     , ApiUtxoStatistics (..)
     , ApiWallet
     , Iso8601Time (..)
@@ -128,6 +140,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , HistogramBar (..)
     , PoolId (..)
+    , SlotId (..)
     , SortOrder (..)
     , TxIn (..)
     , TxOut (..)
@@ -182,6 +195,8 @@ import Data.Generics.Product.Typed
     ( HasType, typed )
 import Data.List
     ( (!!) )
+import Data.List.NonEmpty
+    ( NonEmpty )
 import Data.Maybe
     ( catMaybes, fromMaybe )
 import Data.Proxy
@@ -194,6 +209,8 @@ import Data.Text.Class
     ( ToText (..) )
 import Data.Time
     ( UTCTime )
+import Data.Time.Text
+    ( iso8601ExtendedUtc, utcTimeToText )
 import Data.Word
     ( Word64 )
 import GHC.TypeLits
@@ -250,6 +267,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -356,6 +374,21 @@ expectListItemFieldEqual i getter a (c, res) = case res of
         | length xs > i -> expectFieldEqual getter a (c, Right (xs !! i))
         | otherwise -> fail $
             "expectListItemFieldEqual: trying to access the #" <> show i <>
+            " element from a list but there's none! "
+
+expectListItemFieldBetween
+    :: (MonadIO m, MonadFail m, Show a, Eq a, Ord a)
+    => Int
+    -> Lens' s a
+    -> (a, a)
+    -> (HTTP.Status, Either RequestException [s])
+    -> m ()
+expectListItemFieldBetween i getter (aMin, aMax) (c, res) = case res of
+    Left e -> wantedSuccessButError e
+    Right xs
+        | length xs > i -> expectFieldBetween getter (aMin, aMax) (c, Right (xs !! i))
+        | otherwise -> fail $
+            "expectListItemFieldBetween: trying to access the #" <> show i <>
             " element from a list but there's none! "
 
 -- | Expects data list returned by the API to be of certain length
@@ -485,6 +518,19 @@ expectCliFieldBetween getter (aMin, aMax) s = case view getter s of
                 "expected " <> show a <> " <= " <> show aMax
             _ ->
                 return ()
+
+expectCliListItemFieldBetween
+    :: (MonadIO m, MonadFail m, Show a, Eq a, Ord a)
+    => Int
+    -> Lens' s a
+    -> (a, a)
+    -> [s]
+    -> m ()
+expectCliListItemFieldBetween i getter (aMin, aMax) xs
+        | length xs > i = expectCliFieldBetween getter (aMin, aMax) (xs !! i)
+        | otherwise = fail $
+            "expectCliListItemFieldBetween: trying to access the #" <> show i <>
+            " element from a list but there's none! "
 
 expectCliFieldEqual
     :: (MonadIO m, Show a, Eq a)
@@ -650,6 +696,34 @@ direction =
     _set :: HasType (ApiT Direction) s => (s, Direction) -> s
     _set (s, v) = set typed (ApiT v) s
 
+insertedAtTime :: HasType (Maybe ApiBlockData) s => Lens' s (Maybe UTCTime)
+insertedAtTime =
+    lens _get _set
+  where
+    _get :: HasType (Maybe ApiBlockData) s => s -> (Maybe UTCTime)
+    _get = fmap (time) . view typed
+    _set :: HasType (Maybe ApiBlockData) s => (s, (Maybe UTCTime)) -> s
+    _set (s, v) = set typed (fn <$> v) s
+         where fn t = ApiBlockData (t) (ApiT (SlotId 1 1))
+
+inputs :: HasType [ApiTxInput t] s => Lens' s [ApiTxInput t]
+inputs =
+    lens _get _set
+  where
+    _get :: HasType [ApiTxInput t] s => s -> [ApiTxInput t]
+    _get = view typed
+    _set :: HasType [ApiTxInput t] s => (s, [ApiTxInput t]) -> s
+    _set (s, v) = set typed v s
+
+outputs :: HasType (NonEmpty (AddressAmount t)) s => Lens' s [AddressAmount t]
+outputs =
+    lens _get _set
+  where
+    _get :: HasType (NonEmpty (AddressAmount t)) s => s -> [AddressAmount t]
+    _get = NE.toList . view typed
+    _set :: HasType (NonEmpty (AddressAmount t)) s => (s, [AddressAmount t]) -> s
+    _set (s, v) = set typed (NE.fromList v) s
+
 status :: HasType (ApiT TxStatus) s => Lens' s TxStatus
 status =
     lens _get _set
@@ -662,6 +736,8 @@ status =
 --
 -- Helpers
 --
+utcIso8601ToText :: UTCTime -> Text
+utcIso8601ToText = utcTimeToText iso8601ExtendedUtc
 
 -- | Create an empty wallet
 emptyWallet :: Context t -> IO ApiWallet
@@ -785,6 +861,19 @@ getFromResponse getter (_, res) = case res of
     Left _  -> error "getFromResponse failed to get item"
     Right s -> view getter s
 
+getFromResponseList
+    :: Int
+    -> Lens' s a
+    -> (HTTP.Status, Either RequestException [s])
+    -> a
+getFromResponseList i getter (_, res) = case res of
+    Left _ -> error "getFromResponseList failed to get item"
+    Right xs
+        | length xs > i -> view getter (xs !! i)
+        | otherwise -> error $
+            "getFromResponseList: trying to access the #" <> show i <>
+            " element from a list but there's none! "
+
 json :: QuasiQuoter
 json = aesonQQ
 
@@ -816,7 +905,7 @@ listTransactions ctx wallet mStart mEnd mOrder = do
     (_, txs) <- unsafeRequest @[ApiTransaction t] ctx path Empty
     return txs
   where
-    path = listTransactionsEp wallet $ toQueryString $ catMaybes
+    path = listTxEp wallet $ toQueryString $ catMaybes
         [ ("start", ) . toText <$> (Iso8601Time <$> mStart)
         , ("end"  , ) . toText <$> (Iso8601Time <$> mEnd  )
         , ("order", ) . toText <$> mOrder
@@ -922,16 +1011,16 @@ getAddressesEp w stateFilter =
     , "v2/wallets/" <> w ^. walletId <> "/addresses" <> stateFilter
     )
 
-listTransactionsEp :: ApiWallet -> Text -> (Method, Text)
-listTransactionsEp w stateFilter =
-    ( "GET"
-    , "v2/wallets/" <> w ^. walletId <> "/transactions" <> stateFilter
-    )
-
 postTxEp :: ApiWallet -> (Method, Text)
 postTxEp w =
     ( "POST"
     , "v2/wallets/" <> w ^. walletId <> "/transactions"
+    )
+
+listTxEp :: ApiWallet -> Text -> (Method, Text)
+listTxEp w query =
+    ( "GET"
+    , "v2/wallets/" <> w ^. walletId <> "/transactions" <> query
     )
 
 postTxFeeEp :: ApiWallet -> (Method, Text)

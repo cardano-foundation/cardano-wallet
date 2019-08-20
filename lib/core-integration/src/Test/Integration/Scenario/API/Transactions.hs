@@ -1,7 +1,9 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -22,7 +24,7 @@ import Data.Aeson
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Time.Clock
-    ( UTCTime )
+    ( UTCTime, addUTCTime )
 import Data.Time.Utils
     ( utcTimePred, utcTimeSucc )
 import Numeric.Natural
@@ -42,8 +44,11 @@ import Test.Integration.Framework.DSL
     , emptyWallet
     , expectErrorMessage
     , expectEventually
+    , expectEventually'
     , expectFieldBetween
     , expectFieldEqual
+    , expectListItemFieldEqual
+    , expectListSizeEqual
     , expectResponseCode
     , expectSuccess
     , faucetAmt
@@ -52,14 +57,18 @@ import Test.Integration.Framework.DSL
     , fixtureWallet
     , fixtureWalletWith
     , getWalletEp
+    , insertedAtTime
     , json
     , listAddresses
     , listAllTransactions
     , listTransactions
+    , listTxEp
     , postTxEp
     , postTxFeeEp
     , request
     , status
+    , toQueryString
+    , utcIso8601ToText
     , verify
     , walletId
     )
@@ -83,11 +92,14 @@ import Test.Integration.Framework.TestData
     , polishWalletName
     , wildcardsWalletName
     )
-import Web.HttpApiData
-    ( toQueryParam )
 
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
+
+data TestCase a = TestCase
+    { query :: T.Text
+    , assertions :: [(HTTP.Status, Either RequestException a) -> IO ()]
+    }
 
 spec :: forall t. (EncodeAddress t, DecodeAddress t) => SpecWith (Context t)
 spec = do
@@ -533,7 +545,7 @@ spec = do
                 "passphrase": "cardano-wallet"
             }|]
         let endpoint =
-                "v2/wallets" <> T.unpack (T.append (w ^. walletId) "0")
+                "v2/wallets/" <> T.unpack (T.append (w ^. walletId) "0")
                 <> "/transactions"
         r <- request @(ApiTransaction t) ctx ("POST", T.pack endpoint)
                 Default payload
@@ -560,7 +572,10 @@ spec = do
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
-    describe "TRANS_CREATE_08 - v2/wallets/{id}/transactions - Methods Not Allowed" $ do
+    describe
+        "TRANS_CREATE_08, TRANS_LIST_04 - \
+        \v2/wallets/{id}/transactions - Methods Not Allowed" $ do
+
         let matrix = ["PUT", "DELETE", "CONNECT", "TRACE", "OPTIONS"]
         forM_ matrix $ \method -> it (show method) $ \ctx -> do
             w <- emptyWallet ctx
@@ -1025,25 +1040,408 @@ spec = do
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
+    it "TRANS_LIST_01 - Can list Incoming and Outgoing transactions" $ \ctx -> do
+        -- Make tx from fixtureWallet
+        (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        addrs <- listAddresses ctx wDest
+
+        let amt = 1 :: Natural
+        let destination = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": "cardano-wallet"
+            }|]
+
+        tx <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+        expectResponseCode HTTP.status202 tx
+        expectEventually' ctx balanceAvailable amt wDest
+        expectEventually' ctx balanceTotal amt wDest
+
+        -- Verify Tx list contains Incoming and Outgoing
+        r <- request @([ApiTransaction t]) ctx (listTxEp wSrc mempty)
+            Default Empty
+        expectResponseCode @IO HTTP.status200 r
+
+        verify r
+            [ expectListItemFieldEqual 0 direction Outgoing
+            , expectListItemFieldEqual 1 direction Incoming
+            ]
+
+    -- This scenario covers the following matrix of cases. Cases were generated
+    -- using one of pairwise test cases generation tools available online.
+    -- +---+----------+----------+------------+--------------+
+    --     |  start   |   end    |   order    |    result    |
+    -- +---+----------+----------+------------+--------------+
+    --   1 | edge     | edge     | ascending  | 2 ascending  |
+    --   2 | edge     | edge + 1 | descending | 2 descending |
+    --   3 | edge     | edge - 1 | empty      | 1st one      |
+    --   4 | edge     | empty    | empty      | 2 descending |
+    --   5 | edge + 1 | edge + 1 | empty      | 2nd one      |
+    --   6 | edge + 1 | edge - 1 | empty      | none         |
+    --   7 | edge + 1 | empty    | ascending  | 2nd one      |
+    --   8 | edge + 1 | edge     | descending | 2nd one      |
+    --   9 | edge - 1 | edge - 1 | ascending  | 1st one      |
+    --  10 | edge - 1 | empty    | descending | 2 descending |
+    --  11 | edge - 1 | edge     | empty      | 2 descending |
+    --  12 | edge - 1 | edge + 1 | empty      | 2 descending |
+    --  13 | empty    | empty    | empty      | 2 descending |
+    --  14 | empty    | edge     | empty      | 2 descending |
+    --  15 | empty    | edge + 1 | ascending  | 2 ascending  |
+    --  16 | empty    | edge - 1 | descending | 1st one      |
+    --  17 | t1       | t1       | empty      | 1st one      |
+    --  18 | t2       | t2       | descending | 2nd one      |
+    -- +---+----------+----------+------------+--------------+
+    it "TRANS_LIST_02,03x - Can limit/order results with start, end and order"
+        $ \ctx -> do
+        let a1 = sum $ replicate 10 1
+        let a2 = sum $ replicate 10 2
+        w <- fixtureWalletWith ctx $ mconcat
+                [ replicate 10 1
+                , replicate 10 2
+                ]
+        txs <- listAllTransactions ctx w
+        let [Just t2, Just t1] = map (view insertedAtTime) txs
+        let matrix :: [TestCase [ApiTransaction t]] =
+                [ TestCase -- 1
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText t1)
+                        , ("end", utcIso8601ToText t2)
+                        , ("order", "ascending")
+                        ]
+                    , assertions =
+                        [ expectListSizeEqual 2
+                        , expectListItemFieldEqual 0 amount a1
+                        , expectListItemFieldEqual 1 amount a2
+                        ]
+                    }
+                , TestCase -- 2
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText t1)
+                        , ("end", utcIso8601ToText $ plusOneSecond t2)
+                        , ("order", "descending")
+                        ]
+                    , assertions =
+                        [ expectListSizeEqual 2
+                        , expectListItemFieldEqual 0 amount a2
+                        , expectListItemFieldEqual 1 amount a1
+                        ]
+                    }
+                , TestCase -- 3
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText t1)
+                        , ("end", utcIso8601ToText $ minusOneSecond t2)
+                        ]
+                    , assertions =
+                        [ expectListSizeEqual 1
+                        , expectListItemFieldEqual 0 amount a1
+                        ]
+                    }
+                , TestCase -- 4
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText t1) ]
+                    , assertions =
+                        [ expectListSizeEqual 2
+                        , expectListItemFieldEqual 0 amount a2
+                        , expectListItemFieldEqual 1 amount a1
+                        ]
+                    }
+                , TestCase --5
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText $ plusOneSecond t1)
+                        , ("end", utcIso8601ToText $ plusOneSecond t2)
+                        ]
+                    , assertions =
+                        [ expectListSizeEqual 1
+                        , expectListItemFieldEqual 0 amount a2
+                        ]
+                    }
+                , TestCase -- 6
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText $ plusOneSecond t1)
+                        , ("end", utcIso8601ToText $ minusOneSecond t2)
+                        ]
+                    , assertions =
+                        [ expectListSizeEqual 0 ]
+                    }
+                , TestCase -- 7
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText $ plusOneSecond t1)
+                        , ("order", "ascending")
+                        ]
+                    , assertions =
+                        [ expectListSizeEqual 1
+                        , expectListItemFieldEqual 0 amount a2
+                        ]
+                    }
+                , TestCase -- 8
+                    { query = toQueryString
+                        [ ("order", "descending")
+                        , ("start", utcIso8601ToText $ plusOneSecond t1)
+                        , ("end", utcIso8601ToText t2)
+                        ]
+                    , assertions =
+                        [ expectListSizeEqual 1
+                        , expectListItemFieldEqual 0 amount a2
+                        ]
+                    }
+                , TestCase -- 9
+                    { query = toQueryString
+                        [ ("order", "ascending")
+                        , ("start", utcIso8601ToText $ minusOneSecond t1)
+                        , ("end", utcIso8601ToText $ minusOneSecond t2)
+                        ]
+                    , assertions =
+                        [ expectListSizeEqual 1
+                        , expectListItemFieldEqual 0 amount a1
+                        ]
+                    }
+                , TestCase -- 10
+                    { query = toQueryString
+                        [ ("order", "descending")
+                        , ("start", utcIso8601ToText $ minusOneSecond t1)
+                        ]
+                    , assertions =
+                        [ expectListSizeEqual 2
+                        , expectListItemFieldEqual 0 amount a2
+                        , expectListItemFieldEqual 1 amount a1
+                        ]
+                    }
+                , TestCase -- 11
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText $ minusOneSecond t1)
+                        , ("end", utcIso8601ToText t2)
+                        ]
+                    , assertions =
+                        [ expectListSizeEqual 2
+                        , expectListItemFieldEqual 0 amount a2
+                        , expectListItemFieldEqual 1 amount a1
+                        ]
+                    }
+                , TestCase -- 12
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText $ minusOneSecond t1)
+                        , ("end", utcIso8601ToText $ plusOneSecond t2)
+                        ]
+                    , assertions =
+                        [ expectListSizeEqual 2
+                        , expectListItemFieldEqual 0 amount a2
+                        , expectListItemFieldEqual 1 amount a1
+                        ]
+                    }
+                , TestCase -- 13
+                    { query = mempty
+                    , assertions =
+                        [ expectListSizeEqual 2
+                        , expectListItemFieldEqual 0 amount a2
+                        , expectListItemFieldEqual 1 amount a1
+                        ]
+                    }
+                , TestCase -- 14
+                    { query = toQueryString
+                        [ ("end", utcIso8601ToText t2) ]
+                    , assertions =
+                        [ expectListSizeEqual 2
+                        , expectListItemFieldEqual 0 amount a2
+                        , expectListItemFieldEqual 1 amount a1
+                        ]
+                    }
+                , TestCase -- 15
+                    { query = toQueryString
+                        [ ("end", utcIso8601ToText $ plusOneSecond t2) ]
+                    , assertions =
+                        [ expectListSizeEqual 2
+                        , expectListItemFieldEqual 0 amount a2
+                        , expectListItemFieldEqual 1 amount a1
+                        ]
+                    }
+                , TestCase -- 16
+                    { query = toQueryString
+                        [ ("end", utcIso8601ToText $ minusOneSecond t2) ]
+                    , assertions =
+                        [ expectListSizeEqual 1
+                        , expectListItemFieldEqual 0 amount a1
+                        ]
+                    }
+                , TestCase -- 17
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText t1)
+                        , ("end", utcIso8601ToText t1)
+                        ]
+                    , assertions =
+                        [ expectListSizeEqual 1
+                        , expectListItemFieldEqual 0 amount a1
+                        ]
+                    }
+                , TestCase -- 18
+                    { query = toQueryString
+                        [ ("start", utcIso8601ToText t2)
+                        , ("end", utcIso8601ToText t2)
+                        ]
+                    , assertions =
+                        [ expectListSizeEqual 1
+                        , expectListItemFieldEqual 0 amount a2
+                        ]
+                    }
+                ]
+
+        forM_ matrix $ \tc -> do
+          rf <- request @([ApiTransaction t]) ctx (listTxEp w (query tc))
+              Default Empty
+          verify rf (assertions tc)
+
+    describe "TRANS_LIST_02,03 - Faulty start, end, order values" $ do
+        let orderErr = "Please specify one of the following values:\
+            \ ascending, descending."
+        let startEndErr = "Expecting ISO 8601 date-and-time format\
+            \ (basic or extended), e.g. 2012-09-25T10:15:00Z."
+        let queries :: [TestCase [ApiTransaction t]] =
+                [
+                  TestCase
+                    { query = toQueryString [ ("start", "2009") ]
+                    , assertions =
+                             [ expectResponseCode @IO HTTP.status400
+                             , expectErrorMessage startEndErr
+                             ]
+
+                    }
+                 , TestCase
+                     { query = toQueryString
+                             [ ("start", "2012-09-25T10:15:00Z")
+                             , ("end", "2016-11-21")
+                             ]
+                     , assertions =
+                             [ expectResponseCode @IO HTTP.status400
+                             , expectErrorMessage startEndErr
+                             ]
+
+                     }
+                 , TestCase
+                     { query = toQueryString
+                             [ ("start", "2012-09-25")
+                             , ("end", "2016-11-21T10:15:00Z")
+                             ]
+                     , assertions =
+                             [ expectResponseCode @IO HTTP.status400
+                             , expectErrorMessage startEndErr
+                             ]
+
+                     }
+                 , TestCase
+                     { query = toQueryString
+                             [ ("end", "2012-09-25T10:15:00Z")
+                             , ("start", "2016-11-21")
+                             ]
+                     , assertions =
+                             [ expectResponseCode @IO HTTP.status400
+                             , expectErrorMessage startEndErr
+                             ]
+
+                     }
+                 , TestCase
+                     { query = toQueryString [ ("order", "scending") ]
+                     , assertions =
+                            [ expectResponseCode @IO HTTP.status400
+                            , expectErrorMessage orderErr
+                            ]
+
+                     }
+                 , TestCase
+                     { query = toQueryString
+                             [ ("start", "2012-09-25T10:15:00Z")
+                             , ("order", "asc")
+                             ]
+                     , assertions =
+                             [ expectResponseCode @IO HTTP.status400
+                             , expectErrorMessage orderErr
+                             ]
+                     }
+                ]
+
+        forM_ queries $ \tc -> it (T.unpack $ query tc) $ \ctx -> do
+            w <- emptyWallet ctx
+            r <- request @([ApiTransaction t]) ctx (listTxEp w (query tc))
+                Default Empty
+            verify r (assertions tc)
+
     it "TRANS_LIST_02 - Start time shouldn't be later than end time" $
         \ctx -> do
               w <- emptyWallet ctx
               let startTime = "2009-09-09T09:09:09Z"
               let endTime = "2001-01-01T01:01:01Z"
-              let endpoint = mempty
-                      <> "v2/wallets/"
-                      <> T.unpack (w ^. walletId)
-                      <> "/transactions?"
-                      <> "start="
-                      <> T.unpack (toQueryParam startTime)
-                      <> "&end="
-                      <> T.unpack (toQueryParam endTime)
-              r <- request @([ApiTransaction t]) ctx ("GET", T.pack endpoint)
+              let q = toQueryString
+                      [ ("start", T.pack startTime)
+                      , ("end", T.pack endTime)
+                      ]
+              r <- request @([ApiTransaction t]) ctx (listTxEp w q)
                   Default Empty
               expectResponseCode @IO HTTP.status400 r
               expectErrorMessage
                   (errMsg400StartTimeLaterThanEndTime startTime endTime) r
               pure ()
+
+    describe "TRANS_LIST_04 - Request headers" $ do
+        let headerCases =
+                  [ ( "No HTTP headers -> 200", None
+                    , [ expectResponseCode @IO HTTP.status200 ] )
+                  , ( "Accept: text/plain -> 406"
+                    , Headers
+                          [ ("Content-Type", "application/json")
+                          , ("Accept", "text/plain") ]
+                    , [ expectResponseCode @IO HTTP.status406
+                      , expectErrorMessage errMsg406 ]
+                    )
+                  , ( "No Accept -> 200"
+                    , Headers [ ("Content-Type", "application/json") ]
+                    , [ expectResponseCode @IO HTTP.status200 ]
+                    )
+                  , ( "No Content-Type -> 200"
+                    , Headers [ ("Accept", "application/json") ]
+                    , [ expectResponseCode @IO HTTP.status200 ]
+                    )
+                  , ( "Content-Type: text/plain -> 200"
+                    , Headers [ ("Content-Type", "text/plain") ]
+                    , [ expectResponseCode @IO HTTP.status200 ]
+                    )
+                  ]
+        forM_ headerCases $ \(title, headers, expectations) -> it title $ \ctx -> do
+            w <- emptyWallet ctx
+            r <- request @([ApiTransaction t]) ctx (listTxEp w mempty) headers Empty
+            verify r expectations
+
+    it "TRANS_LIST_04 - 'almost' valid walletId" $ \ctx -> do
+        w <- emptyWallet ctx
+        let endpoint = "v2/wallets/"
+                <> T.unpack (T.append (w ^. walletId) "0")
+                <> "/transactions"
+        r <- request @([ApiTransaction t]) ctx ("GET", T.pack endpoint)
+                Default Empty
+        expectResponseCode @IO HTTP.status404 r
+        expectErrorMessage errMsg404NoEndpoint r
+
+    it "TRANS_LIST_04 - Deleted wallet" $ \ctx -> do
+        w <- emptyWallet ctx
+        _ <- request @ApiWallet ctx (deleteWalletEp w) Default Empty
+        r <- request @([ApiTransaction t]) ctx (listTxEp w mempty)
+            Default Empty
+        expectResponseCode @IO HTTP.status404 r
+        expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+
+    describe "TRANS_LIST_04 - False wallet ids" $ do
+        forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
+            let endpoint = "v2/wallets/" <> walId <> "/transactions"
+            r <- request @([ApiTransaction t]) ctx ("GET", T.pack endpoint)
+                    Default Empty
+            expectResponseCode HTTP.status404 r
+            if (title == "40 chars hex") then
+                expectErrorMessage (errMsg404NoWallet $ T.pack walId) r
+            else
+                expectErrorMessage errMsg404NoEndpoint r :: IO ()
 
     it "TRANS_LIST_RANGE_01 - \
        \Transaction at time t is SELECTED by small ranges that cover it" $
@@ -1203,6 +1601,7 @@ spec = do
             , expectErrorMessage errMsg415 ]
         )
         ]
+
     fixtureErrInputsDepleted ctx = do
         wSrc <- fixtureWalletWith ctx [12_000_000, 20_000_000, 17_000_000]
         wDest <- emptyWallet ctx
@@ -1222,3 +1621,7 @@ spec = do
                 "passphrase": "Secure Passphrase"
             }|]
         return (wSrc, payload)
+
+    plusOneSecond, minusOneSecond :: UTCTime -> UTCTime
+    plusOneSecond = addUTCTime 1
+    minusOneSecond = addUTCTime (-1)
