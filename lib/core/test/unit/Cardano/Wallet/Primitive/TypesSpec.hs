@@ -56,6 +56,8 @@ import Cardano.Wallet.Primitive.Types
     , isSubsetOf
     , isValidCoin
     , isWithinRange
+    , rangeHasLowerBound
+    , rangeHasUpperBound
     , rangeIsFinite
     , rangeIsValid
     , restrictedBy
@@ -84,8 +86,6 @@ import Data.Function
     ( (&) )
 import Data.Function.Utils
     ( applyN )
-import Data.Maybe
-    ( isJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -203,7 +203,7 @@ spec = do
         it "rStart r `isWithinRange` r" $
             withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
                 checkCoverage $
-                cover 10 (isJust $ rStart r) "has defined start" $
+                cover 10 (rangeHasLowerBound r) "has defined start" $
                 (((`isWithinRange` r) <$> rStart r) =/= Just False)
                     .&&.
                     (((`isBeforeRange` r) <$> rStart r) =/= Just True)
@@ -211,7 +211,7 @@ spec = do
         it "rEnd r `isWithinRange` r" $
             withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
                 checkCoverage $
-                cover 10 (isJust $ rEnd r) "has defined end" $
+                cover 10 (rangeHasUpperBound r) "has defined end" $
                 (((`isWithinRange` r) <$> rEnd r) =/= Just False)
                     .&&.
                     (((`isAfterRange` r) <$> rEnd r) =/= Just True)
@@ -219,7 +219,7 @@ spec = do
         it "pred (rStart r) `isBeforeRange` r" $
             withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
                 checkCoverage $
-                cover 10 (isJust $ rStart r) "has defined start" $
+                cover 10 (rangeHasLowerBound r) "has defined start" $
                 (((`isWithinRange` r) . pred <$> rStart r) =/= Just True)
                     .&&.
                     (((`isBeforeRange` r) . pred <$> rStart r) =/= Just False)
@@ -227,7 +227,7 @@ spec = do
         it "succ (rEnd r) `isAfterRange` r" $
             withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
                 checkCoverage $
-                cover 10 (isJust $ rEnd r) "has defined end" $
+                cover 10 (rangeHasUpperBound r) "has defined end" $
                 ((`isWithinRange` r) . succ <$> rEnd r) =/= Just True
                     .&&.
                     (((`isAfterRange` r) . succ <$> rEnd r) =/= Just False)
