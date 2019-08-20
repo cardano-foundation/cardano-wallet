@@ -893,7 +893,7 @@ data SlotParameters = SlotParameters
         :: SlotLength
     , getGenesisBlockDate
         :: StartTime
-    } deriving (Eq, Show)
+    } deriving (Eq, Generic, Show)
 
 -- | Compute the approximate ratio / progress between two slots. This is an
 -- approximation for a few reasons, one of them being that we hard code the

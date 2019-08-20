@@ -721,6 +721,10 @@ instance Arbitrary StartTime where
 instance Arbitrary EpochLength where
     arbitrary = EpochLength . getNonZero <$> arbitrary
 
+instance Arbitrary SlotParameters where
+    arbitrary = SlotParameters <$> arbitrary <*> arbitrary <*> arbitrary
+    shrink = genericShrink
+
 instance {-# OVERLAPS #-} Arbitrary (SlotParameters, SlotId) where
     arbitrary = do
         (el, slot) <- arbitrary
