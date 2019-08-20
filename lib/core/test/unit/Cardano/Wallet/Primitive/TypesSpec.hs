@@ -302,7 +302,7 @@ spec = do
             withMaxSuccess 1000 $ property $
                 \(sps, slot) -> do
                     let f = slotAt sps . slotStartTime sps
-                    slot === f slot
+                    Just slot === f slot
 
         it "slotCeiling . slotStartTime == id" $
             withMaxSuccess 1000 $ property $
@@ -314,16 +314,17 @@ spec = do
             withMaxSuccess 1000 $ property $
                 \(sps, slot) -> do
                     let f = slotFloor sps . slotStartTime sps
-                    slot === f slot
+                    Just slot === f slot
 
-        it "slotSucc . slotFloor . utcTimePred . slotStartTime == id" $
+        it "slot > SlotId 0 0 => \
+            \slotSucc . slotFloor . utcTimePred . slotStartTime == id" $
             withMaxSuccess 1000 $ property $
-                \(sps, slot) -> do
-                    let f = slotSucc sps
+                \(sps, slot) -> slot > SlotId 0 0 ==> do
+                    let f = fmap (slotSucc sps)
                             . slotFloor sps
                             . utcTimePred
                             . slotStartTime sps
-                    slot === f slot
+                    Just slot === f slot
 
         it "slotPred . slotCeiling . utcTimeSucc . slotStartTime == id" $
             withMaxSuccess 1000 $ property $

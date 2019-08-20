@@ -88,6 +88,7 @@ module Cardano.Wallet.Primitive.Types
     , slotDifference
     , slotPred
     , slotSucc
+    , slotRange
 
     -- * Wallet Metadata
     , WalletMetadata(..)
@@ -150,7 +151,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( isJust )
+    ( fromMaybe, isJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -959,18 +960,19 @@ slotStartTime (SlotParameters el (SlotLength sl) (StartTime st)) slot =
 --   time 's' such that 't ≤ s'.
 slotCeiling :: SlotParameters -> UTCTime -> SlotId
 slotCeiling sp@(SlotParameters _ (SlotLength sl) _) t =
-    slotAt sp (addUTCTime (pred sl) t)
+    fromMaybe (SlotId 0 0) $ slotAt sp (addUTCTime (pred sl) t)
 
 -- | For the given time 't', determine the ID of the latest slot with start
 --   time 's' such that 's ≤ t'.
-slotFloor :: SlotParameters -> UTCTime -> SlotId
+slotFloor :: SlotParameters -> UTCTime -> Maybe SlotId
 slotFloor = slotAt
 
 -- | For the given time 't', determine the ID of the unique slot with start
 --   time 's' and end time 'e' such that 's ≤ t ≤ e'.
-slotAt :: SlotParameters -> UTCTime -> SlotId
-slotAt (SlotParameters (EpochLength el) (SlotLength sl) (StartTime st)) t =
-    SlotId {epochNumber, slotNumber}
+slotAt :: SlotParameters -> UTCTime -> Maybe SlotId
+slotAt (SlotParameters (EpochLength el) (SlotLength sl) (StartTime st)) t
+    | t < st = Nothing
+    | otherwise = Just $ SlotId {epochNumber, slotNumber}
   where
     diff :: NominalDiffTime
     diff = t `diffUTCTime` st
@@ -983,6 +985,22 @@ slotAt (SlotParameters (EpochLength el) (SlotLength sl) (StartTime st)) t =
 
     slotNumber :: Word16
     slotNumber = floor ((diff - (fromIntegral epochNumber) * epochLength) / sl)
+
+-- | Transforms the given inclusive time range into an inclusive slot range.
+--
+-- This function returns a slot range if (and only if) the specified time range
+-- intersects with the life of the blockchain.
+--
+-- If, on the other hand, the specified time range terminates before the start
+-- of the blockchain, this function returns 'Nothing'.
+--
+slotRange :: SlotParameters -> Range UTCTime -> Maybe (Range SlotId)
+slotRange sps (Range mStart mEnd) = Range slotStart <$> slotEnd
+  where
+    slotStart =
+        slotCeiling sps <$> mStart
+    slotEnd =
+        maybe (Just Nothing) (fmap Just . slotFloor sps) mEnd
 
 -- | Duration of a single slot.
 newtype SlotLength = SlotLength NominalDiffTime
