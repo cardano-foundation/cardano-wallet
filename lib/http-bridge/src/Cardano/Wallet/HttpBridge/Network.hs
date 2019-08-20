@@ -45,6 +45,7 @@ import Cardano.Wallet.Network
     ( ErrGetBlock (..)
     , ErrNetworkTip (..)
     , ErrNetworkUnavailable (..)
+    , ErrPostExternalTx (..)
     , ErrPostTx (..)
     , NetworkLayer (..)
     )
@@ -61,7 +62,7 @@ import Control.Monad.Catch
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), mapExceptT, withExceptT )
+    ( ExceptT (..), mapExceptT, throwE, withExceptT )
 import Crypto.Hash
     ( HashAlgorithm, digestFromByteString )
 import Data.ByteArray
@@ -98,6 +99,8 @@ mkNetworkLayer httpBridge = NetworkLayer
         withExceptT ErrGetBlockNetworkUnreachable (rbNextBlocks httpBridge sl)
     , networkTip = snd <$> getNetworkTip httpBridge
     , postTx = postSignedTx httpBridge
+    , postExternalTx = \_ ->
+            throwE $ ErrPostExternalTxNotSupported "http-bridge does not support externally signed transactions"
     }
 
 -- | Creates a cardano-http-bridge 'NetworkLayer' using the given connection

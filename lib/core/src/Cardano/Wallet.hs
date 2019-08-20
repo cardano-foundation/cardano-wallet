@@ -34,9 +34,11 @@ module Cardano.Wallet
     , ErrNetworkUnavailable (..)
     , ErrNoSuchWallet (..)
     , ErrPostTx (..)
+    , ErrPostExternalTx (..)
     , ErrSignTx (..)
     , ErrStartTimeLaterThanEndTime (..)
     , ErrSubmitTx (..)
+    , ErrSubmitExternalTx (..)
     , ErrUpdatePassphrase (..)
     , ErrValidateSelection
     , ErrWalletAlreadyExists (..)
@@ -59,7 +61,11 @@ import Cardano.Wallet.DB
     , PrimaryKey (..)
     )
 import Cardano.Wallet.Network
-    ( ErrNetworkUnavailable (..), ErrPostTx (..), NetworkLayer (..) )
+    ( ErrNetworkUnavailable (..)
+    , ErrPostExternalTx (..)
+    , ErrPostTx (..)
+    , NetworkLayer (..)
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (RootK)
     , ErrWrongPassphrase (..)
@@ -163,6 +169,8 @@ import Control.Monad.Trans.Maybe
     ( MaybeT (..), maybeToExceptT )
 import Control.Monad.Trans.State
     ( runState, state )
+import Data.ByteString
+    ( ByteString )
 import Data.Coerce
     ( coerce )
 import Data.Functor
@@ -301,6 +309,11 @@ data WalletLayer s t k = WalletLayer
         -> ExceptT ErrSubmitTx IO ()
         -- ^ Broadcast a (signed) transaction to the network.
 
+    , submitExternalTx
+        :: ByteString
+        -> ExceptT ErrSubmitExternalTx IO ()
+        -- ^ Broadcast an externally signed transaction to the network.
+
     , listTransactions
         :: DefineTx t
         => WalletId
@@ -354,6 +367,11 @@ data ErrSignTx
 data ErrSubmitTx
     = ErrSubmitTxNetwork ErrPostTx
     | ErrSubmitTxNoSuchWallet ErrNoSuchWallet
+    deriving (Show, Eq)
+
+-- | Errors occuring when submitting an externally signed transaction to the network
+newtype ErrSubmitExternalTx
+    = ErrSubmitExternalTxNetwork ErrPostExternalTx
     deriving (Show, Eq)
 
 -- | Errors occuring when trying to change a wallet's passphrase
@@ -462,6 +480,7 @@ newWalletLayer tracer bp db nw tl = do
         , listUtxoStatistics = _listUtxoStatistics
         , signTx = _signTx
         , submitTx = _submitTx
+        , submitExternalTx = _submitExternalTx
         , attachPrivateKey = _attachPrivateKey
         , listTransactions = _listTransactions
         }
@@ -866,6 +885,13 @@ newWalletLayer tracer bp db nw tl = do
         DB.withLock db $ withExceptT ErrSubmitTxNoSuchWallet $ do
             (w, _) <- _readWallet wid
             DB.putCheckpoint db (PrimaryKey wid) (newPending (tx, meta) w)
+
+    _submitExternalTx
+        :: ByteString
+        -> ExceptT ErrSubmitExternalTx IO ()
+    _submitExternalTx payload =
+        withExceptT ErrSubmitExternalTxNetwork $ postExternalTx nw payload
+
 
     {---------------------------------------------------------------------------
                                      Keystore

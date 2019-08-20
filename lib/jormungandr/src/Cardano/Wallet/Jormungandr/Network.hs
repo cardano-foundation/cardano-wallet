@@ -148,6 +148,7 @@ mkNetworkLayer j = NetworkLayer
         forM ids (getBlock j)
 
     , postTx = postMessage j
+    , postExternalTx = undefined
     }
   where
     mappingError = flip withExceptT
