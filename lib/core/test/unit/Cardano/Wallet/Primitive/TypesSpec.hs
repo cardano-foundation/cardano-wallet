@@ -2,6 +2,7 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
@@ -31,6 +32,7 @@ import Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , Hash (..)
     , HistogramBar (..)
+    , Range (..)
     , ShowFmt (..)
     , SlotId (..)
     , SlotLength (..)
@@ -49,8 +51,13 @@ import Cardano.Wallet.Primitive.Types
     , excluding
     , flatSlot
     , fromFlatSlot
+    , isAfterRange
+    , isBeforeRange
     , isSubsetOf
     , isValidCoin
+    , isWithinRange
+    , rangeIsFinite
+    , rangeIsValid
     , restrictedBy
     , restrictedTo
     , slotAt
@@ -63,6 +70,7 @@ import Cardano.Wallet.Primitive.Types
     , slotSucc
     , walletNameMaxLength
     , walletNameMinLength
+    , wholeRange
     )
 import Control.DeepSeq
     ( deepseq )
@@ -76,6 +84,8 @@ import Data.Function
     ( (&) )
 import Data.Function.Utils
     ( applyN )
+import Data.Maybe
+    ( isJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -108,6 +118,7 @@ import Test.QuickCheck
     , scale
     , vectorOf
     , withMaxSuccess
+    , (.&&.)
     , (=/=)
     , (===)
     , (==>)
@@ -167,6 +178,55 @@ spec = do
             fromFlatSlot slotsPerEpoch (flatSlot slotsPerEpoch sl) === sl
         it "fromFlatSlot . flatSlot == id" $ property $ \n ->
             flatSlot slotsPerEpoch (fromFlatSlot slotsPerEpoch n) === n
+
+    describe "Ranges" $ do
+
+        it "arbitrary ranges are valid" $
+            withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
+                checkCoverage $
+                cover 10 (rangeIsFinite r) "finite range" $
+                rangeIsValid r .&&.
+                    all rangeIsValid (shrink r)
+
+        it "functions is{Before,Within,After}Range are mutually exclusive" $
+            withMaxSuccess 1000 $ property $ \(a :: Integer) r ->
+                let options =
+                        [ (isBeforeRange)
+                        , (isWithinRange)
+                        , (isAfterRange) ] in
+                checkCoverage $
+                cover 10 (a `isBeforeRange` r) "isBeforeRange" $
+                cover 10 (a `isWithinRange` r) "isWithinRange" $
+                cover 10 (a `isAfterRange`  r) "isAfterRange"  $
+                1 === length (filter (\f -> f a r) options)
+
+        it "rStart r `isWithinRange` r" $
+            withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
+                checkCoverage $
+                cover 10 (isJust $ rStart r) "has defined start" $
+                ((`isWithinRange` r) <$> rStart r) =/= Just False
+
+        it "rEnd r `isWithinRange` r" $
+            withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
+                checkCoverage $
+                cover 10 (isJust $ rEnd r) "has defined end" $
+                ((`isWithinRange` r) <$> rEnd r) =/= Just False
+
+        it "not (pred (rStart r) `isWithinRange` r)" $
+            withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
+                checkCoverage $
+                cover 10 (isJust $ rStart r) "has defined start" $
+                ((`isWithinRange` r) . pred <$> rStart r) =/= Just True
+
+        it "not (succ (rEnd r) `isWithinRange` r)" $
+            withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
+                checkCoverage $
+                cover 10 (isJust $ rEnd r) "has defined end" $
+                ((`isWithinRange` r) . succ <$> rEnd r) =/= Just True
+
+        it "a `isWithinRange` wholeRange == True" $
+            property $ \(a :: Integer) ->
+                a `isWithinRange` wholeRange === True
 
     describe "Slot arithmetic" $ do
 
@@ -545,6 +605,23 @@ instance Arbitrary AddressState where
 instance Arbitrary Coin where
     -- No Shrinking
     arbitrary = Coin <$> choose (0, 3)
+
+instance (Arbitrary a, Ord a) => Arbitrary (Range a) where
+    arbitrary = fmap makeRangeValid $
+        Range
+            <$> arbitrary
+            <*> arbitrary
+    shrink (Range p q) = makeRangeValid <$>
+        [ Range u v
+        | u <- shrink p
+        , v <- shrink q
+        ]
+
+-- Ensures that the start of a range is not greater than its end.
+makeRangeValid :: Ord a => Range a -> Range a
+makeRangeValid = \case
+    Range (Just p) (Just q) -> Range (Just $ min p q) (Just $ max p q)
+    r -> r
 
 instance Arbitrary TxOut where
     -- No Shrinking
