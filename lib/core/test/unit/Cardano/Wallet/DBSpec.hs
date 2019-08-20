@@ -207,7 +207,7 @@ type TxHistory = [(Hash "Tx", (Tx, TxMeta))]
 -- (first time/slotId, then by TxId) to a 'TxHistory'.
 filterTxHistory :: SortOrder -> Range SlotId -> TxHistory -> TxHistory
 filterTxHistory order range =
-    filter (isWithinRange range . slotId . snd . snd)
+    filter ((`isWithinRange` range) . slotId . snd . snd)
     . (case order of
         Ascending -> reverse
         Descending -> id)

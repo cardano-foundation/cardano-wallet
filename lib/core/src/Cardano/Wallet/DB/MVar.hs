@@ -138,7 +138,7 @@ newDBLayer = do
                     Ascending -> comparing slot
                     Descending -> comparing $ Down . slot
                 result =
-                    filter (isWithinRange range . slot)
+                    filter ((`isWithinRange` range) . slot)
                     . sortBy order' . Map.toList . txHistory
                 slot = slotId . snd . snd
             in maybe mempty result . Map.lookup key <$> readMVar db
