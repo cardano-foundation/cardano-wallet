@@ -370,7 +370,7 @@ instance FromText SortOrder where
 data Range a = Range
     { rStart :: Maybe a
     , rEnd :: Maybe a
-    } deriving (Eq, Show)
+    } deriving (Eq, Functor, Show)
 
 -- | The range that includes everything.
 wholeRange :: Range a
