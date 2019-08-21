@@ -97,7 +97,7 @@ instance Exception ErrPostTx
 -- | Error while trying to decode externally signed transaction
 data ErrDecodeExternalTx
     = ErrDecodeExternalTxWrongPayload Text
-    | ErrDecodeExternalTxNotSupported Text
+    | ErrDecodeExternalTxNotSupported
     deriving (Generic, Show, Eq)
 
 instance Exception ErrDecodeExternalTx

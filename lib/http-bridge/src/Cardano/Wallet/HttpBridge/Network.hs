@@ -100,7 +100,7 @@ mkNetworkLayer httpBridge = NetworkLayer
     , networkTip = snd <$> getNetworkTip httpBridge
     , postTx = postSignedTx httpBridge
     , decodeExternalTx = \_ ->
-            throwE $ ErrDecodeExternalTxNotSupported "http-bridge does not support externally signed transactions"
+            throwE ErrDecodeExternalTxNotSupported
     }
 
 -- | Creates a cardano-http-bridge 'NetworkLayer' using the given connection

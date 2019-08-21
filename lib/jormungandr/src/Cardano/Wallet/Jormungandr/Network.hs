@@ -149,9 +149,9 @@ mkNetworkLayer j = NetworkLayer
         forM ids (getBlock j)
 
     , postTx = postMessage j
+
     , decodeExternalTx = \payload -> do
-            msg <- pure $ runGet getMessage (BL.fromStrict payload)
-            case msg of
+            case runGet getMessage (BL.fromStrict payload) of
                 Transaction stx -> pure stx
                 _ -> throwE $ ErrDecodeExternalTxWrongPayload "expected a Transaction message"
 
