@@ -423,9 +423,6 @@ rangeIsFinite r = rangeHasLowerBound r && rangeHasUpperBound r
 rangeIsValid :: Ord a => Range a -> Bool
 rangeIsValid (Range a b) = ((<=) <$> a <*> b) /= Just False
 
--- NOTE: We could imagine replacing 'Range (Just 3) Nothing' with something
--- more magic like: `(Including 3) ... NoBound`
-
 {-------------------------------------------------------------------------------
                                   Stake Pools
 -------------------------------------------------------------------------------}
@@ -874,13 +871,6 @@ computeUtxoStatistics btype utxos =
 
 {-------------------------------------------------------------------------------
                                    Slotting
-
-  Note that we do not define any operation to perform slotting arithmetic of any
-  kind. Instead of manipulating slots, we do simply look them up from the chain,
-  in their corresponding block. This should be probably enough to cover for
-  pretty much all our needs.
-
-  If slotting arithmetic has to be introduced, it will require proper thoughts.
 -------------------------------------------------------------------------------}
 
 -- | A slot identifier is the combination of an epoch and slot.
