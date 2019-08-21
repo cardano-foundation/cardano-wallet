@@ -137,6 +137,7 @@ expectErrorMessage :: (MonadIO m, MonadFail m, Show a) => String -> (s, Either R
 expectFieldEqual :: (MonadIO m, MonadFail m, Show a, Eq a) => Lens' s a -> a -> (Status, Either RequestException s) -> m ()
 expectFieldNotEqual :: (MonadIO m, MonadFail m, Show a, Eq a) => Lens' s a -> a -> (Status, Either RequestException s) -> m ()
 expectFieldBetween :: (MonadIO m, MonadFail m, Show a, Ord a) => Lens' s a -> (a, a) -> (Status, Either RequestException s) -> m ()
+expectListItemFieldBetween :: (MonadIO m, MonadFail m, Show a, Eq a, Ord a) => Int -> Lens' s a -> (a, a) -> (Status, Either RequestException [s]) -> m ()
 
 -- | Expects that returned data list's particular item field matches the
 --   expected value e.g. expectListItemFieldEqual 0 walletName "first"
@@ -163,6 +164,7 @@ expectValidJSON :: forall m a. (MonadFail m, FromJSON a) => Proxy a -> String ->
 expectCliFieldBetween :: (MonadIO m, MonadFail m, Show a, Ord a) => Lens' s a -> (a, a) -> s -> m ()
 expectCliFieldEqual :: (MonadIO m, Show a, Eq a) => Lens' s a -> a -> s -> m ()
 expectCliFieldNotEqual :: (MonadIO m, Show a, Eq a) => Lens' s a -> a -> s -> m ()
+expectCliListItemFieldBetween :: (MonadIO m, MonadFail m, Show a, Eq a, Ord a) => Int -> Lens' s a -> (a, a) -> [s] -> m ()
 
 -- | Same as <a>expectListItemFieldEqual</a> but for CLI
 expectCliListItemFieldEqual :: (MonadIO m, MonadFail m, Show a, Eq a) => Int -> Lens' s a -> a -> [s] -> m ()
@@ -204,9 +206,12 @@ balanceTotal :: HasType (ApiT WalletBalance) s => Lens' s Natural
 delegation :: HasType (ApiT (WalletDelegation (ApiT PoolId))) s => Lens' s (WalletDelegation (ApiT PoolId))
 direction :: HasType (ApiT Direction) s => Lens' s Direction
 feeEstimator :: Lens' (Context t) (TxDescription -> (Natural, Natural))
+inputs :: HasType [ApiTxInput t] s => Lens' s [ApiTxInput t]
+insertedAtTime :: HasType (Maybe ApiBlockData) s => Lens' s (Maybe UTCTime)
 passphraseLastUpdate :: HasType (Maybe (ApiT WalletPassphraseInfo)) s => Lens' s (Maybe Text)
 state :: HasField' "state" s (ApiT t) => Lens' s t
 status :: HasType (ApiT TxStatus) s => Lens' s TxStatus
+outputs :: HasType (NonEmpty (AddressAmount t)) s => Lens' s [AddressAmount t]
 walletId :: HasType (ApiT WalletId) s => Lens' s Text
 walletName :: HasType (ApiT WalletName) s => Lens' s Text
 (</>) :: ToHttpApiData a => Text -> a -> Text
@@ -224,6 +229,7 @@ emptyWallet :: Context t -> IO ApiWallet
 -- | Create an empty wallet
 emptyWalletWith :: Context t -> (Text, Text, Int) -> IO ApiWallet
 getFromResponse :: Lens' s a -> (Status, Either RequestException s) -> a
+getFromResponseList :: Int -> Lens' s a -> (Status, Either RequestException [s]) -> a
 json :: QuasiQuoter
 listAddresses :: forall t. DecodeAddress t => Context t -> ApiWallet -> IO [ApiAddress t]
 listTransactions :: forall t. DecodeAddress t => Context t -> ApiWallet -> Maybe UTCTime -> Maybe UTCTime -> Maybe SortOrder -> IO [ApiTransaction t]
@@ -267,12 +273,15 @@ shouldNotContainT :: Text -> Text -> IO ()
 
 -- | <a>map</a> flipped.
 for :: [a] -> (a -> b) -> [b]
+toQueryString :: [(Text, Text)] -> Text
+utcIso8601ToText :: UTCTime -> Text
 getWalletEp :: ApiWallet -> (Method, Text)
 deleteWalletEp :: ApiWallet -> (Method, Text)
 getWalletUtxoEp :: ApiWallet -> (Method, Text)
 getAddressesEp :: ApiWallet -> Text -> (Method, Text)
 postTxEp :: ApiWallet -> (Method, Text)
 postTxFeeEp :: ApiWallet -> (Method, Text)
+listTxEp :: ApiWallet -> Text -> (Method, Text)
 updateWalletPassEp :: ApiWallet -> (Method, Text)
 
 -- | Run a command using the 'cardano-wallet' executable. We run it through
