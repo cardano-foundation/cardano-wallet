@@ -474,23 +474,36 @@ slotCeiling :: SlotParameters -> UTCTime -> SlotId
 
 -- | For the given time <tt>t</tt>, determine the ID of the latest slot
 --   with start time <tt>s</tt> such that 's ≤ t'.
-slotFloor :: SlotParameters -> UTCTime -> SlotId
+slotFloor :: SlotParameters -> UTCTime -> Maybe SlotId
 
 -- | For the given time <tt>t</tt>, determine the ID of the unique slot
 --   with start time <tt>s</tt> and end time <tt>e</tt> such that 's ≤ t ≤
 --   e'.
-slotAt :: SlotParameters -> UTCTime -> SlotId
+slotAt :: SlotParameters -> UTCTime -> Maybe SlotId
 
 -- | <tt>slotDifference a b</tt> is how many slots <tt>a</tt> is after
 --   <tt>b</tt>. The result is non-negative, and if <tt>b &gt; a</tt> then
 --   this function returns zero.
 slotDifference :: SlotParameters -> SlotId -> SlotId -> Quantity "slot" Natural
 
+-- | Returns the earliest slot.
+slotMinBound :: SlotId
+
 -- | Return the slot immediately before the given slot.
 slotPred :: SlotParameters -> SlotId -> Maybe SlotId
 
 -- | Return the slot immediately after the given slot.
 slotSucc :: SlotParameters -> SlotId -> SlotId
+
+-- | Transforms the given inclusive time range into an inclusive slot
+--   range.
+--   
+--   This function returns a slot range if (and only if) the specified time
+--   range intersects with the life of the blockchain.
+--   
+--   If, on the other hand, the specified time range terminates before the
+--   start of the blockchain, this function returns <a>Nothing</a>.
+slotRange :: SlotParameters -> Range UTCTime -> Maybe (Range SlotId)
 
 -- | Additional information about a wallet that can't simply be derived
 --   from the blockchain like <tt>Wallet s t</tt> is.
@@ -553,27 +566,22 @@ Ascending :: SortOrder
 -- | Sort in descending order.
 Descending :: SortOrder
 
--- | 'Range a' is used to filter data with optional <a>&gt;=</a> and
---   <a>&lt;=</a> bounds.
+-- | Represents a range of values.
 --   
---   When both bounds are <a>Just</a>, it functions like the closed range
---   '[start, end]'. When both bounds are <a>Nothing</a> it functions like
---   '(-∞,∞)', including everything (see <a>wholeRange</a>.)
+--   A range is defined by two <i>optional</i> bounds:
 --   
---   The full four interesting cases with the corresponding predicate in
---   the third column:
+--   <ol>
+--   <li>an <i>inclusive</i> lower bound</li>
+--   <li>an <i>inclusive</i> upper bound</li>
+--   </ol>
 --   
---   <ul>
---   <li>[start, end] Range (Just start) (Just end) x -&gt; x &gt;= start
---   &amp;&amp; x &lt;= end</li>
---   <li>[start,∞) Range (Just start) Nothing x -&gt; x &gt;= start</li>
---   <li>(-∞,end] Range Nothing (Just end) x -&gt; x &lt;= end</li>
---   <li>(-∞,∞) Range Nothing Nothing _x -&gt; True</li>
---   </ul>
+--   There are four cases:
+--   
+--   TODO: table
 data Range a
 Range :: Maybe a -> Maybe a -> Range a
-[$sel:rStart:Range] :: Range a -> Maybe a
-[$sel:rEnd:Range] :: Range a -> Maybe a
+[$sel:inclusiveLowerBound:Range] :: Range a -> Maybe a
+[$sel:inclusiveUpperBound:Range] :: Range a -> Maybe a
 
 -- | The range that includes everything.
 wholeRange :: Range a
@@ -665,7 +673,9 @@ instance GHC.Show.Show (Cardano.Wallet.Primitive.Types.Hash tag)
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.ProtocolMagic
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.ProtocolMagic
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.SlotParameters
+instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.SlotParameters
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.SlotParameters
+instance GHC.Classes.Ord Cardano.Wallet.Primitive.Types.StartTime
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.StartTime
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.StartTime
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.EpochLength
@@ -731,6 +741,7 @@ instance GHC.Show.Show Cardano.Wallet.Primitive.Types.PoolId
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.PoolId
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.PoolId
 instance GHC.Show.Show a => GHC.Show.Show (Cardano.Wallet.Primitive.Types.Range a)
+instance GHC.Base.Functor Cardano.Wallet.Primitive.Types.Range
 instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.Wallet.Primitive.Types.Range a)
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.SortOrder
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.SortOrder
