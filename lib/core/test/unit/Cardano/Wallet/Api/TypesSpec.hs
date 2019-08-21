@@ -35,6 +35,7 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics (..)
     , ApiWallet (..)
     , Iso8601Time (..)
+    , PostExternalTransactionData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
     , WalletBalance (..)
@@ -98,6 +99,8 @@ import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
 import Data.Aeson.QQ
     ( aesonQQ )
+import Data.ByteString
+    ( ByteString )
 import Data.FileEmbed
     ( embedFile, makeRelativeToProject )
 import Data.List.NonEmpty
@@ -205,6 +208,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiFee
             jsonRoundtripAndGolden $ Proxy @(PostTransactionData DummyTarget)
             jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeData DummyTarget)
+            jsonRoundtripAndGolden $ Proxy @PostExternalTransactionData
             jsonRoundtripAndGolden $ Proxy @WalletPostData
             jsonRoundtripAndGolden $ Proxy @WalletPutData
             jsonRoundtripAndGolden $ Proxy @WalletPutPassphraseData
@@ -443,6 +447,13 @@ spec = do
             let
                 x' = PostTransactionFeeData
                     { payments = payments (x :: PostTransactionFeeData DummyTarget)
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "PostExternalTransactionData" $ property $ \x ->
+            let
+                x' = PostExternalTransactionData
+                    { payload = payload (x :: PostExternalTransactionData)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -722,6 +733,20 @@ instance Arbitrary (PostTransactionFeeData t) where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
+instance Arbitrary PostExternalTransactionData where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ByteString where
+    shrink bytes | BS.null bytes = []
+    shrink bytes =
+        [ BS.take (BS.length bytes `div` 2) bytes
+        , BS.drop 1 bytes
+        ]
+    arbitrary = do
+        count <- choose (0, 32)
+        BS.pack <$> replicateM count arbitrary
+
 instance Arbitrary (ApiTransaction t) where
     shrink = genericShrink
     arbitrary = do
@@ -872,6 +897,9 @@ instance ToSchema (PostTransactionData t) where
 
 instance ToSchema (PostTransactionFeeData t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPostTransactionFeeData"
+
+instance ToSchema PostExternalTransactionData where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiPostExternalTransactionData"
 
 instance ToSchema (ApiTransaction t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiTransaction"

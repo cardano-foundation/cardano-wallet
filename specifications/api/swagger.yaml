@@ -282,6 +282,11 @@ x-transactionOutputs: &transactionOutputs
       address: *addressId
       amount: *transactionAmount
 
+x-signedTransactionBlob: &signedTransactionBlob
+  description: A base64-encoded binary blob of the already signed transaction
+  type: string
+  format: binary
+
 x-transactionStatus: &transactionStatus
   description: |
     Current transaction status.
@@ -579,6 +584,14 @@ definitions:
       - payments
     properties:
       payments: *transactionOutputs
+
+  ApiPostExternalTransactionData: &ApiPostExternalTransactionData
+    type: object
+    required:
+      - payload
+    properties:
+      payload: *signedTransactionBlob
+
 
 #############################################################################
 #                                                                           #
@@ -1021,6 +1034,19 @@ paths:
             - unused
           description: An optional filter on the address state.
       responses: *responsesListAddresses
+
+  /externalTransactions:
+    post:
+      operationId: postExternalTransaction
+      tags: ["Transactions"]
+      summary: Send
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      parameters:
+        - <<: *parametersBody
+          schema: *ApiPostExternalTransactionData
+      responses: *responsesPostTransaction
+
 
   /stake-pools:
     get:
