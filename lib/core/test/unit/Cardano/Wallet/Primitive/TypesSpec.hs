@@ -66,7 +66,9 @@ import Cardano.Wallet.Primitive.Types
     , slotCeiling
     , slotDifference
     , slotFloor
+    , slotMinBound
     , slotPred
+    , slotRange
     , slotRatio
     , slotStartTime
     , slotSucc
@@ -86,6 +88,8 @@ import Data.Function
     ( (&) )
 import Data.Function.Utils
     ( applyN )
+import Data.Maybe
+    ( isNothing )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -128,7 +132,7 @@ import Test.QuickCheck.Arbitrary.Generic
 import Test.Text.Roundtrip
     ( textRoundtrip )
 import Test.Utils.Time
-    ( genUniformTime )
+    ( genUniformTime, getUniformTime )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -200,37 +204,33 @@ spec = do
                 cover 10 (a `isAfterRange`  r) "isAfterRange"  $
                 1 === length (filter (\f -> f a r) options)
 
-        it "rStart r `isWithinRange` r" $
+        it "pred (inclusiveLowerBound r) `isBeforeRange` r" $
             withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
                 checkCoverage $
-                cover 10 (rangeHasLowerBound r) "has defined start" $
-                (((`isWithinRange` r) <$> rStart r) =/= Just False)
-                    .&&.
-                    (((`isBeforeRange` r) <$> rStart r) =/= Just True)
+                cover 10 (rangeHasLowerBound r) "has lower bound" $
+                ((`isBeforeRange` r) . pred <$> inclusiveLowerBound r)
+                    =/= Just False
 
-        it "rEnd r `isWithinRange` r" $
+        it "inclusiveLowerBound r `isWithinRange` r" $
             withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
                 checkCoverage $
-                cover 10 (rangeHasUpperBound r) "has defined end" $
-                (((`isWithinRange` r) <$> rEnd r) =/= Just False)
-                    .&&.
-                    (((`isAfterRange` r) <$> rEnd r) =/= Just True)
+                cover 10 (rangeHasLowerBound r) "has lower bound" $
+                ((`isWithinRange` r) <$> inclusiveLowerBound r)
+                    =/= Just False
 
-        it "pred (rStart r) `isBeforeRange` r" $
+        it "inclusiveUpperBound r `isWithinRange` r" $
             withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
                 checkCoverage $
-                cover 10 (rangeHasLowerBound r) "has defined start" $
-                (((`isWithinRange` r) . pred <$> rStart r) =/= Just True)
-                    .&&.
-                    (((`isBeforeRange` r) . pred <$> rStart r) =/= Just False)
+                cover 10 (rangeHasUpperBound r) "has upper bound" $
+                ((`isWithinRange` r) <$> inclusiveUpperBound r)
+                    =/= Just False
 
-        it "succ (rEnd r) `isAfterRange` r" $
+        it "succ (inclusiveUpperBound r) `isAfterRange` r" $
             withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
                 checkCoverage $
-                cover 10 (rangeHasUpperBound r) "has defined end" $
-                ((`isWithinRange` r) . succ <$> rEnd r) =/= Just True
-                    .&&.
-                    (((`isAfterRange` r) . succ <$> rEnd r) =/= Just False)
+                cover 10 (rangeHasUpperBound r) "has upper bound" $
+                ((`isAfterRange` r) . succ <$> inclusiveUpperBound r)
+                    =/= Just False
 
         it "a `isWithinRange` wholeRange == True" $
             property $ \(a :: Integer) ->
@@ -238,11 +238,38 @@ spec = do
 
     describe "Slot arithmetic" $ do
 
-        it "applyN (flatSlot slot) slotPred slot == Just (fromFlatSlot 0)" $
+        it "slotFloor (slotStartTime slotMinBound) == Just slotMinBound" $
+            withMaxSuccess 1000 $ property $ \sps ->
+                slotFloor sps (slotStartTime sps slotMinBound)
+                    === Just slotMinBound
+
+        it "slotFloor (utcTimePred (slotStartTime slotMinBound)) == Nothing" $
+            withMaxSuccess 1000 $ property $ \sps ->
+                slotFloor sps (utcTimePred (slotStartTime sps slotMinBound))
+                    === Nothing
+
+        it "t < slotStartTime slotMinBound => slotFloor t == Nothing" $
+            withMaxSuccess 1000 $ property $ \sps t ->
+                (StartTime $ getUniformTime t) < getGenesisBlockDate sps ==>
+                    slotFloor sps (getUniformTime t) === Nothing
+
+        it "t < slotStartTime slotMinBound => slotCeiling t == slotMinBound" $
+            withMaxSuccess 1000 $ property $ \sps t ->
+                (StartTime $ getUniformTime t) < getGenesisBlockDate sps ==>
+                    slotCeiling sps (getUniformTime t) === slotMinBound
+
+        it "slotStartTime slotMinBound `isAfterRange` r => \
+            \isNothing (slotRange r)" $
+            withMaxSuccess 1000 $ property $ \sps r -> do
+                let r' = getUniformTime <$> r
+                slotStartTime sps slotMinBound `isAfterRange` r' ==>
+                    isNothing (slotRange sps r')
+
+        it "applyN (flatSlot slot) slotPred slot == Just slotMinBound" $
             withMaxSuccess 10 $ property $
                 \(sps, slot) -> do
                     let n = flatSlot (getEpochLength sps) slot
-                    Just (fromFlatSlot (getEpochLength sps) 0) ===
+                    Just slotMinBound ===
                         applyN n (slotPred sps =<<) (Just slot)
 
         it "applyN (flatSlot slot + 1) slotPred slot == Nothing" $
@@ -302,7 +329,7 @@ spec = do
             withMaxSuccess 1000 $ property $
                 \(sps, slot) -> do
                     let f = slotAt sps . slotStartTime sps
-                    slot === f slot
+                    Just slot === f slot
 
         it "slotCeiling . slotStartTime == id" $
             withMaxSuccess 1000 $ property $
@@ -314,16 +341,17 @@ spec = do
             withMaxSuccess 1000 $ property $
                 \(sps, slot) -> do
                     let f = slotFloor sps . slotStartTime sps
-                    slot === f slot
+                    Just slot === f slot
 
-        it "slotSucc . slotFloor . utcTimePred . slotStartTime == id" $
+        it "slot > slotMinBound => \
+            \slotSucc . slotFloor . utcTimePred . slotStartTime == id" $
             withMaxSuccess 1000 $ property $
-                \(sps, slot) -> do
-                    let f = slotSucc sps
+                \(sps, slot) -> slot > slotMinBound ==> do
+                    let f = fmap (slotSucc sps)
                             . slotFloor sps
                             . utcTimePred
                             . slotStartTime sps
-                    slot === f slot
+                    Just slot === f slot
 
         it "slotPred . slotCeiling . utcTimeSucc . slotStartTime == id" $
             withMaxSuccess 1000 $ property $
@@ -718,6 +746,10 @@ instance Arbitrary StartTime where
 
 instance Arbitrary EpochLength where
     arbitrary = EpochLength . getNonZero <$> arbitrary
+
+instance Arbitrary SlotParameters where
+    arbitrary = SlotParameters <$> arbitrary <*> arbitrary <*> arbitrary
+    shrink = genericShrink
 
 instance {-# OVERLAPS #-} Arbitrary (SlotParameters, SlotId) where
     arbitrary = do

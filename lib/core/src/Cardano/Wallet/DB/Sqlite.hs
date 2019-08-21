@@ -363,8 +363,8 @@ newDBLayer logConfig trace fp = do
         , readTxHistory = \(PrimaryKey wid) order range ->
               runQuery $
               selectTxHistory @t wid order $ catMaybes
-                [ (TxMetaSlotId >=.) <$> W.rStart range
-                , (TxMetaSlotId <=.) <$> W.rEnd range
+                [ (TxMetaSlotId >=.) <$> W.inclusiveLowerBound range
+                , (TxMetaSlotId <=.) <$> W.inclusiveUpperBound range
                 ]
 
         {-----------------------------------------------------------------------

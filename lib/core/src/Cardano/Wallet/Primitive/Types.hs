@@ -86,8 +86,10 @@ module Cardano.Wallet.Primitive.Types
     , slotFloor
     , slotAt
     , slotDifference
+    , slotMinBound
     , slotPred
     , slotSucc
+    , slotRange
 
     -- * Wallet Metadata
     , WalletMetadata(..)
@@ -150,7 +152,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( isJust )
+    ( fromMaybe, isJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -352,23 +354,32 @@ instance ToText SortOrder where
 instance FromText SortOrder where
     fromText = fromTextToBoundedEnum SnakeLowerCase
 
--- |'Range a' is used to filter data with optional `>=` and `<=` bounds.
+-- | Represents a range of values.
 --
--- When both bounds are 'Just', it functions like the closed range
--- '[start, end]'. When both bounds are 'Nothing' it functions like
--- '(-∞,∞)', including everything (see 'wholeRange'.)
+-- A range is defined by two /optional/ bounds:
 --
--- The full four interesting cases with the corresponding predicate in the third
--- column:
+-- 1. an /inclusive/ lower bound
+-- 2. an /inclusive/ upper bound
 --
--- - [start, end]  Range (Just start) (Just end)   \x -> x >= start && x <= end
--- - [start,∞)     Range (Just start) Nothing      \x -> x >= start
--- - (-∞,end]      Range Nothing (Just end)        \x -> x <= end
--- - (-∞,∞)        Range Nothing Nothing           \_x -> True
+-- There are four cases:
+--
+-- +---------------------------------+-------------+---------------------------+
+-- | Value                           | Range       | Membership                |
+-- |                                 | Represented | Function                  |
+-- +=================================+=============+===========================+
+-- | @'Range' ('Just' x) ('Just' y)@ | @[ x, y ]@  | @\\p -> p >= x && p <= y@ |
+-- +---------------------------------+-------------+---------------------------+
+-- | @'Range' ('Just' x) 'Nothing' @ | @[ x, ∞ ]@  | @\\p -> p >= x          @ |
+-- +---------------------------------+-------------+---------------------------+
+-- | @'Range' 'Nothing'  ('Just' y)@ | @[−∞, y ]@  | @\\p -> p <= y          @ |
+-- +---------------------------------+-------------+---------------------------+
+-- | @'Range' 'Nothing'  'Nothing' @ | @[−∞, ∞ ]@  | @\\p -> True            @ |
+-- +---------------------------------+-------------+---------------------------+
+--
 data Range a = Range
-    { rStart :: Maybe a
-    , rEnd :: Maybe a
-    } deriving (Eq, Show)
+    { inclusiveLowerBound :: Maybe a
+    , inclusiveUpperBound :: Maybe a
+    } deriving (Eq, Functor, Show)
 
 -- | The range that includes everything.
 wholeRange :: Range a
@@ -396,11 +407,11 @@ isWithinRange x (Range low high) =
 
 -- | Returns 'True' if (and only if) the given range has a lower bound.
 rangeHasLowerBound :: Range a -> Bool
-rangeHasLowerBound = isJust . rStart
+rangeHasLowerBound = isJust . inclusiveLowerBound
 
 -- | Returns 'True' if (and only if) the given range has an upper bound.
 rangeHasUpperBound :: Range a -> Bool
-rangeHasUpperBound = isJust . rEnd
+rangeHasUpperBound = isJust . inclusiveUpperBound
 
 -- | Returns 'True' if (and only if) the given range has both a lower and upper
 --   bound.
@@ -411,9 +422,6 @@ rangeIsFinite r = rangeHasLowerBound r && rangeHasUpperBound r
 --   than its upper bound.
 rangeIsValid :: Ord a => Range a -> Bool
 rangeIsValid (Range a b) = ((<=) <$> a <*> b) /= Just False
-
--- NOTE: We could imagine replacing 'Range (Just 3) Nothing' with something
--- more magic like: `(Including 3) ... NoBound`
 
 {-------------------------------------------------------------------------------
                                   Stake Pools
@@ -863,13 +871,6 @@ computeUtxoStatistics btype utxos =
 
 {-------------------------------------------------------------------------------
                                    Slotting
-
-  Note that we do not define any operation to perform slotting arithmetic of any
-  kind. Instead of manipulating slots, we do simply look them up from the chain,
-  in their corresponding block. This should be probably enough to cover for
-  pretty much all our needs.
-
-  If slotting arithmetic has to be introduced, it will require proper thoughts.
 -------------------------------------------------------------------------------}
 
 -- | A slot identifier is the combination of an epoch and slot.
@@ -891,7 +892,7 @@ data SlotParameters = SlotParameters
         :: SlotLength
     , getGenesisBlockDate
         :: StartTime
-    } deriving (Eq, Show)
+    } deriving (Eq, Generic, Show)
 
 -- | Compute the approximate ratio / progress between two slots. This is an
 -- approximation for a few reasons, one of them being that we hard code the
@@ -959,18 +960,23 @@ slotStartTime (SlotParameters el (SlotLength sl) (StartTime st)) slot =
 --   time 's' such that 't ≤ s'.
 slotCeiling :: SlotParameters -> UTCTime -> SlotId
 slotCeiling sp@(SlotParameters _ (SlotLength sl) _) t =
-    slotAt sp (addUTCTime (pred sl) t)
+    fromMaybe slotMinBound $ slotAt sp (addUTCTime (pred sl) t)
 
 -- | For the given time 't', determine the ID of the latest slot with start
 --   time 's' such that 's ≤ t'.
-slotFloor :: SlotParameters -> UTCTime -> SlotId
+slotFloor :: SlotParameters -> UTCTime -> Maybe SlotId
 slotFloor = slotAt
+
+-- | Returns the earliest slot.
+slotMinBound :: SlotId
+slotMinBound = SlotId 0 0
 
 -- | For the given time 't', determine the ID of the unique slot with start
 --   time 's' and end time 'e' such that 's ≤ t ≤ e'.
-slotAt :: SlotParameters -> UTCTime -> SlotId
-slotAt (SlotParameters (EpochLength el) (SlotLength sl) (StartTime st)) t =
-    SlotId {epochNumber, slotNumber}
+slotAt :: SlotParameters -> UTCTime -> Maybe SlotId
+slotAt (SlotParameters (EpochLength el) (SlotLength sl) (StartTime st)) t
+    | t < st = Nothing
+    | otherwise = Just $ SlotId {epochNumber, slotNumber}
   where
     diff :: NominalDiffTime
     diff = t `diffUTCTime` st
@@ -984,6 +990,22 @@ slotAt (SlotParameters (EpochLength el) (SlotLength sl) (StartTime st)) t =
     slotNumber :: Word16
     slotNumber = floor ((diff - (fromIntegral epochNumber) * epochLength) / sl)
 
+-- | Transforms the given inclusive time range into an inclusive slot range.
+--
+-- This function returns a slot range if (and only if) the specified time range
+-- intersects with the life of the blockchain.
+--
+-- If, on the other hand, the specified time range terminates before the start
+-- of the blockchain, this function returns 'Nothing'.
+--
+slotRange :: SlotParameters -> Range UTCTime -> Maybe (Range SlotId)
+slotRange sps (Range mStart mEnd) = Range slotStart <$> slotEnd
+  where
+    slotStart =
+        slotCeiling sps <$> mStart
+    slotEnd =
+        maybe (Just Nothing) (fmap Just . slotFloor sps) mEnd
+
 -- | Duration of a single slot.
 newtype SlotLength = SlotLength NominalDiffTime
     deriving (Show, Eq)
@@ -994,7 +1016,7 @@ newtype EpochLength = EpochLength Word16
 
 -- | Blockchain start time
 newtype StartTime = StartTime UTCTime
-    deriving (Show, Eq)
+    deriving (Show, Eq, Ord)
 
 {-------------------------------------------------------------------------------
                                 Protocol Magic

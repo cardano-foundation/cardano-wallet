@@ -133,9 +133,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletState (..)
     , computeUtxoStatistics
     , log10
-    , slotCeiling
     , slotDifference
-    , slotFloor
+    , slotRange
     , slotRatio
     , slotStartTime
     , wholeRange
@@ -765,26 +764,30 @@ newWalletLayer tracer bp db nw tl = do
         -> Maybe UTCTime
         -> SortOrder
         -> ExceptT ErrListTransactions IO [TransactionInfo]
-    _listTransactions wid mStart mEnd order = do
-        guardRange (mStart, mEnd)
-        (w, _) <- withExceptT ErrListTransactionsNoSuchWallet $ _readWallet wid
-        let tip = currentTip w ^. #slotId
-        let range = Range
-                { rStart = slotCeiling sp <$> mStart
-                , rEnd = slotFloor sp <$> mEnd
-                }
-        liftIO $ assemble tip
-            <$> DB.readTxHistory db (PrimaryKey wid) order range
+    _listTransactions wid mStart mEnd order =
+        maybe (pure []) listTransactionsWithinRange =<< getSlotRange
       where
-        guardRange
-            :: (Maybe UTCTime, Maybe UTCTime)
-            -> ExceptT ErrListTransactions IO ()
-        guardRange = \case
+
+        -- Transforms the user-specified time range into a slot range. If the
+        -- user-specified range terminates before the start of the blockchain,
+        -- returns 'Nothing'.
+        getSlotRange
+            :: ExceptT ErrListTransactions IO (Maybe (Range SlotId))
+        getSlotRange = case (mStart, mEnd) of
             (Just start, Just end) | start > end -> do
                 let err = ErrStartTimeLaterThanEndTime start end
                 throwE (ErrListTransactionsStartTimeLaterThanEndTime err)
             _ ->
-                pure ()
+                pure $ slotRange sp $ Range mStart mEnd
+
+        listTransactionsWithinRange
+            :: Range SlotId -> ExceptT ErrListTransactions IO [TransactionInfo]
+        listTransactionsWithinRange sr = do
+            (w, _) <- withExceptT ErrListTransactionsNoSuchWallet $
+                _readWallet wid
+            let tip = currentTip w ^. #slotId
+            liftIO $ assemble tip
+                <$> DB.readTxHistory db (PrimaryKey wid) order sr
 
         -- This relies on DB.readTxHistory returning all necessary transactions
         -- to assemble coin selection information for outgoing payments.
