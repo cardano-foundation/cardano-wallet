@@ -368,8 +368,8 @@ instance FromText SortOrder where
 -- - (-∞,end]      Range Nothing (Just end)        \x -> x <= end
 -- - (-∞,∞)        Range Nothing Nothing           \_x -> True
 data Range a = Range
-    { rStart :: Maybe a
-    , rEnd :: Maybe a
+    { inclusiveLowerBound :: Maybe a
+    , inclusiveUpperBound :: Maybe a
     } deriving (Eq, Functor, Show)
 
 -- | The range that includes everything.
@@ -398,11 +398,11 @@ isWithinRange x (Range low high) =
 
 -- | Returns 'True' if (and only if) the given range has a lower bound.
 rangeHasLowerBound :: Range a -> Bool
-rangeHasLowerBound = isJust . rStart
+rangeHasLowerBound = isJust . inclusiveLowerBound
 
 -- | Returns 'True' if (and only if) the given range has an upper bound.
 rangeHasUpperBound :: Range a -> Bool
-rangeHasUpperBound = isJust . rEnd
+rangeHasUpperBound = isJust . inclusiveUpperBound
 
 -- | Returns 'True' if (and only if) the given range has both a lower and upper
 --   bound.
