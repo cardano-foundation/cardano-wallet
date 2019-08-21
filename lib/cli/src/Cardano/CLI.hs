@@ -102,6 +102,7 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet
     , Iso8601Time (..)
+    , PostExternalTransactionData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
     , WalletPostData (..)
@@ -876,6 +877,9 @@ data WalletClient t = WalletClient
         :: ApiT WalletId
         -> PostTransactionFeeData t
         -> ClientM ApiFee
+    , postExternalTransaction
+        :: PostExternalTransactionData
+        -> ClientM (ApiTransaction t)
     }
 
 walletClient :: forall t. (DecodeAddress t, EncodeAddress t) => WalletClient t
@@ -899,6 +903,7 @@ walletClient =
         _postTransaction
             :<|> _listTransactions
             :<|> _postTransactionFee
+            :<|> _postExternalTransaction
             = transactions
     in
         WalletClient
@@ -911,6 +916,7 @@ walletClient =
             , putWalletPassphrase = _putWalletPassphrase
             , listTransactions = _listTransactions
             , postTransaction = _postTransaction
+            , postExternalTransaction = _postExternalTransaction
             , postTransactionFee = _postTransactionFee
             , getWalletUtxoStatistics = _getWalletUtxoStatistics
             }

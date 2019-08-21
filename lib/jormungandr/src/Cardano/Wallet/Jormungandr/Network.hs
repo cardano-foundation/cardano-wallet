@@ -70,6 +70,7 @@ import Cardano.Wallet.Primitive.Types
     , TxWitness (..)
     )
 import Control.Arrow
+    ( left )
 import Control.Exception
     ( Exception )
 import Control.Monad

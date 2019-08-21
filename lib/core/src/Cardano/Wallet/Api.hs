@@ -11,6 +11,7 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet
     , Iso8601Time
+    , PostExternalTransactionData
     , PostTransactionData
     , PostTransactionFeeData
     , WalletPostData
@@ -121,6 +122,7 @@ type Transactions t =
     CreateTransaction t
     :<|> ListTransactions t
     :<|> PostTransactionFee t
+    :<|> PostExternalTransaction t
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransaction
 type CreateTransaction t = "wallets"
@@ -145,6 +147,11 @@ type ListTransactions t = "wallets"
     :> QueryParam "end" Iso8601Time
     :> QueryParam "order" (ApiT SortOrder)
     :> Get '[JSON] [ApiTransaction t]
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postExternalTransaction
+type PostExternalTransaction t = "externalTransactions"
+    :> ReqBody '[JSON] PostExternalTransactionData
+    :> PostAccepted '[JSON] (ApiTransaction t)
 
 {-------------------------------------------------------------------------------
                                    Internals

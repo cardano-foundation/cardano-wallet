@@ -311,7 +311,7 @@ data WalletLayer s t k = WalletLayer
 
     , submitExternalTx
         :: ByteString
-        -> ExceptT ErrSubmitExternalTx IO ()
+        -> ExceptT ErrSubmitExternalTx IO (Tx t)
         -- ^ Broadcast an externally signed transaction to the network.
 
     , listTransactions
@@ -889,10 +889,11 @@ newWalletLayer tracer bp db nw tl = do
 
     _submitExternalTx
         :: ByteString
-        -> ExceptT ErrSubmitExternalTx IO ()
+        -> ExceptT ErrSubmitExternalTx IO (Tx t)
     _submitExternalTx payload = do
-        txWithWit <- withExceptT ErrSubmitExternalTxDecode $ decodeExternalTx nw payload
+        txWithWit@(tx,_) <- withExceptT ErrSubmitExternalTxDecode $ decodeExternalTx nw payload
         withExceptT ErrSubmitExternalTxNetwork $ postTx nw txWithWit
+        return tx
 
 
     {---------------------------------------------------------------------------

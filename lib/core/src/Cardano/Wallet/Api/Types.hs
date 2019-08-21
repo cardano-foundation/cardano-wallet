@@ -13,6 +13,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -38,6 +39,7 @@ module Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
+    , PostExternalTransactionData (..)
     , ApiBlockData (..)
     , ApiTransaction (..)
     , ApiFee (..)
@@ -89,7 +91,7 @@ import Control.Applicative
 import Control.Arrow
     ( left )
 import Control.Monad
-    ( (>=>) )
+    ( MonadPlus, mzero, (>=>) )
 import Data.Aeson
     ( FromJSON (..)
     , SumEncoding (..)
@@ -110,6 +112,8 @@ import Data.Aeson
     )
 import Data.Bifunctor
     ( bimap, first )
+import Data.ByteString
+    ( ByteString )
 import Data.Either.Extra
     ( maybeToEither )
 import Data.List.NonEmpty
@@ -143,7 +147,9 @@ import Web.HttpApiData
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
+import qualified Data.ByteString.Base64 as B64
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 {-------------------------------------------------------------------------------
                                   API Types
@@ -196,6 +202,10 @@ newtype PostTransactionFeeData t = PostTransactionFeeData
     { payments :: (NonEmpty (AddressAmount t))
     } deriving (Eq, Generic, Show)
 
+newtype PostExternalTransactionData = PostExternalTransactionData
+    { payload :: ByteString
+    } deriving (Eq, Generic, Show)
+
 newtype ApiFee = ApiFee
     { amount :: (Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
@@ -232,6 +242,7 @@ data ApiErrorCode
     | WalletAlreadyExists
     | NoRootKey
     | WrongEncryptionPassphrase
+    | WrongPayload
     | KeyNotFoundForAddress
     | NotEnoughMoney
     | UtxoNotEnoughFragmented
@@ -358,6 +369,26 @@ instance FromJSON WalletPutData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON  WalletPutData where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON PostExternalTransactionData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON PostExternalTransactionData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance ToJSON ByteString where
+  toJSON = toJSON . byteStringToText
+
+textToByteString :: MonadPlus m =>  Text -> m ByteString
+textToByteString x = case B64.decode (T.encodeUtf8 x) of
+    Left _ -> mzero
+    Right bs -> pure bs
+
+byteStringToText :: ByteString -> Text
+byteStringToText = T.decodeUtf8 . B64.encode
+
+instance FromJSON ByteString where
+  parseJSON (Aeson.String x) = textToByteString x
+  parseJSON _ = mzero
 
 instance FromJSON WalletPutPassphraseData where
     parseJSON = genericParseJSON defaultRecordTypeOptions

@@ -20,6 +20,7 @@
           (hsPkgs.aeson)
           (hsPkgs.async)
           (hsPkgs.base)
+          (hsPkgs.base64-bytestring)
           (hsPkgs.basement)
           (hsPkgs.binary)
           (hsPkgs.bytestring)
