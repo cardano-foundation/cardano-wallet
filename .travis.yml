@@ -76,6 +76,8 @@ stages:
 - build project 🔨
 - checks 🔬
 - deploy 🚀
+- PR build project 🔨
+- PR checks 🔬
 
 jobs:
   fast_finish: true
@@ -242,3 +244,62 @@ jobs:
         repo: input-output-hk/cardano-wallet
         branch: master
         tags: true # Only release when a tag is pushed
+
+  ################################################################################
+  #
+  # PR
+  #
+  # Pipeline we run on each PR. Slightly different from the pipeline we run when
+  # stuff get merged into `master`. In this setup, we do want a quick feedback, and
+  # we therefore parallelize as much as we can using many different jobs. We also
+  # avoid options like `--coverage` or `--haddock` on each build since those take
+  # needless time.
+  #
+  ################################################################################
+  - stage: PR build project 🔨
+    if: (type = pull_request OR (branch IN (bors/staging, bors/trying))) AND (commit_message =~ /Travis-CI-Disable/)
+    name: "Diff Control"
+    script:
+    # Fails if there's any source file modified.
+    - git diff $(git merge-base master HEAD) HEAD --stat --exit-code -- --path "*.hs"
+    - git diff $(git merge-base master HEAD) HEAD --stat --exit-code -- --path "*.js"
+    - git diff $(git merge-base master HEAD) HEAD --stat --exit-code -- --path "specifications/*"
+
+  - stage: PR build project 🔨
+    name: "Compiling Project"
+    script:
+    - stack clean
+    - stack --no-terminal build --fast --test --no-run-tests --bench --no-run-benchmarks --haddock --no-haddock-deps
+    - tar czf $STACK_WORK_CACHE .stack-work lib/**/.stack-work
+
+  - stage: PR checks 🔬
+    name: "Code Style"
+    script:
+    - travis_retry curl -sSL https://raw.github.com/jaspervdj/stylish-haskell/master/scripts/latest.sh | sh -s $(find . -type f -name "*.hs" ! -path "*.stack-work*") -i
+    - git diff --exit-code
+    - travis_retry curl -sSL https://raw.github.com/ndmitchell/hlint/master/misc/run.sh | sh -s .
+    - travis_retry curl -sSL https://raw.github.com/ndmitchell/weeder/master/misc/travis.sh | sh -s .
+    # Somehow, we can't install open-spec-validator using `pip` directly in the travis VM.
+    # I've tried several things, including removing some existing conflicting packages, upgrading
+    # pip and using some more permissive options. In the end, I gave up and went for a container.
+    - cd specifications/api
+    - "echo -n 'FROM python:3.7-alpine\nRUN pip install openapi-spec-validator\nENTRYPOINT [\"openapi-spec-validator\"]' > Dockerfile"
+    - docker build -t openapi-spec-validator .
+    - docker run -v $PWD:/files openapi-spec-validator --schema 2.0 /files/swagger.yaml
+    - cd -
+
+  - stage: PR checks 🔬
+    name: "Tests: unit"
+    script:
+      - stack --no-terminal test --fast cardano-wallet-core cardano-wallet-launcher cardano-wallet-cli text-class bech32 cardano-wallet-http-bridge:unit cardano-wallet-jormungandr:unit
+
+  - stage: PR checks 🔬
+    name: "Tests: integration (http-bridge)"
+    script:
+    - travis_retry curl -L https://github.com/KtorZ/cardano-http-bridge/releases/download/v0.0.5/hermes-testnet.tar.gz | tar xz -C $HOME
+    - stack --no-terminal test --fast cardano-wallet-http-bridge:integration --ta "--skip PR_DISABLED"
+
+  - stage: PR checks 🔬
+    name: "Tests: integration (jormungandr)"
+    script:
+      - stack --no-terminal test --fast cardano-wallet-jormungandr:integration --ta "--skip PR_DISABLED"
