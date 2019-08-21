@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
@@ -52,8 +53,10 @@ import Cardano.Wallet.Primitive.Types
     , excluding
     , flatSlot
     , fromFlatSlot
+    , invariant
     , isAfterRange
     , isBeforeRange
+    , isSubrangeOf
     , isSubrangeOf
     , isSubsetOf
     , isValidCoin
@@ -107,8 +110,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( TextDecodingError (..), fromText )
-import Data.Time
-    ( UTCTime )
+import Data.Time.Clock
+    ( addUTCTime, diffUTCTime )
 import Data.Time.Utils
     ( utcTimePred, utcTimeSucc )
 import Fmt
@@ -117,6 +120,7 @@ import Test.Hspec
     ( Spec, describe, it, shouldNotSatisfy, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , NonEmptyList (..)
     , NonNegative (..)
     , NonZero (..)
     , Property
@@ -141,7 +145,7 @@ import Test.QuickCheck.Arbitrary.Generic
 import Test.Text.Roundtrip
     ( textRoundtrip )
 import Test.Utils.Time
-    ( genUniformTime, getUniformTime )
+    ( UniformTime (..), genUniformTime, getUniformTime )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -505,6 +509,51 @@ spec = do
                             -- Exceptions to the rule:
                             || not (rangeHasUpperBound slotRange)
                             || upperBoundSucc slotRange == slotRange)
+
+        let f sps r = fmap (slotStartTime sps) <$> slotRangeFromTimeRange sps r
+        let sharedDescription = " (where f = fmap slotStartTime . \
+            \slotRangeFromTimeRange)"
+        it ("f timeRange ⊆ timeRange" ++ sharedDescription) $
+            withMaxSuccess 1000 $ property $
+                \sps timeRange -> let r = getUniformTime <$> timeRange in
+                    cover 10 (isJust $ f sps r) "slot range exists" $ do
+                    case f sps r of
+                        Just r' -> r' `isSubrangeOf` r
+                        Nothing -> True
+        it ("f^n === f" ++ sharedDescription) $
+            withMaxSuccess 1000 $ property $
+                \sps timeRange (NonNegative (n::Int)) -> do
+                    let r = getUniformTime <$> timeRange
+                    let r' = f sps r
+                    applyN n (>>= f sps) r' === r'
+
+        it "slots in `slotRange [t1, t3]` are also in one or more of \
+           \`slotRange [t1, t2]` or `slotRange [t2, t3]` if t1 < t2 < t3" $
+            withMaxSuccess 10000 $ property $
+            \(NonEmpty (slotNos :: [Int])) sps (Ratio split) ->
+                let
+                EpochLength el = getEpochLength sps
+                slots = map (fromFlatSlot (EpochLength el) . fromIntegral . abs) slotNos
+                t1 = slotStartTime sps (minimum slots)
+                t3 = invariant "t3 > t1" (slotStartTime sps (slotSucc sps $ maximum slots)) (> t1)
+                t2 = invariant "t2 > t1" (((diffUTCTime t3 t1) * fromRational (toRational split)) `addUTCTime` t1) (> t1)
+                r1 = slotRange sps $ Range (Just t1) (Just t2)
+                r2 = slotRange sps $ Range (Just t2) (Just t3)
+                r3 = slotRange sps $ Range (Just t1) (Just t3)
+                elemsInRange xs r = Set.fromList $ filter (\x -> fromMaybe False $ (isWithinRange x <$> r)) xs
+                s1 = slots `elemsInRange` r1
+                s2 = slots `elemsInRange` r2
+                s3 = slots `elemsInRange` r3
+                in
+                cover 10 (Set.intersection s1 s2 /= Set.empty)
+                    "at least one element in both subranges" $
+                cover 10 (all (not . Set.null) [s1, s2, s3])
+                    "at least one element in each subrange" $
+                el > 1 ==> (s1 <> s2 === s3)
+                & counterexample (show (r1, r2, r3))
+
+
+
 
     describe "Negative cases for types decoding" $ do
         it "fail fromText @AddressState \"unusedused\"" $ do
@@ -894,6 +943,13 @@ instance Arbitrary EpochLength where
 instance Arbitrary SlotParameters where
     arbitrary = SlotParameters <$> arbitrary <*> arbitrary <*> arbitrary
     shrink = genericShrink
+
+newtype Ratio = Ratio Double
+    deriving (Show, Eq)
+
+instance Arbitrary Ratio where
+    arbitrary = Ratio <$> choose (0,1)
+    shrink (Ratio x) = Ratio <$> if x == 0.5 then [] else [0.5]
 
 instance {-# OVERLAPS #-} Arbitrary (SlotParameters, SlotId) where
     arbitrary = do

@@ -17,7 +17,7 @@ import Prelude
 import Data.Time
     ( Day (ModifiedJulianDay), NominalDiffTime, UTCTime (..), addUTCTime )
 import Test.QuickCheck
-    ( Arbitrary, Gen, arbitrary, choose, oneof )
+    ( Arbitrary (..), Gen, arbitrary, choose, oneof )
 
 -- | A wrapper for 'UTCTime' whose 'Arbitrary' instance spans a uniform range
 --   of dates and a mixture of time precisions.
@@ -27,6 +27,9 @@ newtype UniformTime = UniformTime { getUniformTime :: UTCTime }
 
 instance Arbitrary UniformTime where
     arbitrary = UniformTime <$> genUniformTime
+    shrink x = if x == newyear2000 then [] else [newyear2000]
+      where
+        newyear2000 = UniformTime $ UTCTime (ModifiedJulianDay 51544) 0
 
 -- | Generate 'UTCTime' values over a uniform range of dates and a mixture of
 --   time precisions.
