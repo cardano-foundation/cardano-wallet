@@ -204,37 +204,33 @@ spec = do
                 cover 10 (a `isAfterRange`  r) "isAfterRange"  $
                 1 === length (filter (\f -> f a r) options)
 
+        it "pred (inclusiveLowerBound r) `isBeforeRange` r" $
+            withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
+                checkCoverage $
+                cover 10 (rangeHasLowerBound r) "has lower bound" $
+                ((`isBeforeRange` r) . pred <$> inclusiveLowerBound r)
+                    =/= Just False
+
         it "inclusiveLowerBound r `isWithinRange` r" $
             withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
                 checkCoverage $
                 cover 10 (rangeHasLowerBound r) "has lower bound" $
-                (((`isWithinRange` r) <$> inclusiveLowerBound r) =/= Just False)
-                    .&&.
-                    (((`isBeforeRange` r) <$> inclusiveLowerBound r) =/= Just True)
+                ((`isWithinRange` r) <$> inclusiveLowerBound r)
+                    =/= Just False
 
         it "inclusiveUpperBound r `isWithinRange` r" $
             withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
                 checkCoverage $
                 cover 10 (rangeHasUpperBound r) "has upper bound" $
-                (((`isWithinRange` r) <$> inclusiveUpperBound r) =/= Just False)
-                    .&&.
-                    (((`isAfterRange` r) <$> inclusiveUpperBound r) =/= Just True)
-
-        it "pred (inclusiveLowerBound r) `isBeforeRange` r" $
-            withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
-                checkCoverage $
-                cover 10 (rangeHasLowerBound r) "has lower bound" $
-                (((`isWithinRange` r) . pred <$> inclusiveLowerBound r) =/= Just True)
-                    .&&.
-                    (((`isBeforeRange` r) . pred <$> inclusiveLowerBound r) =/= Just False)
+                ((`isWithinRange` r) <$> inclusiveUpperBound r)
+                    =/= Just False
 
         it "succ (inclusiveUpperBound r) `isAfterRange` r" $
             withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
                 checkCoverage $
                 cover 10 (rangeHasUpperBound r) "has upper bound" $
-                ((`isWithinRange` r) . succ <$> inclusiveUpperBound r) =/= Just True
-                    .&&.
-                    (((`isAfterRange` r) . succ <$> inclusiveUpperBound r) =/= Just False)
+                ((`isAfterRange` r) . succ <$> inclusiveUpperBound r)
+                    =/= Just False
 
         it "a `isWithinRange` wholeRange == True" $
             property $ \(a :: Integer) ->
