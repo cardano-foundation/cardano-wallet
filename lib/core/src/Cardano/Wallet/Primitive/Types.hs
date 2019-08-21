@@ -354,19 +354,28 @@ instance ToText SortOrder where
 instance FromText SortOrder where
     fromText = fromTextToBoundedEnum SnakeLowerCase
 
--- |'Range a' is used to filter data with optional `>=` and `<=` bounds.
+-- | Represents a range of values.
 --
--- When both bounds are 'Just', it functions like the closed range
--- '[start, end]'. When both bounds are 'Nothing' it functions like
--- '(-∞,∞)', including everything (see 'wholeRange'.)
+-- A range is defined by two /optional/ bounds:
 --
--- The full four interesting cases with the corresponding predicate in the third
--- column:
+-- 1. an /inclusive/ lower bound
+-- 2. an /inclusive/ upper bound
 --
--- - [start, end]  Range (Just start) (Just end)   \x -> x >= start && x <= end
--- - [start,∞)     Range (Just start) Nothing      \x -> x >= start
--- - (-∞,end]      Range Nothing (Just end)        \x -> x <= end
--- - (-∞,∞)        Range Nothing Nothing           \_x -> True
+-- There are four cases:
+--
+-- +---------------------------------+-------------+---------------------------+
+-- | Value                           | Range       | Membership                |
+-- |                                 | Represented | Function                  |
+-- +=================================+=============+===========================+
+-- | @'Range' ('Just' x) ('Just' y)@ | @[ x, y ]@  | @\\p -> p >= x && p <= y@ |
+-- +---------------------------------+-------------+---------------------------+
+-- | @'Range' ('Just' x) 'Nothing' @ | @[ x, ∞ ]@  | @\\p -> p >= x          @ |
+-- +---------------------------------+-------------+---------------------------+
+-- | @'Range' 'Nothing'  ('Just' y)@ | @[−∞, y ]@  | @\\p -> p <= y          @ |
+-- +---------------------------------+-------------+---------------------------+
+-- | @'Range' 'Nothing'  'Nothing' @ | @[−∞, ∞ ]@  | @\\p -> True            @ |
+-- +---------------------------------+-------------+---------------------------+
+--
 data Range a = Range
     { inclusiveLowerBound :: Maybe a
     , inclusiveUpperBound :: Maybe a
