@@ -30,7 +30,8 @@ import Cardano.Wallet.Jormungandr.Network
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Network
-    ( ErrGetBlock (..)
+    ( ErrDecodeExternalTx (..)
+    , ErrGetBlock (..)
     , ErrNetworkTip (..)
     , NetworkLayer (..)
     , defaultRetryPolicy
@@ -108,7 +109,6 @@ import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Monadic
     ( monadicIO )
-
 
 import qualified Cardano.Wallet.Jormungandr.Network as Jormungandr
 import qualified Data.ByteString as BS
@@ -292,6 +292,17 @@ spec = do
                     let encodedSignedTx = BL.toStrict $ encode signedTx
                     runExceptT (decodeExternalTx nw encodedSignedTx)
                         `shouldReturn` Right signedTx
+
+        it "decodeExternalTx throws an exception when binary blob has non-transaction-type header \
+           \or is wrongly constructed binary blob" $
+            \(_, nw) -> do
+                property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do
+                    let encodeWrongly ((Tx _ inps outs), wits) = runPut
+                            $ withHeader MsgTypeInitial
+                            $ putSignedTx inps outs wits
+                    let encodedSignedTx = BL.toStrict $ encodeWrongly signedTx
+                    result <- runExceptT (decodeExternalTx nw encodedSignedTx)
+                    result `shouldBe` (Left $ ErrDecodeExternalTxWrongPayload "wrongly constructed binary blob")
   where
     url :: BaseUrl
     url = BaseUrl Http "localhost" 8080 "/api"
