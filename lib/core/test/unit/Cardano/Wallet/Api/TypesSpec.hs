@@ -31,6 +31,7 @@ import Cardano.Wallet.Api.Types
     , ApiMnemonicT (..)
     , ApiT (..)
     , ApiTransaction (..)
+    , ApiTxId (..)
     , ApiTxInput (..)
     , ApiUtxoStatistics (..)
     , ApiWallet (..)
@@ -99,8 +100,6 @@ import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
 import Data.Aeson.QQ
     ( aesonQQ )
-import Data.ByteString
-    ( ByteString )
 import Data.FileEmbed
     ( embedFile, makeRelativeToProject )
 import Data.List.NonEmpty
@@ -206,6 +205,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiWallet
             jsonRoundtripAndGolden $ Proxy @ApiUtxoStatistics
             jsonRoundtripAndGolden $ Proxy @ApiFee
+            jsonRoundtripAndGolden $ Proxy @ApiTxId
             jsonRoundtripAndGolden $ Proxy @(PostTransactionData DummyTarget)
             jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeData DummyTarget)
             jsonRoundtripAndGolden $ Proxy @PostExternalTransactionData
@@ -409,6 +409,13 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
+        it "ApiTxId" $ property $ \x ->
+            let
+                x' = ApiTxId
+                    { id = id (x :: ApiTxId)
+                    }
+            in
+                x' === x .&&. show x' === show x
         it "WalletPostData" $ property $ \x ->
             let
                 x' = WalletPostData
@@ -580,6 +587,10 @@ instance Arbitrary ApiFee where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
+instance Arbitrary ApiTxId where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
 instance Arbitrary AddressPoolGap where
     arbitrary = arbitraryBoundedEnum
 
@@ -734,18 +745,15 @@ instance Arbitrary (PostTransactionFeeData t) where
     shrink = genericShrink
 
 instance Arbitrary PostExternalTransactionData where
-    arbitrary = genericArbitrary
-    shrink = genericShrink
-
-instance Arbitrary ByteString where
-    shrink bytes | BS.null bytes = []
-    shrink bytes =
-        [ BS.take (BS.length bytes `div` 2) bytes
-        , BS.drop 1 bytes
-        ]
     arbitrary = do
         count <- choose (0, 32)
-        BS.pack <$> replicateM count arbitrary
+        bytes <- BS.pack <$> replicateM count arbitrary
+        return $ PostExternalTransactionData bytes
+    shrink (PostExternalTransactionData bytes) | BS.null bytes = []
+    shrink (PostExternalTransactionData bytes) =
+        [ PostExternalTransactionData $ BS.take (BS.length bytes `div` 2) bytes
+        , PostExternalTransactionData $ BS.drop 1 bytes
+        ]
 
 instance Arbitrary (ApiTransaction t) where
     shrink = genericShrink
@@ -883,6 +891,9 @@ instance ToSchema ApiWallet where
 instance ToSchema ApiFee where
     declareNamedSchema _ = declareSchemaForDefinition "ApiFee"
 
+instance ToSchema ApiTxId where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiTxId"
+
 instance ToSchema WalletPostData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletPostData"
 
@@ -890,16 +901,19 @@ instance ToSchema WalletPutData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletPutData"
 
 instance ToSchema WalletPutPassphraseData where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiWalletPutPassphraseData"
+    declareNamedSchema _ =
+        declareSchemaForDefinition "ApiWalletPutPassphraseData"
 
 instance ToSchema (PostTransactionData t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPostTransactionData"
 
 instance ToSchema (PostTransactionFeeData t) where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiPostTransactionFeeData"
+    declareNamedSchema _ =
+        declareSchemaForDefinition "ApiPostTransactionFeeData"
 
 instance ToSchema PostExternalTransactionData where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiPostExternalTransactionData"
+    declareNamedSchema _ =
+        declareSchemaForDefinition "ApiPostExternalTransactionData"
 
 instance ToSchema (ApiTransaction t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiTransaction"

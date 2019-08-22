@@ -12,7 +12,7 @@
 -- |
 -- Copyright: © 2018-2019 IOHK
 -- License: Apache-2.0
---
+--------------------------------------------------------------------------------
 -- Provides the wallet layer functions that are used by API layer and uses both
 -- "Cardano.Wallet.DB" and "Cardano.Wallet.Network" to realize its role as being
 -- intermediary between the three.
@@ -369,7 +369,8 @@ data ErrSubmitTx
     | ErrSubmitTxNoSuchWallet ErrNoSuchWallet
     deriving (Show, Eq)
 
--- | Errors occuring when submitting an externally signed transaction to the network
+-- | Errors that can occur when submitting an externally-signed transaction
+-- to network.
 data ErrSubmitExternalTx
     = ErrSubmitExternalTxNetwork ErrPostTx
     | ErrSubmitExternalTxDecode ErrDecodeExternalTx
@@ -891,10 +892,10 @@ newWalletLayer tracer bp db nw tl = do
         :: ByteString
         -> ExceptT ErrSubmitExternalTx IO (Tx t)
     _submitExternalTx payload = do
-        txWithWit@(tx,_) <- withExceptT ErrSubmitExternalTxDecode $ decodeExternalTx nw payload
+        txWithWit@(tx,_) <- withExceptT ErrSubmitExternalTxDecode $
+            decodeExternalTx nw payload
         withExceptT ErrSubmitExternalTxNetwork $ postTx nw txWithWit
         return tx
-
 
     {---------------------------------------------------------------------------
                                      Keystore

@@ -313,7 +313,7 @@ errMsg415 = "I'm really sorry but I only understand 'application/json'. I need\
     \ make sure it's set to 'application/json'"
 
 errMsg500 :: String
-errMsg500 = "That's embarassing. It looks like I've created an invalid\
+errMsg500 = "That's embarrassing. It looks like I've created an invalid\
     \ transaction that could not be parsed by the node. Here's an error\
     \ message that may help with debugging: Transaction failed verification:\
     \ output with no credited value"

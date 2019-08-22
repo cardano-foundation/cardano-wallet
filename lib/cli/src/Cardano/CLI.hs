@@ -99,6 +99,7 @@ import Cardano.Wallet.Api.Types
     , ApiMnemonicT (..)
     , ApiT (..)
     , ApiTransaction
+    , ApiTxId
     , ApiUtxoStatistics
     , ApiWallet
     , Iso8601Time (..)
@@ -879,7 +880,7 @@ data WalletClient t = WalletClient
         -> ClientM ApiFee
     , postExternalTransaction
         :: PostExternalTransactionData
-        -> ClientM (ApiTransaction t)
+        -> ClientM ApiTxId
     }
 
 walletClient :: forall t. (DecodeAddress t, EncodeAddress t) => WalletClient t

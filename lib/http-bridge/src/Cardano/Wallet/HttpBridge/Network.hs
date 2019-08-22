@@ -99,8 +99,8 @@ mkNetworkLayer httpBridge = NetworkLayer
         withExceptT ErrGetBlockNetworkUnreachable (rbNextBlocks httpBridge sl)
     , networkTip = snd <$> getNetworkTip httpBridge
     , postTx = postSignedTx httpBridge
-    , decodeExternalTx = \_ ->
-            throwE ErrDecodeExternalTxNotSupported
+    , decodeExternalTx =
+            const $ throwE ErrDecodeExternalTxNotSupported
     }
 
 -- | Creates a cardano-http-bridge 'NetworkLayer' using the given connection

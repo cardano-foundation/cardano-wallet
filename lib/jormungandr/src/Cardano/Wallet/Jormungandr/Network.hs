@@ -154,10 +154,12 @@ mkNetworkLayer j = NetworkLayer
     , decodeExternalTx = \payload -> do
             case runGetOrFail getMessage (BL.fromStrict payload) of
                 Left _ ->
-                    throwE $ ErrDecodeExternalTxWrongPayload "wrongly constructed binary blob"
+                    throwE $ ErrDecodeExternalTxWrongPayload
+                        "wrongly constructed binary blob"
                 Right (_,_,msg) -> case msg of
                     Transaction stx -> pure stx
-                    _ -> throwE $ ErrDecodeExternalTxWrongPayload "wrongly constructed binary blob"
+                    _ -> throwE $ ErrDecodeExternalTxWrongPayload
+                             "wrongly constructed binary blob"
 
     }
   where

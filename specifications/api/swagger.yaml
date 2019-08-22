@@ -283,7 +283,7 @@ x-transactionOutputs: &transactionOutputs
       amount: *transactionAmount
 
 x-signedTransactionBlob: &signedTransactionBlob
-  description: A base64-encoded binary blob of the already signed transaction
+  description: A base64-encoded binary blob of the already-signed transaction.
   type: string
   format: binary
 
@@ -457,6 +457,13 @@ definitions:
       - amount
     properties:
       amount: *transactionAmount
+
+  ApiTxId: &ApiTxId
+    type: object
+    required:
+      - id
+    properties:
+      id: *transactionId
 
   ApiTransaction: &ApiTransaction
     type: object
@@ -785,6 +792,17 @@ x-responsesPostTransaction: &responsesPostTransaction
     description: Accepted
     schema: *ApiTransaction
 
+x-responsesPostExternalTransaction: &responsesPostExternalTransaction
+  <<: *responsesErr400
+  <<: *responsesErr403
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  <<: *responsesErr415
+  202:
+    description: Accepted
+    schema: *ApiTxId
+
 x-responsesPostTransactionFee: &responsesPostTransactionFee
   <<: *responsesErr400
   <<: *responsesErr404
@@ -1045,7 +1063,7 @@ paths:
       parameters:
         - <<: *parametersBody
           schema: *ApiPostExternalTransactionData
-      responses: *responsesPostTransaction
+      responses: *responsesPostExternalTransaction
 
 
   /stake-pools:

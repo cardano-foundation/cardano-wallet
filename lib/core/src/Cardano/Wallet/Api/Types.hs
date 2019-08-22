@@ -13,7 +13,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
 -- Copyright: © 2018-2019 IOHK
@@ -43,6 +42,7 @@ module Cardano.Wallet.Api.Types
     , ApiBlockData (..)
     , ApiTransaction (..)
     , ApiFee (..)
+    , ApiTxId (..)
     , ApiTxInput (..)
     , AddressAmount (..)
     , ApiErrorCode (..)
@@ -91,7 +91,7 @@ import Control.Applicative
 import Control.Arrow
     ( left )
 import Control.Monad
-    ( MonadPlus, mzero, (>=>) )
+    ( mzero, (>=>) )
 import Data.Aeson
     ( FromJSON (..)
     , SumEncoding (..)
@@ -210,6 +210,10 @@ newtype ApiFee = ApiFee
     { amount :: (Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
+newtype ApiTxId = ApiTxId
+    { id :: ApiT (Hash "Tx")
+    } deriving (Eq, Generic, Show)
+
 data ApiTransaction t = ApiTransaction
     { id :: !(ApiT (Hash "Tx"))
     , amount :: !(Quantity "lovelace" Natural)
@@ -242,7 +246,7 @@ data ApiErrorCode
     | WalletAlreadyExists
     | NoRootKey
     | WrongEncryptionPassphrase
-    | WrongPayload
+    | WrongBinaryPayload
     | KeyNotFoundForAddress
     | NotEnoughMoney
     | UtxoNotEnoughFragmented
@@ -371,28 +375,28 @@ instance ToJSON  WalletPutData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON PostExternalTransactionData where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
+    parseJSON = withObject "postExternalTransactionData" $ \o -> do
+        let toByteString x = case B64.decode (T.encodeUtf8 x) of
+                Left _ -> mzero
+                Right bs -> pure bs
+        let parseByteString (Aeson.String x) = toByteString x
+            parseByteString _ = mzero
+        p <- parseByteString =<< (o .: "payload")
+        return $ PostExternalTransactionData p
+
 instance ToJSON PostExternalTransactionData where
-    toJSON = genericToJSON defaultRecordTypeOptions
-
-instance ToJSON ByteString where
-  toJSON = toJSON . byteStringToText
-
-textToByteString :: MonadPlus m =>  Text -> m ByteString
-textToByteString x = case B64.decode (T.encodeUtf8 x) of
-    Left _ -> mzero
-    Right bs -> pure bs
-
-byteStringToText :: ByteString -> Text
-byteStringToText = T.decodeUtf8 . B64.encode
-
-instance FromJSON ByteString where
-  parseJSON (Aeson.String x) = textToByteString x
-  parseJSON _ = mzero
+    toJSON (PostExternalTransactionData p) =
+        let toValue = toJSON . T.decodeUtf8 . B64.encode
+        in object ["payload" .= toValue p ]
 
 instance FromJSON WalletPutPassphraseData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON  WalletPutPassphraseData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiTxId where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiTxId where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiFee where

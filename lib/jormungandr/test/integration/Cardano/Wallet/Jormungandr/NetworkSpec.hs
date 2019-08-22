@@ -106,7 +106,7 @@ import Test.QuickCheck
     , vectorOf
     )
 import Test.QuickCheck.Arbitrary.Generic
-    ( genericArbitrary, genericShrink )
+    ( genericShrink )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
@@ -283,7 +283,8 @@ spec = do
             let tx = (Tx (fragmentId inps outs []) inps outs, [])
             runExceptT (postTx nw tx) `shouldThrow` anyException
 
-        it "decodeExternalTx works ok with properly constructed (Tx, [TxWitness]) binary blob" $
+        it "decodeExternalTx works ok with properly constructed \
+           \(Tx, [TxWitness]) binary blob" $
             \(_, nw) -> do
                 property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do
                     let encode ((Tx _ inps outs), wits) = runPut
@@ -293,8 +294,8 @@ spec = do
                     runExceptT (decodeExternalTx nw encodedSignedTx)
                         `shouldReturn` Right signedTx
 
-        it "decodeExternalTx throws an exception when binary blob has non-transaction-type header \
-           \or is wrongly constructed binary blob" $
+        it "decodeExternalTx throws an exception when binary blob has non-\
+           \transaction-type header or is wrongly constructed binary blob" $
             \(_, nw) -> do
                 property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do
                     let encodeWrongly ((Tx _ inps outs), wits) = runPut
@@ -302,7 +303,9 @@ spec = do
                             $ putSignedTx inps outs wits
                     let encodedSignedTx = BL.toStrict $ encodeWrongly signedTx
                     result <- runExceptT (decodeExternalTx nw encodedSignedTx)
-                    result `shouldBe` (Left $ ErrDecodeExternalTxWrongPayload "wrongly constructed binary blob")
+                    result `shouldBe`
+                        (Left $ ErrDecodeExternalTxWrongPayload
+                         "wrongly constructed binary blob")
   where
     url :: BaseUrl
     url = BaseUrl Http "localhost" 8080 "/api"
@@ -452,16 +455,22 @@ instance Arbitrary TxIn where
     shrink = genericShrink
 
 instance Arbitrary TxOut where
-    arbitrary = genericArbitrary
+    arbitrary = TxOut
+        <$> arbitrary
+        <*> arbitrary
     shrink = genericShrink
 
 -- Only generating single addresses!
 instance Arbitrary Address where
-    arbitrary = Address . prependTag 3 <$> genFixed 32
+    arbitrary = do
+        let singleAddressHeader = 3
+        let singleAddressLenWithoutHeader = 32
+        Address . prependTag singleAddressHeader <$>
+            genFixed singleAddressLenWithoutHeader
     shrink (Address addr) = Address . prependTag 3
         <$> shrinkFixedBS (BS.tail addr)
 
-genFixed :: Int -> Gen BS.ByteString
+genFixed :: Int -> Gen ByteString
 genFixed n = BS.pack <$> (vectorOf n arbitrary)
 
 shrinkFixedBS :: ByteString -> [ByteString]

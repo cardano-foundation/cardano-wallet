@@ -55,7 +55,7 @@ data NetworkLayer t m = NetworkLayer
 
     , decodeExternalTx
         :: ByteString -> ExceptT ErrDecodeExternalTx m (Tx t, [TxWitness])
-        -- ^ Decode an externally signed transaction to the chain producer
+        -- ^ Decode an externally-signed transaction to the chain producer
     }
 
 -- | Network is unavailable
@@ -101,7 +101,6 @@ data ErrDecodeExternalTx
     deriving (Generic, Show, Eq)
 
 instance Exception ErrDecodeExternalTx
-
 
 -- | Wait until 'networkTip networkLayer' succeeds according to a given
 -- retry policy. Throws an exception otherwise.
