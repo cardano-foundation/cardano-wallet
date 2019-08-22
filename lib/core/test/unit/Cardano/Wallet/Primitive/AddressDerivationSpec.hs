@@ -7,6 +7,8 @@
 
 module Cardano.Wallet.Primitive.AddressDerivationSpec
     ( spec
+    , genRootKeysSeq
+    , genRootKeysRnd
     ) where
 
 import Prelude
@@ -30,8 +32,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , encryptPassphrase
     , getIndex
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Random
+    ( RndKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
-    ( SeqKey (..), deserializeXPubSeq, generateKeyFromSeed, serializeXPubSeq )
+    ( SeqKey (..), deserializeXPubSeq, serializeXPubSeq )
 import Cardano.Wallet.Primitive.Types
     ( Hash (..) )
 import Control.Monad
@@ -63,6 +67,8 @@ import Test.QuickCheck.Monadic
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Random as Rnd
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as Seq
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
@@ -175,7 +181,8 @@ spec = do
             res `shouldSatisfy` isRight
 
     describe "Keys storing and retrieving roundtrips" $ do
-        it "XPriv" (property prop_roundtripXPriv)
+        it "XPrv SeqKey" (property (prop_roundtripXPrv @SeqKey))
+        it "XPrv RndKey" (property (prop_roundtripXPrv @RndKey))
         it "XPub" (property prop_roundtripXPub)
 
 {-------------------------------------------------------------------------------
@@ -206,10 +213,11 @@ prop_roundtripEnumIndexSoft :: Index 'Soft 'AddressK -> Property
 prop_roundtripEnumIndexSoft ix =
     (toEnum . fromEnum) ix === ix .&&. (toEnum . fromEnum . getIndex) ix === ix
 
-prop_roundtripXPriv
-    :: (SeqKey 'RootK XPrv, Hash "encryption")
+prop_roundtripXPrv
+    :: (PersistKey k, Eq (k 'RootK XPrv), Show (k 'RootK XPrv))
+    => (k 'RootK XPrv, Hash "encryption")
     -> Property
-prop_roundtripXPriv xpriv = do
+prop_roundtripXPrv xpriv = do
     let xpriv' = (deserializeXPrv . serializeXPrv) xpriv
     xpriv' === Right xpriv
 
@@ -289,22 +297,31 @@ instance Eq XPrv where
 
 instance Arbitrary (SeqKey 'RootK XPrv) where
     shrink _ = []
-    arbitrary = genRootKeys
+    arbitrary = genRootKeysSeq
 
 instance Arbitrary (SeqKey 'RootK XPub) where
     shrink _ = []
     arbitrary = publicKey <$> arbitrary
 
-genRootKeys :: Gen (SeqKey 'RootK XPrv)
-genRootKeys = do
+instance Arbitrary (RndKey 'RootK XPrv) where
+    shrink _ = []
+    arbitrary = genRootKeysRnd
+
+genRootKeysSeq :: Gen (SeqKey 'RootK XPrv)
+genRootKeysSeq = do
     (s, g, e) <- (,,)
         <$> genPassphrase @"seed" (16, 32)
         <*> genPassphrase @"generation" (0, 16)
         <*> genPassphrase @"encryption" (0, 16)
-    return $ generateKeyFromSeed (s, g) e
-  where
-    genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
-    genPassphrase range = do
-        n <- choose range
-        InfiniteList bytes _ <- arbitrary
-        return $ Passphrase $ BA.convert $ BS.pack $ take n bytes
+    return $ Seq.generateKeyFromSeed (s, g) e
+
+genRootKeysRnd :: Gen (RndKey 'RootK XPrv)
+genRootKeysRnd = Rnd.generateKeyFromSeed
+    <$> genPassphrase @"seed" (16, 32)
+    <*> genPassphrase @"encryption" (0, 16)
+
+genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
+genPassphrase range = do
+    n <- choose range
+    InfiniteList bytes _ <- arbitrary
+    return $ Passphrase $ BA.convert $ BS.pack $ take n bytes
