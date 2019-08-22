@@ -265,6 +265,14 @@ spec = do
             property $ \(r :: Range Int) ->
                 r `isSubrangeOf` r
 
+        it "r `isSubrangeOf` wholeRange" $
+            property $ \(r :: Range Int) ->
+                checkCoverage $
+                cover 10 (rangeHasLowerBound r) "has lower bound" $
+                cover 10 (rangeHasUpperBound r) "has upper bound" $
+                cover 10 (rangeIsFinite      r) "is finite" $
+                r `isSubrangeOf` wholeRange
+
         it "Range (succ a) b `isSubrangeOf` Range a b" $
             property $ \r@(Range a b :: Range Int) ->
                 not (rangeIsSingleton r) ==>
