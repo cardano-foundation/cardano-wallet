@@ -159,6 +159,7 @@ import System.Log.FastLogger
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
@@ -914,7 +915,6 @@ instance PersistState (Rnd.RndState t) where
         insertRndStateAddresses rsid True $ Rnd.pendingAddresses st
 
     selectState (wid, sl) = runMaybeT $ do
-        rndKey <- MaybeT $ fmap fst <$> selectPrivateKey wid
         st <- MaybeT $ selectFirst
             [ RndStateWalletId ==. wid
             , RndStateCheckpointSlot ==. sl
@@ -922,6 +922,7 @@ instance PersistState (Rnd.RndState t) where
         let (rsid, RndState _ _ accIx gen) = (entityKey st, entityVal st)
         addresses <- lift $ selectRndStateAddresses rsid False
         pendingAddresses <- lift $ selectRndStateAddresses rsid True
+        rndKey <- lift $ selectRndStateKey wid
         pure $ Rnd.RndState
             { rndKey = rndKey
             , accountIndex = W.Index accIx
@@ -960,6 +961,10 @@ selectRndStateAddresses rsid pending = do
     assocFromEntity (RndStateAddress _ accIx addrIx addr _) =
         ((W.Index accIx, W.Index addrIx), addr)
 
+-- | Gets the wallet root key to put in RndState. If there is none yet, just
+-- return a placeholder.
+selectRndStateKey :: W.WalletId -> SqlPersistT IO (Rnd.RndKey 'RootK XPrv)
+selectRndStateKey wid = maybe Rnd.nullKey fst <$> selectPrivateKey wid
 
 {-------------------------------------------------------------------------------
                                     Logging

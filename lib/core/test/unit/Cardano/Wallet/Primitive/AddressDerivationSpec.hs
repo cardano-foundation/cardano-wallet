@@ -7,8 +7,6 @@
 
 module Cardano.Wallet.Primitive.AddressDerivationSpec
     ( spec
-    , genRootKeysSeq
-    , genRootKeysRnd
     ) where
 
 import Prelude

@@ -92,6 +92,12 @@ data RndState target = RndState
 instance NFData (RndState target) where
     rnf (RndState !_ !_ !_ !_ g) = seq (show g) ()
 
+instance Show (RndState target) where
+    show (RndState _key ix addrs pending g) = unwords
+        [ "RndState <xprv>", p ix, p addrs, p pending, p g ]
+      where
+        p x = "(" ++ show x ++ ")"
+
 -- | Shortcut type alias for HD random address derivation path.
 type DerivationPath = (Index 'Hardened 'AccountK, Index 'Hardened 'AddressK)
 
