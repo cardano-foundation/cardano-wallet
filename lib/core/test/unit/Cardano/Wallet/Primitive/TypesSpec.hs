@@ -33,6 +33,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , HistogramBar (..)
     , Range (..)
+    , RangeBound (..)
     , ShowFmt (..)
     , SlotId (..)
     , SlotLength (..)
@@ -53,13 +54,17 @@ import Cardano.Wallet.Primitive.Types
     , fromFlatSlot
     , isAfterRange
     , isBeforeRange
+    , isSubrangeOf
     , isSubsetOf
     , isValidCoin
     , isWithinRange
     , rangeHasLowerBound
     , rangeHasUpperBound
     , rangeIsFinite
+    , rangeIsSingleton
     , rangeIsValid
+    , rangeLowerBound
+    , rangeUpperBound
     , restrictedBy
     , restrictedTo
     , slotAt
@@ -105,7 +110,7 @@ import Data.Time.Utils
 import Fmt
     ( pretty )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec, describe, it, shouldNotSatisfy, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..)
     , NonNegative (..)
@@ -235,6 +240,78 @@ spec = do
         it "a `isWithinRange` wholeRange == True" $
             property $ \(a :: Integer) ->
                 a `isWithinRange` wholeRange === True
+
+        it "rangeIsSingleton (Range a a)" $
+            property $ \(a :: Integer) ->
+                Range (Just a) (Just a) `shouldSatisfy` rangeIsSingleton
+
+        it "not (rangeIsSingleton (Range (pred a) a))" $
+            property $ \(a :: Integer) ->
+                Range (Just (pred a)) (Just a)
+                    `shouldNotSatisfy` rangeIsSingleton
+
+        it "not (rangeIsSingleton (Range a (succ a)))" $
+            property $ \(a :: Integer) ->
+                Range (Just a) (Just (succ a))
+                    `shouldNotSatisfy` rangeIsSingleton
+
+        it "rangeLowerBound r = rangeUpperBound r <=> rangeIsSingleton r" $
+            property $ \(r :: Range Bool) ->
+                checkCoverage $
+                cover 10 (rangeIsFinite r) "is finite" $
+                (rangeLowerBound r == rangeUpperBound r) === rangeIsSingleton r
+
+        it "r `isSubrangeOf` r" $
+            property $ \(r :: Range Integer) ->
+                r `isSubrangeOf` r
+
+        it "Range (succ a) b `isSubrangeOf` Range a b" $
+            property $ \r@(Range a b :: Range Integer) ->
+                not (rangeIsSingleton r) ==>
+                checkCoverage $
+                cover 10 (rangeHasLowerBound r) "has lower bound" $
+                cover 10 (rangeHasUpperBound r) "has upper bound" $
+                cover 10 (rangeIsFinite      r) "is finite" $
+                Range (succ <$> a) b `isSubrangeOf` Range a b
+
+        it "Range a (pred b) `isSubrangeOf` Range a b" $
+            property $ \r@(Range a b :: Range Integer) ->
+                not (rangeIsSingleton r) ==>
+                checkCoverage $
+                cover 10 (rangeHasLowerBound r) "has lower bound" $
+                cover 10 (rangeHasUpperBound r) "has upper bound" $
+                cover 10 (rangeIsFinite      r) "is finite" $
+                Range a (pred <$> b) `isSubrangeOf` Range a b
+
+        it "Range a b `isSubrangeOf` Range (pred a) b" $
+            property $ \r@(Range a b :: Range Integer) ->
+                checkCoverage $
+                cover 10 (rangeHasLowerBound r) "has lower bound" $
+                cover 10 (rangeHasUpperBound r) "has upper bound" $
+                cover 10 (rangeIsFinite      r) "is finite" $
+                Range a b `isSubrangeOf` Range (pred <$> a) b
+
+        it "Range a b `isSubrangeOf` Range a (succ b)" $
+            property $ \r@(Range a b :: Range Integer) ->
+                checkCoverage $
+                cover 10 (rangeHasLowerBound r) "has lower bound" $
+                cover 10 (rangeHasUpperBound r) "has upper bound" $
+                cover 10 (rangeIsFinite      r) "is finite" $
+                Range a b `isSubrangeOf` Range a (succ <$> b)
+
+    describe "Range bounds" $ do
+
+        it "NegativeInfinity < InclusiveBound a" $
+            property $ \(a :: Integer) ->
+                NegativeInfinity < InclusiveBound a
+
+        it "InclusiveBound a < PositiveInfinity" $
+            property $ \(a :: Integer) ->
+                InclusiveBound a < PositiveInfinity
+
+        it "compare (InclusiveBound a) (InclusiveBound b) = compare a b" $
+            property $ \(a :: Integer) (b :: Integer) ->
+                compare (InclusiveBound a) (InclusiveBound b) === compare a b
 
     describe "Slot arithmetic" $ do
 

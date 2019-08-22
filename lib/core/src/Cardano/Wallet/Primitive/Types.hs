@@ -110,14 +110,19 @@ module Cardano.Wallet.Primitive.Types
 
     -- * Ranges
     , Range (..)
+    , RangeBound (..)
     , wholeRange
     , isAfterRange
     , isBeforeRange
+    , isSubrangeOf
     , isWithinRange
     , rangeIsFinite
+    , rangeIsSingleton
     , rangeIsValid
     , rangeHasLowerBound
     , rangeHasUpperBound
+    , rangeLowerBound
+    , rangeUpperBound
 
     -- * ProtocolMagic
     , ProtocolMagic (..)
@@ -381,6 +386,13 @@ data Range a = Range
     , inclusiveUpperBound :: Maybe a
     } deriving (Eq, Functor, Show)
 
+-- | Represents a range boundary.
+data RangeBound a
+    = NegativeInfinity
+    | InclusiveBound a
+    | PositiveInfinity
+    deriving (Eq, Ord)
+
 -- | The range that includes everything.
 wholeRange :: Range a
 wholeRange = Range Nothing Nothing
@@ -418,10 +430,29 @@ rangeHasUpperBound = isJust . inclusiveUpperBound
 rangeIsFinite :: Range a -> Bool
 rangeIsFinite r = rangeHasLowerBound r && rangeHasUpperBound r
 
+-- | Returns 'True' if (and only if) the range covers exactly one value.
+rangeIsSingleton :: Eq a => Range a -> Bool
+rangeIsSingleton (Range a b) = ((==) <$> a <*> b) == Just True
+
 -- | Returns 'True' if (and only if) the lower bound of a range is not greater
 --   than its upper bound.
 rangeIsValid :: Ord a => Range a -> Bool
 rangeIsValid (Range a b) = ((<=) <$> a <*> b) /= Just False
+
+-- | Get the lower bound of a 'Range'.
+rangeLowerBound :: Range a -> RangeBound a
+rangeLowerBound = maybe NegativeInfinity InclusiveBound . inclusiveLowerBound
+
+-- | Get the upper bound of a 'Range'.
+rangeUpperBound :: Range a -> RangeBound a
+rangeUpperBound = maybe PositiveInfinity InclusiveBound . inclusiveUpperBound
+
+-- | Returns 'True' if (and only if) the first given range is a subrange of the
+--   second given range.
+isSubrangeOf :: Ord a => Range a -> Range a -> Bool
+isSubrangeOf r1 r2 =
+    rangeLowerBound r1 >= rangeLowerBound r2 &&
+    rangeUpperBound r1 <= rangeUpperBound r2
 
 {-------------------------------------------------------------------------------
                                   Stake Pools
