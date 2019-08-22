@@ -203,6 +203,7 @@ import qualified Cardano.Wallet.DB as DB
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.List as L
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -689,7 +690,7 @@ newWalletLayer tracer bp db nw tl = do
             let (h,q) = first (filter nonEmpty) $
                     splitAt (length blocks - 1) blocks
             liftIO $ logDebug t $ pretty (h ++ q)
-            let (txs, cp') = applyBlocks @s @t (h ++ q) cp
+            let (txs, cp') = NE.last $ applyBlocks @s @t (h ++ q) cp
             let progress = slotRatio epochLength sup tip
             let status' = if progress == maxBound
                     then Ready
