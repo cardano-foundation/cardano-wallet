@@ -583,6 +583,12 @@ Range :: Maybe a -> Maybe a -> Range a
 [$sel:inclusiveLowerBound:Range] :: Range a -> Maybe a
 [$sel:inclusiveUpperBound:Range] :: Range a -> Maybe a
 
+-- | Represents a range boundary.
+data RangeBound a
+NegativeInfinity :: RangeBound a
+InclusiveBound :: a -> RangeBound a
+PositiveInfinity :: RangeBound a
+
 -- | The range that includes everything.
 wholeRange :: Range a
 
@@ -594,6 +600,10 @@ isAfterRange :: Ord a => a -> Range a -> Bool
 --   and the specified value is smaller than the lower bound.
 isBeforeRange :: Ord a => a -> Range a -> Bool
 
+-- | Returns <a>True</a> if (and only if) the first given range is a
+--   subrange of the second given range.
+isSubrangeOf :: Ord a => Range a -> Range a -> Bool
+
 -- | Returns <a>True</a> if (and only if) the given value is not smaller
 --   than the lower bound (if present) of the given range and is not
 --   greater than the upper bound (if present) of the given range.
@@ -602,6 +612,10 @@ isWithinRange :: Ord a => a -> Range a -> Bool
 -- | Returns <a>True</a> if (and only if) the given range has both a lower
 --   and upper bound.
 rangeIsFinite :: Range a -> Bool
+
+-- | Returns <a>True</a> if (and only if) the range covers exactly one
+--   value.
+rangeIsSingleton :: Eq a => Range a -> Bool
 
 -- | Returns <a>True</a> if (and only if) the lower bound of a range is not
 --   greater than its upper bound.
@@ -614,6 +628,12 @@ rangeHasLowerBound :: Range a -> Bool
 -- | Returns <a>True</a> if (and only if) the given range has an upper
 --   bound.
 rangeHasUpperBound :: Range a -> Bool
+
+-- | Get the lower bound of a <a>Range</a>.
+rangeLowerBound :: Range a -> RangeBound a
+
+-- | Get the upper bound of a <a>Range</a>.
+rangeUpperBound :: Range a -> RangeBound a
 
 -- | Magic constant associated to a given network
 newtype ProtocolMagic
@@ -740,6 +760,8 @@ instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.WalletMetadata
 instance GHC.Show.Show Cardano.Wallet.Primitive.Types.PoolId
 instance GHC.Classes.Eq Cardano.Wallet.Primitive.Types.PoolId
 instance GHC.Generics.Generic Cardano.Wallet.Primitive.Types.PoolId
+instance GHC.Classes.Ord a => GHC.Classes.Ord (Cardano.Wallet.Primitive.Types.RangeBound a)
+instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.Wallet.Primitive.Types.RangeBound a)
 instance GHC.Show.Show a => GHC.Show.Show (Cardano.Wallet.Primitive.Types.Range a)
 instance GHC.Base.Functor Cardano.Wallet.Primitive.Types.Range
 instance GHC.Classes.Eq a => GHC.Classes.Eq (Cardano.Wallet.Primitive.Types.Range a)
