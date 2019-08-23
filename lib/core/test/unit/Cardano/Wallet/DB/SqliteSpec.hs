@@ -27,7 +27,7 @@ import Cardano.BM.Setup
 import Cardano.BM.Trace
     ( traceInTVarIO )
 import Cardano.Crypto.Wallet
-    ( XPrv, unXPrv )
+    ( XPrv )
 import Cardano.Wallet.DB
     ( DBLayer (..), ErrWalletAlreadyExists (..), PrimaryKey (..), cleanDB )
 import Cardano.Wallet.DB.Sqlite
@@ -39,12 +39,7 @@ import Cardano.Wallet.DBSpec
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , Passphrase (..)
-    , PersistKey
-    , WalletKey (..)
-    , encryptPassphrase
-    )
+    ( Depth (..), Passphrase (..), PersistKey, encryptPassphrase )
 import Cardano.Wallet.Primitive.AddressDerivation.Random
     ( RndKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
@@ -138,8 +133,6 @@ import qualified Cardano.BM.Data.Backend as CM
 import qualified Cardano.BM.Data.SubTrace as CM
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as Seq
-import qualified Data.ByteArray.Encoding as BA
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map as Map
 import qualified Data.Text as T
@@ -153,7 +146,8 @@ spec = do
 
 sqliteSpec :: Spec
 sqliteSpec = withDB (fst <$> newMemoryDBLayer) $ do
-    describe "Sqlite Simple tests (SeqState)" (simpleSpec testCpSeq)
+    describe "Sqlite Simple tests (SeqState)" $
+        simpleSpec testCpSeq
     describe "Sqlite" dbPropertyTests
     describe "Sqlite State machine tests" $ do
         it "Sequential" prop_sequential
@@ -162,7 +156,10 @@ sqliteSpec = withDB (fst <$> newMemoryDBLayer) $ do
 sqliteSpecRnd :: Spec
 sqliteSpecRnd =
     withDB (fst <$> newMemoryDBLayer @(RndState DummyTarget) @DummyTarget @RndKey) $ do
-        describe "Sqlite Simple tests (RndState)" (simpleSpec testCpRnd)
+        describe "Sqlite simple (RndState)" $
+            simpleSpec testCpRnd
+        describe "Sqlite State machine (RndState)" $ do
+            it "Sequential state machine tests" prop_sequential
 
 simpleSpec
     :: forall s k.
@@ -217,8 +214,6 @@ simpleSpec testCp = do
 
         it "put and read checkpoint" $ \db -> do
             unsafeRunExceptT $ createWallet db testPk testCp testMetadata
-            kh <- generateTestKey
-            unsafeRunExceptT (putPrivateKey db testPk kh)
             runExceptT (putCheckpoint db testPk testCp) `shouldReturn` Right ()
             readCheckpoint db testPk `shouldReturn` Just testCp
 
@@ -416,19 +411,11 @@ instance GenerateTestKey SeqKey where
                       Test data and instances - Random AD
 -------------------------------------------------------------------------------}
 
-instance Show (RndState t) where
-    show (RndState k idx addrs pending g) = unwords
-        [ "RndState"
-        , B8.unpack (BA.convertToBase BA.Base16 (unXPrv (getRawKey k)))
-        , p idx, p addrs, p pending, p g ]
-        where p x = "(" ++ show x ++ ")"
-
 instance Eq (RndState t) where
     (==)
-        (RndState k1 idx1 addrs1 pending1 gen1)
-        (RndState k2 idx2 addrs2 pending2 gen2) =
-        getRawKey k1 == getRawKey k2
-        && idx1 == idx2
+        (RndState _ idx1 addrs1 pending1 gen1)
+        (RndState _ idx2 addrs2 pending2 gen2) =
+           idx1 == idx2
         && addrs1 == addrs2
         && pending1 == pending2
         && show gen1 == show gen2

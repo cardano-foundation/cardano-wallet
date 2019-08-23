@@ -43,6 +43,8 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..), block0 )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
+    , DerivationType (..)
+    , Index (..)
     , KeyToAddress (..)
     , Passphrase (..)
     , WalletKey (..)
@@ -50,19 +52,21 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , XPub
     , publicKey
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Random
+    ( RndKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
     ( ChangeChain (..)
     , SeqKey (..)
     , deriveAddressPublicKey
-    , generateKeyFromSeed
     , unsafeGenerateKeyFromSeed
     )
+import Cardano.Wallet.Primitive.AddressDiscovery.Random
+    ( RndState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , AddressPoolGap (..)
     , SeqState (..)
     , accountPubKey
-    , addresses
     , changeChain
     , emptyPendingIxs
     , gap
@@ -70,7 +74,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkAddressPoolGap
     )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, initWallet )
+    ( Wallet, getState, initWallet, updateState )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
@@ -122,6 +126,8 @@ import GHC.Generics
     ( Generic )
 import System.IO.Unsafe
     ( unsafePerformIO )
+import System.Random
+    ( mkStdGen )
 import Test.Hspec
     ( Spec
     , SpecWith
@@ -159,6 +165,9 @@ import Test.QuickCheck.Monadic
 import Test.Utils.Time
     ( genUniformTime )
 
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Random as Rnd
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as Seq
+import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -233,7 +242,11 @@ instance Arbitrary (PrimaryKey WalletId) where
         return $ PrimaryKey $ WalletId $ hash bytes
 
 instance Arbitrary (Wallet (SeqState DummyTarget) DummyTarget) where
-    shrink _ = []
+    shrink w = [updateState s w | s <- shrink (getState w)]
+    arbitrary = initWallet block0 <$> arbitrary
+
+instance Arbitrary (Wallet (RndState DummyTarget) DummyTarget) where
+    shrink w = [updateState s w | s <- shrink (getState w)]
     arbitrary = initWallet block0 <$> arbitrary
 
 deriving instance Show (PrimaryKey WalletId)
@@ -266,7 +279,7 @@ instance Typeable chain => Arbitrary (AddressPool DummyTarget chain) where
         let
             key = accountPubKey pool
             g = gap pool
-            addrs = addresses pool
+            addrs = Seq.addresses pool
         in case length addrs of
             k | k == fromEnum g && g == minBound ->
                 []
@@ -301,6 +314,25 @@ ourAddresses
 ourAddresses cc =
     keyToAddress @DummyTarget . deriveAddressPublicKey ourAccount cc
         <$> [minBound..maxBound]
+
+instance Arbitrary (RndState DummyTarget) where
+    shrink (RndState k ix addrs pending g) =
+        [ RndState k ix' addrs' pending' g
+        | (ix', addrs', pending') <- shrink (ix, addrs, pending) ]
+    arbitrary = RndState
+        <$> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> (mkStdGen <$> arbitrary)
+
+instance Arbitrary (Index 'Hardened 'AccountK) where
+    shrink _ = []
+    arbitrary = arbitraryBoundedEnum
+
+instance Arbitrary (Index 'Hardened 'AddressK) where
+    shrink _ = []
+    arbitrary = arbitraryBoundedEnum
 
 instance PersistTx DummyTarget where
     resolvedInputs = flip zip (repeat Nothing) . inputs
@@ -396,7 +428,11 @@ instance Arbitrary UTxO where
 
 instance Arbitrary (SeqKey 'RootK XPrv) where
     shrink _ = []
-    arbitrary = elements rootKeys
+    arbitrary = elements rootKeysSeq
+
+instance Arbitrary (RndKey 'RootK XPrv) where
+    shrink _ = []
+    arbitrary = elements rootKeysRnd
 
 instance Arbitrary (Hash "encryption") where
     shrink _ = []
@@ -412,27 +448,36 @@ instance Show XPrv where
 instance Eq XPrv where
     a == b = unXPrv a == unXPrv b
 
-genRootKeys :: Gen (SeqKey 'RootK XPrv)
-genRootKeys = do
+genRootKeysSeq :: Gen (SeqKey 'RootK XPrv)
+genRootKeysSeq = do
     (s, g, e) <- (,,)
         <$> genPassphrase @"seed" (16, 32)
         <*> genPassphrase @"generation" (0, 16)
         <*> genPassphrase @"encryption" (0, 16)
-    return $ generateKeyFromSeed (s, g) e
-  where
-    genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
-    genPassphrase range = do
-        n <- choose range
-        InfiniteList bytes _ <- arbitrary
-        return $ Passphrase $ BA.convert $ BS.pack $ take n bytes
+    return $ Seq.generateKeyFromSeed (s, g) e
+
+genRootKeysRnd :: Gen (RndKey 'RootK XPrv)
+genRootKeysRnd = Rnd.generateKeyFromSeed
+    <$> genPassphrase @"seed" (16, 32)
+    <*> genPassphrase @"encryption" (0, 16)
+
+genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
+genPassphrase range = do
+    n <- choose range
+    InfiniteList bytes _ <- arbitrary
+    return $ Passphrase $ BA.convert $ BS.pack $ take n bytes
 
 -- Properties above are quite heavy on the generation of values, althrough for
 -- private keys, it isn't particularly useful / relevant to generate many of
 -- them as they're really treated as an opaque type.
 -- Instead, we generate them once, and picks from the list.
-rootKeys :: [SeqKey 'RootK XPrv]
-rootKeys = unsafePerformIO $ generate (vectorOf 10 genRootKeys)
-{-# NOINLINE rootKeys #-}
+rootKeysSeq :: [SeqKey 'RootK XPrv]
+rootKeysSeq = unsafePerformIO $ generate (vectorOf 10 genRootKeysSeq)
+{-# NOINLINE rootKeysSeq #-}
+
+rootKeysRnd :: [RndKey 'RootK XPrv]
+rootKeysRnd = unsafePerformIO $ generate (vectorOf 10 genRootKeysRnd)
+{-# NOINLINE rootKeysRnd #-}
 
 -- | Wrap the result of 'readTxHistory' in an arbitrary identity Applicative
 readTxHistoryF

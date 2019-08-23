@@ -34,6 +34,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.Random
     , unsafeGenerateKeyFromSeed
     , generateKeyFromSeed
     , minSeedLengthBytes
+    , nullKey
 
       -- * Derivation
     , deriveAccountPrivateKey
@@ -313,6 +314,14 @@ deserializeXPrvRnd (k, h) = (,)
   where
     rootKeyFromText = deserializeKey xprv
     mkKey (key, pwd) = RndKey key () pwd
+
+-- | A root key of all zeroes that is used when restoring 'RndState' from the
+-- database before a root key has been saved.
+nullKey :: RndKey 'RootK XPrv
+nullKey = RndKey k () pwd
+  where
+    Right k = xprv $ B8.replicate 128 '\0'
+    pwd = Passphrase (BA.convert $ B8.replicate 32 '\0')
 
 {-------------------------------------------------------------------------------
                                      Utils
