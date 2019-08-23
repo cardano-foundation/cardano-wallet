@@ -256,7 +256,7 @@ Why:
     when needed and not only append blocks to an existing chain. Doing so,
     transactions that could have been inserted in recent blocks might become
     pending again, and balances may change to reflect the chain after a
-    rollback.  Beside, we do not roll back to have a significant impact on the
+    rollback.  Beside, we do not want roll back to have a significant impact on the
     software usability. Hence, most features should remain available during
     rollbacks. Submitting transactions may be however forbidden during
     rollbacks.
