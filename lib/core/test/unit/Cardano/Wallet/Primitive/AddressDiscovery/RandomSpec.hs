@@ -37,7 +37,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Random
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( GenChange (..), IsOurs (..), IsOwned (..) )
+    ( GenChange (..), IsOurs (..), IsOwned (..), KnownAddresses (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..), mkRndState )
 import Cardano.Wallet.Primitive.Types
@@ -285,6 +285,8 @@ prop_forbiddenAddreses (Rnd st@(RndState rk accIx _ _ _) pwd) addrIx = conjoin
     , (Set.member addr (forbidden isOursSt))
     , (Set.notMember changeAddr (forbidden isOursSt))
     , (Set.member changeAddr (forbidden changeSt))
+    , (elem addr (knownAddresses isOursSt))
+    , (not $ elem changeAddr (knownAddresses changeSt))
     ]
   where
     (_ours, isOursSt) = isOurs addr st
