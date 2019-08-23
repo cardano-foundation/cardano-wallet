@@ -155,7 +155,7 @@ unsafeGenerateKeyFromSeed
 unsafeGenerateKeyFromSeed derivationPath (Passphrase seed) (Passphrase pwd) = RndKey
     { getKey = masterKey
     , derivationPath
-    , payloadPassphrase = hdPassphrase masterKey
+    , payloadPassphrase = hdPassphrase (toXPub masterKey)
     }
   where
     masterKey = generate (hashSeed seed') pwd
@@ -190,14 +190,12 @@ blake2b256 = BA.convert . hash @ScrubbedBytes @Blake2b_256
 
 -- | Derive a symmetric key for encrypting and authenticating the address
 -- derivation path.
-hdPassphrase
-    :: XPrv
-    -> Passphrase "addr-derivation-payload"
+hdPassphrase :: XPub -> Passphrase "addr-derivation-payload"
 hdPassphrase masterKey = Passphrase $
     PBKDF2.generate
     (PBKDF2.prfHMAC SHA512)
     (PBKDF2.Parameters 500 32)
-    (unXPub . toXPub $ masterKey)
+    (unXPub masterKey)
     ("address-hashing" :: ByteString)
 
 dummyKeyRnd :: RndKey 'AddressK XPub
@@ -226,7 +224,7 @@ changePassphraseRnd
 changePassphraseRnd (Passphrase oldPwd) (Passphrase newPwd) key = RndKey
     { getKey = masterKey
     , derivationPath = derivationPath key
-    , payloadPassphrase = hdPassphrase masterKey
+    , payloadPassphrase = hdPassphrase (toXPub masterKey)
     }
   where
     masterKey = xPrvChangePass oldPwd newPwd (getKey key)
