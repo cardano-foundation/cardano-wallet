@@ -30,7 +30,7 @@ import Data.Text
 import Data.Time.Clock
     ( UTCTime )
 import Data.Word
-    ( Word32 )
+    ( Word32, Word64 )
 import Database.Persist.TH
     ( mkDeleteCascade, mkMigrate, mkPersist, persistLowerCase, share )
 import GHC.Generics
@@ -127,6 +127,7 @@ Checkpoint
     checkpointWalletId    W.WalletId  sql=wallet_id
     checkpointSlot        W.SlotId    sql=slot
     checkpointParent      BlockId     sql=parent
+    checkpointBlock       Word64      sql=block_height
 
     Primary checkpointWalletId checkpointSlot
     Foreign Wallet fk_wallet_checkpoint checkpointWalletId

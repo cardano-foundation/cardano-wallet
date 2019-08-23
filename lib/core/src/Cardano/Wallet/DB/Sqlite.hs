@@ -524,9 +524,11 @@ mkCheckpointEntity wid wal =
     header = (W.currentTip wal)
     sl = header ^. #slotId
     parent = header ^. #prevBlockHash
+    (Quantity bh) = W.blockHeight wal
     cp = Checkpoint
         { checkpointWalletId = wid
         , checkpointSlot = sl
+        , checkpointBlock = fromIntegral bh
         , checkpointParent = BlockId parent
         }
     utxo = [ UTxO wid sl (TxId input) ix addr coin
@@ -542,14 +544,17 @@ checkpointFromEntity
     -> [(W.Hash "Tx", (W.Tx t, W.TxMeta))]
     -> s
     -> W.Wallet s t
-checkpointFromEntity (Checkpoint _ slot (BlockId parentHeaderHash)) utxo txs =
-    W.unsafeInitWallet utxo' pending (W.BlockHeader slot parentHeaderHash)
+checkpointFromEntity cp utxo txs s =
+    W.unsafeInitWallet utxo' pending header s blockHeight'
   where
+    (Checkpoint _ slot (BlockId parentHeaderHash) bh) = cp
+    header = (W.BlockHeader slot parentHeaderHash)
     utxo' = W.UTxO . Map.fromList $
         [ (W.TxIn input ix, W.TxOut addr coin)
         | UTxO _ _ (TxId input) ix addr coin <- utxo
         ]
     pending = Set.fromList $ map snd txs
+    blockHeight' = Quantity . toEnum . fromEnum $ bh
 
 mkTxHistory
     :: forall t. PersistTx t
@@ -743,7 +748,7 @@ selectLatestCheckpoint wid = fmap entityVal <$>
 selectUTxO
     :: Checkpoint
     -> SqlPersistT IO [UTxO]
-selectUTxO (Checkpoint wid sl _parent) = fmap entityVal <$>
+selectUTxO (Checkpoint wid sl _parent _bh) = fmap entityVal <$>
     selectList
         [ UtxoWalletId ==. wid
         , UtxoCheckpointSlot ==. sl
