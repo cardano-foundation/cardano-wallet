@@ -285,8 +285,8 @@ prop_forbiddenAddreses (Rnd st@(RndState rk accIx _ _ _) pwd) addrIx = conjoin
     , (Set.member addr (forbidden isOursSt))
     , (Set.notMember changeAddr (forbidden isOursSt))
     , (Set.member changeAddr (forbidden changeSt))
-    , (elem addr (knownAddresses isOursSt))
-    , (not $ elem changeAddr (knownAddresses changeSt))
+    , (addr `elem` knownAddresses isOursSt)
+    , (changeAddr `notElem` knownAddresses changeSt)
     ]
   where
     (_ours, isOursSt) = isOurs addr st
