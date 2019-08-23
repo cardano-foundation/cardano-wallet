@@ -58,6 +58,8 @@ import Cardano.Wallet.Primitive.Types
     , isSubsetOf
     , isValidCoin
     , isWithinRange
+    , mapRangeLowerBound
+    , mapRangeUpperBound
     , rangeHasLowerBound
     , rangeHasUpperBound
     , rangeIsFinite
@@ -94,7 +96,7 @@ import Data.Function
 import Data.Function.Utils
     ( applyN )
 import Data.Maybe
-    ( isNothing )
+    ( fromMaybe, isJust, isNothing )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -105,6 +107,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( TextDecodingError (..), fromText )
+import Data.Time
+    ( UTCTime )
 import Data.Time.Utils
     ( utcTimePred, utcTimeSucc )
 import Fmt
@@ -446,6 +450,53 @@ spec = do
                             . utcTimeSucc
                             . slotStartTime sps
                     Just slot === f slot
+
+        it "slotRangeFromTimeRange is maximal" $
+            property $ \(sps, uniformTimeRange) ->
+
+                let timeRange :: Range UTCTime
+                    timeRange = getUniformTime <$> uniformTimeRange
+
+                    maybeSlotRange :: Maybe (Range SlotId)
+                    maybeSlotRange = slotRangeFromTimeRange sps timeRange
+
+                    startsWithin :: Range SlotId -> Range UTCTime -> Bool
+                    startsWithin sr tr =
+                        (`isSubrangeOf` tr) $ fmap (slotStartTime sps) sr
+
+                    lowerBoundPred = mapRangeLowerBound slotPred'
+                    upperBoundSucc = mapRangeUpperBound slotSucc'
+
+                    slotPred' :: SlotId -> SlotId
+                    slotPred' s = fromMaybe slotMinBound $ slotPred sps s
+
+                    slotSucc' :: SlotId -> SlotId
+                    slotSucc' = slotSucc sps
+                in
+                checkCoverage $
+                cover 50 (isJust maybeSlotRange)
+                    "have slot range" $
+                cover 20 (fmap rangeHasLowerBound maybeSlotRange == Just True)
+                    "slot range has lower bound" $
+                cover 20 (fmap rangeHasUpperBound maybeSlotRange == Just True)
+                    "slot range has upper bound" $
+                cover 20 (fmap rangeIsFinite maybeSlotRange == Just True)
+                    "slot range is finite" $
+
+                case maybeSlotRange of
+                    Nothing ->
+                        property True
+                    Just slotRange ->
+                        (slotRange `startsWithin` timeRange
+                            === True)
+                        .&&.
+                        (lowerBoundPred slotRange `startsWithin` timeRange
+                            === (not (rangeHasLowerBound slotRange)
+                                || lowerBoundPred slotRange == slotRange))
+                        .&&.
+                        (upperBoundSucc slotRange `startsWithin` timeRange
+                            === (not (rangeHasUpperBound slotRange)
+                                || upperBoundSucc slotRange == slotRange))
 
     describe "Negative cases for types decoding" $ do
         it "fail fromText @AddressState \"unusedused\"" $ do
