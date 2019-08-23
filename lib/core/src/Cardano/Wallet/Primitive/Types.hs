@@ -89,7 +89,7 @@ module Cardano.Wallet.Primitive.Types
     , slotMinBound
     , slotPred
     , slotSucc
-    , slotRange
+    , slotRangeFromTimeRange
 
     -- * Wallet Metadata
     , WalletMetadata(..)
@@ -1029,8 +1029,10 @@ slotAt (SlotParameters (EpochLength el) (SlotLength sl) (StartTime st)) t
 -- If, on the other hand, the specified time range terminates before the start
 -- of the blockchain, this function returns 'Nothing'.
 --
-slotRange :: SlotParameters -> Range UTCTime -> Maybe (Range SlotId)
-slotRange sps (Range mStart mEnd) = Range slotStart <$> slotEnd
+slotRangeFromTimeRange
+    :: SlotParameters -> Range UTCTime -> Maybe (Range SlotId)
+slotRangeFromTimeRange sps (Range mStart mEnd) =
+    Range slotStart <$> slotEnd
   where
     slotStart =
         slotCeiling sps <$> mStart

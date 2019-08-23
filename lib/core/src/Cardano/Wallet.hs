@@ -134,7 +134,7 @@ import Cardano.Wallet.Primitive.Types
     , computeUtxoStatistics
     , log10
     , slotDifference
-    , slotRange
+    , slotRangeFromTimeRange
     , slotRatio
     , slotStartTime
     , wholeRange
@@ -778,7 +778,7 @@ newWalletLayer tracer bp db nw tl = do
                 let err = ErrStartTimeLaterThanEndTime start end
                 throwE (ErrListTransactionsStartTimeLaterThanEndTime err)
             _ ->
-                pure $ slotRange sp $ Range mStart mEnd
+                pure $ slotRangeFromTimeRange sp $ Range mStart mEnd
 
         listTransactionsWithinRange
             :: Range SlotId -> ExceptT ErrListTransactions IO [TransactionInfo]

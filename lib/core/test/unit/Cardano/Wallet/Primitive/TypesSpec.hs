@@ -73,7 +73,7 @@ import Cardano.Wallet.Primitive.Types
     , slotFloor
     , slotMinBound
     , slotPred
-    , slotRange
+    , slotRangeFromTimeRange
     , slotRatio
     , slotStartTime
     , slotSucc
@@ -344,11 +344,11 @@ spec = do
                     slotCeiling sps (getUniformTime t) === slotMinBound
 
         it "slotStartTime slotMinBound `isAfterRange` r => \
-            \isNothing (slotRange r)" $
+            \isNothing (slotRangeFromTimeRange r)" $
             withMaxSuccess 1000 $ property $ \sps r -> do
                 let r' = getUniformTime <$> r
                 slotStartTime sps slotMinBound `isAfterRange` r' ==>
-                    isNothing (slotRange sps r')
+                    isNothing (slotRangeFromTimeRange sps r')
 
         it "applyN (flatSlot slot) slotPred slot == Just slotMinBound" $
             withMaxSuccess 10 $ property $
