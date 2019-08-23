@@ -116,6 +116,8 @@ module Cardano.Wallet.Primitive.Types
     , isBeforeRange
     , isSubrangeOf
     , isWithinRange
+    , mapRangeLowerBound
+    , mapRangeUpperBound
     , rangeIsFinite
     , rangeIsSingleton
     , rangeIsValid
@@ -385,6 +387,14 @@ data Range a = Range
     { inclusiveLowerBound :: Maybe a
     , inclusiveUpperBound :: Maybe a
     } deriving (Eq, Functor, Show)
+
+-- | Apply a function to the lower bound of a range.
+mapRangeLowerBound :: (a -> a) -> Range a -> Range a
+mapRangeLowerBound f (Range x y) = Range (f <$> x) y
+
+-- | Apply a function to the upper bound of a range.
+mapRangeUpperBound :: (a -> a) -> Range a -> Range a
+mapRangeUpperBound f (Range x y) = Range x (f <$> y)
 
 -- | Represents a range boundary.
 data RangeBound a
