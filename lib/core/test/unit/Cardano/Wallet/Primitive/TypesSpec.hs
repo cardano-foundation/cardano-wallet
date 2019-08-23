@@ -474,6 +474,8 @@ spec = do
                     slotSucc' = slotSucc sps
                 in
                 checkCoverage $
+                cover 20 (isNothing maybeSlotRange)
+                    "have no slot range" $
                 cover 50 (isJust maybeSlotRange)
                     "have slot range" $
                 cover 20 (fmap rangeHasLowerBound maybeSlotRange == Just True)
@@ -485,7 +487,9 @@ spec = do
 
                 case maybeSlotRange of
                     Nothing ->
-                        property True
+                        (Just True ===
+                            ((< getGenesisBlockDate sps) . StartTime
+                                <$> inclusiveUpperBound timeRange))
                     Just slotRange ->
                         (slotRange `startsWithin` timeRange
                             === True)
