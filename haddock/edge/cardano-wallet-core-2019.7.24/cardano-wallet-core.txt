@@ -1643,6 +1643,10 @@ generateKeyFromSeed :: Passphrase "seed" -> Passphrase "encryption" -> RndKey  '
 --   bytes.
 minSeedLengthBytes :: Int
 
+-- | A root key of all zeroes that is used when restoring <tt>RndState</tt>
+--   from the database before a root key has been saved.
+nullKey :: RndKey  'RootK XPrv
+
 -- | Derives account private key from the given root private key, using
 --   derivation scheme 1.
 --   
@@ -1867,6 +1871,7 @@ RndState :: RndKey  'RootK XPrv -> Index  'Hardened  'AccountK -> Map Derivation
 mkRndState :: RndKey  'RootK XPrv -> Int -> RndState t
 instance GHC.Generics.Generic (Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState target)
 instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState target)
+instance GHC.Show.Show (Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState target)
 instance Cardano.Wallet.Primitive.AddressDiscovery.IsOurs (Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState t)
 instance Cardano.Wallet.Primitive.AddressDiscovery.IsOwned (Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState t) Cardano.Wallet.Primitive.AddressDerivation.Random.RndKey
 instance Cardano.Wallet.Primitive.AddressDerivation.KeyToAddress t Cardano.Wallet.Primitive.AddressDerivation.Random.RndKey => Cardano.Wallet.Primitive.AddressDiscovery.GenChange (Cardano.Wallet.Primitive.AddressDiscovery.Random.RndState t)
