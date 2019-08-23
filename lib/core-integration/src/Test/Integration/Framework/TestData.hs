@@ -53,6 +53,7 @@ module Test.Integration.Framework.TestData
     , errMsg404NoWallet
     , errMsg403InputsDepleted
     , errMsg403TxTooBig
+    , errMsg404WrongBinaryPayload
     , errMsg403ZeroAmtOutput
     , errMsg405
     , errMsg406
@@ -261,6 +262,12 @@ errMsg403TxTooBig n = "I had to select " ++ show n ++ " inputs to construct the\
     \ requested transaction. Unfortunately, this would create a transaction\
     \ that is too big, and this would consequently be rejected by a core node.\
     \ Try sending a smaller amount."
+
+errMsg404WrongBinaryPayload :: String
+errMsg404WrongBinaryPayload = "I couldn't decode the payload that seems to be an\
+    \ externally-signed transaction due to: wrongly constructed binary blob. \
+    \Make sure to send a base64-encoded binary blob, in the proper binary \
+    \format of the already-serialized transaction."
 
 errMsg403ZeroAmtOutput :: String
 errMsg403ZeroAmtOutput = "I can't validate coin selection because\
