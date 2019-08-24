@@ -703,8 +703,8 @@ instance LiftHandler ErrSubmitExternalTx where
                     , "help with debugging: ", pretty err
                     ]
         ErrSubmitExternalTxDecode e -> (handler e)
-            { errHTTPCode = 410
-            , errReasonPhrase = errReasonPhrase err410
+            { errHTTPCode = 404
+            , errReasonPhrase = errReasonPhrase err404
             }
 
 instance LiftHandler ErrSubmitTx where
