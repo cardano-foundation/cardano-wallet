@@ -158,7 +158,7 @@ newtype ErrWalletAlreadyExists
 -- wallet. Some other may not because they are information valid for all wallets
 -- (like for instance, the last known network tip).
 newtype PrimaryKey key = PrimaryKey key
-    deriving (Eq, Ord)
+    deriving (Show, Eq, Ord)
 
 -- | Clean a database by removing all wallets.
 cleanDB :: Monad m => DBLayer m s t k -> m ()

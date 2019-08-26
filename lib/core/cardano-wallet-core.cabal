@@ -85,6 +85,7 @@ library
       Cardano.Wallet.Api.Types
       Cardano.Wallet.DaedalusIPC
       Cardano.Wallet.DB
+      Cardano.Wallet.DB.Model
       Cardano.Wallet.DB.MVar
       Cardano.Wallet.DB.Sqlite
       Cardano.Wallet.DB.Sqlite.TH
