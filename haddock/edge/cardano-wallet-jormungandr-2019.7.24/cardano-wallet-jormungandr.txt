@@ -431,6 +431,7 @@ module Cardano.Wallet.Jormungandr.Transaction
 -- | Construct a <a>TransactionLayer</a> compatible with Shelley and
 --   <tt>Jörmungandr</tt>
 newTransactionLayer :: forall n t. (KnownNetwork n, t ~ Jormungandr n) => Hash "Genesis" -> TransactionLayer t SeqKey
+sign :: ByteString -> (SeqKey  'AddressK XPrv, Passphrase "encryption") -> TxWitness
 
 -- | Transaction with improper number of inputs and outputs is tried
 data ErrExceededInpsOrOuts

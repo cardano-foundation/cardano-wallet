@@ -280,6 +280,7 @@ deleteWalletEp :: ApiWallet -> (Method, Text)
 getWalletUtxoEp :: ApiWallet -> (Method, Text)
 getAddressesEp :: ApiWallet -> Text -> (Method, Text)
 postTxEp :: ApiWallet -> (Method, Text)
+postExternalTxEp :: (Method, Text)
 postTxFeeEp :: ApiWallet -> (Method, Text)
 listTxEp :: ApiWallet -> Text -> (Method, Text)
 updateWalletPassEp :: ApiWallet -> (Method, Text)
@@ -347,6 +348,7 @@ errMsg404NoRootKey :: Text -> String
 errMsg404NoWallet :: Text -> String
 errMsg403InputsDepleted :: String
 errMsg403TxTooBig :: Int -> String
+errMsg404MalformedTxPayload :: String
 errMsg403ZeroAmtOutput :: String
 errMsg405 :: String
 errMsg406 :: String
