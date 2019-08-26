@@ -62,36 +62,33 @@ blockchain_configuration:
 # we want each wallet to have 10 UTxO available, hence the repetition for each
 # address.
 initial:
+  # This is just to add some variation into integration tests by making sure two
+  # cases are covered in genesis.yaml initial transactions:
+  # 1. Single transaction (a block fragment in jormungandr) with N outputs,
+  #    where N > 1 (10 is completely arbitrary here).
   - fund:
     - address: ta1swk7svu8avn5jysl83vja72lp0sqfczanqee6q08a4j7q27a77kpg4p254a
       value: 100000000000
-  - fund:
     - address: ta1sv3jh4rlgz3lh8yyyj5cr4qdewewpdrusexfx6x6tzt3syzy2w4d5urjsly
       value: 100000000000
-  - fund:
     - address: ta1svhdwfdmsqk6cey4aj4a29m7v3xxr236s0w57g4ddctpccsadne5zlzmm66
       value: 100000000000
-  - fund:
     - address: ta1swaxql8exew2ptxm8shwcee6aldgz40gfysgqx8fxxfsfaar2mldwvq3pe6
       value: 100000000000
-  - fund:
     - address: ta1s0x9mfmurdlxt2jm0rt42alvpmm53aeja3qf54ceh3956p8xcldfx0cdq5r
       value: 100000000000
-  - fund:
     - address: ta1swe7pt4hwt2mh9zfp4qs65tkhezm3adh8f3x0s4jtf3un0arvl27yjvgwjn
       value: 100000000000
-  - fund:
     - address: ta1swsaj598zr4qj0lzum8rl9stm5q2xw8kx46pd2fpj6h5a0uap32622apjss
       value: 100000000000
-  - fund:
     - address: ta1sdfe4hu8lmh8f9lr79ye9amv8jwgwrva9kphf895yycsgd55k968xy6ynn4
       value: 100000000000
-  - fund:
     - address: ta1s02qac8n6ramtuk8ugmjlyr8t22g9tnnhqeqml49x9zm9a0a2e85w9e5e9n
       value: 100000000000
-  - fund:
     - address: ta1sv3hqgue7wmxwtn36zg25tu8ajjvnj4hwgt5f3jhfaj9frsh7vfx24jwuc6
       value: 100000000000
+  # 2. Transactions with only 1 output. All subsequent txs have just one output
+  #    each.
   - fund:
     - address: ta1swm3yfzwxtrewq59kc08styvaznjqdltps44umagq78e5576xtf2qnygfwt
       value: 100000000000
