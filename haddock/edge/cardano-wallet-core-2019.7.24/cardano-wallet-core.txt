@@ -503,7 +503,7 @@ slotSucc :: SlotParameters -> SlotId -> SlotId
 --   
 --   If, on the other hand, the specified time range terminates before the
 --   start of the blockchain, this function returns <a>Nothing</a>.
-slotRange :: SlotParameters -> Range UTCTime -> Maybe (Range SlotId)
+slotRangeFromTimeRange :: SlotParameters -> Range UTCTime -> Maybe (Range SlotId)
 
 -- | Additional information about a wallet that can't simply be derived
 --   from the blockchain like <tt>Wallet s t</tt> is.
@@ -608,6 +608,12 @@ isSubrangeOf :: Ord a => Range a -> Range a -> Bool
 --   than the lower bound (if present) of the given range and is not
 --   greater than the upper bound (if present) of the given range.
 isWithinRange :: Ord a => a -> Range a -> Bool
+
+-- | Apply a function to the lower bound of a range.
+mapRangeLowerBound :: (a -> a) -> Range a -> Range a
+
+-- | Apply a function to the upper bound of a range.
+mapRangeUpperBound :: (a -> a) -> Range a -> Range a
 
 -- | Returns <a>True</a> if (and only if) the given range has both a lower
 --   and upper bound.
