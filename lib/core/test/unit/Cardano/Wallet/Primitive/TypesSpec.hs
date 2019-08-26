@@ -58,6 +58,8 @@ import Cardano.Wallet.Primitive.Types
     , isSubsetOf
     , isValidCoin
     , isWithinRange
+    , mapRangeLowerBound
+    , mapRangeUpperBound
     , rangeHasLowerBound
     , rangeHasUpperBound
     , rangeIsFinite
@@ -73,7 +75,7 @@ import Cardano.Wallet.Primitive.Types
     , slotFloor
     , slotMinBound
     , slotPred
-    , slotRange
+    , slotRangeFromTimeRange
     , slotRatio
     , slotStartTime
     , slotSucc
@@ -94,7 +96,7 @@ import Data.Function
 import Data.Function.Utils
     ( applyN )
 import Data.Maybe
-    ( isNothing )
+    ( fromMaybe, isJust, isNothing )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -105,6 +107,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( TextDecodingError (..), fromText )
+import Data.Time
+    ( UTCTime )
 import Data.Time.Utils
     ( utcTimePred, utcTimeSucc )
 import Fmt
@@ -344,11 +348,11 @@ spec = do
                     slotCeiling sps (getUniformTime t) === slotMinBound
 
         it "slotStartTime slotMinBound `isAfterRange` r => \
-            \isNothing (slotRange r)" $
+            \isNothing (slotRangeFromTimeRange r)" $
             withMaxSuccess 1000 $ property $ \sps r -> do
                 let r' = getUniformTime <$> r
                 slotStartTime sps slotMinBound `isAfterRange` r' ==>
-                    isNothing (slotRange sps r')
+                    isNothing (slotRangeFromTimeRange sps r')
 
         it "applyN (flatSlot slot) slotPred slot == Just slotMinBound" $
             withMaxSuccess 10 $ property $
@@ -446,6 +450,61 @@ spec = do
                             . utcTimeSucc
                             . slotStartTime sps
                     Just slot === f slot
+
+        it "slotRangeFromTimeRange is maximal" $
+            property $ \(sps, uniformTimeRange) ->
+
+                let timeRange :: Range UTCTime
+                    timeRange = getUniformTime <$> uniformTimeRange
+
+                    maybeSlotRange :: Maybe (Range SlotId)
+                    maybeSlotRange = slotRangeFromTimeRange sps timeRange
+
+                    startsWithin :: Range SlotId -> Range UTCTime -> Bool
+                    startsWithin sr tr =
+                        (`isSubrangeOf` tr) $ fmap (slotStartTime sps) sr
+
+                    lowerBoundPred = mapRangeLowerBound slotPred'
+                    upperBoundSucc = mapRangeUpperBound slotSucc'
+
+                    slotPred' :: SlotId -> SlotId
+                    slotPred' s = fromMaybe slotMinBound $ slotPred sps s
+
+                    slotSucc' :: SlotId -> SlotId
+                    slotSucc' = slotSucc sps
+                in
+                checkCoverage $
+                cover 20 (isNothing maybeSlotRange)
+                    "have no slot range" $
+                cover 50 (isJust maybeSlotRange)
+                    "have slot range" $
+                cover 20 (fmap rangeHasLowerBound maybeSlotRange == Just True)
+                    "slot range has lower bound" $
+                cover 20 (fmap rangeHasUpperBound maybeSlotRange == Just True)
+                    "slot range has upper bound" $
+                cover 20 (fmap rangeIsFinite maybeSlotRange == Just True)
+                    "slot range is finite" $
+
+                case maybeSlotRange of
+                    Nothing ->
+                        (Just True ===
+                            ((< getGenesisBlockDate sps) . StartTime
+                                <$> inclusiveUpperBound timeRange))
+                    Just slotRange ->
+                        -- Rule 1: Slot range is within specified time range:
+                        (slotRange `startsWithin` timeRange)
+                        .&&.
+                        -- Rule 2: Slot range lower bound is minimal:
+                        (not (lowerBoundPred slotRange `startsWithin` timeRange)
+                            -- Exceptions to the rule:
+                            || not (rangeHasLowerBound slotRange)
+                            || lowerBoundPred slotRange == slotRange)
+                        .&&.
+                        -- Rule 3: Slot range upper bound is maximal:
+                        (not (upperBoundSucc slotRange `startsWithin` timeRange)
+                            -- Exceptions to the rule:
+                            || not (rangeHasUpperBound slotRange)
+                            || upperBoundSucc slotRange == slotRange)
 
     describe "Negative cases for types decoding" $ do
         it "fail fromText @AddressState \"unusedused\"" $ do
