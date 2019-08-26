@@ -9,6 +9,7 @@
 
 module Cardano.Wallet.Jormungandr.Transaction
     ( newTransactionLayer
+    , sign
     , ErrExceededInpsOrOuts (..)
     ) where
 
@@ -90,13 +91,13 @@ newTransactionLayer (Hash block0) = TransactionLayer
         when (length inps > maxNumberOfInputs || length outs > maxNumberOfOutputs)
             $ Left ErrExceededInpsOrOuts
     }
-  where
-    sign
-        :: ByteString
-        -> (SeqKey 'AddressK XPrv, Passphrase "encryption")
-        -> TxWitness
-    sign bytes (key, (Passphrase pwd)) =
-        TxWitness . CC.unXSignature $ CC.sign pwd (getKey key) bytes
+
+sign
+    :: ByteString
+    -> (SeqKey 'AddressK XPrv, Passphrase "encryption")
+    -> TxWitness
+sign bytes (key, (Passphrase pwd)) =
+    TxWitness . CC.unXSignature $ CC.sign pwd (getKey key) bytes
 
 -- | Transaction with improper number of inputs and outputs is tried
 data ErrExceededInpsOrOuts = ErrExceededInpsOrOuts

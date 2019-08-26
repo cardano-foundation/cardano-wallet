@@ -96,6 +96,7 @@ module Test.Integration.Framework.DSL
     , getWalletUtxoEp
     , getAddressesEp
     , postTxEp
+    , postExternalTxEp
     , postTxFeeEp
     , listTxEp
     , updateWalletPassEp
@@ -985,6 +986,12 @@ postWalletEp :: (Method, Text)
 postWalletEp =
     ( "POST"
     , "v2/wallets"
+    )
+
+postExternalTxEp :: (Method, Text)
+postExternalTxEp =
+    ( "POST"
+    , "v2/external-transactions"
     )
 
 getWalletEp :: ApiWallet -> (Method, Text)

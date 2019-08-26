@@ -31,10 +31,12 @@ import Cardano.Wallet.Api.Types
     , ApiMnemonicT (..)
     , ApiT (..)
     , ApiTransaction (..)
+    , ApiTxId (..)
     , ApiTxInput (..)
     , ApiUtxoStatistics (..)
     , ApiWallet (..)
     , Iso8601Time (..)
+    , PostExternalTransactionData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
     , WalletBalance (..)
@@ -203,8 +205,10 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiWallet
             jsonRoundtripAndGolden $ Proxy @ApiUtxoStatistics
             jsonRoundtripAndGolden $ Proxy @ApiFee
+            jsonRoundtripAndGolden $ Proxy @ApiTxId
             jsonRoundtripAndGolden $ Proxy @(PostTransactionData DummyTarget)
             jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeData DummyTarget)
+            jsonRoundtripAndGolden $ Proxy @PostExternalTransactionData
             jsonRoundtripAndGolden $ Proxy @WalletPostData
             jsonRoundtripAndGolden $ Proxy @WalletPutData
             jsonRoundtripAndGolden $ Proxy @WalletPutPassphraseData
@@ -405,6 +409,13 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
+        it "ApiTxId" $ property $ \x ->
+            let
+                x' = ApiTxId
+                    { id = id (x :: ApiTxId)
+                    }
+            in
+                x' === x .&&. show x' === show x
         it "WalletPostData" $ property $ \x ->
             let
                 x' = WalletPostData
@@ -443,6 +454,13 @@ spec = do
             let
                 x' = PostTransactionFeeData
                     { payments = payments (x :: PostTransactionFeeData DummyTarget)
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "PostExternalTransactionData" $ property $ \x ->
+            let
+                x' = PostExternalTransactionData
+                    { payload = payload (x :: PostExternalTransactionData)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -566,6 +584,10 @@ instance Arbitrary ApiWallet where
     shrink = genericShrink
 
 instance Arbitrary ApiFee where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiTxId where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -722,6 +744,14 @@ instance Arbitrary (PostTransactionFeeData t) where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
+instance Arbitrary PostExternalTransactionData where
+    arbitrary = do
+        count <- choose (0, 32)
+        bytes <- BS.pack <$> replicateM count arbitrary
+        return $ PostExternalTransactionData bytes
+    shrink (PostExternalTransactionData bytes) =
+        PostExternalTransactionData . BS.pack <$> shrink (BS.unpack bytes)
+
 instance Arbitrary (ApiTransaction t) where
     shrink = genericShrink
     arbitrary = do
@@ -858,6 +888,9 @@ instance ToSchema ApiWallet where
 instance ToSchema ApiFee where
     declareNamedSchema _ = declareSchemaForDefinition "ApiFee"
 
+instance ToSchema ApiTxId where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiTxId"
+
 instance ToSchema WalletPostData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletPostData"
 
@@ -865,13 +898,19 @@ instance ToSchema WalletPutData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletPutData"
 
 instance ToSchema WalletPutPassphraseData where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiWalletPutPassphraseData"
+    declareNamedSchema _ =
+        declareSchemaForDefinition "ApiWalletPutPassphraseData"
 
 instance ToSchema (PostTransactionData t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPostTransactionData"
 
 instance ToSchema (PostTransactionFeeData t) where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiPostTransactionFeeData"
+    declareNamedSchema _ =
+        declareSchemaForDefinition "ApiPostTransactionFeeData"
+
+instance ToSchema PostExternalTransactionData where
+    declareNamedSchema _ =
+        declareSchemaForDefinition "ApiPostExternalTransactionData"
 
 instance ToSchema (ApiTransaction t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiTransaction"

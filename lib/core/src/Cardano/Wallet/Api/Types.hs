@@ -38,9 +38,11 @@ module Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
+    , PostExternalTransactionData (..)
     , ApiBlockData (..)
     , ApiTransaction (..)
     , ApiFee (..)
+    , ApiTxId (..)
     , ApiTxInput (..)
     , AddressAmount (..)
     , ApiErrorCode (..)
@@ -110,6 +112,10 @@ import Data.Aeson
     )
 import Data.Bifunctor
     ( bimap, first )
+import Data.ByteArray.Encoding
+    ( Base (Base64), convertFromBase, convertToBase )
+import Data.ByteString
+    ( ByteString )
 import Data.Either.Extra
     ( maybeToEither )
 import Data.List.NonEmpty
@@ -144,6 +150,7 @@ import Web.HttpApiData
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 {-------------------------------------------------------------------------------
                                   API Types
@@ -196,8 +203,16 @@ newtype PostTransactionFeeData t = PostTransactionFeeData
     { payments :: (NonEmpty (AddressAmount t))
     } deriving (Eq, Generic, Show)
 
+newtype PostExternalTransactionData = PostExternalTransactionData
+    { payload :: ByteString
+    } deriving (Eq, Generic, Show)
+
 newtype ApiFee = ApiFee
     { amount :: (Quantity "lovelace" Natural)
+    } deriving (Eq, Generic, Show)
+
+newtype ApiTxId = ApiTxId
+    { id :: ApiT (Hash "Tx")
     } deriving (Eq, Generic, Show)
 
 data ApiTransaction t = ApiTransaction
@@ -232,6 +247,7 @@ data ApiErrorCode
     | WalletAlreadyExists
     | NoRootKey
     | WrongEncryptionPassphrase
+    | MalformedTxPayload
     | KeyNotFoundForAddress
     | NotEnoughMoney
     | UtxoNotEnoughFragmented
@@ -359,9 +375,26 @@ instance FromJSON WalletPutData where
 instance ToJSON  WalletPutData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
+instance FromJSON PostExternalTransactionData where
+    parseJSON = withObject "PostExternalTransactionData" $ \o -> do
+        load <- o .: "payload"
+        case convertFromBase Base64 (T.encodeUtf8 load) of
+            Left e -> fail $ "Could not decode Base64 payload: " ++ show e
+            Right p -> pure $ PostExternalTransactionData p
+
+instance ToJSON PostExternalTransactionData where
+    toJSON (PostExternalTransactionData p) =
+        let b64 = T.decodeUtf8 $ convertToBase Base64 p
+        in object ["payload" .= Aeson.String b64 ]
+
 instance FromJSON WalletPutPassphraseData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON  WalletPutPassphraseData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiTxId where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiTxId where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiFee where

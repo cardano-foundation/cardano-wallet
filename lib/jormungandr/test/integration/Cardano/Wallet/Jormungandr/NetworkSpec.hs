@@ -1,9 +1,11 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Jormungandr.NetworkSpec
     ( spec
@@ -16,7 +18,7 @@ import Cardano.Launcher
 import Cardano.Wallet.Jormungandr.Api
     ( GetTipId, api )
 import Cardano.Wallet.Jormungandr.Binary
-    ( fragmentId )
+    ( MessageType (..), fragmentId, putSignedTx, runPut, withHeader )
 import Cardano.Wallet.Jormungandr.Compatibility
     ( Jormungandr, Network (..), block0 )
 import Cardano.Wallet.Jormungandr.Network
@@ -28,7 +30,8 @@ import Cardano.Wallet.Jormungandr.Network
 import Cardano.Wallet.Jormungandr.Primitive.Types
     ( Tx (..) )
 import Cardano.Wallet.Network
-    ( ErrGetBlock (..)
+    ( ErrDecodeExternalTx (..)
+    , ErrGetBlock (..)
     , ErrNetworkTip (..)
     , NetworkLayer (..)
     , defaultRetryPolicy
@@ -56,16 +59,24 @@ import Control.Exception
     ( SomeException, bracket, catch )
 import Control.Monad
     ( void )
+import Control.Monad.IO.Class
+    ( liftIO )
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Control.Retry
     ( limitRetries, retrying )
+import Data.ByteString
+    ( ByteString )
 import Data.Either
     ( isRight )
 import Data.Functor
     ( ($>) )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Word
+    ( Word8 )
+import GHC.Generics
+    ( Generic )
 import Network.HTTP.Client
     ( defaultManagerSettings, newManager )
 import Servant.Links
@@ -85,10 +96,23 @@ import Test.Hspec
     , shouldThrow
     )
 import Test.QuickCheck
-    ( arbitrary, generate, vectorOf )
+    ( Arbitrary (..)
+    , Gen
+    , choose
+    , generate
+    , oneof
+    , property
+    , shrinkList
+    , vectorOf
+    )
+import Test.QuickCheck.Arbitrary.Generic
+    ( genericShrink )
+import Test.QuickCheck.Monadic
+    ( monadicIO )
 
 import qualified Cardano.Wallet.Jormungandr.Network as Jormungandr
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BL
 
 {-# ANN spec ("HLint: ignore Use head" :: String) #-}
 
@@ -258,6 +282,30 @@ spec = do
             let outs = replicate 3 (head $ outputs txNonEmpty)
             let tx = (Tx (fragmentId inps outs []) inps outs, [])
             runExceptT (postTx nw tx) `shouldThrow` anyException
+
+        it "decodeExternalTx works ok with properly constructed \
+           \(Tx, [TxWitness]) binary blob" $
+            \(_, nw) -> do
+                property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do
+                    let encode ((Tx _ inps outs), wits) = runPut
+                            $ withHeader MsgTypeTransaction
+                            $ putSignedTx inps outs wits
+                    let encodedSignedTx = BL.toStrict $ encode signedTx
+                    runExceptT (decodeExternalTx nw encodedSignedTx)
+                        `shouldReturn` Right signedTx
+
+        it "decodeExternalTx throws an exception when binary blob has non-\
+           \transaction-type header or is wrongly constructed binary blob" $
+            \(_, nw) -> do
+                property $ \(SignedTx signedTx) -> monadicIO $ liftIO $ do
+                    let encodeWrongly ((Tx _ inps outs), wits) = runPut
+                            $ withHeader MsgTypeInitial
+                            $ putSignedTx inps outs wits
+                    let encodedSignedTx = BL.toStrict $ encodeWrongly signedTx
+                    result <- runExceptT (decodeExternalTx nw encodedSignedTx)
+                    result `shouldBe`
+                        (Left $ ErrDecodeExternalTxWrongPayload
+                         "wrongly constructed binary blob")
   where
     url :: BaseUrl
     url = BaseUrl Http "localhost" 8080 "/api"
@@ -346,3 +394,90 @@ spec = do
                 }
             ]
         }
+
+newtype SignedTx = SignedTx (Tx, [TxWitness])
+    deriving (Eq, Show, Generic)
+
+instance Arbitrary SignedTx where
+    arbitrary = do
+        nIns <- fromIntegral <$> arbitrary @Word8
+        nOut <- fromIntegral <$> arbitrary @Word8
+        inps <- vectorOf nIns arbitrary
+        outs <- vectorOf nOut arbitrary
+        wits <- vectorOf nIns arbitrary
+        let tid = fragmentId inps outs wits
+        return $ SignedTx (Tx tid inps outs, wits)
+
+    shrink (SignedTx (Tx _ inps outs, wits)) =
+        [ SignedTx (Tx (fragmentId inps' outs wits') inps' outs, wits')
+        | (inps', wits') <- unzip <$> shrinkList' (zip inps wits)
+        ]
+        ++
+        [ SignedTx (Tx (fragmentId inps outs' wits) inps outs', wits)
+        | outs' <- shrinkList' outs
+        ]
+
+      where
+        shrinkList' xs  =
+            (shrinkHeadAndReplicate shrink xs) ++
+            (shrinkList shrink xs)
+
+        -- Try shrinking the 'head' of the list and replace the elements in
+        -- the 'tail' with the exact same element. If the failure is related
+        -- to the size of the list, this makes the shrinking much faster.
+        shrinkHeadAndReplicate f (x:xs) =
+            (\x' -> x':(map (const x') xs)) <$> f x
+        shrinkHeadAndReplicate _f [] = []
+
+-- | Only generates single address witnesses
+instance Arbitrary TxWitness where
+    arbitrary = TxWitness <$> genFixed 64
+    shrink (TxWitness bytes) = TxWitness <$> shrinkFixedBS bytes
+
+instance Arbitrary (Hash "Tx") where
+    arbitrary = Hash <$> genFixed 32
+    shrink (Hash bytes) = Hash <$> shrinkFixedBS bytes
+
+instance Arbitrary Coin where
+    arbitrary = do
+        n <- choose (0, 100)
+        oneof [
+            return $ Coin n
+            , return $ Coin (getCoin (maxBound :: Coin) - n)
+            , Coin <$> choose (0, getCoin (maxBound :: Coin))
+            ]
+    shrink (Coin c) = map Coin (shrink c)
+
+instance Arbitrary TxIn where
+    arbitrary = TxIn
+        <$> arbitrary
+        <*> (fromIntegral <$> arbitrary @Word8)
+    shrink = genericShrink
+
+instance Arbitrary TxOut where
+    arbitrary = TxOut
+        <$> arbitrary
+        <*> arbitrary
+    shrink = genericShrink
+
+-- Only generating single addresses!
+instance Arbitrary Address where
+    arbitrary = do
+        let singleAddressHeader = 3
+        let singleAddressLenWithoutHeader = 32
+        Address . prependTag singleAddressHeader <$>
+            genFixed singleAddressLenWithoutHeader
+    shrink (Address addr) = Address . prependTag 3
+        <$> shrinkFixedBS (BS.tail addr)
+
+genFixed :: Int -> Gen ByteString
+genFixed n = BS.pack <$> (vectorOf n arbitrary)
+
+shrinkFixedBS :: ByteString -> [ByteString]
+shrinkFixedBS bs = [zeros | bs /= zeros]
+      where
+        len = BS.length bs
+        zeros = BS.pack (replicate len 0)
+
+prependTag :: Int -> ByteString -> ByteString
+prependTag tag bs = BS.pack [fromIntegral tag] <> bs

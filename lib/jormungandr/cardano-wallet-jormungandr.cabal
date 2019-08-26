@@ -146,6 +146,7 @@ test-suite integration
     , directory
     , exceptions
     , extra
+    , generic-arbitrary
     , generic-lens
     , hspec
     , hspec-expectations-lifted

@@ -282,6 +282,11 @@ x-transactionOutputs: &transactionOutputs
       address: *addressId
       amount: *transactionAmount
 
+x-signedTransactionBlob: &signedTransactionBlob
+  description: A base64-encoded binary blob of the already-signed transaction.
+  type: string
+  format: binary
+
 x-transactionStatus: &transactionStatus
   description: |
     Current transaction status.
@@ -453,6 +458,13 @@ definitions:
     properties:
       amount: *transactionAmount
 
+  ApiTxId: &ApiTxId
+    type: object
+    required:
+      - id
+    properties:
+      id: *transactionId
+
   ApiTransaction: &ApiTransaction
     type: object
     required:
@@ -579,6 +591,14 @@ definitions:
       - payments
     properties:
       payments: *transactionOutputs
+
+  ApiPostExternalTransactionData: &ApiPostExternalTransactionData
+    type: object
+    required:
+      - payload
+    properties:
+      payload: *signedTransactionBlob
+
 
 #############################################################################
 #                                                                           #
@@ -771,6 +791,17 @@ x-responsesPostTransaction: &responsesPostTransaction
   202:
     description: Accepted
     schema: *ApiTransaction
+
+x-responsesPostExternalTransaction: &responsesPostExternalTransaction
+  <<: *responsesErr400
+  <<: *responsesErr403
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  <<: *responsesErr415
+  202:
+    description: Accepted
+    schema: *ApiTxId
 
 x-responsesPostTransactionFee: &responsesPostTransactionFee
   <<: *responsesErr400
@@ -1021,6 +1052,19 @@ paths:
             - unused
           description: An optional filter on the address state.
       responses: *responsesListAddresses
+
+  /external-transactions:
+    post:
+      operationId: postExternalTransaction
+      tags: ["Transactions"]
+      summary: Send
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      parameters:
+        - <<: *parametersBody
+          schema: *ApiPostExternalTransactionData
+      responses: *responsesPostExternalTransaction
+
 
   /stake-pools:
     get:

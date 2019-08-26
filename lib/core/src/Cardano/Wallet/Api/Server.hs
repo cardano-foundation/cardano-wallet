@@ -40,6 +40,7 @@ import Cardano.Wallet
     , ErrPostTx (..)
     , ErrSignTx (..)
     , ErrStartTimeLaterThanEndTime (..)
+    , ErrSubmitExternalTx (..)
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
     , ErrValidateSelection
@@ -58,10 +59,12 @@ import Cardano.Wallet.Api.Types
     , ApiFee (..)
     , ApiT (..)
     , ApiTransaction (..)
+    , ApiTxId (..)
     , ApiTxInput (..)
     , ApiUtxoStatistics (..)
     , ApiWallet (..)
     , Iso8601Time (..)
+    , PostExternalTransactionData
     , PostTransactionData
     , PostTransactionFeeData
     , WalletBalance (..)
@@ -71,7 +74,7 @@ import Cardano.Wallet.Api.Types
     , getApiMnemonicT
     )
 import Cardano.Wallet.Network
-    ( ErrNetworkUnavailable (..) )
+    ( ErrDecodeExternalTx (..), ErrNetworkUnavailable (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( KeyToAddress (..), WalletKey (..), digest, publicKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Sequential
@@ -428,6 +431,7 @@ transactions w =
     createTransaction w
     :<|> listTransactions w
     :<|> postTransactionFee w
+    :<|> postExternalTransaction w
 
 createTransaction
     :: forall t k.
@@ -449,6 +453,16 @@ createTransaction w (ApiT wid) body = do
     return $ mkApiTransaction (txId @t tx)
         (fmap Just <$> selection ^. #inputs) (selection ^. #outputs) meta
 
+postExternalTransaction
+    :: forall t k. DefineTx t
+    => WalletLayer (SeqState t) t k
+    -> PostExternalTransactionData
+    -> Handler ApiTxId
+postExternalTransaction w body = do
+    let externallySignedTx = body ^. #payload
+    tx <- liftHandler $ W.submitExternalTx w externallySignedTx
+    return $ ApiTxId (ApiT (txId @t tx))
+
 mkApiTransaction
     :: forall t.
        Hash "Tx"
@@ -462,14 +476,14 @@ mkApiTransaction txid ins outs meta = ApiTransaction
     , insertedAt = Nothing
     , depth = Quantity 0
     , direction = ApiT (meta ^. #direction)
-    , inputs = [ApiTxInput (fmap coerceTxOut o) (ApiT i) | (i, o) <- ins]
-    , outputs = NE.fromList (coerceTxOut <$> outs)
+    , inputs = [ApiTxInput (fmap convertTxOut o) (ApiT i) | (i, o) <- ins]
+    , outputs = NE.fromList (convertTxOut <$> outs)
     , status = ApiT (meta ^. #status)
     }
   where
-    coerceTxOut :: TxOut -> AddressAmount t
-    coerceTxOut (TxOut addr (Coin c)) =
-        AddressAmount (ApiT addr, Proxy @t) (Quantity $ fromIntegral c)
+      convertTxOut :: TxOut -> AddressAmount t
+      convertTxOut (TxOut addr (Coin c)) =
+          AddressAmount (ApiT addr, Proxy @t) (Quantity $ fromIntegral c)
 
 -- Populate an API transaction record with 'TransactionInfo' from the wallet
 -- layer.
@@ -651,6 +665,48 @@ instance LiftHandler ErrSignTx where
             }
         ErrSignTxWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> handler e
 
+instance LiftHandler ErrDecodeExternalTx where
+    handler = \case
+        ErrDecodeExternalTxWrongPayload err ->
+            apiError err404 MalformedTxPayload $ mconcat
+                [ "I couldn't decode the payload that seems to be an "
+                , "externally-signed transaction due to: ", pretty err, ". "
+                , "Make sure to send a base64-encoded binary blob, in the "
+                , "proper binary format of the already-serialized transaction."
+                ]
+        ErrDecodeExternalTxNotSupported ->
+            apiError err404 UnexpectedError $ mconcat
+                [ "This endpoint is not supported by the backend currently "
+                , "in use. Please try a different backend."
+                ]
+
+instance LiftHandler ErrSubmitExternalTx where
+    handler = \case
+        ErrSubmitExternalTxNetwork e -> case e of
+            ErrPostTxNetworkUnreachable e' ->
+                handler e'
+            ErrPostTxBadRequest err ->
+                apiError err500 CreatedInvalidTransaction $ mconcat
+                    [ "That's embarrassing. It looks like I've created an "
+                    , "invalid transaction that could not be parsed by the "
+                    , "node. Here's an error message that may help with "
+                    , "debugging: ", pretty err
+                    ]
+            ErrPostTxProtocolFailure err ->
+                apiError err500 RejectedByCoreNode $ mconcat
+                    [ "I successfully submitted a transaction, but "
+                    , "unfortunately it was rejected by a relay. This could be "
+                    , "because the fee was not large enough, or because the "
+                    , "transaction conflicts with another transaction that "
+                    , "uses one or more of the same inputs, or it may be due "
+                    , "to some other reason. Here's an error message that may "
+                    , "help with debugging: ", pretty err
+                    ]
+        ErrSubmitExternalTxDecode e -> (handler e)
+            { errHTTPCode = 404
+            , errReasonPhrase = errReasonPhrase err404
+            }
+
 instance LiftHandler ErrSubmitTx where
     handler = \case
         ErrSubmitTxNetwork e -> case e of
@@ -658,7 +714,7 @@ instance LiftHandler ErrSubmitTx where
                 handler e'
             ErrPostTxBadRequest err ->
                 apiError err500 CreatedInvalidTransaction $ mconcat
-                    [ "That's embarassing. It looks like I've created an "
+                    [ "That's embarrassing. It looks like I've created an "
                     , "invalid transaction that could not be parsed by the "
                     , "node. Here's an error message that may help with "
                     , "debugging: ", pretty err
