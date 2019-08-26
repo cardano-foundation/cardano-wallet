@@ -491,16 +491,20 @@ spec = do
                             ((< getGenesisBlockDate sps) . StartTime
                                 <$> inclusiveUpperBound timeRange))
                     Just slotRange ->
-                        (slotRange `startsWithin` timeRange
-                            === True)
+                        -- Rule 1: Slot range is within specified time range:
+                        (slotRange `startsWithin` timeRange)
                         .&&.
-                        (lowerBoundPred slotRange `startsWithin` timeRange
-                            === (not (rangeHasLowerBound slotRange)
-                                || lowerBoundPred slotRange == slotRange))
+                        -- Rule 2: Slot range lower bound is minimal:
+                        (not (lowerBoundPred slotRange `startsWithin` timeRange)
+                            -- Exceptions to the rule:
+                            || not (rangeHasLowerBound slotRange)
+                            || lowerBoundPred slotRange == slotRange)
                         .&&.
-                        (upperBoundSucc slotRange `startsWithin` timeRange
-                            === (not (rangeHasUpperBound slotRange)
-                                || upperBoundSucc slotRange == slotRange))
+                        -- Rule 3: Slot range upper bound is maximal:
+                        (not (upperBoundSucc slotRange `startsWithin` timeRange)
+                            -- Exceptions to the rule:
+                            || not (rangeHasUpperBound slotRange)
+                            || upperBoundSucc slotRange == slotRange)
 
     describe "Negative cases for types decoding" $ do
         it "fail fromText @AddressState \"unusedused\"" $ do
