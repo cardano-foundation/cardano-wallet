@@ -131,7 +131,6 @@ test-suite integration
     , aeson-qq
     , async
     , base
-    , base64-bytestring
     , binary
     , bytestring
     , cardano-wallet-cli

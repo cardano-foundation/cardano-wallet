@@ -12,7 +12,7 @@
 -- |
 -- Copyright: © 2018-2019 IOHK
 -- License: Apache-2.0
---------------------------------------------------------------------------------
+--
 -- Provides the wallet layer functions that are used by API layer and uses both
 -- "Cardano.Wallet.DB" and "Cardano.Wallet.Network" to realize its role as being
 -- intermediary between the three.

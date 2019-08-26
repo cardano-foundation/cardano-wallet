@@ -749,11 +749,8 @@ instance Arbitrary PostExternalTransactionData where
         count <- choose (0, 32)
         bytes <- BS.pack <$> replicateM count arbitrary
         return $ PostExternalTransactionData bytes
-    shrink (PostExternalTransactionData bytes) | BS.null bytes = []
     shrink (PostExternalTransactionData bytes) =
-        [ PostExternalTransactionData $ BS.take (BS.length bytes `div` 2) bytes
-        , PostExternalTransactionData $ BS.drop 1 bytes
-        ]
+        PostExternalTransactionData . BS.pack <$> shrink (BS.unpack bytes)
 
 instance Arbitrary (ApiTransaction t) where
     shrink = genericShrink

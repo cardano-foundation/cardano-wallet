@@ -78,7 +78,6 @@
             (hsPkgs.aeson-qq)
             (hsPkgs.async)
             (hsPkgs.base)
-            (hsPkgs.base64-bytestring)
             (hsPkgs.binary)
             (hsPkgs.bytestring)
             (hsPkgs.cardano-wallet-cli)

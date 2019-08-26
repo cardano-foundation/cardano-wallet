@@ -1053,7 +1053,7 @@ paths:
           description: An optional filter on the address state.
       responses: *responsesListAddresses
 
-  /externalTransactions:
+  /external-transactions:
     post:
       operationId: postExternalTransaction
       tags: ["Transactions"]

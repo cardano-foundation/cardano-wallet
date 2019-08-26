@@ -49,6 +49,8 @@ import Control.Arrow
     ( second )
 import Control.Monad
     ( forM_ )
+import Data.ByteArray.Encoding
+    ( Base (Base64), convertToBase )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Quantity
@@ -91,11 +93,10 @@ import Test.Integration.Framework.DSL
     , walletName
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403TxTooBig, errMsg404WrongBinaryPayload, mnemonics15 )
+    ( errMsg403TxTooBig, errMsg404MalformedTxPayload, mnemonics15 )
 
 import qualified Cardano.Wallet.Api.Types as API
 import qualified Data.ByteArray as BA
-import qualified Data.ByteString.Base64 as B64
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text.Encoding as T
@@ -173,9 +174,7 @@ spec = do
 
         let toSend = 1 :: Natural
         (tx, wits) <- fixtureExternalTx ctx toSend
-        let encodedSignedTx =
-                T.decodeUtf8 $ B64.encode $ BL.toStrict $
-                encode (tx, wits) MsgTypeTransaction
+        let encodedSignedTx = encodeTx (tx, wits) MsgTypeTransaction
         let payload = Json [json|{
                 "payload": #{encodedSignedTx}
             }|]
@@ -190,15 +189,13 @@ spec = do
 
         let toSend = 1 :: Natural
         (tx, wits) <- fixtureExternalTx ctx toSend
-        let wronglyEncodedSignedTx =
-                T.decodeUtf8 $ B64.encode $ BL.toStrict $
-                encode (tx, wits) MsgTypeInitial
+        let wronglyEncodedSignedTx = encodeTx (tx, wits) MsgTypeInitial
         let payload = Json [json|{
                 "payload": #{wronglyEncodedSignedTx}
             }|]
         r <- request @ApiTxId ctx postExternalTxEp Default payload
         verify r
-            [ expectErrorMessage errMsg404WrongBinaryPayload
+            [ expectErrorMessage errMsg404MalformedTxPayload
             , expectResponseCode HTTP.status404
             ]
 
@@ -305,7 +302,7 @@ spec = do
 
         --at this point wDest wallet should have 100 in one of its address
         --now we try to prepare (tx, [txWintess]), encode it and send 1 to
-        --empty wallet but using externalTransactions endpoint
+        --empty wallet but using external-transactions endpoint
         txsSrc <- listAllTransactions ctx wSrc
         let txSrc:_ = filter (\tx ->
                                 any (\(AddressAmount _ amnt) ->
@@ -339,7 +336,9 @@ spec = do
         let wits = [sign bs result]
         return (Tx (fragmentId inps txOuts wits) inps txOuts, wits)
 
-
-    encode ((Tx _ inps' outs'), wits') msgType = runPut
-        $ withHeader msgType
-        $ putSignedTx inps' outs' wits'
+    encodeTx (tx, wits) msgType =
+        let encode ((Tx _ inps' outs'), wits') msgType' = runPut
+                $ withHeader msgType'
+                $ putSignedTx inps' outs' wits'
+        in T.decodeUtf8 $ convertToBase Base64 $ BL.toStrict $
+                encode (tx, wits) msgType

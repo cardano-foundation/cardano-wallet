@@ -150,7 +150,7 @@ type ListTransactions t = "wallets"
     :> Get '[JSON] [ApiTransaction t]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postExternalTransaction
-type PostExternalTransaction = "externalTransactions"
+type PostExternalTransaction = "external-transactions"
     :> ReqBody '[JSON] PostExternalTransactionData
     :> PostAccepted '[JSON] ApiTxId
 

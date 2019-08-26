@@ -91,7 +91,7 @@ import Control.Applicative
 import Control.Arrow
     ( left )
 import Control.Monad
-    ( mzero, (>=>) )
+    ( (>=>) )
 import Data.Aeson
     ( FromJSON (..)
     , SumEncoding (..)
@@ -112,6 +112,8 @@ import Data.Aeson
     )
 import Data.Bifunctor
     ( bimap, first )
+import Data.ByteArray.Encoding
+    ( Base (Base64), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.Either.Extra
@@ -147,7 +149,6 @@ import Web.HttpApiData
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
-import qualified Data.ByteString.Base64 as B64
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
@@ -246,7 +247,7 @@ data ApiErrorCode
     | WalletAlreadyExists
     | NoRootKey
     | WrongEncryptionPassphrase
-    | WrongBinaryPayload
+    | MalformedTxPayload
     | KeyNotFoundForAddress
     | NotEnoughMoney
     | UtxoNotEnoughFragmented
@@ -375,19 +376,16 @@ instance ToJSON  WalletPutData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON PostExternalTransactionData where
-    parseJSON = withObject "postExternalTransactionData" $ \o -> do
-        let toByteString x = case B64.decode (T.encodeUtf8 x) of
-                Left _ -> mzero
-                Right bs -> pure bs
-        let parseByteString (Aeson.String x) = toByteString x
-            parseByteString _ = mzero
-        p <- parseByteString =<< (o .: "payload")
-        return $ PostExternalTransactionData p
+    parseJSON = withObject "PostExternalTransactionData" $ \o -> do
+        load <- o .: "payload"
+        case convertFromBase Base64 (T.encodeUtf8 load) of
+            Left e -> fail $ "Could not decode Base64 payload: " ++ show e
+            Right p -> pure $ PostExternalTransactionData p
 
 instance ToJSON PostExternalTransactionData where
     toJSON (PostExternalTransactionData p) =
-        let toValue = toJSON . T.decodeUtf8 . B64.encode
-        in object ["payload" .= toValue p ]
+        let b64 = T.decodeUtf8 $ convertToBase Base64 p
+        in object ["payload" .= Aeson.String b64 ]
 
 instance FromJSON WalletPutPassphraseData where
     parseJSON = genericParseJSON defaultRecordTypeOptions

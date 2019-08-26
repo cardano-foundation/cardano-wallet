@@ -668,7 +668,7 @@ instance LiftHandler ErrSignTx where
 instance LiftHandler ErrDecodeExternalTx where
     handler = \case
         ErrDecodeExternalTxWrongPayload err ->
-            apiError err404 WrongBinaryPayload $ mconcat
+            apiError err404 MalformedTxPayload $ mconcat
                 [ "I couldn't decode the payload that seems to be an "
                 , "externally-signed transaction due to: ", pretty err, ". "
                 , "Make sure to send a base64-encoded binary blob, in the "

@@ -34,7 +34,6 @@ library
       aeson
     , async
     , base
-    , base64-bytestring
     , basement
     , binary
     , bytestring

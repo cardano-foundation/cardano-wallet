@@ -991,7 +991,7 @@ postWalletEp =
 postExternalTxEp :: (Method, Text)
 postExternalTxEp =
     ( "POST"
-    , "v2/externalTransactions"
+    , "v2/external-transactions"
     )
 
 getWalletEp :: ApiWallet -> (Method, Text)
