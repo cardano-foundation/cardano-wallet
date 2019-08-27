@@ -115,6 +115,7 @@ module Test.Integration.Framework.DSL
     , postTransactionViaCLI
     , postTransactionFeeViaCLI
     , listTransactionsViaCLI
+    , postExternalTransactionViaCLI
     ) where
 
 import Cardano.Wallet.Api.Types
@@ -1217,6 +1218,18 @@ listTransactionsViaCLI ctx args = cardanoWalletCLI @t $ join
     , ["--port", show (ctx ^. typed @Port)]
     , args
     ]
+
+postExternalTransactionViaCLI
+    :: forall t r s . (CmdResult r, HasType Port s, KnownCommand t)
+    => s
+    -> [String]
+    -> IO r
+postExternalTransactionViaCLI ctx args = cardanoWalletCLI @t $ join
+    [ ["external-transaction", "send"]
+    , ["--port", show (ctx ^. typed @Port)]
+    , args
+    ]
+
 
 -- There is a dependency cycle in the packages.
 --

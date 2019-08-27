@@ -855,7 +855,7 @@ walletNameArgument :: Parser WalletName
 walletNameArgument = argumentT $ mempty
     <> metavar "STRING"
 
--- | <name=BINARY_BLOB>
+-- | <payload=BINARY_BLOB>
 payloadArgument :: Parser PostExternalTransactionData
 payloadArgument = argumentT $ mempty
     <> metavar "BINARY_BLOB"

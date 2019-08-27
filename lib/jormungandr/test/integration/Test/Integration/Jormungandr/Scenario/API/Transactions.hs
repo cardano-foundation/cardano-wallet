@@ -7,6 +7,8 @@
 
 module Test.Integration.Jormungandr.Scenario.API.Transactions
     ( spec
+    , fixtureExternalTx
+    , encodeTx
     ) where
 
 import Prelude
@@ -42,6 +44,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , TxIn (..)
     , TxOut (..)
+    , TxWitness
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
@@ -244,101 +247,105 @@ spec = do
             }|]
         return (wSrc, payload)
 
-    fixtureExternalTx ctx toSend = do
-        -- initial source wallet
-        let initial = 50000 :: Natural
-        wSrc <- fixtureWalletWith ctx [initial]
+fixtureExternalTx
+    :: forall t. (EncodeAddress t, DecodeAddress t)
+    => (Context t) -> Natural -> IO (Tx, [TxWitness])
+fixtureExternalTx ctx toSend = do
+    -- initial source wallet
+    let initial = 50000 :: Natural
+    wSrc <- fixtureWalletWith ctx [initial]
 
-        -- source empty wallet which is going to take one 100 money inflow from
-        -- wSrc and from which we are going to send transaction externally to
-        -- another empty wallet, wEmpt
-        let password = "Secure Passphrase" :: Text
-        let createWallet = Json [json| {
-                "name": "1st Wallet",
-                "mnemonic_sentence": #{mnemonics15},
-                "passphrase": #{password}
-                } |]
-        r0 <- request @ApiWallet ctx ("POST", "v2/wallets") Default createWallet
-        verify r0
-            [ expectResponseCode @IO HTTP.status202
-            , expectFieldEqual walletName "1st Wallet"
-            , expectFieldEqual balanceAvailable 0
-            , expectFieldEqual balanceTotal 0
-            ]
-        let wDest = getFromResponse Prelude.id r0
-        let (Right seed) = fromMnemonic @'[15] @"seed" mnemonics15
-        let pwd = Passphrase $ BA.convert $ T.encodeUtf8 password
-        let rootXPrv = generateKeyFromSeed (seed, mempty) pwd
-        let st = mkSeqState @(Jormungandr 'Testnet)
-                (rootXPrv, pwd) defaultAddressPoolGap
-        let (addrD, st') = genChange pwd st
-        addrs <- listAddresses ctx wDest
-        let destination = (addrs !! 1) ^. #id
-        let amt = 100 :: Natural
-        let payload = Json [json|{
+    -- source empty wallet which is going to take one 100 money inflow from
+    -- wSrc and from which we are going to send transaction externally to
+    -- another empty wallet, wEmpt
+    let password = "Secure Passphrase" :: Text
+    let createWallet = Json [json| {
+            "name": "1st Wallet",
+            "mnemonic_sentence": #{mnemonics15},
+            "passphrase": #{password}
+            } |]
+    r0 <- request @ApiWallet ctx ("POST", "v2/wallets") Default createWallet
+    verify r0
+        [ expectResponseCode @IO HTTP.status202
+        , expectFieldEqual walletName "1st Wallet"
+        , expectFieldEqual balanceAvailable 0
+        , expectFieldEqual balanceTotal 0
+        ]
+    let wDest = getFromResponse Prelude.id r0
+    let (Right seed) = fromMnemonic @'[15] @"seed" mnemonics15
+    let pwd = Passphrase $ BA.convert $ T.encodeUtf8 password
+    let rootXPrv = generateKeyFromSeed (seed, mempty) pwd
+    let st = mkSeqState @(Jormungandr 'Testnet)
+             (rootXPrv, pwd) defaultAddressPoolGap
+    let (addrD, st') = genChange pwd st
+    addrs <- listAddresses ctx wDest
+    let destination = (addrs !! 1) ^. #id
+    let amt = 100 :: Natural
+    let payload = Json [json|{
                 "payments": [{
-                    "address": #{destination},
-                    "amount": {
-                        "quantity": #{amt},
-                        "unit": "lovelace"
-                    }
-                }],
-                "passphrase": "Secure Passphrase"
-            }|]
-        let (feeMin, _feeMax) = ctx ^. feeEstimator $ TxDescription
-                { nInputs = 1
-                , nOutputs = 1
+                "address": #{destination},
+                "amount": {
+                    "quantity": #{amt},
+                    "unit": "lovelace"
                 }
-        r1 <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
-        verify r1
-            [ expectSuccess
-            , expectResponseCode HTTP.status202
-            ]
-        r2 <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
-        verify r2
-            [ expectSuccess
-            , expectEventually ctx balanceAvailable amt
-            ]
+            }],
+            "passphrase": "Secure Passphrase"
+        }|]
+    let (feeMin, _feeMax) = ctx ^. feeEstimator $ TxDescription
+            { nInputs = 1
+            , nOutputs = 1
+            }
+    r1 <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
+    verify r1
+        [ expectSuccess
+        , expectResponseCode HTTP.status202
+        ]
+    r2 <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
+    verify r2
+        [ expectSuccess
+        , expectEventually ctx balanceAvailable amt
+        ]
 
-        --at this point wDest wallet should have 100 in one of its address
-        --now we try to prepare (tx, [txWintess]), encode it and send 1 to
-        --empty wallet but using external-transactions endpoint
-        txsSrc <- listAllTransactions ctx wSrc
-        let txSrc:_ = filter (\tx ->
-                                any (\(AddressAmount _ amnt) ->
-                                         amnt == Quantity amt)
-                                $ NE.toList $ tx ^. #outputs
-                           ) txsSrc
-        let txHash = getApiT $ txSrc ^. #id
-        let out1@(AddressAmount _ amnt1):out2:_ =
-                NE.toList $ txSrc ^. #outputs
-        let (ix, out) = if amnt1 == Quantity amt then
-                (0::Word32, out1)
-                else
-                (1::Word32, out2)
-        let outAddr = getApiT $ fst $ API.address out
-        let myRnps = [(TxIn txHash ix, TxOut outAddr (Coin 100))]
-        wEmpt <- emptyWallet ctx
-        addrsEmpt <- listAddresses ctx wEmpt
-        let destEmpt = (addrsEmpt !! 1) ^. #id
-        let destAddr = getApiT $ fst destEmpt
-        let left = if amt >= (fromIntegral feeMin) + toSend then
-                fromIntegral $ amt - (fromIntegral feeMin) - toSend :: Word64
-                   else
-                0 :: Word64
-        let txOuts = [ TxOut addrD (Coin left)
-                     , TxOut destAddr (Coin (fromIntegral toSend))]
-        let inps = fmap (second coin) myRnps
-        let block0H = unsafeFromHex
-                "301b1c634aa7b586da7243dd66a61bde904bc1755e9a20a9b5b1b0064e70d904"
-        let bs = block0H <> getHash (signData inps txOuts)
-        let (Just result) = isOwned st' (rootXPrv, pwd) addrD
-        let wits = [sign bs result]
-        return (Tx (fragmentId inps txOuts wits) inps txOuts, wits)
+    --at this point wDest wallet should have 100 in one of its address
+    --now we try to prepare (tx, [txWintess]), encode it and send 1 to
+    --empty wallet but using external-transactions endpoint
+    txsSrc <- listAllTransactions ctx wSrc
+    let txSrc:_ = filter (\tx ->
+                              any (\(AddressAmount _ amnt) ->
+                                       amnt == Quantity amt)
+                              $ NE.toList $ tx ^. #outputs
+                         ) txsSrc
+    let txHash = getApiT $ txSrc ^. #id
+    let out1@(AddressAmount _ amnt1):out2:_ =
+            NE.toList $ txSrc ^. #outputs
+    let (ix, out) = if amnt1 == Quantity amt then
+            (0::Word32, out1)
+            else
+            (1::Word32, out2)
+    let outAddr = getApiT $ fst $ API.address out
+    let myRnps = [(TxIn txHash ix, TxOut outAddr (Coin 100))]
+    wEmpt <- emptyWallet ctx
+    addrsEmpt <- listAddresses ctx wEmpt
+    let destEmpt = (addrsEmpt !! 1) ^. #id
+    let destAddr = getApiT $ fst destEmpt
+    let left = if amt >= (fromIntegral feeMin) + toSend then
+            fromIntegral $ amt - (fromIntegral feeMin) - toSend :: Word64
+               else
+            0 :: Word64
+    let txOuts = [ TxOut addrD (Coin left)
+                 , TxOut destAddr (Coin (fromIntegral toSend))]
+    let inps = fmap (second coin) myRnps
+    let block0H = unsafeFromHex
+            "301b1c634aa7b586da7243dd66a61bde904bc1755e9a20a9b5b1b0064e70d904"
+    let bs = block0H <> getHash (signData inps txOuts)
+    let (Just result) = isOwned st' (rootXPrv, pwd) addrD
+    let wits = [sign bs result]
+    return (Tx (fragmentId inps txOuts wits) inps txOuts, wits)
 
-    encodeTx (tx, wits) msgType =
-        let encode ((Tx _ inps' outs'), wits') msgType' = runPut
-                $ withHeader msgType'
-                $ putSignedTx inps' outs' wits'
-        in T.decodeUtf8 $ convertToBase Base64 $ BL.toStrict $
-                encode (tx, wits) msgType
+encodeTx :: (Tx, [TxWitness]) -> MessageType -> Text
+encodeTx (tx, wits) msgType =
+    let encode ((Tx _ inps' outs'), wits') msgType' = runPut
+            $ withHeader msgType'
+            $ putSignedTx inps' outs' wits'
+    in T.decodeUtf8 $ convertToBase Base64 $ BL.toStrict $
+       encode (tx, wits) msgType
