@@ -969,7 +969,9 @@ paths:
       tags: ["Transactions"]
       summary: List
       description: |
-        <p align="right">status: <strong>not implemented</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
+
+        Lists all incoming and outgoing wallet's transactions.
       parameters:
         - *parametersWalletId
         - in: query
@@ -1014,6 +1016,8 @@ paths:
       summary: Create
       description: |
         <p align="right">status: <strong>stable</strong></p>
+
+        Create and send transaction from the wallet.
       parameters:
         - *parametersWalletId
         - <<: *parametersBody
@@ -1027,11 +1031,27 @@ paths:
       summary: Estimate
       description: |
         <p align="right">status: <strong>stable</strong></p>
+
+        Estimate fee for the transaction.
       parameters:
         - *parametersWalletId
         - <<: *parametersBody
           schema: *ApiPostTransactionFeeData
       responses: *responsesPostTransactionFee
+
+  /external-transactions:
+    post:
+      operationId: postExternalTransaction
+      tags: ["Transactions"]
+      summary: Send External Transaction
+      description: |
+        <p align="right">status: <strong>experimental</strong></p>
+
+        Send transaction created and signed outside of the wallet.
+      parameters:
+        - <<: *parametersBody
+          schema: *ApiPostExternalTransactionData
+      responses: *responsesPostExternalTransaction
 
   /wallets/{walletId}/addresses:
     get:
@@ -1052,19 +1072,6 @@ paths:
             - unused
           description: An optional filter on the address state.
       responses: *responsesListAddresses
-
-  /external-transactions:
-    post:
-      operationId: postExternalTransaction
-      tags: ["Transactions"]
-      summary: Send
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-      parameters:
-        - <<: *parametersBody
-          schema: *ApiPostExternalTransactionData
-      responses: *responsesPostExternalTransaction
-
 
   /stake-pools:
     get:
