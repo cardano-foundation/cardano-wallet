@@ -109,7 +109,7 @@ spec = do
         it "applyBlock moves the current tip forward"
             (property prop_applyBlockCurrentTip)
 
-        it "Wallet starts with a block height of 0" $
+        it "Wallet starts with a block height of 0"
             (property prop_initialBlockHeight)
 
         it "applyBlock increases the blockHeight"
@@ -184,10 +184,11 @@ prop_applyBlockCurrentTip (ApplyBlock s _ b) =
 -- | applyBlock updates the block height
 prop_applyBlockBlockHeight :: ApplyBlock -> Property
 prop_applyBlockBlockHeight (ApplyBlock s _ b) =
-    property $ blockHeight wallet' > blockHeight wallet
+    property $ blockHeight wallet' === mapQuantity (+1) (blockHeight wallet)
   where
     wallet = initWallet @_ @DummyTarget block0 s
     wallet' = snd $ applyBlock b wallet
+    mapQuantity f (Quantity a) = Quantity $ f a
 
 prop_initialBlockHeight :: WalletState -> Property
 prop_initialBlockHeight s =
