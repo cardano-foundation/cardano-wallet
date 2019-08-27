@@ -593,6 +593,12 @@ instance EncodeAddress t => ToText (AddressAmount t) where
     toText (AddressAmount (ApiT addr, proxy) coins) =
         toText coins <> "@" <> encodeAddress proxy addr
 
+instance FromText PostExternalTransactionData where
+    fromText text = case convertFromBase Base64 (T.encodeUtf8 text) of
+        Left e -> Left . TextDecodingError $
+            "Could not decode Base64 payload: " <> show e
+        Right p -> pure $ PostExternalTransactionData p
+
 {-------------------------------------------------------------------------------
                              HTTPApiData instances
 -------------------------------------------------------------------------------}

@@ -37,6 +37,7 @@ import Cardano.CLI
     , Verbosity (..)
     , cli
     , cmdAddress
+    , cmdExternalTransaction
     , cmdMnemonic
     , cmdTransaction
     , cmdVersion
@@ -170,6 +171,7 @@ main = do
         <> cmdTransaction @(Jormungandr 'Testnet)
         <> cmdAddress @(Jormungandr 'Testnet)
         <> cmdVersion
+        <> cmdExternalTransaction @(Jormungandr 'Testnet)
 
 {-------------------------------------------------------------------------------
                             Command - 'launch'

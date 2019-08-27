@@ -29,6 +29,7 @@ module Cardano.CLI
     , cmdMnemonic
     , cmdWallet
     , cmdTransaction
+    , cmdExternalTransaction
     , cmdAddress
     , cmdVersion
     , execLaunch
@@ -629,6 +630,39 @@ cmdAddressList = command "list" $ info (helper <*> cmd) $ mempty
             (ApiT <$> wState)
 
 {-------------------------------------------------------------------------------
+                            Commands - 'external-transaction'
+-------------------------------------------------------------------------------}
+
+-- | cardano-wallet external transaction
+cmdExternalTransaction
+    :: forall t. (DecodeAddress t, EncodeAddress t)
+    => Mod CommandFields (IO ())
+cmdExternalTransaction = command "external-transaction" $
+    info (helper <*> cmds) mempty
+  where
+    cmds = subparser $ mempty
+        <> cmdExternalTransactionSend @t
+
+-- | Arguments for 'transaction create' command
+data ExternalTransactionSendArgs = ExternalTransactionSendArgs
+    { _port :: Port "Wallet"
+    , _payload :: PostExternalTransactionData
+    }
+
+cmdExternalTransactionSend
+    :: forall t. (DecodeAddress t, EncodeAddress t)
+    => Mod CommandFields (IO ())
+cmdExternalTransactionSend = command "send" $ info (helper <*> cmd) $ mempty
+    <> progDesc "Send an externally-signed transaction."
+  where
+    cmd = fmap exec $ ExternalTransactionSendArgs
+        <$> portOption
+        <*> payloadArgument
+    exec (ExternalTransactionSendArgs wPort wPayload) = do
+        runClient wPort Aeson.encodePretty $
+            postExternalTransaction (walletClient @t) wPayload
+
+{-------------------------------------------------------------------------------
                             Commands - 'version'
 -------------------------------------------------------------------------------}
 
@@ -820,6 +854,15 @@ walletIdArgument = argumentT $ mempty
 walletNameArgument :: Parser WalletName
 walletNameArgument = argumentT $ mempty
     <> metavar "STRING"
+
+-- | <name=BINARY_BLOB>
+payloadArgument :: Parser PostExternalTransactionData
+payloadArgument = argumentT $ mempty
+    <> metavar "BINARY_BLOB"
+    <> help (mconcat
+        [ "base64 binary blob of externally-signed"
+        , " transaction."
+        ])
 
 -- | Helper for writing an option 'Parser' using a 'FromText' instance.
 optionT :: FromText a => Mod OptionFields a -> Parser a
