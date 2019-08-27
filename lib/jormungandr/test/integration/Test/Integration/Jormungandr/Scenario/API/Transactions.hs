@@ -330,7 +330,7 @@ spec = do
                      , TxOut destAddr (Coin (fromIntegral toSend))]
         let inps = fmap (second coin) myRnps
         let block0H = unsafeFromHex
-                "dba597bee5f0987efbf56f6bd7f44c38158a7770d0cb28a26b5eca40613a7ebd"
+                "301b1c634aa7b586da7243dd66a61bde904bc1755e9a20a9b5b1b0064e70d904"
         let bs = block0H <> getHash (signData inps txOuts)
         let (Just result) = isOwned st' (rootXPrv, pwd) addrD
         let wits = [sign bs result]
