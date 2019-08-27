@@ -141,7 +141,7 @@ data Wallet s t where
         -> Set (Tx t, TxMeta) -- Pending outgoing transactions
         -> BlockHeader -- Header of the latest applied block (current tip)
         -> s -- Address discovery state
-        -> Quantity "block" Natural
+        -> Quantity "block" Natural -- block height
         -> Wallet s t
 
 deriving instance Show (Wallet s t)
@@ -288,6 +288,9 @@ getPending :: Wallet s t -> Set (Tx t, TxMeta)
 getPending (Wallet _ pending _ _ _) = pending
 
 -- | Get the block height of the chain.
+--
+-- A new wallet from 'initWallet' (which already has the genesis block applied)
+-- has a block height of 0.
 blockHeight :: Wallet s t -> Quantity "block" Natural
 blockHeight (Wallet _ _ _ _ bh) = bh
 
