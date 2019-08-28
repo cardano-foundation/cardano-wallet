@@ -69,6 +69,7 @@ import Cardano.Wallet.Primitive.Types
     , UTxO (..)
     , balance
     , excluding
+    , invariant
     , restrictedBy
     , txIns
     )
@@ -188,7 +189,7 @@ applyBlock
     => Block (Tx t)
     -> Wallet s t
     -> (Map (Hash "Tx") (Tx t, TxMeta), Wallet s t)
-applyBlock !b (Wallet !u !pending _ s bh) =
+applyBlock !b (Wallet !u !pending !prevHdr s bh) =
     let
         -- Prefilter Block / Update UTxO
         ((txs, u'), s') = prefilterBlock (Proxy @t) b u s
@@ -199,9 +200,21 @@ applyBlock !b (Wallet !u !pending _ s bh) =
         txs' = Map.fromList $ map
             (\(tx, meta) -> (txId @t tx, (tx, meta)))
             txs
+
+        -- In particular this invariant forbids Epoch Boundary Blocks
+        -- to be applied since they share slotId with a normal block.
+        --
+        -- This is in turn done to make sure our blockHeight calculation is
+        -- correct.
+        hdr = invariant
+            ("applyBlock: "
+                <> "slotId of the block must be greater than the slotId of the "
+                <> "previously-applied block.")
+            (b ^. #header)
+            (\h -> (h ^. #slotId) > (prevHdr ^.  #slotId))
     in
         ( txs'
-        , Wallet u' pending' (b ^. #header) s' (succ bh)
+        , Wallet u' pending' hdr s' (succ bh)
         )
   where
     pendingExcluding_ = pendingExcluding (Proxy @t)
