@@ -30,7 +30,7 @@
 </span><a name="line-30"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Time.Clock</span><span>
 </span><a name="line-31"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">UTCTime</span><span> </span><span class="hs-special">)</span><span>
 </span><a name="line-32"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Word</span><span>
-</span><a name="line-33"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Word32</span><span> </span><span class="hs-special">)</span><span>
+</span><a name="line-33"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-type">Word32</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Word64</span><span> </span><span class="hs-special">)</span><span>
 </span><a name="line-34"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Database.Persist.TH</span><span>
 </span><a name="line-35"></a><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-identifier hs-var">mkDeleteCascade</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mkMigrate</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">mkPersist</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">persistLowerCase</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-var">share</span><span> </span><span class="hs-special">)</span><span>
 </span><a name="line-36"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.Generics</span><span>
@@ -127,6 +127,7 @@ Checkpoint
     checkpointWalletId    W.WalletId  sql=wallet_id
     checkpointSlot        W.SlotId    sql=slot
     checkpointParent      BlockId     sql=parent
+    checkpointBlock       Word64      sql=block_height
 
     Primary checkpointWalletId checkpointSlot
     Foreign Wallet fk_wallet_checkpoint checkpointWalletId
@@ -218,4 +219,4 @@ RndStateAddress
         rndStateAddressAddress
     deriving Show Generic
 |]</span><span>
-</span><a name="line-221"></a></pre></body></html>
+</span><a name="line-222"></a></pre></body></html>

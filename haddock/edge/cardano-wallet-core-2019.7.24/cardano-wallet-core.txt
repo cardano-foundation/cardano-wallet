@@ -1973,7 +1973,7 @@ newPending :: (Tx t, TxMeta) -> Wallet s t -> Wallet s t
 --   invariants to be broken. Therefore it should only be used in the
 --   special case of loading wallet checkpoints from the database (where it
 --   is assumed a valid wallet was stored into the database).
-unsafeInitWallet :: (IsOurs s, NFData s, Show s, DefineTx t) => UTxO -> Set (Tx t, TxMeta) -> BlockHeader -> s -> Wallet s t
+unsafeInitWallet :: (IsOurs s, NFData s, Show s, DefineTx t) => UTxO -> Set (Tx t, TxMeta) -> BlockHeader -> s -> Quantity "block" Natural -> Wallet s t
 
 -- | Get the wallet current tip
 currentTip :: Wallet s t -> BlockHeader
@@ -1998,6 +1998,12 @@ utxo :: Wallet s t -> UTxO
 
 -- | Get the set of pending transactions
 getPending :: Wallet s t -> Set (Tx t, TxMeta)
+
+-- | Get the block height of the chain.
+--   
+--   A new wallet from <a>initWallet</a> (which already has the genesis
+--   block applied) has a block height of 0.
+blockHeight :: Wallet s t -> Quantity "block" Natural
 instance GHC.Show.Show (Cardano.Wallet.Primitive.Model.Wallet s t)
 instance GHC.Classes.Eq s => GHC.Classes.Eq (Cardano.Wallet.Primitive.Model.Wallet s t)
 instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.Model.Wallet s t)
@@ -2356,10 +2362,11 @@ TxOut :: !TxId -> !Word32 -> !Address -> !Coin -> TxOut
 [txOutputAmount] :: TxOut -> !Coin
 type TxOutId = Key TxOut
 data Checkpoint
-Checkpoint :: !WalletId -> !SlotId -> !BlockId -> Checkpoint
+Checkpoint :: !WalletId -> !SlotId -> !BlockId -> !Word64 -> Checkpoint
 [checkpointWalletId] :: Checkpoint -> !WalletId
 [checkpointSlot] :: Checkpoint -> !SlotId
 [checkpointParent] :: Checkpoint -> !BlockId
+[checkpointBlock] :: Checkpoint -> !Word64
 type CheckpointId = Key Checkpoint
 data UTxO
 UTxO :: !WalletId -> !SlotId -> !TxId -> !Word32 -> !Address -> !Coin -> UTxO
