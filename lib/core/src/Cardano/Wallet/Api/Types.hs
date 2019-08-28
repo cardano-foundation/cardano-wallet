@@ -142,11 +142,14 @@ import GHC.TypeLits
     ( Nat, Symbol )
 import Numeric.Natural
     ( Natural )
+import Servant.API
+    ( MimeUnrender (..), OctetStream )
 import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
@@ -599,6 +602,10 @@ instance FromText a => FromHttpApiData (ApiT a) where
     parseUrlPiece = bimap pretty ApiT . fromText
 instance ToText a => ToHttpApiData (ApiT a) where
     toUrlPiece = toText . getApiT
+
+instance MimeUnrender OctetStream PostExternalTransactionData where
+    mimeUnrender _ = pure . PostExternalTransactionData . BL.toStrict
+
 
 {-------------------------------------------------------------------------------
                                 Aeson Options

@@ -181,7 +181,7 @@ spec = do
              ]
 
     it "TRANS_EXTERNAL_CREATE_01 - proper single output transaction and \
-       \proper binary format" $ \ctx -> do
+       \proper binary format - json " $ \ctx -> do
 
         let toSend = 1 :: Natural
 
@@ -207,6 +207,34 @@ spec = do
             ]
 
     it "TRANS_EXTERNAL_CREATE_02 - proper single output transaction and \
+       \proper binary format - octet-stream" $ \ctx -> do
+
+        let toSend = 1 :: Natural
+
+        (tx, wits) <- fixtureExternalTx ctx toSend
+        let encodedSignedTx =
+                BL.fromStrict $ T.encodeUtf8 $
+                encodeTx (tx, wits) MsgTypeTransaction
+        let headers = Headers [ ("Content-Type", "application/octet-stream") ]
+        r <-
+            request @ApiTxId ctx postExternalTxEp headers (NonJson encodedSignedTx)
+        verify r
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        let wronglyEncodedTx =
+                BL.fromStrict $ T.encodeUtf8 $
+                encodeWronglyTx (tx, wits) MsgTypeTransaction
+        r1 <-
+            request @ApiTxId ctx postExternalTxEp headers (NonJson wronglyEncodedTx)
+        verify r1
+            [ expectErrorMessage errMsg404WronglyEncodedTxPayload
+            , expectResponseCode HTTP.status404
+            ]
+
+
+    it "TRANS_EXTERNAL_CREATE_03 - proper single output transaction and \
        \wrong binary format" $ \ctx -> do
 
         let toSend = 1 :: Natural
