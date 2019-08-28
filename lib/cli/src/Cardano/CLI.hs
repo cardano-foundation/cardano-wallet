@@ -29,7 +29,6 @@ module Cardano.CLI
     , cmdMnemonic
     , cmdWallet
     , cmdTransaction
-    , cmdExternalTransaction
     , cmdAddress
     , cmdVersion
     , execLaunch
@@ -515,6 +514,7 @@ cmdTransaction = command "transaction" $ info (helper <*> cmds) mempty
         <> cmdTransactionCreate @t
         <> cmdTransactionFees @t
         <> cmdTransactionList @t
+        <> cmdExternalTransactionSend @t
 
 -- | Arguments for 'transaction create' command
 data TransactionCreateArgs t = TransactionCreateArgs
@@ -595,6 +595,27 @@ cmdTransactionList = command "list" $ info (helper <*> cmd) $ mempty
             mTimeRangeEnd
             (ApiT <$> mOrder)
 
+
+-- | Arguments for 'transaction create' command
+data ExternalTransactionSendArgs = ExternalTransactionSendArgs
+    { _port :: Port "Wallet"
+    , _payload :: PostExternalTransactionData
+    }
+
+cmdExternalTransactionSend
+    :: forall t. (DecodeAddress t, EncodeAddress t)
+    => Mod CommandFields (IO ())
+cmdExternalTransactionSend = command "submit" $ info (helper <*> cmd) $ mempty
+    <> progDesc "Submit an externally-signed transaction."
+  where
+    cmd = fmap exec $ ExternalTransactionSendArgs
+        <$> portOption
+        <*> payloadArgument
+    exec (ExternalTransactionSendArgs wPort wPayload) = do
+        runClient wPort Aeson.encodePretty $
+            postExternalTransaction (walletClient @t) wPayload
+
+
 {-------------------------------------------------------------------------------
                             Commands - 'address'
 -------------------------------------------------------------------------------}
@@ -628,39 +649,6 @@ cmdAddressList = command "list" $ info (helper <*> cmd) $ mempty
         runClient wPort Aeson.encodePretty $ listAddresses (walletClient @t)
             (ApiT wId)
             (ApiT <$> wState)
-
-{-------------------------------------------------------------------------------
-                            Commands - 'external-transaction'
--------------------------------------------------------------------------------}
-
--- | cardano-wallet external transaction
-cmdExternalTransaction
-    :: forall t. (DecodeAddress t, EncodeAddress t)
-    => Mod CommandFields (IO ())
-cmdExternalTransaction = command "external-transaction" $
-    info (helper <*> cmds) mempty
-  where
-    cmds = subparser $ mempty
-        <> cmdExternalTransactionSend @t
-
--- | Arguments for 'transaction create' command
-data ExternalTransactionSendArgs = ExternalTransactionSendArgs
-    { _port :: Port "Wallet"
-    , _payload :: PostExternalTransactionData
-    }
-
-cmdExternalTransactionSend
-    :: forall t. (DecodeAddress t, EncodeAddress t)
-    => Mod CommandFields (IO ())
-cmdExternalTransactionSend = command "send" $ info (helper <*> cmd) $ mempty
-    <> progDesc "Send an externally-signed transaction."
-  where
-    cmd = fmap exec $ ExternalTransactionSendArgs
-        <$> portOption
-        <*> payloadArgument
-    exec (ExternalTransactionSendArgs wPort wPayload) = do
-        runClient wPort Aeson.encodePretty $
-            postExternalTransaction (walletClient @t) wPayload
 
 {-------------------------------------------------------------------------------
                             Commands - 'version'

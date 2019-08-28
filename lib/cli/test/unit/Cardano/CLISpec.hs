@@ -16,7 +16,6 @@ import Cardano.CLI
     , Port (..)
     , cli
     , cmdAddress
-    , cmdExternalTransaction
     , cmdMnemonic
     , cmdTransaction
     , cmdWallet
@@ -83,7 +82,6 @@ spec = do
                 <> cmdWallet @DummyTarget
                 <> cmdTransaction @DummyTarget
                 <> cmdAddress @DummyTarget
-                <> cmdExternalTransaction @DummyTarget
 
         let defaultPrefs = prefs (mempty <> columns 65)
 
@@ -117,7 +115,6 @@ spec = do
             , "  wallet                   "
             , "  transaction              "
             , "  address                  "
-            , "  external-transaction     "
             ]
 
         ["mnemonic", "--help"] `shouldShowUsage`
@@ -235,6 +232,8 @@ spec = do
             , "  fees                     Estimate fees for a transaction."
             , "  list                     List the transactions associated with"
             , "                           a wallet."
+            , "  submit                   Submit an externally-signed"
+            , "                           transaction."
             ]
 
         ["transaction", "create", "--help"] `shouldShowUsage`
@@ -306,9 +305,9 @@ spec = do
             , "                           either 'used' or 'unused'."
             ]
 
-        ["external-transaction", "send", "--help"] `shouldShowUsage`
-            [ "Usage:  external-transaction send [--port INT] BINARY_BLOB"
-            , "  Send an externally-signed transaction."
+        ["transaction", "submit", "--help"] `shouldShowUsage`
+            [ "Usage:  transaction submit [--port INT] BINARY_BLOB"
+            , "  Submit an externally-signed transaction."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"

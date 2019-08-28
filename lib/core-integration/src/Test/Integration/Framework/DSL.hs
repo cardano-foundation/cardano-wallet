@@ -1225,7 +1225,7 @@ postExternalTransactionViaCLI
     -> [String]
     -> IO r
 postExternalTransactionViaCLI ctx args = cardanoWalletCLI @t $ join
-    [ ["external-transaction", "send"]
+    [ ["transaction", "submit"]
     , ["--port", show (ctx ^. typed @Port)]
     , args
     ]

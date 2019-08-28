@@ -283,7 +283,7 @@ x-transactionOutputs: &transactionOutputs
       amount: *transactionAmount
 
 x-signedTransactionBlob: &signedTransactionBlob
-  description: A base64-encoded binary blob of the already-signed transaction.
+  description: A hex-encoded binary blob of the already-signed transaction.
   type: string
   format: binary
 

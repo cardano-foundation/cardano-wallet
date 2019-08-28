@@ -30,9 +30,9 @@ import Test.Hspec.Expectations.Lifted
 import Test.Integration.Framework.DSL
     ( Context (..), KnownCommand, postExternalTransactionViaCLI )
 import Test.Integration.Framework.TestData
-    ( errMsg404MalformedTxPayload )
+    ( errMsg404MalformedTxPayload, errMsg404WronglyEncodedTxPayload )
 import Test.Integration.Jormungandr.Scenario.API.Transactions
-    ( encodeTx, fixtureExternalTx )
+    ( encodeTx, encodeWronglyTx, fixtureExternalTx )
 
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -57,6 +57,17 @@ spec = do
         err `shouldBe` "Ok.\n"
         out `shouldBe` "{\n    \"id\": " ++ show expectedTxId ++ "\n}\n"
         code `shouldBe` ExitSuccess
+
+        let argWrong = T.unpack $ encodeWronglyTx (tx, wits) MsgTypeTransaction
+
+        -- post external transaction
+        (Exit code1, Stdout out1, Stderr err1) <-
+            postExternalTransactionViaCLI @t ctx [argWrong]
+
+        err1 `shouldContain` errMsg404WronglyEncodedTxPayload
+        out1 `shouldBe` ""
+        code1 `shouldBe` ExitFailure 1
+
 
     it "TRANS_EXTERNAL_CREATE_02 - proper single output transaction and \
        \wrong binary format" $ \ctx -> do

@@ -9,6 +9,7 @@ module Test.Integration.Jormungandr.Scenario.API.Transactions
     ( spec
     , fixtureExternalTx
     , encodeTx
+    , encodeWronglyTx
     ) where
 
 import Prelude
