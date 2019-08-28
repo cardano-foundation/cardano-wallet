@@ -20,6 +20,7 @@ import Cardano.Wallet.Primitive.Model
     ( applyBlock
     , applyBlocks
     , availableBalance
+    , blockHeight
     , currentTip
     , getState
     , initWallet
@@ -57,6 +58,8 @@ import Data.Bifunctor
     ( bimap )
 import Data.Maybe
     ( catMaybes )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Set
     ( Set, (\\) )
 import Data.Traversable
@@ -103,8 +106,14 @@ spec = do
         it "Incoming transactions have output addresses that belong to the wallet"
             (property prop_applyBlockTxHistoryIncoming)
 
-        it "Apply Block move the current tip forward"
+        it "applyBlock moves the current tip forward"
             (property prop_applyBlockCurrentTip)
+
+        it "Wallet starts with a block height of 0"
+            (property prop_initialBlockHeight)
+
+        it "applyBlock increases the blockHeight"
+            (property prop_applyBlockBlockHeight)
 
 
 {-------------------------------------------------------------------------------
@@ -171,6 +180,21 @@ prop_applyBlockCurrentTip (ApplyBlock s _ b) =
   where
     wallet = initWallet @_ @DummyTarget block0 s
     wallet' = snd $ applyBlock b wallet
+
+-- | applyBlock updates the block height
+prop_applyBlockBlockHeight :: ApplyBlock -> Property
+prop_applyBlockBlockHeight (ApplyBlock s _ b) =
+    property $ blockHeight wallet' === mapQuantity (+1) (blockHeight wallet)
+  where
+    wallet = initWallet @_ @DummyTarget block0 s
+    wallet' = snd $ applyBlock b wallet
+    mapQuantity f (Quantity a) = Quantity $ f a
+
+prop_initialBlockHeight :: WalletState -> Property
+prop_initialBlockHeight s =
+    property $ blockHeight wallet === Quantity 0
+  where
+    wallet = initWallet @_ @DummyTarget block0 s
 
 {-------------------------------------------------------------------------------
                Basic Model - See Wallet Specification, section 3

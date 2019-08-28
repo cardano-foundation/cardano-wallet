@@ -100,6 +100,7 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet
     , applyBlocks
     , availableUTxO
+    , blockHeight
     , currentTip
     , getPending
     , getState
@@ -699,6 +700,9 @@ newWalletLayer tracer bp db nw tl = do
             liftIO $ logInfo t $ nPending ||+" transaction(s) pending."
             liftIO $ logInfo t $
                 length txs ||+ " new transaction(s) discovered."
+            let (Quantity bh) = blockHeight cp'
+            liftIO $ logInfo t $
+                "block height is "+||bh||+""
             unless (null txs) $ liftIO $ logDebug t $
                 pretty $ blockListF (snd <$> Map.elems txs)
             DB.putCheckpoint db (PrimaryKey wid) cp'

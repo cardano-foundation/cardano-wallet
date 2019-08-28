@@ -320,6 +320,8 @@ mkCheckpoints numCheckpoints utxoSize = [ cp i | i <- [1..numCheckpoints]]
             (Hash $ label "prevBlockHash" i)
         )
         initDummyState
+        (Quantity $ fromIntegral i)
+
     utxo = Map.fromList $ zip (mkInputs utxoSize) (mkOutputs utxoSize)
 
 ----------------------------------------------------------------------------
