@@ -53,7 +53,9 @@ import Control.Arrow
 import Control.Monad
     ( forM_ )
 import Data.ByteArray.Encoding
-    ( Base (Base64), convertToBase )
+    ( Base (Base16, Base64), convertToBase )
+import Data.ByteString
+    ( ByteString )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Quantity
@@ -96,10 +98,15 @@ import Test.Integration.Framework.DSL
     , walletName
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403TxTooBig, errMsg404MalformedTxPayload, mnemonics15 )
+    ( errMsg403TxTooBig
+    , errMsg404MalformedTxPayload
+    , errMsg404WronglyEncodedTxPayload
+    , mnemonics15
+    )
 
 import qualified Cardano.Wallet.Api.Types as API
 import qualified Data.ByteArray as BA
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text.Encoding as T
@@ -176,6 +183,7 @@ spec = do
        \proper binary format" $ \ctx -> do
 
         let toSend = 1 :: Natural
+
         (tx, wits) <- fixtureExternalTx ctx toSend
         let encodedSignedTx = encodeTx (tx, wits) MsgTypeTransaction
         let payload = Json [json|{
@@ -185,6 +193,16 @@ spec = do
         verify r
             [ expectSuccess
             , expectResponseCode HTTP.status202
+            ]
+
+        let wronglyEncodedTx = encodeWronglyTx (tx, wits) MsgTypeTransaction
+        let payload1 = Json [json|{
+                "payload": #{wronglyEncodedTx}
+            }|]
+        r1 <- request @ApiTxId ctx postExternalTxEp Default payload1
+        verify r1
+            [ expectErrorMessage errMsg404WronglyEncodedTxPayload
+            , expectResponseCode HTTP.status404
             ]
 
     it "TRANS_EXTERNAL_CREATE_02 - proper single output transaction and \
@@ -344,6 +362,15 @@ fixtureExternalTx ctx toSend = do
 
 encodeTx :: (Tx, [TxWitness]) -> MessageType -> Text
 encodeTx (tx, wits) msgType =
+    let encode ((Tx _ inps' outs'), wits') msgType' = runPut
+            $ withHeader msgType'
+            $ putSignedTx inps' outs' wits'
+        toHex = convertToBase Base16 :: ByteString -> B8.ByteString
+    in T.decodeUtf8 $ toHex $ BL.toStrict $
+       encode (tx, wits) msgType
+
+encodeWronglyTx :: (Tx, [TxWitness]) -> MessageType -> Text
+encodeWronglyTx (tx, wits) msgType =
     let encode ((Tx _ inps' outs'), wits') msgType' = runPut
             $ withHeader msgType'
             $ putSignedTx inps' outs' wits'

@@ -112,8 +112,6 @@ import Data.Aeson
     )
 import Data.Bifunctor
     ( bimap, first )
-import Data.ByteArray.Encoding
-    ( Base (Base64), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.Either.Extra
@@ -378,14 +376,11 @@ instance ToJSON  WalletPutData where
 instance FromJSON PostExternalTransactionData where
     parseJSON = withObject "PostExternalTransactionData" $ \o -> do
         load <- o .: "payload"
-        case convertFromBase Base64 (T.encodeUtf8 load) of
-            Left e -> fail $ "Could not decode Base64 payload: " ++ show e
-            Right p -> pure $ PostExternalTransactionData p
+        pure $ PostExternalTransactionData $ T.encodeUtf8 load
 
 instance ToJSON PostExternalTransactionData where
     toJSON (PostExternalTransactionData p) =
-        let b64 = T.decodeUtf8 $ convertToBase Base64 p
-        in object ["payload" .= Aeson.String b64 ]
+        object ["payload" .= Aeson.String (T.decodeUtf8 p)]
 
 instance FromJSON WalletPutPassphraseData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
@@ -594,10 +589,7 @@ instance EncodeAddress t => ToText (AddressAmount t) where
         toText coins <> "@" <> encodeAddress proxy addr
 
 instance FromText PostExternalTransactionData where
-    fromText text = case convertFromBase Base64 (T.encodeUtf8 text) of
-        Left e -> Left . TextDecodingError $
-            "Could not decode Base64 payload: " <> show e
-        Right p -> pure $ PostExternalTransactionData p
+    fromText = pure . PostExternalTransactionData . T.encodeUtf8
 
 {-------------------------------------------------------------------------------
                              HTTPApiData instances

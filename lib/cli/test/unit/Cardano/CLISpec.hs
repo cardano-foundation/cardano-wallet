@@ -16,6 +16,7 @@ import Cardano.CLI
     , Port (..)
     , cli
     , cmdAddress
+    , cmdExternalTransaction
     , cmdMnemonic
     , cmdTransaction
     , cmdWallet
@@ -82,6 +83,7 @@ spec = do
                 <> cmdWallet @DummyTarget
                 <> cmdTransaction @DummyTarget
                 <> cmdAddress @DummyTarget
+                <> cmdExternalTransaction @DummyTarget
 
         let defaultPrefs = prefs (mempty <> columns 65)
 
@@ -115,6 +117,7 @@ spec = do
             , "  wallet                   "
             , "  transaction              "
             , "  address                  "
+            , "  external-transaction     "
             ]
 
         ["mnemonic", "--help"] `shouldShowUsage`
@@ -301,6 +304,18 @@ spec = do
             , "                           API. (default: 8090)"
             , "  --state STRING           only addresses with the given state:"
             , "                           either 'used' or 'unused'."
+            ]
+
+        ["external-transaction", "send", "--help"] `shouldShowUsage`
+            [ "Usage:  external-transaction send [--port INT] BINARY_BLOB"
+            , "  Send an externally-signed transaction."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --port INT               port used for serving the wallet"
+            , "                           API. (default: 8090)"
+            , "  BINARY_BLOB              hex-encoded binary blob of"
+            , "                           externally-signed transaction."
             ]
 
     describe "Can perform roundtrip textual encoding & decoding" $ do

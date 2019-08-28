@@ -671,7 +671,7 @@ instance LiftHandler ErrDecodeExternalTx where
             apiError err404 MalformedTxPayload $ mconcat
                 [ "I couldn't decode the payload that seems to be an "
                 , "externally-signed transaction due to: ", pretty err, ". "
-                , "Make sure to send a base64-encoded binary blob, in the "
+                , "Make sure to send a hex-encoded binary blob, in the "
                 , "proper binary format of the already-serialized transaction."
                 ]
         ErrDecodeExternalTxNotSupported ->
@@ -706,6 +706,12 @@ instance LiftHandler ErrSubmitExternalTx where
             { errHTTPCode = 404
             , errReasonPhrase = errReasonPhrase err404
             }
+        ErrSubmitExternalTxWrongPayloadEncoding ->
+            apiError err404 MalformedTxPayload $ mconcat
+                [ "I couldn't proceed with the payload due to wrong bytes"
+                , " encoding. Make sure your payload is hex-encoded."
+                ]
+
 
 instance LiftHandler ErrSubmitTx where
     handler = \case

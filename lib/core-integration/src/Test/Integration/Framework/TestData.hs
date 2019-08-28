@@ -54,6 +54,7 @@ module Test.Integration.Framework.TestData
     , errMsg403InputsDepleted
     , errMsg403TxTooBig
     , errMsg404MalformedTxPayload
+    , errMsg404WronglyEncodedTxPayload
     , errMsg403ZeroAmtOutput
     , errMsg405
     , errMsg406
@@ -266,8 +267,13 @@ errMsg403TxTooBig n = "I had to select " ++ show n ++ " inputs to construct the\
 errMsg404MalformedTxPayload :: String
 errMsg404MalformedTxPayload = "I couldn't decode the payload that seems to be an\
     \ externally-signed transaction due to: wrongly constructed binary blob. \
-    \Make sure to send a base64-encoded binary blob, in the proper binary \
+    \Make sure to send a hex-encoded binary blob, in the proper binary \
     \format of the already-serialized transaction."
+
+errMsg404WronglyEncodedTxPayload :: String
+errMsg404WronglyEncodedTxPayload =
+    "I couldn't proceed with the payload due to wrong bytes\
+    \ encoding. Make sure your payload is hex-encoded."
 
 errMsg403ZeroAmtOutput :: String
 errMsg403ZeroAmtOutput = "I can't validate coin selection because\

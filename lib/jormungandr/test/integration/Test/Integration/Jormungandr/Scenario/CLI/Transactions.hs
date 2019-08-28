@@ -37,6 +37,7 @@ import Test.Integration.Jormungandr.Scenario.API.Transactions
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
+
 spec :: forall t. (EncodeAddress t, DecodeAddress t, KnownCommand t)
      => SpecWith (Context t)
 spec = do

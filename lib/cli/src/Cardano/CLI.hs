@@ -859,10 +859,7 @@ walletNameArgument = argumentT $ mempty
 payloadArgument :: Parser PostExternalTransactionData
 payloadArgument = argumentT $ mempty
     <> metavar "BINARY_BLOB"
-    <> help (mconcat
-        [ "base64 binary blob of externally-signed"
-        , " transaction."
-        ])
+    <> help "hex-encoded binary blob of externally-signed transaction."
 
 -- | Helper for writing an option 'Parser' using a 'FromText' instance.
 optionT :: FromText a => Mod OptionFields a -> Parser a

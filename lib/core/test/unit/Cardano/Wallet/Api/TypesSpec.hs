@@ -100,6 +100,8 @@ import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
 import Data.Aeson.QQ
     ( aesonQQ )
+import Data.ByteArray.Encoding
+    ( Base (Base16), convertToBase )
 import Data.FileEmbed
     ( embedFile, makeRelativeToProject )
 import Data.List.NonEmpty
@@ -748,7 +750,8 @@ instance Arbitrary PostExternalTransactionData where
     arbitrary = do
         count <- choose (0, 32)
         bytes <- BS.pack <$> replicateM count arbitrary
-        return $ PostExternalTransactionData bytes
+        let hex = convertToBase Base16 bytes :: B8.ByteString
+        return $ PostExternalTransactionData hex
     shrink (PostExternalTransactionData bytes) =
         PostExternalTransactionData . BS.pack <$> shrink (BS.unpack bytes)
 
