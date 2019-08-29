@@ -653,7 +653,11 @@ Hash :: ByteString -> Hash
 newtype ShowFmt a
 ShowFmt :: a -> ShowFmt a
 
--- | Check whether an invariants holds or not.
+-- | Checks whether or not an invariant holds, by applying the given
+--   predicate to the given value.
+--   
+--   If the invariant does not hold (indicated by the predicate function
+--   returning <a>False</a>), throws an error with the specified message.
 --   
 --   <pre>
 --   &gt;&gt;&gt; invariant "not empty" [1,2,3] (not . null)
