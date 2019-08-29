@@ -509,9 +509,7 @@ spec = do
                             || upperBoundSucc slotRange == slotRange)
 
         let f sps r = fmap (slotStartTime sps) <$> slotRangeFromTimeRange sps r
-        let sharedDescription = " (where f = fmap slotStartTime . \
-            \slotRangeFromTimeRange)"
-        it ("f^n === f" ++ sharedDescription) $
+        it ("`slotStartTime . slotRangeFromTimeRange` is idempotent") $
             withMaxSuccess 1000 $ property $
                 \sps timeRange (NonNegative (n::Int)) -> do
                     let r = getUniformTime <$> timeRange
