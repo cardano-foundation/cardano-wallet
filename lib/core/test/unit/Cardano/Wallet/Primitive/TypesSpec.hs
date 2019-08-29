@@ -506,6 +506,19 @@ spec = do
                             || not (rangeHasUpperBound slotRange)
                             || upperBoundSucc slotRange == slotRange)
 
+        it ("`slotStartTime . slotRangeFromTimeRange` is idempotent") $
+            withMaxSuccess 1000 $ property $
+                \sps timeRange -> do
+                    let f = fmap (fmap (slotStartTime sps))
+                            . slotRangeFromTimeRange sps
+                    let r = getUniformTime <$> timeRange
+                    checkCoverage $
+                        cover 20 (isJust $ f r)
+                            "`slotRangeFromTimeRange` yielded a slot range" $
+                        cover 20 (isNothing $ f r)
+                            "`slotRangeFromTimeRange` yielded nothing" $
+                        (f =<< f r) === f r
+
     describe "Negative cases for types decoding" $ do
         it "fail fromText @AddressState \"unusedused\"" $ do
             let err = "Unable to decode the given value: \"unusedused\".\
