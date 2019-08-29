@@ -508,11 +508,11 @@ spec = do
 
         it ("`slotStartTime . slotRangeFromTimeRange` is idempotent") $
             withMaxSuccess 1000 $ property $
-                \sps timeRange (NonNegative (n::Int)) -> do
+                \sps timeRange -> do
                     let f = fmap (fmap (slotStartTime sps))
                             . slotRangeFromTimeRange sps
                     let r = getUniformTime <$> timeRange
-                    applyN n (>>= f) (f r) === f r
+                    (f =<< f r) === f r
 
     describe "Negative cases for types decoding" $ do
         it "fail fromText @AddressState \"unusedused\"" $ do
