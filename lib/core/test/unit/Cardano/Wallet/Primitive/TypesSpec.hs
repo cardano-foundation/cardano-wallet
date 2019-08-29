@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingVia #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
@@ -56,7 +55,6 @@ import Cardano.Wallet.Primitive.Types
     , isAfterRange
     , isBeforeRange
     , isSubrangeOf
-    , isSubrangeOf
     , isSubsetOf
     , isValidCoin
     , isWithinRange
@@ -109,8 +107,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( TextDecodingError (..), fromText )
-import Data.Time.Clock
-    ( UTCTime (..) )
+import Data.Time
+    ( UTCTime )
 import Data.Time.Utils
     ( utcTimePred, utcTimeSucc )
 import Fmt
@@ -143,7 +141,7 @@ import Test.QuickCheck.Arbitrary.Generic
 import Test.Text.Roundtrip
     ( textRoundtrip )
 import Test.Utils.Time
-    ( UniformTime (..), genUniformTime, getUniformTime )
+    ( genUniformTime, getUniformTime )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
