@@ -511,13 +511,6 @@ spec = do
         let f sps r = fmap (slotStartTime sps) <$> slotRangeFromTimeRange sps r
         let sharedDescription = " (where f = fmap slotStartTime . \
             \slotRangeFromTimeRange)"
-        it ("f timeRange ⊆ timeRange" ++ sharedDescription) $
-            withMaxSuccess 1000 $ property $
-                \sps timeRange -> let r = getUniformTime <$> timeRange in
-                    cover 10 (isJust $ f sps r) "slot range exists" $ do
-                    case f sps r of
-                        Just r' -> r' `isSubrangeOf` r
-                        Nothing -> True
         it ("f^n === f" ++ sharedDescription) $
             withMaxSuccess 1000 $ property $
                 \sps timeRange (NonNegative (n::Int)) -> do
