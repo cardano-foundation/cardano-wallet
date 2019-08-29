@@ -10,7 +10,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -22,8 +21,6 @@ module Cardano.Wallet.DBSpec
     , withDB
     , GenTxHistory (..)
     , KeyValPairs (..)
-    , TxHistory
-    , filterTxHistory
     ) where
 
 import Prelude
@@ -37,10 +34,12 @@ import Cardano.Wallet.DB
     , PrimaryKey (..)
     , cleanDB
     )
+import Cardano.Wallet.DB.Model
+    ( TxHistory, filterTxHistory )
 import Cardano.Wallet.DB.Sqlite
     ( PersistTx (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget, Tx (..), block0 )
+    ( DummyTarget, block0 )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
@@ -80,7 +79,6 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Direction (..)
     , Hash (..)
-    , Range (..)
     , SlotId (..)
     , SortOrder (..)
     , TxIn (..)
@@ -95,7 +93,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletPassphraseInfo (..)
     , WalletState (..)
     , isPending
-    , isWithinRange
     , wholeRange
     )
 import Cardano.Wallet.Unsafe
@@ -114,8 +111,6 @@ import Data.Functor
     ( ($>) )
 import Data.Functor.Identity
     ( Identity (..) )
-import Data.Ord
-    ( Down (..) )
 import Data.Quantity
     ( Percentage, Quantity (..), mkPercentage )
 import Data.Typeable
@@ -165,6 +160,8 @@ import Test.QuickCheck.Monadic
 import Test.Utils.Time
     ( genUniformTime )
 
+import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
+    ( Tx (..) )
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
@@ -198,7 +195,7 @@ sortedUnions :: Ord k => [(k, GenTxHistory)] -> [Identity GenTxHistory]
 sortedUnions = map (Identity . sort' . runIdentity) . unions
   where
     sort' = GenTxHistory
-      . filterTxHistory sortOrder wholeRange
+      . filterTxHistory @DummyTarget sortOrder wholeRange
       . unGenTxHistory
 
 -- | Execute an action once per key @k@ present in the given list
@@ -208,23 +205,6 @@ once xs = forM (Map.toList (Map.fromList xs))
 -- | Like 'once', but discards the result
 once_ :: (Ord k, Monad m) => [(k,v)] -> ((k,v) -> m a) -> m ()
 once_ xs = void . once xs
-
--- | Shorthand for the readTxHistory result type.
-type TxHistory = [(Hash "Tx", (Tx, TxMeta))]
-
--- | Apply optional filters on slotId and sort using the default sort order
--- (first time/slotId, then by TxId) to a 'TxHistory'.
-filterTxHistory :: SortOrder -> Range SlotId -> TxHistory -> TxHistory
-filterTxHistory order range =
-    filter ((`isWithinRange` range) . slotId . snd . snd)
-    . (case order of
-        Ascending -> reverse
-        Descending -> id)
-    . sortBySlot
-    . sortByTxId
-  where
-    sortBySlot = L.sortOn (Down . slotId . snd . snd)
-    sortByTxId = L.sortOn fst
 
 newtype KeyValPairs k v = KeyValPairs [(k, v)]
     deriving (Generic, Show, Eq)
@@ -248,8 +228,6 @@ instance Arbitrary (Wallet (SeqState DummyTarget) DummyTarget) where
 instance Arbitrary (Wallet (RndState DummyTarget) DummyTarget) where
     shrink w = [updateState s w | s <- shrink (getState w)]
     arbitrary = initWallet block0 <$> arbitrary
-
-deriving instance Show (PrimaryKey WalletId)
 
 instance Arbitrary Address where
     -- No Shrinking
@@ -335,16 +313,16 @@ instance Arbitrary (Index 'Hardened 'AddressK) where
     arbitrary = arbitraryBoundedEnum
 
 instance PersistTx DummyTarget where
-    resolvedInputs = flip zip (repeat Nothing) . inputs
-    mkTx _ inps = Tx (fst <$> inps)
+    resolvedInputs = flip zip (repeat Nothing) . DummyTarget.inputs
+    mkTx _ inps = DummyTarget.Tx (fst <$> inps)
 
 -- instance KeyToAddress DummyTarget SeqKey where
 --     keyToAddress = Address . unXPub . getKey . unSeqKey
 
-instance Arbitrary Tx where
-    shrink (Tx ins outs) =
-        [Tx ins' outs | ins' <- shrinkList' ins ] ++
-        [Tx ins outs' | outs' <- shrinkList' outs ]
+instance Arbitrary DummyTarget.Tx where
+    shrink (DummyTarget.Tx ins outs) =
+        [DummyTarget.Tx ins' outs | ins' <- shrinkList' ins ] ++
+        [DummyTarget.Tx ins outs' | outs' <- shrinkList' outs ]
       where
         shrinkList' xs  = filter (not . null)
             [ take n xs | Positive n <- shrink (Positive $ length xs) ]
@@ -391,14 +369,14 @@ instance Arbitrary TxOut where
         <$> arbitrary
         <*> arbitrary
 
-newtype GenTxHistory = GenTxHistory { unGenTxHistory :: TxHistory }
+newtype GenTxHistory = GenTxHistory { unGenTxHistory :: TxHistory DummyTarget }
     deriving stock (Show, Eq)
     deriving newtype (Semigroup, Monoid)
 
 instance Arbitrary GenTxHistory where
     shrink (GenTxHistory h) = map GenTxHistory (shrinkList shrinkOneTx h)
       where
-        shrinkOneTx :: (Hash "Tx", (Tx, TxMeta)) -> [(Hash "Tx", (Tx, TxMeta))]
+        shrinkOneTx :: (Hash "Tx", (DummyTarget.Tx, TxMeta)) -> [(Hash "Tx", (DummyTarget.Tx, TxMeta))]
         shrinkOneTx (txid, (tx, meta)) =
             [(txid, (tx', meta)) | tx' <- shrink tx]
 
@@ -412,10 +390,10 @@ instance Arbitrary GenTxHistory where
         txs <- filter (not . isPending . snd) <$> arbitrary
         return $ (\(tx, meta) -> (mockTxId tx, (tx, meta))) <$> txs
       where
-        mockTxId :: Tx -> Hash "Tx"
+        mockTxId :: DummyTarget.Tx -> Hash "Tx"
         mockTxId = Hash . B8.pack . show
 
-        sortTxHistory = filterTxHistory sortOrder wholeRange
+        sortTxHistory = filterTxHistory @DummyTarget sortOrder wholeRange
 
 instance Arbitrary UTxO where
     shrink (UTxO utxo) = UTxO <$> shrink utxo

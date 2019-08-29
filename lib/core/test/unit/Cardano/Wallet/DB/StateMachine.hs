@@ -57,8 +57,26 @@ import Cardano.Wallet.DB
     , PrimaryKey (..)
     , cleanDB
     )
+import Cardano.Wallet.DB.Model
+    ( Database
+    , Err (..)
+    , TxHistory
+    , emptyDatabase
+    , mCleanDB
+    , mCreateWallet
+    , mListWallets
+    , mPutCheckpoint
+    , mPutPrivateKey
+    , mPutTxHistory
+    , mPutWalletMeta
+    , mReadCheckpoint
+    , mReadPrivateKey
+    , mReadTxHistory
+    , mReadWalletMeta
+    , mRemoveWallet
+    )
 import Cardano.Wallet.DBSpec
-    ( GenTxHistory (..), TxHistory, filterTxHistory )
+    ( GenTxHistory (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( DummyTarget, Tx (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -83,7 +101,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Crypto.Hash
-    ( hash )
+    ( Blake2b_160, Digest, digestFromByteString, hash )
 import Data.Bifunctor
     ( bimap, first )
 import Data.Foldable
@@ -146,6 +164,7 @@ import Test.StateMachine.Types
     ( Command (..), Commands (..), ParallelCommands, ParallelCommandsF (..) )
 
 import qualified Control.Foldl as Foldl
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 import qualified Data.Map as Map
@@ -160,6 +179,10 @@ import qualified Test.StateMachine.Types.Rank2 as Rank2
   Mock implementation
 -------------------------------------------------------------------------------}
 
+-- | The mock state type uses the model database with mock wallet ID and key
+-- types.
+type Mock s = Database MWid s DummyTarget MPrivKey
+
 -- | Shortcut for wallet type.
 type MWallet s = Wallet s DummyTarget
 
@@ -170,9 +193,15 @@ newtype MWid = MWid String
 widPK :: MWid -> PrimaryKey WalletId
 widPK = PrimaryKey . unMockWid
 
--- | Convert a mock wallet ID to a real one by hashing it.
+-- | Convert a mock wallet ID to a real one by hashing it, then splicing the
+-- mock ID in front so that both ID types are sorted in the same order.
 unMockWid :: MWid -> WalletId
-unMockWid (MWid wid) = WalletId . hash . B8.pack $ wid
+unMockWid (MWid wid) = WalletId m
+  where
+    Just m = digestFromByteString spliced
+    spliced = wid' <> B8.drop (B8.length wid') hashed
+    hashed = BA.convert (hash wid' :: Digest Blake2b_160)
+    wid' = B8.pack wid
 
 -- | Represent (XPrv, Hash) as a string.
 type MPrivKey = String
@@ -193,103 +222,6 @@ toMockPrivKey
     -> MPrivKey
 toMockPrivKey (_, Hash h) = B8.unpack h
 
--- | Mock representation of a 'DBLayer'
-data Mock s = M
-    { checkpoints :: Map MWid (MWallet s)
-    , metas :: Map MWid WalletMetadata
-    , txs :: Map MWid TxHistory
-    , privateKeys :: Map MWid MPrivKey
-    } deriving (Show, Generic)
-
-emptyMock :: Mock s
-emptyMock = M mempty mempty mempty mempty
-
-type MockOp s a = Mock s -> (Either (Err MWid) a, Mock s)
-
-mCleanDB :: MockOp s ()
-mCleanDB _ = (Right (), emptyMock)
-
-mCreateWallet :: MWid -> MWallet s -> WalletMetadata -> MockOp s ()
-mCreateWallet wid wal meta m@(M cp metas txs pks)
-    | wid `Map.member` cp = (Left (WalletAlreadyExists wid), m)
-    | otherwise =
-        ( Right ()
-        , M
-            { checkpoints = Map.insert wid wal cp
-            , metas = Map.insert wid meta metas
-            , txs = txs
-            , privateKeys = pks
-            }
-        )
-
-mRemoveWallet :: MWid -> MockOp s ()
-mRemoveWallet wid m@(M cp metas txs pk)
-    | wid `Map.member` cp =
-        ( Right ()
-        , M
-            { checkpoints = Map.delete wid cp
-            , metas = Map.delete wid metas
-            , txs = Map.delete wid txs
-            , privateKeys = Map.delete wid pk
-            }
-        )
-    | otherwise = (Left (NoSuchWallet wid), m)
-
-mListWallets :: MockOp s [MWid]
-mListWallets m@(M cp _ _ _) = (Right (L.sortOn unMockWid $ Map.keys cp), m)
-
-mPutCheckpoint :: MWid -> MWallet s -> MockOp s ()
-mPutCheckpoint wid wal m@(M cp metas txs pk)
-    | wid `Map.member` cp = (Right (), M (Map.insert wid wal cp) metas txs pk)
-    | otherwise = (Left (NoSuchWallet wid), m)
-
-mReadCheckpoint :: MWid -> MockOp s (Maybe (MWallet s))
-mReadCheckpoint wid m@(M cp _ _ _) = (Right (Map.lookup wid cp), m)
-
-mPutWalletMeta :: MWid -> WalletMetadata -> MockOp s ()
-mPutWalletMeta wid meta m@(M cp metas txs pk)
-    | wid `Map.member` cp = (Right (), M cp (Map.insert wid meta metas) txs pk)
-    | otherwise = (Left (NoSuchWallet wid), m)
-
-mReadWalletMeta :: MWid -> MockOp s (Maybe WalletMetadata)
-mReadWalletMeta wid m@(M _ meta _ _) = (Right (Map.lookup wid meta), m)
-
-mPutTxHistory :: MWid -> TxHistory -> MockOp s ()
-mPutTxHistory wid txList m@(M cp metas txs pk)
-    | wid `Map.member` cp = (Right (), M cp metas txs'' pk)
-    | otherwise           = (Left (NoSuchWallet wid), m)
-  where
-    txs' = Map.fromList txList
-
-    -- Add tx history for the wallet, and then update any Tx in the mock
-    -- database that appeared in the given TxHistory.
-    txs'' = Map.toList . Map.mapWithKey updateTxs . Map.fromList <$> Map.alter appendTxs wid txs
-
-    -- Add tx history, replacing entries with the same TxId.
-    appendTxs = Just . Map.toList . (txs' <>) . Map.fromList . fromMaybe mempty
-
-    -- Update a Tx of the given id, if it is in the given TxHistory.
-    updateTxs :: Hash "Tx" -> (Tx, TxMeta) -> (Tx, TxMeta)
-    updateTxs txid (tx, meta) = (maybe tx fst (Map.lookup txid txs'), meta)
-
-mReadTxHistory :: MWid -> SortOrder -> Range SlotId -> MockOp s TxHistory
-mReadTxHistory wid order range m@(M cp _ txs _)
-    | wid `Map.member` cp = (Right txHistory, m)
-    | otherwise = (Right mempty, m)
-  where
-    txHistory = filterTxHistory order range
-        $ fromMaybe mempty (Map.lookup wid txs)
-
-mPutPrivateKey :: MWid -> MPrivKey -> MockOp s ()
-mPutPrivateKey wid pk' m@(M cp metas txs pk)
-    | wid `Map.member` cp = (Right (), M cp metas txs (Map.insert wid pk' pk))
-    | otherwise = (Left (NoSuchWallet wid), m)
-
-mReadPrivateKey :: MWid -> MockOp s (Maybe MPrivKey)
-mReadPrivateKey wid m@(M cp _ _ pk)
-    | wid `Map.member` cp = (Right (Map.lookup wid pk), m)
-    | otherwise = (Right Nothing, m)
-
 {-------------------------------------------------------------------------------
   Language
 -------------------------------------------------------------------------------}
@@ -303,7 +235,7 @@ data Cmd s wid
     | ReadCheckpoint wid
     | PutWalletMeta wid WalletMetadata
     | ReadWalletMeta wid
-    | PutTxHistory wid TxHistory
+    | PutTxHistory wid (TxHistory DummyTarget)
     | ReadTxHistory wid SortOrder (Range SlotId)
     | PutPrivateKey wid MPrivKey
     | ReadPrivateKey wid
@@ -315,7 +247,7 @@ data Success s wid
     | WalletIds [wid]
     | Checkpoint (Maybe (MWallet s))
     | Metadata (Maybe WalletMetadata)
-    | TxHistory TxHistory
+    | TxHistory (TxHistory DummyTarget)
     | PrivateKey (Maybe MPrivKey)
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
@@ -332,21 +264,6 @@ instance Foldable (Resp s) where
 instance Traversable (Resp s) where
     traverse f (Resp (Right r)) = Resp . Right <$> traverse f r
     traverse f (Resp (Left e)) = Resp . Left <$> traverse f e
-
-{-------------------------------------------------------------------------------
-  Errors
--------------------------------------------------------------------------------}
-
-data Err wid
-    = NoSuchWallet wid
-    | WalletAlreadyExists wid
-    deriving (Show, Eq, Functor, Foldable, Traversable)
-
-errNoSuchWallet :: ErrNoSuchWallet -> Err WalletId
-errNoSuchWallet (ErrNoSuchWallet wid) = NoSuchWallet wid
-
-errWalletAlreadyExists :: ErrWalletAlreadyExists -> Err WalletId
-errWalletAlreadyExists (ErrWalletAlreadyExists wid) = WalletAlreadyExists wid
 
 {-------------------------------------------------------------------------------
   Interpreter: mock implementation
@@ -371,7 +288,7 @@ runMock = \case
     ReadWalletMeta wid ->
         first (Resp . fmap Metadata) . mReadWalletMeta wid
     PutTxHistory wid txs ->
-        first (Resp . fmap Unit) . mPutTxHistory wid txs
+        first (Resp . fmap Unit) . mPutTxHistory wid (Map.fromList txs)
     ReadTxHistory wid order range ->
         first (Resp . fmap TxHistory) . mReadTxHistory wid order range
     PutPrivateKey wid pk ->
@@ -384,9 +301,7 @@ runMock = \case
 -------------------------------------------------------------------------------}
 
 -- | Type alias for the 'DBLayer', just to reduce noise in type signatures. This
--- 'DBLayer' is specialized to a dummy node backend, but uses the real 'SeqState'
--- , so that the functions to store/load SeqState are tested. Using concrete
--- types avoids infecting all the types and functions with extra type parameters.
+-- 'DBLayer' is specialized to a dummy node backend.
 type DBLayerTest s k = DBLayer IO s DummyTarget k
 
 runIO
@@ -419,7 +334,8 @@ runIO db = fmap Resp . go
         ReadWalletMeta wid ->
             Right . Metadata <$> readWalletMeta db (PrimaryKey wid)
         PutTxHistory wid txs ->
-            catchNoSuchWallet Unit $ putTxHistory db (PrimaryKey wid) (Map.fromList txs)
+            catchNoSuchWallet Unit $
+                putTxHistory db (PrimaryKey wid) (Map.fromList txs)
         ReadTxHistory wid order range ->
             Right . TxHistory <$> readTxHistory db (PrimaryKey wid) order range
         PutPrivateKey wid pk ->
@@ -433,6 +349,12 @@ runIO db = fmap Resp . go
         fmap (bimap errWalletAlreadyExists f) . runExceptT
     catchNoSuchWallet f =
         fmap (bimap errNoSuchWallet f) . runExceptT
+
+    errNoSuchWallet :: ErrNoSuchWallet -> Err WalletId
+    errNoSuchWallet (ErrNoSuchWallet wid) = NoSuchWallet wid
+
+    errWalletAlreadyExists :: ErrWalletAlreadyExists -> Err WalletId
+    errWalletAlreadyExists (ErrWalletAlreadyExists wid) = WalletAlreadyExists wid
 
     unPrimaryKey :: PrimaryKey key -> key
     unPrimaryKey (PrimaryKey key) = key
@@ -473,7 +395,7 @@ data Model s r
 deriving instance Show1 r => Show (Model s r)
 
 initModel :: Model s r
-initModel = Model emptyMock []
+initModel = Model emptyDatabase []
 
 toMock :: (Functor (f s), Eq1 r) => Model s r -> f s :@ r -> f s MWid
 toMock (Model _ wids) (At fr) = fmap (wids !) fr
@@ -670,7 +592,9 @@ instance Traversable t => Rank2.Traversable (At t) where
         lift f (QSM.Reference x) = QSM.Reference <$> f x
 
 deriving instance Show s => ToExpr (Model s Concrete)
-deriving instance Show s => ToExpr (Mock s)
+
+instance ToExpr (Mock s) where
+    toExpr = defaultExprViaShow
 
 instance ToExpr WalletId where
     toExpr = defaultExprViaShow
@@ -849,7 +773,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
             | otherwise = Nothing
 
     readTxHistory
-        :: (TxHistory -> Bool)
+        :: (TxHistory DummyTarget -> Bool)
         -> Tag
         -> Fold (Event s Symbolic) (Maybe Tag)
     readTxHistory check res = Fold update False (extractf res)
