@@ -514,8 +514,7 @@ spec = do
                     let f = fmap (fmap (slotStartTime sps))
                             . slotRangeFromTimeRange sps
                     let r = getUniformTime <$> timeRange
-                    let r' = f r
-                    applyN n (>>= f) r' === r'
+                    applyN n (>>= f) (f r) === f r
 
     describe "Negative cases for types decoding" $ do
         it "fail fromText @AddressState \"unusedused\"" $ do
