@@ -2009,6 +2009,84 @@ instance GHC.Classes.Eq s => GHC.Classes.Eq (Cardano.Wallet.Primitive.Model.Wall
 instance Control.DeepSeq.NFData (Cardano.Wallet.Primitive.Model.Wallet s t)
 
 
+-- | An implementation of the wallet database using only pure functions.
+--   
+--   These functions and types model the behaviour of the SQLite database
+--   backend, and are used for QuickCheck state machine testing, and the
+--   MVar database backend.
+module Cardano.Wallet.DB.Model
+
+-- | Model database, parameterised by the wallet ID type, the wallet AD
+--   state type, the target backend, and the private key type.
+--   
+--   Tne type parameters exist so that simpler mock types can be used in
+--   place of actual wallet types.
+data Database wid s t xprv
+Database :: !Map wid (WalletDatabase s t xprv) -> Map (Hash "Tx") (Tx t) -> Database wid s t xprv
+
+-- | Wallet-related information.
+[wallets] :: Database wid s t xprv -> !Map wid (WalletDatabase s t xprv)
+
+-- | In the database, transactions are global and not associated with any
+--   particular wallet.
+[txs] :: Database wid s t xprv -> Map (Hash "Tx") (Tx t)
+
+-- | Model database record for a single wallet.
+data WalletDatabase s t xprv
+WalletDatabase :: ![Wallet s t] -> !WalletMetadata -> !Map (Hash "Tx") TxMeta -> !Maybe xprv -> WalletDatabase s t xprv
+[checkpoints] :: WalletDatabase s t xprv -> ![Wallet s t]
+[metadata] :: WalletDatabase s t xprv -> !WalletMetadata
+[txHistory] :: WalletDatabase s t xprv -> !Map (Hash "Tx") TxMeta
+[xprv] :: WalletDatabase s t xprv -> !Maybe xprv
+
+-- | Produces an empty model database.
+emptyDatabase :: Ord wid => Database wid s t xprv
+
+-- | Shorthand for the readTxHistory result type.
+type TxHistory t = [(Hash "Tx", (Tx t, TxMeta))]
+
+-- | Shorthand for the putTxHistory argument type.
+type TxHistoryMap t = Map (Hash "Tx") (Tx t, TxMeta)
+
+-- | Apply optional filters on slotId and sort using the default sort order
+--   (first time/slotId, then by TxId) to a <a>TxHistory</a>.
+filterTxHistory :: SortOrder -> Range SlotId -> TxHistory t -> TxHistory t
+
+-- | A database model operation, which is a function that takes a database
+--   and returns: * a value, which is a query of the database, or an error;
+--   and * a (possibly) modified database.
+type ModelOp wid s t xprv a = Database wid s t xprv -> (Either (Err wid) a, Database wid s t xprv)
+
+-- | All of the possible errors that any of the model database functions
+--   might return.
+data Err wid
+NoSuchWallet :: wid -> Err wid
+WalletAlreadyExists :: wid -> Err wid
+mCleanDB :: Ord wid => ModelOp wid s t xprv ()
+mCreateWallet :: Ord wid => wid -> Wallet s t -> WalletMetadata -> ModelOp wid s t xprv ()
+mRemoveWallet :: Ord wid => wid -> ModelOp wid s t xprv ()
+mListWallets :: Ord wid => ModelOp wid s t xprv [wid]
+mPutCheckpoint :: Ord wid => wid -> Wallet s t -> ModelOp wid s t xprv ()
+mReadCheckpoint :: Ord wid => wid -> ModelOp wid s t xprv (Maybe (Wallet s t))
+mPutWalletMeta :: Ord wid => wid -> WalletMetadata -> ModelOp wid s t xprv ()
+mReadWalletMeta :: Ord wid => wid -> ModelOp wid s t xprv (Maybe WalletMetadata)
+mPutTxHistory :: Ord wid => wid -> TxHistoryMap t -> ModelOp wid s t xprv ()
+mReadTxHistory :: forall wid s t xprv. Ord wid => wid -> SortOrder -> Range SlotId -> ModelOp wid s t xprv (TxHistory t)
+mPutPrivateKey :: Ord wid => wid -> xprv -> ModelOp wid s t xprv ()
+mReadPrivateKey :: Ord wid => wid -> ModelOp wid s t xprv (Maybe xprv)
+instance Data.Traversable.Traversable Cardano.Wallet.DB.Model.Err
+instance Data.Foldable.Foldable Cardano.Wallet.DB.Model.Err
+instance GHC.Base.Functor Cardano.Wallet.DB.Model.Err
+instance GHC.Classes.Eq wid => GHC.Classes.Eq (Cardano.Wallet.DB.Model.Err wid)
+instance GHC.Show.Show wid => GHC.Show.Show (Cardano.Wallet.DB.Model.Err wid)
+instance GHC.Generics.Generic (Cardano.Wallet.DB.Model.Database wid s t xprv)
+instance GHC.Generics.Generic (Cardano.Wallet.DB.Model.WalletDatabase s t xprv)
+instance (GHC.Classes.Eq s, GHC.Classes.Eq xprv) => GHC.Classes.Eq (Cardano.Wallet.DB.Model.WalletDatabase s t xprv)
+instance GHC.Show.Show xprv => GHC.Show.Show (Cardano.Wallet.DB.Model.WalletDatabase s t xprv)
+instance (GHC.Show.Show (Cardano.Wallet.Primitive.Types.Tx t), GHC.Show.Show wid, GHC.Show.Show xprv) => GHC.Show.Show (Cardano.Wallet.DB.Model.Database wid s t xprv)
+instance (GHC.Classes.Eq (Cardano.Wallet.Primitive.Types.Tx t), GHC.Classes.Eq wid, GHC.Classes.Eq xprv, GHC.Classes.Eq s) => GHC.Classes.Eq (Cardano.Wallet.DB.Model.Database wid s t xprv)
+
+
 -- | Database / Persistence layer for the wallet backend. This is where we
 --   define the interface allowing us to store and fetch various data on
 --   our wallets.
@@ -2104,20 +2182,24 @@ newtype ErrWalletAlreadyExists
 ErrWalletAlreadyExists :: WalletId -> ErrWalletAlreadyExists
 instance GHC.Classes.Ord key => GHC.Classes.Ord (Cardano.Wallet.DB.PrimaryKey key)
 instance GHC.Classes.Eq key => GHC.Classes.Eq (Cardano.Wallet.DB.PrimaryKey key)
+instance GHC.Show.Show key => GHC.Show.Show (Cardano.Wallet.DB.PrimaryKey key)
 instance GHC.Show.Show Cardano.Wallet.DB.ErrWalletAlreadyExists
 instance GHC.Classes.Eq Cardano.Wallet.DB.ErrWalletAlreadyExists
 instance GHC.Show.Show Cardano.Wallet.DB.ErrNoSuchWallet
 instance GHC.Classes.Eq Cardano.Wallet.DB.ErrNoSuchWallet
 
 
--- | Dummy implementation of the database-layer, using MVar. This may be
---   good for state-machine testing in order to compare it with an
---   implementation on a real data store.
+-- | Dummy implementation of the database-layer, using <a>MVar</a>. This
+--   may be good for testing to compare with an implementation on a real
+--   data store, or to use when compiling the wallet for targets which
+--   don't have SQLite.
 module Cardano.Wallet.DB.MVar
 
 -- | Instantiate a new in-memory "database" layer that simply stores data
 --   in a local MVar. Data vanishes if the software is shut down.
 newDBLayer :: forall s t k. NFData (k  'RootK XPrv) => IO (DBLayer IO s t k)
+instance GHC.Show.Show Cardano.Wallet.DB.MVar.MVarDBError
+instance GHC.Exception.Type.Exception Cardano.Wallet.DB.MVar.MVarDBError
 
 
 -- | Provides the API of Coin Selection algorithm and Fee Calculation This
