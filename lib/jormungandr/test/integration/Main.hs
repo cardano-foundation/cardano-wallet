@@ -23,7 +23,7 @@ import Cardano.BM.Setup
 import Cardano.BM.Trace
     ( Trace, appendName )
 import Cardano.Faucet
-    ( initFaucet )
+    ( block0H, initFaucet )
 import Cardano.Launcher
     ( Command (..), StdStream (..), launch )
 import Cardano.Wallet
@@ -41,9 +41,9 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..) )
+    ( Hash )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex, unsafeRunExceptT )
+    ( unsafeRunExceptT )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
@@ -87,10 +87,10 @@ import qualified Cardano.Wallet.Jormungandr.NetworkSpec as Network
 import qualified Cardano.Wallet.Jormungandr.Transaction as Jormungandr
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
-import qualified Test.Integration.Jormungandr.Scenario.API.Transactions as TransactionsAPIJormungandr
+import qualified Test.Integration.Jormungandr.Scenario.API.Transactions as TransactionsApiJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Launcher as LauncherCLI
 import qualified Test.Integration.Jormungandr.Scenario.CLI.Server as ServerCLI
-import qualified Test.Integration.Jormungandr.Scenario.CLI.Transactions as TransactionsCLIJormungandr
+import qualified Test.Integration.Jormungandr.Scenario.CLI.Transactions as TransactionsCliJormungandr
 import qualified Test.Integration.Scenario.API.Addresses as Addresses
 import qualified Test.Integration.Scenario.API.Transactions as Transactions
 import qualified Test.Integration.Scenario.API.Wallets as Wallets
@@ -118,9 +118,9 @@ main = hspec $ do
         describe "PR_DISABLED Addresses API endpoint tests" Addresses.spec
         describe "PR_DISABLED Transactions API endpoint tests" Transactions.spec
         describe "Transactions API endpoint tests (Jormungandr specific)"
-            (TransactionsAPIJormungandr.spec @t)
+            (TransactionsApiJormungandr.spec @t)
         describe "Transactions CLI endpoint tests (Jormungandr specific)"
-            (TransactionsCLIJormungandr.spec @t)
+            (TransactionsCliJormungandr.spec @t)
         describe "PR_DISABLED Wallets API endpoint tests" Wallets.spec
         -- Command-Line e2e Testing
         describe "Addresses CLI tests" (AddressesCLI.spec @t)
@@ -198,9 +198,6 @@ cardanoWalletServer mlisten = do
   where
     jormungandrUrl :: BaseUrl
     jormungandrUrl = BaseUrl Http "localhost" 8080 "/api"
-    block0H = Hash $ unsafeFromHex
-        "301b1c634aa7b586da7243dd66a61bde904bc1755e9a20a9b5b1b0064e70d904"
-        -- ^ jcli genesis hash --input test/data/jormungandr/block0.bin
 
 -- Instantiate a new 'NetworkLayer' for 'Jormungandr', and fetches the
 -- genesis block for starting a 'WalletLayer'.
@@ -208,13 +205,13 @@ newNetworkLayer
     :: BaseUrl
     -> Hash "Genesis"
     -> IO (NetworkLayer (Jormungandr n) IO, BlockchainParameters (Jormungandr n))
-newNetworkLayer url block0H = do
+newNetworkLayer url block0 = do
     mgr <- newManager defaultManagerSettings
     let jormungandr = mkJormungandrLayer mgr url
     let nl = Jormungandr.mkNetworkLayer jormungandr
     waitForConnection nl defaultRetryPolicy
     blockchainParams <- unsafeRunExceptT $
-        getInitialBlockchainParameters jormungandr (coerce block0H)
+        getInitialBlockchainParameters jormungandr (coerce block0)
     return (nl, blockchainParams)
 
 mkFeeEstimator :: FeePolicy -> TxDescription -> (Natural, Natural)

@@ -283,7 +283,7 @@ x-transactionOutputs: &transactionOutputs
       amount: *transactionAmount
 
 x-signedTransactionBlob: &signedTransactionBlob
-  description: A hex-encoded binary blob of the already-signed transaction.
+  description: Signed transaction message binary blob.
   type: string
   format: binary
 
@@ -1043,11 +1043,11 @@ paths:
     post:
       operationId: postExternalTransaction
       tags: ["Transactions"]
-      summary: Send External Transaction
+      summary: Submit External Transaction
       description: |
-        <p align="right">status: <strong>experimental</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
-        Send transaction created and signed outside of the wallet.
+        Submits a transaction that was created and signed outside of cardano-wallet.
       parameters:
         - <<: *parametersBody
           schema: *ApiPostExternalTransactionData

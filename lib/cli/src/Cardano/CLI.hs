@@ -514,7 +514,7 @@ cmdTransaction = command "transaction" $ info (helper <*> cmds) mempty
         <> cmdTransactionCreate @t
         <> cmdTransactionFees @t
         <> cmdTransactionList @t
-        <> cmdExternalTransactionSend @t
+        <> cmdTransactionSubmit @t
 
 -- | Arguments for 'transaction create' command
 data TransactionCreateArgs t = TransactionCreateArgs
@@ -595,26 +595,24 @@ cmdTransactionList = command "list" $ info (helper <*> cmd) $ mempty
             mTimeRangeEnd
             (ApiT <$> mOrder)
 
-
--- | Arguments for 'transaction create' command
-data ExternalTransactionSendArgs = ExternalTransactionSendArgs
+-- | Arguments for 'transaction submit' command
+data TransactionSubmitArgs = TransactionSubmitArgs
     { _port :: Port "Wallet"
     , _payload :: PostExternalTransactionData
     }
 
-cmdExternalTransactionSend
+cmdTransactionSubmit
     :: forall t. (DecodeAddress t, EncodeAddress t)
     => Mod CommandFields (IO ())
-cmdExternalTransactionSend = command "submit" $ info (helper <*> cmd) $ mempty
+cmdTransactionSubmit = command "submit" $ info (helper <*> cmd) $ mempty
     <> progDesc "Submit an externally-signed transaction."
   where
-    cmd = fmap exec $ ExternalTransactionSendArgs
+    cmd = fmap exec $ TransactionSubmitArgs
         <$> portOption
-        <*> payloadArgument
-    exec (ExternalTransactionSendArgs wPort wPayload) = do
+        <*> transactionSubmitPayloadArgument
+    exec (TransactionSubmitArgs wPort wPayload) = do
         runClient wPort Aeson.encodePretty $
             postExternalTransaction (walletClient @t) wPayload
-
 
 {-------------------------------------------------------------------------------
                             Commands - 'address'
@@ -844,8 +842,8 @@ walletNameArgument = argumentT $ mempty
     <> metavar "STRING"
 
 -- | <payload=BINARY_BLOB>
-payloadArgument :: Parser PostExternalTransactionData
-payloadArgument = argumentT $ mempty
+transactionSubmitPayloadArgument :: Parser PostExternalTransactionData
+transactionSubmitPayloadArgument = argumentT $ mempty
     <> metavar "BINARY_BLOB"
     <> help "hex-encoded binary blob of externally-signed transaction."
 

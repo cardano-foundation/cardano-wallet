@@ -168,8 +168,6 @@ import Control.Monad.Trans.Maybe
     ( MaybeT (..), maybeToExceptT )
 import Control.Monad.Trans.State
     ( runState, state )
-import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase )
 import Data.ByteString
     ( ByteString )
 import Data.Coerce
@@ -375,7 +373,6 @@ data ErrSubmitTx
 data ErrSubmitExternalTx
     = ErrSubmitExternalTxNetwork ErrPostTx
     | ErrSubmitExternalTxDecode ErrDecodeExternalTx
-    | ErrSubmitExternalTxWrongPayloadEncoding
     deriving (Show, Eq)
 
 -- | Errors occuring when trying to change a wallet's passphrase
@@ -890,15 +887,11 @@ newWalletLayer tracer bp db nw tl = do
     _submitExternalTx
         :: ByteString
         -> ExceptT ErrSubmitExternalTx IO (Tx t)
-    _submitExternalTx payload =
-        case convertFromBase Base16 payload of
-            Left _ ->
-                throwE ErrSubmitExternalTxWrongPayloadEncoding
-            Right validPayload -> do
-                txWithWit@(tx,_) <- withExceptT ErrSubmitExternalTxDecode $
-                    decodeExternalTx nw validPayload
-                withExceptT ErrSubmitExternalTxNetwork $ postTx nw txWithWit
-                return tx
+    _submitExternalTx validPayload = do
+        txWithWit@(tx,_) <- withExceptT ErrSubmitExternalTxDecode $
+            decodeExternalTx nw validPayload
+        withExceptT ErrSubmitExternalTxNetwork $ postTx nw txWithWit
+        return tx
 
     {---------------------------------------------------------------------------
                                      Keystore

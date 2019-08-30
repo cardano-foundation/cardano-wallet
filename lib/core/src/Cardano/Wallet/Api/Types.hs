@@ -112,6 +112,8 @@ import Data.Aeson
     )
 import Data.Bifunctor
     ( bimap, first )
+import Data.ByteArray.Encoding
+    ( Base (Base16), convertFromBase )
 import Data.ByteString
     ( ByteString )
 import Data.Either.Extra
@@ -143,7 +145,7 @@ import GHC.TypeLits
 import Numeric.Natural
     ( Natural )
 import Servant.API
-    ( MimeUnrender (..), OctetStream )
+    ( MimeRender (..), MimeUnrender (..), OctetStream )
 import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
@@ -376,15 +378,6 @@ instance FromJSON WalletPutData where
 instance ToJSON  WalletPutData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON PostExternalTransactionData where
-    parseJSON = withObject "PostExternalTransactionData" $ \o -> do
-        load <- o .: "payload"
-        pure $ PostExternalTransactionData $ T.encodeUtf8 load
-
-instance ToJSON PostExternalTransactionData where
-    toJSON (PostExternalTransactionData p) =
-        object ["payload" .= Aeson.String (T.decodeUtf8 p)]
-
 instance FromJSON WalletPutPassphraseData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON  WalletPutPassphraseData where
@@ -592,7 +585,11 @@ instance EncodeAddress t => ToText (AddressAmount t) where
         toText coins <> "@" <> encodeAddress proxy addr
 
 instance FromText PostExternalTransactionData where
-    fromText = pure . PostExternalTransactionData . T.encodeUtf8
+    fromText text = case convertFromBase Base16 (T.encodeUtf8 text) of
+        Left _ ->
+            fail "Parse error. Expecting hex-encoded format."
+        Right load ->
+            pure $ PostExternalTransactionData load
 
 {-------------------------------------------------------------------------------
                              HTTPApiData instances
@@ -604,8 +601,11 @@ instance ToText a => ToHttpApiData (ApiT a) where
     toUrlPiece = toText . getApiT
 
 instance MimeUnrender OctetStream PostExternalTransactionData where
-    mimeUnrender _ = pure . PostExternalTransactionData . BL.toStrict
+    mimeUnrender _ =
+        pure . PostExternalTransactionData . BL.toStrict
 
+instance MimeRender OctetStream PostExternalTransactionData where
+   mimeRender _ (PostExternalTransactionData val) = BL.fromStrict val
 
 {-------------------------------------------------------------------------------
                                 Aeson Options

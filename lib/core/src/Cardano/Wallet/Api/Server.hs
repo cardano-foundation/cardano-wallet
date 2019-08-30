@@ -64,7 +64,7 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics (..)
     , ApiWallet (..)
     , Iso8601Time (..)
-    , PostExternalTransactionData
+    , PostExternalTransactionData (..)
     , PostTransactionData
     , PostTransactionFeeData
     , WalletBalance (..)
@@ -458,9 +458,8 @@ postExternalTransaction
     => WalletLayer (SeqState t) t k
     -> PostExternalTransactionData
     -> Handler ApiTxId
-postExternalTransaction w body = do
-    let externallySignedTx = body ^. #payload
-    tx <- liftHandler $ W.submitExternalTx w externallySignedTx
+postExternalTransaction w (PostExternalTransactionData load) = do
+    tx <- liftHandler $ W.submitExternalTx w load
     return $ ApiTxId (ApiT (txId @t tx))
 
 mkApiTransaction
@@ -667,12 +666,11 @@ instance LiftHandler ErrSignTx where
 
 instance LiftHandler ErrDecodeExternalTx where
     handler = \case
-        ErrDecodeExternalTxWrongPayload err ->
-            apiError err404 MalformedTxPayload $ mconcat
-                [ "I couldn't decode the payload that seems to be an "
-                , "externally-signed transaction due to: ", pretty err, ". "
-                , "Make sure to send a hex-encoded binary blob, in the "
-                , "proper binary format of the already-serialized transaction."
+        ErrDecodeExternalTxWrongPayload _ ->
+            apiError err400 MalformedTxPayload $ mconcat
+                [ "I couldn't verify that the payload has the correct binary "
+                , "format. Therefore I couldn't send it to the node. Please "
+                , "check the format and try again."
                 ]
         ErrDecodeExternalTxNotSupported ->
             apiError err404 UnexpectedError $ mconcat
@@ -703,15 +701,9 @@ instance LiftHandler ErrSubmitExternalTx where
                     , "help with debugging: ", pretty err
                     ]
         ErrSubmitExternalTxDecode e -> (handler e)
-            { errHTTPCode = 404
-            , errReasonPhrase = errReasonPhrase err404
+            { errHTTPCode = 400
+            , errReasonPhrase = errReasonPhrase err400
             }
-        ErrSubmitExternalTxWrongPayloadEncoding ->
-            apiError err404 MalformedTxPayload $ mconcat
-                [ "I couldn't proceed with the payload due to wrong bytes"
-                , " encoding. Make sure your payload is hex-encoded."
-                ]
-
 
 instance LiftHandler ErrSubmitTx where
     handler = \case

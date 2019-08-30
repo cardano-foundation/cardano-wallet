@@ -1230,7 +1230,6 @@ postExternalTransactionViaCLI ctx args = cardanoWalletCLI @t $ join
     , args
     ]
 
-
 -- There is a dependency cycle in the packages.
 --
 -- cardano-wallet-launcher depends on cardano-wallet-http-bridge so that it can

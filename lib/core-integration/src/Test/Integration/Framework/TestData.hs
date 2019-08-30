@@ -53,8 +53,8 @@ module Test.Integration.Framework.TestData
     , errMsg404NoWallet
     , errMsg403InputsDepleted
     , errMsg403TxTooBig
-    , errMsg404MalformedTxPayload
-    , errMsg404WronglyEncodedTxPayload
+    , errMsg400MalformedTxPayload
+    , errMsg400WronglyEncodedTxPayload
     , errMsg403ZeroAmtOutput
     , errMsg405
     , errMsg406
@@ -264,16 +264,15 @@ errMsg403TxTooBig n = "I had to select " ++ show n ++ " inputs to construct the\
     \ that is too big, and this would consequently be rejected by a core node.\
     \ Try sending a smaller amount."
 
-errMsg404MalformedTxPayload :: String
-errMsg404MalformedTxPayload = "I couldn't decode the payload that seems to be an\
-    \ externally-signed transaction due to: wrongly constructed binary blob. \
-    \Make sure to send a hex-encoded binary blob, in the proper binary \
-    \format of the already-serialized transaction."
+errMsg400MalformedTxPayload :: String
+errMsg400MalformedTxPayload =
+    "I couldn't verify that the payload has the correct binary format. \
+    \Therefore I couldn't send it to the node. Please check the format \
+    \and try again."
 
-errMsg404WronglyEncodedTxPayload :: String
-errMsg404WronglyEncodedTxPayload =
-    "I couldn't proceed with the payload due to wrong bytes\
-    \ encoding. Make sure your payload is hex-encoded."
+errMsg400WronglyEncodedTxPayload :: String
+errMsg400WronglyEncodedTxPayload =
+    "Parse error. Expecting hex-encoded format."
 
 errMsg403ZeroAmtOutput :: String
 errMsg403ZeroAmtOutput = "I can't validate coin selection because\
