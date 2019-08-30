@@ -181,7 +181,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.Generics.Labels
     ()
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty ((:|)) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -629,8 +629,9 @@ newWalletLayer tracer bp db nw tl = do
             Right [] -> do
                 logDebug t "Wallet restored."
                 restoreSleep t wid slot
-            Right blocks -> do
-                let next = view #header . last $ blocks
+            Right (blockFirst : blocksRest) -> do
+                let blocks = blockFirst :| blocksRest
+                let next = view #header . NE.last $ blocks
                 runExceptT (restoreBlocks t wid blocks (tip ^. #slotId)) >>=
                     \case
                         Left (ErrNoSuchWallet _) ->
@@ -666,13 +667,13 @@ newWalletLayer tracer bp db nw tl = do
         :: (DefineTx t)
         => Trace IO Text
         -> WalletId
-        -> [Block (Tx t)]
+        -> NonEmpty (Block (Tx t))
         -> SlotId -- ^ Network tip
         -> ExceptT ErrNoSuchWallet IO ()
     restoreBlocks t wid blocks tip = do
         let (inf, sup) =
-                ( view #slotId . header . head $ blocks
-                , view #slotId . header . last $ blocks
+                ( view #slotId . header . NE.head $ blocks
+                , view #slotId . header . NE.last $ blocks
                 )
         liftIO $ logInfo t $ "Applying blocks ["+| inf |+" ... "+| sup |+"]"
 
@@ -687,8 +688,8 @@ newWalletLayer tracer bp db nw tl = do
             -- block of the list, even if empty, so that we correctly update the
             -- current tip of the wallet state.
             let nonEmpty = not . null . transactions
-            let (h,q) = first (filter nonEmpty) $
-                    splitAt (length blocks - 1) blocks
+            let (h, q) = first (filter nonEmpty) $
+                    NE.splitAt (length blocks - 1) blocks
             liftIO $ logDebug t $ pretty (h ++ q)
             let (txs, cp') = NE.last $ applyBlocks @s @t (h ++ q) cp
             let progress = slotRatio epochLength sup tip
