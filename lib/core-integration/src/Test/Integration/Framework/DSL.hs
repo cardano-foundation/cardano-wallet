@@ -89,6 +89,7 @@ module Test.Integration.Framework.DSL
     , for
     , toQueryString
     , utcIso8601ToText
+    , prepExternalTx
 
     -- * Endpoints
     , getWalletEp
@@ -102,6 +103,8 @@ module Test.Integration.Framework.DSL
     , updateWalletPassEp
 
     -- * CLI
+    , runJcli
+    , command
     , cardanoWalletCLI
     , generateMnemonicsViaCLI
     , createWalletViaCLI
@@ -118,6 +121,8 @@ module Test.Integration.Framework.DSL
     , postExternalTransactionViaCLI
     ) where
 
+import System.IO.Temp
+    ( withSystemTempDirectory )
 import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAddress
@@ -230,7 +235,7 @@ import Numeric.Natural
 import Prelude hiding
     ( fail )
 import System.Command
-    ( CmdResult, Stderr, Stdout, command )
+    ( CmdResult, Stderr, Stdout (..), command )
 import System.Directory
     ( doesPathExist )
 import System.Exit
@@ -1047,6 +1052,12 @@ updateWalletPassEp w =
 --- CLI
 ---
 
+runJcli
+    :: CmdResult r
+    => [String]
+    -> IO r
+runJcli = command [] "jcli"
+
 -- | A class to select the right command for a given 'Context t'
 class KnownCommand t where
     commandName :: String
@@ -1316,3 +1327,71 @@ groupsOf n xs = take n xs : groupsOf n (drop n xs)
 -- | 'map' flipped.
 for :: [a] -> (a -> b) -> [b]
 for = flip map
+
+
+withTempDir :: (FilePath -> IO a) -> IO a
+withTempDir = withSystemTempDirectory "external-tx"
+
+-- | Prepare externally signed Tx for Jormungandr
+prepExternalTx :: String -> Natural -> IO String
+prepExternalTx addrStr amt = do
+    withTempDir $ \d -> do
+        let sk = "ed25519e_sk1nzj5fp353c0ytdxc48q03f0elvr6ku2rl0l84qvxzcr64tfk8e8ymqtezqta5afnyfql05j9pfejt0pcqfcd5ygvmnrnwatp27cd35cydk9ng"
+        let keyFile = d <> "/key.prv"
+        writeFile keyFile sk
+
+        let inputFunds = "100000000000"
+        let inputIndex = "0"
+        let inputTxId = "d6aeaab790f9738e8098b4a9295e937905fab784b12e02554f381430bc204898"
+        let txFile = d <> "/trans.tx"
+        let witnessFile = d <> "/witness"
+        let block0Path = "./test/data/jormungandr/block0.bin"
+
+        runJcli ["transaction", "new", "--staging", txFile ]
+            >>= ( \c1 -> c1 `shouldBe` ExitSuccess)
+        runJcli
+            [ "transaction"
+            , "add-input"
+            , inputTxId
+            , inputIndex
+            , inputFunds
+            , "--staging", txFile ]
+            >>= ( \c2 -> c2 `shouldBe` ExitSuccess)
+        runJcli
+            [ "transaction"
+            , "add-output"
+            , addrStr
+            , show amt
+            , "--staging", txFile ]
+            >>= ( \c3 -> c3 `shouldBe` ExitSuccess)
+        runJcli
+            [ "transaction"
+            , "finalize"
+            , "--fee-constant", "42"
+            , "--staging", txFile ]
+            >>= ( \c4 -> c4 `shouldBe` ExitSuccess)
+        Stdout txId <- runJcli ["transaction", "id", "--staging", txFile]
+        Stdout block0H <- runJcli ["genesis", "hash", "--input", block0Path]
+        let strip = T.unpack . T.strip . T.pack
+        runJcli
+            [ "transaction"
+            , "make-witness"
+            , strip txId
+            , "--genesis-block-hash", strip block0H
+            , "--type", "utxo"
+            , witnessFile
+            , keyFile ]
+            >>= ( \c5 -> c5 `shouldBe` ExitSuccess)
+        runJcli
+            [ "transaction"
+            , "add-witness"
+            , witnessFile
+            , "--staging", txFile ]
+            >>= ( \c6 -> c6 `shouldBe` ExitSuccess)
+        runJcli ["transaction", "seal", "--staging", txFile ]
+            >>= ( \c7 -> c7 `shouldBe` ExitSuccess)
+        Stdout txBlob <- runJcli
+                            [ "transaction"
+                            , "to-message"
+                            , "--staging", txFile ]
+        return (strip txBlob)

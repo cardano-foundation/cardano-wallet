@@ -14,6 +14,10 @@ module Test.Integration.Jormungandr.Scenario.API.Transactions
 
 import Prelude
 
+import Data.Proxy
+    ( Proxy (..) )
+import Cardano.Wallet.Primitive.Types
+    ( encodeAddress )
 import Cardano.Faucet
     ( block0H )
 import Cardano.Wallet.Api.Types
@@ -74,6 +78,7 @@ import Test.Integration.Framework.DSL
     , emptyWallet
     , expectErrorMessage
     , expectEventually
+    , expectEventually'
     , expectFieldEqual
     , expectResponseCode
     , expectSuccess
@@ -87,6 +92,7 @@ import Test.Integration.Framework.DSL
     , json
     , listAddresses
     , listAllTransactions
+    , prepExternalTx
     , postExternalTxEp
     , postTxEp
     , postTxFeeEp
@@ -103,10 +109,33 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import qualified Data.Text.Encoding as T
+import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall t. (EncodeAddress t, DecodeAddress t) => SpecWith (Context t)
 spec = do
+
+    it "TRANS_EXTERNAL_CREATE_00" $ \ctx -> do
+        w <- emptyWallet ctx
+        addr:_ <- listAddresses ctx w
+        let addrStr =
+                T.unpack $ encodeAddress (Proxy @t) (getApiT $ fst $ addr ^. #id)
+        let amt = 1000
+
+        txBlob <- prepExternalTx addrStr amt
+
+        let payload = Json [json|{
+                "payload": #{txBlob}
+            }|]
+        r <- request @ApiTxId ctx postExternalTxEp Default payload
+        verify r
+            [ expectResponseCode HTTP.status404
+            , expectErrorMessage "asdasd"
+            ]
+
+        expectEventually' ctx balanceAvailable amt w
+        expectEventually' ctx balanceTotal amt w
+
     it "TRANS_CREATE_09 - 0 amount transaction is accepted on single output tx" $ \ctx -> do
         (wSrc, payload) <- fixtureZeroAmtSingle ctx
         r <- request @(ApiTransaction t) ctx (postTxEp wSrc) Default payload
@@ -230,6 +259,7 @@ spec = do
             ]
 
   where
+
     fixtureZeroAmtSingle ctx = do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
