@@ -82,8 +82,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
     ()
-import Data.List
-    ( foldl' )
+import Data.List.NonEmpty
+    ( NonEmpty )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -97,6 +97,7 @@ import Data.Set
 import Numeric.Natural
     ( Natural )
 
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -207,18 +208,38 @@ applyBlock !b (Wallet !u !pending _ s bh) =
   where
     pendingExcluding_ = pendingExcluding (Proxy @t)
 
--- | Helper to apply multiple blocks in sequence to an existing wallet. It's
--- basically just a @foldl' applyBlock@ over the given blocks.
+-- | Apply multiple blocks in sequence to an existing wallet.
+--
+-- Returns a non-empty list of intermediate wallet states where:
+--
+--   * the /initial element/ is the original wallet state;
+--
+--   * each /successive element/ is the result of applying the next available
+--     unprocessed block from the original list to the previous element;
+--
+--   * the /final element/ is the state obtained by applying all blocks from
+--     the specified list, in order, to the original wallet state.
+--
+-- For an original wallet state __@w@__ and a list of blocks __@b@__ such that:
+--
+-- > b = [b1, b2, ..., bn]
+--
+-- Returns the following list of updates:
+--
+-- > w :| [w + b1, w + b1 + b2, ..., w + b1 + b2 + ... + bn)]
+--
+-- Where __@w + bi@__ is equivalent to 'applyBlock' __@bi w@__.
 applyBlocks
     :: forall s t. (DefineTx t)
     => [Block (Tx t)]
     -> Wallet s t
-    -> (Map (Hash "Tx") (Tx t, TxMeta), Wallet s t)
+    -> NonEmpty (Map (Hash "Tx") (Tx t, TxMeta), Wallet s t)
 applyBlocks blocks cp0 =
-    foldl' applyBlock' (mempty, cp0) blocks
+    NE.scanl applyBlock' (mempty, cp0) blocks
   where
-    applyBlock' (txs, cp) b =
-        let (txs', cp') = applyBlock b cp in (txs <> txs', cp')
+    applyBlock' (txs, cp) b = (txs <> txs', cp')
+      where
+        (txs', cp') = applyBlock b cp
 
 newPending
     :: (Tx t, TxMeta)

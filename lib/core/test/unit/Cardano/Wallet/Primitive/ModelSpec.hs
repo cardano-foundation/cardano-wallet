@@ -166,7 +166,7 @@ prop_applyBlockTxHistoryIncoming s =
     property (outs (filter isIncoming txs) `overlaps` ourAddresses s')
   where
     cp0 = initWallet @_ @DummyTarget block0 s
-    (txs, s') = bimap Map.elems getState $ applyBlocks blockchain cp0
+    (txs, s') = bimap Map.elems getState $ NE.last $ applyBlocks blockchain cp0
     isIncoming (_, m) = direction m == Incoming
     outs = Set.fromList . concatMap (map address . outputs . fst)
     overlaps a b
