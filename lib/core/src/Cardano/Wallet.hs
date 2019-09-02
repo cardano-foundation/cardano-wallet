@@ -254,12 +254,11 @@ data WalletLayer s t k = WalletLayer
         :: (DefineTx t)
         => WalletId
         -> ExceptT ErrNoSuchWallet IO ()
-        -- ^ Restore a wallet from its current tip up to a given target
-        -- (typically, the network tip).
+        -- ^ Restore a wallet from its current tip up to the network tip.
         --
-        -- It returns immediately and fail if the wallet is already beyond the
-        -- given tip. It starts a worker in background which will fetch and
-        -- apply remaining blocks until failure or, the target slot is reached.
+        -- This function returns immediately, starting a worker thread in the
+        -- background that will fetch and apply remaining blocks until the
+        -- network tip is reached or until failure.
 
     , listAddresses
         :: (IsOurs s, CompareDiscovery s, KnownAddresses s, DefineTx t)
