@@ -142,8 +142,7 @@ rbNextBlocks bridge start = maybeTip (getNetworkTip bridge) >>= \case
         epochBlocks <- getEpoch bridge ix
         pure $ filter (blockIsAfter start) epochBlocks
 
-    -- Predicate returns true iff the block is from the given slot or a later
-    -- one.
+    -- Returns true iff. the block is from a later slot than the specified slot.
     blockIsAfter :: SlotId -> Block Tx -> Bool
     blockIsAfter s = (> s) . slotId . header
 
