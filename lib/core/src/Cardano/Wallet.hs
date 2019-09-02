@@ -408,8 +408,8 @@ data ErrStartTimeLaterThanEndTime = ErrStartTimeLaterThanEndTime
 -------------------------------------------------------------------------------}
 
 -- | A simple registry to keep track of worker threads created for wallet
--- restoration. This way, we can clean-up workers threads early and don't have
--- to wait for them to fail with a an error message about the wallet being gone.
+-- restoration. This way, we can clean up worker threads early and don't have
+-- to wait for them to fail with an error message about the wallet being gone.
 newtype WorkerRegistry = WorkerRegistry (MVar (Map WalletId ThreadId))
 
 newRegistry :: IO WorkerRegistry
