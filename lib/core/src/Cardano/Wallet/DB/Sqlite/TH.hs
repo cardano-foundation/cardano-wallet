@@ -101,7 +101,7 @@ TxMeta
 TxIn
     txInputTxId           TxId          sql=tx_id
     txInputOrder          Int           sql=order
-    txInputSourceTxId     TxId          sql=source_id
+    txInputSourceTxId     TxId          sql=source_tx_id
     txInputSourceIndex    Word32        sql=source_index
     txInputSourceAmount   W.Coin Maybe  sql=source_amount default=NULL
 
@@ -122,12 +122,12 @@ TxOut
     deriving Show Generic
 
 -- A checkpoint for a given wallet is referred to by (wallet_id, slot).
--- Checkpoint data such as UTxO will refer to this table.
+-- Volatile checkpoint data such as AD state will refer to this table.
 Checkpoint
     checkpointWalletId    W.WalletId  sql=wallet_id
     checkpointSlot        W.SlotId    sql=slot
-    checkpointParent      BlockId     sql=parent
-    checkpointBlock       Word64      sql=block_height
+    checkpointParent      BlockId     sql=parent_block_id
+    checkpointBlockHeight Word64      sql=block_height
 
     Primary checkpointWalletId checkpointSlot
     Foreign Wallet fk_wallet_checkpoint checkpointWalletId
@@ -141,7 +141,11 @@ UTxO                                sql=utxo
 
     -- The wallet checkpoint (wallet_id, slot)
     utxoWalletId        W.WalletId  sql=wallet_id
-    utxoCheckpointSlot  W.SlotId    sql=slot
+
+    -- This UTxO is only available for checkpoints between
+    -- slot and slot_spent.
+    utxoSlot        W.SlotId        sql=slot
+    utxoSlotSpent   W.SlotId Maybe  sql=slot_spent
 
     -- TxIn
     utxoInputId         TxId        sql=input_tx_id
@@ -153,69 +157,108 @@ UTxO                                sql=utxo
 
     Primary
         utxoWalletId
-        utxoCheckpointSlot
+        utxoSlot
         utxoInputId
         utxoInputIndex
         utxoOutputAddress
         utxoOutputCoin
 
-    Foreign Checkpoint fk_checkpoint_utxo utxoWalletId utxoCheckpointSlot
+    Foreign Wallet fk_wallet_utxo utxoWalletId
     deriving Show Generic
 
--- State for sequential scheme address discovery
+-- Sequential scheme address discovery state
+-- which does not belong to a particular checkpoint.
 SeqState
-    -- The wallet checkpoint (wallet_id, slot)
     seqStateWalletId        W.WalletId        sql=wallet_id
-    seqStateCheckpointSlot  W.SlotId          sql=slot
     seqStateExternalGap     W.AddressPoolGap  sql=external_gap
     seqStateInternalGap     W.AddressPoolGap  sql=internal_gap
     seqStateAccountXPub     AddressPoolXPub   sql=account_xpub
 
-    UniqueSeqState seqStateWalletId seqStateCheckpointSlot
-    Foreign Checkpoint fk_checkpoint_seq_state seqStateWalletId seqStateCheckpointSlot
+    Primary seqStateWalletId
+    Foreign Wallet fk_wallet_seq_state seqStateWalletId
     deriving Show Generic
 
--- Mapping of pool addresses to indices.
-SeqStateAddresses
-    seqStateAddressesSeqStateId   SeqStateId     sql=seq_state_id
-    seqStateAddressesAddress      W.Address      sql=address
-    seqStateAddressesIndex        Word32         sql=address_ix
-    seqStateAddressesChangeChain  W.ChangeChain  sql=change_chain
+-- Mapping of pool addresses to indices, and the slot
+-- when they were discovered.
+SeqStateAddress
+    seqStateAddressWalletId     W.WalletId     sql=wallet_id
+    seqStateAddressSlot         W.SlotId       sql=slot
 
+    seqStateAddressAddress      W.Address      sql=address
+    seqStateAddressIndex        Word32         sql=address_ix
+    seqStateAddressChangeChain  W.ChangeChain  sql=change_chain
+
+    deriving Show Generic
+
+-- Sequential scheme address discovery state
+-- which belongs to a checkpoint.
+SeqStateCheckpoint
+    -- The wallet checkpoint (wallet_id, slot)
+    seqStateCheckpointWalletId  W.WalletId        sql=wallet_id
+    seqStateCheckpointSlot      W.SlotId          sql=slot
+
+    UniqueSeqStateCheckpoint seqStateCheckpointWalletId seqStateCheckpointSlot
+    Foreign Checkpoint fk_checkpoint_seq_state seqStateCheckpointWalletId seqStateCheckpointSlot
     deriving Show Generic
 
 -- Sequential address discovery scheme -- pending change indexes
-SeqStatePendingIx
-    seqStatePendingIxSeqStateId   SeqStateId     sql=seq_state_id
-    seqStatePendingIxIndex        Word32         sql=pending_ix
+SeqStatePendingIx                                        sql=seq_state_pending
+    seqStatePendingIxCheckpointId  SeqStateCheckpointId  sql=checkpoint_id
+    seqStatePendingIxIndex         Word32                sql=pending_ix
 
-    Primary seqStatePendingIxSeqStateId seqStatePendingIxIndex
+    Primary seqStatePendingIxCheckpointId seqStatePendingIxIndex
     deriving Show Generic
 
--- State for random scheme address discovery
+-- Random scheme address discovery state
+-- which does not belong to a particular checkpoint.
 RndState
-    -- The wallet checkpoint (wallet_id, slot)
     rndStateWalletId        W.WalletId        sql=wallet_id
-    rndStateCheckpointSlot  W.SlotId          sql=slot
     rndStateAccountIndex    Word32            sql=account_ix
-    rndStateGen             StdGen            sql=gen
 
-    UniqueRndState rndStateWalletId rndStateCheckpointSlot
-    Foreign Checkpoint fk_checkpoint_rnd_state rndStateWalletId rndStateCheckpointSlot
+    Primary rndStateWalletId
+    Foreign Wallet fk_wallet_rnd_state rndStateWalletId
     deriving Show Generic
 
--- The set of discovered addresses or pending change addresses.
+-- The set of discovered addresses.
 RndStateAddress
-    rndStateAddressRndStateId    RndStateId        sql=rnd_state_id
+    rndStateAddressWalletId      W.WalletId        sql=wallet_id
+    rndStateAddressSlot          W.SlotId          sql=slot
     rndStateAddressAccountIndex  Word32            sql=account_ix
     rndStateAddressIndex         Word32            sql=address_ix
     rndStateAddressAddress       W.Address         sql=address
-    rndStateAddressPending       Bool              sql=pending
 
     Primary
-        rndStateAddressStateId
+        rndStateAddressWalletId
+        rndStateAddressSlot
         rndStateAddressAccountIndex
         rndStateAddressIndex
         rndStateAddressAddress
     deriving Show Generic
+
+-- Random scheme address discovery state
+-- which belongs a checkpoint.
+RndStateCheckpoint
+    -- The wallet checkpoint (wallet_id, slot)
+    rndStateCheckpointWalletId  W.WalletId        sql=wallet_id
+    rndStateCheckpointSlot      W.SlotId          sql=slot
+    rndStateCheckpointGen       StdGen            sql=gen
+
+    UniqueRndStateCheckpoint rndStateCheckpointWalletId rndStateCheckpointSlot
+    Foreign Checkpoint fk_checkpoint_rnd_state rndStateCheckpointWalletId rndStateCheckpointSlot
+    deriving Show Generic
+
+-- The set of pending change addresses.
+RndStatePendingAddress
+    rndStatePendingAddressCheckpointId  RndStateCheckpointId  sql=checkpoint_id
+    rndStatePendingAddressAccountIndex  Word32                sql=account_ix
+    rndStatePendingAddressIndex         Word32                sql=address_ix
+    rndStatePendingAddressAddress       W.Address             sql=address
+
+    Primary
+        rndStatePendingAddressCheckpointId
+        rndStatePendingAddressAccountIndex
+        rndStatePendingAddressIndex
+        rndStatePendingAddressAddress
+    deriving Show Generic
+
 |]
