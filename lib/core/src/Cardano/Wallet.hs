@@ -254,12 +254,11 @@ data WalletLayer s t k = WalletLayer
         :: (DefineTx t)
         => WalletId
         -> ExceptT ErrNoSuchWallet IO ()
-        -- ^ Restore a wallet from its current tip up to a given target
-        -- (typically, the network tip).
+        -- ^ Restore a wallet from its current tip up to the network tip.
         --
-        -- It returns immediately and fail if the wallet is already beyond the
-        -- given tip. It starts a worker in background which will fetch and
-        -- apply remaining blocks until failure or, the target slot is reached.
+        -- This function returns immediately, starting a worker thread in the
+        -- background that will fetch and apply remaining blocks until the
+        -- network tip is reached or until failure.
 
     , listAddresses
         :: (IsOurs s, CompareDiscovery s, KnownAddresses s, DefineTx t)
@@ -409,8 +408,8 @@ data ErrStartTimeLaterThanEndTime = ErrStartTimeLaterThanEndTime
 -------------------------------------------------------------------------------}
 
 -- | A simple registry to keep track of worker threads created for wallet
--- restoration. This way, we can clean-up workers threads early and don't have
--- to wait for them to fail with a an error message about the wallet being gone.
+-- restoration. This way, we can clean up worker threads early and don't have
+-- to wait for them to fail with an error message about the wallet being gone.
 newtype WorkerRegistry = WorkerRegistry (MVar (Map WalletId ThreadId))
 
 newRegistry :: IO WorkerRegistry

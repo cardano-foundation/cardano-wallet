@@ -39,11 +39,17 @@ import GHC.Generics
 
 data NetworkLayer t m = NetworkLayer
     { nextBlocks :: BlockHeader -> ExceptT ErrGetBlock m [Block (Tx t)]
-        -- ^ Gets some blocks from the node. It will not necessarily return all
-        -- the blocks that the node has, but will receive a reasonable-sized
-        -- chunk. It will never return blocks from before the given slot. It
-        -- may return an empty list if the node does not have any blocks from
-        -- after the starting slot.
+        -- ^ Fetches a contiguous sequence of blocks from the node, starting
+        -- from the first block available with a slot greater than the given
+        -- block header.
+        --
+        -- Blocks are returned in ascending slot order, without skipping blocks.
+        --
+        -- This function will not necessarily return all blocks available after
+        -- the given point in time, but will return a reasonably-sized sequence.
+        --
+        -- It may return the empty list if the node does not have any blocks
+        -- after the specified starting slot.
 
     , networkTip
         :: ExceptT ErrNetworkTip m BlockHeader
