@@ -692,15 +692,14 @@ newWalletLayer tracer bp db nw tl = do
             let nPending = Set.size (getPending cp')
             let (Quantity bh) = blockHeight cp'
 
-            liftIO $ logDebug t $ pretty (NE.toList blocks)
-            liftIO $ logInfo t $ pretty meta'
-            liftIO $ logInfo t $ nPending ||+" transaction(s) pending."
-            liftIO $ logInfo t $
-                length txs ||+ " new transaction(s) discovered."
-            liftIO $ logInfo t $
-                "block height is "+||bh||+""
-            unless (null txs) $ liftIO $ logDebug t $
-                pretty $ blockListF (snd <$> Map.elems txs)
+            liftIO $ do
+                logDebug t $ pretty (NE.toList blocks)
+                logInfo t $ pretty meta'
+                logInfo t $ nPending ||+" transaction(s) pending."
+                logInfo t $ length txs ||+ " new transaction(s) discovered."
+                logInfo t $ "block height is " +|| bh ||+ ""
+                unless (null txs) $ logDebug t $
+                    pretty $ blockListF (snd <$> Map.elems txs)
 
             DB.putCheckpoint db (PrimaryKey wid) cp'
             DB.putTxHistory db (PrimaryKey wid) txs
