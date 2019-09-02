@@ -681,23 +681,27 @@ newWalletLayer tracer bp db nw tl = do
         -- there and they all succeed, or it's not and they all fail.
         DB.withLock db $ do
             (cp, meta) <- _readWallet wid
-            liftIO $ logDebug t $ pretty (NE.toList blocks)
+
             let (txs, cp') = NE.last $ applyBlocks @s @t (NE.toList blocks) cp
             let progress = slotRatio epochLength slotLast nodeTip
-            let status' = if progress == maxBound
+            let status' =
+                    if progress == maxBound
                     then Ready
                     else Restoring progress
             let meta' = meta { status = status' } :: WalletMetadata
             let nPending = Set.size (getPending cp')
+            let (Quantity bh) = blockHeight cp'
+
+            liftIO $ logDebug t $ pretty (NE.toList blocks)
             liftIO $ logInfo t $ pretty meta'
             liftIO $ logInfo t $ nPending ||+" transaction(s) pending."
             liftIO $ logInfo t $
                 length txs ||+ " new transaction(s) discovered."
-            let (Quantity bh) = blockHeight cp'
             liftIO $ logInfo t $
                 "block height is "+||bh||+""
             unless (null txs) $ liftIO $ logDebug t $
                 pretty $ blockListF (snd <$> Map.elems txs)
+
             DB.putCheckpoint db (PrimaryKey wid) cp'
             DB.putTxHistory db (PrimaryKey wid) txs
             DB.putWalletMeta db (PrimaryKey wid) meta'
