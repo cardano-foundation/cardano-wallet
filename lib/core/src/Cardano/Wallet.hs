@@ -198,6 +198,8 @@ import Data.Word
     ( Word16 )
 import Fmt
     ( Buildable, blockListF, pretty, (+|), (+||), (|+), (||+) )
+import Safe
+    ( lastMay )
 
 import qualified Cardano.Wallet.DB as DB
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
@@ -660,9 +662,6 @@ newWalletLayer tracer bp db nw tl = do
             Right nodeTip ->
                 restoreStep t wid (localTip, nodeTip)
 
-    safeLast :: [a] -> Maybe a
-    safeLast = fmap NE.last . NE.nonEmpty
-
     -- | Apply the given blocks to the wallet and update the wallet state,
     -- transaction history and corresponding metadata.
     restoreBlocks
@@ -699,7 +698,7 @@ newWalletLayer tracer bp db nw tl = do
             let txs_cps = applyBlocks @s @t (NE.toList blocks) cp
             let txs = fold $ fst <$> txs_cps
 
-            let cpLast = fromMaybe cp $ safeLast $ snd <$> txs_cps
+            let cpLast = fromMaybe cp $ lastMay $ snd <$> txs_cps
             let (Quantity bhLast) = blockHeight cpLast
 
             liftIO $ do

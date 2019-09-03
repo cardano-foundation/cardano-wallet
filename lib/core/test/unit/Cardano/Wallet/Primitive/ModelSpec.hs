@@ -66,6 +66,8 @@ import Data.Traversable
     ( for )
 import GHC.Generics
     ( Generic )
+import Safe
+    ( lastMay )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
@@ -170,7 +172,7 @@ prop_applyBlockTxHistoryIncoming s =
     cp0 = initWallet @_ @DummyTarget block0 s
     txs_cps = applyBlocks blockchain cp0
     txs = Map.elems $ fold $ fst <$> txs_cps
-    s' = getState $ fromMaybe cp0 $ safeLast $ snd <$> txs_cps
+    s' = getState $ fromMaybe cp0 $ lastMay $ snd <$> txs_cps
     isIncoming (_, m) = direction m == Incoming
     outs = Set.fromList . concatMap (map address . outputs . fst)
     overlaps a b
@@ -201,7 +203,7 @@ prop_applyBlocksBlockHeight s (NonNegative n) =
   where
     bs = take n blockchain
     wallet = initWallet @_ @DummyTarget block0 s
-    wallet' = fromMaybe wallet $ safeLast $ snd <$> applyBlocks bs wallet
+    wallet' = fromMaybe wallet $ lastMay $ snd <$> applyBlocks bs wallet
     bh = fromIntegral . unQuantity . blockHeight
     unQuantity (Quantity a) = a
 
@@ -210,9 +212,6 @@ prop_initialBlockHeight s =
     property $ blockHeight wallet === Quantity 0
   where
     wallet = initWallet @_ @DummyTarget block0 s
-
-safeLast :: [a] -> Maybe a
-safeLast = fmap NE.last . NE.nonEmpty
 
 {-------------------------------------------------------------------------------
                Basic Model - See Wallet Specification, section 3
