@@ -887,9 +887,9 @@ newWalletLayer tracer bp db nw tl = do
     _submitExternalTx
         :: ByteString
         -> ExceptT ErrSubmitExternalTx IO (Tx t)
-    _submitExternalTx payload = do
+    _submitExternalTx validPayload = do
         txWithWit@(tx,_) <- withExceptT ErrSubmitExternalTxDecode $
-            decodeExternalTx nw payload
+            decodeExternalTx nw validPayload
         withExceptT ErrSubmitExternalTxNetwork $ postTx nw txWithWit
         return tx
 

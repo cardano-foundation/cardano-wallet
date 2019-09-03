@@ -113,7 +113,7 @@ import Data.Aeson
 import Data.Bifunctor
     ( bimap, first )
 import Data.ByteArray.Encoding
-    ( Base (Base64), convertFromBase, convertToBase )
+    ( Base (Base16), convertFromBase )
 import Data.ByteString
     ( ByteString )
 import Data.Either.Extra
@@ -144,11 +144,14 @@ import GHC.TypeLits
     ( Nat, Symbol )
 import Numeric.Natural
     ( Natural )
+import Servant.API
+    ( MimeRender (..), MimeUnrender (..), OctetStream )
 import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
@@ -375,18 +378,6 @@ instance FromJSON WalletPutData where
 instance ToJSON  WalletPutData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON PostExternalTransactionData where
-    parseJSON = withObject "PostExternalTransactionData" $ \o -> do
-        load <- o .: "payload"
-        case convertFromBase Base64 (T.encodeUtf8 load) of
-            Left e -> fail $ "Could not decode Base64 payload: " ++ show e
-            Right p -> pure $ PostExternalTransactionData p
-
-instance ToJSON PostExternalTransactionData where
-    toJSON (PostExternalTransactionData p) =
-        let b64 = T.decodeUtf8 $ convertToBase Base64 p
-        in object ["payload" .= Aeson.String b64 ]
-
 instance FromJSON WalletPutPassphraseData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON  WalletPutPassphraseData where
@@ -593,6 +584,13 @@ instance EncodeAddress t => ToText (AddressAmount t) where
     toText (AddressAmount (ApiT addr, proxy) coins) =
         toText coins <> "@" <> encodeAddress proxy addr
 
+instance FromText PostExternalTransactionData where
+    fromText text = case convertFromBase Base16 (T.encodeUtf8 text) of
+        Left _ ->
+            fail "Parse error. Expecting hex-encoded format."
+        Right load ->
+            pure $ PostExternalTransactionData load
+
 {-------------------------------------------------------------------------------
                              HTTPApiData instances
 -------------------------------------------------------------------------------}
@@ -601,6 +599,13 @@ instance FromText a => FromHttpApiData (ApiT a) where
     parseUrlPiece = bimap pretty ApiT . fromText
 instance ToText a => ToHttpApiData (ApiT a) where
     toUrlPiece = toText . getApiT
+
+instance MimeUnrender OctetStream PostExternalTransactionData where
+    mimeUnrender _ =
+        pure . PostExternalTransactionData . BL.toStrict
+
+instance MimeRender OctetStream PostExternalTransactionData where
+   mimeRender _ (PostExternalTransactionData val) = BL.fromStrict val
 
 {-------------------------------------------------------------------------------
                                 Aeson Options

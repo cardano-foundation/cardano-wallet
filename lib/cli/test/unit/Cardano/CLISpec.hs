@@ -232,6 +232,8 @@ spec = do
             , "  fees                     Estimate fees for a transaction."
             , "  list                     List the transactions associated with"
             , "                           a wallet."
+            , "  submit                   Submit an externally-signed"
+            , "                           transaction."
             ]
 
         ["transaction", "create", "--help"] `shouldShowUsage`
@@ -301,6 +303,18 @@ spec = do
             , "                           API. (default: 8090)"
             , "  --state STRING           only addresses with the given state:"
             , "                           either 'used' or 'unused'."
+            ]
+
+        ["transaction", "submit", "--help"] `shouldShowUsage`
+            [ "Usage:  transaction submit [--port INT] BINARY_BLOB"
+            , "  Submit an externally-signed transaction."
+            , ""
+            , "Available options:"
+            , "  -h,--help                Show this help text"
+            , "  --port INT               port used for serving the wallet"
+            , "                           API. (default: 8090)"
+            , "  BINARY_BLOB              hex-encoded binary blob of"
+            , "                           externally-signed transaction."
             ]
 
     describe "Can perform roundtrip textual encoding & decoding" $ do

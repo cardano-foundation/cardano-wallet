@@ -115,6 +115,7 @@ module Test.Integration.Framework.DSL
     , postTransactionViaCLI
     , postTransactionFeeViaCLI
     , listTransactionsViaCLI
+    , postExternalTransactionViaCLI
     ) where
 
 import Cardano.Wallet.Api.Types
@@ -1214,6 +1215,17 @@ listTransactionsViaCLI
     -> IO r
 listTransactionsViaCLI ctx args = cardanoWalletCLI @t $ join
     [ ["transaction", "list"]
+    , ["--port", show (ctx ^. typed @Port)]
+    , args
+    ]
+
+postExternalTransactionViaCLI
+    :: forall t r s . (CmdResult r, HasType Port s, KnownCommand t)
+    => s
+    -> [String]
+    -> IO r
+postExternalTransactionViaCLI ctx args = cardanoWalletCLI @t $ join
+    [ ["transaction", "submit"]
     , ["--port", show (ctx ^. typed @Port)]
     , args
     ]

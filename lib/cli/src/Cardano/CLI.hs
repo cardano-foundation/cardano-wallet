@@ -514,6 +514,7 @@ cmdTransaction = command "transaction" $ info (helper <*> cmds) mempty
         <> cmdTransactionCreate @t
         <> cmdTransactionFees @t
         <> cmdTransactionList @t
+        <> cmdTransactionSubmit @t
 
 -- | Arguments for 'transaction create' command
 data TransactionCreateArgs t = TransactionCreateArgs
@@ -593,6 +594,25 @@ cmdTransactionList = command "list" $ info (helper <*> cmd) $ mempty
             mTimeRangeStart
             mTimeRangeEnd
             (ApiT <$> mOrder)
+
+-- | Arguments for 'transaction submit' command
+data TransactionSubmitArgs = TransactionSubmitArgs
+    { _port :: Port "Wallet"
+    , _payload :: PostExternalTransactionData
+    }
+
+cmdTransactionSubmit
+    :: forall t. (DecodeAddress t, EncodeAddress t)
+    => Mod CommandFields (IO ())
+cmdTransactionSubmit = command "submit" $ info (helper <*> cmd) $ mempty
+    <> progDesc "Submit an externally-signed transaction."
+  where
+    cmd = fmap exec $ TransactionSubmitArgs
+        <$> portOption
+        <*> transactionSubmitPayloadArgument
+    exec (TransactionSubmitArgs wPort wPayload) = do
+        runClient wPort Aeson.encodePretty $
+            postExternalTransaction (walletClient @t) wPayload
 
 {-------------------------------------------------------------------------------
                             Commands - 'address'
@@ -820,6 +840,12 @@ walletIdArgument = argumentT $ mempty
 walletNameArgument :: Parser WalletName
 walletNameArgument = argumentT $ mempty
     <> metavar "STRING"
+
+-- | <payload=BINARY_BLOB>
+transactionSubmitPayloadArgument :: Parser PostExternalTransactionData
+transactionSubmitPayloadArgument = argumentT $ mempty
+    <> metavar "BINARY_BLOB"
+    <> help "hex-encoded binary blob of externally-signed transaction."
 
 -- | Helper for writing an option 'Parser' using a 'FromText' instance.
 optionT :: FromText a => Mod OptionFields a -> Parser a

@@ -179,3 +179,4 @@ test-suite integration
       Test.Integration.Jormungandr.Scenario.API.Transactions
       Test.Integration.Jormungandr.Scenario.CLI.Launcher
       Test.Integration.Jormungandr.Scenario.CLI.Server
+      Test.Integration.Jormungandr.Scenario.CLI.Transactions
