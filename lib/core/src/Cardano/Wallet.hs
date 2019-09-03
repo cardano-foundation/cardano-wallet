@@ -172,6 +172,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
+import Data.Foldable
+    ( fold )
 import Data.Functor
     ( ($>) )
 import Data.Generics.Internal.VL.Lens
@@ -681,8 +683,9 @@ newWalletLayer tracer bp db nw tl = do
         -- there and they all succeed, or it's not and they all fail.
         DB.withLock db $ do
             (cp, meta) <- _readWallet wid
-
-            let (txs, cp') = NE.last $ applyBlocks @s @t (NE.toList blocks) cp
+            let txs_cp_pairs = applyBlocks @s @t (NE.toList blocks) cp
+            let txs = fold $ fst <$> txs_cp_pairs
+            let cp' = snd $ NE.last txs_cp_pairs
             let progress = slotRatio epochLength slotLast nodeTip
             let status' =
                     if progress == maxBound

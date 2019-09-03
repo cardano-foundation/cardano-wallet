@@ -235,11 +235,7 @@ applyBlocks
     -> Wallet s t
     -> NonEmpty (Map (Hash "Tx") (Tx t, TxMeta), Wallet s t)
 applyBlocks blocks cp0 =
-    NE.scanl applyBlock' (mempty, cp0) blocks
-  where
-    applyBlock' (txs, cp) b = (txs <> txs', cp')
-      where
-        (txs', cp') = applyBlock b cp
+    NE.scanl (flip applyBlock . snd) (mempty, cp0) blocks
 
 newPending
     :: (Tx t, TxMeta)
