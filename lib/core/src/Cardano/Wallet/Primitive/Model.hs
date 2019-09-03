@@ -82,8 +82,6 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
     ()
-import Data.List.NonEmpty
-    ( NonEmpty )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -208,17 +206,11 @@ applyBlock !b (Wallet !u !pending _ s bh) =
   where
     pendingExcluding_ = pendingExcluding (Proxy @t)
 
--- | Apply multiple blocks in sequence to an existing wallet.
+-- | Apply multiple blocks in sequence to an existing wallet, returning a list
+--   of intermediate wallet states.
 --
--- Returns a non-empty list of intermediate wallet states where:
---
---   * the /initial element/ is the original wallet state;
---
---   * each /successive element/ is the result of applying the next available
---     unprocessed block from the original list to the previous element;
---
---   * the /final element/ is the state obtained by applying all blocks from
---     the specified list, in order, to the original wallet state.
+-- Each intermediate wallet state is paired with the set of transactions that
+-- belong to that state but not the previous state.
 --
 -- For an original wallet state __@w@__ and a list of blocks __@b@__ such that:
 --
@@ -226,16 +218,24 @@ applyBlock !b (Wallet !u !pending _ s bh) =
 --
 -- Returns the following list of updates:
 --
--- > w :| [w + b1, w + b1 + b2, ..., w + b1 + b2 + ... + bn)]
+-- > [ (t b1, w + b1)
+-- > , (t b2, w + b1 + b2)
+-- > , ...
+-- > , (t bn, w + b1 + b2 + ... + bn) ]
 --
--- Where __@w + bi@__ is equivalent to 'applyBlock' __@bi w@__.
+-- Where:
+--
+-- * __@(t bi)@__   is the set of transactions contained within block __@bi@__.
+-- * __@(w + bi)@__ is the wallet state after applying block __@bi@__ to wallet
+--   __@w@__.
+--
 applyBlocks
     :: forall s t. (DefineTx t)
     => [Block (Tx t)]
     -> Wallet s t
-    -> NonEmpty (Map (Hash "Tx") (Tx t, TxMeta), Wallet s t)
+    -> [(Map (Hash "Tx") (Tx t, TxMeta), Wallet s t)]
 applyBlocks blocks cp0 =
-    NE.scanl (flip applyBlock . snd) (mempty, cp0) blocks
+    NE.tail $ NE.scanl (flip applyBlock . snd) (mempty, cp0) blocks
 
 newPending
     :: (Tx t, TxMeta)

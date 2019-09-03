@@ -57,7 +57,7 @@ import Control.Monad.Trans.State.Strict
 import Data.Foldable
     ( fold )
 import Data.Maybe
-    ( catMaybes )
+    ( catMaybes, fromMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -162,7 +162,6 @@ prop_applyBlockBasic s =
             (availableBalance wallet === balance utxo') .&&.
             (totalBalance wallet === balance utxo')
 
-
 -- Each transaction must have at least one output belonging to us
 prop_applyBlockTxHistoryIncoming :: WalletState -> Property
 prop_applyBlockTxHistoryIncoming s =
@@ -171,7 +170,7 @@ prop_applyBlockTxHistoryIncoming s =
     cp0 = initWallet @_ @DummyTarget block0 s
     txs_cps = applyBlocks blockchain cp0
     txs = Map.elems $ fold $ fst <$> txs_cps
-    s' = getState $ NE.last $ snd <$> txs_cps
+    s' = getState $ fromMaybe cp0 $ safeLast $ snd <$> txs_cps
     isIncoming (_, m) = direction m == Incoming
     outs = Set.fromList . concatMap (map address . outputs . fst)
     overlaps a b
@@ -202,7 +201,7 @@ prop_applyBlocksBlockHeight s (NonNegative n) =
   where
     bs = take n blockchain
     wallet = initWallet @_ @DummyTarget block0 s
-    wallet' = snd $ NE.last $ applyBlocks bs wallet
+    wallet' = fromMaybe wallet $ safeLast $ snd <$> applyBlocks bs wallet
     bh = fromIntegral . unQuantity . blockHeight
     unQuantity (Quantity a) = a
 
@@ -211,6 +210,9 @@ prop_initialBlockHeight s =
     property $ blockHeight wallet === Quantity 0
   where
     wallet = initWallet @_ @DummyTarget block0 s
+
+safeLast :: [a] -> Maybe a
+safeLast = fmap NE.last . NE.nonEmpty
 
 {-------------------------------------------------------------------------------
                Basic Model - See Wallet Specification, section 3

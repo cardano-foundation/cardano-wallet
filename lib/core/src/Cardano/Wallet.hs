@@ -682,9 +682,7 @@ newWalletLayer tracer bp db nw tl = do
         DB.withLock db $ do
             (cp, meta) <- _readWallet wid
 
-            let txs_cp_pairs = NE.tail $ applyBlocks @s @t (NE.toList blocks) cp
-
-            forM_ txs_cp_pairs $ \(txs, cp') -> do
+            forM_ (applyBlocks @s @t (NE.toList blocks) cp) $ \(txs, cp') -> do
 
                 let progress = slotRatio epochLength slotLast nodeTip
                 let status' =
