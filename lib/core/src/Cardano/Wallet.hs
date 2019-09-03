@@ -150,8 +150,6 @@ import Cardano.Wallet.Transaction
     ( ErrMkStdTx (..), ErrValidateSelection, TransactionLayer (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
-import Control.Arrow
-    ( first )
 import Control.Concurrent
     ( ThreadId, forkIO, killThread, threadDelay )
 import Control.Concurrent.MVar
@@ -682,15 +680,8 @@ newWalletLayer tracer bp db nw tl = do
         -- there and they all succeed, or it's not and they all fail.
         DB.withLock db $ do
             (cp, meta) <- _readWallet wid
-            -- NOTE
-            -- We only process non-empty blocks, though we still keep the last
-            -- block of the list, even if empty, so that we correctly update the
-            -- current tip of the wallet state.
-            let nonEmpty = not . null . transactions
-            let (h, q) = first (filter nonEmpty) $
-                    NE.splitAt (length blocks - 1) blocks
-            liftIO $ logDebug t $ pretty (h ++ q)
-            let (txs, cp') = NE.last $ applyBlocks @s @t (h ++ q) cp
+            liftIO $ logDebug t $ pretty (NE.toList blocks)
+            let (txs, cp') = NE.last $ applyBlocks @s @t (NE.toList blocks) cp
             let progress = slotRatio epochLength sup tip
             let status' = if progress == maxBound
                     then Ready
