@@ -18,6 +18,7 @@
 -- top of an underlying @JormungandrLayer@ HTTP client.
 module Cardano.Wallet.Jormungandr.Network
     ( newNetworkLayer
+    , newNetworkLayer'
     , mkNetworkLayer
     , JormungandrLayer (..)
     , mkJormungandrLayer
@@ -124,9 +125,18 @@ newNetworkLayer
     :: forall n. ()
     => BaseUrl
     -> IO (NetworkLayer (Jormungandr n) IO)
-newNetworkLayer url = do
+newNetworkLayer = fmap snd . newNetworkLayer'
+
+-- | Creates a new 'NetworkLayer' connecting to an underlying 'Jormungandr'
+-- backend target. Also returns the internal 'JormungandrLayer' component.
+newNetworkLayer'
+    :: forall n. ()
+    => BaseUrl
+    -> IO (JormungandrLayer n IO, NetworkLayer (Jormungandr n) IO)
+newNetworkLayer' url = do
     mgr <- newManager defaultManagerSettings
-    return $ mkNetworkLayer $ mkJormungandrLayer @n mgr url
+    let jor = mkJormungandrLayer @n mgr url
+    return (jor, mkNetworkLayer jor)
 
 -- | Wrap a Jormungandr client into a 'NetworkLayer' common interface.
 mkNetworkLayer

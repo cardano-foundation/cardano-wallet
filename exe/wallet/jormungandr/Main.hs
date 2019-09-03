@@ -105,8 +105,6 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..), showT )
-import Network.HTTP.Client
-    ( defaultManagerSettings, newManager )
 import Network.Wai.Handler.Warp
     ( setBeforeMainLoop )
 import Options.Applicative
@@ -329,9 +327,7 @@ cmdServe = command "serve" $ info (helper <*> cmd) $ mempty
             -> IO (NetworkLayer t IO, BlockchainParameters t)
         newNetworkLayer (sb, tracer) = do
             let url = BaseUrl Http "localhost" (getPort nodePort) "/api"
-            mgr <- newManager defaultManagerSettings
-            let jor = Jormungandr.mkJormungandrLayer mgr url
-            let nl = Jormungandr.mkNetworkLayer jor
+            (jor, nl) <- Jormungandr.newNetworkLayer' url
             waitForService "Jörmungandr" (sb, tracer) nodePort $
                 waitForConnection nl defaultRetryPolicy
             blockchainParams <-
