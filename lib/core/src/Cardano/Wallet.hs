@@ -157,7 +157,7 @@ import Control.Concurrent.MVar
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( forM, unless )
+    ( forM, forM_, unless )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Class
@@ -172,8 +172,6 @@ import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
-import Data.Foldable
-    ( fold )
 import Data.Functor
     ( ($>) )
 import Data.Generics.Internal.VL.Lens
@@ -683,30 +681,32 @@ newWalletLayer tracer bp db nw tl = do
         -- there and they all succeed, or it's not and they all fail.
         DB.withLock db $ do
             (cp, meta) <- _readWallet wid
-            let txs_cp_pairs = applyBlocks @s @t (NE.toList blocks) cp
-            let txs = fold $ fst <$> txs_cp_pairs
-            let cp' = snd $ NE.last txs_cp_pairs
-            let progress = slotRatio epochLength slotLast nodeTip
-            let status' =
-                    if progress == maxBound
-                    then Ready
-                    else Restoring progress
-            let meta' = meta { status = status' } :: WalletMetadata
-            let nPending = Set.size (getPending cp')
-            let (Quantity bh) = blockHeight cp'
 
-            liftIO $ do
-                logDebug t $ pretty (NE.toList blocks)
-                logInfo t $ pretty meta'
-                logInfo t $ nPending ||+" transaction(s) pending."
-                logInfo t $ length txs ||+ " new transaction(s) discovered."
-                logInfo t $ "block height is " +|| bh ||+ ""
-                unless (null txs) $ logDebug t $
-                    pretty $ blockListF (snd <$> Map.elems txs)
+            let txs_cp_pairs = NE.tail $ applyBlocks @s @t (NE.toList blocks) cp
 
-            DB.putCheckpoint db (PrimaryKey wid) cp'
-            DB.putTxHistory db (PrimaryKey wid) txs
-            DB.putWalletMeta db (PrimaryKey wid) meta'
+            forM_ txs_cp_pairs $ \(txs, cp') -> do
+
+                let progress = slotRatio epochLength slotLast nodeTip
+                let status' =
+                        if progress == maxBound
+                        then Ready
+                        else Restoring progress
+                let meta' = meta { status = status' } :: WalletMetadata
+                let nPending = Set.size (getPending cp')
+                let (Quantity bh) = blockHeight cp'
+
+                liftIO $ do
+                    logDebug t $ pretty (NE.toList blocks)
+                    logInfo t $ pretty meta'
+                    logInfo t $ nPending ||+" transaction(s) pending."
+                    logInfo t $ length txs ||+ " new transaction(s) discovered."
+                    logInfo t $ "block height is " +|| bh ||+ ""
+                    unless (null txs) $ logDebug t $
+                        pretty $ blockListF (snd <$> Map.elems txs)
+
+                DB.putCheckpoint db (PrimaryKey wid) cp'
+                DB.putTxHistory db (PrimaryKey wid) txs
+                DB.putWalletMeta db (PrimaryKey wid) meta'
 
     {---------------------------------------------------------------------------
                                      Addresses
