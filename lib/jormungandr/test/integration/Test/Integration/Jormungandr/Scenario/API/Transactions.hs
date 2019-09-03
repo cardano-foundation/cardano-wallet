@@ -8,8 +8,8 @@
 module Test.Integration.Jormungandr.Scenario.API.Transactions
     ( spec
     , fixtureExternalTx
-    , encodeTx
     , ExternalTxFixture (..)
+    , encodeTx
     ) where
 
 import Prelude
@@ -173,10 +173,48 @@ spec = do
              ]
 
     it "TRANS_EXTERNAL_CREATE_01 - proper single output transaction and \
-       \proper binary format - octet-stream" $ \ctx -> do
-        postExternalTxTest ctx
+       \proper binary format" $ \ctx -> do
+        let toSend = 1 :: Natural
+        (ExternalTxFixture wSrc wDest fee txWits) <-
+                fixtureExternalTx ctx toSend
+        let baseOk = Base64
+        let encodedSignedTx = encodeTx txWits MsgTypeTransaction baseOk
+        let payload = NonJson . BL.fromStrict . toRawBytes baseOk
+        let headers = Headers [ ("Content-Type", "application/octet-stream") ]
+        r <- request
+            @ApiTxId ctx postExternalTxEp headers (payload encodedSignedTx)
+        verify r
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        rb <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
+        verify rb
+            [ expectSuccess
+            , expectEventually ctx balanceAvailable toSend
+            ]
+        ra <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
+        verify ra
+            [ expectEventually ctx balanceAvailable (faucetAmt - fee - toSend)
+            ]
 
     it "TRANS_EXTERNAL_CREATE_02 - proper single output transaction and \
+       \improper binary format" $ \ctx -> do
+        let toSend = 1 :: Natural
+        (ExternalTxFixture _ _ _ txWits) <-
+                fixtureExternalTx ctx toSend
+        let baseWrong = Base16
+        let wronglyEncodedTx = encodeTx txWits MsgTypeTransaction baseWrong
+        let headers = Headers [ ("Content-Type", "application/octet-stream") ]
+        let payloadWrong = NonJson . BL.fromStrict . T.encodeUtf8
+        r1 <- request
+            @ApiTxId ctx postExternalTxEp headers (payloadWrong wronglyEncodedTx)
+        verify r1
+            [ expectErrorMessage errMsg400MalformedTxPayload
+            , expectResponseCode HTTP.status400
+            ]
+
+    it "TRANS_EXTERNAL_CREATE_03 - proper single output transaction and \
        \wrong binary format" $ \ctx -> do
         let toSend = 1 :: Natural
         (ExternalTxFixture _ _ _ txWits) <- fixtureExternalTx ctx toSend
@@ -236,53 +274,9 @@ spec = do
             }|]
         return (wSrc, payload)
 
-    postExternalTxTest ctx = do
-        let toSend = 1 :: Natural
-        (ExternalTxFixture wSrc wDest fee txWits) <-
-                fixtureExternalTx ctx toSend
-        let baseOk = Base64
-        let encodedSignedTx = encodeTx txWits MsgTypeTransaction baseOk
-        let payload = NonJson . BL.fromStrict . toRawBytes baseOk
-        let headers = Headers [ ("Content-Type", "application/octet-stream") ]
-        r <- request
-            @ApiTxId ctx postExternalTxEp headers (payload encodedSignedTx)
-        verify r
-            [ expectSuccess
-            , expectResponseCode HTTP.status202
-            ]
-
-        rb <- request @ApiWallet ctx (getWalletEp wDest) Default Empty
-        verify rb
-            [ expectSuccess
-            , expectEventually ctx balanceAvailable toSend
-            ]
-        ra <- request @ApiWallet ctx (getWalletEp wSrc) Default Empty
-        verify ra
-            [ expectEventually ctx balanceAvailable (faucetAmt - fee - toSend)
-            ]
-
-        let baseWrong = Base16
-        let wronglyEncodedTx = encodeTx txWits MsgTypeTransaction baseWrong
-        let payloadWrong = NonJson . BL.fromStrict . T.encodeUtf8
-        r1 <- request
-            @ApiTxId ctx postExternalTxEp headers (payloadWrong wronglyEncodedTx)
-        verify r1
-            [ expectErrorMessage errMsg400MalformedTxPayload
-            , expectResponseCode HTTP.status400
-            ]
-
     toRawBytes base bs = case convertFromBase base (T.encodeUtf8 bs) of
         Left err -> error err
         Right res -> res
-
-
-encodeTx :: (Tx, [TxWitness]) -> MessageType -> Base -> Text
-encodeTx (tx, wits) msgType base =
-    T.decodeUtf8 $ convertToBase base $ BL.toStrict $ encode (tx, wits) msgType
-  where
-    encode ((Tx _ inps' outs'), wits') msgType' = runPut
-        $ withHeader msgType'
-        $ putSignedTx inps' outs' wits'
 
 data ExternalTxFixture = ExternalTxFixture
     { srcWallet :: ApiWallet
@@ -385,3 +379,11 @@ fixtureExternalTx ctx toSend = do
              , mkSeqState @(Jormungandr 'Testnet)
                (rootXPrv, pwd) defaultAddressPoolGap
              )
+
+encodeTx :: (Tx, [TxWitness]) -> MessageType -> Base -> Text
+encodeTx (tx, wits) msgType base =
+    T.decodeUtf8 $ convertToBase base $ BL.toStrict $ encode (tx, wits) msgType
+  where
+    encode ((Tx _ inps' outs'), wits') msgType' = runPut
+        $ withHeader msgType'
+        $ putSignedTx inps' outs' wits'

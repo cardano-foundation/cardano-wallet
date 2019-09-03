@@ -93,6 +93,10 @@ spec = do
             , expectCliFieldEqual balanceTotal toSend
             ]
 
+    it "TRANS_EXTERNAL_CREATE_02 - proper single output transaction and \
+       \improper binary format" $ \ctx -> do
+        let toSend = 1 :: Natural
+        (ExternalTxFixture _ _ _ txWits) <- fixtureExternalTx @t ctx toSend
         let baseWrong = Base64
         let argWrong = T.unpack $ encodeTx txWits MsgTypeTransaction baseWrong
         -- post external transaction
@@ -102,7 +106,7 @@ spec = do
         out1 `shouldBe` ""
         code1 `shouldBe` ExitFailure 1
 
-    it "TRANS_EXTERNAL_CREATE_02 - proper single output transaction and \
+    it "TRANS_EXTERNAL_CREATE_03 - proper single output transaction and \
        \wrong binary format" $ \ctx -> do
         let toSend = 1 :: Natural
         (ExternalTxFixture _ _ _ txWits) <- fixtureExternalTx ctx toSend

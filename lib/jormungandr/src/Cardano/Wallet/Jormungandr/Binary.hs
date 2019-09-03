@@ -143,7 +143,6 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 
-
 -- maximum number of inputs in a valid transaction
 maxNumberOfInputs :: Int
 maxNumberOfInputs = 255
