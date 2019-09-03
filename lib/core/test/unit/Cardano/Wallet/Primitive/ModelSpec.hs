@@ -70,6 +70,7 @@ import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , NonNegative (..)
     , Property
     , checkCoverage
     , choose
@@ -115,6 +116,8 @@ spec = do
         it "applyBlock increases the blockHeight"
             (property prop_applyBlockBlockHeight)
 
+        it "applyBlocks increases the blockHeight"
+            (property prop_applyBlocksBlockHeight)
 
 {-------------------------------------------------------------------------------
                                 Properties
@@ -189,6 +192,17 @@ prop_applyBlockBlockHeight (ApplyBlock s _ b) =
     wallet = initWallet @_ @DummyTarget block0 s
     wallet' = snd $ applyBlock b wallet
     mapQuantity f (Quantity a) = Quantity $ f a
+
+-- | applyBlocks increases the block height by the number of blocks applied.
+prop_applyBlocksBlockHeight :: WalletState -> NonNegative Int -> Property
+prop_applyBlocksBlockHeight s (NonNegative n) =
+    bh wallet' - bh wallet === length bs
+  where
+    bs = take n blockchain
+    wallet = initWallet @_ @DummyTarget block0 s
+    wallet' = snd $ NE.last $ applyBlocks bs wallet
+    bh = fromIntegral . unQuantity . blockHeight
+    unQuantity (Quantity a) = a
 
 prop_initialBlockHeight :: WalletState -> Property
 prop_initialBlockHeight s =
